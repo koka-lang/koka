@@ -92,7 +92,17 @@ move_outputs() {
   info "Moving bundles to output dir"
 
   mkdir -p "$CALLER_DIR/bundle"
-  mv $TEMP_DIR/* "$CALLER_DIR/bundle"
+  # For each file in the temp dir
+  for file in $TEMP_DIR/*; do
+    file_bundle_version=$(tar -Oxf "$file" meta/version)
+    if [ -z "$file_bundle_version" ]; then
+      stop "Failed to extract version from bundle while moving"
+    fi
+
+    move_target_dir="$CALLER_DIR/bundle/$file_bundle_version/archives"
+    mkdir -p "$move_target_dir"
+    mv "$file" "$move_target_dir"
+  done
 
   if [ $? -ne 0 ]; then
     stop "Failed to move output"
@@ -104,18 +114,22 @@ move_outputs() {
 package_outputs() {
   info "Packaging bundles"
 
-  for target in $BUILD_TARGETS; do
-    bundleloc="$CALLER_DIR/bundle/koka-v*-$target-*.tar.gz"
-
+  foundbundles="$CALLER_DIR/bundle/**/archives/*.tar.gz"
+  
+  for bundleloc in $foundbundles; do
     # Check if the bundle exists
     if [ ! -f $bundleloc ]; then
       stop "Bundle not found at $bundleloc"
+    else
+      info "Packaging $bundleloc"
     fi
 
-    ./package.sh -o="$CALLER_DIR" -t="$target" $bundleloc
+    file_bundle_distro=$(tar -Oxf "$bundleloc" meta/distro)
+
+    ./package.sh -o="$CALLER_DIR" -t="$file_bundle_distro" $bundleloc
 
     if [ $? -ne 0 ]; then
-      stop "Failed to package $target"
+      stop "Failed to package $bundleloc"
     fi
   done
 
@@ -130,6 +144,7 @@ main_build() {
 
   # If mode is not packageonly
   if [ "$MODE" != "packageonly" ]; then
+    ensure_tar
     ensure_kvm
     ensure_docker
     ensure_docker_multiarch "$BUILD_ARCHITECTURES"

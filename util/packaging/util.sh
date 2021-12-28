@@ -74,6 +74,12 @@ auto_temp_dir() {
 
 #------------------------------------------------------------------------------
 
+ensure_tar() {
+  if ! has_cmd tar; then
+    stop "The tar command is not installed"
+  fi
+}
+
 ensure_kvm() {
   virtualization=$(lscpu | grep -i "virtualization" | awk '{print $2}')
 

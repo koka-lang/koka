@@ -109,14 +109,16 @@ build_koka() {
 bundle_koka() {
   info "Bundling koka"
 
-  postfix="v$KOKA_VERSION-$DISTRO-$ARCHITECTURE"
+  mkdir -p "./extra-meta"
+  echo "$DISTRO" > ./extra-meta/distro
+  echo "$GLIBC_VERSION" > ./extra-meta/libc
 
   status=1
   if [ "$BUILD_MODE" = "stack" ]; then
-    script --return --quiet -c "stack exec koka -- -e util/bundle -- --postfix=\"\\\"$postfix\\\"\"" /dev/null
+    script --return --quiet -c "stack exec koka -- -e util/bundle -- --metadata=\"./extra-meta\" --postfix=\"temp\"" /dev/null
     status=$?
   elif [ "$BUILD_MODE" = "cabal" ]; then
-    script --return --quiet -c "cabal new-run koka -- -e util/bundle -- --postfix=\"\\\"$postfix\\\"\"" /dev/null
+    script --return --quiet -c "cabal new-run koka -- -e util/bundle -- --metadata=\"./extra-meta\" --postfix=\"temp\"" /dev/null
     status=$?
   fi
 
@@ -127,17 +129,33 @@ bundle_koka() {
   info "Koka bundled"
 }
 
-export_build() {
-  info "Exporting build"
+rename_and_export_bundle() {
+  info "Renaming and exporting bundle"
 
-  cp ./bundle/*.tar.gz /output/
+  bundleloc=$(find ./bundle -name "koka-temp.tar.gz")
+  if [ -z "$bundleloc" ]; then
+    stop "Failed to find bundle"
+  fi
 
+  ARCHITECTURE=$(tar -Oxf "$bundleloc" meta/arch)
+  KOKA_VERSION=$(tar -Oxf "$bundleloc" meta/version)
+
+  # If either of these are empty, we have a problem
+  if [ -z "$ARCHITECTURE" ] || [ -z "$KOKA_VERSION" ]; then
+    stop "Failed to find architecture or version"
+  fi
+
+  # Get dir from bundleloc
+  new_dir=$()
+  new_name="koka-$KOKA_VERSION-$DISTRO-$ARCHITECTURE.tar.gz"
+  mv "$bundleloc" "/output/$new_name"
   if [ $? -ne 0 ]; then
     stop "Failed to export bundle"
   fi
 
-  info "Exported build"
+  info "Bundle renamed to $new_name, and exported"
 }
+
 
 full_build() {
   info "Starting build"
@@ -146,18 +164,15 @@ full_build() {
 
   build_koka
 
-  ARCHITECTURE=$(get_koka_arch)
-  KOKA_VERSION=$(get_koka_version)
-
   bundle_koka
+
+  rename_and_export_bundle
 
   info "Koka version: $KOKA_VERSION"
   info "Build mode: $BUILD_MODE"
   info "Distro: $DISTRO"
   info "GLIBC Version: $GLIBC_VERSION"
   info "Architecture: $ARCHITECTURE"
-
-  export_build
 
   info "Build finished"
 }
