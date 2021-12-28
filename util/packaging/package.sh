@@ -134,7 +134,7 @@ build_package() {
     bin/koka=bin/koka lib/koka=lib/ share/koka=share/"
 
   # Build the package                                                             /bin/bash -c "fpm $fpm_arguments"
-  docker run --rm -v "$EXTRACTED_BUNDLE_DIR:/source:z" -v "$BUILT_PACKAGE_DIR:/build:z" fpm -c "fpm $fpm_arguments"
+  docker run -it --rm -v "$EXTRACTED_BUNDLE_DIR:/source:z" -v "$BUILT_PACKAGE_DIR:/build:z" fpm -c "fpm $fpm_arguments"
 
   if [ $? -ne 0 ]; then
     stop "Package build did not return successfully"

@@ -73,7 +73,7 @@ run_docker_images() {
 
     # Build the docker image
     # (Maybe properly fix SELINUX here?)
-    docker run $quiet_param --rm --arch $_build_arch \
+    docker run $quiet_param -it --rm --arch $_build_arch \
       --cap-add SYS_ADMIN --security-opt label=disable \
       --tmpfs /tmp/overlay \
       -v "$(pwd)/$KOKA_SOURCE_LOCATION":/code:ro \
@@ -115,7 +115,7 @@ package_outputs() {
   info "Packaging bundles"
 
   foundbundles="$CALLER_DIR/bundle/**/archives/*.tar.gz"
-  
+
   for bundleloc in $foundbundles; do
     # Check if the bundle exists
     if [ ! -f $bundleloc ]; then
