@@ -44,10 +44,13 @@ build_docker_images() {
   for target in $BUILD_TARGETS; do
     info "Building docker image for $target"
 
-    # Build the docker image
-    docker build $quiet_param -t koka-$target \
-      --arch $_build_arch --security-opt label=disable \
-      -f "./$target.Dockerfile" ./distros
+    # Build the docker image, subshell to help with buildkit
+    (
+      cd ./distros
+      docker build $quiet_param -t koka-$target \
+        --arch $_build_arch --security-opt label=disable \
+        -f "./$target.Dockerfile" .
+    )
 
     if [ $? -ne 0 ]; then
       stop "Failed to build docker image for $target"
