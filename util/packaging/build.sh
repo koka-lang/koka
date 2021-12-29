@@ -45,7 +45,7 @@ build_docker_images() {
     info "Building docker image for $target"
 
     arch_opt=$(docker_generate_arch_flags "$build_arch")
-    selinux_opt=$(docker_generate_selinux_flags)
+    selinux_opt=$(docker_generate_selinux_flags build)
 
     # Build the docker image, subshell to help with buildkit
     (
@@ -74,7 +74,7 @@ run_docker_images() {
   fi
 
   arch_opt=$(docker_generate_arch_flags "$build_arch")
-  selinux_opt=$(docker_generate_selinux_flags)
+  selinux_opt=$(docker_generate_selinux_flags run)
 
   # For each target
   for target in $BUILD_TARGETS; do

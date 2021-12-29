@@ -120,7 +120,7 @@ normalize_osarch() {
   fi
 
   case "$arch" in
-  x86_64* | amd64*)
+  x86_64* | amd64* | x64*)
     arch="amd64"
     ;;
   x86* | i[35678]86*)
@@ -179,13 +179,29 @@ get_docker_architecture() {
   echo $arch
 }
 
+docker_uses_selinux() {
+  docker_result=$(docker info | grep -i "selinuxEnabled: true")
+
+  if [ -z "$docker_result" ]; then
+    return 1
+  else
+    return 0
+  fi
+}
+
 docker_generate_selinux_flags() {
-  if has_selinux_and_enabled; then
-    if docker_flag_exists "run" "--security-opt"; then
+  docker_subcommand="$1"
+
+  if [ -z "$docker_subcommand" ]; then
+    stop "No subcommand specified"
+  fi
+
+  if has_selinux_and_enabled && docker_uses_selinux; then
+    if docker_flag_exists $docker_subcommand "--security-opt"; then
       echo "--security-opt label=disable"
     else
       warn "SELinux is enabled, but Docker does not support SELinux flags"
-      wanr "This might cause problems, but we will try anyway"
+      warn "This might cause problems, but we will try anyway"
     fi
   fi
 }
@@ -239,10 +255,10 @@ test_docker_multiarch() {
     fi
 
     arch_opt=$(docker_generate_arch_flags "$test_architecture")
-    selinux_opt=$(docker_generate_selinux_flags)
+    selinux_opt=$(docker_generate_selinux_flags run)
 
     # I have no clue why tr -d '\r' is needed, but copilot put it there, and if i remove it it breaks
-    test_output=$(docker run --rm $arch_opt $selinux_opt -t alpine uname -o | tail -n 1 | tr -d '\r')
+    test_output=$(docker run -q --rm $arch_opt $selinux_opt -t alpine uname -o | tail -n 1 | tr -d '\r')
 
     if [ "$test_output" != "Linux" ]; then
       return 1
@@ -278,13 +294,13 @@ ensure_docker_multiarch() {
     if [ $? -ne 0 ]; then
       stop "Failed to install multiarch"
     fi
-  fi
 
-  info "Verifying multiarch installation"
+    info "Verifying multiarch installation"
 
-  test_docker_multiarch "$test_architectures"
-  if [ $? -ne 0 ]; then
-    stop "Multiarch failed to install"
+    test_docker_multiarch "$test_architectures"
+    if [ $? -ne 0 ]; then
+      stop "Multiarch failed to install"
+    fi
   fi
 
   info "Multiarch installed successfully"
