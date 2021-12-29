@@ -38,7 +38,7 @@ switch_workdir_to_script() {
   if [ -z "$CALLER_DIR" ]; then
     CALLER_DIR=$(pwd)
   fi
-  
+
   cd "$(dirname "$0")"
 }
 
@@ -105,7 +105,11 @@ test_docker_multiarch() {
     stop "No architectures to test specified"
   fi
 
-  this_arch=$(docker info | fgrep -m 1 "arch: " | awk '{print $2}')
+  this_arch=$(docker info | fgrep -i -m 1 "arch: " | awk '{print $2}')
+
+  if [ -z "$this_arch" ]; then
+    this_arch=$(docker info | fgrep -i -m 1 "architecture: " | awk '{print $2}')
+  fi
 
   if [ -z "$this_arch" ]; then
     stop "Failed to determine docker architecture"
@@ -137,7 +141,7 @@ ensure_docker_multiarch() {
   test_docker_multiarch "$_test_architectures"
   if [ $? -ne 0 ]; then
     info "Multiarch not installed, installing..."
-    
+
     # If not root
     if [ "$(id -u)" != "0" ]; then
       info "To install multiarch, root is needed, sudo will ask for your password now."
