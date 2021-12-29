@@ -148,6 +148,7 @@ package_outputs() {
 main_build() {
   info "Starting builds"
   switch_workdir_to_script
+  verify_ran_from_reporoot
 
   clean_workdir
 

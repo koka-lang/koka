@@ -197,23 +197,24 @@ Currently this option is linux only for now
 
 Supported Distributions:
 
-* Fedora 34
-* Fedora 35
+* Fedora 34, 35
 * RHEL 8
 * Debian 10, 11
 * Ubuntu 18.04, 20.04, 22.04
 * PopOS 20.04, 21.10
 * Linux Mint 19.3, 20.2
 * Arch Linux
-* OpenSUSE Tumbleweed and Leap 15.3
+* OpenSUSE Tumbleweed, Leap 15.3
 
 ## Requirements
 
-The only requirement to build and package koka is Docker.
+* Docker or Podman
+* tar
+* bash
 
 ## How to build
 
-To build every possible package automatically you can run this script from the root of this git.
+To build every possible package automatically you can run this script from the root of this repository.
 
 ```sh
 $ ./util/packaging/build.sh
@@ -222,7 +223,7 @@ $ ./util/packaging/build.sh
 To specify which versions you want to build and package you can use `--target="target1 target2"`.
 You can also specify whether to only build or only package with `--package="no"` or `--package="only"`.
 
-After running the script there should now be distro specific bundles in `./bundles`, and installable packages in `./packages/$koka_version`.
+After running the script there should now be distro specific bundles in `./bundle/$version/archives`, and installable packages in `./bundle/$version/packages`.
 
 ## Notes
 

@@ -255,6 +255,7 @@ move_packages() {
 main_package() {
   info "Starting packaging"
   switch_workdir_to_script
+  verify_ran_from_reporoot
 
   ensure_docker
 

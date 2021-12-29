@@ -72,6 +72,24 @@ auto_temp_dir() {
   trap cleanup_temp_dir EXIT
 }
 
+verify_ran_from_reporoot() {
+  if [ -z "$CALLER_DIR" ]; then
+    stop "There is an error in the script"
+  fi
+
+  # Check if ./koka.cabal exists
+  if [ ! -f "$CALLER_DIR/koka.cabal" ]; then
+    warn "It is recommended you run this script from the repository root"
+
+    # Ask user
+    read -p "Do you wish to continue anyway? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      stop "Exiting"
+    fi
+  fi
+}
+
 #------------------------------------------------------------------------------
 
 ensure_tar() {
