@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SUPPORTED_TARGETS="rhel debian arch alpine opensuse"
-SUPPORTED_ARCHITECTURES="amd64 arm64" # arm64
+SUPPORTED_ARCHITECTURES="amd64" # arm64
 
 #---------------------------------------------------------
 # Variables
