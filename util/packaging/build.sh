@@ -37,14 +37,14 @@ build_docker_images() {
 
   quiet_param=""
   if [ -n "$QUIET" ]; then
-    quiet_param="-q"
+    quiet_param=$(docker_generate_quiet_flags build)
   fi
 
   # For each target
   for target in $BUILD_TARGETS; do
     info "Building docker image for $target"
 
-    arch_opt=$(docker_generate_arch_flags "$build_arch")
+    arch_opt=$(docker_generate_arch_flags build "$build_arch")
     selinux_opt=$(docker_generate_selinux_flags build)
 
     # Build the docker image, subshell to help with buildkit
@@ -70,10 +70,10 @@ run_docker_images() {
 
   quiet_param=""
   if [ -n "$QUIET" ]; then
-    quiet_param="-q"
+    quiet_param=$(docker_generate_quiet_flags run)
   fi
 
-  arch_opt=$(docker_generate_arch_flags "$build_arch")
+  arch_opt=$(docker_generate_arch_flags run "$build_arch")
   selinux_opt=$(docker_generate_selinux_flags run)
 
   # For each target

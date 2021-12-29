@@ -191,7 +191,6 @@ docker_uses_selinux() {
 
 docker_generate_selinux_flags() {
   docker_subcommand="$1"
-
   if [ -z "$docker_subcommand" ]; then
     stop "No subcommand specified"
   fi
@@ -207,17 +206,32 @@ docker_generate_selinux_flags() {
 }
 
 docker_generate_arch_flags() {
-  docker_arch=$1
+  docker_subcommand="$1"
+  if [ -z "$docker_subcommand" ]; then
+    stop "No subcommand specified"
+  fi
+  docker_arch=$2
   if [ -z "$docker_arch" ]; then
     stop "No architecture specified"
   fi
 
-  if docker_flag_exists "run" "--arch"; then
+  if docker_flag_exists "$docker_subcommand" "--arch"; then
     echo "--arch $docker_arch"
-  elif docker_flag_exists "run" "--platform"; then
+  elif docker_flag_exists "$docker_subcommand" "--platform"; then
     echo "--platform $docker_arch"
   else
     stop "Docker does not support specifying an architecture"
+  fi
+}
+
+docker_generate_quiet_flags() {
+  docker_subcommand="$1"
+  if [ -z "$docker_subcommand" ]; then
+    stop "No subcommand specified"
+  fi
+
+  if docker_flag_exists "$docker_subcommand" "--quiet"; then
+    echo "--quiet"
   fi
 }
 
@@ -254,11 +268,12 @@ test_docker_multiarch() {
       continue
     fi
 
-    arch_opt=$(docker_generate_arch_flags "$test_architecture")
+    quiet_opt=$(docker_generate_quiet_flags run)
+    arch_opt=$(docker_generate_arch_flags run "$test_architecture")
     selinux_opt=$(docker_generate_selinux_flags run)
 
     # I have no clue why tr -d '\r' is needed, but copilot put it there, and if i remove it it breaks
-    test_output=$(docker run -q --rm $arch_opt $selinux_opt -t alpine uname -o | tail -n 1 | tr -d '\r')
+    test_output=$(docker run $quiet_opt --rm $arch_opt $selinux_opt -t alpine uname -o | tail -n 1 | tr -d '\r')
 
     if [ "$test_output" != "Linux" ]; then
       return 1
