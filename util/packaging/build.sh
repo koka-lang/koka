@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SUPPORTED_TARGETS="rhel debian arch alpine opensuse"
-SUPPORTED_ARCHITECTURES="amd64" # arm64
+SUPPORTED_ARCHITECTURES="amd64 arm64" # arm64
 
 #---------------------------------------------------------
 # Variables
@@ -31,9 +31,9 @@ clean_workdir() {
 }
 
 build_docker_images() {
-  _build_arch="$1"
+  build_arch="$1"
 
-  info "Building docker images for $_build_arch"
+  info "Building docker images for $build_arch"
 
   quiet_param=""
   if [ -n "$QUIET" ]; then
@@ -44,11 +44,14 @@ build_docker_images() {
   for target in $BUILD_TARGETS; do
     info "Building docker image for $target"
 
+    arch_opt=$(docker_generate_arch_flags "$build_arch")
+    selinux_opt=$(docker_generate_selinux_flags)
+
     # Build the docker image, subshell to help with buildkit
     (
       cd ./distros
       docker build $quiet_param -t koka-$target \
-        --arch $_build_arch --security-opt label=disable \
+        $arch_opt $selinux_opt \
         -f "./$target.Dockerfile" .
     )
 
@@ -61,14 +64,17 @@ build_docker_images() {
 }
 
 run_docker_images() {
-  _build_arch="$1"
+  build_arch="$1"
 
-  info "Compiling os specific packages for $_build_arch"
+  info "Compiling os specific packages for $build_arch"
 
   quiet_param=""
   if [ -n "$QUIET" ]; then
     quiet_param="-q"
   fi
+
+  arch_opt=$(docker_generate_arch_flags "$build_arch")
+  selinux_opt=$(docker_generate_selinux_flags)
 
   # For each target
   for target in $BUILD_TARGETS; do
@@ -76,8 +82,8 @@ run_docker_images() {
 
     # Build the docker image
     # (Maybe properly fix SELINUX here?)
-    docker run $quiet_param -it --rm --arch $_build_arch \
-      --cap-add SYS_ADMIN --security-opt label=disable \
+    docker run $quiet_param -it --rm $arch_opt \
+      --cap-add SYS_ADMIN $selinux_opt \
       --tmpfs /tmp/overlay \
       -v "$(pwd)/$KOKA_SOURCE_LOCATION":/code:ro \
       -v "$TEMP_DIR:/output:z" \
@@ -148,7 +154,7 @@ main_build() {
   # If mode is not packageonly
   if [ "$MODE" != "packageonly" ]; then
     ensure_tar
-    ensure_kvm
+    #ensure_kvm # Not necessary, virtualization is userspace
     ensure_docker
     ensure_docker_multiarch "$BUILD_ARCHITECTURES"
 
@@ -188,10 +194,10 @@ process_options() {
     case "$flag" in
     "") break ;;
     -t=* | --targets=*)
-      BUILD_TARGETS="$flag_arg"
+      BUILD_TARGETS=$(echo "$flag_arg" | tr "," "\n")
       ;;
     -a=* | --architectures=*)
-      BUILD_ARCHITECTURES="$flag_arg"
+      BUILD_ARCHITECTURES=$(echo "$flag_arg" | tr "," "\n")
       ;;
     -p=* | --package=*)
       if [ "$flag_arg" == "yes" ]; then
@@ -218,14 +224,10 @@ process_options() {
     shift
   done
 
-  if [ "$MODE" == "help" ]; then
-    return
-  fi
+  if [ "$MODE" == "help" ]; then return; fi
 
   # Default mode is package
-  if [ -z "$MODE" ]; then
-    MODE="package"
-  fi
+  if [ -z "$MODE" ]; then MODE="package"; fi
 
   if [ -z "$BUILD_TARGETS" ]; then
     BUILD_TARGETS="$SUPPORTED_TARGETS"
@@ -242,6 +244,13 @@ process_options() {
     BUILD_ARCHITECTURES="$SUPPORTED_ARCHITECTURES"
   fi
 
+  # map build_archtectures with the normalize_osarch() funciton
+  tempvar="$BUILD_ARCHITECTURES"
+  BUILD_ARCHITECTURES=""
+  for build_arch in $tempvar; do
+    BUILD_ARCHITECTURES="$BUILD_ARCHITECTURES $(normalize_osarch $build_arch)"
+  done
+
   # Check if BUILD_ARCHITECTURES is in SUPPORTED_ARCHITECTURES
   for arch in $BUILD_ARCHITECTURES; do
     if [ -z "$(echo $SUPPORTED_ARCHITECTURES | grep $arch)" ]; then
@@ -255,9 +264,9 @@ main_help() {
   info "  ./build.sh [options] <bundle file>"
   info ""
   info "options:"
-  info "  -t, --targets=<target target>   Specify the targets to build for"
+  info "  -t, --targets=<target,target>   Specify the targets to build for"
   info "                                  ($SUPPORTED_TARGETS)"
-  info "  -a, --architectures=<arch>      Specify the architectures to build for"
+  info "  -a, --architectures=<arch,arch> Specify the architectures to build for"
   info "                                  ($SUPPORTED_ARCHITECTURES)"
   info "  -p, --package=<yes|no|only>     Package the bundle after building"
   info "  -q, --quiet                     Suppress output"
