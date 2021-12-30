@@ -1,0 +1,35 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="initial-scale=1.0" />
+
+<style type="text/css">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>
+<link rel="stylesheet" type="text/css" href="styles/koka.css" />
+
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Nunito:400,400italic,700,700italic" />
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic" />
+
+<title>std/os/readline documentation</title>
+</head>
+
+<body class="koka doc body madoko">
+<h1><a class="link" href="https://koka-lang.github.io/koka/doc/std_os_readline-source.html"><span class="mo">std<span class="fslash">/</span>os<span class="fslash">/</span>readline</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
+<div class="toc code"><ul class="toc"><li><a class="link" href="#readline"><span class="kw">fun</span>&nbsp;readline</a></li></ul></div>
+<div class="doc koka comment">
+
+<p class="p noindent"><h1 class="synopsis">Read input from stdin.
+</h1>.
+</p></div>
+<div class="decl" id="readline"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_os_readline-source.html#readline">readline</a></span>()<span class="tp sp">:</span>&nbsp;<span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_console"><span class="tp">console</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>console: <span class="co">X</span></span></a><span class="tp sp">,</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_exn"><span class="tp">exn</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>exn: <span class="co">HX</span></span></a><span class="tp sp">&gt;</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>string: <span class="co">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Read a line of input synchronously from stdin (using UTF8 encoding).
+   Read chararacters until either a newline is encountered (not included in the result),
+   or 1023 characters have been read.
+</p></div></div>
+<div class="decl" id="-private-imports"><div class="header code"><span class="def"><span class="kw">private import</span>&nbsp;<span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types</span></span></a></span>, <span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_hnd.html"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd</span></span></a></span>, <span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html"><span class="mo">std<span class="fslash">/</span>core</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core</span></span></a></span></span></div></div>
+</body>
+</html>
+
+<span data-line=""></span>
