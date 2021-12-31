@@ -248,7 +248,7 @@
       },
 
     "externid":
-      { "match": "(?:c|cs|js|inline)\\s+(?:inline\\s+)?(?:file\\s+)?(?=[\\\"\\{])"
+      { "match": "(?:c|cs|js|inline)\\s+(?:inline\\s+)?(?:(?:file|header-file|header-end-file)\\s+)?(?=[\\\"\\{])"
       , "name": "keyword.control koka.id.extern.$1"
       },
 
