@@ -969,7 +969,7 @@ ccFlagsBuildFromFlags cc flags
       Nothing -> []
 
 gnuWarn = words "-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-variable -Wno-unused-value" ++
-          words "-Wno-missing-field-initializers -Wpointer-arith -Wshadow -Wstrict-aliasing"
+          words "-Wno-missing-field-initializers -Wpointer-arith -Wshadow -Wstrict-aliasing -Wno-unused-but-set-variable"
 
 ccGcc,ccMsvc :: String -> Int -> Platform -> FilePath -> CC
 ccGcc name opt platform path
@@ -979,7 +979,7 @@ ccGcc name opt platform path
           (RelWithDebInfo,arch ++ [optFlag, "-g", "-DNDEBUG"]),
           (Release,       arch ++ [optFlag, "-DNDEBUG"]) ]
         )
-        (gnuWarn ++ ["-Wno-unused-but-set-variable"])
+        (gnuWarn)
         (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
         (\stksize -> if (onMacOS && stksize > 0)  -- stack size is usually set programmatically (except on macos/windows)
