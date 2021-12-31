@@ -18,7 +18,7 @@ import Common.Range hiding (after)
 -----------------------------------------------------------
 -- testing
 -----------------------------------------------------------
--- import Lib.Trace
+import Lib.Trace
 import Syntax.Lexeme
 import Syntax.Lexer
 import Common.Name  ( Name, nameId )
@@ -179,49 +179,49 @@ checkComments lexemes
   Brace and Semicolon insertion
   Assumes whitespace is already filtered out
 ----------------------------------------------------------}
+data Layout = Layout{ open :: Lexeme, column :: Int }
 
 indentLayout :: [Lexeme] -> [Lexeme]
 indentLayout []     = [Lexeme rangeNull LexInsSemi]
-indentLayout (l:ls) = let prev = Lexeme (before (getRange l)) (LexWhite "")  -- ignored
-                      in (brace (startCol (getRange l)) [] prev (l:ls))
+indentLayout (l:ls) = let start = Lexeme (before (getRange l)) (LexWhite "") -- ignored                          
+                      in brace (Layout start 1) [] start (l:ls)
 
-brace :: Int ->   [Int] -> Lexeme -> [Lexeme] -> [Lexeme]
+brace :: Layout -> [Layout] -> Lexeme -> [Lexeme] -> [Lexeme]
 
 -- end-of-file
 brace _ [] prev []
   = []
 
 -- end-of-file: ending braces  
-brace _ (layout:layouts) prev@(Lexeme prevRng prevLex) []
-  = insertSemi prev ++ 
-    let ins = (Lexeme (after prevRng) LexInsRCurly)
-    in ins : brace layout layouts ins []
+brace layout (ly:lys) prev []
+  = let rcurly = insertRCurly layout prev
+    in insertSemi prev ++ rcurly ++ brace ly lys (last rcurly) []
 
 -- ignore error lexemes
 brace layout layouts prev lexemes@(lexeme@(Lexeme _ (LexError{})):ls)
   = lexeme : brace layout layouts prev ls
 
 -- lexeme
-brace layout layouts prev@(Lexeme prevRng prevLex) lexemes@(lexeme@(Lexeme rng lex):ls)
+brace layout@(Layout (Lexeme _ layoutLex) layoutCol) layouts  prev@(Lexeme prevRng prevLex)  lexemes@(lexeme@(Lexeme rng lex):ls)
   -- brace: insert {
-  | newline && indent > layout && not (isExprContinuation prevLex lex)
-    = brace layout layouts prev (Lexeme (after prevRng) LexInsLCurly : lexemes)
+  | newline && indent > layoutCol && not (isExprContinuation prevLex lex)
+    = brace layout layouts prev (insertLCurly prev ++ lexemes)
   -- brace: insert }
-  | newline && indent < layout && not (isCloseBrace lex)
-    = brace layout layouts prev (Lexeme (after prevRng) LexInsRCurly : lexemes)   -- todo: insert only when matched with implicit open braces?   
+  | newline && indent < layoutCol && not (isCloseBrace lex && layoutLex == LexSpecial "{")
+    = brace layout layouts prev (insertRCurly layout prev ++ lexemes) 
   -- push new layout
   | isOpenBrace lex
     = [lexeme] ++
-      (if (nextIndent > layout) then [] else [Lexeme rng (LexError ("line must be indented more than the enclosing layout context (column " ++ show layout ++ ")"))]) ++
-      brace nextIndent (layout:layouts) lexeme ls
+      (if (nextIndent > layoutCol) then [] else [Lexeme rng (LexError ("layout: line must be indented more than the enclosing layout context (column " ++ show layoutCol ++ ")"))]) ++
+      brace (Layout lexeme nextIndent) (layout:layouts) lexeme ls
   -- pop layout
   | isCloseBrace lex 
     = insertSemi prev ++ [lexeme] ++
       case layouts of
-        (layout0:layouts0) -> brace layout0 layouts0 lexeme ls
-        []                 -> Lexeme (before rng) (LexError "unmatched closing brace '}'") : brace layout layouts lexeme ls
+        (ly:lys) -> brace ly lys lexeme ls
+        []       -> Lexeme (before rng) (LexError "unmatched closing brace '}'") : brace layout [] lexeme ls
   -- semicolon insertion
-  | newline && indent == layout && not (isStartContinuationToken lex)
+  | newline && indent == layoutCol && not (isExprContinuation prevLex lex)
     = insertSemi prev ++ [lexeme] ++ brace layout layouts lexeme ls
   | otherwise
     = [lexeme] ++ brace layout layouts lexeme ls
@@ -230,11 +230,20 @@ brace layout layouts prev@(Lexeme prevRng prevLex) lexemes@(lexeme@(Lexeme rng l
     indent  = startCol rng 
     nextIndent = case ls of 
                    (Lexeme rng _ : _) -> startCol rng
-                   _                  -> indent + 1
+                   _                  -> 1
+
+insertLCurly :: Lexeme -> [Lexeme]
+insertLCurly prev@(Lexeme prevRng prevLex) 
+  = [Lexeme (after prevRng) LexInsLCurly]
+
+insertRCurly :: Layout -> Lexeme -> [Lexeme]
+insertRCurly (Layout (Lexeme layoutRng layoutLex) layoutCol) prev@(Lexeme prevRng prevLex) 
+  = (if (layoutLex == LexInsLCurly) then [] else [Lexeme (after (prevRng)) (LexError ("layout: an open brace '{' (at " ++ show layoutRng ++ ", layout column " ++ show layoutCol ++ ") is matched by an implicit closing brace"))]) ++
+    [Lexeme (after prevRng) LexInsRCurly]
 
 insertSemi :: Lexeme -> [Lexeme]
 insertSemi prev@(Lexeme prevRng prevLex) 
-  = (if isSemi prevLex then [] else [Lexeme (after prevRng) LexInsSemi])
+  = if isSemi prevLex then [] else [Lexeme (after prevRng) LexInsSemi]
 
 isExprContinuation :: Lex -> Lex -> Bool
 isExprContinuation prevLex lex

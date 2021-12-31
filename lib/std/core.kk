@@ -362,11 +362,12 @@ private fun zipwith-acc( f, i, acc, xs, ys )
 {
   match(xs) {
     Nil -> reverse(acc)
-    Cons(x,xx) ->
+    Cons(x,xx) -> {
       match(ys) {
         Nil -> reverse(acc)
         Cons(y,yy) -> zipwith-acc(f, i+1, Cons( f(i,x,y), acc), xx, yy)
       }
+    }
   }
 }
 
@@ -696,10 +697,9 @@ fun foreach-while( xs : list<a>, action : (a) -> e maybe<b> ) : e maybe<b>
   match(xs) {
     Nil        -> Nothing
     Cons(x,xx) -> {
-      match(action(x)) {
+      match(action(x))
         Nothing -> xx.foreach-while(action)
-        just    -> just
-      }
+        just    -> just      
     }
   }
 }
@@ -1254,9 +1254,10 @@ fun maybe( i : int ) : maybe<int> {
 
 // fold over the integers between [`start`,`end`] (inclusive).
 fun fold-int( start : int, end : int, init : a, f : (int,a) -> e a ) : e a {
-  if (start >= end) then init else
+  if (start >= end) then init else {
     val x = f(start,init)
     fold-int(unsafe-decreasing(start.inc), end, x, f)
+  }
 }
 
 // fold over the integers between [0,`upto`)  (not including `upto`).

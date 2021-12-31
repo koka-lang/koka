@@ -7,6 +7,9 @@
 ---------------------------------------------------------------------------*/
  
 // 32-bit signed integers.
+//
+// Using 32-bit signed two's complement representation with wrapping on overflow, 
+// e.g. `max-int32 + 1.int32 == min-int32`.
 public module std/num/int32
 
 // The maximal integer value before overflow happens
@@ -72,12 +75,12 @@ fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre : st
   std/core/show-hex(i.uint,width,use-capitals,pre)
 
 
-inline extern (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" 
-inline extern (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" 
-inline extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)" 
-inline extern (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)" 
-inline extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"  
-inline extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"  
+inline extern (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+inline extern (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+inline extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)" }
+inline extern (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)" }
+inline extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"  } 
+inline extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"  }
 
 inline extern (+)  : (int32,int32) -> int32 
   c inline "(int32_t)((uint32_t)#1 + (uint32_t)#2)" // avoid UB

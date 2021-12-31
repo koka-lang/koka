@@ -1344,7 +1344,7 @@ public fun atan2( y : ddouble, x : ddouble ) : ddouble
     if x.is-pos then zero else dd-pi
   elif x == y then 
     if y.is-pos then dd-pi4 else ~dd-pi34
-  elif x == ~y then {
+  elif x == ~y then 
     if y.is-pos then dd-pi34 else ~dd-pi4
   else 
     val r = sqrt( x.sqr + y.sqr )

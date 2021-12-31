@@ -60,7 +60,7 @@ fun parse( input0 : sslice, p : () -> <parse|e> a ) : e parse-error<a>
       val inp = input
       val m   = fn() : total _ { pred(inp) }
       match m() 
-        Just((x,cap)) -> { input := cap; Just(x) 
+        Just((x,cap)) -> { input := cap; Just(x) }
         Nothing       -> Nothing
 
     ctl pick() 
@@ -224,7 +224,7 @@ fun count( n : int, p : parser<e,a> ) : <parse|e> list<a>
 
 
 fun one-of-or( chars : string, default : char ) : parse char 
-  optional( default){ one-of(chars) 
+  optional(default){ one-of(chars) }
 
 //private val rx-float	= regex(@"^([\-\+])?(\d+(?:\.\d+)?(?:[eE][\-\+]\d+)?)$")
 //private val rx-hexfloat	= regex(@"^([\-\+]?0[xX][0-9a-fA-F]+)(?:\.([0-9a-fA-F]+))?(?:[pP]([\-\+]?\d+))?$")

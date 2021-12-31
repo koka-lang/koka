@@ -7,6 +7,9 @@
 ---------------------------------------------------------------------------*/
  
 // 64-bit signed integers.
+//
+// Using 64-bit signed two's complement representation 
+// with wrapping on overflow, e.g. `max-int64 + 1.int64 == min-int64`
 public module std/num/int64
 
 // The maximal integer value before overflow happens
@@ -64,12 +67,12 @@ fun show-hex64( i : int64, width : int = 16, use-capitals : bool = True, pre : s
   std/core/show-hex(i.uint,width,use-capitals,pre)
 
 
-inline extern (<=) : (int64,int64) -> bool  { inline "(#1 <= #2)" 
-inline extern (==) : (int64,int64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" 
-inline extern (!=) : (int64,int64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" 
-inline extern (>=) : (int64,int64) -> bool  { inline "(#1 >= #2)"
-inline extern (<)  : (int64,int64) -> bool  { inline "(#1 < #2)" 
-inline extern (>)  : (int64,int64) -> bool  { inline "(#1 > #2)" 
+inline extern (<=) : (int64,int64) -> bool  { inline "(#1 <= #2)" }
+inline extern (==) : (int64,int64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+inline extern (!=) : (int64,int64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+inline extern (>=) : (int64,int64) -> bool  { inline "(#1 >= #2)" }
+inline extern (<)  : (int64,int64) -> bool  { inline "(#1 < #2)"  }
+inline extern (>)  : (int64,int64) -> bool  { inline "(#1 > #2)"  }
 
 inline extern (+)  : (int64,int64) -> int64 
   c inline "(int64_t)((uint64_t)#1 + (uint64_t)#2)"  
