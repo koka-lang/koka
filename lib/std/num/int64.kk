@@ -10,29 +10,29 @@
 //
 // Using 64-bit signed two's complement representation 
 // with wrapping on overflow, e.g. `max-int64 + 1.int64 == min-int64`
-public module std/num/int64
+module std/num/int64
 
 // The maximal integer value before overflow happens
-val max-int64 : int64 =  0x7FFFFFFFFFFFFFFF.int64
+pub val max-int64 : int64 =  0x7FFFFFFFFFFFFFFF.int64
 
 // The minimal integer value before underflow happens
-val min-int64 : int64 = -0x8000000000000000.int64
+pub val min-int64 : int64 = -0x8000000000000000.int64
 
 // The number of bits in an `:int64` (always 64)
-val bits-int64 : int64 = 64.int64
+pub val bits-int64 : int64 = 64.int64
 
 // Convert an `:int64` to a string
-fun show( i : int64 ) : string 
+pub fun show( i : int64 ) : string 
   show(i.int)
 
 
 // Convert an `:int64` to a boolean.
-fun bool( i : int64 ) : bool 
+pub fun bool( i : int64 ) : bool 
   (i!=zero)
 
 
 // Convert a boolean to an `:int64`.
-fun int64( b : bool ) : int64 
+pub fun int64( b : bool ) : int64 
   if b then one else zero
 
 
@@ -41,7 +41,7 @@ fun int64( b : bool ) : int64
 // The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
 // The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
 // The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
-fun show-hex( i : int64, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string 
+pub fun show-hex( i : int64, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string 
   std/core/show-hex(i.int,width,use-capitals,pre)
 
 
@@ -50,12 +50,12 @@ fun show-hex( i : int64, width : int = 1, use-capitals : bool = True, pre : stri
 // `0x7FFFFFFFFFFFFFFF.uint64 == 0x7FFFFFFFFFFFFFFF.int64 == max-int64`\
 // `0x8000000000000000.uint64 == -0x800000000000000.int64 == min-int64`\
 // `0xFFFFFFFFFFFFFFFF.uint64 == -1.int64`\
-fun uint64( i : int ) : int64 
+pub fun uint64( i : int ) : int64 
   if i > max-int64.int then (i - 0x10000000000000000).int64 else i.int64
 
 
 // Convert an `:int64` to an `:int` but interpret the `:int64` as a 64-bit unsigned value.
-fun uint( i : int64 ) : int 
+pub fun uint( i : int64 ) : int 
   if i.is-neg then 0x10000000000000000 + i.int else i.int
 
 
@@ -63,78 +63,78 @@ fun uint( i : int64 ) : int
 // The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
 // The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
 // The `pre` (=`"0x"`) is an optional prefix for the number.
-fun show-hex64( i : int64, width : int = 16, use-capitals : bool = True, pre : string = "0x" ) : string 
+pub fun show-hex64( i : int64, width : int = 16, use-capitals : bool = True, pre : string = "0x" ) : string 
   std/core/show-hex(i.uint,width,use-capitals,pre)
 
 
-inline extern (<=) : (int64,int64) -> bool  { inline "(#1 <= #2)" }
-inline extern (==) : (int64,int64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-inline extern (!=) : (int64,int64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-inline extern (>=) : (int64,int64) -> bool  { inline "(#1 >= #2)" }
-inline extern (<)  : (int64,int64) -> bool  { inline "(#1 < #2)"  }
-inline extern (>)  : (int64,int64) -> bool  { inline "(#1 > #2)"  }
+pub inline extern (<=) : (int64,int64) -> bool  { inline "(#1 <= #2)" }
+pub inline extern (==) : (int64,int64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+pub inline extern (!=) : (int64,int64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+pub inline extern (>=) : (int64,int64) -> bool  { inline "(#1 >= #2)" }
+pub inline extern (<)  : (int64,int64) -> bool  { inline "(#1 < #2)"  }
+pub inline extern (>)  : (int64,int64) -> bool  { inline "(#1 > #2)"  }
 
-inline extern (+)  : (int64,int64) -> int64 
+pub inline extern (+)  : (int64,int64) -> int64 
   c inline "(int64_t)((uint64_t)#1 + (uint64_t)#2)"  
   js inline "BigInt.asIntN(64,#1 + #2)" 
 
 
-inline extern (-)  : (int64,int64) -> int64 
+pub inline extern (-)  : (int64,int64) -> int64 
   inline "(int64_t)((uint64_t)#1 - (uint64_t)#2)"
   js inline "BigInt.asIntN(64,#1 - #2)" 
 
 
-inline extern is-neg( i : int64 ) : bool 
+pub inline extern is-neg( i : int64 ) : bool 
   inline "0 > #1"
   js inline "0n > #1"
 
 
-inline extern is-pos( i : int64 ) : bool 
+pub inline extern is-pos( i : int64 ) : bool 
   inline "0 < #1"
   js inline "0n < #1"
 
 
-inline extern is-zero( i : int64 ) : bool 
+pub inline extern is-zero( i : int64 ) : bool 
   inline "0 == #1"
   js inline "0n === #1"
 
 
-val zero = 0.int64
-val one  = 1.int64
+pub val zero = 0.int64
+pub val one  = 1.int64
 
-fun sign( i : int64 ) : order 
+pub fun sign( i : int64 ) : order 
   if i.is-pos then Gt 
   elif i.is-neg then Lt 
   else Eq
 
 
 // Returns `true` if the integer `i`  is an odd number.
-fun is-odd( i : int64 ) : bool 
+pub fun is-odd( i : int64 ) : bool 
   and(i,one)==one
 
 
 // Returns `true` if the integer `i`  is an even number.
-fun is-even( i : int64 ) : bool 
+pub fun is-even( i : int64 ) : bool 
   and(i,one)==zero
 
 
 // Increment a 64-bit integer.
-fun inc( i : int64 ) : int64 
+pub fun inc( i : int64 ) : int64 
   i + 1.int64
 
 
 // Decrement a 64-bit integer.
-fun dec( i : int64 ) : int64 
+pub fun dec( i : int64 ) : int64 
   i - 1.int64
 
 
 // Multiply two 64-bit integers.
-inline extern (*) : (int64,int64) -> int64 
+pub inline extern (*) : (int64,int64) -> int64 
   c inline "(int64_t)((uint64_t)#1 * (uint64_t)#2)";
   js inline "BigInt.asIntN(64,#1 * #2)"
 
 
-fun compare( x : int64, y : int64) : order 
+pub fun compare( x : int64, y : int64) : order 
   if x < y then Lt
   elif x > y then Gt
   else Eq
@@ -143,7 +143,7 @@ fun compare( x : int64, y : int64) : order
 // Return the absolute value of an integer.
 // Raises an exception if the `:int64` is `min-int64`
 // (since the negation of `min-int64` equals itself and is still negative)
-fun abs( i : int64 ) : exn int64 
+pub fun abs( i : int64 ) : exn int64 
   if !i.is-neg then i
   elif i > min-int64 then negate(i)
   else throw( "std/num/int64/abs: cannot make min-int64 into a positive int64 without overflow" )
@@ -152,7 +152,7 @@ fun abs( i : int64 ) : exn int64
 // Return the absolute value of an integer.
 // Returns 0 if the `:int64` is `min-int64`
 // (since the negation of `min-int64` equals itself and is still negative)
-fun abs0( i : int64 ) : int64 
+pub fun abs0( i : int64 ) : int64 
   if !i.is-neg then i
   elif i > min-int64 then negate(i)
   else 0.int64
@@ -160,103 +160,103 @@ fun abs0( i : int64 ) : int64
 
 
 // Take the bitwise _and_ of two `:int64`s
-inline extern and : (int64,int64) -> int64 
+pub inline extern and : (int64,int64) -> int64 
   inline "#1 & #2"
 
 
 // Take the bitwise _or_ of two `:int64`s
-inline extern or : (int64,int64) -> int64 
+pub inline extern or : (int64,int64) -> int64 
   inline "#1 | #2"
 
 
 // Take the bitwise _xor_ of two `:int64`s
-inline extern (^) : (int64,int64) -> int64 
+pub inline extern (^) : (int64,int64) -> int64 
   inline "#1 ^ #2";
 
 
 // Bitwise _not_ of an `:int64`, i.e. flips all bits.
-inline extern not : ( i : int64 ) -> int64  
+pub inline extern not : ( i : int64 ) -> int64  
   inline "~#1"
   js inline "BigInt.asIntN(64, ~#1)"
 
 
 
 // Shift an `:int64` `i` to the left by `n & 63` bits.
-inline extern shl : (int64,int64) -> int64 
+pub inline extern shl : (int64,int64) -> int64 
   c inline "kk_shl64(#1,#2)"
   js "$std_core._int64_shl"
 
 
 // Logical shift an `:int64` to the right by `n & 63` bits. Shift in zeros from the left.
-inline extern shr : (int64,int64) -> int64 
+pub inline extern shr : (int64,int64) -> int64 
   c inline "(int64_t)kk_shr64(#1,#2)"
   cs inline "(int64)(((Uint64)#1)>>#2)"
   js "$std_core._int64_shr"
 
 
 // Arithmetic shift an `:int64` to the right by `n & 63` bits. Preserves the sign bit.
-inline extern sar : (int64,int64) -> int64 
+pub inline extern sar : (int64,int64) -> int64 
   c inline "kk_sar64(#1,#2)"
   js "$std_core._int64_sar"
 
 
 // Bitwise rotate an `:int64` `n & 63` bits to the left.
-inline extern rotl( i : int64, n : int64 ) : int64 
+pub inline extern rotl( i : int64, n : int64 ) : int64 
   c inline "(int64_t)kk_bits_rotl64(#1,#2)"
   js "$std_core._int64_rotl"
 
 
 // Bitwise rotate an `:int64` `n & 63` bits to the right.
-inline extern rotr( i : int64, n : int64 ) : int64 
+pub inline extern rotr( i : int64, n : int64 ) : int64 
   c inline "(int64_t)kk_bits_rotr64(#1,#2)"
   js "$std_core._int64_rotr"
 
 
 // Return the minimum of two integers
-fun min( i : int64, j : int64 ) : int64 
+pub fun min( i : int64, j : int64 ) : int64 
   if i <= j then i else j 
 
 // Return the maximum of two integers
-fun max( i : int64, j : int64 ) : int64 
+pub fun max( i : int64, j : int64 ) : int64 
   if i >= j then i else j 
 
 
 // Truncated division (as in C). See also `(/):(x : int64, y : int64) -> int64`.
-fun cdiv(i:int64, j:int64) : exn int64 
+pub fun cdiv(i:int64, j:int64) : exn int64 
   if j.is-zero then throw("std/num/int64/cdiv: division by zero")
   elif j == -1.int64 && i==min-int64 then throw("std/num/int64/cdiv: division overflow in cdiv(min-int64, -1.int64)")
   else unsafe-cdiv(i,j)
 
 
 // Truncated modulus (as in C). See also `(%):(x : int64, y : int64) -> int64`.
-fun cmod(i:int64, j:int64) : exn int64 
+pub fun cmod(i:int64, j:int64) : exn int64 
   if j.is-zero then throw("std/num/int64/cdiv: modulus by zero")
   elif j == -1.int64 && i==min-int64 then throw("std/num/int64/cmod: modulus overflow in cmod(min-int64, -1.int64)")
   else unsafe-cmod(i,j)
 
 
 // Truncated division (as in C). See also `(/):(x : int64, y : int64) -> int64`.
-private inline extern unsafe-cdiv : (int64,int64) -> int64 
+inline extern unsafe-cdiv : (int64,int64) -> int64 
   inline "#1 / #2"
 
 
 // Truncated modulus (as in C). See also `(%):(x : int64, y : int64) -> int64`.
-private inline extern unsafe-cmod : (int64,int64) -> int64 
+inline extern unsafe-cmod : (int64,int64) -> int64 
   inline "#1 % #2"
 
 
 // Convert an 64-bit integer to a double.
-fun double( i:int64) : double 
+pub fun double( i:int64) : double 
   i.int.double
 
 
 // Negate a 64-bit integer
-fun negate( i : int64 ) : int64 
+pub fun negate( i : int64 ) : int64 
   0.int64 - i
 
 
 // Negate an 64-bit integer
-fun (~)(i : int64) : total int64 
+pub fun (~)(i : int64) : total int64 
   0.int64 - i
 
 
@@ -283,7 +283,7 @@ Of course `(min-int64 + 1) / -1` is again positive (namely `max-int64`).
 See also _Division and modulus for computer scientists, Daan Leijen, 2001_ 
 [pdf](http://research.microsoft.com/pubs/151917/divmodnote.pdf) .
 */
-fun (/)( x : int64, y : int64 ) : int64
+pub fun (/)( x : int64, y : int64 ) : int64
   if y == 0.int64 return 0.int64
   if y == -1.int64 && x==min-int64 return x
   val q = unsafe-cdiv(x,y)
@@ -294,7 +294,7 @@ fun (/)( x : int64, y : int64 ) : int64
 
 
 // Euclidean-0 modulus. See `(/):(x : int64, y : int64) -> int64` division for more information.
-fun (%)( x : int64, y : int64 ) : int64
+pub fun (%)( x : int64, y : int64 ) : int64
   if y == 0.int64 return x
   if y == -1.int64 && x==min-int64 return 0.int64
   val r = unsafe-cmod(x,y)
@@ -302,7 +302,7 @@ fun (%)( x : int64, y : int64 ) : int64
   elif y > 0.int64 then r + y
   else r - y
 
-fun divmod( x :int64, y :int64 ) : (int64,int64) 
+pub fun divmod( x :int64, y :int64 ) : (int64,int64) 
   if y.is-zero return (zero,x)
   if y == -1.int64 && x==min-int64 return (x,0.int64)
   val q = unsafe-cdiv(x,y)
@@ -312,7 +312,7 @@ fun divmod( x :int64, y :int64 ) : (int64,int64)
   else (q.inc, r - y)
 
 
-fun fold-int64( start : int64, end : int64, init : a, f : (int64,a) -> e a ) : e a 
+pub fun fold-int64( start : int64, end : int64, init : a, f : (int64,a) -> e a ) : e a 
   if start >= end then init else
     val x = f(start,init)
     fold-int64(unsafe-decreasing(start.inc), end, x, f)
