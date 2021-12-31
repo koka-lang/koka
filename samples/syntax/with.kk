@@ -36,7 +36,7 @@ fun test1-expanded()
 
 
 // Without using layout, the fully expanded version is:
-fun test1-fully-expanded() 
+fun test1-fully-expanded() {
   twice( fn(){
     twice( fn(){
       println("hi")
