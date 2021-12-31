@@ -41,7 +41,7 @@ extractFixMap :: [FixDef] -> Fixities
 extractFixMap fixDefs
   = fixitiesNew (concatMap extractFix fixDefs)
   where
-    extractFix (FixDef name fixity range)
+    extractFix (FixDef name fixity range vis)
       = [(name,fixity)]
 
 

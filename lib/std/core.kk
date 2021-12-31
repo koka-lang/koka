@@ -18,11 +18,11 @@ public module std/core
 public import std/core/types
 public import std/core/hnd
 
-infixr 80  (^)
-infixl 70  (*), (%), (/), cdiv, cmod
-infixr 60  (++)
-infixl 60  (+), (-)
-infix  40  (!=), (==), (<=), (>=), (<), (>)
+public infixr 80  (^)
+public infixl 70  (*), (%), (/), cdiv, cmod
+public infixr 60  (++)
+public infixl 60  (+), (-)
+public infix  40  (!=), (==), (<=), (>=), (<), (>)
 
 // prefix     (!), (-) 
 

@@ -196,6 +196,7 @@ program source
 pmodule :: Source -> LexParser UserProgram
 pmodule source
   = do (vis,rng,doc) <- try $ do (vis,_) <- visibility Private
+                                 if (vis == Public) then pwarningMessage "using 'public module' is deprecated" else return ()
                                  (rng,doc) <- dockeyword "module"
                                  return (vis,rng,doc)
        -- (rng,doc) <- dockeyword "module"
@@ -486,7 +487,9 @@ externalTarget
 --------------------------------------------------------------------------}
 fixDecl :: LexParser FixDefs
 fixDecl
-  = do assoc <- assocDef
+  = do (vis,vrng,assoc) <- try $ do (vis,vrng) <- visibility Private
+                                    assoc <- assocDef
+                                    return (vis,vrng,assoc)
        (n,_) <- integer
        -- convenient to check here, but it really should be done during static analysis.
        if (n < 0 || n > 100)
@@ -494,7 +497,7 @@ fixDecl
         else return ()
        let prec = fromInteger n
        names <- sepBy1 identifier comma
-       return [FixDef name (FixInfix prec assoc) rng | (name,rng) <- names]
+       return [FixDef name (FixInfix prec assoc) (combineRange vrng rng) vis | (name,rng) <- names]
 {-
   <|>
     do fix   <- do{ keyword "prefix"; return FixPrefix }

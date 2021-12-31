@@ -261,11 +261,8 @@ reservedNames
     , "if", "then", "else", "elif"
     , "return", "match", "with", "in"
     , "forall", "exists", "some"
-    , "private", "public", "abstract"
+    , "pub", "abstract"
     , "module", "import", "as"
-
-    -- alternatives
-    , "pub"
 
     -- effect handlers
     , "handler", "handle"
@@ -275,6 +272,8 @@ reservedNames
     , "override"   
 
     -- deprecated
+    , "private", "public"  -- use pub
+
     -- alternative names for backwards paper compatability
     , "control", "rcontrol", "except"
     , "ambient", "context" -- use effcet

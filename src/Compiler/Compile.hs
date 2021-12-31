@@ -778,10 +778,9 @@ typeCheck loaded flags line coreImports program
            program1  = program0
            warnings1 = []
 
-           fixities0 = fixitiesNew [(name,fix) | FixDef name fix rng <- programFixDefs program0]
-           fixities1 = fixitiesCompose (loadedFixities loaded) (fixities0)
+           fixitiesAll = fixitiesNew [(name,fix) | FixDef name fix rng vis <- programFixDefs program0]           
 
-       (program2,fixities2) <- fixityResolve (colorSchemeFromFlags flags) fixities1 program1
+       (program2,_) <- fixityResolve (colorSchemeFromFlags flags) (fixitiesCompose (loadedFixities loaded) fixitiesAll) program0
 
        let warnings = warnings1
            fname   = sourceName (programSource program)
@@ -792,9 +791,10 @@ typeCheck loaded flags line coreImports program
                                , modWarnings   = warnings
                                }
            -- module0 = loadedModule loaded
+           fixitiesPub = fixitiesNew [(name,fix) | FixDef name fix rng vis <- programFixDefs program0, vis == Public]
            loaded1 = loaded{ loadedModule      = module1
                            -- , loadedDefinitions = defs1
-                           , loadedFixities    = fixities2
+                           , loadedFixities    = fixitiesCompose (loadedFixities loaded) fixitiesPub
 --                           , loadedModules     = (loadedModules loaded) ++
 --                                                   (if null (modPath module1) then [] else [loadedModule loaded])
                            }
@@ -962,7 +962,7 @@ inferCheck loaded0 flags line coreImports program
             = uniquefy $
               coreProgram { Core.coreProgImports = coreImports
                           , Core.coreProgDefs = coreDefsFinal  
-                          , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng <- programFixDefs program]
+                          , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng vis <- programFixDefs program, vis == Public]
                           }
 
            loadedFinal = loaded { loadedGamma = gamma
