@@ -196,7 +196,7 @@ program source
 pmodule :: Source -> LexParser UserProgram
 pmodule source
   = do (vis,rng,doc) <- try $ do (vis,_) <- visibility Private
-                                 if (vis == Public) then pwarningMessage "using 'public module' is deprecated" else return ()
+                                 -- if (vis == Public) then pwarningMessage "using 'public module' is deprecated" else return ()
                                  (rng,doc) <- dockeyword "module"
                                  return (vis,rng,doc)
        -- (rng,doc) <- dockeyword "module"
@@ -293,8 +293,11 @@ importAlias
 
 visibility :: Visibility -> LexParser (Visibility,Range)
 visibility vis
-  =   do rng <- keyword "pub" <|> keyword "public"; return (Public,rng)
-  <|> do rng <- keyword "private"; return (Private,rng)
+  =   do rng <- keywordOr "pub" ["public"]
+         return (Public,rng)
+  <|> do rng <- keyword "private" 
+         pwarningMessage "using 'private' is deprecated, only use 'pub' to make declarations public"
+         return (Private,rng)
   <|> return (vis,rangeNull)
 
 

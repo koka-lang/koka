@@ -1,7 +1,7 @@
 module parc/parc19
-private import std/core/types = std/core/types = "";
-private import std/core = std/core = "";
-public fun test : (xs : list<int>) -> int
+import std/core/types = std/core/types = "";
+import std/core = std/core = "";
+pub fun test : (xs : list<int>) -> int
  = fn(xs: list<int>){
  match (xs) {
  (std/core/Cons(((.skip std/core/types/.Box(((xs0: int) as ys: int)) : .Box ) as .box-x26: .Box), (.pat0: list<int>)) : list<int> )

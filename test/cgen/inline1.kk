@@ -1,4 +1,4 @@
-public module inline1
+module inline1
 // recurse using an accumulator using constant heap space
 private fun xmap-acc(g : (int,a,list<a>) -> e b , n : int, acc : list<b>, ys : list<a>) : e list<b> {
   match(ys) {

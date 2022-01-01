@@ -1,5 +1,5 @@
 
-public fun f(x : int) : div int {
+pub fun f(x : int) : div int {
   if (x==0) then 1 else g(x) + 1;
 }
 fun g(x : int) : div int {

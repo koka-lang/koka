@@ -2,7 +2,7 @@
 //  Examples of common effects. All from the paper.
 //  Exceptions, state, iterators, ambiguity, and asynchronous effects.
 // --------------------------------------------------------
-public module common
+module common
 
 // import std/os/readline
 

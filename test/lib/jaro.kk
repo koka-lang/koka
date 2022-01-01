@@ -5,11 +5,11 @@ module jaro
 
 import std/data/array
 
-public fun main() {
+pub fun main() {
   run-tests(jaro-distance,fn(s,t){ jaro-winkler-distance(s,t) })
 }
 
-public fun run-tests(jaro,jarow) {
+pub fun run-tests(jaro,jarow) {
   jaro-tests.foreach fn(test) {
     val (s,t,jscore,jwscore) = test
     println(s.show ++ " - " ++ t.show)

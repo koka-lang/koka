@@ -8,9 +8,9 @@
 
 module time1
 
-public import std/num/ddouble
-public import std/time
-public import std/time/timezone
+pub import std/num/ddouble
+pub import std/time
+pub import std/time/timezone
 
 /*----------------------------------------------------------------------------
   Testing
@@ -24,7 +24,7 @@ fun check(name : string, res : string, tst : () -> <ndet,utc> string ) : <io,utc
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
 }
 
-public fun test-timezones() {
+pub fun test-timezones() {
   val tzs = load-timezones()
   val tz1 = tzs.timezone("America/New_York")
   val tz2 = tzs.timezone("Pacific/Kosrae")
@@ -94,7 +94,7 @@ fun test-tzs( tzs : timezones ) {
 }
 
 
-public fun test() {
+pub fun test() {
   val ts-utc = ts-utc-load()
   with fun utc() { ts-utc }
   println( "tz-local(): " + now().time(tz=tz-local()).show )
@@ -106,7 +106,7 @@ public fun test() {
   test-tzs(tzs)
 }
 
-public fun main() {
+pub fun main() {
   //val ts-utc = ts-utc-load()
   //with fun utc() { ts-utc }
   test-tzs(try-default(timezones-empty){ load-timezones() })

@@ -10,7 +10,7 @@ module time4
 
 import std/time/timestamp
 import std/num/ddouble
-public import std/time
+pub import std/time
 
 /*----------------------------------------------------------------------------
   Testing
@@ -111,7 +111,7 @@ fun test-nth() {
   check("nth7", "2016-11-13") { time(2016,11,10).nth-weekday(1,Sun).date.show }
 }
 
-public fun main() {
+pub fun main() {
   test-day-in-year()
   test-week-in-years()
   test-week-dates()

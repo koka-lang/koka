@@ -1,8 +1,8 @@
-public module http-server1
+module http-server1
 
-public import std/async
-public import std/net/http
-public import std/time/duration
+pub import std/async
+pub import std/net/http
+pub import std/time/duration
 
 fun main() : <async,io> () {
 	try {

@@ -1,4 +1,4 @@
-public module caesar
+module caesar
 
 import std/num/double
 
@@ -61,11 +61,11 @@ fun uncaesar( s : string ) : string
   s.encode( shift )
 }
   
-public fun test-uncaesar() {
+pub fun test-uncaesar() {
   println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
 }
 
-public fun main() {
+pub fun main() {
   val s = "Koka is a well-typed language"
   println( "plain  : " ++ s)
   println( "encoded: " ++ s.caesar)

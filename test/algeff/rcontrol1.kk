@@ -1,4 +1,4 @@
-public module rcontrol1
+module rcontrol1
 
 effect amb {
   control flip() : bool

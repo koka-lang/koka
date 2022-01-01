@@ -1,44 +1,51 @@
 module parc/parc22
-private import std/core/types = std/core/types = "";
-private import std/core = std/core = "";
-public rec type parc/parc22/hello {
- public con parc/parc22/World(i: int) : (i : int) -> parc/parc22/hello;
+import std/core/types = std/core/types = "";
+import std/core = std/core = "";
+pub rec type parc/parc22/hello {
+ pub con parc/parc22/World(i: int) : (i : int) -> parc/parc22/hello;
 };
 // Automatically generated. Retrieves the `i` constructor field of the `:hello` type.
-public fun i : (^ hello : parc/parc22/hello) -> int
+pub fun i : (^ hello : parc/parc22/hello) -> int
  = fn(hello: parc/parc22/hello){
  match (hello) {
  (.skip parc/parc22/World((.x: int)) : parc/parc22/hello )
  -> std/core/types/.dup(.x);
  };
  };
-public fun .copy : (.this : parc/parc22/hello, i : optional<int>) -> parc/parc22/hello
+pub fun .copy : (.this : parc/parc22/hello, i : optional<int>) -> parc/parc22/hello
  = fn(.this: parc/parc22/hello, i0: optional<int>){
  parc/parc22/World((match (i0) {
  (std/core/types/Optional(((.skip std/core/types/.Box((.i: int)) : .Box ) as .box: .Box)) : optional<int> )
- -> std/core/types/.drop(.this, (std/core/int32(1)));
+ -> val _ : ()
+ = std/core/types/.drop(.this, (std/core/int32(1)));
  .i;
  (.skip std/core/types/None() : (optional<int>) )
  -> (match (.this) {
  (.skip parc/parc22/World((.x: int)) : parc/parc22/hello )
- -> (match ((std/core/types/.is-unique(.this))) {
+ -> val _ : ()
+ = (match ((std/core/types/.is-unique(.this))) {
  (std/core/types/True() : bool )
- -> std/core/types/();
+ -> val _ : ()
+ = std/core/types/();
  std/core/types/.free(.this);
  _
- -> std/core/types/.dup(.x);
+ -> val _ : ()
+ = val _ : int
+ = std/core/types/.dup(.x);
  std/core/types/();
- std/core/types/.dec-ref(.this);
+ val _ : ()
+ = std/core/types/.dec-ref(.this);
  std/core/types/();
  });
  .x;
  });
  }));
  };
-public fun f : (h : parc/parc22/hello) -> parc/parc22/hello
+pub fun f : (h : parc/parc22/hello) -> parc/parc22/hello
  = fn(h: parc/parc22/hello){
  val .ru : reuse
  = std/core/types/no-reuse();
- std/core/types/.assign-reuse(.ru, (std/core/types/.drop-reuse(h, (std/core/int32(1)))));
+ val _ : ()
+ = std/core/types/.assign-reuse(.ru, (std/core/types/.drop-reuse(h, (std/core/int32(1)))));
  std/core/types/.alloc-at(.ru, (parc/parc22/World(2)));
  };

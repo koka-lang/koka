@@ -2,7 +2,7 @@
 // inference will correctly generate the right code:
 // 1. generate binds in the branches
 // 2. or, infer a `normal` branch such that scoped optimization is not used
-public module effs1b
+module effs1b
 
 effect amb {
   control flip() : bool

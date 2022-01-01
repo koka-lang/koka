@@ -6,10 +6,10 @@
    can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-public module isomonth
+module isomonth
 
-public import std/num/fixed
-public import std/xtime
+pub import std/num/fixed
+pub import std/xtime
 
 fun xdate-of( days : int ) : date {
   val (year,doy) = xdoy-of(days)
@@ -382,7 +382,7 @@ fun test-nth() {
   check("nth7", "2016-11-13") { time(2016,11,10).nth-weekday(1,Sun).date.show }  
 }
 
-public fun main() {
+pub fun main() {
   test-day-in-year()
   test-week-in-years()
   test-week-dates()

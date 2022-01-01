@@ -6,7 +6,7 @@ fun xdecimal-exp( i : int, exp : int = 15 ) : (int,int) {
   (i,x) 
 }
 
-public fun xdiv( x : int ) : (int,int) {
+pub fun xdiv( x : int ) : (int,int) {
   if (1 > 0)
     then xdecimal-exp( x, x )
     else (x,x)

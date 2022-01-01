@@ -7,13 +7,13 @@
 ----------------------------------------------------------------------------*/
 
 // Sample data from the book Calendrical Calculations, 3rd edition, appendix C, 33 dates in various calendars.
-public module time7
+module time7
 
 import std/num/ddouble
 import std/time/timestamp
-public import std/time
+pub import std/time
 
-public struct info(
+pub struct info(
   jd       : double,
   mjd      : int,
   wday     : weekday,

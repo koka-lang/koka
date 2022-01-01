@@ -1,6 +1,6 @@
-public import std/num/int32
-public import std/num/double
-public import std/num/decimal
+pub import std/num/int32
+pub import std/num/double
+pub import std/num/decimal
 
 
 

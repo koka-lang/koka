@@ -2,8 +2,8 @@
 
 */
 
-public import std/num/double
-public import std/num/int32
+pub import std/num/double
+pub import std/num/int32
 
 fun check(name : string, res : string, got : string ) : io () {
   println(name.pad-right(7,' ') ++ ": "

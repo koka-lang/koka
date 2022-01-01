@@ -10,8 +10,8 @@ module time-utc1
 
 import std/os/file
 import std/num/ddouble
-public import std/num/decimal
-public import std/time
+pub import std/num/decimal
+pub import std/time
 
 /*----------------------------------------------------------------------------
   Testing
@@ -23,7 +23,7 @@ fun check(name : string, tst : () -> ndet bool ) : io () {
 }
 
 
-public fun show-leap-steps(ts-utc : timescale) {
+pub fun show-leap-steps(ts-utc : timescale) {
   val steps = get-leap-steps()
   var dlast := Date(0,0,0)
   val rows = steps.map( fn(step) {
@@ -69,11 +69,11 @@ val leap-steps-sep = @"
 | \                 |                          |                |                   |                                                                 |                    |"
 
 
-public fun test() {
+pub fun test() {
   val ts-utc = try-default(ts-ti){ts-utc-load(verbose=True)}
   show-leap-steps(ts-utc)
 }
 
-public fun main() {
+pub fun main() {
   ()
 }

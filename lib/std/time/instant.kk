@@ -459,6 +459,5 @@ pub fun mjd( i : instant, tscale : timescale, tzdelta : timespan = timespan0 ) :
 
               Just(to-mjd) ->
                 to-mjd( i0.since, tzdelta )
-
   (mjd + mjd-epoch-delta)
 

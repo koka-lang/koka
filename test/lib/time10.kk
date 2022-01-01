@@ -7,11 +7,11 @@
 ----------------------------------------------------------------------------*/
 
 // Test UTC-SLS
-public module time10
+module time10
 
 import std/time/timestamp
-public import std/num/ddouble
-public import std/time
+pub import std/num/ddouble
+pub import std/time
 
 /*----------------------------------------------------------------------------
   Testing
@@ -56,7 +56,7 @@ fun test-sls() {
   check("sls-neg7", "2019-12-31T23:43:19Z") { instant(2020,1,0,23,43,19,ts=ts-slsx).time(ts=ts-utcx).show }
 }
 
-public fun main() {
+pub fun main() {
   //with fun utc() { ts-utc-load() }
   test-sls()
   test-utc-neg()

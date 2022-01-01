@@ -569,7 +569,7 @@ pub fun rad( deg : double ) : double
 
 
 // Return `x` with the sign of `y`.
-public fun with-sign-of( x : double, y : double ) : double
+pub fun with-sign-of( x : double, y : double ) : double
   if y < 0.0 then ~(x.abs) else x.abs
 
 

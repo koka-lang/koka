@@ -7,11 +7,11 @@
 ----------------------------------------------------------------------------*/
 
 // Test all calendars across many days
-public module time9
+module time9
 
 import std/time/timestamp
-public import std/num/ddouble
-public import std/time
+pub import std/num/ddouble
+pub import std/time
 
 
 // ----------------------------------------------------

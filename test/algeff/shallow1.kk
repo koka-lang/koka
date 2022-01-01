@@ -1,7 +1,7 @@
 // use "raw control" (`rcontrol`) to get a 
 // resume context as `rcontext`. 
 // We can `resume`, `resume-shallow`, or `finalize` such context.
-public module shallow1
+module shallow1
 
 effect consume<a> 
   ctl await() : a

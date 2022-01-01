@@ -5,10 +5,10 @@ fun map-int(xs : list<int>, f : int -> int) : list<int> {
   }
 }
 
-public fun test() {
+pub fun test() {
   [1,2,3].map-int(fn(x){ x + 1 })
 }
 
-public fun main() {
+pub fun main() {
   test().show.println
 }

@@ -41,7 +41,7 @@ fun find-solutions( n : int, i : int ) : div solutions {
    else extend(n, [], find-solutions(n, i - 1))  
 }
 
-public fun queens( n : int ) : div solutions {
+pub fun queens( n : int ) : div solutions {
   find-solutions(n,n)
 }
 

@@ -239,7 +239,7 @@ pub val dd-pi4     = Ddouble(0x1.921FB54442D18p-1, 0x1.1A62633145C07p-55)
 // QD:                         7.853981633974482790e-01,3.061616997868383018e-17)
 
 // &pi;/16
-private val dd-pi16 = Ddouble( 0x1.921FB54442D18p+1, 0x1.1A62633145C07p-53)
+val dd-pi16 = Ddouble( 0x1.921FB54442D18p+1, 0x1.1A62633145C07p-53)
 
 // 3&pi;/4
 pub val dd-pi34    = Ddouble(0x1.2D97C7F3321D2p+1, 0x1.A79394C9E8A0Bp-54)
@@ -275,7 +275,7 @@ pub val dd-euler  = Ddouble(0x1.2788CFC6FB619p-1, -0x1.6CB90701FBFABp-58) //0.57
 pub val dd-epsilon = Ddouble(0x1p-104,0.0)
 
 // 8*dd-epsilon
-private val dd-epsilon8 = Ddouble(0x1.0p-101, 0x0.0p+0)
+val dd-epsilon8 = Ddouble(0x1.0p-101, 0x0.0p+0)
 
 // The maximum representable `:ddouble`
 pub val dd-max     = Ddouble( 0x1.FFFFFFFFFFFFFp+1023, 0x1.FFFFFFFFFFFFFp+969 )
@@ -298,7 +298,7 @@ pub val dd-neginf  = Ddouble(neginf,0.0)
 // maximal precision in decimal digits of a `:ddouble`.
 pub val dd-max-prec = 31
 
-private val dd-default-prec = -31
+val dd-default-prec = -31
 
 /*------------------------------------------------------
    Compare etc.

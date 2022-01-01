@@ -214,7 +214,7 @@ pfixity
 --------------------------------------------------------------------------}
 typeDecl :: Env -> LexParser (TypeDef,Env)
 typeDecl env
-  = do (vis,(ddef,isExtend,sort,doc))  <- try $ do (vis,_) <- visibility Public
+  = do (vis,(ddef,isExtend,sort,doc))  <- try $ do (vis,_) <- visibility Private
                                                    info <- typeSort
                                                    return (vis,info)
        tname <- if (isExtend)
@@ -236,7 +236,7 @@ typeDecl env
            dataInfo = DataInfo sort tname kind params cons1 rangeNull ddef vis doc
        return (Data dataInfo isExtend, env)
   <|>
-    do (vis,doc) <- try $ do (vis,_) <- visibility Public
+    do (vis,doc) <- try $ do (vis,_) <- visibility Private
                              (_,doc) <- dockeyword "alias"
                              return (vis,doc)
        (name,_) <- tbinderId
@@ -251,7 +251,7 @@ typeDecl env
        return (Synonym synInfo, envExtendSynonym env synInfo)
 
 conDecl tname foralls sort env
-  = do (vis,doc) <- try $ do (vis,_) <- visibility Public
+  = do (vis,doc) <- try $ do (vis,_) <- visibility Private
                              (_,doc) <- dockeyword "con"
                              return (vis,doc)
        (name,_)  <- constructorId
@@ -296,7 +296,7 @@ parseTypeMod
 
 defDecl :: Env -> LexParser Def
 defDecl env
-  = do (vis,sort0,inl,doc) <- try $ do (vis,_) <- visibility Public
+  = do (vis,sort0,inl,doc) <- try $ do (vis,_) <- visibility Private
                                        (sort,inl,isRec,doc) <- pdefSort
                                        return (vis,sort,inl,doc)
        (name,_) <- funid <|> idop
@@ -330,7 +330,7 @@ pdefSort
 --------------------------------------------------------------------------}
 externDecl :: Env -> LexParser External
 externDecl env
-  = do (vis,doc)  <- try $ do (vis,_) <- visibility Public
+  = do (vis,doc)  <- try $ do (vis,_) <- visibility Private
                               (_,doc) <- dockeyword "extern"
                               return (vis,doc)
        (name,_) <- (funid)
@@ -541,7 +541,7 @@ parseDefGroups0 env
 parseDefGroup :: Env -> LexParser (Env,DefGroup)
 parseDefGroup env
   = do (sort,inl,isRec,doc) <- pdefSort
-       (name,_)   <- funid <|> do{ wildcard; return (nameNil,rangeNull) }
+       (name,tp)  <- funid <|> do{ wildcard; return (nameNil,rangeNull) }
        -- inl        <- parseInline
        tp         <- typeAnnot env
        expr       <- parseBody env

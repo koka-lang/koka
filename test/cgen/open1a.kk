@@ -1,4 +1,4 @@
-public module open1a
+module open1a
 
 import open0
 

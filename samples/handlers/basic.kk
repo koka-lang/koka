@@ -4,7 +4,6 @@
    - syntax/var
    - syntax/with
 */
-
 module basic
 
 import std/num/random

@@ -1,4 +1,4 @@
-public module bayes
+module bayes
 
 /* Goal: Bayesian Statistical Modelling
      Input data: x   y

@@ -708,7 +708,7 @@ pub fun extend(leap1 : leaps-table, leap2 : leaps-table) : leaps-table
       leap1( adjusts = leap1.adjusts ++ leap2.upto(la.utc-start - 1.timespan).adjusts )
 
 
-private fun upto( lt : leaps-table, end : utc-timestamp ) : leaps-table
+fun upto( lt : leaps-table, end : utc-timestamp ) : leaps-table
   lt( adjusts = lt.adjusts.drop-while(fn(la) { la.utc-start > end }) )
 
 // Get a list of leap second steps in a triple, NTP start time, offset just before, and the new offset at that time,
@@ -824,7 +824,7 @@ pub fun parse-leap-seconds-dat( leaps : string  ) : leaps-table
   val expire = parse-leap-expire(leaps,adjusts)
   Leaps-table(expire,adjusts)
 
-private fun parse-leap-expire( leaps : string, adjusts : list<leap-adjust>) : instant
+fun parse-leap-expire( leaps : string, adjusts : list<leap-adjust>) : instant
   // get expiration date
   val la-final    = adjusts.head.default(zero)
   val utc-expires = leaps.lines.flatmap-maybe(parse-expire)
@@ -918,7 +918,7 @@ val default-leap-seconds-pre72 = @"
   1968 FEB  1 =JD 2439887.5  TAI-UTC=   4.2131700 S + (MJD - 39126.) X 0.002592 S"
 
 /*
-private fun parse-leap-expire( leaps : string, adjusts : list<leap-adjust>) : instant
+fun parse-leap-expire( leaps : string, adjusts : list<leap-adjust>) : instant
 val la-final    = adjusts.head.default(zero)
 val utc-expire  = leaps.find(rxexpire).map fn(cap)
     val ntpex = cap.groups[1].parse-int-default(ntp2000.int)

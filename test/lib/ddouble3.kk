@@ -2,9 +2,9 @@
   from the posits paper: http://www.johngustafson.net/pdfs/BeatingFloatingPoint.pdf
 */
 
-public import std/num/ddouble
-public import std/num/double
-public import std/num/decimal
+pub import std/num/ddouble
+pub import std/num/double
+pub import std/num/decimal
 
 fun dd-area(a : ddouble, b : ddouble, c : ddouble = b ) : ddouble {
   val s = (a + b + c)/2.ddouble
