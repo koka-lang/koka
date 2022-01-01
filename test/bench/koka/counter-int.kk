@@ -1,4 +1,3 @@
-
 linear effect st 
   fun get() : int
   fun set(i : int)  : ()
