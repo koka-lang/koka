@@ -20,13 +20,13 @@ fun (==)(p1, p2)
     _             -> False
 
 
-public fun show(p:player) : string 
+pub fun show(p:player) : string 
   match p
     Bob   -> "bob"
     Alice -> "alice"
 
 
-public fun show(ps : list<player> ) : string 
+pub fun show(ps : list<player> ) : string 
   ps.show-list(show)
 
 
@@ -56,12 +56,12 @@ fun game(n)
 
 val perfect = handler fun move(_p,n){ max(1,n%4) }
 
-public fun test-perfect1() 
+pub fun test-perfect1() 
   with perfect
   game(7)        // alice
 
 
-public fun test-perfect2() 
+pub fun test-perfect2() 
   with perfect
   game(12)  // bob
 
@@ -103,7 +103,7 @@ fun show-gtree(gt :gtree, indent:int) : _ string
       p.show ++ lines.join
 
 
-public fun test-gtree()
+pub fun test-gtree()
   with gametree
   game(3)   // figure 1 in the paper
 
@@ -127,14 +127,14 @@ val check = handler
     else cheat(p)
 
 
-public fun test-check() 
+pub fun test-check() 
   with perfect
   with cheat-report
   with check
   game(7)  // alice
 
 
-public fun test-use() 
+pub fun test-use() 
   with x = map([1,2,3])
   x+2
 
@@ -149,14 +149,14 @@ val pc = handler
       Bob   -> n
 
 
-public fun test-pc1() 
+pub fun test-pc1() 
   with pc
   with cheat-report
   with check
   game(12)
 
 
-public fun test-pc2() 
+pub fun test-pc2() 
   // the `perfect` on the outside is necessary as the type system
   // does not detect that `check` will never perform a `move`.
   with perfect
@@ -183,7 +183,7 @@ val all-results = handler
   ctl choose() resume(True) ++ resume(False) 
 
 
-public fun test-choose() 
+pub fun test-choose() 
   with ctl choose() resume(True) ++ (resume(False):list<_>)
   with bob-chooses
   [game(7)]   // [bob,alice]
@@ -192,7 +192,7 @@ public fun test-choose()
 val coin = handler 
   fun choose() srandom-double() > 0.5 
 
-public fun test-coin() 
+pub fun test-coin() 
   with coin
   with bob-chooses
   game(7)
@@ -234,7 +234,7 @@ fun print-board( gs : gstate ) : io ()
   scores.join("\n").println
 
 
-public fun test-print1() 
+pub fun test-print1() 
   with state(s0)
   with printer
   with coin
@@ -248,7 +248,7 @@ fun replay(n : int, action : () -> <div|e> a) : <div|e> a
   action()
 
 
-public fun test-print2() 
+pub fun test-print2() 
   with state(s0)
   with printer
   with replay(10)
@@ -259,7 +259,7 @@ public fun test-print2()
 
 
 
-public fun main() 
+pub fun main() 
   [""
   ,test-perfect1().show
   ,test-perfect2().show

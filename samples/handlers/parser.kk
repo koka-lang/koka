@@ -143,7 +143,7 @@ fun test2()
   eparse( expr, "1+2*3").show-parse-int.println
 
 
-fun main() 
+pub fun main() 
   test1()
   test2()
 

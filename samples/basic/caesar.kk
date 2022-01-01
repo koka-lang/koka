@@ -58,7 +58,7 @@ fun test-uncaesar()
   println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
 
 
-fun main()
+pub fun main()
   val s = "Koka is a well-typed language"
   println( "plain  : " ++ s)
   println( "encoded: " ++ s.caesar)

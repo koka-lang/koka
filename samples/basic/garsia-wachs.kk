@@ -4,7 +4,7 @@
    This shows how effect types can safely encapsulate the mutating algorithm.
 */
 
-fun main()
+pub fun main()
   test().println
 
 

@@ -2,7 +2,7 @@
    This example is inspired by the "packed ref" example from Derek Dryer's
    Milner Award lecture at POPL'18 (https://www.youtube.com/watch?v=8Xyk_dGcAwk).
 */
-public module vec
+module vec
 
 // Abstract type of indices in a scope `:s` (with the scope kind `::S`)
 abstract type ix<s::S> 
@@ -26,7 +26,7 @@ fun vec(action : forall<s> () -> <vec<s>|e> a ) : e a   // rank-2 signature requ
       xs[ix.index].default("")   // index is always valid!  
   
 
-fun main() 
+pub fun main() 
   with vec
   val ix = push("hello")
   println( lookup(ix) ++ " world" )

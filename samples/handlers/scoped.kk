@@ -222,7 +222,7 @@ fun test5()
 // Main
 // --------------------------------------------------------------
 
-fun main() 
+pub fun main() 
   test1().show.println
   test2().show.println
   test3().show.println

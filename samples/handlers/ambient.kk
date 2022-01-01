@@ -4,7 +4,7 @@
 
    Shows how effects can model typed dynamic binding/implicit parameters/ambient state.
 */
-public module handlers/ambient
+module handlers/ambient
 
 // an ambient value `width : int`  (= dynamic binding of type int) (= implicit parameter of type int)
 effect val width : int
@@ -153,7 +153,7 @@ fun dfs-loop( vs : list<vertex> )
         Cons( Rose(v,sub), dfs-loop(vv) )
       
 
-public fun main()
+pub fun main()
   with val width = 78 in f().println
   with val width = 78 in half(f).println
   with val cwd = "/" in is-home().println
