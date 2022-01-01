@@ -26,144 +26,123 @@ abstract struct duration(
 )
 
 // A zero duration.
-public val zero : duration = Duration(timespan0)
-public val duration0 : duration = Duration(timespan0)
+pub val zero : duration = Duration(timespan0)
+pub val duration0 : duration = Duration(timespan0)
 
 // Convert a `:timespan` to a `:duration`. Be careful to only use
 // use this on timespan's that are in TAI SI seconds!
-public fun duration( t : timespan ) : duration {
+pub fun duration( t : timespan ) : duration
   Duration(t)
-}
 
 
 // Convert a `:timestamp` to a `:duration`. Be careful to only use
 // use this on timestamp's that are in TAI SI seconds and do not
 // contain leap seconds!
-public fun unsafe-duration( t : timestamp ) : duration {
+pub fun unsafe-duration( t : timestamp ) : duration
   Duration(t.unsafe-timespan-withleap)
-}
 
 
 // Create a duration from whole seconds `secs` and a fraction of seconds `frac`.
-public fun duration( secs : int, frac : double = 0.0 ) : duration {
+pub fun duration( secs : int, frac : double = 0.0 ) : duration
   Duration(timespan(secs,frac))
-}
 
 // Create a duration from seconds as a `:double`.
-public fun duration( secs : double ) : duration {
+pub fun duration( secs : double ) : duration
   Duration(timespan(secs))
-}
 
 // Convert a duration to a `:timespan`.
-public fun timespan( d : duration ) : timespan {
+pub fun timespan( d : duration ) : timespan
   d.seconds
-}
 
 // Convert a duration to a `:timespan`.
-public fun timestamp( d : duration ) : timestamp {
+pub fun timestamp( d : duration ) : timestamp
   d.seconds.timestamp
-}
 
 // Return the duration in SI seconds.
-public fun seconds( d : duration ) : timespan {
+pub fun seconds( d : duration ) : timespan
   d.secs
-}
 
 // Return the duration in rounded SI milli-seconds.
-public fun milli-seconds( d : duration ) : int {
+pub fun milli-seconds( d : duration ) : int
   (d.secs * 1000.timespan).int
-}
 
 // Return the duration in rounded SI nano-seconds.
-public fun nano-seconds( d : duration ) : int {
+pub fun nano-seconds( d : duration ) : int
   (d.secs * 1000000000.timespan).int
-}
 
 // The whole seconds (in some time unit) of the duration as `:int``. Rounds towards zero.
-public fun truncate( d : duration ) : int {
+pub fun truncate( d : duration ) : int
   d.secs.truncate.int
-}
 
 // The fractional seconds of a duration as a `:double`.
 // `d.seconds == d.truncate.fixed + d.fraction.fixed
-public fun fraction( d : duration ) : double {
+pub fun fraction( d : duration ) : double
   d.secs.fraction.double
-}
 
 // Is this a negative duration?
-public fun is-neg( d : duration ) : bool {
+pub fun is-neg( d : duration ) : bool
   d.secs.is-neg
-}
 
 // Is this a zero duration?
-public fun is-zero(  d : duration  ) : bool {
+pub fun is-zero(  d : duration  ) : bool
   d.secs.is-zero
-}
 
 // Is this a positive duration?
-public fun is-pos( d : duration ) : bool {
+pub fun is-pos( d : duration ) : bool
   d.secs.is-pos
-}
 
 // Compare two `:duration`s.
-public fun compare( i : duration, j : duration ) : order {
+pub fun compare( i : duration, j : duration ) : order
   compare(i.secs,j.secs)
-}
 
-public fun (<)( i : duration, j : duration )  : bool { compare(i,j) == Lt }
-public fun (<=)( i : duration, j : duration ) : bool { compare(i,j) != Gt }
-public fun (>)( i : duration, j : duration )  : bool { compare(i,j) == Gt }
-public fun (>=)( i : duration, j : duration ) : bool { compare(i,j) != Lt }
-public fun (==)( i : duration, j : duration ) : bool { compare(i,j) == Eq }
-public fun (!=)( i : duration, j : duration ) : bool { compare(i,j) != Eq }
+pub fun (<)( i : duration, j : duration )  : bool { compare(i,j) == Lt }
+pub fun (<=)( i : duration, j : duration ) : bool { compare(i,j) != Gt }
+pub fun (>)( i : duration, j : duration )  : bool { compare(i,j) == Gt }
+pub fun (>=)( i : duration, j : duration ) : bool { compare(i,j) != Lt }
+pub fun (==)( i : duration, j : duration ) : bool { compare(i,j) == Eq }
+pub fun (!=)( i : duration, j : duration ) : bool { compare(i,j) != Eq }
 
 // The minimum of two durations.
-public fun min( i : duration, j : duration ) : duration {
-  if (i <= j) then i else j
-}
+pub fun min( i : duration, j : duration ) : duration
+  if i <= j then i else j
 
 // The maximum of two durations.
-public fun max( i : duration, j : duration ) : duration {
-  if (i >= j) then i else j
-}
+pub fun max( i : duration, j : duration ) : duration
+  if i >= j then i else j
 
 // Add two durations.
-public fun (+)( d : duration, e : duration ) : duration {
+pub fun (+)( d : duration, e : duration ) : duration
   Duration(d.secs + e.secs)
-}
 
 // Negate a duration.
-public fun (~)( d : duration ) : duration {
+pub fun (~)( d : duration ) : duration
   Duration(~d.secs)
-}
 
 // Subtract a duration from a duration.
-public fun (-)( d : duration, e : duration ) : duration {
+pub fun (-)( d : duration, e : duration ) : duration
   d + ~e
-}
 
 // Show a duration in SI seconds.
-public fun show( d : duration, max-prec : int = 9 ) : string {
+pub fun show( d : duration, max-prec : int = 9 ) : string
   d.secs.show-fixed(~max-prec.abs) ++ "s"
-}
 
 // Create a `:duration` of `n` milli-seconds.
-public fun milli-seconds( n : int ) : duration { Duration(n.timespan / 1000.timespan) }
+pub fun milli-seconds( n : int ) : duration { Duration(n.timespan / 1000.timespan) }
 
 // Create a `:duration` of `n` seconds.
-public fun seconds( n : int ) : duration { duration(n) }
+pub fun seconds( n : int ) : duration { duration(n) }
 
 // Create a `:duration` of `n` minutes.
-public fun minutes( n : int ) : duration { duration(n*60) }
+pub fun minutes( n : int ) : duration { duration(n*60) }
 
 // Create a `:duration` of `n` hours.
-public fun hours( n : int )   : duration { duration(n*3600) }
+pub fun hours( n : int )   : duration { duration(n*3600) }
 
 // Create a `:duration` of `n` "days" (assuming 86400s in a day).
-public fun days( n : int )    : duration { duration(n*isolar-secs-per-day) }
+pub fun days( n : int )    : duration { duration(n*isolar-secs-per-day) }
 
 // Create a `:duration` of `n` "weeks" (assuming 7 days of 86400s).
-public fun weeks( n : int )   : duration { duration(n*7*isolar-secs-per-day) }
+pub fun weeks( n : int )   : duration { duration(n*7*isolar-secs-per-day) }
 
 // Create a `:duration` of `n` "years" (assuming 365 days of 86400s).
-public fun years( n : int )   : duration { duration(n*365*isolar-secs-per-day) }
+pub fun years( n : int )   : duration { duration(n*365*isolar-secs-per-day) }

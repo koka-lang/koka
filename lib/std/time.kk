@@ -173,22 +173,22 @@ There are two other good UTC time scales though:
 */
 module std/time
 
-public import std/time/duration
-public import std/time/instant
-public import std/time/utc
-public import std/time/chrono
-public import std/time/timer
+pub import std/time/duration
+pub import std/time/instant
+pub import std/time/utc
+pub import std/time/chrono
+pub import std/time/timer
 
 // For now not supported until we move to async
-// public import std/time/download
+// pub import std/time/download
 
-public import std/time/date
-public import std/time/calendar
-public import std/time/calendars
-public import std/time/time
+pub import std/time/date
+pub import std/time/calendar
+pub import std/time/calendars
+pub import std/time/time
 
-public import std/time/locale
-public import std/time/format
-public import std/time/parse
+pub import std/time/locale
+pub import std/time/format
+pub import std/time/parse
 
 import std/num/ddouble  // for documentation

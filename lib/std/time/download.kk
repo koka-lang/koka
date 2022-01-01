@@ -32,16 +32,16 @@ import std/time/calendar
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
 // Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
-public fun cal-utc-sls-load( fname : path = path(""),
+pub fun cal-utc-sls-load( fname : path = path(""),
                          url   : string = "auto",
                          download-delay : duration   = 4.weeks,
                          download-timeout : duration = 5.seconds,
                          verbose : bool = False
                        ) : <io,async> calendar
-{
+
   val leaps = load-leaps-table(fname,url,download-delay,download-timeout,verbose)
   cal-utc-sls-create(leaps)
-}
+
 */
 
 // Construct a UTC based ISO calendar using the latest IERS leap second information from file `fname`
@@ -53,17 +53,17 @@ public fun cal-utc-sls-load( fname : path = path(""),
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
 // Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
 /*
-public fun cal-utc-load( fname : path = path(""),
+pub fun cal-utc-load( fname : path = path(""),
                          url   : string = "auto",
                          download-delay : duration   = 4.weeks,
                          download-timeout : duration = 5.seconds,
                          verbose : bool = False
                        ) : <io,async> calendar
-{
+
   //val fname1 = fname
   val leaps = load-leaps-table(fname,url,download-delay,download-timeout,verbose)
   cal-utc-create(leaps)
-}
+
 */
 
 // Construct a UTC time scale using the latest IERS leap second information from file `fname`
@@ -74,16 +74,15 @@ public fun cal-utc-load( fname : path = path(""),
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
 // Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
-public fun ts-utc-load( fname : path = path(""),
+pub fun ts-utc-load( fname : path = path(""),
                          url   : string = "auto",
                          download-delay : duration   = 4.weeks,
                          download-timeout : duration = 5.seconds,
                          verbose : bool = False
                        ) : <io,async> timescale
-{
+
   val leaps = load-leaps-table(fname,url,download-delay,download-timeout,verbose)
   ts-utc-create(leaps)
-}
 
 // Load the latest leap second information from file `fname`
 // (= `"config/leap-seconds.list"` in the application directory).
@@ -93,15 +92,15 @@ public fun ts-utc-load( fname : path = path(""),
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
 // Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
-public fun load-leaps-table( fname : path = path(""),
+pub fun load-leaps-table( fname : path = path(""),
                                url   : string = "auto",
                                download-delay : duration   = 4.weeks,
                                download-timeout : duration = 5.seconds,
                                verbose : bool = False
                              ) : <io,async> leaps-table
-{
+
   val xfname = (fname || appdir() ++ path("config/leap-seconds.list"))
-  val xurl   = (if (url=="auto") then "https://www.ietf.org/timezones/data/leap-seconds.list" else url)
+  val xurl   = (if url=="auto" then "https://www.ietf.org/timezones/data/leap-seconds.list" else url)
   fun parse( leaps : string ) : maybe<leaps-table> { Just(parse-leap-seconds(leaps))}
   val leaps-table
     = load-latest( xfname, xurl, parse, fn(lt:leaps-table){ Just(lt.expire) },
@@ -111,7 +110,6 @@ public fun load-leaps-table( fname : path = path(""),
                verbose=verbose
              )
   leaps-table.extend( leaps-table-pre1972 ) // extend with historical leap steps
-}
 
 
 // Load a file from a cached file `fname` or URL `url`. The file is parsed with
@@ -127,7 +125,7 @@ public fun load-leaps-table( fname : path = path(""),
 // it is still valid. Otherwise, it attempts to read and parse the file from `fname`. If it is
 // valid and newer than `current` and not yet expired, it is returned.
 // Otherwise, if `url` is not empty, it calls `download-latest` to download and cache the file.
-public fun load-latest( fname  : path,
+pub fun load-latest( fname  : path,
                          url    : string,
                          parse  : string -> maybe<a>,
                          expire : a -> maybe<instant> = fn(_){ Nothing },
@@ -136,80 +134,74 @@ public fun load-latest( fname  : path,
                          download-delay: duration = 2.weeks,
                          error-prefix: string = "load cached",
                          verbose : bool = False  ) : <ndet,file,net,exn,async> a
-{
-  fun full(msg) {
+
+  fun full(msg)
     error-prefix ++ ": " ++ msg ++ ".\n  cached: " ++ fname.show ++ "\n  url   : " ++ url.show
-  }
-  fun warn(msg) : ndet () {
-    if (verbose) then trace("warning: " ++ msg.full) else ()
-  }
+
+  fun warn(msg) : ndet ()
+    if verbose then trace("warning: " ++ msg.full) else ()
 
   // is the current data still valid?
   val unow  = now-in(ts-ti)
-  match(current) {
-    Just(cur) | cur.expire.default(unow) > unow -> {
+  match current
+    Just(cur) | cur.expire.default(unow) > unow ->
       warn("current data still valid")
       return cur // still valid; don't read from disk
-    }
+
     _ -> ()
-  }
+
   // try to read a cached local file first
-  val mbrecent = match(try{read-text(fname)}) {
+  val mbrecent = match(try{read-text(fname)})
     // can't read the file?
-    TryExn(exn) -> {
+    TryExn(exn) ->
       warn(exn.show)
       current // try to download more recent one
-    }
+
     // we read the cached file, let's parse it
-    TryOk(text) -> match(text.parse) {
+    TryOk(text) -> match text.parse
       // unable to parse
-      Nothing -> {
+      Nothing ->
         warn("invalid data")
         current
-      }
+
       // parsed
-      Just(data) -> {
+      Just(data) ->
         // check expiration date against current data and now()
         val exp = data.expire.default(unow)
-        val recent = match(current) {
-                      Just(cur) | cur.expire.default(exp) > exp -> {
+        val recent = match current
+                      Just(cur) | cur.expire.default(exp) > exp ->
                         warn("builtin data is more recent than cached data")
                         cur
-                      }
-                      _ -> {
-                        if (exp > unow)
+
+                      _ ->
+                        if exp > unow
                          then return data  // return with valid cached data :-)
                          else data
-                      }
-                    }
+
         // check file mod time to see if we tried downloading recently
         val fi = try-default(epoch){ fname.mod-time }
-        if (download-delay.is-pos && (fi ++ download-delay > unow)) {
+        if (download-delay.is-pos && (fi ++ download-delay > unow))
           warn("using cached file since it was recently updated.\n  " ++ fname.show)
           return recent  // expired, but use anyway since we recently updated the file
           // Just(recent)
-        }
-        else {
+
+        else
           warn("local cache expired: " ++ fi.show)
           Just(recent)  // expired, try to download more recent version
-        }
-      }
-    }
-  }
+
+
   // only download if we have a url
-  if (url.is-empty) then {
-    match(mbrecent) {
+  if url.is-empty then
+    match mbrecent
       Nothing      -> error(full("unable to read from cache"))
       Just(recent) -> recent
-    }
-  }
-  else {
+
+  else
     // try to touch the file so we won't retry the download too often
     try{ fname.utimes(unow,unow) }
     // go download (and prefer a possibly expired file if the download fails)
     download-latest(url,parse,expire,fname,mbrecent,download-timeout,error-prefix,verbose)
-  }
-}
+
 
 // Download a file from `url` and cache it locally in file `cache` (=`path("")`) if
 // that path is not empty. The `parse` function parses the downloaded content. The
@@ -218,7 +210,7 @@ public fun load-latest( fname  : path,
 // data `current` (=`Nothing`). The `download-timeout` gives the download timeout.
 // The `error-prefix` is prepended to any error messages (=`download failed`).
 // Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
-public fun download-latest(  url   : string,
+pub fun download-latest(  url   : string,
                              parse : string -> maybe<a>,
                              expire : a -> maybe<instant> = fn(_){ Nothing },
                              cache  : path = path(""),
@@ -227,38 +219,36 @@ public fun download-latest(  url   : string,
                              error-prefix: string = "download failed",
                              verbose : bool = False
                            ) : <ndet,file,net,async,exn> a
-{
-  fun warn(msg) {
+
+  fun warn(msg)
     val full-msg = error-prefix ++ ": " ++ msg ++ ".\n  url: " ++ url.show
     // trace(full-msg)
-    match(current) {
-      Just(cur) -> { if (verbose) then trace(full-msg); cur }
+    match current
+      Just(cur) -> { if verbose then trace(full-msg); cur }
       Nothing   -> { error(full-msg) }
-    }
-  }
-  try {
-    if (verbose) then trace("start download: " ++ url.show)
+
+  try
+    if verbose then trace("start download: " ++ url.show)
     val text = url.download-text(download-timeout)
     // trace("downloaded: " ++ url ++ ": " ++ text.first(10).string ++ "...")
-    match(text.parse) {
-      Just(data) -> {
+    match text.parse
+      Just(data) ->
         val exp = data.expire.default(now-in(ts-ti))
-        match(current) {
-          Just(data-cur) | data-cur.expire.default(exp) > exp -> {
+        match current
+          Just(data-cur) | data-cur.expire.default(exp) > exp ->
             warn("downloaded data is less recent than the cached data.")
-          }
-          _ -> {
-            if (!cache.is-empty) then {
-              if (verbose) then trace("cache to file: " ++ cache.string)
+
+          _ ->
+            if !cache.is-empty then
+              if verbose then trace("cache to file: " ++ cache.string)
               try{ write-text(cache,text) }
               ()
-            }
+
             data
-          }
-        }
-      }
+
+
       _ -> warn("invalid data")
-    }
+
     //}
   } fn(exn) { warn(exn.show) }
-}
+

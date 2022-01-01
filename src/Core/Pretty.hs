@@ -260,9 +260,10 @@ prettyDef env def = prettyDefX env True def
 
 prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
   = prettyComment env doc $
-    if (nameIsNil name && not isRec && coreShowDef env && not (coreShowVis env))
+    {- if (nameIsNil name && not isRec && coreShowDef env && not (coreShowVis env))
       then ppBody <.> semi
-      else prettyVis env vis $
+      else -}
+           prettyVis env vis $
             keyword env (show sort)
             <+> (if nameIsNil name then text "_" else prettyDefName env name)
             <+> text ":" <+> (case sort of 

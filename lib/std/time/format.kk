@@ -25,144 +25,120 @@ val fmt-iso-timezone   = "Z C"
 
 // Show a time as a standard ISO string. Will use automatic week date
 // or month date format for the `cal-iso-week` and `cal-iso-month` calendars.
-public fun show-iso( t : time ) : string {
+pub fun show-iso( t : time ) : string
   t.show-iso-date ++ "T" ++ t.format(fmt-iso-time ++ fmt-iso-timezone)
-}
 
 // Show a time as a standard ISO date. Will use automatic week date
 // or month date format for the  `cal-iso-week` and `cal-iso-month` calendars.
-public fun show-iso-date( t : time ) : string {
+pub fun show-iso-date( t : time ) : string
   t.format( fmt-iso-date )
-}
 
 // Show time as a standard [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3) date.\
 // For example `now().show-imf` returns `"Fri, 9 Oct 2016 11:57:45 -0700"`
-public fun show-imf( t : time ) : string {
+pub fun show-imf( t : time ) : string
   t.time(cal=cal-iso).format("ddd, D MMM Y HH:mm:ss zz")
-}
 
 // Show the time as a human readable string in the given `locale` (=`time-locale-en`)
 // For example `now().show-en` -> `"Thu, 8 Oct 2016, 12:20pm"`. Uses the `"llll"` format string.
-public fun show-in-locale( t : time, locale : time-locale = time-locale-en ) : string {
+pub fun show-in-locale( t : time, locale : time-locale = time-locale-en ) : string
   t.format("llll",locale)
-}
 
 // Show the date in human readable string in the given `locale` (=`time-locale-en`).
 // For example `now().show-en-date` -> `"Thu, 8 Oct 2016"`. Uses the `"ll"` format string.
-public fun show-in-locale-date( t : time, locale : time-locale = time-locale-en ) : string {
+pub fun show-in-locale-date( t : time, locale : time-locale = time-locale-en ) : string
   t.format("ll",locale)
-}
 
 // -----------------------------------------------------------
 // Generic Formatting
 // -----------------------------------------------------------
 
-fun format-weekday( t : time, n : int, locale : time-locale ) : string {
+fun format-weekday( t : time, n : int, locale : time-locale ) : string
   val wd = t.weekday
-  if (n==1) then wd.show else {
-    val days = if (n==2) then locale.day-names-min
-               elif (n==3) then locale.day-names-short
+  if n==1 then wd.show else
+    val days = if n==2 then locale.day-names-min
+               elif n==3 then locale.day-names-short
                else locale.day-names
     days[wd.int - 1].default("D" ++ wd.show)
-  }
-}
 
-fun format-day( t : time, n : int, locale : time-locale ) : string {
-  if (n==3) then t.day-of-year.showl(3)
-  elif (t.calendar.month-prefix=="W") then t.day.show
+
+fun format-day( t : time, n : int, locale : time-locale ) : string
+  if n==3 then t.day-of-year.showl(3)
+  elif t.calendar.month-prefix=="W" then t.day.show
   else t.day.showl(n)
-}
 
-fun format-month( t : time, n : int, locale : time-locale ) : string {
-  if (n<=2) then {
+fun format-month( t : time, n : int, locale : time-locale ) : string
+  if n<=2 then
     t.calendar.month-prefix ++ t.month.showl(n)
-  }
-  else {
-    val months = if (n==3) then locale.month-names-short else locale.month-names
+
+  else
+    val months = if n==3 then locale.month-names-short else locale.month-names
     months[t.month - 1].default("M" ++ t.month.showl(2))
-  }
-}
 
-fun format-year( t : time, n : int, locale : time-locale ) : string {
-  if (n==1) then {
+
+fun format-year( t : time, n : int, locale : time-locale ) : string
+  if n==1 then
     t.year.show
-  }
-  elif (n<5 || (t.year >= 0 && t.year <= 9999)) then {
+
+  elif (n<5 || (t.year >= 0 && t.year <= 9999)) then
     t.year.abs.showl(n).last(n).string
-  }
-  else {
+
+  else
     val y = t.year.abs.showl(n)
-    if (t.year.is-neg) then "-" ++ y else "+" ++ y
-  }
-}
+    if t.year.is-neg then "-" ++ y else "+" ++ y
 
-fun format-absyear( t : time, n :int, locale : time-locale ) : string {
+
+fun format-absyear( t : time, n :int, locale : time-locale ) : string
   t.year.abs.show
-}
 
-fun format-era( t : time, n : int, locale : time-locale ) : string {
+fun format-era( t : time, n : int, locale : time-locale ) : string
   (t.calendar.show-era)(t.date)
-}
 
-fun format-seconds( t : time, n : int, locale : time-locale ) : string {
+fun format-seconds( t : time, n : int, locale : time-locale ) : string
   t.seconds.truncate.int.showl(n)
-}
 
-fun format-minutes( t : time, n : int, locale : time-locale ) : string {
+fun format-minutes( t : time, n : int, locale : time-locale ) : string
   t.minutes.showl(n)
-}
 
-fun format-hours( t : time, n : int, locale : time-locale ) : string {
+fun format-hours( t : time, n : int, locale : time-locale ) : string
   t.hours.showl(n)
-}
 
-fun format-hours12( t : time, n : int, locale : time-locale ) : string {
+fun format-hours12( t : time, n : int, locale : time-locale ) : string
   val h = t.hours
-  if (h==0 || h==12) then "12"
-  elif (h<=11) then h.showl(n)
+  if h==0 || h==12 then "12"
+  elif h<=11 then h.showl(n)
   else (h - 12).showl(n)
-}
 
-fun format-calname( t : time, n : int, locale : time-locale) : string {
-  if (t.calendar.month-prefix.is-notempty) then ""
-   elif (n==2) then t.calendar.long-name
+fun format-calname( t : time, n : int, locale : time-locale) : string
+  if t.calendar.month-prefix.is-notempty then ""
+   elif n==2 then t.calendar.long-name
    else t.calendar.name
-}
 
-fun format-ampm( t : time, n : int, locale : time-locale ) : string {
+fun format-ampm( t : time, n : int, locale : time-locale ) : string
   val h = t.hours
-  (if (h<=11) then "am" else "pm").first(n).string
-}
+  (if h<=11 then "am" else "pm").first(n).string
 
-fun format-upper-ampm( t : time, n : int, locale : time-locale ) : string {
+fun format-upper-ampm( t : time, n : int, locale : time-locale ) : string
   format-ampm(t,n,locale).to-upper
-}
 
-fun format-frac( t : time, n : int, locale : time-locale ) : string {
+fun format-frac( t : time, n : int, locale : time-locale ) : string
   val frac = t.seconds.fraction
-  if (frac.is-zero) then "" else frac.show-fixed(n).tail
-}
+  if frac.is-zero then "" else frac.show-fixed(n).tail
 
-fun format-frac0( t : time, n : int, locale : time-locale ) : string {
+fun format-frac0( t : time, n : int, locale : time-locale ) : string
   val frac = t.seconds.fraction
-  if (frac.is-zero) then "" else frac.show-fixed(n).tail.pad-right(n+1,'0')
-}
+  if frac.is-zero then "" else frac.show-fixed(n).tail.pad-right(n+1,'0')
 
-fun format-tz-offset( t : time, n : int, hmsep : string, utc : string ) : string {
+fun format-tz-offset( t : time, n : int, hmsep : string, utc : string ) : string
   show-tzdelta(t.tzdelta,hmsep=hmsep,utc=utc)
-}
 
-fun format-timezone( t : time, n : int, locale : time-locale ) : string {
-  format-tz-offset(t,n,if (n==2) then "" else ":",if (n==2) then "+0000" else "+00:00")
-}
+fun format-timezone( t : time, n : int, locale : time-locale ) : string
+  format-tz-offset(t,n,if n==2 then "" else ":",if n==2 then "+0000" else "+00:00")
 
-fun format-utc-timezone( t : time, n : int, locale : time-locale ) : string {
-  format-tz-offset(t,n,":",if (n==2) then "" else "Z")
-}
+fun format-utc-timezone( t : time, n : int, locale : time-locale ) : string
+  format-tz-offset(t,n,":",if n==2 then "" else "Z")
 
-fun format-timestamp( t : time, n : int, locale : time-locale ) : string {
+fun format-timestamp( t : time, n : int, locale : time-locale ) : string
   t.instant.show-raw(3)
-}
 
 
 val formats : list<(char,int,(time,int,time-locale) -> string)> = [
@@ -250,19 +226,16 @@ you can use `now().format("ddd, D MMM Y HH:mm:ss zz")` displayed as `"Tue, 27 Se
 A standard ISO string can be formatted as, `"YYYY-MM-DD'T'HH:mm:ssFFFFFFFFFZ C"`.
 
 */
-public fun format( t : time, fmt : string, locale : time-locale = time-locale-en-iso ) : string {
+pub fun format( t : time, fmt : string, locale : time-locale = time-locale-en-iso ) : string
   format-list( t, fmt.expand-locales(locale).expand-locales(locale).list, locale )
-}
 
-fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string {
-  match(fmt) {
+fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string
+  match fmt
     Nil -> ""
-    Cons(c,cs) -> {
+    Cons(c,cs) ->
       val (formatted,rest) = format-pat(t,c,cs,locale)
       formatted ++ format-list(t, unsafe-decreasing(rest), locale)
-    }
-  }
-}
+
 
 fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (string,list<char>) 
   if h=='"' || h=='\'' then
@@ -277,47 +250,42 @@ fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (
     val n = hs.length + 1
     formats.foreach-while fn(pattern) 
       val (c,m,f) = pattern
-      if (c!=h) then Nothing else Just((f(t,min(n,m),locale), rest))
+      if c!=h then Nothing else Just((f(t,min(n,m),locale), rest))
     .default( ("",rest) ) // ignore if no match
   else 
     (h.string,fmt) // return as-is
 
-
 /*
-fun expand-locales( fmt : string, locale : time-locale ) : string {
-  fmt.replace-all(rx-locale) fn(cap) {
+fun expand-locales( fmt : string, locale : time-locale ) : string
+  fmt.replace-all(rx-locale) fn(cap)
     val n = cap.matched.count
-    if (cap.groups[1] != "") then {
+    if cap.groups[1] != "" then
       cap.matched
-    }
-    elif (cap.groups[2] != "") then {
-      if (n>=2) then locale.format-tt else locale.format-t
-    }
-    else {
-      val nfmt = if (n>=4) then locale.format-llll elif (n==3) then locale.format-lll
-                 elif (n==2) then locale.format-ll else locale.format-l
-      if (cap.groups[3] != "") then {
+
+    elif cap.groups[2] != "" then
+      if n>=2 then locale.format-tt else locale.format-t
+
+    else
+      val nfmt = if n>=4 then locale.format-llll elif n==3 then locale.format-lll
+                 elif n==2 then locale.format-ll else locale.format-l
+      if cap.groups[3] != "" then
         nfmt
-      }
-      else {
+
+      else
         nfmt.replace-all(rx-long, fn(capl) { capl.matched.tail })
-      }
-    }
-  }
-}
+
+
 val rx-locale = regex(@"('[^']*'|""[^""]*"")|(t+)|(L+)|(l+)")
 val rx-long   = regex(@"dddd+|MMMM+|DD(?!D)")
 */
 
-fun expand-locales( fmt : string, locale : time-locale ) : string {
+fun expand-locales( fmt : string, locale : time-locale ) : string
   fmt.slice.parse-eof( { plocales(locale) } ).maybe.default(fmt)
-}
 
-fun plocales( locale : time-locale ) : parse string {
+fun plocales( locale : time-locale ) : parse string
   many({plocale(locale)}).join
-}
 
-fun plocale( locale : time-locale ) : parse string {  
+fun plocale( locale : time-locale ) : parse string
   choose([
     { none-of-many1("'\"tLl") },
     { pquoted('\'') },
@@ -326,32 +294,28 @@ fun plocale( locale : time-locale ) : parse string {
     { plocale-l(locale,'L') },
     { plocale-l(locale,'l') }
   ])
-}
 
-fun pquoted(quote : char) : parse string {
+fun pquoted(quote : char) : parse string
   char(quote)
   val s = optional(""){ chars-are("",fn(c){ c != quote } ).string }
   char(quote)
   return (quote.string ++ s ++ quote.string)
-}
 
-fun plocale-t( locale : time-locale ) : parse string {  
+fun plocale-t( locale : time-locale ) : parse string
   char('t')
   optional(locale.format-t){ char('t'); locale.format-tt }
-}
 
-fun plocale-l( locale : time-locale, l : char ) : parse string {  
+fun plocale-l( locale : time-locale, l : char ) : parse string
   val ls = many1{ char(l) }
   val n = ls.length
-  val nfmt = if (n>=4) then locale.format-llll elif (n==3) then locale.format-lll
-               elif (n==2) then locale.format-ll else locale.format-l
-  if (l=='L')
+  val nfmt = if n>=4 then locale.format-llll elif n==3 then locale.format-lll
+               elif n==2 then locale.format-ll else locale.format-l
+  if l=='L'
    then nfmt
    else nfmt.replace-all("dd","d").replace-all("dd","ddd")
             .replace-all("MM","M").replace-all("MM","MMM")
             .replace-all("DD","D").replace-all("DD","DDD")
-}
 
-fun showl( i : int, width : int = 2 ) : string {
+fun showl( i : int, width : int = 2 ) : string
   i.show.pad-left(width,'0')
-}
+

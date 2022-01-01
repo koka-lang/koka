@@ -56,11 +56,10 @@ And also parses the ISO month dates (see `cal-iso-month`):
 .
 */
 
-public fun parse-iso( s : string, calendar : calendar = cal-iso ) : <utc> maybe<time> {
+pub fun parse-iso( s : string, calendar : calendar = cal-iso ) : <utc> maybe<time>
   s.slice.parse-eof( { piso(calendar) } ).maybe 
-}
 
-fun piso(calendar : calendar) : <parse,utc> time {
+fun piso(calendar : calendar) : <parse,utc> time
   val year = num(4)
   dash()
   val (date,cal) = choose([
@@ -87,12 +86,11 @@ fun piso(calendar : calendar) : <parse,utc> time {
     { char('M')         // ISO month day-of-year
       val d = num(3)
       (Date(year,1,d),cal-iso-month)
-    }      
+    }
   ]) 
   optional(time(date,cal=cal)){ ptime(date,cal) }
-}
 
-fun ptime(date : date, cal : calendar) : <parse,utc> time {
+fun ptime(date : date, cal : calendar) : <parse,utc> time
   one-of("T ")
   val hour = num(2)
   colon()
@@ -100,115 +98,105 @@ fun ptime(date : date, cal : calendar) : <parse,utc> time {
   colon()
   val secs = optional(zero) { val s = num(2) 
                               val f = optional(""){ one-of(".,"); digits() }
-                              (s.ddouble + (if (f.is-empty) then zero else ("0." ++ f).parse-ddouble.default(zero))) } 
+                              (s.ddouble + (if f.is-empty then zero else ("0." ++ f).parse-ddouble.default(zero))) } 
   val tzone = choose([
                 { val sign = one-of("+-")
                   val tzhour = num(2)
                   colon()
                   val tzmin = num(2)
-                  tz-fixed( if (sign=='-') then tzhour.negate else tzhour, tzmin )
+                  tz-fixed( if sign=='-' then tzhour.negate else tzhour, tzmin )
                 }, 
                 { optional('Z'){ char('Z') }; tz-utc }
               ])
   val clk = Clock(hour,min,secs)
   time(date,clk,tz=tzone,cal=cal)
-}
 
-fun dash() : parse char {
+fun dash() : parse char
   optchar('-')
-}
 
-fun colon() : parse char {
+fun colon() : parse char
   optchar(':')
-}
 
-fun optchar(c : char ) : parse char {
+fun optchar(c : char ) : parse char
   optional(c,{char(c)})
-}
 
-fun num( n : int ) : parse int {
+fun num( n : int ) : parse int
   count(n,digit).foldl(0, fn(d,x){ x*10 + d })
-}
 
 /*
-public fun parse-iso( s : string, calendar : calendar = cal-iso ) : <utc> maybe<time> {
-  match(s.find(rx-iso-date)) {
+pub fun parse-iso( s : string, calendar : calendar = cal-iso ) : <utc> maybe<time>
+  match(s.find(rx-iso-date))
     Nothing -> Nothing
-    Just(capd) -> {
+    Just(capd) ->
       val xyear = capd.num(1)
       val (date,cal) =
-        if (capd.groups[4] != "") then // ISO week date
+        if capd.groups[4] != "" then // ISO week date
           (Date(xyear,capd.num(4),capd.num(5,1)),cal-iso-week)
-        elif (capd.groups[6] != "") then // ISO day of the year
+        elif capd.groups[6] != "" then // ISO day of the year
           (Date(xyear,1,capd.num(6)), calendar)
-        elif (capd.groups[7] != "") then // ISO month date
+        elif capd.groups[7] != "" then // ISO month date
           (Date(xyear,capd.num(7),capd.num(8)), cal-iso-month)
-        elif (capd.groups[9] != "") then // ISO month date, day of the year
+        elif capd.groups[9] != "" then // ISO month date, day of the year
           (Date(xyear,1,capd.num(9)), cal-iso-month)
         else // (capd.groups[2] != "")  // regular ISO date
           (Date(xyear,capd.num(2),capd.num(3)),calendar)
-      match(capd.slice.after.string.find(rx-iso-time)) {
+      match(capd.slice.after.string.find(rx-iso-time))
         Nothing    -> Nothing
-        Just(capt) -> {
+        Just(capt) ->
           val hours = capt.num(1)
           val mins  = capt.num(2)
           val secs  = parse-ddouble(capt.groups[3] + "." + capt.groups[4]).default(zero)
-          val tzsign= if (capt.groups[5]=="+") then 1 else ~1
+          val tzsign= if capt.groups[5]=="+" then 1 else ~1
           val tzhours= capt.num(6)
           val tzmins = capt.num(7)
           val tzone = tz-fixed(tzsign*tzhours, tzmins)
           val clock = Clock(hours,mins,secs)
           Just(time(date,clock,tz=tzone,cal=cal))
-        }
-      }
-    }
-  }
-}
+
+
+
 val rx-iso-date = regex(@"^(\d\d\d\d)\-?(?:(\d\d)\-?(\d\d)|W(\d\d)\-?(\d)?|(\d\d\d)|M(\d\d)\-?(\d\d)|M(\d\d\d))(?=$|[T\+\- ]\d|Z)");
 val rx-iso-time = regex(@"^(?:[T ](\d\d)(?:\:?(\d\d)(?:\:?(\d\d))?)?(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:\:?(\d\d))?)?$")
 
-fun num( cap : matched, group : int, default : int = 0 ) : int {
+fun num( cap : matched, group : int, default : int = 0 ) : int
   parse-int-default(cap.groups[group], default = default)
-}
 
 // Parse an [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3) time string.
 // For example: `"Tue, 27 Sep 2016 06:36:55 -0700"`.
-public fun parse-imf( s : string ) : <utc> maybe<time> {
-  match(s.find(rx-imf)) {
+pub fun parse-imf( s : string ) : <utc> maybe<time>
+  match(s.find(rx-imf))
     Nothing -> Nothing
-    Just(cap) -> {
+    Just(cap) ->
       val day   = cap.num(2)
       val month = month-from-name(cap.groups[3]).default(1)
       val xyear = cap.num(4)
       val hours = cap.num(5)
       val mins  = cap.num(6)
       val secs  = cap.num(7)
-      val tzsign= if (cap.groups[8]=="+") then 1 else ~1
+      val tzsign= if cap.groups[8]=="+" then 1 else ~1
       val tzhours= cap.num(9)
       val tzmins = cap.num(10)
       val tzone = tz-fixed(tzsign*tzhours, tzmins)
       // adjust 2 digit year
-      val year  = if (cap.groups[4].count <= 2)
-                   then (if (xyear < 50) then 2000 + xyear else 1900 + xyear)
+      val year  = if cap.groups[4].count <= 2
+                   then (if xyear < 50 then 2000 + xyear else 1900 + xyear)
                    else xyear
       Just(time(year,month,day,hours,mins,secs,tz=tzone))
-    }
-  }
-}
+
+
 val rx-imf = regex(@"^ *(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun) *, *)? (\d\d?) *(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) *(\d\d(?:\d\d)?) +(\d\d?):(\d\d?)(?::(\d\d))? *(?:([\+\-])(\d\d)(\d\d) *)?$")
 
-fun month-from-name( mname : string ) : maybe<int> {
+fun month-from-name( mname : string ) : maybe<int>
   val lname = mname.to-lower
-  fun search( names : list<string>, month : int ) : maybe<int> {
-    match(names) {
+  fun search( names : list<string>, month : int ) : maybe<int>
+    match names
       Nil -> Nothing
-      Cons(name,rest) -> {
+      Cons(name,rest) ->
         if (name.to-lower.starts-with(lname).bool)
          then Just(month)
          else search(rest,month+1)
-      }
-    }
-  }
+
+
   search(time-locale-en-iso.month-names,1)
-}
+
 */

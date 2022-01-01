@@ -11,7 +11,7 @@
 The UT1 time scale is based on the rotation of the earth where one rotation is 86400 seconds.
 The exact UT1 time can only be determined by measuring the Earth's rotation angle very precisely.
 The International Earth Rotation Service
-(IERS) issues [bulletin A](https://www.iers.org/IERS/EN/Publications/Bulletins/bulletins.html)
+(IERS) issues [bulletin A](https://www.iers.org/IERS/EN/pubations/Bulletins/bulletins.html)
 containing accurate (UT1 - UTC) deltas.
 
 The library provides the `cal-ut1-load` function to automatically cache and download the latest USNO
@@ -58,13 +58,12 @@ import std/time/time
 // The default UT1 (Universal time 1) timescale
 // Uses builtin approximation of UT1 time as described in `deltat`.
 // To calculate UT1 more precisely, use `cal-ut1-load` (or `cal-ut1-create`).
-public val ts-ut1-approx = ts-ut1-create()
+pub val ts-ut1-approx = ts-ut1-create()
 
 // The default UT2 (Universal time 2) timescale.
 // Uses builtin approximation of UT2 time as described in `deltat`.
 // To calculate UT2 more precisely, use `cal-ut2-load` (or `cal-ut2-create`).
-public val ts-ut2-approx = ts-ut2-create()
-
+pub val ts-ut2-approx = ts-ut2-create()
 
 val usno-url = "http://maia.usno.navy.mil/ser7/"  // "http://toshi.nofs.navy.mil/ser7/"
 
@@ -81,15 +80,13 @@ val usno-url = "http://maia.usno.navy.mil/ser7/"  // "http://toshi.nofs.navy.mil
 // If the ``.all`` file is older than `8*download-delay` the file is automatically refreshed from `url`.
 // The `4*download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish (``.all`` file is about 3mb).
 // Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
-public fun ts-ut1-load( basename : string = "finals2000A",
-                         baseurl  : string = usno-url,
-                         download-delay: duration = 1.weeks,
-                         download-timeout: duration = 5.seconds,
-                         verbose : bool = True
-                        ) : <io,async> timescale
-{
+pub fun ts-ut1-load(  basename : string = "finals2000A",
+                      baseurl  : string = usno-url,
+                      download-delay: duration = 1.weeks,
+                      download-timeout: duration = 5.seconds,
+                      verbose : bool = True
+                    ) : <io,async> timescale
   ts-ut1-create( load-iersA( basename, baseurl, download-delay, download-timeout, verbose ) )
-}
 
 // Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
 // information for precise UT1 determination. Loads and caches both the _daily_ and _all_
@@ -100,13 +97,13 @@ public fun ts-ut1-load( basename : string = "finals2000A",
 // Set the `baseurl` to the empty string to suppress automatic downloading. The files are cached
 // in the `config/` directory of the application installation directory.
 // Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
-public fun load-iersA( basename : string = "finals2000A",
-                       baseurl  : string = usno-url,
-                       download-delay: duration = 1.weeks,
-                       download-timeout: duration = 5.seconds,
-                       verbose : bool = True
-                     ) : <io,async> ((i:instant) -> maybe<duration>)
-{
+pub fun load-iersA( basename : string = "finals2000A",
+                    baseurl  : string = usno-url,
+                    download-delay: duration = 1.weeks,
+                    download-timeout: duration = 5.seconds,
+                    verbose : bool = True
+                  ) : <io,async> ((i:instant) -> maybe<duration>)
+
   val fname-all    = basename + ".all"
   val finals-all   = load-iersA-all( fname-all, baseurl + fname-all,
                                      duration(download-delay.seconds * 8.ddouble),
@@ -114,13 +111,11 @@ public fun load-iersA( basename : string = "finals2000A",
   val fname-daily  = basename + ".daily"
   val finals-daily = load-iersA-daily( fname-daily, baseurl + fname-daily,
                                        download-delay, download-timeout, verbose )
-  (fn(i:instant) {
-    match(finals-daily(i)) {
+  (fn(i:instant)
+    match finals-daily(i)
       Nothing -> finals-all(i)
-      just    -> just
-    }
-  })
-}
+      just    -> just 
+  )
 
 // Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
 // information for precise UT1 determination. Loads the full bulletin A data since 1973
@@ -133,15 +128,13 @@ public fun load-iersA( basename : string = "finals2000A",
 // The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish (the
 // full data is about 3mb in size).
 // Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
-public fun load-iersA-all( fname : string = "",
+pub fun load-iersA-all( fname : string = "",
                           url   : string = "auto",
                           download-delay : duration   = 8.weeks,
                           download-timeout : duration = 30.seconds,  // 3mb file!
                           verbose : bool = True
                          ) : <io,async> ((i:instant) -> maybe<duration>)
-{
   load-latest-iersA( (fname || "finals2000A.all").path, url, download-delay, download-timeout, verbose )
-}
 
 
 // Load the daily [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
@@ -155,23 +148,21 @@ public fun load-iersA-all( fname : string = "",
 // If the file is older than `download-delay` (=`1.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
 // Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
-public fun load-iersA-daily( fname : string = "",
+pub fun load-iersA-daily( fname : string = "",
                               url   : string = "auto",
                               download-delay : duration   = 1.weeks,
                               download-timeout : duration = 5.seconds, // ~37kb file
                               verbose : bool = True
                              ) : <io,async> ((i:instant) -> maybe<duration>)
-{
+
   load-latest-iersA( (fname || "finals2000A.daily").path, url, download-delay, download-timeout, verbose )
-}
 
 fun load-latest-iersA( fname : path, url   : string,
                         download-delay : duration, download-timeout : duration,
                         verbose : bool = True
                        ) : <io,async> ((i:instant) -> maybe<duration>)
-{
-  val xfname = if (fname.dirname.is-empty) then appdir() + path("config") + fname else fname
-  val xurl   = if (url=="auto") then usno-url + fname.basename else url
+  val xfname = if fname.dirname.is-empty then appdir() + path("config") + fname else fname
+  val xurl   = if url=="auto" then usno-url + fname.basename else url
   val dtt    = load-latest( xfname, xurl, parse-iersA, fn(dtt:dut-table){ Just(dtt.expire) },
                             download-timeout=download-timeout,download-delay=download-delay,
                             error-prefix="load IERS A data (" + fname.basename + ")",
@@ -179,7 +170,6 @@ fun load-latest-iersA( fname : path, url   : string,
                           )
   val ts-utc = ts-utc-load(verbose=verbose)
   (fn(i:instant){ dut-deltat(ts-utc, dtt,i) })
-}
 
 
 //-----------------------------------------------------------------
@@ -196,18 +186,18 @@ struct dut-table(
 
 // Calculate &Delta;T from a DUT table.
 // Interpolates linearly between daily entries.
-fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<duration> {
-  try-default(Nothing) {
+fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<duration>
+  try-default(Nothing)
     val utci = i.use-timescale(ts-utc)
     val mjd = utci.mjd(ts-utc).double
-    if (mjd < dtt.start || mjd >= dtt.end) then Nothing else {
+    if mjd < dtt.start || mjd >= dtt.end then Nothing else
       val idx = (mjd - dtt.start).truncate.int
       // interpolate
       val dut1= dtt.duts[idx]
-      val dut2= if (idx + 1 >= dtt.duts.length) then dut1 else dtt.duts[idx+1]
-      val dut3= if (dut1 - 0.5 < dut2 && dut1 + 0.5 > dut2) then dut2
-                elif (dut1 + 0.5 < dut2 && dut1 + 1.5 > dut2) then dut2 - 1.0 // a leap second was added
-                elif (dut1 - 0.5 > dut2 && dut1 - 1.5 < dut2) then dut2 + 1.0 // a leap second was subtracted
+      val dut2= if idx + 1 >= dtt.duts.length then dut1 else dtt.duts[idx+1]
+      val dut3= if dut1 - 0.5 < dut2 && dut1 + 0.5 > dut2 then dut2
+                elif dut1 + 0.5 < dut2 && dut1 + 1.5 > dut2 then dut2 - 1.0 // a leap second was added
+                elif dut1 - 0.5 > dut2 && dut1 - 1.5 < dut2 then dut2 + 1.0 // a leap second was subtracted
                 else dut1 // a jump outside a reasonable range; don't interpolate
       val dut = dut1 + ((dut3 - dut1) * mjd.fraction)
       //val _ = trace("dut interpolate: " + dut1.show + ", and " + dut3.show + ", to " + dut.show)
@@ -215,43 +205,39 @@ fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<durat
       val dt  = (i.timestamp-in(ts-tt) - dut.ddouble) - utci.timestamp.unsafe-timespan-withleap // include leap seconds!
       //val _ = trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
       Just( unsafe-duration(dt) )
-    }
-  }
-}
+
 
 
 // Parse a ``finals2000A.all`` file into a DUT table for precise &Delta;T calculation (using `dut-deltat`)
 // See <http://maia.usno.navy.mil/ser7/finals2000A.all>, or <http://toshi.nofs.navy.mil/ser7/finals2000A.all>
-fun parse-iersA( s : string ) : maybe<dut-table> {
-  val start   = match( s.find(rx-finals-start) ) {
+fun parse-iersA( s : string ) : maybe<dut-table>
+  val start   = match( s.find(rx-finals-start) )
                   Nothing   -> 41684.0
                   Just(cap) -> cap.groups[1].parse-double.maybe(41684.0)
-                }
+
   val mbexp   = s.find(rx-finals-expire) // first prediction date
   val caps    = s.find-all(rx-finals-dut)
   val entries = caps.map-acc(fn(cap){ cap.groups[1].parse-double.maybe(0.0) }).vector
 
   val end     = start + entries.length.double
-  val expire  = (match(mbexp) {
+  val expire  = (match mbexp
                   Just(cap) -> cap.groups[1].parse-double.maybe(end - 365.0)
                   Nothing   -> end - 365.0  // guess one year early
-                }).instant-at-mjd(ts-ti)
+                ).instant-at-mjd(ts-ti)
   //trace("finals2000A expire: " + expire.time.show)
   //trace("entries: " + entries.list.map(fn(d){ show(d) }).join("\n"))
   //trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
   Just(Dut-table(expire,start,end,entries))
-}
+
 val rx-finals-dut = regex(@"^.{57}[IP]([\-\+ ]\d+(?:\.\d+))", multiline=True)
 val rx-finals-start = regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?)", multiline=True)
 val rx-finals-expire= regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?) P", multiline=True)
 
 // recurse using an accumulator using constant heap space
-private fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b> {
-  match(xs) {
+private fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b>
+  match xs
     Cons(x,xx) -> map-acc(xx,f,Cons(f(x),acc))
     Nil -> reverse(acc)
-  }
-}
 
 
 
@@ -259,37 +245,34 @@ private fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b> {
 // UT1 timescale; UT1 = TT - DeltaT
 // -----------------------------------------------------------
 
-fun tai-to-ut1( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timestamp {
+fun tai-to-ut1( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timestamp
   val i  = tai.instant
   val dt = deltat(i,dt-override)
   // trace("tai-to-ut: dt: " + dt.show )
   (i - dt).timestamp-in(ts-tt)
-}
 
-fun ut1-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) : duration {
+fun ut1-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) : duration
   val i   = ts-tt.instant(t)             // approximately tt
   val i1  = i + deltat(i,dt-override)    // approximate tai
   val i2  = i + deltat(i1,dt-override)   // improve over previous approximation
   // trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)
   i2.duration
-}
 
 // Takes an optional `dt` parameter to calculate &Delta;T (=TT - UT1)
 // more precisely. The `dt` functions should return `Nothing` for instants
 // outside its range so the builtin methods can be used in that case (see `deltat`)
-public fun ts-ut1-create( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
+pub fun ts-ut1-create( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale
   timescale("UT1",
     fn(i) { tai-to-ut1(i,dt) },
     fn(t) { ut1-to-tai(t,dt) }
   )
-}
 
 // -----------------------------------------------------------
 // UT2 timescale.
 // UT2 = UT1 + 0.022*sin(2*pi*t) - 0.012*cos(2*pi*t) - 0.006*sin(4*pi*t) + 0.007*cos(4*pi*t)
 // -----------------------------------------------------------
 
-fun ut2-offset( i : instant ) : timespan {
+fun ut2-offset( i : instant ) : timespan
 
   // UT2 = UT1 + 0.022*sin(2*pi*t) - 0.012*cos(2*pi*t) - 0.006*sin(4*pi*t) + 0.007*cos(4*pi*t)
   // where `t` is the fraction of the Besselian year:
@@ -313,38 +296,33 @@ fun ut2-offset( i : instant ) : timespan {
   val tp4   = 2.0*tp2
   val ofs   = 0.022*sin(tp2) - 0.012*cos(tp2) - 0.006*sin(tp4) + 0.007*cos(tp4)
   ofs.timespan
-}
 
-fun tai-to-ut2( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timestamp {
+fun tai-to-ut2( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timestamp
   val i   = tai.instant
   val ut1 = tai.tai-to-ut1(dt-override)
   (ut1 + i.ut2-offset)
-}
 
-fun ut2-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) : duration {
+fun ut2-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) : duration
   val i = ts-tt.instant(t)
   val ut1 = t - i.ut2-offset          // approximate ut1
   ut1.ut1-to-tai(dt-override)
-}
 
 // Takes an optional `dt` parameter to calculate &Delta;T (=TT - UT1)
 // more precisely (since UT2 is derived from UT1).
 // The `dt` functions should return `Nothing` for instants
 // outside its range so the builtin methods can be used in that case (see `deltat`)
-public fun ts-ut2-create( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
+pub fun ts-ut2-create( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale
   timescale("UT2",
     fn(i) { tai-to-ut2(i,dt) },
     fn(t) { ut2-to-tai(t,dt) }
   )
-}
 
 // -----------------------------------------------------------
 // Calculate delta-t
 // -----------------------------------------------------------
 
-fun deltat-none(i : instant) : maybe<duration> {
+fun deltat-none(i : instant) : maybe<duration>
   Nothing
-}
 
 /* Calculate &Delta;T (= TT - UT1);
 If the `dt-override` function returns `Nothing`, it tries in order:
@@ -356,98 +334,76 @@ If the `dt-override` function returns `Nothing`, it tries in order:
 * generic parabolic approximation for dates < -500 and dates > 2150 (Morrison and Stephenson, 2004.)
 
 */
-public fun deltat( i : instant, dt-override : (i : instant) -> maybe<duration> = deltat-none ) : duration {
-  val dt = match(dt-override(i)) {
+pub fun deltat( i : instant, dt-override : (i : instant) -> maybe<duration> = deltat-none ) : duration
+  val dt = match(dt-override(i))
             Just(dt) -> dt
-            Nothing  -> {
+            Nothing  ->
               val y = i.time(ts=ts-tt).year-frac.double.round-to-prec(4)
               deltat-builtin(y).duration
-            }
-          }
+
   // trace("deltat: year: " + y.show-ddouble + ", dt: " + dt.show)
   dt
-}
 
 fun deltat-builtin( y : double,
                    determined : deltat-table = deltat-table-determined(),
                    predicted  : deltat-table = deltat-table-predicted() ) : double
-{
   // A date after (about) 1986 ?  (determined starts usually at 1973.0833333)
-  if (y >= determined.start || y >= 1986.0) {
+  if y >= determined.start || y >= 1986.0 then
     // observed Delta-T is best
-    match(determined.interpolate(y)) {
+    match(determined.interpolate(y))
       Just(dt) -> dt
-      Nothing -> {
+      Nothing ->
         // otherwise use predicted values
-        match(predicted.interpolate(y)) {
+        match(predicted.interpolate(y))
           Just(dt) -> dt
           Nothing  -> deltat-future-approx(y)
-        }
-      }
-    }
-  }
   // Use historic data; goes up to 1987 (excluded)
-  else {
-    match(deltat-table-historic().interpolate(y)) {
+  else
+    match(deltat-table-historic().interpolate(y))
       Just(dt) -> dt
       Nothing  -> deltat-historic-approx(y)
-    }
-  }
-}
+
 
 // Approximate delta-t before 1800 using parabolic fitted curves (Espenak & Meeus 2006).
 // See <https://eclipse.gsfc.nasa.gov/SEcat5/deltatpoly.html>
-fun deltat-historic-approx( y : double ) : double {
-  if (y > 1800.0) then {
+fun deltat-historic-approx( y : double ) : double
+  if y > 1800.0 then
     deltat-future-approx(y)
-  }
-  elif (y >= 1700.0) {
+  elif y >= 1700.0 then
     val t = y - 1700.0
     8.83 + t*(0.1603 + t*(~0.0059285 + t*(0.00013336 - (t/1174000.0))))
-  }
-  elif (y >= 1600.0) {
+  elif y >= 1600.0 then
     val t = y - 1600.0
     120.0 + t*(~0.9808 + t*(~0.01532 + (t/7129.0)))
-  }
-  elif (y >= 500.0) {
+  elif y >= 500.0 then
     val u = (y - 1000.0)/100.0
     1574.2 + u*(~556.01 + u*(71.23472 + u*(0.319781 + u*(~0.8503463 + u*(~0.005050998 + u*0.0083572073)))))
-  }
-  elif (y >= ~500.0) {
+  elif y >= ~500.0 then
     val u = y/100.0
     10583.6 + u*(~1014.41 + u*(33.78311 + u*(~5.952053 + u*(~0.1798452 + u*(0.022174192 + u*0.0090316521)))))
-  }
   else deltat-generic(y)
-}
 
 // Approximate delta-t after 1986 using parabolic estimates (from Espenak & Meeus 2006).
 // See <https://eclipse.gsfc.nasa.gov/SEcat5/deltatpoly.html>
-fun deltat-future-approx( y : double) : double {
-  if (y < 1986.0) then {
+fun deltat-future-approx( y : double) : double
+  if y < 1986.0 then
     deltat-generic(y)
-  }
-  elif (y <= 2005.0) {
+  elif y <= 2005.0 then
     val t = y - 2000.0
     63.86 + t*(0.3345 + t*(~0.060374 + t*(0.0017275 + t*(0.000651814 + t*0.00002373599))))
-  }
-  elif (y <= 2050.0) {
+  elif y <= 2050.0 then 
     val t = y - 2000.0
     62.92 + t*(0.32217 + t*0.005589)
-  }
-  elif (y <= 2150.0) {
+  elif y <= 2150.0 then 
     val u = (y - 1820.0)/100.0
     ~20.0 + 32.0*u*u - 0.5628*(2150.0 - y)
-  }
   else deltat-generic(y)
-}
 
 
 // Generic delta-t from Morrison and Stephenson, 2004.
-fun deltat-generic( y : double ) : double {
+fun deltat-generic( y : double ) : double
   val u = (y - 1820.0)/100.0
   -20.0 + 32.0*u*u
-}
-
 
 
 // -----------------------------------------------------------
@@ -470,65 +426,57 @@ val deltat-table-empty = Deltat-table(0.0,0.0,vector(0,0.0))
 // Given a `deltat-table` and a fractional year, return the delta-t by
 // linear interpolation between two known delta-t instants. If the
 // year `y` is outside the bounds of the table, return `Nothing`.
-fun interpolate( dtable : deltat-table, y : double )  : maybe<double> {
-  if (y < dtable.start || dtable.end <= y) then Nothing else {
-    try-default(Nothing) {
+fun interpolate( dtable : deltat-table, y : double )  : maybe<double>
+  if y < dtable.start || dtable.end <= y then Nothing else
+    try-default(Nothing)
       val i   = (y - dtable.start)*dtable.entries-per-year
       val idx = i.truncate.int
       val d0  = dtable.entries[idx]
       val d1  = dtable.entries[idx+1]
       Just( d0 + ((d1 - d0)*i.fraction) )
-    }
-  }
-}
+
 
 // The end fractional year until which this table contains valid data.
-fun end( tb : deltat-table ) : double {
+fun end( tb : deltat-table ) : double
   tb.start + (tb.entries.length.double / tb.entries-per-year)
-}
 
 
-fun parse-deltat( determined : string = "", predicted : string = "") : ((year:double) -> maybe<double>) {
+fun parse-deltat( determined : string = "", predicted : string = "") : ((year:double) -> maybe<double>)
   val det  = parse-determined(determined)
   val pred = parse-predicted(predicted)
-  (fn(year:double) {
-    match(det.interpolate(year)) {
+  (fn(year:double)
+    match det.interpolate(year)    
       Nothing -> pred.interpolate(year)
       jdt     -> jdt
-    }
-  })
-}
+  )
 
 
-fun parse-predicted( s : string ) : deltat-table {
+fun parse-predicted( s : string ) : deltat-table
   val caps = s.find-all(rx-predict)
-  if (caps.is-nil) return deltat-table-empty
+  if caps.is-nil return deltat-table-empty
   val start = caps.head.map(fn(cap){ cap.groups[1] }).default("").parse-double.maybe(2000.0)
   val entries = caps.map(fn(cap){ cap.groups[2].parse-double.maybe(0.0) }).vector
   Deltat-table(start,4.0,entries)
-}
+
 val rx-predict = regex(@"^\s*\d+\.\d+\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline=True)
 
-fun parse-determined( s : string ) : deltat-table {
+fun parse-determined( s : string ) : deltat-table
   val caps  = s.find-all(rx-determined)
-  if (caps.is-nil) then return deltat-table-empty
+  if caps.is-nil return deltat-table-empty
   val (y,m) = caps.head.map(fn(cap){ (cap.groups[1],cap.groups[2]) }).default(("",""))
   val start = y.parse-double.maybe(2000.0) + ((m.parse-double.maybe(1.0) - 1.0)/12.0)
   val entries = caps.map(fn(cap){ cap.groups[4].parse-double.maybe(0.0) }).vector
   Deltat-table(start,12.0,entries)
-}
+
 val rx-determined = regex(@"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multiline=True)
 
-
-fun parse-historic( start: double, s : string ) : deltat-table {
+fun parse-historic( start: double, s : string ) : deltat-table
   val caps = s.replace-all(rxcomment,"").find-all(rxdouble)
   val entries = caps.map(fn(cap){ cap.matched.parse-double.maybe(0.0) }).vector
   Deltat-table(start,2.0,entries)
-}
+
 val rxdouble = regex(@"-?\d+(?:\.\d+)?")
 val rxcomment = regex(@"//.*")
-
-
 
 
 //-----------------------------------------------------------------
@@ -540,7 +488,7 @@ val rxcomment = regex(@"//.*")
 // Note: values before 1750 are excluded as the Espenak & Meeus (2006) estimates are more
 // precise. The values in the original table are from McCarthy and Babcock (1986).
 // Table runs from 1750 to 1987 (excluded) for each half year.
-val deltat-table-historic : () -> deltat-table = once{ 
+val deltat-table-historic : () -> deltat-table = once
  parse-historic(1750.0,@"
   [13.7,13.8,13.9,14.0,14.0,14.1,14.1,14.1,14.1,14.2,14.3,14.4,14.4,14.5,14.6,14.6,14.7,14.7,14.7,
   14.8,14.8,14.9,14.9,15.0,15.0,15.1,15.2,15.3,15.4,15.5,15.6,15.6,15.6,15.8,15.9,15.9,15.9,15.8,
@@ -602,7 +550,6 @@ val deltat-table-historic : () -> deltat-table = once{
   ]"
   )}
 
-
 //-----------------------------------------------------------------
 // The following two tables should be updated yearly to contain
 // the latest builtin information Delta-T.
@@ -613,7 +560,7 @@ val deltat-table-historic : () -> deltat-table = once{
 
 // Monthly observed delta-t data from 1973 up to 2019
 // See: <http://maia.usno.navy.mil/ser7/deltat.data>
-val deltat-table-determined = once{ 
+val deltat-table-determined = once
  parse-determined( @"
   1973  2  1  43.4724
   1973  3  1  43.5648
@@ -1169,10 +1116,9 @@ val deltat-table-determined = once{
   2019  1  1  69.2201
   ")}
 
-
 // Quarterly Predicted delta-t values, from 2019 upto 2027
 // from <http://maia.usno.navy.mil/ser7/deltat.preds>.
-val deltat-table-predicted = once{ 
+val deltat-table-predicted = once
  parse-predicted(@"
   MJD        YEAR    TT-UT Pred  UT1-UTC Pred  ERROR
   58484.000  2019.00   69.34      -0.152       0.117
