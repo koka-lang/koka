@@ -1,4 +1,4 @@
-public module ev2
+pub module ev2
 
 effect exc {
   control throw() : a

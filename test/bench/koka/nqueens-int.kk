@@ -27,10 +27,10 @@ fun find-solutions( n : int, queen : int ) : div solutions
    else extend(n,[], find-solutions(n,queen - 1))
 
 
-public fun queens( n : int ) : div int
+pub fun queens( n : int ) : div int
   find-solutions(n,n).length
 
 
-public fun main()
+pub fun main()
   queens(13).println
 

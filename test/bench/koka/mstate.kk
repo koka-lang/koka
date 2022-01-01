@@ -19,6 +19,6 @@ fun counter( c : int32 ) : _ int
     set(i.dec)
     counter(c.inc)
 
-fun main() 
+pub fun main() 
   with state(10100100.int32)  // since v2.2.0: 1010 is ok, but higher runs out of stack with -O2 :-(
   counter(zero).println

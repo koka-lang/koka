@@ -2,7 +2,7 @@
 The Computer Language Benchmarks Game
 https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 */
-public module binarytrees
+module binarytrees
 
 import std/os/env
 import std/os/task
@@ -117,7 +117,7 @@ fun show( msg : string, depth : int, check : int ) : console ()
 
 
 // main
-public fun main()
+pub fun main()
   // task-set-default-concurrency(8);
   val n = get-args().head.default("").parse-int.default(21)
   val min-depth = 4

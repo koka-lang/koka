@@ -92,6 +92,6 @@ fun to-list(h) {
     }
 }
 
-public fun heapsort-weight-biased-leftist-heaps-okasaki(xs : list<int>) : <div> list<int> {
+pub fun heapsort-weight-biased-leftist-heaps-okasaki(xs : list<int>) : <div> list<int> {
     to-list(from-list(xs, E))
 }

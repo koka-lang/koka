@@ -32,7 +32,7 @@ type skiplist_<h> {
   End
 }
 
-public fun shows(s : skiplist<h>) : <read<h>, div> string {
+pub fun shows(s : skiplist<h>) : <read<h>, div> string {
     show(s.level) ++ ", " ++ show_(s.forward)
 }
 
@@ -101,7 +101,7 @@ fun insert(l : skiplist<h>, searchKey : elem) : <st<h>, exn, div, random> skipli
 
 // Benchmark
 
-public fun from-list(xs) {
+pub fun from-list(xs) {
   fun go(xs, t) {
     match(xs) {
       Nil -> t
@@ -111,7 +111,7 @@ public fun from-list(xs) {
   pseudo-random(503, fn() { go(xs, empty()) })
 }
 
-public fun count-skip-list-imperative(start : int, end : int, xs : list<int>) {
+pub fun count-skip-list-imperative(start : int, end : int, xs : list<int>) {
   val t = from-list(xs)
   fun go(i, acc) {
     if(i <= end) {

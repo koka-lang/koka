@@ -116,7 +116,7 @@ fun from-list(xs : list<int>) {
   go(xs, Empty)
 }
 
-public fun count-patricia-tree-data-intset(start : int, end : int, xs : list<int>) {
+pub fun count-patricia-tree-data-intset(start : int, end : int, xs : list<int>) {
   val t = from-list(xs)
   fun go(i, acc) {
     if(i <= end) {

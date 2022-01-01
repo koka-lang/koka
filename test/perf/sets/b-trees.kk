@@ -181,7 +181,7 @@ fun from-list(xs) {
   go(xs, Root0)
 }
 
-public fun count-b-trees(start : int, end : int, xs : list<int>) {
+pub fun count-b-trees(start : int, end : int, xs : list<int>) {
   val t = from-list(xs)
   fun go(i : int, acc : int) {
     if(i <= end) {

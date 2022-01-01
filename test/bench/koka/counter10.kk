@@ -28,7 +28,7 @@ fun counter( c : int32 ) : _ int
     set(i.dec)
     counter(c.inc)
 
-fun main() 
+pub fun main() 
   with state(100100100.int32)
   with reader(0)
   with reader(1)

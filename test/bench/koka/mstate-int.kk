@@ -18,6 +18,6 @@ fun counter( c : int ) : _ int
     counter(c.inc)
   
 
-fun main() 
+pub fun main() 
   with state(10100)
   counter(0).println

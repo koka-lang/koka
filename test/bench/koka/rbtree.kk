@@ -76,11 +76,11 @@ fun make-tree-aux(n : int32, t : tree) : div tree
     val n1 = n.dec
     make-tree-aux(n1, insert(t, n1, n1 % 10.int32 == zero))
 
-fun make-tree(n : int32) : div tree
+pub fun make-tree(n : int32) : div tree
   make-tree-aux(n, Leaf)
   
 
-fun main()
+pub fun main()
   val n = get-args().head("").parse-int.default(4200000).int32
   val t = make-tree(n)
   val v = t.fold(zero) fn(k,v,r:int32){ if (v) then r.inc else r }

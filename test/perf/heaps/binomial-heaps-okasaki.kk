@@ -10,16 +10,16 @@ import base
 
 alias elem = int
 
-public type tree {
+pub type tree {
     Node(root : elem, c : list<tree>)
 }
 
-public type heap {
+pub type heap {
     Empty
     Heap(minimum : elem, t : list<(int32, tree)>)
 }
 
-public fun tree(h) {
+pub fun tree(h) {
     match(h) {
         Empty -> []
         Heap(_, t) -> t
@@ -82,7 +82,7 @@ fun find-min(h : heap) {
     }
 }
 
-public fun remove-min-tree(ts : list<(int32, tree)>) {
+pub fun remove-min-tree(ts : list<(int32, tree)>) {
     match(ts) {
         Nil -> raise("Empty")
         Cons(t, Nil) -> (t.snd, Nil)
@@ -94,7 +94,7 @@ public fun remove-min-tree(ts : list<(int32, tree)>) {
     }
 }
 
-public fun show-tree(t) {
+pub fun show-tree(t) {
     match(t) {
         Node(r, ts) {
             "Node(" ++ show(r) ++ ", [" ++ ts.map(fn(x) { show-tree(x) ++ ", " }).join ++ "])"
@@ -102,11 +102,11 @@ public fun show-tree(t) {
     }
 }
 
-public fun show-trees(ts : list<(int32, tree)>) {
+pub fun show-trees(ts : list<(int32, tree)>) {
   "[" ++ ts.map(fn((i:int32, t)) { "(" ++ show(i.int) ++ "," ++ show-tree(t) ++ "), " }).join ++ "]"
 }
 
-public fun show-pair(p : (tree, list<(int32, tree)>)) {
+pub fun show-pair(p : (tree, list<(int32, tree)>)) {
     match(p) {
         (t, ts) -> "(" ++ show-tree(t) ++ ", [" ++ ts.map(fn((i:int32, t)) { "(" ++ show(i.int) ++ "," ++ show-tree(t) ++ "), " }).join ++ "])"
     }
@@ -140,21 +140,21 @@ fun delete-min(ts : heap) {
 
 // Heapsort
 
-public fun from-list(xs, h) {
+pub fun from-list(xs, h) {
     match(xs) {
         Nil -> h
         Cons(x, xs) -> from-list(xs, insert(x, h))
     }
 }
 
-public fun to-list(h) {
+pub fun to-list(h) {
     match(h) {
         Empty -> []
         Heap(m, _) -> Cons(m, to-list(delete-min(h)))
     }
 }
 
-public fun heapsort-binomial-heaps-okasaki(xs : list<int>) : <exn, div, console> list<int> {
+pub fun heapsort-binomial-heaps-okasaki(xs : list<int>) : <exn, div, console> list<int> {
     to-list(from-list(xs, Empty))
 }
 

@@ -102,6 +102,6 @@ fun to-list(h) {
   }
 }
 
-public fun heapsort-splay-heaps-fbip(xs : list<int>) : <exn, div> list<int> {
+pub fun heapsort-splay-heaps-fbip(xs : list<int>) : <exn, div> list<int> {
   to-list(from-list(xs, Leaf))
 }

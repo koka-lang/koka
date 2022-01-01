@@ -309,7 +309,7 @@ fun make-tree(n: int32): div tree {
   make-tree-aux(n, n, Leaf)
 }
 
-fun main() {
+pub fun main() {
   val t = make-tree(4200000.int32); // todo: read first command line arg for size
   val v = t.fold(zero) fn(k,v,r:int32){ if (v) then r.inc else r }
   v.show.println

@@ -37,11 +37,6 @@ fun test-list( len : int = 100000000 ) : <ndet,div,console> ()
   println("and freeing it...")
   print-elapsed({ free(xs) }, "free list")
 
-
-
-
-
-
-fun main()
+pub fun main()
   test-tree()
   test-list()

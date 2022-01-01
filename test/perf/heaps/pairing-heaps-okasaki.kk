@@ -72,6 +72,6 @@ fun to-list(h) {
     }
 }
 
-public fun heapsort-pairing-heaps-okasaki(xs : list<int>) : <exn, div> list<int> {
+pub fun heapsort-pairing-heaps-okasaki(xs : list<int>) : <exn, div> list<int> {
     to-list(from-list(xs, E))
 }

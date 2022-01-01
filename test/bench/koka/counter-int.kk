@@ -17,6 +17,6 @@ fun counter( c : int ) : <st,div> int
     set(i.dec)
     counter(c.inc)
 
-fun main() 
+pub fun main() 
   with state(100100100)
   counter(0).println

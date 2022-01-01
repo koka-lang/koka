@@ -147,7 +147,7 @@ fun from-list(xs) {
   pseudo-random(503, fn() { go(xs, empty) })
 }
 
-public fun count-skip-list-vector(start : int, end : int, xs : list<int>) {
+pub fun count-skip-list-vector(start : int, end : int, xs : list<int>) {
   val t = from-list(xs)
   fun go(i, acc) {
     if(i <= end) {
