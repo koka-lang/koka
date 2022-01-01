@@ -70,8 +70,10 @@ fun global(s,action)
 
 
 val choices = handler 
-  ctl fail() { fail() }
-  fun flip() { incr(); flip() }
+  ctl fail() fail()
+  fun flip() 
+    incr()
+    flip() 
 
 
 fun show(x : (int,list<list<int>>)) : string 
@@ -126,7 +128,7 @@ fun collect(action)
         Cons(p,ps) -> { q := ps; p() }
 
     ctl flip() 
-      q := Cons({ resume(False) }, q)
+      q := Cons(fn() resume(False), q)
       resume(True)
 
 
