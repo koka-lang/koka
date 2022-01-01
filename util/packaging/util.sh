@@ -301,6 +301,19 @@ test_docker_multiarch() {
   return 0
 }
 
+install_docker_multiarch() {
+  # If not root
+  if [ "$(id -u)" != "0" ]; then
+    info "To install multiarch, root is needed, sudo will ask for your password now."
+  fi
+
+  sudo docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+  if [ $? -ne 0 ]; then
+    stop "Failed to install multiarch"
+  fi
+}
+
+# Supply force to force install
 ensure_docker_multiarch() {
   test_architectures=$1
   if [ -z "$test_architectures" ]; then
@@ -318,15 +331,7 @@ ensure_docker_multiarch() {
   if [ $? -ne 0 ]; then
     info "Multiarch not installed, installing..."
 
-    # If not root
-    if [ "$(id -u)" != "0" ]; then
-      info "To install multiarch, root is needed, sudo will ask for your password now."
-    fi
-
-    sudo docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-    if [ $? -ne 0 ]; then
-      stop "Failed to install multiarch"
-    fi
+    install_docker_multiarch
 
     info "Verifying multiarch installation"
 

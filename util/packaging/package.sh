@@ -43,6 +43,7 @@ BUILT_PACKAGE_DIR=""    # $TEMP_DIR/package
 
 CALLER_DIR=""
 BUNDLE_LOCATION=""
+OUTPUT_DIR=""
 
 #---------------------------------------------------------
 # Helper functions
@@ -244,7 +245,13 @@ extract_version_architecture_from_bundle() {
 }
 
 move_packages() {
-  target_location="$CALLER_DIR/bundle/$VERSION/packages"
+  target_location=""
+  if [ -z "$OUTPUT_DIR" ]; then
+    target_location="$CALLER_DIR/bundle/$VERSION/packages"
+  else
+    target_location="$OUTPUT_DIR/"
+  fi
+  
   mkdir -p "$target_location"
 
   mv $BUILT_PACKAGE_DIR/* "$target_location"
@@ -301,6 +308,9 @@ process_options() {
       BUILD_TARGETS="$flag_arg"
       ;;
     -o=* | --output=*)
+      OUTPUT_DIR="$flag_arg"
+      ;;
+    --calldir=*)
       CALLER_DIR="$flag_arg"
       ;;
     *) case "$flag" in

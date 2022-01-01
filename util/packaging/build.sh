@@ -129,13 +129,22 @@ package_outputs() {
     # Check if the bundle exists
     if [ ! -f $bundleloc ]; then
       stop "Bundle not found at $bundleloc"
-    else
-      info "Packaging $bundleloc"
     fi
 
     file_bundle_distro=$(tar -Oxf "$bundleloc" meta/distro)
+    file_bundle_arch=$(tar -Oxf "$bundleloc" meta/arch)
+    file_bundle_arch=$(normalize_osarch "$file_bundle_arch")
+    # Skip if file bundle distro not in build targets
+    if [[ ! "$BUILD_TARGETS" =~ "$file_bundle_distro" ]]; then
+      continue
+    fi
+    # Skip if file bundle arch not in build archs
+    if [[ ! "$BUILD_ARCHITECTURES" =~ "$file_bundle_arch" ]]; then
+      continue
+    fi
 
-    ./package.sh -o="$CALLER_DIR" -t="$file_bundle_distro" $bundleloc
+    info "Packaging $bundleloc for $file_bundle_distro"
+    ./package.sh --calldir="$CALLER_DIR" -t="$file_bundle_distro" $bundleloc
 
     if [ $? -ne 0 ]; then
       stop "Failed to package $bundleloc"
@@ -152,8 +161,12 @@ main_build() {
 
   clean_workdir
 
-  # If mode is not packageonly
-  if [ "$MODE" != "packageonly" ]; then
+  if [ "$MODE" == "setupqemu" ]; then
+    ensure_docker
+    install_docker_multiarch # Force an install
+  fi
+
+  if [ "$MODE" == "build" ] || [ "$MODE" == "buildpackage" ]; then
     ensure_tar
     #ensure_kvm # Not necessary, virtualization is userspace
     ensure_docker
@@ -173,7 +186,7 @@ main_build() {
   fi
 
   # If mode is package or packageonly
-  if [ "$MODE" == "package" ] || [ "$MODE" == "packageonly" ]; then
+  if [ "$MODE" == "buildpackage" ] || [ "$MODE" == "packageonly" ]; then
     package_outputs
   fi
 
@@ -202,7 +215,7 @@ process_options() {
       ;;
     -p=* | --package=*)
       if [ "$flag_arg" == "yes" ]; then
-        MODE="package"
+        MODE="buildpackage"
       elif [ "$flag_arg" == "no" ]; then
         MODE="build"
       elif [ "$flag_arg" == "only" ]; then
@@ -210,6 +223,9 @@ process_options() {
       else
         stop "Invalid package option: $flag_arg"
       fi
+      ;;
+    --configqemu)
+      MODE="setupqemu"
       ;;
     -q | --quiet)
       QUIET="yes"
@@ -228,7 +244,7 @@ process_options() {
   if [ "$MODE" == "help" ]; then return; fi
 
   # Default mode is package
-  if [ -z "$MODE" ]; then MODE="package"; fi
+  if [ -z "$MODE" ]; then MODE="buildpackage"; fi
 
   if [ -z "$BUILD_TARGETS" ]; then
     BUILD_TARGETS="$SUPPORTED_TARGETS"
@@ -273,8 +289,12 @@ main_help() {
   info "  -q, --quiet                     Suppress output"
   info "  -h, --help                      Show this help message"
   info ""
-  info "note:"
+  info "dev options:"
+  info "  --configqemu                    Configure just qemu docker emulator for other architectures"
+  info ""
+  info "notes:"
   info "  This script can only build linux packages right now"
+  info "  If older archives are present, they may be accidentally repackaged"
 }
 
 main_start() {
