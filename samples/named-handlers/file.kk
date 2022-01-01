@@ -25,7 +25,7 @@ fun file(fname,action)
   action(f)
 
 
-public fun main() 
+pub fun main() 
   with f1 <- file("package.yaml")
   with f2 <- file("stack.yaml")
   println( f1.read-line() ++ "\n" ++ f2.read-line() )
@@ -35,7 +35,7 @@ fun wrong-escape1()
   with f <- file("stack.yaml")
   f
 
-public fun test() 
+pub fun test() 
   val f = wrong-escape1()
   f.read-line.println
 */

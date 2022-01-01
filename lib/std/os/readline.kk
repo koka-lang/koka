@@ -25,7 +25,7 @@ pub fun readline() : <console,exn> string
     Ok(line)    -> line
 
 
-private fun prepend( exn : exception, pre : string ) : exception
+fun prepend( exn : exception, pre : string ) : exception
   Exception(pre ++ ": " ++ exn.message, exn.info)
 
 

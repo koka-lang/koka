@@ -32,7 +32,7 @@ pub fun write-text-file( path : path, content : string, create-dir : bool = True
     _ -> ()
 
 
-private fun prepend( exn : exception, pre : string ) : exception
+fun prepend( exn : exception, pre : string ) : exception
   Exception(pre ++ ": " ++ exn.message, exn.info)
 
 

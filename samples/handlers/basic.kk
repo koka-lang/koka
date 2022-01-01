@@ -24,7 +24,7 @@ fun hello()
   println("Hello " ++ name ++ ", " ++ ask())  // "Hello <ask>, <ask>"
 
 
-public fun test2() 
+pub fun test2() 
   with fun ask(){ "there" }   // handle input; a `fun` operation resumes implicitly
   hello()
 
@@ -63,7 +63,7 @@ fun to-maybe(action)
   Just(action())
 
 
-public fun test1() 
+pub fun test1() 
   zerodiv(10,0).println
 
 
@@ -95,7 +95,7 @@ fun state(init, action)
     fun put(x) s := x 
   
 
-public fun test3() 
+pub fun test3() 
   state(1,counter).snd
 
 
@@ -124,7 +124,7 @@ fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e ()
   action()
 
 
-public fun test4() 
+pub fun test4() 
   foreach( fn(x:int){ println(x); x <= 1 } )
     [1,2,3].iterate
 
@@ -161,7 +161,7 @@ val amb = handler
   ctl flip() resume(False) ++ resume(True)
 
 
-public fun test5() 
+pub fun test5() 
   amb(xor).show.println
 
 
@@ -177,17 +177,17 @@ fun surprising() : <flip,state<int>> bool
   if (i>0 && p) then xor() else False
 
 
-public fun test6() 
+pub fun test6() 
   state(0){ amb(surprising) }.show.println
 
-public fun test7()
+pub fun test7()
   amb{ state(0,surprising) }.show.println
 
 
 // --------------------------------------------------------
 //  Testing
 // --------------------------------------------------------
-public fun main() 
+pub fun main() 
   test1()
   test2()
   test3()

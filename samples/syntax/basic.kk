@@ -1,5 +1,5 @@
 /* Basic syntax examples 
-   By using a `public` module, all functions are by default public.
+   By using a `pub` module, all functions are by default pub.
    (this is not recommended in general of course)
 */
 module syntax/basic

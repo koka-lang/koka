@@ -234,7 +234,7 @@ val rx-finals-start = regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?)", multiline=True
 val rx-finals-expire= regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?) P", multiline=True)
 
 // recurse using an accumulator using constant heap space
-private fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b>
+fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b>
   match xs
     Cons(x,xx) -> map-acc(xx,f,Cons(f(x),acc))
     Nil -> reverse(acc)
