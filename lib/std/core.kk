@@ -214,7 +214,7 @@ pub fun is-empty( xs : list<a> ) : bool
     _   -> False
 
 // A `:stream` is a co-inductive type representing an infinite list of elements.
-co type stream<a>
+pub co type stream<a>
   con Next(head:a, tail: stream<a> )
 
 pub fun int( x : order ) : int
@@ -415,7 +415,7 @@ pub fun append(xs : list<a>, ys : list<a> ) : list<a>
 // Fold a list from the right, i.e. `foldr([1,2],0,(+)) == 1+(2+0)`
 // Note, `foldr` is less efficient than `foldl` as it reverses the list first.
 pub fun foldr(xs,z,f)
-  xs.reverse.foldl(z,fn(x,y){f(y,x)})
+  xs.reverse.foldl(z) fn(x,y) f(y,x)  
 
 // Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2`
 // Since `foldl` is tail recursive, it is preferred over `foldr` when using an associative function `f`
@@ -472,7 +472,7 @@ pub fun filter( xs : list<a>, pred : a -> e bool ) : e list<a>
 // Remove those elements of a list that satisfy the given predicate `pred`.
 // For example: `remove([1,2,3],odd?) == [2]`
 pub fun remove( xs : list<a>, pred : a -> bool ) : list<a>
-  xs.filter( fn(x) { !pred(x) } )
+  xs.filter( fn(x) !pred(x) )
 
 // Partition a list in two lists where the first list contains
 // those elements that satisfy the given predicate `pred`.
@@ -588,15 +588,15 @@ fun joinsep( xs : list<string>, sep : string ) : string
 
 // Concatenate all strings in a list
 pub fun join( xs : list<string> ) : string
-  return xs.joinsep("")
+  xs.joinsep("")
 
 // Concatenate all strings in a list using a specific separator
 pub fun join( xs : list<string>, sep : string ) : string
-  return xs.joinsep(sep)
+  xs.joinsep(sep)
 
 // Concatenate all strings in a list in reverse order
 pub fun reverse-join( xs : list<string> ) : string
-  return xs.reverse.joinsep("")  
+  xs.reverse.joinsep("")  
 
 // Append `end` to each string in the list `xs` and join them all together.\
 // `join-end([],end) === ""`\

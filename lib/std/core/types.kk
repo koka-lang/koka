@@ -112,7 +112,7 @@ pub type read :: H -> X
 // The write effect: signifies that a function may write to heap `:h`.
 pub type write :: H -> X
 
-// Stateful funs can manipulate heap `:h` using allocations, reads and writes.
+// Stateful functions can manipulate heap `:h` using allocations, reads and writes.
 pub alias st<h> = <read<h>, write<h>, alloc<h>>
 
 // The `:global` heap is a special heap constant to denote the global shared heap

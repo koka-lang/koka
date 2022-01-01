@@ -8,9 +8,23 @@
 
 /* Internal effect handler primitives.
 
-   Internal primitives to implement evidence based algebraic
-   effect handlers. These are emitted by the compiler during evidence
-   translation and this module is always implicitly imported.
+  Internal primitives to implement evidence based algebraic
+  effect handlers. These are emitted by the compiler during evidence
+  translation and this module is always implicitly imported.
+
+  The paper:
+
+  Ningning Xie, and Daan Leijen. _Generalized Evidence Passing for Effect Handlers_,
+  or _efficient compilation of effect handlers to C_. 
+  Proceedings of the ACM International Conference on Functional Programming (ICFP'21), 
+  August 2021, Vol 5: pp. 71, doi: 10.1145/3473576.
+  <https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers-or-efficient-compilation-of-effect-handlers-to-c/>
+
+  describes how the monadic evidence translation works on which this
+  module is based. This module is compiled _without monadic translation_ and
+  thus we need to do this by hand in this module which allows us to implement
+  most primitives directly in Koka keeping the external C/JavaScript/etc primitives
+  to a minimum.
 */
 module std/core/hnd
 
@@ -24,8 +38,10 @@ extern import
 // Internal types
 // -------------------------------------------
 
+// Each handler in the context has a unique marker.
 struct marker<e::E,a>( m : int32)
 
+// The tag of a handler identifies the type at runtime (e.g. `"exn/core/std"`).
 abstract type htag<h::(E,V)->V> 
   Htag(tagname:string)
 
@@ -45,11 +61,12 @@ pub fun hidden-htag( tag : string )
 //     3: multi: resumes never, once, or multiple times
 pub alias cfc = int32
 
-
+// Effect handler evidence of a handler `:h` in the context.
 abstract type ev<h> 
   con Ev<e,r>(htag:htag<h>, marker:marker<e,r>, hnd:h<e,r>, cfc:cfc, hevv:evv<e>)
 
-type evv<e::E>;
+// Evidence vectors
+type evv<e::E>
 
 pub alias ev-index = ssize_t
 
@@ -211,9 +228,6 @@ pub extern unsafe-reyield(yld : yield-info) : e a
 // -------------------------------------------
 //
 // -------------------------------------------
-
-inline extern unsafe-coerce(x:a) : b 
-  inline "#1"
   
 inline extern cast-ev0( f:() -> e1 b) : (() -> e0 b) 
   inline "#1"
@@ -366,10 +380,12 @@ fun finally-prompt(fin : () -> e (), res : a ) : e a
     if yielding() return yield-extend( fn(_x) unsafe-reyield(yld) )
     unsafe-reyield(yld)
 
+/*
 fun finalize(cont : (() -> b) -> e r, res : a) : e a 
   val m : marker<_e,_r> = fresh-marker()
   val w = evv-get()
   prompt(w,w,ev-none(),m,id, yield-bind( cont({ yield-to-final(m,fn(_k) res) }), fn(_x) res ))  // TODO: special prompt that does not insert on resume?
+*/
 
 // -------------------------------------------
 // Initially
