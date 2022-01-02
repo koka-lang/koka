@@ -71,7 +71,7 @@ import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
 
 import Kind.ImportMap
-import Kind.Newtypes          ( Newtypes, newtypesCompose )
+import Kind.Newtypes          ( Newtypes, newtypesCompose, extractNewtypes )
 import Kind.Infer             ( inferKinds )
 import Kind.Kind              ( kindEffect )
 
@@ -392,8 +392,10 @@ compileProgram' term flags modules compileTarget fname program
        -- trace ("compile file: " ++ show fname ++ "\n time: "  ++ show ftime ++ "\n latest: " ++ show (loadedLatest loaded)) $ return ()
        liftIO $ termPhase term ("resolve imports " ++ show (getName program))
        loaded1 <- resolveImports (getName program) term flags (dirname fname) loaded (map ImpProgram (programImports program))
-       -- trace (" loaded modules: " ++ show (map modName (loadedModules loaded1))) $ return ()
+       --trace (" loaded modules: " ++ show (map modName (loadedModules loaded1))) $ return ()
+       --trace ("------\nloaded1:\n" ++ show (loadedNewtypes loaded1) ++ "\n----") $ return ()       
        -- trace ("inlines: "  ++ show (loadedInlines loaded1)) $ return ()
+       
        if (name /= nameInteractiveModule || verbose flags > 0)
         then liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "check  :") <+>
                                            color (colorSource (colorScheme flags)) (pretty (name)))
@@ -404,7 +406,7 @@ compileProgram' term flags modules compileTarget fname program
                                           (imp:_) -> importVis imp -- TODO: get max
                               in if (modName mod == name) then []
                                   else [Core.Import (modName mod) (modPackagePath mod) vis (Core.coreProgDoc (modCore mod))]
-       (loaded2a, coreDoc) <- liftError $ typeCheck loaded1 flags 0 coreImports program
+       (loaded2a, coreDoc) <- liftError $ typeCheck loaded1 flags 0 coreImports program       
        when (showCore flags) $
          liftIO (termDoc term (vcat [
            text "-------------------------",
@@ -461,7 +463,7 @@ compileProgram' term flags modules compileTarget fname program
              Library -> return (Library,loaded2)
        
        loaded4 <- liftIO $ codeGen term flags newTarget loaded3
-       -- liftIO $ termDoc term (text $ show (loadedGamma loaded3))
+       -- liftIO $ termDoc term (text $ show (loadedGamma loaded4))
        -- trace (" final loaded modules: " ++ show (map modName (loadedModules loaded4))) $ return ()
        return loaded4{ loadedModules = addOrReplaceModule (loadedModule loaded4) (loadedModules loaded4) }
 
@@ -563,9 +565,7 @@ resolveImportModules mname term flags currentDir resolved0 (imp:imps)
        (needed,resolved2) <- resolveImportModules mname term flags currentDir resolved1 (pubImports ++ imps)
        let needed1 = filter (\m -> modName m /= modName mod) needed -- no dups
        return (mod:needed1,resolved2)
-       -- trace ("\n\n--------------------\nmodule " ++ show (impName imp) ++ ":\n " ++ show (loadedGamma loaded4)) $ return ()
-       -- inlineDefs <- liftError $ (modInlines mod) (loadedGamma loaded4) -- process inlines after pub imports
-
+       
 
 searchModule :: Flags -> FilePath -> Name -> IO (Maybe FilePath)
 searchModule flags currentDir name
@@ -826,7 +826,7 @@ inferCheck loaded0 flags line coreImports program
             loaded  = loaded0 { loadedKGamma  = kgamma
                               , loadedGamma   = gamma0
                               , loadedSynonyms= synonyms
-                              , loadedNewtypes= newtypes -- newtypesCompose (loadedNewtypes loaded) newtypes
+                              , loadedNewtypes= newtypes -- newtypesCompose (loadedNewtypes loaded0) newtypes
                               , loadedConstructors=constructors
                               }
             penv    = prettyEnv loaded flags
@@ -1080,8 +1080,13 @@ codeGen term flags compileTarget loaded
     backend  = case target flags of
                  CS   -> codeGenCS
                  JS _ -> codeGenJS
-                 _    -> codeGenC (modSourcePath (loadedModule loaded)) (loadedNewtypes loaded) 
-                                                 (loadedBorrowed loaded) (loadedUnique loaded)
+                 _    -> let -- for Perceus (Parc) we analyze types inside abstract types and thus need
+                             -- access to all defined types; here we freshly extract all type definitions from all 
+                             -- imported modules.
+                             newtypesAll = foldr1 newtypesCompose (map (extractNewtypes . modCore) (loadedModule loaded : loadedModules loaded))
+                         in codeGenC (modSourcePath (loadedModule loaded)) 
+                                  -- (loadedNewtypes loaded) 
+                                     newtypesAll (loadedBorrowed loaded) (loadedUnique loaded)
 
 
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
@@ -1214,7 +1219,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
           ctarget = case target flags of
                       C ctarget -> ctarget
-                      _         -> CDefault
+                      _         -> CDefault         
           (cdoc,hdoc,bcore) = cFromCore ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
                                 newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                 (parcBorrowInference flags) (stackSize flags) mbEntry core0

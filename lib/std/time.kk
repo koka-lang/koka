@@ -191,4 +191,5 @@ pub import std/time/locale
 pub import std/time/format
 pub import std/time/parse
 
-import std/num/ddouble  // for documentation
+import std/num/ddouble      // for documentation
+
