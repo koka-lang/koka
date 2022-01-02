@@ -44,6 +44,10 @@ void  illegalchar( char c, char* s, yyscan_t scanner );
 void  commentNestingInc(yyscan_t scanner);
 int   commentNestingDec(yyscan_t scanner);
 
+/* Numbers */
+double numdouble( const char* s );
+long   numlong( const char* s, int base );
+
 /*  Allocation of identifiers and string literals */
 char* identifier( const char* s, yyscan_t scanner, bool wellformedCheck );
 char* stringDup( const char* s, yyscan_t scanner );
@@ -87,6 +91,13 @@ CharEsc         [nrt\\\"\']
 
 LineChar        {GraphicLine}|{Utf8}
 BlockChar       {GraphicBlock}|{Utf8}
+
+DecNum          {Digit}{DigitSep}*
+PosNum          0|[1-9]{DigitSep}*
+HexNum          {Hex}{HexSep}*
+
+DigitSep        _?{Digit}+
+HexSep          _?{Hex}+
 
 Letter          {Lower}|{Upper}
 Upper           [A-Z]
@@ -249,16 +260,15 @@ c                         { return ID_C;       }
                          }
 
   /* Numbers */
-{Sign}{Digit}+\.{Digit}+[eE][\-\+]?{Digit}+  { yylval->Float = strtod(yytext,NULL); return FLOAT; }
-{Sign}{Digit}+[eE][\-\+]?{Digit}+            { yylval->Float = strtod(yytext,NULL); return FLOAT; }
-{Sign}{Digit}+\.{Digit}+                    { yylval->Float = strtod(yytext,NULL); return FLOAT; }
+{Sign}{PosNum}\.{DecNum}[eE][\-\+]?{DecNum}      { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{PosNum}[eE][\-\+]?{DecNum}                { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{PosNum}\.{DecNum}                         { yylval->Float = numdouble(yytext); return FLOAT; }
 
-{Sign}0[xX]{Hex}+\.{Hex}+[pP][\-\+]?{Digit}+ { yylval->Float = strtod(yytext,NULL); return FLOAT; }
-{Sign}0[xX]{Hex}+[pP][\-\+]?{Digit}+         { yylval->Float = strtod(yytext,NULL); return FLOAT; }
+{Sign}0[xX]{HexNum}\.{HexNum}[pP][\-\+]?{DecNum} { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}0[xX]{HexNum}[pP][\-\+]?{DecNum}           { yylval->Float = numdouble(yytext); return FLOAT; }
 
-{Sign}0[xX]{Hex}+               { yylval->Nat = strtol(yytext+2,NULL,16); return NAT; }
-{Sign}{Digit}+                  { yylval->Nat = strtol(yytext,NULL,10); return NAT; }
-
+{Sign}0[xX]{HexNum}       { yylval->Nat = numlong(yytext+2,16); return NAT; }
+{Sign}{PosNum}            { yylval->Nat = numlong(yytext,10); return NAT; }
 
 
   /* Identifiers and operators */
@@ -884,6 +894,33 @@ int commentNestingDec(yyscan_t scanner)
   yyextra->commentNesting--;
   return yyextra->commentNesting;
 }
+
+/*----------------------------------------------------
+   Numbers
+----------------------------------------------------*/
+static void filter_underscore( char* buf, const char* src, size_t bufsize ) {
+  size_t i = 0;
+  while( i < bufsize - 1 && *src != 0) {
+    if (*src != '_') {
+      buf[i++] = *src;
+    }
+    src++;
+  }
+  buf[i] = 0;
+}
+
+double numdouble( const char* s ) {
+  char buf[256];
+  filter_underscore(buf,s,256);
+  return strtod(buf, NULL);
+}
+
+long numlong( const char* s, int base ) {
+  char buf[256];
+  filter_underscore(buf,s,256);
+  return strtol(buf, NULL, base );
+}
+
 
 /*----------------------------------------------------
    string allocation
