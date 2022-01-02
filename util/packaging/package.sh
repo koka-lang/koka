@@ -5,7 +5,7 @@
 
 PACKAGE_NAME="koka"
 PACKAGE_DESCRIPTION="Koka is a strongly typed functional-style language with effect types and handlers"
-PACKAGE_URL="https://github.com/koka-lang/koka"
+PACKAGE_URL="https://koka-lang.github.io/"
 PACKAGE_LICENSE="Apache-2.0"
 
 # Dependencies
@@ -128,8 +128,13 @@ build_package() {
 
   file_name="$PACKAGE_NAME-$VERSION-$SYSTEM-$ARCHITECTURE.$EXT"
 
+  # Remove v from version
+  package_version="${VERSION:1}"
+  package_iteration=$(semver_to_iteration "$package_version")
+
   fpm_arguments="-s dir -t '$TYPE' -C '/source' -p '/build/$file_name' $dependencies \
-    -n '$PACKAGE_NAME' --description '$PACKAGE_DESCRIPTION' --url '$PACKAGE_URL' --license '$PACKAGE_LICENSE' -v '$VERSION' \
+    -n '$PACKAGE_NAME' --description '$PACKAGE_DESCRIPTION' --url '$PACKAGE_URL' --license '$PACKAGE_LICENSE' \
+    -v '$package_version' --iteration '$package_iteration' \
     -a native --prefix '/usr/local' \
     --provides '$PACKAGE_NAME' \
     bin/koka=bin/koka lib/koka=lib/ share/koka=share/"

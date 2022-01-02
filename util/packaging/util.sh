@@ -92,6 +92,25 @@ verify_ran_from_reporoot() {
 
 #------------------------------------------------------------------------------
 
+semver_to_iteration() {
+  semver="$1"
+  if [ -z "$semver" ]; then
+    stop "No semver specified"
+  fi
+
+  # Split by "."
+  IFS="." read -ra semver_split <<<"$semver"
+  # Pad each to 3 digits
+  iteration=""
+  for part in "${semver_split[@]}"; do
+    iteration="$iteration$(printf "%03d" "$part")"
+  done
+
+  echo "$iteration"
+}
+
+#------------------------------------------------------------------------------
+
 ensure_tar() {
   if ! has_cmd tar; then
     stop "The tar command is not installed"
