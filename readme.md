@@ -193,9 +193,9 @@ on Windows the default prefix is `%LOCALAPPDATA%\koka`
 
 # Build installable package
 
-Currently this option is linux only for now
+Currently this option is x64 linux only, support for arm64 linux is being worked on.
 
-Supported Distributions:
+Right now you can generate packages that work for these distributions:
 
 * Fedora 34, 35
 * RHEL 8
@@ -205,6 +205,8 @@ Supported Distributions:
 * Linux Mint 19.3, 20.2
 * Arch Linux
 * OpenSUSE Tumbleweed, Leap 15.3
+
+There might be more that are also compatible, so feel free to experiment.
 
 ## Requirements
 
@@ -220,7 +222,7 @@ To build every possible package automatically you can run this script from the r
 $ ./util/packaging/build.sh
 ```
 
-To specify which versions you want to build and package you can use `--target="target1 target2"`.
+To specify which versions you want to build and package you can use `--target="target1,target2"`.
 You can also specify whether to only build or only package with `--package="no"` or `--package="only"`.
 
 After running the script there should now be distro specific bundles in `./bundle/$version/archives`, and installable packages in `./bundle/$version/packages`.
@@ -228,6 +230,7 @@ After running the script there should now be distro specific bundles in `./bundl
 ## Notes
 
 If OpenSuse throws this when trying to install the built package
+
 ```sh
 # zypper in -t package /data/koka-2.3.7-opensuse.rpm
 Loading repository data...
@@ -237,7 +240,9 @@ No provider of '_tmpRPMcache_:koka=0:2.3.7-1' found.
 Resolving package dependencies...
 Nothing to do.
 ```
+
 try
+
 ```sh
 # zypper ref -f
 ```
