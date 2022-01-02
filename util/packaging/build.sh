@@ -11,6 +11,8 @@ MODE=""
 QUIET=""
 BUILD_TARGETS=""
 BUILD_ARCHITECTURES=""
+REBUILD_CONTAINERS=""
+AGRESSIVE_EXPORT=""
 
 #---------------------------------------------------------
 # Helper functions
@@ -47,11 +49,16 @@ build_docker_images() {
     arch_opt=$(docker_generate_arch_flags build "$build_arch")
     selinux_opt=$(docker_generate_selinux_flags build)
 
+    rebuild_opt=""
+    if [ "$REBUILD_CONTAINERS" == "yes" ]; then
+      rebuild_opt="--no-cache"
+    fi
+
     # Build the docker image, subshell to help with buildkit
     (
       cd ./distros
       docker build $quiet_param -t koka-$target \
-        $arch_opt $selinux_opt \
+        $arch_opt $selinux_opt $rebuild_opt \
         -f "./$target.Dockerfile" .
     )
 
@@ -92,6 +99,12 @@ run_docker_images() {
     if [ $? -ne 0 ]; then
       stop "Failed to compile os specific package for $target"
     fi
+
+    if [ "$AGGRESSIVE_EXPORT" == "yes" ]; then
+      move_outputs
+    fi
+
+    info "Compiled $target"
   done
 
   info "Compiled os specific packages successfully"
@@ -182,7 +195,10 @@ main_build() {
       run_docker_images $architecture
     done
 
-    move_outputs
+    # With aggressive export, all the files should already be moved
+    if [ "$AGGRESSIVE_EXPORT" == "no" ]; then
+      move_outputs
+    fi
   fi
 
   # If mode is package or packageonly
@@ -224,6 +240,12 @@ process_options() {
         stop "Invalid package option: $flag_arg"
       fi
       ;;
+    -b | --rebuild)
+      REBUILD_CONTAINERS="yes"
+      ;;
+    -x | --aggressive-export)
+      AGGRESSIVE_EXPORT="yes"
+      ;;
     --configqemu)
       MODE="setupqemu"
       ;;
@@ -245,10 +267,12 @@ process_options() {
 
   # Default mode is package
   if [ -z "$MODE" ]; then MODE="buildpackage"; fi
-
-  if [ -z "$BUILD_TARGETS" ]; then
-    BUILD_TARGETS="$SUPPORTED_TARGETS"
-  fi
+  # Default rebuild is no
+  if [ -z "$REBUILD_CONTAINERS" ]; then REBUILD_CONTAINERS="no"; fi
+  # Default aggressive export is no
+  if [ -z "$AGGRESSIVE_EXPORT" ]; then AGGRESSIVE_EXPORT="no"; fi
+  # Default targets is all
+  if [ -z "$BUILD_TARGETS" ]; then BUILD_TARGETS="$SUPPORTED_TARGETS"; fi
 
   # Check if BUILD_TARGETS is in SUPPORTED_TARGETS
   for target in $BUILD_TARGETS; do
@@ -257,9 +281,8 @@ process_options() {
     fi
   done
 
-  if [ -z "$BUILD_ARCHITECTURES" ]; then
-    BUILD_ARCHITECTURES="$SUPPORTED_ARCHITECTURES"
-  fi
+  # Default architectures is all
+  if [ -z "$BUILD_ARCHITECTURES" ]; then BUILD_ARCHITECTURES="$SUPPORTED_ARCHITECTURES"; fi
 
   # map build_archtectures with the normalize_osarch() funciton
   tempvar="$BUILD_ARCHITECTURES"
@@ -286,11 +309,13 @@ main_help() {
   info "  -a, --architectures=<arch,arch> Specify the architectures to build for"
   info "                                  ($SUPPORTED_ARCHITECTURES)"
   info "  -p, --package=<yes|no|only>     Package the bundle after building"
+  info "  -b, --rebuild                   Rebuild the container images"
+  info "  -x, --aggressive-export         Export the bundle immidiately after building"
   info "  -q, --quiet                     Suppress output"
   info "  -h, --help                      Show this help message"
   info ""
   info "dev options:"
-  info "  --configqemu                    Configure just qemu docker emulator for other architectures"
+  info "  --configqemu                    Configure just the qemu docker emulator for other architectures"
   info ""
   info "notes:"
   info "  This script can only build linux packages right now"
