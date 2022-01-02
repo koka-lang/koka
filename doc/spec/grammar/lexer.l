@@ -2,7 +2,8 @@
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0.
 */
-/* Requires at least Flex 2.5.37; you can get a version for windows from
+/* Use the "Yash" extension in vscode for nice syntax highlighting.
+   Requires at least Flex 2.5.37; you can get a version for windows from
    https://sourceforge.net/projects/winflexbison
 */
 %option 8bit noyywrap bison-bridge bison-locations reentrant
@@ -680,7 +681,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         }
         #else
         if (token != '}' && loc->first_column < layoutColumn && yyextra->layoutTop > 1) {
-          fprintf(stderr,"line (%d,%d): insert }, layout col: %d\n", loc->first_line, loc->first_column, yyextra->layoutTop);
+          // fprintf(stderr,"line (%d,%d): insert }, layout col: %d\n", loc->first_line, loc->first_column, yyextra->layoutTop);
           // pop layout column
           yyextra->layoutTop--;
           layoutColumn = yyextra->layout[yyextra->layoutTop];
@@ -703,7 +704,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
           ((newline && loc->first_column == layoutColumn && !continuationToken(token))
            || token == '}' || token == 0))
       {
-        fprintf(stderr,"insert semi before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
+        // fprintf(stderr,"insert semi before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
         // save the currently scanned token
         savedPush(yyextra, token, loc);
 
@@ -719,7 +720,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
       else if (newline && loc->first_column > layoutColumn && 
                !endingToken(yyextra->previous) && !continuationToken(token))
       {
-        fprintf(stderr,"insert { before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
+        // fprintf(stderr,"insert { before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
         // save the currently scanned token
         savedPush(yyextra, token, loc);
 
@@ -1185,12 +1186,13 @@ int main( int argc, char** argv )
 
     /* destroy */
     int errorCount = st.errorCount;
+    int lineCount  = st.line;
     yylex_destroy(scanner);
     doneScanState(&st);
 
     /* final message */
     if (errorCount == 0) {
-      printf("Success!\n");
+      printf("Success! (%i lines parsed)\n", lineCount);
       return 0;
     }
     else {

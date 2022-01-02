@@ -2,7 +2,8 @@
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0.
 */
-/* Requires at least Bison 3+; you can get a version for windows from
+/* Use the "Yash" extension in vscode for nice syntax highlighting.
+   Requires at least Bison 3+; you can get a version for windows from
    https://sourceforge.net/projects/winflexbison
    (use the "latest" zip package)
 */

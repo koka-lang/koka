@@ -44,7 +44,7 @@ pub fun parse-eof( input : sslice, p : () -> <parse|e> a) : e parse-error<a>
 
 pub fun parse( input0 : sslice, p : () -> <parse|e> a ) : e parse-error<a> 
   var input := input0
-  handle( p )
+  handle p 
     return(x)
       ParseOk(x,input) 
 
