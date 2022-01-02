@@ -42,7 +42,7 @@ val flag-descs : list<flag<iflags>> =
   ]
 
 
-public fun process-flags() : <ndet,console> maybe<iflags>
+pub fun process-flags() : <ndet,console> maybe<iflags>
   val (flags,args,errs) = parse( Iflags(), flag-descs, get-args() )
   if errs.is-nil && args.is-nil then Just(flags) else
     println( errs.join("\n") ++ "\n" ++ flag-descs.usage(header) )
