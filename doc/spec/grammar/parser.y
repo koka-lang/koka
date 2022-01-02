@@ -24,7 +24,7 @@ typedef void* yyscan_t;
   const char*   Id;      /* used for operators OP too */
   const char*   String;  /* 'modified' UTF-8 string (\0 chars are encoded as \xC0\x80) */
   double        Float;
-  unsigned long Nat;
+  unsigned long Int;
   unsigned int  Char;
 }
 
@@ -44,7 +44,7 @@ void printDecl( const char* sort, const char* name );
 
 
 %token <Id>     ID CONID OP IDOP QID  QCONID QIDOP WILDCARD '(' ')' '[' ']'
-%token <Nat>    NAT
+%token <Int>    INT
 %token <Float>  FLOAT
 %token <String> STRING
 %token <Char>   CHAR
@@ -162,9 +162,9 @@ declarations: fixitydecl semis1 declarations
 fixitydecl  : visibility fixity oplist1
             ;
 
-fixity      : INFIX NAT
-            | INFIXR NAT
-            | INFIXL NAT
+fixity      : INFIX INT
+            | INFIXR INT
+            | INFIXL INT
             ;
 
 oplist1     : oplist1 ',' identifier
@@ -503,7 +503,7 @@ atom        : qidentifier
             | '[' cexprs ']'             /* list expression (elements may be terminated with comma instead of separated) */
             ;
 
-literal     : NAT | FLOAT | CHAR | STRING
+literal     : INT | FLOAT | CHAR | STRING
             ;
 
 mask        : MASK behind '<' tbasic '>'

@@ -13,10 +13,10 @@
 module std/num/int64
 
 // The maximal integer value before overflow happens
-pub val max-int64 : int64 =  0x7FFFFFFFFFFFFFFF.int64
+pub val max-int64 : int64 =  0x7FFF_FFFF_FFFF_FFFF.int64
 
 // The minimal integer value before underflow happens
-pub val min-int64 : int64 = -0x8000000000000000.int64
+pub val min-int64 : int64 = -0x8000_0000_0000_0000.int64
 
 // The number of bits in an `:int64` (always 64)
 pub val bits-int64 : int64 = 64.int64
@@ -46,17 +46,17 @@ pub fun show-hex( i : int64, width : int = 1, use-capitals : bool = True, pre : 
 
 
 // Convert an `:int` to `:int64` but interpret the `int` as an unsigned 64-bit value.
-// `i` is clamped between `0` and `0xFFFFFFFFFFFFFFFF`.\
-// `0x7FFFFFFFFFFFFFFF.uint64 == 0x7FFFFFFFFFFFFFFF.int64 == max-int64`\
-// `0x8000000000000000.uint64 == -0x800000000000000.int64 == min-int64`\
-// `0xFFFFFFFFFFFFFFFF.uint64 == -1.int64`\
+// `i` is clamped between `0` and `0xFFFF_FFFF_FFFF_FFFF`.\
+// `0x7FFF_FFFF_FFFF_FFFF.uint64 == 0x7FFF_FFFF_FFFF_FFFF.int64 == max-int64`\
+// `0x8000_0000_0000_0000.uint64 == -0x8000_0000_0000_0000.int64 == min-int64`\
+// `0xFFFF_FFFF_FFFF_FFFF.uint64 == -1.int64`\
 pub fun uint64( i : int ) : int64 
-  if i > max-int64.int then (i - 0x10000000000000000).int64 else i.int64
+  if i > max-int64.int then (i - 0x1_0000_0000_0000_0000).int64 else i.int64
 
 
 // Convert an `:int64` to an `:int` but interpret the `:int64` as a 64-bit unsigned value.
 pub fun uint( i : int64 ) : int 
-  if i.is-neg then 0x10000000000000000 + i.int else i.int
+  if i.is-neg then 0x1_0000_0000_0000_0000 + i.int else i.int
 
 
 // Show an `:int64` in hexadecimal notation interpreted as an unsigned 64-bit value.

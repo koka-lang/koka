@@ -33,23 +33,23 @@ import Data.Word( Word8 )
 -----------------------------------------------------------
 -- Character sets
 -----------------------------------------------------------
-$digit    = [0-9]
-$hexdigit = [0-9a-fA-F]
-$lower    = [a-z]
-$upper    = [A-Z]
-$letter   = [$lower$upper]
-$space    = [\ ]
-$tab      = [\t]
-$return   = \r
-$linefeed = \n
-$graphic  = [\x21-\x7E]
-$cont     = [\x80-\xBF]
-$symbol   = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\?\|\<\>]
-$special  = [\(\)\[\]\{\}\;\,]
-$anglebar = [\<\>\|]
-$angle    = [\<\>]
-$finalid  = [\']
-$charesc  = [nrt\\\'\"]    -- "
+$digit        = [0-9]
+$hexdigit     = [0-9a-fA-F]
+$lower        = [a-z]
+$upper        = [A-Z]
+$letter       = [$lower$upper]
+$space        = [\ ]
+$tab          = [\t]
+$return       = \r
+$linefeed     = \n
+$graphic      = [\x21-\x7E]
+$cont         = [\x80-\xBF]
+$symbol       = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\?\|\<\>]
+$special      = [\(\)\[\]\{\}\;\,]
+$anglebar     = [\<\>\|]
+$angle        = [\<\>]
+$finalid      = [\']
+$charesc      = [nrt\\\'\"]    -- "
 
 -----------------------------------------------------------
 -- Regular expressions
@@ -77,27 +77,31 @@ $charesc  = [nrt\\\'\"]    -- "
 @charchar     = ([$graphic$space] # [\\\'])|@utf8
 @stringraw    = ([$graphic$space$tab] # [\"])|@newline|@utf8  -- "
 
-@idchar       = $letter|$digit|_|\-
+@idchar       = $letter | $digit | _ | \-
 @lowerid      = $lower @idchar* $finalid*
 @upperid      = $upper @idchar* $finalid*
 @conid        = @upperid
 @modulepath   = (@lowerid\/)+
 @qvarid       = @modulepath @lowerid
 @qconid       = @modulepath @conid
-@symbols      = $symbol+|\/
+@symbols      = $symbol+ | \/
 @qidop        = @modulepath \(@symbols\)
 @idop         = \(@symbols\)
 
-@decimal      = $digit+
-@hexadecimal  = 0[xX]$hexdigit+
-@natural      = @decimal|@hexadecimal
-
 @sign         = [\-]?
-@exp          = (\-|\+)? @decimal
-@exp10        = [eE]@exp
-@exp2         = [pP]@exp
-@decfloat     = @sign @decimal (\. @decimal @exp10? | @exp10)
-@hexfloat     = @sign @hexadecimal (\. $hexdigit+)? @exp2
+@digitsep     = _ $digit+
+@hexdigitsep  = _ $hexdigit+
+@digits       = $digit+ @digitsep*
+@hexdigits    = $hexdigit+ @hexdigitsep*
+@decimal      = 0 | [1-9] @digits?
+@hexadecimal  = 0[xX] @hexdigits
+@integer      = @sign (@decimal | @hexadecimal)
+
+@exp          = (\-|\+)? $digit+
+@exp10        = [eE] @exp
+@exp2         = [pP] @exp
+@decfloat     = @sign @decimal (\. @digits @exp10? | @exp10)
+@hexfloat     = @sign @hexadecimal (\. @hexdigits @exp2? | @exp2)
 
 -----------------------------------------------------------
 -- Main tokenizer
@@ -129,10 +133,9 @@ program :-
 <0> $special              { string $ LexSpecial }
 
 -- literals
-<0> @decfloat             { string $ \s -> LexFloat (read s) s }
-<0> @hexfloat             { string $ \s -> LexFloat (parseHexFloat s) s }
-<0> @sign @hexadecimal    { string $ \s -> LexInt (parseNum  s) s }
-<0> @sign @decimal        { string $ \s -> LexInt (parseNum s) s }
+<0> @decfloat             { string $ \s -> LexFloat (read (filter (/='_') s)) s }
+<0> @hexfloat             { string $ \s -> LexFloat (parseHexFloat (filter (/='_') s)) s }
+<0> @integer              { string $ \s -> LexInt (parseNum (filter (/='_') s)) s }
 
 
 -- type operators

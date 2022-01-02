@@ -92,12 +92,14 @@ CharEsc         [nrt\\\"\']
 LineChar        {GraphicLine}|{Utf8}
 BlockChar       {GraphicBlock}|{Utf8}
 
-DecNum          {Digit}{DigitSep}*
-PosNum          0|[1-9]{DigitSep}*
-HexNum          {Hex}{HexSep}*
+Decimal         0|[1-9]{Digits}?
+HexaDecimal     0[xX]{HexDigits}
 
-DigitSep        _?{Digit}+
-HexSep          _?{Hex}+
+Digits          {Digit}+{DigitSep}*
+HexDigits       {Hex}+{HexSep}*
+
+DigitSep        _ {Digit}+
+HexSep          _ {Hex}+
 
 Letter          {Lower}|{Upper}
 Upper           [A-Z]
@@ -260,15 +262,16 @@ c                         { return ID_C;       }
                          }
 
   /* Numbers */
-{Sign}{PosNum}\.{DecNum}[eE][\-\+]?{DecNum}      { yylval->Float = numdouble(yytext); return FLOAT; }
-{Sign}{PosNum}[eE][\-\+]?{DecNum}                { yylval->Float = numdouble(yytext); return FLOAT; }
-{Sign}{PosNum}\.{DecNum}                         { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{Decimal}\.{Digits}[eE][\-\+]?{Digit}+         { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{Decimal}[eE][\-\+]?{Digit}+                   { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{Decimal}\.{Digits}                            { yylval->Float = numdouble(yytext); return FLOAT; }
 
-{Sign}0[xX]{HexNum}\.{HexNum}[pP][\-\+]?{DecNum} { yylval->Float = numdouble(yytext); return FLOAT; }
-{Sign}0[xX]{HexNum}[pP][\-\+]?{DecNum}           { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{HexaDecimal}\.{HexDigits}[pP][\-\+]?{Digit}+  { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{HexaDecimal}[pP][\-\+]?{Digit}+               { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{HexaDecimal}\.{HexDigits}                     { yylval->Float = numdouble(yytext); return FLOAT; }
 
-{Sign}0[xX]{HexNum}       { yylval->Nat = numlong(yytext+2,16); return NAT; }
-{Sign}{PosNum}            { yylval->Nat = numlong(yytext,10); return NAT; }
+{Sign}{HexaDecimal}       { yylval->Int = numlong(yytext+2,16); return INT; }
+{Sign}{Decimal}           { yylval->Int = numlong(yytext,10); return INT; }
 
 
   /* Identifiers and operators */
@@ -510,7 +513,7 @@ static bool isAppToken( Token token ) {
 #endif
 
 #ifdef LINE_LAYOUT
-  static Token endingTokens[]    = { ID, CONID, IDOP, QIDOP, QID, QCONID, NAT, FLOAT, STRING, CHAR, ')', ']', '}', '>', 0 };
+  static Token endingTokens[]    = { ID, CONID, IDOP, QIDOP, QID, QCONID, INT, FLOAT, STRING, CHAR, ')', ']', '}', '>', 0 };
   static Token continueTokens[]  = { THEN, ELSE, ELIF, '=', '{', '}', ')', ']', '>', 0 };
 
   bool endingToken( Token token  ) {
@@ -1318,7 +1321,7 @@ void printToken( int token, int state, yyscan_t scanner )
     case QID:       fprintf(stderr,"QID   = '%s'", yylval->Id); break;
     case QCONID:    fprintf(stderr,"QCONID= '%s'", yylval->Id); break;
     // case QOP:       fprintf(stderr,"QOP   = '%s'", yylval->Id); break;
-    case NAT:       fprintf(stderr,"NAT   = '%lu'", yylval->Nat); break;
+    case INT:       fprintf(stderr,"INT   = '%lu'", yylval->Int); break;
     case FLOAT:     fprintf(stderr,"FLOAT = '%g'", yylval->Float); break;
     case CHAR:      fprintf(stderr,"CHAR  = '%s'", showChar(yylval->Char,scanner)); break;
     case INSERTED_SEMI:      fprintf(stderr,";     = (inserted)"); break;

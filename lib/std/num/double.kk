@@ -24,49 +24,49 @@ extern import
 //-----------------------------------------
 
 // &pi;
-pub val pi          = 0x1.921FB54442D18p+1 //3.141592653589793238462643383279502884
+pub val pi          = 0x1.9_21FB_5444_2D18p+1 //3.141592653589793238462643383279502884
 
 // &pi;
 pub val dbl-pi      = pi
 
 // 2&pi;
-pub val dbl-twopi   = 0x1.921FB54442D18p+2
+pub val dbl-twopi   = 0x1.9_21FB_5444_2D18p+2
 
 // &pi;/2
-pub val dbl-pi2     = 0x1.921FB54442D18p+0
+pub val dbl-pi2     = 0x1.9_21FB_5444_2D18p+0
 
 // &pi;/4
-pub val dbl-pi4     = 0x1.921FB54442D18p-1
+pub val dbl-pi4     = 0x1.9_21FB_5444_2D18p-1
 
 // 3&pi;/4
-pub val dbl-pi34    =0x1.2D97C7F3321D2p+1
+pub val dbl-pi34    =0x1.2_D97C_7F33_21D2p+1
 
 // The [_e_](https://en.wikipedia.org/wiki/E_(mathematical_constant)) constant.
-pub val dbl-e       = 0x1.5BF0A8B145769p+1 // 2.718281828459045235360287471352662498
+pub val dbl-e       = 0x1.5_BF0A_8B14_5769p+1 // 2.718281828459045235360287471352662498
 
 // The natural logarithm of 2
-pub val dbl-log2    = 0x1.62E42FEFA39EFp-1 // 0.693147180559945309417232121458176568
+pub val dbl-log2    = 0x1.6_2E42_FEFA_39EFp-1 // 0.693147180559945309417232121458176568
 
 // The natural logarithm of 10
-pub val dbl-log10   = 0x1.26BB1BBB55516p+1 // 2.302585092994045684017991454684364208
+pub val dbl-log10   = 0x1.2_6BB1_BBB5_5516p+1 // 2.302585092994045684017991454684364208
 
 // The base-2 logarithm of _e_.
-pub val dbl-log2e   =  0x1.71547652B82FEp+0 // 1.442695040888963407359924681001892137
+pub val dbl-log2e   =  0x1.7_1547_652B_82FEp+0 // 1.442695040888963407359924681001892137
 
 // The base-10 logarithm of _e_.
-pub val dbl-log10e  = 0x1.BCB7B1526E50Ep-2 // 0.434294481903251827651128918916605082
+pub val dbl-log10e  = 0x1.B_CB7B_1526_E50Ep-2 // 0.434294481903251827651128918916605082
 
 // The square-root of 2
-pub val dbl-sqrt2   = 0x1.6A09E667F3BCDp+0 // 1.414213562373095048801688724209698079
+pub val dbl-sqrt2   = 0x1.6_A09E_667F_3BCDp+0 // 1.414213562373095048801688724209698079
 
 // `1.0 / sqrt(2.0)`  (= `sqrt(0.5)`)
-pub val dbl-sqrt12 = 0x1.6A09E667F3BCDp-1 // 0.707106781186547524400844362104849039
+pub val dbl-sqrt12 = 0x1.6_A09E_667F_3BCDp-1 // 0.707106781186547524400844362104849039
 
 // [Euler's constant](https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant)
-pub val dbl-euler   = 0x1.2788CFC6FB619p-1 // 0.577215664901532860606512090082402431
+pub val dbl-euler   = 0x1.2_788C_FC6F_B619p-1 // 0.577215664901532860606512090082402431
 
 // Maximum double value
-pub val dbl-max     = 0x1.FFFFFFFFFFFFFp+1023 // 1.79769313486231570815e+308
+pub val dbl-max     = 0x1.F_FFFF_FFFF_FFFFp+1023 // 1.79769313486231570815e+308
 
 // Smallest positive normalized double value
 pub val dbl-min     = 0x1.0p-1022 // 2.22507385850720138309e-308
@@ -498,7 +498,6 @@ extern prim-parse-double( s : string ) : double
 // A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
 // Math. Mechanik, 54:39--51, 1974.
 pub fun sum( xs : list<double> ) : double
-
   var total := 0.0
   var comp  := 0.0
   xs.foreach fn(x)

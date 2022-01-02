@@ -13,10 +13,10 @@
 module std/num/int32
 
 // The maximal integer value before overflow happens
-pub val max-int32 : int32 = 0x7FFFFFFF.int32
+pub val max-int32 : int32 = 0x7FFF_FFFF.int32
 
 // The minimal integer value before underflow happens
-pub val min-int32 : int32 = -0x80000000.int32
+pub val min-int32 : int32 = -0x8000_0000.int32
 
 // The number of bits in an `:int32` (always 32)
 pub val bits-int32 : int32 = 32.int32
@@ -55,16 +55,16 @@ pub fun show-hex( i : int32, width : int = 1, use-capitals : bool = True, pre : 
 
 // Convert an `:int` to `:int32` but interpret the `int` as an unsigned 32-bit value.
 // `i` is clamped between `0` and `0xFFFFFFFF`.\
-// `0x7FFFFFFF.uint32 == 0x7FFFFFFF.int32 == max-int32`\
-// `0x80000000.uint32 == -0x80000000.int32 == min-int32`\
-// `0xFFFFFFFF.uint32 == -1.int32`\
+// `0x7FFF_FFFF.uint32 == 0x7FFF_FFFF.int32 == max-int32`\
+// `0x8000_0000.uint32 == -0x8000_0000.int32 == min-int32`\
+// `0xFFFF_FFFF.uint32 == -1.int32`\
 pub fun uint32( i : int ) : int32 
-  if (i > max-int32.int) then (i - 0x100000000).int32 else i.int32
+  if (i > max-int32.int) then (i - 0x1_0000_0000).int32 else i.int32
 
 
 // Convert an `:int32` to an `:int` but interpret the `:int32` as a 32-bit unsigned value.
 pub fun uint( i : int32 ) : int 
-  if (i.is-neg) then 0x100000000 + i.int else i.int
+  if (i.is-neg) then 0x1_0000_0000 + i.int else i.int
 
 
 // Show an `:int32` in hexadecimal notation interpreted as an unsigned 32-bit value.
