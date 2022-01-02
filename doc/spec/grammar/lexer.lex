@@ -126,6 +126,7 @@ infixr                    { return INFIXR; }
 type                      { return TYPE; }
 alias                     { return ALIAS; }
 struct                    { return STRUCT; }
+effect                    { return EFFECT; }
 
 forall                    { return FORALL; }
 exists                    { return EXISTS; }
@@ -133,11 +134,6 @@ some                      { return SOME; }
 
 abstract                  { return ABSTRACT; }
 extern                    { return EXTERN; }
-
-  /*
-  function[\(\<]            { yyless(7); return FUNX; }
-  fun[\(\<]                 { yyless(3); return FUNX; }
-  */
 
 fun                       { return FUN; }
 fn                        { return FN; }
@@ -157,41 +153,38 @@ return                    { return RETURN;}
 module                    { return MODULE;}
 import                    { return IMPORT;}
 pub                       { return PUBLIC;}
-public                    { return PUBLIC;}
-private                   { return PRIVATE;}
 as                        { return AS;}
 
-ctl                       { return CONTROL; }
-rawctl                    { return RCONTROL; }
-brk                       { return EXCEPT; }
 handle                    { return HANDLE; }
 handler                   { return HANDLER; }
-effect                    { return EFFECT; }
-except                    { return EXCEPT; }
-control                   { return CONTROL; }
-rcontrol                  { return RCONTROL; }
+override                  { return OVERRIDE; }
+named                     { return NAMED; }
+brk                       { return EXCEPT; }
+ctl                       { return CONTROL; }
+rawctl                    { return RCONTROL; }
+mask                      { return MASK; }
 
 rec                       { return ID_REC; }
 co                        { return ID_CO; }
-
-mask                      { return MASK; }
-override                  { return OVERRIDE; }
-named                     { return NAMED; }
-
-inline                    { return ID_INLINE;  }
-noinline                  { return ID_NOINLINE;}
-
 open                      { return ID_OPEN; }
 extend                    { return ID_EXTEND; }
 linear                    { return ID_LINEAR;  }
 value                     { return ID_VALUE;  }
 reference                 { return ID_REFERENCE;  }
+
+inline                    { return ID_INLINE;  }
+noinline                  { return ID_NOINLINE;}
 scoped                    { return ID_SCOPED; }
 behind                    { return ID_BEHIND; }
-
 initially                 { return ID_INITIALLY; }
 finally                   { return ID_FINALLY; }
 
+  /* deprecated */
+except                    { return EXCEPT; }
+control                   { return CONTROL; }
+rcontrol                  { return RCONTROL; }
+public                    { return PUBLIC;}
+private                   { return PRIVATE;}
 
   /* unused reserved identifiers */
 interface                 { return IFACE; }

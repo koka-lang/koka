@@ -1488,7 +1488,7 @@ lambda alts
 
 ifexpr
   = do rng <- keyword "if"
-       tst <- nbexpr
+       tst <- ntlexpr
        (texpr,eexprs,eexpr) <- 
            do texpr <- returnexpr
               return (texpr, [], Var nameUnit False (after (getRange texpr)))
@@ -1514,7 +1514,7 @@ ifexpr
   where
     elif
       = do keyword "elif"
-           tst <- nbexpr -- parens expr
+           tst <- ntlexpr -- parens expr
            texpr <- thenexpr
            return (tst,texpr)
 
@@ -1535,7 +1535,7 @@ returnexpr
 
 matchexpr
   = do rng <- keyword "match"
-       tst <- nbexpr  -- allows tuples for multi pattern match
+       tst <- ntlexpr  -- allows tuples for multi pattern match
        (branches,rng2) <- semiBracesRanged1 branch
        return (Case tst branches (combineRange rng rng2))
   <|> handlerExpr
@@ -1548,9 +1548,9 @@ handlerExpr
            let rng = combineRange rng0 rng1
            scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
            (override,mbEff) <- handlerOverride hsort
-           arg  <- parens argument
+           arg  <- ntlexpr -- parens argument
            expr <- handlerClauses rng mbEff scoped override hsort
-           return (App expr [arg] (combineRanged rng expr))
+           return (App expr [(Nothing,arg)] (combineRanged rng expr))
         <|>
         do rng1 <- keyword "handler"
            let rng = combineRange rng0 rng1
@@ -1798,8 +1798,8 @@ pguardTest
 {--------------------------------------------------------------------------
   Op expr
 --------------------------------------------------------------------------}
-nbexpr :: LexParser UserExpr
-nbexpr 
+ntlexpr :: LexParser UserExpr -- non-trailing-lambda expression
+ntlexpr 
   = opexprx False
 
 opexpr :: LexParser UserExpr

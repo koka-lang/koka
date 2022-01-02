@@ -11,8 +11,8 @@ effect val width : int
 
 fun f() 
   // with val width = 78   // done in `main`
-  val g = with val width = 80 in fn() width + 1 
-  val h = fn() with val width = 80 in width + 1 
+  val g = with val width = 80 in (fn() width + 1)
+  val h = fn() (with val width = 80 in width + 1)
   g().println   // 79
   h().println   // 81
 
