@@ -477,11 +477,11 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
 
 static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z = _kk_integer_value(x) + _kk_integer_value(y);
-#ifdef KK_SOFA_MASK_LEFT  
+  #ifdef KK_SOFA_MASK_LEFT  
   if (kk_likely((z|2) == (kk_smallint_t)z))   // set bit 1 and compare sign extension
-#else
+  #else
   if (kk_likely(z == ((kk_smallint_t)z|2))) 
-#endif  
+  #endif  
   {
     kk_assert_internal((z&3) == 2);
     return _kk_new_integer(z^3);
@@ -492,11 +492,11 @@ static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_con
 static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t i, kk_context_t* ctx) {
   kk_assert_internal(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
   kk_intf_t z = _kk_integer_value(x) + kk_shlf(i,2);
-#ifdef KK_SOFA_MASK_LEFT  
+  #ifdef KK_SOFA_MASK_LEFT  
   if (kk_likely((z|1) == (kk_smallint_t)z))
-#else
+  #else
   if (kk_likely(z == ((kk_smallint_t)z|1)))
-#endif    
+  #endif    
   {
     kk_assert_internal((z&3) == 1);
     return _kk_new_integer(z);
@@ -507,11 +507,11 @@ static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t 
 
 static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z = (_kk_integer_value(x)^3) - _kk_integer_value(y);
-#ifdef KK_SOFA_MASK_LEFT  
+  #ifdef KK_SOFA_MASK_LEFT  
   if (kk_likely((z&~2) == (kk_smallint_t)z))  // clear bit 1 and compare sign extension
-#else
+  #else
   if (kk_likely(z == ((kk_smallint_t)z&~2)))   
-#endif  
+  #endif  
   {
     kk_assert_internal((z&3) == 1);
     return _kk_new_integer(z);
