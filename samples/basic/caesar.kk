@@ -26,22 +26,22 @@ fun percent( n : int, m : int )
   100.0 * (n.double / m.double)
 
 
-fun rotate( xs, n )
+fun rotate( xs : list<a>, n : int ) : list<a>
   xs.drop(n) ++ xs.take(n)
 
 
 // Calculate a frequency table for a string
 fun freqs( s : string ) : list<double>
   val lowers = list('a','z')
-  val occurs = lowers.map( fn(c){ s.count(c.string) })
+  val occurs = lowers.map(fn(c) s.count(c.string))
   val total  = occurs.sum
-  occurs.map( fn(i){ percent(i,total) } )
+  occurs.map(fn(i) percent(i,total))
 
 
 // Calculate how well two frequency tables match according
 // to the _chi-square_ statistic.
 fun chisqr( xs : list<double>, ys : list<double> ) : double
-  zipwith(xs,ys, fn(x,y){ ((x - y)^2.0)/y } ).sum
+  zipwith(xs, ys, fn(x,y) ((x - y)^2.0)/y ).sum
 
 
 // Crack a Caesar encoded string
@@ -50,7 +50,7 @@ fun uncaesar( s : string ) : string
   val chitab = list(0,25).map fn(n)      // build a list of chisqr numbers for each shift between 0 and 25
                  chisqr( table.rotate(n), english )
   val min    = chitab.minimum             // find the mininal element
-  val shift  = chitab.index-of( fn(f){ f == min } ).negate  // and use its position as our shift
+  val shift  = chitab.index-of(fn(f) f == min).negate  // and use its position as our shift
   s.encode( shift )
 
 
@@ -62,5 +62,5 @@ pub fun main()
   val s = "Koka is a well-typed language"
   println( "plain  : " ++ s)
   println( "encoded: " ++ s.caesar)
-  println( "cracked: " ++ uncaesar( s.caesar ))
+  println( "cracked: " ++ s.caesar.uncaesar)
 

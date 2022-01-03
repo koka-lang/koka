@@ -122,9 +122,9 @@ val cheat-report = handler
 val check = handler 
   ctl move(p,n) 
     val m = move(p,n)
-    if (valid-moves(n).find(fn(i) { i == m }).bool)
-    then resume(m)
-    else cheat(p)
+    if (valid-moves(n).find(fn(i) i == m).bool)
+      then resume(m)
+      else cheat(p)
 
 
 pub fun test-check() 

@@ -13,8 +13,8 @@ named effect reader     // named handler for files
 
 // A reader handler
 fun reader( msg, action ) 
-  with r = named handler 
-             fun ask(){ msg }  
+  with r <- named handler 
+              fun ask() msg 
   action(r)
 
 
@@ -27,7 +27,7 @@ pub fun test(r1,r2)
 
 
 pub fun main() 
-  with r1 = reader("hello")
-  with r2 = reader("world")
+  with r1 <- reader("hello")
+  with r2 <- reader("world")
   test(r1,r2)
 

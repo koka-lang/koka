@@ -46,11 +46,10 @@ effect state<s>
 
 fun state(init,action) 
   var s := init
-  with handler
+  handle action
     return(x)  (s,x)
     fun get()  s
     fun put(i) s := i
-  action()
 
 
 fun incr(i : int = 1) : state<int> () 
