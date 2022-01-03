@@ -92,7 +92,7 @@ CharEsc         [nrt\\\"\']
 LineChar        {GraphicLine}|{Utf8}
 BlockChar       {GraphicBlock}|{Utf8}
 
-Decimal         0|[1-9]{Digits}?
+Decimal         0|[1-9](_?{Digits})?
 HexaDecimal     0[xX]{HexDigits}
 
 Digits          {Digit}+{DigitSep}*

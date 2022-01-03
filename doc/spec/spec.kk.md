@@ -211,7 +211,7 @@ std/core/(&)
 | _exponent_    | ::=    | [``-`` &bar;  ``+``]{.opt} _digit_ [_digit_]{.many}                                                                    |              |
 | &nbsp;        |        |                                                                                                                           |              |
 | _integer_     | ::=    | [``-``]{.opt} (_decimal_ []{.bar} _hexadecimal_)                                                              |              |
-| _decimal_     | ::=    | ``0`` &bar; _posdigit_ [_digits_]{.opt}                                                                                                  |              |
+| _decimal_     | ::=    | ``0`` &bar; _posdigit_ [[``_``]{.opt} _digits_]{.opt}                                                                                                  |              |
 | _hexadecimal_ | ::=    | ``0`` (``x`` &bar;  ``X``) _hexdigits_                                                                                           |              |
 | _digits_      | ::=    | _digit_ [_digit_]{.many} [``_`` _digit_ [_digit_]{.many}]{.many}                                                                                                 |              |
 | _hexdigits_   | ::=    | _hexdigit_ [_hexdigit_]{.many} [``_`` _hexdigit_ [_hexdigit_]{.many}]{.many}                                                                                                 |              |

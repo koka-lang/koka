@@ -92,7 +92,7 @@ $charesc      = [nrt\\\'\"]    -- "
 @hexdigitsep  = _ $hexdigit+
 @digits       = $digit+ @digitsep*
 @hexdigits    = $hexdigit+ @hexdigitsep*
-@decimal      = 0 | [1-9] @digits?
+@decimal      = 0 | [1-9] (_? @digits)?
 @hexadecimal  = 0[xX] @hexdigits
 @integer      = @sign (@decimal | @hexadecimal)
 
