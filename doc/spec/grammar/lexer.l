@@ -98,8 +98,8 @@ HexaDecimal     0[xX]{HexDigits}
 Digits          {Digit}+{DigitSep}*
 HexDigits       {Hex}+{HexSep}*
 
-DigitSep        _ {Digit}+
-HexSep          _ {Hex}+
+DigitSep        _{Digit}+
+HexSep          _{Hex}+
 
 Letter          {Lower}|{Upper}
 Upper           [A-Z]
@@ -121,11 +121,10 @@ GraphicBlock    [\t \x21-\)\+-\.0-\x7E]
     Added \xC0\x80 as a valid sequence to represent 0 (also called 'modified' utf-8)
  */
 UC              [\x80-\xBF]
-U0              [\xC0][\x80]
 U2              [\xC2-\xDF]{UC}
 U3              [\xE0][\xA0-\xBF]{UC}|[\xE1-\xEC]{UC}{UC}|[\xED][\x80-\x9F]{UC}|[\xEE-\xEF]{UC}{UC}
 U4              [\xF0][\x90-\xBF]{UC}{UC}|[\xF1-\xF3]{UC}{UC}{UC}|[\xF4][\x80-\x8F]{UC}{UC}
-Utf8            {U0}|{U2}|{U3}|{U4}
+Utf8            {U2}|{U3}|{U4}
 
 
 %%

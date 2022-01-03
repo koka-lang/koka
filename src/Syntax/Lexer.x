@@ -56,8 +56,7 @@ $charesc      = [nrt\\\'\"]    -- "
 -----------------------------------------------------------
 @newline      = $return?$linefeed
 
-@utf8         = \xC0\x80
-              | [\xC2-\xDF] $cont
+@utf8         = [\xC2-\xDF] $cont
               | \xE0 [\xA0-\xBF] $cont
               | [\xE1-\xEC] $cont $cont
               | \xED [\x80-\x9F] $cont
