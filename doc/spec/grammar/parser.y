@@ -441,13 +441,13 @@ fnexpr      : FN funbody                     /* anonymous function */
 returnexpr  : RETURN expr
             ;
 
-ifexpr      : IF ntlexpr THEN expr elifs 
-            | IF ntlexpr THEN expr       
+ifexpr      : IF ntlexpr THEN blockexpr elifs 
+            | IF ntlexpr THEN blockexpr       
             | IF ntlexpr RETURN expr 
             ;
 
-elifs       : ELIF ntlexpr THEN expr elifs
-            | ELSE expr
+elifs       : ELIF ntlexpr THEN blockexpr elifs
+            | ELSE blockexpr
             ;
 
 valexpr     : VAL apattern '=' blockexpr IN expr
@@ -538,16 +538,12 @@ parameters1 : parameters1 ',' parameter
             | parameter
             ;
 
-parameter   : borrow paramid ':' paramtype
-            | borrow paramid ':' paramtype '=' expr
+parameter   : borrow paramid ':' type
+            | borrow paramid ':' type '=' expr
             ;
 
 paramid     : identifier
             | WILDCARD
-            ;
-
-paramtype   : type
-            | '?' type
             ;
 
 borrow      : '^'
@@ -565,8 +561,8 @@ pparameters1: pparameters1 ',' pparameter
             ;
 
 pparameter  : borrow pattern 
-            | borrow pattern ':' paramtype
-            | borrow pattern ':' paramtype '=' expr
+            | borrow pattern ':' type
+            | borrow pattern ':' type '=' expr
             | borrow pattern '=' expr
             ;
 
@@ -750,7 +746,7 @@ opclauses1  : opclauses1 semis1 opclausex
             ;
 
 opclausex   : ID_FINALLY bodyexpr
-            | ID_INITIALLY bodyexpr
+            | ID_INITIALLY '(' opparam ')' bodyexpr
             | opclause
             ;
 

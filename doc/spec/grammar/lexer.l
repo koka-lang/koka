@@ -8,7 +8,7 @@
 */
 %option 8bit noyywrap bison-bridge bison-locations reentrant
 
-/* Exlusive Lexer states */
+/* Exclusive Lexer states */
 %x comment
 %x linecomment
 %x string
