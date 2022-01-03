@@ -97,7 +97,7 @@ static inline struct kk_std_core_hnd_Ev* kk_evv_as_Ev( kk_evv_t evv ) {
 static int32_t kk_evv_cfc_of_borrow(kk_evv_t evv, kk_context_t* ctx) {
   if (kk_evv_is_vector(evv)) {
     kk_evv_vector_t vec = kk_evv_as_vector(evv);
-    return kk_integer_clamp32_borrow(vec->cfc);
+    return kk_integer_clamp32_borrow(vec->cfc,ctx);
   }
   else {
     struct kk_std_core_hnd_Ev* ev = kk_evv_as_Ev(evv);
@@ -113,7 +113,7 @@ static void kk_evv_update_cfc_borrow(kk_evv_t evv, int32_t cfc, kk_context_t* ct
   kk_assert_internal(!kk_evv_is_empty(evv)); // should never happen (as named handlers are always in some context)
   if (kk_evv_is_vector(evv)) {
     kk_evv_vector_t vec = kk_evv_as_vector(evv);
-    vec->cfc = kk_integer_from_int32(kk_cfc_lub(kk_integer_clamp32_borrow(vec->cfc),cfc), ctx);
+    vec->cfc = kk_integer_from_int32(kk_cfc_lub(kk_integer_clamp32_borrow(vec->cfc,ctx),cfc), ctx);
   }
   else {
     struct kk_std_core_hnd_Ev* ev = kk_evv_as_Ev(evv);
@@ -249,7 +249,7 @@ struct kcompose_fun_s {
 // kleisli composition of continuations
 static kk_box_t kcompose( kk_function_t fself, kk_box_t x, kk_context_t* ctx) {
   struct kcompose_fun_s* self = kk_function_as(struct kcompose_fun_s*,fself);
-  kk_intx_t count = kk_int_unbox(self->count);
+  kk_intx_t count = kk_intf_unbox(self->count);
   kk_function_t* conts = &self->conts[0];
   // call each continuation in order
   for(kk_intx_t i = 0; i < count; i++) {
@@ -278,7 +278,7 @@ static kk_function_t new_kcompose( kk_function_t* conts, kk_ssize_t count, kk_co
                                kk_block_alloc(kk_ssizeof(struct kcompose_fun_s) - kk_ssizeof(kk_function_t) + (count*kk_ssizeof(kk_function_t)),
                                  2 + count /* scan size */, KK_TAG_FUNCTION, ctx));
   f->_base.fun = kk_cfun_ptr_box(&kcompose,ctx);
-  f->count = kk_int_box(count);
+  f->count = kk_intf_box(count);
   kk_memcpy(f->conts, conts, count * kk_ssizeof(kk_function_t));
   return (&f->_base);
 }

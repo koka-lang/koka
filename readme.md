@@ -10,7 +10,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.3.2, 2021-10-15 ([Install]).
+_Latest release_: v2.3.8, 2021-12-27 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -47,7 +47,7 @@ To learn more:
 [why-perceus]: https://koka-lang.github.io/koka/doc/book.html#why-perceus
 [why-fbip]: http://koka-lang.github.io/koka/doc/book.html#why-fbip
 
-[install]: https://koka-lang.github.io/koka/doc/book.html#install
+[install]: https://koka-lang.github.io/koka/doc/book.html
 [why]: https://koka-lang.github.io/koka/doc/book.html#why
 [kokabook]: https://koka-lang.github.io/koka/doc/book.html  
 [tour]: https://koka-lang.github.io/koka/doc/book.html#tour
@@ -62,7 +62,7 @@ To learn more:
 [Perceus]: https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
 [winclang]: https://llvm.org/builds
-[vcpkg]: https://github.com/microsoft/vcpkg#getting-started
+[vcpkg]: https://vcpkg.io/en/getting-started.html
 [ghcup]: https://www.haskell.org/ghcup
 [nobrace]: https://koka-lang.github.io/koka/doc/book.html#sec-layout
 [m1arch]: https://cpufun.substack.com/p/setting-up-the-apple-m1-for-native
@@ -74,12 +74,20 @@ To learn more:
 Enjoy,  
   Daan Leijen
 
-Special thanks to: [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence passing [[9,6]](#references) and the formalization of Perceus reference counting [[8]](#references),
+Special thanks to: [Anton Lorenzen](https://antonlorenzen.de/) for his work on frame-limited
+reuse in Perceus [[10]](#references), [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence passing [[9,6]](#references) and the formalization of Perceus reference counting [[8]](#references),
 [Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references),
 and all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 ## Recent Releases
 
+- `v2.3.8`, 2021-12-27: improved `int` performance, various bug fixes, update wasm backend, 
+  initial conan support, fix js backend.
+- `v2.3.6`, 2021-11-26: fix specialization bug, add `std/os/readline` module.
+- `v2.3.4`, 2021-11-26: `maybe`-like types are already value types, but now also no longer need heap allocation 
+  if not nested (and `[Just(1)]` uses the same heap space as `[1]`),
+  improved atomic refcounting (by Anton Lorenzen), improved specialization (by Steven Fontanella),
+  various small fixes, fix build on freeBSD.
 - `v2.3.2`, 2021-10-15: initial wasm support (use `--target=wasm`, and install [emscripten] and [wasmtime]), 
   improved reuse specialization (by Anton Lorenzen),
   fix default color scheme for non-dark shells (#190), stack-less free and marking, add `--stack` option, 
@@ -101,19 +109,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 - `v2.2.0`, 2021-08-26: improved case-of-known simpification (by Rakshika B), improve cross-module specialization
   (by Steven Fontanella), initial borrowing annotations and improved reuse analysis (by Anton Lorenzen),
   improved line editing in the interactive environment, improved inlining. Note: due to the new inline phases,
-  effect handling may currently be a tad slower in this release but will be improved for the next release.
-- `v2.1.9`, 2021-06-23: initial support for cross-module specialization (by Steven Fontanella).
-- `v2.1.8`, 2021-06-17: initial support for macOS M1 and Linux arm64, improved readline, minor fixes.
-- `v2.1.6`, 2021-06-10: initial support for shallow resumptions, fix space leak with vectors, allow `gcc` with `--fasan`,
-  improved `vcpkg` support, add `--fstdalloc` flag, improved VS code syntax highlighting, improved `valgrind` support,
-  added `--no-optimize` flag for extended debug information.
-- `v2.1.4`, 2021-05-31: remove dependency on cmake, support library linking, support vckpg, updated `std/text/regex`,
-  improved Windows installer with `clang` install included, remove dependency on Visual Studio on Windows,
-  improved `--fasan` support, fixed space leak on boxed value types, use signed `size_t` internally, various small bug fixes.
-- `v2.1.2`, 2021-05-01: various bug fixes, allow pattern bindings in parameters of anonymous functions (by Steven Fontanella),
-  initial Emacs syntax highlighting (by Kamoii).
-- `v2.1.1`, 2021-03-08: bug fixes, use right-associative (++) for string- and list append (instead of (+)), improved internal 
-  string handling.
+  effect handling may currently be a tad slower in this release but will be improved for the next release.  
 - [Older release notes](#older-release-notes).
 
 <!--
@@ -122,7 +118,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 # Install
 
-Koka has [binary installers][install] for Windows (x64), macOS (x64, M1), and Linux (x64, arm64).  
+Koka has [binary installers][install] for Windows (x64), macOS (x64, M1), Linux (x64, arm64), and FreeBSD (x64).  
 For other platforms, you need to build the compiler from source.
 
 # Build from Source
@@ -132,11 +128,14 @@ without problems on most common platforms, e.g. Windows (including WSL), macOS, 
 Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler. 
-  It is recommended to use `brew install haskell-stack` on macOS M1, 
-  otherwise use `curl -sSL https://get.haskellstack.org/ | sh` 
+  Use `curl -sSL https://get.haskellstack.org/ | sh` 
   on Unix and macOS x64, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
-* Optional: [vcpkg] to be able to link easily with C libraries. Koka can find it automatically if installed to `~/vcpkg`.
+  On macOS M1, use `brew install haskell-stack --head` (and see the [build notes](#build-notes) below).  
+* Optional: [vcpkg] to be able to link easily with C libraries. 
+  Use `brew install vcpkg` on macOS. On other systems use the vcpkg [install][vcpkg]
+  instructions (Koka can find vcpkg automatically if installed to `~/vcpkg`).
 * Optional: [nodejs](http://nodejs.org) if using the Javascript backend.
+* Optional: [emscripten] and [wasmtime] if using the Wasm backend.
 * Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
 
 Now clone the repository and build the compiler as (note the `--recursive` flag):
@@ -150,8 +149,7 @@ $ stack exec koka
 You can also use `stack build --fast` to build a debug version of the compiler.
 Use `stack test --fast` to run the test-suite.
 
-(See the [build notes](#build-notes) below 
- for building on macOS M1, or if you have issues when running- or installing `stack`).
+(See the [build notes](#build-notes) below for building macOS M1, or if you have issues when running- or installing `stack`).
 
 
 ## Create an Install Bundle
@@ -309,38 +307,23 @@ Contact me if you are interested in tackling some of these :-)
 The main development branches are:
 - `master`: latest stable version.
 - `dev`: current development branch -- submit PR's to this branch.
-- `feature/borrow`: branch with borrowing; currently releases are done from this branch
-  (while we measure the perf improvements from borrowing)
 - `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#)
   backend which does not use evidence translation.
   This version supports `std/async` and should compile examples from published papers.
 
 ## Building on macOS M1
 
-Currently (Sep 2021) `stack` is not always working well on the M1.
-You need to install `ghc` via `brew`:
+Currently (Dec 2021) you need to use `brew install haskell-stack --head` 
+to get the latest `2.7.4` version of stack. (Have patience as the cabal
+install step takes about 20 min). Moreover, you need to add the `brew`
+installed LLVM to your path afterwards, or otherwise stack cannot find the LLVM tools.
+Add the following to your `~/.zshrc` script and open an fresh prompt:
 ```
-$ brew install pkg-config ghc cabal-install haskell-stack
-```
-
-Note it is important to have `stack` and `ghc` as an arm64 build since otherwise Koka will
-be build for x64 and as a result compile to x64 as well! Test this as:
-
-```
-$ file `which stack`
-/opt/homebrew/bin/stack: Mach-O 64-bit executable arm64
+export PATH=/opt/homebrew/opt/llvm/bin:$PATH
 ```
 
-If this is not the case, you can still build an x64 Koka but need to add the options
-`--ccopts="-arch arm64" --cclinkopts="-arch arm64"` to cross compile to arm64 executables 
-(since the `clang` compiler targets by default the architecture that its [host process uses][m1arch]!).
-
-Moreover, sometimes `stack` segfaults and running it inside `bash` seems to resolve the issue:
-```
-$ bash
-bash$ stack update
-```
-
+<!--
+Moreover, sometimes `stack` segfaults but running it inside `bash` seems to resolve the issue.
 Also, we need to tell stack to use the system installed ghc and skip the version check as
 it can currently not install GHC for arm64 yet:
 ```
@@ -354,10 +337,11 @@ and pass the `--system-ghc` flag to create an installation bundle as well:
 ```
 bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka -- -e util/bundle -- --system-ghc
 ```
+-->
 
 ## Building with Cabal 
 
-Some platforms, like Linux arm64, do not 
+Some platforms (like Linux arm64 and FreeBSD) do not 
 always support `stack` well. In these cases we can also
 use `ghc` and `cabal` directly. Install these packages as:
 ```
@@ -368,7 +352,11 @@ On macOS (x64 and arm64) we use `brew` instead:
 ```
 $ brew install pkg-config ghc cabal-install
 ```
-
+On FreeBSD, use `pkg`:
+```
+$ sudo pkg update
+$ sudo pkg install ghc hs-cabal-install   # or: hs-haskell-platform
+```
 Optionally, install `vcpkg` as well. If you
 install this in the `~/vcpkg` directory Koka will find
 it automatically when needed:
@@ -441,6 +429,18 @@ info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 
 ## Older Release Notes
 
+- `v2.1.9`, 2021-06-23: initial support for cross-module specialization (by Steven Fontanella).
+- `v2.1.8`, 2021-06-17: initial support for macOS M1 and Linux arm64, improved readline, minor fixes.
+- `v2.1.6`, 2021-06-10: initial support for shallow resumptions, fix space leak with vectors, allow `gcc` with `--fasan`,
+  improved `vcpkg` support, add `--fstdalloc` flag, improved VS code syntax highlighting, improved `valgrind` support,
+  added `--no-optimize` flag for extended debug information.
+- `v2.1.4`, 2021-05-31: remove dependency on cmake, support library linking, support vckpg, updated `std/text/regex`,
+  improved Windows installer with `clang` install included, remove dependency on Visual Studio on Windows,
+  improved `--fasan` support, fixed space leak on boxed value types, use signed `size_t` internally, various small bug fixes.
+- `v2.1.2`, 2021-05-01: various bug fixes, allow pattern bindings in parameters of anonymous functions (by Steven Fontanella),
+  initial Emacs syntax highlighting (by Kamoii).
+- `v2.1.1`, 2021-03-08: bug fixes, use right-associative (++) for string- and list append (instead of (+)), improved internal 
+  string handling.
 - `v2.0.16`, 2021-02-14: bug fixes, fix short-circuit evaluation of logical operations, improved utf-8 handling.
 - `v2.0.14`, 2020-12-11: bug fixes, improved var escape checking.
 - `v2.0.12`, 2020-12-02: syntax highlighting support for VS Code and Atom, improved uninstall, more samples.
@@ -474,6 +474,9 @@ See also the [Ev.Eff](https://github.com/xnning/EvEff) and [Mp.Eff](https://gith
 8. Alex Reinking, Ningning Xie, Leonardo de Moura, and Daan Leijen: &ldquo; Perceus: Garbage Free Reference Counting with Reuse&rdquo; MSR-TR-2020-42, Nov 22, 2020. Distinguished paper at PLDI'21.
 [pdf](https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/)
 
-9. Ningning Xie and Daan Leijen: &ldquo; Generalized Evidence Passing for Effect Handlers&rdquo; In The 26th ACM SIGPLAN International Conference on Functional Programming (ICFP), August 2021.
+9. Ningning Xie and Daan Leijen. &ldquo; Generalized Evidence Passing for Effect Handlers&rdquo; In The 26th ACM SIGPLAN International Conference on Functional Programming (ICFP), August 2021.
 Also as MSR-TR-2021-5, Mar, 2021. 
 [pdf](https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/)
+
+10. Anton Lorenzen and Daan Leijen. &ldquo; Reference Counting with Frame-Limited Reuse&rdquo; Microsoft Research
+technical report MSR-TR-2021-30, Nov 2021. [pdf](https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/)

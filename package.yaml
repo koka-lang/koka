@@ -1,4 +1,4 @@
-# Note: when increasing the version, increase the version below at the cpp-options as well
+# Note: when increasing the version, ** increase the version below at the cpp-options as well **
 # Other files that contain a version are:
 # - util/install.sh
 # - util/install.bat
@@ -6,7 +6,7 @@
 # - util/minbuild
 
 name:       koka
-version:    2.3.2     
+version:    2.3.8
 github:     "koka-lang/koka"
 license:    Apache-2.0
 author:     Daan Leijen
@@ -28,7 +28,7 @@ dependencies:
   - process
   - text
   - time
-  - isocline >= 1.0.5
+  - isocline >= 1.0.6
   
 executables:
   koka:
@@ -53,7 +53,7 @@ executables:
     cpp-options:
       - -DKOKA_MAIN="koka"      
       - -DKOKA_VARIANT="release"
-      - -DKOKA_VERSION="2.3.2"
+      - -DKOKA_VERSION="2.3.8"
       - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:isocline
     when:
       - condition: os(windows)

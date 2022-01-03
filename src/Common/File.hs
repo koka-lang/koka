@@ -13,7 +13,8 @@ module Common.File(
                   -- * System
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsSuffixes, searchPathsEx
-                  , runSystem, runSystemRaw, runCmd
+                  , searchProgram
+                  , runSystem, runSystemRaw, runCmd, runCmdRead
                   , getProgramPath
 
                   -- * Strings
@@ -40,15 +41,17 @@ module Common.File(
                   , copyBinaryFile, copyBinaryIfNewer
                   , removeFileIfExists
                   , realPath
+                  , doesFileExistAndNotEmpty
                   ) where
 
 import Data.List        ( intersperse )
 import Data.Char        ( toLower, isSpace )
-import Platform.Config  ( pathSep, pathDelimiter, sourceExtension )
+import Platform.Config  ( pathSep, pathDelimiter, sourceExtension, exeExtension )
 import qualified Platform.Runtime as B ( copyBinaryFile, exCatch )
 import Common.Failure   ( raiseIO, catchIO )
 
-import System.Process   ( system, rawSystem )
+import System.IO
+import System.Process   ( system, rawSystem, createProcess, CreateProcess(..), proc, StdStream(..), waitForProcess )
 import System.Exit      ( ExitCode(..) )
 import System.Environment ( getEnvironment, getExecutablePath )
 import System.Directory ( doesFileExist, doesDirectoryExist
@@ -243,6 +246,18 @@ runCmd cmd args
           ExitFailure i -> raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
           ExitSuccess   -> return ()
 
+runCmdRead :: String -> [String] -> IO String
+runCmdRead cmd args
+  = do (_, Just hout, _, process) <- createProcess (proc cmd args){ std_out = CreatePipe }          
+       exitCode <- waitForProcess process
+       case exitCode of
+          ExitFailure i -> do -- hClose hout
+                              raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
+          ExitSuccess   -> do out <- hGetContents hout                              
+                              -- hClose hout
+                              return out
+
+
 -- | Compare two file modification times (uses 0 for non-existing files)
 fileTimeCompare :: FilePath -> FilePath -> IO Ordering
 fileTimeCompare fname1 fname2
@@ -259,10 +274,18 @@ maxFileTimes :: [FileTime] -> FileTime
 maxFileTimes times
   = foldr maxFileTime fileTime0 times
 
+doesFileExistAndNotEmpty :: FilePath -> IO Bool
+doesFileExistAndNotEmpty fpath
+  = do mbContent <- readTextFile fpath
+       case mbContent of
+         Nothing      -> return False
+         Just content -> return (not (null content))
+
+
 readTextFile :: FilePath -> IO (Maybe String)
 readTextFile fpath
   = B.exCatch (do content <- readFile fpath
-                  return (seq (last content) $ Just content))
+                  return (if null content then Just content else (seq (last content) $ Just content)))
               (\exn -> return Nothing)
 
 writeTextFile :: FilePath -> String -> IO ()
@@ -379,6 +402,7 @@ searchPathsEx path exts suffixes name
     search [] = return Nothing  -- notfound envname nameext path
     search ((dir,fname):xs)
       = do{ let fullName = joinPath dir fname
+          -- ; trace ("search: " ++ fullName) $ return ()
           ; exist <- doesFileExist fullName
           ; if exist
              then return (Just (dir,fname))
@@ -410,6 +434,20 @@ getEnvVar name
 realPath :: FilePath -> IO FilePath
 realPath fpath 
   = canonicalizePath fpath
+
+
+searchProgram :: FilePath -> IO (Maybe FilePath)
+searchProgram ""
+  = return Nothing
+searchProgram fname | isAbsolute fname || fname `startsWith` "."
+  = do exist <- doesFileExist fname
+       if exist  
+         then return (Just fname)
+         else return Nothing
+searchProgram fname          
+  = do paths  <- getEnvPaths "PATH"
+       searchPaths paths [exeExtension] fname
+       
 
 {-
 splitPath :: String -> [String]

@@ -1499,9 +1499,9 @@ ifexpr
        let fullMatch = foldr match eexpr ((tst,texpr):eexprs)
                      where
                        match (tst,texpr) eexpr
-                        = let trng = getRange tst
-                          in  Case tst [Branch (PatCon nameTrue [] trng trng) [Guard guardTrue texpr]
-                                       ,Branch (PatCon nameFalse [] trng trng) [Guard guardTrue eexpr]]
+                        = let r = rangeNull
+                          in  Case tst [Branch (PatCon nameTrue [] r r) [Guard guardTrue texpr]
+                                       ,Branch (PatCon nameFalse [] r r) [Guard guardTrue eexpr]]
                                        (combineRanged tst eexpr)
 
        return fullMatch

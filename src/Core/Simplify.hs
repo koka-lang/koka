@@ -49,7 +49,7 @@ simplifyN nRuns defs
     else do defs' <- simplify defs
             simplifyN (nRuns-1) defs'
 
-uniqueSimplify :: Simplify a => Pretty.Env -> Bool -> Bool -> Int -> Int -> a -> Unique a
+uniqueSimplify :: (HasUnique m, Simplify a) => Pretty.Env -> Bool -> Bool -> Int -> Int -> a -> m a
 uniqueSimplify penv unsafe ndebug nRuns duplicationMax expr
   = do u <- unique
        let (x,u') = runSimplify unsafe ndebug duplicationMax u penv 
@@ -133,7 +133,7 @@ topDown (Let dgs body)
                        -> -- trace "no occurrence" $
                           topDownLet sub (acc) dgs body
                      -- occurs once, always inline (TODO: maybe only if it is not very big?)
-                     Occur vcnt m n acnt | vcnt + acnt == 1
+                     Occur acnt m n vcnt | vcnt + acnt == 1
                        -> -- trace "occurs once: inline" $
                           inlineExpr
                      -- occurs fully applied, check if it small enough to inline anyways;
@@ -219,17 +219,6 @@ topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args)
       = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")
 
 
--- app-of-let
-topDown (App (Let dgs expr) args)
-  = assertion "Core.Simplify.topDown.App-Of-Let" (bv dgs `tnamesDisjoint` fv args) $
-    return (Let dgs (App expr args))
-
-
-topDown (App (TypeApp (Let dgs expr) targs) args)
-  = assertion "Core.Simplify.topDown.TApp-Of-Let" (bv dgs `tnamesDisjoint` fv args) $
-    return (Let dgs (App (TypeApp expr targs) args))
-
-
 -- case-of-let
 topDown (Case [Let dgs expr] branches) 
   = assertion "Core.Simplify.topDown.Case-Of-Let" (bv dgs `tnamesDisjoint` fv branches) $
@@ -270,7 +259,7 @@ topDown (Case [Case scruts0 branches0] branches1) | doesNotDuplicate
                  Just _ -> True
                  _      -> False
 
--- App of case
+-- App of case to case of app's
 topDown expr@(App (Case scruts branches) args)
   = do (sbinders,bscruts) <- bindExprs scruts
        (binders,bargs)    <- bindExprs args
@@ -279,6 +268,22 @@ topDown expr@(App (Case scruts branches) args)
     makeBranchApp bargs (Branch pats guards)  = Branch pats (map (makeGuardApp bargs) guards)
     makeGuardApp bargs (Guard test body)      = Guard test (App body bargs)
 
+
+-- TypeApp of let
+topDown (TypeApp (Let binds expr) targs)
+  = return (Let binds (TypeApp expr targs))
+
+-- Float let out of applications (important for TRMC)
+topDown (App f args)
+  = return (floatLetApp f args)
+  where
+    floatLetApp f args
+      = let (fbinds,fexpr)   = floatLet f
+            (abindss,aexprs) = unzip (map floatLet args)
+        in makeLet (concat (fbinds:abindss)) (App fexpr aexprs)  -- note: assume unique bindings!
+
+    floatLet (Let binds body)     = let (binds',body') = floatLet body in (binds ++ binds', body')
+    floatLet expr                 = ([],expr)
 
 
 -- No optimization applies

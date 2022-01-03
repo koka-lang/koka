@@ -51,7 +51,7 @@ kk_vector_t kk_vector_copy(kk_vector_t vec, kk_context_t* ctx) {
 }
 
 kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
-  if (kk_likely(r->_block.header.thread_shared == 0)) {
+  if (kk_likely(!kk_block_is_thread_shared(&r->_block))) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_vector_t v = kk_vector_unbox(b, ctx);
@@ -62,7 +62,7 @@ kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t val
     }
     kk_ssize_t len;
     kk_box_t* p = kk_vector_buf_borrow(v, &len);
-    kk_ssize_t i = kk_integer_clamp_ssize_t_borrow(idx);
+    kk_ssize_t i = kk_integer_clamp_ssize_t_borrow(idx, ctx);
     kk_assert(i < len);
     kk_box_drop(p[i], ctx);
     p[i] = value;

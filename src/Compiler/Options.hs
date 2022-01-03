@@ -10,7 +10,7 @@
 -}
 -----------------------------------------------------------------------------
 module Compiler.Options( -- * Command line options
-                         getOptions, processOptions, Mode(..), Flags(..)
+                         getOptions, processOptions, Mode(..), Flags(..), showTypeSigs
                        -- * Show standard messages
                        , showHelp, showEnv, showVersion, commandLineHelp, showIncludeInfo
                        -- * Utilities
@@ -24,6 +24,8 @@ module Compiler.Options( -- * Command line options
                        , cpuArch, osName
                        , optionCompletions
                        , targetExeExtension
+                       , conanSettingsFromFlags
+                       , vcpkgFindRoot
                        ) where
 
 
@@ -90,6 +92,9 @@ data Option
   | Flag (Flags -> Flags)
   | Error String
 
+showTypeSigs :: Flags -> Bool
+showTypeSigs flags = showHiddenTypeSigs flags || _showTypeSigs flags
+
 data Flags
   = Flags{ warnShadow       :: Bool
          , showKinds        :: Bool
@@ -101,7 +106,8 @@ data Flags
          , showAsmCS        :: Bool
          , showAsmJS        :: Bool
          , showAsmC         :: Bool
-         , showTypeSigs     :: Bool
+         , _showTypeSigs     :: Bool
+         , showHiddenTypeSigs     :: Bool
          , showElapsed      :: Bool
          , evaluate         :: Bool
          , execOpts         :: String
@@ -135,12 +141,15 @@ data Flags
          , ccompLinkLibs    :: [FilePath]    -- full path to library
          , ccomp            :: CC
          , ccompLibDirs     :: [FilePath]    -- .a/.lib dirs
+         , autoInstallLibs  :: Bool
          , vcpkgRoot        :: FilePath
          , vcpkgTriplet     :: String
-         , vcpkgAutoInstall :: Bool
+         {-
          , vcpkg            :: FilePath
          , vcpkgLibDir      :: FilePath
          , vcpkgIncludeDir  :: FilePath
+         -}
+         , conan            :: FilePath
          , editor           :: String
          , redirectOutput   :: FileName
          , outHtml          :: Int
@@ -186,6 +195,7 @@ flagsNull
           False
           False
           False -- typesigs
+          False -- hiddentypesigs
           False -- show elapsed time
           False -- do not execute by default
           ""    -- execution options
@@ -222,12 +232,15 @@ flagsNull
           (if onWindows then []        -- ccomp library dirs
                         else ["/usr/local/lib","/usr/lib","/lib"])
           
+          True     -- auto install libraries
           ""       -- vcpkg root
           ""       -- vcpkg triplet
-          True     -- vcpkg auto install
+          {-
           ""       -- vcpkg
           ""       -- vcpkg libdir
           ""       -- vcpkg incdir
+          -}
+          "conan"  -- conan command
 
           ""       -- editor
           ""
@@ -316,7 +329,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["cclibpath"]       (OptArg ccLinkLibs "lpath")     "link with semi-colon separated libraries <lpath>"
  , option []    ["vcpkg"]           (ReqArg ccVcpkgRoot "dir")      "vcpkg root directory"
  , option []    ["vcpkgtriplet"]    (ReqArg ccVcpkgTriplet "tt")    "vcpkg target triplet"
- , flag   []    ["vcpkgauto"]       (\b f -> f{vcpkgAutoInstall=b}) "automatically install required vcpkg packages"
+ , option []    ["conan"]           (ReqArg ccConan "cmd")          "conan command"
+ , flag   []    ["autoinstall"]     (\b f -> f{autoInstallLibs=b})  "automatically download required packages"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["wasmrun"]         (ReqArg wasmrunFlag "cmd")      "use <cmd> to execute wasm"
@@ -335,7 +349,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showtime"]       (\b f -> f{ showElapsed = b})    "show elapsed time and rss after evaluation"
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
  , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
- , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})      "show type signatures of definitions"
+ , flag   []    ["showtypesigs"]   (\b f -> f{_showTypeSigs=b})      "show type signatures of definitions"
+ , flag   []    ["showhiddentypesigs"]   (\b f -> f{showHiddenTypeSigs=b})"(implies --showtypesigs) show hidden type signatures of definitions"
  , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})      "show expanded type synonyms in types"
  , flag   []    ["showcore"]       (\b f -> f{showCore=b})          "show core"
  , flag   []    ["showfcore"]      (\b f -> f{showFinalCore=b})     "show final core (with backend optimizations)"
@@ -506,6 +521,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   ccVcpkgTriplet triplet
     = Flag (\f -> f{vcpkgTriplet = triplet })
 
+  ccConan cmd
+    = Flag (\f -> f{conan = cmd })
+
   cscFlag s
     = Flag (\f -> f{ csc = s })
 
@@ -637,11 +655,11 @@ processOptions flags0 opts
                    ccCheckExist cc
                    let stdAlloc = if asan then True else useStdAlloc flags   -- asan implies useStdAlloc
                        cdefs    = ccompDefs flags 
-                                   ++ if stdAlloc then [] else [("KK_MIMALLOC","")]
+                                   ++ if stdAlloc then [] else [("KK_MIMALLOC",show (sizePtr (platform flags)))]
                                    ++ if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")]
-
+                   
                    -- vcpkg
-                   (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
+                   -- (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
                    let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
                                             else if (isTargetWasm (target flags))
                                               then ("wasm" ++ show (8*sizePtr (platform flags)) ++ "-emscripten")
@@ -651,11 +669,13 @@ processOptions flags0 opts
                                                                 then "-mingw-static"
                                                                 else "-windows-static-md")
                                                         else ("-" ++ tripletOsName))
+                       {-
                        vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ triplet
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
                        vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
                        vcpkgLibDirs     = if (null vcpkg) then [] else [vcpkgLibDir]
                        vcpkgIncludeDirs = if (null vcpkg) then [] else [vcpkgIncludeDir] 
+                       -}
                    return (flags{ packages    = pkgs,
                                   buildDir    = buildDir,
                                   localBinDir = localBinDir,
@@ -682,14 +702,17 @@ processOptions flags0 opts
                                   useStdAlloc = stdAlloc,
                                   editor      = ed,
                                   includePath = (localShareDir ++ "/lib") : includePath flags,
+                                  vcpkgTriplet= triplet
 
+                                  {-
                                   vcpkgRoot   = vcpkgRoot,
                                   vcpkg       = vcpkg,
                                   vcpkgTriplet= triplet,
                                   vcpkgIncludeDir  = vcpkgIncludeDir,
-                                  vcpkgLibDir      = vcpkgLibDir,
-                                  ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags,
-                                  ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags
+                                  vcpkgLibDir      = vcpkgLibDir
+                                  -}
+                                  -- ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags
+                                  -- ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags  -- include path added when a library is used
                                }
                           ,flags,mode)
         else invokeError errs
@@ -793,7 +816,7 @@ getEnvOptions
 vcpkgFindRoot :: FilePath -> IO (FilePath,FilePath)
 vcpkgFindRoot root
   = if (null root) 
-      then do eroot   <- getEnvVar "VCPKG_ROOT"
+      then do eroot <- getEnvVar "VCPKG_ROOT"
               if (not (null eroot))
                 then return (eroot, joinPath eroot vcpkgExe)
                 else do homeDir <- getHomeDirectory
@@ -810,6 +833,41 @@ vcpkgFindRoot root
   where 
     vcpkgExe = "vcpkg" ++ exeExtension
 
+
+conanSettingsFromFlags :: Flags -> CC -> [String]
+conanSettingsFromFlags flags cc
+  = let name = ccName cc
+        clRuntime = ["-s","compiler.runtime=" ++ (if buildType flags <= Debug then "MDd" else "MD")] 
+        -- conan compiler <https://docs.conan.io/en/latest/integrations/compilers.html>
+        settings  | (name `startsWith` "clang-cl") -- <https://github.com/conan-io/conan/pull/5705>
+                  = clRuntime  
+                  | (name `startsWith` "mingw") 
+                  = []
+                  | (name `startsWith` "emcc") 
+                  = ["-s","os=Emscripten"] ++ 
+                    (case target flags of  -- <https://docs.conan.io/en/latest/integrations/cross_platform/emscripten.html>
+                       C Wasm | sizePtr (platform flags) == 4  -> ["-s","arch=wasm"]
+                       C Wasm | sizePtr (platform flags) == 8  -> ["-s","arch=wasm64"]
+                       C WasmJs -> ["-s","arch=asm.js"]
+                       _        -> []
+                    )
+                  | (name `startsWith` "clang" || name `startsWith` "musl-clang") = []
+                  | (name `startsWith` "musl-gcc" || name `startsWith` "musl-g++") = []
+                  | (name `startsWith` "gcc" || name `startsWith` "g++")   = []
+                  | (name `startsWith` "cl")    
+                  = clRuntime
+                  | (name `startsWith` "icc")   = []
+                  | otherwise = []
+        build     = ["-s","build_type=" ++ case buildType flags of
+                        DebugFull -> "Debug"
+                        Debug     -> "Debug"
+                        RelWithDebInfo -> "Release"  -- "RelWithDebInfo" -- often not available
+                        Release        -> "Release"]
+
+    in build ++ settings ++ ["-e","CC=" ++ ccPath cc] -- set CXX as well?
+       ++ (if onWindows then ["-e","CONAN_CMAKE_GENERATOR=Ninja"] else [])
+
+
 {--------------------------------------------------------------------------
   Detect C compiler
 --------------------------------------------------------------------------}
@@ -817,7 +875,7 @@ vcpkgFindRoot root
 type Args = [String]
 
 data CC = CC{  ccName       :: String,
-               ccPath       :: FilePath,
+               ccPath       :: FilePath,               
                ccFlags      :: Args,
                ccFlagsBuild :: [(BuildType,Args)],
                ccFlagsWarn  :: Args,
@@ -854,7 +912,16 @@ targetObjExtension target
       C WasmWeb-> ".o"
       C _      -> objExtension
       JS _     -> ".mjs"
-      _        -> objExtension      
+      _        -> objExtension 
+
+targetLibFile target fname
+  = case target of
+      C Wasm   -> "lib" ++ fname ++ ".a"
+      C WasmJs -> "lib" ++ fname ++ ".a"
+      C WasmWeb-> "lib" ++ fname ++ ".a"
+      C _      -> libPrefix ++ fname ++ libExtension
+      JS _     -> fname ++ ".mjs" -- ?
+      _        -> libPrefix ++ fname ++ libExtension
 
 outName :: Flags -> FilePath -> FilePath
 outName flags s
@@ -976,7 +1043,8 @@ ccFromPath flags path
                        ccFlagHeap  = (\hpsize -> if hpsize == 0 then [] else ["-s","TOTAL_MEMORY=" ++ show hpsize]),
                        ccTargetExe = (\out -> ["-o", out ++ targetExeExtension (target flags)]),
                        ccTargetObj = (\fname -> ["-o", (notext fname) ++ targetObjExtension (target flags)]),
-                       ccObjFile   = (\fname -> fname ++ targetObjExtension (target flags))
+                       ccObjFile   = (\fname -> fname ++ targetObjExtension (target flags)),
+                       ccLibFile   = (\fname -> targetLibFile (target flags) fname)
                      }
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ 
                                      words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }

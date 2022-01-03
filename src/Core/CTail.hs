@@ -62,10 +62,16 @@ ctailDefGroups topLevel defs
 
 ctailDefGroup :: Bool -> DefGroup -> CTail [DefGroup]
 ctailDefGroup topLevel dg
-  = case dg of
+  = -- trace log <$>
+    case dg of
       DefRec [def] | hasCTailCall (defTName def) True (defExpr def)
         -> ctailDef topLevel def
       _ -> return [dg]
+  where
+    log
+      | DefRec [def] <- dg = "ctailDefGroup: " ++ show (defName def) ++ " " ++ (if (hasCTailCall (defTName def) True (defExpr def)) then "IS " else "is NOT ") ++ "eligible for ctail" 
+      | DefRec defs <- dg = "ctailDefGroup: found larger DefRec with names: " ++ unwords [show (defName def) | def <- defs ]
+      | DefNonRec def <- dg = "ctailDefGroup: found DefNonRec with name: " ++ show (defName def)
 
 
 ctailDef :: Bool -> Def -> CTail [DefGroup]
@@ -206,6 +212,8 @@ hasCTailCallArg defName (rarg:rargs)
       App f@(Con{}) fargs              
         | tnamesMember defName (fv fargs) && hasCTailCallArg defName (reverse fargs) -- && all isTotal rargs
         -> True
+      -- todo: emit warning that TRMC does not apply?
+      -- _ | not (isTotal rarg) -> trace ("non-total argument: " ++ show rarg) $ False  
       _ -> (isTotal rarg && hasCTailCallArg defName rargs)
 
 

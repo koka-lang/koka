@@ -32,7 +32,7 @@ module Core.Core ( -- Data structures
 
                      -- Core term builders
                    , defIsVal, defParamInfos
-                   , defTName , defGroupTNames , defGroupsTNames
+                   , defTName , defsTNames, defGroupTNames , defGroupsTNames
                    , addTypeLambdas, addTypeApps, addLambdas, addLambdasTName, addApps
                    , makeLet, makeTypeApp
                    , addNonRec, addCoreDef, coreNull
@@ -65,8 +65,8 @@ module Core.Core ( -- Data structures
                    , DataRepr(..), ConRepr(..)
                    , isConSingleton
                    , isConNormal
-                   , isConIso
-                   , isDataStruct
+                   , isConIso, isConAsJust
+                   , isDataStruct, isDataAsMaybe, isDataStructAsMaybe
                    , getDataRepr, getDataReprEx, dataInfoIsValue
                    , getConRepr
                    , dataReprIsValue, conReprIsValue
@@ -92,6 +92,9 @@ module Core.Core ( -- Data structures
                    , foldExpr
                    , rewriteBottomUp
                    , rewriteBottomUpM
+
+                   , rewriteTopDown
+                   , rewriteTopDownM
 
                    , CorePhase
                    , getCoreDefs, setCoreDefs, withCoreDefs
@@ -174,7 +177,7 @@ makeList tp exprs
     nilCon   = Con (TName nameNull nilTp) (ConSingleton nameTpList DataAsList 0)
     nil      = TypeApp nilCon [tp]
     consTp   = TForall [a] [] (typeFun [(nameNil,TVar a),(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeList [TVar a]))
-    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList nameNull 1)
+    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList nameNull 2)  -- NOTE: depends on Cons being second in the definition in std/core :-(
     cons expr xs = App (TypeApp consCon [tp]) [expr,xs]
     a = TypeVar (0) kindStar Bound
 
@@ -347,10 +350,11 @@ data DataRepr = -- value types
                 DataEnum            -- only singletons (as an enumeration)
               | DataIso             -- only one constructor with one field  (isomorpic)
               | DataSingleStruct    -- only one constructor (no tag needed)
-              | DataAsMaybe         -- one constructor with fields, and one singleton
+              | DataStructAsMaybe   -- one constructor with one field, and one singleton (allows optimized boxed representation that avoids allocation)
               | DataStruct          -- compatible constructors (all raw or regular types) and possibly singletons (need tag)
               -- non-value types
               | DataSingle{ hasSingletons :: Bool } -- only one constructor (no tag needed), hasSingletons true if it is a singleton as well
+              | DataAsMaybe         -- one constructor with one (non-recursive) field, and one singleton
               | DataAsList          -- one constructor with fields, and one singleton (don't need a tag, for example can distinguish pointer vs enum)
               | DataSingleNormal    -- one constructor with fields, and multiple singletons (distinguish one pointer vs enums)
               | DataNormal{ hasSingletons :: Bool }
@@ -361,7 +365,7 @@ data ConRepr  = ConEnum{ conTypeName :: Name, conDataRepr :: DataRepr, conTag ::
               | ConIso{ conTypeName:: Name, conDataRepr :: DataRepr, conTag :: Int }                       -- one constructor with one field
               | ConSingleton{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                -- constructor without fields (and not part of an enum)
               | ConSingle{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- there is only one constructor and it is not iso or singleton (and this is it)
-              | ConAsJust{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNothing :: Name, conTag :: Int } -- constructor is the cons node of a maybe-like value datatype  (may have one or more fields)
+              | ConAsJust{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNothing :: Name, conTag :: Int } -- constructor is the just node of a maybe-like datatype  (only use for DataAsMaybe, not for DataStructAsMaybe)
               | ConStruct{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- constructor as value type
               | ConAsCons{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
               | ConOpen  { conTypeName :: Name, conDataRepr :: DataRepr }                                  -- constructor of open data type
@@ -380,14 +384,18 @@ isConIso _ = False
 isDataStruct (DataStruct) = True
 isDataStruct _ = False
 
+isDataAsMaybe (DataAsMaybe) = True
+isDataAsMaybe _ = False 
+
+isDataStructAsMaybe (DataStructAsMaybe) = True
+isDataStructAsMaybe _ = False 
+
+isConAsJust (ConAsJust{}) = True 
+isConAsJust _             = False
+
 -- Value data is not heap allocated and needs no header
 dataReprIsValue :: DataRepr -> Bool
-dataReprIsValue DataEnum         = True
-dataReprIsValue DataIso          = True
-dataReprIsValue DataSingleStruct = True
-dataReprIsValue DataAsMaybe      = True
-dataReprIsValue DataStruct       = True   -- structs have a tag field though
-dataReprIsValue _                = False
+dataReprIsValue drepr  = (drepr <= DataStruct)
 
 conReprIsValue :: ConRepr -> Bool
 conReprIsValue crepr = dataReprIsValue (conDataRepr crepr)
@@ -436,19 +444,36 @@ getDataReprEx getIsValue info
                     else if length singletons == 1 then ConSingleton typeName dataRepr
                     else ConSingle typeName dataRepr])
          else if (isValue && not (dataInfoIsRec info)) then (
-           if (length conInfos == 2 && length singletons == 1)
-             then (DataAsMaybe
-                  ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsMaybe
-                                 else ConAsJust typeName DataAsMaybe (conInfoName (head singletons))) conInfos)
-             else (DataStruct, map (\con -> if null (conInfoParams con)
-                                          then ConSingleton typeName DataStruct
-                                          else ConStruct typeName DataStruct) conInfos )
+            let dataRepr = if (length conInfos == 2 && length singletons == 1 && 
+                               case (filter (\cinfo -> length (conInfoParams cinfo) == 1) conInfos) of  -- at most 1 field
+                                [cinfo] -> True
+                                _       -> False)
+                             then DataStructAsMaybe
+                             else DataStruct
+            in (dataRepr, map (\con -> if null (conInfoParams con) then ConSingleton typeName dataRepr
+                                                  else ConStruct typeName dataRepr) conInfos)
          )
          else (
           if (length conInfos == 2 && length singletons == 1)
-            then (DataAsList
-                 ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsList
-                                else ConAsCons typeName DataAsList (conInfoName (head singletons))) conInfos)
+            then let isMaybeLike = not (dataInfoIsRec info) && 
+                                   -- note: for now we can only handle a true maybe type with a single Just constructor
+                                   -- with a parametric type so it is always kk_box_t at runtime.
+                                   case (filter (\cinfo -> length (conInfoParams cinfo) == 1) conInfos) of 
+                                     [cinfo] -> case conInfoParams cinfo of
+                                                  [(_,TVar _)] -> True  -- single field of type `a`
+                                                  _ -> False
+                                     _ -> False
+                        
+                 in (if isMaybeLike
+                      then (DataAsMaybe
+                          ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsMaybe
+                                          else ConAsJust typeName DataAsMaybe (conInfoName (head singletons))) conInfos)
+                      else (DataAsList
+                          ,map (\con tag 
+                                   -> if (null (conInfoParams con)) then ConSingleton typeName DataAsList tag
+                                        else ConAsCons typeName DataAsList (conInfoName (head singletons)) tag) conInfos)
+                                             
+                 )
            else let dataRepr = if (length singletons == length conInfos -1 || null conInfos)
                                 then DataSingleNormal else (DataNormal (not (null singletons)))
                 in (dataRepr
@@ -596,118 +621,6 @@ data Expr =
   -- Case expressions
   | Case{ caseExprs :: [Expr], caseBranches :: [Branch] }
 
-foldMapExpr :: Monoid a => (Expr -> a) -> Expr -> a
-foldMapExpr acc e = case e of
-  Lam _ _ body -> acc e <> foldMapExpr acc body
-  Var _ _ -> acc e
-  App f xs -> acc e <> acc f <> mconcat (foldMapExpr acc <$> xs)
-  TypeLam _ body -> acc e <> foldMapExpr acc body
-  TypeApp expr _ -> acc e <> foldMapExpr acc expr
-  Con _ _ -> acc e
-  Lit _ -> acc e
-  Let binders body -> acc e <> mconcat [foldMapExpr acc (defExpr def) | def <- flattenDefGroups binders] <> foldMapExpr acc body
-  Case cases branches -> acc e <> mconcat (foldMapExpr acc <$> cases) <>
-    mconcat [foldMapExpr acc e | branch <- branches, guard <- branchGuards branch, e <- [guardTest guard, guardExpr guard]]
-
-anySubExpr :: (Expr -> Bool) -> Expr -> Bool
-anySubExpr f = getAny . foldMapExpr (Any . f)
-
-foldExpr :: (Expr -> a -> a) -> a -> Expr -> a
-foldExpr f z e = appEndo (foldMapExpr (Endo . f) e) z
-
-rewriteBottomUp :: (Expr -> Expr) -> Expr -> Expr
-rewriteBottomUp f = runIdentity . rewriteBottomUpM (Identity . f)
-
-rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
-rewriteBottomUpM f e = f =<< case e of
-  Lam params eff body -> Lam params eff <$> rec body
-  Var _ _ -> pure e
-  App fun xs -> liftA2 App (rec fun) (mapM rec xs)
-  TypeLam types body -> TypeLam types <$> rec body
-  TypeApp expr types -> (\fexpr -> TypeApp fexpr types) <$> rec expr
-  Con _ _ -> pure e
-  Lit _ -> pure e
-  Let binders body -> do
-    newBinders <- forM binders $ \binder ->
-      case binder of
-        DefNonRec def@Def{defExpr = defExpr} -> do
-          fexpr <- rec defExpr
-          pure $ DefNonRec def { defExpr = fexpr, defType = typeOf fexpr }
-        DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
-          fexpr <- rec defExpr
-          pure def{ defExpr = fexpr, defType = typeOf fexpr }
-
-    Let newBinders <$> rec body
-
-  Case cases branches -> liftA2 Case mcases mbranches
-    where
-      mcases = mapM rec cases
-      mbranches = forM branches $ \(Branch patterns guards) ->
-        Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
-  where
-    rec = f <=< rewriteBottomUpM f
-
-
-data TName = TName
-  { getName :: Name
-  , tnameType :: Type
-  }
-
-showTName (TName name tp)
-    = show name -- ++ ": " ++ show tp -- ++ ": " ++ minCanonical tp
-
-
-defTName :: Def -> TName
-defTName def
-  = TName (defName def) (defType def)
-
-defGroupTNames :: DefGroup -> TNames
-defGroupTNames (DefNonRec def) = S.singleton (defTName def)
-defGroupTNames (DefRec defs) = S.fromList $ map defTName defs
-
-defGroupsTNames :: DefGroups -> TNames
-defGroupsTNames group = foldr S.union S.empty (map defGroupTNames group)
-
-data VarInfo
-  = InfoNone
-  | InfoArity Int Int               -- #Type parameters, #parameters
-  | InfoExternal [(Target,String)]  -- inline body
-  | InfoReuse Pattern
-  | InfoConField TName Name         -- constructor name, field name
-
-instance Show VarInfo where
-  show info = case info of
-                InfoNone
-                  -> ""
-                InfoReuse pat
-                  -> "reuse:<pat>"
-                InfoConField conName fieldName
-                  -> "field:" ++ show conName ++ "." ++ show fieldName
-                InfoArity m n
-                  -> "arity:" ++ show (m,n)
-                InfoExternal formats
-                  -> "external:" ++ show formats
-
-
-infoArity (InfoArity m n) = n
-infoArity (_)             = 0
-
-infoTypeArity (InfoArity m n) = m
-infoTypeArity (_)             = 0
-
-isInfoArity (InfoArity _ _) = True
-isInfoArity _ = False
-
-infoIsLocal info
-  = case info of
-      InfoNone       -> True
-      InfoReuse{}    -> True
-      InfoArity{}    -> False
-      InfoExternal{} -> False
-      InfoConField{} -> False
-
-infoIsRefCounted info
-  = infoIsLocal info
 
 data Branch = Branch { branchPatterns :: [Pattern]  -- length = length exprs in the match
                      , branchGuards   :: [Guard]    -- any number (>= 1) of guarded expressions
@@ -740,25 +653,69 @@ data Lit =
   | LitString String
   deriving (Eq)
 
+data VarInfo
+  = InfoNone
+  | InfoArity Int Int               -- #Type parameters, #parameters
+  | InfoExternal [(Target,String)]  -- inline body
+  | InfoReuse Pattern
+  | InfoConField TName Name         -- constructor name, field name
+
+data TName = TName
+  { getName :: Name
+  , tnameType :: Type
+  }
+
+showTName (TName name tp)
+    = show name -- ++ ": " ++ show tp -- ++ ": " ++ minCanonical tp
 
 
--- | a core expression is total if it cannot cause non-total evaluation
-{-
-isTotal:: Expr -> Bool
-isTotal expr
-  = case expr of
-      Lam _ _ _ -> True
-      Var _ _ -> True
-      TypeLam _ _ -> True
-      TypeApp e _ -> isTotal e
-      Con _ _ -> True
-      Lit _   -> True
-      App (Var v _) _ | getName v == nameReturn || getName v == nameTrace || getName v ==nameLog -> False
-      App f args -> case typeOf f of
-                      TFun pars eff res -> (length args == length pars && eff == typeTotal && all isTotal args)
-                      _                 -> False
-      _       -> False  -- todo: a let or case could be total
--}
+defTName :: Def -> TName
+defTName def
+  = TName (defName def) (defType def)
+
+defsTNames :: [Def] -> TNames
+defsTNames defs = S.fromList (map defTName defs)  
+
+defGroupTNames :: DefGroup -> TNames
+defGroupTNames (DefNonRec def) = S.singleton (defTName def)
+defGroupTNames (DefRec defs) = defsTNames defs
+
+defGroupsTNames :: DefGroups -> TNames
+defGroupsTNames group = foldr S.union S.empty (map defGroupTNames group)
+
+instance Show VarInfo where
+  show info = case info of
+                InfoNone
+                  -> ""
+                InfoReuse pat
+                  -> "reuse:<pat>"
+                InfoConField conName fieldName
+                  -> "field:" ++ show conName ++ "." ++ show fieldName
+                InfoArity m n
+                  -> "arity:" ++ show (m,n)
+                InfoExternal formats
+                  -> "external:" ++ show formats
+
+infoArity (InfoArity m n) = n
+infoArity (_)             = 0
+
+infoTypeArity (InfoArity m n) = m
+infoTypeArity (_)             = 0
+
+isInfoArity (InfoArity _ _) = True
+isInfoArity _ = False
+
+infoIsLocal info
+  = case info of
+      InfoNone       -> True
+      InfoReuse{}    -> True
+      InfoArity{}    -> False
+      InfoExternal{} -> False
+      InfoConField{} -> False
+
+infoIsRefCounted info
+  = infoIsLocal info
+
 
 -- | a core expression that cannot cause any evaluation _for sure_
 -- For now, does not consider the effect type 
@@ -790,6 +747,8 @@ isTotalFun expr
       Lit _         -> True  -- not possible due to typing
       Let dgs e     -> all isTotalDef (flattenDefGroups dgs) && isTotalFun e 
       Case exps branches -> all isTotal exps && all isTotalBranchFun branches
+      -- App (TypeApp (Var open _) _) args  | getName open == nameEffectOpen
+      --              -> all isTotal args
       App f args    -> hasTotalEffect (typeOf expr) && isTotalFun f && all isTotal args
       Var v _       | getName v == nameKeep -> False 
                     | getName v `elem` [nameBox,nameUnbox]  -> True
@@ -814,7 +773,8 @@ isMonType tp
     case expandSyn tp of
       TForall vars preds t -> isMonType t
       TFun pars eff res    -> isMonEffect eff
-      _ -> False
+      _ -> -- trace ("isMonType is false: " ++ show (pretty tp)) 
+           False
 
 isMonEffect :: Effect -> Bool
 isMonEffect eff
@@ -882,39 +842,99 @@ getParamArityExpr :: Expr -> Int
 getParamArityExpr expr
   = snd (getTypeArities (typeOf expr))
 
-{-
-getTypeArityExpr :: Expr -> Int
-getTypeArityExpr expr
-  = case expr of
-      Var _ (InfoArity m n) -> m
-      Var tname _           -> fst (getTypeArities (tnameType tname))
-      Con tname _           -> fst (getTypeArities (tnameType tname))
-      TypeApp e targs       -> getTypeArityExpr e - length targs
-      TypeLam pars _        -> length pars
-      Case _ (Branch _ (Guard _ e:_):_) -> getTypeArityExpr e
-      _ -> 0
-
--- fun foo(x:int){ fun bar(y){ x + y }; [1,2].map(bar) }
-
-getParamArityExpr :: Expr -> Int
-getParamArityExpr expr
-  = case expr of
-    Var _ (InfoArity m n) -> n
-    Var tname _           -> snd (getTypeArities (tnameType tname))
-    Con tname _           -> snd (getTypeArities (tnameType tname))
-    Lam pars _ _          -> length pars
-    App f args            -> getParamArityExpr f - length args
-    TypeLam _ e           -> getParamArityExpr e
-    TypeApp e _           -> getParamArityExpr e
-    Case _ (Branch _ (Guard _ e:_):_) -> getParamArityExpr e
-    _ -> 0
--}
-
 getEffExpr :: Expr -> Effect
 getEffExpr (Lam _ eff _) = eff
 getEffExpr (TypeLam _ (Lam _ eff _)) = eff
 getEffExpr _ = effectEmpty
 
+
+---------------------------------------------------------------------------
+-- Generic Traversals
+---------------------------------------------------------------------------
+
+
+foldMapExpr :: Monoid a => (Expr -> a) -> Expr -> a
+foldMapExpr acc e = case e of
+  Lam _ _ body -> acc e <> foldMapExpr acc body
+  Var _ _ -> acc e
+  App f xs -> acc e <> acc f <> mconcat (foldMapExpr acc <$> xs)
+  TypeLam _ body -> acc e <> foldMapExpr acc body
+  TypeApp expr _ -> acc e <> foldMapExpr acc expr
+  Con _ _ -> acc e
+  Lit _ -> acc e
+  Let binders body -> acc e <> mconcat [foldMapExpr acc (defExpr def) | def <- flattenDefGroups binders] <> foldMapExpr acc body
+  Case cases branches -> acc e <> mconcat (foldMapExpr acc <$> cases) <>
+    mconcat [foldMapExpr acc e | branch <- branches, guard <- branchGuards branch, e <- [guardTest guard, guardExpr guard]]
+
+anySubExpr :: (Expr -> Bool) -> Expr -> Bool
+anySubExpr f = getAny . foldMapExpr (Any . f)
+
+foldExpr :: (Expr -> a -> a) -> a -> Expr -> a
+foldExpr f z e = appEndo (foldMapExpr (Endo . f) e) z
+
+rewriteBottomUp :: (Expr -> Expr) -> Expr -> Expr
+rewriteBottomUp f = runIdentity . rewriteBottomUpM (Identity . f)
+
+rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
+rewriteBottomUpM f e = f =<< case e of
+  Lam params eff body -> Lam params eff <$> rec body
+  Var _ _ -> pure e
+  App fun xs -> liftA2 App (rec fun) (mapM rec xs)
+  TypeLam types body -> TypeLam types <$> rec body
+  TypeApp expr types -> (\fexpr -> TypeApp fexpr types) <$> rec expr
+  Con _ _ -> pure e
+  Lit _ -> pure e
+  Let binders body -> do
+    newBinders <- forM binders $ \binder ->
+      case binder of
+        DefNonRec def@Def{defExpr = defExpr} -> do
+          fexpr <- rec defExpr
+          pure $ DefNonRec def { defExpr = fexpr, defType = typeOf fexpr }
+        DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
+          fexpr <- rec defExpr
+          pure def{ defExpr = fexpr, defType = typeOf fexpr }
+
+    Let newBinders <$> rec body
+
+  Case cases branches -> liftA2 Case mcases mbranches
+    where
+      mcases = mapM rec cases
+      mbranches = forM branches $ \(Branch patterns guards) ->
+        Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
+  where
+    rec = rewriteBottomUpM f
+
+rewriteTopDown :: (Expr -> Expr) -> Expr -> Expr
+rewriteTopDown f = runIdentity . rewriteTopDownM (Identity . f)
+
+rewriteTopDownM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
+rewriteTopDownM f e = f e >>= \e -> case e of
+  Lam params eff body -> Lam params eff <$> rec body
+  Var _ _ -> pure e
+  App fun xs -> liftA2 App (rec fun) (mapM rec xs)
+  TypeLam types body -> TypeLam types <$> rec body
+  TypeApp expr types -> (\fexpr -> TypeApp fexpr types) <$> rec expr
+  Con _ _ -> pure e
+  Lit _ -> pure e
+  Let binders body -> do
+    newBinders <- forM binders $ \binder ->
+      case binder of
+        DefNonRec def@Def{defExpr = defExpr} -> do
+          fexpr <- rec defExpr
+          pure $ DefNonRec def { defExpr = fexpr, defType = typeOf fexpr }
+        DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
+          fexpr <- rec defExpr
+          pure def{ defExpr = fexpr, defType = typeOf fexpr }
+
+    Let newBinders <$> rec body
+
+  Case cases branches -> liftA2 Case mcases mbranches
+    where
+      mcases = mapM rec cases
+      mbranches = forM branches $ \(Branch patterns guards) ->
+        Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
+  where
+    rec = rewriteTopDownM f
 
 {--------------------------------------------------------------------------
   Type variables inside core expressions

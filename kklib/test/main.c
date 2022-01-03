@@ -52,7 +52,7 @@ static struct __data1_Cons* __data1__as_Cons(__data1__list x) {
 }
 
 static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(kk_integer_t,kk_integer_t), kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  KK_UNUSED(msg);
+  kk_unused(msg);
   msecs_t start = _clock_start();
   for (size_t i = 0; i < loops; i++) {
     fun(kk_integer_dup(x),kk_integer_dup(y));
@@ -69,9 +69,9 @@ typedef intptr_t(xop)(intptr_t x, intptr_t y, kk_context_t* ctx);
 
 
 static intptr_t check(intptr_t z) { if (z < KK_SMALLINT_MIN || z > KK_SMALLINT_MAX) return 10; return z; }
-static intptr_t add(intptr_t x, intptr_t y, kk_context_t* ctx) { KK_UNUSED(ctx);  return check(x + y); }
-static intptr_t sub(intptr_t x, intptr_t y, kk_context_t* ctx) { KK_UNUSED(ctx); return check(x - y); }
-static intptr_t mul(intptr_t x, intptr_t y, kk_context_t* ctx) { KK_UNUSED(ctx); return check(x * y); }
+static intptr_t add(intptr_t x, intptr_t y, kk_context_t* ctx) { kk_unused(ctx);  return check(x + y); }
+static intptr_t sub(intptr_t x, intptr_t y, kk_context_t* ctx) { kk_unused(ctx); return check(x - y); }
+static intptr_t mul(intptr_t x, intptr_t y, kk_context_t* ctx) { kk_unused(ctx); return check(x * y); }
 
 static void testx(const char* name, iop* op, xop* opx, intptr_t i, intptr_t j, kk_context_t* ctx) {
   kk_integer_t x = _kk_new_integer(i);
@@ -171,7 +171,7 @@ static void test_read(const char* s, kk_context_t* ctx) {
 }
 
 static void expect(bool b, bool exp) {
-  KK_UNUSED_RELEASE(b); KK_UNUSED_RELEASE(exp);
+  kk_unused_release(b); kk_unused_release(exp);
   assert(b==exp);
 }
 
@@ -373,7 +373,7 @@ static kk_integer_t init_num(size_t  digits, kk_context_t* ctx) {
   }
   s[digits] = 0;
   kk_integer_t x = kk_integer_from_str(s,ctx);
-  kk_free(s);
+  kk_free(s,ctx);
   return x;
 }
 

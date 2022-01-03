@@ -9,6 +9,7 @@
 #define _CRT_SECURE_NO_WARNINGS   // getenv
 #endif
 #include "kklib.h"
+#include <stdio.h>
 
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 
@@ -240,6 +241,24 @@ kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, 
 
 
 /*--------------------------------------------------------------------------------------------------
+  Read line
+--------------------------------------------------------------------------------------------------*/
+
+kk_decl_export int kk_os_read_line(kk_string_t* result, kk_context_t* ctx)
+{
+  char buf[1024];
+  if (fgets(buf, 1023, stdin) == NULL) return errno;
+  buf[1023] = 0;      // ensure zero termination
+  const size_t len = strlen(buf);
+  if (len > 0 && buf[len-1] == '\n') {
+    buf[len-1] = 0;   // remove possible ending newline character
+  }
+  *result = kk_string_alloc_from_qutf8(buf, ctx);
+  return 0;
+}
+
+
+/*--------------------------------------------------------------------------------------------------
   Directories
 --------------------------------------------------------------------------------------------------*/
 
@@ -316,7 +335,7 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
 #if defined(WIN32)
 #include <Windows.h>
 kk_decl_export int kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx) {
-  KK_UNUSED(preserve_mtime);
+  kk_unused(preserve_mtime);
   int err = 0;
   kk_with_string_as_qutf16w_borrow(from, wfrom, ctx) {
     kk_with_string_as_qutf16w_borrow(to, wto, ctx) {
@@ -371,7 +390,7 @@ static int kk_posix_copy_file(const int inp, const int out, const kk_ssize_t est
       if (err == 0 && write_count != read_count) err = EIO;
     }    
   } while (err == 0 && read_count == buflen /* < buflen == EOF */ );  
-  kk_free(buf);
+  kk_free(buf,ctx);
   return err;
 }
 #endif  // not __APPLE__ 
@@ -402,7 +421,7 @@ kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool prese
 
 #if defined(__APPLE__)
   // macOS
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   if (fcopyfile(inp, out, 0, COPYFILE_ALL) != 0) {
     err = errno;
   }
@@ -785,7 +804,7 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
       else {
         rpath = kk_string_alloc_from_qutf16w(pbuf, ctx);
       }
-      kk_free(pbuf);
+      kk_free(pbuf,ctx);
     }
     else {
       rpath = kk_string_alloc_from_qutf16w(buf, ctx);
@@ -810,7 +829,7 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
 #else
 #pragma message("realpath ignored on this platform")
 kk_string_t kk_os_realpath(kk_string_t fname, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return fname;
 }
 #endif
@@ -858,7 +877,7 @@ static kk_string_t kk_os_searchpathx(const char* paths, const char* fname, kk_co
       kk_string_drop(sfname,ctx);
     }
   }
-  kk_free(buf);
+  kk_free(buf,ctx);
   return s;
 }
 
@@ -917,12 +936,12 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
     len = GetModuleFileNameW(NULL, bbuf, (DWORD)slen+1);
     if ((kk_ssize_t)len >= slen) {
       // failed again, use fall back
-      kk_free(bbuf);
+      kk_free(bbuf,ctx);
       return kk_os_app_path_generic(ctx);
     }
     else {
       kk_string_t s = kk_string_alloc_from_qutf16w(bbuf, ctx);
-      kk_free(bbuf);
+      kk_free(bbuf,ctx);
       return s;
     }
   }
@@ -937,12 +956,12 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
   int ret = proc_pidpath(pid, buf, PROC_PIDPATHINFO_MAXSIZE /* must be this value or the call fails */);
   if (ret > 0) {
     // failed, use fall back
-    kk_free(buf);
+    kk_free(buf,ctx);
     return kk_os_app_path_generic(ctx);
   }
   else {
     kk_string_t path = kk_string_alloc_from_qutf8(buf, ctx);
-    kk_free(buf);
+    kk_free(buf,ctx);
     return path;
   }
 }
@@ -1057,7 +1076,7 @@ bool kk_os_set_stack_size( kk_ssize_t stack_size ) {
 }
 #else
 bool kk_os_set_stack_size( kk_ssize_t stack_size ) {
-  KK_UNUSED(stack_size);
+  kk_unused(stack_size);
   return false;
 }
 #endif
@@ -1191,7 +1210,7 @@ kk_string_t kk_cc_name(kk_context_t* ctx) {
 
 // note: assumes unistd/Windows etc is already included (like for file copy)
 int kk_cpu_count(kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   int cpu_count = 1;
 #if defined(WIN32)
   SYSTEM_INFO sysinfo;
@@ -1220,7 +1239,7 @@ int kk_cpu_count(kk_context_t* ctx) {
 }
 
 bool kk_cpu_is_little_endian(kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   #if KK_ARCH_LITTLE_ENDIAN
   return true;
   #else

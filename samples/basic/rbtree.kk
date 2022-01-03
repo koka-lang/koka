@@ -88,7 +88,7 @@ fun make-tree(n : int) : tree<bool>
 // Count the nodes with `True` values.
 fun count( t : tree<bool> ) : int 
   t.fold(0) fn(k,v,r)
-    if (v) then r + 1 else r
+    if v then r + 1 else r
 
 
 // Benchmark for `n` insertions

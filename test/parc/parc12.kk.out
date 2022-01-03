@@ -4,11 +4,11 @@ private import std/core = std/core = "";
 public fun test : (x : int) -> int
  = fn(x: int){
  val .match : int
- = std/core/(+)((std/core/types/.dup(x)), 1);
+ = std/core/int-add((std/core/types/.dup(x)), 1);
  match (.match) {
  2
- -> std/core/types/.drop(.match);
- std/core/types/.drop(x);
+ -> std/core/types/.drop(x);
+ std/core/types/.drop(.match);
  3;
  _
  -> std/core/types/.drop(.match);

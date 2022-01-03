@@ -16,7 +16,7 @@ module std/text/regex
 import std/num/int32
 
 extern import {
-  c { vcpkg="pcre2"; library="pcre2-8" }
+  c { conan="pcre2/[ >= 10.37]"; vcpkg="pcre2"; library="pcre2-8" }
 }
 
 extern import {

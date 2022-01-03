@@ -1,0 +1,2 @@
+test/cgen/wrong/recval.kk(1, 5): error: value definition is recursive.
+ recursive group: [cgen/wrong/recval/x]

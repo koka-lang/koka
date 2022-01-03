@@ -17,6 +17,7 @@ module Core.FunLift( liftFunctions
 import qualified Lib.Trace
 import Control.Monad
 import Control.Applicative
+import Data.List( partition, intersperse )
 
 import Lib.PPrint
 import Common.Failure
@@ -42,13 +43,18 @@ trace s x =
   Lib.Trace.trace s
     x
 
-enableLifting = True
+traceGroups :: [DefGroup] -> String
+traceGroups dgs 
+  = show (map showDG dgs) 
+  where
+    showDG (DefRec defs) = show (map defName defs)
+    showDG (DefNonRec def) = show (defName def)    
+
 
 liftFunctions :: Pretty.Env -> CorePhase ()
 liftFunctions penv 
   = liftCorePhaseUniq $ \uniq defs ->
-    if enableLifting then runLift penv uniq (liftDefGroups True defs)
-                     else (defs,uniq)
+    runLift penv uniq (liftDefGroups True defs)
 
 
 {--------------------------------------------------------------------------
@@ -64,12 +70,21 @@ liftDefGroups topLevel defGroups
 liftDefGroup :: Bool {-toplevel -} -> DefGroup -> Lift DefGroups
 liftDefGroup True (DefNonRec def)
   = do (def', groups) <- collectLifted $ liftDef True def
+       -- trace ("liftDefNonRec: " ++ show (defName def) ++ ":\n - " ++ traceGroups groups) $
        return $  groups ++ [DefNonRec def'] -- all lifted definitions are put before the current definition
 
 liftDefGroup True (DefRec defs)
-  = do (defs', groups) <- collectLifted $ mapM (liftDef True) defs
-       let groups' = flattenDefGroups groups
-       return [DefRec (groups' ++ defs')] -- defs' depend on groups', groups' might depend on defs'
+  = do (defs', dgroups) <- collectLifted $ mapM (liftDef True) defs
+       -- defs' depend on dgroups, but dgroups might depend on defs'
+       -- we could to a topological sort here (as in Static/BindingGroups) but for simplicity
+       -- we approximate here for now. 
+       -- Note that it can be important to have precice DefRec groups for other optimizations, like TRMC. (src/Core/CTail)
+       let dnames = defsTNames defs'
+           (gnonrecs,grecs) = partition (\dg -> tnamesDisjoint (fv dg) dnames) dgroups
+       -- trace ("liftDefRec: " ++ show (map defName defs) ++ ":\n - " ++ traceGroups gnonrecs ++ "\n - " ++ traceGroups grecs) $
+       return (gnonrecs ++ [DefRec (flattenDefGroups grecs ++ defs')]) 
+
+
 
 liftDefGroup False (DefNonRec def)
   = do def' <- liftDef False def
@@ -80,13 +95,15 @@ liftDefGroup False (DefRec defs)
                              <+> ppName penv (defName (head defs)) 
                              <+> text ", tvs:" 
                              <+> tupled (map (ppTypeVar penv) (tvsList (ftv (defExpr (head defs))))) 
-                             <//> prettyDef penv{coreShowDef=True} (head defs)
+                             <+> text ", fvs:"
+                             <+> tupled (map (ppName penv . getName) fvs)
+                             <//> prettyDef penv{coreShowDef=True} (head defs) 
        -}
-       (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) (zip pinfoss exprDocs)
+       (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) (zip pinfoss (zip names exprDocs))
        let subst       = zip names callExprs
            liftedDefs  = map (substWithLiftedExpr subst) liftedDefs0
        groups <- liftDefGroup True (DefRec liftedDefs) -- lift all recs to top-level
-       -- atrace ("lifted: " ++ show (map defName liftedDefs)) $
+       -- traceDoc $ \penv -> text ("lifted: " ++ show (map defName liftedDefs)) 
        emitLifteds groups
 
        let defs' = zipWith (\def callExpr -> def{ defExpr = callExpr
@@ -199,11 +216,12 @@ liftLocalFun expr eff
        return expr2
 -}
 
-makeDef :: [TName] -> [TypeVar] -> ([ParamInfo], (Expr, String)) -> Lift (Expr, Def)
-makeDef fvs tvs (pinfos, (expr, doc))
+makeDef :: [TName] -> [TypeVar] -> ([ParamInfo], (TName, (Expr, String))) -> Lift (Expr, Def)
+makeDef fvs tvs (pinfos, (origName, (expr, doc)))
   = do -- liftTrace (show expr)
+       dnames <- currentDefNames
        (name,inl) <- uniqueNameCurrentDef
-       let (callExpr,lifted) = (etaExpr name, liftedDef name inl)
+       let (callExpr,lifted) = (etaExpr name, liftedDef dnames name inl)
        -- traceDoc $ \penv -> text "lifting:" <+> ppName penv name <.> colon <+> text "tvs:" <+> tupled (map (ppTypeVar penv) tvs) <//> prettyExpr penv expr <//> text "to:" <+> prettyDef penv{coreShowDef=True} lifted
        return (callExpr,lifted)
   where
@@ -223,7 +241,9 @@ makeDef fvs tvs (pinfos, (expr, doc))
 
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
     liftedTp  = typeOf liftedFun
-    liftedDef name inl = Def name liftedTp liftedFun Private (defFun allpinfos) inl rangeNull $ "// lifted\n" ++ doc
+    liftedDef dnames name inl 
+            = Def name liftedTp liftedFun Private (defFun allpinfos) inl rangeNull 
+              $ "// lifted local: " ++ concat (intersperse ", " (map (show . unqualify) (dnames ++ [getName origName]))) ++ "\n" ++ doc
 
     funExpr name
       = Var (TName name liftedTp) (InfoArity (length alltpars) (length allargs))
@@ -344,6 +364,11 @@ withCurrentDef def action
   = -- trace ("lifting: " ++ show (defName def)) $
     withEnv (\env -> env{currentDef = def:currentDef env}) $
     action
+
+currentDefNames :: Lift [Name]
+currentDefNames 
+  = do env <- getEnv
+       return (map defName (currentDef env))
 
 traceDoc :: (Pretty.Env -> Doc) -> Lift ()
 traceDoc f

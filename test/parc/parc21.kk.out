@@ -14,24 +14,12 @@ public fun print-ret : (x : int) -> console int
 public fun test : () -> console int
  = fn<console>(){
  val i : int
- = val .brw : int
- = 4;
- val .brw : int
- = parc/parc21/bo(3, .brw);
- std/core/types/.drop(.brw);
- .brw;
+ = parc/parc21/bo(3, 4);
  val _ : ()
  = std/core/prints((std/core/show(i)));
- val .own : int
- = val _0 : ()
+ val _0 : ()
  = std/core/prints((std/core/show(3)));
- 3;
- val .brw : int
- = val _1 : ()
+ val _1 : ()
  = std/core/prints((std/core/show(4)));
- 4;
- val .brw : int
- = parc/parc21/bo(.own, .brw);
- std/core/types/.drop(.brw);
- .brw;
+ parc/parc21/bo(3, 4);
  };

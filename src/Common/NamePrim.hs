@@ -39,6 +39,8 @@ module Common.NamePrim
           , nameTpResourceTag, nameConResourceTag
           , nameConEv
 
+          , nameIntAdd, nameIntSub
+
           -- Effects
           , nameTpHTag, nameHTag
           , nameTpClause, namePerform
@@ -196,6 +198,10 @@ nameCons        = preludeName "Cons"
 nameTpList      = preludeName "list"
 
 nameIntConst    = preludeName ".int-const"
+
+
+nameIntAdd      = preludeName "int-add"
+nameIntSub      = preludeName "int-sub"
 
 {--------------------------------------------------------------------------
   Primitive type constructors

@@ -26,7 +26,7 @@ import Lib.Trace
 -- import Type.Pretty
 
 import Data.Char(isAlphaNum)
-import Data.List(groupBy,intersperse,nubBy)
+import Data.List(groupBy,intersperse,nubBy,sortOn)
 import Data.Maybe(catMaybes)
 
 import Lib.PPrint
@@ -821,6 +821,14 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
               then do addError range (text "Type" <+> nameDoc <+> text "is declared as being" <-> text " (co)inductive but it occurs recursively in a negative position." <->
                                      text " hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences")
               else return ()
+       {-
+       -- is a maybe like reference type?
+       let isAsMaybe = not isRec && case sortOn (length . conInfoParams) infos of
+                         [nothing,just] -> length (conInfoParams nothing) == 0 && case conInfoParams just of 
+                                             [(_,TVar _)] -> True
+                                             _ -> False
+                         _ -> False
+       -}
        -- value types
        ddef' <- case ddef of
                   DataDefNormal
@@ -830,13 +838,15 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                           return ddef
                   DataDefAuto | isRec
                     -> return DataDefRec
+                  -- DataDefAuto | isAsMaybe
+                  --  -> return DataDefNormal
                   DataDefOpen
                     -> return DataDefOpen
                   DataDefRec
                     -> return DataDefRec
                   _ -- Value or auto, and not recursive
                     -> -- determine the raw fields and total size
-                       do platform <- getPlatform
+                       do platform <- getPlatform                          
                           dd <- toDefValues platform (ddef/=DataDefAuto) qname nameDoc infos
                           case (ddef,dd) of  -- note: m = raw, n = scan
                             (DataDefValue _ _, DataDefValue m n)
@@ -852,9 +862,9 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                                       && hasKindStarResult (getKind typeResult)
                                       && (sort /= Retractive))
                                   then -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
-                                       return (DataDefValue m n)
+                                      return (DataDefValue m n)
                                   else -- trace ("default to reference: " ++ show name ++ ": " ++ show (m,n)) $
-                                       return (DataDefNormal)
+                                      return (DataDefNormal)
                             _ -> return DataDefNormal
 
        -- trace (showTypeBinder newtp') $
@@ -1029,6 +1039,7 @@ resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (Us
        let scheme = quantifyType (typeParams ++ existVars) $
                     if (null params') then result' else typeFun [(binderName p, binderType p) | (_,p) <- params'] typeTotal result'
        addRangeInfo rng (Decl "con" qname (mangleConName qname))
+       addRangeInfo rngName (Id qname (NICon scheme) True)
        return (UserCon qname exist' params' (Just result') rngName rng vis doc
               ,ConInfo qname typeName typeParams existVars
                   (map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] (map snd params')))

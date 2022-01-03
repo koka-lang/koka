@@ -19,7 +19,7 @@ typedef struct kk_boxed_intptr_s {
 
 intptr_t kk_intptr_unbox(kk_box_t v, kk_context_t* ctx) {
   if (kk_likely(kk_box_is_value(v))) {
-    kk_intf_t i = kk_int_unbox(v);
+    kk_intf_t i = kk_intf_unbox(v);
     return (intptr_t)i;
   }
   else {
@@ -33,7 +33,7 @@ intptr_t kk_intptr_unbox(kk_box_t v, kk_context_t* ctx) {
 
 kk_box_t kk_intptr_box(intptr_t i, kk_context_t* ctx) {
   if (i >= KK_MIN_BOXED_INT && i <= KK_MAX_BOXED_INT) {
-    return kk_int_box(i);
+    return kk_intf_box(i);
   }
   else {
     boxed_intptr_t bi = kk_block_alloc_as(struct kk_boxed_intptr_s, 0, KK_TAG_INTPTR, ctx);
@@ -51,7 +51,7 @@ typedef struct kk_boxed_int64_s {
 
 int64_t kk_int64_unbox(kk_box_t v, kk_context_t* ctx) {
   if (kk_likely(kk_box_is_value(v))) {
-    kk_intf_t i = kk_int_unbox(v);
+    kk_intf_t i = kk_intf_unbox(v);
     return (int64_t)i;
   }
   else {
@@ -65,7 +65,7 @@ int64_t kk_int64_unbox(kk_box_t v, kk_context_t* ctx) {
 
 kk_box_t kk_int64_box(int64_t i, kk_context_t* ctx) {
   if (i >= KK_MIN_BOXED_INT && i <= KK_MAX_BOXED_INT) {
-    return kk_int_box((kk_intf_t)i);
+    return kk_intf_box((kk_intf_t)i);
   }
   else {
     boxed_int64_t bi = kk_block_alloc_as(struct kk_boxed_int64_s, 0, KK_TAG_INT64, ctx);
@@ -84,7 +84,7 @@ typedef struct kk_boxed_int32_s {
 
 int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
   if (kk_likely(kk_box_is_value(v))) {
-    kk_intf_t i = kk_int_unbox(v);
+    kk_intf_t i = kk_intf_unbox(v);
     kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
     return (int32_t)i;
   }
@@ -99,7 +99,7 @@ int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
 
 kk_box_t kk_int32_box(int32_t i, kk_context_t* ctx) {
   if (i >= KK_MIN_BOXED_INT && i <= KK_MAX_BOXED_INT) {
-    return kk_int_box(i);
+    return kk_intf_box(i);
   }
   else {
     boxed_int32_t bi = kk_block_alloc_as(struct kk_boxed_int32_s, 0, KK_TAG_INT32, ctx);
@@ -117,7 +117,7 @@ typedef struct kk_boxed_int16_s {
 
 int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
   if (kk_likely(kk_box_is_value(v))) {
-    kk_intf_t i = kk_int_unbox(v);
+    kk_intf_t i = kk_intf_unbox(v);
     kk_assert_internal((i >= int16_MIN && i <= int16_MAX) || kk_box_is_any(v));
     return (int16_t)i;
   }
@@ -132,7 +132,7 @@ int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
 
 kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
   if (i >= KK_MIN_BOXED_INT && i <= KK_MAX_BOXED_INT) {
-    return kk_int_box(i);
+    return kk_intf_box(i);
   }
   else {
     boxed_int16_t bi = kk_block_alloc_as(struct kk_boxed_int16_s, 0, KK_TAG_INT16, ctx);
@@ -219,7 +219,7 @@ void* kk_cptr_unbox(kk_box_t b) {
 kk_box_t kk_cfun_ptr_boxx(kk_cfun_ptr_t f, kk_context_t* ctx) {
   uintptr_t u = (uintptr_t)f;              // assume we can convert a function pointer to uintptr_t...      
   if ((u <= KK_MAX_BOXED_UINT) && sizeof(u)==sizeof(f)) {  // aligned pointer? (and sanity check if function pointer != object pointer)
-    return kk_uint_box(u);
+    return kk_uintf_box(u);
   }
   else {
     // otherwise allocate
@@ -231,13 +231,33 @@ kk_box_t kk_cfun_ptr_boxx(kk_cfun_ptr_t f, kk_context_t* ctx) {
 
 kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b) {  // never drop; only used from function call
   if (kk_likely(kk_box_is_value(b))) {
-    return (kk_cfun_ptr_t)(kk_uint_unbox(b));
+    return (kk_cfun_ptr_t)(kk_uintf_unbox(b));
   }
   else {
     kk_cfunptr_t fp = kk_basetype_unbox_as_assert(kk_cfunptr_t, b, KK_TAG_CFUNPTR);
     kk_cfun_ptr_t f = fp->cfunptr;
     return f;
   }
+}
+
+/*----------------------------------------------------------------
+  Maybe type support
+----------------------------------------------------------------*/
+
+kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_context_t* ctx ) {
+  kk_assert_internal(kk_block_has_tag(b,KK_TAG_JUST));
+  kk_just_t* just = kk_block_as(kk_just_t*,b);
+  kk_box_t res = just->value;        
+  if (ctx != NULL) {
+    if (kk_basetype_is_unique(just)) {
+      kk_basetype_free(just,ctx);  
+    }
+    else {
+      kk_box_dup(res);
+      kk_basetype_decref(just, ctx);
+    }
+  }
+  return res;
 }
 
 
@@ -259,13 +279,19 @@ static double kk_double_unbox_heap(kk_box_t b, kk_context_t* ctx) {
   return d;
 }
 
+static kk_box_t kk_double_box_heap(double d, kk_context_t* ctx) {
+  kk_boxed_double_t dt = kk_block_alloc_as(struct kk_boxed_double_s, 0, KK_TAG_DOUBLE, ctx);
+  dt->value = d;
+  return kk_ptr_box(&dt->_block);
+}
+
+
 #if (KK_BOX_DOUBLE64 == 2)  // heap allocate when negative
 kk_box_t kk_double_box(double d, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
-  int64_t i;
+  kk_unused(ctx);
+  uint64_t i = kk_bits_from_double(d);
   //if (isnan(d)) { kk_debugger_break(ctx); }
-  memcpy(&i, &d, sizeof(i));  // safe for C aliasing
-  if (i >= 0) {  // positive?
+  if ((int64_t)i >= 0) {  // positive?
     kk_box_t b = { ((uintptr_t)i<<1)|1 };
     return b;
   }
@@ -276,12 +302,12 @@ kk_box_t kk_double_box(double d, kk_context_t* ctx) {
 }
 
 double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   double d;
   if (kk_box_is_value(b)) {
     // positive double
     uint64_t u = kk_shrp(b.box, 1);
-    memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
+    d = kk_bits_to_double(u);
   }
   else {
     // heap allocated
@@ -291,27 +317,20 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   return d;
 }
 #else  // heap allocate when the exponent is between 0x200 and 0x5FF.
-static kk_box_t kk_double_box_heap(double d, kk_context_t* ctx) {
-  kk_boxed_double_t dt = kk_block_alloc_as(struct kk_boxed_double_s, 0, KK_TAG_DOUBLE, ctx);
-  dt->value = d;
-  return kk_ptr_box(&dt->_block);
-}
-
 kk_box_t kk_double_box(double d, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
-  uint64_t u;
-  memcpy(&u, &d, sizeof(u));  // safe for C aliasing
+  kk_unused(ctx);
+  uint64_t u = kk_bits_from_double(d);
   u = kk_bits_rotl64(u, 12);
   uint64_t exp = u & 0x7FF;
   u -= exp;
   // adjust to 10-bit exponent (if possible)
-  if (exp==0) {
+  if (exp==0) { // zero or subnormal
     // already good
   }
-  else if (exp==0x7FF) {
+  else if (exp==0x7FF) { // infinity or NaN
     exp = 0x3FF;
   }
-  else if (exp > 0x200 && exp < 0x5FF) {
+  else if (exp > 0x200 && exp < 0x5FF) {  // absolute value between [2^-510,2^512)
     exp -= 0x200;
   }
   else {
@@ -324,7 +343,7 @@ kk_box_t kk_double_box(double d, kk_context_t* ctx) {
 }
 
 double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   if (kk_box_is_value(b)) {
     // expand 10-bit exponent to 11-bits again
     uint64_t u = b.box;
@@ -342,8 +361,7 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
     }
     kk_assert_internal(exp <= 0x7FF);
     u = kk_bits_rotr64(u | exp, 12);
-    double d;
-    memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
+    double d = kk_bits_to_double(u);
     return d;
   }
   else {
@@ -352,4 +370,59 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   }
 }
 #endif
+#endif
+
+
+/*----------------------------------------------------------------
+  Float boxing on 32-bit systems
+----------------------------------------------------------------*/
+
+#if (KK_INTPTR_SIZE == 4) 
+// Generic float allocation in the heap
+typedef struct kk_boxed_float_s {
+  kk_block_t _block;
+  float      value;
+} *kk_boxed_float_t;
+
+static float kk_float_unbox_heap(kk_box_t b, kk_context_t* ctx) {
+  kk_boxed_float_t ft = kk_block_assert(kk_boxed_float_t, kk_ptr_unbox(b), KK_TAG_FLOAT);
+  float f = ft->value;
+  if (ctx != NULL) { kk_basetype_drop(ft, ctx); }
+  return f;
+}
+
+static kk_box_t kk_float_box_heap(float f, kk_context_t* ctx) {
+  kk_boxed_float_t ft = kk_block_alloc_as(struct kk_boxed_float_s, 0, KK_TAG_FLOAT, ctx);
+  ft->value = f;
+  return kk_ptr_box(&ft->_block);
+}
+
+kk_box_t kk_float_box(float f, kk_context_t* ctx) {
+  kk_unused(ctx);
+  uint32_t i = kk_bits_from_float(f);
+  if ((int32_t)i >= 0) {  // positive?
+    kk_box_t b = { ((uintptr_t)i<<1)|1 };
+    return b;
+  }
+  else {
+    // heap allocate
+    return kk_float_box_heap(f, ctx);
+  }
+}
+
+float kk_float_unbox(kk_box_t b, kk_context_t* ctx) {
+  kk_unused(ctx);
+  float f;
+  if (kk_box_is_value(b)) {
+    // positive float
+    uint32_t u = kk_shrp(b.box, 1);
+    f = kk_bits_to_float(u);
+  }
+  else {
+    // heap allocated
+    f = kk_float_unbox_heap(b, ctx);
+  }
+  // if (isnan(f)) { kk_debugger_break(ctx); }
+  return f;
+}
 #endif

@@ -30,3 +30,12 @@ public fun main()
   with f2 <- file("stack.yaml")
   println( f1.read-line() ++ "\n" ++ f2.read-line() )
 
+/*
+fun wrong-escape1() 
+  with f <- file("stack.yaml")
+  f
+
+public fun test() 
+  val f = wrong-escape1()
+  f.read-line.println
+*/

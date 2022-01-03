@@ -64,12 +64,12 @@ public alias ev-index = ssize_t
 // -------------------------------------------
 
 private extern fresh-marker-int() : int32 {
-  c inline "kk_marker_unique(kk_context())"
+  c  "kk_marker_unique"
   js inline "$marker_unique++"
 }
 
 private extern fresh-marker-named-int() : int32 {
-  c inline "-kk_marker_unique(kk_context())"
+  c inline  "-kk_marker_unique(kk_context())"
   js inline "-($marker_unique++)"
 }
 
@@ -92,75 +92,75 @@ private inline extern evv-total() : evv<<>> {
 
 
 public inline extern ".evv-at"<e,h> ( i : ev-index ) : ev<h> {  // pretend total; don't simplify
-  c inline "kk_evv_at(#1,kk_context())"
-  js inline "$std_core_hnd._evv_at(#1)"
+  c  "kk_evv_at"
+  js "$std_core_hnd._evv_at"
 }
 
 // (dynamically) find evidence insertion/deletion index in the evidence vector
 public extern ".evv-index"<e::E,h>( htag : htag<h> ) : e ev-index {
-  c inline "kk_evv_index(#1,kk_context())"
-  js inline "__evv_index(#1)"
+  c  "kk_evv_index"
+  js "__evv_index"
 }
 
 
 public extern ".evv-lookup"( htag : htag<h> ) : ev<h> {
-  c inline "kk_evv_lookup(#1,kk_context())"
+  c  "kk_evv_lookup"
   js "__evv_lookup"
 }
 
 public inline extern ".evv-select"( i : ev-index, htag : htag<h> ) : ev<h> {
-  c inline "(#1 >= 0 ? kk_evv_at(#1,kk_context()) : kk_evv_lookup(#2,kk_context()))"
+  c  inline "(#1 >= 0 ? kk_evv_at(#1,kk_context()) : kk_evv_lookup(#2,kk_context()))"
   js inline "(#1 >= 0 ? $std_core_hnd._evv_at(#1) : __evv_lookup(#2))"
 }
 
 private extern evv-show( evv : evv<e> ) : string {
-  c  inline "kk_evv_show(#1,kk_context())"
+  c  "kk_evv_show"
   js "_evv_show"
 }
 
 private extern evv-eq(evv0 : evv<e>, evv1 : evv<e> ) : bool {
-  c inline "kk_evv_eq(#1,#2,kk_context())"
+  c  "kk_evv_eq"
   js inline "(#1) === (#2)"
 }
 
 
 private extern evv-get() : e evv<e> {
-  c  inline "kk_evv_get(kk_context())"
+  c  "kk_evv_get"
   js "$std_core_hnd._evv_get"
 }
 
 private inline extern evv-set<e1,e>( w : evv<e1> ) : e () {
-  c inline "kk_evv_set(#1,kk_context())"
+  c  "kk_evv_set"
   js "$std_core_hnd._evv_set"
 }
 
 private inline extern evv-swap<e1,e2>( w : evv<e1> ) : e evv<e2> {
-  c inline "kk_evv_swap(#1,kk_context())"
+  c  "kk_evv_swap"
   js "$std_core_hnd._evv_swap"
 }
 
 private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : e1 evv<e2> {
-  c  inline "kk_evv_insert(#1,#2,kk_context())"
+  c  "kk_evv_insert"
   js "_evv_insert"
 }
 
 private extern evv-swap-delete( i : ev-index, behind : bool ) : e1 evv<e> {
-  c  inline "kk_evv_swap_delete(#1,#2,kk_context())"
+  c  "kk_evv_swap_delete"
   js "_evv_swap_delete"
 }
 
 private inline extern evv-swap-create0() : e evv<e> { //not quite the right effect type but avoids unbound effect types
-  c inline "kk_evv_swap_create0(kk_context())"
+  c  "kk_evv_swap_create0"
   js "$std_core_hnd._evv_swap_create0"
 }
 
 private inline extern evv-swap-create1( i : ev-index ) : e evv<e> {   //not quite the right effect type but avoids unbound effect types
-  c inline "kk_evv_swap_create1(#1,kk_context())"
+  c  "kk_evv_swap_create1"
   js "$std_core_hnd._evv_swap_create1"
 }
 
 private extern evv-swap-create( indices : vector<ev-index> ) : e evv<e> { //not quite the right effect type but avoids unbound effect types
-  c inline "kk_evv_swap_create(#1,kk_context())"
+  c  "kk_evv_swap_create"
   js "_evv_swap_create"
 }
 
@@ -170,7 +170,7 @@ private inline extern ev-none<e,h>() : e ev<h> {
 }
 
 public extern ".evv-is-affine"() : bool {
-  c inline "kk_evv_cfc(kk_context())<=2"
+  c  inline "kk_evv_cfc(kk_context())<=2"
   js inline "$std_core_hnd._evv_cfc()<=2"
 }
 
@@ -180,17 +180,17 @@ public extern ".evv-is-affine"() : bool {
 // -------------------------------------------
 
 public inline extern yielding() : bool {
-  c  inline "kk_yielding(kk_context())"
-  js inline "$std_core_hnd._yielding()"
+  c  "kk_yielding"
+  js "$std_core_hnd._yielding"
 }
 
 public inline extern yielding-non-final() : bool {
-  c  inline "kk_yielding_non_final(kk_context())"
-  js inline "$std_core_hnd._yielding_non_final()"
+  c  "kk_yielding_non_final"
+  js "$std_core_hnd._yielding_non_final"
 }
 
 public noinline extern yield-extend(next : a -> e b ) : e b {
-  c  inline "kk_yield_extend(#1,kk_context())"
+  c  "kk_yield_extend"
   js "_yield_extend"
 }
 
@@ -203,27 +203,27 @@ public inline fun yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b
 }
 
 private extern yield-cont(f : forall<b> (b -> e a, b) -> e r ) : e r {  // make hidden public?
-  c  inline "kk_yield_cont(#1,kk_context())"
+  c  "kk_yield_cont"
   js "_yield_cont"
 }
 
 private inline extern keep-yielding-final() : e r {
-  c inline "kk_box_any(kk_context())"
+  c  "kk_box_any"
   js inline "undefined"
 }
 
 private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
-  c  inline "kk_yield_prompt(#1,kk_context())"
+  c  "kk_yield_prompt"
   js "_yield_prompt"
 }
 
 private extern yield-to-prim( m : marker<e1,r>, clause : (resume-result<b,r> -> e1 r) -> e1 r ) : e (() -> b) {
-  c  inline "kk_yield_to(#1,#2,kk_context())"
+  c  "kk_yield_to"
   js "$std_core_hnd._yield_to"
 }
 
 private extern yield-to-final( m : marker<e1,r>, clause : (resume-result<b,r> -> e1 r) -> e1 r ) : e b {
-  c  inline "kk_yield_final(#1,#2,kk_context())"
+  c  "kk_yield_final"
   js "$std_core_hnd._yield_final"
 }
 
@@ -755,6 +755,14 @@ public fun clause-control4( op : (x1:a1, x2:a2, x3:a3, x4:a4, k: b -> e r) -> e 
 
 public fun clause-tail4(op : (a1,a2,a3,a4) -> e b) : clause1<(a1,a2,a3,a4),b,h,e,r> {
   clause-tail1( fn( x:(_,_,_,_) ){ op(x.fst,x.snd,x.thd,x.field4) } )
+}
+
+public fun clause-tail-noyield4(op : (a1,a2,a3,a4) -> e b) : clause1<(a1,a2,a3,a4),b,h,e,r> {
+  clause-tail-noyield1( fn( x:(_,_,_,_) ){ op(x.fst,x.snd,x.thd,x.field4) } )
+}
+
+public fun clause-never4( op : (a1,a2,a3,a4) -> e r ) : clause1<(a1,a2,a3,a4),b,h,e,r> {
+  clause-never1(fn(x:(_,_,_,_)){ op(x.fst,x.snd,x.thd,x.field4) } )
 }
 
 public fun ".perform4"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<(a1,a2,a3,a4),b,h,e1,r>), x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e b {

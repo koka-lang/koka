@@ -16,6 +16,7 @@ import Test.Hspec.Core.Formatters hiding (Error)
 
 commonFlags :: [String]
 commonFlags = ["-c", "-v0", "--console=raw",
+               "-O1", -- for cgen/specialize
                -- "--cc=clang",
                -- "--checkcore",
                "-ilib", "-itest",
@@ -94,9 +95,15 @@ testSanitize kokaDir
   . sub "\\.box-x[[:digit:]]+(-x[[:digit:]]+)?" ".box"
   . sub "([a-zA-Z])\\.[[:digit:]]+" "\\1"
   . sub "<[[:digit:]]+>" "<0>"
+  -- for tests using --showhiddentypesigs,
+  -- e.g. .lift250-main => .lift000-main
+  --      f: (z00.192 : a) -> a => f: (a.00.000 : a) -> a
+  . sub "(\\.m?)lift[[:digit:]]+" "\\1lift000"
+  . sub "(^[[:alnum:]]+\\/.+:.*) [[:alpha:]]+[[:digit:]]+\\.[[:digit:]]+ :" "\\1 a00.000 :"
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
-  . replace kokaDir "..."
+  . if null kokaDir then id else replace xkokaDir "..."
   where 
+    xkokaDir = map (\c -> if c == '\\' then '/' else c) kokaDir
     sub re = flip (subRegex (mkRegex re))
     -- limitTo n s | length s > n = take n s ++ "... (and more)"
     --             | otherwise    = s

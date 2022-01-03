@@ -99,7 +99,7 @@ effect yield<a>
   fun yield( x : a ) : ()
 
 // Traverse a list and yield the elements
-fun traverse( xs : list<int> ) : yield<int> () 
+fun traverse( xs : list<a> ) : yield<a> () 
   match xs
     Cons(x,xx) -> { yield(x); traverse(xx) }
     Nil        -> ()
@@ -209,7 +209,7 @@ algorithms in a functional style.
 ~
 
 ~ begin content
-For  Linux (x64, arm64) and macOS (x64, M1), you can install &koka; using:
+For  Linux (x64, arm64), macOS (x64, M1), and FreeBSD (x64), you can install &koka; using:
 
 &acopy;
 {.copy; data-value:"curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh"}

@@ -8,12 +8,17 @@
 #ifndef  _CRT_SECURE_NO_WARNINGS
 #define  _CRT_SECURE_NO_WARNINGS
 #endif
-#define  __USE_MINGW_ANSI_STDIO 1  // so %z is valid on mingw
+#ifndef  __USE_MINGW_ANSI_STDIO
+#define  __USE_MINGW_ANSI_STDIO   // so %z is valid on mingw
+#endif
+
 #include "kklib.h"
+#include <string.h>
+#include <stdio.h>
 
 
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
-#define ARCH_ALLOW_WORD_READS  (1)  
+#define KK_ARCH_ALLOW_WORD_READS  (1)  
 
 static uint8_t kk_ascii_toupper(uint8_t c) {
   return (c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c);
@@ -932,7 +937,7 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
   else
 #endif
     if (kk_box_is_value(b)) {
-      snprintf(buf, 128, "value(%zi)", kk_int_unbox(b));
+      snprintf(buf, 128, "value(%li)", (long)kk_intf_unbox(b));
       return kk_string_alloc_dup_valid_utf8(buf, ctx);
     }
     else if (b.box == kk_box_null.box) {
@@ -960,7 +965,7 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
       }
       else {
         // TODO: handle all builtin tags 
-        snprintf(buf, 128, "ptr(0x%zx, tag: %i, rc: 0x%zx, scan: %zu)", (uintptr_t)p, tag, kk_block_refcount(p), (size_t)kk_block_scan_fsize(p));
+        snprintf(buf, 128, "ptr(0x%zx, tag: %i, rc: 0x%x, scan: %zu)", (uintptr_t)p, tag, kk_block_refcount(p), (size_t)kk_block_scan_fsize(p));
         kk_box_drop(b, ctx);
         return kk_string_alloc_dup_valid_utf8(buf, ctx);
       }

@@ -22,8 +22,8 @@ public fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  = std/core/types/no-reuse();
  (match ((std/core/types/.is-unique(xs))) {
  (std/core/types/True() : bool )
- -> std/core/types/.drop(.pat0);
- std/core/types/.drop(z);
+ -> std/core/types/.drop(z);
+ std/core/types/.drop(.pat0);
  std/core/types/();
  std/core/types/.assign-reuse(.ru, (std/core/types/.reuse(xs)));
  _

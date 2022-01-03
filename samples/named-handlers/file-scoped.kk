@@ -40,8 +40,8 @@ public fun main()
 
 /*
 fun wrong-escape2() 
-  with f = file("stack.yaml")
-  fn(){ f.read-line() }
+  with f <- file("stack.yaml")
+  fn() f.read-line()
 */
 /*
 fun wrong-escape1() 

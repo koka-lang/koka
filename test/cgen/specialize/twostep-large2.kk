@@ -1,9 +1,13 @@
-fun repeatN(i, f) {
-    map(list(1, i), fn(_) { f() })
+fun repeatN(i, f : () -> _ _) {
+    // map(list(1, i), fn(_) { f() })
+    list(1, i, fn(_) f() )
+}
+
+noinline fun a(i, f) {
+    repeatN(i, f)
 }
 
 fun large(f) : total _ {
-    // list(1, 10).map(f).sum
     repeatN(10) {
         repeatN(10) {
             repeatN(10) {
@@ -19,8 +23,6 @@ fun calls-large(f) {
 }
 
 fun main() {
-    // does not specialize
-    calls-large() fn(x) {
-        x + 1
-    }
+    // large(inc)
+    calls-large(inc)
 }

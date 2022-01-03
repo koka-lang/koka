@@ -921,9 +921,9 @@ inline extern int : (char) -> int {
 }
 
 // Convert a unicode code point to a character
-inline extern char( ^i : int) : char {
+inline extern char( i : int) : char {
   inline "(#1)";
-  c  inline "kk_integer_clamp32_borrow(#1)"
+  c "kk_integer_clamp32"
   cs inline "Primitive.IntToInt32(#1)"
 }
 
@@ -1030,19 +1030,25 @@ inline extern (>)(^x : int, ^y : int) : bool  {
   js "$std_core._int_gt"
 }
 
-// Add two integers.
-inline extern (+) : (int,int) -> int {
+private inline extern int-add : (int,int) -> int {
   c  "kk_integer_add"
   cs inline "(#1 + #2)"
   js "$std_core._int_add"
 }
 
-// Substract two integers.
-inline extern (-) : (int,int) -> int {
+// Add two integers.
+fun (+)(x : int, y : int ) : int 
+  int-add(x,y)
+
+private inline extern int-sub : (int,int) -> int {
   c  "kk_integer_sub"
   cs inline "(#1 - #2)"
   js "$std_core._int_sub"
 }
+
+// Substract two integers.
+fun (-)(x : int, y : int ) : int 
+  int-sub(x,y)
 
 // Multiply two integers.
 inline extern (*) : (int,int) -> int {
@@ -1100,8 +1106,8 @@ inline extern (~)(i:int) : int {
 }
 
 // Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
-inline extern double( ^i : int) : double  {
-  c  inline "kk_integer_as_double_borrow(#1)"
+inline extern double( i : int) : double  {
+  c  "kk_integer_as_double"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 }
@@ -1276,7 +1282,7 @@ inline extern int( i : int32 ) : int {
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
 extern int32( i : int) : int32   {
-  c  "kk_integer_clamp32" // "kk_integer_clamp32_borrow(#1)"
+  c  "kk_integer_clamp32"
   cs "Primitive.IntToInt32"
   js "$std_core._int_clamp32"
 }
@@ -1780,10 +1786,12 @@ fun foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe
 }
 
 // Apply a function for each character in a string slice.
-fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
-  foreach-while(slice, fn(c){ action(c); Nothing })
+fun foreach( slice : sslice, action : (c:char) -> e ()) : e () 
+  foreach-while( slice ) fn(c)
+    action(c)
+    Nothing
   ()
-}
+
 
 // Does string `s`  contain the string `sub`  ?
 private inline extern xindex-of(s : string, sub : string ) : ssize_t {
@@ -2072,7 +2080,7 @@ inline extern trim-right( s : string ) : string {
 
 // Return the element at position `index`  in vector `v`  without bounds check!
 private inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a {
-  c  inline "kk_vector_at_borrow(#1, #2)"
+  c  inline "kk_vector_at_borrow(#1,#2)"
   cs inline "(#1)[#2]";
   js inline "(#1)[#2]";
 }
@@ -2091,7 +2099,7 @@ private inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 inline extern []( ^v : vector<a>, ^index : int ) : exn a  {
-  c  inline "kk_vector_at_int_borrow(#1, #2)"
+  c "kk_vector_at_int_borrow"
   cs inline "(#1)[Primitive.IntToInt32(#2)]"
   js inline "$std_core._vector_at(#1,#2)"
 }
@@ -2139,17 +2147,17 @@ inline extern vector : forall<a> () -> vector<a> {
 
 // Invoke a function `f` for each element in a vector `v`
 fun foreach( v : vector<a>, f : (a) -> e () ) : e () {
-  v.foreach-indexedz( fn(x,_) { f(x) })
+  v.foreach-indexedz( fn(_,x) { f(x) })
 }
 
 // Invoke a function `f` for each element in a vector `v`
-fun foreach-indexed( v : vector<a>, f : (a,int) -> e () ) : e () {
-  foreach-indexedz( v, fn(x,i) { f(x,i.int) } )
+fun foreach-indexed( v : vector<a>, f : (int,a) -> e () ) : e () {
+  foreach-indexedz( v, fn(i,x) { f(i.int,x) } )
 }
 
-private fun foreach-indexedz( v : vector<a>, f : (a,ssize_t) -> e () ) : e () {
+private fun foreach-indexedz( v : vector<a>, f : (ssize_t,a) -> e () ) : e () {
   forz( 0.ssize_t, v.lengthz.decr ) fn(i) {
-    f(v.unsafe-idx(i),i)
+    f(i,v.unsafe-idx(i))
   }
 }
 
@@ -2164,7 +2172,7 @@ fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b> {
 // Apply a total function `f` to each element in a vector `v`
 fun map( v : vector<a>, f : a -> e b ) : e vector<b> {
   val w = unsafe-vector(v.length.ssize_t)
-  v.foreach-indexedz fn(x,i) {
+  v.foreach-indexedz fn(i,x) {
     unsafe-assign(w,i,f(x))
   }
   w
@@ -2607,7 +2615,7 @@ fun try-default( value : a , action : () -> <exn|e> a ) : e a {
 }
 
 // Transform an `:error` type back to an `exn` effect.
-fun throw( err : error<a> ) : exn a {
+fun untry( err : error<a> ) : exn a {
   match(err) {
     Error(exn) -> throw-exn(exn)
     Ok(x)      -> x
@@ -2616,7 +2624,7 @@ fun throw( err : error<a> ) : exn a {
 
 // Transform an `:error` type back to an `exn` effect.
 fun exn( err : error<a> ) : exn a {
-  throw(err)
+  untry(err)
 }
 
 // Use default value `def` in case of an error.
@@ -2675,7 +2683,7 @@ extern ".null-any"(x : a) : null<a> {
 
 // Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
 extern null(x : maybe<a>) : null<a> {
-  c  inline "(kk_std_core_types__is_Nothing(#1) ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox((#1)._cons.Just.value))"
+  c  inline "(kk_std_core_types__is_Nothing(#1) ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox((#1)._cons.Just.value) /* kk_datatype_unbox(kk_datatype_unjust(#1,kk_context())) */ )"
   cs inline "(#1.tag_ == __std_core._maybe_Tag.Nothing ? default(##1) : #1.@value)"
   js inline "(#1==null ? null : #1.value)"
 }

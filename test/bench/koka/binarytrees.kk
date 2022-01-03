@@ -50,7 +50,7 @@ fun make-fbip( dir : direction, builder : builder) : div tree
 // make a perfectly balanced binary tree of `depth`
 fun make-rec( depth : int ) : div tree
   if depth > 0
-    then Node( make(depth - 1), make(depth - 1) ) 
+    then Node( make-rec(depth - 1), make-rec(depth - 1) ) 
     else Node( Tip, Tip )
 
 fun make( depth : int ) : div tree

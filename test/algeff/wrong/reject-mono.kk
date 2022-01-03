@@ -1,5 +1,5 @@
 effect get-id {
-  control get-id-op(): (a -> a) 
+  control get-id-op() : (a -> a) 
 }
 
 fun test() {
@@ -9,10 +9,10 @@ fun test() {
 
 val h = handler {
   control get-id-op() { 
-    resume( fn(z){ resume( fn( w ){ z }); z } ) 
+    resume( fn(z){ resume( fn(w){ z }); z } ) 
   }
 }
 
 fun main() {
-  h(test)
+  h(test) // 1
 }

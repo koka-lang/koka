@@ -19,201 +19,199 @@ val min-int32 : int32 = -0x80000000.int32
 val bits-int32 : int32 = 32.int32
 
 // Convert an `:int32` to a string
-fun show( i : int32 ) : string {
+fun show( i : int32 ) : string 
   show(i.int)
-}
+
 
 // Convert a `:double` to an `:int32`. The double is clamped to the
 // minimum or maximum `:int32` value if it is outside the range. A `nan` is
 // mapped to `0`.
-inline extern int32 : (double) -> int32 {
+inline extern int32 : (double) -> int32 
   cs "Primitive.DoubleToInt32"
   js "$std_core._double_to_int32"
-}
+
 
 // Convert an `:int32` to a boolean.
-fun bool( i : int32 ) : bool {
+fun bool( i : int32 ) : bool 
   (i!=zero)
-}
+
 
 // Convert a boolean to an `:int32`.
-fun int32( b : bool ) : int32 {
+fun int32( b : bool ) : int32 
   if (b) then one else zero
-}
+
 
 
 // Show an `:int32` in hexadecimal notation
 // The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
 // The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
 // The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
-fun show-hex( i : int32, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string {
+fun show-hex( i : int32, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string 
   std/core/show-hex(i.int,width,use-capitals,pre)
-}
+
 
 // Convert an `:int` to `:int32` but interpret the `int` as an unsigned 32-bit value.
 // `i` is clamped between `0` and `0xFFFFFFFF`.\
 // `0x7FFFFFFF.uint32 == 0x7FFFFFFF.int32 == max-int32`\
 // `0x80000000.uint32 == -0x80000000.int32 == min-int32`\
 // `0xFFFFFFFF.uint32 == -1.int32`\
-fun uint32( i : int ) : int32 {
+fun uint32( i : int ) : int32 
   if (i > max-int32.int) then (i - 0x100000000).int32 else i.int32
-}
+
 
 // Convert an `:int32` to an `:int` but interpret the `:int32` as a 32-bit unsigned value.
-fun uint( i : int32 ) : int {
+fun uint( i : int32 ) : int 
   if (i.is-neg) then 0x100000000 + i.int else i.int
-}
+
 
 // Show an `:int32` in hexadecimal notation interpreted as an unsigned 32-bit value.
 // The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
 // The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
 // The `pre` (=`"0x"`) is an optional prefix for the number.
-fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre : string = "0x" ) : string {
+fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre : string = "0x" ) : string 
   std/core/show-hex(i.uint,width,use-capitals,pre)
-}
 
-inline extern (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-inline extern (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-inline extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)" }
-inline extern (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)" }
-inline extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"  }
-inline extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"  }
 
-inline extern (+)  : (int32,int32) -> int32 { 
+inline extern (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" 
+inline extern (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" 
+inline extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)" 
+inline extern (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)" 
+inline extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"  
+inline extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"  
+
+inline extern (+)  : (int32,int32) -> int32 
   c inline "(int32_t)((uint32_t)#1 + (uint32_t)#2)" // avoid UB
   js inline "((#1 + #2)|0)" 
-}
-inline extern (-)  : (int32,int32) -> int32 { 
+
+inline extern (-)  : (int32,int32) -> int32 
   c inline "(int32_t)((uint32_t)#1 - (uint32_t)#2)" // avoid UB
   js inline "((#1 - #2)|0)" 
-}
 
-inline extern is-neg( i : int32 ) : bool {
+
+inline extern is-neg( i : int32 ) : bool 
   inline "0 > #1"
-}
 
-inline extern is-pos( i : int32 ) : bool {
+
+inline extern is-pos( i : int32 ) : bool 
   inline "0 < #1"
-}
 
-inline extern is-zero( i : int32 ) : bool {
+
+inline extern is-zero( i : int32 ) : bool 
   inline "0 == #1"
   js inline "0 === #1"
-}
+
 
 val zero = 0.int32
 val one  = 1.int32
 
-fun sign( i : int32 ) : order {
-  if (i.is-pos) then Gt elif (i.is-neg) then Lt else Eq
-}
+fun sign( i : int32 ) : order 
+  if (i.is-pos) then Gt 
+  elif (i.is-neg) then Lt 
+  else Eq
+
 
 // Returns `true` if the integer `i`  is an odd number.
-fun is-odd( i : int32 ) : bool {
-  return (and(i,1.int32)==1.int32);
-}
+fun is-odd( i : int32 ) : bool 
+  and(i,1.int32) == 1.int32
+
 
 // Returns `true` if the integer `i`  is an even number.
-fun is-even( i : int32 ) : bool {
-  return (and(i,1.int32)==0.int32);
-}
+fun is-even( i : int32 ) : bool 
+  and(i,1.int32) == 0.int32
+
 
 // Increment a 32-bit integer.
-fun inc( i : int32 ) : int32 {
+fun inc( i : int32 ) : int32 
   i + 1.int32
-}
+
 
 // Decrement a 32-bit integer.
-fun dec( i : int32 ) : int32 {
+fun dec( i : int32 ) : int32 
   i - 1.int32
-}
+
 
 // Multiply two 32-bit integers.
-inline extern (*) : (int32,int32) -> int32 {
+inline extern (*) : (int32,int32) -> int32 
   inline "(int32_t)((uint32_t)#1 * (uint32_t)#2)" // avoid UB
   js "$std_core._int32_multiply"
-}
+
 
 fun compare( x : int32, y : int32) : order
-{
   if (x < y) then Lt
   elif (x > y) then Gt
   else Eq
-}
+
 
 // Return the absolute value of an integer.
 // Raises an exception if the `:int32` is `min-int32`
 // (since the negation of `min-int32` equals itself and is still negative)
 fun abs( i : int32 ) : exn int32
-{
   if (!i.is-neg) then i
   elif (i > min-int32) then negate(i)
   else throw( "std/num/int32/abs: cannot make min-int32 into a positive int32 without overflow" )
-}
+
 
 // Return the absolute value of an integer.
 // Returns 0 if the `:int32` is `min-int32`
 // (since the negation of `min-int32` equals itself and is still negative)
 fun abs0( i : int32 ) : int32
-{
   if (!i.is-neg) then i
   elif (i > min-int32) then negate(i)
   else 0.int32
-}
+
 
 
 // Take the bitwise _and_ of two `:int32`s
-inline extern and : (int32,int32) -> int32 {
+inline extern and : (int32,int32) -> int32 
   inline "(#1 & #2)";
-}
+
 
 // Take the bitwise _or_ of two `:int32`s
-inline extern or : (int32,int32) -> int32 {
+inline extern or : (int32,int32) -> int32 
   inline "(#1 | #2)";
-}
+
 
 // Take the bitwise _xor_ of two `:int32`s
-inline extern (^) : (int32,int32) -> int32 {
+inline extern (^) : (int32,int32) -> int32 
   inline "(#1 ^ #2)";
-}
+
 
 // Bitwise _not_ of an `:int32`, i.e. flips all bits.
-inline extern not : ( i : int32 ) -> int32  {
+inline extern not : ( i : int32 ) -> int32  
   inline "(~#1)"
-}
 
 
 // Shift an `:int32` `i` to the left by `n & 31` bits.
-inline extern shl : (int32,int32) -> int32 {
+inline extern shl : (int32,int32) -> int32 
   c  inline "kk_shl32(#1,#2)"
   js inline "#1 << #2"       // javascript masks the shift already
-}
 
-// Logical shift an `:int32` to the right by `n & 31` bits. Shift in zeros from the left.
-inline extern shr : (int32,int32) -> int32 {
+
+// Logical shift an `:int32` to the right by `n % 32` bits. Shift in zeros from the left.
+inline extern shr : (int32,int32) -> int32 
   c  inline "(int32_t)kk_shr32(#1,#2)"
   cs inline "(Int32)(((UInt32)#1)>>#2)"
   js inline "#1 >>> #2"
-}
 
-// Arithmetic shift an `:int32` to the right by `n & 31` bits. Preserves the sign bit.
-inline extern sar : (int32,int32) -> int32 {
+
+// Arithmetic shift an `:int32` to the right by `n % 32` bits. Preserves the sign bit.
+inline extern sar : (int32,int32) -> int32 
   c  inline "kk_sar32(#1,#2)"
   cs inline "(#1>>#2)"
   js inline "#1 >> #2"
-}
 
-// Bitwise rotate an `:int32` `n & 31` bits to the left.
-inline extern rotl( i : int32, n : int32 ) : int32 {
+
+// Bitwise rotate an `:int32` `n % 32` bits to the left.
+inline extern rotl( i : int32, n : int32 ) : int32 
   c inline "(int32_t)kk_bits_rotl32(#1,#2)"
   js "$std_core._int32_rotl"
-}
 
-// Bitwise rotate an `:int32` `n & 31` bits to the right.
-inline extern rotr( i : int32, n : int32 ) : int32 {
+
+// Bitwise rotate an `:int32` `n % 32` bits to the right.
+inline extern rotr( i : int32, n : int32 ) : int32 
   c inline "(int32_t)kk_bits_rotr32(#1,#2)"
   js "$std_core._int32_rotr"
-}
+
 
 // Return the minimum of two integers
 fun min( i : int32, j : int32 ) : int32 
@@ -226,47 +224,47 @@ fun max( i : int32, j : int32 ) : int32
 
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
-fun cdiv(i:int32, j:int32) : exn int32 {
+fun cdiv(i:int32, j:int32) : exn int32 
   if (j.is-zero) then throw("std/num/int32/cdiv: modulus by zero")
-  elif (i==min-int32 && j == -1.int32) then throw("std/num/int32/cdiv: modulus overflow in cdiv(min-int32, -1.int32)")
-  unsafe-cdiv(i,j)
-}
+  elif (j == -1.int32 && i==min-int32) then throw("std/num/int32/cdiv: modulus overflow in cdiv(min-int32, -1.int32)")
+  else unsafe-cdiv(i,j)
+
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
-fun cmod(i:int32, j:int32) : exn int32 {
+fun cmod(i:int32, j:int32) : exn int32 
   if (j.is-zero) then throw("std/num/int32/(%): modulus by zero")
-  elif (i==min-int32 && j == -1.int32) then throw("std/num/int32/cmod: modulus overflow in cmod(min-int32, -1.int32)")
-  unsafe-cmod(i,j)
-}
+  elif (j == -1.int32 && i==min-int32) then throw("std/num/int32/cmod: modulus overflow in cmod(min-int32, -1.int32)")
+  else unsafe-cmod(i,j)
+
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
-private inline extern unsafe-cdiv : (int32,int32) -> int32 {
+private inline extern unsafe-cdiv : (int32,int32) -> int32 
   inline "(#1 / #2)"
   js inline "((#1/#2)|0)"
-}
+
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
-private inline extern unsafe-cmod : (int32,int32) -> int32 {
+private inline extern unsafe-cmod : (int32,int32) -> int32 
   inline "(#1 % #2)"
   js inline "((#1 % #2)|0)"
-}
+
 
 // Convert an 32-bit integer to a double.
-inline extern double : (int32) -> double { 
+inline extern double : (int32) -> double 
   c inline "(double)(#1)"
   cs inline "(double)(#1)"
   js inline "(#1)" 
-}
+
 
 // Negate a 32-bit integer
-fun negate( i : int32 ) : int32 {
-  return (0.int32 - i)
-}
+fun negate( i : int32 ) : int32 
+  (0.int32 - i)
+
 
 // Negate an 32-bit integer
-fun (~)(i : int32) : total int32 {
-  return (0.int32 - i)
-}
+fun (~)(i : int32) : total int32 
+  (0.int32 - i)
+
 
 /* 
 Euclidean-0 division.
@@ -292,41 +290,37 @@ See also _Division and modulus for computer scientists, Daan Leijen, 2001_
 [pdf](http://research.microsoft.com/pubs/151917/divmodnote.pdf) .
 */
 fun (/)( x : int32, y : int32 ) : int32
-{
   if (y == 0.int32) then return 0.int32
-  if (x==min-int32 && y == -1.int32) return x
+  if (y == -1.int32 && x==min-int32) return x
   val q = unsafe-cdiv(x,y)
   val r = unsafe-cmod(x,y)
   if (r >= 0.int32) then q
   elif (y > 0.int32) then q - 1.int32
-  else q+1.int32
-}
+  else q + 1.int32
+
 
 // Euclidean-0 modulus. See `(/):(x : int32, y : int32) -> int32` division for more information.
 fun (%)( x : int32, y : int32 ) : int32
-{
   if (y == 0.int32) then return x
-  if (x==min-int32 && y == -1.int32) return 0.int32
+  if (y == -1.int32 && x==min-int32) return 0.int32
   val r = unsafe-cmod(x,y)
   if (r >= 0.int32) then r
   elif (y > 0.int32) then (r+y)
   else (r - y)
-}
 
-fun divmod(x:int32,y:int32) : (int32,int32) {
+
+fun divmod(x:int32,y:int32) : (int32,int32) 
   if (y.is-zero) then return (zero,x)
-  if (x==min-int32 && y == -1.int32) return (x,0.int32)
+  if (y == -1.int32 && x==min-int32) return (x,0.int32)
   val q = unsafe-cdiv(x,y)
   val r = unsafe-cmod(x,y)
   if (!r.is-neg) then (q,r)
   elif (y.is-pos) then (q.dec, r+y)
   else (q.inc,r - y)
-}
 
 
+fun fold-int32( start : int32, end : int32, init : a, f : (int32,a) -> e a ) : e a 
+  if (start >= end) then init else 
+    val x = f(start,init)
+    fold-int32(unsafe-decreasing(start.inc), end, x, f)
 
-fun fold-int32( start : int32, end : int32, init : a, f : (int32,a) -> e a ) : e a {
-  if (start >= end) then return init
-  val x = f(start,init)
-  fold-int32(unsafe-decreasing(start.inc), end, x, f)
-}

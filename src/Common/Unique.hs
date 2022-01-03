@@ -13,12 +13,14 @@ module Common.Unique( -- * Unique
                      HasUnique(updateUnique,setUnique,unique,uniques,uniqueId,uniqueIds,uniqueName)
                    -- ** Instances
                    , Unique, runUnique, runUniqueWith, liftUnique, withUnique
+                   , UniqueT, runUniqueT
                    ) where
 
 import Common.Id   ( Id, genId, idNumber )
 import Common.Name
 import Control.Monad
-import Control.Applicative
+import Control.Monad.Trans
+import Control.Arrow
 
 instance Applicative Unique where
   pure  = return
@@ -100,3 +102,31 @@ instance Monad Unique where
 
 instance HasUnique Unique where
   updateUnique f    = Unique (\i -> (i, f i))
+
+newtype UniqueT m a = UniqueT
+  { unUniqueT :: Int -> m (a, Int)
+  }
+
+runUniqueT :: Int -> UniqueT m a -> m (a, Int)
+runUniqueT = flip unUniqueT
+
+instance Monad m => HasUnique (UniqueT m) where
+  updateUnique f = UniqueT $ \i -> pure (i, f i)
+
+instance Functor m => Functor (UniqueT m) where
+  fmap f (UniqueT u) = UniqueT $ \i -> fmap (first f) (u i)
+
+instance Monad m => Applicative (UniqueT m) where
+  pure x = UniqueT $ \i -> pure (x, i)
+  (<*>) = ap
+
+instance Monad m => Monad (UniqueT m) where
+  return = pure
+  UniqueT u >>= f = UniqueT $ \i -> do
+    (x, j) <- u i
+    unUniqueT (f x) j
+
+instance MonadTrans UniqueT where
+  lift m = UniqueT $ \i -> do
+    a <- m
+    pure (a, i)
