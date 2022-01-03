@@ -200,7 +200,7 @@
 pub fun split-exclude( s : string, sep : regex, exclude : regex ) : list&lt;string&gt;
 
   if s=="" then [] else
-    val splitr = regex( @"^(?:((?:" ++ exclude.source ++ ")+)|(" ++ sep.source ++ "))")
+    val splitr = regex( r"^(?:((?:" ++ exclude.source ++ ")+)|(" ++ sep.source ++ "))")
     s.split-excludex(splitr,"")
 
 

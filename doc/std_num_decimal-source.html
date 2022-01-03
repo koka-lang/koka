@@ -95,7 +95,7 @@ pub fun parse-decimalx( s : string ) : maybe&lt;decimal&gt;
       if sign=="-" then Just(~f) else Just(f)
 
 
-val rx-decimal = regex(@"^([\-\+]?)(\d+)(?:\.(\d&#42;))?(?:[eE]([\-\+]?\d+))?$")
+val rx-decimal = regex(r"^([\-\+]?)(\d+)(?:\.(\d&#42;))?(?:[eE]([\-\+]?\d+))?$")
 &#42;/</span>
 
 <span class="comment">// Parse a &#96;:decimal&#96; number.

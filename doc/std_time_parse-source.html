@@ -171,8 +171,8 @@ pub fun parse-iso( s : string, calendar : calendar = cal-iso ) : &lt;utc&gt; may
 
 
 
-val rx-iso-date = regex(@"^(\d\d\d\d)\-?(?:(\d\d)\-?(\d\d)|W(\d\d)\-?(\d)?|(\d\d\d)|M(\d\d)\-?(\d\d)|M(\d\d\d))(?=$|[T\+\- ]\d|Z)");
-val rx-iso-time = regex(@"^(?:[T ](\d\d)(?:\:?(\d\d)(?:\:?(\d\d))?)?(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:\:?(\d\d))?)?$")
+val rx-iso-date = regex(r"^(\d\d\d\d)\-?(?:(\d\d)\-?(\d\d)|W(\d\d)\-?(\d)?|(\d\d\d)|M(\d\d)\-?(\d\d)|M(\d\d\d))(?=$|[T\+\- ]\d|Z)");
+val rx-iso-time = regex(r"^(?:[T ](\d\d)(?:\:?(\d\d)(?:\:?(\d\d))?)?(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:\:?(\d\d))?)?$")
 
 fun num( cap : matched, group : int, default : int = 0 ) : int
   parse-int-default(cap.groups[group], default = default)
@@ -200,7 +200,7 @@ pub fun parse-imf( s : string ) : &lt;utc&gt; maybe&lt;time&gt;
       Just(time(year,month,day,hours,mins,secs,tz=tzone))
 
 
-val rx-imf = regex(@"^ &#42;(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun) &#42;, &#42;)? (\d\d?) &#42;(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) &#42;(\d\d(?:\d\d)?) +(\d\d?):(\d\d?)(?::(\d\d))? &#42;(?:([\+\-])(\d\d)(\d\d) &#42;)?$")
+val rx-imf = regex(r"^ &#42;(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun) &#42;, &#42;)? (\d\d?) &#42;(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) &#42;(\d\d(?:\d\d)?) +(\d\d?):(\d\d?)(?::(\d\d))? &#42;(?:([\+\-])(\d\d)(\d\d) &#42;)?$")
 
 fun month-from-name( mname : string ) : maybe&lt;int&gt;
   val lname = mname.to-lower
