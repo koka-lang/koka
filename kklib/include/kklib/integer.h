@@ -469,9 +469,20 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
 
 #else // use SOFA
 
+// we can either mask on the left side or on the sign extended right side.
+// it turns out that this affects the quality of the generated instructions and we pick depending on the platform 
+#if !defined(__x86_64__)   /* only on x64 is masking on the sign-extended right side better (for clang and gcc). */
+#define KK_SOFA_MASK_LEFT  /* preferred on arm64 and riscV (for clang and gcc) */
+#endif
+
 static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z = _kk_integer_value(x) + _kk_integer_value(y);
-  if (kk_likely((z|2) == (kk_smallint_t)z)) {  // set bit 1 and sign extend
+#ifdef KK_SOFA_MASK_LEFT  
+  if (kk_likely((z|2) == (kk_smallint_t)z))   // set bit 1 and compare sign extension
+#else
+  if (kk_likely(z == ((kk_smallint_t)z|2))) 
+#endif  
+  {
     kk_assert_internal((z&3) == 2);
     return _kk_new_integer(z^3);
   }
@@ -481,7 +492,12 @@ static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_con
 static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t i, kk_context_t* ctx) {
   kk_assert_internal(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
   kk_intf_t z = _kk_integer_value(x) + kk_shlf(i,2);
-  if (kk_likely((z|1) == (kk_smallint_t)z)) {  
+#ifdef KK_SOFA_MASK_LEFT  
+  if (kk_likely((z|1) == (kk_smallint_t)z))
+#else
+  if (kk_likely(z == ((kk_smallint_t)z|1)))
+#endif    
+  {
     kk_assert_internal((z&3) == 1);
     return _kk_new_integer(z);
   }
@@ -491,7 +507,12 @@ static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t 
 
 static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z = (_kk_integer_value(x)^3) - _kk_integer_value(y);
-  if (kk_likely((z&~2) == (kk_smallint_t)z)) {  // clear bit 1 and sign extend
+#ifdef KK_SOFA_MASK_LEFT  
+  if (kk_likely((z&~2) == (kk_smallint_t)z))  // clear bit 1 and compare sign extension
+#else
+  if (kk_likely(z == ((kk_smallint_t)z&~2)))   
+#endif  
+  {
     kk_assert_internal((z&3) == 1);
     return _kk_new_integer(z);
   }
