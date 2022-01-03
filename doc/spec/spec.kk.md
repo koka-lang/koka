@@ -115,21 +115,21 @@ grammar will draw it's lexemes from the _lex_ production.
 | &nbsp;       |       |                                                                                               |                         |
 | _reserved_   | ::=   | `infix` []{.bar} `infixr` []{.bar} `infixl`                                                   |                         |
 |              | &bar; | ``module`` []{.bar} `import` []{.bar} `as`                                                    |                         |
-|              | &bar; | ``pub`` []{.bar} `abstract`                                               |                         |
-|              | &bar; | `type` []{.bar} `struct` []{.bar} `alias` []{.bar} `effect` []{.bar} `con`                                                    |                         |
+|              | &bar; | ``pub`` []{.bar} `abstract`                                                                   |                         |
+|              | &bar; | `type` []{.bar} `struct` []{.bar} `alias` []{.bar} `effect` []{.bar} `con`                    |                         |
 |              | &bar; | `forall` []{.bar} `exists` []{.bar} `some`                                                    |                         |
 |              | &bar; | `fun` []{.bar} `fn` []{.bar} `val` []{.bar} `var` []{.bar} `extern`                           |                         |
 |              | &bar; | `if` []{.bar} `then` []{.bar} `else` []{.bar} `elif`                                          |                         |
 |              | &bar; | `match` []{.bar} `return` []{.bar} `with` []{.bar} `in`                                       |                         |
-|              | &bar; | `handle` []{.bar} `handler` []{.bar} `mask`                                |                         |
-|              | &bar; | `ctl` []{.bar} `final` []{.bar} `raw`                                             |                         |
+|              | &bar; | `handle` []{.bar} `handler` []{.bar} `mask`                                                   |                         |
+|              | &bar; | `ctl` []{.bar} `final` []{.bar} `raw`                                     |                         |
 |              | &bar; | `override` []{.bar} `named`                                               |                         |
 |              | &bar; | `interface` []{.bar} `break` []{.bar} `continue` []{.bar} `unsafe`        | (future reserved words) |
-| &nbsp;       |       |                                                                                               |                         |
-| _specialid_  | ::=   | `co` []{.bar} `rec` []{.bar} `open` []{.bar} `extend` []{.bar} `behind`                                                    |                         |
-|              | &bar; | `linear` []{.bar} `value` []{.bar} `reference`                                                |                         |
-|              | &bar; | `inline` []{.bar} `noinline` []{.bar} `initially` []{.bar} `finally`                             |                         |
-|              | &bar; | `js` []{.bar} `c` []{.bar} `cs` []{.bar} `file`                                                            |                         |
+| &nbsp;       |       |                                                                           |                         |
+| _specialid_  | ::=   | `co` []{.bar} `rec` []{.bar} `open` []{.bar} `extend` []{.bar} `behind`   |                         |
+|              | &bar; | `linear` []{.bar} `value` []{.bar} `reference`                            |                         |
+|              | &bar; | `inline` []{.bar} `noinline` []{.bar} `initially` []{.bar} `finally`      |                         |
+|              | &bar; | `js` []{.bar} `c` []{.bar} `cs` []{.bar} `file`                           |                         |
 {.grammar .lex}
 
 Identifiers always start with a letter, may contain underscores and
@@ -702,7 +702,7 @@ in an expressions.
 |             |       |                                                                  |    |
 | _opclausex_ | &bar; | _opclause_                                                       |    |
 |             | &bar; | `finally` _blockexpr_                                            |    |
-|             | &bar; | `initialyy` `(` _oparg_ `)` _blockexpr_                          |    |
+|             | &bar; | `initially` `(` _oparg_ `)` _blockexpr_                          |    |
 | &nbsp;      |       |                                                                  |    |
 | _opclause_  | ::=   | `val` _qidentifier_ [`:` _type_]{.opt} `=` _blockexpr_           |    |
 |             | &bar; | `fun` _qidentifier_ _opargs_ _blockexpr_                         |    |
