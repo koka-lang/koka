@@ -61,8 +61,8 @@ alias mparse = <parse,many>
 // (which is saved/restored among multiple parser strands when using multiple resumptions)
 fun parse( inp : string, action : () -> <parse,many|e> a ) : <many|e> (a,string) 
   var input := inp
-  handle(action)
-    return(x) -> (x,input)
+  handle action
+    return(x) (x,input)
     fun satisfy(pred) 
       match pred(input)
         Nothing          -> fail()
