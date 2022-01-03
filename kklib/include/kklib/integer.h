@@ -116,22 +116,7 @@ small integers. Now the code on RISC-V (rv64) with clang 12 looks a bit better:
   .LBB6_2:
           tail    kk_integer_add_generic
 
-
-and with clang (and gcc/msvc/icc) on x86-64 we get:
-
-  kk_integer_add(long x, long y)
-          lea     rax, [rsi + rdi]   // add into rax
-          mov     rcx, rax
-          or      rcx, 2             // set bit 1 to 1
-          movsxd  rdx, eax           // sign extend lower 32-bits to rax
-          cmp     rcx, rdx
-          jne     .LBB6_2
-          xor     rax, 3
-          ret
-  .LBB6_2:
-          jmp     kk_integer_add_generic
-
-and finally on ARM-v8 with gcc:
+and on ARM-v8 with gcc/clang:
 
   kk_integer_add(long, long):
           add     x8, x1, x0     // x8 = x0 + x1
@@ -143,6 +128,18 @@ and finally on ARM-v8 with gcc:
   .LBB6_2:
           b       kk_integer_add_generic
           
+and finally with clang on x64 (if we do the `|2` on the sign extended right side):
+
+  kk_integer_add(long x, long y)
+          lea     rax, [rsi + rdi]
+          movsxd  rcx, eax
+          or      rcx, 2
+          cmp     rax, rcx
+          jne     .LBB5_2
+          xor     rax, 3
+          ret
+  .LBB6_2:
+          jmp     kk_integer_add_generic
 
 Initial measurements on x64 (AMD5950x) and on arm64 (M1) seem
 to indicate the portable SOFA technique is about 5% (x64) to 10% (M1) faster.
