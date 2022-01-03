@@ -200,8 +200,8 @@ pub fun count( n : int, p : parser<e,a> ) : <parse|e> list<a>
 pub fun one-of-or( chars : string, default : char ) : parse char 
   optional(default){ one-of(chars) }
 
-//val rx-float	= regex(@"^([\-\+])?(\d+(?:\.\d+)?(?:[eE][\-\+]\d+)?)$")
-//val rx-hexfloat	= regex(@"^([\-\+]?0[xX][0-9a-fA-F]+)(?:\.([0-9a-fA-F]+))?(?:[pP]([\-\+]?\d+))?$")
+//val rx-float	= regex(r"^([\-\+])?(\d+(?:\.\d+)?(?:[eE][\-\+]\d+)?)$")
+//val rx-hexfloat	= regex(r"^([\-\+]?0[xX][0-9a-fA-F]+)(?:\.([0-9a-fA-F]+))?(?:[pP]([\-\+]?\d+))?$")
 
 pub fun hex-digits() : parse string 
   chars-are("digit", is-hex-digit ).string

@@ -54,18 +54,18 @@ pub fun show-leap-steps(ts-utc : timescale) {
   write-text-file-sync("leap-steps.txt", table)
 }
 
-val leap-steps-header = @"
+val leap-steps-header = r"
 |-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
 | Date (UTC) &quad; | Time steps &quad; &quad; | (TAI--UTC)     | (TAI--UTC)     | Drift                                           | &quad; Frequency |
 |                   |                          | Just before\ \ | On the date&quad; |                                                 | Offset    |
 +:------------------|--------------------------|:---------------|:---------------|-------------------------------------------------|----------:+
 "
-val leap-steps-footer = @"
+val leap-steps-footer = r"
 |-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
 {white-space:nowrap; col-2-padding-left:1em; .sans-serif; }
 "
 
-val leap-steps-sep = @"
+val leap-steps-sep = r"
 | \                 |                          |                |                   |                                                                 |                    |"
 
 

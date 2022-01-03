@@ -12,7 +12,7 @@
 %x comment
 %x linecomment
 %x string
-%x litstring
+%x rawstring
 
 %{
 #define CHECK_BALANCED  // check balanced parenthesis
@@ -53,8 +53,13 @@ char* identifier( const char* s, yyscan_t scanner, bool wellformedCheck );
 char* stringDup( const char* s, yyscan_t scanner );
 void  stringStart( yyscan_t scanner );
 void  stringAdd( unsigned int c, yyscan_t scanner);
+void  stringAddStr( const char* s, yyscan_t scanner );
 char* stringEnd( yyscan_t scanner );
 unsigned int utfDecode( const char* buf, int len, yyscan_t scanner );
+
+/* Raw string delimiter length */
+void  rawStringSetDelimCount( int count, yyscan_t scanner );
+int   rawStringGetDelimCount( yyscan_t scanner );
 
 /* Character escape codes */
 char escapeToChar( char esc, yyscan_t scanner )
@@ -245,20 +250,6 @@ c                         { return ID_C;       }
      should not be parsed as operator tokens. */
 \|\|                      { yylval->Id = identifier(yytext,yyscanner,false); return OP; }
 {AngleBar}{AngleBar}+     { yyless(1); return yytext[0]; }
-  /*
-  \<{AngleBar}+            { yyless(1); return '<'; }
-  \>{AngleBar}+            { yyless(1); return '>'; }
-  \|{Angle}{Symbol}*       { yyless(1); return '|'; }
-  \-\>\<{Symbol}*          { yyless(2); return RARROW; }
-  \<\-\<{Symbol}*          { yyless(2); return LARROW; }
-  \:\?{Symbol}*            { yyless(1); return ':'; }
-  */
-
-  /* Non escaped string literal start */
-@\"                      { BEGIN(litstring);          /* " for editor highlighting */
-                           stringStart(yyscanner);
-                           yymore();
-                         }
 
   /* Numbers */
 {Sign}{Decimal}\.{Digits}[eE][\-\+]?{Digit}+         { yylval->Float = numdouble(yytext); return FLOAT; }
@@ -304,6 +295,14 @@ _{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); retu
                             yymore();
                           }
 
+  /* Raw string literal start */
+r#*\"                    { BEGIN(rawstring);          /* " for editor highlighting */
+                           rawStringSetDelimCount(yyleng-1,yyscanner);
+                           stringStart(yyscanner);
+                           yyless(yyleng);
+                           yymore();
+                         }
+
   /* White space  */
 {Space}+                  { return LEX_WHITE; }
 {Newline}                 { return LEX_WHITE; }
@@ -311,23 +310,29 @@ _{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); retu
                             return LEX_WHITE;
                           }
 
-  /* --------- Non escaped string literals --------- */
-<litstring>\"\"           { stringAdd('"',yyscanner); yymore(); }
-<litstring>\"             { BEGIN(INITIAL);  // '
-                            yylval->String = stringEnd(yyscanner);
-                            return STRING;
-                          }
-<litstring>{GraphicRaw}+  { char* p = yytext + YY_MORE_ADJ;
-                            while (*p) {
-                              stringAdd( *p++, yyscanner);
+  /* --------- Raw string literals --------- */
+<rawstring>\"#*           { int count = rawStringGetDelimCount(yyscanner); 
+                            int scanned = yyleng - YY_MORE_ADJ;
+                            if (count > scanned) {
+                              // keep going
+                              stringAddStr(yytext + YY_MORE_ADJ, yyscanner );
+                              yymore();
                             }
+                            else {
+                              // end of string
+                              if (count < scanned) illegalchar('#',"raw string terminated with too many '#' characters", yyscanner);
+                              BEGIN(INITIAL);
+                              yylval->String = stringEnd(yyscanner);
+                              return STRING;
+                            }
+                          }
+<rawstring>{GraphicRaw}+  { stringAddStr(yytext + YY_MORE_ADJ, yyscanner );
                             yymore();
                           }
-<litstring>{Utf8}         { stringAdd(utfDecode(yytext+YY_MORE_ADJ,yyleng-YY_MORE_ADJ,yyscanner), yyscanner); yymore(); }
-<litstring>.              { illegalchar(yytext[yyleng-1],"raw string", yyscanner);
+<rawstring>{Utf8}         { stringAdd(utfDecode(yytext+YY_MORE_ADJ,yyleng-YY_MORE_ADJ,yyscanner), yyscanner); yymore(); }
+<rawstring>.              { illegalchar(yytext[yyleng-1],"raw string", yyscanner);
                             yymore();
                           }
-
 
   /* --------- String literals --------- */
 <string>\"                { BEGIN(INITIAL); // "
@@ -414,6 +419,9 @@ char* showString( const char* s, yyscan_t scanner );
 typedef struct _ExtraState {
   /* nested comments */
   int         commentNesting;
+
+  /* raw string delimiter count */
+  int         delimCount;
 
   /* precise position */
   int         column;
@@ -790,6 +798,7 @@ void initScanState( ExtraState* st )
 {
   st->tab = 8;
   st->commentNesting = 0;
+  st->delimCount = 0;
 
   st->noLayout = false;
 #ifdef INDENT_LAYOUT
@@ -898,6 +907,21 @@ int commentNestingDec(yyscan_t scanner)
 }
 
 /*----------------------------------------------------
+   Raw string delimiter count
+----------------------------------------------------*/
+void rawStringSetDelimCount(int count, yyscan_t scanner)
+{
+  EnableMacros(scanner);
+  yyextra->delimCount = count;
+}
+
+int rawStringGetDelimCount(yyscan_t scanner)
+{
+  EnableMacros(scanner);
+  return yyextra->delimCount;
+}
+
+/*----------------------------------------------------
    Numbers
 ----------------------------------------------------*/
 static void filter_underscore( char* buf, const char* src, size_t bufsize ) {
@@ -978,6 +1002,12 @@ void stringStart( yyscan_t scanner )
 {
   EnableMacros(scanner);
   yyextra->stringLen = 0;
+}
+
+void stringAddStr( const char* s, yyscan_t scanner) {
+  while (*s) {
+    stringAdd( *s++, scanner);
+  }
 }
 
 void stringAdd( unsigned int c, yyscan_t scanner)
@@ -1258,7 +1288,7 @@ char* showChar( unsigned int c, yyscan_t scanner )
     else if (c=='\n') sprintf(buf,"\\n");
     else if (c=='\r') sprintf(buf,"\\r");
     else if (c=='\'') sprintf(buf,"\\'");
-    else if (c=='\"') sprintf(buf,"\"");
+    else if (c=='\"') sprintf(buf,"\\\"");
     else sprintf(buf,"\\x%02X",c);
   }
   else if (c <= 0xFFFF) {

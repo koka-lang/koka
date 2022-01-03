@@ -113,9 +113,9 @@ grammar will draw it's lexemes from the _lex_ production.
 | _idchar_     | ::=   | _letter_ []{.bar} _digit_ []{.bar} ``_`` []{.bar} ``-``                                       |                         |
 | _idfinal_    | ::=   | [``'``]{.many}                                                                                |                         |
 | &nbsp;       |       |                                                                                               |                         |
-| _reserved_   | ::=   | `infix` []{.bar} `infixr` []{.bar} `infixl` []{.bar} `prefix`                                 |                         |
+| _reserved_   | ::=   | `infix` []{.bar} `infixr` []{.bar} `infixl`                                                   |                         |
 |              | &bar; | ``module`` []{.bar} `import` []{.bar} `as`                                                    |                         |
-|              | &bar; |  _pub_ []{.bar} `abstract`                                               |                         |
+|              | &bar; | ``pub`` []{.bar} `abstract`                                               |                         |
 |              | &bar; | `type` []{.bar} `struct` []{.bar} `alias` []{.bar} `effect` []{.bar} `con`                                                    |                         |
 |              | &bar; | `forall` []{.bar} `exists` []{.bar} `some`                                                    |                         |
 |              | &bar; | `fun` []{.bar} `fn` []{.bar} `val` []{.bar} `var` []{.bar} `extern`                           |                         |
@@ -193,13 +193,15 @@ std/core/(&)
 ### Literals
 
 |~~~~~~~~~~~~~~~|~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~|
-| _string_      | ::=    | ``@"`` [_graphic_~&lt;``"``&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _tab_ []{.bar} _newline_ []{.bar} ``""``]{.many} ``"`` | (raw string) |
-|               | &bar;  | ``"`` [_graphic_~&lt;``"``[]{.bar}``\``&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _escape_]{.many} ``"``                     |              |
-| _char_        | ::=    | ``'`` ( _graphic_~&lt;``'``[]{.bar}``\``&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _escape_ ) ``'``                          |              |
+| _char_        | ::=    | ``'`` ( _graphic_~&lt;``'``[]{.bar}``\``&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _escape_ ) ``'``                  |              |
+| _string_      | ::=    | ``"`` [_graphic_~&lt;``"``[]{.bar}``\``&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _escape_]{.many} ``"``             |              |
+|               | &bar;  | ``r`` _rawstring_                                                                                                         |              |                 
+| _rawstring_   | ::=    | ``#`` _rawstring_ ``#``                                                                                                   |              |
+|               | &bar;  | ``"`` [_graphic_ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _tab_ []{.bar} _newline_]{.many} ``"``                         | (non-greedy match) |
 | &nbsp;        |        |                                                                                                                           |              |
-| _escape_      | ::=    | ``\`` ( _charesc_ []{.bar} _hexesc_ )                                                                                       |              |
-| _charesc_     | ::=    | `n` []{.bar} `r` []{.bar} `t` []{.bar} ``\`` []{.bar} ``"`` []{.bar} ``'``                                                      |              |
-| _hexesc_      | ::=    | `x` _hexdigit_~2~ []{.bar}   `u` _hexdigit_~4~ []{.bar}   ``U`` _hexdigit_~4~ _hexdigit_~2~                                 |              |
+| _escape_      | ::=    | ``\`` ( _charesc_ []{.bar} _hexesc_ )                                                                                     |              |
+| _charesc_     | ::=    | `n` []{.bar} `r` []{.bar} `t` []{.bar} ``\`` []{.bar} ``"`` []{.bar} ``'``                                                |              |
+| _hexesc_      | ::=    | `x` _hexdigit_~2~ []{.bar}   `u` _hexdigit_~4~ []{.bar}   ``U`` _hexdigit_~4~ _hexdigit_~2~                               |              |
 | _hexdigit_~4~ | ::=    | _hexdigit_ _hexdigit_ _hexdigit_ _hexdigit_                                                                               |              |
 | _hexdigit_~2~ | ::=    | _hexdigit_ _hexdigit_                                                                                                     |              |
 | &nbsp;        |        |                                                                                                                           |              |

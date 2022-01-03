@@ -229,9 +229,9 @@ fun parse-iersA( s : string ) : maybe<dut-table>
   //trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
   Just(Dut-table(expire,start,end,entries))
 
-val rx-finals-dut = regex(@"^.{57}[IP]([\-\+ ]\d+(?:\.\d+))", multiline=True)
-val rx-finals-start = regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?)", multiline=True)
-val rx-finals-expire= regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?) P", multiline=True)
+val rx-finals-dut = regex(r"^.{57}[IP]([\-\+ ]\d+(?:\.\d+))", multiline=True)
+val rx-finals-start = regex(r"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?)", multiline=True)
+val rx-finals-expire= regex(r"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?) P", multiline=True)
 
 // recurse using an accumulator using constant heap space
 fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b>
@@ -458,7 +458,7 @@ fun parse-predicted( s : string ) : deltat-table
   val entries = caps.map(fn(cap){ cap.groups[2].parse-double.maybe(0.0) }).vector
   Deltat-table(start,4.0,entries)
 
-val rx-predict = regex(@"^\s*\d+\.\d+\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline=True)
+val rx-predict = regex(r"^\s*\d+\.\d+\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline=True)
 
 fun parse-determined( s : string ) : deltat-table
   val caps  = s.find-all(rx-determined)
@@ -468,15 +468,15 @@ fun parse-determined( s : string ) : deltat-table
   val entries = caps.map(fn(cap){ cap.groups[4].parse-double.maybe(0.0) }).vector
   Deltat-table(start,12.0,entries)
 
-val rx-determined = regex(@"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multiline=True)
+val rx-determined = regex(r"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multiline=True)
 
 fun parse-historic( start: double, s : string ) : deltat-table
   val caps = s.replace-all(rxcomment,"").find-all(rxdouble)
   val entries = caps.map(fn(cap){ cap.matched.parse-double.maybe(0.0) }).vector
   Deltat-table(start,2.0,entries)
 
-val rxdouble = regex(@"-?\d+(?:\.\d+)?")
-val rxcomment = regex(@"//.*")
+val rxdouble = regex(r"-?\d+(?:\.\d+)?")
+val rxcomment = regex(r"//.*")
 
 
 //-----------------------------------------------------------------
@@ -489,7 +489,7 @@ val rxcomment = regex(@"//.*")
 // precise. The values in the original table are from McCarthy and Babcock (1986).
 // Table runs from 1750 to 1987 (excluded) for each half year.
 val deltat-table-historic : () -> deltat-table = once
- parse-historic(1750.0,@"
+ parse-historic(1750.0,r"
   [13.7,13.8,13.9,14.0,14.0,14.1,14.1,14.1,14.1,14.2,14.3,14.4,14.4,14.5,14.6,14.6,14.7,14.7,14.7,
   14.8,14.8,14.9,14.9,15.0,15.0,15.1,15.2,15.3,15.4,15.5,15.6,15.6,15.6,15.8,15.9,15.9,15.9,15.8,
   15.7,15.8,15.7,15.7,15.7,15.8,15.9,16.1,16.1,16.0,15.9,15.9,15.7,15.4,15.3,15.4,15.5,15.6,15.6,
@@ -561,7 +561,7 @@ val deltat-table-historic : () -> deltat-table = once
 // Monthly observed delta-t data from 1973 up to 2019
 // See: <http://maia.usno.navy.mil/ser7/deltat.data>
 val deltat-table-determined = once
- parse-determined( @"
+ parse-determined( r"
   1973  2  1  43.4724
   1973  3  1  43.5648
   1973  4  1  43.6737
@@ -1119,7 +1119,7 @@ val deltat-table-determined = once
 // Quarterly Predicted delta-t values, from 2019 upto 2027
 // from <http://maia.usno.navy.mil/ser7/deltat.preds>.
 val deltat-table-predicted = once
- parse-predicted(@"
+ parse-predicted(r"
   MJD        YEAR    TT-UT Pred  UT1-UTC Pred  ERROR
   58484.000  2019.00   69.34      -0.152       0.117
   58575.000  2019.25   69.48      -0.295       0.162

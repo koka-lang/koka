@@ -562,7 +562,7 @@ pub fun map-while( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
 pub fun foreach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
   var i := 0
   xs.foreach fn(x)
-    val j = i; // don't dereference `i` inside the inject
+    val j = i // don't dereference `i` inside the inject
     mask<local>{ action(j,x) }
     i := i+1
 
@@ -720,7 +720,7 @@ pub inline extern int : (char) -> int
 
 // Convert a unicode code point to a character
 pub inline extern char( i : int) : char
-  inline "(#1)";
+  inline "(#1)"
   c "kk_integer_clamp32"
   cs inline "Primitive.IntToInt32(#1)"
 
@@ -956,7 +956,7 @@ pub extern pow( i : int, exp : int ) : int
 
 // Raise an integer `i` to the power of `exp`.
 pub fun (^)(i : int, exp : int ) : int
-  pow(i,exp);
+  pow(i,exp)
 
 // Calculate `2^exp`.
 pub fun exp2( exp : int ) : int
@@ -1082,7 +1082,8 @@ inline extern (+)  : (int32,int32) -> int32
   js inline "((#1 + #2)|0)"
 
 inline extern (-)  : (int32,int32) -> int32 
-  inline "(#1 - #2)"; js inline "((#1 - #2)|0)"
+  inline "(#1 - #2)"
+  js inline "((#1 - #2)|0)"
 
 inline extern is-pos( i : int32 ) : bool 
   inline "(#1>0)"
@@ -1319,19 +1320,19 @@ pub fun ".new-sslice"( str :string, start: ssize_t, len : ssize_t )
 // Convert a character to a string
 pub extern string : ( c : char ) -> string
   c  "kk_string_from_char"
-  cs inline "Primitive.CharToString(#1)";
+  cs inline "Primitive.CharToString(#1)"
   js inline "_char_to_string(#1)"
 
 // Convert a vector of characters to a string.
 pub extern string : (vector<char>) -> string
   c  "kk_string_from_chars"
-  cs inline "Primitive.CharsToString(#1)";
+  cs inline "Primitive.CharsToString(#1)"
   js inline "_chars_to_string(#1)"
 
 // Convert a string to a vector of characters.
 pub extern vector : ( s : string ) -> vector<char>
   c  "kk_string_to_chars"
-  cs inline "Primitive.StringToChars(#1)";
+  cs inline "Primitive.StringToChars(#1)"
   js inline "_string_to_chars(#1)"
 
 // Convert a string to a list of characters
@@ -1367,7 +1368,7 @@ extern string-compare : ( x : string, y : string ) -> int
 // Compare two strings.
 // Uses the character codes directly for comparison
 pub fun compare( x : string, y : string) : order
-  string-compare(x,y).order;
+  string-compare(x,y).order
 
 pub fun (>=)( x : string, y : string ) : bool { compare(x,y) > Lt }
 pub fun (<=)( x : string, y : string ) : bool { compare(x,y) < Gt }
@@ -1533,8 +1534,8 @@ pub fun foreach( slice : sslice, action : (c:char) -> e ()) : e ()
 // Does string `s`  contain the string `sub`  ?
 inline extern xindex-of(s : string, sub : string ) : ssize_t
   c inline "kk_string_index_of1(#1,#2,kk_context())"
-  cs inline "((#1).IndexOf(#2) + 1)";
-  js inline "((#1).indexOf(#2) + 1)";
+  cs inline "((#1).IndexOf(#2) + 1)"
+  js inline "((#1).indexOf(#2) + 1)"
 
 // O(n). If it occurs, return the position of substring `sub` in `s`, tupled with
 // the position just following the substring `sub`.
@@ -1545,8 +1546,8 @@ pub fun find( s : string, sub : string ) : maybe<sslice>
 // Does string `s`  contain the string `sub`  ?
 inline extern xlast-index-of(s : string, sub : string ) : ssize_t
   c inline "kk_string_last_index_of1(#1,#2,kk_context())"
-  cs inline "(#1.LastIndexOf(#2) + 1)";
-  js inline "((#1).lastIndexOf(#2) + 1)";
+  cs inline "(#1.LastIndexOf(#2) + 1)"
+  js inline "((#1).lastIndexOf(#2) + 1)"
 
 // Return the last index of substring `sub` in `s` if it occurs.
 pub fun find-last( s : string, sub : string ) : maybe<sslice>
@@ -1555,7 +1556,7 @@ pub fun find-last( s : string, sub : string ) : maybe<sslice>
 
 inline extern xstarts-with: (s : string, pre : string ) -> bool
   c  "kk_string_starts_with"
-  cs inline "#1.StartsWith(#2)";
+  cs inline "#1.StartsWith(#2)"
   js inline "(#1.substr(0,#2.length) === #2)"
 
 // Is `pre`  a prefix of `s`? If so, returns a slice
@@ -1567,7 +1568,7 @@ pub fun starts-with( s : string, pre : string ) : maybe<sslice>
 
 extern xends-with: (s : string, post : string ) -> bool
   c  "kk_string_ends_with"
-  cs inline "#1.EndsWith(#2)";
+  cs inline "#1.EndsWith(#2)"
   js inline "((#1).indexOf(#2, (#1).length - (#2).length) !== -1)"
 
 // Does string `s`  end with `post`?
@@ -1580,19 +1581,19 @@ pub fun ends-with( s : string, post : string ) : maybe<sslice>
 // Does string `s`  contain the string `sub`  ?
 pub inline extern contains: (s : string, sub : string ) -> bool
   c  "kk_string_contains"
-  cs inline "((#1).Contains(#2))";
+  cs inline "((#1).Contains(#2))"
   js inline "((#1).indexOf(#2) >= 0)"
 
 // Concatenate a vector of strings
 pub inline extern join: (v : vector<string> ) -> string
   c  "kk_string_join"
-  cs "String.Concat";
+  cs "String.Concat"
   js inline "((#1).join(''))"
 
 // Concatenate a vector of strings with a separator `sep`
 pub inline extern join: (v : vector<string>, sep : string ) -> total string
   c  "kk_string_join_with"
-  cs "Primitive.Concat";
+  cs "Primitive.Concat"
   js inline "((#1).join(#2))"
 
 // Truncate a string to `count` characters.
@@ -1642,12 +1643,12 @@ pub fun maybe( s : string ) : maybe<string>
 
 inline extern splitv( s : string,  sep : string ) : vector<string>
   c  "kk_string_splitv"
-  cs inline "(#1.Split(new String[]{#2}, StringSplitOptions.None))";
+  cs inline "(#1.Split(new String[]{#2}, StringSplitOptions.None))"
   js inline "((#1).split(#2))"
 
 inline extern splitv( s : string,  sep : string, n : ssize_t ) : vector<string>
   c  "kk_string_splitv_atmost"
-  cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)";
+  cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)"
   js inline "(#1).split(#2, #3)"
 
 // Split a string into parts that were delimited by `sep`. The delimeters are not included in the results.
@@ -1663,14 +1664,14 @@ pub fun split( s : string, sep: string, ^n : int) : list<string>
 // Replace every occurrence of `pattern` to `repl` in a string.
 pub inline extern replace-all( s : string, pattern : string, repl : string ) : string
   c  "kk_string_replace_all"
-  cs inline "(#1).Replace(#2,#3)";
-  js inline @"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)";
+  cs inline "(#1).Replace(#2,#3)"
+  js inline r"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)"
 
 // Count occurences of `pattern` in a string.
 pub inline extern count( s : string, pattern : string ) : int
   c  "kk_string_count_pattern"
-  cs inline "Primitive.Count(#1,#2)";
-  js inline @"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)";
+  cs inline "Primitive.Count(#1,#2)"
+  js inline r"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)"
 
 // Apply a function `f` to each character in a string
 pub fun map( s : string, f : char -> e char ) : e string
@@ -1765,13 +1766,13 @@ pub inline extern trim-right( s : string ) : string
 // Return the element at position `index`  in vector `v`  without bounds check!
 inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a
   c  inline "kk_vector_at_borrow(#1,#2)"
-  cs inline "(#1)[#2]";
-  js inline "(#1)[#2]";
+  cs inline "(#1)[#2]"
+  js inline "(#1)[#2]"
 
 inline extern unsafe-assign : forall<a> ( v : vector<a>, i : ssize_t, x : a ) -> total ()
   c "kk_vector_unsafe_assign"
-  cs inline "(#1)[#2] = #3";
-  js inline "(#1)[#2] = #3";
+  cs inline "(#1)[#2] = #3"
+  js inline "(#1)[#2] = #3"
 
 inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a>
   c  inline "kk_vector_alloc_uninit(#1,NULL,kk_context())"
@@ -1795,8 +1796,8 @@ pub fun length( ^v : vector<a> ) : int
 
 inline extern lengthz( ^v : vector<a> ) : ssize_t
   c  inline "kk_vector_len_borrow(#1)"
-  cs inline "((#1).Length)";
-  js inline "((#1).length)";
+  cs inline "((#1).Length)"
+  js inline "((#1).length)"
 
 // Create a new vector of length `n`  with initial elements `default` .
 pub fun vector( ^n : int, default : a) : vector<a>
@@ -1897,13 +1898,13 @@ pub fun force( delayed : delayed<e,a> ) : e a
 // Note: this breaks parametricity so it should not be pub
 extern gshow : forall<a> a -> string
   c "kk_show_any"
-  cs inline "#1.ToString()";
+  cs inline "#1.ToString()"
   js inline "#1.toString()"
 
 // Convert an `:int` to a string
 pub extern show( i : int ) : string
   c "kk_integer_to_string"
-  cs inline "#1.ToString()";
+  cs inline "#1.ToString()"
   js inline "#1.toString()"
 
 extern int-show-hex(i:int,use-capitals:bool) : string
@@ -2031,7 +2032,7 @@ noinline val redirect : ref<global,maybe<(string) -> console ()>> =
 
 // redirect `print` and `println` calls to a specified function.
 noinline fun print-redirect( print : (msg : string) -> console () ) : io ()
-  redirect := Just(print);
+  redirect := Just(print)
 
 // Print a string to the console, including a final newline character.
 extern xprintsln(s : string) : console ()

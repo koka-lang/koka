@@ -761,11 +761,11 @@ pub fun parse-leap-seconds( leaps : string ) : leaps-table
   val table = Leaps-table(expire,adjusts)
   table
 
-val rxleap   = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
+val rxleap   = regex(r"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
 */
 
 // IETF leap second data valid until 2017-06-28
-val default-ietf-leap-seconds = @"
+val default-ietf-leap-seconds = r"
   # From: https://www.ietf.org/timezones/data/leap-seconds.list
   # Updated through IERS Bulletin C52
   # File expires on:  28 June 2017
@@ -831,7 +831,7 @@ fun parse-leap-expire( leaps : string, adjusts : list<leap-adjust>) : instant
   val utc-expire  = utc-expires.head.default(la-final.utc-start + (182*isolar-secs-per-day).timespan)  // default: 6 months after last leap second
   ts-tai.instant( utc-expire - ntp2000 + la-final.offset ) // interpret as TAI to avoid recursion.
 
-// val rxexpire = regex(@"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)
+// val rxexpire = regex(r"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)
 fun parse-expire( line : string ) : maybe<timestamp>
   if (line.trim-left(" ").starts-with("#@").bool)
    then line.slice.parse(pexpire).maybe
@@ -877,7 +877,7 @@ fun ptaiadjust() : parse leap-adjust
 // change it to -85e-10 to end up with TAI-UTC == 0 at 1958-01-01.
 // (without a rate change it is a negative -0.0472380s).
 // Note the JD dates are at 0.29167 as the time steps were usually at 19:00h instead of midnight.
-val default-leap-seconds-pre72 = @"
+val default-leap-seconds-pre72 = r"
   # from: Explanatory Supplement to the Astronomical Almanac, 1992 edition, pages 86--87.
   1958 JAN  1 =JD 2436204.5     TAI-UTC= 0.0  S + (MJD - 36204.) X 0.00073458 S
   1958 JAN 15 =JD 2436219.29167 TAI-UTC= 0.02 S + (MJD - 36204.) X 0.00073458 S
@@ -927,7 +927,7 @@ val utc-expire  = leaps.find(rxexpire).map fn(cap)
   // trace("expire: " + utc-expire.ts-show)
   ts-tai.instant( utc-expire - ntp2000 + la-final.offset ) // interpret as TAI to avoid recursion.
 
-val rxexpire = regex(@"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)
+val rxexpire = regex(r"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)
 */
 
 /*
@@ -946,5 +946,5 @@ pub fun parse-leap-seconds-dat( leaps : string  ) : leaps-table
   val expire = parse-leap-expire(leaps,adjusts)
   Leaps-table(expire,adjusts)
 
-val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+(?:\.\d*)?)[^\d]+(\d+(?:\.\d*)?)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
+val rxtaiadjust = regex(r"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+(?:\.\d*)?)[^\d]+(\d+(?:\.\d*)?)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
 */

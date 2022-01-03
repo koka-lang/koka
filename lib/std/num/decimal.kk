@@ -79,7 +79,7 @@ pub fun parse-decimalx( s : string ) : maybe<decimal>
       if sign=="-" then Just(~f) else Just(f)
 
 
-val rx-decimal = regex(@"^([\-\+]?)(\d+)(?:\.(\d*))?(?:[eE]([\-\+]?\d+))?$")
+val rx-decimal = regex(r"^([\-\+]?)(\d+)(?:\.(\d*))?(?:[eE]([\-\+]?\d+))?$")
 */
 
 // Parse a `:decimal` number.

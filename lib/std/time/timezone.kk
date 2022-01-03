@@ -174,10 +174,10 @@ pub fun parse-packed-zones( s : string ) : exn timezones
   // return zones + links
   Timezones( zdict + ldict )
 
-val rxzones = regex(@"""zones""\s*:\s*\[([\s\S]*?)^[ \t]*\]", multiLine=True)
-val rxzone  = regex(@"^\s*""([^""]+)"",?\s*$")
-val rxlinks = regex(@"""links""\s*:\s*\[([\s\S]*?)^[ \t]*\]", multiLine=True)
-val rxlink  = regex(@"^\s*""([^""\|]+)\|([^""\|]+)"",?\s*$")
+val rxzones = regex(r#""zones"\s*:\s*\[([\s\S]*?)^[ \t]*\]"#, multiLine=True)
+val rxzone  = regex(r#"^\s*"([^"]+)",?\s*$"#)
+val rxlinks = regex(r#""links"\s*:\s*\[([\s\S]*?)^[ \t]*\]"#, multiLine=True)
+val rxlink  = regex(r#"^\s*"([^"\|]+)\|([^"\|]+)",?\s*$"#)
 
 fun parse-packed-zone( s : string ) : exn timezone-info
   //trace("parseing: " + s)
@@ -235,7 +235,7 @@ fun parse-fixed-base60( s : string ) : exn double
       (sign.double * num.double) + frac
 
 
-val rxfixbase60 = regex(@"^([\-\+])?([\da-zA-X]*)(?:\.([\da-zA-X]+))?$")
+val rxfixbase60 = regex(r"^([\-\+])?([\da-zA-X]*)(?:\.([\da-zA-X]+))?$")
 
 fun parse-base60( s : string ) : exn int
   if s.is-empty return 0
@@ -249,7 +249,7 @@ fun parse-base60( s : string ) : exn int
       sign*num
 
 
-val rxbase60 = regex(@"^([\-\+])?([\da-zA-X]+)$")
+val rxbase60 = regex(r"^([\-\+])?([\da-zA-X]+)$")
 
 fun digit60( d : char ) : exn int
   if d.is-digit then (d - '0').int
@@ -283,7 +283,7 @@ pub fun load-timezones-from( fname : string = "" ) : io timezones
 fun normalize( name : string ) : string
   name.to-lower.replace-all(rxsep,"")
 
-val rxsep = regex(@"[\/\\\s\-_]+")
+val rxsep = regex(r"[\/\\\s\-_]+")
 
 // Return all available IANA time zone identifiers.
 pub fun timezone-names( tzs : timezones ) : list<string>

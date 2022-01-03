@@ -773,9 +773,9 @@ pub fun parse-ddouble( s  : string ) : maybe<ddouble>
 
 
 
-val rx-ddouble = regex(@"^([\-\+]?\d+)(?:\.(\d*))?(?:[eE]([\-\+]?\d+))?$")
-val rx-double-sum = regex(@"^(\S*\d) *\+ *(\S+)$")
-val rx-special = regex(@"^(nan)|([\+\-])?inf(?:inity)?$",ignorecase=True)
+val rx-ddouble = regex(r"^([\-\+]?\d+)(?:\.(\d*))?(?:[eE]([\-\+]?\d+))?$")
+val rx-double-sum = regex(r"^(\S*\d) *\+ *(\S+)$")
+val rx-special = regex(r"^(nan)|([\+\-])?inf(?:inity)?$",ignorecase=True)
 */
 
 pub fun parse-ddouble( s  : string ) : maybe<ddouble>

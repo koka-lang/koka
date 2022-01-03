@@ -51,7 +51,7 @@ extern regex-exec-all( regex : any, str : string, start : ssize_t, atmost : ssiz
 pub fun groups-count( r : regex ) : int
   r.source.replace-all(rx-nongroup,"").count;
 
-val rx-nongroup = regex(@"[^\\\[(]+|\\[\s\S]?|\(\?|\[(?:[^\\\]]|\\.)*\]")
+val rx-nongroup = regex(r"[^\\\[(]+|\\[\s\S]?|\(\?|\[(?:[^\\\]]|\\.)*\]")
 
 // Create a new regular expression. Takes two optional parameters. Set `ignoreCase` to `True`
 // to ignore uppercase/lowercase distinction. If  `multiline` is set to `True`, then `^` and `$`
@@ -136,7 +136,7 @@ pub fun matched( s : sslice ) : bool
 // Replace using a replacement string that can contain `$$` for a `$` sign, `$n` for a capture group,
 // `$&` for the entire match `==$0`.
 fun replace-captures( caps : list<sslice>, repl : string ) : string
-  replace-all( repl, regex(@"\$(?:(\d)|(\&)|(\$))") )  fn(cap)
+  replace-all( repl, regex(r"\$(?:(\d)|(\&)|(\$))") )  fn(cap)
     match cap
       [_,digit,amp,dollar] ->
         if dollar.is-valid then "$" else
@@ -184,7 +184,7 @@ pub fun split( s : string, r : regex, atmost : int = -1 ) : list<string>
 pub fun split-exclude( s : string, sep : regex, exclude : regex ) : list<string>
 
   if s=="" then [] else
-    val splitr = regex( @"^(?:((?:" ++ exclude.source ++ ")+)|(" ++ sep.source ++ "))")
+    val splitr = regex( r"^(?:((?:" ++ exclude.source ++ ")+)|(" ++ sep.source ++ "))")
     s.split-excludex(splitr,"")
 
 

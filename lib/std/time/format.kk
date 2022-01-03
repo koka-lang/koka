@@ -275,8 +275,8 @@ fun expand-locales( fmt : string, locale : time-locale ) : string
         nfmt.replace-all(rx-long, fn(capl) { capl.matched.tail })
 
 
-val rx-locale = regex(@"('[^']*'|""[^""]*"")|(t+)|(L+)|(l+)")
-val rx-long   = regex(@"dddd+|MMMM+|DD(?!D)")
+val rx-locale = regex(r"('[^']*'|""[^""]*"")|(t+)|(L+)|(l+)")
+val rx-long   = regex(r"dddd+|MMMM+|DD(?!D)")
 */
 
 fun expand-locales( fmt : string, locale : time-locale ) : string

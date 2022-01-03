@@ -155,8 +155,8 @@ pub fun parse-iso( s : string, calendar : calendar = cal-iso ) : <utc> maybe<tim
 
 
 
-val rx-iso-date = regex(@"^(\d\d\d\d)\-?(?:(\d\d)\-?(\d\d)|W(\d\d)\-?(\d)?|(\d\d\d)|M(\d\d)\-?(\d\d)|M(\d\d\d))(?=$|[T\+\- ]\d|Z)");
-val rx-iso-time = regex(@"^(?:[T ](\d\d)(?:\:?(\d\d)(?:\:?(\d\d))?)?(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:\:?(\d\d))?)?$")
+val rx-iso-date = regex(r"^(\d\d\d\d)\-?(?:(\d\d)\-?(\d\d)|W(\d\d)\-?(\d)?|(\d\d\d)|M(\d\d)\-?(\d\d)|M(\d\d\d))(?=$|[T\+\- ]\d|Z)");
+val rx-iso-time = regex(r"^(?:[T ](\d\d)(?:\:?(\d\d)(?:\:?(\d\d))?)?(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:\:?(\d\d))?)?$")
 
 fun num( cap : matched, group : int, default : int = 0 ) : int
   parse-int-default(cap.groups[group], default = default)
@@ -184,7 +184,7 @@ pub fun parse-imf( s : string ) : <utc> maybe<time>
       Just(time(year,month,day,hours,mins,secs,tz=tzone))
 
 
-val rx-imf = regex(@"^ *(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun) *, *)? (\d\d?) *(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) *(\d\d(?:\d\d)?) +(\d\d?):(\d\d?)(?::(\d\d))? *(?:([\+\-])(\d\d)(\d\d) *)?$")
+val rx-imf = regex(r"^ *(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun) *, *)? (\d\d?) *(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) *(\d\d(?:\d\d)?) +(\d\d?):(\d\d?)(?::(\d\d))? *(?:([\+\-])(\d\d)(\d\d) *)?$")
 
 fun month-from-name( mname : string ) : maybe<int>
   val lname = mname.to-lower
