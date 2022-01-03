@@ -287,7 +287,7 @@ prettyComment env comment doc
 ppVis env vis
   = case vis of
       Private -> empty -- keyword env "private "
-      Public -> keyword env "pub "
+      Public  -> keyword env "pub "
 
 {--------------------------------------------------------------------------
   Synonym Info
