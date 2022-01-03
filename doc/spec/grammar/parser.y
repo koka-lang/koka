@@ -57,7 +57,7 @@ void printDecl( const char* sort, const char* name );
 %token MATCH
 %token RARROW LARROW
 
-%token FUN FN VAL VAR CONTROL RCONTROL EXCEPT
+%token FUN FN VAL VAR 
 %token TYPE STRUCT EFFECT
 %token ALIAS CON
 %token FORALL EXISTS SOME
@@ -73,7 +73,8 @@ void printDecl( const char* sort, const char* name );
 %token RETURN
 
 %token HANDLER HANDLE NAMED MASK OVERRIDE
-%token IFACE UNSAFE
+%token CTL FINAL RAW
+%token IFACE UNSAFE BREAK CONTINUE
 
 %token ID_CO ID_REC
 %token ID_INLINE ID_NOINLINE
@@ -341,8 +342,7 @@ operations  : operations operation semis1
 
 operation   : visibility VAL identifier typeparams ':' tatomic
             | visibility FUN identifier typeparams '(' parameters ')' ':' tatomic
-            | visibility EXCEPT identifier typeparams '(' parameters ')' ':' tatomic
-            | visibility CONTROL identifier typeparams '(' parameters ')' ':' tatomic
+            | visibility CTL identifier typeparams '(' parameters ')' ':' tatomic
             ;
 
 
@@ -757,12 +757,15 @@ opclausex   : ID_FINALLY bodyexpr
 opclause    : VAL qidentifier '=' blockexpr
             | VAL qidentifier ':' type '=' blockexpr
             | FUN qidentifier opparams bodyexpr
-            | EXCEPT qidentifier opparams bodyexpr
-            | CONTROL qidentifier opparams bodyexpr
-            | RCONTROL qidentifier opparams bodyexpr
+            | controlmod CTL qidentifier opparams bodyexpr
             | RETURN '(' opparam ')' bodyexpr
             | RETURN paramid bodyexpr               /* deprecated */
             ;
+
+controlmod  : FINAL
+            | RAW
+            | /* empty */
+            ;            
 
 opparams    : '(' opparams0 ')'
             ;

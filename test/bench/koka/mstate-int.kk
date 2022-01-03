@@ -4,12 +4,11 @@ effect st
 
 
 fun state( init : int, action : () -> <st|e> a ) : e a 
-  with return(f){ f(init) }
-  with handler 
-    return(x)     (fn(s) x)
-    rawctl get()  (fn(s) rcontext.resume(s)(s))
-    rawctl set(s) (fn(_) rcontext.resume(())(s))    
-  action()
+  with return(f) f(init)
+  handle action
+    return(x)      (fn(s) x)
+    raw ctl get()  (fn(s) rcontext.resume(s)(s))
+    raw ctl set(s) (fn(_) rcontext.resume(())(s))    
 
 fun counter( c : int ) : _ int 
   val i = get()

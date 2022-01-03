@@ -10,7 +10,7 @@ fun traverse( xs : list<a> ) : yield<a> ()
 
 // bind the yield operation dynamically
 pub fun main() : console () 
-  with fun yield(i:int) 
+  with fun yield( i : int) 
     println("yielded " ++ i.show) 
   [1,2,3].traverse
 

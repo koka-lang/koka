@@ -1711,11 +1711,20 @@ handlerOp
     do opSort <- do keyword "fun"
                     return OpFun
                  <|>
-                 do keyword "except" <|> keyword "brk"
+                 do keywordOr "ctl" ["control"]
+                    return OpControl
+                 <|>
+                 do keyword "final"
+                    keyword "ctl"
                     return OpExcept
                  <|>
-                 do keyword "control" <|> keyword "ctl"
-                    return OpControl
+                 do keyword "raw"
+                    keyword "ctl"
+                    return OpControlRaw
+                 <|>
+                 -- deprecated
+                 do keyword "except" <|> keyword "brk"
+                    return OpExcept
                  <|>
                  do keyword "rcontrol" <|> keyword "rawctl"
                     return OpControlRaw

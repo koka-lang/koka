@@ -1,10 +1,10 @@
 // Test initially
-effect control flip() : bool
+effect ctl flip() : bool
 effect fun inc() : int
 
 val amb = handler {
   return  (x)    -> [x]
-  control flip() -> resume(False) ++ resume(True)
+  ctl flip() -> resume(False) ++ resume(True)
 
 }
 

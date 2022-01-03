@@ -58,7 +58,7 @@ fun zerodiv(x,y)
 
 // reify the exception effect back to a `:maybe` value
 fun to-maybe(action) 
-  with brk raise(s) Nothing   // if a function never resumes, using `brk` ("break") can be more efficient then `ctl` (as it runs finalizers eagerly)
+  with final ctl raise(s) Nothing   // a control clause marked as `final` cannot resume; this can be more efficient as it runs finalizers eagerly and does not capture a resumption.
   Just(action())
 
 
@@ -88,7 +88,7 @@ fun counter()
 // State handler.
 fun state(init, action)
   var s := init        // use a local mutable variable
-  handle (action)
+  handle action
     return(x)  (x,s) 
     fun get()  s 
     fun put(x) s := x 
@@ -154,7 +154,7 @@ val coinflip = handler
 
 // handler that returns all possible outcomes
 val amb = handler 
-  return(x) [x] 
+  return(x)  [x] 
   ctl flip() resume(False) ++ resume(True)
 
 

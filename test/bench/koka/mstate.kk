@@ -4,14 +4,12 @@ effect st
   ctl get() : int32
   ctl set(i : int32)  : ()
 
-
 fun state( init : int32, action : () -> <st|e> a ) : e a 
   with return(f) f(init) 
-  with handler 
-    return(x)     (fn(s) x)
-    rawctl get()  (fn(s) rcontext.resume(s)(s))
-    rawctl set(s) (fn(_) rcontext.resume(())(s)) 
-  action()
+  handle action
+    return(x)      (fn(s) x)
+    raw ctl get()  (fn(s) rcontext.resume(s)(s))
+    raw ctl set(s) (fn(_) rcontext.resume(())(s))   
 
 fun counter( c : int32 ) : _ int 
   val i = get()

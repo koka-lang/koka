@@ -2164,11 +2164,11 @@ pub type scope :: S -> X
 // Exceptions
 pub effect exn
   // Throw an exception
-  brk throw-exn( exn : exception ) : a
+  ctl throw-exn( exn : exception ) : a
 
 pub fun ".default-exn"(action)
   handle( action )
-    brk throw-exn( exn : exception )
+    final ctl throw-exn( exn : exception )
       "uncaught exception: ".prints
       show(exn).println
 
@@ -2202,7 +2202,7 @@ pub fun error-pattern(location : string, definition : string) : exn a
 // Catch any exception raised in `action` and handle it.
 // Use `on-exn` or `on-exit` when appropiate.
 pub fun try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a
-  with brk throw-exn(exn) hndl(exn)
+  with final ctl throw-exn(exn) hndl(exn)
   action()
 
 // _Deprecated_; use `try` instead. Catch an exception raised by `throw` and handle it.

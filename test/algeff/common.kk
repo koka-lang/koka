@@ -11,7 +11,7 @@ module common
 // --------------------------------------------------------
 
 effect exc {
-  control raise(s : string ) : a
+  ctl raise(s : string ) : a
 }
 
 fun safe-div(x,y) {
@@ -20,7 +20,7 @@ fun safe-div(x,y) {
 
 fun catch(action,h) {
   handle(action) {
-    control raise(s){ h(s) }
+    ctl raise(s){ h(s) }
   }
 }
 
@@ -30,7 +30,7 @@ fun zerodiv(x,y) {
 
 val to-maybe = handler {
   return (x){ Just(x) }
-  control raise(_s){ Nothing }
+  ctl raise(_s){ Nothing }
 }
 
 fun test1() {
@@ -106,7 +106,7 @@ fun test3() {
 // --------------------------------------------------------
 
 effect yield<a> {
-  control yield( item : a ) : ()
+  ctl yield( item : a ) : ()
 }
 
 fun iterate(xs : list<a> ) : yield<a> () {
@@ -120,7 +120,7 @@ fun iterate(xs : list<a> ) : yield<a> () {
 fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
   handle(action) {
     return (x) -> ()
-    control yield(x) -> if (f(x) /*incps1(f,x)*/) then resume(()) else ()
+    ctl yield(x) -> if (f(x) /*incps1(f,x)*/) then resume(()) else ()
   }
 }
 
@@ -141,7 +141,7 @@ fun test4b() {
 // --------------------------------------------------------
 
 effect amb {
-  control flip() : bool
+  ctl flip() : bool
 }
 
 fun xor() : amb bool {
@@ -156,7 +156,7 @@ fun xor() : amb bool {
 
 val amb = handler {
   return (x)     -> [x]
-  control flip() -> resume(False) + resume(True)
+  ctl flip() -> resume(False) + resume(True)
 }
 
 fun test5() {

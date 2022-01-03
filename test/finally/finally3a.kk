@@ -18,8 +18,8 @@ fun foo()
 }
 
 fun main() {
-  with brk raise(msg) { println("raised: " ++ msg) }
-  with return(x)  { println( "result: " ++ (x:int).show ) }
-  with finally    { println("exc finalize") }
+  with final ctl raise(msg) { println("raised: " ++ msg) }
+  with return(x) { println( "result: " ++ (x:int).show ) }
+  with finally   { println("exc finalize") }
   foo()
 }

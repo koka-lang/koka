@@ -6,10 +6,9 @@ linear effect st
 
 fun state( i : int32, action : () -> <st|e> a ) : e a 
   var s := i
-  with
+  handle action
     fun get()  s 
     fun set(x) s := x
-  action()
 
 fun counter( c : int32 ) : <st,div> int 
   val i = get()
@@ -18,5 +17,5 @@ fun counter( c : int32 ) : <st,div> int
     counter(c.inc)
 
 pub fun main() 
-  with state(100100100.int32)
+  with state(100_100_100.int32)
   counter(zero).println

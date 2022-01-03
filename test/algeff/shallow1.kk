@@ -1,4 +1,4 @@
-// use "raw control" (`rcontrol`) to get a 
+// use "raw ctl" (`rcontrol`) to get a 
 // resume context as `rcontext`. 
 // We can `resume`, `resume-shallow`, or `finalize` such context.
 module shallow1
@@ -13,14 +13,14 @@ effect produce<a>
 
 // fun pipe( produce, consume ) 
 fun pipe( produce : () -> <div,produce<a>|e> b, consume : () -> <consume<a>,div|e> b) : <div|e> b
-  with rawctl await()  
-    copipe( fn(x){ rcontext.resume-shallow(x) }, produce )  
+  with raw ctl await()  
+    copipe( fn(x) rcontext.resume-shallow(x), produce )  
   consume()
 
 // fun copipe( consume, produce )
 fun copipe( consume : a -> <consume<b>,div|e> c, produce : () -> <div,produce<a>|e> c) : <div|e> c
-  with rawctl yield(x)
-    pipe( { rcontext.resume-shallow(()) }, { consume(x) } )
+  with raw ctl yield(x)
+    pipe( fn() rcontext.resume-shallow(()), fn() consume(x) )
   produce()
 
 

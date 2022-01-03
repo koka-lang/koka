@@ -16,7 +16,7 @@
 module heap-shallow
 
 effect heap<s::S> {
-  control new-ref(init:a) : ref<s,a>
+  ctl new-ref(init:a) : ref<s,a>
 }
 
 named effect ref<s::S,a::V> in heap<s> {  // named under umbrella effect `:heap`

@@ -24,7 +24,7 @@ fun tmap( xs : list<a>, f : a -> b ) : list<b> {
 }
 
 effect out {
-  control out(s : string) : ()
+  ctl out(s : string) : ()
 }
 
 
@@ -34,7 +34,7 @@ fun main() {
   //list(1,10000000).mapx(inc).sum.println
   //list(1,10000000).map(inc).sum.println
   //test-many()
-  //test-control()
+  //test-ctl()
   //test-multi()
 }
 
@@ -48,16 +48,16 @@ fun test-many() {
   println(i)
 }
 
-fun test-control() {
-  with control out(s:string) {
+fun test-ctl() {
+  with ctl out(s:string) {
     println(s); resume(())
   }
   list(1,10).tmap(fn(i:int){ if (i.is-odd) i.show.out; i+1 }).sum.println
 }
 */
 effect nondet {
-  control flip() : bool
-  control fail() : a
+  ctl flip() : bool
+  ctl fail() : a
 }
 
 fun ctail-knapsack(w : int, vs : list<int>, acc : list<int> -> list<int> ) : <nondet,div> list<int> {
@@ -91,8 +91,8 @@ fun select(xs) {
 
 val solutions = handler {
   return  x      -> [x]
-  control fail() -> []
-  control flip() -> resume(True) + resume(False)
+  ctl fail() -> []
+  ctl flip() -> resume(True) + resume(False)
 }
 
 fun show( xss : list<list<int>> ) : string {

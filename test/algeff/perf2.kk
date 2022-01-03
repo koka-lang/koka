@@ -56,9 +56,9 @@ effect choose {
 
 fun choose-all( action ) {
   handle(action){
-    return(x)       -> [x]
-    ctl fail()      -> []
-    rawctl pick(n)  -> list(1,n,fn(x){ rcontext.resume(x) }).concat
+    return(x)       [x]
+    ctl fail()      []
+    raw ctl pick(n) list(1,n,fn(x){ rcontext.resume(x) }).concat
   }
 }
 

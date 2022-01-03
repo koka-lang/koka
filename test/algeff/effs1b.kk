@@ -4,24 +4,20 @@
 // 2. or, infer a `normal` branch such that scoped optimization is not used
 module effs1b
 
-effect amb {
-  control flip() : bool
-}
+effect amb 
+  ctl flip() : bool
  
-fun xor() : amb bool {
+fun xor() : amb bool 
   val p = flip() 
   val q = flip()
   (p||q) && not(p&&q)
-}
 
-fun amb( action ) {
-   handle(action) {
-    return(x){ [x] }
-    control flip() { resume(False) ++ resume(True) }
-  }
-}
+fun amb( action ) 
+   handle(action) 
+    return(x)  [x] 
+    ctl flip() resume(False) ++ resume(True) 
 
-fun main() {
+fun main() 
   amb(xor).show.println
-}
+
 

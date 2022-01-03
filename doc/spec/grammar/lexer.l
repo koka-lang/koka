@@ -170,12 +170,12 @@ as                        { return AS;}
 
 handle                    { return HANDLE; }
 handler                   { return HANDLER; }
+ctl                       { return CTL; }
+final                     { return FINAL; }
+raw                       { return RAW; }
+mask                      { return MASK; }
 override                  { return OVERRIDE; }
 named                     { return NAMED; }
-brk                       { return EXCEPT; }
-ctl                       { return CONTROL; }
-rawctl                    { return RCONTROL; }
-mask                      { return MASK; }
 
 rec                       { return ID_REC; }
 co                        { return ID_CO; }
@@ -193,14 +193,14 @@ initially                 { return ID_INITIALLY; }
 finally                   { return ID_FINALLY; }
 
   /* deprecated */
-except                    { return EXCEPT; }
-control                   { return CONTROL; }
-rcontrol                  { return RCONTROL; }
+control                   { return CTL; }
 public                    { return PUBLIC;}
 private                   { return PRIVATE;}
 
   /* unused reserved identifiers */
 interface                 { return IFACE; }
+break                     { return BREAK; }
+continue                  { return CONTINUE; }
 unsafe                    { return UNSAFE; }
 
   /* reserved operators */

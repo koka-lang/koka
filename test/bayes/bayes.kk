@@ -53,11 +53,11 @@ fun example-plot() {
 
 // --------------------------------------------------------------------
 // Effects for Baysian inference.
-// `sample` is a `fun` and does not change control flow (i.e. is tail-resumptive)
-// `score` is `control` and can use `resume` as a first-class function.
+// `sample` is a `fun` and does not change ctl flow (i.e. is tail-resumptive)
+// `score` is `ctl` and can use `resume` as a first-class function.
 // --------------------------------------------------------------------
 effect fun sample() : double
-effect control score( s : rplus ) : ()
+effect ctl score( s : rplus ) : ()
 
 fun random-sampler(action : () -> <sample|e> a) : <ndet|e> a {
   with fun sample() { srandom-double() }
@@ -235,7 +235,7 @@ alias thunk<a> = () -> <score,sample> a  // todo: make it polymorphic in `e`
 
 // Break on score-ing
 fun yield-on-score(action : () -> <score,sample> a) : <score,sample> thunk<a> {
-  with control score(w) {
+  with ctl score(w) {
     score(w)
     ({ resume(())() })   // or (fn(){ resume(()) })
   }

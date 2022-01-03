@@ -259,7 +259,7 @@ reservedNames
     , "type", "alias"
     , "struct", "enum", "con"
     , "val", "fun", "fn", "extern", "var"
-    , "ctl", "rawctl", "brk"
+    , "ctl", "final", "raw"
     , "if", "then", "else", "elif"
     , "return", "match", "with", "in"
     , "forall", "exists", "some"
@@ -275,6 +275,7 @@ reservedNames
 
     -- deprecated
     , "private", "public"  -- use pub
+    , "rawctl", "brk"      -- use raw ctl, and final ctl
 
     -- alternative names for backwards paper compatability
     , "control", "rcontrol", "except"

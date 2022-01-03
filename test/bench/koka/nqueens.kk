@@ -20,16 +20,13 @@ fun extend( queen : int32, acc : solutions, xss : solutions ) : div solutions
     Cons(xs,rest) -> extend(queen, append-safe(queen,xs,acc), rest)
     Nil           -> acc
 
-
 fun find-solutions( n : int32, queen : int32 ) : div solutions
   if queen.is-zero
    then [[]]
    else extend(n, [], find-solutions(n,queen.dec))
 
-
 pub fun queens( n : int32 ) : div int
   find-solutions(n,n).length
-
 
 pub fun main()
   queens(13.int32).println

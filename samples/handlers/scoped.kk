@@ -115,7 +115,7 @@ fun hcutfail(action)
 // only `cutfail` will `fail` and cut the choices short
 fun collect(action) 
   var q := [fail]
-  handle(action)
+  handle action
     return(x)
       if flip() then x else 
         match q
@@ -155,7 +155,7 @@ effect fun symbol(s : string) : string
 
 fun parse(input : string, action : () -> <nondet,symbol|e> a) : <nondet|e> a 
   var cs := input
-  handle(action) 
+  handle action
     return(x) 
       if cs.is-empty then x else fail()       
     fun symbol(s) 

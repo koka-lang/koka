@@ -1,5 +1,5 @@
 // File handling with initially and finally
-effect control flip() : bool
+effect ctl flip() : bool
 
 // files are named handlers (and thus scoped)
 named effect file {
@@ -31,7 +31,7 @@ fun main() {
   with return (x){ () }
   with handler {
     return(x)      { [x] }
-    control flip() { resume(False) + resume(True) }
+    ctl flip() { resume(False) + resume(True) }
   }
   foo()
 }
