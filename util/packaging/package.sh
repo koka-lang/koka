@@ -137,10 +137,17 @@ build_package() {
     -v '$package_version' --iteration '$package_iteration' \
     -a native --prefix '/usr/local' \
     --provides '$PACKAGE_NAME' \
+    --before-remove /scripts/pre-remove.sh \
+    --after-install /scripts/post-install.sh \
     bin/koka=bin/koka lib/koka=lib/ share/koka=share/"
 
-  # Build the package                                                             /bin/bash -c "fpm $fpm_arguments"
-  docker run -it --rm -v "$EXTRACTED_BUNDLE_DIR:/source:z" -v "$BUILT_PACKAGE_DIR:/build:z" fpm -c "fpm $fpm_arguments"
+  # Build the package
+  docker run -it --rm \
+    -v "$EXTRACTED_BUNDLE_DIR:/source:z" \
+    -v "$BUILT_PACKAGE_DIR:/build:z" \
+    -v "$(pwd)/scripts:/scripts:z" \
+    fpm -c "fpm $fpm_arguments"
+  # /bin/bash -c "fpm $fpm_arguments"
 
   if [ $? -ne 0 ]; then
     stop "Package build did not return successfully"
@@ -256,7 +263,7 @@ move_packages() {
   else
     target_location="$OUTPUT_DIR/"
   fi
-  
+
   mkdir -p "$target_location"
 
   mv $BUILT_PACKAGE_DIR/* "$target_location"

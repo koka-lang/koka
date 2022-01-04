@@ -13,5 +13,6 @@ ENV SHELL=/bin/bash
 
 VOLUME /source
 VOLUME /build
+VOLUME /scripts
 
 ENTRYPOINT ["/bin/bash"]
