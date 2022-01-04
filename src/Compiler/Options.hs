@@ -970,7 +970,7 @@ ccFlagsBuildFromFlags cc flags
 
 gnuWarn = words "-Wall -Wextra -Wpointer-arith -Wshadow -Wstrict-aliasing" ++
           words "-Wno-unknown-pragmas -Wno-missing-field-initializers" ++
-          words "-Wno-unused-parameter -Wno-unused-variable -Wno-unused-value -Wno-unused-but-set-variable" 
+          words "-Wno-unused-parameter -Wno-unused-variable -Wno-unused-value"
 
 ccGcc,ccMsvc :: String -> Int -> Platform -> FilePath -> CC
 ccGcc name opt platform path
@@ -980,7 +980,7 @@ ccGcc name opt platform path
           (RelWithDebInfo,arch ++ [optFlag, "-g", "-DNDEBUG"]),
           (Release,       arch ++ [optFlag, "-DNDEBUG"]) ]
         )
-        (gnuWarn)
+        (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
         (\stksize -> if (onMacOS && stksize > 0)  -- stack size is usually set programmatically (except on macos/windows)
@@ -1047,8 +1047,9 @@ ccFromPath flags path
                        ccObjFile   = (\fname -> fname ++ targetObjExtension (target flags)),
                        ccLibFile   = (\fname -> targetLibFile (target flags) fname)
                      }
-        clang   = gcc{ ccFlagsWarn = gnuWarn ++ 
-                                     words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
+        clang   = gcc{ ccFlagsWarn = gnuWarn
+                                     ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align"
+                                     ++ (if onMacOS then ["-Wno-unused-but-set-variable"] else []) }
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name (optimize flags) (platform flags) path
         clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++ 

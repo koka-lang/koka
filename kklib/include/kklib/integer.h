@@ -2,7 +2,7 @@
 #ifndef KK_INTEGER_H
 #define KK_INTEGER_H
 /*---------------------------------------------------------------------------
-  Copyright 2020-2021, Microsoft Research, Daan Leijen.
+  Copyright 2020-2022, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -104,7 +104,7 @@ if we added two small integers, (where bit 1 must be set after an addition):
     }
 
 Now we have just one test that test both for overflow, as well as for the
-small integers. Now the code on RISC-V (rv64) with clang 12 looks a bit better:
+small integers. Now the code on riscV (rv64) with clang 12 looks a bit better:
 
   kk_integer_add(long, long):
           add     a2, a1, a0         // a2 = a1 + a0
@@ -116,7 +116,7 @@ small integers. Now the code on RISC-V (rv64) with clang 12 looks a bit better:
   .LBB6_2:
           tail    kk_integer_add_generic
 
-and on ARM-v8 with gcc/clang:
+and on arm64 with gcc/clang:
 
   kk_integer_add(long, long):
           add     x8, x1, x0     // x8 = x0 + x1
@@ -131,21 +131,21 @@ and on ARM-v8 with gcc/clang:
 and finally with clang on x64 (if we do the `|2` on the sign extended right side):
 
   kk_integer_add(long x, long y)
-          lea     rax, [rsi + rdi]
-          movsxd  rcx, eax
-          or      rcx, 2
-          cmp     rax, rcx
+          lea     rax, [rsi + rdi]  // rax = rsi + rdi
+          movsxd  rcx, eax          // sign extend 32-bit eax into rcx
+          or      rcx, 2            // rcx |= 2
+          cmp     rax, rcx          
           jne     .LBB5_2
           xor     rax, 3
           ret
-  .LBB6_2:
+  .LBB5_2:
           jmp     kk_integer_add_generic
 
-Initial measurements on x64 (AMD5950x) and on arm64 (M1) seem
+Surprisingly, initial measurements on x64 (AMD5950x) and on arm64 (M1) seem
 to indicate the portable SOFA technique is about 5% (x64) to 10% (M1) faster.
 (but more experimentation is needed).
 
--- Daan Leijen, 2020-2021.
+-- Daan Leijen, 2020-2022.
 --------------------------------------------------------------------------------------------------*/
 
 #if !defined(KK_USE_BUILTIN_OVF)
@@ -468,13 +468,13 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
 
 // we can either mask on the left side or on the sign extended right side.
 // it turns out that this affects the quality of the generated instructions and we pick depending on the platform 
-#if !defined(__x86_64__)   /* only on x64 is masking on the sign-extended right side better (for clang and gcc). */
-#define KK_SOFA_MASK_LEFT  /* preferred on arm64 and riscV (for clang and gcc) */
+#if defined(__x86_64__) || defined(__i386__) || defined(_M_IX86) || defined(_M_X64)   
+#define KK_SOFA_MASK_RIGHT  /* only on x86 and x64 is masking on the sign-extended right side better */
 #endif
 
 static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z = _kk_integer_value(x) + _kk_integer_value(y);
-  #ifdef KK_SOFA_MASK_LEFT  
+  #ifndef KK_SOFA_MASK_RIGHT
   if (kk_likely((z|2) == (kk_smallint_t)z))   // set bit 1 and compare sign extension
   #else
   if (kk_likely(z == ((kk_smallint_t)z|2))) 
@@ -489,7 +489,7 @@ static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_con
 static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t i, kk_context_t* ctx) {
   kk_assert_internal(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
   kk_intf_t z = _kk_integer_value(x) + kk_shlf(i,2);
-  #ifdef KK_SOFA_MASK_LEFT  
+  #ifndef KK_SOFA_MASK_RIGHT
   if (kk_likely((z|1) == (kk_smallint_t)z))
   #else
   if (kk_likely(z == ((kk_smallint_t)z|1)))
@@ -504,7 +504,7 @@ static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t 
 
 static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z = (_kk_integer_value(x)^3) - _kk_integer_value(y);
-  #ifdef KK_SOFA_MASK_LEFT  
+  #ifndef KK_SOFA_MASK_RIGHT
   if (kk_likely((z&~2) == (kk_smallint_t)z))  // clear bit 1 and compare sign extension
   #else
   if (kk_likely(z == ((kk_smallint_t)z&~2)))   
