@@ -26,6 +26,17 @@ extra-deps:
 - regex-compat-tdfa-0.95.1.4    # only needed for koka-test
 - json-0.10                     # only needed for koka-test
 - isocline-1.0.6
+- constraints-extras-0.3.0.2
+- dependent-map-0.4.0.0
+- dependent-sum-0.7.1.0
+- dependent-sum-template-0.1.0.3
+- some-1.0.1
+- stylish-haskell-0.11.0.0
+- hlint-2.1.26
+- haskeline-0.8.1.0
+- lsp-1.0.0.1
+- lsp-types-1.0.0.1
+- unliftio-core-0.2.0.1
 
 rebuild-ghc-options: true
 allow-newer: true

@@ -29,6 +29,7 @@ import Interpreter.Interpret  ( interpret  )
 import Kind.ImportMap         ( importsEmpty )
 import Kind.Synonym           ( synonymsIsEmpty, ppSynonyms, synonymsFilter )
 import Kind.Assumption        ( kgammaFilter )
+import LanguageServer.Run     ( runLanguageServer )
 import Type.Assumption        ( ppGamma, ppGammaHidden, gammaFilter, createNameInfoX, gammaNew )
 import Type.Pretty            ( ppScheme, Env(context,importsMap) )
 
@@ -78,6 +79,8 @@ mainMode flags flags0 mode p
       -> mapM_ (compile p flags) files
      ModeInteractive files
       -> interpret p flags flags0 files
+     ModeLanguageServer files
+      -> runLanguageServer flags files
 
 
 compile :: ColorPrinter -> Flags -> FilePath -> IO ()

@@ -10,6 +10,7 @@ module Syntax.RangeMap( RangeMap, RangeInfo(..), NameInfo(..)
                       , rangeMapInsert
                       , rangeMapSort
                       , rangeMapLookup
+                      , rangeMapFindAt
                       , rangeMapAppend
                       , mangle
                       , mangleConName
@@ -19,7 +20,7 @@ module Syntax.RangeMap( RangeMap, RangeInfo(..), NameInfo(..)
 -- import Lib.Trace
 import Data.Char    ( isSpace )
 import Common.Failure 
-import Data.List    (sortBy, groupBy)
+import Data.List    (sortBy, groupBy, minimumBy)
 import Lib.PPrint
 import Common.Range
 import Common.Name
@@ -31,6 +32,7 @@ import Type.TypeVar
 import Type.Pretty() 
 
 newtype RangeMap = RM [(Range,RangeInfo)]
+  deriving Show
 
 mangleConName :: Name -> Name
 mangleConName name
@@ -161,6 +163,14 @@ rangeMapLookup r (RM rm)
         eq (_,ri1) (_,ri2)  = (EQ == compare ((fromEnum ri1) `div` 10) ((fromEnum ri2) `div` 10))
         cmp (_,ri1) (_,ri2) = compare (fromEnum ri1) (fromEnum ri2)
 
+rangeMapFindAt :: Pos -> RangeMap -> Maybe (Range, RangeInfo)
+rangeMapFindAt pos (RM rm)
+  = shortestRange $ filter (containsPos . fst) rm
+  where
+    containsPos rng   = rangeStart rng <= pos && rangeEnd rng >= pos
+    shortestRange []  = Nothing
+    shortestRange rs  = Just $ minimumBy cmp rs
+    cmp (r1,_) (r2,_) = compare (rangeLength r1) (rangeLength r2)
 
 instance HasTypeVar RangeMap where
   sub `substitute` (RM rm)

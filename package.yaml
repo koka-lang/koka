@@ -23,6 +23,8 @@ dependencies:
   - bytestring
   - containers
   - directory
+  - lens
+  - lsp
   - mtl
   - parsec
   - process

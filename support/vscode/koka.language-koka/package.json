@@ -5,7 +5,7 @@
 	"version": "2.0.4",
 	"publisher": "koka",
 	"engines": {
-		"vscode": "^1.0.0"
+		"vscode": "1.52.0"
 	},
 	"icon": "images/koka-logo-filled.png",
 	"galleryBanner": {
@@ -35,7 +35,11 @@
 	"categories": [
 		"Programming Languages"
 	],
-  "contributes": {
+	"activationEvents": [
+		"onLanguage:koka"
+	],
+	"main": "./out/extension",
+	"contributes": {
 		"configuration": {
 			"type": "object",
 			"title": "Koka configuration",
@@ -44,6 +48,21 @@
 					"type": "boolean",
 					"default": true,
 					"description": "Set to 'false' to disable automatically increasing indent on newlines after '{', 'match' etc."
+				},
+				"koka.languageServer.enabled": {
+					"type": "boolean",
+					"default": false,
+					"description": "Set to 'true' to enable smarter language support (e.g. hover, code completion, ...) for Koka. Requires specifying the path to the Koka compiler under 'koka.languageServer.path'."
+				},
+				"koka.languageServer.command": {
+					"type": "string",
+					"default": "koka --language-server",
+					"description": "The command to launch the Koka language server (by default the extension assumes that 'koka' is on your PATH)"
+				},
+				"koka.languageServer.cwd": {
+					"type": "string",
+					"default": "",
+					"description": "If specified, the directory in which the language server will be executed."
 				}
 			}
 		},
@@ -73,12 +92,19 @@
 				"language": "koka",
 				"scopeName": "source.koka",
 				"path": "./syntaxes/koka.json"
-			}			
+			}
 		]
 	},
 	"scripts": {
+		"build": "tsc",
+		"watch": "tsc -w"
 	},
 	"devDependencies": {
-		"vscode": "^1.0.0"
+		"@types/node": "^14.14.10",
+		"@types/vscode": "1.52.0",
+		"typescript": "^4.1.2"
+	},
+	"dependencies": {
+		"vscode-languageclient": "^7.0.0"
 	}
 }
