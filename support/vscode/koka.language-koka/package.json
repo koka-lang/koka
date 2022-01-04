@@ -5,7 +5,7 @@
 	"version": "2.0.4",
 	"publisher": "koka",
 	"engines": {
-		"vscode": "1.52.0"
+		"vscode": "1.63.2"
 	},
 	"icon": "images/koka-logo-filled.png",
 	"galleryBanner": {
@@ -21,7 +21,7 @@
 		"koka",
 		"effect",
 		"handler",
-    "koka-lang"
+		"koka-lang"
 	],
 	"license": "MIT",
 	"homepage": "https://koka-lang.github.io",
@@ -66,12 +66,12 @@
 				}
 			}
 		},
-    "configurationDefaults": {
-      "[koka]": {
-        "editor.tabSize": 2,
-        "editor.insertSpaces": true
-      }
-    },
+		"configurationDefaults": {
+			"[koka]": {
+				"editor.tabSize": 2,
+				"editor.insertSpaces": true
+			}
+		},
 		"languages": [
 			{
 				"id": "koka",
@@ -100,9 +100,9 @@
 		"watch": "tsc -w"
 	},
 	"devDependencies": {
-		"@types/node": "^14.14.10",
-		"@types/vscode": "1.52.0",
-		"typescript": "^4.1.2"
+		"@types/node": "^17.0.8",
+		"@types/vscode": "1.63.1",
+		"typescript": "^4.5.4"
 	},
 	"dependencies": {
 		"vscode-languageclient": "^7.0.0"
