@@ -1,84 +1,143 @@
 {
-	"name": "language-koka",
-	"displayName": "Koka Syntax Highlighting",
-	"description": "Official syntax support for the Koka programming language.",
-	"version": "2.0.5",
-	"publisher": "koka",
-	"engines": {
-		"vscode": "^1.0.0"
-	},
-	"icon": "images/koka-logo-filled.png",
-	"galleryBanner": {
-		"color": "#293845",
-		"theme": "dark"
-	},
-	"files": [
-		"syntaxes/*.json",
-		"images/",
-		"README.md"
-	],
-	"keywords": [
-		"koka",
-		"effect",
-		"handler",
+  "name": "language-koka",
+  "displayName": "Koka Syntax Highlighting",
+  "description": "Official syntax support for the Koka programming language.",
+  "version": "2.0.4",
+  "publisher": "koka",
+  "engines": {
+    "vscode": "1.63.2"
+  },
+  "icon": "images/koka-logo-filled.png",
+  "galleryBanner": {
+    "color": "#293845",
+    "theme": "dark"
+  },
+  "files": [
+    "syntaxes/*.json",
+    "images/",
+    "README.md"
+  ],
+  "keywords": [
+    "koka",
+    "effect",
+    "handler",
     "koka-lang"
-	],
-	"license": "MIT",
-	"homepage": "https://koka-lang.github.io",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/koka-lang/koka"
-	},
-	"bugs": {
-		"url": "https://github.com/koka-lang/koka/issues"
-	},
-	"categories": [
-		"Programming Languages"
-	],
+  ],
+  "license": "MIT",
+  "homepage": "https://koka-lang.github.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/koka-lang/koka"
+  },
+  "bugs": {
+    "url": "https://github.com/koka-lang/koka/issues"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:koka",
+    "onCommand:koka.restartLanguageServer"
+  ],
+  "main": "./out/extension",
   "contributes": {
-		"configuration": {
-			"type": "object",
-			"title": "Koka configuration",
-			"properties": {
-				"koka.indentationRules.enabled": {
-					"type": "boolean",
-					"default": true,
-					"description": "Set to 'false' to disable automatically increasing indent on newlines after '{', 'match' etc."
-				}
-			}
-		},
+    "configuration": {
+      "type": "object",
+      "title": "Koka configuration",
+      "properties": {
+        "koka.indentationRules.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Set to 'false' to disable automatically increasing indent on newlines after '{', 'match' etc."
+        },
+        "koka.languageServer.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Set to 'true' to enable smarter language support (e.g. hover, code completion, ...) for Koka. Requires specifying the path to the Koka compiler under 'koka.languageServer.path'."
+        },
+        "koka.languageServer.command": {
+          "type": "string",
+          "default": "koka --language-server",
+          "description": "The command to launch the Koka language server (by default the extension assumes that 'koka' is on your PATH)"
+        },
+        "koka.languageServer.cwd": {
+          "type": "string",
+          "default": "",
+          "description": "If specified, the directory in which the language server will be executed."
+        }
+      }
+    },
     "configurationDefaults": {
       "[koka]": {
         "editor.tabSize": 2,
         "editor.insertSpaces": true
       }
     },
-		"languages": [
-			{
-				"id": "koka",
-				"aliases": [
-					"Koka",
-					"koka-lang"
-				],
-				"extensions": [
-					".kk",
-					".kki",
-					".kkc"
-				],
-				"configuration": "./koka-configuration.json"
-			}
-		],
-		"grammars": [
-			{
-				"language": "koka",
-				"scopeName": "source.koka",
-				"path": "./syntaxes/koka.json"
-			}			
-		]
-	},
-	"scripts": {
-	},
-	"devDependencies": {
-		"vscode": "^1.0.0"
-	}
+    "languages": [
+      {
+        "id": "koka",
+        "aliases": [
+          "Koka",
+          "koka-lang"
+        ],
+        "extensions": [
+          ".kk",
+          ".kki",
+          ".kkc"
+        ],
+        "icon": "koka-icon",
+        "configuration": "./koka-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "koka",
+        "scopeName": "source.koka",
+        "path": "./syntaxes/koka.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "koka.restartLanguageServer",
+        "title": "Restart Koka Language Server"
+      }
+    ],
+    "icons": [
+      {
+        "id": "koka-icon",
+        "description": "Koka icon",
+        "default": {
+          "fontId": "koka-logo-font",
+          "fontCharacter": "A"
+        }
+      }
+    ],
+    "iconFonts": [
+      {
+        "id": "koka-logo-font",
+        "src": [
+          {
+            "path": "./fonts/koka-icon-font.woff",
+            "format": "woff"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledApiProposals": [
+    "contribIconFonts",
+    "contribIcons"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.8",
+    "@types/vscode": "1.63.1",
+    "typescript": "^4.5.4"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^7.0.0"
+  }
 }

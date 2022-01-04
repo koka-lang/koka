@@ -92,6 +92,16 @@ executable koka
       Kind.Repr
       Kind.Synonym
       Kind.Unify
+      LanguageServer.Conversions
+      LanguageServer.Handler.Completion
+      LanguageServer.Handler.Definition
+      LanguageServer.Handler.DocumentSymbol
+      LanguageServer.Handler.Hover
+      LanguageServer.Handler.Initialized
+      LanguageServer.Handler.TextDocument
+      LanguageServer.Handlers
+      LanguageServer.Monad
+      LanguageServer.Run
       Lib.JSON
       Lib.PPrint
       Lib.Printer
@@ -147,6 +157,8 @@ executable koka
     , containers
     , directory
     , isocline >=1.0.6
+    , lens
+    , lsp
     , mtl
     , parsec
     , process
@@ -178,6 +190,8 @@ test-suite koka-test
     , hspec-core
     , isocline >=1.0.6
     , json
+    , lens
+    , lsp
     , mtl
     , parsec
     , process
