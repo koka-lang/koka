@@ -94,7 +94,7 @@ run_docker_images() {
       --tmpfs /tmp/overlay \
       -v "$(pwd)/$KOKA_SOURCE_LOCATION":/code:ro \
       -v "$TEMP_DIR:/output:z" \
-      koka-$target
+      localhost/koka-$target
 
     if [ $? -ne 0 ]; then
       stop "Failed to compile os specific package for $target"
@@ -223,10 +223,10 @@ process_options() {
     # info "option: $flag, arg: $flag_arg"
     case "$flag" in
     "") break ;;
-    -t=* | --targets=*)
+    -t=* | --targets=* | --target=*)
       BUILD_TARGETS=$(echo "$flag_arg" | tr "," "\n")
       ;;
-    -a=* | --architectures=*)
+    -a=* | --architectures=* | --architecture=*)
       BUILD_ARCHITECTURES=$(echo "$flag_arg" | tr "," "\n")
       ;;
     -p=* | --package=*)
