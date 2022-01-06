@@ -143,7 +143,7 @@ fun from-list(xs) {
   go(xs, Tip)
 }
 
-public fun count-weight-balanced-fbip-int(start : int, end : int, xs : list<int>) {
+pub fun count-weight-balanced-fbip-int(start : int, end : int, xs : list<int>) {
   val t = from-list(xs)
   fun go(i, acc) {
     if(i <= end) {

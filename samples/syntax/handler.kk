@@ -15,17 +15,17 @@ effect test
    function: that function takes a unit-function `action`
    that is run under the handler.
 */
-public fun test1() : console int 
+pub fun test1() : console int 
   val h = handler 
-            ctl raise(msg){ println(msg); 42 }
-  h(fn(){ raise("error") })
+            ctl raise(msg) { println(msg); 42 }
+  h(fn() raise("error"))
 
 
 // The `with` statement (see `syntax/with`) can help to
 // specify the previous handler more easily as:
-public fun test2() : console int
+pub fun test2() : console int
   with handler 
-    ctl raise(msg){ println(msg); 42 }
+    ctl raise(msg) { println(msg); 42 }
   raise("error")
 
 
@@ -36,7 +36,7 @@ fun test2-expanded() : console int {
 
 // Moreover, if there is only one operation, we can
 // shorten this further as:
-public fun test3() : console int
+pub fun test3() : console int
   with ctl raise(msg){ println(msg); 42 }
   raise("error")
 
@@ -46,11 +46,10 @@ public fun test3() : console int
 //   Most generally is `ctl` which binds implicitly the
 //   `resume` function that can be used to resume at the call-site
 //   of the operation (see `handlers/basic`). 
-// - `brk`: ("break")
-//   Used for operations that never resume, like exceptions.
-//   We can use `ctl` as well for such functions but using `brk` is
-//   a bit more efficient as it runs any finalizers directly before 
-//   evaluating the body of `brk`.
+//   You can mark a control operation as _final_: `final ctl`.
+//   This is esed for operations that never resume, like exceptions.
+//   and is more efficient as it runs any finalizers eagerly and does 
+//   need to capture a resumption.
 // - `fun`:
 //   `fun op(<args>{ <body> })  ~>  ctl op(<args>){ resume (<body>) }`
 //   The `fun` operation clause always resumes once at with the result
@@ -61,14 +60,14 @@ public fun test3() : console int
 //   An operation that always resumes with a constant. As efficient
 //   as `fun` operations.
 
-public fun test4() : console int 
-  with brk raise(msg){ println(msg); 42 }
+pub fun test4() : console int 
+  with final ctl raise(msg) { println(msg); 42 }
   raise("error")
 
 
 effect val ask : int
 
-public fun main()
+pub fun main()
   with val ask = 42
   println(ask)
 

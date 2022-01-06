@@ -46,11 +46,10 @@ effect state<s>
 
 fun state(init,action) 
   var s := init
-  with handler
+  handle action
     return(x)  (s,x)
     fun get()  s
     fun put(i) s := i
-  action()
 
 
 fun incr(i : int = 1) : state<int> () 
@@ -70,8 +69,10 @@ fun global(s,action)
 
 
 val choices = handler 
-  ctl fail() { fail() }
-  fun flip() { incr(); flip() }
+  ctl fail() fail()
+  fun flip() 
+    incr()
+    flip() 
 
 
 fun show(x : (int,list<list<int>>)) : string 
@@ -113,7 +114,7 @@ fun hcutfail(action)
 // only `cutfail` will `fail` and cut the choices short
 fun collect(action) 
   var q := [fail]
-  handle(action)
+  handle action
     return(x)
       if flip() then x else 
         match q
@@ -126,7 +127,7 @@ fun collect(action)
         Cons(p,ps) -> { q := ps; p() }
 
     ctl flip() 
-      q := Cons({ resume(False) }, q)
+      q := Cons(fn() resume(False), q)
       resume(True)
 
 
@@ -153,7 +154,7 @@ effect fun symbol(s : string) : string
 
 fun parse(input : string, action : () -> <nondet,symbol|e> a) : <nondet|e> a 
   var cs := input
-  handle(action) 
+  handle action
     return(x) 
       if cs.is-empty then x else fail()       
     fun symbol(s) 
@@ -222,7 +223,7 @@ fun test5()
 // Main
 // --------------------------------------------------------------
 
-fun main() 
+pub fun main() 
   test1().show.println
   test2().show.println
   test3().show.println

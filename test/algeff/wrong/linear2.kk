@@ -1,4 +1,4 @@
-public module wrong/linear2
+module wrong/linear2
 
 effect amb {
   ctl flip() : bool
@@ -27,6 +27,6 @@ fun foo() {
   get()
 }
 
-public fun main() {
+pub fun main() {
   amb({state(0,foo)}).showList(show).print  // 42
 }

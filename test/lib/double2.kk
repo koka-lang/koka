@@ -2,7 +2,7 @@
 
 */
 
-public import std/num/double
+pub import std/num/double
 
 
 fun check(name : string, res : string, got : string ) : io () {

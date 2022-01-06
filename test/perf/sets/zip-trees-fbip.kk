@@ -76,7 +76,7 @@ inline fun lowest-bit(x0) {
   x0.and(negate(x0))
 }
 
-// xoshiro128++ 1.0 by Blackman and Vigna, public domain (CC0)
+// xoshiro128++ 1.0 by Blackman and Vigna, pub domain (CC0)
 // Adapted from https://prng.di.unimi.it/xoshiro128plusplus.c
 
 struct randState {
@@ -104,7 +104,7 @@ fun next(st) {
 
 // Benchmark
 
-public fun from-list(xs) {
+pub fun from-list(xs) {
   fun go(xs, t) {
     match(xs) {
       Nil -> t
@@ -114,7 +114,7 @@ public fun from-list(xs) {
   pseudo-random(503, fn() { go(xs, empty()) })
 }
 
-public fun count-zip-trees-fbip(start : int, end : int, xs : list<int>) {
+pub fun count-zip-trees-fbip(start : int, end : int, xs : list<int>) {
   val t = from-list(xs)
   fun go(i, acc) {
     if(i <= end) {

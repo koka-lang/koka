@@ -1,7 +1,7 @@
 type mybool {
   MyFalse
 }
-effect control foo() : mybool
+effect ctl foo() : mybool
 effect val outer : string
 
 fun main() {

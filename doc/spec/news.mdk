@@ -5,6 +5,9 @@ News:
   "_Programming with Effect Handlers and FBIP in Koka_" is now available on 
   [youtube](https://www.youtube.com/watch?v=6OFhD_mHtKA).
 
+* 2021-12-27: Koka v2.3.8 released: improved `int` performance, various bug fixes, update wasm backend, 
+  initial conan support, fix js backend.
+
 * 2021-11-26: Koka v2.3.6 released: 
   `maybe`-like types are already value types, but now also no longer need heap allocation 
   if not nested (and `[Just(1)]` uses the same heap space as `[1]`),

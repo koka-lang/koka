@@ -2,7 +2,7 @@
 
 */
 
-public import std/num/double
+pub import std/num/double
 
 
 fun check(name : string, res : string, got : string ) : io () {
@@ -27,7 +27,7 @@ fun check-fl(name : string, res : string, tst : double ) : io () {
           "ldexp(" ++ frac.show(-15) ++ ", " ++ exp.show ++ " )" )
 }
 
-public fun show( x : (double,int), prec : int = -1) : string {
+pub fun show( x : (double,int), prec : int = -1) : string {
   "(" ++ x.fst.show(prec) ++ ", " ++ x.snd.show ++ " )"
 }
 

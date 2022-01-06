@@ -305,7 +305,7 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
         char c = (char)(*p);
         if ((c == 0 && p != cpath) || c == '/' || c == '\\') {
           *p = 0;
-          if (!kk_is_dir(cpath)) {
+          if (p > cpath && !kk_is_dir(cpath)) {  // if cpath starts with / the initial iteration is empty (issue #225)
             #if defined(WIN32)
             int res = _wmkdir(cpath);
             #else 

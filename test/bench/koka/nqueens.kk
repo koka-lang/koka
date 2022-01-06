@@ -13,24 +13,20 @@ fun append-safe( queen : int32, xs : solution, xss : solutions ) : div solutions
   if queen <= 0.int32 then xss
   elif safe(queen,1.int32,xs) then append-safe( queen.dec, xs, Cons(Cons(queen,xs),xss) )
   else append-safe( queen.dec, xs, xss )
-}
 
-fun extend( queen : int32, acc : solutions, xss : solutions ) : div solutions {
+fun extend( queen : int32, acc : solutions, xss : solutions ) : div solutions
   match xss 
     Cons(xs,rest) -> extend(queen, append-safe(queen,xs,acc), rest)
     Nil           -> acc
 
-
 fun find-solutions( n : int32, queen : int32 ) : div solutions
   if queen.is-zero
    then [[]]
-   else extend(n,[], find-solutions(n,queen.dec))
+   else extend(n, [], find-solutions(n,queen.dec))
 
-
-public fun queens( n : int32 ) : div int
+pub fun queens( n : int32 ) : div int
   find-solutions(n,n).length
 
-
-public fun main()
+pub fun main()
   queens(13.int32).println
 

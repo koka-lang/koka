@@ -92,10 +92,10 @@ fun count( t : tree<bool> ) : int
 
 
 // Benchmark for `n` insertions
-public fun bench(n : int)
+pub fun bench(n : int)
   make-tree(n).count.println
 
 
-public fun main()
+pub fun main()
   val n = get-args().head("").parse-int.default(4200000)
   bench(n)

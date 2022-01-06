@@ -1,6 +1,6 @@
 effect nondet {
-  control flip() : bool
-  control fail() : a
+  ctl flip() : bool
+  ctl fail() : a
 }
 
 fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
@@ -21,8 +21,8 @@ fun select(xs) {
 
 val solutions = handler {
   return  x      -> [x]
-  control fail() -> []
-  control flip() -> resume(True) + resume(False)
+  ctl fail() -> []
+  ctl flip() -> resume(True) + resume(False)
 }
 
 fun show( xss : list<list<int>> ) : string {

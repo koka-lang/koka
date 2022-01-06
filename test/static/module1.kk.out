@@ -1,2 +1,2 @@
 static/module1/ok: V
-public alias ok = static/modA/aint = 2
+pub alias ok = static/modA/aint = 2

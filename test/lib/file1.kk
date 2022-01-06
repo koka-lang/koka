@@ -3,11 +3,11 @@
 // --------------------------------------------------------
 module file1
 
-public import std/os/file
-public import std/os/path
-public import std/time
+pub import std/os/file
+pub import std/os/path
+pub import std/time
 
-public fun main() {
+pub fun main() {
   val f = path("readme.md")
   println(f.mod-time > instant(2016,5,15))
   // f.read-text.println

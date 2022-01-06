@@ -67,13 +67,13 @@ fun br(p, m, l, r) {
   }
 }
 
-public extern clz32( x : int32 ) : int32 {
+pub extern clz32( x : int32 ) : int32 {
   c inline "(int32_t)(kk_bits_clz((uint32_t)(#1)))"
 }
 
 val min32 = min-int32
 
-public fun highest-bit(x0 : int32) {
+pub fun highest-bit(x0 : int32) {
   if(x0 == 0.int32) then 0.int32 else min32.shr(clz32(x0))
 }
 
@@ -117,7 +117,7 @@ fun from-list(xs : list<int>) {
   go(xs, Empty)
 }
 
-public fun count-patricia-tree-data-intset-clz(start : int, end : int, xs : list<int>) {
+pub fun count-patricia-tree-data-intset-clz(start : int, end : int, xs : list<int>) {
   val t = from-list(xs)
   fun go(i, acc) {
     if(i <= end) {

@@ -11,7 +11,7 @@
 */
 module std/debug
 
-public extern breakpoint() : ndet () {
+pub extern breakpoint() : ndet () {
   c "kk_debugger_break"
   cs "System.Diagnostics.Debugger.Break"
   js inline "(function(){ debugger; })()"

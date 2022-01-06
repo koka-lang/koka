@@ -1,4 +1,4 @@
-public module resolve-problem
+pub module resolve-problem
 
 import model-using-effect
 

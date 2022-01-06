@@ -1,20 +1,20 @@
 module splaytree
 
-public type splaytree<a> {
+pub type splaytree<a> {
   Node { left : splaytree<a>; here : a; right : splaytree<a> }
   Leaf
 }
 
-public val empty = Leaf
+pub val empty = Leaf
 
-public fun singleton(a) {
+pub fun singleton(a) {
   Node(Leaf, a, Leaf)
 }
 
 // Insert the elements in the order of the list.
 // If the elements are ascending or descending this is linear,
 // but in the worst-case this can be quadratic.
-public fun from-list(list : list<int>) : splaytree<int> {
+pub fun from-list(list : list<int>) : splaytree<int> {
   fun go(xs, tree) {
     match(xs) {
       Nil { tree }
@@ -24,7 +24,7 @@ public fun from-list(list : list<int>) : splaytree<int> {
   go(list, empty)
 }
 
-public fun insert(v : int, tree : splaytree<int>) : splaytree<int> {
+pub fun insert(v : int, tree : splaytree<int>) : splaytree<int> {
   match(insert_(v, tree)) {
     (t, zipper) {
       unsafe-noexn(fn() {
@@ -34,7 +34,7 @@ public fun insert(v : int, tree : splaytree<int>) : splaytree<int> {
   }
 }
 
-public fun member(v : int, tree : splaytree<int>) : maybe<splaytree<int>> {
+pub fun member(v : int, tree : splaytree<int>) : maybe<splaytree<int>> {
   match(member_(v, tree)) {
     Nothing { Nothing }
     Just((t, zipper)) {

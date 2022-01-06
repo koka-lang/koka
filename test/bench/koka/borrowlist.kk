@@ -11,13 +11,12 @@ fun lookup1( ^xs : list<a>, pred : a -> bool) : maybe<a>
     Cons(x,xx) -> if pred(x) then Just(x) else lookup1(xx,pred)
     Nil -> Nothing
 
-
-fun test1()
+pub fun test1()
   repeat(100) 
     xs.lookup1( fn(x) x == n )
     ()
 
-fun test2()
+pub fun test2()
   repeat(100) 
     xs.lookup2( fn(x) x == n )
     ()    

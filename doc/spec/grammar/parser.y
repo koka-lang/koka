@@ -2,7 +2,8 @@
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0.
 */
-/* Requires at least Bison 3+; you can get a version for windows from
+/* Use the "Yash" extension in vscode for nice syntax highlighting.
+   Requires at least Bison 3+; you can get a version for windows from
    https://sourceforge.net/projects/winflexbison
    (use the "latest" zip package)
 */
@@ -23,7 +24,7 @@ typedef void* yyscan_t;
   const char*   Id;      /* used for operators OP too */
   const char*   String;  /* 'modified' UTF-8 string (\0 chars are encoded as \xC0\x80) */
   double        Float;
-  unsigned long Nat;
+  unsigned long Int;
   unsigned int  Char;
 }
 
@@ -43,7 +44,7 @@ void printDecl( const char* sort, const char* name );
 
 
 %token <Id>     ID CONID OP IDOP QID  QCONID QIDOP WILDCARD '(' ')' '[' ']'
-%token <Nat>    NAT
+%token <Int>    INT
 %token <Float>  FLOAT
 %token <String> STRING
 %token <Char>   CHAR
@@ -56,7 +57,7 @@ void printDecl( const char* sort, const char* name );
 %token MATCH
 %token RARROW LARROW
 
-%token FUN FN VAL VAR CONTROL RCONTROL EXCEPT
+%token FUN FN VAL VAR 
 %token TYPE STRUCT EFFECT
 %token ALIAS CON
 %token FORALL EXISTS SOME
@@ -67,12 +68,13 @@ void printDecl( const char* sort, const char* name );
 %token INFIX INFIXL INFIXR
 
 %token LEX_WHITE LEX_COMMENT
-%token INSERTED_SEMI
+%token INSERTED_SEMI EXPR_SEMI
 %token LE ASSIGN DCOLON EXTEND
 %token RETURN
 
 %token HANDLER HANDLE NAMED MASK OVERRIDE
-%token IFACE UNSAFE
+%token CTL FINAL RAW
+%token IFACE UNSAFE BREAK CONTINUE
 
 %token ID_CO ID_REC
 %token ID_INLINE ID_NOINLINE
@@ -161,9 +163,9 @@ declarations: fixitydecl semis1 declarations
 fixitydecl  : visibility fixity oplist1
             ;
 
-fixity      : INFIX NAT
-            | INFIXR NAT
-            | INFIXL NAT
+fixity      : INFIX INT
+            | INFIXR INT
+            | INFIXL INT
             ;
 
 oplist1     : oplist1 ',' identifier
@@ -340,8 +342,7 @@ operations  : operations operation semis1
 
 operation   : visibility VAL identifier typeparams ':' tatomic
             | visibility FUN identifier typeparams '(' parameters ')' ':' tatomic
-            | visibility EXCEPT identifier typeparams '(' parameters ')' ':' tatomic
-            | visibility CONTROL identifier typeparams '(' parameters ')' ':' tatomic
+            | visibility CTL identifier typeparams '(' parameters ')' ':' tatomic
             ;
 
 
@@ -440,13 +441,13 @@ fnexpr      : FN funbody                     /* anonymous function */
 returnexpr  : RETURN expr
             ;
 
-ifexpr      : IF ntlexpr THEN expr elifs 
-            | IF ntlexpr THEN expr       
+ifexpr      : IF ntlexpr THEN blockexpr elifs 
+            | IF ntlexpr THEN blockexpr       
             | IF ntlexpr RETURN expr 
             ;
 
-elifs       : ELIF ntlexpr THEN expr elifs
-            | ELSE expr
+elifs       : ELIF ntlexpr THEN blockexpr elifs
+            | ELSE blockexpr
             ;
 
 valexpr     : VAL apattern '=' blockexpr IN expr
@@ -502,7 +503,7 @@ atom        : qidentifier
             | '[' cexprs ']'             /* list expression (elements may be terminated with comma instead of separated) */
             ;
 
-literal     : NAT | FLOAT | CHAR | STRING
+literal     : INT | FLOAT | CHAR | STRING
             ;
 
 mask        : MASK behind '<' tbasic '>'
@@ -537,18 +538,17 @@ parameters1 : parameters1 ',' parameter
             | parameter
             ;
 
-parameter   : paramid ':' paramtype
-            | paramid ':' paramtype '=' expr
+parameter   : borrow paramid ':' type
+            | borrow paramid ':' type '=' expr
             ;
 
 paramid     : identifier
             | WILDCARD
             ;
 
-paramtype   : type
-            | '?' type
+borrow      : '^'
+            | /* empty */
             ;
-
 
 /* pattern matching parameters: separated by comma */
 
@@ -560,10 +560,10 @@ pparameters1: pparameters1 ',' pparameter
             | pparameter
             ;
 
-pparameter  : pattern 
-            | pattern ':' paramtype
-            | pattern ':' paramtype '=' expr
-            | pattern '=' expr
+pparameter  : borrow pattern 
+            | borrow pattern ':' type
+            | borrow pattern ':' type '=' expr
+            | borrow pattern '=' expr
             ;
 
 
@@ -746,19 +746,22 @@ opclauses1  : opclauses1 semis1 opclausex
             ;
 
 opclausex   : ID_FINALLY bodyexpr
-            | ID_INITIALLY bodyexpr
+            | ID_INITIALLY '(' opparam ')' bodyexpr
             | opclause
             ;
 
 opclause    : VAL qidentifier '=' blockexpr
             | VAL qidentifier ':' type '=' blockexpr
             | FUN qidentifier opparams bodyexpr
-            | EXCEPT qidentifier opparams bodyexpr
-            | CONTROL qidentifier opparams bodyexpr
-            | RCONTROL qidentifier opparams bodyexpr
+            | controlmod CTL qidentifier opparams bodyexpr
             | RETURN '(' opparam ')' bodyexpr
             | RETURN paramid bodyexpr               /* deprecated */
             ;
+
+controlmod  : FINAL
+            | RAW
+            | /* empty */
+            ;            
 
 opparams    : '(' opparams0 ')'
             ;

@@ -62,7 +62,7 @@ kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t val
     }
     kk_ssize_t len;
     kk_box_t* p = kk_vector_buf_borrow(v, &len);
-    kk_ssize_t i = kk_integer_clamp_ssize_t_borrow(idx);
+    kk_ssize_t i = kk_integer_clamp_ssize_t_borrow(idx, ctx);
     kk_assert(i < len);
     kk_box_drop(p[i], ctx);
     p[i] = value;

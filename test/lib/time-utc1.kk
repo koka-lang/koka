@@ -10,8 +10,8 @@ module time-utc1
 
 import std/os/file
 import std/num/ddouble
-public import std/num/decimal
-public import std/time
+pub import std/num/decimal
+pub import std/time
 
 /*----------------------------------------------------------------------------
   Testing
@@ -23,7 +23,7 @@ fun check(name : string, tst : () -> ndet bool ) : io () {
 }
 
 
-public fun show-leap-steps(ts-utc : timescale) {
+pub fun show-leap-steps(ts-utc : timescale) {
   val steps = get-leap-steps()
   var dlast := Date(0,0,0)
   val rows = steps.map( fn(step) {
@@ -54,26 +54,26 @@ public fun show-leap-steps(ts-utc : timescale) {
   write-text-file-sync("leap-steps.txt", table)
 }
 
-val leap-steps-header = @"
+val leap-steps-header = r"
 |-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
 | Date (UTC) &quad; | Time steps &quad; &quad; | (TAI--UTC)     | (TAI--UTC)     | Drift                                           | &quad; Frequency |
 |                   |                          | Just before\ \ | On the date&quad; |                                                 | Offset    |
 +:------------------|--------------------------|:---------------|:---------------|-------------------------------------------------|----------:+
 "
-val leap-steps-footer = @"
+val leap-steps-footer = r"
 |-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
 {white-space:nowrap; col-2-padding-left:1em; .sans-serif; }
 "
 
-val leap-steps-sep = @"
+val leap-steps-sep = r"
 | \                 |                          |                |                   |                                                                 |                    |"
 
 
-public fun test() {
+pub fun test() {
   val ts-utc = try-default(ts-ti){ts-utc-load(verbose=True)}
   show-leap-steps(ts-utc)
 }
 
-public fun main() {
+pub fun main() {
   ()
 }

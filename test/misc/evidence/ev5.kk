@@ -1,4 +1,4 @@
-public module ev5
+pub module ev5
 
 import std/num/int32
 
@@ -13,7 +13,7 @@ extern include {
 
 struct marker<e::E,a>(m:int32)
 
-public type htag<h::(E,V)->V> {
+pub type htag<h::(E,V)->V> {
   Unsafe-htag(tag:string)
 }
 
@@ -44,19 +44,19 @@ fun (==)(m1 : marker<e1,a1>, m2: marker<e2,a2>) : bool {
 // Internal Evidence vectors
 // -------------------------------------------
 
-public extern inline evv-total() : evv<<>> {
+pub extern inline evv-total() : evv<<>> {
   js inline "{ ofs: 0, evv: [] }"
 }
 
-public extern evv-lookup( htag : htag<h> ) : int {
+pub extern evv-lookup( htag : htag<h> ) : int {
   js inline "_evv_lookup($evv,$evv_ofs,#1)"
 }
 
-public extern inline evv-at( i : int ) : ev<h> {
+pub extern inline evv-at( i : int ) : ev<h> {
   js inline "$evv[$evv_ofs + #1]"
 }
 
-public extern inline evv-select( i : int, htag : htag<h> ) : ev<h> {
+pub extern inline evv-select( i : int, htag : htag<h> ) : ev<h> {
   js inline "(#1 >= 0 ? $evv[#1 + $evv_ofs] : $evv[_evv_lookup($evv,$evv_ofs,#2) + $evv_ofs])"
 }
 
@@ -191,7 +191,7 @@ fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, result : a
   }
 }
 
-public fun ihandle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
+pub fun ihandle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
   val m  = fresh-marker()
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
@@ -200,12 +200,12 @@ public fun ihandle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a 
   prompt(w0,w1,m,ret,cast-ev0(action)())
 }
 
-public fun ihandler( tag:htag<h>, h : h<e,r>, ret: a -> e r ) : ((action : () -> e1 a ) -> e r) {
+pub fun ihandler( tag:htag<h>, h : h<e,r>, ret: a -> e r ) : ((action : () -> e1 a ) -> e r) {
   (fn(action){ ihandle(tag,h,ret,action) })
 }
 
 
-public fun inamed-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<h> -> e a ) : e r {
+pub fun inamed-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<h> -> e a ) : e r {
   val m  = fresh-marker()
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
@@ -216,7 +216,7 @@ public fun inamed-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<h>
 // mask
 // -------------------------------------------
 
-public fun imask( i : int, action : () -> e1 a ) : e2 a {
+pub fun imask( i : int, action : () -> e1 a ) : e2 a {
   val w0 = evv-get()
   val w1 = evv-delete(w0,i)
   under0(w1,cast-ev0(action))
@@ -313,7 +313,7 @@ type clause<a,b,e,r> {
 extern inline cast-ev1( f : (marker<e1,r>,evv<e1>,a) -> e1 b) : e ((marker<e1,r>,evv<e1>,a) -> e b) { inline "#1" }
 extern inline cast-ev2( f : (marker<e1,r>,evv<e1>,a1,a2) -> e1 b) : e ((marker<e1,r>,evv<e1>,a1,a2) -> e b) { inline "#1" }
 
-public fun iperform( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause<a,b,e1,r>), x : a ) : b {
+pub fun iperform( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause<a,b,e1,r>), x : a ) : b {
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Clause(f) -> cast-ev1(f)(m,w,x)
@@ -382,7 +382,7 @@ fun clause-never( op : a -> e r ) : clause<a,b,e,r> {
 // 0 arguments; reuse 1 argument Clauses
 //----------------------------------------------------------------
 
-public fun iperform0( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause<(),b,e1,r>) ) : b {
+pub fun iperform0( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause<(),b,e1,r>) ) : b {
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Clause(f) -> cast-ev1(f)(m,w,())
@@ -441,7 +441,7 @@ fun clause-tail-noyield2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
   Clause2(fn(m,w,x1,x2){ op(x1,x2) })
 }
 
-public fun iperform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> op2<a,b,c,e1,r>), x : a, y : b ) : c {
+pub fun iperform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> op2<a,b,c,e1,r>), x : a, y : b ) : c {
   match(evx) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Clause2(f) -> cast-ev2(f)(m,w,x,y)
@@ -521,11 +521,11 @@ val h = amb-handler( Amb-hnd( clause-control( fn(x,k) {
             xs + ys
          })), fn(x){ [x] } )
 
-public fun amb(action) {
+pub fun amb(action) {
   h(action)
 }
 
-public fun amb2(action) {
+pub fun amb2(action) {
   amb-handle( Amb-hnd( clause-control( fn(x,k) {
                 with xs : list<_> = yield-bind(k(False))
                 with ys = yield-bind( k(True) )
@@ -591,7 +591,7 @@ fun state(init : s, action : () -> <state<s>|e> a) : e a {
     id, { mask<local>(action) } )
 }
 
-public fun add21() : state<int> int {
+pub fun add21() : state<int> int {
   with i  = yield-bind(state-get(0))
   with _x = yield-bind(state-set(0,i+21))
   state-get(0)

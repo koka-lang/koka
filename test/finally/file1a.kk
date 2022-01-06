@@ -1,6 +1,6 @@
 // File handling with initially and finally
 
-ambient control flip() : bool
+ambient ctl flip() : bool
 
 // files are named handlers (and thus scoped)
 ambient instance file {
@@ -28,7 +28,7 @@ fun open-file(fname,action) {
 
 fun main() {
   with return(x) { () }
-  with control flip() { resume(False) + (resume(True) : list<()>) }
+  with ctl flip() { resume(False) + (resume(True) : list<()>) }
   [foo()]
 }
 

@@ -1,4 +1,4 @@
-public module ev-examples1
+pub module ev-examples1
 
 import std/core/hnd
 

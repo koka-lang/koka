@@ -10,7 +10,7 @@ module time4
 
 import std/time/timestamp
 import std/num/ddouble
-public import std/time
+pub import std/time
 
 /*----------------------------------------------------------------------------
   Testing
@@ -26,22 +26,22 @@ fun check(name : string, res : string, tst : () -> utc string ) : <io,utc> () {
 
 fun test-week-dates() {
   val dates : list<(date,date,date)> = [ // Gregorian date, ISO week date, "ISO" month date
-      (Date(2005,01,01),weekdate(2004,53,Sat),Date(2004,12,31+6)),
-      (Date(2005,01,02),weekdate(2004,53,Sun),Date(2004,12,31+7)),
+      (Date(2005, 1, 1),weekdate(2004,53,Sat),Date(2004,12,31+6)),
+      (Date(2005, 1, 2),weekdate(2004,53,Sun),Date(2004,12,31+7)),
       (Date(2005,12,31),weekdate(2005,52,Sat),Date(2005,12,30)),
-      (Date(2007,01,01),weekdate(2007,1,Mon),Date(2007,1,1)),
+      (Date(2007, 1, 1),weekdate(2007,1,Mon),Date(2007,1,1)),
       (Date(2007,12,30),weekdate(2007,52,Sun),Date(2007,12,31)),
       (Date(2007,12,31),weekdate(2008,1,Mon),Date(2008,1,1)),
-      (Date(2008,01,01),weekdate(2008,1,Tue),Date(2008,1,2)),
+      (Date(2008, 1, 1),weekdate(2008,1,Tue),Date(2008,1,2)),
       (Date(2008,12,28),weekdate(2008,52,Sun),Date(2008,12,31)),
       (Date(2008,12,29),weekdate(2009,1,Mon),Date(2009,1,1)),
       (Date(2008,12,30),weekdate(2009,1,Tue),Date(2009,1,2)),
       (Date(2008,12,31),weekdate(2009,1,Wed),Date(2009,1,3)),
-      (Date(2009,01,01),weekdate(2009,1,Thu),Date(2009,1,4)),
+      (Date(2009, 1, 1),weekdate(2009,1,Thu),Date(2009,1,4)),
       (Date(2009,12,31),weekdate(2009,53,Thu),Date(2009,12,35)),
-      (Date(2010,01,01),weekdate(2009,53,Fri),Date(2009,12,36)),
-      (Date(2010,01,02),weekdate(2009,53,Sat),Date(2009,12,37)),
-      (Date(2010,01,03),weekdate(2009,53,Sun),Date(2009,12,38))]
+      (Date(2010, 1, 1),weekdate(2009,53,Fri),Date(2009,12,36)),
+      (Date(2010, 1, 2),weekdate(2009,53,Sat),Date(2009,12,37)),
+      (Date(2010, 1, 3),weekdate(2009,53,Sun),Date(2009,12,38))]
   dates.foreach( fn(dwdmd) {
     val (d,wd,md) = dwdmd
     val ds = d.show
@@ -65,7 +65,7 @@ fun test-week-dates() {
 
 fun test-week-in-years() {
   val long-years = [
-    004, 009, 015, 020, 026, 032, 037, 043, 048, 054, 060, 065, 071, 076, 082, 088, 093, 099,
+      4,   9,  15,  20,  26,  32,  37,  43,  48,  54,  60,  65,  71,  76,  82,  88,  93,  99,
     105, 111, 116, 122, 128, 133, 139, 144, 150, 156, 161, 167, 172, 178, 184, 189, 195,
     201, 207, 212, 218, 224, 229, 235, 240, 246, 252, 257, 263, 268, 274, 280, 285, 291, 296,
     303, 308, 314, 320, 325, 331, 336, 342, 348, 353, 359, 364, 370, 376, 381, 387, 392, 398
@@ -111,7 +111,7 @@ fun test-nth() {
   check("nth7", "2016-11-13") { time(2016,11,10).nth-weekday(1,Sun).date.show }
 }
 
-public fun main() {
+pub fun main() {
   test-day-in-year()
   test-week-in-years()
   test-week-dates()

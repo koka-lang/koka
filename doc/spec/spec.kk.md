@@ -20,8 +20,8 @@ In the patterns, we use the following notations:
 
 |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
 | `terminal`                         |   | A terminal symbol                                                          |
-| ``x0A``                            |   | A character with hexadecimal code 0A                                       |
-| ``a..f``                           |   | The characters from a to f                                                 |
+| ``x0B``                            |   | A character with hexadecimal code 0B                                       |
+| ``a..f``                           |   | The characters from "a" to "f" (using ascii, i.e. ``0x61..0x66``)                                  |
 | &nbsp;                             |   |                                                                            |
 | ( _pattern_ )                      |   | Grouping                                                                   |
 | [ _pattern_ ]                      |   | Optional occurrence of _pattern_                                           |
@@ -42,7 +42,7 @@ Care must be taken to distinguish meta-syntax such as
 from concrete terminal symbols as ``|`` and ``)``. In the specification
 the order of the productions is not important and at each point the
 _longest matching lexeme_ is preferred. For example, even though
-`function` is a reserved word, the word `functions` is considered a
+`fun` is a reserved word, the word `functional` is considered a
 single identifier. A _prefix_ or _postfix_ pattern is included
 when considering a longest match.
 {.grammar}
@@ -84,7 +84,7 @@ comments and directives.
 | _lexeme_&nbsp;&nbsp; | ::=   | _conid_ []{.bar} _qconid_                                    |     |
 |                      | &bar; | _varid_ []{.bar} _qvarid_                                    |     |
 |                      | &bar; | _op_ []{.bar} _opid_ []{.bar} _qopid_ []{.bar} _wildcard_    |     |
-|                      | &bar; | _natural_ []{.bar} _float_ []{.bar} _string_ []{.bar} _char_ |     |
+|                      | &bar; | _integer_ []{.bar} _float_ []{.bar} _string_ []{.bar} _char_ |     |
 |                      | &bar; | _reserved_ []{.bar} _opreserved_                             |     |
 |                      | &bar; | _special_                                                    |     |
 {.grammar .lex}
@@ -113,23 +113,23 @@ grammar will draw it's lexemes from the _lex_ production.
 | _idchar_     | ::=   | _letter_ []{.bar} _digit_ []{.bar} ``_`` []{.bar} ``-``                                       |                         |
 | _idfinal_    | ::=   | [``'``]{.many}                                                                                |                         |
 | &nbsp;       |       |                                                                                               |                         |
-| _reserved_   | ::=   | `infix` []{.bar} `infixr` []{.bar} `infixl` []{.bar} `prefix`                                 |                         |
-|              | &bar; | `type` []{.bar} `struct` []{.bar} `alias` []{.bar} `con`                                                    |                         |
+| _reserved_   | ::=   | `infix` []{.bar} `infixr` []{.bar} `infixl`                                                   |                         |
+|              | &bar; | ``module`` []{.bar} `import` []{.bar} `as`                                                    |                         |
+|              | &bar; | ``pub`` []{.bar} `abstract`                                                                   |                         |
+|              | &bar; | `type` []{.bar} `struct` []{.bar} `alias` []{.bar} `effect` []{.bar} `con`                    |                         |
 |              | &bar; | `forall` []{.bar} `exists` []{.bar} `some`                                                    |                         |
 |              | &bar; | `fun` []{.bar} `fn` []{.bar} `val` []{.bar} `var` []{.bar} `extern`                           |                         |
 |              | &bar; | `if` []{.bar} `then` []{.bar} `else` []{.bar} `elif`                                          |                         |
 |              | &bar; | `match` []{.bar} `return` []{.bar} `with` []{.bar} `in`                                       |                         |
 |              | &bar; | `handle` []{.bar} `handler` []{.bar} `mask`                                                   |                         |
-|              | &bar; | `override` []{.bar} `control` []{.bar} `rcontrol`                                             |                         |
-|              | &bar; | `effect` []{.bar} `named`                                               |                         |
-|              | &bar; | ``module`` []{.bar} `import` []{.bar} `as`                                                    |                         |
-|              | &bar; | `public` []{.bar} `private` []{.bar} `abstract`                                               |                         |
-|              | &bar; | `pub` []{.bar} `interface` []{.bar} `yield` []{.bar} `qualified` []{.bar} `hiding` []{.bar} `unsafe`         | (future reserved words) |
-| &nbsp;       |       |                                                                                               |                         |
-| _specialid_  | ::=   | `co` []{.bar} `rec` []{.bar} `open` []{.bar} `extend` []{.bar} `behind`                                                    |                         |
-|              | &bar; | `linear` []{.bar} `value` []{.bar} `reference`                                                |                         |
-|              | &bar; | `inline` []{.bar} `noinline` []{.bar} `include` []{.bar} `import`                             |                         |
-|              | &bar; | `js` []{.bar} `c`  []{.bar} `file`                                                            |                         |
+|              | &bar; | `ctl` []{.bar} `final` []{.bar} `raw`                                     |                         |
+|              | &bar; | `override` []{.bar} `named`                                               |                         |
+|              | &bar; | `interface` []{.bar} `break` []{.bar} `continue` []{.bar} `unsafe`        | (future reserved words) |
+| &nbsp;       |       |                                                                           |                         |
+| _specialid_  | ::=   | `co` []{.bar} `rec` []{.bar} `open` []{.bar} `extend` []{.bar} `behind`   |                         |
+|              | &bar; | `linear` []{.bar} `value` []{.bar} `reference`                            |                         |
+|              | &bar; | `inline` []{.bar} `noinline` []{.bar} `initially` []{.bar} `finally`      |                         |
+|              | &bar; | `js` []{.bar} `c` []{.bar} `cs` []{.bar} `file`                           |                         |
 {.grammar .lex}
 
 Identifiers always start with a letter, may contain underscores and
@@ -193,21 +193,30 @@ std/core/(&)
 ### Literals
 
 |~~~~~~~~~~~~~~~|~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~|
-| _string_      | ::=    | ``@"`` [_graphic_~&lt;``"``&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _tab_ []{.bar} _newline_ []{.bar} ``""``]{.many} ``"`` | (raw string) |
-|               | &bar;  | ``"`` [_graphic_~&lt;``"``[]{.bar}``\``&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _escape_]{.many} ``"``                     |              |
-| _char_        | ::=    | ``'`` ( _graphic_~&lt;``'``[]{.bar}``\``&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _escape_ ) ``'``                          |              |
+| _char_        | ::=    | ``'`` ( _graphic_~&lt;``'``[]{.bar}``\``&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _escape_ ) ``'``                  |              |
+| _string_      | ::=    | ``"`` [_graphic_~&lt;``"``[]{.bar}``\``&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _escape_]{.many} ``"``             |              |
+|               | &bar;  | ``r`` _rawstring_                                                                                                         |              |                 
+| _rawstring_   | ::=    | ``#`` _rawstring_ ``#``                                                                                                   |              |
+|               | &bar;  | ``"`` [_graphic_ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _tab_ []{.bar} _newline_]{.many} ``"``                         | (non-greedy match) |
 | &nbsp;        |        |                                                                                                                           |              |
-| _escape_      | ::=    | ``\`` ( _charesc_ []{.bar} _hexesc_ )                                                                                       |              |
-| _charesc_     | ::=    | `n` []{.bar} `r` []{.bar} `t` []{.bar} ``\`` []{.bar} ``"`` []{.bar} ``'``                                                      |              |
-| _hexesc_      | ::=    | `x` _hexdigit_~2~ []{.bar}   `u` _hexdigit_~4~ []{.bar}   ``U`` _hexdigit_~4~ _hexdigit_~2~                                 |              |
+| _escape_      | ::=    | ``\`` ( _charesc_ []{.bar} _hexesc_ )                                                                                     |              |
+| _charesc_     | ::=    | `n` []{.bar} `r` []{.bar} `t` []{.bar} ``\`` []{.bar} ``"`` []{.bar} ``'``                                                |              |
+| _hexesc_      | ::=    | `x` _hexdigit_~2~ []{.bar}   `u` _hexdigit_~4~ []{.bar}   ``U`` _hexdigit_~4~ _hexdigit_~2~                               |              |
 | _hexdigit_~4~ | ::=    | _hexdigit_ _hexdigit_ _hexdigit_ _hexdigit_                                                                               |              |
 | _hexdigit_~2~ | ::=    | _hexdigit_ _hexdigit_                                                                                                     |              |
 | &nbsp;        |        |                                                                                                                           |              |
-| _float_       | ::=    | _decimal_ `.` _decimal_ [_exponent_]{.opt}                                                                                |              |
-| _exponent_    | ::=    | (``e`` &bar;  ``E``) [``-`` &bar;  ``+``]{.opt} _decimal_                                                                     |              |
-| _natural_     | ::=    | _decimal_ []{.bar} `0` &nbsp; (``x`` &bar;  ``X``) _hexadecimal_                                                              |              |
-| _decimal_     | ::=    | _digit_ [_digit_]{.many}                                                                                                  |              |
-| _hexadecimal_ | ::=    | _hexdigit_ [_hexdigit_]{.many}                                                                                            |              |
+| _float_       | ::=    | [``-``]{.opt} (decfloat []{.bar} hexfloat)                                                                                |              |
+| _decfloat_    | ::=    | _decimal_ (`.` _digits_ [_decexp_]{.opt} []{.bar} _decexp_)                                                                               |              |
+| _decexp_      | ::=    | (``e`` &bar;  ``E``) _exponent_                                                                      |              |
+| _hexfloat_    | ::=    | _hexadecimal_ (`.` _hexdigits_ [_hexexp_]{.opt} []{.bar} _hexexp_)                                                                               |              |
+| _hexexp_      | ::=    | (``p`` &bar;  ``P``) _exponent_                                                                      |              |
+| _exponent_    | ::=    | [``-`` &bar;  ``+``]{.opt} _digit_ [_digit_]{.many}                                                                    |              |
+| &nbsp;        |        |                                                                                                                           |              |
+| _integer_     | ::=    | [``-``]{.opt} (_decimal_ []{.bar} _hexadecimal_)                                                              |              |
+| _decimal_     | ::=    | ``0`` &bar; _posdigit_ [[``_``]{.opt} _digits_]{.opt}                                                                                                  |              |
+| _hexadecimal_ | ::=    | ``0`` (``x`` &bar;  ``X``) _hexdigits_                                                                                           |              |
+| _digits_      | ::=    | _digit_ [_digit_]{.many} [``_`` _digit_ [_digit_]{.many}]{.many}                                                                                                 |              |
+| _hexdigits_   | ::=    | _hexdigit_ [_hexdigit_]{.many} [``_`` _hexdigit_ [_hexdigit_]{.many}]{.many}                                                                                                 |              |
 {.grammar .lex}
 
 ### White space
@@ -232,9 +241,10 @@ std/core/(&)
 
 |~~~~~~~~~~~~|~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
 | _letter_   | ::=    | _upper_ []{.bar} _lower_                |                                     |
-| _upper_    | ::=    | ``A..Z``                                  |                                     |
-| _lower_    | ::=    | ``a..z``                                  |                                     |
-| _digit_    | ::=    | ``0..9``                                  |                                     |
+| _upper_    | ::=    | ``A..Z``                                  |  (i.e. ``x41..x5A``)                                   |
+| _lower_    | ::=    | ``a..z``                                  |  (i.e. ``x61..x7A``)                                   |
+| _digit_    | ::=    | ``0..9``                                  |  (i.e. ``x30..x39``)                                   |
+| _posdigit_ | ::=    | ``1..9``                                  |                                     |
 | _hexdigit_ | ::=    | ``a..f`` []{.bar} ``A..F`` []{.bar} _digit_ |                                     |
 | &nbsp;     |        |                                         |                                     |
 | _newline_  | ::=    | [_return_]{.opt} _linefeed_             | (windows or unix style end of line) |
@@ -245,8 +255,7 @@ std/core/(&)
 | _return_   | ::=    | ``x0D``                                   | (a carriage return (``\r``))          |
 | _graphic_  | ::=    | ``x21``..``x7E``                            | (a visible character)               |
 | &nbsp;     |        |                                         |                                     |
-| _utf8_     | ::=    | ``xC0`` ``x80``                             | (encoded 0 character)               |
-|            | &bar;  | (``xC2``..``xDF``) _cont_                   |                                     |
+| _utf8_     | ::=    | (``xC2``..``xDF``) _cont_                   |                                     |
 |            | &bar;  | ``xE0`` (``xA0``..``xBF``) _cont_             |                                     |
 |            | &bar;  | (``xE1``..``xEC``) _cont_ _cont_            |                                     |
 |            | &bar;  | ``xED`` (``x80``..``x9F``) _cont_             |                                     |
@@ -439,10 +448,9 @@ a closing brace and the end of the source. This allows us to specify many
 grammar elements as ended by semicolons instead of separated by semicolons
 which is more difficult to specify for a LALR(1) grammar.
 
-The layout can be implemented directly as part of the lexer
-(see the [Flex][FlexLexer] implementation), but can
-also be implemented as a separate transformation on the lexical token
-stream (see the [Haskell][HaskellLex] implementation).
+The layout can be implemented as a separate transformation on the lexical token
+stream (see the [Haskell][HaskellLayout] implementation in the Koka compiler),
+or directly as part of the lexer (see the [Flex][FlexLexer] implementation)
 
 ### Implementation { #sec:lex-implementation }
 
@@ -463,101 +471,88 @@ ignored.
 |~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~|
 | _module_~[_lex_]{.opt}~ | ::=   | [_moduledecl_]{.opt} _modulebody_                 |   |
 | &nbsp;                  |       |                                                   |   |
-| _moduledecl_            | ::=   | _semis_  [_visibility_]{.opt} `module` _moduleid_ |   |
+| _moduledecl_            | ::=   | _semis_  `module` _moduleid_                      |   |
 | _moduleid_              | ::=   | _qvarid_ []{.bar} _varid_                         |   |
 | &nbsp;                  |       |                                                   |   |
 | _modulebody_            | ::=   | `{` _semis_ _declarations_ `}` _semis_            |   |
 |                         | &bar; | _semis_ _declarations_                            |   |
 | &nbsp;                  |       |                                                   |   |
-| _visibility_            | ::=   | `public` []{.bar} `private`                       |   |
 | _semis_                 | ::=   | [`;`]{.many}                                      |   |
-| _semi_                  | ::=   | `;` _semis_                                         |   |
+| _semi_                  | ::=   | `;` _semis_                                       |   |
 {.grammar .parse}
 
 ### Top level declarations
 
 |~~~~~~~~~~~~~~~~|~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~|
-| _declarations_ | ::=   | [_import_]{.many} [_fixitydecl_]{.many} _topdecls_                                    |   |
+| _declarations_ | ::=   | [_importdecl_]{.many} [_fixitydecl_]{.many} _topdecls_                                    |   |
 | &nbsp;         |       |                                                                                       |   |
-| _import_       | ::=   | [_visibility_]{.opt} `import` [_moduleid_ `=`]{.opt} _moduleid_ _semi_                |   |
+| _importdecl_   | ::=   | [ _pub_]{.opt} `import` [_moduleid_ `=`]{.opt} _moduleid_ _semi_                      |   |
 | &nbsp;         |       |                                                                                       |   |
-| _fixitydecl_   | ::=   | [_visibility_]{.opt} _fixity_ _natural_ _identifier_ [`,` _identifier_]{.many} _semi_ |   |
-| _fixity_       | ::=   | `infixl`                                                                              |   |
-|                | &bar; | `infixr`                                                                              |   |
-|                | &bar; | `infix`                                                                               |   |
+| _fixitydecl_   | ::=   | [ _pub_]{.opt} _fixity_ _integer_ _identifier_ [`,` _identifier_]{.many} _semi_       |   |
+| _fixity_       | ::=   | `infixl` &bar; `infixr` &bar; `infix`                                                 |   |
 | &nbsp;         |       |                                                                                       |   |
 | _topdecls_     | ::=   | [_topdecl_ _semi_]{.many}                                                             |   |
-| _topdecl_      | ::=   | [_visibility_]{.opt} _puredecl_                                                       |   |
-|                | &bar; | [_visibility_]{.opt} _aliasdecl_                                                      |   |
-|                | &bar; | [_visibility_]{.opt} _typedecl_                                                       |   |
-|                | &bar; | [_visibility_]{.opt} _externdecl_                                                     |   |
-|                | &bar; | `abstract ` _typedecl_                                                                |   |
+| _topdecl_      | ::=   | [ _pub_]{.opt} _puredecl_                                                             |   |
+|                | &bar; | [ _pub_]{.opt} _aliasdecl_                                                            |   |
+|                | &bar; | [ _pub_]{.opt} _externdecl_                                                           |   |
+|                | &bar; | [ _pubabstract_]{.opt} _typedecl_                                                     |   |
+|                | &bar; | [ _pubabstract_]{.opt} _effectdecl_                                                   |   |
+| &nbsp;         |       |                                                                                       |   |
+| _pub_          | ::=   | `pub`                                                                                 |   |
+| _pubabstract_  | ::=   | `pub` &bar; `abstract`                                                                |   |
 {.grammar .parse}
 
-### Type declarations
+### Type Declarations
 
 | ~~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~|
 | _aliasdecl_   | ::=   | `alias` _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} `=` _type_                                          |    |
+| &nbsp;        |       |                                                                                                            |    |
 | _typedecl_    | ::=   | _typemod_ `type` _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_typebody_]{.opt}                         |    |
 |               | &bar; | _structmod_ `struct` _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_conparams_]{.opt}                    |    |
-|               | &bar; | _effectmod_ `effect` _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_opdecls_]{.opt}                      |    |
-|               | &bar; | _effectmod_ `effect` [_typeparams_]{.opt} [_kannot_]{.opt} _opdecl_                                        |    |
-|               | &bar; | `named` _effectmod_ `effect` _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_opdecls_]{.opt}              |    |
-|               | &bar; | `named` _effectmod_ `effect` [_typeparams_]{.opt} [_kannot_]{.opt} _opdecl_                                |    |
-|               | &bar; | `named` _effectmod_ `effect` _varid_ [_typeparams_]{.opt} [_kannot_]{.opt} `in` _type_ [_opdecls_]{.opt}   |    |
 | &nbsp;        |       |                                                                                                            |    |
 | _typemod_     | ::=   | `co` []{.bar} `rec` []{.bar} `open` []{.bar} `extend` []{.bar} _structmod_                                 |    |
 | _structmod_   | ::=   | `value` []{.bar} `reference`                                                                               |    |
-| _effectmod_   | ::=   | [`linear`]{.opt} [`rec`]{.opt}                                                                             |    |
 | &nbsp;        |       |                                                                                                            |    |
-| _typeid_      | ::=   | _varid_                                                                                                    |    |
-|               | &bar; | ``[]``                                                                                                     |    |
-|               | &bar; | `(` [`,`]{.many} `)`                                                                                       |    |
-|               | &bar; | `<` `>`                                                                                                    |    |
-|               | &bar; | `<` [&bar;]{.koka; .code} `>`                                                                              |    |
+| _typeid_      | ::=   | _varid_ &bar; ``[]`` &bar; `(` [`,`]{.many} `)` &bar; `<` `>` &bar; `<` [&bar;]{.koka; .code} `>`          |    |
 | &nbsp;        |       |                                                                                                            |    |
 | _typeparams_  | ::=   | `<` [_tbinders_]{.opt} `>`                                                                                 |    |
 | _tbinders_    | ::=   | _tbinder_ [`,` _tbinder_]{.many}                                                                           |    |
 | _tbinder_     | ::=   | _varid_ [_kannot_]{.opt}                                                                                   |    |
 | _typebody_    | ::=   | `{` _semis_ [_constructor_ _semi_]{.many} `}`                                                              |    |
 | &nbsp;        |       |                                                                                                            |    |
-| _constructor_ | ::=   | [`con`]{.opt} _conid_ [_typeparams_]{.opt} [_conparams_]{.opt}                                             |    |
-| _conparams_   | ::=   | `{` _semis_ [_conparam_ _semi_]{.many} `}`                                                                 |    |
-| _conparam_    | ::=   | (_paramid_ []{.bar} _wildcard_) ``:`` _paramtype_ [`=` _expr_]{.opt}                                       |    |
-| &nbsp;        |       |                                                                                                            |    |
-| _opdecls_     | ::=   | `{` _semis_ [_opdecl_ _semi_]{.many} `}`                                                                   |    |
-| _opdecl_      | ::=   | [_visibility_]{.opt} `val` _identifier_ [_typeparams_]{.opt}  ``:`` _tatom_                                |    |
-|               | &bar; | [_visibility_]{.opt} (`fun` []{.bar} `control`) _identifier_ [_typeparams_]{.opt} _opparams_ ``:`` _tatom_ |    |
-| _opparams_    | ::=   | `(` [_opparam_ [`,` _opparam_]{.many}]{.opt} `)`                                                           |    |
-| _opparam_     | ::=   | [_paramid_]{.opt} ``:`` _paramtype_                                                                        |    |
+| _constructor_ | ::=   | [ _pub_]{.opt} [`con`]{.opt} _conid_ [_typeparams_]{.opt} [_conparams_]{.opt}                              |    |
+| _conparams_   | ::=   | `{` _semis_ [_parameter_ _semi_]{.many} `}`                                                                |    |
 {.grammar .parse}
 
-### Value and function declarations
+### Value and Function Declarations
 
 | ~~~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~~~~~~~~|
-| _puredecl_     | ::=   | _inlinemod_ `val` _valdecl_                                                   |                      |
-|                | &bar; | _inlinemod_ `fun` _fundecl_                                                   |                      |
+| _puredecl_     | ::=   | [_inlinemod_]{.opt} `val` _valdecl_                                                   |                      |
+|                | &bar; | [_inlinemod_]{.opt} `fun` _fundecl_                                                   |                      |
 | _inlinemod_    | ::=   | `inline` []{.bar} `noinline`                                                  |                      |
 | &nbsp;         |       |                                                                               |                      |
-| _valdecl_      | ::=   | _binder_ `=` _expr_                                                           |                      |
+| _valdecl_      | ::=   | _binder_ `=` _blockexpr_                                                           |                      |
 | _binder_       | ::=   | _identifier_ [``:`` _type_]{.opt}                                             |                      |
 | &nbsp;         |       |                                                                               |                      |
-| _fundecl_      | ::=   | _funid_ _funparam_ _bodyexpr_                                                 |                      |
-| _funparam_     | ::=   | [_typeparams_]{.opt} _parameters_ [``:`` _tresult_]{.opt} [_qualifier_]{.opt} |                      |
+| _fundecl_      | ::=   | _funid_ _funbody_                                                |                      |
+| _funbody_      | ::=   | _funparam_ _blockexpr_                                                |                      |
+| _funparam_     | ::=   | [_typeparams_]{.opt} _pparameters_ [``:`` _tresult_]{.opt} [_qualifier_]{.opt} |                      |
 | _funid_        | ::=   | _identifier_                                                                  |                      |
 |                | &bar; | ``[`` [`,`]{.many} ``]``                                                      | (indexing operator)  |
 | &nbsp;         |       |                                                                               |                      |
 | _parameters_   | ::=   | `(` [_parameter_ [`,` _parameter_]{.many}]{.opt} `)`                          |                      |
-| _parameter_    | ::=   | _paramid_ [``:`` _paramtype_]{.opt} [`=` _expr_]{.opt}                        |                      |
+| _parameter_    | ::=   | [_borrow_]{.opt} _paramid_ [``:`` _type_]{.opt} [`=` _expr_]{.opt}            |                      |
+| &nbsp;         |       |                                                                               |                      |
+| _pparameters_   | ::=   | `(` [_pparameter_ [`,` _pparameter_]{.many}]{.opt} `)`                       | (pattern matching parameters)                     |
+| _pparameter_    | ::=   | [_borrow_]{.opt} _pattern_ [``:`` _type_]{.opt} [`=` _expr_]{.opt}           |                      |
+| &nbsp;         |       |                                                                               |                      |
 | _paramid_      | ::=   | _identifier_ []{.bar} _wildcard_                                              |                      |
-| _paramtype_    | ::=   | _type_                                                                        |                      |
-|                | &bar; | `?` _type_                                                                    | (optional parameter) |
+| _borrow_       | ::=   | ``^``                                                                         | (not allowed from _conparams_)                    |
 | &nbsp;         |       |                                                                               |                      |
 | _qidentifier_  | ::=   | _qvarid_ []{.bar} _qidop_ []{.bar} _identifier_                               |                      |
 | _identifier_   | ::=   | _varid_ []{.bar} _idop_                                                       |                      |
 | &nbsp;         |       |                                                                               |                      |
 | _qoperator_    | ::=   | _op_                                                                          |                      |
-| &nbsp;         |       |                                                                               |                      |
 | _qconstructor_ | ::=   | _conid_ []{.bar} _qconid_                                                     |                      |
 {.grammar .parse}
 
@@ -568,26 +563,25 @@ ignored.
 | &nbsp;      |       |                                                 |                                          |
 | _statement_ | ::=   | _decl_                                          |                                          |
 |             | &bar; | _withstat_                                      |                                          |
+|             | &bar; | _withstat_ `in` _expr_                          |                                          |
 |             | &bar; | _returnexpr_                                    |                                          |
 |             | &bar; | _basicexpr_                                     |                                          |
 | &nbsp;      |       |                                                 |                                          |
 | _decl_      | ::=   | `fun` _fundecl_                                 |                                          |
-|             | &bar; | `val` _apattern_ `=` _valexpr_                  | (local values can use a pattern binding) |
-|             | &bar; | `var` _binder_ ``:=`` _valexpr_                 |                                          |
+|             | &bar; | `val` _apattern_ `=` _blockexpr_                | (local values can use a pattern binding) |
+|             | &bar; | `var` _binder_ ``:=`` _blockexpr_               |                                          |
 {.grammar .parse}
 
 ### Expressions
 
 
 | ~~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
-| _bodyexpr_    | ::=   | `->` _blockexpr_                                                            |                                        |
-|               | &bar; | _block_                                                                     |                                        |
-| &nbsp;        |       |                                                                             |                                        |
 | _blockexpr_   | ::=   | _expr_                                                                      | (_block_ is interpreted as statements) |
 | &nbsp;        |       |                                                                             |                                        |
 | _expr_        | ::=   | _withexpr_                                                                  |                                        |
-|               |       | _block_                                                                     | (interpreted as `fn(){...}`)           |
+|               |       | _block_                                                                     | (interpreted as ``fn(){...}``)           |
 |               |       | _returnexpr_                                                                |                                        |
+|               |       | _valexpr_                                                                   |                                        |
 |               |       | _basicexpr_                                                                 |                                        |
 | &nbsp;        |       |                                                                             |                                        |
 | _basicexpr_   | ::=   | _ifexpr_                                                                    |                                        |
@@ -596,25 +590,20 @@ ignored.
 |               | &bar; | _handlerexpr_                                                               |                                        |
 |               | &bar; | _opexpr_                                                                    |                                        |
 | &nbsp;        |       |                                                                             |                                        |
-| _ifexpr_      | ::=   | `if` _atom_ _then_ [_elif_]{.many} [`else` _expr_~&lt;!_ifexpr_&gt;~]{.opt} |                                        |
-| _then_        | ::=   | [`then`]{.opt} _expr_~&lt;!_ifexpr_&gt;~                                    |                                        |
-| _elif_        | ::=   | `elif` _atom_ _then_                                                        |                                        |
+| _ifexpr_      | ::=   | `if` _ntlexpr_ `then` _blockexpr_ [_elif_]{.many} [`else` _blockexpr_]{.opt} |                                        |
+|               | &bar; | `if` _ntlexpr_ `return` _expr_                                              |                                        |
+| _elif_        | ::=   | `elif` _ntlexpr_ `then` _blockexpr_                                         |                                        |
 | &nbsp;        |       |                                                                             |                                        |
-| _matchexpr_   | ::=   | `match` _atom_ `{` _semis_ [_matchrule_ _semi_]{.many} `}`                  |                                        |
-| _returnexpr_  | ::=   | `return` _opexpr_                                                           |                                        |
-| _fnexpr_      | ::=   | `fn` _funparam_ _block_                                                     |                                        |
-| &nbsp;        |       |                                                                             |                                        |
-| _handlerexpr_ | ::=   | `handler` [`override`]{.opt} _heff_  _opclauses_                            |                                        |
-|               | &bar; | `handle` [`override`]{.opt} _heff_ `(` _expr_ `)` _opclauses_               |                                        |
-|               | &bar; | `named` `handler` _heff_  _opclauses_                                       |                                        |
-|               | &bar; | `named` `handle` _heff_ `(` _expr_ `)` _opclauses_                          |                                        |
-| _heff_        | ::=   | [`<` _tbasic_ `>`]{.opt}                                                    |                                        |
+| _matchexpr_   | ::=   | `match` _ntlexpr_ `{` _semis_ [_matchrule_ _semi_]{.many} `}`               |                                        |
+| _returnexpr_  | ::=   | `return` _expr_                                                             |                                        |
+| _fnexpr_      | ::=   | `fn` _funbody_                                                              | (anonymous lambda expression)                                       |
+| _valexpr_     | ::=   | `val` _apattern_ `=` _blockexpr_ `in` _expr_                                |                                        |
 | &nbsp;        |       |                                                                             |                                        |
 | _withexpr_    | ::=   | _withstat_ `in` _expr_                                                      |                                        |
 | _withstat_    | ::=   | `with` _basicexpr_                                                          |                                        |
-|               |       | `with` _binder_ `=` _basicexpr_                                             |                                        |
 |               |       | `with` [`override`]{.opt} _heff_  _opclauses_                               | (with a handler)                       |
-|               |       | `with` _binder_ `=` _heff_  _opclauses_                                     | (with a named andler)                  |
+|               |       | `with` _binder_ `<-` _basicexpr_                                            |                                        |
+|               |       | `with` _binder_ `<-` _heff_  _opclauses_                                    | (with a named andler)                  |
 {.grammar .parse}
 
 ### Operator expressions
@@ -625,13 +614,19 @@ the fixity declarations that are in scope to properly associate all operators
 in an expressions.
 
 | ~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
-| _opexpr_     | ::=   | _prefix_ [_qoperator_ _prefixexpr_]{.many}   |                              |
+| _opexpr_     | ::=   | _prefixexpr_ [_qoperator_ _prefixexpr_]{.many}   |                              |
 | _prefixexpr_ | ::=   | [``!`` []{.bar} ``~``]{.many} _appexpr_      |                              |
-| &nbsp;       |       |                                              |                              |
 | _appexpr_    | ::=   | _appexpr_ `(` [_arguments_]{.opt} `)`        | (regular application)        |
 |              | &bar; | _appexpr_ `[` [_arguments_]{.opt} `]`        | (index operation)            |
-|              | &bar; | _appexpr_ [_fnexpr_ []{.bar} _block_) | (apply function expressions) |
+|              | &bar; | _appexpr_ (_fnexpr_ []{.bar} _block_)        | (trailing lambda expression) |
 |              | &bar; | _appexpr_ `.` _atom_                         |                              |
+|              | &bar; | _atom_                                       |                              |
+| &nbsp;       |       |                                              |                              |
+| _ntlexpr_       | ::=   | _ntlprefixexpr_ [_qoperator_ _ntlprefixexpr_]{.many} |  (non trailing lambda expression) |
+| _ntlprefixexpr_ | ::=   | [``!`` []{.bar} ``~``]{.many} _ntlappexpr_           |                                   |
+| _ntlappexpr_ | ::=   | _ntlappexpr_ `(` [_arguments_]{.opt} `)`     | (regular application)        |
+|              | &bar; | _ntlappexpr_ `[` [_arguments_]{.opt} `]`     | (index operation)            |
+|              | &bar; | _ntlappexpr_ `.` _atom_                      |                              |
 |              | &bar; | _atom_                                       |                              |
 | &nbsp;       |       |                                              |                              |
 | _arguments_  | ::=   | _argument_ [`,` _argument_]{.many}           |                              |
@@ -661,17 +656,16 @@ in an expressions.
 ### Matching
 
 | ~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
-| _matchrule_ | ::=   | _patterns_ ``\(&bar;\)`` _expr_ `->` _blockexpr_ |                                              |
-|             | &bar; | _patterns_ _bodyexpr_                                    |                                              |
+| _matchrule_ | ::=   | _patterns_ [``\(&bar;\)`` _expr_]{.opt} `->` _blockexpr_ |                                              |
 | &nbsp;      |       |                                                          |                                              |
 | _apattern_  | ::=   | _pattern_ [`:` _typescheme_]{.opt}                       |                                              |
 | _pattern_   | ::=   | _identifier_                                             |                                              |
-|             | &bar; | _wildcard_                                               |                                              |
+|             | &bar; | _identifier_ `as` _apattern_                              | (named pattern)                              |
 |             | &bar; | _qconstructor_ [`(` [_patargs_]{.opt} `)`]          |                                              |
 |             | &bar; | `(` [_apatterns_]{.opt} `)`                              | (unit, parenthesized pattern, tuple pattern) |
 |             | &bar; | `[` [_apatterns_]{.opt} `]`                              | (list pattern)                               |
-|             | &bar; | _apattern_ `as` _identifier_                             | (named pattern)                              |
 |             | &bar; | _literal_                                                |                                              |
+|             | &bar; | _wildcard_                                               |                                              |
 | &nbsp;      |       |                                                          |                                              |
 | _patterns_  | ::=   | _pattern_ [`,` _pattern_]{.many}                         |                                              |
 | _apatterns_ | ::=   | _apattern_ [`,` _apattern_]{.many}                       |                                              |
@@ -679,17 +673,42 @@ in an expressions.
 | _patarg_    | ::=   | [_identifier_ `=`]{.opt} _apattern_                      | (possibly named parameter)                   |
 {.grammar .parse}
 
-### Operation Clauses
 
-| ~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~|
-| _opclauses_ | ::=   | `{` _semis_ [_opclause_ _semi_]{.many} `}`                       |    |
+### Effect Declarations
+
+| ~~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~|
+| _effectdecl_  | ::=   | [_named_]{.opt} _effectmod_ `effect` _varid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_opdecls_]{.opt}       |    |
+|               | &bar; | [_named_]{.opt} _effectmod_ `effect` [_typeparams_]{.opt} [_kannot_]{.opt} _opdecl_                        |    |
+|               | &bar; | _named_ _effectmod_ `effect` _varid_ [_typeparams_]{.opt} [_kannot_]{.opt} `in` _type_ [_opdecls_]{.opt}   |    |
+| _effectmod_   | ::=   | [`linear`]{.opt} [`rec`]{.opt}                                                                             |    |
+| _named_       | ::=   | `named`                                                                                                    |    |
+| &nbsp;        |       |                                                                                                            |    |
+| _opdecls_     | ::=   | `{` _semis_ [_opdecl_ _semi_]{.many} `}`                                                                   |    |
+| _opdecl_      | ::=   | [ _pub_]{.opt} `val` _identifier_ [_typeparams_]{.opt}  ``:`` _tatom_                                      |    |
+|               | &bar; | [ _pub_]{.opt} (`fun` []{.bar} `ctl`) _identifier_ [_typeparams_]{.opt} _parameters_ ``:`` _tatom_         |    |
+{.grammar .parse}
+
+### Handler Expressions
+
+| ~~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~|
+| _handlerexpr_ | ::=   | `handler` [`override`]{.opt} _heff_  _opclauses_                 |    |
+|               | &bar; | `handle` [`override`]{.opt} _heff_ `(` _expr_ `)` _opclauses_    |    |
+|               | &bar; | `named` `handler` _heff_  _opclauses_                            |    |
+|               | &bar; | `named` `handle` _heff_ `(` _expr_ `)` _opclauses_               |    |
+| _heff_        | ::=   | [`<` _tbasic_ `>`]{.opt}                                         |    |
+| &nbsp;        |       |                                                                  |    |
+| _opclauses_ | ::=   | `{` _semis_ [_opclausex_ _semi_]{.many} `}`                      |    |
 |             | &bar; | _opclause_ _semi_                                                |    |
 |             |       |                                                                  |    |
-| _opclause_  | ::=   | `val` _qidentifier_ [`:` _type_]{.opt} `=` _expr_                |    |
-|             | &bar; | `fun` _qidentifier_ _opargs_ _bodyexpr_                          |    |
-|             | &bar; | `control` _qidentifier_ _opargs_ _bodyexpr_                      |    |
-|             | &bar; | `rcontrol` _qidentifier_ _opargs_ _bodyexpr_                     |    |
-|             | &bar; | `return`  (`(` _oparg_ `)` []{.bar} _paramid_) _bodyexpr_ _semi_ |    |
+| _opclausex_ | &bar; | _opclause_                                                       |    |
+|             | &bar; | `finally` _blockexpr_                                            |    |
+|             | &bar; | `initially` `(` _oparg_ `)` _blockexpr_                          |    |
+| &nbsp;      |       |                                                                  |    |
+| _opclause_  | ::=   | `val` _qidentifier_ [`:` _type_]{.opt} `=` _blockexpr_           |    |
+|             | &bar; | `fun` _qidentifier_ _opargs_ _blockexpr_                         |    |
+|             | &bar; | [_ctlmod_]{.opt}`ctl` _qidentifier_ _opargs_ _blockexpr_         |    |
+|             | &bar; | `return` `(` _oparg_ `)` _blockexpr_                             |    |
+| _ctlmod_    | ::=   | `final` &bar; `raw`                                              |    |
 | &nbsp;      |       |                                                                  |    |
 | _opargs_    | ::=   | `(` [_oparg_ [`,` _oparg_]{.many}]{.opt} `)`                     |    |
 | _oparg_     | ::=   | _paramid_ [``:`` _type_]{.opt}                                   |    |
@@ -767,4 +786,4 @@ be in agreement with that implementation.
 
 [BisonGrammar]: https://github.com/koka-lang/koka/blob/master/doc/spec/grammar/parser.y
 [FlexLexer]:    https://github.com/koka-lang/koka/blob/master/doc/spec/grammar/lexer.lex
-[HaskellLex]:   https://github.com/koka-lang/koka/blob/master/src/Syntax/Layout.hs#L184
+[HaskellLayout]:   https://github.com/koka-lang/koka/blob/dev/src/Syntax/Layout.hs#L178

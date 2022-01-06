@@ -212,6 +212,8 @@ hasCTailCallArg defName (rarg:rargs)
       App f@(Con{}) fargs              
         | tnamesMember defName (fv fargs) && hasCTailCallArg defName (reverse fargs) -- && all isTotal rargs
         -> True
+      -- todo: emit warning that TRMC does not apply?
+      -- _ | not (isTotal rarg) -> trace ("non-total argument: " ++ show rarg) $ False  
       _ -> (isTotal rarg && hasCTailCallArg defName rargs)
 
 

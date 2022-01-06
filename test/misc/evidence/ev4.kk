@@ -1,4 +1,4 @@
-public module ev4
+pub module ev4
 
 import std/num/int32
 
@@ -13,7 +13,7 @@ extern include {
 
 struct marker<e::E,a>(m:int32)
 
-public type htag<h::(E,V)->V> {
+pub type htag<h::(E,V)->V> {
   Unsafe-htag(tag:string)
 }
 
@@ -44,19 +44,19 @@ fun (==)(m1 : marker<e1,a1>, m2: marker<e2,a2>) : bool {
 // Internal Evidence vectors
 // -------------------------------------------
 
-public extern inline evv-total() : evv<<>> {
+pub extern inline evv-total() : evv<<>> {
   js inline "[]"
 }
 
-public extern evv-lookup( htag : htag<h> ) : ev<h> {
+pub extern evv-lookup( htag : htag<h> ) : ev<h> {
   js inline "_evv_lookup($evv,#1)"
 }
 
-public extern inline evv-at( i : int ) : ev<h> {
+pub extern inline evv-at( i : int ) : ev<h> {
   js inline "($evv)[#1]"
 }
 
-public extern inline evv-select( i : int, htag : htag<h> ) : ev<h> {
+pub extern inline evv-select( i : int, htag : htag<h> ) : ev<h> {
   js inline "(#1 >= 0 ? $evv[#1] : _evv_lookup($evv,#2))"
 }
 
@@ -164,7 +164,7 @@ fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, res : r ) : e0 r
   }
 }
 
-public fun ihandle( tag:htag<h>, h : h<e,r>, action : () -> e1 r ) : e r {
+pub fun ihandle( tag:htag<h>, h : h<e,r>, action : () -> e1 r ) : e r {
   val m  = fresh-marker()
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
@@ -255,7 +255,7 @@ fun op-constant(v : b) : op<(),b,e,r> {
   Tail( fn(_w,_x){ v } )
 }
 
-public fun iperform( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> op<a,b,e1,r>), x : a ) : e b {
+pub fun iperform( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> op<a,b,e1,r>), x : a ) : e b {
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Tail(clause)    -> unsafe-coerce(clause)(w,x)
@@ -290,7 +290,7 @@ fun op-tail-noyield2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
   Tail2( fn(w,x,y){ op(x,y) } )
 }
 
-public fun iperform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> op2<a,b,c,e1,r>), x : a, y : b ) : e c {
+pub fun iperform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> op2<a,b,c,e1,r>), x : a, y : b ) : e c {
   match(evx) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Tail2(clause)    -> unsafe-coerce(clause)(w,x,y)
@@ -348,7 +348,7 @@ val h = Amb-hnd( op-control( fn(x,k){
             xs + ys
          }))
 
-public fun amb(action) {
+pub fun amb(action) {
   amb-handle(h,action)
 }
 
@@ -408,7 +408,7 @@ fun state(init : s, action : () -> <state<s>|e> a) : e a {
   state-handle(State-hnd( op-tail-noyield( fn(x){ s } ), op-tail-noyield( fn(x){ s := x }) ), { mask<local>(action) } )
 }
 
-public fun add21() : state<int> int {
+pub fun add21() : state<int> int {
   with i  = yield-bind(state-get(0))
   with _x = yield-bind(state-set(evv-at(0),i+21))
   state-get(0)

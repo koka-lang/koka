@@ -16,7 +16,7 @@
 module heap-shallow
 
 effect heap<s::S> {
-  control new-ref(init:a) : ref<s,a>
+  ctl new-ref(init:a) : ref<s,a>
 }
 
 named effect ref<s::S,a::V> in heap<s> {  // named under umbrella effect `:heap`
@@ -56,7 +56,7 @@ fun dynamic-ref(init) {
   x
 }
 
-public fun main() {
+pub fun main() {
   with heap
   val r1 = new-ref(41)
   val r2 = dynamic-ref(True)

@@ -216,7 +216,7 @@ fun test-twice() {
 where `"hi"` is printed four times. Using the `with` statement 
 we can write this more concisely as:
 ```
-public fun test-with1() {
+pub fun test-with1() {
   with twice
   with twice
   println("hi")
@@ -253,7 +253,7 @@ f(e1,...,eN, fn(x){ <body> })
 Here is an example using `foreach` to span over the rest of the function body:
 
 ```
-public fun test-with2() {
+pub fun test-with2() {
   with x <- list(1,10).foreach
   println(x)
 }
@@ -306,7 +306,7 @@ effect fun emit(msg : string) : ()
 fun hello()
   emit("hello world!")
 
-public fun emit-console1()
+pub fun emit-console1()
   with handler{ fun emit(msg){ println(msg) } }
   hello()
 ```
@@ -334,7 +334,7 @@ with handler{ ctl op(x){ <body> } }
 Using this, we can write the previous example in a more concise and natural way as:
 
 ```unchecked
-public fun emit-console2() {
+pub fun emit-console2() {
   with fun emit(msg){ println(msg) }
   hello()
 }
@@ -343,7 +343,7 @@ public fun emit-console2() {
 or using brace elision as:
 
 ```
-public fun emit-console2()
+pub fun emit-console2()
   with fun emit(msg)
     println(msg)
   hello()

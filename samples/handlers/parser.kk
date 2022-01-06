@@ -19,14 +19,14 @@ fun select(xs)
 // Return all solutions
 val solutions = handler 
   return(x)  [x]          // wraps final result in singleton list
-  brk fail() []           // never resumes ("break"s), but returns directly with an empty list
+  ctl fail() []           // never resumes, but returns directly with an empty list
   ctl flip() resume(True) ++ resume(False)
 
 
 // Return the first solution
 val eager = handler 
   return(x)  [x]
-  brk fail() []
+  ctl fail() []
   ctl flip() match resume(True)
                Nil -> resume(False)
                xs  -> xs
@@ -61,8 +61,8 @@ alias mparse = <parse,many>
 // (which is saved/restored among multiple parser strands when using multiple resumptions)
 fun parse( inp : string, action : () -> <parse,many|e> a ) : <many|e> (a,string) 
   var input := inp
-  handle(action)
-    return(x) -> (x,input)
+  handle action
+    return(x) (x,input)
     fun satisfy(pred) 
       match pred(input)
         Nothing          -> fail()
@@ -143,7 +143,7 @@ fun test2()
   eparse( expr, "1+2*3").show-parse-int.println
 
 
-fun main() 
+pub fun main() 
   test1()
   test2()
 

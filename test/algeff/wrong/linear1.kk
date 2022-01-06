@@ -19,6 +19,6 @@ fun foo() {
   get()
 }
 
-public fun main() {
+pub fun main() {
   state(0,foo).print  // 42
 }

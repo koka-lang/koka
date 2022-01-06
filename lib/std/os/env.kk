@@ -6,7 +6,6 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-
 /*
 Access to the program environment and commmand line arguments.
 
@@ -16,49 +15,41 @@ module std/os/env
 
 import std/os/path
 
-public alias env = list<(string,string)>
+pub alias env = list<(string,string)>
 
 val environ : delayed<<ndet>,env> = delay{ os-get-env().list.to-tuples }
 
-fun to-tuples( xs : list<string> ) : env {
-  match(xs) {
+fun to-tuples( xs : list<string> ) : env
+  match(xs)
     Cons(name,Cons(value,xx)) -> Cons((name,value), xx.to-tuples)
     Cons(name,Nil)            -> [(name,"")]
     Nil                       -> []
-  }
-}
 
-extern os-get-env() : ndet vector<string>  {   // vector as [name1,value1,...,nameN,valueN]
+extern os-get-env() : ndet vector<string>    // vector as [name1,value1,...,nameN,valueN]
   c "kk_os_get_env"
   js inline "(typeof process !== 'undefined' ? (function(){ var env = []; Object.keys(process.env).forEach(function(name){ env.push(name); env.push(process.env[name]); }); return env; })() : [])"
-}
 
 // Get the environment variables for this program
-public fun get-env() : ndet env  {
+pub fun get-env() : ndet env
   environ.force
-}
-
 
 // Returns the value of an environment variable `name` (or `Nothing` if not present)
-public fun get-env( name : string ) : ndet maybe<string>
-{
+pub fun get-env( name : string ) : ndet maybe<string>
   get-env().lookup(fn(nm){ nm == name })
-}
 
-val argv : delayed<<ndet>,list<string>> = delay{ os-get-argv().list }
+val argv : delayed<<ndet>,list<string>> = 
+  delay{ os-get-argv().list }
 
-extern os-get-argv() : ndet vector<string>  {
+extern os-get-argv() : ndet vector<string>
   c  "kk_os_get_argv"
   cs "System.Environment.GetCommandLineArgs"
   js inline "(typeof process !== 'undefined' ? process.argv : [])"
-}
 
 
 // The unprocessed command line that was used to start this program.
 // On ''Node'' the first arguments will often be of the form `["node","interactive.js",...]`.
-public fun get-argv() : ndet list<string> {
+pub fun get-argv() : ndet list<string>
   argv.force
-}
 
 // Return the arguments that were passed to program itself.
 // Strips off the initial program from the unprocessed command line.
@@ -67,54 +58,45 @@ public fun get-argv() : ndet list<string> {
 // > node myprogram.js --flag bla
 // ````
 // The `arguments` list will be `["--flag","bla"]`
-public fun get-args() : ndet list<string> {
+pub fun get-args() : ndet list<string>
   val is-node = (host() == "node")
-  match(get-argv()) {
+  match get-argv()
     Cons(x,xx) | is-node && x.path.stemname == "node" -> xx.drop(1)
     xs -> xs.drop(1)
-  }
-}
 
 // Return the main OS name: windows, linux, macos, unix, posix, ios, tvos, watchos, unknown.
 // Sometimes has a _dash_ subsystem, like: unix-\<freebsd,openbsd,dragonfly,bsd\>, and windows-mingw.
-public extern get-os-name() : ndet string {
+pub extern get-os-name() : ndet string
   c  "kk_os_name"
   js inline "$std_core.host()"
-}
 
 // Return the main processor architecture: x64, x86, arm64, arm, riscv32, riscv64, alpha, ppc64, etc.
-public extern get-cpu-arch() : ndet string {
+pub extern get-cpu-arch() : ndet string
   c "kk_cpu_arch"
   js inline "$std_core.host()"
-}
 
 // Return the available CPU's.
 // This is the logical core count including hyper-threaded cores.
-public extern get-cpu-count() : ndet int {
+pub extern get-cpu-count() : ndet int
   c inline "kk_integer_from_int(kk_cpu_count(kk_context()),kk_context())"
   js inline "1"
-}
 
 // The current compiler version.
-public extern get-compiler-version() : ndet string {
+pub extern get-compiler-version() : ndet string
   c "kk_compiler_version"
   js inline "\"2\""
-}
 
 // The backend compiler name.
-public extern get-cc-name() : ndet string {
+pub extern get-cc-name() : ndet string
   c "kk_cc_name"
   js inline "\"js\""
   cs inline "\"csc\""
-}
 
 // Is the byte-order little-endian?
 // If not, it is big-endian; other byte orders are not supported.
-public extern get-cpu-is-little-endian() : ndet bool {
+pub extern get-cpu-is-little-endian() : ndet bool
   c "kk_cpu_is_little_endian"
   js inline "true"
-}
-
 
 // Return the processor architecture natural machine word size in bits.
 //
@@ -123,21 +105,18 @@ public extern get-cpu-is-little-endian() : ndet bool {
 // For example, on the old x86 FAR-NEAR model, the addresses are 32-bit but the maximum object size is 16-bit.
 // Or on the more recent-[x32 ABI](https://en.wikipedia.org/wiki/X32_ABI) 
 // the addresses and objects are 32-bits but the architecture has 64-bit registers.
-public extern get-cpu-arch-bits() : ndet int {
+pub extern get-cpu-arch-bits() : ndet int
   c inline "kk_integer_from_size_t(CHAR_BIT*(sizeof(size_t) > sizeof(long) ? sizeof(size_t) : sizeof(long)),kk_context())"
   js inline "32"
-}
 
 // Return the processor maximum object size in bits (`8*sizeof(size_t)`). This is usually
 // equal to the `get-cpu-arch-bits` but may be different on segmented architectures. 
-public extern get-cpu-object-bits() : ndet int {
+pub extern get-cpu-object-bits() : ndet int
   c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(size_t),kk_context())"
   js inline "32"
-}
 
 // Return the processor maximum address size in bits (`8*sizeof(void*)`). This is usually
 // equal to the `get-cpu-arch-bits` but may be different on segmented architectures. 
-public extern get-cpu-address-bits() : ndet int {
+pub extern get-cpu-address-bits() : ndet int
   c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(void*),kk_context())"
   js inline "32"
-}

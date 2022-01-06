@@ -91,7 +91,7 @@ extractTypeDefGroup (Core.TypeDefGroup tdefs)
 extractTypeDef :: Core.TypeDef -> [DataInfo]
 extractTypeDef tdef
   = case tdef of
-      Core.Data dataInfo False
+      Core.Data dataInfo False {-is extend?-}
         -> [dataInfo]
       _ -> []
 

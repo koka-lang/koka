@@ -6,10 +6,10 @@ fun map-poly(xs : list<a>, f : a -> e b) : e list<b> {
   }
 }
 
-public fun test(xs : list<a>, y : int, g : a -> int) {
+pub fun test(xs : list<a>, y : int, g : a -> int) {
   xs.map-poly(fn(x){ g(x) + y })   // free variable  
 }
 
-public fun main() {
+pub fun main() {
   list(1,10).test(5, fn(x){ x*2 }).sum.println
 }

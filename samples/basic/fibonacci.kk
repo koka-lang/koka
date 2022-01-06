@@ -1,6 +1,6 @@
 module fibonacci
 
-public fun main() 
+pub fun main() 
   val n = 10000
   println("The " ++ n.show ++ "th fibonacci number is " ++ fibonacci(10000).show)
 

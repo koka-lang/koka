@@ -9,9 +9,9 @@
 // Testing leap seconds
 module time2
 
-public import std/num/ddouble
-public import std/time/timestamp
-public import std/time
+pub import std/num/ddouble
+pub import std/time/timestamp
+pub import std/time
 
 /*----------------------------------------------------------------------------
   Testing
@@ -77,7 +77,7 @@ fun test-leap() {
   check("unix6", "94694400") { instant(1973,1,1).unix-timestamp.show }
 }
 
-public fun main() {
+pub fun main() {
   //val ts-utc = ts-utc-load()
   //with fun utc() { ts-utc }
   //update-leaps-table(verbose=True)

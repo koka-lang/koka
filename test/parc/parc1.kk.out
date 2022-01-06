@@ -1,7 +1,7 @@
 module parc/parc1
-private import std/core/types = std/core/types = "";
-private import std/core = std/core = "";
-public fun test : forall<a> (x : a) -> a
+import std/core/types = std/core/types = "";
+import std/core = std/core = "";
+pub fun test : forall<a> (x : a) -> a
  = fn(x: 10){
  x;
  };

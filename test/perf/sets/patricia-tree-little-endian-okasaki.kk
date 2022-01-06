@@ -88,7 +88,7 @@ fun from-list(xs : list<int>) {
   go(xs, Empty)
 }
 
-public fun count-patricia-tree-little-endian-okasaki(start : int, end : int, xs : list<int>) {
+pub fun count-patricia-tree-little-endian-okasaki(start : int, end : int, xs : list<int>) {
   val t = from-list(xs)
   fun go(i, acc) {
     if(i <= end) {

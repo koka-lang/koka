@@ -1,8 +1,9 @@
 module parc/parc9
-private import std/core/types = std/core/types = "";
-private import std/core = std/core = "";
-public fun test : (x : list<int>) -> list<int>
+import std/core/types = std/core/types = "";
+import std/core = std/core = "";
+pub fun test : (x : list<int>) -> list<int>
  = fn(x: list<int>){
- std/core/types/.drop(x);
+ val _ : ()
+ = std/core/types/.drop(x);
  std/core/Nil;
  };

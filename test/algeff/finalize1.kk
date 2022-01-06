@@ -1,11 +1,11 @@
 // test finalizers
 
 effect exc {
-  control fail( msg : string ) : a
+  ctl fail( msg : string ) : a
 }
 
 val exc1 = handler {
-  control fail(msg) -> finalize(msg)
+  ctl fail(msg) -> finalize(msg)
 }
 
 val exc2 = handler {

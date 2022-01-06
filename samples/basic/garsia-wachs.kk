@@ -4,7 +4,7 @@
    This shows how effect types can safely encapsulate the mutating algorithm.
 */
 
-fun main()
+pub fun main()
   test().println
 
 
@@ -25,7 +25,7 @@ fun show( t : tree<string> ) : string
 //----------------------------------------------------
 // Non empty lists
 //----------------------------------------------------
-public type list1<a>
+pub type list1<a>
   Cons1( head : a, tail : list<a> )
 
 
@@ -47,10 +47,10 @@ fun insert( after : list<(tree<a>,int)>, t : (tree<a>,int), before : list<(tree<
   match before
     Nil -> extract( [], Cons1(t,after) )
     Cons(x,xs) ->
-      if x.snd < t.snd return insert( Cons(x,after), t, xs )
-      match xs
-        Nil        -> extract( [], Cons1(x,Cons(t,after)) )
-        Cons(y,ys) -> extract( ys, Cons1(y,Cons(x,Cons(t,after))) )
+      if x.snd < t.snd then insert( Cons(x,after), t, xs ) else
+        match xs
+          Nil        -> extract( [], Cons1(x,Cons(t,after)) )
+          Cons(y,ys) -> extract( ys, Cons1(y,Cons(x,Cons(t,after))) )
 
 
 fun extract( before : list<(tree<a>,int)>, after : list1<(tree<a>,int)> ) : div tree<a>
@@ -92,7 +92,7 @@ fun test()
 
 
 fun garciawachs( xs : list1<(a,int)> ) : div tree<a>
-  val refs   = xs.map( fn((x,_)){ (x, ref(0)) } )
+  val refs   = xs.map( fn((x,_)) (x,ref(0)) )
   val wleafs = zip( refs.map(Leaf), xs.map(snd) )
   val tree   = balance(wleafs)
   mark(0,tree)

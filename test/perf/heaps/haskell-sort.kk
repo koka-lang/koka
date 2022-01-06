@@ -55,6 +55,6 @@ fun merge(as' : list<elem>, bs : list<elem>) : <div> list<elem> {
     }
 }
 
-public fun merge-sort(xs : list<int>) : <div> list<int> {
+pub fun merge-sort(xs : list<int>) : <div> list<int> {
     merge-all(sequences(xs))
 }

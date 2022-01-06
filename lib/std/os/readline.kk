@@ -19,13 +19,13 @@ extern import
 // Read a line of input synchronously from stdin (using UTF8 encoding).
 // Read chararacters until either a newline is encountered (not included in the result),
 // or 1023 characters have been read.
-public fun readline() : <console,exn> string
+pub fun readline() : <console,exn> string
   match readline-err() 
     Error(exn)  -> Error(exn.prepend("unable to read from stdin")).untry
     Ok(line)    -> line
 
 
-private fun prepend( exn : exception, pre : string ) : exception
+fun prepend( exn : exception, pre : string ) : exception
   Exception(pre ++ ": " ++ exn.message, exn.info)
 
 

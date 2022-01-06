@@ -28,7 +28,7 @@ fun read-both( f1 : file<s1>, f2 : file<s2> ) : <console,scope<s1>,scope<s2>|e> 
   println( f1.read-line() ++ "\n" ++ f2.read-line() )
 
 
-public fun main() 
+pub fun main() 
   with f1 <- file("package.yaml")
   with f2 <- file("stack.yaml")
   read-both(f1,f2)

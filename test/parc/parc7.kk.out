@@ -1,8 +1,9 @@
 module parc/parc7
-private import std/core/types = std/core/types = "";
-private import std/core = std/core = "";
-public fun test : forall<a,b> (x : a, y : b) -> a
+import std/core/types = std/core/types = "";
+import std/core = std/core = "";
+pub fun test : forall<a,b> (x : a, y : b) -> a
  = fn(x: 10, y: 11){
- std/core/types/.drop(y);
+ val _ : ()
+ = std/core/types/.drop(y);
  x;
  };

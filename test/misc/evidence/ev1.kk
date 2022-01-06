@@ -1,4 +1,4 @@
-public module ev1
+pub module ev1
 
 import std/core/hnd
 

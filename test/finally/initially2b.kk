@@ -1,11 +1,11 @@
 // Test initially
 effect amb {
-  control flip() : bool
+  ctl flip() : bool
 }
 
 val amb = handler {
   return  (x)    -> [x]
-  control flip() -> resume(True) ++ resume(False)
+  ctl flip() -> resume(True) ++ resume(False)
 }
 
 effect state {

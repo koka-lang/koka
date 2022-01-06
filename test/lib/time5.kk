@@ -9,8 +9,8 @@
 module time5
 
 import std/time/timestamp
-public import std/num/ddouble
-public import std/time
+pub import std/num/ddouble
+pub import std/time
 //import std/time/astro
 
 /*----------------------------------------------------------------------------
@@ -58,7 +58,7 @@ fun test-jd() {
   check("mjd8", "2016-12-31T23:59:60.999999Z"){ instant-at-mjd(57753.99999999999,ts-ti).time.show(6) }  // just before leap seconds of 2017-01-01
 }
 
-public fun main() {
+pub fun main() {
   test-round()
   test-jd()
 }

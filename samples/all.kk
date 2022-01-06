@@ -24,7 +24,7 @@ import named-handlers/file
 import named-handlers/file-scoped
 import named-handlers/heap
 
-public fun main() 
+pub fun main() 
   caesar/main()
   fibonacci/main()
   garsia-wachs/main()

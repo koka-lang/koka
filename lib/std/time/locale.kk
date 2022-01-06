@@ -14,24 +14,24 @@ module std/time/locale
 // -----------------------------------------------------------
 
 // The `:time-locale` describes time and date formats for a specific locale.
-public struct time-locale(
+pub struct time-locale
   // Language name, for example `en` or `fr-ca`.                          
-  lang-name       : string,                            
-  day-names       : list<string>,
-  month-names     : list<string>,
-  month-names-short: list<string> = month-names.map(fn(m) { m.first(3).string }),
-  day-names-short : list<string>  = day-names.map(fn(m) { m.first(3).string }),
-  day-names-min   : list<string>  = day-names.map(fn(m) { m.first(2).string }),
-  format-t        : string = "HH:mm",
-  format-tt       : string = "HH:mm:ss",
-  format-l        : string = "YYYY-MM-DD",
-  format-ll       : string = "D MMMM YYYY",
-  format-lll      : string = "D MMMM YYYY t",
+  lang-name       : string                            
+  day-names       : list<string>
+  month-names     : list<string>
+  month-names-short: list<string> = month-names.map(fn(m) { m.first(3).string })
+  day-names-short : list<string>  = day-names.map(fn(m) { m.first(3).string })
+  day-names-min   : list<string>  = day-names.map(fn(m) { m.first(2).string })
+  format-t        : string = "HH:mm"
+  format-tt       : string = "HH:mm:ss"
+  format-l        : string = "YYYY-MM-DD"
+  format-ll       : string = "D MMMM YYYY"
+  format-lll      : string = "D MMMM YYYY t"
   format-llll     : string = "dddd D MMMM YYYY t"
-)
+
 
 // English time locale (`en`)
-public val time-locale-en : time-locale = Time-locale( "en",
+pub val time-locale-en : time-locale = Time-locale( "en",
   ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
   ["January","February","March","April","May","June","July","August","September","October","November","December"],
   format-t    = "h:mmaa",
@@ -42,7 +42,7 @@ public val time-locale-en : time-locale = Time-locale( "en",
 
 // ISO English time locale (`en-iso`). Uses English names for
 // months and days but displays numeric dates and times using unambigious ISO format. 
-public val time-locale-en-iso : time-locale = Time-locale( "en-iso",
+pub val time-locale-en-iso : time-locale = Time-locale( "en-iso",
   day-names   = time-locale-en.day-names,
   month-names = time-locale-en.month-names,
   format-lll  = "D MMMM YYYY, tt",
@@ -50,7 +50,7 @@ public val time-locale-en-iso : time-locale = Time-locale( "en-iso",
 )
 
 // French time locale (`fr`)
-public val time-locale-fr : time-locale = Time-locale( "fr",                                                      
+pub val time-locale-fr : time-locale = Time-locale( "fr",                                                      
   ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"],
   ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"],
   ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."],
@@ -60,7 +60,7 @@ public val time-locale-fr : time-locale = Time-locale( "fr",
 )
 
 // German time locale (`de`)
-public val time-locale-de : time-locale = Time-locale( "de",
+pub val time-locale-de : time-locale = Time-locale( "de",
   ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"],
   ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
   ["Jan.","Febr.","Mrz.","Apr.","Mai","Jun.","Jul.","Aug.","Sept.","Okt.","Nov.","Dez."],
@@ -73,7 +73,7 @@ public val time-locale-de : time-locale = Time-locale( "de",
 )
 
 // Spanish time locale (`es`)
-public val time-locale-es : time-locale = Time-locale( "es",
+pub val time-locale-es : time-locale = Time-locale( "es",
   ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"],
   ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"],
   format-t    = "H:mm",
@@ -85,7 +85,7 @@ public val time-locale-es : time-locale = Time-locale( "es",
 )
 
 // Dutch time locale (`nl`)
-public val time-locale-nl : time-locale = Time-locale( "nl",
+pub val time-locale-nl : time-locale = Time-locale( "nl",
   ["maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag","zondag"],
   ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"],
   ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],
@@ -105,6 +105,7 @@ val locales = [
 // Return a builtin locale given a locale string (e.g. ``en-GB``, ``es``); 
 // Use `time-locale-iso` if no particular match is found.
 // Supports ``de``,``en``,``es``,``fr``,``nl`` and ``en-iso``.
-public fun get-time-locale( locale : string ) : time-locale {
-  locales.find(fn(l) { locale.starts-with(l.lang-name).bool }).default(time-locale-en-iso)
-}
+pub fun get-time-locale( locale : string ) : time-locale
+  val res = locales.find fn(l) 
+              locale.starts-with(l.lang-name).bool
+  res.default(time-locale-en-iso)

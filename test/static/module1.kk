@@ -1,6 +1,6 @@
-public module module1 {
+module module1 {
   import static/modA
   import static/modB
 
-  alias ok = aint
+  pub alias ok = aint
 }

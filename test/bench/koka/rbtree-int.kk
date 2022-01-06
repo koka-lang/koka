@@ -82,7 +82,7 @@ fun count( t : tree ) : int
     if (v) then r + 1 else r
 
 
-fun main()
+pub fun main()
   val n = get-args().head("").parse-int.default(4200000)
   val t = make-tree(n)
   val v = t.count

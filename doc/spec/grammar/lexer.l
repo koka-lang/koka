@@ -2,16 +2,17 @@
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0.
 */
-/* Requires at least Flex 2.5.37; you can get a version for windows from
+/* Use the "Yash" extension in vscode for nice syntax highlighting.
+   Requires at least Flex 2.5.37; you can get a version for windows from
    https://sourceforge.net/projects/winflexbison
 */
 %option 8bit noyywrap bison-bridge bison-locations reentrant
 
-/* Exlusive Lexer states */
+/* Exclusive Lexer states */
 %x comment
 %x linecomment
 %x string
-%x litstring
+%x rawstring
 
 %{
 #define CHECK_BALANCED  // check balanced parenthesis
@@ -43,13 +44,22 @@ void  illegalchar( char c, char* s, yyscan_t scanner );
 void  commentNestingInc(yyscan_t scanner);
 int   commentNestingDec(yyscan_t scanner);
 
+/* Numbers */
+double numdouble( const char* s );
+long   numlong( const char* s, int base );
+
 /*  Allocation of identifiers and string literals */
 char* identifier( const char* s, yyscan_t scanner, bool wellformedCheck );
 char* stringDup( const char* s, yyscan_t scanner );
 void  stringStart( yyscan_t scanner );
 void  stringAdd( unsigned int c, yyscan_t scanner);
+void  stringAddStr( const char* s, yyscan_t scanner );
 char* stringEnd( yyscan_t scanner );
 unsigned int utfDecode( const char* buf, int len, yyscan_t scanner );
+
+/* Raw string delimiter length */
+void  rawStringSetDelimCount( int count, yyscan_t scanner );
+int   rawStringGetDelimCount( yyscan_t scanner );
 
 /* Character escape codes */
 char escapeToChar( char esc, yyscan_t scanner )
@@ -87,6 +97,15 @@ CharEsc         [nrt\\\"\']
 LineChar        {GraphicLine}|{Utf8}
 BlockChar       {GraphicBlock}|{Utf8}
 
+Decimal         0|[1-9](_?{Digits})?
+HexaDecimal     0[xX]{HexDigits}
+
+Digits          {Digit}+{DigitSep}*
+HexDigits       {Hex}+{HexSep}*
+
+DigitSep        _{Digit}+
+HexSep          _{Hex}+
+
 Letter          {Lower}|{Upper}
 Upper           [A-Z]
 Lower           [a-z]
@@ -107,11 +126,10 @@ GraphicBlock    [\t \x21-\)\+-\.0-\x7E]
     Added \xC0\x80 as a valid sequence to represent 0 (also called 'modified' utf-8)
  */
 UC              [\x80-\xBF]
-U0              [\xC0][\x80]
 U2              [\xC2-\xDF]{UC}
 U3              [\xE0][\xA0-\xBF]{UC}|[\xE1-\xEC]{UC}{UC}|[\xED][\x80-\x9F]{UC}|[\xEE-\xEF]{UC}{UC}
 U4              [\xF0][\x90-\xBF]{UC}{UC}|[\xF1-\xF3]{UC}{UC}{UC}|[\xF4][\x80-\x8F]{UC}{UC}
-Utf8            {U0}|{U2}|{U3}|{U4}
+Utf8            {U2}|{U3}|{U4}
 
 
 %%
@@ -126,6 +144,7 @@ infixr                    { return INFIXR; }
 type                      { return TYPE; }
 alias                     { return ALIAS; }
 struct                    { return STRUCT; }
+effect                    { return EFFECT; }
 
 forall                    { return FORALL; }
 exists                    { return EXISTS; }
@@ -133,11 +152,6 @@ some                      { return SOME; }
 
 abstract                  { return ABSTRACT; }
 extern                    { return EXTERN; }
-
-  /*
-  function[\(\<]            { yyless(7); return FUNX; }
-  fun[\(\<]                 { yyless(3); return FUNX; }
-  */
 
 fun                       { return FUN; }
 fn                        { return FN; }
@@ -157,43 +171,41 @@ return                    { return RETURN;}
 module                    { return MODULE;}
 import                    { return IMPORT;}
 pub                       { return PUBLIC;}
-public                    { return PUBLIC;}
-private                   { return PRIVATE;}
 as                        { return AS;}
 
-control                   { return CONTROL; }
-ctl                       { return CONTROL; }
-rcontrol                  { return RCONTROL; }
-rctl                      { return RCONTROL; }
-except                    { return EXCEPT; }
 handle                    { return HANDLE; }
 handler                   { return HANDLER; }
-effect                    { return EFFECT; }
-
-rec                       { return ID_REC; }
-co                        { return ID_CO; }
-
+ctl                       { return CTL; }
+final                     { return FINAL; }
+raw                       { return RAW; }
 mask                      { return MASK; }
 override                  { return OVERRIDE; }
 named                     { return NAMED; }
 
-inline                    { return ID_INLINE;  }
-noinline                  { return ID_NOINLINE;}
-
+rec                       { return ID_REC; }
+co                        { return ID_CO; }
 open                      { return ID_OPEN; }
 extend                    { return ID_EXTEND; }
 linear                    { return ID_LINEAR;  }
 value                     { return ID_VALUE;  }
 reference                 { return ID_REFERENCE;  }
+
+inline                    { return ID_INLINE;  }
+noinline                  { return ID_NOINLINE;}
 scoped                    { return ID_SCOPED; }
 behind                    { return ID_BEHIND; }
-
 initially                 { return ID_INITIALLY; }
 finally                   { return ID_FINALLY; }
 
+  /* deprecated */
+control                   { return CTL; }
+public                    { return PUBLIC;}
+private                   { return PRIVATE;}
 
   /* unused reserved identifiers */
 interface                 { return IFACE; }
+break                     { return BREAK; }
+continue                  { return CONTINUE; }
 unsafe                    { return UNSAFE; }
 
   /* reserved operators */
@@ -238,32 +250,18 @@ c                         { return ID_C;       }
      should not be parsed as operator tokens. */
 \|\|                      { yylval->Id = identifier(yytext,yyscanner,false); return OP; }
 {AngleBar}{AngleBar}+     { yyless(1); return yytext[0]; }
-  /*
-  \<{AngleBar}+            { yyless(1); return '<'; }
-  \>{AngleBar}+            { yyless(1); return '>'; }
-  \|{Angle}{Symbol}*       { yyless(1); return '|'; }
-  \-\>\<{Symbol}*          { yyless(2); return RARROW; }
-  \<\-\<{Symbol}*          { yyless(2); return LARROW; }
-  \:\?{Symbol}*            { yyless(1); return ':'; }
-  */
-
-  /* Non escaped string literal start */
-@\"                      { BEGIN(litstring);          /* " for editor highlighting */
-                           stringStart(yyscanner);
-                           yymore();
-                         }
 
   /* Numbers */
-{Sign}{Digit}+\.{Digit}+[eE][\-\+]?{Digit}+  { yylval->Float = strtod(yytext,NULL); return FLOAT; }
-{Sign}{Digit}+[eE][\-\+]?{Digit}+            { yylval->Float = strtod(yytext,NULL); return FLOAT; }
-{Sign}{Digit}+\.{Digit}+                    { yylval->Float = strtod(yytext,NULL); return FLOAT; }
+{Sign}{Decimal}\.{Digits}[eE][\-\+]?{Digit}+         { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{Decimal}[eE][\-\+]?{Digit}+                   { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{Decimal}\.{Digits}                            { yylval->Float = numdouble(yytext); return FLOAT; }
 
-{Sign}0[xX]{Hex}+\.{Hex}+[pP][\-\+]?{Digit}+ { yylval->Float = strtod(yytext,NULL); return FLOAT; }
-{Sign}0[xX]{Hex}+[pP][\-\+]?{Digit}+         { yylval->Float = strtod(yytext,NULL); return FLOAT; }
+{Sign}{HexaDecimal}\.{HexDigits}[pP][\-\+]?{Digit}+  { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{HexaDecimal}[pP][\-\+]?{Digit}+               { yylval->Float = numdouble(yytext); return FLOAT; }
+{Sign}{HexaDecimal}\.{HexDigits}                     { yylval->Float = numdouble(yytext); return FLOAT; }
 
-{Sign}0[xX]{Hex}+               { yylval->Nat = strtol(yytext+2,NULL,16); return NAT; }
-{Sign}{Digit}+                  { yylval->Nat = strtol(yytext,NULL,10); return NAT; }
-
+{Sign}{HexaDecimal}       { yylval->Int = numlong(yytext+2,16); return INT; }
+{Sign}{Decimal}           { yylval->Int = numlong(yytext,10); return INT; }
 
 
   /* Identifiers and operators */
@@ -297,6 +295,14 @@ _{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); retu
                             yymore();
                           }
 
+  /* Raw string literal start */
+r#*\"                    { BEGIN(rawstring);          /* " for editor highlighting */
+                           rawStringSetDelimCount(yyleng-1,yyscanner);
+                           stringStart(yyscanner);
+                           yyless(yyleng);
+                           yymore();
+                         }
+
   /* White space  */
 {Space}+                  { return LEX_WHITE; }
 {Newline}                 { return LEX_WHITE; }
@@ -304,23 +310,29 @@ _{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); retu
                             return LEX_WHITE;
                           }
 
-  /* --------- Non escaped string literals --------- */
-<litstring>\"\"           { stringAdd('"',yyscanner); yymore(); }
-<litstring>\"             { BEGIN(INITIAL);  // '
-                            yylval->String = stringEnd(yyscanner);
-                            return STRING;
-                          }
-<litstring>{GraphicRaw}+  { char* p = yytext + YY_MORE_ADJ;
-                            while (*p) {
-                              stringAdd( *p++, yyscanner);
+  /* --------- Raw string literals --------- */
+<rawstring>\"#*           { int count = rawStringGetDelimCount(yyscanner); 
+                            int scanned = yyleng - YY_MORE_ADJ;
+                            if (count > scanned) {
+                              // keep going
+                              stringAddStr(yytext + YY_MORE_ADJ, yyscanner );
+                              yymore();
                             }
+                            else {
+                              // end of string
+                              if (count < scanned) illegalchar('#',"raw string terminated with too many '#' characters", yyscanner);
+                              BEGIN(INITIAL);
+                              yylval->String = stringEnd(yyscanner);
+                              return STRING;
+                            }
+                          }
+<rawstring>{GraphicRaw}+  { stringAddStr(yytext + YY_MORE_ADJ, yyscanner );
                             yymore();
                           }
-<litstring>{Utf8}         { stringAdd(utfDecode(yytext+YY_MORE_ADJ,yyleng-YY_MORE_ADJ,yyscanner), yyscanner); yymore(); }
-<litstring>.              { illegalchar(yytext[yyleng-1],"raw string", yyscanner);
+<rawstring>{Utf8}         { stringAdd(utfDecode(yytext+YY_MORE_ADJ,yyleng-YY_MORE_ADJ,yyscanner), yyscanner); yymore(); }
+<rawstring>.              { illegalchar(yytext[yyleng-1],"raw string", yyscanner);
                             yymore();
                           }
-
 
   /* --------- String literals --------- */
 <string>\"                { BEGIN(INITIAL); // "
@@ -407,6 +419,9 @@ char* showString( const char* s, yyscan_t scanner );
 typedef struct _ExtraState {
   /* nested comments */
   int         commentNesting;
+
+  /* raw string delimiter count */
+  int         delimCount;
 
   /* precise position */
   int         column;
@@ -505,7 +520,7 @@ static bool isAppToken( Token token ) {
 #endif
 
 #ifdef LINE_LAYOUT
-  static Token endingTokens[]    = { ID, CONID, IDOP, QIDOP, QID, QCONID, NAT, FLOAT, STRING, CHAR, ')', ']', '}', '>', 0 };
+  static Token endingTokens[]    = { ID, CONID, IDOP, QIDOP, QID, QCONID, INT, FLOAT, STRING, CHAR, ')', ']', '}', '>', 0 };
   static Token continueTokens[]  = { THEN, ELSE, ELIF, '=', '{', '}', ')', ']', '>', 0 };
 
   bool endingToken( Token token  ) {
@@ -686,7 +701,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         }
         #else
         if (token != '}' && loc->first_column < layoutColumn && yyextra->layoutTop > 1) {
-          fprintf(stderr,"line (%d,%d): insert }, layout col: %d\n", loc->first_line, loc->first_column, yyextra->layoutTop);
+          // fprintf(stderr,"line (%d,%d): insert }, layout col: %d\n", loc->first_line, loc->first_column, yyextra->layoutTop);
           // pop layout column
           yyextra->layoutTop--;
           layoutColumn = yyextra->layout[yyextra->layoutTop];
@@ -709,7 +724,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
           ((newline && loc->first_column == layoutColumn && !continuationToken(token))
            || token == '}' || token == 0))
       {
-        fprintf(stderr,"insert semi before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
+        // fprintf(stderr,"insert semi before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
         // save the currently scanned token
         savedPush(yyextra, token, loc);
 
@@ -725,7 +740,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
       else if (newline && loc->first_column > layoutColumn && 
                !endingToken(yyextra->previous) && !continuationToken(token))
       {
-        fprintf(stderr,"insert { before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
+        // fprintf(stderr,"insert { before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
         // save the currently scanned token
         savedPush(yyextra, token, loc);
 
@@ -783,6 +798,7 @@ void initScanState( ExtraState* st )
 {
   st->tab = 8;
   st->commentNesting = 0;
+  st->delimCount = 0;
 
   st->noLayout = false;
 #ifdef INDENT_LAYOUT
@@ -891,6 +907,48 @@ int commentNestingDec(yyscan_t scanner)
 }
 
 /*----------------------------------------------------
+   Raw string delimiter count
+----------------------------------------------------*/
+void rawStringSetDelimCount(int count, yyscan_t scanner)
+{
+  EnableMacros(scanner);
+  yyextra->delimCount = count;
+}
+
+int rawStringGetDelimCount(yyscan_t scanner)
+{
+  EnableMacros(scanner);
+  return yyextra->delimCount;
+}
+
+/*----------------------------------------------------
+   Numbers
+----------------------------------------------------*/
+static void filter_underscore( char* buf, const char* src, size_t bufsize ) {
+  size_t i = 0;
+  while( i < bufsize - 1 && *src != 0) {
+    if (*src != '_') {
+      buf[i++] = *src;
+    }
+    src++;
+  }
+  buf[i] = 0;
+}
+
+double numdouble( const char* s ) {
+  char buf[256];
+  filter_underscore(buf,s,256);
+  return strtod(buf, NULL);
+}
+
+long numlong( const char* s, int base ) {
+  char buf[256];
+  filter_underscore(buf,s,256);
+  return strtol(buf, NULL, base );
+}
+
+
+/*----------------------------------------------------
    string allocation
 ----------------------------------------------------*/
 char* stringDup( const char* s, yyscan_t scanner )
@@ -944,6 +1002,12 @@ void stringStart( yyscan_t scanner )
 {
   EnableMacros(scanner);
   yyextra->stringLen = 0;
+}
+
+void stringAddStr( const char* s, yyscan_t scanner) {
+  while (*s) {
+    stringAdd( *s++, scanner);
+  }
 }
 
 void stringAdd( unsigned int c, yyscan_t scanner)
@@ -1191,12 +1255,13 @@ int main( int argc, char** argv )
 
     /* destroy */
     int errorCount = st.errorCount;
+    int lineCount  = st.line;
     yylex_destroy(scanner);
     doneScanState(&st);
 
     /* final message */
     if (errorCount == 0) {
-      printf("Success!\n");
+      printf("Success! (%i lines parsed)\n", lineCount);
       return 0;
     }
     else {
@@ -1223,7 +1288,7 @@ char* showChar( unsigned int c, yyscan_t scanner )
     else if (c=='\n') sprintf(buf,"\\n");
     else if (c=='\r') sprintf(buf,"\\r");
     else if (c=='\'') sprintf(buf,"\\'");
-    else if (c=='\"') sprintf(buf,"\"");
+    else if (c=='\"') sprintf(buf,"\\\"");
     else sprintf(buf,"\\x%02X",c);
   }
   else if (c <= 0xFFFF) {
@@ -1285,7 +1350,7 @@ void printToken( int token, int state, yyscan_t scanner )
     case QID:       fprintf(stderr,"QID   = '%s'", yylval->Id); break;
     case QCONID:    fprintf(stderr,"QCONID= '%s'", yylval->Id); break;
     // case QOP:       fprintf(stderr,"QOP   = '%s'", yylval->Id); break;
-    case NAT:       fprintf(stderr,"NAT   = '%lu'", yylval->Nat); break;
+    case INT:       fprintf(stderr,"INT   = '%lu'", yylval->Int); break;
     case FLOAT:     fprintf(stderr,"FLOAT = '%g'", yylval->Float); break;
     case CHAR:      fprintf(stderr,"CHAR  = '%s'", showChar(yylval->Char,scanner)); break;
     case INSERTED_SEMI:      fprintf(stderr,";     = (inserted)"); break;
