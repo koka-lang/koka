@@ -548,7 +548,7 @@ static inline kk_integer_t kk_integer_cdiv_small(kk_integer_t x, kk_integer_t y)
   kk_assert_internal(!kk_integer_is_zero_borrow(y));
   kk_intf_t i = kk_sar(_kk_integer_value(x), 1);
   kk_intf_t j = kk_sar(_kk_integer_value(y), 1);
-  return _kk_new_integer(kk_shlp(i/j, 2)|1);
+  return kk_integer_from_small(i/j);
 }
 
 // Euclidean division: see <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf>
@@ -560,28 +560,27 @@ static inline kk_integer_t kk_integer_cdiv_small(kk_integer_t x, kk_integer_t y)
 static inline kk_integer_t kk_integer_div_small(kk_integer_t x, kk_integer_t y) {
   kk_assert_internal(kk_are_smallints(x, y));
   kk_assert_internal(!kk_integer_is_zero_borrow(y));
-  kk_intf_t i = kk_sar(_kk_integer_value(x), 2);
-  kk_intf_t j = kk_sar(_kk_integer_value(y), 2);
+  kk_intf_t i = kk_smallint_from_integer(x);
+  kk_intf_t j = kk_smallint_from_integer(y);
   // if (j==0) return kk_integer_zero;
   kk_intf_t d = i/j;
   kk_intf_t m = i%j;
   if (i < 0 && m < 0) { d -= (j < 0 ? -1 : 1); }   // i < 0 is not needed, but see note below
-  return _kk_new_integer(kk_shlp(d,2)|1);  // (d<<2)|1
+  return kk_integer_from_small(d);
 }
 
 /* Fast modulus on small integers. Since `boxed(n) = n*4 + 1`, we can divide as:
-    2*((boxed(n)/2)%((boxed(m)/2) + 1
-    = 2*((n*2)%(m*2)) + 1
-    = 2*2*(n%m) + 1
+    4*((boxed(n)/4)%((boxed(m)/4) + 1
+    = 4*(n%m) + 1
     = boxed(n%m)
    (we could divide by 4 as well but some processors do better on 1-bit shifts)
 */
 static inline kk_integer_t kk_integer_cmod_small(kk_integer_t x, kk_integer_t y) {
   kk_assert_internal(kk_are_smallints(x, y));
   kk_assert_internal(!kk_integer_is_zero_borrow(y));
-  kk_intf_t i = kk_sar(_kk_integer_value(x), 1);
-  kk_intf_t j = kk_sar(_kk_integer_value(y), 1);
-  return _kk_new_integer(kk_shlp(i%j,1)|1);
+  kk_intf_t i = kk_smallint_from_integer(x);
+  kk_intf_t j = kk_smallint_from_integer(y);
+  return kk_integer_from_small(i%j);
 }
 
 // Euclidean mod on small integers. Since `boxed(n) = n*4 + 1`, we can divide as:
@@ -591,29 +590,29 @@ static inline kk_integer_t kk_integer_cmod_small(kk_integer_t x, kk_integer_t y)
 static inline kk_integer_t kk_integer_mod_small(kk_integer_t x, kk_integer_t y) {
   kk_assert_internal(kk_are_smallints(x, y));
   kk_assert_internal(!kk_integer_is_zero_borrow(y));
-  kk_intf_t i = kk_sar(_kk_integer_value(x), 2);
-  kk_intf_t j = kk_sar(_kk_integer_value(y), 2);
+  kk_intf_t i = kk_smallint_from_integer(x);
+  kk_intf_t j = kk_smallint_from_integer(y);
   kk_intf_t m = i%j;
   if (i < 0 && m < 0) { m += (j < 0 ? -j : j); }    // i < 0 is not needed, but see note below
   kk_assert_internal(m >= 0);
-  return _kk_new_integer(kk_shlp(m,2)|1);
+  return kk_integer_from_small(m);
 }
 
 
 static inline kk_integer_t kk_integer_cdiv_cmod_small(kk_integer_t x, kk_integer_t y, kk_integer_t* mod) {
   kk_assert_internal(kk_are_smallints(x, y)); kk_assert_internal(mod!=NULL);
   kk_assert_internal(!kk_integer_is_zero_borrow(y));
-  kk_intf_t i = kk_sar(_kk_integer_value(x), 1);
-  kk_intf_t j = kk_sar(_kk_integer_value(y), 1);
-  *mod = _kk_new_integer(kk_shlp(i%j,2)|1);
-  return _kk_new_integer(kk_shlp(i/j,2)|1);
+  kk_intf_t i = kk_smallint_from_integer(x);
+  kk_intf_t j = kk_smallint_from_integer(y);
+  *mod = kk_integer_from_small(i%j);
+  return kk_integer_from_small(i/j);
 }
 
 static inline kk_integer_t kk_integer_div_mod_small(kk_integer_t x, kk_integer_t y, kk_integer_t* mod) {
   kk_assert_internal(kk_are_smallints(x, y)); kk_assert_internal(mod!=NULL);
   kk_assert_internal(!kk_integer_is_zero_borrow(y));
-  kk_intf_t i = kk_sar(_kk_integer_value(x), 2);
-  kk_intf_t j = kk_sar(_kk_integer_value(y), 2);
+  kk_intf_t i = kk_smallint_from_integer(x);
+  kk_intf_t j = kk_smallint_from_integer(y);
   kk_intf_t d = i/j;
   kk_intf_t m = i%j;
   if (i < 0 && m < 0) {         // note: test i < 0 is not needed but implies m >= 0 and can speed up the test
@@ -626,8 +625,8 @@ static inline kk_integer_t kk_integer_div_mod_small(kk_integer_t x, kk_integer_t
   }
   kk_assert_internal(m >= 0);
   kk_assert_internal(d*j + m == i);
-  *mod = _kk_new_integer(kk_shlp(m,2)|1);
-  return _kk_new_integer(kk_shlp(d,2)|1);
+  *mod = kk_integer_from_small(m);
+  return kk_integer_from_small(d);
 }
 
 // small ints and `y != 0` to prevent division by zero.
@@ -773,12 +772,12 @@ static inline bool kk_integer_is_odd(kk_integer_t x, kk_context_t* ctx) {
 }
 
 static inline int kk_integer_signum_borrow(kk_integer_t x) {
-  if (kk_likely(kk_is_smallint(x))) return ((_kk_integer_value(x)>1)-(_kk_integer_value(x)<0));
+  if (kk_likely(kk_is_smallint(x))) return ((_kk_integer_value(x)>_kk_integer_value(kk_integer_zero)) - (_kk_integer_value(x)<0));
   return kk_integer_signum_generic_bigint(x);
 }
 
 static inline bool kk_integer_is_pos_borrow(kk_integer_t x) {
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x)>1);
+  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) > _kk_integer_value(kk_integer_zero));
   return (kk_integer_signum_generic_bigint(x) > 0);
 }
 
