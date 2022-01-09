@@ -36,7 +36,8 @@
 		"Programming Languages"
 	],
 	"activationEvents": [
-		"onLanguage:koka"
+		"onLanguage:koka",
+		"onCommand:koka.restartLanguageServer"
 	],
 	"main": "./out/extension",
 	"contributes": {
@@ -93,7 +94,13 @@
 				"scopeName": "source.koka",
 				"path": "./syntaxes/koka.json"
 			}
-		]
+		],
+		"commands": [
+      {
+        "command": "koka.restartLanguageServer",
+        "title": "Restart Koka Language Server"
+      }
+    ]
 	},
 	"scripts": {
 		"build": "tsc",
