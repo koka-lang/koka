@@ -12,8 +12,9 @@ export function activate(context: vscode.ExtensionContext) {
   // We can always create the client, as it does nothing as long as it is not started
   const client = createClient(config);
 
-  if (config.get('languageServer.enabled'))
+  if (config.get('languageServer.enabled')) {
     context.subscriptions.push(client.start());
+  }
 
   createCommands(context, config, client);
 }
@@ -58,6 +59,8 @@ function createCommands(
         },
         async (progress, token) => {
           progress.report({ message: 'Restarting language server' });
+          // Right now this produces error in console
+          // Bug is upstream: https://github.com/microsoft/vscode-languageserver-node/issues/878
           await client.stop();
           await client.start();
           progress.report({
