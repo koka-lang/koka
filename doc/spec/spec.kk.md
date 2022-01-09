@@ -601,9 +601,9 @@ ignored.
 | &nbsp;        |       |                                                                             |                                        |
 | _withexpr_    | ::=   | _withstat_ `in` _expr_                                                      |                                        |
 | _withstat_    | ::=   | `with` _basicexpr_                                                          |                                        |
-|               |       | `with` [`override`]{.opt} _heff_  _opclauses_                               | (with a handler)                       |
 |               |       | `with` _binder_ `<-` _basicexpr_                                            |                                        |
-|               |       | `with` _binder_ `<-` _heff_  _opclauses_                                    | (with a named andler)                  |
+|               |       | `with` [`override`]{.opt} _heff_  _opclause_                                | (with single operation)                       |
+|               |       | `with` _binder_ `<-` _heff_  _opclause_                                     | (with named single operation)                  |
 {.grammar .parse}
 
 ### Operator expressions
@@ -691,14 +691,13 @@ in an expressions.
 ### Handler Expressions
 
 | ~~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~|
-| _handlerexpr_ | ::=   | `handler` [`override`]{.opt} _heff_  _opclauses_                 |    |
-|               | &bar; | `handle` [`override`]{.opt} _heff_ `(` _expr_ `)` _opclauses_    |    |
+| _handlerexpr_ | ::=   | [`override`]{.opt} `handler` _heff_  _opclauses_                 |    |
+|               | &bar; | [`override`]{.opt} `handle` _heff_ `(` _expr_ `)` _opclauses_    |    |
 |               | &bar; | `named` `handler` _heff_  _opclauses_                            |    |
 |               | &bar; | `named` `handle` _heff_ `(` _expr_ `)` _opclauses_               |    |
 | _heff_        | ::=   | [`<` _tbasic_ `>`]{.opt}                                         |    |
 | &nbsp;        |       |                                                                  |    |
 | _opclauses_ | ::=   | `{` _semis_ [_opclausex_ _semi_]{.many} `}`                      |    |
-|             | &bar; | _opclause_ _semi_                                                |    |
 |             |       |                                                                  |    |
 | _opclausex_ | &bar; | _opclause_                                                       |    |
 |             | &bar; | `finally` _blockexpr_                                            |    |

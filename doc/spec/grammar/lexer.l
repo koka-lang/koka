@@ -170,7 +170,7 @@ return                    { return RETURN;}
 
 module                    { return MODULE;}
 import                    { return IMPORT;}
-pub                       { return PUBLIC;}
+pub                       { return PUB;}
 as                        { return AS;}
 
 handle                    { return HANDLE; }
@@ -196,11 +196,6 @@ scoped                    { return ID_SCOPED; }
 behind                    { return ID_BEHIND; }
 initially                 { return ID_INITIALLY; }
 finally                   { return ID_FINALLY; }
-
-  /* deprecated */
-control                   { return CTL; }
-public                    { return PUBLIC;}
-private                   { return PRIVATE;}
 
   /* unused reserved identifiers */
 interface                 { return IFACE; }

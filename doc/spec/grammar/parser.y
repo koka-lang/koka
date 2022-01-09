@@ -63,7 +63,7 @@ void printDecl( const char* sort, const char* name );
 %token FORALL EXISTS SOME
 
 %token IMPORT AS MODULE
-%token PUBLIC PRIVATE ABSTRACT
+%token PUB ABSTRACT
 %token EXTERN
 %token INFIX INFIXL INFIXR
 
@@ -114,8 +114,8 @@ void printDecl( const char* sort, const char* name );
 -- Program
 ----------------------------------------------------------*/
 
-program     : semis visibility MODULE modulepath moduledecl  { printDecl("module",$4); }
-            | moduledecl                                     { printDecl("module","main"); }
+program     : semis MODULE modulepath moduledecl  { printDecl("module",$3); }
+            | moduledecl                          { printDecl("module","main"); }
             ;
 
 moduledecl  : '{' semis modulebody '}' semis
@@ -126,16 +126,15 @@ modulebody  : importdecl semis1 modulebody
             | declarations
             ;
 
-importdecl  : visibility IMPORT modulepath
-            | visibility IMPORT modulepath '=' modulepath
+importdecl  : pub IMPORT modulepath
+            | pub IMPORT modulepath '=' modulepath
             ;
 
 modulepath  : varid                       { $$ = $1; }
             | qvarid                      { $$ = $1; }
             ;
 
-visibility  : PUBLIC
-            | PRIVATE
+pub         : PUB
             | /* empty */
             ;
 
@@ -160,7 +159,7 @@ declarations: fixitydecl semis1 declarations
             | topdecls
             ;
 
-fixitydecl  : visibility fixity oplist1
+fixitydecl  : pub fixity oplist1
             ;
 
 fixity      : INFIX INT
@@ -184,11 +183,11 @@ topdecls1   : topdecls1 topdecl semis1
             | error semis1                                    { yyerror(&@1,scanner,"skipped top-level declaration");  }
             ;
 
-topdecl     : visibility puredecl                             { printDecl("value",$2); }
-            | visibility aliasdecl                            { printDecl("alias",$2); }
-            | visibility typedecl                             { printDecl("type",$2); }
-            | ABSTRACT typedecl                               { printDecl("type",$2); }
-            | visibility externdecl                           { printDecl("extern",$2); }
+topdecl     : pub puredecl                             { printDecl("value",$2); }
+            | pub aliasdecl                            { printDecl("alias",$2); }
+            | pub externdecl                           { printDecl("extern",$2); }
+            | pub typedecl                             { printDecl("type",$2); }
+            | ABSTRACT typedecl                        { printDecl("type",$2); }
             ;
 
 
@@ -310,8 +309,8 @@ constructors1: constructors1 semis1 constructor
             | constructor
             ;
 
-constructor : visibility con conid typeparams conparams
-            | visibility con STRING typeparams conparams
+constructor : pub con conid typeparams conparams
+            | pub con STRING typeparams conparams
             ;
 
 con         : CON
@@ -340,20 +339,20 @@ operations  : operations operation semis1
             | /* empty */
             ;
 
-operation   : visibility VAL identifier typeparams ':' tatomic
-            | visibility FUN identifier typeparams '(' parameters ')' ':' tatomic
-            | visibility CTL identifier typeparams '(' parameters ')' ':' tatomic
+operation   : pub VAL identifier typeparams ':' tatomic
+            | pub FUN identifier typeparams '(' parameters ')' ':' tatomic
+            | pub CTL identifier typeparams '(' parameters ')' ':' tatomic
             ;
 
 
 /* ---------------------------------------------------------
 -- Pure (top-level) Declarations
 ----------------------------------------------------------*/
-puredecl    : inlineattr VAL binder '=' blockexpr      { $$ = $3; }
-            | inlineattr FUN funid funbody             { $$ = $3; }
+puredecl    : inlinemod VAL binder '=' blockexpr      { $$ = $3; }
+            | inlinemod FUN funid funbody             { $$ = $3; }
             ;
 
-inlineattr  : ID_INLINE
+inlinemod   : ID_INLINE
             | ID_NOINLINE
             | /* empty */
             ;
@@ -709,8 +708,8 @@ patarg      : identifier '=' apattern            /* named argument */
 /* ---------------------------------------------------------
 -- Handlers
 ----------------------------------------------------------*/
-handlerexpr : HANDLER override witheff opclauses
-            | HANDLE override witheff ntlexpr opclauses
+handlerexpr : override HANDLER witheff opclauses
+            | override HANDLE witheff ntlexpr opclauses
             | NAMED HANDLER witheff opclauses
             | NAMED HANDLE witheff ntlexpr opclauses
             ;
@@ -724,20 +723,17 @@ witheff     : '<' anntype '>'
             ;
 
 withstat    : WITH basicexpr
-            | WITH override witheff opclauses    /* shorthand for handler */
             | WITH binder LARROW basicexpr
-            | WITH binder LARROW witheff opclauses  /* shorthand for named handler */
-            /* deprecated: */
-            | WITH binder '=' basicexpr
-            | WITH binder '=' witheff opclauses  /* shorthand for named handler */
+            /* single operation shorthands */
+            | WITH override witheff opclause        
+            | WITH binder LARROW witheff opclause   
             ;
 
 withexpr    : withstat IN blockexpr
             /* | withstat */
             ;
 
-opclauses   : opclause
-            | '{' semis opclauses1 semis1 '}'
+opclauses   : '{' semis opclauses1 semis1 '}'
             | '{' semis '}'
             ;
 
@@ -755,7 +751,6 @@ opclause    : VAL qidentifier '=' blockexpr
             | FUN qidentifier opparams bodyexpr
             | controlmod CTL qidentifier opparams bodyexpr
             | RETURN '(' opparam ')' bodyexpr
-            | RETURN paramid bodyexpr               /* deprecated */
             ;
 
 controlmod  : FINAL
