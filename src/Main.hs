@@ -54,7 +54,7 @@ mainArgs args
   = do (flags,flags0,mode) <- getOptions args
        let with = if (not (null (redirectOutput flags)))
                    then withFileNoColorPrinter (redirectOutput flags)
-                   else if (console flags == "html") 
+                   else if (console flags == "html")
                     then withHtmlColorPrinter
                    else if (console flags == "ansi")
                     then withColorPrinter
@@ -74,7 +74,7 @@ mainMode flags flags0 mode p
      ModeHelp
       -> showHelp flags p
      ModeVersion
-      -> withNoColorPrinter (\monop -> showVersion flags monop)
+      -> withNoColorPrinter (showVersion flags)
      ModeCompiler files
       -> mapM_ (compile p flags) files
      ModeInteractive files
@@ -93,7 +93,7 @@ compile p flags fname
            -> do putPrettyLn p (ppErrorMessage (showSpan flags) cscheme msg)
                  -- exitFailure  -- don't fail for tests
 
-         Right (Loaded gamma kgamma synonyms newtypes constructors _ imports _ 
+         Right (Loaded gamma kgamma synonyms newtypes constructors _ imports _
                 (Module modName _ _ _ _ _warnings rawProgram core _ _ modTime) _ _ _
                , warnings)
            -> do when (not (null warnings))

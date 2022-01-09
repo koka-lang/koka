@@ -157,11 +157,12 @@ instance HasSymbols UserPattern where
     _ -> []
 
 makeSymbol :: Name -> J.SymbolKind -> R.Range -> [J.DocumentSymbol] -> J.DocumentSymbol
-makeSymbol n k r cs = J.DocumentSymbol name detail kind deprecated range selRange children
+makeSymbol n k r cs = J.DocumentSymbol name detail kind tags deprecated range selRange children
   where
     name = T.pack $ nameId n
     detail = Just $ T.pack $ nameModule n
     kind = k
+    tags = Just $ J.List []
     deprecated = Just False
     range = toLspRange r
     selRange = range
