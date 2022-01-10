@@ -1049,7 +1049,7 @@ ccFromPath flags path
                      }
         clang   = gcc{ ccFlagsWarn = gnuWarn
                                      ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align"
-                                     ++ (if onMacOS then ["-Wno-unused-but-set-variable"] else []) }
+                                     ++ (if onMacOS && cpuArch == "arm64" then ["-Wno-unused-but-set-variable"] else []) }
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name (optimize flags) (platform flags) path
         clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++ 
