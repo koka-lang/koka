@@ -2,100 +2,79 @@ import std/os/file
 import std/os/path
 import std/core
 
-struct grid
-  rows: list<list<int>>
+alias grid = list<maybe<int>>
 
-effect bingo {
-  ctl success(value: int): ()
-}
+effect bingo
+  ctl success(value: int) : ()
+  fun grid-won(): ()
+  fun game-over(first: bool): bool
 
-effect state {
-  ctl get(): list<(int, int)>
-  ctl put(row: int, col: int): ()
-}
+fun get-grid(block:list<string>): grid
+  block.map(fn(line) line.split(" ").filter(fn(s) s != "" ).map(fn(s) Just(s.parse-int-default(0)) )).concat
 
-fun getGrid(block:list<string>): grid {
-  Grid(block.map(fn(line) { line.split(" ").filter(fn(s) { s != "" }).map(fn (s) { s.parse-int-default(0) }) }))
-}
-
-fun getGrids(content: list<string>): (list<grid>, list<int>) {
-  val numbersStr = content[0].default("")
-  val numbers = numbersStr.split(",").map(fn(s) { parse-int-default(s, 0) })
-  var mod_content := content.drop(1)
-  val no_grids = mod_content.length() / 6
-  val grids = foldl(list(0, no_grids - 1, fn(i){ i }), [], fn(acc, curr) {
-    val curr_grid = mod_content.drop(1).take(5).getGrid
-    mod_content := mod_content.drop(6)
-    acc ++ [curr_grid]
-  })
+fun get-grids(content: list<string>): (list<grid>, list<int>)
+  val numbers = content[0].default("").split(",").map(fn(s) parse-int-default(s, 0) )
+  var mod-content := content.drop(1)
+  val no-grids = mod-content.length() / 6
+  val grids = foldl(list(0, no-grids - 1, id), [], fn(acc, curr)
+    val curr-grid = mod-content.drop(1).take(5).get-grid
+    mod-content := mod-content.drop(6)
+    acc ++ [curr-grid]
+  )
   (grids, numbers)
-}
 
-fun sumGrid(grid: grid, marked_positions: list<(int, int)>, num: int): int {
-  val sum = map(grid.rows, fn(row) { foldl(row, 0, (+))}).foldl(0, (+))
-  val new_sum = foldl(marked_positions, sum, fn(curr_sum, (row, col)) { 
-    curr_sum - grid.rows[row].default([])[col].default(0)
-  })
-  new_sum * num
-}
+fun rows( g : grid ) : div list<list<maybe<int>>>
+  if g.is-nil then [] else Cons( g.take(5), g.drop(5).rows )
 
-fun checkIfGridWon(positions: list<(int, int)>): bool {
-  val rowWon = map(list(0, 4, id), fn(row) { positions.filter(fn((i, _)) { i == row }).length == 5 }).foldl(False, (||))
-  val colWon = map(list(0, 4, id), fn(col) { positions.filter(fn((_, j)) { j == col }).length == 5 }).foldl(False, (||))
-  rowWon || colWon
-}
+fun transpose( xss : list<list<a>> ) : list<list<a>>
+  list(0, xss.length - 1, id).map( fn(i) xss.map(fn(xs) xs.drop(i).take(1) ).concat)
 
-fun updateMarkedCellsInGrid(grid: grid, num: int): <state, bingo> list<(int, int)> {
-  foreach-indexed(grid.rows, fn(i, line) { 
-    foreach-indexed(line, fn(j, value) { 
-      if num == value then put(i, j)
-    })
-  })
-  val marked_positions = get()
-  if checkIfGridWon(marked_positions) then success(grid.sumGrid(marked_positions, num))
-  marked_positions
-}
+fun columns( g : grid ) : div list<list<maybe<int>>>
+  g.rows.transpose
 
-fun markNumberInGrid(grid, init_positions: list<(int, int)>, num: int) {
-  var st := init_positions
-  with handler{
-    ctl get() {
-      resume(st)
-    }
-    ctl put(row: int, col: int) {
-      st := st.append([(row, col)])
-      resume(())
-    }
-  }
-  updateMarkedCellsInGrid(grid, num)
-}
+fun sum-grid(grid: grid, num: int): int
+  grid.map( fn(x) x.default(0) ).sum * num
 
-fun drawNumbers(grids: list<grid>, numbers: list<int>): bingo () {
-  var marked_positions := list(0, grids.length - 1, fn(_) { [] })
-  foreach(numbers, fn(num) {
-    marked_positions := grids.zip(marked_positions).map(fn((grid, positions)) { 
-      markNumberInGrid(grid, positions, num)
-    })
-  })
-}
+fun or(xss: list<bool>): bool
+  xss.foldl(False, (||))
 
-fun getWinner(grids, numbers): int {
-  with handler {
-    ctl success(value) -> value
-    return(_) -> 0
-  }
-  drawNumbers(grids, numbers)
-}
+fun check-if-grid-won(grid: grid): div bool
+  val row-won = grid.rows.map(fn(row) row.foldl(True, fn(acc, curr) if acc && curr.is-nothing then True else False )).or
+  val col-won = grid.columns.map(fn(col) col.foldl(True, fn(acc, curr) if acc && curr.is-nothing then True else False )).or
+  row-won || col-won
 
-fun print_list(grid: list<list<int>>) {
-  map(grid, fn(line) { 
-    map(line, fn(value) { print(value.show ++ " ") })
-    println("")
-  })
-}
+fun mark-number-in-grid(grid: grid, num: int, first: bool): <bingo,div,console> maybe<grid>
+  val mod_grid = grid.map(fn(value)
+    match(value)
+      Just(jval) -> if jval == num then Nothing else Just(jval)
+      Nothing -> Nothing 
+  )
+  if mod_grid.check-if-grid-won then 
+    grid-won()
+    if game-over(first) then success(mod_grid.sum-grid(num))
+    Nothing
+  else Just(mod_grid)
 
-fun main() {
-  val content = read-text-file(path("day4.txt"))
-  val (grids, numbers) = getGrids(content.lines)
-  getWinner(grids, numbers)
-}
+fun draw-numbers( grids : list<grid>, numbers : list<int>, first: bool) : <bingo,div,console> ()
+  var players := grids
+  numbers.foreach fn(num)
+    players := players.filter-map fn(grid) 
+      grid.mark-number-in-grid(num, first)
+
+fun get-winner(grids: list<grid>, numbers: list<int>, first: bool) : <div,console> int
+  var winners := 0
+  with handler 
+    ctl success(value) value
+    fun grid-won() winners := winners + 1
+    fun game-over(first-winner: bool) 
+      if first-winner then True
+      else winners == grids.length
+  draw-numbers(grids, numbers, first)
+  0
+
+pub fun main()
+  val content = read-text-file(path("C:/Users/rakb/Documents/Personal/Code/experiments_desktop/Koka/AdventOfCode2021/data/day4.txt"))
+  val (grids, numbers) = get-grids(content.lines)
+  val first_winner_sum = get-winner(grids, numbers, True) // First winner
+  val last_winner_sum = get-winner(grids, numbers, False) // Last winner
+  println("First winner: " ++ first_winner_sum.show ++ ", last winner: " ++ last_winner_sum.show)
