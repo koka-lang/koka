@@ -179,63 +179,11 @@ Koka is by default installed for the current user in `<prefix>/bin/koka`,
 (with architecture specific files under `<prefix>/lib/koka/v2.x.x`
 and libraries and samples under `<prefix>/share/koka/v2.x.x`).
 On Unix and macOS the default prefix is `/usr/local` while
-on Windows the default prefix is `%LOCALAPPDATA%\koka`
+on Windows the default prefix is `%LOCALAPPDATA%\koka`.
 
-# Build installable package
-
-Currently this option is x64 linux only, support for arm64 linux is being worked on.
-
-Right now you can generate packages that work for these distributions:
-
-* Fedora 34, 35
-* RHEL 8
-* Debian 10, 11
-* Ubuntu 18.04, 20.04, 22.04
-* PopOS 20.04, 21.10
-* Linux Mint 19.3, 20.2
-* Arch Linux
-* OpenSUSE Tumbleweed, Leap 15.3
-
-There might be more that are also compatible, so feel free to experiment.
-
-## Requirements
-
-* Docker or Podman
-* tar
-* bash
-
-## How to build
-
-To build every possible package automatically you can run this script from the root of this repository.
-
-```sh
-$ ./util/packaging/build.sh
-```
-
-To specify which versions you want to build and package you can use `--target="target1,target2"`.
-You can also specify whether to only build or only package with `--package="no"` or `--package="only"`.
-
-After running the script there should now be distro specific bundles in `./bundle/$version/archives`, and installable packages in `./bundle/$version/packages`.
-
-## Notes
-
-If OpenSuse throws this when trying to install the built package
-
-```sh
-# zypper in -t package /data/koka-2.3.7-opensuse.rpm
-Loading repository data...
-Reading installed packages...
-'_tmpRPMcache_:koka=0:2.3.7-1' not found in package names. Trying capabilities.
-No provider of '_tmpRPMcache_:koka=0:2.3.7-1' found.
-Resolving package dependencies...
-Nothing to do.
-```
-
-try
-
-```sh
-# zypper ref -f
-```
+It is also possible to generate installation packages for 
+various Linux platforms (RHEL, Debian, Ubuntu, etc.). See
+the [readme][util/packaging] for further information.
 
 # Benchmarks
 
