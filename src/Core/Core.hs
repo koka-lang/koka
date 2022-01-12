@@ -808,7 +808,7 @@ costDef :: Def -> Int
 costDef def
   = let n = costLocalDef def
     in if (defIsVal def)
-        then (if (n<=1) then 0 else costInf) -- don't duplicate (too much) work
+        then (if (n==0) then 0 else costInf) -- don't duplicate (too much) work
         else n
 
 costLocalDef :: Def -> Int
