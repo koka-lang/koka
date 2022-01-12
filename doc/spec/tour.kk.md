@@ -297,20 +297,26 @@ it is all just function applications with minimal syntactic sugar.
 #### With Handlers  { #sec-with-handlers; }
 
 The `with` statement is especially useful in combination with 
-effect handlers. Generally, a `handler{ <ops> }` expression takes 
-as its last argument a function block so it can be used directly with `with`. 
+effect handlers. An effect describes an abstract set of operations
+whose concrete implementation can be supplied by a handler.
+
 Here is an example of an effect handler for emitting messages:
 ```
+// Emitting messages; how to emit is TBD.  Just one abstract operation: emit.
 effect fun emit(msg : string) : ()
 
+// Emits a standard greeting.
 fun hello()
   emit("hello world!")
 
-public fun emit-console1()
+// Emits a standard greeting to the console.
+public fun hello-console1()
   with handler{ fun emit(msg){ println(msg) } }
   hello()
 ```
-In this example, the `with` desugars to `(handler{ fun emit(msg){ println(msg) } })( fn(){ hello() } )`.
+In this example, the `with` expression desugars to `(handler{ fun emit(msg){ println(msg) } })( fn(){ hello() } )`.
+Generally, a `handler{ <ops> }` expression takes 
+as its last argument a function block so it can be used directly with `with`. 
 
 Moreover, as a convenience, we can leave out the `handler` keyword 
 for effects that define just one operation (like `:emit`):
@@ -331,10 +337,10 @@ with handler{ ctl op(x){ <body> } }
 ```
 ~
 
-Using this, we can write the previous example in a more concise and natural way as:
+Using this convenience, we can write the previous example in a more concise and natural way as:
 
 ```unchecked
-public fun emit-console2() {
+public fun hello-console2() {
   with fun emit(msg){ println(msg) }
   hello()
 }
@@ -343,7 +349,7 @@ public fun emit-console2() {
 or using brace elision as:
 
 ```
-public fun emit-console2()
+public fun hello-console2()
   with fun emit(msg)
     println(msg)
   hello()
