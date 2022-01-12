@@ -394,7 +394,7 @@
     margin-right: 1ex;
   }
   .koka .dash { 
-    margin-left: -0.25ex; margin-right: -0.25ex
+    margin-left: -0.15ex; margin-right: -0.15ex
   }
   .koka .minus {
     font-weight: bold;
@@ -420,7 +420,7 @@
     border: 1px solid #CCC;
   }
   .madoko pre.koka.source {
-    xfont-size: 0.9em;
+    overflow: visible; 
   }
   .koka.doc .comment p {
     margin: 0pt;
@@ -733,7 +733,15 @@
     margin-right: -0.5ex;
   	color: #999;
   	border: 1px solid #AAA;
-    padding: 0ex 0.2ex;  
+    padding: 0ex 0.2ex; 
+  }
+  pre.lang-arm64::before {
+    content: "assembly";
+    float: right;
+    margin-right: -0.5ex;
+  	color: #999;
+  	border: 1px solid #AAA;
+    padding: 0ex 0.2ex;
   }
   html {
     scroll-behavior: smooth;
