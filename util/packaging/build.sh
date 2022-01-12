@@ -94,7 +94,7 @@ run_docker_images() {
       --tmpfs /tmp/overlay \
       -v "$(pwd)/$KOKA_SOURCE_LOCATION":/code:ro \
       -v "$TEMP_DIR:/output:z" \
-      localhost/koka-$target
+      koka-$target
 
     if [ $? -ne 0 ]; then
       stop "Failed to compile os specific package for $target"
