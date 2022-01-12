@@ -114,12 +114,12 @@ the `map` function as a function expression:
 
 ```
 fun encode2( s : string, shift : int )
-  s.map( fn(c){
+  s.map( fn(c)
     if c < 'a' || c > 'z' then return c
     val base = (c - 'a').int
     val rot  = (base + shift) % 26
     (rot.char + 'a')
-  } )
+  )
 ```
 
 It is a bit annoying we had to put the final right-parenthesis after the last
@@ -200,27 +200,25 @@ syntactical feature is the `with` statement.
 With the ease of passing a function block as a parameter, these
 often become nested. For example:
 ```
-fun twice(f) {
+fun twice(f) 
   f()
   f()
-}
 
-fun test-twice() {
-  twice( fn(){
-    twice( fn(){
+fun test-twice() 
+  twice 
+    twice
       println("hi")
-    })
-  })
 }
 ```
-where `"hi"` is printed four times. Using the `with` statement 
+where `"hi"` is printed four times (note: this desugars
+to `twice( fn(){ twice( fn(){ println("hi") }) })`). 
+Using the `with` statement 
 we can write this more concisely as:
 ```
-pub fun test-with1() {
+pub fun test-with1()
   with twice
   with twice
   println("hi")
-}
 ```
 
 The `with` statement essentially puts all statements that follow it into 
@@ -273,11 +271,10 @@ or through an "exception" (&ie; when an effect operation does not resume).
 Again, `with` is a natural fit:
 
 ```
-fun test-finally() {
+fun test-finally() 
   with finally{ println("exiting..") }
   println("entering..")
   throw("oops") + 42
-}
 ```
 which desugars to `finally(fn(){ println(...) }, fn(){ println("entering"); throw("oops") + 42 })`,
 and prints:
@@ -311,7 +308,8 @@ fun hello()
 
 // Emits a standard greeting to the console.
 pub fun hello-console1()
-  with handler{ fun emit(msg){ println(msg) } }
+  with handler
+    fun emit(msg) println(msg) 
   hello()
 ```
 In this example, the `with` expression desugars to `(handler{ fun emit(msg){ println(msg) } })( fn(){ hello() } )`.
@@ -325,14 +323,12 @@ for effects that define just one operation (like `:emit`):
 ```unchecked
 with val op = <expr> 
 with fun op(x){ <body> }
-with brk op(x){ <body> }
 with ctl op(x){ <body> }
 ```
 &mapsto;
 ```unchecked
 with handler{ val op = <expr> }
 with handler{ fun op(x){ <body> } }
-with handler{ brk op(x){ <body> } }
 with handler{ ctl op(x){ <body> } }
 ```
 ~
@@ -340,18 +336,8 @@ with handler{ ctl op(x){ <body> } }
 Using this convenience, we can write the previous example in a more concise and natural way as:
 
 ```unchecked
-pub fun hello-console2() {
-  with fun emit(msg){ println(msg) }
-  hello()
-}
-```
-
-or using brace elision as:
-
-```
 pub fun hello-console2()
-  with fun emit(msg)
-    println(msg)
+  with fun emit(msg) println(msg)
   hello()
 ```
 
@@ -501,7 +487,8 @@ When the effect is `:total` we usually leave it out in the type annotation.
 For example, when we write:
 
 ```
-fun square5( x : int ) : int { x*x }
+fun square5( x : int ) : int 
+  x*x
 ```
 
 the assumed effect is `:total`. Sometimes, we write an effectful
@@ -768,7 +755,8 @@ the fields are updated. For example, here is a `birthday` function that
 increments the `age` field:
 
 ```
-fun main() { println( brian.birthday.age ) }
+fun main() 
+  println( brian.birthday.age )
 
 struct person  
   age : int
@@ -787,14 +775,15 @@ a `:person`. This constructor is also automatically generated for each data
 type, and is internally generated as:
 
 ```
-fun main() { println( brian.copy().age ) }
+fun main() 
+  println( brian.copy().age )
 
 struct person( age : int, name : string, realname : string = name )
 
 val brian = Person( 29, "Brian" )
 ////
 fun copy( p, age = p.age, name = p.name, realname = p.realname )
-  return Person(age, name, realname)
+  Person(age, name, realname)
 ```
 
 When arguments follow a data value, as in ``p( age = age + 1)``, it is expanded to call this
@@ -864,7 +853,7 @@ struct tp { <fields> }
 &mapsto;
 ```unchecked
 type tp { 
-  con Tp { <fields> }
+  Tp { <fields> }
 }
 ```
 ~
@@ -881,6 +870,15 @@ desugars to:
 ```unchecked
 type person
   Person{ age : int; name : string; realname : string = name }
+```
+
+or with brace elision as:
+```unchecked
+type person
+  Person
+    age : int
+    name : string
+    realname : string = name
 ```
 
 ### Matching
@@ -963,7 +961,7 @@ say, async-await and exceptions are well-defined.
 
 Let's start with defining an exception effect of our own. The `effect`
 declaration defines a new type together with _operations_, for now
-we use a _control_ (`ctl`) operation:
+we use the most general _control_ (`ctl`) operation:
 ```
 effect raise
   ctl raise( msg : string ) : a
@@ -987,7 +985,7 @@ For example, we may always return a default value:
 ```
 fun raise-const() : int
   with handler
-    ctl raise(msg){ 42 }
+    ctl raise(msg) 42 
   8 + safe-divide(1,0)
 ```
 The call `raise-const()` evaluates to `42` (not `50`).
@@ -1020,7 +1018,7 @@ With this translation, we can write the previous example more concisely as:
 
 ```
 fun raise-const1() : int 
-  with ctl raise(msg){ 42 }
+  with ctl raise(msg) 42 
   8 + safe-divide(1,0)
 ```
 
@@ -1073,7 +1071,7 @@ We can handle it by always resuming with a constant for example:
 
 ```
 fun ask-const() : int
-  with ctl ask(){ resume(21) }
+  with ctl ask() resume(21)
   add-twice()
 ```
 
@@ -1081,7 +1079,7 @@ where `ask-const()` evaluates to `42`. Or by returning random values, like:
 
 ```
 fun ask-random() : random int 
-  with ctl ask(){ resume(random-int()) }
+  with ctl ask() resume(random-int()) 
   add-twice()
 ```
 
@@ -1137,7 +1135,7 @@ using a `fun` operation instead:
 
 ```
 fun ask-const2() : int 
-  with fun ask(){ 21 }
+  with fun ask() 21
   add-twice()
 ```
 
@@ -1285,7 +1283,7 @@ emitted messages directly to the console:
 
 ```
 fun ehello-console() : console ()
-  with fun emit(msg){ println(msg) }
+  with fun emit(msg) println(msg)
   ehello()
 ```
 
@@ -1294,7 +1292,7 @@ emitting to the console into a separate function:
 
 ```
 fun emit-console( action )
-  with fun emit(msg){ println(msg) }
+  with fun emit(msg) println(msg) 
   action()
 ```
 
@@ -1307,7 +1305,7 @@ is discharged by the handler.
 Note, we could have written the above too as:
 ```
 val emit-console2 = handler
-  fun emit(msg){ println(msg) }
+  fun emit(msg) println(msg) 
 ```
 since a `handler{ ... }` expression is a function itself (and thus a _value_). 
 Generally we prefer the earlier definition though as it allows further parameters
@@ -1328,8 +1326,8 @@ Another useful handler may collect all emitted messages as a list of lines:
 fun emit-collect( action : () -> <emit|e> () ) : e string
   var lines := []
   with handler
-    return(x)    { lines.reverse.join("\n") }
-    fun emit(msg){ lines := Cons(msg,lines) }  
+    return(x)     lines.reverse.join("\n") 
+    fun emit(msg) lines := Cons(msg,lines)   
   action()
 
 fun ehello-commit() : string
@@ -1351,7 +1349,7 @@ exception example:
 
 ```
 fun catch( hnd : (string) -> e a, action : () -> <raise|e> a ) : e a 
-  with ctl raise(msg){ hnd(msg) }
+  with ctl raise(msg) hnd(msg)
   action()
 ```
 
@@ -1360,7 +1358,7 @@ exceptional situations:
 
 ```
 fun catch-example()
-  with catch fn(msg){ println("error: " ++ msg); 42 }
+  with catch( fn(msg){ println("error: " ++ msg); 42 } )
   safe-divide(1,0)
 ```
 
@@ -1395,8 +1393,8 @@ action into one that returns a `:maybe` type:
 ```
 fun raise-maybe( action : () -> <raise|e> a ) : e maybe<a>
   with handler
-    return(x){ Just(x) }       // normal return: wrap in Just
-    ctl raise(msg){ Nothing }  // exception: return Nothing directly  
+    return(x)      Just(x)   // normal return: wrap in Just
+    ctl raise(msg) Nothing   // exception: return Nothing directly  
   action()
 
 
@@ -1436,8 +1434,8 @@ We can define a generic state handler most easily by using `var` declarations:
 fun state( init : a, action : () -> <state<a>,div|e> b ) : <div|e> b 
   var st := init
   with handler
-    fun get() { st }
-    fun set(i){ st := i }
+    fun get()  st 
+    fun set(i) st := i 
   action()
 ```
 
@@ -1461,9 +1459,9 @@ use a return operation again to pair the final result with the final state:
 fun pstate( init : a, action : () -> <state<a>,div|e> b ) : <div|e> (b,a)
   var st := init
   with handler     
-    return(x) { (x,st) }      // pair with the final state
-    fun get() { st }
-    fun set(i){ st := i }
+    return(x)  (x,st)       // pair with the final state
+    fun get()  st
+    fun set(i) st := i 
   action()
 ```
 where `pstate(10){ sumdown() }` evaluates to `(55,0)`.  
@@ -1478,10 +1476,10 @@ a separate `return` handler as:
 ```
 fun pstate2( init : a, action : () -> <state<a>,div|e> b ) : <div|e> (b,a) 
   var st := init
-  with return(x){ (x,st) }
+  with return(x) (x,st)
   with handler 
-    fun get() { st }
-    fun set(i){ st := i }
+    fun get()  st
+    fun set(i) st := i
   action()
 ```
 
@@ -1562,10 +1560,11 @@ consider two nested handlers for the `emit` operation:
 
 ```
 fun mask-emit() 
-  with fun emit(msg){ println("outer:" ++ msg) }
-  with fun emit(msg){ println("inner:" ++ msg) }
+  with fun emit(msg) println("outer:" ++ msg) 
+  with fun emit(msg) println("inner:" ++ msg)
   emit("hi")
-  mask<emit>{ emit("there") }
+  mask<emit>
+    emit("there")
 ```
 If we call `mask-emit()` it prints:
 ````
@@ -1597,7 +1596,7 @@ internal exceptions:
 
 ```
 fun mask-print( action : () -> e int ) : e int
-  with ctl raise(msg){ 42 }
+  with ctl raise(msg) 42 
   val x = mask<raise>(action)
   if x.is-odd then raise("wrong")   // internal exception
   x
@@ -1662,7 +1661,7 @@ overriding the behavour of `emit`:
 
 ```
 fun emit-quoted1( action : () -> <emit,emit|e> a ) : <emit|e> a
-  with fun emit(msg){ emit("\"" ++ msg ++ "\"" ) }
+  with fun emit(msg) emit("\"" ++ msg ++ "\"") 
   action()
 ```
 
@@ -1676,7 +1675,7 @@ previous handler which is no longer accessible from `action`:
 
 ```
 fun emit-quoted2( action : () -> <emit|e> a ) : <emit|e> a
-  with override fun emit(msg){ emit("\"" ++ msg ++ "\"" ) }
+  with override fun emit(msg) emit("\"" ++ msg ++ "\"" )
   action()
 ```
 
@@ -1746,7 +1745,7 @@ One possible implementation just uses random numbers:
 
 ```
 fun choice-random(action : () -> <choice,random|e> a) : <random|e> a
-  with fun choice(){ random-bool() }
+  with fun choice() random-bool() 
   action()
 ```
 
@@ -1760,8 +1759,8 @@ of the action in a singleton list:
 ```
 fun choice-all(action : () -> <choice|e> a) : e list<a>
   with handler
-    return(x){ [x] }
-    ctl choice(){ resume(False) ++ resume(True) }
+    return(x)    [x] 
+    ctl choice() resume(False) ++ resume(True) 
   action()
 ```
 where `choice-all(xor)` returns `[False,True,True,False]`.
@@ -1782,10 +1781,12 @@ We can combine the handlers in two interesting ways:
 
 ```
 fun state-choice() : div (list<bool>,int) 
-  pstate(0){ choice-all(surprising) }
+  pstate(0)
+    choice-all(surprising) 
 
 fun choice-state() : div list<(bool,int)>
-  choice-all{ pstate(0,surprising) }
+  choice-all
+    pstate(0,surprising)
 ```
 
 In `state-choice()` the `pstate` is the outer handler and becomes like a global
@@ -1826,8 +1827,8 @@ effect fun fread() : string
 fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,filesys|e> a
   val h = fopen(path)
   with handler
-    return(x)  { hclose(h); x }
-    fun fread(){ hreadline(h) }  
+    return(x)   { hclose(h); x }
+    fun fread() hreadline(h) 
   action()
 ```
 
@@ -1840,8 +1841,10 @@ when unwinding for a non-resuming operation. So, a more robust way to write
 ```unchecked
 fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,filesys|e> a
   val h = fopen(path)
-  with finally{ hclose(h) }
-  with fun fread(){ hreadline(h) }
+  with finally 
+    hclose(h)
+  with fun fread() 
+    hreadline(h)
   action()
 ```
 
@@ -1854,7 +1857,10 @@ active research into using the type system to statically prevent this from happe
 Another way to work with multiple resumptions is to use the `initially` function.
 This function takes 2 arguments: the first argument is a function that is called 
 the first time `initially` is evaluated, and subsequently every time a particular resumption is
-resumed more than once. We can use this to implement various strategies to handle
+resumed more than once. 
+
+<!--
+We can use this to implement various strategies to handle
 linear resources even for multiple resumptions. For files, it is not clear what is the
 best way to handle this, but one way would be to not close the file until all strands
 have finished:
@@ -1862,9 +1868,12 @@ have finished:
 fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,filesys|e> a
   var count := 0
   val h = fopen(path)
-  with initially fn(rcount){ count := count+1 }
-  with finally{ if count==1 then hclose(h) else count := count - 1 }
-  with fun fread(){ hreadline(h) }
+  with initially fn(rcount)
+    count := count+1 
+  with finally
+    if count==1 then hclose(h) else count := count - 1 
+  with fun fread()
+    hreadline(h) 
   action()
 ```
 
@@ -1872,19 +1881,22 @@ fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,fi
 The `rcount` parameter is the resume count; it is `0` on the first evaluation of `initially`, and
 `>1` for every resume (for any operation) after the first one.
 ~
-
+-->
 
 
 
 #### Raw Control { #sec-rcontrol; }
 
-~ Todo
-Use `rctl` for raw control operations which do not automatically
-finalize; this gives true first-class resumption contexts (as `rcontext`) but need
-to be used with care. With `rctl` one can use the implicitly bound
+~ advanced
+Use `raw ctl` for raw control operations which do not automatically
+finalize. With `raw ctl` one can use the implicitly bound
 resumption context `rcontext` to either resume (as `rcontext.resume(x)`),
 or to finalize a resumption (as `rcontext.finalize`) which runs all
-`finally` handlers to clean up resources.
+`finally` handlers to clean up resources. This allows one to store an `rcontext`
+as a first class value to resume or finalize later even from a different
+scope. Of course, it needs to be used with care since it is now the 
+programmers' resposibility to ensure the resumption is eventually resumed
+or finalized (such that any resources can be released).
 ~
 
 ### Linear Effects { #sec-linear; }
