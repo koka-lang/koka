@@ -15,17 +15,19 @@ import std/os/flags
 val header = "usage:\n stack exec koka -- util/bundle [-- [options]]\n\noptions:"
 
 struct iflags
-  prefixdir : string = ""
-  postfixtag: string = ""
-  minimal   : bool   = False
-  dist      : bool   = True
-  sysghc    : bool   = False
-  exe       : string = ""
+  prefixdir   : string = ""
+  postfixtag  : string = ""
+  extrametadir : string = ""
+  minimal     : bool   = False
+  dist        : bool   = True
+  sysghc      : bool   = False
+  exe         : string = ""
 
 
 val flag-descs : list<flag<iflags>> =
   fun set-prefix( f : iflags, s : string ) : iflags { f(prefixdir = s) }
   fun set-postfix( f : iflags, s : string ) : iflags { f(postfixtag = s) }
+  fun set-metadata( f : iflags, s : string ) : iflags { f(extrametadir = s) }
   fun set-minimal( f : iflags, b : bool ) : iflags  { f(minimal = b) }
   fun set-install( f : iflags, b : bool ) : iflags  { f(dist = !b) }
   fun set-sysghc( f : iflags, b : bool ) : iflags  { f(sysghc = b) }
@@ -34,12 +36,13 @@ val flag-descs : list<flag<iflags>> =
     Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution bundle"),
     Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory for install ('~/.local')" ),
     Flag( "", ["postfix"], Req(set-postfix,"POST"), "set postfix instead of <version>-<os>-<arch>"),
+    Flag( "", ["metadata"], Req(set-metadata,"DIR"), "set metadata directory with extra metadata" ),
     Flag( "", ["koka"], Req(set-exe,"EXE"), "set koka executable path; use 'stack' or 'cabal' for a local build"),
     Flag( "", ["system-ghc"], Bool(set-sysghc), "use system-ghc if building with 'stack'")
   ]
 
 
-public fun process-flags() : <ndet,console> maybe<iflags>
+pub fun process-flags() : <ndet,console> maybe<iflags>
   val (flags,args,errs) = parse( Iflags(), flag-descs, get-args() )
   if errs.is-nil && args.is-nil then Just(flags) else
     println( errs.join("\n") ++ "\n" ++ flag-descs.usage(header) )
@@ -60,12 +63,15 @@ fun main()
       val (koka-exe, koka-run) = koka-exe-path(flags.exe, flags.sysghc)
       val post   = flags.postfixtag || get-default-postfix()
       val predir = if flags.prefixdir.is-empty
-                    then get-default-prefix(flags.dist, post)
+                    then get-default-prefix(flags.dist, version, post)
                     else flags.prefixdir.path
-      bundle( predir, cc, version, flags.dist, post, flags.minimal, koka-exe, koka-run )      
+      val extrametadir = if flags.extrametadir.is-empty
+                     then ""
+                     else flags.extrametadir
+      bundle( predir, extrametadir, cc, version, flags.dist, post, flags.minimal, koka-exe, koka-run )      
 
 
-fun bundle( prefixdir : path, cc : string, version : string, dist : bool, post : string, 
+fun bundle( prefixdir : path, extrametadir : string, cc : string, version : string, dist : bool, post : string, 
             minimal : bool, koka-exe : path, koka-run : string ) 
   // Install paths  
   val bindir  = prefixdir / "bin"
@@ -134,9 +140,15 @@ fun bundle( prefixdir : path, cc : string, version : string, dist : bool, post :
     if (dist && cc=="clang-cl") then
       copy-libraries(libdir, "cl", v, version)
 
+  // Insert metadata
+  val metadatadir = prefixdir / "meta"
+  println("inserting metadata...")
+  ensure-dir(metadatadir)
+  insert-metadata(version, metadatadir, extrametadir)
+
   if dist then
     // tar the result
-    val tarcmd = ["tar -czf",tarname,"-C",prefixdir.show,"bin","lib","share"].join(" ")
+    val tarcmd = ["tar -czf",tarname,"-C",prefixdir.show,"bin","lib","share","meta"].join(" ")
     println("> " ++ tarcmd)
     run-system(tarcmd)
     ()
@@ -170,9 +182,9 @@ fun koka-exe-path(exe-opt : string, sysghc : bool) : io (path,string)
   (koka-exe, koka-run)
 
 
-fun get-default-prefix(dist : bool, post : string) : io path
+fun get-default-prefix(dist : bool, version : string, post : string) : io path
   if dist then
-    "bundle" / ("local-" ++ post)
+    "bundle" / version / "archives" / ("local-" ++ post)
   else
     homedir() / ".local"
 
@@ -202,6 +214,15 @@ fun show( v : variant ) : string
     DRelease -> "drelease"
     Release  -> "release"
 
+fun insert-metadata(version : string, location : path, extrametadir : string) : io ()
+  val arch    = get-cpu-arch()
+
+  if ! extrametadir.is-empty then
+    copy-directory(extrametadir.path, location)
+
+  run-system("echo '" ++ version ++ "' > " ++ (location / "version").string)
+  run-system("echo '" ++ arch ++    "' > " ++ (location / "arch").string)
+  ()
 
 fun copy-libraries( libdir : path, cc : string, variant : variant, version : string ) : io ()
   val outputdir = get-output-dir( cc, variant, version )
