@@ -413,7 +413,7 @@ inlineDef env
        -- trace ("core inline def: " ++ show name) $ return ()
        (name,_) <- funid
        expr <- parseBody env
-       return (InlineDef (envQualify env name) expr isRec inl (if (inl==InlineAlways) then 0 else costExpr expr) specArgs)
+       return (InlineDef (envQualify env name) expr isRec inl (if (inl==InlineAlways) then 0 else costExpr expr) sort specArgs)
 
 
 inlineDefSort
@@ -421,11 +421,14 @@ inlineDefSort
        inl <- parseInline
        spec <- do specialId "specialize" 
                   (s,_) <- stringLit
-                  let args = [c == '*' | c <- s] 
-                  return args
+                  return [c == '*' | c <- s] 
                <|> return []
-       (do (_,doc) <- dockeyword "fun"
-           return (DefFun [],inl,isRec,spec,doc)
+       pinfos <- do specialId "borrow"
+                    (s,_) <- stringLit
+                    return [if c == '^' then Borrow else Own | c <- s] 
+                 <|> return []
+       (do (_,doc) <- dockeyword "fun"           
+           return (DefFun pinfos,inl,isRec,spec,doc)
         <|>
         do (_,doc) <- dockeyword "val"
            return (DefVal,inl,False,spec,doc))

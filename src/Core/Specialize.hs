@@ -142,22 +142,22 @@ partitionBools bools as = foldr f ([], []) $ zip bools as
       | otherwise = (a : falses, trues)
 
 specOneCall :: InlineDef -> Expr -> SpecM Expr
-specOneCall inlineDef@(InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs=specArgs }) e
+specOneCall inlineDef@(InlineDef{ inlineName=specName, inlineExpr=specExpr, inlineParamSpecialize=specArgs, inlineSort=sort }) e
   = case e of
       App (Var (TName name _) _) args
        | gArgs <- goodArgs specArgs args
        , any isJust gArgs
-        -> replaceCall specName specExpr specArgs (newArgs gArgs args) Nothing
+        -> replaceCall specName specExpr sort specArgs (newArgs gArgs args) Nothing
       App (TypeApp (Var (TName name ty) _) typeArgs) args
        | gArgs <- goodArgs specArgs args
        , any isJust gArgs
-        -> replaceCall specName specExpr specArgs (newArgs gArgs args) $ Just typeArgs
+        -> replaceCall specName specExpr sort specArgs (newArgs gArgs args) $ Just typeArgs
       _ -> return e
 
   where newArgs gArgs args = zipWith fromMaybe args gArgs
 
 -- specOneCall :: InlineDef -> Expr -> SpecM Expr
--- specOneCall inlineDef@(InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs=specArgs }) e
+-- specOneCall inlineDef@(InlineDef{ inlineName=specName, inlineExpr=specExpr, inlineParamSpecialize=specArgs }) e
 --   = case e of
 --       App (Var (TName name _) _) args
 --         | gArgs <- goodArgs specArgs args
@@ -300,8 +300,8 @@ comment = unlines . map ("// " ++) . lines
 -- 3. Only then, replace the recursive calls to f in the body (specInnerCalls)
 -- The important thing is that we don't try to get the type of the body at the same time as replacing the recursive calls
 -- since the type of the body depends on the type of the functions that it calls and vice versa
-replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
-replaceCall name expr bools args mybeTypeArgs 
+replaceCall :: Name -> Expr -> DefSort -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
+replaceCall name expr sort bools args mybeTypeArgs 
   = do
       -- extract the specialized parameters
       let ((newParams, newArgs), (speccedParams, speccedArgs)) 
@@ -335,8 +335,7 @@ replaceCall name expr bools args mybeTypeArgs
       sspecBody <- uniqueSimplify defaultEnv False False 1 10 specBody
       -- trace ("\n// ----start--------\n// specializing " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs) <> "\n// specTName: " <> show (getName specTName) <> ", specBody0: \n" <> show specBody <> "\n\n, sspecBody: \n" <> show sspecBody <> "\n// ---- start recurse---") $ return ()
 
-      let -- todo: maintain borrowed arguments?
-          specDef = Def specName specType sspecBody Private (DefFun []) InlineAuto rangeNull
+      let specDef = Def specName specType sspecBody Private sort InlineAuto rangeNull
                      $ "// specialized: " <> show name <> ", on parameters " <> concat (intersperse ", " (map show speccedParams)) <> ", using:\n" <>
                        comment (unlines [show param <> " = " <> show arg | (param,arg) <- zip speccedParams speccedArgs])
       
@@ -398,7 +397,7 @@ makeSpecialize def
             $ allPassedInSameOrder params recArgs
 
       guard (any isJust specializableParams)
-      Just $ InlineDef (defName def) (defExpr def) True InlineAuto (costDef def) (map isJust specializableParams)
+      Just $ InlineDef (defName def) (defExpr def) True InlineAuto (costDef def) (defSort def) (map isJust specializableParams)
 
 allPassedInSameOrder :: [TName] -> [[Expr]] -> [Maybe TName]
 allPassedInSameOrder params calls
@@ -463,7 +462,7 @@ multiStepInlines loadedInlines inlines = snd . foldl' f (inlines `inlinesMerge` 
       , defInline def /= InlineNever
       , Just specArgs <- callsSpecializable allInlines def =
           -- inlineCost = 1 here since kki complains about inline + specialize
-          let new = InlineDef (defName def) (defExpr def) False InlineAuto 1 specArgs
+          let new = InlineDef (defName def) (defExpr def) False InlineAuto 1 (defSort def) specArgs
           in ((,) `on` inlinesExtend new) allInlines newInlines
     f inlines _ = inlines
 
@@ -479,7 +478,7 @@ multiStepInlines loadedInlines inlines = snd . foldl' f (inlines `inlinesMerge` 
 
         goCommon :: Name -> [Expr] -> Alt Maybe [Bool]
         goCommon name args
-          | Just InlineDef{ specializeArgs=specArgs } <- inlinesLookup name inlines
+          | Just InlineDef{ inlineParamSpecialize=specArgs } <- inlinesLookup name inlines
           , name /= defName def = do
               let spArgs = filterBools specArgs args
               let overlap = map (`elem` concatMap vars spArgs) params

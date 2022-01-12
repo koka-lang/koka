@@ -6,9 +6,7 @@ import basic/garsia-wachs
 import basic/rbtree
 
 import syntax/basic
-import syntax/effect
 import syntax/handler
-import syntax/var
 import syntax/with
 
 import handlers/ambient

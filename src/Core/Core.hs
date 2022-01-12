@@ -524,7 +524,15 @@ data Def = Def{ defName  :: Name
               , defDoc :: String
               }
 
-data InlineDef = InlineDef{ inlineName :: Name, inlineExpr :: Expr, inlineRec :: Bool, inlineKind :: DefInline, inlineCost :: Int, specializeArgs :: [Bool] }
+data InlineDef = InlineDef{ 
+  inlineName :: Name, 
+  inlineExpr :: Expr, 
+  inlineRec  :: Bool, 
+  inlineKind :: DefInline, 
+  inlineCost :: Int, 
+  inlineSort :: DefSort,                 -- for borrow info
+  inlineParamSpecialize :: [Bool] 
+}
 
 defIsVal :: Def -> Bool
 defIsVal def
@@ -539,11 +547,11 @@ defParamInfos def
       _             -> []
 
 inlineDefIsSpecialize :: InlineDef -> Bool
-inlineDefIsSpecialize inlDef = not (null (specializeArgs inlDef))
+inlineDefIsSpecialize inlDef = not (null (inlineParamSpecialize inlDef))
 
 instance Show InlineDef where
-  show (InlineDef name expr isRec kind cost specArgs)
-    = "InlineDef " ++ show name ++ " " ++ (if isRec then "rec " else "") ++ show kind ++ " " ++ show cost ++ " " ++ show specArgs
+  show (InlineDef name expr isRec kind cost sort specArgs)
+    = "InlineDef " ++ show sort ++ " " ++ show name ++ " " ++ (if isRec then "rec " else "") ++ show kind ++ " " ++ show cost ++ " " ++ show specArgs
 
 
 newtype CorePhase a = CP (Int -> DefGroups -> Error (CPState a))
