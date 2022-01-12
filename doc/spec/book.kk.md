@@ -7,8 +7,9 @@ Css           : styles/koka.css
 Css           : styles/book.css
 Css           : https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css
 Script        : scripts/book.js
-Colorizer     : unchecked.json
-Colorizer     : koka.json
+Colorizer     : unchecked
+Colorizer     : koka
+Colorizer     : arm64
 Bibliography  : koka.bib
 Description   : Koka Language Specification
 Mapsto        : [$\rightsquigarrow$]{.mapsto}

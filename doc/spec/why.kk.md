@@ -213,8 +213,8 @@ yielded: 3
 [test-bench]: https://github.com/koka-lang/koka/tree/master/test/bench
 
 Perceus is the compiler optimized reference counting technique that &koka;
-uses for automatic memory management [@Perceus:tech]. This (together
-with evidence passing [@Xie:evidence-tr;@Xie:evidently])
+uses for automatic memory management [@Reinking:perceus;@Lorenzen:reuse-tr]. This (together
+with evidence passing [@Xie:evp;@Xie:evp-tr;@Xie:evidently])
 enables &koka; to compile directly to plain C code without needing a
 garbage collector or runtime system.
 
@@ -286,11 +286,13 @@ list_t map( list_t xs, function_t f) {
 ````
 -->
 ````cpp {.aside}
-void map( list_t xs, function_t f, list_t* res) {
+void map( list_t xs, function_t f, 
+          list_t* res) 
+{
   while (is_Cons(xs)) {
-    if (is_unique(xs)) {  // if xs is not shared..
+    if (is_unique(xs)) {    // if xs is not shared..
       box_t y = apply(dup(f),xs->head);      
-      if (yielding()) { ... } // if f yielded an effect operation..
+      if (yielding()) { ... } // if f yields to a general ctl operation..
       else {
         xs->head = y;      
         *res = xs;          // update previous node in-place
@@ -298,7 +300,7 @@ void map( list_t xs, function_t f, list_t* res) {
         xs = xs->tail;      // .. and continue with the next node
       }
     }
-    else { ... }          // slow path allocates fresh nodes
+    else { ... }            // slow path allocates fresh nodes
   }
   *res = Nil;  
 }
@@ -317,10 +319,123 @@ to express loops with regular function calls, reuse analysis
 allows us to express many imperative algorithms in a purely
 functional style. 
 
+
 [Learn more about FBIP &adown;](book.html#sec-fbip)
 {.learn}
 
 
-[Read the Perceus report on reuse analysis][Perceus]
+
+## Specialization
+
+As another example of the effectiveness of Perceus and the strong semantics
+of the Koka core language, we can
+look at the [red-black tree][rbtree] example and look at the code generated when folding a binary tree. The red-black tree is defined as:
+```
+type color  
+  Red
+  Black
+
+type tree<k,a> 
+  Leaf
+  Node(color : color, left : tree<k,a>, key : k, value : a, right : tree<k,a>)
+```
+
+We can generically fold over a tree `t` with a function `f` as:
+
+```
+fun fold(t : tree<k,a>, acc : b, f : (k, a, b) -> b) : b
+  match t
+    Node(_,l,k,v,r) -> r.fold( f(k,v,l.fold(acc,f)), f)
+    Leaf            -> acc
+```
+
+This is used in the example to count all the `True` values in 
+a tree `t : tree<k,bool>` as:
+
+```unchecked
+val count = t.fold(0, fn(k,v,acc) if v then acc+1 else acc)
+```
+
+This may look quite expensive where we pass a polymorphic 
+first-class function but
+the Koka compiler specializes the `fold` definition to the passed
+function, simplifies,
+and then applies Perceus to insert reference count instructions,
+resulting in the following internal core code:
+
+```unchecked
+fun spec-fold(t : tree<k,bool>, acc : int) : int
+  match t
+    Node(_,l,k,v,r) -> 
+      if unique(t) then { drop(k); free(t) } else { dup(l); dup(r) } // perceus inserted
+      val x = if v then 1 else 0
+      spec-fold(r, spec-fold(l,acc) + x) 
+    Leaf -> 
+      drop(t)
+      acc
+
+val count = spec-fold(t,0)
+```
+
+When compiled via the C backend, the generated assembly instructions
+on arm64 become:
+
+````arm64
+spec_fold:
+  ...                       
+  LBB15_3:   
+    mov  x21, x0             ; x20 is t, x21 = acc (x19 = koka context _ctx)
+  LBB15_4:                   ; the "match(t)" point
+    cmp  x20, #9             ; is t a Leaf?
+    b.eq LBB15_1             ; if so, goto Leaf brach
+  LBB15_5:                   ; the Cons(_,l,k,v,r) branch
+    mov  x23, x20
+    ldp  x22, x0, [x20, #8]  ; x22 = l, x0 = k
+    ldrb w24, [x20, #33]     ; x24 = v (boolean, 1 or 0)
+    ldr  x20, [x20, #24]     ; x20 = r
+    ldr  w8, [x23, #4]       ; w8 = reference count (0 is unique)
+    cbnz w8, LBB15_11        ; if t is not unique, goto cold path to dup the members
+    tbz  w0, #0, LBB15_13    ; if k is allocated (bit 0 is 0), goto cold path to free it
+  LBB15_7:                   
+    mov  x0, x23             ; free(t)
+    bl   _mi_free
+  LBB15_8:                              
+    mov  x1, x21             ; call spec_fold(l,acc,_ctx)
+    mov  x2, x19
+    bl   spec_fold
+    cbz  w24, LBB15_3        ; if v is False, the result is the accumulator
+    add  x21, x0, #4         ; otherwise add 1 (as a small int 4*n)
+    orr  x8, x21, #1         ; check for bigint or overflow in one test 
+    cmp  x8, w21, sxtw       ;   (see kklib/include/integer.h for details)
+    b.eq LBB15_4             ; and tail-call into spec_fold if no overflow or bigint
+    mov  w1, #5              ; otherwise, use generic bigint addition              
+    mov  x2, x19
+    bl   _kk_integer_add_generic
+    b    LBB15_3
+  ...
+````
+
+The polymorphic `fold` with its higher order parameter
+is  eventually compiled into a tight loop with close to optimal 
+assembly instructions. 
+
+~ advanced
+Here we see too that the node `t` is freed explicitly as soon as it is
+no longer live. This is usually earlier than scope-based deallocation 
+(like RAII) and therefore Perceus can guarantee to be _garbage-free_ 
+where in a (cycle-free) program objects are always immediatedly
+deallocated as soon as they become unreachable [@Reinking:perceus;@Lorenzen:reuse-tr].
+This may seem still expensive compared to trace-based garbage collection
+which only (re)visits all live objects and never needs to free objects
+explicitly. However, Perceus usually frees an object right after its
+last use (like in our example), and thus the memory is still in the
+cache reducing the cost of freeing it; moreover, Perceus never (re)visits
+live objects arbitrarily which may trash the caches especially if the 
+live set is large. As such, we think the deterministic behavior of 
+Perceus together with the garbage-free property may work out better
+in practice.
+~
+
+[Read the technical report on garbage-free and frame-limited reuse][reusetech]
 {.learn}
 

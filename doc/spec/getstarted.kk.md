@@ -39,7 +39,7 @@ libraries, package management, and deep IDE integration.
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: https://github.com/koka-lang/koka/#build-from-source
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
-
+[reusetech]: https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/
 
 ## Installing the compiler { #install }
 

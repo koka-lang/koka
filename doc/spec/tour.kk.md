@@ -946,7 +946,7 @@ using special directives.
 
 ## Effect Handlers { #sec-handlers }
 
-Effect handlers [@Pretnar:handlers;@Leijen:algeff] are a novel way to 
+Effect handlers [@Pretnar:handlers;@Leijen:algeff;@Leijen:async] are a novel way to 
 define control-flow abstractions and dynamic binding as user defined 
 handlers -- no need anymore to add special compiler extensions for
 exceptions, iterators, async-await, probabilistic programming, etc. 
@@ -1139,7 +1139,7 @@ This also conveys better that even though `ask` is dynamically bound, it behaves
 just like a regular function without changing the control-flow. 
 
 Moreover, operations declared as `fun` are much more efficient than general
-`ctl` operations. The &koka; compiler uses (generalized) _evidence passing_  [@Xie:evidence-tr;@Xie:evidently]
+`ctl` operations. The &koka; compiler uses (generalized) _evidence passing_  [@Xie:evp;@Xie:evp-tr;@Xie:evidently]
 to pass down handler information to each call-site. At the call to `ask` in `add-twice`,
 it selects the handler from the evidence vector and when the operation is
 a tail-resumptive `fun`, it calls it directly as a regular function (except with an adjusted evidence
@@ -1503,7 +1503,7 @@ with regard to other approaches:
    of this is the continuation monad (which can express ``call/cc``).
 
 The &koka; compiler internally uses monads and `shift`/`reset` to compile effect handlers though, and
-it compiles handlers into to an internal free monad based on multi-prompt delimited control [@Xie:evidence-tr;@Gunter:mprompt]. 
+it compiles handlers into to an internal free monad based on multi-prompt delimited control [@Xie:evp;@Gunter:mprompt]. 
 By inlining the monadic _bind_ we are able to generate efficient C code that only allocates continuations 
 in the case one is actually yielding up to a general `ctl` operation.
 ~
