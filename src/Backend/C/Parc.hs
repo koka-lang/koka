@@ -703,7 +703,7 @@ exprIsNotRefcounted expr
   = case expr of
       Lit (LitInt i)   
         -> return (i >= -8191 && i <= 8191)  -- 14 bits is safe on every platform
-      _ -> needsDupDrop (typeOf expr)
+      _ -> not <$> needsDupDrop (typeOf expr)
 
 
 
