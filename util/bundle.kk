@@ -36,7 +36,7 @@ val flag-descs : list<flag<iflags>> =
     Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution bundle"),
     Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory for install ('~/.local')" ),
     Flag( "", ["postfix"], Req(set-postfix,"POST"), "set postfix instead of <version>-<os>-<arch>"),
-    Flag( "", ["metadata"], Req(set-metadata,"DIR"), "set metadata directory with extra metadata" ),
+    Flag( "", ["metadata"], Req(set-metadata,"DIR"), "set metadata directory (with extra metadata for the version etc.)" ),
     Flag( "", ["koka"], Req(set-exe,"EXE"), "set koka executable path; use 'stack' or 'cabal' for a local build"),
     Flag( "", ["system-ghc"], Bool(set-sysghc), "use system-ghc if building with 'stack'")
   ]
@@ -78,7 +78,7 @@ fun bundle( prefixdir : path, extrametadir : string, cc : string, version : stri
   val libdir  = prefixdir / "lib" / "koka" / version
   val sharedir= prefixdir / "share" / "koka" / version
   val tarname = (prefixdir / ".." / ("koka-" ++ post ++ ".tar.gz")).string  
-
+  
   if dist then
     println("creating koka distribution bundle:")
     println("  bundle : " ++ tarname)
@@ -184,7 +184,7 @@ fun koka-exe-path(exe-opt : string, sysghc : bool) : io (path,string)
 
 fun get-default-prefix(dist : bool, version : string, post : string) : io path
   if dist then
-    "bundle" / version / "archives" / ("local-" ++ post)
+    "bundle" / version / ("local-" ++ post)
   else
     homedir() / ".local"
 
@@ -215,11 +215,8 @@ fun show( v : variant ) : string
     Release  -> "release"
 
 fun insert-metadata(version : string, location : path, extrametadir : string) : io ()
-  val arch    = get-cpu-arch()
-
-  if ! extrametadir.is-empty then
-    copy-directory(extrametadir.path, location)
-
+  val arch = get-cpu-arch()
+  if ! extrametadir.is-empty then copy-directory(extrametadir.path, location)
   run-system("echo '" ++ version ++ "' > " ++ (location / "version").string)
   run-system("echo '" ++ arch ++    "' > " ++ (location / "arch").string)
   ()

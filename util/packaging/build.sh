@@ -114,7 +114,7 @@ move_outputs() {
       stop "Failed to extract version from bundle while moving"
     fi
 
-    move_target_dir="$CALLER_DIR/bundle/$file_bundle_version/archives"
+    move_target_dir="$CALLER_DIR/bundle/$file_bundle_version"
     mkdir -p "$move_target_dir"
     mv "$file" "$move_target_dir"
   done

@@ -259,7 +259,7 @@ extract_version_architecture_from_bundle() {
 move_packages() {
   target_location=""
   if [ -z "$OUTPUT_DIR" ]; then
-    target_location="$CALLER_DIR/bundle/$VERSION/packages"
+    target_location="$CALLER_DIR/bundle/$VERSION"
   else
     target_location="$OUTPUT_DIR/"
   fi

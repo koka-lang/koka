@@ -160,15 +160,15 @@ on the local machine:
 $ stack exec koka -- -e util/bundle
 ...
 distribution bundle created.
-  bundle : bundle/koka-v2.3.1-linux-x64.tar.gz
+  bundle : bundle/v2.3.9/koka-v2.3.9-linux-x64.tar.gz
   cc     : gcc
-  version: v2.3.1
+  version: v2.3.9
 ```
 This takes a while as it pre-compiles the standard libraries in three build
 variants (`debug`, `drelease` (release with debug info), and `release`).
 After generating the bundle, you can install it locally as:
 ```
-$ util/install.sh  bundle/koka-v2.3.1-linux-x64.tar.gz
+$ util/install.sh  bundle/v2.3.9/koka-v2.3.9-linux-x64.tar.gz
 ```
 (use `util/install.bat` on Windows). 
 After installation, you can now directly invoke `koka`:
