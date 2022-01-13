@@ -568,8 +568,8 @@ prefix
   = programName ++ " "
 
 -- We shorten class names as it save significantly on the size of
--- generated HTML. For example. system.core source went from 1.4mb to about 1mb
--- just by shortening (includeing the classes popup and popup-content)
+-- generated HTML. For example. `std/core` source went from 1.4mb to about 1mb
+-- just by shortening (including the classes popup and popup-content)
 shorten classnames
   = unwords (map shortenWord (words classnames))
   where
