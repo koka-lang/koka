@@ -10,6 +10,8 @@ GLIBC_VERSION=""
 KOKA_VERSION=""
 ARCHITECTURE=""
 
+CLEAN_FOLDERS=".koka .stack-work dist dist-newstyle"
+
 LOG_PREFIX="[KOKA INTERNAL BUILDER] "
 
 info() {
@@ -59,6 +61,15 @@ get_koka_arch() {
   echo "$kk_arch"
 }
 
+clean_workdir() {
+  info "Cleaning up"
+
+  for folder in $CLEAN_FOLDERS; do
+    # Eat error
+    rm -rf "$folder" 2>/dev/null
+  done
+}
+
 mount_overlay() {
   info "Mounting overlay"
   # Check if /proc/filesystems contains overlayfs and tmpfs
@@ -74,14 +85,16 @@ mount_overlay() {
     stop "Failed to mount tmpfs"
   fi
 
-  mkdir -p /tmp/overlay/coderw /tmp/overlay/codework
+  mkdir -p /tmp/overlay/source-work /tmp/overlay/source-upper /tmp/overlay/source-merged
 
-  mount -t overlay overlay -o lowerdir=/code,upperdir=/tmp/overlay/coderw,workdir=/tmp/overlay/codework /tmp/overlay/coderw
+  mount -t overlay overlay \
+    -o lowerdir=/code,upperdir=/tmp/overlay/source-upper,workdir=/tmp/overlay/source-work \
+    /tmp/overlay/source-merged
   if [ $? -ne 0 ]; then
     stop "Failed to mount overlayfs, the container needs the SYS_ADMIN capability"
   fi
 
-  cd /tmp/overlay/coderw
+  cd /tmp/overlay/source-merged
 
   info "Overlay mounted"
 }
@@ -161,6 +174,8 @@ full_build() {
   info "Starting build"
 
   mount_overlay
+
+  clean_workdir
 
   build_koka
 

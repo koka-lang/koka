@@ -25,13 +25,6 @@ source "$(dirname "$0")/util.sh"
 # Main
 #---------------------------------------------------------
 
-clean_workdir() {
-  info "Cleaning up"
-
-  rm -rf $CALLER_DIR/.koka
-  rm -rf $CALLER_DIR/.stack-work
-}
-
 build_docker_images() {
   build_arch="$1"
 
@@ -147,14 +140,15 @@ package_outputs() {
     file_bundle_distro=$(tar -Oxf "$bundleloc" meta/distro)
     file_bundle_arch=$(tar -Oxf "$bundleloc" meta/arch)
     file_bundle_arch=$(normalize_osarch "$file_bundle_arch")
+    
     # Skip if file bundle distro not in build targets
-    if [[ ! "$BUILD_TARGETS" =~ "$file_bundle_distro" ]]; then
-      continue
-    fi
+    if [ -z "$file_bundle_distro" ]; then 
+      warn "$bundleloc does not have expected metadata"; continue; fi
+    if [[ ! "$BUILD_TARGETS" =~ "$file_bundle_distro" ]]; then continue; fi
     # Skip if file bundle arch not in build archs
-    if [[ ! "$BUILD_ARCHITECTURES" =~ "$file_bundle_arch" ]]; then
-      continue
-    fi
+    if [ -z "$file_bundle_arch" ]; then 
+      warn "$bundleloc does not have expected metadata"; continue; fi
+    if [[ ! "$BUILD_ARCHITECTURES" =~ "$file_bundle_arch" ]]; then continue; fi
 
     info "Packaging $bundleloc for $file_bundle_distro"
     ./package.sh --calldir="$CALLER_DIR" -t="$file_bundle_distro" $bundleloc
@@ -171,8 +165,6 @@ main_build() {
   info "Starting builds"
   switch_workdir_to_script
   verify_ran_from_reporoot
-
-  clean_workdir
 
   if [ "$MODE" == "setupqemu" ]; then
     ensure_docker
