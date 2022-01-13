@@ -129,7 +129,7 @@ move_outputs() {
 package_outputs() {
   info "Packaging bundles"
 
-  foundbundles="$CALLER_DIR/bundle/**/archives/*.tar.gz"
+  foundbundles="$CALLER_DIR/bundle/**/*.tar.gz"
 
   for bundleloc in $foundbundles; do
     # Check if the bundle exists
@@ -140,7 +140,7 @@ package_outputs() {
     file_bundle_distro=$(tar -Oxf "$bundleloc" meta/distro)
     file_bundle_arch=$(tar -Oxf "$bundleloc" meta/arch)
     file_bundle_arch=$(normalize_osarch "$file_bundle_arch")
-    
+
     # Skip if file bundle distro not in build targets
     if [ -z "$file_bundle_distro" ]; then 
       warn "$bundleloc does not have expected metadata"; continue; fi

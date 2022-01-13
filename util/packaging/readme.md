@@ -16,7 +16,7 @@ Right now you can generate packages that work for these distributions:
 - Ubuntu 18.04, 20.04, 22.04
 - PopOS 20.04, 21.10
 - Linux Mint 19.3, 20.2
-- Arch Linux
+- Arch Linux, Manjaro
 - OpenSUSE Tumbleweed, Leap 15.3
 
 There might be more that are also compatible, so feel free to experiment.
