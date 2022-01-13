@@ -63,7 +63,7 @@
 				"extensions": [
 					".kk",
 					".kki",
-					".core"
+					".kkc"
 				],
 				"configuration": "./koka-configuration.json"
 			}

@@ -1,6 +1,6 @@
 { "name": "Koka",
   "scopeName": "source.koka",
-  "fileTypes": ["kk","kki","core"],
+  "fileTypes": ["kk","kki","kkc"],
   "author": "Daan Leijen",
   "firstLineMatch": "\\s*(public|private)?\\s*(module)\\s*((interface)?)\\s*(([a-z][\\w\\-]*/)*[a-z][\\w\\-]*)",
   "foldingStartMarker": "{\\s*$",

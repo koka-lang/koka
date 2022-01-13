@@ -1013,7 +1013,7 @@ codeGen term flags compileTarget loaded
        removeFileIfExists outIface
 
        -- core
-       let outCore  = outBase ++ ".core"
+       let outCore  = outBase ++ ".kkc"
            coreDoc  = Core.Pretty.prettyCore env{ coreIface = False, coreShowDef = (showCore flags) } (target flags) inlineDefs (modCore mod)
                         <-> Lib.PPrint.empty
        when (genCore flags)  $
@@ -1224,7 +1224,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                                 newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                 (parcBorrowInference flags) (stackSize flags) mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] bcore
-      -- writeDocW 120 (outBase ++ ".c.core") bcoreDoc
+      -- writeDocW 120 (outBase ++ ".c.kkc") bcoreDoc
       when (showFinalCore flags) $
         do termDoc term bcoreDoc
 

@@ -20,7 +20,7 @@ class KokaLexer(RegexLexer):
 
     name = 'Koka'
     aliases = ['koka']
-    filenames = ['*.kk', '*.kki']
+    filenames = ['*.kk', '*.kki', '*.kkc']
     mimetypes = ['text/x-koka']
 
     keywords = [
