@@ -18,9 +18,9 @@ GENERAL_NIX_DEPENDENCIES="gcc,make,tar,curl,git" # For these programs version do
 # Arch dependencies need no space next to >= sign
 RHEL_DEPENDENCIES="glibc >= 2.27"                   # Fedora RedHat CentOS and Rocky
 DEBIAN_DEPENDENCIES="libc6 >= 2.27"                 # Ubuntu Debian
-ALPINE_DEPENDENCIES="gmp>6,libffi>3.4,musl-dev>1.2" # ninja,pkgconf
-ARCH_DEPENDENCIES="glibc>=2.33"
-OPENSUSE_DEPENDENCIES="glibc >= 2.31"
+ALPINE_DEPENDENCIES="gmp>6,libffi>3.4,musl>1.2"     # Alpine
+ARCH_DEPENDENCIES="glibc>=2.33"                     # Arch, Manjaro
+OPENSUSE_DEPENDENCIES="glibc >= 2.31"               # OpenSuse
 
 FREEBSD_DEPENDENCIES=""
 

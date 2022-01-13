@@ -14,22 +14,22 @@ VOLUME /output
 # Install all the necessary packages
 RUN apk update
 # Alpine compat fixes
-RUN apk add --no-cache --upgrade grep wget
+RUN apk add --no-cache --upgrade grep wget util-linux
 RUN ln -s /usr/lib/libncursesw.so.6 /usr/lib/libtinfo.so.6
-# Base util dependencies
-RUN apk add bash curl zip unzip tar util-linux
+
 # Build tools
-RUN apk add alpine-sdk build-base linux-headers cmake ninja
-# Build dependencies
-RUN apk add gmp-dev libffi-dev
+RUN apk add alpine-sdk linux-headers libffi-dev cmake
+
+# Conan
+RUN apk add py3-pip
+RUN pip3 install conan
+
+# Easy hackage update trigger
+ARG UPDATE_HACKAGE=1
+
 # Cabal
 RUN apk add cabal ghc
-
-RUN cabal new-update
-
-ENV VCPKG_FORCE_SYSTEM_BINARIES=1
-RUN git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
-RUN ~/vcpkg/bootstrap-vcpkg.sh
+RUN cabal update
 
 # Add and run the builder script specifying the postfix of the bundle
 ADD ./builder.sh /builder.sh

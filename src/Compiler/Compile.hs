@@ -1442,7 +1442,7 @@ conanCLibrary term flags cc eimport clib pkg
              else do return ""
 
     install conanCmd libDir
-      = do let installCmd = [conanCmd, "install", pkg ++ "@", "--build", "missing"] ++ settings                             
+      = do let installCmd = [conanCmd, "install", pkg ++ "@", "--build"] ++ settings                             
            if (not (autoInstallLibs flags))
             then do termWarning term flags (text "this module requires the conan package" 
                                           <+> clrSource (text pkg) 

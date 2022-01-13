@@ -94,7 +94,7 @@ build_koka() {
     stack build
     status=$?
   elif [ "$BUILD_MODE" = "cabal" ]; then
-    cabal configure --enable-executable-static
+    #cabal configure --enable-executable-static
     cabal new-build
     status=$?
   fi

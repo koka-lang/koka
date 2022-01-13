@@ -8,14 +8,18 @@ VOLUME /output
 
 # Install all the necessary packages
 RUN apt update -y
-RUN apt install build-essential -y
-RUN apt install libgmp-dev curl wget zip unzip tar pkg-config -y
+RUN apt install -y build-essential pkg-config cmake
+RUN apt install -y curl wget zip unzip tar
 
-RUN curl -sSL https://get.haskellstack.org/ | sh
-RUN stack update
+# Conan
+RUN apt install -y python3-pip
+RUN pip3 install conan
 
-RUN git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
-RUN ~/vcpkg/bootstrap-vcpkg.sh
+# Easy hackage update trigger
+ARG UPDATE_HACKAGE=1
+
+RUN apt install -y ghc cabal-install
+RUN cabal update
 
 # Add and run the builder script specifying the postfix of the bundle
 ADD ./builder.sh /builder.sh
@@ -23,4 +27,4 @@ RUN chmod +x /builder.sh
 
 ENTRYPOINT [ "/builder.sh" ]
 
-CMD [ "debian" ]
+CMD [ "debian", "cabal" ]
