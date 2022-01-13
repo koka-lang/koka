@@ -865,7 +865,7 @@ foldMapExpr :: Monoid a => (Expr -> a) -> Expr -> a
 foldMapExpr acc e = case e of
   Lam _ _ body -> acc e <> foldMapExpr acc body
   Var _ _ -> acc e
-  App f xs -> acc e <> acc f <> mconcat (foldMapExpr acc <$> xs)
+  App f xs -> acc e <> foldMapExpr acc f <> mconcat (foldMapExpr acc <$> xs)
   TypeLam _ body -> acc e <> foldMapExpr acc body
   TypeApp expr _ -> acc e <> foldMapExpr acc expr
   Con _ _ -> acc e

@@ -8,6 +8,7 @@
 	<array>
 		<string>kk</string>
 		<string>kki</string>
+    <string>kkc</string>
 	</array>
 	<key>firstLineMatch</key>
 	<string>\s*(public|private)?\s*(module)\s*((interface)?)\s*(([a-z][\w\-]*/)*[a-z][\w\-]*)</string>
