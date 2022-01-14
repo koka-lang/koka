@@ -187,6 +187,7 @@ goodArg expr = -- (\isgood -> trace ("expr: " ++ show expr ++ " is good? " ++ sh
                                             InfoNone -> Nothing
                                             _        -> Just expr
                 Lit _                  -> Just expr
+                Con _ _                -> Just expr
                 _                      -> Nothing
 
 
