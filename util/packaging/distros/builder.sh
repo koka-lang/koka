@@ -6,13 +6,17 @@
 DISTRO=""
 BUILD_MODE=""
 
-GLIBC_VERSION=""
+LIBC_VERSION=""
 KOKA_VERSION=""
 ARCHITECTURE=""
 
 CLEAN_FOLDERS=".koka .stack-work dist dist-newstyle"
+CABAL_FLAGS="-O2 --disable-debug-info --enable-executable-stripping --enable-library-stripping"
+STACK_FLAGS=""
 
 LOG_PREFIX="[KOKA INTERNAL BUILDER] "
+
+METADATA_DIR="./extra-meta"
 
 info() {
   echo "$LOG_PREFIX$@"
@@ -27,10 +31,19 @@ stop() {
   exit 1
 }
 
-get_glibc_version() {
-  GLIBC_VERSION=$(ldd --version | head -n 1)
-  GLIBC_VERSION=$(echo $GLIBC_VERSION | awk '{print $NF}')
-  echo $GLIBC_VERSION
+get_libc_version() {
+  libcversion=$(ldd --version 2>&1 | head -n 1)
+  libcversion=$(echo $libcversion | awk '{print $NF}')
+  echo $libcversion
+}
+
+is_libc_musl() {
+  libcversion=$(ldd --version 2>&1 | head -n 1)
+  if echo $libcversion | grep -q musl; then
+    return 0
+  else
+    return 1
+  fi
 }
 
 get_koka_version() {
@@ -104,10 +117,18 @@ build_koka() {
 
   status=1
   if [ "$BUILD_MODE" = "stack" ]; then
-    stack build
+    stack build $STACK_FLAGS
     status=$?
   elif [ "$BUILD_MODE" = "cabal" ]; then
-    #cabal configure --enable-executable-static
+    extra_flags=""
+
+    # You can only link statically on musl, glibc does not support it
+    if is_libc_musl; then
+      extra_flags="$extra_flags --enable-executable-static"
+      echo yes >"$METADATA_DIR/static"
+    fi
+
+    cabal new-configure $CABAL_FLAGS $extra_flags
     cabal new-build
     status=$?
   fi
@@ -122,16 +143,15 @@ build_koka() {
 bundle_koka() {
   info "Bundling koka"
 
-  mkdir -p "./extra-meta"
-  echo "$DISTRO" > ./extra-meta/distro
-  echo "$GLIBC_VERSION" > ./extra-meta/libc
+  echo "$DISTRO" >"$METADATA_DIR/distro"
+  echo "$LIBC_VERSION" >"$METADATA_DIR/libc"
 
   status=1
   if [ "$BUILD_MODE" = "stack" ]; then
-    script --return --quiet -c "stack exec koka -- -e util/bundle -- --metadata=\"./extra-meta\" --postfix=\"temp\"" /dev/null
+    script --return --quiet -c "stack exec koka -- -e util/bundle -- --metadata=\"$METADATA_DIR\" --postfix=\"temp\"" /dev/null
     status=$?
   elif [ "$BUILD_MODE" = "cabal" ]; then
-    script --return --quiet -c "cabal new-run koka -- -e util/bundle -- --metadata=\"./extra-meta\" --postfix=\"temp\"" /dev/null
+    script --return --quiet -c "cabal new-run koka -- -e util/bundle -- --metadata=\"$METADATA_DIR\" --postfix=\"temp\"" /dev/null
     status=$?
   fi
 
@@ -169,13 +189,14 @@ rename_and_export_bundle() {
   info "Bundle renamed to $new_name, and exported"
 }
 
-
 full_build() {
   info "Starting build"
 
   mount_overlay
 
   clean_workdir
+
+  mkdir -p $METADATA_DIR
 
   build_koka
 
@@ -186,7 +207,7 @@ full_build() {
   info "Koka version: $KOKA_VERSION"
   info "Build mode: $BUILD_MODE"
   info "Distro: $DISTRO"
-  info "GLIBC Version: $GLIBC_VERSION"
+  info "GLIBC Version: $LIBC_VERSION"
   info "Architecture: $ARCHITECTURE"
 
   info "Build finished"
@@ -213,7 +234,7 @@ init_parse_param() {
     BUILD_MODE="stack"
   fi
 
-  GLIBC_VERSION=$(get_glibc_version)
+  LIBC_VERSION=$(get_libc_version)
 
   full_build
 }

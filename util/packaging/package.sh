@@ -373,11 +373,11 @@ main_help() {
   info "  ./package.sh [options] <bundle file>"
   info ""
   info "options:"
-  info "  -t, --targets=<url>      Specify the targets to build for"
-  info "                           (arch rhel ubuntu alpine opensuse darwin freebsd)"
-  info "  -o, --output=<dir>       Specify the output directory"
-  info "  -q, --quiet              Suppress output"
-  info "  -h, --help               Show this help message"
+  info "  -t, --targets=<target,target>   Specify the targets to build for"
+  info "                                  (arch rhel ubuntu alpine opensuse darwin freebsd)"
+  info "  -o, --output=<dir>              Specify the output directory"
+  info "  -q, --quiet                     Suppress output"
+  info "  -h, --help                      Show this help message"
   info ""
 }
 
