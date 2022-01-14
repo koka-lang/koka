@@ -1,6 +1,14 @@
-[1,1,1,1,1,1,1,1,1,1]
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
  
-cgen/specialize/count/.lift000-main: (times : int) -> list<int>
+cgen/specialize/count/.lift000-main: (start : int) -> console ()
 cgen/specialize/count/count: (start : int, end : int) -> console ()
 cgen/specialize/count/main: () -> console ()
-cgen/specialize/count/repeat-first: forall<a> (times : int, xs : list<a>) -> list<a>

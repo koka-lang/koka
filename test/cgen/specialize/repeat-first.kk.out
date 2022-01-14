@@ -1,0 +1,5 @@
+[1,1,1,1,1,1,1,1,1,1]
+ 
+cgen/specialize/repeat-first/.lift000-main: (times : int) -> list<int>
+cgen/specialize/repeat-first/main: () -> console ()
+cgen/specialize/repeat-first/repeat-first: forall<a> (times : int, xs : list<a>) -> list<a>
