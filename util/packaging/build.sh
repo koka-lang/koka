@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SUPPORTED_TARGETS="rhel ubuntu arch alpine opensuse"
-SUPPORTED_ARCHITECTURES="amd64 arm64" # arm64
+SUPPORTED_ARCHITECTURES="amd64" # arm64
 
 #---------------------------------------------------------
 # Variables
@@ -241,6 +241,9 @@ process_options() {
     --configqemu)
       MODE="setupqemu"
       ;;
+    --en-arm)
+      SUPPORTED_ARCHITECTURES="$SUPPORTED_ARCHITECTURES arm64"
+      ;;
     -q | --quiet)
       QUIET="yes"
       ;;
@@ -289,6 +292,13 @@ process_options() {
       stop "Invalid architecture: $arch"
     fi
   done
+
+  ### Warnings
+
+  # If arm64 is enabled
+  if [[ "$BUILD_ARCHITECTURES" =~ "arm64" ]]; then
+    warn "ARM64 is not yet supported, it will probably fail!"
+  fi
 }
 
 main_help() {
@@ -308,6 +318,7 @@ main_help() {
   info ""
   info "dev options:"
   info "  --configqemu                    Configure just the qemu docker emulator for other architectures"
+  info "  --en-arm                        Enable ARM64 building"
   info ""
   info "notes:"
   info "  This script can only build linux packages right now"

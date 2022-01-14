@@ -17,16 +17,17 @@ fi
 
 info() {
   if [ -z "$QUIET" ]; then
-    echo "$LOG_PREFIX[I] $@"
+    echo -e "\033[36m$LOG_PREFIX[I] $@\033[0m"
   fi
 }
 
 warn() {
-  echo "$LOG_PREFIX[W] $@" >&2
+  echo -e "\e[33m$LOG_PREFIX[W] $@\e[0m" >&2
 }
 
 stop() {
-  echo "$LOG_PREFIX[E] $@" >&2
+
+  echo -e "\e[31m$LOG_PREFIX[E] $@\e[0m" >&2
   exit 1
 }
 
