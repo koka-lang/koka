@@ -38,14 +38,15 @@ $ ./util/packaging/build.sh
 To specify which versions you want to build and package you can use `--target="target1,target2"`.
 You can also specify whether to only build or only package with `--package="no"` or `--package="only"`.
 
-After running the script there should now be distro specific bundles in `./bundle/$version/archives`, and installable packages in `./bundle/$version/packages`.
+After running the script there should now be distro specific bundles in `./bundle/$version`, 
+and installable packages in `./bundle/$version`.
 
 ## Notes
 
 If OpenSuse throws this when trying to install the built package
 
 ```sh
-# zypper in -t package /data/koka-2.3.7-opensuse.rpm
+$ zypper in -t package /data/koka-2.3.7-opensuse.rpm
 Loading repository data...
 Reading installed packages...
 '_tmpRPMcache_:koka=0:2.3.7-1' not found in package names. Trying capabilities.
@@ -57,5 +58,5 @@ Nothing to do.
 try
 
 ```sh
-# zypper ref -f
+$ zypper ref -f
 ```

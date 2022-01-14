@@ -182,7 +182,7 @@ On Unix and macOS the default prefix is `/usr/local` while
 on Windows the default prefix is `%LOCALAPPDATA%\koka`.
 
 It is also possible to generate installation packages for 
-various Linux platforms (RHEL, Debian, Ubuntu, etc.). See
+various Linux platforms (RHEL, Debian, Alpine, etc.). See
 the [readme][util/packaging] for further information.
 
 # Benchmarks
