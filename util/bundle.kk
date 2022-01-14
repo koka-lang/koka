@@ -21,6 +21,8 @@ struct iflags
   minimal     : bool   = False
   dist        : bool   = True
   sysghc      : bool   = False
+  source      : bool   = False
+  version     : string = ""
   exe         : string = ""
 
 
@@ -31,6 +33,8 @@ val flag-descs : list<flag<iflags>> =
   fun set-minimal( f : iflags, b : bool ) : iflags  { f(minimal = b) }
   fun set-install( f : iflags, b : bool ) : iflags  { f(dist = !b) }
   fun set-sysghc( f : iflags, b : bool ) : iflags  { f(sysghc = b) }
+  fun set-source( f : iflags, b : bool ) : iflags  { f(source = b) }
+  fun set-version( f : iflags, v : string ) : iflags  { f(version = v) }
   fun set-exe( f : iflags, s : string ) : iflags { f(exe = s) }
   [ Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" ),
     Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution bundle"),
@@ -38,7 +42,9 @@ val flag-descs : list<flag<iflags>> =
     Flag( "", ["postfix"], Req(set-postfix,"POST"), "set postfix instead of <version>-<os>-<arch>"),
     Flag( "", ["metadata"], Req(set-metadata,"DIR"), "set metadata directory (with extra metadata for the version etc.)" ),
     Flag( "", ["koka"], Req(set-exe,"EXE"), "set koka executable path; use 'stack' or 'cabal' for a local build"),
-    Flag( "", ["system-ghc"], Bool(set-sysghc), "use system-ghc if building with 'stack'")
+    Flag( "", ["system-ghc"], Bool(set-sysghc), "use system-ghc if building with 'stack'"),
+    Flag( "", ["source"], Bool(set-source), "create a source bundle"),
+    Flag( "", ["version"], Req(set-version,"VER"), "bundle as specified version")
   ]
 
 
@@ -58,7 +64,9 @@ fun main()
   match process-flags()
     Nothing -> ()
     Just(flags) ->
-      val version = "v" ++ get-compiler-version()
+      val version = if flags.version.is-empty
+                      then "v" ++ get-compiler-version()
+                      else "v" ++ flags.version.trim-left("v")
       val cc      = get-cc-name()
       val (koka-exe, koka-run) = koka-exe-path(flags.exe, flags.sysghc)
       val post   = flags.postfixtag || get-default-postfix()
@@ -68,7 +76,9 @@ fun main()
       val extrametadir = if flags.extrametadir.is-empty
                      then ""
                      else flags.extrametadir
-      bundle( predir, extrametadir, cc, version, flags.dist, post, flags.minimal, koka-exe, koka-run )      
+      if (flags.source) 
+        then bundle-source( version )
+        else bundle( predir, extrametadir, cc, version, flags.dist, post, flags.minimal, koka-exe, koka-run )      
 
 
 fun bundle( prefixdir : path, extrametadir : string, cc : string, version : string, dist : bool, post : string, 
@@ -165,6 +175,29 @@ fun bundle( prefixdir : path, extrametadir : string, cc : string, version : stri
     println("  cc     : " ++ cc)
 
   println("  version: " ++ version)
+
+
+fun bundle-source( version : string ) 
+  val bundledir =  "bundle" / version
+  val sourcedir = bundledir / "source"
+  val tarname   = (bundledir / ("koka-" ++ version ++ "-source.tar.gz")).string
+    
+  println("creating koka source bundle:")
+  println("  bundle : " ++ tarname)
+
+  // checkout fresh with git
+  ensure-dir(sourcedir)
+  val gitcmd = ["git","clone","--recursive","https://github.com/koka-lang/koka","-b",version,sourcedir.show].join(" ")
+  println("> " ++ gitcmd)
+  run-system(gitcmd)
+
+  // tar the contents into a source bundle
+  val tarcmd = ["tar","-czf",tarname,"-C",sourcedir.show,"--exclude",".git","."].join(" ")
+  println("> " ++ tarcmd)
+  run-system(tarcmd)
+
+  println("source bundle created.")
+  println("  bundle : " ++ tarname)
 
 
 fun koka-exe-path(exe-opt : string, sysghc : bool) : io (path,string)
