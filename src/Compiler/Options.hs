@@ -834,7 +834,7 @@ vcpkgFindRoot root
     vcpkgExe = "vcpkg" ++ exeExtension
 
 
-conanSettingsFromFlags :: Flags -> CC -> [String]
+conanSettingsFromFlags :: Flags -> CC -> ([String],[(String,String)])
 conanSettingsFromFlags flags cc
   = let name = ccName cc
         clRuntime = ["-s","compiler.runtime=" ++ (if buildType flags <= Debug then "MDd" else "MD")] 
@@ -864,8 +864,10 @@ conanSettingsFromFlags flags cc
                         RelWithDebInfo -> "Release"  -- "RelWithDebInfo" -- often not available
                         Release        -> "Release"]
 
-    in build ++ settings ++ ["-e","CC=" ++ ccPath cc] -- set CXX as well?
-       ++ (if onWindows then ["-e","CONAN_CMAKE_GENERATOR=Ninja"] else [])
+    in ( build ++ settings
+       , [("CC",ccPath cc)]  -- set CXX as well?
+         ++ (if onWindows then [("CONAN_CMAKE_GENERATOR","Ninja")] else [])
+       )
 
 
 {--------------------------------------------------------------------------

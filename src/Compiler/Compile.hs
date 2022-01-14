@@ -1345,24 +1345,30 @@ copyCLibrary term flags cc eimport
   = case Core.eimportLookup (buildType flags) "library" eimport of
       Nothing -> return []
       Just clib 
-        -> do mb <-  do -- use vcpkg? (we prefer this as conan is not working well on windows across cl, clang, and mingw)
-                        mbVcpkg <- case lookup "vcpkg" eimport of
-                                      Just pkg 
-                                        -> vcpkgCLibrary term flags cc eimport clib pkg
-                                      _ -> return Nothing
-                        case mbVcpkg of
-                          Just _ -> return mbVcpkg
-                          Nothing                                   
-                            -> do -- use conan?
-                                  mbConan <- case lookup "conan" eimport of
-                                                Just pkg | not (null (conan flags)) 
-                                                  -> conanCLibrary term flags cc eimport clib pkg
-                                                _ -> return Nothing
-                                  case mbConan of
-                                    Just _ -> return mbConan
-                                    Nothing       
-                                      -> -- try to find the library and headers directly
-                                         searchCLibrary flags cc clib (ccompLibDirs flags)
+        -> do mb  <- do -- use conan?
+                        mbConan <- case lookup "conan" eimport of
+                                      Just pkg | not (null (conan flags)) 
+                                        -> conanCLibrary term flags cc eimport clib pkg
+                                      _ -> return (Left [])
+                        case mbConan of
+                          Right res -> return (Just res)
+                          Left conanWarns
+                            -> do -- use vcpkg? (we prefer this as conan is not working well on windows across cl, clang, and mingw)
+                                  mbVcpkg <- case lookup "vcpkg" eimport of
+                                                Just pkg 
+                                                  -> vcpkgCLibrary term flags cc eimport clib pkg
+                                                _ -> return (Left [])
+                                  case mbVcpkg of
+                                    Right res -> return (Just res)
+                                    Left vcpkgWarns              
+                                      -> do  -- try to find the library and headers directly
+                                            mbSearch <- searchCLibrary flags cc clib (ccompLibDirs flags)
+                                            case mbSearch of
+                                              Right res -> return (Just res)
+                                              Left searchWarns
+                                                -> do let warns = intersperse (text "or") (vcpkgWarns ++ conanWarns ++ searchWarns)
+                                                      termWarning term flags (vcat warns)
+                                                      return Nothing
               case mb of
                 Just (libPath,includes) 
                   -> do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
@@ -1379,7 +1385,7 @@ copyCLibrary term flags cc eimport
                                  "\nlibrary search paths: " ++ show (ccompLibDirs flags))
                                
       
-searchCLibrary :: Flags -> CC -> FilePath -> [FilePath] -> IO (Maybe (FilePath {-libPath-},[FilePath] {-include paths-}))
+searchCLibrary :: Flags -> CC -> FilePath -> [FilePath] -> IO (Either [Doc] (FilePath {-libPath-},[FilePath] {-include paths-}))
 searchCLibrary flags cc clib searchPaths
   = do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
                  -- and the actual name of the library is not easy to extract from vcpkg (we could read 
@@ -1390,41 +1396,47 @@ searchCLibrary flags cc clib searchPaths
        case mbPath of
         Just fname 
           -> case reverse (splitPath fname) of
-               (_:"lib":"debug":rbase) -> return (Just (fname, [joinPaths (reverse rbase ++ ["include"])])) -- for vcpkg
-               (_:"lib":rbase)         -> return (Just (fname, [joinPaths (reverse rbase ++ ["include"])])) -- e.g. /usr/local/lib
-               _                       -> return (Just (fname, []))
-        _ -> return Nothing
+               (_:"lib":"debug":rbase) -> return (Right (fname, [joinPaths (reverse rbase ++ ["include"])])) -- for vcpkg
+               (_:"lib":rbase)         -> return (Right (fname, [joinPaths (reverse rbase ++ ["include"])])) -- e.g. /usr/local/lib
+               _                       -> return (Right (fname, []))
+        _ -> return (Left [])
 
 
-conanCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> String -> IO (Maybe (FilePath,[FilePath]))
+conanCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> String -> IO (Either [Doc] (FilePath,[FilePath]))
 conanCLibrary term flags cc eimport clib pkg
   = do mbConanCmd <- searchProgram (conan flags)
        case mbConanCmd of
          Nothing 
-          -> do termWarning term flags (text "this module requires a conan package but \"" <.> clrSource (text (conan flags)) <.> text "\" is not installed." 
+          -> do return $ Left [text "this module requires a conan package but \"" <.> clrSource (text (conan flags)) <.> text "\" is not installed." 
                                      <-> text "         install conan as:"
                                      <-> text "         >" <+> clrSource (text "pip3 install conan")
-                                     <-> text "         or see <https://docs.conan.io/en/latest/installation.html>")
-                return Nothing
+                                     <-> text "         or see <https://docs.conan.io/en/latest/installation.html>"]
+         Just conanCmd | onWindows && not (any (\pre -> ccName cc `startsWith` pre) ["cl","clang-cl"])
+          -> do return $ Left [text "conan can only be used with the 'cl' or 'clang-cl' compiler on Windows"]
+         Just conanCmd | isTargetWasm (target flags)
+          -> do return $ Left [text "conan can not be used with a wasm target"]
          Just conanCmd
           -> do pkgDir <- getPackageDir conanCmd
                 if (null pkgDir)
                   then do termWarning term flags $ 
                             text "unable to resolve conan package:" <+> clrSource (text pkg)
-                          return Nothing
+                          return (Left [])
                   else do termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) $
                               text "package: conan" <+> clrSource (text pkg) -- <.> colon <+> clrSource (text pkgDir)
                           let libDir = pkgDir ++ "/lib"
                           mb <- searchCLibrary flags cc clib [libDir]
                           case mb of
-                            Just _  -> return mb -- already installed
-                            Nothing -> install conanCmd libDir                   
+                            Right _  -> return mb -- already installed
+                            Left _   -> install conanCmd libDir                   
   where
     pkgBase 
       = takeWhile (/='/') pkg
 
-    settings
-      = conanSettingsFromFlags flags cc ++ ["-o",pkgBase ++ ":shared=False","-o","shared=False"]
+    (baseSettings,conanEnv)
+      = conanSettingsFromFlags flags cc 
+      
+    settings 
+      = baseSettings ++ ["-o",pkgBase ++ ":shared=False","-o","shared=False"]
 
     clrSource doc   
       = color (colorSource (colorScheme flags)) doc
@@ -1434,7 +1446,7 @@ conanCLibrary term flags cc eimport clib pkg
                           pkg ++ "@", 
                           "--package-filter", pkgBase ++ "/*",
                           "--paths", "--only","package_folder"] ++ settings
-           out <- runCommandRead term flags infoCmd  -- TODO: first check if  conan is installed?
+           out <- runCommandRead term flags conanEnv infoCmd  -- TODO: first check if  conan is installed?
            termPhase term out
            let s = dropWhile isSpace (concat (take 1 (reverse (lines out))))
            if (s `startsWith` "package_folder: ")
@@ -1450,33 +1462,32 @@ conanCLibrary term flags cc eimport clib pkg
                                           <+> text "         or install the package manually as:" 
                                           <-> text "         >" <+> clrSource (text (unwords installCmd))
                                           <-> text "         to install the required C library and header files")
-                    return Nothing
+                    return (Left [])
             else do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: conan package:") <+> clrSource (text pkg))
-                    runCommand term flags installCmd
+                    runCommandEnv term flags conanEnv installCmd
                     searchCLibrary flags cc clib [libDir] -- try to find again after install
-  
+                      
            
 
-vcpkgCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> String -> IO (Maybe (FilePath,[FilePath]))
+vcpkgCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> String -> IO (Either [Doc] (FilePath,[FilePath]))
 vcpkgCLibrary term flags cc eimport clib pkg
   = do (root,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
        exist <- doesFileExist vcpkg
        if (not exist)
-         then do termWarning term flags $
+         then do return $ Left [
                     text "this module requires vcpkg to install the" <+> clrSource (text clib) <+> text "library." <->
                     text "   hint: specify the root directory of vcpkg using the" <+> clrSource (text "--vcpkg=<dir>") <+> text "option" <->
                     text "         or the" <+> clrSource (text "VCPKG_ROOT") <+> text "environment variable." <->
                     text "         and/or install vcpkg from <" <.> clrSource (text "https://vcpkg.io/en/getting-started.html") <.> text ">" <->
-                    text "         (install in " <.> clrSource (text "~/vcpkg") <.> text " to be found automatically by the koka compiler)"
-                 return Nothing
+                    text "         (install in " <.> clrSource (text "~/vcpkg") <.> text " to be found automatically by the koka compiler)" ]
          else do let libDir = root ++ "/installed/" ++ (vcpkgTriplet flags) 
                                 ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")              
                  termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) $
                     text "package: vcpkg" <+> clrSource (text pkg) 
                  mbInstalled <- searchCLibrary flags cc clib [libDir]
                  case mbInstalled of
-                   Just _  -> return mbInstalled
-                   Nothing -> install root libDir vcpkg
+                   Right _ -> return mbInstalled
+                   Left _  -> install root libDir vcpkg
   where
     clrSource doc   
       = color (colorSource (colorScheme flags)) doc
@@ -1497,7 +1508,7 @@ vcpkgCLibrary term flags cc eimport clib pkg
                                               <-> text "         or install the package manually as:"                                                      
                                               <-> text "         >" <+> clrSource (text (unwords installCmd))
                                               <-> text "         to install the required C library and header files")
-                      return Nothing
+                      return (Left [])
               else do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: vcpkg package:") <+> clrSource (text pkg))
                       runCommand term flags installCmd
                       searchCLibrary flags cc clib [libDir] -- try to find again after install
@@ -1658,12 +1669,20 @@ runCommand term flags cargs@(cmd:args)
                   runCmd cmd (filter (not . null) args)
                     `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
-runCommandRead :: Terminal -> Flags -> [String] -> IO String
-runCommandRead term flags cargs@(cmd:args)
+runCommandRead :: Terminal -> Flags -> [(String,String)] -> [String] -> IO String
+runCommandRead term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
        when (verbose flags >= 2) $
          termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")      
-       runCmdRead cmd (filter (not . null) args)
+       runCmdRead env cmd (filter (not . null) args)
+         `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
+
+runCommandEnv :: Terminal -> Flags -> [(String,String)] -> [String] -> IO ()
+runCommandEnv term flags env cargs@(cmd:args)
+  = do let command = unwords (shellQuote cmd : map shellQuote args)
+       when (verbose flags >= 2) $
+         termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")      
+       runCmdEnv env  cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
 

@@ -14,7 +14,7 @@ module Common.File(
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsSuffixes, searchPathsEx
                   , searchProgram
-                  , runSystem, runSystemRaw, runCmd, runCmdRead
+                  , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
                   , getProgramPath
 
                   -- * Strings
@@ -246,9 +246,10 @@ runCmd cmd args
           ExitFailure i -> raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
           ExitSuccess   -> return ()
 
-runCmdRead :: String -> [String] -> IO String
-runCmdRead cmd args
-  = do (_, Just hout, _, process) <- createProcess (proc cmd args){ std_out = CreatePipe }          
+runCmdRead :: [(String,String)] -> String -> [String] -> IO String
+runCmdRead extraEnv cmd args
+  = do mbEnv <- buildEnv extraEnv
+       (_, Just hout, _, process) <- createProcess (proc cmd args){ env = mbEnv, std_out = CreatePipe }          
        exitCode <- waitForProcess process
        case exitCode of
           ExitFailure i -> do -- hClose hout
@@ -257,6 +258,23 @@ runCmdRead cmd args
                               -- hClose hout
                               return out
 
+
+runCmdEnv :: [(String,String)] -> String -> [String] -> IO ()
+runCmdEnv extraEnv cmd args
+  = do mbEnv <- buildEnv extraEnv
+       (_, _, _, process) <- createProcess (proc cmd args){ env = mbEnv }          
+       exitCode <- waitForProcess process
+       case exitCode of
+          ExitFailure i -> do -- hClose hout
+                              raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
+          ExitSuccess   -> return ()
+
+buildEnv :: [(String,String)] -> IO (Maybe [(String,String)])
+buildEnv extraEnv
+  = if null extraEnv then return Nothing 
+      else do oldEnv <- getEnvironment
+              let newKeys = map fst extraEnv
+              return (Just (extraEnv ++ filter (\(k,_) -> not (k `elem` newKeys)) oldEnv))
 
 -- | Compare two file modification times (uses 0 for non-existing files)
 fileTimeCompare :: FilePath -> FilePath -> IO Ordering
