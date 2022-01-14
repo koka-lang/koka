@@ -186,6 +186,7 @@ goodArg expr = -- (\isgood -> trace ("expr: " ++ show expr ++ " is good? " ++ sh
                 Var name info          -> case info of
                                             InfoNone -> Nothing
                                             _        -> Just expr
+                Lit _                  -> Just expr
                 _                      -> Nothing
 
 
@@ -286,9 +287,6 @@ specInnerCalls from to isSpecParam specParamNames expr
 
     sicGuard (Guard test body) = Guard (sicExpr test) (sicExpr body)
     sicDef def = def{ defExpr = sicExpr (defExpr def) }
-
-
-
 
 comment :: String -> String
 comment = unlines . map ("// " ++) . lines
@@ -393,8 +391,8 @@ makeSpecialize def
 
       let params = fnParams $ defExpr def
       let specializableParams =
-            map (filterMaybe (isFun . tnameType))
-            $ allPassedInSameOrder params recArgs
+            -- map (filterMaybe (isFun . tnameType))
+            allPassedInSameOrder params recArgs
 
       guard (any isJust specializableParams)
       Just $ InlineDef (defName def) (defExpr def) True InlineAuto (costDef def) (defSort def) (map isJust specializableParams)
