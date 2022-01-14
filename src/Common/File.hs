@@ -312,11 +312,13 @@ writeTextFile fpath content
 
 copyTextFile :: FilePath -> FilePath -> IO ()
 copyTextFile src dest
+  = copyTextFileWith src dest id
+  {-
   = if (src == dest)
      then return ()
      else catchIO (do createDirectoryIfMissing True (dirname dest)
-                      copyFileWithMetadata src dest)
-            (error ("could not copy file " ++ show src ++ " to " ++ show dest))
+                      copyFileWithMetadata src dest)  -- do not use as the source may come from a (readonly) admin permission and should got to user permission
+            (error ("could not copy file " ++ show src ++ " to " ++ show dest)) -}
 
 copyTextFileWith :: FilePath -> FilePath -> (String -> String) -> IO ()
 copyTextFileWith src dest transform
@@ -333,7 +335,17 @@ copyBinaryFile :: FilePath -> FilePath -> IO ()
 copyBinaryFile src dest
   = if (src == dest)
      then return ()
-     else catchIO (B.copyBinaryFile src dest) (\_ -> error ("could not copy file " ++ show src ++ " to " ++ show dest))
+     else catchIO (
+            -- do not use as the source may come from a (readonly) admin permission and should got to user permission
+            -- B.copyBinaryFile src dest) (\_ -> error ("could not copy file " ++ show src ++ " to " ++ show dest))
+             do createDirectoryIfMissing True (dirname dest)
+                ftime <- getFileTime src
+                withBinaryFile src ReadMode $ \hsrc ->
+                  withBinaryFile dest WriteMode $ \hdest ->
+                    do content <- hGetContents hsrc
+                       hPutStr hdest content
+                setFileTime dest ftime)
+            (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyBinaryIfNewer :: Bool -> FilePath -> FilePath -> IO ()
 copyBinaryIfNewer always srcName outName
