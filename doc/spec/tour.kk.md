@@ -208,7 +208,6 @@ fun test-twice()
   twice 
     twice
       println("hi")
-}
 ```
 where `"hi"` is printed four times (note: this desugars
 to `twice( fn(){ twice( fn(){ println("hi") }) })`). 
