@@ -26,9 +26,9 @@ data Mode = Test | New | Update
   deriving (Eq, Ord, Show)
 
 
-data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int, js :: Bool, par :: Bool }
+data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int, js :: Bool, par :: Bool, fix :: Bool }
 
-optionsDefault = Options Test False False 0 False True
+optionsDefault = Options Test False False 0 False True False
 
 data Cfg = Cfg{ flags   :: [String],
                 options :: Options,
