@@ -46,7 +46,7 @@ and installable packages in `./bundle/$version`.
 If OpenSuse throws this when trying to install the built package
 
 ```sh
-$ zypper in -t package /data/koka-2.3.7-opensuse.rpm
+$ sudo zypper in -t package /data/koka-2.3.7-opensuse.rpm
 Loading repository data...
 Reading installed packages...
 '_tmpRPMcache_:koka=0:2.3.7-1' not found in package names. Trying capabilities.
@@ -58,5 +58,5 @@ Nothing to do.
 try
 
 ```sh
-$ zypper ref -f
+$ sudo zypper ref -f
 ```

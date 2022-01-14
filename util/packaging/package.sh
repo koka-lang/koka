@@ -13,11 +13,11 @@ GENERAL_NIX_DEPENDENCIES="gcc,make,tar,curl,git" # For these programs version do
 
 # (Info)
 # Rhel and OpenSuse dependencies dont mind a space next to >= sign
-# Debian dependencies need a space next to >= sign
+# Ubuntu dependencies need a space next to >= sign
 # Alpine dependencies need no space, and use the > sign
 # Arch dependencies need no space next to >= sign
 RHEL_DEPENDENCIES="glibc >= 2.27"                   # Fedora RedHat CentOS and Rocky
-DEBIAN_DEPENDENCIES="libc6 >= 2.27"                 # Ubuntu Debian
+UBUNTU_DEPENDENCIES="libc6 >= 2.27"                 # Ubuntu Debian
 ALPINE_DEPENDENCIES="gmp>6,libffi>3.4,musl>1.2"     # Alpine
 ARCH_DEPENDENCIES="glibc>=2.33"                     # Arch, Manjaro
 OPENSUSE_DEPENDENCIES="glibc >= 2.31"               # OpenSuse
@@ -73,8 +73,8 @@ get_dependencies() {
   rhel)
     deps="$RHEL_DEPENDENCIES"
     ;;
-  debian)
-    deps="$DEBIAN_DEPENDENCIES"
+  ubuntu)
+    deps="$UBUNTU_DEPENDENCIES"
     ;;
   alpine)
     deps="$ALPINE_DEPENDENCIES"
@@ -172,10 +172,10 @@ build_packages() {
     info "RHEL package built successfully"
   fi
 
-  if [[ $packages =~ "debian" ]]; then
-    info "Building Debian package"
-    build_package deb deb debian
-    info "Debian package built successfully"
+  if [[ $packages =~ "ubuntu" ]]; then
+    info "Building Ubuntu package"
+    build_package deb deb ubuntu
+    info "Ubuntu package built successfully"
   fi
 
   if [[ $packages =~ "alpine" ]]; then
@@ -356,7 +356,7 @@ process_options() {
   if [ -z "$BUILD_TARGETS" ]; then
     case "$OSTYPE" in
     linux*)
-      BUILD_TARGETS="arch rhel debian alpine opensuse"
+      BUILD_TARGETS="arch rhel ubuntu alpine opensuse"
       ;;
     darwin*)
       BUILD_TARGETS="darwin"
@@ -374,7 +374,7 @@ main_help() {
   info ""
   info "options:"
   info "  -t, --targets=<url>      Specify the targets to build for"
-  info "                           (arch rhel debian alpine opensuse darwin freebsd)"
+  info "                           (arch rhel ubuntu alpine opensuse darwin freebsd)"
   info "  -o, --output=<dir>       Specify the output directory"
   info "  -q, --quiet              Suppress output"
   info "  -h, --help               Show this help message"
