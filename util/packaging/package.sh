@@ -9,7 +9,7 @@ PACKAGE_URL="https://koka-lang.github.io/"
 PACKAGE_LICENSE="Apache-2.0"
 
 # Dependencies
-GENERAL_NIX_DEPENDENCIES="gcc,make,tar,curl,git" # For these programs version doesnt really matter
+GENERAL_NIX_DEPENDENCIES="gcc,make,tar,curl" # For these programs version doesnt really matter
 
 # (Info)
 # Rhel and OpenSuse dependencies dont mind a space next to >= sign
@@ -132,10 +132,12 @@ build_package() {
   package_version="${VERSION:1}"
   package_iteration=$(semver_to_iteration "$package_version")
 
+  linux_architecture=$(normalize_osarch_linux "$ARCHITECTURE")
+
   fpm_arguments="-s dir -t '$TYPE' -C '/source' -p '/build/$file_name' $dependencies \
     -n '$PACKAGE_NAME' --description '$PACKAGE_DESCRIPTION' --url '$PACKAGE_URL' --license '$PACKAGE_LICENSE' \
     -v '$package_version' --iteration '$package_iteration' \
-    -a native --prefix '/usr/local' \
+    -a '$linux_architecture' --prefix '/usr/local' \
     --provides '$PACKAGE_NAME' \
     --before-remove /scripts/pre-remove.sh \
     --after-install /scripts/post-install.sh \

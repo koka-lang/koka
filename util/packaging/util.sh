@@ -149,8 +149,9 @@ has_selinux_and_enabled() {
 
 # ------------------------------------------------------------------------------
 
-# These are not normalized against the koka standard, but against the docker standard
-normalize_osarch() {
+# Its so stupid these next couple functions are neccessary
+
+normalize_osarch_koka() {
   arch=$1
   if [ -z "$arch" ]; then
     stop "Architecture is not specified"
@@ -158,10 +159,10 @@ normalize_osarch() {
 
   case "$arch" in
   x86_64* | amd64* | x64*)
-    arch="amd64"
+    arch="x64"
     ;;
-  x86* | i[35678]86*)
-    arch="i386"
+  x86* | i[35678]86* | 386*)
+    arch="x86"
     ;;
   arm64* | aarch64* | armv8*)
     arch="arm64"
@@ -169,9 +170,34 @@ normalize_osarch() {
   arm*)
     arch="arm"
     ;;
-  parisc*)
-    arch="hppa"
-    ;;
+  esac
+
+  echo $arch
+}
+
+# These are not normalized against the koka standard, but against the docker standard
+normalize_osarch_docker() {
+  arch=$(normalize_osarch_koka $1)
+
+  case "$arch" in
+  x64) arch="amd64" ;;
+  x86) arch="386" ;;
+  arm64) arch="arm64" ;;
+  arm) arch="arm" ;;
+  esac
+
+  echo $arch
+}
+
+# These are normalized against the linux standard
+normalize_osarch_linux() {
+  arch=$(normalize_osarch_koka $1)
+
+  case "$arch" in
+  x64) arch="x86_64" ;;
+  x86) arch="i386" ;;
+  arm64) arch="aarch64" ;;
+  arm) arch="armv7l" ;;
   esac
 
   echo $arch
@@ -211,7 +237,7 @@ get_docker_architecture() {
     stop "Failed to determine docker architecture"
   fi
 
-  arch=$(normalize_osarch "$arch")
+  arch=$(normalize_osarch_docker "$arch")
 
   echo $arch
 }

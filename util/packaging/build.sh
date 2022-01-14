@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SUPPORTED_TARGETS="rhel ubuntu arch alpine opensuse"
-SUPPORTED_ARCHITECTURES="amd64" # arm64
+SUPPORTED_ARCHITECTURES="amd64 arm64" # arm64
 
 #---------------------------------------------------------
 # Variables
@@ -139,7 +139,7 @@ package_outputs() {
 
     file_bundle_distro=$(tar -Oxf "$bundleloc" meta/distro)
     file_bundle_arch=$(tar -Oxf "$bundleloc" meta/arch)
-    file_bundle_arch=$(normalize_osarch "$file_bundle_arch")
+    file_bundle_arch=$(normalize_osarch_docker "$file_bundle_arch")
 
     # Skip if file bundle distro not in build targets
     if [ -z "$file_bundle_distro" ]; then 
@@ -276,11 +276,11 @@ process_options() {
   # Default architectures is all
   if [ -z "$BUILD_ARCHITECTURES" ]; then BUILD_ARCHITECTURES="$SUPPORTED_ARCHITECTURES"; fi
 
-  # map build_archtectures with the normalize_osarch() funciton
+  # map build_archtectures with the normalize_osarch_docker() funciton
   tempvar="$BUILD_ARCHITECTURES"
   BUILD_ARCHITECTURES=""
   for build_arch in $tempvar; do
-    BUILD_ARCHITECTURES="$BUILD_ARCHITECTURES $(normalize_osarch $build_arch)"
+    BUILD_ARCHITECTURES="$BUILD_ARCHITECTURES $(normalize_osarch_docker $build_arch)"
   done
 
   # Check if BUILD_ARCHITECTURES is in SUPPORTED_ARCHITECTURES
