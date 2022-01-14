@@ -1,4 +1,4 @@
-FROM archlinux:base-20220109.0.43549
+FROM manjarolinux/base:20220109
 
 # The koka source should be mounted here readonly
 # It will use overlays to build the bundle and then export it the output directory
