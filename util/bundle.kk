@@ -163,6 +163,7 @@ fun bundle( prefixdir : path, extrametadir : string, cc : string, version : stri
     val tarcmd = ["tar -czf",tarname,"-C",prefixdir.show,"bin","lib","share","meta"].join(" ")
     println("> " ++ tarcmd)
     run-system(tarcmd)
+    ()
     
   if install then
     println("done installing.")
@@ -184,7 +185,7 @@ fun bundle-source( version : string )
   val tarname   = (bundledir / ("koka-" ++ version ++ "-source.tar.gz")).string
     
   println("creating koka source bundle:")
-  println("  sources: " ++ sourcedir)
+  println("  sources: " ++ sourcedir.string)
   println("  bundle : " ++ tarname)
 
   // remove existing source dir
