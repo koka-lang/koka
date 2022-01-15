@@ -83,7 +83,7 @@ import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
                                 prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags,
                                 fullBuildDir, outName, buildVariant, osName, targetExeExtension,
-                                conanSettingsFromFlags, vcpkgFindRoot)
+                                conanSettingsFromFlags, vcpkgFindRoot, onWindows, onMacOS)
 
 import Compiler.Module
 
@@ -1410,7 +1410,7 @@ conanCLibrary term flags cc eimport clib pkg
           -> do return $ Left [text "this module requires a conan package but \"" <.> clrSource (text (conan flags)) <.> text "\" is not installed." 
                                      <-> text "         install conan as:"
                                      <-> text "         >" <+> clrSource (text "pip3 install conan")
-                                     <-> text "         or see <https://docs.conan.io/en/latest/installation.html>"]
+                                     <-> text "         or see <" <.> clrSource (text "https://docs.conan.io/en/latest/installation.html") <.> text ">"]
          Just conanCmd | onWindows && not (any (\pre -> ccName cc `startsWith` pre) ["cl","clang-cl"])
           -> do return $ Left [text "conan can only be used with the 'cl' or 'clang-cl' compiler on Windows"]
          Just conanCmd | isTargetWasm (target flags)
@@ -1477,9 +1477,13 @@ vcpkgCLibrary term flags cc eimport clib pkg
          then do return $ Left [
                     text "this module requires vcpkg to install the" <+> clrSource (text clib) <+> text "library." <->
                     text "   hint: specify the root directory of vcpkg using the" <+> clrSource (text "--vcpkg=<dir>") <+> text "option" <->
-                    text "         or the" <+> clrSource (text "VCPKG_ROOT") <+> text "environment variable." <->
-                    text "         and/or install vcpkg from <" <.> clrSource (text "https://vcpkg.io/en/getting-started.html") <.> text ">" <->
-                    text "         (install in " <.> clrSource (text "~/vcpkg") <.> text " to be found automatically by the koka compiler)" ]
+                    text "         or the" <+> clrSource (text "VCPKG_ROOT") <+> text "environment variable," <->
+                  (if onMacOS then 
+                   (text "         or install vcpkg as:" <-> 
+                    text "         > brew install vcpkg")
+                   else
+                   (text "         or install vcpkg from <" <.> clrSource (text "https://vcpkg.io/en/getting-started.html") <.> text ">"))
+                  ]
          else do let libDir = root ++ "/installed/" ++ (vcpkgTriplet flags) 
                                 ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")              
                  termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) $
@@ -1648,10 +1652,6 @@ checkCMake term flags
                               else -- visual studio prompt
                                    return ()
 
-
-onWindows :: Bool
-onWindows
-  = (exeExtension == ".exe")
 
 runSystemEcho :: Terminal -> Flags -> String -> IO ()
 runSystemEcho term flags cmd

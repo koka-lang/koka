@@ -187,19 +187,25 @@ fun bundle-source( version : string )
   println("creating koka source bundle:")
   println("  bundle : " ++ tarname)
 
-  // checkout fresh with git
-  ensure-dir(sourcedir)
-  val gitcmd = ["git","clone","--recursive","https://github.com/koka-lang/koka","-b",version,sourcedir.show].join(" ")
-  println("> " ++ gitcmd)
-  run-system(gitcmd)
+  // remove existing source dir
+  if is-directory(sourcedir) then 
+    println("\nerror: directory " ++ sourcedir.show ++ " is not empty; remove it first.")
+    println("$ rm -rf " ++ sourcedir.string)
+    println("")
+  else
+    // checkout fresh with git
+    ensure-dir(sourcedir)
+    val gitcmd = ["git","clone","--recursive","https://github.com/koka-lang/koka","-b",version,sourcedir.show].join(" ")
+    println("> " ++ gitcmd)
+    run-system(gitcmd)
 
-  // tar the contents into a source bundle
-  val tarcmd = ["tar","-czf",tarname,"-C",sourcedir.show,"--exclude",".git","."].join(" ")
-  println("> " ++ tarcmd)
-  run-system(tarcmd)
+    // tar the contents into a source bundle
+    val tarcmd = ["tar","-czf",tarname,"-C",sourcedir.show,"--exclude",".git","."].join(" ")
+    println("> " ++ tarcmd)
+    run-system(tarcmd)
 
-  println("source bundle created.")
-  println("  bundle : " ++ tarname)
+    println("source bundle created.")
+    println("  bundle : " ++ tarname)
 
 
 fun koka-exe-path(exe-opt : string, sysghc : bool) : io (path,string)
