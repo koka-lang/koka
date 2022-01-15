@@ -66,6 +66,8 @@ fun main()
     Just(flags) ->
       val version = if flags.version.is-empty
                       then "v" ++ get-compiler-version()
+                    elif flags.version == "dev" && flags.source
+                      then "dev"
                       else "v" ++ flags.version.trim-left("v")
       val cc      = get-cc-name()
       val (koka-exe, koka-run) = koka-exe-path(flags.exe, flags.sysghc)
