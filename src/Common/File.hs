@@ -47,7 +47,7 @@ module Common.File(
 import Data.List        ( intersperse )
 import Data.Char        ( toLower, isSpace )
 import Platform.Config  ( pathSep, pathDelimiter, sourceExtension, exeExtension )
-import qualified Platform.Runtime as B ( copyBinaryFile, exCatch )
+import qualified Platform.Runtime as B ( {- copyBinaryFile, -} exCatch )
 import Common.Failure   ( raiseIO, catchIO )
 
 import System.IO
@@ -55,7 +55,7 @@ import System.Process   ( system, rawSystem, createProcess, CreateProcess(..), p
 import System.Exit      ( ExitCode(..) )
 import System.Environment ( getEnvironment, getExecutablePath )
 import System.Directory ( doesFileExist, doesDirectoryExist
-                        , copyFile, copyFileWithMetadata
+                        {- , copyFile, copyFileWithMetadata -}
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath, removeFile )
 
