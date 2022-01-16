@@ -28,8 +28,8 @@ RUN pip3 install conan
 ARG UPDATE_HACKAGE=1
 
 # Cabal
-ADD ./alpine/install-ghc.sh ./
-RUN ./install-ghc.sh
+ADD ./alpine/*.sh /helpers/
+RUN /helpers/install-ghc.sh
 RUN cabal update
 
 # Add and run the builder script specifying the postfix of the bundle

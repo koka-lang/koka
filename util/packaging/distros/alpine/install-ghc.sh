@@ -29,6 +29,8 @@ install_ghc_main() {
 }
 
 main() {
+  set -e # Exit on error
+
   if [ "$(uname -m)" = "aarch64" ]; then
     install_ghc_aarch64
   else

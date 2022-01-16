@@ -60,13 +60,13 @@ get_koka_version() {
 }
 
 get_koka_arch() {
-  # We need this because of the koka bug, this can be removed once the koka bug is fixed
+  # We need this piece of code to get the architecture of the koka binary
   export koka_code="\n:l std/os/env\nprintln(\"KK_arch: \" ++ get-cpu-arch())"
 
   if [ "$BUILD_MODE" = "stack" ]; then
-    kk_arch=$(script --return --quiet -c "echo -e \"\$koka_code\" | stack exec koka" /dev/null)
+    kk_arch=$(echo -e "$koka_code" | stack exec koka)
   elif [ "$BUILD_MODE" = "cabal" ]; then
-    kk_arch=$(script --return --quiet -c "echo -e \"\$koka_code\" | cabal new-run koka" /dev/null)
+    kk_arch=$(echo -e "$koka_code" | cabal new-run koka)
   fi
   unset koka_code
 
@@ -78,8 +78,9 @@ clean_workdir() {
   info "Cleaning up"
 
   for folder in $CLEAN_FOLDERS; do
-    # Eat error
-    rm -rf "$folder" 2>/dev/null
+    if [ -d "$folder" ]; then
+      find "$folder" ! -type d -exec rm '{}' \;
+    fi
   done
 }
 
@@ -148,10 +149,10 @@ bundle_koka() {
 
   status=1
   if [ "$BUILD_MODE" = "stack" ]; then
-    script --return --quiet -c "stack exec koka -- -e util/bundle -- --metadata=\"$METADATA_DIR\" --postfix=\"temp\"" /dev/null
+    stack exec koka -- -e util/bundle -- --metadata="$METADATA_DIR" --postfix="temp"
     status=$?
   elif [ "$BUILD_MODE" = "cabal" ]; then
-    script --return --quiet -c "cabal new-run koka -- -e util/bundle -- --metadata=\"$METADATA_DIR\" --postfix=\"temp\"" /dev/null
+    cabal new-run koka -- -e util/bundle -- --metadata="$METADATA_DIR" --postfix="temp"
     status=$?
   fi
 

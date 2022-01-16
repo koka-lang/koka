@@ -20,8 +20,9 @@ RUN pip3 install conan
 ARG UPDATE_HACKAGE=1
 
 # Bruh, RHEL8 does not have cabal-intall. why? who knows, its stupid.
-RUN curl https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 sh 
-ENV PATH="/root/.cabal/bin:/root/.ghcup/bin:${PATH}"
+ADD ./rhel/*.sh /helpers/
+RUN /helpers/install-ghc.sh
+RUN cabal update
 
 # Add and run the builder script specifying the postfix of the bundle
 ADD ./builder.sh /builder.sh
