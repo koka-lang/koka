@@ -32,7 +32,13 @@ stop() {
 }
 
 get_libc_version() {
-  libcversion=$(ldd --version 2>&1 | head -n 1)
+  libcversion=""
+  if ! is_libc_musl; then
+    libcversion=$(ldd --version 2>&1 | head -n 1)
+  else
+    libcversion=$(ldd --version 2>&1 | tail -n +2 | head -n 1)
+  fi
+
   libcversion=$(echo $libcversion | awk '{print $NF}')
   echo $libcversion
 }

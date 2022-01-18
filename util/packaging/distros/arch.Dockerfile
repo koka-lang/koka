@@ -1,4 +1,4 @@
-FROM manjarolinux/base:20220109
+FROM manjarolinux/base:20220116
 
 # The koka source should be mounted here readonly
 # It will use overlays to build the bundle and then export it the output directory
@@ -18,13 +18,16 @@ RUN pip install conan
 # Easy hackage update trigger
 ARG UPDATE_HACKAGE=1
 
-# Arch has latest version anyway, so no need for install script
-RUN pacman -Sy --noconfirm ghc ghc-static cabal-install
+# Nobody needs ghc compiled for aarch64 right? Nobody uses aarch64 right?
+ADD ./arch/*.sh /helpers/
+RUN /helpers/install-ghc.sh
 RUN cabal update
 
 # Add and run the builder script specifying the postfix of the bundle
 ADD ./builder.sh /builder.sh
 RUN chmod +x /builder.sh
+
+RUN pacman -Sy --noconfirm llvm11 clang
 
 ENTRYPOINT [ "/builder.sh" ]
 

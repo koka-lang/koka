@@ -1,8 +1,5 @@
 # Only latest version supported, too much hassle to get it compatible with older versions
-# 1. Stack first of all just doesnt work on alpine, so we need to use cabal
-# 2. It really wants to dynamically link libffi into it, this package has a different version on alpine 3.14 and before
-# 3. Vcpkg cant dynamically download cmake packages because of musl, so we need to use the one from the alpine image
-# 4. The alpine cmake package is too old on any version below 3.15
+# 1. It really wants to dynamically link libffi into it, this package has a different version on alpine 3.14 and before
 FROM alpine:3.15.0
 
 # The koka source should be mounted here readonly
@@ -27,7 +24,8 @@ RUN pip3 install conan
 # Easy hackage update trigger
 ARG UPDATE_HACKAGE=1
 
-# Cabal
+# Ghc is actually being added to aarch64 in alpine, lets goooo
+# https://gitlab.alpinelinux.org/alpine/aports/-/issues/11176
 ADD ./alpine/*.sh /helpers/
 RUN /helpers/install-ghc.sh
 RUN cabal update

@@ -17,7 +17,7 @@ Right now you can generate packages that work for these distributions:
 - PopOS 20.04, 21.10
 - Linux Mint 19.3, 20.2
 - Arch Linux, Manjaro
-- OpenSUSE Tumbleweed, Leap 15.3
+- OpenSUSE Tumbleweed, Leap 15.3, Leap 15.4
 
 There might be more that are also compatible, so feel free to experiment.
 

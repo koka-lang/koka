@@ -50,7 +50,7 @@ build_docker_images() {
     # Build the docker image, subshell to help with buildkit
     (
       cd ./distros
-      docker build $quiet_param -t koka-$target \
+      docker build $quiet_param -t localhost/koka-$target \
         $arch_opt $selinux_opt $rebuild_opt \
         -f "./$target.Dockerfile" .
     )
@@ -87,7 +87,7 @@ run_docker_images() {
       --tmpfs /tmp/overlay \
       -v "$(pwd)/$KOKA_SOURCE_LOCATION":/code:ro \
       -v "$TEMP_DIR:/output:z" \
-      koka-$target
+      localhost/koka-$target
 
     if [ $? -ne 0 ]; then
       stop "Failed to compile os specific package for $target"

@@ -12,14 +12,15 @@ PACKAGE_LICENSE="Apache-2.0"
 GENERAL_NIX_DEPENDENCIES="gcc,make,tar,curl" # For these programs version doesnt really matter
 
 # (Info)
+# - Dependencies are split with commas
 # Rhel and OpenSuse dependencies dont mind a space next to >= sign
 # Ubuntu dependencies need a space next to >= sign
 # Alpine dependencies need no space, and use the > sign
 # Arch dependencies need no space next to >= sign
-RHEL_DEPENDENCIES="glibc >= 2.27"                   # Fedora RedHat CentOS and Rocky
+RHEL_DEPENDENCIES="glibc >= 2.28"                   # Fedora RedHat CentOS and Rocky
 UBUNTU_DEPENDENCIES="libc6 >= 2.27"                 # Ubuntu Debian
-ALPINE_DEPENDENCIES="gmp>6,libffi>3.4,musl>1.2"     # Alpine
-ARCH_DEPENDENCIES="glibc>=2.33"                     # Arch, Manjaro
+ALPINE_DEPENDENCIES="musl-dev>1.2.2"                # Alpine
+ARCH_DEPENDENCIES="glibc>=2.32,numactl"             # Arch, Manjaro
 OPENSUSE_DEPENDENCIES="glibc >= 2.31"               # OpenSuse
 
 FREEBSD_DEPENDENCIES=""
