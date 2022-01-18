@@ -27,8 +27,6 @@ RUN cabal update
 ADD ./builder.sh /builder.sh
 RUN chmod +x /builder.sh
 
-RUN pacman -Sy --noconfirm llvm11 clang
-
 ENTRYPOINT [ "/builder.sh" ]
 
 CMD [ "arch", "cabal" ]

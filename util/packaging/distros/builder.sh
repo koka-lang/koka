@@ -10,13 +10,17 @@ LIBC_VERSION=""
 KOKA_VERSION=""
 ARCHITECTURE=""
 
+# If you change this, change it in ../package.sh too
+PACKAGE_PREFIX="/usr/local"
+
 CLEAN_FOLDERS=".koka .stack-work dist dist-newstyle"
+BUNDLE_LIBRARIES="libffi libgmp libnuma"
 CABAL_FLAGS="-O2 --disable-debug-info --enable-executable-stripping --enable-library-stripping"
 STACK_FLAGS=""
 
 LOG_PREFIX="[KOKA INTERNAL BUILDER] "
-
 METADATA_DIR="./extra-meta"
+LIBRARY_DIR="./extra-libs"
 
 info() {
   echo "$LOG_PREFIX$@"
@@ -31,6 +35,19 @@ stop() {
   exit 1
 }
 
+#---------------------------------------------------------
+# LIBC
+#---------------------------------------------------------
+
+is_libc_musl() {
+  libcversion=$(ldd --version 2>&1 | head -n 1)
+  if echo $libcversion | grep -q musl; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 get_libc_version() {
   libcversion=""
   if ! is_libc_musl; then
@@ -43,26 +60,12 @@ get_libc_version() {
   echo $libcversion
 }
 
-is_libc_musl() {
-  libcversion=$(ldd --version 2>&1 | head -n 1)
-  if echo $libcversion | grep -q musl; then
-    return 0
-  else
-    return 1
-  fi
-}
+#---------------------------------------------------------
+# KOKA INFO
+#---------------------------------------------------------
 
-get_koka_version() {
-  kk_version=""
-  if [ "$BUILD_MODE" = "stack" ]; then
-    kk_version=$(stack exec koka -- --version --console=raw | grep "Koka ")
-  elif [ "$BUILD_MODE" = "cabal" ]; then
-    kk_version=$(cabal new-run koka -- --version --console=raw | grep "Koka ")
-  fi
-
-  kk_version="${kk_version%%,*}"   # remove everything after the first ",*"
-  kk_version="${kk_version#Koka }" # remove "Koka " prefix
-  echo $kk_version
+get_koka_version_from_cabal() {
+  KOKA_VERSION="v$(cat ./koka.cabal | grep "^version:" | awk '{print $2}')"
 }
 
 get_koka_arch() {
@@ -79,6 +82,36 @@ get_koka_arch() {
   kk_arch=$(echo "$kk_arch" | grep -Pom 1 "(?<=KK_arch: )[a-zA-Z0-9]+")
   echo "$kk_arch"
 }
+
+get_koka_bin_location() {
+  koka_bin_loc=""
+
+  if [ "$BUILD_MODE" = "stack" ]; then
+    koka_bin_loc=$(stack exec koka -- --version | grep "^bin")
+  elif [ "$BUILD_MODE" = "cabal" ]; then
+    koka_bin_loc=$(cabal new-run koka -- --version | grep "^bin")
+  fi
+
+  koka_bin_loc=$(echo $koka_bin_loc | awk '{print $NF}')
+
+  echo "$koka_bin_loc/koka"
+}
+
+get_koka_bin_deps() {
+  koka_bin_loc=$1
+
+  if [ -z "$koka_bin_loc" ]; then
+    stop "Failed to get koka bin location"
+  fi
+
+  koka_bin_deps=$(ldd $koka_bin_loc | grep "=>" | awk '{print $3}')
+
+  echo $koka_bin_deps
+}
+
+#---------------------------------------------------------
+# BUILD ENV PREPARE
+#---------------------------------------------------------
 
 clean_workdir() {
   info "Cleaning up"
@@ -119,6 +152,10 @@ mount_overlay() {
   info "Overlay mounted"
 }
 
+#---------------------------------------------------------
+# BUILDING
+#---------------------------------------------------------
+
 build_koka() {
   info "Building koka"
 
@@ -129,10 +166,16 @@ build_koka() {
   elif [ "$BUILD_MODE" = "cabal" ]; then
     extra_flags=""
 
-    # You can only link statically on musl, glibc does not support it
+    # LINK STATICALLY ON MUSL
     if is_libc_musl; then
       extra_flags="$extra_flags --enable-executable-static"
       echo yes >"$METADATA_DIR/static"
+    fi
+
+    # MAKE SURE DYNAMIC LIBRARIES ARE FOUND
+    if [ -n "$KOKA_VERSION" ]; then
+      dynamic_libs_loc="$PACKAGE_PREFIX/lib/koka/$KOKA_VERSION/libs"
+      extra_flags="$extra_flags --ghc-option=-optl-Wl,-rpath=$dynamic_libs_loc"
     fi
 
     cabal new-configure $CABAL_FLAGS $extra_flags
@@ -150,15 +193,31 @@ build_koka() {
 bundle_koka() {
   info "Bundling koka"
 
+  # COLLECT LIBRARY DEPENDENCIES
+  koka_bin_loc=$(get_koka_bin_location)
+  koka_bin_deps=$(get_koka_bin_deps $koka_bin_loc)
+
+  for dep in $koka_bin_deps; do
+    for required in $BUNDLE_LIBRARIES; do
+      # if dep is in required, then copy it
+      if echo $dep | grep -q $required; then
+        info "Bundling $dep"
+        cp $dep $LIBRARY_DIR/
+      fi
+    done
+  done
+
+  # COLLECT METADATA
   echo "$DISTRO" >"$METADATA_DIR/distro"
   echo "$LIBC_VERSION" >"$METADATA_DIR/libc"
 
+  # BUNDLE EVERYTHING
   status=1
   if [ "$BUILD_MODE" = "stack" ]; then
-    stack exec koka -- -e util/bundle -- --metadata="$METADATA_DIR" --postfix="temp"
+    stack exec koka -- -e util/bundle -- --metadata="$METADATA_DIR" --solibs="$LIBRARY_DIR" --postfix="temp"
     status=$?
   elif [ "$BUILD_MODE" = "cabal" ]; then
-    cabal new-run koka -- -e util/bundle -- --metadata="$METADATA_DIR" --postfix="temp"
+    cabal new-run koka -- -e util/bundle -- --metadata="$METADATA_DIR" --solibs="$LIBRARY_DIR" --postfix="temp"
     status=$?
   fi
 
@@ -172,11 +231,13 @@ bundle_koka() {
 rename_and_export_bundle() {
   info "Renaming and exporting bundle"
 
+  # LOCATE BUNDLE
   bundleloc=$(find ./bundle -name "koka-temp.tar.gz")
   if [ -z "$bundleloc" ]; then
     stop "Failed to find bundle"
   fi
 
+  # GET BUNDLE METADATA
   ARCHITECTURE=$(tar -Oxf "$bundleloc" meta/arch)
   KOKA_VERSION=$(tar -Oxf "$bundleloc" meta/version)
 
@@ -185,7 +246,7 @@ rename_and_export_bundle() {
     stop "Failed to find architecture or version"
   fi
 
-  # Get dir from bundleloc
+  # MOVE BUNDLE
   new_dir=$()
   new_name="koka-$KOKA_VERSION-$DISTRO-$ARCHITECTURE.tar.gz"
   mv "$bundleloc" "/output/$new_name"
@@ -204,6 +265,8 @@ full_build() {
   clean_workdir
 
   mkdir -p $METADATA_DIR
+  mkdir -p $LIBRARY_DIR
+  get_koka_version_from_cabal
 
   build_koka
 

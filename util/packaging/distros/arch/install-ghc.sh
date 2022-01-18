@@ -7,8 +7,8 @@ ARCH=$(uname -m)
 CURRENT_GHC_BIN="https://downloads.haskell.org/ghc/$GHC_VERSION/ghc-$GHC_VERSION-$ARCH-deb10-linux.tar.xz"
 CURRENT_CABAL_BIN="https://downloads.haskell.org/cabal/cabal-install-$CABAL_VERSION/cabal-install-$CABAL_VERSION-$ARCH-linux-deb10.tar.xz"
 
-install_deps() {
-  pacman -Sy --noconfirm numactl wget
+install_deps_aarch64() {
+  pacman -Sy --noconfirm numactl wget llvm11
 }
 
 install_ghc() {
@@ -31,7 +31,7 @@ install_cabal() {
 }
 
 install_aarch64() {
-  install_deps
+  install_deps_aarch64
 
   mkdir cabal
   cd cabal

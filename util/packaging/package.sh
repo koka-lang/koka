@@ -8,6 +8,9 @@ PACKAGE_DESCRIPTION="Koka is a strongly typed functional-style language with eff
 PACKAGE_URL="https://koka-lang.github.io/"
 PACKAGE_LICENSE="Apache-2.0"
 
+# If you change this, change it in ./distros/builder.sh too
+PACKAGE_PREFIX="/usr/local" 
+
 # Dependencies
 GENERAL_NIX_DEPENDENCIES="gcc,make,tar,curl" # For these programs version doesnt really matter
 
@@ -20,7 +23,7 @@ GENERAL_NIX_DEPENDENCIES="gcc,make,tar,curl" # For these programs version doesnt
 RHEL_DEPENDENCIES="glibc >= 2.28"                   # Fedora RedHat CentOS and Rocky
 UBUNTU_DEPENDENCIES="libc6 >= 2.27"                 # Ubuntu Debian
 ALPINE_DEPENDENCIES="musl-dev>1.2.2"                # Alpine
-ARCH_DEPENDENCIES="glibc>=2.32,numactl"             # Arch, Manjaro
+ARCH_DEPENDENCIES="glibc>=2.32"                     # Arch, Manjaro
 OPENSUSE_DEPENDENCIES="glibc >= 2.31"               # OpenSuse
 
 FREEBSD_DEPENDENCIES=""
@@ -138,7 +141,8 @@ build_package() {
   fpm_arguments="-s dir -t '$TYPE' -C '/source' -p '/build/$file_name' $dependencies \
     -n '$PACKAGE_NAME' --description '$PACKAGE_DESCRIPTION' --url '$PACKAGE_URL' --license '$PACKAGE_LICENSE' \
     -v '$package_version' --iteration '$package_iteration' \
-    -a '$linux_architecture' --prefix '/usr/local' \
+    -a '$linux_architecture' --prefix $PACKAGE_PREFIX \
+    --rpm-rpmbuild-define '_build_id_links none' \
     --provides '$PACKAGE_NAME' \
     --before-remove /scripts/pre-remove.sh \
     --after-install /scripts/post-install.sh \
