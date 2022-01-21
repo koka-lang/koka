@@ -10,9 +10,6 @@ LIBC_VERSION=""
 KOKA_VERSION=""
 ARCHITECTURE=""
 
-# If you change this, change it in ../package.sh too
-PACKAGE_PREFIX="/usr/local"
-
 CLEAN_FOLDERS=".koka .stack-work dist dist-newstyle"
 BUNDLE_LIBRARIES="libffi libgmp libnuma"
 CABAL_FLAGS="-O2 --disable-debug-info --enable-executable-stripping --enable-library-stripping"
@@ -166,7 +163,7 @@ build_koka() {
 
     # MAKE SURE DYNAMIC LIBRARIES ARE FOUND
     if [ -n "$KOKA_VERSION" ]; then
-      dynamic_libs_loc="$PACKAGE_PREFIX/lib/koka/$KOKA_VERSION/libs"
+      dynamic_libs_loc="\$ORIGIN/../lib/koka/$KOKA_VERSION/libs"
       extra_flags="$extra_flags --ghc-option=-optl-Wl,-rpath=$dynamic_libs_loc"
     fi
 

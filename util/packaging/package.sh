@@ -8,8 +8,7 @@ PACKAGE_DESCRIPTION="Koka is a strongly typed functional-style language with eff
 PACKAGE_URL="https://koka-lang.github.io/"
 PACKAGE_LICENSE="Apache-2.0"
 
-# If you change this, change it in ./distros/builder.sh too
-PACKAGE_PREFIX="/usr/local" 
+PACKAGE_PREFIX="/usr" 
 
 # Dependencies
 GENERAL_NIX_DEPENDENCIES="gcc,make,tar,curl" # For these programs version doesnt really matter
