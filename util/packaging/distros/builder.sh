@@ -130,14 +130,6 @@ mount_overlay() {
     stop "Your system does not support overlayfs or tmpfs, it needs this to build"
   fi
 
-  mkdir -p /tmp/overlay
-
-  mount -t tmpfs tmpfs /tmp/overlay
-
-  if [ $? -ne 0 ]; then
-    stop "Failed to mount tmpfs"
-  fi
-
   mkdir -p /tmp/overlay/source-work /tmp/overlay/source-upper /tmp/overlay/source-merged
 
   mount -t overlay overlay \

@@ -83,7 +83,7 @@ run_docker_images() {
     # Build the docker image
     # (Maybe properly fix SELINUX here?)
     docker run $quiet_param -it --rm $arch_opt \
-      --cap-add SYS_ADMIN $selinux_opt \
+      --privileged $selinux_opt \
       --tmpfs /tmp/overlay \
       -v "$(pwd)/$KOKA_SOURCE_LOCATION":/code:ro \
       -v "$TEMP_DIR:/output:z" \
@@ -320,6 +320,9 @@ main_help() {
   info "  --configqemu                    Configure just the qemu docker emulator for other architectures"
   info "  --en-arm                        Enable ARM64 building"
   info ""
+  info "important:"
+  info "  All docker containers run with full root privileges right now"
+  info "  This is because docker/linux refuses to properly implement scoped privileges"
   info "notes:"
   info "  This script can only build linux packages right now"
   info "  If older archives are present, they may be accidentally repackaged"
