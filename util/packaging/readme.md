@@ -38,7 +38,7 @@ $ ./util/packaging/build.sh
 To specify which versions you want to build and package you can use `--target="target1,target2"`.
 You can also specify whether to only build or only package with `--package="no"` or `--package="only"`.
 
-After running the script there should now be distro specific bundles in `./bundle/$version`, 
+After running the script there should now be distro specific bundles in `./bundle/$version`,
 and installable packages in `./bundle/$version`.
 
 ## Notes
