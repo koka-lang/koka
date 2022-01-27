@@ -1283,10 +1283,12 @@ pub inline extern abs : (d:double) -> double
   js "Math.abs"
 
 // Returns the smallest of two doubles
-pub fun min( x : double, y : double ) : double { if x <= y then x else y }
+pub fun min( x : double, y : double ) : double 
+  if x <= y then x else y
 
 // Returns the largest of two doubles
-pub fun max( x : double, y : double ) : double { if x >= y then x else y }
+pub fun max( x : double, y : double ) : double 
+  if x >= y then x else y
 
 // Returns the smallest element of a list of doubles (or `0` for the empty list)
 pub fun minimum( xs : list<double> ) : double
@@ -1562,9 +1564,9 @@ inline extern xstarts-with: (s : string, pre : string ) -> bool
 // Is `pre`  a prefix of `s`? If so, returns a slice
 // of `s` following `pre` up to the end of `s`.
 pub fun starts-with( s : string, pre : string ) : maybe<sslice>
-  if (xstarts-with(s,pre))
-   then Just(Sslice(s,pre.length,s.length - pre.length))
-   else Nothing
+  if xstarts-with(s,pre)
+    then Just(Sslice(s,pre.length,s.length - pre.length))
+    else Nothing
 
 extern xends-with: (s : string, post : string ) -> bool
   c  "kk_string_ends_with"
@@ -1575,8 +1577,8 @@ extern xends-with: (s : string, post : string ) -> bool
 // If so, returns a slice of `s` from the start up to the `post` string at the end.
 pub fun ends-with( s : string, post : string ) : maybe<sslice>
   if (xends-with(s,post))
-   then Just(Sslice(s,0.ssize_t,s.length - post.length))
-   else Nothing
+    then Just(Sslice(s,0.ssize_t,s.length - post.length))
+    else Nothing
 
 // Does string `s`  contain the string `sub`  ?
 pub inline extern contains: (s : string, sub : string ) -> bool
@@ -1639,7 +1641,7 @@ pub fun is-notempty( s : string ) : bool
 
 // Transform a string to a maybe type, using `Nothing` for an empty string
 pub fun maybe( s : string ) : maybe<string>
-    if s.is-empty then Nothing else Just(s)
+  if s.is-empty then Nothing else Just(s)
 
 inline extern splitv( s : string,  sep : string ) : vector<string>
   c  "kk_string_splitv"
@@ -1731,16 +1733,16 @@ pub fun pad-left( s : string, ^width : int, fill : char = ' ') : string
   val w = width.ssize_t
   val n = s.length
   if w <= n
-   then s
-   else fill.string.repeatz( w - n ) ++ s
+    then s
+    else fill.string.repeatz( w - n ) ++ s
 
 // Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
 pub fun pad-right( s : string, ^width : int, fill : char = ' ') : string
   val w = width.ssize_t
   val n = s.length
   if w <= n
-   then s
-   else s ++ fill.string.repeatz(w - n)
+    then s
+    else s ++ fill.string.repeatz(w - n)
 
 // Trim whitespace on the left and right side of a string
 pub fun trim( s : string ) : string
@@ -1926,8 +1928,8 @@ pub fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : st
 pub fun show( d : double, precision : int = -17 ) : string
   val dabs = d.abs
   if dabs >= 1.0e-5 && dabs < 1.0e+21
-   then show-fixed(d,precision)
-   else show-exp(d,precision)
+    then show-fixed(d,precision)
+    else show-exp(d,precision)
 
 // Show a `:double` fixed-point notation.
 // The optional `precision` (= `-2`) specifies the maximum precision.
@@ -1939,8 +1941,8 @@ pub fun show( d : double, precision : int = -17 ) : string
 pub fun show-fixed( d : double, precision : int = -2 ) : string
   val dabs = d.abs
   if dabs < 1.0e-15 || dabs > 1.0e+21
-   then show-exp(d,precision)
-   else show-fixedx(d, precision.int32)
+    then show-exp(d,precision)
+    else show-fixedx(d, precision.int32)
 
 extern show-fixedx( d : double, prec : int32 ) : string
   c  "kk_double_show_fixed"

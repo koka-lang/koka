@@ -40,7 +40,7 @@ approximated:
 ```
 
 However, if we convert the number `0.1` directly to a `:ddouble` (instead of going through
-a `:double` constant), we can represent `0.1` (almost) exactly:
+a `:double` constant), we can represent `0.1` more precisely:
 
 ```
 > ddouble("0.1")   // for convenience; using `ddouble-exp(1,-1)` is more efficient
