@@ -190,7 +190,7 @@ pub fun test-choose()
 
 
 val coin = handler 
-  fun choose() srandom-double() > 0.5 
+  fun choose() srandom-float64() > 0.5 
 
 pub fun test-coin() 
   with coin
