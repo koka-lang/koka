@@ -133,7 +133,7 @@ Astronomy and Astrophysics, vol. 265, no. 2, p. 833--838.
 */
 module std/time/astro
 
-import std/num/double
+import std/num/float64
 import std/num/ddouble
 import std/time/timestamp
 import std/time/duration
@@ -220,10 +220,10 @@ val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 // The error in this approximation is a maximum of 10 micro-seconds in the time period 1600 to 2200.
 // (and probably less as we expanded to more terms and do JPL planetary mass adjustment)
 fun tdb-delta( tt : timestamp ) : timespan
-  val t = (tt - j2k-epoch).timespan-noleap.double / (secs-per-julian-year * 1000.0) // fraction of Julian millenia since J2000
+  val t = (tt - j2k-epoch).timespan-noleap.float64 / (secs-per-julian-year * 1000.0) // fraction of Julian millenia since J2000
 
   // First terms of Fairhead et al. model
-  val wf : double
+  val wf : float64
          =(1656.6746e-6*sin( 6283.0758*t + 6.2401)
           + ( 22.4175e-6*sin( 5753.3859*t + 4.2970)
           +   13.8398e-6*sin(12566.1527*t + 6.1969)
@@ -240,7 +240,7 @@ fun tdb-delta( tt : timestamp ) : timespan
           + t*(102.1567e-6*sin( 6283.0758*t + 4.2490))
 
   // Adjustments to use JPL planetary masses instead of IAU.
-  val wj : double
+  val wj : float64
          =  0.00065e-6*sin(6069.776754*t + 4.021194) +
             0.00033e-6*sin( 213.299095*t + 5.543132) +
           (~0.00196e-6*sin(6208.294251*t + 5.696701)) +
@@ -256,11 +256,11 @@ val pi2   = 6.283185307179586476925287      // 2pi
 val dd2r  = 1.745329251994329576923691e-2   // degree to radians
 
 // From the ERFA routines
-fun tdb-topocentric(  t : double,        // fractional julian millennia
-                      ut : double = 0.0, // UT1 (fraction of one day)
-                      elong : double = 0.0, // east positive degrees
-                      u : double = 0.0, // distance earth spin axis in km
-                      v : double = 0.0  // distance north of eq. plane in km
+fun tdb-topocentric(  t : float64,        // fractional julian millennia
+                      ut : float64 = 0.0, // UT1 (fraction of one day)
+                      elong : float64 = 0.0, // east positive degrees
+                      u : float64 = 0.0, // distance earth spin axis in km
+                      v : float64 = 0.0  // distance north of eq. plane in km
                       )
   // Convert UT to local solar time in radians.
   val tsol = ut.fraction*pi2 + elong*dd2r
@@ -284,7 +284,7 @@ fun tdb-topocentric(  t : double,        // fractional julian millennia
   val els = ((50.07744430 + 44046398.47038 * w) % 360.0) * dd2r
 
   // Moyer 1981 and Murray 1983.
-  val wt : double
+  val wt : float64
          =(  0.00029e-10 * u * sin(tsol + elsun - els)
           + (0.00100e-10 * u * sin(tsol - 2.0 * emsun)
           +  0.00133e-10 * u * sin(tsol - d)

@@ -245,9 +245,9 @@ inline extern unsafe-cmod : (int64,int64) -> int64
   inline "#1 % #2"
 
 
-// Convert an 64-bit integer to a double.
-pub fun double( i:int64) : double 
-  i.int.double
+// Convert an 64-bit integer to a `:float64`.
+pub fun float64( i : int64 ) : float64 
+  i.int.float64
 
 
 // Negate a 64-bit integer

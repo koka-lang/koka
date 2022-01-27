@@ -284,7 +284,7 @@ System of Astronomical Constants, Astronomy \& Astrophysics, Vol. 73, pages 282-
 */
 module std/time/utc
 
-import std/num/double
+import std/num/float64
 import std/num/ddouble
 import std/text/parse
 import std/time/timestamp
@@ -338,14 +338,14 @@ To indicate a time in a leap second, you can use a fraction `frac` that is large
 
 This works well for systems that support [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html).
 */
-pub fun unix-instant( u : double, frac : double = 0.0, ts : timescale = ts-ti ) : instant
+pub fun unix-instant( u : float64, frac : float64 = 0.0, ts : timescale = ts-ti ) : instant
   val t    = u.ddouble + frac.fraction.ddouble
   val leap = frac.truncate.int
   unix-instant(t,leap,ts)
 
 // Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
 // Use a fraction `> 1` to indicate a time inside a leap second.
-pub fun unix-instant( u : int, frac : double = 0.0, ts : timescale = ts-ti ) : instant
+pub fun unix-instant( u : int, frac : float64 = 0.0, ts : timescale = ts-ti ) : instant
   val t    = u.ddouble + frac.fraction.ddouble
   val leap = frac.truncate.int
   unix-instant(t,leap,ts)

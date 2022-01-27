@@ -156,7 +156,7 @@ pub fun time( t : time, tz : timezone = t.timezone, cal : calendar = t.calendar,
 
 pub fun time( ts : timescale, year : int, month : int = 1, day : int = 1,
                  hours : int = 0, minutes : int = 0, secs : int = 0,
-                 frac : double = 0.0, tz : timezone = tz-utc,
+                 frac : float64 = 0.0, tz : timezone = tz-utc,
                  cal : calendar = cal-iso ) : time
 
   time(ts.instant(year,month,day,hours,minutes,secs,frac,tz,cal),tz,cal,ts)
@@ -178,7 +178,7 @@ In such cases, the time is always interpreted in the earlier timezone.
 */
 pub fun time( year : int, month : int = 1, day : int = 1,
                  hours : int = 0, minutes : int = 0, secs : int = 0,
-                 frac : double = 0.0, tz : timezone = tz-utc,
+                 frac : float64 = 0.0, tz : timezone = tz-utc,
                  cal : calendar = cal-iso, ts : timescale = utc() ) : <utc> time
 
   ts.time(year,month,day,hours,minutes,secs,frac,tz,cal)
@@ -310,8 +310,8 @@ pub fun weekday( t : time ) : weekday
 // Return a `:time` as a fractional year.\
 // `year-frac(time(2000,7,2)) == fixed(2000.5)`
 pub fun year-frac( t : time ) : ddouble
-  val dfrac = t.mjd.fraction.double // t.clock.total-seconds.double / 86400.0
-  val yfrac = ((t.day-of-year - 1).double + dfrac) / t.days-in-year.double
+  val dfrac = t.mjd.fraction.float64 // t.clock.total-seconds.float64 / 86400.0
+  val yfrac = ((t.day-of-year - 1).float64 + dfrac) / t.days-in-year.float64
   timespan(t.year,yfrac)
 
 // Return the total months in the year of time `t`.
@@ -456,7 +456,7 @@ pub fun local-time( i : instant, cal : calendar = cal-iso ) : ndet time
 pub fun local-time( ts : timescale,
                        year : int, month : int = 1, day : int = 1,
                        hours : int = 0, minutes : int = 0, secs : int = 0,
-                       frac : double = 0.0, cal : calendar = cal-iso ) : ndet time
+                       frac : float64 = 0.0, cal : calendar = cal-iso ) : ndet time
 
   ts.time(year,month,day,hours,minutes,secs,frac,tz-local(),cal)
 
@@ -464,7 +464,7 @@ pub fun local-time( ts : timescale,
 // interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
 pub fun local-time( year : int, month : int = 1, day : int = 1,
                        hours : int = 0, minutes : int = 0, secs : int = 0,
-                       frac : double = 0.0, cal : calendar = cal-iso, ts : timescale = utc() ) : <ndet,utc> time
+                       frac : float64 = 0.0, cal : calendar = cal-iso, ts : timescale = utc() ) : <ndet,utc> time
 
   ts.local-time(year,month,day,hours,minutes,secs,frac,cal)
 

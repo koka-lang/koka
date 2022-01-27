@@ -8,14 +8,14 @@ fun main() {
   jaro/run-tests( jaro-distance, fn(s,t) { jaro-winkler-distance(s,t) } )
 }
 
-fun jaro-winkler-distance( s : string, t : string, boost-threshold : double = 0.7 ) : double {
+fun jaro-winkler-distance( s : string, t : string, boost-threshold : float64 = 0.7 ) : float64 {
   val d = jaro-distance(s,t)
   if (d < boost-threshold) return d
   val l = common-prefix(s,t,4).count
-  d + (l.double * 0.1 * (1.0 - d))
+  d + (l.float64 * 0.1 * (1.0 - d))
 }
 
-fun jaro-distance( s : string, t : string ) : double {
+fun jaro-distance( s : string, t : string ) : float64 {
   if (s==t) return 1.0
   if (s.is-empty || t.is-empty) return 0.0
   val slen = s.count
@@ -23,9 +23,9 @@ fun jaro-distance( s : string, t : string ) : double {
   val lim  = max(0, max(slen,tlen)/2 - 1)
   val (mcount,tcount) = if (slen > tlen) then jaro-match(t,s,lim) else jaro-match(s,t,lim)
   if (mcount<=0) then 0.0 else {
-    val mc = mcount.double
-    val tc = tcount.double
-    ((mc / slen.double) + (mc / tlen.double) + ((mc - tc) / mc)) / 3.0
+    val mc = mcount.float64
+    val tc = tcount.float64
+    ((mc / slen.float64) + (mc / tlen.float64) + ((mc - tc) / mc)) / 3.0
   }
 }
 

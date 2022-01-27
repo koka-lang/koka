@@ -914,14 +914,14 @@ pub inline extern (~)(i:int) : int
   cs inline "(-#1)"
   js "$std_core._int_negate"
 
-// Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
-pub inline extern double( i : int) : double
+// Convert an integer to a `:float64`. May return `nan` if the integer is too large to represent as a `:float64`.
+pub inline extern float64( i : int) : float64
   c  "kk_integer_as_double"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 
 // Is this an odd integer?
-pub inline extern is-odd   : ( int ) -> bool
+pub inline extern is-odd( i : int ) : bool
   c  "kk_integer_is_odd"
   cs inline "!(#1.IsEven)"
   js "$std_core._int_isodd"
@@ -1188,14 +1188,14 @@ pub inline extern int( i : intptr_t ) : int
 // Byte
 // ----------------------------------------------------------------------------
 
-// clamp an `:int` to fit in a `:byte`.
-pub extern byte( i : int) : byte
+// clamp an `:int` to fit in a `:uint8`.
+pub extern uint8( i : int) : uint8
   c  "kk_integer_clamp_byte"
   cs inline "Primitive.IntToByte"
   js "$std_core._int_clamp_byte"
 
-// Convert an `:byte` to an `:int`.
-pub inline extern int( i : byte ) : int
+// Convert an `:uint8` to an `:int`.
+pub inline extern int( i : uint8 ) : int
   c  "kk_integer_from_byte"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int32"
@@ -1223,81 +1223,82 @@ extern xparse-int( s : string, hex : bool ) : maybe<int>
   js "_int_parse"
 
 // ----------------------------------------------------------------------------
-// Doubles 
+// Floating point
+// todo: move to std/num/float64
 // ----------------------------------------------------------------------------
 
-pub inline extern (==) : (double,double) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-pub inline extern (!=) : (double,double) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-pub inline extern (<=) : (double,double) -> bool  { inline "(#1 <= #2)" }
-pub inline extern (>=) : (double,double) -> bool  { inline "(#1 >= #2)" }
-pub inline extern (<)  : (double,double) -> bool  { inline "(#1 < #2)" }
-pub inline extern (>)  : (double,double) -> bool  { inline "(#1 > #2)" }
-pub inline extern (+) : (double,double) -> double { inline "(#1 + #2)" }
-pub inline extern (-) : (double,double) -> double { inline "(#1 - #2)" }
-pub inline extern (*) : (double,double) -> double { inline "(#1 * #2)" }
-pub inline extern (/) : (double,double) -> double { inline "(#1 / #2)" }
-pub inline extern (%) : (double,double) -> double { c inline "fmod(#1,#2)"; inline "(#1 % #2)" }
+pub inline extern (==) : (float64,float64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+pub inline extern (!=) : (float64,float64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+pub inline extern (<=) : (float64,float64) -> bool  { inline "(#1 <= #2)" }
+pub inline extern (>=) : (float64,float64) -> bool  { inline "(#1 >= #2)" }
+pub inline extern (<)  : (float64,float64) -> bool  { inline "(#1 < #2)" }
+pub inline extern (>)  : (float64,float64) -> bool  { inline "(#1 > #2)" }
+pub inline extern (+) : (float64,float64) -> float64 { inline "(#1 + #2)" }
+pub inline extern (-) : (float64,float64) -> float64 { inline "(#1 - #2)" }
+pub inline extern (*) : (float64,float64) -> float64 { inline "(#1 * #2)" }
+pub inline extern (/) : (float64,float64) -> float64 { inline "(#1 / #2)" }
+pub inline extern (%) : (float64,float64) -> float64 { c inline "fmod(#1,#2)"; inline "(#1 % #2)" }
 
-pub fun compare( x : double, y : double) : order
+pub fun compare( x : float64, y : float64) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq
 
 // Is the value negative?
-pub fun is-neg( d : double ) : bool
+pub fun is-neg( d : float64 ) : bool
   d < 0.0
 
 // Is the value positive?
-pub fun is-pos( d : double ) : bool
+pub fun is-pos( d : float64 ) : bool
   d > 0.0
 
 // Is the value zero?
-pub fun is-zero( d : double ) : bool
+pub fun is-zero( d : float64 ) : bool
   d == 0.0
 
-pub fun sign( d : double ) : order
+pub fun sign( d : float64 ) : order
   if d < 0.0 then Lt elif d > 0.0 then Gt else Eq
 
-// Negate a `:double`.
-pub inline extern (~)(d : double ) : double
+// Negate a `:float64`.
+pub inline extern (~)( f : float64 ) : float64
   inline "(-#1)"  // inline so `~0.0` becomes negative zero
 
-// convert a `:double` to an `:int` using `round` to round to its nearest integer.
+// convert a `:float64` to an `:int` using `round` to round to its nearest integer.
 // (rounding to an even number on a tie)
 // Returns `0` if the argument is not `finite?`.
-pub inline extern int(d : double ) : int
+pub inline extern int( f : float64 ) : int
   c  "kk_integer_from_double"
   cs "Primitive.IntDouble"
   js "$std_core._int_double"
 
-// Returns the value `d`  raised to the power `p` .
-pub inline extern (^) : (d:double,p:double) -> double
+// Returns the value `f`  raised to the power `p` .
+pub inline extern (^)( f : float64, p : float64) : float64
   c inline "pow(#1,#2)"
   cs "Math.Pow"
   js "Math.pow"
 
-// Return the absolute value of a `:double` `d`
-pub inline extern abs : (d:double) -> double
+// Return the absolute value of a `:float64` `f`
+pub inline extern abs( f : float64 ) : float64
   c inline "kk_double_abs(#1)"
   cs "Math.Abs"
   js "Math.abs"
 
-// Returns the smallest of two doubles
-pub fun min( x : double, y : double ) : double 
+// Returns the smallest of two floats
+pub fun min( x : float64, y : float64 ) : float64 
   if x <= y then x else y
 
-// Returns the largest of two doubles
-pub fun max( x : double, y : double ) : double 
+// Returns the largest of two floats
+pub fun max( x : float64, y : float64 ) : float64 
   if x >= y then x else y
 
-// Returns the smallest element of a list of doubles (or `0` for the empty list)
-pub fun minimum( xs : list<double> ) : double
+// Returns the smallest element of a list of floats (or `0` for the empty list)
+pub fun minimum( xs : list<float64> ) : float64
   match xs
     Nil -> 0.0
     Cons(x,xx) -> xx.foldl( x, min )
 
-// Returns the largest element of a list of doubles (or `0` for the empty list)
-pub fun maximum( xs : list<double> ) : double
+// Returns the largest element of a list of floats (or `0` for the empty list)
+pub fun maximum( xs : list<float64> ) : float64
   match xs
     Nil -> 0.0
     Cons(x,xx) -> xx.foldl( x, max )
@@ -1922,41 +1923,41 @@ pub fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : st
   (if i<0 then "-" else "") ++ pre ++ int-show-hex(i.abs,use-capitals).pad-left(width,'0')
 
  
-// Show a `:double` as a string.
+// Show a `:float64` as a string.
 // If `d >= 1.0e-5` and `d < 1.0e+21`, `show-fixed` is used and otherwise `show-exp`.
 // Default `precision` is `-17`.
-pub fun show( d : double, precision : int = -17 ) : string
+pub fun show( d : float64, precision : int = -17 ) : string
   val dabs = d.abs
   if dabs >= 1.0e-5 && dabs < 1.0e+21
     then show-fixed(d,precision)
     else show-exp(d,precision)
 
-// Show a `:double` fixed-point notation.
+// Show a `:float64` fixed-point notation.
 // The optional `precision` (= `-2`) specifies the maximum precision.
 // If `>=0` it specifies the number of digits behind the dot (up to `20` max).
 // If negative, then at most the absolute value of `precision` digits behind the dot are used.
 // This may still show a number in exponential notation if the it is too small or large,
 // in particular, for  a `d` where `d > 1.0e21` or `d < 1.0e-15`, or if
 // `precision.abs > 17`, the `show-exp` routine is used.
-pub fun show-fixed( d : double, precision : int = -2 ) : string
+pub fun show-fixed( d : float64, precision : int = -2 ) : string
   val dabs = d.abs
   if dabs < 1.0e-15 || dabs > 1.0e+21
     then show-exp(d,precision)
     else show-fixedx(d, precision.int32)
 
-extern show-fixedx( d : double, prec : int32 ) : string
+extern show-fixedx( d : float64, prec : int32 ) : string
   c  "kk_double_show_fixed"
   cs "Primitive.DoubleShowFixed"
   js "_double_show_fixed"
 
-// Show a `:double` in exponential (scientific) notation.
+// Show a `:float64` in exponential (scientific) notation.
 // The optional `precision` (= `-17`) specifies the precision.
 // If `>=0` it specifies the number of digits behind the dot (up to `17` max).
 // If negative, then at most the absolute value of `precision` digits behind the dot are used.
-pub fun show-exp( d : double, precision : int = -17 )
+pub fun show-exp( d : float64, precision : int = -17 )
   show-expx(d,precision.int32)
 
-extern show-expx( d : double, prec : int32 ) : string
+extern show-expx( d : float64, prec : int32 ) : string
   c  "kk_double_show_exp"
   cs "Primitive.DoubleShowExp"
   js "_double_show_exp"
@@ -2074,8 +2075,8 @@ pub fun print(s : string)
 pub fun print(i : int)     
   prints(show(i))
 
-// Print a double to the console.
-pub fun print(d : double)  
+// Print a float64 to the console.
+pub fun print(d : float64)  
   prints(show(d))
 
 // Print a boolean to the console
@@ -2098,8 +2099,8 @@ pub fun println(s : string)
 pub fun println(i : int)     
   printsln(show(i))
 
-// Print a double to the console, including a final newline character.
-pub fun println(d : double)  
+// Print a float64 to the console, including a final newline character.
+pub fun println(d : float64)  
   printsln(show(d))
 
 // Print a boolean to the console, including a final newline character

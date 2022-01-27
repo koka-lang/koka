@@ -10,7 +10,7 @@
 module std/num/decimal
 
 import std/text/parse
-import std/num/double
+import std/num/float64
 
 // Type of a decimal number. Decimals have arbitrary precision and range and
 // do exact decimal arithmetic and are well suited for financial calculations for
@@ -42,10 +42,10 @@ fun decimal-exp( i : int, exp : int = 0 ) : decimal
   // trace("decimal-exp: " + i.show + "e" + exp.show + ", diff: " + diff.show + ", x: " + x.show)
   if diff.is-zero then Decimal(i,exp) else Decimal(i.mul-exp10(diff.abs),x)
 
-/* Create a decimal from a `:double` with a specified maximal precision (=`-1`).
-Use a negative maximal precision to create a decimal that precisely represents the `:double`.
-Note: creating a `:decimal` from a `:double` may lose precision and give surprising results as many decimal
-fractions cannot be represented precisely by a `:double`.
+/* Create a decimal from a `:float64` with a specified maximal precision (=`-1`).
+Use a negative maximal precision to create a decimal that precisely represents the `:float64`.
+Note: creating a `:decimal` from a `:float64` may lose precision and give surprising results as many decimal
+fractions cannot be represented precisely by a `:float64`.
 Also, `decimal(i,exp)` is more efficient and better when when exact representations
 are required. For example:
 ```
@@ -58,7 +58,7 @@ are required. For example:
 ```
 .
 */
-pub fun decimal( d : double, max-prec : int = -1 ) : decimal
+pub fun decimal( d : float64, max-prec : int = -1 ) : decimal
   val (man,exp)  = d.decode
   if exp >= 0 then (man * (2^exp)).decimal else
     val prec = if max-prec < 0  then ~exp else min(max-prec,~exp)
@@ -232,9 +232,9 @@ pub fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Half-even ) : 
   //trace("round: " + x.showx + ", q: " + q.show + ", r: " + r.show + ", q1: " + q1.show + "e-" + prec.show )
   decimal-exp(q1,~prec)
 
-// Optimize: Use double division when within precision bounds.
+// Optimize: Use float64 division when within precision bounds.
 val maxexp     : int = 308
-val maxpd      : double = 1.0e15
+val maxpd      : float64 = 1.0e15
 val maxprecise : int = int(maxpd)
 val minprecise : int = ~maxprecise
 
@@ -265,10 +265,10 @@ pub fun div( x : decimal, y : decimal, min-prec : int = 15 ) : decimal
   if x.is-zero || y.is-zero then return Decimal(0,0)
   val e = x.exp - y.exp
   /*
-  // use double division if within precision bounds..
+  // use float64 division if within precision bounds..
   if min-prec <= 15 && e.abs <= 15 && x.num.is-precise && y.num.is-precise
-  val r = x.num.double / y.num.double
-    if e.is-zero then decimal(r) else decimal(r * exp10(e.double))
+  val r = x.num.float64 / y.num.float64
+    if e.is-zero then decimal(r) else decimal(r * exp10(e.float64))
 
   else
   */
@@ -335,14 +335,14 @@ pub fun truncate( x : decimal ) : decimal
   x.round(Truncate)
 
 
-// Convert a decimal to a `:double`. This may lose precision.
-pub fun double( x : decimal ) : double 
+// Convert a decimal to a `:float64`. This may lose precision.
+pub fun float64( x : decimal ) : float64 
   // todo: handle decimals with many digits better
   if !x.exp.is-neg then
-    x.num.double * pow(10.0,x.exp.double)
+    x.num.float64 * pow(10.0,x.exp.float64)
   else 
     val (q,r) = x.num.divmod-exp10(~x.exp)
-    q.double + r.double * exp10(x.exp.double)
+    q.float64 + r.float64 * exp10(x.exp.float64)
 
 // Return the 'truncated' fraction, always in the range (`-1.0`,`1.0`).
 // `x.truncate + x.fraction == x`

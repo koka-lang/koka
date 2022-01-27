@@ -189,10 +189,10 @@ fun testChoose()  {
   [game(7)]   // [bob,alice]
 }
 
-val coin = handler fun choose() { srandom-double() > 0.5 }
+val coin = handler fun choose() { srandom-float64() > 0.5 }
 
 fun testCoin() {
-  with fun choose() { srandom-double() > 0.5 }
+  with fun choose() { srandom-float64() > 0.5 }
   with bobChooses
   game(7)
 }

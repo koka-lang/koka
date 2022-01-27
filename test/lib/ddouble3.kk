@@ -3,7 +3,7 @@
 */
 
 pub import std/num/ddouble
-pub import std/num/double
+pub import std/num/float64
 pub import std/num/decimal
 
 fun dd-area(a : ddouble, b : ddouble, c : ddouble = b ) : ddouble {
@@ -20,17 +20,17 @@ fun dd-area2(a : ddouble, b : ddouble, c : ddouble = b) : (ddouble,ddouble) {
   (dd-area(a,b,c),dd-areax(a,b,c))
 }
 
-fun d-area(a : double, b : double, c : double = b) : double {
+fun d-area(a : float64, b : float64, c : float64 = b) : float64 {
   val s = (a + b + c)/2.0
   sqrt(s*(s - a)*(s - b)*(s - c))
 }
 
-fun d-areax(a : double, b : double, c : double = b) : double {
+fun d-areax(a : float64, b : float64, c : float64 = b) : float64 {
   val s = (a+(b+c))*(c - (a - b))*(c+(a - b))*(a+(b - c))
   sqrt(s)/4.0
 }
 
-fun d-area2(a : double, b : double, c : double = b) : (double,double) {
+fun d-area2(a : float64, b : float64, c : float64 = b) : (float64,float64) {
   (d-area(a,b,c),d-areax(a,b,c))
 }
 
@@ -64,7 +64,7 @@ fun main() {
   val ddx  = pow( ddx1 / ddx2, ddx3)
   println("exact X        : 302.882719655469549250146446201116105977446...")
   println("ddouble X      : " ++ ddx.show(32))
-  val dx1 = 27.0 / 10.0 - dbl-e
+  val dx1 = 27.0 / 10.0 - flt-e
   val dx2 = pi - (sqrt(2.0) + sqrt(3.0))
   val dx3 = 67.0 / 16.0
   val dx  = pow( dx1 / dx2, dx3)

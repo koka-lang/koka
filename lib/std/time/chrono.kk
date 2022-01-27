@@ -58,7 +58,7 @@ pub fun now-in( ts : timescale = ts-ti) : ndet instant
 // The fraction of seconds is for added precision if necessary,
 // and can be larger than one to indicate leap seconds.
 // This still needs to be adjusted to our epoch and taking account of leap seconds.
-extern unix-now() : ndet (double,double)
+extern unix-now() : ndet (float64,float64)
   c  "kk_time_unix_now_tuple"
   cs "_Chrono.UnixNow"
   js "_unix_now"
@@ -67,7 +67,7 @@ extern unix-now() : ndet (double,double)
 pub fun now-resolution() : ndet duration
   duration(xnow-resolution())
 
-extern xnow-resolution() : ndet double
+extern xnow-resolution() : ndet float64
   c "kk_time_dresolution"
   cs "_Chrono.NowResolution"
   js "_now_resolution"

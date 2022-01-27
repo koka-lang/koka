@@ -25,14 +25,14 @@ pub val bits-int32 : int32 = 32.int32
 pub fun show( i : int32 ) : string 
   show(i.int)
 
-
-// Convert a `:double` to an `:int32`. The double is clamped to the
+/*
+// Convert a `:float64` to an `:int32`. The float64 is clamped to the
 // minimum or maximum `:int32` value if it is outside the range. A `nan` is
 // mapped to `0`.
-pub inline extern int32 : (double) -> int32 
+pub inline extern int32( f : float64 ) : int32 
   cs "Primitive.DoubleToInt32"
   js "$std_core._double_to_int32"
-
+*/
 
 // Convert an `:int32` to a boolean.
 pub fun bool( i : int32 ) : bool 
@@ -252,8 +252,8 @@ pub inline extern unsafe-cmod : (int32,int32) -> int32
   js inline "((#1 % #2)|0)"
 
 
-// Convert an 32-bit integer to a double.
-pub inline extern double : (int32) -> double 
+// Convert an 32-bit integer to a float64.
+pub inline extern float64( i : int32) : float64
   c inline "(double)(#1)"
   cs inline "(double)(#1)"
   js inline "(#1)" 

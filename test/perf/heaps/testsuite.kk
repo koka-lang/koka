@@ -32,7 +32,7 @@ fun rand(s : rand-state) {
     val s1 = (171 * s.s1) % 30269
     val s2 = (172 * s.s2) % 30307
     val s3 = (170 * s.s3) % 30323
-    val r = (double(s1)/30269.0 + double(s2)/30307.0 + double(s3)/30323.0) % 1.0
+    val r = (float64(s1)/30269.0 + float64(s2)/30307.0 + float64(s3)/30323.0) % 1.0
     (r, Rand-state(s1, s2, s3))
 }
 
@@ -41,7 +41,7 @@ fun rand-list(tc : test-config) {
         if(n <= 0) then l
         else {
             val (r, st') = rand(st)
-            go(st', n - 1, Cons((tc.max-rand-number.double * r).int, l))
+            go(st', n - 1, Cons((tc.max-rand-number.float64 * r).int, l))
         }
     }
 

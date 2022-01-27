@@ -396,18 +396,18 @@ val jd-epoch-delta  = timespan(2400000.5)   // relative to the MJD epoch
 val mjd-epoch-delta = timespan(51544)       // relative to our epoch (2000-01-01)
 
 // Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day).
-pub fun instant-at-jd( jd: double, ts : timescale ) : instant
+pub fun instant-at-jd( jd : float64, ts : timescale ) : instant
   instant-at-jd(ddouble(jd),ts)
 
 // Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day)
 // and time scale `ts` .
-pub fun instant-at-jd( jd: ddouble, ts : timescale  ) : instant
+pub fun instant-at-jd( jd : ddouble, ts : timescale  ) : instant
   instant-at-mjd( jd - jd-epoch-delta, ts )
 
 // Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).
 // and time scale `ts`.\
 // `modified-julian-day = julian-day - 2400000.5`
-pub fun instant-at-mjd( mjd : double, ts : timescale ) : instant
+pub fun instant-at-mjd( mjd : float64, ts : timescale ) : instant
   instant-at-mjd(ddouble(mjd),ts)
 
 // Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).

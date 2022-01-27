@@ -34,8 +34,8 @@ pub type int
 pub type string
 
 // A 64-bit IEEE 754 floating point value.
-// See also `std/num/double` for more operations on `:double`s.
-pub value type double
+// See also `module std/num/float64` for more operations on `:float64`s.
+pub value type float64
 
 // A 32-bit signed integer (represented in two's complement).
 // See the `module std/num/int32` module for operations on 32-bit integers.
@@ -60,7 +60,7 @@ pub value type intptr_t
 
 // A 8-bit unsigned integer.
 // Provides no operations but is used mostly for interaction with external code.
-pub value type byte
+pub value type uint8
 
 // A 32-bit IEEE 754 floating point value.
 // Not supported by the Javascript backend
