@@ -15,30 +15,39 @@ import std/os/flags
 val header = "usage:\n stack exec koka -- util/bundle [-- [options]]\n\noptions:"
 
 struct iflags
-  prefixdir   : string = ""
-  postfixtag  : string = ""
+  prefixdir    : string = ""
+  postfixtag   : string = ""
   extrametadir : string = ""
-  minimal     : bool   = False
-  dist        : bool   = True
-  sysghc      : bool   = False
-  exe         : string = ""
+  solibsdir    : string = ""
+  minimal      : bool   = False
+  install      : bool   = False
+  sysghc       : bool   = False
+  source       : bool   = False
+  version      : string = ""
+  exe          : string = ""
 
 
 val flag-descs : list<flag<iflags>> =
   fun set-prefix( f : iflags, s : string ) : iflags { f(prefixdir = s) }
   fun set-postfix( f : iflags, s : string ) : iflags { f(postfixtag = s) }
   fun set-metadata( f : iflags, s : string ) : iflags { f(extrametadir = s) }
+  fun set-so-libraries( f : iflags, s : string ) : iflags { f(solibsdir = s) }
   fun set-minimal( f : iflags, b : bool ) : iflags  { f(minimal = b) }
-  fun set-install( f : iflags, b : bool ) : iflags  { f(dist = !b) }
+  fun set-install( f : iflags, b : bool ) : iflags  { f(install = b) }
   fun set-sysghc( f : iflags, b : bool ) : iflags  { f(sysghc = b) }
+  fun set-source( f : iflags, b : bool ) : iflags  { f(source = b) }
+  fun set-version( f : iflags, v : string ) : iflags  { f(version = v) }
   fun set-exe( f : iflags, s : string ) : iflags { f(exe = s) }
   [ Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" ),
-    Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution bundle"),
+    Flag( "i", ["install"], Bool(set-install), "install directly to <prefix> without creating a distribution bundle"),
     Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory for install ('~/.local')" ),
     Flag( "", ["postfix"], Req(set-postfix,"POST"), "set postfix instead of <version>-<os>-<arch>"),
     Flag( "", ["metadata"], Req(set-metadata,"DIR"), "set metadata directory (with extra metadata for the version etc.)" ),
+    Flag( "", ["solibs"], Req(set-so-libraries,"DIR"), "set dir with so libs (these will be installed with koka)" ),
     Flag( "", ["koka"], Req(set-exe,"EXE"), "set koka executable path; use 'stack' or 'cabal' for a local build"),
-    Flag( "", ["system-ghc"], Bool(set-sysghc), "use system-ghc if building with 'stack'")
+    Flag( "", ["system-ghc"], Bool(set-sysghc), "use system-ghc if building with 'stack'"),
+    Flag( "", ["source"], Bool(set-source), "create a source bundle"),
+    Flag( "", ["version"], Req(set-version,"VER"), "bundle as specified version")
   ]
 
 
@@ -58,37 +67,46 @@ fun main()
   match process-flags()
     Nothing -> ()
     Just(flags) ->
-      val version = "v" ++ get-compiler-version()
+      val version = if flags.version.is-empty
+                      then "v" ++ get-compiler-version()
+                    elif flags.version == "dev" && flags.source
+                      then "dev"
+                      else "v" ++ flags.version.trim-left("v")
       val cc      = get-cc-name()
       val (koka-exe, koka-run) = koka-exe-path(flags.exe, flags.sysghc)
       val post   = flags.postfixtag || get-default-postfix()
       val predir = if flags.prefixdir.is-empty
-                    then get-default-prefix(flags.dist, version, post)
+                    then get-default-prefix(flags.install, version, post)
                     else flags.prefixdir.path
       val extrametadir = if flags.extrametadir.is-empty
                      then ""
                      else flags.extrametadir
-      bundle( predir, extrametadir, cc, version, flags.dist, post, flags.minimal, koka-exe, koka-run )      
+      val solibsdir = if flags.solibsdir.is-empty
+                     then ""
+                     else flags.solibsdir
+      if (flags.source) 
+        then bundle-source( version )
+        else bundle( predir, extrametadir, solibsdir, cc, version, flags.install, post, flags.minimal, koka-exe, koka-run )      
 
 
-fun bundle( prefixdir : path, extrametadir : string, cc : string, version : string, dist : bool, post : string, 
-            minimal : bool, koka-exe : path, koka-run : string ) 
+fun bundle( prefixdir : path, extrametadir : string, solibsdir : string, cc : string, version : string, install : bool, 
+            post : string, minimal : bool, koka-exe : path, koka-run : string ) 
   // Install paths  
   val bindir  = prefixdir / "bin"
   val libdir  = prefixdir / "lib" / "koka" / version
   val sharedir= prefixdir / "share" / "koka" / version
-  val tarname = (prefixdir / ".." / ("koka-" ++ post ++ ".tar.gz")).string  
-  
-  if dist then
-    println("creating koka distribution bundle:")
-    println("  bundle : " ++ tarname)
-    println("  cc     : " ++ cc ++ (if cc=="clang-cl" then ", cl" else ""))
-  else
+  val tarname = (prefixdir / ".." / ("koka-" ++ post ++ ".tar.gz")).string
+    
+  if install then
     println("installing koka:" )
     println("  bin    : " ++ bindir.string)
     println("  lib    : " ++ libdir.string)
     println("  share  : " ++ sharedir.string)
     println("  cc     : " ++ cc)
+  else
+    println("creating koka distribution bundle:")
+    println("  bundle : " ++ tarname)
+    println("  cc     : " ++ cc ++ (if cc=="clang-cl" then ", cl" else ""))
 
   println("  exe    : " ++ koka-exe.string)
   println("  version: " ++ version)
@@ -98,7 +116,7 @@ fun bundle( prefixdir : path, extrametadir : string, cc : string, version : stri
 
   // Build kklib versions
   [Debug,DRelease,Release].foreach fn(v)
-    build-libraries( cc,v,version,dist,minimal,koka-run ) 
+    build-libraries( cc,v,version,install,minimal,koka-run ) 
 
 
   // Copy Koka
@@ -137,34 +155,72 @@ fun bundle( prefixdir : path, extrametadir : string, cc : string, version : stri
   [Debug,DRelease,Release].foreach fn(v)
     println("copying standard library: " ++ v.show)
     copy-libraries(libdir, cc, v, version)
-    if (dist && cc=="clang-cl") then
+    if (!install && cc=="clang-cl") then
       copy-libraries(libdir, "cl", v, version)
 
-  // Insert metadata
-  val metadatadir = prefixdir / "meta"
-  println("inserting metadata...")
-  ensure-dir(metadatadir)
-  insert-metadata(version, metadatadir, extrametadir)
+  // Copy extra so libs to libdir/libs
+  if !solibsdir.is-empty then
+    println("copy extra libraries...")
 
-  if dist then
+    val solibs_target = libdir / "libs"
+    ensure-dir(solibs_target)
+    copy-directory(solibsdir.path, solibs_target)
+
+  if !install then
+    // Insert metadata
+    val metadatadir = prefixdir / "meta"
+    println("inserting metadata...")
+    ensure-dir(metadatadir)
+    insert-metadata(version, metadatadir, extrametadir)
+
     // tar the result
     val tarcmd = ["tar -czf",tarname,"-C",prefixdir.show,"bin","lib","share","meta"].join(" ")
     println("> " ++ tarcmd)
     run-system(tarcmd)
     ()
-
-  if dist then
-    println("distribution bundle created.")
-    println("  bundle : " ++ tarname)
-    println("  cc     : " ++ cc ++ (if (cc=="clang-cl") then ", cl" else ""))
-  else
+    
+  if install then
     println("done installing.")
     println("  bin    : " ++ bindir.string)
     println("  lib    : " ++ libdir.string)
     println("  share  : " ++ sharedir.string)
     println("  cc     : " ++ cc)
-
+  else        
+    println("distribution bundle created.")
+    println("  bundle : " ++ tarname)
+    println("  cc     : " ++ cc ++ (if (cc=="clang-cl") then ", cl" else ""))
+  
   println("  version: " ++ version)
+
+
+fun bundle-source( version : string ) 
+  val bundledir = "bundle" / version
+  val sourcedir = bundledir / "source"
+  val tarname   = (bundledir / ("koka-" ++ version ++ "-source.tar.gz")).string
+    
+  println("creating koka source bundle:")
+  println("  sources: " ++ sourcedir.string)
+  println("  bundle : " ++ tarname)
+
+  // remove existing source dir
+  if is-directory(sourcedir) then 
+    println("\nerror: directory " ++ sourcedir.show ++ " is not empty; remove it first.")
+    println("$ rm -rf " ++ sourcedir.string)
+    println("")
+  else
+    // checkout fresh with git
+    ensure-dir(sourcedir)
+    val gitcmd = ["git","clone","--recursive","https://github.com/koka-lang/koka","-b",version,sourcedir.show].join(" ")
+    println("> " ++ gitcmd)
+    run-system(gitcmd)
+
+    // tar the contents into a source bundle
+    val tarcmd = ["tar","-czf",tarname,"-C",sourcedir.show,"--exclude",".git","."].join(" ")
+    println("> " ++ tarcmd)
+    run-system(tarcmd)
+
+    println("source bundle created.")
+    println("  bundle : " ++ tarname)
 
 
 fun koka-exe-path(exe-opt : string, sysghc : bool) : io (path,string)
@@ -182,11 +238,12 @@ fun koka-exe-path(exe-opt : string, sysghc : bool) : io (path,string)
   (koka-exe, koka-run)
 
 
-fun get-default-prefix(dist : bool, version : string, post : string) : io path
-  if dist then
-    "bundle" / version / ("local-" ++ post)
-  else
+fun get-default-prefix(install : bool, version : string, post : string) : io path
+  if install then
     homedir() / ".local"
+  else
+    "bundle" / version / ("local-" ++ post)
+    
 
 
 
@@ -238,7 +295,7 @@ fun copy-libraries( libdir : path, cc : string, variant : variant, version : str
     copy-file-to-dir( obj, objdir )
 
 
-fun build-libraries(cc : string, variant : variant, version : string, dist : bool, minimal : bool, koka-run : string) : io ()
+fun build-libraries(cc : string, variant : variant, version : string, install : bool, minimal : bool, koka-run : string) : io ()
   println("build standard libraries: " ++ variant.show ++ "...")
   val extra = match variant
     Debug    -> ""
@@ -253,7 +310,7 @@ fun build-libraries(cc : string, variant : variant, version : string, dist : boo
   val code = run-system( cmd )
   if code != 0 then throw("error: " ++ code.show)
 
-  if dist && cc=="clang-cl" then
+  if !install && cc=="clang-cl" then
     // also generate cl binaries on windows
     val cloutputdir = get-output-dir("cl", variant, version)
     val clcmd  = [koka-run, "--cc=cl", "--outputdir=" ++ cloutputdir.show, extra, prog].join(" ")

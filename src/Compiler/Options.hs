@@ -26,6 +26,7 @@ module Compiler.Options( -- * Command line options
                        , targetExeExtension
                        , conanSettingsFromFlags
                        , vcpkgFindRoot
+                       , onWindows, onMacOS
                        ) where
 
 
@@ -230,7 +231,8 @@ flagsNull
           []       -- clink full lib paths
           (ccGcc "gcc" 0 platform64 "gcc")
           (if onWindows then []        -- ccomp library dirs
-                        else ["/usr/local/lib","/usr/lib","/lib"])
+                        else (["/usr/local/lib","/usr/lib","/lib"]
+                               ++ if onMacOS then ["/opt/homebrew/lib"] else []))
           
           True     -- auto install libraries
           ""       -- vcpkg root
@@ -1051,7 +1053,8 @@ ccFromPath flags path
                      }
         clang   = gcc{ ccFlagsWarn = gnuWarn
                                      ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align"
-                                     ++ (if onMacOS && cpuArch == "arm64" then ["-Wno-unused-but-set-variable"] else []) }
+                                     ++ (if onMacOS && cpuArch == "arm64" then ["-Wno-unknown-warning-option","-Wno-unused-but-set-variable"] else []) 
+                     }
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name (optimize flags) (platform flags) path
         clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++ 

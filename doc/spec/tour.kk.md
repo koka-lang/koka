@@ -80,7 +80,7 @@ fun showit( s : string )
   s.encode(3).count.println
 ```
 
-for example (where the body desugars as `println(length(encode(s,3)))`). An
+for example (where the body desugars as `println(count(encode(s,3)))`). An
 advantage of the dot notation as syntactic sugar for function calls is that it
 is easy to extend the 'primitive' methods of any data type: just write a new
 function that takes that type as its first argument. In most object-oriented
@@ -208,7 +208,6 @@ fun test-twice()
   twice 
     twice
       println("hi")
-}
 ```
 where `"hi"` is printed four times (note: this desugars
 to `twice( fn(){ twice( fn(){ println("hi") }) })`). 

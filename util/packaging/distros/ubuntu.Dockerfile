@@ -27,4 +27,4 @@ RUN chmod +x /builder.sh
 
 ENTRYPOINT [ "/builder.sh" ]
 
-CMD [ "debian", "cabal" ]
+CMD [ "ubuntu", "cabal" ]

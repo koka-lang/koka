@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SUPPORTED_TARGETS="rhel debian arch alpine opensuse"
+SUPPORTED_TARGETS="rhel ubuntu arch alpine opensuse"
 SUPPORTED_ARCHITECTURES="amd64" # arm64
 
 #---------------------------------------------------------
@@ -50,7 +50,7 @@ build_docker_images() {
     # Build the docker image, subshell to help with buildkit
     (
       cd ./distros
-      docker build $quiet_param -t koka-$target \
+      docker build $quiet_param -t localhost/koka-$target \
         $arch_opt $selinux_opt $rebuild_opt \
         -f "./$target.Dockerfile" .
     )
@@ -83,11 +83,11 @@ run_docker_images() {
     # Build the docker image
     # (Maybe properly fix SELINUX here?)
     docker run $quiet_param -it --rm $arch_opt \
-      --cap-add SYS_ADMIN $selinux_opt \
+      --privileged $selinux_opt \
       --tmpfs /tmp/overlay \
       -v "$(pwd)/$KOKA_SOURCE_LOCATION":/code:ro \
       -v "$TEMP_DIR:/output:z" \
-      koka-$target
+      localhost/koka-$target
 
     if [ $? -ne 0 ]; then
       stop "Failed to compile os specific package for $target"
@@ -139,7 +139,7 @@ package_outputs() {
 
     file_bundle_distro=$(tar -Oxf "$bundleloc" meta/distro)
     file_bundle_arch=$(tar -Oxf "$bundleloc" meta/arch)
-    file_bundle_arch=$(normalize_osarch "$file_bundle_arch")
+    file_bundle_arch=$(normalize_osarch_docker "$file_bundle_arch")
 
     # Skip if file bundle distro not in build targets
     if [ -z "$file_bundle_distro" ]; then 
@@ -241,6 +241,9 @@ process_options() {
     --configqemu)
       MODE="setupqemu"
       ;;
+    --en-arm)
+      SUPPORTED_ARCHITECTURES="$SUPPORTED_ARCHITECTURES arm64"
+      ;;
     -q | --quiet)
       QUIET="yes"
       ;;
@@ -276,11 +279,11 @@ process_options() {
   # Default architectures is all
   if [ -z "$BUILD_ARCHITECTURES" ]; then BUILD_ARCHITECTURES="$SUPPORTED_ARCHITECTURES"; fi
 
-  # map build_archtectures with the normalize_osarch() funciton
+  # map build_archtectures with the normalize_osarch_docker() funciton
   tempvar="$BUILD_ARCHITECTURES"
   BUILD_ARCHITECTURES=""
   for build_arch in $tempvar; do
-    BUILD_ARCHITECTURES="$BUILD_ARCHITECTURES $(normalize_osarch $build_arch)"
+    BUILD_ARCHITECTURES="$BUILD_ARCHITECTURES $(normalize_osarch_docker $build_arch)"
   done
 
   # Check if BUILD_ARCHITECTURES is in SUPPORTED_ARCHITECTURES
@@ -289,6 +292,13 @@ process_options() {
       stop "Invalid architecture: $arch"
     fi
   done
+
+  ### Warnings
+
+  # If arm64 is enabled
+  if [[ "$BUILD_ARCHITECTURES" =~ "arm64" ]]; then
+    warn "ARM64 is not yet supported, it will probably fail!"
+  fi
 }
 
 main_help() {
@@ -308,7 +318,11 @@ main_help() {
   info ""
   info "dev options:"
   info "  --configqemu                    Configure just the qemu docker emulator for other architectures"
+  info "  --en-arm                        Enable ARM64 building"
   info ""
+  info "important:"
+  info "  All docker containers run with full root privileges right now"
+  info "  This is because docker/linux refuses to properly implement scoped privileges"
   info "notes:"
   info "  This script can only build linux packages right now"
   info "  If older archives are present, they may be accidentally repackaged"
