@@ -210,6 +210,26 @@ pub fun round-to-prec( d : float64, prec : int  ) : float64
     (d * p).round / p
 
 
+// Round a `:float64` to a `:float32`
+pub extern float32( f : float64 ) : float32
+  c inline "(float)(#1)"
+  js "_double_to_float"
+
+// Extend a `:float32` to a `:float64`
+pub extern float64( f : float32 ) : float64
+  c inline "(double)(#1)"
+  js inline "(#1)"
+
+// Short version of `float32` for convenience, e.g. `1.337.f32`. For example:
+// ```
+// > 1.337.show-hex ++ " != " ++ 1.337.f32.float64.show-hex
+// "0x1.5645A1CAC0831p+0 != 0x1.5645A2p+0"
+// ```
+pub fun f32( f : float64 ) : float32
+  f.float32
+
+
+
 //-----------------------------------------
 // Powers
 //-----------------------------------------
