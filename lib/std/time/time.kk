@@ -310,7 +310,7 @@ pub fun weekday( t : time ) : weekday
 // Return a `:time` as a fractional year.\
 // `year-frac(time(2000,7,2)) == fixed(2000.5)`
 pub fun year-frac( t : time ) : ddouble
-  val dfrac = t.mjd.fraction.float64 // t.clock.total-seconds.float64 / 86400.0
+  val dfrac = t.mjd.fraction.float64 // t.clock.total-seconds.float64 / 86400.0 
   val yfrac = ((t.day-of-year - 1).float64 + dfrac) / t.days-in-year.float64
   timespan(t.year,yfrac)
 

@@ -326,17 +326,17 @@ pub fun (~=)(x : float64, y : float64 ) : bool
 //-----------------------------------------
 
 // Low-level: return the bits of a 64-bit `:float64` as in `:int64`
-pub extern float64-to-bits( d : float64 ) : int64
+pub extern float64-to-bits( d : float64 ) : int64 
   c  "kk_double_to_bits"
   cs "Primitive.DoubleToBits"
   js "_double_to_bits"
 
 
-// Low-level: create a `:float64` from the given 64-bit integer.
+// Low-level: create a `:float64` from the given 64-bit integer. 
 pub extern float64-from-bits( i : int64 ) : float64
   c  "kk_double_from_bits"
   cs "Primitive.DoubleFromBits"
-  js "_double_from_bits"
+  js "_double_from_bits" 
 
 
 // Calculate 2&middot;^`e`^ for an integer `e`.

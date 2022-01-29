@@ -39,7 +39,7 @@ pub value type float64
 
 // A 32-bit signed integer (represented in two's complement).
 // See the `module std/num/int32` module for operations on 32-bit integers.
-pub value type int32
+pub value type int32 
 
 // A 64-bit signed integer (represented in two's complement).
 // See the `module std/num/int64` module for operations on 64-bit integers.
