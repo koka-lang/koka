@@ -15,7 +15,7 @@ See also <https://en.wikipedia.org/wiki/Double-precision_floating-point_format>.
 module std/num/float64
 
 import std/text/parse
-import std/num/int32
+import std/num/int64
 
 extern import
   c  file "float64-inline.h"
@@ -325,15 +325,15 @@ pub fun (~=)(x : float64, y : float64 ) : bool
 // Ldexp/Frexp
 //-----------------------------------------
 
-// Low-level: return the `(lo,hi)` bits of a 64-bit float64.
-pub extern float64-to-bits( d : float64 ) : (int32,int32)
+// Low-level: return the bits of a 64-bit `:float64` as in `:int64`
+pub extern float64-to-bits( d : float64 ) : int64
   c  "kk_double_to_bits"
   cs "Primitive.DoubleToBits"
   js "_double_to_bits"
 
 
-// Low-level: create a `:float64` from the given `lo` and `hi` 32-bits.
-pub extern float64-from-bits( lo : int32, hi : int32 ) : float64
+// Low-level: create a `:float64` from the given 64-bit integer.
+pub extern float64-from-bits( i : int64 ) : float64
   c  "kk_double_from_bits"
   cs "Primitive.DoubleFromBits"
   js "_double_from_bits"
@@ -344,7 +344,7 @@ pub extern float64-from-bits( lo : int32, hi : int32 ) : float64
 // otherwise falls back to the regular `exp2` function converting `e` to a float64.
 pub fun exp2( e : int ) : float64
   if e >= -1022 && e <= 1023
-    then float64-from-bits(zero, (1023 + e).int32.shl(20.int32))
+    then float64-from-bits( (1023 + e).int64.shl(52.int64) )
     else exp2( e.float64 )
 
 
@@ -385,11 +385,11 @@ pub fun decode( d : float64 ) : (int,int)
 
 // decode a normalized float64 (i.e. not subnormal)
 fun decode-normalized( d : float64, e-adjust : int = 0 ) : (int,int)
-  val (lo,hi)  = float64-to-bits(d)
-  val sign  = if hi.is-neg then -1 else 1
-  val exp  = and(hi.shr(20.int32),0x7FF.int32).int - 1043
-  val man  = and(hi,0xFFFFF.int32).int + 0x100000
-  (sign*(man * 0x100000000 + lo.uint), exp - 32 + e-adjust)
+  val i    = float64-to-bits(d)
+  val exp  = and(i.shr(52.int64),0x7FF.int64) - 1043.int64
+  val man  = and(i,0x000F_FFFF_FFFF_FFFF.int64) + 0x0010_0000_0000_0000.int64
+  ( (if i.is-neg then ~man else man).int, exp.int - 32 + e-adjust )
+  
 
 // 'Fraction/exponent': return the normalized fraction `f` and exponent `exp`
 // for a number `x` such that `x == f`&middot;2^`exp`^.
@@ -400,6 +400,32 @@ pub fun frexp( x : float64 ) : (float64, int)
   if !x.is-finite || x.is-negzero return (x,0)
   val (m,e) = x.decode
   (m.float64 * 0x1.0p-53, e + 53  )
+
+
+// Returns the greatest `:float64` less than `x`.
+// This behaves exactly as `nextDown` in the IEEE 754-2008 standard.
+// The identity `x.next-down == ~next-down(~x)` holds for all `x`. 
+// When `x` is finite `x == x.next-down.next-up` also holds.
+pub fun next-down( x : float64 ) : float64
+  if x.is-nan || x.is-neginf then x
+  elif x.is-zero then ~flt-true-min
+  else 
+    val i = float64-to-bits(x)
+    val next = if i.is-neg then i.inc else i.dec
+    float64-from-bits(next)
+
+
+// Returns the least `:float64` greater than `x`.
+// This behaves exactly as `nextUp` in the IEEE 754-2008 standard.
+// The identity `x.next-up == ~next-down(~x)` holds for all `x`. 
+// When `x` is finite `x == x.next-up.next-down` also holds.
+pub fun next-up( x : float64 ) : float64
+  if x.is-nan || x.is-posinf then x
+  elif x.is-zero then flt-true-min
+  else 
+    val i = float64-to-bits(x)
+    val next = if i.is-neg then i.dec else i.inc
+    float64-from-bits(next)
 
 
 //-----------------------------------------
@@ -431,10 +457,10 @@ exponent after the `p` is the _decimal_ power of 2.
 */
 pub fun show-hex( d : float64, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string
   if !d.is-finite then d.show else
-    val (m,e)  = d.decode
-    val man  = m.abs.show-hex(1,use-capitals,"")
+    val (m,e) = d.decode
+    val man   = m.abs.show-hex(1,use-capitals,"")
     val exp0  = e + 4*(man.count - 1)
-    val exp  = (if exp0 >= 0 then "+" else "") ++ exp0.show
+    val exp   = (if exp0 >= 0 then "+" else "") ++ exp0.show
     val frac  = man.tail.trim-right("0").pad-right(max(1,width),'0')
     val sign  = if d.is-neg || d.is-negzero then "-" else ""
     sign ++ pre ++ man.head ++ "." ++ frac ++ "p" ++ exp
