@@ -1153,6 +1153,54 @@ extern incr(i : ssize_t ) : ssize_t
 
 
 // ----------------------------------------------------------------------------
+// int8
+// ----------------------------------------------------------------------------
+
+// clamp an `:int` to fit in an `:int8`.
+pub extern int8( i : int) : int8
+  c  "kk_integer_clamp_int8"
+  cs "Primitive.IntToInt8"
+  js "$std_core._int_clamp8"
+
+// Convert an `:int8` to an `:int`.
+pub inline extern int( i : int8 ) : int
+  c  "kk_integer_from_int8"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core._int_from_int32"
+
+
+// clamp an `:int` to fit in an `:int8` but interpret the `:int` as an unsigned 8-bit value,
+// and clamp between 0 and 255.
+pub extern uint8( i : int) : int8
+  c  "kk_integer_clamp_byte"
+  cs "Primitive.IntToUInt8"
+  js "$std_core._int_clamp_byte"
+
+// Convert an `:int8` to an `:int` but interpret the `:int8` as an unsigned 8-bit value between 0 and 255.
+pub inline extern uint( i : int8 ) : int
+  c  "kk_integer_from_uint8"
+  cs inline "(new BigInteger(#1 >= 0 ? #1 : 256 + #1))"
+  js "$std_core._int_from_int32"
+
+
+// ----------------------------------------------------------------------------
+// int16
+// ----------------------------------------------------------------------------
+
+// clamp an `:int` to fit in an `:int16`.
+pub extern int16( i : int) : int16
+  c  "kk_integer_clamp_int16"
+  cs "Primitive.IntToInt16"
+  js "$std_core._int_clamp16"
+
+// Convert an `:int16` to an `:int`.
+pub inline extern int( i : int16 ) : int 
+  c  "kk_integer_from_int16"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core._int_from_int32"
+
+
+// ----------------------------------------------------------------------------
 // int64
 // ----------------------------------------------------------------------------
 
@@ -1167,6 +1215,7 @@ pub inline extern int( i : int64 ) : int
   c  "kk_integer_from_int64"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int64"
+
 
 // ----------------------------------------------------------------------------
 // intptr_t
@@ -1184,21 +1233,7 @@ pub inline extern int( i : intptr_t ) : int
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int64"
 
-// ----------------------------------------------------------------------------
-// Byte
-// ----------------------------------------------------------------------------
 
-// clamp an `:int` to fit in a `:uint8`.
-pub extern uint8( i : int) : uint8
-  c  "kk_integer_clamp_byte"
-  cs inline "Primitive.IntToByte"
-  js "$std_core._int_clamp_byte"
-
-// Convert an `:uint8` to an `:int`.
-pub inline extern int( i : uint8 ) : int
-  c  "kk_integer_from_byte"
-  cs inline "(new BigInteger(#1))"
-  js "$std_core._int_from_int32"
 
 // ----------------------------------------------------------------------------
 // Parse numbers

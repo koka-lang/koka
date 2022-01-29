@@ -572,8 +572,9 @@ getBoxForm' platform newtypes tp
         -> -- trace "  0 scan fields" $
            case extractDataDefType tp of
              Just name
-               | name `elem` [nameTpInt, nameTpChar, nameTpByte, nameTpCField] ||
-                 ((name `elem` [nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
+               | name `elem` [nameTpInt, nameTpCField] ||
+                 ((name `elem` [nameTpInt8, nameTpInt16, nameTpFloat16]) && sizePtr platform > 2) ||
+                 ((name `elem` [nameTpChar, nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
                    -> BoxIdentity
              _ -> BoxRaw
       Just (DataDefValue _ _)

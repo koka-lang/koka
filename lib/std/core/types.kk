@@ -33,7 +33,7 @@ pub type int
 // See also the [``std/text/string``](std_text_string.html) module.
 pub type string
 
-// A 64-bit IEEE 754 floating point value.
+// A 64-bit IEEE 754 double precision floating point value.
 // See also `module std/num/float64` for more operations on `:float64`s.
 pub value type float64
 
@@ -58,16 +58,23 @@ pub value type ssize_t
 // The Javascript backend uses `int64` for this.
 pub value type intptr_t
 
-// A 8-bit unsigned integer.
-// Provides no operations but is used mostly for interaction with external code.
-pub value type uint8
+// A 8-bit signed integer (represented in two's complement).
+// Provides no operations and used only for storage and interaction with external code.
+pub value type int8
+
+// A 16-bit signed integer (represented in two's complement).
+// Provides no operations and used only for storage and interaction with external code.
+pub value type int16
+
+/*
+// A 16-bit IEEE 754-2008 half-precision floating point value.
+// Provides no operations and used only for storage and interaction with external code.
+pub value type float16
+*/
 
 // A 32-bit IEEE 754 floating point value.
-// Not supported by the Javascript backend
-// Provides no operations but is used mostly for interaction with external code.
+// Provides currently no operations and currently only used for storage and for interaction with external code.
 pub value type float32
-
-
 
 
 // An any type. Used for extern calls

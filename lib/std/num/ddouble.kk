@@ -129,9 +129,9 @@ _Quad-Double Arithmetic: Algorithms, Implementation, and Application_.
 Lawrence Berkeley National Laboratory Technical Report LBNL-46996. 2000. [pdf](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
 ~~
 
-~~ BibItem { #Hida:qdlib; bibitem-label:"[5]"; searchterm:"Hida+Library+for+float64-float64+and+quad-float64+arithmetic" }
+~~ BibItem { #Hida:qdlib; bibitem-label:"[5]"; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
 Yozo Hida,\ Xiaoye\ S.\ Li, and David\ H.\ Bailey.
-_Library for float64-float64 and quad-float64 arithmetic._
+_Library for double-double and quad-double arithmetic._
 (2007). [pdf](http://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
 ~~
 
