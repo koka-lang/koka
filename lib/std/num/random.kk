@@ -11,6 +11,7 @@
 module std/num/random
 
 import std/num/int32
+import std/num/int64
 import std/num/float64
 
 extern import
@@ -44,9 +45,9 @@ fun sfc-step( sfc : sfc ) : (int32,sfc)
   match sfc 
     Sfc(x,y,z,cnt) -> 
       val res = x + y + cnt
-      (res, Sfc( y ^ shr(y,9.int32), 
-                 z + shl(z,3.int32), 
-                 rotl(z,21.int32) + res, 
+      (res, Sfc( y ^ shr(y,9), 
+                 z + shl(z,3), 
+                 rotl(z,21) + res, 
                  cnt + 1.int32 ))      
 
 fun sfc-init( seed : int ) : sfc
@@ -79,11 +80,13 @@ pub fun random-bool() : random bool
 pub fun random-int() : random int
   random-int32().int
 
+pub fun random-int64() : random int64
+  int64( random-int32(), random-int32()) // todo: add native random-int64?
+  
 // Return a random float64 in the range [0,1) using 52-bits of randomness
 pub fun random-float64() : random float64
-  val lo = random-int32()
-  val hi = random-int32().shr(12.int32).or(0x3FF00000.int32)
-  (float64-from-bits(lo,hi) - 1.0)
+  val mag = random-int64().shr(12).or(0x3FF0_0000_0000_0000.int64)
+  (float64-from-bits(mag) - 1.0)
 
 
 // Returns one of its arguments `x`  or `y`  based on a non-deterministic choice.

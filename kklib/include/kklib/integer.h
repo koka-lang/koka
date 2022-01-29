@@ -976,7 +976,19 @@ static inline double kk_integer_as_double(kk_integer_t x, kk_context_t* ctx) {
   return kk_integer_as_double_generic(x,ctx);
 }
 
+static inline float kk_integer_as_float(kk_integer_t x, kk_context_t* ctx) {
+  return (float)kk_integer_as_double(x,ctx);
+}
 
+static inline int32_t kk_int64_clamp_int32( int64_t i, kk_context_t* ctx) {
+  kk_unused(ctx);
+  return (i > INT32_MAX ? INT32_MAX : (i < INT32_MIN ? INT32_MIN : (int32_t)i)); 
+}
+
+static inline int32_t kk_int64_clamp_uint32( int64_t i, kk_context_t* ctx) {
+  kk_unused(ctx);
+  return (i > UINT32_MAX ? UINT32_MAX : (i < 0 ? 0 : (int32_t)((uint32_t)i))); 
+}
 
 
 #endif // include guard

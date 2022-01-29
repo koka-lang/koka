@@ -35,6 +35,35 @@ pub fun bool( i : int64 ) : bool
 pub fun int64( b : bool ) : int64 
   if b then one else zero
 
+// Convert an `:int32` to an `:int64`
+pub inline extern int64( i : int32 ) : int64
+  c inline "(int64_t)(#1)"
+  js "$std_core._int64_from_int32"  
+
+// Convert an `:int32` to an `:int64` interpreting the `:int32` as unsigned.
+pub inline extern uint64( i : int32 ) : int64
+  c inline "(int64_t)((uint32_t)(#1))"
+  js "$std_core._int64_from_uint32"  
+
+// Clamp an `:int64` to an `:int32`
+// `-1.int64.int32 == -1.int32`  
+// `0x8000_0000.int64.int32 == 0x7FFF_FFFF.int32` (clamped)
+pub inline extern int32( i : int64 ) : int32
+  c  "kk_int64_clamp_int32"
+  js "$std_core._int64_clamp_int32"
+
+// Clamp an `:int64` to an `:int32` but interpreting the `:int32` as unsigned
+// and thus clamp between 0 and 0xFFFFFFFF.
+// `-1.int64.uint32 == 0.int32` (clamped)  
+// `0xFFFFFFFF.int64.uint32 == -1.int32`
+pub inline extern uint32( i : int64 ) : int32
+  c  "kk_int64_clamp_uint32"
+  js "$std_core._int64_clamp_uint32"
+
+
+pub fun int64( lo : int32, hi : int32 ) : int64 
+  hi.int64.shl(32).or(lo.uint64)
+  
 
 
 // Show an `:int64` in hexadecimal notation
@@ -163,16 +192,17 @@ pub fun abs0( i : int64 ) : int64
 pub inline extern and : (int64,int64) -> int64 
   inline "#1 & #2"
 
-
 // Take the bitwise _or_ of two `:int64`s
 pub inline extern or : (int64,int64) -> int64 
   inline "#1 | #2"
 
-
 // Take the bitwise _xor_ of two `:int64`s
-pub inline extern (^) : (int64,int64) -> int64 
+pub inline extern xor : (int64,int64) -> int64 
   inline "#1 ^ #2";
 
+// Take the bitwise _xor_ of two `:int64`s
+pub fun(^)( x : int64, y : int64) : int64 
+  xor(x,y)
 
 // Bitwise _not_ of an `:int64`, i.e. flips all bits.
 pub inline extern not : ( i : int64 ) -> int64  
@@ -180,36 +210,52 @@ pub inline extern not : ( i : int64 ) -> int64
   js inline "BigInt.asIntN(64, ~#1)"
 
 
-
-// Shift an `:int64` `i` to the left by `n & 63` bits.
-pub inline extern shl : (int64,int64) -> int64 
+// Shift an `:int64` `i` to the left by `n % 64` bits.
+inline extern shl64 : (int64,int64) -> int64 
   c inline "kk_shl64(#1,#2)"
   js "$std_core._int64_shl"
 
+// Shift an `:int64` `i` to the left by `n % 64` bits.
+pub fun shl( i : int64, shift : int) : int64
+  shl64(i,shift.int64)
 
-// Logical shift an `:int64` to the right by `n & 63` bits. Shift in zeros from the left.
-pub inline extern shr : (int64,int64) -> int64 
+// Logical shift an `:int64` to the right by `n % 64` bits. Shift in zeros from the left.
+inline extern shr64 : (int64,int64) -> int64 
   c inline "(int64_t)kk_shr64(#1,#2)"
   cs inline "(int64)(((Uint64)#1)>>#2)"
   js "$std_core._int64_shr"
 
+// Logical shift an `:int64` to the right by `n % 64` bits. Shift in zeros from the left.
+pub fun shr( i : int64, shift : int) : int64
+  shr64(i,shift.int64)
 
-// Arithmetic shift an `:int64` to the right by `n & 63` bits. Preserves the sign bit.
-pub inline extern sar : (int64,int64) -> int64 
+
+// Arithmetic shift an `:int64` to the right by `n % 64` bits. Preserves the sign bit.
+inline extern sar64 : (int64,int64) -> int64 
   c inline "kk_sar64(#1,#2)"
   js "$std_core._int64_sar"
 
+// Arithmetic shift an `:int64` to the right by `n % 64` bits. Shift in the sign bit from the left.
+pub fun sar( i : int64, shift : int) : int64
+  sar64(i,shift.int64)
 
-// Bitwise rotate an `:int64` `n & 63` bits to the left.
-pub inline extern rotl( i : int64, n : int64 ) : int64 
+// Bitwise rotate an `:int64` `n % 64` bits to the left.
+inline extern rotl64( i : int64, n : int64 ) : int64 
   c inline "(int64_t)kk_bits_rotl64(#1,#2)"
   js "$std_core._int64_rotl"
 
+// Bitwise rotate an `:int64` `n % 64` bits to the left.
+pub fun rotl( i : int64, shift : int) : int64
+  rotl64(i,shift.int64)
 
-// Bitwise rotate an `:int64` `n & 63` bits to the right.
-pub inline extern rotr( i : int64, n : int64 ) : int64 
+// Bitwise rotate an `:int64` `n % 64` bits to the right.
+inline extern rotr64( i : int64, n : int64 ) : int64 
   c inline "(int64_t)kk_bits_rotr64(#1,#2)"
   js "$std_core._int64_rotr"
+
+// Bitwise rotate an `:int64` `n % 64` bits to the right.
+pub fun rotr( i : int64, shift : int) : int64
+  rotr64(i,shift.int64)
 
 
 // Return the minimum of two integers

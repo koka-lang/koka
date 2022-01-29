@@ -213,7 +213,7 @@ pub fun round-to-prec( d : float64, prec : int  ) : float64
 // Round a `:float64` to a `:float32`
 pub extern float32( f : float64 ) : float32
   c inline "(float)(#1)"
-  js "_double_to_float"
+  js "$std_core._double_to_float"
 
 // Extend a `:float32` to a `:float64`
 pub extern float64( f : float32 ) : float64
@@ -227,7 +227,6 @@ pub extern float64( f : float32 ) : float64
 // ```
 pub fun f32( f : float64 ) : float32
   f.float32
-
 
 
 //-----------------------------------------
@@ -364,7 +363,7 @@ pub extern float64-from-bits( i : int64 ) : float64
 // otherwise falls back to the regular `exp2` function converting `e` to a float64.
 pub fun exp2( e : int ) : float64
   if e >= -1022 && e <= 1023
-    then float64-from-bits( (1023 + e).int64.shl(52.int64) )
+    then float64-from-bits( (1023 + e).int64.shl(52) )
     else exp2( e.float64 )
 
 
@@ -406,7 +405,7 @@ pub fun decode( d : float64 ) : (int,int)
 // decode a normalized float64 (i.e. not subnormal)
 fun decode-normalized( d : float64, e-adjust : int = 0 ) : (int,int)
   val i    = float64-to-bits(d)
-  val exp  = and(i.shr(52.int64),0x7FF.int64) - 1043.int64
+  val exp  = and(i.shr(52),0x7FF.int64) - 1043.int64
   val man  = and(i,0x000F_FFFF_FFFF_FFFF.int64) + 0x0010_0000_0000_0000.int64
   ( (if i.is-neg then ~man else man).int, exp.int - 32 + e-adjust )
   
@@ -447,6 +446,29 @@ pub fun next-up( x : float64 ) : float64
     val next = if i.is-neg then i.dec else i.inc
     float64-from-bits(next)
 
+
+// Compare floats using a total ordering on the `:float64`.
+// The ordering follows the `totalOrder` predicate as defined in IEEE 754-2008 exactly.
+// The values are ordered in following order:
+// - negative quiet nan
+// - negative signaling nan
+// - `neginf`
+// - -finite
+// - -0.0
+// - +0.0
+// - finite
+// - `posinf`
+// - signaling nan
+// - quiet nan
+//
+pub fun compare( x : float64, y : float64 ) : order
+  val bx = float64-to-bits(x)
+  val by = float64-to-bits(y)
+  // flip exp+mantissa bits if negative to get a two's complement number
+  val ix = bx.sar(63).shr(1).xor(bx)
+  val iy = by.sar(63).shr(1).xor(by)
+  compare(ix,iy)
+  
 
 //-----------------------------------------
 // Show in hexadecimal

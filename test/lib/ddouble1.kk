@@ -53,7 +53,7 @@ pub fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddoubl
     }
   }
   else {
-    if (expect == res) then {
+    if (expect == res || (expect.is-nan && res.is-nan)) then {
       println( pre ++ "ok: " ++ res.show )
     }
     else {

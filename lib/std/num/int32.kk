@@ -175,8 +175,12 @@ pub inline extern or : (int32,int32) -> int32
 
 
 // Take the bitwise _xor_ of two `:int32`s
-pub inline extern (^) : (int32,int32) -> int32 
+pub inline extern xor : (int32,int32) -> int32 
   inline "(#1 ^ #2)";
+
+// Take the bitwise _xor_ of two `:int32`s
+pub fun(^)( x : int32, y : int32) : int32
+  xor(x,y)
 
 
 // Bitwise _not_ of an `:int32`, i.e. flips all bits.
@@ -185,35 +189,53 @@ pub inline extern not : ( i : int32 ) -> int32
 
 
 // Shift an `:int32` `i` to the left by `n & 31` bits.
-pub inline extern shl : (int32,int32) -> int32 
+inline extern shl32 : (int32,int32) -> int32 
   c  inline "kk_shl32(#1,#2)"
   js inline "#1 << #2"       // javascript masks the shift already
 
+// Shift an `:int32` `i` to the left by `n & 31` bits.
+pub fun shl( i : int32, shift : int ) : int32
+  shl32( i, shift.int32 )
 
 // Logical shift an `:int32` to the right by `n % 32` bits. Shift in zeros from the left.
-pub inline extern shr : (int32,int32) -> int32 
+inline extern shr32 : (int32,int32) -> int32 
   c  inline "(int32_t)kk_shr32(#1,#2)"
   cs inline "(Int32)(((UInt32)#1)>>#2)"
   js inline "#1 >>> #2"
 
+// Logical shift an `:int32` to the right by `n % 32` bits. Shift in zeros from the left.
+pub fun shr( i : int32, shift : int ) : int32
+  shr32( i, shift.int32 )
 
-// Arithmetic shift an `:int32` to the right by `n % 32` bits. Preserves the sign bit.
-pub inline extern sar : (int32,int32) -> int32 
+
+// Arithmetic shift an `:int32` to the right by `n % 32` bits. Shifts in the sign bit from the left.
+inline extern sar32 : (int32,int32) -> int32 
   c  inline "kk_sar32(#1,#2)"
   cs inline "(#1>>#2)"
   js inline "#1 >> #2"
 
+// Arithmetic shift an `:int32` to the right by `n % 32` bits. Shifts in the sign bit from the left.
+pub fun sar( i : int32, shift : int ) : int32
+  sar32( i, shift.int32 )
+
 
 // Bitwise rotate an `:int32` `n % 32` bits to the left.
-pub inline extern rotl( i : int32, n : int32 ) : int32 
+inline extern rotl32( i : int32, n : int32 ) : int32 
   c inline "(int32_t)kk_bits_rotl32(#1,#2)"
   js "$std_core._int32_rotl"
 
+// Bitwise rotate an `:int32` `n % 32` bits to the left.
+pub fun rotl( i : int32, shift : int ) : int32
+  rotl32( i, shift.int32 )
 
 // Bitwise rotate an `:int32` `n % 32` bits to the right.
-pub inline extern rotr( i : int32, n : int32 ) : int32 
+inline extern rotr32( i : int32, n : int32 ) : int32 
   c inline "(int32_t)kk_bits_rotr32(#1,#2)"
   js "$std_core._int32_rotr"
+
+// Bitwise rotate an `:int32` `n % 32` bits to the right.
+pub fun rotr( i : int32, shift : int ) : int32
+  rotr32( i, shift.int32 )
 
 
 // Return the minimum of two integers

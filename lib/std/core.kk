@@ -920,6 +920,12 @@ pub inline extern float64( i : int) : float64
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 
+// Convert an integer to a `:float32`. May return `nan` if the integer is too large to represent as a `:float32`.
+pub inline extern float32( i : int) : float32
+  c  "kk_integer_as_float"
+  cs "Primitive.IntToFloat"
+  js "$std_core._int_to_float"  
+
 // Is this an odd integer?
 pub inline extern is-odd( i : int ) : bool
   c  "kk_integer_is_odd"
@@ -1067,6 +1073,12 @@ pub extern int32( i : int) : int32
   c  "kk_integer_clamp32"
   cs "Primitive.IntToInt32"
   js "$std_core._int_clamp32"
+
+// Convenient shorthand to `int32`, e.g. `1234.i32`
+pub inline fun i32( i : int ) : int32
+  i.int32
+
+
 
 // Minimal set of operations that we need in `std/core`.
 inline extern (<=) : (int32,int32) -> bool  
@@ -1216,6 +1228,10 @@ pub inline extern int( i : int64 ) : int
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int64"
 
+// Convenient shorthand to `int64`, e.g. `1234.i64`
+pub inline fun i64( i : int ) : int64
+  i.int64
+
 
 // ----------------------------------------------------------------------------
 // intptr_t
@@ -1274,10 +1290,6 @@ pub inline extern (*) : (float64,float64) -> float64 { inline "(#1 * #2)" }
 pub inline extern (/) : (float64,float64) -> float64 { inline "(#1 / #2)" }
 pub inline extern (%) : (float64,float64) -> float64 { c inline "fmod(#1,#2)"; inline "(#1 % #2)" }
 
-pub fun compare( x : float64, y : float64) : order
-  if x < y then Lt
-  elif x > y then Gt
-  else Eq
 
 // Is the value negative?
 pub fun is-neg( d : float64 ) : bool
