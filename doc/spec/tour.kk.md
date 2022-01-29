@@ -418,13 +418,13 @@ val english = [8.2,1.5,2.8,4.3,12.7,2.2,
 
 // Small helper functions
 fun percent( n : int, m : int )
-  100.0 * (n.double / m.double)
+  100.0 * (n.float64 / m.float64)
 
 fun rotate( xs, n )
   xs.drop(n) ++ xs.take(n)
 
 // Calculate a frequency table for a string
-fun freqs( s : string ) : list<double>
+fun freqs( s : string ) : list<float64>
   val lowers = list('a','z')
   val occurs = lowers.map( fn(c) s.count(c.string) )
   val total  = occurs.sum
@@ -432,7 +432,7 @@ fun freqs( s : string ) : list<double>
 
 // Calculate how well two frequency tables match according
 // to the _chi-square_ statistic.
-fun chisqr( xs : list<double>, ys : list<double> ) : double
+fun chisqr( xs : list<float64>, ys : list<float64> ) : float64
   zipwith(xs,ys, fn(x,y) ((x - y)^2.0)/y ).foldr(0.0,(+))
 
 // Crack a Caesar encoded string
@@ -450,7 +450,7 @@ fun test-uncaesar()
 ```
 
 The `val` keyword declares a static value. In the example, the value `english`
-is a list of floating point numbers (of type `:double `) denoting the average
+is a list of floating point numbers (of type `:float64 `) denoting the average
 frequency for each letter. The function `freqs` builds a frequency table for a
 specific string, while the function `chisqr` calculates how well two frequency
 tables match. In the function `crack` these functions are used to find a
@@ -926,8 +926,8 @@ the compiler transforms this expression into `[Box((1,True)]` internally.
 
 Note that for regular data types and `:int`'s boxing is free (as in isomorphic). Moreover, value types
 up to 63 bits (on a 64-bit platform) are boxed in-place and do not require heap allocation
-(like `:int32`). The `:double` type is also specialized; by default the Koka compiler
-only heap allocates doubles when their absolute value is
+(like `:int32`). The `:float64` type is also specialized; by default the Koka compiler
+only heap allocates `:float64`s when their absolute value is
 outside the range 2^-511^ up to 2^512^ (excluding infinity and NaN)).
 
 For performance sensitive code we may specialize certain polymorphic data types to
