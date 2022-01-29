@@ -307,8 +307,9 @@ kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_mul_pow10(kk_integer_t 
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx);  // x/(10^p)
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx);  // x/(10^p)
 
-kk_decl_export kk_decl_noinline void          kk_integer_fprint(FILE* f, kk_integer_t x, kk_context_t* ctx);
-kk_decl_export kk_decl_noinline void          kk_integer_print(kk_integer_t x, kk_context_t* ctx);
+kk_decl_export void   kk_integer_fprint(FILE* f, kk_integer_t x, kk_context_t* ctx);
+kk_decl_export void   kk_integer_print(kk_integer_t x, kk_context_t* ctx);
+kk_decl_export double kk_double_round_even(double d, kk_context_t* ctx);
 
 
 /*---------------------------------------------------------------------------------

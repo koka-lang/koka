@@ -6,7 +6,10 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* 64-bit IEEE float64 floating point numbers.
+/* 64-bit IEEE floating point numbers. 
+
+Also described as _double_ precision or _binary64_ numbers in the standards.
+See also <https://en.wikipedia.org/wiki/Double-precision_floating-point_format>.
 
 */
 module std/num/float64
@@ -60,7 +63,7 @@ pub val flt-log10e  = 0x1.B_CB7B_1526_E50Ep-2 // 0.43429448190325182765112891891
 pub val flt-sqrt2   = 0x1.6_A09E_667F_3BCDp+0 // 1.414213562373095048801688724209698079
 
 // `1.0 / sqrt(2.0)`  (= `sqrt(0.5)`)
-pub val flt-sqrt12 = 0x1.6_A09E_667F_3BCDp-1 // 0.707106781186547524400844362104849039
+pub val flt-sqrt12  = 0x1.6_A09E_667F_3BCDp-1 // 0.707106781186547524400844362104849039
 
 // [Euler's constant](https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant)
 pub val flt-euler   = 0x1.2_788C_FC6F_B619p-1 // 0.577215664901532860606512090082402431
@@ -110,25 +113,25 @@ extern make-neginf() : float64
 
 
 // Is this value equal to NaN ?
-pub inline extern is-nan(d:float64) : bool
+pub inline extern is-nan( d : float64 ) : bool
   c  inline "isnan(#1)"
   cs "double.IsNaN"
   js "isNaN"
 
 // Is this value equal to negative or positive infinity ?
-pub extern is-inf(d:float64) : bool
+pub extern is-inf( d : float64 ) : bool
   c  inline "isinf(#1)"
   cs "double.IsInfinity"
   js inline "((#1) === Infinity || (#1) === -Infinity)"
 
 // Is this value equal to positive infinity ?
-pub inline extern is-posinf(d:float64) : bool
+pub inline extern is-posinf( d : float64 ) : bool
   c  inline "(isinf(#1) && !signbit(#1))"
   cs "double.IsPositiveInfinity"
   js inline "((#1) === Infinity)"
 
 // Is this value equal to negative infinity ?
-pub inline extern is-neginf(d:float64) : bool
+pub inline extern is-neginf( d : float64 ) : bool
   c inline "(isinf(#1) && signbit(#1))"
   cs "double.IsNegativeInfinity"
   js inline "((#1) === -Infinity)"
@@ -154,23 +157,30 @@ pub fun is-subnormal( d :float64 ) : bool
 //-----------------------------------------
 
 // Round a float64 to its nearest integral value.
-// If the value is halfway between two integers, the value is rounded to the even one.
-pub inline extern round(d:float64) : float64
-  c  "round"              // assume the rounding mode is set correctly by kklib
-  cs "Math.Round"
-  js "$std_core._double_round"
+// If the value is halfway between two integers, the value is rounded towards the even one.
+pub inline extern round( d : float64 ) : float64
+  c  "kk_double_round_even"
+  cs inline "Math.Round(#1,MidpointRounding.ToEven)"
+  js "$std_core._double_round_even"
 
 // Return the largest integer equal or less than `d`
-pub inline extern floor(d:float64) : float64
+pub inline extern floor( d : float64 ) : float64
   c  "floor"
   cs "Math.Floor"
   js "Math.floor"
 
 // Return the smallest integer equal or larger than `d`
-pub inline extern ceiling : (d:float64) -> float64
+pub inline extern ceiling( d : float64 ) : float64
   c  "ceil"
   cs "Math.Ceiling"
   js "Math.ceil"
+
+// fused multiply-add. Computes `(x*y)+z` as if to infinite precision
+// with only the final result rounded back to a `:float64`.
+pub extern fmadd( x : float64, y : float64, z : float64 ) : float64
+  c  "fma"
+  js "_fmadd"
+  cs "Math.FusedMultiplyAdd"  
 
 // Return the integral part of a `:float64` `d` .
 // If `d >= 0.0` , return the largest integer equal or less to `d` ,
@@ -200,13 +210,6 @@ pub fun round-to-prec( d : float64, prec : int  ) : float64
     (d * p).round / p
 
 
-// fused multiply-add. Computes `(x*y)+z` as if to infinite precision
-// with only the final result rounded back to a `:float64`.
-pub extern fmadd( x : float64, y : float64, z : float64 ) : float64
-  c  "fma"
-  js "_fmadd"
-  cs "Math.FusedMultiplyAdd"
-
 //-----------------------------------------
 // Powers
 //-----------------------------------------
@@ -214,7 +217,7 @@ pub extern fmadd( x : float64, y : float64, z : float64 ) : float64
 // Return the square root of a value `d`
 // Returns `nan` if `d == nan`  or if `d`  is negative.
 // Returns `inf` if `d == inf` .
-pub inline extern sqrt(d:float64) : float64
+pub inline extern sqrt( d : float64 ) : float64
   c  "sqrt"
   cs "Math.Sqrt"
   js "Math.sqrt"
@@ -335,26 +338,6 @@ pub extern float64-from-bits( lo : int32, hi : int32 ) : float64
   cs "Primitive.DoubleFromBits"
   js "_double_from_bits"
 
-/*
-// Low-level: create a `:float64` from the given `lo` and `hi` 32-bits.
-pub fun float64-from-bits( lo : int32, hi : int32 ) : float64
-  val hifrac = hi & 0xFFFFF.int32
-  val exp  = (hi.shr(20.int32) & 0x07FF.int32)
-  val is-pos = hi.shr(31.int32).zero?
-  val p = if lo.is-zero && hifrac.is-zero then
-            if exp.is-zero then 0.0
-            elif exp==0x7FF.int32 then posinf
-            else exp2( (exp - 1023.int32).float64 )
-
-          else
-            val frac = lo.float64 + 0x1.0p32 * hifrac.float64
-            if exp.is-zero then frac * exp2( -1074.0 )  // denormalized number
-            elif exp==0x7FF.int32 then nan
-            else (1.0 + frac * 0x1.0p-52) * exp2( (exp - 1023.int32).float64 )
-
-  if is-pos then p else ~p
-
-*/
 
 // Calculate 2&middot;^`e`^ for an integer `e`.
 // Uses efficient bit conversion for exponents between  -1022 and 1023 and
@@ -386,7 +369,6 @@ pub fun ldexp( x : float64, e : int ) : float64
     elif e <= 2046 then mul-exp2( x*one-p1023, e - 1023 )
     elif e <= 3069 then mul-exp2( x*one-p1023*one-p1023, e - 2046 )
     elif x < 0.0 then neginf else posinf
-
   else
     if e >= -2044 then mul-exp2(x*one-m1022, e + 1022)
     elif e >= -3066 then mul-exp2(x*one-m1022*one-m1022, e + 2044 )
