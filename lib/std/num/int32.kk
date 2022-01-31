@@ -257,7 +257,7 @@ pub fun cdiv(i:int32, j:int32) : exn int32
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
 pub fun cmod(i:int32, j:int32) : exn int32 
-  if (j.is-zero) then throw("std/num/int32/(%): modulus by zero")
+  if (j.is-zero) then throw("std/num/int32/cmod: modulus by zero")
   elif (j == -1.int32 && i==min-int32) then throw("std/num/int32/cmod: modulus overflow in cmod(min-int32, -1.int32)")
   else unsafe-cmod(i,j)
 

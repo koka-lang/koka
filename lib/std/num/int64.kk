@@ -35,7 +35,7 @@ pub fun bool( i : int64 ) : bool
 pub fun int64( b : bool ) : int64 
   if b then one else zero
 
-// Convert an `:int32` to an `:int64`
+// Convert an `:int32` to an `:int64` (using sign extension).
 pub inline extern int64( i : int32 ) : int64
   c inline "(int64_t)(#1)"
   js "$std_core._int64_from_int32"  
@@ -53,27 +53,18 @@ pub inline extern int32( i : int64 ) : int32
   js "$std_core._int64_clamp_int32"
 
 // Clamp an `:int64` to an `:int32` but interpreting the `:int32` as unsigned
-// and thus clamp between 0 and 0xFFFFFFFF.
+// (and thus clamp between 0 and 0xFFFFFFFF).
 // `-1.int64.uint32 == 0.int32` (clamped)  
 // `0xFFFFFFFF.int64.uint32 == -1.int32`
 pub inline extern uint32( i : int64 ) : int32
   c  "kk_int64_clamp_uint32"
   js "$std_core._int64_clamp_uint32"
 
-
+// Create an `:int64` `i` from the bits of `lo` and `hi` such
+// that `i.int = hi.int * 0x1_0000_0000 + lo.uint`.
 pub fun int64( lo : int32, hi : int32 ) : int64 
   hi.int64.shl(32).or(lo.uint64)
   
-
-
-// Show an `:int64` in hexadecimal notation
-// The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
-// The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
-// The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
-pub fun show-hex( i : int64, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string 
-  std/core/show-hex(i.int,width,use-capitals,pre)
-
-
 // Convert an `:int` to `:int64` but interpret the `int` as an unsigned 64-bit value.
 // `i` is clamped between `0` and `0xFFFF_FFFF_FFFF_FFFF`.\
 // `0x7FFF_FFFF_FFFF_FFFF.uint64 == 0x7FFF_FFFF_FFFF_FFFF.int64 == max-int64`\
@@ -87,6 +78,13 @@ pub fun uint64( i : int ) : int64
 pub fun uint( i : int64 ) : int 
   if i.is-neg then 0x1_0000_0000_0000_0000 + i.int else i.int
 
+
+// Show an `:int64` in hexadecimal notation
+// The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
+// The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
+// The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
+pub fun show-hex( i : int64, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string 
+  std/core/show-hex(i.int,width,use-capitals,pre)
 
 // Show an `:int64` in hexadecimal notation interpreted as an unsigned 64-bit value.
 // The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
@@ -276,7 +274,7 @@ pub fun cdiv(i:int64, j:int64) : exn int64
 
 // Truncated modulus (as in C). See also `(%):(x : int64, y : int64) -> int64`.
 pub fun cmod(i:int64, j:int64) : exn int64 
-  if j.is-zero then throw("std/num/int64/cdiv: modulus by zero")
+  if j.is-zero then throw("std/num/int64/cmod: modulus by zero")
   elif j == -1.int64 && i==min-int64 then throw("std/num/int64/cmod: modulus overflow in cmod(min-int64, -1.int64)")
   else unsafe-cmod(i,j)
 

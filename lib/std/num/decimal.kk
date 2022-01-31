@@ -7,6 +7,10 @@
 ---------------------------------------------------------------------------*/
 
 // Arbitrary precision decimal numbers.
+//
+// Decimals have arbitrary precision and range and
+// do exact decimal arithmetic and are well suited for 
+// financial calculations for example.
 module std/num/decimal
 
 import std/text/parse
