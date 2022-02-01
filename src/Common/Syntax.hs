@@ -165,7 +165,7 @@ instance Show DataKind where
   show CoInductive = "cotype"
   show Retractive = "rectype"
 
-data DataDef = DataDefValue{ rawFields :: Int, scanFields :: Int }
+data DataDef = DataDefValue{ rawFields :: Int {- size in bytes -}, scanFields :: Int {- count of scannable fields -}}
              | DataDefNormal
              | DataDefAuto   -- Value or Normal; determined by kind inference
              | DataDefRec
