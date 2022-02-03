@@ -921,11 +921,10 @@ inferCheck loaded0 flags line coreImports program
 
        -- open floating
        when (optOpenFloat flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
-          do 
-             openFloat penv gamma
+          do openFloat penv gamma
              checkCoreDefs "open floated"
              simplifyNoDup 
-            --  traceDefGroups "open floated" 
+             traceDefGroups "open floated" 
        
        -- tail-call-modulo-cons optimization
        when (optctail flags) $
