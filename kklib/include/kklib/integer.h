@@ -987,7 +987,7 @@ static inline int32_t kk_int64_clamp_int32( int64_t i, kk_context_t* ctx) {
 
 static inline int32_t kk_int64_clamp_uint32( int64_t i, kk_context_t* ctx) {
   kk_unused(ctx);
-  return (i > UINT32_MAX ? UINT32_MAX : (i < 0 ? 0 : (int32_t)((uint32_t)i))); 
+  return (i > UINT32_MAX ? UINT32_MAX : (i < 0 ? 0 : (uint32_t)i)); 
 }
 
 
