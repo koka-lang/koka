@@ -10,8 +10,8 @@ module time-utc1
 
 import std/os/file
 import std/num/ddouble
-public import std/num/decimal
-public import std/time
+pub import std/num/decimal
+pub import std/time
 
 /*----------------------------------------------------------------------------
   Testing
@@ -23,7 +23,7 @@ fun check(name : string, tst : () -> ndet bool ) : io () {
 }
 
 
-public fun show-leap-steps(ts-utc : timescale) {
+pub fun show-leap-steps(ts-utc : timescale) {
   val steps = get-leap-steps()
   var dlast := Date(0,0,0)
   val rows = steps.map( fn(step) {
@@ -44,7 +44,7 @@ public fun show-leap-steps(ts-utc : timescale) {
           base.show(6) + "s + " + (if (dds.year >= 1959) then delta.show(7) else delta.show(8)) + "&times;&Delta;("
         + ds + ")").pad-right(47,' '),
       (if (delta.zero?) then "" else
-           "-" + ((delta.double / 86400.0)*1.0e10).int.show + "&times;10^-10^" ).pad-right(10,' ')
+           "-" + ((delta.float64 / 86400.0)*1.0e10).int.show + "&times;10^-10^" ).pad-right(10,' ')
     ].join(" | ") + " |"
      + (if (t.date==Date(1972,1,1) || t.date==Date(1960,1,1)) then leap-steps-sep else "")
      )
@@ -54,26 +54,26 @@ public fun show-leap-steps(ts-utc : timescale) {
   write-text-file-sync("leap-steps.txt", table)
 }
 
-val leap-steps-header = @"
+val leap-steps-header = r"
 |-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
 | Date (UTC) &quad; | Time steps &quad; &quad; | (TAI--UTC)     | (TAI--UTC)     | Drift                                           | &quad; Frequency |
 |                   |                          | Just before\ \ | On the date&quad; |                                                 | Offset    |
 +:------------------|--------------------------|:---------------|:---------------|-------------------------------------------------|----------:+
 "
-val leap-steps-footer = @"
+val leap-steps-footer = r"
 |-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
 {white-space:nowrap; col-2-padding-left:1em; .sans-serif; }
 "
 
-val leap-steps-sep = @"
+val leap-steps-sep = r"
 | \                 |                          |                |                   |                                                                 |                    |"
 
 
-public fun test() {
+pub fun test() {
   val ts-utc = try-default(ts-ti){ts-utc-load(verbose=True)}
   show-leap-steps(ts-utc)
 }
 
-public fun main() {
+pub fun main() {
   ()
 }

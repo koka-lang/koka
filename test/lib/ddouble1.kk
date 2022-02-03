@@ -1,9 +1,9 @@
 module ddouble1
 
-public import std/num/ddouble
-public import std/num/double
+pub import std/num/ddouble
+pub import std/num/float64
 
-public fun check(name : string, res : string, tst : () -> io string ) : io () {
+pub fun check(name : string, res : string, tst : () -> io string ) : io () {
   val got = tst().replace-all("e+0","e+")
   println(name.pad-right(8,' ') ++ ": "
     ++ (if (got == res) then "ok: " ++ res
@@ -11,19 +11,19 @@ public fun check(name : string, res : string, tst : () -> io string ) : io () {
   if (got != res) then throw("failed") else ()
 }
 
-public fun check-rt( name : string, expect : string, tst : () -> io ddouble ) : io () {
+pub fun check-rt( name : string, expect : string, tst : () -> io ddouble ) : io () {
   check(name,expect) {
     check-round-trip(name,tst()).show
   }
 }
 
-public fun check-rte( name : string, expect : string, tst : () -> io ddouble ) : io () {
+pub fun check-rte( name : string, expect : string, tst : () -> io ddouble ) : io () {
   check(name,expect) {
     check-round-trip(name,tst()).show-exp
   }
 }
 
-public fun check-round-trip( name : string, x : ddouble ) : io ddouble {
+pub fun check-round-trip( name : string, x : ddouble ) : io ddouble {
   //val y = x.show(33).parse-ddouble.default(dd-nan)
   val y = x.show-hex.parse-ddouble.default(dd-nan)
   if (y==x) then () else {
@@ -33,7 +33,7 @@ public fun check-round-trip( name : string, x : ddouble ) : io ddouble {
   x
 }
 
-public fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = ddouble-exp(1,-15) ) : io () {
+pub fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = ddouble-exp(1,-15) ) : io () {
   val pre = name.pad-right(8,' ') ++ ": "
   if (expect.is-finite) then {
     val delta  = (res - expect).abs
@@ -53,7 +53,7 @@ public fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddo
     }
   }
   else {
-    if (expect == res) then {
+    if (expect == res || (expect.is-nan && res.is-nan)) then {
       println( pre ++ "ok: " ++ res.show )
     }
     else {
@@ -64,7 +64,7 @@ public fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddo
 }
 
 
-public fun main() {
+pub fun main() {
   test-big()
   test-int10()
   test-int99()
@@ -85,7 +85,7 @@ public fun main() {
 val max-int = 9007199254740991.0
 val mx = 123456789012345.0
 
-public fun test-show() {
+pub fun test-show() {
   check("show1","0.1000000000000000055511151231258"){ 0.1.ddouble.show }
   check("show2","0.1"){ (one / ten).show }
   val x1 = 5.123456.ddouble
@@ -107,14 +107,14 @@ public fun test-show() {
   Iterate over interesting numbers
 -------------------------------------------------------*/
 
-public fun test-int10() {
+pub fun test-int10() {
   for(2,308) fn(i){
     val expect = "1e+" ++ i.show
     check("int" ++ i.show, expect) { ddouble-exp(1,i).show-exp(-28) }
   }
 }
 
-public fun test-int99() {
+pub fun test-int99() {
   for(2,30) fn(i) {
     val expect8 = "9." ++ repeat("9",i - 2) ++ "8e+" ++ i.dec.show
     check-rte("int" ++ i.show, expect8) { ddouble-exp(1,i).dec.dec }
@@ -132,7 +132,7 @@ public fun test-int99() {
 }
 
 
-public fun test-big() {
+pub fun test-big() {
   val digits= dd-max-prec - 3
   val pi290 = dd-pi * ddouble-exp(1,290)
   val s     = dd-pi.show-exp(digits)
@@ -152,7 +152,7 @@ public fun test-big() {
 
 
 
-public fun test-sin() {
+pub fun test-sin() {
   val exact-sin : list<ddouble> = [
     "0.000099999999833333333416666666646825396828152557318973",
     "0.0009999998333333416666664682539710097001513147348086",
@@ -173,7 +173,7 @@ public fun test-sin() {
 }
 
 
-public fun test-atan() {
+pub fun test-atan() {
   val exact-atan : list<ddouble> = [
     "0.000099999999666666668666666652380952492063491154401162",
     "0.00099999966666686666652380963492054401162093455426801",
@@ -198,26 +198,26 @@ val exotic    = posexotic.map((~)).reverse ++ posexotic
 val nums      = posnums.map((~)).reverse ++ [0.0] ++ posnums ++ exotic
 val pinums    = nums.map( fn(d){ d*pi } ) ++ exotic
 
-public fun test-trig() {
-  test-double-fn( "tan", tan, tan, pinums )
-  test-double-fn( "sin", sin, sin, pinums )
-  test-double-fn( "cos", cos, cos, pinums )
-  test-double-fn( "tanh", tanh, tanh, pinums )
-  test-double-fn( "sinh", sinh, sinh, pinums )
-  test-double-fn( "cosh", cosh, cosh, pinums )
+pub fun test-trig() {
+  test-float64-fn( "tan", tan, tan, pinums )
+  test-float64-fn( "sin", sin, sin, pinums )
+  test-float64-fn( "cos", cos, cos, pinums )
+  test-float64-fn( "tanh", tanh, tanh, pinums )
+  test-float64-fn( "sinh", sinh, sinh, pinums )
+  test-float64-fn( "cosh", cosh, cosh, pinums )
 }
 
-public fun test-atrig() {
-  test-double-fn( "atan", atan, atan, nums )
-  test-double-fn( "asin", asin, asin, nums )
-  test-double-fn( "acos", acos, acos, nums )
-  test-double-fn( "atanh", atanh, atanh, nums )
-  test-double-fn( "asinh", asinh, asinh, nums )
-  test-double-fn( "acosh", acosh, acosh, nums )
+pub fun test-atrig() {
+  test-float64-fn( "atan", atan, atan, nums )
+  test-float64-fn( "asin", asin, asin, nums )
+  test-float64-fn( "acos", acos, acos, nums )
+  test-float64-fn( "atanh", atanh, atanh, nums )
+  test-float64-fn( "asinh", asinh, asinh, nums )
+  test-float64-fn( "acosh", acosh, acosh, nums )
 }
 
-public fun test-double-fn( name : string, fd : double -> double, fdd : ddouble -> ddouble, nums : list<double> ) : io () {
-  nums.foreach-indexed( fn( i:int, x : double ) {
+pub fun test-float64-fn( name : string, fd : float64 -> float64, fdd : ddouble -> ddouble, nums : list<float64> ) : io () {
+  nums.foreach-indexed( fn( i:int, x : float64 ) {
     val d = x.fd
     val dd = x.ddouble.fdd
     check-prec( name ++ "(" ++ x.show(3) ++ ")", d.ddouble, dd,

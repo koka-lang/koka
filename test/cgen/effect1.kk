@@ -17,8 +17,8 @@ fun state(init, action) {
   var s := init
   handle({mask<local>(action)}) {
     return x -> (x,s)
-    control get()    -> { resume(s) }
-    control put(x)   -> { s := x; resume(()) }
+    ctl get()    -> { resume(s) }
+    ctl put(x)   -> { s := x; resume(()) }
   }
 }
 

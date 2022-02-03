@@ -7,12 +7,12 @@ import std/time/duration
 
 
 effect amb {
-  control flip() : bool
+  ctl flip() : bool
 }
  
 val amb = handler {
   return x         -> [x]
-  control flip()   -> resume(False) ++ resume(True)
+  ctl flip()   -> resume(False) ++ resume(True)
 }
 
 fun dowait(s : duration) {

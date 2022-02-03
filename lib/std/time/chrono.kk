@@ -15,18 +15,16 @@ import std/time/duration
 import std/time/instant
 import std/time/utc
 
-extern import {
+extern import
   c  file "chrono-inline.c"
   cs file "chrono-inline.cs"
   js file "chrono-inline.js"
-}
 
 // The current `:instant` in time as returned by the system clock
 // in the UTC timescale. Equivalent to `now-in(utc())`, see
 // `now-in` for further information about the system clock.
-public fun now() : <ndet,utc> instant {
+pub fun now() : <ndet,utc> instant
   now-in(utc())
-}
 
 
 // The current `:instant` in time as returned by the system clock
@@ -51,29 +49,26 @@ public fun now() : <ndet,utc> instant {
 // back one second after a leap second. By limiting the adjustment to at most
 // one second it ensures the clock catches up soon and does not affect the user
 // setting a new time in the past.
-public fun now-in( ts : timescale = ts-ti) : ndet instant {
+pub fun now-in( ts : timescale = ts-ti) : ndet instant
   // on current backends (C#, JavaScript) we can only use `unix-now` :-(
   val (secs,frac) = unix-now()
   unix-instant(secs,frac,ts)
-}
 
 // Returns a unix time stamp as seconds and fraction of seconds;
 // The fraction of seconds is for added precision if necessary,
 // and can be larger than one to indicate leap seconds.
 // This still needs to be adjusted to our epoch and taking account of leap seconds.
-extern unix-now() : ndet (double,double) {
+extern unix-now() : ndet (float64,float64)
   c  "kk_time_unix_now_tuple"
   cs "_Chrono.UnixNow"
   js "_unix_now"
-}
 
 // Return the smallest time difference that the system clock can measure.
-public fun now-resolution() : ndet duration {
+pub fun now-resolution() : ndet duration
   duration(xnow-resolution())
-}
 
-extern xnow-resolution() : ndet double {
+extern xnow-resolution() : ndet float64
   c "kk_time_dresolution"
   cs "_Chrono.NowResolution"
   js "_now_resolution"
-}
+

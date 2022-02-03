@@ -2,7 +2,8 @@
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0.
 */
-/* Requires at least Bison 3+; you can get a version for windows from
+/* Use the "Yash" extension in vscode for nice syntax highlighting.
+   Requires at least Bison 3+; you can get a version for windows from
    https://sourceforge.net/projects/winflexbison
    (use the "latest" zip package)
 */
@@ -23,7 +24,7 @@ typedef void* yyscan_t;
   const char*   Id;      /* used for operators OP too */
   const char*   String;  /* 'modified' UTF-8 string (\0 chars are encoded as \xC0\x80) */
   double        Float;
-  unsigned long Nat;
+  unsigned long Int;
   unsigned int  Char;
 }
 
@@ -43,7 +44,7 @@ void printDecl( const char* sort, const char* name );
 
 
 %token <Id>     ID CONID OP IDOP QID  QCONID QIDOP WILDCARD '(' ')' '[' ']'
-%token <Nat>    NAT
+%token <Int>    INT
 %token <Float>  FLOAT
 %token <String> STRING
 %token <Char>   CHAR
@@ -56,23 +57,24 @@ void printDecl( const char* sort, const char* name );
 %token MATCH
 %token RARROW LARROW
 
-%token FUN FN VAL VAR CONTROL RCONTROL EXCEPT
+%token FUN FN VAL VAR 
 %token TYPE STRUCT EFFECT
 %token ALIAS CON
 %token FORALL EXISTS SOME
 
 %token IMPORT AS MODULE
-%token PUBLIC PRIVATE ABSTRACT
+%token PUB ABSTRACT
 %token EXTERN
 %token INFIX INFIXL INFIXR
 
 %token LEX_WHITE LEX_COMMENT
-%token INSERTED_SEMI
+%token INSERTED_SEMI EXPR_SEMI
 %token LE ASSIGN DCOLON EXTEND
 %token RETURN
 
 %token HANDLER HANDLE NAMED MASK OVERRIDE
-%token IFACE UNSAFE
+%token CTL FINAL RAW
+%token IFACE UNSAFE BREAK CONTINUE
 
 %token ID_CO ID_REC
 %token ID_INLINE ID_NOINLINE
@@ -112,8 +114,8 @@ void printDecl( const char* sort, const char* name );
 -- Program
 ----------------------------------------------------------*/
 
-program     : semis visibility MODULE modulepath moduledecl  { printDecl("module",$4); }
-            | moduledecl                                     { printDecl("module","main"); }
+program     : semis MODULE modulepath moduledecl  { printDecl("module",$3); }
+            | moduledecl                          { printDecl("module","main"); }
             ;
 
 moduledecl  : '{' semis modulebody '}' semis
@@ -124,16 +126,15 @@ modulebody  : importdecl semis1 modulebody
             | declarations
             ;
 
-importdecl  : visibility IMPORT modulepath
-            | visibility IMPORT modulepath '=' modulepath
+importdecl  : pub IMPORT modulepath
+            | pub IMPORT modulepath '=' modulepath
             ;
 
 modulepath  : varid                       { $$ = $1; }
             | qvarid                      { $$ = $1; }
             ;
 
-visibility  : PUBLIC
-            | PRIVATE
+pub         : PUB
             | /* empty */
             ;
 
@@ -158,12 +159,12 @@ declarations: fixitydecl semis1 declarations
             | topdecls
             ;
 
-fixitydecl  : visibility fixity oplist1
+fixitydecl  : pub fixity oplist1
             ;
 
-fixity      : INFIX NAT
-            | INFIXR NAT
-            | INFIXL NAT
+fixity      : INFIX INT
+            | INFIXR INT
+            | INFIXL INT
             ;
 
 oplist1     : oplist1 ',' identifier
@@ -182,11 +183,11 @@ topdecls1   : topdecls1 topdecl semis1
             | error semis1                                    { yyerror(&@1,scanner,"skipped top-level declaration");  }
             ;
 
-topdecl     : visibility puredecl                             { printDecl("value",$2); }
-            | visibility aliasdecl                            { printDecl("alias",$2); }
-            | visibility typedecl                             { printDecl("type",$2); }
-            | ABSTRACT typedecl                               { printDecl("type",$2); }
-            | visibility externdecl                           { printDecl("extern",$2); }
+topdecl     : pub puredecl                             { printDecl("value",$2); }
+            | pub aliasdecl                            { printDecl("alias",$2); }
+            | pub externdecl                           { printDecl("extern",$2); }
+            | pub typedecl                             { printDecl("type",$2); }
+            | ABSTRACT typedecl                        { printDecl("type",$2); }
             ;
 
 
@@ -308,8 +309,8 @@ constructors1: constructors1 semis1 constructor
             | constructor
             ;
 
-constructor : visibility con conid typeparams conparams
-            | visibility con STRING typeparams conparams
+constructor : pub con conid typeparams conparams
+            | pub con STRING typeparams conparams
             ;
 
 con         : CON
@@ -338,21 +339,20 @@ operations  : operations operation semis1
             | /* empty */
             ;
 
-operation   : visibility VAL identifier typeparams ':' tatomic
-            | visibility FUN identifier typeparams '(' parameters ')' ':' tatomic
-            | visibility EXCEPT identifier typeparams '(' parameters ')' ':' tatomic
-            | visibility CONTROL identifier typeparams '(' parameters ')' ':' tatomic
+operation   : pub VAL identifier typeparams ':' tatomic
+            | pub FUN identifier typeparams '(' parameters ')' ':' tatomic
+            | pub CTL identifier typeparams '(' parameters ')' ':' tatomic
             ;
 
 
 /* ---------------------------------------------------------
 -- Pure (top-level) Declarations
 ----------------------------------------------------------*/
-puredecl    : inlineattr VAL binder '=' blockexpr      { $$ = $3; }
-            | inlineattr FUN funid funbody             { $$ = $3; }
+puredecl    : inlinemod VAL binder '=' blockexpr      { $$ = $3; }
+            | inlinemod FUN funid funbody             { $$ = $3; }
             ;
 
-inlineattr  : ID_INLINE
+inlinemod   : ID_INLINE
             | ID_NOINLINE
             | /* empty */
             ;
@@ -440,13 +440,13 @@ fnexpr      : FN funbody                     /* anonymous function */
 returnexpr  : RETURN expr
             ;
 
-ifexpr      : IF ntlexpr THEN expr elifs 
-            | IF ntlexpr THEN expr       
+ifexpr      : IF ntlexpr THEN blockexpr elifs 
+            | IF ntlexpr THEN blockexpr       
             | IF ntlexpr RETURN expr 
             ;
 
-elifs       : ELIF ntlexpr THEN expr elifs
-            | ELSE expr
+elifs       : ELIF ntlexpr THEN blockexpr elifs
+            | ELSE blockexpr
             ;
 
 valexpr     : VAL apattern '=' blockexpr IN expr
@@ -502,7 +502,7 @@ atom        : qidentifier
             | '[' cexprs ']'             /* list expression (elements may be terminated with comma instead of separated) */
             ;
 
-literal     : NAT | FLOAT | CHAR | STRING
+literal     : INT | FLOAT | CHAR | STRING
             ;
 
 mask        : MASK behind '<' tbasic '>'
@@ -537,18 +537,17 @@ parameters1 : parameters1 ',' parameter
             | parameter
             ;
 
-parameter   : paramid ':' paramtype
-            | paramid ':' paramtype '=' expr
+parameter   : borrow paramid ':' type
+            | borrow paramid ':' type '=' expr
             ;
 
 paramid     : identifier
             | WILDCARD
             ;
 
-paramtype   : type
-            | '?' type
+borrow      : '^'
+            | /* empty */
             ;
-
 
 /* pattern matching parameters: separated by comma */
 
@@ -560,10 +559,10 @@ pparameters1: pparameters1 ',' pparameter
             | pparameter
             ;
 
-pparameter  : pattern 
-            | pattern ':' paramtype
-            | pattern ':' paramtype '=' expr
-            | pattern '=' expr
+pparameter  : borrow pattern 
+            | borrow pattern ':' type
+            | borrow pattern ':' type '=' expr
+            | borrow pattern '=' expr
             ;
 
 
@@ -709,8 +708,8 @@ patarg      : identifier '=' apattern            /* named argument */
 /* ---------------------------------------------------------
 -- Handlers
 ----------------------------------------------------------*/
-handlerexpr : HANDLER override witheff opclauses
-            | HANDLE override witheff ntlexpr opclauses
+handlerexpr : override HANDLER witheff opclauses
+            | override HANDLE witheff ntlexpr opclauses
             | NAMED HANDLER witheff opclauses
             | NAMED HANDLE witheff ntlexpr opclauses
             ;
@@ -724,20 +723,17 @@ witheff     : '<' anntype '>'
             ;
 
 withstat    : WITH basicexpr
-            | WITH override witheff opclauses    /* shorthand for handler */
             | WITH binder LARROW basicexpr
-            | WITH binder LARROW witheff opclauses  /* shorthand for named handler */
-            /* deprecated: */
-            | WITH binder '=' basicexpr
-            | WITH binder '=' witheff opclauses  /* shorthand for named handler */
+            /* single operation shorthands */
+            | WITH override witheff opclause        
+            | WITH binder LARROW witheff opclause   
             ;
 
 withexpr    : withstat IN blockexpr
             /* | withstat */
             ;
 
-opclauses   : opclause
-            | '{' semis opclauses1 semis1 '}'
+opclauses   : '{' semis opclauses1 semis1 '}'
             | '{' semis '}'
             ;
 
@@ -746,19 +742,21 @@ opclauses1  : opclauses1 semis1 opclausex
             ;
 
 opclausex   : ID_FINALLY bodyexpr
-            | ID_INITIALLY bodyexpr
+            | ID_INITIALLY '(' opparam ')' bodyexpr
             | opclause
             ;
 
 opclause    : VAL qidentifier '=' blockexpr
             | VAL qidentifier ':' type '=' blockexpr
             | FUN qidentifier opparams bodyexpr
-            | EXCEPT qidentifier opparams bodyexpr
-            | CONTROL qidentifier opparams bodyexpr
-            | RCONTROL qidentifier opparams bodyexpr
+            | controlmod CTL qidentifier opparams bodyexpr
             | RETURN '(' opparam ')' bodyexpr
-            | RETURN paramid bodyexpr               /* deprecated */
             ;
+
+controlmod  : FINAL
+            | RAW
+            | /* empty */
+            ;            
 
 opparams    : '(' opparams0 ')'
             ;

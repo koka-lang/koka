@@ -6,7 +6,7 @@
 // --------------------------------------------------------
 import std/async
 import std/time/duration
-import std/os/readline
+import std/async/readline
 import std/debug
 
 effect state {
@@ -26,12 +26,12 @@ fun state(init,action) {
 
 
 effect amb {
-  control flip() : bool
+  ctl flip() : bool
 }
  
 val amb = handler {
   return x         -> [x]
-  control flip()   -> resume(False) ++ resume(True)
+  ctl flip()   -> resume(False) ++ resume(True)
 }
 
 fun dowait(s : duration) {

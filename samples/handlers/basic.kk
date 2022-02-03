@@ -4,7 +4,6 @@
    - syntax/var
    - syntax/with
 */
-
 module basic
 
 import std/num/random
@@ -25,8 +24,8 @@ fun hello()
   println("Hello " ++ name ++ ", " ++ ask())  // "Hello <ask>, <ask>"
 
 
-public fun test2() 
-  with fun ask(){ "there" }   // handle input; a `fun` operation resumes implicitly
+pub fun test2() 
+  with fun ask() "there"    // a `fun` operation resumes implicitly with its result
   hello()
 
 
@@ -35,36 +34,35 @@ public fun test2()
 //  Exceptions
 // --------------------------------------------------------
 
-// An effect `:raise` with a single control operation `raise`.
+// An effect `:raise` with a single ctl operation `raise`.
 // This is equivalent to writing:
 // ```
-// effect raise {
+// effect raise
 //   ctl raise(s:string) : a
-// }
 // ```
 
 effect ctl raise(s : string ) : a
 
 fun safe-div(x,y) 
-  if (y==0) then raise("division by zero") else x / y
+  if y==0 then raise("division by zero") else x / y
 
 
 fun rcatch(action,h) 
-  with ctl raise(s){ h(s) }     // handle `raise` with function `h`
-  action()                      // in `action()`
+  with ctl raise(s) h(s)   // handle `raise` with function `h`
+  action()                     // in `action()`
 
 
 fun zerodiv(x,y) 
-  rcatch( { safe-div(x,y) }, fn(s){ 0 } )
+  rcatch( fn() safe-div(x,y), fn(s) 0 )
 
 
-// reify the ctlion effect back to a `:maybe` value
+// reify the exception effect back to a `:maybe` value
 fun to-maybe(action) 
-  with brk raise(s){ Nothing }    // if a function never resumes, using `brk` ("break") can be more efficient then `ctl` (as it runs finalizers eagerly)
+  with final ctl raise(s) Nothing   // a control clause marked as `final` cannot resume; this can be more efficient as it runs finalizers eagerly and does not capture a resumption.
   Just(action())
 
 
-public fun test1() 
+pub fun test1() 
   zerodiv(10,0).println
 
 
@@ -81,7 +79,7 @@ effect state<s>
 
 fun counter() 
   val i = get()
-  if (i <= 0) then () else
+  if i <= 0 then () else
     println("hi")
     put(i - 1);
     counter()
@@ -90,13 +88,13 @@ fun counter()
 // State handler.
 fun state(init, action)
   var s := init        // use a local mutable variable
-  handle(action)
+  handle action
     return(x)  (x,s) 
     fun get()  s 
     fun put(x) s := x 
   
 
-public fun test3() 
+pub fun test3() 
   state(1,counter).snd
 
 
@@ -105,12 +103,11 @@ public fun test3()
 //  Iterators
 // --------------------------------------------------------
 
-// Now we use general control `ctl` as we want to enable breaking
+// Now we use general ctl `ctl` as we want to enable breaking
 // the interation (and thus not resume). Equivalent to:
 // ````
-// effect yield<a> {
+// effect yield<a>
 //   ctl yield( item : a ) : ()
-// }
 // ````
 effect<a> ctl yield( item : a ) : ()
 
@@ -121,21 +118,20 @@ fun iterate(xs : list<a> ) : yield<a> ()
     
 
 fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () 
-  with ctl yield(x){ if f(x) then resume(()) else () }  // resume is explicit in a `ctl` operation
+  with ctl yield(x) if f(x) then resume(()) else ()   // resume is explicit in a `ctl` operation
   action()
 
 
-public fun test4() 
-  foreach( fn(x:int){ println(x); x <= 1 } )
+pub fun test4() 
+  foreach( fn(x:int){ println(x); x <= 1 } ) 
     [1,2,3].iterate
 
 fun test4b() 
-  with return(x){ () }               // just force final result to ()
+  with return(x) ()                // just force final result to ()
   with amb
   with foreach fn(x:int)
     if flip() then println(x) else println("flip false " ++ x.show)
     x <= 1  
-  
   [1,2,3].iterate
 
 
@@ -162,7 +158,7 @@ val amb = handler
   ctl flip() resume(False) ++ resume(True)
 
 
-public fun test5() 
+pub fun test5() 
   amb(xor).show.println
 
 
@@ -178,17 +174,17 @@ fun surprising() : <flip,state<int>> bool
   if (i>0 && p) then xor() else False
 
 
-public fun test6() 
+pub fun test6() 
   state(0){ amb(surprising) }.show.println
 
-public fun test7()
+pub fun test7()
   amb{ state(0,surprising) }.show.println
 
 
 // --------------------------------------------------------
 //  Testing
 // --------------------------------------------------------
-public fun main() 
+pub fun main() 
   test1()
   test2()
   test3()

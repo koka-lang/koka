@@ -35,7 +35,7 @@ fun with-ref(init,action)
 
 // handler for a local heap
 fun heap(action : forall<s> () -> <heap<s>,div|e> a) : <div|e> a   // required rank-2 signature
-  with ctl new-ref(init){ with-ref(init,resume) }
+  with ctl new-ref(init) with-ref(init,resume) 
   action()
 
 
@@ -45,7 +45,7 @@ fun dynamic-ref(init)
   x
 
 
-public fun main()
+pub fun main()
   with heap
   val r1 = new-ref(41)
   val r2 = dynamic-ref(True)

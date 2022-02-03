@@ -15,7 +15,7 @@ module std/text/unicode
 // Each grapheme is a self-contained symbol consisting of
 // a unicode character followed by combining characters and/or 
 // combining marks.
-public alias grapheme = string
+pub alias grapheme = string
 
 extern import {
   cs file "unicode-inline.cs"
@@ -27,7 +27,7 @@ extern import {
 //--------------------------------------------------------------
 
 // Is this a combining character? 
-public fun is-combining( c : char ) : bool {
+pub fun is-combining( c : char ) : bool {
   val i = c.int
   ((i >= 0x0300 && i <= 0x036F) ||
    (i >= 0x1AB0 && i <= 0x1AFF) ||
@@ -51,7 +51,7 @@ fun consrev(xs,xss) {
 
 // Convert a string to a list of graphemes.
 // Each grapheme will be in `NFC` normalized form.
-public fun graphemes( s  : string ) : list<grapheme> {
+pub fun graphemes( s  : string ) : list<grapheme> {
   //s.vgraphemes.list
   s.normalize(NFC).list.join-combining
 }
@@ -61,7 +61,7 @@ public fun graphemes( s  : string ) : list<grapheme> {
 //--------------------------------------------------------------
 
 // Type of unicode [normalization](http://www.unicode.org/reports/tr15)
-public type normalization {
+pub type normalization {
   // Canonical composition (default). Use composed characters when possible.
   con NFC
   // Canonical decomposition.
@@ -80,7 +80,7 @@ extern normalizex( s  : string, norm : string ) : string {
 }
 
 // Normalize a unicode string. If no normalization form is given, `NFC` is used.
-public fun normalize( s  : string, norm : normalization = NFC ) : string {
+pub fun normalize( s  : string, norm : normalization = NFC ) : string {
   val norms = match(norm) {
     NFC -> "NFC"
     NFD -> "NFD"
@@ -97,14 +97,14 @@ public fun normalize( s  : string, norm : normalization = NFC ) : string {
 
 // Return the column-width of a unicode character.
 // Equivalent to ``wcwidth``
-public fun width( c : char ) : int {
+pub fun width( c : char ) : int {
   if (zero-widths.force.contains(c.int)) then 0
   elif (asian-wide.force.contains(c.int)) then 2
   else 1
 }
 
 // Return the total column-width of a string.
-public fun width( s : string ) : int {
+pub fun width( s : string ) : int {
   var total := 0
   s.foreach( fn(c) {
     total := total + c.width

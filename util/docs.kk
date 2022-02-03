@@ -36,7 +36,7 @@ val flag-descs : list<flag<iflags>> =
   ]
 
 
-public fun process-flags() : <ndet,console> maybe<iflags> 
+fun process-flags() : <ndet,console> maybe<iflags> 
   val (flags,args,errs) = parse( Iflags(), flag-descs, get-args() )
   if errs.is-nil && args.is-nil then
     Just(flags)
@@ -44,7 +44,7 @@ public fun process-flags() : <ndet,console> maybe<iflags>
     println( errs.join("\n") ++ "\n" ++ flag-descs.usage(header) )
     Nothing
 
-fun main()
+pub fun main()
   match process-flags()
     Nothing -> ()
     Just(flags) -> build(flags.publish, flags.version || get-compiler-version(), flags.speconly)
@@ -83,6 +83,7 @@ fun build( publish : bool, version : string, speconly : bool ) : io ()
   copy-file-to-dir("lib/std/time/timescales.png".path, outspec)
   copy-file-to-dir("doc/spec/book-style.md".path, outspec)
   copy-file-to-dir("doc/spec/news.mdk".path, outspec)
+  copy-file-to-dir("doc/spec/arm64.json".path, outspec)
   
   val xmps = list-directory(outspec).
              filter(fn(p){ p.string.ends-with(".xmp.html").bool }).
@@ -97,7 +98,7 @@ fun build( publish : bool, version : string, speconly : bool ) : io ()
     ensure-dir(doclocal)
     val htmls = list-directory(outspec).
                 filter(fn(p){ p.extname == "html" && !p.string.ends-with(".xmp.html").bool })
-    htmls.map fn(p){ copy-file-to-dir(p,doclocal)
+    htmls.map fn(p) copy-file-to-dir(p,doclocal)
     copy-directory(outstyles,doclocal / "styles")
     copy-directory(outimages,doclocal / "images")
   

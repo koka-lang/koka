@@ -10,7 +10,7 @@ module time6
 
 import std/num/ddouble
 import std/time/timestamp
-public import std/time
+pub import std/time
 
 
 /*----------------------------------------------------------------------------
@@ -25,7 +25,7 @@ fun check(name : string, t1 : time, t2: time, tst : () -> <io,utc,local<h>> bool
   }
 }
 
-public fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = ts-ti, print-every : int = 10) {
+pub fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = ts-ti, print-every : int = 10) {
   var prevt  := time(starty,1,0,tz=tz,cal=cal,ts=ts)
   var prevwd := prevt.weekday
   for(starty,endy) fn(y:int){
@@ -50,7 +50,7 @@ public fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz
   }
 }
 
-public fun main() {
+pub fun main() {
   // test-dates(~2000,3000,print-every=100)     // takes too long for regular test
   // test-dates(1450,1650,tz-fixed(1) ,cal-jg)  // fails on the gap start for 'minday' and 'plusday'; and at 1582-10-22 because days-in-month gives 21 for that month!
   //println(ts-ti.name.show)
@@ -62,6 +62,6 @@ public fun main() {
   test-dates(tz=tz-fixed(1) , ts=ts-gps)  
 }
 
-public fun benchmark() {
+pub fun benchmark() {
   print-elapsed(main)
 }

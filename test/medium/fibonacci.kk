@@ -1,10 +1,10 @@
 module fibonacci
 
-public fun main() {
+pub fun main() {
   println("The 10000th fibonacci number is " ++ fibonacci(10000).show)
 }
 
-public fun fibonacci(n : int) : div int {
+pub fun fibonacci(n : int) : div int {
   fib(n, 0, 1)
 }
 

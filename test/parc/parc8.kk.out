@@ -1,8 +1,9 @@
 module parc/parc8
-private import std/core/types = std/core/types = "";
-private import std/core = std/core = "";
-public fun test : (x : int, y : int) -> int
+import std/core/types = std/core/types = "";
+import std/core = std/core = "";
+pub fun test : (x : int, y : int) -> int
  = fn(x: int, y: int){
- std/core/types/.drop(y);
- std/core/(+)((std/core/types/.dup(x)), x);
+ val _ : ()
+ = std/core/types/.drop(y);
+ std/core/int-add((std/core/types/.dup(x)), x);
  };

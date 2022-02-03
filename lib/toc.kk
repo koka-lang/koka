@@ -13,33 +13,33 @@ See the [Koka book](book.html) for further information on the Koka language.
 */
 module toc
 
-public import std/core/types
-public import std/core/hnd
-public import std/core
+pub import std/core/types
+pub import std/core/hnd
+pub import std/core
 
-public import std/os/env
-public import std/os/flags
-public import std/os/path
-public import std/os/file
-public import std/os/dir
-public import std/os/process
-public import std/os/task
-public import std/os/readline
+pub import std/os/env
+pub import std/os/flags
+pub import std/os/path
+pub import std/os/file
+pub import std/os/dir
+pub import std/os/process
+pub import std/os/task
+pub import std/os/readline
 
-public import std/text/regex
-public import std/text/parse
-public import std/text/unicode
+pub import std/text/regex
+pub import std/text/parse
+pub import std/text/unicode
 
-public import std/num/decimal
-public import std/num/ddouble
-public import std/num/double
-public import std/num/int32
-public import std/num/int64
-public import std/num/random
+pub import std/num/int32
+pub import std/num/int64
+pub import std/num/float64
+pub import std/num/decimal
+pub import std/num/ddouble
+pub import std/num/random
 
-public import std/time
-public import std/time/timestamp
-// public import std/time/astro
-// public import std/time/download
-// public import std/time/timezone
-// public import std/time/ut1
+pub import std/time
+pub import std/time/timestamp
+// pub import std/time/astro
+// pub import std/time/download
+// pub import std/time/timezone
+// pub import std/time/ut1

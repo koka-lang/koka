@@ -29,7 +29,7 @@ fun l((x : (_, _, _)) : (_, _, _)) : total _ {
     x.fst
 }
 
-public fun main() {
+pub fun main() {
     "f(2, [1], Just([2, 3]))\t-> ".print
     f(2, [1], Just([2, 3])).println
 

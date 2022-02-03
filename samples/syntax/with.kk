@@ -18,12 +18,12 @@ module syntax/with
    ````
 */
 
-fun twice(f) 
+pub fun twice(f) 
   f()
   f()
 
 
-public fun test1() 
+pub fun test1() 
   with twice
   with twice
   println("hi")
@@ -36,7 +36,7 @@ fun test1-expanded()
 
 
 // Without using layout, the fully expanded version is:
-fun test1-fully-expanded() 
+fun test1-fully-expanded() {
   twice( fn(){
     twice( fn(){
       println("hi")
@@ -56,12 +56,12 @@ fun test1-fully-expanded()
     ````
 */
 
-public fun test2()
+pub fun test2()
   with x <- list(1,10).map
   println(x)
 
 
-fun test2-expanded()
+pub fun test2-expanded()
   list(1,10).map(fn(x){
     println(x)
   })
@@ -76,7 +76,7 @@ fun ask-twice()
   ask + ask
 
 
-public fun test3() 
+pub fun test3() 
   with handler{ val ask = 21 }
   println(ask-twice())
 
@@ -101,7 +101,7 @@ fun test3-expanded()
    ````
 */
 
-public fun test4() 
+pub fun test4() 
   with val ask = 21
   println(ask-twice())
 
@@ -111,7 +111,7 @@ fun test4-expanded()
     println(ask-twice())
   })
 
-public fun main() 
+pub fun main() 
   test1()
   test2()
   test3()

@@ -723,7 +723,7 @@ quotes
     ,("I think of my body as a side effect of my mind.", "Carrie Fisher (1956)")
     ,("Laughter is a tranquilizer with no side effects.", "Arnold H. Glasgow")
     ,("To the extent this helps us in any sort of competition, that's great,\nbut that's actually a side effect. It's a happy side effect, nonetheless.", "Gary Flake")
-    ,("There are no side effects -- only effects.\nThose we thought of in advance, the ones we like, we call\nthe main, or intended, effects, and take credit for them.\nThe ones we didn't anticipate,the ones that came around\nand bit us in the rear -- those are the `side effects'", "John D. Sterman (2002)")
+    ,("There are no side effects -- only effects.\nThose we thought of in advance, the ones we like, we call\nthe main, or intended, effects, and take credit for them.\nThe ones we didn't anticipate, the ones that came around\nand bit us in the rear -- those are the `side effects'", "John D. Sterman (2002)")
     ,("Many people recognize that technology often comes\nwith unintended and undesirable side effects.","Leon Kass")
     ,("Before the effect one believes in different causes than one does after the effect.","Friedrich Nietzsche")
     ,("The cause ceasing, the effect ceases also.","Edward Coke")

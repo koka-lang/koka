@@ -1,7 +1,7 @@
 
 effect state<s> {
-  control get() : s
-  control put(x : s) : ()
+  ctl get() : s
+  ctl put(x : s) : ()
 }
 
 fun state(init,action) {
@@ -9,7 +9,7 @@ fun state(init,action) {
   with {
     return(x){ x + 2 }
     fun get(){ s }
-    control put(t){ 42 } 
+    ctl put(t){ 42 } 
   }
   action()
 }

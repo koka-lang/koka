@@ -6,9 +6,7 @@ import basic/garsia-wachs
 import basic/rbtree
 
 import syntax/basic
-import syntax/effect
 import syntax/handler
-import syntax/var
 import syntax/with
 
 import handlers/ambient
@@ -24,7 +22,7 @@ import named-handlers/file
 import named-handlers/file-scoped
 import named-handlers/heap
 
-public fun main() 
+pub fun main() 
   caesar/main()
   fibonacci/main()
   garsia-wachs/main()

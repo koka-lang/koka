@@ -41,7 +41,7 @@ fun find-solutions( n : int, i : int ) : div solutions {
    else extend(n, [], find-solutions(n, i - 1))  
 }
 
-public fun queens( n : int ) : div solutions {
+pub fun queens( n : int ) : div solutions {
   find-solutions(n,n)
 }
 
@@ -56,9 +56,9 @@ effect choose {
 
 fun choose-all( action ) {
   handle(action){
-    return(x)       -> [x]
-    ctl fail()      -> []
-    rawctl pick(n)  -> list(1,n,fn(x){ rcontext.resume(x) }).concat
+    return(x)       [x]
+    ctl fail()      []
+    raw ctl pick(n) list(1,n,fn(x){ rcontext.resume(x) }).concat
   }
 }
 

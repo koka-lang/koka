@@ -134,7 +134,7 @@ pre code code, .madoko pre code code {
 }
 
 .koka .dash { 
-  margin-left: -0.25ex; margin-right: -0.25ex
+  margin-left: -0.05ex; margin-right: -0.05ex
 }
 
 .koka .minus {
@@ -168,7 +168,7 @@ pre.koka.source {
 }
 
 .madoko pre.koka.source {
-  xfont-size: 0.9em;
+  overflow: visible; /* so tooltips .pc always show */
 }
 
 .koka.doc .comment p {

@@ -1,2 +1,2 @@
 static/module1a/ok: V
-private alias ok = static/modA/aint = 2
+alias ok = static/modA/aint = 2

@@ -1,14 +1,14 @@
 
 effect state<s> {
-  control get() : s
-  control put(x : s) : ()
+  ctl get() : s
+  ctl put(x : s) : ()
 }
 
 fun state(init,action) {
   var s := init
   with {
     fun get(){ s }
-    control put(t){ s := t; val x = resume(()); s := t; 20 + x + resume(()) } 
+    ctl put(t){ s := t; val x = resume(()); s := t; 20 + x + resume(()) } 
   }
   action()
 }

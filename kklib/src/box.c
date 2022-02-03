@@ -324,13 +324,13 @@ kk_box_t kk_double_box(double d, kk_context_t* ctx) {
   uint64_t exp = u & 0x7FF;
   u -= exp;
   // adjust to 10-bit exponent (if possible)
-  if (exp==0) {
+  if (exp==0) { // zero or subnormal
     // already good
   }
-  else if (exp==0x7FF) {
+  else if (exp==0x7FF) { // infinity or NaN
     exp = 0x3FF;
   }
-  else if (exp > 0x200 && exp < 0x5FF) {
+  else if (exp > 0x200 && exp < 0x5FF) {  // absolute value between [2^-510,2^512)
     exp -= 0x200;
   }
   else {

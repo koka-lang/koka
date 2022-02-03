@@ -196,6 +196,7 @@ program source
 pmodule :: Source -> LexParser UserProgram
 pmodule source
   = do (vis,rng,doc) <- try $ do (vis,_) <- visibility Private
+                                 -- if (vis == Public) then pwarningMessage "using 'public module' is deprecated" else return ()
                                  (rng,doc) <- dockeyword "module"
                                  return (vis,rng,doc)
        -- (rng,doc) <- dockeyword "module"
@@ -292,8 +293,11 @@ importAlias
 
 visibility :: Visibility -> LexParser (Visibility,Range)
 visibility vis
-  =   do rng <- keyword "pub" <|> keyword "public"; return (Public,rng)
-  <|> do rng <- keyword "private"; return (Private,rng)
+  =   do rng <- keywordOr "pub" ["public"]
+         return (Public,rng)
+  <|> do rng <- keyword "private" 
+         pwarningMessage "using 'private' is deprecated, only use 'pub' to make declarations public"
+         return (Private,rng)
   <|> return (vis,rangeNull)
 
 
@@ -486,7 +490,9 @@ externalTarget
 --------------------------------------------------------------------------}
 fixDecl :: LexParser FixDefs
 fixDecl
-  = do assoc <- assocDef
+  = do (vis,vrng,assoc) <- try $ do (vis,vrng) <- visibility Private
+                                    assoc <- assocDef
+                                    return (vis,vrng,assoc)
        (n,_) <- integer
        -- convenient to check here, but it really should be done during static analysis.
        if (n < 0 || n > 100)
@@ -494,7 +500,7 @@ fixDecl
         else return ()
        let prec = fromInteger n
        names <- sepBy1 identifier comma
-       return [FixDef name (FixInfix prec assoc) rng | (name,rng) <- names]
+       return [FixDef name (FixInfix prec assoc) (combineRange vrng rng) vis | (name,rng) <- names]
 {-
   <|>
     do fix   <- do{ keyword "prefix"; return FixPrefix }
@@ -936,15 +942,23 @@ parseFunOpDecl linear vis =
   do ((rng0,doc),opSort) <- do rdoc <- dockeywordFun
                                return (rdoc,OpFun)
                            <|>
-                            do rdoc <- dockeyword "except" <|> dockeyword "brk"
-                               if (linear)
-                                then fail "'brk' operations are invalid for a linear effect"
-                                else return (rdoc,OpExcept)
-                           <|>
-                            do rdoc <- dockeyword "control" <|> dockeyword "ctl"
+                            do rdoc <- dockeyword "ctl" <|> dockeyword "control"
                                if (linear)
                                 then fail "'ctl' operations are invalid for a linear effect"
                                 else return (rdoc,OpControl)
+                           <|>
+                            do rdoc <- dockeyword "final"
+                               keyword "ctl"
+                               if (linear)
+                                then fail "'final ctl' operations are invalid for a linear effect"
+                                else return (rdoc,OpExcept)
+                           -- deprecated:
+                           <|>
+                            do rdoc <- dockeyword "except" <|> dockeyword "brk"
+                               if (linear)
+                                then fail "'brk' (or 'final ctl') operations are invalid for a linear effect"
+                                else return (rdoc,OpExcept)
+                           
      (id,idrng)   <- identifier
      exists0      <- typeparams
      (pars,_,prng)  <- declParams False {-allowBorrow-} True {-allowDefaults-}
@@ -1482,7 +1496,7 @@ lambda alts
 
 ifexpr
   = do rng <- keyword "if"
-       tst <- nbexpr
+       tst <- ntlexpr
        (texpr,eexprs,eexpr) <- 
            do texpr <- returnexpr
               return (texpr, [], Var nameUnit False (after (getRange texpr)))
@@ -1508,7 +1522,7 @@ ifexpr
   where
     elif
       = do keyword "elif"
-           tst <- nbexpr -- parens expr
+           tst <- ntlexpr -- parens expr
            texpr <- thenexpr
            return (tst,texpr)
 
@@ -1529,7 +1543,7 @@ returnexpr
 
 matchexpr
   = do rng <- keyword "match"
-       tst <- nbexpr  -- allows tuples for multi pattern match
+       tst <- ntlexpr  -- allows tuples for multi pattern match
        (branches,rng2) <- semiBracesRanged1 branch
        return (Case tst branches (combineRange rng rng2))
   <|> handlerExpr
@@ -1542,9 +1556,9 @@ handlerExpr
            let rng = combineRange rng0 rng1
            scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
            (override,mbEff) <- handlerOverride hsort
-           arg  <- parens argument
+           arg  <- ntlexpr -- parens argument
            expr <- handlerClauses rng mbEff scoped override hsort
-           return (App expr [arg] (combineRanged rng expr))
+           return (App expr [(Nothing,arg)] (combineRanged rng expr))
         <|>
         do rng1 <- keyword "handler"
            let rng = combineRange rng0 rng1
@@ -1705,11 +1719,20 @@ handlerOp
     do opSort <- do keyword "fun"
                     return OpFun
                  <|>
-                 do keyword "except" <|> keyword "brk"
+                 do keywordOr "ctl" ["control"]
+                    return OpControl
+                 <|>
+                 do keyword "final"
+                    keyword "ctl"
                     return OpExcept
                  <|>
-                 do keyword "control" <|> keyword "ctl"
-                    return OpControl
+                 do keyword "raw"
+                    keyword "ctl"
+                    return OpControlRaw
+                 <|>
+                 -- deprecated
+                 do keyword "except" <|> keyword "brk"
+                    return OpExcept
                  <|>
                  do keyword "rcontrol" <|> keyword "rawctl"
                     return OpControlRaw
@@ -1792,8 +1815,8 @@ pguardTest
 {--------------------------------------------------------------------------
   Op expr
 --------------------------------------------------------------------------}
-nbexpr :: LexParser UserExpr
-nbexpr 
+ntlexpr :: LexParser UserExpr -- non-trailing-lambda expression
+ntlexpr 
   = opexprx False
 
 opexpr :: LexParser UserExpr

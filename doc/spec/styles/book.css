@@ -175,7 +175,16 @@ pre.lang-cpp::before {
   margin-right: -0.5ex;
 	color: #999;
 	border: 1px solid #AAA;
-  padding: 0ex 0.2ex;  
+  padding: 0ex 0.2ex; 
+}
+
+pre.lang-arm64::before {
+  content: "assembly";
+  float: right;
+  margin-right: -0.5ex;
+	color: #999;
+	border: 1px solid #AAA;
+  padding: 0ex 0.2ex;
 }
 
 html {

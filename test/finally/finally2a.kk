@@ -31,7 +31,7 @@ fun foo() : _ int
 fun main() {
   handle(foo) {
     return (x){ println( "result: " ++ (x:int).show ) }
-    brk raise(msg){ println("raised: " ++ msg) }
+    final ctl raise(msg){ println("raised: " ++ msg) }
     finally { println("exc finalize") }
   }
 }

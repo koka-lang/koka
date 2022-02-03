@@ -12,7 +12,7 @@
 module Core.Uniquefy ( uniquefy
                      , uniquefyDefGroup {- used for divergence analysis -}
                      , uniquefyExpr
-                     , uniquefyDefGroups {- used in inline -}
+                     , uniquefyDefGroups {- used in inline -}                     
                      ) where
 
 import Control.Monad
@@ -21,6 +21,7 @@ import Common.Name
 import qualified Common.NameSet as S
 import qualified Common.NameMap as M
 import Core.Core
+import Core.CoreVar( freeLocals )
 import Common.Failure
 
 type Locals = S.NameSet
@@ -68,7 +69,11 @@ runUn (Un u)
   = fst (u (St S.empty M.empty))
 
 uniquefyExpr :: Expr -> Expr
-uniquefyExpr expr = runUn (uniquefyExprX expr)
+uniquefyExpr expr 
+  = let locals = S.map getName (freeLocals expr) 
+    in runUn $
+       do setLocals locals
+          uniquefyExprX expr
 
 uniquefy :: Core -> Core
 uniquefy core

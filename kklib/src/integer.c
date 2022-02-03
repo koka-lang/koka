@@ -144,13 +144,13 @@ typedef int16_t kk_extra_t;
 typedef struct kk_bigint_s {
   kk_block_t  _block;
 #if KK_INTPTR_SIZE>=8
-  uint8_t  is_neg: 1;      // negative
+  uint8_t     is_neg: 1;      // negative
   kk_extra_t  extra :15;      // extra digits available: `sizeof(digits) == (count+extra)*sizeof(kk_digit_t)`
-  int64_t count :48;      // count of digits in the number
+  int64_t     count :48;      // count of digits in the number
 #else
-  uint8_t  is_neg;
+  uint8_t     is_neg;
   kk_extra_t  extra;
-  int32_t count;
+  int32_t     count;
 #endif
   kk_digit_t  digits[1];      // digits from least-significant to most significant.
 } kk_bigint_t;
@@ -336,9 +336,8 @@ static kk_integer_t integer_bigint(kk_bigint_t* x, kk_context_t* ctx) {
 
 // create a bigint from an kk_int_t
 static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
-  bool is_neg = (i < 0);
-  kk_uintx_t u;  // use uint64 so we can convert MIN_INT64
-  if (!is_neg) {
+  kk_uintx_t u;  
+  if (i >= 0) {
     u = (kk_uintx_t)i;
   }
   else if (i == KK_INTX_MIN) {
@@ -347,7 +346,7 @@ static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
   else {
     u = (kk_uintx_t)(-i);
   }
-  kk_bigint_t* b = bigint_alloc(0, is_neg, ctx); // will reserve at least 4 digits
+  kk_bigint_t* b = bigint_alloc(0, i < 0, ctx); // will reserve at least 4 digits
   do {
     b = bigint_push(b, u%BASE, ctx);
     u /= BASE;
@@ -357,9 +356,8 @@ static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
 
 // create a bigint from an int64_t
 static kk_bigint_t* bigint_from_int64(int64_t i, kk_context_t* ctx) {
-  bool is_neg = (i < 0);
   uint64_t u;  // use uint64 so we can convert MIN_INT64
-  if (!is_neg) { 
+  if (i >= 0) { 
     u = (uint64_t)i; 
   }
   else if (i == INT64_MIN) { 
@@ -368,7 +366,7 @@ static kk_bigint_t* bigint_from_int64(int64_t i, kk_context_t* ctx) {
   else { 
     u = (uint64_t)(-i); 
   }
-  kk_bigint_t* b = bigint_alloc(0, is_neg, ctx); // will reserve at least 4 digits
+  kk_bigint_t* b = bigint_alloc(0, i < 0, ctx); // will reserve at least 4 digits
   do {
     b = bigint_push(b, (kk_digit_t)(u%BASE), ctx);
     u /= BASE;
@@ -1260,7 +1258,7 @@ kk_integer_t kk_integer_sqr_generic(kk_integer_t x, kk_context_t* ctx) {
   return integer_bigint(kk_bigint_sqr(bx, ctx), ctx);
 }
 
-/* borrow x, may prodice an invalid read if x is not a bigint */
+/* borrow x, may produce an invalid read if x is not a bigint */
 int kk_integer_signum_generic_bigint(kk_integer_t x) {
   kk_assert_internal(kk_is_integer(x));
   kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
@@ -1401,7 +1399,7 @@ kk_integer_t kk_integer_cmod_generic(kk_integer_t x, kk_integer_t y, kk_context_
 // - x `mod` 2^n == and(x,2^(n-1))  for any x, n
 // - Euclidean division behaves identical to truncated division for positive dividends.
 kk_integer_t kk_integer_div_mod_generic(kk_integer_t x, kk_integer_t y, kk_integer_t* mod, kk_context_t* ctx) {
-if (kk_integer_is_zero_borrow(y)) {
+  if (kk_integer_is_zero_borrow(y)) {
     // div by zero
     if (mod!=NULL) {
       *mod = x;
@@ -1423,14 +1421,18 @@ if (kk_integer_is_zero_borrow(y)) {
     if (kk_integer_is_neg_borrow(m)) {
       if (kk_integer_is_neg_borrow(y)) {
         d = kk_integer_inc(d, ctx);
-        if (mod!=NULL) { m = kk_integer_sub(m, y, ctx); }      
+        if (mod!=NULL) { 
+          m = kk_integer_sub(m, kk_integer_dup(y), ctx); 
+        }
       }
       else {
         d = kk_integer_dec(d, ctx);
-        if (mod!=NULL) { m = kk_integer_add(m, y, ctx); } 
+        if (mod!=NULL) { 
+          m = kk_integer_add(m, kk_integer_dup(y), ctx); 
+        } 
       }
     }
-    kk_integer_drop(y,ctx);
+    kk_integer_drop(y, ctx);
     if (mod==NULL) {
       kk_integer_drop(m, ctx);
     }
@@ -1726,107 +1728,161 @@ kk_integer_t kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
   return d;
 }
 
-/* owned x, may produce an invalid read if x is not a bigint */
-int32_t kk_integer_clamp32_bigint(kk_integer_t x) {
-  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
-  int32_t i = 0;
-#if (BASE < INT32_MAX)
-  if (bx->count > 1) {
-    i = (int32_t)(bx->digits[1]*BASE);
-  }
+
+/*----------------------------------------------------------------------
+  clamp to smaller integers
+----------------------------------------------------------------------*/
+
+static bool kk_digit_to_uint64_ovf(kk_digit_t d, uint64_t* u) {
+#if (BASE > UINT64_MAX)
+  if (kk_unlikely(d > UINT64_MAX)) return true;
 #endif
-  i += (int32_t)bx->digits[0];
-  if (bx->is_neg) i = -i;
-  return i;
+  *u = d;
+  return false;
 }
 
-/* borrow x, may prodice an invalid read if x is not a bigint */
-int64_t kk_integer_clamp64_bigint(kk_integer_t x) {
-  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
-  int64_t i = 0;
-#if (BASE < (INT64_MAX/BASE))
-  if (bx->count > 2) i += ((int64_t)bx->digits[2])*BASE*BASE;
-#endif
-#if (BASE < INT64_MAX)
-  if (bx->count > 1) i += ((int64_t)bx->digits[1])*BASE;
-#endif
-  i += bx->digits[0];
-  if (bx->is_neg) i = -i;
-  return i;
+static bool kk_uint64_add_ovf(uint64_t x, uint64_t y, uint64_t* z) {
+  if (kk_unlikely(x > (UINT64_MAX - y))) return true;
+  *z = x + y;
+  return false;
 }
 
-/* borrow x, may prodice an invalid read if x is not a bigint */
-size_t kk_integer_clamp_size_t_bigint(kk_integer_t x) {
-  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
-  size_t i = 0;
-  if (bx->is_neg) goto done;
-#if (BASE < (SIZE_MAX/BASE))
-  if (bx->count > 3) {
-    i = SIZE_MAX; goto done; // overflow
-  }
-  else if (bx->count == 3) {
-    kk_digit_t d = bx->digits[2];
-    if (d > (SIZE_MAX/(BASE*(size_t)BASE))) {
-      i = SIZE_MAX; goto done; // overflow;
-    }
-    i = (size_t)d*BASE*BASE;
-  }
-  if (bx->count >= 2) {
-    i += (size_t)bx->digits[1]*BASE;
-  }
-#elif (BASE < SIZE_MAX)
-  if (bx->count > 2) {
-    i = SIZE_MAX; goto done; // overflow
-  }
-  else if (bx->count >= 2) {
-    kk_digit_t d = bx->digits[1];
-    if (d > (SIZE_MAX/BASE)) {
-      i = SIZE_MAX; goto done; // overflow;
-    }
-    i = (size_t)d*BASE;
-  }
-#endif
-  i += (size_t)bx->digits[0];
-done:
-  return i;
+static bool kk_uint64_mul_ovf(uint64_t x, uint64_t y, uint64_t* z) {
+  if (kk_unlikely(x > (UINT64_MAX / y))) return true;
+  *z = x*y;
+  return false;
 }
 
-kk_ssize_t kk_integer_clamp_ssize_t_bigint(kk_integer_t x, kk_context_t* ctx) {
-  bool isneg = (kk_integer_signum_generic_bigint(x) < 0);
-  size_t sz = kk_integer_clamp_size_t_bigint( (isneg ? kk_integer_neg_generic(x, ctx) : x));
-  if (isneg) {
-    return (sz <= KK_SSIZE_MAX ? -((kk_ssize_t)sz) : KK_SSIZE_MIN);
+static uint64_t kk_bigint_clamp_uint64(kk_bigint_t* bx, kk_context_t* ctx) {
+  uint64_t u = 0;
+  if (bx->count==0) {
+    // nothing
+  }
+  else if (bx->count==1
+          #if (DIGIT_BITS >= 64)
+           && bx->digits[0] <= UINT64_MAX
+          #endif         
+          ) {
+    // fast path for "small" integers
+    u = (uint64_t)bx->digits[0];
   }
   else {
-    return (sz <= KK_SSIZE_MAX ? (kk_ssize_t)sz : KK_SSIZE_MAX);
+    // overflow safe multiply-add
+    for (kk_intx_t i = bx->count-1; i >= 0; i--) {  // unroll?
+      uint64_t d;
+      if (kk_digit_to_uint64_ovf(bx->digits[i], &d) ||
+          kk_uint64_mul_ovf(u, BASE, &u) ||
+          kk_uint64_add_ovf(u, d, &u)) {
+        u = UINT64_MAX; 
+        break; 
+      }
+    }
+  }
+  drop_bigint(bx, ctx);
+  return u;
+}
+
+int64_t kk_integer_clamp64_generic(kk_integer_t x, kk_context_t* ctx) {
+  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+  if (bx->count==0) {
+    drop_bigint(bx, ctx);
+    return 0;
+  }
+  else if (bx->count==1
+          #if (DIGIT_BITS >= 64)
+          && bx->digits[0] <= INT64_MAX
+          #endif         
+          ) {
+    // fast path for small integers
+    int64_t i = (int64_t)bx->digits[0];
+    if (bx->is_neg) { i = -i; }
+    drop_bigint(bx, ctx);
+    return i;
+  }
+  else {
+    bool is_neg = bx->is_neg;
+    uint64_t u = kk_bigint_clamp_uint64(bx, ctx);
+    if (is_neg) {  // note: ensures INT64_MIN is handled correctly
+      return (u > INT64_MAX ? INT64_MIN : -((int64_t)u));
+    }
+    else {
+      return (u > INT64_MAX ? INT64_MAX : (int64_t)u);
+    }
   }
 }
 
-/* borrow x, may prodice an invalid read if x is not a bigint */
-double kk_integer_as_double_bigint(kk_integer_t x) {
-  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
-  if (bx->count > ((310/LOG_BASE) + 1)) return (bx->is_neg ? -HUGE_VAL : HUGE_VAL);
-  double base = (double)BASE;
-  double d = 0.0;
-  for (kk_ssize_t i = bx->count; i > 0; i--) {
-    d = (d*base) + ((double)bx->digits[i-1]);
+
+int32_t kk_integer_clamp32_generic(kk_integer_t x, kk_context_t* ctx) {
+  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+  if (bx->count==0) {
+    drop_bigint(bx, ctx);
+    return 0;
   }
-  if (bx->is_neg) d = -d;
+  else if (bx->count==1 && bx->digits[0] <= INT32_MAX) {
+    // fast path for small integers
+    int32_t i = (int32_t)bx->digits[0];
+    if (bx->is_neg) { i = -i; }
+    drop_bigint(bx, ctx);
+    return i;
+  }
+  else {
+    // use intermediate uint64_t
+    bool is_neg = bx->is_neg;
+    uint64_t u = kk_bigint_clamp_uint64(bx, ctx);
+    if (is_neg) {  // note: ensures INT32_MIN is handled correctly
+      return (u > INT32_MAX ? INT32_MIN : -((int32_t)u));
+    }
+    else {
+      return (u > INT32_MAX ? INT32_MAX : (int32_t)u);
+    }
+  }
+}
+
+size_t kk_integer_clamp_size_t_generic(kk_integer_t x, kk_context_t* ctx) {
+  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+#if (SIZE_MAX <= UINT64_MAX)
+  uint64_t u = (bx->is_neg ? 0 : kk_bigint_clamp_uint64(bx, ctx));
+  drop_bigint(bx, ctx);
+  return (u > SIZE_MAX ? SIZE_MAX : (size_t)u);
+#else
+#error "define kk_integer_clamp_size_t_bigint for this platform"
+#endif
+}
+
+
+double kk_integer_as_double_generic(kk_integer_t x, kk_context_t* ctx) {
+  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+  double d;
+  if (bx->count > ((310/LOG_BASE) + 1)) {
+    d = HUGE_VAL;
+  }
+  else {
+    d = 0.0;
+    double base = (double)BASE;
+    for (kk_ssize_t i = bx->count; i > 0; i--) {
+      d = (d*base) + ((double)bx->digits[i-1]);
+    }    
+  }
+  if (bx->is_neg) { d = -d; }
+  drop_bigint(bx, ctx);
   return d;
 }
 
-static inline double double_round_even(double d) {
+double kk_double_round_even(double d, kk_context_t* ctx) {
+  kk_unused(ctx);
   double r = round(d);
-  if (fabs(d-r) == 0.5) {
-    // exactly in-between, round to even
-    r = 2.0*round(d/2.0);
+  if (fabs(d - r) == 0.5) {
+    // exactly in-between, round to the nearest even number
+    return 2.0*round(d/2.0);
   }
-  return r;
+  else {
+    return r;
+  }
 }
 
 kk_integer_t kk_integer_from_double(double d, kk_context_t* ctx) {
   char buf[32];
-  d = double_round_even(d);
+  d = kk_double_round_even(d,ctx);
   if (!isnormal(d)) {
     return kk_integer_zero;
   }

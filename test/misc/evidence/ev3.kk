@@ -1,4 +1,4 @@
-public module ev3
+pub module ev3
 
 /*
 type exc :: HX;

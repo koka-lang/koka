@@ -15,7 +15,7 @@ fun collatz(n : int, steps : int = 0) : div maybe<int> {
   }
 }
 
-public fun main() : io () {
+pub fun main() : io () {
   match(collatz(27)) {
     Nothing -> println("Overflowed integer range.")
     Just(n) -> println("Took " ++ n.show ++ " steps.")

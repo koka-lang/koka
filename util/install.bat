@@ -4,7 +4,7 @@ rem Installation script for Koka; use -h to see command line options.
 rem ------------------------------------------------------------------
 
 setlocal
-set KOKA_VERSION=v2.3.6
+set KOKA_VERSION=v2.3.8
 set KOKA_PREFIX=%LOCALAPPDATA%\koka
 set KOKA_UNINSTALL=N
 set KOKA_HELP=N
@@ -17,11 +17,11 @@ set KOKA_PREV_VERSION=
 set KOKA_PREV_PREFIX=
 set KOKA_ARCH=x64
 
-set CLANG_VERSION=12.0.1
+set CLANG_VERSION=13.0.0
 set CLANG_INSTALL_BASE=LLVM-%CLANG_VERSION%-win64.exe
 set CLANG_INSTALL=%TEMP%\%CLANG_INSTALL_BASE%
 set CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%CLANG_VERSION%/%CLANG_INSTALL_BASE%
-set CLANG_INSTALL_SHA256=fcbabc9a170208bb344f7bba8366cca57ff103d72a316781bbb77d634b9e9433
+set CLANG_INSTALL_SHA256=f81f08a8bd9d787ec0505a7475cdff9653516cbbc5804e973f8749a2139fa1cb
 
 rem check if %LOCALAPPDATA% was not empty
 if "%KOKA_PREFIX%" == "\koka" (set KOKA_PREFIX=c:\usr\local\koka)

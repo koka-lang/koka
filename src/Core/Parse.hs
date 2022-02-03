@@ -178,13 +178,19 @@ semisEnv env p
       <|>
         return (reverse xs,env0)
 
+vispub :: LexParser Visibility
+vispub 
+  = do keyword "pub"
+       return Public  
+  <|>
+    return Private
 
 {--------------------------------------------------------------------------
   Top Declarations
 --------------------------------------------------------------------------}
 importDecl :: LexParser (Import,(Name,Name))
 importDecl
-  = do (vis,doc) <- try $ do (vis,_) <- visibility Private
+  = do (vis,doc) <- try $ do vis <- vispub
                              (_,doc) <- dockeyword "import"
                              return (vis,doc)
        (asname,name,_) <- importAlias
@@ -214,7 +220,7 @@ pfixity
 --------------------------------------------------------------------------}
 typeDecl :: Env -> LexParser (TypeDef,Env)
 typeDecl env
-  = do (vis,(ddef,isExtend,sort,doc))  <- try $ do (vis,_) <- visibility Public
+  = do (vis,(ddef,isExtend,sort,doc))  <- try $ do vis <- vispub
                                                    info <- typeSort
                                                    return (vis,info)
        tname <- if (isExtend)
@@ -236,7 +242,7 @@ typeDecl env
            dataInfo = DataInfo sort tname kind params cons1 rangeNull ddef vis doc
        return (Data dataInfo isExtend, env)
   <|>
-    do (vis,doc) <- try $ do (vis,_) <- visibility Public
+    do (vis,doc) <- try $ do vis <- vispub
                              (_,doc) <- dockeyword "alias"
                              return (vis,doc)
        (name,_) <- tbinderId
@@ -251,7 +257,7 @@ typeDecl env
        return (Synonym synInfo, envExtendSynonym env synInfo)
 
 conDecl tname foralls sort env
-  = do (vis,doc) <- try $ do (vis,_) <- visibility Public
+  = do (vis,doc) <- try $ do vis <- vispub
                              (_,doc) <- dockeyword "con"
                              return (vis,doc)
        (name,_)  <- constructorId
@@ -296,7 +302,7 @@ parseTypeMod
 
 defDecl :: Env -> LexParser Def
 defDecl env
-  = do (vis,sort0,inl,doc) <- try $ do (vis,_) <- visibility Public
+  = do (vis,sort0,inl,doc) <- try $ do vis <- vispub
                                        (sort,inl,isRec,doc) <- pdefSort
                                        return (vis,sort,inl,doc)
        (name,_) <- funid <|> idop
@@ -330,7 +336,7 @@ pdefSort
 --------------------------------------------------------------------------}
 externDecl :: Env -> LexParser External
 externDecl env
-  = do (vis,doc)  <- try $ do (vis,_) <- visibility Public
+  = do (vis,doc)  <- try $ do vis <- vispub
                               (_,doc) <- dockeyword "extern"
                               return (vis,doc)
        (name,_) <- (funid)
@@ -407,7 +413,7 @@ inlineDef env
        -- trace ("core inline def: " ++ show name) $ return ()
        (name,_) <- funid
        expr <- parseBody env
-       return (InlineDef (envQualify env name) expr isRec inl (if (inl==InlineAlways) then 0 else costExpr expr) specArgs)
+       return (InlineDef (envQualify env name) expr isRec inl (if (inl==InlineAlways) then 0 else costExpr expr) sort specArgs)
 
 
 inlineDefSort
@@ -415,11 +421,14 @@ inlineDefSort
        inl <- parseInline
        spec <- do specialId "specialize" 
                   (s,_) <- stringLit
-                  let args = [c == '*' | c <- s] 
-                  return args
+                  return [c == '*' | c <- s] 
                <|> return []
-       (do (_,doc) <- dockeyword "fun"
-           return (DefFun [],inl,isRec,spec,doc)
+       pinfos <- do specialId "borrow"
+                    (s,_) <- stringLit
+                    return [if c == '^' then Borrow else Own | c <- s] 
+                 <|> return []
+       (do (_,doc) <- dockeyword "fun"           
+           return (DefFun pinfos,inl,isRec,spec,doc)
         <|>
         do (_,doc) <- dockeyword "val"
            return (DefVal,inl,False,spec,doc))
@@ -541,7 +550,7 @@ parseDefGroups0 env
 parseDefGroup :: Env -> LexParser (Env,DefGroup)
 parseDefGroup env
   = do (sort,inl,isRec,doc) <- pdefSort
-       (name,_)   <- funid <|> do{ wildcard; return (nameNil,rangeNull) }
+       (name,tp)  <- funid <|> do{ wildcard; return (nameNil,rangeNull) }
        -- inl        <- parseInline
        tp         <- typeAnnot env
        expr       <- parseBody env

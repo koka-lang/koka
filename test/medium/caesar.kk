@@ -1,6 +1,6 @@
-public module caesar
+module caesar
 
-import std/num/double
+import std/num/float64
 
 fun encode( s : string, shift : int = 3)
 {
@@ -26,7 +26,7 @@ val english = [8.2,1.5,2.8,4.3,12.7,2.2,
 
 // Small helper functions
 fun percent( n : int, m : int ) {
-  100.0 * (n.double / m.double)
+  100.0 * (n.float64 / m.float64)
 }
 
 fun rotate( xs, n ) {
@@ -34,7 +34,7 @@ fun rotate( xs, n ) {
 }
 
 // Calculate a frequency table for a string
-fun freqs( s : string ) : list<double>
+fun freqs( s : string ) : list<float64>
 {
   val lowers = list('a','z')
   val occurs = lowers.map( fn(c){ s.count(c.string) })
@@ -44,7 +44,7 @@ fun freqs( s : string ) : list<double>
 
 // Calculate how well two frequency tables match according 
 // to the _chi-square_ statistic.
-fun chisqr( xs : list<double>, ys : list<double> ) : double
+fun chisqr( xs : list<float64>, ys : list<float64> ) : float64
 {
   zipwith(xs,ys, fn(x,y){ ((x - y)^2.0)/y } ).sum()
 }
@@ -61,11 +61,11 @@ fun uncaesar( s : string ) : string
   s.encode( shift )
 }
   
-public fun test-uncaesar() {
+pub fun test-uncaesar() {
   println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
 }
 
-public fun main() {
+pub fun main() {
   val s = "Koka is a well-typed language"
   println( "plain  : " ++ s)
   println( "encoded: " ++ s.caesar)

@@ -1,4 +1,4 @@
-public module bayes
+module bayes
 
 /* Goal: Bayesian Statistical Modelling
      Input data: x   y
@@ -18,7 +18,7 @@ public module bayes
                 e.g.: a ~ Normal(0, 2)
 */
 
-import std/num/double
+import std/num/float64
 import std/num/ddouble  // 128-bit double-double
 import std/num/random
 
@@ -27,7 +27,7 @@ import std/num/random
 // --------------------------------------------------------------------
 alias rplus = ddouble
 
-fun rplus(d : double) = d.ddouble
+fun rplus(d : float64) = d.ddouble
 fun rplus(i : int) = i.ddouble
 
 fun list-join(len : int, elem) {
@@ -35,13 +35,13 @@ fun list-join(len : int, elem) {
   "[" ++ xs.join(",") ++ "]"
 }
 
-fun plot( f : (double -> double) ) : string {
+fun plot( f : (float64 -> float64) ) : string {
   val lft = 0.0
   val rgt = 4.0
   val steps = 100
-  val stp = (rgt - lft) / steps.double
+  val stp = (rgt - lft) / steps.float64
   list-join(steps) fn(i:int) {
-    val x = lft + (stp * i.double)
+    val x = lft + (stp * i.float64)
     val y = f( x )
     "[" ++ x.show(6) ++ "," ++ y.show(6) ++ "]"
   }
@@ -53,14 +53,14 @@ fun example-plot() {
 
 // --------------------------------------------------------------------
 // Effects for Baysian inference.
-// `sample` is a `fun` and does not change control flow (i.e. is tail-resumptive)
-// `score` is `control` and can use `resume` as a first-class function.
+// `sample` is a `fun` and does not change ctl flow (i.e. is tail-resumptive)
+// `score` is `ctl` and can use `resume` as a first-class function.
 // --------------------------------------------------------------------
-effect fun sample() : double
-effect control score( s : rplus ) : ()
+effect fun sample() : float64
+effect ctl score( s : rplus ) : ()
 
 fun random-sampler(action : () -> <sample|e> a) : <ndet|e> a {
-  with fun sample() { srandom-double() }
+  with fun sample() { srandom-float64() }
   mask<ndet>(action)  // mask out `ndet` from the `action` effect
 }
 
@@ -69,11 +69,11 @@ fun random-sampler(action : () -> <sample|e> a) : <ndet|e> a {
 --------------------------------------------------------------------*/
 
 // [Box-Muller](https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform) transform.
-fun box-muller(u1 :double, u2 :double) {
+fun box-muller(u1 :float64, u2 :float64) {
   sqrt(-2.0 * log(u1)) * cos(dbl-twopi * u2)
 }
 
-fun standard-normal() : <sample> double {
+fun standard-normal() : <sample> float64 {
   box-muller(sample(),sample())
 }
 
@@ -85,7 +85,7 @@ fun normal(mean, sdv ) {
   Statistical modelling
 --------------------------------------------------------------------*/
 alias model<a>   = () -> <sample,score> a
-alias regression = model<double -> double>
+alias regression = model<float64 -> float64>
 
 val homogeneous-linear : regression = fn() {
   val a = normal(0.0,2.0)
@@ -116,7 +116,7 @@ fun plot-reg() {
 /*--------------------------------------------------------------------
 
 --------------------------------------------------------------------*/
-fun normal-pdf(mean : double, sdv : double, x : double) : rplus {
+fun normal-pdf(mean : float64, sdv : float64, x : float64) : rplus {
   rplus( exp( ~sqr(x - mean) / (2.0*sqr(sdv)) )
             / (sdv * sqrt(dbl-twopi)) )
 }
@@ -133,8 +133,8 @@ val fitted-specific : regression = fn() {
 // More generally
 val dataset = [(1.0, 1.1), (2.0, 1.9), (3.0, 2.7)]
 
-fun fit(reg : regression, data : list<(double,double)>) : regression = fn(){
-  val f : double -> double = reg()
+fun fit(reg : regression, data : list<(float64,float64)>) : regression = fn(){
+  val f : float64 -> float64 = reg()
   data.foreach fn(xy){
     val (x,y) = xy  // or `xy.fst`, `xy.snd `
     normal-pdf( f(x), 0.25, y ).score
@@ -189,12 +189,12 @@ fun normalise(pop : list-dist<a>) : list-dist<a> {
 }
 
 fun weighted-choice( ld : list-dist<a>, default : a ) : <sample> a {
-  val total = ld.sum-weights.double
+  val total = ld.sum-weights.float64
   val total-fuel = total * sample()
   fun pick(xs,fuel) {
     match(xs) {
       Cons((w:rplus,x),xx) {
-        val fuel1 = fuel - w.double
+        val fuel1 = fuel - w.float64
         if (fuel1.is-pos) then xx.pick(fuel1) else x
       }
       Nil -> default
@@ -204,8 +204,8 @@ fun weighted-choice( ld : list-dist<a>, default : a ) : <sample> a {
 }
 
 
-fun plot-population(histogram : list<(rplus,double -> double)>) : <sample> string {
-  val negligible = histogram.filter( fn(wx){ wx.fst.double < 0.00001 }).length
+fun plot-population(histogram : list<(rplus,float64 -> float64)>) : <sample> string {
+  val negligible = histogram.filter( fn(wx){ wx.fst.float64 < 0.00001 }).length
   list-join(15) fn(i){
     val f = weighted-choice(histogram,id)
     plot(f)
@@ -235,7 +235,7 @@ alias thunk<a> = () -> <score,sample> a  // todo: make it polymorphic in `e`
 
 // Break on score-ing
 fun yield-on-score(action : () -> <score,sample> a) : <score,sample> thunk<a> {
-  with control score(w) {
+  with ctl score(w) {
     score(w)
     ({ resume(())() })   // or (fn(){ resume(()) })
   }
@@ -262,7 +262,7 @@ fun trun( thunks : list-dist<thunk<a>> ) : sample list-dist<a> {
   }
 }
 
-fun score-fitted() : <score,sample> thunk<double -> double> {
+fun score-fitted() : <score,sample> thunk<float64 -> float64> {
   with yield-on-score
   fitted()
 }

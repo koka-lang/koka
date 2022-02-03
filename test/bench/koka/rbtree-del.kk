@@ -320,7 +320,7 @@ fun make-tree(n: int) : div tree {
   make-tree-aux(n, n, Leaf)
 }
 
-fun main()  {
+pub fun main()  {
   val t = make-tree(4200000); // todo: read first command line arg for size
   val v = t.fold(0) fn(k,v,r){ if (v) then r + 1 else r }
   v.println

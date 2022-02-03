@@ -33,31 +33,30 @@ import Data.Word( Word8 )
 -----------------------------------------------------------
 -- Character sets
 -----------------------------------------------------------
-$digit    = [0-9]
-$hexdigit = [0-9a-fA-F]
-$lower    = [a-z]
-$upper    = [A-Z]
-$letter   = [$lower$upper]
-$space    = [\ ]
-$tab      = [\t]
-$return   = \r
-$linefeed = \n
-$graphic  = [\x21-\x7E]
-$cont     = [\x80-\xBF]
-$symbol   = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\?\|\<\>]
-$special  = [\(\)\[\]\{\}\;\,]
-$anglebar = [\<\>\|]
-$angle    = [\<\>]
-$finalid  = [\']
-$charesc  = [nrt\\\'\"]    -- "
+$digit        = [0-9]
+$hexdigit     = [0-9a-fA-F]
+$lower        = [a-z]
+$upper        = [A-Z]
+$letter       = [$lower$upper]
+$space        = [\ ]
+$tab          = [\t]
+$return       = \r
+$linefeed     = \n
+$graphic      = [\x21-\x7E]
+$cont         = [\x80-\xBF]
+$symbol       = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\?\|\<\>]
+$special      = [\(\)\[\]\{\}\;\,]
+$anglebar     = [\<\>\|]
+$angle        = [\<\>]
+$finalid      = [\']
+$charesc      = [nrt\\\'\"]    -- "
 
 -----------------------------------------------------------
 -- Regular expressions
 -----------------------------------------------------------
 @newline      = $return?$linefeed
 
-@utf8         = \xC0\x80
-              | [\xC2-\xDF] $cont
+@utf8         = [\xC2-\xDF] $cont
               | \xE0 [\xA0-\xBF] $cont
               | [\xE1-\xEC] $cont $cont
               | \xED [\x80-\x9F] $cont
@@ -77,27 +76,31 @@ $charesc  = [nrt\\\'\"]    -- "
 @charchar     = ([$graphic$space] # [\\\'])|@utf8
 @stringraw    = ([$graphic$space$tab] # [\"])|@newline|@utf8  -- "
 
-@idchar       = $letter|$digit|_|\-
+@idchar       = $letter | $digit | _ | \-
 @lowerid      = $lower @idchar* $finalid*
 @upperid      = $upper @idchar* $finalid*
 @conid        = @upperid
 @modulepath   = (@lowerid\/)+
 @qvarid       = @modulepath @lowerid
 @qconid       = @modulepath @conid
-@symbols      = $symbol+|\/
+@symbols      = $symbol+ | \/
 @qidop        = @modulepath \(@symbols\)
 @idop         = \(@symbols\)
 
-@decimal      = $digit+
-@hexadecimal  = 0[xX]$hexdigit+
-@natural      = @decimal|@hexadecimal
-
 @sign         = [\-]?
-@exp          = (\-|\+)? @decimal
-@exp10        = [eE]@exp
-@exp2         = [pP]@exp
-@decfloat     = @sign @decimal (\. @decimal @exp10? | @exp10)
-@hexfloat     = @sign @hexadecimal (\. $hexdigit+)? @exp2
+@digitsep     = _ $digit+
+@hexdigitsep  = _ $hexdigit+
+@digits       = $digit+ @digitsep*
+@hexdigits    = $hexdigit+ @hexdigitsep*
+@decimal      = 0 | [1-9] (_? @digits)?
+@hexadecimal  = 0[xX] @hexdigits
+@integer      = @sign (@decimal | @hexadecimal)
+
+@exp          = (\-|\+)? $digit+
+@exp10        = [eE] @exp
+@exp2         = [pP] @exp
+@decfloat     = @sign @decimal (\. @digits @exp10? | @exp10)
+@hexfloat     = @sign @hexadecimal (\. @hexdigits @exp2? | @exp2)
 
 -----------------------------------------------------------
 -- Main tokenizer
@@ -108,7 +111,7 @@ program :-
 <0> @newline              { constant $ LexWhite "\n" }
 <0> "/*" $symbol*         { next comment $ more id }
 <0> "//" $symbol*         { next linecom $ more id }
-<0> ^\# $symbol*          { next linedir $ more id }
+<0> @newline\# $symbol*   { next linedir $ more id }
 
 
 -- qualified identifiers
@@ -129,10 +132,9 @@ program :-
 <0> $special              { string $ LexSpecial }
 
 -- literals
-<0> @decfloat             { string $ \s -> LexFloat (read s) s }
-<0> @hexfloat             { string $ \s -> LexFloat (parseHexFloat s) s }
-<0> @sign @hexadecimal    { string $ \s -> LexInt (parseNum  s) s }
-<0> @sign @decimal        { string $ \s -> LexInt (parseNum s) s }
+<0> @decfloat             { string $ \s -> LexFloat (read (filter (/='_') s)) s }
+<0> @hexfloat             { string $ \s -> LexFloat (parseHexFloat (filter (/='_') s)) s }
+<0> @integer              { string $ \s -> LexInt (parseNum (filter (/='_') s)) s }
 
 
 -- type operators
@@ -150,7 +152,7 @@ program :-
 
 -- characters
 <0> \"                    { next stringlit $ more (const B.empty) }  -- "
-<0> \@\"                  { next stringraw $ more (const B.empty) }  -- "
+<0> r\#*\"                { next stringraw $ rawdelim $ more (const B.empty) }  -- "
 
 <0> \'\\$charesc\'        { string $ LexChar . fromCharEsc . head . drop 2 }
 <0> \'\\@hexesc\'         { string $ LexChar . fromHexEsc . init . drop 3 }
@@ -172,9 +174,19 @@ program :-
 <stringlit> .             { string $ \s -> LexError ("illegal character in string: " ++ show s) }
 
 <stringraw> @stringraw+   { more id }
-<stringraw> \"\"          { more B.tail } -- "
-<stringraw> \"            { pop $ \_ -> withmore (string LexString . B.init) } -- "
+<stringraw> \"\#*         { withRawDelim $ \s delim -> 
+                              if (s == delim)
+                                then -- done
+                                     pop $ \_ -> less (length delim) $ withmore $ 
+                                                   string (LexString . reverse . drop (length delim) . reverse)
+                              else if (length s > length delim)
+                                then -- too many terminating hashse
+                                     string $ \s -> LexError ("raw string: too many '#' terminators in raw string (expecting " ++ show (length delim - 1) ++ ")")
+                                else -- continue
+                                     more id
+                          }
 <stringraw> .             { string $ \s -> LexError ("illegal character in raw string: " ++ show s) }
+
 
 --------------------------
 -- block comments
@@ -238,6 +250,11 @@ fromHexEsc :: String -> Char
 fromHexEsc s
   = toEnum $ digitsToNum 16 s
 
+startsWith :: String -> String -> Bool
+startsWith s  [] = True
+startsWith [] _  = False
+startsWith (c:cs) (p:ps) = if (p==c) then startsWith cs ps else False
+
 -----------------------------------------------------------
 -- Reserved
 -----------------------------------------------------------
@@ -257,15 +274,12 @@ reservedNames
     , "type", "alias"
     , "struct", "enum", "con"
     , "val", "fun", "fn", "extern", "var"
-    , "ctl", "rawctl", "brk"
+    , "ctl", "final", "raw"
     , "if", "then", "else", "elif"
     , "return", "match", "with", "in"
     , "forall", "exists", "some"
-    , "private", "public", "abstract"
+    , "pub", "abstract"
     , "module", "import", "as"
-
-    -- alternatives
-    , "pub"
 
     -- effect handlers
     , "handler", "handle"
@@ -275,6 +289,9 @@ reservedNames
     , "override"   
 
     -- deprecated
+    , "private", "public"  -- use pub
+    , "rawctl", "brk"      -- use raw ctl, and final ctl
+
     -- alternative names for backwards paper compatability
     , "control", "rcontrol", "except"
     , "ambient", "context" -- use effcet
@@ -382,6 +399,7 @@ data State = State { pos      :: !Pos    -- current position
                    , previous :: !Char
                    , current  :: !BString
                    , previousLex :: Lex
+                   , rawEnd   :: String  
                    }
 
 type Action = BString -> State -> State -> (Maybe Lex, State)
@@ -429,6 +447,16 @@ withmore action
   = \bs st0 st1 -> action (B.concat (reverse (bs : retained st1))) st0 st1{ retained = [] }
 
 
+rawdelim :: Action -> Action
+rawdelim action 
+  = \bs st0 st1 -> let s = bstringToString bs
+                       delim = "\"" ++ replicate (length s - 2) '#'
+                   in -- trace ("raw delim: " ++ show delim) $ 
+                      action bs st0 st1{ rawEnd = delim }
+
+withRawDelim :: (String -> String -> Action) -> Action
+withRawDelim f
+  = \bs st0 st1 -> (f (bstringToString bs) (rawEnd st1)) bs st0 st1
 
 constant x
   = token (\_ -> x)
@@ -462,7 +490,7 @@ lexer sourceName lineNo input
 lexing :: Source -> Int -> BString -> [Lexeme]
 lexing source lineNo input
   = let initPos = makePos source 0 lineNo 1
-        initSt  = State initPos initPos [0] [] '\n' input (LexWhite "")
+        initSt  = State initPos initPos [0] [] '\n' input (LexWhite "") "\""
     in go initSt
   where go st =
           -- trace ("scan: start: " ++ show (startPos st) ++ ", " ++ show (pos st) ++ ": <" ++ show (head (states st)) ++ ">: " ++ show (BC.take 5 (current st))) $

@@ -8,11 +8,11 @@
 
 module time3
 
-public import std/num/ddouble
-public import std/time/timestamp
-public import std/time
-public import std/time/astro
-public import std/time/ut1
+pub import std/num/ddouble
+pub import std/time/timestamp
+pub import std/time
+pub import std/time/astro
+pub import std/time/ut1
 
 /*----------------------------------------------------------------------------
   Testing
@@ -26,7 +26,7 @@ fun check(name : string, res : string, tst : () -> <utc,io> string ) : <utc,io> 
 }
 
 
-public fun test-misc() {
+pub fun test-misc() {
   // unix 32/64-bit overflow
   check("misc0","0x80000000"){  instant(2038,1,19,3,14,8).unix-timestamp.int.show-hex  }
   check("misc1","0x8000000000000000"){  instant(292277026596,12,4,15,30,8).unix-timestamp.int.show-hex  } // 9223372036854775808
@@ -58,7 +58,7 @@ fun test-astro() {
   check("astro2","1977-01-01T00:00:00Z TAI"){  instant-at-jd(ddouble-exp(24431445003725,~7),ts-tt).time-tai.show  }
 }
 
-public val sofai = ts-ti.instant(2006,1,15,21,24,37,0.5)
+pub val sofai = ts-ti.instant(2006,1,15,21,24,37,0.5)
 
 // from: <http://www.iausofa.org/sofa_ts_c.pdf>
 // and: <http://docs.astropy.org/en/v0.2.2/time/index.html#time-scale>
@@ -83,7 +83,7 @@ fun test-sofa(ts-utc) {
   check("skyfield-tdb1","2456658.500777591821"){  instant(2014,1,1).jd(ts-tdb).show-fixed(12)  } // skyfield: 2456658.500777592
 }
 
-public fun main() {
+pub fun main() {
   //val ts-utc = ts-utc-load()
   //with fun utc() { ts-utc }
   test-misc()

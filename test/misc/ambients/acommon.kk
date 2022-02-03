@@ -1,7 +1,7 @@
 // --------------------------------------------------------
 //  Examples of common effects
 // --------------------------------------------------------
-// public module common
+// pub module common
 
 // import std/os/readline
 import std/num/random

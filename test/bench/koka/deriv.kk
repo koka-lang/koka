@@ -7,10 +7,8 @@ type expr
   Pow(l : expr, r : expr)
   Ln(e : expr)
 
-
 fun pown(a : int, b : int) : int
   pow(a,b)
-
 
 fun add(n0 : expr, m0 : expr) : div expr
   match(n0,m0)
@@ -22,8 +20,6 @@ fun add(n0 : expr, m0 : expr) : div expr
     (f,Add(Val(n),g))      -> add(Val(n),add(f,g))
     (Add(f, g), h)         -> add(f,add(g,h))
     (f,g)                  -> Add(f, g)
-
-
 
 fun mul(n0 : expr, m0 : expr) : div expr
   match (n0,m0)
@@ -38,8 +34,6 @@ fun mul(n0 : expr, m0 : expr) : div expr
     (Mul(f, g), h)           -> mul(f,mul(g,h))
     (f, g)                   -> Mul(f, g)
 
-
-
 fun powr(m0 : expr, n0 : expr) : div expr
   match (m0,n0)
     (Val(m), Val(n)) -> Val(pown(m,n))
@@ -48,14 +42,10 @@ fun powr(m0 : expr, n0 : expr) : div expr
     (Val(0), _)      -> Val(0)
     (f, g)           -> Pow(f, g)
 
-
-
 fun ln( n : expr) : expr
   match n
     Val(1) -> Val(0)
     f      -> Ln(f)
-
-
 
 fun d( x : string, ^e : expr) : div expr
   match e
@@ -77,14 +67,10 @@ fun count( ^e : expr) : int
     Pow(f,g) -> count(f) + count(g) // + 1
     Ln(f)    -> count(f) // + 1
 
-
-
 fun nest_aux(s : int, f : (int,expr) -> <div|e> expr, n : int, x : expr ) : <div|e> expr
   if n == 0 then x else
     val y = f(s - n, x)
     nest_aux(s,f,n - 1,y)
-
-
 
 fun nest(f : (int,expr) -> <div|e> expr, n : int, e : expr ) : <div|e> expr
   nest_aux(n,f,n,e)
@@ -95,8 +81,7 @@ fun deriv(i : int, f : expr)
   println(show(i+1) ++ " count: " ++ count(d).show) // ++ ", " ++ count(f).show)
   d
 
-
-fun main()
+pub fun main()
   val x = Var("x")
   val f = powr(x,x)
   nest(deriv,10,f)

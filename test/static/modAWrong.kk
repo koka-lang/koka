@@ -1,4 +1,4 @@
 module static/modAWrong {
-  public type int
-  public alias aint = int
+  pub type int
+  pub alias aint = int
 }

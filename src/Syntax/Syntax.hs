@@ -85,7 +85,11 @@ type FixDefs
   = [FixDef]
 
 data FixDef
-  = FixDef Name Fixity Range
+  = FixDef{ fixName   :: Name
+          , fixFixity :: Fixity
+          , fixRange  :: Range
+          , fixVis    :: Visibility 
+          }
   deriving (Show)
 
 {---------------------------------------------------------------

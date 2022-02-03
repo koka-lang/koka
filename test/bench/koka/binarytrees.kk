@@ -2,7 +2,7 @@
 The Computer Language Benchmarks Game
 https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 */
-public module binarytrees
+module binarytrees
 
 import std/os/env
 import std/os/task
@@ -98,7 +98,7 @@ fun psum-count( count : int, depth : int ) : pure int
   val n = 8
   val partc = count / n
   val rest  = count % n
-  val parts = list(1,n) fn(i){ task{ sum-count( partc, depth ) }
+  val parts = list(1,n, fn(i) task{ sum-count( partc, depth ) })
   sum-count(rest, depth) + parts.await.sum
 
 
@@ -117,7 +117,7 @@ fun show( msg : string, depth : int, check : int ) : console ()
 
 
 // main
-public fun main()
+pub fun main()
   // task-set-default-concurrency(8);
   val n = get-args().head.default("").parse-int.default(21)
   val min-depth = 4

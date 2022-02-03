@@ -524,7 +524,15 @@ data Def = Def{ defName  :: Name
               , defDoc :: String
               }
 
-data InlineDef = InlineDef{ inlineName :: Name, inlineExpr :: Expr, inlineRec :: Bool, inlineKind :: DefInline, inlineCost :: Int, specializeArgs :: [Bool] }
+data InlineDef = InlineDef{ 
+  inlineName :: Name, 
+  inlineExpr :: Expr, 
+  inlineRec  :: Bool, 
+  inlineKind :: DefInline, 
+  inlineCost :: Int, 
+  inlineSort :: DefSort,                 -- for borrow info
+  inlineParamSpecialize :: [Bool] 
+}
 
 defIsVal :: Def -> Bool
 defIsVal def
@@ -539,11 +547,11 @@ defParamInfos def
       _             -> []
 
 inlineDefIsSpecialize :: InlineDef -> Bool
-inlineDefIsSpecialize inlDef = not (null (specializeArgs inlDef))
+inlineDefIsSpecialize inlDef = not (null (inlineParamSpecialize inlDef))
 
 instance Show InlineDef where
-  show (InlineDef name expr isRec kind cost specArgs)
-    = "InlineDef " ++ show name ++ " " ++ (if isRec then "rec " else "") ++ show kind ++ " " ++ show cost ++ " " ++ show specArgs
+  show (InlineDef name expr isRec kind cost sort specArgs)
+    = "InlineDef " ++ show sort ++ " " ++ show name ++ " " ++ (if isRec then "rec " else "") ++ show kind ++ " " ++ show cost ++ " " ++ show specArgs
 
 
 newtype CorePhase a = CP (Int -> DefGroups -> Error (CPState a))
@@ -747,6 +755,8 @@ isTotalFun expr
       Lit _         -> True  -- not possible due to typing
       Let dgs e     -> all isTotalDef (flattenDefGroups dgs) && isTotalFun e 
       Case exps branches -> all isTotal exps && all isTotalBranchFun branches
+      -- App (TypeApp (Var open _) _) args  | getName open == nameEffectOpen
+      --              -> all isTotal args
       App f args    -> hasTotalEffect (typeOf expr) && isTotalFun f && all isTotal args
       Var v _       | getName v == nameKeep -> False 
                     | getName v `elem` [nameBox,nameUnbox]  -> True
@@ -798,7 +808,7 @@ costDef :: Def -> Int
 costDef def
   = let n = costLocalDef def
     in if (defIsVal def)
-        then (if (n<=1) then 0 else costInf) -- don't duplicate (too much) work
+        then (if (n==0) then 0 else costInf) -- don't duplicate (too much) work
         else n
 
 costLocalDef :: Def -> Int
@@ -855,7 +865,7 @@ foldMapExpr :: Monoid a => (Expr -> a) -> Expr -> a
 foldMapExpr acc e = case e of
   Lam _ _ body -> acc e <> foldMapExpr acc body
   Var _ _ -> acc e
-  App f xs -> acc e <> acc f <> mconcat (foldMapExpr acc <$> xs)
+  App f xs -> acc e <> foldMapExpr acc f <> mconcat (foldMapExpr acc <$> xs)
   TypeLam _ body -> acc e <> foldMapExpr acc body
   TypeApp expr _ -> acc e <> foldMapExpr acc expr
   Con _ _ -> acc e

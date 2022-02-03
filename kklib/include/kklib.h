@@ -2,12 +2,12 @@
 #ifndef KKLIB_H
 #define KKLIB_H 
 
-#define KKLIB_BUILD        76       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        87       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 /*---------------------------------------------------------------------------
-  Copyright 2020-2021, Microsoft Research, Daan Leijen.
+  Copyright 2020-2022, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -17,7 +17,8 @@
 #define _POSIX_C_SOURCE     200809L  // make posix definitions visible
 #define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
 #define _XOPEN_SOURCE       700      // make xopen (posix 2008) definitions visible
-#define _FILE_OFFSET_BITS   64       // enable large files
+#define _FILE_OFFSET_BITS   64
+#define _TIME_BITS          64
 #if !defined(_WIN32)
 #ifndef _BSD_SOURCE
 #define _BSD_SOURCE 

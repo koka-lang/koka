@@ -4,12 +4,14 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.3.6"        
+VERSION="v2.3.8"        
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
 FORCE=""
 OSARCH=""
+OSNAME=""
+OSDISTRO=""
 
 KOKA_DIST_BASE_URL="https://github.com/koka-lang/koka/releases/download"
 KOKA_DIST_URL=""        # $KOKA_DIST_BASE_URL/$VERSION
@@ -20,9 +22,9 @@ KOKA_TEMP_DIR=""        # empty creates one dynamically
 adjust_version() {  # <osarch>
   case "$1" in
     linux-arm64)
-      VERSION="v2.3.6";;
+      VERSION="v2.3.8";;
     unix-freebsd-x64)
-      VERSION="v2.3.6";;
+      VERSION="v2.3.8";;
   esac    
 }
 
@@ -70,6 +72,14 @@ on_path() {
 # Detect OS and cpu architecture for download bundle
 #---------------------------------------------------------
 
+contains() {
+  if echo "$1" | grep -i -E "$2" > /dev/null; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 detect_osarch() {
   arch="$(uname -m)"
   case "$arch" in
@@ -85,20 +95,38 @@ detect_osarch() {
       arch="hppa";;          
   esac
 
-  OSARCH="unix-$arch"
+  OSNAME="linux"
   case "$(uname)" in
     [Ll]inux)
-      OSARCH="linux-$arch";;
+      OSNAME="linux";;
     [Dd]arwin)
-      OSARCH="macos-$arch";;
+      OSNAME="macos";;
     [Ff]ree[Bb][Ss][Dd])
-      OSARCH="unix-freebsd-$arch";;
+      OSNAME="unix-freebsd";;
     *)
-      info "Warning: unable to detect OS, assuming generic unix ($OSARCH)"
+      info "Warning: unable to detect OS, assuming generic Linux"
   esac
-
+  OSARCH="$OSNAME-$arch"
+  
+  if [ "$OSNAME" = "linux" ]; then
+    distrocfg=`cat /etc/*-release`
+    if contains "$distrocfg" "rhel"; then
+      OSDISTRO="rhel"
+    elif contains "$distrocfg" "opensuse"; then
+      OSDISTRO="opensuse"
+    elif contains "$distrocfg" "alpine"; then
+      OSDISTRO="alpine"
+    elif contains "$distrocfg" "arch"; then
+      OSDISTRO="arch"
+    elif contains "$distrocfg" "ubuntu|debian"; then
+      OSDISTRO="debian"
+    fi
+  fi
+  
   # For tier-2 platforms, adjust the default version
   adjust_version $OSARCH
+
+  info "Installing koka $VERSION for $OSDISTRO $OSARCH"
 }
 
 
@@ -233,10 +261,10 @@ apt_get_install() {
       missing="$missing $pkg"
     fi
   done
-  if [ "$missing" = "" ]; then
-    info "Packages already installed"
-  elif ! sudocmd apt-get install -y ${QUIET:+-qq}$missing; then
-    stop "installing apt packages failed ($@).  Please run 'apt-get update' and try again."
+  if ! [ "$missing" = "" ]; then
+    if ! sudocmd apt-get install -y ${QUIET:+-qq}$missing; then
+      stop "installing apt packages failed ($@).  Please run 'apt-get update' and try again."
+    fi
   fi
 }
 
@@ -315,12 +343,13 @@ download_failed() { # <program> <url>
   stop ""
 }
 
-download_dist() {
+download_file() {  # <url|file> <destination file>
   case "$1" in
     ftp://*|http://*|https://*)
+      info "Downloading: $1"
       if has_cmd curl ; then
         if ! curl ${QUIET:+-sS} --proto =https --tlsv1.2 -f -L -o "$2" "$1"; then
-          download_failed "curl" $1
+          download_failed "curl" $1          
         fi
       elif has_cmd wget ; then
         if ! wget ${QUIET:+-q} --https-only "-O$2" "$1"; then
@@ -331,10 +360,41 @@ download_dist() {
       fi;;
     *)
       # echo "cp $1 to $2"
+      info "Copying: $1"
       if ! cp $1 $2 ; then
         stop "Unable to copy from $1"
       fi;;
   esac
+}
+
+download_available() {  # <url|file>
+  case "$1" in
+    ftp://*|http://*|https://*)
+      if has_cmd curl ; then
+        if ! curl -sS --proto =https -L -I "$1" | grep -E "^HTTP/2 200" ; then  # -I is headers only
+          return 1
+        fi
+      fi;;
+    *)
+      if ! [ -f "$1" ] ; then
+        return 1
+      fi;;
+  esac
+  return 0
+}
+
+download_dist() {  # <bundle url|file> <destination file>
+  download_url="$1"
+  if [ -n "$OSDISTRO" ] && [ "$OSNAME" = "linux" ] ;  then
+    distro_url=`echo $1 | sed "s/linux/$OSDISTRO/"`
+    if download_available "$distro_url" ; then
+      info "Using $OSDISTRO bundle"
+      download_url="$distro_url"
+    else
+      info "Using generic linux bundle"      
+    fi    
+  fi
+  download_file "$download_url" "$2"
 }
 
 #-----------------------------------------------------
@@ -352,7 +412,6 @@ install_dist() {  # <prefix> <version>
   koka_symlink="$koka_bin_dir/koka"
 
   # download/copy
-  info "Downloading: $KOKA_DIST_SOURCE"
   download_dist "$KOKA_DIST_SOURCE" "$KOKA_TEMP_DIR/koka-dist.tar.gz"
   info "Unpacking.."
   if ! tar -xzf "$KOKA_TEMP_DIR/koka-dist.tar.gz" -C "$KOKA_TEMP_DIR"; then
@@ -614,5 +673,5 @@ main_start() {
   fi
 }
 
-# note: only execute commands now to guard against partial downloads
+# note: only start executing commands now to guard against partial downloads
 main_start $@

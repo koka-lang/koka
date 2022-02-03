@@ -1,11 +1,11 @@
 
-public fun main()
+pub fun main()
   test().println
 
 //----------------------------------------------------
 // Trees
 //----------------------------------------------------
-public type tree<a> 
+pub type tree<a> 
   con Leaf(value :a)
   con Node(left :tree<a>, right :tree<a>)
 
@@ -21,7 +21,7 @@ fun show( t : tree<char> ) : string
 //----------------------------------------------------
 // Non empty lists
 //----------------------------------------------------
-public type list1<a> 
+pub type list1<a> 
   con Cons1( head : a, tail : list<a> )
 
 fun map( xs, f ) ->
@@ -87,13 +87,13 @@ fun build( depth :int, xs :list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,list
       (Node(l.fst,r.fst), r.snd)
 }
 
-public fun test() {
+pub fun test() {
   val wlist = Cons1(('a',3), [('b',2),('c',1),('d',4),('e',5)])
   val tree  = wlist.garciawachs()
   tree.show()
 }
 
-public fun garciawachs( xs : list1<(a,int)> ) : div tree<a>
+pub fun garciawachs( xs : list1<(a,int)> ) : div tree<a>
 {
   val refs   = xs.map(fst).map( fn(x) { (x, ref(0)) } )
   val wleafs = zip( refs.map(Leaf), xs.map(snd) )

@@ -149,9 +149,9 @@ showLex lex
       LexSpecial s  -> "\"" ++ s ++ "\""                    
       LexComment s  -> "comment \"" ++ s ++ "\""
       LexWhite w    -> "white"
-      LexInsLCurly  -> "start of statements"
-      LexInsRCurly  -> "end of statements"
-      LexInsSemi    -> "end of statement"
+      LexInsLCurly  -> "start of statements ('{')"
+      LexInsRCurly  -> "end of statements ('}')"
+      LexInsSemi    -> "end of statement (';')"
       LexError msg  -> msg
       LexCons id    -> "constructor \"" ++ show id ++ "\""
       LexTypedId id tp -> "typedid " ++ show id ++ ":" ++ tp

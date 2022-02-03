@@ -13,7 +13,7 @@
 */
 module std/time/date
 
-import std/num/double
+import std/num/float64
 import std/num/ddouble
 
 /*----------------------------------------------------------------------------
@@ -21,177 +21,157 @@ import std/num/ddouble
 ----------------------------------------------------------------------------*/
 
 // A date consists of a the year, month, and day.
-public struct date(
+pub struct date(
   year : int,
   month: int,
   day  : int
 )
 
 // Create an ISO weekdate where the "month" is the ISO week number.
-public fun weekdate( year : int, month: int, weekday : weekday ) : date {
+pub fun weekdate( year : int, month: int, weekday : weekday ) : date
   Date(year,month,weekday.int)
-}
 
 // Show a year in ISO format (using 5+ digits and explicit sign for years < 0 or years > 9999)).
-public fun show-year( year : int ) : string {
-  val (ysign,ywidth) = if (year > 9999) then ("+",5) elif (year.is-neg) then ("-",5) else ("",4)
+pub fun show-year( year : int ) : string
+  val (ysign,ywidth) = if year > 9999 then ("+",5) elif year.is-neg then ("-",5) else ("",4)
   ysign ++ year.abs.show0(ywidth)
-}
 
 // Show a date in ISO format. `Date(2000,1,1).show == "2000-01-01"`.
 // Takes an optional `month-prefix` (=`""`) that is used by the ISO week
 // and month calendar to add a `"W"` or `"M"` prefix respectively.
-public fun show( d : date, month-prefix : string = "" ) : string {
-  val day-width = if (month-prefix=="W") then 1 else 2
+pub fun show( d : date, month-prefix : string = "" ) : string
+  val day-width = if month-prefix=="W" then 1 else 2
   d.year.show-year ++ "-" ++ month-prefix ++ d.month.show0 ++ "-" ++ d.day.show0(day-width)
-}
 
 // Compare two dates by fields.
-public fun compare( d : date, e : date ) : order {
-  match(compare(d.year,e.year)) {
-    Eq -> match(compare(d.month,e.month)) {
+pub fun compare( d : date, e : date ) : order
+  match(compare(d.year,e.year))
+    Eq -> match(compare(d.month,e.month))
       Eq  -> compare(d.day,e.day)
       ord -> ord
-    }
-    ord -> ord
-  }
-}
 
-public fun (<)( i : date, j : date )  : bool { compare(i,j) == Lt }
-public fun (<=)( i : date, j : date ) : bool { compare(i,j) != Gt }
-public fun (>)( i : date, j : date )  : bool { compare(i,j) == Gt }
-public fun (>=)( i : date, j : date ) : bool { compare(i,j) != Lt }
-public fun (==)( i : date, j : date ) : bool { compare(i,j) == Eq }
-public fun (!=)( i : date, j : date ) : bool { compare(i,j) != Eq }
+    ord -> ord
+
+
+pub fun (<)( i : date, j : date )  : bool { compare(i,j) == Lt }
+pub fun (<=)( i : date, j : date ) : bool { compare(i,j) != Gt }
+pub fun (>)( i : date, j : date )  : bool { compare(i,j) == Gt }
+pub fun (>=)( i : date, j : date ) : bool { compare(i,j) != Lt }
+pub fun (==)( i : date, j : date ) : bool { compare(i,j) == Eq }
+pub fun (!=)( i : date, j : date ) : bool { compare(i,j) != Eq }
 
 // Add two dates field-wise together.
-public fun (+)( d1 : date, d2 : date ) : date {
+pub fun (+)( d1 : date, d2 : date ) : date
   Date(d1.year + d2.year, d1.month + d2.month, d1.day + d2.day )
-}
 
 /*----------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------*/
 
 // A clock consists of the hour, minute, second, and fractional second (between ``0.0` and `1.0`).
-public struct clock(
+pub struct clock(
   hours   : int,
   minutes : int,
   seconds : ddouble
 )
 
 // Create a clock from a `:duration`; normalizes the clock with seconds and minutes under 60.
-//public fun clock( d : duration ) : clock {
+//pub fun clock( d : duration ) : clock
 //  clock(d.seconds)
 //}
 
 // Create a clock from seconds; normalizes the clock with seconds and minutes under 60.
-public fun clock( seconds : ddouble ) : clock {
+pub fun clock( seconds : ddouble ) : clock
   clock(seconds.floor.int,seconds.ffraction)
-}
 
 // Create a clock from a seconds as an `:int` with an optional fraction.
 // Normalizes the clock with seconds and minutes under 60 but
 // adds the fraction as is to the final seconds, so that might
 // be `>= 60` if the fraction `>= 1.0`;
-public fun clock( seconds : int, frac : double ) : clock {
+pub fun clock( seconds : int, frac : float64 ) : clock
   clock(seconds,frac.ddouble)
-}
 
 // Create a clock from a seconds as an `:int` with an optional fraction.
 // Normalizes the clock with seconds and minutes under 60 but
 // adds the fraction as is to the final seconds, so that might
 // be `>= 60` if the fraction `>= 1.0`;
-public fun clock( seconds : int, frac : ddouble = zero) : clock {
+pub fun clock( seconds : int, frac : ddouble = zero) : clock
   val (hm,s) = divmod(seconds,60)
   val (h,m)  = divmod(hm,60)
   Clock(h,m,s.ddouble + frac)
-}
 
-public fun clock( seconds : ddouble, leap : int) : clock {
+pub fun clock( seconds : ddouble, leap : int) : clock
   clock(seconds.floor.int, seconds.ffraction + leap.ddouble)
-}
 
 
 // The zero clock
-public val clock0 = Clock(0,0,zero)
+pub val clock0 = Clock(0,0,zero)
 
 // Is this a zero clock?
-public fun is-zero( c : clock ) : bool {
+pub fun is-zero( c : clock ) : bool
   (c.hours.is-zero && c.minutes.is-zero && c.seconds.is-zero)
-}
 
 // Return the total seconds of a `:clock` assuming 60 seconds per
 // minute and 60 minutes per hour.
-public fun total-seconds( c : clock ) : ddouble {
+pub fun total-seconds( c : clock ) : ddouble
   ddouble((c.hours*60 + c.minutes)*60) + c.seconds
-}
 
 // Return the whole seconds part of a `:clock`.
-public fun whole-seconds( c : clock ) : int {
+pub fun whole-seconds( c : clock ) : int
   c.seconds.truncate.int
-}
 
 // Return the fraction of the seconds as milli-seconds (10^-3^).
-public fun milli-seconds( c : clock ) : int {
-  (c.seconds.fraction.double * 1.0e3).truncate.int
-}
+pub fun milli-seconds( c : clock ) : int
+  (c.seconds.fraction.float64 * 1.0e3).truncate.int
 
 // Return the fraction of seconds as nano-seconds ((10^-9^).
-public fun nano-seconds( c : clock ) : int {
-  (c.seconds.fraction.double * 1.0e9).truncate.int
-}
+pub fun nano-seconds( c : clock ) : int
+  (c.seconds.fraction.float64 * 1.0e9).truncate.int
 
 // Round a clock time to a certain number of digits precision (of the fraction of seconds) (default `9`, nano seconds).
-public fun round-to-prec( c : clock, prec : int = 9) : clock {
+pub fun round-to-prec( c : clock, prec : int = 9) : clock
   Clock(c.hours, c.minutes, c.seconds.round-to-prec(prec))
-}
 
 // Show a clock in ISO format up to an optional maximum precision (=`9`).\
 // `Clock(23,30,fixed(1.123)).show == "23:30:01.123"`\
 // `Clock(23,30,fixed(1.123)).show(0) == "23:30:01"`
-public fun show( c : clock, prec : int = 9 ) : string {
+pub fun show( c : clock, prec : int = 9 ) : string
   c.hours.show0 ++ ":" ++ c.minutes.show0 ++ ":" ++ c.seconds.show-seconds(prec,2)
-}
 
 // Show seconds
-public fun show-seconds( secs : ddouble, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string {
+pub fun show-seconds( secs : ddouble, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string
   val s = secs.show-fixed(~max-prec.abs)
-  match(s.find(".")) {
+  match(s.find("."))
     Nothing -> s.pad-left(secs-width,'0')
-    Just(dot) -> {
+    Just(dot) ->
       val f = dot.after.string
       val len3 = ((f.count + 2)/3)*3
       //trace("ts-show: " ++ s ++ ", " ++ len3.show ++ ", prec: " ++ max-prec.show ++ ", " ++ ts.since.show(-9))
       dot.before.string.pad-left(secs-width,'0') ++ "." ++ f.pad-right(len3,'0') ++ unit
-    }
-  }
-}
+
 
 
 // Compare two clocks as by their total seconds.
-public fun compare( c : clock, d : clock ) : order {
+pub fun compare( c : clock, d : clock ) : order
   compare(c.total-seconds,d.total-seconds)
-}
 
-public fun (<)( i : clock, j : clock )  : bool { compare(i,j) == Lt }
-public fun (<=)( i : clock, j : clock ) : bool { compare(i,j) != Gt }
-public fun (>)( i : clock, j : clock )  : bool { compare(i,j) == Gt }
-public fun (>=)( i : clock, j : clock ) : bool { compare(i,j) != Lt }
-public fun (==)( i : clock, j : clock ) : bool { compare(i,j) == Eq }
-public fun (!=)( i : clock, j : clock ) : bool { compare(i,j) != Eq }
+pub fun (<)( i : clock, j : clock )  : bool { compare(i,j) == Lt }
+pub fun (<=)( i : clock, j : clock ) : bool { compare(i,j) != Gt }
+pub fun (>)( i : clock, j : clock )  : bool { compare(i,j) == Gt }
+pub fun (>=)( i : clock, j : clock ) : bool { compare(i,j) != Lt }
+pub fun (==)( i : clock, j : clock ) : bool { compare(i,j) == Eq }
+pub fun (!=)( i : clock, j : clock ) : bool { compare(i,j) != Eq }
 
 // Add two clock together.
-public fun (+)( c : clock, d : clock ) : clock {
+pub fun (+)( c : clock, d : clock ) : clock
   Clock(c.hours + d.hours, c.minutes + d.minutes, c.seconds + d.seconds )
-}
 
 /*----------------------------------------------------------------------------
    Days of the week
 ----------------------------------------------------------------------------*/
 
 // An ISO day of the week, starting at Monday (=1) up to Sunday (=7).
-public type weekday {
+pub type weekday
   Mon
   Tue
   Wed
@@ -199,12 +179,11 @@ public type weekday {
   Fri
   Sat
   Sun
-}
 
 // Convert a `:weekday` to an `:int` using the ISO definition which starts at Monday as 1,
 // up to Sunday as 7.
-public fun int( wd : weekday ) : int {
-  match(wd) {
+pub fun int( wd : weekday ) : int
+  match wd
     Mon -> 1
     Tue -> 2
     Wed -> 3
@@ -212,26 +191,24 @@ public fun int( wd : weekday ) : int {
     Fri -> 5
     Sat -> 6
     Sun -> 7
-  }
-}
+
 
 // Convert a weekday number to a `:weekday`(starting at Monday (=1) up to Sunday (=7)).
 // Takes the integer `i - 1` modulo 7, so `0` or `14` also become Sunday etc.
-public fun weekday( i : int ) : weekday {
+pub fun weekday( i : int ) : weekday
   val d = ((i - 1)%7)
-  if (d==0) then Mon
-  elif (d==1) then Tue
-  elif (d==2) then Wed
-  elif (d==3) then Thu
-  elif (d==4) then Fri
-  elif (d==5) then Sat
+  if d==0 then Mon
+  elif d==1 then Tue
+  elif d==2 then Wed
+  elif d==3 then Thu
+  elif d==4 then Fri
+  elif d==5 then Sat
   else Sun
-}
 
 
 // Show a `:weekday` as an English string (`Sun.show == "Sunday"`).
-public fun show( wd : weekday ) : string {
-  match(wd) {
+pub fun show( wd : weekday ) : string
+  match wd
     Mon -> "Monday"
     Tue -> "Tuesday"
     Wed -> "Wednesday"
@@ -239,55 +216,47 @@ public fun show( wd : weekday ) : string {
     Fri -> "Friday"
     Sat -> "Saturday"
     Sun -> "Sunday"
-  }
-}
+
 
 // Return the `:weekday` that comes `n` days after week day `wd`.
-public fun (+)(wd : weekday, n : int ) : weekday {
+pub fun (+)(wd : weekday, n : int ) : weekday
   (wd.int + n).weekday
-}
 
 // Return the `:weekday` that comes `n` days before week day `wd`.
-public fun (-)(wd : weekday, n : int ) : weekday {
+pub fun (-)(wd : weekday, n : int ) : weekday
   (wd.int - n).weekday
-}
 
 // Return the difference between two week days:\
 // `wd2 == wd1 + (wd2 - wd1)`
-public fun (-)(wd1 : weekday, wd2 : weekday ) : int {
+pub fun (-)(wd1 : weekday, wd2 : weekday ) : int
   (wd1.int  - wd2.int)%7
-}
 
 
 // pad with zeros
-fun show0( i : int, width : int = 2) : string {
+fun show0( i : int, width : int = 2) : string
   i.show.pad-left(width,'0')
-}
 
 // Show a `:weekday` as a 3 letter English string (`Sun.show-short == "Sun"`)
-public fun show-short( wd : weekday ) : string {
+pub fun show-short( wd : weekday ) : string
   wd.show.first(3).string
-}
 
 // Compare weekdays.
-public fun compare( wd1 : weekday, wd2 : weekday ) : order {
+pub fun compare( wd1 : weekday, wd2 : weekday ) : order
   compare(wd1.int,wd2.int)
-}
 
-public fun (<)( i : weekday, j : weekday )  : bool { compare(i,j) == Lt }
-public fun (<=)( i : weekday, j : weekday ) : bool { compare(i,j) != Gt }
-public fun (>)( i : weekday, j : weekday )  : bool { compare(i,j) == Gt }
-public fun (>=)( i : weekday, j : weekday ) : bool { compare(i,j) != Lt }
-public fun (==)( i : weekday, j : weekday ) : bool { compare(i,j) == Eq }
-public fun (!=)( i : weekday, j : weekday ) : bool { compare(i,j) != Eq }
-
+pub fun (<)( i : weekday, j : weekday )  : bool { compare(i,j) == Lt }
+pub fun (<=)( i : weekday, j : weekday ) : bool { compare(i,j) != Gt }
+pub fun (>)( i : weekday, j : weekday )  : bool { compare(i,j) == Gt }
+pub fun (>=)( i : weekday, j : weekday ) : bool { compare(i,j) != Lt }
+pub fun (==)( i : weekday, j : weekday ) : bool { compare(i,j) == Eq }
+pub fun (!=)( i : weekday, j : weekday ) : bool { compare(i,j) != Eq }
 
 /*----------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------*/
 
 // Return the ISO calendar date of Easter in a given year (Algorithm by [J.M. Oudin](http://aa.usno.navy.mil/faq/docs/easter.php)).
-public fun easter( year : int ) : date {
+pub fun easter( year : int ) : date
   val c  = year/100
   val n  = year - 19*(year/19)
   val k  = (c - 17)/25
@@ -300,4 +269,4 @@ public fun easter( year : int ) : date {
   val m  = 3 + (l + 40)/44
   val d  = (l + 28) - 31*(m/4)
   Date(year,m,d)
-}
+

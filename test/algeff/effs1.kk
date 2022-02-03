@@ -1,4 +1,4 @@
-public module effs1
+module effs1
 
 effect amb {
   ctl flip() : bool

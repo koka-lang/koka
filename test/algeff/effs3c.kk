@@ -1,5 +1,5 @@
 effect amb {
-  control flip() : bool
+  ctl flip() : bool
 }
 
 effect state<s> {
@@ -30,8 +30,8 @@ fun foos() : <amb,state<int>> string {
  
 fun amb_handle(action : () -> <amb|e> a) : e list<a> {
   with {
-    return(x) { [x] }
-    control flip() { resume(False) ++ resume(True) }
+    return(x)  { [x] }
+    ctl flip() { resume(False) ++ resume(True) }
   }
   action()
 }

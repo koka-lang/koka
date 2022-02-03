@@ -1,7 +1,7 @@
 module ddouble2
 
-public import std/num/ddouble
-public import std/num/double
+pub import std/num/ddouble
+pub import std/num/float64
 
 fun check(name : string, res : string, tst : () -> io string ) : io () {
   val got = tst()
@@ -65,7 +65,7 @@ fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = 
 }
 
 
-public fun main() {
+pub fun main() {
   test-e()
   test-pi-machin()
   test-pi-borwein()
@@ -80,7 +80,7 @@ public fun main() {
   Various formulas to approximate known numbers
 -------------------------------------------------------*/
 
-public fun test-e(){
+pub fun test-e(){
   /* Use Taylor series
        e = 1 ++ 1 ++ 1/2! ++ 1/3! ++ 1/4! ++ ...
      To compute e.
@@ -105,13 +105,13 @@ fun expand-e( approx : ddouble = 2.0.ddouble, t0 : ddouble = one, n0 : ddouble =
 }
 
 
-public fun test-log2() {
-  check-rt("log2",dd-log2,31) {
+pub fun test-log2() {
+  check-rt("log2",dd-ln2,31) {
     val approx = log2()
-    val delta  = (approx - dd-log2).abs
+    val delta  = (approx - dd-ln2).abs
     val err    = delta / dd-epsilon
     //trace(" delta: " ++ delta.show ++ " = " ++ (delta / dd-epsilon).show(3) ++ " eps")
-    //trace(" log2: " ++ dd-log2.show )
+    //trace(" ln2: " ++ dd-ln2.show )
     //(approx.show ++ ", err: " ++ err.show(3) ++ " ulp")
     approx
   }
@@ -138,7 +138,7 @@ fun expand-log2( acc : ddouble, t : ddouble, n : ddouble  = one ) : div ddouble 
 //   e^2 = exp(2)
 //       = exp(-13/4) * exp(-9/4) * exp(-5/4) * exp(-1/4) *
 //          exp(3/4) * exp(7/4) * exp(11/4) * exp(15/4)
-public fun test-exp() {
+pub fun test-exp() {
   val expect = (dd-e * dd-e)
 
   check-rt("exp1",expect,31) { dd-e.sqr }
@@ -154,7 +154,7 @@ public fun test-exp() {
   sin(x) = sin(5x/7)cos(2x/7) ++ cos(5x/7)sin(2x/7)
   cos(x) = cos(5x/7)cos(2x/7) - sin(5x/7)sin(2x/7)
 */
-public fun test-sincos() {
+pub fun test-sincos() {
   [1,2,4,3,5,6,7,8,9,10,1000,10000000000]
     .foreach-indexed(fn(i,r) {
       check-sincos(i, dd-twopi / r.ddouble)
@@ -162,7 +162,7 @@ public fun test-sincos() {
     })
 }
 
-public fun check-sincos( i : int, x : ddouble ) {
+pub fun check-sincos( i : int, x : ddouble ) {
   val x1 = (5.ddouble * x) / 7.ddouble
   val x2 = (2.ddouble * x) / 7.ddouble
 
@@ -173,9 +173,9 @@ public fun check-sincos( i : int, x : ddouble ) {
   check-prec("sin(" ++ x.show ++ ")", s1, s2, ddouble-exp(1,-31))
   check-prec("cos(" ++ x.show ++ ")", c1, c2, ddouble-exp(1,-31))
 
-  // check not too much error with respect to the double computation
-  check-prec( "dsin" ++ i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-15) )
-  check-prec( "dcos" ++ i.show, cos(x.double).ddouble, c1, ddouble-exp(1,-15) )
+  // check not too much error with respect to the float64 computation
+  check-prec( "dsin" ++ i.show, sin(x.float64).ddouble, s1, ddouble-exp(1,-15) )
+  check-prec( "dcos" ++ i.show, cos(x.float64).ddouble, c1, ddouble-exp(1,-15) )
 }
 
 /*-------------------------------------------------------
@@ -187,7 +187,7 @@ public fun check-sincos( i : int, x : ddouble ) {
 //    pi / 4  =  4 arctan(1/5) - arctan(1/239)
 // The arctangent is computed based on the Taylor series expansion
 //   arctan(x) = x - x^3 / 3 ++ x^5 / 5 - x^7 / 7 ++ ...
-public fun test-pi-machin() {
+pub fun test-pi-machin() {
   check-rt("pi-mach", dd-pi,29) {
     val approx = 4.ddouble * ((4.ddouble * arctan(one / 5.ddouble )) - arctan( one / 239.ddouble ))
     val delta  = (approx - dd-pi).abs
@@ -199,7 +199,7 @@ public fun test-pi-machin() {
   }
 }
 
-public fun arctan( x : ddouble ) : div ddouble {
+pub fun arctan( x : ddouble ) : div ddouble {
   expand-arctan(x,x.sqr)
 }
 
@@ -216,7 +216,7 @@ fun expand-arctan( t : ddouble, xsqr : ddouble, n : ddouble = one, acc : ddouble
 // --------------------------------
 // Borwein Quartic algorithm for pi
 //
-public fun test-pi-borwein() {
+pub fun test-pi-borwein() {
   check-rt("borwein", dd-pi, 29) {
     val a = 6.ddouble - (4.ddouble * sqrt(2.ddouble))
     val y = sqrt(2.ddouble) - one
@@ -245,7 +245,7 @@ fun expand-pi-borwein( a : ddouble, y : ddouble, m : ddouble,
 // --------------------------------
 // Salman Brent approximation to pi
 //
-public fun test-pi-salmanbrent() {
+pub fun test-pi-salmanbrent() {
   check("pi-sb",dd-pi.show(29)) {
     val a = one
     val b = sqrt(0.5.ddouble)
@@ -257,7 +257,7 @@ public fun test-pi-salmanbrent() {
   }
 }
 
-public fun showx( x : ddouble ) : string {
+pub fun showx( x : ddouble ) : string {
   x.show-exp(dd-max-prec+1)
 }
 

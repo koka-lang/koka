@@ -8,9 +8,10 @@
 	<array>
 		<string>kk</string>
 		<string>kki</string>
+    <string>kkc</string>
 	</array>
 	<key>firstLineMatch</key>
-	<string>\s*(public|private)?\s*(module)\s*((interface)?)\s*(([a-z][\w\-]*/)*[a-z][\w\-]*)</string>
+	<string>\s*(module)\s*((interface)?)\s*(([a-z][\w\-]*/)*[a-z][\w\-]*)</string>
 	<key>foldingStartMarker</key>
 	<string>{\s*$</string>
 	<key>foldingStopMarker</key>
@@ -359,12 +360,12 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>(fun|function|val|var|use|using)\s+([a-z][\w\-]*[\'\?]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\])</string>
+			<string>(fun|val|var)\s+([a-z][\w\-]*[\'\?]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\])</string>
 		</dict>
 		<key>decl_function0</key>
 		<dict>
 			<key>begin</key>
-			<string>(fun|function)\s*(([a-z][\w\-]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\]))?\s*(\()</string>
+			<string>(fun)\s*(([a-z][\w\-]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\]))?\s*(\()</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>1</key>
@@ -384,7 +385,7 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>(?=[\)\{\}\[\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|extern|external|fun|function|val|var|use|using|con|if|then|else|elif|match|inject|handle|handler|return|module|import|as|public|private|abstract|cont)(?![\w\-?']))</string>
+			<string>(?=[\)\{\}\[\]=;]|(infix|infixr|infixl|type|alias|interface|instance|extern|external|fun|fn|val|var|with|con|if|then|else|elif|match|inject|handle|handler|return|module|import|as|public|private|abstract|cont)(?![\w\-?']))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>
@@ -743,7 +744,7 @@
 		<key>reservedid</key>
 		<dict>
 			<key>match</key>
-			<string>(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|use|using|con|if|then|else|elif|match|inject|handle(?:\s*(?:resource))?|handler(?:\s*(?:resource))?|shallow|return|module|import|as|in|public|private|abstract|effect|cont)(?![\w\-?'])</string>
+			<string>(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|use|using|con|if|then|else|elif|match|mask|handle|handler|named|return|module|import|as|in|pub|abstract|effect)(?![\w\-?'])</string>
 			<key>name</key>
 			<string>keyword.other.koka</string>
 		</dict>

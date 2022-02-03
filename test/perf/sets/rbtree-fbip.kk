@@ -88,7 +88,7 @@ fun from-list(xs) {
   go(xs, E)
 }
 
-public fun count-rbtree-fbip(start : int, end : int, xs : list<int>) {
+pub fun count-rbtree-fbip(start : int, end : int, xs : list<int>) {
   val t = from-list(xs)
   fun go(i, acc) {
     if(i <= end) {

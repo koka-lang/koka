@@ -1,4 +1,4 @@
 module modB {
-  public type int
-  public alias bint = int
+  pub type int
+  pub alias bint = int
 }

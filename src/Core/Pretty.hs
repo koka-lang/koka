@@ -237,11 +237,12 @@ prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
 -}
 
 prettyInlineDef :: Env ->  InlineDef -> Doc
-prettyInlineDef env (InlineDef name expr isRec inlkind cost specArgs)
+prettyInlineDef env (InlineDef name expr isRec inlkind cost sort specArgs)
   =     (if isRec then (keyword env "recursive ") else empty)
     <.> (if (null specArgs) then empty else (keyword env "specialize " <.> prettySpecArgs <.> text " "))
     <.> (if (cost <= 0 || inlkind == InlineAlways) then (keyword env "inline ") else empty)
-    <.> keyword env (if isFun then "fun" else "val")
+    <.> prettyParamInfos sort
+    <.> keyword env (show sort)
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     -- <+> text ":" <+> prettyType env scheme
     <+> text ("// inline size: " ++ show cost)
@@ -255,20 +256,28 @@ prettyInlineDef env (InlineDef name expr isRec inlkind cost specArgs)
     prettySpecArgs 
       = dquotes (text [if spec then '*' else '_' | spec <- specArgs])
 
+    prettyParamInfos (DefFun pinfos) | Borrow `elem` pinfos
+      = keyword env "borrow" <+> dquotes (text [if info == Borrow then '^' else '_' | info <- pinfos]) <.> text " "
+    prettyParamInfos _
+      = empty
+
 prettyDef :: Env-> Def -> Doc
 prettyDef env def = prettyDefX env True def
 
 prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
   = prettyComment env doc $
-    if (nameIsNil name && not isRec && coreShowDef env && not (coreShowVis env))
+    {- if (nameIsNil name && not isRec && coreShowDef env && not (coreShowVis env))
       then ppBody <.> semi
-      else prettyVis env vis $
+      else -}
+           prettyVis env vis $
             keyword env (show sort)
-            <+> (if nameIsNil name then text "_" else prettyDefName env name)
+            <+> (if nameIsNil name && coreShowDef env
+                  then text "_" 
+                  else prettyDefName env name) 
             <+> text ":" <+> (case sort of 
-                                DefFun pinfos -> prettyDefFunType env pinfos scheme
-                                _             -> prettyType env scheme
-                             )
+                  DefFun pinfos -> prettyDefFunType env pinfos scheme
+                  _             -> prettyType env scheme
+                )
             <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
                   then empty
                   else linebreak <.> indent 2 (text "=" <+> ppBody)) <.> semi
@@ -278,8 +287,8 @@ prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
 prettyVis env vis doc
   = if (not (coreShowVis env)) then doc else
     case vis of
-      Public  -> keyword env "public" <+> doc
-      Private -> keyword env "private" <+> doc --if (coreIface env) then (keyword env "private" <+> doc) else doc
+      Public  -> keyword env "pub" <+> doc
+      Private -> doc -- keyword env "private" <+> doc --if (coreIface env) then (keyword env "private" <+> doc) else doc
 
 prettyType env tp
   = head (prettyTypes env [tp])
@@ -358,8 +367,11 @@ prettyExpr env (Lit lit)
 --  
 prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal inl nameRng doc)]) e')
   = vcat [ let exprDoc = prettyExpr env e <.> semi
-           in if (nameIsNil x) then exprDoc
-               else (keyword env "val" <+> hang 2 (prettyDefName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
+           in {- if (nameIsNil x) then exprDoc
+               else -}
+              (keyword env "val" <+> hang 2 (
+                (if nameIsNil x then text "_" else prettyDefName env x) <+> text ":" <+> prettyType env tp 
+                <-> text "=" <+> exprDoc))
          , prettyExpr env e'
          ]
 prettyExpr env (Let defGroups expr)

@@ -11,10 +11,10 @@ module time8
 
 import std/os/path
 import std/os/file
-public import std/num/ddouble
-public import std/time
-public import std/time/ut1
-public import std/time/astro
+pub import std/num/ddouble
+pub import std/time
+pub import std/time/ut1
+pub import std/time/astro
 
 /*----------------------------------------------------------------------------
   Testing
@@ -28,7 +28,7 @@ fun check(name : string, res : string, tst : () -> <io,utc> string ) : <io,utc> 
 }
 
 
-public val sofai = ts-ti.instant(2006,1,15,21,24,37,0.5)
+pub val sofai = ts-ti.instant(2006,1,15,21,24,37,0.5)
 
 // TAI start at 0 on `1958-01-01Z`
 // TT is TAI ++ 32.184, so was `1958-01-01T00:00:32.184 TT`
@@ -39,7 +39,7 @@ public val sofai = ts-ti.instant(2006,1,15,21,24,37,0.5)
 //  UT2 = UT1 ++ 0.022*sin(2*pi*t) - 0.012*cos(2*pi*t) - 0.006*sin(4*pi*t) ++ 0.007*cos(4*pi*t)
 // where `t` the fraction of the Besselian year, we are off by 0.008s.
 // I guess this is due to UT2 being now approximated from UT1?
-public fun test-ut2() {
+pub fun test-ut2() {
   val i = ts-tai.instant(1958,1,1)
   check("utc at tai epoch", "1958-01-01T00:00:00Z"){ i.time(ts=utc()).show }
   check("tt  at tai epoch", "1958-01-01T00:00:32.184Z TT") { i.time(ts=ts-tt).show }
@@ -47,7 +47,7 @@ public fun test-ut2() {
   check("ut2 at tai epoch", "1958-01-01T00:00:00.013023922Z UT2"){ i.time(ts=ts-ut2-approx).show }
 }
 
-public fun test-ut1(verbose:bool = True) {
+pub fun test-ut1(verbose:bool = True) {
   println("load UT1 calendar")
   val ts-ut1= try-default(ts-ut1-approx){ ts-ut1-load(verbose=verbose,download-timeout=20.seconds) }
   // on 2017-05-03 the IERS data says:
@@ -58,7 +58,7 @@ public fun test-ut1(verbose:bool = True) {
   //   2006-01-15T00:00:00Z  UT1-UTC = 0.3340758
 
   check("sofa-ut1","2006-01-15T21:24:37.834077267Z UT1"){  sofai.time(ts=ts-ut1).show  }
-  // astropy: 37.834077793, sofa: 37.834100 ; linear interpolate using double: 37.8340747674305556
+  // astropy: 37.834077793, sofa: 37.834100 ; linear interpolate using float64: 37.8340747674305556
 
   // across a leap second;
   // on 2017-05-03 the IERS data says:
@@ -76,7 +76,7 @@ public fun test-ut1(verbose:bool = True) {
 
 }
 
-public fun main() {
+pub fun main() {
   test-ut1(verbose=False)
   test-ut2()
 }

@@ -21,34 +21,29 @@ import std/time/date
 // Time spans are a time duration in some time scale represented as a `:ddouble`;
 // this gives it very high precision and range to represent time very precisely.
 // (see the [`instant`](std_time_instant.html) module)
-public alias timespan = ddouble
+pub alias timespan = ddouble
 
 // A zero-valued timespan.
-public val timespan0 : timespan = zero
+pub val timespan0 : timespan = zero
 
-public fun timespan( seconds : int, frac : double = 0.0 ) : timespan {
-  if (frac.is-zero) then ddouble(seconds) else ddouble(seconds) + ddouble(frac)
-}
+pub fun timespan( seconds : int, frac : float64 = 0.0 ) : timespan
+  if frac.is-zero then ddouble(seconds) else ddouble(seconds) + ddouble(frac)
 
-public fun timespan( secs : double ) : timespan {
+pub fun timespan( secs : float64 ) : timespan
   ddouble(secs)
-}
 
 // Timespan from a `:ddouble`. Just for convenience as `:timespan` is an alias
-public fun timespan( secs : ddouble ) : timespan {
+pub fun timespan( secs : ddouble ) : timespan
   secs
-}
 
 // Divide using `div` to allow for different timespan representations
-public fun div( x : timespan, y : timespan, prec : int = 0) : timespan {
+pub fun div( x : timespan, y : timespan, prec : int = 0) : timespan
   x / y
-}
 
 
 // Seconds in a solar day, 86400.
-public val isolar-secs-per-day = 86400
-public val solar-secs-per-day = isolar-secs-per-day.timespan
-
+pub val isolar-secs-per-day = 86400
+pub val solar-secs-per-day = isolar-secs-per-day.timespan
 
 /*----------------------------------------------------------------------------
   Timestamps
@@ -57,7 +52,6 @@ public val solar-secs-per-day = isolar-secs-per-day.timespan
 /* A time stamp denotes an instant in time since 2000-01-01 in some time scale.
 Time stamps also keep track of possible leap seconds for
 UTC based timescales. [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time).
-
 
 - One way is as a duration in TAI SI seconds
   but that would lead to many unnecessary conversions (and loss of precision),
@@ -93,127 +87,107 @@ abstract struct timestamp(
   leap32 : int32
 )
 
-public fun leap( t : timestamp ) : int {
+pub fun leap( t : timestamp ) : int
   t.leap32.int
-}
 
 // The time stamp at 2000-01-01
-public val timestamp0 : timestamp = Timestamp(ddouble/zero,int32/zero)
-
+pub val timestamp0 : timestamp = Timestamp(ddouble/zero,int32/zero)
 
 // Create a time stamp from a `:timespan` since 2000-01-01 and possible leap seconds.
-public fun timestamp( t : timespan, leap : int = 0 ) : timestamp {
+pub fun timestamp( t : timespan, leap : int = 0 ) : timestamp
   Timestamp(t,leap.int32)
-}
 
 // Create a time stamp from an integer timespan since 2000-01-01 and possible leap seconds.
-public fun timestamp( t : int, frac : double = 0.0, leap : int = 0 ) : timestamp {
+pub fun timestamp( t : int, frac : float64 = 0.0, leap : int = 0 ) : timestamp
   timestamp(t.ddouble + frac.ddouble,leap)
-}
 
 // Timestamp from days, seconds into the day and possible leap second.
-public fun timestamp-days( days : int, secs : timespan = timespan0, leap : int = 0  ) : timestamp {
+pub fun timestamp-days( days : int, secs : timespan = timespan0, leap : int = 0  ) : timestamp
   timestamp( (days * isolar-secs-per-day).timespan + secs, leap)
-}
 
 
 // Return days and seconds into the day, disregarding leap seconds.
-public fun days-seconds( ts : timestamp ) : (int,ddouble) {
+pub fun days-seconds( ts : timestamp ) : (int,ddouble)
   val secs = ts.since.floor
   val frac = ts.since - secs
   val (days,dsecs) = divmod(secs.int, isolar-secs-per-day)
   (days, dsecs.ddouble + frac)
-}
 
 // Return days and clock into the day, handling possible leap seconds.
-public fun days-clock( ts : timestamp ) : (int,clock) {
+pub fun days-clock( ts : timestamp ) : (int,clock)
   val (days,secs) = ts.days-seconds
   (days, clock(secs,ts.leap))
-}
 
-public fun days( ts : timestamp ) : int {
+pub fun days( ts : timestamp ) : int
   ts.days-seconds.fst
-}
 
-public fun seconds-into-day( ts : timestamp ) : ddouble {
+pub fun seconds-into-day( ts : timestamp ) : ddouble
   ts.days-seconds.snd + ts.leap.ddouble
-}
 
 
 // The time span since 2000-01-01 including time inside a possible leap second.
-public fun unsafe-timespan-withleap( ts : timestamp ) : timespan {
+pub fun unsafe-timespan-withleap( ts : timestamp ) : timespan
   ts.since + ts.leap.timespan
-}
 
 
 // The time span since 2000-01-01 for time scales that do not have
 // leap seconds and where every day is 86400s. For time scales
 // with leap seconds, this effectively ignores any leap seconds.
-public fun timespan-noleap( ts : timestamp ) : timespan {
+pub fun timespan-noleap( ts : timestamp ) : timespan
   ts.since
-}
 
 // Round a time stamp to a certain precision (`prec` is number of digits of the fraction of the second).
-public fun round-to-prec(t : timestamp, prec : int ) : timestamp {
+pub fun round-to-prec(t : timestamp, prec : int ) : timestamp
   Timestamp(t.since.round-to-prec(prec), t.leap32)
-}
 
 // Add `leaps` leap seconds to the timestamp.
-public fun add-leap-seconds( ts : timestamp, leaps : timespan ) : timestamp {
-  if (!leaps.is-pos) then ts // + leaps // if negative, add as normal seconds
-  elif (leaps < 1.timespan && ts.leap.is-zero)
+pub fun add-leap-seconds( ts : timestamp, leaps : timespan ) : timestamp
+  if !leaps.is-pos then ts // + leaps // if negative, add as normal seconds
+  elif leaps < 1.timespan && ts.leap.is-zero
    then Timestamp( (ts.since - 1.timespan) + leaps, 1.int32)
    else Timestamp( ts.since + leaps.fraction, ts.leap32 + leaps.truncate.int.int32 )
-}
 
 // Add `days` days to a timestamp
-public fun add-days( ts : timestamp, days : int ) : timestamp {
+pub fun add-days( ts : timestamp, days : int ) : timestamp
   ts + (days * isolar-secs-per-day).timespan
-}
 
 // Compare two `:timestamp`s.
-public fun compare( i : timestamp, j : timestamp ) : order {
-  match(compare(i.since,j.since)) {  // compare without leap-seconds first!
+pub fun compare( i : timestamp, j : timestamp ) : order
+  match compare(i.since,j.since)   // compare without leap-seconds first!
     Eq  -> compare(i.leap,j.leap)
     ord -> ord
-  }
-}
 
-public fun (<)( i : timestamp, j : timestamp )  : bool { compare(i,j) == Lt }
-public fun (<=)( i : timestamp, j : timestamp ) : bool { compare(i,j) != Gt }
-public fun (>)( i : timestamp, j : timestamp )  : bool { compare(i,j) == Gt }
-public fun (>=)( i : timestamp, j : timestamp ) : bool { compare(i,j) != Lt }
-public fun (==)( i : timestamp, j : timestamp ) : bool { compare(i,j) == Eq }
-public fun (!=)( i : timestamp, j : timestamp ) : bool { compare(i,j) != Eq }
+
+pub fun (<)( i : timestamp, j : timestamp )  : bool { compare(i,j) == Lt }
+pub fun (<=)( i : timestamp, j : timestamp ) : bool { compare(i,j) != Gt }
+pub fun (>)( i : timestamp, j : timestamp )  : bool { compare(i,j) == Gt }
+pub fun (>=)( i : timestamp, j : timestamp ) : bool { compare(i,j) != Lt }
+pub fun (==)( i : timestamp, j : timestamp ) : bool { compare(i,j) == Eq }
+pub fun (!=)( i : timestamp, j : timestamp ) : bool { compare(i,j) != Eq }
 
 // The minimum of two timestamps.
-public fun min( i : timestamp, j : timestamp ) : timestamp {
-  if (i <= j) then i else j
-}
+pub fun min( i : timestamp, j : timestamp ) : timestamp
+  if i <= j then i else j
 
 // The maximum of two timestamps.
-public fun max( i : timestamp, j : timestamp ) : timestamp {
-  if (i >= j) then i else j
-}
+pub fun max( i : timestamp, j : timestamp ) : timestamp
+  if i >= j then i else j
 
 // Add a time span to a time stamp.
-public fun (+)( ts : timestamp, t : timespan ) : timestamp {
+pub fun (+)( ts : timestamp, t : timespan ) : timestamp
   Timestamp(ts.since + t, ts.leap32)
-}
 
 // Subtract a time span from a time stamp.
-public fun (-)( ts : timestamp, t : timespan ) : timestamp {
+pub fun (-)( ts : timestamp, t : timespan ) : timestamp
   Timestamp(ts.since - t, ts.leap32)
-}
 
 // Show a time stamp.
-public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string {
-  val l = if (ts.leap.is-zero) then "" else " (+" ++ ts.leap.show ++ " leap)"
+pub fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string
+  val l = if ts.leap.is-zero then "" else " (+" ++ ts.leap.show ++ " leap)"
   ts.since.show-seconds(max-prec,secs-width,unit) ++ l
-}
 
 // Show a day stamp
-public fun ts-show-days( ts : timestamp, prec : int = 9 ) : string {
+pub fun ts-show-days( ts : timestamp, prec : int = 9 ) : string
   val (days,secs) = ts.days-seconds
   days.show ++ "d " ++ ts-show(timestamp(secs,ts.leap),prec,unit="s")
-}
+

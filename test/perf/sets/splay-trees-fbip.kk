@@ -46,7 +46,7 @@ fun insert(v : elem, tree) {
   go(tree, Root)
 }
 
-public fun member(v : elem, tree : tree) : (bool, tree) {
+pub fun member(v : elem, tree : tree) : (bool, tree) {
   fun go(tree, zipper) {
     match(tree) {
       Leaf -> (False, splay_(zipper))
@@ -99,7 +99,7 @@ fun from-list(xs) {
   go(xs, Leaf)
 }
 
-public fun count-splay-trees-fbip(start : int, end : int, xs : list<int>) {
+pub fun count-splay-trees-fbip(start : int, end : int, xs : list<int>) {
   fun go(i, acc, t) {
     if(i <= end) {
       match(member(i, t)) {

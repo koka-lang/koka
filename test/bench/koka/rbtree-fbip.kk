@@ -64,7 +64,7 @@ fun make-tree(n : int32) : tree
     insert( t, m, m % 10.int32 == 0.int32 )
 */
 
-fun main()
+pub fun main()
   val n = get-args().head("").parse-int.default(4200000).int32
   val t = make-tree(n, Leaf)
   val v = t.fold(zero) fn(k,v,r:int32){ if v then r.inc else r }

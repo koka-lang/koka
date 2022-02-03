@@ -1186,8 +1186,6 @@ cTypeCon c
          then CPrim "kk_evv_t"
         else if (name == nameTpChar)
          then CPrim "kk_char_t"  -- 32-bit unicode point
-        else if (name == nameTpInt32)
-         then CPrim "int32_t"
         else if (name == nameTpSSizeT)
          then CPrim "kk_ssize_t"
         else if (name == nameTpIntPtrT)
@@ -1200,10 +1198,18 @@ cTypeCon c
          then CPrim "kk_unit_t"
         else if (name == nameTpInt64)
          then CPrim "int64_t"
-        else if (name == nameTpByte)
-         then CPrim "uint8_t"
+        -- else if (name == nameTpByte)
+        --  then CPrim "uint8_t"
+        else if (name == nameTpInt8)
+         then CPrim "int8_t"
+        else if (name == nameTpInt16)
+         then CPrim "int16_t"
+        else if (name == nameTpInt32)
+         then CPrim "int32_t"
         else if (name == nameTpFloat32)
          then CPrim "float"
+        else if (name == nameTpFloat16)
+         then CPrim "float"  -- float16 is only used for storage
         else if (name == nameTpRef || name == nameTpLocalVar)
          then CPrim "kk_ref_t"
         else if (name == nameTpBox || name == nameTpAny)
@@ -1784,6 +1790,19 @@ genAppNormal (Var cfieldOf _) [App (Var box _) [Var con _], Lit (LitString conNa
  = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
           doc = genFieldAddress con (readQualified conName) (readQualified fieldName)
       return (drop,text "(kk_box_t*)" <.> parens doc)
+
+-- add/sub small constant 
+genAppNormal (Var add _) [arg, Lit (LitInt i)] | getName add == nameIntAdd && isSmallInt i  -- arg + i
+ = do (decls,argDocs) <- genInlineableExprs [arg]
+      return (decls, text "kk_integer_add_small_const" <.> arguments (argDocs ++ [pretty i]))
+
+genAppNormal (Var add _) [Lit (LitInt i),arg] | getName add == nameIntAdd && isSmallInt i   -- i + arg
+ = do (decls,argDocs) <- genInlineableExprs [arg]
+      return (decls, text "kk_integer_add_small_const" <.> arguments (argDocs ++ [pretty i]))
+
+genAppNormal (Var sub _) [arg, Lit (LitInt i)] | getName sub == nameIntSub && isSmallInt i  -- arg - i
+ = do (decls,argDocs) <- genInlineableExprs [arg]
+      return (decls, text "kk_integer_add_small_const" <.> arguments (argDocs ++ [pretty (-i)]))
 
 
 -- normal

@@ -79,13 +79,14 @@ operations matching.")
 (defconst koka-font-lock-keywords
   `(;; Keywords
     ;; Exclude too generic keywords which chould be used as variable name(js, c, file)
-    ,(regexp-opt '("infix" "infixr" "infixl" "prefix" "type" "struct" "alias" "con" "forall"
+    ,(regexp-opt '("infix" "infixr" "infixl" "type" "struct" "alias" "con" "forall"
                    "exists" "some" "fun" "fn" "val" "var" "extern" "if" "then" "else" "elif"
-                   "match" "return" "with" "in" "handle" "handler" "mask" "override" "control"
-                   "rcontrol" "effect" "named" "module" "import" "as" "public" "private"
-                   "abstract" "pub" "interface" "yield" "qualified" "hiding" "unsafe" "co"
-                   "rec" "open" "extend" "behind" "linear" "value" "reference" "inline"
-                   "noinline" "include" "import" ) 'symbols)
+                   "match" "return" "with" "in" "handle" "handler" "mask" "override" 
+                   "ctl" "raw" "final" "effect" "named" 
+                   "module" "import" "as" "abstract" "pub" 
+                   "co" "rec" "open" "extend" "behind" "linear" "value" "reference" 
+                   "inline" "noinline" "include" 
+                   "interface" "yield" "qualified" "hiding" "unsafe" ) 'symbols)
     ;; Function name
     (,koka--fun-name-re 1 font-lock-function-name-face)))
 

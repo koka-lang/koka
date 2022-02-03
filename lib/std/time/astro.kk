@@ -92,7 +92,6 @@ your own time scale which uses a potentially more precise approximation using
 
 [timescales]: timescales.png { width:70%; }
 
-
 ## References {-}
 
 ~ Bibliography { caption:"0" }
@@ -108,7 +107,7 @@ Astronomy and Astrophysics, vol. 229, no. 1, March 1990, p. 240--247.
 George H.\ Kaplan.
 _The IAU Resolutions on Astronomical Reference Systems,
 Time Scales, and Earth Rotation Models -- Explanation and Implementation_.
-USNO Circular [179](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf)
+USNO Circular [179](http://aa.usno.navy.mil/pubations/docs/Circular_179.pdf)
 ~~
 
 ~~ BibItem { #Seidelmann:why; bibitem-label:"[3]"; searchterm:"Seidelmann+Fukushima+Why+new+time+scales" }
@@ -122,7 +121,7 @@ Astronomy and Astrophysics, vol. 265, no. 2, p. 833--838.
 
 [IAU-B3]: http://www.iau.org/static/resolutions/IAU2006_Resol3.pdf
 [IAU-IV]: https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932
-[IERS-2010]: https://www.iers.org/SharedDocs/Publikationen/EN/IERS/Publications/tn/TechnNote36/tn36.pdf?__blob=publicationFile&v=1
+[IERS-2010]: https://www.iers.org/SharedDocs/Publikationen/EN/IERS/pubations/tn/TechnNote36/tn36.pdf?__blob=pubationFile&v=1
 [TIpropose]: https://syrte.obspm.fr/journees2004/pdf/McCarthy2.pdf#page=4
 [Java time]: https://docs.oracle.com/javase/8/docs/api/java/time/Instant.html
 [UTC]: https://en.wikipedia.org/wiki/Coordinated_Universal_Time
@@ -134,7 +133,7 @@ Astronomy and Astrophysics, vol. 265, no. 2, p. 833--838.
 */
 module std/time/astro
 
-import std/num/double
+import std/num/float64
 import std/num/ddouble
 import std/time/timestamp
 import std/time/duration
@@ -148,15 +147,14 @@ import std/time/calendars  // cal-tai, cal-gps
 
 /*
 // The TCG (Geometric coordinate time) calendar, i.e. an ISO calendar but using the `ts-tcg` time scale.
-public val cal-tcg  = iso-calendar( ts-tcg )//, fixed(32184,3) )
+pub val cal-tcg  = iso-calendar( ts-tcg )//, fixed(32184,3) )
 
 // The TDB (Barycentric dynamical time) calendar, i.e. an ISO calendar but using the `ts-tdb` time scale. Always within 2ms of TT (`cal-tt`).
-public val cal-tdb  = iso-calendar( ts-tdb )//, fixed(32184,3) )
+pub val cal-tdb  = iso-calendar( ts-tdb )//, fixed(32184,3) )
 
 // The TCB (Barycentric coordinate time) calendar, i.e. an ISO calendar but using the `ts-tcb` time scale.
-public val cal-tcb  = iso-calendar( ts-tcb )//, fixed(32184,3) )
+pub val cal-tcb  = iso-calendar( ts-tcb )//, fixed(32184,3) )
 */
-
 
 
 val secs-per-day    = ddouble(86400)
@@ -165,24 +163,22 @@ val offset-j2000    = ddouble(43200)
 // The [J2000] epoch is defined as 2000-01-01T12:00:00 TT (Terrestrial time).
 //
 // [J2000]: https://en.wikipedia.org/wiki/Equinox_(celestial_coordinates)#J2000.0
-public val epoch-j2000 = instant-at-j2000(zero)
+pub val epoch-j2000 = instant-at-j2000(zero)
 
 // Return the J2000 julian date for an instant. This is the number of days, and
 // the fraction of the day since J2000 (`epoch-j2000`) in terrestrial time (`ts-tt`).\
 // `instant(2000,1,1,12,0,0).j2000.show == "0.00074287037037"`\
 // `instant(2000,1,1,12,0,0,cal=cal-tt).j2000.show == "0"`
-public fun j2000( i : instant ) : ddouble {
+pub fun j2000( i : instant ) : ddouble
   div( (i.timestamp-in(ts-tt) - offset-j2000).timespan-noleap, secs-per-day, 18)
   // div( (i.-in(ts-tt).timespan - offset-j2000), secs-per-day, 18 )  // atto-second precision
-}
 
 // Return the instant corresponding to a J2000 julian date: this is the number of days, and
 // the fraction of the day since J2000 (`epoch-j2000`) in terrestrial time (`ts-tt`).\
 // `instant-at-j2000(zero).time.show == "2000-01-01T11:58:55.816Z"`\
 // `instant-at-j2000(zero).time(cal=cal-tt).show == "2000-01-01T12:00:00Z TT"`
-public fun instant-at-j2000( jd : ddouble ) : instant {
+pub fun instant-at-j2000( jd : ddouble ) : instant
   ts-tt.instant( timestamp( (jd * secs-per-day) + offset-j2000) )
-}
 
 
 /*----------------------------------------------------------------------------
@@ -196,24 +192,21 @@ val tcg-epoch-delta = ddouble-exp(~725759967816,~3) // 1977-01-01T00:00:32.184 T
 // TCG - TT = L~g~&times;(JD~TT~ - TCG~epoch~)
 // =>
 // TCG = TT + Lg*(TT - TCG~epoch~)
-fun tcg-from-tai( tai : duration ) : timestamp {
+fun tcg-from-tai( tai : duration ) : timestamp
   val tt = ts-tt.from-tai(tai)
   tt + (lg*(tt - tcg-epoch-delta).timespan-noleap)
-}
 
 // IAU 1991 recommendation [IV](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932):\
 // TCG - TT = L~g~&times;(JD~TT~ - TCG~epoch~)
 // =>
 // TT = TCG - Lg*(TCG - TCG~epoch~)
-fun tcg-to-tai( t : timestamp ) : duration {
+fun tcg-to-tai( t : timestamp ) : duration
   val tt = t - (lg*(t - tcg-epoch-delta).timespan-noleap)
   ts-tt.to-tai(tt)
-}
 
 // The [TCG](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time) (Geocentric coordinate time) time scale.
 // The unit of TCG is the SI second in a coordinate reference frame at the center of the Earth.
-public val ts-tcg : timescale = timescale( "TCG", tcg-from-tai, tcg-to-tai )
-
+pub val ts-tcg : timescale = timescale( "TCG", tcg-from-tai, tcg-to-tai )
 
 /*----------------------------------------------------------------------------
   TDB: Barycentric dynamical time
@@ -226,11 +219,11 @@ val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 // See also USNO circular 179 ([@Kaplan:circ], section 2.6).
 // The error in this approximation is a maximum of 10 micro-seconds in the time period 1600 to 2200.
 // (and probably less as we expanded to more terms and do JPL planetary mass adjustment)
-fun tdb-delta( tt : timestamp ) : timespan {
-  val t = (tt - j2k-epoch).timespan-noleap.double / (secs-per-julian-year * 1000.0) // fraction of Julian millenia since J2000
+fun tdb-delta( tt : timestamp ) : timespan
+  val t = (tt - j2k-epoch).timespan-noleap.float64 / (secs-per-julian-year * 1000.0) // fraction of Julian millenia since J2000
 
   // First terms of Fairhead et al. model
-  val wf : double
+  val wf : float64
          =(1656.6746e-6*sin( 6283.0758*t + 6.2401)
           + ( 22.4175e-6*sin( 5753.3859*t + 4.2970)
           +   13.8398e-6*sin(12566.1527*t + 6.1969)
@@ -247,7 +240,7 @@ fun tdb-delta( tt : timestamp ) : timespan {
           + t*(102.1567e-6*sin( 6283.0758*t + 4.2490))
 
   // Adjustments to use JPL planetary masses instead of IAU.
-  val wj : double
+  val wj : float64
          =  0.00065e-6*sin(6069.776754*t + 4.021194) +
             0.00033e-6*sin( 213.299095*t + 5.543132) +
           (~0.00196e-6*sin(6208.294251*t + 5.696701)) +
@@ -258,18 +251,17 @@ fun tdb-delta( tt : timestamp ) : timespan {
   val wt = 0.0 // tdb-topocentric(t,0.5,~155.933222,10000.0,5000.0)
 
   ddouble( wf+wj+wt )
-}
 
 val pi2   = 6.283185307179586476925287      // 2pi
 val dd2r  = 1.745329251994329576923691e-2   // degree to radians
 
 // From the ERFA routines
-fun tdb-topocentric(  t : double,        // fractional julian millennia
-                      ut : double = 0.0, // UT1 (fraction of one day)
-                      elong : double = 0.0, // east positive degrees
-                      u : double = 0.0, // distance earth spin axis in km
-                      v : double = 0.0  // distance north of eq. plane in km
-                      ) {
+fun tdb-topocentric(  t : float64,        // fractional julian millennia
+                      ut : float64 = 0.0, // UT1 (fraction of one day)
+                      elong : float64 = 0.0, // east positive degrees
+                      u : float64 = 0.0, // distance earth spin axis in km
+                      v : float64 = 0.0  // distance north of eq. plane in km
+                      )
   // Convert UT to local solar time in radians.
   val tsol = ut.fraction*pi2 + elong*dd2r
 
@@ -292,7 +284,7 @@ fun tdb-topocentric(  t : double,        // fractional julian millennia
   val els = ((50.07744430 + 44046398.47038 * w) % 360.0) * dd2r
 
   // Moyer 1981 and Murray 1983.
-  val wt : double
+  val wt : float64
          =(  0.00029e-10 * u * sin(tsol + elsun - els)
           + (0.00100e-10 * u * sin(tsol - 2.0 * emsun)
           +  0.00133e-10 * u * sin(tsol - d)
@@ -307,16 +299,13 @@ fun tdb-topocentric(  t : double,        // fractional julian millennia
           +  3.17679e-10 * u * sin(tsol)
           );
   wt
-}
 
-fun tai-to-tdb( tai : duration, delta : timestamp -> timespan = tdb-delta ) : timestamp {
+fun tai-to-tdb( tai : duration, delta : timestamp -> timespan = tdb-delta ) : timestamp
   val tt = ts-tt.from-tai(tai)
   tt + delta(tt)
-}
 
-fun tdb-to-tai( tdb : timestamp, delta : timestamp -> timespan = tdb-delta ) : duration {
+fun tdb-to-tai( tdb : timestamp, delta : timestamp -> timespan = tdb-delta ) : duration
   ts-tt.to-tai( tdb - delta(tdb) )
-}
 
 // The [TDB](https://en.wikipedia.org/wiki/Barycentric_Coordinate_Time) (Barycentric dynamical time) time scale
 // (which can be considered equivalent T~eph~).
@@ -325,18 +314,17 @@ fun tdb-to-tai( tdb : timestamp, delta : timestamp -> timespan = tdb-delta ) : d
 // Fairhead &amp; Bretagnon [@Fairhead:tt] assuming the geo center (longitude and latitude of 0 degrees).
 // See also USNO circular 179 ([@Kaplan:circ], equation 2.6).
 // The approximation is within 10&mu;s precision in the time span 1600 to 2200 (and probably a bit less).
-public val ts-tdb : timescale = ts-tdb-create(tdb-delta)
+pub val ts-tdb : timescale = ts-tdb-create(tdb-delta)
 
 // Creates a new TDB timescale given a user provided function to calculate TDB-TT.
 // The default function used for `ts-tdb` uses the Fairhead &amp; Bretagnon approximation
 // corrected for JPL planetary masses but assumes the geo center. Use this function
 // to create a new TDB timescale if you need more precision.
-public fun ts-tdb-create( tdb-minus-tt : timestamp -> timespan ) : timescale {
+pub fun ts-tdb-create( tdb-minus-tt : timestamp -> timespan ) : timescale
   timescale("TDB",
     fn(tai:duration)  { tai-to-tdb(tai,tdb-minus-tt) },
     fn(tdb:timestamp) { tdb-to-tai(tdb,tdb-minus-tt) }
   )
-}
 
 
 /*----------------------------------------------------------------------------
@@ -346,23 +334,21 @@ public fun ts-tdb-create( tdb-minus-tt : timestamp -> timespan ) : timescale {
 val lb   : ddouble = ddouble-exp(155051976772,~19) // 1.55051976772e-8
 val tdb0 : ddouble = ddouble-exp(~655,~7) // ~6.55e-5
 
-fun tai-to-tcb( tai : duration, tstdb : timescale ) : timestamp {
+fun tai-to-tcb( tai : duration, tstdb : timescale ) : timestamp
   val tdb = tstdb.from-tai(tai)
   val adj = lb*(tdb - tcg-epoch-delta).timespan-noleap
   tdb + (adj - tdb0)
-}
 
-fun tcb-to-tai( tcb : timestamp, tstdb : timescale ) : duration {
+fun tcb-to-tai( tcb : timestamp, tstdb : timescale ) : duration
   val adj = lb*(tcb - tcg-epoch-delta).timespan-noleap
   val tdb = tcb - (adj - tdb0)
   tstdb.to-tai(tdb)
-}
 
 // The [TCB](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time)
 // (Barycentric coordinate time) time scale.\ The unit of TCB is the SI
 // second, but in a coordinate reference frame at the barycenter of the solar
 // system.
-public val ts-tcb : timescale = ts-tcb-create(ts-tdb)
+pub val ts-tcb : timescale = ts-tcb-create(ts-tdb)
 
 // Create a new TCB timescale given a TDB timescale (`tstdb`). The default
 // `ts-tcb` uses the default `ts-tdb` timescale, but if you created
@@ -373,9 +359,9 @@ public val ts-tcb : timescale = ts-tcb-create(ts-tdb)
 // L~b~ &times; (JD~TCB~ - T~0~) &times; 86400 + TDB~0~, with T~0~ =
 // 2443144.5003725, L~b~ = 1.55051976772&times;10^-8^, TDB~0~ =
 // -6.55&times;10^-5^.
-public fun ts-tcb-create( tstdb : timescale ) : timescale {
+pub fun ts-tcb-create( tstdb : timescale ) : timescale
   timescale( "TCB",
     fn(tai:duration)  { tai-to-tcb(tai, tstdb) },
     fn(tcb:timestamp) { tcb-to-tai(tcb, tstdb) }
   )
-}
+

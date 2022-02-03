@@ -1,5 +1,5 @@
 effect amb {
-  control flip() : bool
+  ctl flip() : bool
 }
 
 fun mmap( f, xs ) {
@@ -36,7 +36,7 @@ fun xors() : amb string {
 fun amb_handle() {
   handler {
     return(x) { [x] }
-    control flip() { resume(False) ++ resume(True) }
+    ctl flip() { resume(False) ++ resume(True) }
   }
 }
 

@@ -1,7 +1,7 @@
-public module calendar
+module calendar
 
-public import std/num/fixed
-public import std/xtime
+pub import std/num/fixed
+pub import std/xtime
 
 
 // ----------------------------------------------------

@@ -1,5 +1,5 @@
 effect out {
-  control out(s : string) : ()
+  ctl out(s : string) : ()
 }
 
 
@@ -11,7 +11,7 @@ fun mapx( xs : list<a>, f : a -> e b ) : e list<b> {
 }
 
 fun main() {
-  with control out(s:string) {
+  with ctl out(s:string) {
     println(s); resume(())
   }
   list(1,10).mapx(fn(i:int){ if (i.is-odd) i.show.out; i+1 }).sum.println

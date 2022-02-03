@@ -1,0 +1,90 @@
+{
+  "displayName": "arm64",
+  "name": "arm64",
+  "mimeTypes": ["text/x-arm64"],
+  "fileExtensions": ["S","s"],
+  
+  "editorOptions": { "tabSize": 2, "insertSpaces": true },
+  
+  "lineComment":       "#",   
+  "blockCommentStart": "/*",
+  "blockCommentEnd":   "*/",
+
+  "keywords": [
+    "mov","ldrb","ldp","ldr",
+    "cbnz","b","bl","ne", "eq",
+    "add","cmp", "sxtw", "tbz", "cbz",
+    "orr"
+  ],
+
+  "extraKeywords": [
+  ],
+
+  "builtins": [    
+  ],
+
+  "extraBuiltins": [
+  ],
+
+  "escapes" :  "\\\\(?:[nrt\\\\\"'\\?]|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{6})",  
+  
+  "tokenizer": {
+    "root": [
+      ["[xwr]\\d+", "keyword.register"],
+      ["[A-Z\\_]\\w*", "identifier.label"],
+      ["[a-z\\_]\\w*",
+        { "cases":{ "@keywords": "keyword",
+                    "@extraKeywords": "keyword",
+                    "@builtins": "identifier.predefined",
+                    "@extraBuiltins": "identifier.predefined",
+                    "@default" : "identifier" }
+        }
+      ],
+    
+      { "include": "@whitespace" },
+      
+      ["[{}()\\[\\]]", "@brackets"],
+      ["[;,`]", "delimiter"],
+    
+      ["[0-9]+\\.[0-9]+([eE][\\-+]?[0-9]+)?", "number.float"],
+      ["0[xX][0-9a-fA-F]+", "number.hex"],
+      ["#?[0-9]+", "number"],
+
+      
+      ["\"([^\"\\\\]|\\\\.)*$", "string.invalid" ],  
+      ["\"",  { "token": "string.quote", "bracket": "@open", "next": "@string" } ],
+      
+      
+      ["'[^\\\\']'", "string"],
+      ["(')(@escapes)(')", ["string","string.escape","string"]],
+      ["'", "string.invalid"]      
+    ],
+
+    "whitespace": [
+      ["[ \\r\\n]+", "white"],
+      ["/\\*", "comment", "@comment" ],
+      [";$",  "comment"],
+      [";",   "comment", "@line_comment"]
+    ],
+
+    "comment": [
+      ["[^\\/*\"|]+", "comment" ],
+      ["/\\*",  "comment", "@push" ],
+      ["\\*/",  "comment", "@pop"  ],
+      ["[\\/*\"|]", "comment"]
+    ],  
+
+    "line_comment": [
+      ["[^\"|]*$", "comment", "@pop" ],
+      ["[^\"|]+",  "comment" ],      
+      [".*$", "comment", "@pop"] 
+    ],
+
+    "string": [
+      ["[^\\\\\"]+", "string"],
+      ["@escapes",   "string.escape"],
+      ["\\\\.",      "string.escape.invalid"],
+      ["\"",         { "token": "string.quote", "bracket": "@close", "next": "@pop" } ]
+    ]
+  }
+}

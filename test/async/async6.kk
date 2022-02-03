@@ -3,23 +3,23 @@
 // --------------------------------------------------------
 import std/async
 import std/time/duration
-import std/os/readline
+import std/async/readline
 
 effect amb {
-  control flip() : bool
+  ctl flip() : bool
 }
 
 val amb = handler {
   return x        -> [x]
-  control flip()  -> resume(False) ++ resume(True)
+  ctl flip()  -> resume(False) ++ resume(True)
 }
 
 fun dowait(s : duration) {
-  val secs = s.show + " seconds"
-  println("and waiting at least " + secs)
+  val secs = s.show ++ " seconds"
+  println("and waiting at least " ++ secs)
   wait(s)
-  println("(done waiting " + secs + ")")
-  "waited " + secs
+  println("(done waiting " ++ secs ++ ")")
+  "waited " ++ secs
 }
 
 fun test() {
@@ -28,16 +28,15 @@ fun test() {
     fun f() {
       println("what is your name?")
       readline()
-      error("ouch")
+      throw("ouch")
     }
     fun g() {
       wait(1.seconds)
       if (flip()) then dowait(2.seconds) else dowait(3.seconds)
     }
     val xs = interleaved( [f,g] )
-    println("hi " + xs.join(","))
-  }
-  fn(exn) { println("exception thrown: " + exn.show) }
+    println("hi " ++ xs.join(","))
+  } fn(exn) { println("exception thrown: " ++ exn.show) }
 }
 
 fun main() {

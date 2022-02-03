@@ -329,8 +329,8 @@ optimizeDupDrops mchildrenOf conNameOf dups0 drops0
 
 specializeDrop :: (TName -> Maybe TNames) -> (TName -> Maybe Name) -> Dups -> TName -> Parc [Maybe Expr]
 specializeDrop mchildrenOf conNameOf dups v    -- dups are descendents of v
-  = -- trace ("enter specialize: " ++ show v ++ ", children: " ++ show (mchildrenOf v) ++ ", dups: " ++ show dups) $
-    do  xShared <- foldMapM genDup dups         -- for the non-unique branch
+  = do  -- parcTrace ("enter specialize: " ++ show v ++ ", children: " ++ show (mchildrenOf v) ++ ", dups: " ++ show dups)
+        xShared <- foldMapM genDup dups         -- for the non-unique branch
         xUnique <- optimizeDupDrops mchildrenOf conNameOf dups (childrenOf v) -- drop direct children in unique branch (note: `v \notin drops`)
         let tp = typeOf v
         isValue <- isJust <$> getValueForm tp
@@ -356,9 +356,21 @@ specializeDrop mchildrenOf conNameOf dups v    -- dups are descendents of v
                                       else -- trace ("** no identity: " ++ showTName (v) ++ ": " ++ show (bforms,map pretty ftps)) $
                                            noSpecialize v
 
+          {- else if isBoxType tp 
+            -- elide drop/dups on boxed types whose elements are not heap allocated
+            then case S.toList (childrenOf v) of
+                   [x] -> do bx <- getBoxForm (typeOf x)
+                             case bx of 
+                               BoxIdentity -> do parcTrace $ "boxed value that is never heap allocated"
+                                                 return [] 
+                               _ -> do parcTrace $ "boxed value with boxform: " ++ show bx
+                                       noSpecialize v
+                   [] -> do parcTrace $ "no specialize boxed: " ++ show v
+                            noSpecialize v
+                   _  -> failure $ "Backend.C.Parc: boxed type with more than one child: " ++ show (childrenOf v) -}
           else if dontSpecialize
             -- don't specialize certain primitives
-            then do -- parcTrace $ "no specialize: " ++ show y
+            then do -- parcTrace $ "no specialize: " ++ show v
                     noSpecialize v
             else do -- parcTrace $ "specialize: " ++ show y
                     xDecRef <- genDecRef v
@@ -568,14 +580,17 @@ getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
 getBoxForm' platform newtypes tp
   = -- trace ("getBoxForm' of " ++ show (pretty tp)) $
     case getDataDef' newtypes tp of
-      Just (DataDefValue _ 0) -- 0 scan fields
+      Just (DataDefValue m 0) -- 0 scan fields, m is size in bytes of raw fields
         -> -- trace "  0 scan fields" $
            case extractDataDefType tp of
              Just name
-               | name `elem` [nameTpInt, nameTpChar, nameTpByte, nameTpCField] ||
-                 ((name `elem` [nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
+               | name `elem` [nameTpInt, nameTpCField] ||
+                 ((name `elem` [nameTpInt8, nameTpInt16, nameTpFloat16]) && sizePtr platform > 2) ||
+                 ((name `elem` [nameTpChar, nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
                    -> BoxIdentity
-             _ -> BoxRaw
+             _ -> if m < sizePtr platform   -- for example, `bool`, but not `int64`
+                   then BoxIdentity 
+                   else BoxRaw
       Just (DataDefValue _ _)
         -> BoxValue
       Just _
@@ -703,7 +718,7 @@ exprIsNotRefcounted expr
   = case expr of
       Lit (LitInt i)   
         -> return (i >= -8191 && i <= 8191)  -- 14 bits is safe on every platform
-      _ -> needsDupDrop (typeOf expr)
+      _ -> not <$> needsDupDrop (typeOf expr)
 
 
 
@@ -973,7 +988,7 @@ getDataInfo' newtypes tp
       Nothing   -> Nothing
       Just name | name == nameBoxCon -> Nothing
       Just name -> case newtypesLookupAny name newtypes of
-                      Nothing -> failure $ "Core.Parc.getDataDefInfo: cannot find type: " ++ show name
+                      Nothing -> failure $ "Core.Parc.getDataDefInfo: cannot find type: " ++ show name -- ++ "\n" ++ show newtypes
                       Just di -> -- trace ("datainfo of " ++ show (pretty tp) ++ " = " ++ show di) $
                                  Just di
 
@@ -1022,3 +1037,4 @@ isBoxType (TVar _)                 = True
 isBoxType (TSyn _ _ tp)            = isBoxType tp
 isBoxType (TApp tp _)              = isBoxType tp
 isBoxType _                        = False -- trace ("not a box: " ++ show (pretty tp))  False
+

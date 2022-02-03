@@ -177,7 +177,7 @@ val allResults = handler {
   ctl choose() -> resume(True) ++ resume(False)
 }
 
-public inline fun testChoose() {
+pub inline fun testChoose() {
   allResults{ bobChooses { game(7) } }  // [bob,alice]
 }
 

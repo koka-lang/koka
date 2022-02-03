@@ -10,7 +10,7 @@ module time11
 
 import std/num/ddouble
 import std/time/timestamp
-public import std/time
+pub import std/time
 
 
 /*----------------------------------------------------------------------------
@@ -19,7 +19,7 @@ public import std/time
   optional argument; without fix #da4ff3db this goes wrong
 ----------------------------------------------------------------------------*/
 
-public fun test-dates(tz : timezone = tz-utc) 
+pub fun test-dates(tz : timezone = tz-utc) 
 {
   fun g(y:int){
     val t = time(y,tz=tz)
@@ -32,7 +32,7 @@ public fun test-dates(tz : timezone = tz-utc)
   ()
 }
 
-public fun main() {
+pub fun main() {
   //test-dates()
   test-dates(tz=tz-fixed(1))  
   println("ok")

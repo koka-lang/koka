@@ -85,7 +85,7 @@ fun printTrue2(x: bool, y: bool) {
 // }
 
 // effect raise {
-//   control raise( msg : string ) : a
+//   ctl raise( msg : string ) : a
 // }
 
 // fun safe-divide( x : int, y : int ) : raise int {
@@ -94,7 +94,7 @@ fun printTrue2(x: bool, y: bool) {
 
 // fun raise-const() : int {
 //   with handler {
-//     control raise(msg){ 42 }
+//     ctl raise(msg){ 42 }
 //   } 
 //   8 + safe-divide(1,0)
 // }

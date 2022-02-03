@@ -4,20 +4,20 @@
 fun foo0( action ) {
   val x = try(action)
   println("tried0: exn: " ++ x.maybe.bool.show )
-  x.throw
+  x.untry
 }
 
 
 fun foo1( action ) {
   val x = try{ mask<exn>(action) }
   println("tried1: exn: " ++ x.maybe.bool.show )
-  x.throw
+  x.untry
 }
 
 fun foo2( action ) {
   val x = try{ mask behind<exn>(action) }   // inject behind the outer exn, i.e. inject the injects in action
   println("tried2: exn: " ++ x.maybe.bool.show )
-  x.throw
+  x.untry
 }
 
 
@@ -25,7 +25,7 @@ fun foo2( action ) {
 fun foo3( action ) {
   val x = mask<exn>{ try{ action() } }
   println("tried3: exn: " ++ x.maybe.bool.show )
-  x.throw
+  x.untry
 }
 
 fun bar(f,action) {

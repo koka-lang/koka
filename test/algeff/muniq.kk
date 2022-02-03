@@ -1,9 +1,9 @@
 effect eff1 { 
-  control op1() : ()
+  ctl op1() : ()
 }
 
 rec effect  eff2 {
-  control op2() : (() -> <eff1,eff2> ())
+  ctl op2() : (() -> <eff1,eff2> ())
 }
 
 fun h1( action : () -> <eff1|e> () ) : e () {
@@ -20,7 +20,7 @@ fun f2( k : (() -> <eff1> ()) -> _ () ) : _ () {
 }
 
 fun h2( action : () -> <eff1,eff2> () ) : <eff1> () {
-  with control op2() { 
+  with ctl op2() { 
     // resume( fn(){ resume(fn(){ op1() }) } ) 
     f2(resume)
   }
