@@ -131,23 +131,46 @@ package_outputs() {
 
   foundbundles="$CALLER_DIR/bundle/**/*.tar.gz"
 
+  bundlecount=$(ls -1 $foundbundles | wc -l)
+  if [ $bundlecount -gt 30 ]; then
+    warn "You have a lot of bundles, $bundlecount in fact. To reduce packaging time please move old bundles somewhere else."
+  fi
+
   for bundleloc in $foundbundles; do
     # Check if the bundle exists
     if [ ! -f $bundleloc ]; then
       stop "Bundle not found at $bundleloc"
     fi
 
-    file_bundle_distro=$(tar -Oxf "$bundleloc" meta/distro)
-    file_bundle_arch=$(tar -Oxf "$bundleloc" meta/arch)
+    file_bundle_distro=$(tar -Oxf "$bundleloc" meta/distro 2>/dev/null || true)
+    file_bundle_builddate=$(tar -Oxf "$bundleloc" meta/builddate 2>/dev/null || true)
+    file_bundle_arch=$(tar -Oxf "$bundleloc" meta/arch 2>/dev/null || true)
     file_bundle_arch=$(normalize_osarch_docker "$file_bundle_arch")
 
+    # Check build time, warn if missing or older than 2 weeks
+    if [ -z "$file_bundle_builddate" ]; then
+      warn "$bundleloc has incomplete metadata but enough to package"
+      continue
+    else
+      file_bundle_builddate=$(date -d "$file_bundle_builddate" +%s)
+      now=$(date +%s)
+      diff=$((now - file_bundle_builddate))
+      if [ $diff -gt 1209600 ]; then
+        warn "$bundleloc is older than 2 weeks, consider moving or rebuilding it"
+      fi
+    fi
+
     # Skip if file bundle distro not in build targets
-    if [ -z "$file_bundle_distro" ]; then 
-      warn "$bundleloc does not have expected metadata"; continue; fi
+    if [ -z "$file_bundle_distro" ]; then
+      warn "$bundleloc is probably a manual build, these are not supported"
+      continue
+    fi
     if [[ ! "$BUILD_TARGETS" =~ "$file_bundle_distro" ]]; then continue; fi
     # Skip if file bundle arch not in build archs
-    if [ -z "$file_bundle_arch" ]; then 
-      warn "$bundleloc does not have expected metadata"; continue; fi
+    if [ -z "$file_bundle_arch" ]; then
+      warn "$bundleloc does not have expected metadata"
+      continue
+    fi
     if [[ ! "$BUILD_ARCHITECTURES" =~ "$file_bundle_arch" ]]; then continue; fi
 
     info "Packaging $bundleloc for $file_bundle_distro"

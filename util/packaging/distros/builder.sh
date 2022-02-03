@@ -9,6 +9,7 @@ BUILD_MODE=""
 LIBC_VERSION=""
 KOKA_VERSION=""
 ARCHITECTURE=""
+BUILDDATE=""
 
 CLEAN_FOLDERS=".koka .stack-work dist dist-newstyle"
 BUNDLE_LIBRARIES="libffi libgmp libnuma"
@@ -227,8 +228,9 @@ rename_and_export_bundle() {
   fi
 
   # GET BUNDLE METADATA
-  ARCHITECTURE=$(tar -Oxf "$bundleloc" meta/arch)
-  KOKA_VERSION=$(tar -Oxf "$bundleloc" meta/version)
+  ARCHITECTURE=$(tar -Oxf "$bundleloc" meta/arch 2>/dev/null || true)
+  KOKA_VERSION=$(tar -Oxf "$bundleloc" meta/version 2>/dev/null || true)
+  BUILDDATE=$(tar -Oxf "$bundleloc" meta/builddate 2>/dev/null || true)
 
   # If either of these are empty, we have a problem
   if [ -z "$ARCHITECTURE" ] || [ -z "$KOKA_VERSION" ]; then
@@ -265,6 +267,7 @@ full_build() {
 
   info "Koka version: $KOKA_VERSION"
   info "Build mode: $BUILD_MODE"
+  info "Build date: $BUILDDATE"
   info "Distro: $DISTRO"
   info "GLIBC Version: $LIBC_VERSION"
   info "Architecture: $ARCHITECTURE"
