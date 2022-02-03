@@ -58,7 +58,8 @@ module Common.NamePrim
 
           --
           , nameUnsafeTotal
-          , nameIntConst, nameByte, nameInt32, nameInt64, nameSSizeT, nameIntPtrT
+          , nameIntConst
+          , nameByte, nameInt16, nameInt32, nameInt64, nameSSizeT, nameIntPtrT
 
           , nameTpBox, nameUnbox, nameBox, nameBoxCon
 
@@ -89,9 +90,10 @@ module Common.NamePrim
           , nameEffectEmpty, nameEffectExtend, nameEffectAppend
 
           , nameTpBool, nameTpInt, nameTpChar
-          , nameTpFloat, nameTpFloat32
+          , nameTpFloat, nameTpFloat32, nameTpFloat16
           , nameTpString
-          , nameTpInt32, nameTpInt64, nameTpByte
+          -- , nameTpByte
+          , nameTpInt8, nameTpInt16, nameTpInt32, nameTpInt64
           , nameTpSSizeT,nameTpIntPtrT
           , nameTpAny
           , nameTpNull
@@ -368,7 +370,9 @@ nameTpHandled1  = coreTypesName "handled1"
 
 nameIdentity    = coreTypesName "id"
 
-nameByte        = preludeName "byte"
+nameByte        = preludeName "uint8"
+nameInt8        = preludeName "int8"
+nameInt16       = preludeName "int16"
 nameInt32       = preludeName "int32"
 nameInt64       = preludeName "int64"
 nameSSizeT      = preludeName "ssize_t"
@@ -390,13 +394,19 @@ nameTpVoid      = coreTypesName "void"
 nameTpUnit      = coreTypesName "()"
 nameTpBool      = coreTypesName "bool"
 nameTpInt       = coreTypesName "int"
+
+-- nameTpByte      = coreTypesName "uint8"
+nameTpInt8      = coreTypesName "int8"
+nameTpInt16     = coreTypesName "int16"
 nameTpInt32     = coreTypesName "int32"
 nameTpInt64     = coreTypesName "int64"
 nameTpSSizeT    = coreTypesName "ssize_t"
 nameTpIntPtrT   = coreTypesName "intptr_t"
-nameTpByte      = coreTypesName "byte"
-nameTpFloat     = coreTypesName "double"
+
+nameTpFloat     = coreTypesName "float64"
 nameTpFloat32   = coreTypesName "float32"
+nameTpFloat16   = coreTypesName "float16"
+
 nameTpChar      = coreTypesName "char"
 nameTpString    = coreTypesName "string"
 nameTpAny       = coreTypesName "any"

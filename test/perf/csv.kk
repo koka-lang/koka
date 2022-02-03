@@ -5,13 +5,13 @@
 module csv
 
 import std/text/parse
-import std/num/double
+import std/num/float64
 
 alias csv = string
 
 // Converting to CSV
 
-fun to-csv(d : double) : csv {
+fun to-csv(d : float64) : csv {
     d.show
 }
 
@@ -33,7 +33,7 @@ fun to-csv-rows(xs : list<csv>) : csv {
 
 // Converting from CSV
 
-fun csv-double() : parse double {
+fun csv-float64() : parse float64 {
     fun int-length(n : int) : int {
         if(n <= 0) { 0 }
         else { 1 + int-length(unsafe-decreasing(n / 10)) }

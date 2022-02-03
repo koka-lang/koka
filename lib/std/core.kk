@@ -914,14 +914,20 @@ pub inline extern (~)(i:int) : int
   cs inline "(-#1)"
   js "$std_core._int_negate"
 
-// Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
-pub inline extern double( i : int) : double
+// Convert an integer to a `:float64`. May return `nan` if the integer is too large to represent as a `:float64`.
+pub inline extern float64( i : int) : float64
   c  "kk_integer_as_double"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 
+// Convert an integer to a `:float32`. May return `nan` if the integer is too large to represent as a `:float32`.
+pub inline extern float32( i : int) : float32
+  c  "kk_integer_as_float"
+  cs "Primitive.IntToFloat"
+  js "$std_core._int_to_float"  
+
 // Is this an odd integer?
-pub inline extern is-odd   : ( int ) -> bool
+pub inline extern is-odd( i : int ) : bool
   c  "kk_integer_is_odd"
   cs inline "!(#1.IsEven)"
   js "$std_core._int_isodd"
@@ -1068,6 +1074,12 @@ pub extern int32( i : int) : int32
   cs "Primitive.IntToInt32"
   js "$std_core._int_clamp32"
 
+// Convenient shorthand to `int32`, e.g. `1234.i32`
+pub inline fun i32( i : int ) : int32
+  i.int32
+
+
+
 // Minimal set of operations that we need in `std/core`.
 inline extern (<=) : (int32,int32) -> bool  
   inline "(#1 <= #2)"
@@ -1153,6 +1165,54 @@ extern incr(i : ssize_t ) : ssize_t
 
 
 // ----------------------------------------------------------------------------
+// int8
+// ----------------------------------------------------------------------------
+
+// clamp an `:int` to fit in an `:int8`.
+pub extern int8( i : int) : int8
+  c  "kk_integer_clamp_int8"
+  cs "Primitive.IntToInt8"
+  js "$std_core._int_clamp8"
+
+// Convert an `:int8` to an `:int`.
+pub inline extern int( i : int8 ) : int
+  c  "kk_integer_from_int8"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core._int_from_int32"
+
+
+// clamp an `:int` to fit in an `:int8` but interpret the `:int` as an unsigned 8-bit value,
+// and clamp between 0 and 255.
+pub extern uint8( i : int) : int8
+  c  "kk_integer_clamp_byte"
+  cs "Primitive.IntToUInt8"
+  js "$std_core._int_clamp_byte"
+
+// Convert an `:int8` to an `:int` but interpret the `:int8` as an unsigned 8-bit value between 0 and 255.
+pub inline extern uint( i : int8 ) : int
+  c  "kk_integer_from_uint8"
+  cs inline "(new BigInteger(#1 >= 0 ? #1 : 256 + #1))"
+  js "$std_core._int_from_int32"
+
+
+// ----------------------------------------------------------------------------
+// int16
+// ----------------------------------------------------------------------------
+
+// clamp an `:int` to fit in an `:int16`.
+pub extern int16( i : int) : int16
+  c  "kk_integer_clamp_int16"
+  cs "Primitive.IntToInt16"
+  js "$std_core._int_clamp16"
+
+// Convert an `:int16` to an `:int`.
+pub inline extern int( i : int16 ) : int 
+  c  "kk_integer_from_int16"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core._int_from_int32"
+
+
+// ----------------------------------------------------------------------------
 // int64
 // ----------------------------------------------------------------------------
 
@@ -1167,6 +1227,11 @@ pub inline extern int( i : int64 ) : int
   c  "kk_integer_from_int64"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int64"
+
+// Convenient shorthand to `int64`, e.g. `1234.i64`
+pub inline fun i64( i : int ) : int64
+  i.int64
+
 
 // ----------------------------------------------------------------------------
 // intptr_t
@@ -1184,21 +1249,7 @@ pub inline extern int( i : intptr_t ) : int
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int64"
 
-// ----------------------------------------------------------------------------
-// Byte
-// ----------------------------------------------------------------------------
 
-// clamp an `:int` to fit in a `:byte`.
-pub extern byte( i : int) : byte
-  c  "kk_integer_clamp_byte"
-  cs inline "Primitive.IntToByte"
-  js "$std_core._int_clamp_byte"
-
-// Convert an `:byte` to an `:int`.
-pub inline extern int( i : byte ) : int
-  c  "kk_integer_from_byte"
-  cs inline "(new BigInteger(#1))"
-  js "$std_core._int_from_int32"
 
 // ----------------------------------------------------------------------------
 // Parse numbers
@@ -1223,79 +1274,78 @@ extern xparse-int( s : string, hex : bool ) : maybe<int>
   js "_int_parse"
 
 // ----------------------------------------------------------------------------
-// Doubles 
+// Floating point
+// todo: move to std/num/float64
 // ----------------------------------------------------------------------------
 
-pub inline extern (==) : (double,double) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-pub inline extern (!=) : (double,double) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-pub inline extern (<=) : (double,double) -> bool  { inline "(#1 <= #2)" }
-pub inline extern (>=) : (double,double) -> bool  { inline "(#1 >= #2)" }
-pub inline extern (<)  : (double,double) -> bool  { inline "(#1 < #2)" }
-pub inline extern (>)  : (double,double) -> bool  { inline "(#1 > #2)" }
-pub inline extern (+) : (double,double) -> double { inline "(#1 + #2)" }
-pub inline extern (-) : (double,double) -> double { inline "(#1 - #2)" }
-pub inline extern (*) : (double,double) -> double { inline "(#1 * #2)" }
-pub inline extern (/) : (double,double) -> double { inline "(#1 / #2)" }
-pub inline extern (%) : (double,double) -> double { c inline "fmod(#1,#2)"; inline "(#1 % #2)" }
+pub inline extern (==) : (float64,float64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+pub inline extern (!=) : (float64,float64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+pub inline extern (<=) : (float64,float64) -> bool  { inline "(#1 <= #2)" }
+pub inline extern (>=) : (float64,float64) -> bool  { inline "(#1 >= #2)" }
+pub inline extern (<)  : (float64,float64) -> bool  { inline "(#1 < #2)" }
+pub inline extern (>)  : (float64,float64) -> bool  { inline "(#1 > #2)" }
+pub inline extern (+) : (float64,float64) -> float64 { inline "(#1 + #2)" }
+pub inline extern (-) : (float64,float64) -> float64 { inline "(#1 - #2)" }
+pub inline extern (*) : (float64,float64) -> float64 { inline "(#1 * #2)" }
+pub inline extern (/) : (float64,float64) -> float64 { inline "(#1 / #2)" }
+pub inline extern (%) : (float64,float64) -> float64 { c inline "fmod(#1,#2)"; inline "(#1 % #2)" }
 
-pub fun compare( x : double, y : double) : order
-  if x < y then Lt
-  elif x > y then Gt
-  else Eq
 
 // Is the value negative?
-pub fun is-neg( d : double ) : bool
+pub fun is-neg( d : float64 ) : bool
   d < 0.0
 
 // Is the value positive?
-pub fun is-pos( d : double ) : bool
+pub fun is-pos( d : float64 ) : bool
   d > 0.0
 
 // Is the value zero?
-pub fun is-zero( d : double ) : bool
+pub fun is-zero( d : float64 ) : bool
   d == 0.0
 
-pub fun sign( d : double ) : order
+pub fun sign( d : float64 ) : order
   if d < 0.0 then Lt elif d > 0.0 then Gt else Eq
 
-// Negate a `:double`.
-pub inline extern (~)(d : double ) : double
+// Negate a `:float64`.
+pub inline extern (~)( f : float64 ) : float64
   inline "(-#1)"  // inline so `~0.0` becomes negative zero
 
-// convert a `:double` to an `:int` using `round` to round to its nearest integer.
+// convert a `:float64` to an `:int` using `round` to round to its nearest integer.
 // (rounding to an even number on a tie)
 // Returns `0` if the argument is not `finite?`.
-pub inline extern int(d : double ) : int
+pub inline extern int( f : float64 ) : int
   c  "kk_integer_from_double"
   cs "Primitive.IntDouble"
   js "$std_core._int_double"
 
-// Returns the value `d`  raised to the power `p` .
-pub inline extern (^) : (d:double,p:double) -> double
+// Returns the value `f`  raised to the power `p` .
+pub inline extern (^)( f : float64, p : float64) : float64
   c inline "pow(#1,#2)"
   cs "Math.Pow"
   js "Math.pow"
 
-// Return the absolute value of a `:double` `d`
-pub inline extern abs : (d:double) -> double
+// Return the absolute value of a `:float64` `f`
+pub inline extern abs( f : float64 ) : float64
   c inline "kk_double_abs(#1)"
   cs "Math.Abs"
   js "Math.abs"
 
-// Returns the smallest of two doubles
-pub fun min( x : double, y : double ) : double { if x <= y then x else y }
+// Returns the smallest of two floats
+pub fun min( x : float64, y : float64 ) : float64 
+  if x <= y then x else y
 
-// Returns the largest of two doubles
-pub fun max( x : double, y : double ) : double { if x >= y then x else y }
+// Returns the largest of two floats
+pub fun max( x : float64, y : float64 ) : float64 
+  if x >= y then x else y
 
-// Returns the smallest element of a list of doubles (or `0` for the empty list)
-pub fun minimum( xs : list<double> ) : double
+// Returns the smallest element of a list of floats (or `0` for the empty list)
+pub fun minimum( xs : list<float64> ) : float64
   match xs
     Nil -> 0.0
     Cons(x,xx) -> xx.foldl( x, min )
 
-// Returns the largest element of a list of doubles (or `0` for the empty list)
-pub fun maximum( xs : list<double> ) : double
+// Returns the largest element of a list of floats (or `0` for the empty list)
+pub fun maximum( xs : list<float64> ) : float64
   match xs
     Nil -> 0.0
     Cons(x,xx) -> xx.foldl( x, max )
@@ -1562,9 +1612,9 @@ inline extern xstarts-with: (s : string, pre : string ) -> bool
 // Is `pre`  a prefix of `s`? If so, returns a slice
 // of `s` following `pre` up to the end of `s`.
 pub fun starts-with( s : string, pre : string ) : maybe<sslice>
-  if (xstarts-with(s,pre))
-   then Just(Sslice(s,pre.length,s.length - pre.length))
-   else Nothing
+  if xstarts-with(s,pre)
+    then Just(Sslice(s,pre.length,s.length - pre.length))
+    else Nothing
 
 extern xends-with: (s : string, post : string ) -> bool
   c  "kk_string_ends_with"
@@ -1575,8 +1625,8 @@ extern xends-with: (s : string, post : string ) -> bool
 // If so, returns a slice of `s` from the start up to the `post` string at the end.
 pub fun ends-with( s : string, post : string ) : maybe<sslice>
   if (xends-with(s,post))
-   then Just(Sslice(s,0.ssize_t,s.length - post.length))
-   else Nothing
+    then Just(Sslice(s,0.ssize_t,s.length - post.length))
+    else Nothing
 
 // Does string `s`  contain the string `sub`  ?
 pub inline extern contains: (s : string, sub : string ) -> bool
@@ -1639,7 +1689,7 @@ pub fun is-notempty( s : string ) : bool
 
 // Transform a string to a maybe type, using `Nothing` for an empty string
 pub fun maybe( s : string ) : maybe<string>
-    if s.is-empty then Nothing else Just(s)
+  if s.is-empty then Nothing else Just(s)
 
 inline extern splitv( s : string,  sep : string ) : vector<string>
   c  "kk_string_splitv"
@@ -1731,16 +1781,16 @@ pub fun pad-left( s : string, ^width : int, fill : char = ' ') : string
   val w = width.ssize_t
   val n = s.length
   if w <= n
-   then s
-   else fill.string.repeatz( w - n ) ++ s
+    then s
+    else fill.string.repeatz( w - n ) ++ s
 
 // Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
 pub fun pad-right( s : string, ^width : int, fill : char = ' ') : string
   val w = width.ssize_t
   val n = s.length
   if w <= n
-   then s
-   else s ++ fill.string.repeatz(w - n)
+    then s
+    else s ++ fill.string.repeatz(w - n)
 
 // Trim whitespace on the left and right side of a string
 pub fun trim( s : string ) : string
@@ -1920,41 +1970,41 @@ pub fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : st
   (if i<0 then "-" else "") ++ pre ++ int-show-hex(i.abs,use-capitals).pad-left(width,'0')
 
  
-// Show a `:double` as a string.
+// Show a `:float64` as a string.
 // If `d >= 1.0e-5` and `d < 1.0e+21`, `show-fixed` is used and otherwise `show-exp`.
 // Default `precision` is `-17`.
-pub fun show( d : double, precision : int = -17 ) : string
+pub fun show( d : float64, precision : int = -17 ) : string
   val dabs = d.abs
   if dabs >= 1.0e-5 && dabs < 1.0e+21
-   then show-fixed(d,precision)
-   else show-exp(d,precision)
+    then show-fixed(d,precision)
+    else show-exp(d,precision)
 
-// Show a `:double` fixed-point notation.
+// Show a `:float64` fixed-point notation.
 // The optional `precision` (= `-2`) specifies the maximum precision.
 // If `>=0` it specifies the number of digits behind the dot (up to `20` max).
 // If negative, then at most the absolute value of `precision` digits behind the dot are used.
 // This may still show a number in exponential notation if the it is too small or large,
 // in particular, for  a `d` where `d > 1.0e21` or `d < 1.0e-15`, or if
 // `precision.abs > 17`, the `show-exp` routine is used.
-pub fun show-fixed( d : double, precision : int = -2 ) : string
+pub fun show-fixed( d : float64, precision : int = -2 ) : string
   val dabs = d.abs
   if dabs < 1.0e-15 || dabs > 1.0e+21
-   then show-exp(d,precision)
-   else show-fixedx(d, precision.int32)
+    then show-exp(d,precision)
+    else show-fixedx(d, precision.int32)
 
-extern show-fixedx( d : double, prec : int32 ) : string
+extern show-fixedx( d : float64, prec : int32 ) : string
   c  "kk_double_show_fixed"
   cs "Primitive.DoubleShowFixed"
   js "_double_show_fixed"
 
-// Show a `:double` in exponential (scientific) notation.
+// Show a `:float64` in exponential (scientific) notation.
 // The optional `precision` (= `-17`) specifies the precision.
 // If `>=0` it specifies the number of digits behind the dot (up to `17` max).
 // If negative, then at most the absolute value of `precision` digits behind the dot are used.
-pub fun show-exp( d : double, precision : int = -17 )
+pub fun show-exp( d : float64, precision : int = -17 )
   show-expx(d,precision.int32)
 
-extern show-expx( d : double, prec : int32 ) : string
+extern show-expx( d : float64, prec : int32 ) : string
   c  "kk_double_show_exp"
   cs "Primitive.DoubleShowExp"
   js "_double_show_exp"
@@ -2072,8 +2122,8 @@ pub fun print(s : string)
 pub fun print(i : int)     
   prints(show(i))
 
-// Print a double to the console.
-pub fun print(d : double)  
+// Print a float64 to the console.
+pub fun print(d : float64)  
   prints(show(d))
 
 // Print a boolean to the console
@@ -2096,8 +2146,8 @@ pub fun println(s : string)
 pub fun println(i : int)     
   printsln(show(i))
 
-// Print a double to the console, including a final newline character.
-pub fun println(d : double)  
+// Print a float64 to the console, including a final newline character.
+pub fun println(d : float64)  
   printsln(show(d))
 
 // Print a boolean to the console, including a final newline character

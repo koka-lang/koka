@@ -106,10 +106,10 @@ associateComments lexs
           (Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k _) : ls)  
             | k `elem` docKeyword && adjacent comment r1 r2 
              -> Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k comment) : scan ls
-          (Lexeme r1 (LexComment comment) : l : Lexeme r2 (LexKeyword k _) : ls)  -- public type, inline fun
+          (Lexeme r1 (LexComment comment) : l : Lexeme r2 (LexKeyword k _) : ls)  -- pub type, inline fun
             | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l
             -> Lexeme r1 (LexComment comment) : l : Lexeme r2 (LexKeyword k comment) : scan ls
-          (Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k _) : ls) -- private inline fun, public value type
+          (Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k _) : ls) -- pub inline fun, pub value type
             | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l1 && isAttr l2
             -> Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k comment) : scan ls             
           -- other
@@ -117,10 +117,13 @@ associateComments lexs
              -> l : scan ls
           [] -> []
       where
-        docKeyword = ["fun","function","val","ctl","rawctl"
-                     ,"control","rcontrol","except"
-                     ,"type","cotype","rectype","effect","struct","con","alias"
-                     ,"extern","external","module"
+        docKeyword = ["fun","val","ctl","final","raw"
+                     ,"type","effect","struct","con","alias"
+                     ,"extern","module"
+                     -- deprecated:
+                     ,"control","rcontrol","except","rawctl","brk"
+                     ,"cotype","rectype"
+                     ,"external","function"
                      ]                     
 
         isAttr l   = case l of  -- just approximate is ok

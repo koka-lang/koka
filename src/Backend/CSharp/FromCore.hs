@@ -1389,16 +1389,18 @@ ppTypeCon ctx c kind
          then text "string"
         else if (name == nameTpChar)
          then text "int"  -- we need to represent as int since Char in C# is only defined as a UTF16 point
-        else if (name == nameTpInt32)
-         then text "int"
+        else if (name == nameTpInt8)
+         then text "byte" -- sbyte is not CLS compliant
+        else if (name == nameTpInt16)
+         then text "Int16"
         else if (name == nameTpInt64 || name == nameTpSSizeT || name == nameTpIntPtrT)
          then text "int64"
         else if (name == nameTpFloat)
          then text "double"
-        else if (name == nameTpFloat32)
+        else if (name == nameTpFloat32) || (name == nameTpFloat16)
          then text "float"
-        else if (name == nameTpByte)
-         then text "byte"
+        -- else if (name == nameTpByte)
+        -- then text "byte"
         else if (name == nameTpBool)
          then text "bool"
         else if (name == nameTpUnit)

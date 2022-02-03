@@ -88,7 +88,7 @@ You can compile a &koka; source as (note that all [`samples`][samples] are pre-i
     loading: std/core
     loading: std/core/types
     loading: std/core/hnd
-    loading: std/num/double
+    loading: std/num/float64
     loading: std/text/parse
     loading: std/num/int32
     check  : samples/basic/caesar

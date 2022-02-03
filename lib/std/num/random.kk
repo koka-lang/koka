@@ -11,7 +11,8 @@
 module std/num/random
 
 import std/num/int32
-import std/num/double
+import std/num/int64
+import std/num/float64
 
 extern import
   js file "random-inline.js"
@@ -44,9 +45,9 @@ fun sfc-step( sfc : sfc ) : (int32,sfc)
   match sfc 
     Sfc(x,y,z,cnt) -> 
       val res = x + y + cnt
-      (res, Sfc( y ^ shr(y,9.int32), 
-                 z + shl(z,3.int32), 
-                 rotl(z,21.int32) + res, 
+      (res, Sfc( y ^ shr(y,9), 
+                 z + shl(z,3), 
+                 rotl(z,21) + res, 
                  cnt + 1.int32 ))      
 
 fun sfc-init( seed : int ) : sfc
@@ -79,11 +80,13 @@ pub fun random-bool() : random bool
 pub fun random-int() : random int
   random-int32().int
 
-// Return a random double in the range [0,1) using 52-bits of randomness
-pub fun random-double() : random double
-  val lo = random-int32()
-  val hi = random-int32().shr(12.int32).or(0x3FF00000.int32)
-  (double-from-bits(lo,hi) - 1.0)
+pub fun random-int64() : random int64
+  int64( random-int32(), random-int32()) // todo: add native random-int64?
+  
+// Return a random float64 in the range [0,1) using 52-bits of randomness
+pub fun random-float64() : random float64
+  val mag = random-int64().shr(12).or(0x3FF0_0000_0000_0000.int64)
+  (float64-from-bits(mag) - 1.0)
 
 
 // Returns one of its arguments `x`  or `y`  based on a non-deterministic choice.
@@ -103,8 +106,8 @@ pub extern srandom-int32: () -> ndet int32
   c  inline "(int32_t)kk_srandom_uint32(kk_context())"
   js "_srandom_int32"
 
-// Return a strong random `:double` in the range [0,1) using 52-bits of randomness
-pub extern srandom-double : () -> ndet double
+// Return a strong random `:float64` in the range [0,1) using 52-bits of randomness
+pub extern srandom-float64 : () -> ndet float64
   c  "kk_srandom_double"
   js "_srandom_double"
 
@@ -118,10 +121,10 @@ pub extern srandom-int32-range(lo : int32, hi : int32) : ndet int32
   c  "kk_srandom_range_int32"
   js "_srandom_range_int32"
 
-// Generate a strong random double uniformly distributed in the range [lo, hi)
-pub fun srandom-double-range(lo : double, hi : double) : ndet double
+// Generate a strong random float64 uniformly distributed in the range [lo, hi)
+pub fun srandom-float64-range(lo : float64, hi : float64) : ndet float64
   val low  = if lo <= hi then lo else hi
   val high = if lo <= hi then hi else lo
-  val x = ((high - low) * srandom-double()) + low
+  val x = ((high - low) * srandom-float64()) + low
   if x >= high then low else x  // can happen due to rounding
 

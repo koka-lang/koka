@@ -13,7 +13,7 @@
 */
 module std/time/date
 
-import std/num/double
+import std/num/float64
 import std/num/ddouble
 
 /*----------------------------------------------------------------------------
@@ -88,7 +88,7 @@ pub fun clock( seconds : ddouble ) : clock
 // Normalizes the clock with seconds and minutes under 60 but
 // adds the fraction as is to the final seconds, so that might
 // be `>= 60` if the fraction `>= 1.0`;
-pub fun clock( seconds : int, frac : double ) : clock
+pub fun clock( seconds : int, frac : float64 ) : clock
   clock(seconds,frac.ddouble)
 
 // Create a clock from a seconds as an `:int` with an optional fraction.
@@ -122,11 +122,11 @@ pub fun whole-seconds( c : clock ) : int
 
 // Return the fraction of the seconds as milli-seconds (10^-3^).
 pub fun milli-seconds( c : clock ) : int
-  (c.seconds.fraction.double * 1.0e3).truncate.int
+  (c.seconds.fraction.float64 * 1.0e3).truncate.int
 
 // Return the fraction of seconds as nano-seconds ((10^-9^).
 pub fun nano-seconds( c : clock ) : int
-  (c.seconds.fraction.double * 1.0e9).truncate.int
+  (c.seconds.fraction.float64 * 1.0e9).truncate.int
 
 // Round a clock time to a certain number of digits precision (of the fraction of seconds) (default `9`, nano seconds).
 pub fun round-to-prec( c : clock, prec : int = 9) : clock

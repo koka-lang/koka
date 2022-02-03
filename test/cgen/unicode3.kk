@@ -8,7 +8,7 @@ val strings = [
     // "Tëst 👨‍👩‍👦 🇺🇸 नी நி!"
 ]
 
-fun info(s : string,ofs = 1) 
+fun info( s : string ) 
   println( "count: " ++ s.count.show ++ 
           ", width: " ++ s.width.show ++
           ", grapheme len: " ++ s.graphemes.length.show ++ ",") 

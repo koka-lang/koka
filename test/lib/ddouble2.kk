@@ -1,7 +1,7 @@
 module ddouble2
 
 pub import std/num/ddouble
-pub import std/num/double
+pub import std/num/float64
 
 fun check(name : string, res : string, tst : () -> io string ) : io () {
   val got = tst()
@@ -106,12 +106,12 @@ fun expand-e( approx : ddouble = 2.0.ddouble, t0 : ddouble = one, n0 : ddouble =
 
 
 pub fun test-log2() {
-  check-rt("log2",dd-log2,31) {
+  check-rt("log2",dd-ln2,31) {
     val approx = log2()
-    val delta  = (approx - dd-log2).abs
+    val delta  = (approx - dd-ln2).abs
     val err    = delta / dd-epsilon
     //trace(" delta: " ++ delta.show ++ " = " ++ (delta / dd-epsilon).show(3) ++ " eps")
-    //trace(" log2: " ++ dd-log2.show )
+    //trace(" ln2: " ++ dd-ln2.show )
     //(approx.show ++ ", err: " ++ err.show(3) ++ " ulp")
     approx
   }
@@ -173,9 +173,9 @@ pub fun check-sincos( i : int, x : ddouble ) {
   check-prec("sin(" ++ x.show ++ ")", s1, s2, ddouble-exp(1,-31))
   check-prec("cos(" ++ x.show ++ ")", c1, c2, ddouble-exp(1,-31))
 
-  // check not too much error with respect to the double computation
-  check-prec( "dsin" ++ i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-15) )
-  check-prec( "dcos" ++ i.show, cos(x.double).ddouble, c1, ddouble-exp(1,-15) )
+  // check not too much error with respect to the float64 computation
+  check-prec( "dsin" ++ i.show, sin(x.float64).ddouble, s1, ddouble-exp(1,-15) )
+  check-prec( "dcos" ++ i.show, cos(x.float64).ddouble, c1, ddouble-exp(1,-15) )
 }
 
 /*-------------------------------------------------------

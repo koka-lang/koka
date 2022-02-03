@@ -25,14 +25,14 @@ pub val bits-int32 : int32 = 32.int32
 pub fun show( i : int32 ) : string 
   show(i.int)
 
-
-// Convert a `:double` to an `:int32`. The double is clamped to the
+/*
+// Convert a `:float64` to an `:int32`. The float64 is clamped to the
 // minimum or maximum `:int32` value if it is outside the range. A `nan` is
 // mapped to `0`.
-pub inline extern int32 : (double) -> int32 
+pub inline extern int32( f : float64 ) : int32 
   cs "Primitive.DoubleToInt32"
   js "$std_core._double_to_int32"
-
+*/
 
 // Convert an `:int32` to a boolean.
 pub fun bool( i : int32 ) : bool 
@@ -175,8 +175,12 @@ pub inline extern or : (int32,int32) -> int32
 
 
 // Take the bitwise _xor_ of two `:int32`s
-pub inline extern (^) : (int32,int32) -> int32 
+pub inline extern xor : (int32,int32) -> int32 
   inline "(#1 ^ #2)";
+
+// Take the bitwise _xor_ of two `:int32`s
+pub fun(^)( x : int32, y : int32) : int32
+  xor(x,y)
 
 
 // Bitwise _not_ of an `:int32`, i.e. flips all bits.
@@ -185,35 +189,53 @@ pub inline extern not : ( i : int32 ) -> int32
 
 
 // Shift an `:int32` `i` to the left by `n & 31` bits.
-pub inline extern shl : (int32,int32) -> int32 
+inline extern shl32 : (int32,int32) -> int32 
   c  inline "kk_shl32(#1,#2)"
   js inline "#1 << #2"       // javascript masks the shift already
 
+// Shift an `:int32` `i` to the left by `n & 31` bits.
+pub fun shl( i : int32, shift : int ) : int32
+  shl32( i, shift.int32 )
 
 // Logical shift an `:int32` to the right by `n % 32` bits. Shift in zeros from the left.
-pub inline extern shr : (int32,int32) -> int32 
+inline extern shr32 : (int32,int32) -> int32 
   c  inline "(int32_t)kk_shr32(#1,#2)"
   cs inline "(Int32)(((UInt32)#1)>>#2)"
   js inline "#1 >>> #2"
 
+// Logical shift an `:int32` to the right by `n % 32` bits. Shift in zeros from the left.
+pub fun shr( i : int32, shift : int ) : int32
+  shr32( i, shift.int32 )
 
-// Arithmetic shift an `:int32` to the right by `n % 32` bits. Preserves the sign bit.
-pub inline extern sar : (int32,int32) -> int32 
+
+// Arithmetic shift an `:int32` to the right by `n % 32` bits. Shifts in the sign bit from the left.
+inline extern sar32 : (int32,int32) -> int32 
   c  inline "kk_sar32(#1,#2)"
   cs inline "(#1>>#2)"
   js inline "#1 >> #2"
 
+// Arithmetic shift an `:int32` to the right by `n % 32` bits. Shifts in the sign bit from the left.
+pub fun sar( i : int32, shift : int ) : int32
+  sar32( i, shift.int32 )
+
 
 // Bitwise rotate an `:int32` `n % 32` bits to the left.
-pub inline extern rotl( i : int32, n : int32 ) : int32 
+inline extern rotl32( i : int32, n : int32 ) : int32 
   c inline "(int32_t)kk_bits_rotl32(#1,#2)"
   js "$std_core._int32_rotl"
 
+// Bitwise rotate an `:int32` `n % 32` bits to the left.
+pub fun rotl( i : int32, shift : int ) : int32
+  rotl32( i, shift.int32 )
 
 // Bitwise rotate an `:int32` `n % 32` bits to the right.
-pub inline extern rotr( i : int32, n : int32 ) : int32 
+inline extern rotr32( i : int32, n : int32 ) : int32 
   c inline "(int32_t)kk_bits_rotr32(#1,#2)"
   js "$std_core._int32_rotr"
+
+// Bitwise rotate an `:int32` `n % 32` bits to the right.
+pub fun rotr( i : int32, shift : int ) : int32
+  rotr32( i, shift.int32 )
 
 
 // Return the minimum of two integers
@@ -235,7 +257,7 @@ pub fun cdiv(i:int32, j:int32) : exn int32
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
 pub fun cmod(i:int32, j:int32) : exn int32 
-  if (j.is-zero) then throw("std/num/int32/(%): modulus by zero")
+  if (j.is-zero) then throw("std/num/int32/cmod: modulus by zero")
   elif (j == -1.int32 && i==min-int32) then throw("std/num/int32/cmod: modulus overflow in cmod(min-int32, -1.int32)")
   else unsafe-cmod(i,j)
 
@@ -252,8 +274,8 @@ pub inline extern unsafe-cmod : (int32,int32) -> int32
   js inline "((#1 % #2)|0)"
 
 
-// Convert an 32-bit integer to a double.
-pub inline extern double : (int32) -> double 
+// Convert an 32-bit integer to a float64.
+pub inline extern float64( i : int32) : float64
   c inline "(double)(#1)"
   cs inline "(double)(#1)"
   js inline "(#1)" 

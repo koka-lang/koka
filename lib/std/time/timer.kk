@@ -10,7 +10,7 @@
 */
 module std/time/timer
 
-import std/num/double
+import std/num/float64
 import std/num/ddouble
 import std/time/duration
 import std/time/instant
@@ -31,7 +31,7 @@ pub fun ticks() : ndet duration
   val (secs,frac) = xticks()
   duration(secs.truncate.int, secs.fraction + frac)
 
-extern xticks() : ndet (double,double)
+extern xticks() : ndet (float64,float64)
   c  "kk_timer_ticks_tuple"
   cs "_Timer.Ticks"
   js "_ticks"
@@ -41,7 +41,7 @@ pub fun ticks-resolution() : ndet duration
   duration(xticks-resolution())
 
 // Return the smallest time difference in seconds that `ticks` can measure.
-extern xticks-resolution() : ndet double
+extern xticks-resolution() : ndet float64
   c  "kk_timer_dresolution"
   cs "_Timer.TicksResolution"
   js "_ticks_resolution"
