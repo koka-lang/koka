@@ -11,6 +11,8 @@ import std/os/dir
 import std/os/process
 import std/os/env
 import std/os/flags
+import std/time/time
+import std/time/utc
 
 val header = "usage:\n stack exec koka -- util/bundle [-- [options]]\n\noptions:"
 
@@ -271,11 +273,13 @@ fun show( v : variant ) : string
     DRelease -> "drelease"
     Release  -> "release"
 
-fun insert-metadata(version : string, location : path, extrametadir : string) : io ()
+fun insert-metadata(version : string, location : path, extrametadir : string) : <utc, io> ()
   val arch = get-cpu-arch()
+  val builddate = time-now().show
   if ! extrametadir.is-empty then copy-directory(extrametadir.path, location)
-  run-system("echo '" ++ version ++ "' > " ++ (location / "version").string)
-  run-system("echo '" ++ arch ++    "' > " ++ (location / "arch").string)
+  run-system("echo '" ++ version ++   "' > " ++ (location / "version").string)
+  run-system("echo '" ++ arch ++      "' > " ++ (location / "arch").string)
+  run-system("echo '" ++ builddate ++ "' > " ++ (location / "builddate").string)
   ()
 
 fun copy-libraries( libdir : path, cc : string, variant : variant, version : string ) : io ()
