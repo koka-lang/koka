@@ -21,8 +21,8 @@ type tree<a>
 
 // We use a "zipper" to keep track of where we are in the tree  
 type zipper<a>
-  NodeR(color : color, lchild : tree<a>, key : int, value : a, zip : zipper<a>)   // we came from the right
-  NodeL(color : color, zip : zipper<a>, key : int, value : a, rchild : tree<a>)   // we came from the left
+  NodeR(color : color, lchild : tree<a>, key : int, value : a, zip : zipper<a>)
+  NodeL(color : color, zip : zipper<a>, key : int, value : a, rchild : tree<a>)
   Done
 
 // Reconstruct a tree from a zipper (updates in place)
