@@ -657,6 +657,7 @@ main_help() {
   info "  -u, --uninstall          uninstall koka ($VERSION)"
   info "  -p, --prefix=<dir>       prefix directory ($PREFIX)"
   # info "  -b, --bundle=<file|url>  full bundle location (.../koka-$VERSION-$OSARCH.tar.gz)"
+  info "  -m, --minimal            minimal install without editor support etc."
   info "      --version=<ver>      version tag ($VERSION)"
   info "      --url=<url>          download url"
   info "                           ($KOKA_DIST_URL)"
