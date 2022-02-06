@@ -387,8 +387,8 @@ spec_fold:
     mov  x21, x0              ; x20 is t, x21 = acc (x19 = koka context _ctx)
   LBB15_4:                    ; the "match(t)" point
     cmp  x20, #9              ; is t a Leaf?
-    b.eq LBB15_1              ; if so, goto Leaf brach
-  LBB15_5:                    ; the Cons(_,l,k,v,r) branch
+    b.eq LBB15_1              ;   if so, goto Leaf brach
+  LBB15_5:                    ;   otherwise, this is the Cons(_,l,k,v,r) branch
     mov  x23, x20             ; load the fields of t:
     ldp	 x22, x0, [x20, #8]   ;   x22 = l, x0 = k   (ldp == load pair)
 	  ldp	 x24, x20, [x20, #24] ;   x24 = v, x20 = r  
@@ -396,14 +396,15 @@ spec_fold:
     cbnz w8, LBB15_11         ; if t is not unique, goto cold path to dup the members
     tbz  w0, #0, LBB15_13     ; if k is allocated (bit 0 is 0), goto cold path to free it
   LBB15_7:                   
-    mov  x0, x23              ; free(t)  
+    mov  x0, x23              ; call free(t)  
     bl   _mi_free
-  LBB15_8:                              
-    mov  x1, x21              ; call spec_fold(l,acc,_ctx)
+  LBB15_8:              
+    mov	 x0, x22              ; call spec_fold(l,acc,_ctx)
+    mov  x1, x21              
     mov  x2, x19
     bl   spec_fold
     cmp  x24, #1              ; boxed value is False? 
-    b.eq LBB15_3              ;   if v is False, the result is the accumulator
+    b.eq LBB15_3              ;   if v is False, the result in x0 is the accumulator
     add  x21, x0, #4          ; otherwise add 1 (as a small int 4*n)
     orr  x8, x21, #1          ;   check for bigint or overflow in one test 
     cmp  x8, w21, sxtw        ;   (see kklib/include/integer.h for details)
