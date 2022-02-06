@@ -4,11 +4,12 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.3.8"        
+VERSION="v2.4.0"        
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
 FORCE=""
+MINIMAL="no"            # compiler only? (or also vscode integration etc)
 OSARCH=""
 OSNAME=""
 OSDISTRO=""
@@ -22,9 +23,9 @@ KOKA_TEMP_DIR=""        # empty creates one dynamically
 adjust_version() {  # <osarch>
   case "$1" in
     linux-arm64)
-      VERSION="v2.3.8";;
+      VERSION="v2.4.0";;
     unix-freebsd-x64)
-      VERSION="v2.3.8";;
+      VERSION="v2.4.0";;
   esac    
 }
 
@@ -184,9 +185,11 @@ process_options() {
           VERSION="v${1#v}";;         # always prefix with a v
       -v=*|--version=*)
           VERSION="v${flag_arg#v}";;  # always prefix with a v
+      -m|--minimal)
+          MINIMAL="yes";;
       -u|--uninstall)
           # FORCE="yes"
-          MODE="uninstall";;
+          MODE="uninstall";;      
       -h|--help|-\?|help|\?)
           MODE="help";;
       *) case "$flag" in
@@ -462,46 +465,49 @@ install_dist() {  # <prefix> <version>
     stop "Cannot copy libraries to $KOKA_TEMP_DIR/share"
   fi
 
-  # install Atom editor support
-  if [ -d ~/.atom/packages ] ; then
-    koka_atom_dir="$KOKA_TEMP_DIR/share/koka/$version/contrib/atom"
-    if [ -d $koka_atom_dir ] ; then
-      info "- install atom editor support"
-      if [ -d ~/.atom/packages/language-koka ] ; then
-        need_restart=""
-      else
-        mkdir ~/.atom/packages/language-koka
-        need_restart="yes"
+  # if not minimal, install editor integration
+  if ! [ "$MINIMAL" = "yes" ]; then
+    # install Atom editor support
+    if [ -d ~/.atom/packages ] ; then
+      koka_atom_dir="$KOKA_TEMP_DIR/share/koka/$version/contrib/atom"
+      if [ -d $koka_atom_dir ] ; then
+        info "- install atom editor support"
+        if [ -d ~/.atom/packages/language-koka ] ; then
+          need_restart=""
+        else
+          mkdir ~/.atom/packages/language-koka
+          need_restart="yes"
+        fi
+        if ! cp -p -r $koka_atom_dir/* ~/.atom/packages/language-koka/ ; then
+          info "  (failed to copy atom support files)"
+        elif [ ! -z "$need_restart" ] ; then 
+          info "  Please restart Atom for Koka syntax highlighting to take effect."
+        fi
       fi
-      if ! cp -p -r $koka_atom_dir/* ~/.atom/packages/language-koka/ ; then
-        info "  (failed to copy atom support files)"
-      elif [ ! -z "$need_restart" ] ; then 
-        info "  Please restart Atom for Koka syntax highlighting to take effect."
+    fi  
+    
+    # install Visual Studio Code editor support
+    export NODE_NO_WARNINGS=1
+    vscode="code"
+    if ! which "$vscode" > /dev/null ; then
+      if [ "$(uname)" = "Darwin" ] ; then
+        vscode="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" # macOS may not have code in the PATH
       fi
     fi
-  fi  
-  
-  # install Visual Studio Code editor support
-  export NODE_NO_WARNINGS=1
-  vscode="code"
-  if ! which "$vscode" > /dev/null ; then
-    if [ "$(uname)" = "Darwin" ] ; then
-      vscode="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" # macOS may not have code in the PATH
+    if which "$vscode" > /dev/null ; then
+      info "- install vscode editor support.."
+      if "$vscode" --list-extensions | grep "koka-lang.language-koka" > /dev/null ; then
+        "$vscode" --uninstall-extension koka-lang.language-koka > /dev/null  # old installation package
+      fi
+      if ! "$vscode" --force --install-extension koka.language-koka > /dev/null ; then  # new one from vs code marketplace
+        info "  failed to install vscode editor support!"
+      fi
     fi
-  fi
-  if which "$vscode" > /dev/null ; then
-    info "- install vscode editor support.."
-    if "$vscode" --list-extensions | grep "koka-lang.language-koka" > /dev/null ; then
-      "$vscode" --uninstall-extension koka-lang.language-koka > /dev/null  # old installation package
-    fi
-    if ! "$vscode" --force --install-extension koka.language-koka > /dev/null ; then  # new one from vs code marketplace
-      info "  failed to install vscode editor support!"
-    fi
-  fi
 
-  # emacs message
-  if which emacs ; then 
-    info "- emacs syntax mode installed at: $koka_share_dir/$version/contrib/emacs" 
+    # emacs message
+    if which emacs ; then 
+      info "- emacs syntax mode installed at: $koka_share_dir/$version/contrib/emacs" 
+    fi
   fi
 }
 
