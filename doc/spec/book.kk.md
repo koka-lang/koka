@@ -5,7 +5,8 @@ Heading Depth : 3
 Toc Depth     : 3
 Css           : styles/koka.css
 Css           : styles/book.css
-Css           : https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css
+Css           : https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.4.0/css/font-awesome.min.css
+Css           : https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/brands.min.css
 Script        : scripts/book.js
 Colorizer     : unchecked
 Colorizer     : koka

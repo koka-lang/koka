@@ -85,7 +85,9 @@ body {
 
 
 [![koka-logo]](book.html){float:left; margin-right:1em;}
+<!--
 [<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+-->
 
 ~ heading-title 
 [Koka]{font-size:200%; font-weight:bold; display:inline-block; padding-top:0.45em; }\
@@ -209,41 +211,8 @@ algorithms in a functional style.
 ~
 
 ~ begin content
-For  Linux (x64, arm64), macOS (x64, M1), and FreeBSD (x64), you can install &koka; using:
 
-&acopy;
-{.copy; data-value:"curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh"}
-
-    \(**curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
-
-For Windows (x64), open a ``cmd`` prompt and use:
-
-&acopy;
-{.copy; data-value:"curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat"}
-
-    \(**curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat**\)
-
-This also installs syntax highlighting for the VS Code and Atom editors.
-
-After installation, verify if &koka; installed correctly:
-
-    $ koka
-     _         _
-    | |       | |
-    | | _ ___ | | _ __ _
-    | |/ / _ \| |/ / _' |  welcome to the koka interactive compiler
-    |   ( (_) |   ( (_| |  version 2.1.7, Jun 15 2021, libc x64 (gcc)
-    |_|\_\___/|_|\_\__,_|  type :? for help, and :q to quit
-
-    loading: std/core
-    loading: std/core/types
-    loading: std/core/hnd
-    > 
-
-Type ``:q`` to exit the interactive environment.
-
-For detailed installation instructions and other platforms see the [releases] page.
-It is also straightforward to build the compiler [from source][build].
+[INCLUDE=install]
 
 [Get started with the compiler](book.html#sec-running-the-compiler){.learn}
 

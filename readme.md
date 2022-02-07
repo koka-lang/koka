@@ -15,7 +15,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_
-_Latest release_: v2.3.8, 2021-12-27 ([Install]).
+_Latest release_: v2.4.0, 2022-02-07 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -85,6 +85,10 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
+* `v2.4.0`, 2022-02-07: improved specialization and integer add/sub, add `rbtree-fbip` sample,
+  improve grammar (`pub` (instead of `public`, remove private (as it is always default)), 
+  `final ctl` (instead of `brk`), underscores in number literals, etc), 
+  rename `double` to `float64`, various bug fixes.
 * `v2.3.8`, 2021-12-27: improved `int` performance, various bug fixes, update wasm backend,
   initial conan support, fix js backend.
 * `v2.3.6`, 2021-11-26: fix specialization bug, add `std/os/readline` module.

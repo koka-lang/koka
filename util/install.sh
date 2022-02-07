@@ -25,7 +25,7 @@ adjust_version() {  # <osarch>
     linux-arm64)
       VERSION="v2.4.0";;
     unix-freebsd-x64)
-      VERSION="v2.4.0";;
+      VERSION="v2.3.8";;
   esac    
 }
 
@@ -120,7 +120,7 @@ detect_osarch() {
     elif contains "$distrocfg" "arch"; then
       OSDISTRO="arch"
     elif contains "$distrocfg" "ubuntu|debian"; then
-      OSDISTRO="debian"
+      OSDISTRO="ubuntu"
     fi
   fi
   
@@ -389,7 +389,7 @@ download_available() {  # <url|file>
 download_dist() {  # <bundle url|file> <destination file>
   download_url="$1"
   if [ -n "$OSDISTRO" ] && [ "$OSNAME" = "linux" ] ;  then
-    distro_url=`echo $1 | sed "s/linux/$OSDISTRO/"`
+    distro_url="${1/linux/${OSDISTRO}}"
     if download_available "$distro_url" ; then
       info "Using $OSDISTRO bundle"
       download_url="$distro_url"

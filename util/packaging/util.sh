@@ -152,8 +152,6 @@ has_selinux_and_enabled() {
 
 # ------------------------------------------------------------------------------
 
-# Its so stupid these next couple functions are neccessary
-
 normalize_osarch_koka() {
   arch=$1
   if [ -z "$arch" ]; then

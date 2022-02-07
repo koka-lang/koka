@@ -19,7 +19,7 @@ RUN pip3 install conan
 # Easy hackage update trigger
 ARG UPDATE_HACKAGE=1
 
-# Bruh, RHEL8 does not have cabal-intall. why? who knows, its stupid.
+# RHEL8 does not have cabal-install.
 ADD ./rhel/*.sh /helpers/
 RUN /helpers/install-ghc.sh
 RUN cabal update

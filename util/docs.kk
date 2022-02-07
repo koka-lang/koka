@@ -79,10 +79,12 @@ fun build( publish : bool, version : string, speconly : bool ) : io ()
   copy-directory(specdir / "scripts", outscripts)
   copy-file-to-dir("doc/koka.css".path, outstyles)
   copy-file-to-dir("doc/logo/koka-logo.png".path, outimages)
+  copy-file-to-dir("doc/logo/koka-logo-filled.png".path, outimages)
   copy-file-to-dir(specdir / "koka.bib", outspec)
   copy-file-to-dir("lib/std/time/timescales.png".path, outspec)
   copy-file-to-dir("doc/spec/book-style.md".path, outspec)
   copy-file-to-dir("doc/spec/news.mdk".path, outspec)
+  copy-file-to-dir("doc/spec/install.mdk".path, outspec)
   copy-file-to-dir("doc/spec/arm64.json".path, outspec)
   
   val xmps = list-directory(outspec).
