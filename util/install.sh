@@ -22,10 +22,8 @@ KOKA_TEMP_DIR=""        # empty creates one dynamically
 # for tier-2 platforms adjust the default version to latest binary release
 adjust_version() {  # <osarch>
   case "$1" in
-    linux-arm64)
-      VERSION="v2.4.0";;
     unix-freebsd-x64)
-      VERSION="v2.3.8";;
+      VERSION="v2.4.0";;
   esac    
 }
 
@@ -121,6 +119,8 @@ detect_osarch() {
       OSDISTRO="arch"
     elif contains "$distrocfg" "ubuntu|debian"; then
       OSDISTRO="ubuntu"
+    else
+      OSDISTRO="ubuntu" # default
     fi
   fi
   
@@ -318,7 +318,8 @@ install_dependencies() {
   elif has_cmd yum ; then
     yum_install build-essential $deps
   elif has_cmd apk ; then
-    apk_install build-essential $deps
+    deps="gcc make tar curl cmake"
+    apk_install $deps
   elif has_cmd pacman; then
     deps="gcc make tar curl cmake ninja pkg-config"     # ninja-build -> ninja
     pacman_install base-devel $deps
@@ -389,7 +390,7 @@ download_available() {  # <url|file>
 download_dist() {  # <bundle url|file> <destination file>
   download_url="$1"
   if [ -n "$OSDISTRO" ] && [ "$OSNAME" = "linux" ] ;  then
-    distro_url="${1/linux/${OSDISTRO}}"
+    distro_url=`echo $1 | sed "s/linux/$OSDISTRO/"`
     if download_available "$distro_url" ; then
       info "Using $OSDISTRO bundle"
       download_url="$distro_url"
@@ -442,7 +443,7 @@ install_dist() {  # <prefix> <version>
   
   # install symlink
   info "- install executable symlink    : $koka_symlink"
-  if [ -L "$koka_symlink" ]; then
+  if [ -e "$koka_symlink" ]; then
     if ! sudocmd rm -f "$koka_symlink"; then
       info "unable to remove old koka executable; continuing.."
     fi
