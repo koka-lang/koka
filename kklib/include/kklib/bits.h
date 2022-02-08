@@ -519,4 +519,51 @@ static inline uint8_t kk_bits_digits(kk_uintx_t x) {
 }
 
 
+/* ---------------------------------------------------------------
+  midpoint(x,y): the average of x and y, rounded towards x.
+  note: written to avoid overflow and UB. See also
+  <https://devblogs.microsoft.com/oldnewthing/20220207-00/?p=106223>
+------------------------------------------------------------------ */
+
+static inline int32_t kk_bits_midpoint32( int32_t x, int32_t y ) {
+  if (x <= y) {
+    const int32_t diff = ((uint32_t)y - (uint32_t)x)/2;
+    return x + diff;
+  }
+  else {
+    const int32_t diff = -(((uint32_t)x - (uint32_t)y)/2);
+    return x + diff;
+  }
+}
+
+static inline uint32_t kk_bits_umidpoint32( uint32_t x, uint32_t y ) {
+  if (x <= y) return (x + (y-x)/2);
+         else return (x - (x-y)/2);
+}
+
+static inline int64_t kk_bits_midpoint64( int64_t x, int64_t y ) {
+  if (x <= y) {
+    const int64_t diff = ((uint64_t)y - (uint64_t)x)/2;
+    return x + diff;
+  }
+  else {
+    const int64_t diff = -(((uint64_t)x - (uint64_t)y)/2);
+    return x + diff;
+  }
+}
+
+static inline uint64_t kk_bits_umidpoint64( uint64_t x, uint64_t y ) {
+  if (x <= y) return (x + (y-x)/2);
+         else return (x - (x-y)/2); 
+}
+
+static inline kk_intx_t kk_bits_midpoint( kk_intx_t x, kk_intx_t y ) {
+  return kk_bitsx(midpoint)(x,y);
+}
+
+static inline kk_uintx_t kk_bits_umidpoint( kk_uintx_t x, kk_uintx_t y ) {
+  return kk_bitsx(umidpoint)(x,y);
+}
+
+
 #endif // include guard

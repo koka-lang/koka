@@ -470,6 +470,32 @@ pub fun compare( x : float64, y : float64 ) : order
   compare(ix,iy)
   
 
+// The midpoint is the average of `x` and `y`.
+// Avoids overflow on large numbers.
+pub fun midpoint( x : float64, y : float64 ) : float64 
+  if is-subnormal(x) || is-subnormal(y)
+    then (x + y) / 2.0
+    else (x / 2.0) + (y / 2.0)  
+
+
+// Linear interpolation, calculating `x + t*(y - x)` but avoids troublesome edge cases.
+// Follows the C++20 [specification](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html).
+// In particular, if `x.is-finite && y.is-finite`, then:
+// - exact: `lerp(x,y,0.0) == x` and  `lerp(x,y,1.0) == y`
+// - monotonic: if `x <= y` and `t1 <= t2`, then `compare( lerp(x,y,t1), lerp(x,y,t2) ) <= Eq` (and other cases)
+// - deterministic: Only `lerp(x,x,flt-inf)` results in `nan`
+// - bounded: `t<0.0 || t>1.0 || is-finite(lerp(x,y,t))`
+// - consistent: `lerp(x,x,t) == x`
+pub fun lerp( x : float64, y : float64, t : float64 ) : float64
+  if (x <= 0.0 && y >= 0.0) || (x >= 0.0 && y <= 0.0) then
+    t*y + (1.0 - t)*x
+  elif t == 1.0 then
+    y
+  else
+    val z = x + t*(y - x)
+    if ((t > 1.0) == (y > x)) then max(y,z) else min(y,z)
+
+
 //-----------------------------------------
 // Show in hexadecimal
 //-----------------------------------------
