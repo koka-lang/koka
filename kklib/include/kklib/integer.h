@@ -318,6 +318,7 @@ kk_decl_export double kk_double_round_even(double d, kk_context_t* ctx);
 
 static inline kk_integer_t kk_integer_from_uint8(uint8_t u, kk_context_t* ctx) {
   #if (KK_SMALLINT_MAX >= UINT8_MAX)
+    kk_unused(ctx);
     return kk_integer_from_small((kk_intf_t)u);
   #else  
     return (kk_likely(u <= KK_SMALLINT_MAX) ? kk_integer_from_small((kk_intf_t)u) : kk_integer_from_big(u, ctx));
@@ -353,6 +354,7 @@ static inline kk_integer_t kk_integer_from_int32(int32_t i, kk_context_t* ctx) {
 
 static inline kk_integer_t kk_integer_from_uint32(uint32_t u, kk_context_t* ctx) {
   #if (KK_SMALLINT_MAX >= UINT32_MAX)
+    kk_unused(ctx);
     return kk_integer_from_small((kk_intf_t)u);
   #else  
     return (kk_likely(u <= KK_SMALLINT_MAX) ? kk_integer_from_small((kk_intf_t)u) : kk_integer_from_big(u, ctx));
