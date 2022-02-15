@@ -86,7 +86,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 ## Recent Releases
 
 * `v2.4.0`, 2022-02-07: automatic generation of installation packages for various Linux
-  distributions (by [Rubikscraft](https://github.com/rubikscraft), improved specialization and integer add/sub, add `rbtree-fbip` sample,
+  distributions (by [Rubikscraft](https://github.com/rubikscraft)), improved specialization and integer add/sub, add `rbtree-fbip` sample,
   improve grammar (`pub` (instead of `public`, remove private (as it is always default)), 
   `final ctl` (instead of `brk`), underscores in number literals, etc), 
   rename `double` to `float64`, various bug fixes.
