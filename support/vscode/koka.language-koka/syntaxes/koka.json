@@ -305,7 +305,7 @@
       },
 
     "reservedid" :
-      { "match": "(return(?=(?:\\(|\\s+\\(?)\\w[\\w\\-]*\\s*(?:\\)\\s*(?:[^;])))|infix|infixr|infixl|type|co|rec|struct|alias|forall|exists|some|extern|fun(?:\\s+raw)?|fn|val|var|con|with(?:\\s+override)?|module|import|as|in|pub|abstract|effect|named|raw|final|ctl|break|context|mask(?:\\s+behind)?|handle|handler)(?![\\w\\-?'])"
+      { "match": "(return(?=(?:\\(|\\s+\\(?)\\w[\\w\\-]*\\s*(?:\\)\\s*(?:[^;])))|infix|infixr|infixl|type|co|rec|struct|alias|forall|exists|some|extern|fun|fn|val|var|con|with(?:\\s+override)?|module|import|as|in|pub|abstract|effect|named|(?:raw\\s+|final\\s+)ctl|break|continue|unsafe|mask(?:\\s+behind)?|handle|handler)(?![\\w\\-?'])"
       , "name": "keyword.other koka.keyword"
       },
 

@@ -14,7 +14,7 @@ import std/time/timestamp
 pub import std/time
 
 pub struct info(
-  jd       : double,
+  jd       : float64,
   mjd      : int,
   wday     : weekday,
   greg     : string,

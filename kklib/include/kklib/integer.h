@@ -307,29 +307,56 @@ kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_mul_pow10(kk_integer_t 
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx);  // x/(10^p)
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx);  // x/(10^p)
 
-kk_decl_export kk_decl_noinline void          kk_integer_fprint(FILE* f, kk_integer_t x, kk_context_t* ctx);
-kk_decl_export kk_decl_noinline void          kk_integer_print(kk_integer_t x, kk_context_t* ctx);
+kk_decl_export void   kk_integer_fprint(FILE* f, kk_integer_t x, kk_context_t* ctx);
+kk_decl_export void   kk_integer_print(kk_integer_t x, kk_context_t* ctx);
+kk_decl_export double kk_double_round_even(double d, kk_context_t* ctx);
 
 
 /*---------------------------------------------------------------------------------
   Conversion from fixed size integers
 -----------------------------------------------------------------------------------*/
 
-static inline kk_integer_t kk_integer_from_int32(int32_t i, kk_context_t* ctx) {
-#if (KK_SMALLINT_MAX >= INT32_MAX)
-  kk_unused(ctx);
-  return kk_integer_from_small(i);
-#else
-  return (kk_likely(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX) ? kk_integer_from_small(i) : kk_integer_from_big(i, ctx));
-#endif
+static inline kk_integer_t kk_integer_from_uint8(uint8_t u, kk_context_t* ctx) {
+  #if (KK_SMALLINT_MAX >= UINT8_MAX)
+    return kk_integer_from_small((kk_intf_t)u);
+  #else  
+    return (kk_likely(u <= KK_SMALLINT_MAX) ? kk_integer_from_small((kk_intf_t)u) : kk_integer_from_big(u, ctx));
+  #endif
 }
 
-static inline kk_integer_t kk_integer_from_uint32(uint32_t i, kk_context_t* ctx) {
-#if (KK_SMALLINT_MAX >= UINT32_MAX)
-  return kk_integer_from_small((kk_intf_t)i);
-#else  
-  return (kk_likely(i <= KK_SMALLINT_MAX) ? kk_integer_from_small((kk_intf_t)i) : kk_integer_from_big(i, ctx));
-#endif  
+static inline kk_integer_t kk_integer_from_int8(int8_t i, kk_context_t* ctx) {
+  #if (KK_SMALLINT_MAX >= INT8_MAX)
+    kk_unused(ctx);
+    return kk_integer_from_small(i);
+  #else
+    return (kk_likely(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX) ? kk_integer_from_small(i) : kk_integer_from_big(i, ctx));
+  #endif
+}
+
+static inline kk_integer_t kk_integer_from_int16(int16_t i, kk_context_t* ctx) {
+  #if (KK_SMALLINT_MAX >= INT16_MAX)
+    kk_unused(ctx);
+    return kk_integer_from_small(i);
+  #else
+    return (kk_likely(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX) ? kk_integer_from_small(i) : kk_integer_from_big(i, ctx));
+  #endif
+}
+
+static inline kk_integer_t kk_integer_from_int32(int32_t i, kk_context_t* ctx) {
+  #if (KK_SMALLINT_MAX >= INT32_MAX)
+    kk_unused(ctx);
+    return kk_integer_from_small(i);
+  #else
+    return (kk_likely(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX) ? kk_integer_from_small(i) : kk_integer_from_big(i, ctx));
+  #endif
+}
+
+static inline kk_integer_t kk_integer_from_uint32(uint32_t u, kk_context_t* ctx) {
+  #if (KK_SMALLINT_MAX >= UINT32_MAX)
+    return kk_integer_from_small((kk_intf_t)u);
+  #else  
+    return (kk_likely(u <= KK_SMALLINT_MAX) ? kk_integer_from_small((kk_intf_t)u) : kk_integer_from_big(u, ctx));
+  #endif 
 }
 
 static inline kk_integer_t kk_integer_from_int64(int64_t i, kk_context_t* ctx) {
@@ -872,6 +899,16 @@ static inline uint8_t kk_integer_clamp_byte(kk_integer_t x, kk_context_t* ctx) {
   return (i < 0 ? 0 : (i > 255 ? 255 : (uint8_t)(i)));
 }
 
+static inline int8_t kk_integer_clamp_int8(kk_integer_t x, kk_context_t* ctx) {
+  int32_t i = kk_integer_clamp32(x,ctx);
+  return (i < -128 ? -128 : (i > 127 ? 127 : (int8_t)(i)));
+}
+
+static inline int16_t kk_integer_clamp_int16(kk_integer_t x, kk_context_t* ctx) {
+  int32_t i = kk_integer_clamp32(x,ctx);
+  return (i < INT16_MIN ? INT16_MIN : (i > INT16_MAX ? INT16_MAX : (int16_t)(i)));
+}
+
 static inline size_t kk_integer_clamp_size_t(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) {
     kk_intf_t i = kk_smallint_from_integer(x);
@@ -939,7 +976,19 @@ static inline double kk_integer_as_double(kk_integer_t x, kk_context_t* ctx) {
   return kk_integer_as_double_generic(x,ctx);
 }
 
+static inline float kk_integer_as_float(kk_integer_t x, kk_context_t* ctx) {
+  return (float)kk_integer_as_double(x,ctx);
+}
 
+static inline int32_t kk_int64_clamp_int32( int64_t i, kk_context_t* ctx) {
+  kk_unused(ctx);
+  return (i > INT32_MAX ? INT32_MAX : (i < INT32_MIN ? INT32_MIN : (int32_t)i)); 
+}
+
+static inline int32_t kk_int64_clamp_uint32( int64_t i, kk_context_t* ctx) {
+  kk_unused(ctx);
+  return (i > UINT32_MAX ? (int32_t)UINT32_MAX : (i < 0 ? 0 : (int32_t)((uint32_t)i))); 
+}
 
 
 #endif // include guard

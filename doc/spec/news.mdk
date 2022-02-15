@@ -1,9 +1,17 @@
 ~ begin news
 News:
 
+* 2021-02-04 (pinned) The [Context Free](https://www.youtube.com/channel/UCS4FAVeYW_IaZqAbqhlvxlA) 
+  youtube channel posted a short and fun [video](https://www.youtube.com/watch?v=olISecOUX1g&t=959s)
+  about effects in Koka (and 12 (!) other languages).
+
 * 2021-09-01 (pinned) The ICFP'21 tutorial
   "_Programming with Effect Handlers and FBIP in Koka_" is now available on 
   [youtube](https://www.youtube.com/watch?v=6OFhD_mHtKA).
+
+* 2022-02-07: Koka v2.4.0 released: improved specialization and `int` operations, add `rbtree-fbip` sample,
+  improve grammar (`pub` (instead of ``public``, remove private (as everything is private by default now)), 
+  `final ctl` (instead of `brk`), underscores in number literals, etc), rename `double` to `float64`, various bug fixes.
 
 * 2021-12-27: Koka v2.3.8 released: improved `int` performance, various bug fixes, update wasm backend, 
   initial conan support, fix js backend.
@@ -58,9 +66,9 @@ News:
 * 2020-11-29: Perceus technical report publised ([pdf][Perceus]).
 {.news-items}
 
-[released]: https://koka-lang.github.io/koka/doc/book.html#install
-[emscripten]: https://emscripten.org/docs/getting_started/downloads.html
-[musl]: https://musl.libc.org/
-[wasmtime]: https://wasmtime.dev/ 
-
 ~ end news
+
+[released]:   https://koka-lang.github.io/koka/doc/book.html#install
+[emscripten]: https://emscripten.org/docs/getting_started/downloads.html
+[musl]:       https://musl.libc.org/
+[wasmtime]:   https://wasmtime.dev/ 

@@ -40,7 +40,7 @@ type list<a> { Cons(x:a,tail:list<a>); Nil }
 type single-normal<a> { Single-normal( x:a, y:maybe<int>, z:pair<bool,int> ); Single-normal-extra() }
 
 // struct
-type strct<a> { Strct( x:a, i:int ); Strct2(d:double,s:string); Strct3(i:int32) }
+type strct<a> { Strct( x:a, i:int ); Strct2(d:float64,s:string); Strct3(i:int32) }
 
 // struct
 type maybe<a> { Just(x:a); Nothing }
@@ -55,7 +55,7 @@ type open open<a> { Open1(:a) }
 // type extend open<a> { Open2(:int) }
 
 // mixed raw / scan
-type point { Point(x:double,y:double,z:int) }
+type point { Point(x:float64,y:float64,z:int) }
 
 // type wrong { Wrong( p1:point, p2:point ) }
 

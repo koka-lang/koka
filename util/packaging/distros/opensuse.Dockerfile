@@ -9,15 +9,19 @@ VOLUME /output
 # Install all the necessary packages
 RUN zypper update -y
 RUN zypper install -y curl wget zip unzip tar git
-RUN zypper install -t pattern -y devel_C_C++
-RUN zypper install -y gmp-devel gcc-c++
+RUN zypper install -y -t pattern devel_C_C++
+RUN zypper install -y gcc-c++ cmake
 # Why is gcc-c++ not in the devel_C_C++ pattern?
 
-RUN curl -sSL https://get.haskellstack.org/ | sh
-RUN stack update
+# Conan
+RUN zypper install -y python3-pip
+RUN pip3 install conan
 
-RUN git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
-RUN ~/vcpkg/bootstrap-vcpkg.sh
+# Easy hackage update trigger
+ARG UPDATE_HACKAGE=1
+
+RUN zypper install -y ghc cabal-install
+RUN cabal update
 
 # Add and run the builder script specifying the postfix of the bundle
 ADD ./builder.sh /builder.sh
@@ -25,4 +29,4 @@ RUN chmod +x /builder.sh
 
 ENTRYPOINT [ "/builder.sh" ]
 
-CMD [ "opensuse" ]
+CMD [ "opensuse", "cabal" ]

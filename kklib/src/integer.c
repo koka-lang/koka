@@ -1868,18 +1868,21 @@ double kk_integer_as_double_generic(kk_integer_t x, kk_context_t* ctx) {
   return d;
 }
 
-static inline double double_round_even(double d) {
+double kk_double_round_even(double d, kk_context_t* ctx) {
+  kk_unused(ctx);
   double r = round(d);
-  if (fabs(d-r) == 0.5) {
-    // exactly in-between, round to even
-    r = 2.0*round(d/2.0);
+  if (fabs(d - r) == 0.5) {
+    // exactly in-between, round to the nearest even number
+    return 2.0*round(d/2.0);
   }
-  return r;
+  else {
+    return r;
+  }
 }
 
 kk_integer_t kk_integer_from_double(double d, kk_context_t* ctx) {
   char buf[32];
-  d = double_round_even(d);
+  d = kk_double_round_even(d,ctx);
   if (!isnormal(d)) {
     return kk_integer_zero;
   }

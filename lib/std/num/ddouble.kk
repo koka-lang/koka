@@ -9,15 +9,15 @@
 /* Double-double 128-bit floating point numbers.
 
 The `:ddouble` type implements [double double][ddwiki] 128-bit floating point numbers
-as a pair of IEEE `:double` values. This extends the precision to 31 decimal digits
-(versus 15 for `:double`), but keeps the same range as
-a `:double` with a maximum  value of about 1.8&middot;10^308^ (`dd-max`). Because
-`:double`s usually have hardware support, a `:ddouble` is usually much faster
+as a pair of IEEE `:float64` values. This extends the precision to 31 decimal digits
+(versus 15 for `:float64`), but keeps the same range as
+a `:float64` with a maximum  value of about 1.8&middot;10^308^ (`dd-max`). Because
+`:float64`s usually have hardware support, a `:ddouble` is usually much faster
 than arbitrary precision floating point numbers.
 
 ## Precision {-}
 
-If you add two regular 64-bit `:double` values you can quickly notice the imprecision
+If you add two regular 64-bit `:float64` values you can quickly notice the imprecision
 due to decimal fractions that cannot be represented precisely. For example:
 ```
 > 0.1 + 0.2
@@ -25,7 +25,7 @@ due to decimal fractions that cannot be represented precisely. For example:
 ```
 
 This happens because the decimal `0.1` and `0.2` cannot be represented exactly
-by a `:double` which is encoded in base 2. For example, if we show `0.1` to 20 digits, we get:
+by a `:float64` which is encoded in base 2. For example, if we show `0.1` to 20 digits, we get:
 ```
 > 0.1.show(20)
 "0.10000000000000000555"
@@ -40,15 +40,15 @@ approximated:
 ```
 
 However, if we convert the number `0.1` directly to a `:ddouble` (instead of going through
-a `:double` constant), we can represent `0.1` (almost) exactly:
+a `:float64` constant), we can represent `0.1` more precisely:
 
 ```
 > ddouble("0.1")   // for convenience; using `ddouble-exp(1,-1)` is more efficient
 0.1
 ```
 
-This is possible because a `:ddouble` uses two `:double`s to represent numbers; in this
-case the first (_hi_) double is (the inexact) `0.1` while the second one (_lo_) is the
+This is possible because a `:ddouble` uses two `:float64`s to represent numbers; in this
+case the first (_hi_) float64 is (the inexact) `0.1` while the second one (_lo_) is the
 correction to that number. The `show-sum`  (or `show-hex`) function shows this internal pair of numbers:
 
 ```
@@ -59,12 +59,12 @@ correction to that number. The `show-sum`  (or `show-hex`) function shows this i
 0.3
 ```
 
-Generally, a `:ddouble` _d_ is represented by a pair of `:double`s, _hi_ and _lo_,
+Generally, a `:ddouble` _d_ is represented by a pair of `:float64`s, _hi_ and _lo_,
 such that _d_ equals _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
 Note that despite the extra precision, underflow/overflow and machine precision are
-not as well-defined as with a regular `:double` [@lin;@shewchuk;@Dekker].
+not as well-defined as with a regular `:float64` [@lin;@shewchuk;@Dekker].
 Nevertheless, using a `:ddouble` often prevents instability in practice over
-`:double` computations due to  rounding errors or combining very large and
+`:float64` computations due to  rounding errors or combining very large and
 small numbers.
 
 Take the "thin triangle" problem for example [@Goldberg:float;@Kahan:triangle].
@@ -95,7 +95,7 @@ IEEE 128-bit floats becomes:
 ````
 
 The implementation is based closely on the [QD] C++ library [@Hida:qd;@Hida:qdlib],
-and assumes proper 64-bit IEEE `:double`s with correct rounding.
+and assumes proper 64-bit IEEE `:float64`s with correct rounding.
 Integers can be represented precisely up to 30 decimal digits (and a bit more...
 up to 2^106^ - 2).
 
@@ -162,26 +162,26 @@ Discrete & Computational Geometry, vol. 18, 305--363, 1997. [pdf](https://people
 */
 module std/num/ddouble
 
-import std/num/double
+import std/num/float64
 import std/num/decimal
 import std/text/parse
 
-/* The `:double` type implements [double double][ddwiki] 128-bit floating point numbers
-as a pair of IEEE `:double` values. This extends the precision to 31 decimal digits
-(versus 15 for `:double`), but keeps the same range as
-a `:double` with a maximum  value of about 1.8&middot;10^308^. Because
-`:double`s usually have hardware support, a `:ddouble` is usually much faster
+/* The `:ddouble` type implements [float64 float64][ddwiki] 128-bit floating point numbers
+as a pair of IEEE `:float64` values. This extends the precision to 31 decimal digits
+(versus 15 for `:float64`), but keeps the same range as
+a `:float64` with a maximum  value of about 1.8&middot;10^308^. Because
+`:float64`s usually have hardware support, a `:ddouble` is usually much faster
 than arbitrary precision floating point numbers.
 
-Internally a `:ddouble` _d_ is represented as a pair of `:double`s, _hi_ and _lo_,
+Internally a `:ddouble` _d_ is represented as a pair of `:float64`s, _hi_ and _lo_,
 such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
 */
 abstract struct ddouble
-  hi : double
-  lo : double
+  hi : float64
+  lo : float64
 
-// Create a `:ddouble` from a `:double`.
-pub fun ddouble( d : double ) : ddouble
+// Create a `:ddouble` from a `:float64`.
+pub fun ddouble( d : float64 ) : ddouble
   Ddouble(d,0.0)
 
 val maxprecise : int = 9007199254740991
@@ -221,7 +221,7 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble
 
 
 fun small-exp( i : int, e : int )
-  val dd = i.double.ddouble
+  val dd = i.float64.ddouble
   if e.is-zero then dd else dd.mul-exp10(e)
 
 // &pi;
@@ -249,29 +249,29 @@ pub val dd-pi34    = Ddouble(0x1.2D97C7F3321D2p+1, 0x1.A79394C9E8A0Bp-54)
 pub val dd-e       = Ddouble(0x1.5BF0A8B145769p+1, 0x1.4D57EE2B1013Ap-53) // 2.7182818284590452353602874713526624977572470937
 
 // The natural logarithm of 2
-pub val dd-log2    = Ddouble(0x1.62E42FEFA39EFp-1, 0x1.ABC9E3B39803Fp-56) // 0.69314718055994530941723212145817656807550013436026
+pub val dd-ln2     = Ddouble(0x1.62E42FEFA39EFp-1, 0x1.ABC9E3B39803Fp-56) // 0.69314718055994530941723212145817656807550013436026
 
 // The natural logarithm of 10
-pub val dd-log10   = Ddouble(0x1.26BB1BBB55516p+1, -0x1.F48AD494EA3E9p-53) // 2.3025850929940456840179914546843642076011014886288
+pub val dd-ln10    = Ddouble(0x1.26BB1BBB55516p+1, -0x1.F48AD494EA3E9p-53) // 2.3025850929940456840179914546843642076011014886288
 
 // The base-2 logarithm of _e_.
 pub val dd-log2e   = Ddouble(0x1.71547652B82FEp+0, 0x1.777D0FFDA0D23p-56) // 1.442695040888963407359924681001892137426645954153
 
 // The base-10 logarithm of _e_.
-pub val dd-log10e = Ddouble(0x1.BCB7B1526E50Ep-2, 0x1.95355BAAAFAD3p-57) // 0.43429448190325182765112891891660508229439700580367
+pub val dd-log10e  = Ddouble(0x1.BCB7B1526E50Ep-2, 0x1.95355BAAAFAD3p-57) // 0.43429448190325182765112891891660508229439700580367
 
 // The square-root of 2
-pub val dd-sqrt2  = Ddouble(0x1.6A09E667F3BCDp+0, -0x1.BDD3413B26456p-54) // 1.4142135623730950488016887242096980785696718753769
+pub val dd-sqrt2   = Ddouble(0x1.6A09E667F3BCDp+0, -0x1.BDD3413B26456p-54) // 1.4142135623730950488016887242096980785696718753769
 
 // `1.0 / sqrt(2.0)`
-pub val dd-sqrt12 = Ddouble(0x1.6A09E667F3BCDp-1, -0x1.BDD3413B26456p-55) // 0.70710678118654752440084436210484903928483593768847
+pub val dd-sqrt12  = Ddouble(0x1.6A09E667F3BCDp-1, -0x1.BDD3413B26456p-55) // 0.70710678118654752440084436210484903928483593768847
 
 // [Euler's constant](https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant)
-pub val dd-euler  = Ddouble(0x1.2788CFC6FB619p-1, -0x1.6CB90701FBFABp-58) //0.57721566490153286060651209008240243104215933593992
+pub val dd-euler   = Ddouble(0x1.2788CFC6FB619p-1, -0x1.6CB90701FBFABp-58) //0.57721566490153286060651209008240243104215933593992
 
 // The 'machine epsilon': this is not well-defined for a `:ddouble` in general since
 // the difference between 1.0 and the next representable `:ddouble` value is `dd-true-min`.
-// Instead, we take the square of `dbl-epsilon`, i.e. 2^-104^.
+// Instead, we take the square of `flt-epsilon`, i.e. 2^-104^.
 pub val dd-epsilon = Ddouble(0x1p-104,0.0)
 
 // 8*dd-epsilon
@@ -281,10 +281,10 @@ val dd-epsilon8 = Ddouble(0x1.0p-101, 0x0.0p+0)
 pub val dd-max     = Ddouble( 0x1.FFFFFFFFFFFFFp+1023, 0x1.FFFFFFFFFFFFFp+969 )
 
 // The smallest positive `:ddouble` that is still normalized
-pub val dd-min     = Ddouble( dbl-min, 0.0 )   // normalized = 2^-1022
+pub val dd-min     = Ddouble( flt-min, 0.0 )   // normalized = 2^-1022
 
 // The smallest positive `:ddouble`  (which is subnormal).
-pub val dd-true-min     = Ddouble( dbl-true-min, 0.0 )
+pub val dd-true-min     = Ddouble( flt-true-min, 0.0 )
 
 // Not-A-Number
 pub val dd-nan     = Ddouble(nan,0.0)
@@ -380,29 +380,29 @@ pub fun max( x : ddouble, y : ddouble ) : ddouble
 ------------------------------------------------------*/
 
 struct edouble
-  num : double
-  err : double
+  num : float64
+  err : float64
 
 // often called `twosum` in literature (see [@shewchuk])
-fun sum( x : double, y : double ) : edouble
+fun sum( x : float64, y : float64 ) : edouble
   val z    = x + y
   val diff = z - x
   val err  = (x - (z - diff)) + (y - diff)
   Edouble(z, if z.is-finite then err else z)
 
-fun dsum( x : double, y : double ) : ddouble
+fun dsum( x : float64, y : float64 ) : ddouble
   val z    = x + y
   val diff = z - x
   val err  = (x - (z - diff)) + (y - diff)
   Ddouble(z, if z.is-finite then err else z)
 
 // As `sum` but with `x.abs >= y.abs`
-fun quicksum( x : double, y : double ) : edouble
+fun quicksum( x : float64, y : float64 ) : edouble
   val z   = x + y
   val err = y - (z - x)
   Edouble(z, if z.is-finite then err else z)
 
-fun dquicksum( x : double, y : double ) : ddouble
+fun dquicksum( x : float64, y : float64 ) : ddouble
   if !x.is-finite return ddouble(x)
   val z   = x + y
   val err = y - (z - x)
@@ -447,7 +447,7 @@ val splitter = 0x1.0000002p+27 // 134217729.0 = 2^27 + 1
 val splitbound  =  0x1.0p996 // 6.696928794914171e+299  = 2^996   // Note, QD seems one bit off
 val two28 = 0x1.0p28 // 268435456.0 = 2^28
 
-fun split( x : double ) : (double,double)
+fun split( x : float64 ) : (float64,float64)
   if x > splitbound || x < ~splitbound
     val y = x * 0x1.0p-28  // 3.7252902984619140625e-09 = 2^-28
     val t = y * splitter
@@ -463,14 +463,14 @@ fun split( x : double ) : (double,double)
 
 
 // often called `twoproduct` in literature (see [@shewchuk])
-fun prod( x : double, y : double ) : edouble
+fun prod( x : float64, y : float64 ) : edouble
   val z = x*y
   val (xhi,xlo) = split(x)
   val (yhi,ylo) = split(y)
   val err = ((xhi*yhi - z) + (xhi*ylo + xlo*yhi)) + (xlo*ylo)
   Edouble(z,if z.is-finite then err else z)
 
-fun prodsqr( x : double ) : edouble
+fun prodsqr( x : float64 ) : edouble
   val z = x*x
   val (h,l) = split(x)
   val err = ((h*h - z) + (2.0*h*l)) + (l*l)
@@ -479,12 +479,12 @@ fun prodsqr( x : double ) : edouble
 */
 
 // often called `twoproduct` in literature (see [@shewchuk])
-fun prod( x : double, y : double ) : edouble
+fun prod( x : float64, y : float64 ) : edouble
   val z = x*y
   val err = fmadd(x,y,~z)
   Edouble(z,err)
 
-fun prodsqr( x : double ) : edouble
+fun prodsqr( x : float64 ) : edouble
   val z = x*x
   val err = fmadd(x,x,~z)
   Edouble(z,err)
@@ -526,8 +526,8 @@ pub fun divrem( x : ddouble, y : ddouble ) : (ddouble,ddouble)
    Rounding
 ------------------------------------------------------*/
 
-// Convert a `:ddouble` to a `:double` (losing precision)
-pub fun double( x : ddouble ) : double
+// Convert a `:ddouble` to a `:float64` (losing precision)
+pub fun float64( x : ddouble ) : float64
   x.hi
 
 // Convert a `:ddouble` to the nearest integer (rounding to the nearest even number in case of a tie)
@@ -615,7 +615,7 @@ pub fun exp2( exp : ddouble ) : ddouble
   pow(two,exp)
 
 // Create a `:ddouble` `x` such that `x` equals `d`&middot;10^`e`^.
-pub fun ddouble-exp( d : double, e : int )
+pub fun ddouble-exp( d : float64, e : int )
   d.ddouble.mul-exp10(e)
 
 // Create a `:ddouble` `x` such that `x` equals `i`&middot;10^`e`^.
@@ -631,11 +631,11 @@ fun mul-exp10( x : ddouble, exp : int ) : ddouble
 
 // Decode a `:ddouble` `d` into two doubles `(hi,lo)` such that `d` equals  `hi`+`lo`,
 // where `lo` &le; 0.5&middot;ulp(`hi`).
-pub fun decode( d : ddouble ) : (double,double)
+pub fun decode( d : ddouble ) : (float64,float64)
   (d.hi,d.lo)
 
 // Encode a `:ddouble` `d` from two doubles `(hi,lo)` such that `d` equals  `hi`+`lo`.
-pub fun encode( hi : double, lo : double ) : ddouble
+pub fun encode( hi : float64, lo : float64 ) : ddouble
   hi.ddouble + lo.ddouble
 
 // Convert a `:ddouble` to a `:decimal` up to a given precision `prec` (= `-1`).
@@ -645,7 +645,7 @@ pub fun decimal( x : ddouble, prec : int = -1 ) : decimal
     then 0.decimal
     else x.hi.decimal(prec) + x.lo.decimal(prec)
 
-/* Show a `:ddouble` `x` precisely as the sum of two `:double`s
+/* Show a `:ddouble` `x` precisely as the sum of two `:float64`s
 in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41).
 Use this if you need to guarantee that you can parse back `:ddouble`s exactly,
 i.e. `x == x.show-hex.ddouble`.
@@ -720,7 +720,7 @@ pub fun show-fixed( x : ddouble, prec : int = dd-default-prec ) : string
     then x.hi.show
     else x.decimal.show-fixed(prec)
 
-// Show a `:ddouble` as the sum of  `:double`s with an optional precision.
+// Show a `:ddouble` as the sum of  `:float64`s with an optional precision.
 // Note: use `show-hex` for reliable round-trip parsing.
 pub fun show-sum( x : ddouble, prec : int = -17 ) : string
   if !x.is-finite
@@ -760,10 +760,10 @@ pub fun parse-ddouble( s  : string ) : maybe<ddouble>
                        else dd-posinf
         Just(special)
 
-      Nothing -> match(t.find(rx-double-sum))
+      Nothing -> match(t.find(rx-float64-sum))
         Just(cap) ->
-          match cap.groups[1].parse-double
-            Just(hi) -> match cap.groups[2].parse-double
+          match cap.groups[1].parse-float64
+            Just(hi) -> match cap.groups[2].parse-float64
               Just(lo) -> Just( hi.ddouble + lo.ddouble )
               Nothing -> Nothing
 
@@ -774,7 +774,7 @@ pub fun parse-ddouble( s  : string ) : maybe<ddouble>
 
 
 val rx-ddouble = regex(r"^([\-\+]?\d+)(?:\.(\d*))?(?:[eE]([\-\+]?\d+))?$")
-val rx-double-sum = regex(r"^(\S*\d) *\+ *(\S+)$")
+val rx-float64-sum = regex(r"^(\S*\d) *\+ *(\S+)$")
 val rx-special = regex(r"^(nan)|([\+\-])?inf(?:inity)?$",ignorecase=True)
 */
 
@@ -835,13 +835,13 @@ pub fun nroot( x : ddouble, n : int ) : ddouble
   elif x.is-zero then zero
   else
     val r = x.abs
-    val a0 = exp( ~log(r.hi) / n.double ).ddouble
+    val a0 = exp( ~ln(r.hi) / n.float64 ).ddouble
     val a1 = a0 + ((a0 * (one - r * powi(a0,n))) / n.ddouble)
     (if x.hi.is-neg then ~one else one) / a1
 
 
-// Multiply `x` by a `:double` `p` where `p` must be a power of 2.
-fun mul-pwr2( x : ddouble, p : double ) : ddouble
+// Multiply `x` by a `:float64` `p` where `p` must be a power of 2.
+fun mul-pwr2( x : ddouble, p : float64 ) : ddouble
   Ddouble(x.hi * p, x.lo * p)
 
 val one-half : ddouble = 0.5.ddouble
@@ -862,14 +862,14 @@ pub fun exp( x : ddouble ) : ddouble
   /* From the QD library:
      Strategy:  We first reduce the size of x by noting that
 
-          exp(kr + m * log(2)) = 2^m * exp(r)^k
+          exp(kr + m * ln(2)) = 2^m * exp(r)^k
 
      where m and k are integers.  By choosing m appropriately
-     we can make |kr| <= log(2) / 2 = 0.347.  Then exp(r) is
+     we can make |kr| <= ln(2) / 2 = 0.347.  Then exp(r) is
      evaluated using the familiar Taylor series.  Reducing the
      argument substantially speeds up the convergence.
   */
-  val k : double = 512.0
+  val k : float64 = 512.0
   val inv-k = 1.0 / k
 
   if x.hi <= -709.0 then zero
@@ -877,8 +877,8 @@ pub fun exp( x : ddouble ) : ddouble
   elif x.is-zero then one
   elif x==one then dd-e
   else
-    val m : int = floor( (x.hi / dd-log2.hi) + 0.5 ).int
-    val r = mul-pwr2( x - (m.ddouble * dd-log2), inv-k )
+    val m : int = floor( (x.hi / dd-ln2.hi) + 0.5 ).int
+    val r = mul-pwr2( x - (m.ddouble * dd-ln2), inv-k )
     val p = r.sqr
     val t = r + p.half
     var acc := exp-approx( p, t, r, inv-k * dd-epsilon.hi, exp-factors )
@@ -900,7 +900,7 @@ val exp-factors : list<ddouble> = [
 
 fun exp-approx( p : ddouble, t : ddouble,
                 r : ddouble,
-                eps : double,
+                eps : float64,
                 fs : list<ddouble>,
                 s : ddouble = zero ) : ddouble
   match fs
@@ -909,14 +909,14 @@ fun exp-approx( p : ddouble, t : ddouble,
       val s1 = s + t
       val p1 = p * r
       val t1 = p1 * f
-      if t1.double.abs <= eps
+      if t1.float64.abs <= eps
        then s + t
        else exp-approx( p1, t1, r, eps, fs1, s1 )
 
 
 
 // The natural logarithm (in base _e_) of `x`.
-pub fun log( x : ddouble ) : ddouble
+pub fun ln( x : ddouble ) : ddouble
   /* From QD Library:
      Strategy.  The Taylor series for log converges much more
      slowly than that of exp, due to the lack of the factorial
@@ -935,33 +935,37 @@ pub fun log( x : ddouble ) : ddouble
   elif x == dd-e then one
   elif x.is-posinf then x
   else
-    val a0 = log(x.hi).ddouble // approximate
+    val a0 = ln(x.hi).ddouble // approximate
     val a1 = a0 + (x * exp(~a0) - one)
     a1
 
 
+// Return the logarithm in some base `b` of a `:ddouble` `x`
+pub fun log( x : ddouble, base : ddouble ) : ddouble
+  ln(x) / ln(base)
+
 // The logarithm in base 10 of `x`.
 pub fun log10( x : ddouble ) : ddouble
-  log(x) / dd-log10
+  ln(x) / dd-ln10
 
 // The logarithm in base 2 of `x`.
 pub fun log2( x : ddouble ) : ddouble
-  log(x) / dd-log2
+  ln(x) / dd-ln2
 
 // `x` to the power of `y` both as `:ddouble`
 pub fun pow( x : ddouble, y : ddouble ) : ddouble
-  exp(y * log(x))
+  exp(y * ln(x))
 
 
-// Return `log(1.0 + x)`.
+// Return `ln(1.0 + x)`.
 // Avoids potential imprecision for small `x` where adding `1.0` explicitly
 // may lead to rounding errors.
-pub fun log1p( x : ddouble ) : ddouble
+pub fun ln1p( x : ddouble ) : ddouble
   if x.is-posinf then x else
     val y = one + x
     val z = y - one
     if z.is-zero then x else
-      log(y) * (x / z)
+      ln(y) * (x / z)
 
 
 // Return `exp(x - 1.0)`.
@@ -971,22 +975,22 @@ pub fun expm1( x : ddouble ) : ddouble
     val y = exp(x)
     if y==one then x else
       val ym = y - one
-      if ym == ~one then ~one else ym * (x / log(y))
+      if ym == ~one then ~one else ym * (x / ln(y))
 
 
 fun log2p1( x : ddouble ) : ddouble
-  dd-log2 * log1p(x)
+  dd-log2e * ln1p(x)
 
 fun exp2m1( x : ddouble ) : ddouble
-  expm1(dd-log2 * x)
+  expm1(dd-ln2 * x)
 
-// Returns `log(exp(x) + exp(y))`.
+// Returns `ln(exp(x) + exp(y))`.
 // Avoids overlow/underflow errors.
-pub fun logaddexp( x : ddouble, y : ddouble ) : ddouble
-  if x==y then x + dd-log2 else
+pub fun lnaddexp( x : ddouble, y : ddouble ) : ddouble
+  if x==y then x + dd-ln2 else
     val z = x - y
-    if z.is-pos then x + log1p(exp(~z))
-                else y + log1p(exp(z))
+    if z.is-pos then x + ln1p(exp(~z))
+                else y + ln1p(exp(z))
 
 
 // Returns `log2( exp2(x) + exp2(y) )`.
@@ -1114,10 +1118,10 @@ pub fun sincos( rad : ddouble ) : (ddouble,ddouble)
   val z  = (rad / dd-twopi).round
   val r  = rad - (dd-twopi * z)
 
-  val qa : double = floor( (r.hi / dd-pi2.hi) + 0.5)
+  val qa : float64 = floor( (r.hi / dd-pi2.hi) + 0.5)
   val a  = qa.truncate.int
   val t  = r - (dd-pi2 * qa.ddouble)
-  val qb : double = floor((t.hi / dd-pi16.hi) + 0.5)
+  val qb : float64 = floor((t.hi / dd-pi16.hi) + 0.5)
   val b  = qb.truncate.int
 
   val s  = t - (dd-pi16 * qb.ddouble)
@@ -1208,7 +1212,7 @@ pub fun atan2( y : ddouble, x : ddouble ) : ddouble
     val r = sqrt( x.sqr + y.sqr )
     val xr = x / r
     val yr = y / r
-    val z = atan2( y.double, x.double ).ddouble // approximation
+    val z = atan2( y.float64, x.float64 ).ddouble // approximation
     val (sinz,cosz) = sincos(z)
     if xr.hi.abs > yr.abs.hi 
      then z + ((yr - sinz) / cosz)
@@ -1218,7 +1222,7 @@ pub fun atan2( y : ddouble, x : ddouble ) : ddouble
 // The hyperbolic sine of `x`.
 pub fun sinh( x : ddouble ) : ddouble
   if x.is-zero then zero
-  elif x.abs.double > 0.05 then
+  elif x.abs.float64 > 0.05 then
     val ex = x.exp
     if !ex.is-finite then ex else ( ex - (one / ex)).half
   else
@@ -1230,7 +1234,7 @@ pub fun sinh( x : ddouble ) : ddouble
 // The hyperbolic cosine of `x`.
 pub fun cosh( x : ddouble ) : ddouble
   if x.is-zero then one
-  elif x.abs.double > 0.05 then
+  elif x.abs.float64 > 0.05 then
     val ex = x.exp
     if !ex.is-finite then ex else (ex + (one / ex)).half
 
@@ -1242,7 +1246,7 @@ pub fun cosh( x : ddouble ) : ddouble
 // The hyperbolic tangent of `x`.
 pub fun tanh( x : ddouble ) : ddouble
   if x.is-zero then zero
-  elif x.abs.double > 0.05 then
+  elif x.abs.float64 > 0.05 then
     val ex = x.exp
     val iex = one / ex
     if ex.is-zero then ~one
@@ -1257,14 +1261,14 @@ pub fun tanh( x : ddouble ) : ddouble
 
 // The area hyperbolic sine of `x`.
 pub fun asinh( x : ddouble ) : ddouble
-  log( x + sqrt(x.sqr + one))
+  ln( x + sqrt(x.sqr + one))
 
 // The area hyperbolic cosine of `x`.
 pub fun acosh( x : ddouble ) : ddouble
-  if x < one then dd-nan else log(x + sqrt(x.sqr - one))
+  if x < one then dd-nan else ln(x + sqrt(x.sqr - one))
 
 // The area hyperbolic tangent of `x`.
 pub fun atanh( x : ddouble ) : ddouble
   if x.abs > one then dd-nan
-   else log((one + x) / (one - x)).half
+   else ln((one + x) / (one - x)).half
 

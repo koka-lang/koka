@@ -37,7 +37,7 @@ import std/time/calendar
 import std/time/time
 import std/time/chrono
 
-extern include
+extern import
   js file "timezone-inline.js"
 
 
@@ -104,7 +104,8 @@ fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-perio
       if (i >= tzp.start.default(i)) then
         //trace("timezone: " + tzp.abbrv + ", start: " + tzp.start.default(i).time.show)
         tzp
-      } else find-offset(i,earlier)
+      else 
+        find-offset(i,earlier)
 
 
 // Convert time zone information `:timezone-info` into a `:timezone` structure.
@@ -142,12 +143,11 @@ pub fun parse-packed-zones( s : string ) : exn timezones
     Nothing   -> error("invalid timezone data; cannot find zones array.")
     Just(cap) -> cap.groups[1].trim
 
-  val zonesarr = zonesfld.lines.map( fn(line)
-    match(line.find(rxzone))
+  val zonesarr = zonesfld.lines.map fn(line)
+    match line.find(rxzone)    
       Nothing   -> error("invalid timezone info:\n  " + line)
       Just(cap) -> cap.groups[1]
 
-  })
   val zones = zonesarr.map(parse-packed-zone)
   val zdict = zones.map(fn(tzi){ (tzi.name.normalize, tzi) }).dict
 
@@ -156,20 +156,17 @@ pub fun parse-packed-zones( s : string ) : exn timezones
     Nothing   -> error("invalid timezone data; cannot find links array.")
     Just(cap) -> cap.groups[1].trim
 
-  val links = linksfld.lines.map( fn(line)
-    match(line.find(rxlink))
+  val links = linksfld.lines.map fn(line)
+    match line.find(rxlink)
       Nothing   -> error("invalid timezone link:\n  " + line)
       Just(cap) -> (cap.groups[1],cap.groups[2])
 
-  })
-
-  val ldict = links.map( fn(link)
+  val ldict = links.map(fn(link)
     val (key,other) = link
     match zdict[key.normalize]
       Nothing  -> error("invalid timezone link: unknown time zone: " + key.normalize + ", to: " + other + ", " + zdict.keys.join("\n"))
       Just(tz) -> (other.normalize,tz(name=other,aliased=True))
-
-  }).dict
+   ).dict
 
   // return zones + links
   Timezones( zdict + ldict )
@@ -207,15 +204,15 @@ fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sind
       Cons(start,rest) -> (start * 60.0, Cons(0.0,rest))
 
     if diffs.length + 1 != indices.length  error("invalid timezone data:\n  diffs: " + sxdiffs + "\n  ind  : " + sindices  )
-    val endings = diffs.foldl((start0,[]), fn(acc:(double,list<maybe<instant>>),diff)
+    val endings = diffs.foldl((start0,[]), fn(acc:(float64,list<maybe<instant>>),diff)
                     val iu = acc.fst + diff*60.0
                     val i = unix-instant(iu)
                     (iu,Cons(Just(i),acc.snd))
-                  }).snd
+                  ).snd
     val ofsabrs  = indices.reverse.map( fn(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )
     val periods  = zipwith( endings + [Nothing], ofsabrs, fn(start,ofsabbr)
                      Timezone-period(start,ofsabbr.snd, duration(ofsabbr.fst * ~60.0))
-                   })
+                   )
     periods
 
   fn(exn)
@@ -223,16 +220,15 @@ fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sind
     []
 
 
-fun parse-fixed-base60( s : string ) : exn double
+fun parse-fixed-base60( s : string ) : exn float64
   match(s.find(rxfixbase60))
     Nothing -> error("invalid fixed base60 number: " + s)
     Just(cap) ->
       val sign = if cap.groups[1]=="-" then ~1 else 1
       val num  = parse-base60(cap.groups[2])
-      val frac = cap.groups[3].list.foldr(0.0, fn(d,n)
-                    (n + d.digit60.double) / 60.0
-                 })
-      (sign.double * num.double) + frac
+      val frac = cap.groups[3].list.foldr(0.0) fn(d,n)
+                    (n + d.digit60.float64) / 60.0                 
+      (sign.float64 * num.float64) + frac
 
 
 val rxfixbase60 = regex(r"^([\-\+])?([\da-zA-X]*)(?:\.([\da-zA-X]+))?$")
@@ -243,9 +239,8 @@ fun parse-base60( s : string ) : exn int
     Nothing -> error("invalid base60 number: " + s)
     Just(cap) ->
       val sign = if cap.groups[1]=="-" then ~1 else 1
-      val num  = cap.groups[2].list.foldl(0, fn(n,d)
+      val num  = cap.groups[2].list.foldl(0) fn(n,d)
                     n*60 + d.digit60
-                  })
       sign*num
 
 
@@ -305,18 +300,16 @@ pub fun timezone( tzs : timezones, tz-name : string, def : timezone = tz-utc ) :
 ----------------------------------------------------------------------------*/
 
 fun sample-dates( year : int ) : list<instant>
-  list(year - 1, year).flatmap( fn(y)
+  list(year - 1, year).flatmap fn(y)
     list(0,3).map( fn(m) { ts-ti.instant(y,m*4,15) } )
-  })
 
 fun sample-offsets( dates : list<instant>, tz : timezone ) : list<duration>
-  dates.map( fn(i)
+  dates.map fn(i)
     i.time(tz=tz).tzdelta
-  })
 
 fun match-offsets( dates : list<instant>, offsets : list<duration>, tz : timezone ) : bool
   val offsets2 = dates.sample-offsets(tz)
-  zipwith(offsets,offsets2,fn(x,y) { x == y }).all(id)
+  zipwith(offsets, offsets2, fn(x,y) x == y ).all(id)
 
 // Guess the local timezone. Not as reliable as `tz-local` but will contain
 // more information on certain platforms (i.e. the timezone abbreviation).
@@ -328,9 +321,8 @@ pub fun guess-local-timezone( tzs : timezones, default : maybe<timezone> = Nothi
       val year    = time-now(ts-ti).year
       val dates   = sample-dates(year)
       val offsets = dates.sample-offsets(tz-local())
-      val matches = tzs.tzones.list.map(snd).filter( fn(tzi)
-        (!tzi.aliased &&  dates.match-offsets(offsets,tzi.timezone))
-      })
+      val matches = tzs.tzones.list.map(snd).filter fn(tzi)
+                      (!tzi.aliased &&  dates.match-offsets(offsets,tzi.timezone))
       // trace("timezone guess matches: " + matches.show-list(fn(tzi){ tzi.show }))
       match matches
         Nil -> match default

@@ -1,6 +1,7 @@
 <!-- #00547D -->
+<!--
 [<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
+-->
 
 # Getting started { #getstarted; }
 
@@ -43,41 +44,7 @@ libraries, package management, and deep IDE integration.
 
 ## Installing the compiler { #install }
 
-For Linux (x64, arm64), macOS (x64, M1), and FreeBSD (x64), you can install &koka; using:
-
-&acopy;
-{.copy; data-value:"curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh"}
-
-    \(**curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
-
-For Windows (x64), open a ``cmd`` prompt and use:
-
-&acopy;
-{.copy; data-value:"curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat"}
-
-    \(**curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat**\)
-
-This also installs syntax highlighting for the VS Code and Atom editors.
-
-After installation, verify if &koka; installed correctly:
-
-    $ koka
-     _         _
-    | |       | |
-    | | _ ___ | | _ __ _
-    | |/ / _ \| |/ / _' |  welcome to the koka interactive compiler
-    |   ( (_) |   ( (_| |  version 2.3.1, Sep 21 2021, libc x64 (gcc)
-    |_|\_\___/|_|\_\__,_|  type :? for help, and :q to quit
-
-    loading: std/core
-    loading: std/core/types
-    loading: std/core/hnd
-    >
-
-Type ``:q`` to exit the interactive environment.
-
-For detailed installation instructions and other platforms see the [releases] page.
-It is also straightforward to build the compiler [from source][build].
+[INCLUDE=install]
 
 ## Running the compiler
 
@@ -88,7 +55,7 @@ You can compile a &koka; source as (note that all [`samples`][samples] are pre-i
     loading: std/core
     loading: std/core/types
     loading: std/core/hnd
-    loading: std/num/double
+    loading: std/num/float64
     loading: std/text/parse
     loading: std/num/int32
     check  : samples/basic/caesar

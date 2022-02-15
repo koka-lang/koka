@@ -13,7 +13,7 @@
 module Platform.Runtime( exCatch
                        , unsafePerformIO
                        , finally
-                       , copyBinaryFile
+                       -- , copyBinaryFile
                        , showHFloat
                        ) where
 

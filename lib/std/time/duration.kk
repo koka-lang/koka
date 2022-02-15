@@ -43,11 +43,11 @@ pub fun unsafe-duration( t : timestamp ) : duration
 
 
 // Create a duration from whole seconds `secs` and a fraction of seconds `frac`.
-pub fun duration( secs : int, frac : double = 0.0 ) : duration
+pub fun duration( secs : int, frac : float64 = 0.0 ) : duration
   Duration(timespan(secs,frac))
 
-// Create a duration from seconds as a `:double`.
-pub fun duration( secs : double ) : duration
+// Create a duration from seconds as a `:float64`.
+pub fun duration( secs : float64 ) : duration
   Duration(timespan(secs))
 
 // Convert a duration to a `:timespan`.
@@ -74,10 +74,10 @@ pub fun nano-seconds( d : duration ) : int
 pub fun truncate( d : duration ) : int
   d.secs.truncate.int
 
-// The fractional seconds of a duration as a `:double`.
+// The fractional seconds of a duration as a `:float64`.
 // `d.seconds == d.truncate.fixed + d.fraction.fixed
-pub fun fraction( d : duration ) : double
-  d.secs.fraction.double
+pub fun fraction( d : duration ) : float64
+  d.secs.fraction.float64
 
 // Is this a negative duration?
 pub fun is-neg( d : duration ) : bool

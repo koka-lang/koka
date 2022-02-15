@@ -103,7 +103,7 @@ pub fun tz-local() : ndet timezone
   Timezone(
     "",
     fn(i)
-      val (ofs,abbrv) = local-utc-delta(tz, i.unix-timestamp.double)
+      val (ofs,abbrv) = local-utc-delta(tz, i.unix-timestamp.float64)
       (duration(ofs),abbrv)
 
   )
@@ -121,7 +121,7 @@ extern local-get-timezone() : ndet local-timezone
 // Return the utc delta in fractional seconds given a local timezone structure
 // and time `i` in fractional seconds since the UNIX epoch (1970-01-01).
 // Also returns time zone abbreviation.
-extern local-utc-delta( tz : local-timezone, i : double ) : (double,string)
+extern local-utc-delta( tz : local-timezone, i : float64 ) : (float64,string)
   c  "kk_local_get_utc_delta_tuple"
   cs "_Calendar.LocalUtcDelta"
   js "_local_utc_delta"
@@ -163,7 +163,7 @@ pub fun instant-dc( i : instant, tz :timezone = tz-utc, cal : calendar = cal-iso
 pub fun instant( ts : timescale,
                     year : int, month : int = 1, day : int = 1,
                     hours : int = 0, minutes : int = 0, seconds : int = 0,
-                    frac : double = 0.0, tz : timezone = tz-utc,
+                    frac : float64 = 0.0, tz : timezone = tz-utc,
                     cal : calendar = cal-iso ) : instant
 
   val fsecs = seconds.ddouble + frac.ddouble
@@ -171,7 +171,7 @@ pub fun instant( ts : timescale,
 
 pub fun instant( year : int, month : int = 1, day : int = 1,
                     hours : int = 0, minutes : int = 0, seconds : int = 0,
-                    frac : double = 0.0, tz : timezone = tz-utc,
+                    frac : float64 = 0.0, tz : timezone = tz-utc,
                     cal : calendar = cal-iso, ts : timescale = utc() ) : utc instant
 
   ts.instant(year,month,day,hours,minutes,seconds,frac,tz,cal)

@@ -1,7 +1,7 @@
 module ddouble1
 
 pub import std/num/ddouble
-pub import std/num/double
+pub import std/num/float64
 
 pub fun check(name : string, res : string, tst : () -> io string ) : io () {
   val got = tst().replace-all("e+0","e+")
@@ -53,7 +53,7 @@ pub fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddoubl
     }
   }
   else {
-    if (expect == res) then {
+    if (expect == res || (expect.is-nan && res.is-nan)) then {
       println( pre ++ "ok: " ++ res.show )
     }
     else {
@@ -199,25 +199,25 @@ val nums      = posnums.map((~)).reverse ++ [0.0] ++ posnums ++ exotic
 val pinums    = nums.map( fn(d){ d*pi } ) ++ exotic
 
 pub fun test-trig() {
-  test-double-fn( "tan", tan, tan, pinums )
-  test-double-fn( "sin", sin, sin, pinums )
-  test-double-fn( "cos", cos, cos, pinums )
-  test-double-fn( "tanh", tanh, tanh, pinums )
-  test-double-fn( "sinh", sinh, sinh, pinums )
-  test-double-fn( "cosh", cosh, cosh, pinums )
+  test-float64-fn( "tan", tan, tan, pinums )
+  test-float64-fn( "sin", sin, sin, pinums )
+  test-float64-fn( "cos", cos, cos, pinums )
+  test-float64-fn( "tanh", tanh, tanh, pinums )
+  test-float64-fn( "sinh", sinh, sinh, pinums )
+  test-float64-fn( "cosh", cosh, cosh, pinums )
 }
 
 pub fun test-atrig() {
-  test-double-fn( "atan", atan, atan, nums )
-  test-double-fn( "asin", asin, asin, nums )
-  test-double-fn( "acos", acos, acos, nums )
-  test-double-fn( "atanh", atanh, atanh, nums )
-  test-double-fn( "asinh", asinh, asinh, nums )
-  test-double-fn( "acosh", acosh, acosh, nums )
+  test-float64-fn( "atan", atan, atan, nums )
+  test-float64-fn( "asin", asin, asin, nums )
+  test-float64-fn( "acos", acos, acos, nums )
+  test-float64-fn( "atanh", atanh, atanh, nums )
+  test-float64-fn( "asinh", asinh, asinh, nums )
+  test-float64-fn( "acosh", acosh, acosh, nums )
 }
 
-pub fun test-double-fn( name : string, fd : double -> double, fdd : ddouble -> ddouble, nums : list<double> ) : io () {
-  nums.foreach-indexed( fn( i:int, x : double ) {
+pub fun test-float64-fn( name : string, fd : float64 -> float64, fdd : ddouble -> ddouble, nums : list<float64> ) : io () {
+  nums.foreach-indexed( fn( i:int, x : float64 ) {
     val d = x.fd
     val dd = x.ddouble.fdd
     check-prec( name ++ "(" ++ x.show(3) ++ ")", d.ddouble, dd,

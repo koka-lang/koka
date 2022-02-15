@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SUPPORTED_TARGETS="rhel debian arch alpine opensuse"
+SUPPORTED_TARGETS="rhel ubuntu arch alpine opensuse"
 SUPPORTED_ARCHITECTURES="amd64" # arm64
 
 #---------------------------------------------------------
@@ -24,13 +24,6 @@ source "$(dirname "$0")/util.sh"
 #---------------------------------------------------------
 # Main
 #---------------------------------------------------------
-
-clean_workdir() {
-  info "Cleaning up"
-
-  rm -rf $CALLER_DIR/.koka
-  rm -rf $CALLER_DIR/.stack-work
-}
 
 build_docker_images() {
   build_arch="$1"
@@ -57,7 +50,7 @@ build_docker_images() {
     # Build the docker image, subshell to help with buildkit
     (
       cd ./distros
-      docker build $quiet_param -t koka-$target \
+      docker build $quiet_param -t localhost/koka-$target \
         $arch_opt $selinux_opt $rebuild_opt \
         -f "./$target.Dockerfile" .
     )
@@ -90,11 +83,11 @@ run_docker_images() {
     # Build the docker image
     # (Maybe properly fix SELINUX here?)
     docker run $quiet_param -it --rm $arch_opt \
-      --cap-add SYS_ADMIN $selinux_opt \
+      --privileged $selinux_opt \
       --tmpfs /tmp/overlay \
       -v "$(pwd)/$KOKA_SOURCE_LOCATION":/code:ro \
       -v "$TEMP_DIR:/output:z" \
-      koka-$target
+      localhost/koka-$target
 
     if [ $? -ne 0 ]; then
       stop "Failed to compile os specific package for $target"
@@ -121,7 +114,7 @@ move_outputs() {
       stop "Failed to extract version from bundle while moving"
     fi
 
-    move_target_dir="$CALLER_DIR/bundle/$file_bundle_version/archives"
+    move_target_dir="$CALLER_DIR/bundle/$file_bundle_version"
     mkdir -p "$move_target_dir"
     mv "$file" "$move_target_dir"
   done
@@ -136,7 +129,12 @@ move_outputs() {
 package_outputs() {
   info "Packaging bundles"
 
-  foundbundles="$CALLER_DIR/bundle/**/archives/*.tar.gz"
+  foundbundles="$CALLER_DIR/bundle/**/*.tar.gz"
+
+  bundlecount=$(ls -1 $foundbundles | wc -l)
+  if [ $bundlecount -gt 30 ]; then
+    warn "You have a lot of bundles, $bundlecount in fact. To reduce packaging time please move old bundles somewhere else."
+  fi
 
   for bundleloc in $foundbundles; do
     # Check if the bundle exists
@@ -144,17 +142,36 @@ package_outputs() {
       stop "Bundle not found at $bundleloc"
     fi
 
-    file_bundle_distro=$(tar -Oxf "$bundleloc" meta/distro)
-    file_bundle_arch=$(tar -Oxf "$bundleloc" meta/arch)
-    file_bundle_arch=$(normalize_osarch "$file_bundle_arch")
+    file_bundle_distro=$(tar -Oxf "$bundleloc" meta/distro 2>/dev/null || true)
+    file_bundle_builddate=$(tar -Oxf "$bundleloc" meta/builddate 2>/dev/null || true)
+    file_bundle_arch=$(tar -Oxf "$bundleloc" meta/arch 2>/dev/null || true)
+    file_bundle_arch=$(normalize_osarch_docker "$file_bundle_arch")
+
+    # Check build time, warn if missing or older than 2 weeks
+    if [ -z "$file_bundle_builddate" ]; then
+      warn "$bundleloc has incomplete metadata but enough to package"
+      continue
+    else
+      file_bundle_builddate=$(date -d "$file_bundle_builddate" +%s)
+      now=$(date +%s)
+      diff=$((now - file_bundle_builddate))
+      if [ $diff -gt 1209600 ]; then
+        warn "$bundleloc is older than 2 weeks, consider moving or rebuilding it"
+      fi
+    fi
+
     # Skip if file bundle distro not in build targets
-    if [[ ! "$BUILD_TARGETS" =~ "$file_bundle_distro" ]]; then
+    if [ -z "$file_bundle_distro" ]; then
+      warn "$bundleloc is probably a manual build, these are not supported"
       continue
     fi
+    if [[ ! "$BUILD_TARGETS" =~ "$file_bundle_distro" ]]; then continue; fi
     # Skip if file bundle arch not in build archs
-    if [[ ! "$BUILD_ARCHITECTURES" =~ "$file_bundle_arch" ]]; then
+    if [ -z "$file_bundle_arch" ]; then
+      warn "$bundleloc does not have expected metadata"
       continue
     fi
+    if [[ ! "$BUILD_ARCHITECTURES" =~ "$file_bundle_arch" ]]; then continue; fi
 
     info "Packaging $bundleloc for $file_bundle_distro"
     ./package.sh --calldir="$CALLER_DIR" -t="$file_bundle_distro" $bundleloc
@@ -171,8 +188,6 @@ main_build() {
   info "Starting builds"
   switch_workdir_to_script
   verify_ran_from_reporoot
-
-  clean_workdir
 
   if [ "$MODE" == "setupqemu" ]; then
     ensure_docker
@@ -249,6 +264,9 @@ process_options() {
     --configqemu)
       MODE="setupqemu"
       ;;
+    --en-arm)
+      SUPPORTED_ARCHITECTURES="$SUPPORTED_ARCHITECTURES arm64"
+      ;;
     -q | --quiet)
       QUIET="yes"
       ;;
@@ -284,11 +302,11 @@ process_options() {
   # Default architectures is all
   if [ -z "$BUILD_ARCHITECTURES" ]; then BUILD_ARCHITECTURES="$SUPPORTED_ARCHITECTURES"; fi
 
-  # map build_archtectures with the normalize_osarch() funciton
+  # map build_archtectures with the normalize_osarch_docker() funciton
   tempvar="$BUILD_ARCHITECTURES"
   BUILD_ARCHITECTURES=""
   for build_arch in $tempvar; do
-    BUILD_ARCHITECTURES="$BUILD_ARCHITECTURES $(normalize_osarch $build_arch)"
+    BUILD_ARCHITECTURES="$BUILD_ARCHITECTURES $(normalize_osarch_docker $build_arch)"
   done
 
   # Check if BUILD_ARCHITECTURES is in SUPPORTED_ARCHITECTURES
@@ -297,6 +315,13 @@ process_options() {
       stop "Invalid architecture: $arch"
     fi
   done
+
+  ### Warnings
+
+  # If arm64 is enabled
+  if [[ "$BUILD_ARCHITECTURES" =~ "arm64" ]]; then
+    warn "ARM64 is not yet supported, it will probably fail!"
+  fi
 }
 
 main_help() {
@@ -316,7 +341,11 @@ main_help() {
   info ""
   info "dev options:"
   info "  --configqemu                    Configure just the qemu docker emulator for other architectures"
+  info "  --en-arm                        Enable ARM64 building"
   info ""
+  info "important:"
+  info "  All docker containers run with full root privileges right now"
+  info "  This is because docker/linux refuses to properly implement scoped privileges"
   info "notes:"
   info "  This script can only build linux packages right now"
   info "  If older archives are present, they may be accidentally repackaged"

@@ -2,7 +2,7 @@
 
 */
 
-pub import std/num/double
+pub import std/num/float64
 pub import std/num/int32
 
 fun check(name : string, res : string, got : string ) : io () {
@@ -12,7 +12,7 @@ fun check(name : string, res : string, got : string ) : io () {
   // if (got != res) then error("failed") else ()
 }
 
-struct ldexp( frac : double, exp : int, exp2 : int, expect : string );
+struct ldexp( frac : float64, exp : int, exp2 : int, expect : string );
 
 fun main() {
   val tests = [test-basic, test-zero, test-inf,
@@ -25,7 +25,7 @@ fun main() {
         val x0 = ldexp(frac,exp)
         val x  = if (exp2==skip) then x0 else ldexp(x0,exp2)
         val s  = x.show-hex
-        val se = expect.parse-double.default(nan).show-hex
+        val se = expect.parse-float64.default(nan).show-hex
         check(i.show ++ ":" ++ exp.show ++ "," ++ exp2.show, s, se);
       }
     }

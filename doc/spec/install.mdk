@@ -1,0 +1,59 @@
+[ubuntu-x64]:   https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-ubuntu-x64.deb {.localref}
+[alpine-x64]:   https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-alpine-x64.apk {.localref}
+[rhel-x64]:     https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-rhel-x64.rpm {.localref} 
+[arch-x64]:     https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-arch-x64.pkg.tar.zst {.localref}
+[opensuse-x64]: https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-opensuse-x64.rpm {.localref}
+
+[ubuntu-arm64]:   https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-ubuntu-arm64.deb {.localref}
+[alpine-arm64]:   https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-alpine-arm64.apk {.localref}
+[rhel-arm64]:     https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-rhel-arm64.rpm {.localref}
+[arch-arm64]:     https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-arch-arm64.pkg.tar.zst {.localref}
+[opensuse-arm64]: https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-opensuse-arm64.rpm {.localref}
+
+[logo-alpine]:  images/logo-alpine.svg  { height: 1em; vertical-align: -0.2ex; }
+[logo-arch]:    images/logo-arch.svg    { height: 1em; vertical-align: -0.2ex; }
+[logo-debian]:  images/logo-debian.svg  { height: 1em; vertical-align: -0.4ex; }
+[logo-freebsd]: images/logo-freebsd.svg { height: 0.8em; vertical-align: -0.2ex; }
+
+On Windows (x64), open a ``cmd`` prompt and use:
+
+&acopy;
+{.copy; data-value:"curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat"}
+
+    \(**curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat**\)
+
+On Linux (x64, arm64), macOS (x64, M1), and FreeBSD (x64), you can install &koka; using:
+
+&acopy;
+{.copy; data-value:"curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh"}
+
+    \(**curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
+
+There are also installation packages for various Linux distributions:
+Ubuntu/Debian ([x64][ubuntu-x64], [arm64][ubuntu-arm64]),
+Alpine ([x64][alpine-x64], [arm64][alpine-arm64]),
+Arch ([x64][arch-x64], [arm64][arch-arm64]),
+Red Hat ([x64][rhel-x64]), and
+openSUSE ([x64][opensuse-x64]).
+{text-align:left}
+
+After installation, verify if &koka; installed correctly:
+
+    $ koka
+     _         _
+    | |       | |
+    | | _ ___ | | _ __ _
+    | |/ / _ \| |/ / _' |  welcome to the koka interactive compiler
+    |   ( (_) |   ( (_| |  version 2.4.0, Feb  7 2022, libc x64 (gcc)
+    |_|\_\___/|_|\_\__,_|  type :? for help, and :q to quit
+
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    >
+
+Type ``:q`` to exit the interactive environment.
+
+For detailed installation instructions and other platforms see the [releases] page.
+It is also straightforward to build the compiler [from source][build].
+

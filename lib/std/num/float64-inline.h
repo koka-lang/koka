@@ -6,15 +6,14 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-static inline kk_std_core_types__tuple2_ kk_double_to_bits( double d, kk_context_t* ctx ) {
-  uint64_t u = kk_bits_from_double(d);
-  return kk_std_core_types__new_dash__lp__comma__rp_( kk_int32_box((int32_t)u, ctx), kk_int32_box((int32_t)(u >> 32), ctx), ctx );
+static inline int64_t kk_double_to_bits( double d, kk_context_t* ctx ) {
+  kk_unused(ctx);
+  return (int64_t)kk_bits_from_double(d);
 }
 
-static inline double kk_double_from_bits( int32_t lo, int32_t hi, kk_context_t* ctx ) {
+static inline double kk_double_from_bits( int64_t i, kk_context_t* ctx ) {
   kk_unused(ctx);
-  uint64_t u = (((uint64_t)((uint32_t)hi)) << 32) | (uint32_t)lo;  // note: careful about sign extension
-  return kk_bits_to_double(u);
+  return kk_bits_to_double((uint64_t)i);
 }
 
 static inline double kk_prim_parse_double( kk_string_t str, kk_context_t* ctx) {

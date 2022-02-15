@@ -44,7 +44,7 @@ pub fun show-leap-steps(ts-utc : timescale) {
           base.show(6) + "s + " + (if (dds.year >= 1959) then delta.show(7) else delta.show(8)) + "&times;&Delta;("
         + ds + ")").pad-right(47,' '),
       (if (delta.zero?) then "" else
-           "-" + ((delta.double / 86400.0)*1.0e10).int.show + "&times;10^-10^" ).pad-right(10,' ')
+           "-" + ((delta.float64 / 86400.0)*1.0e10).int.show + "&times;10^-10^" ).pad-right(10,' ')
     ].join(" | ") + " |"
      + (if (t.date==Date(1972,1,1) || t.date==Date(1960,1,1)) then leap-steps-sep else "")
      )

@@ -15,18 +15,21 @@ if ! [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
   exit 1
 fi
 
+set -e
+
 info() {
   if [ -z "$QUIET" ]; then
-    echo "$LOG_PREFIX[I] $@"
+    echo -e "\033[36m$LOG_PREFIX[I] $@\033[0m"
   fi
 }
 
 warn() {
-  echo "$LOG_PREFIX[W] $@" >&2
+  echo -e "\e[33m$LOG_PREFIX[W] $@\e[0m" >&2
 }
 
 stop() {
-  echo "$LOG_PREFIX[E] $@" >&2
+
+  echo -e "\e[31m$LOG_PREFIX[E] $@\e[0m" >&2
   exit 1
 }
 
@@ -149,8 +152,7 @@ has_selinux_and_enabled() {
 
 # ------------------------------------------------------------------------------
 
-# These are not normalized against the koka standard, but against the docker standard
-normalize_osarch() {
+normalize_osarch_koka() {
   arch=$1
   if [ -z "$arch" ]; then
     stop "Architecture is not specified"
@@ -158,10 +160,10 @@ normalize_osarch() {
 
   case "$arch" in
   x86_64* | amd64* | x64*)
-    arch="amd64"
+    arch="x64"
     ;;
-  x86* | i[35678]86*)
-    arch="i386"
+  x86* | i[35678]86* | 386*)
+    arch="x86"
     ;;
   arm64* | aarch64* | armv8*)
     arch="arm64"
@@ -169,9 +171,34 @@ normalize_osarch() {
   arm*)
     arch="arm"
     ;;
-  parisc*)
-    arch="hppa"
-    ;;
+  esac
+
+  echo $arch
+}
+
+# These are not normalized against the koka standard, but against the docker standard
+normalize_osarch_docker() {
+  arch=$(normalize_osarch_koka $1)
+
+  case "$arch" in
+  x64) arch="amd64" ;;
+  x86) arch="386" ;;
+  arm64) arch="arm64" ;;
+  arm) arch="arm" ;;
+  esac
+
+  echo $arch
+}
+
+# These are normalized against the linux standard
+normalize_osarch_linux() {
+  arch=$(normalize_osarch_koka $1)
+
+  case "$arch" in
+  x64) arch="x86_64" ;;
+  x86) arch="i386" ;;
+  arm64) arch="aarch64" ;;
+  arm) arch="armv7l" ;;
   esac
 
   echo $arch
@@ -201,17 +228,17 @@ docker_flag_exists() {
 }
 
 get_docker_architecture() {
-  arch=$(docker info | fgrep -i -m 1 "arch: " | awk '{print $2}')
+  arch=$(docker info 2>&1 | fgrep -i -m 1 "arch: " | awk '{print $2}')
 
   if [ -z "$arch" ]; then
-    arch=$(docker info | fgrep -i -m 1 "architecture: " | awk '{print $2}')
+    arch=$(docker info 2>&1 | fgrep -i -m 1 "architecture: " | awk '{print $2}' )
   fi
 
   if [ -z "$arch" ]; then
     stop "Failed to determine docker architecture"
   fi
 
-  arch=$(normalize_osarch "$arch")
+  arch=$(normalize_osarch_docker "$arch")
 
   echo $arch
 }
@@ -252,12 +279,20 @@ docker_generate_arch_flags() {
     stop "No architecture specified"
   fi
 
+  # No need for arch flag if it is native anyways
+  if test_if_docker_native_only "$docker_arch"; then
+    return 0
+  fi
+
   if docker_flag_exists "$docker_subcommand" "--arch"; then
     echo "--arch $docker_arch"
   elif docker_flag_exists "$docker_subcommand" "--platform"; then
     echo "--platform $docker_arch"
   else
-    stop "Docker does not support specifying an architecture"
+    stop "Docker does not support specifying an architecture natively"
+    #echo "--build-arg ARCH='$docker_arch'"
+    #warn "Docker does not support specifying an architecture natively"
+    #warn "Trying to build with build env arguments"
   fi
 }
 
@@ -274,7 +309,7 @@ docker_generate_quiet_flags() {
 
 # ------------------------------------------------------------------------------
 
-test_if_need_docker_multiarch() {
+test_if_docker_native_only() {
   test_architectures=$1
   if [ -z "$test_architectures" ]; then
     stop "No architectures to test specified"
@@ -283,12 +318,14 @@ test_if_need_docker_multiarch() {
   this_arch=$(get_docker_architecture)
 
   for test_arch in $test_architectures; do
+    test_arch=$(normalize_osarch_docker "$test_arch")
+
     if [ "$test_arch" != "$this_arch" ]; then
-      return 0
+      return 1
     fi
   done
 
-  return 1
+  return 0
 }
 
 test_docker_multiarch() {
@@ -339,7 +376,7 @@ ensure_docker_multiarch() {
     stop "No architectures to test specified"
   fi
 
-  if ! test_if_need_docker_multiarch "$test_architectures"; then
+  if test_if_docker_native_only "$test_architectures"; then
     info "No need for multiarch, you are only building native"
     return 0
   fi

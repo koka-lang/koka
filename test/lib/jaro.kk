@@ -19,13 +19,13 @@ pub fun run-tests(jaro,jarow) {
   }
 }
 
-fun print-test( score : double, expect : double, msg : string ) {
+fun print-test( score : float64, expect : float64, msg : string ) {
   val sscore  = score.show-fixed(2)
   val sexpect = expect.show-fixed(2)
   println(msg ++ ": " ++ sscore ++ ": " ++ (if (expect > 1.0 || sscore==sexpect) then "success" else "FAILED, expecting: " ++ sexpect))
 }
 
-val jaro-tests : list<(string,string,double,double)> = 
+val jaro-tests : list<(string,string,float64,float64)> = 
   [("abc","abc",1.0,1.0),
   ("","",1.0,1.0),
   ("","abc",0.0,0.0),
@@ -47,14 +47,14 @@ val jaro-tests : list<(string,string,double,double)> =
 
 
 
-fun jaro-winkler-distance( s : string, t : string, boost-threshold : double = 0.7 ) : double {
+fun jaro-winkler-distance( s : string, t : string, boost-threshold : float64 = 0.7 ) : float64 {
   val d = jaro-distance(s,t)
   if (d < boost-threshold) return d
   val l = common-prefix(s,t,4).count
-  d + (l.double * 0.1 * (1.0 - d))
+  d + (l.float64 * 0.1 * (1.0 - d))
 }
 
-fun jaro-distance( s : string, t : string ) : double {
+fun jaro-distance( s : string, t : string ) : float64 {
   if (s==t) return 1.0
   if (s.is-empty || t.is-empty) return 0.0
   val v = s.vector
@@ -62,9 +62,9 @@ fun jaro-distance( s : string, t : string ) : double {
   val lim = max(0,max(v.length,w.length)/2 - 1)
   val (mcount,tcount) = if (v.length > w.length) then jaro-match(w,v,lim) else jaro-match(v,w,lim)
   if (mcount<=0) then 0.0 else {
-    val mc = mcount.double
-    val tc = tcount.double
-    ((mc / v.length.double) + (mc / w.length.double) + ((mc - tc) / mc)) / 3.0
+    val mc = mcount.float64
+    val tc = tcount.float64
+    ((mc / v.length.float64) + (mc / w.length.float64) + ((mc - tc) / mc)) / 3.0
   }
 }
 

@@ -135,7 +135,6 @@ table .kw, table .tp, table .co,
   padding: 1ex;  
   transition: all 0.25s;
   cursor: pointer;
-  margin-top: 0ex;  
   border-radius: 1ex;
 }
 
@@ -150,7 +149,15 @@ table .kw, table .tp, table .co,
   background-color: #b9dae8 !important;  
 }
 
+.small-button.button {  
+  padding: 0.25ex 1ex;  
+  transition: all 0.25s;
+  cursor: pointer;
+  margin: 0.25ex 0ex;
+}
+
 a.button, .button a {
+  color: black;
   text-decoration: none !important;
 }
 

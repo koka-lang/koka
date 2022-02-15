@@ -58,7 +58,7 @@ pub fun test-ut1(verbose:bool = True) {
   //   2006-01-15T00:00:00Z  UT1-UTC = 0.3340758
 
   check("sofa-ut1","2006-01-15T21:24:37.834077267Z UT1"){  sofai.time(ts=ts-ut1).show  }
-  // astropy: 37.834077793, sofa: 37.834100 ; linear interpolate using double: 37.8340747674305556
+  // astropy: 37.834077793, sofa: 37.834100 ; linear interpolate using float64: 37.8340747674305556
 
   // across a leap second;
   // on 2017-05-03 the IERS data says:

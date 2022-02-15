@@ -25,22 +25,25 @@ class KokaLexer(RegexLexer):
 
     keywords = [
         'infix', 'infixr', 'infixl',
-        'type', 'cotype', 'rectype', 'alias',
-        'struct', 'con',
-        'fun', 'function', 'val', 'var',
-        'external',
-        'if', 'then', 'else', 'elif', 'return', 'match',
-        'private', 'public', 'private',
         'module', 'import', 'as',
-        'include', 'inline',
-        'rec',
-        'try', 'yield', 'enum',
-        'interface', 'instance',
+        'pub', 'abstract',
+        'type', 'struct', 'alias', 'effect', 'con',
+        'forall', 'exists', 'some',
+        'fun', 'fn', 'val', 'var', 'extern',
+        'if', 'then', 'else', 'elif', 
+        'match', 'return', 'with', 'in',
+        'handle', 'handler', 'mask',
+        'ctl', 'final', 'raw',
+        'override', 'named',
+        'interface', 'break', 'continue', 'unsafe',
+        'co', 'rec', 'open', 'extend', 'behind',
+        'linear', 'value', 'reference', 
+        'inline', 'noinline'
     ]
 
     # keywords that are followed by a type
     typeStartKeywords = [
-        'type', 'cotype', 'rectype', 'alias', 'struct', 'enum',
+        'type', 'alias', 'struct', 'effect', 
     ]
 
     # keywords valid in a type
@@ -52,8 +55,8 @@ class KokaLexer(RegexLexer):
     builtin = [
         'for', 'while', 'repeat',
         'foreach', 'foreach-indexed',
-        'error', 'catch', 'finally',
-        'cs', 'js', 'file', 'ref', 'assigned',
+        'error', 'catch', 'finally', 'initially'
+        'c', 'cs', 'js', 'file', 'ref'
     ]
 
     # symbols that can be in an operator
@@ -93,10 +96,10 @@ class KokaLexer(RegexLexer):
                       Text, Keyword,Text,Keyword,
                       Name.Namespace)),
 
-            (r'(^(?:(?:public|private)\s*)?(?:function|fun|val))(\s+)([a-z]\w*|\((?:' + symbols + r'|/)\))', 
+            (r'(^(?:(?:pub)\s+)?(?:inline\s+|noinline\s+)?(?:fun|val))(\s+)([a-z]\w*|\((?:' + symbols + r'|/)\))', 
              bygroups(Keyword,Text,Name.Function)),
-            (r'(^(?:(?:public|private)\s*)?external)(\s+)(inline\s+)?([a-z]\w*|\((?:' + symbols + r'|/)\))', 
-             bygroups(Keyword,Text,Keyword,Name.Function)),
+            (r'(^(?:(?:pub)\s+)?(?:inline\s+|noinline\s+)?extern)(\s+)([a-z]\w*|\((?:' + symbols + r'|/)\))', 
+             bygroups(Keyword,Text,Name.Function)),
 
             # keywords
             (r'(%s)' % '|'.join(typekeywords) + boundary, Keyword.Type),

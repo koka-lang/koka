@@ -2,6 +2,17 @@ adown: []{.fa .fa-angle-double-down}
 aup:   []{.fa .fa-angle-double-up}
 acopy: []{.fa .fa-copy}
 
+logo-ubuntu: []{.fa-brands .fa-ubuntu}
+logo-suse: []{.fa-brands .fa-suse}
+logo-rhel: []{.fa-brands .fa-redhat}
+logo-alpine: ![logo-alpine]
+logo-arch: ![logo-arch]
+logo-debian: ![logo-debian]
+logo-freebsd: ![logo-freebsd]
+logo-macos: []{.fa-brands .fa-apple}
+logo-windows: []{.fa-brands .fa-windows}
+logo-linux: []{.fa-brands .fa-linux}
+
 .title {
   font-size: xxx-large;
 }
@@ -34,6 +45,15 @@ toc.toc-contents {
 
 .learn {
   .button;
+}
+
+.small-button {
+  .button
+}
+
+.download-button {
+  .small-button
+  .localref
 }
 
 .copy {

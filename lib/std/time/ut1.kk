@@ -38,7 +38,7 @@ i.time(cal=cal-ut1).show.println   // in UT1
 */
 module std/time/ut1
 
-import std/num/double
+import std/num/float64
 import std/async
 import std/os/path
 import std/num/ddouble
@@ -179,9 +179,9 @@ fun load-latest-iersA( fname : path, url   : string,
 // A table of DUT (= UT1 - UTC) entries parsed from a IERS finals2000A file.
 struct dut-table(
   expire: instant,
-  start : double,   // start mjd
-  end   : double,   // end mjd
-  duts  : vector<double> // one entry per day
+  start : float64,   // start mjd
+  end   : float64,   // end mjd
+  duts  : vector<float64> // one entry per day
 )
 
 // Calculate &Delta;T from a DUT table.
@@ -189,7 +189,7 @@ struct dut-table(
 fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<duration>
   try-default(Nothing)
     val utci = i.use-timescale(ts-utc)
-    val mjd = utci.mjd(ts-utc).double
+    val mjd = utci.mjd(ts-utc).float64
     if mjd < dtt.start || mjd >= dtt.end then Nothing else
       val idx = (mjd - dtt.start).truncate.int
       // interpolate
@@ -213,15 +213,15 @@ fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<durat
 fun parse-iersA( s : string ) : maybe<dut-table>
   val start   = match( s.find(rx-finals-start) )
                   Nothing   -> 41684.0
-                  Just(cap) -> cap.groups[1].parse-double.maybe(41684.0)
+                  Just(cap) -> cap.groups[1].parse-float64.maybe(41684.0)
 
   val mbexp   = s.find(rx-finals-expire) // first prediction date
   val caps    = s.find-all(rx-finals-dut)
-  val entries = caps.map-acc(fn(cap){ cap.groups[1].parse-double.maybe(0.0) }).vector
+  val entries = caps.map-acc(fn(cap){ cap.groups[1].parse-float64.maybe(0.0) }).vector
 
-  val end     = start + entries.length.double
+  val end     = start + entries.length.float64
   val expire  = (match mbexp
-                  Just(cap) -> cap.groups[1].parse-double.maybe(end - 365.0)
+                  Just(cap) -> cap.groups[1].parse-float64.maybe(end - 365.0)
                   Nothing   -> end - 365.0  // guess one year early
                 ).instant-at-mjd(ts-ti)
   //trace("finals2000A expire: " + expire.time.show)
@@ -276,7 +276,7 @@ fun ut2-offset( i : instant ) : timespan
 
   // UT2 = UT1 + 0.022*sin(2*pi*t) - 0.012*cos(2*pi*t) - 0.006*sin(4*pi*t) + 0.007*cos(4*pi*t)
   // where `t` is the fraction of the Besselian year:
-  // t = 1900.0 + ((i.jd(ts-tt).double - 2415020.31352) / 365.242198781)
+  // t = 1900.0 + ((i.jd(ts-tt).float64 - 2415020.31352) / 365.242198781)
   //
   // The periodic definition comes from:
   //   McCarthy, Dennis D. (July 1991). "Astronomical Time".
@@ -291,7 +291,7 @@ fun ut2-offset( i : instant ) : timespan
   //   _Precession Matrix Based on IAU_ (1976)
   //   System of Astronomical Constants, Astronomy \& Astrophysics, 73, pages 282--284 (1979)
   //   <https://en.wikipedia.org/wiki/Year#Besselian_year>
-  val t     = 1900.0 + ((i.jd(ts-tt).double - 2415020.31352) / 365.242198781) // Besselian years
+  val t     = 1900.0 + ((i.jd(ts-tt).float64 - 2415020.31352) / 365.242198781) // Besselian years
   val tp2   = dbl-twopi*(t.ffraction)
   val tp4   = 2.0*tp2
   val ofs   = 0.022*sin(tp2) - 0.012*cos(tp2) - 0.006*sin(tp4) + 0.007*cos(tp4)
@@ -338,15 +338,15 @@ pub fun deltat( i : instant, dt-override : (i : instant) -> maybe<duration> = de
   val dt = match(dt-override(i))
             Just(dt) -> dt
             Nothing  ->
-              val y = i.time(ts=ts-tt).year-frac.double.round-to-prec(4)
+              val y = i.time(ts=ts-tt).year-frac.float64.round-to-prec(4)
               deltat-builtin(y).duration
 
   // trace("deltat: year: " + y.show-ddouble + ", dt: " + dt.show)
   dt
 
-fun deltat-builtin( y : double,
+fun deltat-builtin( y : float64,
                    determined : deltat-table = deltat-table-determined(),
-                   predicted  : deltat-table = deltat-table-predicted() ) : double
+                   predicted  : deltat-table = deltat-table-predicted() ) : float64
   // A date after (about) 1986 ?  (determined starts usually at 1973.0833333)
   if y >= determined.start || y >= 1986.0 then
     // observed Delta-T is best
@@ -366,7 +366,7 @@ fun deltat-builtin( y : double,
 
 // Approximate delta-t before 1800 using parabolic fitted curves (Espenak & Meeus 2006).
 // See <https://eclipse.gsfc.nasa.gov/SEcat5/deltatpoly.html>
-fun deltat-historic-approx( y : double ) : double
+fun deltat-historic-approx( y : float64 ) : float64
   if y > 1800.0 then
     deltat-future-approx(y)
   elif y >= 1700.0 then
@@ -385,7 +385,7 @@ fun deltat-historic-approx( y : double ) : double
 
 // Approximate delta-t after 1986 using parabolic estimates (from Espenak & Meeus 2006).
 // See <https://eclipse.gsfc.nasa.gov/SEcat5/deltatpoly.html>
-fun deltat-future-approx( y : double) : double
+fun deltat-future-approx( y : float64) : float64
   if y < 1986.0 then
     deltat-generic(y)
   elif y <= 2005.0 then
@@ -401,7 +401,7 @@ fun deltat-future-approx( y : double) : double
 
 
 // Generic delta-t from Morrison and Stephenson, 2004.
-fun deltat-generic( y : double ) : double
+fun deltat-generic( y : float64 ) : float64
   val u = (y - 1820.0)/100.0
   -20.0 + 32.0*u*u
 
@@ -416,9 +416,9 @@ fun deltat-generic( y : double ) : double
 // 12 for determined data (monthly), and 4 for predicted data (quarterly).
 // The entries contain the delta-t at the start of that period.
 struct deltat-table(
-  start: double,            // fractional year
-  entries-per-year: double,
-  entries: vector<double>
+  start: float64,            // fractional year
+  entries-per-year: float64,
+  entries: vector<float64>
 )
 
 val deltat-table-empty = Deltat-table(0.0,0.0,vector(0,0.0))
@@ -426,7 +426,7 @@ val deltat-table-empty = Deltat-table(0.0,0.0,vector(0,0.0))
 // Given a `deltat-table` and a fractional year, return the delta-t by
 // linear interpolation between two known delta-t instants. If the
 // year `y` is outside the bounds of the table, return `Nothing`.
-fun interpolate( dtable : deltat-table, y : double )  : maybe<double>
+fun interpolate( dtable : deltat-table, y : float64 )  : maybe<float64>
   if y < dtable.start || dtable.end <= y then Nothing else
     try-default(Nothing)
       val i   = (y - dtable.start)*dtable.entries-per-year
@@ -437,14 +437,14 @@ fun interpolate( dtable : deltat-table, y : double )  : maybe<double>
 
 
 // The end fractional year until which this table contains valid data.
-fun end( tb : deltat-table ) : double
-  tb.start + (tb.entries.length.double / tb.entries-per-year)
+fun end( tb : deltat-table ) : float64
+  tb.start + (tb.entries.length.float64 / tb.entries-per-year)
 
 
-fun parse-deltat( determined : string = "", predicted : string = "") : ((year:double) -> maybe<double>)
+fun parse-deltat( determined : string = "", predicted : string = "") : ((year:float64) -> maybe<float64>)
   val det  = parse-determined(determined)
   val pred = parse-predicted(predicted)
-  (fn(year:double)
+  (fn(year:float64)
     match det.interpolate(year)    
       Nothing -> pred.interpolate(year)
       jdt     -> jdt
@@ -454,8 +454,8 @@ fun parse-deltat( determined : string = "", predicted : string = "") : ((year:do
 fun parse-predicted( s : string ) : deltat-table
   val caps = s.find-all(rx-predict)
   if caps.is-nil return deltat-table-empty
-  val start = caps.head.map(fn(cap){ cap.groups[1] }).default("").parse-double.maybe(2000.0)
-  val entries = caps.map(fn(cap){ cap.groups[2].parse-double.maybe(0.0) }).vector
+  val start = caps.head.map(fn(cap){ cap.groups[1] }).default("").parse-float64.maybe(2000.0)
+  val entries = caps.map(fn(cap){ cap.groups[2].parse-float64.maybe(0.0) }).vector
   Deltat-table(start,4.0,entries)
 
 val rx-predict = regex(r"^\s*\d+\.\d+\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline=True)
@@ -464,15 +464,15 @@ fun parse-determined( s : string ) : deltat-table
   val caps  = s.find-all(rx-determined)
   if caps.is-nil return deltat-table-empty
   val (y,m) = caps.head.map(fn(cap){ (cap.groups[1],cap.groups[2]) }).default(("",""))
-  val start = y.parse-double.maybe(2000.0) + ((m.parse-double.maybe(1.0) - 1.0)/12.0)
-  val entries = caps.map(fn(cap){ cap.groups[4].parse-double.maybe(0.0) }).vector
+  val start = y.parse-float64.maybe(2000.0) + ((m.parse-float64.maybe(1.0) - 1.0)/12.0)
+  val entries = caps.map(fn(cap){ cap.groups[4].parse-float64.maybe(0.0) }).vector
   Deltat-table(start,12.0,entries)
 
 val rx-determined = regex(r"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multiline=True)
 
-fun parse-historic( start: double, s : string ) : deltat-table
+fun parse-historic( start: float64, s : string ) : deltat-table
   val caps = s.replace-all(rxcomment,"").find-all(rxdouble)
-  val entries = caps.map(fn(cap){ cap.matched.parse-double.maybe(0.0) }).vector
+  val entries = caps.map(fn(cap){ cap.matched.parse-float64.maybe(0.0) }).vector
   Deltat-table(start,2.0,entries)
 
 val rxdouble = regex(r"-?\d+(?:\.\d+)?")

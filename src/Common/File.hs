@@ -14,7 +14,7 @@ module Common.File(
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsSuffixes, searchPathsEx
                   , searchProgram
-                  , runSystem, runSystemRaw, runCmd, runCmdRead
+                  , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
                   , getProgramPath
 
                   -- * Strings
@@ -47,7 +47,7 @@ module Common.File(
 import Data.List        ( intersperse )
 import Data.Char        ( toLower, isSpace )
 import Platform.Config  ( pathSep, pathDelimiter, sourceExtension, exeExtension )
-import qualified Platform.Runtime as B ( copyBinaryFile, exCatch )
+import qualified Platform.Runtime as B ( {- copyBinaryFile, -} exCatch )
 import Common.Failure   ( raiseIO, catchIO )
 
 import System.IO
@@ -55,7 +55,7 @@ import System.Process   ( system, rawSystem, createProcess, CreateProcess(..), p
 import System.Exit      ( ExitCode(..) )
 import System.Environment ( getEnvironment, getExecutablePath )
 import System.Directory ( doesFileExist, doesDirectoryExist
-                        , copyFile, copyFileWithMetadata
+                        {- , copyFile, copyFileWithMetadata -}
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath, removeFile )
 
@@ -246,9 +246,10 @@ runCmd cmd args
           ExitFailure i -> raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
           ExitSuccess   -> return ()
 
-runCmdRead :: String -> [String] -> IO String
-runCmdRead cmd args
-  = do (_, Just hout, _, process) <- createProcess (proc cmd args){ std_out = CreatePipe }          
+runCmdRead :: [(String,String)] -> String -> [String] -> IO String
+runCmdRead extraEnv cmd args
+  = do mbEnv <- buildEnv extraEnv
+       (_, Just hout, _, process) <- createProcess (proc cmd args){ env = mbEnv, std_out = CreatePipe }          
        exitCode <- waitForProcess process
        case exitCode of
           ExitFailure i -> do -- hClose hout
@@ -257,6 +258,23 @@ runCmdRead cmd args
                               -- hClose hout
                               return out
 
+
+runCmdEnv :: [(String,String)] -> String -> [String] -> IO ()
+runCmdEnv extraEnv cmd args
+  = do mbEnv <- buildEnv extraEnv
+       (_, _, _, process) <- createProcess (proc cmd args){ env = mbEnv }          
+       exitCode <- waitForProcess process
+       case exitCode of
+          ExitFailure i -> do -- hClose hout
+                              raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
+          ExitSuccess   -> return ()
+
+buildEnv :: [(String,String)] -> IO (Maybe [(String,String)])
+buildEnv extraEnv
+  = if null extraEnv then return Nothing 
+      else do oldEnv <- getEnvironment
+              let newKeys = map fst extraEnv
+              return (Just (extraEnv ++ filter (\(k,_) -> not (k `elem` newKeys)) oldEnv))
 
 -- | Compare two file modification times (uses 0 for non-existing files)
 fileTimeCompare :: FilePath -> FilePath -> IO Ordering
@@ -294,11 +312,13 @@ writeTextFile fpath content
 
 copyTextFile :: FilePath -> FilePath -> IO ()
 copyTextFile src dest
+  = copyTextFileWith src dest id
+  {-
   = if (src == dest)
      then return ()
      else catchIO (do createDirectoryIfMissing True (dirname dest)
-                      copyFileWithMetadata src dest)
-            (error ("could not copy file " ++ show src ++ " to " ++ show dest))
+                      copyFileWithMetadata src dest)  -- do not use as the source may come from a (readonly) admin permission and should got to user permission
+            (error ("could not copy file " ++ show src ++ " to " ++ show dest)) -}
 
 copyTextFileWith :: FilePath -> FilePath -> (String -> String) -> IO ()
 copyTextFileWith src dest transform
@@ -315,7 +335,17 @@ copyBinaryFile :: FilePath -> FilePath -> IO ()
 copyBinaryFile src dest
   = if (src == dest)
      then return ()
-     else catchIO (B.copyBinaryFile src dest) (\_ -> error ("could not copy file " ++ show src ++ " to " ++ show dest))
+     else catchIO (
+            -- do not use as the source may come from a (readonly) admin permission and should got to user permission
+            -- B.copyBinaryFile src dest) (\_ -> error ("could not copy file " ++ show src ++ " to " ++ show dest))
+             do createDirectoryIfMissing True (dirname dest)
+                ftime <- getFileTime src
+                withBinaryFile src ReadMode $ \hsrc ->
+                  withBinaryFile dest WriteMode $ \hdest ->
+                    do content <- hGetContents hsrc
+                       hPutStr hdest content
+                setFileTime dest ftime)
+            (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyBinaryIfNewer :: Bool -> FilePath -> FilePath -> IO ()
 copyBinaryIfNewer always srcName outName

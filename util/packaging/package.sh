@@ -8,19 +8,22 @@ PACKAGE_DESCRIPTION="Koka is a strongly typed functional-style language with eff
 PACKAGE_URL="https://koka-lang.github.io/"
 PACKAGE_LICENSE="Apache-2.0"
 
+PACKAGE_PREFIX="/usr" 
+
 # Dependencies
-GENERAL_NIX_DEPENDENCIES="gcc,make,tar,curl,git" # For these programs version doesnt really matter
+GENERAL_NIX_DEPENDENCIES="gcc,make,tar,curl" # For these programs version doesnt really matter
 
 # (Info)
+# - Dependencies are split with commas
 # Rhel and OpenSuse dependencies dont mind a space next to >= sign
-# Debian dependencies need a space next to >= sign
+# Ubuntu dependencies need a space next to >= sign
 # Alpine dependencies need no space, and use the > sign
 # Arch dependencies need no space next to >= sign
-RHEL_DEPENDENCIES="glibc >= 2.27"                   # Fedora RedHat CentOS and Rocky
-DEBIAN_DEPENDENCIES="libc6 >= 2.27"                 # Ubuntu Debian
-ALPINE_DEPENDENCIES="gmp>6,libffi>3.4,musl-dev>1.2" # ninja,pkgconf
-ARCH_DEPENDENCIES="glibc>=2.33"
-OPENSUSE_DEPENDENCIES="glibc >= 2.31"
+RHEL_DEPENDENCIES="glibc >= 2.28"                   # Fedora RedHat CentOS and Rocky
+UBUNTU_DEPENDENCIES="libc6 >= 2.27"                 # Ubuntu Debian
+ALPINE_DEPENDENCIES="musl-dev>1.2.2"                # Alpine
+ARCH_DEPENDENCIES="glibc>=2.32"                     # Arch, Manjaro
+OPENSUSE_DEPENDENCIES="glibc >= 2.31"               # OpenSuse
 
 FREEBSD_DEPENDENCIES=""
 
@@ -73,8 +76,8 @@ get_dependencies() {
   rhel)
     deps="$RHEL_DEPENDENCIES"
     ;;
-  debian)
-    deps="$DEBIAN_DEPENDENCIES"
+  ubuntu)
+    deps="$UBUNTU_DEPENDENCIES"
     ;;
   alpine)
     deps="$ALPINE_DEPENDENCIES"
@@ -132,10 +135,13 @@ build_package() {
   package_version="${VERSION:1}"
   package_iteration=$(semver_to_iteration "$package_version")
 
+  linux_architecture=$(normalize_osarch_linux "$ARCHITECTURE")
+
   fpm_arguments="-s dir -t '$TYPE' -C '/source' -p '/build/$file_name' $dependencies \
     -n '$PACKAGE_NAME' --description '$PACKAGE_DESCRIPTION' --url '$PACKAGE_URL' --license '$PACKAGE_LICENSE' \
     -v '$package_version' --iteration '$package_iteration' \
-    -a native --prefix '/usr/local' \
+    -a '$linux_architecture' --prefix $PACKAGE_PREFIX \
+    --rpm-rpmbuild-define '_build_id_links none' \
     --provides '$PACKAGE_NAME' \
     --before-remove /scripts/pre-remove.sh \
     --after-install /scripts/post-install.sh \
@@ -172,10 +178,10 @@ build_packages() {
     info "RHEL package built successfully"
   fi
 
-  if [[ $packages =~ "debian" ]]; then
-    info "Building Debian package"
-    build_package deb deb debian
-    info "Debian package built successfully"
+  if [[ $packages =~ "ubuntu" ]]; then
+    info "Building Ubuntu package"
+    build_package deb deb ubuntu
+    info "Ubuntu package built successfully"
   fi
 
   if [[ $packages =~ "alpine" ]]; then
@@ -259,7 +265,7 @@ extract_version_architecture_from_bundle() {
 move_packages() {
   target_location=""
   if [ -z "$OUTPUT_DIR" ]; then
-    target_location="$CALLER_DIR/bundle/$VERSION/packages"
+    target_location="$CALLER_DIR/bundle/$VERSION"
   else
     target_location="$OUTPUT_DIR/"
   fi
@@ -356,7 +362,7 @@ process_options() {
   if [ -z "$BUILD_TARGETS" ]; then
     case "$OSTYPE" in
     linux*)
-      BUILD_TARGETS="arch rhel debian alpine opensuse"
+      BUILD_TARGETS="arch rhel ubuntu alpine opensuse"
       ;;
     darwin*)
       BUILD_TARGETS="darwin"
@@ -373,11 +379,11 @@ main_help() {
   info "  ./package.sh [options] <bundle file>"
   info ""
   info "options:"
-  info "  -t, --targets=<url>      Specify the targets to build for"
-  info "                           (arch rhel debian alpine opensuse darwin freebsd)"
-  info "  -o, --output=<dir>       Specify the output directory"
-  info "  -q, --quiet              Suppress output"
-  info "  -h, --help               Show this help message"
+  info "  -t, --targets=<target,target>   Specify the targets to build for"
+  info "                                  (arch rhel ubuntu alpine opensuse darwin freebsd)"
+  info "  -o, --output=<dir>              Specify the output directory"
+  info "  -q, --quiet                     Suppress output"
+  info "  -h, --help                      Show this help message"
   info ""
 }
 

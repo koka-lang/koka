@@ -329,7 +329,8 @@ functional style.
 
 As another example of the effectiveness of Perceus and the strong semantics
 of the Koka core language, we can
-look at the [red-black tree][rbtree] example and look at the code generated when folding a binary tree. The red-black tree is defined as:
+look at the [red-black tree][rbtree] example and look at the code generated 
+when folding a binary tree. The red-black tree is defined as:
 ```
 type color  
   Red
@@ -357,11 +358,11 @@ val count = t.fold(0, fn(k,v,acc) if v then acc+1 else acc)
 ```
 
 This may look quite expensive where we pass a polymorphic 
-first-class function but
-the Koka compiler specializes the `fold` definition to the passed
-function, simplifies,
-and then applies Perceus to insert reference count instructions,
-resulting in the following internal core code:
+first-class function that uses arbitrary precision integer arithmetic.
+However, the Koka compiler first _specializes_ the `fold` definition 
+to the passed function, then simplifies the resulting monomorphic code,
+and finally applies Perceus to insert reference count instructions.
+This results in the following internal core code:
 
 ```unchecked
 fun spec-fold(t : tree<k,bool>, acc : int) : int
@@ -384,31 +385,32 @@ on arm64 become:
 spec_fold:
   ...                       
   LBB15_3:   
-    mov  x21, x0             ; x20 is t, x21 = acc (x19 = koka context _ctx)
-  LBB15_4:                   ; the "match(t)" point
-    cmp  x20, #9             ; is t a Leaf?
-    b.eq LBB15_1             ; if so, goto Leaf brach
-  LBB15_5:                   ; the Cons(_,l,k,v,r) branch
-    mov  x23, x20
-    ldp  x22, x0, [x20, #8]  ; x22 = l, x0 = k
-    ldrb w24, [x20, #33]     ; x24 = v (boolean, 1 or 0)
-    ldr  x20, [x20, #24]     ; x20 = r
-    ldr  w8, [x23, #4]       ; w8 = reference count (0 is unique)
-    cbnz w8, LBB15_11        ; if t is not unique, goto cold path to dup the members
-    tbz  w0, #0, LBB15_13    ; if k is allocated (bit 0 is 0), goto cold path to free it
+    mov  x21, x0              ; x20 is t, x21 = acc (x19 = koka context _ctx)
+  LBB15_4:                    ; the "match(t)" point
+    cmp  x20, #9              ; is t a Leaf?
+    b.eq LBB15_1              ;   if so, goto Leaf brach
+  LBB15_5:                    ;   otherwise, this is the Cons(_,l,k,v,r) branch
+    mov  x23, x20             ; load the fields of t:
+    ldp  x22, x0, [x20, #8]   ;   x22 = l, x0 = k   (ldp == load pair)
+    ldp  x24, x20, [x20, #24] ;   x24 = v, x20 = r  
+    ldr  w8, [x23, #4]        ;   w8 = reference count (0 is unique)
+    cbnz w8, LBB15_11         ; if t is not unique, goto cold path to dup the members
+    tbz  w0, #0, LBB15_13     ; if k is allocated (bit 0 is 0), goto cold path to free it
   LBB15_7:                   
-    mov  x0, x23             ; free(t)
+    mov  x0, x23              ; call free(t)  
     bl   _mi_free
-  LBB15_8:                              
-    mov  x1, x21             ; call spec_fold(l,acc,_ctx)
+  LBB15_8:              
+    mov  x0, x22              ; call spec_fold(l,acc,_ctx)
+    mov  x1, x21              
     mov  x2, x19
     bl   spec_fold
-    cbz  w24, LBB15_3        ; if v is False, the result is the accumulator
-    add  x21, x0, #4         ; otherwise add 1 (as a small int 4*n)
-    orr  x8, x21, #1         ; check for bigint or overflow in one test 
-    cmp  x8, w21, sxtw       ;   (see kklib/include/integer.h for details)
-    b.eq LBB15_4             ; and tail-call into spec_fold if no overflow or bigint
-    mov  w1, #5              ; otherwise, use generic bigint addition              
+    cmp  x24, #1              ; boxed value is False? 
+    b.eq LBB15_3              ;   if v is False, the result in x0 is the accumulator
+    add  x21, x0, #4          ; otherwise add 1 (as a small int 4*n)
+    orr  x8, x21, #1          ;   check for bigint or overflow in one test 
+    cmp  x8, w21, sxtw        ;   (see kklib/include/integer.h for details)
+    b.eq LBB15_4              ; and tail-call into spec_fold if no overflow or bigint
+    mov  w1, #5               ; otherwise, use generic bigint addition              
     mov  x2, x19
     bl   _kk_integer_add_generic
     b    LBB15_3
@@ -416,7 +418,7 @@ spec_fold:
 ````
 
 The polymorphic `fold` with its higher order parameter
-is  eventually compiled into a tight loop with close to optimal 
+is eventually compiled into a tight loop with close to optimal 
 assembly instructions. 
 
 ~ advanced
@@ -425,11 +427,13 @@ no longer live. This is usually earlier than scope-based deallocation
 (like RAII) and therefore Perceus can guarantee to be _garbage-free_ 
 where in a (cycle-free) program objects are always immediatedly
 deallocated as soon as they become unreachable [@Reinking:perceus;@Lorenzen:reuse-tr].
-This may seem still expensive compared to trace-based garbage collection
+Moreover, it is fully deterministic and behaves just like regular 
+malloc/free calls.
+Reference counting may still seem expensive compared to trace-based garbage collection
 which only (re)visits all live objects and never needs to free objects
 explicitly. However, Perceus usually frees an object right after its
 last use (like in our example), and thus the memory is still in the
-cache reducing the cost of freeing it; moreover, Perceus never (re)visits
+cache reducing the cost of freeing it. Also, Perceus never (re)visits
 live objects arbitrarily which may trash the caches especially if the 
 live set is large. As such, we think the deterministic behavior of 
 Perceus together with the garbage-free property may work out better

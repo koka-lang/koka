@@ -176,7 +176,9 @@ fun filter-non-matches( xs : list<list<sslice>> ) : list<list<sslice>>
 pub fun split( s : string, r : regex, atmost : int = -1 ) : list<string>
   r.exec-all(s,atmost).filter-non-matches.captures  
 
-
+pub fun testabc(s) 
+  s.contains(regex(r"[ab]+c"))
+  
 /*
 // Split a string `s` over separator `sep` where `sep` does not occur in 
 // _tokens_ matching `exclude`.

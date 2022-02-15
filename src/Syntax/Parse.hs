@@ -942,15 +942,23 @@ parseFunOpDecl linear vis =
   do ((rng0,doc),opSort) <- do rdoc <- dockeywordFun
                                return (rdoc,OpFun)
                            <|>
-                            do rdoc <- dockeyword "except" <|> dockeyword "brk"
-                               if (linear)
-                                then fail "'brk' operations are invalid for a linear effect"
-                                else return (rdoc,OpExcept)
-                           <|>
-                            do rdoc <- dockeyword "control" <|> dockeyword "ctl"
+                            do rdoc <- dockeyword "ctl" <|> dockeyword "control"
                                if (linear)
                                 then fail "'ctl' operations are invalid for a linear effect"
                                 else return (rdoc,OpControl)
+                           <|>
+                            do rdoc <- dockeyword "final"
+                               keyword "ctl"
+                               if (linear)
+                                then fail "'final ctl' operations are invalid for a linear effect"
+                                else return (rdoc,OpExcept)
+                           -- deprecated:
+                           <|>
+                            do rdoc <- dockeyword "except" <|> dockeyword "brk"
+                               if (linear)
+                                then fail "'brk' (or 'final ctl') operations are invalid for a linear effect"
+                                else return (rdoc,OpExcept)
+                           
      (id,idrng)   <- identifier
      exists0      <- typeparams
      (pars,_,prng)  <- declParams False {-allowBorrow-} True {-allowDefaults-}
