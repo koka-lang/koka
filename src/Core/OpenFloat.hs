@@ -347,10 +347,9 @@ data DefGroupIR = DefRecIR [DefIR] | DefNonRecIR DefIR
 countExpr :: Expr -> Int
 -- open-app
 countExpr (App (App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f]) args) | getName open == nameEffectOpen =
-  countExpr (App f args) + (if effectLength effFrom > 2 then 1 else 0)
+  countExpr (App f args) + (if effectLength effFrom >= 2 then 1 else 0)
 countExpr (App f args) = countExpr f + mapsum countExpr args
 countExpr (Lam args eff body) = countExpr body
-                                       -- 0
 countExpr (Let defgs body) = countDefGroups defgs + countExpr body
 countExpr (Case exprs bs) = mapsum countExpr exprs + mapsum countBranch bs
 countExpr (TypeLam tvars body) = countExpr body
