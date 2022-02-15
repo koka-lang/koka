@@ -21,8 +21,9 @@ import Common.NamePrim ( nameEffectOpen )
 import Common.Name
 import Common.Unique
 
-import Type.Type
+import Type.Type 
 import Type.TypeVar
+import Type.Kind
 import Type.Pretty hiding (Env)
 import qualified Type.Pretty as Pretty
 import Type.Assumption
@@ -101,13 +102,18 @@ fltExpr expr mbEff
                 Just(_, eff, _) -> eff
                 Nothing -> failure $ "Core.OpenFloat/getEffectType: invalid input expr\nOperator must have function type.\nfound: " ++ show (typeOf e)
     Lam args eff body
-      -> do
-            -- The source of effect, which is input of fltExpr
-            -- Not recurse, but use the annotated effect!
-            (body', rq) <- fltExpr body (Just eff)
-            let
-              body'' = smartRestrictExpr rq (Eff eff) body'
-            return (assertTypeInvariant $ Lam args eff body'', Bottom)
+      ->
+        if not $ canbeEffective eff
+          then 
+            return (expr, Bottom)
+          else
+            do
+                -- The source of effect, which is input of fltExpr
+                -- Not recurse, but use the annotated effect!
+                (body', rq) <- fltExpr body (Just eff)
+                let
+                  body'' = smartRestrictExpr rq (Eff eff) body'
+                return (assertTypeInvariant $ betterExpr expr (Lam args eff body''), Bottom)
 
     -- TODO Refactor this case. Use foldr or something like that
     Let defgs@[defg] body ->
@@ -154,6 +160,16 @@ fltExpr expr mbEff
       let tpBefore = typeOf expr
           tpAfter = typeOf expr' in
           assertion "Core/OpenFloat.fltExpr Type invariant violation." (matchType tpBefore tpAfter) expr'
+
+    canbeEffective :: Effect -> Bool
+    canbeEffective eff = 
+      let (ls, tl) = extractHandledEffect eff in
+      isEffectFixed tl || length ls > 2
+
+    betterExpr :: Expr -> Expr -> Expr
+    betterExpr exprOriginal@(Lam args1 eff1 body1) exprNew@(Lam args2 eff2 body2) =
+      if countExpr body1 <= countExpr body2 then exprOriginal else exprNew
+    betterExpr _ _ = failure "Core/OpenFloat.betterExpr Invalid functioncall"
 
 
 fltBranch :: Branch -> Maybe Effect -> Flt (BranchIR, Req)
@@ -322,6 +338,47 @@ data GuardIR = GuardIR { guardTestIR :: (Expr, Req)
 data DefIR = DefIR { def :: Def, req :: Req}
 data DefGroupIR = DefRecIR [DefIR] | DefNonRecIR DefIR
 
+{--------------------------------------------------------------------------
+  Count opens: This utility is used to select to apply floating or not.
+   Open floating is effective only if floating up 
+    open calls which opens from effects of two or more length to longer one.
+--------------------------------------------------------------------------}
+
+countExpr :: Expr -> Int
+-- open-app
+countExpr (App (App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f]) args) | getName open == nameEffectOpen =
+  countExpr (App f args) + (if effectLength effFrom > 2 then 1 else 0)
+countExpr (App f args) = countExpr f + mapsum countExpr args
+countExpr (Lam args eff body) = countExpr body
+                                       -- 0
+countExpr (Let defgs body) = countDefGroups defgs + countExpr body
+countExpr (Case exprs bs) = mapsum countExpr exprs + mapsum countBranch bs
+countExpr (TypeLam tvars body) = countExpr body
+countExpr (TypeApp body tps) = countExpr body
+countExpr _ = 0
+
+countDefGroups :: DefGroups -> Int
+countDefGroups defgs = mapsum countDefGroup defgs
+
+countDefGroup  :: DefGroup -> Int
+countDefGroup (DefRec defs) = mapsum countDef defs
+countDefGroup (DefNonRec def) = countDef def
+
+countDef :: Def -> Int
+countDef = countExpr . defExpr
+
+countBranch :: Branch -> Int
+countBranch (Branch pat guards) = mapsum countGuard guards
+
+countGuard (Guard guard body) = countExpr guard + countExpr body
+
+effectLength :: Effect -> Int
+effectLength eff = 
+      let (ls, tl) = extractHandledEffect eff in
+        length ls
+
+mapsum :: (a -> Int) -> [a] -> Int
+mapsum f lst = foldl (\acc x -> f x + acc) 0 lst
 
 {--------------------------------------------------------------------------
   Flt monad
