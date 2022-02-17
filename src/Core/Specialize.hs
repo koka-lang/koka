@@ -438,7 +438,8 @@ recursiveCalls Def{ defName=thisDefName, defExpr=expr }
         -> go body
       TypeLam types (Lam params eff body)
         -> go body
-      _ -> failure "recursiveCalls: not a function"
+      -- _ -> (Nothing,[])
+      _ -> failure ("Core.Specialize: recursiveCalls: not a function: " ++ show thisDefName ++ ": " ++ show expr)
   where
     go body =
       let (types, args) = unzip $ foldMapExpr f body

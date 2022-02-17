@@ -436,7 +436,7 @@ bottomUp (App (Var v _) [App (Var w _) [arg]])  | (getName v == nameUnbox && get
 
 
 -- direct application of arguments to a lambda: fun(x1...xn) { f(x1,...,xn) }  -> f
-bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars
+bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars 
   = f
   where
     argsMatchPars = and (zipWith argMatchPar pars args)
