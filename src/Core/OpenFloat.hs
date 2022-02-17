@@ -113,6 +113,7 @@ fltExpr expr mbEff
                 (body', rq) <- fltExpr body (Just eff)
                 let
                   body'' = smartRestrictExpr rq (Eff eff) body'
+                -- TODO `betterExpr` traverses both AST. We should optimize it. (cache or select at earlier phase)
                 return (assertTypeInvariant $ betterExpr expr (Lam args eff body''), Bottom)
 
     -- TODO Refactor this case. Use foldr or something like that
