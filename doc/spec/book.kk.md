@@ -31,7 +31,10 @@ bar: [|]{padding:0ex 0.25ex}
 ~manyn        : before='{ '; after=' }~_n_~'
 ~manyx        : before='{ '; after=' }'
 ~opt          : before='[ '; after=' ]'
-
+~diff {
+  before: '~[<!]{padding-right:0.5ex}';
+  after : '>~'
+}
 
 [koka-logo]: images/koka-logo-filled.png { max-height: 120px; padding:1rem 1rem 1rem 1.5rem; }
 
