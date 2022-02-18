@@ -195,7 +195,7 @@ std/core/(&)
 
 |~~~~~~~~~~~~~~~|~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~|
 | _char_        | ::=    | ``'`` (_graphic_~<! ``'`` &bar; ``\``>~ &bar; _space_ &bar; _utf8_ &bar; _escape_) ``'``                  |              |
-| _string_      | ::=    | ``"`` [_graphic_~<! ``'`` &bar; ``\``>~ &bar; _space_ &bar; _utf8_ &bar; _escape_]{.many} ``"``             |              |
+| _string_      | ::=    | ``"`` [_graphic_~<! ``"`` &bar; ``\``>~ &bar; _space_ &bar; _utf8_ &bar; _escape_]{.many} ``"``             |              |
 |               | &bar;  | ``r`` [``#``]{.manyn} ``"`` _rawstring_~_n_~ ``"`` [``#``]{.manyn}  |  (n >= 0)            |                 
 | _rawstring_~_n_~ | ::=    | [_any_]{.many}~<! [_any_]{.many} ``"`` [``#``]{.manyn} [_any_]{.many}>~                                                                                     |              |
 | &nbsp;        |        |                                                                                                                           |              |
@@ -263,11 +263,14 @@ std/core/(&)
 |            | &bar;  | ``xF4`` (``x80..x8F``) _cont_ _cont_|                                     |
 | _cont_     | ::=    | ``x80..xBF``                        |                                     |
 | &nbsp;     |        |                                         |                                     |
-| _utf8unsafe_ | ::=  | ``xE2`` ``0x80`` (``0x8E..0x8F``)   | (left-to-right mark (``u200E``) and right-to-left mark (``u200F``))                                 |
-|            | &bar;  | ``xE2`` ``0x80`` (``0xAA..0xAE``)   | (left-to-right embedding (``u202A`` up to right-to-left override ``u202F``)                                 |
-|            | &bar;  | ``xE2`` ``0x81`` (``0xA6..0xAB``)   | (left-to-right isolate (``u2066`` up to activate symmetric swapping ``u206B``)                                 |
+| _utf8unsafe_ | ::=  | ``xE2`` ``0x80`` (``0x8E..0x8F``)   | (left-to-right mark (``u200E``) and right-to-left mark (``u200F``))              |
+|            | &bar;  | ``xE2`` ``0x80`` (``0xAA..0xAE``)   | (left-to-right embedding (``u202A``) up to right-to-left override (``u202E``))   |
+|            | &bar;  | ``xE2`` ``0x81`` (``0xA6..0xA9``)   | (left-to-right isolate (``u2066``) up to pop directional isolate (``u2069``))|
 {.grammar .lex}
 
+
+[utf8unsafe]: https://arxiv.org/pdf/2111.00169.pdf
+[bidi]: https://en.wikipedia.org/wiki/Bidirectional_text
 
 ## Layout  {#sec-layout}
 

@@ -66,7 +66,7 @@ $charesc      = [nrt\\\'\"]    -- "
               | \xF4 [\x80-\x8F] $cont $cont
 
 @utf8unsafe   = \xE2 \x80 [\x8E-\x8F\xAA-\xAE]
-              | \xE2 \x81 [\xA6-\xAB]
+              | \xE2 \x81 [\xA6-\xA9]
 
 @utf8         = @utf8valid          
 

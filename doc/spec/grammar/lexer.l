@@ -1113,8 +1113,8 @@ unsigned int utfDecode1( const char* buf, int* len )
 /* Unsafe bidi characters */
 static bool utfIsUnsafe( unsigned int c ) {
   return ((c >= 0x200E && c <= 0x200F) ||
-          (c >= 0x202A && c <= 0x202F) ||
-          (c >= 0x2066 && c <= 0x206B));
+          (c >= 0x202A && c <= 0x202E) ||
+          (c >= 0x2066 && c <= 0x2069));
 }
 
 /* Decode a UTF8 encoded character */
