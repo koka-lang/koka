@@ -112,10 +112,13 @@ table .kw, table .tp, table .co,
   font-style: italic;
 }          
 
-.opt, .many {   
+.opt, .many, .manyn {   
   padding: 0ex 0.5ex;
 }
 
+.manyx {   
+  padding-left: 0.5ex;
+}
 
 #toc {
   display: none;

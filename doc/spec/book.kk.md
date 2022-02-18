@@ -27,6 +27,8 @@ body {
 
 ~bar          : before='|'
 ~many         : before='{ ' after=' }'
+~manyn        : before='{ ' after=' }~_n_~'
+~manyx        : before='{ ' after=' }'
 ~opt          : before='[ ' after=' ]'
 
 
