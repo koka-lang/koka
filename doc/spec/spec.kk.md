@@ -243,24 +243,29 @@ std/core/(&)
 | _posdigit_ | ::=    | ``1..9``                                |                                     |
 | _hexdigit_ | ::=    | ``a..f`` []{.bar} ``A..F`` []{.bar} _digit_ |                                 |
 | &nbsp;     |        |                                         |                                     |
+| _any_      | ::=    | _graphic_ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _tab_ []{.bar} _newline_    | (in comments and raw strings)        |
 | _newline_  | ::=    | [_return_]{.opt} _linefeed_             | (windows or unix style end of line) |
 | &nbsp;     |        |                                         |                                     |
 | _space_    | ::=    | ``x20``                                 | (a space)                           |
 | _tab_      | ::=    | ``x09``                                 | (a tab (``\t``))                    |
 | _linefeed_ | ::=    | ``x0A``                                 | (a line feed (``\n``))              |
 | _return_   | ::=    | ``x0D``                                 | (a carriage return (``\r``))        |
-| _graphic_  | ::=    | ``x21``..``x7E``                        | (a visible character)               |
-| _any_      | ::=    | _graphic_ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _tab_ []{.bar} _newline_    | (in comments and raw strings)        |
+| _graphic_  | ::=    | ``x21..x7E``                            | (a visible character)               |
 | &nbsp;     |        |                                         |                                     |
-| _utf8_     | ::=    | (``xC2``..``xDF``) _cont_               |                                     |
-|            | &bar;  | ``xE0`` (``xA0``..``xBF``) _cont_       |                                     |
-|            | &bar;  | (``xE1``..``xEC``) _cont_ _cont_        |                                     |
-|            | &bar;  | ``xED`` (``x80``..``x9F``) _cont_       |                                     |
-|            | &bar;  | (``xEE``..``xEF``) _cont_ _cont_        |                                     |
-|            | &bar;  | ``xF0`` (``x90``..``xBF``) _cont_ _cont_|                                     |
-|            | &bar;  | (``xF1``..``xF3``) _cont_ _cont_ _cont_ |                                     |
-|            | &bar;  | ``xF4`` (``x80``..``x8F``) _cont_ _cont_|                                     |
-| _cont_     | ::=    | ``x80``..``xBF``                        |                                     |
+| _utf8_     | ::=    | _utf8valid_~<! _utf8unsafe_>~           |                                  |
+| _utf8valid_| ::=    | (``xC2..xDF``) _cont_               |                                     |
+|            | &bar;  | ``xE0`` (``xA0..xBF``) _cont_       |                                     |
+|            | &bar;  | (``xE1..xEC``) _cont_ _cont_        |                                     |
+|            | &bar;  | ``xED`` (``x80..x9F``) _cont_       |                                     |
+|            | &bar;  | (``xEE..xEF``) _cont_ _cont_        |                                     |
+|            | &bar;  | ``xF0`` (``x90..xBF``) _cont_ _cont_|                                     |
+|            | &bar;  | (``xF1..xF3``) _cont_ _cont_ _cont_ |                                     |
+|            | &bar;  | ``xF4`` (``x80..x8F``) _cont_ _cont_|                                     |
+| _cont_     | ::=    | ``x80..xBF``                        |                                     |
+| &nbsp;     |        |                                         |                                     |
+| _utf8unsafe_ | ::=  | ``xE2`` ``0x80`` (``0x8E..0x8F``)   | (left-to-right mark (``u200E``) and right-to-left mark (``u200F``))                                 |
+|            | &bar;  | ``xE2`` ``0x80`` (``0xAA..0xAE``)   | (left-to-right embedding (``u202A`` up to right-to-left override ``u202F``)                                 |
+|            | &bar;  | ``xE2`` ``0x81`` (``0xA6..0xAB``)   | (left-to-right isolate (``u2066`` up to activate symmetric swapping ``u206B``)                                 |
 {.grammar .lex}
 
 
