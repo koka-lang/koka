@@ -241,6 +241,7 @@ See also &lt;https://en.wikipedia.org/wiki/Double-precision&#95;floating-point&#
 // &gt; 1.337.show-hex ++ " != " ++ 1.337.f32.float64.show-hex
 // "0x1.5645A1CAC0831p+0 != 0x1.5645A2p+0"
 // &#96;&#96;&#96;
+// .
 </span><span class="decl-fun" id="f32"><span class="kw">pub</span> <span class="kw">fun</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_num_float64.html#f32">f32<span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>float64<span class="fslash last">/</span></span>f32: <span class="tp sp">(</span><span class="tp tpp">f</span> <span class="tp kw op">:</span> <span class="tp">float64</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">float32</span></span></a>( <a class="pp">f<span class="pc">f: <span class="tp">float64</span></span></a> <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_float64"><span class="tp">float64</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>float64: <span class="co">V</span></span></a> ) <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_float32"><span class="tp">float32</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>float32: <span class="co">V</span></span></a>
   <a class="pp">f<span class="pc">f: <span class="tp">float64</span></span></a><span class="kw op">.</span><a class="pp" href="#float32">float32<span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>float64<span class="fslash last">/</span></span>float32: <span class="tp sp">(</span><span class="tp tpp">f</span> <span class="tp kw op">:</span> <span class="tp">float64</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">float32</span></span></a></span>
 
@@ -466,17 +467,16 @@ See also &lt;https://en.wikipedia.org/wiki/Double-precision&#95;floating-point&#
 <span class="comment">// Compare floats using a total ordering on the &#96;:float64&#96;.
 // The ordering follows the &#96;totalOrder&#96; predicate as defined in IEEE 754-2008 exactly.
 // The values are ordered in following order:
-// - negative quiet nan
-// - negative signaling nan
-// - &#96;neginf&#96;
-// - -finite
-// - -0.0
-// - +0.0
-// - finite
-// - &#96;posinf&#96;
-// - signaling nan
-// - quiet nan
-//
+// negative quiet nan,
+// negative signaling nan,
+// &#96;neginf&#96;,
+// -finite,
+// -0.0,
+// +0.0,
+// finite,
+// &#96;posinf&#96;,
+// signaling nan,
+// and quiet nan.
 </span><span class="decl-fun" id="compare"><span class="kw">pub</span> <span class="kw">fun</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_num_float64.html#compare">compare<span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>float64<span class="fslash last">/</span></span>compare: <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp">float64</span><span class="tp sp">,</span> <span class="tp tpp">y</span> <span class="tp kw op">:</span> <span class="tp">float64</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">order</span></span></a>( <a class="pp">x<span class="pc">x: <span class="tp">float64</span></span></a> <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_float64"><span class="tp">float64</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>float64: <span class="co">V</span></span></a>, <a class="pp">y<span class="pc">y: <span class="tp">float64</span></span></a> <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_float64"><span class="tp">float64</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>float64: <span class="co">V</span></span></a> ) <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_order"><span class="tp">order</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>order: <span class="co">V</span></span></a>
   <span class="kw">val</span> <a class="pp">bx<span class="pc">bx: <span class="tp">int64</span></span></a> <span class="kw">=</span> <a class="pp" href="#float64_to_bits">float64-to-bits<span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>float64<span class="fslash last">/</span></span>float64<span class="dash">-</span>to<span class="dash">-</span>bits: <span class="tp sp">(</span><span class="tp tpp">d</span> <span class="tp kw op">:</span> <span class="tp">float64</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">int64</span></span></a>(<a class="pp">x<span class="pc">x: <span class="tp">float64</span></span></a>)
   <span class="kw">val</span> <a class="pp">by<span class="pc">by: <span class="tp">int64</span></span></a> <span class="kw">=</span> <a class="pp" href="#float64_to_bits">float64-to-bits<span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>float64<span class="fslash last">/</span></span>float64<span class="dash">-</span>to<span class="dash">-</span>bits: <span class="tp sp">(</span><span class="tp tpp">d</span> <span class="tp kw op">:</span> <span class="tp">float64</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">int64</span></span></a>(<a class="pp">y<span class="pc">y: <span class="tp">float64</span></span></a>)

@@ -686,8 +686,11 @@
   .nt {
     font-style: italic;
   }          
-  .opt, .many {   
+  .opt, .many, .manyn {   
     padding: 0ex 0.5ex;
+  }
+  .manyx {   
+    padding-left: 0.5ex;
   }
   #toc {
     display: none;
@@ -1310,9 +1313,8 @@ It is also straightforward to build the compiler&nbsp;<a href="https://github.co
 
 ~ begin content
 ~ Begin Bibl { id: ""; bib-id: ""; bbl-file: "./index-bib.bbl.mdk" }
-~ begin bibliography { .bib-numeric; cite-style:"numeric:'[',']',', '" ; caption:"0" ; data-style:"numeric" ; data-style:'madoko-numeric';  }
-
-~ end bibliography
+~ Begin Bibliography { .bib-numeric; caption:"0"}
+~ End Bibliography
 
 ~ End Bibl
 
