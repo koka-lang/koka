@@ -566,6 +566,8 @@ extern prim-parse-float64( s : string ) : float64
 // to minimize rounding errors. This
 // is more precise as Kahan summation and about as fast.\
 // `[1.0e3,1.0e97,1.0e3,-1.0e97].sum == 2000.0`\
+// while\
+// `[1.0e3,1.0e97,1.0e3,-1.0e97].foldl(0.0,(+)) == 0.0` (!)\
 // A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
 // Math. Mechanik, 54:39--51, 1974.
 pub fun sum( xs : list<float64> ) : float64
