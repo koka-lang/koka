@@ -6,7 +6,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Double-double 128-bit floating point numbers.
+/* 128-bit double-double floating point numbers.
 
 The `:ddouble` type implements [double double][ddwiki] 128-bit floating point numbers
 as a pair of IEEE `:float64` values. This extends the precision to 31 decimal digits
