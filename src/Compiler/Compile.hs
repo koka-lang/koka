@@ -1345,30 +1345,20 @@ copyCLibrary term flags cc eimport
   = case Core.eimportLookup (buildType flags) "library" eimport of
       Nothing -> return []
       Just clib 
-        -> do mb  <- do -- use conan?
-                        mbConan <- case lookup "conan" eimport of
-                                      Just pkg | not (null (conan flags)) 
-                                        -> conanCLibrary term flags cc eimport clib pkg
-                                      _ -> return (Left [])
-                        case mbConan of
+        -> do mb  <- do mbSearch <- search [] [ searchCLibrary flags cc clib (ccompLibDirs flags)
+                                              , case lookup "conan" eimport of
+                                                  Just pkg | not (null (conan flags)) 
+                                                    -> conanCLibrary term flags cc eimport clib pkg
+                                                  _ -> return (Left [])
+                                              , case lookup "vcpkg" eimport of
+                                                  Just pkg 
+                                                    -> vcpkgCLibrary term flags cc eimport clib pkg
+                                                  _ -> return (Left [])
+                                              ]                                            
+                        case mbSearch of
                           Right res -> return (Just res)
-                          Left conanWarns
-                            -> do -- use vcpkg? (we prefer this as conan is not working well on windows across cl, clang, and mingw)
-                                  mbVcpkg <- case lookup "vcpkg" eimport of
-                                                Just pkg 
-                                                  -> vcpkgCLibrary term flags cc eimport clib pkg
-                                                _ -> return (Left [])
-                                  case mbVcpkg of
-                                    Right res -> return (Just res)
-                                    Left vcpkgWarns              
-                                      -> do  -- try to find the library and headers directly
-                                            mbSearch <- searchCLibrary flags cc clib (ccompLibDirs flags)
-                                            case mbSearch of
-                                              Right res -> return (Just res)
-                                              Left searchWarns
-                                                -> do let warns = intersperse (text "or") (vcpkgWarns ++ conanWarns ++ searchWarns)
-                                                      termWarning term flags (vcat warns)
-                                                      return Nothing
+                          Left warn -> do termWarning term flags warn
+                                          return Nothing
               case mb of
                 Just (libPath,includes) 
                   -> do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
@@ -1383,7 +1373,14 @@ copyCLibrary term flags cc eimport
                           text "   hint: provide \"--cclibdir\" as an option, or use \"syslib\" in an extern import?"                        
                         raiseIO ("unable to find C library " ++ clib ++
                                  "\nlibrary search paths: " ++ show (ccompLibDirs flags))
-                               
+  where 
+    search :: [Doc] -> [IO (Either [Doc] (FilePath,[FilePath]))] -> IO (Either Doc (FilePath,[FilePath])) 
+    search warns [] = return (Left (vcat (intersperse (text "or") warns)))
+    search warns (io:ios)
+      = do mbRes <- io
+           case mbRes of
+             Right res   -> return (Right res)
+             Left warns' -> search (warns ++ warns') ios
       
 searchCLibrary :: Flags -> CC -> FilePath -> [FilePath] -> IO (Either [Doc] (FilePath {-libPath-},[FilePath] {-include paths-}))
 searchCLibrary flags cc clib searchPaths
