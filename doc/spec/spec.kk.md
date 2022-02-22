@@ -180,7 +180,8 @@ std/core/(&)
 |~~~~~~~~~~~~~~~|~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~|
 | _charlit_     | ::=    | ``'`` (_char_[``'`` &bar; ``\``]{.diff} &bar; _escape_) ``'``                  |              |
 | _stringlit_   | ::=    | ``"`` [_char_[``"`` &bar; ``\``]{.diff} &bar; _escape_]{.many} ``"``             |              |
-|               | &bar;  | ``r`` [``#``]{.manyn} ``"`` [_anychar_]{.many}[[_anychar_]{.many} ``"`` [``#``]{.manyn} [_anychar_]{.many}]{.diff}  ``"`` [``#``]{.manyn}  |  (raw strings, n >= 0)            |                 
+|               | &bar;  | ``r`` [``#``]{.manyn} ``"`` _rawchars_~_n_~ ``"`` [``#``]{.manyn}  |  (n >= 0)            |                 
+| _rawchars_~_n_~ | ::=    | [_anychar_]{.many}[[_anychar_]{.many} ``"`` [``#``]{.manyn} [_anychar_]{.many}]{.diff} |             |                 
 | &nbsp;        |        |                                                                                                                           |              |
 | _escape_      | ::=    | ``\`` ( _charesc_ &bar; _hexesc_ )                                                                                     |              |
 | _charesc_     | ::=    | `n` &bar; `r` &bar; `t` &bar; ``\`` &bar; ``"`` &bar; ``'``                                                |              |
@@ -208,8 +209,8 @@ std/core/(&)
 |                 | &bar;  | _linecomment_ &bar; _blockcomment_                                                              |                          |
 |                 | &bar;  | _linedirective_                                                                                    |                          |
 | &nbsp;          |        |                                                                                                    |                          |
-| _linecomment_   | ::=    | ``//`` [_linechar_]{.many}                                                                  |                          |
-| _linedirective_ | ::=    | _newline_ ``#`` [_linechar_]{.many}                                            |                          |
+| _linecomment_   | ::=    | ``//`` [_char_ &bar; _tab_]{.many}                                                                  |                          |
+| _linedirective_ | ::=    | _newline_ ``#`` [_char_ &bar; _tab_]{.many}                                            |                          |
 | &nbsp;          |        |                                                                                                    |                          |
 | _blockcomment_  | ::=    | <code>/&#42;</code> _blockpart_ [_blockcomment_ _blockpart_]{.many} <code>&#42;/</code>            | (allows nested comments) |
 | _blockpart_     | ::=    | [_anychar_]{.many}[[_anychar_]{.many}\ (<code>/&#42;</code>&bar;<code>&#42;/</code>)\ [_anychar_]{.many}]{.diff} |                          |
@@ -225,18 +226,17 @@ std/core/(&)
 | _posdigit_ | ::=    | ``1..9``                                |                                     |
 | _hexdigit_ | ::=    | ``a..f`` &bar; ``A..F`` &bar; _digit_   |                                     |
 | &nbsp;     |        |                                         |                                     |
+| _anychar_  | ::=    | _char_ &bar; _tab_ &bar; _newline_      | (in comments and raw strings)       |
+| _newline_  | ::=    | [_return_]{.opt} _linefeed_             | (windows or unix style end of line) |
+| &nbsp;     |        |                                         |                                     |
 | _space_    | ::=    | ``x20``                                 | (a space)                           |
 | _tab_      | ::=    | ``x09``                                 | (a tab (``\t``))                    |
 | _linefeed_ | ::=    | ``x0A``                                 | (a line feed (``\n``))              |
 | _return_   | ::=    | ``x0D``                                 | (a carriage return (``\r``))        |
 | &nbsp;     |        |                                         |                                     |
-| _anychar_  | ::=    | _linechar_ &bar; _newline_              | (in comments and raw strings)       |
-| _linechar_ | ::=    | _char_ &bar; _tab_                      | (in line comments and directives)   |
-| _newline_  | ::=    | [_return_]{.opt} _linefeed_             | (windows or unix style end of line) |
-| &nbsp;     |        |                                         |                                     |
 | _char_     | ::=    | _unicode_[_control_ &bar; _surrogate_ &bar; _bidi_]{.diff} | (includes _space_) |
 | _unicode_  | ::=    | ``x00..x10FFFF``                        |                                     | 
-| _control_  | ::=    | ``x00..x1F`` &bar; ``x7F..9F``          | (C0, C1, and DEL)                   | 
+| _control_  | ::=    | ``x00..x1F`` &bar; ``x7F`` &bar; ``x80..9F`` | (C0, DEL, and C1)              | 
 | _surrogate_| ::=    | ``xD800..xDFFF``                        |                                     |
 | _bidi_     | ::=    | ``x200E`` &bar; ``x200F`` &bar; ``x202A..x202E`` &bar; ``x2066..x2069`` | (bi-directional text control)   |
 {.grammar .lex}
@@ -250,10 +250,10 @@ text control characters.
 The lexical grammar is designed in such a way tha
 a lexical analyzer can directly process UTF-8 encoded input as
 a sequence of bytes. This is used for example in the [Flex][FlexLexer] implementation.
-In particular, we only need to adapt the _graphic_ definition:
+In particular, we only need to adapt the _char_ definition:
 
 |~~~~~~~~~~~~|~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
-| _graphic_  | ::=    | _unicode_[_control_ &bar; _surrogate_ &bar; _bidi_]{.diff}  |               |
+| _char_     | ::=    | _unicode_[_control_ &bar; _surrogate_ &bar; _bidi_]{.diff}  |               |
 | _unicode_  | ::=    | ``x00..x7F``                            | (ASCII)                                    |
 |            | &bar;  | (``xC2..xDF``) _cont_                   |                                     |
 |            | &bar;  | ``xE0`` (``xA0..xBF``) _cont_           | (exclude overlong encodings)        |
@@ -263,7 +263,8 @@ In particular, we only need to adapt the _graphic_ definition:
 |            | &bar;  | ``xF4`` (``x80..x8F``) _cont_ _cont_    | (no codepoint larger than ``x10FFFF``)  |
 | _cont_     | ::=    | ``x80..xBF``                            |                                     |
 | _surrogate_| ::=    | ``xED`` (``xA0..xBF``) _cont_           |                                     |
-| _control_  | ::=    | ``x00..x1F`` &bar; ``x7F``              |  
+| _control_  | ::=    | ``x00..x1F``                            |  
+|            | &bar;  | ``x7F``                                 |                                     |
 |            | &bar;  | ``xC2`` (``x80..x9F``)                  |                                     |
 | _bidi_     | ::=    | ``xE2`` ``0x80`` (``0x8E..0x8F``)       | (left-to-right mark (``u200E``) and right-to-left mark (``u200F``))              |
 |            | &bar;  | ``xE2`` ``0x80`` (``0xAA..0xAE``)       | (left-to-right embedding (``u202A``) up to right-to-left override (``u202E``))   |
