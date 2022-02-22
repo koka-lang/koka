@@ -69,7 +69,7 @@ comments and directives.
 | _lexeme_&nbsp;&nbsp; | ::=   | _conid_ &bar; _qconid_                                    |     |
 |                      | &bar; | _varid_ &bar; _qvarid_                                    |     |
 |                      | &bar; | _op_ &bar; _opid_ &bar; _qopid_ &bar; _wildcard_          |     |
-|                      | &bar; | _integer_ &bar; _float_ &bar; _string_ &bar; _char_       |     |
+|                      | &bar; | _integer_ &bar; _float_ &bar; _stringlit_ &bar; _charlit_ |     |
 |                      | &bar; | _reserved_ &bar; _opreserved_                             |     |
 |                      | &bar; | _special_                                                 |     |
 {.grammar .lex}
@@ -178,9 +178,9 @@ std/core/(&)
 ### Literals
 
 |~~~~~~~~~~~~~~~|~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~|
-| _char_        | ::=    | ``'`` (_graphic_[``'`` &bar; ``\``]{.diff} &bar; _space_ &bar; _unicode_ &bar; _escape_) ``'``                  |              |
-| _string_      | ::=    | ``"`` [_graphic_[``"`` &bar; ``\``]{.diff} &bar; _space_ &bar; _unicode_ &bar; _escape_]{.many} ``"``             |              |
-|               | &bar;  | ``r`` [``#``]{.manyn} ``"`` [_any_]{.many}[[_any_]{.many} ``"`` [``#``]{.manyn} [_any_]{.many}]{.diff}  ``"`` [``#``]{.manyn}  |  (raw strings, n >= 0)            |                 
+| _charlit_     | ::=    | ``'`` (_char_[``'`` &bar; ``\``]{.diff} &bar; _escape_) ``'``                  |              |
+| _stringlit_   | ::=    | ``"`` [_char_[``"`` &bar; ``\``]{.diff} &bar; _escape_]{.many} ``"``             |              |
+|               | &bar;  | ``r`` [``#``]{.manyn} ``"`` [_anychar_]{.many}[[_anychar_]{.many} ``"`` [``#``]{.manyn} [_anychar_]{.many}]{.diff}  ``"`` [``#``]{.manyn}  |  (raw strings, n >= 0)            |                 
 | &nbsp;        |        |                                                                                                                           |              |
 | _escape_      | ::=    | ``\`` ( _charesc_ &bar; _hexesc_ )                                                                                     |              |
 | _charesc_     | ::=    | `n` &bar; `r` &bar; `t` &bar; ``\`` &bar; ``"`` &bar; ``'``                                                |              |
@@ -210,10 +210,9 @@ std/core/(&)
 | &nbsp;          |        |                                                                                                    |                          |
 | _linecomment_   | ::=    | ``//`` [_linechar_]{.many}                                                                  |                          |
 | _linedirective_ | ::=    | _newline_ ``#`` [_linechar_]{.many}                                            |                          |
-| _linechar_      | ::=    | _graphic_ &bar; _unicode_ &bar; _space_ &bar; _tab_                                          |                          |
 | &nbsp;          |        |                                                                                                    |                          |
 | _blockcomment_  | ::=    | <code>/&#42;</code> _blockpart_ [_blockcomment_ _blockpart_]{.many} <code>&#42;/</code>            | (allows nested comments) |
-| _blockpart_     | ::=    | [_any_]{.many}[[_any_]{.many}\ (<code>/&#42;</code>&bar;<code>&#42;/</code>)\ [_any_]{.many}]{.diff} |                          |
+| _blockpart_     | ::=    | [_anychar_]{.many}[[_anychar_]{.many}\ (<code>/&#42;</code>&bar;<code>&#42;/</code>)\ [_anychar_]{.many}]{.diff} |                          |
 {.grammar .lex}
 
 ### Character classes
@@ -226,18 +225,18 @@ std/core/(&)
 | _posdigit_ | ::=    | ``1..9``                                |                                     |
 | _hexdigit_ | ::=    | ``a..f`` &bar; ``A..F`` &bar; _digit_   |                                     |
 | &nbsp;     |        |                                         |                                     |
-| _any_      | ::=    | _graphic_ &bar; _unicode_ &bar; _space_ &bar; _tab_ &bar; _newline_    | (in comments and raw strings)        |
-| _newline_  | ::=    | [_return_]{.opt} _linefeed_             | (windows or unix style end of line) |
-| &nbsp;     |        |                                         |                                     |
 | _space_    | ::=    | ``x20``                                 | (a space)                           |
 | _tab_      | ::=    | ``x09``                                 | (a tab (``\t``))                    |
 | _linefeed_ | ::=    | ``x0A``                                 | (a line feed (``\n``))              |
 | _return_   | ::=    | ``x0D``                                 | (a carriage return (``\r``))        |
-| _graphic_  | ::=    | ``x21..x7E``                            | (a visible character)               |
 | &nbsp;     |        |                                         |                                     |
-| _unicode_  | ::=    | _extended_[_control1_ &bar; _surrogate_ &bar; _bidi_]{.diff} |                |
-| _extended_ | ::=    | ``x80..x10FFFF``                        |                                     | 
-| _control1_ | ::=    | ``x80..x9F``                            |                                     | 
+| _anychar_  | ::=    | _linechar_ &bar; _newline_              | (in comments and raw strings)       |
+| _linechar_ | ::=    | _char_ &bar; _tab_                      | (in line comments and directives)   |
+| _newline_  | ::=    | [_return_]{.opt} _linefeed_             | (windows or unix style end of line) |
+| &nbsp;     |        |                                         |                                     |
+| _char_     | ::=    | _unicode_[_control_ &bar; _surrogate_ &bar; _bidi_]{.diff} | (includes _space_) |
+| _unicode_  | ::=    | ``x00..x10FFFF``                        |                                     | 
+| _control_  | ::=    | ``x00..x1F`` &bar; ``x7F..9F``          | (C0, C1, and DEL)                   | 
 | _surrogate_| ::=    | ``xD800..xDFFF``                        |                                     |
 | _bidi_     | ::=    | ``x200E`` &bar; ``x200F`` &bar; ``x202A..x202E`` &bar; ``x2066..x2069`` | (bi-directional text control)   |
 {.grammar .lex}
@@ -248,22 +247,24 @@ and literals can contain extended unicode characters. For security
 [control codes](https://en.wikipedia.org/wiki/C0_and_C1_control_codes) (except for space,
 tab, carriage return, and line feeds), surrogate characters, and bi-directional
 text control characters.
-
-A lexical analyzer can actually directly process UTF-8 encoded input as
+The lexical grammar is designed in such a way tha
+a lexical analyzer can directly process UTF-8 encoded input as
 a sequence of bytes. This is used for example in the [Flex][FlexLexer] implementation.
-In particular, we only need to adapt the _unicode_ definition:
+In particular, we only need to adapt the _graphic_ definition:
 
 |~~~~~~~~~~~~|~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
-| _unicode_  | ::=    | _extended_[_control1_ &bar; _surrogate_ &bar; _bidi_]{.diff}  |               |
-| _extended_ | ::=    | (``xC2..xDF``) _cont_                   |                                     |
+| _graphic_  | ::=    | _unicode_[_control_ &bar; _surrogate_ &bar; _bidi_]{.diff}  |               |
+| _unicode_  | ::=    | ``x00..x7F``                            | (ASCII)                                    |
+|            | &bar;  | (``xC2..xDF``) _cont_                   |                                     |
 |            | &bar;  | ``xE0`` (``xA0..xBF``) _cont_           | (exclude overlong encodings)        |
 |            | &bar;  | (``xE1..xEF``) _cont_ _cont_            |                                     |
 |            | &bar;  | ``xF0`` (``x90..xBF``) _cont_ _cont_    | (exclude overlong encodings)        |
 |            | &bar;  | (``xF1..xF3``) _cont_ _cont_ _cont_     |                                     |
 |            | &bar;  | ``xF4`` (``x80..x8F``) _cont_ _cont_    | (no codepoint larger than ``x10FFFF``)  |
 | _cont_     | ::=    | ``x80..xBF``                            |                                     |
-| _control1_ | ::=    | ``xC2`` (``x80..x9F``)                  |                                     |
 | _surrogate_| ::=    | ``xED`` (``xA0..xBF``) _cont_           |                                     |
+| _control_  | ::=    | ``x00..x1F`` &bar; ``x7F``              |  
+|            | &bar;  | ``xC2`` (``x80..x9F``)                  |                                     |
 | _bidi_     | ::=    | ``xE2`` ``0x80`` (``0x8E..0x8F``)       | (left-to-right mark (``u200E``) and right-to-left mark (``u200F``))              |
 |            | &bar;  | ``xE2`` ``0x80`` (``0xAA..0xAE``)       | (left-to-right embedding (``u202A``) up to right-to-left override (``u202E``))   |
 |            | &bar;  | ``xE2`` ``0x81`` (``0xA6..0xA9``)       | (left-to-right isolate (``u2066``) up to pop directional isolate (``u2069``))|
@@ -652,7 +653,7 @@ in an expressions.
 |            | &bar; | `(` _annexprs_ `)`                                             | (tuple expression)         |
 |            | &bar; | `[` [_annexpr_ [`,` _annexprs_]{.many} [`,`]{.opt} ]{.opt} `]` | (list expression)          |
 | &nbsp;     |       |                                                                |                            |
-| _literal_  | ::=   | _natural_ &bar; _float_ &bar; _char_ &bar; _string_   |                            |
+| _literal_  | ::=   | _natural_ &bar; _float_ &bar; _charlit_ &bar; _stringlit_   |                            |
 | _mask_     | ::=   | `mask` [`behind`]{.opt} `<` _tbasic_ `>`                       |                            |
 | &nbsp;     |       |                                                                |                            |
 | _annexprs_ | ::=   | _annexpr_ [`,` _annexpr_]{.many}                               |                            |
