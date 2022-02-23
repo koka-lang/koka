@@ -242,34 +242,38 @@ std/core/(&)
 {.grammar .lex}
 
 Actual program code consists only of 7-bit ASCII characters while only comments
-and literals can contain extended unicode characters. For security
+and literals can contain extended unicode characters. As such, 
+a lexical analyzer can directly process UTF-8 encoded input as
+a sequence of bytes without needing UTF-8 decoding or unicode character 
+classification[^fn-utf8]. 
+For security
 [@Boucher:trojan], some character ranges are excluded: the C0 and C1 
 [control codes](https://en.wikipedia.org/wiki/C0_and_C1_control_codes) (except for space,
 tab, carriage return, and line feeds), surrogate characters, and bi-directional
 text control characters.
-The lexical grammar is designed in such a way tha
-a lexical analyzer can directly process UTF-8 encoded input as
-a sequence of bytes. This is used for example in the [Flex][FlexLexer] implementation.
-In particular, we only need to adapt the _char_ definition:
 
-|~~~~~~~~~~~~|~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
-| _char_     | ::=    | _unicode_[_control_ &bar; _surrogate_ &bar; _bidi_]{.diff}  |               |
-| _unicode_  | ::=    | ``x00..x7F``                            | (ASCII)                                    |
-|            | &bar;  | (``xC2..xDF``) _cont_                   |                                     |
-|            | &bar;  | ``xE0`` (``xA0..xBF``) _cont_           | (exclude overlong encodings)        |
-|            | &bar;  | (``xE1..xEF``) _cont_ _cont_            |                                     |
-|            | &bar;  | ``xF0`` (``x90..xBF``) _cont_ _cont_    | (exclude overlong encodings)        |
-|            | &bar;  | (``xF1..xF3``) _cont_ _cont_ _cont_     |                                     |
-|            | &bar;  | ``xF4`` (``x80..x8F``) _cont_ _cont_    | (no codepoint larger than ``x10FFFF``)  |
-| _cont_     | ::=    | ``x80..xBF``                            |                                     |
-| _surrogate_| ::=    | ``xED`` (``xA0..xBF``) _cont_           |                                     |
-| _control_  | ::=    | ``x00..x1F``                            |  
-|            | &bar;  | ``x7F``                                 |                                     |
-|            | &bar;  | ``xC2`` (``x80..x9F``)                  |                                     |
-| _bidi_     | ::=    | ``xE2`` ``0x80`` (``0x8E..0x8F``)       | (left-to-right mark (``u200E``) and right-to-left mark (``u200F``))              |
-|            | &bar;  | ``xE2`` ``0x80`` (``0xAA..0xAE``)       | (left-to-right embedding (``u202A``) up to right-to-left override (``u202E``))   |
-|            | &bar;  | ``xE2`` ``0x81`` (``0xA6..0xA9``)       | (left-to-right isolate (``u2066``) up to pop directional isolate (``u2069``))|
-{.grammar .lex}
+
+[^fn-utf8]: This is used for example in the [Flex][FlexLexer] implementation.
+    In particular, we only need to adapt the _char_ definition:
+
+    |~~~~~~~~~~~~|~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
+    | _char_     | ::=    | _unicode_[_control_ &bar; _surrogate_ &bar; _bidi_]{.diff}  |               |
+    | _unicode_  | ::=    | ``x00..x7F``                            | (ASCII)                                    |
+    |            | &bar;  | (``xC2..xDF``) _cont_                   |                                     |
+    |            | &bar;  | ``xE0`` (``xA0..xBF``) _cont_           | (exclude overlong encodings)        |
+    |            | &bar;  | (``xE1..xEF``) _cont_ _cont_            |                                     |
+    |            | &bar;  | ``xF0`` (``x90..xBF``) _cont_ _cont_    | (exclude overlong encodings)        |
+    |            | &bar;  | (``xF1..xF3``) _cont_ _cont_ _cont_     |                                     |
+    |            | &bar;  | ``xF4`` (``x80..x8F``) _cont_ _cont_    | (no codepoint larger than ``x10FFFF``)  |
+    | _cont_     | ::=    | ``x80..xBF``                            |                                     |
+    | _surrogate_| ::=    | ``xED`` (``xA0..xBF``) _cont_           |                                     |
+    | _control_  | ::=    | ``x00..x1F``                            |  
+    |            | &bar;  | ``x7F``                                 |                                     |
+    |            | &bar;  | ``xC2`` (``x80..x9F``)                  |                                     |
+    | _bidi_     | ::=    | ``xE2`` ``0x80`` (``0x8E..0x8F``)       | (left-to-right mark (``u200E``) and right-to-left mark (``u200F``))              |
+    |            | &bar;  | ``xE2`` ``0x80`` (``0xAA..0xAE``)       | (left-to-right embedding (``u202A``) up to right-to-left override (``u202E``))   |
+    |            | &bar;  | ``xE2`` ``0x81`` (``0xA6..0xA9``)       | (left-to-right isolate (``u2066``) up to pop directional isolate (``u2069``))|
+    {.grammar .lex}
 
 
 [utf8unsafe]: https://arxiv.org/pdf/2111.00169.pdf
