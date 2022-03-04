@@ -1,5 +1,5 @@
 set(sources cfold.kk deriv.kk nqueens.kk nqueens-int.kk
-            rbtree-poly.kk rbtree.kk rbtree-int.kk
+            rbtree-poly.kk rbtree.kk rbtree-fbip.kk rbtree-fbip-poly.kk rbtree-int.kk
             rbtree-ck.kk binarytrees.kk)
 
 find_program(kokadev "koka-dev")

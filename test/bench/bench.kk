@@ -18,7 +18,7 @@ import std/os/flags
 // Flags
 // ----------------------------------------------------
 
-val all-test-names = ["rbtree","rbtree-ck","binarytrees","deriv","nqueens","cfold"]
+val all-test-names = ["rbtree","rbtree-fbip", "rbtree-fbip-poly","rbtree-ck","binarytrees","deriv","nqueens","cfold"]
 
 val all-lang-names = [
   ("koka","kk"),
@@ -58,7 +58,7 @@ val flag-descs : list<flag<iflags>> = {
 }
 
 fun flag-usage() {
-  flag-descs.usage("usage:\n koka -e bench.kk [options]\n\noptions:").println
+  flag-descs.usage("usage:\n koka -e bench.kk -- [options]\n\noptions:").println
   println([
     "\nnotes:",
     "  tests    : " ++ all-test-names.join(", "),
