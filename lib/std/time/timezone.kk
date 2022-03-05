@@ -226,7 +226,7 @@ fun parse-fixed-base60( s : string ) : exn float64
     Just(cap) ->
       val sign = if cap.groups[1]=="-" then ~1 else 1
       val num  = parse-base60(cap.groups[2])
-      val frac = cap.groups[3].list.foldr(0.0) fn(d,n)
+      val frac = cap.groups[3].list.foldr(0.0) fn(n, d)
                     (n + d.digit60.float64) / 60.0                 
       (sign.float64 * num.float64) + frac
 

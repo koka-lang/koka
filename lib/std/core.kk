@@ -414,12 +414,12 @@ pub fun append(xs : list<a>, ys : list<a> ) : list<a>
 
 // Fold a list from the right, i.e. `foldr([1,2],0,(+)) == 1+(2+0)`
 // Note, `foldr` is less efficient than `foldl` as it reverses the list first.
-pub fun foldr(xs,z,f)
-  xs.reverse.foldl(z) fn(x,y) f(y,x)  
+pub fun foldr(xs : list<a>, z : b, f : (b, a) -> e b) : e b
+  xs.reverse.foldl(z) fn(x,y) f(x,y)
 
 // Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2`
 // Since `foldl` is tail recursive, it is preferred over `foldr` when using an associative function `f`
-pub fun foldl(xs,z,f)
+pub fun foldl(xs : list<a>, z : b, f : (b, a) -> e b) : e b
   match xs
     Cons(x,xx) -> foldl(xx,f(z,x),f)
     Nil        -> z
@@ -506,7 +506,7 @@ pub fun find-maybe( xs : list<a>, pred : a -> maybe<b> ) : maybe<b>
   xs.foreach-while(pred)
 
 // Lookup the first element satisfying some predicate
-pub fun lookup( xs : list<(a,b)>, pred : a -> bool ) : maybe<b>
+pub fun lookup( xs : list<(a,b)>, pred : a -> e bool ) : e maybe<b>
   xs.foreach-while fn(kv)
     if pred(kv.fst) then Just(kv.snd) else Nothing
 
@@ -1417,6 +1417,20 @@ pub inline extern (!=) : (string,string) -> bool
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 
+pub inline fun (==)(l1: sslice, l2: sslice ): bool
+  match (l1, l2)
+    (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
+      if f1.int != f2.int then False
+      elif i1.int != i2.int then False
+      else s1 == s2
+
+pub inline fun (!=)(l1: sslice, l2: sslice ): bool
+  match (l1, l2)
+    (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
+      if f1.int != f2.int then True
+      elif i1.int != i2.int then True
+      else s1 != s2
+
 extern string-compare : ( x : string, y : string ) -> int
   c  "kk_string_cmp_int"
   cs inline "String.Compare(#1,#2)"
@@ -1569,6 +1583,15 @@ pub extern next( slice : sslice ) : maybe<(char,sslice)>
   c  "kk_slice_next"
   cs "Primitive.SliceNext"
   js "_sslice_next"
+
+pub fun substr( slice: sslice, start : int, end : int ): sslice
+  val Sslice(s, st, len) = slice
+  val newst = st.int + start
+  val newLen = end - start
+  if newst + newLen > len.int then
+    Sslice(s, newst.ssize_t, (len.int - start).ssize_t)
+  else
+    Sslice(s, newst.ssize_t, newLen.ssize_t) 
 
 // Apply a function for each character in a string slice.
 // If `action` returns `Just`, the function returns immediately with that result.

@@ -1079,7 +1079,7 @@ fun abs-max( x : ddouble, y : ddouble ) : ddouble
 
 // The maximum of a list of absolute values.
 fun abs-max( xs : list<ddouble> ) : ddouble
-  xs.foldr(zero,fn(x,m){ max(abs(x),m) })
+  xs.foldr(zero,fn(m, x){ max(abs(x),m) })
 
 /*------------------------------------------------------
   Trigonometry
