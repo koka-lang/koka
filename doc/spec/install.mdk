@@ -15,6 +15,15 @@
 [logo-debian]:  images/logo-debian.svg  { height: 1em; vertical-align: -0.4ex; }
 [logo-freebsd]: images/logo-freebsd.svg { height: 0.8em; vertical-align: -0.2ex; }
 
+[Homebrew]: https://brew.sh
+
+On macOS (x64, M1), you can install and upgrade &koka; using Homebrew:
+
+&acopy;
+{.copy; data-value:"brew install koka"}
+
+    \(**brew install koka**\)
+
 On Windows (x64), open a ``cmd`` prompt and use:
 
 &acopy;
@@ -22,7 +31,7 @@ On Windows (x64), open a ``cmd`` prompt and use:
 
     \(**curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat**\)
 
-On Linux (x64, arm64), macOS (x64, M1), and FreeBSD (x64), you can install &koka; using:
+On Linux (x64, arm64) and FreeBSD (x64) (and macOS), you can install &koka; using:
 
 &acopy;
 {.copy; data-value:"curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh"}
