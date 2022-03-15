@@ -56,7 +56,7 @@ $charesc      = [nrt\\\'\"]    -- "
 -----------------------------------------------------------
 @newline      = $return?$linefeed
 
-@utf8         = [\xC2-\xDF] $cont
+@utf8valid    = [\xC2-\xDF] $cont
               | \xE0 [\xA0-\xBF] $cont
               | [\xE1-\xEC] $cont $cont
               | \xED [\x80-\x9F] $cont
@@ -64,6 +64,11 @@ $charesc      = [nrt\\\'\"]    -- "
               | \xF0 [\x90-\xBF] $cont $cont
               | [\xF1-\xF3] $cont $cont $cont
               | \xF4 [\x80-\x8F] $cont $cont
+
+@utf8unsafe   = \xE2 \x80 [\x8E-\x8F\xAA-\xAE]
+              | \xE2 \x81 [\xA6-\xA9]
+
+@utf8         = @utf8valid          
 
 @linechar     = [$graphic$space$tab]|@utf8
 @commentchar  = ([$graphic$space$tab] # [\/\*])|@newline|@utf8
@@ -166,14 +171,16 @@ program :-
 --------------------------
 -- string literals
 
-<stringlit> @stringchar+  { more id }
+<stringlit> @utf8unsafe   { string $ unsafeChar "string" }
+<stringlit> @stringchar   { more id }
 <stringlit> \\$charesc    { more fromCharEscB }
 <stringlit> \\@hexesc     { more fromHexEscB }
 <stringlit> \"            { pop $ \_ -> withmore (string LexString . B.init) } -- "
 <stringlit> @newline      { pop $ \_ -> constant (LexError "string literal ended by a new line") }
 <stringlit> .             { string $ \s -> LexError ("illegal character in string: " ++ show s) }
 
-<stringraw> @stringraw+   { more id }
+<stringraw> @utf8unsafe   { string $ unsafeChar "raw string" }
+<stringraw> @stringraw    { more id }
 <stringraw> \"\#*         { withRawDelim $ \s delim -> 
                               if (s == delim)
                                 then -- done
@@ -194,21 +201,24 @@ program :-
 <comment> "*/"            { pop $ \state -> if state==comment then more id
                                              else withmore (string $ LexComment . filter (/='\r')) }
 <comment> "/*"            { push $ more id }
-<comment> @commentchar+   { more id }
+<comment> @utf8unsafe     { string $ unsafeChar "comment" }
+<comment> @commentchar    { more id }
 <comment> [\/\*]          { more id }
 <comment> .               { string $ \s -> LexError ("illegal character in comment: " ++ show s) }
 
 --------------------------
 -- line comments
 
-<linecom> @linechar+      { more id }
+<linecom> @utf8unsafe     { string $ unsafeChar "line comment" }
+<linecom> @linechar       { more id }
 <linecom> @newline        { pop $ \_ -> withmore (string $ LexComment . filter (/='\r')) }
 <linecom> .               { string $ \s -> LexError ("illegal character in line comment: " ++ show s) }
 
 --------------------------
 -- line directives (ignored for now)
 
-<linedir> @linechar+      { more id }
+<linedir> @utf8unsafe     { string $ unsafeChar "line directive" }
+<linedir> @linechar       { more id }
 <linedir> @newline        { pop $ \_ -> withmore (string $ LexComment . filter (/='\r')) }
 <linedir> .               { string $ \s -> LexError ("illegal character in line directive: " ++ show s) }
 
@@ -254,6 +264,10 @@ startsWith :: String -> String -> Bool
 startsWith s  [] = True
 startsWith [] _  = False
 startsWith (c:cs) (p:ps) = if (p==c) then startsWith cs ps else False
+
+unsafeChar :: String -> String -> Lex
+unsafeChar kind s 
+  = LexError ("unsafe character in " ++ kind ++ ": \\u" ++ showHex 4 (fromEnum (head s)))
 
 -----------------------------------------------------------
 -- Reserved

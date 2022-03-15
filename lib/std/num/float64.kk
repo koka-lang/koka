@@ -225,6 +225,7 @@ pub extern float64( f : float32 ) : float64
 // > 1.337.show-hex ++ " != " ++ 1.337.f32.float64.show-hex
 // "0x1.5645A1CAC0831p+0 != 0x1.5645A2p+0"
 // ```
+// .
 pub fun f32( f : float64 ) : float32
   f.float32
 
@@ -450,17 +451,16 @@ pub fun next-up( x : float64 ) : float64
 // Compare floats using a total ordering on the `:float64`.
 // The ordering follows the `totalOrder` predicate as defined in IEEE 754-2008 exactly.
 // The values are ordered in following order:
-// - negative quiet nan
-// - negative signaling nan
-// - `neginf`
-// - -finite
-// - -0.0
-// - +0.0
-// - finite
-// - `posinf`
-// - signaling nan
-// - quiet nan
-//
+// negative quiet nan,
+// negative signaling nan,
+// `neginf`,
+// -finite,
+// -0.0,
+// +0.0,
+// finite,
+// `posinf`,
+// signaling nan,
+// and quiet nan.
 pub fun compare( x : float64, y : float64 ) : order
   val bx = float64-to-bits(x)
   val by = float64-to-bits(y)
@@ -592,6 +592,8 @@ extern prim-parse-float64( s : string ) : float64
 // to minimize rounding errors. This
 // is more precise as Kahan summation and about as fast.\
 // `[1.0e3,1.0e97,1.0e3,-1.0e97].sum == 2000.0`\
+// while\
+// `[1.0e3,1.0e97,1.0e3,-1.0e97].foldl(0.0,(+)) == 0.0` (!)\
 // A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
 // Math. Mechanik, 54:39--51, 1974.
 pub fun sum( xs : list<float64> ) : float64

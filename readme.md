@@ -136,9 +136,8 @@ without problems on most common platforms, e.g. Windows (including WSL), macOS, 
 Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.
-  Use `curl -sSL https://get.haskellstack.org/ | sh`
-  on Unix and macOS x64, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
-  On macOS M1, use `brew install haskell-stack --head` (and see the [build notes](#build-notes) below).
+  Use `brew install haskell-stack` on macOS, `curl -sSL https://get.haskellstack.org/ | sh` on Unix,
+  or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
 * Optional: [vcpkg] to be able to link easily with C libraries.
   Use `brew install vcpkg` on macOS. On other systems use the vcpkg [install][vcpkg]
   instructions (Koka can find vcpkg automatically if installed to `~/vcpkg`).
@@ -159,7 +158,7 @@ $ stack exec koka
 You can also use `stack build --fast` to build a debug version of the compiler.
 Use `stack test --fast` to run the test-suite.
 
-(See the [build notes](#build-notes) below for building macOS M1, or if you have issues when running- or installing `stack`).
+(See the [build notes](#build-notes) below if you have issues when running- or installing `stack`).
 
 ## Create an Install Bundle
 
@@ -328,9 +327,8 @@ The main development branches are:
 
 ## Building on macOS M1
 
-Currently (Dec 2021) you need to use `brew install haskell-stack --head`
-to get the latest `2.7.4` version of stack. (Have patience as the cabal
-install step takes about 20 min). Moreover, you need to add the `brew`
+You need at least `stack` version 2.7.4.
+Furthermore, you may need to add the `brew`
 installed LLVM to your path afterwards, or otherwise stack cannot find the LLVM tools.
 Add the following to your `~/.zshrc` script and open an fresh prompt:
 
@@ -506,4 +504,4 @@ Also as MSR-TR-2021-5, Mar, 2021.
 [pdf](https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/)
 
 10. Anton Lorenzen and Daan Leijen. &ldquo; Reference Counting with Frame-Limited Reuse&rdquo; Microsoft Research
-technical report MSR-TR-2021-30, Nov 2021. [pdf](https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/)
+technical report MSR-TR-2021-30, Nov 2021, (updated Mar 2022, v2). [pdf](https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/)
