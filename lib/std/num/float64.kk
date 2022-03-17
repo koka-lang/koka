@@ -18,7 +18,7 @@ import std/text/parse
 import std/num/int64
 
 extern import
-  c  file "float64-inline.h"
+  c  file "float64-inline.c"
   js file "float64-inline.js"
 
 
