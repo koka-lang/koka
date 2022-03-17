@@ -336,10 +336,10 @@ typedef unsigned       kk_uintx_t;
 #define KK_INTX_MAX    INT_MAX
 #define KK_INTX_MIN    INT_MIN
 #define KK_UINTX_MAX   UINT_MAX
-#define PRIdIX         "%d"
-#define PRIuUX         "%u"
-#define PRIxUX         "%x"
-#define PRIXUX         "%X"
+#define PRIdIX         "d"
+#define PRIuUX         "u"
+#define PRIxUX         "x"
+#define PRIXUX         "X"
 #else
 #error "platform cannot be determined to have natural 16, 32, or 64 bit registers"
 #endif

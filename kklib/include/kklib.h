@@ -342,7 +342,7 @@ typedef int64_t kk_asecs_t;
 typedef struct kk_duration_s {
   kk_secs_t  seconds;
   kk_asecs_t attoseconds;  // always >= 0
-} kk_duration_t;
+} kk_duration_t;  
 
 
 // Box any is used when yielding
@@ -395,7 +395,7 @@ typedef struct kk_context_s {
   struct kk_random_ctx_s* srandom_ctx; // strong random using chacha20, initialized on demand
   kk_ssize_t     argc;             // command line argument count 
   const char**   argv;             // command line arguments
-  kk_timer_t     process_start;    // time at start of the process
+  kk_duration_t  process_start;    // time at start of the process
   int64_t        timer_freq;       // high precision timer frequency
   kk_duration_t  timer_prev;       // last requested timer time
   kk_duration_t  timer_delta;      // applied timer delta (to ensure monotonicity)
@@ -441,6 +441,7 @@ static inline int32_t kk_marker_unique(kk_context_t* ctx) {
 kk_decl_export void kk_block_mark_shared( kk_block_t* b, kk_context_t* ctx );
 kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx );
 kk_decl_export void kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx);
+
 
 /*--------------------------------------------------------------------------------------
   Allocation

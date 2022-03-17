@@ -7,6 +7,8 @@
 ---------------------------------------------------------------------------*/
 //#define _CRT_SECURE_NO_WARNINGS
 #include "kklib.h"
+#include "kklib/os.h"    // kk_timer_now
+
 #include <stdarg.h>
 #include <stdio.h>
 #ifdef WIN32
@@ -232,6 +234,7 @@ void kk_free_context(void) {
 /*--------------------------------------------------------------------------------------------------
   Called from main
 --------------------------------------------------------------------------------------------------*/
+static bool kk_showtime; // false
 
 kk_decl_export kk_context_t* kk_main_start(int argc, char** argv) {
   kk_context_t* ctx = kk_get_context();
@@ -241,7 +244,8 @@ kk_decl_export kk_context_t* kk_main_start(int argc, char** argv) {
     for (i = 1; i < argc; i++) {   // argv[0] is the program name
       const char* arg = argv[i];
       if (strcmp(arg, "--kktime")==0) {
-        ctx->process_start = kk_timer_start();
+        kk_showtime = true;
+        ctx->process_start = kk_timer_ticks(ctx);
       }
       else {
         break;
@@ -258,8 +262,8 @@ kk_decl_export kk_context_t* kk_main_start(int argc, char** argv) {
 }
 
 kk_decl_export void  kk_main_end(kk_context_t* ctx) {
-  if (ctx->process_start != 0) {  // started with --kktime option
-    kk_usecs_t wall_time = kk_timer_end(ctx->process_start);
+  if (kk_showtime) {  // started with --kktime option
+    kk_duration_t wall_time = kk_duration_sub(kk_timer_ticks(ctx), ctx->process_start);
     kk_msecs_t user_time;
     kk_msecs_t sys_time;
     size_t peak_rss;
@@ -267,8 +271,8 @@ kk_decl_export void  kk_main_end(kk_context_t* ctx) {
     size_t page_reclaim;
     size_t peak_commit;
     kk_process_info(&user_time, &sys_time, &peak_rss, &page_faults, &page_reclaim, &peak_commit);
-    kk_info_message("elapsed: %ld.%03lds, user: %ld.%03lds, sys: %ld.%03lds, rss: %lu%s\n", 
-                    (long)(wall_time/1000000), (long)((wall_time%1000000)/1000), 
+    kk_info_message("elapsed: %" PRId64 ".%03lds, user: %ld.%03lds, sys : %ld.%03lds, rss : %lu%s\n", 
+                    wall_time.seconds, (long)(wall_time.attoseconds / (KK_I64(1000000) * KK_I64(1000000000))), 
                     user_time/1000, user_time%1000, sys_time/1000, sys_time%1000, 
                     (peak_rss > 10*1024*1024 ? peak_rss/(1024*1024) : peak_rss/1024),
                     (peak_rss > 10*1024*1024 ? "mb" : "kb") );
