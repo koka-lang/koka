@@ -2096,7 +2096,11 @@ extern xprints( s : string) : console ()
   cs "Console.Write"
   js "_print"
 
-// _Unsafe_. This function removes the non-termination effect (`:div`) from the effect of an action
+// _Unsafe_. This function removes the state effect (`:st`) from the effect of an action
+pub inline extern unsafe-no-st( action : () -> <st<h>,console> a ) : (() -> console a) 
+  inline "#1"
+
+// _Unsafe_. Same as unsafe-no-st
 pub inline extern unsafe-nostate( action : () -> <st<h>,console> a ) : (() -> console a) 
   inline "#1"
 
