@@ -2,20 +2,16 @@ module pyth
 
 import std/num/int32
 
-pub fun pyth(n : int32 ) : int
-  var count := 0
-  for32(1.int32, n/3.int32) fn(x)
+pub fun pyth(n : int32 ) : console int32
+  fold-int32(1.int32, n/3.int32, 0.int32) fn(x,xcount)
     val xx = x*x
-    for32(x.inc, n/2.int32) fn(y)
+    fold-int32(x.inc, n/2.int32, xcount) fn(y,ycount)
       val yy = y*y
-      for-while32( y.inc, n/2.int32) fn(z)
+      fold-while-int32( y.inc, n/2.int32, ycount) fn(z:int32, zcount:int32)
         val zz = z*z
-        if (xx+yy == zz) then count := count + 1
-        if (xx+yy < zz) || (x+y+z > n) 
-          then Just(())
-          else Nothing
-      ()
-  count
-
+        if (xx+yy == zz) then Just(zcount + 1.int32)
+        elif (xx+yy >= zz) && (x+y+z <= n) then Just(zcount)
+        else Nothing
+  
 pub fun main()
-  pyth(4000.int32).println
+  pyth(4000.int32).int.println

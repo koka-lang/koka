@@ -149,7 +149,7 @@ to indicate the portable SOFA technique is about 5% (x64) to 10% (M1) faster.
 --------------------------------------------------------------------------------------------------*/
 
 #if !defined(KK_USE_BUILTIN_OVF)
-#define KK_USE_BUILTIN_OVF (0)       // portable overflow detection seems always faster
+#define KK_USE_BUILTIN_OVF (1)       // portable overflow detection seems always faster
 #endif
 
 #if KK_USE_BUILTIN_OVF
@@ -451,7 +451,7 @@ Multiply: Since `boxed(n) = n*4 + 1`, we can multiply as:
     we check before multiply for small integers and do not combine with the overflow check.
 -----------------------------------------------------------------------------------*/
 
-#if KK_USE_BUILTIN_OVF
+#if (KK_USE_BUILTIN_OVF == 1)
 
 static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z;
@@ -491,6 +491,48 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
   }
   kk_assert_internal((z&3)==0);
   return _kk_new_integer(z|1);
+}
+
+#elif (KK_USE_BUILTIN_OVF == 2) // test for small ints upfront
+
+static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  kk_intf_t z;
+  if (kk_unlikely(!kk_are_smallints(x, y) || __builtin_add_overflow(_kk_integer_value(x), _kk_integer_value(y), &z))) {
+    return kk_integer_add_generic(x, y, ctx);
+  }
+  kk_assert_internal((z & 3) == 2);
+  return _kk_new_integer(z ^ 3);
+}
+
+static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t i, kk_context_t* ctx) {
+  kk_assert_internal(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
+  kk_intf_t z;
+  if (kk_unlikely(kk_is_bigint(x) || __builtin_add_overflow(_kk_integer_value(x), kk_shlf(i, 2), &z))) {
+    return kk_integer_add_generic(x, kk_integer_from_small(i), ctx);
+  }
+  kk_assert_internal((z & 3) == 1);
+  return _kk_new_integer(z);
+}
+
+static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  kk_intf_t z;
+  if (kk_unlikely(!kk_are_smallints(x, y) || __builtin_sub_overflow(_kk_integer_value(x) ^ 3, _kk_integer_value(y), &z))) {
+    return kk_integer_sub_generic(x, y, ctx);
+  }
+  kk_assert_internal((z & 3) == 1);
+  return _kk_new_integer(z);
+}
+
+static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  kk_assert_internal(kk_are_smallints(x, y));
+  kk_intf_t i = kk_sar(_kk_integer_value(x), 1);
+  kk_intf_t j = kk_sar(_kk_integer_value(y), 1);
+  kk_intf_t z;
+  if (kk_unlikely(__builtin_mul_overflow(i, j, &z))) {
+    return kk_integer_mul_generic(x, y, ctx);
+  }
+  kk_assert_internal((z & 3) == 0);
+  return _kk_new_integer(z | 1);
 }
 
 #else // use SOFA

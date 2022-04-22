@@ -1,19 +1,15 @@
 module pyth-int
 
-pub fun pyth(n : int ) : int 
-  var count := 0
-  for(1, n/3) fn(x)
+pub fun pyth(n : int ) : int
+  fold-int(1, n/3, 0) fn(x,xcount)
     val xx = x*x
-    for(x+1, n/2) fn(y)
+    fold-int(x.inc, n/2, xcount) fn(y,ycount)
       val yy = y*y
-      for-while( y+1, n/2) fn(z)
+      fold-while-int( y.inc, n/2, ycount) fn(z, zcount)
         val zz = z*z
-        if (xx+yy == zz) then count := count + 1
-        if (xx+yy < zz) || (x+y+z > n) 
-          then Just(())
-          else Nothing
-      ()
-  count
-
+        if (xx+yy == zz) then Just(zcount + 1)
+        elif (xx+yy >= zz) && (x+y+z <= n) then Just(zcount)
+        else Nothing
+  
 pub fun main()
   pyth(4000).println

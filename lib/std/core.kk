@@ -1055,6 +1055,13 @@ pub fun fold-int( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
 pub fun fold-int( upto : int, init : a, f : (int,a) -> e a ) : e a
   fold-int( 0, upto.dec, init, f )
 
+
+pub fun fold-while-int( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
+  if start >= end then init else
+    match f(start,init)
+      Just(x) -> fold-while-int(unsafe-decreasing(start.inc), end, x, f)
+      Nothing -> init
+
 // ----------------------------------------------------------------------------
 // 32-bit integers
 // Just define the operations needed for defining the std/core interface but
