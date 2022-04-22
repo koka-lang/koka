@@ -349,3 +349,26 @@ pub fun fold-int32( start : int32, end : int32, init : a, f : (int32,a) -> e a )
     val x = f(start,init)
     fold-int32(unsafe-decreasing(start.inc), end, x, f)
 
+
+
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
+pub fun for32( start: int32, end : int32, action : (int32) -> e () ) : e ()
+  fun rep( i : int32 )
+    if i <= end then
+      action(i)
+      rep(unsafe-decreasing(i.inc))
+  rep(start)
+
+
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
+// If `action` returns `Just`, the iteration is stopped and the result returned
+pub fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<a> ) : e maybe<a>
+  fun rep( i : int32 )
+    if i <= end then
+      match action(i)
+        Nothing -> rep(unsafe-decreasing(i.inc))
+        Just(x) -> Just(x)
+    else Nothing
+  rep(start)
