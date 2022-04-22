@@ -1,4 +1,4 @@
-module tak
+module tak-int
 
 pub fun tak(x : int, y : int, z : int ) : div int 
   if y < x
