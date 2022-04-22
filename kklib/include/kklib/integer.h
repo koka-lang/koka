@@ -149,7 +149,7 @@ to indicate the portable SOFA technique is about 5% (x64) to 10% (M1) faster.
 --------------------------------------------------------------------------------------------------*/
 
 #if !defined(KK_USE_BUILTIN_OVF)
-#define KK_USE_BUILTIN_OVF (1)       // portable overflow detection seems always faster
+#define KK_USE_BUILTIN_OVF (0)       // portable overflow detection seems always faster
 #endif
 
 #if KK_USE_BUILTIN_OVF

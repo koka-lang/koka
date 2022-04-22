@@ -818,7 +818,7 @@ makeEffectDecl decl =
                              evName  = newName "ev"
                              evFld = ValueBinder evName evTp Nothing irng rng
                              evCon = UserCon (toConstructorName id) [] [(Private,evFld)] Nothing irng rng Private ""
-                         in (DataType ename tpars [evCon] rng vis Inductive (DataDefValue 0 0) False docx
+                         in (DataType ename tpars [evCon] rng vis Inductive (DataDefAuto {-DataDefValue 0 0-}) False docx
                             ,(\action -> Lam [ValueBinder evName Nothing Nothing irng rng]
                                                   (App (action) [(Nothing,App (Var (toConstructorName id) False rng) [(Nothing,Var evName False rng)] rng)] rng)
                                                   rng))
