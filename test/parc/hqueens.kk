@@ -5,9 +5,9 @@
 
 alias solution = list<int>
 
-fun safe?( queen : int, xs : solution, diag : int = 1 ) : bool {
+fun safe( queen : int, xs : solution, diag : int = 1 ) : bool {
   match(xs) {
-    Cons(q,qs) -> (queen != q && queen != (q+diag) && queen != (q - diag) && queen.safe?(qs,diag+1))
+    Cons(q,qs) -> (queen != q && queen != (q+diag) && queen != (q - diag) && queen.safe(qs,diag+1))
     _ -> True
   }
 }
@@ -19,9 +19,9 @@ fun safe?( queen : int, xs : solution, diag : int = 1 ) : bool {
 alias solutions = list<list<int>>
 
 fun append-safe( queen : int, xs : solution, xss : solutions ) : div solutions {
-  if (queen <= 0) xss
+  if (queen <= 0) then xss
   else {
-   if (queen.safe?(xs))
+   if (queen.safe(xs))
     then append-safe( queen - 1, xs, Cons(Cons(queen,xs),xss) )
     else append-safe( queen - 1, xs, xss )
   }
@@ -35,9 +35,9 @@ fun extend(queen : int, acc : solutions, xss : solutions ) : div solutions {
 }
 
 fun find-solutions( n : int, i : int ) : div solutions {
-  if (i == 0) 
+  if (i == 0)
    then [[]]
-   else extend(n, [], find-solutions(n, i - 1))  
+   else extend(n, [], find-solutions(n, i - 1))
 }
 
 pub fun queens( n : int ) : div solutions {
@@ -49,15 +49,15 @@ pub fun queens( n : int ) : div solutions {
 // -----------------------------------------------------------------
 
 effect choose {
-  fun pick(n : int) : int
-  fun fail<b>()     : b
+  ctl pick(n : int) : int
+  ctl fail<b>()     : b
 }
 
 fun choose-all( action ) {
   handle(action){
-    return x  -> [x]
-    pick(n)   -> list(1,n,resume).concat
-    fail      -> []
+    return(x)  -> [x]
+    ctl pick(n)   -> list(1,n,resume).concat
+    final ctl fail      -> []
   }
 }
 
@@ -65,7 +65,7 @@ fun find-solution( n : int, col : int ) : <choose,div> solution {
   if (col==0) then return []
   val sol    = find-solution(n, col - 1)
   val queen  = pick(n)
-  if (queen.safe?(sol)) then Cons(queen,sol) else fail()
+  if (queen.safe(sol)) then Cons(queen,sol) else fail()
 }
 
 fun queens-choose(n : int ) : div solutions {
@@ -90,6 +90,6 @@ fun main() {
 fun show-solutions( xss : solutions ) : io () {
   println(xss.length.show)
   xss.foreach fn(xs) {
-    println(" " + xs.show)
+    println(" " ++ xs.show)
   }  
 }
