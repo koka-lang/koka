@@ -867,7 +867,7 @@ fun ptaiadjust() : parse leap-adjust
   // round to always start on a whole second
   val start  = ((mjd - mjd-epoch-shift)*solar-secs-per-day).round.timestamp
   val dstart = ((dmjd - mjd-epoch-shift)*solar-secs-per-day).round.timestamp
-  // trace("pre72 start=" + start.show + ", ofs: " + ofs.show + ", drift: " + drift.show )
+  // trace("pre72 start=" ++ start.show ++ ", ofs: " ++ ofs.show ++ ", drift: " ++ drift.show )
   Leap-adjust( start, ofs, dstart, drift )
 
 // TAI leap second adjustments for dates before 1972-01-01Z are linear interpolations.
@@ -924,7 +924,7 @@ val utc-expire  = leaps.find(rxexpire).map fn(cap)
     val ntpex = cap.groups[1].parse-int-default(ntp2000.int)
     timestamp(ntpex.timespan - ntp2000)
   }.default(la-final.utc-start + (182*isolar-secs-per-day).timespan)  // default: 6 months after last leap second
-  // trace("expire: " + utc-expire.ts-show)
+  // trace("expire: " ++ utc-expire.ts-show)
   ts-tai.instant( utc-expire - ntp2000 + la-final.offset ) // interpret as TAI to avoid recursion.
 
 val rxexpire = regex(r"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)
@@ -940,7 +940,7 @@ pub fun parse-leap-seconds-dat( leaps : string  ) : leaps-table
     // round to always start on a whole second
     val start  = ((mjd - mjd-epoch-shift)*solar-secs-per-day).round.timestamp
     val dstart = ((dmjd - mjd-epoch-shift)*solar-secs-per-day).round.timestamp
-    // trace("pre72 start=" + start.show + ", ofs: " + ofs.show + ", drift: " + drift.show )
+    // trace("pre72 start=" ++ start.show ++ ", ofs: " ++ ofs.show ++ ", drift: " ++ drift.show )
     Leap-adjust( start, ofs, dstart, drift )
   }).reverse
   val expire = parse-leap-expire(leaps,adjusts)

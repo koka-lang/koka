@@ -20,9 +20,9 @@ pub import std/time/ut1
 
 fun check(name : string, res : string, tst : () -> <utc,io> string ) : <utc,io> () {
   val got = tst()
-  println(name.pad-right(14,' ') + ": "
-    + (if (got == res) then "ok: " + res
-                       else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
+  println(name.pad-right(14,' ') ++ ": "
+    + (if (got == res) then "ok: " ++ res
+                       else "FAILED!:\n expect: " ++ res ++ "\n gotten: " ++ got ++ "\n"))
 }
 
 

@@ -9,7 +9,7 @@
 /*
 Access to the program environment and commmand line arguments.
 
-Print the environment: `get-env().map(fn(p) { p.fst + "=" + p.snd }).join("\n").print`
+Print the environment: `get-env().map(fn(p) { p.fst ++ "=" ++ p.snd }).join("\n").print`
 */
 module std/os/env
 

@@ -18,6 +18,6 @@ fun main() : <async,io> () {
 		()
 	}
 	fn(exn) {
-		println("exn happened: " + exn.show)
+		println("exn happened: " ++ exn.show)
 	}
 }

@@ -19,7 +19,7 @@ pub import std/time
 
 
 fun check(name : string, tst : () -> ndet bool ) : io () {
-  println(name + ": " + (if (tst()) then "ok" else "failed!"))
+  println(name ++ ": " ++ (if (tst()) then "ok" else "failed!"))
 }
 
 
@@ -31,26 +31,26 @@ pub fun show-leap-steps(ts-utc : timescale) {
     val prec = 6
     val diff = (ofs2 - ofs1).round-to-prec(prec)
     val t = ts-utc.instant(ts).time.round-to-prec(0)
-    val c = if (t.clock.hours != 0) then ", " + t.clock.hours.show + ":" + t.clock.minutes.show.pad-left(2,'0') else ""
+    val c = if (t.clock.hours != 0) then ", " ++ t.clock.hours.show ++ ":" ++ t.clock.minutes.show.pad-left(2,'0') else ""
     val dds = ts-utc.instant(dstart).time.date
     val ds  = if (dds==dlast) then "&quad;&quad;\"&quad;&quad;" else dds.show
     dlast := dds
-    ( "| " + [
+    ( "| " ++ [
       (t.date.show + c).pad-right(17,' '),
       ((if (diff.neg?) then "" else "+") + (if (diff.round-to-prec(3).zero?) then "0" else diff.show(3))).pad-right(24,' '),
       ofs1.show(prec).pad-right(14,' '),
       ofs2.show(prec).pad-right(14,' '),
       (if (delta.zero?) then "" else
-          base.show(6) + "s + " + (if (dds.year >= 1959) then delta.show(7) else delta.show(8)) + "&times;&Delta;("
-        + ds + ")").pad-right(47,' '),
+          base.show(6) ++ "s + " ++ (if (dds.year >= 1959) then delta.show(7) else delta.show(8)) ++ "&times;&Delta;("
+        + ds ++ ")").pad-right(47,' '),
       (if (delta.zero?) then "" else
-           "-" + ((delta.float64 / 86400.0)*1.0e10).int.show + "&times;10^-10^" ).pad-right(10,' ')
-    ].join(" | ") + " |"
+           "-" ++ ((delta.float64 / 86400.0)*1.0e10).int.show ++ "&times;10^-10^" ).pad-right(10,' ')
+    ].join(" | ") ++ " |"
      + (if (t.date==Date(1972,1,1) || t.date==Date(1960,1,1)) then leap-steps-sep else "")
      )
   })
   println(rows.take(100).join("\n"))
-  val table = leap-steps-header + rows.join("\n") + leap-steps-footer + "\n"
+  val table = leap-steps-header + rows.join("\n") + leap-steps-footer ++ "\n"
   write-text-file-sync("leap-steps.txt", table)
 }
 

@@ -17,7 +17,7 @@ fun vec(action : forall<s> () -> <vec<s>|e> a ) : e a {  // rank-2 signature req
 fun main() {
   with vec
   val ix = push("hello")
-  println( lookup(ix) + " world" )
+  println( lookup(ix) ++ " world" )
 }
 
 /* // rejected by the type checker as the index escapes the scope of vec
@@ -29,6 +29,6 @@ fun escape() {
 fun wrong() {
   with vec
   val ix = escape()
-  println( lookup(ix) + " world")
+  println( lookup(ix) ++ " world")
 }
 */

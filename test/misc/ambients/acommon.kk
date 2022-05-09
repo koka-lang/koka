@@ -43,7 +43,7 @@ ambient fun input() : string
 
 fun hello() {
   val name = input()
-  println("Hello " + name + ", " + input())
+  println("Hello " ++ name ++ ", " ++ input())
 }
 
 fun test2() {
@@ -123,7 +123,7 @@ fun test4() {
 fun test4b() {
   with return(x){ () }
   with amb
-  with foreach( fn(x:int) { if (flip()) then println(x) else println("flip false " + x.show); (x<=1) } )
+  with foreach( fn(x:int) { if (flip()) then println(x) else println("flip false " ++ x.show); (x<=1) } )
   [1,2,3].iterate
 }
 
@@ -180,7 +180,7 @@ fun ask-age() {
   val name = readline()           // asynchronous!
   println("and you age?")
   val age = readline()
-  println("hello " + name + ", you are " + age)
+  println("hello " ++ name ++ ", you are " ++ age)
 }
 
 
@@ -189,10 +189,10 @@ fun ask-age-err() {
     println("what is your name?")
     val name = readline()
     raise("ouch!")
-    println("hello " + name)
+    println("hello " ++ name)
   }
   fn(err) {
-    println("error: " + err )
+    println("error: " ++ err )
   }
 }
 */

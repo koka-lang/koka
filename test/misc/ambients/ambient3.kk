@@ -40,7 +40,7 @@ fun pretty-emit2(action) {
 // with lexically scoped state
 fun pretty-emit(action) {
   var out := ""
-  with fun emit(s) { out := out + s + "\n" } in action()
+  with fun emit(s) { out := out + s ++ "\n" } in action()
   out
 }
 
@@ -64,7 +64,7 @@ ambient fun total() : int
 fun emit4(action) {
   var out := ""
   with return(x) { out }
-  with fun emit(s) { out := out + s + "\n" }
+  with fun emit(s) { out := out + s ++ "\n" }
   with fun total() { out.count }
   action()
 }

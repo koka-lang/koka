@@ -195,7 +195,7 @@ fun bmap( f : int -> int, t : tree) : div tree
 
 fun show(t : tree) : string {
   match(t) {
-    Bin(l,r) -> "(" + l.show + " * " + r.show + ")"
+    Bin(l,r) -> "(" ++ l.show ++ " * " ++ r.show ++ ")"
     Tip(i)   -> i.show
   }
 }

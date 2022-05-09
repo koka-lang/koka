@@ -12,7 +12,7 @@ fun reader(init : a, action : forall<s> (reader<s,a> -> e b )) : e b {  // rank-
 fun main() {
   with a = reader("hello")
   with b = reader("world")
-  println( a.ask() + " " + b.ask() )
+  println( a.ask() ++ " " ++ b.ask() )
 }
 
 /* // rejected by the type checker as `s` escapes

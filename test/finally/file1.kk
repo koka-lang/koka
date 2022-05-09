@@ -19,8 +19,8 @@ fun foo() {
 
 fun open-file(fname,action) {
   var h := 0                             // low-level file handle
-  with initially( fn(i){ println("initially: " + i.show + ", h: " + h.show); h := fopen(fname) } )
-  with finally { println("finally, h: " + h.show); fclose(h); h := 0 }
+  with initially( fn(i){ println("initially: " ++ i.show ++ ", h: " ++ h.show); h := fopen(fname) } )
+  with finally { println("finally, h: " ++ h.show); fclose(h); h := 0 }
   with f = named handler {
     fun write(s) { fwrite(h,s) }         // files as a named instance
   }
@@ -43,14 +43,14 @@ alias hfile = int
 
 fun fopen( fname : string ) : <console,ndet> hfile {
   val f = unique() + 1
-  println("open : " + f.show)
+  println("open : " ++ f.show)
   f
 }
 
 fun fclose( f : hfile ) {
-  println("close: " + f.show)
+  println("close: " ++ f.show)
 }
 
 fun fwrite( f : hfile, msg ) {
-  println("write: " + f.show + ": " + msg )
+  println("write: " ++ f.show ++ ": " ++ msg )
 }

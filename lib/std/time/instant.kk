@@ -104,7 +104,7 @@ fun convert( t : timestamp, from : timescale, to : timescale ) : timestamp
     t
   else
     // transform through TAI
-    // trace( "convert: " + from.name + " -> " + to.name +  ", t: " + t.show )
+    // trace( "convert: " ++ from.name ++ " -> " ++ to.name +  ", t: " ++ t.show )
     (to.from-tai)( (from.to-tai)(t) )
 
 

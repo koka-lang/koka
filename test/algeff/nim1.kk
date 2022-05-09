@@ -95,8 +95,8 @@ fun show(gt :gtree) : div string {
 fun showGt(gt :gtree, indent:int) : _ string {
   val showi = (show : (int) -> string)
   match(gt) {
-    Take(p,moves) -> p.show + moves.showList(fn(x) { "\n" + string(indent,' ') +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
-    Winner(p)     -> p.show + " wins"
+    Take(p,moves) -> p.show ++ moves.showList(fn(x) { "\n" ++ string(indent,' ') +  x.fst.core/show ++ " -> " ++ x.snd.showGt(indent+2) })
+    Winner(p)     -> p.show ++ " wins"
   }
 }
 
@@ -115,7 +115,7 @@ effect cheating {
 
 val cheatReport = handler {
   return x -> x
-  cheat(p) -> error(p.show + " cheated!")
+  cheat(p) -> error(p.show ++ " cheated!")
 }
 
 val check = handler {
@@ -228,7 +228,7 @@ val printer = handler {
 
 fun printBoard( gs : gstate ) : io () {
   gs.mymap( fn(ps) {
-    ps.fst.show + " -> " + ps.snd.show 
+    ps.fst.show ++ " -> " ++ ps.snd.show 
   }).join("\n").println
 }
 

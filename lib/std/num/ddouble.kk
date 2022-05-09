@@ -207,7 +207,7 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble
     val py   = px - 14
     if py <= 0 then
       // if 28 or less digits we can convert with two doubles
-      // trace("ddouble-i: " + i.show + ", hi:" + hi.show + ",  lo: " + y.show)
+      // trace("ddouble-i: " ++ i.show ++ ", hi:" ++ hi.show ++ ",  lo: " ++ y.show)
       small-exp(hi, px + e) + small-exp( y, e)
 
     else
@@ -215,8 +215,8 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble
       val (mid,z) = y.cdivmod-exp10(py)
       val pz = py - 14
       val (lo,plo) = if pz <= 0 then (z,0) else (z.cdiv-exp10(pz), pz)
-      //trace("ddouble-i: " + i.show + ", hi:" + hi.show + ", mid: " + mid.show + ", lo: " + lo.show)
-      //trace("  px: " + px.show + ", py : " + py.show + ", plo: " + plo.show + ", e: " + e.show )
+      //trace("ddouble-i: " ++ i.show ++ ", hi:" ++ hi.show ++ ", mid: " ++ mid.show ++ ", lo: " ++ lo.show)
+      //trace("  px: " ++ px.show ++ ", py : " ++ py.show ++ ", plo: " ++ plo.show ++ ", e: " ++ e.show )
       small-exp( hi, px + e) + (small-exp( mid, py + e) + small-exp( lo, plo + e))
 
 
@@ -750,7 +750,7 @@ pub fun parse-ddouble( s  : string ) : maybe<ddouble>
       val w	= (whole + frac).parse-int.default(0)
       val e	= exp - frac.count
       val x	= ddouble-int-exp(w,e)
-      // trace("parse: s: " + s + "\n  w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)
+      // trace("parse: s: " ++ s ++ "\n  w: " ++ w.show ++ ", e: " ++ e.show ++ "\n  wx: " ++ w.ddouble.show-sum ++ ", x: " ++ x.show ++ "\n  " ++ x.show-sum)
       Just(x)
 
     Nothing -> match(t.find(rx-special))
@@ -799,7 +799,7 @@ fun pddouble-normal() : parse ddouble
   val w = ((if neg then "-" else "") ++ whole ++ frac).parse-int.default(0)
   val e = exp - frac.count
   val x = ddouble-int-exp(w,e)
-  // trace("parse-normal: w: " + w.show + ", e: " ++ e.show ++ "\n  wx: " ++ w.ddouble.show-sum ++ ", x: " ++ x.show ++ "\n  " ++ x.show-sum)
+  // trace("parse-normal: w: " ++ w.show ++ ", e: " ++ e.show ++ "\n  wx: " ++ w.ddouble.show-sum ++ ", x: " ++ x.show ++ "\n  " ++ x.show-sum)
   x
 
 /*------------------------------------------------------
