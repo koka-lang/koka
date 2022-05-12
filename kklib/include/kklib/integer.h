@@ -148,11 +148,7 @@ to indicate the portable SOFA technique is about 5% (x64) to 10% (M1) faster.
 -- Daan Leijen, 2020-2022.
 --------------------------------------------------------------------------------------------------*/
 
-#if !defined(KK_USE_BUILTIN_OVF)
-#define KK_USE_BUILTIN_OVF (0)       // portable overflow detection seems always faster
-#endif
-
-#if KK_USE_BUILTIN_OVF
+#if KK_INT_ARITHMETIC != KK_INT_USE_SOFA
 typedef kk_intf_t kk_smallint_t;
 #define KK_SMALLINT_BITS  (KK_INTF_BITS)
 #elif KK_INTF_SIZE>=16
@@ -257,14 +253,24 @@ static inline kk_integer_t kk_integer_unbox(kk_box_t b) {
   return i;
 }
 
+#ifdef KK_INT_NOREFCOUNT
+static inline kk_integer_t kk_integer_dup(kk_integer_t i) {
+  return i;
+}
+
+static inline void kk_integer_drop(kk_integer_t i, kk_context_t* ctx) { 
+  kk_unused(i); kk_unused(ctx);
+}
+#else
 static inline kk_integer_t kk_integer_dup(kk_integer_t i) {
   if (kk_unlikely(kk_is_bigint(i))) { kk_block_dup(_kk_integer_ptr(i)); }
   return i;
 }
 
-static inline void kk_integer_drop(kk_integer_t i, kk_context_t* ctx) { 
+static inline void kk_integer_drop(kk_integer_t i, kk_context_t* ctx) {
   if (kk_unlikely(kk_is_bigint(i))) { kk_block_drop(_kk_integer_ptr(i), ctx); }
 }
+#endif
 
 kk_decl_export bool          kk_integer_parse(const char* num, kk_integer_t* result, kk_context_t* ctx);
 kk_decl_export bool          kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx);
@@ -451,7 +457,7 @@ Multiply: Since `boxed(n) = n*4 + 1`, we can multiply as:
     we check before multiply for small integers and do not combine with the overflow check.
 -----------------------------------------------------------------------------------*/
 
-#if (KK_USE_BUILTIN_OVF == 1)
+#if (KK_INT_ARITHMETIC == KK_INT_USE_OVF)
 
 static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z;
@@ -493,7 +499,7 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
   return _kk_new_integer(z|1);
 }
 
-#elif (KK_USE_BUILTIN_OVF == 2) // test for small ints upfront
+#elif (KK_INT_ARITHMETIC == KK_INT_USE_TAGOVF) // test for small ints upfront
 
 static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z;
@@ -540,12 +546,12 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
 // we can either mask on the left side or on the sign extended right side.
 // it turns out that this affects the quality of the generated instructions and we pick depending on the platform 
 #if defined(__x86_64__) || defined(__i386__) || defined(_M_IX86) || defined(_M_X64)   
-#define KK_SOFA_MASK_RIGHT  /* only on x86 and x64 is masking on the sign-extended right side better */
+#define KK_INT_SOFA_RIGHT_BIAS  /* only on x86 and x64 is masking on the sign-extended right side better */
 #endif
 
 static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z = _kk_integer_value(x) + _kk_integer_value(y);
-  #ifndef KK_SOFA_MASK_RIGHT
+  #ifndef KK_INT_SOFA_RIGHT_BIAS
   if (kk_likely((z|2) == (kk_smallint_t)z))   // set bit 1 and compare sign extension
   #else
   if (kk_likely(z == ((kk_smallint_t)z|2))) 
@@ -560,7 +566,7 @@ static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_con
 static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t i, kk_context_t* ctx) {
   kk_assert_internal(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
   kk_intf_t z = _kk_integer_value(x) + kk_shlf(i,2);
-  #ifndef KK_SOFA_MASK_RIGHT
+  #ifndef KK_INT_SOFA_RIGHT_BIAS
   if (kk_likely((z|1) == (kk_smallint_t)z))
   #else
   if (kk_likely(z == ((kk_smallint_t)z|1)))
@@ -575,7 +581,7 @@ static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t 
 
 static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z = (_kk_integer_value(x)^3) - _kk_integer_value(y);
-  #ifndef KK_SOFA_MASK_RIGHT
+  #ifndef KK_INT_SOFA_RIGHT_BIAS
   if (kk_likely((z&~2) == (kk_smallint_t)z))  // clear bit 1 and compare sign extension
   #else
   if (kk_likely(z == ((kk_smallint_t)z&~2)))   

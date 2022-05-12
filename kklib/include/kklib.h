@@ -1,11 +1,6 @@
 ﻿#pragma once
 #ifndef KKLIB_H
 #define KKLIB_H 
-
-#define KKLIB_BUILD        89       // modify on changes to trigger recompilation 
-#define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
-// #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
-
 /*---------------------------------------------------------------------------
   Copyright 2020-2022, Microsoft Research, Daan Leijen.
 
@@ -13,6 +8,22 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
+
+#define KKLIB_BUILD        91       // modify on changes to trigger recompilation 
+#define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
+// #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
+
+// Integer arithmetic method
+#define KK_INT_USE_OVF      1       // use limited tag bits and architecture overflow detection (only with gcc/clang)
+#define KK_INT_USE_TAGOVF   2       // use tag bits (upfront check) and architecture overflow detection (only with gcc/clang)
+#define KK_INT_USE_SOFA     3       // use sign extended overflow arithmetic with limited tag bits
+#define KK_INT_USE_RENO     4       // use range extended overflow arithmetic
+
+#ifndef KK_INT_ARITHMETIC
+#define KK_INT_ARITHMETIC  KK_INT_USE_SOFA
+#endif
+
+// Includes
 #define WIN32_LEAN_AND_MEAN          // reduce windows includes
 #define _POSIX_C_SOURCE     200809L  // make posix definitions visible
 #define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
@@ -166,6 +177,31 @@ typedef struct kk_datatype_s {
 static inline kk_intf_t kk_intf_unbox(kk_box_t v);
 static inline kk_box_t  kk_intf_box(kk_intf_t u);
 
+#if (KK_FIELD_COMPRESS==4) && (KK_INTPTR_SIZE >= 8)
+typedef int32_t kk_field_t;
+
+static inline kk_box_t kk_field_uncompress(void* blk, kk_field_t field) {
+  kk_box_t b = { (uintptr_t)((intptr_t)blk + field) };
+  return b;
+}
+
+static inline kk_field_t kk_field_compress(void* blk, kk_box_t x) {
+  intptr_t diff = (intptr_t)(x.box) - (intptr_t)blk);
+  assert_internal(diff >= INT32_MIN && diff <= INT32_MAX);
+  return (int32_t)diff;
+}
+
+#define kk_field_tp(tp)                         kk_field_t
+#define kk_field(tp,blk,field_name,ctx)         kk_field_uncompress(blk,(blk)->field_name)
+#define kk_field_set(tp,blk,field_name,x,ctx)   (blk)->field_name = kk_field_compress(blk,(blk)->field_name)
+
+#else
+typedef kk_box_t  kk_field_t;
+
+#define kk_field_tp(tp)                         kk_field_t
+#define kk_field(tp,blk,field_name,ctx)         (blk)->field_name
+#define kk_field_set(tp,blk,field_name,x,ctx)   (blk)->field_name = x
+#endif
 
 /*--------------------------------------------------------------------------------------
   Blocks

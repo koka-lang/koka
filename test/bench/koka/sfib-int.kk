@@ -1,12 +1,19 @@
 module sfib-int
 
-fun sfibx(n : int, x1 : int, x2 : int) : div int
-  if n <= 0
-    then x1
-    else sfibx(n - 1, x2, (x1 + x2) / (x2 - x1))
+fun sfibx(n : int, x : int) : div int
+  if n <= 0 then x
+  elif x > 1000000000
+    then sfibx(n - 1, 1)
+    else sfibx(n - 1, x*x + x + 2)
 
-fun sfib(n : int)
-  sfibx(n,2,8)
+pub fun sfib(n : int)
+  sfibx(n,1)
+
+pub fun test(n : int) 
+  val xs = list(1,10000)
+  val ssum = fold-int(1,n,0) fn(i,acc)
+               acc + xs.sum
+  ssum.println
 
 pub fun main()
-  sfib(100000000).println
+  test(100000)  
