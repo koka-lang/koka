@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD        91       // modify on changes to trigger recompilation 
+#define KKLIB_BUILD        92       // modify on changes to trigger recompilation 
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
@@ -20,7 +20,7 @@
 #define KK_INT_USE_RENO     4       // use range extended overflow arithmetic
 
 #ifndef KK_INT_ARITHMETIC
-#define KK_INT_ARITHMETIC  KK_INT_USE_SOFA
+#define KK_INT_ARITHMETIC  KK_INT_USE_RENO
 #endif
 
 // Includes

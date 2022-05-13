@@ -175,6 +175,7 @@ static inline kk_intf_t _kk_integer_value(kk_integer_t i) {
   return (kk_intf_t)i.ibox;  // potentially cast to smaller kk_intf_t (as on arm CHERI)
 }
 
+#if KK_INT_ARITHMETIC != KK_INT_USE_RENO
 static inline bool kk_is_smallint(kk_integer_t i) {
   return ((_kk_integer_value(i)&1) != 0);
 }
@@ -214,11 +215,60 @@ static inline bool kk_are_smallints(kk_integer_t i, kk_integer_t j) {
   //return ((_kk_integer_value(i)&1)==1 || (_kk_integer_value(j)&1)==1);
 }
 
+#else
+#define KK_INT_MINPTR (KK_IF(1) << (KK_SMALLINT_BITS - 2))
+
+static inline bool kk_is_smallint(kk_integer_t i) {
+  return (_kk_integer_value(i) <= KK_INT_MINPTR);
+  // return (_kk_integer_value(i) <= KK_SMALLINT_MAX);
+  // return (kk_sarf(_kk_integer_value(i), KK_SMALLINT_BITS - 2) <= 0);
+}
+
+static inline bool kk_is_bigint(kk_integer_t i) {
+  return !kk_is_smallint(i);
+}
+
+static inline kk_ptr_t _kk_integer_ptr(kk_integer_t i) {
+  kk_assert_internal(kk_is_bigint(i));
+  return (kk_ptr_t)(i.ibox - KK_INT_MINPTR);
+}
+
+static inline kk_integer_t _kk_new_integer(kk_intf_t i) {
+  kk_integer_t z = { (uintptr_t)i }; // todo: optimize in case sizeof(kk_intf_t) < sizeof(intptr_t) ?
+  return z;
+}
+
+static inline kk_intf_t kk_smallint_from_integer(kk_integer_t i) {  // use for known small ints
+  kk_assert_internal(kk_is_smallint(i) && (_kk_integer_value(i) >= KK_SMALLINT_MIN));
+  return _kk_integer_value(i);
+}
+
+static inline kk_integer_t kk_integer_from_small(kk_intf_t i) {   // use for known small int constants (at most 14 bits)
+  kk_assert_internal(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
+  return _kk_new_integer(i);
+}
+
+static inline kk_integer_t kk_integer_from_ptr(kk_block_t* p) {   // use for known small int constants (at most 14 bits)
+  kk_integer_t z = { (uintptr_t)p + KK_INT_MINPTR };
+  return z;
+}
+
+static inline bool kk_is_integer(kk_integer_t i) {
+  return ((kk_is_smallint(i) && kk_smallint_from_integer(i) >= KK_SMALLINT_MIN && kk_smallint_from_integer(i) <= KK_SMALLINT_MAX)
+    || (kk_is_bigint(i) && kk_block_tag(_kk_integer_ptr(i)) == KK_TAG_BIGINT));
+}
+
+static inline bool kk_are_smallints(kk_integer_t i, kk_integer_t j) {
+  kk_assert_internal(kk_is_integer(i) && kk_is_integer(j));
+  return (kk_is_smallint(i) && kk_is_smallint(j));
+}
+#endif
+
+
 static inline bool kk_integer_small_eq(kk_integer_t x, kk_integer_t y) {
   kk_assert_internal(kk_are_smallints(x, y));
   return (_kk_integer_value(x) == _kk_integer_value(y));
 }
-
 
 #define kk_integer_zero     (kk_integer_from_small(0))
 #define kk_integer_one      (kk_integer_from_small(1))
@@ -243,6 +293,7 @@ static inline bool kk_integer_is_minus_one_borrow(kk_integer_t x) {
   Generic operations on integers
 -----------------------------------------------------------------------------------*/
 
+#if KK_INT_ARITHMETIC != KK_INT_USE_RENO
 // Isomorphic with boxed values
 static inline kk_box_t kk_integer_box(kk_integer_t i) { 
   kk_box_t b = { i.ibox };
@@ -252,6 +303,14 @@ static inline kk_integer_t kk_integer_unbox(kk_box_t b) {
   kk_integer_t i = { b.box };
   return i;
 }
+#else
+static inline kk_box_t kk_integer_box(kk_integer_t i) {
+  return (kk_is_smallint(i) ? kk_intf_box(kk_smallint_from_integer(i)) : kk_ptr_box(_kk_integer_ptr(i)));
+}
+static inline kk_integer_t kk_integer_unbox(kk_box_t b) {
+  return (kk_box_is_value(b) ? kk_integer_from_small(kk_intf_unbox(b)) : kk_integer_from_ptr(kk_ptr_unbox(b)));
+}
+#endif
 
 #ifdef KK_INT_NOREFCOUNT
 static inline kk_integer_t kk_integer_dup(kk_integer_t i) {
@@ -539,6 +598,40 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
   }
   kk_assert_internal((z & 3) == 0);
   return _kk_new_integer(z | 1);
+}
+
+
+#elif (KK_INT_ARITHMETIC == KK_INT_USE_RENO) 
+
+static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  kk_intf_t z = _kk_integer_value(x) + _kk_integer_value(y);
+  if (kk_unlikely(z > KK_SMALLINT_MAX || z < KK_SMALLINT_MIN)) return kk_integer_add_generic(x, y, ctx);
+  return _kk_new_integer(z);
+}
+
+static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t i, kk_context_t* ctx) {
+  kk_assert_internal(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
+  kk_intf_t z = _kk_integer_value(x) + i;
+  if (kk_unlikely(z > KK_SMALLINT_MAX || z < KK_SMALLINT_MIN)) return kk_integer_add_generic(x, kk_integer_from_small(i), ctx);
+  return _kk_new_integer(z);
+}
+
+static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  kk_intf_t z = _kk_integer_value(x) - _kk_integer_value(y);
+#if defined(__GCC__) && defined(__aarch64__)
+  if (kk_unlikely(_kk_integer_value(y) > KK_INT_MINPTR + 1 || z > KK_SMALLINT_MAX || z < KK_SMALLINT_MIN)) return kk_integer_sub_generic(x, y, ctx);
+#else
+  if (kk_unlikely(_kk_integer_value(y) > KK_INT_MINPTR + 1)) return kk_integer_sub_generic(x, y, ctx);
+  if (kk_unlikely((kk_intf_t)((kk_uintf_t)z + KK_INT_MINPTR) < 0)) return kk_integer_sub_generic(x, y, ctx);
+#endif
+  return _kk_new_integer(z);
+}
+
+static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  kk_assert_internal(kk_are_smallints(x, y));
+  kk_intf_t z = kk_smallint_from_integer(x) * kk_smallint_from_integer(y);
+  if (kk_unlikely(z > KK_SMALLINT_MAX || z < KK_SMALLINT_MIN)) return kk_integer_mul_generic(x, y, ctx);
+  return _kk_new_integer(z);
 }
 
 #else // use SOFA
