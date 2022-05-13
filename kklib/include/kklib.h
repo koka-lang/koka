@@ -20,7 +20,7 @@
 #define KK_INT_USE_RENO     4       // use range extended overflow arithmetic
 
 #ifndef KK_INT_ARITHMETIC
-#define KK_INT_ARITHMETIC  KK_INT_USE_RENO
+#define KK_INT_ARITHMETIC  KK_INT_USE_SOFA
 #endif
 
 // Includes
