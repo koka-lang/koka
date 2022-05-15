@@ -237,10 +237,11 @@ static inline bool kk_are_smallints(kk_integer_t i, kk_integer_t j) {
 #define KK_INT_MINPTR (KK_IF(1) << (KK_INTF_BITS - 2))
 
 static inline bool kk_is_smallint(kk_integer_t i) {
-  // return (_kk_integer_value(i) <= KK_INT_MINPTR);
-  return (_kk_integer_value(i) <= KK_SMALLINT_MAX);  
-  //kk_intf_t x = _kk_integer_value(i);
-  //return (x == (kk_smallint_t)x);
+  //return (_kk_integer_value(i) < KK_INT_MINPTR);
+  //return (_kk_integer_value(i) <= KK_SMALLINT_MAX);  
+  kk_intf_t x = _kk_integer_value(i);
+  return (x == (kk_smallint_t)x);
+  //return ((kk_uintf_t)((x>>32)+1) <= 1);
 }
 
 static inline bool kk_is_bigint(kk_integer_t i) {
@@ -631,7 +632,7 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
 #elif (KK_INT_ARITHMETIC == KK_INT_USE_RENO) 
 
 static inline bool kk_is_in_small_range( kk_intf_t i ) {
-  // return (i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
+  //return (i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
   return (i == (kk_smallint_t)i);
 }
 
@@ -649,9 +650,16 @@ static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t 
 }
 
 static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  #if 1
   kk_intf_t z = _kk_integer_value(x) - _kk_integer_value(y);
   if (kk_unlikely(!kk_is_smallint(y) || !kk_is_in_small_range(z))) return kk_integer_sub_generic(x, y, ctx);
   return _kk_new_integer(z);
+  #else
+  kk_intf_t i = _kk_integer_value(x);
+  kk_intf_t z = i + i - _kk_integer_value(y);
+  if (kk_unlikely(!kk_is_in_small_range(z))) return kk_integer_sub_generic(x, y, ctx);
+  return _kk_new_integer(z - i);
+  #endif
 }
 
 static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
@@ -666,7 +674,7 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
 
 // we can either mask on the left side or on the sign extended right side.
 // it turns out that this affects the quality of the generated instructions and we pick depending on the platform 
-#if defined(__x86_64__) || defined(__i386__) || defined(_M_IX86) || defined(_M_X64)   
+#if (defined(__x86_64__) || defined(__i386__) || defined(_M_IX86) || defined(_M_X64))
 #define KK_INT_SOFA_RIGHT_BIAS  /* only on x86 and x64 is masking on the sign-extended right side better */
 #endif
 
@@ -681,7 +689,7 @@ static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_con
   #endif  
   {
     kk_assert_internal((z&3) == 2);
-    return _kk_new_integer(z^3);
+    return _kk_new_integer(z - 1);
   }
   return kk_integer_add_generic(x, y, ctx);
 }
@@ -994,7 +1002,7 @@ static inline bool kk_integer_lte_borrow(kk_integer_t x, kk_integer_t y, kk_cont
 
 static inline bool kk_integer_gt_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   #if KK_INT_ARITHMETIC == KK_INT_USE_RENO
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) >= _kk_integer_value(y));
+  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) > _kk_integer_value(y));
   #else
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) > _kk_integer_value(y));
   #endif
@@ -1003,7 +1011,7 @@ static inline bool kk_integer_gt_borrow(kk_integer_t x, kk_integer_t y, kk_conte
 
 static inline bool kk_integer_gt(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   #if KK_INT_ARITHMETIC == KK_INT_USE_RENO
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) >= _kk_integer_value(y));
+  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) > _kk_integer_value(y));
   #else
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) > _kk_integer_value(y));
   #endif
@@ -1022,7 +1030,7 @@ static inline bool kk_integer_gte_borrow(kk_integer_t x, kk_integer_t y, kk_cont
 static inline bool kk_integer_eq_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (_kk_integer_value(x) == _kk_integer_value(y)) return true;
   if (kk_likely(kk_is_smallint(x))) return false;
-  // if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(y));  // assume bigint is never small    
+  //if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(y));  // assume bigint is never small    
   return (kk_integer_cmp_generic_borrow(x, y, ctx) == 0);
 }
 
@@ -1034,15 +1042,11 @@ static inline bool kk_integer_eq(kk_integer_t x, kk_integer_t y, kk_context_t* c
 }
 
 static inline bool kk_integer_neq_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) != _kk_integer_value(y));  // assume bigint is never small  
-  // if (kk_are_smallints(x,y)) return (_kk_integer_value(x) != _kk_integer_value(y));
-  return (kk_integer_cmp_generic_borrow(x, y, ctx) != 0);
+  return !kk_integer_eq_borrow(x,y,ctx);
 }
 
 static inline bool kk_integer_neq(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) != _kk_integer_value(y));  // assume bigint is never small    
-  // if (kk_are_smallints(x,y)) return (_kk_integer_value(x) != _kk_integer_value(y)); 
-  return (kk_integer_cmp_generic(x, y, ctx) != 0);
+  return !kk_integer_eq(x,y,ctx);
 }
 
 static inline bool kk_integer_is_even(kk_integer_t x, kk_context_t* ctx) {
