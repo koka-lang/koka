@@ -1,8 +1,8 @@
-all_variants="int32 ovf tagovf sofa xsofa reno"
+all_variants="sofa int32 ovf tagovf xsofa reno"
 all_compilers="clang gcc"
 all_benches="nqueens hamming pyth tak"
 
-variants="int32"
+variants="sofa"
 compilers="clang"
 benches=""
 
@@ -62,6 +62,7 @@ while : ; do
 
     build) do_build="yes";;
     run)   do_run="yes";;
+    graph) do_graph="yes";;
 
     asm) ccopts="--ccopts=-save-temps";;
 
@@ -155,32 +156,78 @@ function run_all {
 
 basetime=""
 
-function avg { #bench variant cc logall
+function avg { #bench variant cc logbench
   local log=".koka/intbench/$1-$3-$2.txt"
   local median=`sort -n $log | awk ' { a[i++]=$1; } END { x=int((i+1)/2); if (x < (i+1)/2) print (a[x-1]+a[x])/2; else print a[x-1]; }'`
-  local stddev=`awk ' { sum += $1; sumsq += ($1)^2; } END { print sqrt((sumsq - sum^2/NR)/NR); }' < $log`
+  local stddev=`awk ' { sqrsum += ($1 - '"$median"')^2; } END { print sqrt(sqrsum/NR); }' < $log`
   if [ "$basetime" = "" ]; then
     basetime="$median"
   fi
   local rmedian=`echo "scale=3; $median / $basetime" | bc`
   local rstddev=`echo "scale=3; $rmedian * $stddev" | bc`
-  echo "$1-$3-$2 ${median}s ${rmedian}x ${rstddev}" >> $4
+  echo "$1 $3 $2 ${median} ${rmedian} ${rstddev}" >> $4
 }
 
 function avg_all {
   for bench in $benches; do
-    local logall=".koka/intbench/$bench.txt"
+    local logbench=".koka/intbench/$bench.txt"
     basetime=""
-    echo "" > $logall
+    rm -f $logbench 2> /dev/null 
     for ccomp in $compilers; do    
       for variant in $variants; do
-        avg $bench $variant $ccomp $logall
+        avg $bench $variant $ccomp $logbench
       done
     done
     echo ""
     echo "# benchmark        elapsed  relat.  stddev"
-    column -t $logall
+    column -t $logbench
   done
+}
+
+function graph_variant { # <variant> <ccomp> <logall> <texdata>
+  awk '
+    BEGIN {
+      ccomp="'"$2"'"
+      variant="'"$1"'"
+      print "\\pgfplotstableread{"
+      print "x y y-error meta"
+    }
+    $2 == ccomp && $3 == variant {
+      if ($2 == "clang" && $3 == "sofa") {
+        printf( "%i %0.3f %0.3f {\\absnormlabel{%0.3f}}\n", i++, $5, $6, $4 );
+      }
+      else {
+        printf( "%i %0.3f %0.3f {\\normlabel{%0.2f}}\n", i++, ($5>4 ? 4 : $5), $6, $5);
+      }
+    }  
+    END {
+      print "}\\datatime" ccomp (variant=="int32"? "int" : variant)
+      print " "
+    }
+  ' $3 >> $4
+}
+
+function graph_all {
+  local logall=".koka/intbench/all.txt"      
+  rm -f $logall 2> /dev/null     
+  for bench in $benches; do
+    local logbench=".koka/intbench/$bench.txt"
+    cat $logbench >> $logall
+  done
+  local texdata=".koka/intbench/graph.tex"
+  echo "\\pgfplotsset{" > $texdata 
+  echo "  xticklabels = {" >> $texdata
+  for bench in $benches; do
+    echo "   \\strut $bench," >> $texdata
+  done
+  echo "}}" >> $texdata
+  echo " " >> $texdata
+  for ccomp in $compilers; do    
+    for variant in $variants; do
+      graph_variant $variant $ccomp $logall $texdata
+    done
+  done
+  cat $texdata
 }
 
 
@@ -192,3 +239,7 @@ if [ "$do_run" = "yes" ]; then
   run_all
   avg_all
 fi  
+
+if [ "$do_graph" = "yes" ]; then
+  graph_all
+fi
