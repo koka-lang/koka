@@ -197,7 +197,7 @@ function graph_variant { # <variant> <ccomp> <logall> <texdata>
         printf( "%i %0.3f %0.3f {\\absnormlabel{%0.3f}}\n", i++, $5, $6, $4 );
       }
       else {
-        printf( "%i %0.3f %0.3f {\\normlabel{%0.2f}}\n", i++, ($5>4 ? 4 : $5), $6, $5);
+        printf( "%i %0.3f %0.3f {\\normlabel{%0.2f}}\n", i++, ($5>2 ? 2 : $5), $6, $5);
       }
     }  
     END {
