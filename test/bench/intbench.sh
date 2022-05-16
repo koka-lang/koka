@@ -201,7 +201,7 @@ function graph_variant { # <variant> <ccomp> <logall> <texdata>
       }
     }  
     END {
-      print "}\\datatime" ccomp (variant=="int32"? "int" : variant)
+      print "}\\datatime" (ccomp=="gcc-11" ? "gcc" : ccomp) (variant=="int32"? "int" : variant)
       print " "
     }
   ' $3 >> $4
