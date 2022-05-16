@@ -269,7 +269,8 @@ static inline kk_integer_t kk_integer_from_small(kk_intf_t i) {   // use for kno
 }
 
 static inline kk_integer_t kk_integer_from_ptr(kk_block_t* p) {   // use for known small int constants (at most 14 bits)
-  kk_integer_t z = { kk_shrp((uintptr_t)p,2) | KK_INT_MINPTR };
+  //kk_integer_t z = { kk_shrp((uintptr_t)p,2) | KK_INT_MINPTR };
+  kk_integer_t z = { kk_bits_rotr((uintptr_t)p+1,2) }; // avoid large constants in code (use + instead of | for clang codegen)
   return z;
 }
 
@@ -631,33 +632,33 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
 
 #elif (KK_INT_ARITHMETIC == KK_INT_USE_RENO) 
 
-static inline bool kk_is_in_small_range( kk_intf_t i ) {
+static inline bool kk_not_in_small_range( kk_intf_t i ) {
   //return (i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
-  return (i == (kk_smallint_t)i);
+  return ((kk_smallint_t)i != i);
 }
 
 static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z = _kk_integer_value(x) + _kk_integer_value(y);
-  if (kk_unlikely(!kk_is_in_small_range(z))) return kk_integer_add_generic(x, y, ctx);
+  if (kk_unlikely(kk_not_in_small_range(z))) return kk_integer_add_generic(x, y, ctx);
   return _kk_new_integer(z);
 }
 
 static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t i, kk_context_t* ctx) {
-  kk_assert_internal(kk_is_in_small_range(i));
   kk_intf_t z = _kk_integer_value(x) + i;
-  if (kk_unlikely(!kk_is_in_small_range(z))) return kk_integer_add_generic(x, kk_integer_from_small(i), ctx);
+  if (kk_unlikely(kk_not_in_small_range(z))) return kk_integer_add_generic(x, kk_integer_from_small(i), ctx);
   return _kk_new_integer(z);
 }
 
 static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  #if 1
+  #if 0
   kk_intf_t z = _kk_integer_value(x) - _kk_integer_value(y);
-  if (kk_unlikely(!kk_is_smallint(y) || !kk_is_in_small_range(z))) return kk_integer_sub_generic(x, y, ctx);
+  if (kk_unlikely(!kk_is_smallint(y) || kk_not_in_small_range(z))) return kk_integer_sub_generic(x, y, ctx);
+  //if (kk_unlikely(!kk_is_smallint(y))) return kk_integer_add_generic(x,y,ctx);
   return _kk_new_integer(z);
   #else
-  kk_intf_t i = _kk_integer_value(x);
-  kk_intf_t z = i + i - _kk_integer_value(y);
-  if (kk_unlikely(!kk_is_in_small_range(z))) return kk_integer_sub_generic(x, y, ctx);
+  const kk_intf_t i = _kk_integer_value(x);
+  const kk_intf_t z = i + i - _kk_integer_value(y);
+  if (kk_unlikely(kk_not_in_small_range(z))) return kk_integer_sub_generic(x, y, ctx);
   return _kk_new_integer(z - i);
   #endif
 }
@@ -666,7 +667,7 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
   kk_assert_internal(kk_are_smallints(x, y));
   kk_intf_t z =  _kk_integer_value(x) * _kk_integer_value(y);
   // if (kk_unlikely(!kk_are_smallints(x,y))) return kk_integer_mul_generic(x, y, ctx);
-  if (kk_unlikely(!kk_is_in_small_range(z))) return kk_integer_mul_generic(x, y, ctx);
+  if (kk_unlikely(kk_not_in_small_range(z))) return kk_integer_mul_generic(x, y, ctx);
   return _kk_new_integer(z);
 }
 
@@ -674,7 +675,7 @@ static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, 
 
 // we can either mask on the left side or on the sign extended right side.
 // it turns out that this affects the quality of the generated instructions and we pick depending on the platform 
-#if (defined(__x86_64__) || defined(__i386__) || defined(_M_IX86) || defined(_M_X64))
+#if defined(__clang__) && (defined(__x86_64__) || defined(__i386__) || defined(_M_IX86) || defined(_M_X64))
 #define KK_INT_SOFA_RIGHT_BIAS  /* only on x86 and x64 is masking on the sign-extended right side better */
 #endif
 
@@ -689,7 +690,7 @@ static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_con
   #endif  
   {
     kk_assert_internal((z&3) == 2);
-    return _kk_new_integer(z - 1);
+    return _kk_new_integer(z^3);
   }
   return kk_integer_add_generic(x, y, ctx);
 }
@@ -1036,13 +1037,13 @@ static inline bool kk_integer_eq_borrow(kk_integer_t x, kk_integer_t y, kk_conte
 
 static inline bool kk_integer_eq(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (_kk_integer_value(x) == _kk_integer_value(y)) return true;
-  if (kk_likely(kk_is_smallint(x))) return false;
+  if (kk_likely(kk_is_smallint(x))) return false;  
   // if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(y));  // assume bigint is never small  
   return (kk_integer_cmp_generic(x, y, ctx) == 0);
 }
 
 static inline bool kk_integer_neq_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  return !kk_integer_eq_borrow(x,y,ctx);
+  return !kk_integer_eq_borrow(x,y,ctx);  
 }
 
 static inline bool kk_integer_neq(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {

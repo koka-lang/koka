@@ -7,6 +7,7 @@ compilers="clang"
 benches=""
 
 intopts=""
+ccopts=""
 benchdir="test/bench/koka/"
 verbose="no"
 
@@ -62,6 +63,8 @@ while : ; do
     build) do_build="yes";;
     run)   do_run="yes";;
 
+    asm) ccopts="--ccopts=-save-temps";;
+
     -n)
         max_runs=$flag_arg;;
 
@@ -93,7 +96,7 @@ function set_intopts { # <variant>
 }
 
 function build { # <bench> <variant> <cc>
-  local options="-O2 --cc=$3 --buildtag=$2"
+  local options="-O2 --cc=$3 --buildtag=$2 $ccopts"
   if [ "$2" = "int32" ]; then
     options="$options -c $benchdir$1.kk"
   else
@@ -140,9 +143,9 @@ function run_all {
   for ccomp in $compilers; do
     for bench in $benches; do
       for variant in $variants; do
+        local log=".koka/intbench/$bench-$ccomp-$variant.txt"
+        rm -f $log 2> /dev/null          
         for ((runs=1; runs<=$max_runs; runs++)); do
-          local log=".koka/intbench/$bench-$ccomp-$variant.txt"
-          echo "" > log
           run $bench $variant $ccomp $runs $log
         done
       done
