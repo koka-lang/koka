@@ -148,6 +148,18 @@ to indicate the portable SOFA technique is about 5% (x64) to 10% (M1) faster.
 -- Daan Leijen, 2020-2022.
 --------------------------------------------------------------------------------------------------*/
 
+// Integer arithmetic method
+// note: we support these for now for experimentation, but we plan to converge on a single method 
+// in the future in order to simplify the code.
+#define KK_INT_USE_OVF      1       // use limited tag bits and architecture overflow detection (only with gcc/clang)
+#define KK_INT_USE_TAGOVF   2       // use tag bits (upfront check) and architecture overflow detection (only with gcc/clang)
+#define KK_INT_USE_SOFA     3       // use sign extended overflow arithmetic with limited tag bits
+#define KK_INT_USE_RENO     4       // use range extended overflow arithmetic
+
+#ifndef KK_INT_ARITHMETIC
+#define KK_INT_ARITHMETIC  KK_INT_USE_SOFA
+#endif
+
 #ifndef KK_INT_TAG
 #define KK_INT_TAG  (1)
 #endif
@@ -233,15 +245,16 @@ static inline bool kk_are_smallints(kk_integer_t i, kk_integer_t j) {
   //return ((_kk_integer_value(i)&1)==1 || (_kk_integer_value(j)&1)==1);
 }
 
-#else
+#else // KK_INT_USE_RENO
 #define KK_INT_MINPTR (KK_IF(1) << (KK_INTF_BITS - 2))
 
 static inline bool kk_is_smallint(kk_integer_t i) {
   //return (_kk_integer_value(i) < KK_INT_MINPTR);
   //return (_kk_integer_value(i) <= KK_SMALLINT_MAX);  
-  kk_intf_t x = _kk_integer_value(i);
-  return (x == (kk_smallint_t)x);
+  //kk_intf_t x = _kk_integer_value(i);
+  //return (x == (kk_smallint_t)x);
   //return ((kk_uintf_t)((x>>32)+1) <= 1);
+  return ((_kk_integer_value(i)>>(KK_INTF_BITS-2)) <= 0);
 }
 
 static inline bool kk_is_bigint(kk_integer_t i) {
@@ -279,9 +292,16 @@ static inline bool kk_is_integer(kk_integer_t i) {
     || (kk_is_bigint(i) && kk_block_tag(_kk_integer_ptr(i)) == KK_TAG_BIGINT));
 }
 
+#define KK_SMALLINT_MAX1 (KK_SMALLINT_MAX+1)
 static inline bool kk_are_smallints(kk_integer_t i, kk_integer_t j) {
   kk_assert_internal(kk_is_integer(i) && kk_is_integer(j));
-  return (kk_is_smallint(i) && kk_is_smallint(j));
+  // return (kk_is_smallint(i) && kk_is_smallint(j));
+  kk_intf_t x = _kk_integer_value(i);
+  kk_intf_t y = _kk_integer_value(j);
+  //return (((((kk_uintf_t)x+KK_SMALLINT_MAX+1)|((kk_uintf_t)y+KK_SMALLINT_MAX+1)) & KK_INT_MINPTR) != 0);
+  return ((x>>(KK_INTF_BITS-3))+(y>>(KK_INTF_BITS-3)) <= 0);
+  //kk_intf_t z = x + y;
+  //return (z == (int32_t)z);
 }
 #endif
 
@@ -975,52 +995,32 @@ static inline int kk_integer_cmp_borrow(kk_integer_t x, kk_integer_t y, kk_conte
 }
 
 static inline bool kk_integer_lt_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  #if KK_INT_ARITHMETIC == KK_INT_USE_RENO
-  if (kk_likely(kk_is_smallint(y))) return (_kk_integer_value(x) < _kk_integer_value(y));
-  #else
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) < _kk_integer_value(y));
-  #endif
   return (kk_integer_cmp_generic_borrow(x, y, ctx) == -1);
 }
 
 static inline bool kk_integer_lt(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  #if KK_INT_ARITHMETIC == KK_INT_USE_RENO
-  if (kk_likely(kk_is_smallint(y))) return (_kk_integer_value(x) < _kk_integer_value(y));
-  #else
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) < _kk_integer_value(y));
-  #endif
   return (kk_integer_cmp_generic(x, y, ctx) == -1);
 }
 
 static inline bool kk_integer_lte_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  #if KK_INT_ARITHMETIC == KK_INT_USE_RENO
-  if (kk_likely(kk_is_smallint(y))) return (_kk_integer_value(x) <= _kk_integer_value(y));
-  #else
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) <= _kk_integer_value(y));
-  #endif
   return (kk_integer_cmp_generic_borrow(x, y, ctx) <= 0);
 }
 
 static inline bool kk_integer_gt_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  #if KK_INT_ARITHMETIC == KK_INT_USE_RENO
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) > _kk_integer_value(y));
-  #else
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) > _kk_integer_value(y));
-  #endif
   return (kk_integer_cmp_generic_borrow(x, y, ctx) == 1);
 }
 
 static inline bool kk_integer_gt(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  #if KK_INT_ARITHMETIC == KK_INT_USE_RENO
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) > _kk_integer_value(y));
-  #else
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) > _kk_integer_value(y));
-  #endif
   return (kk_integer_cmp_generic(x, y, ctx) == 1);
 }
 
 static inline bool kk_integer_gte_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  #if KK_INT_ARITHMETIC == KK_INT_USE_RENO
+  #if 0 // KK_INT_ARITHMETIC == KK_INT_USE_RENO
   if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) >= _kk_integer_value(y));
   #else
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) >= _kk_integer_value(y));

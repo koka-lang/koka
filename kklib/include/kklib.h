@@ -13,16 +13,6 @@
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
-// Integer arithmetic method
-#define KK_INT_USE_OVF      1       // use limited tag bits and architecture overflow detection (only with gcc/clang)
-#define KK_INT_USE_TAGOVF   2       // use tag bits (upfront check) and architecture overflow detection (only with gcc/clang)
-#define KK_INT_USE_SOFA     3       // use sign extended overflow arithmetic with limited tag bits
-#define KK_INT_USE_RENO     4       // use range extended overflow arithmetic
-
-#ifndef KK_INT_ARITHMETIC
-#define KK_INT_ARITHMETIC  KK_INT_USE_SOFA
-#endif
-
 // Includes
 #define WIN32_LEAN_AND_MEAN          // reduce windows includes
 #define _POSIX_C_SOURCE     200809L  // make posix definitions visible
