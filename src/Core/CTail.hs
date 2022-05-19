@@ -93,8 +93,9 @@ ctailDef topLevel def
                  cdefExpr <- withContext ctailTName False (Just ctailTSlot) $
                              ctailExpr True (makeCDefExpr ctailTSlot (defExpr def))
 
+                 useContextPath <- getUseContextPath
                  let cdef = def{ defName = ctailName, defType = ctailType, defExpr = cdefExpr }
-                     needsMulti = not (effectIsAffine teff)
+                     needsMulti = not (useContextPath || effectIsAffine teff)
                      ctailMultiSlotType = TFun [(nameNil,tres)] typeTotal tres
                      ctailMultiName  = makeHiddenName "ctailm" (defName def)
                      ctailMultiSlot  = newHiddenName "accm"
@@ -420,7 +421,7 @@ makeCTailNil :: Type -> Expr
 makeCTailNil tp
   = App (TypeApp (Var (TName nameCTailNil funType) 
                         -- (InfoArity 1 0)
-                        (InfoExternal [(C CDefault,"kk_ctail_nil()"),(JS JsDefault,"$std_core_types._ctail_nil()")])
+                        (InfoExternal [(C CDefault,"kk_ctail_nil(kk_context())"),(JS JsDefault,"$std_core_types._ctail_nil()")])
                       ) [tp]) []
   where
     funType = TForall [a] [] (TFun [] typeTotal (TApp typeCTail [TVar a]))
@@ -444,7 +445,8 @@ makeCTailLink slot resName objName conName fieldName tp
   = let fieldOf = makeCFieldOf objName conName fieldName tp
     in  App (TypeApp (Var (TName nameCTailLink funType) 
                 -- (InfoArity 1 3) 
-                (InfoExternal [(C CDefault,"kk_ctail_link(#1,#2,#3)"),(JS JsDefault,"$std_core_types._ctail_link(#1,#2,#3)")])
+                (InfoExternal [(C CDefault,"kk_ctail_link(#1,#2,#3,kk_context())"),
+                               (JS JsDefault,"$std_core_types._ctail_link(#1,#2,#3)")])
             ) [tp])
             [Var slot InfoNone, Var resName InfoNone, fieldOf]
   where
@@ -461,7 +463,8 @@ makeCTailResolve True slot expr   -- slot `a -> a` is an accumulating function; 
 makeCTailResolve False slot expr  -- slot is a `ctail<a>`
   = App (TypeApp (Var (TName nameCTailResolve funType) 
                         -- (InfoArity 1 2)
-                        (InfoExternal [(Default,"kk_ctail_resolve(#1,#2)"),(JS JsDefault,"$std_core_types._ctail_resolve(#1,#2)")])
+                        (InfoExternal [(C CDefault,"kk_ctail_resolve(#1,#2,kk_context())"),
+                                       (JS JsDefault,"$std_core_types._ctail_resolve(#1,#2)")])
                       ) [tp])
         [Var slot InfoNone, expr]
   where

@@ -304,6 +304,11 @@ static inline void kk_block_field_set(kk_block_t* b, kk_ssize_t index, kk_box_t 
   bf->fields[index] = v;
 }
 
+static inline kk_decl_pure kk_box_t* kk_block_field_address(kk_block_t* b, kk_ssize_t index) {
+  kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
+  return &bf->fields[index];
+}
+
 #if (KK_INTPTR_SIZE==8)
 #define KK_BLOCK_INVALID  KK_UP(0xDFDFDFDFDFDFDFDF)
 #else
@@ -1367,6 +1372,7 @@ static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
 }
 
 
+kk_decl_export kk_box_t kk_ctail_context_compose( kk_box_t res, kk_box_t child, kk_context_t* ctx);
 #define kk_ctail_set_context_field(x,field,tp,as_tp)  (as_tp(x)->_base._block.header._field_idx = (offsetof(tp,field)/KK_INTPTR_SIZE),x)
 
 #endif // include guard

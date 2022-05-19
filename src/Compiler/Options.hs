@@ -662,6 +662,7 @@ processOptions flags0 opts
                        cdefs    = ccompDefs flags 
                                    ++ if stdAlloc then [] else [("KK_MIMALLOC",show (sizePtr (platform flags)))]
                                    ++ if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")]
+                                   ++ if optctailContext flags then [] else [("KK_CTAIL_NO_CONTEXT_PATH","")]
                    
                    -- vcpkg
                    -- (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)

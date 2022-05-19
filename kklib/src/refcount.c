@@ -578,3 +578,44 @@ kk_decl_export void kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx) {
     kk_block_mark_shared_recx(kk_ptr_unbox(b), ctx);
   }
 }
+
+static kk_ssize_t kk_block_full_size(kk_block_t* b, kk_context_t* ctx) {
+  kk_unused(ctx);
+  return kk_to_ssize_t(mi_usable_size(b));
+}
+
+static kk_block_t* kk_block_alloc_copy( kk_block_t* b, kk_context_t* ctx ) {
+  kk_ssize_t size = kk_block_full_size(b,ctx);
+  kk_block_t* c = (kk_block_t*)kk_malloc_small(size,ctx);
+  memcpy(c,b,size);
+  kk_block_refcount_set(c,0);
+  return c;
+}
+
+kk_decl_export kk_decl_noinline kk_box_t kk_ctail_context_compose( kk_box_t res, kk_box_t child, kk_context_t* ctx) {
+  kk_assert_internal(!kk_block_is_unique(kk_ptr_unbox(res)));
+  kk_box_t    cres;
+  kk_box_t*   parent = NULL;
+  kk_block_t* c;
+  kk_box_t    cur = res;
+  do {
+    kk_block_t* b = kk_ptr_unbox(cur);  
+    const kk_ssize_t field = kk_block_field_idx(b) - 1;
+    kk_assert_internal(field >= 0)
+    c = kk_block_alloc_copy(b,ctx);
+    if (parent == NULL) { cres = kk_ptr_box(c); }
+                   else { *parent = kk_ptr_box(c); }
+    for( kk_ssize_t i = 0; i < kk_block_scan_fsize(b); i++) {
+      if (i != field) {
+        kk_box_dup(kk_block_field(c, i));
+      }
+    }
+    parent = kk_block_field_address(c,field);
+    cur = *parent;
+  }
+  while (kk_box_is_ptr(cur));
+  kk_assert_internal(parent != NULL);
+  *parent = child;
+  kk_box_drop(res,ctx);
+  return cres;
+}
