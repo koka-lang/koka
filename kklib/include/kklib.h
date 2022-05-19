@@ -309,6 +309,15 @@ static inline kk_decl_pure kk_box_t* kk_block_field_address(kk_block_t* b, kk_ss
   return &bf->fields[index];
 }
 
+static inline kk_decl_pure uint8_t kk_block_field_idx(const kk_block_t* b) {
+  return b->header._field_idx;
+}
+
+static inline void kk_block_field_idx_set(kk_block_t* b, uint8_t idx ) {
+  kk_assert_internal(idx <= b->header.scan_fsize); // allow +1 for trmc context paths
+  b->header._field_idx = idx;
+}
+
 #if (KK_INTPTR_SIZE==8)
 #define KK_BLOCK_INVALID  KK_UP(0xDFDFDFDFDFDFDFDF)
 #else
@@ -813,7 +822,7 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 #define kk_basetype_dropn_reuse(v,n,ctx)       (kk_block_dropn_reuse(&((v)->_block),n,ctx))
 #define kk_basetype_dropn(v,n,ctx)             (kk_block_dropn(&((v)->_block),n,ctx))
 #define kk_basetype_reuse(v)                   (&((v)->_block))
-
+#define kk_basetype_field_idx_set(v,x)         (kk_block_field_idx_set(&((v)->_block),x))
 #define kk_basetype_as_assert(tp,v,tag)        (kk_block_assert(tp,&((v)->_block),tag))
 #define kk_basetype_drop_assert(v,tag,ctx)     (kk_block_drop_assert(&((v)->_block),tag,ctx))
 #define kk_basetype_dup_assert(tp,v,tag)       ((tp)kk_block_dup_assert(&((v)->_block),tag))
@@ -824,6 +833,7 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 #define kk_constructor_dup_as(tp,v)            (kk_basetype_dup_as(tp, &((v)->_base)))
 #define kk_constructor_drop(v,ctx)             (kk_basetype_drop(&((v)->_base),ctx))
 #define kk_constructor_dropn_reuse(v,n,ctx)    (kk_basetype_dropn_reuse(&((v)->_base),n,ctx))
+#define kk_constructor_field_idx_set(v,x)      (kk_basetype_field_idx_set(&((v)->_base),x))
 
 #define kk_value_dup(v)                        (v)
 #define kk_value_drop(v,ctx)                   (void)
@@ -1373,6 +1383,7 @@ static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
 
 
 kk_decl_export kk_box_t kk_ctail_context_compose( kk_box_t res, kk_box_t child, kk_context_t* ctx);
-#define kk_ctail_set_context_field(x,field,tp,as_tp)  (as_tp(x)->_base._block.header._field_idx = (offsetof(tp,field)/KK_INTPTR_SIZE),x)
+#define kk_ctail_set_context_field(as_tp,x,field_offset)  \
+  (kk_constructor_field_idx_set( as_tp(x), 1 + (field_offset - sizeof(kk_header_t))/sizeof(kk_box_t)), x)
 
 #endif // include guard

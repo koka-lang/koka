@@ -233,14 +233,6 @@ static bool kk_block_decref_no_free(kk_block_t* b) {
 // (and it is faster than a recursive version so we only have a stackless free)
 //-----------------------------------------------------------------------------------------
 
-static inline uint8_t kk_decl_pure kk_block_field_idx(const kk_block_t* b) {
-  return b->header._field_idx;
-}
-
-static inline void kk_block_field_idx_set(kk_block_t* b, uint8_t idx ) {
-  b->header._field_idx = idx;
-}
-
 // Check if a field `i` in a block `b` should be freed, i.e. it is heap allocated with a refcount of 0.
 // Optimizes by already freeing leaf blocks that are heap allocated but have no scan fields.
 static inline kk_block_t* kk_block_field_should_free(kk_block_t* b, kk_ssize_t field, kk_context_t* ctx)
@@ -601,7 +593,7 @@ kk_decl_export kk_decl_noinline kk_box_t kk_ctail_context_compose( kk_box_t res,
   do {
     kk_block_t* b = kk_ptr_unbox(cur);  
     const kk_ssize_t field = kk_block_field_idx(b) - 1;
-    kk_assert_internal(field >= 0)
+    kk_assert_internal(field >= 0);
     c = kk_block_alloc_copy(b,ctx);
     if (parent == NULL) { cres = kk_ptr_box(c); }
                    else { *parent = kk_ptr_box(c); }

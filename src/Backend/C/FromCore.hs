@@ -1862,7 +1862,9 @@ genFieldAddress conVar conName fieldName
 
 genFieldSetContext :: TName -> Name -> Name -> Doc
 genFieldSetContext conVar conName fieldName
-  = text "kk_ctail_set_context_field" <.> tupled [ppName (getName conVar), ppName (unqualify fieldName), text "struct" <+> ppName conName, conAsNameX conName]
+  = text "kk_ctail_set_context_field" <.> 
+      tupled [conAsNameX conName, ppName (getName conVar), 
+              text "offsetof" <.> tupled [text "struct" <+> ppName conName, ppName (unqualify fieldName)]]
 
 genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)
 genAppSpecial f args
