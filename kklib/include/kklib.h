@@ -1367,5 +1367,6 @@ static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
 }
 
 
+#define kk_ctail_set_context_field(x,field,tp,as_tp)  (as_tp(x)->_base._block.header._field_idx = (offsetof(tp,field)/KK_INTPTR_SIZE),x)
 
 #endif // include guard

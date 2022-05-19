@@ -176,6 +176,7 @@ data Flags
          , optInlineMax     :: Int
          , optctail         :: Bool
          , optctailInline   :: Bool
+         , optctailContext  :: Bool 
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
@@ -269,6 +270,7 @@ flagsNull
           12   -- inlineMax
           True -- optctail
           False -- optctailInline
+          True -- optctailContext
           True -- parc reuse
           True -- parc specialize
           True -- parc reuse specialize
@@ -378,6 +380,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["optreusespec"] (\b f -> f{parcReuseSpec=b})  "enable reuse specialization"
  , hide $ fflag       ["opttrmc"]      (\b f -> f{optctail=b})              "enable tail-recursion-modulo-cons optimization"
  , hide $ fflag       ["opttrmcinline"] (\b f -> f{optctailInline=b})  "enable trmc inlining (increases code size)"
+ , hide $ fflag       ["opttrmcctx"] (\b f -> f{optctailContext=b})  "enable trmc context paths"
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})      "enable inline specialization"
 
  -- deprecated

@@ -42,14 +42,14 @@ import Core.Pretty
 --------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
-ctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> CorePhase ()
-ctailOptimize penv platform newtypes gamma ctailInline 
+ctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> Bool -> CorePhase ()
+ctailOptimize penv platform newtypes gamma ctailInline useContextPath
   = liftCorePhaseUniq $ \uniq defs -> 
-    runUnique uniq (uctailOptimize penv platform newtypes gamma ctailInline defs)
+    runUnique uniq (uctailOptimize penv platform newtypes gamma ctailInline useContextPath defs)
 
-uctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> DefGroups -> Unique DefGroups
-uctailOptimize penv platform newtypes gamma ctailInline defs
-  = ctailRun penv platform newtypes gamma ctailInline (ctailDefGroups True defs)
+uctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> Bool -> DefGroups -> Unique DefGroups
+uctailOptimize penv platform newtypes gamma ctailInline useContextPath defs
+  = ctailRun penv platform newtypes gamma ctailInline useContextPath (ctailDefGroups True defs)
 
 --------------------------------------------------------------------------
 -- Definition groups
@@ -263,11 +263,13 @@ ctailExpr top expr
               Just slot -> do isMulti <- getIsMulti
                               return (makeCTailResolve isMulti slot body)
 
-    handleConApp dname cname f fargs
-      = do let mkCons args = bindArgs args $ (\xs -> return ([],App f xs))
-           mbExpr <- ctailTryArg dname cname Nothing mkCons (length fargs) (reverse fargs)
+    handleConApp dname cname fcon fargs
+      = do let mkCons args = bindArgs args $ (\xs -> return ([],App fcon xs))
+           isMulti <- getIsMulti
+           useContextPath <- getUseContextPath
+           mbExpr <- ctailTryArg (not isMulti && useContextPath) dname cname Nothing mkCons (length fargs) (reverse fargs)
            case mbExpr of
-             Nothing          -> tailResult (App f fargs)
+             Nothing          -> tailResult (App fcon fargs)
              Just (defs,expr) -> return (makeLet defs expr)
 
     handleTailCall mkCall
@@ -305,9 +307,9 @@ ctailGuard (Guard test expr)  -- expects patAdded in depth-order
 -- See if the tailcall is inside a (nested) constructor application
 --------------------------------------------------------------------------
 
-ctailTryArg :: TName -> TName -> Maybe TName -> ([Expr] -> CTail ([DefGroup],Expr)) -> Int -> [Expr] -> CTail (Maybe ([DefGroup],Expr))
-ctailTryArg dname cname mbC mkApp field []  = return Nothing
-ctailTryArg dname cname mbC mkApp field (rarg:rargs)
+ctailTryArg :: Bool -> TName -> TName -> Maybe TName -> ([Expr] -> CTail ([DefGroup],Expr)) -> Int -> [Expr] -> CTail (Maybe ([DefGroup],Expr))
+ctailTryArg useCtxPath dname cname mbC mkApp field []  = return Nothing
+ctailTryArg useCtxPath dname cname mbC mkApp field (rarg:rargs)
   = case rarg of
       App f@(TypeApp (Var name info) targs) fargs
        | (dname == name) -> do expr <- ctailFoundArg cname mbC mkAppNew field
@@ -321,20 +323,49 @@ ctailTryArg dname cname mbC mkApp field (rarg:rargs)
       -- recurse into other con
       App f@(TypeApp (Con cname2 _) _) fargs  | tnamesMember dname (fv fargs) -- && all isTotal rargs
        -> do x <- uniqueTName (typeOf rarg)
-             ctailTryArg dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
+             ctailTryArg useCtxPath dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
 
       App f@(Con cname2 _) fargs  | tnamesMember dname (fv fargs)  -- && all isTotal rargs
        -> do x <- uniqueTName (typeOf rarg)
-             ctailTryArg dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
+             ctailTryArg useCtxPath dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
 
-      _ -> if (isTotal rarg) then ctailTryArg dname cname mbC (\args -> mkApp (args ++ [rarg])) (field-1) rargs
+      _ -> if (isTotal rarg) then ctailTryArg useCtxPath dname cname mbC (\args -> mkApp (args ++ [rarg])) (field-1) rargs
                              else return Nothing
   where
-    mkAppNew = (\args -> mkApp (reverse rargs ++ args))
-    mkAppNested x f
-       = (\args -> do (defs,expr) <- bindArgs (reverse rargs) $ \xs -> mkApp (xs ++ [Var x InfoNone])
-                      return ([DefNonRec (makeTDef x (App f args))]++defs, expr))
+    -- create a tail call
+    mkAppNew 
+      = \args ->  do (defs,cexpr) <- mkApp (reverse rargs ++ args)
+                     if not useCtxPath then return (defs,cexpr)
+                      else do setfld <- setContextFieldExpr cname field
+                              x <- uniqueTName (typeOf cexpr)
+                              y <- uniqueTName (typeOf cexpr)
+                              let cexprdef = DefNonRec (makeTDef y cexpr)
+                              let setdef   = DefNonRec (makeTDef x (setfld y))
+                              return (defs ++ [cexprdef,setdef], (Var x InfoNone))
+                     
 
+    -- create the constructor context (ending in a hole)
+    mkAppNested :: TName -> Expr -> ([Expr] -> CTail ([DefGroup],Expr))
+    mkAppNested x fcon
+      = \args ->  do (defs,expr) <- bindArgs (reverse rargs) $ \xs -> mkApp (xs ++ [Var x InfoNone])
+                     if not useCtxPath
+                      then do let condef = DefNonRec (makeTDef x (App fcon args))
+                              return ([condef] ++ defs, expr)
+                      else do setfld <- setContextFieldExpr cname field
+                              y <- uniqueTName (typeOf x)
+                              let condef = DefNonRec (makeTDef y (App fcon args))
+                              let setdef = DefNonRec (makeTDef x (setfld y))
+                              return ([condef,setdef] ++ defs, expr)
+
+
+setContextFieldExpr cname field
+  = do fieldInfo <- getFieldName cname field
+       case fieldInfo of
+         Left msg -> failure msg -- todo: allow this? see test/cgen/ctail7
+         Right (_,fieldName) ->
+           return (\parent -> makeCSetContextField (Var parent InfoNone) cname fieldName)
+    
+  
 
 --------------------------------------------------------------------------
 -- Found a tail call inside a constructor application
@@ -375,6 +406,7 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
 -- Primitives
 --------------------------------------------------------------------------
 
+-- Polymorphic hole
 makeCFieldHole :: Type -> Expr
 makeCFieldHole tp
   = App (TypeApp (Var (TName nameCFieldHole funType) (InfoExternal [])) [tp]) []
@@ -383,6 +415,7 @@ makeCFieldHole tp
     a = TypeVar 0 kindStar Bound
 
 
+-- Initial empty context (@ctx hole)
 makeCTailNil :: Type -> Expr
 makeCTailNil tp
   = App (TypeApp (Var (TName nameCTailNil funType) 
@@ -394,6 +427,7 @@ makeCTailNil tp
     a = TypeVar 0 kindStar Bound
 
 
+-- The adress of a field in a constructor (for context holes)
 makeCFieldOf :: TName -> TName -> Name -> Type -> Expr
 makeCFieldOf objName conName fieldName tp
   = App (TypeApp (Var (TName nameCFieldOf funType) (InfoExternal [])) [tp])
@@ -404,6 +438,7 @@ makeCFieldOf objName conName fieldName tp
     a = TypeVar 0 kindStar Bound
 
 
+-- Compose two contexts
 makeCTailLink :: TName -> TName -> TName -> TName -> Name -> Type -> Expr
 makeCTailLink slot resName objName conName fieldName tp
   = let fieldOf = makeCFieldOf objName conName fieldName tp
@@ -419,6 +454,7 @@ makeCTailLink slot resName objName conName fieldName tp
     a = TypeVar 0 kindStar Bound
 
 
+-- Apply a context to its final value.
 makeCTailResolve :: Bool -> TName -> Expr -> Expr
 makeCTailResolve True slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
   = App (Var slot InfoNone) [expr]
@@ -433,6 +469,16 @@ makeCTailResolve False slot expr  -- slot is a `ctail<a>`
            TApp _ [t] -> t
     funType = TForall [a] [] (TFun [(nameNil,TApp typeCTail [TVar a]),(nameNil,TVar a)] typeTotal (TVar a))
     a = TypeVar (-1) kindStar Bound
+
+
+-- Set the index of the field in a constructor to follow the path to the hole at runtime.
+makeCSetContextField :: Expr -> TName -> Name -> Expr
+makeCSetContextField obj conName fieldName
+  = App (Var (TName nameCSetContextField funType) (InfoExternal [(Default,".cfield-set-context(#1,#2,#3)")]))
+        [obj, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
+  where
+    tp = typeOf obj
+    funType = (TFun [(nameNil,tp),(nameNil,typeString),(nameNil,typeString)] typeTotal tp)
 
 
 --------------------------------------------------------------------------
@@ -469,7 +515,8 @@ data Env = Env { currentDef :: [Def],
                  ctailInline :: Bool,
                  ctailName :: TName,
                  ctailSlot :: Maybe TName,
-                 isMulti :: Bool
+                 isMulti :: Bool,
+                 useContextPath :: Bool
                }
 
 data CTailState = CTailState { uniq :: Int }
@@ -495,10 +542,10 @@ updateSt = modify
 getSt :: CTail CTailState
 getSt = get
 
-ctailRun :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> CTail a -> Unique a
-ctailRun penv platform newtypes gamma ctailInline (CTail action)
+ctailRun :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> Bool -> CTail a -> Unique a
+ctailRun penv platform newtypes gamma ctailInline useContextPath (CTail action)
   = withUnique $ \u ->
-      let env = Env [] penv platform newtypes gamma ctailInline (TName nameNil typeUnit) Nothing True
+      let env = Env [] penv platform newtypes gamma ctailInline (TName nameNil typeUnit) Nothing True useContextPath
           st = CTailState u
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
@@ -524,6 +571,10 @@ getIsMulti :: CTail Bool
 getIsMulti
   = isMulti <$> getEnv
 
+getUseContextPath :: CTail Bool
+getUseContextPath
+  = useContextPath <$> getEnv  
+
 getFieldName :: TName -> Int -> CTail (Either String (Expr,Name))
 getFieldName cname field
   = do env <- getEnv
@@ -531,7 +582,7 @@ getFieldName cname field
          Just dataInfo -> 
            do let (dataRepr,_) = getDataRepr dataInfo
               if (dataReprIsValue dataRepr)
-                then return (Left ("cannot optimize modulo-cons tail-call over a value type (" ++ show (getName cname) ++ ")"))
+                then return (Left ("cannot optimize modulo-cons tail-call through a value type (" ++ show (getName cname) ++ ")"))
                 else do case filter (\con -> conInfoName con == getName cname) (dataInfoConstrs dataInfo) of
                           [con] -> case drop (field - 1) (conInfoParams con) of
                                       ((fname,ftp):_) -> return $ Right (Con cname (getConRepr dataInfo con), fname)

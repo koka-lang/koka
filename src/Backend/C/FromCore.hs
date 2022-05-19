@@ -1791,6 +1791,12 @@ genAppNormal (Var cfieldOf _) [App (Var box _) [Var con _], Lit (LitString conNa
           doc = genFieldAddress con (readQualified conName) (readQualified fieldName)
       return (drop,text "(kk_box_t*)" <.> parens doc)
 
+-- special: cfield-set-context
+genAppNormal (Var cfieldSetContext _) [conExpr, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldSetContext == nameCSetContextField
+ = do (decl,conVar) <- genVarBinding conExpr
+      let doc = genFieldSetContext conVar (readQualified conName) (readQualified fieldName)
+      return ([decl],doc)
+
 -- add/sub small constant 
 genAppNormal (Var add _) [arg, Lit (LitInt i)] | getName add == nameIntAdd && isSmallInt i  -- arg + i
  = do (decls,argDocs) <- genInlineableExprs [arg]
@@ -1854,6 +1860,9 @@ genFieldAddress :: TName -> Name -> Name -> Doc
 genFieldAddress conVar conName fieldName
   = parens (text "&" <.> conAsNameX (conName) <.> parens (ppName (getName conVar)) <.> text "->" <.> ppName (unqualify fieldName))
 
+genFieldSetContext :: TName -> Name -> Name -> Doc
+genFieldSetContext conVar conName fieldName
+  = text "kk_ctail_set_context_field" <.> tupled [ppName (getName conVar), ppName (unqualify fieldName), text "struct" <+> ppName conName, conAsNameX conName]
 
 genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)
 genAppSpecial f args

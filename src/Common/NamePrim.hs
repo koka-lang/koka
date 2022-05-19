@@ -78,6 +78,7 @@ module Common.NamePrim
           , nameCTailNil
           , nameCTailLink
           , nameCTailResolve
+          , nameCSetContextField
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -275,6 +276,7 @@ nameCFieldOf      = cfieldName ".cfield-of"
 nameCTailNil      = cfieldName ".ctail-nil"
 nameCTailLink     = cfieldName ".ctail-link"
 nameCTailResolve  = cfieldName ".ctail-resolve"
+nameCSetContextField = cfieldName ".ctail-set-context-field"
 cfieldName name   = coreTypesName name
 
 {--------------------------------------------------------------------------
