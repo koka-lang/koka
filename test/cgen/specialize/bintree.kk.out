@@ -1,5 +1,5 @@
 cgen/specialize/bintree/.lift000-main: (tree : tree<int>) -> tree<int>
-cgen/specialize/bintree/.lift000-main: (xs0 : list<int>) -> list<int>
+cgen/specialize/bintree/.lift000-main: (xs : list<int>) -> list<int>
 cgen/specialize/bintree/is-bin: forall<a> (tree : tree<a>) -> bool
 cgen/specialize/bintree/is-leaf: forall<a> (tree : tree<a>) -> bool
 cgen/specialize/bintree/main: () -> ()

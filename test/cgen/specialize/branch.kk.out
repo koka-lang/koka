@@ -4,6 +4,6 @@
 5
  
 cgen/specialize/branch/.lift000-main: (xs : list<int>) -> console ()
-cgen/specialize/branch/.lift000-main: forall<_e> (xs0 : list<int>) -> list<int>
+cgen/specialize/branch/.lift000-main: forall<_e> (xs : list<int>) -> list<int>
 cgen/specialize/branch/main: () -> console ()
 cgen/specialize/branch/map_other: forall<a,b> (xs : list<a>, f : (a) -> b, g : (a) -> b) -> list<b>

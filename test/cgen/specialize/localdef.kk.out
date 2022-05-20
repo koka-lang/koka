@@ -2,6 +2,6 @@
  
 cgen/specialize/localdef/.lift000-li: forall<a,e> (f : (int) -> e a, low : int, high : int, acc : list<a>) -> e list<a>
 cgen/specialize/localdef/.lift000-main: (low : int, high : int, acc : list<string>) -> console list<string>
-cgen/specialize/localdef/.mlift000-op: forall<a,e> (acc : list<a>, f : (int) -> e a, a00.000 : int, low : int, a) -> e list<a>
+cgen/specialize/localdef/.mlift000-op: forall<a,e> (acc : list<a>, f : (int) -> e a, high : int, low : int, a) -> e list<a>
 cgen/specialize/localdef/li: forall<a,e> (lo : int, hi : int, f : (int) -> e a) -> e list<a>
 cgen/specialize/localdef/main: () -> console ()

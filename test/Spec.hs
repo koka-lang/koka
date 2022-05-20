@@ -93,7 +93,9 @@ testSanitize kokaDir
   . sub "\\\\" "/"
   -- type variable names and box names
   . sub "\\.box-x[[:digit:]]+(-x[[:digit:]]+)?" ".box"
+  . sub "(\\.[a-zA-Z])[[:digit:]]+" "\\1"
   . sub "([a-zA-Z])\\.[[:digit:]]+" "\\1"
+  . sub "([a-zA-Z])\\.[[:digit:]]+\\.[[:digit:]]+" "\\1"
   . sub "<[[:digit:]]+>" "<0>"
   -- for tests using --showhiddentypesigs,
   -- e.g. .lift250-main => .lift000-main

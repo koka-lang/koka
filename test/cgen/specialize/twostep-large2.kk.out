@@ -4,23 +4,23 @@
 cgen/specialize/twostep-large2/.lift000-repeatN: forall<e,a> (f : () -> e a, lo : int, hi : int) -> e list<a>
 cgen/specialize/twostep-large2/.lift000-a: forall<e,a> (f : () -> e a, lo : int, hi : int) -> e list<a>
 cgen/specialize/twostep-large2/.lift000-large: (f : (int) -> total int, lo : int, hi : int) -> total list<list<list<int>>>
-cgen/specialize/twostep-large2/.lift000-large: (f : (int) -> total int, lo0 : int, hi0 : int) -> total list<list<int>>
-cgen/specialize/twostep-large2/.lift000-large: (f : (int) -> total int, lo1 : int, hi1 : int) -> total list<int>
+cgen/specialize/twostep-large2/.lift000-large: (f : (int) -> total int, lo : int, hi : int) -> total list<list<int>>
+cgen/specialize/twostep-large2/.lift000-large: (f : (int) -> total int, lo : int, hi : int) -> total list<int>
 cgen/specialize/twostep-large2/.lift000-main: () -> console ()
 cgen/specialize/twostep-large2/.lift000-main: () -> total int
 cgen/specialize/twostep-large2/.lift000-main: (lo : int, hi : int) -> total list<list<list<int>>>
-cgen/specialize/twostep-large2/.lift000-main: (lo0 : int, hi0 : int) -> total list<list<int>>
-cgen/specialize/twostep-large2/.lift000-main: (lo1 : int, hi1 : int) -> total list<int>
+cgen/specialize/twostep-large2/.lift000-main: (lo : int, hi : int) -> total list<list<int>>
+cgen/specialize/twostep-large2/.lift000-main: (lo : int, hi : int) -> total list<int>
 cgen/specialize/twostep-large2/.lift000-main: (xs : list<int>) -> total list<int>
 cgen/specialize/twostep-large2/.lift000-main: () -> total int
-cgen/specialize/twostep-large2/.lift000-main: (lo2 : int, hi2 : int) -> total list<list<list<int>>>
-cgen/specialize/twostep-large2/.lift000-main: (lo3 : int, hi3 : int) -> total list<list<int>>
-cgen/specialize/twostep-large2/.lift000-main: (lo4 : int, hi4 : int) -> total list<int>
-cgen/specialize/twostep-large2/.lift000-main: (xs0 : list<int>) -> total list<int>
+cgen/specialize/twostep-large2/.lift000-main: (lo : int, hi : int) -> total list<list<list<int>>>
+cgen/specialize/twostep-large2/.lift000-main: (lo : int, hi : int) -> total list<list<int>>
+cgen/specialize/twostep-large2/.lift000-main: (lo : int, hi : int) -> total list<int>
+cgen/specialize/twostep-large2/.lift000-main: (xs : list<int>) -> total list<int>
 cgen/specialize/twostep-large2/.mlift000-op: forall<e,a> (a, list<a>) -> e list<a>
-cgen/specialize/twostep-large2/.mlift000-op: forall<e,a> (f : () -> e a, hi : int, a00.000 : int, a) -> e list<a>
+cgen/specialize/twostep-large2/.mlift000-op: forall<e,a> (f : () -> e a, hi : int, lo : int, a) -> e list<a>
 cgen/specialize/twostep-large2/.mlift000-op: forall<e,a> (a, list<a>) -> e list<a>
-cgen/specialize/twostep-large2/.mlift000-op: forall<e,a> (f : () -> e a, hi : int, a00.000 : int, a) -> e list<a>
+cgen/specialize/twostep-large2/.mlift000-op: forall<e,a> (f : () -> e a, hi : int, lo : int, a) -> e list<a>
 cgen/specialize/twostep-large2/a: forall<a,e> (i : int, f : () -> e a) -> e list<a>
 cgen/specialize/twostep-large2/calls-large: (f : (int) -> total int) -> console ()
 cgen/specialize/twostep-large2/large: (f : (int) -> total int) -> total int

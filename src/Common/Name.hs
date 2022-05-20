@@ -310,7 +310,16 @@ toUniqueName i name
     reverse (insert (reverse (nameId name)))
   where
     insert (c:cs) | c `elem` "'?" = c : insert cs
-    insert cs     = reverse (show i) ++ cs
+    insert cs     = reverse ("." ++ show i) ++ cs
+
+toHiddenUniqueName :: Int -> String -> Name -> Name
+toHiddenUniqueName i "" name
+  = prepend "." (toUniqueName i name)
+toHiddenUniqueName i s name  
+  = makeHiddenName (s ++ show i) xname
+  where
+    xname = if (isAlpha (head (nameId name))) then name else newQualified (nameModule name) ("op")
+
 
 
 newFieldName i
@@ -456,11 +465,6 @@ postpend s cname
     in newQualified (nameModule name) (nameId name ++ s ++ post)
 
 
-toHiddenUniqueName :: Int -> String -> Name -> Name
-toHiddenUniqueName i s name
-  = makeHiddenName (s ++ show i) xname
-  where
-    xname = if (isAlpha (head (nameId name))) then name else newQualified (nameModule name) ("op")
 
 canonicalName :: Int -> Name -> Name
 canonicalName n name

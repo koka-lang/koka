@@ -8,7 +8,7 @@ cgen/specialize/tree-list/.lift000-main: (xs : list<tree<int>>) -> <div,console>
 cgen/specialize/tree-list/.mlift000-op: forall<a,e> (tree<a>, list<tree<a>>) -> <div|e> list<tree<a>>
 cgen/specialize/tree-list/.mlift000-op: forall<a,b,e> (f : (a) -> <div|e> b, xx : list<tree<a>>, tree<b>) -> <div|e> list<tree<b>>
 cgen/specialize/tree-list/.mlift000-mapT: forall<a,e> (a, list<tree<a>>) -> <div|e> tree<a>
-cgen/specialize/tree-list/.mlift000-mapT: forall<a,b,e> (children0 : list<tree<a>>, f : (a) -> <div|e> b, b) -> <div|e> tree<b>
+cgen/specialize/tree-list/.mlift000-mapT: forall<a,b,e> (children : list<tree<a>>, f : (a) -> <div|e> b, b) -> <div|e> tree<b>
 cgen/specialize/tree-list/children: forall<a> (tree : tree<a>) -> list<tree<a>>
 cgen/specialize/tree-list/data: forall<a> (tree : tree<a>) -> a
 cgen/specialize/tree-list/main: () -> <console,div> ()
