@@ -10,7 +10,7 @@
 -}
 -----------------------------------------------------------------------------
 module Common.Unique( -- * Unique
-                     HasUnique(updateUnique,setUnique,unique,uniques,uniqueId,uniqueIds,uniqueName)
+                     HasUnique(updateUnique,setUnique,unique,uniques,uniqueId,uniqueIds,uniqueName,uniqueNameFrom)
                    -- ** Instances
                    , Unique, runUnique, runUniqueWith, liftUnique, withUnique
                    , UniqueT, runUniqueT
@@ -36,6 +36,7 @@ class (Monad m, Functor m) => HasUnique m where
   uniqueId :: String -> m Id
   uniqueIds :: String -> Int -> m [Id]
   uniqueName :: String -> m Name
+  uniqueNameFrom :: Name -> m Name
 
   -- getUnique
   --  = updateUnique id
@@ -60,6 +61,10 @@ class (Monad m, Functor m) => HasUnique m where
   uniqueName baseName
     = do i <- unique
          return (newHiddenName (baseName ++ "." ++ show i))
+
+  uniqueNameFrom baseName
+    = do i <- unique
+         return (toUniqueName i baseName)
 
          
 {--------------------------------------------------------------------------

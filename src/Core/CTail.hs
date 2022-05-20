@@ -69,11 +69,18 @@ ctailDefGroup topLevel dg
       _ -> return [dg]
   where
     log
-      | DefRec [def] <- dg = "ctailDefGroup: " ++ show (defName def) ++ " " ++ (if (hasCTailCall (defTName def) True (defExpr def)) then "IS " else "is NOT ") ++ "eligible for ctail" 
-      | DefRec defs <- dg = "ctailDefGroup: found larger DefRec with names: " ++ unwords [show (defName def) | def <- defs ]
+      | DefRec [def] <- dg  = "ctailDefGroup: " ++ show (defName def) ++ " " ++ (if (hasCTailCall (defTName def) True (defExpr def)) then "IS " else "is NOT ") ++ "eligible for ctail" 
+      | DefRec defs <- dg   = "ctailDefGroup: found larger DefRec with names: " ++ unwords [show (defName def) | def <- defs ]
       | DefNonRec def <- dg = "ctailDefGroup: found DefNonRec with name: " ++ show (defName def)
 
 
+{-
+we generate 
+- if the runtime can copy contexts (setContextPath) 
+  we always generate a single definition which is optimized a bit if the effect is affine for sure (alwaysAffine)
+- otherwise, a single definition of the effect is affine for sure (alwaysAffine)
+- or two definitions for multiple resumptions (isMulti)
+-}
 ctailDef :: Bool -> Def -> CTail [DefGroup]
 ctailDef topLevel def
   = withCurrentDef def $
