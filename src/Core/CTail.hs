@@ -90,12 +90,13 @@ ctailDef topLevel def
                      ctailTName= TName ctailName ctailType
                      ctailTSlot= TName ctailSlot ctailSlotType
 
-                 cdefExpr <- withContext ctailTName False (Just ctailTSlot) $
+                 let alwaysAffine = effectIsAffine teff
+                 cdefExpr <- withContext ctailTName False {-isMulti-} alwaysAffine (Just ctailTSlot) $
                              ctailExpr True (makeCDefExpr ctailTSlot (defExpr def))
 
                  useContextPath <- getUseContextPath
                  let cdef = def{ defName = ctailName, defType = ctailType, defExpr = cdefExpr }
-                     needsMulti = not (useContextPath || effectIsAffine teff)
+                     needsMulti = not (useContextPath || alwaysAffine)
                      ctailMultiSlotType = TFun [(nameNil,tres)] typeTotal tres
                      ctailMultiName  = makeHiddenName "ctailm" (defName def)
                      ctailMultiSlot  = newHiddenName "accm"
@@ -104,7 +105,7 @@ ctailDef topLevel def
                      ctailMultiTSlot = TName ctailMultiSlot ctailMultiSlotType
                      ctailMultiVar   = Var ctailMultiTName (InfoArity (length tforall) (length targs + 1))
 
-                 wrapExpr <- withContext ctailTName False Nothing $
+                 wrapExpr <- withContext ctailTName False alwaysAffine Nothing $
                              do ctailWrapper ctailTSlot
                                   (if needsMulti then Just ctailMultiVar else Nothing)
                                   (defExpr def)
@@ -114,7 +115,7 @@ ctailDef topLevel def
                    then -- for sure, each op resumes at most once
                         return [ DefRec [cdef, def{defExpr = wrapExpr }] ]
                    else -- some ops may resume more than once; specialize for those
-                        do cdefMultiExpr <- withContext ctailMultiTName True (Just ctailMultiTSlot) $
+                        do cdefMultiExpr <- withContext ctailMultiTName True {-isMulti-} alwaysAffine  (Just ctailMultiTSlot) $
                                              ctailExpr True (makeCDefExpr ctailMultiTSlot (defExpr def))
                            let cdefMulti = def{ defName = ctailMultiName, defType = ctailMultiType, defExpr = cdefMultiExpr }
                            return $ [ DefRec [cdef, cdefMulti, def{defExpr = wrapExpr} ] ]
@@ -262,13 +263,16 @@ ctailExpr top expr
            case mbSlot of
               Nothing   -> return body
               Just slot -> do isMulti <- getIsMulti
-                              return (makeCTailResolve isMulti slot body)
+                              alwaysAffine <- getIsAlwaysAffine
+                              return (makeCTailResolve isMulti alwaysAffine slot body)
 
     handleConApp dname cname fcon fargs
       = do let mkCons args = bindArgs args $ (\xs -> return ([],App fcon xs))
            isMulti <- getIsMulti
            useContextPath <- getUseContextPath
-           mbExpr <- ctailTryArg (not isMulti && useContextPath) dname cname Nothing mkCons (length fargs) (reverse fargs)
+           alwaysAffine <- getIsAlwaysAffine
+           let useCtx = not isMulti && useContextPath && not alwaysAffine
+           mbExpr <- ctailTryArg useCtx dname cname Nothing mkCons (length fargs) (reverse fargs)
            case mbExpr of
              Nothing          -> tailResult (App fcon fargs)
              Just (defs,expr) -> return (makeLet defs expr)
@@ -397,7 +401,8 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
                                       hole  = makeCFieldHole resTp
                                   (defs,cons) <- mkConsApp [hole]
                                   consName    <- uniqueTName (typeOf cons)
-                                  let link = makeCTailLink slot consName (maybe consName id mbC) cname fieldName resTp
+                                  alwaysAffine <- getIsAlwaysAffine
+                                  let link = makeCTailLink slot consName (maybe consName id mbC) cname fieldName resTp alwaysAffine
                                       ctailCall   = mkTailApp ctailVar link -- App ctailVar (fargs ++ [link])
                                   return $ (defs ++ [DefNonRec (makeTDef consName cons)]
                                             ,ctailCall)
@@ -440,16 +445,17 @@ makeCFieldOf objName conName fieldName tp
 
 
 -- Compose two contexts
-makeCTailLink :: TName -> TName -> TName -> TName -> Name -> Type -> Expr
-makeCTailLink slot resName objName conName fieldName tp
+makeCTailLink :: TName -> TName -> TName -> TName -> Name -> Type -> Bool -> Expr
+makeCTailLink slot resName objName conName fieldName tp alwaysAffine
   = let fieldOf = makeCFieldOf objName conName fieldName tp
     in  App (TypeApp (Var (TName nameCTailLink funType) 
                 -- (InfoArity 1 3) 
-                (InfoExternal [(C CDefault,"kk_ctail_link(#1,#2,#3,kk_context())"),
+                (InfoExternal [(C CDefault,"kk_ctail_link(#1,#2,#3," ++ affine ++ ",kk_context())"),
                                (JS JsDefault,"$std_core_types._ctail_link(#1,#2,#3)")])
             ) [tp])
             [Var slot InfoNone, Var resName InfoNone, fieldOf]
   where
+    affine = if alwaysAffine then "true" else "false"
     funType = TForall [a] [] (TFun [(nameNil,TApp typeCTail [TVar a]),
                                     (nameNil,TVar a),
                                     (nameNil,TApp typeCField [TVar a])] typeTotal (TApp typeCTail [TVar a]))
@@ -457,17 +463,18 @@ makeCTailLink slot resName objName conName fieldName tp
 
 
 -- Apply a context to its final value.
-makeCTailResolve :: Bool -> TName -> Expr -> Expr
-makeCTailResolve True slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
+makeCTailResolve :: Bool {-isMulti-} -> Bool {-isAlwaysAffine-} -> TName -> Expr -> Expr
+makeCTailResolve True _ slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
   = App (Var slot InfoNone) [expr]
-makeCTailResolve False slot expr  -- slot is a `ctail<a>`
+makeCTailResolve False alwaysAffine slot expr  -- slot is a `ctail<a>`
   = App (TypeApp (Var (TName nameCTailResolve funType) 
                         -- (InfoArity 1 2)
-                        (InfoExternal [(C CDefault,"kk_ctail_resolve(#1,#2,kk_context())"),
+                        (InfoExternal [(C CDefault,"kk_ctail_resolve(#1,#2," ++ affine ++ ",kk_context())"),
                                        (JS JsDefault,"$std_core_types._ctail_resolve(#1,#2)")])
                       ) [tp])
         [Var slot InfoNone, expr]
   where
+    affine = if alwaysAffine then "true" else "false"
     tp = case typeOf slot of
            TApp _ [t] -> t
     funType = TForall [a] [] (TFun [(nameNil,TApp typeCTail [TVar a]),(nameNil,TVar a)] typeTotal (TVar a))
@@ -519,7 +526,8 @@ data Env = Env { currentDef :: [Def],
                  ctailName :: TName,
                  ctailSlot :: Maybe TName,
                  isMulti :: Bool,
-                 useContextPath :: Bool
+                 useContextPath :: Bool,
+                 alwaysAffine :: Bool
                }
 
 data CTailState = CTailState { uniq :: Int }
@@ -548,15 +556,15 @@ getSt = get
 ctailRun :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> Bool -> CTail a -> Unique a
 ctailRun penv platform newtypes gamma ctailInline useContextPath (CTail action)
   = withUnique $ \u ->
-      let env = Env [] penv platform newtypes gamma ctailInline (TName nameNil typeUnit) Nothing True useContextPath
+      let env = Env [] penv platform newtypes gamma ctailInline (TName nameNil typeUnit) Nothing True useContextPath False
           st = CTailState u
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
 
 
-withContext :: TName -> Bool -> Maybe TName -> CTail a -> CTail a
-withContext name isMulti mbSlot action
-  = withEnv (\env -> env{ ctailName = name, ctailSlot = mbSlot, isMulti = isMulti }) action
+withContext :: TName -> Bool -> Bool -> Maybe TName -> CTail a -> CTail a
+withContext name isMulti alwaysAffine mbSlot action
+  = withEnv (\env -> env{ ctailName = name, ctailSlot = mbSlot, isMulti = isMulti, alwaysAffine = alwaysAffine }) action
 
 getCTailFun :: CTail Expr
 getCTailFun
@@ -577,6 +585,10 @@ getIsMulti
 getUseContextPath :: CTail Bool
 getUseContextPath
   = useContextPath <$> getEnv  
+
+getIsAlwaysAffine :: CTail Bool
+getIsAlwaysAffine
+  = alwaysAffine <$> getEnv  
 
 getFieldName :: TName -> Int -> CTail (Either String (Expr,Name))
 getFieldName cname field

@@ -229,16 +229,7 @@ kk_box_t kk_cfun_ptr_boxx(kk_cfun_ptr_t f, kk_context_t* ctx) {
   }
 }
 
-kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b) {  // never drop; only used from function call
-  if (kk_likely(kk_box_is_value(b))) {
-    return (kk_cfun_ptr_t)(kk_uintf_unbox(b));
-  }
-  else {
-    kk_cfunptr_t fp = kk_basetype_unbox_as_assert(kk_cfunptr_t, b, KK_TAG_CFUNPTR);
-    kk_cfun_ptr_t f = fp->cfunptr;
-    return f;
-  }
-}
+
 
 /*----------------------------------------------------------------
   Maybe type support
