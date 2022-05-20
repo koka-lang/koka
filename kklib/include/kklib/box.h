@@ -393,7 +393,21 @@ typedef struct kk_cfunptr_s {
 #define kk_cfun_ptr_box(f,ctx)  kk_cfun_ptr_boxx((kk_cfun_ptr_t)f, ctx)
 
 kk_decl_export kk_box_t      kk_cfun_ptr_boxx(kk_cfun_ptr_t f, kk_context_t* ctx);
-kk_decl_export kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b);
+// kk_decl_export kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b);
+
+// inline as it is used for unboxing (higher-order) function pointers.
+// if we can guarantee for those function addresses to be always aligned we 
+// can perhaps optimize this further (without needing a check)?
+static inline kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b) {  // never drop; only used from function call
+  if (kk_likely(kk_box_is_value(b))) {
+    return (kk_cfun_ptr_t)(kk_uintf_unbox(b));
+  }
+  else {
+    kk_cfunptr_t fp = kk_basetype_unbox_as_assert(kk_cfunptr_t, b, KK_TAG_CFUNPTR);
+    kk_cfun_ptr_t f = fp->cfunptr;
+    return f;
+  }
+}
 
 
 

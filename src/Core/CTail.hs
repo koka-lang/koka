@@ -270,7 +270,9 @@ ctailExpr top expr
       = do let mkCons args = bindArgs args $ (\xs -> return ([],App fcon xs))
            isMulti <- getIsMulti
            useContextPath <- getUseContextPath
-           mbExpr <- ctailTryArg (not isMulti && useContextPath) dname cname Nothing mkCons (length fargs) (reverse fargs)
+           alwaysAffine <- getIsAlwaysAffine
+           let useCtx = not isMulti && useContextPath && not alwaysAffine
+           mbExpr <- ctailTryArg useCtx dname cname Nothing mkCons (length fargs) (reverse fargs)
            case mbExpr of
              Nothing          -> tailResult (App fcon fargs)
              Just (defs,expr) -> return (makeLet defs expr)
