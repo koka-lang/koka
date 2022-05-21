@@ -522,13 +522,7 @@ static inline void kk_free_local(const void* p, kk_context_t* ctx) {
   kk_free(p,ctx);
 }
 
-#define KK_HAS_MALLOC_COPY
-static inline void* kk_malloc_copy(const void* p, kk_context_t* ctx) {
-  const size_t size = mi_usable_size(p);
-  void* q = mi_heap_malloc(ctx->heap, size);
-  memcpy(q,p,size);
-  return q;
-}
+#define kk_malloc_usable_size(p)  mi_usable_size(p)
 
 #else
 static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
@@ -570,18 +564,17 @@ static inline void kk_free_local(const void* p, kk_context_t* ctx) {
 #define kk_malloc_usable_size(p)  _msize(p)
 #endif
 
-#if defined(kk_malloc_usable_size)
-#define KK_HAS_MALLOC_COPY
 #endif
 
+#if defined(kk_malloc_usable_size)
+#define KK_HAS_MALLOC_COPY
 static inline void* kk_malloc_copy(const void* p, kk_context_t* ctx) {
   const size_t size = kk_malloc_usable_size(p);
-  void* q = mi_heap_malloc(ctx->heap, size);
+  void* q = kk_malloc(kk_to_ssize_t(size), ctx);
   memcpy(q,p,size);
   return q;
 }
 #endif
-
 
 static inline void kk_block_init(kk_block_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
   kk_unused(size);
