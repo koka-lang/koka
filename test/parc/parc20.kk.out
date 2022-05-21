@@ -5,7 +5,7 @@ import std/core = std/core = "";
 pub fun test : (xs : list<int>) -> list<int>
  = fn(xs: list<int>){
  match (xs) {
- (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box: .Box), (.pat: list<int>)) : list<int> )
+ (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box: .Box), (.pat0: list<int>)) : list<int> )
  -> val _ : int
  = std/core/types/.dup(x);
  std/core/Cons((std/core/types/.box(x)), xs);

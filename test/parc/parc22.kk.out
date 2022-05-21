@@ -13,8 +13,8 @@ pub fun i : (^ hello : parc/parc22/hello) -> int
  };
  };
 pub fun .copy : (.this : parc/parc22/hello, i : optional<int>) -> parc/parc22/hello
- = fn(.this: parc/parc22/hello, i: optional<int>){
- parc/parc22/World((match (i) {
+ = fn(.this: parc/parc22/hello, i0: optional<int>){
+ parc/parc22/World((match (i0) {
  (std/core/types/Optional(((.skip std/core/types/.Box((.i: int)) : .Box ) as .box: .Box)) : optional<int> )
  -> val _ : ()
  = std/core/types/.drop(.this, (std/core/int32(1)));

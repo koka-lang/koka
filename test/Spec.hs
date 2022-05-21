@@ -95,7 +95,7 @@ testSanitize kokaDir
   . sub "\\.box-x[[:digit:]]+(-x[[:digit:]]+)?" ".box"
   . sub "(\\.[a-zA-Z])[[:digit:]]+" "\\1"
   . sub "([a-zA-Z])\\.[[:digit:]]+" "\\1"
-  . sub "([a-zA-Z])\\.[[:digit:]]+\\.[[:digit:]]+" "\\1"
+  -- . sub "([a-zA-Z])\\.[[:digit:]]+\\.[[:digit:]]+" "\\1"
   . sub "<[[:digit:]]+>" "<0>"
   -- for tests using --showhiddentypesigs,
   -- e.g. .lift250-main => .lift000-main
@@ -119,7 +119,7 @@ runKoka cfg kokaDir fp
   = do caseFlags <- readFlagsFile (fp ++ ".flags")
        let relTest = makeRelative kokaDir fp
            optFlag   = if (opt (options cfg) /= 0) then ["-O" ++ show (opt (options cfg))] else []
-           kokaFlags = flags cfg ++ optFlag ++ caseFlags 
+           kokaFlags = optFlag ++ flags cfg ++ caseFlags 
        if (cabal (options cfg))
          then do let argv = ["new-run", "koka", "--"] ++ kokaFlags ++ [relTest]
                  testSanitize kokaDir <$> readProcess "cabal" argv ""       

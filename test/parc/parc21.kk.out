@@ -17,9 +17,9 @@ pub fun test : () -> console int
  = parc/parc21/bo(3, 4);
  val _ : ()
  = std/core/prints((std/core/show(i)));
- val _.0 : ()
+ val _0 : ()
  = std/core/prints((std/core/show(3)));
- val _.1 : ()
+ val _1 : ()
  = std/core/prints((std/core/show(4)));
  parc/parc21/bo(3, 4);
  };
