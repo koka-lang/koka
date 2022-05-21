@@ -915,9 +915,11 @@ genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
 genExprExternalPrim tname formats [] | getName tname == nameCFieldHole
   = return ([],text "undefined")
 
+{-
 -- special case: cfield-set (field is implemented as {value:<obj>, field:<string>})
 genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCFieldSet
   = return ([], tupled [accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc, text "$std_core_types._Unit_"])
+-}
 
 -- normal external
 genExprExternalPrim tname formats argDocs0

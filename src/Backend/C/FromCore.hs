@@ -1791,10 +1791,10 @@ genAppNormal (Var cfieldOf _) [App (Var box _) [Var con _], Lit (LitString conNa
           doc = genFieldAddress con (readQualified conName) (readQualified fieldName)
       return (drop,text "(kk_box_t*)" <.> parens doc)
 
--- special: cfield-set-context
-genAppNormal (Var cfieldSetContext _) [conExpr, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldSetContext == nameCSetContextField
+-- special: ctail-set-context-path
+genAppNormal (Var ctailSetContextPath _) [conExpr, Lit (LitString conName), Lit (LitString fieldName)]  | getName ctailSetContextPath == nameCTailSetCtxPath
  = do (decl,conVar) <- genVarBinding conExpr
-      let doc = genFieldSetContext conVar (readQualified conName) (readQualified fieldName)
+      let doc = genCTailSetContextPath conVar (readQualified conName) (readQualified fieldName)
       return ([decl],doc)
 
 -- add/sub small constant 
@@ -1860,8 +1860,8 @@ genFieldAddress :: TName -> Name -> Name -> Doc
 genFieldAddress conVar conName fieldName
   = parens (text "&" <.> conAsNameX (conName) <.> parens (ppName (getName conVar)) <.> text "->" <.> ppName (unqualify fieldName))
 
-genFieldSetContext :: TName -> Name -> Name -> Doc
-genFieldSetContext conVar conName fieldName
+genCTailSetContextPath :: TName -> Name -> Name -> Doc
+genCTailSetContextPath conVar conName fieldName
   = text "kk_ctail_set_context_path" <.> 
       tupled [conAsNameX conName, ppName (getName conVar), 
               text "offsetof" <.> tupled [text "struct" <+> ppName conName, ppName (unqualify fieldName)]]
@@ -2010,9 +2010,11 @@ genExprExternal tname formats [argDoc] | getName tname == nameReuse
 genExprExternal tname formats [] | getName tname == nameCFieldHole
   = return ([],ppType (resultType (typeOf tname)) <.> text "_hole()")
 
+{-
 -- special case: cfield set
 genExprExternal tname formats [fieldDoc,argDoc] | getName tname == nameCFieldSet
   = return ([],text "*" <.> parens fieldDoc <+> text "=" <+> argDoc)
+-}
 
 -- normal external
 genExprExternal tname formats argDocs0

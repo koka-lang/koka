@@ -73,12 +73,12 @@ module Common.NamePrim
           -- * CTail optimization
           , nameTpCField, nameTpCTailAcc
           , nameCFieldHole
-          , nameCFieldSet
+          -- , nameCFieldSet
           , nameCFieldOf
-          , nameCTailNil
-          , nameCTailLink
-          , nameCTailResolve
-          , nameCSetContextField
+          , nameCTailUnit
+          , nameCTailCompose
+          , nameCTailApply
+          , nameCTailSetCtxPath
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -271,12 +271,11 @@ nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 nameTpCTailAcc    = cfieldName "ctail"
 nameTpCField      = cfieldName "cfield"
 nameCFieldHole    = cfieldName ".cfield-hole"
-nameCFieldSet     = cfieldName "cfield-set"   -- private (not hidden)
 nameCFieldOf      = cfieldName ".cfield-of"
-nameCTailNil      = cfieldName ".ctail-nil"
-nameCTailLink     = cfieldName ".ctail-link"
-nameCTailResolve  = cfieldName ".ctail-resolve"
-nameCSetContextField = cfieldName ".ctail-set-context-field"
+nameCTailUnit     = cfieldName ".ctail-unit"
+nameCTailCompose  = cfieldName ".ctail-compose"
+nameCTailApply    = cfieldName ".ctail-apply"
+nameCTailSetCtxPath=cfieldName ".ctail-set-context-path"
 cfieldName name   = coreTypesName name
 
 {--------------------------------------------------------------------------
