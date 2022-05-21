@@ -175,8 +175,7 @@ data Flags
          , optimize         :: Int       -- optimization level; 0 or less is off
          , optInlineMax     :: Int
          , optctail         :: Bool
-         , optctailInline   :: Bool
-         , optctailContext  :: Bool 
+         , optctailCtxPath  :: Bool 
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
@@ -269,8 +268,7 @@ flagsNull
           0    -- optimize
           12   -- inlineMax
           True -- optctail
-          False -- optctailInline
-          True -- optctailContext
+          True -- optctailCtxPath
           True -- parc reuse
           True -- parc specialize
           True -- parc reuse specialize
@@ -374,14 +372,13 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
  , hide $ fflag       ["monadic"]   (\b f -> f{enableMon=b})         "enable monadic translation"
  , hide $ flag []     ["semi"]      (\b f -> f{semiInsert=b})        "insert semicolons based on layout"
- , hide $ fflag       ["binference"]   (\b f -> f{parcBorrowInference=b})     "enable reuse inference (does not work cross-module!)"
- , hide $ fflag       ["optreuse"]     (\b f -> f{parcReuse=b})          "enable in-place update analysis"
- , hide $ fflag       ["optdropspec"]  (\b f -> f{parcSpecialize=b}) "enable drop specialization"
- , hide $ fflag       ["optreusespec"] (\b f -> f{parcReuseSpec=b})  "enable reuse specialization"
- , hide $ fflag       ["opttrmc"]      (\b f -> f{optctail=b})              "enable tail-recursion-modulo-cons optimization"
- , hide $ fflag       ["opttrmcinline"] (\b f -> f{optctailInline=b})  "enable trmc inlining (increases code size)"
- , hide $ fflag       ["opttrmcctx"] (\b f -> f{optctailContext=b})  "enable trmc context paths"
- , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})      "enable inline specialization"
+ , hide $ fflag       ["binference"]  (\b f -> f{parcBorrowInference=b})     "enable reuse inference (does not work cross-module!)"
+ , hide $ fflag       ["reuse"]       (\b f -> f{parcReuse=b})        "enable in-place update analysis"
+ , hide $ fflag       ["dropspec"]    (\b f -> f{parcSpecialize=b})   "enable drop specialization"
+ , hide $ fflag       ["reusespec"]   (\b f -> f{parcReuseSpec=b})    "enable reuse specialization"
+ , hide $ fflag       ["trmc"]        (\b f -> f{optctail=b})         "enable tail-recursion-modulo-cons optimization"
+ , hide $ fflag       ["trmcctx"]     (\b f -> f{optctailCtxPath=b})  "enable trmc context paths"
+ , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})    "enable inline specialization"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
@@ -662,7 +659,7 @@ processOptions flags0 opts
                        cdefs    = ccompDefs flags 
                                    ++ if stdAlloc then [] else [("KK_MIMALLOC",show (sizePtr (platform flags)))]
                                    ++ if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")]
-                                   ++ if optctailContext flags then [] else [("KK_CTAIL_NO_CONTEXT_PATH","")]
+                                   ++ if optctailCtxPath flags then [] else [("KK_CTAIL_NO_CONTEXT_PATH","")]
                    
                    -- vcpkg
                    -- (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
@@ -700,6 +697,7 @@ processOptions flags0 opts
                                                      else if (optimize flags <= 1) 
                                                        then (optInlineMax flags) `div` 3 
                                                        else (optInlineMax flags),
+                                  optctailCtxPath = (optctailCtxPath flags && isTargetC (target flags)),
 
                                   ccompPath   = ccmd,
                                   ccomp       = cc,

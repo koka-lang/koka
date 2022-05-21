@@ -918,7 +918,7 @@ inferCheck loaded0 flags line coreImports program
 
        -- tail-call-modulo-cons optimization
        when (optctail flags) $
-         ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) (optctailContext flags)
+         ctailOptimize penv newtypes gamma (optctailCtxPath flags)
       
        -- transform effects to explicit monadic binding (and resolve .open calls)
        when (enableMon flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $

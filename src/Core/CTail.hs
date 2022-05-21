@@ -42,14 +42,14 @@ import Core.Pretty
 --------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
-ctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> Bool -> CorePhase ()
-ctailOptimize penv platform newtypes gamma ctailInline useContextPath
+ctailOptimize :: Pretty.Env -> Newtypes -> Gamma -> Bool -> CorePhase ()
+ctailOptimize penv newtypes gamma useContextPath
   = liftCorePhaseUniq $ \uniq defs -> 
-    runUnique uniq (uctailOptimize penv platform newtypes gamma ctailInline useContextPath defs)
+    runUnique uniq (uctailOptimize penv newtypes gamma useContextPath defs)
 
-uctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> Bool -> DefGroups -> Unique DefGroups
-uctailOptimize penv platform newtypes gamma ctailInline useContextPath defs
-  = ctailRun penv platform newtypes gamma ctailInline useContextPath (ctailDefGroups True defs)
+uctailOptimize :: Pretty.Env -> Newtypes -> Gamma -> Bool -> DefGroups -> Unique DefGroups
+uctailOptimize penv newtypes gamma useContextPath defs
+  = ctailRun penv newtypes gamma useContextPath (ctailDefGroups True defs)
 
 --------------------------------------------------------------------------
 -- Definition groups
@@ -526,10 +526,8 @@ maybeStats xs expr
 
 data Env = Env { currentDef :: [Def],
                  prettyEnv :: Pretty.Env,
-                 platform  :: Platform,
                  newtypes :: Newtypes,
                  gamma :: Gamma,
-                 ctailInline :: Bool,
                  ctailName :: TName,
                  ctailSlot :: Maybe TName,
                  isMulti :: Bool,
@@ -560,10 +558,10 @@ updateSt = modify
 getSt :: CTail CTailState
 getSt = get
 
-ctailRun :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> Bool -> CTail a -> Unique a
-ctailRun penv platform newtypes gamma ctailInline useContextPath (CTail action)
+ctailRun :: Pretty.Env -> Newtypes -> Gamma -> Bool -> CTail a -> Unique a
+ctailRun penv newtypes gamma useContextPath (CTail action)
   = withUnique $ \u ->
-      let env = Env [] penv platform newtypes gamma ctailInline (TName nameNil typeUnit) Nothing True useContextPath False
+      let env = Env [] penv newtypes gamma (TName nameNil typeUnit) Nothing True useContextPath False
           st = CTailState u
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
@@ -643,11 +641,6 @@ getPrettyEnv = prettyEnv <$> getEnv
 withPrettyEnv :: (Pretty.Env -> Pretty.Env) -> CTail a -> CTail a
 withPrettyEnv f = withEnv (\e -> e { prettyEnv = f (prettyEnv e) })
 
-getPlatform :: CTail Platform
-getPlatform = platform <$> getEnv
-
-getOptCtailInline :: CTail Bool
-getOptCtailInline = ctailInline <$> getEnv
 
 ---------------------
 -- state accessors --
