@@ -36,11 +36,11 @@ foreach (source IN LISTS sources)
   add_executable(${name}-exe IMPORTED)
   set_target_properties(${name}-exe PROPERTIES IMPORTED_LOCATION "${out_path}")
 
-  # --fno-optctail
-  # --fno-optreuse
+  # --fno-trmc
+  # --fno-reuse
   add_custom_command(
     OUTPUT  ${outx_path}
-    COMMAND ${koka} --target=c --stack=128M --outputdir=${outx_dir} --buildname=${namex} -v -O2 --fno-opttrmc -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
+    COMMAND ${koka} --target=c --stack=128M --outputdir=${outx_dir} --buildname=${namex} -v -O2 --fno-trmc -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
     DEPENDS ${source}
     VERBATIM)
 
