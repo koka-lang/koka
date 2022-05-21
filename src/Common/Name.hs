@@ -310,7 +310,7 @@ toUniqueName i name
     reverse (insert (reverse (nameId name)))
   where
     insert (c:cs) | c `elem` "'?" = c : insert cs
-    insert cs     = reverse ("." ++ show i) ++ cs
+    insert cs     = reverse (show i) ++ cs
 
 toHiddenUniqueName :: Int -> String -> Name -> Name
 toHiddenUniqueName i "" name

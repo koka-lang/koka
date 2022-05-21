@@ -311,8 +311,7 @@ replaceCall name expr0 sort bools args mybeTypeArgs
               -- $ (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x)
               $ partitionBools bools
               $ zip (fnParams expr) args
-      let freev =  (tnamesUnions (map freeLocals speccedArgs))
-
+      
       -- create a new (recursive) specialized body where the specialized parameters become local defitions
       let specBody0
             = (\body -> case mybeTypeArgs of

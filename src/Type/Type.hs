@@ -514,7 +514,7 @@ typeResumeContext :: Tau -> Effect -> Effect -> Tau -> Tau
 typeResumeContext b e e0 r
   = TApp (TCon tcon) [b,e,e0,r]
   where
-    tcon = TypeCon nameTpResumeContext (kindFun kindStar (kindFun kindEffect (kindFun kindEffect kindStar)))
+    tcon = TypeCon nameTpResumeContext (kindFun kindStar (kindFun kindEffect (kindFun kindEffect (kindFun kindStar kindStar))))
 
 typeRef :: Tau
 typeRef
