@@ -670,7 +670,7 @@ static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t 
 }
 
 static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  #if 0
+  #if 1  
   kk_intf_t z = _kk_integer_value(x) - _kk_integer_value(y);
   if (kk_unlikely(!kk_is_smallint(y) || kk_not_in_small_range(z))) return kk_integer_sub_generic(x, y, ctx);
   //if (kk_unlikely(!kk_is_smallint(y))) return kk_integer_add_generic(x,y,ctx);
