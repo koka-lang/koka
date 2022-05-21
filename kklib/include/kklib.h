@@ -521,6 +521,15 @@ static inline void kk_free(const void* p, kk_context_t* ctx) {
 static inline void kk_free_local(const void* p, kk_context_t* ctx) {
   kk_free(p,ctx);
 }
+
+#define KK_HAS_MALLOC_COPY
+static inline void* kk_malloc_copy(const void* p, kk_context_t* ctx) {
+  const size_t size = mi_usable_size(p);
+  void* q = mi_heap_malloc(ctx->heap, size);
+  memcpy(q,p,size);
+  return q;
+}
+
 #else
 static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
   kk_unused(ctx);
@@ -548,6 +557,28 @@ static inline void kk_free(const void* p, kk_context_t* ctx) {
 
 static inline void kk_free_local(const void* p, kk_context_t* ctx) {
   kk_free(p,ctx);
+}
+
+#if defined(__linux__) || defined(__GLIBC__)
+#include <malloc.h>
+#define kk_malloc_usable_size(p)  malloc_usable_size(p)
+#elif defined(__APPLE__)
+#include <malloc/malloc.h>
+#define kk_malloc_usable_size(p)  malloc_size(p)
+#elif defined(_MSC_VER)
+#include <malloc.h>
+#define kk_malloc_usable_size(p)  _msize(p)
+#endif
+
+#if defined(kk_malloc_usable_size)
+#define KK_HAS_MALLOC_COPY
+#endif
+
+static inline void* kk_malloc_copy(const void* p, kk_context_t* ctx) {
+  const size_t size = kk_malloc_usable_size(p);
+  void* q = mi_heap_malloc(ctx->heap, size);
+  memcpy(q,p,size);
+  return q;
 }
 #endif
 
@@ -1382,8 +1413,22 @@ static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
 }
 
 
-kk_decl_export kk_box_t kk_ctail_context_compose( kk_box_t res, kk_box_t child, kk_context_t* ctx);
-#define kk_ctail_set_context_field(as_tp,x,field_offset)  \
+/*--------------------------------------------------------------------------------------
+  TRMC (Further primitives are defined in `lib/std/core/types-ctail-inline.h`)
+--------------------------------------------------------------------------------------*/
+
+#if !defined(KK_HAS_MALLOC_COPY)
+#define KK_CTAIL_NO_CONTEXT_PATH
+#else
+
+// functional context composition by copying along the context path and attaching `child` at the hole.
+kk_decl_export kk_box_t kk_ctail_context_copy_compose( kk_box_t res, kk_box_t child, kk_context_t* ctx);
+
+// use a macro as `x` can be a datatype or direct pointer; update the field_idx with the field
+// that is along the context path, and return `x` as is.
+#define kk_ctail_set_context_path(as_tp,x,field_offset)  \
   (kk_constructor_field_idx_set( as_tp(x), 1 + (field_offset - sizeof(kk_header_t))/sizeof(kk_box_t)), x)
+
+#endif
 
 #endif // include guard
