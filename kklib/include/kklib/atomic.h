@@ -25,6 +25,13 @@
 #define  kk_memory_order_t      memory_order
 #endif
 
+// ATOMIC_VAR_INIT is deprecated in C17 and C++20
+#if (__cplusplus >= 201803L || __STDC_VERSION__ >= 201710L)
+#define  KK_ATOMIC_VAR_INIT(x)  x
+#else
+#define  KK_ATOMIC_VAR_INIT(x)  ATOMIC_VAR_INIT(x)
+#endif
+
 #define kk_atomic_load_relaxed(p)           kk_atomic(load_explicit)(p,kk_memory_order(relaxed))
 #define kk_atomic_load_acquire(p)           kk_atomic(load_explicit)(p,kk_memory_order(acquire))
 #define kk_atomic_store_relaxed(p,x)        kk_atomic(store_explicit)(p,x,kk_memory_order(relaxed))
