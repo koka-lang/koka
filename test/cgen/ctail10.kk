@@ -13,8 +13,14 @@ fun tree(n : int)
 
 fun tmap(t : tree<a>, f : a -> e b) : e tree<b>
   match t
-    Tip -> Tip
     Bin(l, x, r) -> Bin(l.tmap(f), f(x), r.tmap(f))
+    Tip -> Tip
+    
+
+fun tmap1(t : tree<a>, f : a -> e b) : e tree<b>
+  match t
+    Tip -> Tip
+    _   -> tmap(t,f)
 
 fun tsum(t : tree<int>) : div int
   tsum'(t, 0)
@@ -25,8 +31,8 @@ fun tsum'(t : tree<int>, acc : int) : div int
     Bin(l, x, r) -> tsum'(l, tsum'(r, acc + x))
 
 fun test(n : int)
-  val xs = tree(n)
+  val t = tree(n)
   val x = fold-int(0,100000000/(if n<=0 then 1 else n),0) fn(i,acc)
-            // acc + xs.mapxx(fn(x){ x+1 }).sum
-            acc + xs.tmap(fn(x){ x+1 }).tsum
+            acc + t.tmap(fn(x){ x+1 }).tsum
+            //acc + t.tmap1(fn(x){ x+1 }).tsum
   println("total: " ++ x.show)
