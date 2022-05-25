@@ -1408,9 +1408,13 @@ inferApp propagated expect fun nargs rng
            topEff <- inferUnifies (checkEffect rng) ((getRange fun, eff1) : effArgs)
            inferUnify (checkEffectSubsume rng) (getRange fun) funEff topEff
 
+           let appexpr = case shortCircuit fcore coreArgs of
+                          Just cexpr -> cexpr
+                          Nothing    -> Core.App fcore coreArgs
+
            -- instantiate or generalize result type
            resTp1          <- subst expTp
-           (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect resTp1 (Core.App fcore coreArgs)
+           (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect resTp1 appexpr
            return (resTp,topEff,resCore )
 
     fst3 (x,y,z) = x
@@ -2231,19 +2235,21 @@ usesLocalsOp lvars b = usesLocals lvars (hbranchExpr b)
 
 shortCircuit :: Core.Expr -> [Core.Expr] -> Maybe Core.Expr
 shortCircuit fun [expr1,expr2] 
-  = case fun of
-      Core.App (Core.TypeApp (Core.Var open _) _) [Core.Var name _]  | Core.getName open == nameEffectOpen && Core.getName name == nameAnd
-        -> exprAnd
-      Core.App (Core.TypeApp (Core.Var open _) _) [Core.Var name _]  | Core.getName open == nameEffectOpen && Core.getName name == nameOr
-        -> exprOr
-      Core.Var name _ | Core.getName name == nameAnd
-        -> exprAnd
-      Core.Var name _ | Core.getName name == nameOr
-        -> exprOr      
-      _ -> Nothing 
+  = isAndOr fun
   where
     exprAnd = Just (Core.makeIfExpr expr1 expr2 Core.exprFalse)
     exprOr  = Just (Core.makeIfExpr expr1 Core.exprTrue expr2)
+
+    isAndOr expr
+      = case expr of
+          Core.App (Core.TypeApp (Core.Var open _) _) [body]  | Core.getName open == nameEffectOpen 
+            -> isAndOr body
+          Core.Var name _ | Core.getName name == nameAnd
+            -> exprAnd
+          Core.Var name _ | Core.getName name == nameOr
+            -> exprOr      
+          _ -> Nothing 
+
 
 shortCircuit fun args
   = Nothing
