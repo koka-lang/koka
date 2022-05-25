@@ -1306,7 +1306,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
             case target flags of
               C Wasm 
                 -> do return (Just (mainTarget, 
-                               runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ cmdflags ++ " " ++ execOpts flags))) 
+                               runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ " -- " ++ cmdflags ++ " " ++ execOpts flags))) 
               C WasmWeb
                 -> do return (Just (mainTarget, runSystemEcho term flags (dquote mainTarget ++ " &")))                
               C WasmJs
