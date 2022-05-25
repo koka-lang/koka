@@ -1418,9 +1418,9 @@ static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
 kk_decl_export kk_box_t kk_ctail_context_copy_compose( kk_box_t res, kk_box_t child, kk_context_t* ctx);
 
 // use a macro as `x` can be a datatype or direct pointer; update the field_idx with the field
-// that is along the context path, and return `x` as is.
+// index + 1 that is along the context path, and return `x` as is.
 #define kk_ctail_set_context_path(as_tp,x,field_offset)  \
-  (kk_constructor_field_idx_set( as_tp(x), 1 + (field_offset - sizeof(kk_header_t))/sizeof(kk_box_t)), x)
+  (kk_constructor_field_idx_set( as_tp(x), 1 + ((field_offset - sizeof(kk_header_t))/sizeof(kk_box_t)) ), x)
 
 #endif
 
