@@ -253,8 +253,8 @@ parcGuard scrutinees pats live (Guard test expr)
                  test' <- withOwned S.empty $ parcExpr test
                  return $ \liveInSomeBranch -> scoped pvs $ extendOwned ownedPvs $ extendShapes shapes $ do
                   let dups = S.intersection ownedPvs liveInThisBranch
-                  let drops = liveInSomeBranch \\ liveInThisBranch
-                  Guard test' <$> parcGuardRC dups drops expr'
+                  drops <- filterM isOwned (S.toList $ liveInSomeBranch \\ liveInThisBranch)
+                  Guard test' <$> parcGuardRC dups (S.fromList drops) expr'
 
 type Dups     = TNames
 type Drops    = TNames
