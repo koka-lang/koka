@@ -23,7 +23,7 @@ val all-test-names = ["rbtree","rbtree-ck","binarytrees","deriv","nqueens","cfol
 val all-lang-names = [
   ("koka","kk"),
   ("kokax","kkx"),
-  ("kokadev","kkdev"),
+  ("kokaold","kkold"),
   ("ocaml","ml"),
   ("haskell","hs"),
   ("swift","sw"),

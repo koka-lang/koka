@@ -2,29 +2,21 @@ set(sources cfold.kk deriv.kk nqueens.kk nqueens-int.kk
             rbtree-poly.kk rbtree.kk rbtree-int.kk
             rbtree-ck.kk binarytrees.kk)
 
-find_program(kokadev "koka-v2.3.3-dev")
-
-# stack exec koka -- --target=c -O2 -c $(readlink -f ../cfold.kk) -o cfold
-find_program(stack "stack" REQUIRED)
-if(APPLE)
-  set(koka ${stack} --system-ghc --skip-ghc-check exec koka --)
-else()
-  set(koka ${stack} exec koka --)
-endif()
-
+set(koka "/build/koka-v2.3.3/local/bin/koka-v2.3.3")
+set(kokaold "/build/koka-v2.3.3-old/local/bin/koka-v2.3.3")
 
 foreach (source IN LISTS sources)
   get_filename_component(basename "${source}" NAME_WE)
-  set(name    "kk-${basename}")
-  set(namex   "kkx-${basename}")
-  set(namedev "kkdev-${basename}")
+  set(name    "kk-${basename}")        # koka with reuse
+  set(namex   "kkx-${basename}")       # koka without trmc
+  set(nameold "kkold-${basename}")     # old koka reuse algorithm
 
   set(out_dir     "${CMAKE_CURRENT_BINARY_DIR}/out/bench")
   set(outx_dir    "${CMAKE_CURRENT_BINARY_DIR}/outx/bench")
-  set(outdev_dir  "${CMAKE_CURRENT_BINARY_DIR}/outdev/bench")
+  set(outold_dir  "${CMAKE_CURRENT_BINARY_DIR}/outold/bench")
   set(out_path    "${out_dir}/${name}")
   set(outx_path   "${outx_dir}/${namex}")
-  set(outdev_path "${outdev_dir}/${namedev}")
+  set(outold_path "${outold_dir}/${nameold}")
 
   add_custom_command(
     OUTPUT  ${out_path}
@@ -48,16 +40,16 @@ foreach (source IN LISTS sources)
   add_executable(${namex}-exe IMPORTED)
   set_target_properties(${namex}-exe PROPERTIES IMPORTED_LOCATION "${outx_path}")
 
-  if (NOT (${kokadev} MATCHES "kokadev-NOTFOUND"))
+  if (NOT (${kokaold} MATCHES "kokaold-NOTFOUND"))
     add_custom_command(
-      OUTPUT  ${outdev_path}
-      COMMAND ${kokadev} --target=c --stack=128M --outputdir=${outdev_dir} --buildname=${namedev} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
+      OUTPUT  ${outold_path}
+      COMMAND ${kokaold} --target=c --stack=128M --outputdir=${outold_dir} --buildname=${nameold} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
       DEPENDS ${source}
       VERBATIM)
 
-    add_custom_target(update-${namedev} ALL DEPENDS "${outdev_path}")
-    add_executable(${namedev}-exe IMPORTED)
-    set_target_properties(${namedev}-exe PROPERTIES IMPORTED_LOCATION "${outdev_path}")
+    add_custom_target(update-${nameold} ALL DEPENDS "${outold_path}")
+    add_executable(${nameold}-exe IMPORTED)
+    set_target_properties(${nameold}-exe PROPERTIES IMPORTED_LOCATION "${outold_path}")
   endif()
 
   add_test(NAME ${name} COMMAND ${name}-exe)

@@ -12,9 +12,9 @@ RUN apt-get update
 RUN apt-get install -y --no-install-recommends ca-certificates
 RUN apt-get install -y --no-install-recommends cmake make
 RUN apt-get install -y --no-install-recommends git
-RUN apt-get install -y --no-install-recommends gcc libc-dev
+RUN apt-get install -y --no-install-recommends gcc libc-dev build-essential tar
 RUN apt-get install -y --no-install-recommends curl xz-utils gnupg netbase zlib1g-dev
-RUN apt-get install -y --no-install-recommends build-essential tar
+RUN apt-get install -y --no-install-recommends pcre2-utils
 RUN rm -rf /var/lib/apt/lists/*
 
 # Swift
@@ -53,14 +53,27 @@ RUN opam switch -y create 4.14.0 --repositories=multicore=git+https://github.com
 # Stack
 WORKDIR /build
 RUN curl -sSL https://get.haskellstack.org/ | sh
-RUN git clone --recursive https://github.com/koka-lang/koka -b v2.4.1-artifact
+RUN git clone --recursive https://github.com/koka-lang/koka -b dev-icfp22
+
+# Koka v2.3.3 
+WORKDIR /build
+RUN git clone --recursive https://github.com/koka-lang/koka -b v2.3.3 koka-v2.3.3
+WORKDIR /build/koka-v2.3.3
+RUN stack build
+RUN stack exec koka -- -e util/bundle -- -i --prefix=./local
+
+# Koka v2.3.3 no-reuse
+WORKDIR /build
+RUN git clone --recursive https://github.com/koka-lang/koka -b v2.3.3-old koka-v2.3.3-old
+WORKDIR /build/koka-v2.3.3-old
+RUN stack build
+RUN stack exec koka -- -e util/bundle -- -i --prefix=./local
 
 # Koka
 WORKDIR /build/koka
 RUN stack build
-RUN apt-get install -y --no-install-recommends pcre2-utils
-RUN stack exec koka -- -e util/bundle -- --postfix=docker
-RUN util/install.sh -f -b bundle/v2.4.1/koka-docker.tar.gz
+# RUN stack exec koka -- -e util/bundle -- --postfix=docker
+# RUN util/install.sh -f -b bundle/v2.4.1/koka-docker.tar.gz
 
 # Benchmarks
 WORKDIR /build/koka/test/bench
