@@ -1,9 +1,9 @@
-// Based on Daniel Hillerström PhD Thesis,
+// Based on Daniel Hillerström's PhD Thesis,
 // "Foundations for Programming and Implementing Effect Handlers" (chap. 2)
 // <https://www.dhil.net/research/papers/thesis.pdf>
+// which shows how to build an OS API as a composition of (orthogonal) effect handlers.
 //
-// which is based on
-//
+// The terminology and design is based on:
 // "The UNIX Time- Sharing System" by Dennis M. Ritchie and Ken Thompson
 // https://dsf.berkeley.edu/cs262/unix.pdf
 
@@ -67,10 +67,11 @@ effect whoami
   fun whoami() : string
 
 fun env( user : user, action : () -> <whoami|e> a ) : e a
-  with fun whoami() match user
-                      Root  -> "root"    
-                      Alice -> "alice"
-                      Bob   -> "bob"
+  with fun whoami() 
+    match user
+      Root  -> "root"    
+      Alice -> "alice"
+      Bob   -> "bob"
   action()
 
 fun example3()
