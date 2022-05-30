@@ -875,16 +875,6 @@ inferCheck loaded0 flags line coreImports program
        simplifyNoDup
        -- traceDefGroups "simplify1"
 
-       -- inline: inline local definitions more aggressively (2x)
-       when (optInlineMax flags > 0) $
-         let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
-                         else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
-         in inlineDefs penv (2*(optInlineMax flags)) inlines
-       -- checkCoreDefs "inlined"
-
-       simplifyDupN
-       -- traceDefGroups "inlined"
-
        -- lift recursive functions to top-level before specialize (so specializeDefs do not contain local recursive definitions)
        liftFunctions penv
        checkCoreDefs "lifted"      
@@ -894,8 +884,17 @@ inferCheck loaded0 flags line coreImports program
        when (optUnroll flags > 0) $
          do unrollDefs penv (optUnroll flags)
             -- traceDefGroups "unrolled"
-    
 
+       -- inline: inline local definitions more aggressively (2x)
+       when (optInlineMax flags > 0) $
+         let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
+                         else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
+         in inlineDefs penv (2*(optInlineMax flags)) inlines
+       -- checkCoreDefs "inlined"
+
+       simplifyDupN
+       -- traceDefGroups "inlined"
+     
        -- specialize 
        specializeDefs <- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
                          Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)

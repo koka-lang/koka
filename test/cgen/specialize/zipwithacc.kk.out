@@ -1,9 +1,8 @@
 [21,24,27,30,33,36,39,42,45,48]
  
-cgen/specialize/zipwithacc/.lift000-main: (i369 : int, acc370 : list<int>, xs371 : list<int>, ys372 : list<int>) -> console list<int>
-cgen/specialize/zipwithacc/.lift000-main: (i377 : int, acc378 : list<int>, xs379 : list<int>, ys380 : list<int>) -> console list<int>
-cgen/specialize/zipwithacc/.mlift000-unroll267-zipwith-acc: forall<e,a,b,c> (acc : list<b>, f : (int, a, c) -> e b, i : int, xx : list<a>, yy : list<c>, b) -> 
+cgen/specialize/zipwithacc/.lift000-main: (i375 : int, acc376 : list<int>, xs377 : list<int>, ys378 : list<int>) -> console list<int>
+cgen/specialize/zipwithacc/.mlift000-unroll261-zipwith-acc: forall<e,a,b,c> (acc : list<b>, f : (int, a, c) -> e b, i : int, xx : list<a>, yy : list<c>, b) -> 
  e list<b>
-cgen/specialize/zipwithacc/.unroll267-zipwith-acc: forall<a,b,c,e> ((int, a, b) -> e c, int, list<c>, list<a>, list<b>) -> e list<c>
+cgen/specialize/zipwithacc/.unroll261-zipwith-acc: forall<a,b,c,e> ((int, a, b) -> e c, int, list<c>, list<a>, list<b>) -> e list<c>
 cgen/specialize/zipwithacc/main: () -> console ()
 cgen/specialize/zipwithacc/zipwith-acc: forall<a,b,c,e> ((int, a, b) -> e c, int, list<c>, list<a>, list<b>) -> e list<c>

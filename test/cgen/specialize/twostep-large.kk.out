@@ -1,8 +1,9 @@
 75
 75
  
-cgen/specialize/twostep-large/.lift000-main: (lo257 : int, hi258 : int) -> total list<int>
-cgen/specialize/twostep-large/.lift000-main: (lo265 : int, hi266 : int) -> total list<int>
+cgen/specialize/twostep-large/.lift000-main: () -> console ()
+cgen/specialize/twostep-large/.lift000-main: (lo267 : int, hi268 : int) -> total list<int>
+cgen/specialize/twostep-large/.lift000-main: (lo275 : int, hi276 : int) -> total list<int>
 cgen/specialize/twostep-large/calls-large: (f : (int) -> total int) -> console ()
 cgen/specialize/twostep-large/large: (f : (int) -> total int) -> total int
 cgen/specialize/twostep-large/main: () -> console ()

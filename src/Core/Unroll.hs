@@ -56,7 +56,7 @@ import Core.CoreVar
 import Core.Uniquefy
 
 trace s x =
-  -- Lib.Trace.trace s
+  Lib.Trace.trace s
     x
 
 
@@ -112,9 +112,9 @@ unrollBody def tpars pars eff body
                          rcall = App (makeTypeApp (Var rname info) [TVar tv | tv <- tpars]) [Var v InfoNone | v <- pars]
                          wild = Branch (map (\_ -> PatWild) pats) [Guard exprTrue rcall]
                          mkFun b = (if null tpars then id else TypeLam tpars) (Lam pars eff b)
-                         ddef = def{ defExpr = mkFun (Case exprs (nonrecbs ++ [wild])), defInline = InlineAuto,
-                                     defDoc = "// unrolling of singleton matches of " ++ show (getName rname) }
-                     unrollTrace ("unroll " ++ show (defName rdef) ++ " to " ++ show (defName ddef))
+                         ddef = def{ defExpr = mkFun (Case exprs (nonrecbs ++ [wild])), defInline = InlineAlways,
+                                     defDoc = "// unrolling of singleton matches of " ++ show (getName rname) ++ "\n" }
+                     verboseDoc $ \penv -> text ("unroll " ++ show (defName ddef) ++ "  (to " ++ show (defName rdef) ++ ")")
                      return [DefRec [rdef], DefNonRec ddef]
              _ -> do -- unrollTrace "no unroll"
                      return []
@@ -253,3 +253,9 @@ uniqueTNameFrom tname
   = do i <- unique
        let name = toHiddenUniqueName i "unroll" (getName tname)
        return (TName name (typeOf tname))
+
+verboseDoc :: (Pretty.Env -> Doc) -> Unroll ()
+verboseDoc f
+  = do env <- getEnv
+       when (verbose (prettyEnv env) >= 2) $
+         Lib.Trace.trace (show (f (prettyEnv env))) (return ())

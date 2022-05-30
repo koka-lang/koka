@@ -1,10 +1,8 @@
 [2,3,4]
  
-cgen/specialize/map/.lift000-test: (xs224 : list<int>) -> list<int>
-cgen/specialize/map/.lift000-test: (xs229 : list<int>) -> list<int>
-cgen/specialize/map/.lift000-main: (xs237 : list<int>) -> list<int>
-cgen/specialize/map/.lift000-main: (xs242 : list<int>) -> list<int>
-cgen/specialize/map/.unroll123-map-int: (xs : list<int>, f : (int) -> int) -> list<int>
+cgen/specialize/map/.lift000-test: (xs226 : list<int>) -> list<int>
+cgen/specialize/map/.lift000-main: (xs234 : list<int>) -> list<int>
+cgen/specialize/map/.unroll117-map-int: (xs : list<int>, f : (int) -> int) -> list<int>
 cgen/specialize/map/main: () -> console ()
 cgen/specialize/map/map-int: (xs : list<int>, f : (int) -> int) -> list<int>
 cgen/specialize/map/test: () -> list<int>
