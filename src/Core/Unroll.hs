@@ -56,7 +56,7 @@ import Core.CoreVar
 import Core.Uniquefy
 
 trace s x =
-  Lib.Trace.trace s
+  -- Lib.Trace.trace s
     x
 
 

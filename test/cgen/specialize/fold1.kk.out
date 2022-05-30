@@ -5,7 +5,6 @@ add default effect for std/core/exn
  
 cgen/specialize/fold1/.hmain: () -> console ()
 cgen/specialize/fold1/.lift000-main: (xs655 : list<int>, z656 : int) -> <console,exn> int
-cgen/specialize/fold1/.mlift000-op: (xx660 : list<int>, int) -> <console,exn> int
 cgen/specialize/fold1/.mlift000-main: (int) -> <exn,console> ()
 cgen/specialize/fold1/.mlift000-main: (int) -> <console,exn> ()
 cgen/specialize/fold1/.mlift000-main: (int) -> <console,exn> ()

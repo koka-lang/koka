@@ -23,9 +23,13 @@
 89
 97
  
-cgen/specialize/sieve/.lift000-sieve: (x : int, xs341 : list<int>) -> div list<int>
-cgen/specialize/sieve/.lift000-test: (xs351 : list<int>) -> <console,div> ()
-cgen/specialize/sieve/.lift000-main: (xs358 : list<int>) -> <console,div> ()
+cgen/specialize/sieve/.lift000-unroll241-sieve: (x : int, xs342 : list<int>) -> div list<int>
+cgen/specialize/sieve/.lift000-unroll241-sieve: (x : int, xs347 : list<int>) -> div list<int>
+cgen/specialize/sieve/.lift000-test: (xs357 : list<int>) -> <console,div> ()
+cgen/specialize/sieve/.lift000-test: (xs362 : list<int>) -> <console,div> ()
+cgen/specialize/sieve/.lift000-main: (xs369 : list<int>) -> <console,div> ()
+cgen/specialize/sieve/.lift000-main: (xs374 : list<int>) -> <console,div> ()
+cgen/specialize/sieve/.unroll241-sieve: (xs : list<int>, max : int) -> div list<int>
 cgen/specialize/sieve/gen-primes: (n : int) -> div list<int>
 cgen/specialize/sieve/main: () -> <console,div> ()
 cgen/specialize/sieve/sieve: (xs : list<int>, max : int) -> div list<int>
