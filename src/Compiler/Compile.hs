@@ -880,7 +880,7 @@ inferCheck loaded0 flags line coreImports program
        checkCoreDefs "lifted"      
        -- traceDefGroups "lifted"
 
-       -- unroll recursive definitions
+       -- unroll recursive definitions (before inline so generated wrappers can be inlined)
        when (optUnroll flags > 0) $
          do unrollDefs penv (optUnroll flags)
             -- traceDefGroups "unrolled"
