@@ -1210,7 +1210,7 @@ extractSignatures core
                 extractExternals (coreProgExternals core),
                 extractDefs (coreProgDefs core)
               ]
-    in -- trace ("extract signatures: " ++ show (map pretty tps)) $
+    in -- trace ("extract signatures: " ++ show (map pretty tps)) $ 
        tps
   where
     extractExternals = concatMap extractExternal

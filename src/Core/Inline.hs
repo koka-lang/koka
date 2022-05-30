@@ -7,7 +7,9 @@
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
--- Inl all local and anonymous functions to top level. No more letrec :-)
+-- Inline top-level functions (across modules)
+-- Does not inline recursive top-level functions, that is done by specialization
+-- (See Core/Specialize).
 -----------------------------------------------------------------------------
 
 module Core.Inline( inlineDefs

@@ -318,7 +318,8 @@ toHiddenUniqueName i "" name
 toHiddenUniqueName i s name  
   = makeHiddenName (s ++ show i) xname
   where
-    xname = if (isAlpha (head (nameId name))) then name else newQualified (nameModule name) ("op")
+    c = (head (nameId name))
+    xname = if (isAlpha c || c=='.' ) then name else newQualified (nameModule name) ("op")
 
 
 

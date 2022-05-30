@@ -75,6 +75,7 @@ executable koka
       Core.Specialize
       Core.Uniquefy
       Core.UnReturn
+      Core.Unroll
       Interpreter.Command
       Interpreter.Interpret
       Kind.Assumption

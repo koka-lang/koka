@@ -66,6 +66,7 @@ import Core.Inlines           ( inlinesExtends, extractInlineDefs, inlinesMerge,
 import Core.Borrowed          ( Borrowed )
 import Core.Inline            ( inlineDefs )
 import Core.Specialize
+import Core.Unroll            ( unrollDefs )
 
 import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
@@ -889,6 +890,12 @@ inferCheck loaded0 flags line coreImports program
        checkCoreDefs "lifted"      
        -- traceDefGroups "lifted"
 
+       -- unroll recursive definitions
+       when (optUnroll flags > 0) $
+         do unrollDefs penv (optUnroll flags)
+            -- traceDefGroups "unrolled"
+    
+
        -- specialize 
        specializeDefs <- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
                          Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
@@ -905,8 +912,8 @@ inferCheck loaded0 flags line coreImports program
             -- lifting remaining recursive functions to top level (must be after specialize as that can generate local recursive definitions)
             liftFunctions penv
             checkCoreDefs "specialized"
-            -- traceDefGroups "specialized and lifted"          
-    
+            -- traceDefGroups "specialized and lifted"        
+
        -- simplify once more
        simplifyDupN
        coreDefsInlined <- Core.getCoreDefs

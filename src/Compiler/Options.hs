@@ -176,6 +176,7 @@ data Flags
          , optInlineMax     :: Int
          , optctail         :: Bool
          , optctailCtxPath  :: Bool 
+         , optUnroll        :: Int
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
@@ -269,6 +270,7 @@ flagsNull
           12   -- inlineMax
           True -- optctail
           True -- optctailCtxPath
+          (-1) -- optUnroll
           True -- parc reuse
           True -- parc specialize
           True -- parc reuse specialize
@@ -379,6 +381,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["trmc"]        (\b f -> f{optctail=b})         "enable tail-recursion-modulo-cons optimization"
  , hide $ fflag       ["trmcctx"]     (\b f -> f{optctailCtxPath=b})  "enable trmc context paths"
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})    "enable inline specialization"
+ , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
@@ -698,7 +701,9 @@ processOptions flags0 opts
                                                        then (optInlineMax flags) `div` 3 
                                                        else (optInlineMax flags),
                                   optctailCtxPath = (optctailCtxPath flags && isTargetC (target flags)),
-
+                                  optUnroll   = if (optUnroll flags < 0) 
+                                                  then (if (optimize flags > 0) then 1 else 0)
+                                                  else optUnroll flags,
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
                                   ccompDefs   = cdefs,
