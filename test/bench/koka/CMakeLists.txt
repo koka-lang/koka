@@ -2,8 +2,8 @@ set(sources cfold.kk deriv.kk nqueens.kk nqueens-int.kk
             rbtree-poly.kk rbtree.kk rbtree-int.kk
             rbtree-ck.kk binarytrees.kk)
 
-set(koka "/build/koka-v2.3.3/local/bin/koka-v2.3.3")
-set(kokaold "/build/koka-v2.3.3-old/local/bin/koka-v2.3.3")
+set(koka "/build/koka-v2.3.3/local/bin/koka")
+set(kokaold "/build/koka-v2.3.3-old/local/bin/koka")
 
 foreach (source IN LISTS sources)
   get_filename_component(basename "${source}" NAME_WE)
@@ -18,9 +18,15 @@ foreach (source IN LISTS sources)
   set(outx_path   "${outx_dir}/${namex}")
   set(outold_path "${outold_dir}/${nameold}")
 
+  if("${source}" MATCHES "rbtree*")
+    set(ccomp "clang")
+  else()
+    set(ccomp "gcc")
+  endif()
+
   add_custom_command(
     OUTPUT  ${out_path}
-    COMMAND ${koka} --target=c --stack=128M --outputdir=${out_dir} --buildname=${name} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
+    COMMAND ${koka} --target=c --cc=${ccomp} --stack=128M --outputdir=${out_dir} --buildname=${name} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
     DEPENDS ${source}
     VERBATIM)
 
@@ -32,7 +38,7 @@ foreach (source IN LISTS sources)
   # --fno-reuse
   add_custom_command(
     OUTPUT  ${outx_path}
-    COMMAND ${koka} --target=c --stack=128M --outputdir=${outx_dir} --buildname=${namex} -v -O2 --fno-trmc -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
+    COMMAND ${koka} --target=c --cc=${ccomp} --stack=128M --outputdir=${outx_dir} --buildname=${namex} -v -O2 --fno-opttrmc -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
     DEPENDS ${source}
     VERBATIM)
 
@@ -43,7 +49,7 @@ foreach (source IN LISTS sources)
   if (NOT (${kokaold} MATCHES "kokaold-NOTFOUND"))
     add_custom_command(
       OUTPUT  ${outold_path}
-      COMMAND ${kokaold} --target=c --stack=128M --outputdir=${outold_dir} --buildname=${nameold} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
+      COMMAND ${kokaold} --target=c --cc=${ccomp} --stack=128M --outputdir=${outold_dir} --buildname=${nameold} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
       DEPENDS ${source}
       VERBATIM)
 
