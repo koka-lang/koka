@@ -1,26 +1,26 @@
 # ICFP Paper Artifact: Reference Counting with Frame Limited Reuse
 
-Anton Lorenzen and Daan Leijen
-
-Docker image: daanx/icfp22-reuse:1.0
-Digest      : sha256:0f6b9912e78f6bc1416c9ac44ea3454c51c5a4f04784a5cff25b47a6c1560c2f
+Docker image: daanx/icfp22-reuse:1.1
+Digest      : sha256:c91738f73e295732feed14a3d941e8b29ada663854f267b78f40c3d75b8bf6ed
 
 # Getting Started
 
-We provide a docker image (based on Ubuntu 20.04, about 4GiB) to run the benchmarks:
+We provide a docker image (based on Ubuntu 20.04, about 5GiB) to run the benchmarks:
 
 ```
-> docker pull daanx/icfp22-reuse:1.0
-> docker run -it daanx/icfp22-reuse:1.0
+> docker pull daanx/icfp22-reuse:1.1
+> docker run -it daanx/icfp22-reuse:1.1
 ```
 
 We now see the docker prompt as:
 
 ```
-> root@1c23a03bab34:/build/koka/test/bench/build#
+> root@7bed5d789b56:/build/koka/test/bench/build#
 ```
 
 We will shorten this to `/build/koka/test/bench/build#` in the guide.
+This directory also contains this README.md.
+
 From this prompt, we can test if we can run our benchmarks as:
 
 ```
@@ -63,7 +63,7 @@ rbtree, kkfbip,  0.89x ~0.017, 1.00x
 
 This runs the `rbtree` benchmark for all systems (koka, kokax, kokaold, kokafbip, ocaml, haskell, swift, java, cpp),
 and eventually provides a summary in absolute runtimes (and rss), and normalized
-runtimes (and rss) relative to `koka`. 
+runtimes (and rss) relative to `koka` (`kk`). 
 
 Note that the precise results depend quite a bit on the host system -- the above results
 are on a 16-core AMD 5950X @ 3.4Ghz inside the Docker container.
@@ -82,8 +82,34 @@ the following command:
 ```
 
 to run all benchmarks 10 times for each available language, and use the median
-of those runs (and calculate the standard error interval).
+of those runs (and calculate the standard error interval). 
+
 The expected results on an AMD5950X are at the bottom of this readme.
+These should correspond closely to the results in Section 6 and Figure 8 of the paper.
+
+Note that results may differ across systems quite a bit (see for example the (non-anonymous)
+technical report [1] that contains figures on the M1 in appendix B).
+However, to support the conclusions in the paper, only the following should hold:
+
+1. The results for `koka`, `kokax`, and `kokaold` should be relatively the same as the
+   expected results for each benchmark. That is, for rbtree for example, `koka` should be fastest, 
+   followed by `kokax` (no TRMC) and then `kokaold` (old reuse algorithm). Also, `kokaold`
+   should never be much faster than `koka` (within the error margin.). This supports the conclusion
+   that our new reuse approach is always better.
+2. The `kokafbip` versions (for `rbtree`, `rbtree-ck`, and `binarytrees` only) are hopefully as fast
+   as `koka`. For older systems we have seen it perform less good due to cache effects
+   but on a modern CPU this should not be the case. (see Section 7 of the paper).
+3. The relative results of all other systems (ocaml, haskell, swift, java, cpp) are less 
+   important as those are just there to give a sense of the absolute performance of `koka`
+   but are not used otherwise. We do use cpp as a baseline though of the "best" performance
+   so in particular for rbtree it is expected that `koka` is at least as fast.
+4. The CPU/Cache/Memory/emulation matters: for example on the AMD5950x/x64 the `rbtree` benchmark
+   with `kokafbip` is over 30% faster than `cpp`, but on the M1/aarch64 only 7%. [1], or running Docker
+   emulated on an M1 makes Haskell use over 50x times the memory of koka on rbtree while
+   normally it should be no more than 5x for rbtree, etc.
+
+
+## Benchmark Descriptions
 
 Running all benchmarks over all systems takes a while (10 to 30min); we can use the `--lang=<langs>` and
 `--test=<tests>` options to run a particular test for a specific language, for example:
@@ -121,8 +147,8 @@ Available tests are described in detail in Section 4 and are:
 
 The `koka`/`kk` version is using the compiler in `/build/koka-v2.3.3` with the new reuse 
 algorithm, while `kokaold`/`kkold` is based on the `/build/koka-v2.3.3-old` compiler
-that is exactly like `koka` except with the old reuse algorithm. (This is why
-we cannot use the more recent (and better) koka v2.4.x versions since we only
+that is exactly like `koka` except with the old reuse algorithm and no borrowing. 
+(This is why we cannot use the more recent (and better) koka v2.4.x versions since we only
 carefully maintained the `kokaold` to track `koka` up to the v2.3.3 version).
 
 
@@ -133,6 +159,7 @@ All the sources are in the `/build/koka/test/bench/<lang>` directories. For exam
 /build/koka/test/bench/build# ls ../java
 CMakeLists.txt  binarytrees.java  cfold.java  deriv.java  nqueens.java  rbtree.java  rbtreeck.java
 ```
+
 
 ## Re-build the Benchmarks
 
@@ -149,6 +176,7 @@ container on a 16-core AMD 5950X @ 3.4Ghz.
 
 ```
 root@...:/build/koka/test/bench/build# koka -e ../bench.kk -- --iter=10 --norm
+...
 ```
 
 ```
@@ -286,3 +314,8 @@ cfold,    jv,  2.44x ~0.004, 3.40x
 cfold,   cpp,  3.11x ~0.004, 2.93x
 cfold, kkfbip, error: NA
 ```
+
+## Further References
+
+[1] Benchmark results on the M1 compiled natively to aarch64 are in appendix B of:
+    <https://www.microsoft.com/en-us/research/uploads/prod/2021/11/flreuse-tr.pdf>
