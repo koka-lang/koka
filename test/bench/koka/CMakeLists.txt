@@ -2,7 +2,7 @@ set(sources cfold.kk deriv.kk nqueens.kk nqueens-int.kk
             rbtree-poly.kk rbtree.kk rbtree-int.kk
             rbtree-ck.kk binarytrees.kk)
 
-find_program(kokadev "koka-v2.3.3-dev")
+find_program(kokadev "koka-dev")
 
 # stack exec koka -- --target=c -O2 -c $(readlink -f ../cfold.kk) -o cfold
 find_program(stack "stack" REQUIRED)
@@ -25,6 +25,12 @@ foreach (source IN LISTS sources)
   set(out_path    "${out_dir}/${name}")
   set(outx_path   "${outx_dir}/${namex}")
   set(outdev_path "${outdev_dir}/${namedev}")
+
+  if ("${source}" MATCHES "rbtree*")
+    set(ccomp "clang")
+  else()
+    set(ccomp "gcc")
+  endfi()
 
   add_custom_command(
     OUTPUT  ${out_path}

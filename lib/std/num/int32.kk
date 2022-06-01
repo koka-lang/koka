@@ -377,3 +377,11 @@ pub fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<a> )
         Just(x) -> Just(x)
     else Nothing
   rep(start)
+
+pub fun list32( lo: int32, hi: int32 ) : total list<int32>
+  if lo <= hi
+    then Cons( lo, list32( unsafe-decreasing(lo.inc), hi ) )
+    else Nil
+
+pub fun sum32( xs : list<int32> ) : int32
+  xs.foldl( 0.int32, fn(x,y) { x + y } )    
