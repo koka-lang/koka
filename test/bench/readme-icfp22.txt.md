@@ -1,21 +1,21 @@
 # ICFP Paper Artifact: Reference Counting with Frame Limited Reuse
 
-Docker image: daanx/icfp22-reuse:1.1
-Digest      : sha256:c91738f73e295732feed14a3d941e8b29ada663854f267b78f40c3d75b8bf6ed
+Docker image: daanx/icfp22-reuse:1.2
+Digest      : sha256:83f5c12b08ed41ac289691dcde0cc7d51d4728cad68f1cf31a1eb3611a5e309a
 
 # Getting Started
 
 We provide a docker image (based on Ubuntu 20.04, about 5GiB) to run the benchmarks:
 
 ```
-> docker pull daanx/icfp22-reuse:1.1
-> docker run -it daanx/icfp22-reuse:1.1
+> docker pull daanx/icfp22-reuse:1.2
+> docker run -it daanx/icfp22-reuse:1.2
 ```
 
 We now see the docker prompt as:
 
 ```
-> root@7bed5d789b56:/build/koka/test/bench/build#
+> root@43108f4c2f0f:/build/koka/test/bench/build#
 ```
 
 We will shorten this to `/build/koka/test/bench/build#` in the guide.
@@ -101,8 +101,7 @@ However, to support the conclusions in the paper, only the following should hold
    but on a modern CPU this should not be the case. (see Section 7 of the paper).
 3. The relative results of all other systems (ocaml, haskell, swift, java, cpp) are less 
    important as those are just there to give a sense of the absolute performance of `koka`
-   but are not used otherwise. We do use cpp as a baseline though of the "best" performance
-   so in particular for rbtree it is expected that `koka` is at least as fast.
+   but are not used otherwise.
 4. The CPU/Cache/Memory/emulation matters: for example on the AMD5950x/x64 the `rbtree` benchmark
    with `kokafbip` is over 30% faster than `cpp`, but on the M1/aarch64 only 7%. [1], or running Docker
    emulated on an M1 makes Haskell use over 50x times the memory of koka on rbtree while
