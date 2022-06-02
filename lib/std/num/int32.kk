@@ -384,4 +384,4 @@ pub fun list32( lo: int32, hi: int32 ) : total list<int32>
     else Nil
 
 pub fun sum32( xs : list<int32> ) : int32
-  xs.foldl( 0.int32, fn(x,y) { x + y } )    
+  xs.foldl( 0.int32, fn(x,y) x + y )    
