@@ -22,6 +22,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char
 import Data.Maybe (catMaybes, maybeToList)
+import Data.List (isSuffixOf)
 import qualified Data.Set as S
 import qualified Data.Map as Map
 import qualified Data.IntMap as M
@@ -263,6 +264,8 @@ ruGuard (Guard test expr)  -- expects patAdded in depth-order
 ruTryReuseCon :: TName -> ConRepr -> Expr -> Reuse Expr
 ruTryReuseCon cname repr conApp | isConAsJust repr  -- never try to reuse a Just-like constructor
   = return conApp
+ruTryReuseCon cname repr conApp | "_noreuse" `isSuffixOf` nameId (conTypeName repr)
+  = return conApp -- special case to allow benchmarking the effect of reuse analysis
 ruTryReuseCon cname repr conApp
   = do newtypes <- getNewtypes
        platform <- getPlatform
@@ -582,16 +585,18 @@ getRuConSize dataType
   = do newtypes <- getNewtypes
        platform <- getPlatform
        let mdataName = extractDataName dataType
-       let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName
-       case mdataInfo of
-         Just dataInfo
-           -> do let (dataRepr, _) = getDataRepr dataInfo
-                 let cis = dataInfoConstrs dataInfo
-                 let sizes = map (constructorSize platform newtypes dataRepr . map snd . conInfoParams) cis
-                 case sizes of
-                   (s:ss) | all (==s) ss -> pure $ Just s
-                   _ -> pure Nothing
-         _ -> pure Nothing
+       if maybe False (\nm -> "_noreuse" `isSuffixOf` nameId nm) mdataName
+       then return Nothing else do
+        let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName
+        case mdataInfo of
+          Just dataInfo
+            -> do let (dataRepr, _) = getDataRepr dataInfo
+                  let cis = dataInfoConstrs dataInfo
+                  let sizes = map (constructorSize platform newtypes dataRepr . map snd . conInfoParams) cis
+                  case sizes of
+                    (s:ss) | all (==s) ss -> pure $ Just s
+                    _ -> pure Nothing
+          _ -> pure Nothing
   where
     extractDataName :: Type -> Maybe Name
     extractDataName tp
@@ -603,6 +608,8 @@ getRuConSize dataType
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSizeOf :: Platform -> Newtypes -> TName -> ConRepr -> (Int {- byte size -}, Int {- scan fields -})
+constructorSizeOf _ _ _ repr | "_noreuse" `isSuffixOf` nameId (conTypeName repr)
+  = (0,0) -- special case to allow benchmarking the effect of reuse analysis
 constructorSizeOf platform newtypes conName conRepr
   = let dataRepr = conDataRepr conRepr
     in case splitFunScheme (typeOf conName) of
