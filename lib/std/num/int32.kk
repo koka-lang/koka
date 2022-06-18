@@ -83,7 +83,7 @@ pub inline extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"  }
 pub inline extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"  }
 
 pub inline extern (+)  : (int32,int32) -> int32 
-  c inline "(int32_t)((uint32_t)#1 + (uint32_t)#2)" // avoid UB
+  c inline  "(int32_t)((uint32_t)#1 + (uint32_t)#2)" // avoid UB
   js inline "((#1 + #2)|0)" 
 
 pub inline extern (-)  : (int32,int32) -> int32 
@@ -384,4 +384,11 @@ pub fun list32( lo: int32, hi: int32 ) : total list<int32>
     else Nil
 
 pub fun sum32( xs : list<int32> ) : int32
-  xs.foldl( 0.int32, fn(x,y) x + y )    
+  // xs.foldl( 0.int32, fn(x,y) x + y )    
+  sumacc32(xs,0.int32)
+
+fun sumacc32( xs : list<int32>, acc : int32 ) : int32
+  match xs
+    Cons(x,xx) -> sumacc32(xx,acc+x)
+    Nil -> acc
+    

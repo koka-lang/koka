@@ -32,7 +32,7 @@ static inline kk_box_t kk_ctail_apply_linear( kk_std_core_types__ctail acc, kk_b
     return child;
   }
   #else
-  // this form entices conditional moves from clang (but seems slower in general)
+  // this form entices conditional moves (but seems slower in general)
   if (acc.hole != NULL) { *acc.hole = child; }
   return (acc.hole != NULL ? acc.res : child);
   #endif

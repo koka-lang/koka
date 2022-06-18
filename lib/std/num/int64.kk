@@ -360,3 +360,30 @@ pub fun fold-int64( start : int64, end : int64, init : a, f : (int64,a) -> e a )
   if start >= end then init else
     val x = f(start,init)
     fold-int64(unsafe-decreasing(start.inc), end, x, f)
+
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
+// If `action` returns `Just`, the iteration is stopped and the result returned
+pub fun for-while64( start: int64, end : int64, action : (int64) -> e maybe<a> ) : e maybe<a>
+  fun rep( i : int64 )
+    if i <= end then
+      match action(i)
+        Nothing -> rep(unsafe-decreasing(i.inc))
+        Just(x) -> Just(x)
+    else Nothing
+  rep(start)    
+
+pub fun list64( lo: int64, hi: int64 ) : total list<int64>
+  if lo <= hi
+    then Cons( lo, list64( unsafe-decreasing(lo.inc), hi ) )
+    else Nil
+
+pub fun sum64( xs : list<int64> ) : int64
+  // xs.foldl( 0.int64, fn(x,y) x + y )    
+  sumacc64(xs,0.int64)
+
+fun sumacc64( xs : list<int64>, acc : int64 ) : int64
+  match xs
+    Cons(x,xx) -> sumacc64(xx,acc+x)
+    Nil -> acc
+    
