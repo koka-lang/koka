@@ -887,10 +887,10 @@ inferCheck loaded0 flags line coreImports program
 
        -- inline: inline local definitions more aggressively (2x)
        when (optInlineMax flags > 0) $
-         let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
-                         else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
-         in inlineDefs penv (2*(optInlineMax flags)) inlines
-       -- checkCoreDefs "inlined"
+         do let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
+                           else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
+            inlineDefs penv (2*(optInlineMax flags)) inlines
+            -- checkCoreDefs "inlined"
 
        simplifyDupN
        -- traceDefGroups "inlined"

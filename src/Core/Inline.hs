@@ -103,8 +103,8 @@ inlExpr expr
     -- Applications
     App (TypeApp f targs) args
       -> do f0 <- inlExpr f
-            f' <- inlAppExpr f0 (length targs) (length args) (onlyZeroCost args)
             args' <- mapM inlExpr args
+            f' <- inlAppExpr f0 (length targs) (argLength args) (onlyZeroCost args)
             return (App (TypeApp f' targs) args')
 
     App f args
@@ -152,9 +152,6 @@ inlExpr expr
 inlAppExpr :: Expr -> Int -> Int -> Bool -> Inl Expr
 inlAppExpr expr m n onlyZeroCost
   = case expr of
-      App eopen@(TypeApp (Var open info) targs) [f] | getName open == nameEffectOpen
-        -> do (f') <- inlAppExpr f m n onlyZeroCost
-              return (App eopen [f'])
       Var tname varInfo
         -> do mbInfo <- inlLookup (getName tname)
               case mbInfo of
@@ -170,6 +167,15 @@ inlAppExpr expr m n onlyZeroCost
                         return (expr)
                 Nothing -> do traceDoc $ \penv -> text "not inline candidate:" <+> text (showTName tname)
                               return (expr)
+      -- handle .open(f) calls
+      TypeApp f targs | m == 0  -- can happen if it is inside an open as:  .open<..>(f<..>)  (test: cgen/inline4)
+        -> do f' <- inlAppExpr f (length targs) n onlyZeroCost
+              return (TypeApp f' targs)
+      App eopen@(TypeApp (Var open info) targs) [f] | getName open == nameEffectOpen
+        -> do -- traceDoc $ \penv -> text "go through open:" <+> text (show (m,n))
+              f' <- inlAppExpr f m n onlyZeroCost
+              return (App eopen [f'])      
+
       _ -> return (expr)  -- no inlining
 
 
@@ -270,9 +276,15 @@ inlLookup name
 traceDoc :: (Pretty.Env -> Doc) -> Inl ()
 traceDoc f
   = do env <- getEnv
-       inlTrace (show (f (prettyEnv env)))
+       inlTrace (show (f (prettyEnv env)))       
 
 inlTrace :: String -> Inl ()
 inlTrace msg
   = do env <- getEnv
        trace ("inl: " ++ show (map defName (currentDef env)) ++ ": " ++ msg) $ return ()
+
+verboseDoc :: (Pretty.Env -> Doc) -> Inl ()
+verboseDoc f
+  = do env <- getEnv
+       when (verbose (prettyEnv env) >= 3) $
+         traceDoc f
