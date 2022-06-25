@@ -234,7 +234,7 @@ Normally we need to make a fundamental choice when managing memory:
 ![perceus-perf]
 
 With Perceus, we hope to cross this gap and our goal is to 
-be within 2x of the performance of C/C++. Initial benchmarks are
+be within 2x of the inefficiency of C/C++. Initial benchmarks are
 encouraging and show &koka; to be close to C performance on various
 memory intensive benchmarks.
 
