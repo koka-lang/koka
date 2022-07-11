@@ -1,15 +1,15 @@
 # ICFP Paper Artifact: Reference Counting with Frame Limited Reuse
 
-Docker image: daanx/icfp22-reuse:1.2
-Digest      : sha256:83f5c12b08ed41ac289691dcde0cc7d51d4728cad68f1cf31a1eb3611a5e309a
+Docker image: daanx/icfp22-reuse:1.3
+Digest      : sha256:7f6b08c4c47d47c8a532ec48d8f7e76d3ebac8de7be02aea89c685fb090699cf
 
 # Getting Started
 
 We provide a docker image (based on Ubuntu 20.04, about 5GiB) to run the benchmarks:
 
 ```
-> docker pull daanx/icfp22-reuse:1.2
-> docker run -it daanx/icfp22-reuse:1.2
+> docker pull daanx/icfp22-reuse:1.3
+> docker run -it daanx/icfp22-reuse:1.3
 ```
 
 We now see the docker prompt as:
@@ -83,6 +83,8 @@ the following command:
 
 to run all benchmarks 10 times for each available language, and use the median
 of those runs (and calculate the standard error interval). 
+The full ICFP'22 paper with supplementary material can be found  
+in the build directory as `reuse-supplement.pdf`.
 
 The expected results on an AMD5950X are at the bottom of this readme.
 These should correspond closely to the results in Section 6 and Figure 8 of the paper.
@@ -119,10 +121,19 @@ Running all benchmarks over all systems takes a while (10 to 30min); we can use 
 
 Available languages are:
 
-- `kk`    : Koka v2.3.3 compiling using gcc 9.4.0.
+- `kk`    : Koka v2.3.3 compiling using gcc 9.4.0. The sources of this compiler version are in
+            `/build/koka-v2.3.3` with the compiled binary in the `local/bin/koka` subdirectory. 
+            The new reuse algorithm can be found in the
+            files `.../src/Backend/C/ParcReuse.hs` and `.../src/Backend/C/Parc.hs` ("Parc" was
+            the initial name for "Perceus").
 - `kkx`   : Koka v2.3.3 compiling using gcc 9.4.0 but without TRMC (tail-mod-cons) optimization.
 - `kkold` : Koka v2.3.3-old compiling using gcc 9.4.0. This is the compiler exactly like `kk` but
             (1) using the old reuse algorithm K and (2) no borrowing, as described in the paper.
+            The sources of this compiler are in `/build/koka-v2.3.3-old` with the compiled binary
+            in the `local/bin/koka` subdirectory. These sources are just as in `v2.3.3` except for the reuse 
+            algorithm which is the "old" algorithm K as described in the paper and no borrowing.
+            (This is why we cannot use the more recent (and better) koka v2.4.x versions since we only
+             carefully maintained the `kkold` to track `kk` up to the v2.3.3 version)
 - `kkfbip`: Koka v2.3.3 compiling using gcc 9.4.0 but using the FBIP variants of the `rbtree`,
             `rbtree-ck`, and `binarytrees` benchmarks as described in the paper (Section 7).
 - `ml`  : Multicore OCaml v4.14.0 using the optimizing compiler (`ocamlopt`)
@@ -144,13 +155,6 @@ Available tests are described in detail in Section 4 and are:
                   <https://benchmarksgame-team.pages.debian.net/benchmarksgame/description/binarytrees.html#binarytrees>
 
 
-The `koka`/`kk` version is using the compiler in `/build/koka-v2.3.3` with the new reuse 
-algorithm, while `kokaold`/`kkold` is based on the `/build/koka-v2.3.3-old` compiler
-that is exactly like `koka` except with the old reuse algorithm and no borrowing. 
-(This is why we cannot use the more recent (and better) koka v2.4.x versions since we only
-carefully maintained the `kokaold` to track `koka` up to the v2.3.3 version).
-
-
 ## Benchmark Sources
 
 All the sources are in the `/build/koka/test/bench/<lang>` directories. For example:
@@ -166,6 +170,17 @@ All tests can be recompiled using:
 ```
 /build/koka/test/bench/build# cmake --build .
 ```
+
+The `CMakeList.txt` file includes all language specific `<lang>/CMakeLists.txt` files
+which each build all the benchmarks for each language in the most optimized way.
+The `koka/CMakeLists.txt` compiles each benchmark for each of the four variants 
+(`kk`, `kkold`, `kkx`, and `kkfbip`). All the binaries go into `build/<lang>`
+folders. 
+
+The benchmark script `../bench.kk` is a Koka script that runs the various 
+benchmarks a number of times measuring runtime and memory usage with the 
+`time` program. It takes all results and calculates the median runtimes, and
+can normalize results against Koka.
 
 
 ## Expected Results in Docker on Windows:
