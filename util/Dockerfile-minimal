@@ -1,7 +1,8 @@
-# Create a docker image with a working Koka compiler (including sources).
+# Create a minimal docker image with a working Koka compiler (binaries only).
+# Initial version written by @Lassik
 #
 # Build:
-# > docker build -t <mytag> .
+# > docker build -t <mytag> -f Dockerfile-minimal .
 #
 # To Run:
 # > docker run -it <mytag>
@@ -13,6 +14,7 @@
 #
 # To publish, use a tag like `kokalang/koka:v2.x.x`
 # > docker push <mytag>
+
 
 FROM haskell:8.10.7 AS build
 ENV KOKAVER=dev
@@ -36,13 +38,19 @@ RUN apt-get install -y --no-install-recommends python3-pip
 RUN pip3 install setuptools wheel 
 RUN pip3 install conan
 
-# Build Koka install bundle
+# Create install bundle
 RUN stack exec koka -- -e util/bundle -- --postfix=docker --prefix=bundle/docker
 
-# Install 
-WORKDIR /usr/local 
-RUN tar -xzvf /build/koka/bundle/koka-docker.tar.gz     
-
-# Entry
-WORKDIR /build/koka
+# Create fresh image with just the binaries
+FROM debian:buster
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends gcc libc-dev make
+RUN apt-get install -y --no-install-recommends ca-certificates
+# apt-get install -y --no-install-recommends nodejs
+# RUN rm -rf /var/lib/apt/lists/*
+COPY --from=build /build/koka/bundle/koka-docker.tar.gz /usr/local
+WORKDIR /usr/local
+RUN tar -xzvf koka-docker.tar.gz
+WORKDIR /root
+RUN mkdir .koka
 CMD ["koka"]
