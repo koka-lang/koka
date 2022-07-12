@@ -50,4 +50,3 @@ pub fun main()
   val r1 = new-ref(41)
   val r2 = dynamic-ref(True)
   println( r1.get() + (if r2.get() then 1 else 0) ) 
-

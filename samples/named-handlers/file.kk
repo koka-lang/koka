@@ -24,15 +24,19 @@ fun file(fname,action)
         Cons(x,xx) -> { content := xx; x }
   action(f)
 
+fun cat-lines( t : (file,file) ) 
+  t.fst.read-line() ++ "\n" ++ t.snd.read-line()
+
 
 pub fun main() 
-  with f1 <- file("package.yaml")
-  with f2 <- file("stack.yaml")
-  println( f1.read-line() ++ "\n" ++ f2.read-line() )
+  with f1 <- file("artifact1.txt")
+  with f2 <- file("artifact2.txt")
+  cat-lines( (f1,f2) ).println
 
 /*
+// this is illegal and will throw an exception (as `f` escapes its scope)
 fun wrong-escape1() 
-  with f <- file("stack.yaml")
+  with f <- file("artifact1.txt")
   f
 
 pub fun test() 
