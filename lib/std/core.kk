@@ -1887,7 +1887,7 @@ pub fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
   for-whilez( 0.ssize_t, v.lengthz.decr ) fn(i)
     f(v.unsafe-idx(i))
 
-// Apply a total function `f` to each element in a vector `v`
+// Apply a function `f` to each element in a vector `v`
 pub fun map( v : vector<a>, f : a -> e b ) : e vector<b>
   val w = unsafe-vector(v.length.ssize_t)
   v.foreach-indexedz fn(i,x)
