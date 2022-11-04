@@ -121,7 +121,7 @@ kk_ssize_t kk_decl_pure kk_string_count(kk_string_t str, kk_context_t* ctx) {
 --------------------------------------------------------------------------------------------------*/
 
 kk_ssize_t kk_utf8_lenx(kk_char_t c) {
-  if (kk_likely(c <= 0x7F)) {
+  if kk_likely(c <= 0x7F) {
     return 1;
   }
   else if (c <= 0x07FF) {
@@ -144,7 +144,7 @@ kk_ssize_t kk_utf8_lenx(kk_char_t c) {
 }
 
 void kk_utf8_writex(kk_char_t c, uint8_t* s, kk_ssize_t* count) {
-  if (kk_likely(c <= 0x7F)) {
+  if kk_likely(c <= 0x7F) {
     *count = 1;
     s[0] = (uint8_t)c;
     return;
@@ -181,7 +181,7 @@ void kk_utf8_writex(kk_char_t c, uint8_t* s, kk_ssize_t* count) {
 kk_char_t kk_utf8_readx(const uint8_t* s, kk_ssize_t* count) {
   kk_char_t b = *s;  kk_assert_internal(b >= 0); // shift left is not UB on b
   kk_char_t c;
-  if (kk_likely(b <= 0x7F)) {
+  if kk_likely(b <= 0x7F) {
     *count = 1;
     c = b; // fast path ASCII
   }
@@ -237,7 +237,7 @@ static inline bool kk_char_is_raw(kk_char_t c) {
 //  invalid so they can be decoded back into the raw sequence)
 kk_char_t kk_utf8_read_validate(const uint8_t* s, kk_ssize_t* count, kk_ssize_t* vcount, bool qutf8_identity) {
   uint8_t b = s[0];
-  if (kk_likely(b <= 0x7F)) {
+  if kk_likely(b <= 0x7F) {
     *count = 1;
     return b;   // ASCII fast path
   }
@@ -286,7 +286,7 @@ static bool kk_qutf8_validate(kk_ssize_t len, const uint8_t* s, bool qutf8_ident
   while (p < end) {
     // optimize for ascii
     // todo: optimize further with word reads?
-    if (kk_likely(*p < 0x80)) {
+    if kk_likely(*p < 0x80) {
       p++;
       vlen++;
     }
@@ -330,7 +330,7 @@ static kk_string_t kk_qutf8_convert_from_invalid(kk_ssize_t len, const uint8_t* 
   const uint8_t* p = s;
   const uint8_t* end = s + len;
   while (p < end) {
-    if (kk_likely(*p < 0x80)) {
+    if kk_likely(*p < 0x80) {
       *t++ = *p++;
     }
     else {
@@ -410,7 +410,7 @@ const char* kk_string_to_qutf8_borrow(kk_string_t str, bool* should_free, kk_con
   while (p < end) {
     // optimize for ascii
     // todo: optimize further with word reads?
-    if (kk_likely(*p < 0x80)) {
+    if kk_likely(*p < 0x80) {
       p++;
     }
     else {
@@ -438,7 +438,7 @@ const char* kk_string_to_qutf8_borrow(kk_string_t str, bool* should_free, kk_con
   while (p < end) {
     // optimize for ascii
     // todo: optimize further with word reads?
-    if (kk_likely(*p < 0x80)) {
+    if kk_likely(*p < 0x80) {
       *q++ = *p++;
     }
     else {

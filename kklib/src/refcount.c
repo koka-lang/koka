@@ -25,7 +25,7 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   const kk_ssize_t scan_fsize = b->header.scan_fsize;
   if (scan_fsize==0) {
     // TODO: can we avoid raw object tests?
-    if (kk_unlikely(kk_tag_is_raw(kk_block_tag(b)))) { kk_block_free_raw(b,ctx); }
+    if kk_unlikely(kk_tag_is_raw(kk_block_tag(b))) { kk_block_free_raw(b,ctx); }
     kk_block_free(b,ctx); // deallocate directly if nothing to scan
   }
   else {
@@ -116,7 +116,7 @@ static void kk_block_make_shared(kk_block_t* b) {
 kk_decl_noinline kk_block_t* kk_block_check_dup(kk_block_t* b, kk_refcount_t rc0) {
   kk_assert_internal(b!=NULL);
   kk_assert_internal(kk_refcount_is_thread_shared(rc0)); // includes KK_STUCK
-  if (kk_likely(rc0 > RC_STICKY)) {
+  if kk_likely(rc0 > RC_STICKY) {
     kk_atomic_dup(b);
   }
   // else sticky: no longer increment (or decrement)
@@ -130,10 +130,10 @@ kk_decl_noinline void kk_block_check_drop(kk_block_t* b, kk_refcount_t rc0, kk_c
   kk_assert_internal(b!=NULL);
   kk_assert_internal(kk_block_refcount(b) == rc0);
   kk_assert_internal(rc0 == 0 || kk_refcount_is_thread_shared(rc0));
-  if (kk_likely(rc0==0)) {
+  if kk_likely(rc0==0) {
     kk_block_drop_free(b, ctx);  // no more references, free it.
   }
-  else if (kk_unlikely(rc0 <= RC_STICKY_DROP)) {
+  else if kk_unlikely(rc0 <= RC_STICKY_DROP) {
     // sticky: do not drop further
   }
   else {
@@ -152,7 +152,7 @@ kk_decl_noinline kk_reuse_t kk_block_check_drop_reuse(kk_block_t* b, kk_refcount
   kk_assert_internal(b!=NULL);
   kk_assert_internal(kk_block_refcount(b) == rc0);
   kk_assert_internal(rc0 == 0 || kk_refcount_is_thread_shared(rc0));
-  if (kk_likely(rc0==0)) {
+  if kk_likely(rc0==0) {
     // no more references, reuse it.
     kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
     for (kk_ssize_t i = 0; i < scan_fsize; i++) {
@@ -174,10 +174,10 @@ kk_decl_noinline void kk_block_check_decref(kk_block_t* b, kk_refcount_t rc0, kk
   kk_assert_internal(b!=NULL);
   kk_assert_internal(kk_block_refcount(b) == rc0);
   kk_assert_internal(rc0 == 0 || kk_refcount_is_thread_shared(rc0));
-  if (kk_likely(rc0==0)) {
+  if kk_likely(rc0==0) {
     kk_free(b,ctx);  // no more references, free it (without dropping children!)
   }
-  else if (kk_unlikely(rc0 <= RC_STICKY_DROP)) {
+  else if kk_unlikely(rc0 <= RC_STICKY_DROP) {
     // sticky: do not decrement further
   }
   else {
@@ -215,7 +215,7 @@ static bool kk_block_decref_no_free(kk_block_t* b) {
   if (rc==0) {
     return true;
   }
-  else if (kk_unlikely(kk_refcount_is_thread_shared(rc))) {
+  else if kk_unlikely(kk_refcount_is_thread_shared(rc)) {
     return (rc <= RC_STICKY_DROP ? false : block_thread_shared_decref_no_free(b));
   }
   else {
@@ -244,7 +244,7 @@ static inline kk_block_t* kk_block_field_should_free(kk_block_t* b, kk_ssize_t f
       uint8_t v_scan_fsize = child->header.scan_fsize;
       if (v_scan_fsize == 0) {
         // free leaf nodes directly and pretend it was not a ptr field
-        if (kk_unlikely(kk_tag_is_raw(kk_block_tag(child)))) { kk_block_free_raw(child, ctx); } // potentially call custom `free` function on the data
+        if kk_unlikely(kk_tag_is_raw(kk_block_tag(child))) { kk_block_free_raw(child, ctx); } // potentially call custom `free` function on the data
         kk_block_free(child,ctx);        
       }
       else {
@@ -342,7 +342,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
     }
 
   // ------- move up along the parent chain ------------
-  while (kk_likely(parent != NULL)) {
+  while kk_likely(parent != NULL) {
     // go up to parent
     uint8_t i = kk_block_field_idx(parent);
     scan_fsize = parent->header.scan_fsize;
@@ -445,7 +445,7 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ss
       if (depth < MAX_RECURSE_DEPTH) {
         kk_block_make_shared(b);
         kk_ssize_t i = 0;
-        if (kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX)) { 
+        if kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX) { 
           scan_fsize = (kk_ssize_t)kk_intf_unbox(kk_block_field(b, 0)); 
           i++;  // skip scan field
         }

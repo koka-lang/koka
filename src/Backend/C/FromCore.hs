@@ -664,7 +664,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount maxScanCount
                      else -}
                           vcat((if not (isConAsJust conRepr) then [] else 
                                  let arg = ppName (fst (head (conInfoParams con)))
-                                 in [text "if (kk_likely(!kk_box_is_maybe(" <.> arg <.> text "))) { return kk_datatype_as_Just(" <.> arg <.> text "); }" 
+                                 in [text "if kk_likely(!kk_box_is_maybe(" <.> arg <.> text ")) { return kk_datatype_as_Just(" <.> arg <.> text "); }" 
                                     ])
                                ++
                                [text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
@@ -1422,7 +1422,9 @@ genGuard result (Guard guard expr)
 
 parensIf :: Doc -> Doc -- avoid parens if already parenthesized
 parensIf d
-  = if (dstartsWith d "(" && dendsWith d ")") then d else parens d
+  = if ((dstartsWith d "(" && dendsWith d ")") || 
+        dstartsWith d "kk_likely") -- for genUniqueCall
+      then d else parens d
 
 
 genPattern :: Bool -> TNames -> [(Doc,Pattern)] -> Asm Doc -> Asm Doc

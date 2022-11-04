@@ -104,6 +104,9 @@
 #endif
 
 #ifdef __cplusplus
+#if (__cplusplus >= 202002L)
+#define KK_CPP20  1
+#endif
 #if (__cplusplus >= 201703L)
 #define KK_CPP17  1
 #endif
@@ -143,8 +146,6 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-value"
 #pragma GCC diagnostic ignored "-Warray-bounds"      // gives wrong warnings in std/os/path for string literals
-#define kk_unlikely(h)     __builtin_expect((h),0)
-#define kk_likely(h)       __builtin_expect((h),1)
 #define kk_decl_const      __attribute__((const))    // reads no global state at all
 #define kk_decl_pure       __attribute__((pure))     // may read global state but has no observable side effects
 #define kk_decl_noinline   __attribute__((noinline))
@@ -157,8 +158,6 @@
 #pragma warning(disable:4068)  // unknown pragma
 #pragma warning(disable:4996)  // POSIX name deprecated
 #pragma warning(disable:26812) // the enum type is unscoped (in C++)
-#define kk_unlikely(x)     (x)
-#define kk_likely(x)       (x)
 #define kk_decl_const
 #define kk_decl_pure
 #define kk_decl_noinline   __declspec(noinline)
@@ -168,13 +167,22 @@
 #error "when using cl (the Microsoft Visual C++ compiler), use the /TP option to always compile in C++ mode."
 #endif
 #else
-#define kk_unlikely(h)     (h)
-#define kk_likely(h)       (h)
 #define kk_decl_const
 #define kk_decl_pure
 #define kk_decl_noinline   
 #define kk_decl_align(a)   
 #define kk_decl_thread     __thread
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define kk_unlikely(x)     (__builtin_expect(!!(x),false))
+#define kk_likely(x)       (__builtin_expect(!!(x),true))
+#elif (defined(__cplusplus) && (__cplusplus >= 202002L)) || (defined(_MSVC_LANG) && _MSVC_LANG >= 202002L)
+#define kk_unlikely(x)     (x) [[unlikely]]
+#define kk_likely(x)       (x) [[likely]]
+#else
+#define kk_unlikely(x)     (x)
+#define kk_likely(x)       (x)
 #endif
 
 // Assertions; kk_assert_internal is only enabled when KK_DEBUG_FULL is defined
@@ -283,11 +291,11 @@ typedef int32_t     kk_off_t;
 // We limit the maximum object size (and array sizes) to at most `SIZE_MAX/2` bytes.
 static inline kk_ssize_t kk_to_ssize_t(size_t sz) {
   kk_assert(sz <= KK_SSIZE_MAX);
-  return (kk_likely(sz <= KK_SSIZE_MAX) ? (kk_ssize_t)sz : KK_SSIZE_MAX);
+  return kk_likely(sz <= KK_SSIZE_MAX) ? (kk_ssize_t)sz : KK_SSIZE_MAX;
 }
 static inline size_t kk_to_size_t(kk_ssize_t sz) {
   kk_assert(sz >= 0);
-  return (kk_likely(sz >= 0) ? (size_t)sz : 0);
+  return kk_likely(sz >= 0) ? (size_t)sz : 0;
 }
 
 #if defined(NDEBUG)
@@ -314,7 +322,7 @@ typedef uint64_t       kk_uintx_t;
 #define PRIuUX         PRIu64
 #define PRIxUX         PRIx64
 #define PRIXUX         PRIX64
-#elif (INT_MAX > INT16_MAX && (LONG_MAX == INT32_MAX) || (SIZE_MAX == UINT32_MAX))
+#elif (INT_MAX > INT16_MAX && LONG_MAX == INT32_MAX) || (SIZE_MAX == UINT32_MAX)
 typedef int32_t        kk_intx_t;
 typedef uint32_t       kk_uintx_t;
 #define KK_IX(i)       KK_I32(i)

@@ -331,7 +331,7 @@ typedef struct kk_boxed_value_s {
 
 #define kk_valuetype_unbox_(tp,p,x,box,ctx) \
   do { \
-    if (kk_unlikely(kk_box_is_any(box))) { \
+    if kk_unlikely(kk_box_is_any(box)) { \
       p = NULL; \
       const size_t kk__max_scan_fsize = sizeof(tp)/sizeof(kk_box_t); \
       kk_box_t* _fields = (kk_box_t*)(&x); \
@@ -399,7 +399,7 @@ kk_decl_export kk_box_t      kk_cfun_ptr_boxx(kk_cfun_ptr_t f, kk_context_t* ctx
 // if we can guarantee for those function addresses to be always aligned we 
 // can perhaps optimize this further (without needing a check)?
 static inline kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b) {  // never drop; only used from function call
-  if (kk_likely(kk_box_is_value(b))) {
+  if kk_likely(kk_box_is_value(b)) {
     return (kk_cfun_ptr_t)(kk_uintf_unbox(b));
   }
   else {

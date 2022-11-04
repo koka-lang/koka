@@ -299,7 +299,7 @@ kk_decl_export kk_char_t kk_utf8_read_validate(const uint8_t* s, kk_ssize_t* cou
 kk_decl_export kk_char_t kk_utf8_readx(const uint8_t* s, kk_ssize_t* count);
 static inline kk_char_t  kk_utf8_read(const uint8_t* s, kk_ssize_t* count) {
   kk_char_t c = *s;
-  if (kk_likely(c <= 0x7F)) {
+  if kk_likely(c <= 0x7F) {
     *count = 1;
     return c;
   }
@@ -311,13 +311,13 @@ static inline kk_char_t  kk_utf8_read(const uint8_t* s, kk_ssize_t* count) {
 // Number of bytes needed to represent a single code point
 kk_decl_export kk_ssize_t kk_utf8_lenx(kk_char_t c);
 static inline  kk_ssize_t kk_utf8_len(kk_char_t c) {
-  return (kk_likely(c <= 0x7F) ? 1 : kk_utf8_lenx(c));
+  return kk_likely(c <= 0x7F) ? 1 : kk_utf8_lenx(c);
 }
 
 // utf-8 encode a single codepoint
 kk_decl_export void kk_utf8_writex(kk_char_t c, uint8_t* s, kk_ssize_t* count);
 static inline  void kk_utf8_write(kk_char_t c, uint8_t* s, kk_ssize_t* count) {
-  if (kk_likely(c <= 0x7F)) {
+  if kk_likely(c <= 0x7F) {
     *count = 1;
     s[0] = (uint8_t)c;
   }

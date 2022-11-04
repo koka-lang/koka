@@ -141,14 +141,14 @@ extern bool kk_has_tzcnt;
 
 static inline uint8_t kk_bits_clz32(uint32_t x) {
   #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(kk_has_lzcnt)) return (uint8_t)__lzcnt(x);
+  if kk_likely(kk_has_lzcnt) return (uint8_t)__lzcnt(x);
   #endif
   unsigned long idx;
   return (_BitScanReverse(&idx, x) ? 31 - (uint8_t)idx : 32);
 }
 static inline uint8_t kk_bits_ctz32(uint32_t x) {
   #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(kk_has_tzcnt)) return (uint8_t)_tzcnt_u32(x);
+  if kk_likely(kk_has_tzcnt) return (uint8_t)_tzcnt_u32(x);
   #endif
   unsigned long idx;
   return (_BitScanForward(&idx, x) ? (uint8_t)idx : 32);
@@ -157,14 +157,14 @@ static inline uint8_t kk_bits_ctz32(uint32_t x) {
 #define HAS_BITS_CLZ64
 static inline uint8_t kk_bits_clz64(uint64_t x) {
   #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(kk_has_lzcnt)) return (uint8_t)__lzcnt64(x);
+  if kk_likely(kk_has_lzcnt) return (uint8_t)__lzcnt64(x);
   #endif
   unsigned long idx;
   return (_BitScanReverse64(&idx, x) ? 63 - (uint8_t)idx : 64);
 }
 static inline uint8_t kk_bits_ctz64(uint64_t x) {
   #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(kk_has_tzcnt)) return (uint8_t)_tzcnt_u64(x);
+  if kk_likely(kk_has_tzcnt) return (uint8_t)_tzcnt_u64(x);
   #endif
   unsigned long idx;
   return (_BitScanForward64(&idx, x) ? (uint8_t)idx : 64);
@@ -526,12 +526,12 @@ static inline uint8_t kk_bits_digits(kk_uintx_t x) {
 ------------------------------------------------------------------ */
 
 static inline int32_t kk_bits_midpoint32( int32_t x, int32_t y ) {
-  if (kk_likely(x <= y)) return x + (int32_t)(((uint32_t)y - (uint32_t)x)/2);  
+  if kk_likely(x <= y) return x + (int32_t)(((uint32_t)y - (uint32_t)x)/2);  
                     else return x - (int32_t)(((uint32_t)x - (uint32_t)y)/2);
 }
 
 static inline int64_t kk_bits_midpoint64(int64_t x, int64_t y) {
-  if (kk_likely(x <= y)) return x + (int64_t)(((uint64_t)y - (uint64_t)x)/2);
+  if kk_likely(x <= y) return x + (int64_t)(((uint64_t)y - (uint64_t)x)/2);
                     else return x - (int64_t)(((uint64_t)x - (uint64_t)y)/2);
 }
 
@@ -540,12 +540,12 @@ static inline kk_intx_t kk_bits_midpoint(kk_intx_t x, kk_intx_t y) {
 }
 
 static inline uint32_t kk_bits_umidpoint32( uint32_t x, uint32_t y ) {
-  if (kk_likely(x <= y)) return (x + (y-x)/2);
+  if kk_likely(x <= y) return (x + (y-x)/2);
                     else return (x - (x-y)/2);
 }
 
 static inline uint64_t kk_bits_umidpoint64( uint64_t x, uint64_t y ) {
-  if (kk_likely(x <= y)) return (x + (y-x)/2);
+  if kk_likely(x <= y) return (x + (y-x)/2);
                     else return (x - (x-y)/2); 
 }
 

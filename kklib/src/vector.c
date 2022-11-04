@@ -51,11 +51,11 @@ kk_vector_t kk_vector_copy(kk_vector_t vec, kk_context_t* ctx) {
 }
 
 kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
-  if (kk_likely(!kk_block_is_thread_shared(&r->_block))) {
+  if kk_likely(!kk_block_is_thread_shared(&r->_block)) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_vector_t v = kk_vector_unbox(b, ctx);
-    if(kk_unlikely(! kk_datatype_is_unique(v))) {
+    if kk_unlikely(!kk_datatype_is_unique(v)) {
       // the old v is dropped by kk_ref_set_borrow
       v = kk_vector_copy(kk_vector_dup(v), ctx);
       kk_ref_set_borrow(r, kk_vector_box(v, ctx), ctx);

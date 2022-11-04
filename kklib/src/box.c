@@ -18,7 +18,7 @@ typedef struct kk_boxed_intptr_s {
 } *boxed_intptr_t;
 
 intptr_t kk_intptr_unbox(kk_box_t v, kk_context_t* ctx) {
-  if (kk_likely(kk_box_is_value(v))) {
+  if kk_likely(kk_box_is_value(v)) {
     kk_intf_t i = kk_intf_unbox(v);
     return (intptr_t)i;
   }
@@ -50,7 +50,7 @@ typedef struct kk_boxed_int64_s {
 } *boxed_int64_t;
 
 int64_t kk_int64_unbox(kk_box_t v, kk_context_t* ctx) {
-  if (kk_likely(kk_box_is_value(v))) {
+  if kk_likely(kk_box_is_value(v)) {
     kk_intf_t i = kk_intf_unbox(v);
     return (int64_t)i;
   }
@@ -83,7 +83,7 @@ typedef struct kk_boxed_int32_s {
 } *boxed_int32_t;
 
 int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
-  if (kk_likely(kk_box_is_value(v))) {
+  if kk_likely(kk_box_is_value(v)) {
     kk_intf_t i = kk_intf_unbox(v);
     kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
     return (int32_t)i;
@@ -116,7 +116,7 @@ typedef struct kk_boxed_int16_s {
 } *boxed_int16_t;
 
 int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
-  if (kk_likely(kk_box_is_value(v))) {
+  if kk_likely(kk_box_is_value(v)) {
     kk_intf_t i = kk_intf_unbox(v);
     kk_assert_internal((i >= int16_MIN && i <= int16_MAX) || kk_box_is_any(v));
     return (int16_t)i;
@@ -195,7 +195,7 @@ void* kk_cptr_raw_unbox(kk_box_t b) {
 
 kk_box_t kk_cptr_box(void* p, kk_context_t* ctx) {
   uintptr_t u = (uintptr_t)p;
-  if (kk_likely((u&1) == 0 && u <= KK_MAX_BOXED_UINT)) { // aligned pointer?
+  if kk_likely((u&1) == 0 && u <= KK_MAX_BOXED_UINT) { // aligned pointer?
     // box as value
     return _kk_box_new_value((kk_uintf_t)(u|1));
   }

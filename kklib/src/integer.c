@@ -800,7 +800,7 @@ static kk_bigint_t* bigint_add_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context_t*
   kk_ssize_t i;
   for (i = 0; i < cy; i++) {
     sum = x->digits[i] + y->digits[i] + carry;
-    if (kk_unlikely(sum >= BASE)) {
+    if kk_unlikely(sum >= BASE) {
       carry = 1;
       sum -= BASE;
     }
@@ -812,7 +812,7 @@ static kk_bigint_t* bigint_add_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context_t*
   // propagate the carry
   for (; carry != 0 && i < cx; i++) {
     sum = x->digits[i] + carry;
-    if (kk_unlikely(sum >= BASE)) {
+    if kk_unlikely(sum >= BASE) {
       kk_assert_internal(sum==BASE && carry==1);  // can only be at most BASE
       // carry stays 1;
       sum -= BASE;
@@ -858,7 +858,7 @@ static kk_bigint_t* kk_bigint_add_abs_small(kk_bigint_t* x, kk_digit_t y, kk_con
   kk_ssize_t i;
   for (i = 0; carry!=0 && i < cx; i++) {
     sum = x->digits[i] + carry;
-    if (kk_unlikely(sum >= BASE)) {
+    if kk_unlikely(sum >= BASE) {
       carry = 1;
       sum -= BASE;
       kk_assert_internal(sum < BASE);
@@ -912,7 +912,7 @@ static kk_bigint_t* kk_bigint_sub_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context
   kk_ssize_t i;
   for (i = 0; i < cy; i++) {
     diff = x->digits[i] - borrow - y->digits[i];
-    if (kk_unlikely(diff >= BASE)) {   // unsigned wrap around
+    if kk_unlikely(diff >= BASE) {   // unsigned wrap around
       borrow = 1;
       diff += BASE; // kk_assert_internal(diff >= 0);
     }
@@ -924,7 +924,7 @@ static kk_bigint_t* kk_bigint_sub_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context
   // propagate borrow
   for (; borrow != 0 && i < cx; i++) {
     diff = x->digits[i] - borrow;
-    if (kk_unlikely(diff >= BASE)) {  // unsigned wrap around
+    if kk_unlikely(diff >= BASE) {  // unsigned wrap around
       // borrow stays 1;
       kk_assert_internal(diff==~((kk_digit_t)0));
       diff += BASE;
@@ -1735,20 +1735,20 @@ kk_integer_t kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
 
 static bool kk_digit_to_uint64_ovf(kk_digit_t d, uint64_t* u) {
 #if (BASE > UINT64_MAX)
-  if (kk_unlikely(d > UINT64_MAX)) return true;
+  if kk_unlikely(d > UINT64_MAX) return true;
 #endif
   *u = d;
   return false;
 }
 
 static bool kk_uint64_add_ovf(uint64_t x, uint64_t y, uint64_t* z) {
-  if (kk_unlikely(x > (UINT64_MAX - y))) return true;
+  if kk_unlikely(x > (UINT64_MAX - y)) return true;
   *z = x + y;
   return false;
 }
 
 static bool kk_uint64_mul_ovf(uint64_t x, uint64_t y, uint64_t* z) {
-  if (kk_unlikely(x > (UINT64_MAX / y))) return true;
+  if kk_unlikely(x > (UINT64_MAX / y)) return true;
   *z = x*y;
   return false;
 }

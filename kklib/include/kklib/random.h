@@ -24,7 +24,7 @@ kk_decl_export kk_random_ctx_t* kk_srandom_round(kk_context_t* ctx);
 // Initial randomness comes from the OS.
 static inline uint32_t kk_srandom_uint32(kk_context_t* ctx) {
   kk_random_ctx_t* rnd = ctx->srandom_ctx;
-  if (kk_unlikely(rnd == NULL || rnd->used >= 16)) {
+  if kk_unlikely(rnd == NULL || rnd->used >= 16) {
     rnd = kk_srandom_round(ctx);
     kk_assert_internal(rnd != NULL && rnd->used >= 0 && rnd->used < 16);
   }
@@ -36,7 +36,7 @@ static inline uint32_t kk_srandom_uint32(kk_context_t* ctx) {
 static inline uint64_t kk_srandom_uint64(kk_context_t* ctx) {
   // return (((uint64_t)kk_srandom_uint32(ctx) << 32) | kk_srandom_uint32(ctx));
   kk_random_ctx_t* rnd = ctx->srandom_ctx;
-  if (kk_unlikely(rnd == NULL || rnd->used >= 15)) {
+  if kk_unlikely(rnd == NULL || rnd->used >= 15) {
     rnd = kk_srandom_round(ctx);
     kk_assert_internal(rnd != NULL && rnd->used >= 0 && rnd->used < 15);
   }

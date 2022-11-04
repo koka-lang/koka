@@ -268,7 +268,7 @@ static inline kk_decl_const bool kk_block_has_tag(const kk_block_t* b, kk_tag_t 
 
 static inline kk_decl_pure kk_ssize_t kk_block_scan_fsize(const kk_block_t* b) {  // number of scan fields
   const kk_ssize_t sfsize = b->header.scan_fsize;
-  if (kk_likely(sfsize != KK_SCAN_FSIZE_MAX)) return sfsize;
+  if kk_likely(sfsize != KK_SCAN_FSIZE_MAX) return sfsize;
   const kk_block_large_t* bl = (const kk_block_large_t*)b;
   return (kk_ssize_t)kk_intf_unbox(bl->large_scan_fsize);
 }
@@ -282,11 +282,11 @@ static inline void kk_block_refcount_set(kk_block_t* b, kk_refcount_t rc) {
 }
 
 static inline kk_decl_pure bool kk_block_is_unique(const kk_block_t* b) {
-  return (kk_likely(kk_block_refcount(b) == 0));
+  return kk_likely(kk_block_refcount(b) == 0);
 }
 
 static inline kk_decl_pure bool kk_block_is_thread_shared(const kk_block_t* b) {
-  return (kk_unlikely(kk_refcount_is_thread_shared(kk_block_refcount(b))));
+  return kk_unlikely(kk_refcount_is_thread_shared(kk_block_refcount(b)));
 }
 
 typedef struct kk_block_fields_s {
@@ -674,7 +674,7 @@ kk_decl_export kk_reuse_t  kk_block_check_drop_reuse(kk_block_t* b, kk_refcount_
 static inline kk_block_t* kk_block_dup(kk_block_t* b) {
   kk_assert_internal(kk_block_is_valid(b));
   const kk_refcount_t rc = kk_block_refcount(b);
-  if (kk_unlikely(kk_refcount_is_thread_shared(rc))) {  // (signed)rc < 0 
+  if kk_unlikely(kk_refcount_is_thread_shared(rc)) {  // (signed)rc < 0 
     return kk_block_check_dup(b, rc);                   // thread-shared or sticky (overflow) ?
   }
   else {
@@ -702,7 +702,7 @@ static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
 static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const kk_refcount_t rc = b->header.refcount;  
-  if (kk_unlikely(kk_refcount_is_unique_or_thread_shared(rc))) {  // (signed)rc <= 0
+  if kk_unlikely(kk_refcount_is_unique_or_thread_shared(rc)) {  // (signed)rc <= 0
     kk_block_check_decref(b, rc, ctx);  // thread-shared, sticky (overflowed), or can be freed? 
   }
   else {
@@ -737,7 +737,7 @@ static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
     }
     kk_block_free(b,ctx);
   }
-  else if (kk_unlikely(kk_refcount_is_thread_shared(rc))) {  // (signed)rc < 0
+  else if kk_unlikely(kk_refcount_is_thread_shared(rc)) {    // (signed)rc < 0
     kk_block_check_drop(b, rc, ctx);                         // thread-share or sticky (overflowed) ?    
   }
   else {
@@ -773,7 +773,7 @@ static inline void kk_block_dropn(kk_block_t* b, kk_ssize_t scan_fsize, kk_conte
     }
     kk_block_free(b,ctx);
   }
-  else if (kk_unlikely(kk_refcount_is_thread_shared(rc))) {  // (signed)rc < 0
+  else if kk_unlikely(kk_refcount_is_thread_shared(rc)) {  // (signed)rc < 0
     kk_block_check_drop(b, rc, ctx);                         // thread-shared, sticky (overflowed)?
   }
   else {
@@ -794,7 +794,7 @@ static inline kk_reuse_t kk_block_dropn_reuse(kk_block_t* b, kk_ssize_t scan_fsi
     }
     return b;
   }
-  else if (kk_unlikely(kk_refcount_is_thread_shared(rc))) {  // (signed)rc < 0
+  else if kk_unlikely(kk_refcount_is_thread_shared(rc)) {    // (signed)rc < 0
     kk_block_check_drop(b, rc, ctx);                         // thread-shared or sticky (overflowed)?
     return kk_reuse_null;
   }
@@ -959,7 +959,7 @@ static inline void kk_datatype_drop_assert(kk_datatype_t d, kk_tag_t t, kk_conte
 
 static inline kk_reuse_t kk_datatype_dropn_reuse(kk_datatype_t d, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   kk_assert_internal(kk_datatype_is_ptr(d));
-  if (kk_unlikely(kk_datatype_is_singleton(d))) {
+  if kk_unlikely(kk_datatype_is_singleton(d)) {
     return kk_reuse_null;
   }
   else {
@@ -1139,7 +1139,7 @@ kk_decl_export kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_context_t* ctx );
 static inline kk_box_t kk_unbox_Just( kk_box_t b, kk_context_t* ctx ) {
   if (kk_box_is_ptr(b)) {
     kk_block_t* bl = kk_ptr_unbox(b);
-    if (kk_unlikely(kk_block_has_tag(bl, KK_TAG_JUST))) {
+    if kk_unlikely(kk_block_has_tag(bl, KK_TAG_JUST)) {
       return kk_unbox_Just_block(bl,ctx);
     }
   }
@@ -1148,7 +1148,7 @@ static inline kk_box_t kk_unbox_Just( kk_box_t b, kk_context_t* ctx ) {
 }
 
 static inline kk_box_t kk_box_Just( kk_box_t b, kk_context_t* ctx ) {
-  if (kk_likely(!kk_box_is_maybe(b))) {
+  if kk_likely(!kk_box_is_maybe(b)) {
     return b;
   }
   else {
@@ -1246,7 +1246,7 @@ static inline kk_vector_t kk_vector_dup(kk_vector_t v) {
 }
 
 static inline kk_vector_t kk_vector_alloc_uninit(kk_ssize_t length, kk_box_t** buf, kk_context_t* ctx) {
-  if (kk_unlikely(length<=0)) {
+  if kk_unlikely(length<=0) {
     if (buf != NULL) *buf = NULL;
     return kk_vector_empty();
   }
@@ -1272,7 +1272,7 @@ static inline kk_vector_t kk_vector_alloc(kk_ssize_t length, kk_box_t def, kk_co
 
 static inline kk_box_t* kk_vector_buf_borrow(kk_vector_t vd, kk_ssize_t* len) {
   kk_vector_large_t v = kk_vector_as_large_borrow(vd);
-  if (kk_unlikely(v==NULL)) {
+  if kk_unlikely(v==NULL) {
     if (len != NULL) *len = 0;
     return NULL;
   }
@@ -1353,7 +1353,7 @@ static inline kk_ref_t kk_ref_alloc(kk_box_t value, kk_context_t* ctx) {
 }
 
 static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
-  if (kk_likely(!kk_block_is_thread_shared(&r->_block))) {
+  if kk_likely(!kk_block_is_thread_shared(&r->_block)) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_box_dup(b);
@@ -1367,7 +1367,7 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
 }
 
 static inline kk_box_t kk_ref_swap_borrow(kk_ref_t r, kk_box_t value) {
-  if (kk_likely(!kk_block_is_thread_shared(&r->_block))) {
+  if kk_likely(!kk_block_is_thread_shared(&r->_block)) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_atomic_store_relaxed(&r->value, value.box);
