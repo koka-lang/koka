@@ -285,7 +285,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
   uint8_t i; // current field
 
   // ------- drop the children and free the block b ------------
-  drop_free_block:
+  move_down:
     scan_fsize = b->header.scan_fsize;
     kk_assert_internal(kk_block_refcount(b) == 0);
     kk_assert_internal(scan_fsize > 0);           // due to kk_block_should_free
@@ -295,9 +295,9 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
       kk_block_free(b,ctx);
       if (next != NULL) {
         b = next;
-        goto drop_free_block;
+        goto move_down;
       }
-      // goto continue_with_parent; // fallthrough
+      // goto move_up; // fallthrough
     }
     else if (scan_fsize == 2 && !kk_box_is_non_null_ptr(kk_block_field(b,0))) {
       // optimized code for lists/nodes with boxed first element
@@ -305,14 +305,14 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
       kk_block_free(b,ctx);
       if (next != NULL) {
         b = next;
-        goto drop_free_block;
+        goto move_down;
       }
-      // goto continue_with_parent; // fallthrough
+      // goto move_up; // fallthrough
     }
     else if kk_unlikely(scan_fsize == KK_SCAN_FSIZE_MAX) {
       kk_assert_internal(scan_fsize == KK_SCAN_FSIZE_MAX);
       kk_block_drop_free_large_rec(b, ctx);
-      // goto continue_with_parent; // fallthrough
+      // goto move_up; // fallthrough
     }
     else {
       // small block more than 1 field (but less then KK_SCAN_FSIZE_MAX)
@@ -338,15 +338,15 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
           }
           // and continue with the child
           b = child;
-          goto drop_free_block;
+          goto move_down;
         }
       } while (i < scan_fsize);
       kk_block_free(b,ctx);
-      // goto continue_with_parent; // fallthrough
+      // goto move_up; // fallthrough
     }
     
   // ------- move up along the parent chain ------------
-  // continue_with_parent:
+  // move_up:
     if (parent != NULL) {
       b = parent;
       parent = _kk_box_ptr( kk_block_field(parent, 0) );  // low-level unbox as it can be NULL
@@ -356,7 +356,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
       goto scan_fields;
     }
 
-  // done:
+  // done
 }
 
 #if 0
