@@ -571,61 +571,103 @@ static kk_decl_noinline void kk_block_mark_shared_recx_large(kk_block_t* b, kk_c
   kk_block_make_shared(b);
 }
 
+// Unfortunately, we cannot use the _field_idx as the index for marking
+// as we also use it for tail recursion context paths. Such TRMC structure may
+// be captured under a lambda (by yielding for example) and that might become
+// thread shared and we cannot overwrite such indices. 
+// (This is unlike freeing where we can use it as we are freeing it anyways)
+// So, we steal 8 bits of an unshared reference count. If the reference count
+// is too large we just set it to RC_STUCK when it gets marked.
+#define KK_RC_MARK_MAX  KK_U32(0x7FFFFF)
+
+static void kk_block_mark_idx_prepare(kk_block_t* b) {
+  kk_refcount_t rc = kk_block_refcount(b);
+  kk_assert_internal(rc <= RC_STUCK);                 // not thread shared already
+  if (rc > KK_RC_MARK_MAX) { rc = KK_RC_MARK_MAX; }   // if rc is too large, cap it
+  rc = (rc << 8);                                     // make room for 8-bit mark index
+  kk_assert_internal(rc < RC_STUCK);
+  kk_assert_internal((rc & 0xFF) == 0);  
+  kk_block_refcount_set(b, rc);
+}
+
+static void kk_block_mark_idx_done(kk_block_t* b) {
+  kk_refcount_t rc = kk_block_refcount(b);
+  kk_assert_internal(rc <= RC_STUCK);           // not thread shared already
+  rc = kk_shr32(rc, 8);
+  if (rc >= KK_RC_MARK_MAX) { rc = RC_STUCK; }  // make it sticky if it was too large to contain an index
+  kk_block_refcount_set(b, rc);
+}
+
+static void kk_block_mark_idx_set(kk_block_t* b, uint8_t i) {
+  kk_refcount_t rc = kk_block_refcount(b);
+  kk_assert_internal(rc <= RC_STUCK);           // not thread shared already
+  rc = ((rc & ~0xFF) | i);
+  kk_block_refcount_set(b, rc);
+}
+
+static uint8_t kk_block_mark_idx(kk_block_t* b) {
+  kk_refcount_t rc = kk_block_refcount(b);
+  kk_assert_internal(rc <= RC_STUCK);           // not thread shared already
+  return (uint8_t)rc;
+}
+
 // Stackless marking by using pointer reversal
 static kk_decl_noinline void kk_block_mark_shared_recx(kk_block_t* b, kk_context_t* ctx) 
 {
+  fprintf(stderr, "mark shared recx\n");
   kk_block_t* parent = NULL;
   if (kk_block_is_thread_shared(b)) return;
   if (b->header.scan_fsize == 0) return;
-  uint8_t i = 0;
-  uint8_t scan_fsize = b->header.scan_fsize;
+  uint8_t i;
+  uint8_t scan_fsize;
 
-  // ---- marking fields -----
-markfields:
-  kk_assert_internal(scan_fsize > 0);
+recurse:
+  kk_assert_internal(!kk_block_is_thread_shared(b));  // due to kk_block_field_should_mark
+  scan_fsize = b->header.scan_fsize;
   if (scan_fsize == KK_SCAN_FSIZE_MAX) {
-    // recurse over the stack for large objects (vectors)
+    // stack recurse over the stack for large objects (vectors)
     kk_block_mark_shared_recx_large(b, ctx);
   }
   else {
-    do {
+    i = 0;
+    kk_block_mark_idx_prepare(b);
+
+    // ---- marking fields starting at field `i` upto `scan_fsize` -----
+markfields:
+    kk_assert_internal(scan_fsize > 0);
+    kk_assert_internal(i <= scan_fsize);
+    while (i < scan_fsize) {
       kk_block_t* child = kk_block_field_should_mark(b, i, ctx);
       i++;
       if (child != NULL) {
-        // move down 
-        // remember our state and link back to the parent
-        kk_block_field_set(b, i-1, _kk_box_new_ptr(parent));  // low-level box as parent can be NULL
+        // visit the child, but remember our state and link back to the parent
+        // note: we cannot optimize for the last child as in freeing as we need to restore all parent fields
+        kk_block_field_set(b, i - 1, _kk_box_new_ptr(parent));  // low-level box as parent can be NULL
+        kk_block_mark_idx_set(b, i);
         parent = b;
-        kk_block_field_idx_set(parent,i);
         b = child;
-        i = 0;
-        scan_fsize = b->header.scan_fsize;
-        goto markfields;
+        goto recurse;
       }
-    } while (i < scan_fsize);
+    }
+    kk_block_mark_idx_done(b);
     kk_block_make_shared(b);
   }
 
-  //--- moving back up ------------------
-  while (parent != NULL) {
+  //--- moving back up along the parent chain ------------------
+  if (parent != NULL) {
     // move up
-    i = kk_block_field_idx(parent);
+    i = kk_block_mark_idx(parent);
+    scan_fsize = parent->header.scan_fsize;
+    kk_assert_internal(i > 0 && i <= scan_fsize);    
     kk_block_t* pparent = _kk_box_ptr( kk_block_field(parent, i-1) );  // low-level unbox on parent
-    kk_block_field_set(parent, i-1, kk_ptr_box(b));  // restore original pointer
+    kk_block_field_set(parent, i-1, kk_ptr_box(b));                    // restore original pointer
     b = parent;
     parent = pparent;
-    // and continue visiting the fields
-    scan_fsize = b->header.scan_fsize;
-    if (i >= scan_fsize) {
-      kk_assert_internal(i == scan_fsize);
-      // done, keep moving up
-      kk_block_make_shared(b);
-    }
-    else {
-      // mark the rest of the fields starting at `i` upto `scan_fsize`
-      goto markfields;
-    }
+    kk_assert_internal(!kk_block_is_thread_shared(b));
+    // mark the rest of the fields starting at `i` upto `scan_fsize`
+    goto markfields;    
   }
+
   // done
 }
 
@@ -672,8 +714,8 @@ static kk_block_t* kk_block_alloc_copy( kk_block_t* b, kk_context_t* ctx ) {
 #if !defined(KK_CTAIL_NO_CONTEXT_PATH)
 kk_decl_export kk_decl_noinline kk_box_t kk_ctail_context_copy_compose( kk_box_t res, kk_box_t child, kk_context_t* ctx) {
   kk_assert_internal(!kk_block_is_unique(kk_ptr_unbox(res)));
-  kk_box_t  cres;          // copied result context
-  kk_box_t* next = NULL;   // pointer to the context path field in the parent block
+  kk_box_t  cres = kk_box_null;     // copied result context
+  kk_box_t* next = NULL;            // pointer to the context path field in the parent block
   for( kk_box_t cur = res; kk_box_is_ptr(cur); cur = *next ) {
     kk_block_t* b = kk_ptr_unbox(cur);  
     const kk_ssize_t field = kk_block_field_idx(b) - 1;

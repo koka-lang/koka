@@ -159,10 +159,14 @@ pub fun main()
   // allocate and free the stretch tree
   val stretch-depth = max-depth.inc
   show( "stretch tree", stretch-depth, make(stretch-depth).check )
+
   
   // allocate long lived tree
   // val long = make(max-depth)
   val long = make(max-depth)
+
+  // test thread shared marking
+  // show("long lived tree in another thread", max-depth,  task{ long.check }.await )
 
   // allocate and free many trees in parallel
   val trees = gen-depth( min-depth, max-depth )
