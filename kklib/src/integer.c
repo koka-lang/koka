@@ -187,10 +187,11 @@ static kk_ptr_t bigint_ptr_(kk_bigint_t* x) {
   return &x->_block;
 }
 
-static kk_integer_t bigint_as_integer_(kk_bigint_t* x) {
-  uintptr_t p = (uintptr_t)bigint_ptr_(x);
-  kk_assert_internal((p&3) == 0);
-  kk_integer_t i = { p };  
+static kk_integer_t bigint_as_integer_(kk_bigint_t* x, kk_context_t* ctx) {
+  kk_integer_t i = { kk_ptr_encode(bigint_ptr_(x), ctx) };
+#if KK_INT_TAG!=KK_TAG_VALUE
+  i.ibox = i.ibox ^ 1;
+#endif
   return i;
 }
 
@@ -198,12 +199,13 @@ static bool bigint_is_unique_(kk_bigint_t* x) {
   return kk_block_is_unique(bigint_ptr_(x));
 }
 
-static kk_bigint_t* dup_bigint(kk_bigint_t* x) {
-  return kk_basetype_dup_as(kk_bigint_t*, x);
+static kk_bigint_t* dup_bigint(kk_bigint_t* x, kk_context_t* ctx) {
+  kk_unused(ctx);
+  return kk_block_assert(kk_bigint_t*, kk_block_dup(&x->_block), KK_TAG_BIGINT);
 }
 
 static void drop_bigint(kk_bigint_t* x, kk_context_t* ctx) {
-  kk_basetype_drop(x,ctx);
+  kk_block_drop_assert(&x->_block,KK_TAG_BIGINT,ctx);
 }
 
 
@@ -330,7 +332,7 @@ static kk_integer_t integer_bigint(kk_bigint_t* x, kk_context_t* ctx) {
     return kk_integer_from_small(i);
   }
   else {
-    return bigint_as_integer_(x);
+    return bigint_as_integer_(x,ctx);
   }
 }
 
@@ -389,7 +391,7 @@ static kk_bigint_t* bigint_from_uint64(uint64_t i, kk_context_t* ctx) {
 static kk_bigint_t* kk_integer_to_bigint(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
   if (kk_is_bigint(x)) {
-    return kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
+    return kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x,ctx), KK_TAG_BIGINT);
   }
   else {
     kk_assert_internal(kk_is_smallint(x));
@@ -398,15 +400,15 @@ static kk_bigint_t* kk_integer_to_bigint(kk_integer_t x, kk_context_t* ctx) {
 }
 
 kk_integer_t kk_integer_from_bigu64(uint64_t i, kk_context_t* ctx) {
-  return bigint_as_integer_(bigint_from_uint64(i, ctx));
+  return bigint_as_integer_(bigint_from_uint64(i, ctx),ctx);
 }
 
 kk_integer_t kk_integer_from_big64(int64_t i, kk_context_t* ctx) {
-  return bigint_as_integer_(bigint_from_int64(i,ctx));
+  return bigint_as_integer_(bigint_from_int64(i,ctx),ctx);
 }
 
 kk_integer_t kk_integer_from_big(kk_intx_t i, kk_context_t* ctx) {
-  return bigint_as_integer_(bigint_from_int(i, ctx));
+  return bigint_as_integer_(bigint_from_int(i, ctx),ctx);
 }
 
 
@@ -746,7 +748,7 @@ bool kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
 
 static kk_bigint_t* bigint_neg(kk_bigint_t* x, kk_context_t* ctx) {
   kk_bigint_t* z = bigint_ensure_unique(x,ctx);
-  z->is_neg = !z->is_neg;
+  z->is_neg = (z->is_neg == 0);
   return z;
 }
 
@@ -999,7 +1001,7 @@ static kk_bigint_t* kk_bigint_mul_small(kk_bigint_t* x, kk_digit_t y, kk_context
 }
 
 static kk_bigint_t* kk_bigint_sqr(kk_bigint_t* x, kk_context_t* ctx) {
-  dup_bigint(x);
+  dup_bigint(x,ctx);
   return bigint_mul(x, x, ctx);
 }
 
@@ -1036,17 +1038,17 @@ static kk_bigint_t* bigint_mul_karatsuba(kk_bigint_t* x, kk_bigint_t* y, kk_cont
   if (n <= 25) return bigint_mul(x, y, ctx);
   n = ((n + 1) / 2);
 
-  kk_bigint_t* b = kk_bigint_slice(dup_bigint(x), n, x->count, ctx);
+  kk_bigint_t* b = kk_bigint_slice(dup_bigint(x,ctx), n, x->count, ctx);
   kk_bigint_t* a = kk_bigint_slice(x, 0, n, ctx);
-  kk_bigint_t* d = kk_bigint_slice(dup_bigint(y), n, y->count, ctx);
+  kk_bigint_t* d = kk_bigint_slice(dup_bigint(y, ctx), n, y->count, ctx);
   kk_bigint_t* c = kk_bigint_slice(y, 0, n, ctx);
 
-  kk_bigint_t* ac = bigint_mul_karatsuba(dup_bigint(a), dup_bigint(c), ctx);
-  kk_bigint_t* bd = bigint_mul_karatsuba(dup_bigint(b), dup_bigint(d), ctx);
+  kk_bigint_t* ac = bigint_mul_karatsuba(dup_bigint(a, ctx), dup_bigint(c, ctx), ctx);
+  kk_bigint_t* bd = bigint_mul_karatsuba(dup_bigint(b, ctx), dup_bigint(d, ctx), ctx);
   kk_bigint_t* abcd = bigint_mul_karatsuba( bigint_add(a, b, b->is_neg, ctx),
                                          bigint_add(c, d, d->is_neg, ctx), ctx);
-  kk_bigint_t* p1 = kk_bigint_shift_left(kk_bigint_sub(kk_bigint_sub(abcd, dup_bigint(ac), ac->is_neg, ctx),
-                                              dup_bigint(bd), bd->is_neg, ctx), n, ctx);
+  kk_bigint_t* p1 = kk_bigint_shift_left(kk_bigint_sub(kk_bigint_sub(abcd, dup_bigint(ac, ctx), ac->is_neg, ctx),
+                                              dup_bigint(bd, ctx), bd->is_neg, ctx), n, ctx);
   kk_bigint_t* p2 = kk_bigint_shift_left(bd, 2 * n, ctx);
   kk_bigint_t* prod = bigint_add(bigint_add(ac, p1, p1->is_neg, ctx), p2, p2->is_neg, ctx);
   return kk_bigint_trim(prod,true, ctx);
@@ -1072,15 +1074,15 @@ kk_integer_t kk_integer_pow(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
       return (kk_integer_is_even(p,ctx) ? kk_integer_one : kk_integer_min_one);
     }
   }
-  if (kk_integer_signum_borrow(p)==-1) {
+  if (kk_integer_signum_borrow(p,ctx)==-1) {
     kk_integer_drop(p,ctx); return kk_integer_zero;
   }
   kk_integer_t y = kk_integer_one;
   if (kk_is_bigint(p)) {
     while (1) {
-      kk_integer_dup(p);
+      kk_integer_dup(p, ctx);
       if (kk_integer_is_odd(p,ctx)) {
-        kk_integer_dup(x);
+        kk_integer_dup(x, ctx);
         y = kk_integer_mul(y, x, ctx);
         p = kk_integer_dec(p, ctx);
       }
@@ -1093,7 +1095,7 @@ kk_integer_t kk_integer_pow(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
   kk_intx_t i = kk_smallint_from_integer(p);
   while (1) {
     if ((i&1)!=0) {
-      kk_integer_dup(x);
+      kk_integer_dup(x, ctx);
       y = kk_integer_mul(y, x, ctx);
       i--;
     }
@@ -1259,9 +1261,9 @@ kk_integer_t kk_integer_sqr_generic(kk_integer_t x, kk_context_t* ctx) {
 }
 
 /* borrow x, may produce an invalid read if x is not a bigint */
-int kk_integer_signum_generic_bigint(kk_integer_t x) {
+int kk_integer_signum_generic_bigint(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
-  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
+  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x, ctx), KK_TAG_BIGINT);
   int signum = (bx->is_neg ? -1 : ((bx->count==0 && bx->digits[0]==0) ? 0 : 1));
   return signum;
 }
@@ -1285,7 +1287,7 @@ int kk_integer_cmp_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
 }
 
 int kk_integer_cmp_generic_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  return kk_integer_cmp_generic(kk_integer_dup(x), kk_integer_dup(y), ctx);
+  return kk_integer_cmp_generic(kk_integer_dup(x, ctx), kk_integer_dup(y, ctx), ctx);
 }
 
 kk_integer_t kk_integer_add_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
@@ -1410,25 +1412,25 @@ kk_integer_t kk_integer_div_mod_generic(kk_integer_t x, kk_integer_t y, kk_integ
     kk_integer_drop(y, ctx);
     return kk_integer_zero;
   }
-  else if (kk_integer_is_pos_borrow(x)) {
+  else if (kk_integer_is_pos_borrow(x,ctx)) {
     // positive x
     return kk_integer_cdiv_cmod_generic(x, y, mod, ctx);
   }
   else {
     // regular
     kk_integer_t m;
-    kk_integer_t d = kk_integer_cdiv_cmod_generic(x, kk_integer_dup(y), &m, ctx);
-    if (kk_integer_is_neg_borrow(m)) {
-      if (kk_integer_is_neg_borrow(y)) {
+    kk_integer_t d = kk_integer_cdiv_cmod_generic(x, kk_integer_dup(y, ctx), &m, ctx);
+    if (kk_integer_is_neg_borrow(m,ctx)) {
+      if (kk_integer_is_neg_borrow(y, ctx)) {
         d = kk_integer_inc(d, ctx);
         if (mod!=NULL) { 
-          m = kk_integer_sub(m, kk_integer_dup(y), ctx); 
+          m = kk_integer_sub(m, kk_integer_dup(y, ctx), ctx);
         }
       }
       else {
         d = kk_integer_dec(d, ctx);
         if (mod!=NULL) { 
-          m = kk_integer_add(m, kk_integer_dup(y), ctx); 
+          m = kk_integer_add(m, kk_integer_dup(y, ctx), ctx);
         } 
       }
     }
@@ -1538,7 +1540,7 @@ kk_decl_export kk_string_t kk_integer_to_hex_string(kk_integer_t x, bool use_cap
 
 void kk_integer_fprint(FILE* f, kk_integer_t x, kk_context_t* ctx) {
   kk_string_t s = kk_integer_to_string(x, ctx);
-  fprintf(f, "%s", kk_string_cbuf_borrow(s,NULL));
+  fprintf(f, "%s", kk_string_cbuf_borrow(s,NULL,ctx));
   kk_string_drop(s, ctx);
 }
 
@@ -1720,7 +1722,7 @@ kk_integer_t kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t*
 }
 
 kk_integer_t kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
-  bool xneg = kk_integer_is_neg_borrow(x);
+  bool xneg = kk_integer_is_neg_borrow(x, ctx);
   kk_integer_t d = kk_integer_cdiv_pow10(x, p, ctx);
   if (xneg) {
     d = kk_integer_dec(d, ctx);

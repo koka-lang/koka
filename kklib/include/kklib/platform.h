@@ -353,47 +353,103 @@ typedef unsigned       kk_uintx_t;
 #endif
 #define KK_INTX_BITS   (8*KK_INTX_SIZE)
 
-// `sizeof(kk_intf_t)` is `min(sizeof(kk_intx_t),sizeof(size_t))`
-#if (KK_INTX_SIZE > KK_SIZE_SIZE)
+
+
+// We have |kk_intf_t| <= |kk_box_t| <= |intptr_t|.
+// These are generally all the same size, on x64 they will all be 64-bit.
+// But not always:
+// - |kk_intf_t| can be smaller than |kk_box_t| if pointers are larger than natural ints (say x86 huge)
+// - |kk_box_t| can be smaller than |intptr_t| if pointers are compressed.
+//   For example using a compressed heap with 32-bit pointers on a 64-bit system, or
+//   64-bit addresses on a 128-bit CHERI system.
+// 
+// The `kk_intf_t` represents the largest integer size that fits into `kk_box_t` (minus 1 bit)
+// but not larger than the natural register size for integers.
+
+// a boxed value is by default the size of an `intptr_t`.
+#if !defined(KK_INTB_SIZE)
+#define KK_INTB_SIZE   KK_INTPTR_SIZE
+#endif
+#define KK_INTB_BITS   (8*KK_INTB_SIZE)
+
+
+// define `kk_intb_t` (the integer that can hold a boxed value)
+#if (KK_INTB_SIZE == KK_INTPTR_SIZE)
+#define KK_COMPRESS 0
+typedef intptr_t       kk_intb_t;
+typedef uintptr_t      kk_uintb_t;
+#define KK_INTB_MAX    INTPTR_MAX
+#define KK_INTB_MIN    INTPTR_MIN
+#define KK_IB(i)       KK_IP(i)
+#define PRIdIB         "zd"
+#elif (KK_INTB_SIZE == 8 && KK_INTB_SIZE < KK_INTPTR_SIZE)
+#define KK_COMPRESS 1
+typedef int64_t        kk_intb_t;
+typedef uint64_t       kk_uintb_t;
+#define KK_INTB_MAX    INT64_MAX
+#define KK_INTB_MIN    INT64_MIN
+#define KK_IB(i)       KK_I64(i)
+#define PRIdIB         PRIdI64
+#elif (KK_INTB_SIZE == 4 && KK_INTB_SIZE < KK_INTPTR_SIZE)
+#define KK_COMPRESS 1
+typedef int32_t        kk_intb_t;
+typedef uint32_t       kk_uintb_t;
+#define KK_INTB_MAX    INT32_MAX
+#define KK_INTB_MIN    INT32_MIN
+#define KK_IB(i)       KK_I32(i)
+#define PRIdIB         PRIdI32
+#else
+#error "the given platform boxed integer size is (currently) not supported"
+#endif
+
+#if !defined(KK_BOX_PTR_SHIFT)
+#define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - 1)
+#endif
+
+
+// Largest natural integer that fits into a boxed value
+#if (KK_INTB_SIZE > KK_SIZE_SIZE)   // ensure it fits the natural register size
 typedef kk_ssize_t     kk_intf_t;
 typedef size_t         kk_uintf_t;
-#define KK_UF(i)       KK_UZ(i)
 #define KK_IF(i)       KK_IZ(i)
 #define KK_INTF_SIZE   KK_SSIZE_SIZE
 #define KK_INTF_MAX    KK_SSIZE_MAX
 #define KK_INTF_MIN    KK_SSIZE_MIN
-#define KK_UINTF_MAX   SIZE_MAX
 #else
-typedef kk_intx_t      kk_intf_t;
-typedef kk_uintx_t     kk_uintf_t;
-#define KK_UF(i )      KK_UX(i)
-#define KK_IF(i)       KK_IX(i)
-#define KK_INTF_SIZE   KK_INTX_SIZE
-#define KK_INTF_MAX    KK_INTX_MAX
-#define KK_INTF_MIN    KK_INTX_MIN
-#define KK_UINTF_MAX   KK_UINTX_MAX
+typedef kk_intb_t      kk_intf_t;
+typedef kk_intb_t      kk_uintf_t;
+#define KK_IF(i)       KK_IB(i)
+#define KK_INTF_SIZE   8
+#define KK_INTF_MAX    INT64_MAX
+#define KK_INTF_MIN    INT64_MIN
+#define PRIdIF         PRIdIB
 #endif
 #define KK_INTF_BITS   (8*KK_INTF_SIZE)
 
 
 // Distinguish unsigned shift right and signed arithmetic shift right.
 // (Here we assume >> is arithmetic right shift). Avoid UB by always masking the shift.
-static inline kk_intx_t   kk_sar(kk_intx_t i,  kk_intx_t shift) { return (i >> (shift & (KK_INTX_BITS - 1))); }
-static inline kk_uintx_t  kk_shr(kk_uintx_t u, kk_intx_t shift) { return (u >> (shift & (KK_INTX_BITS - 1))); }
-static inline kk_intf_t   kk_sarf(kk_intf_t i, kk_intf_t shift) { return (i >> (shift & (KK_INTF_BITS - 1))); }
-static inline kk_uintf_t  kk_shrf(kk_uintf_t u, kk_intf_t shift){ return (u >> (shift & (KK_INTF_BITS - 1))); }
-static inline uintptr_t   kk_shrp(uintptr_t u, kk_intx_t shift) { return (u >> (shift & (KK_INTPTR_BITS - 1))); }
-static inline int32_t     kk_sar32(int32_t i,  int32_t shift)   { return (i >> (shift & 31)); }
-static inline uint32_t    kk_shr32(uint32_t u, int32_t shift)   { return (u >> (shift & 31)); }
-static inline int64_t     kk_sar64(int64_t i,  int64_t shift)   { return (i >> (shift & 63)); }
-static inline uint64_t    kk_shr64(uint64_t u, int64_t shift)   { return (u >> (shift & 63)); }
+static inline kk_intx_t   kk_sar(kk_intx_t i, int shift) { return (i >> (shift & (KK_INTX_BITS - 1))); }
+static inline kk_uintx_t  kk_shr(kk_uintx_t u, int shift) { return (u >> (shift & (KK_INTX_BITS - 1))); }
+static inline kk_intf_t   kk_sarf(kk_intf_t i, int shift) { return (i >> (shift & (KK_INTF_BITS - 1))); }
+static inline kk_uintf_t  kk_shrf(kk_uintf_t u, int shift) { return (u >> (shift & (KK_INTF_BITS - 1))); }
+static inline kk_intb_t   kk_sarb(kk_intb_t i, int shift) { return (i >> (shift & (KK_INTB_BITS - 1))); }
+
+static inline uintptr_t   kk_shrp(uintptr_t u, int shift) { return (u >> (shift & (KK_INTPTR_BITS - 1))); }
+static inline intptr_t    kk_sarp(intptr_t u, int shift) { return (u >> (shift & (KK_INTPTR_BITS - 1))); }
+static inline int32_t     kk_sar32(int32_t i, int shift) { return (i >> (shift & 31)); }
+static inline uint32_t    kk_shr32(uint32_t u, int shift) { return (u >> (shift & 31)); }
+static inline int64_t     kk_sar64(int64_t i, int shift) { return (i >> (shift & 63)); }
+static inline uint64_t    kk_shr64(uint64_t u, int shift) { return (u >> (shift & 63)); }
 
 // Avoid UB by left shifting on unsigned integers (and masking the shift).
-static inline kk_intx_t   kk_shl(kk_intx_t i, kk_intx_t shift)  { return (kk_intx_t)((kk_uintx_t)i << (shift & (KK_INTX_BITS - 1))); }
-static inline kk_intf_t   kk_shlf(kk_intf_t i, kk_intf_t shift) { return (kk_intf_t)((kk_uintf_t)i << (shift & (KK_INTF_BITS - 1))); }
-static inline int32_t     kk_shl32(int32_t i, int32_t shift)    { return (int32_t)  ((uint32_t)i   << (shift & 31)); }
-static inline int64_t     kk_shl64(int64_t i, int64_t shift)    { return (int64_t)  ((uint64_t)i   << (shift & 63)); }
-static inline intptr_t    kk_shlp(intptr_t i, intptr_t shift)   { return (intptr_t) ((uintptr_t)i  << (shift & (KK_INTPTR_BITS - 1))); }
+static inline kk_intx_t   kk_shl(kk_intx_t i, int shift) { return (kk_intx_t)((kk_uintx_t)i << (shift & (KK_INTX_BITS - 1))); }
+static inline kk_intf_t   kk_shlf(kk_intf_t i, int shift) { return (kk_intf_t)((kk_uintf_t)i << (shift & (KK_INTF_BITS - 1))); }
+static inline kk_intb_t   kk_shlb(kk_intb_t i, int shift) { return (kk_intb_t)((kk_uintb_t)i << (shift & (KK_INTB_BITS - 1))); }
+static inline intptr_t    kk_shlp(intptr_t i, int shift) { return (intptr_t)((uintptr_t)i << (shift & (KK_INTPTR_BITS - 1))); }
+static inline int32_t     kk_shl32(int32_t i, int shift) { return (int32_t)((uint32_t)i << (shift & 31)); }
+static inline int64_t     kk_shl64(int64_t i, int shift) { return (int64_t)((uint64_t)i << (shift & 63)); }
+
 
 
 // Architecture assumptions

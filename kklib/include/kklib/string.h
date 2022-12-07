@@ -107,22 +107,34 @@ static inline kk_string_t kk_unsafe_bytes_as_string_unchecked(kk_bytes_t b) {
 }
 
 static inline kk_string_t kk_unsafe_bytes_as_string(kk_bytes_t b) {
-  kk_assert_internal(kk_datatype_tag(b) == KK_TAG_BOX_ANY || kk_utf8_is_valid(kk_bytes_cbuf_borrow(b, NULL)));
+  kk_assert_internal(kk_datatype_tag(b,kk_get_context()) == KK_TAG_BOX_ANY || kk_utf8_is_valid(kk_bytes_cbuf_borrow(b, NULL, kk_get_context())));
   return kk_unsafe_bytes_as_string_unchecked(b);
 }
 
-static inline kk_string_t kk_string_empty(void) {
+static inline kk_string_t kk_string_empty() {
   return kk_unsafe_bytes_as_string( kk_bytes_empty() );
 }
 
 // Define string literals
+#if 0
 #define kk_define_string_literal(decl,name,len,chars) \
   static struct { struct kk_bytes_s _base; size_t length; char str[len+1]; } _static_##name = \
     { { { KK_HEADER_STATIC(0,KK_TAG_STRING) } }, len, chars }; \
-  decl kk_string_t name = { { (uintptr_t)&_static_##name._base._block } };  
+  decl kk_string_t name = { { (intptr_t)&_static_##name._base._block } };  
+#else
+#define kk_declare_string_literal(decl,name,len,chars) \
+  static kk_ssize_t  _static_len_##name = len; \
+  static const char* _static_##name = chars; \
+  decl kk_string_t name = { 0 };
 
-#define kk_define_string_literal_empty(decl,name) \
-  decl kk_string_t name = { { (kk_block_t*)((uintptr_t)(5)) } };
+#define kk_init_string_literal(name,ctx) \
+  if (name.bytes.dbox == 0) { name = kk_string_alloc_from_utf8n(_static_len_##name, _static_##name, ctx); }  
+
+#define kk_define_string_literal(decl,name,len,chars,ctx) \
+  kk_declare_string_literal(decl,name,len,chars) \
+  kk_init_string_literal(name,ctx)
+
+#endif
 
 static inline kk_string_t kk_string_unbox(kk_box_t v) {
   return kk_unsafe_bytes_as_string( kk_bytes_unbox(v) );
@@ -136,8 +148,8 @@ static inline void kk_string_drop(kk_string_t str, kk_context_t* ctx) {
   kk_bytes_drop(str.bytes, ctx);
 }
 
-static inline kk_string_t kk_string_dup(kk_string_t str) {
-  return kk_unsafe_bytes_as_string(kk_bytes_dup(str.bytes));
+static inline kk_string_t kk_string_dup(kk_string_t str, kk_context_t* ctx) {
+  return kk_unsafe_bytes_as_string(kk_bytes_dup(str.bytes,ctx));
 }
 
 
@@ -228,24 +240,24 @@ static inline kk_string_t kk_string_alloc_raw(const char* s, bool free, kk_conte
   return kk_string_alloc_raw_len(kk_sstrlen(s), s, free, ctx);
 }
 
-static inline const uint8_t* kk_string_buf_borrow(const kk_string_t str, kk_ssize_t* len) {
-  return kk_bytes_buf_borrow(str.bytes, len);  
+static inline const uint8_t* kk_string_buf_borrow(const kk_string_t str, kk_ssize_t* len, kk_context_t* ctx) {
+  return kk_bytes_buf_borrow(str.bytes, len, ctx);  
 }
 
-static inline const char* kk_string_cbuf_borrow(const kk_string_t str, kk_ssize_t* len) {
-  return (const char*)kk_string_buf_borrow(str, len);
+static inline const char* kk_string_cbuf_borrow(const kk_string_t str, kk_ssize_t* len, kk_context_t* ctx) {
+  return (const char*)kk_string_buf_borrow(str, len, ctx);
 }
 
-static inline int kk_string_cmp_cstr_borrow(const kk_string_t s, const char* t) {
-  return strcmp(kk_string_cbuf_borrow(s,NULL), t);
+static inline int kk_string_cmp_cstr_borrow(const kk_string_t s, const char* t, kk_context_t* ctx) {
+  return strcmp(kk_string_cbuf_borrow(s,NULL,ctx), t);
 }
 
-static inline kk_ssize_t kk_decl_pure kk_string_len_borrow(const kk_string_t str) {
-  return kk_bytes_len_borrow(str.bytes);
+static inline kk_ssize_t kk_decl_pure kk_string_len_borrow(const kk_string_t str, kk_context_t* ctx) {
+  return kk_bytes_len_borrow(str.bytes,ctx);
 }
 
 static inline kk_ssize_t kk_decl_pure kk_string_len(kk_string_t str, kk_context_t* ctx) {    // bytes in UTF8
-  kk_ssize_t len = kk_string_len_borrow(str);
+  kk_ssize_t len = kk_string_len_borrow(str,ctx);
   kk_string_drop(str, ctx);
   return len;
 }
@@ -258,8 +270,8 @@ static inline bool kk_string_ptr_eq_borrow(kk_string_t s1, kk_string_t s2) {
   return kk_bytes_ptr_eq_borrow(s1.bytes, s2.bytes);
 }
 
-static inline bool kk_string_is_empty_borrow(kk_string_t s) {
-  return (kk_string_len_borrow(s) == 0);
+static inline bool kk_string_is_empty_borrow(kk_string_t s, kk_context_t* ctx) {
+  return (kk_string_len_borrow(s,ctx) == 0);
 }
 
 static inline bool kk_string_is_empty(kk_string_t s, kk_context_t* ctx) {
@@ -369,20 +381,20 @@ static inline kk_string_t    kk_string_alloc_from_qutf16w(const wchar_t* wstr, k
   Utilities that can use the bytes functions
 --------------------------------------------------------------------------------------------------*/
 
-static inline int kk_string_cmp_borrow(kk_string_t str1, kk_string_t str2) {
-  return kk_bytes_cmp_borrow(str1.bytes, str2.bytes);
+static inline int kk_string_cmp_borrow(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
+  return kk_bytes_cmp_borrow(str1.bytes, str2.bytes,ctx);
 }
 
 static inline int kk_string_cmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
   return kk_bytes_cmp(str1.bytes, str2.bytes, ctx);
 }
 
-static inline bool kk_string_is_eq_borrow(kk_string_t s1, kk_string_t s2) {
-  return (kk_string_cmp_borrow(s1, s2) == 0);
+static inline bool kk_string_is_eq_borrow(kk_string_t s1, kk_string_t s2, kk_context_t* ctx) {
+  return (kk_string_cmp_borrow(s1, s2, ctx) == 0);
 }
 
-static inline bool kk_string_is_neq_borrow(kk_string_t s1, kk_string_t s2) {
-  return (kk_string_cmp_borrow(s1, s2) != 0);
+static inline bool kk_string_is_neq_borrow(kk_string_t s1, kk_string_t s2, kk_context_t* ctx) {
+  return (kk_string_cmp_borrow(s1, s2, ctx) != 0);
 }
 
 static inline bool kk_string_is_eq(kk_string_t s1, kk_string_t s2, kk_context_t* ctx) {
@@ -438,11 +450,11 @@ static inline bool   kk_string_contains(kk_string_t str, kk_string_t sub, kk_con
   Utilities that are string specific
 --------------------------------------------------------------------------------------------------*/
 
-kk_decl_export kk_ssize_t kk_decl_pure kk_string_count_borrow(kk_string_t str);  // number of code points
+kk_decl_export kk_ssize_t kk_decl_pure kk_string_count_borrow(kk_string_t str, kk_context_t* ctx);  // number of code points
 kk_decl_export kk_ssize_t kk_decl_pure kk_string_count(kk_string_t str, kk_context_t* ctx);  // number of code points
-kk_decl_export kk_ssize_t kk_decl_pure kk_string_count_pattern_borrow(kk_string_t str, kk_string_t pattern);
+kk_decl_export kk_ssize_t kk_decl_pure kk_string_count_pattern_borrow(kk_string_t str, kk_string_t pattern, kk_context_t* ctx);
 
-kk_decl_export int kk_string_icmp_borrow(kk_string_t str1, kk_string_t str2);             // ascii case insensitive
+kk_decl_export int kk_string_icmp_borrow(kk_string_t str1, kk_string_t str2, kk_context_t* ctx);             // ascii case insensitive
 kk_decl_export int kk_string_icmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx);    // ascii case insensitive
 
 

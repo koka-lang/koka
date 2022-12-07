@@ -48,11 +48,11 @@ static kk_ssize_t kk_wcslen(const uint16_t* wstr) {
 }
 
 
-int kk_string_icmp_borrow(kk_string_t str1, kk_string_t str2) {
+int kk_string_icmp_borrow(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
   kk_ssize_t len1;
-  const uint8_t* s1 = kk_string_buf_borrow(str1, &len1);
+  const uint8_t* s1 = kk_string_buf_borrow(str1, &len1, ctx);
   kk_ssize_t len2;
-  const uint8_t* s2 = kk_string_buf_borrow(str2, &len2);
+  const uint8_t* s2 = kk_string_buf_borrow(str2, &len2, ctx);
   kk_ssize_t minlen = (len1 <= len2 ? len1 : len2);
   int ord = kk_memicmp(s1, s2, minlen);
   if (ord == 0) {
@@ -63,7 +63,7 @@ int kk_string_icmp_borrow(kk_string_t str1, kk_string_t str2) {
 }
 
 int kk_string_icmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
-  int ord = kk_string_icmp_borrow(str1, str2);
+  int ord = kk_string_icmp_borrow(str1, str2, ctx);
   kk_string_drop(str1, ctx);
   kk_string_drop(str2, ctx);
   return ord;
@@ -71,9 +71,9 @@ int kk_string_icmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
 
 
 // Count code points in a valid utf-8 string.
-kk_ssize_t kk_decl_pure kk_string_count_borrow(kk_string_t str) {
+kk_ssize_t kk_decl_pure kk_string_count_borrow(kk_string_t str, kk_context_t* ctx) {
   kk_ssize_t len;
-  const uint8_t* s = kk_string_buf_borrow(str, &len);
+  const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
   kk_ssize_t cont = 0;      // continuation character counts
   const uint8_t* t = s; // current position 
   const uint8_t* end = t + len;
@@ -110,7 +110,7 @@ kk_ssize_t kk_decl_pure kk_string_count_borrow(kk_string_t str) {
 }
 
 kk_ssize_t kk_decl_pure kk_string_count(kk_string_t str, kk_context_t* ctx) {
-  kk_ssize_t count = kk_string_count_borrow(str);
+  kk_ssize_t count = kk_string_count_borrow(str,ctx);
   kk_string_drop(str, ctx);
   return count;
 }
@@ -344,7 +344,7 @@ static kk_string_t kk_qutf8_convert_from_invalid(kk_ssize_t len, const uint8_t* 
       t += tcount;
     }
   }
-  kk_assert_internal((t - kk_string_buf_borrow(tstr, NULL)) == vlen);
+  kk_assert_internal((t - kk_string_buf_borrow(tstr, NULL, ctx)) == vlen);
   return tstr;
 }
 
@@ -384,7 +384,7 @@ kk_string_t kk_string_convert_from_qutf8(kk_bytes_t str, kk_context_t* ctx) {
   // to avoid reallocation (to accommodate invalid sequences), we first check if
   // it is already valid utf-8 which should be very common; in that case we return the bytes/string as-is.
   kk_ssize_t len;
-  const uint8_t* const s = kk_bytes_buf_borrow(str, &len);
+  const uint8_t* const s = kk_bytes_buf_borrow(str, &len, ctx);
   kk_ssize_t vlen;
   bool valid = kk_qutf8_validate(len, s, true, &vlen);
   if (valid) {
@@ -403,7 +403,7 @@ kk_string_t kk_string_convert_from_qutf8(kk_bytes_t str, kk_context_t* ctx) {
 const char* kk_string_to_qutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx) {
   // to avoid allocation, we first check if none of the characters are in the raw range.
   kk_ssize_t len;
-  const uint8_t* const s = kk_string_buf_borrow(str, &len);
+  const uint8_t* const s = kk_string_buf_borrow(str, &len, ctx);
   const uint8_t* const end = s + len;
   kk_ssize_t extra_count = 0;
   const uint8_t* p = s;
@@ -467,7 +467,7 @@ const char* kk_string_to_qutf8_borrow(kk_string_t str, bool* should_free, kk_con
 
 uint16_t* kk_string_to_qutf16_borrow(kk_string_t str, kk_context_t* ctx) {
   kk_ssize_t len;
-  const uint8_t* const s = kk_string_buf_borrow(str, &len);
+  const uint8_t* const s = kk_string_buf_borrow(str, &len, ctx);
   const uint8_t* const end = s + len;
 
   // count utf-16 length (in 16-bit units)
@@ -652,7 +652,7 @@ kk_string_t kk_string_alloc_from_codepage(const uint8_t* bstr, const uint16_t* c
     kk_utf8_write(c, s, &count);
     s += count;
   }
-  kk_assert_internal(s == (kk_string_buf_borrow(str, NULL) + len) && *s == 0);
+  kk_assert_internal(s == (kk_string_buf_borrow(str, NULL, ctx) + len) && *s == 0);
   return str;
 }
 
@@ -661,12 +661,12 @@ kk_string_t kk_string_alloc_from_codepage(const uint8_t* bstr, const uint16_t* c
  String utilities
 --------------------------------------------------------------------------------------------------*/
 
-kk_ssize_t kk_decl_pure kk_string_count_pattern_borrow(kk_string_t str, kk_string_t pattern) {
+kk_ssize_t kk_decl_pure kk_string_count_pattern_borrow(kk_string_t str, kk_string_t pattern, kk_context_t* ctx) {
   kk_ssize_t patlen;
-  const uint8_t* pat = kk_string_buf_borrow(pattern, &patlen);
+  const uint8_t* pat = kk_string_buf_borrow(pattern, &patlen, ctx);
   kk_ssize_t len;
-  const uint8_t* s = kk_string_buf_borrow(str, &len);
-  if (patlen <= 0)  return kk_string_count_borrow(str);
+  const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
+  if (patlen <= 0)  return kk_string_count_borrow(str,ctx);
   if (patlen > len) return 0;
 
   //todo: optimize by doing backward Boyer-Moore? or use forward Knuth-Morris-Pratt?
@@ -692,7 +692,7 @@ kk_string_t kk_string_from_char(kk_char_t c, kk_context_t* ctx) {
 
 kk_string_t kk_string_from_chars(kk_vector_t v, kk_context_t* ctx) {
   kk_ssize_t n;
-  kk_box_t* cs = kk_vector_buf_borrow(v, &n);
+  kk_box_t* cs = kk_vector_buf_borrow(v, &n, ctx);
   kk_ssize_t len = 0;
   for (kk_ssize_t i = 0; i < n; i++) {
     len += kk_utf8_len(kk_char_unbox(cs[i], ctx));
@@ -704,23 +704,23 @@ kk_string_t kk_string_from_chars(kk_vector_t v, kk_context_t* ctx) {
     kk_utf8_write(kk_char_unbox(cs[i], ctx), p, &count);
     p += count;
   }
-  kk_assert_internal(kk_string_buf_borrow(s, NULL) + n == p);
+  kk_assert_internal(kk_string_buf_borrow(s, NULL, ctx) + n == p);
   kk_vector_drop(v, ctx);
   return s;
 }
 
 kk_vector_t kk_string_to_chars(kk_string_t s, kk_context_t* ctx) {
-  kk_ssize_t n = kk_string_count_borrow(s);
+  kk_ssize_t n = kk_string_count_borrow(s,ctx);
   kk_box_t* cs;
   kk_vector_t v = kk_vector_alloc_uninit(n, &cs, ctx);
   kk_ssize_t len;
-  const uint8_t* p = kk_string_buf_borrow(s, &len);
+  const uint8_t* p = kk_string_buf_borrow(s, &len, ctx);
   for (kk_ssize_t i = 0; i < n; i++) {
     kk_ssize_t count;
     cs[i] = kk_char_box(kk_utf8_read(p, &count), ctx);
     p += count;
   }
-  kk_assert_internal(p == kk_string_buf_borrow(s, NULL) + len);
+  kk_assert_internal(p == kk_string_buf_borrow(s, NULL, ctx) + len);
   kk_string_drop(s, ctx);
   return v;
 }
@@ -733,10 +733,10 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t str, kk_string_t sepstr, kk_ssiz
 {
   if (n < 1) n = 1;
   kk_ssize_t len;
-  const uint8_t* s = kk_string_buf_borrow(str, &len);
+  const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
   const uint8_t* const end = s + len;
   kk_ssize_t seplen;
-  const uint8_t* sep = kk_string_buf_borrow(sepstr, &seplen);
+  const uint8_t* sep = kk_string_buf_borrow(sepstr, &seplen, ctx);
 
   // count parts
   kk_ssize_t count = 1;
@@ -748,7 +748,7 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t str, kk_string_t sepstr, kk_ssiz
     }
   }
   else if (n > 1) {
-    count = kk_string_count_borrow(str); // todo: or special count upto n?
+    count = kk_string_count_borrow(str,ctx); // todo: or special count upto n?
     if (count > n) count = n;
   }
   kk_assert_internal(count >= 1 && count <= n);
@@ -785,17 +785,17 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t str, kk_string_t sepstr, kk_ssiz
 
 kk_string_t kk_string_to_upper(kk_string_t str, kk_context_t* ctx) {
   kk_ssize_t len;
-  const uint8_t* s = kk_string_buf_borrow(str, &len);
+  const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
   kk_string_t tstr;
-  if (kk_datatype_is_unique(str.bytes)) {
+  if (kk_datatype_is_unique(str.bytes, ctx)) {
     tstr = str;  // update in-place
   }
   else {
-    kk_string_dup(str);  // multi-thread safe as we still reference str with s
+    kk_string_dup(str, ctx);  // multi-thread safe as we still reference str with s
     tstr = kk_string_copy(str, ctx);
     kk_assert_internal(!kk_datatype_eq(str.bytes, tstr.bytes));
   }
-  uint8_t* t = (uint8_t*)kk_string_buf_borrow(tstr, NULL);   // t & s may alias!
+  uint8_t* t = (uint8_t*)kk_string_buf_borrow(tstr, NULL, ctx);   // t & s may alias!
   for (kk_ssize_t i = 0; i < len; i++) {
     t[i] = kk_ascii_toupper(s[i]);
   }
@@ -805,17 +805,17 @@ kk_string_t kk_string_to_upper(kk_string_t str, kk_context_t* ctx) {
 
 kk_string_t  kk_string_to_lower(kk_string_t str, kk_context_t* ctx) {
   kk_ssize_t len;
-  const uint8_t* s = kk_string_buf_borrow(str, &len);
+  const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
   kk_string_t tstr;
-  if (kk_datatype_is_unique(str.bytes)) {
+  if (kk_datatype_is_unique(str.bytes, ctx)) {
     tstr = str;  // update in-place
   }
   else {
-    kk_string_dup(str);  // multi-thread safe as we still reference str with s
+    kk_string_dup(str, ctx);  // multi-thread safe as we still reference str with s
     tstr = kk_string_copy(str, ctx);
     kk_assert_internal(!kk_datatype_eq(str.bytes, tstr.bytes));
   }
-  uint8_t* t = (uint8_t*)kk_string_buf_borrow(tstr, NULL);   // t & s may alias!
+  uint8_t* t = (uint8_t*)kk_string_buf_borrow(tstr, NULL, ctx);   // t & s may alias!
   for (kk_ssize_t i = 0; i < len; i++) {
     t[i] = kk_ascii_tolower(s[i]);
   }
@@ -825,7 +825,7 @@ kk_string_t  kk_string_to_lower(kk_string_t str, kk_context_t* ctx) {
 
 kk_string_t  kk_string_trim_left(kk_string_t str, kk_context_t* ctx) {
   kk_ssize_t len;
-  const uint8_t* s = kk_string_buf_borrow(str, &len);
+  const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
   const uint8_t* p = s;
   for (; *p != 0 && kk_ascii_iswhite(*p); p++) {}
   if (p == s) return str;           // no trim needed
@@ -837,7 +837,7 @@ kk_string_t  kk_string_trim_left(kk_string_t str, kk_context_t* ctx) {
 
 kk_string_t  kk_string_trim_right(kk_string_t str, kk_context_t* ctx) {
   kk_ssize_t len;
-  const uint8_t* s = kk_string_buf_borrow(str, &len);
+  const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
   const uint8_t* p = s + len - 1;
   for (; p >= s && kk_ascii_iswhite(*p); p--) {}
   const kk_ssize_t tlen = (p - s) + 1;
@@ -853,27 +853,27 @@ kk_string_t  kk_string_trim_right(kk_string_t str, kk_context_t* ctx) {
 
 kk_unit_t kk_println(kk_string_t s, kk_context_t* ctx) {
   // TODO: set locale to utf-8?
-  puts(kk_string_cbuf_borrow(s, NULL));  // todo: allow printing embedded 0 characters?
+  puts(kk_string_cbuf_borrow(s, NULL, ctx));  // todo: allow printing embedded 0 characters?
   kk_string_drop(s, ctx);
   return kk_Unit;
 }
 
 kk_unit_t kk_print(kk_string_t s, kk_context_t* ctx) {
   // TODO: set locale to utf-8?
-  fputs(kk_string_cbuf_borrow(s, NULL), stdout); // todo: allow printing embedded 0 characters?
+  fputs(kk_string_cbuf_borrow(s, NULL, ctx), stdout); // todo: allow printing embedded 0 characters?
   kk_string_drop(s, ctx);
   return kk_Unit;
 }
 
 kk_unit_t kk_trace(kk_string_t s, kk_context_t* ctx) {
-  fputs(kk_string_cbuf_borrow(s, NULL), stderr); // todo: allow printing embedded 0 characters?
+  fputs(kk_string_cbuf_borrow(s, NULL, ctx), stderr); // todo: allow printing embedded 0 characters?
   fputs("\n", stderr);
   kk_string_drop(s, ctx);
   return kk_Unit;
 }
 
 kk_unit_t kk_trace_any(kk_string_t s, kk_box_t x, kk_context_t* ctx) {
-  fprintf(stderr, "%s: ", kk_string_cbuf_borrow(s, NULL));
+  fprintf(stderr, "%s: ", kk_string_cbuf_borrow(s, NULL, ctx));
   kk_string_drop(s, ctx);
   kk_trace(kk_show_any(x, ctx), ctx);
   return kk_Unit;
@@ -940,26 +940,26 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
       snprintf(buf, 128, "value(%li)", (long)kk_intf_unbox(b));
       return kk_string_alloc_dup_valid_utf8(buf, ctx);
     }
-    else if (b.box == kk_box_null.box) {
+    else if (b.box == kk_box_null().box) {
       return kk_string_alloc_dup_valid_utf8("null", ctx);
     }
     else if (b.box == 0) {
       return kk_string_alloc_dup_valid_utf8("ptr(NULL)", ctx);
     }
     else {
-      kk_block_t* p = kk_ptr_unbox(b);
+      kk_block_t* p = kk_ptr_unbox(b, ctx);
       kk_tag_t tag = kk_block_tag(p);
       if (tag == KK_TAG_BIGINT) {
         // todo: add tag
-        return kk_integer_to_string(kk_integer_unbox(b), ctx);
+        return kk_integer_to_string(kk_integer_unbox(b, ctx), ctx);
       }
       else if (tag == KK_TAG_STRING_SMALL || tag == KK_TAG_STRING || tag == KK_TAG_STRING_RAW) {
         // todo: add tag
         return kk_string_unbox(b);
       }
       else if (tag == KK_TAG_FUNCTION) {
-        kk_function_t fun = kk_block_assert(kk_function_t, p, KK_TAG_FUNCTION);
-        snprintf(buf, 128, "function(0x%zx)", (uintptr_t)(kk_cptr_unbox(fun->fun)));
+        struct kk_function_s* fun = kk_block_assert(struct kk_function_s*, p, KK_TAG_FUNCTION);
+        snprintf(buf, 128, "function(0x%zx)", (uintptr_t)(kk_cptr_unbox(fun->fun, ctx)));
         kk_box_drop(b, ctx);
         return kk_string_alloc_dup_valid_utf8(buf, ctx);
       }

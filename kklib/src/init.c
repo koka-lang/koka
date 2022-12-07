@@ -23,18 +23,24 @@ static kk_box_t _function_id(kk_function_t self, kk_box_t x, kk_context_t* ctx) 
 }
 kk_function_t kk_function_id(kk_context_t* ctx) {
   kk_define_static_function(fun_id, _function_id, ctx)
-  return kk_function_dup(fun_id);
+  return kk_function_dup(fun_id,ctx);
 }
 
 // null function
 static kk_box_t _function_null(kk_function_t self, kk_context_t* ctx) {
   kk_function_drop(self, ctx);
   kk_fatal_error(EFAULT, "null function is called");
-  return kk_box_null;
+  return kk_box_null();
 }
 kk_function_t kk_function_null(kk_context_t* ctx) {
   kk_define_static_function(fun_null, _function_null, ctx)
-  return kk_function_dup(fun_null);
+  return kk_function_dup(fun_null,ctx);
+}
+bool kk_function_is_null(kk_function_t f, kk_context_t* ctx) {
+  kk_function_t fnull = kk_function_null(ctx);
+  bool eq = kk_basetype_eq(f, fnull);
+  kk_function_drop(fnull, ctx);
+  return eq;
 }
 
 
@@ -55,8 +61,8 @@ void kk_free_fun(void* p, kk_block_t* b, kk_context_t* ctx) {
 
 kk_string_t kk_get_host(kk_context_t* ctx) {
   kk_unused(ctx);
-  kk_define_string_literal(static, host, 5, "libc")
-  return kk_string_dup(host);
+  kk_define_string_literal(static, host, 5, "libc", ctx);
+  return kk_string_dup(host,ctx);
 }
 
 /*--------------------------------------------------------------------------------------------------
@@ -186,6 +192,7 @@ static void kklib_init(void) {
 // The thread local context; usually passed explicitly for efficiency.
 static kk_decl_thread kk_context_t* context;
 
+#define kk_assign_const(tp,field) ((tp*)&(field))[0]
 
 static struct { kk_block_t _block; kk_integer_t cfc; } kk_evv_empty_static = {
   { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { ((~KK_UP(0))^0x02) /*==-1 smallint*/}
@@ -200,7 +207,7 @@ kk_context_t* kk_get_context(void) {
 #ifdef KK_MIMALLOC
   mi_heap_t* heap = mi_heap_get_default(); //  mi_heap_new();
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
-  ctx->heap = heap;
+  kk_assign_const(kk_heap_t,ctx->heap) = heap;
 #else
   ctx = (kk_context_t*)kk_zalloc(sizeof(kk_context_t),NULL);
 #endif
@@ -208,8 +215,8 @@ kk_context_t* kk_get_context(void) {
   ctx->thread_id = (size_t)(&context);
   ctx->unique = kk_integer_one;
   context = ctx;
-  ctx->kk_box_any = kk_block_alloc_as(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);  
-  ctx->kk_box_any->_unused = kk_integer_zero;
+  ctx->kk_box_any = kk_basetype_alloc(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);  
+  kk_basetype_as(struct kk_box_any_s*,ctx->kk_box_any,ctx)->_unused = kk_integer_zero;
   // todo: register a thread_done function to release the context on thread terminatation.
   return ctx;
 }

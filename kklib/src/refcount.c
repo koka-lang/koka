@@ -239,7 +239,7 @@ static bool kk_block_decref_no_free(kk_block_t* b) {
 static inline kk_block_t* kk_block_field_should_free(kk_block_t* b, kk_ssize_t field, kk_context_t* ctx) { 
   kk_box_t v = kk_block_field(b, field); 
   if (kk_box_is_non_null_ptr(v)) {
-    kk_block_t* child = kk_ptr_unbox(v); 
+    kk_block_t* child = kk_ptr_unbox(v,ctx); 
     if (kk_block_decref_no_free(child)) {
       uint8_t v_scan_fsize = child->header.scan_fsize; 
       if (v_scan_fsize == 0) { // free leaf nodes directly and pretend it was not a ptr field 
@@ -328,7 +328,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
           // go down into the child
           if (i < scan_fsize) {
             // save our progress to continue here later (when moving up along the parent chain)
-            kk_block_field_set(b, 0, _kk_box_new_ptr(parent)); // set parent (use low-level box as parent could be NULL)
+            kk_block_field_set(b, 0, kk_box_from_ptr(parent,ctx)); // set parent (use low-level box as parent could be NULL)
             kk_block_field_idx_set(b,i);
             parent = b;
           }
@@ -349,7 +349,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
   // move_up:
     if (parent != NULL) {
       b = parent;
-      parent = _kk_box_ptr( kk_block_field(parent, 0) );  // low-level unbox as it can be NULL
+      parent = kk_box_to_ptr( kk_block_field(parent, 0), ctx );  // low-level unbox as it can be NULL
       scan_fsize = b->header.scan_fsize;
       i = kk_block_field_idx(b);
       kk_assert_internal(i < scan_fsize);
@@ -478,7 +478,7 @@ static inline kk_block_t* kk_block_field_should_mark(kk_block_t* b, kk_ssize_t f
   kk_unused(ctx);
   kk_box_t v = kk_block_field(b, field);
   if (kk_box_is_non_null_ptr(v)) {
-    kk_block_t* child = kk_ptr_unbox(v);
+    kk_block_t* child = kk_ptr_unbox(v,ctx);
     if (!kk_block_is_thread_shared(child)) {
       if (child->header.scan_fsize == 0) {
         // mark leaf objects directly as shared
@@ -642,7 +642,7 @@ markfields:
       if (child != NULL) {
         // visit the child, but remember our state and link back to the parent
         // note: we cannot optimize for the last child as in freeing as we need to restore all parent fields
-        kk_block_field_set(b, i - 1, _kk_box_new_ptr(parent));  // low-level box as parent can be NULL
+        kk_block_field_set(b, i - 1, kk_box_from_ptr(parent,ctx));  // low-level box as parent can be NULL
         kk_block_mark_idx_set(b, i);
         parent = b;
         b = child;
@@ -659,8 +659,8 @@ markfields:
     i = kk_block_mark_idx(parent);
     scan_fsize = parent->header.scan_fsize;
     kk_assert_internal(i > 0 && i <= scan_fsize);    
-    kk_block_t* pparent = _kk_box_ptr( kk_block_field(parent, i-1) );  // low-level unbox on parent
-    kk_block_field_set(parent, i-1, kk_ptr_box(b));                    // restore original pointer
+    kk_block_t* pparent = kk_box_to_ptr( kk_block_field(parent, i-1), ctx );  // low-level unbox on parent
+    kk_block_field_set(parent, i-1, kk_ptr_box(b,ctx));                           // restore original pointer
     b = parent;
     parent = pparent;
     kk_assert_internal(!kk_block_is_thread_shared(b));
@@ -685,14 +685,14 @@ kk_decl_export void kk_block_mark_shared( kk_block_t* b, kk_context_t* ctx ) {
 
 kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx ) {
   if (kk_box_is_non_null_ptr(b)) {
-    kk_block_mark_shared( kk_ptr_unbox(b), ctx );
+    kk_block_mark_shared( kk_ptr_unbox(b,ctx), ctx );
   }
 }
 
 
 kk_decl_export void kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx) {
   if (kk_box_is_non_null_ptr(b)) {
-    kk_block_mark_shared_recx(kk_ptr_unbox(b), ctx);
+    kk_block_mark_shared_recx(kk_ptr_unbox(b, ctx), ctx);
   }
 }
 
@@ -705,7 +705,7 @@ static kk_block_t* kk_block_alloc_copy( kk_block_t* b, kk_context_t* ctx ) {
   kk_block_t* c = (kk_block_t*)kk_malloc_copy(b,ctx);
   kk_block_refcount_set(c,0);
   for( kk_ssize_t i = 0; i < kk_block_scan_fsize(b); i++) {
-    kk_box_dup(kk_block_field(c, i));    
+    kk_box_dup(kk_block_field(c, i), ctx);
   }
   return c;
 }
@@ -713,20 +713,20 @@ static kk_block_t* kk_block_alloc_copy( kk_block_t* b, kk_context_t* ctx ) {
 
 #if !defined(KK_CTAIL_NO_CONTEXT_PATH)
 kk_decl_export kk_decl_noinline kk_box_t kk_ctail_context_copy_compose( kk_box_t res, kk_box_t child, kk_context_t* ctx) {
-  kk_assert_internal(!kk_block_is_unique(kk_ptr_unbox(res)));
-  kk_box_t  cres = kk_box_null;     // copied result context
-  kk_box_t* next = NULL;            // pointer to the context path field in the parent block
+  kk_assert_internal(!kk_block_is_unique(kk_ptr_unbox(res, ctx)));
+  kk_box_t  cres = kk_box_null();     // copied result context
+  kk_box_t* next = NULL;              // pointer to the context path field in the parent block
   for( kk_box_t cur = res; kk_box_is_ptr(cur); cur = *next ) {
-    kk_block_t* b = kk_ptr_unbox(cur);  
+    kk_block_t* b = kk_ptr_unbox(cur, ctx);
     const kk_ssize_t field = kk_block_field_idx(b) - 1;
     kk_assert_internal(field >= 0);
     kk_block_t* c = kk_block_alloc_copy(b,ctx);
     if (next == NULL) { 
-      cres = kk_ptr_box(c); 
+      cres = kk_ptr_box(c, ctx);
     }
     else { 
       kk_box_drop(*next,ctx);
-      *next = kk_ptr_box(c); 
+      *next = kk_ptr_box(c, ctx);
     }    
     next = kk_block_field_address(c,field);
   }
