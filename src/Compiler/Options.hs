@@ -440,6 +440,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
     [("c",      \f -> f{ target=C LibC, platform=platform64 }),
      ("c64",    \f -> f{ target=C LibC, platform=platform64 }),
      ("c32",    \f -> f{ target=C LibC, platform=platform32 }),
+     ("c64c",   \f -> f{ target=C LibC, platform=platform64c }),
      ("js",     \f -> f{ target=JS JsNode, platform=platformJS }),
      ("jsnode", \f -> f{ target=JS JsNode, platform=platformJS }),
      ("jsweb",  \f -> f{ target=JS JsWeb, platform=platformJS }),
@@ -660,9 +661,10 @@ processOptions flags0 opts
                    ccCheckExist cc
                    let stdAlloc = if asan then True else useStdAlloc flags   -- asan implies useStdAlloc
                        cdefs    = ccompDefs flags 
-                                   ++ if stdAlloc then [] else [("KK_MIMALLOC",show (sizePtr (platform flags)))]
-                                   ++ if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")]
-                                   ++ if optctailCtxPath flags then [] else [("KK_CTAIL_NO_CONTEXT_PATH","")]
+                                   ++ (if stdAlloc then [] else [("KK_MIMALLOC",show (sizePtr (platform flags)))])
+                                   ++ (if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")])
+                                   ++ (if optctailCtxPath flags then [] else [("KK_CTAIL_NO_CONTEXT_PATH","")])
+                                   ++ (if platformHasCompressedFields (platform flags) then [("KK_INTB_SIZE",show (sizeField (platform flags)))] else [])
                    
                    -- vcpkg
                    -- (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
@@ -957,7 +959,9 @@ buildVariant flags
                         Wasm   -> "-wasm" ++ show (8*sizePtr (platform flags))
                         WasmJs -> "-wasmjs"
                         WasmWeb-> "-wasmweb"
-                        _      -> "")                       
+                        _      | platformHasCompressedFields (platform flags)
+                               -> "-x" ++ show (8 * sizePtr (platform flags)) ++ "c"
+                               | otherwise -> "")                       
                  JS _  -> "js"
                  _     -> show (target flags)
     in pre ++ "-" ++ show (buildType flags)

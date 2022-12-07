@@ -24,7 +24,7 @@ static inline kk_std_core_types__ctail kk_ctail_unit(kk_context_t* ctx) {
 static inline kk_box_t kk_ctail_apply_linear( kk_std_core_types__ctail acc, kk_box_t child ) {
   #if 1
   if (kk_likely(acc.hole != NULL)) {
-    kk_assert_internal(kk_block_is_unique(kk_ptr_unbox(acc.res)));
+    kk_assert_internal(kk_block_is_unique(kk_ptr_unbox(acc.res,kk_get_context())));
     *(acc.hole) = child;
     return acc.res;
   }
@@ -40,8 +40,8 @@ static inline kk_box_t kk_ctail_apply_linear( kk_std_core_types__ctail acc, kk_b
 
 static inline kk_box_t kk_ctail_apply_nonlinear( kk_std_core_types__ctail acc, kk_box_t child, kk_context_t* ctx ) {
   // note: written like this for best codegen; be careful when rewriting.
-  if (acc.hole != NULL && kk_block_is_unique(kk_ptr_unbox(acc.res))) { // no kk_likely seem slightly better
-    kk_assert_internal(kk_block_is_unique(kk_ptr_unbox(acc.res)));
+  if (acc.hole != NULL && kk_block_is_unique(kk_ptr_unbox(acc.res,ctx))) { // no kk_likely seem slightly better
+    kk_assert_internal(kk_block_is_unique(kk_ptr_unbox(acc.res,ctx)));
     *(acc.hole) = child;   // in-place update the hole with the child
     return acc.res;      
   }
@@ -49,7 +49,7 @@ static inline kk_box_t kk_ctail_apply_nonlinear( kk_std_core_types__ctail acc, k
     return child;
   }
   else {
-    kk_assert_internal(!kk_block_is_unique(kk_ptr_unbox(acc.res)));
+    kk_assert_internal(!kk_block_is_unique(kk_ptr_unbox(acc.res,ctx)));
     return kk_ctail_context_copy_compose(acc.res,child,ctx);  // copy the context path to the hole and compose with the child
   }
 }

@@ -33,7 +33,7 @@ intptr_t kk_intptr_unbox(kk_box_t v, kk_context_t* ctx) {
 
 kk_box_t kk_intptr_box(intptr_t i, kk_context_t* ctx) {
   if (i >= KK_INTF_BOX_MIN && i <= KK_INTF_BOX_MAX) {
-    return kk_intf_box(i);
+    return kk_intf_box((kk_intf_t)i);
   }
   else {
     boxed_intptr_t bi = kk_block_alloc_as(struct kk_boxed_intptr_s, 0, KK_TAG_INTPTR, ctx);
@@ -43,7 +43,7 @@ kk_box_t kk_intptr_box(intptr_t i, kk_context_t* ctx) {
 }
 
 
-#if (KK_INTPTR_SIZE <= 8) 
+#if (KK_INTF_SIZE <= 8) 
 typedef struct kk_boxed_int64_s {
   kk_block_t  _block;
   int64_t     value;
@@ -76,7 +76,7 @@ kk_box_t kk_int64_box(int64_t i, kk_context_t* ctx) {
 #endif
 
 
-#if (KK_INTPTR_SIZE <= 4)
+#if (KK_INTF_SIZE <= 4)
 typedef struct kk_boxed_int32_s {
   kk_block_t  _block;
   int32_t  value;
@@ -104,12 +104,12 @@ kk_box_t kk_int32_box(int32_t i, kk_context_t* ctx) {
   else {
     boxed_int32_t bi = kk_block_alloc_as(struct kk_boxed_int32_s, 0, KK_TAG_INT32, ctx);
     bi->value = i;
-    return kk_ptr_box(&bi->_block);
+    return kk_ptr_box(&bi->_block,ctx);
   }
 }
 #endif
 
-#if (KK_INTPTR_SIZE <= 2)
+#if (KK_INTF_SIZE <= 2)
 typedef struct kk_boxed_int16_s {
   kk_block_t  _block;
   int16_t  value;
@@ -142,7 +142,7 @@ kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
 }
 #endif
 
-#if KK_SSIZE_SIZE == KK_INTPTR_SIZE
+#if KK_SSIZE_SIZE == KK_INTF_SIZE
 kk_box_t kk_ssize_box(kk_ssize_t i, kk_context_t* ctx) {
   return kk_intptr_box(i, ctx);
 }
@@ -240,7 +240,7 @@ kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_context_t* ctx ) {
   Double boxing on 64-bit systems
 ----------------------------------------------------------------*/
 
-#if (KK_INTPTR_SIZE == 8) && KK_BOX_DOUBLE64
+#if (KK_INTF_SIZE == 8) && KK_BOX_DOUBLE64
 // Generic double allocation in the heap
 typedef struct kk_boxed_double_s {
   kk_block_t _block;
@@ -352,7 +352,7 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   Float boxing on 32-bit systems
 ----------------------------------------------------------------*/
 
-#if (KK_INTPTR_SIZE == 4) 
+#if (KK_INTF_SIZE == 4) 
 // Generic float allocation in the heap
 typedef struct kk_boxed_float_s {
   kk_block_t _block;
@@ -376,7 +376,7 @@ kk_box_t kk_float_box(float f, kk_context_t* ctx) {
   kk_unused(ctx);
   uint32_t i = kk_bits_from_float(f);
   if ((int32_t)i >= 0) {  // positive?
-    kk_box_t b = { ((uintptr_t)i<<1)|1 };
+    kk_box_t b = { ((intptr_t)i<<1)|1 };
     return b;
   }
   else {
@@ -390,7 +390,7 @@ float kk_float_unbox(kk_box_t b, kk_context_t* ctx) {
   float f;
   if (kk_box_is_value(b)) {
     // positive float
-    uint32_t u = kk_shrp(b.box, 1);
+    uint32_t u = (uint32_t)kk_shrp(b.box, 1);
     f = kk_bits_to_float(u);
   }
   else {

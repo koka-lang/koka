@@ -368,7 +368,7 @@ typedef unsigned       kk_uintx_t;
 
 // a boxed value is by default the size of an `intptr_t`.
 #if !defined(KK_INTB_SIZE)
-#define KK_INTB_SIZE   KK_INTPTR_SIZE
+#define KK_INTB_SIZE   4 // KK_INTPTR_SIZE
 #endif
 #define KK_INTB_BITS   (8*KK_INTB_SIZE)
 
@@ -381,6 +381,7 @@ typedef uintptr_t      kk_uintb_t;
 #define KK_INTB_MAX    INTPTR_MAX
 #define KK_INTB_MIN    INTPTR_MIN
 #define KK_IB(i)       KK_IP(i)
+#define KK_UB(i)       KK_UP(i)
 #define PRIdIB         "zd"
 #elif (KK_INTB_SIZE == 8 && KK_INTB_SIZE < KK_INTPTR_SIZE)
 #define KK_COMPRESS 1
@@ -389,6 +390,7 @@ typedef uint64_t       kk_uintb_t;
 #define KK_INTB_MAX    INT64_MAX
 #define KK_INTB_MIN    INT64_MIN
 #define KK_IB(i)       KK_I64(i)
+#define KK_UB(i)       KK_U64(i)
 #define PRIdIB         PRIdI64
 #elif (KK_INTB_SIZE == 4 && KK_INTB_SIZE < KK_INTPTR_SIZE)
 #define KK_COMPRESS 1
@@ -397,6 +399,7 @@ typedef uint32_t       kk_uintb_t;
 #define KK_INTB_MAX    INT32_MAX
 #define KK_INTB_MIN    INT32_MIN
 #define KK_IB(i)       KK_I32(i)
+#define KK_UB(i)       KK_U32(i)
 #define PRIdIB         PRIdI32
 #else
 #error "the given platform boxed integer size is (currently) not supported"
@@ -417,11 +420,11 @@ typedef size_t         kk_uintf_t;
 #define KK_INTF_MIN    KK_SSIZE_MIN
 #else
 typedef kk_intb_t      kk_intf_t;
-typedef kk_intb_t      kk_uintf_t;
+typedef kk_uintb_t     kk_uintf_t;
 #define KK_IF(i)       KK_IB(i)
-#define KK_INTF_SIZE   8
-#define KK_INTF_MAX    INT64_MAX
-#define KK_INTF_MIN    INT64_MIN
+#define KK_INTF_SIZE   KK_INTB_SIZE
+#define KK_INTF_MAX    KK_INTB_MAX
+#define KK_INTF_MIN    KK_INTB_MIN
 #define PRIdIF         PRIdIB
 #endif
 #define KK_INTF_BITS   (8*KK_INTF_SIZE)

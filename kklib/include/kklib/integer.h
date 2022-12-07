@@ -798,8 +798,8 @@ static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_con
 
 static inline kk_integer_t kk_integer_mul_small(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_assert_internal(kk_are_smallints(x, y));
-  kk_intf_t i = kk_sar(_kk_integer_value(x), 1);
-  kk_intf_t j = kk_sar(_kk_integer_value(y), 1);
+  kk_intf_t i = kk_sarf(_kk_integer_value(x), 1);
+  kk_intf_t j = kk_sarf(_kk_integer_value(y), 1);
   kk_intf_t z = i*j;
   if kk_likely(z == (kk_smallint_t)(z)) {
     kk_assert_internal((z&3) == 0);
@@ -827,8 +827,8 @@ static inline kk_integer_t kk_integer_mul(kk_integer_t x, kk_integer_t y, kk_con
 static inline kk_integer_t kk_integer_cdiv_small(kk_integer_t x, kk_integer_t y) {
   kk_assert_internal(kk_are_smallints(x, y));
   kk_assert_internal(!kk_integer_is_zero_borrow(y));
-  kk_intf_t i = kk_sar(_kk_integer_value(x), 1);
-  kk_intf_t j = kk_sar(_kk_integer_value(y), 1);
+  kk_intf_t i = kk_sarf(_kk_integer_value(x), 1);
+  kk_intf_t j = kk_sarf(_kk_integer_value(y), 1);
   return kk_integer_from_small(i/j);
 }
 

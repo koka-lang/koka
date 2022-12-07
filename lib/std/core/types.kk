@@ -267,7 +267,7 @@ pub inline extern modify : forall<h,a,b,e> ( ref : ref<h,a>, f : forall<s> local
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 pub extern run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) -> e a
-  c  inline "(kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),#1,(#1,kk_context())))"
+  c  inline "(kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),#1,(#1,kk_context()),kk_context()))"
   cs inline "Primitive.Run<##2>(#1)"
   js inline "((#1)())"
 

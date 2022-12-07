@@ -23,7 +23,8 @@ module Common.Syntax( Visibility(..)
                     , HandlerSort(..)
                     , isHandlerInstance, isHandlerNormal
                     , OperationSort(..), readOperationSort
-                    , Platform(..), platform32, platform64, platformCS, platformJS
+                    , Platform(..), platform32, platform64, platformCS, platformJS, platform64c
+                    , platformHasCompressedFields
                     , alignedSum, alignedAdd, alignUp
                     , BuildType(..)
                     ) where
@@ -64,19 +65,27 @@ instance Show Target where
                C  _      -> "c"
                Default   -> ""
 
-
-data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
-                        , sizeSize :: Int -- sizeof(size_t)
+data Platform = Platform{ sizePtr   :: Int -- sizeof(intptr_t)
+                        , sizeSize  :: Int -- sizeof(size_t)
+                        , sizeField :: Int -- sizeof(kk_field_t), usually uintptr_t but may be smaller for compression
                         }
 
-platform32, platform64 :: Platform
-platform32 = Platform 4 4 
-platform64 = Platform 8 8 
-platformJS = Platform 8 4 
-platformCS = Platform 8 4 
+platform32, platform64, platform64c, platformJS, platformCS :: Platform
+platform32  = Platform 4 4 4
+platform64  = Platform 8 8 8
+platform64c = Platform 8 8 4  -- compressed fields
+platformJS  = Platform 8 4 8
+platformCS  = Platform 8 4 8
+
+
+platformHasCompressedFields (Platform sp _ sf) = (sp /= sf)
 
 instance Show Platform where
-  show (Platform sp ss) = "Platform(sizeof(void*)=" ++ show sp ++ ",sizeof(size_t)=" ++ show ss ++ ")"
+  show (Platform sp ss sf) = "Platform(sizeof(void*)=" ++ show sp ++ 
+                             ",sizeof(size_t)=" ++ show ss ++ 
+                             ",sizeof(kk_box_t)=" ++ show sf ++ 
+                             ")" 
+
 
 alignedSum :: Int -> [Int] -> Int
 alignedSum start xs = foldl alignedAdd start xs

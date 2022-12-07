@@ -1365,7 +1365,7 @@ kk_integer_t kk_integer_cdiv_cmod_generic(kk_integer_t x, kk_integer_t y, kk_int
   }
   if (cmp==0) {
     if (mod) *mod = kk_integer_zero;
-    kk_intx_t i = (bigint_is_neg_(bx) == bigint_is_neg_(by) ? 1 : -1);
+    kk_intf_t i = (bigint_is_neg_(bx) == bigint_is_neg_(by) ? 1 : -1);
     kk_integer_drop(x, ctx);
     kk_integer_drop(y, ctx);
     return kk_integer_from_small(i);
@@ -1554,8 +1554,8 @@ void kk_integer_print(kk_integer_t x, kk_context_t* ctx) {
 ----------------------------------------------------------------------*/
 
 // count trailing decimal zeros
-static kk_intx_t int_ctz(kk_intx_t x) {
-  kk_intx_t count = 0;
+static int int_ctz(kk_intx_t x) {
+  int count = 0;
   for (; x != 0 && (x%10) == 0; x /= 10) {
     count++;
   }
@@ -1582,11 +1582,11 @@ kk_integer_t kk_integer_ctz(kk_integer_t x, kk_context_t* ctx) {
   }
 }
 
-static kk_intx_t int_count_digits(kk_intx_t x) {
+static kk_intf_t int_count_digits(kk_intf_t x) {
   // make positive
   kk_uintx_t u;
   if (x < 0) {
-    u = (kk_uintx_t)(x == KK_INTX_MIN ? KK_INTX_MAX : -x);  // careful for overflow
+    u = (kk_uintx_t)(x == KK_INTF_MIN ? KK_INTF_MAX : -x);  // careful for overflow
   }
   else {
     u = (kk_uintx_t)x;
@@ -1594,9 +1594,9 @@ static kk_intx_t int_count_digits(kk_intx_t x) {
   return kk_bits_digits(u);
 }
 
-static kk_intx_t bigint_count_digits(kk_bigint_t* x, kk_context_t* ctx) {
+static kk_intf_t bigint_count_digits(kk_bigint_t* x, kk_context_t* ctx) {
   kk_assert_internal(x->count > 0);
-  kk_intx_t count;
+  kk_intf_t count;
 #if (DIGIT_BITS==64)
   count = kk_bits_digits64(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
 #else
@@ -1635,7 +1635,7 @@ kk_integer_t kk_integer_mul_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
     // TODO: raise error
     return kk_integer_zero;
   }
-  kk_intx_t i = kk_smallint_from_integer(p);
+  kk_intf_t i = kk_smallint_from_integer(p);
 
   // negative?
   if (i < 0) {
@@ -1681,7 +1681,7 @@ kk_integer_t kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t*
     // TODO: raise error
     return kk_integer_zero;
   }
-  kk_intx_t i = kk_smallint_from_integer(p);
+  kk_intf_t i = kk_smallint_from_integer(p);
 
   // negative?
   if (i < 0) {

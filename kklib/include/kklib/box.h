@@ -286,11 +286,11 @@ static inline kk_box_t kk_ptr_box_assert(kk_block_t* b, kk_tag_t tag, kk_context
 }
 
 
-static inline kk_uintx_t kk_enum_unbox(kk_box_t b) {
+static inline kk_uintf_t kk_enum_unbox(kk_box_t b) {
   return kk_uintf_unbox(b);
 }
 
-static inline kk_box_t kk_enum_box(kk_uintx_t u) {
+static inline kk_box_t kk_enum_box(kk_uintf_t u) {
   return kk_uintf_box(u);
 }
 
@@ -321,10 +321,10 @@ typedef struct kk_boxed_value_s {
       const size_t kk__max_scan_fsize = sizeof(tp)/sizeof(kk_box_t); \
       kk_box_t* _fields = (kk_box_t*)(&x); \
       for (size_t i = 0; i < kk__max_scan_fsize; i++) { _fields[i] = kk_box_any(ctx);  } \
-      kk_block_decref(kk_ptr_unbox(box),ctx); \
+      kk_block_decref(kk_ptr_unbox(box,ctx),ctx); \
     } \
     else { \
-      p = kk_basetype_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX); \
+      p = kk_block_as(kk_boxed_value_t, kk_block_unbox(box, KK_TAG_BOX, ctx)); \
       memcpy(&x,&p->data,sizeof(tp)); /* avoid aliasing warning,  x = *((tp*)(&p->data)); */ \
     } \
   } while(0)
@@ -334,7 +334,7 @@ typedef struct kk_boxed_value_s {
     kk_boxed_value_t p = kk_block_assert(kk_boxed_value_t, kk_block_alloc(sizeof(kk_block_t) + sizeof(tp), scan_fsize, KK_TAG_BOX, ctx), KK_TAG_BOX); \
     const tp valx = val;               /* ensure we can take the address */ \
     memcpy(&p->data,&valx,sizeof(tp)); /* avoid aliasing warning: *((tp*)(&p->data)) = val; */ \
-    x = kk_basetype_box(p); \
+    x = kk_block_box(&p->_block,ctx); \
   } while(0)
 
 // `box_any` is used to return when yielding 

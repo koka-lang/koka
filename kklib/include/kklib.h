@@ -330,7 +330,7 @@ static inline void kk_block_set_invalid(kk_block_t* b) {
 }
 
 static inline kk_decl_pure bool kk_block_is_valid(kk_block_t* b) {
-  return (b != NULL && ((intptr_t)b & 1) == 0 && *((int64_t*)b) != KK_I64(0xDFDFDFDFDFDFDFDF)); // already freed!
+  return (b != NULL && ((uintptr_t)b & 1) == 0 && *((uint64_t*)b) != KK_U64(0xDFDFDFDFDFDFDFDF)); // already freed!
 }
 
 
@@ -586,7 +586,8 @@ static inline void kk_block_large_init(kk_block_large_t* b, kk_ssize_t size, kk_
   uint8_t bscan_fsize = (scan_fsize >= KK_SCAN_FSIZE_MAX ? KK_SCAN_FSIZE_MAX : (uint8_t)scan_fsize);
   kk_header_init(&b->_block.header, bscan_fsize, tag);
   kk_assert_internal(scan_fsize > 0);
-  b->large_scan_fsize = kk_intf_box(scan_fsize);  
+  kk_assert_internal(scan_fsize <= KK_INTF_MAX);
+  b->large_scan_fsize = kk_intf_box((kk_intf_t)scan_fsize);  
 }
 
 typedef kk_block_t* kk_reuse_t;
@@ -896,7 +897,7 @@ static inline kk_intb_t kk_ptr_encode(kk_ptr_t p, kk_context_t* ctx) {
 #if KK_COMPRESS
   intptr_t i = (intptr_t)p - ctx->heap_base;
   kk_assert_internal(i >= KK_INTB_MIN && i <= KK_INTB_MAX);
-  return _kk_make_ptr((kk_int_b)i);
+  return _kk_make_ptr((kk_intb_t)i);
 #else
   kk_unused(ctx);
   return _kk_make_ptr((kk_intb_t)p);
@@ -940,6 +941,11 @@ static inline kk_intf_t kk_intf_decode(kk_intb_t b, int extra_shift) {
 
 static inline kk_decl_const kk_basetype_t kk_basetype_from_ptr(kk_ptr_t p, kk_context_t* ctx) {
   kk_basetype_t b = { kk_ptr_encode(p,ctx) };
+  return b;
+}
+
+static inline kk_decl_const kk_basetype_t kk_basetype_invalid_from_tag(kk_tag_t t) {
+  kk_basetype_t b = { kk_intf_encode(t,0) };
   return b;
 }
 
@@ -1019,7 +1025,7 @@ static inline void kk_basetype_decref(kk_basetype_t b, kk_context_t* ctx) {
 #define kk_basetype_as(tp,v,ctx)                   (kk_block_as(tp,kk_basetype_as_ptr(v,ctx)))
 #define kk_basetype_as_assert(tp,v,tag,ctx)        (kk_block_assert(tp,kk_basetype_as_ptr(v,ctx),tag))
 #define kk_basetype_alloc(struct_tp,scan_fsize,tag,ctx) (kk_basetype_from_ptr(kk_block_alloc(kk_ssizeof(struct_tp),scan_fsize,tag,ctx),ctx))
-
+#define kk_basetype_dup_as(tp,v,ctx)               (kk_basetype_dup(v,ctx))
 #define kk_basetype_null   { _kk_make_value(0) }
 
 static inline bool kk_basetype_is_null(kk_basetype_t b) {
@@ -1362,7 +1368,7 @@ static inline kk_box_t kk_datatype_unJust(kk_datatype_t d, kk_context_t* ctx) {
   Functions
 --------------------------------------------------------------------------------------*/
 
-#define kk_function_as(tp,fun)                     kk_basetype_as_assert(tp,fun,KK_TAG_FUNCTION)
+#define kk_function_as(tp,fun,ctx)                 kk_basetype_as_assert(tp,fun,KK_TAG_FUNCTION,ctx)
 #define kk_function_alloc_as(tp,scan_fsize,ctx)    kk_block_alloc_as(tp,scan_fsize,KK_TAG_FUNCTION,ctx)
 #define kk_function_call(restp,argtps,f,args,ctx)  ((restp(*)argtps)(kk_kkfun_ptr_unbox(kk_basetype_as(struct kk_function_s*,f,ctx)->fun,ctx)))args
 
@@ -1377,8 +1383,8 @@ static inline kk_box_t kk_datatype_unJust(kk_datatype_t d, kk_context_t* ctx) {
 #define kk_define_static_function(name,cfun,ctx) \
   static kk_function_t name = kk_basetype_null; \
   if (kk_basetype_is_null(name)) { \
-    name = kk_basetype_alloc(struct kk_function_s, 1, ctx); \
-    name->fun = kk_kkfun_ptr_box(&cfun, ctx); \
+    name = kk_basetype_alloc(struct kk_function_s, 1, KK_TAG_FUNCTION, ctx); \
+    kk_basetype_as(struct kk_function_s*, name, ctx)->fun = kk_kkfun_ptr_box(&cfun, ctx); \
   }
 #endif
 
@@ -1387,8 +1393,12 @@ kk_function_t kk_function_id(kk_context_t* ctx);
 kk_function_t kk_function_null(kk_context_t* ctx);
 bool          kk_function_is_null(kk_function_t f, kk_context_t* ctx);
 
-static inline kk_decl_pure kk_function_t kk_function_unbox(kk_box_t v, kk_context_t* ctx) {
+static inline kk_decl_pure kk_function_t kk_function_unbox_assert(kk_box_t v, kk_context_t* ctx) {
   return kk_basetype_unbox_assert(v, KK_TAG_FUNCTION, ctx);
+}
+
+static inline kk_decl_pure kk_function_t kk_function_unbox(kk_box_t v) {
+  return kk_basetype_unbox(v);
 }
 
 static inline kk_decl_pure kk_box_t kk_function_box(kk_function_t d) {

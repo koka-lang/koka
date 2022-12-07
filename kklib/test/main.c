@@ -73,7 +73,7 @@ static intptr_t add(intptr_t x, intptr_t y, kk_context_t* ctx) { kk_unused(ctx);
 static intptr_t sub(intptr_t x, intptr_t y, kk_context_t* ctx) { kk_unused(ctx); return check(x - y); }
 static intptr_t mul(intptr_t x, intptr_t y, kk_context_t* ctx) { kk_unused(ctx); return check(x * y); }
 
-static void testx(const char* name, iop* op, xop* opx, intptr_t i, intptr_t j, kk_context_t* ctx) {
+static void testx(const char* name, iop* op, xop* opx, kk_intf_t i, kk_intf_t j, kk_context_t* ctx) {
   kk_integer_t x = _kk_new_integer(i);
   kk_integer_t y = _kk_new_integer(j);
   intptr_t k = _kk_integer_value(op(x, y, ctx));
