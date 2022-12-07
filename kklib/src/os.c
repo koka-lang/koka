@@ -979,7 +979,7 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
 
 kk_string_t kk_os_app_path(kk_context_t* ctx) {
   kk_string_t s = kk_os_realpath(kk_string_alloc_dup_valid_utf8(KK_PROC_SELF,ctx),ctx);
-  if (strcmp(kk_string_cbuf_borrow(s,NULL), KK_PROC_SELF)==0) {
+  if (strcmp(kk_string_cbuf_borrow(s,NULL,ctx), KK_PROC_SELF)==0) {
     // failed? try generic search
     kk_string_drop(s, ctx);
     return kk_os_app_path_generic(ctx);

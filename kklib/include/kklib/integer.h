@@ -157,7 +157,11 @@ to indicate the portable SOFA technique is about 5% (x64) to 10% (M1) faster.
 #define KK_INT_USE_RENO     4       // use range extended overflow arithmetic
 
 #ifndef KK_INT_ARITHMETIC
+#if (KK_INTF_SIZE <= 4) && defined(__GNUC__)
+#define KK_INT_ARITHMETIC  KK_INT_USE_OVF
+#else
 #define KK_INT_ARITHMETIC  KK_INT_USE_SOFA
+#endif
 #endif
 
 #ifndef KK_INT_TAG

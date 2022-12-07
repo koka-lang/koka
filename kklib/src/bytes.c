@@ -58,9 +58,9 @@ kk_bytes_t kk_bytes_adjust_length(kk_bytes_t b, kk_ssize_t newlen, kk_context_t*
     return b;
   }
   else if (len > newlen && (3*(len/4)) < newlen &&  // 0.75*len < newlen < len: update length in place if we can
-           kk_datatype_is_unique(b,ctx) && kk_datatype_has_tag(b, KK_TAG_BYTES, ctx)) {
+           kk_datatype_ptr_is_unique(b,ctx) && kk_datatype_ptr_has_tag(b, KK_TAG_BYTES, ctx)) {
     // length in place
-    kk_assert_internal(kk_datatype_has_tag(b, KK_TAG_BYTES,ctx) && kk_datatype_is_unique(b,ctx));
+    kk_assert_internal(kk_datatype_has_tag(b, KK_TAG_BYTES,ctx) && kk_datatype_ptr_is_unique(b,ctx));
     kk_bytes_normal_t nb = kk_datatype_as_assert(kk_bytes_normal_t, b, KK_TAG_BYTES, ctx);
     nb->length = newlen;
     nb->buf[newlen] = 0;
@@ -247,7 +247,7 @@ kk_bytes_t kk_bytes_replace_atmost(kk_bytes_t s, kk_bytes_t pat, kk_bytes_t rep,
     const uint8_t* const pend = p + plen;
     // if unique s && |rep| == |pat|, update in-place
     // TODO: if unique s & |rep| <= |pat|, maybe update in-place if not too much waste?
-    if (kk_datatype_is_unique(s,ctx) && ppat_len == prep_len) {
+    if (kk_datatype_ptr_is_unique(s,ctx) && ppat_len == prep_len) {
       kk_ssize_t count = 0;
       while (count < n && p < pend) {
         const uint8_t* r = kk_memmem(p, pend - p, ppat, ppat_len);

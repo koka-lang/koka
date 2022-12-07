@@ -38,7 +38,7 @@ kk_function_t kk_function_null(kk_context_t* ctx) {
 }
 bool kk_function_is_null(kk_function_t f, kk_context_t* ctx) {
   kk_function_t fnull = kk_function_null(ctx);
-  bool eq = kk_basetype_eq(f, fnull);
+  bool eq = kk_datatype_eq(f, fnull);
   kk_function_drop(fnull, ctx);
   return eq;
 }
@@ -197,34 +197,67 @@ static kk_decl_thread kk_context_t* context;
 static struct { kk_block_t _block; kk_integer_t cfc; } kk_evv_empty_static = {
   { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { ((~KK_UB(0))^0x02) /*==-1 smallint*/}
 };
-kk_ptr_t kk_evv_empty_singleton = &kk_evv_empty_static._block;
+
+struct kk_evv_s {
+  kk_block_t _block;
+  kk_integer_t cfc;
+};
+
+kk_datatype_ptr_t kk_evv_empty_singleton(kk_context_t* ctx) {
+  static struct kk_evv_s* evv = NULL;
+  if (evv == NULL) {
+    evv = kk_block_alloc_as(struct kk_evv_s, 1, KK_TAG_EVV_VECTOR, ctx);
+    evv->cfc = kk_integer_from_small(-1);
+  }
+  kk_base_type_dup_as(struct kk_evv_s*, evv);
+  return kk_datatype_from_base(evv, ctx);
+} 
+
 
 // Get the thread local context (also initializes on demand)
 kk_context_t* kk_get_context(void) {
   kk_context_t* ctx = context;
   if (ctx!=NULL) return ctx;
   kklib_init();
-#ifdef KK_MIMALLOC
-  mi_heap_t* heap = mi_heap_get_default(); //  mi_heap_new();
+#if KK_INTF_SIZE==4 && KK_COMPRESS && defined(KK_MIMALLOC)
+#if defined(KK_MIMALLOC)
+  mi_arena_id_t arena;
+  kk_ssize_t heap_size = kk_shlp(KK_IZ(1), KK_INTF_SIZE * 8); // +KK_BOX_PTR_SHIFT);
+  int err = mi_reserve_os_memory_ex(heap_size, false /* commit */, true /* allow large */, true /*exclusive*/, &arena);
+  if (err != 0) {
+    kk_fatal_error(err, "unable to reserve the initial heap");
+}
+  mi_heap_t* heap = mi_heap_new_in_arena(arena);
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
   kk_assign_const(kk_heap_t,ctx->heap) = heap;
+  size_t arena_size;
+  void* arena_base = mi_arena_area(arena, &arena_size);
+  kk_assign_const(intptr_t,ctx->heap_base) = (intptr_t)arena_base + (intptr_t)(arena_size / 2);
 #else
-  ctx = (kk_context_t*)kk_zalloc(sizeof(kk_context_t),NULL);
+#error "can only use compressed heaps with the mimalloc allocator enabled"
 #endif
-  ctx->evv = kk_block_dup(kk_evv_empty_singleton);
+#elif defined(KK_MIMALLOC)
+  mi_heap_t* heap = mi_heap_get_default(); //  mi_heap_new();
+  ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
+  kk_assign_const(kk_heap_t, ctx->heap) = heap;
+#else
+  ctx = (kk_context_t*)kk_zalloc(sizeof(kk_context_t), NULL);
+#endif
   ctx->thread_id = (size_t)(&context);
   ctx->unique = kk_integer_one;
   context = ctx;
-  ctx->kk_box_any = kk_basetype_alloc(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);  
-  kk_basetype_as(struct kk_box_any_s*,ctx->kk_box_any,ctx)->_unused = kk_integer_zero;
+  struct kk_box_any_s* boxany = kk_block_alloc_as(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);  
+  boxany->_unused = kk_integer_zero;
+  ctx->kk_box_any = kk_datatype_from_base(boxany, ctx);
+  ctx->evv = kk_evv_empty_singleton(ctx);
   // todo: register a thread_done function to release the context on thread terminatation.
   return ctx;
 }
 
 void kk_free_context(void) {
   if (context != NULL) {
-    kk_block_drop(context->evv, context);
-    kk_basetype_free(context->kk_box_any,context);
+    kk_datatype_ptr_drop(context->evv, context);
+    kk_datatype_ptr_free(context->kk_box_any,context);
     // kk_basetype_drop_assert(context->kk_box_any, KK_TAG_BOX_ANY, context);
     // TODO: process delayed_free
 #ifdef KK_MIMALLOC

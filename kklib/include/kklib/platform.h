@@ -228,18 +228,22 @@
 // Define size of intptr_t
 #if INTPTR_MAX == INT64_MAX         
 # define KK_INTPTR_SIZE 8
+# define KK_INTPTR_SHIFT 3
 # define KK_IP(i)       KK_I64(i)
 # define KK_UP(i)       KK_U64(i)
 #elif INTPTR_MAX == INT32_MAX
 # define KK_INTPTR_SIZE 4
+# define KK_INTPTR_SHIFT 2
 # define KK_IP(i)       KK_I32(i)
 # define KK_UP(i)       KK_U32(i)
 #elif INTPTR_MAX == INT16_MAX
 # define KK_INTPTR_SIZE 2
+# define KK_INTPTR_SHIFT 1
 # define KK_IP(i)       i
 # define KK_UP(i)       i
 #elif INTPTR_MAX > INT64_MAX         // assume 128-bit
 # define KK_INTPTR_SIZE 16
+# define KK_INTPTR_SHIFT 4
 # define KK_IP(i)       KK_I64(i)
 # define KK_UP(i)       KK_U64(i)
 #else

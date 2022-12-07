@@ -361,7 +361,7 @@ static void kk_task_group_init(void) {
 kk_promise_t kk_task_schedule( kk_function_t fun, kk_context_t* ctx ) {
   pthread_once( &task_group_once, &kk_task_group_init );
   kk_assert(task_group != NULL);
-  kk_block_mark_shared( kk_basetype_as_ptr(fun,ctx), ctx);  // mark everything reachable from the task as shared
+  kk_block_mark_shared( kk_datatype_as_ptr(fun,ctx), ctx);  // mark everything reachable from the task as shared
   if (ctx->task_group == NULL) { 
     ctx->task_group = task_group; // let main thread participate instead of blocking on a promise.get
   }

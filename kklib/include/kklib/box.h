@@ -115,6 +115,15 @@ static inline bool kk_box_is_any(kk_box_t b) {
   return (kk_box_is_ptr(b) && kk_block_has_tag(kk_ptr_unbox(b,kk_get_context()), KK_TAG_BOX_ANY));
 }
 
+static inline kk_box_t kk_box_from_potential_null_ptr(kk_block_t* p, kk_context_t* ctx) {
+  if (p == NULL) return kk_box_null();
+                 else return kk_box_from_ptr(p,ctx);
+}
+
+static inline kk_block_t* kk_box_to_potential_null_ptr(kk_box_t b, kk_context_t* ctx) {
+  if (kk_box_is_null(b)) return NULL;
+                    else return kk_box_to_ptr(b, ctx);
+}
 
 /*----------------------------------------------------------------
   Box pointers and kk_intf_t
@@ -275,6 +284,8 @@ static inline kk_block_t* kk_block_unbox(kk_box_t v, kk_tag_t kk_expected_tag, k
   return b;
 }
 
+#define kk_block_unbox_as(tp,v,tag,ctx)  kk_block_as(tp,kk_block_unbox(v,tag,ctx))
+
 static inline kk_box_t kk_block_box(kk_block_t* b, kk_context_t* ctx) {
   return kk_ptr_box(b, ctx);
 }
@@ -321,10 +332,10 @@ typedef struct kk_boxed_value_s {
       const size_t kk__max_scan_fsize = sizeof(tp)/sizeof(kk_box_t); \
       kk_box_t* _fields = (kk_box_t*)(&x); \
       for (size_t i = 0; i < kk__max_scan_fsize; i++) { _fields[i] = kk_box_any(ctx);  } \
-      kk_block_decref(kk_ptr_unbox(box,ctx),ctx); \
+      kk_block_decref(kk_block_unbox(box,KK_TAG_BOX_ANY,ctx),ctx); \
     } \
     else { \
-      p = kk_block_as(kk_boxed_value_t, kk_block_unbox(box, KK_TAG_BOX, ctx)); \
+      p = kk_base_type_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX, ctx); \
       memcpy(&x,&p->data,sizeof(tp)); /* avoid aliasing warning,  x = *((tp*)(&p->data)); */ \
     } \
   } while(0)
@@ -334,14 +345,14 @@ typedef struct kk_boxed_value_s {
     kk_boxed_value_t p = kk_block_assert(kk_boxed_value_t, kk_block_alloc(sizeof(kk_block_t) + sizeof(tp), scan_fsize, KK_TAG_BOX, ctx), KK_TAG_BOX); \
     const tp valx = val;               /* ensure we can take the address */ \
     memcpy(&p->data,&valx,sizeof(tp)); /* avoid aliasing warning: *((tp*)(&p->data)) = val; */ \
-    x = kk_block_box(&p->_block,ctx); \
+    x = kk_base_type_box(p,ctx); \
   } while(0)
 
 // `box_any` is used to return when yielding 
 // (and should be accepted by any unbox operation, and also dup/drop operations. That is why we use a ptr)
 static inline kk_box_t kk_box_any(kk_context_t* ctx) {
-  kk_basetype_dup_assert(ctx->kk_box_any, KK_TAG_BOX_ANY, ctx);
-  return kk_basetype_box(ctx->kk_box_any);
+  kk_datatype_ptr_dup_assert(ctx->kk_box_any, KK_TAG_BOX_ANY, ctx);
+  return kk_datatype_ptr_box(ctx->kk_box_any);
 }
 
 

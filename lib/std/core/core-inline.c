@@ -10,7 +10,7 @@
 kk_std_core__list kk_vector_to_list(kk_vector_t v, kk_std_core__list tail, kk_context_t* ctx) {
   // todo: avoid boxed_dup if v is unique
   kk_ssize_t n;
-  kk_box_t* p = kk_vector_buf_borrow(v, &n);
+  kk_box_t* p = kk_vector_buf_borrow(v, &n, ctx);
   if (n <= 0) {
     kk_vector_drop(v,ctx);
     return tail;
@@ -19,14 +19,14 @@ kk_std_core__list kk_vector_to_list(kk_vector_t v, kk_std_core__list tail, kk_co
   struct kk_std_core_Cons* cons = NULL;
   kk_std_core__list list = kk_std_core__new_Nil(ctx);
   for( kk_ssize_t i = 0; i < n; i++ ) {
-    kk_std_core__list hd = kk_std_core__new_Cons(kk_reuse_null,kk_box_dup(p[i]), nil, ctx);
+    kk_std_core__list hd = kk_std_core__new_Cons(kk_reuse_null,kk_box_dup(p[i],ctx), nil, ctx);
     if (cons==NULL) {
       list = hd;
     }
     else {
       cons->tail = hd;
     }
-    cons = kk_std_core__as_Cons(hd);
+    cons = kk_std_core__as_Cons(hd,ctx);
   }
   if (cons == NULL) { list = tail; } 
                else { cons->tail = tail; }
@@ -39,8 +39,8 @@ kk_vector_t kk_list_to_vector(kk_std_core__list xs, kk_context_t* ctx) {
   // find the length
   kk_ssize_t len = 0;
   kk_std_core__list ys = xs;
-  while (kk_std_core__is_Cons(ys)) {
-    struct kk_std_core_Cons* cons = kk_std_core__as_Cons(ys);
+  while (kk_std_core__is_Cons(ys,ctx)) {
+    struct kk_std_core_Cons* cons = kk_std_core__as_Cons(ys,ctx);
     len++;
     ys = cons->tail;
   }
@@ -49,9 +49,9 @@ kk_vector_t kk_list_to_vector(kk_std_core__list xs, kk_context_t* ctx) {
   kk_vector_t v = kk_vector_alloc_uninit(len, &p, ctx);  
   ys = xs;
   for( kk_ssize_t i = 0; i < len; i++) {
-    struct kk_std_core_Cons* cons = kk_std_core__as_Cons(ys);
+    struct kk_std_core_Cons* cons = kk_std_core__as_Cons(ys,ctx);
     ys = cons->tail;
-    p[i] = kk_box_dup(cons->head);
+    p[i] = kk_box_dup(cons->head,ctx);
   }
   kk_std_core__list_drop(xs,ctx);  // todo: drop while visiting?
   return v;
@@ -61,21 +61,21 @@ kk_vector_t kk_vector_init( kk_ssize_t n, kk_function_t init, kk_context_t* ctx)
   kk_box_t* p;
   kk_vector_t v = kk_vector_alloc_uninit(n, &p, ctx);  
   for(kk_ssize_t i = 0; i < n; i++) {
-    kk_function_dup(init);
-    p[i] = kk_function_call(kk_box_t,(kk_function_t,kk_ssize_t,kk_context_t*),init,(init,i,ctx));
+    kk_function_dup(init,ctx);
+    p[i] = kk_function_call(kk_box_t,(kk_function_t,kk_ssize_t,kk_context_t*),init,(init,i,ctx),ctx);
   }
   kk_function_drop(init,ctx);
   return v;
 }
 
 kk_box_t kk_main_console( kk_function_t action, kk_context_t* ctx ) {
-  return kk_function_call(kk_box_t,(kk_function_t,kk_unit_t,kk_context_t*),action,(action,kk_Unit,ctx));
+  return kk_function_call(kk_box_t,(kk_function_t,kk_unit_t,kk_context_t*),action,(action,kk_Unit,ctx),ctx);
 }
 
 
 kk_std_core__list kk_string_to_list(kk_string_t s, kk_context_t* ctx) {
   kk_ssize_t len;
-  const uint8_t* p = kk_string_buf_borrow(s,&len);
+  const uint8_t* p = kk_string_buf_borrow(s,&len,ctx);
   const uint8_t* const end = p + len;
   kk_std_core__list nil  = kk_std_core__new_Nil(ctx);
   kk_std_core__list list = nil;
@@ -91,7 +91,7 @@ kk_std_core__list kk_string_to_list(kk_string_t s, kk_context_t* ctx) {
     else {
       list = cons;
     }
-    tl = kk_std_core__as_Cons(cons);
+    tl = kk_std_core__as_Cons(cons,ctx);
   }
   kk_string_drop(s,ctx);
   return list;
@@ -102,8 +102,8 @@ kk_string_t kk_string_from_list(kk_std_core__list cs, kk_context_t* ctx) {
   // find total UTF8 length
   kk_ssize_t len = 0;
   kk_std_core__list xs = cs;
-  while (kk_std_core__is_Cons(xs)) {
-    struct kk_std_core_Cons* cons = kk_std_core__as_Cons(xs);
+  while (kk_std_core__is_Cons(xs,ctx)) {
+    struct kk_std_core_Cons* cons = kk_std_core__as_Cons(xs,ctx);
     len += kk_utf8_len(kk_char_unbox(cons->head,ctx));
     xs = cons->tail;
   }
@@ -111,21 +111,21 @@ kk_string_t kk_string_from_list(kk_std_core__list cs, kk_context_t* ctx) {
   uint8_t* p;
   kk_string_t s = kk_unsafe_string_alloc_buf(len,&p,ctx);  // must be initialized
   xs = cs;
-  while (kk_std_core__is_Cons(xs)) {
-    struct kk_std_core_Cons* cons = kk_std_core__as_Cons(xs);
+  while (kk_std_core__is_Cons(xs,ctx)) {
+    struct kk_std_core_Cons* cons = kk_std_core__as_Cons(xs,ctx);
     kk_ssize_t count;
     kk_utf8_write( kk_char_unbox(cons->head,ctx), p, &count );
     p += count;
     xs = cons->tail;
   }
-  kk_assert_internal(*p == 0 && (p - kk_string_buf_borrow(s,NULL)) == len);
+  kk_assert_internal(*p == 0 && (p - kk_string_buf_borrow(s,NULL,ctx)) == len);
   kk_std_core__list_drop(cs,ctx);  // todo: drop while visiting?
   return s;
 }
 
-static inline void kk_sslice_start_end_borrowx( kk_std_core__sslice sslice, const uint8_t** start, const uint8_t** end, const uint8_t** sstart, const uint8_t** send) {
+static inline void kk_sslice_start_end_borrowx( kk_std_core__sslice sslice, const uint8_t** start, const uint8_t** end, const uint8_t** sstart, const uint8_t** send, kk_context_t* ctx) {
   kk_ssize_t slen;
-  const uint8_t* s = kk_string_buf_borrow(sslice.str,&slen);
+  const uint8_t* s = kk_string_buf_borrow(sslice.str,&slen,ctx);
   *start = s + sslice.start;
   *end = s + sslice.start + sslice.len;
   if (sstart != NULL) *sstart = s;
@@ -134,15 +134,15 @@ static inline void kk_sslice_start_end_borrowx( kk_std_core__sslice sslice, cons
   kk_assert_internal(*end >= *start && *end <= s + slen);
 }
 
-static inline void kk_sslice_start_end_borrow( kk_std_core__sslice sslice, const uint8_t** start, const uint8_t** end) {
-  kk_sslice_start_end_borrowx(sslice,start,end,NULL,NULL);
+static inline void kk_sslice_start_end_borrow( kk_std_core__sslice sslice, const uint8_t** start, const uint8_t** end, kk_context_t* ctx) {
+  kk_sslice_start_end_borrowx(sslice,start,end,NULL,NULL,ctx);
 }
 
 kk_integer_t kk_slice_count( kk_std_core__sslice sslice, kk_context_t* ctx ) {
   // TODO: optimize this by extending kk_string_count
   const uint8_t* start;
   const uint8_t* end;
-  kk_sslice_start_end_borrow(sslice, &start, &end);
+  kk_sslice_start_end_borrow(sslice, &start, &end, ctx);
   kk_ssize_t count = 0;
   while( start < end && *start != 0 ) {
     const uint8_t* next = kk_utf8_next(start);
@@ -156,9 +156,9 @@ kk_integer_t kk_slice_count( kk_std_core__sslice sslice, kk_context_t* ctx ) {
 kk_string_t kk_slice_to_string( kk_std_core__sslice  sslice, kk_context_t* ctx ) {
   const uint8_t* start;
   const uint8_t* end;
-  kk_sslice_start_end_borrow(sslice, &start, &end);
+  kk_sslice_start_end_borrow(sslice, &start, &end, ctx);
   // is it the full string?
-  if (sslice.start == 0 && sslice.len == kk_string_len_borrow(sslice.str)) {
+  if (sslice.start == 0 && sslice.len == kk_string_len_borrow(sslice.str,ctx)) {
     // TODO: drop sslice and dup sslice.str?
     return sslice.str;
   }
@@ -172,22 +172,22 @@ kk_string_t kk_slice_to_string( kk_std_core__sslice  sslice, kk_context_t* ctx )
 
 kk_std_core__sslice kk_slice_first( kk_string_t str, kk_context_t* ctx ) {
   kk_ssize_t slen;
-  const uint8_t* s = kk_string_buf_borrow(str,&slen);
+  const uint8_t* s = kk_string_buf_borrow(str,&slen,ctx);
   const uint8_t* next = (slen > 0 ? kk_utf8_next(s) : s);
   return kk_std_core__new_Sslice(str, 0, (next - s), ctx);
 }
 
 kk_std_core__sslice kk_slice_last( kk_string_t str, kk_context_t* ctx ) {
   kk_ssize_t slen;
-  const uint8_t* s = kk_string_buf_borrow(str,&slen);
+  const uint8_t* s = kk_string_buf_borrow(str,&slen,ctx);
   const uint8_t* end = s + slen;
   const uint8_t* prev = (s==end ? s : kk_utf8_prev(end));
   return kk_std_core__new_Sslice(str, (prev - s), (end - prev), ctx);
 }
 
 kk_std_core__sslice kk_slice_between( struct kk_std_core_Sslice slice1, struct kk_std_core_Sslice slice2, kk_context_t* ctx ) {
-  const uint8_t* s1 = kk_string_buf_borrow( slice1.str, NULL );
-  const uint8_t* s2 = kk_string_buf_borrow( slice2.str, NULL );
+  const uint8_t* s1 = kk_string_buf_borrow( slice1.str, NULL, ctx );
+  const uint8_t* s2 = kk_string_buf_borrow( slice2.str, NULL, ctx );
   if (s1 != s2) {
     kk_info_message("between: not equal slices: %p vs. %p\n", s1, s2);
     return kk_std_core__new_Sslice(kk_string_empty(), 0, -1, ctx); // invalid slice
@@ -204,7 +204,7 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
   }
   const uint8_t* start;
   const uint8_t* end;
-  kk_sslice_start_end_borrow(slice, &start, &end);
+  kk_sslice_start_end_borrow(slice, &start, &end, ctx);
   kk_ssize_t clen;
   const kk_char_t c = kk_utf8_read(start,&clen);
   kk_assert_internal(clen > 0 && clen <= slice.len);
@@ -221,7 +221,7 @@ struct kk_std_core_Sslice kk_slice_extend_borrow( struct kk_std_core_Sslice slic
   if (cnt==0 || (slice.len <= 0 && cnt<0)) return slice;
   const uint8_t* s0;
   const uint8_t* s1;
-  kk_sslice_start_end_borrow(slice,&s0,&s1);
+  kk_sslice_start_end_borrow(slice,&s0,&s1,ctx);
   const uint8_t* t  = s1;
   if (cnt >= 0) {
     do {
@@ -249,7 +249,7 @@ struct kk_std_core_Sslice kk_slice_advance_borrow( struct kk_std_core_Sslice sli
   const uint8_t* s0;
   const uint8_t* s1;
   const uint8_t* send;
-  kk_sslice_start_end_borrowx(slice,&s0,&s1,&sstart,&send);
+  kk_sslice_start_end_borrowx(slice,&s0,&s1,&sstart,&send,ctx);
   // advance the start
   const uint8_t* t0  = s0;
   if (cnt >= 0) {
@@ -287,8 +287,8 @@ struct kk_std_core_Sslice kk_slice_advance_borrow( struct kk_std_core_Sslice sli
 
 /* Borrow iupto */
 struct kk_std_core_Sslice kk_slice_common_prefix_borrow( kk_string_t str1, kk_string_t str2, kk_integer_t iupto, kk_context_t* ctx ) {
-  const uint8_t* s1 = kk_string_buf_borrow(str1,NULL);
-  const uint8_t* s2 = kk_string_buf_borrow(str2,NULL);
+  const uint8_t* s1 = kk_string_buf_borrow(str1,NULL,ctx);
+  const uint8_t* s2 = kk_string_buf_borrow(str2,NULL,ctx);
   kk_ssize_t upto = kk_integer_clamp_ssize_t_borrow(iupto,ctx);
   kk_ssize_t count;
   for(count = 0; count < upto && *s1 != 0 && *s2 != 0; count++, s1++, s2++ ) {
@@ -329,7 +329,7 @@ kk_std_core__error kk_error_from_errno( int err, kk_context_t* ctx ) {
 
 
 kk_unit_t kk_assert_fail( kk_string_t msg, kk_context_t* ctx ) {
-  kk_fatal_error(EINVAL, "assertion failed: %s\n", kk_string_cbuf_borrow(msg,NULL));
+  kk_fatal_error(EINVAL, "assertion failed: %s\n", kk_string_cbuf_borrow(msg,NULL,ctx));
   kk_string_drop(msg,ctx);
   return kk_Unit;
 }

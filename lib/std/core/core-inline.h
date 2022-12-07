@@ -21,9 +21,9 @@ static inline kk_std_core_types__order kk_int_as_order(int i,kk_context_t* ctx) 
 
 static inline kk_std_core_types__maybe kk_integer_xparse( kk_string_t s, bool hex, kk_context_t* ctx ) {
   kk_integer_t i;
-  bool ok = (hex ? kk_integer_hex_parse(kk_string_cbuf_borrow(s,NULL),&i,ctx) : kk_integer_parse(kk_string_cbuf_borrow(s,NULL),&i,ctx) );
+  bool ok = (hex ? kk_integer_hex_parse(kk_string_cbuf_borrow(s,NULL,ctx),&i,ctx) : kk_integer_parse(kk_string_cbuf_borrow(s,NULL,ctx),&i,ctx) );
   kk_string_drop(s,ctx);
-  return (ok ? kk_std_core_types__new_Just(kk_integer_box(i),ctx) : kk_std_core_types__new_Nothing(ctx));
+  return (ok ? kk_std_core_types__new_Just(kk_integer_box(i,ctx),ctx) : kk_std_core_types__new_Nothing(ctx));
 }
 
 struct kk_std_core_Sslice;
@@ -45,8 +45,9 @@ static inline kk_integer_t kk_string_cmp_int(kk_string_t s1, kk_string_t s2, kk_
 kk_string_t  kk_string_join(kk_vector_t v, kk_context_t* ctx);
 kk_string_t  kk_string_join_with(kk_vector_t v, kk_string_t sep, kk_context_t* ctx);
 kk_string_t  kk_string_replace_all(kk_string_t str, kk_string_t pattern, kk_string_t repl, kk_context_t* ctx);
+
 static inline kk_integer_t kk_string_count_pattern(kk_string_t str, kk_string_t pattern, kk_context_t* ctx) {
-  kk_integer_t count = kk_integer_from_ssize_t( kk_string_count_pattern_borrow(str,pattern), ctx );
+  kk_integer_t count = kk_integer_from_ssize_t( kk_string_count_pattern_borrow(str,pattern,ctx), ctx );
   kk_string_drop(str,ctx);
   kk_string_drop(pattern,ctx);
   return count;
@@ -65,7 +66,7 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
 
 static inline kk_unit_t kk_vector_unsafe_assign( kk_vector_t v, kk_ssize_t i, kk_box_t x, kk_context_t* ctx  ) {
   kk_ssize_t len;
-  kk_box_t* p = kk_vector_buf_borrow(v,&len);
+  kk_box_t* p = kk_vector_buf_borrow(v,&len,ctx);
   kk_assert(i < len);
   p[i] = x;
   kk_vector_drop(v,ctx); // TODO: use borrowing
@@ -76,7 +77,7 @@ kk_vector_t kk_vector_init( kk_ssize_t n, kk_function_t init, kk_context_t* ctx)
 
 static inline kk_box_t kk_vector_at_int_borrow( kk_vector_t v, kk_integer_t n, kk_context_t* ctx) {
   // TODO: check bounds
-  kk_box_t b = kk_vector_at_borrow(v,kk_integer_clamp_ssize_t_borrow(n,ctx));
+  kk_box_t b = kk_vector_at_borrow(v,kk_integer_clamp_ssize_t_borrow(n,ctx),ctx);
   return b;
 }
 
@@ -87,7 +88,7 @@ static inline double kk_double_abs(double d) {
 static inline kk_std_core_types__tuple2_ kk_integer_div_mod_tuple(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_integer_t mod;
   kk_integer_t div = kk_integer_div_mod(x,y,&mod,ctx);
-  return kk_std_core_types__new_dash__lp__comma__rp_(kk_integer_box(div),kk_integer_box(mod),ctx);
+  return kk_std_core_types__new_dash__lp__comma__rp_(kk_integer_box(div,ctx),kk_integer_box(mod,ctx),ctx);
 }
 
 kk_box_t kk_main_console( kk_function_t action, kk_context_t* ctx );

@@ -1013,7 +1013,7 @@ pub fun is-neg(i : int ) : bool
   i.sign == Lt
 
 pub inline extern sign( ^i : int ) : order
-  c  inline "kk_int_as_order(kk_integer_signum_borrow(#1),kk_context())"
+  c  inline "kk_int_as_order(kk_integer_signum_borrow(#1,kk_context()),kk_context())"
   cs "Primitive.IntSign"
   js "$std_core._int_sign"
 
@@ -1822,7 +1822,7 @@ pub inline extern trim-right( s : string ) : string
 
 // Return the element at position `index`  in vector `v`  without bounds check!
 inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a
-  c  inline "kk_vector_at_borrow(#1,#2)"
+  c  "kk_vector_at_borrow"
   cs inline "(#1)[#2]"
   js inline "(#1)[#2]"
 
@@ -1852,7 +1852,7 @@ pub fun length( ^v : vector<a> ) : int
   v.lengthz.int
 
 inline extern lengthz( ^v : vector<a> ) : ssize_t
-  c  inline "kk_vector_len_borrow(#1)"
+  c  "kk_vector_len_borrow"
   cs inline "((#1).Length)"
   js inline "((#1).length)"
 
@@ -2331,20 +2331,20 @@ pub type null<a>
 
 // Unsafe: transform any type to a `null` type; used internally by the compiler.
 pub extern ".null-any"(x : a) : null<a>
-  c  inline "((#1).box == kk_box_null.box ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox(#1))"
+  c  inline "(kk_box_is_null(#1) ? kk_datatype_null() : kk_datatype_unbox(#1))"
   cs inline "#1"
   js inline "(#1==null ? null : #1)"  // undefined -> null
 
 // Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
 pub extern null(x : maybe<a>) : null<a>
-  c  inline "(kk_std_core_types__is_Nothing(#1) ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox((#1)._cons.Just.value) /* kk_datatype_unbox(kk_datatype_unjust(#1,kk_context())) */ )"
+  c  inline "(kk_std_core_types__is_Nothing(#1,kk_context()) ? kk_datatype_null() : kk_datatype_unbox((#1)._cons.Just.value) /* kk_datatype_unbox(kk_datatype_unjust(#1,kk_context())) */ )"
   cs inline "(#1.tag_ == __std_core._maybe_Tag.Nothing ? default(##1) : #1.@value)"
   js inline "(#1==null ? null : #1.value)"
 
 // Transform a `:null` type to a `:maybe` type. Note that it is not
 // always the case that `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
 pub extern maybe( n : null<a> ) : maybe<a>
-  c  inline "(kk_datatype_as_ptr(#1) == NULL ? kk_std_core_types__new_Nothing(kk_context()) : kk_std_core_types__new_Just(kk_datatype_box(#1),kk_context()))"
+  c  inline "(kk_datatype_is_null(#1) ? kk_std_core_types__new_Nothing(kk_context()) : kk_std_core_types__new_Just(kk_datatype_box(#1),kk_context()))"
   cs inline "(EqualityComparer<##1>.Default.Equals(#1,default(##1)) ? __std_core._maybe<##1>.Nothing_ : new __std_core._maybe<##1>(#1))"
   js inline "(#1==null ? $std_core_types.Nothing : $std_core_types.Just(#1))"
 
@@ -2506,6 +2506,6 @@ pub alias value<a> = a
 // Internal: used for value effects
 // TODO: revisit value effects codegen
 pub extern phantom<a>() : a
-  c inline "kk_box_null"
+  c inline "kk_box_null()"
   inline "undefined"
 

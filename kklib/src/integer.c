@@ -343,7 +343,7 @@ static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
     u = (kk_uintx_t)i;
   }
   else if (i == KK_INTX_MIN) {
-    u = (KK_UINTX_MAX/2) + KK_UX(1);
+    u = ((KK_UINTX_MAX)/2) + KK_UX(1);
   }
   else {
     u = (kk_uintx_t)(-i);

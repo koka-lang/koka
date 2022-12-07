@@ -78,11 +78,11 @@ static void testx(const char* name, iop* op, xop* opx, kk_intf_t i, kk_intf_t j,
   kk_integer_t y = _kk_new_integer(j);
   intptr_t k = _kk_integer_value(op(x, y, ctx));
   intptr_t expect = opx(i, j, ctx);
-  printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", i, name, j, k, (k == expect ? "ok" : "FAIL"), expect, (k == 10 ? "(overflow)" : ""));
+  printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", (intptr_t)i, name, (intptr_t)j, k, (k == expect ? "ok" : "FAIL"), expect, (k == 10 ? "(overflow)" : ""));
 }
 static void testb(const char* name, iop* op, kk_integer_t x, kk_integer_t y, kk_integer_t expect, kk_context_t* ctx) {
   kk_integer_t k = (op(x, y, ctx));
-  printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", _kk_integer_value(x), name, _kk_integer_value(y), _kk_integer_value(k), (_kk_integer_value(k) == _kk_integer_value(expect) ? "ok" : "FAIL"), _kk_integer_value(expect), (_kk_integer_value(k) == 43 ? "(overflow)" : ""));
+  printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", (intptr_t)_kk_integer_value(x), name, (intptr_t)_kk_integer_value(y), (intptr_t)_kk_integer_value(k), (_kk_integer_value(k) == _kk_integer_value(expect) ? "ok" : "FAIL"), (intptr_t)_kk_integer_value(expect), (_kk_integer_value(k) == 43 ? "(overflow)" : ""));
 }
 static void test_op(const char* name, iop* op, xop* opx, kk_context_t* ctx) {
   testx(name, op, opx, KK_SMALLINT_MAX, 1, ctx);
@@ -428,7 +428,7 @@ static void test_popcount(void) {
 static void test_box_double(double dx, kk_context_t* ctx) {
   kk_box_t bx = kk_double_box(dx, ctx);
   double e = kk_double_unbox(bx, ctx);
-  printf("value: %.20e, box-unbox to: %.20e, box: 0x%016zx\n", dx, e, bx.box);
+  printf("value: %.20e, box-unbox to: %.20e, box: 0x%016zx\n", dx, e, (intptr_t)bx.box);
   assert(e == dx || (isnan(e) && isnan(dx)));
 }
 

@@ -51,7 +51,7 @@ kk_vector_t kk_vector_copy(kk_vector_t vec, kk_context_t* ctx) {
 }
 
 kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t _r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
-  struct kk_ref_s* r = kk_basetype_as_assert(struct kk_ref_s*, _r, KK_TAG_REF, ctx);
+  struct kk_ref_s* r = kk_datatype_as_assert(struct kk_ref_s*, _r, KK_TAG_REF, ctx);
   if kk_likely(!kk_block_is_thread_shared(&r->_block)) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);

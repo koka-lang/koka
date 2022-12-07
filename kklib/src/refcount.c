@@ -328,7 +328,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
           // go down into the child
           if (i < scan_fsize) {
             // save our progress to continue here later (when moving up along the parent chain)
-            kk_block_field_set(b, 0, kk_box_from_ptr(parent,ctx)); // set parent (use low-level box as parent could be NULL)
+            kk_block_field_set(b, 0, kk_box_from_potential_null_ptr(parent,ctx)); // set parent (use low-level box as parent could be NULL)
             kk_block_field_idx_set(b,i);
             parent = b;
           }
@@ -349,7 +349,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
   // move_up:
     if (parent != NULL) {
       b = parent;
-      parent = kk_box_to_ptr( kk_block_field(parent, 0), ctx );  // low-level unbox as it can be NULL
+      parent = kk_box_to_potential_null_ptr( kk_block_field(parent, 0), ctx );  // low-level unbox as it can be NULL
       scan_fsize = b->header.scan_fsize;
       i = kk_block_field_idx(b);
       kk_assert_internal(i < scan_fsize);
@@ -642,7 +642,7 @@ markfields:
       if (child != NULL) {
         // visit the child, but remember our state and link back to the parent
         // note: we cannot optimize for the last child as in freeing as we need to restore all parent fields
-        kk_block_field_set(b, i - 1, kk_box_from_ptr(parent,ctx));  // low-level box as parent can be NULL
+        kk_block_field_set(b, i - 1, kk_box_from_potential_null_ptr(parent,ctx));  // low-level box as parent can be NULL
         kk_block_mark_idx_set(b, i);
         parent = b;
         b = child;
@@ -659,7 +659,7 @@ markfields:
     i = kk_block_mark_idx(parent);
     scan_fsize = parent->header.scan_fsize;
     kk_assert_internal(i > 0 && i <= scan_fsize);    
-    kk_block_t* pparent = kk_box_to_ptr( kk_block_field(parent, i-1), ctx );  // low-level unbox on parent
+    kk_block_t* pparent = kk_box_to_potential_null_ptr( kk_block_field(parent, i-1), ctx );  // low-level unbox on parent
     kk_block_field_set(parent, i-1, kk_ptr_box(b,ctx));                           // restore original pointer
     b = parent;
     parent = pparent;

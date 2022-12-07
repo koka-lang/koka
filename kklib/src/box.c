@@ -189,7 +189,7 @@ kk_box_t kk_cptr_raw_box(kk_free_fun_t* freefun, void* p, kk_context_t* ctx) {
 }
 
 void* kk_cptr_raw_unbox(kk_box_t b, kk_context_t* ctx) {
-  kk_cptr_raw_t raw = kk_basetype_unbox_as_assert(kk_cptr_raw_t, b, KK_TAG_CPTR_RAW, ctx);
+  kk_cptr_raw_t raw = kk_block_unbox_as(kk_cptr_raw_t, b, KK_TAG_CPTR_RAW, ctx);
   return raw->cptr;
 }
 

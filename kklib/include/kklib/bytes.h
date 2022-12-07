@@ -180,7 +180,7 @@ static inline bool kk_bytes_is_empty(kk_bytes_t s, kk_context_t* ctx) {
 }
 
 static inline kk_bytes_t kk_bytes_copy(kk_bytes_t b, kk_context_t* ctx) {
-  if (kk_datatype_is_singleton(b) || kk_datatype_is_unique(b,ctx)) {
+  if (kk_datatype_is_singleton(b) || kk_datatype_ptr_is_unique(b,ctx)) {
     return b;
   }
   else {
@@ -237,7 +237,7 @@ static inline int kk_memcmp(const void* s, const void* t, kk_ssize_t len) {
 }
 
 
-kk_decl_export kk_ssize_t kk_decl_pure kk_bytes_count_pattern_borrow(kk_bytes_t str, kk_bytes_t pattern);
+kk_decl_export kk_ssize_t kk_decl_pure kk_bytes_count_pattern_borrow(kk_bytes_t str, kk_bytes_t pattern, kk_context_t* ctx);
 
 kk_decl_export kk_bytes_t kk_bytes_cat(kk_bytes_t s1, kk_bytes_t s2, kk_context_t* ctx);
 kk_decl_export kk_bytes_t kk_bytes_cat_from_buf(kk_bytes_t s1, kk_ssize_t len2, const uint8_t* buf2, kk_context_t* ctx);
