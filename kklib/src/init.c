@@ -222,7 +222,7 @@ kk_context_t* kk_get_context(void) {
 #if KK_INTF_SIZE==4 && KK_COMPRESS && defined(KK_MIMALLOC)
 #if defined(KK_MIMALLOC)
   mi_arena_id_t arena;
-  kk_ssize_t heap_size = kk_shlp(KK_IZ(1), KK_INTF_SIZE * 8); // +KK_BOX_PTR_SHIFT);
+  kk_ssize_t heap_size = kk_shlp(KK_IZ(1), KK_INTF_SIZE * 8 + KK_BOX_PTR_SHIFT);
   int err = mi_reserve_os_memory_ex(heap_size, false /* commit */, true /* allow large */, true /*exclusive*/, &arena);
   if (err != 0) {
     kk_fatal_error(err, "unable to reserve the initial heap");

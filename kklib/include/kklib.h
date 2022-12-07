@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD        96       // modify on changes to trigger recompilation 
+#define KKLIB_BUILD        97       // modify on changes to trigger recompilation 
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
@@ -896,11 +896,17 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 /*----------------------------------------------------------------------
   
 ----------------------------------------------------------------------*/
+#if !defined(KK_BOX_PTR_SHIFT)
+#define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - KK_TAG_BITS)
+#endif
 
 static inline kk_intb_t kk_ptr_encode(kk_ptr_t p, kk_context_t* ctx) {
   kk_assert_internal(((intptr_t)p & KK_TAG_MASK) == 0);
 #if KK_COMPRESS
   intptr_t i = (intptr_t)p - ctx->heap_base;
+  #if KK_BOX_PTR_SHIFT > 0
+  i = kk_sarp(i, KK_BOX_PTR_SHIFT);
+  #endif
   kk_assert_internal(i >= KK_INTB_MIN && i <= KK_INTB_MAX);
   return _kk_make_ptr((kk_intb_t)i);
 #else
@@ -912,7 +918,11 @@ static inline kk_intb_t kk_ptr_encode(kk_ptr_t p, kk_context_t* ctx) {
 static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
   kk_assert_internal(kk_is_ptr(b));
 #if KK_COMPRESS
-  intptr_t i = ctx->heap_base + _kk_unmake_ptr(b);
+  intptr_t i = _kk_unmake_ptr(b);
+  #if KK_BOX_PTR_SHIFT > 0
+  i = kk_shlp(i, KK_BOX_PTR_SHIFT);
+  #endif
+  i = i + ctx->heap_base;
   return (kk_ptr_t)i;
 #else
   kk_unused(ctx);

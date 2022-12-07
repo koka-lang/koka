@@ -409,10 +409,6 @@ typedef uint32_t       kk_uintb_t;
 #error "the given platform boxed integer size is (currently) not supported"
 #endif
 
-#if !defined(KK_BOX_PTR_SHIFT)
-#define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - 1)
-#endif
-
 
 // Largest natural integer that fits into a boxed value
 #if (KK_INTB_SIZE > KK_SIZE_SIZE)   // ensure it fits the natural register size
