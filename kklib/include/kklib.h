@@ -1075,7 +1075,7 @@ static inline kk_datatype_t kk_datatype_dup_assert(kk_datatype_t d, kk_tag_t t, 
 
 static inline void kk_datatype_ptr_drop_assert(kk_datatype_t d, kk_tag_t t, kk_context_t* ctx) {
   kk_unused_internal(t);
-  kk_assert_internal(kk_datatype_ptr_has_tag(d, t, ctx));
+  // kk_assert_internal(kk_datatype_ptr_has_tag(d, t, ctx));
   kk_datatype_ptr_drop(d, ctx);
 }
 

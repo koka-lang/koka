@@ -1456,17 +1456,18 @@ genPatternTest doTest gfree (exprDoc,pattern)
       -}
       PatCon bname [pattern] repr [targ] exists tres info skip  | getName bname == nameBoxCon
         -> do local <- newVarName "unbox"
-              let unbox   = genBoxCall "unbox" True targ exprDoc
+              let assign  = ppType tres <+> ppDefName local <+> text "=" <+> genDupCall tres exprDoc <.> semi
+                  unbox   = genBoxCall "unbox" False {-True-} targ (ppDefName local)
                   next    = genNextPatterns (\self fld -> self) {-(ppDefName local)-} unbox targ [pattern]
                   -- assign  = ppType targ <+> ppDefName local <+> text "=" <+> unbox <.> semi
-              return [([],[{-assign-}],next)]
+              return [([],[assign],next)]
       PatVar tname pattern
         -> do let after = if (patternVarFree pattern && not (tnamesMember tname gfree)) then []
                            else [ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <.> semi]
                   next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
               return [([],after,next)]
       PatLit (LitString s)
-        -> return [(test [text "kk_string_cmp_cstr_borrow" <.> tupled [exprDoc,fst (cstring s)] <+> text "== 0"],[],[])]
+        -> return [(test [text "kk_string_cmp_cstr_borrow" <.> arguments [exprDoc,fst (cstring s)] <+> text "== 0"],[],[])]
       PatLit lit@(LitInt _)
         -> return [(test [text "kk_integer_eq_borrow" <.> arguments [exprDoc,ppLit lit]],[],[])]
       PatLit lit
