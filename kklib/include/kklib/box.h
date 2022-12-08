@@ -400,7 +400,7 @@ static inline kk_box_t kk_kkfun_ptr_boxx(kk_cfun_ptr_t fun, kk_context_t* ctx) {
   f = f - (intptr_t)&kk_main_start;
 #endif
   kk_assert(kk_shrp(f, KK_INTPTR_BITS - 1) == 0);   // assume top bit of function pointer addresses is clear
-  kk_assert(f >= KK_INTF_MIN && f <= KK_INTF_MAX);
+  kk_assert(f >= KK_INTF_BOX_MIN && f <= KK_INTF_BOX_MAX);
   kk_box_t b = { kk_intf_encode((kk_intf_t)f,0) };  // so we can encode as a value
   return b;
 }

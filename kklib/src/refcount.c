@@ -240,6 +240,7 @@ static inline kk_block_t* kk_block_field_should_free(kk_block_t* b, kk_ssize_t f
   kk_box_t v = kk_block_field(b, field); 
   if (kk_box_is_non_null_ptr(v)) {
     kk_block_t* child = kk_ptr_unbox(v,ctx); 
+    kk_assert_internal(kk_block_is_valid(child));
     if (kk_block_decref_no_free(child)) {
       uint8_t v_scan_fsize = child->header.scan_fsize; 
       if (v_scan_fsize == 0) { // free leaf nodes directly and pretend it was not a ptr field 
@@ -286,6 +287,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
 
   // ------- drop the children and free the block b ------------
   move_down:
+    kk_assert_internal(kk_block_is_valid(b));
     scan_fsize = b->header.scan_fsize;
     kk_assert_internal(kk_block_refcount(b) == 0);
     kk_assert_internal(scan_fsize > 0);           // due to kk_block_should_free

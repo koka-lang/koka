@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD        97       // modify on changes to trigger recompilation 
+#define KKLIB_BUILD        96       // modify on changes to trigger recompilation 
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
@@ -268,6 +268,27 @@ static inline kk_decl_pure kk_ssize_t kk_block_scan_fsize(const kk_block_t* b) {
   return (kk_ssize_t)kk_intf_unbox(bl->large_scan_fsize);
 }
 
+static inline void kk_block_set_invalid(kk_block_t* b) {
+#ifdef KK_DEBUG_FULL
+  const kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
+  const kk_ssize_t bsize = (sizeof(kk_box_t) * scan_fsize) + (b->header.scan_fsize == KK_SCAN_FSIZE_MAX ? sizeof(kk_block_large_t) : sizeof(kk_block_t));
+  uint8_t* p = (uint8_t*)b;
+  for (kk_ssize_t i = 0; i < bsize; i++) {
+    p[i] = 0xDF;
+  }
+#else
+  kk_unused(b);
+#endif
+}
+
+static inline kk_decl_pure bool kk_block_is_valid(kk_block_t* b) {
+  return (b != NULL && ((uintptr_t)b & 1) == 0 && *((uint64_t*)b) != KK_U64(0xDFDFDFDFDFDFDFDF) // already freed!
+    && (b->header.tag > KK_TAG_MAX || b->header.tag < 0xFF)
+    && (b->header._field_idx <= b->header.scan_fsize)
+    );
+}
+
+
 static inline kk_decl_pure kk_refcount_t kk_block_refcount(const kk_block_t* b) {
   return kk_atomic_load_relaxed(&b->header.refcount);
 }
@@ -290,6 +311,7 @@ typedef struct kk_block_fields_s {
 } kk_block_fields_t;
 
 static inline kk_decl_pure kk_box_t kk_block_field(kk_block_t* b, kk_ssize_t index) {
+  kk_assert_internal(kk_block_is_valid(b));
   kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
   return bf->fields[index];
 }
@@ -314,22 +336,6 @@ static inline void kk_block_field_idx_set(kk_block_t* b, uint8_t idx ) {
 }
 
 
-static inline void kk_block_set_invalid(kk_block_t* b) {
-#ifdef KK_DEBUG_FULL
-  const kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
-  const kk_ssize_t bsize = (sizeof(kk_box_t) * scan_fsize) + (b->header.scan_fsize == KK_SCAN_FSIZE_MAX ? sizeof(kk_block_large_t) : sizeof(kk_block_t));
-  uint8_t* p = (uint8_t*)b;
-  for (kk_ssize_t i = 0; i < bsize; i++) {
-    p[i] = 0xDF;
-  }
-#else
-  kk_unused(b);
-#endif
-}
-
-static inline kk_decl_pure bool kk_block_is_valid(kk_block_t* b) {
-  return (b != NULL && ((uintptr_t)b & 1) == 0 && *((uint64_t*)b) != KK_U64(0xDFDFDFDFDFDFDFDF)); // already freed!
-}
 
 
 
@@ -339,17 +345,20 @@ static inline kk_decl_pure bool kk_block_is_valid(kk_block_t* b) {
   be (usually) accessed efficiently through a register.
 --------------------------------------------------------------------------------------*/
 #ifdef KK_MIMALLOC
-#if !defined(MI_MAX_ALIGN_SIZE)
-# define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE
-#endif
-#ifdef KK_MIMALLOC_INLINE
-#include "../mimalloc/include/mimalloc-inline.h"
+  #if !defined(MI_MAX_ALIGN_SIZE)
+    #define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE
+  #endif
+  #if !defined(MI_DEBUG) && defined(KK_DEBUG_FULL)
+    #define MI_DEBUG  3
+  #endif
+  #ifdef KK_MIMALLOC_INLINE
+    #include "../mimalloc/include/mimalloc-inline.h"
+  #else
+    #include "../mimalloc/include/mimalloc.h"
+  #endif
+  typedef mi_heap_t* kk_heap_t;
 #else
-#include "../mimalloc/include/mimalloc.h"
-#endif
-typedef mi_heap_t* kk_heap_t;
-#else
-typedef void*      kk_heap_t;
+  typedef void*      kk_heap_t;
 #endif
 
 // A function has as its first field a pointer to a C function that takes the
@@ -934,6 +943,7 @@ static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
 #define KK_INTF_BOX_MAX   ((kk_intf_t)KK_INTF_MAX >> (KK_INTF_BITS - KK_INTF_BOX_BITS))
 #define KK_INTF_BOX_MIN   (- KK_INTF_BOX_MAX - 1)
 
+
 static inline kk_intb_t kk_intf_encode(kk_intf_t i, int extra_shift) {
   kk_assert_internal(extra_shift >= 0);
   kk_assert_internal(i >= (KK_INTF_BOX_MIN / (KK_IF(1)<<extra_shift)) && i <= (KK_INTF_BOX_MAX / (KK_IF(1)<<extra_shift)));
@@ -942,7 +952,7 @@ static inline kk_intb_t kk_intf_encode(kk_intf_t i, int extra_shift) {
 
 static inline kk_intf_t kk_intf_decode(kk_intb_t b, int extra_shift) {
   kk_assert_internal(extra_shift >= 0);
-  kk_assert_internal(kk_is_value(b));
+  kk_assert_internal(kk_is_value(b) || b == kk_get_context()->kk_box_any.dbox);
   kk_intb_t i = kk_sarb(_kk_unmake_value(b),KK_TAG_BITS + extra_shift);
   return (kk_intf_t)i;
 }
@@ -1074,8 +1084,8 @@ static inline kk_datatype_t kk_datatype_dup_assert(kk_datatype_t d, kk_tag_t t, 
 }
 
 static inline void kk_datatype_ptr_drop_assert(kk_datatype_t d, kk_tag_t t, kk_context_t* ctx) {
-  kk_unused_internal(t);
-  // kk_assert_internal(kk_datatype_ptr_has_tag(d, t, ctx));
+  kk_unused(t);
+  kk_assert_internal(kk_datatype_ptr_has_tag(d, t, ctx) || kk_datatype_ptr_has_tag(d, KK_TAG_BOX_ANY, ctx));
   kk_datatype_ptr_drop(d, ctx);
 }
 

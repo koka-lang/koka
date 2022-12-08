@@ -145,12 +145,16 @@
 #if defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-value"
-#pragma GCC diagnostic ignored "-Warray-bounds"      // gives wrong warnings in std/os/path for string literals
-#define kk_decl_const      __attribute__((const))    // reads no global state at all
-#define kk_decl_pure       __attribute__((pure))     // may read global state but has no observable side effects
-#define kk_decl_noinline   __attribute__((noinline))
-#define kk_decl_align(a)   __attribute__((aligned(a)))
-#define kk_decl_thread     __thread
+#pragma GCC diagnostic ignored "-Warray-bounds"         // gives wrong warnings in std/os/path for string literals
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+#define kk_decl_const         __attribute__((const))    // reads no global state at all
+#define kk_decl_pure          __attribute__((pure))     // may read global state but has no observable side effects
+#define kk_decl_noinline       __attribute__((noinline))
+#define kk_decl_align(a)      __attribute__((aligned(a)))
+#define kk_decl_thread        __thread
+#define kk_struct_packed      struct __attribute__((__packed__))
+#define kk_struct_packed_end 
+#define KK_HAS_STRUCT_PACKING 1
 #elif defined(_MSC_VER)
 #pragma warning(disable:4214)  // using bit field types other than int
 #pragma warning(disable:4101)  // unreferenced local variable
@@ -160,9 +164,12 @@
 #pragma warning(disable:26812) // the enum type is unscoped (in C++)
 #define kk_decl_const
 #define kk_decl_pure
-#define kk_decl_noinline   __declspec(noinline)
-#define kk_decl_align(a)   __declspec(align(a))
-#define kk_decl_thread     __declspec(thread)
+#define kk_decl_noinline      __declspec(noinline)
+#define kk_decl_align(a)      __declspec(align(a))
+#define kk_decl_thread        __declspec(thread)
+#define kk_struct_packed      __pragma(pack(push,1)) struct
+#define kk_struct_packed_end  __pragma(pack(pop))
+#define KK_HAS_STRUCT_PACKING 1
 #ifndef __cplusplus
 #error "when using cl (the Microsoft Visual C++ compiler), use the /TP option to always compile in C++ mode."
 #endif
@@ -171,7 +178,10 @@
 #define kk_decl_pure
 #define kk_decl_noinline   
 #define kk_decl_align(a)   
-#define kk_decl_thread     __thread
+#define kk_decl_thread        __thread
+#define kk_struct_packed      struct
+#define kk_struct_packed_end  
+#define KK_HAS_STRUCT_PACKING 0
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -362,20 +372,19 @@ typedef unsigned       kk_uintx_t;
 // We have |kk_intf_t| <= |kk_box_t| <= |intptr_t|.
 // These are generally all the same size, on x64 they will all be 64-bit.
 // But not always:
-// - |kk_intf_t| can be smaller than |kk_box_t| if pointers are larger than natural ints (say x86 huge)
+// - |kk_intf_t| can be smaller than |kk_box_t| if pointers are larger than natural ints (say x86 huge, or CHERI)
 // - |kk_box_t| can be smaller than |intptr_t| if pointers are compressed.
 //   For example using a compressed heap with 32-bit pointers on a 64-bit system, or
 //   64-bit addresses on a 128-bit CHERI system.
 // 
 // The `kk_intf_t` represents the largest integer size that fits into `kk_box_t` (minus 1 bit)
-// but not larger than the natural register size for integers.
+// but which is not larger than the natural register size for integers.
 
 // a boxed value is by default the size of an `intptr_t`.
 #if !defined(KK_INTB_SIZE)
-#define KK_INTB_SIZE   KK_INTPTR_SIZE
+#define KK_INTB_SIZE   4 // KK_INTPTR_SIZE
 #endif
 #define KK_INTB_BITS   (8*KK_INTB_SIZE)
-
 
 // define `kk_intb_t` (the integer that can hold a boxed value)
 #if (KK_INTB_SIZE == KK_INTPTR_SIZE)
@@ -409,6 +418,9 @@ typedef uint32_t       kk_uintb_t;
 #error "the given platform boxed integer size is (currently) not supported"
 #endif
 
+#if KK_COMPRESS && !KK_HAS_STRUCT_PACKING
+#error "pointer compression can only be used with C compilers that support struct packing"
+#endif
 
 // Largest natural integer that fits into a boxed value
 #if (KK_INTB_SIZE > KK_SIZE_SIZE)   // ensure it fits the natural register size
@@ -432,26 +444,26 @@ typedef kk_uintb_t     kk_uintf_t;
 
 // Distinguish unsigned shift right and signed arithmetic shift right.
 // (Here we assume >> is arithmetic right shift). Avoid UB by always masking the shift.
-static inline kk_intx_t   kk_sar(kk_intx_t i, int shift) { return (i >> (shift & (KK_INTX_BITS - 1))); }
-static inline kk_uintx_t  kk_shr(kk_uintx_t u, int shift) { return (u >> (shift & (KK_INTX_BITS - 1))); }
-static inline kk_intf_t   kk_sarf(kk_intf_t i, int shift) { return (i >> (shift & (KK_INTF_BITS - 1))); }
-static inline kk_uintf_t  kk_shrf(kk_uintf_t u, int shift) { return (u >> (shift & (KK_INTF_BITS - 1))); }
-static inline kk_intb_t   kk_sarb(kk_intb_t i, int shift) { return (i >> (shift & (KK_INTB_BITS - 1))); }
+static inline kk_intx_t   kk_sar(kk_intx_t i, int shift)      { return (i >> (shift & (KK_INTX_BITS - 1))); }
+static inline kk_uintx_t  kk_shr(kk_uintx_t u, int shift)     { return (u >> (shift & (KK_INTX_BITS - 1))); }
+static inline kk_intf_t   kk_sarf(kk_intf_t i, int shift)     { return (i >> (shift & (KK_INTF_BITS - 1))); }
+static inline kk_uintf_t  kk_shrf(kk_uintf_t u, int shift)    { return (u >> (shift & (KK_INTF_BITS - 1))); }
+static inline kk_intb_t   kk_sarb(kk_intb_t i, int shift)     { return (i >> (shift & (KK_INTB_BITS - 1))); }
 
-static inline uintptr_t   kk_shrp(uintptr_t u, int shift) { return (u >> (shift & (KK_INTPTR_BITS - 1))); }
-static inline intptr_t    kk_sarp(intptr_t u, int shift) { return (u >> (shift & (KK_INTPTR_BITS - 1))); }
-static inline int32_t     kk_sar32(int32_t i, int shift) { return (i >> (shift & 31)); }
-static inline uint32_t    kk_shr32(uint32_t u, int shift) { return (u >> (shift & 31)); }
-static inline int64_t     kk_sar64(int64_t i, int shift) { return (i >> (shift & 63)); }
-static inline uint64_t    kk_shr64(uint64_t u, int shift) { return (u >> (shift & 63)); }
+static inline uintptr_t   kk_shrp(uintptr_t u, int shift)     { return (u >> (shift & (KK_INTPTR_BITS - 1))); }
+static inline intptr_t    kk_sarp(intptr_t u, int shift)      { return (u >> (shift & (KK_INTPTR_BITS - 1))); }
+static inline int32_t     kk_sar32(int32_t i, int32_t shift)  { return (i >> (shift & 31)); }
+static inline uint32_t    kk_shr32(uint32_t u, int32_t shift) { return (u >> (shift & 31)); }
+static inline int64_t     kk_sar64(int64_t i, int64_t shift)  { return (i >> (shift & 63)); }
+static inline uint64_t    kk_shr64(uint64_t u, int64_t shift) { return (u >> (shift & 63)); }
 
 // Avoid UB by left shifting on unsigned integers (and masking the shift).
-static inline kk_intx_t   kk_shl(kk_intx_t i, int shift) { return (kk_intx_t)((kk_uintx_t)i << (shift & (KK_INTX_BITS - 1))); }
-static inline kk_intf_t   kk_shlf(kk_intf_t i, int shift) { return (kk_intf_t)((kk_uintf_t)i << (shift & (KK_INTF_BITS - 1))); }
-static inline kk_intb_t   kk_shlb(kk_intb_t i, int shift) { return (kk_intb_t)((kk_uintb_t)i << (shift & (KK_INTB_BITS - 1))); }
-static inline intptr_t    kk_shlp(intptr_t i, int shift) { return (intptr_t)((uintptr_t)i << (shift & (KK_INTPTR_BITS - 1))); }
-static inline int32_t     kk_shl32(int32_t i, int shift) { return (int32_t)((uint32_t)i << (shift & 31)); }
-static inline int64_t     kk_shl64(int64_t i, int shift) { return (int64_t)((uint64_t)i << (shift & 63)); }
+static inline kk_intx_t   kk_shl(kk_intx_t i, int shift)      { return (kk_intx_t)((kk_uintx_t)i << (shift & (KK_INTX_BITS - 1))); }
+static inline kk_intf_t   kk_shlf(kk_intf_t i, int shift)     { return (kk_intf_t)((kk_uintf_t)i << (shift & (KK_INTF_BITS - 1))); }
+static inline kk_intb_t   kk_shlb(kk_intb_t i, int shift)     { return (kk_intb_t)((kk_uintb_t)i << (shift & (KK_INTB_BITS - 1))); }
+static inline intptr_t    kk_shlp(intptr_t i, int shift)      { return (intptr_t)((uintptr_t)i << (shift & (KK_INTPTR_BITS - 1))); }
+static inline int32_t     kk_shl32(int32_t i, int32_t shift)  { return (int32_t)((uint32_t)i << (shift & 31)); }
+static inline int64_t     kk_shl64(int64_t i, int64_t shift)  { return (int64_t)((uint64_t)i << (shift & 63)); }
 
 
 
