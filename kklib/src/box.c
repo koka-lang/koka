@@ -7,6 +7,17 @@
 ---------------------------------------------------------------------------*/
 #include "kklib.h"
 
+/*----------------------------------------------------------------
+  Value type boxing
+----------------------------------------------------------------*/
+
+void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box_t box, kk_context_t* ctx) {
+  const size_t max_scan_fsize = size / sizeof(kk_box_t);
+  for (size_t i = 0; i < max_scan_fsize; i++) {
+    p[i] = kk_box_any(ctx);
+  }
+  kk_block_decref(kk_block_unbox(box, KK_TAG_BOX_ANY, ctx), ctx);
+}
 
 /*----------------------------------------------------------------
   Integer boxing

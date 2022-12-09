@@ -755,6 +755,12 @@ primName_t prim s = primName prim $ text $
 primName prim d   = d <.> text "_" <.> text prim
 
 
+dataStructAsMaybeSplit :: [ConInfo] -> (ConInfo,ConInfo)
+dataStructAsMaybeSplit [conInfo1,conInfo2]  
+  = if (null (conInfoParams conInfo1)) then (conInfo1,conInfo2) else (conInfo2,conInfo1)
+dataStructAsMaybeSplit _
+  = failure $ "Backend.C.dataStructAsMaybeSplit: invalid constructors for a maybe like type"  
+
 genBox name info dataRepr
   = emitToH $
     text "static inline kk_box_t " <.> ppName name <.> text "_box" <.> parameters [ppName name <+> text "_x"] <+> block (
@@ -764,14 +770,14 @@ genBox name info dataRepr
                         (isoName,isoTp)   = (head (conInfoParams conInfo))
                     in text "return" <+> genBoxCall "box" False isoTp (text "_x." <.> ppName (unqualify isoName)) <.> semi
         DataStructAsMaybe
-          -> let [conNothing,conJust] = sortOn (length . conInfoParams) (dataInfoConstrs info)
+          -> let (conNothing,conJust) = dataStructAsMaybeSplit (dataInfoConstrs info)
                  (conJustFieldName,conJustFieldTp) = head (conInfoParams conJust)
-             in text "if" <+> parens (conTestName conNothing <.> arguments [text "_x"]) <+> (text "return kk_box_Nothing();")
+             in text "if" <+> parens (conTestName conNothing <.> arguments [text "_x"]) <+> (text "{ return kk_box_Nothing(); }")
                 <->
                 text "  else" <+> (
                   let boxField = genBoxCall "box" False conJustFieldTp 
                                   (text "_x._cons." <.> ppDefName (conInfoName conJust) <.> text "." <.> ppName (unqualify conJustFieldName))
-                  in text "return kk_box_Just" <.> arguments [boxField] <.> semi
+                  in text "{ return kk_box_Just" <.> arguments [boxField] <.> semi <+> text "}"
                 )
         _ -> case dataInfoDef info of
                DataDefValue raw scancount
@@ -800,16 +806,16 @@ genUnbox name info dataRepr
           -> let [conNothing,conJust] = sortOn (length . conInfoParams) (dataInfoConstrs info)
                  (conJustFieldName,conJustFieldTp) = head (conInfoParams conJust)
              in text "if (kk_box_is_Nothing(_x))" <+> 
-                  text "return" <+> conCreateName (conInfoName conNothing) <.> arguments [] <.> semi
+                  text "{ return" <+> conCreateName (conInfoName conNothing) <.> arguments [] <.> semi <+> text "}"
                 <->
                 text "  else" <+> (
-                  text "return" <+> conCreateName (conInfoName conJust) <.> arguments [
+                  text "{ return" <+> conCreateName (conInfoName conJust) <.> arguments [
                     genBoxCall "unbox" False conJustFieldTp (text "kk_unbox_Just" <.> arguments [text "_x"])
-                  ] <.> semi
+                  ] <.> semi <+> text "}"
                 )
         _ | dataReprIsValue dataRepr
           -> vcat [ ppName name <+> text "_unbox;"
-                  , text "kk_valuetype_unbox_" <.> arguments [ppName name, text "_unbox", text "_x"] <.> semi 
+                  , text "kk_valuetype_unbox" <.> arguments [ppName name, text "_unbox", text "_x"] <.> semi 
                   , text "return _unbox" ]
              -- text "unbox_valuetype" <.> arguments [ppName name, text "x"]
         _ -> text "return"
@@ -820,11 +826,13 @@ genUnbox name info dataRepr
     ) <.> semi)
 
 
+-- con infos are sorted with singletons first
 genDupDrop :: Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
 genDupDrop name info dataRepr conInfos
   = do -- genScanFields name info dataRepr conInfos
        genDupDropX True name info dataRepr conInfos
        genDupDropX False name info dataRepr conInfos
+       {-
        when (not (dataReprIsValue dataRepr)) $
          do genHole name info dataRepr               -- create "hole" of this type for TRMC
             when (not (isDataAsMaybe dataRepr)) $
@@ -834,8 +842,8 @@ genDupDrop name info dataRepr conInfos
                  genDropReuseFun name info dataRepr  -- drop, but if refcount==0 return the address of the block instead of freeing
                  genDropNFun name info dataRepr      -- drop with known number of scan fields
                  genReuse name info dataRepr         -- return the address of the block
-
-
+        -}
+{-
 genIsUnique :: Name -> DataInfo -> DataRepr -> Asm ()
 genIsUnique name info dataRepr
   = emitToH $
@@ -885,8 +893,9 @@ genHole name info dataRepr
       text "return" <+>
       -- holes must be trace-able and look like values (least-significant-bit==1)
       text "kk_datatype_null()" <.> semi)
+-}
 
-
+{-
 genScanFields :: Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
 genScanFields name info dataRepr conInfos | not (hasTagField dataRepr)
  = return ()
@@ -903,6 +912,7 @@ genScanFieldTests lastIdx ((con,conRepr,conFields,scanCount),idx)
             <+> stat
   where
     stat = text ("return " ++ show (1 {-tag-} + scanCount) ++ ";")
+-}
 
 genDupDropX :: Bool -> Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
 genDupDropX isDup name info dataRepr conInfos
@@ -916,7 +926,13 @@ genDupDropX isDup name info dataRepr conInfos
     dupDropTests
       | dataRepr == DataEnum   = ret
       | dataRepr == DataIso    = [genDupDropIso isDup (head conInfos)] ++ ret
-      | dataRepr <= DataStruct = map (genDupDropTests isDup dataRepr (length conInfos)) (zip conInfos [1..]) ++ ret
+      -- | dataRepr == DataStructAsMaybe = [genDupDropMaybe isDup conInfos] ++ ret
+      | dataRepr <= DataStruct = genDupDropMatch (map (genDupDropTests isDup dataRepr) conInfos) ++ ret
+                                {-
+                                 case (dataInfoDef info) of
+                                   DataDefValue _ scancount -> genDupDropValue isDup dataRepr scancount ++ ret
+                                   _ -> failure "Backend.C.genDupDropX: invalid value data definition?"
+                                -}
       | otherwise = if (isDup) then [text "return"
                                       <+> (if dataReprMayHaveSingletons dataRepr
                                             then text "kk_datatype_dup" <.> arguments [text "_x"]
@@ -931,10 +947,50 @@ genDupDropIso :: Bool -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Doc
 genDupDropIso isDup (con,conRepr,[(name,tp)],scanCount)
   = hcat $ map (<.>semi) (genDupDropCall isDup tp (text "_x." <.> ppName name))
 genDupDropIso _ _
-  = failure $ "Backend.C.genDupDropIso: ivalid arguments"
+  = failure $ "Backend.C.genDupDropIso: invalid arguments"
 
-genDupDropTests :: Bool -> DataRepr -> Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
-genDupDropTests isDup dataRepr lastIdx ((con,conRepr,conFields,scanCount),idx)
+-- coninfos are sorted with singletons first
+genDupDropMaybe :: Bool -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Doc
+genDupDropMaybe isDup [(conNothing,_,_,_),(conJust,_,[(fname,ftp)],_)]
+  = text "if" <+> parens (text "!" <.> conTestName conNothing <.> arguments [text "_x"]) <+> 
+    (block $ vcat (genDupDropCall isDup ftp (text "_x._cons." <.> ppDefName (conInfoName conJust) <.> dot <.> ppName fname)) <.> semi)
+
+{-
+genDupDropValue :: Bool -> DataRepr -> Int -> [Doc]
+genDupDropValue isDup dataRepr 0  = []
+-- genDupDropValue isDup DataStructAsMaybe 1  -- todo: maybe specialize? 
+genDupDropValue isDup dataRepr scanCount 
+  = [text "kk_box_t* _fields = (kk_box_t*)" <.> text (if hasTagField dataRepr then "&_x._cons._fields" else "&_x") <.> semi]
+    ++ 
+    [text "kk_box_" <.> text (if isDup then "dup" else "drop") <.> arguments [text "_fields[" <.> pretty (i-1) <.> text "]"] <.> semi 
+     | i <- [1..scanCount]]
+-}
+
+block1 [stat]  = text "{" <+> stat <+> text "}"
+block1 stats   = block (vcat stats)
+
+genDupDropMatch :: [(Doc,[Doc])] -> [Doc]
+genDupDropMatch branches0
+  = let branches = filter (not . null . snd) branches0
+        complete = (length branches == length branches0)
+        genBranch iff (test,stats)
+                 = text iff <+> parens test <+> block1 stats
+    in case branches of 
+          []     -> []
+          [(_,stats)] | (null stats || complete)
+                 -> stats
+          (b:bs) -> [genBranch "if" b] ++ 
+                    [genBranch "else if" b | b <- if complete then init bs else bs] ++
+                    (if complete then [text "else" <+> block1 (snd (last bs))] else [])
+
+genDupDropTests :: Bool -> DataRepr -> (ConInfo,ConRepr,[(Name,Type)],Int) -> (Doc,[Doc])
+genDupDropTests isDup dataRepr (con,conRepr,conFields,scanCount)
+  = let dupdropFields = genDupDropFields isDup dataRepr con conFields
+    in  (conTestName con <.> arguments [text "_x"], dupdropFields)
+
+
+genDupDropTestsX :: Bool -> DataRepr -> Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
+genDupDropTestsX isDup dataRepr lastIdx ((con,conRepr,conFields,scanCount),idx)
   = let stats = genDupDropFields isDup dataRepr con conFields
     in if (lastIdx == idx)
         then (if null stats
@@ -971,25 +1027,41 @@ genDupDropCall :: Bool -> Type -> Doc -> [Doc]
 genDupDropCall isDup tp arg = if (isDup) then genDupDropCallX "dup" tp (arguments [arg])
                                          else genDupDropCallX "drop" tp (arguments [arg])
 
+
+-- The following functions are generated during "drop specialization" and "reuse specialization", 
+-- and only generated for heap allocated constructors so we can always use the `datatype_ptr` calls at runtime.
 genIsUniqueCall :: Type -> Doc -> [Doc]
-genIsUniqueCall tp arg  = case genDupDropCallX "is_unique" tp (arguments [arg]) of
+genIsUniqueCall tp arg  = {- case genDupDropCallX "is_unique" tp (arguments [arg]) of
                             [call] -> [text "kk_likely" <.> parens call]
                             cs     -> cs
+                          -}
+                          [text "kk_likely" <.> parens (text "kk_datatype_ptr_is_unique" <.> arguments [arg])]
+
 
 genFreeCall :: Type -> Doc -> [Doc]
-genFreeCall tp arg  = genDupDropCallX "free" tp (arguments [arg])
+genFreeCall tp arg  = -- genDupDropCallX "free" tp (arguments [arg])
+                      [text "kk_datatype_ptr_free" <.> arguments [arg]]
 
 genDecRefCall :: Type -> Doc -> [Doc]
-genDecRefCall tp arg  = genDupDropCallX "decref" tp (arguments [arg])
+genDecRefCall tp arg  = -- genDupDropCallX "decref" tp (arguments [arg])
+                        [text "kk_datatype_ptr_decref" <.> arguments [arg]]
 
 genDropReuseCall :: Type -> [Doc] -> [Doc]
-genDropReuseCall tp args  = genDupDropCallX "dropn_reuse" tp (arguments args)
+genDropReuseCall tp args  = -- genDupDropCallX "dropn_reuse" tp (arguments args)
+                            [text "kk_datatype_ptr_dropn_reuse" <.> arguments args]
 
 genReuseCall :: Type -> Doc -> [Doc]
-genReuseCall tp arg  = genDupDropCallX "reuse" tp (arguments [arg])
+genReuseCall tp arg  = -- genDupDropCallX "reuse" tp (arguments [arg])
+                       [text "kk_datatype_ptr_reuse" <.> arguments [arg]]
 
 genDropNCall :: Type -> [Doc] -> [Doc]
-genDropNCall tp args  = genDupDropCallX "dropn" tp (arguments args)
+genDropNCall tp args  = -- genDupDropCallX "dropn" tp (arguments args)
+                        [text "kk_datatype_ptr_dropn" <.> arguments args]
+
+genHoleCall :: Type -> Doc
+genHoleCall tp        = --  ppType tp <.> text "_hole()")
+                        text "kk_datatype_null()"
+
 
 conBaseCastNameInfo :: ConInfo -> Doc
 conBaseCastNameInfo con = conBaseCastName (conInfoName con)
@@ -1449,11 +1521,12 @@ genPatternTest doTest gfree (exprDoc,pattern)
       -}
       PatCon bname [pattern] repr [targ] exists tres info skip  | getName bname == nameBoxCon
         -> do local <- newVarName "unbox"
-              let assign  = ppType tres <+> ppDefName local <+> text "=" <+> genDupCall tres exprDoc <.> semi
-                  unbox   = genBoxCall "unbox" False {-True-} targ (ppDefName local)
-                  next    = genNextPatterns (\self fld -> self) {-(ppDefName local)-} unbox targ [pattern]
-                  -- assign  = ppType targ <+> ppDefName local <+> text "=" <+> unbox <.> semi
-              return [([],[assign],next)]
+              let assign  = [ppType tres <+> ppDefName local <+> text "=" <+> genDupCall tres exprDoc <.> semi]
+                  unbox   = genBoxCall "unbox" False targ (ppDefName local)
+                  -- assign  = []
+                  -- unbox   = genBoxCall "unbox" True {- borrowing -} targ exprDoc
+                  next    = genNextPatterns (\self fld -> self) unbox targ [pattern]                  
+              return [([],assign,next)]
       PatVar tname pattern
         -> do let after = if (patternVarFree pattern && not (tnamesMember tname gfree)) then []
                            else [ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <.> semi]
@@ -1766,7 +1839,7 @@ genAppNormal (Var (TName conFieldsAssign typeAssign) _) (Var reuseName (InfoConF
 
 -- special: cfield-hole
 genAppNormal (Var unbox _) [App (Var cfieldHole _) []] | getName cfieldHole == nameCFieldHole && getName unbox == nameUnbox
-  = return ([],ppType (resultType (typeOf unbox)) <.> text "_hole()")
+  = return ([], genHoleCall (resultType (typeOf unbox))) -- ppType (resultType (typeOf unbox)) <.> text "_hole()")
 
 -- special: cfield-of
 genAppNormal (Var cfieldOf _) [App (Var box _) [App (Var dup _) [Var con _]], Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf && getName dup == nameDup
@@ -1995,7 +2068,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameReuse
 
 -- special case: cfield hole
 genExprExternal tname formats [] | getName tname == nameCFieldHole
-  = return ([],ppType (resultType (typeOf tname)) <.> text "_hole()")
+  = return ([], genHoleCall (resultType (typeOf tname))) -- ppType (resultType (typeOf tname)) <.> text "_hole()")
 
 {-
 -- special case: cfield set

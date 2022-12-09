@@ -315,6 +315,12 @@ static inline kk_box_t kk_box_unbox(kk_box_t b, kk_context_t* ctx) {
   return b;
 }
 
+// `box_any` is used to return when yielding 
+// (and should be accepted by any unbox operation, and also dup/drop operations. That is why we use a ptr)
+static inline kk_box_t kk_box_any(kk_context_t* ctx) {
+  kk_datatype_ptr_dup_assert(ctx->kk_box_any, KK_TAG_BOX_ANY, ctx);
+  return kk_datatype_ptr_box(ctx->kk_box_any);
+}
 
 /*----------------------------------------------------------------
   Generic boxing of value types
@@ -325,15 +331,10 @@ typedef struct kk_boxed_value_s {
   intptr_t   data; 
 } * kk_boxed_value_t;
 
-static inline void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box_t box, kk_context_t* ctx) {
-  const size_t max_scan_fsize = size / sizeof(kk_box_t);
-  for (size_t i = 0; i < max_scan_fsize; i++) { 
-    p[i] = kk_box_any(ctx); 
-  } 
-  kk_block_decref(kk_block_unbox(box, KK_TAG_BOX_ANY, ctx), ctx);
-}
 
-#define kk_valuetype_unbox_(tp,x,box,ctx) \
+kk_decl_export void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box_t box, kk_context_t* ctx);
+
+#define kk_valuetype_unbox(tp,x,box,ctx) \
   do { \
     if kk_unlikely(kk_box_is_any(box)) { \
       kk_valuetype_unbox_from_any((kk_box_t*)&x, sizeof(tp), box, ctx); \
@@ -341,9 +342,9 @@ static inline void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box_
     else { \
       kk_boxed_value_t p = kk_base_type_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX, ctx); \
       memcpy(&x,&p->data,sizeof(tp)); /* avoid aliasing warning,  x = *((tp*)(&p->data)); */ \
-      /* if (!borrow) { */ \
-      if (kk_base_type_is_unique(p)) { kk_base_type_free(p,ctx); } else { \
-                                else { tp##_dup(x,ctx); kk_base_type_decref(p,ctx); } \
+      /* if (ctx!=NULL) { */ \
+        if (kk_base_type_is_unique(p)) { kk_base_type_free(p,ctx); } \
+                                  else { tp##_dup(x,ctx); kk_base_type_decref(p,ctx); } \
       /* } */ \
     }\
   } while(0)
@@ -356,13 +357,6 @@ static inline void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box_
     memcpy(&p->data,&valx,sizeof(tp)); /* avoid aliasing warning: *((tp*)(&p->data)) = val; */ \
     x = kk_base_type_box(p,ctx); \
   } while(0)
-
-// `box_any` is used to return when yielding 
-// (and should be accepted by any unbox operation, and also dup/drop operations. That is why we use a ptr)
-static inline kk_box_t kk_box_any(kk_context_t* ctx) {
-  kk_datatype_ptr_dup_assert(ctx->kk_box_any, KK_TAG_BOX_ANY, ctx);
-  return kk_datatype_ptr_box(ctx->kk_box_any);
-}
 
 
 
