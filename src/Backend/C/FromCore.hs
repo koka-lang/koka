@@ -808,16 +808,8 @@ genUnbox name info dataRepr
                   ] <.> semi
                 )
         _ | dataReprIsValue dataRepr
-          -> vcat [ text "kk_boxed_value_t _p;"
-                  , ppName name <+> text "_unbox;"
-                  , text "kk_valuetype_unbox_" <.> arguments [ppName name, text "_p", text "_unbox", text "_x"] <.> semi  -- borrowing
-                  , text "if (_ctx!=NULL && _p!=NULL)" <+> block (
-                      text "if (kk_base_type_is_unique(_p)) { kk_base_type_free(_p,_ctx); } else" <+> block (
-                        vcat [ppName name <.> text "_dup(_unbox,_ctx);"
-                             ,text "kk_base_type_decref" <.> arguments [text "_p"] <.> semi]
-                      )
-                    )
-                  -- , text "else {" <+> ppName name <.> text "_dup(_unbox); }"
+          -> vcat [ ppName name <+> text "_unbox;"
+                  , text "kk_valuetype_unbox_" <.> arguments [ppName name, text "_unbox", text "_x"] <.> semi 
                   , text "return _unbox" ]
              -- text "unbox_valuetype" <.> arguments [ppName name, text "x"]
         _ -> text "return"

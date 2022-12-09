@@ -325,20 +325,29 @@ typedef struct kk_boxed_value_s {
   intptr_t   data; 
 } * kk_boxed_value_t;
 
-#define kk_valuetype_unbox_(tp,p,x,box,ctx) \
+static inline void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box_t box, kk_context_t* ctx) {
+  const size_t max_scan_fsize = size / sizeof(kk_box_t);
+  for (size_t i = 0; i < max_scan_fsize; i++) { 
+    p[i] = kk_box_any(ctx); 
+  } 
+  kk_block_decref(kk_block_unbox(box, KK_TAG_BOX_ANY, ctx), ctx);
+}
+
+#define kk_valuetype_unbox_(tp,x,box,ctx) \
   do { \
     if kk_unlikely(kk_box_is_any(box)) { \
-      p = NULL; \
-      const size_t kk__max_scan_fsize = sizeof(tp)/sizeof(kk_box_t); \
-      kk_box_t* _fields = (kk_box_t*)(&x); \
-      for (size_t i = 0; i < kk__max_scan_fsize; i++) { _fields[i] = kk_box_any(ctx);  } \
-      kk_block_decref(kk_block_unbox(box,KK_TAG_BOX_ANY,ctx),ctx); \
+      kk_valuetype_unbox_from_any((kk_box_t*)&x, sizeof(tp), box, ctx); \
     } \
     else { \
-      p = kk_base_type_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX, ctx); \
+      kk_boxed_value_t p = kk_base_type_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX, ctx); \
       memcpy(&x,&p->data,sizeof(tp)); /* avoid aliasing warning,  x = *((tp*)(&p->data)); */ \
-    } \
+      /* if (!borrow) { */ \
+      if (kk_base_type_is_unique(p)) { kk_base_type_free(p,ctx); } else { \
+                                else { tp##_dup(x,ctx); kk_base_type_decref(p,ctx); } \
+      /* } */ \
+    }\
   } while(0)
+  
 
 #define kk_valuetype_box(tp,x,val,scan_fsize,ctx)  \
   do { \
