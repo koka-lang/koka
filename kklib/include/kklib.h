@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD        96       // modify on changes to trigger recompilation 
+#define KKLIB_BUILD        97       // modify on changes to trigger recompilation 
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
@@ -171,8 +171,6 @@ typedef struct kk_integer_s {
   kk_intb_t ibox;
 } kk_integer_t;
 
-
-
 // A general datatype with constructors and singletons is either
 // an enumeration (with the lowest bit set as: 4*tag + 1) or a `kk_block_t*` pointer.
 // Isomorphic with boxed values. 
@@ -305,6 +303,11 @@ static inline kk_decl_pure bool kk_block_is_thread_shared(const kk_block_t* b) {
   return kk_unlikely(kk_refcount_is_thread_shared(kk_block_refcount(b)));
 }
 
+// Used to generically inspect the scannable fields of an object as used 
+// to recursively free data, or mark as shared. This must overlay with
+// any heap block and if pointer compression is used we need to use packed
+// structures to avoid any potential padding in a struct (at least up to
+// the first `scan_fsize` fields)
 typedef struct kk_block_fields_s {
   kk_block_t _block;
   kk_box_t   fields[1];
@@ -334,9 +337,6 @@ static inline void kk_block_field_idx_set(kk_block_t* b, uint8_t idx ) {
   kk_assert_internal(idx <= b->header.scan_fsize); // allow +1 for trmc context paths
   b->header._field_idx = idx;
 }
-
-
-
 
 
 /*--------------------------------------------------------------------------------------
@@ -1157,12 +1157,16 @@ static inline kk_box_t kk_datatype_ptr_box(kk_datatype_t d) {
 }
 
 static inline kk_datatype_t kk_datatype_unbox_assert(kk_box_t b, kk_tag_t t, kk_context_t* ctx) {
+  kk_unused_internal(ctx);
+  kk_unused_internal(t);
   kk_datatype_t d = kk_datatype_unbox(b);
   kk_assert_internal(kk_datatype_has_tag(d, t, ctx));
   return d;
 }
 
 static inline kk_datatype_t kk_datatype_ptr_unbox_assert(kk_box_t b, kk_tag_t t, kk_context_t* ctx) {
+  kk_unused_internal(ctx);
+  kk_unused_internal(t);
   kk_datatype_t d = kk_datatype_ptr_unbox(b);
   kk_assert_internal(kk_datatype_has_tag(d, t, ctx));
   return d;

@@ -146,6 +146,16 @@ void kk_info_message(const char* fmt, ...) {
 --------------------------------------------------------------------------------------------------*/
 static bool process_initialized; // = false
 
+#if KK_COMPRESS 
+  #if defined(KK_MIMALLOC)
+    #define KK_USE_MEM_ARENA 1
+    static mi_arena_id_t arena;
+    static intptr_t      arena_base;
+  #else
+    #error "can only use compressed heaps with the mimalloc allocator enabled"
+  #endif
+#endif
+
 static void kklib_done(void) {
   if (!process_initialized) return;
   kk_free_context();
@@ -183,6 +193,17 @@ static void kklib_init(void) {
   kk_has_tzcnt = ((cpu_info[1] & (KK_I32(1)<<3)) != 0);    // bmi1: https://en.wikipedia.org/wiki/X86_Bit_manipulation_instruction_set
 #endif
   atexit(&kklib_done);  
+
+  #if KK_USE_MEM_ARENA
+    const kk_ssize_t heap_size = kk_shlp(KK_IZ(1), KK_INTF_SIZE * 8 + KK_BOX_PTR_SHIFT);
+    int err = mi_reserve_os_memory_ex(heap_size, false /* commit */, true /* allow large */, true /*exclusive*/, &arena);
+    if (err != 0) {
+      kk_fatal_error(err, "unable to reserve the initial heap");
+    }
+    size_t arena_size;
+    void* arena_start = mi_arena_area(arena, &arena_size);
+    arena_base = (intptr_t)arena_start + (intptr_t)(arena_size / 2);
+  #endif
 }
 
 /*--------------------------------------------------------------------------------------------------
@@ -219,23 +240,11 @@ kk_context_t* kk_get_context(void) {
   kk_context_t* ctx = context;
   if (ctx!=NULL) return ctx;
   kklib_init();
-#if KK_INTF_SIZE==4 && KK_COMPRESS && defined(KK_MIMALLOC)
-#if defined(KK_MIMALLOC)
-  mi_arena_id_t arena;
-  kk_ssize_t heap_size = kk_shlp(KK_IZ(1), KK_INTF_SIZE * 8 + KK_BOX_PTR_SHIFT);
-  int err = mi_reserve_os_memory_ex(heap_size, false /* commit */, true /* allow large */, true /*exclusive*/, &arena);
-  if (err != 0) {
-    kk_fatal_error(err, "unable to reserve the initial heap");
-}
+#if KK_USE_MEM_ARENA
   mi_heap_t* heap = mi_heap_new_in_arena(arena);
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
   kk_assign_const(kk_heap_t,ctx->heap) = heap;
-  size_t arena_size;
-  void* arena_base = mi_arena_area(arena, &arena_size);
-  kk_assign_const(intptr_t,ctx->heap_base) = (intptr_t)arena_base + (intptr_t)(arena_size / 2);
-#else
-#error "can only use compressed heaps with the mimalloc allocator enabled"
-#endif
+  kk_assign_const(intptr_t, ctx->heap_base) = arena_base;
 #elif defined(KK_MIMALLOC)
   mi_heap_t* heap = mi_heap_get_default(); //  mi_heap_new();
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));

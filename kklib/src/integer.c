@@ -343,7 +343,7 @@ static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
     u = (kk_uintx_t)i;
   }
   else if (i == KK_INTX_MIN) {
-    u = ((KK_UINTX_MAX)/2) + KK_UX(1);
+    u = KK_INTX_MAX; u++;  // avoid compiler warning on msvc
   }
   else {
     u = (kk_uintx_t)(-i);
@@ -363,7 +363,7 @@ static kk_bigint_t* bigint_from_int64(int64_t i, kk_context_t* ctx) {
     u = (uint64_t)i; 
   }
   else if (i == INT64_MIN) { 
-    u = (UINT64_MAX/2) + KK_U64(1); 
+    u = INT64_MAX; u++;   // avoid compiler warning on msvc
   }
   else { 
     u = (uint64_t)(-i); 
@@ -1594,9 +1594,9 @@ static kk_intf_t int_count_digits(kk_intf_t x) {
   return kk_bits_digits(u);
 }
 
-static kk_intf_t bigint_count_digits(kk_bigint_t* x, kk_context_t* ctx) {
+static kk_intx_t bigint_count_digits(kk_bigint_t* x, kk_context_t* ctx) {
   kk_assert_internal(x->count > 0);
-  kk_intf_t count;
+  kk_intx_t count;
 #if (DIGIT_BITS==64)
   count = kk_bits_digits64(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
 #else
