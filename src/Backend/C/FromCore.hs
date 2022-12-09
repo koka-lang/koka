@@ -708,7 +708,7 @@ genConstructorBaseCast info dataRepr con conRepr
             <.> parameters [text "struct" <+> ppName (conInfoName con) <.> text "* _x"]
             <+> block (
                   let base = text "&_x->_base"
-                  in text "return" <+> text "kk_datatype_from_base" <+> arguments [base] <.> semi
+                  in text "return" <+> text "kk_datatype_from_base" <.> arguments [base] <.> semi
                 )
 
 
@@ -725,7 +725,7 @@ genConstructorAccess info dataRepr con conRepr
                            text "return" <+>
                            text "kk_datatype_as_assert" <.>
                            arguments [text "struct"  <+> ppName (conInfoName con) <.> text "*", text "x",
-                               (if (dataRepr == DataOpen) then text "KK_TAG_OPEN" else ppConTag con conRepr dataRepr <+> text "/* _tag */")] <.> semi]
+                               (if (dataRepr == DataOpen) then text "KK_TAG_OPEN" else ppConTag con conRepr dataRepr)] <.> semi]
                         )
 
 
@@ -775,10 +775,11 @@ genBox name info dataRepr
                 )
         _ -> case dataInfoDef info of
                DataDefValue raw scancount
-                  -> let -- extra = if (hasTagField dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
-                         docScanCount = if (hasTagField dataRepr)
+                  -> let extra = if (hasTagField dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
+                         docScanCount = {- if (hasTagField dataRepr)
                                          then ppName name <.> text "_scan_count" <.> arguments [text "_x"]
-                                         else pretty scancount <+> text "/* scan count */"
+                                         else -} 
+                                        pretty (scancount + extra) <+> text "/* scan count */"
                      in vcat [ text "kk_box_t _box;"
                              , text "kk_valuetype_box" <.> arguments [ppName name, text "_box", text "_x",
                                                                       docScanCount
@@ -829,7 +830,7 @@ genUnbox name info dataRepr
 
 genDupDrop :: Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
 genDupDrop name info dataRepr conInfos
-  = do genScanFields name info dataRepr conInfos
+  = do -- genScanFields name info dataRepr conInfos
        genDupDropX True name info dataRepr conInfos
        genDupDropX False name info dataRepr conInfos
        when (not (dataReprIsValue dataRepr)) $

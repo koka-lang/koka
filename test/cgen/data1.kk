@@ -9,10 +9,6 @@
               | DataOpen
 */
 
-extern import {
-  c "<runtime/runtime.h>"
-}
-
 // enum
 type void
 
@@ -39,8 +35,11 @@ type list<a> { Cons(x:a,tail:list<a>); Nil }
 // single normal
 type single-normal<a> { Single-normal( x:a, y:maybe<int>, z:pair<bool,int> ); Single-normal-extra() }
 
+// struct (as normal)
+type vstrct<a> { VStrct( x:a, i:int ); VStrct2(d:float64,s:string); VStrct3(i:int32) }
+
 // struct
-type strct<a> { Strct( x:a, i:int ); Strct2(d:float64,s:string); Strct3(i:int32) }
+type strct<a> { Strct( x:a, i:int ); Strct2(i:int, s:string); Strct3(x:a)  }
 
 // struct
 type maybe<a> { Just(x:a); Nothing }
@@ -50,9 +49,9 @@ type normal<a> { One(x:a,y:pair<int,int>,z:pair<int,int>); Two(x:int); Three }
 
 
 // open
-type open open<a> { Open1(:a) }
+open type open<a> { Open1(:a) }
 
-// type extend open<a> { Open2(:int) }
+extend type open<a> { Open2(:int) }
 
 // mixed raw / scan
 type point { Point(x:float64,y:float64,z:int) }

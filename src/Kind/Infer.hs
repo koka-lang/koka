@@ -931,11 +931,11 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                  do if (isVal)
                       then -- addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors which varying raw types and regular types." <->
                             --                text "hint: value types with multiple constructors must all use the same number of regular types when mixed with raw types (use 'box' to use a raw type as a regular type).")
-                           addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors with a different number of regular types." <->
-                                           text "hint: value types with multiple constructors must all use the same number of regular types (use 'box' to use a value type as a regular type).")
-                      else return ()
-                    trace ("cannot default to a value type due to mixed raw/regular fields: " ++ show nameDoc) $
-                     return DataDefNormal -- (DataDefValue (max m1 m2) (max n1 n2))
+                           addError   range (text "type:" <+> nameDoc <+> text "is declared as a value type but has" <+> text "multiple constructors with a different number of regular types overlapping with value types." <->
+                                             text "hint: value types with multiple constructors must all use the same number of regular types (use 'box' to use a value type as a regular type).")
+                      else addWarning range (text "type:" <+> nameDoc <+> text "cannot be defaulted to a value type as it has" <+> text "multiple constructors with a different number of regular types overlapping with value types.")
+                    -- trace ("warning: cannot default to a value type due to mixed raw/regular fields: " ++ show nameDoc) $
+                    return DataDefNormal -- (DataDefValue (max m1 m2) (max n1 n2))
              _ -> return DataDefNormal
 
     sumDataDefs :: Doc -> [DataDef] -> KInfer (Int,Int)
