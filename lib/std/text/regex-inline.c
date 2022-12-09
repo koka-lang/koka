@@ -75,7 +75,7 @@ static void kk_regex_free( void* pre, kk_block_t* b, kk_context_t* ctx ) {
 
 static kk_box_t kk_regex_create( kk_string_t pat, bool ignore_case, bool multi_line, kk_context_t* ctx ) {
   kk_ssize_t len;
-  const uint8_t* cpat = kk_string_buf_borrow( pat, &len );
+  const uint8_t* cpat = kk_string_buf_borrow( pat, &len, ctx );
   PCRE2_SIZE errofs = 0;
   int        errnum = 0;
   uint32_t   options = KK_REGEX_OPTIONS;
@@ -119,7 +119,7 @@ static kk_std_core__list kk_regex_exec_ex( pcre2_code* re, pcre2_match_data* mat
       kk_ssize_t sstart = groups[i*2];       // on no-match, sstart and send == -1.
       kk_ssize_t send   = groups[i*2 + 1];
       kk_assert(send >= sstart);
-      kk_std_core__sslice sslice = kk_std_core__new_Sslice( kk_string_dup(str_borrow), sstart, send - sstart, ctx ); 
+      kk_std_core__sslice sslice = kk_std_core__new_Sslice( kk_string_dup(str_borrow,ctx), sstart, send - sstart, ctx ); 
       hd = kk_std_core__new_Cons(kk_reuse_null,kk_std_core__sslice_box(sslice,ctx), hd, ctx);
       if (i == 0) {
         if (mstart != NULL) { *mstart = sstart; }
@@ -136,13 +136,13 @@ static kk_std_core__list kk_regex_exec( kk_box_t bre, kk_string_t str, kk_ssize_
   // unpack
   pcre2_match_data* match_data = NULL;
   kk_std_core__list res = kk_std_core__new_Nil(ctx);
-  pcre2_code* re = (pcre2_code*)kk_cptr_raw_unbox(bre);
+  pcre2_code* re = (pcre2_code*)kk_cptr_raw_unbox(bre,ctx);
   kk_ssize_t len = 0;
   const uint8_t* cstr = NULL;
   if (re == NULL) goto done;    
   match_data = pcre2_match_data_create_from_pattern(re, gen_ctx);
   if (match_data==NULL) goto done;  
-  cstr = kk_string_buf_borrow(str, &len );  
+  cstr = kk_string_buf_borrow(str, &len, ctx );  
 
   // and match
   res = kk_regex_exec_ex( re, match_data, str, cstr, len, true, start, NULL, NULL, NULL, ctx );
@@ -162,13 +162,13 @@ static kk_std_core__list kk_regex_exec_all( kk_box_t bre, kk_string_t str, kk_ss
   if (atmost < 0) atmost = KK_SSIZE_MAX;
   pcre2_match_data* match_data = NULL;
   kk_std_core__list res = kk_std_core__new_Nil(ctx);
-  pcre2_code* re = (pcre2_code*)kk_cptr_raw_unbox(bre);
+  pcre2_code* re = (pcre2_code*)kk_cptr_raw_unbox(bre,ctx);
   if (re == NULL) goto done;    
   match_data = pcre2_match_data_create_from_pattern(re, gen_ctx);
   if (match_data==NULL) goto done;  
   {
     kk_ssize_t len;
-    const uint8_t* cstr = kk_string_buf_borrow(str, &len );  
+    const uint8_t* cstr = kk_string_buf_borrow(str, &len, ctx );  
 
     // and match
     kk_std_core__list* tail = NULL;
@@ -183,13 +183,13 @@ static kk_std_core__list kk_regex_exec_all( kk_box_t bre, kk_string_t str, kk_ss
       if (rc > 0) {
         // found a match; 
         // push string up to match, and the actual matched regex
-        kk_std_core__sslice pre = kk_std_core__new_Sslice( kk_string_dup(str), start, mstart - start, ctx ); 
+        kk_std_core__sslice pre = kk_std_core__new_Sslice( kk_string_dup(str,ctx), start, mstart - start, ctx ); 
         kk_std_core__list   prelist = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__sslice_box(pre,ctx), kk_std_core__new_Nil(ctx), ctx );
         kk_std_core__list   capcons = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__list_box(cap,ctx), kk_std_core__new_Nil(ctx) /*tail*/, ctx );
         kk_std_core__list   cons = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__list_box(prelist,ctx), capcons, ctx );
         if (tail==NULL) res = cons;
                   else *tail = cons;
-        tail = &kk_std_core__as_Cons(capcons)->tail;
+        tail = &kk_std_core__as_Cons(capcons,ctx)->tail;
         allow_empty = (next > start);
         start = next;
       }
@@ -204,7 +204,7 @@ static kk_std_core__list kk_regex_exec_all( kk_box_t bre, kk_string_t str, kk_ss
     }
     
     // push final string part as well and end the list
-    kk_std_core__sslice post    = kk_std_core__new_Sslice( kk_string_dup(str), next, len - next, ctx ); 
+    kk_std_core__sslice post    = kk_std_core__new_Sslice( kk_string_dup(str,ctx), next, len - next, ctx ); 
     kk_std_core__list   postlist= kk_std_core__new_Cons( kk_reuse_null, kk_std_core__sslice_box(post,ctx), kk_std_core__new_Nil(ctx), ctx );
     kk_std_core__list   cons    = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__list_box(postlist,ctx), kk_std_core__new_Nil(ctx), ctx );
     if (tail==NULL) res = cons;
