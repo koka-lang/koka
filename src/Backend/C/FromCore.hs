@@ -1923,7 +1923,8 @@ genFieldAddress conVar conName fieldName
 genCTailSetContextPath :: TName -> Name -> Name -> Doc
 genCTailSetContextPath conVar conName fieldName
   = text "kk_ctail_set_context_path" <.> 
-      arguments [conAsNameX conName, ppName (getName conVar), 
+      arguments [-- conAsNameX conName, 
+                 ppName (getName conVar),  
                  text "offsetof" <.> tupled [text "struct" <+> ppName conName, ppName (unqualify fieldName)]]
 
 genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)

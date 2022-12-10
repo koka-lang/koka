@@ -10,7 +10,6 @@
 ---------------------------------------------------------------------------*/
 
 #define KKLIB_BUILD        97       // modify on changes to trigger recompilation 
-#define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -1570,10 +1569,14 @@ static inline kk_box_t kk_datatype_unJust(kk_datatype_t d, kk_context_t* ctx) {
 // functional context composition by copying along the context path and attaching `child` at the hole.
 kk_decl_export kk_box_t kk_ctail_context_copy_compose( kk_box_t res, kk_box_t child, kk_context_t* ctx);
 
-// use a macro as `x` can be a datatype or direct pointer; update the field_idx with the field
-// index + 1 that is along the context path, and return `x` as is.
-#define kk_ctail_set_context_path(as_tp,x,field_offset,ctx)  \
-  (kk_constructor_field_idx_set( as_tp(x,ctx), 1 + ((field_offset - sizeof(kk_header_t))/sizeof(kk_box_t)) ), x)
+// update the field_idx with the field index + 1 that is along the context path, and return `d` as is.
+static inline kk_datatype_t kk_ctail_set_context_path(kk_datatype_t d, size_t field_offset, kk_context_t* ctx) {
+  kk_assert_internal((field_offset % sizeof(kk_box_t)) == 0);
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  const size_t field_index = (field_offset - sizeof(kk_header_t)) / sizeof(kk_box_t);
+  kk_block_field_idx_set( kk_datatype_as_ptr(d,ctx), 1 + field_index);
+  return d;
+}
 
 #endif
 

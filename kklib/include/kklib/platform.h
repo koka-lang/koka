@@ -14,7 +14,7 @@
   Platform: we assume:
   - C99 as C compiler (syntax and library), with possible C11 extensions for threads and atomics.
   - Write code such that it can be compiled with a C++ compiler as well (used with msvc)
-  - Either a 32- or 64-bit platform (but others should be possible with few changes).
+  - Either a 32, 64, or 128-bit platform (but others should be possible with few changes).
   - The compiler can do a great job on small static inline definitions (and we avoid #define's
     to get better static type checks).
   - The compiler will inline small structs (like `struct kk_box_s{ uintptr_t u; }`) without
@@ -26,6 +26,29 @@
   - Carefully code with strict aliasing in mind.
   - Always prefer signed integers over unsigned ones, and use `kk_ssize_t` for sizes (see comments below).
     Only use unsigned for bitfields or masks.
+--------------------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------------------
+  Object size and signed/unsigned:
+  We limit the maximum object size (and array sizes) to at most `SIZE_MAX/2` (`PTRDIFF_MAX`) bytes
+  so we can always use the signed `kk_ssize_t` (instead of `size_t`) to specify sizes
+  and do indexing in arrays. This avoids:
+  - Signed/unsigned conversion (especially when mixing pointer arithmetic and lengths).
+  - Subtle loop bound errors (consider `for(unsigned u = 0; u < len()-1; u++)` if `len()`
+    happens to be `0` etc.).
+  - Performance degradation -- modern compilers can compile signed loop variables
+    better (as signed overflow is undefined).
+  - Wrong API usage (passing a negative value is easier to detect)
+
+  A drawback is that this limits object sizes to half the address space-- for 64-bit
+  this is not a problem but string lengths for example on 32-bit are limited to be
+  "just" 2^31 bytes at most. Nevertheless, we feel this is an acceptible trade-off
+  (especially since the largest object is nowadays is already limited in practice
+   to `PTRDIFF_MAX` e.g. <https://gcc.gnu.org/bugzilla//show_bug.cgi?id=67999>).
+
+  We also need some helpers to deal with API's (like `strlen`) that use `size_t`
+  results or arguments, where we clamp the values into the `kk_ssize_t` range
+  (but again, on modern systems no clamping will ever happen as these already limit the size of objects to PTRDIFF_MAX)
 --------------------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------------------
@@ -45,7 +68,7 @@
   x86, arm32                32       32    32     32     32 
   x64, arm64, etc.          64       64    32     64     64 
   x64 windows               64       64    32     32     64   size_t   > long
-  x32 linux                 32       32    32     32     64   intx_t   > size_t
+  x32 linux                 32       32    32     32     64   intx_t   > size_t,intptr_t
   arm CHERI                128       64    32     64     64   intptr_t > size_t
   riscV 128-bit            128      128    32     64    128   
   x86 16-bit small          16       16    16     32     16   long > size_t
@@ -64,41 +87,19 @@
         system                  intptr_t   size_t   intx   intb   intf    notes
  ----------------------------- --------- -------- ------ ------ ------  -----------
   x64, arm64,                        64       64     64     64     64
-  x64, arm64 compressed 32-bit       64       64     64     32     32   limit heap to 2^32 * 4
+  x64, arm64 compressed 32-bit       64       64     64     32     32   limit heap to 2^32 (*4)
 
   arm CHERI                         128       64     64    128     64   |intb| > |intf|
   arm CHERI compressed 64-bit       128       64     64     64     64   store addresses only in a box
   arm CHERI compressed 32-bit       128       64     64     32     32   compress address as well
 
   riscV 128-bit                     128      128    128    128    128
-  riscV 128-bit compressed 64-bit   128      128    128     64     64   limit heap to 2^64 * 4
-  riscV 128-bit compressed 32-bit   128      128    128     32     32   limit heap to 2^32 * 4
+  riscV 128-bit compressed 64-bit   128      128    128     64     64   limit heap to 2^64 (*4)
+  riscV 128-bit compressed 32-bit   128      128    128     32     32   limit heap to 2^32 (*4)
   x32 linux                          32       32     64     32     32   |intx| > |intb|
 
 --------------------------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------------------------------
-  Object size and signed/unsigned:
-  We limit the maximum object size (and array sizes) to at most `SIZE_MAX/2` bytes 
-  so we can always use the signed `kk_ssize_t` (instead of `size_t`) to specify sizes 
-  and do indexing in arrays. This avoids:
-  - Signed/unsigned conversion (especially when mixing pointer arithmetic and lengths),
-  - Loop bound errors (consider `for(unsigned u = 0; u < len()-1; u++)` if `len()` 
-    happens to be `0` etc.),
-  - Performance degradation -- modern compilers can compile signed loop variables 
-    better (as signed overflow is undefined),
-  - Wrong API usage (passing a negative value is easier to detect)
-
-  A drawback is that this limits object sizes to half the address space-- for 64-bit
-  this is not a problem but string lengths for example on 32-bit are limited to be
-  "just" 2^31 bytes at most. Nevertheless, we feel this is an acceptible trade-off 
-  (especially since `malloc` nowadays is already limited to `PTRDIFF_MAX`).
-
-  We also need some helpers to deal with API's (like `strlen`) that use `size_t` 
-  results or arguments, where we clamp the values into the `kk_ssize_t` range 
-  (but then, on modern systems no clamping will ever happen as these already limit 
-   the size of objects to SIZE_MAX/2 internally)
---------------------------------------------------------------------------------------*/
 
 #if defined(__clang_major__) && __clang_major__ < 9
 #error koka requires at least clang version 9 (due to atomics support)
