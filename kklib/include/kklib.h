@@ -95,7 +95,6 @@ static inline bool kk_tag_is_raw(kk_tag_t tag) {
   Headers
 --------------------------------------------------------------------------------------*/
 
-
 // The reference count is 0 for a unique reference (for a faster free test in drop).
 // Negative reference counts use atomic increment/decrement (for thread shared objects).
 // (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if
@@ -112,7 +111,7 @@ static inline bool kk_refcount_is_unique_or_thread_shared(kk_refcount_t rc) {
   return (rc <= 0);
 }
 
-// Increment a positive reference count. To avoid UB use unsigned addition.
+// Increment a positive reference count. To avoid UB on overflow, use unsigned addition.
 static inline kk_refcount_t kk_refcount_inc(kk_refcount_t rc) {
   kk_assert_internal(rc >= 0);
   return (kk_refcount_t)((uint32_t)rc + 1);
@@ -129,7 +128,7 @@ typedef struct kk_header_s {
 } kk_header_t;
 
 #define KK_SCAN_FSIZE_MAX (0xFF)
-#define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, KK_ATOMIC_VAR_INIT(0) }         // start with refcount of 0
+#define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, KK_ATOMIC_VAR_INIT(0) }         // start with unique refcount 
 #define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KK_ATOMIC_VAR_INIT(INT32_MIN) } // start with a stuck refcount (RC_STUCK)
 
 static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_t tag) {
@@ -147,21 +146,8 @@ static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_
   Box, Integer, Datatype
 --------------------------------------------------------------------------------------*/
 
-// We generally tag boxed values; the least-significant bit is clear for heap pointers (`kk_ptr_t == kk_block_t*`),
-// while the bit is set for values.
-#define KK_TAG_BITS             (1)
-#define KK_TAG_MASK             ((1<<KK_TAG_BITS)-1)
-#define KK_TAG_PTR              (0)
-#define KK_TAG_VALUE            (1)
-
-static inline bool kk_is_ptr(kk_intb_t i) {
-  return ((i & KK_TAG_MASK) == KK_TAG_PTR);
-}
-static inline bool kk_is_value(kk_intb_t i) {
-  return !kk_is_ptr(i);
-}
-
 // Polymorphic operations work on boxed values. (We use a struct for extra checks to prevent accidental conversion)
+// The least-significant bit is clear for heap pointers (`kk_ptr_t == kk_block_t*`), while the bit is set for values.
 // See `box.h` for definitions.
 typedef struct kk_box_s {
   kk_intb_t box;
@@ -450,11 +436,6 @@ typedef struct kk_context_s {
 kk_decl_export kk_context_t* kk_get_context(void);
 kk_decl_export void          kk_free_context(void);
 
-kk_decl_export kk_context_t* kk_main_start(int argc, char** argv);
-kk_decl_export void          kk_main_end(kk_context_t* ctx);
-
-kk_decl_export void          kk_debugger_break(kk_context_t* ctx);
-
 // The current context is passed as a _ctx parameter in the generated code
 #define kk_context()  _ctx
 
@@ -473,7 +454,6 @@ static inline kk_decl_pure bool kk_yielding_final(const kk_context_t* ctx) {
   return (ctx->yielding == KK_YIELD_FINAL);
 }
 
-
 // Get a thread local marker unique number >= 1.
 static inline int32_t kk_marker_unique(kk_context_t* ctx) {
   int32_t m = ++ctx->marker_unique;               // must return a marker >= 1 so increment first;
@@ -481,10 +461,14 @@ static inline int32_t kk_marker_unique(kk_context_t* ctx) {
   return m;
 }
 
+kk_decl_export kk_context_t* kk_main_start(int argc, char** argv);
+kk_decl_export void          kk_main_end(kk_context_t* ctx);
 
-kk_decl_export void kk_block_mark_shared( kk_block_t* b, kk_context_t* ctx );
-kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx );
-kk_decl_export void kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx);
+kk_decl_export void kk_debugger_break(kk_context_t* ctx);
+kk_decl_export void kk_fatal_error(int err, const char* msg, ...);
+kk_decl_export void kk_warning_message(const char* msg, ...);
+kk_decl_export void kk_info_message(const char* msg, ...);
+kk_decl_export void kk_unsupported_external(const char* msg);
 
 kk_decl_export kk_datatype_ptr_t kk_evv_empty_singleton(kk_context_t* ctx);
 
@@ -833,6 +817,15 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 
 
 /*--------------------------------------------------------------------------------------
+  Thread-shared marking (see `refcount.c`)
+--------------------------------------------------------------------------------------*/
+
+kk_decl_export void        kk_block_mark_shared(kk_block_t* b, kk_context_t* ctx);
+kk_decl_export void        kk_box_mark_shared(kk_box_t b, kk_context_t* ctx);
+kk_decl_export void        kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx);
+
+
+/*--------------------------------------------------------------------------------------
   Base type and Constructor macros
   - base_type     For a pointer to the base type of a heap allocated constructor.
   - constructor   For a pointer to a heap allocated constructor (whose first field
@@ -873,13 +866,31 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
   Low-level encoding of small integers (`kk_intf_t`) and pointers
   into a boxed integer `kk_intb_t`.  
 ----------------------------------------------------------------------*/
-#if !defined(KK_BOX_PTR_SHIFT)
+// We generally tag boxed values; the least-significant bit is clear for heap pointers (`kk_ptr_t == kk_block_t*`),
+// while the bit is set for values.
+#define KK_TAG_BITS             (1)
+#define KK_TAG_MASK             ((1<<KK_TAG_BITS)-1)
+#define KK_TAG_PTR              (0)
+#define KK_TAG_VALUE            (1)
+
+static inline bool kk_is_ptr(kk_intb_t i) {
+  return ((i & KK_TAG_MASK) == KK_TAG_PTR);
+}
+static inline bool kk_is_value(kk_intb_t i) {
+  return !kk_is_ptr(i);
+}
+
+// null values; can be an arbitrary value.
+#define kk_value_null      ((~KK_IB(0)&~KK_TAG_MASK)|KK_TAG_VALUE)
+
+
+// If we assume `intptr_t` aligned pointers in the heap, we can use a larger heap when 
+// using pointer compression (by shifting them by `KK_BOX_PTR_SHIFT`).
+#if !defined(KK_BOX_PTR_SHIFT)  
 #define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - KK_TAG_BITS)
 #endif
 
-#define kk_value_null      ((~KK_IB(0)&~KK_TAG_MASK)|KK_TAG_VALUE)  // must be some value
-
-
+// Without compression, pointer encode/decode is an identity operation.
 static inline kk_intb_t kk_ptr_encode(kk_ptr_t p, kk_context_t* ctx) {
   kk_assert_internal(((intptr_t)p & KK_TAG_MASK) == 0);
   intptr_t i = (intptr_t)p;
@@ -910,6 +921,8 @@ static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
   return (kk_ptr_t)i;
 }
 
+// Integer value encoding/decoding. May use smaller integers (`kk_intf_t`)
+// then boxed integers if `kk_intb_t` is larger than the natural register size.
 #define KK_INTF_BOX_MAX   ((kk_intf_t)KK_INTF_MAX >> KK_TAG_BITS)
 #define KK_INTF_BOX_MIN   (-KK_INTF_BOX_MAX - 1)
 #define KK_UINTF_BOX_MAX  ((kk_uintf_t)KK_UINTF_MAX >> KK_TAG_BITS)
@@ -1183,8 +1196,6 @@ typedef enum kk_unit_e {
   kk_Unit = 0
 } kk_unit_t;
 
-
-
 #include "kklib/bits.h"
 #include "kklib/box.h"
 #include "kklib/integer.h"
@@ -1206,104 +1217,23 @@ static inline kk_integer_t kk_gen_unique(kk_context_t* ctx) {
   return u;
 }
 
-kk_decl_export kk_string_t kk_get_host(kk_context_t* ctx); 
-kk_decl_export void kk_fatal_error(int err, const char* msg, ...);
-kk_decl_export void kk_warning_message(const char* msg, ...);
-kk_decl_export void kk_info_message(const char* msg, ...);
-
-static inline void kk_unsupported_external(const char* msg) {
-  kk_fatal_error(ENOSYS, "unsupported external: %s", msg);
-}
-
-
+kk_decl_export kk_string_t kk_get_host(kk_context_t* ctx);
 
 
 /*--------------------------------------------------------------------------------------
-  Value tags (used for tags in structs)
+  kk_Unit
 --------------------------------------------------------------------------------------*/
 
-// Tag for value types is always an integer
-typedef kk_integer_t kk_value_tag_t;
-
-#define kk_value_tag(tag) (kk_integer_from_small(tag))   
-
-static inline kk_decl_const bool kk_value_tag_eq(kk_value_tag_t x, kk_value_tag_t y) {
-  // note: x or y may be box_any so don't assert they are smallints
-  return (_kk_integer_value(x) == _kk_integer_value(y));
+static inline kk_decl_const kk_box_t kk_unit_box(kk_unit_t u) {
+  return kk_intf_box((kk_intf_t)u);
 }
 
-/*--------------------------------------------------------------------------------------
-  Optimized support for maybe<a> like datatypes.
-  We try to avoid allocating for maybe-like types. First we define maybe<a> as a value
-  type (in std/core/types) and thus a Just is usually passed in 2 registers for the tag 
-  and payload. This does not help though if it becomes boxed, say, a list of maybe
-  values. In that case we can still avoid allocation through the special TAG_NOTHING
-  and TAG_JUST tags. If the Just value is neither of those, we just use it directly
-  without allocation. This way, only nested maybe types (`Just(Just(x))` or `Just(Nothing)`)
-  are allocated, and sometimes value types like `int32` if these happen to be equal
-  to `kk_box_Nothing`.
---------------------------------------------------------------------------------------*/
-static inline kk_box_t kk_box_Nothing(void) {
-  return kk_datatype_box( kk_datatype_from_tag(KK_TAG_NOTHING) );
+static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
+  kk_unused_internal(u);
+  kk_assert_internal(kk_intf_unbox(u) == (kk_intf_t)kk_Unit || kk_box_is_any(u));
+  return kk_Unit; // (kk_unit_t)kk_enum_unbox(u);
 }
 
-static inline bool kk_box_is_Nothing(kk_box_t b) {
-  return (b.box == kk_datatype_from_tag(KK_TAG_NOTHING).dbox);
-}
-
-static inline bool kk_box_is_Just(kk_box_t b, kk_context_t* ctx) {
-  return (kk_box_is_ptr(b) && kk_block_has_tag(kk_ptr_unbox(b,ctx), KK_TAG_JUST));
-}
-
-static inline bool kk_box_is_maybe(kk_box_t b, kk_context_t* ctx) {
-  return (kk_box_is_Just(b,ctx) || kk_box_is_Nothing(b));
-}
-
-typedef struct kk_just_s {  
-  struct kk_block_s _block;
-  kk_box_t          value;   
-} kk_just_t;
-
-kk_decl_export kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_context_t* ctx );
-
-static inline kk_box_t kk_unbox_Just( kk_box_t b, kk_context_t* ctx ) {
-  if (kk_box_is_ptr(b)) {
-    kk_block_t* bl = kk_ptr_unbox(b,ctx);
-    if kk_unlikely(kk_block_has_tag(bl, KK_TAG_JUST)) {
-      return kk_unbox_Just_block(bl,ctx);
-    }
-  }
-  // if ctx==NULL we should not change refcounts, if ctx!=NULL we consume the b
-  return b;
-}
-
-static inline kk_box_t kk_box_Just( kk_box_t b, kk_context_t* ctx ) {
-  if kk_likely(!kk_box_is_maybe(b,ctx)) {
-    return b;
-  }
-  else {
-    kk_just_t* just = kk_block_alloc_as(kk_just_t, 1, KK_TAG_JUST, ctx);
-    just->value = b;
-    return kk_ptr_box(&just->_block,ctx);
-  }
-}
-
-static inline kk_datatype_t kk_datatype_as_Just(kk_box_t b) {
-  kk_assert_internal(!kk_box_is_maybe(b,kk_get_context()));
-  return kk_datatype_unbox(b);
-}
-
-static inline kk_box_t kk_datatype_unJust(kk_datatype_t d, kk_context_t* ctx) {
-  kk_unused(ctx);
-  kk_assert_internal(!kk_datatype_has_singleton_tag(d,KK_TAG_NOTHING));
-  if (kk_datatype_is_ptr(d)) {
-    kk_block_t* b = kk_datatype_as_ptr(d,ctx);
-    if (kk_block_has_tag(b,KK_TAG_JUST)) {
-      return kk_block_field(b,0);
-    }
-  }
-  return kk_datatype_box(d);
-}
 
 /*--------------------------------------------------------------------------------------
   Functions
@@ -1356,7 +1286,6 @@ static inline void kk_function_drop(kk_function_t f, kk_context_t* ctx) {
 static inline kk_function_t kk_function_dup(kk_function_t f, kk_context_t* ctx) {
   return kk_datatype_ptr_dup_assert(f, KK_TAG_FUNCTION, ctx);
 }
-
 
 
 /*--------------------------------------------------------------------------------------
@@ -1460,10 +1389,10 @@ static inline kk_decl_const kk_vector_t kk_vector_unbox(kk_box_t v, kk_context_t
 }
 
 
- 
 /*--------------------------------------------------------------------------------------
   References
 --------------------------------------------------------------------------------------*/
+
 struct kk_ref_s {
   kk_block_t         _block;
   _Atomic(kk_intb_t) value;   
@@ -1539,18 +1468,94 @@ static inline kk_box_t kk_ref_modify(kk_ref_t r, kk_function_t f, kk_context_t* 
   return kk_function_call(kk_box_t,(kk_function_t,kk_ref_t,kk_context_t*),f,(f,r,ctx),ctx);
 }
 
+
 /*--------------------------------------------------------------------------------------
-  kk_Unit
+  Value tags (used for tags in structs)
 --------------------------------------------------------------------------------------*/
 
-static inline kk_decl_const kk_box_t kk_unit_box(kk_unit_t u) {
-  return kk_intf_box((kk_intf_t)u);
+// Tag for value types is always an integer
+typedef kk_integer_t kk_value_tag_t;
+
+#define kk_value_tag(tag) (kk_integer_from_small(tag))   
+
+static inline kk_decl_const bool kk_value_tag_eq(kk_value_tag_t x, kk_value_tag_t y) {
+  // note: x or y may be box_any so don't assert they are smallints
+  return (_kk_integer_value(x) == _kk_integer_value(y));
 }
 
-static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
-  kk_unused_internal(u);
-  kk_assert_internal( kk_intf_unbox(u) == (kk_intf_t)kk_Unit || kk_box_is_any(u));
-  return kk_Unit; // (kk_unit_t)kk_enum_unbox(u);
+
+/*--------------------------------------------------------------------------------------
+  Optimized support for maybe<a> like datatypes.
+  We try to avoid allocating for maybe-like types. First we define maybe<a> as a value
+  type (in std/core/types) and thus a Just is usually passed in 2 registers for the tag
+  and payload. This does not help though if it becomes boxed, say, a list of maybe
+  values. In that case we can still avoid allocation through the special TAG_NOTHING
+  and TAG_JUST tags. If the Just value is neither of those, we just use it directly
+  without allocation. This way, only nested maybe types (`Just(Just(x))` or `Just(Nothing)`)
+  are allocated, and sometimes value types like `int32` if these happen to be equal
+  to `kk_box_Nothing`.
+--------------------------------------------------------------------------------------*/
+
+static inline kk_box_t kk_box_Nothing(void) {
+  return kk_datatype_box(kk_datatype_from_tag(KK_TAG_NOTHING));
+}
+
+static inline bool kk_box_is_Nothing(kk_box_t b) {
+  return (b.box == kk_datatype_from_tag(KK_TAG_NOTHING).dbox);
+}
+
+static inline bool kk_box_is_Just(kk_box_t b, kk_context_t* ctx) {
+  return (kk_box_is_ptr(b) && kk_block_has_tag(kk_ptr_unbox(b, ctx), KK_TAG_JUST));
+}
+
+static inline bool kk_box_is_maybe(kk_box_t b, kk_context_t* ctx) {
+  return (kk_box_is_Just(b, ctx) || kk_box_is_Nothing(b));
+}
+
+typedef struct kk_just_s {
+  struct kk_block_s _block;
+  kk_box_t          value;
+} kk_just_t;
+
+kk_decl_export kk_box_t kk_unbox_Just_block(kk_block_t* b, kk_context_t* ctx);
+
+static inline kk_box_t kk_unbox_Just(kk_box_t b, kk_context_t* ctx) {
+  if (kk_box_is_ptr(b)) {
+    kk_block_t* bl = kk_ptr_unbox(b, ctx);
+    if kk_unlikely(kk_block_has_tag(bl, KK_TAG_JUST)) {
+      return kk_unbox_Just_block(bl, ctx);
+    }
+  }
+  // if ctx==NULL we should not change refcounts, if ctx!=NULL we consume the b
+  return b;
+}
+
+static inline kk_box_t kk_box_Just(kk_box_t b, kk_context_t* ctx) {
+  if kk_likely(!kk_box_is_maybe(b, ctx)) {
+    return b;
+  }
+  else {
+    kk_just_t* just = kk_block_alloc_as(kk_just_t, 1, KK_TAG_JUST, ctx);
+    just->value = b;
+    return kk_ptr_box(&just->_block, ctx);
+  }
+}
+
+static inline kk_datatype_t kk_datatype_as_Just(kk_box_t b) {
+  kk_assert_internal(!kk_box_is_maybe(b, kk_get_context()));
+  return kk_datatype_unbox(b);
+}
+
+static inline kk_box_t kk_datatype_unJust(kk_datatype_t d, kk_context_t* ctx) {
+  kk_unused(ctx);
+  kk_assert_internal(!kk_datatype_has_singleton_tag(d, KK_TAG_NOTHING));
+  if (kk_datatype_is_ptr(d)) {
+    kk_block_t* b = kk_datatype_as_ptr(d, ctx);
+    if (kk_block_has_tag(b, KK_TAG_JUST)) {
+      return kk_block_field(b, 0);
+    }
+  }
+  return kk_datatype_box(d);
 }
 
 

@@ -141,6 +141,10 @@ void kk_info_message(const char* fmt, ...) {
   va_end(args);
 }
 
+void kk_unsupported_external(const char* msg) {
+  kk_fatal_error(ENOSYS, "unsupported external: %s", msg);
+}
+
 /*--------------------------------------------------------------------------------------------------
   Process init/done
 --------------------------------------------------------------------------------------------------*/

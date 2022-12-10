@@ -90,10 +90,12 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   - see also: https://devblogs.microsoft.com/oldnewthing/20210409-00/?p=105065
 --------------------------------------------------------------------------------------*/
 
-#define RC_STUCK          (INT32_MIN)
+#define RC_STUCK          INT32_MIN
 #define RC_STICKY         (RC_STUCK + 0x10000000)
 #define RC_STICKY_DROP    (RC_STUCK + 0x20000000)
-#define RC_SHARED_UNIQUE  (-1)
+#define RC_SHARED_UNIQUE  KK_I32(-1)
+#define RC_UNIQUE         KK_I32(0)
+
 
 static inline kk_refcount_t kk_atomic_dup(kk_block_t* b) {
   return kk_atomic_dec_relaxed(&b->header.refcount);
