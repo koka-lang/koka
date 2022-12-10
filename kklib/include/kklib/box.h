@@ -150,12 +150,14 @@ static inline kk_box_t kk_intf_box(kk_intf_t i) {
 
 static inline kk_uintf_t kk_uintf_unbox(kk_box_t b) {
   kk_assert_internal(kk_box_is_value(b) || kk_box_is_any(b));
-  return (kk_uintf_t)kk_intf_unbox(b);
+  kk_intf_t i = kk_intf_unbox(b);
+  return (kk_uintf_t)kk_shrf(kk_shlf(i, KK_TAG_BITS), KK_TAG_BITS);
 }
 
 static inline kk_box_t kk_uintf_box(kk_uintf_t u) {
-  kk_assert_internal(u <= KK_INTF_BOX_MAX);
-  return kk_intf_box((kk_intf_t)u);
+  kk_assert_internal(u <= KK_UINTF_BOX_MAX);
+  kk_intf_t i = kk_sarf(kk_shlf((kk_intf_t)u, KK_TAG_BITS), KK_TAG_BITS);
+  return kk_intf_box(i);
 }
 
 
@@ -398,7 +400,7 @@ static inline kk_box_t kk_kkfun_ptr_boxx(kk_cfun_ptr_t fun, kk_context_t* ctx) {
   #if KK_COMPRESS
   f = f - (intptr_t)&kk_main_start;
   #endif
-  kk_assert(kk_shrp(f, KK_INTPTR_BITS - 1) == 0);   // assume top bit of function pointer addresses is clear
+  kk_assert(kk_shrp(f, KK_INTPTR_BITS - KK_TAG_BITS) == 0);   // assume top bits of function pointer addresses are clear
   kk_assert(f >= KK_INTF_BOX_MIN && f <= KK_INTF_BOX_MAX);
   kk_box_t b = { kk_intf_encode((kk_intf_t)f,0) };  // so we can encode as a value
   return b;

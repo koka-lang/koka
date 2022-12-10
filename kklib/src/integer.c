@@ -189,7 +189,7 @@ static kk_ptr_t bigint_ptr_(kk_bigint_t* x) {
 
 static kk_integer_t bigint_as_integer_(kk_bigint_t* x, kk_context_t* ctx) {
   kk_integer_t i = { kk_ptr_encode(bigint_ptr_(x), ctx) };
-#if KK_INT_TAG!=KK_TAG_VALUE
+#if KK_TAG_VALUE!=KK_TAG_VALUE
   i.ibox = i.ibox ^ 1;
 #endif
   return i;

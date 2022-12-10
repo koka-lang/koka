@@ -280,7 +280,7 @@ static bool kk_is_dir(const char* cpath) {
 }
 #endif
 
-kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx) 
+int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx) 
 {
   int err = 0;
   if (mode < 0) {
@@ -1248,6 +1248,7 @@ bool kk_cpu_is_little_endian(kk_context_t* ctx) {
 }
 
 int kk_cpu_address_bits(kk_context_t* ctx) {
+  kk_unused(ctx);
   size_t bsize;
   #if __CHERI__
     bsize = sizeof(vaddr_t);

@@ -26,7 +26,7 @@ kk_decl_export int  kk_os_read_line(kk_string_t* result, kk_context_t* ctx);
 kk_decl_export int  kk_os_read_text_file(kk_string_t path, kk_string_t* result, kk_context_t* ctx);
 kk_decl_export int  kk_os_write_text_file(kk_string_t path, kk_string_t content, kk_context_t* ctx);
 
-kk_decl_export int  kk_os_ensure_dir(kk_string_t dir, int mode, kk_context_t* ctx);
+kk_decl_export int  kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx);
 kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx);
 kk_decl_export bool kk_os_is_directory(kk_string_t path, kk_context_t* ctx);
 kk_decl_export bool kk_os_is_file(kk_string_t path, kk_context_t* ctx);

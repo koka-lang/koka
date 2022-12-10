@@ -275,11 +275,10 @@ static kk_box_t kk_double_box_heap(double d, kk_context_t* ctx) {
 #if (KK_BOX_DOUBLE64 == 2)  // heap allocate when negative
 kk_box_t kk_double_box(double d, kk_context_t* ctx) {
   kk_unused(ctx);
-  uint64_t i = kk_bits_from_double(d);
+  uint64_t u = kk_bits_from_double(d);
   //if (isnan(d)) { kk_debugger_break(ctx); }
-  if ((int64_t)i >= 0) {  // positive?
-    kk_box_t b = { ((uintptr_t)i<<1)|1 };
-    return b;
+  if (u <= KK_UINTF_BOX_MAX) {  // fits in a boxed value?  (i.e. is the double positive)
+    return kk_uintf_box(u);
   }
   else {
     // heap allocate
@@ -292,8 +291,7 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   double d;
   if (kk_box_is_value(b)) {
     // positive double
-    uint64_t u = kk_shrp(b.box, 1);
-    d = kk_bits_to_double(u);
+    d = kk_bits_to_double(kk_uintf_unbox(b));
   }
   else {
     // heap allocated
@@ -324,18 +322,17 @@ kk_box_t kk_double_box(double d, kk_context_t* ctx) {
     return kk_double_box_heap(d, ctx);
   }
   kk_assert_internal(exp <= 0x3FF);
-  kk_box_t b = { (intptr_t)_kk_make_value(u | (exp<<1)) };
-  return b;
+  kk_assert_internal((kk_shr64(u,1) & 0x3FF) == 0);
+  return kk_uintf_box( kk_shr64(u,1) | exp );  
 }
 
 double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   kk_unused(ctx);
   if (kk_box_is_value(b)) {
     // expand 10-bit exponent to 11-bits again
-    uint64_t u = b.box;
-    uint64_t exp = u & 0x7FF;
-    u -= exp;    // clear lower 11 bits
-    exp >>= 1;
+    uint64_t u = kk_uintf_unbox(b);
+    uint64_t exp = u & 0x3FF;
+    u -= exp;    // clear lower 10 bits        
     if (exp == 0) {
       // ok
     }
@@ -346,7 +343,7 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
       exp += 0x200;
     }
     kk_assert_internal(exp <= 0x7FF);
-    u = kk_bits_rotr64(u | exp, 12);
+    u = kk_bits_rotr64( kk_shl64(u,1) | exp, 12);
     double d = kk_bits_to_double(u);
     return d;
   }
@@ -385,10 +382,9 @@ static kk_box_t kk_float_box_heap(float f, kk_context_t* ctx) {
 
 kk_box_t kk_float_box(float f, kk_context_t* ctx) {
   kk_unused(ctx);
-  uint32_t i = kk_bits_from_float(f);
-  if ((int32_t)i >= 0) {  // positive?
-    kk_box_t b = { ((intptr_t)i<<1)|1 };
-    return b;
+  uint32_t u = kk_bits_from_float(f);
+  if (u <= KK_UINTF_BOX_MAX) {  // fits in a boxed value?  (i.e. is the double positive)
+    return kk_uintf_box(u);
   }
   else {
     // heap allocate
@@ -401,8 +397,7 @@ float kk_float_unbox(kk_box_t b, kk_context_t* ctx) {
   float f;
   if (kk_box_is_value(b)) {
     // positive float
-    uint32_t u = (uint32_t)kk_shrp(b.box, 1);
-    f = kk_bits_to_float(u);
+    f = kk_bits_to_float(kk_uintf_unbox(b));
   }
   else {
     // heap allocated

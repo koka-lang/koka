@@ -398,6 +398,7 @@ typedef intptr_t       kk_intb_t;
 typedef uintptr_t      kk_uintb_t;
 #define KK_INTB_MAX    INTPTR_MAX
 #define KK_INTB_MIN    INTPTR_MIN
+#define KK_UINTB_MAX   UINTPTR_MAX
 #define KK_IB(i)       KK_IP(i)
 #define KK_UB(i)       KK_UP(i)
 #define PRIdIB         "zd"
@@ -407,6 +408,7 @@ typedef int64_t        kk_intb_t;
 typedef uint64_t       kk_uintb_t;
 #define KK_INTB_MAX    INT64_MAX
 #define KK_INTB_MIN    INT64_MIN
+#define KK_UINTB_MAX   UINT64_MAX
 #define KK_IB(i)       KK_I64(i)
 #define KK_UB(i)       KK_U64(i)
 #define PRIdIB         PRIdI64
@@ -416,6 +418,7 @@ typedef int32_t        kk_intb_t;
 typedef uint32_t       kk_uintb_t;
 #define KK_INTB_MAX    INT32_MAX
 #define KK_INTB_MIN    INT32_MIN
+#define KK_UINTB_MAX   UINT32_MAX
 #define KK_IB(i)       KK_I32(i)
 #define KK_UB(i)       KK_U32(i)
 #define PRIdIB         PRIdI32
@@ -428,13 +431,15 @@ typedef uint32_t       kk_uintb_t;
 #endif
 
 // Largest natural integer that fits into a boxed value
-#if (KK_INTB_SIZE > KK_SIZE_SIZE)   // ensure it fits the natural register size
-typedef kk_ssize_t     kk_intf_t;
-typedef size_t         kk_uintf_t;
-#define KK_IF(i)       KK_IZ(i)
-#define KK_INTF_SIZE   KK_SSIZE_SIZE
-#define KK_INTF_MAX    KK_SSIZE_MAX
-#define KK_INTF_MIN    KK_SSIZE_MIN
+#if (KK_INTB_SIZE > KK_INTX_SIZE)   // ensure it fits the natural register size
+typedef kk_intx_t      kk_intf_t;
+typedef kk_uintx_t     kk_uintf_t;
+#define KK_IF(i)       KK_IX(i)
+#define KK_INTF_SIZE   KK_INTX_SIZE
+#define KK_INTF_MAX    KK_INTX_MAX
+#define KK_INTF_MIN    KK_INTX_MIN
+#define KK_UINTF_MAX   KK_UINTX_MAX
+#define PRIdIF         PRIdIX
 #else
 typedef kk_intb_t      kk_intf_t;
 typedef kk_uintb_t     kk_uintf_t;
@@ -442,6 +447,7 @@ typedef kk_uintb_t     kk_uintf_t;
 #define KK_INTF_SIZE   KK_INTB_SIZE
 #define KK_INTF_MAX    KK_INTB_MAX
 #define KK_INTF_MIN    KK_INTB_MIN
+#define KK_UINTF_MAX   KK_UINTB_MAX
 #define PRIdIF         PRIdIB
 #endif
 #define KK_INTF_BITS   (8*KK_INTF_SIZE)

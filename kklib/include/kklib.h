@@ -149,18 +149,14 @@ static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_
 #define KK_TAG_PTR              (0)
 #define KK_TAG_VALUE            (1)
 
-#define kk_is_value(x)          (((x)&KK_TAG_MASK)!=KK_TAG_PTR)
-#define kk_is_ptr(x)            (((x)&KK_TAG_MASK)==KK_TAG_PTR)
-
-#define _kk_make_value(x)       ((x)|KK_TAG_VALUE)
-#define _kk_make_ptr(x)         ((x)|KK_TAG_PTR)
-#define _kk_unmake_value(x)     ((x)&~KK_TAG_VALUE)
-#define _kk_unmake_ptr(x)       ((x)&~KK_TAG_PTR)
-
-#define kk_value_null           (~KK_IB(0))       // must be a value
+static inline bool kk_is_ptr(kk_intb_t i) {
+  return ((i & KK_TAG_MASK) == KK_TAG_PTR);
+}
+static inline bool kk_is_value(kk_intb_t i) {
+  return !kk_is_ptr(i);
+}
 
 // Polymorphic operations work on boxed values. (We use a struct for extra checks to prevent accidental conversion)
-// The least significant bit is clear for `kk_block_t*` pointers, while it is set for values.
 // See `box.h` for definitions.
 typedef struct kk_box_s {
   kk_intb_t box;
@@ -876,51 +872,54 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 #define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - KK_TAG_BITS)
 #endif
 
+#define kk_value_null      ((~KK_IB(0)&~KK_TAG_MASK)|KK_TAG_VALUE)  // must be some value
+
+
 static inline kk_intb_t kk_ptr_encode(kk_ptr_t p, kk_context_t* ctx) {
   kk_assert_internal(((intptr_t)p & KK_TAG_MASK) == 0);
+  intptr_t i = (intptr_t)p;
 #if KK_COMPRESS
-  intptr_t i = (intptr_t)p - ctx->heap_base;
+  i = i - ctx->heap_base;
   #if KK_BOX_PTR_SHIFT > 0
   i = kk_sarp(i, KK_BOX_PTR_SHIFT);
-  #endif
-  kk_assert_internal(i >= KK_INTB_MIN && i <= KK_INTB_MAX);
-  return _kk_make_ptr((kk_intb_t)i);
+  #endif  
 #else
   kk_unused(ctx);
-  return _kk_make_ptr((kk_intb_t)p);
 #endif
+  kk_assert_internal(i >= KK_INTB_MIN && i <= KK_INTB_MAX);
+  return ((kk_intb_t)i | KK_TAG_PTR);
 }
 
 static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
   kk_assert_internal(kk_is_ptr(b));
+  intptr_t i = (b & ~KK_TAG_PTR);
 #if KK_COMPRESS
-  intptr_t i = _kk_unmake_ptr(b);
   #if KK_BOX_PTR_SHIFT > 0
+  kk_assert_internal((i & ((1 << KK_BOX_PTR_SHIFT) - 1)) == 0);
   i = kk_shlp(i, KK_BOX_PTR_SHIFT);
   #endif
-  i = i + ctx->heap_base;
-  return (kk_ptr_t)i;
+  i = i + ctx->heap_base;  
 #else
   kk_unused(ctx);
-  return (kk_ptr_t)_kk_unmake_ptr(b);
 #endif
+  return (kk_ptr_t)i;
 }
 
-#define KK_INTF_BOX_BITS  (KK_INTF_BITS-KK_TAG_BITS)   
-#define KK_INTF_BOX_MAX   ((kk_intf_t)KK_INTF_MAX >> (KK_INTF_BITS - KK_INTF_BOX_BITS))
-#define KK_INTF_BOX_MIN   (- KK_INTF_BOX_MAX - 1)
-
+#define KK_INTF_BOX_MAX   ((kk_intf_t)KK_INTF_MAX >> KK_TAG_BITS)
+#define KK_INTF_BOX_MIN   (-KK_INTF_BOX_MAX - 1)
+#define KK_UINTF_BOX_MAX  ((kk_uintf_t)KK_UINTF_MAX >> KK_TAG_BITS)
 
 static inline kk_intb_t kk_intf_encode(kk_intf_t i, int extra_shift) {
   kk_assert_internal(extra_shift >= 0);
   kk_assert_internal(i >= (KK_INTF_BOX_MIN / (KK_IF(1)<<extra_shift)) && i <= (KK_INTF_BOX_MAX / (KK_IF(1)<<extra_shift)));
-  return _kk_make_value(kk_shlf(i,KK_TAG_BITS + extra_shift));
+  return (kk_shlf(i,KK_TAG_BITS + extra_shift) | KK_TAG_VALUE);
 }
 
 static inline kk_intf_t kk_intf_decode(kk_intb_t b, int extra_shift) {
   kk_assert_internal(extra_shift >= 0);
   kk_assert_internal(kk_is_value(b) || b == kk_get_context()->kk_box_any.dbox);
-  kk_intb_t i = kk_sarb(_kk_unmake_value(b),KK_TAG_BITS + extra_shift);
+  kk_intb_t i = kk_sarb( b & ~KK_TAG_VALUE, KK_TAG_BITS + extra_shift);  
+  kk_assert_internal(i >= KK_INTF_MIN && i <= KK_INTF_MAX);
   return (kk_intf_t)i;
 }
 
