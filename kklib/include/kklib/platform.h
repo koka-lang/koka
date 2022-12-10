@@ -29,35 +29,52 @@
 --------------------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------------------
-  Integer sizes and portability:
+  Integer sizes and portability
+
   Here are some architectures with the bit size of various integers, where
-  - `uintptr_t` for addresses (where `sizeof(uintptr_t) == sizeof(void*)`), 
+  - `intptr_t` for addresses (where `sizeof(intptr_t) == sizeof(void*)`), 
   - `size_t` for object sizes, 
   - `kk_intx_t` for the natural largest register size (for general arithmetic),
-  - `kk_intf_t` for the natural largest register size where |kk_intf_t| <= |uintptr_t|.
-    (this is used to store integer values in heap fields that are the size of a `uintptr_t`.
-     here we want to limit the `kk_intf_t` to be at most the size of `uintptr_t` (for
-     example on x32) but also not too large (for example, on arm CHERI we would still
-     use 64-bit arithmetic)).
-
-  We always have: 
-  - `|uintptr_t| >= |size_t| >= |kk_intf_t| >= |int|`. 
-  - `|kk_intx_t| >= |kk_intf_t| >= |int|`.
   
-        system        uintptr_t   size_t   int   long   intx   intf    notes
- ------------------ ----------- -------- ----- ------ ------ ------  -----------
-  x86, arm32                32       32    32     32     32     32
-  x64, arm64, etc.          64       64    32     64     64     64
-  x64 windows               64       64    32     32     64     64   size_t    > long
-  x32 linux                 32       32    32     32     64     32   intx      > size_t
-  arm CHERI                128       64    32     64     64     64   uintptr_t > size_t
-  riscV 128-bit            128      128    32     64    128    128   
-  x86 16-bit small          16       16    16     32     16     16   long > size_t
-  x86 16-bit large          32       16    16     32     16     16   uintptr_t/long > size_t
-  x86 16-bit huge           32       32    16     32     16     16   intx < size_t
+  We always have: 
+  - `|intptr_t| >= |size_t| >= |int|`. 
+  - `|kk_intx_t| >= |int|`.
+  
+        system         intptr_t   size_t   int   long   intx    notes
+ ------------------ ----------- -------- ----- ------ ------  -----------
+  x86, arm32                32       32    32     32     32 
+  x64, arm64, etc.          64       64    32     64     64 
+  x64 windows               64       64    32     32     64   size_t   > long
+  x32 linux                 32       32    32     32     64   intx_t   > size_t
+  arm CHERI                128       64    32     64     64   intptr_t > size_t
+  riscV 128-bit            128      128    32     64    128   
+  x86 16-bit small          16       16    16     32     16   long > size_t
+  x86 16-bit large          32       16    16     32     16   intptr_t/long > size_t
+  x86 16-bit huge           32       32    16     32     16   size_t > intx_t
 
-  We use a signed `size_t` as `kk_ssize_t` (see comments below) and define
-  `kk_intf_t` is the `min(kk_intx_t,size_t)`.
+  We use a signed `size_t` as `kk_ssize_t` (see comments below) 
+
+  We also have:
+  - `kk_intb_t` (boxed integer) as the integer size that can hold a boxed value
+  - `kk_intf_t` (field integer) as the largest integer such that `|kk_intf_t| <= min(|kk_intb_t|,|kk_intx_t|)`.
+
+  Usually `kk_intb_t` is equal to `kk_intptr_t` but it can smaller if heap
+  compression is used. This is controlled by the `KK_INTB_SIZE` define.
+
+        system                  intptr_t   size_t   intx   intb   intf    notes
+ ----------------------------- --------- -------- ------ ------ ------  -----------
+  x64, arm64,                        64       64     64     64     64
+  x64, arm64 compressed 32-bit       64       64     64     32     32   limit heap to 2^32 * 4
+
+  arm CHERI                         128       64     64    128     64   |intb| > |intf|
+  arm CHERI compressed 64-bit       128       64     64     64     64   store addresses only in a box
+  arm CHERI compressed 32-bit       128       64     64     32     32   compress address as well
+
+  riscV 128-bit                     128      128    128    128    128
+  riscV 128-bit compressed 64-bit   128      128    128     64     64   limit heap to 2^64 * 4
+  riscV 128-bit compressed 32-bit   128      128    128     32     32   limit heap to 2^32 * 4
+  x32 linux                          32       32     64     32     32   |intx| > |intb|
+
 --------------------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------------------
@@ -320,7 +337,7 @@ static inline size_t kk_to_size_t(kk_ssize_t sz) {
 
 
 // We define `kk_intx_t` as an integer with the natural (fast) machine register size. 
-// We define it such that `sizeof(kk_intx_t)` is, with `m = max(sizeof(sizeof(long),sizeof(size_t))`
+// We define it such that `sizeof(kk_intx_t)` is, with `m = max(sizeof(long),sizeof(size_t))`
 //   (m==8 || x32) ? 8 : ((m == 4 && sizeof(int) > 2)  ? 4 : sizeof(int))
 // (We cannot use just `long` as it is sometimes too short (as on Windows 64-bit or x32 where a `long` is 32 bits).
 #if (LONG_MAX == INT64_MAX) || (SIZE_MAX == UINT64_MAX) || (defined(__x86_64__) && SIZE_MAX == UINT32_MAX) /* x32 */
@@ -367,18 +384,6 @@ typedef unsigned       kk_uintx_t;
 #endif
 #define KK_INTX_BITS   (8*KK_INTX_SIZE)
 
-
-
-// We have |kk_intf_t| <= |kk_box_t| <= |intptr_t|.
-// These are generally all the same size, on x64 they will all be 64-bit.
-// But not always:
-// - |kk_intf_t| can be smaller than |kk_box_t| if pointers are larger than natural ints (say x86 huge, or CHERI)
-// - |kk_box_t| can be smaller than |intptr_t| if pointers are compressed.
-//   For example using a compressed heap with 32-bit pointers on a 64-bit system, or
-//   64-bit addresses on a 128-bit CHERI system.
-// 
-// The `kk_intf_t` represents the largest integer size that fits into `kk_box_t` (minus 1 bit)
-// but which is not larger than the natural register size for integers.
 
 // a boxed value is by default the size of an `intptr_t`.
 #if !defined(KK_INTB_SIZE)

@@ -45,7 +45,7 @@ static kk_std_core_hnd__ev* kk_evv_as_vec(kk_evv_t evv, kk_ssize_t* len, kk_std_
 }
 
 kk_std_core_hnd__ev kk_ev_none(kk_context_t* ctx) {
-  static kk_std_core_hnd__ev ev_none_singleton = kk_datatype_null_init;
+  static kk_std_core_hnd__ev ev_none_singleton = { kk_datatype_null_init };
   if (kk_datatype_is_null(ev_none_singleton)) {
     ev_none_singleton = kk_std_core_hnd__new_Ev(
       kk_reuse_null,

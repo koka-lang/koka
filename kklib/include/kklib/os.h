@@ -41,7 +41,7 @@ kk_decl_export kk_string_t kk_os_name(kk_context_t* ctx);
 kk_decl_export kk_string_t kk_cpu_arch(kk_context_t* ctx);
 kk_decl_export int         kk_cpu_count(kk_context_t* ctx);
 kk_decl_export bool        kk_cpu_is_little_endian(kk_context_t* ctx);
-
+kk_decl_export int         kk_cpu_address_bits(kk_context_t* ctx);
 kk_decl_export bool kk_os_set_stack_size(kk_ssize_t stack_size);
 
 

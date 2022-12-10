@@ -157,6 +157,7 @@ static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_
 #define _kk_unmake_value(x)     ((x)&~KK_TAG_VALUE)
 #define _kk_unmake_ptr(x)       ((x)&~KK_TAG_PTR)
 
+#define kk_value_null           (~KK_IB(0))       // must be a value
 
 // Polymorphic operations work on boxed values. (We use a struct for extra checks to prevent accidental conversion)
 // The least significant bit is clear for `kk_block_t*` pointers, while it is set for values.
@@ -474,8 +475,8 @@ static inline kk_decl_pure bool kk_yielding_final(const kk_context_t* ctx) {
 
 // Get a thread local marker unique number >= 1.
 static inline int32_t kk_marker_unique(kk_context_t* ctx) {
-  int32_t m = ++ctx->marker_unique;           // must return a marker >= 1 so increment first;
-  if (m == INT32_MAX) ctx->marker_unique = 1; // controlled reset
+  int32_t m = ++ctx->marker_unique;               // must return a marker >= 1 so increment first;
+  if (m == INT32_MAX) { ctx->marker_unique = 1; } // controlled reset
   return m;
 }
 
@@ -831,44 +832,11 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 
 
 /*--------------------------------------------------------------------------------------
-  Datatype and Constructor macros
-  We use:
-  - basetype      For a pointer to the base type of a heap allocated constructor.
-                  Datatypes without singletons are always a basetype.
-  - datatype      For a regular datatypes that can have singletons.
+  Base type and Constructor macros
+  - base_type     For a pointer to the base type of a heap allocated constructor.
   - constructor   For a pointer to a heap allocated constructor (whose first field
                   is `_base` and points to the base type as a `basetype`
 --------------------------------------------------------------------------------------*/
-
-//#define kk_basetype_tag(v)                     (kk_block_tag(&((v)->_block)))
-/*
-#define kk_basetype_has_tag(v,t)               (kk_block_has_tag(&((v)->_block),t))
-#define kk_basetype_is_unique(v)               (kk_block_is_unique(&((v)->_block)))
-#define kk_basetype_as(tp,v)                   (kk_block_as(tp,&((v)->_block)))
-#define kk_basetype_free(v,ctx)                (kk_block_free(&((v)->_block),ctx))
-#define kk_basetype_decref(v,ctx)              (kk_block_decref(&((v)->_block),ctx))
-#define kk_basetype_dup_as(tp,v)               ((tp)kk_block_dup(&((v)->_block)))
-#define kk_basetype_drop(v,ctx)                (kk_block_dropi(&((v)->_block),ctx))
-#define kk_basetype_dropn_reuse(v,n,ctx)       (kk_block_dropn_reuse(&((v)->_block),n,ctx))
-#define kk_basetype_dropn(v,n,ctx)             (kk_block_dropn(&((v)->_block),n,ctx))
-#define kk_basetype_reuse(v)                   (&((v)->_block))
-#define kk_basetype_field_idx_set(v,x)         (kk_block_field_idx_set(&((v)->_block),x))
-#define kk_basetype_as_assert(tp,v,tag)        (kk_block_assert(tp,&((v)->_block),tag))
-#define kk_basetype_drop_assert(v,tag,ctx)     (kk_block_drop_assert(&((v)->_block),tag,ctx))
-#define kk_basetype_dup_assert(tp,v,tag)       ((tp)kk_block_dup_assert(&((v)->_block),tag))
-
-#define kk_constructor_tag(v)                  (kk_basetype_tag(&((v)->_base)))
-#define kk_constructor_is_unique(v)            (kk_basetype_is_unique(&((v)->_base)))
-#define kk_constructor_free(v,ctx)             (kk_basetype_free(&((v)->_base),ctx))
-#define kk_constructor_dup_as(tp,v)            (kk_basetype_dup_as(tp, &((v)->_base)))
-#define kk_constructor_drop(v,ctx)             (kk_basetype_drop(&((v)->_base),ctx))
-#define kk_constructor_dropn_reuse(v,n,ctx)    (kk_basetype_dropn_reuse(&((v)->_base),n,ctx))
-#define kk_constructor_field_idx_set(v,x)      (kk_basetype_field_idx_set(&((v)->_base),x))
-
-#define kk_value_dup(v)                        (v)
-#define kk_value_drop(v,ctx)                   (void)
-#define kk_value_drop_reuse(v,ctx)             (kk_reuse_null)
-*/
 
 #define kk_base_type_has_tag(v,t)               (kk_block_has_tag(&((v)->_block),t))
 #define kk_base_type_is_unique(v)               (kk_block_is_unique(&((v)->_block)))
@@ -881,29 +849,28 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 #define kk_base_type_dropn(v,n,ctx)             (kk_block_dropn(&((v)->_block),n,ctx))
 #define kk_base_type_reuse(v)                   (&((v)->_block))
 #define kk_base_type_field_idx_set(v,x)         (kk_block_field_idx_set(&((v)->_block),x))
+
 #define kk_base_type_as_assert(tp,v,tag)        (kk_block_assert(tp,&((v)->_block),tag))
 #define kk_base_type_drop_assert(v,tag,ctx)     (kk_block_drop_assert(&((v)->_block),tag,ctx))
 #define kk_base_type_dup_assert(tp,v,tag)       ((tp)kk_block_dup_assert(&((v)->_block),tag))
-
-
-#define kk_constructor_tag(v)                  (kk_block_tag(&((v)->_base._block)))
-#define kk_constructor_is_unique(v)            (kk_block_is_unique(&((v)->_base._block)))
-#define kk_constructor_free(v,ctx)             (kk_block_free(&((v)->_base._block),ctx))
-#define kk_constructor_dup_as(tp,v)            (kk_block_dup_as(tp, &((v)->_base._block)))
-#define kk_constructor_drop(v,ctx)             (kk_block_drop(&((v)->_base._block),ctx))
-#define kk_constructor_dropn_reuse(v,n,ctx)    (kk_block_dropn_reuse(&((v)->_base._block).,n,ctx))
-#define kk_constructor_field_idx_set(v,x)      (kk_block_field_idx_set(&((v)->_base._block),x))
 
 #define kk_base_type_unbox_as_assert(tp,b,tag,ctx)  (kk_block_as(tp,kk_block_unbox(b,tag,ctx)))
 #define kk_base_type_unbox_as(tp,b,ctx)             ((tp)kk_base_type_as(tp,kk_ptr_unbox(b,ctx),ctx))
 #define kk_base_type_box(b,ctx)                     (kk_block_box(&(b)->_block,ctx))    
 
-#define kk_constructor_unbox_as(tp,b,tag,ctx)      (kk_base_type_unbox_as_assert(tp,b,tag,ctx))
-#define kk_constructor_box(b,ctx)                  (kk_base_type_box(&(b)->_base),ctx)
+#define kk_constructor_is_unique(v)             (kk_base_type_is_unique(&((v)->_base)))
+#define kk_constructor_free(v,ctx)              (kk_base_type_free(&((v)->_base),ctx))
+#define kk_constructor_dup_as(tp,v)             (kk_base_type_dup_as(tp, &((v)->_base)))
+#define kk_constructor_drop(v,ctx)              (kk_base_type_drop(&((v)->_base),ctx))
+#define kk_constructor_dropn_reuse(v,n,ctx)     (kk_base_type_dropn_reuse(&((v)->_base),n,ctx))
+#define kk_constructor_field_idx_set(v,x)       (kk_base_type_field_idx_set(&((v)->_base),x))
+#define kk_constructor_unbox_as(tp,b,tag,ctx)   (kk_base_type_unbox_as_assert(tp,b,tag,ctx))
+#define kk_constructor_box(b,ctx)               (kk_base_type_box(&(b)->_base),ctx)
 
 
 /*----------------------------------------------------------------------
-  
+  Low-level encoding of small integers (`kk_intf_t`) and pointers
+  into a boxed integer `kk_intb_t`.  
 ----------------------------------------------------------------------*/
 #if !defined(KK_BOX_PTR_SHIFT)
 #define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - KK_TAG_BITS)
@@ -959,10 +926,10 @@ static inline kk_intf_t kk_intf_decode(kk_intb_t b, int extra_shift) {
 
 
 
-
-
 /*----------------------------------------------------------------------
   Datatypes
+  We use the `_ptr` suffix if it is guaranteed that the datatype
+  is a pointer and not a value (singleton).
 ----------------------------------------------------------------------*/
 
 // create a singleton
@@ -971,6 +938,7 @@ static inline kk_decl_const kk_datatype_t kk_datatype_from_tag(kk_tag_t t) {
   return d;
 }
 
+// create a pointer into the heap
 static inline kk_decl_const kk_datatype_t kk_datatype_from_ptr(kk_ptr_t p, kk_context_t* ctx) {
   kk_datatype_t d = { kk_ptr_encode(p, ctx) };
   return d;
@@ -1123,10 +1091,10 @@ static inline void kk_datatype_ptr_decref(kk_datatype_t d, kk_context_t* ctx) {
 #define kk_datatype_as_assert(tp,v,tag,ctx)        (kk_block_assert(tp,kk_datatype_as_ptr(v,ctx),tag))
 
 
-#define kk_datatype_null_init  { (kk_intb_t)KK_TAG_VALUE }
+#define kk_datatype_null_init  kk_value_null
 
 static inline kk_datatype_t kk_datatype_null(void) {
-  kk_datatype_t d = kk_datatype_null_init;
+  kk_datatype_t d = { kk_datatype_null_init };
   return d;
 }
 
@@ -1171,18 +1139,6 @@ static inline kk_datatype_t kk_datatype_ptr_unbox_assert(kk_box_t b, kk_tag_t t,
   kk_assert_internal(kk_datatype_has_tag(d, t, ctx));
   return d;
 }
-
-/*
-#define kk_define_static_datatype(decl,kk_struct_tp,name,tag) \
-  static kk_struct_tp _static_##name = { { KK_HEADER_STATIC(0,tag) } }; \
-  decl kk_struct_tp* name = &_static_##name
-
-  // ignore otag as it is initialized dynamically 
-#define kk_define_static_open_datatype(decl,kk_struct_tp,name,otag) \
-  static kk_struct_tp _static_##name = { { KK_HEADER_STATIC(0,KK_TAG_OPEN) }, &kk__static_string_empty._base }; \
-  decl kk_struct_tp* name = &_static_##name
-*/
-
 
 
 /*----------------------------------------------------------------------
@@ -1236,7 +1192,7 @@ typedef enum kk_unit_e {
 
 
 /*----------------------------------------------------------------------
-  TLD operations
+  Thread local context operations
 ----------------------------------------------------------------------*/
 
 // Get a thread local unique number.
@@ -1259,7 +1215,7 @@ static inline void kk_unsupported_external(const char* msg) {
 
 
 /*--------------------------------------------------------------------------------------
-  Value tags
+  Value tags (used for tags in structs)
 --------------------------------------------------------------------------------------*/
 
 // Tag for value types is always an integer
@@ -1362,7 +1318,7 @@ static inline kk_box_t kk_datatype_unJust(kk_datatype_t d, kk_context_t* ctx) {
 #else
 // for a compressed heap, allocate static functions once in the heap on demand; these are never deallocated  
 #define kk_define_static_function(name,cfun,ctx) \
-  static kk_function_t name = kk_datatype_null_init; \
+  static kk_function_t name = { kk_datatype_null_init }; \
   if (kk_datatype_is_null(name)) { \
     struct kk_function_s* _fun = kk_block_alloc_as(struct kk_function_s, 1, KK_TAG_FUNCTION, ctx); \
     _fun->fun = kk_kkfun_ptr_box(&cfun, ctx); \

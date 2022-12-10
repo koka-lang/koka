@@ -125,7 +125,7 @@ static inline kk_string_t kk_string_empty() {
 #define kk_declare_string_literal(decl,name,len,chars) \
   static kk_ssize_t  _static_len_##name = len; \
   static const char* _static_##name = chars; \
-  decl kk_string_t name = { kk_datatype_null_init };
+  decl kk_string_t name = { { kk_datatype_null_init } };
 
 #define kk_init_string_literal(name,ctx) \
   if (kk_datatype_is_null(name.bytes)) { name = kk_string_alloc_from_utf8n(_static_len_##name, _static_##name, ctx); }  

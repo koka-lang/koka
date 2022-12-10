@@ -92,15 +92,13 @@ static inline bool kk_box_eq(kk_box_t b1, kk_box_t b2) {
 }
 
 // null initializer
-#define kk_box_null_init  (~KK_IP(0))
+#define kk_box_null_init     kk_value_null
 
-// We cannot store NULL as a pointer (`kk_ptr_t`); use `box_null` instead
+// We cannot store NULL as a pointer (`kk_ptr_t`); use `kk_box_null()` instead
 static inline kk_box_t kk_box_null(void) {
   kk_box_t b = { kk_box_null_init };
   return b;
 }
-
-
 
 static inline bool kk_box_is_null(kk_box_t b) {
   return (b.box == kk_box_null_init);
@@ -389,8 +387,6 @@ typedef struct kk_cfunptr_s {
   kk_cfun_ptr_t  cfunptr;
 } *kk_cfunptr_t;
 
-// kk_decl_export kk_box_t kk_cfun_ptr_boxx(kk_cfun_ptr_t f, kk_context_t* ctx);
-
 
 // Koka function pointers 
 // Best is if we can assume these are always aligned but that is difficult to ensure with various compilers.
@@ -399,9 +395,9 @@ typedef struct kk_cfunptr_s {
 static inline kk_box_t kk_kkfun_ptr_boxx(kk_cfun_ptr_t fun, kk_context_t* ctx) {  // never drop; only used from function call
   kk_unused(ctx);
   intptr_t f = (intptr_t)fun;
-#if KK_COMPRESS
+  #if KK_COMPRESS
   f = f - (intptr_t)&kk_main_start;
-#endif
+  #endif
   kk_assert(kk_shrp(f, KK_INTPTR_BITS - 1) == 0);   // assume top bit of function pointer addresses is clear
   kk_assert(f >= KK_INTF_BOX_MIN && f <= KK_INTF_BOX_MAX);
   kk_box_t b = { kk_intf_encode((kk_intf_t)f,0) };  // so we can encode as a value
@@ -414,9 +410,9 @@ static inline kk_box_t kk_kkfun_ptr_boxx(kk_cfun_ptr_t fun, kk_context_t* ctx) {
 static inline kk_cfun_ptr_t kk_kkfun_ptr_unbox(kk_box_t b, kk_context_t* ctx) {
   kk_unused(ctx);  
   intptr_t f = kk_intf_decode(b.box, 0);
-#if KK_COMPRESS
+  #if KK_COMPRESS
   f = f + (intptr_t)&kk_main_start;
-#endif
+  #endif
   return (kk_cfun_ptr_t)f;
 }
 

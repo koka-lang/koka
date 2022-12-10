@@ -1246,3 +1246,14 @@ bool kk_cpu_is_little_endian(kk_context_t* ctx) {
   return false;
   #endif
 }
+
+int kk_cpu_address_bits(kk_context_t* ctx) {
+  size_t bsize;
+  #if __CHERI__
+    bsize = sizeof(vaddr_t);
+  #else
+    bsize = sizeof(void*);
+  #endif
+  return (int)(CHAR_BIT * bsize);
+}
+

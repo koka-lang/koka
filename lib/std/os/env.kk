@@ -100,23 +100,35 @@ pub extern get-cpu-is-little-endian() : ndet bool
 
 // Return the processor architecture natural machine word size in bits.
 //
-// Note: Usually this equals the `get-cpu-object-bits` and `get-cpu-address-bits` on modern cpu's 
+// Note: Usually this equals the `get-cpu-object-bits` and `get-cpu-pointer-bits` on modern cpu's 
 // but they can differ on segmented architectures.
 // For example, on the old x86 FAR-NEAR model, the addresses are 32-bit but the maximum object size is 16-bit.
 // Or on the more recent-[x32 ABI](https://en.wikipedia.org/wiki/X32_ABI) 
 // the addresses and objects are 32-bits but the architecture has 64-bit registers.
 pub extern get-cpu-arch-bits() : ndet int
-  c inline "kk_integer_from_size_t(CHAR_BIT*(sizeof(size_t) > sizeof(long) ? sizeof(size_t) : sizeof(long)),kk_context())"
+  c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(kk_intx_t),kk_context())"
   js inline "32"
 
 // Return the processor maximum object size in bits (`8*sizeof(size_t)`). This is usually
 // equal to the `get-cpu-arch-bits` but may be different on segmented architectures. 
-pub extern get-cpu-object-bits() : ndet int
+pub extern get-cpu-size-bits() : ndet int
   c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(size_t),kk_context())"
   js inline "32"
 
-// Return the processor maximum address size in bits (`8*sizeof(void*)`). This is usually
-// equal to the `get-cpu-arch-bits` but may be different on segmented architectures. 
+// Return the processor maximum address size in bits (`8*sizeof(vaddr_t)`). This is usually
+// equal to the `get-cpu-pointer-bits` but may be different on capability architectures like ARM CHERI.
 pub extern get-cpu-address-bits() : ndet int
+  c inline "kk_integer_from_int(kk_cpu_address_bits(kk_context()),kk_context())"
+  js inline "32"
+
+// Return the processor maximum pointer size in bits (`8*sizeof(void*)`). This is usually
+// equal to the `get-cpu-address-bits` but may be larger on capability architectures like ARM CHERI.
+pub extern get-cpu-pointer-bits() : ndet int
   c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(void*),kk_context())"
   js inline "32"
+
+// Return the size of boxed values in the heap (`8*sizeof(kk_box_t)`). This is usually
+// equal to `8*sizeof(void*)` but can be less if compressed pointers are used.
+pub extern get-cpu-boxed-bits() : ndet int
+  c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(kk_intb_t),kk_context())"
+  js inline "32"  
