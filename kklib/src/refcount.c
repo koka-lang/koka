@@ -41,14 +41,15 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   Checked reference counts. 
 
   positive:
-    0                         : unique reference
-    0x00000001 - 0x7FFFFFFF   : reference count (in a single thread)   (~2.1e9 counts)
+    0               : unique reference
+    1 to INT32_MAX  : reference count (in a single thread)   (~2.1e9 counts)
+
   negative:
-    0x80000000                : sticky: single-threaded stricky reference count (RC_STUCK)
-    0x80000001 - 0x90000000   : sticky: neither increment, nor decrement
-    0x90000001 - 0xA0000000   : sticky: still decrements (dup) but no more increments (drop)
-    0xA0000001 - 0xFFFFFFFF   : thread-shared reference counts with atomic increment/decrement. (~1.6e9 counts)
-    0xFFFFFFFF                : RC_SHARED_UNIQUE (-1)
+    INT32_MIN                                     : sticky: single-threaded stricky reference count (RC_STUCK)
+    INT32_MIN+1          to INT32_MIN+0x10000000  : sticky: neither increment, nor decrement
+    INT32_MIN+0x10000001 to INT32_MIN+0x20000000  : sticky: still decrements (dup) but no more increments (drop)
+    INT32_MIN+0x20000001 to -2                    : thread-shared reference counts with atomic increment/decrement. (~1.6e9 counts)
+    -1                                            : thread-shared reference count that is unique now (RC_SHARED_UNIQUE)
 
   
   0 <= refcount <= MAX_INT32 
@@ -59,24 +60,24 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   MAX_INT32 < refcount <= MAX_UINT32
     Thread-shared and sticky reference counts. These use atomic increment/decrement operations.
 
-  MAX_INT32 + 1 == RC_STUCK
+  MIN_INT32 == RC_STUCK
     This is used for single threaded refcounts that overflow. (This is sticky and the object will never be freed)
     The thread-shared refcounts will never get there.
 
-  MAX_INT32 < refcount <= RC_STICKY_DROP
+  RC_STICKY_DROP < refcount <= -1 (= RC_UNIQUE_SHARED)
+    A thread-shared reference count.
+    The reference count grows down, e.g. if there are N references to a
+    thread-shared object, then the reference count is -N.
+    It means that to dup a thread-shared reference will  _decrement_ the  count,
+    and to drop will _increment_ the count.
+
+  MIN_INT32 < refcount <= RC_STICKY_DROP
     The sticky range. An object in this range will never be freed anymore.
     Since we first read the reference count non-atomically we need a range
     for stickiness. Once `refcount <= RC_STICKY_DROP` it will never drop anymore
     (increment the refcount), and once refcount <= RC_STICKY it will never dup/drop anymore.
     We assume that the relaxed reads of the reference counts catch up to the atomic
     value within the sticky range (which has a range of ~0.5e9 counts).
-
-  RC_STICKY_DROP < refcount <= MAX_UINT32 (= RC_UNIQUE_SHARED) 
-    A thread-shared reference count. 
-    The reference count grows down, e.g. if there are N references to a thread-shared object 
-    the reference count is (RC_UNIQUE_SHARED - N + 1), (i.e. in a signed representation it is -N).
-    It means that to dup a thread-shared reference will  _decrement_ the  count,
-    and to drop will _increment_ the count.
 
   Atomic memory ordering:
   - Increments can be relaxed as there is no dependency on order, the owner
@@ -89,10 +90,10 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   - see also: https://devblogs.microsoft.com/oldnewthing/20210409-00/?p=105065
 --------------------------------------------------------------------------------------*/
 
-#define RC_STUCK          KK_U32(0x80000000)
-#define RC_STICKY         KK_U32(0x90000000)
-#define RC_STICKY_DROP    KK_U32(0xA0000000)
-#define RC_SHARED_UNIQUE  KK_U32(0xFFFFFFFF)
+#define RC_STUCK          (INT32_MIN)
+#define RC_STICKY         (RC_STUCK + 0x10000000)
+#define RC_STICKY_DROP    (RC_STUCK + 0x20000000)
+#define RC_SHARED_UNIQUE  (-1)
 
 static inline kk_refcount_t kk_atomic_dup(kk_block_t* b) {
   return kk_atomic_dec_relaxed(&b->header.refcount);
@@ -106,10 +107,12 @@ static inline kk_refcount_t kk_atomic_acquire(kk_block_t* b) {
 
 static void kk_block_make_shared(kk_block_t* b) {
   kk_refcount_t rc = kk_block_refcount(b);
-  kk_assert_internal(rc <= RC_STUCK);        // not thread shared already
-  rc = RC_SHARED_UNIQUE - rc;                // signed: -1 - rc
-  if (rc <= RC_STICKY_DROP) rc = RC_STICKY;  // for high reference counts
-  kk_block_refcount_set(b, rc);
+  kk_assert_internal(!kk_refcount_is_thread_shared(rc));  // not thread shared already
+  if (!kk_refcount_is_thread_shared(rc)) {
+    rc = -rc;                                     // cannot overflow as rc is positive
+    if (rc <= RC_STICKY_DROP) { rc = RC_STICKY; } // for high reference counts default to sticky
+    kk_block_refcount_set(b, rc);
+  }
 }
 
 // Check if a reference dup needs an atomic operation
@@ -117,9 +120,9 @@ kk_decl_noinline kk_block_t* kk_block_check_dup(kk_block_t* b, kk_refcount_t rc0
   kk_assert_internal(b!=NULL);
   kk_assert_internal(kk_refcount_is_thread_shared(rc0)); // includes KK_STUCK
   if kk_likely(rc0 > RC_STICKY) {
-    kk_atomic_dup(b);
+    kk_atomic_dup(b);  // decrement
   }
-  // else sticky: no longer increment (or decrement)
+  // else sticky: no longer dup (= decrement)
   return b;
 }
 
@@ -137,7 +140,7 @@ kk_decl_noinline void kk_block_check_drop(kk_block_t* b, kk_refcount_t rc0, kk_c
     // sticky: do not drop further
   }
   else {
-    const kk_refcount_t rc = kk_atomic_drop(b);
+    const kk_refcount_t rc = kk_atomic_drop(b);  // increment
     if (rc == RC_SHARED_UNIQUE) {    // this was the last reference?
       kk_atomic_acquire(b);          // prevent reordering of reads/writes before this point
       kk_block_refcount_set(b,0);    // no longer shared
@@ -181,7 +184,7 @@ kk_decl_noinline void kk_block_check_decref(kk_block_t* b, kk_refcount_t rc0, kk
     // sticky: do not decrement further
   }
   else {
-    const kk_refcount_t rc = kk_atomic_drop(b);
+    const kk_refcount_t rc = kk_atomic_drop(b);  // decrement
     if (rc == RC_SHARED_UNIQUE) {    // last referenc?
       kk_block_refcount_set(b,0);    // no longer shared
       kk_free(b,ctx);                // no more references, free it.
@@ -580,36 +583,36 @@ static kk_decl_noinline void kk_block_mark_shared_recx_large(kk_block_t* b, kk_c
 // (This is unlike freeing where we can use it as we are freeing it anyways)
 // So, we steal 8 bits of an unshared reference count. If the reference count
 // is too large we just set it to RC_STUCK when it gets marked.
-#define KK_RC_MARK_MAX  KK_U32(0x7FFFFF)
+#define KK_RC_MARK_MAX  KK_I32(0x007FFFFF)
 
 static void kk_block_mark_idx_prepare(kk_block_t* b) {
   kk_refcount_t rc = kk_block_refcount(b);
-  kk_assert_internal(rc <= RC_STUCK);                 // not thread shared already
+  kk_assert_internal(!kk_refcount_is_thread_shared(rc)); 
   if (rc > KK_RC_MARK_MAX) { rc = KK_RC_MARK_MAX; }   // if rc is too large, cap it
-  rc = (rc << 8);                                     // make room for 8-bit mark index
-  kk_assert_internal(rc < RC_STUCK);
+  rc = kk_shl32(rc,8);                                // make room for 8-bit mark index
+  kk_assert_internal(rc>=0);
   kk_assert_internal((rc & 0xFF) == 0);  
   kk_block_refcount_set(b, rc);
 }
 
 static void kk_block_mark_idx_done(kk_block_t* b) {
   kk_refcount_t rc = kk_block_refcount(b);
-  kk_assert_internal(rc <= RC_STUCK);           // not thread shared already
+  kk_assert_internal(!kk_refcount_is_thread_shared(rc));
   rc = kk_shr32(rc, 8);
-  if (rc >= KK_RC_MARK_MAX) { rc = RC_STUCK; }  // make it sticky if it was too large to contain an index
+  if (rc >= KK_RC_MARK_MAX) { rc = INT32_MAX; }  // ensure it will become stuck if it was too large to contain an index
   kk_block_refcount_set(b, rc);
 }
 
 static void kk_block_mark_idx_set(kk_block_t* b, uint8_t i) {
   kk_refcount_t rc = kk_block_refcount(b);
-  kk_assert_internal(rc <= RC_STUCK);           // not thread shared already
+  kk_assert_internal(!kk_refcount_is_thread_shared(rc));
   rc = ((rc & ~0xFF) | i);
   kk_block_refcount_set(b, rc);
 }
 
 static uint8_t kk_block_mark_idx(kk_block_t* b) {
   kk_refcount_t rc = kk_block_refcount(b);
-  kk_assert_internal(rc <= RC_STUCK);           // not thread shared already
+  kk_assert_internal(!kk_refcount_is_thread_shared(rc));
   return (uint8_t)rc;
 }
 

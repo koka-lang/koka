@@ -97,21 +97,26 @@ static inline bool kk_tag_is_raw(kk_tag_t tag) {
 
 
 // The reference count is 0 for a unique reference (for a faster free test in drop).
-// Reference counts larger than 0x8000000 (i.e. < 0) use atomic increment/decrement (for thread shared objects).
+// Negative reference counts use atomic increment/decrement (for thread shared objects).
 // (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if
-//  they get too large and in such case we never free the object, see `refcount.c`)
-typedef uint32_t kk_refcount_t;
+//  they overflow into the negative range and in such case we never free the object, see `refcount.c`)
+typedef int32_t kk_refcount_t;
 
 // Are there (possibly) references from other threads? (includes static variables)
 static inline bool kk_refcount_is_thread_shared(kk_refcount_t rc) {
-  return ((int32_t)rc < 0);
+  return (rc < 0);
 }
 
 // Is the reference unique, or are there (possibly) references from other threads? (includes static variables)
 static inline bool kk_refcount_is_unique_or_thread_shared(kk_refcount_t rc) {
-  return ((int32_t)rc <= 0);
+  return (rc <= 0);
 }
 
+// Increment a positive reference count. To avoid UB use unsigned addition.
+static inline kk_refcount_t kk_refcount_inc(kk_refcount_t rc) {
+  kk_assert_internal(rc >= 0);
+  return (kk_refcount_t)((uint32_t)rc + 1);
+}
 
 
 // Every heap block starts with a 64-bit header with a reference count, tag, and scan fields count.
@@ -124,8 +129,8 @@ typedef struct kk_header_s {
 } kk_header_t;
 
 #define KK_SCAN_FSIZE_MAX (0xFF)
-#define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, KK_ATOMIC_VAR_INIT(0) }                // start with refcount of 0
-#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KK_ATOMIC_VAR_INIT(KK_U32(0x80000000)) } // start with a stuck refcount (RC_STUCK)
+#define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, KK_ATOMIC_VAR_INIT(0) }         // start with refcount of 0
+#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KK_ATOMIC_VAR_INIT(INT32_MIN) } // start with a stuck refcount (RC_STUCK)
 
 static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_t tag) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize <= KK_SCAN_FSIZE_MAX);
@@ -680,7 +685,7 @@ static inline kk_block_t* kk_block_dup(kk_block_t* b) {
     return kk_block_check_dup(b, rc);                 // thread-shared or sticky (overflow) ?
   }
   else {
-    kk_block_refcount_set(b, rc+1);
+    kk_block_refcount_set(b, kk_refcount_inc(rc));
     return b;
   }
 }
