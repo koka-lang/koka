@@ -298,11 +298,14 @@ static inline kk_box_t kk_ptr_box_assert(kk_block_t* b, kk_tag_t tag, kk_context
 
 
 static inline kk_uintf_t kk_enum_unbox(kk_box_t b) {
-  return kk_uintf_unbox(b);
+  kk_intf_t i = kk_intf_unbox(b);
+  kk_assert_internal(i >= 0);
+  return (kk_uintf_t)i;
 }
 
 static inline kk_box_t kk_enum_box(kk_uintf_t u) {
-  return kk_uintf_box(u);
+  kk_assert_internal(u <= KK_INTF_BOX_MAX);
+  return kk_intf_box((kk_intf_t)u);
 }
 
 static inline kk_box_t kk_box_box(kk_box_t b, kk_context_t* ctx) {
