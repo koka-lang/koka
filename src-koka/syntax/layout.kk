@@ -57,7 +57,7 @@ fun after(r)
 fun isAdjacent(comment: string, r1: range, r2: range): bool
   if comment.ends-with("\n").bool then r1.end.line == r2.start.line else r1.end.line == r2.start.line - 1
 
-fun isAttr(l: lexeme)
+noinline fun isAttr(l: lexeme)
     match l
       Lexeme(_, LexKeyword(_)) -> True
       Lexeme(_, LexId(_)) -> True
@@ -206,19 +206,19 @@ fun isEndContinuationToken(lex)
     LexOp(op) -> op.nameId != ">"
     _ -> False
 
-fun isCloseBrace(lex)
+inline fun isCloseBrace(lex)
   match lex
     LexSpecial("}") -> True
     LexInsRCurly -> True
     _ -> False
 
-fun isOpenBrace(lex)
+inline fun isOpenBrace(lex)
   match lex
     LexSpecial("{") -> True
     LexInsLCurly -> True
     _ -> False
 
-fun isSemi(lex)
+inline fun isSemi(lex)
   match lex
     LexSpecial(";") -> True
     LexInsSemi -> True
