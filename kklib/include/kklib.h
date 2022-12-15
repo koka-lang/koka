@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD        97       // modify on changes to trigger recompilation 
+#define KKLIB_BUILD        97       // modify on changes to trigger recompilation  
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -405,29 +405,30 @@ typedef struct kk_yield_s {
 // The thread local context.
 // The fields `yielding`, `heap` and `evv` should come first for efficiency
 typedef struct kk_context_s {
-  int8_t          yielding;         // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception) // put first for efficiency
-  const kk_heap_t heap;             // the (thread-local) heap to allocate in; todo: put in a register?
-  const intptr_t  heap_base;        // mid point of the reserved heap address space (or 0 if the heap is not compressed)
-  kk_datatype_ptr_t evv;            // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
-  kk_yield_t      yield;            // inlined yield structure (for efficiency)
-  int32_t         marker_unique;    // unique marker generation
-  kk_block_t*     delayed_free;     // list of blocks that still need to be freed
-  kk_integer_t    unique;           // thread local unique number generation
-  size_t          thread_id;        // unique thread id
-  kk_box_any_t    kk_box_any;       // used when yielding as a value of any type
-  kk_function_t   log;              // logging function
-  kk_function_t   out;              // std output
-  kk_task_group_t* task_group;     // task group for managing threads. NULL for the main thread.
+  int8_t            yielding;         // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception) // put first for efficiency
+  const kk_heap_t   heap;             // the (thread-local) heap to allocate in; todo: put in a register?
+  const intptr_t    heap_mid;         // mid point of the reserved heap address space (or 0 if the heap is not compressed)
+  const void*       heap_start;       // bottom of the heap (or NULL if the heap is not compressed)
+  kk_datatype_ptr_t evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
+  kk_yield_t        yield;            // inlined yield structure (for efficiency)
+  int32_t           marker_unique;    // unique marker generation
+  kk_block_t*       delayed_free;     // list of blocks that still need to be freed
+  kk_integer_t      unique;           // thread local unique number generation
+  size_t            thread_id;        // unique thread id
+  kk_box_any_t      kk_box_any;       // used when yielding as a value of any type
+  kk_function_t     log;              // logging function
+  kk_function_t     out;              // std output
+  kk_task_group_t*  task_group;       // task group for managing threads. NULL for the main thread.
   
-  struct kk_random_ctx_s* srandom_ctx; // strong random using chacha20, initialized on demand
-  kk_ssize_t     argc;             // command line argument count 
-  const char**   argv;             // command line arguments
-  kk_duration_t  process_start;    // time at start of the process
-  int64_t        timer_freq;       // high precision timer frequency
-  kk_duration_t  timer_prev;       // last requested timer time
-  kk_duration_t  timer_delta;      // applied timer delta (to ensure monotonicity)
-  int64_t        time_freq;        // unix time frequency
-  kk_duration_t  time_unix_prev;   // last requested unix time
+  struct kk_random_ctx_s* srandom_ctx;// strong random using chacha20, initialized on demand
+  kk_ssize_t        argc;             // command line argument count 
+  const char**      argv;             // command line arguments
+  kk_duration_t     process_start;    // time at start of the process
+  int64_t           timer_freq;       // high precision timer frequency
+  kk_duration_t     timer_prev;       // last requested timer time
+  kk_duration_t     timer_delta;      // applied timer delta (to ensure monotonicity)
+  int64_t           time_freq;        // unix time frequency
+  kk_duration_t     time_unix_prev;   // last requested unix time
 } kk_context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
@@ -884,39 +885,81 @@ static inline bool kk_is_value(kk_intb_t i) {
 
 // If we assume `intptr_t` aligned pointers in the heap, we can use a larger heap when 
 // using pointer compression (by shifting them by `KK_BOX_PTR_SHIFT`).
-#if !defined(KK_BOX_PTR_SHIFT)  
-#define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - KK_TAG_BITS)
+#if !defined(KK_BOX_PTR_SHIFT)
+  #if (KK_INTB_SIZE <= 4)
+    // shift by pointer alignment if we have at most 32-bit boxed ints
+    #define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - KK_TAG_BITS)
+  #else
+    // don't bother with shifting if we have more than 32 bits available
+    #define KK_BOX_PTR_SHIFT   (0)
+  #endif
 #endif
 
 // Without compression, pointer encode/decode is an identity operation.
 static inline kk_intb_t kk_ptr_encode(kk_ptr_t p, kk_context_t* ctx) {
-  kk_assert_internal(((intptr_t)p & KK_TAG_MASK) == 0);
-  intptr_t i = (intptr_t)p;
+  kk_assert_internal(((intptr_t)p & KK_TAG_MASK) == 0);  
 #if KK_COMPRESS
-  i = i - ctx->heap_base;
-  #if KK_BOX_PTR_SHIFT > 0
-  i = kk_sarp(i, KK_BOX_PTR_SHIFT);
-  #endif  
-#else
+  #if KK_CHERI
+    // arm CHERI for 32-bit or 64-bit kk_intb_t; all pointers are relative to the heap 
+    kk_assert_internal(__builtin_cheri_base_get(p) == __builtin_cheri_address_get(ctx->heap_base)); kk_unused_internal(ctx);
+    size_t ofs = __builtin_cheri_offset_get(p);
+    #if KK_BOX_PTR_SHIFT > 0
+    ofs = (ofs >> KK_BOX_PTR_SHIFT);
+    #endif
+    kk_assert_internal(ofs <= KK_UINTB_MAX);
+    kk_intb_t i = (kk_intb_t)ofs;
+  #elif (KK_INTB_SIZE==4)
+    // compress to 32-bit offsets, ctx->heap_mid contains the mid-point in the heap so we can do signed extension
+    intptr_t i = (intptr_t)p - ctx->heap_mid;
+    #if KK_BOX_PTR_SHIFT > 0
+    i = kk_sarp(i, KK_BOX_PTR_SHIFT);
+    #endif  
+  #elif (KK_INTB_SIZE==8)
+    // 128-bit system with 64-bit pointers; we only need to assume that our heap is located in the lower 2^63 adress space
+    kk_unused(ctx)
+    intptr_t i = (intptr_t)p;
+  #else
+  #error "define pointer compression for this platform"
+  #endif
+#else // |kk_intb_t| == |intptr_t|
   kk_unused(ctx);
+  intptr_t i = (intptr_t)p;
 #endif
   kk_assert_internal(i >= KK_INTB_MIN && i <= KK_INTB_MAX);
+  kk_assert_internal((i & KK_TAG_MASK) == 0);
   return ((kk_intb_t)i | KK_TAG_PTR);
 }
 
 static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
   kk_assert_internal(kk_is_ptr(b));
-  intptr_t i = (b & ~KK_TAG_PTR);
-#if KK_COMPRESS
-  #if KK_BOX_PTR_SHIFT > 0
-  kk_assert_internal((i & ((1 << KK_BOX_PTR_SHIFT) - 1)) == 0);
-  i = kk_shlp(i, KK_BOX_PTR_SHIFT);
+  b = (b & ~KK_TAG_PTR);  
+#if KK_COMPRESS  
+  #if KK_CHERI
+    // arm CHERI for 32-bit or 64-bit kk_intb_t; all pointers are relative to the heap base 
+    size_t ofs = (size_t)b;
+    #if (KK_BOX_PTR_SHIFT > 0)
+    ofs = (ofs << KK_BOX_PTR_SHIFT);
+    #endif
+    return (kk_ptr_t)__builtin_cheri_offset_set(ctx->heap_base, ofs);
+  #elif (KK_INTB_SIZE == 4)
+    // decompress from 32-bit offsets
+    intptr_t i = b;                  // b sign-extends
+    #if (KK_BOX_PTR_SHIFT > 0)
+    kk_assert_internal((i & ((1 << KK_BOX_PTR_SHIFT) - 1)) == 0);
+    i = kk_shlp(i, KK_BOX_PTR_SHIFT);
+    #endif
+    return (kk_ptr_t)(i + ctx->heap_mid);      
+  #elif (KK_INTB_SIZE==8)
+    // 128-bit system with 64-bit compressed pointers; we only need to assume that our heap is located in the first 2^63 addresses.
+    kk_unused(ctx);
+    return (kk_ptr_t)((intptr_t)b);  // ensure b sign-extends
+  #else
+  #error "define pointer decompression for this platform"
   #endif
-  i = i + ctx->heap_base;  
-#else
+#else // |kk_intb_t| == |intptr_t|
   kk_unused(ctx);
+  return (kk_ptr_t)b;
 #endif
-  return (kk_ptr_t)i;
 }
 
 // Integer value encoding/decoding. May use smaller integers (`kk_intf_t`)

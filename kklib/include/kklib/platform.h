@@ -213,6 +213,9 @@
 #define kk_likely(x)       (x)
 #endif
 
+// assign const field in a struct
+#define kk_assign_const(tp,field) ((tp*)&(field))[0]
+
 // Assertions; kk_assert_internal is only enabled when KK_DEBUG_FULL is defined
 #define kk_assert(x)          assert(x)
 #ifdef KK_DEBUG_FULL
@@ -235,6 +238,10 @@
 #define kk_unused_internal(x)  
 #endif
 #endif
+
+#define KK_KiB        (1024)
+#define KK_MiB        (1024L*KK_KiB)
+#define KK_GiB        (1024L*KK_MiB)
 
 // Defining constants of a specific size
 #if LONG_MAX == INT64_MAX
@@ -388,7 +395,7 @@ typedef unsigned       kk_uintx_t;
 
 // a boxed value is by default the size of an `intptr_t`.
 #if !defined(KK_INTB_SIZE)
-#define KK_INTB_SIZE   KK_INTPTR_SIZE
+#define KK_INTB_SIZE   4 // KK_INTPTR_SIZE
 #endif
 #define KK_INTB_BITS   (8*KK_INTB_SIZE)
 
@@ -403,7 +410,8 @@ typedef uintptr_t      kk_uintb_t;
 #define KK_IB(i)       KK_IP(i)
 #define KK_UB(i)       KK_UP(i)
 #define PRIdIB         "zd"
-#elif (KK_INTB_SIZE == 8 && KK_INTB_SIZE < KK_INTPTR_SIZE)
+#elif (KK_INTB_SIZE == 8 && KK_INTB_SIZE < KK_INTPTR_SIZE)  
+// 128-bit systems with 64-bit compressed pointers
 #define KK_COMPRESS 1
 typedef int64_t        kk_intb_t;
 typedef uint64_t       kk_uintb_t;
@@ -413,7 +421,8 @@ typedef uint64_t       kk_uintb_t;
 #define KK_IB(i)       KK_I64(i)
 #define KK_UB(i)       KK_U64(i)
 #define PRIdIB         PRIdI64
-#elif (KK_INTB_SIZE == 4 && KK_INTB_SIZE < KK_INTPTR_SIZE)
+#elif (KK_INTB_SIZE == 4 && KK_INTB_SIZE < KK_INTPTR_SIZE)  
+// 64- or 128-bit systems with 32-bit compressed pointers (and a 4*4GiB heap)
 #define KK_COMPRESS 1
 typedef int32_t        kk_intb_t;
 typedef uint32_t       kk_uintb_t;

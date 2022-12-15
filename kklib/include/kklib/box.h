@@ -115,7 +115,7 @@ static inline bool kk_box_is_any(kk_box_t b) {
 
 static inline kk_box_t kk_box_from_potential_null_ptr(kk_block_t* p, kk_context_t* ctx) {
   if (p == NULL) return kk_box_null();
-                 else return kk_box_from_ptr(p,ctx);
+            else return kk_box_from_ptr(p,ctx);
 }
 
 static inline kk_block_t* kk_box_to_potential_null_ptr(kk_box_t b, kk_context_t* ctx) {

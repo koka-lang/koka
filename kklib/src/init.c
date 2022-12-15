@@ -150,11 +150,12 @@ void kk_unsupported_external(const char* msg) {
 --------------------------------------------------------------------------------------------------*/
 static bool process_initialized; // = false
 
-#if KK_COMPRESS 
+#if KK_COMPRESS && (KK_INTB_SIZE==4 || KK_CHERI)
   #if defined(KK_MIMALLOC)
     #define KK_USE_MEM_ARENA 1
     static mi_arena_id_t arena;
-    static intptr_t      arena_base;
+    static void*         arena_start;
+    static size_t        arena_size;
   #else
     #error "can only use compressed heaps with the mimalloc allocator enabled"
   #endif
@@ -199,14 +200,18 @@ static void kklib_init(void) {
   atexit(&kklib_done);  
 
   #if KK_USE_MEM_ARENA
-    const kk_ssize_t heap_size = kk_shlp(KK_IZ(1), KK_INTF_SIZE * 8 + KK_BOX_PTR_SHIFT);
+    #if (KK_INTB_SIZE==4)
+    const kk_ssize_t heap_size = kk_shlp(KK_IZ(1), KK_INTB_BITS + KK_BOX_PTR_SHIFT);
+    #elif KK_CHERI && (KK_INTB_SIZE==8)
+    const kk_ssize_t heap_size = 128 * KK_GiB;  // todo: parameterize?
+    #else 
+    #error "define heap initialization for compressed pointers on this platform"
+    #endif
     int err = mi_reserve_os_memory_ex(heap_size, false /* commit */, true /* allow large */, true /*exclusive*/, &arena);
     if (err != 0) {
-      kk_fatal_error(err, "unable to reserve the initial heap");
+      kk_fatal_error(err, "unable to reserve the initial heap of %zi bytes", heap_size);
     }
-    size_t arena_size;
-    void* arena_start = mi_arena_area(arena, &arena_size);
-    arena_base = (intptr_t)arena_start + (intptr_t)(arena_size / 2);
+    arena_start = mi_arena_area(arena, &arena_size);    
   #endif
 }
 
@@ -216,8 +221,6 @@ static void kklib_init(void) {
 
 // The thread local context; usually passed explicitly for efficiency.
 static kk_decl_thread kk_context_t* context;
-
-#define kk_assign_const(tp,field) ((tp*)&(field))[0]
 
 static struct { kk_block_t _block; kk_integer_t cfc; } kk_evv_empty_static = {
   { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { ((~KK_UB(0))^0x02) /*==-1 smallint*/}
@@ -245,10 +248,12 @@ kk_context_t* kk_get_context(void) {
   if (ctx!=NULL) return ctx;
   kklib_init();
 #if KK_USE_MEM_ARENA
+  kk_assert_internal(arena != 0 && arena_start != NULL);
   mi_heap_t* heap = mi_heap_new_in_arena(arena);
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
   kk_assign_const(kk_heap_t,ctx->heap) = heap;
-  kk_assign_const(intptr_t, ctx->heap_base) = arena_base;
+  kk_assign_const(void*, ctx->heap_start) = arena_start;
+  kk_assign_const(intptr_t, ctx->heap_mid) = (intptr_t)arena_start + (intptr_t)(arena_size / 2);
 #elif defined(KK_MIMALLOC)
   mi_heap_t* heap = mi_heap_get_default(); //  mi_heap_new();
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
