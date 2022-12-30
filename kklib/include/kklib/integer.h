@@ -165,32 +165,30 @@ to indicate the portable SOFA technique is about 5% (x64) to 10% (M1) faster.
 
 #if KK_INT_ARITHMETIC == KK_INT_USE_OVF || KK_INT_ARITHMETIC == KK_INT_USE_TAGOVF
 typedef kk_intf_t kk_smallint_t;
-#define KK_SMALLINT_BITS  (KK_INTF_BITS)
+#define KK_SMALLINT_BITS  (KK_INTF_BOX_BITS(1))
+#define KK_SMALLINT_MAX   (KK_INTF_BOX_MAX(1))
 #elif KK_INTF_SIZE>=16
 typedef int64_t kk_smallint_t;
 #define KK_SMALLINT_BITS  (64)
+#define KK_SMALLINT_MAX   (INT64_MAX)
 #elif KK_INTF_SIZE==8
 typedef int32_t kk_smallint_t;
 #define KK_SMALLINT_BITS  (32)
+#define KK_SMALLINT_MAX   (INT32_MAX)
 #elif KK_INTF_SIZE==4
 typedef int16_t kk_smallint_t;
 #define KK_SMALLINT_BITS  (16)
+#define KK_SMALLINT_MAX   (INT16_MAX)
 #elif KK_INTF_SIZE==2
 typedef int8_t kk_smallint_t;
 #define KK_SMALLINT_BITS  (8)
+#define KK_SMALLINT_MAX   (INT8_MAX)
 #else
 # error "platform must be 16, 32, 64, or 128 bits."
 #endif
 
-#if KK_INT_ARITHMETIC != KK_INT_USE_RENO
-#define KK_INT_TAG_BITS  (2)
-#else
-#define KK_INT_TAG_BITS  (0)
-#endif
-
-#define KK_SMALLINT_SIZE (KK_SMALLINT_BITS/8)
-#define KK_SMALLINT_MAX  (KK_INTF_MAX >> (KK_INTF_BITS - KK_SMALLINT_BITS + KK_INT_TAG_BITS))
-#define KK_SMALLINT_MIN  (-KK_SMALLINT_MAX - 1)
+#define KK_SMALLINT_SIZE  (KK_SMALLINT_BITS/8)
+#define KK_SMALLINT_MIN   (-KK_SMALLINT_MAX - 1)
 
 static inline bool kk_is_smallint(kk_integer_t i) {
   return kk_is_value(i.ibox);

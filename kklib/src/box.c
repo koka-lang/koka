@@ -43,7 +43,7 @@ intptr_t kk_intptr_unbox(kk_box_t v, kk_context_t* ctx) {
 }
 
 kk_box_t kk_intptr_box(intptr_t i, kk_context_t* ctx) {
-  if (i >= KK_INTF_BOX_MIN && i <= KK_INTF_BOX_MAX) {
+  if (i >= KK_INTF_BOX_MIN(0) && i <= KK_INTF_BOX_MAX(0)) {
     return kk_intf_box((kk_intf_t)i);
   }
   else {
@@ -75,7 +75,7 @@ int64_t kk_int64_unbox(kk_box_t v, kk_context_t* ctx) {
 }
 
 kk_box_t kk_int64_box(int64_t i, kk_context_t* ctx) {
-  if (i >= KK_INTF_BOX_MIN && i <= KK_INTF_BOX_MAX) {
+  if (i >= KK_INTF_BOX_MIN(0) && i <= KK_INTF_BOX_MAX(0)) {
     return kk_intf_box((kk_intf_t)i);
   }
   else {
@@ -109,7 +109,7 @@ int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
 }
 
 kk_box_t kk_int32_box(int32_t i, kk_context_t* ctx) {
-  if (i >= KK_INTF_BOX_MIN && i <= KK_INTF_BOX_MAX) {
+  if (i >= KK_INTF_BOX_MIN(0) && i <= KK_INTF_BOX_MAX(0)) {
     return kk_intf_box(i);
   }
   else {
@@ -206,7 +206,7 @@ void* kk_cptr_raw_unbox(kk_box_t b, kk_context_t* ctx) {
 
 kk_box_t kk_cptr_box(void* p, kk_context_t* ctx) {
   intptr_t i = (intptr_t)p;
-  if kk_likely(i >= KK_INTF_BOX_MIN && i <= KK_INTF_BOX_MAX) {
+  if kk_likely(i >= KK_INTF_BOX_MIN(0) && i <= KK_INTF_BOX_MAX(0)) {
     // box as value
     return kk_intf_box((kk_intf_t)i);
   }
@@ -383,7 +383,7 @@ static kk_box_t kk_float_box_heap(float f, kk_context_t* ctx) {
 kk_box_t kk_float_box(float f, kk_context_t* ctx) {
   kk_unused(ctx);
   uint32_t u = kk_bits_from_float(f);
-  if (u <= KK_UINTF_BOX_MAX) {  // fits in a boxed value?  (i.e. is the double positive)
+  if (u <= KK_UINTF_BOX_MAX(0)) {  // fits in a boxed value?  (i.e. is the double positive)
     return kk_uintf_box(u);
   }
   else {

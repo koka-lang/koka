@@ -395,7 +395,7 @@ typedef unsigned       kk_uintx_t;
 
 // a boxed value is by default the size of an `intptr_t`.
 #if !defined(KK_INTB_SIZE)
-#define KK_INTB_SIZE   4 // KK_INTPTR_SIZE
+#define KK_INTB_SIZE   KK_INTPTR_SIZE
 #endif
 #define KK_INTB_BITS   (8*KK_INTB_SIZE)
 

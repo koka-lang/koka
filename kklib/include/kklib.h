@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD        97       // modify on changes to trigger recompilation  
+#define KKLIB_BUILD         99      // modify on changes to trigger recompilation  
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -964,14 +964,16 @@ static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
 
 // Integer value encoding/decoding. May use smaller integers (`kk_intf_t`)
 // then boxed integers if `kk_intb_t` is larger than the natural register size.
-#define KK_INTF_BOX_MAX   ((kk_intf_t)KK_INTF_MAX >> KK_TAG_BITS)
-#define KK_INTF_BOX_MIN   (-KK_INTF_BOX_MAX - 1)
-#define KK_UINTF_BOX_MAX  ((kk_uintf_t)KK_UINTF_MAX >> KK_TAG_BITS)
+#define KK_INTF_BOX_BITS(extra)  (KK_INTF_BITS - KK_TAG_BITS + (extra))
+#define KK_INTF_BOX_MAX(extra)   (KK_INTF_MAX >> (KK_TAG_BITS + (extra)))
+#define KK_INTF_BOX_MIN(extra)   (-KK_INTF_BOX_MAX(extra) - 1)
+#define KK_UINTF_BOX_MAX(extra)  (KK_UINTF_MAX >> (KK_TAG_BITS + (extra)))
 
 static inline kk_intb_t kk_intf_encode(kk_intf_t i, int extra_shift) {
   kk_assert_internal(extra_shift >= 0);
-  kk_assert_internal(i >= (KK_INTF_BOX_MIN / (KK_IF(1)<<extra_shift)) && i <= (KK_INTF_BOX_MAX / (KK_IF(1)<<extra_shift)));
-  return (kk_shlf(i,KK_TAG_BITS + extra_shift) | KK_TAG_VALUE);
+  kk_intb_t b = i; // may sign-extend
+  kk_assert_internal(b >= KK_INTF_BOX_MIN(extra_shift) && i <= KK_INTF_BOX_MAX(extra_shift));
+  return (kk_shlb(b,KK_TAG_BITS + extra_shift) | KK_TAG_VALUE);
 }
 
 static inline kk_intf_t kk_intf_decode(kk_intb_t b, int extra_shift) {
