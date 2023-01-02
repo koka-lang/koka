@@ -1368,10 +1368,10 @@ pub fun maximum( xs : list<float64> ) : float64
 // returned by functions that find sub strings or patterns in
 // in strings. Use `string:(slice : sslice) -> string` to
 // create a fresh substring from a slice.
-abstract struct sslice( str : string, start : ssize_t, len : ssize_t )
+abstract struct sslice( str : string, start : int, len : int )
 
 // Internal export for the regex module
-pub fun ".new-sslice"( str :string, start: ssize_t, len : ssize_t )
+pub fun ".new-sslice"( str :string, start: int, len : int )
   Sslice(str,start,len)
 
 // Convert a character to a string
@@ -1442,8 +1442,8 @@ pub fun (||)( x : string, y : string ) : string
   if x.is-empty then y else x
 
 // Length returns the length in the platform specific encoding (and should not be exported)
-inline extern length( s : string ) : ssize_t
-  c inline "kk_string_len(#1,kk_context())"
+inline extern length( s : string ) : int
+  c inline "kk_string_len_int(#1,kk_context())"
   cs inline "#1.Length"
   js inline "#1.length"
 
@@ -1482,21 +1482,21 @@ pub fun last(s : string, n : int = 1) : sslice
 
 // O(1). The entire string as a slice
 pub fun slice( s : string ) : sslice
-  Sslice(s,0.ssize_t,s.length)
+  Sslice(s,0,s.length)
 
 // An empty slice
-val empty = Sslice("",0.ssize_t,0.ssize_t)
+val empty = Sslice("",0,0)
 
 // Is a slice empty?
 pub fun is-empty( slice : sslice ) : bool
   !slice.len.is-pos
 
 // An invalid slice
-val invalid = Sslice("",(-1).ssize_t,0.ssize_t)
+val invalid = Sslice("",-1,0)
 
 // Is a slice invalid?
 pub fun is-valid( slice : sslice ) : bool
-  slice.start >= 0.ssize_t
+  slice.start >= 0
 
 // Is a slice not empty?
 pub fun is-notempty( slice : sslice ) : bool
@@ -1548,7 +1548,7 @@ pub extern extend( slice : sslice, ^count : int ) : sslice
 // start of `slice` argument.
 pub fun before(slice : sslice) : sslice
   val Sslice(s,start,_len) = slice
-  Sslice(s,0.ssize_t,start)
+  Sslice(s,0,start)
 
 // O(1). Return the string slice from the end of `slice` argument
 // to the end of the string.
@@ -1598,7 +1598,7 @@ inline extern xindex-of(s : string, sub : string ) : ssize_t
 // the position just following the substring `sub`.
 pub fun find( s : string, sub : string ) : maybe<sslice>
   val i = s.xindex-of(sub)
-  if i.is-zero then Nothing else Just(Sslice(s,i.decr,sub.length))
+  if i.is-zero then Nothing else Just(Sslice(s,i.decr.int,sub.length))
 
 // Does string `s`  contain the string `sub`  ?
 inline extern xlast-index-of(s : string, sub : string ) : ssize_t
@@ -1609,7 +1609,7 @@ inline extern xlast-index-of(s : string, sub : string ) : ssize_t
 // Return the last index of substring `sub` in `s` if it occurs.
 pub fun find-last( s : string, sub : string ) : maybe<sslice>
   val i = s.xlast-index-of(sub)
-  if i.is-zero then Nothing else Just(Sslice(s,i.decr,sub.length))
+  if i.is-zero then Nothing else Just(Sslice(s,i.decr.int,sub.length))
 
 inline extern xstarts-with: (s : string, pre : string ) -> bool
   c  "kk_string_starts_with"
@@ -1632,7 +1632,7 @@ extern xends-with: (s : string, post : string ) -> bool
 // If so, returns a slice of `s` from the start up to the `post` string at the end.
 pub fun ends-with( s : string, post : string ) : maybe<sslice>
   if (xends-with(s,post))
-    then Just(Sslice(s,0.ssize_t,s.length - post.length))
+    then Just(Sslice(s,0,s.length - post.length))
     else Nothing
 
 // Does string `s`  contain the string `sub`  ?
@@ -1671,14 +1671,14 @@ pub fun trim-right( s : string, sub : string ) : string
     Just(slice) -> trim-right(unsafe-decreasing(slice.string),sub)
     Nothing -> s
 
-// Repeat a string `n` times
-pub fun repeat( s : string, ^n : int ) : string
-  repeatz(s,n.ssize_t)
-
 extern repeatz( s : string, n : ssize_t ) : string
   c  "kk_string_repeat"
   cs "Primitive.Repeat"
   js "_string_repeat"
+
+// Repeat a string `n` times
+pub fun repeat( s : string, ^n : int ) : string
+  repeatz(s,n.ssize_t)
 
 // Convert a `:maybe` string to a string using the empty sting for `Nothing`
 pub fun string( ms : maybe<string> ) : string
@@ -1785,19 +1785,19 @@ pub fun capitalize( s : string ) : string
 
 // Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
 pub fun pad-left( s : string, ^width : int, fill : char = ' ') : string
-  val w = width.ssize_t
+  val w = width
   val n = s.length
   if w <= n
     then s
-    else fill.string.repeatz( w - n ) ++ s
+    else fill.string.repeat( w - n ) ++ s
 
 // Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
 pub fun pad-right( s : string, ^width : int, fill : char = ' ') : string
-  val w = width.ssize_t
+  val w = width
   val n = s.length
   if w <= n
     then s
-    else s ++ fill.string.repeatz(w - n)
+    else s ++ fill.string.repeat(w - n)
 
 // Trim whitespace on the left and right side of a string
 pub fun trim( s : string ) : string

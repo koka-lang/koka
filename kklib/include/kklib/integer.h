@@ -947,6 +947,15 @@ static inline kk_integer_t kk_integer_min(kk_integer_t x, kk_integer_t y, kk_con
   }
 }
 
+static inline kk_integer_t kk_integer_min_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  if kk_likely(kk_are_smallints(x, y)) return (_kk_integer_value(x)<=_kk_integer_value(y) ? x : y);
+  if (kk_integer_lte_borrow(x, y, ctx)) {
+    return kk_integer_dup(x,ctx);
+  }
+  else {
+    return kk_integer_dup(y,ctx);
+  }
+}
 
 /*---------------------------------------------------------------------------------
   clamp int to smaller ints

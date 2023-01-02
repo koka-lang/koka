@@ -124,14 +124,16 @@ kk_string_t kk_string_from_list(kk_std_core__list cs, kk_context_t* ctx) {
 }
 
 static inline void kk_sslice_start_end_borrowx( kk_std_core__sslice sslice, const uint8_t** start, const uint8_t** end, const uint8_t** sstart, const uint8_t** send, kk_context_t* ctx) {
-  kk_ssize_t slen;
-  const uint8_t* s = kk_string_buf_borrow(sslice.str,&slen,ctx);
-  *start = s + sslice.start;
-  *end = s + sslice.start + sslice.len;
+  kk_ssize_t strlen;
+  const uint8_t* s = kk_string_buf_borrow(sslice.str,&strlen,ctx);
+  kk_ssize_t slstart = kk_integer_clamp_ssize_t_borrow(sslice.start,ctx);
+  kk_ssize_t sllen   = kk_integer_clamp_ssize_t_borrow(sslice.len,ctx);
+  *start = s + slstart;
+  *end = s + slstart + sllen;
   if (sstart != NULL) *sstart = s;
-  if (send != NULL) *send = s + slen;
+  if (send != NULL) *send = s + strlen;
   kk_assert_internal(*start >= s && *start <= *end);
-  kk_assert_internal(*end >= *start && *end <= s + slen);
+  kk_assert_internal(*end >= *start && *end <= s + strlen);
 }
 
 static inline void kk_sslice_start_end_borrow( kk_std_core__sslice sslice, const uint8_t** start, const uint8_t** end, kk_context_t* ctx) {
@@ -158,13 +160,14 @@ kk_string_t kk_slice_to_string( kk_std_core__sslice  sslice, kk_context_t* ctx )
   const uint8_t* end;
   kk_sslice_start_end_borrow(sslice, &start, &end, ctx);
   // is it the full string?
-  if (sslice.start == 0 && sslice.len == kk_string_len_borrow(sslice.str,ctx)) {
+  if (kk_integer_is_zero_borrow(sslice.start) && 
+      kk_integer_eq_borrow(sslice.len,kk_integer_from_ssize_t(kk_string_len_borrow(sslice.str,ctx),ctx),ctx)) {
     // TODO: drop sslice and dup sslice.str?
     return sslice.str;
   }
   else {
     // if not, we copy len bytes
-    kk_string_t s = kk_string_alloc_dupn_valid_utf8(sslice.len, start, ctx);
+    kk_string_t s = kk_string_alloc_dupn_valid_utf8(kk_integer_clamp_ssize_t_borrow(sslice.len,ctx), start, ctx);
     kk_std_core__sslice_drop(sslice,ctx);
     return s;
   }
@@ -174,7 +177,7 @@ kk_std_core__sslice kk_slice_first( kk_string_t str, kk_context_t* ctx ) {
   kk_ssize_t slen;
   const uint8_t* s = kk_string_buf_borrow(str,&slen,ctx);
   const uint8_t* next = (slen > 0 ? kk_utf8_next(s) : s);
-  return kk_std_core__new_Sslice(str, 0, (next - s), ctx);
+  return kk_std_core__new_Sslice(str, kk_integer_zero, kk_integer_from_ptrdiff_t(next - s,ctx), ctx);
 }
 
 kk_std_core__sslice kk_slice_last( kk_string_t str, kk_context_t* ctx ) {
@@ -182,7 +185,7 @@ kk_std_core__sslice kk_slice_last( kk_string_t str, kk_context_t* ctx ) {
   const uint8_t* s = kk_string_buf_borrow(str,&slen,ctx);
   const uint8_t* end = s + slen;
   const uint8_t* prev = (s==end ? s : kk_utf8_prev(end));
-  return kk_std_core__new_Sslice(str, (prev - s), (end - prev), ctx);
+  return kk_std_core__new_Sslice(str, kk_integer_from_ptrdiff_t(prev - s,ctx), kk_integer_from_ptrdiff_t(end - prev,ctx), ctx);
 }
 
 kk_std_core__sslice kk_slice_between( struct kk_std_core_Sslice slice1, struct kk_std_core_Sslice slice2, kk_context_t* ctx ) {
@@ -190,15 +193,24 @@ kk_std_core__sslice kk_slice_between( struct kk_std_core_Sslice slice1, struct k
   const uint8_t* s2 = kk_string_buf_borrow( slice2.str, NULL, ctx );
   if (s1 != s2) {
     kk_info_message("between: not equal slices: %p vs. %p\n", s1, s2);
-    return kk_std_core__new_Sslice(kk_string_empty(), 0, -1, ctx); // invalid slice
+    return kk_std_core__new_Sslice(kk_string_empty(), kk_integer_zero, kk_integer_min_one, ctx); // invalid slice
   }
-  kk_ssize_t start = (slice1.start <= slice2.start ? slice1.start : slice2.start);
-  kk_ssize_t len   = (slice1.start <= slice2.start ? slice2.start - slice1.start : slice1.start - slice2.start);
+  
+  kk_integer_t start;
+  kk_integer_t len;
+  if (kk_integer_lte_borrow(slice1.start,slice2.start,ctx)) {
+    start = kk_integer_dup(slice1.start,ctx);
+    len   = kk_integer_sub(kk_integer_dup(slice2.start,ctx),kk_integer_dup(slice1.start,ctx),ctx);
+  }
+  else  {
+    start = kk_integer_dup(slice2.start,ctx);
+    len   = kk_integer_sub(kk_integer_dup(slice1.start,ctx),kk_integer_dup(slice2.start,ctx),ctx);
+  }  
   return kk_std_core__new_Sslice(slice1.str, start, len, ctx);
 }
 
 kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_context_t* ctx ) {
-  if (slice.len <= 0) {
+  if (!kk_integer_is_pos_borrow(slice.len,ctx)) {
     kk_std_core__sslice_drop(slice,ctx);
     return kk_std_core_types__new_Nothing(ctx);
   }
@@ -207,18 +219,21 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
   kk_sslice_start_end_borrow(slice, &start, &end, ctx);
   kk_ssize_t clen;
   const kk_char_t c = kk_utf8_read(start,&clen);
-  kk_assert_internal(clen > 0 && clen <= slice.len);
-  if (clen > slice.len) clen = slice.len;
+  kk_assert_internal(clen > 0 && clen <= kk_integer_clamp_ssize_t_borrow(slice.len,ctx));
+  kk_integer_t iclen = kk_integer_min(kk_integer_from_ssize_t(clen,ctx),kk_integer_dup(slice.len,ctx),ctx);
   // TODO: specialize type to avoid boxing
-  kk_std_core__sslice snext = kk_std_core__new_Sslice(slice.str, slice.start + clen, slice.len - clen, ctx);
+  // note: don't drop slice as we take over all fields  
+  kk_integer_t istart = kk_integer_add(slice.start,kk_integer_dup(iclen,ctx),ctx);
+  kk_integer_t ilen   = kk_integer_sub(slice.len,iclen,ctx);
+  kk_std_core__sslice snext = kk_std_core__new_Sslice(slice.str, istart, ilen, ctx);
   kk_std_core_types__tuple2_ res = kk_std_core_types__new_dash__lp__comma__rp_( kk_char_box(c,ctx), kk_std_core__sslice_box(snext,ctx), ctx);
   return kk_std_core_types__new_Just( kk_std_core_types__tuple2__box(res,ctx), ctx );
 }
 
 /* Borrow count */
 struct kk_std_core_Sslice kk_slice_extend_borrow( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
-  kk_ssize_t cnt = kk_integer_clamp_borrow(count,ctx);
-  if (cnt==0 || (slice.len <= 0 && cnt<0)) return slice;
+  kk_ssize_t cnt = kk_integer_clamp_ssize_t_borrow(count,ctx);
+  if (cnt==0 || (!kk_integer_is_pos_borrow(slice.len,ctx) && cnt<0)) return slice;
   const uint8_t* s0;
   const uint8_t* s1;
   kk_sslice_start_end_borrow(slice,&s0,&s1,ctx);
@@ -230,21 +245,22 @@ struct kk_std_core_Sslice kk_slice_extend_borrow( struct kk_std_core_Sslice slic
     } while (cnt > 0 && *t != 0);
   }
   else {  // cnt < 0
-    const uint8_t* sstart = s0 - slice.start;
+    const uint8_t* sstart = s0 - kk_integer_clamp_ssize_t_borrow(slice.start,ctx);
     do {
       t = kk_utf8_prev(t);
       cnt++;
     } while (cnt < 0 && t > sstart);
   }
   if (t == s1) return slice;  // length is unchanged
-  return kk_std_core__new_Sslice(slice.str, slice.start, (t < s0 ? 0 : (t - s0)), ctx);
+  kk_integer_drop(slice.len,ctx);
+  return kk_std_core__new_Sslice(slice.str, slice.start, kk_integer_from_ptrdiff_t(t < s0 ? 0 : (t - s0),ctx), ctx);
 }
 
 /* Borrow count */
 struct kk_std_core_Sslice kk_slice_advance_borrow( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
-  const kk_ssize_t cnt0 = kk_integer_clamp_borrow(count,ctx);
+  const kk_ssize_t cnt0 = kk_integer_clamp_ssize_t_borrow(count,ctx);
   kk_ssize_t cnt = cnt0;
-  if (cnt==0 || (slice.start == 0 && cnt<0)) return slice;
+  if (cnt==0 || (kk_integer_is_zero_borrow(slice.start) && cnt<0)) return slice;
   const uint8_t* sstart;
   const uint8_t* s0;
   const uint8_t* s1;
@@ -282,7 +298,10 @@ struct kk_std_core_Sslice kk_slice_advance_borrow( struct kk_std_core_Sslice sli
   }
   // t1 points to the new end
   kk_assert_internal(t1 >= t0);
-  return kk_std_core__new_Sslice(slice.str, (t0 - sstart), (t1 - t0), ctx);
+  kk_integer_drop(slice.start,ctx);
+  kk_integer_drop(slice.len,ctx);
+  return kk_std_core__new_Sslice(slice.str, kk_integer_from_ptrdiff_t(t0 - sstart,ctx), 
+                                            kk_integer_from_ptrdiff_t(t1 - t0,ctx), ctx);
 }
 
 /* Borrow iupto */
@@ -295,7 +314,7 @@ struct kk_std_core_Sslice kk_slice_common_prefix_borrow( kk_string_t str1, kk_st
     if (*s1 != *s2) break;
   }
   kk_string_drop(str2,ctx);
-  return kk_std_core__new_Sslice(str1, 0, count, ctx);
+  return kk_std_core__new_Sslice(str1, kk_integer_zero, kk_integer_from_ssize_t(count,ctx), ctx);
 }
 
 

@@ -262,6 +262,10 @@ static inline kk_ssize_t kk_decl_pure kk_string_len(kk_string_t str, kk_context_
   return len;
 }
 
+static inline kk_integer_t kk_decl_pure kk_string_len_int(kk_string_t str, kk_context_t* ctx) {    // bytes in UTF8
+  return kk_integer_from_ssize_t(kk_string_len(str,ctx),ctx);
+}
+
 static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
   return kk_unsafe_bytes_as_string(kk_bytes_copy(str.bytes, ctx));
 }
