@@ -201,7 +201,7 @@ static void kklib_init(void) {
 
   #if KK_USE_MEM_ARENA
     #if (KK_INTB_SIZE==4)
-    const kk_ssize_t heap_size = kk_shlp(KK_IZ(1), KK_INTB_BITS + KK_BOX_PTR_SHIFT);
+    const kk_ssize_t heap_size = kk_shlp(KK_IZ(1), KK_INTB_BITS + KK_BOX_PTR_SHIFT);  // 16GiB
     #elif KK_CHERI && (KK_INTB_SIZE==8)
     const kk_ssize_t heap_size = 128 * KK_GiB;  // todo: parameterize?
     #else 
@@ -253,7 +253,13 @@ kk_context_t* kk_get_context(void) {
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
   kk_assign_const(kk_heap_t,ctx->heap) = heap;
   kk_assign_const(void*, ctx->heap_start) = arena_start;
-  kk_assign_const(intptr_t, ctx->heap_mid) = (intptr_t)arena_start + (intptr_t)(arena_size / 2);
+  kk_addr_t arena_start_addr;
+  #if KK_CHERI
+  arena_start_addr = __builtin_cheri_address_get(arena_start);
+  #else
+  arena_start_addr = (kk_addr_t)arena_start;
+  #endif
+  kk_assign_const(kk_addr_t, ctx->heap_mid) = arena_start_addr + (kk_addr_t)(arena_size / 2);
 #elif defined(KK_MIMALLOC)
   mi_heap_t* heap = mi_heap_get_default(); //  mi_heap_new();
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));

@@ -75,7 +75,7 @@
   x86 16-bit large          32       16    16     32     16   intptr_t/long > size_t
   x86 16-bit huge           32       32    16     32     16   size_t > intx_t
 
-  We use a signed `size_t` as `kk_ssize_t` (see comments below) 
+  We use a signed `size_t` as `kk_ssize_t` (see earlier comments) 
 
   We also have:
   - `kk_intb_t` (boxed integer) as the integer size that can hold a boxed value
@@ -113,6 +113,9 @@
 #endif
 
 #ifdef __STDC_VERSION__
+#if (__STDC_VERSION__ >= 201710L)
+#define KK_C17  1
+#endif
 #if (__STDC_VERSION__ >= 201112L)
 #define KK_C11  1
 #endif
@@ -122,13 +125,13 @@
 #endif
 
 #ifdef __cplusplus
-#if (__cplusplus >= 202002L)
+#if (__cplusplus >= 202002L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 202002L)
 #define KK_CPP20  1
 #endif
-#if (__cplusplus >= 201703L)
+#if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
 #define KK_CPP17  1
 #endif
-#if (__cplusplus >= 201402L)
+#if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
 #define KK_CPP14  1
 #endif
 #if (__cplusplus >= 201103L) || (_MSC_VER > 1900) 
@@ -188,7 +191,7 @@
 #define kk_struct_packed      __pragma(pack(push,1)) struct
 #define kk_struct_packed_end  __pragma(pack(pop))
 #define KK_HAS_STRUCT_PACKING 1
-#ifndef __cplusplus
+#ifndef __cplusplus  // need c++ compilation for correct atomic operations on msvc
 #error "when using cl (the Microsoft Visual C++ compiler), use the /TP option to always compile in C++ mode."
 #endif
 #else
@@ -205,7 +208,7 @@
 #if defined(__GNUC__) || defined(__clang__)
 #define kk_unlikely(x)     (__builtin_expect(!!(x),false))
 #define kk_likely(x)       (__builtin_expect(!!(x),true))
-#elif (defined(__cplusplus) && (__cplusplus >= 202002L)) || (defined(_MSVC_LANG) && _MSVC_LANG >= 202002L)
+#elif defined(KK_CPP20)
 #define kk_unlikely(x)     (x) [[unlikely]]
 #define kk_likely(x)       (x) [[likely]]
 #else
@@ -239,11 +242,7 @@
 #endif
 #endif
 
-#define KK_KiB        (1024)
-#define KK_MiB        (1024L*KK_KiB)
-#define KK_GiB        (1024L*KK_MiB)
-
-// Defining constants of a specific size
+// Defining constants of a specific size (as not all platforms define the INTXX_C macros)
 #if LONG_MAX == INT64_MAX
 # define KK_LONG_SIZE   8
 # define KK_I32(i)      (i)
@@ -251,7 +250,7 @@
 # define KK_U32(i)      (i##U)
 # define KK_U64(i)      (i##UL)
 #elif LONG_MAX == INT32_MAX
-# define KK_LONG_SIZE 4
+# define KK_LONG_SIZE   4
 # define KK_I32(i)      (i##L)
 # define KK_I64(i)      (i##LL)
 # define KK_U32(i)      (i##UL)
@@ -260,35 +259,55 @@
 #error size of a `long` must be 32 or 64 bits
 #endif
 
-// Define size of intptr_t
-#if INTPTR_MAX == INT64_MAX         
-# define KK_INTPTR_SIZE 8
-# define KK_INTPTR_SHIFT 3
-# define KK_IP(i)       KK_I64(i)
-# define KK_UP(i)       KK_U64(i)
-#elif INTPTR_MAX == INT32_MAX
-# define KK_INTPTR_SIZE 4
-# define KK_INTPTR_SHIFT 2
-# define KK_IP(i)       KK_I32(i)
-# define KK_UP(i)       KK_U32(i)
-#elif INTPTR_MAX == INT16_MAX
-# define KK_INTPTR_SIZE 2
-# define KK_INTPTR_SHIFT 1
-# define KK_IP(i)       i
-# define KK_UP(i)       i
-#elif INTPTR_MAX > INT64_MAX         // assume 128-bit
-# define KK_INTPTR_SIZE 16
-# define KK_INTPTR_SHIFT 4
-# define KK_IP(i)       KK_I64(i)
-# define KK_UP(i)       KK_U64(i)
+#ifdef _MSC_VER
+# define KK_I128(i)      (i##i128)
+# define KK_U128(i)      (i##ui128)
 #else
-#error platform addresses must be 16, 32, 64, or 128 bits
+# define KK_I128(i)      (INT128_C(i))
+# define KK_U128(i)      (UINT128_C(i))
+#endif
+
+#define KK_KiB        (1024)
+#define KK_MiB        (KK_I32(1024)*KK_KiB)
+#define KK_GiB        (KK_I32(1024)*KK_MiB)
+
+
+// Define size of intptr_t
+#if INTPTR_MAX == INT128_MAX
+# define KK_INTPTR_SIZE   16
+# define KK_INTPTR_SHIFT  4
+# define KK_IP(i)         KK_I128(i)
+# define KK_UP(i)         KK_U128(i)
+#elif INTPTR_MAX == INT64_MAX         
+# define KK_INTPTR_SIZE   8
+# define KK_INTPTR_SHIFT  3
+# define KK_IP(i)         KK_I64(i)
+# define KK_UP(i)         KK_U64(i)
+#elif INTPTR_MAX == INT32_MAX
+# define KK_INTPTR_SIZE   4
+# define KK_INTPTR_SHIFT  2
+# define KK_IP(i)         KK_I32(i)
+# define KK_UP(i)         KK_U32(i)
+#elif INTPTR_MAX == INT16_MAX
+# define KK_INTPTR_SIZE   2
+# define KK_INTPTR_SHIFT  1
+# define KK_IP(i)         i
+# define KK_UP(i)         i
+#else
+#error platform pointers must be 16, 32, 64, or 128 bits
 #endif
 #define KK_INTPTR_BITS        (8*KK_INTPTR_SIZE)
 #define KK_INTPTR_ALIGNUP(x)  ((((x)+KK_INTPTR_SIZE-1)/KK_INTPTR_SIZE)*KK_INTPTR_SIZE)
 
 // Define size of size_t and kk_ssize_t 
-#if SIZE_MAX == UINT64_MAX
+#if SIZE_MAX == UINT128_MAX
+# define KK_SIZE_SIZE   16
+# define KK_IZ(i)       KK_I128(i)
+# define KK_UZ(i)       KK_U128(i)
+# define KK_SSIZE_MAX   INT64_MAX
+# define KK_SSIZE_MIN   INT64_MIN
+typedef int64_t         kk_ssize_t;
+#elif SIZE_MAX == UINT64_MAX
 # define KK_SIZE_SIZE   8
 # define KK_IZ(i)       KK_I64(i)
 # define KK_UZ(i)       KK_U64(i)
@@ -310,13 +329,13 @@ typedef int32_t         kk_ssize_t;
 # define KK_SSIZE_MIN   INT16_MIN
 typedef int16_t         kk_ssize_t;
 #else
-#error size of a `size_t` must be 16, 32 or 64 bits
+#error size of a `size_t` must be 16, 32, 64 or 128 bits
 #endif
-#define KK_SSIZE_SIZE  KK_SIZE_SIZE
-#define KK_SIZE_BITS   (8*KK_SIZE_SIZE)
+#define KK_SSIZE_SIZE   KK_SIZE_SIZE
+#define KK_SIZE_BITS    (8*KK_SIZE_SIZE)
 
 
-// off_t: we use 64-bit file offsets (unless on a 16-bit platform)
+// off_t: we use signed 64-bit file offsets (unless on a 16-bit platform)
 #if (INT_MAX > INT16_MAX)
 typedef int64_t     kk_off_t;
 #define KK_OFF_MAX  INT64_MAX
@@ -326,6 +345,22 @@ typedef int32_t     kk_off_t;
 #define KK_OFF_MAX  INT32_MAX
 #define KK_OFF_MIN  INT32_MIN
 #endif
+
+// kk_addr_t: a signed integer that can hold a plain address (usually intptr_t but may be smaller on capability architectures)
+#if defined(KK_CHERI) 
+typedef kk_ssize_t    kk_addr_t;
+typedef kk_size_t     kk_uaddr_t;
+#define KK_ADDR_MAX   KK_SSIZE_MAX
+#define KK_ADDR_MIN   KK_SSIZE_MIN
+#define KK_ADDR_BITS  KK_SIZE_BITS
+#else
+typedef intptr_t      kk_addr_t;
+typedef uintptr_t     kk_uaddr_t;
+#define KK_ADDR_MAX   INTPTR_MAX
+#define KK_ADDR_MIN   INTPTR_MIN
+#define KK_ADDR_BITS  KK_INTPTR_BITS
+#endif
+
 
 // We limit the maximum object size (and array sizes) to at most `SIZE_MAX/2` bytes.
 static inline kk_ssize_t kk_to_ssize_t(size_t sz) {
@@ -440,7 +475,7 @@ typedef uint32_t       kk_uintb_t;
 #error "pointer compression can only be used with C compilers that support struct packing"
 #endif
 
-// Largest natural integer that fits into a boxed value
+// A "field" integer is the largest natural integer that fits into a boxed value
 #if (KK_INTB_SIZE > KK_INTX_SIZE)   // ensure it fits the natural register size
 typedef kk_intx_t      kk_intf_t;
 typedef kk_uintx_t     kk_uintf_t;
@@ -470,6 +505,7 @@ static inline kk_uintx_t  kk_shr(kk_uintx_t u, int shift)     { return (u >> (sh
 static inline kk_intf_t   kk_sarf(kk_intf_t i, int shift)     { return (i >> (shift & (KK_INTF_BITS - 1))); }
 static inline kk_uintf_t  kk_shrf(kk_uintf_t u, int shift)    { return (u >> (shift & (KK_INTF_BITS - 1))); }
 static inline kk_intb_t   kk_sarb(kk_intb_t i, int shift)     { return (i >> (shift & (KK_INTB_BITS - 1))); }
+static inline kk_addr_t   kk_sara(kk_addr_t i, int shift)     { return (i >> (shift & (KK_ADDR_BITS - 1))); }
 
 static inline uintptr_t   kk_shrp(uintptr_t u, int shift)     { return (u >> (shift & (KK_INTPTR_BITS - 1))); }
 static inline intptr_t    kk_sarp(intptr_t u, int shift)      { return (u >> (shift & (KK_INTPTR_BITS - 1))); }
@@ -482,6 +518,7 @@ static inline uint64_t    kk_shr64(uint64_t u, int64_t shift) { return (u >> (sh
 static inline kk_intx_t   kk_shl(kk_intx_t i, int shift)      { return (kk_intx_t)((kk_uintx_t)i << (shift & (KK_INTX_BITS - 1))); }
 static inline kk_intf_t   kk_shlf(kk_intf_t i, int shift)     { return (kk_intf_t)((kk_uintf_t)i << (shift & (KK_INTF_BITS - 1))); }
 static inline kk_intb_t   kk_shlb(kk_intb_t i, int shift)     { return (kk_intb_t)((kk_uintb_t)i << (shift & (KK_INTB_BITS - 1))); }
+static inline kk_addr_t   kk_shla(kk_addr_t i, int shift)     { return (kk_addr_t)((kk_uaddr_t)i << (shift & (KK_ADDR_BITS - 1))); }
 static inline intptr_t    kk_shlp(intptr_t i, int shift)      { return (intptr_t)((uintptr_t)i << (shift & (KK_INTPTR_BITS - 1))); }
 static inline int32_t     kk_shl32(int32_t i, int32_t shift)  { return (int32_t)((uint32_t)i << (shift & 31)); }
 static inline int64_t     kk_shl64(int64_t i, int64_t shift)  { return (int64_t)((uint64_t)i << (shift & 63)); }

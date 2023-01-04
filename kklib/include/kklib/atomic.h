@@ -26,7 +26,7 @@
 #endif
 
 // ATOMIC_VAR_INIT is deprecated in C17 and C++20
-#if (__cplusplus >= 201803L || __STDC_VERSION__ >= 201710L)
+#if (defined(KK_C17) || defined(KK_CPP20) || (__cplusplus >= 201803L))
 #define  KK_ATOMIC_VAR_INIT(x)  x
 #else
 #define  KK_ATOMIC_VAR_INIT(x)  ATOMIC_VAR_INIT(x)

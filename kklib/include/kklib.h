@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD         99      // modify on changes to trigger recompilation  
+#define KKLIB_BUILD         100     // modify on changes to trigger recompilation  
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -407,8 +407,8 @@ typedef struct kk_yield_s {
 typedef struct kk_context_s {
   int8_t            yielding;         // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception) // put first for efficiency
   const kk_heap_t   heap;             // the (thread-local) heap to allocate in; todo: put in a register?
-  const intptr_t    heap_mid;         // mid point of the reserved heap address space (or 0 if the heap is not compressed)
-  const void*       heap_start;       // bottom of the heap (or NULL if the heap is not compressed)
+  const kk_addr_t   heap_mid;         // mid point of the reserved heap address space (or 0 if the heap is not compressed)
+  const void*       heap_start;       // start of the heap space (or NULL if the heap is not compressed)
   kk_datatype_ptr_t evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
   kk_yield_t        yield;            // inlined yield structure (for efficiency)
   int32_t           marker_unique;    // unique marker generation
@@ -898,67 +898,56 @@ static inline bool kk_is_value(kk_intb_t i) {
 // Without compression, pointer encode/decode is an identity operation.
 static inline kk_intb_t kk_ptr_encode(kk_ptr_t p, kk_context_t* ctx) {
   kk_assert_internal(((intptr_t)p & KK_TAG_MASK) == 0);  
+  kk_addr_t a;
 #if KK_COMPRESS
   #if KK_CHERI
-    // arm CHERI for 32-bit or 64-bit kk_intb_t; all pointers are relative to the heap 
-    kk_assert_internal(__builtin_cheri_base_get(p) == __builtin_cheri_address_get(ctx->heap_base)); kk_unused_internal(ctx);
-    size_t ofs = __builtin_cheri_offset_get(p);
-    #if KK_BOX_PTR_SHIFT > 0
-    ofs = (ofs >> KK_BOX_PTR_SHIFT);
-    #endif
-    kk_assert_internal(ofs <= KK_UINTB_MAX);
-    kk_intb_t i = (kk_intb_t)ofs;
-  #elif (KK_INTB_SIZE==4)
-    // compress to 32-bit offsets, ctx->heap_mid contains the mid-point in the heap so we can do signed extension
-    intptr_t i = (intptr_t)p - ctx->heap_mid;
-    #if KK_BOX_PTR_SHIFT > 0
-    i = kk_sarp(i, KK_BOX_PTR_SHIFT);
-    #endif  
-  #elif (KK_INTB_SIZE==8)
-    // 128-bit system with 64-bit pointers; we only need to assume that our heap is located in the lower 2^63 adress space
-    kk_unused(ctx)
-    intptr_t i = (intptr_t)p;
+  a = (kk_addr_t)__builtin_cheri_address_get(p);
   #else
-  #error "define pointer compression for this platform"
+  a = (kk_addr_t)p;
   #endif
-#else // |kk_intb_t| == |intptr_t|
+  #if (KK_INTB_SIZE==4)
+  // compress to 32-bit offsets, ctx->heap_mid contains the mid-point in the heap so we can do signed extension
+  a = a - ctx->heap_mid;
+  #else
+  // for 64- or 128-bit we use the address as is (and for 128 bit we assume we locate our heap in the lower 2^63-1 address space)
   kk_unused(ctx);
-  intptr_t i = (intptr_t)p;
+  #endif  
+  #if KK_BOX_PTR_SHIFT > 0
+  kk_assert_internal((a & ((1 << KK_BOX_PTR_SHIFT) - 1)) == 0);
+  a = kk_sara(a, KK_BOX_PTR_SHIFT);
+  #endif 
+#else // no compression: |kk_intptr_t| == |kk_addr_t| == |kk_intb_t|
+  kk_unused(ctx);
+  a = (kk_addr_t)p;
 #endif
-  kk_assert_internal(i >= KK_INTB_MIN && i <= KK_INTB_MAX);
-  kk_assert_internal((i & KK_TAG_MASK) == 0);
-  return ((kk_intb_t)i | KK_TAG_PTR);
+  kk_assert_internal(a >= KK_INTB_MIN && a <= KK_INTB_MAX);  
+  kk_assert_internal((a & KK_TAG_MASK) == 0);
+  return ((kk_intb_t)a | KK_TAG_PTR);
 }
 
 static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
   kk_assert_internal(kk_is_ptr(b));
-  b = (b & ~KK_TAG_PTR);  
-#if KK_COMPRESS  
-  #if KK_CHERI
-    // arm CHERI for 32-bit or 64-bit kk_intb_t; all pointers are relative to the heap base 
-    size_t ofs = (size_t)b;
-    #if (KK_BOX_PTR_SHIFT > 0)
-    ofs = (ofs << KK_BOX_PTR_SHIFT);
-    #endif
-    return (kk_ptr_t)__builtin_cheri_offset_set(ctx->heap_base, ofs);
-  #elif (KK_INTB_SIZE == 4)
-    // decompress from 32-bit offsets
-    intptr_t i = b;                  // b sign-extends
-    #if (KK_BOX_PTR_SHIFT > 0)
-    kk_assert_internal((i & ((1 << KK_BOX_PTR_SHIFT) - 1)) == 0);
-    i = kk_shlp(i, KK_BOX_PTR_SHIFT);
-    #endif
-    return (kk_ptr_t)(i + ctx->heap_mid);      
-  #elif (KK_INTB_SIZE==8)
-    // 128-bit system with 64-bit compressed pointers; we only need to assume that our heap is located in the first 2^63 addresses.
-    kk_unused(ctx);
-    return (kk_ptr_t)((intptr_t)b);  // ensure b sign-extends
-  #else
-  #error "define pointer decompression for this platform"
+  kk_addr_t a = b;        // may sign-extend  
+#if (KK_TAG_PTR != 0)
+  a = (a & ~KK_TAG_MASK);
+#endif
+#if KK_COMPRESS
+  #if (KK_BOX_PTR_SHIFT > 0)
+  a = kk_shla(a, KK_BOX_PTR_SHIFT);
   #endif
-#else // |kk_intb_t| == |intptr_t|
+  #if (KK_INTB_SIZE == 4)
+  a = a + ctx->heap_mid;
+  #else
   kk_unused(ctx);
-  return (kk_ptr_t)b;
+  #endif  
+  #if KK_CHERI
+  return (kk_ptr_t)__builtin_cheri_address_set(ctx->heap_start, (vaddr_t)a);
+  #else
+  return (kk_ptr_t)a;
+  #endif
+#else // no compression: |kk_intb_t| == |kk_addr_t| == |intptr_t|
+  kk_unused(ctx);
+  return (kk_ptr_t)a;
 #endif
 }
 
