@@ -197,7 +197,7 @@ static kk_duration_t kk_time_unix_now_prim(kk_context_t* ctx) {
     ctx->time_freq = KK_100NSECS_PER_SEC;
   }
   // done
-  return d;
+  return kk_duration_norm(d);
 }
 #else
 
@@ -208,10 +208,15 @@ static kk_duration_t kk_time_unix_now_prim(kk_context_t* ctx) {
   if (ctx->time_freq==0) {
     struct timespec tres = { 0, 0 };
     clock_getres(CLOCK_REALTIME, &tres);
-    if (tres.tv_sec == 0 && tres.tv_nsec > 0 && tres.tv_nsec <= KK_NSECS_PER_SEC && (tres.tv_nsec % KK_NSECS_PER_SEC) == 0) {
+    if (tres.tv_sec == 0 && tres.tv_nsec > 0 && tres.tv_nsec <= KK_NSECS_PER_SEC) {
+      kk_assert((KK_NSECS_PER_SEC % tres.tv_nsec) == 0);  
       ctx->time_freq = (KK_NSECS_PER_SEC / tres.tv_nsec);
     }
+    else if (tres.tv_sec == 1 && tres.tv_nsec == 0) {
+      ctx->time_freq = 1;
+    }
     else {
+      kk_assert(false); // should never happen?
       ctx->time_freq = KK_NSECS_PER_SEC;
     }
   }
@@ -220,20 +225,21 @@ static kk_duration_t kk_time_unix_now_prim(kk_context_t* ctx) {
   kk_duration_t d;
   d.seconds = t.tv_sec;
   d.attoseconds = t.tv_nsec * KK_ASECS_PER_NSEC;
-  return d;
+  return kk_duration_norm(d);
 }
 
 #else
 // portable 1s resolution time
 static kk_duration_t kk_time_unix_now_prim(kk_context_t* ctx) {
   if (ctx->time_freq == 0) {
-    ctx->time_freq = 1; // :-(
+    ctx->time_freq = 1; 
   }
   time_t t;
   time(&t);
   kk_duration_t d;
   d.seconds = t;
   d.attoseconds = 0;
+  return kk_duration_norm(d);
 }
 #endif
 
@@ -243,8 +249,10 @@ kk_decl_export kk_duration_t kk_time_unix_now(kk_context_t* ctx) {
   kk_duration_t d = kk_time_unix_now_prim(ctx);
   if (kk_duration_is_gt(ctx->time_unix_prev, d)
       // time is set backward!
-      // if it is less the 1 second we add a tiny increment as we assume it is due to leap second smearing
-      && !kk_duration_is_gt(ctx->time_unix_prev, kk_duration_add(d,kk_duration_from_secs(1))) ) {
+      // if it is less then 1 second we add a tiny increment as we assume it is due to leap second smearing
+      // (so we ensure at least monotonicity during a leap second)
+      && !kk_duration_is_gt(ctx->time_unix_prev, kk_duration_add(d,kk_duration_from_secs(1))) ) 
+  {
     // keep monotonic and allow to catch up
     d = kk_duration_add(ctx->time_unix_prev, kk_duration_from_nsecs(1));    
   }
