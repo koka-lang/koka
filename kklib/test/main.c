@@ -565,9 +565,70 @@ static void test_ovf(kk_context_t* ctx) {
   printf("\nint-inc-dec: %6.3fs\n", (double)end / 1000.0);
 }
 
+
+typedef struct kk_ddouble_s {
+  double hi;
+  double lo;
+} kk_ddouble_t;
+
+kk_ddouble_t kk_dd_sum(double x, double y) {
+  double z = x + y;
+  double diff = z - x;
+  double err = (x - (z - diff)) + (y - diff);
+  kk_ddouble_t d = { z, err };
+  return d;
+}
+
+kk_ddouble_t kk_dd_quicksum(double x, double y) {
+  kk_assert(abs(x) >= abs(y));
+  double z = x + y;
+  double err = y - (z - x);
+  kk_ddouble_t d = { z, err };
+  return d;
+}
+
+kk_ddouble_t kk_dd_add(kk_ddouble_t x, kk_ddouble_t y) {
+  kk_ddouble_t z1 = kk_dd_sum(x.hi, y.hi);
+  kk_ddouble_t low = kk_dd_sum(x.lo, y.lo);
+  double e1 = z1.lo + low.hi;
+  kk_ddouble_t z2 = kk_dd_quicksum(z1.hi, e1);
+  double e2 = z2.lo + low.lo;
+  return kk_dd_quicksum(z2.hi, e2);
+}
+
+kk_ddouble_t kk_dd_from_int64(int64_t i, double scale) {
+  double x = (double)(kk_sar64(i, 32) * 0x1p32) * scale;
+  double y = (double)((int32_t)i) * scale;
+  return kk_dd_sum(x, y);
+}
+
+void kk_duration_to_ddouble(kk_duration_t d, double* psecs, double* pfrac) {
+  kk_assert(d.attoseconds >= 0 && d.seconds != INT64_MIN);
+  kk_ddouble_t dd = kk_dd_add(kk_dd_from_int64(d.seconds,1.0), kk_dd_from_int64(d.attoseconds, 1e-18));
+
+  int64_t secs = d.seconds;
+  int64_t asecs = d.attoseconds;
+  int sbits = 64 - kk_bits_clz64((uint64_t)secs); // bits used by the seconds
+  printf("duration: %20llus %lluas, sbits: %d, %20fs . %fs, %.18fs . %.18fs\n", secs, asecs, sbits, (double)secs, (double)asecs * 1e-18, dd.hi, dd.lo);
+
+  if (psecs != NULL) *psecs = dd.hi;
+  if (pfrac != NULL) *pfrac = dd.lo;
+}
+
+void test_duration1(void) {
+  for (int64_t i = 1; i < (INT64_MAX/2); i <<= 1) {
+    kk_duration_t d;
+    d.seconds = i;
+    d.attoseconds = KK_I64(1000000000) * KK_I64(1000000000) - 1;
+    d = kk_duration_norm(d);
+    kk_duration_to_ddouble(d, NULL, NULL);
+  }  
+}
+
 int main() {
   kk_context_t* ctx = kk_get_context();
 
+  
   test_fib(50, ctx);   // 12586269025
   test_fib(150, ctx);  // 9969216677189303386214405760200
   test_fib(300, ctx);  // 22223224462942044552973989346190996720666693909649976499097960
@@ -584,12 +645,13 @@ int main() {
   test_pow10(ctx);
   test_double(ctx);
   test_ovf(ctx);
-
+  
   test_count10(ctx);
-  //test_popcount();
   test_bitcount();
+  //test_popcount();
   //test_random(ctx);
-
+  //test_duration1();
+  
   /*
   init_nums();
   for (int i = 100; i < 800; i+=50) {

@@ -56,7 +56,7 @@ kk_decl_export kk_duration_t kk_duration_add(kk_duration_t x, kk_duration_t y);
 kk_decl_export kk_duration_t kk_duration_neg(kk_duration_t x);
 kk_decl_export kk_duration_t kk_duration_from_secs(int64_t secs);
 kk_decl_export kk_duration_t kk_duration_from_nsecs(int64_t nsecs);
-
+kk_decl_export kk_duration_t kk_duration_norm(kk_duration_t x);
 
 kk_decl_export kk_duration_t kk_timer_ticks(kk_context_t* ctx);
 kk_decl_export kk_asecs_t    kk_timer_resolution(kk_context_t* ctx);
