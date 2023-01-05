@@ -177,6 +177,7 @@ data Flags
          , optctail         :: Bool
          , optctailCtxPath  :: Bool 
          , optUnroll        :: Int
+         , optEagerPatBind  :: Bool      -- bind pattern fields as early as possible?
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
@@ -271,6 +272,7 @@ flagsNull
           True -- optctail
           True -- optctailCtxPath
           (-1) -- optUnroll
+          False -- optEagerPatBind (read fields as late as possible)
           True -- parc reuse
           True -- parc specialize
           True -- parc reuse specialize
@@ -382,6 +384,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["trmcctx"]     (\b f -> f{optctailCtxPath=b})  "enable trmc context paths"
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})    "enable inline specialization"
  , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
+ , hide $ fflag       ["eagerpatbind"] (\b f -> f{optEagerPatBind=b}) "load pattern fields as early as possible"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"

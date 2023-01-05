@@ -66,9 +66,9 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore ctarget buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core
-  = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
+cFromCore :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore ctarget buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference eagerPatBind stackSize mbMain core
+  = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform eagerPatBind)
            (genModule ctarget buildType sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
@@ -385,8 +385,8 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
     genFunDef params body
       = do let args = map ( ppName . getName ) params
                isTailCall = body `isTailCalling` name
-           bodyDoc <- (if isTailCall then withStatement else id)
-                      (genStat (ResultReturn (Just (TName name resTp)) params) body)
+           bodyDoc <- -- (if isTailCall then withStatement else id)
+                      genStat (ResultReturn (Just (TName name resTp)) params) body
            penv <- getPrettyEnv
            let tpDoc = typeComment (Pretty.ppType penv tp)
            let sig = genLamSig inlineC vis name params body
@@ -1459,7 +1459,8 @@ genMatch result0 exprDocs branches
 
 genBranch :: Result -> [Doc] -> Bool -> Branch -> Asm Doc
 genBranch result exprDocs doTest branch@(Branch patterns guards)
-  = do doc <- genPattern doTest [] (zip exprDocs patterns) (genGuards result guards)
+  = do eagerPatBind <- getEagerPatBind
+       doc <- genPattern doTest eagerPatBind [] (zip exprDocs patterns) (genGuards result guards)
        if (doc `dstartsWith` "if")
          then return doc
          else return (block doc)  -- for C++ we need to scope the locals or goto's can skip initialization
@@ -1473,15 +1474,17 @@ genGuard :: Bindings -> Result -> Guard-> Asm Doc
 genGuard bindings result (Guard guard expr)
   = do let guardFree = freeLocals guard
            exprFree  = freeLocals expr
-           (bsGuard,bsOther) = partition (\(name,_) -> tnamesMember name guardFree) bindings
-           bsExpr            = filter (\(name,_) -> tnamesMember name exprFree) bsOther        
+           (bindsGuard,bindsOther) = partition (\(name,_) -> tnamesMember name guardFree) bindings
+           guardLocals             = map snd bindsGuard
+           exprLocals              = map snd (filter (\(name,_) -> tnamesMember name exprFree) bindsOther)
        case guard of
          Con tname repr | getName tname == nameTrue
            -> do doc <- genStat result expr
-                 return (vcat (map snd bsExpr ++ [doc]))
+                 return (vcat (guardLocals ++ exprLocals ++ [doc]))
          _ -> do (gddoc,gdoc) <- genExpr guard
                  sdoc <- genStat result expr
-                 return (vcat $ map snd bsGuard ++ gddoc ++ [text "if" <+> parensIf gdoc <+> block (vcat (map snd bsExpr ++ [sdoc]))])
+                 return (vcat $ guardLocals ++ gddoc ++ [text "if" <+> parensIf gdoc <+> 
+                                                         block (vcat (exprLocals ++ [sdoc]))])
 
 parensIf :: Doc -> Doc -- avoid parens if already parenthesized
 parensIf d
@@ -1490,26 +1493,26 @@ parensIf d
       then d else parens d
 
 
-genPattern :: Bool -> Bindings -> [(Doc,Pattern)] -> (Bindings -> Asm Doc) -> Asm Doc
-genPattern doTest bindings [] genBody
+genPattern :: Bool -> Bool -> Bindings -> [(Doc,Pattern)] -> (Bindings -> Asm Doc) -> Asm Doc
+genPattern doTest eagerPatBind bindings [] genBody
   = genBody bindings
 
-genPattern doTest bindings0 dpatterns genBody
+genPattern doTest eagerPatBind bindings0 dpatterns genBody
   = do (testss,localss,bindingss,nextPatternss) <- fmap (unzip4 . concat) $
-                                                     mapM (genPatternTest doTest) dpatterns
+                                                     mapM (genPatternTest doTest eagerPatBind) dpatterns
        let tests  = concat testss
            locals = concat localss
            bindings = bindings0 ++ concat bindingss
            nextPatterns = concat nextPatternss
 
-       ndoc <- genPattern doTest bindings nextPatterns genBody
+       ndoc <- genPattern doTest eagerPatBind bindings nextPatterns genBody
        if (null tests)
         then return (vcat (locals ++ [ndoc]))
         else return (text "if" <+> parensIf (hcat (punctuate (text " && ") tests))
                       <+> block (vcat (locals ++ [ndoc])))
 
-genPatternTest :: Bool -> (Doc,Pattern) -> Asm [([Doc],[Doc],Bindings,[(Doc,Pattern)])]
-genPatternTest doTest (exprDoc,pattern)
+genPatternTest :: Bool -> Bool -> (Doc,Pattern) -> Asm [([Doc],[Doc],Bindings,[(Doc,Pattern)])]
+genPatternTest doTest eagerPatBind (exprDoc,pattern)
   = let test xs = if doTest then xs else [] in
     case pattern of
       PatWild -> return []
@@ -1538,10 +1541,9 @@ genPatternTest doTest (exprDoc,pattern)
               return [([],assign,[],next)]
       PatVar tname pattern
         -> do let binding = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <.> semi
-                  eagerAssign = False
-                  (assign,bindings) = if (patternVarFree pattern && not eagerAssign) 
-                                        then ([],[(tname,binding)])
-                                        else ([binding],[])                  
+                  (assign,bindings) = if (patternVarFree pattern && not eagerPatBind) 
+                                        then ([],[(tname,binding)])  -- read field as late as possible (for nested pattern matches)
+                                        else ([binding],[])          -- read field right away        
                   next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
               return [([],assign,bindings,next)]
       PatLit (LitString s)
@@ -2279,7 +2281,7 @@ data Env = Env { moduleName        :: Name                    -- | current modul
                , substEnv          :: [(TName, Doc)]          -- | substituting names
                , newtypes          :: Newtypes
                , platform          :: Platform
-               , inStatement       :: Bool                    -- | for generating correct function declarations in strict mode
+               , eagerPatBind      :: Bool  
                }
 
 data Result = ResultReturn (Maybe TName) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
@@ -2377,6 +2379,11 @@ getPrettyEnv
   = do env <- getEnv
        return (prettyEnv env)
 
+getEagerPatBind :: Asm Bool
+getEagerPatBind
+  = do env <- getEnv
+       return (eagerPatBind env)       
+
 withTypeVars :: [TypeVar] -> Asm a -> Asm a
 withTypeVars vars asm
   = withEnv (\env -> env{ prettyEnv = Pretty.niceEnv (prettyEnv env) vars }) asm
@@ -2384,15 +2391,6 @@ withTypeVars vars asm
 withNameSubstitutions :: [(TName, Doc)] -> Asm a -> Asm a
 withNameSubstitutions subs asm
   = withEnv (\env -> env{ substEnv = subs ++ substEnv env }) asm
-
-withStatement :: Asm a -> Asm a
-withStatement asm
-  = withEnv (\env -> env{ inStatement = True }) asm
-
-getInStatement :: Asm Bool
-getInStatement
-  = do env <- getEnv
-       return (inStatement env)
 
 getNewtypes :: Asm Newtypes
 getNewtypes
