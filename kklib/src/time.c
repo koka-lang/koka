@@ -97,7 +97,7 @@ static kk_duration_t kk_timer_ticks_prim(kk_context_t* ctx) {
   int64_t frac = t.QuadPart % ctx->timer_freq;
   int64_t resolution = KK_ASECS_PER_SEC / ctx->timer_freq;
   d.attoseconds = frac * resolution;
-  return d;
+  return kk_duration_norm(d);
 }
 
 #else
@@ -126,7 +126,7 @@ static kk_duration_t kk_timer_ticks_prim(kk_context_t* ctx) {
   kk_duration_t d;
   d.seconds = t.tv_sec;
   d.attoseconds = t.tv_nsec * KK_ASECS_PER_NSEC;
-  return d;
+  return kk_duration_norm(d);
 }
 
 #else
@@ -144,7 +144,7 @@ static kk_duration_t kk_timer_ticks_prim(kk_context_t* ctx) {
   const int64_t frac = t % ctx->timer_freq;
   const int64_t resolution = KK_ASECS_PER_SEC / ctx->timer_freq;
   d.attoseconds = frac * resolution;
-  return d;
+  return kk_duration_norm(d);
 }
 #endif
 #endif
@@ -152,14 +152,17 @@ static kk_duration_t kk_timer_ticks_prim(kk_context_t* ctx) {
 kk_decl_export kk_duration_t kk_timer_ticks(kk_context_t* ctx) {
   const kk_duration_t d = kk_timer_ticks_prim(ctx);
   // init previous and delta
-  if (kk_duration_is_zero(ctx->timer_prev)) {
+  if kk_unlikely(kk_duration_is_zero(ctx->timer_prev)) {
     ctx->timer_prev = d;
     ctx->timer_delta = d;    
   }
   // check monotonicity
-  if (kk_duration_is_gt( ctx->timer_prev, d)) {
-    // ouch, clock ran backward; add 1 nano second and adjust the delta
-    ctx->timer_delta = kk_duration_sub(kk_duration_sub(ctx->timer_prev, d), kk_duration_from_nsecs(1));
+  else if kk_unlikely(kk_duration_is_gt(ctx->timer_prev, d)) {
+    // ouch, clock ran backward! 
+    // we adjust the delta to return the previous time + 1ns to maintain monotonicity.
+    // that is the return value is: d - new_delta == timer_prev + 1ns
+    // and thus: new_delta = d - timer_prev - 1ns
+    ctx->timer_delta = kk_duration_sub(kk_duration_sub(d, ctx->timer_prev), kk_duration_from_nsecs(1));
   }
   // save time in previous and adjust with the delta
   ctx->timer_prev = d;

@@ -393,28 +393,26 @@ typedef struct kk_cfunptr_s {
 } *kk_cfunptr_t;
 
 
-// Koka function pointers 
-// Best is if we can assume these are always aligned but that is difficult to ensure with various compilers.
-// Instead we assume the top bit of a function address is always clear so we can encode as 2*address + 1.
-// If the heap is compressed, use the offset to the main function
+// Koka function pointers.
+// We encode these as values for efficiency. It would be best if we can assume functions addresses
+// are always aligned but it turns out that this is difficult to ensure with various compilers.
+// Instead we assume that the function adresses always fit an `kk_intf_t` and encode as a regular `kk_intf_t`.
+// If the heap is compressed, use the offset to the main function.
 static inline kk_box_t kk_kkfun_ptr_boxx(kk_cfun_ptr_t fun, kk_context_t* ctx) {  // never drop; only used from function call
   kk_unused(ctx);
   intptr_t f = (intptr_t)fun;
   #if KK_COMPRESS
   f = f - (intptr_t)&kk_main_start;
   #endif
-  kk_assert(kk_shrp(f, KK_INTPTR_BITS - KK_TAG_BITS) == 0);   // assume top bits of function pointer addresses are clear
   kk_assert(f >= KK_INTF_BOX_MIN(0) && f <= KK_INTF_BOX_MAX(0));
-  kk_box_t b = { kk_intf_encode((kk_intf_t)f,0) };  // so we can encode as a value
-  return b;
+  return kk_intf_box((kk_intf_t)f);
 }
 
 #define kk_kkfun_ptr_box(fun,ctx)  kk_kkfun_ptr_boxx((kk_cfun_ptr_t)fun, ctx)
 
-
 static inline kk_cfun_ptr_t kk_kkfun_ptr_unbox(kk_box_t b, kk_context_t* ctx) {
   kk_unused(ctx);  
-  intptr_t f = kk_intf_decode(b.box, 0);
+  intptr_t f = kk_intf_unbox(b);
   #if KK_COMPRESS
   f = f + (intptr_t)&kk_main_start;
   #endif

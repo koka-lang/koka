@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD         100     // modify on changes to trigger recompilation  
+#define KKLIB_BUILD         102     // modify on changes to trigger recompilation  
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -369,7 +369,7 @@ typedef int64_t kk_secs_t;
 typedef int64_t kk_asecs_t;
 typedef struct kk_duration_s {
   kk_secs_t  seconds;
-  kk_asecs_t attoseconds;  // always >= 0
+  kk_asecs_t attoseconds;  // always >= 0, use `kk_duration_norm` to normalize
 } kk_duration_t;  
 
 
