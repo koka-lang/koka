@@ -1403,6 +1403,8 @@ genExprStat result expr
 -- Match
 ---------------------------------------------------------------------------------
 
+type Bindings = [(TName,Doc)]
+
 -- | Generates a statement for a match expression regarding a given return context
 genMatch :: Result -> [Doc] -> [Branch] -> Asm Doc
 genMatch result0 exprDocs branches
@@ -1457,24 +1459,29 @@ genMatch result0 exprDocs branches
 
 genBranch :: Result -> [Doc] -> Bool -> Branch -> Asm Doc
 genBranch result exprDocs doTest branch@(Branch patterns guards)
-  = do doc <- genPattern doTest (freeLocals guards)  (zip exprDocs patterns) (genGuards result guards)
+  = do doc <- genPattern doTest [] (zip exprDocs patterns) (genGuards result guards)
        if (doc `dstartsWith` "if")
          then return doc
          else return (block doc)  -- for C++ we need to scope the locals or goto's can skip initialization
 
-genGuards :: Result -> [Guard] -> Asm Doc
-genGuards result guards
-  = do docs <- mapM (genGuard result) guards
+genGuards :: Result -> [Guard] -> Bindings -> Asm Doc
+genGuards result guards bindings
+  = do docs <- mapM (genGuard bindings result) guards
        return (vcat docs)
 
-genGuard :: Result -> Guard-> Asm Doc
-genGuard result (Guard guard expr)
-  = case guard of
-      Con tname repr | getName tname == nameTrue
-        -> genStat result expr
-      _ -> do (gddoc,gdoc) <- genExpr guard
-              sdoc <- genStat result expr
-              return (vcat gddoc <-> text "if" <+> parensIf gdoc <+> block (sdoc))
+genGuard :: Bindings -> Result -> Guard-> Asm Doc
+genGuard bindings result (Guard guard expr)
+  = do let guardFree = freeLocals guard
+           exprFree  = freeLocals expr
+           (bsGuard,bsOther) = partition (\(name,_) -> tnamesMember name guardFree) bindings
+           bsExpr            = filter (\(name,_) -> tnamesMember name exprFree) bsOther        
+       case guard of
+         Con tname repr | getName tname == nameTrue
+           -> do doc <- genStat result expr
+                 return (vcat (map snd bsExpr ++ [doc]))
+         _ -> do (gddoc,gdoc) <- genExpr guard
+                 sdoc <- genStat result expr
+                 return (vcat $ map snd bsGuard ++ gddoc ++ [text "if" <+> parensIf gdoc <+> block (vcat (map snd bsExpr ++ [sdoc]))])
 
 parensIf :: Doc -> Doc -- avoid parens if already parenthesized
 parensIf d
@@ -1483,24 +1490,26 @@ parensIf d
       then d else parens d
 
 
-genPattern :: Bool -> TNames -> [(Doc,Pattern)] -> Asm Doc -> Asm Doc
-genPattern doTest gfree [] genBody
-  = genBody
-genPattern doTest gfree dpatterns genBody
-  = do (testss,localss,nextPatternss) <- fmap (unzip3 . concat) $
-                                           mapM (genPatternTest doTest gfree) dpatterns
+genPattern :: Bool -> Bindings -> [(Doc,Pattern)] -> (Bindings -> Asm Doc) -> Asm Doc
+genPattern doTest bindings [] genBody
+  = genBody bindings
+
+genPattern doTest bindings0 dpatterns genBody
+  = do (testss,localss,bindingss,nextPatternss) <- fmap (unzip4 . concat) $
+                                                     mapM (genPatternTest doTest) dpatterns
        let tests  = concat testss
            locals = concat localss
+           bindings = bindings0 ++ concat bindingss
            nextPatterns = concat nextPatternss
 
-       ndoc <- genPattern doTest gfree nextPatterns genBody
+       ndoc <- genPattern doTest bindings nextPatterns genBody
        if (null tests)
         then return (vcat (locals ++ [ndoc]))
         else return (text "if" <+> parensIf (hcat (punctuate (text " && ") tests))
                       <+> block (vcat (locals ++ [ndoc])))
 
-genPatternTest :: Bool -> TNames -> (Doc,Pattern) -> Asm [([Doc],[Doc],[(Doc,Pattern)])]
-genPatternTest doTest gfree (exprDoc,pattern)
+genPatternTest :: Bool -> (Doc,Pattern) -> Asm [([Doc],[Doc],Bindings,[(Doc,Pattern)])]
+genPatternTest doTest (exprDoc,pattern)
   = let test xs = if doTest then xs else [] in
     case pattern of
       PatWild -> return []
@@ -1526,30 +1535,33 @@ genPatternTest doTest gfree (exprDoc,pattern)
                   -- assign  = []
                   -- unbox   = genBoxCall "unbox" True {- borrowing -} targ exprDoc
                   next    = genNextPatterns (\self fld -> self) unbox targ [pattern]                  
-              return [([],assign,next)]
+              return [([],assign,[],next)]
       PatVar tname pattern
-        -> do let after = if (patternVarFree pattern && not (tnamesMember tname gfree)) then []
-                           else [ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <.> semi]
+        -> do let binding = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <.> semi
+                  eagerAssign = False
+                  (assign,bindings) = if (patternVarFree pattern && not eagerAssign) 
+                                        then ([],[(tname,binding)])
+                                        else ([binding],[])                  
                   next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
-              return [([],after,next)]
+              return [([],assign,bindings,next)]
       PatLit (LitString s)
-        -> return [(test [text "kk_string_cmp_cstr_borrow" <.> arguments [exprDoc,fst (cstring s)] <+> text "== 0"],[],[])]
+        -> return [(test [text "kk_string_cmp_cstr_borrow" <.> arguments [exprDoc,fst (cstring s)] <+> text "== 0"],[],[],[])]
       PatLit lit@(LitInt _)
-        -> return [(test [text "kk_integer_eq_borrow" <.> arguments [exprDoc,ppLit lit]],[],[])]
+        -> return [(test [text "kk_integer_eq_borrow" <.> arguments [exprDoc,ppLit lit]],[],[],[])]
       PatLit lit
-        -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[])]
+        -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[],[])]
       PatCon tname patterns repr targs exists tres info skip
         -> -- trace ("patCon: " ++ show info ++ ","  ++ show tname ++ ", " ++ show repr) $
            case repr of
                  ConEnum{}  | conInfoName info == nameTrue
-                    -> return [(xtest [exprDoc],[],[])]
+                    -> return [(xtest [exprDoc],[],[],[])]
                  ConEnum{} | conInfoName info == nameFalse
-                    -> return [(xtest [text "!" <.> parens exprDoc],[],[])]
+                    -> return [(xtest [text "!" <.> parens exprDoc],[],[],[])]
                  ConAsJust{} 
                     -> do let next = genNextPatterns 
                                         (\self fld -> text "kk_datatype_unJust" <.> arguments [self]) 
                                         exprDoc (typeOf tname) patterns
-                          return [(xtest [conTestName info <.> arguments [exprDoc]],[],next)]
+                          return [(xtest [conTestName info <.> arguments [exprDoc]],[],[],next)]
                  _  -> let dataRepr = conDataRepr repr
                        in if (dataReprIsValue dataRepr || isConSingleton repr)
                            then valTest tname info dataRepr
@@ -1557,7 +1569,7 @@ genPatternTest doTest gfree (exprDoc,pattern)
         where
           xtest xs = if skip then [] else test xs
 
-          valTest :: TName -> ConInfo -> DataRepr -> Asm [([Doc],[Doc],[(Doc,Pattern)])]
+          valTest :: TName -> ConInfo -> DataRepr -> Asm [([Doc],[Doc],Bindings,[(Doc,Pattern)])]
           valTest conName conInfo dataRepr
             = --do let next = genNextPatterns (exprDoc) (typeOf tname) patterns
               --   return [(test [conTestName conInfo <.> parens exprDoc],[assign],next)]
@@ -1565,14 +1577,14 @@ genPatternTest doTest gfree (exprDoc,pattern)
                                  then "._cons." ++ show (ppDefName (getName conName)) ++ "."
                                  else "."
                      next = genNextPatterns (\self fld -> self <.> text selectOp <.> fld) exprDoc (typeOf tname) patterns
-                 return [(xtest [conTestName conInfo <.> arguments [exprDoc]],[],next)]
+                 return [(xtest [conTestName conInfo <.> arguments [exprDoc]],[],[],next)]
 
           conTest conInfo
             = do local <- newVarName "con"
                  let next    = genNextPatterns (\self fld -> self <.> text "->" <.> fld) (ppDefName local) (typeOf tname) patterns
                      typeDoc = text "struct" <+> ppName (conInfoName conInfo) <.> text "*"
                      assign  = typeDoc <+> ppDefName local <+> text "=" <+> conAsName conInfo <.> arguments [exprDoc] <.> semi
-                 return [(xtest [conTestName conInfo <.> arguments [exprDoc]],[assign],next)]
+                 return [(xtest [conTestName conInfo <.> arguments [exprDoc]],[assign],[],next)]
 
 patternVarFree  pat
   = case pat of
@@ -2666,3 +2678,7 @@ resultType tp
   = case splitFunScheme tp of
       Just (_,_,_,_,resTp) -> resTp
       _ -> failure ("Backend.C.FromCore.resultType: not a function type: " ++ show (pretty tp))
+
+unzip4 xs = unzipx4 [] [] [] [] xs
+unzipx4 acc1 acc2 acc3 acc4 []           = (reverse acc1, reverse acc2, reverse acc3, reverse acc4)
+unzipx4 acc1 acc2 acc3 acc4 ((x,y,z,zz):xs) = unzipx4 (x:acc1) (y:acc2) (z:acc3) (zz:acc4) xs
