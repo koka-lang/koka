@@ -8,8 +8,10 @@
 
 static kk_std_core_types__tuple2_ kk_timer_ticks_tuple(kk_context_t* ctx) {
   kk_duration_t d = kk_timer_ticks(ctx);
-  double frac = (double)d.attoseconds * 1e-18;
+  // the conversion has about 15 digits of precision
+  // we cannot do this more precisely as the api expects the fraction between 0.0 and 2.0 (for leap seconds).  
   double secs = (double)d.seconds;
+  double frac = (double)d.attoseconds * 1e-18;
   return kk_std_core_types__new_dash__lp__comma__rp_( kk_double_box(secs,ctx), kk_double_box(frac,ctx), ctx );
 }
 
