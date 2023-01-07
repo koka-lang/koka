@@ -32,6 +32,9 @@ pub fun timespan( seconds : int, frac : float64 = 0.0 ) : timespan
 pub fun timespan( secs : float64 ) : timespan
   ddouble(secs)
 
+pub fun timespan( secs : float64, frac : float64 ) : timespan
+  ddouble(secs,frac)
+
 // Timespan from a `:ddouble`. Just for convenience as `:timespan` is an alias
 pub fun timespan( secs : ddouble ) : timespan
   secs

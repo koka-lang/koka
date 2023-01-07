@@ -339,14 +339,14 @@ To indicate a time in a leap second, you can use a fraction `frac` that is large
 This works well for systems that support [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html).
 */
 pub fun unix-instant( u : float64, frac : float64 = 0.0, ts : timescale = ts-ti ) : instant
-  val t    = u.ddouble + frac.fraction.ddouble
+  val t    = timespan(u,frac.fraction)
   val leap = frac.truncate.int
   unix-instant(t,leap,ts)
 
 // Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
 // Use a fraction `> 1` to indicate a time inside a leap second.
 pub fun unix-instant( u : int, frac : float64 = 0.0, ts : timescale = ts-ti ) : instant
-  val t    = u.ddouble + frac.fraction.ddouble
+  val t    = timespan(u.ddouble + frac.fraction.ddouble)
   val leap = frac.truncate.int
   unix-instant(t,leap,ts)
 
@@ -491,14 +491,14 @@ to +33. This looks like:
 UTC-to-TAI-delta:                        ... +32   |   +33 ...
 
 UTC timestamp          189388799   189388799+1  189388800
-UTC 2015-12-31T23:59:     59          60   leap    00
+UTC 2005-12-31T23:59:     59          60   leap    00
                  ---------|-----------|xxxxxxxxxxxx|-------------
                           |           |            |
-TAI 2016-01-01T00:00:     31          32           33
+TAI 2006-01-01T00:00:     31          32           33
 TAI timestamp:         189388831   189388832    189388833
 
 In the code below, suppose `tai` is `189388832.5`.
-The we estimate at first the delta `dtai0` to +33, so our
+Then we estimate at first the delta `dtai0` to +33, so our
 estimate `utc0` is `189388799.5` (just before the leap step!).
 We then use `utc0` to get delta-TAI at that time, +32 and
 set the difference `diff` to `(33-32) == 1` -- the time of the

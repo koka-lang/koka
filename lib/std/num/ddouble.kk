@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2017-2021, Microsoft Research, Daan Leijen.
+  Copyright 2017-2022, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -87,14 +87,13 @@ exact          : 3.14784204874900425235885265494550774498...e-16
 ````
 For this kind of example, a `:ddouble` has better precision than a
 regular 128-bit IEEE float since it can combine very large and
-small values. (Kahan [@Kahan:triangle] shows how to rewrite the equations
-to avoid magnifying rounding errors -- in that case the result for
-IEEE 128-bit floats becomes:
+small values. Note that Kahan [@Kahan:triangle] shows how to rewrite the area equation
+to avoid magnifying rounding errors -- in that case the result for IEEE 128-bit floats becomes:
 ````
 128-bit ieee x : 3.147842048749004252358852654945507\([92210]{color:#F88}\)e-16
 ````
 
-The implementation is based closely on the [QD] C++ library [@Hida:qd;@Hida:qdlib],
+The implementation is based closely on the excellent [QD] C++ library [@Hida:qd;@Hida:qdlib],
 and assumes proper 64-bit IEEE `:float64`s with correct rounding.
 Integers can be represented precisely up to 30 decimal digits (and a bit more...
 up to 2^106^ - 2).
@@ -166,7 +165,7 @@ import std/num/float64
 import std/num/decimal
 import std/text/parse
 
-/* The `:ddouble` type implements [float64 float64][ddwiki] 128-bit floating point numbers
+/* The `:ddouble` type implements [double double][ddwiki] 128-bit floating point numbers
 as a pair of IEEE `:float64` values. This extends the precision to 31 decimal digits
 (versus 15 for `:float64`), but keeps the same range as
 a `:float64` with a maximum  value of about 1.8&middot;10^308^. Because
@@ -416,6 +415,11 @@ pub fun (+)( x : ddouble, y : ddouble ) : ddouble
   val z2 = quicksum(z1.num,e1)
   val e2 = z2.err + lo.err
   dquicksum(z2.num,e2)
+
+
+// Create a `:ddouble` as the sum of two `:float64`'s.
+pub fun ddouble( x : float64, y : float64 ) : ddouble
+  if y.is-zero then ddouble(x) else dsum(x,y)
 
 // Negate a `:ddouble`.
 pub fun (~)( x : ddouble ) : ddouble
