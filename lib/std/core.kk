@@ -683,6 +683,36 @@ pub fun any( xs : list<a>, predicate : a -> e bool ) : e bool
     Cons(x,xx) -> if predicate(x) then True else xx.any(predicate)
     Nil -> False
 
+// Generate all permutations.
+pub fun permutations ( l : list<char>
+                     ) : div list<list<char>>
+  fun aux ( k : int
+          , v : vector<char>
+          , vl : int = v.length
+          ) : div list<list<char>>
+    fun sub ( e  : char
+            , la : list<char>
+            ) : list<char>
+      match la
+        []            -> []
+        Cons (x , xs) -> if x == e
+                           then xs
+                           else x.single
+                                ++
+                                sub(e,xs)
+    match at(v,k)
+      Nothing -> []
+      Just(i) -> if k < vl - 1
+                   then reverse-append( sub(i,l).permutations.map(fn (x) i.single ++ x)
+                                      , aux(k + 1,v)
+                                      )
+                   else sub(i,l)
+                        .permutations
+                        .map(fn (x) i.single ++ x)
+  match l.length
+    1 -> [l]
+    _ -> aux(0,l.vector)
+
 // ----------------------------------------------------------------------------
 // Characters
 // ----------------------------------------------------------------------------
