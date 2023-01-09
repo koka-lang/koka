@@ -713,6 +713,67 @@ pub fun permutations ( l : list<char>
     1 -> [l]
     _ -> aux(0,l.vector)
 
+// Generate all permutations.
+pub fun permutations ( l : list<int>
+                     ) : pure list<list<int>>
+  fun nextperm ( li : list<int>
+               , lv : vector<int> = li.vector
+               , n : int = li.length
+               ) : pure list<list<int>>
+    fun auxi1 ( i    : int
+              , lrvi : vector<int>
+              ) : pure int
+      if (i < 0) ||
+         (lrvi[i] < lrvi[i + 1])
+        then i
+        else auxi1(i - 1,lrvi)
+    fun auxi2 ( j     : int
+              , k     : int
+              , lrvii : vector<int>
+              ) : pure vector<int>
+      var kr := k
+      var jr := j
+      var lrviit := lrvii
+      var t := lrvii[j]
+      while { jr < kr }
+        t := lrvii[jr]
+        lrviit[jr] := lrvii[kr]
+        lrviit[kr] := t
+        kr := kr - 1
+        jr := jr + 1
+      lrviit
+    fun auxif ( i  : int
+              , v  : vector<int>
+              )
+      fun auxi3 ( j    : int
+                , lrvi : vector<int>
+                ) : pure int
+        if lrvi[j] > lrvi[i]
+          then j
+          else auxi3(j + 1,lrvi)
+      fun auxi4 ( i4     : int
+                , j      : int
+                , lrviii : vector<int>
+                ) : pure vector<int>
+        var llrviii := lrviii
+        var t := lrviii[i4]
+        llrviii[i4] := llrviii[j]
+        llrviii[j] := t
+        llrviii
+      auxi4(i,auxi3(i + 1,v),v)
+    match li
+      [] -> []
+      _  -> match auxi1(n - 2,lv) >= 0
+              False -> []
+              True  -> [auxif(auxi1(n - 2,lv),auxi2(auxi1(n - 2,lv) + 1,n - 1,lv)).list]
+                       ++
+                       nextperm(auxif(auxi1(n - 2,lv),auxi2(auxi1(n - 2,lv) + 1,n - 1,lv)).list)
+  match l
+    [] -> []
+    _  -> [l]
+          ++
+          nextperm(l)
+
 // ----------------------------------------------------------------------------
 // Characters
 // ----------------------------------------------------------------------------
