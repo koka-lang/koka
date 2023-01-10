@@ -12,3 +12,21 @@ fun lexParse(insSemi: bool, preprocess: list<lexeme> -> list<lexeme>, p: (source
   val r = read-text-file(sourceName.path)
   with parse(r.slice)
   p(Source(sourceName, r))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // fun semiColon()
+  //   parseLex LexInsSemi 
