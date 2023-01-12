@@ -963,10 +963,10 @@ buildVariant flags
                         WasmJs -> "-wasmjs"
                         WasmWeb-> "-wasmweb"
                         _      | platformHasCompressedFields (platform flags)
-                               -> "-x" ++ show (8 * sizePtr (platform flags)) ++ "c"
+                               -> "-" ++ cpuArch ++ "c"
                                | otherwise -> "")                       
-                 JS _  -> "js"
-                 _     -> show (target flags)
+                 JS _  -> "-js"
+                 _     -> "-" ++ show (target flags)
     in pre ++ "-" ++ show (buildType flags)
 
 
