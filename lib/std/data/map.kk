@@ -235,15 +235,109 @@ pub fun deleteMax(m: map<k,a>): exn map<k,a>
     Bin(_, _, _, l, Tip) -> l
     Bin(_, kx, x, l, r) -> balance(kx, x, l, r.deleteMax())
 
-// TODO: Update / view methods / unions / diff / int / etc
+pub fun updateMin(m: map<k,a>, f: (a) -> maybe<a>): <comparable<k>,exn> map<k,a>
+  m.updateMinWithKey(fn(_, x) f(x))
+
+pub fun updateMax(m: map<k,a>, f: (a) -> maybe<a>): <comparable<k>,exn> map<k,a>
+  m.updateMaxWithKey(fn(_, x) f(x))
+
+pub fun updateMinWithKey(m: map<k,a>, f: (k, a) -> maybe<a>): <comparable<k>,exn> map<k,a>
+  match m
+    Tip -> Tip
+    Bin(sx, kx, x, Tip, r) -> match f(kx, x)
+                               Nothing -> r
+                               Just(x') -> Bin(sx, kx, x', Tip, r)
+    Bin(_, kx, x, l, r) -> balance(kx, x, l.updateMinWithKey(f), r)
+
+pub fun updateMaxWithKey(m: map<k,a>, f: (k, a) -> maybe<a>): <comparable<k>,exn> map<k,a>
+  match m
+    Tip -> Tip
+    Bin(sx, kx, x, l, Tip) -> match f(kx, x)
+                               Nothing -> l
+                               Just(x') -> Bin(sx, kx, x', l, Tip)
+    Bin(_, kx, x, l, r) -> balance(kx, x, l, r.updateMaxWithKey(f))
+
+pub fun minViewWithKey(m: map<k,a>): exn maybe<((k,a),map<k,a>)>
+  match m
+    Tip -> Nothing
+    _ -> Just(m.deleteFindMin())
+
+pub fun maxViewWithKey(m: map<k,a>): exn maybe<((k,a),map<k,a>)>
+  match m
+    Tip -> Nothing
+    _ -> Just(m.deleteFindMax())
+
+pub fun minView(m: map<k,a>): exn maybe<(a, map<k,a>)>
+  match m
+    Tip -> Nothing
+    _ ->
+      val ((_, x), m') = m.deleteFindMin()
+      Just((x, m'))
+
+pub fun maxView(m: map<k,a>): exn maybe<(a, map<k,a>)>
+  match m
+    Tip -> Nothing
+    _ ->
+      val ((_, x), m') = m.deleteFindMax()
+      Just((x, m'))
+
+// pub fun unions(mps: list<map<k,a>>): map<k,a>
+//   mps.foldl(empty, union)
+
+// pub fun unionsWith(mps: list<map<k,a>>): map<k,a>
+//   mps.foldl(empty, fn(a, b) a.unionWith(b, f))
+
+// pub fun union(m1: map<k,a>, m2: map<k,a>): map<k,a>
+//   match (m1, m2)
+//     (Tip, _) -> m2
+//     (_, Tip) -> m1
+//     (_, _) -> hedgeUnionL(m1, m2)
+
+// pub fun hedgeUnionL(m1: map<k,a>, m2: map<k,a>): map<k,a>
+//   match (m1, m2)
+//     (_, Tip) -> m1
+//     (Tip, Bin(_, kx, x, l, r)) -> join(kx, x, filterGt, c)
+// TODO: unions / diff / int / etc
 
 
 
 
 
 
+pub fun showTreeWith(m: map<k,a>, hang: bool, wide: bool, f: (k,a) -> string): string
+  if hang then
+    m.showsTreeHang(f, wide, [], "")
+  else
+    m.showsTree(f, wide, [], [], "")
 
+fun showsTree(m: map<k,a>, f: (k,a) -> string, wide: bool, lbars: list<string>, rbars: list<string>, s:string): string
+  match m
+    Tip -> s ++ showsBars(lbars) ++ "|\n"
+    Bin(_, kx, x, Tip, Tip) -> s ++ showsBars(lbars) ++ f(kx, x) ++ "\n"
+    Bin(_, kx, x, l, r) -> s ++ r.showsTree(f, wide, withBar(rbars), withEmpty(rbars), "") ++ showWide(wide, rbars) ++ showsBars(lbars) ++ f(kx, x) ++ "\n" ++ showWide(wide, lbars) ++ l.showsTree(f, wide, withEmpty(lbars), withBar(lbars), "")
 
+fun showsTreeHang(m: map<k,a>, f: (k,a) -> string, wide: bool, bars: list<string>, s: string): string
+  match m
+    Tip -> s ++ showsBars(bars) ++ "|\n"
+    Bin(_, kx, x, Tip, Tip) -> s ++ showsBars(bars) ++ f(kx,x) ++ "\n"
+    Bin(_, kx, x, l, r) -> s ++ showsBars(bars) ++ f(kx,x) ++ "\n" ++ showWide(wide, bars) ++ l.showsTreeHang(f, wide, withBar(bars), "") ++ showWide(wide, bars) ++ r.showsTreeHang(f, wide, withEmpty(bars), "")
+
+fun showWide(wide: bool, bars: list<string>): string
+  if wide then
+    bars.foldr("", fn(b, s1) b ++ s1) ++ "|\n"
+  else
+    ""
+
+fun showsBars(bars: list<string>): string
+  match bars
+    [] -> ""
+    _ -> bars.tail.foldr("", fn(b, s) b ++ s) ++ "+--"
+
+fun withBar(bars: list<string>): list<string>
+  Cons("|  ", bars)
+
+fun withEmpty(bars: list<string>): list<string>
+  Cons("   ", bars)
 
 
 fun glue(l: map<k,a>, r: map<k,a>): exn map<k,a>
