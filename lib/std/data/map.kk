@@ -299,68 +299,205 @@ pub fun maxView(m: map<k,a>): exn maybe<(a, map<k,a>)>
 //     (Tip, Bin(_, kx, x, l, r)) -> join(kx, x, filterGt, c)
 // TODO: unions / diff / int / etc
 
+// TODO: Eq typeclass methods
+pub fun isSubmapOfBy(m1: map<k,a>, m2: map<k,b>, f: (a, b) -> bool): <comparable<k>,exn> bool
+  m1.size < m2.size && m1.submap'(m2, f)
 
-pub alias stringthread = (string) -> string
+fun submap'(m1: map<k,a>, m2: map<k,b>, f: (a, b) -> bool): <comparable<k>,exn> bool
+  match (m1, m2)
+    (Tip, _) -> True
+    (_, Tip) -> False
+    (Bin(_, kx, x, l, r), t) ->
+      val (lt, found, gt) = t.splitLookup(kx)
+      match found
+        Nothing -> False
+        Just(y) -> f(x, y) && l.unsafe-decreasing().submap'(lt, f) && r.unsafe-decreasing().submap'(gt, f)
 
-pub fun thread(f: stringthread, g: stringthread): stringthread
-  fn(x) f(g(x))
+pub fun isProperSubmapOfBy(m1: map<k,a>, m2: map<k,b>, f: (a, b) -> bool): <comparable<k>,exn> bool
+  m1.size < m2.size && m1.submap'(m2, f)
 
-pub fun thread(f: stringthread, g: string): stringthread
-  fn(x) f(x) ++ g
+pub fun filter(m: map<k,a>, f: (a) -> bool): exn map<k,a>
+  m.filterWithKey(fn(_, x) f(x))
 
-pub fun showString(s: string): stringthread
-  fn(x) s ++ x
-
-pub fun showTreeWith(m: map<k,a>, hang: bool, wide: bool, f: (k,a) -> string): string
-  if hang then
-    m.showsTreeHang(f, wide, [])("")
-  else
-    m.showsTree(f, wide, [], [])("")
-
-fun showsTree(m: map<k,a>, f: (k,a) -> string, wide: bool, lbars: list<string>, rbars: list<string>): stringthread
+pub fun filterWithKey(m: map<k,a>, f: (k, a) -> bool): exn map<k,a>
   match m
-    Tip -> 
-      showsBars(lbars).thread("|\n")
-    Bin(_, kx, x, Tip, Tip) -> 
-      showsBars(lbars).thread(f(kx, x)).thread("\n")
-    Bin(_, kx, x, l, r) -> 
-      r.showsTree(f, wide, withBar(rbars), withEmpty(rbars))
-      .thread(showWide(wide, rbars))
-      .thread(showsBars(lbars))
-      .thread(f(kx, x)).thread("\n")
-      .thread(showWide(wide, lbars))
-      .thread(l.showsTree(f, wide, withEmpty(lbars), withBar(lbars)))
+    Tip -> Tip
+    Bin(_, kx, x, l, r) ->
+      if f(kx, x) then
+        join(kx, x, l.filterWithKey(f), r.filterWithKey(f))
+      else
+        merge(l.filterWithKey(f), r.filterWithKey(f))
 
-fun showsTreeHang(m: map<k,a>, f: (k,a) -> string, wide: bool, bars: list<string>): stringthread
+pub fun partition(m: map<k,a>, f: (a) -> bool): exn (map<k,a>, map<k,a>)
+  m.partitionWithKey(fn(_, x) f(x))
+
+pub fun partitionWithKey(m: map<k,a>, f: (k, a) -> bool): exn (map<k,a>, map<k,a>)
   match m
-    Tip -> 
-      showsBars(bars).thread("|\n")
-    Bin(_, kx, x, Tip, Tip) -> 
-      showsBars(bars).thread(f(kx,x)).thread("\n")
-    Bin(_, kx, x, l, r) -> 
-      showsBars(bars).thread(f(kx,x)).thread("\n")
-      .thread(showWide(wide, bars))
-      .thread(l.showsTreeHang(f, wide, withBar(bars)))
-      .thread(showWide(wide, bars))
-      .thread(r.showsTreeHang(f, wide, withEmpty(bars)))
+    Tip -> (Tip, Tip)
+    Bin(_, kx, x, l, r) ->
+      val (l1, l2) = l.partitionWithKey(f)
+      val (r1, r2) = r.partitionWithKey(f)
+      if f(kx, x) then
+        (join(kx, x, l1, r1), merge(l2, r2))
+      else
+        (merge(l1, r1), join(kx, x, l2, r2))
 
-fun showWide(wide: bool, bars: list<string>): stringthread
-  if wide then
-    showString(bars.foldr("", fn(b, s1) b ++ s1) ++ "|\n")
-  else
-    id
+pub fun mapMaybe(m: map<k,a>, f: (a) -> maybe<b>): exn map<k,b>
+  m.mapMaybeWithKey(fn(_, x) f(x))
 
-fun showsBars(bars: list<string>): stringthread
-  match bars
-    [] -> id
-    _ -> showString(bars.tail.foldr("", fn(b, s) b ++ s) ++ "+--")
+pub fun mapMaybeWithKey(m: map<k,a>, f: (k, a) -> maybe<b>): exn map<k,b>
+  match m
+    Tip -> Tip
+    Bin(_, kx, x, l, r) ->
+      match f(kx, x)
+        Nothing -> merge(l.mapMaybeWithKey(f), r.mapMaybeWithKey(f))
+        Just(y) -> join(kx, y, l.mapMaybeWithKey(f), r.mapMaybeWithKey(f))
 
-fun withBar(bars: list<string>): list<string>
-  Cons("|  ", bars)
+pub fun mapEither(m: map<k,a>, f: (a) -> either<b,c>): exn (map<k,b>, map<k,c>)
+  m.mapEitherWithKey(fn(_, x) f(x))
 
-fun withEmpty(bars: list<string>): list<string>
-  Cons("   ", bars)
+pub fun mapEitherWithKey(m: map<k,a>, f: (k, a) -> either<b,c>): exn (map<k,b>, map<k,c>)
+  match m
+    Tip -> (Tip, Tip)
+    Bin(_, kx, x, l, r) ->
+      val (l1, l2) = l.mapEitherWithKey(f)
+      val (r1, r2) = r.mapEitherWithKey(f)
+      match f(kx, x)
+        Left(y) ->
+          (join(kx, y, l1, r1), merge(l2, r2))
+        Right(y) ->
+          (merge(l1, r1), join(kx, y, l2, r2))
 
+pub fun map(m: map<k,a>, f: (a) -> b): exn map<k,b>
+  m.mapWithKey(fn(_, x) f(x))
+
+pub fun mapWithKey(m: map<k,a>, f: (k, a) -> b): exn map<k,b>
+  match m
+    Tip -> Tip
+    Bin(sz, kx, x, l, r) ->
+      Bin(sz, kx, f(kx, x), l.mapWithKey(f), r.mapWithKey(f))
+
+pub fun mapAccum(m: map<k,b>, a: a, f: (a, b) -> (a,c)): (a, map<k,c>)
+  m.mapAccumWithKey(a, fn(a', _, x') f(a', x'))
+
+pub fun mapAccumWithKey(m: map<k,b>, a: a, f: (a, k, b) -> (a,c)): (a, map<k,c>)
+  match m
+    Tip -> (a, Tip)
+    Bin(sx, kx, x, l, r) ->
+      val (a', r') = r.mapAccumWithKey(a, f)
+      val (a'', x') = f(a', kx, x)
+      val (a''', l') = l.mapAccumWithKey(a'', f)
+      (a''', Bin(sx, kx, x', l', r'))
+
+// TODO: Stuff here
+
+pub fun fold(m: map<k,a>, b: b, f: (a, b) -> b): b
+  m.foldrWithKey(b, fn(_, x, y) f(x, y))
+
+pub fun foldrWithKey(m: map<k,a>, b: b, f: (k, a, b) -> b): b
+  match m
+    Tip -> b
+    Bin(_, kx, x, l, r) ->
+      l.foldrWithKey(f(kx, x, r.foldrWithKey(b, f)), f)
+
+pub fun foldlWithKey(m: map<k,a>, b: b, f: (k, a, b) -> b): b
+  match m
+    Tip -> b
+    Bin(_, kx, x, l, r) ->
+      r.foldlWithKey(f(kx, x, l.foldlWithKey(b, f)), f)
+
+// TODO: Stuff here
+
+pub fun filterGt(m: map<k,a>, cmp: (k) -> order): exn map<k,a>
+  match m
+    Tip -> Tip
+    Bin(_, kx, x, l, r) ->
+      match cmp(kx)
+        Lt -> join(kx, x, l.filterGt(cmp), r)
+        Gt -> r.filterGt(cmp)
+        Eq -> r
+
+pub fun filterLt(m: map<k,a>, cmp: (k) -> order): exn map<k,a>
+  match m
+    Tip -> Tip
+    Bin(_, kx, x, l, r) ->
+      match cmp(kx)
+        Lt -> l.filterLt(cmp)
+        Gt -> join(kx, x, l, r.filterLt(cmp))
+        Eq -> l
+
+pub fun split(m: map<k,a>, k: k): <comparable<k>,exn> (map<k,a>, map<k,a>)
+  match m
+    Tip -> (Tip, Tip)
+    Bin(_, kx, x, l, r) ->
+      match compare(k, kx)
+        Lt -> 
+          val (lt, gt) = l.split(k)
+          (lt, join(kx, x, gt, r))
+        Gt -> 
+          val (lt, gt) = r.split(k)
+          (join(kx, x, l, lt), gt)
+        Eq -> (l, r)
+
+fun splitLookup(m: map<k,a>, k: k): <comparable<k>,exn> (map<k,a>, maybe<a>, map<k,a>)
+  match m
+    Tip -> (Tip, Nothing, Tip)
+    Bin(_, kx, x, l, r) ->
+      match compare(k, kx)
+        Lt -> 
+          val (lt, found, gt) = l.splitLookup(k)
+          (lt, found, join(kx, x, gt, r))
+        Gt -> 
+          val (lt, found, gt) = r.splitLookup(k)
+          (join(kx, x, l, lt), found, gt)
+        Eq -> (l, Just(x), r)
+
+fun splitLookupWithKey(m: map<k,a>, k: k): <comparable<k>,exn> (map<k,a>, maybe<(k,a)>, map<k,a>)
+  match m
+    Tip -> (Tip, Nothing, Tip)
+    Bin(_, kx, x, l, r) ->
+      match compare(k, kx)
+        Lt -> 
+          val (lt, found, gt) = l.splitLookupWithKey(k)
+          (lt, found, join(kx, x, gt, r))
+        Gt -> 
+          val (lt, found, gt) = r.splitLookupWithKey(k)
+          (join(kx, x, l, lt), found, gt)
+        Eq -> (l, Just((kx, x)), r)
+
+fun join(kx: k, x: a, l: map<k,a>, r: map<k,a>): exn map<k,a>
+  match (l, r)
+    (Tip, _) -> insertMin(r, kx, x)
+    (_, Tip) -> insertMax(l, kx, x)
+    (Bin(sizeL, ky, y, ly, ry), Bin(sizeR, kz, z, lz, rz)) ->
+      if delta*sizeL <= sizeR then
+        balance(kz, z, join(kx, x, l.unsafe-decreasing(), lz.unsafe-decreasing()), rz)
+      elif delta*sizeR <= sizeL then
+        balance(ky, y, ly, join(kx, x, ry.unsafe-decreasing(), r.unsafe-decreasing()))
+      else
+        bin(kx, x, l, r)
+
+fun insertMax(m: map<k,a>, kx: k, x: a): exn map<k,a>
+  match m
+    Tip -> singleton(kx, x)
+    Bin(_, ky, y, l, r) -> balance(ky, y, l, r.insertMax(kx, x))
+
+fun insertMin(m: map<k,a>, kx: k, x: a): exn map<k,a>
+  match m
+    Tip -> singleton(kx, x)
+    Bin(_, ky, y, l, r) -> balance(ky, y, l.insertMin(kx, x), r)
+
+fun merge(l: map<k,a>, r: map<k,a>): exn map<k,a>
+  match (l, r)
+    (Tip, _) -> r
+    (_, Tip) -> l
+    (Bin(sizeL, kx, x, lx, rx), Bin(sizeR, ky, y, ly, ry)) -> 
+      if sizeL*delta <= sizeR then
+        balance(ky, y, merge(l.unsafe-decreasing(),ly.unsafe-decreasing()), ry)
+      elif sizeR*delta <= sizeL then
+        balance(kx, x, lx, merge(rx.unsafe-decreasing(), r.unsafe-decreasing()))
+      else
+        glue(l, r)
 
 fun glue(l: map<k,a>, r: map<k,a>): exn map<k,a>
   match (l, r)
@@ -445,3 +582,65 @@ fun doubleR(k1: k, x1: a, l: map<k,a>, t4: map<k,a>): exn map<k,a>
 
 inline fun bin(k: k, a: a, l: map<k,a>, r: map<k,a>): map<k,a>
   Bin(l.size + r.size + 1, k, a, l, r)
+
+
+pub alias stringthread = (string) -> string
+
+pub fun thread(f: stringthread, g: stringthread): stringthread
+  fn(x) g(f(x))
+
+pub fun thread(f: stringthread, g: string): stringthread
+  fn(x) g ++ f(x)
+
+pub fun showString(s: string): stringthread
+  fn(x) s ++ x
+
+pub fun showTreeWith(m: map<k,a>, hang: bool, wide: bool, f: (k,a) -> string): string
+  if hang then
+    m.showsTreeHang(f, wide, [])("")
+  else
+    m.showsTree(f, wide, [], [])("")
+
+fun showsTree(m: map<k,a>, f: (k,a) -> string, wide: bool, lbars: list<string>, rbars: list<string>): stringthread
+  match m
+    Tip -> 
+      showsBars(lbars).thread("|\n")
+    Bin(_, kx, x, Tip, Tip) -> 
+      showsBars(lbars).thread(f(kx, x)).thread("\n")
+    Bin(_, kx, x, l, r) -> 
+      r.showsTree(f, wide, withBar(rbars), withEmpty(rbars))
+      .thread(showWide(wide, rbars))
+      .thread(showsBars(lbars))
+      .thread(f(kx, x)).thread("\n")
+      .thread(showWide(wide, lbars))
+      .thread(l.showsTree(f, wide, withEmpty(lbars), withBar(lbars)))
+
+fun showsTreeHang(m: map<k,a>, f: (k,a) -> string, wide: bool, bars: list<string>): stringthread
+  match m
+    Tip -> 
+      showsBars(bars).thread("|\n")
+    Bin(_, kx, x, Tip, Tip) -> 
+      showsBars(bars).thread(f(kx,x)).thread("\n")
+    Bin(_, kx, x, l, r) -> 
+      showsBars(bars).thread(f(kx,x)).thread("\n")
+      .thread(showWide(wide, bars))
+      .thread(l.showsTreeHang(f, wide, withBar(bars)))
+      .thread(showWide(wide, bars))
+      .thread(r.showsTreeHang(f, wide, withEmpty(bars)))
+
+fun showWide(wide: bool, bars: list<string>): stringthread
+  if wide then
+    showString(bars.foldr("", fn(b, s1) b ++ s1) ++ "|\n")
+  else
+    id
+
+fun showsBars(bars: list<string>): stringthread
+  match bars
+    [] -> id
+    _ -> showString(bars.tail.foldr("", fn(b, s) b ++ s) ++ "+--")
+
+fun withBar(bars: list<string>): list<string>
+  Cons("|  ", bars)
+
+fun withEmpty(bars: list<string>): list<string>
+  Cons("   ", bars)
