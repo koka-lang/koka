@@ -300,38 +300,60 @@ pub fun maxView(m: map<k,a>): exn maybe<(a, map<k,a>)>
 // TODO: unions / diff / int / etc
 
 
+pub alias stringthread = (string) -> string
 
+pub fun thread(f: stringthread, g: stringthread): stringthread
+  fn(x) f(g(x))
 
+pub fun thread(f: stringthread, g: string): stringthread
+  fn(x) f(x) ++ g
 
+pub fun showString(s: string): stringthread
+  fn(x) s ++ x
 
 pub fun showTreeWith(m: map<k,a>, hang: bool, wide: bool, f: (k,a) -> string): string
   if hang then
-    m.showsTreeHang(f, wide, [], "")
+    m.showsTreeHang(f, wide, [])("")
   else
-    m.showsTree(f, wide, [], [], "")
+    m.showsTree(f, wide, [], [])("")
 
-fun showsTree(m: map<k,a>, f: (k,a) -> string, wide: bool, lbars: list<string>, rbars: list<string>, s:string): string
+fun showsTree(m: map<k,a>, f: (k,a) -> string, wide: bool, lbars: list<string>, rbars: list<string>): stringthread
   match m
-    Tip -> s ++ showsBars(lbars) ++ "|\n"
-    Bin(_, kx, x, Tip, Tip) -> s ++ showsBars(lbars) ++ f(kx, x) ++ "\n"
-    Bin(_, kx, x, l, r) -> s ++ r.showsTree(f, wide, withBar(rbars), withEmpty(rbars), "") ++ showWide(wide, rbars) ++ showsBars(lbars) ++ f(kx, x) ++ "\n" ++ showWide(wide, lbars) ++ l.showsTree(f, wide, withEmpty(lbars), withBar(lbars), "")
+    Tip -> 
+      showsBars(lbars).thread("|\n")
+    Bin(_, kx, x, Tip, Tip) -> 
+      showsBars(lbars).thread(f(kx, x)).thread("\n")
+    Bin(_, kx, x, l, r) -> 
+      r.showsTree(f, wide, withBar(rbars), withEmpty(rbars))
+      .thread(showWide(wide, rbars))
+      .thread(showsBars(lbars))
+      .thread(f(kx, x)).thread("\n")
+      .thread(showWide(wide, lbars))
+      .thread(l.showsTree(f, wide, withEmpty(lbars), withBar(lbars)))
 
-fun showsTreeHang(m: map<k,a>, f: (k,a) -> string, wide: bool, bars: list<string>, s: string): string
+fun showsTreeHang(m: map<k,a>, f: (k,a) -> string, wide: bool, bars: list<string>): stringthread
   match m
-    Tip -> s ++ showsBars(bars) ++ "|\n"
-    Bin(_, kx, x, Tip, Tip) -> s ++ showsBars(bars) ++ f(kx,x) ++ "\n"
-    Bin(_, kx, x, l, r) -> s ++ showsBars(bars) ++ f(kx,x) ++ "\n" ++ showWide(wide, bars) ++ l.showsTreeHang(f, wide, withBar(bars), "") ++ showWide(wide, bars) ++ r.showsTreeHang(f, wide, withEmpty(bars), "")
+    Tip -> 
+      showsBars(bars).thread("|\n")
+    Bin(_, kx, x, Tip, Tip) -> 
+      showsBars(bars).thread(f(kx,x)).thread("\n")
+    Bin(_, kx, x, l, r) -> 
+      showsBars(bars).thread(f(kx,x)).thread("\n")
+      .thread(showWide(wide, bars))
+      .thread(l.showsTreeHang(f, wide, withBar(bars)))
+      .thread(showWide(wide, bars))
+      .thread(r.showsTreeHang(f, wide, withEmpty(bars)))
 
-fun showWide(wide: bool, bars: list<string>): string
+fun showWide(wide: bool, bars: list<string>): stringthread
   if wide then
-    bars.foldr("", fn(b, s1) b ++ s1) ++ "|\n"
+    showString(bars.foldr("", fn(b, s1) b ++ s1) ++ "|\n")
   else
-    ""
+    id
 
-fun showsBars(bars: list<string>): string
+fun showsBars(bars: list<string>): stringthread
   match bars
-    [] -> ""
-    _ -> bars.tail.foldr("", fn(b, s) b ++ s) ++ "+--"
+    [] -> id
+    _ -> showString(bars.tail.foldr("", fn(b, s) b ++ s) ++ "+--")
 
 fun withBar(bars: list<string>): list<string>
   Cons("|  ", bars)
@@ -383,42 +405,42 @@ fun balance(k: k, a: a, l: map<k,a>, r: map<k,a>): exn map<k,a>
   else
     Bin(sizeX, k, a, l, r)
 
-fun rotateL(k: k, a: a, l: map<k,a>, r: map<k,a>): exn map<k,a>
+fun rotateL(k: k, x: a, l: map<k,a>, r: map<k,a>): exn map<k,a>
   match r
     Tip -> throw("rotateL: Tip")
     Bin(_,_,_,ly,ry) ->
-      if ly.size <= ratio*ry.size then
-        singleL(k, a, l, r)
+      if ly.size < ratio*ry.size then
+        singleL(k, x, l, r)
       else
-        doubleL(k, a, l, r)
+        doubleL(k, x, l, r)
 
-fun rotateR(k: k, a: a, l: map<k,a>, r: map<k,a>): exn map<k,a>
+fun rotateR(k: k, x: a, l: map<k,a>, r: map<k,a>): exn map<k,a>
   match l
     Tip -> throw("rotateR: Tip")
     Bin(_,_,_,ly,ry) ->
       if ry.size < ratio*ly.size then
-        singleR(k, a, l, r)
+        singleR(k, x, l, r)
       else
-        doubleR(k, a, l, r)
+        doubleR(k, x, l, r)
 
-fun singleL(k1: k, a1: a, l: map<k,a>, r: map<k,a>): exn map<k,a>
+fun singleL(k1: k, x1: a, t1: map<k,a>, r: map<k,a>): exn map<k,a>
   match r
     Tip -> throw("singleL: Tip")
-    Bin(_,k2,a2,ly,ry) -> bin(k2,a2,bin(k1,a1,l,ly),ry)
+    Bin(_,k2,x2,t2,t3) -> bin(k2,x2,bin(k1,x1,t1,t2),t3)
 
-fun singleR(k1: k, a1: a, l: map<k,a>, r: map<k,a>): exn map<k,a>
+fun singleR(k1: k, x1: a, l: map<k,a>, t3: map<k,a>): exn map<k,a>
   match l
     Tip -> throw("singleR: Tip")
-    Bin(_,k2,a2,ly,ry) -> bin(k2,a2,ly,bin(k1,a1,ry,r))
+    Bin(_,k2,x2,t1,t2) -> bin(k2,x2,t1,bin(k1,x1,t2,t3))
 
-fun doubleL(k1: k, a1: a, l: map<k,a>, r: map<k,a>): exn map<k,a>
+fun doubleL(k1: k, x1: a, t1: map<k,a>, r: map<k,a>): exn map<k,a>
   match r
-    Bin(_,k2,a2,Bin(_,k3,a3,t2,t3),t4) -> bin(k3,a3,bin(k1,a1,l,t2),bin(k2,a2,t3,t4))
+    Bin(_,k2,x2,Bin(_,k3,x3,t2,t3),t4) -> bin(k3,x3,bin(k1,x1,t1,t2),bin(k2,x2,t3,t4))
     _ -> throw("doubleL: Tip")
 
-fun doubleR(k1: k, a1: a, l: map<k,a>, r: map<k,a>): exn map<k,a>
+fun doubleR(k1: k, x1: a, l: map<k,a>, t4: map<k,a>): exn map<k,a>
   match l
-    Bin(_,k2,a2,t1,Bin(_,k3,a3,t2,t3)) -> bin(k3,a3,bin(k2,a2,t1,t2),bin(k1,a1,t3,r))
+    Bin(_,k2,x2,t1,Bin(_,k3,x3,t2,t3)) -> bin(k3,x3,bin(k2,x2,t1,t2),bin(k1,x1,t3,t4))
     _ -> throw("doubleR: Tip")
 
 inline fun bin(k: k, a: a, l: map<k,a>, r: map<k,a>): map<k,a>
