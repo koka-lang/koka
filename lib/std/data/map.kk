@@ -391,20 +391,36 @@ pub fun mapAccumWithKey(m: map<k,b>, a: a, f: (a, k, b) -> (a,c)): (a, map<k,c>)
 
 // TODO: Stuff here
 
-pub fun fold(m: map<k,a>, b: b, f: (a, b) -> b): b
-  m.foldrWithKey(b, fn(_, x, y) f(x, y))
+pub fun fold(m: map<k,a>, b: b, f: (b, a) -> b): b
+  m.foldrWithKey(b, fn(x, _, y) f(x, y))
 
-pub fun foldrWithKey(m: map<k,a>, b: b, f: (k, a, b) -> b): b
+pub fun foldrWithKey(m: map<k,a>, b: b, f: (b, k, a) -> b): b
   match m
     Tip -> b
     Bin(_, kx, x, l, r) ->
-      l.foldrWithKey(f(kx, x, r.foldrWithKey(b, f)), f)
+      l.foldrWithKey(f(r.foldrWithKey(b, f), kx, x), f)
 
-pub fun foldlWithKey(m: map<k,a>, b: b, f: (k, a, b) -> b): b
+pub fun foldlWithKey(m: map<k,a>, b: b, f: (b, k, a) -> b): b
   match m
     Tip -> b
     Bin(_, kx, x, l, r) ->
-      r.foldlWithKey(f(kx, x, l.foldlWithKey(b, f)), f)
+      r.foldlWithKey(f(l.foldlWithKey(b, f), kx, x), f)
+
+// TODO: Stuff here
+pub fun fromList(xs: list<(k,a)>): <comparable<k>,exn> map<k,a>
+  xs.foldl(empty, fn(m, (k, x)) m.insert(k, x))
+
+pub fun toList(m: map<k,a>): list<(k,a)>
+  m.toAscList()
+
+pub fun toAscList(m: map<k,a>): list<(k,a)>
+  m.foldrWithKey([], fn(xs, k, x) Cons((k,x), xs))
+
+pub fun toDescList(m: map<k,a>): list<(k,a)>
+  m.foldlWithKey([], fn(xs, k, x) Cons((k,x), xs))
+
+// TODO: Stuff here
+
 
 // TODO: Stuff here
 

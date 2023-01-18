@@ -6,11 +6,7 @@ fun showEntry(i: int, s: ())
 
 fun main()
   with int_compare
-  var m := singleton(1, ())
-  m := m.insert(2, ())
-  m := m.insert(3, ())
-  m := m.insert(4, ())
-  m := m.insert(5, ())
+  var m: map<int,()> := fromList([(1, ()), (2, ()), (3, ()), (4, ()), (5, ())])
   m.showTreeWith(True, False, showEntry).println
 
   val m3 = m.delete(2)
