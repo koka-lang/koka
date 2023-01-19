@@ -30,7 +30,7 @@ foreach (source IN LISTS sources)
     set(ccomp "clang")
   else()
     set(ccomp "gcc")
-  endfi()
+  endif()
 
   add_custom_command(
     OUTPUT  ${out_path}
