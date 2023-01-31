@@ -153,6 +153,39 @@ kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
 }
 #endif
 
+#if (KK_INTF_SIZE <= 1)
+typedef struct kk_boxed_int8_s {
+  kk_block_t  _block;
+  int8_t  value;
+} *boxed_int8_t;
+
+int8_t kk_int8_unbox(kk_box_t v, kk_context_t* ctx) {
+  if kk_likely(kk_box_is_value(v)) {
+    kk_intf_t i = kk_intf_unbox(v);
+    kk_assert_internal((i >= int8_MIN && i <= int8_MAX) || kk_box_is_any(v));
+    return (int8_t)i;
+  }
+  else {
+    kk_assert_internal((kk_box_is_ptr(v) && kk_block_tag(kk_ptr_unbox(v,ctx)) == KK_TAG_INT8) || kk_box_is_any(v));
+    boxed_int8_t bi = kk_block_assert(boxed_int8_t, kk_ptr_unbox(v,ctx), KK_TAG_INT8);
+    int8_t i = bi->value;
+    if (ctx!=NULL) { kk_block_drop(&bi->_block, ctx); }
+    return i;
+  }
+}
+
+kk_box_t kk_int8_box(int8_t i, kk_context_t* ctx) {
+  if (i >= KK_INTF_BOX_MIN && i <= KK_INTF_BOX_MAX) {
+    return kk_intf_box(i);
+  }
+  else {
+    boxed_int8_t bi = kk_block_alloc_as(struct kk_boxed_int8_s, 0, KK_TAG_INT8, ctx);
+    bi->value = i;
+    return kk_ptr_box(&bi->_block);
+  }
+}
+#endif
+
 #if KK_SSIZE_SIZE == KK_INTF_SIZE
 kk_box_t kk_ssize_box(kk_ssize_t i, kk_context_t* ctx) {
   return kk_intptr_box(i, ctx);

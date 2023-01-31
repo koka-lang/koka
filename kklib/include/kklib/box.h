@@ -229,6 +229,22 @@ static inline kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
 }
 #endif
 
+#if (KK_INTF_SIZE<=1)
+kk_decl_export int8_t  kk_int8_unbox(kk_box_t v, kk_context_t* ctx);
+kk_decl_export kk_box_t kk_int8_box(int8_t i, kk_context_t* ctx);
+#else
+static inline int8_t kk_int8_unbox(kk_box_t v, kk_context_t* ctx) {
+  kk_unused(ctx);
+  kk_intf_t i = kk_intf_unbox(v);
+  kk_assert_internal((i >= INT8_MIN && i <= INT8_MAX) || kk_box_is_any(v));
+  return (int8_t)(i);
+}
+static inline kk_box_t kk_int8_box(int8_t i, kk_context_t* ctx) {
+  kk_unused(ctx);
+  return kk_intf_box(i);
+}
+#endif
+
 #if (KK_INTF_SIZE == 8) && KK_BOX_DOUBLE64
 kk_decl_export kk_box_t kk_double_box(double d, kk_context_t* ctx);
 kk_decl_export double   kk_double_unbox(kk_box_t b, kk_context_t* ctx);
