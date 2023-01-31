@@ -4,7 +4,7 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.4.0"        
+VERSION="v2.4.1"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -284,9 +284,7 @@ dnf_groupinstall() {
 }
 
 pacman_install() {
-  if ! sudocmd pacman -S --noconfirm ${QUIET:+-q} "$@"; then
-    stop "installing pacman packages failed ($@).  Please run 'pacman -Sy' and try again."
-  fi
+    echo hi
 }
 
 yum_install() {
