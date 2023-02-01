@@ -58,6 +58,7 @@ executable koka
       Core.BindingGroups
       Core.Borrowed
       Core.Check
+      Core.CheckFBIP
       Core.Core
       Core.CoreVar
       Core.CTail

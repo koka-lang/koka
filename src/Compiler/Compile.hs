@@ -58,6 +58,7 @@ import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
 import Core.Check             ( checkCore )
 import Core.UnReturn          ( unreturn )
+import Core.CheckFBIP         ( checkFBIP )
 import Core.OpenResolve       ( openResolve )
 import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
@@ -865,6 +866,8 @@ inferCheck loaded0 flags line coreImports program
        -- remove return statements
        unreturn penv
        -- checkCoreDefs "unreturn"
+
+       checkFBIP penv (platform flags) (loadedNewtypes loaded) (loadedBorrowed loaded) 
 
        -- initial simplify
        let ndebug  = optimize flags > 0
