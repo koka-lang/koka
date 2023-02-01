@@ -42,6 +42,7 @@ module Common.File(
                   , removeFileIfExists
                   , realPath
                   , doesFileExistAndNotEmpty
+                  , makeFileExecutable
                   ) where
 
 import Data.List        ( intersperse )
@@ -51,7 +52,7 @@ import qualified Platform.Runtime as B ( {- copyBinaryFile, -} exCatch )
 import Common.Failure   ( raiseIO, catchIO )
 
 import System.IO
-import System.Process   ( system, rawSystem, createProcess, CreateProcess(..), proc, StdStream(..), waitForProcess )
+import System.Process   ( system, rawSystem, createProcess, CreateProcess(..), proc, StdStream(..), waitForProcess, readProcessWithExitCode )
 import System.Exit      ( ExitCode(..) )
 import System.Environment ( getEnvironment, getExecutablePath )
 import System.Directory ( doesFileExist, doesDirectoryExist
@@ -387,6 +388,15 @@ commonPathPrefix :: FilePath -> FilePath -> FilePath
 commonPathPrefix s1 s2
   = joinPaths $ map fst $ takeWhile (\(c,d) -> c == d) $ zip (splitPath s1) (splitPath s2)
 
+-- 
+makeFileExecutable :: FilePath -> IO ()
+makeFileExecutable fname
+  = do let cmd = "chmod +x " ++ fname 
+       -- run `chmod +x $fname` to make the file executable
+       (exitCode, _, _) <- readProcessWithExitCode "sh" ["-c", cmd] ""
+       case exitCode of
+         ExitSuccess   -> return ()
+         ExitFailure _ -> error ("could not make file executable: " ++ show fname)
 
 -- | Is a path absolute?
 isAbsolute :: FilePath -> Bool
