@@ -7,9 +7,18 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE NamedFieldPuns, GeneralizedNewtypeDeriving  #-}
 
------------------------------------------------------------------------------
--- precise automatic reference counting
------------------------------------------------------------------------------
+{----------------------------------------------------------------------------
+-- precise automatic reference counting (now called "Perceus")
+-- See: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v4.pdf
+
+Notes:
+- The monad has a borrowed and owned (multi-set) environment just like the paper
+- The live variable set is a state
+- To calculate the live variables we visit the expression tree _in reverse_
+  (see the parcDefGroup, and parcExpr for let-bindings and applications for example)
+- That still works with the borrowed and owned environments as those stay
+  the same in a scope.
+----------------------------------------------------------------------------}
 
 module Backend.C.Parc ( parcCore ) where
 
