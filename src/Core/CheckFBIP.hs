@@ -17,7 +17,9 @@ module Core.CheckFBIP( checkFBIP
 import qualified Lib.Trace
 import Control.Monad
 import Control.Applicative
-import Data.List( partition, intersperse )
+import Data.List( partition, intersperse, foldl1', foldl', isSuffixOf, uncons )
+import qualified Data.Set as S
+import qualified Data.Map as M
 
 import Lib.PPrint
 import Common.Failure
@@ -41,6 +43,8 @@ import qualified Core.Core as Core
 import Core.Pretty
 import Core.CoreVar
 import Core.Borrowed
+import Common.NamePrim (nameEffectEmpty, nameTpDiv)
+import Backend.C.ParcReuse (constructorSizeOf,getConSize)
 
 trace s x =
   Lib.Trace.trace s
@@ -51,61 +55,248 @@ checkFBIP :: Pretty.Env ->  Platform -> Newtypes -> Borrowed ->  CorePhase ()
 checkFBIP penv platform newtypes borrowed
   = do uniq      <- unique
        defGroups <- getCoreDefs
-       let (_,docs) = runChk penv uniq platform newtypes borrowed (chkDefGroups True defGroups) 
-       mapM (\doc -> liftError (warningMsg (rangeNull, doc))) docs
-       return ()
-       
+       let (_,docs) = runChk penv uniq platform newtypes borrowed (chkDefGroups defGroups)
+       mapM_ (\doc -> liftError (warningMsg (rangeNull, doc))) docs
 
 
 {--------------------------------------------------------------------------
   check definition groups
 --------------------------------------------------------------------------}
 
-chkDefGroups :: Bool -> DefGroups -> Chk ()
-chkDefGroups topLevel defGroups
-  = return ()
+chkDefGroups :: DefGroups -> Chk ()
+chkDefGroups = mapM_ chkDefGroup
 
+chkDefGroup :: DefGroup -> Chk ()
+chkDefGroup defGroup
+  = case defGroup of
+      DefRec defs -> mapM_ (chkTopLevelDef (map defName defs)) defs
+      DefNonRec def -> chkTopLevelDef [defName def] def
+
+chkTopLevelDef :: [Name] -> Def -> Chk ()
+chkTopLevelDef defGroupNames def
+  = withCurrentDef def $ do
+      out <- extractOutput $ withInput (\_ -> Input S.empty [] defGroupNames True) $
+        chkTopLevelExpr (defSort def) (defExpr def)
+      checkOutputEmpty out
+
+-- | Lambdas at the top-level are part of the signature and not allocations.
+chkTopLevelExpr :: DefSort -> Expr -> Chk ()
+chkTopLevelExpr (DefFun bs) (Lam pars eff body)
+  = do chkEffect eff
+       let bpars = map snd $ filter ((==Borrow) . fst) $ zipDefault Own bs pars
+       let opars = map snd $ filter ((==Own) . fst) $ zipDefault Own bs pars
+       withBorrowed (S.fromList $ map getName bpars) $ do
+         out <- extractOutput $ chkExpr body
+         writeOutput =<< foldM (flip bindName) out opars
+chkTopLevelExpr def (TypeLam _ body)
+  = chkTopLevelExpr def body
+chkTopLevelExpr def (TypeApp body _)
+  = chkTopLevelExpr def body
+chkTopLevelExpr _ expr = chkExpr expr
+
+chkExpr :: Expr -> Chk ()
+chkExpr expr
+  = case expr of
+      TypeLam _ body -> chkExpr body
+      TypeApp body _ -> chkExpr body
+      Lam pars eff body
+        -> do chkEffect eff
+              requireCapability HasAlloc $ \ppenv -> Just $
+                text "Lambdas are always allocated."
+              out <- extractOutput $ chkExpr body
+              writeOutput =<< foldM (flip bindName) out pars
+ 
+      App fn args -> chkApp fn args
+      Var tname info -> markSeen tname info
+
+      Let [] body -> chkExpr body
+      Let (DefNonRec def:dgs) body
+        -> do out <- extractOutput $ chkExpr (Let dgs body)
+              gamma2 <- bindName (defTName def) out
+              writeOutput gamma2
+              withBorrowed (M.keysSet $ gammaNm gamma2) $
+                withNonTailCtx $ chkExpr $ defExpr def
+      Let _ _
+        -> unhandled $ text "FBIP check can not handle recursive let bindings."
+
+      Case scrutinees branches
+        -> chkBranches scrutinees branches
+      Con _ _ -> pure () -- Atoms are non-allocated
+      Lit lit -> chkLit lit
+
+chkModCons :: [Expr] -> Chk ()
+chkModCons [] = pure ()
+chkModCons args
+  = do let (larg:rargs) = reverse args
+       withNonTailCtx $ mapM_ chkExpr rargs
+       chkExpr larg -- can be tail-mod-cons
+
+chkBranches :: [Expr] -> [Branch] -> Chk ()
+chkBranches scrutinees branches
+  = do whichBorrowed <- mapM chkScrutinee scrutinees
+       outs <- mapM (extractOutput . chkBranch whichBorrowed) branches
+       writeOutput =<< joinContexts outs
+  where
+    fromVar (Var tname _) = Just tname
+    fromVar _ = Nothing
+
+chkScrutinee :: Expr -> Chk ParamInfo
+chkScrutinee expr@(Var tname info)
+  = do b <- isBorrowed tname
+       unless b $ markSeen tname info
+       pure (if b then Borrow else Own)
+chkScrutinee expr
+  = do chkExpr expr
+       pure Own
+
+chkBranch :: [ParamInfo] -> Branch -> Chk ()
+chkBranch whichBorrowed (Branch pats guards)
+  = do let (borPats, ownPats) = partition ((==Borrow) .fst) $ zipDefault Own whichBorrowed pats
+       out <- extractOutput $
+         withBorrowed (S.map getName $ bv $ map snd borPats) $
+           mapM_ chkGuard guards
+       writeOutput =<< foldM (flip bindPattern) out (map snd ownPats)
+
+chkGuard :: Guard -> Chk ()
+chkGuard (Guard test expr)
+  = do out <- extractOutput $ chkExpr expr
+       withBorrowed (M.keysSet $ gammaNm out) $
+         withNonTailCtx $ chkExpr test
+       writeOutput out
+
+bindPattern :: Pattern -> Output -> Chk Output
+bindPattern (PatCon cname pats repr _ _ _ _ _) out
+  = do newtypes <- getNewtypes
+       platform <- getPlatform
+       let (size,_) = constructorSizeOf platform newtypes cname repr
+       bindAllocation size <$> foldM (flip bindPattern) out pats
+bindPattern (PatVar tname pat) out
+  = bindName tname =<< bindPattern pat out
+bindPattern (PatLit _) out = pure out
+bindPattern PatWild out = pure out
+
+chkApp :: Expr -> [Expr] -> Chk ()
+chkApp (TypeLam _ fn) args = chkApp fn args
+chkApp (TypeApp fn _) args = chkApp fn args
+chkApp (Var tname info) args | not (infoIsRefCounted info) -- toplevel function
+  = do bs <- getParamInfos (getName tname)
+       withNonTailCtx $ mapM_ chkArg $ zipDefault Own bs args
+       input <- getInput
+       unless (isTailContext input) $
+         requireCapability HasStack $ \ppenv ->
+           if getName tname `elem` defGroupNames input
+           then Just $ text "Non-tail call to (mutually) recursive function: "
+           else Nothing
+chkApp (Con cname repr) args -- try reuse
+  = do chkModCons args
+       chkAllocation cname repr
+chkApp fn args -- local function
+  = do withNonTailCtx $ mapM_ chkExpr args
+       isBapp <- case fn of -- does the bapp rule apply?
+         Var tname _ -> isBorrowed tname
+         _ -> pure False
+       unless isBapp $ do
+         requireCapability HasDealloc $ \ppenv -> Just $
+           text "Owned calls to functions require deallocation."
+         chkExpr fn
+
+chkArg :: (ParamInfo, Expr) -> Chk ()
+chkArg (Own, expr) = chkExpr expr
+chkArg (Borrow, Var tname info) = markBorrowed tname info
+chkArg (Borrow, expr)
+  = do chkExpr expr
+       requireCapability HasDealloc $ \ppenv -> Just $
+         text "Passing owned expressions as borrowed require deallocation."
+
+chkLit :: Lit -> Chk ()
+chkLit lit
+  = case lit of
+      LitInt _ -> pure () -- we do not care about allocating big integers
+      LitFloat _ -> pure ()
+      LitChar _ -> pure ()
+      LitString _ -> requireCapability HasAlloc $ \ppenv -> Just $
+        text "Inline string literals are allocated. Consider lifting to toplevel to avoid this."
+
+chkWrap :: TName -> VarInfo -> Chk ()
+chkWrap tname info
+  = do bs <- getParamInfos (getName tname)
+       unless (Borrow `notElem` bs) $
+         unhandled $ text "FBIP analysis detected that a top-level function was wrapped."
+
+chkAllocation :: TName -> ConRepr -> Chk ()
+chkAllocation cname repr | isConAsJust repr = pure ()
+chkAllocation cname repr | "_noreuse" `isSuffixOf` nameId (conTypeName repr)
+  = requireCapability HasAlloc $ \ppenv -> Just $
+      cat [text "Types suffixed with _noreuse are not reused: ", ppName ppenv $ conTypeName repr]
+chkAllocation cname repr
+  = do newtypes <- getNewtypes
+       platform <- getPlatform
+       let (size,_) = constructorSizeOf platform newtypes cname repr
+       getAllocation cname size
+
+-- Only total/empty effects or divergence
+chkEffect :: Tau -> Chk ()
+chkEffect tp
+  = if isFBIP then pure () else
+      unhandled $ text "Algebraic effects other than div are not FBIP."
+  where
+    isFBIP = case expandSyn tp of
+        TCon tc -> typeConName tc `elem` [nameEffectEmpty,nameTpDiv]
+        _       -> False
 
 {--------------------------------------------------------------------------
   Chk monad
 --------------------------------------------------------------------------}
-newtype Chk a = Chk (Env -> State -> Result a)
+newtype Chk a = Chk (Env -> Input -> Result a)
 
 data Env = Env{ currentDef :: [Def],
                 prettyEnv :: Pretty.Env,
                 platform  :: Platform,
                 newtypes  :: Newtypes,
-                borrowed  :: Borrowed 
+                borrowed  :: Borrowed
               }
 
-data State = State{ uniq :: Int }
+data Capability
+  = HasAlloc   -- may allocate and dup
+  | HasDealloc -- may use drop and free
+  | HasStack   -- may use non-tail recursion
+  deriving (Eq, Ord, Bounded, Enum)
 
-data Result a = Ok a State [Doc]
+data Input = Input{ delta :: S.Set Name,
+                    capabilities :: [Capability],
+                    defGroupNames :: [Name],
+                    isTailContext :: Bool }
+
+data Output = Output{ gammaNm :: M.Map Name Int,
+                      gammaDia :: M.Map Int [TName] }
+
+instance Semigroup Output where
+  Output s1 m1 <> Output s2 m2 = Output (M.unionWith (+) s1 s2) (M.unionWith (++) m1 m2)
+
+instance Monoid Output where
+  mempty = Output M.empty M.empty
+
+data Result a = Ok a Output [Doc]
 
 runChk :: Pretty.Env -> Int -> Platform -> Newtypes -> Borrowed -> Chk a -> (a,[Doc])
 runChk penv u platform newtypes borrowed (Chk c)
-  = case c (Env [] penv platform newtypes borrowed) (State u) of
-      Ok x st docs -> (x,docs)
-      
+  = case c (Env [] penv platform newtypes borrowed) (Input S.empty [] [] True) of
+      Ok x _out docs -> (x,docs)
+
 instance Functor Chk where
-  fmap f (Chk c)  = Chk (\env st -> case c env st of
-                                        Ok x st' dgs -> Ok (f x) st' dgs)
+  fmap f (Chk c)  = Chk (\env input -> case c env input of
+                                        Ok x out dgs -> Ok (f x) out dgs)
 
 instance Applicative Chk where
   pure  = return
   (<*>) = ap
 
 instance Monad Chk where
-  return x       = Chk (\env st -> Ok x st [])
-  (Chk c) >>= f = Chk (\env st -> case c env st of
-                                      Ok x st' dgs -> case f x of
-                                                        Chk d -> case d env st' of
-                                                                    Ok x' st'' dgs' -> Ok x' st'' (dgs ++ dgs'))
-
-instance HasUnique Chk where
-  updateUnique f = Chk (\env st -> Ok (uniq st) st{ uniq = (f (uniq st)) } [])
-  setUnique  i   = Chk (\env st -> Ok () st{ uniq = i} [])
-
+  return x      = Chk (\env input -> Ok x mempty [])
+  (Chk c) >>= f = Chk (\env input -> case c env input of
+                                      Ok x out dgs -> case f x of
+                                                        Chk d -> case d env input of
+                                                                    Ok x' out' dgs' -> Ok x' (out <> out') (dgs ++ dgs'))
 
 withEnv :: (Env -> Env) -> Chk a -> Chk a
 withEnv f (Chk c)
@@ -113,11 +304,157 @@ withEnv f (Chk c)
 
 getEnv :: Chk Env
 getEnv
-  = Chk (\env st -> Ok env st [])
+  = Chk (\env st -> Ok env mempty [])
 
-updateSt :: (State -> State) -> Chk State
-updateSt f
-  = Chk (\env st -> Ok st (f st) [])
+withInput :: (Input -> Input) -> Chk a -> Chk a
+withInput f (Chk c)
+  = Chk (\env st -> c env (f st))
+
+getInput :: Chk Input
+getInput
+  = Chk (\env st -> Ok st mempty [])
+
+writeOutput :: Output -> Chk ()
+writeOutput out
+  = Chk (\env st -> Ok () out [])
+
+-- | Run the given check, keep the warnings but extract the output.
+extractOutput :: Chk () -> Chk Output
+extractOutput (Chk f)
+  = Chk (\env st -> case f env st of
+                      Ok () out doc -> Ok out mempty doc)
+
+useCapabilities :: [Capability] -> Chk a -> Chk a
+useCapabilities cs
+  = withInput (\st -> st {capabilities = cs})
+
+hasCapability :: Capability -> Chk Bool
+hasCapability c
+  = do st <- getInput
+       pure $ c `elem` capabilities st
+
+-- | Perform a test if the capability is not present
+-- and emit a warning if the test is unsuccessful.
+requireCapability :: Capability -> (Pretty.Env -> Maybe Doc) -> Chk ()
+requireCapability cap test
+  = do hasCap <- hasCapability cap
+       unless hasCap $ do
+         env <- getEnv
+         case test (prettyEnv env) of
+           Just warning -> emitWarning warning
+           Nothing -> pure ()
+
+unhandled :: Doc -> Chk ()
+unhandled doc
+  = do hasAll <- and <$> mapM hasCapability (enumFromTo minBound maxBound)
+       unless hasAll $ emitWarning doc
+
+withNonTailCtx :: Chk a -> Chk a
+withNonTailCtx
+  = withInput (\st -> st { isTailContext = False })
+
+withBorrowed :: S.Set Name -> Chk a -> Chk a
+withBorrowed names action
+  = withInput (\st -> st { delta = S.union names (delta st) }) action
+
+isBorrowed :: TName -> Chk Bool
+isBorrowed nm
+  = do st <- getInput
+       pure $ getName nm `S.member` delta st
+
+markSeen :: TName -> VarInfo -> Chk ()
+markSeen tname info | infoIsRefCounted info -- is locally defined?
+  = do b <- isBorrowed tname
+       if b
+         then requireCapability HasAlloc $ \ppenv -> Just $
+           cat [text "Borrowed value used as owned (can cause allocations later): ", ppName ppenv (getName tname)]
+         else writeOutput (Output (M.singleton (getName tname) 1) M.empty)
+markSeen tname info = chkWrap tname info -- wrap rule
+
+markBorrowed :: TName -> VarInfo -> Chk ()
+markBorrowed nm info
+  = do b <- isBorrowed nm
+       unless b $ do
+         markSeen nm info
+         when (infoIsRefCounted info) $
+           requireCapability HasDealloc $ \ppenv -> Just $
+             cat [text "Last use of variable is borrowed (this requires deallocation): ", ppName ppenv (getName nm)]
+
+getAllocation :: TName -> Int -> Chk ()
+getAllocation nm size
+  = writeOutput (Output mempty (M.singleton size [nm]))
+
+provideToken :: TName -> Int -> Output -> Chk Output
+provideToken debugName size out
+  = do requireCapability HasDealloc $ \ppenv ->
+         let fittingAllocs = M.findWithDefault [] size (gammaDia out) in
+         if null fittingAllocs then Just $
+            cat [text "Unused reuse token requiring deallocation provided by ", ppName ppenv (getName debugName)]
+         else Nothing
+       pure $ out { gammaDia = M.adjust tail size (gammaDia out) }
+
+joinContexts :: [Output] -> Chk Output
+joinContexts [] = pure mempty
+joinContexts cs
+  = do let unionNm = foldl1' (M.unionWith max) (map gammaNm cs)
+       let unionDia = foldl1' (M.unionWith chooseLonger) (map gammaDia cs)
+       requireCapability HasDealloc $ \ppenv ->
+          let interNm = foldl1' (M.intersectionWith min) (map gammaNm cs) in
+          let interDia = foldl1' (M.intersectionWith chooseShorter) (map gammaDia cs) in
+          if interNm /= unionNm
+          then Just $
+            cat [text "Not all branches use the same variables (this requires deallocation)."]
+          else if interDia /= unionDia
+          then Just $
+            cat [text "Not all branches use the same reuse tokens (this requires deallocation)."]
+          else Nothing
+       pure (Output unionNm unionDia)
+  where
+    chooseLonger a b = if length a >= length b then a else b
+    chooseShorter a b = if length a <= length b then a else b
+
+bindName :: TName -> Output -> Chk Output
+bindName nm out
+  = do newtypes <- getNewtypes
+       platform <- getPlatform
+       out <- case M.lookup (getName nm) (gammaNm out) of
+         Nothing -- unused, so available for drop-guided reuse!
+           -> case getConSize newtypes platform (tnameType nm) of
+               Nothing -> pure out
+               Just (sz, _) -> pure $ bindAllocation sz out
+         Just n
+           -> do when (n > 1) $
+                   requireCapability HasAlloc $ \ppenv -> Just $
+                     cat [text "Variable used multiple times (this can lead to allocation later): ", ppName ppenv (getName nm)]
+                 pure out 
+       pure (out { gammaNm = M.delete (getName nm) (gammaNm out) })
+
+bindAllocation :: Int -> Output -> Output
+bindAllocation size out
+  = out { gammaDia = M.update (fmap snd . uncons) size (gammaDia out) }
+
+checkOutputEmpty :: Output -> Chk ()
+checkOutputEmpty out
+  = do case M.maxViewWithKey $ gammaNm out of
+         Nothing -> pure ()
+         Just ((nm, _), _)
+           -> emitWarning $ text $ "FBIP analysis didn't bind a name (this is a bug!): " ++ show nm
+       case M.maxViewWithKey $ gammaDia out of
+         Just ((sz, c:_), _) | sz > 0
+           -> requireCapability HasAlloc $ \ppenv -> Just $
+                cat [text "Unreused constructor: ", ppName ppenv (getName c) ]
+         _ -> pure ()
+
+zipDefault :: a -> [a] -> [b] -> [(a, b)]
+zipDefault x [] (b:bs) = (x, b) : zipDefault x [] bs
+zipDefault x (a:as) (b:bs) = (a, b) : zipDefault x as bs
+zipDefault x _ [] = []
+
+getNewtypes :: Chk Newtypes
+getNewtypes = newtypes <$> getEnv
+
+getPlatform :: Chk Platform
+getPlatform = platform <$> getEnv
 
 -- track the current definition for nicer error messages
 withCurrentDef :: Def -> Chk a -> Chk a
@@ -127,9 +464,18 @@ withCurrentDef def action
     action
 
 currentDefNames :: Chk [Name]
-currentDefNames 
+currentDefNames
   = do env <- getEnv
        return (map defName (currentDef env))
+
+-- | Return borrowing infos for a name. May return the empty list
+-- if no borrowing takes place.
+getParamInfos :: Name -> Chk [ParamInfo]
+getParamInfos name
+  = do b <- borrowed <$> getEnv
+       case borrowedLookup name b of
+         Nothing -> return []
+         Just pinfos -> return pinfos
 
 traceDoc :: (Pretty.Env -> Doc) -> Chk ()
 traceDoc f
@@ -143,7 +489,7 @@ chkTrace msg
 
 emitDoc :: Doc -> Chk ()
 emitDoc doc
-  = Chk (\env st -> Ok () st [doc])
+  = Chk (\env st -> Ok () mempty [doc])
 
 emitWarning :: Doc -> Chk ()
 emitWarning doc

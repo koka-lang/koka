@@ -164,7 +164,7 @@ parcExpr expr
                               -> do name <- uniqueName "res" -- name the result
                                     return def{defName = name}
                             _ -> return def
-              body1 <- ownedInScope (bv def1) $ parcExpr (Let dgs body)
+              body1 <- ownedInScope (S.singleton $ defTName def1) $ parcExpr (Let dgs body)
               def2  <- parcDef False def1
               return $ makeLet [DefNonRec def2] body1
       Let (DefRec _ : _) _

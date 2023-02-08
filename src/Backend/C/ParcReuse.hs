@@ -13,7 +13,7 @@
 
 module Backend.C.ParcReuse ( parcReuseCore,
                              orderConFieldsEx, newtypesDataDefRepr, hasTagField,
-                             constructorSizeOf
+                             constructorSizeOf, getConSize
                            ) where
 
 import Lib.Trace (trace)
@@ -578,25 +578,29 @@ ruTrace msg
 
 ----------------
 
--- | If all constructors of a type have the same shape,
--- return the byte size and number of scan fields.
 getRuConSize :: Type -> Reuse (Maybe (Int, Int))
 getRuConSize dataType
   = do newtypes <- getNewtypes
        platform <- getPlatform
-       let mdataName = extractDataName dataType
-       if maybe False (\nm -> "_noreuse" `isSuffixOf` nameId nm) mdataName
-       then return Nothing else do
-        let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName
+       pure $ getConSize newtypes platform dataType
+
+-- | If all constructors of a type have the same shape,
+-- return the byte size and number of scan fields.
+getConSize :: Newtypes -> Platform -> Type -> Maybe (Int, Int)
+getConSize newtypes platform dataType
+  = let mdataName = extractDataName dataType in
+    if maybe False (\nm -> "_noreuse" `isSuffixOf` nameId nm) mdataName
+    then Nothing else
+        let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName in
         case mdataInfo of
           Just dataInfo
-            -> do let (dataRepr, _) = getDataRepr dataInfo
-                  let cis = dataInfoConstrs dataInfo
-                  let sizes = map (constructorSize platform newtypes dataRepr . map snd . conInfoParams) cis
-                  case sizes of
-                    (s:ss) | all (==s) ss -> pure $ Just s
-                    _ -> pure Nothing
-          _ -> pure Nothing
+            -> let (dataRepr, _) = getDataRepr dataInfo
+                   cis = dataInfoConstrs dataInfo
+                   sizes = map (constructorSize platform newtypes dataRepr . map snd . conInfoParams) cis
+               in case sizes of
+                    (s:ss) | all (==s) ss -> Just s
+                    _ -> Nothing
+          _ -> Nothing
   where
     extractDataName :: Type -> Maybe Name
     extractDataName tp
@@ -604,7 +608,6 @@ getRuConSize dataType
           TFun _ _ t -> extractDataName t
           TCon tc    -> Just (typeConName tc)
           _          -> Nothing
-
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSizeOf :: Platform -> Newtypes -> TName -> ConRepr -> (Int {- byte size -}, Int {- scan fields -})
