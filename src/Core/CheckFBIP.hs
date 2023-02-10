@@ -43,7 +43,7 @@ import qualified Core.Core as Core
 import Core.Pretty
 import Core.CoreVar
 import Core.Borrowed
-import Common.NamePrim (nameEffectEmpty, nameTpDiv)
+import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial)
 import Backend.C.ParcReuse (constructorSizeOf,getConSize)
 
 trace s x =
@@ -135,7 +135,7 @@ chkBranches :: [Expr] -> [Branch] -> Chk ()
 chkBranches scrutinees branches
   = do whichBorrowed <- mapM chkScrutinee scrutinees
        outs <- mapM (extractOutput . chkBranch whichBorrowed) branches
-       writeOutput =<< joinContexts outs
+       writeOutput =<< joinContexts (map branchPatterns branches) outs
   where
     fromVar (Var tname _) = Just tname
     fromVar _ = Nothing
@@ -176,8 +176,12 @@ bindPattern (PatLit _) out = pure out
 bindPattern PatWild out = pure out
 
 chkApp :: Expr -> [Expr] -> Chk ()
-chkApp (TypeLam _ fn) args = chkApp fn args
+chkApp (TypeLam _ fn) args = chkApp fn args -- ignore type machinery
 chkApp (TypeApp fn _) args = chkApp fn args
+chkApp (App (TypeApp (Var openName _) _) [fn]) args | getName openName == nameEffectOpen
+  = chkApp fn args
+chkApp (Var errorPattern _) args | getName errorPattern == namePatternMatchError
+  = pure () -- we do not care about the strings allocated to throw an exception
 chkApp (Var tname info) args | not (infoIsRefCounted info) -- toplevel function
   = do bs <- getParamInfos (getName tname)
        withNonTailCtx $ mapM_ chkArg $ zipDefault Own bs args
@@ -197,7 +201,7 @@ chkApp fn args -- local function
          _ -> pure False
        unless isBapp $ do
          requireCapability HasDealloc $ \ppenv -> Just $
-           text "Owned calls to functions require deallocation."
+           cat [text "Owned calls to functions require deallocation: ", prettyExpr ppenv fn ]
          chkExpr fn
 
 chkArg :: (ParamInfo, Expr) -> Chk ()
@@ -237,11 +241,14 @@ chkAllocation cname repr
 -- Only total/empty effects or divergence
 chkEffect :: Tau -> Chk ()
 chkEffect tp
-  = if isFBIP then pure () else
-      unhandled $ text "Algebraic effects other than div are not FBIP."
+  = if isFBIPExtend tp then pure () else
+      unhandled $ text "Algebraic effects other than <exn,div> are not FBIP."
   where
-    isFBIP = case expandSyn tp of
-        TCon tc -> typeConName tc `elem` [nameEffectEmpty,nameTpDiv]
+    isFBIPExtend tp = case extractEffectExtend tp of
+      (taus, tau) -> all isFBIP taus
+    isFBIP tp = case expandSyn tp of
+        TCon tc -> typeConName tc `elem` [nameEffectEmpty,nameTpDiv,nameTpPartial]
+        TApp tc1 [TCon (TypeCon nm _)] -> tc1 == tconHandled && nm == nameTpPartial 
         _       -> False
 
 {--------------------------------------------------------------------------
@@ -275,6 +282,18 @@ instance Semigroup Output where
 
 instance Monoid Output where
   mempty = Output M.empty M.empty
+
+prettyGammaNm :: Pretty.Env -> Output -> Doc
+prettyGammaNm ppenv (Output nm dia)
+  = tupled $ map
+      (\(nm, cnt) -> cat [ppName ppenv nm, text "/", pretty cnt])
+      (M.toList nm)
+
+prettyGammaDia :: Pretty.Env -> Output -> Doc
+prettyGammaDia ppenv (Output nm dia)
+  = tupled $ concatMap
+      (\(sz, cs) -> map (\c -> cat [ppName ppenv (getName c), text "/", pretty (sz `div` 8)]) cs)
+      (M.toList dia)
 
 data Result a = Ok a Output [Doc]
 
@@ -378,7 +397,7 @@ markBorrowed nm info
          markSeen nm info
          when (infoIsRefCounted info) $
            requireCapability HasDealloc $ \ppenv -> Just $
-             cat [text "Last use of variable is borrowed (this requires deallocation): ", ppName ppenv (getName nm)]
+             cat [text "Last use of variable is borrowed: ", ppName ppenv (getName nm)]
 
 getAllocation :: TName -> Int -> Chk ()
 getAllocation nm size
@@ -389,13 +408,13 @@ provideToken debugName size out
   = do requireCapability HasDealloc $ \ppenv ->
          let fittingAllocs = M.findWithDefault [] size (gammaDia out) in
          if null fittingAllocs then Just $
-            cat [text "Unused reuse token requiring deallocation provided by ", ppName ppenv (getName debugName)]
+            cat [text "Unused reuse token provided by ", ppName ppenv (getName debugName)]
          else Nothing
        pure $ out { gammaDia = M.adjust tail size (gammaDia out) }
 
-joinContexts :: [Output] -> Chk Output
-joinContexts [] = pure mempty
-joinContexts cs
+joinContexts :: [[Pattern]] -> [Output] -> Chk Output
+joinContexts _ [] = pure mempty
+joinContexts pats cs
   = do let unionNm = foldl1' (M.unionWith max) (map gammaNm cs)
        let unionDia = foldl1' (M.unionWith chooseLonger) (map gammaDia cs)
        requireCapability HasDealloc $ \ppenv ->
@@ -403,15 +422,24 @@ joinContexts cs
           let interDia = foldl1' (M.intersectionWith chooseShorter) (map gammaDia cs) in
           if interNm /= unionNm
           then Just $
-            cat [text "Not all branches use the same variables (this requires deallocation)."]
+            vcat $ text "Not all branches use the same variables:"
+              : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaNm ppenv out]) pats cs
           else if interDia /= unionDia
           then Just $
-            cat [text "Not all branches use the same reuse tokens (this requires deallocation)."]
+            vcat $ text "Not all branches use the same reuse tokens:"
+              : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaDia ppenv out]) pats cs
           else Nothing
        pure (Output unionNm unionDia)
   where
     chooseLonger a b = if length a >= length b then a else b
     chooseShorter a b = if length a <= length b then a else b
+
+    prettyPat ppenv (PatCon nm [] _ _ _ _ _ _) = ppName ppenv (getName nm)
+    prettyPat ppenv (PatCon nm pats _ _ _ _ _ _) = ppName ppenv (getName nm) <.> tupled (map (prettyPat ppenv) pats)
+    prettyPat ppenv (PatVar nm PatWild) = ppName ppenv (getName nm)
+    prettyPat ppenv (PatVar nm pat) = cat [ppName ppenv (getName nm), text " as ", prettyPat ppenv pat]
+    prettyPat ppenv (PatLit l) = text $ show l
+    prettyPat ppenv PatWild = text "_"
 
 bindName :: TName -> Output -> Chk Output
 bindName nm out
@@ -425,7 +453,7 @@ bindName nm out
          Just n
            -> do when (n > 1) $
                    requireCapability HasAlloc $ \ppenv -> Just $
-                     cat [text "Variable used multiple times (this can lead to allocation later): ", ppName ppenv (getName nm)]
+                     cat [text "Variable used multiple times: ", ppName ppenv (getName nm)]
                  pure out 
        pure (out { gammaNm = M.delete (getName nm) (gammaNm out) })
 
