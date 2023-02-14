@@ -148,7 +148,7 @@ chkScrutinee expr@(Var tname info)
        unless b $ markSeen tname info
        pure (if b then Borrow else Own)
 chkScrutinee expr
-  = do chkExpr expr
+  = do withNonTailCtx $ chkExpr expr
        pure Own
 
 chkBranch :: [ParamInfo] -> Branch -> Chk ()
@@ -206,7 +206,7 @@ chkApp (Var tname info) args | not (infoIsRefCounted info) -- toplevel function
        unless (isTailContext input) $
          requireCapability HasStack $ \ppenv ->
            if getName tname `elem` defGroupNames input
-           then Just $ text "Non-tail call to (mutually) recursive function: "
+           then Just $ cat [text "Non-tail call to (mutually) recursive function: ", ppName ppenv (getName tname)]
            else Nothing
 chkApp fn args -- local function
   = do withNonTailCtx $ mapM_ chkExpr args
@@ -303,10 +303,14 @@ prettyGammaNm ppenv (Output nm dia)
       (\(nm, cnt) -> cat [ppName ppenv (getName nm), text "/", pretty cnt])
       (M.toList nm)
 
+prettyCon :: Pretty.Env -> TName -> Int -> Doc
+prettyCon ppenv tname sz
+  = cat [ppName ppenv (getName tname), text "/", pretty (sz `div` 8)]
+
 prettyGammaDia :: Pretty.Env -> Output -> Doc
 prettyGammaDia ppenv (Output nm dia)
   = tupled $ concatMap
-      (\(sz, cs) -> map (\c -> cat [ppName ppenv (getName c), text "/", pretty (sz `div` 8)]) cs)
+      (\(sz, cs) -> map (\c -> prettyCon ppenv c sz) cs)
       (M.toList dia)
 
 data Result a = Ok a Output [Doc]
@@ -425,7 +429,7 @@ provideToken debugName size out
   = do requireCapability HasDealloc $ \ppenv ->
          let fittingAllocs = M.findWithDefault [] size (gammaDia out) in
          if null fittingAllocs then Just $
-            cat [text "Unused reuse token provided by ", ppName ppenv (getName debugName), text $ "/" ++ show (size `div` 8)]
+            cat [text "Unused reuse token provided by ", prettyCon ppenv debugName size]
          else Nothing
        pure $ out { gammaDia = M.update (fmap snd . uncons) size (gammaDia out) }
 
@@ -443,7 +447,7 @@ joinContexts pats cs
              : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaNm ppenv out]) pats cs
        let unionDia = foldl1' (M.unionWith chooseLonger) (map gammaDia cs')
        requireCapability HasDealloc $ \ppenv ->
-          let noDealloc = all (M.null . M.differenceWith lengthDifferent unionDia . gammaDia) cs'
+          let noDealloc = all (M.null . M.filter (not . null) . M.differenceWith lengthDifferent unionDia . gammaDia) cs'
           in if noDealloc then Nothing else Just $
            vcat $ text "Not all branches use the same reuse tokens:"
              : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaDia ppenv out]) pats cs'
@@ -507,7 +511,7 @@ checkOutputEmpty out
        case M.maxViewWithKey $ gammaDia out of
          Just ((sz, c:_), _) | sz > 0
            -> requireCapability HasAlloc $ \ppenv -> Just $
-                cat [text "Unreused constructor: ", ppName ppenv (getName c), text $ "/" ++ show (sz `div` 8) ]
+                cat [text "Unreused constructor: ", prettyCon ppenv c sz]
          _ -> pure ()
 
 zipDefault :: a -> [a] -> [b] -> [(a, b)]

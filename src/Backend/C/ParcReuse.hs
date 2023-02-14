@@ -273,8 +273,9 @@ ruTryReuseCon cname repr conApp
        available <- getAvailable
        -- ruTrace $ "try reuse: " ++ show (getName cname) ++ ": " ++ show size
        case M.lookup size available of
-         Just (rinfo0:rinfos0)
-           -> do let (rinfo,rinfos) = pick cname rinfo0 rinfos0
+         Just (rinfo:rinfos)
+           -> do -- let (rinfo,rinfos) = pick cname rinfo0 rinfos0
+                 -- Picking can prevent reuse in FIP programs, disabled for now.
                  setAvailable (M.insert size rinfos available)
                  markReused (reuseName rinfo)
                  return (genAllocAt rinfo conApp)
