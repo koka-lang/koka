@@ -43,8 +43,9 @@ import qualified Core.Core as Core
 import Core.Pretty
 import Core.CoreVar
 import Core.Borrowed
-import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial)
+import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial, nameTrue)
 import Backend.C.ParcReuse (constructorSizeOf,getConSize)
+import Backend.C.Parc (getDataDef')
 
 trace s x =
   Lib.Trace.trace s
@@ -87,7 +88,7 @@ chkTopLevelExpr (DefFun bs) (Lam pars eff body)
        let opars = map snd $ filter ((==Own) . fst) $ zipDefault Own bs pars
        withBorrowed (S.fromList $ map getName bpars) $ do
          out <- extractOutput $ chkExpr body
-         writeOutput =<< foldM (flip bindName) out opars
+         writeOutput =<< foldM (\out nm -> bindName nm Nothing out) out opars
 chkTopLevelExpr def (TypeLam _ body)
   = chkTopLevelExpr def body
 chkTopLevelExpr def (TypeApp body _)
@@ -104,17 +105,17 @@ chkExpr expr
               requireCapability HasAlloc $ \ppenv -> Just $
                 text "Lambdas are always allocated."
               out <- extractOutput $ chkExpr body
-              writeOutput =<< foldM (flip bindName) out pars
- 
+              writeOutput =<< foldM (\out nm -> bindName nm Nothing out) out pars
+
       App fn args -> chkApp fn args
       Var tname info -> markSeen tname info
 
       Let [] body -> chkExpr body
       Let (DefNonRec def:dgs) body
         -> do out <- extractOutput $ chkExpr (Let dgs body)
-              gamma2 <- bindName (defTName def) out
+              gamma2 <- bindName (defTName def) Nothing out
               writeOutput gamma2
-              withBorrowed (M.keysSet $ gammaNm gamma2) $
+              withBorrowed (S.map getName $ M.keysSet $ gammaNm gamma2) $
                 withNonTailCtx $ chkExpr $ defExpr def
       Let _ _
         -> unhandled $ text "FBIP check can not handle recursive let bindings."
@@ -134,8 +135,9 @@ chkModCons args
 chkBranches :: [Expr] -> [Branch] -> Chk ()
 chkBranches scrutinees branches
   = do whichBorrowed <- mapM chkScrutinee scrutinees
-       outs <- mapM (extractOutput . chkBranch whichBorrowed) branches
-       writeOutput =<< joinContexts (map branchPatterns branches) outs
+       let branches' = filter (not . isPatternMatchError) branches
+       outs <- mapM (extractOutput . chkBranch whichBorrowed) branches'
+       writeOutput =<< joinContexts (map branchPatterns branches') outs
   where
     fromVar (Var tname _) = Just tname
     fromVar _ = Nothing
@@ -160,18 +162,32 @@ chkBranch whichBorrowed (Branch pats guards)
 chkGuard :: Guard -> Chk ()
 chkGuard (Guard test expr)
   = do out <- extractOutput $ chkExpr expr
-       withBorrowed (M.keysSet $ gammaNm out) $
+       withBorrowed (S.map getName $ M.keysSet $ gammaNm out) $
          withNonTailCtx $ chkExpr test
        writeOutput out
+
+-- | We ignore default branches that create a pattern match error
+isPatternMatchError :: Branch -> Bool
+isPatternMatchError (Branch pats [Guard (Con gname _) (App (TypeApp (Var (TName fnname _) _) _) _)])
+  | all isPatWild pats && getName gname == nameTrue && fnname == namePatternMatchError = True
+  where isPatWild PatWild = True; isPatWild _ = False
+isPatternMatchError _ = False
 
 bindPattern :: Pattern -> Output -> Chk Output
 bindPattern (PatCon cname pats repr _ _ _ _ _) out
   = do newtypes <- getNewtypes
        platform <- getPlatform
        let (size,_) = constructorSizeOf platform newtypes cname repr
-       bindAllocation size <$> foldM (flip bindPattern) out pats
-bindPattern (PatVar tname pat) out
-  = bindName tname =<< bindPattern pat out
+       provideToken cname size =<< foldM (flip bindPattern) out pats
+bindPattern (PatVar tname (PatCon cname pats repr _ _ _ _ _)) out
+  = do newtypes <- getNewtypes
+       platform <- getPlatform
+       let (size,_) = constructorSizeOf platform newtypes cname repr
+       bindName tname (Just size) =<< foldM (flip bindPattern) out pats
+bindPattern (PatVar tname PatWild) out
+  = bindName tname Nothing out
+bindPattern (PatVar tname pat) out -- Else, don't bind the name.
+  = bindPattern pat out            -- The end of the analysis fails if the name is actually used.
 bindPattern (PatLit _) out = pure out
 bindPattern PatWild out = pure out
 
@@ -180,8 +196,9 @@ chkApp (TypeLam _ fn) args = chkApp fn args -- ignore type machinery
 chkApp (TypeApp fn _) args = chkApp fn args
 chkApp (App (TypeApp (Var openName _) _) [fn]) args | getName openName == nameEffectOpen
   = chkApp fn args
-chkApp (Var errorPattern _) args | getName errorPattern == namePatternMatchError
-  = pure () -- we do not care about the strings allocated to throw an exception
+chkApp (Con cname repr) args -- try reuse
+  = do chkModCons args
+       chkAllocation cname repr
 chkApp (Var tname info) args | not (infoIsRefCounted info) -- toplevel function
   = do bs <- getParamInfos (getName tname)
        withNonTailCtx $ mapM_ chkArg $ zipDefault Own bs args
@@ -191,9 +208,6 @@ chkApp (Var tname info) args | not (infoIsRefCounted info) -- toplevel function
            if getName tname `elem` defGroupNames input
            then Just $ text "Non-tail call to (mutually) recursive function: "
            else Nothing
-chkApp (Con cname repr) args -- try reuse
-  = do chkModCons args
-       chkAllocation cname repr
 chkApp fn args -- local function
   = do withNonTailCtx $ mapM_ chkExpr args
        isBapp <- case fn of -- does the bapp rule apply?
@@ -248,7 +262,7 @@ chkEffect tp
       (taus, tau) -> all isFBIP taus
     isFBIP tp = case expandSyn tp of
         TCon tc -> typeConName tc `elem` [nameEffectEmpty,nameTpDiv,nameTpPartial]
-        TApp tc1 [TCon (TypeCon nm _)] -> tc1 == tconHandled && nm == nameTpPartial 
+        TApp tc1 [TCon (TypeCon nm _)] -> tc1 == tconHandled && nm == nameTpPartial
         _       -> False
 
 {--------------------------------------------------------------------------
@@ -274,7 +288,7 @@ data Input = Input{ delta :: S.Set Name,
                     defGroupNames :: [Name],
                     isTailContext :: Bool }
 
-data Output = Output{ gammaNm :: M.Map Name Int,
+data Output = Output{ gammaNm :: M.Map TName Int,
                       gammaDia :: M.Map Int [TName] }
 
 instance Semigroup Output where
@@ -286,7 +300,7 @@ instance Monoid Output where
 prettyGammaNm :: Pretty.Env -> Output -> Doc
 prettyGammaNm ppenv (Output nm dia)
   = tupled $ map
-      (\(nm, cnt) -> cat [ppName ppenv nm, text "/", pretty cnt])
+      (\(nm, cnt) -> cat [ppName ppenv (getName nm), text "/", pretty cnt])
       (M.toList nm)
 
 prettyGammaDia :: Pretty.Env -> Output -> Doc
@@ -384,10 +398,11 @@ isBorrowed nm
 markSeen :: TName -> VarInfo -> Chk ()
 markSeen tname info | infoIsRefCounted info -- is locally defined?
   = do b <- isBorrowed tname
-       if b
+       isHeapValue <- needsDupDrop (tnameType tname)
+       when isHeapValue $ if b
          then requireCapability HasAlloc $ \ppenv -> Just $
            cat [text "Borrowed value used as owned (can cause allocations later): ", ppName ppenv (getName tname)]
-         else writeOutput (Output (M.singleton (getName tname) 1) M.empty)
+         else writeOutput (Output (M.singleton tname 1) M.empty)
 markSeen tname info = chkWrap tname info -- wrap rule
 
 markBorrowed :: TName -> VarInfo -> Chk ()
@@ -400,39 +415,49 @@ markBorrowed nm info
              cat [text "Last use of variable is borrowed: ", ppName ppenv (getName nm)]
 
 getAllocation :: TName -> Int -> Chk ()
+getAllocation nm 0 = pure ()
 getAllocation nm size
   = writeOutput (Output mempty (M.singleton size [nm]))
 
 provideToken :: TName -> Int -> Output -> Chk Output
+provideToken _ 0 out = pure out
 provideToken debugName size out
   = do requireCapability HasDealloc $ \ppenv ->
          let fittingAllocs = M.findWithDefault [] size (gammaDia out) in
          if null fittingAllocs then Just $
-            cat [text "Unused reuse token provided by ", ppName ppenv (getName debugName)]
+            cat [text "Unused reuse token provided by ", ppName ppenv (getName debugName), text $ "/" ++ show (size `div` 8)]
          else Nothing
-       pure $ out { gammaDia = M.adjust tail size (gammaDia out) }
+       pure $ out { gammaDia = M.update (fmap snd . uncons) size (gammaDia out) }
 
 joinContexts :: [[Pattern]] -> [Output] -> Chk Output
 joinContexts _ [] = pure mempty
 joinContexts pats cs
   = do let unionNm = foldl1' (M.unionWith max) (map gammaNm cs)
-       let unionDia = foldl1' (M.unionWith chooseLonger) (map gammaDia cs)
+       (noDealloc, cs') <- fmap unzip $ forM cs $ \c -> do
+         let nm = M.difference unionNm (gammaNm c)
+         (allReusable, c') <- foldM tryReuse (True, c) (map fst $ M.toList nm)
+         pure (allReusable, c')
+       unless (and noDealloc) $ do
+         requireCapability HasDealloc $ \ppenv -> Just $
+           vcat $ text "Not all branches use the same variables:"
+             : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaNm ppenv out]) pats cs
+       let unionDia = foldl1' (M.unionWith chooseLonger) (map gammaDia cs')
        requireCapability HasDealloc $ \ppenv ->
-          let interNm = foldl1' (M.intersectionWith min) (map gammaNm cs) in
-          let interDia = foldl1' (M.intersectionWith chooseShorter) (map gammaDia cs) in
-          if interNm /= unionNm
-          then Just $
-            vcat $ text "Not all branches use the same variables:"
-              : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaNm ppenv out]) pats cs
-          else if interDia /= unionDia
-          then Just $
-            vcat $ text "Not all branches use the same reuse tokens:"
-              : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaDia ppenv out]) pats cs
-          else Nothing
+          let noDealloc = all (M.null . M.differenceWith lengthDifferent unionDia . gammaDia) cs'
+          in if noDealloc then Nothing else Just $
+           vcat $ text "Not all branches use the same reuse tokens:"
+             : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaDia ppenv out]) pats cs'
        pure (Output unionNm unionDia)
   where
     chooseLonger a b = if length a >= length b then a else b
-    chooseShorter a b = if length a <= length b then a else b
+    lengthDifferent a b = if length a /= length b then Just b else Nothing
+
+    tryReuse (allReusable, out) tname
+      = do mOut <- tryDropReuse tname out
+           isHeapVal <- needsDupDrop (tnameType tname)
+           pure $ case mOut of
+             Nothing -> (allReusable && not isHeapVal, out)
+             Just out -> (allReusable, out)
 
     prettyPat ppenv (PatCon nm [] _ _ _ _ _ _) = ppName ppenv (getName nm)
     prettyPat ppenv (PatCon nm pats _ _ _ _ _ _) = ppName ppenv (getName nm) <.> tupled (map (prettyPat ppenv) pats)
@@ -441,42 +466,69 @@ joinContexts pats cs
     prettyPat ppenv (PatLit l) = text $ show l
     prettyPat ppenv PatWild = text "_"
 
-bindName :: TName -> Output -> Chk Output
-bindName nm out
+tryDropReuse :: TName -> Output -> Chk (Maybe Output)
+tryDropReuse nm out
   = do newtypes <- getNewtypes
        platform <- getPlatform
-       out <- case M.lookup (getName nm) (gammaNm out) of
+       case getConSize newtypes platform (tnameType nm) of
+         Nothing -> pure Nothing
+         Just (sz, _) -> Just <$> provideToken nm sz out
+
+bindName :: TName -> Maybe Int -> Output -> Chk Output
+bindName nm msize out
+  = do newtypes <- getNewtypes
+       platform <- getPlatform
+       out <- case M.lookup nm (gammaNm out) of
          Nothing -- unused, so available for drop-guided reuse!
-           -> case getConSize newtypes platform (tnameType nm) of
-               Nothing -> pure out
-               Just (sz, _) -> pure $ bindAllocation sz out
+           -> do mOut <- tryDropReuse nm out
+                 case (msize, mOut) of
+                   (Just sz, _) -> provideToken nm sz out
+                   (_, Just out) -> pure out
+                   (Nothing, Nothing) -> do
+                     isHeapValue <- needsDupDrop (tnameType nm)
+                     when isHeapValue $
+                       requireCapability HasDealloc $ \ppenv -> Just $
+                         cat [text "Variable unused: ", ppName ppenv (getName nm)]
+                     pure out
          Just n
-           -> do when (n > 1) $
+           -> do isHeapVal <- needsDupDrop (tnameType nm)
+                 when (n > 1 && isHeapVal) $
                    requireCapability HasAlloc $ \ppenv -> Just $
                      cat [text "Variable used multiple times: ", ppName ppenv (getName nm)]
-                 pure out 
-       pure (out { gammaNm = M.delete (getName nm) (gammaNm out) })
-
-bindAllocation :: Int -> Output -> Output
-bindAllocation size out
-  = out { gammaDia = M.update (fmap snd . uncons) size (gammaDia out) }
+                 pure out
+       pure (out { gammaNm = M.delete nm (gammaNm out) })
 
 checkOutputEmpty :: Output -> Chk ()
 checkOutputEmpty out
   = do case M.maxViewWithKey $ gammaNm out of
          Nothing -> pure ()
          Just ((nm, _), _)
-           -> emitWarning $ text $ "FBIP analysis didn't bind a name (this is a bug!): " ++ show nm
+           -> emitWarning $ text $ "FBIP analysis failed as it didn't bind a name: " ++ show nm
        case M.maxViewWithKey $ gammaDia out of
          Just ((sz, c:_), _) | sz > 0
            -> requireCapability HasAlloc $ \ppenv -> Just $
-                cat [text "Unreused constructor: ", ppName ppenv (getName c) ]
+                cat [text "Unreused constructor: ", ppName ppenv (getName c), text $ "/" ++ show (sz `div` 8) ]
          _ -> pure ()
 
 zipDefault :: a -> [a] -> [b] -> [(a, b)]
 zipDefault x [] (b:bs) = (x, b) : zipDefault x [] bs
 zipDefault x (a:as) (b:bs) = (a, b) : zipDefault x as bs
 zipDefault x _ [] = []
+
+-- value types with reference fields still need a drop
+needsDupDrop :: Type -> Chk Bool
+needsDupDrop tp
+  = do dd <- getDataDef tp
+       return $ case dd of
+         (DataDefValue _ 0) -> False
+         _                  -> True
+
+getDataDef :: Type -> Chk DataDef
+getDataDef tp
+  = do newtypes <- getNewtypes
+       return (case getDataDef' newtypes tp of
+                 Just dd -> dd
+                 Nothing -> DataDefNormal)
 
 getNewtypes :: Chk Newtypes
 getNewtypes = newtypes <$> getEnv

@@ -20,7 +20,7 @@ Notes:
   the same in a scope.
 ----------------------------------------------------------------------------}
 
-module Backend.C.Parc ( parcCore ) where
+module Backend.C.Parc ( parcCore, getDataDef' ) where
 
 import Lib.Trace (trace)
 import Control.Monad
