@@ -461,9 +461,9 @@ inferShapes scrutineeNames pats
   where shapesOf :: TName -> Pattern -> Parc ShapeMap
         shapesOf parent pat
           = case pat of
-              PatCon{patConPatterns,patConName,patConRepr}
+              PatCon{patConPatterns,patConName,patConRepr,patConInfo}
                 -> do ms <- mapM shapesChild patConPatterns
-                      scan <- getConstructorScanFields patConName patConRepr
+                      scan <- getConstructorScanFields patConInfo patConRepr
                       let m  = M.unionsWith noDup ms
                           shape = ShapeInfo (Just (tnamesFromList (map patName patConPatterns)))
                                             (Just (patConRepr,getName patConName)) (Just scan)
@@ -691,7 +691,7 @@ genDupDrop isDup tname mbConRepr mbScanCount
               in case mbDi of
                 Just di -> case (dataInfoDef di, dataInfoConstrs di, snd (getDataRepr di)) of
                              (DataDefNormal, [conInfo], [conRepr])  -- data with just one constructor
-                               -> do scan <- getConstructorScanFields (TName (conInfoName conInfo) (conInfoType conInfo)) conRepr
+                               -> do scan <- getConstructorScanFields conInfo conRepr
                                      -- parcTrace $ "  add scan fields: " ++ show scan ++ ", " ++ show tname
                                      return (Just (dupDropFun isDup tp (Just (conRepr,conInfoName conInfo)) (Just scan) (Var tname InfoNone)))
                              (DataDefValue _ 0, _, _)
@@ -835,11 +835,11 @@ getPlatform :: Parc Platform
 getPlatform = platform <$> getEnv
 
 
-getConstructorScanFields :: TName -> ConRepr -> Parc Int
-getConstructorScanFields conName conRepr
+getConstructorScanFields :: ConInfo -> ConRepr -> Parc Int
+getConstructorScanFields conInfo conRepr
   = do platform <- getPlatform
        newtypes <- getNewtypes
-       let (size,scan) = (constructorSizeOf platform newtypes conName conRepr)
+       let (size,scan) = (constructorSizeOf platform newtypes conInfo conRepr)
        -- parcTrace $ "get size " ++ show conName ++ ": " ++ show (size,scan) ++ ", " ++ show conRepr
        return scan
 
