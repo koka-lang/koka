@@ -1533,7 +1533,7 @@ genPatternTest doTest eagerPatBind (exprDoc,pattern)
       -}
       PatCon bname [pattern] repr [targ] exists tres info skip  | getName bname == nameBoxCon
         -> do local <- newVarName "unbox"
-              let assign  = [ppType tres <+> ppDefName local <+> text "=" <+> {- genDupCall tres -} exprDoc <.> semi]
+              let assign  = [ppType tres <+> ppDefName local <+> text "=" <+> genDupCall tres exprDoc <.> semi]
                   unbox   = genBoxCall "unbox" False targ (ppDefName local)
                   -- assign  = []
                   -- unbox   = genBoxCall "unbox" True {- borrowing -} targ exprDoc
