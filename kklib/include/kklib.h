@@ -953,10 +953,10 @@ static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
 
 // Integer value encoding/decoding. May use smaller integers (`kk_intf_t`)
 // then boxed integers if `kk_intb_t` is larger than the natural register size.
-#define KK_INTF_BOX_BITS(extra)  (KK_INTF_BITS - KK_TAG_BITS + (extra))
+#define KK_INTF_BOX_BITS(extra)  (KK_INTF_BITS - (KK_TAG_BITS + (extra)))
 #define KK_INTF_BOX_MAX(extra)   (KK_INTF_MAX >> (KK_TAG_BITS + (extra)))
 #define KK_INTF_BOX_MIN(extra)   (-KK_INTF_BOX_MAX(extra) - 1)
-#define KK_UINTF_BOX_MAX(extra)  (KK_UINTF_MAX >> (KK_TAG_BITS + (extra)))
+#define KK_UINTF_BOX_MAX(extra)  (KK_UINTF_MAX >>(KK_TAG_BITS + (extra)))
 
 static inline kk_intb_t kk_intf_encode(kk_intf_t i, int extra_shift) {
   kk_assert_internal(extra_shift >= 0);
@@ -968,7 +968,7 @@ static inline kk_intb_t kk_intf_encode(kk_intf_t i, int extra_shift) {
 static inline kk_intf_t kk_intf_decode(kk_intb_t b, int extra_shift) {
   kk_assert_internal(extra_shift >= 0);
   kk_assert_internal(kk_is_value(b) || b == kk_get_context()->kk_box_any.dbox);
-  kk_intb_t i = kk_sarb( b & ~KK_TAG_VALUE, KK_TAG_BITS + extra_shift);  
+  kk_intb_t i = kk_sarb( b, KK_TAG_BITS + extra_shift);  
   kk_assert_internal(i >= KK_INTF_MIN && i <= KK_INTF_MAX);
   return (kk_intf_t)i;
 }
