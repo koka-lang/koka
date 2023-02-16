@@ -104,7 +104,7 @@ kk_string_t kk_string_from_list(kk_std_core__list cs, kk_context_t* ctx) {
   kk_std_core__list xs = cs;
   while (kk_std_core__is_Cons(xs,ctx)) {
     struct kk_std_core_Cons* cons = kk_std_core__as_Cons(xs,ctx);
-    len += kk_utf8_len(kk_char_unbox(cons->head,ctx));
+    len += kk_utf8_len(kk_char_unbox(cons->head,KK_BORROWED,ctx));
     xs = cons->tail;
   }
   // allocate and copy the characters
@@ -114,7 +114,7 @@ kk_string_t kk_string_from_list(kk_std_core__list cs, kk_context_t* ctx) {
   while (kk_std_core__is_Cons(xs,ctx)) {
     struct kk_std_core_Cons* cons = kk_std_core__as_Cons(xs,ctx);
     kk_ssize_t count;
-    kk_utf8_write( kk_char_unbox(cons->head,ctx), p, &count );
+    kk_utf8_write( kk_char_unbox(cons->head,KK_BORROWED,ctx), p, &count );
     p += count;
     xs = cons->tail;
   }

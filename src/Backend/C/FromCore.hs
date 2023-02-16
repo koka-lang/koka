@@ -735,18 +735,34 @@ genBoxUnbox name info dataRepr
        genBox tname info dataRepr 
        genUnbox  tname info dataRepr
 
-
-genBoxCall prim asBorrowed tp arg
-  = case cType tp of
-      CFun _ _   -> primName_t prim "function_t" <.> tupled [arg,ctx]
+genBoxCall tp arg 
+  = let prim = "box"
+        ctx  = contextDoc
+    in case cType tp of
+      CFun _ _   -> primName_t prim "function_t" <.> tupled ([arg,ctx])
       CPrim val  | val == "kk_unit_t" || val == "bool" || val == "kk_string_t" -- || val == "kk_integer_t" 
                  -> primName_t prim val <.> parens arg  -- no context
-      --CPrim val  | val == "int32_t" || val == "double" || val == "unit_t"
-      --           -> text val <.> arguments [arg]
       CData name -> primName prim (ppName name) <.> tupled [arg,ctx]
       _          -> primName_t prim (show (ppType tp)) <.> tupled [arg,ctx]  -- kk_box_t, int32_t
-  where
-    ctx          = if asBorrowed then text "NULL" else contextDoc
+
+
+genUnboxCallOwned tp arg 
+  = genUnboxCall tp arg (text "KK_OWNED")
+
+genUnboxCallBorrowed tp arg 
+  = genUnboxCall tp arg (text "KK_BORROWED")
+
+genUnboxCall tp arg argBorrow
+  = let prim = "unbox"
+        ctx  = contextDoc
+    in case cType tp of
+      CFun _ _   -> primName_t prim "function_t" <.> tupled [arg,ctx] -- no borrow
+      CPrim val  | val == "kk_unit_t" || val == "bool" || val == "kk_string_t"
+                    -> primName_t prim val <.> parens arg  -- no borrow, no context
+                 | otherwise 
+                    -> primName_t prim val <.>  tupled ([arg] ++ (if (cPrimCanBeBoxed val) then [argBorrow] else []) ++ [ctx])
+      CData name -> primName prim (ppName name) <.> tupled [arg,argBorrow,ctx]
+      CBox       -> primName_t prim (show (ppType tp)) <.> tupled [arg,ctx]  
 
 
 primName_t prim s = primName prim $ text $
@@ -768,14 +784,14 @@ genBox name info dataRepr
         DataEnum -> text "return" <+> text "kk_enum_box" <.> tupled [text "_x"] <.> semi
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         (isoName,isoTp)   = (head (conInfoParams conInfo))
-                    in text "return" <+> genBoxCall "box" False isoTp (text "_x." <.> ppName (unqualify isoName)) <.> semi
-        DataStructAsMaybe
+                    in text "return" <+> genBoxCall isoTp (text "_x." <.> ppName (unqualify isoName)) <.> semi
+        DataStructAsMaybe 
           -> let (conNothing,conJust) = dataStructAsMaybeSplit (dataInfoConstrs info)
                  (conJustFieldName,conJustFieldTp) = head (conInfoParams conJust)
              in text "if" <+> parens (conTestName conNothing <.> arguments [text "_x"]) <+> (text "{ return kk_box_Nothing(); }")
                 <->
                 text "  else" <+> (
-                  let boxField = genBoxCall "box" False conJustFieldTp 
+                  let boxField = genBoxCall conJustFieldTp 
                                   (text "_x._cons." <.> ppDefName (conInfoName conJust) <.> text "." <.> ppName (unqualify conJustFieldName))
                   in text "{ return kk_box_Just" <.> arguments [boxField] <.> semi <+> text "}"
                 )
@@ -796,12 +812,12 @@ genBox name info dataRepr
 
 genUnbox name info dataRepr
   = emitToH $
-    text "static inline" <+> ppName name <+> ppName name <.> text "_unbox" <.> parameters [text "kk_box_t _x"] <+> block (
+    text "static inline" <+> ppName name <+> ppName name <.> text "_unbox" <.> parameters [text "kk_box_t _x", text "kk_borrow_t _borrow"] <+> block (
       (case dataRepr of
         DataEnum -> text "return" <+> parens (ppName name) <.> text "kk_enum_unbox" <.> tupled [text "_x"]
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         isoTp   = snd (head (conInfoParams conInfo))
-                    in text "return" <+> conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" False isoTp (text "_x")]
+                    in text "return" <+> conCreateNameInfo conInfo <.> arguments [genUnboxCall isoTp (text "_x") (text "_borrow")]
         DataStructAsMaybe
           -> let [conNothing,conJust] = sortOn (length . conInfoParams) (dataInfoConstrs info)
                  (conJustFieldName,conJustFieldTp) = head (conInfoParams conJust)
@@ -810,12 +826,12 @@ genUnbox name info dataRepr
                 <->
                 text "  else" <+> (
                   text "{ return" <+> conCreateName (conInfoName conJust) <.> arguments [
-                    genBoxCall "unbox" False conJustFieldTp (text "kk_unbox_Just" <.> arguments [text "_x"])
+                    genUnboxCall conJustFieldTp (text "kk_unbox_Just" <.> arguments [text "_x", text "_borrow"]) (text "_borrow")
                   ] <.> semi <+> text "}"
                 )
         _ | dataReprIsValue dataRepr
           -> vcat [ ppName name <+> text "_unbox;"
-                  , text "kk_valuetype_unbox" <.> arguments [ppName name, text "_unbox", text "_x"] <.> semi 
+                  , text "kk_valuetype_unbox" <.> arguments [ppName name, text "_unbox", text "_x", text "_borrow"] <.> semi 
                   , text "return _unbox" ]
              -- text "unbox_valuetype" <.> arguments [ppName name, text "x"]
         _ -> text "return"
@@ -1277,6 +1293,10 @@ cTypeCon c
         else CData (typeClassName name)
 
 
+cPrimCanBeBoxed :: String -> Bool
+cPrimCanBeBoxed prim
+  = prim `elem` ["kk_char_t", "int64_t", "int16_t", "int32_t", "float", "double", "intptr_t", "kk_ssize_t"]
+
 
 ---------------------------------------------------------------------------------
 -- Statements
@@ -1532,11 +1552,11 @@ genPatternTest doTest eagerPatBind (exprDoc,pattern)
               return [([],[after],next)]
       -}
       PatCon bname [pattern] repr [targ] exists tres info skip  | getName bname == nameBoxCon
-        -> do local <- newVarName "unbox"
-              let assign  = [ppType tres <+> ppDefName local <+> text "=" <+> genDupCall tres exprDoc <.> semi]
-                  unbox   = genBoxCall "unbox" False targ (ppDefName local)
-                  -- assign  = []
-                  -- unbox   = genBoxCall "unbox" True {- borrowing -} targ exprDoc
+        -> do -- local <- newVarName "unbox"
+              let -- assign  = [ppType tres <+> ppDefName local <+> text "=" <+> genDupCall tres exprDoc <.> semi]
+                  -- unbox   = genUnboxCallBorrowed targ (ppDefName local)
+                  assign  = []
+                  unbox   = genUnboxCallBorrowed targ exprDoc
                   next    = genNextPatterns (\self fld -> self) unbox targ [pattern]                  
               return [([],assign,[],next)]
       PatVar tname pattern
@@ -2018,7 +2038,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameBox || getName tna
         tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> if (isBox) then fromTp else toTp
                   _ -> failure $ ("Backend.C.genExprExternal.unbox: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
-        call  = genBoxCall (if (isBox) then "box" else "unbox") False tp argDoc
+        call  = if (isBox) then genBoxCall tp argDoc else genUnboxCallOwned tp argDoc
     in return ([], call)
 
 
