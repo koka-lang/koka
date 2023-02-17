@@ -58,22 +58,24 @@
   - `intptr_t` for addresses (where `sizeof(intptr_t) == sizeof(void*)`), 
   - `size_t` for object sizes, 
   - `kk_intx_t` for the natural largest register size (for general arithmetic),
+  - `kk_addr_t` for raw virtual adresses; usually equal to `intptr_t` but
+     on capability systems like CHERI, this can be smaller.
   
   We always have: 
-  - `|intptr_t| >= |size_t| >= |int|`. 
+  - `|intptr_t| >= |kk_addr_t| >= |size_t| >= |int|`. 
   - `|kk_intx_t| >= |int|`.
   
-        system         intptr_t   size_t   int   long   intx    notes
- ------------------ ----------- -------- ----- ------ ------  -----------
-  x86, arm32                32       32    32     32     32 
-  x64, arm64, etc.          64       64    32     64     64 
-  x64 windows               64       64    32     32     64   size_t   > long
-  x32 linux                 32       32    32     32     64   intx_t   > size_t,intptr_t
-  arm CHERI                128       64    32     64     64   intptr_t > size_t
-  riscV 128-bit            128      128    32     64    128   
-  x86 16-bit small          16       16    16     32     16   long > size_t
-  x86 16-bit large          32       16    16     32     16   intptr_t/long > size_t
-  x86 16-bit huge           32       32    16     32     16   size_t > intx_t
+        system         intptr_t kk_addr_t   size_t   int   long   intx    notes
+ ------------------ ----------- ---------  -------- ----- ------ ------  -----------
+  x86, arm32                32        32        32    32     32     32 
+  x64, arm64, etc.          64        64        64    32     64     64 
+  x64 windows               64        64        64    32     32     64   size_t   > long
+  x32 linux                 32        32        32    32     32     64   intx_t   > size_t,intptr_t
+  arm CHERI                128        64        64    32     64     64   intptr_t > size_t
+  riscV 128-bit            128       128       128    32     64    128   
+  x86 16-bit small          16        16        16    16     32     16   long > size_t
+  x86 16-bit large          32        32        16    16     32     16   intptr_t/long > size_t
+  x86 16-bit huge           32        32        32    16     32     16   size_t > intx_t
 
   We use a signed `size_t` as `kk_ssize_t` (see earlier comments) 
 
@@ -87,17 +89,19 @@
         system                  intptr_t   size_t   intx   intb   intf    notes
  ----------------------------- --------- -------- ------ ------ ------  -----------
   x64, arm64,                        64       64     64     64     64
-  x64, arm64 compressed 32-bit       64       64     64     32     32   limit heap to 2^32 (*4)
-
+  x64, arm64 compressed 32-bit       64       64     64     32     32   limit heap to 16 GiB == 4*2^32 (*)
+  
   arm CHERI                         128       64     64    128     64   |intb| > |intf|
   arm CHERI compressed 64-bit       128       64     64     64     64   store addresses only in a box
   arm CHERI compressed 32-bit       128       64     64     32     32   compress address as well
 
   riscV 128-bit                     128      128    128    128    128
-  riscV 128-bit compressed 64-bit   128      128    128     64     64   limit heap to 2^64 (*4)
-  riscV 128-bit compressed 32-bit   128      128    128     32     32   limit heap to 2^32 (*4)
+  riscV 128-bit compressed 64-bit   128      128    128     64     64   limit heap to 2^64 
+  riscV 128-bit compressed 32-bit   128      128    128     32     32   limit heap to 16 GiB == 4*2^32 (*)
   x32 linux                          32       32     64     32     32   |intx| > |intb|
 
+
+  (*) times 4 as we have 2 spare bits after assuming aligned addresses.
 --------------------------------------------------------------------------------------*/
 
 
