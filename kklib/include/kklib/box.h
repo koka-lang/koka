@@ -396,9 +396,9 @@ typedef struct kk_cptr_raw_s {
 } *kk_cptr_raw_t;
 
 kk_decl_export kk_box_t kk_cptr_raw_box(kk_free_fun_t* freefun, void* p, kk_context_t* ctx);
-kk_decl_export void* kk_cptr_raw_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx);
+kk_decl_export void*    kk_cptr_raw_unbox_borrowed(kk_box_t b, kk_context_t* ctx);
 kk_decl_export kk_box_t kk_cptr_box(void* p, kk_context_t* ctx);
-kk_decl_export void* kk_cptr_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx);
+kk_decl_export void*    kk_cptr_unbox_borrowed(kk_box_t b, kk_context_t* ctx);
 
 // C function pointers
 typedef void (*kk_cfun_ptr_t)(void);

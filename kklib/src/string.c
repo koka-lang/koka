@@ -959,7 +959,7 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
       }
       else if (tag == KK_TAG_FUNCTION) {
         struct kk_function_s* fun = kk_block_assert(struct kk_function_s*, p, KK_TAG_FUNCTION);
-        snprintf(buf, 128, "function(0x%zx)", (uintptr_t)(kk_cptr_unbox(fun->fun, KK_BORROWED, ctx)));
+        snprintf(buf, 128, "function(0x%zx)", (uintptr_t)(kk_cptr_unbox_borrowed(fun->fun,ctx)));
         kk_box_drop(b, ctx);
         return kk_string_alloc_dup_valid_utf8(buf, ctx);
       }

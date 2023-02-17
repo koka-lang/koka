@@ -201,10 +201,11 @@ kk_box_t kk_cptr_raw_box(kk_free_fun_t* freefun, void* p, kk_context_t* ctx) {
   return kk_ptr_box(&raw->_block,ctx);
 }
 
-void* kk_cptr_raw_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
+// always assumed borrowed! If dropped here a C free routine may make the returned pointer invalid.
+void* kk_cptr_raw_unbox_borrowed(kk_box_t b, kk_context_t* ctx) {  
   kk_cptr_raw_t raw = kk_block_unbox_as(kk_cptr_raw_t, b, KK_TAG_CPTR_RAW, ctx);
   void* p = raw->cptr;
-  if (kk_is_owned(borrow)) { kk_base_type_drop(raw, ctx); }
+  // if (kk_is_owned(borrow)) { kk_base_type_drop(raw, ctx); }
   return p;
 }
 
@@ -220,12 +221,12 @@ kk_box_t kk_cptr_box(void* p, kk_context_t* ctx) {
   }
 }
 
-void* kk_cptr_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
+void* kk_cptr_unbox_borrowed(kk_box_t b, kk_context_t* ctx) {
   if (kk_box_is_value(b)) {
     return (void*)((intptr_t)kk_intf_unbox(b));
   }
   else {
-    return kk_cptr_raw_unbox(b,borrow,ctx);
+    return kk_cptr_raw_unbox_borrowed(b,ctx);
   }
 }
 
