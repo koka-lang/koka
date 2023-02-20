@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2012-2021, Microsoft Research, Daan Leijen.
+-- Copyright 2012-2023, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -19,7 +19,9 @@ module Common.Syntax( Visibility(..)
                     , Target(..), CTarget(..), JsTarget(..), isTargetC, isTargetJS, isTargetWasm
                     , isPublic, isPrivate
                     , DataDef(..)
-                    , dataDefIsRec, dataDefIsOpen, dataDefIsValue
+                    , dataDefIsRec, dataDefIsOpen, dataDefIsValue, dataDefSize
+                    , ValueRepr(..)
+                    , valueReprIsMixed, valueReprIsRaw, valueReprNew, valueReprZero, valueReprSize
                     , HandlerSort(..)
                     , isHandlerInstance, isHandlerNormal
                     , OperationSort(..), readOperationSort
@@ -28,6 +30,8 @@ module Common.Syntax( Visibility(..)
                     , alignedSum, alignedAdd, alignUp
                     , BuildType(..)
                     ) where
+
+import Data.List(intersperse)
 
 {--------------------------------------------------------------------------
   Backend targets
@@ -67,24 +71,26 @@ instance Show Target where
 
 data Platform = Platform{ sizePtr   :: Int -- sizeof(intptr_t)
                         , sizeSize  :: Int -- sizeof(size_t)
-                        , sizeField :: Int -- sizeof(kk_field_t), usually uintptr_t but may be smaller for compression
+                        , sizeField :: Int -- sizeof(kk_field_t), usually intptr_t but may be smaller for compression
+                        , sizeHeader:: Int -- used for correct alignment calculation
                         }
 
 platform32, platform64, platform64c, platformJS, platformCS :: Platform
-platform32  = Platform 4 4 4
-platform64  = Platform 8 8 8
-platform64c = Platform 8 8 4  -- compressed fields
-platformJS  = Platform 8 4 8
-platformCS  = Platform 8 4 8
+platform32  = Platform 4 4 4 8
+platform64  = Platform 8 8 8 8
+platform64c = Platform 8 8 4 8  -- compressed fields
+platformJS  = Platform 8 4 8 0
+platformCS  = Platform 8 4 8 0
 
 
-platformHasCompressedFields (Platform sp _ sf) = (sp /= sf)
+platformHasCompressedFields (Platform sp _ sf _) = (sp /= sf)
 
 instance Show Platform where
-  show (Platform sp ss sf) = "Platform(sizeof(void*)=" ++ show sp ++ 
-                             ",sizeof(size_t)=" ++ show ss ++ 
-                             ",sizeof(kk_box_t)=" ++ show sf ++ 
-                             ")" 
+  show (Platform sp ss sf sh) = "Platform(sizeof(void*)=" ++ show sp ++ 
+                                        ",sizeof(size_t)=" ++ show ss ++ 
+                                        ",sizeof(kk_box_t)=" ++ show sf ++ 
+                                        ",sizeof(kk_header_t)=" ++ show sh ++ 
+                                        ")" 
 
 
 alignedSum :: Int -> [Int] -> Int
@@ -175,10 +181,7 @@ instance Show DataKind where
   show CoInductive = "cotype"
   show Retractive = "rectype"
 
-data DataDef = DataDefValue{ rawSize    :: Int {- size in bytes -}, 
-                             scanFields :: Int {- count of scannable fields -},
-                             alignment  :: Int {- minimal alignment -} 
-                           }
+data DataDef = DataDefValue !ValueRepr
              | DataDefNormal
              | DataDefAuto   -- Value or Normal; determined by kind inference
              | DataDefRec
@@ -187,7 +190,7 @@ data DataDef = DataDefValue{ rawSize    :: Int {- size in bytes -},
 
 instance Show DataDef where
   show dd = case dd of
-              DataDefValue m n a -> "val(rawSize=" ++ show m ++ ",scanCount=" ++ show n ++ ",alignment=" ++ show a ++ ")"
+              DataDefValue v   -> "val" ++ show v
               DataDefNormal{}  -> "normal"
               DataDefRec       -> "rec"
               DataDefOpen      -> "open"
@@ -209,6 +212,45 @@ dataDefIsValue ddef
   = case ddef of
       DataDefValue{} -> True
       _ -> False
+
+dataDefSize :: Platform -> DataDef -> Int
+dataDefSize platform ddef
+  = case ddef of
+      DataDefValue v -> valSize v
+      _              -> sizeField platform
+
+
+{--------------------------------------------------------------------------
+  Definition kind
+--------------------------------------------------------------------------}
+
+data ValueRepr = ValueRepr{ valRawSize    :: !Int {- size in bytes -}, 
+                            valScanCount  :: !Int {- count of scannable fields -},
+                            valAlignment  :: !Int {- minimal alignment -},
+                            valSize       :: !Int {- full size, always rawSize + scanFields*sizeField platform -}
+                          }
+               deriving Eq
+
+instance Show ValueRepr where
+  show (ValueRepr raw scan align full) 
+    = "{" ++ concat (intersperse "," (map show [raw,scan,align,full])) ++ "}"
+
+valueReprSize :: ValueRepr -> Int
+valueReprSize v = valSize v
+
+valueReprIsMixed :: ValueRepr -> Bool
+valueReprIsMixed v  = (valRawSize v > 0) && (valScanCount v > 0)
+
+valueReprIsRaw :: ValueRepr -> Bool
+valueReprIsRaw v  = (valRawSize v > 0) && (valScanCount v == 0)
+
+valueReprNew :: Platform -> Int -> Int -> Int -> ValueRepr
+valueReprNew platform rawSize scanCount align
+  = ValueRepr rawSize scanCount align (rawSize + (scanCount * sizeField platform))
+
+valueReprZero :: ValueRepr
+valueReprZero = ValueRepr 0 0 0 0
+
 
 {--------------------------------------------------------------------------
   Definition kind

@@ -563,7 +563,7 @@ structDecl dvis =
         (try $
           do (vis,dvis,rng) <-     do{ rng <- keyword "abstract"; return (Public,Private,rng) }
                                <|> do{ (vis,rng) <- visibility dvis; return (vis,vis,rng) }
-             ddef           <-     do { specialId "value"; return (DataDefValue 0 0 0) }
+             ddef           <-     do { specialId "value"; return (DataDefValue valueReprZero) }
                                <|> do { specialId "reference"; return DataDefNormal }
                                <|> do { return DataDefAuto }
              (trng,doc) <- dockeyword "struct"
@@ -607,7 +607,7 @@ typeDeclKind
     try(
     do (ddef,isExtend) <-     do { specialId "open"; return (DataDefOpen, False) }
                           <|> do { specialId "extend"; return (DataDefOpen, True) }
-                          <|> do { specialId "value"; return (DataDefValue 0 0 0, False) }
+                          <|> do { specialId "value"; return (DataDefValue valueReprZero, False) }
                           <|> do { specialId "reference"; return (DataDefNormal, False) }
                           <|> return (DataDefAuto, False)
        (rng,doc) <- dockeyword "type"

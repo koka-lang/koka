@@ -836,7 +836,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                          _ -> False
        -}
        -- value types
-       ddef' <- case ddef of
+       ddef1 <- case ddef of
                   DataDefNormal
                     -> return (if (isRec) then DataDefRec else DataDefNormal)
                   DataDefValue{} | isRec
@@ -855,52 +855,55 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                        do platform <- getPlatform                          
                           dd <- toDefValues platform (ddef/=DataDefAuto) qname nameDoc infos
                           case (ddef,dd) of  -- note: m = raw, n = scan
-                            (DataDefValue _ _ _, DataDefValue m n a)
+                            (DataDefValue _, DataDefValue vr)
                               -> if (hasKindStarResult (getKind typeResult))
-                                  then return (DataDefValue m n a)
+                                  then return (DataDefValue vr)
                                   else do addError range (text "Type" <+> nameDoc <+> text "is declared as a value type but does not have a value kind ('V').")  -- should never happen?
                                           return DataDefNormal
-                            (DataDefValue _ _ _, DataDefNormal)
+                            (DataDefValue _, DataDefNormal)
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
                                     return DataDefNormal
-                            (DataDefAuto, DataDefValue m n a)
-                              -> if ((m + (n*sizeField platform)) <= 3*(sizeField platform)
+                            (DataDefAuto, DataDefValue vr)
+                              -> if (valueReprSize vr <= 3*(sizeField platform)
                                       && hasKindStarResult (getKind typeResult)
                                       && (sort /= Retractive))
                                   then -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
-                                      return (DataDefValue m n a)
+                                      return (DataDefValue vr)
                                   else -- trace ("default to reference: " ++ show name ++ ": " ++ show (m,n)) $
                                       return (DataDefNormal)
                             _ -> return DataDefNormal
 
+       let dataInfo0 = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef1 vis doc
+       dataInfo  <- case ddef1 of
+                      DataDefValue (ValueRepr m n a _)  | Core.needsTagField (fst (Core.getDataRepr dataInfo0))
+                        ->  -- add extra required tag field to the size
+                            -- todo: recalculate the constructor sizes as well!
+                            do platform <- getPlatform
+                               let ddef2 = DataDefValue (valueReprNew platform m (n+1) a)
+                               return $ dataInfo0{ dataInfoDef = ddef2 }
+                      _ -> return dataInfo0
+                              
        -- trace (showTypeBinder newtp') $
        addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')))
-       let dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef' vis doc
        return (Core.Data dataInfo isExtend)
   where
     conVis (UserCon name exist params result rngName rng vis _) = vis
 
     toDefValues :: Platform -> Bool -> Name -> Doc -> [ConInfo] -> KInfer DataDef
     toDefValues platform isVal qname nameDoc conInfos
-      = do ddefs <- mapM (toDefValue nameDoc) conInfos
+      = do let ddefs = map conInfoValueRepr conInfos
            ddef <- maxDataDefs platform qname isVal nameDoc ddefs
            case ddef of
-             DataDefValue 0 0 0 -- enumeration
+             DataDefValue (ValueRepr 0 0 0 _) -- enumeration
                -> let n = length conInfos
-                  in if (n < 256)        then return $ DataDefValue 1 0 1  -- uint8_t
-                     else if (n < 65536) then return $ DataDefValue 2 0 2  -- uint16_t
-                                         else return $ DataDefValue 4 0 4  -- uint32_t
+                  in if (n < 256)        then return $ DataDefValue (ValueRepr 1 0 1 1) -- uint8_t
+                     else if (n < 65536) then return $ DataDefValue (ValueRepr 2 0 2 2) -- uint16_t
+                                         else return $ DataDefValue (ValueRepr 4 0 4 4) -- uint32_t
              _ -> return ddef
 
-    toDefValue :: Doc -> ConInfo -> KInfer (Int,Int)
-    toDefValue nameDoc con
-      = do ddefs <- mapM (typeDataDef lookupDataInfo . snd) (conInfoParams con)
-           dd <- sumDataDefs nameDoc ddefs
-           -- trace ("datadefs: " ++ show nameDoc ++ "." ++ show (conInfoName con) ++ ": " ++ show ddefs ++ " to " ++ show dd) $
-           return dd
-
+    
     -- note: (m = raw, n = scan)
-    maxDataDefs :: Platform -> Name -> Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
+    maxDataDefs :: Platform -> Name -> Bool -> Doc -> [ValueRepr] -> KInfer DataDef
     maxDataDefs platform name False nameDoc [] -- reference type, no constructors
       = return DataDefNormal
     maxDataDefs platform name True nameDoc []  -- primitive abstract value type with no constructors
@@ -921,67 +924,30 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                   then do addWarning range (text "Type:" <+> nameDoc <+> text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform))
                           return (sizePtr platform)
                   else return size
-           return (DataDefValue m 0 m)
-    maxDataDefs platform name isVal nameDoc [(m,n)] -- singleton value
-      = return (DataDefValue m n m)
-    maxDataDefs platform name isVal nameDoc (dd:dds)
-      = do dd2 <- maxDataDefs platform name isVal nameDoc dds
-           case (dd,dd2) of
-             ((0,0), DataDefValue m n a)    -> return (DataDefValue m n a)
-             ((m,n), DataDefValue 0 0 a)    -> return (DataDefValue m n a)
-             ((m1,0), DataDefValue m2 0 a)  -> return (DataDefValue (max m1 m2) 0 a)
-             ((0,n1), DataDefValue 0 n2 a)  -> return (DataDefValue 0 (max n1 n2) a)
-             ((m1,n1), DataDefValue m2 n2 a)
-               -- TODO: mixed raw is ok?
-               -- | m1 == m2  -> return (DataDefValue m1 (max n1 n2))
-               | n1 == n2 -> return (DataDefValue (max m1 m2) n1 a)
+           return (DataDefValue (valueReprNew platform m 0 m))
+    maxDataDefs platform name isVal nameDoc [vr] -- singleton value
+      = return (DataDefValue vr)
+    maxDataDefs platform name isVal nameDoc (vr:vrs)
+      = do dd <- maxDataDefs platform name isVal nameDoc vrs
+           case (vr,dd) of
+             (ValueRepr 0 0 _ _,    DataDefValue v)                    -> return (DataDefValue v)
+             (v,                    DataDefValue (ValueRepr 0 0 _ _))  -> return (DataDefValue v)
+             (ValueRepr m1 0 a1 _,  DataDefValue (ValueRepr m2 0 a2 _)) 
+                -> return (DataDefValue (valueReprNew platform (max m1 m2) 0 (max a1 a2)))
+             (ValueRepr 0 n1 a1 _,  DataDefValue (ValueRepr 0 n2 a2 _)) 
+                -> return (DataDefValue (valueReprNew platform 0 (max n1 n2) (max a1 a2)))
+             (ValueRepr m1 n1 a1 _, DataDefValue (ValueRepr m2 n2 a2 _))
+               -- equal scan fields
+               | n1 == n2  -> return (DataDefValue (valueReprNew platform (max m1 m2) n1 (max a1 a2)))
+               -- non-equal scan fields
                | otherwise ->
                  do if (isVal)
-                      then -- addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors which varying raw types and regular types." <->
-                            --                text "hint: value types with multiple constructors must all use the same number of regular types when mixed with raw types (use 'box' to use a raw type as a regular type).")
-                           addError   range (text "type:" <+> nameDoc <+> text "is declared as a value type but has" <+> text "multiple constructors with a different number of regular types overlapping with value types." <->
+                      then addError   range (text "type:" <+> nameDoc <+> text "is declared as a value type but has" <+> text "multiple constructors with a different number of regular types overlapping with value types." <->
                                              text "hint: value types with multiple constructors must all use the same number of regular types (use 'box' to use a value type as a regular type).")
                       else addWarning range (text "type:" <+> nameDoc <+> text "cannot be defaulted to a value type as it has" <+> text "multiple constructors with a different number of regular types overlapping with value types.")
                     -- trace ("warning: cannot default to a value type due to mixed raw/regular fields: " ++ show nameDoc) $
                     return DataDefNormal -- (DataDefValue (max m1 m2) (max n1 n2))
              _ -> return DataDefNormal
-
-    sumDataDefs :: Doc -> [DataDef] -> KInfer (Int,Int)
-    sumDataDefs nameDoc ddefs
-      = walk 0 0 ddefs
-      where
-        walk m n [] = return (m,n)
-        walk m n (dd:dds)
-          = do case dd of
-                 DataDefValue m1 n1 _
-                   -> do if (m1 > 0 && n1 > 0)   -- mixed raw and scan fields?
-                          then mapM_ (checkNoClash nameDoc m1 n1) dds
-                          else return ()
-                         walk (alignedAdd m m1) (n + n1) dds
-                 _ -> walk m (n + 1) dds
-
-    checkNoClash :: Doc -> Int -> Int -> DataDef -> KInfer ()
-    checkNoClash nameDoc m1 n1 dd
-      = case dd of
-          DataDefValue m2 n2 _ | m2 > 0 && n2 > 0
-            -> do addError range (text "Type:" <+> nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
-                                  text ("hint: use 'box' on either field to make it a non-value type."))
-          _ -> return ()
-
-
-    -- get the DataDef for a previous type
-    typeDataDef :: Monad m => (Name -> m (Maybe DataInfo)) -> Type -> m DataDef
-    typeDataDef lookupDataInfo tp
-      = case expandSyn tp of
-          TCon (TypeCon name _)
-            -> do mbdi <- lookupDataInfo name
-                  case mbdi of
-                    Nothing  -> failure ("Kind.Infer.resolve data def: unknown type: " ++ show name);
-                    Just di  -> return (dataInfoDef di)
-          TApp t _      -> typeDataDef lookupDataInfo t
-          TForall _ _ t -> typeDataDef lookupDataInfo t
-          _             -> return DataDefNormal
-
 
 occursNegativeCon :: [Name] -> ConInfo -> Bool
 occursNegativeCon names conInfo
@@ -1051,7 +1017,7 @@ resolveConstructor typeName typeSort isOpen isSingleton typeResult typeParams id
        addRangeInfo rng (Decl "con" qname (mangleConName qname))
        addRangeInfo rngName (Id qname (NICon scheme) True)
        let fields = map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] (map snd params'))
-       (orderedFields,size,scanCount,alignment) <- orderConFields rng name isOpen fields
+       (orderedFields,vrepr) <- orderConFields rng name isOpen fields
        return (UserCon qname exist' params' (Just result') rngName rng vis doc
               ,ConInfo qname typeName typeParams existVars
                   fields
@@ -1060,7 +1026,7 @@ resolveConstructor typeName typeSort isOpen isSingleton typeResult typeParams id
                   (map (binderNameRange . snd) params')
                   (map fst params')
                   isSingleton
-                  orderedFields size scanCount alignment
+                  orderedFields vrepr
                   vis doc)
 
 
@@ -1069,13 +1035,13 @@ resolveConstructor typeName typeSort isOpen isSingleton typeResult typeParams id
 ---------------------------------------------------------
 
 -- order constructor fields of constructors with raw field so the regular fields come first to be scanned.
--- return the ordered fields, the byte size of the allocation, and the scan count (including tags)}
+-- return the ordered fields, and a ValueRepr (raw size part, the scan count (including tags), align, and full size)
 -- The size is used for reuse and should include all needed fields including the tag field for "open" datatypes 
-orderConFields :: Range -> Name -> Bool -> [(Name,Type)] -> KInfer ([(Name,Type)],Int,Int,Int)
+orderConFields :: Range -> Name -> Bool -> [(Name,Type)] -> KInfer ([(Name,Type)],ValueRepr)
 orderConFields range cname isOpen fields
   = do visit ([], [], [], if isOpen then 1 else 0, 0) fields
   where
-    visit :: ([((Name,Type),Int,Int,Int)],[((Name,Type),Int,Int,Int)],[(Name,Type)],Int,Int) -> [(Name,Type)] -> KInfer ([(Name,Type)],Int,Int,Int)
+    visit :: ([((Name,Type),Int,Int,Int)],[((Name,Type),Int,Int,Int)],[(Name,Type)],Int,Int) -> [(Name,Type)] -> KInfer ([(Name,Type)],ValueRepr)
     visit (rraw, rmixed, rscan, scanCount0, alignment0) []  
       = do when (length rmixed > 1) $
              do cs <- getColorScheme
@@ -1084,15 +1050,14 @@ orderConFields range cname isOpen fields
                                 text ("hint: use 'box' on either field to make it a non-value type."))
            platform <- getPlatform
            let  -- scancount and size before any mixed and raw fields
-                preSize = scanCount0 * sizeField platform
+                preSize    = (sizeHeader platform) + (scanCount0 * sizeField platform)
 
                 -- if there is a mixed value member (with scan fields) we may need to add padding scan fields (!)
                 -- (or otherwise the C compiler may insert uninitialized padding)
                 (padding,mixedScan)   
                           = case rmixed of
                               ((_,_,scan,ralign):_) 
-                                 -> let headerSize = 8  -- always 64-bit (?)                
-                                        padSize    = (headerSize + preSize) `mod` ralign
+                                 -> let padSize    = preSize `mod` ralign
                                         padCount   = padSize `div` sizeField platform
                                     in assertion ("Kind.Infer.orderConFields: illegal alignment: " ++ show ralign) (padSize `mod` sizeField platform == 0) $
                                        ([((newHiddenName ("padding" ++ show i),typeInt),sizeField platform,1,sizeField platform) | i <- [1..padCount]]
@@ -1106,12 +1071,15 @@ orderConFields range cname isOpen fields
                 restSizes = [size  | (_field,size,_scan,_align) <- rest]
                 restFields= [field | (field,_size,_scan,_align) <- rest]
                 size      = alignedSum preSize restSizes
-           return (reverse rscan ++ restFields, size, scanCount, alignment)
+                rawSize   = size - (sizeHeader platform) - (scanCount * sizeField platform)
+                vrepr     = valueReprNew platform rawSize scanCount alignment
+           -- trace ("constructor: " ++ show cname ++ ": " ++ show vrepr) $
+           return (reverse rscan ++ restFields, vrepr)
 
     visit (rraw,rmixed,rscan,scanCount,alignment0) (field@(name,tp) : fs)
       = do mDataDef <- getDataDef tp
            case mDataDef of
-             Just (DataDefValue raw scan align)
+             Just (DataDefValue (ValueRepr raw scan align _))
                -> -- let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
                   let alignment = max align alignment0 in
                   if (raw > 0 && scan > 0)
@@ -1126,8 +1094,8 @@ orderConFields range cname isOpen fields
     -- insert raw fields in (reversed) order of alignment so they align to the smallest total size in a datatype
     insertRaw :: (Name,Type) -> Int -> Int -> Int -> [((Name,Type),Int,Int,Int)] -> [((Name,Type),Int,Int,Int)]
     insertRaw field raw scan align ((f,r,s,a):rs)
-      | align <= a && raw <= r  = (field,raw,scan,align):(f,r,s,a):rs
-      | otherwise               = (f,r,s,a):insertRaw field raw scan align rs
+      | align <= a  = (field,raw,scan,align):(f,r,s,a):rs
+      | otherwise   = (f,r,s,a):insertRaw field raw scan align rs
     insertRaw field raw scan align []
       = [(field,raw,scan,align)]
     

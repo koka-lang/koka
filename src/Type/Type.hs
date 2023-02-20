@@ -13,6 +13,7 @@ module Type.Type (-- * Types
                   , Flavour(..)
                   , DataInfo(..), DataKind(..), ConInfo(..), SynInfo(..)
                   , dataInfoIsRec, dataInfoIsOpen, dataInfoIsLiteral
+                  , conInfoSize
                   -- Predicates
                   , splitPredType, shallowSplitPreds, shallowSplitVars
                   , predType
@@ -77,7 +78,7 @@ import Common.NamePrim
 import Common.Range
 import Common.Id
 import Common.Failure
-import Common.Syntax( Visibility, DataKind(..), DataDef(..), dataDefIsRec, dataDefIsOpen )
+import Common.Syntax( Visibility, DataKind(..), DataDef(..), ValueRepr(..), dataDefIsRec, dataDefIsOpen, valueReprSize )
 import Kind.Kind
 
 {--------------------------------------------------------------------------
@@ -202,9 +203,7 @@ data ConInfo = ConInfo{ conInfoName :: Name
                       , conInfoParamVis    :: [Visibility]
                       , conInfoSingleton :: Bool -- ^ is this the only constructor of this type?
                       , conInfoOrderedParams :: [(Name,Type)] -- ^ fields ordered by size
-                      , conInfoSize          :: Int
-                      , conInfoScanFields    :: Int
-                      , conInfoAlignment     :: Int
+                      , conInfoValueRepr :: ValueRepr
                       , conInfoVis :: Visibility
                       , conInfoDoc :: String
                       }
@@ -212,6 +211,11 @@ data ConInfo = ConInfo{ conInfoName :: Name
 instance Show ConInfo where
   show info
     = show (conInfoName info)
+
+conInfoSize :: ConInfo -> Int
+conInfoSize conInfo
+  = valueReprSize (conInfoValueRepr conInfo)
+
 
 -- | A type synonym is quantified by type parameters
 data SynInfo = SynInfo{ synInfoName :: Name
@@ -224,6 +228,8 @@ data SynInfo = SynInfo{ synInfoName :: Name
                       , synInfoDoc :: String
                       }
              deriving Show
+
+
 
 
 {--------------------------------------------------------------------------

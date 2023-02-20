@@ -583,20 +583,23 @@ ruTrace msg
 getRuConSize :: Type -> Reuse (Maybe (Int, Int))
 getRuConSize dataType
   = do newtypes <- getNewtypes
-       platform <- getPlatform
+       -- platform <- getPlatform
        let mdataName = extractDataName dataType
        if maybe False (\nm -> "_noreuse" `isSuffixOf` nameId nm) mdataName
        then return Nothing else do
         let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName
         case mdataInfo of
           Just dataInfo
-            -> do let (dataRepr, _) = getDataRepr dataInfo
-                  let cis = dataInfoConstrs dataInfo
-                  let sizes = map (constructorSize platform newtypes dataRepr . map snd . conInfoParams) cis
-                  case sizes of
-                    (s:ss) | all (==s) ss -> pure $ Just s
-                    _ -> pure Nothing
-          _ -> pure Nothing
+            -> let ddef = dataInfoDef dataInfo 
+               in case ddef of
+                    DataDefValue vrepr 
+                      -> let cis   = dataInfoConstrs dataInfo
+                             sizes = map conInfoSize cis
+                         in case sizes of
+                              (s:ss) | all (==s) ss -> return $ Just (valueReprSize vrepr, valScanCount vrepr)
+                              _                     -> return Nothing
+                    _ -> return Nothing
+          _ -> return Nothing
   where
     extractDataName :: Type -> Maybe Name
     extractDataName tp
@@ -605,6 +608,11 @@ getRuConSize dataType
           TCon tc    -> Just (typeConName tc)
           _          -> Nothing
 
+{-
+constructorSizeOf :: Platform -> ConInfo -> (Int,Int)
+constructorSizeOf platform ci
+  = (conSize platform ci, conInfoScanFields ci)
+-}
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSizeOf :: Platform -> Newtypes -> TName -> ConRepr -> (Int {- byte size -}, Int {- scan fields -})
@@ -649,7 +657,7 @@ orderConFieldsEx platform newtypes isOpen fields
     visit (rraw,rmixed,rscan,scanCount) (field@(name,tp) : fs)
       = let mDataDefRepr = newtypesDataDefRepr newtypes tp
         in case mDataDefRepr of
-             Just (DataDefValue raw scan alignment, dataRepr)
+             Just (DataDefValue (ValueRepr raw scan alignment _), dataRepr)
                -> let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
                   if (raw > 0 && scan > 0)
                    then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)

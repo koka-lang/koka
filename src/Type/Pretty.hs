@@ -244,7 +244,7 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
         else case datadef of
                DataDefRec -> text "recursive "
                DataDefOpen -> text "open "
-               DataDefValue m n a -> text ("value{" ++ show m ++ "," ++ show n ++ "," ++ show a ++ "} ")
+               DataDefValue v -> text ("value" ++ show v ++ " ")
                _ -> empty) <.>
       (case datakind of
          Inductive -> keyword env "type"
@@ -260,7 +260,7 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
         else empty))
 
 prettyConInfo env0 publicOnly (ConInfo conName ntname foralls exists fields scheme sort range paramRanges paramVis singleton 
-                                      orderedFields size scanCount alignment vis doc)
+                                      orderedFields vrepr vis doc)
   = if (publicOnly && isPrivate vis) then empty else
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <.>
@@ -270,7 +270,7 @@ prettyConInfo env0 publicOnly (ConInfo conName ntname foralls exists fields sche
       (if null fields
         then empty
         else parens (commaSep (map (ppField env) (zip paramVis fields)))) <.>
-      (text "{" <.> pretty size <.> comma <.> pretty scanCount <.> comma <.> pretty alignment <.> text "}")
+      (text (show vrepr))
       <+> text ":" <+> ppType env scheme <.> semi)
   where
     ppField env (fvis,(name,tp))
