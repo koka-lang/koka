@@ -695,13 +695,13 @@ kk_string_t kk_string_from_chars(kk_vector_t v, kk_context_t* ctx) {
   kk_box_t* cs = kk_vector_buf_borrow(v, &n, ctx);
   kk_ssize_t len = 0;
   for (kk_ssize_t i = 0; i < n; i++) {
-    len += kk_utf8_len(kk_char_unbox(cs[i], ctx));
+    len += kk_utf8_len(kk_char_unbox(cs[i], KK_BORROWED, ctx));
   }
   uint8_t* p;
   kk_string_t s = kk_unsafe_string_alloc_buf(len + 1, &p, ctx);
   for (kk_ssize_t i = 0; i < n; i++) {
     kk_ssize_t count;
-    kk_utf8_write(kk_char_unbox(cs[i], ctx), p, &count);
+    kk_utf8_write(kk_char_unbox(cs[i], KK_BORROWED, ctx), p, &count);
     p += count;
   }
   kk_assert_internal(kk_string_buf_borrow(s, NULL, ctx) + n == p);
@@ -959,7 +959,7 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
       }
       else if (tag == KK_TAG_FUNCTION) {
         struct kk_function_s* fun = kk_block_assert(struct kk_function_s*, p, KK_TAG_FUNCTION);
-        snprintf(buf, 128, "function(0x%zx)", (uintptr_t)(kk_cptr_unbox(fun->fun, ctx)));
+        snprintf(buf, 128, "function(0x%zx)", (uintptr_t)(kk_cptr_unbox_borrowed(fun->fun,ctx)));
         kk_box_drop(b, ctx);
         return kk_string_alloc_dup_valid_utf8(buf, ctx);
       }

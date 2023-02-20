@@ -136,7 +136,7 @@ static kk_std_core__list kk_regex_exec( kk_box_t bre, kk_string_t str, kk_ssize_
   // unpack
   pcre2_match_data* match_data = NULL;
   kk_std_core__list res = kk_std_core__new_Nil(ctx);
-  pcre2_code* re = (pcre2_code*)kk_cptr_raw_unbox(bre,ctx);
+  pcre2_code* re = (pcre2_code*)kk_cptr_raw_unbox_borrowed(bre,ctx);
   kk_ssize_t len = 0;
   const uint8_t* cstr = NULL;
   if (re == NULL) goto done;    
@@ -162,7 +162,7 @@ static kk_std_core__list kk_regex_exec_all( kk_box_t bre, kk_string_t str, kk_ss
   if (atmost < 0) atmost = KK_SSIZE_MAX;
   pcre2_match_data* match_data = NULL;
   kk_std_core__list res = kk_std_core__new_Nil(ctx);
-  pcre2_code* re = (pcre2_code*)kk_cptr_raw_unbox(bre,ctx);
+  pcre2_code* re = (pcre2_code*)kk_cptr_raw_unbox_borrowed(bre,ctx);
   if (re == NULL) goto done;    
   match_data = pcre2_match_data_create_from_pattern(re, gen_ctx);
   if (match_data==NULL) goto done;  

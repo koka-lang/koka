@@ -44,7 +44,7 @@ import Core.Pretty
 import Core.CoreVar
 import Core.Borrowed
 import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial, nameTrue)
-import Backend.C.ParcReuse (constructorSizeOf, constructorSizeOfByName, getDataTypeSize)
+import Backend.C.ParcReuse (getFixedDataSize)
 import Backend.C.Parc (getDataDef')
 
 trace s x =
@@ -174,11 +174,11 @@ isPatternMatchError (Branch pats [Guard (Con gname _) (App (TypeApp (Var (TName 
 isPatternMatchError _ = False
 
 bindPattern :: Pattern -> Output -> Chk Output
-bindPattern (PatCon cname pats crepr _ _ _ conInfo _) out
-  = do size <- getConstructorSize conInfo crepr 
+bindPattern (PatCon cname pats crepr _ _ _ _ _) out
+  = do size <- getConstructorAllocSize crepr 
        provideToken cname size =<< foldM (flip bindPattern) out pats
-bindPattern (PatVar tname (PatCon cname pats crepr _ _ _ conInfo _)) out
-  = do size <- getConstructorSize conInfo crepr        
+bindPattern (PatVar tname (PatCon cname pats crepr _ _ _ _ _)) out
+  = do size <- getConstructorAllocSize crepr        
        bindName tname (Just size) =<< foldM (flip bindPattern) out pats
 bindPattern (PatVar tname PatWild) out
   = bindName tname Nothing out
@@ -243,7 +243,7 @@ chkAllocation cname repr | "_noreuse" `isSuffixOf` nameId (conTypeName repr)
   = requireCapability HasAlloc $ \ppenv -> Just $
       cat [text "Types suffixed with _noreuse are not reused: ", ppName ppenv $ conTypeName repr]
 chkAllocation cname crepr
-  = do size <- getConstructorSizeByName cname crepr        
+  = do size <- getConstructorAllocSize crepr        
        getAllocation cname size
 
 -- Only total/empty effects or divergence
@@ -468,7 +468,7 @@ tryDropReuse :: TName -> Output -> Chk (Maybe Output)
 tryDropReuse nm out
   = do newtypes <- getNewtypes
        platform <- getPlatform
-       case getDataTypeSize newtypes platform (tnameType nm) of
+       case getFixedDataSize platform newtypes (tnameType nm) of
          Nothing -> pure Nothing
          Just (sz, _) -> Just <$> provideToken nm sz out
 
@@ -518,8 +518,8 @@ needsDupDrop :: Type -> Chk Bool
 needsDupDrop tp
   = do dd <- getDataDef tp
        return $ case dd of
-         (DataDefValue _ 0) -> False
-         _                  -> True
+         (DataDefValue vrepr) | valueReprIsRaw vrepr -> False
+         _                    -> True
 
 getDataDef :: Type -> Chk DataDef
 getDataDef tp
@@ -575,17 +575,8 @@ emitWarning doc
        let fdoc = text (show names) <.> colon <+> doc
        emitDoc fdoc
 
-getConstructorSizeByName :: TName -> ConRepr -> Chk Int
-getConstructorSizeByName conName conRepr
+getConstructorAllocSize :: ConRepr -> Chk Int
+getConstructorAllocSize conRepr
   = do platform <- getPlatform
-       newtypes <- getNewtypes
-       let (size,_) = constructorSizeOfByName platform newtypes (getName conName) conRepr
-       return size
-
-getConstructorSize :: ConInfo -> ConRepr -> Chk Int
-getConstructorSize conInfo conRepr
-  = do platform <- getPlatform
-       newtypes <- getNewtypes
-       let (size,_) = constructorSizeOf platform newtypes conInfo conRepr
-       return size       
+       return (conReprAllocSize platform conRepr)
        

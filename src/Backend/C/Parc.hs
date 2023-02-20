@@ -48,8 +48,6 @@ import Core.CoreVar
 import Core.Pretty
 import Core.Borrowed
 
-import Backend.C.ParcReuse( constructorSizeOf )
-
 --------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
@@ -463,8 +461,8 @@ inferShapes scrutineeNames pats
           = case pat of
               PatCon{patConPatterns,patConName,patConRepr,patConInfo}
                 -> do ms <- mapM shapesChild patConPatterns
-                      scan <- getConstructorScanFields patConInfo patConRepr
-                      let m  = M.unionsWith noDup ms
+                      let scan = conReprScanCount patConRepr
+                          m  = M.unionsWith noDup ms
                           shape = ShapeInfo (Just (tnamesFromList (map patName patConPatterns)))
                                             (Just (patConRepr,getName patConName)) (Just scan)
                       return (M.insert parent shape m)
@@ -589,7 +587,7 @@ getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
 getBoxForm' platform newtypes tp
   = -- trace ("getBoxForm' of " ++ show (pretty tp)) $
     case getDataDef' newtypes tp of
-      Just (DataDefValue m 0) -- 0 scan fields, m is size in bytes of raw fields
+      Just (DataDefValue (ValueRepr m 0 _)) -- 0 scan fields, m is size in bytes of raw fields
         -> -- trace "  0 scan fields" $
            case extractDataDefType tp of
              Just name
@@ -600,7 +598,7 @@ getBoxForm' platform newtypes tp
              _ -> if m < sizePtr platform   -- for example, `bool`, but not `int64`
                    then BoxIdentity 
                    else BoxRaw
-      Just (DataDefValue _ _)
+      Just (DataDefValue{})
         -> BoxValue
       Just _
         -> BoxIdentity
@@ -634,15 +632,15 @@ needsDupDrop :: Type -> Parc Bool
 needsDupDrop tp
   = do dd <- getDataDef tp
        return $ case dd of
-         (DataDefValue _ 0) -> False
-         _                  -> True
+         (DataDefValue vr) | valueReprIsRaw vr -> False
+         _                 -> True
 
 isValueType :: Type -> Parc Bool
 isValueType tp
   = do dd <- getDataDef tp
        return $ case dd of
-         (DataDefValue _ _) -> True
-         _                  -> False
+         (DataDefValue{}) -> True
+         _                -> False
 
 data ValueForm
   = ValueAllRaw   -- just bits
@@ -652,10 +650,10 @@ data ValueForm
 getValueForm' :: Newtypes -> Type -> Maybe ValueForm
 getValueForm' newtypes tp
   = case getDataDef' newtypes tp of
-      Just (DataDefValue _ 0) -> Just ValueAllRaw
-      Just (DataDefValue 0 1) -> Just ValueOneScan
-      Just (DataDefValue _ _) -> Just ValueOther
-      _                       -> Nothing
+      Just (DataDefValue (ValueRepr _ 0 _)) -> Just ValueAllRaw
+      Just (DataDefValue (ValueRepr 0 1 _)) -> Just ValueOneScan
+      Just (DataDefValue _)                 -> Just ValueOther
+      _                                     -> Nothing
 
 getValueForm :: Type -> Parc (Maybe ValueForm)
 getValueForm tp = (`getValueForm'` tp) <$> getNewtypes
@@ -691,10 +689,10 @@ genDupDrop isDup tname mbConRepr mbScanCount
               in case mbDi of
                 Just di -> case (dataInfoDef di, dataInfoConstrs di, snd (getDataRepr di)) of
                              (DataDefNormal, [conInfo], [conRepr])  -- data with just one constructor
-                               -> do scan <- getConstructorScanFields conInfo conRepr
+                               -> do let scan = conReprScanCount conRepr
                                      -- parcTrace $ "  add scan fields: " ++ show scan ++ ", " ++ show tname
                                      return (Just (dupDropFun isDup tp (Just (conRepr,conInfoName conInfo)) (Just scan) (Var tname InfoNone)))
-                             (DataDefValue _ 0, _, _)
+                             (DataDefValue vr, _, _) | valueReprIsRaw vr
                                -> do -- parcTrace $ ("  value with no scan fields: " ++ show di ++  ", " ++ show tname)
                                      return Nothing  -- value with no scan fields
                              _ -> do -- parcTrace $ "  dup/drop(1), " ++ show tname
@@ -834,16 +832,6 @@ withNewtypes f = withEnv (\e -> e { newtypes = f (newtypes e) })
 getPlatform :: Parc Platform
 getPlatform = platform <$> getEnv
 
-
-getConstructorScanFields :: ConInfo -> ConRepr -> Parc Int
-getConstructorScanFields conInfo conRepr
-  = do platform <- getPlatform
-       newtypes <- getNewtypes
-       let (size,scan) = (constructorSizeOf platform newtypes conInfo conRepr)
-       -- parcTrace $ "get size " ++ show conName ++ ": " ++ show (size,scan) ++ ", " ++ show conRepr
-       return scan
-
---
 
 getOwned :: Parc Owned
 getOwned = owned <$> getEnv

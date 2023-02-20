@@ -42,16 +42,17 @@ typedef struct kk_just_s {
   kk_box_t          value;
 } kk_just_t;
 
-kk_decl_export kk_box_t kk_unbox_Just_block(kk_block_t* b, kk_context_t* ctx);
+kk_decl_export kk_box_t kk_unbox_Just_block(kk_block_t* b, kk_borrow_t borrow, kk_context_t* ctx);
 
-static inline kk_box_t kk_unbox_Just(kk_box_t b, kk_context_t* ctx) {
+static inline kk_box_t kk_unbox_Just(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
   if (kk_box_is_ptr(b)) {
     kk_block_t* bl = kk_ptr_unbox(b, ctx);
     if kk_unlikely(kk_block_has_tag(bl, KK_TAG_JUST)) {
-      return kk_unbox_Just_block(bl, ctx);
+      return kk_unbox_Just_block(bl, borrow, ctx);
     }
   }
-  // if ctx==NULL we should not change refcounts, if ctx!=NULL we consume the b
+  // if borrowing we should not change refcounts, 
+  // and if not borrowing, we consume the b
   return b;
 }
 

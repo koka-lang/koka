@@ -264,9 +264,12 @@ conDecl tname foralls sort env
        -- trace ("core con: " ++ show name) $ return ()
        (env1,existss) <- typeParams env
        (env2,params)  <- parameters env1
+       vrepr <- parseValueRepr
        tp     <- typeAnnot env2
        let params2 = [(if nameIsNil name then newFieldName i else name, tp) | ((name,tp),i) <- zip params [1..]]
-       let con = (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False vis doc)
+           orderedFields = []  -- no need to reconstruct as it is only used during codegen?
+       let con = (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False 
+                             orderedFields vrepr vis doc)
        -- trace (show con ++ ": " ++ show params2) $
        return con
 
@@ -286,15 +289,22 @@ parseTypeMod
  =   do{ specialId "open"; return (DataDefOpen, False, Inductive) }
  <|> do{ specialId "extend"; return (DataDefOpen, True, Inductive) }
  <|> do specialId "value"
-        (m,n) <- braced $ do (m,_) <- integer
-                             comma
-                             (n,_) <- integer
-                             return (m,n)
-        return (DataDefValue (fromInteger m) (fromInteger n), False, Inductive)
+        vrepr <- parseValueRepr
+        return (DataDefValue vrepr, False, Inductive)
  <|> do{ specialId "co"; return (DataDefNormal, False, CoInductive) }
  <|> do{ specialId "rec"; return (DataDefNormal, False, Retractive) }
  <|> return (DataDefNormal, False, Inductive)
  <?> ""
+
+parseValueRepr :: LexParser ValueRepr
+parseValueRepr 
+  = braced $ do (raw,_) <- integer
+                comma
+                (scan,_) <- integer
+                comma
+                (align,_) <- integer
+                return (ValueRepr (fromInteger raw) (fromInteger scan) (fromInteger align))
+
 
 {--------------------------------------------------------------------------
   Value definitions

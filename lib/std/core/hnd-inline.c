@@ -206,7 +206,7 @@ kk_evv_t kk_evv_create(kk_evv_t evv1, kk_vector_t indices, kk_context_t* ctx) {
   kk_std_core_hnd__ev single;
   kk_std_core_hnd__ev* buf1 = kk_evv_as_vec(evv1,&len1,&single,ctx);
   for(kk_ssize_t i = 0; i < len; i++) {
-    kk_ssize_t idx = kk_ssize_unbox(elems[i],ctx);
+    kk_ssize_t idx = kk_ssize_unbox(elems[i],KK_BORROWED,ctx);
     kk_assert_internal(idx < len1);
     buf2[i] = kk_std_core_hnd__ev_dup( buf1[idx], ctx );
   }
@@ -223,7 +223,7 @@ kk_evv_t kk_evv_swap_create( kk_vector_t indices, kk_context_t* ctx ) {
     return kk_evv_swap_create0(ctx);
   }
   if (len==1) {
-    kk_ssize_t i = kk_ssize_unbox(vec[0],ctx);
+    kk_ssize_t i = kk_ssize_unbox(vec[0],KK_BORROWED,ctx);
     kk_vector_drop(indices,ctx);
     return kk_evv_swap_create1(i,ctx);
   }

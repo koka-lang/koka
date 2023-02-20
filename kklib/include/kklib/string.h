@@ -160,8 +160,8 @@ typedef int32_t kk_char_t;
 
 #define kk_char_replacement   KK_I32(0xFFFD)
 
-static inline kk_char_t kk_char_unbox(kk_box_t b, kk_context_t* ctx) {
-  return (kk_char_t)kk_int32_unbox(b, ctx);
+static inline kk_char_t kk_char_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
+  return (kk_char_t)kk_int32_unbox(b, borrow, ctx);
 }
 
 static inline kk_box_t kk_char_box(kk_char_t c, kk_context_t* ctx) {

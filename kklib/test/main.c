@@ -427,7 +427,7 @@ static void test_popcount(void) {
 
 static void test_box_double(double dx, kk_context_t* ctx) {
   kk_box_t bx = kk_double_box(dx, ctx);
-  double e = kk_double_unbox(bx, ctx);
+  double e = kk_double_unbox(bx, KK_BORROWED, ctx);
   printf("value: %.20e, box-unbox to: %.20e, box: 0x%016zx\n", dx, e, (intptr_t)bx.box);
   assert(e == dx || (isnan(e) && isnan(dx)));
 }
@@ -611,7 +611,7 @@ static kk_ddouble_t kk_dd_from_duration(kk_duration_t d) {
     int64_t nsecs = (d.attoseconds / KK_I64(1000000000));
     if ((int32_t)nsecs == nsecs) {
       double frac = ((double)nsecs * 1e-9);
-      double secs;
+      double secs = 0;
       if ((int32_t)secs == d.seconds) {
         secs = (double)d.seconds;
       } 

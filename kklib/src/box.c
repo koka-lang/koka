@@ -11,12 +11,14 @@
   Value type boxing
 ----------------------------------------------------------------*/
 
-void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box_t box, kk_context_t* ctx) {
+void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box_t box, kk_borrow_t borrow, kk_context_t* ctx) {
   const size_t max_scan_fsize = size / sizeof(kk_box_t);
   for (size_t i = 0; i < max_scan_fsize; i++) {
     p[i] = kk_box_any(ctx);
   }
-  kk_block_decref(kk_block_unbox(box, KK_TAG_BOX_ANY, ctx), ctx);
+  if (kk_is_owned(borrow)) {
+    kk_block_decref(kk_block_unbox(box, KK_TAG_BOX_ANY, ctx), ctx);
+  }
 }
 
 /*----------------------------------------------------------------
@@ -28,7 +30,7 @@ typedef struct kk_boxed_intptr_s {
   intptr_t     value;
 } *boxed_intptr_t;
 
-intptr_t kk_intptr_unbox(kk_box_t v, kk_context_t* ctx) {
+intptr_t kk_intptr_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx) {
   if kk_likely(kk_box_is_value(v)) {
     kk_intf_t i = kk_intf_unbox(v);
     return (intptr_t)i;
@@ -37,7 +39,7 @@ intptr_t kk_intptr_unbox(kk_box_t v, kk_context_t* ctx) {
     kk_assert_internal((kk_box_is_ptr(v) && kk_block_tag(kk_ptr_unbox(v,ctx)) == KK_TAG_INTPTR) || kk_box_is_any(v));
     boxed_intptr_t bi = kk_block_assert(boxed_intptr_t, kk_ptr_unbox(v,ctx), KK_TAG_INTPTR);
     intptr_t i = bi->value;
-    if (ctx!=NULL) { kk_block_drop(&bi->_block, ctx); }
+    if (kk_is_owned(borrow)) { kk_block_drop(&bi->_block, ctx); }
     return i;
   }
 }
@@ -60,7 +62,7 @@ typedef struct kk_boxed_int64_s {
   int64_t     value;
 } *boxed_int64_t;
 
-int64_t kk_int64_unbox(kk_box_t v, kk_context_t* ctx) {
+int64_t kk_int64_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx) {
   if kk_likely(kk_box_is_value(v)) {
     kk_intf_t i = kk_intf_unbox(v);
     return (int64_t)i;
@@ -69,7 +71,7 @@ int64_t kk_int64_unbox(kk_box_t v, kk_context_t* ctx) {
     kk_assert_internal((kk_box_is_ptr(v) && kk_block_tag(kk_ptr_unbox(v,ctx)) == KK_TAG_INT64) || kk_box_is_any(v));
     boxed_int64_t bi = kk_block_assert(boxed_int64_t, kk_ptr_unbox(v,ctx), KK_TAG_INT64);
     int64_t i = bi->value;
-    if (ctx!=NULL) { kk_block_drop(&bi->_block, ctx); }
+    if (kk_is_owned(borrow)) { kk_block_drop(&bi->_block, ctx); }
     return i;
   }
 }
@@ -93,7 +95,7 @@ typedef struct kk_boxed_int32_s {
   int32_t  value;
 } *boxed_int32_t;
 
-int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
+int32_t kk_int32_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx) {
   if kk_likely(kk_box_is_value(v)) {
     kk_intf_t i = kk_intf_unbox(v);
     kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
@@ -103,7 +105,7 @@ int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
     kk_assert_internal((kk_box_is_ptr(v) && kk_block_tag(kk_ptr_unbox(v,ctx)) == KK_TAG_INT32) || kk_box_is_any(v));
     boxed_int32_t bi = kk_block_assert(boxed_int32_t, kk_ptr_unbox(v,ctx), KK_TAG_INT32);
     int32_t i = bi->value;
-    if (ctx!=NULL) { kk_block_drop(&bi->_block, ctx); }
+    if (kk_is_owned(borrow)) { kk_block_drop(&bi->_block, ctx); }
     return i;
   }
 }
@@ -126,7 +128,7 @@ typedef struct kk_boxed_int16_s {
   int16_t  value;
 } *boxed_int16_t;
 
-int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
+int16_t kk_int16_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx) {
   if kk_likely(kk_box_is_value(v)) {
     kk_intf_t i = kk_intf_unbox(v);
     kk_assert_internal((i >= int16_MIN && i <= int16_MAX) || kk_box_is_any(v));
@@ -136,7 +138,7 @@ int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
     kk_assert_internal((kk_box_is_ptr(v) && kk_block_tag(kk_ptr_unbox(v,ctx)) == KK_TAG_INT16) || kk_box_is_any(v));
     boxed_int16_t bi = kk_block_assert(boxed_int16_t, kk_ptr_unbox(v,ctx), KK_TAG_INT16);
     int16_t i = bi->value;
-    if (ctx!=NULL) { kk_block_drop(&bi->_block, ctx); }
+    if (kk_is_owned(borrow)) { kk_block_drop(&bi->_block, ctx); }
     return i;
   }
 }
@@ -157,29 +159,29 @@ kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
 kk_box_t kk_ssize_box(kk_ssize_t i, kk_context_t* ctx) {
   return kk_intptr_box(i, ctx);
 }
-kk_ssize_t kk_ssize_unbox(kk_box_t b, kk_context_t* ctx) {
-  return kk_intptr_unbox(b, ctx);
+kk_ssize_t kk_ssize_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
+  return kk_intptr_unbox(b, borrow, ctx);
 }
 #elif KK_SSIZE_SIZE == 8
 kk_box_t kk_ssize_box(kk_ssize_t i, kk_context_t* ctx) {
   return kk_int64_box(i, ctx);
 }
-kk_ssize_t kk_ssize_unbox(kk_box_t b, kk_context_t* ctx) {
-  return kk_int64_unbox(b, ctx);
+kk_ssize_t kk_ssize_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
+  return kk_int64_unbox(b, borrow, ctx);
 }
 #elif KK_SSIZE_SIZE == 4
 kk_box_t kk_ssize_box(kk_ssize_t i, kk_context_t* ctx) {
   return kk_int32_box(i, ctx);
 }
-kk_ssize_t kk_ssize_unbox(kk_box_t b, kk_context_t* ctx) {
-  return kk_int32_unbox(b, ctx);
+kk_ssize_t kk_ssize_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
+  return kk_int32_unbox(b, borrow, ctx);
 }
 #elif KK_SSIZE_SIZE == 2
 kk_box_t kk_ssize_box(kk_ssize_t i, kk_context_t* ctx) {
   return kk_int16_box(i, ctx);
 }
-kk_ssize_t kk_ssize_unbox(kk_box_t b, kk_context_t* ctx) {
-  return kk_int16_unbox(b, ctx);
+kk_ssize_t kk_ssize_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
+  return kk_int16_unbox(b, borrow, ctx);
 }
 #else
 #error "platform size_t must be 16, 32, 64, or 128 bits"
@@ -199,9 +201,12 @@ kk_box_t kk_cptr_raw_box(kk_free_fun_t* freefun, void* p, kk_context_t* ctx) {
   return kk_ptr_box(&raw->_block,ctx);
 }
 
-void* kk_cptr_raw_unbox(kk_box_t b, kk_context_t* ctx) {
+// always assumed borrowed! If dropped here a C free routine may make the returned pointer invalid.
+void* kk_cptr_raw_unbox_borrowed(kk_box_t b, kk_context_t* ctx) {  
   kk_cptr_raw_t raw = kk_block_unbox_as(kk_cptr_raw_t, b, KK_TAG_CPTR_RAW, ctx);
-  return raw->cptr;
+  void* p = raw->cptr;
+  // if (kk_is_owned(borrow)) { kk_base_type_drop(raw, ctx); }
+  return p;
 }
 
 kk_box_t kk_cptr_box(void* p, kk_context_t* ctx) {
@@ -216,12 +221,12 @@ kk_box_t kk_cptr_box(void* p, kk_context_t* ctx) {
   }
 }
 
-void* kk_cptr_unbox(kk_box_t b, kk_context_t* ctx) {
+void* kk_cptr_unbox_borrowed(kk_box_t b, kk_context_t* ctx) {
   if (kk_box_is_value(b)) {
     return (void*)((intptr_t)kk_intf_unbox(b));
   }
   else {
-    return kk_cptr_raw_unbox(b,ctx);
+    return kk_cptr_raw_unbox_borrowed(b,ctx);
   }
 }
 
@@ -231,10 +236,10 @@ void* kk_cptr_unbox(kk_box_t b, kk_context_t* ctx) {
   Maybe type support
 ----------------------------------------------------------------*/
 
-kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_context_t* ctx ) {
+kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_borrow_t borrow, kk_context_t* ctx ) {
   kk_assert_internal(kk_block_has_tag(b,KK_TAG_JUST));
   kk_box_t res = kk_block_as(kk_just_t*, b)->value;
-  if (ctx != NULL) {
+  if (kk_is_owned(borrow)) {
     if (kk_block_is_unique(b)) {
       kk_block_free(b,ctx);  
     }
@@ -258,10 +263,10 @@ typedef struct kk_boxed_double_s {
   double  value;
 } *kk_boxed_double_t;
 
-static double kk_double_unbox_heap(kk_box_t b, kk_context_t* ctx) {
+static double kk_double_unbox_heap(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
   kk_boxed_double_t dt = kk_block_assert(kk_boxed_double_t, kk_ptr_unbox(b,ctx), KK_TAG_DOUBLE);
   double d = dt->value;
-  if (ctx != NULL) { kk_base_type_drop(dt, ctx); }
+  if (kk_is_owned(borrow)) { kk_base_type_drop(dt, ctx); }
   return d;
 }
 
@@ -286,7 +291,7 @@ kk_box_t kk_double_box(double d, kk_context_t* ctx) {
   }
 }
 
-double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
+double kk_double_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
   kk_unused(ctx);
   double d;
   if (kk_box_is_value(b)) {
@@ -295,7 +300,7 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   }
   else {
     // heap allocated
-    d = kk_double_unbox_heap(b, ctx);
+    d = kk_double_unbox_heap(b, borrow, ctx);
   }
   // if (isnan(d)) { kk_debugger_break(ctx); }
   return d;
@@ -326,7 +331,7 @@ kk_box_t kk_double_box(double d, kk_context_t* ctx) {
   return kk_uintf_box( kk_shr64(u,1) | exp );  
 }
 
-double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
+double kk_double_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
   kk_unused(ctx);
   if (kk_box_is_value(b)) {
     // expand 10-bit exponent to 11-bits again
@@ -349,7 +354,7 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   }
   else {
     // heap allocated
-    return kk_double_unbox_heap(b, ctx);
+    return kk_double_unbox_heap(b, borrow, ctx);
   }
 }
 #endif
@@ -367,10 +372,10 @@ typedef struct kk_boxed_float_s {
   float      value;
 } *kk_boxed_float_t;
 
-static float kk_float_unbox_heap(kk_box_t b, kk_context_t* ctx) {
+static float kk_float_unbox_heap(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
   kk_boxed_float_t ft = kk_block_assert(kk_boxed_float_t, kk_ptr_unbox(b,ctx), KK_TAG_FLOAT);
   float f = ft->value;
-  if (ctx != NULL) { kk_base_type_drop(ft, ctx); }
+  if (kk_is_owned(borrow)) { kk_base_type_drop(ft, ctx); }
   return f;
 }
 
@@ -392,7 +397,7 @@ kk_box_t kk_float_box(float f, kk_context_t* ctx) {
   }
 }
 
-float kk_float_unbox(kk_box_t b, kk_context_t* ctx) {
+float kk_float_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
   kk_unused(ctx);
   float f;
   if (kk_box_is_value(b)) {
@@ -401,7 +406,7 @@ float kk_float_unbox(kk_box_t b, kk_context_t* ctx) {
   }
   else {
     // heap allocated
-    f = kk_float_unbox_heap(b, ctx);
+    f = kk_float_unbox_heap(b, borrow, ctx);
   }
   // if (isnan(f)) { kk_debugger_break(ctx); }
   return f;

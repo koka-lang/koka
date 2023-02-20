@@ -275,13 +275,13 @@ genTypeDef (Data info isExtend)
                         -- special
                         ConEnum{}
                           -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-                        ConSingleton _ _ _ | conInfoName c == nameOptionalNone
+                        ConSingleton{} | conInfoName c == nameOptionalNone
                           -> singletonValue "undefined"                        
-                        ConSingleton _ DataStructAsMaybe _
+                        ConSingleton _ DataStructAsMaybe _ _
                           -> singletonValue "null"
-                        ConSingleton _ DataAsMaybe _
+                        ConSingleton _ DataAsMaybe _ _
                           -> singletonValue "null"
-                        ConSingleton _ DataAsList _
+                        ConSingleton _ DataAsList _ _
                           -> singletonValue "null"
                         -- tagless
                         ConIso{}     -> genConstr penv c repr name args []
@@ -589,18 +589,18 @@ genMatch result scrutinees branches
                 | otherwise
                 -> case repr of
                      -- special
-                     ConEnum _ _ tag
+                     ConEnum _ _ _ tag
                        -> [debugWrap "genTest: enum"      $ scrutinee <+> text "===" <+> int tag]
-                     ConSingleton _ _ _
+                     ConSingleton{}
                        | getName tn == nameOptionalNone
                        -> [debugWrap "genTest: optional none" $ scrutinee <+> text "=== undefined"]
-                     ConSingleton _ DataStructAsMaybe _
+                     ConSingleton _ DataStructAsMaybe _ _
                        -> [debugWrap "genTest: maybe like nothing" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]
-                     ConSingleton _ DataAsMaybe _
+                     ConSingleton _ DataAsMaybe _ _
                        -> [debugWrap "genTest: maybe like nothing" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]
-                     ConSingleton _ DataAsList _
+                     ConSingleton _ DataAsList _ _
                        -> [debugWrap "genTest: list like nil" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]
-                     ConSingleton _ _ tag
+                     ConSingleton{conTag=tag}
                        -> [debugWrap "genTest: singleton" $ scrutinee <.> dot <.> tagField <+> text "===" <+> int tag]
                      ConSingle{} -- always succeeds, but need to test the fields
                        -> concatMap
