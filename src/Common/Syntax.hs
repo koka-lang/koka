@@ -22,6 +22,7 @@ module Common.Syntax( Visibility(..)
                     , dataDefIsRec, dataDefIsOpen, dataDefIsValue, dataDefSize
                     , ValueRepr(..)
                     , valueReprIsMixed, valueReprIsRaw, valueReprNew, valueReprZero
+                    , valueReprRaw, valueReprSize, valueReprScan, valueReprSizeScan
                     , HandlerSort(..)
                     , isHandlerInstance, isHandlerNormal
                     , OperationSort(..), readOperationSort
@@ -216,7 +217,7 @@ dataDefIsValue ddef
 dataDefSize :: Platform -> DataDef -> Int
 dataDefSize platform ddef
   = case ddef of
-      DataDefValue v -> valueReprSize v
+      DataDefValue v -> valueReprSize platform v
       _              -> sizeField platform
 
 
@@ -226,15 +227,21 @@ dataDefSize platform ddef
 
 data ValueRepr = ValueRepr{ valueReprRawSize    :: !Int {- size in bytes -}, 
                             valueReprScanCount  :: !Int {- count of scannable fields -},
-                            valueReprAlignment  :: !Int {- minimal alignment -},
-                            valueReprSize       :: !Int {- full size, always rawSize + scanFields*sizeField platform -}
+                            valueReprAlignment  :: !Int {- minimal alignment -}
+                            -- valueReprSize       :: !Int {- full size, always rawSize + scanFields*sizeField platform -}
                           }
-               deriving Eq
+               deriving (Eq,Ord)
 
 instance Show ValueRepr where
-  show (ValueRepr raw scan align full) 
-    = "{" ++ concat (intersperse "," (map show [raw,scan,align,full])) ++ "}"
+  show (ValueRepr raw scan align) 
+    = "{" ++ concat (intersperse "," (map show [raw,scan,align])) ++ "}"
 
+valueReprSizeScan :: Platform -> ValueRepr -> (Int,Int)
+valueReprSizeScan platform vrepr
+  = (valueReprSize platform vrepr, valueReprScanCount vrepr)
+
+valueReprSize :: Platform -> ValueRepr -> Int
+valueReprSize platform (ValueRepr raw scan align) = raw + (scan * sizeField platform)
 
 valueReprIsMixed :: ValueRepr -> Bool
 valueReprIsMixed v  = (valueReprRawSize v > 0) && (valueReprScanCount v > 0)
@@ -242,13 +249,18 @@ valueReprIsMixed v  = (valueReprRawSize v > 0) && (valueReprScanCount v > 0)
 valueReprIsRaw :: ValueRepr -> Bool
 valueReprIsRaw v  = (valueReprRawSize v > 0) && (valueReprScanCount v == 0)
 
-valueReprNew :: Platform -> Int -> Int -> Int -> ValueRepr
-valueReprNew platform rawSize scanCount align
-  = ValueRepr rawSize scanCount align (rawSize + (scanCount * sizeField platform))
+valueReprNew :: Int -> Int -> Int -> ValueRepr
+valueReprNew rawSize scanCount align
+  = ValueRepr rawSize scanCount align -- (rawSize + (scanCount * sizeField platform))
 
 valueReprZero :: ValueRepr
-valueReprZero = ValueRepr 0 0 0 0
+valueReprZero = ValueRepr 0 0 0
 
+valueReprRaw :: Int -> ValueRepr
+valueReprRaw m  = ValueRepr m 0 m
+
+valueReprScan :: Int -> ValueRepr
+valueReprScan n = ValueRepr 0 n 0
 
 {--------------------------------------------------------------------------
   Definition kind

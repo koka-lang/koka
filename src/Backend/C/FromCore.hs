@@ -445,9 +445,9 @@ genTypeDefPre (Data info isExtend)
        -- generate the type declaration
        if (dataRepr == DataEnum)
         then let enumIntTp = case (dataInfoDef info) of
-                               DataDefValue (ValueRepr 1 0 _ _) -> "uint8_t"
-                               DataDefValue (ValueRepr 2 0 _ _) -> "uint16_t"
-                               _                                -> "uint32_t"
+                               DataDefValue (ValueRepr 1 0 _) -> "uint8_t"
+                               DataDefValue (ValueRepr 2 0 _) -> "uint16_t"
+                               _                              -> "uint32_t"
                  ppEnumCon (con,conRepr)
                            = ppName (conInfoName con)  -- <+> text "= datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
              in  emitToH $ ppVis (dataInfoVis info) <.> text "enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
@@ -802,7 +802,7 @@ genBox name info dataRepr
                   in text "{ return kk_box_Just" <.> arguments [boxField] <.> semi <+> text "}"
                 )
         _ -> case dataInfoDef info of
-               DataDefValue (ValueRepr raw scancount alignment _)
+               DataDefValue (ValueRepr raw scancount alignment)
                   -> let -- extra = if (needsTagField dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
                          docScanCount = {- if (needsTagField dataRepr)
                                          then ppName name <.> text "_scan_count" <.> arguments [text "_x"]

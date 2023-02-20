@@ -78,7 +78,7 @@ import Common.NamePrim
 import Common.Range
 import Common.Id
 import Common.Failure
-import Common.Syntax( Visibility, DataKind(..), DataDef(..), ValueRepr(..), dataDefIsRec, dataDefIsOpen, valueReprSize )
+import Common.Syntax( Visibility, DataKind(..), DataDef(..), ValueRepr(..), dataDefIsRec, dataDefIsOpen, valueReprSize, Platform )
 import Kind.Kind
 
 {--------------------------------------------------------------------------
@@ -212,9 +212,10 @@ instance Show ConInfo where
   show info
     = show (conInfoName info)
 
-conInfoSize :: ConInfo -> Int
-conInfoSize conInfo
-  = valueReprSize (conInfoValueRepr conInfo)
+-- return size and scan count for a constructor
+conInfoSize :: Platform -> ConInfo -> Int
+conInfoSize platform conInfo
+  = valueReprSize platform (conInfoValueRepr conInfo)
 
 
 -- | A type synonym is quantified by type parameters

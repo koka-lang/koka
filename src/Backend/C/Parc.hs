@@ -48,8 +48,6 @@ import Core.CoreVar
 import Core.Pretty
 import Core.Borrowed
 
-import Backend.C.ParcReuse( constructorSizeOf )
-
 --------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
@@ -589,7 +587,7 @@ getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
 getBoxForm' platform newtypes tp
   = -- trace ("getBoxForm' of " ++ show (pretty tp)) $
     case getDataDef' newtypes tp of
-      Just (DataDefValue (ValueRepr m 0 _ _)) -- 0 scan fields, m is size in bytes of raw fields
+      Just (DataDefValue (ValueRepr m 0 _)) -- 0 scan fields, m is size in bytes of raw fields
         -> -- trace "  0 scan fields" $
            case extractDataDefType tp of
              Just name
@@ -652,10 +650,10 @@ data ValueForm
 getValueForm' :: Newtypes -> Type -> Maybe ValueForm
 getValueForm' newtypes tp
   = case getDataDef' newtypes tp of
-      Just (DataDefValue (ValueRepr _ 0 _ _)) -> Just ValueAllRaw
-      Just (DataDefValue (ValueRepr 0 1 _ _)) -> Just ValueOneScan
-      Just (DataDefValue _)                   -> Just ValueOther
-      _                                       -> Nothing
+      Just (DataDefValue (ValueRepr _ 0 _)) -> Just ValueAllRaw
+      Just (DataDefValue (ValueRepr 0 1 _)) -> Just ValueOneScan
+      Just (DataDefValue _)                 -> Just ValueOther
+      _                                     -> Nothing
 
 getValueForm :: Type -> Parc (Maybe ValueForm)
 getValueForm tp = (`getValueForm'` tp) <$> getNewtypes
@@ -837,11 +835,12 @@ getPlatform = platform <$> getEnv
 
 getConstructorScanFields :: TName -> ConRepr -> Parc Int
 getConstructorScanFields conName conRepr
-  = do platform <- getPlatform
-       newtypes <- getNewtypes
-       let (size,scan) = (constructorSizeOf platform newtypes conName conRepr)
+  = do return (valueReprScanCount (conValRepr conRepr))
+       -- platform <- getPlatform
+       -- newtypes <- getNewtypes
+       -- let (size,scan) = -- (constructorSizeOf platform newtypes conName conRepr)        
        -- parcTrace $ "get size " ++ show conName ++ ": " ++ show (size,scan) ++ ", " ++ show conRepr
-       return scan
+       -- return scan
 
 --
 

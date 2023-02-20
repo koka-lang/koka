@@ -864,7 +864,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
                                     return DataDefNormal
                             (DataDefAuto, DataDefValue vr)
-                              -> if (valueReprSize vr <= 3*(sizeField platform)
+                              -> if (valueReprSize platform vr <= 3*(sizeField platform)
                                       && hasKindStarResult (getKind typeResult)
                                       && (sort /= Retractive))
                                   then -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
@@ -875,11 +875,10 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
 
        let dataInfo0 = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef1 vis doc
        dataInfo  <- case ddef1 of
-                      DataDefValue (ValueRepr m n a _)  | Core.needsTagField (fst (Core.getDataRepr dataInfo0))
+                      DataDefValue (ValueRepr m n a)  | Core.needsTagField (fst (Core.getDataRepr dataInfo0))
                         ->  -- add extra required tag field to the size
                             -- todo: recalculate the constructor sizes as well!
-                            do platform <- getPlatform
-                               let ddef2 = DataDefValue (valueReprNew platform m (n+1) a)
+                            do let ddef2 = DataDefValue (valueReprNew m (n+1) a)
                                return $ dataInfo0{ dataInfoDef = ddef2 }
                       _ -> return dataInfo0
                               
@@ -894,11 +893,11 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
       = do let ddefs = map conInfoValueRepr conInfos
            ddef <- maxDataDefs platform qname isVal nameDoc ddefs
            case ddef of
-             DataDefValue (ValueRepr 0 0 0 _) -- enumeration
+             DataDefValue (ValueRepr 0 0 0) -- enumeration
                -> let n = length conInfos
-                  in if (n < 256)        then return $ DataDefValue (ValueRepr 1 0 1 1) -- uint8_t
-                     else if (n < 65536) then return $ DataDefValue (ValueRepr 2 0 2 2) -- uint16_t
-                                         else return $ DataDefValue (ValueRepr 4 0 4 4) -- uint32_t
+                  in if (n < 256)        then return $ DataDefValue (valueReprRaw 1) -- uint8_t
+                     else if (n < 65536) then return $ DataDefValue (valueReprRaw 2) -- uint16_t
+                                         else return $ DataDefValue (valueReprRaw 4) -- uint32_t
              _ -> return ddef
 
     
@@ -924,21 +923,21 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                   then do addWarning range (text "Type:" <+> nameDoc <+> text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform))
                           return (sizePtr platform)
                   else return size
-           return (DataDefValue (valueReprNew platform m 0 m))
+           return (DataDefValue (valueReprNew m 0 m))
     maxDataDefs platform name isVal nameDoc [vr] -- singleton value
       = return (DataDefValue vr)
     maxDataDefs platform name isVal nameDoc (vr:vrs)
       = do dd <- maxDataDefs platform name isVal nameDoc vrs
            case (vr,dd) of
-             (ValueRepr 0 0 _ _,    DataDefValue v)                    -> return (DataDefValue v)
-             (v,                    DataDefValue (ValueRepr 0 0 _ _))  -> return (DataDefValue v)
-             (ValueRepr m1 0 a1 _,  DataDefValue (ValueRepr m2 0 a2 _)) 
-                -> return (DataDefValue (valueReprNew platform (max m1 m2) 0 (max a1 a2)))
-             (ValueRepr 0 n1 a1 _,  DataDefValue (ValueRepr 0 n2 a2 _)) 
-                -> return (DataDefValue (valueReprNew platform 0 (max n1 n2) (max a1 a2)))
-             (ValueRepr m1 n1 a1 _, DataDefValue (ValueRepr m2 n2 a2 _))
+             (ValueRepr 0 0 _,    DataDefValue v)                  -> return (DataDefValue v)
+             (v,                  DataDefValue (ValueRepr 0 0 _))  -> return (DataDefValue v)
+             (ValueRepr m1 0 a1,  DataDefValue (ValueRepr m2 0 a2)) 
+                -> return (DataDefValue (valueReprNew (max m1 m2) 0 (max a1 a2)))
+             (ValueRepr 0 n1 a1,  DataDefValue (ValueRepr 0 n2 a2)) 
+                -> return (DataDefValue (valueReprNew 0 (max n1 n2) (max a1 a2)))
+             (ValueRepr m1 n1 a1, DataDefValue (ValueRepr m2 n2 a2))
                -- equal scan fields
-               | n1 == n2  -> return (DataDefValue (valueReprNew platform (max m1 m2) n1 (max a1 a2)))
+               | n1 == n2  -> return (DataDefValue (valueReprNew (max m1 m2) n1 (max a1 a2)))
                -- non-equal scan fields
                | otherwise ->
                  do if (isVal)

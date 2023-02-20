@@ -65,14 +65,14 @@ orderConFields emitError getDataInfo platform isOpen fields
                 restFields= [field | (field,_size,_scan,_align) <- rest]
                 size      = alignedSum preSize restSizes
                 rawSize   = size - (sizeHeader platform) - (scanCount * sizeField platform)
-                vrepr     = valueReprNew platform rawSize scanCount alignment
+                vrepr     = valueReprNew rawSize scanCount alignment
            -- trace ("constructor: " ++ show cname ++ ": " ++ show vrepr) $
            return (reverse rscan ++ restFields, vrepr)
 
     visit (rraw,rmixed,rscan,scanCount,alignment0) (field@(name,tp) : fs)
       = do mDataDef <- getDataDef getDataInfo tp
            case mDataDef of
-             Just (DataDefValue (ValueRepr raw scan align _))
+             Just (DataDefValue (ValueRepr raw scan align))
                -> -- let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
                   let alignment = max align alignment0 in
                   if (raw > 0 && scan > 0)

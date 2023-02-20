@@ -303,9 +303,7 @@ parseValueRepr
                 (scan,_) <- integer
                 comma
                 (align,_) <- integer
-                comma
-                (full,_) <- integer
-                return (ValueRepr (fromInteger raw) (fromInteger scan) (fromInteger align) (fromInteger full))
+                return (ValueRepr (fromInteger raw) (fromInteger scan) (fromInteger align))
 
 
 {--------------------------------------------------------------------------
