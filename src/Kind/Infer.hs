@@ -20,7 +20,7 @@
 -}
 -----------------------------------------------------------------------------
 
-module Kind.Infer (inferKinds) where
+module Kind.Infer (inferKinds ) where
 
 import Lib.Trace
 -- import Type.Pretty
@@ -51,7 +51,7 @@ import Kind.Assumption
 import Kind.Constructors
 import Kind.Newtypes
 import Kind.Synonym
-
+import Kind.Repr( orderConFields )
 import Type.Type
 import Type.Assumption
 import Type.TypeVar( tvsIsEmpty, ftv, subNew, (|->), tvsMember, tvsList )
@@ -1017,7 +1017,11 @@ resolveConstructor typeName typeSort isOpen isSingleton typeResult typeParams id
        addRangeInfo rng (Decl "con" qname (mangleConName qname))
        addRangeInfo rngName (Id qname (NICon scheme) True)
        let fields = map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] (map snd params'))
-       (orderedFields,vrepr) <- orderConFields rng name isOpen fields
+           emitError makeMsg = do cs <- getColorScheme
+                                  let nameDoc = color (colorCons cs) (pretty name)
+                                  addError rng (makeMsg nameDoc)
+       platform <- getPlatform
+       (orderedFields,vrepr) <- orderConFields emitError lookupDataInfo platform isOpen fields
        return (UserCon qname exist' params' (Just result') rngName rng vis doc
               ,ConInfo qname typeName typeParams existVars
                   fields
@@ -1028,98 +1032,6 @@ resolveConstructor typeName typeSort isOpen isSingleton typeResult typeParams id
                   isSingleton
                   orderedFields vrepr
                   vis doc)
-
-
----------------------------------------------------------
--- Determine the size of a constructor
----------------------------------------------------------
-
--- order constructor fields of constructors with raw field so the regular fields come first to be scanned.
--- return the ordered fields, and a ValueRepr (raw size part, the scan count (including tags), align, and full size)
--- The size is used for reuse and should include all needed fields including the tag field for "open" datatypes 
-orderConFields :: Range -> Name -> Bool -> [(Name,Type)] -> KInfer ([(Name,Type)],ValueRepr)
-orderConFields range cname isOpen fields
-  = do visit ([], [], [], if isOpen then 1 else 0, 0) fields
-  where
-    visit :: ([((Name,Type),Int,Int,Int)],[((Name,Type),Int,Int,Int)],[(Name,Type)],Int,Int) -> [(Name,Type)] -> KInfer ([(Name,Type)],ValueRepr)
-    visit (rraw, rmixed, rscan, scanCount0, alignment0) []  
-      = do when (length rmixed > 1) $
-             do cs <- getColorScheme
-                let nameDoc = color (colorCons cs) (pretty cname)
-                addError range (text "Constructor:" <+> nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
-                                text ("hint: use 'box' on either field to make it a non-value type."))
-           platform <- getPlatform
-           let  -- scancount and size before any mixed and raw fields
-                preSize    = (sizeHeader platform) + (scanCount0 * sizeField platform)
-
-                -- if there is a mixed value member (with scan fields) we may need to add padding scan fields (!)
-                -- (or otherwise the C compiler may insert uninitialized padding)
-                (padding,mixedScan)   
-                          = case rmixed of
-                              ((_,_,scan,ralign):_) 
-                                 -> let padSize    = preSize `mod` ralign
-                                        padCount   = padSize `div` sizeField platform
-                                    in assertion ("Kind.Infer.orderConFields: illegal alignment: " ++ show ralign) (padSize `mod` sizeField platform == 0) $
-                                       ([((newHiddenName ("padding" ++ show i),typeInt),sizeField platform,1,sizeField platform) | i <- [1..padCount]]
-                                       ,scan + padCount)
-                              [] -> ([],0)
-
-                -- calculate the rest now
-                scanCount = scanCount0 + mixedScan  
-                alignment = if scanCount > 0 then max alignment0 (sizeField platform) else alignment0
-                rest      = padding ++ rmixed ++ reverse rraw
-                restSizes = [size  | (_field,size,_scan,_align) <- rest]
-                restFields= [field | (field,_size,_scan,_align) <- rest]
-                size      = alignedSum preSize restSizes
-                rawSize   = size - (sizeHeader platform) - (scanCount * sizeField platform)
-                vrepr     = valueReprNew platform rawSize scanCount alignment
-           -- trace ("constructor: " ++ show cname ++ ": " ++ show vrepr) $
-           return (reverse rscan ++ restFields, vrepr)
-
-    visit (rraw,rmixed,rscan,scanCount,alignment0) (field@(name,tp) : fs)
-      = do mDataDef <- getDataDef tp
-           case mDataDef of
-             Just (DataDefValue (ValueRepr raw scan align _))
-               -> -- let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
-                  let alignment = max align alignment0 in
-                  if (raw > 0 && scan > 0)
-                   then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
-                        -- but we count them to be sure (and for function data)
-                        visit (rraw, (field,raw,scan,align):rmixed, rscan, scanCount, alignment) fs
-                   else if (raw > 0)
-                         then visit (insertRaw field raw scan align rraw, rmixed, rscan, scanCount, alignment) fs
-                         else visit (rraw, rmixed, field:rscan, scanCount + scan, alignment) fs
-             _ -> visit (rraw, rmixed, field:rscan, scanCount + 1, alignment0) fs
-
-    -- insert raw fields in (reversed) order of alignment so they align to the smallest total size in a datatype
-    insertRaw :: (Name,Type) -> Int -> Int -> Int -> [((Name,Type),Int,Int,Int)] -> [((Name,Type),Int,Int,Int)]
-    insertRaw field raw scan align ((f,r,s,a):rs)
-      | align <= a  = (field,raw,scan,align):(f,r,s,a):rs
-      | otherwise   = (f,r,s,a):insertRaw field raw scan align rs
-    insertRaw field raw scan align []
-      = [(field,raw,scan,align)]
-    
-    
-
--- | Return the DataDef for a type.
--- This may be 'Nothing' for abstract types.
-getDataDef :: Type -> KInfer (Maybe DataDef)
-getDataDef tp
-   = case extractDataDefType tp of
-       Nothing -> return $ Just DataDefNormal
-       Just name | name == nameTpBox -> return $ Just DataDefNormal
-       Just name -> do mdi <- lookupDataInfo name 
-                       case mdi of
-                         Nothing -> return Nothing
-                         Just di -> return $ Just (dataInfoDef di)
-    where 
-      extractDataDefType :: Type -> Maybe Name
-      extractDataDefType tp
-        = case expandSyn tp of
-            TApp t _      -> extractDataDefType t
-            TForall _ _ t -> extractDataDefType t
-            TCon tc       -> Just (typeConName tc)
-            _             -> Nothing
 
 
 ---------------------------------------------------------

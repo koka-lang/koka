@@ -22,6 +22,7 @@ import qualified Data.Set as S
 import Common.File( normalizeWith, startsWith, endsWith  )
 import Kind.Kind
 import Kind.Newtypes
+import Kind.Repr( orderConFields )
 import Type.Type
 import Type.TypeVar
 import Type.Kind( getKind )
@@ -42,9 +43,9 @@ import Core.Pretty
 import Core.CoreVar
 import Core.Borrowed ( Borrowed, borrowedExtendICore )
 
-import Backend.C.Parc
-import Backend.C.ParcReuse
-import Backend.C.ParcReuseSpec
+import Backend.C.Parc( parcCore )
+import Backend.C.ParcReuse ( parcReuseCore )
+import Backend.C.ParcReuseSpec (parcReuseSpecialize )
 import Backend.C.Box
 
 type CommentDoc   = Doc
@@ -478,10 +479,15 @@ genTypeDefPost (Data info isExtend)
        -- order fields of constructors to have their scan fields first
        let conInfoReprs = zip (dataInfoConstrs info) conReprs
        conInfos <- mapM (\(conInfo,conRepr) -> do -- should never fail as mixed raw/scan is checked in kindInfer
+                                                  {-
                                                   newtypes <- getNewtypes
                                                   platform <- getPlatform
                                                   let (fields,size,scanCount) = orderConFieldsEx platform newtypes (dataRepr == DataOpen) (conInfoParams conInfo)
+                                                  -}
+                                                  let fields = conInfoOrderedParams conInfo
+                                                      scanCount = valueReprScanCount (conInfoValueRepr conInfo)
                                                   return (conInfo,conRepr,fields,scanCount)) conInfoReprs
+                                                  
        let maxScanCount = maxScanCountOf conInfos
            minScanCount = minScanCountOf conInfos
 
@@ -498,7 +504,7 @@ genTypeDefPost (Data info isExtend)
              return ()
         else if (dataRepr == DataEnum || not (dataReprIsValue dataRepr))
           then return ()
-          else emitToH $ if (hasTagField dataRepr)
+          else emitToH $ if (needsTagField dataRepr)
                   then ppVis (dataInfoVis info) <.> text "kk_struct_packed" <+> ppName name <.> text "_s"
                        <+> block (text "kk_value_tag_t _tag;" <-> text "union"
                                   <+> block (vcat (
@@ -619,7 +625,7 @@ ppConTag con conRepr dataRepr
       ConSingleton{} | dataRepr == DataAsMaybe -> text "KK_TAG_NOTHING"
       ConAsJust{}    -> text "KK_TAG_JUST"
       -- ConSingleton{}  | dataRepr == DataAsList -> text "datatype_from_enum(" <.> pretty (conTag conRepr) <.> text ")" -- ppName ((conInfoName con))
-      _         | hasTagField dataRepr -> text "kk_value_tag(" <.> pretty (conTag conRepr) <.> text ")"
+      _         | needsTagField dataRepr -> text "kk_value_tag(" <.> pretty (conTag conRepr) <.> text ")"
       _         ->  text "(kk_tag_t)" <.> parens (pretty (conTag conRepr))
 
 
@@ -659,7 +665,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount maxScanCount
                        assignField f (name,tp) = f (ppDefName name) <+> text "=" <+> ppDefName name <.> semi
                    in if (dataReprIsValue dataRepr)
                     then vcat(--[ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi]
-                               (if (hasTagField dataRepr)
+                               (if (needsTagField dataRepr)
                                  then [ ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi
                                       , tmp <.> text "._tag =" <+> ppConTag con conRepr dataRepr  <.> semi]
                                       ++ map (assignField (\fld -> tmp <.> text "._cons." <.> ppDefName (conInfoName con) <.> text "." <.> fld)) conFields
@@ -797,8 +803,8 @@ genBox name info dataRepr
                 )
         _ -> case dataInfoDef info of
                DataDefValue (ValueRepr raw scancount alignment _)
-                  -> let -- extra = if (hasTagField dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
-                         docScanCount = {- if (hasTagField dataRepr)
+                  -> let -- extra = if (needsTagField dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
+                         docScanCount = {- if (needsTagField dataRepr)
                                          then ppName name <.> text "_scan_count" <.> arguments [text "_x"]
                                          else -} 
                                         pretty (scancount {- + extra -}) <+> text "/* scan count */"
@@ -913,7 +919,7 @@ genHole name info dataRepr
 
 {-
 genScanFields :: Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
-genScanFields name info dataRepr conInfos | not (hasTagField dataRepr)
+genScanFields name info dataRepr conInfos | not (needsTagField dataRepr)
  = return ()
 genScanFields name info dataRepr conInfos
  = emitToH $
@@ -976,7 +982,7 @@ genDupDropValue :: Bool -> DataRepr -> Int -> [Doc]
 genDupDropValue isDup dataRepr 0  = []
 -- genDupDropValue isDup DataStructAsMaybe 1  -- todo: maybe specialize? 
 genDupDropValue isDup dataRepr scanCount 
-  = [text "kk_box_t* _fields = (kk_box_t*)" <.> text (if hasTagField dataRepr then "&_x._cons._fields" else "&_x") <.> semi]
+  = [text "kk_box_t* _fields = (kk_box_t*)" <.> text (if needsTagField dataRepr then "&_x._cons._fields" else "&_x") <.> semi]
     ++ 
     [text "kk_box_" <.> text (if isDup then "dup" else "drop") <.> arguments [text "_fields[" <.> pretty (i-1) <.> text "]"] <.> semi 
      | i <- [1..scanCount]]
@@ -1021,7 +1027,7 @@ genDupDropFields :: Bool -> DataRepr -> ConInfo -> [(Name,Type)] -> [Doc]
 genDupDropFields isDup dataRepr con conFields
   = map (\doc -> doc <.> semi) $ concat $
     [genDupDropCall isDup tp
-      ((if (hasTagField dataRepr) then text "_x._cons." <.> ppDefName (conInfoName con) else text "_x")
+      ((if (needsTagField dataRepr) then text "_x._cons." <.> ppDefName (conInfoName con) else text "_x")
        <.> dot <.> ppName name) | (name,tp) <- conFields]
 
 
@@ -1162,9 +1168,17 @@ genLambda params eff body
            funTpName = postpend "_t" funName
            structDoc = text "struct" <+> ppName funTpName
            freeVars  = [(nm,tp) | (TName nm tp) <- tnamesList (freeLocals (Lam params eff body))]
-       newtypes <- getNewtypes
+
        platform <- getPlatform
-       let (fields,_,scanCount) = orderConFieldsEx platform newtypes False freeVars
+       let emitError makeMsg = do env <- getEnv
+                                  let lam = text (show (cdefName env) ++ ":<lambda>")
+                                  let msg = show (makeMsg lam)
+                                  failure ("Backend.C.genLambda: " ++ msg)
+           getDataInfo name  = do newtypes <- getNewtypes
+                                  return (newtypesLookupAny name newtypes)
+       (fields,vrepr) <- orderConFields emitError getDataInfo platform False freeVars
+
+       let scanCount = valueReprScanCount vrepr
            fieldDocs = [ppType tp <+> ppName name | (name,tp) <- fields]
            tpDecl  =  text "kk_struct_packed" <+> ppName funTpName <+> block (
                        vcat ([text "struct kk_function_s _base;"] ++
@@ -1595,7 +1609,7 @@ genPatternTest doTest eagerPatBind (exprDoc,pattern)
           valTest conName conInfo dataRepr
             = --do let next = genNextPatterns (exprDoc) (typeOf tname) patterns
               --   return [(test [conTestName conInfo <.> parens exprDoc],[assign],next)]
-              do let selectOp = if (hasTagField dataRepr)
+              do let selectOp = if (needsTagField dataRepr)
                                  then "._cons." ++ show (ppDefName (getName conName)) ++ "."
                                  else "."
                      next = genNextPatterns (\self fld -> self <.> text selectOp <.> fld) exprDoc (typeOf tname) patterns

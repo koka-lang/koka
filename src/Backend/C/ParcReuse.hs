@@ -596,7 +596,7 @@ getRuConSize dataType
                       -> let cis   = dataInfoConstrs dataInfo
                              sizes = map conInfoSize cis
                          in case sizes of
-                              (s:ss) | all (==s) ss -> return $ Just (valueReprSize vrepr, valScanCount vrepr)
+                              (s:ss) | all (==s) ss -> return $ Just (valueReprSize vrepr, valueReprScanCount vrepr)
                               _                     -> return Nothing
                     _ -> return Nothing
           _ -> return Nothing
@@ -658,14 +658,14 @@ orderConFieldsEx platform newtypes isOpen fields
       = let mDataDefRepr = newtypesDataDefRepr newtypes tp
         in case mDataDefRepr of
              Just (DataDefValue (ValueRepr raw scan alignment _), dataRepr)
-               -> let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
+               -> -- let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
                   if (raw > 0 && scan > 0)
                    then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
                         -- but we count them to be sure (and for function data)
-                        visit (rraw, (field,raw):rmixed, rscan, scanCount + scan  + extra) fs
+                        visit (rraw, (field,raw):rmixed, rscan, scanCount + scan) fs
                    else if (raw > 0)
                          then visit (insertRaw field raw rraw, rmixed, rscan, scanCount) fs
-                         else visit (rraw, rmixed, field:rscan, scanCount + scan + extra) fs
+                         else visit (rraw, rmixed, field:rscan, scanCount + scan) fs
              _ -> visit (rraw, rmixed, field:rscan, scanCount + 1) fs
 
     -- insert raw fields in order of size so they align to the smallest total size in a datatype

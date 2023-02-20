@@ -21,7 +21,7 @@ module Common.Syntax( Visibility(..)
                     , DataDef(..)
                     , dataDefIsRec, dataDefIsOpen, dataDefIsValue, dataDefSize
                     , ValueRepr(..)
-                    , valueReprIsMixed, valueReprIsRaw, valueReprNew, valueReprZero, valueReprSize
+                    , valueReprIsMixed, valueReprIsRaw, valueReprNew, valueReprZero
                     , HandlerSort(..)
                     , isHandlerInstance, isHandlerNormal
                     , OperationSort(..), readOperationSort
@@ -216,7 +216,7 @@ dataDefIsValue ddef
 dataDefSize :: Platform -> DataDef -> Int
 dataDefSize platform ddef
   = case ddef of
-      DataDefValue v -> valSize v
+      DataDefValue v -> valueReprSize v
       _              -> sizeField platform
 
 
@@ -224,10 +224,10 @@ dataDefSize platform ddef
   Definition kind
 --------------------------------------------------------------------------}
 
-data ValueRepr = ValueRepr{ valRawSize    :: !Int {- size in bytes -}, 
-                            valScanCount  :: !Int {- count of scannable fields -},
-                            valAlignment  :: !Int {- minimal alignment -},
-                            valSize       :: !Int {- full size, always rawSize + scanFields*sizeField platform -}
+data ValueRepr = ValueRepr{ valueReprRawSize    :: !Int {- size in bytes -}, 
+                            valueReprScanCount  :: !Int {- count of scannable fields -},
+                            valueReprAlignment  :: !Int {- minimal alignment -},
+                            valueReprSize       :: !Int {- full size, always rawSize + scanFields*sizeField platform -}
                           }
                deriving Eq
 
@@ -235,14 +235,12 @@ instance Show ValueRepr where
   show (ValueRepr raw scan align full) 
     = "{" ++ concat (intersperse "," (map show [raw,scan,align,full])) ++ "}"
 
-valueReprSize :: ValueRepr -> Int
-valueReprSize v = valSize v
 
 valueReprIsMixed :: ValueRepr -> Bool
-valueReprIsMixed v  = (valRawSize v > 0) && (valScanCount v > 0)
+valueReprIsMixed v  = (valueReprRawSize v > 0) && (valueReprScanCount v > 0)
 
 valueReprIsRaw :: ValueRepr -> Bool
-valueReprIsRaw v  = (valRawSize v > 0) && (valScanCount v == 0)
+valueReprIsRaw v  = (valueReprRawSize v > 0) && (valueReprScanCount v == 0)
 
 valueReprNew :: Platform -> Int -> Int -> Int -> ValueRepr
 valueReprNew platform rawSize scanCount align
