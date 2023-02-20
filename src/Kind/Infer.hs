@@ -28,12 +28,13 @@ import Lib.Trace
 import Data.Char(isAlphaNum)
 import Data.List(groupBy,intersperse,nubBy,sortOn)
 import Data.Maybe(catMaybes)
+import Control.Monad(when)
 
 import Lib.PPrint
 import Common.Failure
 import Common.Unique( uniqueId, setUnique, unique )
 import Common.Error
-import Common.ColorScheme( ColorScheme, colorType, colorSource )
+import Common.ColorScheme( ColorScheme, colorType, colorSource, colorCons )
 import Common.Range
 import Common.Syntax( Platform(..) )
 import Common.Name
@@ -805,13 +806,18 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                      then mapM (\karg -> do{ id <- uniqueId "k"; return (TypeVar id karg Bound) }) kargs  -- invent parameters if they are not given (and it has an arrow kind)
                      else mapM (\param -> freshTypeVar param Bound) params'
        let tvarMap = M.fromList (zip (map getName params') typeVars)
-       consinfos <- mapM (resolveConstructor (getName newtp') sort (not (dataDefIsOpen ddef) && length constructors == 1) typeResult typeVars tvarMap) constructors
-       let (constructors',infos) = unzip consinfos
+
        cs <- getColorScheme
        let qname  = getName newtp'
            fname  = unqualify qname
            name   = if (isHandlerName fname) then fromHandlerName fname else fname
            nameDoc = color (colorType cs) (pretty name)
+
+       consinfos <- mapM (resolveConstructor (getName newtp') sort 
+                            (dataDefIsOpen ddef) (not (dataDefIsOpen ddef) && length constructors == 1) 
+                            typeResult typeVars tvarMap) constructors
+       let (constructors',infos) = unzip consinfos
+       
        --check recursion
        if (sort == Retractive)
         then return ()
@@ -833,7 +839,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
        ddef' <- case ddef of
                   DataDefNormal
                     -> return (if (isRec) then DataDefRec else DataDefNormal)
-                  DataDefValue _ _ | isRec
+                  DataDefValue{} | isRec
                     -> do addError range (text "Type" <+> nameDoc <+> text "cannot be declared as a value type since it is recursive.")
                           return ddef
                   DataDefAuto | isRec
@@ -849,20 +855,20 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                        do platform <- getPlatform                          
                           dd <- toDefValues platform (ddef/=DataDefAuto) qname nameDoc infos
                           case (ddef,dd) of  -- note: m = raw, n = scan
-                            (DataDefValue _ _, DataDefValue m n)
+                            (DataDefValue _ _ _, DataDefValue m n a)
                               -> if (hasKindStarResult (getKind typeResult))
-                                  then return (DataDefValue m n)
+                                  then return (DataDefValue m n a)
                                   else do addError range (text "Type" <+> nameDoc <+> text "is declared as a value type but does not have a value kind ('V').")  -- should never happen?
                                           return DataDefNormal
-                            (DataDefValue _ _, DataDefNormal)
+                            (DataDefValue _ _ _, DataDefNormal)
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
                                     return DataDefNormal
-                            (DataDefAuto, DataDefValue m n)
-                              -> if ((m + (n*sizePtr platform)) <= 3*(sizePtr platform)
+                            (DataDefAuto, DataDefValue m n a)
+                              -> if ((m + (n*sizeField platform)) <= 3*(sizeField platform)
                                       && hasKindStarResult (getKind typeResult)
                                       && (sort /= Retractive))
                                   then -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
-                                      return (DataDefValue m n)
+                                      return (DataDefValue m n a)
                                   else -- trace ("default to reference: " ++ show name ++ ": " ++ show (m,n)) $
                                       return (DataDefNormal)
                             _ -> return DataDefNormal
@@ -879,11 +885,11 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
       = do ddefs <- mapM (toDefValue nameDoc) conInfos
            ddef <- maxDataDefs platform qname isVal nameDoc ddefs
            case ddef of
-             DataDefValue 0 0 -- enumeration
+             DataDefValue 0 0 0 -- enumeration
                -> let n = length conInfos
-                  in if (n < 256)        then return $ DataDefValue 1 0   -- uint8_t
-                     else if (n < 65536) then return $ DataDefValue 2 0   -- uint16_t
-                                         else return $ DataDefValue 4 0   -- uint32_t
+                  in if (n < 256)        then return $ DataDefValue 1 0 1  -- uint8_t
+                     else if (n < 65536) then return $ DataDefValue 2 0 2  -- uint16_t
+                                         else return $ DataDefValue 4 0 4  -- uint32_t
              _ -> return ddef
 
     toDefValue :: Doc -> ConInfo -> KInfer (Int,Int)
@@ -895,7 +901,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
 
     -- note: (m = raw, n = scan)
     maxDataDefs :: Platform -> Name -> Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
-    maxDataDefs platform name False nameDoc []  = return DataDefNormal
+    maxDataDefs platform name False nameDoc [] -- reference type, no constructors
+      = return DataDefNormal
     maxDataDefs platform name True nameDoc []  -- primitive abstract value type with no constructors
       = do let size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
                         then 4
@@ -914,19 +921,20 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                   then do addWarning range (text "Type:" <+> nameDoc <+> text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform))
                           return (sizePtr platform)
                   else return size
-           return (DataDefValue m 0)
-    maxDataDefs platform name isVal nameDoc [(m,n)] = return (DataDefValue m n)
+           return (DataDefValue m 0 m)
+    maxDataDefs platform name isVal nameDoc [(m,n)] -- singleton value
+      = return (DataDefValue m n m)
     maxDataDefs platform name isVal nameDoc (dd:dds)
       = do dd2 <- maxDataDefs platform name isVal nameDoc dds
            case (dd,dd2) of
-             ((0,0), DataDefValue m n)    -> return (DataDefValue m n)
-             ((m,n), DataDefValue 0 0)    -> return (DataDefValue m n)
-             ((m1,0), DataDefValue m2 0)  -> return (DataDefValue (max m1 m2) 0)
-             ((0,n1), DataDefValue 0 n2)  -> return (DataDefValue 0 (max n1 n2))
-             ((m1,n1), DataDefValue m2 n2)
+             ((0,0), DataDefValue m n a)    -> return (DataDefValue m n a)
+             ((m,n), DataDefValue 0 0 a)    -> return (DataDefValue m n a)
+             ((m1,0), DataDefValue m2 0 a)  -> return (DataDefValue (max m1 m2) 0 a)
+             ((0,n1), DataDefValue 0 n2 a)  -> return (DataDefValue 0 (max n1 n2) a)
+             ((m1,n1), DataDefValue m2 n2 a)
                -- TODO: mixed raw is ok?
                -- | m1 == m2  -> return (DataDefValue m1 (max n1 n2))
-               | n1 == n2 -> return (DataDefValue (max m1 m2) n1)
+               | n1 == n2 -> return (DataDefValue (max m1 m2) n1 a)
                | otherwise ->
                  do if (isVal)
                       then -- addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors which varying raw types and regular types." <->
@@ -945,7 +953,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
         walk m n [] = return (m,n)
         walk m n (dd:dds)
           = do case dd of
-                 DataDefValue m1 n1
+                 DataDefValue m1 n1 _
                    -> do if (m1 > 0 && n1 > 0)   -- mixed raw and scan fields?
                           then mapM_ (checkNoClash nameDoc m1 n1) dds
                           else return ()
@@ -955,7 +963,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
     checkNoClash :: Doc -> Int -> Int -> DataDef -> KInfer ()
     checkNoClash nameDoc m1 n1 dd
       = case dd of
-          DataDefValue m2 n2 | m2 > 0 && n2 > 0
+          DataDefValue m2 n2 _ | m2 > 0 && n2 > 0
             -> do addError range (text "Type:" <+> nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
                                   text ("hint: use 'box' on either field to make it a non-value type."))
           _ -> return ()
@@ -1028,8 +1036,8 @@ resolveKind infkind
     resolve (KICon kind) = kind
     resolve (KIApp k1 k2) = KApp (resolve k1) (resolve k2)
 
-resolveConstructor :: Name -> DataKind -> Bool -> Type -> [TypeVar] -> M.NameMap TypeVar -> UserCon (KUserType InfKind) UserType InfKind -> KInfer (UserCon Type Type Kind, ConInfo)
-resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (UserCon name exist params mbResult rngName rng vis doc)
+resolveConstructor :: Name -> DataKind -> Bool -> Bool -> Type -> [TypeVar] -> M.NameMap TypeVar -> UserCon (KUserType InfKind) UserType InfKind -> KInfer (UserCon Type Type Kind, ConInfo)
+resolveConstructor typeName typeSort isOpen isSingleton typeResult typeParams idmap (UserCon name exist params mbResult rngName rng vis doc)
   = do qname  <- qualifyDef name
        exist' <- mapM resolveTypeBinder exist
        existVars <- mapM (\ename -> freshTypeVar ename Bound) exist'
@@ -1042,16 +1050,113 @@ resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (Us
                     if (null params') then result' else typeFun [(binderName p, binderType p) | (_,p) <- params'] typeTotal result'
        addRangeInfo rng (Decl "con" qname (mangleConName qname))
        addRangeInfo rngName (Id qname (NICon scheme) True)
+       let fields = map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] (map snd params'))
+       (orderedFields,size,scanCount,alignment) <- orderConFields rng name isOpen fields
        return (UserCon qname exist' params' (Just result') rngName rng vis doc
               ,ConInfo qname typeName typeParams existVars
-                  (map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] (map snd params')))
+                  fields
                   scheme
                   typeSort rngName
                   (map (binderNameRange . snd) params')
                   (map fst params')
                   isSingleton
-                  vis
-                  doc)
+                  orderedFields size scanCount alignment
+                  vis doc)
+
+
+---------------------------------------------------------
+-- Determine the size of a constructor
+---------------------------------------------------------
+
+-- order constructor fields of constructors with raw field so the regular fields come first to be scanned.
+-- return the ordered fields, the byte size of the allocation, and the scan count (including tags)}
+-- The size is used for reuse and should include all needed fields including the tag field for "open" datatypes 
+orderConFields :: Range -> Name -> Bool -> [(Name,Type)] -> KInfer ([(Name,Type)],Int,Int,Int)
+orderConFields range cname isOpen fields
+  = do visit ([], [], [], if isOpen then 1 else 0, 0) fields
+  where
+    visit :: ([((Name,Type),Int,Int,Int)],[((Name,Type),Int,Int,Int)],[(Name,Type)],Int,Int) -> [(Name,Type)] -> KInfer ([(Name,Type)],Int,Int,Int)
+    visit (rraw, rmixed, rscan, scanCount0, alignment0) []  
+      = do when (length rmixed > 1) $
+             do cs <- getColorScheme
+                let nameDoc = color (colorCons cs) (pretty cname)
+                addError range (text "Constructor:" <+> nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
+                                text ("hint: use 'box' on either field to make it a non-value type."))
+           platform <- getPlatform
+           let  -- scancount and size before any mixed and raw fields
+                preSize = scanCount0 * sizeField platform
+
+                -- if there is a mixed value member (with scan fields) we may need to add padding scan fields (!)
+                -- (or otherwise the C compiler may insert uninitialized padding)
+                (padding,mixedScan)   
+                          = case rmixed of
+                              ((_,_,scan,ralign):_) 
+                                 -> let headerSize = 8  -- always 64-bit (?)                
+                                        padSize    = (headerSize + preSize) `mod` ralign
+                                        padCount   = padSize `div` sizeField platform
+                                    in assertion ("Kind.Infer.orderConFields: illegal alignment: " ++ show ralign) (padSize `mod` sizeField platform == 0) $
+                                       ([((newHiddenName ("padding" ++ show i),typeInt),sizeField platform,1,sizeField platform) | i <- [1..padCount]]
+                                       ,scan + padCount)
+                              [] -> ([],0)
+
+                -- calculate the rest now
+                scanCount = scanCount0 + mixedScan  
+                alignment = if scanCount > 0 then max alignment0 (sizeField platform) else alignment0
+                rest      = padding ++ rmixed ++ reverse rraw
+                restSizes = [size  | (_field,size,_scan,_align) <- rest]
+                restFields= [field | (field,_size,_scan,_align) <- rest]
+                size      = alignedSum preSize restSizes
+           return (reverse rscan ++ restFields, size, scanCount, alignment)
+
+    visit (rraw,rmixed,rscan,scanCount,alignment0) (field@(name,tp) : fs)
+      = do mDataDef <- getDataDef tp
+           case mDataDef of
+             Just (DataDefValue raw scan align)
+               -> -- let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
+                  let alignment = max align alignment0 in
+                  if (raw > 0 && scan > 0)
+                   then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
+                        -- but we count them to be sure (and for function data)
+                        visit (rraw, (field,raw,scan,align):rmixed, rscan, scanCount, alignment) fs
+                   else if (raw > 0)
+                         then visit (insertRaw field raw scan align rraw, rmixed, rscan, scanCount, alignment) fs
+                         else visit (rraw, rmixed, field:rscan, scanCount + scan, alignment) fs
+             _ -> visit (rraw, rmixed, field:rscan, scanCount + 1, alignment0) fs
+
+    -- insert raw fields in (reversed) order of alignment so they align to the smallest total size in a datatype
+    insertRaw :: (Name,Type) -> Int -> Int -> Int -> [((Name,Type),Int,Int,Int)] -> [((Name,Type),Int,Int,Int)]
+    insertRaw field raw scan align ((f,r,s,a):rs)
+      | align <= a && raw <= r  = (field,raw,scan,align):(f,r,s,a):rs
+      | otherwise               = (f,r,s,a):insertRaw field raw scan align rs
+    insertRaw field raw scan align []
+      = [(field,raw,scan,align)]
+    
+    
+
+-- | Return the DataDef for a type.
+-- This may be 'Nothing' for abstract types.
+getDataDef :: Type -> KInfer (Maybe DataDef)
+getDataDef tp
+   = case extractDataDefType tp of
+       Nothing -> return $ Just DataDefNormal
+       Just name | name == nameTpBox -> return $ Just DataDefNormal
+       Just name -> do mdi <- lookupDataInfo name 
+                       case mdi of
+                         Nothing -> return Nothing
+                         Just di -> return $ Just (dataInfoDef di)
+    where 
+      extractDataDefType :: Type -> Maybe Name
+      extractDataDefType tp
+        = case expandSyn tp of
+            TApp t _      -> extractDataDefType t
+            TForall _ _ t -> extractDataDefType t
+            TCon tc       -> Just (typeConName tc)
+            _             -> Nothing
+
+
+---------------------------------------------------------
+--
+---------------------------------------------------------
 
 resolveConParam :: M.NameMap TypeVar -> (Visibility,ValueBinder (KUserType InfKind) (Maybe (Expr UserType))) -> KInfer (Visibility,ValueBinder Type (Maybe (Expr Type)))
 resolveConParam idmap (vis,vb)

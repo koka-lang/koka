@@ -1,4 +1,3 @@
------------------------------------------------------------------------------
 -- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
@@ -202,6 +201,10 @@ data ConInfo = ConInfo{ conInfoName :: Name
                       , conInfoParamRanges :: [Range]
                       , conInfoParamVis    :: [Visibility]
                       , conInfoSingleton :: Bool -- ^ is this the only constructor of this type?
+                      , conInfoOrderedParams :: [(Name,Type)] -- ^ fields ordered by size
+                      , conInfoSize          :: Int
+                      , conInfoScanFields    :: Int
+                      , conInfoAlignment     :: Int
                       , conInfoVis :: Visibility
                       , conInfoDoc :: String
                       }

@@ -395,7 +395,8 @@ boxConRepr = ConSingle nameTpBox (DataSingle False) 0
 boxConInfo :: ConInfo
 boxConInfo
   = ConInfo nameBox nameTpBox [a] [] [(nameNil,TVar a)] tp
-            Inductive rangeNull [] [Public] True Public ""
+            Inductive rangeNull [] [Public] True 
+            [(nameNil,TVar a)] 0 {- size is wrong with knowing the platform ? -} 1 1 Public ""
   where
     tp = TForall [a] [] (TFun [(nameNil,TVar a)] typeTotal typeBoxStar)
     a  = TypeVar (0) kindStar Bound

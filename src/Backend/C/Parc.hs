@@ -589,7 +589,7 @@ getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
 getBoxForm' platform newtypes tp
   = -- trace ("getBoxForm' of " ++ show (pretty tp)) $
     case getDataDef' newtypes tp of
-      Just (DataDefValue m 0) -- 0 scan fields, m is size in bytes of raw fields
+      Just (DataDefValue m 0 _) -- 0 scan fields, m is size in bytes of raw fields
         -> -- trace "  0 scan fields" $
            case extractDataDefType tp of
              Just name
@@ -600,7 +600,7 @@ getBoxForm' platform newtypes tp
              _ -> if m < sizePtr platform   -- for example, `bool`, but not `int64`
                    then BoxIdentity 
                    else BoxRaw
-      Just (DataDefValue _ _)
+      Just (DataDefValue{})
         -> BoxValue
       Just _
         -> BoxIdentity
@@ -634,15 +634,15 @@ needsDupDrop :: Type -> Parc Bool
 needsDupDrop tp
   = do dd <- getDataDef tp
        return $ case dd of
-         (DataDefValue _ 0) -> False
-         _                  -> True
+         (DataDefValue _ 0 _) -> False
+         _                    -> True
 
 isValueType :: Type -> Parc Bool
 isValueType tp
   = do dd <- getDataDef tp
        return $ case dd of
-         (DataDefValue _ _) -> True
-         _                  -> False
+         (DataDefValue{}) -> True
+         _                -> False
 
 data ValueForm
   = ValueAllRaw   -- just bits
@@ -652,10 +652,10 @@ data ValueForm
 getValueForm' :: Newtypes -> Type -> Maybe ValueForm
 getValueForm' newtypes tp
   = case getDataDef' newtypes tp of
-      Just (DataDefValue _ 0) -> Just ValueAllRaw
-      Just (DataDefValue 0 1) -> Just ValueOneScan
-      Just (DataDefValue _ _) -> Just ValueOther
-      _                       -> Nothing
+      Just (DataDefValue _ 0 _) -> Just ValueAllRaw
+      Just (DataDefValue 0 1 _) -> Just ValueOneScan
+      Just (DataDefValue _ _ _) -> Just ValueOther
+      _                         -> Nothing
 
 getValueForm :: Type -> Parc (Maybe ValueForm)
 getValueForm tp = (`getValueForm'` tp) <$> getNewtypes
@@ -694,7 +694,7 @@ genDupDrop isDup tname mbConRepr mbScanCount
                                -> do scan <- getConstructorScanFields (TName (conInfoName conInfo) (conInfoType conInfo)) conRepr
                                      -- parcTrace $ "  add scan fields: " ++ show scan ++ ", " ++ show tname
                                      return (Just (dupDropFun isDup tp (Just (conRepr,conInfoName conInfo)) (Just scan) (Var tname InfoNone)))
-                             (DataDefValue _ 0, _, _)
+                             (DataDefValue _ 0 _, _, _)
                                -> do -- parcTrace $ ("  value with no scan fields: " ++ show di ++  ", " ++ show tname)
                                      return Nothing  -- value with no scan fields
                              _ -> do -- parcTrace $ "  dup/drop(1), " ++ show tname

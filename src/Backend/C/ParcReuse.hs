@@ -649,7 +649,7 @@ orderConFieldsEx platform newtypes isOpen fields
     visit (rraw,rmixed,rscan,scanCount) (field@(name,tp) : fs)
       = let mDataDefRepr = newtypesDataDefRepr newtypes tp
         in case mDataDefRepr of
-             Just (DataDefValue raw scan, dataRepr)
+             Just (DataDefValue raw scan alignment, dataRepr)
                -> let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
                   if (raw > 0 && scan > 0)
                    then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)

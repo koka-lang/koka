@@ -157,6 +157,7 @@ readOperationSort s
       "fun" -> Just OpFun
       "brk" -> Just OpExcept
       "ctl"    -> Just OpControl
+      -- legacy
       "rawctl" -> Just OpControlRaw
       "except" -> Just OpExcept
       "control"  -> Just OpControl
@@ -174,7 +175,10 @@ instance Show DataKind where
   show CoInductive = "cotype"
   show Retractive = "rectype"
 
-data DataDef = DataDefValue{ rawFields :: Int {- size in bytes -}, scanFields :: Int {- count of scannable fields -}}
+data DataDef = DataDefValue{ rawSize    :: Int {- size in bytes -}, 
+                             scanFields :: Int {- count of scannable fields -},
+                             alignment  :: Int {- minimal alignment -} 
+                           }
              | DataDefNormal
              | DataDefAuto   -- Value or Normal; determined by kind inference
              | DataDefRec
@@ -183,7 +187,7 @@ data DataDef = DataDefValue{ rawFields :: Int {- size in bytes -}, scanFields ::
 
 instance Show DataDef where
   show dd = case dd of
-              DataDefValue m n -> "val(raw:" ++ show m ++ ",scan:" ++ show n ++ ")"
+              DataDefValue m n a -> "val(rawSize=" ++ show m ++ ",scanCount=" ++ show n ++ ",alignment=" ++ show a ++ ")"
               DataDefNormal{}  -> "normal"
               DataDefRec       -> "rec"
               DataDefOpen      -> "open"
@@ -203,7 +207,7 @@ dataDefIsOpen ddef
 
 dataDefIsValue ddef
   = case ddef of
-      DataDefValue _ _ -> True
+      DataDefValue{} -> True
       _ -> False
 
 {--------------------------------------------------------------------------
