@@ -505,14 +505,14 @@ genTypeDefPost (Data info isExtend)
         else if (dataRepr == DataEnum || not (dataReprIsValue dataRepr))
           then return ()
           else emitToH $ if (needsTagField dataRepr)
-                  then ppVis (dataInfoVis info) <.> text "kk_struct_packed" <+> ppName name <.> text "_s"
+                  then ppVis (dataInfoVis info) <.> text "struct" <+> ppName name <.> text "_s"
                        <+> block (text "kk_value_tag_t _tag;" <-> text "union"
                                   <+> block (vcat (
                                          map ppStructConField (dataInfoConstrs info)
                                          ++ (if (maxScanCount > 0 && minScanCount /= maxScanCount)
                                               then [text "kk_box_t _fields[" <.> pretty maxScanCount <.> text "];"]
                                               else [])
-                                      )) <+> text "_cons;") <.> semi <-> text "kk_struct_packed_end"
+                                      )) <+> text "_cons;") <.> semi -- <-> text "kk_struct_packed_end"
                        <-> ppVis (dataInfoVis info) <.> text "typedef struct" <+> ppName name <.> text "_s" <+> ppName (typeClassName name) <.> semi
                   else ppVis (dataInfoVis info) <.> text "typedef struct"
                        <+> (case (dataRepr,dataInfoConstrs info) of
@@ -552,10 +552,10 @@ genConstructorType info dataRepr (con,conRepr,conFields,scanCount) =
        -> return () -- represented as an enum
     -- _ | null conFields && (dataRepr < DataNormal && not (isDataStructLike dataRepr))
     --   -> return ()
-    _  -> do emitToH $ ppVis (conInfoVis con) <.>  text "kk_struct_packed" <+> ppName ((conInfoName con)) <+>
+    _  -> do emitToH $ ppVis (conInfoVis con) <.>  text "struct" <+> ppName ((conInfoName con)) <+>
                        block (let fields = (typeField ++ map ppConField conFields)
                               in if (null fields) then text "kk_box_t _unused;"  -- avoid empty struct
-                                                  else vcat fields) <.> semi <-> text "kk_struct_packed_end"
+                                                  else vcat fields) <.> semi -- <-> text "kk_struct_packed_end"
   where
     typeField  = if (dataReprIsValue dataRepr) then []
                  else [text "struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s" <+> text "_base;"]
@@ -1186,10 +1186,10 @@ genLambda params eff body
        let (paddingFields,fields) = partition (isPaddingName . fst) allFields
            scanCount = valueReprScanCount vrepr
            -- fieldDocs = [ppType tp <+> ppName name | (name,tp) <- allFields]
-           tpDecl  =  text "kk_struct_packed" <+> ppName funTpName <+> block (
+           tpDecl  =  text "struct" <+> ppName funTpName <+> block (
                        vcat ([text "struct kk_function_s _base;"] ++
                              [ppType tp <+> ppName name <.> semi | (name,tp) <- allFields])
-                     ) <.> semi <-> text "kk_struct_packed_end"
+                     ) <.> semi -- <-> text "kk_struct_packed_end"
 
            funSig  = text (if toH then "extern" else "static") <+> ppType (typeOf body)
                      <+> ppName funName <.> parameters ([text "kk_function_t _fself"] ++

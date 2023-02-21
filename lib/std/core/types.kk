@@ -9,7 +9,7 @@
 /* Core types.
 
    This module is implicitly imported and all functions and types
-   are always available.
+   are always available. 
    These types are required to be defined for the compiler
    to work correctly (i.e. types like `:int` or `:div`)
 */
@@ -18,7 +18,7 @@ module std/core/types
 pub infixr 30  (&&)
 pub infixr 20  (||)
 
-// build: 102
+// build: 105
 
 // ----------------------------------------------------------------------------
 // Core types

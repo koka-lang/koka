@@ -177,9 +177,6 @@
 #define kk_decl_noinline       __attribute__((noinline))
 #define kk_decl_align(a)      __attribute__((aligned(a)))
 #define kk_decl_thread        __thread
-//#define kk_struct_packed      struct __attribute__((__packed__))
-//#define kk_struct_packed_end 
-//#define KK_HAS_STRUCT_PACKING 1
 #elif defined(_MSC_VER)
 #pragma warning(disable:4214)  // using bit field types other than int
 #pragma warning(disable:4101)  // unreferenced local variable
@@ -192,9 +189,6 @@
 #define kk_decl_noinline      __declspec(noinline)
 #define kk_decl_align(a)      __declspec(align(a))
 #define kk_decl_thread        __declspec(thread)
-//#define kk_struct_packed      __pragma(pack(push,1)) struct
-//#define kk_struct_packed_end  __pragma(pack(pop))
-//#define KK_HAS_STRUCT_PACKING 1
 #ifndef __cplusplus  // need c++ compilation for correct atomic operations on msvc
 #error "when using cl (the Microsoft Visual C++ compiler), use the /TP option to always compile in C++ mode."
 #endif
@@ -205,9 +199,6 @@
 #define kk_decl_align(a)   
 #define kk_decl_thread        __thread
 #endif
-
-#define kk_struct_packed      struct
-#define kk_struct_packed_end  
 
 
 #if defined(__GNUC__) || defined(__clang__)
