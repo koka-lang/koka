@@ -816,25 +816,18 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
        consinfos <- mapM (resolveConstructor (getName newtp') sort 
                             (dataDefIsOpen ddef) (not (dataDefIsOpen ddef) && length constructors == 1) 
                             typeResult typeVars tvarMap) constructors
-       let (constructors',infos) = unzip consinfos
+       let (constructors',conInfos) = unzip consinfos
        
        --check recursion
        if (sort == Retractive)
         then return ()
         else let effNames = concatMap fromOpsName recNames
                  fromOpsName nm = if (isOperationsName nm) then [fromOperationsName nm] else []
-             in if (any (occursNegativeCon (recNames ++ effNames)) (infos))
+             in if (any (occursNegativeCon (recNames ++ effNames)) (conInfos))
               then do addError range (text "Type" <+> nameDoc <+> text "is declared as being" <-> text " (co)inductive but it occurs recursively in a negative position." <->
                                      text " hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences")
               else return ()
-       {-
-       -- is a maybe like reference type?
-       let isAsMaybe = not isRec && case sortOn (length . conInfoParams) infos of
-                         [nothing,just] -> length (conInfoParams nothing) == 0 && case conInfoParams just of 
-                                             [(_,TVar _)] -> True
-                                             _ -> False
-                         _ -> False
-       -}
+       
        -- value types
        ddef1 <- case ddef of
                   DataDefNormal
@@ -853,7 +846,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                   _ -- Value or auto, and not recursive
                     -> -- determine the raw fields and total size
                        do platform <- getPlatform                          
-                          dd <- toDefValues platform (ddef/=DataDefAuto) qname nameDoc infos
+                          dd <- toDefValues platform (ddef/=DataDefAuto) qname nameDoc conInfos
                           case (ddef,dd) of  -- note: m = raw, n = scan
                             (DataDefValue _, DataDefValue vr)
                               -> if (hasKindStarResult (getKind typeResult))
@@ -864,7 +857,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
                                     return DataDefNormal
                             (DataDefAuto, DataDefValue vr)
-                              -> if (valueReprSize platform vr <= 3*(sizeField platform)
+                              -> if (valueReprSize platform vr <= 3*(sizePtr platform)         -- not too large in bytes
+                                      && maximum (map (length . conInfoParams) conInfos) <= 3  -- and at most 3 members
                                       && hasKindStarResult (getKind typeResult)
                                       && (sort /= Retractive))
                                   then -- trace ("default to value: " ++ show name ++ ": " ++ show vr) $
@@ -873,7 +867,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                                        return (DataDefNormal)
                             _ -> return DataDefNormal
 
-       let dataInfo0 = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef1 vis doc
+       let dataInfo0 = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars conInfos range ddef1 vis doc
        dataInfo  <- case ddef1 of
                       DataDefValue (ValueRepr m n a)  | Core.needsTagField (fst (Core.getDataRepr dataInfo0))
                         ->  -- add extra required tag field to the size

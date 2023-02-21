@@ -9,13 +9,19 @@
 #define _DEFAULT_SOURCE          
 #define __USE_MINGW_ANSI_STDIO   // so %z is valid on mingw
 
-
 #if defined(KK_MIMALLOC)
-#if !defined(MI_MAX_ALIGN_SIZE) && (KK_MIMALLOC > 1)
-#define MI_MAX_ALIGN_SIZE  KK_MIMALLOC
+  #if !defined(MI_MAX_ALIGN_SIZE)
+    #if (KK_MIMALLOC > 1)
+      #define MI_MAX_ALIGN_SIZE  KK_MIMALLOC
+    #else
+      #define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE 
+    #endif  
+  #endif
+  #if !defined(MI_DEBUG) && defined(KK_DEBUG_FULL)
+    #define MI_DEBUG  3
+  #endif
+  #include "../mimalloc/src/static.c"  // must come first on freeBSD
 #endif  
-#include "../mimalloc/src/static.c"  // must come first on freeBSD
-#endif
 
 #include <kklib.h>
 

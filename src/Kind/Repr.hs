@@ -50,7 +50,7 @@ orderConFields emitError getDataInfo platform extraPreScan fields
                 (padding,mixedScan)   
                           = case rmixed of
                               ((_,_,scan,ralign):_) 
-                                 -> let padSize    = (preSize + (scan * sizeField platform)) `mod` ralign
+                                 -> let padSize    = preSize `mod` ralign
                                         padCount   = padSize `div` sizeField platform
                                     in assertion ("Kind.Infer.orderConFields: illegal alignment: " ++ show ralign) (padSize `mod` sizeField platform == 0) $
                                        ([((newPaddingName (scanCount0 + i),typeAny),sizeField platform,1,sizeField platform) | i <- [1..padCount]]

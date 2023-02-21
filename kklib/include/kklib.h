@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD         104     // modify on changes to trigger recompilation  
+#define KKLIB_BUILD         105     // modify on changes to trigger recompilation  
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -332,7 +332,11 @@ static inline void kk_block_field_idx_set(kk_block_t* b, uint8_t idx ) {
 --------------------------------------------------------------------------------------*/
 #ifdef KK_MIMALLOC
   #if !defined(MI_MAX_ALIGN_SIZE)
-    #define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE
+    #if (KK_MIMALLOC > 1)
+      #define MI_MAX_ALIGN_SIZE  KK_MIMALLOC
+    #else
+      #define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE 
+    #endif  
   #endif
   #if !defined(MI_DEBUG) && defined(KK_DEBUG_FULL)
     #define MI_DEBUG  3
@@ -888,8 +892,9 @@ static inline bool kk_is_value(kk_intb_t i) {
 #if !defined(KK_BOX_PTR_SHIFT)
   #if (KK_INTB_SIZE <= 4 && KK_INTPTR_SHIFT >= 3)
     // shift by pointer alignment if we have at most 32-bit boxed ints
-    // todo: unfortunately, bigint pointers must still have the lowest 2 bits as zero for 
-    //       fast ovf arithmetic. So we are conservative here
+    // note: unfortunately, bigint pointers must still have the lowest 2 bits as zero for 
+    //       fast ovf arithmetic. So we are conservative here. If we always use SOFA or TAGOVF
+    //       in the compressed case, we could shift by one more bit and double the heap space.
     #define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - 2)
   #else
     // don't bother with shifting if we have more than 32 bits available

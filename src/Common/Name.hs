@@ -303,7 +303,7 @@ makeFreshHiddenName s name range
     where idFromPos pos = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
 
 hiddenNameStartsWith name pre
-  = nameId name `startsWith` ("." ++ pre)
+  = nameId name `startsWith` ("." ++ pre ++ "-")
 
 toUniqueName :: Int -> Name -> Name
 toUniqueName i name
@@ -327,14 +327,15 @@ newPaddingName i
   = newHiddenName ("padding" ++ show i)
 
 isPaddingName name
-  = hiddenNameStartsWith name "padding"
+  = -- hiddenNameStartsWith name "padding"
+    nameId name `startsWith` (".padding")
 
 
 newFieldName i
   = newHiddenName ("field" ++ show i)
 
 isFieldName name
-  = hiddenNameStartsWith name "field"
+  = isHiddenName name -- hiddenNameStartsWith name "field"
 
 
 newImplicitTypeVarName i
