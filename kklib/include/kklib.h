@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD         103     // modify on changes to trigger recompilation  
+#define KKLIB_BUILD         104     // modify on changes to trigger recompilation  
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -886,9 +886,11 @@ static inline bool kk_is_value(kk_intb_t i) {
 // If we assume `intptr_t` aligned pointers in the heap, we can use a larger heap when 
 // using pointer compression (by shifting them by `KK_BOX_PTR_SHIFT`).
 #if !defined(KK_BOX_PTR_SHIFT)
-  #if (KK_INTB_SIZE <= 4)
+  #if (KK_INTB_SIZE <= 4 && KK_INTPTR_SHIFT >= 3)
     // shift by pointer alignment if we have at most 32-bit boxed ints
-    #define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - KK_TAG_BITS)
+    // todo: unfortunately, bigint pointers must still have the lowest 2 bits as zero for 
+    //       fast ovf arithmetic. So we are conservative here
+    #define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - 2)
   #else
     // don't bother with shifting if we have more than 32 bits available
     #define KK_BOX_PTR_SHIFT   (0)
@@ -953,7 +955,7 @@ static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
 
 // Integer value encoding/decoding. May use smaller integers (`kk_intf_t`)
 // then boxed integers if `kk_intb_t` is larger than the natural register size.
-#define KK_INTF_BOX_BITS(extra)  (KK_INTF_BITS - (KK_TAG_BITS + (extra)))
+#define KK_INTF_BOX_BITS(extra)  (KK_INTF_BITS - (KK_TAG_BITS + (extra)))  
 #define KK_INTF_BOX_MAX(extra)   (KK_INTF_MAX >> (KK_TAG_BITS + (extra)))
 #define KK_INTF_BOX_MIN(extra)   (-KK_INTF_BOX_MAX(extra) - 1)
 #define KK_UINTF_BOX_MAX(extra)  (KK_UINTF_MAX >>(KK_TAG_BITS + (extra)))

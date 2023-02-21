@@ -24,6 +24,7 @@ module Common.Name
           , qualify, unqualify, isQualified, qualifier
           , nameId, nameModule
 
+          , newPaddingName, isPaddingName
           , newFieldName, isFieldName, isWildcard
           , newHiddenExternalName, isHiddenExternalName
           , newHiddenName, isHiddenName, hiddenNameStartsWith
@@ -302,7 +303,7 @@ makeFreshHiddenName s name range
     where idFromPos pos = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
 
 hiddenNameStartsWith name pre
-  = nameId name `startsWith` ("." ++ pre ++ "-")
+  = nameId name `startsWith` ("." ++ pre)
 
 toUniqueName :: Int -> Name -> Name
 toUniqueName i name
@@ -322,18 +323,24 @@ toHiddenUniqueName i s name
     xname = if (isAlpha c || c=='.' ) then name else newQualified (nameModule name) ("op")
 
 
+newPaddingName i
+  = newHiddenName ("padding" ++ show i)
+
+isPaddingName name
+  = hiddenNameStartsWith name "padding"
+
 
 newFieldName i
   = newHiddenName ("field" ++ show i)
 
 isFieldName name
-  = isHiddenName name
+  = hiddenNameStartsWith name "field"
 
 
 newImplicitTypeVarName i
   = newHiddenName ("t" ++ show i)
 
-isImplicitTypeVarName name
+isImplicitTypeVarName name 
   = isHiddenName name
 
 

@@ -63,3 +63,10 @@ type mix<a> { Mix( p:point, m : mix<a>, i : int32, c : char ); MixNil }
 
 // ensure the tag of maybe is in the scanned fields (3+1)
 type scantag { ScanTag( i : int, z : char, m : maybe<int32>, p : point ) }
+
+
+// test padding between field and raw
+value struct intdouble( i : int, d : float64 )
+
+// test explicit padding between fields and mixed intdouble
+struct padding( x : int, y : int, id : intdouble )

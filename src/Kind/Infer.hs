@@ -867,10 +867,10 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                               -> if (valueReprSize platform vr <= 3*(sizeField platform)
                                       && hasKindStarResult (getKind typeResult)
                                       && (sort /= Retractive))
-                                  then -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
-                                      return (DataDefValue vr)
-                                  else -- trace ("default to reference: " ++ show name ++ ": " ++ show (m,n)) $
-                                      return (DataDefNormal)
+                                  then -- trace ("default to value: " ++ show name ++ ": " ++ show vr) $
+                                       return (DataDefValue vr)
+                                  else -- trace ("default to reference: " ++ show name ++ ": " ++ show vr ++ ", " ++ show (valueReprSize platform vr)) $
+                                       return (DataDefNormal)
                             _ -> return DataDefNormal
 
        let dataInfo0 = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef1 vis doc
@@ -1020,7 +1020,7 @@ resolveConstructor typeName typeSort isOpen isSingleton typeResult typeParams id
                                   let nameDoc = color (colorCons cs) (pretty name)
                                   addError rng (makeMsg nameDoc)
        platform <- getPlatform
-       (orderedFields,vrepr) <- orderConFields emitError lookupDataInfo platform isOpen fields
+       (orderedFields,vrepr) <- orderConFields emitError lookupDataInfo platform (if isOpen then 1 else 0) fields
        return (UserCon qname exist' params' (Just result') rngName rng vis doc
               ,ConInfo qname typeName typeParams existVars
                   fields
