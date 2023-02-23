@@ -564,8 +564,10 @@ structDecl dvis =
           do (vis,dvis,rng) <-     do{ rng <- keyword "abstract"; return (Public,Private,rng) }
                                <|> do{ (vis,rng) <- visibility dvis; return (vis,vis,rng) }
              ddef           <-     do { specialId "value"; return (DataDefValue valueReprZero) }
-                               <|> do { specialId "reference"; return DataDefNormal }
-                               <|> do { return DataDefAuto }
+                               <|> do { specialIdOr "ref" ["reference"]; 
+                                        -- pwarningMessage "using 'reference' is deprecated and is always the default now";
+                                        return (DataDefNormal True) }
+                               <|> do { return (DataDefNormal False) }
              (trng,doc) <- dockeyword "struct"
              return (vis,dvis,ddef,rng,trng,doc))
 
@@ -601,15 +603,17 @@ typeDeclKind
     do (rng1,kind) <-     do{ rng <- specialId "rec"; return (rng,Retractive) }
                       <|> do{ rng <- specialId "co"; return (rng,CoInductive) }
        (rng2,doc)  <- dockeyword "type"
-       return (kind,combineRanges [rng1,rng2],doc,DataDefNormal,False)
+       return (kind,combineRanges [rng1,rng2],doc,DataDefNormal True,False)
     )
   <|>
     try(
     do (ddef,isExtend) <-     do { specialId "open"; return (DataDefOpen, False) }
                           <|> do { specialId "extend"; return (DataDefOpen, True) }
                           <|> do { specialId "value"; return (DataDefValue valueReprZero, False) }
-                          <|> do { specialId "reference"; return (DataDefNormal, False) }
-                          <|> return (DataDefAuto, False)
+                          <|> do { specialIdOr "ref" ["reference"]; 
+                                   -- pwarningMessage "using 'reference' is deprecated and is always the default now";
+                                   return (DataDefNormal True, False) }
+                          <|> return (DataDefNormal False, False)
        (rng,doc) <- dockeyword "type"
        return (Inductive,rng,doc,ddef,isExtend))
 
@@ -818,14 +822,14 @@ makeEffectDecl decl =
                              evName  = newName "ev"
                              evFld = ValueBinder evName evTp Nothing irng rng
                              evCon = UserCon (toConstructorName id) [] [(Private,evFld)] Nothing irng rng Private ""
-                         in (DataType ename tpars [evCon] rng vis Inductive (DataDefAuto {-DataDefValue 0 0-}) False docx
+                         in (DataType ename tpars [evCon] rng vis Inductive (DataDefNormal True {-DataDefValue 0 0-}) False docx
                             ,(\action -> Lam [ValueBinder evName Nothing Nothing irng rng]
                                                   (App (action) [(Nothing,App (Var (toConstructorName id) False rng) [(Nothing,Var evName False rng)] rng)] rng)
                                                   rng))
                     else let -- add a private constructor that refers to the handler type to get a proper recursion check
                              hndfld = ValueBinder nameNil hndTp Nothing irng irng
                              hndcon = UserCon (toConstructorName id) [hndEffTp,hndResTp] [(Private,hndfld)] Nothing irng irng Private ""
-                         in (DataType ename tpars [hndcon] rng vis Inductive DataDefAuto False docx, \action -> action)
+                         in (DataType ename tpars [hndcon] rng vis Inductive (DataDefNormal True) False docx, \action -> action)
 
       -- declare the effect handler type
       kindEffect = KindCon nameKindEffect krng
@@ -866,7 +870,7 @@ makeEffectDecl decl =
       getOpName (OpDecl (doc,opId,_,idrng,linear,opSort,exists0,pars,prng,mbteff,tres)) = show (unqualify opId)
 
       hndCon     = UserCon (toConstructorName hndName) [] [(Public,fld) | fld <- opFields] Nothing krng grng vis ""
-      hndTpDecl  = DataType hndTpName (tparsNonScoped ++ [hndEffTp,hndResTp]) [hndCon] grng vis sort DataDefNormal False ("// handlers for the " ++ docEffect)
+      hndTpDecl  = DataType hndTpName (tparsNonScoped ++ [hndEffTp,hndResTp]) [hndCon] grng vis sort (DataDefNormal True) False ("// handlers for the " ++ docEffect)
 
       -- declare the handle function
 
@@ -2766,6 +2770,15 @@ special s
        return rng
   <?> show s
 
+
+specialIdOr :: String -> [String] -> LexParser Range
+specialIdOr kw [] = specialId kw
+specialIdOr kw deprecated
+  = choice (specialId kw : map deprecate deprecated)
+  where
+    deprecate  k = do rng <- specialId k
+                      warnDeprecated k kw
+                      return rng
 
 
 keywordOr :: String -> [String] -> LexParser Range

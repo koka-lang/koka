@@ -21,11 +21,11 @@ import std/num/ddouble
 ----------------------------------------------------------------------------*/
 
 // A date consists of a the year, month, and day.
-pub struct date(
-  year : int,
-  month: int,
+pub value struct date
+  year : int
+  month: int
   day  : int
-)
+
 
 // Create an ISO weekdate where the "month" is the ISO week number.
 pub fun weekdate( year : int, month: int, weekday : weekday ) : date
@@ -69,11 +69,11 @@ pub fun (+)( d1 : date, d2 : date ) : date
 ----------------------------------------------------------------------------*/
 
 // A clock consists of the hour, minute, second, and fractional second (between ``0.0` and `1.0`).
-pub struct clock(
-  hours   : int,
-  minutes : int,
+pub struct clock
+  hours   : int
+  minutes : int
   seconds : ddouble
-)
+
 
 // Create a clock from a `:duration`; normalizes the clock with seconds and minutes under 60.
 //pub fun clock( d : duration ) : clock

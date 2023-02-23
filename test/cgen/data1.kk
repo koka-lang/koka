@@ -22,7 +22,7 @@ type bool { False; True }
 type iso { Iso(x:int) }
 
 // single struct
-type pair<a,b> { Pair(x:a, y:b) }
+value type pair<a,b> { Pair(x:a, y:b) }
 
 type triple<a,b,c> { Triple(p:pair<a,b>,z:c) }
 
@@ -41,8 +41,20 @@ type vstrct<a> { VStrct( x:a, i:int ); VStrct2(d:float64,s:string); VStrct3(i:in
 // struct
 type strct<a> { Strct( x:a, i:int ); Strct2(i:int, s:string); Strct3(x:a)  }
 
-// struct
-type maybe<a> { Just(x:a); Nothing }
+// reference maybe
+ref type rmaybe<a> { RJust(x:a); RNothing }
+
+fun test-rmaybe( m : rmaybe<int> ) : int
+  match m 
+    RJust(i) -> i
+    RNothing -> 0
+
+value type vmaybe<a> { VJust(x:a); VNothing }
+
+fun test-vmaybe( m : vmaybe<int> ) : int
+  match m 
+    VJust(i) -> i
+    VNothing -> 0
 
 // normal
 type normal<a> { One(x:a,y:pair<int,int>,z:pair<int,int>); Two(x:int); Three }

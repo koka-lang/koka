@@ -684,7 +684,7 @@ genConstructorCreate info dataRepr con conRepr allFields scanCount maxScanCount
                      else -}
                           vcat((if not (isConAsJust conRepr) then [] else 
                                  let arg = ppName (fst (head (conInfoParams con)))
-                                 in [text "if kk_likely(!kk_box_is_maybe(" <.> arg <.> text ")) { return kk_datatype_as_Just(" <.> arg <.> text "); }" 
+                                 in [text "if kk_likely(!kk_box_is_maybe" <.> arguments [arg] <.> text ") { return kk_datatype_as_Just(" <.> arg <.> text "); }" 
                                     ])
                                ++
                                [text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="

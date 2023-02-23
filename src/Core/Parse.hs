@@ -280,7 +280,7 @@ typeSort
        (ddef0,isExtend,sort) <- parseTypeMod
        (_,doc) <- dockeyword "type"
        let ddef = case (isRecursive, ddef0) of
-                    (True,DataDefNormal) -> DataDefRec
+                    (True,DataDefNormal True) -> DataDefRec
                     _ -> ddef0
        return (ddef,isExtend,sort,doc)
 
@@ -291,9 +291,9 @@ parseTypeMod
  <|> do specialId "value"
         vrepr <- parseValueRepr
         return (DataDefValue vrepr, False, Inductive)
- <|> do{ specialId "co"; return (DataDefNormal, False, CoInductive) }
- <|> do{ specialId "rec"; return (DataDefNormal, False, Retractive) }
- <|> return (DataDefNormal, False, Inductive)
+ <|> do{ specialId "co"; return (DataDefNormal True, False, CoInductive) }
+ <|> do{ specialId "rec"; return (DataDefNormal True, False, Retractive) }
+ <|> return (DataDefNormal False, False, Inductive)
  <?> ""
 
 parseValueRepr :: LexParser ValueRepr

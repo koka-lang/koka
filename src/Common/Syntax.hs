@@ -183,8 +183,8 @@ instance Show DataKind where
   show Retractive = "rectype"
 
 data DataDef = DataDefValue !ValueRepr
-             | DataDefNormal
-             | DataDefAuto   -- Value or Normal; determined by kind inference
+             | DataDefNormal{ dataDefDeclAsRef :: Bool } 
+             -- | DataDefAuto   -- Value or Normal; determined by kind inference
              | DataDefRec
              | DataDefOpen
              deriving Eq
@@ -195,13 +195,13 @@ instance Show DataDef where
               DataDefNormal{}  -> "normal"
               DataDefRec       -> "rec"
               DataDefOpen      -> "open"
-              DataDefAuto      -> "auto"
+              -- DataDefAuto      -> "auto"
 
 dataDefIsRec ddef
   = case ddef of
       DataDefValue{}   -> False
-      DataDefNormal    -> False
-      DataDefAuto      -> False
+      DataDefNormal{}  -> False
+      -- DataDefAuto      -> False
       _  -> True
 
 dataDefIsOpen ddef

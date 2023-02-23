@@ -34,43 +34,93 @@ createDataDef emitError emitWarning lookupDataInfo
                 extraFields defaultDef conInfos0
   = do --calculate the value repr of each constructor
        conInfos <- mapM createConInfoRepr conInfos0
+
        -- datadef 
+       let maxMembers = maximum ([0] ++ map (length . conInfoParams) conInfos)
+           conCount   = length conInfos
+           canbeValue = resultHasKindStar && sort /= Retractive
+           isEnum     = canbeValue && maxMembers == 0 && conCount >= 1
+           isIso      = canbeValue && maxMembers == 1 && conCount == 1
+                                    
        ddef  <- case defaultDef of
-                  DataDefNormal
-                    -> return (if (isRec) then DataDefRec else DataDefNormal)
-                  DataDefValue{} | isRec
-                    -> do emitError $ text "cannot be declared as a value type since it is recursive."
-                          return defaultDef
-                  DataDefAuto | isRec
-                    -> return DataDefRec
-                  -- DataDefAuto | isAsMaybe
-                  --  -> return DataDefNormal
                   DataDefOpen
                     -> return DataDefOpen
                   DataDefRec
                     -> return DataDefRec
+                  DataDefNormal{} | isRec
+                    -> return DataDefRec
+                  DataDefNormal declAsRef
+                    -> do dd <- createMaxDataDef conInfos
+                          case dd of
+                            DataDefValue vr | isEnum
+                              -> return dd
+                            DataDefValue vr | isIso   -- iso types are always value types
+                              -> return dd
+                            DataDefValue vr
+                              -> do let wouldGetTagField = (conCount > 1 && not isEnum)
+                                        size = valueReprSize platform vr + (if wouldGetTagField then sizeField platform else 0)
+                                    when (not declAsRef && 
+                                          -- ((size <= 3*sizePtr platform && conCount == 1) || (size <= 2*sizePtr platform && conCount > 1)) 
+                                          (size <= 2*sizePtr platform) && (maxMembers <= 3) && canbeValue) $
+                                      emitWarning $ text "may be better declared as a value type for efficiency (e.g. 'value type/struct')" <->
+                                                    text "or declare as a reference type (e.g. 'ref type/struct') to suppress this warning"
+                                    return (DataDefNormal declAsRef)
+                            _ -> return (DataDefNormal declAsRef)
+                  DataDefValue{} | isRec
+                    -> do emitError $ text "cannot be declared as a value type since it is recursive."
+                          return (DataDefNormal False)
+                  DataDefValue{} | not resultHasKindStar
+                    -> do emitError $ text "is declared as a value type but does not have a value kind ('V')."  -- should never happen?
+                          return (DataDefNormal False)
+                  DataDefValue{} | sort == Retractive
+                    -> do emitError $ text "is declared as a value type but is not (co)inductive."
+                          return (DataDefNormal False)
+                  DataDefValue{}
+                    -> do dd <- createMaxDataDef conInfos
+                          case dd of
+                            DataDefValue vr
+                              -> do let size       = valueReprSize platform vr 
+                                    when (size > 4*sizePtr platform) $
+                                      emitWarning (text "requires" <+> pretty size <+> text "bytes which is rather large for a value type")
+                                    when isEnum $
+                                      emitWarning (text "is an enumeration -- there is no need to declare it as a value type")
+                                    -- when isIso $
+                                    --   emitWarning (text "is a isomorphic type -- there is no need to declare it as a value type")
+                                    return dd
+                            _ -> do emitError $ text "cannot be used as a value type."  -- should never happen?
+                                    return (DataDefNormal False)
+
+
+                  -- DataDefAuto | isRec
+                  --  -> return DataDefRec                  
+                  {-
                   _ -- Value or auto, and not recursive
                     -> -- determine the raw fields and total size
                        do dd <- createMaxDataDef conInfos
                           case (defaultDef,dd) of  -- note: m = raw, n = scan
                             (DataDefValue _, DataDefValue vr)
-                              -> if resultHasKindStar
-                                  then return (DataDefValue vr)
-                                  else do emitError $ text "is declared as a value type but does not have a value kind ('V')."  -- should never happen?
-                                          return DataDefNormal
+                              -> assertion ("Kind.Repr: value type is not kind star and/or recursive") (resultHasKindStar && not isRec) $
+                                 return (DataDefValue vr)                                 
                             (DataDefValue _, DataDefNormal)
                               -> do emitError $ text "cannot be used as a value type."  -- should never happen?
                                     return DataDefNormal
                             (DataDefAuto, DataDefValue vr)
-                              -> if (valueReprSize platform vr <= 3*(sizePtr platform)         -- not too large in bytes
-                                      && maximum (map (length . conInfoParams) conInfos) <= 3  -- and at most 3 members
-                                      && resultHasKindStar
-                                      && (sort /= Retractive))
-                                  then -- trace ("default to value: " ++ show name ++ ": " ++ show vr) $
-                                       return (DataDefValue vr)
-                                  else -- trace ("default to reference: " ++ show name ++ ": " ++ show vr ++ ", " ++ show (valueReprSize platform vr)) $
-                                       return (DataDefNormal)
-                            _ -> return DataDefNormal
+                              -> do let maxMembers = maximum (map (length . conInfoParams) conInfos)
+                                        conCount   = length conInfos
+                                    -- default to a value type?
+                                    if ( -- not too large: 24 bytes, or 16 with multiple constructors (since a tag is needed as well)
+                                          -- use fixed bytes to be more portable
+                                            ((conCount == 1 && valueReprSize platform vr <= 24) || (conCount > 1 && valueReprSize platform vr <= 16))
+                                        -- and at most three members
+                                          && (maximum (map (length . conInfoParams) conInfos) <= 3)
+                                          -- and has star kind and is (co)inductive
+                                          && resultHasKindStar && (sort /= Retractive))
+                                      then -- trace ("default to value: " ++ show name ++ ": " ++ show vr) $
+                                          return (DataDefValue vr)
+                                      else -- trace ("default to reference: " ++ show name ++ ": " ++ show vr ++ ", " ++ show (valueReprSize platform vr)) $
+                                          return (DataDefNormal)
+                            _ -> return DataDefNormal 
+                -}
        return (ddef,conInfos)
   where
     isVal :: Bool
@@ -99,7 +149,7 @@ createDataDef emitError emitWarning lookupDataInfo
     -- maxDataDefs :: Monad m => [ValueRepr] -> m DataDef
     maxDataDefs [] 
       = if not isVal 
-          then return DataDefNormal -- reference type, no constructors
+          then return (DataDefNormal False) -- reference type, no constructors
           else do let size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
                                then 4
                               else if (name == nameTpFloat || name == nameTpInt64)
@@ -134,13 +184,13 @@ createDataDef emitError emitWarning lookupDataInfo
                 | n1 == n2  -> return (DataDefValue (valueReprNew (max m1 m2) n1 (max a1 a2)))
                 -- non-equal scan fields
                 | otherwise ->
-                  do if (isVal)
-                      then emitError (text "is declared as a value type but has" <+> text "multiple constructors with a different number of regular types overlapping with value types." <->
-                                        text "hint: value types with multiple constructors must all use the same number of regular types (use 'box' to use a value type as a regular type).")
-                      else emitWarning (text "cannot be defaulted to a value type as it has" <+> text "multiple constructors with a different number of regular types overlapping with value types.")
+                  do when isVal $
+                       emitError (text "is declared as a value type but has" <+> text "multiple constructors with a different number of regular types overlapping with value types." <->
+                                  text "hint: value types with multiple constructors must all use the same number of regular types (use 'box' to use a value type as a regular type).")
+                      -- else emitWarning (text "cannot be defaulted to a value type as it has" <+> text "multiple constructors with a different number of regular types overlapping with value types.")
                      -- trace ("warning: cannot default to a value type due to mixed raw/regular fields: " ++ show nameDoc) $
-                     return DataDefNormal -- (DataDefValue (max m1 m2) (max n1 n2))
-              _ -> return DataDefNormal
+                     return (DataDefNormal False) -- (DataDefValue (max m1 m2) (max n1 n2))
+              _ -> return (DataDefNormal False)
 
 
 ---------------------------------------------------------
@@ -217,8 +267,8 @@ orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
 getDataDef :: Monad m => (Name -> m (Maybe DataInfo)) -> Type -> m (Maybe DataDef)
 getDataDef lookupDI tp
    = case extractDataDefType tp of
-       Nothing -> return $ Just DataDefNormal
-       Just name | name == nameTpBox -> return $ Just DataDefNormal
+       Nothing -> return $ Just (DataDefNormal False)
+       Just name | name == nameTpBox -> return $ Just (DataDefNormal False)
        Just name -> do mdi <- lookupDI name 
                        case mdi of
                          Nothing -> return Nothing

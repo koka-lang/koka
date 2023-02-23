@@ -827,24 +827,40 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
               then do addError range (text "Type" <+> nameDoc <+> text "is declared as being" <-> text " (co)inductive but it occurs recursively in a negative position." <->
                                      text " hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences")
               else return ()
-       
-       let emitError d    = addError range (text "Type" <+> nameDoc <+> d)
-           emitWarning d  = addWarning range (text "Type" <+> nameDoc <+> d)  
-       platform <- getPlatform
-       (ddef1,conInfos) 
-          <- createDataDef emitError emitWarning lookupDataInfo
-                  platform qname (hasKindStarResult (getKind typeResult)) isRec sort
-                   (if dataDefIsOpen ddef then 1 else 0) ddef conInfos0
 
-       let dataInfo0 = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars conInfos range ddef1 vis doc
+       -- create datadef and conInfos with correct ValueRepr and ordered fields
+       let emitError d    = addError range (text "Type" <+> nameDoc <+> d)
+           emitWarning d  = addWarning range (text "Type" <+> nameDoc <+> d)
+           resultHasKindStar = hasKindStarResult (getKind typeResult)
+           maxMembers     = maximum ([0] ++ map (length . conInfoParams) conInfos0)
+           conCount       = length conInfos0
+           willNeedStructTag   = dataDefIsValue ddef && conCount > 1 && maxMembers >= 1
+           extraFields = if (dataDefIsOpen ddef) then 1 {- open datatype tag -}
+                         else if willNeedStructTag then 1 {- explicit struct tag -} 
+                         else 0
+       platform <- getPlatform
+       (ddef1,conInfos1) 
+          <- createDataDef emitError emitWarning lookupDataInfo
+                platform qname resultHasKindStar isRec sort extraFields ddef conInfos0
+       
+       let dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars conInfos1 range ddef1 vis doc
+
+       assertion ("Kind.Infer.resolveTypeDef: assuming value struct tag but not inferred as such " ++ show (ddef,ddef1)) 
+                 ((willNeedStructTag && Core.needsTagField (fst (Core.getDataRepr dataInfo))) || not willNeedStructTag) $ return ()
+
+
+       {-
+       -- adjust datainfo in case an extra value tag was needed
        dataInfo  <- case ddef1 of
                       DataDefValue (ValueRepr m n a)  | Core.needsTagField (fst (Core.getDataRepr dataInfo0))
-                        ->  -- add extra required tag field to the size
-                            -- todo: recalculate the constructor sizes as well!
-                            do let ddef2 = DataDefValue (valueReprNew m (n+1) a)
-                               return $ dataInfo0{ dataInfoDef = ddef2 }
+                        ->  -- recalculate with extra required tag field to the size
+                            do (ddef2,conInfos2) <- createDataDef emitError emitWarning lookupDataInfo
+                                                      platform qname resultHasKindStar isRec sort
+                                                        1 {- extra field for tag -} ddef1 {- guarantees value type again -} conInfos1
+                               let dataInfo1 = dataInfo0{ dataInfoDef = ddef2, dataInfoConstrs = conInfos2 }
+                               return dataInfo1
                       _ -> return dataInfo0
-                              
+       -}                     
        -- trace (showTypeBinder newtp') $
        addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')))
        return (Core.Data dataInfo isExtend)

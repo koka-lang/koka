@@ -688,7 +688,7 @@ genDupDrop isDup tname mbConRepr mbScanCount
          else let normal = (Just (dupDropFun isDup tp mbConRepr mbScanCount (Var tname InfoNone)))
               in case mbDi of
                 Just di -> case (dataInfoDef di, dataInfoConstrs di, snd (getDataRepr di)) of
-                             (DataDefNormal, [conInfo], [conRepr])  -- data with just one constructor
+                             (DataDefNormal _, [conInfo], [conRepr])  -- data with just one constructor
                                -> do scan <- getConstructorScanFields (TName (conInfoName conInfo) (conInfoType conInfo)) conRepr
                                      -- parcTrace $ "  add scan fields: " ++ show scan ++ ", " ++ show tname
                                      return (Just (dupDropFun isDup tp (Just (conRepr,conInfoName conInfo)) (Just scan) (Var tname InfoNone)))
@@ -1004,7 +1004,7 @@ getDataDef' :: Newtypes -> Type -> Maybe DataDef
 getDataDef' newtypes tp
   = case getDataInfo' newtypes tp of
       Just di -> Just (dataInfoDef di)
-      _       -> Nothing -- DataDefNormal
+      _       -> Nothing -- DataDefNormal False
 
 
 getDataInfo :: Type -> Parc (Maybe DataInfo)
@@ -1027,7 +1027,7 @@ getDataDef tp
   = do newtypes <- getNewtypes
        return (case getDataDef' newtypes tp of
                  Just dd -> dd
-                 Nothing -> DataDefNormal)
+                 Nothing -> DataDefNormal False)
 
 
 extractDataDefType :: Type -> Maybe Name

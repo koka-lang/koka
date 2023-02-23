@@ -27,17 +27,17 @@ extern import
   js file "calendar-inline.js"
 
 // A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time.
-abstract struct calendar(
-  pub name        : string,
-  pub long-name   : string,
-  //timescale   : timescale,
-  pub month-prefix: string,
-  pub show-era    : (date) -> string,
-  instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock),
-  dc-to-instant : (date,clock,timezone,timescale) -> instant,
-  days-to-date  : (days:int) -> date,
+abstract struct calendar
+  pub name        : string
+  pub long-name   : string
+  //timescale   : timescale
+  pub month-prefix: string
+  pub show-era    : (date) -> string
+  instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock)
+  dc-to-instant : (date,clock,timezone,timescale) -> instant
+  days-to-date  : (days:int) -> date
   date-to-days  : (date:date) -> int
-)
+
 
 // Check if two calendars use the same date calculations. (Display of era names etc. may differ)
 pub fun (==)( c1 : calendar, c2 : calendar ) : bool
@@ -57,11 +57,11 @@ pub fun (==)( c1 : calendar, c2 : calendar ) : bool
 // The optional `utc-inverse` field returns for an instant in the time zone, the associated UTC time.
 // By default it returns `Nothing` in which case a generic algorithm is used to determine the
 // inverse.
-abstract struct timezone(
-  pub name    : string,
-  utc-delta  : (instant) -> (duration,string),
-  utc-inverse: (instant) -> maybe<instant> = fn(i) { Nothing }
-)
+abstract struct timezone
+  pub name    : string
+  utc-delta   : (instant) -> (duration,string)
+  utc-inverse : (instant) -> maybe<instant> = fn(i) { Nothing }
+
 
 // Same timezone?
 pub fun (==)( tz1 : timezone, tz2 : timezone ) : bool
