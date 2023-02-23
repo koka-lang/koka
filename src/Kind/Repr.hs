@@ -9,7 +9,7 @@
     
 -}
 -----------------------------------------------------------------------------
-module Kind.Repr( orderConFields ) where
+module Kind.Repr( orderConFields, createDataDef ) where
 
 import Control.Monad( when )
 import Lib.PPrint
@@ -20,28 +20,146 @@ import Common.Failure
 import Type.Type
 
 ---------------------------------------------------------
+-- Create a datadef and elaborate conInfo's with a ValueRepr
+-- and correctly ordered fields depending on alignment
+-- constraints and platform sizes.
+---------------------------------------------------------
+
+-- value types
+createDataDef :: Monad m => (Doc-> m ()) -> (Doc-> m ()) -> (Name -> m (Maybe DataInfo))
+                               -> Platform -> Name -> Bool -> Bool -> DataKind 
+                                 -> Int -> DataDef -> [ConInfo] -> m (DataDef,[ConInfo])
+createDataDef emitError emitWarning lookupDataInfo 
+               platform name resultHasKindStar isRec sort 
+                extraFields defaultDef conInfos0
+  = do --calculate the value repr of each constructor
+       conInfos <- mapM createConInfoRepr conInfos0
+       -- datadef 
+       ddef  <- case defaultDef of
+                  DataDefNormal
+                    -> return (if (isRec) then DataDefRec else DataDefNormal)
+                  DataDefValue{} | isRec
+                    -> do emitError $ text "cannot be declared as a value type since it is recursive."
+                          return defaultDef
+                  DataDefAuto | isRec
+                    -> return DataDefRec
+                  -- DataDefAuto | isAsMaybe
+                  --  -> return DataDefNormal
+                  DataDefOpen
+                    -> return DataDefOpen
+                  DataDefRec
+                    -> return DataDefRec
+                  _ -- Value or auto, and not recursive
+                    -> -- determine the raw fields and total size
+                       do dd <- createMaxDataDef conInfos
+                          case (defaultDef,dd) of  -- note: m = raw, n = scan
+                            (DataDefValue _, DataDefValue vr)
+                              -> if resultHasKindStar
+                                  then return (DataDefValue vr)
+                                  else do emitError $ text "is declared as a value type but does not have a value kind ('V')."  -- should never happen?
+                                          return DataDefNormal
+                            (DataDefValue _, DataDefNormal)
+                              -> do emitError $ text "cannot be used as a value type."  -- should never happen?
+                                    return DataDefNormal
+                            (DataDefAuto, DataDefValue vr)
+                              -> if (valueReprSize platform vr <= 3*(sizePtr platform)         -- not too large in bytes
+                                      && maximum (map (length . conInfoParams) conInfos) <= 3  -- and at most 3 members
+                                      && resultHasKindStar
+                                      && (sort /= Retractive))
+                                  then -- trace ("default to value: " ++ show name ++ ": " ++ show vr) $
+                                       return (DataDefValue vr)
+                                  else -- trace ("default to reference: " ++ show name ++ ": " ++ show vr ++ ", " ++ show (valueReprSize platform vr)) $
+                                       return (DataDefNormal)
+                            _ -> return DataDefNormal
+       return (ddef,conInfos)
+  where
+    isVal :: Bool
+    isVal = dataDefIsValue defaultDef
+
+    -- createConInfoRepr :: ConInfo -> m ConInfo
+    createConInfoRepr conInfo
+      = do (orderedFields,vrepr) <- orderConFields emitError (text "constructor" <+> pretty (conInfoName conInfo)) 
+                                                   lookupDataInfo platform extraFields (conInfoParams conInfo)
+           return (conInfo{ conInfoOrderedParams = orderedFields, conInfoValueRepr = vrepr } )
+
+    -- createMaxDataDef :: [ConInfo] -> m DataDef
+    createMaxDataDef conInfos
+      =  do let vreprs = map conInfoValueRepr conInfos
+            ddef <- maxDataDefs vreprs
+            case ddef of
+              DataDefValue (ValueRepr 0 0 0) -- enumeration
+                -> let n = length conInfos
+                  in if (n < 256)         then return $ DataDefValue (valueReprRaw 1) -- uint8_t
+                      else if (n < 65536) then return $ DataDefValue (valueReprRaw 2) -- uint16_t
+                                          else return $ DataDefValue (valueReprRaw 4) -- uint32_t
+              _ -> return ddef
+
+
+    -- note: (m = raw, n = scan)
+    -- maxDataDefs :: Monad m => [ValueRepr] -> m DataDef
+    maxDataDefs [] 
+      = if not isVal 
+          then return DataDefNormal -- reference type, no constructors
+          else do let size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
+                               then 4
+                              else if (name == nameTpFloat || name == nameTpInt64)
+                               then 8
+                              else if (name == nameTpInt8)
+                               then 1
+                              else if (name == nameTpInt16 || name == nameTpFloat16)
+                               then 2
+                              else if (name == nameTpAny || name == nameTpCField || name == nameTpIntPtrT)
+                               then (sizePtr platform)
+                              else if (name==nameTpSSizeT)
+                               then (sizeSize platform)
+                              else 0
+                  m <- if (size <= 0)
+                        then do emitWarning $ text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform)
+                                return (sizePtr platform)
+                        else return size
+                  return (DataDefValue (valueReprNew m 0 m))
+    maxDataDefs [vr] -- singleton value
+      = return (DataDefValue vr)
+    maxDataDefs (vr:vrs)
+      = do dd <- maxDataDefs vrs
+           case (vr,dd) of
+              (ValueRepr 0 0 _,    DataDefValue v)                  -> return (DataDefValue v)
+              (v,                  DataDefValue (ValueRepr 0 0 _))  -> return (DataDefValue v)
+              (ValueRepr m1 0 a1,  DataDefValue (ValueRepr m2 0 a2)) 
+                -> return (DataDefValue (valueReprNew (max m1 m2) 0 (max a1 a2)))
+              (ValueRepr 0 n1 a1,  DataDefValue (ValueRepr 0 n2 a2)) 
+                -> return (DataDefValue (valueReprNew 0 (max n1 n2) (max a1 a2)))
+              (ValueRepr m1 n1 a1, DataDefValue (ValueRepr m2 n2 a2))
+                -- equal scan fields
+                | n1 == n2  -> return (DataDefValue (valueReprNew (max m1 m2) n1 (max a1 a2)))
+                -- non-equal scan fields
+                | otherwise ->
+                  do if (isVal)
+                      then emitError (text "is declared as a value type but has" <+> text "multiple constructors with a different number of regular types overlapping with value types." <->
+                                        text "hint: value types with multiple constructors must all use the same number of regular types (use 'box' to use a value type as a regular type).")
+                      else emitWarning (text "cannot be defaulted to a value type as it has" <+> text "multiple constructors with a different number of regular types overlapping with value types.")
+                     -- trace ("warning: cannot default to a value type due to mixed raw/regular fields: " ++ show nameDoc) $
+                     return DataDefNormal -- (DataDefValue (max m1 m2) (max n1 n2))
+              _ -> return DataDefNormal
+
+
+---------------------------------------------------------
 -- Determine the size of a constructor
 ---------------------------------------------------------
 
 -- order constructor fields of constructors with raw field so the regular fields come first to be scanned.
 -- return the ordered fields, and a ValueRepr (raw size part, the scan count (including tags), align, and full size)
 -- The size is used for reuse and should include all needed fields including the tag field for "open" datatypes 
-orderConFields :: Monad m => ((Doc -> Doc) -> m ()) -> (Name -> m (Maybe DataInfo)) -> Platform
+orderConFields :: Monad m => (Doc -> m ()) -> Doc -> (Name -> m (Maybe DataInfo)) -> Platform
                                -> Int -> [(Name,Type)] -> m ([(Name,Type)],ValueRepr)
-orderConFields emitError getDataInfo platform extraPreScan fields
+orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
   = do visit ([], [], [], extraPreScan, 0) fields
   where
     -- visit :: ([((Name,Type),Int,Int,Int)],[((Name,Type),Int,Int,Int)],[(Name,Type)],Int,Int) -> [(Name,Type)] -> m ([(Name,Type)],ValueRepr)
     visit (rraw, rmixed, rscan, scanCount0, alignment0) []  
       = do when (length rmixed > 1) $
-             do emitError (\nameDoc -> (text "Constructor:" <+> nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
-                                        text ("hint: use 'box' on either field to make it a non-value type.")))
-                {-
-                cs <- getColorScheme
-                let nameDoc = color (colorCons cs) (pretty cname)
-                addError range (text "Constructor:" <+> nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
-                                text ("hint: use 'box' on either field to make it a non-value type."))
-                -}
+             do emitError (nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
+                             text ("hint: use 'box' on either field to make it a non-value type."))
            let  -- scancount and size before any mixed and raw fields
                 preSize    = (sizeHeader platform) + (scanCount0 * sizeField platform)
 

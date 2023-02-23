@@ -1175,13 +1175,13 @@ genLambda params eff body
            freeVars  = [(nm,tp) | (TName nm tp) <- tnamesList (freeLocals (Lam params eff body))]
 
        platform <- getPlatform
-       let emitError makeMsg = do env <- getEnv
-                                  let lam = text (show (cdefName env) ++ ":<lambda>")
-                                  let msg = show (makeMsg lam)
+       env <- getEnv
+       let emitError doc     = do let msg = show doc
                                   failure ("Backend.C.genLambda: " ++ msg)
+           nameDoc           = text (show (cdefName env) ++ ".<lambda>")                                  
            getDataInfo name  = do newtypes <- getNewtypes
                                   return (newtypesLookupAny name newtypes)
-       (allFields,vrepr) <- orderConFields emitError getDataInfo platform 1 {- base.fun -} freeVars
+       (allFields,vrepr) <- orderConFields emitError nameDoc getDataInfo platform 1 {- base.fun -} freeVars
        
        let (paddingFields,fields) = partition (isPaddingName . fst) allFields
            scanCount = valueReprScanCount vrepr
