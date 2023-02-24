@@ -24,6 +24,7 @@ module Common.Name
           , qualify, unqualify, isQualified, qualifier
           , nameId, nameModule
 
+          , newPaddingName, isPaddingName
           , newFieldName, isFieldName, isWildcard
           , newHiddenExternalName, isHiddenExternalName
           , newHiddenName, isHiddenName, hiddenNameStartsWith
@@ -52,7 +53,7 @@ import Lib.Trace( trace )
 import Lib.PPrint (Pretty(pretty), text )
 import Data.Char(isUpper,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
 import Common.Failure(failure)
-import Common.File( joinPaths, splitOn, endsWith, startsWith )
+import Common.File( joinPaths, splitOn, endsWith, startsWith, isPathSep )
 import Common.Range( rangeStart, posLine, posColumn )
 import Data.List(intersperse)
 
@@ -140,7 +141,7 @@ instance Show Name where
          pre        = if null m then "" else m ++ "/"
      in pre ++ case mid of
                   (c:cs) -- | any (\c -> c `elem` ".([])") mid    -> "(" ++ n ++ ")"
-                         | not (isAlpha c || c=='_' || c=='(' || c== '.') -> "(" ++ n ++ ")"
+                         | not (isAlphaNum c || c=='_' || c=='(' || c== '.') -> "(" ++ n ++ ")"
                   _      -> n
 
 
@@ -322,18 +323,25 @@ toHiddenUniqueName i s name
     xname = if (isAlpha c || c=='.' ) then name else newQualified (nameModule name) ("op")
 
 
+newPaddingName i
+  = newHiddenName ("padding" ++ show i)
+
+isPaddingName name
+  = -- hiddenNameStartsWith name "padding"
+    nameId name `startsWith` (".padding")
+
 
 newFieldName i
   = newHiddenName ("field" ++ show i)
 
 isFieldName name
-  = isHiddenName name
+  = isHiddenName name -- hiddenNameStartsWith name "field"
 
 
 newImplicitTypeVarName i
   = newHiddenName ("t" ++ show i)
 
-isImplicitTypeVarName name
+isImplicitTypeVarName name 
   = isHiddenName name
 
 
@@ -517,9 +525,13 @@ moduleNameToPath :: Name -> FilePath
 moduleNameToPath name
   = asciiEncode True (show name)
 
+
 pathToModuleName :: FilePath -> Name
 pathToModuleName path
-  = newName $ dropWhile (\c -> c `elem` "_./") $ decode path
+  = newName $ dropWhile (\c -> c `elem` "_./") $ 
+    decode $ 
+    map (\c -> if isPathSep c then '/' else c) $
+    path
   where
     -- TODO: do proper decoding
     decode s

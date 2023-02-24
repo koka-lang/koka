@@ -19,10 +19,10 @@ import std/num/float64
 // Type of a decimal number. Decimals have arbitrary precision and range and
 // do exact decimal arithmetic and are well suited for financial calculations for
 // example.
-abstract struct decimal (
-  num: int,
-  exp: int
-)
+abstract value struct decimal
+  num : int
+  exp : int
+
 
 // The decimal zero.
 pub val zero : decimal = Decimal(0,0)

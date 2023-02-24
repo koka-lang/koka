@@ -250,7 +250,9 @@ infQualifiedName name range
          Right (name',alias)
           -> if (not (nameCaseEqual (qualifier name) alias))
               then do let cs = cscheme env
-                      addError range (text "module" <+> ppModule cs name <+> text "should be cased as" <+> color (colorModule cs) (pretty alias))
+                      addError range (text "module" <+> ppModule cs name <+> text "should be cased as" <+> color (colorModule cs) (pretty alias) 
+                                       -- <+> text (showPlain name ++ ", " ++ showPlain alias)
+                                    )
                       return name'
               else return name'
          Left []
@@ -290,10 +292,11 @@ findInfKind name0 range
                                                       addError range (text "type" <+> (ppType cs (unqualify name0)) <+> text "should be cased as" <+> ppType cs (unqualify name'))
                                               else return ()
                                              case mbAlias of
-                                              Just alias | nameModule name0 /= show alias
+                                              Just alias | nameModule name0 /= showPlain alias
                                                 -> do let cs = cscheme env
                                                       addError range (text "module" <+> color (colorModule cs) (text (nameModule name0)) <+> text "should be cased as" <+> color (colorModule cs) (pretty alias)
                                                          -- <+> text (show (name,qname,mbAlias,name0))
+                                                         -- <+> text ( nameModule name0 ++ ", " ++ showPlain alias)
                                                          )
                                               _ -> return ()
                                              return (qname,KICon kind)

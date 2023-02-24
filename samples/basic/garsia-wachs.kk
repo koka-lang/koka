@@ -25,7 +25,7 @@ fun show( t : tree<string> ) : string
 //----------------------------------------------------
 // Non empty lists
 //----------------------------------------------------
-pub type list1<a>
+pub value type list1<a>
   Cons1( head : a, tail : list<a> )
 
 

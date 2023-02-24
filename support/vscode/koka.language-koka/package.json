@@ -2,7 +2,7 @@
 	"name": "language-koka",
 	"displayName": "Koka Syntax Highlighting",
 	"description": "Official syntax support for the Koka programming language.",
-	"version": "2.0.4",
+	"version": "2.0.5",
 	"publisher": "koka",
 	"engines": {
 		"vscode": "^1.0.0"

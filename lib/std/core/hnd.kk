@@ -39,10 +39,10 @@ extern import
 // -------------------------------------------
 
 // Each handler in the context has a unique marker.
-struct marker<e::E,a>( m : int32)
+value struct marker<e::E,a>( m : int32)
 
 // The tag of a handler identifies the type at runtime (e.g. `"exn/core/std"`).
-abstract type htag<h::(E,V)->V> 
+abstract value type htag<h::(E,V)->V> 
   Htag(tagname:string)
 
 pub fun ".new-htag"( tag : string ) 
@@ -252,7 +252,7 @@ value type resume-result<b,r>
   Shallow( result: b )
   Finalize( result : r )
 
-type yld<e,a,r> 
+value type yld<e,a,r> 
   Pure
   YieldingFinal
   Yielding
@@ -427,7 +427,7 @@ fun initially-prompt( init : (int) -> e (), res : a ) : e a
 // Resume context
 // -------------------------------------------
 
-abstract struct resume-context<b,e::E,e0::E,r>( k : resume-result<b,r> -> e r )
+abstract value struct resume-context<b,e::E,e0::E,r>( k : resume-result<b,r> -> e r )
 
 pub fun resume( r : resume-context<b,e,e0,r>, x : b ) : e r 
   (r.k)(Deep(x))
@@ -444,7 +444,7 @@ pub fun finalize( r : resume-context<b,e,e0,r>, x : r ) : e r
 // Clauses
 // -------------------------------------------
 
-abstract type clause1<a,b,h,e::E,r> 
+abstract value type clause1<a,b,h,e::E,r> 
   Clause1( clause: (marker<e,r>, ev<h>, a) -> e b )
 
 inline extern cast-ev0( f : (marker<e1,r>,ev<h>) -> e1 b) : e ((marker<e1,r>,ev<h>) -> e b)  
@@ -528,7 +528,7 @@ pub fun clause-never1( op : a -> e r ) : clause1<a,b,h,e,r>
 // 0 arguments; reuse 1 argument Clauses
 //----------------------------------------------------------------
 
-abstract type clause0<b,h,e,r> 
+abstract value type clause0<b,h,e,r> 
   Clause0( clause: (marker<e,r>, ev<h>) -> e b )
 
 
@@ -574,7 +574,7 @@ pub fun clause-never0( op : () -> e r ) : clause0<b,h,e,r>
 // 2 arguments
 //----------------------------------------------------------------
 
-abstract type clause2<a1,a2,b,h,e,r> 
+abstract value type clause2<a1,a2,b,h,e,r> 
   Clause2( clause: (marker<e,r>, ev<h>, a1, a2) -> e b )
 
 fun under2( ev : ev<h>, op : (a1,a2) -> e b, x1 : a1, x2 : a2 ) : e b 

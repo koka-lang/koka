@@ -115,33 +115,33 @@ pub fun test( cmdargs )
 
 
 // Specifies how to handle flags that follow non-flag command line arguments.
-pub type flag-order<a>
+pub value type flag-order<a>
   // Allow flags to be permuted with non-flag arguments (default)
-  con Permute
+  Permute
   // flags following non-flag arguments are treated as arguments
-  con Preorder
+  Preorder
   // Wrap each non-flag argument into an flag
-  con Wrap( wrap : (string) -> a )
+  Wrap( wrap : (string) -> a )
 
 
 // Specifies a single command line flag
 // For example: `flag("h?",["help"],Bool(Help),"show help information")`.
-pub struct flag<a>( 
-  short-names : string,
-  long-names  : list<string>,
-  parser      : flag-parser<a>,
+pub struct flag<a>
+  short-names : string
+  long-names  : list<string>
+  parser      : flag-parser<a>
   help        : string
-)
+
 
 // Specifies the argument of an flag
 pub type flag-parser<a>
   // Boolean flag without an argument.
   // For a flag `foo` Automatically enables forms `--no-foo` and `--foo=true|false`.
-  con Bool( default : (a,bool) -> a)
+  Bool( default : (a,bool) -> a)
   // A required argument.
-  con Req( parse : (a,string) -> a, help : string )
+  Req( parse : (a,string) -> a, help : string )
   // An flagal argument.
-  con Opt( parse : (a,maybe<string>) -> a, help : string )
+  Opt( parse : (a,maybe<string>) -> a, help : string )
 
 
 // Return a nicely formatted string describing the usage of a command,
