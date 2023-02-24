@@ -47,9 +47,21 @@ createDataDef emitError emitWarning lookupDataInfo
                     -> return DataDefOpen
                   DataDefRec
                     -> return DataDefRec
-                  DataDefNormal{} | isRec
+                  
+                  DataDefNormal | isRec
                     -> return DataDefRec
-                  DataDefNormal declAsRef
+                  DataDefNormal 
+                    -> do dd <- createMaxDataDef conInfos
+                          case dd of
+                            DataDefValue vr | isEnum
+                              -> return dd
+                            DataDefValue vr | isIso   -- iso types are always value types
+                              -> return dd
+                            _ -> return DataDefNormal
+                  
+                  DataDefAuto | isRec
+                    -> return DataDefRec
+                  DataDefAuto 
                     -> do dd <- createMaxDataDef conInfos
                           case dd of
                             DataDefValue vr | isEnum
@@ -59,27 +71,26 @@ createDataDef emitError emitWarning lookupDataInfo
                             DataDefValue vr
                               -> do let wouldGetTagField = (conCount > 1 && not isEnum)
                                         size = valueReprSize platform vr + (if wouldGetTagField then sizeField platform else 0)
-                                    when (not declAsRef && 
-                                          -- ((size <= 3*sizePtr platform && conCount == 1) || (size <= 2*sizePtr platform && conCount > 1)) 
-                                          (size <= 2*sizePtr platform) && (maxMembers <= 3) && canbeValue) $
+                                    when ((size <= 2*sizePtr platform) && (maxMembers <= 3) && canbeValue) $
                                       emitWarning $ text "may be better declared as a value type for efficiency (e.g. 'value type/struct')" <->
                                                     text "or declare as a reference type (e.g. 'ref type/struct') to suppress this warning"
-                                    return (DataDefNormal declAsRef)
-                            _ -> return (DataDefNormal declAsRef)
+                                    return DataDefNormal
+                            _ -> return DataDefNormal
+                  
                   DataDefValue{} | isRec
                     -> do emitError $ text "cannot be declared as a value type since it is recursive."
-                          return (DataDefNormal False)
+                          return DataDefNormal
                   DataDefValue{} | not resultHasKindStar
                     -> do emitError $ text "is declared as a value type but does not have a value kind ('V')."  -- should never happen?
-                          return (DataDefNormal False)
+                          return DataDefNormal
                   DataDefValue{} | sort == Retractive
                     -> do emitError $ text "is declared as a value type but is not (co)inductive."
-                          return (DataDefNormal False)
+                          return DataDefNormal
                   DataDefValue{}
                     -> do dd <- createMaxDataDef conInfos
                           case dd of
                             DataDefValue vr
-                              -> do let size       = valueReprSize platform vr 
+                              -> do let size = valueReprSize platform vr 
                                     when (size > 4*sizePtr platform) $
                                       emitWarning (text "requires" <+> pretty size <+> text "bytes which is rather large for a value type")
                                     when isEnum $
@@ -88,39 +99,7 @@ createDataDef emitError emitWarning lookupDataInfo
                                     --   emitWarning (text "is a isomorphic type -- there is no need to declare it as a value type")
                                     return dd
                             _ -> do emitError $ text "cannot be used as a value type."  -- should never happen?
-                                    return (DataDefNormal False)
-
-
-                  -- DataDefAuto | isRec
-                  --  -> return DataDefRec                  
-                  {-
-                  _ -- Value or auto, and not recursive
-                    -> -- determine the raw fields and total size
-                       do dd <- createMaxDataDef conInfos
-                          case (defaultDef,dd) of  -- note: m = raw, n = scan
-                            (DataDefValue _, DataDefValue vr)
-                              -> assertion ("Kind.Repr: value type is not kind star and/or recursive") (resultHasKindStar && not isRec) $
-                                 return (DataDefValue vr)                                 
-                            (DataDefValue _, DataDefNormal)
-                              -> do emitError $ text "cannot be used as a value type."  -- should never happen?
                                     return DataDefNormal
-                            (DataDefAuto, DataDefValue vr)
-                              -> do let maxMembers = maximum (map (length . conInfoParams) conInfos)
-                                        conCount   = length conInfos
-                                    -- default to a value type?
-                                    if ( -- not too large: 24 bytes, or 16 with multiple constructors (since a tag is needed as well)
-                                          -- use fixed bytes to be more portable
-                                            ((conCount == 1 && valueReprSize platform vr <= 24) || (conCount > 1 && valueReprSize platform vr <= 16))
-                                        -- and at most three members
-                                          && (maximum (map (length . conInfoParams) conInfos) <= 3)
-                                          -- and has star kind and is (co)inductive
-                                          && resultHasKindStar && (sort /= Retractive))
-                                      then -- trace ("default to value: " ++ show name ++ ": " ++ show vr) $
-                                          return (DataDefValue vr)
-                                      else -- trace ("default to reference: " ++ show name ++ ": " ++ show vr ++ ", " ++ show (valueReprSize platform vr)) $
-                                          return (DataDefNormal)
-                            _ -> return DataDefNormal 
-                -}
        return (ddef,conInfos)
   where
     isVal :: Bool
@@ -149,7 +128,7 @@ createDataDef emitError emitWarning lookupDataInfo
     -- maxDataDefs :: Monad m => [ValueRepr] -> m DataDef
     maxDataDefs [] 
       = if not isVal 
-          then return (DataDefNormal False) -- reference type, no constructors
+          then return DataDefNormal  -- reference type, no constructors
           else do let size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
                                then 4
                               else if (name == nameTpFloat || name == nameTpInt64)
@@ -189,8 +168,8 @@ createDataDef emitError emitWarning lookupDataInfo
                                   text "hint: value types with multiple constructors must all use the same number of regular types (use 'box' to use a value type as a regular type).")
                       -- else emitWarning (text "cannot be defaulted to a value type as it has" <+> text "multiple constructors with a different number of regular types overlapping with value types.")
                      -- trace ("warning: cannot default to a value type due to mixed raw/regular fields: " ++ show nameDoc) $
-                     return (DataDefNormal False) -- (DataDefValue (max m1 m2) (max n1 n2))
-              _ -> return (DataDefNormal False)
+                     return DataDefNormal -- (DataDefValue (max m1 m2) (max n1 n2))
+              _ -> return DataDefNormal
 
 
 ---------------------------------------------------------
@@ -205,7 +184,7 @@ orderConFields :: Monad m => (Doc -> m ()) -> Doc -> (Name -> m (Maybe DataInfo)
 orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
   = do visit ([], [], [], extraPreScan, 0) fields
   where
-    -- visit :: ([((Name,Type),Int,Int,Int)],[((Name,Type),Int,Int,Int)],[(Name,Type)],Int,Int) -> [(Name,Type)] -> m ([(Name,Type)],ValueRepr)
+    -- visit :: ([((Name,Type),ValueRepr)],[((Name,Type),ValueRepr)],[(Name,Type)],Int,Int) -> [(Name,Type)] -> m ([(Name,Type)],ValueRepr)
     visit (rraw, rmixed, rscan, scanCount0, alignment0) []  
       = do when (length rmixed > 1) $
              do emitError (nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
@@ -217,11 +196,11 @@ orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
                 -- (or otherwise the C compiler may insert uninitialized padding)
                 (padding,mixedScan)   
                           = case rmixed of
-                              ((_,_,scan,ralign):_) 
+                              ((_,ValueRepr _ scan ralign):_) 
                                  -> let padSize    = preSize `mod` ralign
                                         padCount   = padSize `div` sizeField platform
                                     in assertion ("Kind.Infer.orderConFields: illegal alignment: " ++ show ralign) (padSize `mod` sizeField platform == 0) $
-                                       ([((newPaddingName (scanCount0 + i),typeAny),sizeField platform,1,sizeField platform) | i <- [1..padCount]]
+                                       ([((newPaddingName (scanCount0 + i),typeAny),valueReprScan 1) | i <- [1..padCount]]
                                        ,scan + padCount)
                               [] -> ([],0)
 
@@ -229,8 +208,8 @@ orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
                 scanCount = scanCount0 + mixedScan  
                 alignment = if scanCount > 0 then max alignment0 (sizeField platform) else alignment0
                 rest      = padding ++ rmixed ++ reverse rraw
-                restSizes = [size  | (_field,size,_scan,_align) <- rest]
-                restFields= [field | (field,_size,_scan,_align) <- rest]
+                restSizes = [valueReprSize platform vr | (_field,vr) <- rest]
+                restFields= [field | (field,_vr) <- rest]
                 size      = alignedSum preSize restSizes                            
                 rawSize   = size - (sizeHeader platform) - (scanCount * sizeField platform)
                 vrepr     = valueReprNew rawSize scanCount alignment
@@ -240,25 +219,25 @@ orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
     visit (rraw,rmixed,rscan,scanCount,alignment0) (field@(name,tp) : fs)
       = do mDataDef <- getDataDef getDataInfo tp
            case mDataDef of
-             Just (DataDefValue (ValueRepr raw scan align))
+             Just (DataDefValue vr@(ValueRepr raw scan align))
                -> -- let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
                   let alignment = max align alignment0 in
                   if (raw > 0 && scan > 0)
                    then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
                         -- but we count them to be sure (and for function data)
-                        visit (rraw, (field,raw,scan,align):rmixed, rscan, scanCount, alignment) fs
+                        visit (rraw, (field,vr):rmixed, rscan, scanCount, alignment) fs
                    else if (raw > 0)
-                         then visit (insertRaw field raw scan align rraw, rmixed, rscan, scanCount, alignment) fs
+                         then visit (insertRaw field vr rraw, rmixed, rscan, scanCount, alignment) fs
                          else visit (rraw, rmixed, field:rscan, scanCount + scan, alignment) fs
              _ -> visit (rraw, rmixed, field:rscan, scanCount + 1, alignment0) fs
 
     -- insert raw fields in (reversed) order of alignment so they align to the smallest total size in a datatype
-    insertRaw :: (Name,Type) -> Int -> Int -> Int -> [((Name,Type),Int,Int,Int)] -> [((Name,Type),Int,Int,Int)]
-    insertRaw field raw scan align ((f,r,s,a):rs)
-      | align <= a  = (field,raw,scan,align):(f,r,s,a):rs
-      | otherwise   = (f,r,s,a):insertRaw field raw scan align rs
-    insertRaw field raw scan align []
-      = [(field,raw,scan,align)]
+    insertRaw :: (Name,Type) -> ValueRepr -> [((Name,Type),ValueRepr)] -> [((Name,Type),ValueRepr)]
+    insertRaw field vr ((f,vrf):rs)
+      | valueReprAlignment vr <= valueReprAlignment vrf  = (field,vr):(f,vrf):rs
+      | otherwise                                        = (f,vrf):insertRaw field vr rs
+    insertRaw field vr []
+      = [(field,vr)]
     
     
 
@@ -267,8 +246,8 @@ orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
 getDataDef :: Monad m => (Name -> m (Maybe DataInfo)) -> Type -> m (Maybe DataDef)
 getDataDef lookupDI tp
    = case extractDataDefType tp of
-       Nothing -> return $ Just (DataDefNormal False)
-       Just name | name == nameTpBox -> return $ Just (DataDefNormal False)
+       Nothing -> return $ Just DataDefNormal
+       Just name | name == nameTpBox -> return $ Just DataDefNormal
        Just name -> do mdi <- lookupDI name 
                        case mdi of
                          Nothing -> return Nothing

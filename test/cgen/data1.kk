@@ -26,6 +26,8 @@ value type pair<a,b> { Pair(x:a, y:b) }
 
 type triple<a,b,c> { Triple(p:pair<a,b>,z:c) }
 
+value struct vtriple<a,b,c>(p:pair<a,b>,z:c) 
+
 // single
 type single<a> { Single( x:int, y:a, z:bool ) }
 

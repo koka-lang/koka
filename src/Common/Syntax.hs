@@ -182,26 +182,26 @@ instance Show DataKind where
   show CoInductive = "cotype"
   show Retractive = "rectype"
 
-data DataDef = DataDefValue !ValueRepr
-             | DataDefNormal{ dataDefDeclAsRef :: Bool } 
-             -- | DataDefAuto   -- Value or Normal; determined by kind inference
+data DataDef = DataDefValue !ValueRepr  -- value type
+             | DataDefNormal            -- reference type
              | DataDefRec
              | DataDefOpen
+             | DataDefAuto              -- Value or Normal; determined by kind inference             
              deriving Eq
 
 instance Show DataDef where
   show dd = case dd of
               DataDefValue v   -> "val" ++ show v
-              DataDefNormal{}  -> "normal"
+              DataDefNormal    -> "normal"
               DataDefRec       -> "rec"
               DataDefOpen      -> "open"
-              -- DataDefAuto      -> "auto"
+              DataDefAuto      -> "auto"
 
 dataDefIsRec ddef
   = case ddef of
       DataDefValue{}   -> False
-      DataDefNormal{}  -> False
-      -- DataDefAuto      -> False
+      DataDefNormal    -> False
+      DataDefAuto      -> False
       _  -> True
 
 dataDefIsOpen ddef
