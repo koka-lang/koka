@@ -586,12 +586,6 @@ getRuFixedDataAllocSize :: Type -> Reuse (Maybe (Int, Int))
 getRuFixedDataAllocSize dataType
   = do newtypes <- getNewtypes
        platform <- getPlatform
-<<<<<<< Updated upstream
-       let mdataName = extractDataName dataType
-       if maybe False (\nm -> "_noreuse" `isSuffixOf` nameId nm) mdataName
-       then return Nothing else do
-        let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName
-=======
        pure $ getFixedDataAllocSize platform newtypes dataType
 
 -- | If all constructors of a type have the same shape,
@@ -602,7 +596,6 @@ getFixedDataAllocSize platform newtypes dataType
     if maybe False (\nm -> "_noreuse" `isSuffixOf` nameId nm) mdataName
     then Nothing else
         let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName in
->>>>>>> Stashed changes
         case mdataInfo of
           Just dataInfo
             -> let ddef = dataInfoDef dataInfo 
@@ -619,17 +612,10 @@ getFixedDataAllocSize platform newtypes dataType
                       -> let cis   = dataInfoConstrs dataInfo
                              sizes = map (conInfoSize platform) cis
                          in case sizes of
-<<<<<<< Updated upstream
-                              (s:ss) | all (==s) ss -> return $ Just (valueReprSize platform vrepr, valueReprScanCount vrepr)
-                              _                     -> return Nothing
-                    _ -> return Nothing
-          _ -> return Nothing
-=======
                               (s:ss) | all (==s) ss -> Just (valueReprSize platform vrepr, valueReprScanCount vrepr)
                               _                     -> Nothing
                     _ -> Nothing -}
           _ -> Nothing
->>>>>>> Stashed changes
   where
     extractDataName :: Type -> Maybe Name
     extractDataName tp
