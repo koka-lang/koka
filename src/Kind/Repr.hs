@@ -53,8 +53,8 @@ createDataDef emitError emitWarning lookupDataInfo
                   DataDefNormal 
                     -> do dd <- createMaxDataDef conInfos
                           case dd of
-                            DataDefValue vr | isEnum
-                              -> return dd
+                            {- DataDefValue vr | isEnum  -- allow allocated enum types
+                              -> return dd -}
                             DataDefValue vr | isIso   -- iso types are always value types
                               -> return dd
                             _ -> return DataDefNormal

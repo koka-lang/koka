@@ -13,13 +13,20 @@
 type void
 
 // enum
-type unit { Unit() }
+type unit 
+  Unit
 
 // enum
-type bool { False; True }
+type bool 
+  False
+  True 
 
 // iso
-type iso { Iso(x:int) }
+type iso 
+  Iso(x:int) 
+
+ref type any 
+  Any
 
 // single struct
 value type pair<a,b> { Pair(x:a, y:b) }

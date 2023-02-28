@@ -447,7 +447,8 @@ genTypeDefPre (Data info isExtend)
         then let enumIntTp = case (dataInfoDef info) of
                                DataDefValue (ValueRepr 1 0 _) -> "uint8_t"
                                DataDefValue (ValueRepr 2 0 _) -> "uint16_t"
-                               _                              -> "uint32_t"
+                               DataDefValue (ValueRepr 4 0 _) -> "uint32_t"
+                               _                              -> "uint64_t"
                  ppEnumCon (con,conRepr)
                            = ppName (conInfoName con)  -- <+> text "= datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
              in  emitToH $ ppVis (dataInfoVis info) <.> text "enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
@@ -952,6 +953,7 @@ genDupDropX isDup name info dataRepr conInfos
     ret = (if isDup then [text "return _x;"] else [])
     dupDropTests
       | dataRepr == DataEnum   = ret
+      | all (\(_,conRepr,_,_) -> isConSingleton conRepr) conInfos  = ret     -- for ref type enumerations
       | dataRepr == DataIso    = [genDupDropIso isDup (head conInfos)] ++ ret
       -- | dataRepr == DataStructAsMaybe = [genDupDropMaybe isDup conInfos] ++ ret
       | dataRepr <= DataStruct = genDupDropMatch (map (genDupDropTests isDup dataRepr) conInfos) ++ ret
