@@ -1,4 +1,3 @@
------------------------------------------------------------------------------
 -- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
@@ -14,6 +13,7 @@ module Type.Type (-- * Types
                   , Flavour(..)
                   , DataInfo(..), DataKind(..), ConInfo(..), SynInfo(..)
                   , dataInfoIsRec, dataInfoIsOpen, dataInfoIsLiteral
+                  , conInfoSize
                   -- Predicates
                   , splitPredType, shallowSplitPreds, shallowSplitVars
                   , predType
@@ -78,7 +78,7 @@ import Common.NamePrim
 import Common.Range
 import Common.Id
 import Common.Failure
-import Common.Syntax( Visibility, DataKind(..), DataDef(..), dataDefIsRec, dataDefIsOpen )
+import Common.Syntax( Visibility, DataKind(..), DataDef(..), ValueRepr(..), dataDefIsRec, dataDefIsOpen, valueReprSize, Platform )
 import Kind.Kind
 
 {--------------------------------------------------------------------------
@@ -202,6 +202,8 @@ data ConInfo = ConInfo{ conInfoName :: Name
                       , conInfoParamRanges :: [Range]
                       , conInfoParamVis    :: [Visibility]
                       , conInfoSingleton :: Bool -- ^ is this the only constructor of this type?
+                      , conInfoOrderedParams :: [(Name,Type)] -- ^ fields ordered by size
+                      , conInfoValueRepr :: ValueRepr
                       , conInfoVis :: Visibility
                       , conInfoDoc :: String
                       }
@@ -209,6 +211,12 @@ data ConInfo = ConInfo{ conInfoName :: Name
 instance Show ConInfo where
   show info
     = show (conInfoName info)
+
+-- return size and scan count for a constructor
+conInfoSize :: Platform -> ConInfo -> Int
+conInfoSize platform conInfo
+  = valueReprSize platform (conInfoValueRepr conInfo)
+
 
 -- | A type synonym is quantified by type parameters
 data SynInfo = SynInfo{ synInfoName :: Name
@@ -221,6 +229,8 @@ data SynInfo = SynInfo{ synInfoName :: Name
                       , synInfoDoc :: String
                       }
              deriving Show
+
+
 
 
 {--------------------------------------------------------------------------

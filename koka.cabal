@@ -87,6 +87,7 @@ executable koka
       Kind.Kind
       Kind.Newtypes
       Kind.Pretty
+      Kind.Repr
       Kind.Synonym
       Kind.Unify
       Lib.JSON

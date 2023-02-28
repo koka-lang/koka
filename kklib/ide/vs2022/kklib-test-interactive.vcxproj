@@ -165,7 +165,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\.koka\debug\interactive.c" />
-    <ClCompile Include="..\..\..\.koka\debug\samples_basic_rbtree.c" />
+    <ClCompile Include="..\..\..\.koka\debug\samples_handlers_scoped.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_types.c" />

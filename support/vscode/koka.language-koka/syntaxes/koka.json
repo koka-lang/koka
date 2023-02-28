@@ -474,7 +474,7 @@
 
     "top_type":
       { "begin": "(:(?![$%&\\*\\+@!\\\\\\^~=\\.:\\-\\|<>]))|(where|iff|when)(?![\\w\\-])"
-      , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`A-Z]|  |(infix|infixr|infixl|inline|noinline|value|reference|open|extend|rec|co|type|linear|effect|context|ambient|alias|extern|fn|fun|function|val|raw|final|ctl|var|con|if|then|else|elif|match|inject|mask|named|handle|handler|return|module|import|as|pub|abstract)(?![\\w\\-?']))"
+      , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`A-Z]|  |(infix|infixr|infixl|inline|noinline|value|ref|open|extend|rec|co|type|linear|effect|context|ambient|alias|extern|fn|fun|function|val|raw|final|ctl|var|con|if|then|else|elif|match|inject|mask|named|handle|handler|return|module|import|as|pub|abstract)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "constant.numeric.type support.type koka.type" },
                            "2" : { "name": "keyword koka.keyword.$2" } }
       , "endCaptures": { "0" : { "name": "invalid.keyword koka.invalid" }}
@@ -485,8 +485,8 @@
 
 
     "top_type_type":
-      { "begin": "((?:(?:value|reference|open|extend|rec|co)?\\s*type)|(?:named\\s+)?(?:scoped\\s+)?(?:linear\\s+)?(?:rec\\s+)?(?:effect|context|ambient))\\s+(?!fn|fun|val|raw|final|ctl|ret)([a-z][\\w\\-]+|<>|<\\|>|\\(,*\\))"
-      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`A-Z]|  [\\r\\n]|(infix|infixr|infixl|inline|noinline|type|co|rec|effect|context|ambient|alias|extern|fn|fun|function|val|var|raw|final|ctl|con|if|then|else|elif|match|inject|mask|named|handle|handler|return|module|import|as|pub|abstract|value|reference|open|extend|inline|noinline)(?![\\w\\-?']))"
+      { "begin": "((?:(?:value|ref|open|extend|rec|co)?\\s*type)|(?:named\\s+)?(?:scoped\\s+)?(?:linear\\s+)?(?:rec\\s+)?(?:effect|context|ambient))\\s+(?!fn|fun|val|raw|final|ctl|ret)([a-z][\\w\\-]+|<>|<\\|>|\\(,*\\))"
+      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`A-Z]|  [\\r\\n]|(infix|infixr|infixl|inline|noinline|type|co|rec|effect|context|ambient|alias|extern|fn|fun|function|val|var|raw|final|ctl|con|if|then|else|elif|match|inject|mask|named|handle|handler|return|module|import|as|pub|abstract|value|ref|open|extend|inline|noinline)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type koka.keyword" }
                          , "2" : { "name": "constant.numeric.type support.type koka.type.typecon" }}
       , "endCaptures": { "0": { "name": "punctuation.separator koka.special" }}
@@ -511,7 +511,7 @@
       },
 
     "top_type_struct":
-      { "match": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))"
+      { "match": "((?:(?:value|ref)\\s*)?struct)\\s+([a-z][\\w\\-]*|\\(,*\\))"
       , "captures": {
           "1": { "name": "keyword.declaration koka.keyword.struct" },
           "2": { "name": "constant.numeric.type support.type koka.type.typecon" }
@@ -519,7 +519,7 @@
       },
 
     "top_type_struct_args":
-      { "begin": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))\\s*(<)"
+      { "begin": "((?:(?:value|ref)\\s*)?struct)\\s+([a-z][\\w\\-]*|\\(,*\\))\\s*(<)"
       , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|inline|noinline|type|co|rec|effect|context|ambient|alias|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|named|handle|handler|return|module|import|as|pub|abstract)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration koka.keyword.struct" },
                            "2" : { "name": "constant.numeric.type support.type koka.type.typecon"  },

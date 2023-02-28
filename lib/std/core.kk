@@ -1368,7 +1368,7 @@ pub fun maximum( xs : list<float64> ) : float64
 // returned by functions that find sub strings or patterns in
 // in strings. Use `string:(slice : sslice) -> string` to
 // create a fresh substring from a slice.
-abstract struct sslice( str : string, start : int, len : int )
+abstract value struct sslice( str : string, start : int, len : int )
 
 // Internal export for the regex module
 pub fun ".new-sslice"( str :string, start: int, len : int )
@@ -1927,7 +1927,7 @@ pub extern unvlist( xs : list<a> ) : vector<a>
 
 // Delayed (or _lazy_) values are computed (with effect `:e`) only the first time
 // `force` is called and cached afterwards.
-abstract type delayed<e,a>
+abstract value type delayed<e,a>
   con Delay( dref : ref<global,either<() -> e a,a>> )
 
 // Create a new `:delayed` value.
@@ -2231,7 +2231,7 @@ pub fun ".default-exn"(action)
       show(exn).println
 
 // The exception data type
-pub struct exception( message :string, info :exception-info )
+pub value struct exception( message :string, info :exception-info )
 
 // Exception information
 pub open type exception-info
@@ -2269,7 +2269,7 @@ pub fun catch( action : () -> <exn|e> a, hndl: exception -> e a) : e a
   try(action,hndl)
 
 // An `:error` type represents a first-class exception result.
-pub type error<a>
+pub value type error<a>
   Error( exception : exception )
   Ok( result : a )
 

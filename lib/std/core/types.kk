@@ -9,7 +9,7 @@
 /* Core types.
 
    This module is implicitly imported and all functions and types
-   are always available.
+   are always available. 
    These types are required to be defined for the compiler
    to work correctly (i.e. types like `:int` or `:div`)
 */
@@ -17,6 +17,8 @@ module std/core/types
 
 pub infixr 30  (&&)
 pub infixr 20  (||)
+
+// build: 105
 
 // ----------------------------------------------------------------------------
 // Core types
@@ -77,7 +79,7 @@ pub value type intptr_t
 pub value type float32
 
 // An any type. Used for extern calls
-pub reference type any
+pub type any
 
 // Internal type used for in-place update of unique pattern matches
 pub type reuse
@@ -143,10 +145,10 @@ pub type bool
 pub struct ()
 
 // A pair of values `:a` and `:b`.
-pub struct (,)<a,b>(fst:a,snd:b)
+pub value struct (,)<a,b>(fst:a,snd:b)
 
 // A triple of values.
-pub struct (,,)<a,b,c>(fst:a,snd:b,thd:c)
+pub value struct (,,)<a,b,c>(fst:a,snd:b,thd:c)
 
 // A quadruple of values.
 pub struct (,,,)<a,b,c,d>(fst:a,snd:b,thd:c,field4:d)
@@ -156,12 +158,12 @@ pub struct (,,,,)<a,b,c,d,e>(fst:a,snd:b,thd:c,field4:d,field5:e)
 
 // The `:maybe` type is used to represent either a value (`Just(x)`) or `Nothing`.
 // This type is often used to represent values that can be _null_.
-pub type maybe<a>
+pub value type maybe<a>
   con Nothing
   con Just( value : a )
 
 // The choice type represents one of two possible types `:a` or `:b`.
-pub type either<a,b>
+pub value type either<a,b>
   con Left( left : a )
   con Right( right : b )
 
@@ -175,13 +177,16 @@ pub type order
 pub value type box<a>
   con Box( unbox : a )
 
+/*
 // Explicitly heap allocate using the `Hbox` constructor.
 pub reference type hbox<a>
   con Hbox( unhbox : a )
 
 pub fun hbox( x : a ) : hbox<a>
   Hbox(x)
+*/
 
+// Prevent inlining an expression by passing it to `keep` (which is a non-inlineable identity function)
 pub noinline fun keep( x : a ) : a
   x
 

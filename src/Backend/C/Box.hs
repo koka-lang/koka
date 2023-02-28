@@ -390,12 +390,15 @@ patBox tpPat tpRes pat
   = PatCon (TName nameBoxCon (conInfoType boxConInfo)) [pat] boxConRepr [tpPat] [] tpRes boxConInfo True
 
 boxConRepr :: ConRepr
-boxConRepr = ConSingle nameTpBox (DataSingle False) 0
+boxConRepr = ConSingle nameTpBox (DataSingle False) (valueReprScan 1) 0
 
 boxConInfo :: ConInfo
 boxConInfo
   = ConInfo nameBox nameTpBox [a] [] [(nameNil,TVar a)] tp
-            Inductive rangeNull [] [Public] True Public ""
+            Inductive rangeNull [] [Public] True 
+            [(nameNil,TVar a)] 
+            (valueReprScan 1) {- size is wrong with knowing the platform ? -}
+            Public ""
   where
     tp = TForall [a] [] (TFun [(nameNil,TVar a)] typeTotal typeBoxStar)
     a  = TypeVar (0) kindStar Bound

@@ -175,7 +175,7 @@ than arbitrary precision floating point numbers.
 Internally a `:ddouble` _d_ is represented as a pair of `:float64`s, _hi_ and _lo_,
 such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
 */
-abstract struct ddouble
+abstract value struct ddouble
   hi : float64
   lo : float64
 
@@ -378,7 +378,7 @@ pub fun max( x : ddouble, y : ddouble ) : ddouble
    Addition
 ------------------------------------------------------*/
 
-struct edouble
+value struct edouble
   num : float64
   err : float64
 

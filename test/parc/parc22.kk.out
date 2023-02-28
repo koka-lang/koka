@@ -2,7 +2,7 @@ module parc/parc22
 import std/core/types = std/core/types = "";
 import std/core = std/core = "";
 pub rec type parc/parc22/hello {
- pub con parc/parc22/World(i: int) : (i : int) -> parc/parc22/hello;
+ pub con parc/parc22/World(i: int){0,1,8} : (i : int) -> parc/parc22/hello;
 };
 // Automatically generated. Retrieves the `i` constructor field of the `:hello` type.
 pub fun i : (^ hello : parc/parc22/hello) -> int
@@ -16,7 +16,11 @@ pub fun .copy : (.this : parc/parc22/hello, i : optional<int>) -> parc/parc22/he
  = fn(.this: parc/parc22/hello, i0: optional<int>){
  parc/parc22/World((match (i0) {
  (std/core/types/Optional(((.skip std/core/types/.Box((.i: int)) : .Box ) as .box: .Box)) : optional<int> )
- -> val _ : ()
+ -> val _ : int
+ = std/core/types/.dup(.i);
+ val _ : ()
+ = std/core/types/.drop(i0);
+ val _ : ()
  = std/core/types/.drop(.this, (std/core/int32(1)));
  .i;
  (.skip std/core/types/None() : (optional<int>) )
@@ -43,9 +47,7 @@ pub fun .copy : (.this : parc/parc22/hello, i : optional<int>) -> parc/parc22/he
  };
 pub fun f : (h : parc/parc22/hello) -> parc/parc22/hello
  = fn(h: parc/parc22/hello){
- val .ru : reuse
- = std/core/types/no-reuse();
  val _ : ()
- = std/core/types/.assign-reuse(.ru, (std/core/types/.drop-reuse(h, (std/core/int32(1)))));
- std/core/types/.alloc-at(.ru, (parc/parc22/World(2)));
+ = std/core/types/.drop(h, (std/core/int32(1)));
+ parc/parc22/World(2);
  };

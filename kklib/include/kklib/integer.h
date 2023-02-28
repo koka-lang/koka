@@ -464,7 +464,7 @@ Multiply: Since `boxed(n) = n*4 + 1`, we can multiply as:
 -----------------------------------------------------------------------------------*/
 
 static kk_intf_t _kk_integer_value(kk_integer_t i) {
-  #if KK_INT_ARITHMETIC != KK_INT_USE_SOFA
+  #if KK_INT_ARITHMETIC == KK_INT_USE_TAGOVF
   kk_assert_internal(kk_is_smallint(i));  
   #endif
   return (kk_intf_t)i.ibox;
@@ -479,9 +479,11 @@ static kk_integer_t _kk_new_integer(kk_intf_t i) {
 #if (KK_INT_ARITHMETIC == KK_INT_USE_OVF) && (KK_TAG_VALUE==1)
 
 static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  kk_assert_internal((_kk_integer_value(x) & 2) == 0);
+  kk_assert_internal((_kk_integer_value(y) & 2) == 0);
   kk_intf_t z;
   if kk_unlikely(__builtin_add_overflow(_kk_integer_value(x), _kk_integer_value(y), &z) || (z&2)==0) {
-    return kk_integer_add_generic(x,y,ctx);
+    return kk_integer_add_generic(x,y,ctx);    
   }
   kk_assert_internal((z&3) == 2);
   return _kk_new_integer(z^3);

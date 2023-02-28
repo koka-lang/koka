@@ -349,15 +349,19 @@ compileProgramFromFile term flags modules compileTarget rootPath stem
        exist <- liftIO $ doesFileExist fname
        if (exist) then return () else liftError $ errorMsg (errorFileNotFound flags fname)
        program <- lift $ parseProgramFromFile (semiInsert flags) fname
-       let isSuffix = map (\c -> if isPathSep c then '/' else c) (noexts stem)
-                       `endsWith` show (programName program)
+       let isSuffix = -- asciiEncode True (noexts stem) `endsWith` asciiEncode True (show (programName program))
+                      -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
+                      show (pathToModuleName (noexts stem)) `endsWith` show (programName program)
+                      -- map (\c -> if isPathSep c then '/' else c) (noexts stem) 
+                      --  `endsWith` moduleNameToPath (programName program)
            ppcolor c doc = color (c (colors (prettyEnvFromFlags flags))) doc
        if (isExecutable compileTarget || isSuffix) then return ()
         else liftError $ errorMsg (ErrorGeneral (programNameRange program)
                                      (text "module name" <+>
                                       ppcolor colorModule (pretty (programName program)) <+>
                                       text "is not a suffix of the file path" <+>
-                                      parens (ppcolor colorSource $ text $ dquote $ stem)))
+                                      parens (ppcolor colorSource $ text $ dquote $ stem)
+                                     ))
        let stemName = nameFromFile stem
        compileProgram' term flags modules compileTarget fname program{ programName = stemName }
 

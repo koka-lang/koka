@@ -427,7 +427,7 @@ static void test_popcount(void) {
 
 static void test_box_double(double dx, kk_context_t* ctx) {
   kk_box_t bx = kk_double_box(dx, ctx);
-  double e = kk_double_unbox(bx, ctx);
+  double e = kk_double_unbox(bx, KK_BORROWED, ctx);
   printf("value: %.20e, box-unbox to: %.20e, box: 0x%016zx\n", dx, e, (intptr_t)bx.box);
   assert(e == dx || (isnan(e) && isnan(dx)));
 }
@@ -607,6 +607,27 @@ static kk_ddouble_t kk_dd_from_int64(int64_t i, double scale) {
 #define KK_INT52_MIN  (-KK_INT52_MAX - 1)
 
 static kk_ddouble_t kk_dd_from_duration(kk_duration_t d) {
+  if kk_likely(d.attoseconds % KK_I64(1000000000) == 0) {
+    int64_t nsecs = (d.attoseconds / KK_I64(1000000000));
+    if ((int32_t)nsecs == nsecs) {
+      double frac = ((double)nsecs * 1e-9);
+      double secs = 0;
+      if ((int32_t)secs == d.seconds) {
+        secs = (double)d.seconds;
+      } 
+      else {
+        double sign = (d.seconds < 0 ? -1.0 : 1.0);
+        int64_t s = (d.seconds < 0 ? -d.seconds : d.seconds);
+        secs  = sign * ((double)kk_shr64(s, 16) * 0x1p16);
+        frac  = frac + (sign * (double)((uint16_t)s) * 1e18);
+      }
+      kk_ddouble_t dd;
+      dd.hi = secs;
+      dd.lo = frac;
+      return dd;
+    }
+  }
+
   if kk_likely((d.attoseconds % 1000) == 0 &&  // 1e-15 precision fits in 52 bits 
                d.seconds >= KK_INT52_MIN && d.seconds < KK_INT52_MAX) 
   {

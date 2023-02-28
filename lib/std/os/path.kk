@@ -38,10 +38,10 @@ extern import
   js file "path-inline.js"
 
 // A `:path` represents a file system path.\
-abstract struct path(
-  root : string = "",
+abstract value struct path
+  root : string = ""
   parts: list<string> = [] // directory parts in reverse order
-)
+
 
 // Return the base name of a path (stem name + extension)\
 // `"/foo/bar.txt".path.basename === "bar.txt"` \

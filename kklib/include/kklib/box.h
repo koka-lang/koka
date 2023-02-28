@@ -171,21 +171,37 @@ static inline void kk_box_drop(kk_box_t b, kk_context_t* ctx) {
 }
 
 /*----------------------------------------------------------------
+  Borrowing for value types in matches
+----------------------------------------------------------------*/
+
+typedef enum kk_borrow_e {
+  KK_OWNED = 0,
+  KK_BORROWED  
+} kk_borrow_t;
+
+static inline bool kk_is_owned(kk_borrow_t borrow) {
+  return (borrow != KK_BORROWED);
+}
+static inline bool kk_is_borrowed(kk_borrow_t borrow) {
+  return (borrow == KK_BORROWED);
+}
+
+/*----------------------------------------------------------------
   Integers & Floats
 ----------------------------------------------------------------*/
 
-kk_decl_export intptr_t kk_intptr_unbox(kk_box_t v, kk_context_t* ctx);
+kk_decl_export intptr_t kk_intptr_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx);
 kk_decl_export kk_box_t kk_intptr_box(intptr_t i, kk_context_t* ctx);
 
+kk_decl_export kk_ssize_t kk_ssize_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx);
 kk_decl_export kk_box_t   kk_ssize_box(kk_ssize_t i, kk_context_t* ctx);
-kk_decl_export kk_ssize_t kk_ssize_unbox(kk_box_t b, kk_context_t* ctx);
 
 #if (KK_INTF_SIZE <= 8)
-kk_decl_export int64_t  kk_int64_unbox(kk_box_t v, kk_context_t* ctx);
+kk_decl_export int64_t  kk_int64_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx);
 kk_decl_export kk_box_t kk_int64_box(int64_t i, kk_context_t* ctx);
 #else
-static inline int64_t kk_int64_unbox(kk_box_t v, kk_context_t* ctx) {
-  kk_unused(ctx);
+static inline int64_t kk_int64_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx) {
+  kk_unused(ctx); kk_unused(borrow);
   kk_intf_t i = kk_intf_unbox(v, ctx);
   kk_assert_internal((i >= INT64_MIN && i <= INT64_MAX) || kk_box_is_any(v));
   return (int64_t)i;
@@ -197,11 +213,11 @@ static inline kk_box_t kk_int64_box(int64_t i, kk_context_t* ctx) {
 #endif
 
 #if (KK_INTF_SIZE<=4)
-kk_decl_export int32_t  kk_int32_unbox(kk_box_t v, kk_context_t* ctx);
+kk_decl_export int32_t  kk_int32_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx);
 kk_decl_export kk_box_t kk_int32_box(int32_t i, kk_context_t* ctx);
 #else
-static inline int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
-  kk_unused(ctx);
+static inline int32_t kk_int32_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx) {
+  kk_unused(ctx); kk_unused(borrow);
   kk_intf_t i = kk_intf_unbox(v);
   kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
   return (int32_t)(i);
@@ -214,11 +230,11 @@ static inline kk_box_t kk_int32_box(int32_t i, kk_context_t* ctx) {
 #endif
 
 #if (KK_INTF_SIZE<=2) 
-kk_decl_export int16_t  kk_int16_unbox(kk_box_t v, kk_context_t* ctx);
+kk_decl_export int16_t  kk_int16_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx);
 kk_decl_export kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx);
 #else
-static inline int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
-  kk_unused(ctx);
+static inline int16_t kk_int16_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx) {
+  kk_unused(ctx); kk_unused(borrow);
   kk_intf_t i = kk_intf_unbox(v);
   kk_assert_internal((i >= INT16_MIN && i <= INT16_MAX) || kk_box_is_any(v));
   return (int16_t)(i);
@@ -231,10 +247,10 @@ static inline kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
 
 #if (KK_INTF_SIZE == 8) && KK_BOX_DOUBLE64
 kk_decl_export kk_box_t kk_double_box(double d, kk_context_t* ctx);
-kk_decl_export double   kk_double_unbox(kk_box_t b, kk_context_t* ctx);
+kk_decl_export double   kk_double_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx);
 #else
-static inline double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
-  int64_t i = kk_int64_unbox(b, ctx);
+static inline double kk_double_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
+  int64_t i = kk_int64_unbox(b, borrow, ctx);
   return kk_bits_to_double((uint64_t)i);
 }
 static inline kk_box_t kk_double_box(double d, kk_context_t* ctx) {
@@ -244,11 +260,11 @@ static inline kk_box_t kk_double_box(double d, kk_context_t* ctx) {
 #endif
 
 #if (KK_INTF_SIZE == 4)
-kk_decl_export float    kk_float_unbox(kk_box_t b, kk_context_t* ctx);
+kk_decl_export float    kk_float_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx);
 kk_decl_export kk_box_t kk_float_box(float f, kk_context_t* ctx);
 #else
-static inline float kk_float_unbox(kk_box_t b, kk_context_t* ctx) {
-  int32_t i = kk_int32_unbox(b, ctx);
+static inline float kk_float_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
+  int32_t i = kk_int32_unbox(b, borrow, ctx);
   return kk_bits_to_float((uint32_t)i);  
 }
 static inline kk_box_t kk_float_box(float f, kk_context_t* ctx) {
@@ -273,8 +289,8 @@ static inline kk_box_t kk_size_box(size_t i, kk_context_t* ctx) {
   return kk_ssize_box((kk_ssize_t)i, ctx);
 }
 
-static inline size_t kk_size_unbox(kk_box_t b, kk_context_t* ctx) {
-  return (size_t)kk_ssize_unbox(b, ctx);
+static inline size_t kk_size_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
+  return (size_t)kk_ssize_unbox(b, borrow, ctx);
 }
 
 static inline kk_block_t* kk_block_unbox(kk_box_t v, kk_tag_t kk_expected_tag, kk_context_t* ctx ) {
@@ -335,21 +351,21 @@ typedef struct kk_boxed_value_s {
 } * kk_boxed_value_t;
 
 
-kk_decl_export void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box_t box, kk_context_t* ctx);
+kk_decl_export void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box_t box, kk_borrow_t borrow, kk_context_t* ctx);
 
-#define kk_valuetype_unbox(tp,x,box,ctx) \
+#define kk_valuetype_unbox(tp,x,box,borrow,ctx) \
   do { \
     if kk_unlikely(kk_box_is_any(box)) { \
-      kk_valuetype_unbox_from_any((kk_box_t*)&x, sizeof(tp), box, ctx); \
+      kk_valuetype_unbox_from_any((kk_box_t*)&x, sizeof(tp), box, borrow, ctx); \
     } \
     else { \
       kk_boxed_value_t p = kk_base_type_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX, ctx); \
       memcpy(&x,&p->data,sizeof(tp)); /* avoid aliasing warning,  x = *((tp*)(&p->data)); */ \
-      /* if (ctx!=NULL) { */ \
+      if (kk_is_owned(borrow)) { \
         if (kk_base_type_is_unique(p)) { kk_base_type_free(p,ctx); } \
                                   else { tp##_dup(x,ctx); kk_base_type_decref(p,ctx); } \
-      /* } */ \
-    }\
+      } \
+    } \
   } while(0)
   
 
@@ -380,9 +396,9 @@ typedef struct kk_cptr_raw_s {
 } *kk_cptr_raw_t;
 
 kk_decl_export kk_box_t kk_cptr_raw_box(kk_free_fun_t* freefun, void* p, kk_context_t* ctx);
-kk_decl_export void* kk_cptr_raw_unbox(kk_box_t b, kk_context_t* ctx);
+kk_decl_export void*    kk_cptr_raw_unbox_borrowed(kk_box_t b, kk_context_t* ctx);
 kk_decl_export kk_box_t kk_cptr_box(void* p, kk_context_t* ctx);
-kk_decl_export void* kk_cptr_unbox(kk_box_t b, kk_context_t* ctx);
+kk_decl_export void*    kk_cptr_unbox_borrowed(kk_box_t b, kk_context_t* ctx);
 
 // C function pointers
 typedef void (*kk_cfun_ptr_t)(void);

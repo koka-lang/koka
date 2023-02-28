@@ -400,7 +400,7 @@ err:
 
 
 static void kk_promise_set( kk_promise_t pr, kk_box_t r, kk_context_t* ctx ) {
-  promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr,ctx);
+  promise_t* p = (promise_t*)kk_cptr_raw_unbox_borrowed(pr, ctx);
   kk_box_mark_shared(r,ctx);
   pthread_mutex_lock(&p->lock);
   kk_box_drop(p->result,ctx);
@@ -422,7 +422,7 @@ static bool kk_promise_available( kk_promise_t pr, kk_context_t* ctx ) {
 */
 
 kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {  
-  promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr,ctx);
+  promise_t* p = (promise_t*)kk_cptr_raw_unbox_borrowed(pr,ctx);
   pthread_mutex_lock(&p->lock);
   while (kk_box_is_any(p->result)) {
     // if part of a task group, run other tasks while waiting
@@ -521,7 +521,7 @@ err:
 
 
 void kk_lvar_put( kk_lvar_t lvar, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx ) {
-  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar,ctx);
+  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox_borrowed(lvar,ctx);
   pthread_mutex_lock(&lv->lock);
   lv->result = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),monotonic_combine,(monotonic_combine,val,lv->result,ctx),ctx);
   kk_box_mark_shared(lv->result,ctx);  // todo: can we mark outside the mutex?
@@ -532,7 +532,7 @@ void kk_lvar_put( kk_lvar_t lvar, kk_box_t val, kk_function_t monotonic_combine,
 
 
 kk_box_t kk_lvar_get( kk_lvar_t lvar, kk_box_t bot, kk_function_t is_gte, kk_context_t* ctx ) {
-  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar,ctx);
+  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox_borrowed(lvar,ctx);
   kk_box_t result;
   pthread_mutex_lock(&lv->lock);
   while (true) {

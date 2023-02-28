@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD         101     // modify on changes to trigger recompilation  
+#define KKLIB_BUILD         106     // modify on changes to trigger recompilation  
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -332,7 +332,11 @@ static inline void kk_block_field_idx_set(kk_block_t* b, uint8_t idx ) {
 --------------------------------------------------------------------------------------*/
 #ifdef KK_MIMALLOC
   #if !defined(MI_MAX_ALIGN_SIZE)
-    #define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE
+    #if (KK_MIMALLOC > 1)
+      #define MI_MAX_ALIGN_SIZE  KK_MIMALLOC
+    #else
+      #define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE 
+    #endif  
   #endif
   #if !defined(MI_DEBUG) && defined(KK_DEBUG_FULL)
     #define MI_DEBUG  3
@@ -886,9 +890,12 @@ static inline bool kk_is_value(kk_intb_t i) {
 // If we assume `intptr_t` aligned pointers in the heap, we can use a larger heap when 
 // using pointer compression (by shifting them by `KK_BOX_PTR_SHIFT`).
 #if !defined(KK_BOX_PTR_SHIFT)
-  #if (KK_INTB_SIZE <= 4)
+  #if (KK_INTB_SIZE <= 4 && KK_INTPTR_SHIFT >= 3)
     // shift by pointer alignment if we have at most 32-bit boxed ints
-    #define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - KK_TAG_BITS)
+    // note: unfortunately, bigint pointers must still have the lowest 2 bits as zero for 
+    //       fast ovf arithmetic. So we are conservative here. If we always use SOFA or TAGOVF
+    //       in the compressed case, we could shift by one more bit and double the heap space.
+    #define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - 2)
   #else
     // don't bother with shifting if we have more than 32 bits available
     #define KK_BOX_PTR_SHIFT   (0)
@@ -953,10 +960,10 @@ static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
 
 // Integer value encoding/decoding. May use smaller integers (`kk_intf_t`)
 // then boxed integers if `kk_intb_t` is larger than the natural register size.
-#define KK_INTF_BOX_BITS(extra)  (KK_INTF_BITS - KK_TAG_BITS + (extra))
+#define KK_INTF_BOX_BITS(extra)  (KK_INTF_BITS - (KK_TAG_BITS + (extra)))  
 #define KK_INTF_BOX_MAX(extra)   (KK_INTF_MAX >> (KK_TAG_BITS + (extra)))
 #define KK_INTF_BOX_MIN(extra)   (-KK_INTF_BOX_MAX(extra) - 1)
-#define KK_UINTF_BOX_MAX(extra)  (KK_UINTF_MAX >> (KK_TAG_BITS + (extra)))
+#define KK_UINTF_BOX_MAX(extra)  (KK_UINTF_MAX >>(KK_TAG_BITS + (extra)))
 
 static inline kk_intb_t kk_intf_encode(kk_intf_t i, int extra_shift) {
   kk_assert_internal(extra_shift >= 0);
@@ -968,7 +975,7 @@ static inline kk_intb_t kk_intf_encode(kk_intf_t i, int extra_shift) {
 static inline kk_intf_t kk_intf_decode(kk_intb_t b, int extra_shift) {
   kk_assert_internal(extra_shift >= 0);
   kk_assert_internal(kk_is_value(b) || b == kk_get_context()->kk_box_any.dbox);
-  kk_intb_t i = kk_sarb( b & ~KK_TAG_VALUE, KK_TAG_BITS + extra_shift);  
+  kk_intb_t i = kk_sarb( b, KK_TAG_BITS + extra_shift);  
   kk_assert_internal(i >= KK_INTF_MIN && i <= KK_INTF_MAX);
   return (kk_intf_t)i;
 }

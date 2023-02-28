@@ -21,9 +21,9 @@ import std/time/timestamp
 
 // A duration in time in (TAI) SI seconds (as measured on the earth's geoid).\
 // A duration is represented by a `:ddouble` giving it a high range and precision (see the [`instant`](std_time_instant.html) module)
-abstract struct duration(
+abstract value struct duration
   secs : timespan
-)
+
 
 // A zero duration.
 pub val zero : duration = Duration(timespan0)

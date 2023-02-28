@@ -127,7 +127,7 @@ efficiency and precision. They automatically convert between different time scal
 when necessary (for example when comparing instants in time, or calculating durations
 between UTC calendar times).
 */
-abstract struct instant
+abstract value struct instant
   since : timestamp   // time since the 2000-01-01 in the timescale
   ts    : timescale   // the time scale (TAI, UTC, etc)
 

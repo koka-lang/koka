@@ -8,7 +8,7 @@
     <ClCompile Include="..\..\..\.koka\debug\std_text_parse.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_os_env.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_os_path.c" />
-    <ClCompile Include="..\..\..\.koka\debug\samples_basic_rbtree.c" />
+    <ClCompile Include="..\..\..\.koka\debug\samples_handlers_scoped.c" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="kklib.natvis" />

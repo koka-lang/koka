@@ -58,22 +58,24 @@
   - `intptr_t` for addresses (where `sizeof(intptr_t) == sizeof(void*)`), 
   - `size_t` for object sizes, 
   - `kk_intx_t` for the natural largest register size (for general arithmetic),
+  - `kk_addr_t` for raw virtual adresses; usually equal to `intptr_t` but
+     on capability systems like CHERI, this can be smaller.
   
   We always have: 
-  - `|intptr_t| >= |size_t| >= |int|`. 
+  - `|intptr_t| >= |kk_addr_t| >= |size_t| >= |int|`. 
   - `|kk_intx_t| >= |int|`.
   
-        system         intptr_t   size_t   int   long   intx    notes
- ------------------ ----------- -------- ----- ------ ------  -----------
-  x86, arm32                32       32    32     32     32 
-  x64, arm64, etc.          64       64    32     64     64 
-  x64 windows               64       64    32     32     64   size_t   > long
-  x32 linux                 32       32    32     32     64   intx_t   > size_t,intptr_t
-  arm CHERI                128       64    32     64     64   intptr_t > size_t
-  riscV 128-bit            128      128    32     64    128   
-  x86 16-bit small          16       16    16     32     16   long > size_t
-  x86 16-bit large          32       16    16     32     16   intptr_t/long > size_t
-  x86 16-bit huge           32       32    16     32     16   size_t > intx_t
+        system         intptr_t kk_addr_t   size_t   int   long   intx    notes
+ ------------------ ----------- ---------  -------- ----- ------ ------  -----------
+  x86, arm32                32        32        32    32     32     32 
+  x64, arm64, etc.          64        64        64    32     64     64 
+  x64 windows               64        64        64    32     32     64   size_t   > long
+  x32 linux                 32        32        32    32     32     64   intx_t   > size_t,intptr_t
+  arm CHERI                128        64        64    32     64     64   intptr_t > size_t
+  riscV 128-bit            128       128       128    32     64    128   
+  x86 16-bit small          16        16        16    16     32     16   long > size_t
+  x86 16-bit large          32        32        16    16     32     16   intptr_t/long > size_t
+  x86 16-bit huge           32        32        32    16     32     16   size_t > intx_t
 
   We use a signed `size_t` as `kk_ssize_t` (see earlier comments) 
 
@@ -87,17 +89,19 @@
         system                  intptr_t   size_t   intx   intb   intf    notes
  ----------------------------- --------- -------- ------ ------ ------  -----------
   x64, arm64,                        64       64     64     64     64
-  x64, arm64 compressed 32-bit       64       64     64     32     32   limit heap to 2^32 (*4)
-
+  x64, arm64 compressed 32-bit       64       64     64     32     32   limit heap to 16 GiB == 4*2^32 (*)
+  
   arm CHERI                         128       64     64    128     64   |intb| > |intf|
   arm CHERI compressed 64-bit       128       64     64     64     64   store addresses only in a box
   arm CHERI compressed 32-bit       128       64     64     32     32   compress address as well
 
   riscV 128-bit                     128      128    128    128    128
-  riscV 128-bit compressed 64-bit   128      128    128     64     64   limit heap to 2^64 (*4)
-  riscV 128-bit compressed 32-bit   128      128    128     32     32   limit heap to 2^32 (*4)
+  riscV 128-bit compressed 64-bit   128      128    128     64     64   limit heap to 2^64 
+  riscV 128-bit compressed 32-bit   128      128    128     32     32   limit heap to 16 GiB == 4*2^32 (*)
   x32 linux                          32       32     64     32     32   |intx| > |intb|
 
+
+  (*) times 4 as we have 2 spare bits after assuming aligned addresses.
 --------------------------------------------------------------------------------------*/
 
 
@@ -173,9 +177,6 @@
 #define kk_decl_noinline       __attribute__((noinline))
 #define kk_decl_align(a)      __attribute__((aligned(a)))
 #define kk_decl_thread        __thread
-#define kk_struct_packed      struct __attribute__((__packed__))
-#define kk_struct_packed_end 
-#define KK_HAS_STRUCT_PACKING 1
 #elif defined(_MSC_VER)
 #pragma warning(disable:4214)  // using bit field types other than int
 #pragma warning(disable:4101)  // unreferenced local variable
@@ -188,9 +189,6 @@
 #define kk_decl_noinline      __declspec(noinline)
 #define kk_decl_align(a)      __declspec(align(a))
 #define kk_decl_thread        __declspec(thread)
-#define kk_struct_packed      __pragma(pack(push,1)) struct
-#define kk_struct_packed_end  __pragma(pack(pop))
-#define KK_HAS_STRUCT_PACKING 1
 #ifndef __cplusplus  // need c++ compilation for correct atomic operations on msvc
 #error "when using cl (the Microsoft Visual C++ compiler), use the /TP option to always compile in C++ mode."
 #endif
@@ -200,10 +198,8 @@
 #define kk_decl_noinline   
 #define kk_decl_align(a)   
 #define kk_decl_thread        __thread
-#define kk_struct_packed      struct
-#define kk_struct_packed_end  
-#define KK_HAS_STRUCT_PACKING 0
 #endif
+
 
 #if defined(__GNUC__) || defined(__clang__)
 #define kk_unlikely(x)     (__builtin_expect(!!(x),false))
@@ -471,9 +467,6 @@ typedef uint32_t       kk_uintb_t;
 #error "the given platform boxed integer size is (currently) not supported"
 #endif
 
-#if KK_COMPRESS && !KK_HAS_STRUCT_PACKING
-#error "pointer compression can only be used with C compilers that support struct packing"
-#endif
 
 // A "field" integer is the largest natural integer that fits into a boxed value
 #if (KK_INTB_SIZE > KK_INTX_SIZE)   // ensure it fits the natural register size

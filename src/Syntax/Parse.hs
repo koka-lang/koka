@@ -563,8 +563,10 @@ structDecl dvis =
         (try $
           do (vis,dvis,rng) <-     do{ rng <- keyword "abstract"; return (Public,Private,rng) }
                                <|> do{ (vis,rng) <- visibility dvis; return (vis,vis,rng) }
-             ddef           <-     do { specialId "value"; return (DataDefValue 0 0) }
-                               <|> do { specialId "reference"; return DataDefNormal }
+             ddef           <-     do { specialId "value"; return (DataDefValue valueReprZero) }
+                               <|> do { specialIdOr "ref" ["reference"]; 
+                                        -- pwarningMessage "using 'reference' is deprecated and is always the default now";
+                                        return DataDefNormal }
                                <|> do { return DataDefAuto }
              (trng,doc) <- dockeyword "struct"
              return (vis,dvis,ddef,rng,trng,doc))
@@ -607,8 +609,9 @@ typeDeclKind
     try(
     do (ddef,isExtend) <-     do { specialId "open"; return (DataDefOpen, False) }
                           <|> do { specialId "extend"; return (DataDefOpen, True) }
-                          <|> do { specialId "value"; return (DataDefValue 0 0, False) }
-                          <|> do { specialId "reference"; return (DataDefNormal, False) }
+                          <|> do { specialId "value"; return (DataDefValue valueReprZero, False) }
+                          <|> do { specialIdOr "ref" ["reference"]; 
+                                   return (DataDefNormal, False) }
                           <|> return (DataDefAuto, False)
        (rng,doc) <- dockeyword "type"
        return (Inductive,rng,doc,ddef,isExtend))
@@ -818,14 +821,14 @@ makeEffectDecl decl =
                              evName  = newName "ev"
                              evFld = ValueBinder evName evTp Nothing irng rng
                              evCon = UserCon (toConstructorName id) [] [(Private,evFld)] Nothing irng rng Private ""
-                         in (DataType ename tpars [evCon] rng vis Inductive (DataDefAuto {-DataDefValue 0 0-}) False docx
+                         in (DataType ename tpars [evCon] rng vis Inductive (DataDefNormal {-DataDefValue 0 0-}) False docx
                             ,(\action -> Lam [ValueBinder evName Nothing Nothing irng rng]
                                                   (App (action) [(Nothing,App (Var (toConstructorName id) False rng) [(Nothing,Var evName False rng)] rng)] rng)
                                                   rng))
                     else let -- add a private constructor that refers to the handler type to get a proper recursion check
                              hndfld = ValueBinder nameNil hndTp Nothing irng irng
                              hndcon = UserCon (toConstructorName id) [hndEffTp,hndResTp] [(Private,hndfld)] Nothing irng irng Private ""
-                         in (DataType ename tpars [hndcon] rng vis Inductive DataDefAuto False docx, \action -> action)
+                         in (DataType ename tpars [hndcon] rng vis Inductive DataDefNormal False docx, \action -> action)
 
       -- declare the effect handler type
       kindEffect = KindCon nameKindEffect krng
@@ -2766,6 +2769,15 @@ special s
        return rng
   <?> show s
 
+
+specialIdOr :: String -> [String] -> LexParser Range
+specialIdOr kw [] = specialId kw
+specialIdOr kw deprecated
+  = choice (specialId kw : map deprecate deprecated)
+  where
+    deprecate  k = do rng <- specialId k
+                      warnDeprecated k kw
+                      return rng
 
 
 keywordOr :: String -> [String] -> LexParser Range
