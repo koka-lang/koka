@@ -11,7 +11,7 @@
 -- constructor reuse analysis
 -----------------------------------------------------------------------------
 
-module Backend.C.ParcReuse ( parcReuseCore, getFixedDataSize ) where
+module Backend.C.ParcReuse ( parcReuseCore, getFixedDataAllocSize ) where
 
 import Lib.Trace (trace)
 import Control.Monad
@@ -111,7 +111,7 @@ ruLam :: [TName] -> Effect -> Expr -> Reuse Expr
 ruLam pars eff body
   = fmap (Lam pars eff) $ withNone $ do
       forM_ pars $ \p -> do
-        msize <- getRuFixedDataSize (typeOf p)
+        msize <- getRuFixedDataAllocSize (typeOf p)
         case msize of
           Just (size, scan) -> addDeconstructed (p, Nothing, size, scan)
           Nothing -> return ()
@@ -243,7 +243,7 @@ ruPattern varName pat@PatCon{patConName,patConPatterns,patConRepr,patTypeArgs,pa
                            return ((varName, Just pat, size, scan):reuses)
                    else return reuses
 ruPattern varName _
-  = do msize <- getRuFixedDataSize (typeOf varName)
+  = do msize <- getRuFixedDataAllocSize (typeOf varName)
        case msize of
          Just (size, scan) -> return [(varName, Nothing, size, scan)]
          Nothing -> return []
@@ -588,16 +588,16 @@ ruTrace msg
 
 -- | If all constructors of a type have the same shape,
 -- return the byte size and number of scan fields.
-getRuFixedDataSize :: Type -> Reuse (Maybe (Int, Int))
-getRuFixedDataSize dataType
+getRuFixedDataAllocSize :: Type -> Reuse (Maybe (Int, Int))
+getRuFixedDataAllocSize dataType
   = do newtypes <- getNewtypes
        platform <- getPlatform
-       pure $ getFixedDataSize platform newtypes dataType
+       pure $ getFixedDataAllocSize platform newtypes dataType
 
 -- | If all constructors of a type have the same shape,
 -- return the byte size and number of scan fields.
-getFixedDataSize :: Platform -> Newtypes -> Type -> Maybe (Int, Int)
-getFixedDataSize platform newtypes dataType
+getFixedDataAllocSize :: Platform -> Newtypes -> Type -> Maybe (Int, Int)
+getFixedDataAllocSize platform newtypes dataType
   = let mdataName = extractDataName dataType in
     if maybe False (\nm -> "_noreuse" `isSuffixOf` nameId nm) mdataName
     then Nothing else
@@ -605,6 +605,14 @@ getFixedDataSize platform newtypes dataType
         case mdataInfo of
           Just dataInfo
             -> let ddef = dataInfoDef dataInfo 
+               in if dataDefIsValue ddef 
+                    then Nothing
+                    else let cis = dataInfoConstrs dataInfo
+                             sizeScanCounts = map (valueReprSizeScan platform . conInfoValueRepr) cis
+                         in case sizeScanCounts of
+                              (ss:sss) | all (==ss) sss -> Just ss
+                              _        -> Nothing
+               {- 
                in case ddef of
                     DataDefValue vrepr 
                       -> let cis   = dataInfoConstrs dataInfo
@@ -612,7 +620,7 @@ getFixedDataSize platform newtypes dataType
                          in case sizes of
                               (s:ss) | all (==s) ss -> Just (valueReprSize platform vrepr, valueReprScanCount vrepr)
                               _                     -> Nothing
-                    _ -> Nothing
+                    _ -> Nothing -}
           _ -> Nothing
   where
     extractDataName :: Type -> Maybe Name

@@ -44,7 +44,7 @@ import Core.Pretty
 import Core.CoreVar
 import Core.Borrowed
 import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial, nameTrue)
-import Backend.C.ParcReuse (getFixedDataSize)
+import Backend.C.ParcReuse (getFixedDataAllocSize)
 import Backend.C.Parc (getDataDef')
 
 trace s x =
@@ -468,7 +468,7 @@ tryDropReuse :: TName -> Output -> Chk (Maybe Output)
 tryDropReuse nm out
   = do newtypes <- getNewtypes
        platform <- getPlatform
-       case getFixedDataSize platform newtypes (tnameType nm) of
+       case getFixedDataAllocSize platform newtypes (tnameType nm) of
          Nothing -> pure Nothing
          Just (sz, _) -> Just <$> provideToken nm sz out
 
