@@ -11,11 +11,7 @@
 -- constructor reuse analysis
 -----------------------------------------------------------------------------
 
-<<<<<<< Updated upstream
-module Backend.C.ParcReuse ( parcReuseCore ) where
-=======
 module Backend.C.ParcReuse ( parcReuseCore, getFixedDataAllocSize ) where
->>>>>>> Stashed changes
 
 import Lib.Trace (trace)
 import Control.Monad
