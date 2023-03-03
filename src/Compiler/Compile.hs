@@ -64,7 +64,7 @@ import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
 import Core.Inlines           ( inlinesExtends, extractInlineDefs, inlinesMerge, inlinesToList, inlinesFilter, inlinesNew )
-import Core.Borrowed          ( Borrowed )
+import Core.Borrowed          ( Borrowed, borrowedExtendICore )
 import Core.Inline            ( inlineDefs )
 import Core.Specialize
 import Core.Unroll            ( unrollDefs )
@@ -871,8 +871,8 @@ inferCheck loaded0 flags line coreImports program
        -- remove return statements
        unreturn penv
        -- checkCoreDefs "unreturn"
-
-       checkFBIP penv (platform flags) (loadedNewtypes loaded) (loadedBorrowed loaded) (loadedGamma loaded)
+       let borrowed = borrowedExtendICore (coreProgram{ Core.coreProgDefs = cdefs }) (loadedBorrowed loaded)
+       checkFBIP penv (platform flags) (loadedNewtypes loaded) borrowed (loadedGamma loaded)
 
        -- initial simplify
        let ndebug  = optimize flags > 0
