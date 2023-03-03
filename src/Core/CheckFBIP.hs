@@ -52,11 +52,11 @@ trace s x =
     x
 
 
-checkFBIP :: Pretty.Env ->  Platform -> Newtypes -> Borrowed ->  CorePhase ()
-checkFBIP penv platform newtypes borrowed
+checkFBIP :: Pretty.Env ->  Platform -> Newtypes -> Borrowed -> Gamma -> CorePhase ()
+checkFBIP penv platform newtypes borrowed gamma
   = do uniq      <- unique
        defGroups <- getCoreDefs
-       let (_,docs) = runChk penv uniq platform newtypes borrowed (chkDefGroups defGroups)
+       let (_,docs) = runChk penv uniq platform newtypes borrowed gamma (chkDefGroups defGroups)
        mapM_ (\doc -> liftError (warningMsg (rangeNull, doc))) docs
 
 
@@ -277,6 +277,7 @@ data Env = Env{ currentDef :: [Def],
                 platform  :: Platform,
                 newtypes  :: Newtypes,
                 borrowed  :: Borrowed,
+                gamma     :: Gamma,
                 fip       :: Fip
               }
 
@@ -325,9 +326,9 @@ prettyGammaDia ppenv (Output nm dia)
 
 data Result a = Ok a Output [Doc]
 
-runChk :: Pretty.Env -> Int -> Platform -> Newtypes -> Borrowed -> Chk a -> (a,[Doc])
-runChk penv u platform newtypes borrowed (Chk c)
-  = case c (Env [] penv platform newtypes borrowed noFip) (Input S.empty [] [] True) of
+runChk :: Pretty.Env -> Int -> Platform -> Newtypes -> Borrowed -> Gamma -> Chk a -> (a,[Doc])
+runChk penv u platform newtypes borrowed gamma (Chk c)
+  = case c (Env [] penv platform newtypes borrowed gamma noFip) (Input S.empty [] [] True) of
       Ok x _out docs -> (x,docs)
 
 instance Functor Chk where
@@ -371,6 +372,15 @@ withFip f chk
 
 getFip :: Chk Fip  
 getFip = fip <$> getEnv
+
+-- look up fip annotation; return noFip if not found
+lookupFip :: Name -> Chk Fip
+lookupFip name
+  = do env <- getEnv
+       case filter isInfoFun (gammaLookupQ name (gamma env)) of
+         [fun] -> return (infoFip fun)
+         _     -> return noFip
+
 
 -- | Run the given check, keep the warnings but extract the output.
 extractOutput :: Chk () -> Chk Output

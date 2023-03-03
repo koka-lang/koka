@@ -89,7 +89,7 @@ extractBorrowExternals exs
 extractExternal :: External -> Maybe BorrowDef
 extractExternal ex
   = case ex of
-    External name _ params _ _ _ _ ->
+    External name _ params _ _ _ _ _ ->
       if Borrow `elem` params then Just (name, params) else Nothing
     _ -> Nothing
 

@@ -156,12 +156,12 @@ prettyImportedSyn env synInfo
   = ppSynInfo env True False True synInfo <.> semi
 
 prettyExternal :: Env -> External -> Doc
-prettyExternal env (External name tp pinfos body vis nameRng doc) | coreIface env && isHiddenExternalName name
+prettyExternal env (External name tp pinfos body vis fip nameRng doc) | coreIface env && isHiddenExternalName name
   = empty
-prettyExternal env (External name tp pinfos body vis nameRng doc)
+prettyExternal env (External name tp pinfos body vis fip nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $
-    keyword env "extern" <+> prettyDefName env name <+> text ":" <+> prettyDefFunType env pinfos tp <+> prettyEntries body
+    keyword env (show fip ++ "extern") <+> prettyDefName env name <+> text ":" <+> prettyDefFunType env pinfos tp <+> prettyEntries body
   where
     prettyEntries [(Default,content)] = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"

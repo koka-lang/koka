@@ -409,7 +409,7 @@ infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
                 addRangeInfo rng (Decl "external" qname (mangle cname tp'))
        -- trace ("infExternal: " ++ show cname ++ ": " ++ show (pretty tp')) $
        return (Core.External cname tp' pinfos (map (formatCall tp') calls)
-                  vis nameRng doc, qname:names)
+                  vis fip nameRng doc, qname:names)
 infExternal names (ExternalImport imports range)
   = return (Core.ExternalImport imports range, names)
 

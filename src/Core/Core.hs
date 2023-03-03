@@ -278,9 +278,10 @@ data External = External{ externalName :: Name
                         , externalType :: Scheme
                         , externalParams :: [ParamInfo]
                         , externalFormat :: [(Target,String)]
-                        , externalVis' :: Visibility
+                        , externalVis'  :: Visibility
+                        , externalFip   :: Fip
                         , externalRange :: Range
-                        , externalDoc :: String
+                        , externalDoc   :: String
                         }
               | ExternalImport { externalImport :: [(Target,[(String,String)])]
                                , externalRange :: Range }

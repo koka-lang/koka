@@ -347,15 +347,16 @@ pdefSort
 --------------------------------------------------------------------------}
 externDecl :: Env -> LexParser External
 externDecl env
-  = do (vis,doc)  <- try $ do vis <- vispub
-                              (_,doc) <- dockeyword "extern"
-                              return (vis,doc)
+  = do (vis,fip,doc)  <- try $ do vis <- vispub
+                                  fip <- parseFip
+                                  (_,doc) <- dockeyword "extern"
+                                  return (vis,fip,doc)
        (name,_) <- (funid)
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
        (tp,pinfos) <- pdeftype env
        formats <- externalBody
-       return (External (qualify (modName env) name) tp pinfos formats vis rangeNull doc)  
+       return (External (qualify (modName env) name) tp pinfos formats vis fip rangeNull doc)  
 
 
 externalBody :: LexParser [(Target,String)]

@@ -492,9 +492,10 @@ checkUnhandledEffects flags loaded name range tp
                                -> let defaultHandlerName = makeHiddenName "default" effName
                                   in -- trace ("looking up: " ++ show defaultHandlerName) $
                                      case gammaLookupQ defaultHandlerName (loadedGamma loaded) of
-                                        [InfoFun _ dname _ _ _]
+                                        [fun@InfoFun{}]
                                           -> trace ("add default effect for " ++ show effName) $
-                                             let g mfx expr = let r = getRange expr
+                                             let dname = infoCName fun
+                                                 g mfx expr = let r = getRange expr
                                                               in App (Var dname False r) [(Nothing,Lam [] (maybe expr (\f -> f expr) mfx) r)] r
                                              in if (effName == nameTpAsync)  -- always put async as the most outer effect
                                                  then do mf' <- combine eff mf ls
@@ -871,7 +872,7 @@ inferCheck loaded0 flags line coreImports program
        unreturn penv
        -- checkCoreDefs "unreturn"
 
-       checkFBIP penv (platform flags) (loadedNewtypes loaded) (loadedBorrowed loaded) 
+       checkFBIP penv (platform flags) (loadedNewtypes loaded) (loadedBorrowed loaded) (loadedGamma loaded)
 
        -- initial simplify
        let ndebug  = optimize flags > 0
