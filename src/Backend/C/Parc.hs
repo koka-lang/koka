@@ -87,10 +87,10 @@ parcDef topLevel def
 --------------------------------------------------------------------------
 
 parcTopLevelExpr :: DefSort -> Expr -> Parc Expr
-parcTopLevelExpr (DefFun bs) expr
+parcTopLevelExpr ds@(DefFun bs _) expr
   = case expr of
       TypeLam tpars body
-        -> TypeLam tpars <$> parcTopLevelExpr (DefFun bs) body
+        -> TypeLam tpars <$> parcTopLevelExpr ds body
       Lam pars eff body
         -> do let parsBs = zip pars $ bs ++ repeat Own
               let parsSet = S.fromList $ map fst $ filter (\x -> snd x == Own) parsBs

@@ -221,7 +221,7 @@ makeDef fvs tvs expr
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
     liftedTp  = -- trace ("makeDef: liftedFun: " ++ show (prettyExpr defaultEnv{coreShowTypes=True} expr) ++ "\nraw: " ++ show expr) $
                 typeOf liftedFun
-    liftedDef name inl = Def name liftedTp liftedFun Private (DefFun [] {-all owned-}) InlineAuto rangeNull "// monadic lift"
+    liftedDef name inl = Def name liftedTp liftedFun Private (defFun [] {-all owned-}) InlineAuto rangeNull "// monadic lift"
 
     funExpr name
       = Var (TName name liftedTp) (InfoArity (length alltpars) (length allargs))

@@ -18,7 +18,7 @@ module Syntax.Parse( parseProgramFromFile
                    -- used by the core parser
                    , lexParse, parseLex, LexParser, parseLexemes, parseInline
 
-                   , visibility, modulepath, importAlias
+                   , visibility, modulepath, importAlias, parseFip
                    , tbinderId, constructorId, funid, paramid
                    , braced, semiBraces, semis, semiColons1, semiBraced
                    , angles, anglesCommas, parensCommas, parens, curlies
@@ -38,7 +38,7 @@ import Data.Either (partitionEithers)
 import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,rparen,rangle,langle)
 import qualified Lib.PPrint as PP (string)
 
-import Control.Monad (mzero)
+import Control.Monad (mzero,when)
 import Data.Monoid (Endo(..))
 import Text.Parsec hiding (space,tab,lower,upper,alphaNum,sourceName,optional)
 import Text.Parsec.Error
@@ -170,7 +170,7 @@ expression name
   = interactive $
     do e <- aexpr
        let r = getRange e
-       return (Def (ValueBinder name () (Lam [] e r) r r)  r Public (DefFun []) InlineNever False Nofip ""
+       return (Def (ValueBinder name () (Lam [] e r) r r)  r Public (DefFun [] noFip) InlineNever ""
               -- ,Def (ValueBinder (prepend ".eval" name) () (Lam [] (App (Var nameGPrint False r) [Var name False r] r)))
               )
 
@@ -353,7 +353,7 @@ externDecl dvis
                                extern     = External externName tp pinfos (before nameRng) (before fullRng) exprs Private fip doc
                                body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) fullRng)
                                binder     = ValueBinder name () body nameRng fullRng
-                               extfun     = Def binder fullRng vis (defFun pinfos) InlineNever False fip doc
+                               extfun     = Def binder fullRng vis (defFunEx pinfos fip) InlineNever doc
                           return [DefExtern extern, DefValue extfun]
   where
     typeFromPars :: Range -> [ValueBinder UserType (Maybe UserExpr)] -> UserType -> UserType -> UserType
@@ -648,7 +648,7 @@ makeUserCon con foralls resTp exists pars nameRng rng vis doc
       = [(vis,par{ binderExpr = Nothing }) | (vis,par) <- pars]
     creator
       = let name = newCreatorName con
-            def  = Def binder rng vis (defFun []) InlineAlways True Nofip doc
+            def  = Def binder rng vis (defFun []) InlineAlways doc
             binder    = ValueBinder name () body nameRng nameRng
             body      = Ann (Lam lparams (App (Var con False nameRng) arguments rng) rng) tpFull rng
             params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars]
@@ -707,7 +707,7 @@ bindExprToVal opname oprange expr
   =  let fresh    = makeFreshHiddenName "value" opname oprange
          freshVar = (Var fresh False oprange)
          erange   = (getRange expr)
-         binder   = (Def (ValueBinder fresh () expr oprange erange) oprange Private DefVal InlineAuto False Nofip "")
+         binder   = (Def (ValueBinder fresh () expr oprange erange) oprange Private DefVal InlineAuto "")
      in (\body -> Bind binder body erange, \params -> freshVar {- \params -> resumeCall freshVar params erange -})
 
 
@@ -850,7 +850,7 @@ makeEffectDecl decl =
                           (quantify QForall tpars
                             (makeTpApp (TpCon nameTpHTag krng) [makeTpApp (TpCon hndName krng) (map tpVar tparsNonScoped) krng] krng))
                          krng)
-                        krng krng) krng vis DefVal InlineNever True Nofip ("// runtime tag for the " ++ docEffect)
+                        krng krng) krng vis DefVal InlineNever ("// runtime tag for the " ++ docEffect)
 
 
       --extendConName = toEffectConName (tbinderName ename)
@@ -907,7 +907,7 @@ makeEffectDecl decl =
                     (Nothing, Var (newName "ret") False krng),
                     (Nothing, wrapAction (Var (newName "action") False krng))]
       handleDef  =  Def (ValueBinder handleName () handleBody irng rng)
-                        grng vis (defFun []) InlineNever True Nofip ("// handler for the " ++ docEffect)
+                        grng vis (defFun []) InlineNever ("// handler for the " ++ docEffect)
 
    in [DefType effTpDecl, DefValue tagDef, DefType hndTpDecl, DefValue handleDef]
          ++ map DefValue opSelects
@@ -1071,7 +1071,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
 
            -- create an operation selector explicitly so we can hide the handler constructor
            selectId    = toOpSelectorName id
-           opSelect = let def       = Def binder krng vis (defFun [Borrow]) InlineAlways True Nofip ("// select `" ++ show id ++ "` operation out of the " ++ docEffect ++ " handler")
+           opSelect = let def       = Def binder krng vis (defFun [Borrow]) InlineAlways ("// select `" ++ show id ++ "` operation out of the " ++ docEffect ++ " handler")
                           nameRng   = krng
                           binder    = ValueBinder selectId () body nameRng nameRng
                           body      = Ann (Lam [hndParam] innerBody grng) fullTp grng
@@ -1094,7 +1094,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
 
 
            -- create a typed perform wrapper: fun op(x1:a1,..,xN:aN) : <l> b { performN(evv-at(0),clause-op,x1,..,xN) }
-           opDef  = let def      = Def binder idrng vis (DefFun []) InlineAlways True Nofip ("// call `" ++ show id ++ "` operation of the " ++ docEffect)
+           opDef  = let def      = Def binder idrng vis (defFun []) InlineAlways ("// call `" ++ show id ++ "` operation of the " ++ docEffect)
                         nameRng   = idrng
                         binder    = ValueBinder id () body nameRng nameRng
                         body      = Ann (Lam lparams innerBody rng) tpFull rng
@@ -1139,7 +1139,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
                              phantom = App (Var namePhantom False krng) [] krng
                              annot   = Ann phantom qualTpe krng
                          in Just $ Def (ValueBinder opName () annot idrng krng)
-                                        krng vis DefVal InlineNever True Nofip "// phantom definition for value operations"
+                                        krng vis DefVal InlineNever "// phantom definition for value operations"
 
                        else Nothing
 
@@ -1159,10 +1159,9 @@ pureDecl dvis
                       (do (rng,doc) <- dockeyword "val" -- return (vis,vrng,rng,doc,inline,True)
                           return (valDecl (combineRange vrng rng) doc vis inline)
                        <|>
-                       do isTail <- parseTail
-                          fip    <- parseFip
+                       do fip    <- parseFip
                           (rng,doc) <- dockeywordFun  -- return (vis,vrng,rng,doc,inline,False)
-                          return (funDecl (combineRange vrng rng) doc vis inline isTail fip)                           
+                          return (funDecl (combineRange vrng rng) doc vis inline fip)
                        <|>
                        do keyword "fn"
                           fail "hint: use 'fun' to start a named function definition (and 'fn' for anonymous functions)")
@@ -1170,29 +1169,26 @@ pureDecl dvis
        -- valueDecl vrng vis <|> functionDecl vrng vis
        pdecl
 
-parseTail :: LexParser Bool
-parseTail 
-  = do specialId "tail"
-       return True
-   <|> return False
-
 parseFip :: LexParser Fip
 parseFip 
-  =   do specialId "fip"
-         (n,_) <- parens integer <|> return (0,rangeNull)
-         return (Fip (fromInteger n))
-  <|> do specialId "fbip"
-         (n,_) <- parens integer <|> return (0,rangeNull)
-         return (Fbip (fromInteger n))
-  <|> return Nofip
-
+  = do isTail   <- do specialId "tail"
+                      return True
+                  <|> return False
+       ( do specialId "fip"
+            (n,_) <- parens integer <|> return (0,rangeNull)
+            when isTail $ pwarningMessage "a 'fip' function implies already 'tail'"
+            return (Fip (fromInteger n))
+         <|> 
+         do specialId "fbip"
+            (n,_) <- parens integer <|> return (0,rangeNull)
+            return (Fbip (fromInteger n) isTail)
+         <|> return (NoFip isTail))
 
 functionDecl vrng vis
   = do pdecl <- try $ do inline <- parseInline
-                         isTail <- parseTail
                          fip    <- parseFip
                          (rng,doc) <- dockeywordFun
-                         return (funDecl (combineRange vrng rng) doc vis inline isTail fip)
+                         return (funDecl (combineRange vrng rng) doc vis inline fip)
        pdecl
 
 varDecl
@@ -1200,16 +1196,16 @@ varDecl
        bind <- binder vrng
        keyword ":="
        body <- blockexpr
-       return (Def (bind body) (combineRanged vrng body) Private DefVar InlineNever True Nofip doc)
+       return (Def (bind body) (combineRanged vrng body) Private DefVar InlineNever doc)
 
 
 valDecl rng doc vis inline
   = do bind <- binder rng
        keyword "="
        body <- blockexpr
-       return (Def (bind body) (combineRanged rng body) vis DefVal inline True Nofip doc)
+       return (Def (bind body) (combineRanged rng body) vis DefVal inline doc)
 
-funDecl rng doc vis inline isTail fip
+funDecl rng doc vis inline fip
   = do spars <- squantifier
        -- tpars <- aquantifier  -- todo: store somewhere
        (name,nameRng) <- funid
@@ -1217,7 +1213,8 @@ funDecl rng doc vis inline isTail fip
        body   <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
-       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis (defFun pinfos) inline isTail fip doc)
+       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis 
+                       (defFunEx pinfos fip) inline doc)
 
 -- fundef: forall parameters, parameters, (effecttp, resulttp), annotation
 funDef :: Bool -> LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], [ParamInfo], Range, Maybe (Maybe UserType, UserType),[UserType], UserExpr -> UserExpr)
@@ -1333,7 +1330,7 @@ block
     combine :: Statement -> UserExpr -> UserExpr
     combine (StatFun f) exp   = f exp
     combine (StatExpr e) exp  = let r = getRange e
-                                in Bind (Def (ValueBinder (newName "_") () e r r) r Private DefVal InlineAuto False Nofip "") exp r
+                                in Bind (Def (ValueBinder (newName "_") () e r r) r Private DefVal InlineAuto "") exp r
     combine (StatVar def) exp = let (ValueBinder name () expr nameRng rng) = defBinder def
                                 in  App (Var nameLocal False rng)
                                         -- put parens over the lambda so it comes later during type inference (so the type of expr can be propagated in)
@@ -1393,7 +1390,7 @@ localValueDecl
                               Just tp -> Ann e (promoteType tp) rng
                               Nothing -> e
                   vbinder = ValueBinder (binderName binder) () annexpr (binderNameRange binder) (binderRange binder)
-              in \body -> Bind (Def vbinder rng Private DefVal InlineAuto False Nofip "") body (combineRanged krng body)
+              in \body -> Bind (Def vbinder rng Private DefVal InlineAuto "") body (combineRanged krng body)
        case unParens(pat) of
          PatVar (binder@ValueBinder{ binderExpr = PatWild _ })
            -> return $ bindVar binder (binderType binder) (binderRange binder)

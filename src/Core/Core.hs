@@ -560,14 +560,14 @@ data InlineDef = InlineDef{
 defIsVal :: Def -> Bool
 defIsVal def
   = case defSort def of
-      DefFun _ -> False
+      DefFun{} -> False
       _        -> True
 
 defParamInfos :: Def -> [ParamInfo]
 defParamInfos def
   = case defSort def of
-      DefFun pinfos -> pinfos
-      _             -> []
+      DefFun pinfos _ -> pinfos
+      _               -> []
 
 inlineDefIsSpecialize :: InlineDef -> Bool
 inlineDefIsSpecialize inlDef = not (null (inlineParamSpecialize inlDef))
@@ -1075,7 +1075,7 @@ addLambdasTName pars eff e            = Lam pars eff e
 -- | Bind a variable inside a term
 addNonRec :: Name -> Type -> Expr -> (Expr -> Expr)
 addNonRec x tp e e' 
-  = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else DefFun [] {-all owned?-}) InlineAuto rangeNull "")] e'
+  = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else defFun [] {-all owned?-}) InlineAuto rangeNull "")] e'
 
 -- | Is an expression a value or a function
 isValueExpr :: Expr -> Bool

@@ -101,7 +101,7 @@ extractDefGroup (DefNonRec def)
 extractBorrowDef :: Bool -> Def -> Maybe BorrowDef
 extractBorrowDef isRec def
   = case defSort def of
-      DefFun pinfos | not (null pinfos) -> Just (defName def,pinfos)
+      DefFun pinfos _ | not (null pinfos) -> Just (defName def,pinfos)
       _ -> Nothing
 
 instance Show Borrowed where

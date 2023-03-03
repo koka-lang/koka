@@ -197,8 +197,6 @@ data Def t
        , defVis    :: Visibility
        , defSort   :: DefSort
        , defInline :: DefInline
-       , defTail   :: Bool
-       , defFip    :: Fip
        , defDoc    :: String
        }
   deriving (Show)

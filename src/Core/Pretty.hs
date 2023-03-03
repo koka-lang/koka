@@ -242,7 +242,7 @@ prettyInlineDef env (InlineDef name expr isRec inlkind cost sort specArgs)
     <.> (if (null specArgs) then empty else (keyword env "specialize " <.> prettySpecArgs <.> text " "))
     <.> (if (cost <= 0 || inlkind == InlineAlways) then (keyword env "inline ") else empty)
     <.> prettyParamInfos sort
-    <.> keyword env (show sort)
+    <.> keyword env (defSortShowFull sort)
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     -- <+> text ":" <+> prettyType env scheme
     <+> text ("// inline size: " ++ show cost)
@@ -256,7 +256,7 @@ prettyInlineDef env (InlineDef name expr isRec inlkind cost sort specArgs)
     prettySpecArgs 
       = dquotes (text [if spec then '*' else '_' | spec <- specArgs])
 
-    prettyParamInfos (DefFun pinfos) | Borrow `elem` pinfos
+    prettyParamInfos (DefFun{defFunParamInfos=pinfos}) | Borrow `elem` pinfos
       = keyword env "borrow" <+> dquotes (text [if info == Borrow then '^' else '_' | info <- pinfos]) <.> text " "
     prettyParamInfos _
       = empty
@@ -275,8 +275,8 @@ prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
                   then text "_" 
                   else prettyDefName env name) 
             <+> text ":" <+> (case sort of 
-                  DefFun pinfos -> prettyDefFunType env pinfos scheme
-                  _             -> prettyType env scheme
+                  DefFun pinfos _ -> prettyDefFunType env pinfos scheme
+                  _               -> prettyType env scheme
                 )
             <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
                   then empty

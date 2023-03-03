@@ -39,7 +39,7 @@ module Type.Assumption (
 import Lib.Trace
 import Common.Range
 import Common.Failure
-import Common.Syntax( DefSort(..), isDefFun )
+import Common.Syntax( DefSort(..), isDefFun, defFun )
 import qualified Data.List as L
 import Lib.PPrint
 import qualified Common.NameMap as M
@@ -302,7 +302,7 @@ createNameInfoX vis name sort rng tp
     if (not (isDefFun sort)) then InfoVal vis name tp rng (sort == DefVar) else InfoFun vis name tp (getArity  tp) rng
 
 createNameInfo name isVal rng tp
-  = createNameInfoX Public name (if isVal then DefVal else DefFun []) rng tp
+  = createNameInfoX Public name (if isVal then DefVal else defFun []) rng tp
     -- if (isVal) then InfoVal name tp rng False else InfoFun name tp (getArity tp) rng
 
 getArity :: Type -> (Int,Int)

@@ -209,7 +209,7 @@ urCase org scruts branches
 
                 let f c = let lam    = Lam [parName] eff (c parVar)
                               defTp  = typeOf lam
-                              def    = Def name defTp lam Private (DefFun [Own]) InlineAuto rangeNull ""
+                              def    = Def name defTp lam Private (defFun [Own]) InlineAuto rangeNull ""
                               defVar = Var (TName name defTp) InfoNone -- (InfoArity 0 1 NoMon) -- with arity C# code gets wrong
                               app e  = App defVar [e]
                           in makeLet [DefNonRec def] $

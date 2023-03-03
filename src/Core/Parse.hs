@@ -321,8 +321,8 @@ defDecl env
        keyword ":"
        (tp,pinfos) <- pdeftype env
        let sort = case sort0 of
-                    DefFun _ -> DefFun pinfos
-                    _        -> sort0
+                    DefFun _ fip -> DefFun pinfos fip
+                    _            -> sort0
        -- trace ("parse def: " ++ show name ++ ": " ++ show tp) $ return ()
        return (Def (qualify (modName env) name) tp (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file"))
                    vis sort inl rangeNull doc)
@@ -330,13 +330,14 @@ defDecl env
 pdefSort
   = do isRec <- do{ specialId "recursive"; return True } <|> return False
        inl <- parseInline
-       (do (_,doc) <- dockeyword "fun"
+       (do fip <- try parseFip
+           (_,doc) <- dockeyword "fun"
            _       <- do { specialOp "**"; return ()}
                       <|>
                       do { specialOp "*"; return () }
                       <|>
                       return ()
-           return (DefFun [],inl,isRec,doc)  -- borrow info comes from type
+           return (defFunEx [] fip,inl,isRec,doc)  -- borrow info comes from type
         <|>
         do (_,doc) <- dockeyword "val"
            return (DefVal,inl,False,doc))
@@ -437,8 +438,9 @@ inlineDefSort
                     (s,_) <- stringLit
                     return [if c == '^' then Borrow else Own | c <- s] 
                  <|> return []
-       (do (_,doc) <- dockeyword "fun"           
-           return (DefFun pinfos,inl,isRec,spec,doc)
+       (do fip <- try parseFip
+           (_,doc) <- dockeyword "fun"           
+           return (DefFun pinfos fip,inl,isRec,spec,doc)
         <|>
         do (_,doc) <- dockeyword "val"
            return (DefVal,inl,False,spec,doc))

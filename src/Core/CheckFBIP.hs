@@ -76,24 +76,32 @@ chkDefGroup defGroup
 chkTopLevelDef :: [Name] -> Def -> Chk ()
 chkTopLevelDef defGroupNames def
   = withCurrentDef def $ do
-      out <- extractOutput $ withInput (\_ -> Input S.empty [] defGroupNames True) $
-        chkTopLevelExpr (defSort def) (defExpr def)
-      checkOutputEmpty out
+      case defSort def of
+        -- only check fip and fbip annotated functions 
+        DefFun borrows fip | not (isNoFip fip) -> 
+           do out <- withFip fip $
+                     extractOutput $                      
+                     withInput (\_ -> Input S.empty (capFromFip fip) defGroupNames True) $
+                     chkTopLevelExpr borrows fip (defExpr def)
+              checkOutputEmpty out
+        _ -> return ()
+
 
 -- | Lambdas at the top-level are part of the signature and not allocations.
-chkTopLevelExpr :: DefSort -> Expr -> Chk ()
-chkTopLevelExpr (DefFun bs) (Lam pars eff body)
+chkTopLevelExpr :: [ParamInfo] -> Fip -> Expr -> Chk ()
+chkTopLevelExpr borrows fip (Lam pars eff body)  -- todo: track fip to adjust warnings
   = do chkEffect eff
-       let bpars = map snd $ filter ((==Borrow) . fst) $ zipDefault Own bs pars
-       let opars = map snd $ filter ((==Own) . fst) $ zipDefault Own bs pars
+       let bpars = map snd $ filter ((==Borrow) . fst) $ zipDefault Own borrows pars
+       let opars = map snd $ filter ((==Own) . fst) $ zipDefault Own borrows pars
        withBorrowed (S.fromList $ map getName bpars) $ do
          out <- extractOutput $ chkExpr body
          writeOutput =<< foldM (\out nm -> bindName nm Nothing out) out opars
-chkTopLevelExpr def (TypeLam _ body)
-  = chkTopLevelExpr def body
-chkTopLevelExpr def (TypeApp body _)
-  = chkTopLevelExpr def body
-chkTopLevelExpr _ expr = chkExpr expr
+chkTopLevelExpr borrows fip (TypeLam _ body)
+  = chkTopLevelExpr borrows fip  body
+chkTopLevelExpr borrows fip (TypeApp body _)
+  = chkTopLevelExpr borrows fip  body
+chkTopLevelExpr borrows fip expr 
+  = chkExpr expr
 
 chkExpr :: Expr -> Chk ()
 chkExpr expr
@@ -268,7 +276,8 @@ data Env = Env{ currentDef :: [Def],
                 prettyEnv :: Pretty.Env,
                 platform  :: Platform,
                 newtypes  :: Newtypes,
-                borrowed  :: Borrowed
+                borrowed  :: Borrowed,
+                fip       :: Fip
               }
 
 data Capability
@@ -276,6 +285,13 @@ data Capability
   | HasDealloc -- may use drop and free
   | HasStack   -- may use non-tail recursion
   deriving (Eq, Ord, Bounded, Enum)
+
+capFromFip :: Fip -> [Capability]
+capFromFip fip 
+  = case fip of
+      Fip n -> []
+      Fbip n isTail -> [HasDealloc] ++ (if isTail then [] else [HasStack])
+      NoFip isTail  -> [HasDealloc,HasAlloc] ++ (if isTail then [] else [HasStack])
 
 data Input = Input{ delta :: S.Set Name,
                     capabilities :: [Capability],
@@ -311,7 +327,7 @@ data Result a = Ok a Output [Doc]
 
 runChk :: Pretty.Env -> Int -> Platform -> Newtypes -> Borrowed -> Chk a -> (a,[Doc])
 runChk penv u platform newtypes borrowed (Chk c)
-  = case c (Env [] penv platform newtypes borrowed) (Input S.empty [] [] True) of
+  = case c (Env [] penv platform newtypes borrowed noFip) (Input S.empty [] [] True) of
       Ok x _out docs -> (x,docs)
 
 instance Functor Chk where
@@ -348,6 +364,13 @@ getInput
 writeOutput :: Output -> Chk ()
 writeOutput out
   = Chk (\env st -> Ok () out [])
+
+withFip :: Fip -> Chk a -> Chk a
+withFip f chk
+  = withEnv (\env -> env{fip=f}) chk
+
+getFip :: Chk Fip  
+getFip = fip <$> getEnv
 
 -- | Run the given check, keep the warnings but extract the output.
 extractOutput :: Chk () -> Chk Output

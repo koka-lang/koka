@@ -136,7 +136,7 @@ liftDef topLevel def
        return def{ defExpr = expr', defSort = liftSort topLevel (defSort def)}
 
 liftSort :: Bool -> DefSort -> DefSort
-liftSort False (DefFun _) = DefVal
+liftSort False (DefFun{}) = DefVal
 liftSort _ sort = sort
 
 {-
