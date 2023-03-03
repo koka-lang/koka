@@ -206,7 +206,7 @@ inferDefGroup topLevel (DefRec defs) cont
     createGammas :: [(Name,NameInfo)] -> [(Name,NameInfo)] -> [Def Type] -> Inf ([(Name,NameInfo)],[(Name,NameInfo)])
     createGammas gamma infgamma []
       = return (reverse gamma, reverse infgamma)
-    createGammas gamma infgamma (Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc : defs)
+    createGammas gamma infgamma (Def (ValueBinder name () expr nameRng vrng) rng vis sort inl tail fip doc : defs)
       = case (lookup name infgamma) of
           (Just _)
             -> do env <- getPrettyEnv
@@ -439,7 +439,7 @@ inferRecDef topLevel infgamma def
 
 
 inferDef :: Expect -> Def Type -> Inf Core.Def
-inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl doc)
+inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl tail fip doc)
  =do penv <- getPrettyEnv
      if (verbose penv >= 3)
       then Lib.Trace.trace ("infer: " ++ show sort ++ " " ++ show name) $ return ()
@@ -459,7 +459,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl 
            subst (Core.Def name resTp resCore vis sort inl nameRng doc)  -- must 'subst' since the total unification can cause substitution. (see test/type/hr1a)
 
 inferBindDef :: Def Type -> Inf (Effect,Core.Def)
-inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
+inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort inl tail fip doc)
   = -- trace ("infer bind def: " ++ show name ++ ", var?:" ++ show (sort==DefVar)) $
     do withDefName name $
         do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated expr

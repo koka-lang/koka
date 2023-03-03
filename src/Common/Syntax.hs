@@ -16,6 +16,7 @@ module Common.Syntax( Visibility(..)
                     , DefSort(..), isDefFun, defFun
                     , ParamInfo(..)
                     , DefInline(..)
+                    , Fip(..)
                     , Target(..), CTarget(..), JsTarget(..), isTargetC, isTargetJS, isTargetWasm
                     , isPublic, isPrivate
                     , DataDef(..)
@@ -313,3 +314,12 @@ data Assoc  = AssocNone
             | AssocRight
             | AssocLeft
             deriving (Eq,Show)
+
+
+{--------------------------------------------------------------------------
+  Fip
+--------------------------------------------------------------------------}
+data Fip = Fip Int
+         | Fbip Int
+         | Nofip
+         deriving (Eq,Ord,Show)

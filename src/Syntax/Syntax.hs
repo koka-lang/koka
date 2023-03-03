@@ -67,6 +67,7 @@ data External
             , extRange :: Range
             , extInline :: [(Target,ExternalCall)]  -- map: target inline
             , extVis  :: Visibility
+            , extFip  :: Fip
             , extDoc :: String
             }
   | ExternalImport{ extImport :: [(Target,[(String,String)])]
@@ -196,6 +197,8 @@ data Def t
        , defVis    :: Visibility
        , defSort   :: DefSort
        , defInline :: DefInline
+       , defTail   :: Bool
+       , defFip    :: Fip
        , defDoc    :: String
        }
   deriving (Show)
@@ -325,8 +328,8 @@ instance Ranged (TypeDef t u k) where
     = typeDefRange typeDef
 
 instance Ranged t => Ranged (Def t) where
-  getRange (Def binder nameTypeRange _ _ _ _)
-    = getRange binder
+  getRange def
+    = getRange (defBinder def)
 
 instance Ranged (ValueBinder t e) where
   getRange vb = binderRange vb
@@ -443,7 +446,7 @@ instance HasName (ValueBinder t e) where
   getRName vb = (binderName vb,binderNameRange vb)
 
 instance HasName (Def t) where
-  getRName (Def vb range _ _ _ _) = getRName vb
+  getRName def = getRName (defBinder def)
 
 
 
@@ -482,10 +485,10 @@ instance HasFreeTypeVar a => HasFreeTypeVar (Either a b) where
   Access definitions
 --------------------------------------------------------------------------}
 defBody :: Def t -> Expr t
-defBody (Def vb _ _ _ _ _)  = binderExpr vb
+defBody def  = binderExpr (defBinder def)
 
 defName :: Def t -> Name
-defName (Def vb _ _ _ _ _)  = binderName vb
+defName def  = binderName (defBinder def)
 
 defType :: Def t -> Maybe t
 defType def
