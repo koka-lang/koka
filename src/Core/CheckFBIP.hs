@@ -212,7 +212,7 @@ chkApp (Con cname repr) args -- try reuse
 chkApp (Var tname info) args | not (infoIsRefCounted info) -- toplevel function
   = do bs <- getParamInfos (getName tname)
        withNonTail $ mapM_ chkArg $ zipDefault Own bs args
-       -- checkFunCallable (getName tname) =<< getFip
+       chkFunCallable (getName tname) =<< getFip
        input <- getInput
        unless (isTailContext input || getName tname `notElem` defGroupNames input) $
          requireCapability HasStack $ \ppenv -> Just $
@@ -390,11 +390,10 @@ isCallableFrom (Fbip _ _) (NoFip _)  = True
 isCallableFrom (NoFip _) (NoFip _)  = True
 isCallableFrom _ _  = False
 
--- TODO: `gammaLookupQ` does not seem to work within the current module
-checkFunCallable :: Name -> Fip -> Chk ()
-checkFunCallable fn fip
+chkFunCallable :: Name -> Fip -> Chk ()
+chkFunCallable fn fip
   = do g <- gamma <$> getEnv
-       let xs = gammaLookupQ fn g
+       let xs = gammaLookupCanonical fn g
        case xs of
          [info] -> case info of
            InfoFun _ _ _ _ fip' _
@@ -405,7 +404,7 @@ checkFunCallable fn fip
                 else emitWarning $ text $ "Non-FIP function called: " ++ show fn
            _ -> pure ()
          [] -> emitWarning $ text $ "FIP analysis couldn't find FIP information for function: " ++ show fn
-         _ -> emitWarning $ text $ "FIP analysis found ambiguous FIP information for function: " ++ show fn
+         infos -> emitWarning $ text $ "FIP analysis found ambiguous FIP information for function: " ++ show fn ++ "\n" ++ show infos
 
 -- look up fip annotation; return noFip if not found
 lookupFip :: Name -> Chk Fip
