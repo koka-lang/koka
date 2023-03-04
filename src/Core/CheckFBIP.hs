@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
--- Check if a function is FBIP
+-- Check if a function is FIP/FBIP
 -----------------------------------------------------------------------------
 
 module Core.CheckFBIP( checkFBIP
@@ -46,6 +46,7 @@ import Core.Borrowed
 import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial, nameTrue)
 import Backend.C.ParcReuse (getFixedDataAllocSize)
 import Backend.C.Parc (getDataDef')
+import Data.List (tails)
 
 trace s x =
   Lib.Trace.trace s
@@ -124,9 +125,9 @@ chkExpr expr
               gamma2 <- bindName (defTName def) Nothing out
               writeOutput gamma2
               withBorrowed (S.map getName $ M.keysSet $ gammaNm gamma2) $
-                withNonTailCtx $ chkExpr $ defExpr def
+                withTailMod [Let dgs body] $ chkExpr $ defExpr def
       Let _ _
-        -> unhandled $ text "FBIP check can not handle recursive let bindings."
+        -> unhandled $ text "FIP check can not handle recursive let bindings."
 
       Case scrutinees branches
         -> chkBranches scrutinees branches
@@ -136,28 +137,33 @@ chkExpr expr
 chkModCons :: [Expr] -> Chk ()
 chkModCons [] = pure ()
 chkModCons args
-  = do let (larg:rargs) = reverse args
-       withNonTailCtx $ mapM_ chkExpr rargs
-       chkExpr larg -- can be tail-mod-cons
+  = zipWithM_ (\a tl -> withTailMod tl $ chkExpr a) args (tail $ tails args)
 
 chkBranches :: [Expr] -> [Branch] -> Chk ()
 chkBranches scrutinees branches
-  = do whichBorrowed <- mapM chkScrutinee scrutinees
+  = do whichBorrowed <- mapM isBorrowedScrutinee scrutinees
        let branches' = filter (not . isPatternMatchError) branches
        outs <- mapM (extractOutput . chkBranch whichBorrowed) branches'
-       writeOutput =<< joinContexts (map branchPatterns branches') outs
+       gamma2 <- joinContexts (map branchPatterns branches') outs
+       writeOutput gamma2
+       withBorrowed (S.map getName $ M.keysSet $ gammaNm gamma2) $
+         withTailModBranches branches' $ -- also filter out pattern match errors
+           mapM_ chkScrutinee scrutinees
   where
     fromVar (Var tname _) = Just tname
     fromVar _ = Nothing
 
-chkScrutinee :: Expr -> Chk ParamInfo
+isBorrowedScrutinee :: Expr -> Chk ParamInfo
+isBorrowedScrutinee expr@(Var tname info)
+  = do b <- isBorrowed tname
+       pure $ if b then Borrow else Own
+isBorrowedScrutinee _ = pure Own
+
+chkScrutinee :: Expr -> Chk ()
 chkScrutinee expr@(Var tname info)
   = do b <- isBorrowed tname
        unless b $ markSeen tname info
-       pure (if b then Borrow else Own)
-chkScrutinee expr
-  = do withNonTailCtx $ chkExpr expr
-       pure Own
+chkScrutinee expr = chkExpr expr
 
 chkBranch :: [ParamInfo] -> Branch -> Chk ()
 chkBranch whichBorrowed (Branch pats guards)
@@ -171,7 +177,7 @@ chkGuard :: Guard -> Chk ()
 chkGuard (Guard test expr)
   = do out <- extractOutput $ chkExpr expr
        withBorrowed (S.map getName $ M.keysSet $ gammaNm out) $
-         withNonTailCtx $ chkExpr test
+         withNonTail $ chkExpr test
        writeOutput out
 
 -- | We ignore default branches that create a pattern match error
@@ -205,15 +211,14 @@ chkApp (Con cname repr) args -- try reuse
        chkAllocation cname repr
 chkApp (Var tname info) args | not (infoIsRefCounted info) -- toplevel function
   = do bs <- getParamInfos (getName tname)
-       withNonTailCtx $ mapM_ chkArg $ zipDefault Own bs args
+       withNonTail $ mapM_ chkArg $ zipDefault Own bs args
+       -- checkFunCallable (getName tname) =<< getFip
        input <- getInput
-       unless (isTailContext input) $
-         requireCapability HasStack $ \ppenv ->
-           if getName tname `elem` defGroupNames input
-           then Just $ cat [text "Non-tail call to (mutually) recursive function: ", ppName ppenv (getName tname)]
-           else Nothing
+       unless (isTailContext input || getName tname `notElem` defGroupNames input) $
+         requireCapability HasStack $ \ppenv -> Just $
+           cat [text "Non-tail call to (mutually) recursive function: ", ppName ppenv (getName tname)]
 chkApp fn args -- local function
-  = do withNonTailCtx $ mapM_ chkExpr args
+  = do withNonTail $ mapM_ chkExpr args
        isBapp <- case fn of -- does the bapp rule apply?
          Var tname _ -> isBorrowed tname
          _ -> pure False
@@ -224,11 +229,16 @@ chkApp fn args -- local function
 
 chkArg :: (ParamInfo, Expr) -> Chk ()
 chkArg (Own, expr) = chkExpr expr
-chkArg (Borrow, Var tname info) = markBorrowed tname info
 chkArg (Borrow, expr)
-  = do chkExpr expr
-       requireCapability HasDealloc $ \ppenv -> Just $
-         text "Passing owned expressions as borrowed require deallocation."
+  = case expr of
+      (TypeLam _ fn) -> chkArg (Borrow, fn)
+      (TypeApp fn _) -> chkArg (Borrow, fn)
+      (App (TypeApp (Var openName _) _) [fn]) | getName openName == nameEffectOpen
+        -> chkArg (Borrow, fn) -- disregard .open calls
+      (Var tname info) -> markBorrowed tname info
+      _ -> do chkExpr expr
+              requireCapability HasDealloc $ \ppenv -> Just $
+                text $ "Passing owned expressions as borrowed requires deallocation: " ++ show expr
 
 chkLit :: Lit -> Chk ()
 chkLit lit
@@ -243,7 +253,7 @@ chkWrap :: TName -> VarInfo -> Chk ()
 chkWrap tname info
   = do bs <- getParamInfos (getName tname)
        unless (Borrow `notElem` bs) $
-         unhandled $ text "FBIP analysis detected that a top-level function was wrapped."
+         unhandled $ text "FIP analysis detected that a top-level function was wrapped."
 
 chkAllocation :: TName -> ConRepr -> Chk ()
 chkAllocation cname repr | isConAsJust repr = pure ()
@@ -258,7 +268,7 @@ chkAllocation cname crepr
 chkEffect :: Tau -> Chk ()
 chkEffect tp
   = if isFBIPExtend tp then pure () else
-      unhandled $ text "Algebraic effects other than <exn,div> are not FBIP."
+      unhandled $ text "Algebraic effects other than <exn,div> are not FIP/FBIP."
   where
     isFBIPExtend tp = case extractEffectExtend tp of
       (taus, tau) -> all isFBIP taus
@@ -373,6 +383,30 @@ withFip f chk
 getFip :: Chk Fip  
 getFip = fip <$> getEnv
 
+isCallableFrom :: Fip -> Fip -> Bool
+isCallableFrom (Fip _) _ = True
+isCallableFrom (Fbip _ _) (Fbip _ _)  = True
+isCallableFrom (Fbip _ _) (NoFip _)  = True
+isCallableFrom (NoFip _) (NoFip _)  = True
+isCallableFrom _ _  = False
+
+-- TODO: `gammaLookupQ` does not seem to work within the current module
+checkFunCallable :: Name -> Fip -> Chk ()
+checkFunCallable fn fip
+  = do g <- gamma <$> getEnv
+       let xs = gammaLookupQ fn g
+       case xs of
+         [info] -> case info of
+           InfoFun _ _ _ _ fip' _
+             -> if fip' `isCallableFrom` fip then pure ()
+                else emitWarning $ text $ "Non-FIP function called: " ++ show fn
+           Type.Assumption.InfoExternal _ _ _ _ fip' _
+             -> if fip' `isCallableFrom` fip then pure ()
+                else emitWarning $ text $ "Non-FIP function called: " ++ show fn
+           _ -> pure ()
+         [] -> emitWarning $ text $ "FIP analysis couldn't find FIP information for function: " ++ show fn
+         _ -> emitWarning $ text $ "FIP analysis found ambiguous FIP information for function: " ++ show fn
+
 -- look up fip annotation; return noFip if not found
 lookupFip :: Name -> Chk Fip
 lookupFip name
@@ -413,9 +447,48 @@ unhandled doc
   = do hasAll <- and <$> mapM hasCapability (enumFromTo minBound maxBound)
        unless hasAll $ emitWarning doc
 
-withNonTailCtx :: Chk a -> Chk a
-withNonTailCtx
+withNonTail :: Chk a -> Chk a
+withNonTail
   = withInput (\st -> st { isTailContext = False })
+
+withTailModBranches :: [Branch] -> Chk a -> Chk a
+withTailModBranches [Branch _ [Guard test expr]] | isExprTrue test
+  = withTailMod [expr]
+withTailModBranches _ = withNonTail
+
+withTailMod :: [Expr] -> Chk a -> Chk a
+withTailMod modExpr
+  = withInput (\st -> st { isTailContext = isTailContext st && all isModCons modExpr })
+
+isModCons :: Expr -> Bool
+isModCons expr
+ = case expr of
+     Var _ _     -> True
+     TypeLam _ e -> isModCons e
+     TypeApp e _ -> isModCons e
+     Con _ _     -> True
+     Lit _       -> True
+     Let dgs e   -> all isModConsDef (flattenDefGroups dgs) && isModCons e
+     App f args  -> isModConsFun f && all isModCons args
+     _           -> False
+  where
+    isModConsBranch (Branch pat guards) = all isModConsGuard guards
+    isModConsGuard (Guard test expr)    = isModCons test && isModCons expr
+
+isModConsFun :: Expr -> Bool
+isModConsFun expr
+  = case expr of
+      TypeLam _ e   -> isModConsFun e
+      TypeApp e _   -> isModConsFun e
+      Con _ _       -> True
+      Let dgs e     -> all isModConsDef (flattenDefGroups dgs) && isModConsFun e 
+      App f args    -> hasTotalEffect (typeOf expr) && isModConsFun f && all isModCons args
+      _             -> False
+  where
+    isModConsBranchFun (Branch pat guards) = all isModConsGuardFun guards
+    isModConsGuardFun (Guard test expr)    = isModCons test && isModConsFun expr
+
+isModConsDef def = isModCons (defExpr def)
 
 withBorrowed :: S.Set Name -> Chk a -> Chk a
 withBorrowed names action
@@ -534,11 +607,11 @@ checkOutputEmpty out
   = do case M.maxViewWithKey $ gammaNm out of
          Nothing -> pure ()
          Just ((nm, _), _)
-           -> emitWarning $ text $ "FBIP analysis failed as it didn't bind a name: " ++ show nm
+           -> emitWarning $ text $ "FIP analysis failed as it didn't bind a name: " ++ show nm
        case M.maxViewWithKey $ gammaDia out of
          Just ((sz, c:_), _) | sz > 0
            -> requireCapability HasAlloc $ \ppenv -> Just $
-                cat [text "Unreused constructor: ", prettyCon ppenv c sz]
+                cat [text "Allocated constructor without reuse token: ", prettyCon ppenv c sz]
          _ -> pure ()
 
 zipDefault :: a -> [a] -> [b] -> [(a, b)]
