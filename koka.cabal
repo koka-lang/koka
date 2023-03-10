@@ -134,6 +134,7 @@ executable koka
       src/Platform/cpp/Platform
   c-sources:
       src/Platform/cpp/Platform/cconsole.c
+      src/Platform/cpp/Platform/cconsole.h
   build-tools:
       alex
   build-depends:
