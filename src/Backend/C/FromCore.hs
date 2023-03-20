@@ -445,10 +445,12 @@ genTypeDefPre (Data info isExtend)
        -- generate the type declaration
        if (dataRepr == DataEnum)
         then let enumIntTp = case (dataInfoDef info) of
-                               DataDefValue (ValueRepr 1 0 _) -> "uint8_t"
-                               DataDefValue (ValueRepr 2 0 _) -> "uint16_t"
-                               DataDefValue (ValueRepr 4 0 _) -> "uint32_t"
-                               _                              -> "uint64_t"
+                               DataDefValue (ValueRepr n 0 _) 
+                                -> if (n <= 1) then "uint8_t"
+                                   else if (n <= 2) then "uint16_t"
+                                   else if (n <= 4) then "uint32_t"
+                                   else "uint64_t"
+                               _ -> "kk_intb_t"  -- should not happen?
                  ppEnumCon (con,conRepr)
                            = ppName (conInfoName con)  -- <+> text "= datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
              in  emitToH $ ppVis (dataInfoVis info) <.> text "enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
