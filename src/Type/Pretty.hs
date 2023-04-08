@@ -10,7 +10,7 @@ module Type.Pretty (-- * Pretty
                    ,prettyDataInfo, prettyConInfo, prettyDefFunType
                    ,ppSchemeEffect, ppDeclType, ppPred
                    ,niceTypeInitial, niceTypeExtend, niceTypeExtendVars
-                   ,precTop, precArrow, precApp, precAtom, pparens
+                   ,precTop, precArrow, precApp, precAtom, pparens, ppExpr, ppBinder, ppBranch, ppGuard, ppPattern, ppLit, ppPatBinder
                    ,Env(..), defaultEnv
                    ,niceList, niceTypes, niceType, niceEnv
                    ,typeColon, niceTypeVars, ppName
@@ -26,7 +26,7 @@ import Data.List( partition )
 import Lib.PPrint
 import Common.Name
 import Common.NamePrim( isNameTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty,
-                        nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore, nameCoreTypes )
+                        nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore, nameCoreTypes, nameTrue )
 import Common.ColorScheme
 import Common.IdNice
 import Common.Syntax
@@ -37,6 +37,7 @@ import Kind.ImportMap
 import Type.Type
 import Type.TypeVar
 import Type.Kind
+import Syntax.Syntax (Expr (..), ValueBinder (..), Branch (..), Guard (..), Pattern(..), Lit (..))
 
 typeColon colors
   = color (colorSep colors) (text ":")
@@ -333,6 +334,61 @@ pparens :: Prec -> Prec -> Doc -> Doc
 pparens context prec doc
   | context >= prec = parens doc
   | otherwise       = doc
+
+ppBinder :: Env -> ValueBinder (Maybe Type) (Maybe (Expr Type)) -> Doc
+ppBinder env (ValueBinder name tp expr _ _)
+  =  ppName env name <+> case tp of Nothing -> empty; Just x -> text ":" <+> ppType env x <+> case expr of Nothing -> empty; Just x -> text "=" <+> ppExpr env x
+
+ppPatBinder :: Env -> ValueBinder (Maybe Type) (Pattern Type) -> Doc
+ppPatBinder env (ValueBinder name _ _ _ _)
+  =  ppName env name
+
+alwaysTrue :: Expr Type -> Bool
+alwaysTrue (Var n _ _) | n == nameTrue = True
+alwaysTrue _ = False
+
+ppGuard :: Env -> Guard Type -> Doc
+ppGuard env (Guard expr expr2)
+  = if alwaysTrue expr then text "->" <+> ppExpr env expr2 else  text "|" <+> ppExpr env expr <+> text "->" <+> ppExpr env expr2
+
+ppPattern :: Env -> Pattern Type -> Doc
+ppPattern env pat
+  = case pat of
+  PatWild _ -> text "_"
+  PatVar vb -> ppPatBinder env vb
+  PatAnn pat' ty _ -> ppPattern env pat' <+> text ":" <+> ppType env ty
+  PatCon na x0 _ _ -> ppName env na <.> tupled (map (\x -> ppPattern env (snd x)) x0)
+  PatParens pat' _ -> tupled [ppPattern env pat']
+  PatLit lit -> ppLit env lit
+   
+ppLit :: Env -> Lit -> Doc
+ppLit env lit
+  = case lit of
+      LitInt i _ -> text (show i)
+      LitChar c _ -> text (show c)
+      LitString s _ -> text (show s)
+      LitFloat f _ -> text (show f)
+
+ppBranch:: Env -> Branch Type -> Doc
+ppBranch env (Branch pat guards)
+  = ppPattern env pat <.> sep (map (\x -> ppGuard env x <+> text "\n") guards)
+
+ppExpr :: Env -> Expr Type -> Doc
+ppExpr env expr
+  = color (colorSource (colors env)) $
+  case expr of
+   Lam vbs ex _ -> keyword env "fn" <.> tupled (map (ppBinder env) vbs) <.> text " " <+> ppExpr env ex
+   App ex x0 _ -> ppExpr env ex <.> tupled (map (\(n, x) -> ppExpr env x) x0)
+   Var na b ra -> ppName env na
+   Case ex brs ra -> keyword env "match" <+> ppExpr env ex <+> text "\n" <.> sep (map (\x -> ppBranch env x <+> text "\n") brs)
+   _ -> text "Pretty print for this expression not implemented yet"
+  --  Let dg ex ra -> _
+  --  Bind def ex ra -> _
+  --  Lit lit -> _
+  --  Ann ex ty ra -> __
+  --  Parens ex na ra -> _
+  --  Inject ty ex b ra -> _
+  --  Handler hs hs' ho m_b m_ty vbs m_ex ma m_ex' hbs ra ra' -> _)
 
 
 ppType :: Env -> Type -> Doc

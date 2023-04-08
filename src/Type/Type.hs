@@ -22,7 +22,7 @@ module Type.Type (-- * Types
                   -- ** Accessors
                   , maxSynonymRank
                   , synonymRank, typeVarId, typeConName, typeSynName
-                  , isBound, isSkolem, isMeta
+                  , isBound, isSkolem, isMeta, isStarType, isStarTypeVar
                   -- ** Operations
                   , makeScheme
                   , quantifyType, qualifyType, applyType, tForall
@@ -467,6 +467,20 @@ splitFunType tp
       TSyn _ _ t
         -> splitFunType t
       _ -> Nothing
+
+
+
+isStarType_ :: Type -> Bool
+isStarType_ (TVar (TypeVar id kind _)) = hasKindStarResult kind
+isStarType_ (TApp (TCon (TypeCon _ kind)) _) = hasKindStarResult kind
+isStarType_ (TCon (TypeCon _ kind)) = hasKindStarResult kind
+isStarType_ _ = False
+
+isStarType :: Type -> Bool
+isStarType = isStarType_ . canonicalForm
+
+isStarTypeVar :: TypeVar -> Bool
+isStarTypeVar (TypeVar id kind _) = hasKindStarResult kind
 
 
 {--------------------------------------------------------------------------

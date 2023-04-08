@@ -18,7 +18,7 @@ module Common.Name
           , readQualified
           , labelNameCompare
           , toHiddenUniqueName
-          , newName, newQualified
+          , newName, newQualified, newPrefixName
           , nameNil, nameIsNil
           , nameCaseEqual, nameCaseOverlap, isSameNamespace
           , qualify, unqualify, isQualified, qualifier
@@ -175,6 +175,10 @@ newName :: String -> Name
 newName s
   = newQualified "" s
 
+
+newPrefixName :: String -> Name -> Name
+newPrefixName prefix s
+  = newQualified (nameModule s) (prefix ++ nameId s)
 
 newQualified :: String -> String -> Name
 newQualified m n

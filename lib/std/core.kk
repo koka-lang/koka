@@ -2056,6 +2056,15 @@ pub fun show( s : sslice ) : string
 pub fun show-list( xs : list<a>, show-elem : (a) -> e string ) : e string
   "[" ++ xs.map(show-elem).join(",") ++ "]"
 
+pub fun show( xs : list<a>, show-elem : (a) -> e string ) : e string
+  "[" ++ xs.map(show-elem).join(",") ++ "]"
+
+pub fun (==)(l: list<a>, l2: list<a>, eqA: (a, a) -> e bool): e bool
+  match (l, l2)
+    (Cons(a, l'), Cons(b, l2')) -> eqA(a, b) && (==)(l'.unsafe-decreasing, l2'.unsafe-decreasing, eqA)
+    (Nil, Nil) -> True
+    (_,_) -> False
+
 pub fun show( xs : list<string> ) : string
   show-list(xs,show)
 

@@ -823,6 +823,7 @@ inferCheck loaded0 flags line coreImports program
               (loadedSynonyms loaded0)
               (loadedNewtypes loaded0)
               program
+      --  trace (show defs) $ return ()
 
        let  gamma0  = gammaUnions [loadedGamma loaded0
                                   ,extractGamma (isValueFromFlags flags) True coreProgram
