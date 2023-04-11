@@ -37,7 +37,7 @@ import Kind.ImportMap
 import Type.Type
 import Type.TypeVar
 import Type.Kind
-import Syntax.Syntax (Expr (..), ValueBinder (..), Branch (..), Guard (..), Pattern(..), Lit (..))
+import Syntax.Syntax (Expr (..), ValueBinder (..), Branch (..), Guard (..), Pattern(..), Lit (..), DefGroup(..), Def (Def))
 
 typeColon colors
   = color (colorSep colors) (text ":")
@@ -373,6 +373,22 @@ ppBranch:: Env -> Branch Type -> Doc
 ppBranch env (Branch pat guards)
   = ppPattern env pat <.> sep (map (\x -> ppGuard env x <+> text "\n") guards)
 
+ppDefBinder :: Env -> ValueBinder () (Expr Type) -> Doc
+ppDefBinder env (ValueBinder name _ expr _ _)
+  =  ppName env name <+> text "=" <+> ppExpr env expr
+
+ppDef :: Env -> Def Type -> Doc
+ppDef env (Def binder _ vis _ inline doc)
+  = prettyComment env doc $
+    (if isPrivate vis then empty else ppVis env vis) <.>
+    ppDefBinder env binder
+
+ppDefGroup:: Env -> DefGroup Type -> Doc
+ppDefGroup env dg
+  = case dg of
+      DefNonRec def -> ppDef env def
+      DefRec defs -> sep (map (ppDef env) defs)
+
 ppExpr :: Env -> Expr Type -> Doc
 ppExpr env expr
   = color (colorSource (colors env)) $
@@ -381,14 +397,15 @@ ppExpr env expr
    App ex x0 _ -> ppExpr env ex <.> tupled (map (\(n, x) -> ppExpr env x) x0)
    Var na b ra -> ppName env na
    Case ex brs ra -> keyword env "match" <+> ppExpr env ex <+> text "\n" <.> sep (map (\x -> ppBranch env x <+> text "\n") brs)
-   _ -> text "Pretty print for this expression not implemented yet"
-  --  Let dg ex ra -> _
-  --  Bind def ex ra -> _
-  --  Lit lit -> _
-  --  Ann ex ty ra -> __
-  --  Parens ex na ra -> _
-  --  Inject ty ex b ra -> _
-  --  Handler hs hs' ho m_b m_ty vbs m_ex ma m_ex' hbs ra ra' -> _)
+   Ann ex ty _ -> ppExpr env ex <+> text ":" <+> ppType env ty
+   Parens ex _ _ -> tupled [ppExpr env ex]
+   Lit lit -> ppLit env lit
+   -- Not as sure about these
+   Let dg ex _ -> keyword env "val" <+> ppDefGroup env dg <+> text "=" <+> ppExpr env ex
+   Inject ty ex b _ -> keyword env "mask" <+> if b then keyword env "behind" else empty <.> angled [ppType env ty] <+> tupled [ppExpr env ex]
+   Bind dg ex _ -> keyword env "val" <+> ppDef env dg <+> text "=" <+> ppExpr env ex
+   _ -> text "Pretty print for handlers is not implemented yet"
+   -- Handler hs hs' ho m_b m_ty vbs m_ex ma m_ex' hbs ra ra' -> text "handle"
 
 
 ppType :: Env -> Type -> Doc
