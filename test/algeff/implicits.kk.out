@@ -6,6 +6,8 @@
 ()
 False
  
+algeff/implicits/==: (rose, rose) -> div bool
+algeff/implicits/==: forall<e> (graph, graph) -> e bool
 algeff/implicits/Abort: forall<e,a> (.hnd-abort<e,a>) -> abort
 algeff/implicits/Children: forall<e,a> (.hnd-children<e,a>) -> children
 algeff/implicits/Choice: forall<e,a> (.hnd-choice<e,a>) -> choice
@@ -45,6 +47,8 @@ algeff/implicits/pretty-emit: forall<a,e> (action : () -> <emit|e> a) -> e strin
 algeff/implicits/pretty-emit1: forall<a,e> (action : () -> <console,emit,exn|e> a) -> <console|e> error<a>
 algeff/implicits/pretty-emit2: forall<a,e> (action : () -> <console,emit,width|e> a) -> <console,width|e> a
 algeff/implicits/set: forall<a> (x : a) -> (state<a>) ()
+algeff/implicits/show: (rose) -> div string
+algeff/implicits/show: forall<e> (graph) -> e string
 algeff/implicits/state1: forall<a,e> (action : () -> <state<int>|e> a) -> e a
 algeff/implicits/state2: forall<a,b,e> (init : a, action : () -> <state<a>|e> b) -> e b
 algeff/implicits/sub: (rose : rose) -> list<rose>

@@ -1,19 +1,36 @@
 Tree(2, [Tree(3, []), Tree(4, [])])
  
+cgen/specialize/tree-list/==: forall<a,e> (tree<a>, tree<a>, eq5 : (this-eq5 : a, other-eq5 : a) -> <div|e> bool) -> <div|e> bool
 cgen/specialize/tree-list/.copy: forall<a> (tree<a>, data : optional<a>, children : optional<list<tree<a>>>) -> tree<a>
-cgen/specialize/tree-list/.lift000-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xs1147 : list<tree<a>>) -> <div|e> list<tree<b>>
-cgen/specialize/tree-list/.lift000-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xs1152 : list<tree<a>>) -> <div|e> list<tree<b>>
-cgen/specialize/tree-list/.lift000-show: (xs1160 : list<tree<int>>) -> div list<string>
-cgen/specialize/tree-list/.lift000-show: (xs1165 : list<tree<int>>) -> div list<string>
+cgen/specialize/tree-list/.lift000-show: forall<a,e> (show5 : (a) -> <div|e> string, xs2058 : list<tree<a>>) -> <div|e> string
+cgen/specialize/tree-list/.lift000-show: forall<a,e> (show5 : (a) -> <div|e> string, xs2071 : list<tree<a>>) -> <div|e> list<string>
+cgen/specialize/tree-list/.lift000-op: forall<a,e> (eq5 : (this-eq5 : a, other-eq5 : a) -> <div|e> bool, l2079 : list<tree<a>>, l22080 : list<tree<a>>) -> <
+ div|e> bool
+cgen/specialize/tree-list/.lift000-op: forall<a,e> (eq5 : (this-eq5 : a, other-eq5 : a) -> <div|e> bool, l2087 : list<tree<a>>, l22088 : list<tree<a>>) -> <
+ div|e> bool
+cgen/specialize/tree-list/.lift000-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xs2105 : list<tree<a>>) -> <div|e> list<tree<b>>
+cgen/specialize/tree-list/.lift000-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xs2110 : list<tree<a>>) -> <div|e> list<tree<b>>
+cgen/specialize/tree-list/.lift000-show: (xs2118 : list<tree<int>>) -> div list<string>
+cgen/specialize/tree-list/.lift000-show: (xs2123 : list<tree<int>>) -> div list<string>
 cgen/specialize/tree-list/.lift000-main: (tree<int>) -> <div,console> tree<int>
-cgen/specialize/tree-list/.lift000-main: (xs1179 : list<tree<int>>) -> <div,console> list<tree<int>>
-cgen/specialize/tree-list/.lift000-main: (xs1184 : list<tree<int>>) -> <div,console> list<tree<int>>
-cgen/specialize/tree-list/.mlift000-lift1192-mapT: forall<a,e> (tree<a>, list<tree<a>>) -> <div|e> list<tree<a>>
-cgen/specialize/tree-list/.mlift000-lift1192-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xx1156 : list<tree<a>>, tree<b>) -> <div|e> list<tree<b>>
+cgen/specialize/tree-list/.lift000-main: (xs2137 : list<tree<int>>) -> <div,console> list<tree<int>>
+cgen/specialize/tree-list/.lift000-main: (xs2142 : list<tree<int>>) -> <div,console> list<tree<int>>
+cgen/specialize/tree-list/.mlift000-lift2149-show: (list<string>) -> string
+cgen/specialize/tree-list/.mlift000-lift2150-show: forall<e> (string, list<string>) -> <div|e> list<string>
+cgen/specialize/tree-list/.mlift000-lift2150-show: forall<a,e> (show5 : (a) -> <div|e> string, xx2075 : list<tree<a>>, string) -> <div|e> list<string>
+cgen/specialize/tree-list/.mlift000-show: forall<e> (string, string) -> <div|e> string
+cgen/specialize/tree-list/.mlift000-show: forall<a,e> (children0 : list<tree<a>>, show5 : (a) -> <div|e> string, string) -> <div|e> string
+cgen/specialize/tree-list/.mlift000-lift2152-op: forall<a,e> (eq5 : (this-eq5 : a, other-eq5 : a) -> <div|e> bool, l2095' : list<tree<a>>, l22092' : list<tree
+ <a>>, bool) -> <div|e> bool
+cgen/specialize/tree-list/.mlift000-op: forall<a,e> (eq5 : (this-eq5 : a, other-eq5 : a) -> <div|e> bool, other-children : list<tree<a>>, this-children : list
+ <tree<a>>, bool) -> <div|e> bool
+cgen/specialize/tree-list/.mlift000-lift2154-mapT: forall<a,e> (tree<a>, list<tree<a>>) -> <div|e> list<tree<a>>
+cgen/specialize/tree-list/.mlift000-lift2154-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xx2114 : list<tree<a>>, tree<b>) -> <div|e> list<tree<b>>
 cgen/specialize/tree-list/.mlift000-mapT: forall<a,e> (a, list<tree<a>>) -> <div|e> tree<a>
 cgen/specialize/tree-list/.mlift000-mapT: forall<a,b,e> (children0 : list<tree<a>>, f : (a) -> <div|e> b, b) -> <div|e> tree<b>
 cgen/specialize/tree-list/children: forall<a> (tree : tree<a>) -> list<tree<a>>
 cgen/specialize/tree-list/data: forall<a> (tree : tree<a>) -> a
 cgen/specialize/tree-list/main: () -> <console,div> ()
 cgen/specialize/tree-list/mapT: forall<a,b,e> (tree<a>, f : (a) -> <div|e> b) -> <div|e> tree<b>
+cgen/specialize/tree-list/show: forall<a,e> (tree<a>, show5 : (a) -> <div|e> string) -> <div|e> string
 cgen/specialize/tree-list/show: (tree<int>) -> div string

@@ -65,7 +65,7 @@ val infos = [
   Info( 2486076.5,  86076,  Sun,  "2094-07-18", "2094-W28-7", "2094-M07-14",  "2094-07-05", "1810-11-11", "2086-11-11" )
 ]
 
-fun show( info : info ) : string {
+fun showCSV( info : info ) : string {
   [info.jd.show,info.mjd.show,info.wday.show,info.greg,
    info.isoweek,info.isomonth,
    info.julian,info.coptic,info.ethiopian
@@ -86,7 +86,7 @@ fun check(name : string, res : string, got: string ) : io () {
 
 
 fun check-info( info : info ) : io () {
-  println("\n" ++ info.show)
+  println("\n" ++ info.showCSV)
   val i = instant-at-jd(info.jd,ts-ti)
   val t = i.time
   fun check-date( name : string, res : string, cal : calendar, mpre : string = "", swidth : int = 2 ) {

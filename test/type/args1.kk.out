@@ -1,4 +1,8 @@
+test/type/args1.kk(1, 1): warning: Type test may be better declared as a value type for efficiency (e.g. 'value type/struct')
+ or declare as a reference type (e.g. 'ref type/struct') to suppress this warning
+type/args1/==: forall<e> (test, test) -> e bool
 type/args1/Test: (x : int, y : int) -> test
 type/args1/foo: () -> test
+type/args1/show: forall<e> (test) -> e string
 type/args1/x: (test : test) -> int
 type/args1/y: (test : test) -> int

@@ -10,7 +10,8 @@ module Type.Pretty (-- * Pretty
                    ,prettyDataInfo, prettyConInfo, prettyDefFunType
                    ,ppSchemeEffect, ppDeclType, ppPred
                    ,niceTypeInitial, niceTypeExtend, niceTypeExtendVars
-                   ,precTop, precArrow, precApp, precAtom, pparens, ppExpr, ppBinder, ppBranch, ppGuard, ppPattern, ppLit, ppPatBinder
+                   ,precTop, precArrow, precApp, precAtom, pparens
+                   ,ppDef, ppExpr, ppBinder, ppBranch, ppGuard, ppPattern, ppLit, ppPatBinder
                    ,Env(..), defaultEnv
                    ,niceList, niceTypes, niceType, niceEnv
                    ,typeColon, niceTypeVars, ppName

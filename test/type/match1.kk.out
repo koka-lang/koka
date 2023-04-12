@@ -1,3 +1,5 @@
+type/match1/==: forall<a,e> (test<a>, test<a>, eq3 : (this-eq3 : a, other-eq3 : a) -> e bool) -> e bool
 type/match1/Test: forall<a> (arg : a) -> test<a>
 type/match1/arg: forall<a> (test : test<a>) -> a
+type/match1/show: forall<a,e> (test<a>, show3 : (a) -> e string) -> e string
 type/match1/xtest: forall<a> (x : test<a>) -> console a

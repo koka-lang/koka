@@ -1,14 +1,15 @@
 2
 ticks: 2
 2
-((16/2)/3)
-(16/2)
-16
-2
-3
+Div(e1: Div(e1: Int(i: 16), e2: Int(i: 2)), e2: Int(i: 3))
+Div(e1: Int(i: 16), e2: Int(i: 2))
+Int(i: 16)
+Int(i: 2)
+Int(i: 3)
 ticks: 2
 2
  
+algeff/expr/==: (expr, expr) -> div bool
 algeff/expr/>>=: forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
 algeff/expr/Div: (e1 : expr, e2 : expr) -> expr
 algeff/expr/Exc: forall<e,a> (.hnd-exc<e,a>) -> exc
@@ -34,9 +35,10 @@ algeff/expr/mtick: forall<a,e> () -> ((s : int) -> e either<a,((), int)>)
 algeff/expr/out: forall<a,e> (() -> <console,out|e> a) -> <console|e> a
 algeff/expr/run: forall<a,b,e> (s : a, m : (a) -> e b) -> e b
 algeff/expr/show: (r : either<string,(int, int)>) -> total string
-algeff/expr/show: (e : expr) -> total string
+algeff/expr/show: forall<e> (expr) -> e string
 algeff/expr/show1: (x : either<string,int>) -> string
 algeff/expr/show2: (x : (either<string,int>, int)) -> string
+algeff/expr/showE: (e : expr) -> total string
 algeff/expr/showErr: forall<a> (s : (a) -> string, x : either<string,a>) -> string
 algeff/expr/state: forall<a,e> (init : int, action : () -> <state|e> a) -> e (a, int)
 algeff/expr/test1: (e : expr) -> console ()

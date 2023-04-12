@@ -1,6 +1,8 @@
 static/div1/nat: V
+static/div1/==: (nat, nat) -> div bool
 static/div1/Succ: (nat) -> nat
 static/div1/Zero: nat
 static/div1/h: (nat, nat) -> nat
 static/div1/is-succ: (nat : nat) -> bool
 static/div1/is-zero: (nat : nat) -> bool
+static/div1/show: forall<e> (nat) -> e string

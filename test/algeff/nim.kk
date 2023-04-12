@@ -12,23 +12,8 @@ type player {
   Alice
 }
 
-fun (==)(p1, p2) {
-  match(p1,p2) {
-    (Bob,Bob) -> True
-    (Alice,Alice) -> True
-    _ -> False
-  }
-}
-
-fun show(p:player) : string {
-  match(p) {
-    Bob   -> "bob"
-    Alice -> "alice"
-  }
-}
-
 fun show(ps : list<player> ) : string {
-  ps.show-list(show)
+  ps.show(show)
 }
 
 
@@ -92,14 +77,10 @@ val gametree = handler {
   }
 }
 
-fun show(gt :gtree) : div string {
-  showGt(gt,2)
-}
-
-fun showGt(gt :gtree, indent:int) : _ string {
+fun showGt(gt :gtree, indent:int=2) : _ string {
   val showi = (show : (int) -> string)
   match(gt) {
-    Take(p,moves) -> p.show ++ moves.show-list(fn(x) { "\n" ++ " ".repeat(indent) ++  x.fst.core/show ++ " -> " ++ x.snd.showGt(indent+2) })
+    Take(p,moves) -> p.show ++ moves.show(fn(x) { "\n" ++ " ".repeat(indent) ++  x.fst.core/show ++ " -> " ++ x.snd.showGt(indent+2) })
     Winner(p)     -> p.show ++ " wins"
   }
 }
@@ -269,7 +250,7 @@ fun main() {
   [""
   ,testPerfect1().show
   ,testPerfect2().show
-  ,testGt().show
+  ,testGt().showGt
   ,testCheck().show
   ,testPc2().show
   ,testChoose().show

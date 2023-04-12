@@ -1,27 +1,28 @@
 -----------
-alice
+Alice
 -----------
-bob
+Bob
 -----------
-alice[
- 1 -> bob[
- 1 -> alice[
- 1 -> alice wins],
- 2 -> bob wins],
- 2 -> bob[
- 1 -> bob wins],
- 3 -> alice wins]
+Alice[
+ 1 -> Bob[
+ 1 -> Alice[
+ 1 -> Alice wins],
+ 2 -> Bob wins],
+ 2 -> Bob[
+ 1 -> Bob wins],
+ 3 -> Alice wins]
 -----------
-alice
+Alice
 -----------
-bob
+Bob
 -----------
-[bob,alice]
+[Bob,Alice]
 -----------
-uncaught exception: bob cheated!
+uncaught exception: Bob cheated!
 add default effect for std/core/exn
  
-algeff/nim/==: (p1 : player, p2 : player) -> bool
+algeff/nim/==: (gtree, gtree) -> div bool
+algeff/nim/==: forall<e> (player, player) -> e bool
 algeff/nim/Alice: player
 algeff/nim/Bob: player
 algeff/nim/Cheating: forall<e,a> (.hnd-cheating<e,a>) -> cheating
@@ -57,10 +58,10 @@ algeff/nim/put: forall<a> (x : a) -> (state<a>) ()
 algeff/nim/replay: forall<a,e> (n : int, action : () -> <div|e> a) -> <div|e> a
 algeff/nim/s0: list<(player, int)>
 algeff/nim/scoreUpdater: forall<e> (() -> <state<gstate>|e> player) -> <state<gstate>|e> player
-algeff/nim/show: (gt : gtree) -> div string
 algeff/nim/show: (ps : list<player>) -> string
-algeff/nim/show: (p : player) -> string
-algeff/nim/showGt: (gt : gtree, indent : int) -> div string
+algeff/nim/show: (gtree) -> div string
+algeff/nim/show: forall<e> (player) -> e string
+algeff/nim/showGt: (gt : gtree, indent : optional<int>) -> div string
 algeff/nim/state: forall<a,b,e> (init : a, action : () -> <div,state<a>|e> b) -> <div|e> b
 algeff/nim/testCheck: () -> pure player
 algeff/nim/testChoose: () -> div list<player>

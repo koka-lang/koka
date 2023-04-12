@@ -14,7 +14,8 @@ module Common.NamePrim
           -- * Interpreter
             nameExpr, nameMain, nameType
           , nameInteractive, nameInteractiveModule
-          , nameSystemCore, nameCoreTypes
+          , nameSystemCore, nameCoreTypes, nameDecimal, nameDdouble
+          , nameDate, nameTimestamp, nameDuration, nameInstant, nameUtc, nameCalendar, nameTime
           , isSystemCoreName
           , isPrimitiveModule -- no monadic lifting
           , nameCoreHnd
@@ -468,6 +469,15 @@ nameSystemCore  = newName "std/core"
 nameCoreHnd     = newName "std/core/hnd"
 nameCoreTypes   = newName "std/core/types"
 nameDict        = newName "std/data/dict"
+nameDecimal     = newName "std/num/decimal"
+nameDdouble     = newName "std/num/ddouble"
+nameDate     = newName "std/time/date"
+nameTimestamp     = newName "std/time/timestamp"
+nameDuration     = newName "std/time/duration"
+nameInstant     = newName "std/time/instant"
+nameUtc    = newName "std/time/utc"
+nameCalendar    = newName "std/time/calendar"
+nameTime   = newName "std/time/time"
 
 isSystemCoreName name
   = let m = nameModule name

@@ -1,5 +1,7 @@
 static/recursive1/list: V -> V
+static/recursive1/==: forall<a,e> (list<a>, list<a>, eq4 : (this-eq4 : a, other-eq4 : a) -> <div|e> bool) -> <div|e> bool
 static/recursive1/Cons: forall<a> (head : a, tail : list<a>) -> list<a>
 static/recursive1/Nil: forall<a> list<a>
 static/recursive1/is-cons: forall<a> (list : list<a>) -> bool
 static/recursive1/is-nil: forall<a> (list : list<a>) -> bool
+static/recursive1/show: forall<a,e> (list<a>, show4 : (a) -> e string) -> e string

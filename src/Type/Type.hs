@@ -53,7 +53,7 @@ module Type.Type (-- * Types
 
                   -- , isDelay
                   -- ** Standard tests
-                  , isTau, isRho, isTVar, isTCon
+                  , isTau, isRho, isTVar, isTCon, isNamedHandler
                   , tconTotal, tconList
                   , isTypeTotal
                   , isTypeBool, isTypeInt, isTypeString, isTypeChar
@@ -217,6 +217,16 @@ conInfoSize :: Platform -> ConInfo -> Int
 conInfoSize platform conInfo
   = valueReprSize platform (conInfoValueRepr conInfo)
 
+isNamedHandler :: DataInfo -> Bool
+isNamedHandler dataInfo = length (dataInfoConstrs dataInfo) == 1 && isNamedEffectCon (head (dataInfoConstrs dataInfo))
+
+
+isEvValueType :: Tau -> Bool
+isEvValueType (TApp (TCon tc) _) = tc == tconEv
+isEvValueType _         = False
+
+isNamedEffectCon :: ConInfo -> Bool
+isNamedEffectCon conInfo = length (conInfoParams conInfo) == 1 && isEvValueType (snd (head (conInfoParams conInfo)))
 
 -- | A type synonym is quantified by type parameters
 data SynInfo = SynInfo{ synInfoName :: Name

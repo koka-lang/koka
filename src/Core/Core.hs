@@ -127,7 +127,7 @@ import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOp
 import Common.Syntax
 import Kind.Kind
 import Type.Type
-import Type.Pretty ()
+import Type.Pretty (defaultEnv)
 import Type.TypeVar
 import Type.Kind    ( getKind, getHandledEffect, HandledSort(ResumeMany), isHandledEffect, extractHandledEffect )
 
@@ -1180,7 +1180,7 @@ instance HasType Expr where
   typeOf tapp@(TypeApp expr tps)
     = let (tvs,tp1) = splitTForall (typeOf expr)
       in -- assertion "Core.Core.typeOf.TypeApp" (getKind a == getKind tp) $
-         -- trace ("typeOf:TypeApp: , tvs: " ++ show (map pretty tvs) ++ ", tp1: " ++ show (pretty tp1)) $
+         --  trace ("typeOf:TypeApp: , tvs: " ++ show (map pretty tvs) ++ ", tp1: " ++ show (pretty tp1)) $
          subNew (zip tvs tps) |-> tp1
 
   -- Literals
@@ -1255,7 +1255,8 @@ splitTForall :: Type -> ([TypeVar], Type)
 splitTForall tp
   = case expandSyn tp of
       (TForall tvs _ tp) -> (tvs, tp) -- TODO what about the rest of the variables and preds?
-      _ ->  failure ("Core.Core.splitTForall: Expected forall: " ++ show (pretty tp))
+      tp@(TFun args eff res) -> ([], tp)
+      _ ->  failure ("Core.Core.splitTForall: Expected forall: " ++ show tp)
 
 
 type Deps = S.Set Name

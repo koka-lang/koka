@@ -64,6 +64,7 @@ import Kind.InferMonad
 import Kind.Unify
 
 import Syntax.RangeMap
+import Type.Pretty (ppDef)
 
 
 {--------------------------------------------------------------------------
@@ -151,14 +152,16 @@ synTypeDefGroup modName (Core.TypeDefGroup ctdefs)
     concatMap (synTypeDef modName) ctdefs ++ synAdvancedDef modName ctdefs
 
 isPrimitive name
-  = nameId name `elem` [nameId nameSystemCore, nameId nameCoreHnd, nameId nameCoreTypes]
+  = nameId name `elem` map nameId [nameSystemCore, nameCoreHnd, nameCoreTypes, nameDecimal, nameDdouble, 
+  nameDate, nameTimestamp, nameDuration, nameInstant, nameUtc, nameCalendar, nameTime]
 
 doSynAdvancedDef :: Core.TypeDef -> Bool
 doSynAdvancedDef (Core.Synonym synInfo) = False
 doSynAdvancedDef (Core.Data dataInfo isExtend) | isHiddenName (dataInfoName dataInfo) = False
-doSynAdvancedDef (Core.Data dataInfo isExtend) = (not (dataInfoIsOpen dataInfo) && (not . null $ dataInfoConstrs dataInfo)
+doSynAdvancedDef (Core.Data dataInfo isExtend) = not (dataInfoIsOpen dataInfo) && (not . null $ dataInfoConstrs dataInfo)
          && not (isHiddenName (conInfoName (head (dataInfoConstrs dataInfo))))
-         && hasKindStarResult (dataInfoKind dataInfo) )
+         && hasKindStarResult (dataInfoKind dataInfo) && not (isNamedHandler dataInfo)
+
 
 getData :: Core.TypeDef -> [DataInfo]
 getData (Core.Synonym synInfo) = []
@@ -282,11 +285,11 @@ synShowString modName info
         visibility = dataInfoVis info
         doc = "// Automatically generated. Shows a string representation of the `" ++ nameId (dataInfoName info) ++ "` type.\n"
         def = Def (ValueBinder nameShow () expr rc rc) rc visibility (DefFun [Borrow]) InlineAlways doc
-    -- in trace (show def) def
+    -- in trace (show $ ppDef defaultEnv def) def
     in def
 
 primitiveEq:: DataInfo -> Bool
-primitiveEq info = all (null . conInfoParams) (dataInfoConstrs info) || length (dataInfoConstrs info) == 1
+primitiveEq info = length (dataInfoConstrs info) == 1
 
 synEquality :: Name -> DataInfo -> Def Type
 synEquality modName info
@@ -350,7 +353,7 @@ synEquality modName info
         visibility = dataInfoVis info
         doc = "// Automatically generated. Equality comparison of the `" ++ nameId (dataInfoName info) ++ "` type (ignores function fields).\n"
         def = Def (ValueBinder eqName () expr rc rc) rc visibility (DefFun [Borrow]) InlineAlways doc
-    -- in trace (show $ ppExpr defaultEnv caseExpr) def
+    -- in trace (show $ ppDef defaultEnv def) def
     in def
 
 

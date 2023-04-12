@@ -8,7 +8,7 @@ type expr {
   Div( e1 : expr, e2: expr )
 }
 
-fun show( e : expr ) : total string {
+fun showExpr( e : expr ) : total string {
   match(e) {
     Int(i) -> core/show(i)
     Div(e1,e2) -> "(" ++ e1.show ++ "/" ++ e2.show ++ ")"

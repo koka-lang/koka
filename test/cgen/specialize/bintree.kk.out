@@ -1,7 +1,14 @@
-cgen/specialize/bintree/.lift000-main: (tree350 : tree<int>) -> tree<int>
-cgen/specialize/bintree/.lift000-main: (xs358 : list<int>) -> list<int>
-cgen/specialize/bintree/.lift000-main: (xs363 : list<int>) -> list<int>
+cgen/specialize/bintree/==: forall<a,e> (tree<a>, tree<a>, eq6 : (this-eq6 : a, other-eq6 : a) -> <div|e> bool) -> <div|e> bool
+cgen/specialize/bintree/.lift000-main: (tree1313 : tree<int>) -> tree<int>
+cgen/specialize/bintree/.lift000-main: (xs1321 : list<int>) -> list<int>
+cgen/specialize/bintree/.lift000-main: (xs1326 : list<int>) -> list<int>
+cgen/specialize/bintree/.mlift000-show: forall<e> (string, string) -> e string
+cgen/specialize/bintree/.mlift000-show: forall<a,e> (right : tree<a>, show6 : (a) -> e string, string) -> e string
+cgen/specialize/bintree/.mlift000-show: forall<e> (string) -> e string
+cgen/specialize/bintree/.mlift000-op: forall<a,e> (eq6 : (this-eq6 : a, other-eq6 : a) -> <div|e> bool, other-right : tree<a>, this-right : tree<a>, bool) -> 
+ <div|e> bool
 cgen/specialize/bintree/is-bin: forall<a> (tree : tree<a>) -> bool
 cgen/specialize/bintree/is-leaf: forall<a> (tree : tree<a>) -> bool
 cgen/specialize/bintree/main: () -> ()
 cgen/specialize/bintree/mapTree: forall<a,b> (tree : tree<a>, f : (a) -> b) -> tree<b>
+cgen/specialize/bintree/show: forall<a,e> (tree<a>, show6 : (a) -> e string) -> e string

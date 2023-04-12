@@ -1,7 +1,7 @@
 [2,3,4]
  
-cgen/specialize/map-alias/.lift000-main: (xs411 : list<int>) -> console list<int>
-cgen/specialize/map-alias/.lift000-main: (xs416 : list<int>) -> console list<int>
+cgen/specialize/map-alias/.lift000-main: (xs400 : list<int>) -> console list<int>
+cgen/specialize/map-alias/.lift000-main: (xs405 : list<int>) -> console list<int>
 cgen/specialize/map-alias/main: () -> console ()
 cgen/specialize/map-alias/map2: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>
 cgen/specialize/map-alias/map3: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>

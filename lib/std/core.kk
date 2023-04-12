@@ -1422,6 +1422,11 @@ extern string-compare : ( x : string, y : string ) -> int
   cs inline "String.Compare(#1,#2)"
   js inline "(#1===#2 ? 0 : (#1 > #2 ? 1 : -1))"
 
+pub fun (==)(this: sslice, other: sslice) : bool
+  val Sslice(this-s, this-start, this-len) = this
+  val Sslice(other-s, other-start, other-len) = other
+  this-s == other-s && this-start == other-start && this-len == other-len
+
 // Compare two strings.
 // Uses the character codes directly for comparison
 pub fun compare( x : string, y : string) : order
@@ -2077,6 +2082,11 @@ pub fun show( xs : list<bool> ) : string
 pub fun show-tuple( x : (a,b), showfst : a -> string, showsnd : b -> string ) : string
   "(" ++ x.fst.showfst ++ "," ++ x.snd.showsnd ++ ")"
 
+pub fun show( x : (a,b), showfst : a -> string, showsnd : b -> string ) : string
+  "(" ++ x.fst.showfst ++ "," ++ x.snd.showsnd ++ ")"
+
+pub fun (==)( this : (a, b), other : (a, b), eqFst : (a, a) -> bool, eqSnd : (b, b) -> bool ) : bool
+  eqFst(this.fst, other.fst) && eqSnd(this.snd, other.snd)
 
 // ----------------------------------------------------------------------------
 // Print to the console
@@ -2384,6 +2394,12 @@ pub extern main-console : forall<a,e> ( main : () -> e a ) -> e a
 // ----------------------------------------------------------------------------
 // References
 // ----------------------------------------------------------------------------
+
+pub fun (==)( self : ref<h,a>, other : ref<h,a>, eqA : (a, a) -> e bool ) : e bool
+  eqA(unsafe-total{!self}, unsafe-total{!other})
+
+pub fun show( self : ref<h,a>, showA : a -> e string ) : e string
+  showA(unsafe-total{!self})
 
 pub inline extern inject-local<a,h,e>( action : () -> e a ) : total (() -> <local<h>|e> a)  
   inline "#1"

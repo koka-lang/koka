@@ -24,7 +24,9 @@ pub fun .copy : (.this : parc/parc22/hello, i : optional<int>) -> parc/parc22/he
  = std/core/types/.drop(.this, (std/core/int32(1)));
  .i;
  (.skip std/core/types/None() : (optional<int>) )
- -> (match (.this) {
+ -> val _ : ()
+ = std/core/types/.drop(i0);
+ (match (.this) {
  (.skip parc/parc22/World((.x: int)) : parc/parc22/hello )
  -> val _ : ()
  = (match ((std/core/types/.is-unique(.this))) {
@@ -45,9 +47,46 @@ pub fun .copy : (.this : parc/parc22/hello, i : optional<int>) -> parc/parc22/he
  });
  }));
  };
+// Automatically generated. Shows a string representation of the `hello` type.
+pub fun show : forall<e> (^ .this : parc/parc22/hello) -> e string
+ = fn<e>(.this: parc/parc22/hello){
+ match (.this) {
+ (.skip parc/parc22/World((i0: int)) : parc/parc22/hello )
+ -> std/core/(++.1)("World(", (std/core/(++.1)((std/core/(++.1)("i: ", (std/core/show((std/core/types/.dup(i0)))))), ")")));
+ };
+ };
+// Automatically generated. Equality comparison of the `hello` type (ignores function fields).
+pub fun (==) : forall<e> (^ .this : parc/parc22/hello, .other : parc/parc22/hello) -> e bool
+ = fn<e>(.this: parc/parc22/hello, .other: parc/parc22/hello){
+ match (.this, .other) {
+ (.skip parc/parc22/World((other-i: int)) : parc/parc22/hello ), (.skip parc/parc22/World((this-i: int)) : parc/parc22/hello )
+ -> val _ : ()
+ = (match ((std/core/types/.is-unique(.other))) {
+ (std/core/types/True() : bool )
+ -> val _ : ()
+ = std/core/types/();
+ std/core/types/.free(.other);
+ _
+ -> val _ : ()
+ = val _ : int
+ = std/core/types/.dup(other-i);
+ std/core/types/();
+ val _ : ()
+ = std/core/types/.dec-ref(.other);
+ std/core/types/();
+ });
+ val .brw : bool
+ = std/core/(==.1)(this-i, other-i);
+ val _ : ()
+ = std/core/types/.drop(other-i);
+ .brw;
+ };
+ };
 pub fun f : (h : parc/parc22/hello) -> parc/parc22/hello
  = fn(h: parc/parc22/hello){
+ val .ru : reuse
+ = std/core/types/no-reuse();
  val _ : ()
- = std/core/types/.drop(h, (std/core/int32(1)));
- parc/parc22/World(2);
+ = std/core/types/.assign-reuse(.ru, (std/core/types/.drop-reuse(h, (std/core/int32(1)))));
+ std/core/types/.alloc-at(.ru, (parc/parc22/World(2)));
  };

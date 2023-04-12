@@ -1,3 +1,23 @@
+pub type round
+  // Round to neareast integer, round to the even number in case of a tie
+  con Half-even
+  // Round to nearest integer, round towards infinity in case of a tie
+  con Half-ceiling
+  // Round to nearest integer, round towards negative infinity in case of a tie
+  con Half-floor
+  // Round to nearest integer, round towards zero in case of a tie
+  con Half-truncate
+  // Round to nearest integer, round away from zero in case of a tie
+  con Half-away-from-zero
+  // Round to the minimum integer that is larger or equal
+  con Ceiling
+  // Round to the maximum integer that is lower or equal
+  con Floor
+  // Round to the nearest integer towards zero (i.e. _truncate_)
+  con Truncate
+  // Round to the nearest integer away from zero, i.e. toward negative infinity for negative numbers, and positive infinity for positive numbers.
+  con Away-from-zero
+
 type hello<e::E>
   Hello(f: () -> e ())
 
