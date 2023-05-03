@@ -562,7 +562,7 @@ static inline void kk_free_local(const void* p, kk_context_t* ctx) {
 #if defined(kk_malloc_usable_size)
 #define KK_HAS_MALLOC_COPY
 static inline void* kk_malloc_copy(const void* p, kk_context_t* ctx) {
-  const size_t size = kk_malloc_usable_size(p);
+  const size_t size = kk_malloc_usable_size((void*)p);
   void* q = kk_malloc(kk_to_ssize_t(size), ctx);
   memcpy(q,p,size);
   return q;

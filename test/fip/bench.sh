@@ -148,7 +148,7 @@ while : ; do
 done
 
 function build_kk { # <bench> 
-  local options="-O2 --no-debug --fstdalloc --cc=$ccomp --buildtag=bench $kkopts"
+  local options="-O2 --no-debug --cc=$ccomp --buildtag=bench $kkopts"
   if [[ "$1" == *"noreuse.kk"* ]]; then
     options="$options --fno-reuse"
   fi
