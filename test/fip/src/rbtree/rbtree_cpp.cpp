@@ -9,7 +9,7 @@
 #include <algorithm>
 using std::for_each;
 
-typedef int nat;
+typedef int32_t nat;
 
 struct nat_lt_fn {
     bool operator()(nat const & n1, nat const & n2) const { return n1 < n2; }
