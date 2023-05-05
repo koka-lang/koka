@@ -1515,7 +1515,7 @@ genGuards result guards bindings
   = do docs <- mapM (genGuard bindings result) guards
        return (vcat docs)
 
-genGuard :: Bindings -> Result -> Guard-> Asm Doc
+genGuard :: Bindings -> Result -> Guard -> Asm Doc
 genGuard bindings result (Guard guard expr)
   = do let guardFree = freeLocals guard
            exprFree  = freeLocals expr

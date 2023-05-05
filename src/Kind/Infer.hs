@@ -269,7 +269,7 @@ synTester info con
         branch2   = Branch (PatWild rc) [Guard guardTrue (Var nameFalse False rc)]
         patterns  = [(Nothing,PatWild rc) | _ <- conInfoParams con]
         doc = "// Automatically generated. Tests for the `" ++ nameId (conInfoName con) ++ "` constructor of the `:" ++ nameId (dataInfoName info) ++ "` type.\n"
-    in [DefNonRec (Def (ValueBinder name () expr rc rc) rc (conInfoVis con) (defFunEx [Borrow] (Fip 0)) InlineAlways doc)]
+    in [DefNonRec (Def (ValueBinder name () expr rc rc) rc (conInfoVis con) (defFunEx [Borrow] (Fip (AllocAtMost 0))) InlineAlways doc)]
 
 synConstrTag :: (ConInfo) -> DefGroup Type
 synConstrTag (con)

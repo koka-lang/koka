@@ -1169,19 +1169,27 @@ pureDecl dvis
        -- valueDecl vrng vis <|> functionDecl vrng vis
        pdecl
 
+parseFipAlloc :: LexParser FipAlloc
+parseFipAlloc
+  = parens (  (do (num,_) <- integer
+                  return (AllocAtMost (fromInteger num)))
+           <|> do _ <- specialId "n"
+                  return AllocFinitely)
+      <|> return (AllocAtMost 0)
+
 parseFip :: LexParser Fip
 parseFip 
   = do isTail   <- do specialId "tail"
                       return True
                   <|> return False
        ( do specialId "fip"
-            (n,_) <- parens integer <|> return (0,rangeNull)
+            alloc <- parseFipAlloc
             when isTail $ pwarningMessage "a 'fip' function implies already 'tail'"
-            return (Fip (fromInteger n))
+            return (Fip alloc)
          <|> 
          do specialId "fbip"
-            (n,_) <- parens integer <|> return (0,rangeNull)
-            return (Fbip (fromInteger n) isTail)
+            alloc <- parseFipAlloc
+            return (Fbip alloc isTail)
          <|> return (NoFip isTail))
 
 functionDecl vrng vis

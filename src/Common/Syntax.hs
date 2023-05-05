@@ -16,7 +16,7 @@ module Common.Syntax( Visibility(..)
                     , DefSort(..), isDefFun, defFun, defFunEx, defSortShowFull
                     , ParamInfo(..)
                     , DefInline(..)
-                    , Fip(..), fipIsTail, fipAlloc, noFip, isNoFip
+                    , Fip(..), FipAlloc(..), fipIsTail, fipAlloc, noFip, isNoFip
                     , Target(..), CTarget(..), JsTarget(..), isTargetC, isTargetJS, isTargetWasm
                     , isPublic, isPrivate
                     , DataDef(..)
@@ -333,9 +333,12 @@ data Assoc  = AssocNone
 {--------------------------------------------------------------------------
   Fip
 --------------------------------------------------------------------------}
-data Fip = Fip   { fipAlloc_ :: Int }
-         | Fbip  { fipAlloc_ :: Int, fipTail :: Bool }
+data Fip = Fip   { fipAlloc_ :: FipAlloc }
+         | Fbip  { fipAlloc_ :: FipAlloc, fipTail :: Bool }
          | NoFip { fipTail :: Bool }
+         deriving (Eq,Ord)
+
+data FipAlloc = AllocAtMost Int | AllocFinitely
          deriving (Eq,Ord)
 
 noFip :: Fip
@@ -351,12 +354,12 @@ fipIsTail fip
       NoFip t  -> t
       _        -> True
 
-fipAlloc :: Fip -> Int
+fipAlloc :: Fip -> FipAlloc
 fipAlloc fip 
   = case fip of
       Fip n     -> n
       Fbip n _  -> n
-      NoFip _   -> 0
+      NoFip _   -> AllocAtMost (-1)
 
 
 instance Show Fip where
@@ -365,8 +368,9 @@ instance Show Fip where
                 Fbip n t    -> showTail t ++ "fbip" ++ showN n
                 NoFip t     -> showTail t
             where
-              showN 0  = " "
-              showN n  = "(" ++ show n ++ ") "
+              showN (AllocAtMost 0) = " "
+              showN (AllocAtMost n) = "(" ++ show n ++ ") "
+              showN AllocFinitely = "(n) "
 
               showTail True  = "tail "
               showTail _     = " "
