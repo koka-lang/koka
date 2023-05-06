@@ -18,8 +18,8 @@ type sublist<a>
   STuple(a : a, b : a)
 
 type partition<a>
-  Singleton(c : sublist<a>, bdl : partition<a>)
-  Sublist(c : a, bdl : partition<a>)
+  Sublist(c : sublist<a>, bdl : partition<a>)
+  Singleton(c : a, bdl : partition<a>)
   End
 
 fip fun quicksort(xs : list<elem>) : div list<elem>
@@ -27,26 +27,21 @@ fip fun quicksort(xs : list<elem>) : div list<elem>
 
 fip fun quicksort-go(xs : list<elem>, b : partition<elem>) : div list<elem>
   match xs
-    Nil -> quicksort-app(b)
     Cons(p, xx) ->
       val (lo, hi) = split-list(p, xx, Done, b, Unit2(Pad,Pad))
       quicksort-go(lo, hi)
-
-fip fun quicksort-sublist(xs : sublist<elem>, bdl : partition<elem>, u : unit2) : div list<elem>
-  match xs
-    SCons(p, xx) ->
-      val (lo, hi) = split-sublist(p, xx, Done, bdl, u, Unit2(Pad,Pad))
-      quicksort-go(lo, hi)
-    STuple(a, b) -> 
-      if a <= b
-        then Cons(a, Cons(b, quicksort-app(bdl)))
-        else Cons(b, Cons(a, quicksort-app(bdl)))
+    Nil -> quicksort-app(b)
 
 fip fun quicksort-app(bdl : partition<elem>) : div list<elem>
   match bdl
+    Singleton(p, b) -> Cons(p,quicksort-app(b))
+    Sublist(xs, bdl') -> match xs
+      SCons(p, xx) ->
+        val (lo, hi) = split-sublist(p, xx, Done, bdl', Unit2(Pad,Pad), Unit2(Pad,Pad))
+        quicksort-go(lo, hi)
+      STuple(a, b) | a <= b -> Cons(a, Cons(b, quicksort-app(bdl')))
+                   | _      -> Cons(b, Cons(a, quicksort-app(bdl')))
     End -> Nil
-    Sublist(p, b) -> Cons(p,quicksort-app(b))
-    Singleton(c, b) -> quicksort-sublist(c, b, Unit2(Pad,Pad))
 
 type accum<a>
   MkLo(x : a, k : accum<a>)
@@ -55,35 +50,33 @@ type accum<a>
 
 fip fun split-list(p : elem, xs : list<elem>, k : accum<elem>, b : partition<elem>, u : unit2)  : div (list<elem>, partition<elem>)
   match xs
-    Nil -> split-app1(k, p, Nil, Nothing2, b, u)
-    Cons(x, xx) ->
-      if x < p 
-        then split-list(p, xx, MkLo(x, k), b, u)
-        else split-list(p, xx, MkHi(x, k), b, u)
+    Cons(x, xx) | x < p -> split-list(p, xx, MkLo(x, k), b, u)
+                | _     -> split-list(p, xx, MkHi(x, k), b, u)
+    Nil ->
+      val (lo, hi) = split-app1(k, Nil, Nothing2, b)
+      (lo, Singleton(p, hi))
 
 fip fun split-sublist(p : elem, xs : sublist<elem>, k : accum<elem>, b : partition<elem>, u : unit2, u1 : unit2) : <div> (list<elem>, partition<elem>)
   match xs
+    SCons(x, xx) | x < p -> split-sublist(p, xx, MkLo(x, k), b, u, u1)
+                 | _     -> split-sublist(p, xx, MkHi(x, k), b, u, u1)
     STuple(x, y) -> split-list(p, Cons(x, Cons(y, Nil)), k, b, u)
-    SCons(x, xx) -> 
-      if x < p 
-        then split-sublist(p, xx, MkLo(x, k), b, u, u1)
-        else split-sublist(p, xx, MkHi(x, k), b, u, u1)
 
-fip fun split-app1(k : accum<elem>, p : elem, lo : list<elem>, hi : maybe2<elem>, b : partition<elem>, u : unit2) : <div> (list<elem>, partition<elem>)
+fip fun split-app1(k : accum<elem>, lo : list<elem>, hi : maybe2<elem>, b : partition<elem>) : <div> (list<elem>, partition<elem>)
   match k
-    MkLo(x, k) -> split-app1(k, p, Cons(x, lo), hi, b, u)
+    MkLo(x, k) -> split-app1(k, Cons(x, lo), hi, b)
     MkHi(x, k) -> match hi
-      Nothing2    -> split-app1(k, p, lo, Just2(x, Pad), b, u)
-      Just2(y, _) -> split-app2(k, p, lo, STuple(x,y), b, u, Unit2(Pad,Pad))
+      Nothing2    -> split-app1(k, lo, Just2(x, Pad), b)
+      Just2(y, _) -> split-app2(k, lo, STuple(y,x), b, Unit2(Pad,Pad))
     Done -> match hi
-      Just2(x, _) -> (lo, Sublist(p, Sublist(x, b)))
-      Nothing2    -> (lo, Sublist(p, b))
+      Just2(x, _) -> (lo, Singleton(x, b))
+      Nothing2    -> (lo, b)
 
-fip fun split-app2(k : accum<elem>, p : elem, lo : list<elem>, hi : sublist<elem>, b : partition<elem>, u : unit2, u1 : unit2) : (list<elem>, partition<elem>)
+fip fun split-app2(k : accum<elem>, lo : list<elem>, hi : sublist<elem>, b : partition<elem>, u : unit2) : (list<elem>, partition<elem>)
   match k
-    MkLo(x, k) -> split-app2(k, p, Cons(x,lo), hi, b, u, u1)
-    MkHi(x, k) -> split-app2(k, p, lo, SCons(x,hi), b, u, u1)
-    Done       -> (lo, Sublist(p, Singleton(hi, b)))
+    MkLo(x, k) -> split-app2(k, Cons(x,lo), hi, b, u)
+    MkHi(x, k) -> split-app2(k, lo, SCons(x,hi), b, u)
+    Done       -> (lo, Sublist(hi, b))
 
 fun rand-list(n : int32, seed : int32) : <div> list<int32>
   val a = 22695477.int32
