@@ -46,102 +46,100 @@ fun head(^s : seq<a>) : exn a
     More(Triple(x, _, _), _, _) -> x
 
 fip fun bcons(x : a, u3 : reuse3, bs : bseq<a>) : exn bseq<a>
-  match bs
-    BSeq(s, b) ->
-      val (s', b') = cons(x, u3, s, b)
-      BSeq(s', b')
+  val BSeq(s, b) = bs
+  val (s', b') = cons(x, u3, s, b)
+  BSeq(s', b')
 
 fip fun cons(x : a, u3 : reuse3, s : seq<a>, b : buffer) : exn (seq<a>, buffer)
   match s
-    Empty -> (Unit(x, Pad, Pad), b)
-    Unit(y, _, _) -> (More0(x, Empty, One(y, Pad, Pad)), b)
-    More0(y, q, u) -> (More(Pair(x, y, Pad), q, u), b)
-    More(Pair(y, z, _), q, u) -> (More(Triple(x, y, z), q, u), BCons(b, Pad, Pad))
+    Empty                     -> (Unit(x, Pad, Pad), b)
+    Unit(y, _, _)             -> (More0(x, Empty, One(y, Pad, Pad)), b)
+    More0(y, q, u)            -> (More(Pair(x, y, Pad), q, u), b)
+    More(Pair(y, z, _), q, u) ->
+      (More(Triple(x, y, z), q, u), BCons(b, Pad, Pad))
     More(Triple(y, z, w), q, u) ->
-      match b
-        BCons(b', _, _) -> 
-          val (q', b'') = cons(Pair(z, w, Pad), u3, q, b')
-          (More(Pair(x, y, Pad), q', u), b'')
+      val BCons(b', _, _) = b
+      val (q', b'') = cons(Pair(z, w, Pad), u3, q, b')
+      (More(Pair(x, y, Pad), q', u), b'')
 
 fip fun buncons(bs : bseq<a>) : exn (a, reuse3, bseq<a>)
-  match bs
-    BSeq(s, b) ->
-      val Tuple4(x, u3, s', b') = uncons(s, b)
-      (x, u3, BSeq(s', b'))
+  val BSeq(s, b) = bs
+  val Tuple4(x, u3, s', b') = uncons(s, b)
+  (x, u3, BSeq(s', b'))
 
 fip fun uncons(s : seq<a>, b : buffer) : exn tuple4<a, reuse3, seq<a>, buffer>
   match s
-    Unit(x, _, _) -> Tuple4(x, Reuse3(Pad,Pad,Pad), Empty, b)
+    Unit(x, _, _) ->
+      Tuple4(x, Reuse3(Pad,Pad,Pad), Empty, b)
     More(Triple(x, y, z), q, u) ->
-      match b
-        BCons(b', _, _) -> Tuple4(x, Reuse3(Pad,Pad,Pad), More(Pair(y, z, Pad), q, u), b')
-    More(Pair(x, y, _), q, u) -> Tuple4(x, Reuse3(Pad,Pad,Pad), More0(y, q, u), b)
+      val BCons(b', _, _) = b
+      Tuple4(x, Reuse3(Pad,Pad,Pad), More(Pair(y, z, Pad), q, u), b')
+    More(Pair(x, y, _), q, u) ->
+      Tuple4(x, Reuse3(Pad,Pad,Pad), More0(y, q, u), b)
     More0(x, q, u) ->
       val (q', b') = more0(q, u, b)
       Tuple4(x, Reuse3(Pad,Pad,Pad), q', b')
 
-fip fun more0(q : seq<tuple<a>>, u : afew<a>, b : buffer) : <exn> (seq<a>, buffer)
+fip fun more0(q : seq<tuple<a>>, u : afew<a>, b : buffer) : exn (seq<a>, buffer)
   match q
-    Empty -> match u
-      One(x, y, z) -> (Unit(x, y, z), b)
-      Two(y, z, _) ->
-        match b
-          BCons(b', _, _) ->
-            (More0(y, Empty, One(z, Pad, Pad)), b')
-      Three(y, z, w) ->
-        match b
-          BCons(b', _, _) ->
-            (More0(y, Empty, Two(z, w, Pad)), b')
-    Unit(p, _, _) -> match p
-      Pair(x, y, _) -> (More(Pair(x, y, Pad), Empty, u), b)
-      Triple(x, y, z) ->
-        match b
-          BCons(b', _, _) ->
-            (More0(x, Unit(Pair(y,z,Pad),Pad,Pad), u), b')
-    More0(p, q1, u1) -> match p
-      Pair(x, y) ->
-        val (q1', b') = more0(q1, u1, b)
-        (More(Pair(x, y, Pad), q1', u), b')
-      Triple(x, y, z) ->
-        match b
-          BCons(b', _, _) ->
-            (More0(x, More0(Pair(y,z,Pad), q1, u1), u), b')
-    More(Pair(p, y1), q1, u1) -> match p
-      Pair(x, y) -> (More(Pair(x, y, Pad), More0(y1, q1, u1), u), b)
-      Triple(x, y, z) ->
-        match b
-          BCons(b', _, _) ->
-            (More0(x, More(Pair(Pair(y,z,Pad), y1, Pad), q1, u1), u), b')
+    Empty ->
+      match u
+        One(x, y, z) -> (Unit(x, y, z), b)
+        Two(y, z, _) ->
+          val BCons(b', _, _) = b
+          (More0(y, Empty, One(z, Pad, Pad)), b')
+        Three(y, z, w) ->
+          val BCons(b', _, _) = b
+          (More0(y, Empty, Two(z, w, Pad)), b')
+    Unit(p, _, _) ->
+      match p
+        Pair(x, y, _)   -> (More(Pair(x, y, Pad), Empty, u), b)
+        Triple(x, y, z) ->
+          val BCons(b', _, _) = b
+          (More0(x, Unit(Pair(y,z,Pad),Pad,Pad), u), b')
+    More0(p, q1, u1) ->
+      match p
+        Pair(x, y) ->
+          val (q1', b') = more0(q1, u1, b)
+          (More(Pair(x, y, Pad), q1', u), b')
+        Triple(x, y, z) ->
+          val BCons(b', _, _) = b
+          (More0(x, More0(Pair(y,z,Pad), q1, u1), u), b')
+    More(Pair(p, y1), q1, u1) ->
+      match p
+        Pair(x, y)      -> (More(Pair(x, y, Pad), More0(y1, q1, u1), u), b)
+        Triple(x, y, z) ->
+          val BCons(b', _, _) = b
+          (More0(x, More(Pair(Pair(y,z,Pad), y1, Pad), q1, u1), u), b')
     More(Triple(p, y1, z1), q1, u1) ->
-      match b
-        BCons(b', _, _) -> match p
-          Pair(x, y) -> (More(Pair(x, y, Pad), More(Pair(y1, z1, Pad), q1, u1), u), b')
-          Triple(x, y, z) -> (More0(x, More(Triple(Pair(y,z,Pad), y1, z1), q1, u1), u), b')
+      val BCons(b', _, _) = b
+      match p
+        Pair(x, y) ->
+          (More(Pair(x, y, Pad), More(Pair(y1, z1, Pad), q1, u1), u), b')
+        Triple(x, y, z) ->
+          (More0(x, More(Triple(Pair(y,z,Pad), y1, z1), q1, u1), u), b')
 
 fip fun bsnoc(bs : bseq<a>, u3 : reuse3, x : a) : exn bseq<a>
-  match bs
-    BSeq(s, b) ->
-      val (s', b') = snoc(s, b, u3, x)
-      BSeq(s', b')
+  val BSeq(s, b) = bs
+  val (s', b') = snoc(s, b, u3, x)
+  BSeq(s', b')
 
 fip fun snoc(s : seq<a>, b : buffer, u3 : reuse3, x : a) : exn (seq<a>, buffer)
   match s
-    Empty -> (Unit(x, Pad, Pad), b)
-    Unit(y, _, _) -> (More0(y, Empty, One(x, Pad, Pad)), b)
+    Empty                     -> (Unit(x, Pad, Pad), b)
+    Unit(y, _, _)             -> (More0(y, Empty, One(x, Pad, Pad)), b)
     More0(u, q, One(y, _, _)) -> (More0(u, q, Two(y, x, Pad)), BCons(b, Pad, Pad))
+    More (u, q, One(y, _, _)) -> (More (u, q, Two(y, x, Pad)), BCons(b, Pad, Pad))
     More0(u, q, Two(y, z, _)) -> (More0(u, q, Three(y, z, x)), BCons(b, Pad, Pad))
+    More (u, q, Two(y, z, _)) -> (More (u, q, Three(y, z, x)), BCons(b, Pad, Pad))
     More0(u, q, Three(y, z, w)) ->
-      match b
-        BCons(b', _, _) -> 
-          val (q', b'') = snoc(q, b', u3, Pair(y, z, Pad))
-          (More0(u, q', Two(w, x, Pad)), b'')
-    More(u, q, One(y, _, _)) -> (More(u, q, Two(y, x, Pad)), BCons(b, Pad, Pad))
-    More(u, q, Two(y, z, _)) -> (More(u, q, Three(y, z, x)), BCons(b, Pad, Pad))
+      val BCons(b', _, _) = b
+      val (q', b'') = snoc(q, b', u3, Pair(y, z, Pad))
+      (More0(u, q', Two(w, x, Pad)), b'')
     More(u, q, Three(y, z, w)) ->
-      match b
-        BCons(b', _, _) -> 
-          val (q', b'') = snoc(q, b', u3, Pair(y, z, Pad))
-          (More(u, q', Two(w, x, Pad)), b'')
+      val BCons(b', _, _) = b
+      val (q', b'') = snoc(q, b', u3, Pair(y, z, Pad))
+      (More(u, q', Two(w, x, Pad)), b'')
 
 // append
 

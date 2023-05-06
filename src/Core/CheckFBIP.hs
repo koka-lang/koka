@@ -147,7 +147,7 @@ chkBranches scrutinees branches
        gamma2 <- joinContexts (map branchPatterns branches') outs
        writeOutput gamma2
        withBorrowed (S.map getName $ M.keysSet $ gammaNm gamma2) $
-         withTailModBranches branches' $ -- also filter out pattern match errors
+         withTailModProduct branches' $ -- also filter out pattern match errors
            mapM_ chkScrutinee scrutinees
   where
     fromVar (Var tname _) = Just tname
@@ -168,9 +168,9 @@ chkScrutinee expr = chkExpr expr
 chkBranch :: [ParamInfo] -> Branch -> Chk ()
 chkBranch whichBorrowed (Branch pats guards)
   = do let (borPats, ownPats) = partition ((==Borrow) .fst) $ zipDefault Own whichBorrowed pats
-       out <- extractOutput $
-         withBorrowed (S.map getName $ bv $ map snd borPats) $
-           mapM_ chkGuard guards
+       outs <- withBorrowed (S.map getName $ bv $ map snd borPats) $
+                mapM (extractOutput . chkGuard) guards
+       out <- joinContexts [] outs
        writeOutput =<< foldM (flip bindPattern) out (map snd ownPats)
 
 chkGuard :: Guard -> Chk ()
@@ -450,10 +450,11 @@ withNonTail :: Chk a -> Chk a
 withNonTail
   = withInput (\st -> st { isTailContext = False })
 
-withTailModBranches :: [Branch] -> Chk a -> Chk a
-withTailModBranches [Branch _ [Guard test expr]] | isExprTrue test
+-- | Tail modulo a pattern-match. This handles modulo product contexts.
+withTailModProduct :: [Branch] -> Chk a -> Chk a
+withTailModProduct [Branch _ [Guard test expr]] | isExprTrue test
   = withTailMod [expr]
-withTailModBranches _ = withNonTail
+withTailModProduct _ = withNonTail
 
 withTailMod :: [Expr] -> Chk a -> Chk a
 withTailMod modExpr
@@ -470,10 +471,9 @@ isModCons expr
      Let dgs e   -> all isModConsDef (flattenDefGroups dgs) && isModCons e
      App f args  -> isModConsFun f && all isModCons args
      _           -> False
-  where
-    isModConsBranch (Branch pat guards) = all isModConsGuard guards
-    isModConsGuard (Guard test expr)    = isModCons test && isModCons expr
 
+-- | Functions with non-observable execution can be moved before the mod-cons call.
+-- This is necessary for various casts introduced in the effect checker.
 isModConsFun :: Expr -> Bool
 isModConsFun expr
   = case expr of
@@ -483,9 +483,6 @@ isModConsFun expr
       Let dgs e     -> all isModConsDef (flattenDefGroups dgs) && isModConsFun e 
       App f args    -> hasTotalEffect (typeOf expr) && isModConsFun f && all isModCons args
       _             -> False
-  where
-    isModConsBranchFun (Branch pat guards) = all isModConsGuardFun guards
-    isModConsGuardFun (Guard test expr)    = isModCons test && isModConsFun expr
 
 isModConsDef def = isModCons (defExpr def)
 

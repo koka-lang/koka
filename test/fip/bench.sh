@@ -1,5 +1,4 @@
 
-
 # list sizes
 runparams="1 10 100 1000 10000 100000 1000000"
 runparams_small="1 10 100 1000"
@@ -7,7 +6,7 @@ dirs="tmap rbtree finger sort"
 
 benches_tmapkk="tmap/tmap_std.kk tmap/tmap_fip.kk tmap/tmap_std_noreuse.kk tmap/tmap_fip_noreuse.kk"
 benches_tmapc="tmap/tmap_std_mimalloc.c tmap/tmap_fip_mimalloc.c tmap/tmap_std.c tmap/tmap_fip.c"
-benches_rbtreekk="rbtree/rbtree_icfp.kk rbtree/rbtree_std.kk rbtree/rbtree_fip.kk rbtree/rbtree_std_noreuse.kk rbtree/rbtree_fip_noreuse.kk"
+benches_rbtreekk="rbtree/rbtree_fip_icfp.kk rbtree/rbtree_std.kk rbtree/rbtree_fip.kk rbtree/rbtree_fip_clrs.kk rbtree/rbtree_std_noreuse.kk"
 benches_rbtreec="rbtree/rbtree_clrs_mimalloc.c rbtree/rbtree_clrs_full_mimalloc.c rbtree/rbtree_clrs.c rbtree/rbtree_clrs_full.c"
 benches_sortkk="sort/sort_merge_std.kk sort/sort_merge_fip.kk sort/sort_quick_std.kk sort/sort_quick_fip.kk sort/sort_merge_std_noreuse.kk sort/sort_quick_std_noreuse.kk "
 benches_fingerkk="finger/finger_std.kk finger/finger_fip.kk finger/finger_std_noreuse.kk"

@@ -1512,11 +1512,11 @@ genBranch result exprDocs doTest branch@(Branch patterns guards)
 
 genGuards :: Result -> [Guard] -> Bindings -> Asm Doc
 genGuards result guards bindings
-  = do docs <- mapM (genGuard bindings result) guards
+  = do (docs, _) <- foldM (genGuard result) ([], bindings) guards
        return (vcat docs)
 
-genGuard :: Bindings -> Result -> Guard-> Asm Doc
-genGuard bindings result (Guard guard expr)
+genGuard :: Result -> ([Doc], Bindings) -> Guard -> Asm ([Doc], Bindings)
+genGuard result (docs, bindings) (Guard guard expr)
   = do let guardFree = freeLocals guard
            exprFree  = freeLocals expr
            (bindsGuard,bindsOther) = partition (\(name,_) -> tnamesMember name guardFree) bindings
@@ -1525,11 +1525,11 @@ genGuard bindings result (Guard guard expr)
        case guard of
          Con tname repr | getName tname == nameTrue
            -> do doc <- genStat result expr
-                 return (vcat (guardLocals ++ exprLocals ++ [doc]))
+                 return (docs ++ [vcat (guardLocals ++ exprLocals ++ [doc])], bindsOther)
          _ -> do (gddoc,gdoc) <- genExpr guard
                  sdoc <- genStat result expr
-                 return (vcat $ guardLocals ++ gddoc ++ [text "if" <+> parensIf gdoc <+> 
-                                                         block (vcat (exprLocals ++ [sdoc]))])
+                 return (docs ++ [vcat $ guardLocals ++ gddoc ++ [text "if" <+> parensIf gdoc <+> 
+                                                         block (vcat (exprLocals ++ [sdoc]))]], bindsOther)
 
 parensIf :: Doc -> Doc -- avoid parens if already parenthesized
 parensIf d
