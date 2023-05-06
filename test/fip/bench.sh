@@ -353,10 +353,11 @@ function avg_all {
         local stem=${base##*/}
         # local bdir=$(echo $base | cut -d'/' -f 1)
         local variant=${stem#*-}   
+        local bname=${stem%%-*}
         local label="${prefix}__${stem}__${runparam}"
         local log="./log/$label.txt"
-        if [ "$benchmark" = "${stem%%-*}" ]; then
-          avg $label $log $logbench $prefix $stem $variant $runparam
+        if [ "$benchmark" = "$bname" ]; then
+          avg $label $log $logbench $prefix $bname $variant $runparam
         fi
       done    
       echo "##" >> $logbench
