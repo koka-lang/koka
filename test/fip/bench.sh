@@ -2,7 +2,8 @@
 # 
 runparams="100000" # "1 10 100 1000 10000 100000 1000000"
 runparams_small="1 10 100 1000"
-benchmarks="tmap rbtree ftree msort qsort"
+benchmarks="rbtree ftree msort qsort tmap"
+graphvariants="fip std std-noreuse stl stl-mi"
 
 # note: order matters as it is made relative to the first 
 benches_tmapkk="tmap/tmap-fip.kk tmap/tmap-std.kk"
@@ -11,7 +12,7 @@ benches_rbtreekk="rbtree/rbtree-fip.kk rbtree/rbtree-fip-icfp.kk rbtree/rbtree-s
 benches_rbtreec="rbtree/rbtree-clrs.c rbtree/rbtree-clrs-full.c rbtree/rbtree-stl.cpp"
 benches_sortkk="sort/msort-fip.kk sort/msort-std.kk sort/qsort-fip.kk sort/qsort-std.kk"
 benches_fingerkk="finger/ftree-fip.kk finger/ftree-std.kk"
-benches_all="$benches_tmapkk $benches_tmapc $benches_rbtreekk $benches_rbtreec $benches_fingerkk $benches_sortkk"
+benches_all="$benches_rbtreekk $benches_rbtreec $benches_fingerkk $benches_sortkk $benches_tmapkk $benches_tmapc"
 
 # get this by running `stack path | grep local-install-root`` in the koka development directory 
 # koka_install_dir="/mnt/c/Users/daan/dev/koka/.stack-work/install/x86_64-linux-tinfo6/665c0f3ba306de11186f0f92ea0ca8305283b035f4fa2dfb5c2b12a96689073b/8.10.7"
@@ -369,76 +370,6 @@ function avg_all {
 }
 
 
-#--------------------------------------
-# graph with xtick each benchmark
-
-function xgraph_variant { # <kk|ml> map <variant> <varianttexname> <avglog> <texdata>
-  #            $1 $2  $3   $4    $5        $6         $7       $8    $9
-  # log entry: kk map trmc 1000  <elapsed> <relative> <stddev> <rss> <notes>
-  awk '
-    BEGIN {
-      prefix="'"$1"'"
-      bench="'"$2"'"
-      variant="'"$3"'"
-      varianttexname="'"$4"'"
-      print "\\pgfplotstableread{"
-      print "x y y-error meta"
-    }
-    $1==prefix && $2==bench && $3==variant {
-      if ($1 == "kk" && $3 == "trmc") {
-        printf( "%i %0.3f %0.3f {\\absnormlabel{%0.2f}}\n", i++, $6, $7, $5 );
-      }
-      else if ($6 == 0.1) {
-        printf( "%i 0.100 0.000 {\\!\\!out of stack}\n", i++);
-      }
-      else {
-        printf( "%i %0.3f %0.3f {\\normlabel{%0.2f}}\n", i++, ($6>3 ? 3 : $6), $7, $6);
-      }
-    }  
-    END {
-      print "}\\datatime" prefix bench varianttexname
-      print " "
-    }
-  ' $5 >> $6
-}
-
-function graph_all {
-  local logbench="./log/avg.txt"
-  local texdata="./log/graph.tex"
-  echo "\\pgfplotsset{" > $texdata 
-  echo "  xticklabels = {" >> $texdata
-  #local benchname=""
-  #for bench in $benches; do
-  #  local bbench=${bench#*\/}  # no directory
-  #  benchname=${bbench%\_*}
-  #  break
-  #done
-  for runparam in $runparams; do
-    local lab="$runparam"
-    if [ "$lab" = "10000" ]; then
-      lab="10\\nsep 000"
-    elif [ "$lab" = "100000" ]; then
-      lab="100\\nsep 000"
-    elif [ "$lab" = "1000000" ]; then
-      lab="1\\nsep 000\\nsep 000"
-    fi
-    echo "   \\strut $lab," >> $texdata    
-  done
-  echo "}}" >> $texdata
-  echo " " >> $texdata
-  for bench in $benches; do
-    local prefix=${bench#*\.}
-    local base=${bench%\.*}  # no extension       
-    local stem=${base##*\/}  # no directory
-    local variant=${stem#*-}   
-    local varianttexname="${variant//-/x/}"
-    local benchname=${stem%%-*}
-    echo "GRAPH $benchname, $variant"    
-    xgraph_variant $prefix $benchname $variant $varianttexname $logbench $texdata
-  done
-  cat $texdata
-}
-
 
 #-------------------------------------
 # graph with the x ticks for each runparam
@@ -502,10 +433,62 @@ function xgraph_all {
     local base=${bench%\.*}  # no extension       
     local stem=${base##*\/}  # no directory
     local variant=${stem#*-}   
-    local varianttexname="${variant//-/}"
+    local varianttexname="${variant//-/x/}"
     local benchname=${stem%%-*}
     echo "GRAPH $benchname, $variant"    
     xgraph_variant $prefix $benchname $variant $varianttexname $logbench $texdata
+  done
+  cat $texdata
+}
+
+
+#--------------------------------------
+# graph with xtick each benchmark
+
+
+function graph_variant { # $1=<kk|c|cpp> $2=<variant> $3=<varianttexname> $4=<avglog> $5=<texdata>
+  # 
+  #            $1 $2  $3   $4    $5        $6         $7       $8    $9
+  # log entry: kk map trmc 1000  <elapsed> <relative> <stddev> <rss> <notes>
+  awk '
+    BEGIN {
+      prefix="'"$1"'"
+      variant="'"$2"'"
+      varianttexname="'"$3"'"
+      print "\\pgfplotstableread{"
+      print "x y y-error meta"
+    }
+    $1==prefix && $3==variant {
+      if ($6 == 0.1) {
+        printf( "%i 0.100 0.000 {\\!\\!out of stack}\n", i++);
+      }
+      else {
+        printf( "%i %0.3f %0.3f {\\normlabel{%0.2f}}\n", i++, ($6>3 ? 3 : $6), $7, $6);
+      }
+    }  
+    END {
+      print "}\\datatime" prefix varianttexname
+      print " "
+    }
+  ' $4 >> $5
+}
+
+function graph_all {
+  local logbench="./log/avg.txt"
+  local texdata="./log/graph.tex"
+  
+  echo "\\pgfplotsset{" > $texdata 
+  echo "  xticklabels = {" >> $texdata
+  for benchmark in $benchmarks; do
+    echo "   \\strut $benchmark," >> $texdata
+  done  
+  echo "}}" >> $texdata
+  echo " " >> $texdata
+
+  for variant in $graphvariants; do
+    local varianttexname="${variant//-/}"
+    graph_variant "kk" $variant $varianttexname $logbench $texdata
+    # graph_variant "cpp" $variant $varianttexname $logbench $texdata
   done
   cat $texdata
 }
