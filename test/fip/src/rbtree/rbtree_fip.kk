@@ -15,9 +15,6 @@ type tree
 type balance-node
   Balance(color : color, lchild : tree, key : int32, value : bool, rchild : tree)
 
-type reuse5
-  Reuse5(a : color, b : any, c : any, d : bool, e : any)
-
 type accum
   Done
   NodeL(color : color, lchild : accum, key : int32, value : bool, rchild : tree)
@@ -51,7 +48,7 @@ fip(1) fun ins(t : tree, k : int32, v : bool, z : accum) : tree
       -> if k < kx   then ins(l, k, v, NodeL(c, z, kx, vx, r))
          elif k > kx then ins(r, k, v, NodeR(c, l, kx, vx, z))
          else rebuild(z, Node(c, l, kx, vx, r))
-    Leaf -> balance(z, Balance(Black,Leaf, k, v, Leaf))
+    Leaf -> balance(z, Balance(Black, Leaf, k, v, Leaf))
 
 fip(1) fun insert(t : tree, k : int32, v : bool) : tree
   ins(t, k, v, Done)
