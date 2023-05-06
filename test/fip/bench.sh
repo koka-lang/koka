@@ -1,15 +1,15 @@
 
-# list sizes
-runparams="1 10 100 1000 10000 100000 1000000"
+# 
+runparams="10000" # "1 10 100 1000 10000 100000 1000000"
 runparams_small="1 10 100 1000"
 dirs="tmap rbtree finger sort"
 
-benches_tmapkk="tmap/tmap_std.kk tmap/tmap_fip.kk tmap/tmap_std_noreuse.kk tmap/tmap_fip_noreuse.kk"
-benches_tmapc="tmap/tmap_std_mimalloc.c tmap/tmap_fip_mimalloc.c tmap/tmap_std.c tmap/tmap_fip.c"
-benches_rbtreekk="rbtree/rbtree_fip_icfp.kk rbtree/rbtree_std.kk rbtree/rbtree_fip.kk rbtree/rbtree_fip_clrs.kk rbtree/rbtree_std_noreuse.kk"
-benches_rbtreec="rbtree/rbtree_clrs_mimalloc.c rbtree/rbtree_clrs_full_mimalloc.c rbtree/rbtree_clrs.c rbtree/rbtree_clrs_full.c"
-benches_sortkk="sort/sort_merge_std.kk sort/sort_merge_fip.kk sort/sort_quick_std.kk sort/sort_quick_fip.kk sort/sort_merge_std_noreuse.kk sort/sort_quick_std_noreuse.kk "
-benches_fingerkk="finger/finger_std.kk finger/finger_fip.kk finger/finger_std_noreuse.kk"
+benches_tmapkk="tmap/tmap-std.kk tmap/tmap-fip.kk"
+benches_tmapc="tmap/tmap-std.c tmap/tmap-fip.c"
+benches_rbtreekk="rbtree/rbtree-fip-icfp.kk rbtree/rbtree-std.kk rbtree/rbtree-fip.kk rbtree/rbtree-fip-clrs.kk"
+benches_rbtreec="rbtree/rbtree-clrs.c rbtree/rbtree-clrs-full.c rbtree/rbtree-stl.cpp"
+benches_sortkk="sort/msort-std.kk sort/msort-fip.kk sort/qsort-std.kk sort/qsort-fip.kk"
+benches_fingerkk="finger/ftree-std.kk finger/ftree-fip.kk"
 benches_all="$benches_tmapkk $benches_tmapc $benches_rbtreekk $benches_rbtreec $benches_fingerkk $benches_sortkk"
 
 # get this by running `stack path | grep local-install-root`` in the koka development directory 
@@ -37,11 +37,18 @@ echo "using koka: $koka"
 coutdir=".koka/ccomp"
 copts=""
 
+cppoutdir=".koka/cppcomp"
+cppopts=""
+
+mimalloc="mimalloc-2.1"
+mimalloc_usr_local="/usr/local/"
+
 gtime="/usr/bin/time"
 if command -v "gtime"; then
   gtime=`which gtime`
 fi
 
+cppcomp="clang++"
 ccomp="clang"
 benches=""
 
@@ -79,6 +86,7 @@ function warning {
 
 ensure_dir "log"
 ensure_dir ".koka/ccomp"
+ensure_dir ".koka/cppcomp"
 
 while : ; do
   # set flag and flag_arg
@@ -110,8 +118,11 @@ while : ; do
     rbtreec) benches="$benches $benches_rbtreec";;
 
     ccomp) ccomp="$flag_arg";;
-    gcc)   ccomp="gcc";;
-    clang) ccomp="clang";;
+    cppcomp) cppcomp="$flag_arg";;
+    gcc)   ccomp="gcc"
+           cppcomp="g++";;
+    clang) ccomp="clang"
+           cppcomp="clang++";;
 
     build) do_build="yes";;
     run)   do_run="yes"
@@ -140,54 +151,119 @@ while : ; do
         echo "  -h, --help                   show this help"  
         echo "  -v, --verbose                be verbose (=$verbose)"
         echo ""
+        echo "see 'bench.sh' for all available options"
+        echo ""
         exit 0;;
     *) warning "unknown option \"$1\"." 1>&2
   esac
   shift
 done
 
-function build_kk { # <bench> 
-  local options="-O2 --no-debug --cc=$ccomp --buildtag=bench $kkopts"
-  if [[ "$1" == *"noreuse.kk"* ]]; then
+# add -noreuse to std, and -mi to c/cpp
+function expand_benches {
+  local newb=""
+  for bench in $benches; do
+    local base=${bench%.*}
+    if [[ $bench == *-std\.kk ]]; then
+      newb="$newb $bench $base-noreuse.kk"
+    elif [[ $bench == *\.c ]]; then
+      newb="$newb $bench $base-mi.c"
+    elif [[ $bench == *\.cpp ]]; then
+      newb="$newb $bench $base-mi.cpp"
+    else
+      newb="$newb $bench"
+    fi
+  done 
+  benches=$newb
+  echo "expanded benches: $benches"
+}
+
+expand_benches
+
+function build_kk { # <bench>
+  
+  local srcname="$1"
+  local base=${1%.*}            # no ext
+  local stem=${base##*/}     # dashed dir
+  local options="-O2 --no-debug --cc=$ccomp --buildtag=bench --buildname=$stem $kkopts"  
+  if [[ $1 == *-noreuse\.kk ]]; then
     options="$options --fno-reuse"
+    srcname="${1%-noreuse.kk}.kk"
   fi
-  info ""
-  info "build: $1, ($options)"
-  "$koka" $options -i$benchdir $benchdir/$1  
+  if ! [ -f "$benchdir/$srcname" ]; then
+    info "SKIP $bench ($benchdir/$srcname) -- not found"
+  else
+    local cmd="$koka $options -i$benchdir $benchdir/$srcname"
+    info ""
+    info "build: $1: $cmd"
+    $cmd
+    # "$koka" $options -i$benchdir $benchdir/$srcname
+  fi
 }
 
 function build_c { # <bench> 
+  local srcname="$1"
   local base=${1%.*}
-  local dbase=${base//\//_}
-  local options="-O3 -o $coutdir/$dbase $copts"
+  local stem=${base##*/}
+  local options="-O3 -o $coutdir/$stem $copts"
   if [[ $(uname -m) == 'arm64' ]]; then
     options="$options -mcpu=apple-m1"
   else
     options="$options -march=native"
   fi
-  if [[ "$1" == *"mimalloc.c"* ]]; then
-    options="$options -L /usr/local/lib/mimalloc-2.0 -I /usr/local/include/mimalloc-2.0 -lmimalloc"
+  if [[ "$1" == *"-mi"* ]]; then
+    options="$options -L ${mimalloc_usr_local}lib/$mimalloc -I ${mimalloc_usr_local}include/$mimalloc -lmimalloc"
+    srcname="${1%-mi.c}.c"
   fi
-  info ""
-  info "build: $1, ($options)"
-  "$ccomp" $options $benchdir/$1  
+  if ! [ -f "$benchdir/$srcname" ]; then
+    info "SKIP $bench ($benchdir/$srcname) -- not found"
+  else
+    local cmd="$ccomp $options $benchdir/$srcname"
+    info ""
+    info "build: $1: $cmd"
+    $cmd
+  fi
+}
+
+function build_cpp { # <bench>
+  local srcname="$1"
+  local base=${1%.*}
+  local stem=${base##*/}
+  local options="-O3 -o $cppoutdir/$stem $cppopts"
+  if [[ $(uname -m) == 'arm64' ]]; then
+    options="$options -mcpu=apple-m1"
+  else
+    options="$options -march=native"
+  fi
+  if [[ "$1" == *"-mi"* ]]; then
+    options="$options -L ${mimalloc_usr_local}lib/$mimalloc -I ${mimalloc_usr_local}include/$mimalloc -lmimalloc"
+    srcname="${1%-mi.cpp}.cpp"
+  fi
+  if ! [ -f "$benchdir/$srcname" ]; then
+    info "SKIP $bench ($benchdir/$srcname) -- not found"
+  else  
+    local cmd="$cppcomp $options $benchdir/$srcname"
+    info ""
+    info "build: $1: $cmd"
+    $cmd
+  fi
 }
 
 function build_all {
   for bench in $benches; do
-    if ! [ -f "$benchdir/$bench" ]; then
-      info "skip $bench -- not found"
-    elif [[ $bench == *\.kk ]]; then
+    if [[ $bench == *\.kk ]]; then
       build_kk $bench $ccomp
     elif [[ $bench == *\.c ]]; then
       build_c $bench 
+    elif [[ $bench == *\.cpp ]]; then
+      build_cpp $bench 
     else
       warning "define build compiler for $bench"
     fi
   done
 }
 
-function run {  #bname cmd runidx log runparam
+function run {  #label cmd runidx log runparam
   info ""
   info "run $1, iter $3, cmd: $2"
   local logrun="./log/run.txt"
@@ -207,22 +283,24 @@ function run_all {
     local exe=""
     local prefix=${bench#*\.}
     local base=${bench%\.*} # no extension      
-    local dbase=${base//\//_}
+    local stem=${base##*/}  # no directory
     
     if [[ $bench == *\.kk ]]; then
-      exe=".koka/${koka_ver}-bench/$ccomp-release/$dbase"
+      exe=".koka/${koka_ver}-bench/$ccomp-release/$stem"
     elif [[ $bench == *\.c ]]; then
-      exe=".koka/ccomp/$dbase"      
+      exe=".koka/ccomp/$stem"      
+    elif [[ $bench == *\.cpp ]]; then
+      exe=".koka/cppcomp/$stem"      
     fi
 
     local cmd="$exe"
     if ! [ -f $exe ]; then
-       info "bench $base: NA (exe not found: $exe)"
+       info "bench $stem: NA (exe not found: $exe)"
     elif [ -z $cmd ]; then
-       info "bench $base: NA (no command)" # define for ML 
+       info "bench $rtem: NA (no command)" # define for ML 
     else
       for runparam in $runparams; do
-        local bname="${prefix}_${dbase}_$runparam"
+        local bname="${prefix}__${stem}__$runparam"
         local log="./log/$bname.txt"
         rm -f $log 2> /dev/null   
         for ((runs=1; runs<=$max_runs; runs++)); do
@@ -265,16 +343,17 @@ function avg { #bname log logbench $4=<kk|ml> map <variant> <runparam>
 function avg_all {
   local logbench="./log/avg.txt"
   rm -f $logbench 2> /dev/null
+  echo "# benchmark variant param elapsed relative stddev rss" >> $logbench
   for dir in $dirs; do
     for runparam in $runparams; do    
       basetime=""      
       for bench in $benches; do
         local prefix=${bench#*\.}
         local base=${bench%\.*}  # no extension       
-        local dbase=${base//\//_}
+        local stem=${base##*/}
         local bdir=$(echo $base | cut -d'/' -f 1)
-        local variant=${base#*\_}   
-        local bname="${prefix}_${dbase}_${runparam}"
+        local variant=${stem#*-}   
+        local bname="${prefix}__${stem}__${runparam}"
         local log="./log/$bname.txt"
         if [ "$dir" = "$bdir" ]; then
           avg $bname $log $logbench $prefix $dir $variant $runparam
@@ -285,11 +364,14 @@ function avg_all {
     echo "" >> $logbench
   done
   echo ""
-  echo "# benchmark        elapsed  relat.  stddev rss"
   column -t $logbench
 }
 
-function graph_variant { # <kk|ml> map <variant> <avglog> <texdata>
+
+#--------------------------------------
+# graph with xtick each benchmark
+
+function xgraph_variant { # <kk|ml> map <variant> <varianttexname> <avglog> <texdata>
   #            $1 $2  $3   $4    $5        $6         $7       $8    $9
   # log entry: kk map trmc 1000  <elapsed> <relative> <stddev> <rss> <notes>
   awk '
@@ -297,6 +379,7 @@ function graph_variant { # <kk|ml> map <variant> <avglog> <texdata>
       prefix="'"$1"'"
       bench="'"$2"'"
       variant="'"$3"'"
+      varianttexname="'"$4"'"
       print "\\pgfplotstableread{"
       print "x y y-error meta"
     }
@@ -312,10 +395,10 @@ function graph_variant { # <kk|ml> map <variant> <avglog> <texdata>
       }
     }  
     END {
-      print "}\\datatime" prefix bench variant
+      print "}\\datatime" prefix bench varianttexname
       print " "
     }
-  ' $4 >> $5
+  ' $5 >> $6
 }
 
 function graph_all {
@@ -345,11 +428,83 @@ function graph_all {
   for bench in $benches; do
     local prefix=${bench#*\.}
     local base=${bench%\.*}  # no extension       
-    local bbench=${base#*\/}  # no directory
-    local variant=${bbench#*\_}   
-    local benchname=${bbench%\_*}
-    # echo "$benchname, $variant"    
-    graph_variant $prefix $benchname $variant $logbench $texdata
+    local stem=${base##*\/}  # no directory
+    local variant=${stem#*-}   
+    local varianttexname="${variant//-/x/}"
+    local benchname=${stem%%-*}
+    echo "GRAPH $benchname, $variant"    
+    xgraph_variant $prefix $benchname $variant $varianttexname $logbench $texdata
+  done
+  cat $texdata
+}
+
+
+#-------------------------------------
+# graph with the x ticks for each runparam
+
+function xgraph_variant { # <kk|ml> map <variant> <varianttexname> <avglog> <texdata>
+  #            $1 $2  $3   $4    $5        $6         $7       $8    $9
+  # log entry: kk map trmc 1000  <elapsed> <relative> <stddev> <rss> <notes>
+  awk '
+    BEGIN {
+      prefix="'"$1"'"
+      bench="'"$2"'"
+      variant="'"$3"'"
+      varianttexname="'"$4"'"
+      print "\\pgfplotstableread{"
+      print "x y y-error meta"
+    }
+    $1==prefix && $2==bench && $3==variant {
+      if ($1 == "kk" && $3 == "trmc") {
+        printf( "%i %0.3f %0.3f {\\absnormlabel{%0.2f}}\n", i++, $6, $7, $5 );
+      }
+      else if ($6 == 0.1) {
+        printf( "%i 0.100 0.000 {\\!\\!out of stack}\n", i++);
+      }
+      else {
+        printf( "%i %0.3f %0.3f {\\normlabel{%0.2f}}\n", i++, ($6>3 ? 3 : $6), $7, $6);
+      }
+    }  
+    END {
+      print "}\\datatime" prefix bench varianttexname
+      print " "
+    }
+  ' $5 >> $6
+}
+
+function xgraph_all {
+  local logbench="./log/avg.txt"
+  local texdata="./log/graph.tex"
+  echo "\\pgfplotsset{" > $texdata 
+  echo "  xticklabels = {" >> $texdata
+  #local benchname=""
+  #for bench in $benches; do
+  #  local bbench=${bench#*\/}  # no directory
+  #  benchname=${bbench%\_*}
+  #  break
+  #done
+  for runparam in $runparams; do
+    local lab="$runparam"
+    if [ "$lab" = "10000" ]; then
+      lab="10\\nsep 000"
+    elif [ "$lab" = "100000" ]; then
+      lab="100\\nsep 000"
+    elif [ "$lab" = "1000000" ]; then
+      lab="1\\nsep 000\\nsep 000"
+    fi
+    echo "   \\strut $lab," >> $texdata    
+  done
+  echo "}}" >> $texdata
+  echo " " >> $texdata
+  for bench in $benches; do
+    local prefix=${bench#*\.}
+    local base=${bench%\.*}  # no extension       
+    local stem=${base##*\/}  # no directory
+    local variant=${stem#*-}   
+    local varianttexname="${variant//-/}"
+    local benchname=${stem%%-*}
+    echo "GRAPH $benchname, $variant"    
+    xgraph_variant $prefix $benchname $variant $varianttexname $logbench $texdata
   done
   cat $texdata
 }
