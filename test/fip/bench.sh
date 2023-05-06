@@ -5,12 +5,12 @@ runparams_small="1 10 100 1000"
 benchmarks="tmap rbtree ftree msort qsort"
 
 # note: order matters as it is made relative to the first 
-benches_tmapkk="tmap/tmap-std.kk tmap/tmap-fip.kk"
-benches_tmapc="tmap/tmap-std.c tmap/tmap-fip.c"
-benches_rbtreekk="rbtree/rbtree-std.kk rbtree/rbtree-fip-icfp.kk rbtree/rbtree-fip.kk rbtree/rbtree-fip-clrs.kk"
+benches_tmapkk="tmap/tmap-fip.kk tmap/tmap-std.kk"
+benches_tmapc="tmap/tmap-fip.c tmap/tmap-std.c"
+benches_rbtreekk="rbtree/rbtree-fip.kk rbtree/rbtree-fip-icfp.kk rbtree/rbtree-std.kk rbtree/rbtree-fip-clrs.kk"
 benches_rbtreec="rbtree/rbtree-clrs.c rbtree/rbtree-clrs-full.c rbtree/rbtree-stl.cpp"
-benches_sortkk="sort/msort-std.kk sort/msort-fip.kk sort/qsort-std.kk sort/qsort-fip.kk"
-benches_fingerkk="finger/ftree-std.kk finger/ftree-fip.kk"
+benches_sortkk="sort/msort-fip.kk sort/msort-std.kk sort/qsort-fip.kk sort/qsort-std.kk"
+benches_fingerkk="finger/ftree-fip.kk finger/ftree-std.kk"
 benches_all="$benches_tmapkk $benches_tmapc $benches_rbtreekk $benches_rbtreec $benches_fingerkk $benches_sortkk"
 
 # get this by running `stack path | grep local-install-root`` in the koka development directory 
@@ -165,7 +165,7 @@ function expand_benches {
   for bench in $benches; do
     local base=${bench%.*}
     if [[ $bench == *-std\.kk ]]; then
-      newb="$newb $base-noreuse.kk $bench"  # order matters: no relative to std-noreuse
+      newb="$newb $bench $base-noreuse.kk"  # order matters
     elif [[ $bench == *\.c ]]; then
       newb="$newb $bench $base-mi.c"
     elif [[ $bench == *\.cpp ]]; then
