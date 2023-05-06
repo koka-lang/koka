@@ -3,7 +3,7 @@
 runparams="100000" # "1 10 100 1000 10000 100000 1000000"
 runparams_small="1 10 100 1000"
 benchmarks="rbtree ftree msort qsort tmap"
-graphvariants="fip std std-noreuse stl stl-mi"
+graphvariants="fip std std-noreuse stl stl-mi std-mi"
 
 # note: order matters as it is made relative to the first 
 benches_tmapkk="tmap/tmap-fip.kk tmap/tmap-std.kk"
@@ -459,7 +459,10 @@ function graph_variant { # $1=<kk|c|cpp> $2=<variant> $3=<varianttexname> $4=<av
       print "x y y-error meta"
     }
     $1==prefix && $3==variant {
-      if ($6 == 0.1) {
+      if ($1 == "kk" && $3 == "fip") {
+        printf( "%i %0.3f %0.3f {\\absnormlabel{%0.2f}}\n", i++, $6, $7, $5 );
+      }
+      else if ($6 == 0.1) {
         printf( "%i 0.100 0.000 {\\!\\!out of stack}\n", i++);
       }
       else {
@@ -489,6 +492,7 @@ function graph_all {
     local varianttexname="${variant//-/}"
     graph_variant "kk" $variant $varianttexname $logbench $texdata
     # graph_variant "cpp" $variant $varianttexname $logbench $texdata
+    graph_variant "c" $variant $varianttexname $logbench $texdata
   done
   cat $texdata
 }
