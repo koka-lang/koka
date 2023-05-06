@@ -1,8 +1,8 @@
 import std/num/int32
 import std/os/env
 
-type any
-  Any
+ref type pad
+  Pad
 
 type color
   Red
@@ -12,11 +12,8 @@ type tree
   Node(color : color, lchild : tree, key : int32, value : bool, rchild : tree)
   Leaf()
 
-type balance-node
-  Balance(color : color, lchild : tree, key : int32, value : bool, rchild : tree)
-
 type reuse5
-  Reuse5(a : color, b : any, c : any, d : bool, e : any)
+  Reuse5(a : color, b : pad, c : int32, d : bool, e : pad)
 
 type accum
   Done
@@ -29,21 +26,19 @@ fip fun rebuild(z : accum, t : tree) : tree
     NodeL(c, z1, k, v, r) -> rebuild(z1, Node(c, t, k, v, r))
     Done -> t
 
-fip fun balance( z : accum, t : balance-node ) : tree
-  match t
-    Balance(_,l,k,v,r) -> 
-      match z
-        NodeR(Black, l1, k1, v1, z1) -> rebuild( z1, Node( Black, l1, k1, v1, Node(Red,l,k,v,r) ) )
-        NodeL(Black, z1, k1, v1, r1) -> rebuild( z1, Node( Black, Node(Red,l,k,v,r), k1, v1, r1 ) )
-        NodeR(Red, l1, k1, v1, z1) -> match z1
-          NodeR(_,l2,k2,v2,z2) -> balance( z2, Balance(Black, Node(Black,l2,k2,v2,l1), k1, v1, Node(Black,l,k,v,r)) )
-          NodeL(_,z2,k2,v2,r2) -> balance( z2, Balance(Black, Node(Black,l1,k1,v1,l), k, v, Node(Black,r,k2,v2,r2)) )
-          Done -> Node(Black, l1, k1, v1, Node(Red,l,k,v,r))
-        NodeL(Red, z1, k1, v1, r1) -> match z1
-          NodeR(_,l2,k2,v2,z2) -> balance( z2, Balance(Black, Node(Black,l2,k2,v2,l), k, v, Node(Black,r,k1,v1,r1)) )
-          NodeL(_,z2,k2,v2,r2) -> balance( z2, Balance(Black, Node(Black,l,k,v,r), k1, v1, Node(Black,r1,k2,v2,r2)) )              
-          Done -> Node(Black, Node(Red,l,k,v,r), k1, v1, r1)
-        Done -> Node(Black,l,k,v,r)
+fip fun balance( z : accum, l : tree, k : int32, v : bool, r : tree, u : reuse5 ) : tree
+  match z
+    NodeR(Black, l1, k1, v1, z1) -> rebuild( z1, Node( Black, l1, k1, v1, Node(Red,l,k,v,r) ) )
+    NodeL(Black, z1, k1, v1, r1) -> rebuild( z1, Node( Black, Node(Red,l,k,v,r), k1, v1, r1 ) )
+    NodeR(Red, l1, k1, v1, z1) -> match z1
+      NodeR(_,l2,k2,v2,z2) -> balance( z2, Node(Black,l2,k2,v2,l1), k1, v1, Node(Black,l,k,v,r), u )
+      NodeL(_,z2,k2,v2,r2) -> balance( z2, Node(Black,l1,k1,v1,l), k, v, Node(Black,r,k2,v2,r2), u )
+      Done -> Node(Black, l1, k1, v1, Node(Red,l,k,v,r))
+    NodeL(Red, z1, k1, v1, r1) -> match z1
+      NodeR(_,l2,k2,v2,z2) -> balance( z2, Node(Black,l2,k2,v2,l), k, v, Node(Black,r,k1,v1,r1), u )
+      NodeL(_,z2,k2,v2,r2) -> balance( z2, Node(Black,l,k,v,r), k1, v1, Node(Black,r1,k2,v2,r2), u )              
+      Done -> Node(Black, Node(Red,l,k,v,r), k1, v1, r1)
+    Done -> Node(Black,l,k,v,r)
 
 fip(1) fun ins(t : tree, k : int32, v : bool, z : accum) : tree
   match t
@@ -51,7 +46,7 @@ fip(1) fun ins(t : tree, k : int32, v : bool, z : accum) : tree
       -> if k < kx   then ins(l, k, v, NodeL(c, z, kx, vx, r))
          elif k > kx then ins(r, k, v, NodeR(c, l, kx, vx, z))
          else rebuild(z, Node(c, l, kx, vx, r))
-    Leaf -> balance(z, Balance(Black,Leaf, k, v, Leaf))
+    Leaf -> balance(z, Leaf, k, v, Leaf, Reuse5(Red,Pad,0.int32,True,Pad))
 
 fip(1) fun insert(t : tree, k : int32, v : bool) : tree
   ins(t, k, v, Done)
