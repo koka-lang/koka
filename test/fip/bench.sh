@@ -2,7 +2,7 @@
 # 
 runparams="100000" # "1 10 100 1000 10000 100000 1000000"
 runparams_small="1 10 100 1000"
-dirs="tmap rbtree finger sort"
+benchmarks="tmap rbtree ftree msort qsort"
 
 # note: order matters as it is made relative to the first 
 benches_tmapkk="tmap/tmap-std.kk tmap/tmap-fip.kk"
@@ -314,7 +314,7 @@ function run_all {
 
 basetime=""
 
-function avg { #bname log logbench $4=<kk|ml> map <variant> <runparam>
+function avg { #$1=bname $2=log $3=logbench $4=<kk|c|cpp> $5=benchname $6=<variant> $7=<runparam>
   local median="0.01"
   local stddev="0"
   local rss="0"
@@ -344,19 +344,19 @@ function avg_all {
   local logbench="./log/avg.txt"
   rm -f $logbench 2> /dev/null
   echo "# benchmark variant param elapsed relative stddev rss" >> $logbench
-  for dir in $dirs; do
+  for benchmark in $benchmarks; do
     for runparam in $runparams; do    
-      basetime=""      
+      basetime=""  
       for bench in $benches; do
         local prefix=${bench#*\.}
         local base=${bench%\.*}  # no extension       
         local stem=${base##*/}
-        local bdir=$(echo $base | cut -d'/' -f 1)
+        # local bdir=$(echo $base | cut -d'/' -f 1)
         local variant=${stem#*-}   
-        local bname="${prefix}__${stem}__${runparam}"
-        local log="./log/$bname.txt"
-        if [ "$dir" = "$bdir" ]; then
-          avg $bname $log $logbench $prefix $dir $variant $runparam
+        local label="${prefix}__${stem}__${runparam}"
+        local log="./log/$label.txt"
+        if [ "$benchmark" = "${stem%%-*}" ]; then
+          avg $label $log $logbench $prefix $stem $variant $runparam
         fi
       done    
       echo "##" >> $logbench
