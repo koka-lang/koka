@@ -1,12 +1,13 @@
 
 # 
-runparams="10000" # "1 10 100 1000 10000 100000 1000000"
+runparams="100000" # "1 10 100 1000 10000 100000 1000000"
 runparams_small="1 10 100 1000"
 dirs="tmap rbtree finger sort"
 
+# note: order matters as it is made relative to the first 
 benches_tmapkk="tmap/tmap-std.kk tmap/tmap-fip.kk"
 benches_tmapc="tmap/tmap-std.c tmap/tmap-fip.c"
-benches_rbtreekk="rbtree/rbtree-fip-icfp.kk rbtree/rbtree-std.kk rbtree/rbtree-fip.kk rbtree/rbtree-fip-clrs.kk"
+benches_rbtreekk="rbtree/rbtree-std.kk rbtree/rbtree-fip-icfp.kk rbtree/rbtree-fip.kk rbtree/rbtree-fip-clrs.kk"
 benches_rbtreec="rbtree/rbtree-clrs.c rbtree/rbtree-clrs-full.c rbtree/rbtree-stl.cpp"
 benches_sortkk="sort/msort-std.kk sort/msort-fip.kk sort/qsort-std.kk sort/qsort-fip.kk"
 benches_fingerkk="finger/ftree-std.kk finger/ftree-fip.kk"
@@ -40,8 +41,7 @@ copts=""
 cppoutdir=".koka/cppcomp"
 cppopts=""
 
-mimalloc="mimalloc-2.1"
-mimalloc_usr_local="/usr/local/"
+mimalloc_o="/usr/local/lib/mimalloc-2.1/mimalloc.o"
 
 gtime="/usr/bin/time"
 if command -v "gtime"; then
@@ -165,7 +165,7 @@ function expand_benches {
   for bench in $benches; do
     local base=${bench%.*}
     if [[ $bench == *-std\.kk ]]; then
-      newb="$newb $bench $base-noreuse.kk"
+      newb="$newb $base-noreuse.kk $bench"  # order matters: no relative to std-noreuse
     elif [[ $bench == *\.c ]]; then
       newb="$newb $bench $base-mi.c"
     elif [[ $bench == *\.cpp ]]; then
@@ -212,7 +212,7 @@ function build_c { # <bench>
     options="$options -march=native"
   fi
   if [[ "$1" == *"-mi"* ]]; then
-    options="$options -L ${mimalloc_usr_local}lib/$mimalloc -I ${mimalloc_usr_local}include/$mimalloc -lmimalloc"
+    options="$options $mimalloc_o -I ${mimalloc_usr_local}include/$mimalloc"
     srcname="${1%-mi.c}.c"
   fi
   if ! [ -f "$benchdir/$srcname" ]; then
@@ -236,7 +236,7 @@ function build_cpp { # <bench>
     options="$options -march=native"
   fi
   if [[ "$1" == *"-mi"* ]]; then
-    options="$options -L ${mimalloc_usr_local}lib/$mimalloc -I ${mimalloc_usr_local}include/$mimalloc -lmimalloc"
+    options="$options $mimalloc_o -I ${mimalloc_usr_local}include/$mimalloc"
     srcname="${1%-mi.cpp}.cpp"
   fi
   if ! [ -f "$benchdir/$srcname" ]; then
@@ -524,4 +524,5 @@ fi
 
 if [ "$do_graph" = "yes" ]; then
   graph_all
+  #xgraph_all
 fi
