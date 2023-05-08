@@ -230,7 +230,7 @@ function build_cpp { # <bench>
   local srcname="$1"
   local base=${1%.*}
   local stem=${base##*/}
-  local options="-O3 -o $cppoutdir/$stem $cppopts"
+  local options="--std=c++17 -O3 -o $cppoutdir/$stem $cppopts"
   if [[ $(uname -m) == 'arm64' ]]; then
     options="$options -mcpu=apple-m1"
   else
