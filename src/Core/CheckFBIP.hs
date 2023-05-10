@@ -17,7 +17,7 @@ module Core.CheckFBIP( checkFBIP
 import qualified Lib.Trace
 import Control.Monad
 import Control.Applicative
-import Data.List( partition, intersperse, foldl1', foldl', isSuffixOf, uncons )
+import Data.List( partition, intersperse, foldl1', foldl', isSuffixOf, uncons, sortBy )
 import qualified Data.Set as S
 import qualified Data.Map as M
 
@@ -46,7 +46,9 @@ import Core.Borrowed
 import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial, nameTrue)
 import Backend.C.ParcReuse (getFixedDataAllocSize)
 import Backend.C.Parc (getDataDef')
-import Data.List (tails)
+import Data.List (tails, sortOn)
+import Data.Ratio
+import Data.Ord (comparing, Down (Down))
 
 trace s x =
   Lib.Trace.trace s
@@ -80,28 +82,27 @@ chkTopLevelDef defGroupNames def
       case defSort def of
         -- only check fip and fbip annotated functions 
         DefFun borrows fip | not (isNoFip fip) -> 
-           do out <- withFip fip $
-                     extractOutput $                      
-                     withInput (\_ -> Input S.empty (capFromFip fip) defGroupNames True) $
-                     chkTopLevelExpr borrows fip (defExpr def)
-              checkOutputEmpty out
+          withFip fip $
+            do out <- extractOutput $
+                      withInput (\_ -> Input S.empty defGroupNames True) $
+                      chkTopLevelExpr borrows (defExpr def)
+               checkOutputEmpty out
         _ -> return ()
 
-
 -- | Lambdas at the top-level are part of the signature and not allocations.
-chkTopLevelExpr :: [ParamInfo] -> Fip -> Expr -> Chk ()
-chkTopLevelExpr borrows fip (Lam pars eff body)  -- todo: track fip to adjust warnings
+chkTopLevelExpr :: [ParamInfo] -> Expr -> Chk ()
+chkTopLevelExpr borrows (Lam pars eff body)
   = do chkEffect eff
-       let bpars = map snd $ filter ((==Borrow) . fst) $ zipDefault Own borrows pars
-       let opars = map snd $ filter ((==Own) . fst) $ zipDefault Own borrows pars
+       let bpars = map snd $ filter ((==Borrow) . fst) $ zipParamInfo borrows pars
+       let opars = map snd $ filter ((==Own) . fst) $ zipParamInfo borrows pars
        withBorrowed (S.fromList $ map getName bpars) $ do
          out <- extractOutput $ chkExpr body
          writeOutput =<< foldM (\out nm -> bindName nm Nothing out) out opars
-chkTopLevelExpr borrows fip (TypeLam _ body)
-  = chkTopLevelExpr borrows fip  body
-chkTopLevelExpr borrows fip (TypeApp body _)
-  = chkTopLevelExpr borrows fip  body
-chkTopLevelExpr borrows fip expr 
+chkTopLevelExpr borrows (TypeLam _ body)
+  = chkTopLevelExpr borrows body
+chkTopLevelExpr borrows (TypeApp body _)
+  = chkTopLevelExpr borrows body
+chkTopLevelExpr borrows expr
   = chkExpr expr
 
 chkExpr :: Expr -> Chk ()
@@ -111,7 +112,7 @@ chkExpr expr
       TypeApp body _ -> chkExpr body
       Lam pars eff body
         -> do chkEffect eff
-              requireCapability HasAlloc $ \ppenv -> Just $
+              requireCapability mayAlloc $ \ppenv -> Just $
                 text "Lambdas are always allocated."
               out <- extractOutput $ chkExpr body
               writeOutput =<< foldM (\out nm -> bindName nm Nothing out) out pars
@@ -127,7 +128,7 @@ chkExpr expr
               withBorrowed (S.map getName $ M.keysSet $ gammaNm gamma2) $
                 withTailMod [Let dgs body] $ chkExpr $ defExpr def
       Let _ _
-        -> unhandled $ text "FIP check can not handle recursive let bindings."
+        -> emitWarning $ text "FIP check can not handle nested function bindings."
 
       Case scrutinees branches
         -> chkBranches scrutinees branches
@@ -144,14 +145,9 @@ chkBranches scrutinees branches
   = do whichBorrowed <- mapM isBorrowedScrutinee scrutinees
        let branches' = filter (not . isPatternMatchError) branches
        outs <- mapM (extractOutput . chkBranch whichBorrowed) branches'
-       gamma2 <- joinContexts (map branchPatterns branches') outs
-       writeOutput gamma2
-       withBorrowed (S.map getName $ M.keysSet $ gammaNm gamma2) $
-         withTailModProduct branches' $ -- also filter out pattern match errors
-           mapM_ chkScrutinee scrutinees
-  where
-    fromVar (Var tname _) = Just tname
-    fromVar _ = Nothing
+       writeOutput =<< joinContexts (map branchPatterns branches') outs
+       withTailModProduct branches' $ -- also filter out pattern match errors
+         mapM_ chkScrutinee scrutinees
 
 isBorrowedScrutinee :: Expr -> Chk ParamInfo
 isBorrowedScrutinee expr@(Var tname info)
@@ -167,10 +163,10 @@ chkScrutinee expr = chkExpr expr
 
 chkBranch :: [ParamInfo] -> Branch -> Chk ()
 chkBranch whichBorrowed (Branch pats guards)
-  = do let (borPats, ownPats) = partition ((==Borrow) .fst) $ zipDefault Own whichBorrowed pats
+  = do let (borPats, ownPats) = partition ((==Borrow) .fst) $ zipParamInfo whichBorrowed pats
        outs <- withBorrowed (S.map getName $ bv $ map snd borPats) $
                 mapM (extractOutput . chkGuard) guards
-       out <- joinContexts [] outs
+       out <- joinContexts (repeat pats) outs
        writeOutput =<< foldM (flip bindPattern) out (map snd ownPats)
 
 chkGuard :: Guard -> Chk ()
@@ -211,11 +207,11 @@ chkApp (Con cname repr) args -- try reuse
        chkAllocation cname repr
 chkApp (Var tname info) args | not (infoIsRefCounted info) -- toplevel function
   = do bs <- getParamInfos (getName tname)
-       withNonTail $ mapM_ chkArg $ zipDefault Own bs args
+       withNonTail $ mapM_ chkArg $ zipParamInfo bs args
        chkFunCallable (getName tname) =<< getFip
        input <- getInput
        unless (isTailContext input || getName tname `notElem` defGroupNames input) $
-         requireCapability HasStack $ \ppenv -> Just $
+         requireCapability mayRecurse $ \ppenv -> Just $
            cat [text "Non-tail call to (mutually) recursive function: ", ppName ppenv (getName tname)]
 chkApp fn args -- local function
   = do withNonTail $ mapM_ chkExpr args
@@ -223,7 +219,7 @@ chkApp fn args -- local function
          Var tname _ -> isBorrowed tname
          _ -> pure False
        unless isBapp $ do
-         requireCapability HasDealloc $ \ppenv -> Just $
+         requireCapability mayDealloc $ \ppenv -> Just $
            cat [text "Owned calls to functions require deallocation: ", prettyExpr ppenv fn ]
          chkExpr fn
 
@@ -237,7 +233,7 @@ chkArg (Borrow, expr)
         -> chkArg (Borrow, fn) -- disregard .open calls
       (Var tname info) -> markBorrowed tname info
       _ -> do chkExpr expr
-              requireCapability HasDealloc $ \ppenv -> Just $
+              requireCapability mayDealloc $ \ppenv -> Just $
                 text $ "Passing owned expressions as borrowed requires deallocation: " ++ show expr
 
 chkLit :: Lit -> Chk ()
@@ -246,29 +242,30 @@ chkLit lit
       LitInt _ -> pure () -- we do not care about allocating big integers
       LitFloat _ -> pure ()
       LitChar _ -> pure ()
-      LitString _ -> requireCapability HasAlloc $ \ppenv -> Just $
+      LitString _ -> requireCapability mayAlloc $ \ppenv -> Just $
         text "Inline string literals are allocated. Consider lifting to toplevel to avoid this."
 
 chkWrap :: TName -> VarInfo -> Chk ()
 chkWrap tname info
   = do bs <- getParamInfos (getName tname)
        unless (Borrow `notElem` bs) $
-         unhandled $ text "FIP analysis detected that a top-level function was wrapped."
+         emitWarning $ text "FIP analysis detected that a top-level function was wrapped."
 
 chkAllocation :: TName -> ConRepr -> Chk ()
 chkAllocation cname repr | isConAsJust repr = pure ()
 chkAllocation cname repr | "_noreuse" `isSuffixOf` nameId (conTypeName repr)
-  = requireCapability HasAlloc $ \ppenv -> Just $
+  = requireCapability mayAlloc $ \ppenv -> Just $
       cat [text "Types suffixed with _noreuse are not reused: ", ppName ppenv $ conTypeName repr]
 chkAllocation cname crepr
-  = do size <- getConstructorAllocSize crepr        
+  = do size <- getConstructorAllocSize crepr
+       -- chkTrace $ "Allocation " ++ show cname ++ "/" ++ show size
        getAllocation cname size
 
 -- Only total/empty effects or divergence
 chkEffect :: Tau -> Chk ()
 chkEffect tp
   = if isFBIPExtend tp then pure () else
-      unhandled $ text "Algebraic effects other than <exn,div> are not FIP/FBIP."
+      emitWarning $ text "Algebraic effects other than <exn,div> are not FIP/FBIP."
   where
     isFBIPExtend tp = case extractEffectExtend tp of
       (taus, tau) -> all isFBIP taus
@@ -291,29 +288,19 @@ data Env = Env{ currentDef :: [Def],
                 fip       :: Fip
               }
 
-data Capability
-  = HasAlloc   -- may allocate and dup
-  | HasDealloc -- may use drop and free
-  | HasStack   -- may use non-tail recursion
-  deriving (Eq, Ord, Bounded, Enum)
-
-capFromFip :: Fip -> [Capability]
-capFromFip fip 
-  = case fip of
-      Fip n -> []
-      Fbip n isTail -> [HasDealloc] ++ (if isTail then [] else [HasStack])
-      NoFip isTail  -> [HasDealloc,HasAlloc] ++ (if isTail then [] else [HasStack])
-
 data Input = Input{ delta :: S.Set Name,
-                    capabilities :: [Capability],
                     defGroupNames :: [Name],
                     isTailContext :: Bool }
 
 data Output = Output{ gammaNm :: M.Map TName Int,
-                      gammaDia :: M.Map Int [TName] }
+                      -- ^ matches variables to their number of uses
+                      gammaDia :: M.Map Int [(Ratio Int, [TName])] } 
+                      -- ^ matches token size to allocations with a "probability"
+                      -- sorted in descending order of probability
 
 instance Semigroup Output where
-  Output s1 m1 <> Output s2 m2 = Output (M.unionWith (+) s1 s2) (M.unionWith (++) m1 m2)
+  Output s1 m1 <> Output s2 m2 =
+    Output (M.unionWith (+) s1 s2) (M.unionWith (\x y -> sortOn (Down . fst) (x ++ y)) m1 m2)
 
 instance Monoid Output where
   mempty = Output M.empty M.empty
@@ -331,14 +318,14 @@ prettyCon ppenv tname sz
 prettyGammaDia :: Pretty.Env -> Output -> Doc
 prettyGammaDia ppenv (Output nm dia)
   = tupled $ concatMap
-      (\(sz, cs) -> map (\c -> prettyCon ppenv c sz) cs)
+      (\(sz, cs) -> map (\(_, c:_) -> prettyCon ppenv c sz) cs)
       (M.toList dia)
 
 data Result a = Ok a Output [Doc]
 
 runChk :: Pretty.Env -> Int -> Platform -> Newtypes -> Borrowed -> Gamma -> Chk a -> (a,[Doc])
 runChk penv u platform newtypes borrowed gamma (Chk c)
-  = case c (Env [] penv platform newtypes borrowed gamma noFip) (Input S.empty [] [] True) of
+  = case c (Env [] penv platform newtypes borrowed gamma noFip) (Input S.empty [] True) of
       Ok x _out docs -> (x,docs)
 
 instance Functor Chk where
@@ -383,6 +370,37 @@ withFip f chk
 getFip :: Chk Fip  
 getFip = fip <$> getEnv
 
+mayRecurse :: Chk Bool
+mayRecurse
+  = do fip <- getFip
+       pure $ case fip of
+          Fip n -> False
+          Fbip n isTail -> not isTail
+          NoFip isTail  -> not isTail
+
+mayDealloc :: Chk Bool
+mayDealloc
+  = do fip <- getFip
+       pure $ case fip of
+          Fip n -> False
+          _ -> True
+
+data AllocPermission
+  = Unlimited
+  | Limited FipAlloc
+  deriving (Eq, Ord)
+
+getAlloc :: Chk AllocPermission
+getAlloc
+  = do fip <- getFip
+       pure $ case fip of
+          Fip n -> Limited n
+          Fbip n _ -> Limited n
+          NoFip _ -> Unlimited
+
+mayAlloc :: Chk Bool
+mayAlloc = (==Unlimited) <$> getAlloc
+
 isCallableFrom :: Fip -> Fip -> Bool
 isCallableFrom (Fip _) _ = True
 isCallableFrom (Fbip _ _) (Fbip _ _)  = True
@@ -406,45 +424,22 @@ chkFunCallable fn fip
          [] -> emitWarning $ text $ "FIP analysis couldn't find FIP information for function: " ++ show fn
          infos -> emitWarning $ text $ "FIP analysis found ambiguous FIP information for function: " ++ show fn ++ "\n" ++ show infos
 
--- look up fip annotation; return noFip if not found
-lookupFip :: Name -> Chk Fip
-lookupFip name
-  = do env <- getEnv
-       case filter isInfoFun (gammaLookupQ name (gamma env)) of
-         [fun] -> return (infoFip fun)
-         _     -> return noFip
-
-
 -- | Run the given check, keep the warnings but extract the output.
 extractOutput :: Chk () -> Chk Output
 extractOutput (Chk f)
   = Chk (\env st -> case f env st of
                       Ok () out doc -> Ok out mempty doc)
 
-useCapabilities :: [Capability] -> Chk a -> Chk a
-useCapabilities cs
-  = withInput (\st -> st {capabilities = cs})
-
-hasCapability :: Capability -> Chk Bool
-hasCapability c
-  = do st <- getInput
-       pure $ c `elem` capabilities st
-
 -- | Perform a test if the capability is not present
 -- and emit a warning if the test is unsuccessful.
-requireCapability :: Capability -> (Pretty.Env -> Maybe Doc) -> Chk ()
-requireCapability cap test
-  = do hasCap <- hasCapability cap
+requireCapability :: Chk Bool -> (Pretty.Env -> Maybe Doc) -> Chk ()
+requireCapability mayUseCap test
+  = do hasCap <- mayUseCap
        unless hasCap $ do
          env <- getEnv
          case test (prettyEnv env) of
            Just warning -> emitWarning warning
            Nothing -> pure ()
-
-unhandled :: Doc -> Chk ()
-unhandled doc
-  = do hasAll <- and <$> mapM hasCapability (enumFromTo minBound maxBound)
-       unless hasAll $ emitWarning doc
 
 withNonTail :: Chk a -> Chk a
 withNonTail
@@ -500,7 +495,7 @@ markSeen tname info | infoIsRefCounted info -- is locally defined?
   = do b <- isBorrowed tname
        isHeapValue <- needsDupDrop (tnameType tname)
        when isHeapValue $ if b
-         then requireCapability HasAlloc $ \ppenv -> Just $
+         then requireCapability mayAlloc $ \ppenv -> Just $
            cat [text "Borrowed value used as owned (can cause allocations later): ", ppName ppenv (getName tname)]
          else writeOutput (Output (M.singleton tname 1) M.empty)
 markSeen tname info = chkWrap tname info -- wrap rule
@@ -511,22 +506,24 @@ markBorrowed nm info
        unless b $ do
          markSeen nm info
          when (infoIsRefCounted info) $
-           requireCapability HasDealloc $ \ppenv -> Just $
+           requireCapability mayDealloc $ \ppenv -> Just $
              cat [text "Last use of variable is borrowed: ", ppName ppenv (getName nm)]
 
 getAllocation :: TName -> Int -> Chk ()
 getAllocation nm 0 = pure ()
 getAllocation nm size
-  = writeOutput (Output mempty (M.singleton size [nm]))
+  = writeOutput (Output mempty (M.singleton size [(1 % 1, [nm])]))
 
 provideToken :: TName -> Int -> Output -> Chk Output
 provideToken _ 0 out = pure out
 provideToken debugName size out
-  = do requireCapability HasDealloc $ \ppenv ->
+  = do requireCapability mayDealloc $ \ppenv ->
          let fittingAllocs = M.findWithDefault [] size (gammaDia out) in
-         if null fittingAllocs then Just $
-            cat [text "Unused reuse token provided by ", prettyCon ppenv debugName size]
-         else Nothing
+         case fittingAllocs of
+           [] -> Just $ cat [text "Unused reuse token provided by ", prettyCon ppenv debugName size]
+           ((r, _):_) | r /= 1%1 ->
+             Just $ cat [text "Not all branches use reuse token provided by ", prettyCon ppenv debugName size]
+           _ -> Nothing
        pure $ out { gammaDia = M.update (fmap snd . uncons) size (gammaDia out) }
 
 joinContexts :: [[Pattern]] -> [Output] -> Chk Output
@@ -534,23 +531,21 @@ joinContexts _ [] = pure mempty
 joinContexts pats cs
   = do let unionNm = foldl1' (M.unionWith max) (map gammaNm cs)
        (noDealloc, cs') <- fmap unzip $ forM cs $ \c -> do
-         let nm = M.difference unionNm (gammaNm c)
-         (allReusable, c') <- foldM tryReuse (True, c) (map fst $ M.toList nm)
+         let unused = M.difference unionNm (gammaNm c)
+         (allReusable, c') <- foldM tryReuse (True, c) (map fst $ M.toList unused)
          pure (allReusable, c')
        unless (and noDealloc) $ do
-         requireCapability HasDealloc $ \ppenv -> Just $
+         requireCapability mayDealloc $ \ppenv -> Just $
            vcat $ text "Not all branches use the same variables:"
              : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaNm ppenv out]) pats cs
-       let unionDia = foldl1' (M.unionWith chooseLonger) (map gammaDia cs')
-       requireCapability HasDealloc $ \ppenv ->
-          let noDealloc = all (M.null . M.filter (not . null) . M.differenceWith lengthDifferent unionDia . gammaDia) cs'
-          in if noDealloc then Nothing else Just $
-           vcat $ text "Not all branches use the same reuse tokens:"
-             : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaDia ppenv out]) pats cs'
+       let unionDia = foldl1' (M.unionWith zipTokens) $ map (M.map (adjustProb (length cs')) . gammaDia) cs'
        pure (Output unionNm unionDia)
   where
-    chooseLonger a b = if length a >= length b then a else b
-    lengthDifferent a b = if length a /= length b then Just b else Nothing
+    adjustProb n xs = map (\(p, x) -> (p / (n%1), x) ) xs
+
+    zipTokens ((px, x):xs) ((py, y):ys) = (px + py, x ++ y) : zipTokens xs ys
+    zipTokens xs [] = xs
+    zipTokens [] ys = ys
 
     tryReuse (allReusable, out) tname
       = do mOut <- tryDropReuse tname out
@@ -587,13 +582,13 @@ bindName nm msize out
                    (Nothing, Nothing) -> do
                      isHeapValue <- needsDupDrop (tnameType nm)
                      when isHeapValue $
-                       requireCapability HasDealloc $ \ppenv -> Just $
+                       requireCapability mayDealloc $ \ppenv -> Just $
                          cat [text "Variable unused: ", ppName ppenv (getName nm)]
                      pure out
          Just n
            -> do isHeapVal <- needsDupDrop (tnameType nm)
                  when (n > 1 && isHeapVal) $
-                   requireCapability HasAlloc $ \ppenv -> Just $
+                   requireCapability mayAlloc $ \ppenv -> Just $
                      cat [text "Variable used multiple times: ", ppName ppenv (getName nm)]
                  pure out
        pure (out { gammaNm = M.delete nm (gammaNm out) })
@@ -605,15 +600,19 @@ checkOutputEmpty out
          Just ((nm, _), _)
            -> emitWarning $ text $ "FIP analysis failed as it didn't bind a name: " ++ show nm
        case M.maxViewWithKey $ gammaDia out of
-         Just ((sz, c:_), _) | sz > 0
-           -> requireCapability HasAlloc $ \ppenv -> Just $
-                cat [text "Allocated constructor without reuse token: ", prettyCon ppenv c sz]
+         Just ((sz, (_, c:cs):_), _) | sz > 0
+           -> do permission <- getAlloc
+                 case permission of
+                   Limited (AllocAtMost n)
+                     -> do unless (length (c:cs) <= n) $ do
+                             env <- getEnv
+                             emitWarning $ cat [text "Allocated constructor without reuse token: ", prettyCon (prettyEnv env) c sz]
+                   Limited AllocFinitely -> pure ()
+                   Unlimited -> pure ()
          _ -> pure ()
 
-zipDefault :: a -> [a] -> [b] -> [(a, b)]
-zipDefault x [] (b:bs) = (x, b) : zipDefault x [] bs
-zipDefault x (a:as) (b:bs) = (a, b) : zipDefault x as bs
-zipDefault x _ [] = []
+zipParamInfo :: [ParamInfo] -> [b] -> [(ParamInfo, b)]
+zipParamInfo xs = zip (xs ++ repeat Own)
 
 -- value types with reference fields still need a drop
 needsDupDrop :: Type -> Chk Bool
@@ -639,7 +638,7 @@ getPlatform = platform <$> getEnv
 -- track the current definition for nicer error messages
 withCurrentDef :: Def -> Chk a -> Chk a
 withCurrentDef def action
-  = -- trace ("chking: " ++ show (defName def)) $
+  = -- trace ("checking: " ++ show (defName def)) $
     withEnv (\env -> env{currentDef = def:currentDef env}) $
     action
 
