@@ -149,9 +149,11 @@ chkBranches scrutinees branches
   = do whichBorrowed <- mapM isBorrowedScrutinee scrutinees
        let branches' = filter (not . isPatternMatchError) branches
        outs <- mapM (extractOutput . chkBranch whichBorrowed) branches'
-       writeOutput =<< joinContexts (map branchPatterns branches') outs
-       withTailModProduct branches' $ -- also filter out pattern match errors
-         mapM_ chkScrutinee scrutinees
+       gamma2 <- joinContexts (map branchPatterns branches') outs
+       writeOutput gamma2
+       withBorrowed (S.map getName $ M.keysSet $ gammaNm gamma2) $
+         withTailModProduct branches' $ -- also filter out pattern match errors
+           mapM_ chkScrutinee $ zip whichBorrowed scrutinees
 
 isBorrowedScrutinee :: Expr -> Chk ParamInfo
 isBorrowedScrutinee expr@(Var tname info)
@@ -159,15 +161,13 @@ isBorrowedScrutinee expr@(Var tname info)
        pure $ if b then Borrow else Own
 isBorrowedScrutinee _ = pure Own
 
-chkScrutinee :: Expr -> Chk ()
-chkScrutinee expr@(Var tname info)
-  = do b <- isBorrowed tname
-       unless b $ markSeen tname info
-chkScrutinee expr = chkExpr expr
+chkScrutinee :: (ParamInfo, Expr) -> Chk ()
+chkScrutinee (Borrow, Var tname info) = pure ()
+chkScrutinee (_, expr) = chkExpr expr
 
 chkBranch :: [ParamInfo] -> Branch -> Chk ()
 chkBranch whichBorrowed (Branch pats guards)
-  = do let (borPats, ownPats) = partition ((==Borrow) .fst) $ zipParamInfo whichBorrowed pats
+  = do let (borPats, ownPats) = partition ((==Borrow) .fst) $ zip whichBorrowed pats
        outs <- withBorrowed (S.map getName $ bv $ map snd borPats) $
                 mapM (extractOutput . chkGuard) guards
        out <- joinContexts (repeat pats) outs
@@ -253,7 +253,7 @@ chkWrap :: TName -> VarInfo -> Chk ()
 chkWrap tname info
   = do bs <- getParamInfos (getName tname)
        unless (Borrow `notElem` bs) $
-         emitWarning $ text "FIP analysis detected that a top-level function was wrapped."
+         emitWarning $ text "A function with borrowed parameters is passed as an argument and implicitly wrapped."
 
 chkAllocation :: TName -> ConRepr -> Chk ()
 chkAllocation cname repr | isConAsJust repr = pure ()
@@ -489,12 +489,9 @@ isBorrowed nm
 
 markSeen :: TName -> VarInfo -> Chk ()
 markSeen tname info | infoIsRefCounted info -- is locally defined?
-  = do b <- isBorrowed tname
-       isHeapValue <- needsDupDrop (tnameType tname)
-       when isHeapValue $ if b
-         then requireCapability mayAlloc $ \ppenv -> Just $
-           cat [text "Borrowed value used as owned (can cause allocations later): ", ppName ppenv (getName tname)]
-         else writeOutput (Output (M.singleton tname 1) M.empty Leaf)
+  = do isHeapValue <- needsDupDrop (tnameType tname)
+       when isHeapValue $
+         writeOutput (Output (M.singleton tname 1) M.empty Leaf)
 markSeen tname info = chkWrap tname info -- wrap rule
 
 markBorrowed :: TName -> VarInfo -> Chk ()
@@ -633,7 +630,7 @@ checkOutputEmpty out
   = do case M.maxViewWithKey $ gammaNm out of
          Nothing -> pure ()
          Just ((nm, _), _)
-           -> emitWarning $ text $ "FIP analysis failed as it didn't bind a name: " ++ show nm
+           -> emitWarning $ text $ "Unbound name (may have been used despite being borrowed): " ++ show nm
        let notReused = S.fromList $ map snd $ concatMap snd $ concatMap snd $ M.toList $ gammaDia out
            (allocations, allocInLoop) = getAllocCredits notReused (allocTree out)
            allocations' = if hasBothInSequence allocInLoop then AllocUnlimited else allocations
