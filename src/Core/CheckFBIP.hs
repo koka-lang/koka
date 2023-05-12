@@ -21,7 +21,6 @@ import qualified Data.Set as S
 import qualified Data.Map as M
 
 import Lib.PPrint
-import Common.Failure
 import Common.Name
 import Common.Range
 import Common.Unique
@@ -493,7 +492,8 @@ markBorrowed nm info
   = do b <- isBorrowed nm
        unless b $ do
          markSeen nm info
-         when (infoIsRefCounted info) $
+         isHeapValue <- needsDupDrop (tnameType nm)
+         when (isHeapValue && infoIsRefCounted info) $
            requireCapability mayDealloc $ \ppenv -> Just $
              cat [text "Last use of variable is borrowed: ", ppName ppenv (getName nm)]
 

@@ -17,7 +17,6 @@ import Lib.Trace (trace)
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Char
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import qualified Data.IntMap as M
@@ -25,9 +24,9 @@ import qualified Data.IntMap as M
 import Kind.Kind
 import Kind.Newtypes
 import Type.Type
-import Type.Kind (effectIsAffine )
+import Type.Kind (effectIsAffine)
 import qualified Type.Pretty as Pretty
-import Type.Assumption hiding (InfoExternal)-- Gamma
+import Type.Assumption (Gamma)
 
 import Lib.PPrint
 import Common.NamePrim
