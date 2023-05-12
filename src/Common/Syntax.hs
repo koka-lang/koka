@@ -338,8 +338,28 @@ data Fip = Fip   { fipAlloc_ :: FipAlloc }
          | NoFip { fipTail :: Bool }
          deriving (Eq,Ord)
 
-data FipAlloc = AllocAtMost Int | AllocFinitely
-         deriving (Eq,Ord)
+data FipAlloc = AllocAtMost Int | AllocFinitely | AllocUnlimited
+         deriving (Eq)
+
+instance Ord FipAlloc where
+  compare a1 a2
+    = case (a1, a2) of
+        (AllocAtMost n, AllocAtMost m) -> compare n m
+        (_            , AllocAtMost _) -> GT
+
+        (AllocAtMost n, AllocFinitely) -> LT
+        (AllocFinitely, AllocFinitely) -> EQ
+        (AllocUnlimited, AllocFinitely) -> GT
+
+        (AllocUnlimited, AllocUnlimited) -> EQ
+        (_             , AllocUnlimited) -> LT
+
+instance Semigroup FipAlloc where
+  AllocAtMost n <> AllocAtMost m = AllocAtMost (n + m)
+  _ <> _ = AllocFinitely
+
+instance Monoid FipAlloc where
+  mempty = AllocAtMost 0
 
 noFip :: Fip
 noFip = NoFip False
@@ -357,10 +377,9 @@ fipIsTail fip
 fipAlloc :: Fip -> FipAlloc
 fipAlloc fip 
   = case fip of
-      Fip n     -> n
-      Fbip n _  -> n
-      NoFip _   -> AllocAtMost (-1)
-
+      Fip n    -> n
+      Fbip n _ -> n
+      NoFip _  -> AllocUnlimited
 
 instance Show Fip where
   show fip  = case fip of
@@ -370,7 +389,8 @@ instance Show Fip where
             where
               showN (AllocAtMost 0) = " "
               showN (AllocAtMost n) = "(" ++ show n ++ ") "
-              showN AllocFinitely = "(n) "
+              showN AllocFinitely   = "(n) "
+              showN AllocUnlimited  = ""
 
               showTail True  = "tail "
               showTail _     = " "

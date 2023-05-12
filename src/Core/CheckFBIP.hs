@@ -49,6 +49,10 @@ import Backend.C.Parc (getDataDef')
 import Data.List (tails, sortOn)
 import Data.Ratio
 import Data.Ord (comparing, Down (Down))
+import Control.Monad.Reader
+import Control.Monad.Writer
+import Common.Id
+import Lib.Printer (Printer(write))
 
 trace s x =
   Lib.Trace.trace s
@@ -81,7 +85,7 @@ chkTopLevelDef defGroupNames def
   = withCurrentDef def $ do
       case defSort def of
         -- only check fip and fbip annotated functions 
-        DefFun borrows fip | not (isNoFip fip) -> 
+        DefFun borrows fip | not (isNoFip fip) ->
           withFip fip $
             do out <- extractOutput $
                       withInput (\_ -> Input S.empty defGroupNames True) $
@@ -185,10 +189,10 @@ isPatternMatchError _ = False
 
 bindPattern :: Pattern -> Output -> Chk Output
 bindPattern (PatCon cname pats crepr _ _ _ _ _) out
-  = do size <- getConstructorAllocSize crepr 
+  = do size <- getConstructorAllocSize crepr
        provideToken cname size =<< foldM (flip bindPattern) out pats
 bindPattern (PatVar tname (PatCon cname pats crepr _ _ _ _ _)) out
-  = do size <- getConstructorAllocSize crepr        
+  = do size <- getConstructorAllocSize crepr
        bindName tname (Just size) =<< foldM (flip bindPattern) out pats
 bindPattern (PatVar tname PatWild) out
   = bindName tname Nothing out
@@ -208,7 +212,7 @@ chkApp (Con cname repr) args -- try reuse
 chkApp (Var tname info) args | not (infoIsRefCounted info) -- toplevel function
   = do bs <- getParamInfos (getName tname)
        withNonTail $ mapM_ chkArg $ zipParamInfo bs args
-       chkFunCallable (getName tname) =<< getFip
+       chkFunCallable (getName tname)
        input <- getInput
        unless (isTailContext input || getName tname `notElem` defGroupNames input) $
          requireCapability mayRecurse $ \ppenv -> Just $
@@ -277,7 +281,7 @@ chkEffect tp
 {--------------------------------------------------------------------------
   Chk monad
 --------------------------------------------------------------------------}
-newtype Chk a = Chk (Env -> Input -> Result a)
+type Chk a = ReaderT (Env, Input) (WriterT (Output, [Doc]) Unique) a
 
 data Env = Env{ currentDef :: [Def],
                 prettyEnv :: Pretty.Env,
@@ -292,21 +296,30 @@ data Input = Input{ delta :: S.Set Name,
                     defGroupNames :: [Name],
                     isTailContext :: Bool }
 
+data AllocTree
+  = Alloc Id          -- ^ allocation with unique identifier
+  | Call FipAlloc     -- ^ call using allocation credits
+  | CallSelf FipAlloc -- ^ self-call using allocation credits
+  | Seq AllocTree AllocTree
+  | Match [AllocTree]
+  | Leaf
+
 data Output = Output{ gammaNm :: M.Map TName Int,
                       -- ^ matches variables to their number of uses
-                      gammaDia :: M.Map Int [(Ratio Int, [TName])] } 
+                      gammaDia :: M.Map Int [(Ratio Int, [(TName,Id)])],
                       -- ^ matches token size to allocations with a "probability"
                       -- sorted in descending order of probability
+                      allocTree :: AllocTree }
 
 instance Semigroup Output where
-  Output s1 m1 <> Output s2 m2 =
-    Output (M.unionWith (+) s1 s2) (M.unionWith (\x y -> sortOn (Down . fst) (x ++ y)) m1 m2)
+  Output s1 m1 t1 <> Output s2 m2 t2 =
+    Output (M.unionWith (+) s1 s2) (M.unionWith (\x y -> sortOn (Down . fst) (x ++ y)) m1 m2) (Seq t1 t2)
 
 instance Monoid Output where
-  mempty = Output M.empty M.empty
+  mempty = Output M.empty M.empty Leaf
 
 prettyGammaNm :: Pretty.Env -> Output -> Doc
-prettyGammaNm ppenv (Output nm dia)
+prettyGammaNm ppenv (Output nm dia _)
   = tupled $ map
       (\(nm, cnt) -> cat [ppName ppenv (getName nm), text "/", pretty cnt])
       (M.toList nm)
@@ -316,58 +329,37 @@ prettyCon ppenv tname sz
   = cat [ppName ppenv (getName tname), text "/", pretty (sz {-`div` 8-})]
 
 prettyGammaDia :: Pretty.Env -> Output -> Doc
-prettyGammaDia ppenv (Output nm dia)
+prettyGammaDia ppenv (Output nm dia _)
   = tupled $ concatMap
-      (\(sz, cs) -> map (\(_, c:_) -> prettyCon ppenv c sz) cs)
+      (\(sz, cs) -> map (\(_, (c,_):_) -> prettyCon ppenv c sz) cs)
       (M.toList dia)
 
-data Result a = Ok a Output [Doc]
-
 runChk :: Pretty.Env -> Int -> Platform -> Newtypes -> Borrowed -> Gamma -> Chk a -> (a,[Doc])
-runChk penv u platform newtypes borrowed gamma (Chk c)
-  = case c (Env [] penv platform newtypes borrowed gamma noFip) (Input S.empty [] True) of
-      Ok x _out docs -> (x,docs)
-
-instance Functor Chk where
-  fmap f (Chk c)  = Chk (\env input -> case c env input of
-                                        Ok x out dgs -> Ok (f x) out dgs)
-
-instance Applicative Chk where
-  pure  = return
-  (<*>) = ap
-
-instance Monad Chk where
-  return x      = Chk (\env input -> Ok x mempty [])
-  (Chk c) >>= f = Chk (\env input -> case c env input of
-                                      Ok x out dgs -> case f x of
-                                                        Chk d -> case d env input of
-                                                                    Ok x' out' dgs' -> Ok x' (out <> out') (dgs ++ dgs'))
+runChk penv u platform newtypes borrowed gamma c
+  = fst $ runUnique 0 $
+    fmap (fmap snd) $ runWriterT $
+    runReaderT c (Env [] penv platform newtypes borrowed gamma noFip, Input S.empty [] True)
 
 withEnv :: (Env -> Env) -> Chk a -> Chk a
-withEnv f (Chk c)
-  = Chk (\env st -> c (f env) st)
+withEnv f = withReaderT (\(e, i) -> (f e, i))
 
 getEnv :: Chk Env
-getEnv
-  = Chk (\env st -> Ok env mempty [])
+getEnv = asks fst
 
 withInput :: (Input -> Input) -> Chk a -> Chk a
-withInput f (Chk c)
-  = Chk (\env st -> c env (f st))
+withInput f = withReaderT (\(e, i) -> (e, f i))
 
 getInput :: Chk Input
-getInput
-  = Chk (\env st -> Ok st mempty [])
+getInput = asks snd
 
 writeOutput :: Output -> Chk ()
-writeOutput out
-  = Chk (\env st -> Ok () out [])
+writeOutput out = tell (out, [])
 
 withFip :: Fip -> Chk a -> Chk a
 withFip f chk
   = withEnv (\env -> env{fip=f}) chk
 
-getFip :: Chk Fip  
+getFip :: Chk Fip
 getFip = fip <$> getEnv
 
 mayRecurse :: Chk Bool
@@ -385,50 +377,55 @@ mayDealloc
           Fip n -> False
           _ -> True
 
-data AllocPermission
-  = Unlimited
-  | Limited FipAlloc
-  deriving (Eq, Ord)
-
-getAlloc :: Chk AllocPermission
-getAlloc
-  = do fip <- getFip
-       pure $ case fip of
-          Fip n -> Limited n
-          Fbip n _ -> Limited n
-          NoFip _ -> Unlimited
-
 mayAlloc :: Chk Bool
-mayAlloc = (==Unlimited) <$> getAlloc
+mayAlloc = (==AllocUnlimited) . fipAlloc <$> getFip
 
 isCallableFrom :: Fip -> Fip -> Bool
-isCallableFrom (Fip _) _ = True
-isCallableFrom (Fbip _ _) (Fbip _ _)  = True
-isCallableFrom (Fbip _ _) (NoFip _)  = True
-isCallableFrom (NoFip _) (NoFip _)  = True
-isCallableFrom _ _  = False
+isCallableFrom a b
+  = case (a, b) of
+      (Fip _, _) -> True
+      (Fbip _ _, Fbip _ _) -> True
+      (_, NoFip _) -> True
+      _  -> False
 
-chkFunCallable :: Name -> Fip -> Chk ()
-chkFunCallable fn fip
-  = do g <- gamma <$> getEnv
-       let xs = gammaLookupCanonical fn g
-       case xs of
-         [info] -> case info of
-           InfoFun _ _ _ _ fip' _
-             -> if fip' `isCallableFrom` fip then pure ()
-                else emitWarning $ text $ "Non-FIP function called: " ++ show fn
-           Type.Assumption.InfoExternal _ _ _ _ fip' _
-             -> if fip' `isCallableFrom` fip then pure ()
-                else emitWarning $ text $ "Non-FIP function called: " ++ show fn
-           _ -> pure ()
-         [] -> emitWarning $ text $ "FIP analysis couldn't find FIP information for function: " ++ show fn
-         infos -> emitWarning $ text $ "FIP analysis found ambiguous FIP information for function: " ++ show fn ++ "\n" ++ show infos
+writeCallAllocation :: Name -> Fip -> Chk ()
+writeCallAllocation fn fip
+  = do defs <- currentDefNames
+       let call = if fn `elem` defs then CallSelf else Call
+       case fip of
+         Fip n    -> tell (Output mempty mempty (call n), mempty)
+         Fbip n _ -> tell (Output mempty mempty (call n), mempty)
+         NoFip _  -> pure ()
+
+getFipInfo :: [NameInfo] -> Maybe Fip
+getFipInfo xs
+  = case xs of
+      [info] -> case info of
+        InfoFun _ _ _ _ fip' _
+          -> Just fip'
+        Type.Assumption.InfoExternal _ _ _ _ fip' _
+          -> Just fip'
+        _ -> Nothing
+      infos -> Nothing
+
+chkFunCallable :: Name -> Chk ()
+chkFunCallable fn
+  = do fip <- getFip
+       g <- gamma <$> getEnv
+       case getFipInfo (gammaLookupCanonical fn g) of
+         Nothing
+           -> emitWarning $ text $
+                "FIP analysis couldn't find FIP information for function: " ++ show fn
+         Just fip'
+           -> if fip' `isCallableFrom` fip then writeCallAllocation fn fip'
+              else emitWarning $ text $ "Non-FIP function called: " ++ show fn
 
 -- | Run the given check, keep the warnings but extract the output.
 extractOutput :: Chk () -> Chk Output
-extractOutput (Chk f)
-  = Chk (\env st -> case f env st of
-                      Ok () out doc -> Ok out mempty doc)
+extractOutput f
+  = do ((), (out, doc)) <- censor (const mempty) $ listen f
+       tell (mempty, doc)
+       pure out
 
 -- | Perform a test if the capability is not present
 -- and emit a warning if the test is unsuccessful.
@@ -475,7 +472,7 @@ isModConsFun expr
       TypeLam _ e   -> isModConsFun e
       TypeApp e _   -> isModConsFun e
       Con _ _       -> True
-      Let dgs e     -> all isModConsDef (flattenDefGroups dgs) && isModConsFun e 
+      Let dgs e     -> all isModConsDef (flattenDefGroups dgs) && isModConsFun e
       App f args    -> hasTotalEffect (typeOf expr) && isModConsFun f && all isModCons args
       _             -> False
 
@@ -497,7 +494,7 @@ markSeen tname info | infoIsRefCounted info -- is locally defined?
        when isHeapValue $ if b
          then requireCapability mayAlloc $ \ppenv -> Just $
            cat [text "Borrowed value used as owned (can cause allocations later): ", ppName ppenv (getName tname)]
-         else writeOutput (Output (M.singleton tname 1) M.empty)
+         else writeOutput (Output (M.singleton tname 1) M.empty Leaf)
 markSeen tname info = chkWrap tname info -- wrap rule
 
 markBorrowed :: TName -> VarInfo -> Chk ()
@@ -512,7 +509,8 @@ markBorrowed nm info
 getAllocation :: TName -> Int -> Chk ()
 getAllocation nm 0 = pure ()
 getAllocation nm size
-  = writeOutput (Output mempty (M.singleton size [(1 % 1, [nm])]))
+  = do id <- lift $ lift $ uniqueId "alloc"
+       writeOutput (Output mempty (M.singleton size [(1 % 1, [(nm,id)])]) (Alloc id))
 
 provideToken :: TName -> Int -> Output -> Chk Output
 provideToken _ 0 out = pure out
@@ -539,7 +537,7 @@ joinContexts pats cs
            vcat $ text "Not all branches use the same variables:"
              : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaNm ppenv out]) pats cs
        let unionDia = foldl1' (M.unionWith zipTokens) $ map (M.map (adjustProb (length cs')) . gammaDia) cs'
-       pure (Output unionNm unionDia)
+       pure (Output unionNm unionDia (Match (map allocTree cs')))
   where
     adjustProb n xs = map (\(p, x) -> (p / (n%1), x) ) xs
 
@@ -593,23 +591,70 @@ bindName nm msize out
                  pure out
        pure (out { gammaNm = M.delete nm (gammaNm out) })
 
+data AllocInLoop = AllocInLoop
+  { hasAlloc :: Bool,
+    hasSelfCall :: Bool,
+    hasBothInSequence :: Bool }
+
+instance Semigroup AllocInLoop where
+  AllocInLoop a s b <> AllocInLoop a' s' b'
+    = AllocInLoop (a || a') (s || s')
+        (b || b' || (a && s') || (a' && s))
+
+instance Monoid AllocInLoop where
+  mempty = AllocInLoop False False False
+
+joinBranches :: AllocInLoop -> AllocInLoop -> AllocInLoop
+joinBranches (AllocInLoop a s b) (AllocInLoop a' s' b')
+  = AllocInLoop (a || a') (s || s') (b || b')
+
+getAllocCredits :: S.Set Id -> AllocTree -> (FipAlloc, AllocInLoop)
+getAllocCredits notReused tree
+  = case tree of
+      Alloc id | id `S.member` notReused
+        -> (AllocAtMost 1, mempty { hasAlloc = True })
+               | otherwise -> mempty
+      Call alloc -> (alloc, mempty)
+      CallSelf alloc -> (alloc, mempty { hasSelfCall = True })
+      Seq a1 a2 -> getAllocCredits notReused a1 <> getAllocCredits notReused a2
+      Match as -> foldl' (\(a, b) (a', b') -> (max a a', joinBranches b b')) mempty (map (getAllocCredits notReused) as)
+      Leaf -> mempty
+
+prettyFipAlloc :: FipAlloc -> String
+prettyFipAlloc f
+  = case f of
+      AllocAtMost 0  -> "nothing"
+      AllocAtMost n  -> "at most " ++ show n
+      AllocFinitely  -> "a finite amount"
+      AllocUnlimited -> "unlimited"
+
 checkOutputEmpty :: Output -> Chk ()
 checkOutputEmpty out
   = do case M.maxViewWithKey $ gammaNm out of
          Nothing -> pure ()
          Just ((nm, _), _)
            -> emitWarning $ text $ "FIP analysis failed as it didn't bind a name: " ++ show nm
-       case M.maxViewWithKey $ gammaDia out of
-         Just ((sz, (_, c:cs):_), _) | sz > 0
-           -> do permission <- getAlloc
-                 case permission of
-                   Limited (AllocAtMost n)
-                     -> do unless (length (c:cs) <= n) $ do
-                             env <- getEnv
-                             emitWarning $ cat [text "Allocated constructor without reuse token: ", prettyCon (prettyEnv env) c sz]
-                   Limited AllocFinitely -> pure ()
-                   Unlimited -> pure ()
-         _ -> pure ()
+       let notReused = S.fromList $ map snd $ concatMap snd $ concatMap snd $ M.toList $ gammaDia out
+           (allocations, allocInLoop) = getAllocCredits notReused (allocTree out)
+           allocations' = if hasBothInSequence allocInLoop then AllocUnlimited else allocations
+       -- chkTrace $ show notReused
+       -- chkTrace $ show $ simplifyAllocTree (allocTree out)
+       permission <- fipAlloc <$> getFip
+       unless (allocations' <= permission) $
+         emitWarning $ text $ "Function allocates "
+           ++ prettyFipAlloc allocations'
+           ++ " but was declared as allocating "
+           ++ prettyFipAlloc permission
+
+simplifyAllocTree :: AllocTree -> AllocTree
+simplifyAllocTree (Seq a b)
+  = case (simplifyAllocTree a, simplifyAllocTree b) of
+      (Leaf, Leaf) -> Leaf
+      (Leaf, b) -> b
+      (a, Leaf) -> a
+      (a, b) -> Seq a b
+simplifyAllocTree (Match as) = Match (map simplifyAllocTree as)
+simplifyAllocTree t = t
 
 zipParamInfo :: [ParamInfo] -> [b] -> [(ParamInfo, b)]
 zipParamInfo xs = zip (xs ++ repeat Own)
@@ -667,8 +712,7 @@ chkTrace msg
        trace ("chk: " ++ show (map defName (currentDef env)) ++ ": " ++ msg) $ return ()
 
 emitDoc :: Doc -> Chk ()
-emitDoc doc
-  = Chk (\env st -> Ok () mempty [doc])
+emitDoc doc = tell (mempty, [doc])
 
 emitWarning :: Doc -> Chk ()
 emitWarning doc
@@ -680,4 +724,3 @@ getConstructorAllocSize :: ConRepr -> Chk Int
 getConstructorAllocSize conRepr
   = do platform <- getPlatform
        return (conReprAllocSize platform conRepr)
-       
