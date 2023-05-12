@@ -16,8 +16,7 @@ module Core.CheckFBIP( checkFBIP
 
 import qualified Lib.Trace
 import Control.Monad
-import Control.Applicative
-import Data.List( partition, intersperse, foldl1', foldl', isSuffixOf, uncons, sortBy )
+import Data.List (foldl', tails, uncons, isSuffixOf, foldl1', partition, sortOn)
 import qualified Data.Set as S
 import qualified Data.Map as M
 
@@ -29,12 +28,9 @@ import Common.Unique
 import Common.Error
 import Common.Syntax
 
-import Kind.Kind
 import Kind.Newtypes
 
 import Type.Type
-import Type.Kind
-import Type.TypeVar
 import Type.Pretty hiding (Env)
 import qualified Type.Pretty as Pretty
 import Type.Assumption
@@ -46,13 +42,11 @@ import Core.Borrowed
 import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial, nameTrue)
 import Backend.C.ParcReuse (getFixedDataAllocSize)
 import Backend.C.Parc (getDataDef')
-import Data.List (tails, sortOn)
 import Data.Ratio
-import Data.Ord (comparing, Down (Down))
+import Data.Ord (Down (Down))
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Common.Id
-import Lib.Printer (Printer(write))
 
 trace s x =
   Lib.Trace.trace s
@@ -588,11 +582,15 @@ bindName nm msize out
                  pure out
        pure (out { gammaNm = M.delete nm (gammaNm out) })
 
+-- | We record if the program has both an allocation
+-- and a self-call which may be executed in sequence.
+-- If that is the case, the program may use unlimited allocation.
 data AllocInLoop = AllocInLoop
   { hasAlloc :: Bool,
     hasSelfCall :: Bool,
     hasBothInSequence :: Bool }
 
+-- | Sequential composition
 instance Semigroup AllocInLoop where
   AllocInLoop a s b <> AllocInLoop a' s' b'
     = AllocInLoop (a || a') (s || s')
@@ -601,6 +599,7 @@ instance Semigroup AllocInLoop where
 instance Monoid AllocInLoop where
   mempty = AllocInLoop False False False
 
+-- | Non-sequential composition
 joinBranches :: AllocInLoop -> AllocInLoop -> AllocInLoop
 joinBranches (AllocInLoop a s b) (AllocInLoop a' s' b')
   = AllocInLoop (a || a') (s || s') (b || b')
@@ -608,8 +607,7 @@ joinBranches (AllocInLoop a s b) (AllocInLoop a' s' b')
 getAllocCredits :: S.Set Id -> AllocTree -> (FipAlloc, AllocInLoop)
 getAllocCredits notReused tree
   = case tree of
-      Alloc id | id `S.member` notReused
-        -> (AllocAtMost 1, mempty { hasAlloc = True })
+      Alloc id | id `S.member` notReused -> (AllocAtMost 1, mempty { hasAlloc = True })
                | otherwise -> mempty
       Call alloc -> (alloc, mempty)
       CallSelf alloc -> (alloc, mempty { hasSelfCall = True })
@@ -646,7 +644,6 @@ checkOutputEmpty out
 simplifyAllocTree :: AllocTree -> AllocTree
 simplifyAllocTree (Seq a b)
   = case (simplifyAllocTree a, simplifyAllocTree b) of
-      (Leaf, Leaf) -> Leaf
       (Leaf, b) -> b
       (a, Leaf) -> a
       (a, b) -> Seq a b
