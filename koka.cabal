@@ -53,6 +53,7 @@ executable koka
       Compiler.Module
       Compiler.Options
       Compiler.Package
+      Core.AnalysisCCtx
       Core.AnalysisMatch
       Core.AnalysisResume
       Core.BindingGroups

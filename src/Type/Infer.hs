@@ -39,6 +39,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameTpValueOp, nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
                       , nameInt32, nameOr, nameAnd, nameEffectOpen
+                      , nameCCtxCreate
                        )
 import Common.Range
 import Common.Unique
@@ -65,6 +66,7 @@ import Type.InferMonad
 
 import qualified Core.CoreVar as CoreVar
 import Core.AnalysisMatch( analyzeBranches )
+import Core.AnalysisCCtx( analyzeCCtx )
 -- import Common.ResumeKind
 -- import Core.AnalysisResume( analyzeResume )
 import Core.Divergent( analyzeDivergence )
@@ -708,6 +710,15 @@ inferExpr propagated expect (App (h@Handler{hndlrAllowMask=Nothing}) [action] rn
 -- | Byref expressions
 inferExpr propagated expect (App (Var byref _ _) [(_,Var name _ rng)] _)  | byref == nameByref
   = inferVar propagated expect name rng False
+
+-- | Context expressions
+inferExpr propagated expect (App (Var ctxname _ nameRng) [(_,expr)] rng)  | ctxname == nameCCtxCreate
+  = do (tp,eff,core) <- inferExpr Nothing -- todo: propagate through cctx
+                                  Instantiated expr
+       newtypes <- getNewtypes
+       case analyzeCCtx rng newtypes core of
+         Left errs -> failure ("Type.Infer.context")
+         Right ccore -> return (Core.typeOf ccore,eff,ccore)
 
 -- | Application nodes. Inference is complicated here since we need to disambiguate overloaded identifiers.
 inferExpr propagated expect (App fun nargs rng)

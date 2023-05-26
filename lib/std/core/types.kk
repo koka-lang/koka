@@ -372,13 +372,46 @@ extern import
   js file "types-cctx-inline.js"
 
 
-// _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
+// _Internal_. Internal type for constructor contexts.
 // Holds the address to a field of type `:a` in a constructor.
 pub value type field-addr<a>
 
 // First-class constructor context (for _tail recursion module cons_ (TRMC) optimization).
 abstract value type cctxx<a,b>
-  ".Cctx"( res : a, hole : field-addr<b> )
+  ".Cctx"( res : a, holeptr : field-addr<b> )
 
 // First-class constructor context.
 pub alias cctx<a> = cctxx<a,a>
+
+// _Internal_. Create a hole for a context
+pub inline extern ".cctx-hole-create"() : e a
+  c  inline "kk_intf_box(0)"
+  js inline "undefined"
+
+// _Internal_. Create an initial non-empty context.
+pub extern ".cctx-create"( x : a, xhole : field-addr<b> ) : cctxx<a,b>
+  c   "kk_cctx_create"
+  js  "_cctx_create"
+
+// _Internal_. Extend a constructor context with a non-empty context
+pub inline extern ".cctx-extend"( c : cctxx<a,b>, x : b, xhole : field-addr<c> ) : cctxx<a,c>
+  c inline "kk_cctx_apply(#1,#2,#3,false /*is-linear*/,kk_context())"  
+  js "_cctx_extend"
+
+
+// Apply a constructor context
+pub inline extern []( c : cctxx<a,b>, x : b ) : a
+  c inline "kk_cctx_apply(#1,#2,false /*is-linear*/,kk_context())"
+  js "_cctx_apply"
+
+// Compose two constructor contexts.
+pub inline extern cctx-compose( c1 : cctxx<a,b>, c2 : cctxx<b,c> ) : cctxx<a,c>
+  c inline "kk_cctx_compose(#1,#2,false /*is-linear*/,kk_context())"
+  js "_cctx_compose" 
+
+// Create an empty context
+pub inline extern cctx-empty() : cctxx<a,a>
+  c  "kk_cctx_empty"
+  js "_cctx_empty"
+
+  

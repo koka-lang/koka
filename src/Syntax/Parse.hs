@@ -1951,6 +1951,10 @@ atom
   <|>
     do lit <- literal
        return (Lit lit)
+  <|> 
+    do cctxHole
+  <|>
+    do cctxExpr
   <|>
     do injectExpr
   <?> "(simple) expression"
@@ -2008,6 +2012,11 @@ cctxExpr
   = do rng <- keyword "ctx"
        ctx <- ntlexpr
        return (makeApp (Var nameCCtxCreate False rng) [ctx])
+       
+cctxHole :: LexParser UserExpr
+cctxHole 
+  = do rng <- keyword "hole"
+       return (makeApp (Var nameCCtxHoleCreate False rng) [])
 
 
 injectExpr :: LexParser UserExpr
