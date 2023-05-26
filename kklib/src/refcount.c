@@ -719,11 +719,12 @@ static kk_block_t* kk_block_alloc_copy( kk_block_t* b, kk_context_t* ctx ) {
 #endif
 
 #if !defined(KK_CCTX_NO_CONTEXT_PATH)
-kk_decl_export kk_decl_noinline kk_box_t kk_cctx_copy_apply( kk_box_t res, kk_box_t child, kk_context_t* ctx) {
+kk_decl_export kk_decl_noinline kk_box_t kk_cctx_copy_apply( kk_box_t res, kk_box_t* holeptr, kk_box_t child, kk_context_t* ctx) {
   kk_assert_internal(!kk_block_is_unique(kk_ptr_unbox(res, ctx)));
   kk_box_t  cres = kk_box_null();     // copied result context
-  kk_box_t* next = NULL;              // pointer to the context path field in the parent block
-  for( kk_box_t cur = res; kk_box_is_ptr(cur); cur = *next ) {
+  kk_box_t* next = NULL;              // pointer to the context path field in the (copied) parent block
+  for( kk_box_t cur = res; true; cur = *next ) {
+    kk_assert_internal(kk_box_is_ptr(cur));
     kk_block_t* b = kk_ptr_unbox(cur, ctx);
     const kk_ssize_t field = kk_block_field_idx(b) - 1;
     kk_assert_internal(field >= 0);
@@ -734,9 +735,10 @@ kk_decl_export kk_decl_noinline kk_box_t kk_cctx_copy_apply( kk_box_t res, kk_bo
     else { 
       kk_box_drop(*next,ctx);
       *next = kk_ptr_box(c, ctx);
-    }    
+    }
     next = kk_block_field_address(c,field);
-  }
+    if (kk_block_field_address(b, field) == holeptr) break;
+  };
   kk_assert_internal(next != NULL);
   *next = child;
   kk_box_drop(res,ctx);

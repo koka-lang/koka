@@ -378,7 +378,7 @@ pub value type field-addr<a>
 
 // First-class constructor context (for _tail recursion module cons_ (TRMC) optimization).
 abstract value type cctxx<a,b>
-  ".Cctx"( res : a, holeptr : field-addr<b> )
+  con ".Cctx"( res : a, holeptr : field-addr<b> )
 
 // First-class constructor context.
 pub alias cctx<a> = cctxx<a,a>

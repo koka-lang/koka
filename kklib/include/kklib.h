@@ -1307,7 +1307,7 @@ static inline kk_function_t kk_function_dup(kk_function_t f, kk_context_t* ctx) 
 #else
 
 // functional context application by copying along the context path and attaching `child` at the hole.
-kk_decl_export kk_box_t kk_cctx_copy_apply( kk_box_t res, kk_box_t child, kk_context_t* ctx);
+kk_decl_export kk_box_t kk_cctx_copy_apply( kk_box_t res, kk_box_t* holeptr, kk_box_t child, kk_context_t* ctx);
 
 // set the context path.
 // update the field_idx with the field index + 1 that is along the context path, and return `d` as is.
