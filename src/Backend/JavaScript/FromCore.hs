@@ -701,7 +701,7 @@ genExpr expr
      -- special: .cctx-field-addr-of: create a tuple with the object and the field name as a string
      App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameFieldAddrOf
        -> do conDoc <- genTName con
-             return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
+             return (empty,text "{obj:" <+> conDoc <.> text ", field_name: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
 
      App f args
        -> {- case splitFunScheme (typeOf f) of
