@@ -105,9 +105,10 @@ cctxConFinal conName conRepr targs pre hole post
   =  do mapM_ cctxCheckNoHole (pre ++ post)
         fname <- getFieldName conName (length pre + 1)
         let holetp = typeOf hole
-        (d1,var)  <- makeUniqueDef (App (makeTypeApp (Con conName conRepr) targs) (pre ++ [hole] ++ post))
-        (d2,addr) <- makeUniqueDef (makeFieldAddrOf var conName fname holetp)
-        return (Ctx [d1,d2] var (Hole addr holetp))
+        (d1,var1) <- makeUniqueDef (App (makeTypeApp (Con conName conRepr) targs) (pre ++ [hole] ++ post))
+        (d2,addr) <- makeUniqueDef (makeFieldAddrOf var1 conName fname holetp)
+        (d3,var3) <- makeUniqueDef (makeCCtxSetContextPath var1 conName fname)
+        return (Ctx [d1,d2,d3] var3 (Hole addr holetp))
 
 cctxCheckNoHole :: Expr -> CCtx ()
 cctxCheckNoHole expr
