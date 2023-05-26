@@ -1899,9 +1899,16 @@ appexpr allowTrailingLam
 
     indexer
       = do rng0 <- lidx
-           idxs <- sepBy1 expr comma
-           rng1 <- special "]"
-           return (\exp -> App (Var nameIndex False (combineRange rng0 rng1)) (map (\a -> (Nothing,a)) (exp:idxs)) (combineRange rng0 rng1))
+           (do crng <- keyword "ctx"
+               ctx  <- ccontext crng
+               rng1 <- special "]"
+               return (\exp -> let rng = combineRanged exp rng1
+                               in App (Var nameCCtxComposeExtend False rng) [(Nothing,exp),(Nothing,ctx)] rng)
+            <|>
+            do idxs <- sepBy1 expr comma
+               rng1 <- special "]"
+               return (\exp -> App (Var nameIndex False (combineRange rng0 rng1)) (map (\a -> (Nothing,a)) (exp:idxs)) (combineRange rng0 rng1))
+               )
 
     applier
       = do rng0 <- lapp
@@ -2010,7 +2017,11 @@ makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
 cctxExpr :: LexParser UserExpr
 cctxExpr
   = do rng <- keyword "ctx"
-       ctx <- ntlexpr
+       ccontext rng
+
+ccontext :: Range -> LexParser UserExpr
+ccontext rng
+  = do ctx <- ntlexpr
        return (makeApp (Var nameCCtxCreate False rng) [ctx])
        
 cctxHole :: LexParser UserExpr

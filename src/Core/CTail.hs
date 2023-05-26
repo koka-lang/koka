@@ -470,6 +470,7 @@ makeCCtxExtend slot resName objName conName fieldName tp alwaysAffine
     a = TypeVar 0 kindStar Bound
 
 
+
 -- Apply a context to its final value.
 makeCCtxApply :: Bool {-isMulti-} -> Bool {-isAlwaysAffine-} -> TName -> Expr -> Expr
 makeCCtxApply True _ slot expr   -- slot `a -> a` is an accumulating function; apply to resolve

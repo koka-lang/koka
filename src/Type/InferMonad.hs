@@ -39,6 +39,7 @@ module Type.InferMonad( Inf, InfGamma
 
                       -- * Misc.
                       , allowReturn, isReturnAllowed
+                      , useHole, allowHole, disallowHole
                       , withLhs, isLhs
                       , getPrettyEnv
                       , splitEffect
@@ -840,15 +841,16 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , gamma :: !Gamma
                  , infgamma :: !InfGamma
                  , imports :: !ImportMap
-                 , returnAllowed :: Bool
-                 , inLhs :: Bool
+                 , returnAllowed :: !Bool
+                 , inLhs :: !Bool
                  }
-data St     = St{ uniq :: !Int, sub :: !Sub, preds :: ![Evidence], mbRangeMap :: Maybe RangeMap }
+data St     = St{ uniq :: !Int, sub :: !Sub, preds :: ![Evidence], holeAllowed :: !Bool, mbRangeMap :: Maybe RangeMap }
 
 
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
-  = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False) (St unique subNull [] mbrm) of
+  = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False) 
+           (St unique subNull [] False mbrm) of
       Err err warnings -> addWarnings warnings (errorMsg (ErrorType [err]))
       Ok x st warnings -> addWarnings warnings (ok (x, uniq st, (sub st) |-> mbRangeMap st))
 
@@ -953,6 +955,27 @@ isReturnAllowed
   = do env <- getEnv
        return (returnAllowed env)
 
+useHole :: Inf Bool
+useHole 
+  = do st0 <- updateSt (\st -> st{ holeAllowed = False } )
+       return (holeAllowed st0)
+
+disallowHole :: Inf a -> Inf a
+disallowHole action
+  = do st0 <- updateSt(\st -> st{ holeAllowed = False })
+       let prev = holeAllowed st0
+       x <- action
+       updateSt(\st -> st{ holeAllowed = prev })
+       return x       
+
+allowHole :: Inf a -> Inf (a,Bool {- was the hole used? -})
+allowHole action
+  = do st0 <- updateSt(\st -> st{ holeAllowed = True })
+       let prev = holeAllowed st0
+       x <- action
+       st1 <- updateSt(\st -> st{ holeAllowed = prev })
+       return (x,not (holeAllowed st1))
+       
 
 
 getSub :: Inf Sub

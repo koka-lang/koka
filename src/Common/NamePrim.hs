@@ -78,6 +78,7 @@ module Common.NamePrim
           , nameCCtxApply
           , nameCCtxExtend
           , nameCCtxCompose
+          , nameCCtxComposeExtend
           , nameCCtxSetCtxPath
           , nameTpFieldAddr, nameFieldAddrOf
           
@@ -300,10 +301,11 @@ nameTpCCtx        = cfieldName "cctx"
 
 nameCCtxCreate    = cfieldName ".cctx-create"
 nameCCtxHoleCreate= cfieldName ".cctx-hole-create"
-nameCCtxEmpty     = cfieldName ".cctx-empty"
-nameCCtxApply     = cfieldName ".cctx-apply"
 nameCCtxExtend    = cfieldName ".cctx-extend"
-nameCCtxCompose   = cfieldName ".cctx-compose"
+nameCCtxComposeExtend = cfieldName ".cctx-compose-extend"
+nameCCtxEmpty     = cfieldName "cctx-empty"
+nameCCtxApply     = cfieldName "cctx-apply"
+nameCCtxCompose   = cfieldName "cctx-compose"
 nameCCtxSetCtxPath= cfieldName ".cctx-setcp"
 
 nameTpFieldAddr   = cfieldName "field-addr"

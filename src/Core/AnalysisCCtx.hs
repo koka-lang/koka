@@ -30,6 +30,7 @@ import Common.NamePrim(nameCCtxHoleCreate,nameCCtxCreate,nameCCtxEmpty,nameCCtxS
 import Common.Range
 import Common.Unique(HasUnique(..))
 import Common.Failure
+import Common.Syntax
 import Kind.Newtypes
 import Kind.Kind
 import Type.Type
@@ -39,9 +40,14 @@ import Core.Core
 import Core.Pretty
 
 -- take a context and check if it is well-formed and return a well-typed context expression
-analyzeCCtx :: Range -> Newtypes -> Expr -> Either [(Range,Doc)] Expr
-analyzeCCtx rng newtypes expr
-  = runCCtx rng newtypes 0 (cctxCreate expr)
+analyzeCCtx :: Range -> Newtypes -> Expr -> (Int -> ((Expr,[(Range,Doc)]),Int))
+analyzeCCtx rng newtypes expr uniq
+  = let (res,uniq') = runCCtx rng newtypes uniq (cctxCreate expr)
+    in case res of
+         Right e   -> ((e,[]),uniq')
+         Left errs -> let errs' = if null errs then [(rng,text "ill-formed context")]
+                                               else errs
+                      in ((makeCCtxEmpty (typeOf expr),errs'),uniq)
 
 
 data Hole = Hole{ holeAddr :: Expr, holeType :: Type }
@@ -53,7 +59,7 @@ cctxCreate expr | isHole expr
   = do return (makeCCtxEmpty (typeOf expr))
 -- non-empty context
 cctxCreate expr
-  = do mtrace ("expr: " ++ show expr)
+  = do -- mtrace ("expr: " ++ show expr)
        (Ctx defs top (Hole addr holetp)) <- cctxExpr expr  
        let tp = typeOf top
        let cctx = makeCCtxCreate tp holetp top addr
@@ -92,7 +98,8 @@ cctxCon conName conRepr targs args
 
 cctxConRecurse :: TName -> ConRepr -> [Type] -> [Expr] -> CCtx Ctx
 cctxConRecurse conName conRepr targs args
-  =  do (pre,ctx,post) <- cctxFind [] args
+  =  do -- mtrace "recurse"
+        (pre,ctx,post) <- cctxFind [] [] args
         mapM_ cctxCheckNoHole (pre ++ post)
         (ds,vars) <- unzip <$> mapM makeUniqueDef pre      
         (d1,var1) <- makeUniqueDef (App (makeTypeApp (Con conName conRepr) targs) (vars ++ [top ctx] ++ post))
@@ -102,9 +109,11 @@ cctxConRecurse conName conRepr targs args
 
 cctxConFinal :: TName -> ConRepr -> [Type] -> [Expr] -> Expr -> [Expr] -> CCtx Ctx
 cctxConFinal conName conRepr targs pre hole post
-  =  do mapM_ cctxCheckNoHole (pre ++ post)
+  =  do -- mtrace "final"
+        mapM_ cctxCheckNoHole (pre ++ post)
         fname <- getFieldName conName (length pre + 1)
         let holetp = typeOf hole
+        ensureValidHoleType holetp
         (d1,var1) <- makeUniqueDef (App (makeTypeApp (Con conName conRepr) targs) (pre ++ [hole] ++ post))
         (d2,addr) <- makeUniqueDef (makeFieldAddrOf var1 conName fname holetp)
         (d3,var3) <- makeUniqueDef (makeCCtxSetContextPath var1 conName fname)
@@ -112,18 +121,19 @@ cctxConFinal conName conRepr targs pre hole post
 
 cctxCheckNoHole :: Expr -> CCtx ()
 cctxCheckNoHole expr
-  = -- todo: check no holes in expr
+  = -- note: not needed as it as already checked during type inference
     return ()
 
 
-cctxFind :: [Expr] -> [Expr] -> CCtx ([Expr],Ctx,[Expr])
+cctxFind :: [(Range,Doc)] -> [Expr] -> [Expr] -> CCtx ([Expr],Ctx,[Expr])
 -- no args
-cctxFind acc []         = illegal
+cctxFind errs acc [] 
+  = emitErrors errs
 -- try recursively
-cctxFind acc (arg:args) 
+cctxFind errs acc (arg:args) 
   = do r <- try (cctxExpr arg)
        case r of
-         Left _ -> cctxFind (arg:acc) args
+         Left errs' -> cctxFind (errs ++ errs') (arg:acc) args
          Right ctx -> return (reverse acc,ctx,args)
 
 
@@ -193,11 +203,11 @@ makeCCtxSetContextPath obj conName fieldName
 
 newtype CCtx a = CCtx (Int -> CCtxEnv -> Result a)
 
-runCCtx :: Range -> Newtypes -> Int -> CCtx a -> Either [(Range,Doc)] a
+runCCtx :: Range -> Newtypes -> Int -> CCtx a -> (Either [(Range,Doc)] a,Int)
 runCCtx rng nt uniq (CCtx c)
   = case (c uniq (CCtxEnv rng nt)) of
-      Ok x u' -> Right x
-      Err errs -> Left errs
+      Ok x u'  -> (Right x,u')
+      Err errs -> (Left errs,uniq)
 
 
 
@@ -238,10 +248,15 @@ updateEnv :: (CCtxEnv -> CCtxEnv) -> CCtx a -> CCtx a
 updateEnv f (CCtx c)
   = CCtx (\u env -> c u (f env))
 
-emitErrors :: [Doc] -> CCtx a
+emitError :: Doc -> CCtx a
+emitError doc
+  = do env <- getEnv 
+       emitErrors [(rng env,doc)]
+
+emitErrors :: [(Range,Doc)] -> CCtx a
 emitErrors errs
-  = do env <- getEnv
-       CCtx (\u env -> Err [(rng env,d) | d <- errs])
+  = do -- mtrace ("emit errors: " ++ show errs)
+       (CCtx (\u env -> Err errs))
 
 
 try :: CCtx a -> CCtx (Either [(Range,Doc)] a)
@@ -264,6 +279,26 @@ getFieldName cname fieldIdx
          Left err -> failure ("Core.AnalysisCCtx: " ++ err)
          Right name -> return name
 
+ensureValidHoleType :: Type -> CCtx ()
+ensureValidHoleType tp
+  = do env <- getEnv
+       case dataTypeNameOf tp of
+         Left (TVar{})  -> emitError (text "the hole in the constructor context has an unresolved or polymorphic type")
+         Left _         -> emitError (text "the hole in the constructor context has an invalid data type")
+         Right name -> case newtypesLookupAny name (newtypes env) of
+                        Just dataInfo -> 
+                          do let (dataRepr,_) = getDataRepr dataInfo
+                             when (dataDefIsValue (dataInfoDef dataInfo) || dataReprIsValue dataRepr) $
+                               emitError (text "the hole in a constructor context cannot be a value type")
+                             return ()
+
+dataTypeNameOf :: Type -> Either Type Name
+dataTypeNameOf tp = case expandSyn tp of
+                      TApp t ts -> dataTypeNameOf t
+                      TCon tc   -> Right (typeConName tc)
+                      t         -> Left t
+
+
 lookupFieldName :: TName -> Int -> CCtx (Either String Name)
 lookupFieldName cname field
   = do env <- getEnv
@@ -282,7 +317,6 @@ lookupFieldName cname field
     getDataTypeName cname  = case splitFunScheme (typeOf cname) of
                                Just (_,_,_,_,tres) -> getDataTypeNameRes tres
                                Nothing             -> failure $ "Core.CTail.getFieldName: illegal constructor type: " ++ show cname ++ ", field " ++ show  field ++ ": " ++ show (pretty (typeOf cname))
-    getDataTypeNameRes tp  = case expandSyn tp of
-                               TApp t ts -> getDataTypeNameRes t
-                               TCon tc   -> typeConName tc
-                               _         -> failure $ "Core.CTail.getFieldName: illegal result type: " ++ show cname ++ ", field " ++ show  field ++ ": " ++ show (pretty (typeOf cname))
+    getDataTypeNameRes tp  = case dataTypeNameOf tp of
+                               Right name -> name
+                               _          -> failure $ "Core.CTail.getFieldName: illegal result type: " ++ show cname ++ ", field " ++ show  field ++ ": " ++ show (pretty (typeOf cname))

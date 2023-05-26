@@ -284,6 +284,15 @@ data Lit
   | LitString   String Range
   deriving (Show)
 
+
+stripExpr :: Expr t -> Expr t
+stripExpr (Parens e _ _) = stripExpr e
+stripExpr (Ann e _ _)    = stripExpr e
+stripExpr e              = e
+
+
+
+
 {--------------------------------------------------------------------------
   types and Kinds
 --------------------------------------------------------------------------}

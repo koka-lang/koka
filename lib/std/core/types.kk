@@ -395,9 +395,13 @@ pub extern ".cctx-create"( x : a, xhole : field-addr<b> ) : cctxx<a,b>
 
 // _Internal_. Extend a constructor context with a non-empty context
 pub inline extern ".cctx-extend"( c : cctxx<a,b>, x : b, xhole : field-addr<c> ) : cctxx<a,c>
-  c inline "kk_cctx_apply(#1,#2,#3,false /*is-linear*/,kk_context())"  
+  c inline "kk_cctx_extend(#1,#2,#3,false /*is-linear*/,kk_context())"  
   js "_cctx_extend"
 
+// _Internal_. Compose a constructor context with a non-empty context
+pub inline extern ".cctx-compose-extend"( c1 : cctxx<a,b>, c2 : cctxx<b,c> ) : cctxx<a,c>
+  c inline "kk_cctx_extend(#1,#2.res,#2.holeptr,false /*is-linear*/,kk_context())"
+  js "_cctx_compose" 
 
 // Apply a constructor context
 pub inline extern []( c : cctxx<a,b>, x : b ) : a

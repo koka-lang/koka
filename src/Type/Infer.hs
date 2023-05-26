@@ -39,7 +39,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameTpValueOp, nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
                       , nameInt32, nameOr, nameAnd, nameEffectOpen
-                      , nameCCtxCreate
+                      , nameCCtxCreate, nameCCtxHoleCreate
                        )
 import Common.Range
 import Common.Unique
@@ -446,7 +446,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl 
      if (verbose penv >= 3)
       then Lib.Trace.trace ("infer: " ++ show sort ++ " " ++ show name) $ return ()
       else return ()
-     withDefName name $
+     withDefName name $ disallowHole $
       (if (not (isDefFun sort) || nameIsNil name) then id else allowReturn True) $
         do (tp,eff,coreExpr) <- inferExpr Nothing expect expr
                                 -- Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
@@ -463,7 +463,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl 
 inferBindDef :: Def Type -> Inf (Effect,Core.Def)
 inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
   = -- trace ("infer bind def: " ++ show name ++ ", var?:" ++ show (sort==DefVar)) $
-    do withDefName name $
+    do withDefName name $ disallowHole $
         do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated expr
            stp <- subst tp
                                 --  Just annTp -> inferExpr (Just (annTp,rng)) Instantiated (Ann expr annTp rng)
@@ -534,6 +534,7 @@ inferIsolated contextRange range body inf
 inferExpr :: Maybe (Type,Range) -> Expect -> Expr Type -> Inf (Type,Effect,Core.Expr)
 inferExpr propagated expect (Lam binders body rng)
   = isNamedLam $ \isNamed ->
+    disallowHole $
     do -- traceDoc $ \env -> text " inferExpr.Lam:" <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated
        (propArgs,propEff,propBody,skolems,expectBody) <- matchFun (length binders) propagated
 
@@ -711,14 +712,33 @@ inferExpr propagated expect (App (h@Handler{hndlrAllowMask=Nothing}) [action] rn
 inferExpr propagated expect (App (Var byref _ _) [(_,Var name _ rng)] _)  | byref == nameByref
   = inferVar propagated expect name rng False
 
+-- | Hole expressions
+inferExpr propagated expect (App fun@(Var hname _ _) [] rng)  | hname == nameCCtxHoleCreate
+  = do ok <- useHole
+       when (not ok) $
+         contextError rng rng (text "ill-formed constructor context") 
+            [(text "because",text "there can be only one hole, and it must occur under a constructor context 'ctx'")]           
+       inferApp propagated expect fun [] rng
+
 -- | Context expressions
 inferExpr propagated expect (App (Var ctxname _ nameRng) [(_,expr)] rng)  | ctxname == nameCCtxCreate
-  = do (tp,eff,core) <- inferExpr Nothing -- todo: propagate through cctx
-                                  Instantiated expr
+  = do tpv <- Op.freshTVar kindStar Meta
+       holetp <- Op.freshTVar kindStar Meta
+       let ctxTp = TApp typeCCtxx [tpv,holetp]
+       prop <- case propagated of
+                 Nothing -> return Nothing
+                 Just (ctp,crng) -> do inferUnify (checkMatch crng) nameRng ctp ctxTp
+                                       stp <- subst tpv
+                                       return (Just (stp,rng))
+       ((tp,eff,core),hole) <- allowHole $ inferExpr prop Instantiated expr
+       inferUnify (Infer rng) nameRng tp tpv
+       when (not hole) $
+          contextError rng rng (text "ill-formed constructor context") [(text "because",text "the context has no 'hole'")]           
        newtypes <- getNewtypes
-       case analyzeCCtx rng newtypes core of
-         Left errs -> failure ("Type.Infer.context")
-         Right ccore -> return (Core.typeOf ccore,eff,ccore)
+       score <- subst core
+       (ccore,errs) <- withUnique (analyzeCCtx rng newtypes score)
+       mapM_ (\(rng,err) -> infError rng err) errs
+       return (Core.typeOf ccore,eff,ccore)
 
 -- | Application nodes. Inference is complicated here since we need to disambiguate overloaded identifiers.
 inferExpr propagated expect (App fun nargs rng)
@@ -778,9 +798,10 @@ inferExpr propagated expect (Handler handlerSort scoped HandlerOverride mbAllowM
 
 inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
-    do (ctp,ceff,ccore) <- allowReturn False $ inferExpr Nothing Instantiated expr
+    do (ctp,ceff,ccore) <- allowReturn False $ disallowHole $ inferExpr Nothing Instantiated expr
        -- infer branches
-       bress <- case (propagated,branches) of
+       bress <- disallowHole $
+                case (propagated,branches) of
                   (Nothing,(b:bs)) -> -- propagate the type of the first branch
                     do bres@(tpeffs,_) <- inferBranch propagated ctp (getRange expr) b
                        let tp = case tpeffs of

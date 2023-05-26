@@ -1091,7 +1091,11 @@ genDropNCall tp args  = -- genDupDropCallX "dropn" tp (arguments args)
 
 genHoleCall :: Type -> Doc
 genHoleCall tp        = --  ppType tp <.> text "_hole()")
-                        text "kk_datatype_null()"
+                        case cType tp of
+                          CPrim "kk_integer_t" -> text "kk_integer_zero"
+                          CPrim "kk_string_t"  -> text "kk_string_empty()"
+                          CPrim "kk_vector_t"  -> text "kk_vector_empty()"
+                          _      -> text "kk_datatype_null()"
 
 
 conBaseCastNameInfo :: ConInfo -> Doc

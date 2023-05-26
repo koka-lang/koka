@@ -18,7 +18,7 @@ module Type.Assumption (
                     , gammaMap
                     , gammaList
                     , gammaIsEmpty
-                    , gammaNames
+                    , gammaNames, gammaPublicNames
                     , ppGamma, ppGammaHidden, gammaRemove, gammaUnion, gammaUnions
                     , gammaFilter
                     , isInfoCon
@@ -246,6 +246,10 @@ gammaFilter mod (Gamma g)
 gammaNames :: Gamma -> [Name]
 gammaNames (Gamma g)
   = M.keys g
+
+gammaPublicNames :: Gamma -> [Name]
+gammaPublicNames (Gamma g)
+  = [name | (name,ninfos) <- M.toList g, all (infoIsVisible . snd) ninfos && not (isHiddenName name)]
 
 {---------------------------------------------------------------
   Extract from core
