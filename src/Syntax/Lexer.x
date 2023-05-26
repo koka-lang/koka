@@ -290,7 +290,7 @@ reservedNames
     , "val", "fun", "fn", "extern", "var"
     , "ctl", "final", "raw"
     , "if", "then", "else", "elif"
-    , "return", "match", "with", "in"
+    , "return", "match", "with", "in", "ctx"
     , "forall", "exists", "some"
     , "pub", "abstract"
     , "module", "import", "as"

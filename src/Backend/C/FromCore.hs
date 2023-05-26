@@ -1313,7 +1313,7 @@ cTypeCon c
          then CPrim "kk_box_t"
         else if (name == nameTpReuse)
          then CPrim "kk_reuse_t"
-        else if (name == nameTpCField)
+        else if (name == nameTpFieldAddr)
          then CPrim "kk_box_t*"
         else CData (typeClassName name)
 
@@ -1897,23 +1897,23 @@ genAppNormal (Var (TName conFieldsAssign typeAssign) _) (Var reuseName (InfoConF
        return (decls ++ [tmpDecl] ++ assigns, result)
 
 -- special: cfield-hole
-genAppNormal (Var unbox _) [App (Var cfieldHole _) []] | getName cfieldHole == nameCFieldHole && getName unbox == nameUnbox
+genAppNormal (Var unbox _) [App (Var cfieldHole _) []] | getName cfieldHole == nameCCtxHoleCreate && getName unbox == nameUnbox
   = return ([], genHoleCall (resultType (typeOf unbox))) -- ppType (resultType (typeOf unbox)) <.> text "_hole()")
 
 -- special: cfield-of
-genAppNormal (Var cfieldOf _) [App (Var box _) [App (Var dup _) [Var con _]], Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf && getName dup == nameDup
+genAppNormal (Var cfieldOf _) [App (Var box _) [App (Var dup _) [Var con _]], Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameFieldAddrOf && getName dup == nameDup
   = do let doc = genFieldAddress con (readQualified conName) (readQualified fieldName)
        return ([],text "(kk_box_t*)" <.> parens doc)
 
-genAppNormal (Var cfieldOf _) [App (Var box _) [Var con _], Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf
+genAppNormal (Var cfieldOf _) [App (Var box _) [Var con _], Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameFieldAddrOf
  = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
           doc = genFieldAddress con (readQualified conName) (readQualified fieldName)
       return (drop,text "(kk_box_t*)" <.> parens doc)
 
--- special: ctail-set-context-path
-genAppNormal (Var ctailSetContextPath _) [conExpr, Lit (LitString conName), Lit (LitString fieldName)]  | getName ctailSetContextPath == nameCTailSetCtxPath
+-- special: cctx-set-context-path
+genAppNormal (Var ctailSetContextPath _) [conExpr, Lit (LitString conName), Lit (LitString fieldName)]  | getName ctailSetContextPath == nameCCtxSetCtxPath
  = do (decl,conVar) <- genVarBinding conExpr
-      let doc = genCTailSetContextPath conVar (readQualified conName) (readQualified fieldName)
+      let doc = genCCtxSetContextPath conVar (readQualified conName) (readQualified fieldName)
       return ([decl],doc)
 
 -- add/sub small constant 
@@ -1979,9 +1979,9 @@ genFieldAddress :: TName -> Name -> Name -> Doc
 genFieldAddress conVar conName fieldName
   = parens (text "&" <.> conAsNameX (conName) <.> arguments [ppName (getName conVar)] <.> text "->" <.> ppName (unqualify fieldName))
 
-genCTailSetContextPath :: TName -> Name -> Name -> Doc
-genCTailSetContextPath conVar conName fieldName
-  = text "kk_ctail_set_context_path" <.> 
+genCCtxSetContextPath :: TName -> Name -> Name -> Doc
+genCCtxSetContextPath conVar conName fieldName
+  = text "kk_cctx_setcp" <.> 
       arguments [-- conAsNameX conName, 
                  ppName (getName conVar),  
                  text "offsetof" <.> tupled [text "struct" <+> ppName conName, ppName (unqualify fieldName)]]
@@ -2127,7 +2127,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameReuse
     in return ([], call)
 
 -- special case: cfield hole
-genExprExternal tname formats [] | getName tname == nameCFieldHole
+genExprExternal tname formats [] | getName tname == nameCCtxHoleCreate
   = return ([], genHoleCall (resultType (typeOf tname))) -- ppType (resultType (typeOf tname)) <.> text "_hole()")
 
 {-
@@ -2231,7 +2231,7 @@ isInlineableExpr expr
       Lit (LitString _)-> False
 
       -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
-      App (Var v (InfoExternal _)) [] -> getName v `elem` [nameYielding,nameReuseNull,nameCFieldHole]
+      App (Var v (InfoExternal _)) [] -> getName v `elem` [nameYielding,nameReuseNull,nameCCtxHoleCreate]
       -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
       App (Var v _) [arg] | getName v `elem` [nameBox,nameInt32,nameReuse,nameReuseIsValid,nameIsUnique] -> isInlineableExpr arg
 

@@ -122,7 +122,7 @@ import Common.Id
 import Common.Error
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSSizeT, nameBox, nameUnbox,
-                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCField,
+                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpFieldAddr,
                         isPrimitiveName, isSystemCoreName, nameKeep, nameDropSpecial)
 import Common.Syntax
 import Kind.Kind
@@ -452,7 +452,7 @@ getDataReprEx getIsValue info
          -- else if (hasExistentials)
          --  then (DataNormal, map (\con -> ConNormal typeName) conInfos)
          else if (isValue
-                    && (null (dataInfoParams info) || typeName == nameTpCField)
+                    && (null (dataInfoParams info) || typeName == nameTpFieldAddr)
                     && all (\con -> null (conInfoParams con)) conInfos)
           then (DataEnum,map (\ci -> ConEnum typeName DataEnum (conInfoValueRepr ci)) conInfos)
          else if (length conInfos == 1)

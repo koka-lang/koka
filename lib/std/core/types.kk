@@ -362,19 +362,23 @@ pub value type optional<a>
 
 
 // ----------------------------------------------------------------------------
+// First-class constructor contexts.
 // These primitives are used by the compiler for
 // _tail recursion module cons_ (TRMC) optimization.
 // ----------------------------------------------------------------------------
 
 extern import 
-  c header-end-file "types-ctail-inline.h"
-  js file "types-ctail-inline.js"
+  c header-end-file "types-cctx-inline.h"
+  js file "types-cctx-inline.js"
 
 
 // _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
 // Holds the address to a field of type `:a` in a constructor.
-pub value type cfield<a>
+pub value type field-addr<a>
 
-// _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
-abstract value type ctail<a>
-  ".CTail"( res : a, hole : cfield<a> )
+// First-class constructor context (for _tail recursion module cons_ (TRMC) optimization).
+abstract value type cctxx<a,b>
+  ".Cctx"( res : a, hole : field-addr<b> )
+
+// First-class constructor context.
+pub alias cctx<a> = cctxx<a,a>

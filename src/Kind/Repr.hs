@@ -137,7 +137,7 @@ createDataDef emitError emitWarning lookupDataInfo
                                then 1
                               else if (name == nameTpInt16 || name == nameTpFloat16)
                                then 2
-                              else if (name == nameTpAny || name == nameTpCField || name == nameTpIntPtrT)
+                              else if (name == nameTpAny || name == nameTpFieldAddr || name == nameTpIntPtrT)
                                then (sizePtr platform)
                               else if (name==nameTpSSizeT)
                                then (sizeSize platform)

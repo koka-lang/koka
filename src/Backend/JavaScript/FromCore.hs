@@ -698,8 +698,8 @@ genExpr expr
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt i
        -> return (empty, pretty i <.> text "n")       
 
-     -- special: cfield-of
-     App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf
+     -- special: .cctx-field-addr-of: create a tuple with the object and the field name as a string
+     App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameFieldAddrOf
        -> do conDoc <- genTName con
              return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
 
@@ -910,9 +910,9 @@ genExprExternal tname formats argDocs0
                                    <.> text "()"
                          in return ([],try)
 
--- special case: cfield-hole
+-- special case: .cctx-hole-create
 genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
-genExprExternalPrim tname formats [] | getName tname == nameCFieldHole
+genExprExternalPrim tname formats [] | getName tname == nameCCtxHoleCreate
   = return ([],text "undefined")
 
 {-

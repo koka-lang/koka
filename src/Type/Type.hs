@@ -42,7 +42,7 @@ module Type.Type (-- * Types
 
                   , typeDivergent, typeTotal, typePartial
                   , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
-                  , typeCTail, typeCField
+                  , typeCCtx, typeCCtxx, typeFieldAddr
                   , isOptional, makeOptional, unOptional
                   , typeReuse, typeLocal
 
@@ -778,22 +778,30 @@ isTypeUnit _         = False
 
 
 -- | Type of ctail
-typeCTail :: Tau
-typeCTail
-  = TCon tconCTail
+typeCCtx :: Tau -> Tau
+typeCCtx tp
+  = TSyn tsynCCtx [tp] (TApp typeCCtxx [tp,tp])
 
-tconCTail :: TypeCon
-tconCTail
-  = TypeCon nameTpCTailAcc (kindFun kindStar kindStar)
+tsynCCtx :: TypeSyn
+tsynCCtx 
+  = TypeSyn nameTpCCtx (kindFun kindStar kindStar) 0 Nothing  
+
+typeCCtxx :: Tau
+typeCCtxx
+  = TCon tconCCtxx
+
+tconCCtxx :: TypeCon
+tconCCtxx
+  = TypeCon nameTpCCtxx (kindFun kindStar (kindFun kindStar kindStar))
 
 -- | Type of cfield
-typeCField :: Tau
-typeCField
-  = TCon tconCField
+typeFieldAddr :: Tau
+typeFieldAddr
+  = TCon tconFieldAddr
 
-tconCField :: TypeCon
-tconCField
-  = TypeCon nameTpCField (kindFun kindStar kindStar)
+tconFieldAddr :: TypeCon
+tconFieldAddr
+  = TypeCon nameTpFieldAddr (kindFun kindStar kindStar)
 
 -- | Type of vectors (@[]@)
 typeVector :: Tau

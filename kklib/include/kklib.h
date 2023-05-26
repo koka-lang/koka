@@ -1299,18 +1299,19 @@ static inline kk_function_t kk_function_dup(kk_function_t f, kk_context_t* ctx) 
 
 
 /*--------------------------------------------------------------------------------------
-  TRMC (Further primitives are defined in `lib/std/core/types-ctail-inline.h`)
+  Constructor contexts (Further primitives are defined in `lib/std/core/types-cctx-inline.h`)
 --------------------------------------------------------------------------------------*/
 
 #if !defined(KK_HAS_MALLOC_COPY)
-#define KK_CTAIL_NO_CONTEXT_PATH
+#define KK_CCTX_NO_CONTEXT_PATH
 #else
 
-// functional context composition by copying along the context path and attaching `child` at the hole.
-kk_decl_export kk_box_t kk_ctail_context_copy_compose( kk_box_t res, kk_box_t child, kk_context_t* ctx);
+// functional context application by copying along the context path and attaching `child` at the hole.
+kk_decl_export kk_box_t kk_cctx_copy_apply( kk_box_t res, kk_box_t child, kk_context_t* ctx);
 
+// set the context path.
 // update the field_idx with the field index + 1 that is along the context path, and return `d` as is.
-static inline kk_datatype_t kk_ctail_set_context_path(kk_datatype_t d, size_t field_offset, kk_context_t* ctx) {
+static inline kk_datatype_t kk_cctx_setcp(kk_datatype_t d, size_t field_offset, kk_context_t* ctx) {
   kk_assert_internal((field_offset % sizeof(kk_box_t)) == 0);
   kk_assert_internal(kk_datatype_is_ptr(d));
   const size_t field_index = (field_offset - sizeof(kk_header_t)) / sizeof(kk_box_t);

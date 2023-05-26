@@ -2003,6 +2003,12 @@ listExpr
 makeNil rng   = Var nameNull False rng
 makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
 
+cctxExpr :: LexParser UserExpr
+cctxExpr
+  = do rng <- keyword "ctx"
+       ctx <- ntlexpr
+       return (makeApp (Var nameCCtxCreate False rng) [ctx])
+
 
 injectExpr :: LexParser UserExpr
 injectExpr

@@ -718,8 +718,8 @@ static kk_block_t* kk_block_alloc_copy( kk_block_t* b, kk_context_t* ctx ) {
 }
 #endif
 
-#if !defined(KK_CTAIL_NO_CONTEXT_PATH)
-kk_decl_export kk_decl_noinline kk_box_t kk_ctail_context_copy_compose( kk_box_t res, kk_box_t child, kk_context_t* ctx) {
+#if !defined(KK_CCTX_NO_CONTEXT_PATH)
+kk_decl_export kk_decl_noinline kk_box_t kk_cctx_copy_apply( kk_box_t res, kk_box_t child, kk_context_t* ctx) {
   kk_assert_internal(!kk_block_is_unique(kk_ptr_unbox(res, ctx)));
   kk_box_t  cres = kk_box_null();     // copied result context
   kk_box_t* next = NULL;              // pointer to the context path field in the parent block

@@ -14,7 +14,7 @@ import std/os/flags
 import std/time/time
 import std/time/utc
 
-val header = "usage:\n stack exec koka -- util/bundle [-- [options]]\n\noptions:"
+val header = "usage:\n stack exec koka -- -e util/bundle [-- [options]]\n\noptions:"
 
 struct iflags
   prefixdir    : string = ""
