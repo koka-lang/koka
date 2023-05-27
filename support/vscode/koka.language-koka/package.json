@@ -2,10 +2,10 @@
   "name": "language-koka",
   "displayName": "Koka Syntax Highlighting",
   "description": "Official syntax support for the Koka programming language.",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "publisher": "koka",
   "engines": {
-    "vscode": "1.63.2"
+    "vscode": "1.78.2"
   },
   "icon": "images/koka-logo-filled.png",
   "galleryBanner": {
@@ -35,44 +35,8 @@
   "categories": [
     "Programming Languages"
   ],
-  "activationEvents": [
-    "onLanguage:koka",
-    "onCommand:koka.restartLanguageServer"
-  ],
   "main": "./out/extension",
   "contributes": {
-    "configuration": {
-      "type": "object",
-      "title": "Koka configuration",
-      "properties": {
-        "koka.indentationRules.enabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Set to 'false' to disable automatically increasing indent on newlines after '{', 'match' etc."
-        },
-        "koka.languageServer.enabled": {
-          "type": "boolean",
-          "default": false,
-          "description": "Set to 'true' to enable smarter language support (e.g. hover, code completion, ...) for Koka. Requires specifying the path to the Koka compiler under 'koka.languageServer.path'."
-        },
-        "koka.languageServer.command": {
-          "type": "string",
-          "default": "koka --language-server",
-          "description": "The command to launch the Koka language server (by default the extension assumes that 'koka' is on your PATH)"
-        },
-        "koka.languageServer.cwd": {
-          "type": "string",
-          "default": "",
-          "description": "If specified, the directory in which the language server will be executed."
-        }
-      }
-    },
-    "configurationDefaults": {
-      "[koka]": {
-        "editor.tabSize": 2,
-        "editor.insertSpaces": true
-      }
-    },
     "languages": [
       {
         "id": "koka",
@@ -85,8 +49,11 @@
           ".kki",
           ".kkc"
         ],
-        "icon": "koka-icon",
-        "configuration": "./koka-configuration.json"
+        "configuration": "./koka-configuration.json",
+        "icon": {
+          "light": "./images/koka-logo-filled-blue.svg",
+          "dark": "./images/koka-logo-filled-blue.svg"
+        }
       }
     ],
     "grammars": [
@@ -96,38 +63,56 @@
         "path": "./syntaxes/koka.json"
       }
     ],
+    "configuration": {
+      "type": "object",
+      "title": "Koka configuration",
+      "properties": {
+        "koka.indentationRules.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Set to 'false' to disable automatically increasing indent on newlines after '{', 'match' etc."
+        },
+        "koka.languageServer.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Set to 'true' to enable smarter language support (e.g. hover, code completion, ...) for Koka. Requires specifying the path to the Koka compiler under 'koka.languageServer.path'."
+        },
+        "koka.languageServer.command": {
+          "type": "string",
+          "default": null,
+          "description": "The command to launch the Koka language server (by default the extension assumes that 'koka' is on your PATH)"
+        },
+        "koka.languageServer.cwd": {
+          "type": "string",
+          "default": "",
+          "description": "If specified, the directory in which the language server will be executed."
+        },
+        "koka.languageServer.trace.server": {
+          "scope": "window",
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server."
+        }
+      }
+    },
+    "configurationDefaults": {
+      "[koka]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true
+      }
+    },
     "commands": [
       {
         "command": "koka.restartLanguageServer",
         "title": "Restart Koka Language Server"
       }
-    ],
-    "icons": [
-      {
-        "id": "koka-icon",
-        "description": "Koka icon",
-        "default": {
-          "fontId": "koka-logo-font",
-          "fontCharacter": "A"
-        }
-      }
-    ],
-    "iconFonts": [
-      {
-        "id": "koka-logo-font",
-        "src": [
-          {
-            "path": "./fonts/koka-icon-font.woff",
-            "format": "woff"
-          }
-        ]
-      }
     ]
   },
-  "enabledApiProposals": [
-    "contribIconFonts",
-    "contribIcons"
-  ],
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w"

@@ -28,6 +28,10 @@ extra-deps:
 - regex-compat-0.95.2.1          # only needed for koka-test (use 0.95.1.4 for pre lts-21.0)
 - json-0.10                      # only needed for koka-test
 - isocline-1.0.7
+- lsp-1.6.0.0                   # only needed for language server
+- lsp-types-1.6.0.0             # only needed for language server
+- text-rope-0.2                 # needed for lsp
+- co-log-core-0.3.2.0           # needed for lsp
 
 rebuild-ghc-options: true
 allow-newer: true

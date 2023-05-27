@@ -18,16 +18,17 @@ module LanguageServer.Conversions
     fromLspLocation,
   )
 where
-
+import           GHC.Generics              hiding (UInt)
 import qualified Common.Error as E
 import qualified Common.Range as R
 import qualified Data.Text as T
 import qualified Language.LSP.Types as J
+import Language.LSP.Types (UInt)
 import Lib.PPrint (Doc)
 
 toLspPos :: R.Pos -> J.Position
 toLspPos p =
-  J.Position (R.posLine p - 1) (R.posColumn p - 1) -- LSP positions are zero-based
+  J.Position (fromIntegral (max 0 (R.posLine p - 1))) (fromIntegral (max 0 (R.posColumn p - 1)))-- LSP positions are zero-based
 
 toLspRange :: R.Range -> J.Range
 toLspRange r =
@@ -80,7 +81,7 @@ makeDiagnostic s src r doc =
 
 fromLspPos :: J.Uri -> J.Position -> R.Pos
 fromLspPos uri (J.Position l c) =
-  R.makePos src (-1) (l + 1) (c + 1)
+  R.makePos src (-1) (fromIntegral l + 1) (fromIntegral c + 0)
   where
     src = case J.uriToFilePath uri of
       Just filePath -> R.Source filePath R.bstringEmpty -- TODO: Read file here (and compute the offset correctly)

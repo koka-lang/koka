@@ -32,7 +32,7 @@ import Lib.Trace              ( trace )
 import Data.Char              ( isAlphaNum, toLower, isSpace )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory, doesDirectoryExist )
-import Data.Maybe             ( catMaybes )
+import Data.Maybe             ( catMaybes, fromJust )
 import Data.List              ( isPrefixOf, intersperse )
 import qualified Data.Set as S
 import Control.Applicative
@@ -51,7 +51,8 @@ import Common.Syntax
 import Common.Unique
 import Syntax.Syntax
 -- import Syntax.Lexer           ( readInput )
-import Syntax.Parse           ( parseProgramFromFile, parseValueDef, parseExpression, parseTypeDef, parseType )
+-- import Syntax.Lexer           ( readInput )
+import Syntax.Parse           ( parseProgramFromFile, parseValueDef, parseExpression, parseTypeDef, parseType, parseProgramFromString )
 
 import Syntax.RangeMap
 import Syntax.Colorize        ( colorize )
@@ -280,23 +281,32 @@ compileTypeDef term flags loaded program line input
   These are meant to be called from the interpreter/main compiler
 ---------------------------------------------------------------}
 
-compileModuleOrFile :: Terminal -> Flags -> Modules -> String -> Bool -> IO (Error Loaded)
-compileModuleOrFile term flags modules fname force
+compileModuleOrFile :: Terminal -> Flags -> Modules -> String -> Maybe BString -> Bool -> IO (Error Loaded)
+compileModuleOrFile term flags modules fname contents force
+  | isJust contents = 
+    do 
+      fexist <- searchSourceFile flags "" fname
+      case fexist of
+        Just (root,stem) ->
+          runIOErr $ compileProgramFromContents term flags modules Object (fromJust contents) root stem
+        _ -> runIOErr $ liftError $ errorMsg $ errorFileNotFound flags fname
   | any (not . validModChar) fname = compileFile term flags modules Object fname
   | otherwise
     = -- trace ("compileModuleOrFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $
-      do let modName = pathToModuleName fname
-         exist <- searchModule flags "" modName
-         case (exist) of
+      do 
+        let modName = pathToModuleName fname
+        exist <- searchModule flags "" modName
+        case (exist) of
           Just (fpath) -> compileModule term (if force then flags{ forceModule = fpath } else flags)
                                       modules modName
-          _       -> do fexist <- searchSourceFile flags "" fname
-                        runIOErr $
-                         case (fexist) of
-                          Just (root,stem)
-                            -> compileProgramFromFile term flags modules Object root stem
-                          Nothing
-                            -> liftError $ errorMsg $ errorFileNotFound flags fname
+          _       -> do 
+            fexist <- searchSourceFile flags "" fname
+            runIOErr $
+              case (fexist) of
+                Just (root,stem)
+                  -> compileProgramFromFile term flags modules Object root stem
+                Nothing
+                  -> liftError $ errorMsg $ errorFileNotFound flags fname
   where
     validModChar c
       = isAlphaNum c || c `elem` "/_"
@@ -322,7 +332,7 @@ makeRelativeToPaths paths fname
 
 
 compileModule :: Terminal -> Flags -> Modules -> Name -> IO (Error Loaded)
-compileModule term flags modules name  -- todo: take force into account
+compileModule term flags modules name -- todo: take force into account
   = runIOErr $
     do let imp = ImpProgram (Import name name rangeNull Private)
        loaded <- resolveImports name term flags "" initialLoaded{ loadedModules = modules } [imp]
@@ -339,6 +349,29 @@ compileProgram :: Terminal -> Flags -> Modules -> CompileTarget () -> FilePath -
 compileProgram term flags modules compileTarget fname program
   = runIOErr $ compileProgram' term flags modules compileTarget  fname program
 
+
+compileProgramFromContents :: Terminal -> Flags -> Modules -> CompileTarget () -> BString -> FilePath -> FilePath -> IOErr Loaded
+compileProgramFromContents term flags modules compileTarget contents rootPath stem
+  = do let fname = joinPath rootPath stem
+       liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+> color (colorSource (colorScheme flags)) (text (normalizeWith '/' fname)))
+       liftIO $ termPhase term ("parsing " ++ fname)
+       program <- liftError $ parseProgramFromString (semiInsert flags) contents fname
+       let isSuffix = -- asciiEncode True (noexts stem) `endsWith` asciiEncode True (show (programName program))
+                      -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
+                      show (pathToModuleName (noexts stem)) `endsWith` show (programName program)
+                      -- map (\c -> if isPathSep c then '/' else c) (noexts stem) 
+                      --  `endsWith` moduleNameToPath (programName program)
+           ppcolor c doc = color (c (colors (prettyEnvFromFlags flags))) doc
+       if (isExecutable compileTarget || isSuffix) then return ()
+        else liftError $ errorMsg (ErrorGeneral (programNameRange program)
+                                     (text "module name" <+>
+                                      ppcolor colorModule (pretty (programName program)) <+>
+                                      text "is not a suffix of the file path" <+>
+                                      parens (ppcolor colorSource $ text $ dquote $ stem)
+                                     ))
+       let stemName = nameFromFile stem
+       let flags2 = flags{forceModule = fname}
+       compileProgram' term flags2 modules compileTarget fname program{ programName = stemName }
 
 compileProgramFromFile :: Terminal -> Flags -> Modules -> CompileTarget () -> FilePath -> FilePath -> IOErr Loaded
 compileProgramFromFile term flags modules compileTarget rootPath stem
@@ -818,7 +851,7 @@ inferCheck loaded0 flags line coreImports program
               (isValueFromFlags flags)
               (colorSchemeFromFlags flags)
               (platform flags)
-              (if (outHtml flags > 0) then Just rangeMapNew else Nothing)
+              (if (outHtml flags > 0 || genRangeMap flags) then Just rangeMapNew else Nothing)
               (loadedImportMap loaded0)
               (loadedKGamma loaded0)
               (loadedSynonyms loaded0)

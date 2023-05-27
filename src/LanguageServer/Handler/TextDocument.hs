@@ -20,27 +20,31 @@ import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import Language.LSP.Diagnostics (partitionBySource)
-import Language.LSP.Server (Handlers, flushDiagnosticsBySource, notificationHandler, publishDiagnostics, sendNotification)
+import Language.LSP.Server (Handlers, flushDiagnosticsBySource, notificationHandler, publishDiagnostics, sendNotification, getVirtualFile)
 import qualified Language.LSP.Types as J
 import qualified Language.LSP.Types.Lens as J
 import LanguageServer.Conversions (toLspDiagnostics)
 import LanguageServer.Monad (LSM, modifyLoaded)
+import Language.LSP.VFS (virtualFileText)
+import qualified Data.Text.Encoding as T
+import Data.Functor ((<&>))
 
 didOpenHandler :: Flags -> Handlers LSM
 didOpenHandler flags = notificationHandler J.STextDocumentDidOpen $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
-  recompileFile flags uri
+  let version = msg ^. J.params . J.textDocument . J.version
+  recompileFile flags uri (Just version) False
 
 didChangeHandler :: Flags -> Handlers LSM
-didChangeHandler flags = notificationHandler J.STextDocumentDidChange $ \_msg -> do
-  -- TODO: Recompile here for 'live' results, this requires using
-  --       the VFS as described below in the 'recompileFile' function
-  return ()
+didChangeHandler flags = notificationHandler J.STextDocumentDidChange $ \msg -> do
+  let uri = msg ^. J.params . J.textDocument . J.uri
+  let version = msg ^. J.params . J.textDocument . J.version
+  recompileFile flags uri version True -- Need to reload
 
 didSaveHandler :: Flags -> Handlers LSM
 didSaveHandler flags = notificationHandler J.STextDocumentDidSave $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
-  recompileFile flags uri
+  recompileFile flags uri Nothing False
 
 didCloseHandler :: Flags -> Handlers LSM
 didCloseHandler flags = notificationHandler J.STextDocumentDidClose $ \_msg -> do
@@ -49,17 +53,17 @@ didCloseHandler flags = notificationHandler J.STextDocumentDidClose $ \_msg -> d
 
 -- Recompiles the given file, stores the compilation result in
 -- LSM's state and emits diagnostics.
-recompileFile :: Flags -> J.Uri -> LSM ()
-recompileFile flags uri =
+recompileFile :: Flags -> J.Uri -> Maybe J.Int32 -> Bool -> LSM ()
+recompileFile flags uri version force =
   case J.uriToFilePath uri of
     Just filePath -> do
       -- Recompile the file
-      -- TODO: Use VFS to fetch the file's contents to provide
-      --       'live' results as the user types
       -- TODO: Abstract the logging calls in a better way
-       
-      sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ "Recompiling " <> T.pack filePath
-      loaded <- liftIO $ compileModuleOrFile terminal flags [] filePath False
+      vFile <- getVirtualFile normUri
+      let contents = vFile <&> (T.encodeUtf8 . virtualFileText)
+
+      sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ T.pack ("Recompiling " ++ show contents) <> T.pack filePath
+      loaded <- liftIO $ compileModuleOrFile terminal flags [] filePath contents True
       case checkError loaded of
         Right (l, _) -> do
           modifyLoaded $ M.insert normUri l
@@ -73,7 +77,10 @@ recompileFile flags uri =
           maxDiags = 100
       if null diags
         then flushDiagnosticsBySource maxDiags (Just diagSrc)
-        else publishDiagnostics maxDiags normUri (Just 0) diagsBySrc
+        else 
+          do 
+            flushDiagnosticsBySource maxDiags (Just diagSrc)
+            publishDiagnostics maxDiags normUri version diagsBySrc
     Nothing -> return ()
   where
     normUri = J.toNormalizedUri uri

@@ -9,7 +9,7 @@
     Parse concrete syntax.
 -}
 -----------------------------------------------------------------------------
-module Syntax.Parse( parseProgramFromFile
+module Syntax.Parse( parseProgramFromFile, parseProgramFromString
                    , parseValueDef
                    , parseTypeDef
                    , parseExpression
@@ -87,6 +87,9 @@ parseProgramFromFile semiInsert fname
   = do input <- readInput fname
        return (lexParse semiInsert id program fname 1 input)
 
+parseProgramFromString :: Bool -> BString -> FilePath -> Error UserProgram
+parseProgramFromString semiInsert input fname
+  = lexParse semiInsert id program fname 1 input
 
 parseValueDef :: Bool -> FilePath -> Int -> String -> Error UserDef
 parseValueDef semiInsert sourceName line input

@@ -6,25 +6,32 @@ import {
   ServerOptions,
 } from 'vscode-languageclient/node';
 
+import { scanForSDK } from './scan';
+
+let client: LanguageClient;
+
 export function activate(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration('koka');
-
   // We can always create the client, as it does nothing as long as it is not started
-  const client = createClient(config);
-
+  console.log(`Koka: language server enabled ${config.get('languageServer.enabled')}`)
+  client = createClient(config);
   if (config.get('languageServer.enabled')) {
     context.subscriptions.push(client.start());
   }
 
-  createCommands(context, config, client);
+  createCommands(context, config);
 }
 
 function createClient(config: vscode.WorkspaceConfiguration) {
+  // TODO: Return all sdks and select default, but let user choose to switch between them
+  const sdkPath = scanForSDK()
+  const command = config.get('languageServer.command') as string || `${sdkPath} --language-server`
+  console.log(`Koka: Language Server ${command} Workspace: ${vscode.workspace.workspaceFolders[0].uri.path}`)
   const serverOptions: ServerOptions = {
-    command: config.get('languageServer.command'),
+    command,
     options: {
       shell: true,
-      cwd: config.get('languageServer.cwd') || null,
+      cwd: config.get('languageServer.cwd') || vscode.workspace.workspaceFolders[0].uri.path,
     },
   };
   const clientOptions: LanguageClientOptions = {
@@ -41,10 +48,16 @@ function createClient(config: vscode.WorkspaceConfiguration) {
   return client;
 }
 
+export function deactivate(): Thenable<void> | undefined {
+	if (!client) {
+		return undefined;
+	}
+	return client.stop();
+}
+
 function createCommands(
   context: vscode.ExtensionContext,
   config: vscode.WorkspaceConfiguration,
-  client: LanguageClient,
 ) {
   context.subscriptions.push(
     vscode.commands.registerCommand('koka.restartLanguageServer', () => {
