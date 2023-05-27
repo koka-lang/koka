@@ -20,7 +20,6 @@ pub import std/core/hnd
 
 pub infixr 80  (^)
 pub infixl 70  (*), (%), (/), cdiv, cmod
-pub infixr 60  (++)
 pub infixl 60  (+), (-)
 pub infix  40  (!=), (==), (<=), (>=), (<), (>)
 // prefix     (!), (-) 

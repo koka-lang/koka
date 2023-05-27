@@ -2026,7 +2026,7 @@ ccontext rng
        
 cctxHole :: LexParser UserExpr
 cctxHole 
-  = do rng <- keyword "hole"
+  = do rng <- keyword "hole" <|> do { (_,r) <- wildcard; return r }
        return (makeApp (Var nameCCtxHoleCreate False rng) [])
 
 
@@ -2367,7 +2367,7 @@ anntypek
            return tp)
 
 tid
-  = do (id,rng) <- qvarid
+  = do (id,rng) <- qvarid <|> typeidCtx
        return (if isTypeVar id then TpVar id rng else TpCon id rng)
   <|>
     do (id,rng) <- wildcard <?> ""
@@ -2702,16 +2702,20 @@ ensureUnqualified entity p
 -----------------------------------------------------------
 -- Lexical tokens
 -----------------------------------------------------------
-qtypeid :: LexParser (Name,Range)
+qtypeid, typeidCtx :: LexParser (Name,Range)
 qtypeid
   = try $
     do pos <- getPosition
-       (name,range) <- qvarid
+       (name,range) <- qvarid <|> typeidCtx      
        if (not (isTypeVar name))
         then return (name,range)
         else -- trace ("not a qtype: " ++ show name) $
              do setPosition pos
                 mzero <?> "type name (and not type variable)"
+
+typeidCtx
+  = do r <- keyword "ctx"
+       return (newName "ctx",r) 
 
 qop :: LexParser (Name,Range)
 qop

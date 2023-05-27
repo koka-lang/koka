@@ -296,17 +296,19 @@ nameCTailSetCtxPath=cfieldName ".ctail-set-context-path"
 
 cfieldName name   = coreTypesName name
 
-nameTpCCtxx       = cfieldName "cctxx"
-nameTpCCtx        = cfieldName "cctx"
+nameTpCCtxx       = cfieldName "cctx"
+nameTpCCtx        = cfieldName "ctx"
 
 nameCCtxCreate    = cfieldName ".cctx-create"
 nameCCtxHoleCreate= cfieldName ".cctx-hole-create"
 nameCCtxExtend    = cfieldName ".cctx-extend"
 nameCCtxComposeExtend = cfieldName ".cctx-compose-extend"
 nameCCtxEmpty     = cfieldName "cctx-empty"
-nameCCtxApply     = cfieldName "cctx-apply"
-nameCCtxCompose   = cfieldName "cctx-compose"
 nameCCtxSetCtxPath= cfieldName ".cctx-setcp"
+
+nameCCtxApply     = cfieldName "([])"
+nameCCtxCompose   = cfieldName "(++)"
+
 
 nameTpFieldAddr   = cfieldName "field-addr"
 nameFieldAddrOf   = cfieldName ".field-addr-of"

@@ -26,7 +26,9 @@ import Lib.PPrint
 import Common.Syntax( Target(..), JsTarget(..), CTarget(..) )
 import Common.Id
 import Common.Name
-import Common.NamePrim(nameCCtxHoleCreate,nameCCtxCreate,nameCCtxEmpty,nameCCtxSetCtxPath,nameFieldAddrOf,nameTpFieldAddr)
+import Common.NamePrim(nameCCtxHoleCreate,nameCCtxCreate,nameCCtxEmpty,nameCCtxSetCtxPath,
+                       nameFieldAddrOf,nameTpFieldAddr, 
+                       nameEffectOpen)
 import Common.Range
 import Common.Unique(HasUnique(..))
 import Common.Failure
@@ -75,6 +77,8 @@ cctxExpr expr
 
       App (TypeApp (con@(Con name repr)) targs) args  | not (null args)
         -> cctxCon name repr targs args
+
+      -- App (App (TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f]) []) | getName open == nameEffectOpen
       
       _ -> illegal
 
@@ -116,7 +120,7 @@ cctxConFinal conName conRepr targs pre hole post
         ensureValidHoleType holetp
         (d1,var1) <- makeUniqueDef (App (makeTypeApp (Con conName conRepr) targs) (pre ++ [hole] ++ post))
         (d2,addr) <- makeUniqueDef (makeFieldAddrOf var1 conName fname holetp)
-        (d3,var3) <- makeUniqueDef (makeCCtxSetContextPath var1 conName fname)
+        (d3,var3) <- makeUniqueDef (makeCCtxSetContextPath var1 conName fname) -- should be last as it consumes var1
         return (Ctx [d1,d2,d3] var3 (Hole addr holetp))
 
 cctxCheckNoHole :: Expr -> CCtx ()
@@ -147,6 +151,8 @@ makeUniqueDef expr
 
 isHole :: Expr -> Bool
 isHole (App (TypeApp (Var (TName hname htp) _) [tp,_etp]) []) = (hname == nameCCtxHoleCreate)
+isHole (App (App (TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [TypeApp (Var hname _) _]) []) 
+  = (getName open == nameEffectOpen) && (getName hname == nameCCtxHoleCreate)
 isHole _ = False
 
 -- Initial empty context (ctx hole)
