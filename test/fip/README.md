@@ -175,26 +175,51 @@ c    tmap       std-mi        100000  0.63     .557      .0032158   9952
 ```
 
 
-# Prerequisites
+# Building from Scratch
 
-## GNU time
-Install gnu time if you don't have it:
-```
-# /usr/bin/time --version
-GNU time 1.7
-```
+These are instructions to re-create the image on a Unix system.
 
-## Mimalloc
-
-The C benchmarks rely on mimalloc:
+Basics:
 
 ```
-# git clone https://github.com/microsoft/mimalloc
-# cd mimalloc
-# mkdir -p out/release
-# cd out/release
-# cmake ../..
-# make
-# sudo make install
+sudo apt update
+sudo apt ugrade
+sudo apt-get install -y --no-install-recommends ca-certificates
+sudo apt-get install -y --no-install-recommends libc-dev build-essential time bc
+sudo apt-get install -y --no-install-recommends tar cmake curl
+sudo apt-get install -y --no-install-recommends gcc clang
 ```
 
+Stack:
+
+```
+curl -sSL https://get.haskellstack.org | sh
+```
+
+Mimalloc:
+
+```
+git clone https://github.com/microsoft/mimalloc
+cd mimalloc
+mkdir -p out/release
+cd out/release
+cmake ../..
+make
+sudo make install
+cd ~
+```
+
+Koka:
+
+```
+git clone --recursive https://github.com/koka-lang/koka -b dev-fbip
+cd koka
+stack build --fast
+```
+
+And go to the test directory to build and run a benchmark:
+
+```
+cd ~/koka/test/fip
+./bench.sh rbtree build run
+```
