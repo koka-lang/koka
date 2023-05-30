@@ -68,10 +68,13 @@ to run all benchmarks 10 times for each available language, and use the median
 of those runs (and calculate the standard error interval). 
 
 The full expected results on an AMD7950X are at the bottom of this readme.
-These should correspond closely to the results in Section 6 of the paper and
-support the conclusions drawn there. Note that the results can differ quite
+These should correspond closely to the results in Section 6 of the paper (Figure 10)
+and support the conclusions drawn there. Note that the results can differ quite
 bit among different systems, but if not running in emulation, the relative times 
 should be quite similar. 
+
+Note: for convenience, the image contains the revised paper as 
+`fip-icfp23-submission.pdf` in the `~` directory.
 
 
 ## Benchmark Descriptions
