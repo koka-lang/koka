@@ -219,12 +219,12 @@ sudo make install
 cd ~
 ```
 
-Koka, commit f80b6f02
+Koka, commit 54a16a5
 
 ```
 git clone --recursive https://github.com/koka-lang/koka -b dev-fbip
 cd koka
-git checkout f80b6f02
+git checkout 54a16a5
 stack build --fast
 ```
 
