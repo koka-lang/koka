@@ -7,17 +7,18 @@ Anton Lorenzen, Daan Leijen, and Wouter Swierstra
 Go to the test directory:
 
 ```
-> cd koka/test/fip
+# cd koka/test/fip
 ```
 
 We will shorten this directory to `test#` in the guide.
-This directory also contains this README.md.
+This directory also contains this `README.md`.
 
 From this prompt, we can run our benchmarks as:
 
 ```
 test# ./bench.sh rbtree run
-
+```
+```
 ~/home/dev/koka ~/home/dev/koka/test/fip
 ~/home/dev/koka/test/fip
 using koka: /mnt/c/Users/daan/dev/koka/.stack-work/install/x86_64-linux-tinfo6/8f1dbd1b92c17da66792bc77d6f502c989021e266b5032fa
@@ -104,6 +105,11 @@ All the sources are in the `test/src` directories. For example:
 test# ls src/msort
 msort-fip.kk  msort-std.kk
 ```
+
+The main implementation of the FIP check can be found in
+`koka/src/Core/CheckFBIP.hs`, while the main Perceus 
+reuse analysis is in `koka/src/Backend/C/ParcReuse.hs`.
+
 
 ## Re-build the Benchmarks
 
