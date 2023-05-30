@@ -44,10 +44,10 @@ koka_ver="v2.4.1"
 echo "using koka: $koka"
 
 coutdir=".koka/ccomp"
-copts=""
+copts="-lpthread"
 
 cppoutdir=".koka/cppcomp"
-cppopts=""
+cppopts="-lpthread"
 
 mimalloc_o="/usr/local/lib/mimalloc-2.1/mimalloc.o"
 

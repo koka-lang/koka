@@ -7,7 +7,7 @@ Anton Lorenzen, Daan Leijen, and Wouter Swierstra
 Go to the test directory:
 
 ```
-> cd dev/koka/test/fip
+> cd koka/test/fip
 ```
 
 We will shorten this directory to `test#` in the guide.
@@ -21,7 +21,7 @@ test# ./bench.sh rbtree run
 ~/home/dev/koka ~/home/dev/koka/test/fip
 ~/home/dev/koka/test/fip
 using koka: /mnt/c/Users/daan/dev/koka/.stack-work/install/x86_64-linux-tinfo6/8f1dbd1b92c17da66792bc77d6f502c989021e266b5032fa
-expanded benches:  rbtree/rbtree-fip.kk rbtree/rbtree-fip-icfp.kk rbtree/rbtree-std-reuse.kk rbtree/rbtree-std.kk rbtree/rbtrep
+expanded benches:  rbtree/rbtree-fip.kk rbtree/rbtree-fip-icfp.kk rbtree/rbtree-std-reuse.kk rbtree/rbtree-std.kk ...
 
 run kk__rbtree-fip__100000, iter 1, cmd: .koka/v2.4.1-bench/clang-release/rbtree-fip
 total: 1000000
@@ -47,8 +47,7 @@ This runs the `rbtree` benchmark on various variants
 and eventually provides a summary in absolute runtimes (and rss), and normalized
 runtimes relative to the Koka fip variant.
 
-Note that the precise results depend quite a bit on the host system -- the above results
-are on a Windows 11 16-core AMD 7950X @ 4.5Ghz inside a Debian QEMU image.
+Note that the precise results depend quite a bit on the host system -- the above results are on Ubuntu 22.0.4 with 16-core AMD 7950X @ 4.5Ghz.
 
 
 # Step-by-step Guide
@@ -118,10 +117,9 @@ Further options:
 The benchmarks are given the problem size `N` and run for `100_000_000/N` iterations.
 
 
-## Expected Results in a Debian QEMU on Windows:
+## Expected Results 
 
-These were obtained running on Windows 11 with a 16-core AMD 7950X @ 4.5Ghz,
-using the standard Debian QEMU image.
+These were obtained running on Ubuntu 22.0.4 on a 16-core AMD 7950X @ 4.5Ghz.
 
 ```
 test# ./bench allb build run -n=10
