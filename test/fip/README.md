@@ -82,20 +82,32 @@ Note: for convenience, the image contains the revised paper as
 
 The benchmarks are described in detail in the paper.
 
-- `rbtree`  : inserts 42 million items into a red-black tree.
-- `ftree`   : 
-- `msort`   :
-- `qsort`   : 
-- `tmap`    : 
+- `rbtree`  : For 100 iterations: Create a red-black tree by successively inserting the integers 100_000 to 1.
+- `ftree`   : For 100 iterations: Create a finger-tree by successively snoc-ing the integers 100_000 to 1,
+              then uncons an element from the front and snoc it to the back 300_000 times.
+- `msort`   : Create a list of 100_000 random integers. For 100 iterations, run mergesort on this list.
+- `qsort`   : Create a list of 100_000 random integers. For 100 iterations, run quicksort on this list.
+- `tmap`    : Create a perfectly balanced tree of the integers 1 to 100_000.
+              For 1000 iterations: Create a copy of the tree where each integer is increased by one.
 
 Each benchmark comes in different variants:
 
-- `fip`
-- `std-reuse`
-- `std`
-- C `stl`/`std`
-- C `stl-mi`/`std-mi`
-- `rbtree-clrs`
+- `fip`: A fully in-place algorithm. All as presented in the paper,
+  except for `rbtree` where we use the faster algorithm presented
+  last year and add the algorithm from the paper as `rbtree-clrs`.
+- `std-reuse`: The typical functional algorithm ...
+    - `rbtree` : as presented by Okasaki.
+    - `ftree`  : as presented by Claessen.
+    - `msort`  : as in Haskell's Data.List.sort
+                 (with list reversal instead of closures
+                  in `ascending` to improve speed).
+    - `qsort`, `tmap` : the obvious, recursive implementation.
+- `std`: Like `std-reuse` but compiled with `--fno-reuse`.
+- C `std`:
+    - `rbtree`: A C implementation of the algorithm in Cormen et al.
+    - `tmap`: A C implementation using pointer reversal (corresponding to `fip`).
+- C `std-mi`: As `std` but linked against the mimalloc allocator.
+- C++ `stl`: The red-black tree in `std::map`.
 
 
 ## Benchmark Sources
