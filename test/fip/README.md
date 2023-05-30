@@ -47,7 +47,9 @@ This runs the `rbtree` benchmark on various variants
 and eventually provides a summary in absolute runtimes (and rss), and normalized
 runtimes relative to the Koka fip variant.
 
-Note that the precise results depend quite a bit on the host system -- the above results are on Ubuntu 22.0.4 with 16-core AMD 7950X @ 4.5Ghz.
+Note that the precise results depend quite a bit on the host system, but the 
+relative performance should be similar (except when running in emulation).
+The above results are on Ubuntu 22.0.4 with 16-core AMD 7950X @ 4.5Ghz.
 
 
 # Step-by-step Guide
@@ -65,10 +67,10 @@ test# ./bench.sh allb run -n=10
 to run all benchmarks 10 times for each available language, and use the median
 of those runs (and calculate the standard error interval). 
 
-The expected results on an AMD7950X are at the bottom of this readme.
+The full expected results on an AMD7950X are at the bottom of this readme.
 These should correspond closely to the results in Section 6 of the paper and
 support the conclusions drawn there. Note that the results can differ quite
-bit among different systems but if not running in emulation, the relative times 
+bit among different systems, but if not running in emulation, the relative times 
 should be quite similar. 
 
 
