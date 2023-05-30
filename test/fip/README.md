@@ -67,7 +67,9 @@ of those runs (and calculate the standard error interval).
 
 The expected results on an AMD7950X are at the bottom of this readme.
 These should correspond closely to the results in Section 6 of the paper and
-support the conclusions drawn there.
+support the conclusions drawn there. Note that the results can differ quite
+bit among different systems but if not running in emulation, the relative times 
+should be quite similar. 
 
 
 ## Benchmark Descriptions
