@@ -199,7 +199,7 @@ curl -sSL https://get.haskellstack.org | sh
 Mimalloc:
 
 ```
-git clone https://github.com/microsoft/mimalloc
+git clone https://github.com/microsoft/mimalloc -b v2.1.1
 cd mimalloc
 mkdir -p out/release
 cd out/release
@@ -209,11 +209,12 @@ sudo make install
 cd ~
 ```
 
-Koka:
+Koka, commit f80b6f02
 
 ```
 git clone --recursive https://github.com/koka-lang/koka -b dev-fbip
 cd koka
+git checkout f80b6f02
 stack build --fast
 ```
 
