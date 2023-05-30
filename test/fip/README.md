@@ -1,7 +1,5 @@
 # ICFP 2023 Paper Artifact: FP^2: Fully in-Place Functional Programming
 
-Anton Lorenzen, Daan Leijen, and Wouter Swierstra
-
 # Getting Started
 
 Go to the test directory:
@@ -88,19 +86,18 @@ The benchmarks are described in detail in the paper.
 - `msort`   : Create a list of 100_000 random integers. For 100 iterations, run mergesort on this list.
 - `qsort`   : Create a list of 100_000 random integers. For 100 iterations, run quicksort on this list.
 - `tmap`    : Create a perfectly balanced tree of the integers 1 to 100_000.
-              For 1000 iterations: Create a copy of the tree where each integer is increased by one.
+              For 1000 iterations: Create a copy of the _shared_ tree where each integer is increased by one.
 
 Each benchmark comes in different variants:
 
 - `fip`: A fully in-place algorithm. All as presented in the paper,
-  except for `rbtree` where we use the faster algorithm presented
-  last year and add the algorithm from the paper as `rbtree-clrs`.
+  except for `rbtree` where we use the algorithm presented at ICFP'22 
+  on frame-limited reuse, and we add the algorithm from the paper as `rbtree-clrs`.
 - `std-reuse`: The typical functional algorithm ...
     - `rbtree` : as presented by Okasaki.
     - `ftree`  : as presented by Claessen.
     - `msort`  : as in Haskell's Data.List.sort
-                 (with list reversal instead of closures
-                  in `ascending` to improve speed).
+                 (with list reversal instead of closures in `ascending` to improve speed).
     - `qsort`, `tmap` : the obvious, recursive implementation.
 - `std`: Like `std-reuse` but compiled with `--fno-reuse`.
 - C `std`:
@@ -108,9 +105,10 @@ Each benchmark comes in different variants:
     - `tmap`: A C implementation using pointer reversal (corresponding to `fip`).
 - C `std-mi`: As `std` but linked against the mimalloc allocator.
 - C++ `stl`: The red-black tree in `std::map`.
+- C++ `stl-mi`: As `stl-mi` but linked against the mimalloc allocator.
 
 
-## Benchmark Sources
+##  Sources
 
 All the sources are in the `test/src` directories. For example:
 ```
