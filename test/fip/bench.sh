@@ -120,8 +120,8 @@ while : ; do
     allc)     benches="$benches $benches_tmapc $benches_rbtreec";;
     tmap)     benches="$benches $benches_tmap";;
     rbtree)   benches="$benches $benches_rbtree";;
-    qsort)    benches="$benches $benches_msort";;
-    msort)    benches="$benches $benches_qsort";;
+    qsort)    benches="$benches $benches_qsort";;
+    msort)    benches="$benches $benches_msort";;
     sort)     benches="$benches $benches_msort $benches_qsort";;
     ftree)    benches="$benches $benches_ftree";;
     tmap)     benches="$benches $benches_tmapc";;
