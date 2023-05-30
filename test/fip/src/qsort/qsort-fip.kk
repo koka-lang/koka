@@ -39,8 +39,8 @@ fip fun quicksort-app(bdl : partition<elem>) : div list<elem>
       SCons(p, xx) ->
         val (lo, hi) = split-sublist(p, xx, Done, bdl', Unit2(Pad,Pad), Unit2(Pad,Pad))
         quicksort-go(lo, hi)
-      STuple(a, b) | a <= b -> Cons(a, Cons(b, quicksort-app(bdl')))
-                   | _      -> Cons(b, Cons(a, quicksort-app(bdl')))
+      STuple(a, b) -> if a <= b then Cons(a, Cons(b, quicksort-app(bdl')))
+                                else Cons(b, Cons(a, quicksort-app(bdl')))
     End -> Nil
 
 type accum<a>
@@ -50,16 +50,16 @@ type accum<a>
 
 fip fun split-list(p : elem, xs : list<elem>, k : accum<elem>, b : partition<elem>, u : unit2)  : div (list<elem>, partition<elem>)
   match xs
-    Cons(x, xx) | x < p -> split-list(p, xx, MkLo(x, k), b, u)
-                | _     -> split-list(p, xx, MkHi(x, k), b, u)
+    Cons(x, xx) -> if x < p then split-list(p, xx, MkLo(x, k), b, u)
+                            else split-list(p, xx, MkHi(x, k), b, u)
     Nil ->
       val (lo, hi) = split-app1(k, Nil, Nothing2, b)
       (lo, Singleton(p, hi))
 
 fip fun split-sublist(p : elem, xs : sublist<elem>, k : accum<elem>, b : partition<elem>, u : unit2, u1 : unit2) : <div> (list<elem>, partition<elem>)
   match xs
-    SCons(x, xx) | x < p -> split-sublist(p, xx, MkLo(x, k), b, u, u1)
-                 | _     -> split-sublist(p, xx, MkHi(x, k), b, u, u1)
+    SCons(x, xx) -> if x < p then split-sublist(p, xx, MkLo(x, k), b, u, u1)
+                             else split-sublist(p, xx, MkHi(x, k), b, u, u1)
     STuple(x, y) -> split-list(p, Cons(x, Cons(y, Nil)), k, b, u)
 
 fip fun split-app1(k : accum<elem>, lo : list<elem>, hi : maybe2<elem>, b : partition<elem>) : <div> (list<elem>, partition<elem>)

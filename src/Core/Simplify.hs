@@ -351,6 +351,7 @@ bottomUp (App (Lam pars eff body) args) | length pars == length args  && all fre
 bottomUp (App (TypeApp (Var bind _) _) [App (TypeApp (Var lift _) _) [arg], cont]) | getName bind == nameBind && getName lift == nameLift
   = App cont [arg]
 
+
 -- composition extension: c[ctx hole] -> c
 bottomUp (App (TypeApp (Var cextend _) _) [ctx1, App (TypeApp (Var cempty _) _) []]) | getName cextend == nameCCtxComposeExtend && getName cempty == nameCCtxEmpty
   = ctx1

@@ -94,25 +94,25 @@ fip fun merge(c1 : sublist<elem>, c2 : sublist<elem>, u : unit2) : <div> sublist
 
 fip fun merge-last-right(a : elem, c2 : sublist<elem>, u : unit2) : sublist<elem>
   match c2
-    SCons(b, cs2) | a <= b -> SCons(a, SCons(b, cs2))
-                  | _      -> SCons(b, merge-last-right(a, cs2, u))
-    STuple(b, c)           -> merge-right(a, Pair(b, c), u)
+    SCons(b, cs2) -> if a <= b then SCons(a, SCons(b, cs2))
+                               else SCons(b, merge-last-right(a, cs2, u))
+    STuple(b, c)  -> merge-right(a, Pair(b, c), u)
 
 fip fun merge-last-left(c2 : sublist<elem>, d : elem, u : unit2) : sublist<elem>
   match c2
-    SCons(a, cs2) | a <= d -> SCons(a, merge-last-left(cs2, d, u))
-                  | _      -> SCons(d, SCons(a, cs2))
-    STuple(a, b)           -> merge-left(Pair(a, b), d, u)
+    SCons(a, cs2) -> if a <= d then SCons(a, merge-last-left(cs2, d, u))
+                              else SCons(d, SCons(a, cs2))
+    STuple(a, b)  -> merge-left(Pair(a, b), d, u)
 
 fip fun merge-right(a : elem, p : pair<elem>, u : unit2) : sublist<elem>
   match p
-    Pair(b, c) | a <= b -> SCons(a, STuple(b, c))
-               | _      -> SCons(b, if a <= c then STuple(a, c) else STuple(c, a))
+    Pair(b, c) -> if a <= b then SCons(a, STuple(b, c))
+                            else SCons(b, if a <= c then STuple(a, c) else STuple(c, a))
 
 fip fun merge-left(p : pair<elem>, d : elem, u : unit2) : sublist<elem>
   match p
-    Pair(a, b) | a <= d -> SCons(a, if b <= d then STuple(b, d) else STuple(d, b))
-               | _      -> SCons(d, STuple(a, b))
+    Pair(a, b) -> if a <= d then SCons(a, if b <= d then STuple(b, d) else STuple(d, b))
+                            else SCons(d, STuple(a, b))
 
 fun rand-list(n : int32, seed : int32) : <div> list<int32>
   val a = 22695477.int32

@@ -1085,7 +1085,6 @@ pub inline fip fun i32( i : int ) : int32
   i.int32
 
 
-
 // Minimal set of operations that we need in `std/core`.
 inline fip extern (<=) : (int32,int32) -> bool  
   inline "(#1 <= #2)"

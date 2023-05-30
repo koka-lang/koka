@@ -3,16 +3,23 @@
 runparams="100000" # "1 10 100 1000 10000 100000 1000000"
 runparams_small="1 10 100 1000"
 benchmarks="rbtree ftree msort qsort tmap"
-graphvariants="fip std std-noreuse stl stl-mi std-mi"
+graphvariants="fip std-reuse std stl stl-mi std-mi"
 
 # note: order matters as it is made relative to the first 
 benches_tmapkk="tmap/tmap-fip.kk tmap/tmap-std.kk"
 benches_tmapc="tmap/tmap-fip.c tmap/tmap-std.c"
 benches_rbtreekk="rbtree/rbtree-fip.kk rbtree/rbtree-fip-icfp.kk rbtree/rbtree-std.kk rbtree/rbtree-fip-clrs.kk"
 benches_rbtreec="rbtree/rbtree-clrs.c rbtree/rbtree-clrs-full.c rbtree/rbtree-stl.cpp"
-benches_sortkk="sort/msort-fip.kk sort/msort-std.kk sort/qsort-fip.kk sort/qsort-std.kk"
-benches_fingerkk="finger/ftree-fip.kk finger/ftree-std.kk"
-benches_all="$benches_rbtreekk $benches_rbtreec $benches_fingerkk $benches_sortkk $benches_tmapkk $benches_tmapc"
+benches_msortkk="msort/msort-fip.kk msort/msort-std.kk"
+benches_qsortkk="qsort/qsort-fip.kk qsort/qsort-std.kk"
+benches_ftreekk="ftree/ftree-fip.kk ftree/ftree-std.kk"
+
+benches_rbtree="$benches_rbtreekk $benches_rbtreec"
+benches_msort="$benches_msortkk"
+benches_qsort="$benches_qsortkk"
+benches_tmap="$benches_tmapkk $benches_tmapc"
+benches_ftree="$benches_ftreekk"
+benches_all="$benches_rbtree $benches_ftree $benches_msort $benches_qsort $benches_tmap"
 
 # get this by running `stack path | grep local-install-root`` in the koka development directory 
 # koka_install_dir="/mnt/c/Users/daan/dev/koka/.stack-work/install/x86_64-linux-tinfo6/665c0f3ba306de11186f0f92ea0ca8305283b035f4fa2dfb5c2b12a96689073b/8.10.7"
@@ -110,13 +117,15 @@ while : ; do
     allb) benches="$benches_all";;
 
     allkk)    benches="$benches $benches_tmapkk $benches_rbtreekk $benches_fingerkk $benches_sortkk";;
-    tmapkk)   benches="$benches $benches_tmapkk";;
-    rbtreekk) benches="$benches $benches_rbtreekk";;
-    sortkk) benches="$benches $benches_sortkk";;
-    fingerkk) benches="$benches $benches_fingerkk";;
     allc)     benches="$benches $benches_tmapc $benches_rbtreec";;
-    tmapc)   benches="$benches $benches_tmapc";;
-    rbtreec) benches="$benches $benches_rbtreec";;
+    tmap)     benches="$benches $benches_tmap";;
+    rbtree)   benches="$benches $benches_rbtree";;
+    qsort)    benches="$benches $benches_msort";;
+    msort)    benches="$benches $benches_qsort";;
+    sort)     benches="$benches $benches_msort $benches_qsort";;
+    ftree)    benches="$benches $benches_ftree";;
+    tmap)     benches="$benches $benches_tmapc";;
+    
 
     ccomp) ccomp="$flag_arg";;
     cppcomp) cppcomp="$flag_arg";;
@@ -160,13 +169,13 @@ while : ; do
   shift
 done
 
-# add -noreuse to std, and -mi to c/cpp
+# add -reuse to std, and -mi to c/cpp
 function expand_benches {
   local newb=""
   for bench in $benches; do
     local base=${bench%.*}
     if [[ $bench == *-std\.kk ]]; then
-      newb="$newb $bench $base-noreuse.kk"  # order matters
+      newb="$newb $base-reuse.kk $bench"  # order matters
     elif [[ $bench == *\.c ]]; then
       newb="$newb $bench $base-mi.c"
     elif [[ $bench == *\.cpp ]]; then
@@ -187,9 +196,11 @@ function build_kk { # <bench>
   local base=${1%.*}            # no ext
   local stem=${base##*/}     # dashed dir
   local options="-O2 --no-debug --cc=$ccomp --buildtag=bench --buildname=$stem $kkopts"  
-  if [[ $1 == *-noreuse\.kk ]]; then
+  if [[ $1 == *-std-reuse\.kk ]]; then
+    srcname="${1%-std-reuse.kk}-std.kk"    
+  fi
+  if [[ $1 == *-std\.kk ]]; then
     options="$options --fno-reuse"
-    srcname="${1%-noreuse.kk}.kk"
   fi
   if ! [ -f "$benchdir/$srcname" ]; then
     info "SKIP $bench ($benchdir/$srcname) -- not found"
