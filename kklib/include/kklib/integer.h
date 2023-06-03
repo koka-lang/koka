@@ -156,7 +156,7 @@ to indicate the portable SOFA technique is about 5% (x64) to 10% (M1) faster.
 #define KK_INT_USE_SOFA     3       // use sign extended overflow arithmetic with limited tag bits
 
 #ifndef KK_INT_ARITHMETIC
-#if (KK_INTF_SIZE <= 4) && defined(__GNUC__)
+#if defined(__GNUC__)  // (KK_INTF_SIZE <= 4)
 #define KK_INT_ARITHMETIC  KK_INT_USE_OVF
 #else
 #define KK_INT_ARITHMETIC  KK_INT_USE_SOFA

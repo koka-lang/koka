@@ -165,7 +165,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\.koka\debug\interactive.c" />
-    <ClCompile Include="..\..\..\.koka\debug\splay_splay_dash_td.c" />
+    <ClCompile Include="..\..\..\.koka\debug\splay_mtr_dash_td.c" />
     <ClCompile Include="..\..\..\.koka\debug\splay_tree.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_hnd.c" />
