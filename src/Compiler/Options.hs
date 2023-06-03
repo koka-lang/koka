@@ -185,6 +185,7 @@ data Flags
          , asan             :: Bool
          , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
          , optSpecialize    :: Bool
+         , mimallocStats    :: Bool
          }
 
 flagsNull :: Flags
@@ -280,6 +281,7 @@ flagsNull
           False -- use asan
           False -- use stdalloc
           True  -- use specialization (only used if optimization level >= 1)
+          False -- use mimalloc stats
 
 isHelp Help = True
 isHelp _    = False
@@ -371,6 +373,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  -- hidden
  , hide $ fflag       ["asan"]      (\b f -> f{asan=b})             "compile with address, undefined, and leak sanitizer"
  , hide $ fflag       ["stdalloc"]  (\b f -> f{useStdAlloc=b})      "use the standard libc allocator"
+ , hide $ fflag       ["allocstats"]  (\b f -> f{mimallocStats=b})   "enable mimalloc statitistics"
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
  , hide $ fnum 10 "n" ["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
@@ -668,6 +671,7 @@ processOptions flags0 opts
                                    ++ (if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")])
                                    ++ (if optctailCtxPath flags then [] else [("KK_CTAIL_NO_CONTEXT_PATH","")])
                                    ++ (if platformHasCompressedFields (platform flags) then [("KK_INTB_SIZE",show (sizeField (platform flags)))] else [])
+                                   ++ (if not stdAlloc && mimallocStats flags then [("MI_STAT","2")] else [])
                    
                    -- vcpkg
                    -- (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
@@ -1108,6 +1112,8 @@ ccFromPath flags path
                                   ,True)
           else if (useStdAlloc flags)
             then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)
+          else if (mimallocStats flags)
+            then return (cc{ ccName = ccName cc ++ "-allocstats" }, False)
             else return (cc,False)
 
 ccCheckExist :: CC -> IO ()

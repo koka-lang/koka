@@ -97,7 +97,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>../../include;../../mimalloc/include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>KK_DEBUG_FULL=1;KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <PreprocessorDefinitions>KK_DEBUG=1;KK_STAT=2;KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <SupportJustMyCode>false</SupportJustMyCode>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -117,7 +117,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>../../include;../../mimalloc/include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>KK_DEBUG_FULL=1;KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <PreprocessorDefinitions>KK_DEBUG=1;KK_STAT=2;KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
       <SupportJustMyCode>true</SupportJustMyCode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>

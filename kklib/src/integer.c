@@ -223,7 +223,7 @@ static kk_bigint_t* bigint_alloc(kk_ssize_t count, bool is_neg, kk_context_t* ct
   b->count = count;
   return b;
 }
-
+                                    
 static kk_bigint_t* bigint_alloc_zero(kk_ssize_t count, bool is_neg, kk_context_t* ctx) {
   kk_bigint_t* b = bigint_alloc(count, is_neg, ctx);
   kk_memset(b->digits, 0, kk_ssizeof(kk_digit_t)* bigint_available_(b));
