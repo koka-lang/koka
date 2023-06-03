@@ -41,7 +41,7 @@ pub fun strong-random(action : () -> <random,ndet|e> a) : <ndet|e> a
 // <http://pracrand.sourceforge.net/RNG_engines.txt>
 abstract value struct sfc(x:int32, y:int32, z:int32, cnt:int32)
 
-pub value struct sfc-result( rnd : int32, state : sfc )
+pub value struct sfc-result( rnd : int32, rstate : sfc )
 
 pub fun sfc-step( sfc : sfc ) : sfc-result
   match sfc 
@@ -54,7 +54,7 @@ pub fun sfc-step( sfc : sfc ) : sfc-result
 
 pub fun sfc-init32( seed1 : int32, seed2 : int32 ) : sfc
   val sfc0 = Sfc(0.int32, seed1, seed2, 1.int32)
-  fold-int32( 0.int32, 12.int32, sfc0, fn(_,s){ sfc-step(s).state } )  // step 12 times
+  fold-int32( 0.int32, 12.int32, sfc0, fn(_,s){ sfc-step(s).rstate } )  // step 12 times
 
 
 pub fun sfc-init( seed : int ) : sfc
@@ -73,7 +73,7 @@ pub fun pseudo-random( seed : int, action : () -> <random|e> a) : e a
   var s := sfc-init(seed)
   with fun random-int32()
     val sfc = sfc-step(s)
-    s := sfc.state
+    s := sfc.rstate
     sfc.rnd
   action()
 
