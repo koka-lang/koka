@@ -178,9 +178,10 @@ pub type order
 pub value type box<a>
   con Box( unbox : a )
 
+
 /*
 // Explicitly heap allocate using the `Hbox` constructor.
-pub reference type hbox<a>
+pub ref type hbox<a>
   con Hbox( unhbox : a )
 
 pub fun hbox( x : a ) : hbox<a>

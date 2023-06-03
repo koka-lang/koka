@@ -5,6 +5,15 @@
     <ClCompile Include="..\..\..\.koka\debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_types.c" />
     <ClCompile Include="..\..\..\.koka\debug\interactive.c" />
+    <ClCompile Include="..\..\..\.koka\debug\splay_tree.c" />
+    <ClCompile Include="..\..\..\.koka\debug\splay_splay_dash_td.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_os_env.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_os_path.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_text_parse.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_num_float64.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_num_int32.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_num_random.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_num_int64.c" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="kklib.natvis" />

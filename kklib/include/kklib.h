@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD         106     // modify on changes to trigger recompilation  
+#define KKLIB_BUILD         107     // modify on changes to trigger recompilation  
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -336,7 +336,7 @@ static inline void kk_block_field_idx_set(kk_block_t* b, uint8_t idx ) {
       #define MI_MAX_ALIGN_SIZE  KK_MIMALLOC
     #else
       #define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE 
-    #endif  
+    #endif
   #endif
   #if !defined(MI_DEBUG) && defined(KK_DEBUG_FULL)
     #define MI_DEBUG  3
