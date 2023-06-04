@@ -46,7 +46,7 @@ type ParseInlines = Gamma -> Error [InlineDef]
 parseCore :: FilePath -> IO (Error (Core, ParseInlines))
 parseCore fname
   = do input <- readInput fname
-       return (lexParse False (requalify . allowDotIds) program fname 1 input)
+       return $ ignoreSyntaxWarnings $ lexParse False (requalify . allowDotIds) program fname 1 input
 
 requalify :: [Lexeme] -> [Lexeme]
 requalify lexs
@@ -107,7 +107,7 @@ allowDotIds lexs
 
 parseInlines :: Core -> Source -> Env -> [Lexeme] -> ParseInlines
 parseInlines prog source env inlines gamma
-  = parseLexemes (pInlines env{ gamma = gamma }) source inlines
+  = ignoreSyntaxWarnings $ parseLexemes (pInlines env{ gamma = gamma }) source inlines
 
 pInlines :: Env -> LexParser [InlineDef]
 pInlines env

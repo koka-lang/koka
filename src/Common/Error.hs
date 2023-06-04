@@ -11,7 +11,7 @@
 -----------------------------------------------------------------------------
 module Common.Error( Error, ErrorMessage(..), errorMsg, ok
                    , catchError, checkError, warningMsg, addWarnings, ignoreWarnings
-                   , ppErrorMessage, errorWarning ) where
+                   , ppErrorMessage, errorWarning, prettyWarnings ) where
 
 import Control.Monad
 import Control.Monad.Fail

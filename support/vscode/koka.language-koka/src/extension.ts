@@ -4,7 +4,7 @@ import {
   LanguageClientOptions,
   RevealOutputChannelOn,
   ServerOptions,
-} from 'vscode-languageclient/node';
+} from 'vscode-languageclient';
 
 import { scanForSDK } from './scan';
 

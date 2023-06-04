@@ -68,7 +68,8 @@ recompileFile flags uri version force =
         Right (l, _) -> do
           modifyLoaded $ M.insert normUri l
           sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ "Successfully compiled " <> T.pack filePath
-        Left _ -> return ()
+        Left e -> 
+          sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ T.pack ("Error when compiling " ++ show e) <> T.pack filePath
 
       -- Emit the diagnostics (errors and warnings)
       let diagSrc = T.pack "koka"
@@ -77,10 +78,7 @@ recompileFile flags uri version force =
           maxDiags = 100
       if null diags
         then flushDiagnosticsBySource maxDiags (Just diagSrc)
-        else 
-          do 
-            flushDiagnosticsBySource maxDiags (Just diagSrc)
-            publishDiagnostics maxDiags normUri version diagsBySrc
+        else publishDiagnostics maxDiags normUri version diagsBySrc
     Nothing -> return ()
   where
     normUri = J.toNormalizedUri uri

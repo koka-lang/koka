@@ -480,6 +480,7 @@ To specify the current working directory to run the compiler from use the `koka.
 
 To develop the language server, you can use the VSCode debug configuration in the project.
 
+- Run `npm install && npm run build` in the `support/vscode/koka.language-koka` directory 
 - Update the LSP server in the `src/LanguageServer` directory with your changes
 - Run `stack build` 
 - Restart the debug configuration and make sure a notification pops up that you are using the development version of the koka sdk
