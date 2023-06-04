@@ -804,79 +804,79 @@ pub fun maybe( b : bool ) : maybe<()>
 // ----------------------------------------------------------------------------
 
 // Compare two integers
-pub inline extern compare(^x : int, ^y : int) : order
+pub inline fip extern compare(^x : int, ^y : int) : order
   c inline "kk_int_as_order(kk_integer_cmp_borrow(#1,#2,kk_context()),kk_context())"
   cs "Primitive.IntCompare"
   js "$std_core._int_compare"
 
 // Are two integers equal?
-pub inline extern (==)(^x : int, ^y : int) : bool
+pub inline fip extern (==)(^x : int, ^y : int) : bool
   c  "kk_integer_eq_borrow"
   cs inline "(#1 == #2)"
   js "$std_core._int_eq"
 
 // Are two integers not equal?
-pub inline extern (!=)(^x : int, ^y : int) : bool
+pub inline fip extern (!=)(^x : int, ^y : int) : bool
   c  "kk_integer_neq_borrow"
   cs inline "(#1 != #2)"
   js "$std_core._int_ne"
 
 // Is the first integer smaller or equal to the second?
-pub inline extern (<=)(^x : int, ^y : int) : bool
+pub inline fip extern (<=)(^x : int, ^y : int) : bool
   c  "kk_integer_lte_borrow"
   cs inline "(#1 <= #2)"
   js "$std_core._int_le"
 
 // Is the first integer greater or equal to the second?
-pub inline extern (>=)(^x : int, ^y : int) : bool
+pub inline fip extern (>=)(^x : int, ^y : int) : bool
   c  "kk_integer_gte_borrow"
   cs inline "(#1 >= #2)"
   js "$std_core._int_ge"
 
 // Is the first integer smaller than the second?
-pub inline extern (<)(^x : int, ^y : int) : bool
+pub inline fip extern (<)(^x : int, ^y : int) : bool
   c  "kk_integer_lt_borrow"
   cs inline "(#1 < #2)"
   js "$std_core._int_lt"
 
 // Is the first integer greater than the second?
-pub inline extern (>)(^x : int, ^y : int) : bool
+pub inline fip extern (>)(^x : int, ^y : int) : bool
   c  "kk_integer_gt_borrow"
   cs inline "(#1 > #2)"
   js "$std_core._int_gt"
 
-inline extern int-add : (int,int) -> int
+inline fip extern int-add : (int,int) -> int
   c  "kk_integer_add"
   cs inline "(#1 + #2)"
   js "$std_core._int_add"
 
 // Add two integers.
-pub fun (+)(x : int, y : int ) : int 
+pub fip fun (+)(x : int, y : int ) : int 
   int-add(x,y)
 
-inline extern int-sub : (int,int) -> int
+inline fip extern int-sub : (int,int) -> int
   c  "kk_integer_sub"
   cs inline "(#1 - #2)"
   js "$std_core._int_sub"
 
 // Substract two integers.
-pub fun (-)(x : int, y : int ) : int 
+pub fip fun (-)(x : int, y : int ) : int 
   int-sub(x,y)
 
 // Multiply two integers.
-pub inline extern (*) : (int,int) -> int
+pub inline fip extern (*) : (int,int) -> int
   c  "kk_integer_mul"
   cs inline "(#1 * #2)"
   js "$std_core._int_mul"
 
 // Euclidean-0 division of two integers. See also `divmod:(x : int, y : int) -> (int,int)`.
-pub inline extern (/)(x:int,y:int) : int
+pub inline fip extern (/)(x:int,y:int) : int
   c  "kk_integer_div"
   cs "Primitive.IntDiv"
   js "$std_core._int_div"
 
 // Euclidean modulus of two integers; always a non-negative number. See also `divmod:(x : int, y : int) -> (int,int)`.
-pub inline extern (%)  : (int,int) -> int
+pub inline fip extern (%)  : (int,int) -> int
   c  "kk_integer_mod"
   cs "Primitive.IntMod"
   js "$std_core._int_mod"

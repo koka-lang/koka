@@ -38,7 +38,8 @@ import qualified Core.Core as Core
 import Core.Pretty
 import Core.CoreVar
 import Core.Borrowed
-import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial, nameTrue)
+import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial, nameTrue,
+                        nameCCtxSetCtxPath, nameFieldAddrOf)
 import Backend.C.ParcReuse (getFixedDataAllocSize)
 import Backend.C.Parc (getDataDef')
 import Data.Ratio
@@ -113,6 +114,8 @@ chkExpr expr
                 text "Lambdas are always allocated."
               out <- extractOutput $ chkExpr body
               writeOutput =<< foldM (\out nm -> bindName nm Nothing out) out pars
+
+      App (TypeApp (Var tname _) _) _ | getName tname `elem` [nameCCtxSetCtxPath] -> return ()
 
       App fn args -> chkApp fn args
       Var tname info -> markSeen tname info
@@ -239,8 +242,9 @@ chkLit lit
       LitInt _ -> pure () -- we do not care about allocating big integers
       LitFloat _ -> pure ()
       LitChar _ -> pure ()
-      LitString _ -> requireCapability mayAlloc $ \ppenv -> Just $
-        text "Inline string literals are allocated. Consider lifting to toplevel to avoid this."
+      LitString _ -> pure ()
+      -- requireCapability mayAlloc $ \ppenv -> Just $
+       -- text "Inline string literals are allocated. Consider lifting to toplevel to avoid this."
 
 chkWrap :: TName -> VarInfo -> Chk ()
 chkWrap tname info
@@ -406,6 +410,8 @@ chkFunCallable fn
   = do fip <- getFip
        g <- gamma <$> getEnv
        case getFipInfo (gammaLookupCanonical fn g) of
+         Nothing | fn `elem` [nameCCtxSetCtxPath,nameFieldAddrOf]
+           -> writeCallAllocation fn (Fip (AllocAtMost 0))
          Nothing
            -> emitWarning $ text $
                 "FIP analysis couldn't find FIP information for function: " ++ show fn
