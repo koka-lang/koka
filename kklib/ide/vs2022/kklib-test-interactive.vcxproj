@@ -165,8 +165,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\.koka\debug\interactive.c" />
-    <ClCompile Include="..\..\..\.koka\debug\splay_mtr_dash_td.c" />
-    <ClCompile Include="..\..\..\.koka\debug\splay_tree.c" />
+    <ClCompile Include="..\..\..\.koka\debug\rbtree_rbtree.c" />
+    <ClCompile Include="..\..\..\.koka\debug\rbtree_rb_dash_td.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_types.c" />

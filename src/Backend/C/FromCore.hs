@@ -1384,16 +1384,20 @@ tryTailCall result expr
       = fmap (debugWrap "genOverride") $
         do (stmts, varNames) <- do -- args' <- mapM tailCallArg args
                                    let args' = args
-                                   bs    <- mapM genVarBinding args'
+                                   bs    <- mapM (genTailVarBinding params) (zip params args')
                                    return (unzip bs)
            docs1             <- mapM genDefName params
            docs2             <- mapM genDefName varNames
            let assigns    = map (\(p,a)-> if p == a
                                             then debugComment ("genOverride: skipped overriding `" ++ (show p) ++ "` with itself")
-                                            else debugComment ("genOverride: preparing tailcall") <.> p <+> text "=" <+> a <.> semi
+                                            else p <+> text "=" <+> a <.> semi
                                 ) (zip docs1 docs2)
            return $ vcat (stmts ++ assigns)
 
+    genTailVarBinding params (param,expr)
+      = case expr of
+          Var tn _ | tn /= param && tn `elem` params -> genVarBindingAlways expr
+          _ -> genVarBinding expr
 
 -- | Generates a statement from an expression by applying a return context (deeply) inside
 genStat :: Result -> Expr -> Asm Doc
@@ -1758,13 +1762,16 @@ genVarBinding :: Expr -> Asm (Doc, TName)
 genVarBinding expr
   = case expr of
       Var tn _ | not (isQualified (getName tn))-> return $ (empty, tn)
-      _        -> do name <- newVarName "x"
-                     let tp = typeOf expr
-                         tname = TName name tp
-                     doc <- genStat (ResultAssign tname Nothing) expr
-                     if (dstartsWith doc (show (ppName name) ++ " ="))
-                       then return (ppType tp <+> doc, tname)
-                       else return (ppVarDecl tname <.> unitSemi tp  <-> doc, tname)
+      _        -> genVarBindingAlways expr
+        
+genVarBindingAlways expr
+  =  do name <- newVarName "x"
+        let tp = typeOf expr
+            tname = TName name tp
+        doc <- genStat (ResultAssign tname Nothing) expr
+        if (dstartsWith doc (show (ppName name) ++ " ="))
+          then return (ppType tp <+> doc, tname)
+          else return (ppVarDecl tname <.> unitSemi tp  <-> doc, tname)
 
 
 ---------------------------------------------------------------------------------
