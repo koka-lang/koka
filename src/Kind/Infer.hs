@@ -836,7 +836,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
            conCount       = length conInfos0
            willNeedStructTag   = dataDefIsValue ddef && conCount > 1 && maxMembers >= 1
            extraFields = if (dataDefIsOpen ddef) then 1 {- open datatype tag -}
-                         else if willNeedStructTag then 1 {- explicit struct tag -} 
+                         else if willNeedStructTag then 0 {- explicit struct tag -} 
                          else 0
        platform <- getPlatform
        (ddef1,conInfos1) 
@@ -848,19 +848,6 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
        assertion ("Kind.Infer.resolveTypeDef: assuming value struct tag but not inferred as such " ++ show (ddef,ddef1)) 
                  ((willNeedStructTag && Core.needsTagField (fst (Core.getDataRepr dataInfo))) || not willNeedStructTag) $ return ()
 
-
-       {-
-       -- adjust datainfo in case an extra value tag was needed
-       dataInfo  <- case ddef1 of
-                      DataDefValue (ValueRepr m n a)  | Core.needsTagField (fst (Core.getDataRepr dataInfo0))
-                        ->  -- recalculate with extra required tag field to the size
-                            do (ddef2,conInfos2) <- createDataDef emitError emitWarning lookupDataInfo
-                                                      platform qname resultHasKindStar isRec sort
-                                                        1 {- extra field for tag -} ddef1 {- guarantees value type again -} conInfos1
-                               let dataInfo1 = dataInfo0{ dataInfoDef = ddef2, dataInfoConstrs = conInfos2 }
-                               return dataInfo1
-                      _ -> return dataInfo0
-       -}                     
        -- trace (showTypeBinder newtp') $
        addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')))
        return (Core.Data dataInfo isExtend)
