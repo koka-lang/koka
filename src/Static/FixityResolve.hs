@@ -173,11 +173,11 @@ instance Functor FixM where
   fmap  = liftM
 
 instance Applicative FixM where
-  pure  = return
-  (<*>) = ap
+  pure x  = FixM (\fixmap -> Res x [])
+  (<*>)   = ap
 
 instance Monad FixM where
-  return x          = FixM (\fixmap -> Res x [])
+  -- return = pure
   (FixM fm) >>= f   = FixM (\fixmap -> case fm fixmap of
                                          Res x errs1 -> case f x of
                                                           FixM fm' -> case fm' fixmap of

@@ -2308,11 +2308,11 @@ instance Functor Asm where
                                      (x,st') -> (f x, st'))
 
 instance Applicative Asm where
-  pure  = return
-  (<*>) = ap
+  pure x = Asm (\env st -> (x,st))
+  (<*>)  = ap
 
 instance Monad Asm where
-  return x      = Asm (\env st -> (x,st))
+  -- return = pure
   (Asm a) >>= f = Asm (\env st -> case a env st of
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)

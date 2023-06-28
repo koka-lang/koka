@@ -215,11 +215,11 @@ instance Functor Inl where
                                         Ok x st' -> Ok (f x) st')
 
 instance Applicative Inl where
-  pure  = return
-  (<*>) = ap
+  pure x = Inl (\env st -> Ok x st)
+  (<*>)  = ap
 
 instance Monad Inl where
-  return x       = Inl (\env st -> Ok x st)
+  -- return = pure
   (Inl c) >>= f = Inl (\env st -> case c env st of
                                       Ok x st' -> case f x of
                                                     Inl d -> d env st' )

@@ -157,7 +157,7 @@ boxPattern fromTp pat | cType (fromTp) /= cType toTp
               PatCon{}       -> patTypeRes pat
               PatVar tname _ -> typeOf tname
               PatLit lit     -> typeOf lit
-              PatWild        -> typeAny  -- cannot happen
+              -- PatWild        -> typeAny  -- cannot happen
 
     isComplexCoerce coerce
       = case (cType fromTp, cType toTp) of

@@ -588,11 +588,11 @@ instance Functor CorePhase where
                            return (CPState (f x) uniq' defs'))
 
 instance Applicative CorePhase where
-  pure  = return
-  (<*>) = ap
+  pure x = CP (\uniq defs -> return (CPState x uniq defs))
+  (<*>)  = ap
 
 instance Monad CorePhase where
-  return x      = CP (\uniq defs -> return (CPState x uniq defs))
+  -- return = pure
   (CP cp) >>= f = CP (\uniq defs -> do (CPState x uniq' defs') <- cp uniq defs
                                        case f x of
                                          CP cp' -> cp' uniq' defs')

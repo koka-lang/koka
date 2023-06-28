@@ -320,11 +320,11 @@ instance Functor Lift where
                                         Ok x st' dgs -> Ok (f x) st' dgs)
 
 instance Applicative Lift where
-  pure  = return
+  pure x = Lift (\env st -> Ok x st [])
   (<*>) = ap
 
 instance Monad Lift where
-  return x       = Lift (\env st -> Ok x st [])
+  -- return  = pure
   (Lift c) >>= f = Lift (\env st -> case c env st of
                                       Ok x st' dgs -> case f x of
                                                         Lift d -> case d env st' of

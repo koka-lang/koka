@@ -869,11 +869,11 @@ instance Functor Inf where
                                       Err err w  -> Err err w)
 
 instance Applicative Inf where
-  pure  = return
-  (<*>) = ap
+  pure x = Inf (\env st -> Ok x st [])
+  (<*>)  = ap
 
 instance Monad Inf where
-  return x        = Inf (\env st -> Ok x st [])
+  -- return = pure
   (Inf i) >>= f   = Inf (\env st0 -> case i env st0 of
                                        Ok x st1 w1 -> case f x of
                                                         Inf j -> case j env st1 of

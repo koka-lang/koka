@@ -22,10 +22,6 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Arrow
 
-instance Applicative Unique where
-  pure  = return
-  (<*>) = ap
-
 class (Monad m, Functor m) => HasUnique m where
   updateUnique :: (Int -> Int) -> m Int
   -- getUnique    :: m Int
@@ -98,8 +94,12 @@ liftUnique uniq
 instance Functor Unique where
   fmap f (Unique u) = Unique (\i -> case u i of (x,j) -> (f x,j))
 
+instance Applicative Unique where
+  pure x = Unique (\i -> (x,i))
+  (<*>) = ap
+
 instance Monad Unique where
-  return x          = Unique (\i -> (x,i))
+  -- return = pure 
   (Unique u) >>= f  = Unique (\i -> case u i of
                                       (x,j) -> case f x of
                                                  Unique v -> v j)

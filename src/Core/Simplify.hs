@@ -497,6 +497,7 @@ instance Applicative Match where
                   NoMatch -> NoMatch
 
 instance Monad Match where
+  -- return = pure
   m >>= f   = case m of
                 Match x -> f x
                 Unknown -> Unknown
@@ -918,11 +919,11 @@ instance Functor Simp where
   fmap f (Simplify c)  = Simplify (\u env -> case c u env of Ok x u' -> Ok (f x) u')
 
 instance Applicative Simp where
-  pure  = return
-  (<*>) = ap
+  pure x = Simplify (\u g -> Ok x u)
+  (<*>)  = ap
 
 instance Monad Simp where
-  return x      = Simplify (\u g -> Ok x u)
+  -- return = pure
   (Simplify c) >>= f  = Simplify (\u g -> case c u g of
                                       Ok x u' -> case f x of
                                                    Simplify d -> d u' g)

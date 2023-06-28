@@ -77,11 +77,11 @@ instance Functor KInfer where
     = KInfer (\env -> \st -> let r = ki env st in r{ result = f (result r) })
 
 instance Applicative KInfer where
-  pure  = return
-  (<*>) = ap
+  pure x  = KInfer (\env -> \st -> KResult x [] [] st)
+  (<*>)   = ap
 
 instance Monad KInfer where
-  return x  = KInfer (\env -> \st -> KResult x [] [] st)
+  -- return = pure
   (KInfer ki) >>= f
     = KInfer (\env -> \st ->
         case ki env st of

@@ -36,11 +36,11 @@ instance Functor Un where
                                 (x,st1) -> (f x,st1))
 
 instance Applicative Un where
-  pure  = return
+  pure x  = Un (\st -> (x,st))  
   (<*>) = ap
 
 instance Monad Un where
-  return x  = Un (\st -> (x,st))
+  -- return = pure
   (Un u) >>= f  = Un (\st0 -> case u st0 of (x,st1) -> case f x of Un u1 -> u1 st1)
 
 instance HasUnique Un where

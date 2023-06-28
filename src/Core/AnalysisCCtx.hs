@@ -228,11 +228,11 @@ instance Functor CCtx where
                                        Err errs -> Err errs)
 
 instance Applicative CCtx where
-  pure  = return
+  pure x = CCtx (\u g -> Ok x u)  
   (<*>) = ap
 
 instance Monad CCtx where
-  return x      = CCtx (\u g -> Ok x u)
+  -- return = pure
   (CCtx c) >>= f  = CCtx (\u g -> case c u g of
                                       Ok x u' -> case f x of
                                                    CCtx d -> d u' g

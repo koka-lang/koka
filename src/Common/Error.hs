@@ -135,11 +135,11 @@ instance Functor Error where
                     Error msg w -> Error msg w
 
 instance Applicative Error where
-  pure  = return
+  pure x = Ok x []
   (<*>) = ap                    
 
 instance Monad Error where
-  return x      = Ok x []
+  -- return = pure
   e >>= f       = case e of 
                     Ok x w   -> addWarnings w (f x)
                     Error msg w -> Error msg w

@@ -201,11 +201,11 @@ instance Functor Unroll where
                                             Ok x st' -> Ok (f x) st')
 
 instance Applicative Unroll where
-  pure  = return
-  (<*>) = ap
+  pure x = Unroll (\env st -> Ok x st)
+  (<*>)  = ap
 
 instance Monad Unroll where
-  return x         = Unroll (\env st -> Ok x st)
+  -- return = pure
   (Unroll c) >>= f = Unroll (\env st -> case c env st of
                                           Ok x st' -> case f x of
                                                         Unroll d -> d env st' )

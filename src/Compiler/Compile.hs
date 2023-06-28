@@ -146,11 +146,11 @@ instance Functor IOErr where
   fmap f (IOErr ie)  = IOErr (fmap (fmap f) ie)
 
 instance Applicative IOErr where
-  pure  = return
+  pure x = IOErr (return (return x))  
   (<*>) = ap
 
 instance Monad IOErr where
-  return x          = IOErr (return (return x))
+  -- return = pure
   (IOErr ie) >>= f  = IOErr (do err <- ie
                                 case checkError err of
                                    Right (x,w) -> case f x of

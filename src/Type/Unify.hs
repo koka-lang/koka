@@ -501,11 +501,11 @@ instance Functor Unify where
                                        Err err st2 -> Err err st2)
 
 instance Applicative Unify where
-  pure  = return
-  (<*>) = ap
+  pure x = Unify (\st -> Ok x st)
+  (<*>)  = ap
 
 instance Monad Unify where
-  return x          = Unify (\st -> Ok x st)
+  -- return = pure
   (Unify u) >>= f   = Unify (\st1 -> case u st1 of
                                        Ok x st2 -> case f x of
                                                      Unify u2 -> u2 st2
