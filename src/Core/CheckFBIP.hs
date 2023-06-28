@@ -111,7 +111,7 @@ chkExpr expr
       Lam pars eff body
         -> do chkEffect eff
               requireCapability mayAlloc $ \ppenv -> Just $
-                text "Lambdas are always allocated."
+                text "allocating a lambda expression"
               out <- extractOutput $ chkExpr body
               writeOutput =<< foldM (\out nm -> bindName nm Nothing out) out pars
 
@@ -128,7 +128,7 @@ chkExpr expr
               withBorrowed (S.map getName $ M.keysSet $ gammaNm gamma2) $
                 withTailMod [Let dgs body] $ chkExpr $ defExpr def
       Let _ _
-        -> emitWarning $ \penv -> text "FIP check can not handle nested function bindings."
+        -> emitWarning $ \penv -> text "internal: currently the fip analysis cannot handle nested function bindings"
 
       Case scrutinees branches
         -> chkBranches scrutinees branches
@@ -214,7 +214,7 @@ chkApp (Var tname info) args | not (infoIsRefCounted info) -- toplevel function
        input <- getInput
        unless (isTailContext input || getName tname `notElem` defGroupNames input) $
          requireCapability mayRecurse $ \ppenv -> Just $
-           cat [text "Non-tail call to (mutually) recursive function: ", ppName ppenv (getName tname)]
+           cat [text "non-tail call to a (mutually) recursive function: ", ppName ppenv (getName tname)]
 chkApp fn args -- local function
   = do withNonTail $ mapM_ chkExpr args
        isBapp <- case fn of -- does the bapp rule apply?
@@ -222,7 +222,7 @@ chkApp fn args -- local function
          _ -> pure False
        unless isBapp $ do
          requireCapability mayDealloc $ \ppenv -> Just $
-           vcat [text "Owned calls to functions require deallocation: ", source ppenv (prettyExpr ppenv fn) ]
+           vcat [text "owned calls to functions require deallocation: ", source ppenv (prettyExpr ppenv fn) ]
          chkExpr fn
 
 chkArg :: (ParamInfo, Expr) -> Chk ()
@@ -236,7 +236,7 @@ chkArg (Borrow, expr)
       (Var tname info) -> markBorrowed tname info
       _ -> do chkExpr expr
               requireCapability mayDealloc $ \ppenv -> Just $
-                vcat [text "Passing owned expressions as borrowed requires deallocation:", source ppenv (prettyExpr ppenv expr)]
+                vcat [text "passing owned expressions as borrowed causes deallocation:", source ppenv (prettyExpr ppenv expr)]
 
 chkLit :: Lit -> Chk ()
 chkLit lit
@@ -252,13 +252,13 @@ chkWrap :: TName -> VarInfo -> Chk ()
 chkWrap tname info
   = do bs <- getParamInfos (getName tname)
        unless (Borrow `notElem` bs) $
-         emitWarning $ \penv -> text "A function with borrowed parameters is passed as an argument and implicitly wrapped."
+         emitWarning $ \penv -> text "a function with borrowed parameters is passed as an argument and implicitly wrapped (causing allocation)"
 
 chkAllocation :: TName -> ConRepr -> Chk ()
 chkAllocation cname repr | isConAsJust repr = pure ()
 chkAllocation cname repr | "_noreuse" `isSuffixOf` nameId (conTypeName repr)
   = requireCapability mayAlloc $ \ppenv -> Just $
-      cat [text "Types suffixed with _noreuse are not reused: ", ppName ppenv $ conTypeName repr]
+      cat [text "types suffixed with _noreuse are not reused: ", ppName ppenv $ conTypeName repr]
 chkAllocation cname crepr
   = do size <- getConstructorAllocSize crepr
        -- chkTrace $ "Allocation " ++ show cname ++ "/" ++ show size
@@ -268,7 +268,7 @@ chkAllocation cname crepr
 chkEffect :: Tau -> Chk ()
 chkEffect tp
   = if isFBIPExtend tp then pure () else
-      emitWarning $ \penv -> text "Algebraic effects other than" <+> ppType penv typePure <+> text "are not FIP/FBIP."
+      emitWarning $ \penv -> text "algebraic effects other than" <+> ppType penv typePure <+> text "may cause allocation."
   where
     isFBIPExtend tp = case extractEffectExtend tp of
       (taus, tau) -> all isFBIP taus
@@ -325,7 +325,7 @@ prettyGammaNm ppenv (Output nm dia _)
 
 prettyCon :: Pretty.Env -> TName -> Int -> Doc
 prettyCon ppenv tname sz
-  = cat [ppName ppenv (getName tname), text "/", pretty (sz {-`div` 8-})]
+  = ppName ppenv (getName tname) <.> text "/" <.> pretty (sz {-`div` 8-})
 
 prettyGammaDia :: Pretty.Env -> Output -> Doc
 prettyGammaDia ppenv (Output nm dia _)
@@ -415,10 +415,10 @@ chkFunCallable fn
          Nothing | fn `elem` [nameCCtxSetCtxPath,nameFieldAddrOf]
            -> writeCallAllocation fn (Fip (AllocAtMost 0))
          Nothing
-           -> emitWarning $  \penv -> text "FIP analysis couldn't find FIP information for function:" <+> ppName penv fn
+           -> emitWarning $  \penv -> text "internal: fip analysis could not find fip information for function:" <+> ppName penv fn
          Just fip'
            -> if fip' `isCallableFrom` fip then writeCallAllocation fn fip'
-              else emitWarning $ \penv -> text "Non-FIP function called:" <+> ppName penv fn
+              else emitWarning $ \penv -> text "calling a non-fip function:" <+> ppName penv fn
 
 -- | Run the given check, keep the warnings but extract the output.
 extractOutput :: Chk () -> Chk Output
@@ -502,7 +502,7 @@ markBorrowed nm info
          isHeapValue <- needsDupDrop nm
          when (isHeapValue && infoIsRefCounted info) $
            requireCapability mayDealloc $ \ppenv -> Just $
-             cat [text "Last use of variable is borrowed: ", ppName ppenv (getName nm)]
+             text "the last use of" <+> ppName ppenv (getName nm) <+> text "is borrowed (causing deallocation)"
 
 getAllocation :: TName -> Int -> Chk ()
 getAllocation nm 0 = pure ()
@@ -516,9 +516,9 @@ provideToken debugName size out
   = do requireCapability mayDealloc $ \ppenv ->
          let fittingAllocs = M.findWithDefault [] size (gammaDia out) in
          case fittingAllocs of
-           [] -> Just $ cat [text "Unused reuse token provided by ", prettyCon ppenv debugName size]
+           [] -> Just $ text "the matched constructor" <+> prettyCon ppenv debugName size <+> text "is not reused"
            ((r, _):_) | r /= 1%1 ->
-             Just $ cat [text "Not all branches use reuse token provided by ", prettyCon ppenv debugName size]
+             Just $ text "not all branches can reuse the space provided by" <+> prettyCon ppenv debugName size
            _ -> Nothing
        pure $ out { gammaDia = M.update (fmap snd . uncons) size (gammaDia out) }
 
@@ -532,7 +532,7 @@ joinContexts pats cs
          pure (allReusable, c')
        unless (and noDealloc) $ do
          requireCapability mayDealloc $ \ppenv -> Just $
-           vcat $ text "Not all branches use the same variables:"
+           vcat $ text "not all branches use the same variables:"
              : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaNm ppenv out]) pats cs
        let unionDia = foldl1' (M.unionWith zipTokens) $ map (M.map (adjustProb (length cs')) . gammaDia) cs'
        pure (Output unionNm unionDia (Match (map allocTree cs')))
@@ -579,13 +579,13 @@ bindName nm msize out
                      isHeapValue <- needsDupDrop nm
                      when isHeapValue $
                        requireCapability mayDealloc $ \ppenv -> Just $
-                         cat [text "Variable unused: ", ppName ppenv (getName nm)]
+                         text "the variable" <+> ppName ppenv (getName nm) <+> text "is unused (causing deallocation)"
                      pure out
          Just n
            -> do isHeapVal <- needsDupDrop nm
                  when (n > 1 && isHeapVal) $
                    requireCapability mayAlloc $ \ppenv -> Just $
-                     cat [text "Variable used multiple times: ", ppName ppenv (getName nm)]
+                     text "the variable" <+> ppName ppenv (getName nm) <+> text "is used multiple times (causing sharing and preventing reuse)"
                  pure out
        pure (out { gammaNm = M.delete nm (gammaNm out) })
 
@@ -635,7 +635,7 @@ checkOutputEmpty out
   = do case M.maxViewWithKey $ gammaNm out of
          Nothing -> pure ()
          Just ((nm, _), _)
-           -> emitWarning $ \penv -> text "Unbound name (may have been used despite being borrowed):" <+> ppName penv (getName nm)
+           -> emitWarning $ \penv -> text "unbound name (which may have been used despite being borrowed):" <+> ppName penv (getName nm)
        let notReused = S.fromList $ map snd $ concatMap snd $ concatMap snd $ M.toList $ gammaDia out
            (allocations, allocInLoop) = getAllocCredits notReused (allocTree out)
            allocations' = if hasBothInSequence allocInLoop then AllocUnlimited else allocations
@@ -643,7 +643,7 @@ checkOutputEmpty out
        -- chkTrace $ show $ simplifyAllocTree (allocTree out)
        permission <- fipAlloc <$> getFip
        unless (allocations' <= permission) $
-         emitWarning $ \penv -> text "Function allocates"
+         emitWarning $ \penv -> text "function allocates"
            <+> text (prettyFipAlloc allocations')
            <+> text "but was declared as allocating"
            <+> text (prettyFipAlloc permission)
@@ -727,7 +727,7 @@ emitWarning makedoc
                           (def:_) -> (defNameRange def, defName def)
                           _ -> (rangeNull, nameNil)
            penv = prettyEnv env
-           fdoc = ppName penv name <.> colon <+> makedoc penv
+           fdoc = text "fip fun" <+> ppName penv name <.> colon <+> makedoc penv
        emitDoc rng fdoc
 
 getConstructorAllocSize :: ConRepr -> Chk Int
