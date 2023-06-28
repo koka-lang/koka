@@ -487,8 +487,8 @@ isBorrowed nm
        pure $ getName nm `S.member` delta st
 
 markSeen :: TName -> VarInfo -> Chk ()
-markSeen tname info | infoIsRefCounted info -- is locally defined?
-  = do isHeapValue <- needsDupDrop (tnameType tname)
+markSeen tname info | infoIsRefCounted info -- is locally defined?                      
+  = do isHeapValue <- needsDupDrop tname
        when isHeapValue $
          writeOutput (Output (M.singleton tname 1) M.empty Leaf)
 markSeen tname info = chkWrap tname info -- wrap rule
@@ -498,7 +498,7 @@ markBorrowed nm info
   = do b <- isBorrowed nm
        unless b $ do
          markSeen nm info
-         isHeapValue <- needsDupDrop (tnameType nm)
+         isHeapValue <- needsDupDrop nm
          when (isHeapValue && infoIsRefCounted info) $
            requireCapability mayDealloc $ \ppenv -> Just $
              cat [text "Last use of variable is borrowed: ", ppName ppenv (getName nm)]
@@ -544,7 +544,7 @@ joinContexts pats cs
 
     tryReuse (allReusable, out) tname
       = do mOut <- tryDropReuse tname out
-           isHeapVal <- needsDupDrop (tnameType tname)
+           isHeapVal <- needsDupDrop tname
            pure $ case mOut of
              Nothing -> (allReusable && not isHeapVal, out)
              Just out -> (allReusable, out)
@@ -575,13 +575,13 @@ bindName nm msize out
                    (Just sz, _) -> provideToken nm sz out
                    (_, Just out) -> pure out
                    (Nothing, Nothing) -> do
-                     isHeapValue <- needsDupDrop (tnameType nm)
+                     isHeapValue <- needsDupDrop nm
                      when isHeapValue $
                        requireCapability mayDealloc $ \ppenv -> Just $
                          cat [text "Variable unused: ", ppName ppenv (getName nm)]
                      pure out
          Just n
-           -> do isHeapVal <- needsDupDrop (tnameType nm)
+           -> do isHeapVal <- needsDupDrop nm
                  when (n > 1 && isHeapVal) $
                    requireCapability mayAlloc $ \ppenv -> Just $
                      cat [text "Variable used multiple times: ", ppName ppenv (getName nm)]
@@ -660,15 +660,17 @@ zipParamInfo :: [ParamInfo] -> [b] -> [(ParamInfo, b)]
 zipParamInfo xs = zip (xs ++ repeat Own)
 
 -- value types with reference fields still need a drop
-needsDupDrop :: Type -> Chk Bool
-needsDupDrop tp
-  = do mbdi <- getDataInfo tp
+needsDupDrop :: TName -> Chk Bool
+needsDupDrop tname | isCCtxName (getName tname)  = return False  -- ignore generated contexts
+needsDupDrop tname
+  = do let tp = tnameType tname
+       mbdi <- getDataInfo tp
        return $
           case mbdi of
             Nothing -> True  
             Just di -> case dataInfoDef di of
                           DataDefValue vrepr | valueReprIsRaw vrepr -> False
-                          _  -> if dataInfoName di == nameTpInt 
+                          _  -> if dataInfoName di == nameTpInt  -- ignore special types (just `int` for now)
                                   then False
                                   else True
 

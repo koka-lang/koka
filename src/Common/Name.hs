@@ -24,7 +24,7 @@ module Common.Name
           , qualify, unqualify, isQualified, qualifier
           , nameId, nameModule
 
-          , newPaddingName, isPaddingName
+          , newPaddingName, isPaddingName, isCCtxName
           , newFieldName, isFieldName, isWildcard
           , newHiddenExternalName, isHiddenExternalName
           , newHiddenName, isHiddenName, hiddenNameStartsWith
@@ -329,6 +329,10 @@ newPaddingName i
 isPaddingName name
   = -- hiddenNameStartsWith name "padding"
     nameId name `startsWith` (".padding")
+
+isCCtxName name
+  = -- hiddenNameStartsWith name "padding"
+    nameId name `startsWith` (".cctx")
 
 
 newFieldName i
