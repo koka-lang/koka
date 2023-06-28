@@ -57,8 +57,8 @@ checkFBIP :: Pretty.Env ->  Platform -> Newtypes -> Borrowed -> Gamma -> CorePha
 checkFBIP penv platform newtypes borrowed gamma
   = do uniq      <- unique
        defGroups <- getCoreDefs
-       let (_,docs) = runChk penv uniq platform newtypes borrowed gamma (chkDefGroups defGroups)
-       mapM_ (\doc -> liftError (warningMsg (rangeNull, doc))) docs
+       let (_,warns) = runChk penv uniq platform newtypes borrowed gamma (chkDefGroups defGroups)
+       mapM_ (\warn -> liftError (warningMsg warn)) warns
 
 
 {--------------------------------------------------------------------------
@@ -128,7 +128,7 @@ chkExpr expr
               withBorrowed (S.map getName $ M.keysSet $ gammaNm gamma2) $
                 withTailMod [Let dgs body] $ chkExpr $ defExpr def
       Let _ _
-        -> emitWarning $ text "FIP check can not handle nested function bindings."
+        -> emitWarning $ \penv -> text "FIP check can not handle nested function bindings."
 
       Case scrutinees branches
         -> chkBranches scrutinees branches
@@ -197,6 +197,8 @@ bindPattern (PatVar tname pat) out -- Else, don't bind the name.
 bindPattern (PatLit _) out = pure out
 bindPattern PatWild out = pure out
 
+
+
 chkApp :: Expr -> [Expr] -> Chk ()
 chkApp (TypeLam _ fn) args = chkApp fn args -- ignore type machinery
 chkApp (TypeApp fn _) args = chkApp fn args
@@ -220,7 +222,7 @@ chkApp fn args -- local function
          _ -> pure False
        unless isBapp $ do
          requireCapability mayDealloc $ \ppenv -> Just $
-           cat [text "Owned calls to functions require deallocation: ", prettyExpr ppenv fn ]
+           vcat [text "Owned calls to functions require deallocation: ", source ppenv (prettyExpr ppenv fn) ]
          chkExpr fn
 
 chkArg :: (ParamInfo, Expr) -> Chk ()
@@ -234,7 +236,7 @@ chkArg (Borrow, expr)
       (Var tname info) -> markBorrowed tname info
       _ -> do chkExpr expr
               requireCapability mayDealloc $ \ppenv -> Just $
-                text $ "Passing owned expressions as borrowed requires deallocation: " ++ show expr
+                vcat [text "Passing owned expressions as borrowed requires deallocation:", source ppenv (prettyExpr ppenv expr)]
 
 chkLit :: Lit -> Chk ()
 chkLit lit
@@ -250,7 +252,7 @@ chkWrap :: TName -> VarInfo -> Chk ()
 chkWrap tname info
   = do bs <- getParamInfos (getName tname)
        unless (Borrow `notElem` bs) $
-         emitWarning $ text "A function with borrowed parameters is passed as an argument and implicitly wrapped."
+         emitWarning $ \penv -> text "A function with borrowed parameters is passed as an argument and implicitly wrapped."
 
 chkAllocation :: TName -> ConRepr -> Chk ()
 chkAllocation cname repr | isConAsJust repr = pure ()
@@ -266,7 +268,7 @@ chkAllocation cname crepr
 chkEffect :: Tau -> Chk ()
 chkEffect tp
   = if isFBIPExtend tp then pure () else
-      emitWarning $ text "Algebraic effects other than <exn,div> are not FIP/FBIP."
+      emitWarning $ \penv -> text "Algebraic effects other than" <+> ppType penv typePure <+> text "are not FIP/FBIP."
   where
     isFBIPExtend tp = case extractEffectExtend tp of
       (taus, tau) -> all isFBIP taus
@@ -278,7 +280,7 @@ chkEffect tp
 {--------------------------------------------------------------------------
   Chk monad
 --------------------------------------------------------------------------}
-type Chk a = ReaderT (Env, Input) (WriterT (Output, [Doc]) Unique) a
+type Chk a = ReaderT (Env, Input) (WriterT (Output, [(Range,Doc)]) Unique) a
 
 data Env = Env{ currentDef :: [Def],
                 prettyEnv :: Pretty.Env,
@@ -331,7 +333,7 @@ prettyGammaDia ppenv (Output nm dia _)
       (\(sz, cs) -> map (\(_, (c,_):_) -> prettyCon ppenv c sz) cs)
       (M.toList dia)
 
-runChk :: Pretty.Env -> Int -> Platform -> Newtypes -> Borrowed -> Gamma -> Chk a -> (a,[Doc])
+runChk :: Pretty.Env -> Int -> Platform -> Newtypes -> Borrowed -> Gamma -> Chk a -> (a,[(Range,Doc)])
 runChk penv u platform newtypes borrowed gamma c
   = fst $ runUnique 0 $
     fmap (fmap snd) $ runWriterT $
@@ -413,11 +415,10 @@ chkFunCallable fn
          Nothing | fn `elem` [nameCCtxSetCtxPath,nameFieldAddrOf]
            -> writeCallAllocation fn (Fip (AllocAtMost 0))
          Nothing
-           -> emitWarning $ text $
-                "FIP analysis couldn't find FIP information for function: " ++ show fn
+           -> emitWarning $  \penv -> text "FIP analysis couldn't find FIP information for function:" <+> ppName penv fn
          Just fip'
            -> if fip' `isCallableFrom` fip then writeCallAllocation fn fip'
-              else emitWarning $ text $ "Non-FIP function called: " ++ show fn
+              else emitWarning $ \penv -> text "Non-FIP function called:" <+> ppName penv fn
 
 -- | Run the given check, keep the warnings but extract the output.
 extractOutput :: Chk () -> Chk Output
@@ -434,7 +435,7 @@ requireCapability mayUseCap test
        unless hasCap $ do
          env <- getEnv
          case test (prettyEnv env) of
-           Just warning -> emitWarning warning
+           Just warning -> emitWarning (\_ -> warning)
            Nothing -> pure ()
 
 withNonTail :: Chk a -> Chk a
@@ -634,7 +635,7 @@ checkOutputEmpty out
   = do case M.maxViewWithKey $ gammaNm out of
          Nothing -> pure ()
          Just ((nm, _), _)
-           -> emitWarning $ text $ "Unbound name (may have been used despite being borrowed): " ++ show nm
+           -> emitWarning $ \penv -> text "Unbound name (may have been used despite being borrowed):" <+> ppName penv (getName nm)
        let notReused = S.fromList $ map snd $ concatMap snd $ concatMap snd $ M.toList $ gammaDia out
            (allocations, allocInLoop) = getAllocCredits notReused (allocTree out)
            allocations' = if hasBothInSequence allocInLoop then AllocUnlimited else allocations
@@ -642,10 +643,10 @@ checkOutputEmpty out
        -- chkTrace $ show $ simplifyAllocTree (allocTree out)
        permission <- fipAlloc <$> getFip
        unless (allocations' <= permission) $
-         emitWarning $ text $ "Function allocates "
-           ++ prettyFipAlloc allocations'
-           ++ " but was declared as allocating "
-           ++ prettyFipAlloc permission
+         emitWarning $ \penv -> text "Function allocates"
+           <+> text (prettyFipAlloc allocations')
+           <+> text "but was declared as allocating"
+           <+> text (prettyFipAlloc permission)
 
 simplifyAllocTree :: AllocTree -> AllocTree
 simplifyAllocTree (Seq a b)
@@ -716,14 +717,18 @@ chkTrace msg
   = do env <- getEnv
        trace ("chk: " ++ show (map defName (currentDef env)) ++ ": " ++ msg) $ return ()
 
-emitDoc :: Doc -> Chk ()
-emitDoc doc = tell (mempty, [doc])
+emitDoc :: Range -> Doc -> Chk ()
+emitDoc rng doc = tell (mempty, [(rng,doc)])
 
-emitWarning :: Doc -> Chk ()
-emitWarning doc
-  = do names <- currentDefNames
-       let fdoc = text (show names) <.> colon <+> doc
-       emitDoc fdoc
+emitWarning :: (Pretty.Env -> Doc) -> Chk ()
+emitWarning makedoc
+  = do env <- getEnv
+       let (rng,name) = case currentDef env of
+                          (def:_) -> (defNameRange def, defName def)
+                          _ -> (rangeNull, nameNil)
+           penv = prettyEnv env
+           fdoc = ppName penv name <.> colon <+> makedoc penv
+       emitDoc rng fdoc
 
 getConstructorAllocSize :: ConRepr -> Chk Int
 getConstructorAllocSize conRepr

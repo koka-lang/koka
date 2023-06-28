@@ -40,7 +40,7 @@ module Type.Type (-- * Types
                   , orderEffect, labelName, labelNameFull, labelNameEx
                   , isEffectEmpty, isEffectFixed, shallowEffectExtend, shallowExtractEffectExtend
 
-                  , typeDivergent, typeTotal, typePartial
+                  , typeDivergent, typeTotal, typePartial, typePure
                   , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
                   , typeCCtx, typeCCtxx, typeFieldAddr
                   , isOptional, makeOptional, unOptional
