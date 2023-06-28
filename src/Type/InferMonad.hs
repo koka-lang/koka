@@ -16,7 +16,7 @@ module Type.InferMonad( Inf, InfGamma
                       -- * Environment
                       , getGamma
                       , extendGamma, extendGammaCore
-                      , extendInfGamma, extendInfGammaCore
+                      , extendInfGamma, extendInfGammaEx, extendInfGammaCore
                       , withGammaType
 
                       -- * Name resolution
@@ -1074,15 +1074,19 @@ extendInfGammaCore :: Bool -> [Core.DefGroup] -> Inf a -> Inf a
 extendInfGammaCore topLevel [] inf
   = inf
 extendInfGammaCore topLevel (coreDefs:coreDefss) inf
-  = extendInfGamma topLevel (extracts coreDefs) (extendInfGammaCore topLevel coreDefss inf)
+  = extendInfGammaEx topLevel [] (extracts coreDefs) (extendInfGammaCore topLevel coreDefss inf)
   where
     extracts (Core.DefRec defs) = map extract defs
     extracts (Core.DefNonRec def) = [extract def]
     extract def
       = coreDefInfo def -- (Core.defName def,(Core.defNameRange def, Core.defType def, Core.defSort def))
 
-extendInfGamma :: Bool -> [(Name,NameInfo)] -> Inf a -> Inf a
-extendInfGamma topLevel tnames inf
+extendInfGamma :: [(Name,NameInfo)] -> Inf a -> Inf a
+extendInfGamma tnames inf
+  = extendInfGammaEx False [] tnames inf
+
+extendInfGammaEx :: Bool -> [Name] -> [(Name,NameInfo)] -> Inf a -> Inf a
+extendInfGammaEx topLevel ignores tnames inf
   = do env <- getEnv
        infgamma' <- extend (context env) (gamma env) [] [(unqualify name,info) | (name,info) <- tnames, not (isWildcard name)] (infgamma env)
        withEnv (\env -> env{ infgamma = infgamma' }) inf
@@ -1105,7 +1109,7 @@ extendInfGamma topLevel tnames inf
                       Just info2 | infoCanonicalName name info2 /= nameReturn
                         -> do checkCasingOverlap range name (infoCanonicalName name info2) info2
                               env <- getEnv
-                              if (not (isHiddenName name) && show name /= "resume" && show name /= "resume-shallow")
+                              if (not (isHiddenName name) && show name /= "resume" && show name /= "resume-shallow" && not (name `elem` ignores))
                                then infWarning range (Pretty.ppName (prettyEnv env) name <+> text "shadows an earlier local definition or parameter")
                                else return ()
                       _ -> return ()
@@ -1121,7 +1125,7 @@ withGammaType :: Range -> Type -> Inf a -> Inf a
 withGammaType range tp inf
   = do defName <- currentDefName
        name <- uniqueName (show defName)
-       extendInfGamma False [(name,(InfoVal Public name tp range False))] inf
+       extendInfGamma [(name,(InfoVal Public name tp range False))] inf
 
 currentDefName :: Inf Name
 currentDefName

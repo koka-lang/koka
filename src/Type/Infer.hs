@@ -39,7 +39,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameTpValueOp, nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
                       , nameInt32, nameOr, nameAnd, nameEffectOpen
-                      , nameCCtxCreate, nameCCtxHoleCreate
+                      , nameCCtxCreate, nameCCtxHoleCreate, isNameTuple
                        )
 import Common.Range
 import Common.Unique
@@ -147,7 +147,7 @@ inferDefGroup topLevel (DefRec defs) cont
   = -- trace ("\ninfer group: " ++ show (map defName defs)) $
     do (gamma,infgamma) <- createGammas [] [] defs
        --coreDefs0 <- extendGamma gamma (mapM (inferRecDef topLevel infgamma) defs)
-       (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGamma topLevel infgamma $
+       (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGammaEx topLevel [] infgamma $
                                  do assumed <- mapM (\def -> lookupInfName (getName def)) defs
                                     coreDefs0 <- mapM (\def -> inferDef Instantiated def) defs
                                     coreDefs1 <- mapM fixCanonicalName coreDefs0
@@ -393,7 +393,7 @@ inferRecDef topLevel infgamma def
     do let rng = defRange def
            nameRng = binderNameRange (defBinder def)
        eitherRes <-
-          extendInfGamma topLevel infgamma $
+          extendInfGammaEx topLevel [] infgamma $
           do mbAssumedType <- lookupInfName (getName def)
              coreDef <- inferDef Instantiated def
              case mbAssumedType of
@@ -553,8 +553,8 @@ inferExpr propagated expect (Lam binders body rng)
                      Nothing     -> Op.freshTVar kindStar Meta
                      Just (tp,_) -> return tp
 
-       (tp,eff1,core) <- extendInfGamma False infgamma  $
-                           extendInfGamma False [(nameReturn,createNameInfoX Public nameReturn DefVal (getRange body) returnTp)] $
+       (tp,eff1,core) <- extendInfGamma infgamma  $
+                           extendInfGamma [(nameReturn,createNameInfoX Public nameReturn DefVal (getRange body) returnTp)] $
                            (if (isNamed) then inferIsolated rng (getRange body) body else id) $
                            -- inferIsolated rng (getRange body) body $
                            inferExpr propBody expectBody body
@@ -801,15 +801,16 @@ inferExpr propagated expect (Case expr branches rng)
     do (ctp,ceff,ccore) <- allowReturn False $ disallowHole $ inferExpr Nothing Instantiated expr
        -- infer branches
        bress <- disallowHole $
+                let matchedNames = extractMatchedNames expr in
                 case (propagated,branches) of
                   (Nothing,(b:bs)) -> -- propagate the type of the first branch
-                    do bres@(tpeffs,_) <- inferBranch propagated ctp (getRange expr) b
+                    do bres@(tpeffs,_) <- inferBranch propagated ctp (getRange expr) matchedNames b
                        let tp = case tpeffs of
                                   (tp,_):_ -> tp
                                   _        -> failure $ "Type.Infer.inferExpr.Case: branch without guard"
-                       bress <- mapM (inferBranch (Just (tp,getRange b)) ctp (getRange expr)) bs
+                       bress <- mapM (inferBranch (Just (tp,getRange b)) ctp (getRange expr) matchedNames) bs
                        return (bres:bress)
-                  _ -> mapM (inferBranch propagated ctp (getRange expr)) branches
+                  _ -> mapM (inferBranch propagated ctp (getRange expr) matchedNames) branches
        let (tpeffss,bcores) = unzip bress
            (tps,effs) = unzip (concat tpeffss)
        -- ensure branches match
@@ -861,6 +862,18 @@ inferExpr propagated expect (Case expr branches rng)
           TApp (TCon tc) _  -> typeconName tc
           TCon tc           -> typeconName tc
           _                 -> failure ("Type.Infer.inferExpr.Case.getTypeName: not a valid scrutinee? " ++ show tp)
+
+
+    extractMatchedNames expr
+      = case expr of
+          Parens e _ _                -> extractMatchedNames e
+          App (Var tname _ _) args _  | isNameTuple tname -> concat (map (extractMatchedNamesX . snd) args)
+          _                           -> extractMatchedNamesX expr
+
+    extractMatchedNamesX expr
+      = case expr of
+          Var name _ _ -> [name]
+          _            -> []
 
 
 inferExpr propagated expect (Var name isOp rng)
@@ -1535,8 +1548,8 @@ inferVarX propagated expect name rng qname1 tp1 info1
        return (itp,eff,coref coreVar)
 -}
 
-inferBranch :: Maybe (Type,Range) -> Type -> Range -> Branch Type -> Inf ([(Type,Effect)],Core.Branch)
-inferBranch propagated matchType matchRange branch@(Branch pattern guards)
+inferBranch :: Maybe (Type,Range) -> Type -> Range -> [Name] -> Branch Type -> Inf ([(Type,Effect)],Core.Branch)
+inferBranch propagated matchType matchRange matchedNames branch@(Branch pattern guards)
   = inferPattern matchType (getRange branch) pattern (
     \pcore gcores ->
        -- check for unused pattern bindings
@@ -1551,7 +1564,7 @@ inferBranch propagated matchType matchRange branch@(Branch pattern guards)
     )
     $ \infGamma ->
      -- infGamma <- extractInfGamma pcore
-     extendInfGamma False infGamma $
+     extendInfGammaEx False matchedNames infGamma $
       do -- check guard expressions
          unzip <$> mapM (inferGuard propagated (getRange branch)) guards
 
@@ -1758,7 +1771,7 @@ inferOptionals eff infgamma (par:pars)
             partp <- subst tvar
 
             -- infer expression
-            (exprTp,exprEff,coreExpr) <- extendInfGamma False infgamma $ inferExpr (Just (partp,getRange par))
+            (exprTp,exprEff,coreExpr) <- extendInfGamma infgamma $ inferExpr (Just (partp,getRange par))
                                              (if isRho partp then Instantiated else Generalized False) expr
             inferUnify (checkOptional fullRange) (getRange expr) partp exprTp
 
