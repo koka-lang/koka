@@ -112,10 +112,10 @@ pub fun const( default : a ) : total (( x : b ) -> a)
 // Standard Data types
 // ----------------------------------------------------------------------------
 
-pub fun int( b : bool ) : int  
+pub fip fun int( b : bool ) : int  
   if b then 1 else 0
 
-pub fun mbint( m : maybe<int> ) : int
+pub fip fun mbint( m : maybe<int> ) : int
   match m
     Nothing -> 0
     Just(i) -> i
@@ -216,7 +216,7 @@ pub fun is-empty( xs : list<a> ) : bool
 pub co type stream<a>
   con Next(head:a, tail: stream<a> )
 
-pub fun int( x : order ) : int
+pub fip fun int( x : order ) : int
   match x
     Lt -> -1
     Eq -> 0
@@ -899,92 +899,92 @@ pub inline fip extern (%)  : (int,int) -> int
 //
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
-pub inline extern divmod(x:int,y:int) : (int,int)
+pub inline fip extern divmod(x:int,y:int) : (int,int)
   c  "kk_integer_div_mod_tuple"
   cs "Primitive.IntDivMod"
   js "$std_core._int_divmod"
 
-pub fun negate(i : int) : int
+pub fip fun negate(i : int) : int
   ~i
 
 // Negate an integer.
-pub inline extern (~)(i:int) : int
+pub inline fip extern (~)(i:int) : int
   c  "kk_integer_neg"
   cs inline "(-#1)"
   js "$std_core._int_negate"
 
 // Convert an integer to a `:float64`. May return `nan` if the integer is too large to represent as a `:float64`.
-pub inline extern float64( i : int) : float64
+pub inline fip extern float64( i : int) : float64
   c  "kk_integer_as_double"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 
 // Convert an integer to a `:float32`. May return `nan` if the integer is too large to represent as a `:float32`.
-pub inline extern float32( i : int) : float32
+pub inline fip extern float32( i : int) : float32
   c  "kk_integer_as_float"
   cs "Primitive.IntToFloat"
   js "$std_core._int_to_float"  
 
 // Is this an odd integer?
-pub inline extern is-odd( i : int ) : bool
+pub inline fip extern is-odd( i : int ) : bool
   c  "kk_integer_is_odd"
   cs inline "!(#1.IsEven)"
   js "$std_core._int_isodd"
 
 // Is this equal to zero?
-pub inline extern is-zero( ^x : int) : bool
+pub inline fip extern is-zero( ^x : int) : bool
   c  inline "kk_integer_is_zero_borrow(#1)"
   cs inline "(#1.IsZero)"
   js "$std_core._int_iszero"
 
 // Return the absolute value of an integer.
-pub inline extern abs(i : int) : int
+pub inline fip extern abs(i : int) : int
   c  "kk_integer_abs"
   cs "BigInteger.Abs"
   js "$std_core._int_abs"
 
-pub fun inc( i : int ) : int
+pub fip fun inc( i : int ) : int
   i + 1
 
-pub fun dec( i : int ) : int
+pub fip fun dec( i : int ) : int
   i - 1
 
 // Calculate `10^exp`
-pub fun exp10( exp : int ) : int
+pub fip fun exp10( exp : int ) : int
   1.mul-exp10(exp)
 
 // Raise an integer `i` to the power of `exp`.
-pub extern pow( i : int, exp : int ) : int
+pub fip extern pow( i : int, exp : int ) : int
   c  "kk_integer_pow"
   cs "Primitive.IntPow"
   js "_int_pow"
 
 // Raise an integer `i` to the power of `exp`.
-pub fun (^)(i : int, exp : int ) : int
+pub fip fun (^)(i : int, exp : int ) : int
   pow(i,exp)
 
 // Calculate `2^exp`.
-pub fun exp2( exp : int ) : int
+pub fip fun exp2( exp : int ) : int
   pow(2,exp)
 
 // Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
-pub extern is-exp10( i : int ) : int
+pub fip extern is-exp10( i : int ) : int
   c  "kk_integer_ctz"
   cs "Primitive.IntCountPow10"
   js "_int_count_pow10"
 
 // Return the number of decimal digits of `i`. Return `0` when `i==0`.
-pub extern count-digits( i : int ) : int
+pub fip extern count-digits( i : int ) : int
   c  "kk_integer_count_digits"
   cs "Primitive.IntCountDigits"
   js "_int_count_digits"
 
-pub extern mul-exp10( i : int, n : int ) : int
+pub fip extern mul-exp10( i : int, n : int ) : int
   c  "kk_integer_mul_pow10"
   cs "Primitive.IntMulPow10"
   js "_int_mul_pow10"
 
-pub extern cdiv-exp10( i : int, n : int ) : int
+pub fip extern cdiv-exp10( i : int, n : int ) : int
   c  "kk_integer_cdiv_pow10"
   cs "Primitive.IntCDivPow10"
   js "_int_cdiv_pow10"
@@ -1000,28 +1000,28 @@ pub fun divmod-exp10( i : int, n : int ) : (int,int)
   if !cr.is-neg then (cq,cr) else (cq.dec, cr + exp10(n))
 
 // Is this an even integer?
-pub fun is-even(i:int) : bool 
+pub fip fun is-even(i:int) : bool 
   !is-odd(i)
 
 // Is the integer positive (stricly greater than zero)
-pub fun is-pos(i : int ) : bool 
-  i.sign == Gt
+pub fip fun is-pos(i : int ) : bool 
+  i > 0
 
 // Is the integer negative (stricly smaller than zero)
-pub fun is-neg(i : int ) : bool 
-  i.sign == Lt
+pub fip fun is-neg(i : int ) : bool 
+  i < 0
 
-pub inline extern sign( ^i : int ) : order
+pub inline fip extern sign( ^i : int ) : order
   c  inline "kk_int_as_order(kk_integer_signum_borrow(#1,kk_context()),kk_context())"
   cs "Primitive.IntSign"
   js "$std_core._int_sign"
 
 // Return the minimum of two integers
-pub fun min( i : int, j : int ) : int 
+pub fip fun min( i : int, j : int ) : int 
   if i <= j then i else j
 
 // Return the maximum of two integers
-pub fun max( i : int, j : int ) : int 
+pub fip fun max( i : int, j : int ) : int 
   if i >= j then i else j
 
 // Returns the smallest element of a list of integers (or `default` (=`0`) for the empty list)
@@ -1129,7 +1129,7 @@ pub fip extern ssize_t( i : int) : ssize_t
   js "$std_core._int_clamp32"
 
 // Convert an `:ssize_t` to an `:int`.
-pub inline extern int( i : ssize_t ) : int
+pub inline fip extern int( i : ssize_t ) : int
   c  "kk_integer_from_ssize_t"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int32"
@@ -1228,7 +1228,7 @@ pub fip extern int64( i : int) : int64
   js "$std_core._int_clamp64"
 
 // Convert an `:int64_t` to an `:int`.
-pub inline extern int( i : int64 ) : int
+pub inline fip extern int( i : int64 ) : int
   c  "kk_integer_from_int64"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int64"
@@ -1243,13 +1243,13 @@ pub inline fip fun i64( i : int ) : int64
 // ----------------------------------------------------------------------------
 
 // clamp an `:int` to fit in an `:intptr_t`. 
-pub extern intptr_t( i : int) : intptr_t
+pub fip extern intptr_t( i : int) : intptr_t
   c  "kk_integer_clamp_intptr_t"
   cs "Primitive.IntToInt64"
   js "$std_core._int_clamp64"
 
 // Convert an `:intptr_t` to an `:int`.
-pub inline extern int( i : intptr_t ) : int
+pub inline fip extern int( i : intptr_t ) : int
   c  "kk_integer_from_intptr_t"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int64"

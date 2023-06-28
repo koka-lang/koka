@@ -72,8 +72,8 @@ createDataDef emitError emitWarning lookupDataInfo
                               -> do let wouldGetTagField = (conCount > 1 && not isEnum)
                                         size = valueReprSize platform vr + (if wouldGetTagField then sizeField platform else 0)
                                     when ((size <= 2*sizePtr platform) && (maxMembers <= 3) && canbeValue) $
-                                      emitWarning $ text "may be better declared as a value type for efficiency (e.g. 'value type/struct')" <->
-                                                    text "or declare as a reference type (e.g. 'ref type/struct') to suppress this warning"
+                                      emitWarning $ text "may be better declared as a value type for efficiency (e.g. 'value type/struct')," <->
+                                                    text "or declared as a reference type to suppress this warning (e.g. 'ref type/struct')"
                                     return DataDefNormal
                             _ -> return DataDefNormal
                   

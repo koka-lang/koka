@@ -15,12 +15,12 @@
 */
 module std/core/types
 
-pub infixr 65  (++.)
 pub infixr 60  (++)
+pub infixr 55  (++.)
 pub infixr 30  (&&)
 pub infixr 20  (||)
 
-// build: 105
+// build: 108
 
 // ----------------------------------------------------------------------------
 // Core types
@@ -80,7 +80,7 @@ pub value type intptr_t
 // Provides currently no operations and currently only used for storage and for interaction with external code.
 pub value type float32
 
-// An any type. Used for extern calls
+// An any type. Used for external calls
 pub type any
 
 // Internal type used for in-place update of unique pattern matches
