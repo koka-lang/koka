@@ -39,9 +39,9 @@ import Core.Pretty
 import Core.CoreVar
 import Core.Borrowed
 import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial, nameTrue,
-                        nameCCtxSetCtxPath, nameFieldAddrOf)
+                        nameCCtxSetCtxPath, nameFieldAddrOf, nameTpInt)
 import Backend.C.ParcReuse (getFixedDataAllocSize)
-import Backend.C.Parc (getDataDef')
+import Backend.C.Parc (getDataInfo')
 import Data.Ratio
 import Data.Ord (Down (Down))
 import Control.Monad.Reader
@@ -662,17 +662,20 @@ zipParamInfo xs = zip (xs ++ repeat Own)
 -- value types with reference fields still need a drop
 needsDupDrop :: Type -> Chk Bool
 needsDupDrop tp
-  = do dd <- getDataDef tp
-       return $ case dd of
-         (DataDefValue vrepr) | valueReprIsRaw vrepr -> False
-         _                    -> True
+  = do mbdi <- getDataInfo tp
+       return $
+          case mbdi of
+            Nothing -> True  
+            Just di -> case dataInfoDef di of
+                          DataDefValue vrepr | valueReprIsRaw vrepr -> False
+                          _  -> if dataInfoName di == nameTpInt 
+                                  then False
+                                  else True
 
-getDataDef :: Type -> Chk DataDef
-getDataDef tp
+getDataInfo :: Type -> Chk (Maybe DataInfo)
+getDataInfo tp
   = do newtypes <- getNewtypes
-       return (case getDataDef' newtypes tp of
-                 Just dd -> dd
-                 Nothing -> DataDefNormal)
+       return (getDataInfo' newtypes tp)
 
 getNewtypes :: Chk Newtypes
 getNewtypes = newtypes <$> getEnv
