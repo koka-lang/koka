@@ -25,7 +25,7 @@ extern import
 
 
 // Abstract type of a regular expression object
-abstract struct regex( obj: any, src : string )
+abstract value struct regex( obj: any, src : string )
 
 // Return the pattern as a string
 pub fun source( r : regex ) : string

@@ -182,7 +182,7 @@ fun show-long-flag( parser : flag-parser<a> )
     Opt( help=h ) -> "[=" ++ h ++ "]"
 
 
-type flag-kind<a>
+value type flag-kind<a>
   Flg( set : a -> a )
   Arg( arg : string )
   End
