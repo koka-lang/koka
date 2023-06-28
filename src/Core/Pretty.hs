@@ -273,7 +273,7 @@ prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
       then ppBody <.> semi
       else -}
            prettyVis env vis $
-            keyword env (show sort)
+            keyword env (defSortShowFull sort)
             <+> (if nameIsNil name && coreShowDef env
                   then text "_" 
                   else prettyDefName env name) 

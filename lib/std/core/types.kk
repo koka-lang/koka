@@ -194,7 +194,7 @@ pub noinline fip fun keep( x : a ) : a
   x
 
 // ----------------------------------------------------------------------------
-// Standard functions 
+// Standard functions  
 // ----------------------------------------------------------------------------
 
 // The identity function returns its argument unchanged

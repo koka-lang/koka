@@ -148,7 +148,7 @@ pub fip fun compare( x : int32, y : int32) : order
 // Return the absolute value of an integer.
 // Raises an exception if the `:int32` is `min-int32`
 // (since the negation of `min-int32` equals itself and is still negative)
-pub fip fun abs( i : int32 ) : exn int32
+pub fun abs( i : int32 ) : exn int32
   if (!i.is-neg) then i
   elif (i > min-int32) then negate(i)
   else throw( "std/num/int32/abs: cannot make min-int32 into a positive int32 without overflow" )
@@ -249,14 +249,14 @@ pub fip fun max( i : int32, j : int32 ) : int32
 
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
-pub fip fun cdiv(i:int32, j:int32) : exn int32 
+pub fun cdiv(i:int32, j:int32) : exn int32 
   if (j.is-zero) then throw("std/num/int32/cdiv: modulus by zero")
   elif (j == -1.int32 && i==min-int32) then throw("std/num/int32/cdiv: modulus overflow in cdiv(min-int32, -1.int32)")
   else unsafe-cdiv(i,j)
 
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
-pub fip fun cmod(i:int32, j:int32) : exn int32 
+pub fun cmod(i:int32, j:int32) : exn int32 
   if (j.is-zero) then throw("std/num/int32/cmod: modulus by zero")
   elif (j == -1.int32 && i==min-int32) then throw("std/num/int32/cmod: modulus overflow in cmod(min-int32, -1.int32)")
   else unsafe-cmod(i,j)

@@ -1067,7 +1067,7 @@ pub fun fold-while-int( start : int, end : int, init : a, f : (int,a) -> e maybe
 // don't export any definitions here. Full operations are defined in `std/int32`.
 // ----------------------------------------------------------------------------
 
-// Convert an `:int32` to an `:int`.
+// Convert an `:int32` to an `:int`. 
 pub inline fip extern int( i : int32 ) : int
   c  "kk_integer_from_int"
   cs inline "(new BigInteger(#1))"
