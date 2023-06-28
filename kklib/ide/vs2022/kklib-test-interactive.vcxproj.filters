@@ -12,8 +12,8 @@
     <ClCompile Include="..\..\..\.koka\debug\std_num_int32.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_num_random.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_num_int64.c" />
-    <ClCompile Include="..\..\..\.koka\debug\rbtree_rb_dash_td.c" />
-    <ClCompile Include="..\..\..\.koka\debug\rbtree_rbtree.c" />
+    <ClCompile Include="..\..\..\.koka\debug\zip_zip_dash_td.c" />
+    <ClCompile Include="..\..\..\.koka\debug\zip_ziptree.c" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="kklib.natvis" />

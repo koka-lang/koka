@@ -2585,7 +2585,7 @@ ppModName name
 encode :: Bool -> Name -> Doc
 encode isModule name
   = let s = asciiEncode isModule (show name)
-    in if (isReserved s)
+    in if (isReserved s || s == "" || isDigit (head s))
          then text ("kkloc_" ++ s)
          else text s
 

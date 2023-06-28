@@ -457,7 +457,7 @@ compileProgram' term flags modules compileTarget fname program
                                                                       ) False r) [] r
                                                 defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (defFun []) InlineNever ""
                                                 program2   = programAddDefs program [] [defMain]
-                                            in do (loaded3,_) <- typeCheck loaded1 flags 0 coreImports program2
+                                            in do (loaded3,_) <- ignoreWarnings $ typeCheck loaded1 flags 0 coreImports program2
                                                   return (Executable mainName2 tp, loaded3) -- TODO: refine the type of main2
                                [info]
                                   -> errorMsg (ErrorGeneral (infoRange info) (text "'main' must be declared as a function (fun)"))

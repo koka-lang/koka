@@ -15,7 +15,7 @@
 */
 module std/core/types
 
-pub infix  65  (++.)
+pub infixr 65  (++.)
 pub infixr 60  (++)
 pub infixr 30  (&&)
 pub infixr 20  (||)
