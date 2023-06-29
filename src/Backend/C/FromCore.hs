@@ -1886,30 +1886,30 @@ genAppNormal :: Expr -> [Expr] -> Asm ([Doc],Doc)
 genAppNormal (Var allocAt _) [Var at _, App (Con tname repr) args]  | getName allocAt == nameAllocAt
   = do (decls,argDocs) <- genInlineableExprs args
        let atDoc = ppName (getName at)
-       return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ ppCtxPath repr (null args) ++ argDocs))
+       return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ ppCtxPath repr tname (null args) ++ argDocs))
 genAppNormal (Var allocAt _) [Var at _, App (TypeApp (Con tname repr) targs) args]  | getName allocAt == nameAllocAt
   = do (decls,argDocs) <- genInlineableExprs args
        let atDoc = ppName (getName at)
-       return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ ppCtxPath repr (null args) ++ argDocs))
+       return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ ppCtxPath repr tname (null args) ++ argDocs))
 genAppNormal v@(Var allocAt _) [at, Let dgs expr]  | getName allocAt == nameAllocAt  -- can happen due to box operations
   = genExpr (Let dgs (App v [at,expr]))
 
 -- special: conAssignFields
-genAppNormal (Var (TName conTagFieldsAssign typeAssign) _) (Var reuseName (InfoConField conName nameNil):(Var tag _):fieldValues) | conTagFieldsAssign == nameConTagFieldsAssign
+genAppNormal (Var (TName conTagFieldsAssign typeAssign) _) (Var reuseName (InfoConField conName conRepr nameNil):(Var tag _):fieldValues) | conTagFieldsAssign == nameConTagFieldsAssign
   = do tmp <- genVarName "con"
        let setTag = tmp <.> text "->_base._block.header.tag = (kk_tag_t)" <.> parens (text (show tag)) <.> semi
            fieldNames = case splitFunScheme typeAssign of
                           Just (_,_,args,_,_) -> tail (tail (map fst args))
                           _ -> failure ("Backend.C.FromCore: illegal conAssignFields type: " ++ show (pretty typeAssign))
-       (decls, tmpDecl, assigns, result) <- genAssignFields tmp conName reuseName fieldNames fieldValues
+       (decls, tmpDecl, assigns, result) <- genAssignFields tmp conName conRepr reuseName fieldNames fieldValues
        return (decls ++ [tmpDecl, setTag] ++ assigns, result)
 
-genAppNormal (Var (TName conFieldsAssign typeAssign) _) (Var reuseName (InfoConField conName nameNil):fieldValues) | conFieldsAssign == nameConFieldsAssign
+genAppNormal (Var (TName conFieldsAssign typeAssign) _) (Var reuseName (InfoConField conName conRepr nameNil):fieldValues) | conFieldsAssign == nameConFieldsAssign
   = do tmp <- genVarName "con"
        let fieldNames = case splitFunScheme typeAssign of
                           Just (_,_,args,_,_) -> tail (map fst args)
                           _ -> failure ("Backend.C.FromCore: illegal conAssignFields type: " ++ show (pretty typeAssign))
-       (decls, tmpDecl, assigns, result) <- genAssignFields tmp conName reuseName fieldNames fieldValues
+       (decls, tmpDecl, assigns, result) <- genAssignFields tmp conName conRepr reuseName fieldNames fieldValues
        return (decls ++ [tmpDecl] ++ assigns, result)
 
 -- special: cfield-hole
@@ -1959,7 +1959,7 @@ genAppNormal f args
                -- constructor
                Con tname repr
                  -> let at = if (dataReprIsValue (conDataRepr repr) || isConAsJust repr) then [] else [text "kk_reuse_null"]                        
-                    in return (decls,conCreateName (getName tname) <.> arguments (at ++ ppCtxPath repr (null argDocs) ++ argDocs))
+                    in return (decls,conCreateName (getName tname) <.> arguments (at ++ ppCtxPath repr tname (null argDocs) ++ argDocs))
                -- call to known function
                Var tname _ | getName tname == nameAllocAt
                  -> failure ("Backend.C.genApp.Var.allocat: " ++ show (f,args))
@@ -1978,24 +1978,34 @@ genAppNormal f args
                                                _ -> failure $ ("Backend.C.genAppNormal: expecting function type: " ++ show (pretty (typeOf f)))
                        return (fdecls ++ decls, text "kk_function_call" <.> arguments [cresTp,cargTps,fdoc,arguments (fdoc:argDocs)])
 
-ppCtxPath :: ConRepr -> Bool -> [Doc]
-ppCtxPath repr True = []
-ppCtxPath repr noArgs
+ppCtxPath :: ConRepr -> TName -> Bool -> [Doc]
+ppCtxPath repr cname True = []
+ppCtxPath repr cname noArgs
   = case conReprCtxPath repr of
-      Just cpath -> [pretty cpath]
-      _          -> []
+      Just (CtxNone)
+         -> [text "0"]
+      Just (CtxField fname)
+         -> [text "kk_field_index_of" <.> tupled [ 
+               text "struct" <+> ppName (getName cname), ppName (unqualify (getName fname)) ]]
+      _  -> []
 
 
 -- Assign fields to a constructor. Used in: genAppNormal on conAssignFields
-genAssignFields :: Doc -> TName -> TName -> [Name] -> [Expr] -> Asm ([Doc], Doc, [Doc], Doc)
-genAssignFields tmp conName reuseName fieldNames fieldValues
+genAssignFields :: Doc -> TName -> ConRepr -> TName -> [Name] -> [Expr] -> Asm ([Doc], Doc, [Doc], Doc)
+genAssignFields tmp conName conRepr reuseName fieldNames fieldValues
   = do (decls,fieldDocs) <- genExprs fieldValues   
        let conTp    = text "struct" <+> ppName (getName conName) <.> text "*"
            tmpDecl  = conTp <+> tmp <+> text "=" <+> parens conTp <.> ppName (getName reuseName) <.> semi
            assigns  = [tmp <.> text "->" <.> ppName fname <+> text "=" <+> fval <.> semi
-                     | (fname,fval) <- zip fieldNames fieldDocs]
+                      | (fname,fval) <- zip fieldNames fieldDocs]
+           ctxpath  = case conReprCtxPath conRepr of
+                        Just (CtxField fname) 
+                          -> [text "kk_set_cpath" <.> tupled [
+                                text "struct" <+> ppName (getName conName), tmp, ppName (unqualify (getName fname))]
+                              <.> semi] 
+                        _ -> []  
            result   = conBaseCastName (getName conName) <.> arguments [tmp]
-       return (decls, tmpDecl, assigns, result)
+       return (decls, tmpDecl, ctxpath ++ assigns, result)
 
 
 genFieldAddress :: TName -> Name -> Name -> Doc

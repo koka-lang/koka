@@ -131,7 +131,7 @@ ruSpecialize reuseName info conApp
                          specialize = oldTagBenefit + length (filter isMatch matches) >= 1 + ((1 + length args) `div` 4)
                      case (mci, specialize) of
                        (Just ci, True)
-                         -> Just <$> ruSpecCon reuseName cname ci needsTag (conTag repr) (typeOf conApp) (App con) matches
+                         -> Just <$> ruSpecCon reuseName cname repr ci needsTag (conTag repr) (typeOf conApp) (App con) matches
                        _ -> return Nothing
              Nothing -> return Nothing
       _ -> return Nothing
@@ -143,13 +143,13 @@ ruSpecialize reuseName info conApp
 -- | Move dups before the allocation and emit:
 -- if(reuseName != NULL) { set tag and fields }
 -- else { allocate constructor without reuse }
-ruSpecCon :: TName -> TName -> ConInfo -> Bool -> Int -> Type -> ([Expr] -> Expr) -> [Match] -> Reuse Expr
-ruSpecCon reuseName conName conInfo needsTag tag resultType makeConApp matches
+ruSpecCon :: TName -> TName -> ConRepr -> ConInfo -> Bool -> Int -> Type -> ([Expr] -> Expr) -> [Match] -> Reuse Expr
+ruSpecCon reuseName conName conRepr conInfo needsTag tag resultType makeConApp matches
   = do (defss, assigns) <- unzip <$> mapM ruToAssign matches
        let fields = map fst (conInfoParams conInfo)
            nonMatching = [(name,expr) | (name,(expr,isMatch)) <- zip fields assigns, not isMatch]
-           reuseExpr = if needsTag then genConTagFieldsAssign resultType conName reuseName tag nonMatching
-                                   else genConFieldsAssign resultType conName reuseName nonMatching
+           reuseExpr = if needsTag then genConTagFieldsAssign resultType conName conRepr reuseName tag nonMatching
+                                   else genConFieldsAssign resultType conName conRepr reuseName nonMatching
            specExpr = makeIfExpr (genReuseIsValid reuseName) reuseExpr (makeConApp (map fst assigns))
        return (makeLet (concat defss) specExpr)
 
@@ -199,20 +199,20 @@ genReuseIsValid reuseName
 
 -- genConFieldsAssign tp conName reuseName [(field1,expr1)...(fieldN,exprN)]
 -- generates:  c = (conName*)reuseName; c->field1 := expr1; ... ; c->fieldN := exprN; (tp*)(c)
-genConTagFieldsAssign :: Type -> TName -> TName -> Int -> [(Name,Expr)] -> Expr
-genConTagFieldsAssign resultType conName reuseName tag fieldExprs
+genConTagFieldsAssign :: Type -> TName -> ConRepr -> TName -> Int -> [(Name,Expr)] -> Expr
+genConTagFieldsAssign resultType conName conRepr reuseName tag fieldExprs
   = App (Var (TName nameConTagFieldsAssign typeConFieldsAssign) (InfoArity 0 (length fieldExprs + 1)))
-        ([Var reuseName (InfoConField conName nameNil), Var (TName (newName (show tag)) typeUnit) InfoNone] ++ map snd fieldExprs)
+        ([Var reuseName (InfoConField conName conRepr nameNil), Var (TName (newName (show tag)) typeUnit) InfoNone] ++ map snd fieldExprs)
   where
     fieldTypes = [(name,typeOf expr) | (name,expr) <- fieldExprs]
     typeConFieldsAssign = TFun ([(nameNil,typeOf reuseName), (nameNil, typeUnit)] ++ fieldTypes) typeTotal resultType
 
 -- genConTagFieldsAssign tp conName reuseName [(field1,expr1)...(fieldN,exprN)]
 -- generates:  c = (conName*)reuseName; c->field1 := expr1; ... ; c->fieldN := exprN; (tp*)(c)
-genConFieldsAssign :: Type -> TName -> TName -> [(Name,Expr)] -> Expr
-genConFieldsAssign resultType conName reuseName fieldExprs
+genConFieldsAssign :: Type -> TName -> ConRepr -> TName -> [(Name,Expr)] -> Expr
+genConFieldsAssign resultType conName conRepr reuseName fieldExprs
   = App (Var (TName nameConFieldsAssign typeConFieldsAssign) (InfoArity 0 (length fieldExprs + 1)))
-        (Var reuseName (InfoConField conName nameNil) : map snd fieldExprs)
+        (Var reuseName (InfoConField conName conRepr nameNil) : map snd fieldExprs)
   where
     fieldTypes = [(name,typeOf expr) | (name,expr) <- fieldExprs]
     typeConFieldsAssign = TFun ((nameNil,typeOf reuseName) : fieldTypes) typeTotal resultType

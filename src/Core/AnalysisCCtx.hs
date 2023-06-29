@@ -72,10 +72,10 @@ cctxExpr :: Expr -> CCtx Ctx
 cctxExpr expr
   = case expr of
       -- constructor
-      App con@(Con name repr) args       | not (null args)
+      App con@(Con name repr) args       | conReprHasCtxPath repr && not (null args)
         -> cctxCon name repr [] args
 
-      App (TypeApp (con@(Con name repr)) targs) args  | not (null args)
+      App (TypeApp (con@(Con name repr)) targs) args  | conReprHasCtxPath repr && not (null args)
         -> cctxCon name repr targs args
 
       -- App (App (TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f]) []) | getName open == nameEffectOpen
@@ -106,10 +106,11 @@ cctxConRecurse conName conRepr targs args
         (pre,ctx,post) <- cctxFind [] [] args
         mapM_ cctxCheckNoHole (pre ++ post)
         (ds,vars) <- unzip <$> mapM makeUniqueDef pre      
-        (d1,var1) <- makeUniqueDef (App (makeTypeApp (Con conName conRepr) targs) (vars ++ [top ctx] ++ post))
         fname <- getFieldName conName (length pre + 1)
-        (d2,var2) <- makeUniqueDef (makeCCtxSetContextPath var1 conName fname)
-        return (ctx{ defs = ds ++ defs ctx ++ [d1,d2], top = var2 })
+        let ctxrepr = conRepr{ conCtxPath = CtxField fname }
+        (d1,var1) <- makeUniqueDef (App (makeTypeApp (Con conName ctxrepr) targs) (vars ++ [top ctx] ++ post))
+        -- (d2,var2) <- makeUniqueDef (makeCCtxSetContextPath var1 conName fname)
+        return (ctx{ defs = ds ++ defs ctx ++ [d1], top = var1 })
 
 cctxConFinal :: TName -> ConRepr -> [Type] -> [Expr] -> Expr -> [Expr] -> CCtx Ctx
 cctxConFinal conName conRepr targs pre hole post
@@ -117,11 +118,12 @@ cctxConFinal conName conRepr targs pre hole post
         mapM_ cctxCheckNoHole (pre ++ post)
         fname <- getFieldName conName (length pre + 1)
         let holetp = typeOf hole
+            ctxrepr = conRepr{ conCtxPath = CtxField fname }       
         ensureValidHoleType holetp
-        (d1,var1) <- makeUniqueDef (App (makeTypeApp (Con conName conRepr) targs) (pre ++ [hole] ++ post))
-        (d2,addr) <- makeUniqueDef (makeFieldAddrOf var1 conName fname holetp)
-        (d3,var3) <- makeUniqueDef (makeCCtxSetContextPath var1 conName fname) -- should be last as it consumes var1
-        return (Ctx [d1,d2,d3] var3 (Hole addr holetp))
+        (d1,var1) <- makeUniqueDef (App (makeTypeApp (Con conName ctxrepr) targs) (pre ++ [hole] ++ post))
+        (d2,addr) <- makeUniqueDef (makeFieldAddrOf var1 conName (getName fname)   holetp)
+        -- (d3,var3) <- makeUniqueDef (makeCCtxSetContextPath var1 conName fname) -- should be last as it consumes var1
+        return (Ctx [d1,d2] var1 (Hole addr holetp))
 
 cctxCheckNoHole :: Expr -> CCtx ()
 cctxCheckNoHole expr
@@ -278,7 +280,7 @@ mtrace msg
        trace ("Core.AnalysisCCtx: " ++ msg) $ 
          return ()    
 
-getFieldName :: TName -> Int -> CCtx Name
+getFieldName :: TName -> Int -> CCtx TName
 getFieldName cname fieldIdx 
   = do info <- lookupFieldName cname fieldIdx
        case info of
@@ -305,7 +307,7 @@ dataTypeNameOf tp = case expandSyn tp of
                       t         -> Left t
 
 
-lookupFieldName :: TName -> Int -> CCtx (Either String Name)
+lookupFieldName :: TName -> Int -> CCtx (Either String TName)
 lookupFieldName cname field
   = do env <- getEnv
        case newtypesLookupAny (getDataTypeName cname) (newtypes env) of
@@ -315,7 +317,7 @@ lookupFieldName cname field
                 then return (Left ("contexts cannot go through a value type (" ++ show (getName cname) ++ ")"))
                 else do case filter (\con -> conInfoName con == getName cname) (dataInfoConstrs dataInfo) of
                           [con] -> case drop (field - 1) (conInfoParams con) of
-                                      ((fname,ftp):_) -> return $ Right fname {- Con cname (getConRepr dataInfo con), fname) -}
+                                      ((fname,ftp):_) -> return $ Right (TName fname ftp) {- Con cname (getConRepr dataInfo con), fname) -}
                                       _ -> failure $ "Core.CTail.getFieldName: field index is off: " ++ show cname ++ ", field " ++ show  field ++ ", in " ++ show (conInfoParams con)
                           _ -> failure $ "Core.CTail.getFieldName: cannot find constructor: " ++ show cname ++ ", field " ++ show  field ++ ", in " ++ show (dataInfoConstrs dataInfo)
          _ -> failure $ "Core.CTail.getFieldName: no such constructor: " ++ show cname ++ ", field " ++ show  field

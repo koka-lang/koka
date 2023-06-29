@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD         111     // modify on changes to trigger recompilation   
+#define KKLIB_BUILD         112     // modify on changes to trigger recompilation   
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -1310,6 +1310,21 @@ static inline kk_function_t kk_function_dup(kk_function_t f, kk_context_t* ctx) 
   Constructor contexts (Further primitives are defined in `lib/std/core/types-cctx-inline.h`)
 --------------------------------------------------------------------------------------*/
 
+#define kk_field_index_of(contp,field_name)  kk_field_index_at(offsetof(contp,field_name))
+
+static inline kk_cpath_t kk_field_index_at( size_t field_offset ) {
+  kk_assert_internal((field_offset % sizeof(kk_box_t)) == 0);
+  const size_t field_index = (field_offset - sizeof(kk_header_t)) / sizeof(kk_box_t);
+  kk_assert_internal(field_index <= KK_SCAN_FSIZE_MAX - 2);
+  return (kk_cpath_t)(1 + field_index);
+}
+
+#define kk_set_cpath(contp,con,field_name) kk_set_cpath_at( &(con)->_base._block, kk_field_index_of(contp,field_name) )
+static inline void kk_set_cpath_at( kk_block_t* b, kk_cpath_t cpath ) {
+  kk_assert_internal(cpath >= 0 && cpath <= KK_CPATH_MAX);
+  b->header._field_idx = (uint8_t)cpath;
+  }
+
 #if !defined(KK_HAS_MALLOC_COPY)
 #define KK_CCTX_NO_CONTEXT_PATH
 #else
@@ -1317,6 +1332,7 @@ static inline kk_function_t kk_function_dup(kk_function_t f, kk_context_t* ctx) 
 // functional context application by copying along the context path and attaching `child` at the hole.
 kk_decl_export kk_box_t kk_cctx_copy_apply( kk_box_t res, kk_box_t* holeptr, kk_box_t child, kk_context_t* ctx);
 
+// depricated:
 // set the context path.
 // update the field_idx with the field index + 1 that is along the context path, and return `d` as is.
 static inline kk_datatype_t kk_cctx_setcp(kk_datatype_t d, size_t field_offset, kk_context_t* ctx) {
