@@ -210,8 +210,8 @@ kk_char_t kk_utf8_readx(const uint8_t* s, kk_ssize_t* count) {
     c = KK_RAW_UTF8_OFS + b;
   }
 #if (DEBUG!=0)
-  kk_ssize_t dcount = 0;
-  kk_ssize_t vcount = 0;
+  kk_ssize_t dcount;
+  kk_ssize_t vcount;
   kk_assert_internal(c == kk_utf8_read_validate(s, &dcount, &vcount, false));
   kk_assert_internal(*count == dcount);
 #endif

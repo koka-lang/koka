@@ -208,7 +208,7 @@ genConstructor info dataRepr (con,conRepr) =
        -> assertion ("CSharp.FromCore.genTypeDef: singleton constructor with existentials?") (null (conInfoExists con)) $
           conSingleton typeName
 
-    ConAsCons typeName _ _ nilName _
+    ConAsCons typeName _ _ nilName _ _
        -> -- merge it into the type class itself
           do ctx <- getModule
              putLn (vcat (map (ppConField ctx) (conInfoParams con) ++ ppConConstructor ctx con conRepr []))
@@ -302,7 +302,7 @@ ppConConstructorEx ctx con conRepr conParams defaults
      then []
      else [text "public" <+>
            (case conRepr of
-              ConAsCons typeName _ _ nilName _ -> ppDefName (typeClassName typeName)
+              ConAsCons typeName _ _ nilName _ _ -> ppDefName (typeClassName typeName)
               ConSingle{conTypeName=typeName}  -> ppDefName (typeClassName typeName)
               ConStruct{conTypeName=typeName}  -> ppDefName (typeClassName typeName)
               ConIso   {conTypeName=typeName}  -> ppDefName (typeClassName typeName)
@@ -1156,7 +1156,7 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                  ConSingleton typeName _ _ _
                   -> assertion "CSharp.FromCore.ppPatternTest.singleton with patterns?" (null patterns) $
                      return [(test [exprDoc <+> text "==" <+> ppConSingleton ctx typeName tname tpars],[],[],[])]
-                 ConSingle typeName _ _ _
+                 ConSingle typeName _ _ _ _
                   -> -- assertion ("CSharp.FromCore.ppPatternTest.single with test? ")  (doTest == False) $
                      -- note: the assertion can happen when a nested singleton is tested
                      do -- generate local for the test result
@@ -1166,7 +1166,7 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                         return [([] -- test [exprDoc <+> text "!=" <+> ppConSingleton ctx typeName (TName nilName (typeOf tname)) targs]
                                 ,[],next,[])]
 
-                 ConAsCons typeName _ _ nilName _
+                 ConAsCons typeName _ _ nilName _ _
                   -> do let next    = genNextPatterns (exprDoc) (typeOf tname) patterns
                         return [(test [exprDoc <+> text "!=" <+>
                                     ppConSingleton ctx typeName (TName nilName (typeOf tname)) tpars]
@@ -1177,7 +1177,7 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                   -> testStruct typeName
                  ConIso typeName _ _ _
                   -> testStruct typeName
-                 ConNormal typeName _ _ _
+                 ConNormal typeName _ _ _ _
                   -> conTest ctx typeName exists -- TODO: use tags if available
                  ConOpen{conTypeName=typeName}
                   -> conTest ctx typeName exists

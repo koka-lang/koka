@@ -163,7 +163,7 @@ kk_decl_noinline kk_reuse_t kk_block_check_drop_reuse(kk_block_t* b, kk_refcount
     for (kk_ssize_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
     }
-    kk_header_init(&b->header,0,KK_TAG_INVALID); // not really necessary
+    kk_header_init(&b->header,0,0,KK_TAG_INVALID); // not really necessary
     return b;
   }
   else {

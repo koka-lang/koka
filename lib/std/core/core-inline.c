@@ -19,7 +19,7 @@ kk_std_core__list kk_vector_to_list(kk_vector_t v, kk_std_core__list tail, kk_co
   struct kk_std_core_Cons* cons = NULL;
   kk_std_core__list list = kk_std_core__new_Nil(ctx);
   for( kk_ssize_t i = 0; i < n; i++ ) {
-    kk_std_core__list hd = kk_std_core__new_Cons(kk_reuse_null,kk_box_dup(p[i],ctx), nil, ctx);
+    kk_std_core__list hd = kk_std_core__new_Cons(kk_reuse_null,0,kk_box_dup(p[i],ctx), nil, ctx);
     if (cons==NULL) {
       list = hd;
     }
@@ -84,7 +84,7 @@ kk_std_core__list kk_string_to_list(kk_string_t s, kk_context_t* ctx) {
   while( p < end ) {
     kk_char_t c = kk_utf8_read(p,&count);
     p += count;
-    kk_std_core__list cons = kk_std_core__new_Cons(kk_reuse_null,kk_char_box(c,ctx), nil, ctx);
+    kk_std_core__list cons = kk_std_core__new_Cons(kk_reuse_null,0,kk_char_box(c,ctx), nil, ctx);
     if (tl!=NULL) {
       tl->tail = cons;
     }
@@ -343,7 +343,7 @@ kk_std_core__error kk_error_from_errno( int err, kk_context_t* ctx ) {
     // Old style
     msg = kk_string_alloc_from_qutf8( strerror(err), ctx );
   #endif
-  return kk_std_core__new_Error( kk_std_core__new_Exception( msg, kk_std_core__new_ExnSystem(kk_reuse_null, kk_integer_from_int(err,ctx), ctx), ctx), ctx );  
+  return kk_std_core__new_Error( kk_std_core__new_Exception( msg, kk_std_core__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(err,ctx), ctx), ctx), ctx );  
 }
 
 

@@ -66,6 +66,7 @@ module Core.Core ( -- Data structures
                    , isConSingleton
                    , isConNormal
                    , isConIso, isConAsJust
+                   , conReprHasCtxPath, conReprCtxPath
                    , isDataStruct, isDataAsMaybe, isDataStructAsMaybe
                    , conReprAllocSize, conReprAllocSizeScan, conReprScanCount
                    , getDataRepr, getDataReprEx, dataInfoIsValue
@@ -180,7 +181,7 @@ makeList tp exprs
     nilCon   = Con (TName nameNull nilTp) (ConSingleton nameTpList DataAsList valueReprZero 0)
     nil      = TypeApp nilCon [tp]
     consTp   = TForall [a] [] (typeFun [(nameNil,TVar a),(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeList [TVar a]))
-    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList (valueReprScan 2) nameNull 2)  -- NOTE: depends on Cons being second in the definition in std/core :-(
+    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList (valueReprScan 2) nameNull 2 0)  -- NOTE: depends on Cons being second in the definition in std/core :-(
     cons expr xs = App (TypeApp consCon [tp]) [expr,xs]
     a = TypeVar (0) kindStar Bound
 
@@ -368,12 +369,12 @@ data DataRepr = -- value types
 data ConRepr  = ConEnum{   conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- part of enumeration (none has fields)
               | ConIso{    conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- one constructor with one field
               | ConSingleton{conTypeName::Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- constructor without fields (and not part of an enum)
-              | ConSingle{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- there is only one constructor and it is not iso or singleton (and this is it)
+              | ConSingle{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conCtxPath :: Int, conTag :: Int }    -- there is only one constructor and it is not iso or singleton (and this is it)
               | ConAsJust{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conAsNothing :: Name, conTag :: Int } -- constructor is the just node of a maybe-like datatype  (only use for DataAsMaybe, not for DataStructAsMaybe)
               | ConStruct{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- constructor as value type
-              | ConAsCons{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
-              | ConOpen  { conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr }                     -- constructor of open data type
-              | ConNormal{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- a regular constructor
+              | ConAsCons{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conAsNil :: Name, conCtxPath :: Int, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
+              | ConOpen  { conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conCtxPath :: Int }                     -- constructor of open data type
+              | ConNormal{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conCtxPath :: Int, conTag :: Int }      -- a regular constructor
               deriving (Eq,Ord,Show)
 
 isConSingleton (ConSingleton{}) = True
@@ -396,6 +397,23 @@ isDataStructAsMaybe _ = False
 
 isConAsJust (ConAsJust{}) = True 
 isConAsJust _             = False
+
+conReprHasCtxPath :: ConRepr -> Bool
+conReprHasCtxPath repr
+  = case conReprCtxPath repr of
+      Nothing -> False
+      _       -> True
+
+conReprCtxPath :: ConRepr -> Maybe Int
+conReprCtxPath repr | conReprIsValue repr = Nothing
+conReprCtxPath repr
+  = case repr of
+      ConSingle{ conCtxPath = cpath } -> Just cpath
+      ConAsCons{ conCtxPath = cpath } -> Just cpath
+      ConNormal{ conCtxPath = cpath } -> Just cpath
+      ConOpen{ conCtxPath = cpath } -> Just cpath
+      _ -> Nothing
+
 
 conReprScanCount :: ConRepr -> Int
 conReprScanCount conRepr = valueReprScanCount (conValRepr conRepr)
@@ -447,7 +465,7 @@ getDataReprEx getIsValue info
         isValue = getIsValue info && not (dataInfoIsRec info)
         (dataRepr,conReprFuns) =
          if (dataInfoIsOpen(info))
-          then (DataOpen, map (\conInfo conTag -> ConOpen typeName DataOpen (conInfoValueRepr conInfo)) conInfos)
+          then (DataOpen, map (\conInfo conTag -> ConOpen typeName DataOpen (conInfoValueRepr conInfo) 0) conInfos)
          -- TODO: only for C#? check this during kind inference?
          -- else if (hasExistentials)
          --  then (DataNormal, map (\con -> ConNormal typeName) conInfos)
@@ -466,7 +484,7 @@ getDataReprEx getIsValue info
                in (dataRepr
                   ,[if (isValue && length (conInfoParams conInfo) == 1) then ConIso typeName dataRepr valRepr
                     else if length singletons == 1 then ConSingleton typeName dataRepr valRepr
-                    else ConSingle typeName dataRepr valRepr])
+                    else ConSingle typeName dataRepr valRepr 0])
          else if (isValue && not (dataInfoIsRec info)) then (
             let dataRepr = if (length conInfos == 2 && length singletons == 1 && 
                                case (filter (\cinfo -> length (conInfoParams cinfo) == 1) conInfos) of  -- at most 1 field
@@ -495,7 +513,7 @@ getDataReprEx getIsValue info
                       else (DataAsList
                           ,map (\ci tag 
                                    -> if (null (conInfoParams ci)) then ConSingleton typeName DataAsList (conInfoValueRepr ci) tag
-                                        else ConAsCons typeName DataAsList (conInfoValueRepr ci) (conInfoName (head singletons)) tag) conInfos)
+                                        else ConAsCons typeName DataAsList (conInfoValueRepr ci) (conInfoName (head singletons)) tag 0) conInfos)
                                              
                  )
            else let dataRepr = if (length singletons == length conInfos -1 || null conInfos)
@@ -503,7 +521,7 @@ getDataReprEx getIsValue info
                 in (dataRepr
                    ,map (\ci -> if null (conInfoParams ci)
                                   then ConSingleton typeName dataRepr (conInfoValueRepr ci)
-                                  else ConNormal typeName dataRepr (conInfoValueRepr ci)) conInfos
+                                  else ConNormal typeName dataRepr (conInfoValueRepr ci) 0) conInfos
                    )
          )
       in (dataRepr, [conReprFun tag | (conReprFun,tag) <- zip conReprFuns [1..]])

@@ -650,10 +650,13 @@ genConstructorCreate info dataRepr con conRepr allFields scanCount maxScanCount
        -}
        when (dataRepr == DataOpen) $ emitToH $ text "extern kk_string_t" <+> conTagName con <.> semi
        let at = newHiddenName "at"
+           cpath = newHiddenName "cpath"
+           hasCPath = conReprHasCtxPath conRepr && not (null allFields)
            (paddingFields,conFields) = partition (isPaddingName . fst) allFields
        emitToH $
           text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateNameInfo con
           <.> ntparameters ((if (dataReprIsValue dataRepr || (null conFields) || isDataAsMaybe dataRepr) then [] else [(at,typeReuse)])
+                             ++ (if hasCPath then [(cpath,typeInt32)] else [])
                              ++ conInfoParams con)
           <+> block (
             let nameDoc = ppName (conInfoName con)
@@ -695,9 +698,11 @@ genConstructorCreate info dataRepr con conRepr allFields scanCount maxScanCount
                                        <.> arguments [ text "struct" <+> nameDoc,
                                                        (if (isDataAsMaybe dataRepr || null conFields {- open singleton -}) then text "kk_reuse_null" else ppName at),
                                                        pretty scanCount <+> text "/* scan count */",
+                                                       (if hasCPath then ppName cpath else text "0"),
                                                        if (dataRepr /= DataOpen)
-                                                        then ppConTag con conRepr dataRepr
-                                                        else text "KK_TAG_OPEN"]
+                                                           then ppConTag con conRepr dataRepr
+                                                           else text "KK_TAG_OPEN"
+                                                     ]
                                <.> semi]
                               ++ (if (dataRepr /= DataOpen) then [] else [tmp <.> text "->_base._tag = kk_string_dup" <.> arguments [ppConTag con conRepr dataRepr] <.> semi ])
                               ++ map (assignField (\fld -> tmp <.> text "->" <.> fld)) conFields
@@ -1881,11 +1886,11 @@ genAppNormal :: Expr -> [Expr] -> Asm ([Doc],Doc)
 genAppNormal (Var allocAt _) [Var at _, App (Con tname repr) args]  | getName allocAt == nameAllocAt
   = do (decls,argDocs) <- genInlineableExprs args
        let atDoc = ppName (getName at)
-       return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ argDocs))
+       return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ ppCtxPath repr (null args) ++ argDocs))
 genAppNormal (Var allocAt _) [Var at _, App (TypeApp (Con tname repr) targs) args]  | getName allocAt == nameAllocAt
   = do (decls,argDocs) <- genInlineableExprs args
        let atDoc = ppName (getName at)
-       return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ argDocs))
+       return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ ppCtxPath repr (null args) ++ argDocs))
 genAppNormal v@(Var allocAt _) [at, Let dgs expr]  | getName allocAt == nameAllocAt  -- can happen due to box operations
   = genExpr (Let dgs (App v [at,expr]))
 
@@ -1953,8 +1958,8 @@ genAppNormal f args
            -> case f of
                -- constructor
                Con tname repr
-                 -> let at = if (dataReprIsValue (conDataRepr repr) || isConAsJust repr) then [] else [text "kk_reuse_null"]
-                    in return (decls,conCreateName (getName tname) <.> arguments (at ++ argDocs))
+                 -> let at = if (dataReprIsValue (conDataRepr repr) || isConAsJust repr) then [] else [text "kk_reuse_null"]                        
+                    in return (decls,conCreateName (getName tname) <.> arguments (at ++ ppCtxPath repr (null argDocs) ++ argDocs))
                -- call to known function
                Var tname _ | getName tname == nameAllocAt
                  -> failure ("Backend.C.genApp.Var.allocat: " ++ show (f,args))
@@ -1972,6 +1977,13 @@ genAppNormal f args
                                                                            [text "kk_context_t*"]))
                                                _ -> failure $ ("Backend.C.genAppNormal: expecting function type: " ++ show (pretty (typeOf f)))
                        return (fdecls ++ decls, text "kk_function_call" <.> arguments [cresTp,cargTps,fdoc,arguments (fdoc:argDocs)])
+
+ppCtxPath :: ConRepr -> Bool -> [Doc]
+ppCtxPath repr True = []
+ppCtxPath repr noArgs
+  = case conReprCtxPath repr of
+      Just cpath -> [pretty cpath]
+      _          -> []
 
 
 -- Assign fields to a constructor. Used in: genAppNormal on conAssignFields

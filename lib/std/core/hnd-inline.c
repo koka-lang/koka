@@ -49,6 +49,7 @@ kk_std_core_hnd__ev kk_ev_none(kk_context_t* ctx) {
   if (kk_datatype_is_null(ev_none_singleton)) {
     ev_none_singleton = kk_std_core_hnd__new_Ev(
       kk_reuse_null,
+      0, // cpath
       kk_std_core_hnd__new_Htag(kk_string_empty(),ctx), // tag ""
       kk_std_core_hnd__new_Marker(0,ctx),               // marker 0
       kk_box_null(),                                    // no handler

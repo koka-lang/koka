@@ -184,7 +184,7 @@ pub fun map( e : either<a,b>, f : b -> e c  ) : e either<a,c>
 // by a list (`Cons`).
 pub type list<a>
   // The empty list.
-  con Nil
+  con Nil                  // note: must come first; see Core/Core.hs 
   // A ``head``  element followed by the ``tail``  of the list.
   con Cons(head:a, tail : list<a> )
 
