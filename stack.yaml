@@ -25,8 +25,8 @@ packages:
 - '.'
 
 extra-deps:
-- regex-compat-tdfa-0.95.1.4    # only needed for koka-test
-- json-0.10                     # only needed for koka-test
+- regex-compat-0.95.2.1          # only needed for koka-test (use 0.95.1.4 for pre lts-21.0)
+- json-0.10                      # only needed for koka-test
 - isocline-1.0.7
 
 rebuild-ghc-options: true

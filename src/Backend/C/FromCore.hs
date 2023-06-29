@@ -512,8 +512,8 @@ genTypeDefPost (Data info isExtend)
                        <+> block (text "kk_value_tag_t _tag;" <-> text "union"
                                   <+> block (vcat (
                                          map ppStructConField (dataInfoConstrs info)
-                                         ++ (if (maxScanCount > 0 && minScanCount /= maxScanCount)
-                                              then [text "kk_box_t _fields[" <.> pretty maxScanCount <.> text "];"]
+                                         ++ (if (maxScanCount > 1 && minScanCount /= maxScanCount)
+                                              then [text "kk_box_t _fields[" <.> pretty (maxScanCount - 1) <.> text "];"]  -- -1 as it includes the tag field itself
                                               else [])
                                       )) <+> text "_cons;") <.> semi -- <-> text "kk_struct_packed_end"
                        <-> ppVis (dataInfoVis info) <.> text "typedef struct" <+> ppName name <.> text "_s" <+> ppName (typeClassName name) <.> semi
@@ -676,7 +676,7 @@ genConstructorCreate info dataRepr con conRepr allFields scanCount maxScanCount
                                       ++ [tmp <.> text "._cons." <.> ppDefName (conInfoName con) <.> text "." <.> ppDefName padding <+> text "= kk_box_null();"
                                           | (padding,_) <- paddingFields]
                                       ++ [tmp <.> text "._cons._fields[" <.> pretty i <.> text "] = kk_box_null();"
-                                          | i <- [scanCount..(maxScanCount-1)]]
+                                          | i <- [(scanCount-1) .. (maxScanCount-2)]]  -- -1 as the scanCount includes the struct tag field
                                  else [ ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi {- <+> text "= {0}; // zero initializes all fields" -} ]
                                       ++ map (assignField (\fld -> tmp <.> text "." <.> fld)) conFields
                                       ++ [tmp <.> text "." <.> ppDefName padding <+> text "= kk_box_null();" | (padding,_) <- paddingFields]
