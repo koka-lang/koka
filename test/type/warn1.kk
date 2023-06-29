@@ -2,7 +2,7 @@
 fun f(xs) {
   fun len(xs) {
     match(xs) {
-      Cons(_,xs) -> len(xs)
+      Cons(_,xx) -> len(xx)
       _ -> 0
     }
   }

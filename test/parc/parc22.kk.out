@@ -24,7 +24,9 @@ pub fun .copy : (.this : parc/parc22/hello, i : optional<int>) -> parc/parc22/he
  = std/core/types/.drop(.this, (std/core/int32(1)));
  .i;
  (.skip std/core/types/None() : (optional<int>) )
- -> (match (.this) {
+ -> val _ : ()
+ = std/core/types/.drop(i0);
+ (match (.this) {
  (.skip parc/parc22/World((.x: int)) : parc/parc22/hello )
  -> val _ : ()
  = (match ((std/core/types/.is-unique(.this))) {
@@ -47,7 +49,9 @@ pub fun .copy : (.this : parc/parc22/hello, i : optional<int>) -> parc/parc22/he
  };
 pub fun f : (h : parc/parc22/hello) -> parc/parc22/hello
  = fn(h: parc/parc22/hello){
+ val .ru : reuse
+ = std/core/types/no-reuse();
  val _ : ()
- = std/core/types/.drop(h, (std/core/int32(1)));
- parc/parc22/World(2);
+ = std/core/types/.assign-reuse(.ru, (std/core/types/.drop-reuse(h, (std/core/int32(1)))));
+ std/core/types/.alloc-at(.ru, (parc/parc22/World(2)));
  };

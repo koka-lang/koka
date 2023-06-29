@@ -55,8 +55,8 @@ createDataDef emitError emitWarning lookupDataInfo
                           case dd of
                             {- DataDefValue vr | isEnum  -- allow allocated enum types
                               -> return dd -}
-                            DataDefValue vr | isIso   -- iso types are always value types
-                              -> return dd
+                            {- DataDefValue vr | isIso   -- iso types are always value types
+                              -> return dd -}
                             _ -> return DataDefNormal
                   
                   DataDefAuto | isRec
@@ -66,7 +66,7 @@ createDataDef emitError emitWarning lookupDataInfo
                           case dd of
                             DataDefValue vr | isEnum
                               -> return dd
-                            DataDefValue vr | isIso   -- iso types are always value types
+                            DataDefValue vr | isIso   -- iso types are preferred as value types
                               -> return dd
                             DataDefValue vr
                               -> do let wouldGetTagField = (conCount > 1 && not isEnum)
