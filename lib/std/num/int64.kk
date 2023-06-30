@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2021, Microsoft Research, Daan Leijen.
+  Copyright 2012-2023, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -255,12 +255,12 @@ inline fip extern rotr64( i : int64, n : int64 ) : int64
 pub fip fun rotr( i : int64, shift : int) : int64
   rotr64(i,shift.int64)
 
-// Count trailing zeros. Returns 64 if `i` is zero.
+// Count trailing zero bits. Returns 64 if `i` is zero.
 inline fip extern ctz64( i : int64 ) : int64 
   c inline "(int64_t)kk_bits_ctz64(#1)"
   js "$std_core._int64_ctz"
 
-// Count leading zeros. Returns 64 if `i` is zero.
+// Count leading zero bits. Returns 64 if `i` is zero.
 inline fip extern clz64( i : int64 ) : int64 
   c inline "(int64_t)kk_bits_clz64(#1)"
   js "$std_core._int64_clz"
@@ -270,11 +270,11 @@ inline fip extern popcount64( i : int64 ) : int64
   c inline "(int64_t)kk_bits_count(#1)"
   js "$std_core._int64_bits_count"    
 
-// Count trailing zeros. Returns 64 if `i` is zero.
+// Count trailing zero bits. Returns 64 if `i` is zero.
 pub fip fun ctz( i : int64 ) : int
   ctz64(i).int
 
-// Count leading zeros. Returns 64 if `i` is zero.
+// Count leading zero bits. Returns 64 if `i` is zero.
 pub fip fun clz( i : int64 ) : int
   clz64(i).int
 

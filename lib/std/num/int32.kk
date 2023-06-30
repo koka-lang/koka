@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2021, Microsoft Research, Daan Leijen.
+  Copyright 2012-2023, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -237,12 +237,12 @@ inline fip extern rotr32( i : int32, n : int32 ) : int32
 pub fip fun rotr( i : int32, shift : int ) : int32
   rotr32( i, shift.int32 )
 
-// Count trailing zeros. Returns 32 if `i` is zero.
+// Count trailing zero bits. Returns 32 if `i` is zero.
 inline fip extern ctz32( i : int32 ) : int32 
   c inline "(int32_t)kk_bits_ctz32(#1)"
   js "$std_core._int32_ctz"
 
-// Count leading zeros. Returns 32 if `i` is zero.
+// Count leading zero bits. Returns 32 if `i` is zero.
 inline fip extern clz32( i : int32 ) : int32 
   c inline "(int32_t)kk_bits_clz32(#1)"
   js "$std_core._int32_clz"
@@ -252,11 +252,11 @@ inline fip extern popcount32( i : int32 ) : int32
   c inline "(int32_t)kk_bits_count(#1)"
   js "$std_core._int32_bits_count"  
 
-// Count trailing zeros. Returns 32 if `i` is zero.
+// Count trailing zero bits. Returns 32 if `i` is zero.
 pub fip fun ctz( i : int32 ) : int
   ctz32(i).int
 
-// Count leading zeros. Returns 32 if `i` is zero.
+// Count leading zero bits. Returns 32 if `i` is zero.
 pub fip fun clz( i : int32 ) : int
   clz32(i).int
 
