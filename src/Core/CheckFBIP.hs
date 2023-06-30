@@ -234,6 +234,7 @@ chkArg (Borrow, expr)
       (App (TypeApp (Var openName _) _) [fn]) | getName openName == nameEffectOpen
         -> chkArg (Borrow, fn) -- disregard .open calls
       (Var tname info) -> markBorrowed tname info
+      (Lit _) -> pure ()
       _ -> do chkExpr expr
               requireCapability mayDealloc $ \ppenv -> Just $
                 vcat [text "passing owned expressions as borrowed causes deallocation:", source ppenv (prettyExpr ppenv expr)]

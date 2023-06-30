@@ -275,7 +275,7 @@ ctailExpr top expr
                               return (makeCCtxApply isMulti alwaysAffine slot body)
 
     handleConApp dname cname fcon fargs
-      = do let mkCons args = bindArgs args $ (\xs -> return ([],App fcon xs))
+      = do let mkCons cpath args = bindArgs args $ \xs -> return ([],mkConApp cpath fcon xs)
            isMulti <- getIsMulti
            useContextPath <- getUseContextPath
            alwaysAffine <- getIsAlwaysAffine
@@ -291,6 +291,16 @@ ctailExpr top expr
              Nothing   -> return expr -- not in ctail variant
              Just slot -> do ctailVar <- getCTailFun   -- do a tail call with the current slot
                              return (mkCall ctailVar (Var slot InfoNone))
+
+mkConApp :: CtxPath -> Expr -> [Expr] -> Expr
+mkConApp cpath fcon xs
+  = case cpath of
+      CtxField fname -> case fcon of
+                          Con conName conRepr -> App (Con conName conRepr{conCtxPath=cpath}) xs
+                          TypeApp (Con conName conRepr) targs -> App (TypeApp (Con conName conRepr{conCtxPath=cpath}) targs) xs
+                          _ -> failure ("Core.CTail.mkConApp: invalid constructor: " ++ show fcon)
+      _ -> App fcon xs
+
 
 bindArgs :: [Expr] -> ([Expr] -> CTail ([DefGroup],Expr)) -> CTail ([DefGroup],Expr)
 bindArgs args use
@@ -320,7 +330,7 @@ ctailGuard (Guard test expr)  -- expects patAdded in depth-order
 -- See if the tailcall is inside a (nested) constructor application
 --------------------------------------------------------------------------
 
-ctailTryArg :: Bool -> TName -> TName -> Maybe TName -> ([Expr] -> CTail ([DefGroup],Expr)) -> Int -> [Expr] -> CTail (Maybe ([DefGroup],Expr))
+ctailTryArg :: Bool -> TName -> TName -> Maybe TName -> (CtxPath -> [Expr] -> CTail ([DefGroup],Expr)) -> Int -> [Expr] -> CTail (Maybe ([DefGroup],Expr))
 ctailTryArg useCtxPath dname cname mbC mkApp field []  = return Nothing
 ctailTryArg useCtxPath dname cname mbC mkApp field (rarg:rargs)
   = case rarg of
@@ -342,25 +352,32 @@ ctailTryArg useCtxPath dname cname mbC mkApp field (rarg:rargs)
        -> do x <- uniqueTName (typeOf rarg)
              ctailTryArg useCtxPath dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
 
-      _ -> if (isTotal rarg) then ctailTryArg useCtxPath dname cname mbC (\args -> mkApp (args ++ [rarg])) (field-1) rargs
+      _ -> if (isTotal rarg) then ctailTryArg useCtxPath dname cname mbC (\cpath args -> mkApp cpath (args ++ [rarg])) (field-1) rargs
                              else return Nothing
   where
     -- create a tail call
     mkAppNew 
-      = \args ->  do (defs,cexpr) <- mkApp (reverse rargs ++ args)
+      = \args ->  do cpath <- getCtxPath useCtxPath cname field
+                     mkApp cpath (reverse rargs ++ args)
+                     {-
                      if not useCtxPath then return (defs,cexpr)
                       else do setfld <- setContextPathExpr cname field
                               x <- uniqueTName (typeOf cexpr)
                               y <- uniqueTName (typeOf cexpr)
                               let cexprdef = DefNonRec (makeTDef y cexpr)
                               let setdef   = DefNonRec (makeTDef x (setfld y))
-                              return (defs ++ [cexprdef,setdef], (Var x InfoNone))
+                              return (defs ++ [cexprdef,setdef], (Var x InfoNone)) -}
                      
 
     -- create the constructor context (ending in a hole)
-    mkAppNested :: TName -> Expr -> ([Expr] -> CTail ([DefGroup],Expr))
+    mkAppNested :: TName -> Expr -> (CtxPath -> [Expr] -> CTail ([DefGroup],Expr))
     mkAppNested x fcon
-      = \args ->  do (defs,expr) <- bindArgs (reverse rargs) $ \xs -> mkApp (xs ++ [Var x InfoNone])
+      = \fcpath args ->  do cpath <- getCtxPath useCtxPath cname field
+                            (defs,expr) <- bindArgs (reverse rargs) $ \xs -> mkApp cpath (xs ++ [Var x InfoNone])
+                            let condef = DefNonRec (makeTDef x (mkConApp fcpath fcon args))
+                            return ([condef] ++ defs, expr)
+                     {-
+                     --(defs,expr) <- bindArgs (reverse rargs) $ \xs -> mkApp cpath (xs ++ [Var x InfoNone])
                      if not useCtxPath
                       then do let condef = DefNonRec (makeTDef x (App fcon args))
                               return ([condef] ++ defs, expr)
@@ -369,15 +386,16 @@ ctailTryArg useCtxPath dname cname mbC mkApp field (rarg:rargs)
                               let condef = DefNonRec (makeTDef y (App fcon args))
                               let setdef = DefNonRec (makeTDef x (setfld y))
                               return ([condef,setdef] ++ defs, expr)
+                     -}
 
-
-setContextPathExpr cname field
-  = do fieldInfo <- getFieldName cname field
+getCtxPath :: Bool -> TName -> Int -> CTail CtxPath
+getCtxPath False cname fieldIdx = return CtxNone
+getCtxPath useContextPath cname fieldIdx
+  = do fieldInfo <- getFieldName cname fieldIdx
        case fieldInfo of
          Left msg -> failure msg -- todo: allow this? see test/cgen/ctail7
-         Right (_,fieldName) ->
-           return (\parent -> makeCCtxSetContextPath (Var parent InfoNone) cname fieldName)
-    
+         Right (_,fieldName) -> return (CtxField fieldName)
+          
   
 
 --------------------------------------------------------------------------
@@ -410,7 +428,7 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
                                   (defs,cons) <- mkConsApp [hole]
                                   consName    <- uniqueTName (typeOf cons)
                                   alwaysAffine <- getIsAlwaysAffine
-                                  let comp = makeCCtxExtend slot consName (maybe consName id mbC) cname fieldName resTp alwaysAffine
+                                  let comp = makeCCtxExtend slot consName (maybe consName id mbC) cname (getName fieldName) resTp alwaysAffine
                                       ctailCall   = mkTailApp ctailVar comp 
                                   return $ (defs ++ [DefNonRec (makeTDef consName cons)]
                                             ,ctailCall)
@@ -490,15 +508,6 @@ makeCCtxApply False alwaysAffine slot expr  -- slot is a `ctail<a>`
     funType = TForall [a] [] (TFun [(nameNil,typeCCtx (TVar a)),(nameNil,TVar a)] typeTotal (TVar a))
     a = TypeVar (-1) kindStar Bound
 
-
--- Set the index of the field in a constructor to follow the path to the hole at runtime.
-makeCCtxSetContextPath :: Expr -> TName -> Name -> Expr
-makeCCtxSetContextPath obj conName fieldName
-  = App (Var (TName nameCCtxSetCtxPath funType) (InfoExternal [(Default,".cctx-setcp(#1,#2,#3)")]))
-        [obj, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
-  where
-    tp = typeOf obj
-    funType = (TFun [(nameNil,tp),(nameNil,typeString),(nameNil,typeString)] typeTotal tp)
 
 
 --------------------------------------------------------------------------
@@ -598,7 +607,7 @@ getIsAlwaysAffine :: CTail Bool
 getIsAlwaysAffine
   = alwaysAffine <$> getEnv  
 
-getFieldName :: TName -> Int -> CTail (Either String (Expr,Name))
+getFieldName :: TName -> Int -> CTail (Either String (Expr,TName))
 getFieldName cname field
   = do env <- getEnv
        case newtypesLookupAny (getDataTypeName cname) (newtypes env) of
@@ -608,7 +617,7 @@ getFieldName cname field
                 then return (Left ("cannot optimize modulo-cons tail-call through a value type (" ++ show (getName cname) ++ ")"))
                 else do case filter (\con -> conInfoName con == getName cname) (dataInfoConstrs dataInfo) of
                           [con] -> case drop (field - 1) (conInfoParams con) of
-                                      ((fname,ftp):_) -> return $ Right (Con cname (getConRepr dataInfo con), fname)
+                                      ((fname,ftp):_) -> return $ Right (Con cname (getConRepr dataInfo con), TName fname ftp)
                                       _ -> failure $ "Core.CTail.getFieldName: field index is off: " ++ show cname ++ ", field " ++ show  field ++ ", in " ++ show (conInfoParams con)
                           _ -> failure $ "Core.CTail.getFieldName: cannot find constructor: " ++ show cname ++ ", field " ++ show  field ++ ", in " ++ show (dataInfoConstrs dataInfo)
          _ -> failure $ "Core.CTail.getFieldName: no such constructor: " ++ show cname ++ ", field " ++ show  field
