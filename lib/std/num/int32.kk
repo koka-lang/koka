@@ -247,11 +247,6 @@ inline fip extern clz32( i : int32 ) : int32
   c inline "(int32_t)kk_bits_clz32(#1)"
   js "$std_core._int32_clz"
 
-// Count number of 1-bits.
-inline fip extern popcount32( i : int32 ) : int32
-  c inline "(int32_t)kk_bits_popcount32(#1)"
-  js "$std_core._int32_bits_popcount"  
-
 // Count trailing zero bits. Returns 32 if `i` is zero.
 pub fip fun ctz( i : int32 ) : int
   ctz32(i).int
@@ -260,9 +255,39 @@ pub fip fun ctz( i : int32 ) : int
 pub fip fun clz( i : int32 ) : int
   clz32(i).int
 
+// Find first set: returns the bit-index + 1, or 0 when `i==0`.
+inline fip extern ffs32( i : int32 ) : int32 
+  c inline "(int32_t)kk_bits_ffs32(#1)"
+  js "$std_core._int32_ffs"
+
+// Find first set: returns the bit-index + 1, or 0 when `i==0`.
+pub fip fun ffs( i : int32 ) : int
+  ffs32(i).int
+
+// Count leading redundant (i.e. the number of bits
+// following the most significant bit that are identical to it).
+inline fip extern clrsb32( i : int32 ) : int32 
+  c inline "(int32_t)kk_bits_clrsb32(#1)"
+  js "$std_core._int32_clrsb"
+
+// Count leading redundant (i.e. the number of bits
+// following the most significant bit that are identical to it).
+pub fip fun clrsb( i : int32 ) : int
+  clrsb32(i).int
+
+// Count number of 1-bits.
+inline fip extern popcount32( i : int32 ) : int32
+  c inline "(int32_t)kk_bits_popcount32(#1)"
+  js "$std_core._int32_bits_popcount"  
+
 // Count number of 1-bits.
 pub fip fun popcount( i : int32 ) : int
   popcount32(i).int
+
+// Is the number of 1-bits even?
+pub inline fip extern parity( i : int32 ) : bool
+  c inline "kk_bits_popcount_is_even32(#1)"
+  js "$std_core._int32_parity"    
 
 
 // Return the minimum of two integers

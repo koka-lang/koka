@@ -265,10 +265,16 @@ inline fip extern clz64( i : int64 ) : int64
   c inline "(int64_t)kk_bits_clz64(#1)"
   js "$std_core._int64_clz"
 
-// Count number of 1-bits.
-inline fip extern popcount64( i : int64 ) : int64
-  c inline "(int64_t)kk_bits_popcount64(#1)"
-  js "$std_core._int64_bits_popcount"    
+// Find first set: returns the bit-index + 1, or 0 when `i==0`.
+inline fip extern ffs64( i : int64 ) : int64 
+  c inline "(int64_t)kk_bits_ffs64(#1)"
+  js "$std_core._int64_ffs"
+
+// Count leading redundant (i.e. the number of bits
+// following the most significant bit that are identical to it).
+inline fip extern clrsb64( i : int64 ) : int64 
+  c inline "(int64_t)kk_bits_clrsb64(#1)"
+  js "$std_core._int64_clrsb"
 
 // Count trailing zero bits. Returns 64 if `i` is zero.
 pub fip fun ctz( i : int64 ) : int
@@ -278,9 +284,29 @@ pub fip fun ctz( i : int64 ) : int
 pub fip fun clz( i : int64 ) : int
   clz64(i).int
 
+// Find first set: returns the bit-index + 1, or 0 when `i==0`.
+pub fip fun ffs( i : int64 ) : int
+  ffs64(i).int
+
+// Count leading redundant (i.e. the number of bits
+// following the most significant bit that are identical to it).
+pub fip fun clrsb( i : int64 ) : int
+  clrsb64(i).int
+
+
+// Count number of 1-bits.
+inline fip extern popcount64( i : int64 ) : int64
+  c inline "(int64_t)kk_bits_popcount64(#1)"
+  js "$std_core._int64_popcount"    
+
 // Count number of 1-bits.
 pub fip fun popcount( i : int64 ) : int
   popcount64(i).int
+
+// Is the number of 1-bits even?
+pub inline fip extern parity( i : int64 ) : bool
+  c inline "kk_bits_popcount_is_even64(#1)"
+  js "$std_core._int64_parity"    
 
 
 
