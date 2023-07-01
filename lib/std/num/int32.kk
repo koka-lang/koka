@@ -249,8 +249,8 @@ inline fip extern clz32( i : int32 ) : int32
 
 // Count number of 1-bits.
 inline fip extern popcount32( i : int32 ) : int32
-  c inline "(int32_t)kk_bits_count(#1)"
-  js "$std_core._int32_bits_count"  
+  c inline "(int32_t)kk_bits_popcount32(#1)"
+  js "$std_core._int32_bits_popcount"  
 
 // Count trailing zero bits. Returns 32 if `i` is zero.
 pub fip fun ctz( i : int32 ) : int

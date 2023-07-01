@@ -392,18 +392,18 @@ static void test_bitcount(void) {
   uint32_t values[] = { 1,0x80000000,0xFFFFFFFF,0xFFFF,0xFFFF0000,0x7FFFFFFF,0xFFFFFFFE, 0x7FFFFFFE, 0x80000001, 0 };
   size_t i = 0;
   uint32_t v;
-  uint8_t l, t;
+  int l, t;
   do {
     v = values[i++];
     l = kk_bits_clz32(v);
     t = kk_bits_ctz32(v);
     if (v == 0) assert((l + t) == 64);
-    printf("value: 0x%08x, ctz: %2u, clz: %2u\n", v, t, l);
+    printf("value: 0x%08x, ctz: %2d, clz: %2d\n", v, t, l);
   } while (v != 0);
   for (v = 1; v != 0; v <<= 1) {
     l = kk_bits_clz32(v);
     t = kk_bits_ctz32(v);
-    printf("value: 0x%08x, ctz: %2u, clz: %2u\n", v, t, l);
+    printf("value: 0x%08x, ctz: %2d, clz: %2d\n", v, t, l);
     assert((l + t) == 31);
   }
 }
@@ -411,8 +411,8 @@ static void test_bitcount(void) {
 static void test_popcount(void) {
   printf("testing popcount..."); fflush(stdout);
   for (uint32_t i = 0; i < UINT32_MAX; i++) {
-    uint32_t c1 = kk_bits_generic_count32(i);
-    uint32_t c2 = kk_bits_count32(i);
+    int c1 = kk_bits_generic_popcount32(i);
+    int c2 = kk_bits_popcount32(i);
     if (c1 != c2) {
       assert(c1 == c2);
       abort();
@@ -689,7 +689,7 @@ int main() {
   
   test_count10(ctx);
   test_bitcount();
-  //test_popcount();
+  test_popcount();
   //test_random(ctx);
   //test_duration1();
   

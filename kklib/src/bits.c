@@ -7,14 +7,14 @@
 ---------------------------------------------------------------------------*/
 #include "kklib.h"
 
-uint32_t kk_bits_generic_count32(uint32_t x) {
+int kk_bits_generic_popcount32(uint32_t x) {
   x = x - ((x >> 1) & KK_U32(0x55555555));
   x = (x & KK_U32(0x33333333)) + ((x >> 2) & KK_U32(0x33333333));
   x = (x + (x >> 4)) & KK_U32(0x0F0F0F0F);
   return kk_bits_byte_sum32(x);
 }
 
-uint64_t kk_bits_generic_count64(uint64_t x) {
+int kk_bits_generic_popcount64(uint64_t x) {
   x = x - ((x >> 1) & KK_U64(0x5555555555555555));
   x = (x & KK_U64(0x3333333333333333)) + ((x >> 2) & KK_U64(0x3333333333333333));
   x = (x + (x >> 4)) & KK_U64(0x0F0F0F0F0F0F0F0F);
@@ -31,19 +31,19 @@ static const kk_uintx_t powers_of_10[] = {
 #endif
 };
 
-uint8_t kk_bits_digits32(uint32_t u) {
-  static const uint8_t guess[33] = {
+int kk_bits_digits32(uint32_t u) {
+  static const int8_t guess[33] = {
     1, 0, 0, 0, 1, 1, 1, 2, 2, 2,
     3, 3, 3, 3, 4, 4, 4, 5, 5, 5,
     6, 6, 6, 6, 7, 7, 7, 8, 8, 8,
     9, 9, 9
   };
-  uint8_t count = guess[32 - kk_bits_clz32(u)]; // = 1 + (KU32(9)*(31 - kk_bits_clz32(u)) >> 5); 
+  const int count = guess[32 - kk_bits_clz32(u)]; // = 1 + (KU32(9)*(31 - kk_bits_clz32(u)) >> 5); 
   return (count + (u >= powers_of_10[count] ? 1 : 0));
 }
 
-uint8_t kk_bits_digits64(uint64_t u) {
-  static const uint8_t guess[65] = {
+int kk_bits_digits64(uint64_t u) {
+  static const int8_t guess[65] = {
     1, 0, 0, 0, 1, 1, 1, 2, 2, 2,
     3, 3, 3, 3, 4, 4, 4, 5, 5, 5,
     6, 6, 6, 6, 7, 7, 7, 8, 8, 8,
@@ -52,24 +52,26 @@ uint8_t kk_bits_digits64(uint64_t u) {
    15,15,15,15,16,16,16,17,17,17,
    18,18,18,18,19
   };  
-  uint8_t count = guess[64 - kk_bits_clz64(u)];  // = 1 + (KU64(1233)*(63 - kk_bits_clz64(u)) >> 12);
+  const int count = guess[64 - kk_bits_clz64(u)];  // = 1 + (KU64(1233)*(63 - kk_bits_clz64(u)) >> 12);
   return (count + (u >= powers_of_10[count] ? 1 : 0));
 }
 
 #if defined(KK_BITS_USE_GENERIC_CTZ_CLZ)
 
-uint8_t kk_bits_ctz32(uint32_t x) {
+int kk_bits_ctz32(uint32_t x) {
   // de Bruijn multiplication, see <http://supertech.csail.mit.edu/papers/debruijn.pdf>
-  static const unsigned char debruijn[32] = {
+  static const int8_t debruijn[32] = {
     0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
     31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
   };
-  return debruijn[((x & -(int32_t)x) * KK_U32(0x077CB531)) >> 27];
+  if (x == 0) return 32;
+  x = kk_bits_only_keep_lsb32(x);
+  return debruijn[(uint32_t)(x * KK_U32(0x077CB531)) >> 27];
 }
 
-uint8_t kk_bits_clz32(uint32_t x) {
+int kk_bits_clz32(uint32_t x) {  
   // de Bruijn multiplication, see <http://supertech.csail.mit.edu/papers/debruijn.pdf>
-  static const uint8_t debruijn[32] = {
+  static const int8_t debruijn[32] = {
     31, 22, 30, 21, 18, 10, 29, 2, 20, 17, 15, 13, 9, 6, 28, 1,
     23, 19, 11, 3, 16, 14, 7, 24, 12, 4, 8, 25, 5, 26, 27, 0
   };
