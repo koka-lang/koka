@@ -14,12 +14,15 @@ Compile Koka:
 
 ```
 $ stack build 
-$ stack exec koka
+$ stack exec koka  # check if interpreter works
 
-// check if interpreter works
+> :l samples/all
+> all/main()
+...
+
 > :q
 
-$ stack exec test
+$ stack test
 ```
 
 and create a bundle:
