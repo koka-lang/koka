@@ -18,7 +18,7 @@ import std/text/parse
 import std/num/int64
 
 extern import
-  c  file "float64-inline.h"
+  c  file "float64-inline.c"
   js file "float64-inline.js"
 
 
@@ -225,6 +225,7 @@ pub extern float64( f : float32 ) : float64
 // > 1.337.show-hex ++ " != " ++ 1.337.f32.float64.show-hex
 // "0x1.5645A1CAC0831p+0 != 0x1.5645A2p+0"
 // ```
+// .
 pub fun f32( f : float64 ) : float32
   f.float32
 
@@ -450,17 +451,16 @@ pub fun next-up( x : float64 ) : float64
 // Compare floats using a total ordering on the `:float64`.
 // The ordering follows the `totalOrder` predicate as defined in IEEE 754-2008 exactly.
 // The values are ordered in following order:
-// - negative quiet nan
-// - negative signaling nan
-// - `neginf`
-// - -finite
-// - -0.0
-// - +0.0
-// - finite
-// - `posinf`
-// - signaling nan
-// - quiet nan
-//
+// negative quiet nan,
+// negative signaling nan,
+// `neginf`,
+// -finite,
+// -0.0,
+// +0.0,
+// finite,
+// `posinf`,
+// signaling nan,
+// and quiet nan.
 pub fun compare( x : float64, y : float64 ) : order
   val bx = float64-to-bits(x)
   val by = float64-to-bits(y)
@@ -469,6 +469,32 @@ pub fun compare( x : float64, y : float64 ) : order
   val iy = by.sar(63).shr(1).xor(by)
   compare(ix,iy)
   
+
+// The midpoint is the average of `x` and `y`.
+// Avoids overflow on large numbers.
+pub fun midpoint( x : float64, y : float64 ) : float64 
+  if is-subnormal(x) || is-subnormal(y)
+    then (x + y) / 2.0
+    else (x / 2.0) + (y / 2.0)  
+
+
+// Linear interpolation, calculating `x + t*(y - x)` but avoids troublesome edge cases.
+// Follows the C++20 [specification](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html).
+// In particular, if `x.is-finite && y.is-finite`, then:
+// - exact: `lerp(x,y,0.0) == x` and  `lerp(x,y,1.0) == y`
+// - monotonic: if `x <= y` and `t1 <= t2`, then `compare( lerp(x,y,t1), lerp(x,y,t2) ) <= Eq` (and other cases)
+// - deterministic: only `lerp(x,x,flt-inf)` results in `nan`
+// - bounded: `t<0.0 || t>1.0 || is-finite(lerp(x,y,t))`
+// - consistent: `lerp(x,x,t) == x`
+pub fun lerp( x : float64, y : float64, t : float64 ) : float64
+  if (x <= 0.0 && y >= 0.0) || (x >= 0.0 && y <= 0.0) then
+    t*y + (1.0 - t)*x
+  elif t == 1.0 then
+    y
+  else
+    val z = x + t*(y - x)
+    if ((t > 1.0) == (y > x)) then max(y,z) else min(y,z)
+
 
 //-----------------------------------------
 // Show in hexadecimal
@@ -566,6 +592,8 @@ extern prim-parse-float64( s : string ) : float64
 // to minimize rounding errors. This
 // is more precise as Kahan summation and about as fast.\
 // `[1.0e3,1.0e97,1.0e3,-1.0e97].sum == 2000.0`\
+// while\
+// `[1.0e3,1.0e97,1.0e3,-1.0e97].foldl(0.0,(+)) == 0.0` (!)\
 // A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
 // Math. Mechanik, 54:39--51, 1974.
 pub fun sum( xs : list<float64> ) : float64

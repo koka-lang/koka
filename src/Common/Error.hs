@@ -10,7 +10,7 @@
 -}
 -----------------------------------------------------------------------------
 module Common.Error( Error, ErrorMessage(..), errorMsg, ok
-                   , catchError, checkError, warningMsg, addWarnings
+                   , catchError, checkError, warningMsg, addWarnings, ignoreWarnings
                    , ppErrorMessage, errorWarning ) where
 
 import Control.Monad
@@ -91,6 +91,10 @@ errorMerge err1 err2
     unwarn (ErrorWarning warnings msg) = (warnings, msg)
     unwarn msg                         = ([],msg)
        
+ignoreWarnings :: Error a -> Error a
+ignoreWarnings (Error (ErrorWarning _ err) _)  = Error err []
+ignoreWarnings (Error err _)                   = Error err []
+ignoreWarnings (Ok x _)                        = Ok x []
 
 {--------------------------------------------------------------------------
   pretty
@@ -131,11 +135,11 @@ instance Functor Error where
                     Error msg w -> Error msg w
 
 instance Applicative Error where
-  pure  = return
+  pure x = Ok x []
   (<*>) = ap                    
 
 instance Monad Error where
-  return x      = Ok x []
+  -- return = pure
   e >>= f       = case e of 
                     Ok x w   -> addWarnings w (f x)
                     Error msg w -> Error msg w

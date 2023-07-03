@@ -7,7 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 /* Regular expressions.
-
+ 
    The regular expressions conform to the regular expressions of JavaScript
    as described at <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions>
 */  
@@ -25,7 +25,7 @@ extern import
 
 
 // Abstract type of a regular expression object
-abstract struct regex( obj: any, src : string )
+abstract value struct regex( obj: any, src : string )
 
 // Return the pattern as a string
 pub fun source( r : regex ) : string

@@ -5,7 +5,7 @@ fun map_other(xs : list<a>, f : a -> b, g : a -> b) : list<b> {
         // this branch gets specialized
         Cons(x, xx) | isEven    -> Cons(f(x), xx.map_other(f, g))
         // this branch does not since f and g are passed in a different order
-                    | _         -> Cons(g(x), xx.map_other(g, f))
+                    | True      -> Cons(g(x), xx.map_other(g, f))
     }
 }
 

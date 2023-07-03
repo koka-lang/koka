@@ -18,15 +18,17 @@ module Type.Assumption (
                     , gammaMap
                     , gammaList
                     , gammaIsEmpty
-                    , gammaNames
+                    , gammaNames, gammaPublicNames
                     , ppGamma, ppGammaHidden, gammaRemove, gammaUnion, gammaUnions
                     , gammaFilter
                     , isInfoCon
                     , isInfoImport
                     , isInfoFun
                     , isInfoValFunExt
+                    , isInfoFunOrExternal
                     , infoElement
                     , infoCanonicalName
+                    , fipFromNameInfo
                     -- * From Core
                     , extractGammaImports
                     , extractGamma
@@ -39,7 +41,7 @@ module Type.Assumption (
 import Lib.Trace
 import Common.Range
 import Common.Failure
-import Common.Syntax( DefSort(..), isDefFun )
+import Common.Syntax( DefSort(..), isDefFun, defFun, Fip, noFip )
 import qualified Data.List as L
 import Lib.PPrint
 import qualified Common.NameMap as M
@@ -56,9 +58,9 @@ import Lib.Trace
 
 data NameInfo
   = InfoVal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoRange :: Range, infoIsVar :: Bool }
-  | InfoFun{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoArity :: (Int,Int), infoRange :: Range }
+  | InfoFun{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoArity :: (Int,Int), infoFip :: Fip, infoRange :: Range }
   | InfoCon{ infoVis :: Visibility, infoType :: Scheme, infoRepr  :: Core.ConRepr, infoCon :: ConInfo, infoRange :: Range }
-  | InfoExternal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoFormat :: [(Target,String)], infoRange :: Range }
+  | InfoExternal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoFormat :: [(Target,String)], infoFip :: Fip, infoRange :: Range }
   | InfoImport{ infoVis :: Visibility, infoType :: Scheme, infoAlias :: Name, infoFullName :: Name, infoRange :: Range }
   deriving (Show)
 
@@ -88,6 +90,17 @@ isInfoFun :: NameInfo -> Bool
 isInfoFun (InfoFun{}) = True
 isInfoFun _           = False
 
+isInfoFunOrExternal :: NameInfo -> Bool
+isInfoFunOrExternal (InfoFun{})      = True
+isInfoFunOrExternal (InfoExternal{}) = True
+isInfoFunOrExternal _                = False
+
+fipFromNameInfo :: NameInfo -> Fip
+fipFromNameInfo (InfoFun{infoFip=fip})      = fip
+fipFromNameInfo (InfoExternal{infoFip=fip}) = fip
+fipFromNameInfo _ = noFip
+
+
 infoElement :: NameInfo -> String
 infoElement info
   = case info of
@@ -104,19 +117,19 @@ infoIsVisible info = case infoVis info of
 coreVarInfoFromNameInfo :: NameInfo -> Core.VarInfo
 coreVarInfoFromNameInfo info
   = case info of
-      InfoVal _ _ tp _ _           -> Core.InfoNone
-      InfoFun _ _ tp (m,n) _       -> Core.InfoArity m n
-      InfoExternal _ _ tp format _ -> Core.InfoExternal format
-      _                            -> matchFailure "Type.Infer.coreVarInfoFromNameInfo"
+      InfoVal _ _ tp _ _             -> Core.InfoNone
+      InfoFun _ _ tp (m,n) _ _       -> Core.InfoArity m n
+      InfoExternal _ _ tp format _ _ -> Core.InfoExternal format
+      _                              -> matchFailure "Type.Infer.coreVarInfoFromNameInfo"
 
 coreExprFromNameInfo qname info
   = -- trace ("create name: " ++ show qname) $
     case info of
-      InfoVal vis cname tp _ _            -> Core.Var (Core.TName cname tp) (Core.InfoNone)
-      InfoFun vis cname tp ((m,n)) _      -> Core.Var (Core.TName cname tp) (Core.InfoArity m n)
-      InfoCon vis  tp repr _ _            -> Core.Con (Core.TName qname tp) repr
-      InfoExternal vis cname tp format _  -> Core.Var (Core.TName cname tp) (Core.InfoExternal format)
-      InfoImport _ _ _ _ _                -> matchFailure "Type.Infer.coreExprFromNameInfo"
+      InfoVal vis cname tp _ _              -> Core.Var (Core.TName cname tp) (Core.InfoNone)
+      InfoFun vis cname tp ((m,n)) _ _      -> Core.Var (Core.TName cname tp) (Core.InfoArity m n)
+      InfoCon vis  tp repr _ _              -> Core.Con (Core.TName qname tp) repr
+      InfoExternal vis cname tp format _ _  -> Core.Var (Core.TName cname tp) (Core.InfoExternal format)
+      InfoImport _ _ _ _ _                  -> matchFailure "Type.Infer.coreExprFromNameInfo"
 
 
 {--------------------------------------------------------------------------
@@ -234,6 +247,10 @@ gammaNames :: Gamma -> [Name]
 gammaNames (Gamma g)
   = M.keys g
 
+gammaPublicNames :: Gamma -> [Name]
+gammaPublicNames (Gamma g)
+  = [name | (name,ninfos) <- M.toList g, all (infoIsVisible . snd) ninfos && not (isHiddenName name)]
+
 {---------------------------------------------------------------
   Extract from core
 ---------------------------------------------------------------}
@@ -299,10 +316,13 @@ coreDefInfo def@(Core.Def name tp expr vis sort inl nameRng doc)
 createNameInfoX :: Visibility -> Name -> DefSort -> Range -> Type -> NameInfo
 createNameInfoX vis name sort rng tp
   = -- trace ("createNameInfoX: " ++ show name ++ ", " ++ show sort ++ ": " ++ show (pretty tp)) $
-    if (not (isDefFun sort)) then InfoVal vis name tp rng (sort == DefVar) else InfoFun vis name tp (getArity  tp) rng
+    case sort of
+      DefFun _ fip -> InfoFun vis name tp (getArity tp) fip rng
+      DefVar       -> InfoVal vis name tp rng True
+      _            -> InfoVal vis name tp rng False
 
 createNameInfo name isVal rng tp
-  = createNameInfoX Public name (if isVal then DefVal else DefFun []) rng tp
+  = createNameInfoX Public name (if isVal then DefVal else defFun []) rng tp
     -- if (isVal) then InfoVal name tp rng False else InfoFun name tp (getArity tp) rng
 
 getArity :: Type -> (Int,Int)
@@ -316,8 +336,8 @@ getArity tp
       _                        -> failure ("Type.Assumption.createNameInfo.getArity: illegal type?" ++ show tp)
 
 
-extractExternal updateVis (Core.External name tp pinfos body vis nameRng doc)
-  = gammaSingle (nonCanonicalName name) (InfoExternal (updateVis vis) name tp body nameRng)
+extractExternal updateVis (Core.External name tp pinfos body vis fip nameRng doc)
+  = gammaSingle (nonCanonicalName name) (InfoExternal (updateVis vis) name tp body fip nameRng)
 extractExternal updateVis _
   = gammaEmpty
 

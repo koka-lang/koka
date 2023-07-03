@@ -3,7 +3,7 @@
 #define KK_BITS_H
 
 /*---------------------------------------------------------------------------
-  Copyright 2020-2021, Microsoft Research, Daan Leijen.
+  Copyright 2020-2023, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -110,93 +110,181 @@ static inline kk_uintx_t kk_bits_rotr(kk_uintx_t x, kk_uintx_t shift) {
 
 
 /* -----------------------------------------------------------
-  `clz` count leading zero bits
-  `ctz` count trailing zero bits  
+  `clz` count leading zero bits   (32/64 for zero)
+  `ctz` count trailing zero bits  (32/64 for zero)
+  `ffs` find first set: bit-index + 1, or 0 for zero
+  `fls` find last set: bit-index + 1, or 0 for zero
 ----------------------------------------------------------- */
 
 #if defined(__GNUC__)
-static inline uint8_t kk_bits_clz32(uint32_t x) {
+static inline int kk_bits_clz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(clz)(x));
 }
-static inline uint8_t kk_bits_ctz32(uint32_t x) {
+static inline int kk_bits_ctz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(ctz)(x));
 }
+static inline int kk_bits_ffs32(uint32_t x) {
+  return __builtin32(ffs)(x);
+}
 #if (KK_INTX_SIZE >= 8)
-#define HAS_BITS_CLZ64
-static inline uint8_t kk_bits_clz64(uint64_t x) {
+#define KK_HAS_BITS_CLZ64
+static inline int kk_bits_clz64(uint64_t x) {
   return (x==0 ? 64 : __builtin64(clz)(x));
 }
-static inline uint8_t kk_bits_ctz64(uint64_t x) {
+static inline int kk_bits_ctz64(uint64_t x) {
   return (x==0 ? 64 : __builtin64(ctz)(x));
 }
-#endif
-
-#elif defined(_MSC_VER) && !defined(__clang_msvc__) && (defined(_M_ARM64) || defined(_M_ARM) || defined(_M_X64) || defined(_M_IX86))
-#include <intrin.h>
-
-#if defined(_M_X64) || defined(_M_IX86)
-extern bool kk_has_lzcnt;  // initialized in runtime.c
-extern bool kk_has_tzcnt;
-#endif
-
-static inline uint8_t kk_bits_clz32(uint32_t x) {
-  #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(kk_has_lzcnt)) return (uint8_t)__lzcnt(x);
-  #endif
-  unsigned long idx;
-  return (_BitScanReverse(&idx, x) ? 31 - (uint8_t)idx : 32);
+static inline int kk_bits_ffs64(uint64_t x) {
+  return __builtin64(ffs)(x);
 }
-static inline uint8_t kk_bits_ctz32(uint32_t x) {
-  #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(kk_has_tzcnt)) return (uint8_t)_tzcnt_u32(x);
-  #endif
+#endif
+
+#elif defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM) || defined(_M_X64) || defined(_M_IX86))
+#include <intrin.h>
+static inline int kk_bits_clz32(uint32_t x) {
   unsigned long idx;
-  return (_BitScanForward(&idx, x) ? (uint8_t)idx : 32);
+  return (_BitScanReverse(&idx, x) ? 31 - (int)idx : 32);
+}
+static inline int kk_bits_ctz32(uint32_t x) {
+  unsigned long idx;
+  return (_BitScanForward(&idx, x) ? (int)idx : 32);
+}
+static inline int kk_bits_ffs32(uint32_t x) {
+  unsigned long idx;
+  return (_BitScanForward(&idx, x) ? 1 + (int)idx : 0);
 }
 #if (KK_INTX_SIZE >= 8)
-#define HAS_BITS_CLZ64
-static inline uint8_t kk_bits_clz64(uint64_t x) {
-  #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(kk_has_lzcnt)) return (uint8_t)__lzcnt64(x);
-  #endif
+#define KK_HAS_BITS_CLZ64
+static inline int kk_bits_clz64(uint64_t x) {
   unsigned long idx;
-  return (_BitScanReverse64(&idx, x) ? 63 - (uint8_t)idx : 64);
+  return (_BitScanReverse64(&idx, x) ? 63 - (int)idx : 64);
 }
-static inline uint8_t kk_bits_ctz64(uint64_t x) {
-  #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(kk_has_tzcnt)) return (uint8_t)_tzcnt_u64(x);
-  #endif
+static inline int kk_bits_ctz64(uint64_t x) {
   unsigned long idx;
-  return (_BitScanForward64(&idx, x) ? (uint8_t)idx : 64);
+  return (_BitScanForward64(&idx, x) ? (int)idx : 64);
+}
+static inline int kk_bits_ffs64(uint64_t x) {
+  unsigned long idx;
+  return (_BitScanForward64(&idx, x) ? 1 + (int)idx : 0);
 }
 #endif
 
 #else
 #define KK_BITS_USE_GENERIC_CTZ_CLZ  1
-kk_decl_export uint8_t kk_bits_ctz32(uint32_t x);
-kk_decl_export uint8_t kk_bits_clz32(uint32_t x);
+kk_decl_export int kk_bits_ctz32(uint32_t x);
+kk_decl_export int kk_bits_clz32(uint32_t x);
+static inline int kk_bits_ffs32(uint32_t x) {
+  return (x == 0 ? 0 : 1 + kk_bits_ctz32(x));
+}
 #endif
 
-#ifndef HAS_BITS_CLZ64
-#define HAS_BITS_CLZ64
-static inline uint8_t kk_bits_clz64(uint64_t x) {
-  uint8_t cnt = kk_bits_clz32((uint32_t)(x >> 32));
+#ifndef KK_HAS_BITS_CLZ64
+#define KK_HAS_BITS_CLZ64
+static inline int kk_bits_clz64(uint64_t x) {
+  int cnt = kk_bits_clz32((uint32_t)(x >> 32));
   if (cnt < 32) return cnt;
   return (32 + kk_bits_clz32((uint32_t)x));
 }
-static inline uint8_t kk_bits_ctz64(uint64_t x) {
-  uint8_t cnt = kk_bits_ctz32((uint32_t)x);
+static inline int kk_bits_ctz64(uint64_t x) {
+  int cnt = kk_bits_ctz32((uint32_t)x);
   if (cnt < 32) return cnt;
   return (32 + kk_bits_ctz32((uint32_t)(x >> 32)));
 }
+static inline int kk_bits_ffs64(uint64_t x) {
+  if (x == 0) return 0;
+  int idx = kk_bits_ffs32((uint32_t)x);
+  if (idx > 0) return idx;
+  return (32 + kk_bits_ffs32((uint32_t)(x >> 32)));
+}
 #endif
 
-static inline uint8_t kk_bits_clz(kk_uintx_t x) {
+static inline int kk_bits_fls32(uint32_t x) {
+  return (32 - kk_bits_clz32(x));
+}
+static inline int kk_bits_fls64(uint64_t x) {
+  return (64 - kk_bits_clz64(x));
+}
+
+static inline int kk_bits_clz(kk_uintx_t x) {
   return kk_bitsx(clz)(x);
 }
-static inline uint8_t kk_bits_ctz(kk_uintx_t x) {
+static inline int kk_bits_ctz(kk_uintx_t x) {
   return kk_bitsx(ctz)(x);
 }
+static inline int kk_bits_ffs(kk_uintx_t x) {
+  return kk_bitsx(ffs)(x);
+}
+static inline int kk_bits_fls(kk_uintx_t x) {
+  return kk_bitsx(fls)(x);
+}
+
+/* -----------------------------------------------------------
+ count leading redundant sign bits (i.e. the number of bits
+ following the most significant bit that are identical to it).
+
+ clrsb31(INT32_MAX) == 0
+ ...
+ clrsb31(1)  == 30
+ clrsb32(0)  == 31
+ clrsb32(-1) == 31
+ clrsb32(-2) == 30
+ ...
+ clrsb32(INT32_MIN) = 0
+----------------------------------------------------------- */
+
+static inline int kk_bits_clrsb32(int32_t x) {
+  const int32_t i = kk_sar32(x, 31) ^ x;
+  if (i == 0) return 31; // x==0 or x==1
+         else return kk_bits_clz32(i) - 1;
+}
+
+static inline int kk_bits_clrsb64(int64_t x) {
+  const int64_t i = kk_sar64(x, 63) ^ x;
+  if (i == 0) return 63; // x==0 or x==1
+         else return kk_bits_clz64(i) - 1;
+}
+
+static inline int kk_bits_clrsb(kk_intx_t x) {
+  return kk_bitsx(clrsb)(x);
+}
+
+
+/* -----------------------------------------------------------
+ clear least-significant bit
+----------------------------------------------------------- */
+
+#define _kk_bits_clear_lsb(x)  ((x) & ((x)-1))
+
+static inline uint32_t kk_bits_clear_lsb32(uint32_t x) {
+  return _kk_bits_clear_lsb(x);
+}
+
+static inline uint64_t kk_bits_clear_lsb64(uint64_t x) {
+  return _kk_bits_clear_lsb(x);
+}
+
+static inline kk_uintx_t kk_bits_clear_lsb(kk_uintx_t x) {
+  return kk_bitsx(clear_lsb)(x);
+}
+
+/* -----------------------------------------------------------
+ keep (only) least-significant bit 
+----------------------------------------------------------- */
+
+#define _kk_bits_only_keep_lsb(x)  ((x) & (~(x)+1))
+
+static inline uint32_t kk_bits_only_keep_lsb32(uint32_t x) {
+  return _kk_bits_only_keep_lsb(x);
+}
+
+static inline uint64_t kk_bits_only_keep_lsb64(uint64_t x) {
+  return _kk_bits_only_keep_lsb(x);
+}
+
+static inline kk_uintx_t kk_bits_only_keep_lsb(kk_uintx_t x) {
+  return kk_bitsx(only_keep_lsb)(x);
+}
+
 
 /* -----------------------------------------------------------
   Byte operations
@@ -276,60 +364,60 @@ static inline uint8_t kk_bits_byte_sum(kk_uintx_t x) {
 
 
 /* ---------------------------------------------------------------
-  kk_bits_count: population count / hamming weight  (count set bits)
+  kk_bits_popcount: population count / hamming weight  (count set bits)
   see <https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel>
 ------------------------------------------------------------------ */
 
-kk_decl_export uint32_t kk_bits_generic_count32(uint32_t x);
-kk_decl_export uint64_t kk_bits_generic_count64(uint64_t x);
+kk_decl_export int kk_bits_generic_popcount32(uint32_t x);
+kk_decl_export int kk_bits_generic_popcount64(uint64_t x);
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
 extern bool kk_has_popcnt;  // initialized in runtime.c
 
-static inline uint32_t kk_bits_count32(uint32_t x) {
-  if (kk_has_popcnt) return __popcnt(x);
-  return kk_bits_generic_count32(x);
+static inline int kk_bits_popcount32(uint32_t x) {
+  if (kk_has_popcnt) return (int)__popcnt(x);
+  return kk_bits_generic_popcount32(x);
 }
 #if (KK_INTX_SIZE >= 8)
-#define HAS_BITS_COUNT64
-static inline uint64_t kk_bits_count64(uint64_t x) {
-  if (kk_has_popcnt) return __popcnt64(x);
-  return kk_bits_generic_count64(x);
+#define KK_HAS_BITS_POPCOUNT64
+static inline int kk_bits_popcount64(uint64_t x) {
+  if (kk_has_popcnt) return (int)__popcnt64(x);
+  return kk_bits_generic_popcount64(x);
 }
 #endif
 
 #elif defined(__GNUC__)
-static inline uint32_t kk_bits_count32(uint32_t x) {
+static inline int kk_bits_popcount32(uint32_t x) {
   return __builtin32(popcount)(x);
 }
 #if (KK_INTX_SIZE >= 8)
-#define HAS_BITS_COUNT64
-static inline uint64_t kk_bits_count64(uint64_t x) {
+#define KK_HAS_BITS_POPCOUNT64
+static inline int kk_bits_popcount64(uint64_t x) {
   return __builtin64(popcount)(x);
 }
 #endif
 
 #else
-static inline uint32_t kk_bits_count32(uint32_t x) {
-  return kk_bits_generic_count32(x);
+static inline int kk_bits_popcount32(uint32_t x) {
+  return kk_bits_generic_popcount32(x);
 }
 
-#define HAS_BITS_COUNT64
-static inline uint64_t kk_bits_count64(uint64_t x) {
-  return kk_bits_generic_count64(x);
-}
-#endif
-
-#ifndef HAS_BITS_COUNT64
-#define HAS_BITS_COUNT64
-static inline uint64_t kk_bits_count64(uint64_t x) {
-  return ((uint64_t)kk_bits_count32((uint32_t)x) + kk_bits_count32((uint32_t)(x>>32)));
+#define KK_HAS_BITS_POPCOUNT64
+static inline int kk_bits_popcount64(uint64_t x) {
+  return kk_bits_generic_popcount64(x);
 }
 #endif
 
-static inline kk_uintx_t kk_bits_count(kk_uintx_t x) {
-  return kk_bitsx(count)(x);
+#ifndef KK_HAS_BITS_POPCOUNT64
+#define KK_HAS_BITS_POPCOUNT64
+static inline int kk_bits_popcount64(uint64_t x) {
+  return (kk_bits_popcount32((uint32_t)x) + kk_bits_popcount32((uint32_t)(x>>32)));
+}
+#endif
+
+static inline int kk_bits_popcount(kk_uintx_t x) {
+  return kk_bitsx(popcount)(x);
 }
 
 
@@ -470,52 +558,87 @@ static inline double kk_bits_to_double(uint64_t x) {
 
 
 /* ---------------------------------------------------------------
-  Parity: returns `kk_bits_count(x) % 2`
+  Parity: returns `kk_bits_popcount(x) % 2`
   see <https://graphics.stanford.edu/~seander/bithacks.html#ParityParallel>
 ------------------------------------------------------------------ */
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-static inline bool kk_bits_count_is_even32(uint32_t x) {
-  return ((kk_bits_count32(x) & 1) == 0);
+static inline bool kk_bits_popcount_is_even32(uint32_t x) {
+  return ((kk_bits_popcount32(x) & 1) == 0);
 }
-static inline bool kk_bits_count_is_even64(uint64_t x) {
-  return ((kk_bits_count64(x) & 1) == 0);
+static inline bool kk_bits_popcount_is_even64(uint64_t x) {
+  return ((kk_bits_popcount64(x) & 1) == 0);
 }
 
 #elif defined(__GNUC__)
-static inline bool kk_bits_count_is_even32(uint32_t x) {
+static inline bool kk_bits_popcount_is_even32(uint32_t x) {
   return (__builtin32(parity)(x) == 0);
 }
-static inline bool kk_bits_count_is_even64(uint64_t x) {
+static inline bool kk_bits_popcount_is_even64(uint64_t x) {
   return (__builtin64(parity)(x) == 0);
 }
 
 #else
-static inline bool kk_bits_count_is_even32(uint32_t x) {
+static inline bool kk_bits_popcount_is_even32(uint32_t x) {
   x ^= x >> 16;
   x ^= x >> 8;
   x ^= x >> 4;
   x &= 0x0F;
   return (((0x6996 >> x) & 1) == 0);  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
 }
-static inline bool kk_bits_count_is_even64(uint64_t x) {
-  x ^= x >> 32;
-  return kk_bits_count_is_even32((uint32_t)x);
+static inline bool kk_bits_popcount_is_even64(uint64_t x) {
+  x ^= (x >> 32);
+  return kk_bits_popcount_is_even32((uint32_t)x);
 }
 #endif
 
-static inline bool kk_bits_count_is_even(kk_uintx_t x) {
-  return kk_bitsx(count_is_even)(x);
+static inline bool kk_bits_popcount_is_even(kk_uintx_t x) {
+  return kk_bitsx(popcount_is_even)(x);
 }
 
 /* ---------------------------------------------------------------
   Digits in a decimal representation
 ------------------------------------------------------------------ */
-kk_decl_export uint8_t kk_bits_digits32(uint32_t x);
-kk_decl_export uint8_t kk_bits_digits64(uint64_t x);
+kk_decl_export int kk_bits_digits32(uint32_t x);
+kk_decl_export int kk_bits_digits64(uint64_t x);
 
-static inline uint8_t kk_bits_digits(kk_uintx_t x) {
+static inline int kk_bits_digits(kk_uintx_t x) {
   return kk_bitsx(digits)(x);
+}
+
+
+/* ---------------------------------------------------------------
+  midpoint(x,y): the average of x and y, rounded towards x.
+  note: written to avoid overflow and UB. See also
+  <https://devblogs.microsoft.com/oldnewthing/20220207-00/?p=106223>
+------------------------------------------------------------------ */
+
+static inline int32_t kk_bits_midpoint32( int32_t x, int32_t y ) {
+  if kk_likely(x <= y) return x + (int32_t)(((uint32_t)y - (uint32_t)x)/2);  
+                  else return x - (int32_t)(((uint32_t)x - (uint32_t)y)/2);
+}
+
+static inline int64_t kk_bits_midpoint64(int64_t x, int64_t y) {
+  if kk_likely(x <= y) return x + (int64_t)(((uint64_t)y - (uint64_t)x)/2);
+                  else return x - (int64_t)(((uint64_t)x - (uint64_t)y)/2);
+}
+
+static inline kk_intx_t kk_bits_midpoint(kk_intx_t x, kk_intx_t y) {
+  return kk_bitsx(midpoint)(x, y);
+}
+
+static inline uint32_t kk_bits_umidpoint32( uint32_t x, uint32_t y ) {
+  if kk_likely(x <= y) return (x + (y-x)/2);
+                  else return (x - (x-y)/2);
+}
+
+static inline uint64_t kk_bits_umidpoint64( uint64_t x, uint64_t y ) {
+  if kk_likely(x <= y) return (x + (y-x)/2);
+                  else return (x - (x-y)/2); 
+}
+
+static inline kk_uintx_t kk_bits_umidpoint( kk_uintx_t x, kk_uintx_t y ) {
+  return kk_bitsx(umidpoint)(x,y);
 }
 
 

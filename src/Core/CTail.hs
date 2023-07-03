@@ -8,7 +8,9 @@
 {-# LANGUAGE NamedFieldPuns, GeneralizedNewtypeDeriving  #-}
 
 -----------------------------------------------------------------------------
--- Tail Recursive Modulo Cons implementation (called "ctail")
+-- Tail Recursive Modulo Cons implementation
+-- See: "Tail Recursion Modulo Context -- An Equational Approach",
+--      Daan Leijen and Anton Lorenzen, POPL'22.
 -----------------------------------------------------------------------------
 
 module Core.CTail ( ctailOptimize, uctailOptimize ) where
@@ -17,7 +19,6 @@ import Lib.Trace (trace)
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Char
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import qualified Data.IntMap as M
@@ -25,9 +26,9 @@ import qualified Data.IntMap as M
 import Kind.Kind
 import Kind.Newtypes
 import Type.Type
-import Type.Kind (effectIsAffine )
+import Type.Kind (effectIsAffine)
 import qualified Type.Pretty as Pretty
-import Type.Assumption hiding (InfoExternal)-- Gamma
+import Type.Assumption (Gamma)
 
 import Lib.PPrint
 import Common.NamePrim
@@ -42,14 +43,14 @@ import Core.Pretty
 --------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
-ctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> CorePhase ()
-ctailOptimize penv platform newtypes gamma ctailInline 
+ctailOptimize :: Pretty.Env -> Newtypes -> Gamma -> Bool -> CorePhase ()
+ctailOptimize penv newtypes gamma useContextPath
   = liftCorePhaseUniq $ \uniq defs -> 
-    runUnique uniq (uctailOptimize penv platform newtypes gamma ctailInline defs)
+    runUnique uniq (uctailOptimize penv newtypes gamma useContextPath defs)
 
-uctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> DefGroups -> Unique DefGroups
-uctailOptimize penv platform newtypes gamma ctailInline defs
-  = ctailRun penv platform newtypes gamma ctailInline (ctailDefGroups True defs)
+uctailOptimize :: Pretty.Env -> Newtypes -> Gamma -> Bool -> DefGroups -> Unique DefGroups
+uctailOptimize penv newtypes gamma useContextPath defs
+  = ctailRun penv newtypes gamma useContextPath (ctailDefGroups True defs)
 
 --------------------------------------------------------------------------
 -- Definition groups
@@ -69,11 +70,18 @@ ctailDefGroup topLevel dg
       _ -> return [dg]
   where
     log
-      | DefRec [def] <- dg = "ctailDefGroup: " ++ show (defName def) ++ " " ++ (if (hasCTailCall (defTName def) True (defExpr def)) then "IS " else "is NOT ") ++ "eligible for ctail" 
-      | DefRec defs <- dg = "ctailDefGroup: found larger DefRec with names: " ++ unwords [show (defName def) | def <- defs ]
+      | DefRec [def] <- dg  = "ctailDefGroup: " ++ show (defName def) ++ " " ++ (if (hasCTailCall (defTName def) True (defExpr def)) then "IS " else "is NOT ") ++ "eligible for ctail" 
+      | DefRec defs <- dg   = "ctailDefGroup: found larger DefRec with names: " ++ unwords [show (defName def) | def <- defs ]
       | DefNonRec def <- dg = "ctailDefGroup: found DefNonRec with name: " ++ show (defName def)
 
 
+{-
+we generate 
+- if the runtime can copy contexts (setContextPath) 
+  we always generate a single definition which is optimized a bit if the effect is affine for sure (alwaysAffine)
+- otherwise, a single definition of the effect is affine for sure (alwaysAffine)
+- or two definitions for multiple resumptions (isMulti)
+-}
 ctailDef :: Bool -> Def -> CTail [DefGroup]
 ctailDef topLevel def
   = withCurrentDef def $
@@ -83,27 +91,29 @@ ctailDef topLevel def
          Nothing -> return [DefRec [def]]
          Just (tforall,tpreds,targs,teff,tres)
            -> do -- ctailTrace "- has reference type result"
-                 let ctailSlotType = TApp typeCTail [tres]
-                     ctailName = makeHiddenName "ctail" (defName def)
+                 let ctailSlotType = typeCCtx tres
+                     ctailName = makeHiddenName "trmc" (defName def)
                      ctailSlot = newHiddenName "acc"
                      ctailType = tForall tforall tpreds (TFun (targs ++ [(ctailSlot,ctailSlotType)]) teff tres)
                      ctailTName= TName ctailName ctailType
                      ctailTSlot= TName ctailSlot ctailSlotType
 
-                 cdefExpr <- withContext ctailTName False (Just ctailTSlot) $
+                 let alwaysAffine = effectIsAffine teff
+                 cdefExpr <- withContext ctailTName False {-isMulti-} alwaysAffine (Just ctailTSlot) $
                              ctailExpr True (makeCDefExpr ctailTSlot (defExpr def))
 
+                 useContextPath <- getUseContextPath
                  let cdef = def{ defName = ctailName, defType = ctailType, defExpr = cdefExpr }
-                     needsMulti = not (effectIsAffine teff)
+                     needsMulti = not (useContextPath || alwaysAffine)
                      ctailMultiSlotType = TFun [(nameNil,tres)] typeTotal tres
-                     ctailMultiName  = makeHiddenName "ctailm" (defName def)
+                     ctailMultiName  = makeHiddenName "trmcm" (defName def)
                      ctailMultiSlot  = newHiddenName "accm"
                      ctailMultiType  = tForall tforall tpreds (TFun (targs ++ [(ctailMultiSlot,ctailMultiSlotType)]) teff tres)
                      ctailMultiTName = TName ctailMultiName ctailMultiType
                      ctailMultiTSlot = TName ctailMultiSlot ctailMultiSlotType
                      ctailMultiVar   = Var ctailMultiTName (InfoArity (length tforall) (length targs + 1))
 
-                 wrapExpr <- withContext ctailTName False Nothing $
+                 wrapExpr <- withContext ctailTName False alwaysAffine Nothing $
                              do ctailWrapper ctailTSlot
                                   (if needsMulti then Just ctailMultiVar else Nothing)
                                   (defExpr def)
@@ -113,7 +123,7 @@ ctailDef topLevel def
                    then -- for sure, each op resumes at most once
                         return [ DefRec [cdef, def{defExpr = wrapExpr }] ]
                    else -- some ops may resume more than once; specialize for those
-                        do cdefMultiExpr <- withContext ctailMultiTName True (Just ctailMultiTSlot) $
+                        do cdefMultiExpr <- withContext ctailMultiTName True {-isMulti-} alwaysAffine  (Just ctailMultiTSlot) $
                                              ctailExpr True (makeCDefExpr ctailMultiTSlot (defExpr def))
                            let cdefMulti = def{ defName = ctailMultiName, defType = ctailMultiType, defExpr = cdefMultiExpr }
                            return $ [ DefRec [cdef, cdefMulti, def{defExpr = wrapExpr} ] ]
@@ -158,7 +168,7 @@ ctailWrapperBody :: Type -> TName -> Maybe Expr -> [TypeVar] -> [TName] -> CTail
 ctailWrapperBody resTp slot mbMulti targs args
   = do tailVar <- getCTailFun
        let  ctailCall  = App (makeTypeApp tailVar [TVar tv | tv <- targs])
-                           ([Var name InfoNone | name <- args] ++ [makeCTailNil resTp])
+                           ([Var name InfoNone | name <- args] ++ [makeCCtxEmpty resTp])
        case mbMulti of
          Nothing -> return ctailCall
          Just ctailMultiVar
@@ -237,7 +247,7 @@ ctailExpr top expr
                   case (expr',mbSlot) of
                     (App v@(Var ctailmSlot _) [arg], Just slot) | getName ctailmSlot == getName slot
                       -> return (App v [TypeApp arg targs])   -- push down typeapp
-                    (App v@(TypeApp (Var ctailResolve _) _) [acc,arg],_) | getName ctailResolve == nameCTailResolve
+                    (App v@(TypeApp (Var ctailApply _) _) [acc,arg],_) | getName ctailApply == nameCCtxApply
                       -> return (App v [acc,TypeApp arg targs])   -- push down typeapp into ctail set
                     _ -> return (TypeApp expr' targs)
 
@@ -261,13 +271,18 @@ ctailExpr top expr
            case mbSlot of
               Nothing   -> return body
               Just slot -> do isMulti <- getIsMulti
-                              return (makeCTailResolve isMulti slot body)
+                              alwaysAffine <- getIsAlwaysAffine
+                              return (makeCCtxApply isMulti alwaysAffine slot body)
 
-    handleConApp dname cname f fargs
-      = do let mkCons args = bindArgs args $ (\xs -> return ([],App f xs))
-           mbExpr <- ctailTryArg dname cname Nothing mkCons (length fargs) (reverse fargs)
+    handleConApp dname cname fcon fargs
+      = do let mkCons cpath args = bindArgs args $ \xs -> return ([],mkConApp cpath fcon xs)
+           isMulti <- getIsMulti
+           useContextPath <- getUseContextPath
+           alwaysAffine <- getIsAlwaysAffine
+           let useCtx = not isMulti && useContextPath && not alwaysAffine
+           mbExpr <- ctailTryArg useCtx dname cname Nothing mkCons (length fargs) (reverse fargs)
            case mbExpr of
-             Nothing          -> tailResult (App f fargs)
+             Nothing          -> tailResult (App fcon fargs)
              Just (defs,expr) -> return (makeLet defs expr)
 
     handleTailCall mkCall
@@ -276,6 +291,16 @@ ctailExpr top expr
              Nothing   -> return expr -- not in ctail variant
              Just slot -> do ctailVar <- getCTailFun   -- do a tail call with the current slot
                              return (mkCall ctailVar (Var slot InfoNone))
+
+mkConApp :: CtxPath -> Expr -> [Expr] -> Expr
+mkConApp cpath fcon xs
+  = case cpath of
+      CtxField fname -> case fcon of
+                          Con conName conRepr -> App (Con conName conRepr{conCtxPath=cpath}) xs
+                          TypeApp (Con conName conRepr) targs -> App (TypeApp (Con conName conRepr{conCtxPath=cpath}) targs) xs
+                          _ -> failure ("Core.CTail.mkConApp: invalid constructor: " ++ show fcon)
+      _ -> App fcon xs
+
 
 bindArgs :: [Expr] -> ([Expr] -> CTail ([DefGroup],Expr)) -> CTail ([DefGroup],Expr)
 bindArgs args use
@@ -305,9 +330,9 @@ ctailGuard (Guard test expr)  -- expects patAdded in depth-order
 -- See if the tailcall is inside a (nested) constructor application
 --------------------------------------------------------------------------
 
-ctailTryArg :: TName -> TName -> Maybe TName -> ([Expr] -> CTail ([DefGroup],Expr)) -> Int -> [Expr] -> CTail (Maybe ([DefGroup],Expr))
-ctailTryArg dname cname mbC mkApp field []  = return Nothing
-ctailTryArg dname cname mbC mkApp field (rarg:rargs)
+ctailTryArg :: Bool -> TName -> TName -> Maybe TName -> (CtxPath -> [Expr] -> CTail ([DefGroup],Expr)) -> Int -> [Expr] -> CTail (Maybe ([DefGroup],Expr))
+ctailTryArg useCtxPath dname cname mbC mkApp field []  = return Nothing
+ctailTryArg useCtxPath dname cname mbC mkApp field (rarg:rargs)
   = case rarg of
       App f@(TypeApp (Var name info) targs) fargs
        | (dname == name) -> do expr <- ctailFoundArg cname mbC mkAppNew field
@@ -321,20 +346,57 @@ ctailTryArg dname cname mbC mkApp field (rarg:rargs)
       -- recurse into other con
       App f@(TypeApp (Con cname2 _) _) fargs  | tnamesMember dname (fv fargs) -- && all isTotal rargs
        -> do x <- uniqueTName (typeOf rarg)
-             ctailTryArg dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
+             ctailTryArg useCtxPath dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
 
       App f@(Con cname2 _) fargs  | tnamesMember dname (fv fargs)  -- && all isTotal rargs
        -> do x <- uniqueTName (typeOf rarg)
-             ctailTryArg dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
+             ctailTryArg useCtxPath dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
 
-      _ -> if (isTotal rarg) then ctailTryArg dname cname mbC (\args -> mkApp (args ++ [rarg])) (field-1) rargs
+      _ -> if (isTotal rarg) then ctailTryArg useCtxPath dname cname mbC (\cpath args -> mkApp cpath (args ++ [rarg])) (field-1) rargs
                              else return Nothing
   where
-    mkAppNew = (\args -> mkApp (reverse rargs ++ args))
-    mkAppNested x f
-       = (\args -> do (defs,expr) <- bindArgs (reverse rargs) $ \xs -> mkApp (xs ++ [Var x InfoNone])
-                      return ([DefNonRec (makeTDef x (App f args))]++defs, expr))
+    -- create a tail call
+    mkAppNew 
+      = \args ->  do cpath <- getCtxPath useCtxPath cname field
+                     mkApp cpath (reverse rargs ++ args)
+                     {-
+                     if not useCtxPath then return (defs,cexpr)
+                      else do setfld <- setContextPathExpr cname field
+                              x <- uniqueTName (typeOf cexpr)
+                              y <- uniqueTName (typeOf cexpr)
+                              let cexprdef = DefNonRec (makeTDef y cexpr)
+                              let setdef   = DefNonRec (makeTDef x (setfld y))
+                              return (defs ++ [cexprdef,setdef], (Var x InfoNone)) -}
+                     
 
+    -- create the constructor context (ending in a hole)
+    mkAppNested :: TName -> Expr -> (CtxPath -> [Expr] -> CTail ([DefGroup],Expr))
+    mkAppNested x fcon
+      = \fcpath args ->  do cpath <- getCtxPath useCtxPath cname field
+                            (defs,expr) <- bindArgs (reverse rargs) $ \xs -> mkApp cpath (xs ++ [Var x InfoNone])
+                            let condef = DefNonRec (makeTDef x (mkConApp fcpath fcon args))
+                            return ([condef] ++ defs, expr)
+                     {-
+                     --(defs,expr) <- bindArgs (reverse rargs) $ \xs -> mkApp cpath (xs ++ [Var x InfoNone])
+                     if not useCtxPath
+                      then do let condef = DefNonRec (makeTDef x (App fcon args))
+                              return ([condef] ++ defs, expr)
+                      else do setfld <- setContextPathExpr cname field
+                              y <- uniqueTName (typeOf x)
+                              let condef = DefNonRec (makeTDef y (App fcon args))
+                              let setdef = DefNonRec (makeTDef x (setfld y))
+                              return ([condef,setdef] ++ defs, expr)
+                     -}
+
+getCtxPath :: Bool -> TName -> Int -> CTail CtxPath
+getCtxPath False cname fieldIdx = return CtxNone
+getCtxPath useContextPath cname fieldIdx
+  = do fieldInfo <- getFieldName cname fieldIdx
+       case fieldInfo of
+         Left msg -> failure msg -- todo: allow this? see test/cgen/ctail7
+         Right (_,fieldName) -> return (CtxField fieldName)
+          
+  
 
 --------------------------------------------------------------------------
 -- Found a tail call inside a constructor application
@@ -362,11 +424,12 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
                              Left msg -> failure msg -- todo: allow this? see test/cgen/ctail7
                              Right (_,fieldName) ->
                                do let -- tp    = typeOf (App f fargs)
-                                      hole  = makeCFieldHole resTp
+                                      hole  = makeHole resTp
                                   (defs,cons) <- mkConsApp [hole]
                                   consName    <- uniqueTName (typeOf cons)
-                                  let link = makeCTailLink slot consName (maybe consName id mbC) cname fieldName resTp
-                                      ctailCall   = mkTailApp ctailVar link -- App ctailVar (fargs ++ [link])
+                                  alwaysAffine <- getIsAlwaysAffine
+                                  let comp = makeCCtxExtend slot consName (maybe consName id mbC) cname (getName fieldName) resTp alwaysAffine
+                                      ctailCall   = mkTailApp ctailVar comp 
                                   return $ (defs ++ [DefNonRec (makeTDef consName cons)]
                                             ,ctailCall)
 
@@ -375,64 +438,76 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
 -- Primitives
 --------------------------------------------------------------------------
 
-makeCFieldHole :: Type -> Expr
-makeCFieldHole tp
-  = App (TypeApp (Var (TName nameCFieldHole funType) (InfoExternal [])) [tp]) []
+-- Polymorphic hole
+makeHole :: Type -> Expr
+makeHole tp
+  = App (TypeApp (Var (TName nameCCtxHoleCreate funType) (InfoExternal [])) [tp]) []
   where
     funType = TForall [a] [] (TFun [] typeTotal (TVar a))
     a = TypeVar 0 kindStar Bound
 
 
-makeCTailNil :: Type -> Expr
-makeCTailNil tp
-  = App (TypeApp (Var (TName nameCTailNil funType) 
+-- Initial empty context (@ctx hole)
+makeCCtxEmpty :: Type -> Expr
+makeCCtxEmpty tp
+  = App (TypeApp (Var (TName nameCCtxEmpty funType) 
                         -- (InfoArity 1 0)
-                        (InfoExternal [(C CDefault,"kk_ctail_nil()"),(JS JsDefault,"$std_core_types._ctail_nil()")])
+                        (InfoExternal [(C CDefault,"kk_cctx_empty(kk_context())"),(JS JsDefault,"$std_core_types._cctx_empty()")])
                       ) [tp]) []
   where
-    funType = TForall [a] [] (TFun [] typeTotal (TApp typeCTail [TVar a]))
+    funType = TForall [a] [] (TFun [] typeTotal (typeCCtx (TVar a)))
     a = TypeVar 0 kindStar Bound
 
 
-makeCFieldOf :: TName -> TName -> Name -> Type -> Expr
-makeCFieldOf objName conName fieldName tp
-  = App (TypeApp (Var (TName nameCFieldOf funType) (InfoExternal [])) [tp])
+-- The adress of a field in a constructor (for context holes)
+makeFieldAddrOf :: TName -> TName -> Name -> Type -> Expr
+makeFieldAddrOf objName conName fieldName tp
+  = App (TypeApp (Var (TName nameFieldAddrOf funType) (InfoExternal [])) [tp])
         [Var objName InfoNone, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
   where
     funType = TForall [a] [] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
-                                   typeTotal (TApp typeCField [TVar a]))
+                                   typeTotal (TApp typeFieldAddr [TVar a]))
     a = TypeVar 0 kindStar Bound
 
 
-makeCTailLink :: TName -> TName -> TName -> TName -> Name -> Type -> Expr
-makeCTailLink slot resName objName conName fieldName tp
-  = let fieldOf = makeCFieldOf objName conName fieldName tp
-    in  App (TypeApp (Var (TName nameCTailLink funType) 
+-- Extend a context with a non-empty context
+makeCCtxExtend :: TName -> TName -> TName -> TName -> Name -> Type -> Bool -> Expr
+makeCCtxExtend slot resName objName conName fieldName tp alwaysAffine
+  = let fieldOf = makeFieldAddrOf objName conName fieldName tp
+    in  App (TypeApp (Var (TName nameCCtxExtend funType) 
                 -- (InfoArity 1 3) 
-                (InfoExternal [(C CDefault,"kk_ctail_link(#1,#2,#3)"),(JS JsDefault,"$std_core_types._ctail_link(#1,#2,#3)")])
+                (InfoExternal [(C CDefault,"kk_cctx_extend(#1,#2,#3," ++ affine ++ ",kk_context())"),
+                               (JS JsDefault,"$std_core_types._cctx_extend(#1,#2,#3)")])
             ) [tp])
             [Var slot InfoNone, Var resName InfoNone, fieldOf]
   where
-    funType = TForall [a] [] (TFun [(nameNil,TApp typeCTail [TVar a]),
+    affine = if alwaysAffine then "true" else "false"
+    funType = TForall [a] [] (TFun [(nameNil,typeCCtx (TVar a)),
                                     (nameNil,TVar a),
-                                    (nameNil,TApp typeCField [TVar a])] typeTotal (TApp typeCTail [TVar a]))
+                                    (nameNil,TApp typeFieldAddr [TVar a])] typeTotal (typeCCtx (TVar a)))
     a = TypeVar 0 kindStar Bound
 
 
-makeCTailResolve :: Bool -> TName -> Expr -> Expr
-makeCTailResolve True slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
+
+-- Apply a context to its final value.
+makeCCtxApply :: Bool {-isMulti-} -> Bool {-isAlwaysAffine-} -> TName -> Expr -> Expr
+makeCCtxApply True _ slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
   = App (Var slot InfoNone) [expr]
-makeCTailResolve False slot expr  -- slot is a `ctail<a>`
-  = App (TypeApp (Var (TName nameCTailResolve funType) 
+makeCCtxApply False alwaysAffine slot expr  -- slot is a `ctail<a>`
+  = App (TypeApp (Var (TName nameCCtxApply funType) 
                         -- (InfoArity 1 2)
-                        (InfoExternal [(Default,"kk_ctail_resolve(#1,#2)"),(JS JsDefault,"$std_core_types._ctail_resolve(#1,#2)")])
+                        (InfoExternal [(C CDefault,"kk_cctx_apply(#1,#2," ++ affine ++ ",kk_context())"),
+                                       (JS JsDefault,"$std_core_types._cctx_apply(#1,#2)")])
                       ) [tp])
         [Var slot InfoNone, expr]
   where
+    affine = if alwaysAffine then "true" else "false"
     tp = case typeOf slot of
            TApp _ [t] -> t
-    funType = TForall [a] [] (TFun [(nameNil,TApp typeCTail [TVar a]),(nameNil,TVar a)] typeTotal (TVar a))
+           TSyn _ [t] _ -> t
+    funType = TForall [a] [] (TFun [(nameNil,typeCCtx (TVar a)),(nameNil,TVar a)] typeTotal (TVar a))
     a = TypeVar (-1) kindStar Bound
+
 
 
 --------------------------------------------------------------------------
@@ -441,7 +516,7 @@ makeCTailResolve False slot expr  -- slot is a `ctail<a>`
 
 -- create a unique name specific to this module
 uniqueTName :: Type -> CTail TName
-uniqueTName tp = (`TName` tp) <$> uniqueName "ctail"
+uniqueTName tp = (`TName` tp) <$> uniqueName "trmc"
 
 -- for mapping over a set and collecting the results into a list.
 foldMapM :: (Monad m, Foldable t) => (a -> m b) -> t a -> m [b]
@@ -463,13 +538,13 @@ maybeStats xs expr
 
 data Env = Env { currentDef :: [Def],
                  prettyEnv :: Pretty.Env,
-                 platform  :: Platform,
                  newtypes :: Newtypes,
                  gamma :: Gamma,
-                 ctailInline :: Bool,
                  ctailName :: TName,
                  ctailSlot :: Maybe TName,
-                 isMulti :: Bool
+                 isMulti :: Bool,
+                 useContextPath :: Bool,
+                 alwaysAffine :: Bool
                }
 
 data CTailState = CTailState { uniq :: Int }
@@ -495,18 +570,18 @@ updateSt = modify
 getSt :: CTail CTailState
 getSt = get
 
-ctailRun :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> CTail a -> Unique a
-ctailRun penv platform newtypes gamma ctailInline (CTail action)
+ctailRun :: Pretty.Env -> Newtypes -> Gamma -> Bool -> CTail a -> Unique a
+ctailRun penv newtypes gamma useContextPath (CTail action)
   = withUnique $ \u ->
-      let env = Env [] penv platform newtypes gamma ctailInline (TName nameNil typeUnit) Nothing True
+      let env = Env [] penv newtypes gamma (TName nameNil typeUnit) Nothing True useContextPath False
           st = CTailState u
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
 
 
-withContext :: TName -> Bool -> Maybe TName -> CTail a -> CTail a
-withContext name isMulti mbSlot action
-  = withEnv (\env -> env{ ctailName = name, ctailSlot = mbSlot, isMulti = isMulti }) action
+withContext :: TName -> Bool -> Bool -> Maybe TName -> CTail a -> CTail a
+withContext name isMulti alwaysAffine mbSlot action
+  = withEnv (\env -> env{ ctailName = name, ctailSlot = mbSlot, isMulti = isMulti, alwaysAffine = alwaysAffine }) action
 
 getCTailFun :: CTail Expr
 getCTailFun
@@ -524,17 +599,25 @@ getIsMulti :: CTail Bool
 getIsMulti
   = isMulti <$> getEnv
 
-getFieldName :: TName -> Int -> CTail (Either String (Expr,Name))
+getUseContextPath :: CTail Bool
+getUseContextPath
+  = useContextPath <$> getEnv  
+
+getIsAlwaysAffine :: CTail Bool
+getIsAlwaysAffine
+  = alwaysAffine <$> getEnv  
+
+getFieldName :: TName -> Int -> CTail (Either String (Expr,TName))
 getFieldName cname field
   = do env <- getEnv
        case newtypesLookupAny (getDataTypeName cname) (newtypes env) of
          Just dataInfo -> 
            do let (dataRepr,_) = getDataRepr dataInfo
               if (dataReprIsValue dataRepr)
-                then return (Left ("cannot optimize modulo-cons tail-call over a value type (" ++ show (getName cname) ++ ")"))
+                then return (Left ("cannot optimize modulo-cons tail-call through a value type (" ++ show (getName cname) ++ ")"))
                 else do case filter (\con -> conInfoName con == getName cname) (dataInfoConstrs dataInfo) of
                           [con] -> case drop (field - 1) (conInfoParams con) of
-                                      ((fname,ftp):_) -> return $ Right (Con cname (getConRepr dataInfo con), fname)
+                                      ((fname,ftp):_) -> return $ Right (Con cname (getConRepr dataInfo con), TName fname ftp)
                                       _ -> failure $ "Core.CTail.getFieldName: field index is off: " ++ show cname ++ ", field " ++ show  field ++ ", in " ++ show (conInfoParams con)
                           _ -> failure $ "Core.CTail.getFieldName: cannot find constructor: " ++ show cname ++ ", field " ++ show  field ++ ", in " ++ show (dataInfoConstrs dataInfo)
          _ -> failure $ "Core.CTail.getFieldName: no such constructor: " ++ show cname ++ ", field " ++ show  field
@@ -570,11 +653,6 @@ getPrettyEnv = prettyEnv <$> getEnv
 withPrettyEnv :: (Pretty.Env -> Pretty.Env) -> CTail a -> CTail a
 withPrettyEnv f = withEnv (\e -> e { prettyEnv = f (prettyEnv e) })
 
-getPlatform :: CTail Platform
-getPlatform = platform <$> getEnv
-
-getOptCtailInline :: CTail Bool
-getOptCtailInline = ctailInline <$> getEnv
 
 ---------------------
 -- state accessors --

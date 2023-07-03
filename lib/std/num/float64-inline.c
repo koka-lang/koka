@@ -17,7 +17,7 @@ static inline double kk_double_from_bits( int64_t i, kk_context_t* ctx ) {
 }
 
 static inline double kk_prim_parse_double( kk_string_t str, kk_context_t* ctx) {
-  const char* s = kk_string_cbuf_borrow(str,NULL);
+  const char* s = kk_string_cbuf_borrow(str,NULL,ctx);
   char* end;
   double d = strtod(s,&end);
   kk_string_drop(str,ctx);  

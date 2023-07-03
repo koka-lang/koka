@@ -6,7 +6,7 @@
 // Benchmark script
 // ----------------------------------------------------
 
-import std/num/double
+import std/num/float64
 import std/os/file
 import std/os/path
 import std/os/env
@@ -66,7 +66,7 @@ fun flag-usage() {
   ].unlines)
 }
 
-public fun process-flags() : <ndet,console> maybe<iflags> {
+pub fun process-flags() : <ndet,console> maybe<iflags> {
   val (flags,args,errs) = parse( Iflags(), flag-descs, get-args() )
   if (flags.help) then {
     flag-usage()
@@ -90,17 +90,17 @@ public fun process-flags() : <ndet,console> maybe<iflags> {
 struct test {
   name: string
   lang: string
-  elapsed: double = 0.0
-  elapsed-sdev : double = 0.0
+  elapsed: float64 = 0.0
+  elapsed-sdev : float64 = 0.0
   rss: int = 0
   err: string = ""
-  norm-elapsed: double = 0.0
-  norm-rss: double = 0.0
-  norm-elapsed-sdev : double = 0.0
+  norm-elapsed: float64 = 0.0
+  norm-rss: float64 = 0.0
+  norm-elapsed-sdev : float64 = 0.0
 }
 
-fun rss-double(t : test) : double {
-  t.rss.double
+fun rss-float64(t : test) : float64 {
+  t.rss.float64
 }
 
 fun show( test : test ) {
@@ -122,7 +122,7 @@ fun show-norm( test : test ) {
 // ----------------------------------------------------
 // main
 // ----------------------------------------------------
-public fun main()
+pub fun main()
   match (process-flags())
     Nothing -> ()
     Just(flags) ->
@@ -167,7 +167,7 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
     val ntests = tests.map fn(t) {
       val norm = if (koka.elapsed==0.0) then 1.0 else t.elapsed / koka.elapsed
       t(norm-elapsed = norm,
-        norm-rss     = if (koka.rss==0) then 1.0 else t.rss.double / koka.rss.double,
+        norm-rss     = if (koka.rss==0) then 1.0 else t.rss.float64 / koka.rss.float64,
         norm-elapsed-sdev = norm * t.elapsed-sdev)
     }
     println("\n--- normalized " ++ test-name ++ " ----------------")
@@ -184,13 +184,13 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
   // emit latex chart
   if (gen-chart) then {
     val ymax       = 3.0
-    val chart-desc = @"16-core AMD 5950X at 3.4Ghz\\Ubuntu 20.04, gcc 9.3.0"
+    val chart-desc = r"16-core AMD 5950X at 3.4Ghz\\Ubuntu 20.04, gcc 9.3.0"
     val chart-elapsed = if (normalize)
                           then chart("time", True, norm-elapsed, norm-elapsed-sdev, elapsed, test-names, lang-ntests, ymax, chart-desc)
                           else chart("time", False, elapsed, elapsed-sdev, elapsed, test-names, lang-ntests, ymax, chart-desc)
     val chart-rss     = if (True || normalize)
-                          then chart("rss", True, norm-rss, fn(t){ 0.0 }, rss-double, test-names, lang-ntests, ymax, chart-desc)
-                          else chart("rss", False, rss-double, fn(t){ 0.0 }, rss-double, test-names, lang-ntests, ymax, chart-desc)
+                          then chart("rss", True, norm-rss, fn(t){ 0.0 }, rss-float64, test-names, lang-ntests, ymax, chart-desc)
+                          else chart("rss", False, rss-float64, fn(t){ 0.0 }, rss-float64, test-names, lang-ntests, ymax, chart-desc)
     println("\n<!-- chart elapsed --------------- -->")
     println(chart-elapsed)
     println("\n<!-- chart rss --------------- -->")
@@ -203,7 +203,7 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
 // ----------------------------------------------------
 // Latex chart
 // ----------------------------------------------------
-fun chart( kind : string, normalize : bool, norm : test -> double, norm-sdev : test -> double, abs : test -> double, test-names : list<string>, lang-ntests : list<(string,list<test>)>, ymax : double = 2.0, desc : string = "" ) : string {
+fun chart( kind : string, normalize : bool, norm : test -> float64, norm-sdev : test -> float64, abs : test -> float64, test-names : list<string>, lang-ntests : list<(string,list<test>)>, ymax : float64 = 2.0, desc : string = "" ) : string {
   [ tikz-header(test-names,".bench" ++ kind)
   , lang-ntests.flatmap(fn(l){ tikz-data(kind, normalize, norm, norm-sdev, abs, l, ymax = ymax ) })
   , tikz-picture(kind, normalize, test-names, lang-ntests.map(fst), ymax = ymax, desc = desc )
@@ -222,32 +222,32 @@ fun tikz-footer( test-names : list<string> ) : list<string> {
   [ "~ End Snippet" ]
 }
 
-fun tikz-picture( kind : string, normalize : bool, test-names : list<string>, lang-names : list<string>, ymax : double = 5.0, 
+fun tikz-picture( kind : string, normalize : bool, test-names : list<string>, lang-names : list<string>, ymax : float64 = 5.0, 
                   desc : string = "", height:string = "5cm", width:string = "6cm" ) {
   val n = test-names.length - 1
   val header = [
-    @"",
-    @"\begin{tikzpicture}\sffamily",
-    @"\begin{axis}[Chart" ++ (if (normalize) then "norm" else "abs") ++ kind ++ ",ymax=" ++ ymax.show(1) ++ ",height=" ++ height ++ ",xmax=" ++ n.show ++ ".5,width=" ++ width ++ "]",
-    if (normalize) then @"  \draw (axis cs:-0.5,1) -- (axis cs:" ++ n.show ++ ".5,1);" else ""
+    r"",
+    r"\begin{tikzpicture}\sffamily",
+    r"\begin{axis}[Chart" ++ (if (normalize) then "norm" else "abs") ++ kind ++ ",ymax=" ++ ymax.show(1) ++ ",height=" ++ height ++ ",xmax=" ++ n.show ++ ".5,width=" ++ width ++ "]",
+    if (normalize) then r"  \draw (axis cs:-0.5,1) -- (axis cs:" ++ n.show ++ ".5,1);" else ""
   ]
-  val mid = lang-names.map(fn(l){ @"  \draw" ++ kind ++ @"{color" ++ l ++ @"}{\data" ++ kind ++ l ++ "};"})
+  val mid = lang-names.map(fn(l){ r"  \draw" ++ kind ++ r"{color" ++ l ++ r"}{\data" ++ kind ++ l ++ "};"})
   val footer = [
-     if (kind=="time") then @"  \legend{" ++ lang-names.map(fn(l){ "\\lang" ++ l }).join(",") ++ "};"
+     if (kind=="time") then r"  \legend{" ++ lang-names.map(fn(l){ "\\lang" ++ l }).join(",") ++ "};"
                        else "",
-     // if (desc.is-empty) then "" else @"  \chartdesc{" ++ desc.replace-all("\n",@"\\") ++ "};",
-     @"\end{axis}",
-     @"\end{tikzpicture}"
+     // if (desc.is-empty) then "" else r"  \chartdesc{" ++ desc.replace-all("\n",r"\\") ++ "};",
+     r"\end{axis}",
+     r"\end{tikzpicture}"
   ]
   (header ++ mid ++ footer)
 }
 
 
-fun tikz-data( kind:string, normalize : bool, norm : test -> double, norm-sdev : test -> double, abs : test -> double, lang-ntests : (string,list<test>), ymax : double = 5.0 ) : list<string> {
+fun tikz-data( kind:string, normalize : bool, norm : test -> float64, norm-sdev : test -> float64, abs : test -> float64, lang-ntests : (string,list<test>), ymax : float64 = 5.0 ) : list<string> {
   val (lang,ntests) = lang-ntests
   ["",
-   @"\pgfplotstableread{",
-   @"x y y-error meta"] ++
+   r"\pgfplotstableread{",
+   r"x y y-error meta"] ++
     ntests.map-indexed(fn(i:int,t:test){
       val tval = if (normalize) then t.norm else t.abs
       if (t.err.is-empty) then {
@@ -258,39 +258,39 @@ fun tikz-data( kind:string, normalize : bool, norm : test -> double, norm-sdev :
            then (if (normalize) then (
                    if (lang == "kk") 
                    then (if (kind=="rss") 
-                            then @"{\absrssnormlabel{" ++ (t.abs / 1024.0).round.int.show ++ "mb}}" // megabytes  
-                            else @"{\absnormlabel{" ++ t.abs.show-fixed(2) ++ "}}" )
-                   else @"{\normlabel{" ++ t.norm.show-fixed(2) ++ "}}" )
-                else @"{\abslabel{" ++ t.abs.show-fixed(2) ++ "}}")
+                            then r"{\absrssnormlabel{" ++ (t.abs / 1024.0).round.int.show ++ "mb}}" // megabytes  
+                            else r"{\absnormlabel{" ++ t.abs.show-fixed(2) ++ "}}" )
+                   else r"{\normlabel{" ++ t.norm.show-fixed(2) ++ "}}" )
+                else r"{\abslabel{" ++ t.abs.show-fixed(2) ++ "}}")
            else (if (normalize) 
-                   then (@"{\outernormlabel{" ++ t.norm.show(2) ++ "}}")
-                   else (@"{\outerlabel{" ++ t.abs.show(2) ++ "}}"))
+                   then (r"{\outernormlabel{" ++ t.norm.show(2) ++ "}}")
+                   else (r"{\outerlabel{" ++ t.abs.show(2) ++ "}}"))
          ].join(" ")
       }
-      else "" // ("" ++ i.show ++ @" 0.100 0.000 " ++ (if (i==0) then "0" elif (t.err=="NA") then "{NA}" else @"{\ensuremath{\times}}"))
+      else "" // ("" ++ i.show ++ r" 0.100 0.000 " ++ (if (i==0) then "0" elif (t.err=="NA") then "{NA}" else r"{\ensuremath{\times}}"))
     }) ++
-    [@"}\data" ++ kind ++ lang]
+    [r"}\data" ++ kind ++ lang]
 }
 
 
 // ----------------------------------------------------
 // Run a single test
 // ----------------------------------------------------
-fun insert(xs:list<double>, y :double) : list<double> {
+fun insert(xs:list<float64>, y :float64) : list<float64> {
   match(xs) {
     Cons(x,xx) | y > x -> Cons(x,xx.insert(y))
     _  -> Cons(y,xs)               
   }
 }
 
-fun sort(xs : list<double> ) : list<double> {
+fun sort(xs : list<float64> ) : list<float64> {
   match(xs) {
     Cons(x,xx) -> xx.sort.insert(x)
     Nil -> Nil
   }
 }
 
-fun median( xs : list<double> ) : double {
+fun median( xs : list<float64> ) : float64 {
   val n = xs.length
   val ys = xs.sort
   match(ys.drop(n/2 - 1)) {
@@ -341,8 +341,8 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
   }
 
   val melapsed   = results.map(elapsed).median
-  val mrss       = results.map(fn(t){ t.rss.double }).median.int
-  val sdev       = sqrt( results.map( fn(t){ sqr(t.elapsed - melapsed) } ).sum / results.length.double )
+  val mrss       = results.map(fn(t){ t.rss.float64 }).median.int
+  val sdev       = sqrt( results.map( fn(t){ sqr(t.elapsed - melapsed) } ).sum / results.length.float64 )
   // println("melapsed: " ++ melapsed.show ++ ", mrss: " ++ mrss.show ++ "k")
 
   Test(test-name, lang, elapsed=melapsed, rss=mrss, elapsed-sdev=sdev)  
@@ -352,7 +352,7 @@ fun test-sum( t1 : test, t2 : test) : test {
   t1( elapsed = t1.elapsed + t2.elapsed, rss = t1.rss + t2.rss )
 }
 
-fun execute-test( run : int, base : string, prog : string, envvars : string ) : io either<string,(double,int)> 
+fun execute-test( run : int, base : string, prog : string, envvars : string ) : io either<string,(float64,int)> 
   val timef= "out/time-" ++ base ++ ".txt"
   val cmd  = (if envvars.is-empty then "" else ("env " ++ envvars ++ " ")) ++
              (if get-env("SHELL").default("").contains("zsh")
@@ -370,13 +370,13 @@ fun execute-test( run : int, base : string, prog : string, envvars : string ) : 
     _ -> 
       val parts = time.replace-all("\n"," ").replace-all("\t"," ").split(" ").filter(fn(p) !p.is-empty )
       // println( parts.join(",") )
-      match(parts) {
+      match(parts)
         Cons(elapsed,Cons(rss,Nil)) -> // linux
           println("" ++ run.show ++ ": elapsed: " ++ elapsed ++ "s, rss: " ++ rss ++ "kb" )
-          Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)) )
+          Right( (parse-float64(elapsed).default(0.0), parse-int(rss).default(0)) )
 
         Cons(elapsed,Cons("real",Cons(_,Cons(_user,Cons(_,Cons(_sys,Cons(rss,_))))))) ->  // on macOS
           println("" ++ run.show ++ ": elapsed: " ++ elapsed ++ "s, rss: " ++ rss ++ "b" )
-          Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)/1024) )
+          Right( (parse-float64(elapsed).default(0.0), parse-int(rss).default(0)/1024) )
         
         _ -> Left("bad format")

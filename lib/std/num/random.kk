@@ -39,21 +39,27 @@ pub fun strong-random(action : () -> <random,ndet|e> a) : <ndet|e> a
 // The chance of a cycle of less than 2^(32+max(96-k,0)) is 2^-(32+k), 
 // (e.g. the chance of a cycle of less than 2^48 is 2^-80).
 // <http://pracrand.sourceforge.net/RNG_engines.txt>
-struct sfc(x:int32, y:int32, z:int32, cnt:int32)
+abstract value struct sfc(x:int32, y:int32, z:int32, cnt:int32)
 
-fun sfc-step( sfc : sfc ) : (int32,sfc) 
+pub value struct sfc-result( rnd : int32, rstate : sfc )
+
+pub fun sfc-step( sfc : sfc ) : sfc-result
   match sfc 
     Sfc(x,y,z,cnt) -> 
       val res = x + y + cnt
-      (res, Sfc( y ^ shr(y,9), 
-                 z + shl(z,3), 
-                 rotl(z,21) + res, 
-                 cnt + 1.int32 ))      
+      Sfc-result( res, Sfc( y ^ shr(y,9), 
+                            z + shl(z,3), 
+                            rotl(z,21) + res, 
+                            cnt + 1.int32 ))      
 
-fun sfc-init( seed : int ) : sfc
-  val sfc0 = Sfc(0.int32, seed.int32, (seed / 0x100000000).int32, 1.int32)
-  fold-int32( 0.int32, 12.int32, sfc0, fn(_,s){ sfc-step(s).snd } )  // step 12 times
+pub fun sfc-init32( seed1 : int32, seed2 : int32 ) : sfc
+  val sfc0 = Sfc(0.int32, seed1, seed2, 1.int32)
+  fold-int32( 0.int32, 12.int32, sfc0, fn(_,s){ sfc-step(s).rstate } )  // step 12 times
 
+
+pub fun sfc-init( seed : int ) : sfc
+  sfc-init32(seed.int32, (seed / 0x100000000).int32)
+  
 
 // Use pseudo random numbers given some initial `seed`. At most
 // 64-bits of the initial seed are used. Do not use this for
@@ -66,9 +72,9 @@ fun sfc-init( seed : int ) : sfc
 pub fun pseudo-random( seed : int, action : () -> <random|e> a) : e a
   var s := sfc-init(seed)
   with fun random-int32()
-    val (x,sfc) = sfc-step(s)
-    s := sfc
-    x
+    val sfc = sfc-step(s)
+    s := sfc.rstate
+    sfc.rnd
   action()
 
 

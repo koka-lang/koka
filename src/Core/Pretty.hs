@@ -9,7 +9,7 @@
 -}
 -----------------------------------------------------------------------------
 
-module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef, prettyDefs, prettyDefGroup ) where
+module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef, prettyDefs, prettyDefGroup, keyword, source ) where
 
 import Lib.Trace
 import Data.Char( isAlphaNum )
@@ -37,6 +37,9 @@ prettyNames = True
 
 keyword env s
   = color (colorKeyword (colors env)) (text s)
+
+source env doc
+  = color (colorSource (colors env)) doc
 
 {--------------------------------------------------------------------------
   Show instance declarations
@@ -156,12 +159,12 @@ prettyImportedSyn env synInfo
   = ppSynInfo env True False True synInfo <.> semi
 
 prettyExternal :: Env -> External -> Doc
-prettyExternal env (External name tp pinfos body vis nameRng doc) | coreIface env && isHiddenExternalName name
+prettyExternal env (External name tp pinfos body vis fip nameRng doc) | coreIface env && isHiddenExternalName name
   = empty
-prettyExternal env (External name tp pinfos body vis nameRng doc)
+prettyExternal env (External name tp pinfos body vis fip nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $
-    keyword env "extern" <+> prettyDefName env name <+> text ":" <+> prettyDefFunType env pinfos tp <+> prettyEntries body
+    keyword env (show fip ++ "extern") <+> prettyDefName env name <+> text ":" <+> prettyDefFunType env pinfos tp <+> prettyEntries body
   where
     prettyEntries [(Default,content)] = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
@@ -242,7 +245,7 @@ prettyInlineDef env (InlineDef name expr isRec inlkind cost sort specArgs)
     <.> (if (null specArgs) then empty else (keyword env "specialize " <.> prettySpecArgs <.> text " "))
     <.> (if (cost <= 0 || inlkind == InlineAlways) then (keyword env "inline ") else empty)
     <.> prettyParamInfos sort
-    <.> keyword env (show sort)
+    <.> keyword env (defSortShowFull sort)
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     -- <+> text ":" <+> prettyType env scheme
     <+> text ("// inline size: " ++ show cost)
@@ -256,7 +259,7 @@ prettyInlineDef env (InlineDef name expr isRec inlkind cost sort specArgs)
     prettySpecArgs 
       = dquotes (text [if spec then '*' else '_' | spec <- specArgs])
 
-    prettyParamInfos (DefFun pinfos) | Borrow `elem` pinfos
+    prettyParamInfos (DefFun{defFunParamInfos=pinfos}) | Borrow `elem` pinfos
       = keyword env "borrow" <+> dquotes (text [if info == Borrow then '^' else '_' | info <- pinfos]) <.> text " "
     prettyParamInfos _
       = empty
@@ -270,13 +273,13 @@ prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
       then ppBody <.> semi
       else -}
            prettyVis env vis $
-            keyword env (show sort)
+            keyword env (defSortShowFull sort)
             <+> (if nameIsNil name && coreShowDef env
                   then text "_" 
                   else prettyDefName env name) 
             <+> text ":" <+> (case sort of 
-                  DefFun pinfos -> prettyDefFunType env pinfos scheme
-                  _             -> prettyType env scheme
+                  DefFun pinfos _ -> prettyDefFunType env pinfos scheme
+                  _               -> prettyType env scheme
                 )
             <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
                   then empty

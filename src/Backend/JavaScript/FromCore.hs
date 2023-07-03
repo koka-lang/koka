@@ -275,13 +275,13 @@ genTypeDef (Data info isExtend)
                         -- special
                         ConEnum{}
                           -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-                        ConSingleton _ _ _ | conInfoName c == nameOptionalNone
+                        ConSingleton{} | conInfoName c == nameOptionalNone
                           -> singletonValue "undefined"                        
-                        ConSingleton _ DataStructAsMaybe _
+                        ConSingleton _ DataStructAsMaybe _ _
                           -> singletonValue "null"
-                        ConSingleton _ DataAsMaybe _
+                        ConSingleton _ DataAsMaybe _ _
                           -> singletonValue "null"
-                        ConSingleton _ DataAsList _
+                        ConSingleton _ DataAsList _ _
                           -> singletonValue "null"
                         -- tagless
                         ConIso{}     -> genConstr penv c repr name args []
@@ -589,18 +589,18 @@ genMatch result scrutinees branches
                 | otherwise
                 -> case repr of
                      -- special
-                     ConEnum _ _ tag
+                     ConEnum _ _ _ tag
                        -> [debugWrap "genTest: enum"      $ scrutinee <+> text "===" <+> int tag]
-                     ConSingleton _ _ _
+                     ConSingleton{}
                        | getName tn == nameOptionalNone
                        -> [debugWrap "genTest: optional none" $ scrutinee <+> text "=== undefined"]
-                     ConSingleton _ DataStructAsMaybe _
+                     ConSingleton _ DataStructAsMaybe _ _
                        -> [debugWrap "genTest: maybe like nothing" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]
-                     ConSingleton _ DataAsMaybe _
+                     ConSingleton _ DataAsMaybe _ _
                        -> [debugWrap "genTest: maybe like nothing" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]
-                     ConSingleton _ DataAsList _
+                     ConSingleton _ DataAsList _ _
                        -> [debugWrap "genTest: list like nil" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]
-                     ConSingleton _ _ tag
+                     ConSingleton{conTag=tag}
                        -> [debugWrap "genTest: singleton" $ scrutinee <.> dot <.> tagField <+> text "===" <+> int tag]
                      ConSingle{} -- always succeeds, but need to test the fields
                        -> concatMap
@@ -698,10 +698,10 @@ genExpr expr
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt i
        -> return (empty, pretty i <.> text "n")       
 
-     -- special: cfield-of
-     App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf
+     -- special: .cctx-field-addr-of: create a tuple with the object and the field name as a string
+     App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameFieldAddrOf
        -> do conDoc <- genTName con
-             return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
+             return (empty,text "{obj:" <+> conDoc <.> text ", field_name: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
 
      App f args
        -> {- case splitFunScheme (typeOf f) of
@@ -910,14 +910,16 @@ genExprExternal tname formats argDocs0
                                    <.> text "()"
                          in return ([],try)
 
--- special case: cfield-hole
+-- special case: .cctx-hole-create
 genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
-genExprExternalPrim tname formats [] | getName tname == nameCFieldHole
+genExprExternalPrim tname formats [] | getName tname == nameCCtxHoleCreate
   = return ([],text "undefined")
 
+{-
 -- special case: cfield-set (field is implemented as {value:<obj>, field:<string>})
 genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCFieldSet
   = return ([], tupled [accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc, text "$std_core_types._Unit_"])
+-}
 
 -- normal external
 genExprExternalPrim tname formats argDocs0
@@ -1085,11 +1087,11 @@ instance Functor Asm where
                                      (x,st') -> (f x, st'))
 
 instance Applicative Asm where
-  pure  = return
-  (<*>) = ap
+  pure x = Asm (\env st -> (x,st))
+  (<*>)  = ap
 
 instance Monad Asm where
-  return x      = Asm (\env st -> (x,st))
+  -- return = pure
   (Asm a) >>= f = Asm (\env st -> case a env st of
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)

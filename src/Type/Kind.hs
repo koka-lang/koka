@@ -135,8 +135,8 @@ instance HasKind Type where
         TCon c         -> getKind c
         TSyn syn xs tp -> -- getKind tp {- this is wrong for partially applied type synonym arguments, see "kind/alias3" test -}
                           -- if (null xs) then getKind tp else
-                          kindApply xs (getKind syn)
-        TApp tp args   -> kindApply args (getKind tp)
+                          kindApply xs (getKind syn)  
+        TApp tp args   -> kindApply args (getKind tp) 
                           {- case collect [] (getKind tp) of
                             (kres:_) -> kres
                             _  -> failure ("Type.Kind: illegal kind in type application? " ++ show (getKind tp) )
@@ -148,4 +148,5 @@ instance HasKind Type where
 
       kindApply [] k   = k
       kindApply (_:rest) (KApp (KApp arr k1) k2)  = kindApply rest k2
-      kindApply _  k   = failure ("Type.Kind.kindApply: illegal kind in application? " ++ show k)
+      kindApply args  k  = failure ("Type.Kind.kindApply: illegal kind in application? " ++ show (k) ++ " to " ++ show args 
+                              ++ "\n  " ++ show tau)

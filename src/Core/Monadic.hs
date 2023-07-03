@@ -377,11 +377,11 @@ instance Functor Mon where
                                       Ok x st' -> Ok (f x) st')
 
 instance Applicative Mon where
-  pure  = return
-  (<*>) = ap
+  pure x = Mon (\env st -> Ok x st)
+  (<*>)  = ap
 
 instance Monad Mon where
-  return x      = Mon (\env st -> Ok x st)
+  -- return = pure
   (Mon c) >>= f = Mon (\env st -> case c env st of
                                     Ok x st' -> case f x of
                                                    Mon d -> d env st' )

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="kk_integer_s">
+    <DisplayString Condition="(ibox &amp; 1)==0">bigint, rc={((kk_bigint_s*)ibox)->_block.header.refcount}</DisplayString>
+    <DisplayString>small int= {((intptr_t)ibox)/4}</DisplayString>
+    <Expand>
+      <Item Name="[bigint]" Condition="(ibox &amp; 1)==0">((kk_bigint_s*)ibox)</Item>
+      <!--<Item Name="smallint">ibox</Item> -->
+    </Expand>
+  </Type>
+</AutoVisualizer>
+
+<!--
+  <Type Name="kk_block_s">
+    <DisplayString Condition="header.tag==0xFFC2">box_value</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC3">box_any</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC5">function={(void*)(((struct kk_function_s*)&amp;header)->fun.box-1)}</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC4">int</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC7">small string={(char*)&amp;(((struct kk_string_small_s*)&amp;header)->u.str)}</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC8">string={((struct kk_string_normal_s*)&amp;header)->str}</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC9">vector=(length={(((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box)/2 - 1})</DisplayString>
+    <DisplayString Condition="header.tag==0xFFD1">evv vector=(length={header.scan_fsize - 1})</DisplayString>
+    <DisplayString>constructor=(tag={header.tag}, rc={header.refcount}, scan={(uint32_t)(header.scan_fsize==255?(((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box/2):header.scan_fsize)})</DisplayString>
+  </Type>
+  <Type Name="kk_bigint_s">
+    <DisplayString>big int</DisplayString>
+    <Expand>
+      <Item Name="block">_block</Item>
+      <Item Name="negative?">(bool)is_neg</Item>
+      <Item Name="extra">extra</Item>
+      <ArrayItems>
+        <Size>count</Size>
+        <ValuePointer>digits</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  -->
+
+
+
+<!--
+  <Type Name="kk_block_s">
+    <DisplayString Condition="header.tag==0xFFC2">box_value</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC3">box_any</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC5">function={(void*)(((struct kk_function_s*)&amp;header)->fun.box-1)}</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC4">int</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC7">small string={(char*)&amp;(((struct kk_string_small_s*)&amp;header)->u.str)}</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC8">string={((struct kk_string_normal_s*)&amp;header)->str}</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC9">vector=(length={(((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box)/2 - 1})</DisplayString>
+    <DisplayString Condition="header.tag==0xFFD1">evv vector=(length={header.scan_fsize - 1})</DisplayString>
+    <DisplayString>constructor=(tag={header.tag}, rc={header.refcount}, scan={(uint32_t)(header.scan_fsize==255?(((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box/2):header.scan_fsize)}, shared={(header.thread_shared?false:true)})</DisplayString>
+  </Type>
+  -->
+  <!--
+  <Type Name="kk_block_s">
+    <DisplayString Condition="header.tag==0xFFC2">box_value</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC3">box_any</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC5">function={(void*)(((struct kk_function_s*)&amp;header)->fun.box-1)}</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC7">small string={(char*)&amp;(((struct kk_string_small_s*)&amp;header)->u.str)}</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC8">string={((struct kk_string_normal_s*)&amp;header)->str}</DisplayString>
+    <DisplayString Condition="header.tag==0xFFC9">vector=(length={(((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box)/2 - 1})</DisplayString>
+    <DisplayString Condition="header.tag==0xFFD1">evv vector=(length={header.scan_fsize - 1})</DisplayString>
+    <DisplayString>constructor=(tag={header.tag}, rc={header.refcount}, scan={(uint32_t)(header.scan_fsize==255?(((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box/2):header.scan_fsize)}, shared={(header.thread_shared?false:true)})</DisplayString>
+    <Expand>
+      <Item Name="reference count">header.refcount</Item>
+      <Item Name="tag">header.tag</Item>
+      <Item Name="thread shared">(bool)header.thread_shared</Item>
+      <Item Name="free variables" Condition="header.tag==0xFFC5">(header.scan_fsize&gt;0?header.scan_fsize-1:0)</Item>
+      <Item Name="function entry" Condition="header.tag==0xFFC5">(void*)(((struct kk_function_s*)&amp;header)->fun.box-1)</Item>
+      <Item Name="scan fields">(header.scan_fsize==255?((((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box)/2):header.scan_fsize)</Item>
+      <Item Name="string length" Condition="header.tag==0xFFC8">((struct kk_string_normal_s*)&amp;header)->length</Item>
+      <ArrayItems Condition="header.tag==0xFFCA">
+        <Size>(((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box)/2 - 1</Size>
+        <ValuePointer>&amp;(((struct kk_vector_large_s*)&amp;header)->vec[0])</ValuePointer>
+      </ArrayItems>
+      <ArrayItems Condition="header.tag==0xFFC5 &amp;&amp; header.scan_fsize&gt;0">
+        <Size>(header.scan_fsize - 1)</Size>
+        <ValuePointer>&amp;(((struct kk_block_fields_s*)&amp;header)->fields[1])</ValuePointer>
+      </ArrayItems>
+      <ArrayItems Condition="header.tag!=0xFFCA &amp;&amp; header.tag!=0xFFD1 &amp;&amp; header.scan_fsize&gt;0 &amp;&amp; header.scan_fsize&lt;0xFF">
+        <Size>header.scan_fsize</Size>
+        <ValuePointer>&amp;(((struct kk_block_fields_s*)&amp;header)->fields[0])</ValuePointer>
+      </ArrayItems>   
+    </Expand>
+  </Type>
+  <Type Name="kk_box_s">
+    <DisplayString Condition="(box&amp;1)==1">boxed (int={(box-1)/4}, raw={box})</DisplayString>
+    <DisplayString>boxed (ptr={*((struct kk_block_s*)box)})</DisplayString>
+    <Expand>
+      <ExpandedItem Condition="(box&amp;1)==0">*((struct kk_block_s*)box)</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="kk_datatype_s">
+    <DisplayString Condition="(singleton&amp;1)==1">singleton (tag={(uint16_t)((singleton-1)/2)})</DisplayString>
+    <DisplayString>data={((struct kk_block_s*)ptr)}</DisplayString>
+    <Expand>
+      <ExpandedItem Condition="(singleton&amp;1)==0">*ptr</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="kk_function_s">
+    <DisplayString>{_block}</DisplayString>
+    <Expand>
+      <ExpandedItem>_block</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="kk_string_normal_s">
+    <DisplayString>{_block}</DisplayString>
+    <Expand>
+      <ExpandedItem>_block</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="kk_integer_s">
+    <DisplayString Condition="(value&amp;1)==0">big int</DisplayString>
+    <DisplayString>small int= {(value-1)/4}</DisplayString>
+    <Expand>
+      <ExpandedItem Condition="(value&amp;1)==0">((struct kk_bigint_s*)value)</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="kk_bigint_s">
+    <DisplayString>big int</DisplayString>
+    <Expand>
+      <Item Name="block">_block</Item>
+      <Item Name="negative?">(bool)is_neg</Item>
+      <Item Name="extra">extra</Item>
+      <ArrayItems>
+        <Size>count</Size>
+        <ValuePointer>&amp;(digits[0])</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="kk_std_core_hnd_Htag">
+    <DisplayString>handler tag ({*((struct kk_block_s*)_field1)})</DisplayString>
+    <Expand>
+      <ExpandedItem>(struct kk_string_s*)_field1</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="kk_std_core_hnd_Ev">
+    <DisplayString>evidence ({htag.tagname})</DisplayString>    
+  </Type>
+-->

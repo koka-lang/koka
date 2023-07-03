@@ -11,6 +11,7 @@
 */
 module std/time/chrono
 
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/utc
@@ -52,7 +53,8 @@ pub fun now() : <ndet,utc> instant
 pub fun now-in( ts : timescale = ts-ti) : ndet instant
   // on current backends (C#, JavaScript) we can only use `unix-now` :-(
   val (secs,frac) = unix-now()
-  unix-instant(secs,frac,ts)
+  val leap = 0
+  unix-instant(timespan(secs,frac),leap,ts)
 
 // Returns a unix time stamp as seconds and fraction of seconds;
 // The fraction of seconds is for added precision if necessary,

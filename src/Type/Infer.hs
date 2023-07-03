@@ -39,6 +39,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameTpValueOp, nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
                       , nameInt32, nameOr, nameAnd, nameEffectOpen
+                      , nameCCtxCreate, nameCCtxHoleCreate, isNameTuple
                        )
 import Common.Range
 import Common.Unique
@@ -65,11 +66,12 @@ import Type.InferMonad
 
 import qualified Core.CoreVar as CoreVar
 import Core.AnalysisMatch( analyzeBranches )
+import Core.AnalysisCCtx( analyzeCCtx )
 -- import Common.ResumeKind
 -- import Core.AnalysisResume( analyzeResume )
 import Core.Divergent( analyzeDivergence )
 import Core.BindingGroups( regroup )
-import Core.Simplify( uniqueSimplify )
+-- import Core.Simplify( uniqueSimplify )
 
 import qualified Syntax.RangeMap as RM
 
@@ -145,7 +147,7 @@ inferDefGroup topLevel (DefRec defs) cont
   = -- trace ("\ninfer group: " ++ show (map defName defs)) $
     do (gamma,infgamma) <- createGammas [] [] defs
        --coreDefs0 <- extendGamma gamma (mapM (inferRecDef topLevel infgamma) defs)
-       (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGamma topLevel infgamma $
+       (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGammaEx topLevel [] infgamma $
                                  do assumed <- mapM (\def -> lookupInfName (getName def)) defs
                                     coreDefs0 <- mapM (\def -> inferDef Instantiated def) defs
                                     coreDefs1 <- mapM fixCanonicalName coreDefs0
@@ -343,7 +345,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                             -> -- fix it up by adding the polymorphic type application
                                do assumedTpX <- subst assumedTp >>= normalize True -- resTp0
                                   -- resTpX <- subst resTp0 >>= normalize
-                                  simexpr <- liftUnique $ uniqueSimplify penv False False 1 {-runs-} 0 expr
+                                  simexpr <- return expr -- liftUnique $ uniqueSimplify penv False False 1 {-runs-} 0 expr
                                   coreX <- subst simexpr
                                   let -- coreX = simplify expr -- coref0 (Core.defExpr coreDef)
                                       mvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]
@@ -366,13 +368,13 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                -}
                          (Just (_,_), _) | divergent  -- we added a divergent effect, fix up the occurrences of the assumed type
                             -> do assumedTpX <- normalize True assumedTp >>= subst -- resTp0
-                                  simResCore1 <- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
+                                  simResCore1 <- return resCore1 -- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
                          (Just _,_)  -- ensure we insert the right info  (test: static/div2-ack)
                             -> do assumedTpX <- normalize True assumedTp >>= subst
-                                  simResCore1 <- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
+                                  simResCore1 <- return resCore1 -- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
@@ -391,7 +393,7 @@ inferRecDef topLevel infgamma def
     do let rng = defRange def
            nameRng = binderNameRange (defBinder def)
        eitherRes <-
-          extendInfGamma topLevel infgamma $
+          extendInfGammaEx topLevel [] infgamma $
           do mbAssumedType <- lookupInfName (getName def)
              coreDef <- inferDef Instantiated def
              case mbAssumedType of
@@ -444,7 +446,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl 
      if (verbose penv >= 3)
       then Lib.Trace.trace ("infer: " ++ show sort ++ " " ++ show name) $ return ()
       else return ()
-     withDefName name $
+     withDefName name $ disallowHole $
       (if (not (isDefFun sort) || nameIsNil name) then id else allowReturn True) $
         do (tp,eff,coreExpr) <- inferExpr Nothing expect expr
                                 -- Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
@@ -461,7 +463,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl 
 inferBindDef :: Def Type -> Inf (Effect,Core.Def)
 inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
   = -- trace ("infer bind def: " ++ show name ++ ", var?:" ++ show (sort==DefVar)) $
-    do withDefName name $
+    do withDefName name $ disallowHole $
         do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated expr
            stp <- subst tp
                                 --  Just annTp -> inferExpr (Just (annTp,rng)) Instantiated (Ann expr annTp rng)
@@ -532,6 +534,7 @@ inferIsolated contextRange range body inf
 inferExpr :: Maybe (Type,Range) -> Expect -> Expr Type -> Inf (Type,Effect,Core.Expr)
 inferExpr propagated expect (Lam binders body rng)
   = isNamedLam $ \isNamed ->
+    disallowHole $
     do -- traceDoc $ \env -> text " inferExpr.Lam:" <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated
        (propArgs,propEff,propBody,skolems,expectBody) <- matchFun (length binders) propagated
 
@@ -550,8 +553,8 @@ inferExpr propagated expect (Lam binders body rng)
                      Nothing     -> Op.freshTVar kindStar Meta
                      Just (tp,_) -> return tp
 
-       (tp,eff1,core) <- extendInfGamma False infgamma  $
-                           extendInfGamma False [(nameReturn,createNameInfoX Public nameReturn DefVal (getRange body) returnTp)] $
+       (tp,eff1,core) <- extendInfGamma infgamma  $
+                           extendInfGamma [(nameReturn,createNameInfoX Public nameReturn DefVal (getRange body) returnTp)] $
                            (if (isNamed) then inferIsolated rng (getRange body) body else id) $
                            -- inferIsolated rng (getRange body) body $
                            inferExpr propBody expectBody body
@@ -674,7 +677,7 @@ inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,r
   where
     errorAssignable
       = do contextError rng (getRange lval) (text "not an assignable expression") [(text "because",text "an assignable expression must be an application, index expression, or variable")]
-           return (typeUnit,typeTotal,Core.Con (Core.TName (nameTuple 0) typeUnit) (Core.ConEnum nameTpUnit  Core.DataEnum 0))
+           return (typeUnit,typeTotal,Core.Con (Core.TName (nameTuple 0) typeUnit) (Core.ConEnum nameTpUnit Core.DataEnum valueReprZero 0))
 
     checkAssign
       = Check "an assignable identifier must have a reference type"
@@ -708,6 +711,34 @@ inferExpr propagated expect (App (h@Handler{hndlrAllowMask=Nothing}) [action] rn
 -- | Byref expressions
 inferExpr propagated expect (App (Var byref _ _) [(_,Var name _ rng)] _)  | byref == nameByref
   = inferVar propagated expect name rng False
+
+-- | Hole expressions
+inferExpr propagated expect (App fun@(Var hname _ _) [] rng)  | hname == nameCCtxHoleCreate
+  = do ok <- useHole
+       when (not ok) $
+         contextError rng rng (text "ill-formed constructor context") 
+            [(text "because",text "there can be only one hole, and it must occur under a constructor context 'ctx'")]           
+       inferApp propagated expect fun [] rng
+
+-- | Context expressions
+inferExpr propagated expect (App (Var ctxname _ nameRng) [(_,expr)] rng)  | ctxname == nameCCtxCreate
+  = do tpv <- Op.freshTVar kindStar Meta
+       holetp <- Op.freshTVar kindStar Meta
+       let ctxTp = TApp typeCCtxx [tpv,holetp]
+       prop <- case propagated of
+                 Nothing -> return Nothing
+                 Just (ctp,crng) -> do inferUnify (checkMatch crng) nameRng ctp ctxTp
+                                       stp <- subst tpv
+                                       return (Just (stp,rng))
+       ((tp,eff,core),hole) <- allowHole $ inferExpr prop Instantiated expr
+       inferUnify (Infer rng) nameRng tp tpv
+       when (not hole) $
+          contextError rng rng (text "ill-formed constructor context") [(text "because",text "the context has no 'hole'")]           
+       newtypes <- getNewtypes
+       score <- subst core
+       (ccore,errs) <- withUnique (analyzeCCtx rng newtypes score)
+       mapM_ (\(rng,err) -> infError rng err) errs
+       return (Core.typeOf ccore,eff,ccore)
 
 -- | Application nodes. Inference is complicated here since we need to disambiguate overloaded identifiers.
 inferExpr propagated expect (App fun nargs rng)
@@ -767,17 +798,19 @@ inferExpr propagated expect (Handler handlerSort scoped HandlerOverride mbAllowM
 
 inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
-    do (ctp,ceff,ccore) <- allowReturn False $ inferExpr Nothing Instantiated expr
+    do (ctp,ceff,ccore) <- allowReturn False $ disallowHole $ inferExpr Nothing Instantiated expr
        -- infer branches
-       bress <- case (propagated,branches) of
+       bress <- disallowHole $
+                let matchedNames = extractMatchedNames expr in
+                case (propagated,branches) of
                   (Nothing,(b:bs)) -> -- propagate the type of the first branch
-                    do bres@(tpeffs,_) <- inferBranch propagated ctp (getRange expr) b
+                    do bres@(tpeffs,_) <- inferBranch propagated ctp (getRange expr) matchedNames b
                        let tp = case tpeffs of
                                   (tp,_):_ -> tp
                                   _        -> failure $ "Type.Infer.inferExpr.Case: branch without guard"
-                       bress <- mapM (inferBranch (Just (tp,getRange b)) ctp (getRange expr)) bs
+                       bress <- mapM (inferBranch (Just (tp,getRange b)) ctp (getRange expr) matchedNames) bs
                        return (bres:bress)
-                  _ -> mapM (inferBranch propagated ctp (getRange expr)) branches
+                  _ -> mapM (inferBranch propagated ctp (getRange expr) matchedNames) branches
        let (tpeffss,bcores) = unzip bress
            (tps,effs) = unzip (concat tpeffss)
        -- ensure branches match
@@ -829,6 +862,18 @@ inferExpr propagated expect (Case expr branches rng)
           TApp (TCon tc) _  -> typeconName tc
           TCon tc           -> typeconName tc
           _                 -> failure ("Type.Infer.inferExpr.Case.getTypeName: not a valid scrutinee? " ++ show tp)
+
+
+    extractMatchedNames expr
+      = case expr of
+          Parens e _ _                -> extractMatchedNames e
+          App (Var tname _ _) args _  | isNameTuple tname -> concat (map (extractMatchedNamesX . snd) args)
+          _                           -> extractMatchedNamesX expr
+
+    extractMatchedNamesX expr
+      = case expr of
+          Var name _ _ -> [name]
+          _            -> []
 
 
 inferExpr propagated expect (Var name isOp rng)
@@ -1244,7 +1289,7 @@ inferApp propagated expect fun nargs rng
                                 if (Core.isTotal fcore)
                                 then return (Core.makeLet defs (coreApp fcore cargs))
                                 else do fname <- uniqueName "fun"
-                                        let fdef = Core.DefNonRec (Core.Def fname ftp fcore Core.Private (DefFun [] {-all own, TODO: maintain borrow annotations?-}) InlineAuto rangeNull "")
+                                        let fdef = Core.DefNonRec (Core.Def fname ftp fcore Core.Private (defFun [] {-all own, TODO: maintain borrow annotations?-}) InlineAuto rangeNull "")
                                             fvar = Core.Var (Core.TName fname ftp) Core.InfoNone
                                         return (Core.Let (fdef:defs) (coreApp fvar cargs))
            -- take top effect
@@ -1408,9 +1453,13 @@ inferApp propagated expect fun nargs rng
            topEff <- inferUnifies (checkEffect rng) ((getRange fun, eff1) : effArgs)
            inferUnify (checkEffectSubsume rng) (getRange fun) funEff topEff
 
+           let appexpr = case shortCircuit fcore coreArgs of
+                          Just cexpr -> cexpr
+                          Nothing    -> Core.App fcore coreArgs
+
            -- instantiate or generalize result type
            resTp1          <- subst expTp
-           (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect resTp1 (Core.App fcore coreArgs)
+           (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect resTp1 appexpr
            return (resTp,topEff,resCore )
 
     fst3 (x,y,z) = x
@@ -1499,8 +1548,8 @@ inferVarX propagated expect name rng qname1 tp1 info1
        return (itp,eff,coref coreVar)
 -}
 
-inferBranch :: Maybe (Type,Range) -> Type -> Range -> Branch Type -> Inf ([(Type,Effect)],Core.Branch)
-inferBranch propagated matchType matchRange branch@(Branch pattern guards)
+inferBranch :: Maybe (Type,Range) -> Type -> Range -> [Name] -> Branch Type -> Inf ([(Type,Effect)],Core.Branch)
+inferBranch propagated matchType matchRange matchedNames branch@(Branch pattern guards)
   = inferPattern matchType (getRange branch) pattern (
     \pcore gcores ->
        -- check for unused pattern bindings
@@ -1515,7 +1564,7 @@ inferBranch propagated matchType matchRange branch@(Branch pattern guards)
     )
     $ \infGamma ->
      -- infGamma <- extractInfGamma pcore
-     extendInfGamma False infGamma $
+     extendInfGammaEx False matchedNames infGamma $
       do -- check guard expressions
          unzip <$> mapM (inferGuard propagated (getRange branch)) guards
 
@@ -1722,7 +1771,7 @@ inferOptionals eff infgamma (par:pars)
             partp <- subst tvar
 
             -- infer expression
-            (exprTp,exprEff,coreExpr) <- extendInfGamma False infgamma $ inferExpr (Just (partp,getRange par))
+            (exprTp,exprEff,coreExpr) <- extendInfGamma infgamma $ inferExpr (Just (partp,getRange par))
                                              (if isRho partp then Instantiated else Generalized False) expr
             inferUnify (checkOptional fullRange) (getRange expr) partp exprTp
 
@@ -2231,19 +2280,21 @@ usesLocalsOp lvars b = usesLocals lvars (hbranchExpr b)
 
 shortCircuit :: Core.Expr -> [Core.Expr] -> Maybe Core.Expr
 shortCircuit fun [expr1,expr2] 
-  = case fun of
-      Core.App (Core.TypeApp (Core.Var open _) _) [Core.Var name _]  | Core.getName open == nameEffectOpen && Core.getName name == nameAnd
-        -> exprAnd
-      Core.App (Core.TypeApp (Core.Var open _) _) [Core.Var name _]  | Core.getName open == nameEffectOpen && Core.getName name == nameOr
-        -> exprOr
-      Core.Var name _ | Core.getName name == nameAnd
-        -> exprAnd
-      Core.Var name _ | Core.getName name == nameOr
-        -> exprOr      
-      _ -> Nothing 
+  = isAndOr fun
   where
     exprAnd = Just (Core.makeIfExpr expr1 expr2 Core.exprFalse)
     exprOr  = Just (Core.makeIfExpr expr1 Core.exprTrue expr2)
+
+    isAndOr expr
+      = case expr of
+          Core.App (Core.TypeApp (Core.Var open _) _) [body]  | Core.getName open == nameEffectOpen 
+            -> isAndOr body
+          Core.Var name _ | Core.getName name == nameAnd
+            -> exprAnd
+          Core.Var name _ | Core.getName name == nameOr
+            -> exprOr      
+          _ -> Nothing 
+
 
 shortCircuit fun args
   = Nothing

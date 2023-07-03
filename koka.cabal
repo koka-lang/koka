@@ -1,11 +1,11 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.35.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           koka
-version:        2.4.0
+version:        2.4.2
 description:    Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
 homepage:       https://github.com/koka-lang/koka#readme
 bug-reports:    https://github.com/koka-lang/koka/issues
@@ -53,11 +53,13 @@ executable koka
       Compiler.Module
       Compiler.Options
       Compiler.Package
+      Core.AnalysisCCtx
       Core.AnalysisMatch
       Core.AnalysisResume
       Core.BindingGroups
       Core.Borrowed
       Core.Check
+      Core.CheckFBIP
       Core.Core
       Core.CoreVar
       Core.CTail
@@ -75,6 +77,7 @@ executable koka
       Core.Specialize
       Core.Uniquefy
       Core.UnReturn
+      Core.Unroll
       Interpreter.Command
       Interpreter.Interpret
       Kind.Assumption
@@ -86,6 +89,7 @@ executable koka
       Kind.Kind
       Kind.Newtypes
       Kind.Pretty
+      Kind.Repr
       Kind.Synonym
       Kind.Unify
       Lib.JSON
@@ -129,7 +133,7 @@ executable koka
       CPP
       OverloadedStrings
   ghc-options: -rtsopts -j8
-  cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="2.4.0" -DREADLINE=0
+  cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="2.4.2" -DREADLINE=0
   include-dirs:
       src/Platform/cpp/Platform
   c-sources:
@@ -148,11 +152,11 @@ executable koka
     , process
     , text
     , time
+  default-language: Haskell2010
   if os(windows)
     cpp-options: -DWINDOWS
   if os(darwin)
     cpp-options: -DDARWIN
-  default-language: Haskell2010
 
 test-suite koka-test
   type: exitcode-stdio-1.0
@@ -177,7 +181,7 @@ test-suite koka-test
     , mtl
     , parsec
     , process
-    , regex-compat-tdfa
+    , regex-compat >=0.95.2.1
     , text
     , time
   default-language: Haskell2010

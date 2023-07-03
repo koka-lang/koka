@@ -221,7 +221,7 @@ makeDef fvs tvs expr
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
     liftedTp  = -- trace ("makeDef: liftedFun: " ++ show (prettyExpr defaultEnv{coreShowTypes=True} expr) ++ "\nraw: " ++ show expr) $
                 typeOf liftedFun
-    liftedDef name inl = Def name liftedTp liftedFun Private (DefFun [] {-all owned-}) InlineAuto rangeNull "// monadic lift"
+    liftedDef name inl = Def name liftedTp liftedFun Private (defFun [] {-all owned-}) InlineAuto rangeNull "// monadic lift"
 
     funExpr name
       = Var (TName name liftedTp) (InfoArity (length alltpars) (length allargs))
@@ -288,11 +288,11 @@ instance Functor Lift where
                                         Ok x st' dgs -> Ok (f x) st' dgs)
 
 instance Applicative Lift where
-  pure  = return
-  (<*>) = ap
+  pure x = Lift (\env st -> Ok x st [])  
+  (<*>)  = ap
 
 instance Monad Lift where
-  return x       = Lift (\env st -> Ok x st [])
+  -- return = pure
   (Lift c) >>= f = Lift (\env st -> case c env st of
                                       Ok x st' dgs -> case f x of
                                                         Lift d -> case d env st' of

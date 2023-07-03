@@ -14,6 +14,7 @@
 ---------------------------------------------------------------------------*/
 #ifdef _WIN32
 #include <windows.h>
+#include <synchapi.h>
 
 // --------------------------------------
 // Threads
@@ -185,10 +186,10 @@ static kk_task_t* kk_task_alloc( kk_function_t fun, kk_promise_t p, kk_context_t
 }
 
 static void kk_task_exec( kk_task_t* task, kk_context_t* ctx ) {
-  if (task->fun != NULL) {
-    kk_function_dup(task->fun);      
-    kk_box_t res = kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),task->fun,(task->fun,ctx));
-    kk_box_dup(task->promise);
+  if (!kk_function_is_null(task->fun,ctx)) {
+    kk_function_dup(task->fun,ctx);      
+    kk_box_t res = kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),task->fun,(task->fun,ctx),ctx);
+    kk_box_dup(task->promise,ctx);
     kk_promise_set( task->promise, res, ctx );
   }
   kk_task_free(task,ctx);  
@@ -244,7 +245,7 @@ static void kk_tasks_enqueue( kk_task_group_t* tg, kk_task_t* task, kk_context_t
 
 static kk_promise_t kk_task_group_schedule( kk_task_group_t* tg, kk_function_t fun, kk_context_t* ctx ) {
   kk_promise_t p = kk_promise_alloc(ctx);
-  kk_task_t* task = kk_task_alloc(fun, kk_box_dup(p), ctx);
+  kk_task_t* task = kk_task_alloc(fun, kk_box_dup(p,ctx), ctx);
   pthread_mutex_lock(&tg->tasks_lock);
   kk_tasks_enqueue(tg,task,ctx);
   pthread_mutex_unlock(&tg->tasks_lock);
@@ -361,7 +362,7 @@ static void kk_task_group_init(void) {
 kk_promise_t kk_task_schedule( kk_function_t fun, kk_context_t* ctx ) {
   pthread_once( &task_group_once, &kk_task_group_init );
   kk_assert(task_group != NULL);
-  kk_block_mark_shared( &fun->_block, ctx );  // mark everything reachable from the task as shared
+  kk_block_mark_shared( kk_datatype_as_ptr(fun,ctx), ctx);  // mark everything reachable from the task as shared
   if (ctx->task_group == NULL) { 
     ctx->task_group = task_group; // let main thread participate instead of blocking on a promise.get
   }
@@ -400,7 +401,7 @@ err:
 
 
 static void kk_promise_set( kk_promise_t pr, kk_box_t r, kk_context_t* ctx ) {
-  promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr);
+  promise_t* p = (promise_t*)kk_cptr_raw_unbox_borrowed(pr, ctx);
   kk_box_mark_shared(r,ctx);
   pthread_mutex_lock(&p->lock);
   kk_box_drop(p->result,ctx);
@@ -422,7 +423,7 @@ static bool kk_promise_available( kk_promise_t pr, kk_context_t* ctx ) {
 */
 
 kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {  
-  promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr);
+  promise_t* p = (promise_t*)kk_cptr_raw_unbox_borrowed(pr,ctx);
   pthread_mutex_lock(&p->lock);
   while (kk_box_is_any(p->result)) {
     // if part of a task group, run other tasks while waiting
@@ -470,7 +471,7 @@ kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
     }
   }
   pthread_mutex_unlock(&p->lock);  
-  const kk_box_t result = kk_box_dup( p->result );
+  const kk_box_t result = kk_box_dup( p->result,ctx );
   kk_box_drop(pr,ctx);
   return result;
 }
@@ -521,9 +522,9 @@ err:
 
 
 void kk_lvar_put( kk_lvar_t lvar, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx ) {
-  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar);
+  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox_borrowed(lvar,ctx);
   pthread_mutex_lock(&lv->lock);
-  lv->result = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),monotonic_combine,(monotonic_combine,val,lv->result,ctx));
+  lv->result = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),monotonic_combine,(monotonic_combine,val,lv->result,ctx),ctx);
   kk_box_mark_shared(lv->result,ctx);  // todo: can we mark outside the mutex?
   pthread_mutex_unlock(&lv->lock);
   pthread_cond_signal(&lv->available);
@@ -532,16 +533,16 @@ void kk_lvar_put( kk_lvar_t lvar, kk_box_t val, kk_function_t monotonic_combine,
 
 
 kk_box_t kk_lvar_get( kk_lvar_t lvar, kk_box_t bot, kk_function_t is_gte, kk_context_t* ctx ) {
-  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar);
+  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox_borrowed(lvar,ctx);
   kk_box_t result;
   pthread_mutex_lock(&lv->lock);
   while (true) {
-    kk_function_dup(is_gte);
-    kk_box_dup(lv->result);
-    kk_box_dup(bot);
-    int32_t done = kk_function_call(int32_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),is_gte,(is_gte,lv->result,bot,ctx));
+    kk_function_dup(is_gte,ctx);
+    kk_box_dup(lv->result,ctx);
+    kk_box_dup(bot,ctx);
+    int32_t done = kk_function_call(int32_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),is_gte,(is_gte,lv->result,bot,ctx),ctx);
     if (done != 0) {
-      result = kk_box_dup(lv->result);
+      result = kk_box_dup(lv->result,ctx);
       break;
     }
     // if part of a task group, run other tasks while waiting

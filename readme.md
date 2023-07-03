@@ -15,7 +15,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_
-_Latest release_: v2.4.0, 2022-02-07 ([Install]).
+_Latest release_: v2.4.2, 2023-07-03 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -85,6 +85,9 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
+* `v2.4.2`, 2023-07-03: interim release with support for the new `fip` and `fbip` keywords
+  to support fully-in-place programming [[11](#references)]. Various bug fixes and performance
+  enhancements.
 * `v2.4.0`, 2022-02-07: automatic generation of installation packages for various Linux
   distributions (by [Rubikscraft](https://github.com/rubikscraft)), improved specialization and integer add/sub, add `rbtree-fbip` sample,
   improve grammar (`pub` (instead of `public`, remove private (as it is always default)), 
@@ -127,7 +130,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 # Install
 
-Koka has [binary installers][install] for Windows (x64), macOS (x64, M1), Linux (x64, arm64), and FreeBSD (x64).
+Koka has [binary installers][install] for Windows (x64), macOS (x64, M1), and Linux (x64) <!--, arm64), and FreeBSD (x64). -->
 For other platforms, you need to build the compiler from source.
 
 # Build from Source
@@ -137,9 +140,8 @@ without problems on most common platforms, e.g. Windows (including WSL), macOS, 
 Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.
-  Use `curl -sSL https://get.haskellstack.org/ | sh`
-  on Unix and macOS x64, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
-  On macOS M1, use `brew install haskell-stack --head` (and see the [build notes](#build-notes) below).
+  Use `brew install haskell-stack` on macOS, `curl -sSL https://get.haskellstack.org/ | sh` on Unix,
+  or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
 * Optional: [vcpkg] to be able to link easily with C libraries.
   Use `brew install vcpkg` on macOS. On other systems use the vcpkg [install][vcpkg]
   instructions (Koka can find vcpkg automatically if installed to `~/vcpkg`).
@@ -160,7 +162,7 @@ $ stack exec koka
 You can also use `stack build --fast` to build a debug version of the compiler.
 Use `stack test --fast` to run the test-suite.
 
-(See the [build notes](#build-notes) below for building macOS M1, or if you have issues when running- or installing `stack`).
+(See the [build notes](#build-notes) below if you have issues when running- or installing `stack`).
 
 ## Create an Install Bundle
 
@@ -278,8 +280,6 @@ More advanced projects:
   needs work on packaging it to make it easy to build and install as part of the Koka installer.
 * [ ] Package management of Koka modules.
 * [x] Compile to WASM (using emscripten on the current C backend)
-* [ ] Extend TRMC to include (1) return results with pairs (like `unzip` or `partition`), (2) associative functions
-      (like `+` in `length`), and (3) mutually recursive functions.
 * [ ] Improve compilation of local state to use local variables directly (in C) without allocation. Tricky though due to multiple resumptions.
 * [ ] Improve performance of array/mutable reference programming. Koka is has great performance for
       algebraic datatypes but lags when using more imperative array algorithms. This requires better
@@ -295,7 +295,7 @@ More advanced projects:
 
 Master/PhD level:
 
-* [ ] Better language level FBIP support with guaranteed datatype matching, automatic derivative and visitor generation.
+* [x] Better language level FBIP support with guaranteed datatype matching, automatic derivative and visitor generation.
 * [ ] Can we use C++ exceptions to implement "zero-cost" `if yielding() ...` branches and remove the need join points (see [9]).
 * [x] Float up `open` calls to improve effect handling (worked on by Naoya Furudono)
 * [x] Formalize opening and closing effect row types (worked on by Kazuki Ikemori)
@@ -329,9 +329,8 @@ The main development branches are:
 
 ## Building on macOS M1
 
-Currently (Dec 2021) you need to use `brew install haskell-stack --head`
-to get the latest `2.7.4` version of stack. (Have patience as the cabal
-install step takes about 20 min). Moreover, you need to add the `brew`
+You need at least `stack` version >= 2.11
+Furthermore, you may need to add the `brew`
 installed LLVM to your path afterwards, or otherwise stack cannot find the LLVM tools.
 Add the following to your `~/.zshrc` script and open an fresh prompt:
 
@@ -507,4 +506,8 @@ Also as MSR-TR-2021-5, Mar, 2021.
 [pdf](https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/)
 
 10. Anton Lorenzen and Daan Leijen. &ldquo; Reference Counting with Frame-Limited Reuse&rdquo; Microsoft Research
-technical report MSR-TR-2021-30, Nov 2021. [pdf](https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/)
+technical report MSR-TR-2021-30, Nov 2021, (updated Mar 2022, v2). [pdf](https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/)
+
+11. Anton Lorenzen, Daan Leijen, and Wouter Swierstra. &ldquo; FP<sup>2</sup>: Fully in-Place Functional Programming&rdquo;
+The 28th ACM SIGPLAN International Conference on Functional Programming (ICFP), September 2023. 
+[pdf](https://www.microsoft.com/en-us/research/uploads/prod/2023/05/fbip.pdf) (extended tech. report MSR-TR-2023-19, May 2023).

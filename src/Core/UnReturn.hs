@@ -209,7 +209,7 @@ urCase org scruts branches
 
                 let f c = let lam    = Lam [parName] eff (c parVar)
                               defTp  = typeOf lam
-                              def    = Def name defTp lam Private (DefFun [Own]) InlineAuto rangeNull ""
+                              def    = Def name defTp lam Private (defFun [Own]) InlineAuto rangeNull ""
                               defVar = Var (TName name defTp) InfoNone -- (InfoArity 0 1 NoMon) -- with arity C# code gets wrong
                               app e  = App defVar [e]
                           in makeLet [DefNonRec def] $
@@ -326,11 +326,11 @@ instance Functor UR where
                                       Ok x st' -> Ok (f x) st')
 
 instance Applicative UR where
-  pure  = return
-  (<*>) = ap
+  pure x = UR (\env st -> Ok x st)
+  (<*>)  = ap
 
 instance Monad UR where
-  return x      = UR (\env st -> Ok x st)
+  -- return = pure
   (UR c) >>= f = UR (\env st -> case c env st of
                                     Ok x st' -> case f x of
                                                    UR d -> d env st' )

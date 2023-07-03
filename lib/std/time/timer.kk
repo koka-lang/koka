@@ -29,7 +29,7 @@ extern import
 // and have at least millisecond resolution.
 pub fun ticks() : ndet duration
   val (secs,frac) = xticks()
-  duration(secs.truncate.int, secs.fraction + frac)
+  duration(secs,frac)
 
 extern xticks() : ndet (float64,float64)
   c  "kk_timer_ticks_tuple"

@@ -1,5 +1,6 @@
 /* Examples from the paper "Liberating effects with rows and handlers"
    by Daniel Hillerström and Sam Lindley.
+   <https://www.dhil.net/research/papers/liberating_effects-tyde2016.pdf>
 */
 module nim
 

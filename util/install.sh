@@ -4,7 +4,7 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.4.0"        
+VERSION="v2.4.2"        
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -318,7 +318,7 @@ install_dependencies() {
   elif has_cmd yum ; then
     yum_install build-essential $deps
   elif has_cmd apk ; then
-    deps="gcc make tar curl cmake"
+    deps="gcc make tar curl cmake ninja"
     apk_install $deps
   elif has_cmd pacman; then
     deps="gcc make tar curl cmake ninja pkg-config"     # ninja-build -> ninja

@@ -227,7 +227,7 @@ kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, 
   }
   err = 0;
   kk_ssize_t len;
-  const uint8_t* buf = kk_string_buf_borrow(content, &len);
+  const uint8_t* buf = kk_string_buf_borrow(content, &len, ctx);
   if (len > 0) {
     kk_ssize_t nwritten;
     err = kk_posix_write_retry(f, buf, len, &nwritten);
@@ -280,7 +280,7 @@ static bool kk_is_dir(const char* cpath) {
 }
 #endif
 
-kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx) 
+int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx) 
 {
   int err = 0;
   if (mode < 0) {
@@ -552,18 +552,18 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
 
   kk_ssize_t count = 0;
   kk_ssize_t len = 100;
-  kk_vector_t vec = kk_vector_alloc(len, kk_integer_box(kk_integer_zero), ctx);  
+  kk_vector_t vec = kk_vector_alloc(len, kk_integer_box(kk_integer_zero,ctx), ctx);  
   do {
     kk_string_t name = os_direntry_name(&entry, ctx);
-    if (!kk_string_is_empty_borrow(name)) {
+    if (!kk_string_is_empty_borrow(name,ctx)) {
       // push name
       if (count >= len) {
         // realloc vector
         const kk_ssize_t newlen = (len > 1000 ? len + 1000 : 2*len);
-        vec = kk_vector_realloc(vec, newlen, kk_integer_box(kk_integer_zero), ctx);
+        vec = kk_vector_realloc(vec, newlen, kk_integer_box(kk_integer_zero,ctx), ctx);
         len = newlen;
       }
-      (kk_vector_buf_borrow(vec, NULL))[count] = kk_string_box(name);
+      (kk_vector_buf_borrow(vec, NULL,ctx))[count] = kk_string_box(name);
       count++;
     }
     else {
@@ -573,7 +573,7 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
   os_findclose(d);
 
   if(count != len) {
-    *contents = kk_vector_realloc(vec, count, kk_box_null, ctx);
+    *contents = kk_vector_realloc(vec, count, kk_box_null(), ctx);
   } 
   return err;
 }
@@ -791,7 +791,7 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
     DWORD res = GetFullPathNameW(wpath, 264, buf, NULL);
     if (res == 0) {
       // failure
-      rpath = kk_string_dup(path);
+      rpath = kk_string_dup(path,ctx);
     }
     else if (res >= 264) {
       DWORD pbuflen = res;
@@ -799,7 +799,7 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
       res = GetFullPathNameW(wpath, pbuflen, pbuf, NULL);
       if (res == 0 || res >= pbuflen) {
         // failed again
-        rpath = kk_string_dup(path);
+        rpath = kk_string_dup(path,ctx);
       }
       else {
         rpath = kk_string_alloc_from_qutf16w(pbuf, ctx);
@@ -869,7 +869,7 @@ static kk_string_t kk_os_searchpathx(const char* paths, const char* fname, kk_co
     buf[plen+1+fnamelen] = 0;
     p = (r == pend ? r : r + 1);
     kk_string_t sfname = kk_string_alloc_from_qutf8(buf, ctx);
-    if (kk_os_is_file( kk_string_dup(sfname), ctx)) {
+    if (kk_os_is_file( kk_string_dup(sfname,ctx), ctx)) {
       s = kk_os_realpath(sfname,ctx);
       break;
     }
@@ -910,7 +910,7 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
   else {
     // basename, try to prefix with all entries in PATH
     kk_string_t s = kk_os_searchpathx(getenv("PATH"), p, ctx);
-    if (kk_string_is_empty_borrow(s)) s = kk_os_realpath(kk_string_alloc_from_qutf8(p,ctx),ctx);
+    if (kk_string_is_empty_borrow(s, ctx)) { s = kk_os_realpath(kk_string_alloc_from_qutf8(p, ctx), ctx); }
     return s;
   }
 }
@@ -979,7 +979,7 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
 
 kk_string_t kk_os_app_path(kk_context_t* ctx) {
   kk_string_t s = kk_os_realpath(kk_string_alloc_dup_valid_utf8(KK_PROC_SELF,ctx),ctx);
-  if (strcmp(kk_string_cbuf_borrow(s,NULL), KK_PROC_SELF)==0) {
+  if (strcmp(kk_string_cbuf_borrow(s,NULL,ctx), KK_PROC_SELF)==0) {
     // failed? try generic search
     kk_string_drop(s, ctx);
     return kk_os_app_path_generic(ctx);
@@ -1246,3 +1246,15 @@ bool kk_cpu_is_little_endian(kk_context_t* ctx) {
   return false;
   #endif
 }
+
+int kk_cpu_address_bits(kk_context_t* ctx) {
+  kk_unused(ctx);
+  size_t bsize;
+  #if __CHERI__
+    bsize = sizeof(vaddr_t);
+  #else
+    bsize = sizeof(void*);
+  #endif
+  return (int)(CHAR_BIT * bsize);
+}
+

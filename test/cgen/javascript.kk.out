@@ -1,4 +1,5 @@
 3add default effect for std/core/exn
  
-test/cgen/javascript.kk(84, 3): warning: Some branches in the match will never be reached: _
+test/cgen/javascript.kk(81, 1): warning: Type person may be better declared as a value type for efficiency (e.g. 'value type/struct'),
+ or declared as a reference type to suppress this warning (e.g. 'ref type/struct')
 test/cgen/javascript.kk(84, 3): warning: Some branches in the match will never be reached: _

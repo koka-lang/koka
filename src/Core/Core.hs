@@ -66,10 +66,13 @@ module Core.Core ( -- Data structures
                    , isConSingleton
                    , isConNormal
                    , isConIso, isConAsJust
+                   , conReprHasCtxPath, conReprCtxPath, CtxPath(..)
                    , isDataStruct, isDataAsMaybe, isDataStructAsMaybe
+                   , conReprAllocSize, conReprAllocSizeScan, conReprScanCount
                    , getDataRepr, getDataReprEx, dataInfoIsValue
                    , getConRepr
                    , dataReprIsValue, conReprIsValue
+                   , needsTagField
                    , VarInfo(..), isInfoArity
                    , infoIsRefCounted, infoIsLocal
 
@@ -120,7 +123,7 @@ import Common.Id
 import Common.Error
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSSizeT, nameBox, nameUnbox,
-                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCField,
+                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpFieldAddr,
                         isPrimitiveName, isSystemCoreName, nameKeep, nameDropSpecial)
 import Common.Syntax
 import Kind.Kind
@@ -141,7 +144,7 @@ isExprFalse (Con tname _)  = (getName tname == nameFalse)
 isExprFalse _              = False
 
 exprUnit :: Expr
-exprUnit = Con (TName nameUnit typeUnit) (ConEnum nameTpUnit DataEnum 0)
+exprUnit = Con (TName nameUnit typeUnit) (ConEnum nameTpUnit DataEnum valueReprZero 0)
            -- (ConInfo nameUnit typeUnit [] [] [] (TFun [] typeTotal typeUnit) Inductive rangeNull [] [] False Public "")
 
 (patFalse,exprFalse) = patExprBool nameFalse 0
@@ -149,8 +152,9 @@ exprUnit = Con (TName nameUnit typeUnit) (ConEnum nameTpUnit DataEnum 0)
 
 patExprBool name tag
   = let tname   = TName name typeBool
-        conEnum = ConEnum nameTpBool DataEnum tag
-        conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] [] False Public ""
+        conEnum = ConEnum nameTpBool DataEnum valueReprZero tag
+        conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] [] False 
+                            [] valueReprZero Public ""
         pat = PatCon tname [] conEnum [] [] typeBool conInfo False
         expr = Con tname conEnum
     in (pat,expr)
@@ -174,10 +178,10 @@ makeList tp exprs
   = foldr cons nil exprs
   where
     nilTp    = TForall [a] [] (TApp typeList [TVar a])
-    nilCon   = Con (TName nameNull nilTp) (ConSingleton nameTpList DataAsList 0)
+    nilCon   = Con (TName nameNull nilTp) (ConSingleton nameTpList DataAsList valueReprZero 0)
     nil      = TypeApp nilCon [tp]
     consTp   = TForall [a] [] (typeFun [(nameNil,TVar a),(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeList [TVar a]))
-    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList nameNull 2)  -- NOTE: depends on Cons being second in the definition in std/core :-(
+    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList (valueReprScan 2) nameNull CtxNone 2)  -- NOTE: depends on Cons being second in the definition in std/core :-(
     cons expr xs = App (TypeApp consCon [tp]) [expr,xs]
     a = TypeVar (0) kindStar Bound
 
@@ -275,9 +279,10 @@ data External = External{ externalName :: Name
                         , externalType :: Scheme
                         , externalParams :: [ParamInfo]
                         , externalFormat :: [(Target,String)]
-                        , externalVis' :: Visibility
+                        , externalVis'  :: Visibility
+                        , externalFip   :: Fip
                         , externalRange :: Range
-                        , externalDoc :: String
+                        , externalDoc   :: String
                         }
               | ExternalImport { externalImport :: [(Target,[(String,String)])]
                                , externalRange :: Range }
@@ -361,21 +366,24 @@ data DataRepr = -- value types
               | DataOpen
               deriving (Eq,Ord,Show)
 
-data ConRepr  = ConEnum{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                     -- part of enumeration (none has fields)
-              | ConIso{ conTypeName:: Name, conDataRepr :: DataRepr, conTag :: Int }                       -- one constructor with one field
-              | ConSingleton{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                -- constructor without fields (and not part of an enum)
-              | ConSingle{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- there is only one constructor and it is not iso or singleton (and this is it)
-              | ConAsJust{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNothing :: Name, conTag :: Int } -- constructor is the just node of a maybe-like datatype  (only use for DataAsMaybe, not for DataStructAsMaybe)
-              | ConStruct{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- constructor as value type
-              | ConAsCons{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
-              | ConOpen  { conTypeName :: Name, conDataRepr :: DataRepr }                                  -- constructor of open data type
-              | ConNormal{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- a regular constructor
+data ConRepr  = ConEnum{   conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- part of enumeration (none has fields)
+              | ConIso{    conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- one constructor with one field
+              | ConSingleton{conTypeName::Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- constructor without fields (and not part of an enum)
+              | ConSingle{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conCtxPath :: CtxPath, conTag :: Int }    -- there is only one constructor and it is not iso or singleton (and this is it)
+              | ConAsJust{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conAsNothing :: Name, conTag :: Int } -- constructor is the just node of a maybe-like datatype  (only use for DataAsMaybe, not for DataStructAsMaybe)
+              | ConStruct{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- constructor as value type
+              | ConAsCons{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conAsNil :: Name, conCtxPath :: CtxPath, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
+              | ConOpen  { conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conCtxPath :: CtxPath }                     -- constructor of open data type
+              | ConNormal{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conCtxPath :: CtxPath, conTag :: Int }      -- a regular constructor
               deriving (Eq,Ord,Show)
 
-isConSingleton (ConSingleton _ _ _) = True
+data CtxPath = CtxNone | CtxField TName
+             deriving(Eq,Ord,Show)
+
+isConSingleton (ConSingleton{}) = True
 isConSingleton _ = False
 
-isConNormal (ConNormal _ _ _) = True
+isConNormal (ConNormal{}) = True
 isConNormal _  = False
 
 isConIso (ConIso{}) = True
@@ -393,9 +401,45 @@ isDataStructAsMaybe _ = False
 isConAsJust (ConAsJust{}) = True 
 isConAsJust _             = False
 
+conReprHasCtxPath :: ConRepr -> Bool
+conReprHasCtxPath repr
+  = case conReprCtxPath repr of
+      Nothing -> False
+      _       -> True
+
+conReprCtxPath :: ConRepr -> Maybe CtxPath
+conReprCtxPath repr | conReprIsValue repr = Nothing   
+conReprCtxPath repr
+  = case repr of
+      ConSingle{ conCtxPath = cpath } -> Just cpath
+      ConAsCons{ conCtxPath = cpath } -> Just cpath
+      ConNormal{ conCtxPath = cpath } -> Just cpath
+      ConOpen{ conCtxPath = cpath } -> Just cpath
+      _ -> Nothing
+
+
+conReprScanCount :: ConRepr -> Int
+conReprScanCount conRepr = valueReprScanCount (conValRepr conRepr)
+
+-- Return the allocation size (0 for value types)
+conReprAllocSize :: Platform -> ConRepr -> Int
+conReprAllocSize platform conRepr  = fst (conReprAllocSizeScan platform conRepr)
+
+-- Return the allocation size (0 for value types) and scan count 
+conReprAllocSizeScan :: Platform -> ConRepr -> (Int,Int)
+conReprAllocSizeScan platform conRepr  
+  = let (size,scan) = valueReprSizeScan platform (conValRepr conRepr)
+    in if (conReprIsValue conRepr) then (0,scan) else (size,scan)
+
 -- Value data is not heap allocated and needs no header
 dataReprIsValue :: DataRepr -> Bool
 dataReprIsValue drepr  = (drepr <= DataStruct)
+
+-- explicit tag field?
+needsTagField :: DataRepr -> Bool
+needsTagField DataStruct        = True
+needsTagField DataStructAsMaybe = True
+needsTagField rep               = False
 
 conReprIsValue :: ConRepr -> Bool
 conReprIsValue crepr = dataReprIsValue (conDataRepr crepr)
@@ -424,25 +468,26 @@ getDataReprEx getIsValue info
         isValue = getIsValue info && not (dataInfoIsRec info)
         (dataRepr,conReprFuns) =
          if (dataInfoIsOpen(info))
-          then (DataOpen, map (\conInfo conTag -> ConOpen typeName DataOpen) conInfos)
+          then (DataOpen, map (\conInfo conTag -> ConOpen typeName DataOpen (conInfoValueRepr conInfo) CtxNone) conInfos)
          -- TODO: only for C#? check this during kind inference?
          -- else if (hasExistentials)
          --  then (DataNormal, map (\con -> ConNormal typeName) conInfos)
          else if (isValue
-                    && (null (dataInfoParams info) || typeName == nameTpCField)
+                    && (null (dataInfoParams info) || typeName == nameTpFieldAddr)
                     && all (\con -> null (conInfoParams con)) conInfos)
-          then (DataEnum,map (const (ConEnum typeName DataEnum)) conInfos)
+          then (DataEnum,map (\ci -> ConEnum typeName DataEnum (conInfoValueRepr ci)) conInfos)
          else if (length conInfos == 1)
-          then let conInfo = head conInfos
+          then let conInfo  = head conInfos
+                   valRepr  = conInfoValueRepr conInfo
                    dataRepr = if (isValue && length (conInfoParams conInfo) == 1)
                                 then DataIso
                                else if (isValue && null singletons && not (dataInfoIsRec info))
                                 then DataSingleStruct
                                 else DataSingle (not (null singletons))
                in (dataRepr
-                  ,[if (isValue && length (conInfoParams conInfo) == 1) then ConIso typeName dataRepr
-                    else if length singletons == 1 then ConSingleton typeName dataRepr
-                    else ConSingle typeName dataRepr])
+                  ,[if (isValue && length (conInfoParams conInfo) == 1) then ConIso typeName dataRepr valRepr
+                    else if length singletons == 1 then ConSingleton typeName dataRepr valRepr
+                    else ConSingle typeName dataRepr valRepr CtxNone])
          else if (isValue && not (dataInfoIsRec info)) then (
             let dataRepr = if (length conInfos == 2 && length singletons == 1 && 
                                case (filter (\cinfo -> length (conInfoParams cinfo) == 1) conInfos) of  -- at most 1 field
@@ -450,8 +495,8 @@ getDataReprEx getIsValue info
                                 _       -> False)
                              then DataStructAsMaybe
                              else DataStruct
-            in (dataRepr, map (\con -> if null (conInfoParams con) then ConSingleton typeName dataRepr
-                                                  else ConStruct typeName dataRepr) conInfos)
+            in (dataRepr, map (\ci -> if null (conInfoParams ci) then ConSingleton typeName dataRepr (conInfoValueRepr ci)
+                                                                 else ConStruct typeName dataRepr (conInfoValueRepr ci)) conInfos)
          )
          else (
           if (length conInfos == 2 && length singletons == 1)
@@ -466,20 +511,20 @@ getDataReprEx getIsValue info
                         
                  in (if isMaybeLike
                       then (DataAsMaybe
-                          ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsMaybe
-                                          else ConAsJust typeName DataAsMaybe (conInfoName (head singletons))) conInfos)
+                          ,map (\ci -> if (null (conInfoParams ci)) then ConSingleton typeName DataAsMaybe (conInfoValueRepr ci)
+                                          else ConAsJust typeName DataAsMaybe (conInfoValueRepr ci) (conInfoName (head singletons))) conInfos)
                       else (DataAsList
-                          ,map (\con tag 
-                                   -> if (null (conInfoParams con)) then ConSingleton typeName DataAsList tag
-                                        else ConAsCons typeName DataAsList (conInfoName (head singletons)) tag) conInfos)
+                          ,map (\ci tag 
+                                   -> if (null (conInfoParams ci)) then ConSingleton typeName DataAsList (conInfoValueRepr ci) tag
+                                        else ConAsCons typeName DataAsList (conInfoValueRepr ci) (conInfoName (head singletons)) CtxNone tag) conInfos)
                                              
                  )
            else let dataRepr = if (length singletons == length conInfos -1 || null conInfos)
                                 then DataSingleNormal else (DataNormal (not (null singletons)))
                 in (dataRepr
-                   ,map (\con -> if null (conInfoParams con)
-                                  then ConSingleton typeName dataRepr
-                                  else ConNormal typeName dataRepr) conInfos
+                   ,map (\ci -> if null (conInfoParams ci)
+                                  then ConSingleton typeName dataRepr (conInfoValueRepr ci)
+                                  else ConNormal typeName dataRepr (conInfoValueRepr ci) CtxNone) conInfos
                    )
          )
       in (dataRepr, [conReprFun tag | (conReprFun,tag) <- zip conReprFuns [1..]])
@@ -537,14 +582,14 @@ data InlineDef = InlineDef{
 defIsVal :: Def -> Bool
 defIsVal def
   = case defSort def of
-      DefFun _ -> False
+      DefFun{} -> False
       _        -> True
 
 defParamInfos :: Def -> [ParamInfo]
 defParamInfos def
   = case defSort def of
-      DefFun pinfos -> pinfos
-      _             -> []
+      DefFun pinfos _ -> pinfos
+      _               -> []
 
 inlineDefIsSpecialize :: InlineDef -> Bool
 inlineDefIsSpecialize inlDef = not (null (inlineParamSpecialize inlDef))
@@ -564,11 +609,11 @@ instance Functor CorePhase where
                            return (CPState (f x) uniq' defs'))
 
 instance Applicative CorePhase where
-  pure  = return
-  (<*>) = ap
+  pure x = CP (\uniq defs -> return (CPState x uniq defs))
+  (<*>)  = ap
 
 instance Monad CorePhase where
-  return x      = CP (\uniq defs -> return (CPState x uniq defs))
+  -- return = pure
   (CP cp) >>= f = CP (\uniq defs -> do (CPState x uniq' defs') <- cp uniq defs
                                        case f x of
                                          CP cp' -> cp' uniq' defs')
@@ -666,7 +711,7 @@ data VarInfo
   | InfoArity Int Int               -- #Type parameters, #parameters
   | InfoExternal [(Target,String)]  -- inline body
   | InfoReuse Pattern
-  | InfoConField TName Name         -- constructor name, field name
+  | InfoConField TName ConRepr Name  -- constructor name, repr, field name (inserted by reuse specialization)
 
 data TName = TName
   { getName :: Name
@@ -697,7 +742,7 @@ instance Show VarInfo where
                   -> ""
                 InfoReuse pat
                   -> "reuse:<pat>"
-                InfoConField conName fieldName
+                InfoConField conName conRepr fieldName
                   -> "field:" ++ show conName ++ "." ++ show fieldName
                 InfoArity m n
                   -> "arity:" ++ show (m,n)
@@ -1052,7 +1097,7 @@ addLambdasTName pars eff e            = Lam pars eff e
 -- | Bind a variable inside a term
 addNonRec :: Name -> Type -> Expr -> (Expr -> Expr)
 addNonRec x tp e e' 
-  = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else DefFun [] {-all owned?-}) InlineAuto rangeNull "")] e'
+  = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else defFun [] {-all owned?-}) InlineAuto rangeNull "")] e'
 
 -- | Is an expression a value or a function
 isValueExpr :: Expr -> Bool
@@ -1210,7 +1255,7 @@ extractSignatures core
                 extractExternals (coreProgExternals core),
                 extractDefs (coreProgDefs core)
               ]
-    in -- trace ("extract signatures: " ++ show (map pretty tps)) $
+    in -- trace ("extract signatures: " ++ show (map pretty tps)) $ 
        tps
   where
     extractExternals = concatMap extractExternal

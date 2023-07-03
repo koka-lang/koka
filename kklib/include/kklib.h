@@ -1,11 +1,6 @@
 ﻿#pragma once
 #ifndef KKLIB_H
 #define KKLIB_H 
-
-#define KKLIB_BUILD        89       // modify on changes to trigger recompilation
-#define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
-// #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
-
 /*---------------------------------------------------------------------------
   Copyright 2020-2022, Microsoft Research, Daan Leijen.
 
@@ -13,6 +8,11 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
+
+#define KKLIB_BUILD         114     // modify on changes to trigger recompilation   
+// #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
+
+// Includes
 #define WIN32_LEAN_AND_MEAN          // reduce windows includes
 #define _POSIX_C_SOURCE     200809L  // make posix definitions visible
 #define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
@@ -45,7 +45,6 @@
 
 #include "kklib/platform.h"   // Platform abstractions and portability definitions
 #include "kklib/atomic.h"     // Atomic operations
-#include "kklib/process.h"    // Process info (memory usage, run time etc.)
 
 
 /*--------------------------------------------------------------------------------------
@@ -94,44 +93,53 @@ static inline bool kk_tag_is_raw(kk_tag_t tag) {
   Headers
 --------------------------------------------------------------------------------------*/
 
-
 // The reference count is 0 for a unique reference (for a faster free test in drop).
-// Reference counts larger than 0x8000000 (i.e. < 0) use atomic increment/decrement (for thread shared objects).
+// Negative reference counts use atomic increment/decrement (for thread shared objects).
 // (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if
-//  they get too large and in such case we never free the object, see `refcount.c`)
-typedef uint32_t kk_refcount_t;
+//  they overflow into the negative range and in such case we never free the object, see `refcount.c`)
+typedef int32_t kk_refcount_t;
 
 // Are there (possibly) references from other threads? (includes static variables)
 static inline bool kk_refcount_is_thread_shared(kk_refcount_t rc) {
-  return ((int32_t)rc < 0);
+  return (rc < 0);
 }
 
 // Is the reference unique, or are there (possibly) references from other threads? (includes static variables)
 static inline bool kk_refcount_is_unique_or_thread_shared(kk_refcount_t rc) {
-  return ((int32_t)rc <= 0);
+  return (rc <= 0);
 }
 
+// Increment a positive reference count. To avoid UB on overflow, use unsigned addition.
+static inline kk_refcount_t kk_refcount_inc(kk_refcount_t rc) {
+  kk_assert_internal(rc >= 0);
+  return (kk_refcount_t)((uint32_t)rc + 1);
+}
+
+// context path index
+typedef int kk_cpath_t;
+#define KK_CPATH_MAX (0xFF)
 
 
 // Every heap block starts with a 64-bit header with a reference count, tag, and scan fields count.
 // If the scan_fsize == 0xFF, the full scan count is in the first field as a boxed int (which includes the scan field itself).
 typedef struct kk_header_s {
   uint8_t   scan_fsize;  // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
-  uint8_t   _field_idx;  // private: only used during stack-less freeing and marking (see `refcount.c`)
+  uint8_t   _field_idx;  // private: used for context paths and during stack-less freeing  (see `refcount.c`)
   uint16_t  tag;         // constructor tag
   _Atomic(kk_refcount_t) refcount; // reference count  (last to reduce code size constants in kk_header_init)
 } kk_header_t;
 
 #define KK_SCAN_FSIZE_MAX (0xFF)
-#define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, ATOMIC_VAR_INIT(0) }                // start with refcount of 0
-#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, ATOMIC_VAR_INIT(KK_U32(0x80000000)) } // start with a stuck refcount (RC_STUCK)
+#define KK_HEADER(scan_fsize,fidx,tag)    { scan_fsize, fidx, tag, KK_ATOMIC_VAR_INIT(0) }      // start with unique refcount 
+#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KK_ATOMIC_VAR_INIT(INT32_MIN) } // start with a stuck refcount (RC_STUCK)
 
-static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_t tag) {
+static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_cpath_t cpath, kk_tag_t tag) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize <= KK_SCAN_FSIZE_MAX);
+  kk_assert_internal(cpath >= 0 && cpath <= KK_CPATH_MAX);
 #if (KK_ARCH_LITTLE_ENDIAN && !defined(__aarch64__))
-  *((uint64_t*)h) = ((uint64_t)scan_fsize | (uint64_t)tag << 16); // explicit shifts leads to better codegen in general
+  *((uint64_t*)h) = ((uint64_t)scan_fsize | ((uint64_t)cpath << 8) | ((uint64_t)tag << 16)); // explicit shifts leads to better codegen in general
 #else
-  kk_header_t header = KK_HEADER((uint8_t)scan_fsize, (uint16_t)tag);
+  kk_header_t header = KK_HEADER((uint8_t)scan_fsize, (uint8_t)cpath, (uint16_t)tag);
   *h = header;
 #endif  
 }
@@ -142,30 +150,32 @@ static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_
 --------------------------------------------------------------------------------------*/
 
 // Polymorphic operations work on boxed values. (We use a struct for extra checks to prevent accidental conversion)
-// The least significant bit is clear for `kk_block_t*` pointers, while it is set for values.
+// The least-significant bit is clear for heap pointers (`kk_ptr_t == kk_block_t*`), while the bit is set for values.
 // See `box.h` for definitions.
 typedef struct kk_box_s {
-  uintptr_t box;
+  kk_intb_t box;
 } kk_box_t;
  
 // An integer is either a small int (as: 4*i + 1) or a `kk_bigint_t*` pointer. Isomorphic with boxed values.
 // See `integer.h` for definitions.
 typedef struct kk_integer_s {
-  uintptr_t ibox;
+  kk_intb_t ibox;
 } kk_integer_t;
 
 // A general datatype with constructors and singletons is either
 // an enumeration (with the lowest bit set as: 4*tag + 1) or a `kk_block_t*` pointer.
 // Isomorphic with boxed values. 
 typedef struct kk_datatype_s {
-  uintptr_t dbox;
+  kk_intb_t dbox;
 } kk_datatype_t;
 
+// Typedef to signify datatypes that have no singletons (and are always a pointer)
+typedef kk_datatype_t kk_datatype_ptr_t;
 
 // boxed forward declarations
-static inline kk_intf_t kk_intf_unbox(kk_box_t v);
-static inline kk_box_t  kk_intf_box(kk_intf_t u);
-
+static inline kk_intf_t kk_intf_unbox(kk_box_t b);
+static inline kk_box_t  kk_intf_box(kk_intf_t i);
+static inline bool      kk_box_is_any(kk_box_t b);
 
 /*--------------------------------------------------------------------------------------
   Blocks
@@ -242,10 +252,31 @@ static inline kk_decl_const bool kk_block_has_tag(const kk_block_t* b, kk_tag_t 
 
 static inline kk_decl_pure kk_ssize_t kk_block_scan_fsize(const kk_block_t* b) {  // number of scan fields
   const kk_ssize_t sfsize = b->header.scan_fsize;
-  if (kk_likely(sfsize != KK_SCAN_FSIZE_MAX)) return sfsize;
+  if kk_likely(sfsize != KK_SCAN_FSIZE_MAX) return sfsize;
   const kk_block_large_t* bl = (const kk_block_large_t*)b;
   return (kk_ssize_t)kk_intf_unbox(bl->large_scan_fsize);
 }
+
+static inline void kk_block_set_invalid(kk_block_t* b) {
+#ifdef KK_DEBUG_FULL
+  const kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
+  const kk_ssize_t bsize = (sizeof(kk_box_t) * scan_fsize) + (b->header.scan_fsize == KK_SCAN_FSIZE_MAX ? sizeof(kk_block_large_t) : sizeof(kk_block_t));
+  uint8_t* p = (uint8_t*)b;
+  for (kk_ssize_t i = 0; i < bsize; i++) {
+    p[i] = 0xDF;
+  }
+#else
+  kk_unused(b);
+#endif
+}
+
+static inline kk_decl_pure bool kk_block_is_valid(kk_block_t* b) {
+  return (b != NULL && ((uintptr_t)b & 1) == 0 && *((uint64_t*)b) != KK_U64(0xDFDFDFDFDFDFDFDF) // already freed!
+    && (b->header.tag > KK_TAG_MAX || b->header.tag < 0xFF)
+    && (b->header._field_idx <= b->header.scan_fsize)
+    );
+}
+
 
 static inline kk_decl_pure kk_refcount_t kk_block_refcount(const kk_block_t* b) {
   return kk_atomic_load_relaxed(&b->header.refcount);
@@ -256,19 +287,25 @@ static inline void kk_block_refcount_set(kk_block_t* b, kk_refcount_t rc) {
 }
 
 static inline kk_decl_pure bool kk_block_is_unique(const kk_block_t* b) {
-  return (kk_likely(kk_block_refcount(b) == 0));
+  return kk_likely(kk_block_refcount(b) == 0);
 }
 
 static inline kk_decl_pure bool kk_block_is_thread_shared(const kk_block_t* b) {
-  return (kk_unlikely(kk_refcount_is_thread_shared(kk_block_refcount(b))));
+  return kk_unlikely(kk_refcount_is_thread_shared(kk_block_refcount(b)));
 }
 
+// Used to generically inspect the scannable fields of an object as used 
+// to recursively free data, or mark as shared. This must overlay with
+// any heap block and if pointer compression is used we need to use packed
+// structures to avoid any potential padding in a struct (at least up to
+// the first `scan_fsize` fields)
 typedef struct kk_block_fields_s {
   kk_block_t _block;
   kk_box_t   fields[1];
 } kk_block_fields_t;
 
 static inline kk_decl_pure kk_box_t kk_block_field(kk_block_t* b, kk_ssize_t index) {
+  kk_assert_internal(kk_block_is_valid(b));
   kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
   return bf->fields[index];
 }
@@ -278,26 +315,18 @@ static inline void kk_block_field_set(kk_block_t* b, kk_ssize_t index, kk_box_t 
   bf->fields[index] = v;
 }
 
-#if (KK_INTPTR_SIZE==8)
-#define KK_BLOCK_INVALID  KK_UP(0xDFDFDFDFDFDFDFDF)
-#else
-#define KK_BLOCK_INVALID  KK_UP(0xDFDFDFDF)
-#endif
+static inline kk_decl_pure kk_box_t* kk_block_field_address(kk_block_t* b, kk_ssize_t index) {
+  kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
+  return &bf->fields[index];
+}
 
-static inline void kk_block_set_invalid(kk_block_t* b) {
-#ifdef KK_DEBUG_FULL
-  const kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
-  const kk_box_t inv = { KK_BLOCK_INVALID };
-  for (kk_ssize_t i = -1; i < scan_fsize; i++) {
-    kk_block_field_set(b, i, inv);
-  }
-#else
-  kk_unused(b);
-#endif
-} 
+static inline kk_decl_pure uint8_t kk_block_field_idx(const kk_block_t* b) {
+  return b->header._field_idx;
+}
 
-static inline kk_decl_pure bool kk_block_is_valid(kk_block_t* b) {
-  return (b != NULL && ((uintptr_t)b&1)==0 && kk_block_field(b, 0).box != KK_BLOCK_INVALID); // already freed!
+static inline void kk_block_field_idx_set(kk_block_t* b, uint8_t idx ) {
+  kk_assert_internal(idx <= b->header.scan_fsize); // allow +1 for trmc context paths
+  b->header._field_idx = idx;
 }
 
 
@@ -307,26 +336,34 @@ static inline kk_decl_pure bool kk_block_is_valid(kk_block_t* b) {
   be (usually) accessed efficiently through a register.
 --------------------------------------------------------------------------------------*/
 #ifdef KK_MIMALLOC
-#if !defined(MI_MAX_ALIGN_SIZE)
-# define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE
-#endif
-#ifdef KK_MIMALLOC_INLINE
-#include "../mimalloc/include/mimalloc-inline.h"
+  #if !defined(MI_MAX_ALIGN_SIZE)
+    #if (KK_MIMALLOC > 1)
+      #define MI_MAX_ALIGN_SIZE  KK_MIMALLOC
+    #else
+      #define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE 
+    #endif
+  #endif
+  #if !defined(MI_DEBUG) && defined(KK_DEBUG_FULL)
+    #define MI_DEBUG  3
+  #endif
+  #ifdef KK_MIMALLOC_INLINE
+    #include "../mimalloc/include/mimalloc-inline.h"
+  #else
+    #include "../mimalloc/include/mimalloc.h"
+  #endif
+  typedef mi_heap_t* kk_heap_t;
 #else
-#include "../mimalloc/include/mimalloc.h"
-#endif
-typedef mi_heap_t* kk_heap_t;
-#else
-typedef void*      kk_heap_t;
+  typedef void*      kk_heap_t;
 #endif
 
 // A function has as its first field a pointer to a C function that takes the
 // `kk_function_t` itself as a first argument. The following fields are the free variables.
-typedef struct kk_function_s {
+struct kk_function_s {
   kk_block_t  _block;
-  kk_box_t    fun;
+  kk_box_t    fun;        // kk_kkfun_ptr_t
   // followed by free variables
-} *kk_function_t;
+}; 
+typedef kk_datatype_ptr_t kk_function_t;
 
 // A vector is an array of boxed values, or an empty singleton
 typedef kk_datatype_t kk_vector_t;
@@ -341,15 +378,16 @@ typedef int64_t kk_secs_t;
 typedef int64_t kk_asecs_t;
 typedef struct kk_duration_s {
   kk_secs_t  seconds;
-  kk_asecs_t attoseconds;  // always >= 0
-} kk_duration_t;
+  kk_asecs_t attoseconds;  // always >= 0, use `kk_duration_norm` to normalize
+} kk_duration_t;  
 
 
 // Box any is used when yielding
-typedef struct kk_box_any_s {
+struct kk_box_any_s {
   kk_block_t    _block;
   kk_integer_t  _unused;
-} *kk_box_any_t;
+};
+typedef kk_datatype_t kk_box_any_t;
 
 // Workers run in a task_group
 typedef struct kk_task_group_s kk_task_group_t;
@@ -364,53 +402,47 @@ typedef enum kk_yield_kind_e {
 } kk_yield_kind_t;
 
 typedef struct kk_yield_s {
-  int32_t       marker;          // marker of the handler to yield to
+  int32_t       marker;          // marker of the handler to yield to 
   kk_function_t clause;          // the operation clause to execute when the handler is found
-  kk_ssize_t    conts_count;     // number of continuations in `conts`
+  kk_intf_t     conts_count;     // number of continuations in `conts`
   kk_function_t conts[KK_YIELD_CONT_MAX]; // fixed array of continuations. The final continuation `k` is
                                           // composed as `fN ○ ... ○ f2 ○ f1` if `conts = { f1, f2, ..., fN }`
                                           // if the array becomes full, a fresh array is allocated and the first
                                           // entry points to its composition.
 } kk_yield_t;
-
-extern kk_ptr_t kk_evv_empty_singleton;
-
      
 // The thread local context.
 // The fields `yielding`, `heap` and `evv` should come first for efficiency
 typedef struct kk_context_s {
-  int8_t         yielding;         // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception) // put first for efficiency
-  kk_heap_t      heap;             // the (thread-local) heap to allocate in; todo: put in a register?
-  kk_ptr_t       evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
-  kk_yield_t     yield;            // inlined yield structure (for efficiency)
-  int32_t        marker_unique;    // unique marker generation
-  kk_block_t*    delayed_free;     // list of blocks that still need to be freed
-  kk_integer_t   unique;           // thread local unique number generation
-  size_t         thread_id;        // unique thread id
-  kk_box_any_t   kk_box_any;       // used when yielding as a value of any type
-  kk_function_t  log;              // logging function
-  kk_function_t  out;              // std output
-  kk_task_group_t* task_group;     // task group for managing threads. NULL for the main thread.
+  int8_t            yielding;         // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception) // put first for efficiency
+  const kk_heap_t   heap;             // the (thread-local) heap to allocate in; todo: put in a register?
+  const kk_addr_t   heap_mid;         // mid point of the reserved heap address space (or 0 if the heap is not compressed)
+  const void*       heap_start;       // start of the heap space (or NULL if the heap is not compressed)
+  kk_datatype_ptr_t evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
+  kk_yield_t        yield;            // inlined yield structure (for efficiency)
+  int32_t           marker_unique;    // unique marker generation
+  kk_block_t*       delayed_free;     // list of blocks that still need to be freed
+  kk_integer_t      unique;           // thread local unique number generation
+  size_t            thread_id;        // unique thread id
+  kk_box_any_t      kk_box_any;       // used when yielding as a value of any type
+  kk_function_t     log;              // logging function
+  kk_function_t     out;              // std output
+  kk_task_group_t*  task_group;       // task group for managing threads. NULL for the main thread.
   
-  struct kk_random_ctx_s* srandom_ctx; // strong random using chacha20, initialized on demand
-  kk_ssize_t     argc;             // command line argument count 
-  const char**   argv;             // command line arguments
-  kk_timer_t     process_start;    // time at start of the process
-  int64_t        timer_freq;       // high precision timer frequency
-  kk_duration_t  timer_prev;       // last requested timer time
-  kk_duration_t  timer_delta;      // applied timer delta (to ensure monotonicity)
-  int64_t        time_freq;        // unix time frequency
-  kk_duration_t  time_unix_prev;   // last requested unix time
+  struct kk_random_ctx_s* srandom_ctx;// strong random using chacha20, initialized on demand
+  kk_ssize_t        argc;             // command line argument count 
+  const char**      argv;             // command line arguments
+  kk_duration_t     process_start;    // time at start of the process
+  int64_t           timer_freq;       // high precision timer frequency
+  kk_duration_t     timer_prev;       // last requested timer time
+  kk_duration_t     timer_delta;      // applied timer delta (to ensure monotonicity)
+  int64_t           time_freq;        // unix time frequency
+  kk_duration_t     time_unix_prev;   // last requested unix time
 } kk_context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
 kk_decl_export kk_context_t* kk_get_context(void);
 kk_decl_export void          kk_free_context(void);
-
-kk_decl_export kk_context_t* kk_main_start(int argc, char** argv);
-kk_decl_export void          kk_main_end(kk_context_t* ctx);
-
-kk_decl_export void          kk_debugger_break(kk_context_t* ctx);
 
 // The current context is passed as a _ctx parameter in the generated code
 #define kk_context()  _ctx
@@ -432,15 +464,22 @@ static inline kk_decl_pure bool kk_yielding_final(const kk_context_t* ctx) {
 
 // Get a thread local marker unique number >= 1.
 static inline int32_t kk_marker_unique(kk_context_t* ctx) {
-  int32_t m = ++ctx->marker_unique;           // must return a marker >= 1 so increment first;
-  if (m == INT32_MAX) ctx->marker_unique = 1; // controlled reset
+  int32_t m = ++ctx->marker_unique;               // must return a marker >= 1 so increment first;
+  if (m == INT32_MAX) { ctx->marker_unique = 1; } // controlled reset
   return m;
 }
 
+kk_decl_export kk_context_t* kk_main_start(int argc, char** argv);
+kk_decl_export void          kk_main_end(kk_context_t* ctx);
 
-kk_decl_export void kk_block_mark_shared( kk_block_t* b, kk_context_t* ctx );
-kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx );
-kk_decl_export void kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx);
+kk_decl_export void kk_debugger_break(kk_context_t* ctx);
+kk_decl_export void kk_fatal_error(int err, const char* msg, ...);
+kk_decl_export void kk_warning_message(const char* msg, ...);
+kk_decl_export void kk_info_message(const char* msg, ...);
+kk_decl_export void kk_unsupported_external(const char* msg);
+
+kk_decl_export kk_datatype_ptr_t kk_evv_empty_singleton(kk_context_t* ctx);
+
 
 /*--------------------------------------------------------------------------------------
   Allocation
@@ -480,6 +519,9 @@ static inline void kk_free(const void* p, kk_context_t* ctx) {
 static inline void kk_free_local(const void* p, kk_context_t* ctx) {
   kk_free(p,ctx);
 }
+
+#define kk_malloc_usable_size(p)  mi_usable_size(p)
+
 #else
 static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
   kk_unused(ctx);
@@ -508,31 +550,56 @@ static inline void kk_free(const void* p, kk_context_t* ctx) {
 static inline void kk_free_local(const void* p, kk_context_t* ctx) {
   kk_free(p,ctx);
 }
+
+#if defined(__linux__) || defined(__GLIBC__)
+#include <malloc.h>
+#define kk_malloc_usable_size(p)  malloc_usable_size(p)
+#elif defined(__APPLE__)
+#include <malloc/malloc.h>
+#define kk_malloc_usable_size(p)  malloc_size(p)
+#elif defined(_MSC_VER)
+#include <malloc.h>
+#define kk_malloc_usable_size(p)  _msize(p)
 #endif
 
+#endif
 
-static inline void kk_block_init(kk_block_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
+#if defined(kk_malloc_usable_size)
+#define KK_HAS_MALLOC_COPY
+static inline void* kk_malloc_copy(const void* p, kk_context_t* ctx) {
+  const size_t size = kk_malloc_usable_size((void*)p);
+  void* q = kk_malloc(kk_to_ssize_t(size), ctx);
+  memcpy(q,p,size);
+  return q;
+}
+#endif
+
+static inline void kk_block_init(kk_block_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_cpath_t cpath, kk_tag_t tag) {
   kk_unused(size);
   kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
-  kk_header_init(&b->header, scan_fsize, tag);
+  kk_assert_internal(cpath >= 0 && cpath <= KK_CPATH_MAX);
+  kk_header_init(&b->header, scan_fsize, cpath, tag);
 }
 
-static inline void kk_block_large_init(kk_block_large_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
+static inline void kk_block_large_init(kk_block_large_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_cpath_t cpath, kk_tag_t tag) {
   kk_unused(size);
   // to optimize for "small" vectors with less than 255 scanable elements, we still set the small scan_fsize
   // for those in the header. This is still duplicated in the large scan_fsize field as it is used for the vector length for example.
+  kk_assert_internal(cpath >= 0 && cpath <= KK_CPATH_MAX);
   uint8_t bscan_fsize = (scan_fsize >= KK_SCAN_FSIZE_MAX ? KK_SCAN_FSIZE_MAX : (uint8_t)scan_fsize);
-  kk_header_init(&b->_block.header, bscan_fsize, tag);
+  kk_header_init(&b->_block.header, bscan_fsize, cpath, tag);
   kk_assert_internal(scan_fsize > 0);
-  b->large_scan_fsize = kk_intf_box(scan_fsize);  
+  kk_assert_internal(scan_fsize <= KK_INTF_MAX);
+  b->large_scan_fsize = kk_intf_box((kk_intf_t)scan_fsize);  
 }
 
 typedef kk_block_t* kk_reuse_t;
 
 #define kk_reuse_null  ((kk_reuse_t)NULL)
 
-static inline kk_block_t* kk_block_alloc_at(kk_reuse_t at, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
+static inline kk_block_t* kk_block_alloc_at(kk_reuse_t at, kk_ssize_t size, kk_ssize_t scan_fsize, kk_cpath_t cpath, kk_tag_t tag, kk_context_t* ctx) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
+  kk_assert_internal(cpath >= 0 && cpath <= KK_CPATH_MAX);
   kk_block_t* b;
   if (at==kk_reuse_null) {
     b = (kk_block_t*)kk_malloc_small(size, ctx);
@@ -541,27 +608,27 @@ static inline kk_block_t* kk_block_alloc_at(kk_reuse_t at, kk_ssize_t size, kk_s
     kk_assert_internal(kk_block_is_unique(at)); // TODO: check usable size of `at`
     b = at;
   }
-  kk_block_init(b, size, scan_fsize, tag);
+  kk_block_init(b, size, scan_fsize, cpath, tag);
   return b;
 }
 
 static inline kk_block_t* kk_block_alloc(kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
   kk_block_t* b = (kk_block_t*)kk_malloc_small(size, ctx);
-  kk_block_init(b, size, scan_fsize, tag);
+  kk_block_init(b, size, scan_fsize, 0, tag);
   return b;
 }
 
 static inline kk_block_t* kk_block_alloc_any(kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
   kk_block_t* b = (kk_block_t*)kk_malloc(size, ctx);
-  kk_block_init(b, size, scan_fsize, tag);
+  kk_block_init(b, size, scan_fsize, 0, tag);
   return b;
 }
 
 static inline kk_block_large_t* kk_block_large_alloc(kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
   kk_block_large_t* b = (kk_block_large_t*)kk_malloc(size, ctx);
-  kk_block_large_init(b, size, scan_fsize, tag);
+  kk_block_large_init(b, size, scan_fsize, 0, tag);
   return b;
 }
 
@@ -581,8 +648,8 @@ static inline void kk_block_free(kk_block_t* b, kk_context_t* ctx) {
   kk_free(b, ctx);
 }
 
-#define kk_block_alloc_as(struct_tp,scan_fsize,tag,ctx)        ((struct_tp*)kk_block_alloc_at(kk_reuse_null, sizeof(struct_tp),scan_fsize,tag,ctx))
-#define kk_block_alloc_at_as(struct_tp,at,scan_fsize,tag,ctx)  ((struct_tp*)kk_block_alloc_at(at, sizeof(struct_tp),scan_fsize,tag,ctx))
+#define kk_block_alloc_as(struct_tp,scan_fsize,tag,ctx)              ((struct_tp*)kk_block_alloc( sizeof(struct_tp),scan_fsize,tag,ctx))
+#define kk_block_alloc_at_as(struct_tp,at,scan_fsize,cpath,tag,ctx)  ((struct_tp*)kk_block_alloc_at(at, sizeof(struct_tp),scan_fsize,cpath,tag,ctx))
 
 #define kk_block_as(tp,b)             ((tp)((void*)(b)))
 #define kk_block_assert(tp,b,tag)     ((tp)kk_block_assertx(b,tag))
@@ -609,11 +676,11 @@ kk_decl_export kk_reuse_t  kk_block_check_drop_reuse(kk_block_t* b, kk_refcount_
 static inline kk_block_t* kk_block_dup(kk_block_t* b) {
   kk_assert_internal(kk_block_is_valid(b));
   const kk_refcount_t rc = kk_block_refcount(b);
-  if (kk_unlikely(kk_refcount_is_thread_shared(rc))) {  // (signed)rc < 0 
-    return kk_block_check_dup(b, rc);                   // thread-shared or sticky (overflow) ?
+  if kk_unlikely(kk_refcount_is_thread_shared(rc)) {  // (signed)rc < 0 
+    return kk_block_check_dup(b, rc);                 // thread-shared or sticky (overflow) ?
   }
   else {
-    kk_block_refcount_set(b, rc+1);
+    kk_block_refcount_set(b, kk_refcount_inc(rc));
     return b;
   }
 }
@@ -637,7 +704,7 @@ static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
 static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const kk_refcount_t rc = b->header.refcount;  
-  if (kk_unlikely(kk_refcount_is_unique_or_thread_shared(rc))) {  // (signed)rc <= 0
+  if kk_unlikely(kk_refcount_is_unique_or_thread_shared(rc)) {  // (signed)rc <= 0
     kk_block_check_decref(b, rc, ctx);  // thread-shared, sticky (overflowed), or can be freed? 
   }
   else {
@@ -672,7 +739,7 @@ static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
     }
     kk_block_free(b,ctx);
   }
-  else if (kk_unlikely(kk_refcount_is_thread_shared(rc))) {  // (signed)rc < 0
+  else if kk_unlikely(kk_refcount_is_thread_shared(rc)) {    // (signed)rc < 0
     kk_block_check_drop(b, rc, ctx);                         // thread-share or sticky (overflowed) ?    
   }
   else {
@@ -708,7 +775,7 @@ static inline void kk_block_dropn(kk_block_t* b, kk_ssize_t scan_fsize, kk_conte
     }
     kk_block_free(b,ctx);
   }
-  else if (kk_unlikely(kk_refcount_is_thread_shared(rc))) {  // (signed)rc < 0
+  else if kk_unlikely(kk_refcount_is_thread_shared(rc)) {  // (signed)rc < 0
     kk_block_check_drop(b, rc, ctx);                         // thread-shared, sticky (overflowed)?
   }
   else {
@@ -729,7 +796,7 @@ static inline kk_reuse_t kk_block_dropn_reuse(kk_block_t* b, kk_ssize_t scan_fsi
     }
     return b;
   }
-  else if (kk_unlikely(kk_refcount_is_thread_shared(rc))) {  // (signed)rc < 0
+  else if kk_unlikely(kk_refcount_is_thread_shared(rc)) {    // (signed)rc < 0
     kk_block_check_drop(b, rc, ctx);                         // thread-shared or sticky (overflowed)?
     return kk_reuse_null;
   }
@@ -761,55 +828,183 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 
 
 /*--------------------------------------------------------------------------------------
-  Datatype and Constructor macros
-  We use:
-  - basetype      For a pointer to the base type of a heap allocated constructor.
-                  Datatypes without singletons are always a basetype.
-  - datatype      For a regular datatypes that can have singletons.
+  Thread-shared marking (see `refcount.c`)
+--------------------------------------------------------------------------------------*/
+
+kk_decl_export void        kk_block_mark_shared(kk_block_t* b, kk_context_t* ctx);
+kk_decl_export void        kk_box_mark_shared(kk_box_t b, kk_context_t* ctx);
+kk_decl_export void        kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx);
+
+
+/*--------------------------------------------------------------------------------------
+  Base type and Constructor macros
+  - base_type     For a pointer to the base type of a heap allocated constructor.
   - constructor   For a pointer to a heap allocated constructor (whose first field
                   is `_base` and points to the base type as a `basetype`
 --------------------------------------------------------------------------------------*/
 
-//#define kk_basetype_tag(v)                     (kk_block_tag(&((v)->_block)))
-#define kk_basetype_has_tag(v,t)               (kk_block_has_tag(&((v)->_block),t))
-#define kk_basetype_is_unique(v)               (kk_block_is_unique(&((v)->_block)))
-#define kk_basetype_as(tp,v)                   (kk_block_as(tp,&((v)->_block)))
-#define kk_basetype_free(v,ctx)                (kk_block_free(&((v)->_block),ctx))
-#define kk_basetype_decref(v,ctx)              (kk_block_decref(&((v)->_block),ctx))
-#define kk_basetype_dup_as(tp,v)               ((tp)kk_block_dup(&((v)->_block)))
-#define kk_basetype_drop(v,ctx)                (kk_block_dropi(&((v)->_block),ctx))
-#define kk_basetype_dropn_reuse(v,n,ctx)       (kk_block_dropn_reuse(&((v)->_block),n,ctx))
-#define kk_basetype_dropn(v,n,ctx)             (kk_block_dropn(&((v)->_block),n,ctx))
-#define kk_basetype_reuse(v)                   (&((v)->_block))
+#define kk_base_type_has_tag(v,t)               (kk_block_has_tag(&((v)->_block),t))
+#define kk_base_type_is_unique(v)               (kk_block_is_unique(&((v)->_block)))
+#define kk_base_type_as(tp,v)                   (kk_block_as(tp,&((v)->_block)))
+#define kk_base_type_free(v,ctx)                (kk_block_free(&((v)->_block),ctx))
+#define kk_base_type_decref(v,ctx)              (kk_block_decref(&((v)->_block),ctx))
+#define kk_base_type_dup_as(tp,v)               ((tp)kk_block_dup(&((v)->_block)))
+#define kk_base_type_drop(v,ctx)                (kk_block_dropi(&((v)->_block),ctx))
+#define kk_base_type_dropn_reuse(v,n,ctx)       (kk_block_dropn_reuse(&((v)->_block),n,ctx))
+#define kk_base_type_dropn(v,n,ctx)             (kk_block_dropn(&((v)->_block),n,ctx))
+#define kk_base_type_reuse(v)                   (&((v)->_block))
+#define kk_base_type_field_idx_set(v,x)         (kk_block_field_idx_set(&((v)->_block),x))
 
-#define kk_basetype_as_assert(tp,v,tag)        (kk_block_assert(tp,&((v)->_block),tag))
-#define kk_basetype_drop_assert(v,tag,ctx)     (kk_block_drop_assert(&((v)->_block),tag,ctx))
-#define kk_basetype_dup_assert(tp,v,tag)       ((tp)kk_block_dup_assert(&((v)->_block),tag))
+#define kk_base_type_as_assert(tp,v,tag)        (kk_block_assert(tp,&((v)->_block),tag))
+#define kk_base_type_drop_assert(v,tag,ctx)     (kk_block_drop_assert(&((v)->_block),tag,ctx))
+#define kk_base_type_dup_assert(tp,v,tag)       ((tp)kk_block_dup_assert(&((v)->_block),tag))
 
-#define kk_constructor_tag(v)                  (kk_basetype_tag(&((v)->_base)))
-#define kk_constructor_is_unique(v)            (kk_basetype_is_unique(&((v)->_base)))
-#define kk_constructor_free(v,ctx)             (kk_basetype_free(&((v)->_base),ctx))
-#define kk_constructor_dup_as(tp,v)            (kk_basetype_dup_as(tp, &((v)->_base)))
-#define kk_constructor_drop(v,ctx)             (kk_basetype_drop(&((v)->_base),ctx))
-#define kk_constructor_dropn_reuse(v,n,ctx)    (kk_basetype_dropn_reuse(&((v)->_base),n,ctx))
+#define kk_base_type_unbox_as_assert(tp,b,tag,ctx)  (kk_block_as(tp,kk_block_unbox(b,tag,ctx)))
+#define kk_base_type_unbox_as(tp,b,ctx)             ((tp)kk_base_type_as(tp,kk_ptr_unbox(b,ctx),ctx))
+#define kk_base_type_box(b,ctx)                     (kk_block_box(&(b)->_block,ctx))    
 
-#define kk_value_dup(v)                        (v)
-#define kk_value_drop(v,ctx)                   (void)
-#define kk_value_drop_reuse(v,ctx)             (kk_reuse_null)
+#define kk_constructor_is_unique(v)             (kk_base_type_is_unique(&((v)->_base)))
+#define kk_constructor_free(v,ctx)              (kk_base_type_free(&((v)->_base),ctx))
+#define kk_constructor_dup_as(tp,v)             (kk_base_type_dup_as(tp, &((v)->_base)))
+#define kk_constructor_drop(v,ctx)              (kk_base_type_drop(&((v)->_base),ctx))
+#define kk_constructor_dropn_reuse(v,n,ctx)     (kk_base_type_dropn_reuse(&((v)->_base),n,ctx))
+#define kk_constructor_field_idx_set(v,x)       (kk_base_type_field_idx_set(&((v)->_base),x))
+#define kk_constructor_unbox_as(tp,b,tag,ctx)   (kk_base_type_unbox_as_assert(tp,b,tag,ctx))
+#define kk_constructor_box(b,ctx)               (kk_base_type_box(&(b)->_base),ctx)
+
+
+/*----------------------------------------------------------------------
+  Low-level encoding of small integers (`kk_intf_t`) and pointers
+  into a boxed integer `kk_intb_t`.  
+----------------------------------------------------------------------*/
+// We generally tag boxed values; the least-significant bit is clear for heap pointers (`kk_ptr_t == kk_block_t*`),
+// while the bit is set for values.
+#define KK_TAG_BITS             (1)
+#define KK_TAG_MASK             ((1<<KK_TAG_BITS)-1)
+#define KK_TAG_PTR              (0)
+#define KK_TAG_VALUE            (1)
+
+static inline bool kk_is_ptr(kk_intb_t i) {
+  return ((i & KK_TAG_MASK) == KK_TAG_PTR);
+}
+static inline bool kk_is_value(kk_intb_t i) {
+  return !kk_is_ptr(i);
+}
+
+// null values; can be an arbitrary value.
+#define kk_value_null      ((~KK_IB(0)&~KK_TAG_MASK)|KK_TAG_VALUE)
+
+
+// If we assume `intptr_t` aligned pointers in the heap, we can use a larger heap when 
+// using pointer compression (by shifting them by `KK_BOX_PTR_SHIFT`).
+#if !defined(KK_BOX_PTR_SHIFT)
+  #if (KK_INTB_SIZE <= 4 && KK_INTPTR_SHIFT >= 3)
+    // shift by pointer alignment if we have at most 32-bit boxed ints
+    // note: unfortunately, bigint pointers must still have the lowest 2 bits as zero for 
+    //       fast ovf arithmetic. So we are conservative here. If we always use SOFA or TAGOVF
+    //       in the compressed case, we could shift by one more bit and double the heap space.
+    #define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - 2)
+  #else
+    // don't bother with shifting if we have more than 32 bits available
+    #define KK_BOX_PTR_SHIFT   (0)
+  #endif
+#endif
+
+// Without compression, pointer encode/decode is an identity operation.
+static inline kk_intb_t kk_ptr_encode(kk_ptr_t p, kk_context_t* ctx) {
+  kk_assert_internal(((intptr_t)p & KK_TAG_MASK) == 0);  
+  kk_addr_t a;
+#if KK_COMPRESS
+  #if KK_CHERI
+  a = (kk_addr_t)__builtin_cheri_address_get(p);
+  #else
+  a = (kk_addr_t)p;
+  #endif
+  #if (KK_INTB_SIZE==4)
+  // compress to 32-bit offsets, ctx->heap_mid contains the mid-point in the heap so we can do signed extension
+  a = a - ctx->heap_mid;
+  #else
+  // for 64- or 128-bit we use the address as is (and for 128 bit we assume we locate our heap in the lower 2^63-1 address space)
+  kk_unused(ctx);
+  #endif  
+  #if KK_BOX_PTR_SHIFT > 0
+  kk_assert_internal((a & ((1 << KK_BOX_PTR_SHIFT) - 1)) == 0);
+  a = kk_sara(a, KK_BOX_PTR_SHIFT);
+  #endif 
+#else // no compression: |kk_intptr_t| == |kk_addr_t| == |kk_intb_t|
+  kk_unused(ctx);
+  a = (kk_addr_t)p;
+#endif
+  kk_assert_internal(a >= KK_INTB_MIN && a <= KK_INTB_MAX);  
+  kk_assert_internal((a & KK_TAG_MASK) == 0);
+  return ((kk_intb_t)a | KK_TAG_PTR);
+}
+
+static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
+  kk_assert_internal(kk_is_ptr(b));
+  kk_addr_t a = b;        // may sign-extend  
+#if (KK_TAG_PTR != 0)
+  a = (a & ~KK_TAG_MASK);
+#endif
+#if KK_COMPRESS
+  #if (KK_BOX_PTR_SHIFT > 0)
+  a = kk_shla(a, KK_BOX_PTR_SHIFT);
+  #endif
+  #if (KK_INTB_SIZE == 4)
+  a = a + ctx->heap_mid;
+  #else
+  kk_unused(ctx);
+  #endif  
+  #if KK_CHERI
+  return (kk_ptr_t)__builtin_cheri_address_set(ctx->heap_start, (vaddr_t)a);
+  #else
+  return (kk_ptr_t)a;
+  #endif
+#else // no compression: |kk_intb_t| == |kk_addr_t| == |intptr_t|
+  kk_unused(ctx);
+  return (kk_ptr_t)a;
+#endif
+}
+
+// Integer value encoding/decoding. May use smaller integers (`kk_intf_t`)
+// then boxed integers if `kk_intb_t` is larger than the natural register size.
+#define KK_INTF_BOX_BITS(extra)  (KK_INTF_BITS - (KK_TAG_BITS + (extra)))  
+#define KK_INTF_BOX_MAX(extra)   (KK_INTF_MAX >> (KK_TAG_BITS + (extra)))
+#define KK_INTF_BOX_MIN(extra)   (-KK_INTF_BOX_MAX(extra) - 1)
+#define KK_UINTF_BOX_MAX(extra)  (KK_UINTF_MAX >>(KK_TAG_BITS + (extra)))
+
+static inline kk_intb_t kk_intf_encode(kk_intf_t i, int extra_shift) {
+  kk_assert_internal(extra_shift >= 0);
+  kk_intb_t b = i; // may sign-extend
+  kk_assert_internal(b >= KK_INTF_BOX_MIN(extra_shift) && i <= KK_INTF_BOX_MAX(extra_shift));
+  return (kk_shlb(b,KK_TAG_BITS + extra_shift) | KK_TAG_VALUE);
+}
+
+static inline kk_intf_t kk_intf_decode(kk_intb_t b, int extra_shift) {
+  kk_assert_internal(extra_shift >= 0);
+  kk_assert_internal(kk_is_value(b) || b == kk_get_context()->kk_box_any.dbox);
+  kk_intb_t i = kk_sarb( b, KK_TAG_BITS + extra_shift);  
+  kk_assert_internal(i >= KK_INTF_MIN && i <= KK_INTF_MAX);
+  return (kk_intf_t)i;
+}
+
 
 
 /*----------------------------------------------------------------------
   Datatypes
+  We use the `_ptr` suffix if it is guaranteed that the datatype
+  is a pointer and not a value (singleton).
 ----------------------------------------------------------------------*/
 
 // create a singleton
 static inline kk_decl_const kk_datatype_t kk_datatype_from_tag(kk_tag_t t) {
-  kk_datatype_t d = { (((kk_uintf_t)t)<<2 | 1) };
+  kk_datatype_t d = { kk_intf_encode((kk_intf_t)t,1) };
   return d;
 }
 
-static inline kk_decl_const kk_datatype_t kk_datatype_from_ptr(kk_ptr_t p) {
-  kk_datatype_t d = { (uintptr_t)p };
+// create a pointer into the heap
+static inline kk_decl_const kk_datatype_t kk_datatype_from_ptr(kk_ptr_t p, kk_context_t* ctx) {
+  kk_datatype_t d = { kk_ptr_encode(p, ctx) };
   return d;
 }
 
@@ -818,135 +1013,196 @@ static inline kk_decl_const bool kk_datatype_eq(kk_datatype_t x, kk_datatype_t y
 }
 
 static inline kk_decl_const bool kk_datatype_is_ptr(kk_datatype_t d) {
-  return ((((kk_uintf_t)d.dbox)&1) == 0);
+  return kk_is_ptr(d.dbox);
 }
 
 static inline kk_decl_const  bool kk_datatype_is_singleton(kk_datatype_t d) {
-  return ((((kk_uintf_t)d.dbox)&1) == 1);
+  return kk_is_value(d.dbox);
 }
 
-static inline kk_decl_pure kk_tag_t kk_datatype_tag(kk_datatype_t d) {
+static inline kk_decl_const kk_block_t* kk_datatype_as_ptr(kk_datatype_t d, kk_context_t* ctx) {
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  return kk_ptr_decode(d.dbox,ctx);
+}
+
+static inline kk_decl_pure kk_tag_t kk_datatype_ptr_tag(kk_datatype_t d, kk_context_t* ctx) {
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  return kk_block_tag(kk_datatype_as_ptr(d, ctx));
+}
+
+static inline kk_decl_pure kk_tag_t kk_datatype_tag(kk_datatype_t d, kk_context_t* ctx) {
   if (kk_datatype_is_ptr(d)) {
-    return kk_block_tag((kk_ptr_t)d.dbox);
+    return kk_datatype_ptr_tag(d, ctx);
   }
   else {
-    return (kk_tag_t)(((kk_uintf_t)d.dbox) >> 2);
+    return (kk_tag_t)kk_intf_decode(d.dbox,1);
   }
 }
 
-static inline kk_decl_pure bool kk_datatype_has_tag(kk_datatype_t d, kk_tag_t t) {
+static inline kk_decl_pure bool kk_datatype_ptr_has_tag(kk_datatype_t d, kk_tag_t t, kk_context_t* ctx) {
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  return (kk_block_tag(kk_datatype_as_ptr(d, ctx)) == t);
+}
+
+
+static inline kk_decl_pure bool kk_datatype_has_tag(kk_datatype_t d, kk_tag_t t, kk_context_t* ctx) {
   if (kk_datatype_is_ptr(d)) {
-    return (kk_block_tag((kk_ptr_t)d.dbox) == t); 
+    return kk_datatype_ptr_has_tag(d, t, ctx);
   }
   else {
-    return (d.dbox == kk_datatype_from_tag(t).dbox);  // todo: optimize if sizeof(kk_uintf_t) < sizeof(uintptr_t) ?
+    return (d.dbox == kk_datatype_from_tag(t).dbox); 
   }
 }
 
-static inline kk_decl_pure bool kk_datatype_has_ptr_tag(kk_datatype_t d, kk_tag_t t) {
-  return (kk_datatype_is_ptr(d) && kk_block_tag((kk_ptr_t)d.dbox) == t);
+static inline kk_decl_pure bool kk_datatype_has_ptr_tag(kk_datatype_t d, kk_tag_t t, kk_context_t* ctx) {
+  return (kk_datatype_is_ptr(d) && kk_block_tag(kk_datatype_as_ptr(d,ctx)) == t);
 }
 
 static inline kk_decl_pure bool kk_datatype_has_singleton_tag(kk_datatype_t d, kk_tag_t t) {
-  return (d.dbox == kk_datatype_from_tag(t).dbox);  // todo: optimize if sizeof(kk_uintf_t) < sizeof(uintptr_t) ?  
+  return (d.dbox == kk_datatype_from_tag(t).dbox);  
 }
 
-
-static inline kk_decl_const kk_block_t* kk_datatype_as_ptr(kk_datatype_t d) {
+static inline bool kk_decl_pure kk_datatype_ptr_is_unique(kk_datatype_t d, kk_context_t* ctx) {
   kk_assert_internal(kk_datatype_is_ptr(d));
-  return (kk_ptr_t)d.dbox;
-}
-
-
-static inline bool kk_decl_pure kk_datatype_is_unique(kk_datatype_t d) {
-  kk_assert_internal(kk_datatype_is_ptr(d)); 
   //return (kk_datatype_is_ptr(d) && kk_block_is_unique(kk_datatype_as_ptr(d)));
-  return kk_block_is_unique(kk_datatype_as_ptr(d));
+  return kk_block_is_unique(kk_datatype_as_ptr(d,ctx));
 }
 
-static inline kk_datatype_t kk_datatype_dup(kk_datatype_t d) {
-  if (kk_datatype_is_ptr(d)) { kk_block_dup(kk_datatype_as_ptr(d)); }
+static inline bool kk_decl_pure kk_datatype_is_unique(kk_datatype_t d, kk_context_t* ctx) {
+  return (kk_datatype_is_ptr(d) && kk_block_is_unique(kk_datatype_as_ptr(d,ctx)));
+}
+
+static inline kk_datatype_t kk_datatype_ptr_dup(kk_datatype_t d, kk_context_t* ctx) {
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  kk_block_dup(kk_datatype_as_ptr(d, ctx));
   return d;
 }
 
-static inline void kk_datatype_drop(kk_datatype_t d, kk_context_t* ctx) {
-  if (kk_datatype_is_ptr(d)) { kk_block_drop(kk_datatype_as_ptr(d),ctx); }
+
+static inline kk_datatype_t kk_datatype_dup(kk_datatype_t d, kk_context_t* ctx) {
+  if (kk_datatype_is_ptr(d)) { 
+    kk_datatype_ptr_dup(d,ctx); 
+  }
+  return d;
 }
 
-static inline void kk_datatype_dropn(kk_datatype_t d, kk_ssize_t scan_fsize, kk_context_t* ctx) {
+static inline void kk_datatype_ptr_drop(kk_datatype_t d, kk_context_t* ctx) {
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  kk_block_drop(kk_datatype_as_ptr(d, ctx), ctx);
+}
+
+static inline void kk_datatype_drop(kk_datatype_t d, kk_context_t* ctx) {
+  if (kk_datatype_is_ptr(d)) {
+    kk_datatype_ptr_drop(d, ctx);
+  }
+}
+
+static inline void kk_datatype_ptr_dropn(kk_datatype_t d, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   kk_assert_internal(kk_datatype_is_ptr(d));
   kk_assert_internal(scan_fsize > 0);
-  kk_block_dropn(kk_datatype_as_ptr(d), scan_fsize, ctx);
+  kk_block_dropn(kk_datatype_as_ptr(d,ctx), scan_fsize, ctx);
 }
 
-static inline kk_datatype_t kk_datatype_dup_assert(kk_datatype_t d, kk_tag_t t) {
+static inline kk_datatype_t kk_datatype_ptr_dup_assert(kk_datatype_t d, kk_tag_t t, kk_context_t* ctx) {
   kk_unused_internal(t);
-  kk_assert_internal(kk_datatype_has_tag(d, t));
-  return kk_datatype_dup(d);
+  kk_assert_internal(kk_datatype_ptr_has_tag(d, t, ctx));
+  return kk_datatype_ptr_dup(d, ctx);
+}
+
+static inline kk_datatype_t kk_datatype_dup_assert(kk_datatype_t d, kk_tag_t t, kk_context_t* ctx) {
+  kk_unused_internal(t);
+  kk_assert_internal(kk_datatype_has_tag(d, t, ctx));
+  return kk_datatype_dup(d, ctx);
+}
+
+static inline void kk_datatype_ptr_drop_assert(kk_datatype_t d, kk_tag_t t, kk_context_t* ctx) {
+  kk_unused(t);
+  kk_assert_internal(kk_datatype_ptr_has_tag(d, t, ctx) || kk_datatype_ptr_has_tag(d, KK_TAG_BOX_ANY, ctx));
+  kk_datatype_ptr_drop(d, ctx);
 }
 
 static inline void kk_datatype_drop_assert(kk_datatype_t d, kk_tag_t t, kk_context_t* ctx) {
   kk_unused_internal(t);
-  kk_assert_internal(kk_datatype_has_tag(d, t));
+  kk_assert_internal(kk_datatype_has_tag(d, t, ctx));
   kk_datatype_drop(d, ctx);
 }
 
-static inline kk_reuse_t kk_datatype_dropn_reuse(kk_datatype_t d, kk_ssize_t scan_fsize, kk_context_t* ctx) {
+static inline kk_reuse_t kk_datatype_ptr_dropn_reuse(kk_datatype_t d, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   kk_assert_internal(kk_datatype_is_ptr(d));
-  if (kk_unlikely(kk_datatype_is_singleton(d))) {
+  if kk_unlikely(kk_datatype_is_singleton(d)) { // todo: why is this test here?
     return kk_reuse_null;
   }
   else {
-    return kk_block_dropn_reuse(kk_datatype_as_ptr(d), scan_fsize, ctx);
+    return kk_block_dropn_reuse(kk_datatype_as_ptr(d,ctx), scan_fsize, ctx);
   }
 }
 
-static inline kk_reuse_t kk_datatype_reuse(kk_datatype_t d) {
-  kk_assert_internal(!kk_datatype_is_singleton(d));
-  return kk_datatype_as_ptr(d);
-  /*
-  if (kk_datatype_is_singleton(d)) {
-    return kk_reuse_null;
-  }
-  else {
-    return kk_datatype_as_ptr(d);
-  }
-  */
+static inline kk_reuse_t kk_datatype_ptr_reuse(kk_datatype_t d, kk_context_t* ctx) {
+  return kk_datatype_as_ptr(d,ctx);
 }
 
-static inline void kk_datatype_free(kk_datatype_t d, kk_context_t* ctx) {
+static inline void kk_datatype_ptr_free(kk_datatype_t d, kk_context_t* ctx) {
+  kk_free(kk_datatype_as_ptr(d,ctx), ctx);
+}
+
+static inline void kk_datatype_ptr_decref(kk_datatype_t d, kk_context_t* ctx) {
+  kk_block_decref(kk_datatype_as_ptr(d,ctx), ctx);
+}
+
+#define kk_datatype_from_base(b,ctx)               (kk_datatype_from_ptr(&(b)->_block,ctx))
+#define kk_datatype_from_constructor(b,ctx)        (kk_datatype_from_base(&(b)->_base,ctx))
+#define kk_datatype_as(tp,v,ctx)                   (kk_block_as(tp,kk_datatype_as_ptr(v,ctx)))
+#define kk_datatype_as_assert(tp,v,tag,ctx)        (kk_block_assert(tp,kk_datatype_as_ptr(v,ctx),tag))
+
+
+#define kk_datatype_null_init  kk_value_null
+
+static inline kk_datatype_t kk_datatype_null(void) {
+  kk_datatype_t d = { kk_datatype_null_init };
+  return d;
+}
+
+static inline bool kk_datatype_is_null(kk_datatype_t d) {
+  return kk_datatype_eq(d, kk_datatype_null());
+}
+
+static inline kk_datatype_t kk_datatype_unbox(kk_box_t b) {
+  kk_datatype_t d = { b.box };
+  return d;
+}
+
+static inline kk_datatype_t kk_datatype_ptr_unbox(kk_box_t b) {
+  kk_datatype_t d = { b.box };
   kk_assert_internal(kk_datatype_is_ptr(d));
-  kk_free(kk_datatype_as_ptr(d),ctx);
-  /*
-  if (kk_datatype_is_ptr(d)) {
-    kk_free(kk_datatype_as_ptr(d));
-  }
-  */
+  return d;
 }
 
-static inline void kk_datatype_decref(kk_datatype_t d, kk_context_t* ctx) {
+static inline kk_box_t kk_datatype_box(kk_datatype_t d) {
+  kk_box_t b = { d.dbox };
+  return b;
+}
+
+static inline kk_box_t kk_datatype_ptr_box(kk_datatype_t d) {
   kk_assert_internal(kk_datatype_is_ptr(d));
-  kk_block_decref(kk_datatype_as_ptr(d), ctx);
-  /*
-  if (kk_datatype_is_ptr(d)) {
-    kk_block_decref(kk_datatype_as_ptr(d), ctx);
-  }
-  */
+  kk_box_t b = { d.dbox };
+  return b;
 }
 
-#define kk_datatype_from_base(b)               (kk_datatype_from_ptr(&(b)->_block))
-#define kk_datatype_from_constructor(b)        (kk_datatype_from_base(&(b)->_base))
-#define kk_datatype_as(tp,v)                   (kk_block_as(tp,kk_datatype_as_ptr(v)))
-#define kk_datatype_as_assert(tp,v,tag)        (kk_block_assert(tp,kk_datatype_as_ptr(v),tag))
+static inline kk_datatype_t kk_datatype_unbox_assert(kk_box_t b, kk_tag_t t, kk_context_t* ctx) {
+  kk_unused_internal(ctx);
+  kk_unused_internal(t);
+  kk_datatype_t d = kk_datatype_unbox(b);
+  kk_assert_internal(kk_datatype_has_tag(d, t, ctx));
+  return d;
+}
 
-
-#define kk_define_static_datatype(decl,kk_struct_tp,name,tag) \
-  static kk_struct_tp _static_##name = { { KK_HEADER_STATIC(0,tag) } }; \
-  decl kk_struct_tp* name = &_static_##name
-
-#define kk_define_static_open_datatype(decl,kk_struct_tp,name,otag) /* ignore otag as it is initialized dynamically */ \
-  static kk_struct_tp _static_##name = { { KK_HEADER_STATIC(0,KK_TAG_OPEN) }, &kk__static_string_empty._base }; \
-  decl kk_struct_tp* name = &_static_##name
+static inline kk_datatype_t kk_datatype_ptr_unbox_assert(kk_box_t b, kk_tag_t t, kk_context_t* ctx) {
+  kk_unused_internal(ctx);
+  kk_unused_internal(t);
+  kk_datatype_t d = kk_datatype_ptr_unbox(b);
+  kk_assert_internal(kk_datatype_has_tag(d, t, ctx));
+  return d;
+}
 
 
 /*----------------------------------------------------------------------
@@ -978,52 +1234,156 @@ static inline void kk_datatype_decref(kk_datatype_t d, kk_context_t* ctx) {
   }
 
 
-/*----------------------------------------------------------------------
-  Further includes
-----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------------------
+  kk_Unit
+--------------------------------------------------------------------------------------*/
 
 // The unit type
 typedef enum kk_unit_e {
   kk_Unit = 0
 } kk_unit_t;
 
+static inline kk_decl_const kk_box_t kk_unit_box(kk_unit_t u) {
+  return kk_intf_box((kk_intf_t)u);
+}
+
+static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
+  kk_unused_internal(u);
+  kk_assert_internal(kk_intf_unbox(u) == (kk_intf_t)kk_Unit || kk_box_is_any(u));
+  return kk_Unit; // (kk_unit_t)kk_enum_unbox(u);
+}
+
+/*--------------------------------------------------------------------------------------
+  Functions
+--------------------------------------------------------------------------------------*/
+
+#define kk_function_as(tp,fun,ctx)                 kk_datatype_as_assert(tp,fun,KK_TAG_FUNCTION,ctx)
+#define kk_function_alloc_as(tp,scan_fsize,ctx)    kk_block_alloc_as(tp,scan_fsize,KK_TAG_FUNCTION,ctx)
+#define kk_function_call(restp,argtps,f,args,ctx)  ((restp(*)argtps)(kk_kkfun_ptr_unbox(kk_datatype_as_assert(struct kk_function_s*,f,KK_TAG_FUNCTION,ctx)->fun,ctx)))args
+
+#if (KK_COMPRESS==0)
+#define kk_define_static_function(name,cfun,ctx) \
+  static struct kk_function_s _static_##name = { { KK_HEADER_STATIC(0,KK_TAG_FUNCTION) }, { kk_box_null_init } }; /* must be box_null */ \
+  struct kk_function_s* const _##name = &_static_##name; \
+  kk_function_t name = { (kk_intb_t)_##name }; \
+  if (kk_box_eq(_##name->fun,kk_box_null())) { _##name->fun = kk_kkfun_ptr_box(&cfun,ctx); }  // initialize on demand we can encode the field */
+#else
+// for a compressed heap, allocate static functions once in the heap on demand; these are never deallocated  
+#define kk_define_static_function(name,cfun,ctx) \
+  static kk_function_t name = { kk_datatype_null_init }; \
+  if (kk_datatype_is_null(name)) { \
+    struct kk_function_s* _fun = kk_block_alloc_as(struct kk_function_s, 1, KK_TAG_FUNCTION, ctx); \
+    _fun->fun = kk_kkfun_ptr_box(&cfun, ctx); \
+    name = kk_datatype_from_base(_fun,ctx); \
+  }
+#endif
 
 
-#include "kklib/bits.h"
-#include "kklib/box.h"
-#include "kklib/integer.h"
-#include "kklib/bytes.h"
-#include "kklib/string.h"
-#include "kklib/random.h"
-#include "kklib/os.h"
-#include "kklib/thread.h"
+kk_function_t kk_function_id(kk_context_t* ctx);
+kk_function_t kk_function_null(kk_context_t* ctx);
+bool          kk_function_is_null(kk_function_t f, kk_context_t* ctx);
+
+static inline kk_decl_pure kk_function_t kk_function_unbox(kk_box_t v, kk_context_t* ctx) {
+  kk_unused(ctx);
+  return kk_datatype_ptr_unbox(v);
+}
+
+static inline kk_decl_pure kk_box_t kk_function_box(kk_function_t d, kk_context_t* ctx) {
+  kk_unused(ctx);
+  return kk_datatype_ptr_box(d);
+}
+
+static inline kk_decl_pure bool kk_function_is_unique(kk_function_t f, kk_context_t* ctx) {
+  return kk_datatype_ptr_is_unique(f,ctx);
+}
+
+static inline void kk_function_drop(kk_function_t f, kk_context_t* ctx) {
+  kk_datatype_ptr_drop_assert(f, KK_TAG_FUNCTION, ctx);
+}
+
+static inline kk_function_t kk_function_dup(kk_function_t f, kk_context_t* ctx) {
+  return kk_datatype_ptr_dup_assert(f, KK_TAG_FUNCTION, ctx);
+}
+
+
+/*--------------------------------------------------------------------------------------
+  Constructor contexts (Further primitives are defined in `lib/std/core/types-cctx-inline.h`)
+--------------------------------------------------------------------------------------*/
+
+#define kk_field_index_of(contp,field_name)  kk_field_index_at(offsetof(contp,field_name))
+
+static inline kk_cpath_t kk_field_index_at( size_t field_offset ) {
+  kk_assert_internal((field_offset % sizeof(kk_box_t)) == 0);
+  const size_t field_index = (field_offset - sizeof(kk_header_t)) / sizeof(kk_box_t);
+  kk_assert_internal(field_index <= KK_SCAN_FSIZE_MAX - 2);
+  return (kk_cpath_t)(1 + field_index);
+}
+
+#define kk_set_cpath(contp,con,field_name) kk_set_cpath_at( &(con)->_base._block, kk_field_index_of(contp,field_name) )
+static inline void kk_set_cpath_at( kk_block_t* b, kk_cpath_t cpath ) {
+  kk_assert_internal(cpath >= 0 && cpath <= KK_CPATH_MAX);
+  b->header._field_idx = (uint8_t)cpath;
+  }
+
+#if !defined(KK_HAS_MALLOC_COPY)
+#define KK_CCTX_NO_CONTEXT_PATH
+#else
+
+// functional context application by copying along the context path and attaching `child` at the hole.
+kk_decl_export kk_box_t kk_cctx_copy_apply( kk_box_t res, kk_box_t* holeptr, kk_box_t child, kk_context_t* ctx);
+
+// depricated:
+// set the context path.
+// update the field_idx with the field index + 1 that is along the context path, and return `d` as is.
+static inline kk_datatype_t kk_cctx_setcp(kk_datatype_t d, size_t field_offset, kk_context_t* ctx) {
+  kk_assert_internal((field_offset % sizeof(kk_box_t)) == 0);
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  const size_t field_index = (field_offset - sizeof(kk_header_t)) / sizeof(kk_box_t);
+  kk_assert_internal(field_index <= KK_SCAN_FSIZE_MAX - 2);
+  kk_block_field_idx_set( kk_datatype_as_ptr(d,ctx), 1 + (uint8_t)field_index);
+  return d;
+}
+
+#endif
 
 
 /*----------------------------------------------------------------------
-  TLD operations
+  Further primitive datatypes and api's
+----------------------------------------------------------------------*/
+
+#include "kklib/bits.h"
+#include "kklib/box.h"
+
+#include "kklib/maybe.h"
+#include "kklib/integer.h"
+#include "kklib/bytes.h"
+#include "kklib/string.h"
+#include "kklib/ref.h"
+#include "kklib/vector.h"
+
+#include "kklib/random.h"
+#include "kklib/os.h"
+#include "kklib/thread.h"
+#include "kklib/process.h"    // Process info (memory usage, run time etc.)
+
+
+
+/*----------------------------------------------------------------------
+  Thread local context operations
 ----------------------------------------------------------------------*/
 
 // Get a thread local unique number.
 static inline kk_integer_t kk_gen_unique(kk_context_t* ctx) {
   kk_integer_t u = ctx->unique;
-  ctx->unique = kk_integer_inc(kk_integer_dup(u),ctx);
+  ctx->unique = kk_integer_inc(kk_integer_dup(u,ctx),ctx);
   return u;
 }
 
-kk_decl_export kk_string_t kk_get_host(kk_context_t* ctx); 
-kk_decl_export void kk_fatal_error(int err, const char* msg, ...);
-kk_decl_export void kk_warning_message(const char* msg, ...);
-kk_decl_export void kk_info_message(const char* msg, ...);
-
-static inline void kk_unsupported_external(const char* msg) {
-  kk_fatal_error(ENOSYS, "unsupported external: %s", msg);
-}
-
-
+kk_decl_export kk_string_t kk_get_host(kk_context_t* ctx);
 
 
 /*--------------------------------------------------------------------------------------
-  Value tags
+  Value tags (used for tags in structs)
 --------------------------------------------------------------------------------------*/
 
 // Tag for value types is always an integer
@@ -1035,310 +1395,6 @@ static inline kk_decl_const bool kk_value_tag_eq(kk_value_tag_t x, kk_value_tag_
   // note: x or y may be box_any so don't assert they are smallints
   return (_kk_integer_value(x) == _kk_integer_value(y));
 }
-
-/*--------------------------------------------------------------------------------------
-  Optimized support for maybe<a> like datatypes.
-  We try to avoid allocating for maybe-like types. First we define maybe<a> as a value
-  type (in std/core/types) and thus a Just is usually passed in 2 registers for the tag 
-  and payload. This does not help though if it becomes boxed, say, a list of maybe
-  values. In that case we can still avoid allocation through the special TAG_NOTHING
-  and TAG_JUST tags. If the Just value is neither of those, we just use it directly
-  without allocation. This way, only nested maybe types (`Just(Just(x))` or `Just(Nothing)`)
-  are allocated, and sometimes value types like `int32` if these happen to be equal
-  to `kk_box_Nothing`.
---------------------------------------------------------------------------------------*/
-static inline kk_box_t kk_box_Nothing(void) {
-  return kk_datatype_box( kk_datatype_from_tag(KK_TAG_NOTHING) );
-}
-
-static inline bool kk_box_is_Nothing(kk_box_t b) {
-  return (b.box == kk_datatype_from_tag(KK_TAG_NOTHING).dbox);
-}
-
-static inline bool kk_box_is_Just(kk_box_t b) {
-  return (kk_box_is_ptr(b) && kk_block_has_tag(kk_ptr_unbox(b), KK_TAG_JUST));
-}
-
-static inline bool kk_box_is_maybe(kk_box_t b) {
-  return (kk_box_is_Just(b) || kk_box_is_Nothing(b));
-}
-
-typedef struct kk_just_s {  
-  struct kk_block_s _block;
-  kk_box_t          value;   
-} kk_just_t;
-
-kk_decl_export kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_context_t* ctx );
-
-static inline kk_box_t kk_unbox_Just( kk_box_t b, kk_context_t* ctx ) {
-  if (kk_box_is_ptr(b)) {
-    kk_block_t* bl = kk_ptr_unbox(b);
-    if (kk_unlikely(kk_block_has_tag(bl, KK_TAG_JUST))) {
-      return kk_unbox_Just_block(bl,ctx);
-    }
-  }
-  // if ctx==NULL we should not change refcounts, if ctx!=NULL we consume the b
-  return b;
-}
-
-static inline kk_box_t kk_box_Just( kk_box_t b, kk_context_t* ctx ) {
-  if (kk_likely(!kk_box_is_maybe(b))) {
-    return b;
-  }
-  else {
-    kk_just_t* just = kk_block_alloc_as(kk_just_t, 1, KK_TAG_JUST, ctx);
-    just->value = b;
-    return kk_basetype_box(just);
-  }
-}
-
-static inline kk_datatype_t kk_datatype_as_Just(kk_box_t b) {
-  kk_assert_internal(!kk_box_is_maybe(b));
-  return kk_datatype_unbox(b);
-}
-
-static inline kk_box_t kk_datatype_unJust(kk_datatype_t d, kk_context_t* ctx) {
-  kk_unused(ctx);
-  kk_assert_internal(!kk_datatype_has_singleton_tag(d,KK_TAG_NOTHING));
-  if (kk_datatype_is_ptr(d)) {
-    kk_block_t* b = kk_datatype_as_ptr(d);
-    if (kk_block_has_tag(b,KK_TAG_JUST)) {
-      return kk_block_field(b,0);
-    }
-  }
-  return kk_datatype_box(d);
-}
-
-/*--------------------------------------------------------------------------------------
-  Functions
---------------------------------------------------------------------------------------*/
-
-#define kk_function_as(tp,fun)                     kk_basetype_as_assert(tp,fun,KK_TAG_FUNCTION)
-#define kk_function_alloc_as(tp,scan_fsize,ctx)    kk_block_alloc_as(tp,scan_fsize,KK_TAG_FUNCTION,ctx)
-#define kk_function_call(restp,argtps,f,args)      ((restp(*)argtps)(kk_cfun_ptr_unbox(f->fun)))args
-#define kk_define_static_function(name,cfun,ctx) \
-  static struct kk_function_s _static_##name = { { KK_HEADER_STATIC(0,KK_TAG_FUNCTION) }, { ~KK_UP(0) } }; /* must be box_null */ \
-  kk_function_t name = &_static_##name; \
-  if (kk_box_eq(name->fun,kk_box_null)) { name->fun = kk_cfun_ptr_box((kk_cfun_ptr_t)&cfun,ctx); }  // initialize on demand so it can be boxed properly
-
-
-
-kk_function_t kk_function_id(kk_context_t* ctx);
-kk_function_t kk_function_null(kk_context_t* ctx);
-
-static inline kk_decl_pure kk_function_t kk_function_unbox(kk_box_t v) {
-  return kk_basetype_unbox_as_assert(kk_function_t, v, KK_TAG_FUNCTION);
-}
-
-static inline kk_decl_pure kk_box_t kk_function_box(kk_function_t d) {
-  return kk_basetype_box(d);
-}
-
-static inline kk_decl_pure bool kk_function_is_unique(kk_function_t f) {
-  return kk_block_is_unique(&f->_block);
-}
-
-static inline void kk_function_drop(kk_function_t f, kk_context_t* ctx) {
-  kk_basetype_drop_assert(f, KK_TAG_FUNCTION, ctx);
-}
-
-static inline kk_function_t kk_function_dup(kk_function_t f) {
-  return kk_basetype_dup_assert(kk_function_t, f, KK_TAG_FUNCTION);
-}
-
-
-
-/*--------------------------------------------------------------------------------------
-  Vector
---------------------------------------------------------------------------------------*/
-
-typedef struct kk_vector_large_s {  // always use a large block for a vector so the offset to the elements is fixed
-  struct kk_block_large_s _base;
-  kk_box_t                vec[1];               // vec[(large_)scan_fsize - 1]
-} *kk_vector_large_t;
-
-
-static inline kk_decl_const kk_vector_t kk_vector_empty(void) {
-  return kk_datatype_from_tag((kk_tag_t)1);
-}
-
-static inline kk_decl_pure kk_vector_large_t kk_vector_as_large_borrow(kk_vector_t v) {
-  if (kk_datatype_is_singleton(v)) {
-    return NULL;
-  }
-  else {
-    return kk_datatype_as_assert(kk_vector_large_t, v, KK_TAG_VECTOR);
-  }
-}
-
-static inline void kk_vector_drop(kk_vector_t v, kk_context_t* ctx) {
-  kk_datatype_drop(v, ctx);
-}
-
-static inline kk_vector_t kk_vector_dup(kk_vector_t v) {
-  return kk_datatype_dup(v);
-}
-
-static inline kk_vector_t kk_vector_alloc_uninit(kk_ssize_t length, kk_box_t** buf, kk_context_t* ctx) {
-  if (kk_unlikely(length<=0)) {
-    if (buf != NULL) *buf = NULL;
-    return kk_vector_empty();
-  }
-  else {
-    kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(
-        kk_ssizeof(struct kk_vector_large_s) + (length-1)*kk_ssizeof(kk_box_t),  // length-1 as the vector_large_s already includes one element 
-        length + 1, // +1 to include the kk_large_scan_fsize field itself 
-        KK_TAG_VECTOR, ctx);
-    if (buf != NULL) *buf = &v->vec[0];
-    return kk_datatype_from_base(&v->_base);
-  }
-}
-
-kk_decl_export void        kk_vector_init_borrow(kk_vector_t _v, kk_ssize_t start, kk_box_t def, kk_context_t* ctx);
-kk_decl_export kk_vector_t kk_vector_realloc(kk_vector_t vec, kk_ssize_t newlen, kk_box_t def, kk_context_t* ctx);
-kk_decl_export kk_vector_t kk_vector_copy(kk_vector_t vec, kk_context_t* ctx);
-
-static inline kk_vector_t kk_vector_alloc(kk_ssize_t length, kk_box_t def, kk_context_t* ctx) {
-  kk_vector_t v = kk_vector_alloc_uninit(length, NULL, ctx);
-  kk_vector_init_borrow(v, 0, def, ctx);
-  return v;
-}
-
-static inline kk_box_t* kk_vector_buf_borrow(kk_vector_t vd, kk_ssize_t* len) {
-  kk_vector_large_t v = kk_vector_as_large_borrow(vd);
-  if (kk_unlikely(v==NULL)) {
-    if (len != NULL) *len = 0;
-    return NULL;
-  }
-  else {
-    if (len != NULL) {
-      *len = (kk_ssize_t)kk_intf_unbox(v->_base.large_scan_fsize) - 1;  // exclude the large scan_fsize field itself
-      kk_assert_internal(*len + 1 == kk_block_scan_fsize(&v->_base._block));
-      kk_assert_internal(*len > 0);
-    }
-    return &(v->vec[0]);
-  }
-}
-
-static inline kk_decl_pure kk_ssize_t kk_vector_len_borrow(const kk_vector_t v) {
-  kk_ssize_t len;
-  kk_vector_buf_borrow(v, &len);
-  return len;
-}
-
-static inline kk_ssize_t kk_vector_len(const kk_vector_t v, kk_context_t* ctx) {
-  kk_ssize_t len = kk_vector_len_borrow(v);
-  kk_vector_drop(v, ctx);
-  return len;
-}
-
-static inline kk_box_t kk_vector_at_borrow(const kk_vector_t v, kk_ssize_t i) {
-  kk_assert(i < kk_vector_len_borrow(v));
-  kk_box_t res = kk_box_dup(kk_vector_buf_borrow(v, NULL)[i]);
-  return res;
-}
-
-static inline kk_decl_const kk_box_t kk_vector_box(kk_vector_t v, kk_context_t* ctx) {
-  kk_unused(ctx);
-  return kk_datatype_box(v);
-}
-
-static inline kk_decl_const kk_vector_t kk_vector_unbox(kk_box_t v, kk_context_t* ctx) {
-  kk_unused(ctx);
-  return kk_datatype_unbox(v);
-}
-
-
- 
-/*--------------------------------------------------------------------------------------
-  References
---------------------------------------------------------------------------------------*/
-typedef struct kk_ref_s {
-  kk_block_t         _block;
-  _Atomic(uintptr_t) value;   // kk_box_t
-} *kk_ref_t;
-
-kk_decl_export kk_box_t  kk_ref_get_thread_shared(kk_ref_t r, kk_context_t* ctx);
-kk_decl_export kk_box_t  kk_ref_swap_thread_shared_borrow(kk_ref_t r, kk_box_t value);
-kk_decl_export kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx);
-
-static inline kk_decl_const kk_box_t kk_ref_box(kk_ref_t r, kk_context_t* ctx) {
-  kk_unused(ctx);
-  return kk_basetype_box(r);
-}
-
-static inline kk_decl_const kk_ref_t kk_ref_unbox(kk_box_t b, kk_context_t* ctx) {
-  kk_unused(ctx);
-  return kk_basetype_unbox_as_assert(kk_ref_t, b, KK_TAG_REF);
-}
-
-static inline void kk_ref_drop(kk_ref_t r, kk_context_t* ctx) {
-  kk_basetype_drop_assert(r, KK_TAG_REF, ctx);
-}
-
-static inline kk_ref_t kk_ref_dup(kk_ref_t r) {
-  return kk_basetype_dup_assert(kk_ref_t, r, KK_TAG_REF);
-}
-
-static inline kk_ref_t kk_ref_alloc(kk_box_t value, kk_context_t* ctx) {
-  kk_ref_t r = kk_block_alloc_as(struct kk_ref_s, 1, KK_TAG_REF, ctx);
-  kk_atomic_store_relaxed(&r->value,value.box);
-  return r;
-}
-
-static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
-  if (kk_likely(!kk_block_is_thread_shared(&r->_block))) {
-    // fast path
-    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
-    kk_box_dup(b);
-    kk_ref_drop(r,ctx);    // TODO: make references borrowed (only get left)
-    return b;
-  }
-  else {
-    // thread shared
-    return kk_ref_get_thread_shared(r,ctx);
-  }  
-}
-
-static inline kk_box_t kk_ref_swap_borrow(kk_ref_t r, kk_box_t value) {
-  if (kk_likely(!kk_block_is_thread_shared(&r->_block))) {
-    // fast path
-    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
-    kk_atomic_store_relaxed(&r->value, value.box);
-    return b;
-  }
-  else {
-    // thread shared
-    return kk_ref_swap_thread_shared_borrow(r, value);
-  }
-}
-
-
-static inline kk_unit_t kk_ref_set_borrow(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
-  kk_box_t b = kk_ref_swap_borrow(r, value);
-  kk_box_drop(b, ctx);
-  return kk_Unit;
-}
-
-// In Koka we can constrain the argument of f to be a local-scope reference.
-static inline kk_box_t kk_ref_modify(kk_ref_t r, kk_function_t f, kk_context_t* ctx) {
-  return kk_function_call(kk_box_t,(kk_function_t,kk_ref_t,kk_context_t*),f,(f,r,ctx));
-}
-
-/*--------------------------------------------------------------------------------------
-  kk_Unit
---------------------------------------------------------------------------------------*/
-
-static inline kk_decl_const kk_box_t kk_unit_box(kk_unit_t u) {
-  return kk_intf_box((kk_intf_t)u);
-}
-
-static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
-  kk_unused_internal(u);
-  kk_assert_internal( kk_intf_unbox(u) == (kk_intf_t)kk_Unit || kk_box_is_any(u));
-  return kk_Unit; // (kk_unit_t)kk_enum_unbox(u);
-}
-
 
 
 #endif // include guard

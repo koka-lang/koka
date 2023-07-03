@@ -3,8 +3,8 @@ type tree
   Tip
   Node( left : ind<tree>, right : ind<tree> )
 
-reference type ind<a>
-  Ind( ind : a )
+ref type ind<a>
+  Ind( ind : a)
 
 fun make( depth : int ) : console tree
   if depth > 0 then 

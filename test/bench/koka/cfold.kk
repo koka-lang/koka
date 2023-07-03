@@ -59,6 +59,13 @@ fun eval(e : expr) : int
     Mul(l,r) -> eval(l) * eval(r)
 
 
+pub fun test() : <div,console> ()
+  repeat(100)
+    val e = mk_expr(16,1)
+    val v1 = eval(e)
+    val v2 = e.reassoc.cfold.eval
+    ()  
+
 pub fun main() : <div,console> ()
   val e = mk_expr(20,1)
   val v1 = eval(e)

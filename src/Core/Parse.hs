@@ -264,9 +264,12 @@ conDecl tname foralls sort env
        -- trace ("core con: " ++ show name) $ return ()
        (env1,existss) <- typeParams env
        (env2,params)  <- parameters env1
+       vrepr <- parseValueRepr
        tp     <- typeAnnot env2
        let params2 = [(if nameIsNil name then newFieldName i else name, tp) | ((name,tp),i) <- zip params [1..]]
-       let con = (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False vis doc)
+           orderedFields = []  -- no need to reconstruct as it is only used during codegen?
+       let con = (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False 
+                             orderedFields vrepr vis doc)
        -- trace (show con ++ ": " ++ show params2) $
        return con
 
@@ -286,15 +289,22 @@ parseTypeMod
  =   do{ specialId "open"; return (DataDefOpen, False, Inductive) }
  <|> do{ specialId "extend"; return (DataDefOpen, True, Inductive) }
  <|> do specialId "value"
-        (m,n) <- braced $ do (m,_) <- integer
-                             comma
-                             (n,_) <- integer
-                             return (m,n)
-        return (DataDefValue (fromInteger m) (fromInteger n), False, Inductive)
+        vrepr <- parseValueRepr
+        return (DataDefValue vrepr, False, Inductive)
  <|> do{ specialId "co"; return (DataDefNormal, False, CoInductive) }
  <|> do{ specialId "rec"; return (DataDefNormal, False, Retractive) }
  <|> return (DataDefNormal, False, Inductive)
  <?> ""
+
+parseValueRepr :: LexParser ValueRepr
+parseValueRepr 
+  = braced $ do (raw,_) <- integer
+                comma
+                (scan,_) <- integer
+                comma
+                (align,_) <- integer
+                return (ValueRepr (fromInteger raw) (fromInteger scan) (fromInteger align))
+
 
 {--------------------------------------------------------------------------
   Value definitions
@@ -311,8 +321,8 @@ defDecl env
        keyword ":"
        (tp,pinfos) <- pdeftype env
        let sort = case sort0 of
-                    DefFun _ -> DefFun pinfos
-                    _        -> sort0
+                    DefFun _ fip -> DefFun pinfos fip
+                    _            -> sort0
        -- trace ("parse def: " ++ show name ++ ": " ++ show tp) $ return ()
        return (Def (qualify (modName env) name) tp (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file"))
                    vis sort inl rangeNull doc)
@@ -320,13 +330,14 @@ defDecl env
 pdefSort
   = do isRec <- do{ specialId "recursive"; return True } <|> return False
        inl <- parseInline
-       (do (_,doc) <- dockeyword "fun"
+       (do fip <- try parseFip
+           (_,doc) <- dockeyword "fun"
            _       <- do { specialOp "**"; return ()}
                       <|>
                       do { specialOp "*"; return () }
                       <|>
                       return ()
-           return (DefFun [],inl,isRec,doc)  -- borrow info comes from type
+           return (defFunEx [] fip,inl,isRec,doc)  -- borrow info comes from type
         <|>
         do (_,doc) <- dockeyword "val"
            return (DefVal,inl,False,doc))
@@ -336,15 +347,16 @@ pdefSort
 --------------------------------------------------------------------------}
 externDecl :: Env -> LexParser External
 externDecl env
-  = do (vis,doc)  <- try $ do vis <- vispub
-                              (_,doc) <- dockeyword "extern"
-                              return (vis,doc)
+  = do (vis,fip,doc)  <- try $ do vis <- vispub
+                                  fip <- parseFip
+                                  (_,doc) <- dockeyword "extern"
+                                  return (vis,fip,doc)
        (name,_) <- (funid)
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
        (tp,pinfos) <- pdeftype env
        formats <- externalBody
-       return (External (qualify (modName env) name) tp pinfos formats vis rangeNull doc)  
+       return (External (qualify (modName env) name) tp pinfos formats vis fip rangeNull doc)  
 
 
 externalBody :: LexParser [(Target,String)]
@@ -427,8 +439,9 @@ inlineDefSort
                     (s,_) <- stringLit
                     return [if c == '^' then Borrow else Own | c <- s] 
                  <|> return []
-       (do (_,doc) <- dockeyword "fun"           
-           return (DefFun pinfos,inl,isRec,spec,doc)
+       (do fip <- try parseFip
+           (_,doc) <- dockeyword "fun"           
+           return (DefFun pinfos fip,inl,isRec,spec,doc)
         <|>
         do (_,doc) <- dockeyword "val"
            return (DefVal,inl,False,spec,doc))

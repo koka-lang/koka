@@ -3,5 +3,10 @@ import std/core/types = std/core/types = "";
 import std/core = std/core = "";
 pub fun test : forall<a> (x : list<a>) -> list<a>
  = fn(x: list<0>){
- std/core/append((std/core/types/.dup(x)), x);
+ match (x) {
+ (std/core/Nil() : (list<a>) )
+ -> x;
+ _
+ -> std/core/.unroll17330-append((std/core/types/.dup(x)), x);
+ };
  };

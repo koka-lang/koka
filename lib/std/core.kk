@@ -20,7 +20,6 @@ pub import std/core/hnd
 
 pub infixr 80  (^)
 pub infixl 70  (*), (%), (/), cdiv, cmod
-pub infixr 60  (++)
 pub infixl 60  (+), (-)
 pub infix  40  (!=), (==), (<=), (>=), (<), (>)
 // prefix     (!), (-) 
@@ -113,10 +112,10 @@ pub fun const( default : a ) : total (( x : b ) -> a)
 // Standard Data types
 // ----------------------------------------------------------------------------
 
-pub fun int( b : bool ) : int  
+pub fip fun int( b : bool ) : int  
   if b then 1 else 0
 
-pub fun mbint( m : maybe<int> ) : int
+pub fip fun mbint( m : maybe<int> ) : int
   match m
     Nothing -> 0
     Just(i) -> i
@@ -185,7 +184,7 @@ pub fun map( e : either<a,b>, f : b -> e c  ) : e either<a,c>
 // by a list (`Cons`).
 pub type list<a>
   // The empty list.
-  con Nil
+  con Nil                  // note: must come first; see Core/Core.hs 
   // A ``head``  element followed by the ``tail``  of the list.
   con Cons(head:a, tail : list<a> )
 
@@ -217,7 +216,7 @@ pub fun is-empty( xs : list<a> ) : bool
 pub co type stream<a>
   con Next(head:a, tail: stream<a> )
 
-pub fun int( x : order ) : int
+pub fip fun int( x : order ) : int
   match x
     Lt -> -1
     Eq -> 0
@@ -687,110 +686,110 @@ pub fun any( xs : list<a>, predicate : a -> e bool ) : e bool
 // Characters
 // ----------------------------------------------------------------------------
 
-pub inline extern (==) : (char,char) -> bool  
+pub inline fip extern (==) : (char,char) -> bool  
   inline "(#1 == #2)"
   js inline "(#1 === #2)" 
 
-pub inline extern (!=) : (char,char) -> bool  
+pub inline fip extern (!=) : (char,char) -> bool  
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 
-pub inline extern (<=) : (char,char) -> bool 
+pub inline fip extern (<=) : (char,char) -> bool 
   inline "(#1 <= #2)"
 
-pub inline extern (>=) : (char,char) -> bool 
+pub inline fip extern (>=) : (char,char) -> bool 
   inline "(#1 >= #2)"
 
-pub inline extern (<)  : (char,char) -> bool 
+pub inline fip extern (<)  : (char,char) -> bool 
   inline "(#1 < #2)"
 
-pub inline extern (>)  : (char,char) -> bool 
+pub inline fip extern (>)  : (char,char) -> bool 
   inline "(#1 > #2)"
 
-pub fun compare( x : char, y : char ) : order
+pub fip fun compare( x : char, y : char ) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq
 
 // Convert a character to its unicode code point
-pub inline extern int : (char) -> int
+pub inline fip extern int : (char) -> int
   inline "#1"
   c "kk_integer_from_int"
   cs inline "new BigInteger(#1)"
 
 // Convert a unicode code point to a character
-pub inline extern char( i : int) : char
+pub inline fip extern char( i : int) : char
   inline "(#1)"
   c "kk_integer_clamp32"
   cs inline "Primitive.IntToInt32(#1)"
 
 // Add two character code points
-pub fun (+)(c : char, d : char) : total char 
+pub fip fun (+)(c : char, d : char) : total char 
   (c.int + d.int).char
 
 // Substract two character codePoints
-pub fun (-)(c : char, d : char) : total char 
+pub fip fun (-)(c : char, d : char) : total char 
   (c.int - d.int).char
 
 // Is the character a lower-case ASCII character ?
-pub fun is-lower( c : char ) : bool 
+pub fip fun is-lower( c : char ) : bool 
   c >= 'a' && c <= 'z'
 
 // Is the character an upper-case ASCII character ?
-pub fun is-upper( c : char ) : bool 
+pub fip fun is-upper( c : char ) : bool 
   c >= 'A' && c <= 'Z'
 
 // Is the character an ASCII digit ?
-pub fun is-digit( c : char ) : bool 
+pub fip fun is-digit( c : char ) : bool 
   c >= '0' && c <= '9'
 
 // Is the character an ASCII hexa-decimal digit ?
-pub fun is-hex-digit( c : char ) : bool 
+pub fip fun is-hex-digit( c : char ) : bool 
   c.is-digit || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F')
 
 // Is the character an ASCII letter is-
-pub fun is-alpha( c : char ) : bool 
+pub fip fun is-alpha( c : char ) : bool 
   c.is-lower || c.is-upper
 
 // Is the character ASCII letter or digit?
-pub fun is-alpha-num( c : char ) : bool 
+pub fip fun is-alpha-num( c : char ) : bool 
   c.is-alpha || c.is-digit
 
 // Is the character an ASCII character, e.g. `c <= '\x7F'`  ?
-pub fun is-ascii( c : char )     : bool 
+pub fip fun is-ascii( c : char )     : bool 
   c <= '\x7F'
 
 // Is the character an ASCII control character, e.g. `c < ' '`  ?
-pub fun is-control( c : char )   : bool 
+pub fip fun is-control( c : char )   : bool 
   c < ' '
 
 // Tests if a character is an element of `" \t\n\r"`
-pub fun is-white( c : char )     : bool 
+pub fip fun is-white( c : char )     : bool 
   c == ' ' || c == '\t' || c == '\n' || c == '\r'
 
 // ----------------------------------------------------------------------------
 // Booleans
 // ----------------------------------------------------------------------------
 
-pub fun (==)( x : bool, y : bool) : bool 
+pub fip fun (==)( x : bool, y : bool) : bool 
   if x then y else !y
 
-pub fun (!=)( x : bool, y : bool) : bool 
+pub fip fun (!=)( x : bool, y : bool) : bool 
   if x then !y else y
 
-pub fun (<)( x : bool, y : bool) : bool  
+pub fip fun (<)( x : bool, y : bool) : bool  
   (!x && y)
 
-pub fun (<=)( x : bool, y : bool) : bool 
+pub fip fun (<=)( x : bool, y : bool) : bool 
   !(x > y)
 
-pub fun (>)( x : bool, y : bool) : bool  
+pub fip fun (>)( x : bool, y : bool) : bool  
   (x && !y)
 
-pub fun (>=)( x : bool, y : bool) : bool 
+pub fip fun (>=)( x : bool, y : bool) : bool 
   !(x < y)
 
-pub fun compare( x : bool, y : bool) : order
+pub fip fun compare( x : bool, y : bool) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq
@@ -805,79 +804,79 @@ pub fun maybe( b : bool ) : maybe<()>
 // ----------------------------------------------------------------------------
 
 // Compare two integers
-pub inline extern compare(^x : int, ^y : int) : order
+pub inline fip extern compare(^x : int, ^y : int) : order
   c inline "kk_int_as_order(kk_integer_cmp_borrow(#1,#2,kk_context()),kk_context())"
   cs "Primitive.IntCompare"
   js "$std_core._int_compare"
 
 // Are two integers equal?
-pub inline extern (==)(^x : int, ^y : int) : bool
+pub inline fip extern (==)(^x : int, ^y : int) : bool
   c  "kk_integer_eq_borrow"
   cs inline "(#1 == #2)"
   js "$std_core._int_eq"
 
 // Are two integers not equal?
-pub inline extern (!=)(^x : int, ^y : int) : bool
+pub inline fip extern (!=)(^x : int, ^y : int) : bool
   c  "kk_integer_neq_borrow"
   cs inline "(#1 != #2)"
   js "$std_core._int_ne"
 
 // Is the first integer smaller or equal to the second?
-pub inline extern (<=)(^x : int, ^y : int) : bool
+pub inline fip extern (<=)(^x : int, ^y : int) : bool
   c  "kk_integer_lte_borrow"
   cs inline "(#1 <= #2)"
   js "$std_core._int_le"
 
 // Is the first integer greater or equal to the second?
-pub inline extern (>=)(^x : int, ^y : int) : bool
+pub inline fip extern (>=)(^x : int, ^y : int) : bool
   c  "kk_integer_gte_borrow"
   cs inline "(#1 >= #2)"
   js "$std_core._int_ge"
 
 // Is the first integer smaller than the second?
-pub inline extern (<)(^x : int, ^y : int) : bool
+pub inline fip extern (<)(^x : int, ^y : int) : bool
   c  "kk_integer_lt_borrow"
   cs inline "(#1 < #2)"
   js "$std_core._int_lt"
 
 // Is the first integer greater than the second?
-pub inline extern (>)(^x : int, ^y : int) : bool
+pub inline fip extern (>)(^x : int, ^y : int) : bool
   c  "kk_integer_gt_borrow"
   cs inline "(#1 > #2)"
   js "$std_core._int_gt"
 
-inline extern int-add : (int,int) -> int
+inline fip extern int-add : (int,int) -> int
   c  "kk_integer_add"
   cs inline "(#1 + #2)"
   js "$std_core._int_add"
 
 // Add two integers.
-pub fun (+)(x : int, y : int ) : int 
+pub fip fun (+)(x : int, y : int ) : int 
   int-add(x,y)
 
-inline extern int-sub : (int,int) -> int
+inline fip extern int-sub : (int,int) -> int
   c  "kk_integer_sub"
   cs inline "(#1 - #2)"
   js "$std_core._int_sub"
 
 // Substract two integers.
-pub fun (-)(x : int, y : int ) : int 
+pub fip fun (-)(x : int, y : int ) : int 
   int-sub(x,y)
 
 // Multiply two integers.
-pub inline extern (*) : (int,int) -> int
+pub inline fip extern (*) : (int,int) -> int
   c  "kk_integer_mul"
   cs inline "(#1 * #2)"
   js "$std_core._int_mul"
 
 // Euclidean-0 division of two integers. See also `divmod:(x : int, y : int) -> (int,int)`.
-pub inline extern (/)(x:int,y:int) : int
+pub inline fip extern (/)(x:int,y:int) : int
   c  "kk_integer_div"
   cs "Primitive.IntDiv"
   js "$std_core._int_div"
 
 // Euclidean modulus of two integers; always a non-negative number. See also `divmod:(x : int, y : int) -> (int,int)`.
-pub inline extern (%)  : (int,int) -> int
+pub inline fip extern (%)  : (int,int) -> int
   c  "kk_integer_mod"
   cs "Primitive.IntMod"
   js "$std_core._int_mod"
@@ -900,92 +899,92 @@ pub inline extern (%)  : (int,int) -> int
 //
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
-pub inline extern divmod(x:int,y:int) : (int,int)
+pub inline fip extern divmod(x:int,y:int) : (int,int)
   c  "kk_integer_div_mod_tuple"
   cs "Primitive.IntDivMod"
   js "$std_core._int_divmod"
 
-pub fun negate(i : int) : int
+pub fip fun negate(i : int) : int
   ~i
 
 // Negate an integer.
-pub inline extern (~)(i:int) : int
+pub inline fip extern (~)(i:int) : int
   c  "kk_integer_neg"
   cs inline "(-#1)"
   js "$std_core._int_negate"
 
 // Convert an integer to a `:float64`. May return `nan` if the integer is too large to represent as a `:float64`.
-pub inline extern float64( i : int) : float64
+pub inline fip extern float64( i : int) : float64
   c  "kk_integer_as_double"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 
 // Convert an integer to a `:float32`. May return `nan` if the integer is too large to represent as a `:float32`.
-pub inline extern float32( i : int) : float32
+pub inline fip extern float32( i : int) : float32
   c  "kk_integer_as_float"
   cs "Primitive.IntToFloat"
   js "$std_core._int_to_float"  
 
 // Is this an odd integer?
-pub inline extern is-odd( i : int ) : bool
+pub inline fip extern is-odd( i : int ) : bool
   c  "kk_integer_is_odd"
   cs inline "!(#1.IsEven)"
   js "$std_core._int_isodd"
 
 // Is this equal to zero?
-pub inline extern is-zero( ^x : int) : bool
+pub inline fip extern is-zero( ^x : int) : bool
   c  inline "kk_integer_is_zero_borrow(#1)"
   cs inline "(#1.IsZero)"
   js "$std_core._int_iszero"
 
 // Return the absolute value of an integer.
-pub inline extern abs(i : int) : int
+pub inline fip extern abs(i : int) : int
   c  "kk_integer_abs"
   cs "BigInteger.Abs"
   js "$std_core._int_abs"
 
-pub fun inc( i : int ) : int
+pub fip fun inc( i : int ) : int
   i + 1
 
-pub fun dec( i : int ) : int
+pub fip fun dec( i : int ) : int
   i - 1
 
 // Calculate `10^exp`
-pub fun exp10( exp : int ) : int
+pub fip fun exp10( exp : int ) : int
   1.mul-exp10(exp)
 
 // Raise an integer `i` to the power of `exp`.
-pub extern pow( i : int, exp : int ) : int
+pub fip extern pow( i : int, exp : int ) : int
   c  "kk_integer_pow"
   cs "Primitive.IntPow"
   js "_int_pow"
 
 // Raise an integer `i` to the power of `exp`.
-pub fun (^)(i : int, exp : int ) : int
+pub fip fun (^)(i : int, exp : int ) : int
   pow(i,exp)
 
 // Calculate `2^exp`.
-pub fun exp2( exp : int ) : int
+pub fip fun exp2( exp : int ) : int
   pow(2,exp)
 
 // Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
-pub extern is-exp10( i : int ) : int
+pub fip extern is-exp10( i : int ) : int
   c  "kk_integer_ctz"
   cs "Primitive.IntCountPow10"
   js "_int_count_pow10"
 
 // Return the number of decimal digits of `i`. Return `0` when `i==0`.
-pub extern count-digits( i : int ) : int
+pub fip extern count-digits( i : int ) : int
   c  "kk_integer_count_digits"
   cs "Primitive.IntCountDigits"
   js "_int_count_digits"
 
-pub extern mul-exp10( i : int, n : int ) : int
+pub fip extern mul-exp10( i : int, n : int ) : int
   c  "kk_integer_mul_pow10"
   cs "Primitive.IntMulPow10"
   js "_int_mul_pow10"
 
-pub extern cdiv-exp10( i : int, n : int ) : int
+pub fip extern cdiv-exp10( i : int, n : int ) : int
   c  "kk_integer_cdiv_pow10"
   cs "Primitive.IntCDivPow10"
   js "_int_cdiv_pow10"
@@ -1001,28 +1000,28 @@ pub fun divmod-exp10( i : int, n : int ) : (int,int)
   if !cr.is-neg then (cq,cr) else (cq.dec, cr + exp10(n))
 
 // Is this an even integer?
-pub fun is-even(i:int) : bool 
+pub fip fun is-even(i:int) : bool 
   !is-odd(i)
 
 // Is the integer positive (stricly greater than zero)
-pub fun is-pos(i : int ) : bool 
-  i.sign == Gt
+pub fip fun is-pos(i : int ) : bool 
+  i > 0
 
 // Is the integer negative (stricly smaller than zero)
-pub fun is-neg(i : int ) : bool 
-  i.sign == Lt
+pub fip fun is-neg(i : int ) : bool 
+  i < 0
 
-pub inline extern sign( ^i : int ) : order
-  c  inline "kk_int_as_order(kk_integer_signum_borrow(#1),kk_context())"
+pub inline fip extern sign( ^i : int ) : order
+  c  inline "kk_int_as_order(kk_integer_signum_borrow(#1,kk_context()),kk_context())"
   cs "Primitive.IntSign"
   js "$std_core._int_sign"
 
 // Return the minimum of two integers
-pub fun min( i : int, j : int ) : int 
+pub fip fun min( i : int, j : int ) : int 
   if i <= j then i else j
 
 // Return the maximum of two integers
-pub fun max( i : int, j : int ) : int 
+pub fip fun max( i : int, j : int ) : int 
   if i >= j then i else j
 
 // Returns the smallest element of a list of integers (or `default` (=`0`) for the empty list)
@@ -1055,59 +1054,65 @@ pub fun fold-int( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
 pub fun fold-int( upto : int, init : a, f : (int,a) -> e a ) : e a
   fold-int( 0, upto.dec, init, f )
 
+
+pub fun fold-while-int( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
+  if start >= end then init else
+    match f(start,init)
+      Just(x) -> fold-while-int(unsafe-decreasing(start.inc), end, x, f)
+      Nothing -> init
+
 // ----------------------------------------------------------------------------
 // 32-bit integers
 // Just define the operations needed for defining the std/core interface but
 // don't export any definitions here. Full operations are defined in `std/int32`.
 // ----------------------------------------------------------------------------
 
-// Convert an `:int32` to an `:int`.
-pub inline extern int( i : int32 ) : int
+// Convert an `:int32` to an `:int`. 
+pub inline fip extern int( i : int32 ) : int
   c  "kk_integer_from_int"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int32"
 
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
-pub extern int32( i : int) : int32
+pub fip extern int32( i : int) : int32
   c  "kk_integer_clamp32"
   cs "Primitive.IntToInt32"
   js "$std_core._int_clamp32"
 
 // Convenient shorthand to `int32`, e.g. `1234.i32`
-pub inline fun i32( i : int ) : int32
+pub inline fip fun i32( i : int ) : int32
   i.int32
 
 
-
 // Minimal set of operations that we need in `std/core`.
-inline extern (<=) : (int32,int32) -> bool  
+inline fip extern (<=) : (int32,int32) -> bool  
   inline "(#1 <= #2)"
   js inline "(#1 <= #2)"
 
-inline extern (<)  : (int32,int32) -> bool  
+inline fip extern (<)  : (int32,int32) -> bool  
   inline "(#1 < #2)"
   js inline "(#1 < #2)"
 
-inline extern (+)  : (int32,int32) -> int32 
+inline fip extern (+)  : (int32,int32) -> int32 
   inline "(#1 + #2)"
   js inline "((#1 + #2)|0)"
 
-inline extern (-)  : (int32,int32) -> int32 
+inline fip extern (-)  : (int32,int32) -> int32 
   inline "(#1 - #2)"
   js inline "((#1 - #2)|0)"
 
-inline extern is-pos( i : int32 ) : bool 
+inline fip extern is-pos( i : int32 ) : bool 
   inline "(#1>0)"
 
-inline extern is-neg( i : int32 ) : bool 
+inline fip extern is-neg( i : int32 ) : bool 
   inline "(#1<0)"
 
 
-fun incr( i : int32 ) : int32
+fip fun incr( i : int32 ) : int32
   i + 1.int32
 
-fun decr( i : int32 ) : int32
+fip fun decr( i : int32 ) : int32
   i - 1.int32
 
 // ----------------------------------------------------------------------------
@@ -1118,49 +1123,49 @@ fun decr( i : int32 ) : int32
 
 // Convert an integer to an `:ssize_t`. The number is _clamped_ to the maximal or minimum `:ssize_t`
 // value if it is outside the range of an `:ssize_t`.
-pub extern ssize_t( i : int) : ssize_t
+pub fip extern ssize_t( i : int) : ssize_t
   c  "kk_integer_clamp_ssize_t" 
   cs "Primitive.IntToInt32"
   js "$std_core._int_clamp32"
 
 // Convert an `:ssize_t` to an `:int`.
-pub inline extern int( i : ssize_t ) : int
+pub inline fip extern int( i : ssize_t ) : int
   c  "kk_integer_from_ssize_t"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int32"
 
 // Minimal set of operations that we need in `std/core`.
-inline extern (<=) : (ssize_t,ssize_t) -> bool   
+inline fip extern (<=) : (ssize_t,ssize_t) -> bool   
   inline "(#1 <= #2)"
 
-inline extern (>=) : (ssize_t,ssize_t) -> bool   
+inline fip extern (>=) : (ssize_t,ssize_t) -> bool   
   inline "(#1 >= #2)"
 
-inline extern (<)  : (ssize_t,ssize_t) -> bool   
+inline fip extern (<)  : (ssize_t,ssize_t) -> bool   
   inline "(#1 < #2)"
 
-inline extern (+)  : (ssize_t,ssize_t) -> ssize_t 
+inline fip extern (+)  : (ssize_t,ssize_t) -> ssize_t 
   inline "(#1 + #2)"
   js inline "((#1 + #2)|0)"
 
-inline extern (-)  : (ssize_t,ssize_t) -> ssize_t 
+inline fip extern (-)  : (ssize_t,ssize_t) -> ssize_t 
   inline "(#1 - #2)"
   js inline "((#1 - #2)|0)"
 
-inline extern is-pos( i : ssize_t ) : bool 
+inline fip extern is-pos( i : ssize_t ) : bool 
   inline "(#1 > 0)"
 
-inline extern is-neg( i : ssize_t ) : bool 
+inline fip extern is-neg( i : ssize_t ) : bool 
   inline "(#1 < 0)"
 
-extern is-zero( i : ssize_t ) : bool 
+fip extern is-zero( i : ssize_t ) : bool 
   inline "(#1 == 0)"
   js inline "(#1 === 0)"
 
-extern decr(i : ssize_t ) : ssize_t 
+fip extern decr(i : ssize_t ) : ssize_t 
   inline "(#1 - 1)"
 
-extern incr(i : ssize_t ) : ssize_t 
+fip extern incr(i : ssize_t ) : ssize_t 
   inline "(#1 + 1)"
 
 
@@ -1169,13 +1174,13 @@ extern incr(i : ssize_t ) : ssize_t
 // ----------------------------------------------------------------------------
 
 // clamp an `:int` to fit in an `:int8`.
-pub extern int8( i : int) : int8
+pub fip extern int8( i : int) : int8
   c  "kk_integer_clamp_int8"
   cs "Primitive.IntToInt8"
   js "$std_core._int_clamp8"
 
 // Convert an `:int8` to an `:int`.
-pub inline extern int( i : int8 ) : int
+pub inline fip extern int( i : int8 ) : int
   c  "kk_integer_from_int8"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int32"
@@ -1183,13 +1188,13 @@ pub inline extern int( i : int8 ) : int
 
 // clamp an `:int` to fit in an `:int8` but interpret the `:int` as an unsigned 8-bit value,
 // and clamp between 0 and 255.
-pub extern uint8( i : int) : int8
+pub fip extern uint8( i : int) : int8
   c  "kk_integer_clamp_byte"
   cs "Primitive.IntToUInt8"
   js "$std_core._int_clamp_byte"
 
 // Convert an `:int8` to an `:int` but interpret the `:int8` as an unsigned 8-bit value between 0 and 255.
-pub inline extern uint( i : int8 ) : int
+pub inline fip extern uint( i : int8 ) : int
   c  "kk_integer_from_uint8"
   cs inline "(new BigInteger(#1 >= 0 ? #1 : 256 + #1))"
   js "$std_core._int_from_int32"
@@ -1200,13 +1205,13 @@ pub inline extern uint( i : int8 ) : int
 // ----------------------------------------------------------------------------
 
 // clamp an `:int` to fit in an `:int16`.
-pub extern int16( i : int) : int16
+pub fip extern int16( i : int) : int16
   c  "kk_integer_clamp_int16"
   cs "Primitive.IntToInt16"
   js "$std_core._int_clamp16"
 
 // Convert an `:int16` to an `:int`.
-pub inline extern int( i : int16 ) : int 
+pub inline fip extern int( i : int16 ) : int 
   c  "kk_integer_from_int16"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int32"
@@ -1217,19 +1222,19 @@ pub inline extern int( i : int16 ) : int
 // ----------------------------------------------------------------------------
 
 // clamp an `:int` to fit in an `:int64_t`.
-pub extern int64( i : int) : int64
+pub fip extern int64( i : int) : int64
   c  "kk_integer_clamp64"
   cs "Primitive.IntToInt64"
   js "$std_core._int_clamp64"
 
 // Convert an `:int64_t` to an `:int`.
-pub inline extern int( i : int64 ) : int
+pub inline fip extern int( i : int64 ) : int
   c  "kk_integer_from_int64"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int64"
 
 // Convenient shorthand to `int64`, e.g. `1234.i64`
-pub inline fun i64( i : int ) : int64
+pub inline fip fun i64( i : int ) : int64
   i.int64
 
 
@@ -1238,13 +1243,13 @@ pub inline fun i64( i : int ) : int64
 // ----------------------------------------------------------------------------
 
 // clamp an `:int` to fit in an `:intptr_t`. 
-pub extern intptr_t( i : int) : intptr_t
+pub fip extern intptr_t( i : int) : intptr_t
   c  "kk_integer_clamp_intptr_t"
   cs "Primitive.IntToInt64"
   js "$std_core._int_clamp64"
 
 // Convert an `:intptr_t` to an `:int`.
-pub inline extern int( i : intptr_t ) : int
+pub inline fip extern int( i : intptr_t ) : int
   c  "kk_integer_from_intptr_t"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int64"
@@ -1278,36 +1283,36 @@ extern xparse-int( s : string, hex : bool ) : maybe<int>
 // todo: move to std/num/float64
 // ----------------------------------------------------------------------------
 
-pub inline extern (==) : (float64,float64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-pub inline extern (!=) : (float64,float64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-pub inline extern (<=) : (float64,float64) -> bool  { inline "(#1 <= #2)" }
-pub inline extern (>=) : (float64,float64) -> bool  { inline "(#1 >= #2)" }
-pub inline extern (<)  : (float64,float64) -> bool  { inline "(#1 < #2)" }
-pub inline extern (>)  : (float64,float64) -> bool  { inline "(#1 > #2)" }
-pub inline extern (+) : (float64,float64) -> float64 { inline "(#1 + #2)" }
-pub inline extern (-) : (float64,float64) -> float64 { inline "(#1 - #2)" }
-pub inline extern (*) : (float64,float64) -> float64 { inline "(#1 * #2)" }
-pub inline extern (/) : (float64,float64) -> float64 { inline "(#1 / #2)" }
-pub inline extern (%) : (float64,float64) -> float64 { c inline "fmod(#1,#2)"; inline "(#1 % #2)" }
+pub inline fip extern (==) : (float64,float64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+pub inline fip extern (!=) : (float64,float64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+pub inline fip extern (<=) : (float64,float64) -> bool  { inline "(#1 <= #2)" }
+pub inline fip extern (>=) : (float64,float64) -> bool  { inline "(#1 >= #2)" }
+pub inline fip extern (<)  : (float64,float64) -> bool  { inline "(#1 < #2)" }
+pub inline fip extern (>)  : (float64,float64) -> bool  { inline "(#1 > #2)" }
+pub inline fip extern (+) : (float64,float64) -> float64 { inline "(#1 + #2)" }
+pub inline fip extern (-) : (float64,float64) -> float64 { inline "(#1 - #2)" }
+pub inline fip extern (*) : (float64,float64) -> float64 { inline "(#1 * #2)" }
+pub inline fip extern (/) : (float64,float64) -> float64 { inline "(#1 / #2)" }
+pub inline fip extern (%) : (float64,float64) -> float64 { c inline "fmod(#1,#2)"; inline "(#1 % #2)" }
 
 
 // Is the value negative?
-pub fun is-neg( d : float64 ) : bool
+pub fip fun is-neg( d : float64 ) : bool
   d < 0.0
 
 // Is the value positive?
-pub fun is-pos( d : float64 ) : bool
+pub fip fun is-pos( d : float64 ) : bool
   d > 0.0
 
 // Is the value zero?
-pub fun is-zero( d : float64 ) : bool
+pub fip fun is-zero( d : float64 ) : bool
   d == 0.0
 
-pub fun sign( d : float64 ) : order
+pub fip fun sign( d : float64 ) : order
   if d < 0.0 then Lt elif d > 0.0 then Gt else Eq
 
 // Negate a `:float64`.
-pub inline extern (~)( f : float64 ) : float64
+pub inline fip extern (~)( f : float64 ) : float64
   inline "(-#1)"  // inline so `~0.0` becomes negative zero
 
 // convert a `:float64` to an `:int` using `round` to round to its nearest integer.
@@ -1319,23 +1324,23 @@ pub inline extern int( f : float64 ) : int
   js "$std_core._int_double"
 
 // Returns the value `f`  raised to the power `p` .
-pub inline extern (^)( f : float64, p : float64) : float64
+pub inline fip extern (^)( f : float64, p : float64) : float64
   c inline "pow(#1,#2)"
   cs "Math.Pow"
   js "Math.pow"
 
 // Return the absolute value of a `:float64` `f`
-pub inline extern abs( f : float64 ) : float64
+pub inline fip extern abs( f : float64 ) : float64
   c inline "kk_double_abs(#1)"
   cs "Math.Abs"
   js "Math.abs"
 
 // Returns the smallest of two floats
-pub fun min( x : float64, y : float64 ) : float64 
+pub fip fun min( x : float64, y : float64 ) : float64 
   if x <= y then x else y
 
 // Returns the largest of two floats
-pub fun max( x : float64, y : float64 ) : float64 
+pub fip fun max( x : float64, y : float64 ) : float64 
   if x >= y then x else y
 
 // Returns the smallest element of a list of floats (or `0` for the empty list)
@@ -1361,10 +1366,10 @@ pub fun maximum( xs : list<float64> ) : float64
 // returned by functions that find sub strings or patterns in
 // in strings. Use `string:(slice : sslice) -> string` to
 // create a fresh substring from a slice.
-abstract struct sslice( str : string, start : ssize_t, len : ssize_t )
+abstract value struct sslice( str : string, start : int, len : int )
 
 // Internal export for the regex module
-pub fun ".new-sslice"( str :string, start: ssize_t, len : ssize_t )
+pub fun ".new-sslice"( str :string, start: int, len : int )
   Sslice(str,start,len)
 
 // Convert a character to a string
@@ -1435,8 +1440,8 @@ pub fun (||)( x : string, y : string ) : string
   if x.is-empty then y else x
 
 // Length returns the length in the platform specific encoding (and should not be exported)
-inline extern length( s : string ) : ssize_t
-  c inline "kk_string_len(#1,kk_context())"
+inline extern length( s : string ) : int
+  c inline "kk_string_len_int(#1,kk_context())"
   cs inline "#1.Length"
   js inline "#1.length"
 
@@ -1475,21 +1480,21 @@ pub fun last(s : string, n : int = 1) : sslice
 
 // O(1). The entire string as a slice
 pub fun slice( s : string ) : sslice
-  Sslice(s,0.ssize_t,s.length)
+  Sslice(s,0,s.length)
 
 // An empty slice
-val empty = Sslice("",0.ssize_t,0.ssize_t)
+val empty = Sslice("",0,0)
 
 // Is a slice empty?
 pub fun is-empty( slice : sslice ) : bool
   !slice.len.is-pos
 
 // An invalid slice
-val invalid = Sslice("",(-1).ssize_t,0.ssize_t)
+val invalid = Sslice("",-1,0)
 
 // Is a slice invalid?
 pub fun is-valid( slice : sslice ) : bool
-  slice.start >= 0.ssize_t
+  slice.start >= 0
 
 // Is a slice not empty?
 pub fun is-notempty( slice : sslice ) : bool
@@ -1541,7 +1546,7 @@ pub extern extend( slice : sslice, ^count : int ) : sslice
 // start of `slice` argument.
 pub fun before(slice : sslice) : sslice
   val Sslice(s,start,_len) = slice
-  Sslice(s,0.ssize_t,start)
+  Sslice(s,0,start)
 
 // O(1). Return the string slice from the end of `slice` argument
 // to the end of the string.
@@ -1591,7 +1596,7 @@ inline extern xindex-of(s : string, sub : string ) : ssize_t
 // the position just following the substring `sub`.
 pub fun find( s : string, sub : string ) : maybe<sslice>
   val i = s.xindex-of(sub)
-  if i.is-zero then Nothing else Just(Sslice(s,i.decr,sub.length))
+  if i.is-zero then Nothing else Just(Sslice(s,i.decr.int,sub.length))
 
 // Does string `s`  contain the string `sub`  ?
 inline extern xlast-index-of(s : string, sub : string ) : ssize_t
@@ -1602,7 +1607,7 @@ inline extern xlast-index-of(s : string, sub : string ) : ssize_t
 // Return the last index of substring `sub` in `s` if it occurs.
 pub fun find-last( s : string, sub : string ) : maybe<sslice>
   val i = s.xlast-index-of(sub)
-  if i.is-zero then Nothing else Just(Sslice(s,i.decr,sub.length))
+  if i.is-zero then Nothing else Just(Sslice(s,i.decr.int,sub.length))
 
 inline extern xstarts-with: (s : string, pre : string ) -> bool
   c  "kk_string_starts_with"
@@ -1625,7 +1630,7 @@ extern xends-with: (s : string, post : string ) -> bool
 // If so, returns a slice of `s` from the start up to the `post` string at the end.
 pub fun ends-with( s : string, post : string ) : maybe<sslice>
   if (xends-with(s,post))
-    then Just(Sslice(s,0.ssize_t,s.length - post.length))
+    then Just(Sslice(s,0,s.length - post.length))
     else Nothing
 
 // Does string `s`  contain the string `sub`  ?
@@ -1664,14 +1669,14 @@ pub fun trim-right( s : string, sub : string ) : string
     Just(slice) -> trim-right(unsafe-decreasing(slice.string),sub)
     Nothing -> s
 
-// Repeat a string `n` times
-pub fun repeat( s : string, ^n : int ) : string
-  repeatz(s,n.ssize_t)
-
 extern repeatz( s : string, n : ssize_t ) : string
   c  "kk_string_repeat"
   cs "Primitive.Repeat"
   js "_string_repeat"
+
+// Repeat a string `n` times
+pub fun repeat( s : string, ^n : int ) : string
+  repeatz(s,n.ssize_t)
 
 // Convert a `:maybe` string to a string using the empty sting for `Nothing`
 pub fun string( ms : maybe<string> ) : string
@@ -1778,19 +1783,19 @@ pub fun capitalize( s : string ) : string
 
 // Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
 pub fun pad-left( s : string, ^width : int, fill : char = ' ') : string
-  val w = width.ssize_t
+  val w = width
   val n = s.length
   if w <= n
     then s
-    else fill.string.repeatz( w - n ) ++ s
+    else fill.string.repeat( w - n ) ++ s
 
 // Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
 pub fun pad-right( s : string, ^width : int, fill : char = ' ') : string
-  val w = width.ssize_t
+  val w = width
   val n = s.length
   if w <= n
     then s
-    else s ++ fill.string.repeatz(w - n)
+    else s ++ fill.string.repeat(w - n)
 
 // Trim whitespace on the left and right side of a string
 pub fun trim( s : string ) : string
@@ -1815,7 +1820,7 @@ pub inline extern trim-right( s : string ) : string
 
 // Return the element at position `index`  in vector `v`  without bounds check!
 inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a
-  c  inline "kk_vector_at_borrow(#1,#2)"
+  c  "kk_vector_at_borrow"
   cs inline "(#1)[#2]"
   js inline "(#1)[#2]"
 
@@ -1845,7 +1850,7 @@ pub fun length( ^v : vector<a> ) : int
   v.lengthz.int
 
 inline extern lengthz( ^v : vector<a> ) : ssize_t
-  c  inline "kk_vector_len_borrow(#1)"
+  c  "kk_vector_len_borrow"
   cs inline "((#1).Length)"
   js inline "((#1).length)"
 
@@ -1920,7 +1925,7 @@ pub extern unvlist( xs : list<a> ) : vector<a>
 
 // Delayed (or _lazy_) values are computed (with effect `:e`) only the first time
 // `force` is called and cached afterwards.
-abstract type delayed<e,a>
+abstract value type delayed<e,a>
   con Delay( dref : ref<global,either<() -> e a,a>> )
 
 // Create a new `:delayed` value.
@@ -2224,7 +2229,7 @@ pub fun ".default-exn"(action)
       show(exn).println
 
 // The exception data type
-pub struct exception( message :string, info :exception-info )
+pub value struct exception( message :string, info :exception-info )
 
 // Exception information
 pub open type exception-info
@@ -2262,7 +2267,7 @@ pub fun catch( action : () -> <exn|e> a, hndl: exception -> e a) : e a
   try(action,hndl)
 
 // An `:error` type represents a first-class exception result.
-pub type error<a>
+pub value type error<a>
   Error( exception : exception )
   Ok( result : a )
 
@@ -2324,20 +2329,20 @@ pub type null<a>
 
 // Unsafe: transform any type to a `null` type; used internally by the compiler.
 pub extern ".null-any"(x : a) : null<a>
-  c  inline "((#1).box == kk_box_null.box ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox(#1))"
+  c  inline "(kk_box_is_null(#1) ? kk_datatype_null() : kk_datatype_unbox(#1))"
   cs inline "#1"
   js inline "(#1==null ? null : #1)"  // undefined -> null
 
 // Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
 pub extern null(x : maybe<a>) : null<a>
-  c  inline "(kk_std_core_types__is_Nothing(#1) ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox((#1)._cons.Just.value) /* kk_datatype_unbox(kk_datatype_unjust(#1,kk_context())) */ )"
+  c  inline "(kk_std_core_types__is_Nothing(#1,kk_context()) ? kk_datatype_null() : kk_datatype_unbox((#1)._cons.Just.value) /* kk_datatype_unbox(kk_datatype_unjust(#1,kk_context())) */ )"
   cs inline "(#1.tag_ == __std_core._maybe_Tag.Nothing ? default(##1) : #1.@value)"
   js inline "(#1==null ? null : #1.value)"
 
 // Transform a `:null` type to a `:maybe` type. Note that it is not
 // always the case that `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
 pub extern maybe( n : null<a> ) : maybe<a>
-  c  inline "(kk_datatype_as_ptr(#1) == NULL ? kk_std_core_types__new_Nothing(kk_context()) : kk_std_core_types__new_Just(kk_datatype_box(#1),kk_context()))"
+  c  inline "(kk_datatype_is_null(#1) ? kk_std_core_types__new_Nothing(kk_context()) : kk_std_core_types__new_Just(kk_datatype_box(#1),kk_context()))"
   cs inline "(EqualityComparer<##1>.Default.Equals(#1,default(##1)) ? __std_core._maybe<##1>.Nothing_ : new __std_core._maybe<##1>(#1))"
   js inline "(#1==null ? $std_core_types.Nothing : $std_core_types.Just(#1))"
 
@@ -2499,6 +2504,6 @@ pub alias value<a> = a
 // Internal: used for value effects
 // TODO: revisit value effects codegen
 pub extern phantom<a>() : a
-  c inline "kk_box_null"
+  c inline "kk_box_null()"
   inline "undefined"
 

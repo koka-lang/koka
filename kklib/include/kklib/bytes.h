@@ -78,8 +78,8 @@ static inline void kk_bytes_drop(kk_bytes_t b, kk_context_t* ctx) {
   kk_datatype_drop(b, ctx);
 }
 
-static inline kk_bytes_t kk_bytes_dup(kk_bytes_t b) {
-  return kk_datatype_dup(b);
+static inline kk_bytes_t kk_bytes_dup(kk_bytes_t b, kk_context_t* ctx) {
+  return kk_datatype_dup(b,ctx);
 }
 
 
@@ -117,19 +117,19 @@ static inline kk_bytes_t kk_bytes_alloc_raw_len(kk_ssize_t len, const uint8_t* p
   br->free = (free ? &kk_free_fun : NULL);
   br->cbuf = p;
   br->clength = len;
-  return kk_datatype_from_base(&br->_base);
+  return kk_datatype_from_base(&br->_base, ctx);
 }
 
 // Get access to the bytes via a pointer (and retrieve the length as well)
-static inline const uint8_t* kk_bytes_buf_borrow(const kk_bytes_t b, kk_ssize_t* len) {
+static inline const uint8_t* kk_bytes_buf_borrow(const kk_bytes_t b, kk_ssize_t* len, kk_context_t* ctx) {
   static const uint8_t empty[16] = { 0 };
   if (kk_datatype_is_singleton(b)) {
     if (len != NULL) *len = 0;
     return empty;
   }
-  kk_tag_t tag = kk_datatype_tag(b);
+  kk_tag_t tag = kk_datatype_tag(b,ctx);
   if (tag == KK_TAG_BYTES_SMALL) {
-    const kk_bytes_small_t bs = kk_datatype_as_assert(kk_bytes_small_t, b, KK_TAG_BYTES_SMALL);
+    const kk_bytes_small_t bs = kk_datatype_as_assert(kk_bytes_small_t, b, KK_TAG_BYTES_SMALL, ctx);
     if (len != NULL) {
       // a small bytes of length N (<= 7) ends with an ending zero followed by (7 - N) trailing 0xFF bytes.
       #ifdef KK_ARCH_LITTLE_ENDIAN
@@ -142,19 +142,19 @@ static inline const uint8_t* kk_bytes_buf_borrow(const kk_bytes_t b, kk_ssize_t*
     return &bs->u.buf[0];
   }
   else if (tag == KK_TAG_BYTES) {
-    kk_bytes_normal_t bn = kk_datatype_as_assert(kk_bytes_normal_t, b, KK_TAG_BYTES);
+    kk_bytes_normal_t bn = kk_datatype_as_assert(kk_bytes_normal_t, b, KK_TAG_BYTES, ctx);
     if (len != NULL) *len = bn->length;
     return &bn->buf[0];
   }
   else {
-    kk_bytes_raw_t br = kk_datatype_as_assert(kk_bytes_raw_t, b, KK_TAG_BYTES_RAW);
+    kk_bytes_raw_t br = kk_datatype_as_assert(kk_bytes_raw_t, b, KK_TAG_BYTES_RAW, ctx);
     if (len != NULL) *len = br->clength;
     return br->cbuf;
   }
 }
 
-static inline const char* kk_bytes_cbuf_borrow(const kk_bytes_t b, kk_ssize_t* len) {
-  return (const char*)kk_bytes_buf_borrow(b, len);
+static inline const char* kk_bytes_cbuf_borrow(const kk_bytes_t b, kk_ssize_t* len, kk_context_t* ctx) {
+  return (const char*)kk_bytes_buf_borrow(b, len, ctx);
 }
 
 
@@ -163,14 +163,14 @@ static inline const char* kk_bytes_cbuf_borrow(const kk_bytes_t b, kk_ssize_t* l
   Length, compare
 --------------------------------------------------------------------------------------------------*/
 
-static inline kk_ssize_t kk_decl_pure kk_bytes_len_borrow(const kk_bytes_t b) {
+static inline kk_ssize_t kk_decl_pure kk_bytes_len_borrow(const kk_bytes_t b, kk_context_t* ctx) {
   kk_ssize_t len;
-  kk_bytes_buf_borrow(b, &len);
+  kk_bytes_buf_borrow(b, &len, ctx);
   return len;
 }
 
 static inline kk_ssize_t kk_decl_pure kk_bytes_len(kk_bytes_t str, kk_context_t* ctx) {    // bytes in UTF8
-  kk_ssize_t len = kk_bytes_len_borrow(str);
+  kk_ssize_t len = kk_bytes_len_borrow(str,ctx);
   kk_bytes_drop(str,ctx);
   return len;
 }
@@ -180,12 +180,12 @@ static inline bool kk_bytes_is_empty(kk_bytes_t s, kk_context_t* ctx) {
 }
 
 static inline kk_bytes_t kk_bytes_copy(kk_bytes_t b, kk_context_t* ctx) {
-  if (kk_datatype_is_singleton(b) || kk_datatype_is_unique(b)) {
+  if (kk_datatype_is_singleton(b) || kk_datatype_ptr_is_unique(b,ctx)) {
     return b;
   }
   else {
     kk_ssize_t len;
-    const uint8_t* buf = kk_bytes_buf_borrow(b, &len);
+    const uint8_t* buf = kk_bytes_buf_borrow(b, &len, ctx);
     kk_bytes_t bc = kk_bytes_alloc_dupn(len, buf, ctx);
     kk_bytes_drop(b, ctx);
     return bc;
@@ -196,18 +196,18 @@ static inline bool kk_bytes_ptr_eq_borrow(kk_bytes_t b1, kk_bytes_t b2) {
   return (kk_datatype_eq(b1, b2));
 }
 
-static inline bool kk_bytes_is_empty_borrow(kk_bytes_t b) {
-  return (kk_bytes_len_borrow(b) == 0);
+static inline bool kk_bytes_is_empty_borrow(kk_bytes_t b, kk_context_t* ctx) {
+  return (kk_bytes_len_borrow(b,ctx) == 0);
 }
 
-kk_decl_export int kk_bytes_cmp_borrow(kk_bytes_t str1, kk_bytes_t str2);
+kk_decl_export int kk_bytes_cmp_borrow(kk_bytes_t str1, kk_bytes_t str2, kk_context_t* ctx);
 kk_decl_export int kk_bytes_cmp(kk_bytes_t str1, kk_bytes_t str2, kk_context_t* ctx);
 
-static inline bool kk_bytes_is_eq_borrow(kk_bytes_t s1, kk_bytes_t s2) {
-  return (kk_bytes_cmp_borrow(s1, s2) == 0);
+static inline bool kk_bytes_is_eq_borrow(kk_bytes_t s1, kk_bytes_t s2, kk_context_t* ctx) {
+  return (kk_bytes_cmp_borrow(s1, s2,ctx) == 0);
 }
-static inline bool kk_bytes_is_neq_borrow(kk_bytes_t s1, kk_bytes_t s2) {
-  return (kk_bytes_cmp_borrow(s1, s2) != 0);
+static inline bool kk_bytes_is_neq_borrow(kk_bytes_t s1, kk_bytes_t s2, kk_context_t* ctx) {
+  return (kk_bytes_cmp_borrow(s1, s2, ctx) != 0);
 }
 static inline bool kk_bytes_is_eq(kk_bytes_t s1, kk_bytes_t s2, kk_context_t* ctx) {
   return (kk_bytes_cmp(s1, s2, ctx) == 0);
@@ -237,7 +237,7 @@ static inline int kk_memcmp(const void* s, const void* t, kk_ssize_t len) {
 }
 
 
-kk_decl_export kk_ssize_t kk_decl_pure kk_bytes_count_pattern_borrow(kk_bytes_t str, kk_bytes_t pattern);
+kk_decl_export kk_ssize_t kk_decl_pure kk_bytes_count_pattern_borrow(kk_bytes_t str, kk_bytes_t pattern, kk_context_t* ctx);
 
 kk_decl_export kk_bytes_t kk_bytes_cat(kk_bytes_t s1, kk_bytes_t s2, kk_context_t* ctx);
 kk_decl_export kk_bytes_t kk_bytes_cat_from_buf(kk_bytes_t s1, kk_ssize_t len2, const uint8_t* buf2, kk_context_t* ctx);

@@ -301,15 +301,17 @@ comment = unlines . map ("// " ++) . lines
 -- The important thing is that we don't try to get the type of the body at the same time as replacing the recursive calls
 -- since the type of the body depends on the type of the functions that it calls and vice versa
 replaceCall :: Name -> Expr -> DefSort -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
-replaceCall name expr sort bools args mybeTypeArgs 
+replaceCall name expr0 sort bools args mybeTypeArgs 
   = do
+      expr <- uniquefyExprU expr0
+
       -- extract the specialized parameters
       let ((newParams, newArgs), (speccedParams, speccedArgs)) 
             = (unzip *** unzip)
               -- $ (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x)
               $ partitionBools bools
               $ zip (fnParams expr) args
-
+      
       -- create a new (recursive) specialized body where the specialized parameters become local defitions
       let specBody0
             = (\body -> case mybeTypeArgs of
@@ -319,6 +321,7 @@ replaceCall name expr sort bools args mybeTypeArgs
               $ Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""  -- bind specialized parameters
                       | (TName param typ, arg) <- zip speccedParams speccedArgs]
               $ fnBody expr
+              
       
       -- substitute self-recursive calls to call our new specialized definition (without the specialized arguments!)
       specName <- uniqueName "spec"
@@ -326,9 +329,10 @@ replaceCall name expr sort bools args mybeTypeArgs
           specTName = TName specName specType
           specBody  = case specBody0 of
                         Lam args eff (Let specArgs body) 
-                          -> uniquefyExpr $
+                          -> -- uniquefyExpr $
                              Lam args eff $
-                               (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName bools speccedParams body)
+                               (Let specArgs $ 
+                                specInnerCalls (TName name (typeOf expr)) specTName bools speccedParams body)
                         _ -> failure "Specialize.replaceCall: Unexpected output from specialize pass"
       
       -- simplify so the new specialized arguments are potentially inlined unlocking potential further specialization
@@ -438,7 +442,8 @@ recursiveCalls Def{ defName=thisDefName, defExpr=expr }
         -> go body
       TypeLam types (Lam params eff body)
         -> go body
-      _ -> failure "recursiveCalls: not a function"
+      -- _ -> (Nothing,[])
+      _ -> failure ("Core.Specialize: recursiveCalls: not a function: " ++ show thisDefName ++ ": " ++ show expr)
   where
     go body =
       let (types, args) = unzip $ foldMapExpr f body

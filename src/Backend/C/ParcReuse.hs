@@ -11,10 +11,7 @@
 -- constructor reuse analysis
 -----------------------------------------------------------------------------
 
-module Backend.C.ParcReuse ( parcReuseCore,
-                             orderConFieldsEx, newtypesDataDefRepr, hasTagField,
-                             constructorSizeOf
-                           ) where
+module Backend.C.ParcReuse ( parcReuseCore, getFixedDataAllocSize ) where
 
 import Lib.Trace (trace)
 import Control.Monad
@@ -22,6 +19,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char
 import Data.Maybe (catMaybes, maybeToList)
+import Data.List (isSuffixOf)
 import qualified Data.Set as S
 import qualified Data.Map as Map
 import qualified Data.IntMap as M
@@ -113,7 +111,7 @@ ruLam :: [TName] -> Effect -> Expr -> Reuse Expr
 ruLam pars eff body
   = fmap (Lam pars eff) $ withNone $ do
       forM_ pars $ \p -> do
-        msize <- getRuConSize (typeOf p)
+        msize <- getRuFixedDataAllocSize (typeOf p)
         case msize of
           Just (size, scan) -> addDeconstructed (p, Nothing, size, scan)
           Nothing -> return ()
@@ -238,13 +236,14 @@ ruPattern varName pat@PatCon{patConName,patConPatterns,patConRepr,patTypeArgs,pa
         else  do newtypes <- getNewtypes
                  platform <- getPlatform
                  -- use type scheme of con, not the instantiated type, to calculate the correct size
-                 let (size, scan) = constructorSizeOf platform newtypes (TName (conInfoName ci) (conInfoType ci)) patConRepr
+                 let (size,scan) = -- constructorSizeOf platform newtypes (TName (conInfoName ci) (conInfoType ci)) patConRepr
+                                   conReprAllocSizeScan platform patConRepr
                  if size > 0
                    then do -- ruTrace $ "add for reuse: " ++ show (getName tname) ++ ": " ++ show size
                            return ((varName, Just pat, size, scan):reuses)
                    else return reuses
 ruPattern varName _
-  = do msize <- getRuConSize (typeOf varName)
+  = do msize <- getRuFixedDataAllocSize (typeOf varName)
        case msize of
          Just (size, scan) -> return [(varName, Nothing, size, scan)]
          Nothing -> return []
@@ -263,15 +262,18 @@ ruGuard (Guard test expr)  -- expects patAdded in depth-order
 ruTryReuseCon :: TName -> ConRepr -> Expr -> Reuse Expr
 ruTryReuseCon cname repr conApp | isConAsJust repr  -- never try to reuse a Just-like constructor
   = return conApp
+ruTryReuseCon cname repr conApp | "_noreuse" `isSuffixOf` nameId (conTypeName repr)
+  = return conApp -- special case to allow benchmarking the effect of reuse analysis
 ruTryReuseCon cname repr conApp
-  = do newtypes <- getNewtypes
+  = do -- newtypes <- getNewtypes
        platform <- getPlatform
-       let (size,_) = constructorSizeOf platform newtypes cname repr
+       let size = conReprAllocSize platform repr
        available <- getAvailable
        -- ruTrace $ "try reuse: " ++ show (getName cname) ++ ": " ++ show size
        case M.lookup size available of
-         Just (rinfo0:rinfos0)
-           -> do let (rinfo,rinfos) = pick cname rinfo0 rinfos0
+         Just (rinfo:rinfos)
+           -> do -- let (rinfo,rinfos) = pick cname rinfo0 rinfos0
+                 -- Picking can prevent reuse in FIP programs, disabled for now.
                  setAvailable (M.insert size rinfos available)
                  markReused (reuseName rinfo)
                  return (genAllocAt rinfo conApp)
@@ -558,6 +560,15 @@ isolateGetReused action
        setReused r0
        return (x,r1)
 
+{-
+getConstructorSize :: TName -> ConRepr -> Reuse Int
+getConstructorSize conName conRepr
+  = do newtypes <- getNewtypes
+       platform <- getPlatform
+       let (size,_) = constructorSizeOfByName platform newtypes (getName conName) conRepr
+       return size
+-}     
+
 --------------------------------------------------------------------------
 -- Tracing
 --------------------------------------------------------------------------
@@ -577,21 +588,40 @@ ruTrace msg
 
 -- | If all constructors of a type have the same shape,
 -- return the byte size and number of scan fields.
-getRuConSize :: Type -> Reuse (Maybe (Int, Int))
-getRuConSize dataType
+getRuFixedDataAllocSize :: Type -> Reuse (Maybe (Int, Int))
+getRuFixedDataAllocSize dataType
   = do newtypes <- getNewtypes
        platform <- getPlatform
-       let mdataName = extractDataName dataType
-       let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName
-       case mdataInfo of
-         Just dataInfo
-           -> do let (dataRepr, _) = getDataRepr dataInfo
-                 let cis = dataInfoConstrs dataInfo
-                 let sizes = map (constructorSize platform newtypes dataRepr . map snd . conInfoParams) cis
-                 case sizes of
-                   (s:ss) | all (==s) ss -> pure $ Just s
-                   _ -> pure Nothing
-         _ -> pure Nothing
+       pure $ getFixedDataAllocSize platform newtypes dataType
+
+-- | If all constructors of a type have the same shape,
+-- return the byte size and number of scan fields.
+getFixedDataAllocSize :: Platform -> Newtypes -> Type -> Maybe (Int, Int)
+getFixedDataAllocSize platform newtypes dataType
+  = let mdataName = extractDataName dataType in
+    if maybe False (\nm -> "_noreuse" `isSuffixOf` nameId nm) mdataName
+    then Nothing else
+        let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName in
+        case mdataInfo of
+          Just dataInfo
+            -> let ddef = dataInfoDef dataInfo 
+               in if dataDefIsValue ddef 
+                    then Nothing
+                    else let cis = dataInfoConstrs dataInfo
+                             sizeScanCounts = map (valueReprSizeScan platform . conInfoValueRepr) cis
+                         in case sizeScanCounts of
+                              (ss:sss) | all (==ss) sss -> Just ss
+                              _        -> Nothing
+               {- 
+               in case ddef of
+                    DataDefValue vrepr 
+                      -> let cis   = dataInfoConstrs dataInfo
+                             sizes = map (conInfoSize platform) cis
+                         in case sizes of
+                              (s:ss) | all (==s) ss -> Just (valueReprSize platform vrepr, valueReprScanCount vrepr)
+                              _                     -> Nothing
+                    _ -> Nothing -}
+          _ -> Nothing
   where
     extractDataName :: Type -> Maybe Name
     extractDataName tp
@@ -601,13 +631,25 @@ getRuConSize dataType
           _          -> Nothing
 
 
+{-
+
 -- return the allocated size of a constructor. Return 0 for value types or singletons
-constructorSizeOf :: Platform -> Newtypes -> TName -> ConRepr -> (Int {- byte size -}, Int {- scan fields -})
-constructorSizeOf platform newtypes conName conRepr
+constructorSizeOf :: Platform -> Newtypes -> ConInfo -> ConRepr -> (Int {- byte size -}, Int {- scan fields -})
+constructorSizeOf platform newtypes conInfo conRepr 
+  = constructorSizeOfX platform newtypes (TName (conInfoName conInfo) (conInfoType conInfo)) conRepr
+
+-- return the allocated size of a constructor. Return 0 for value types or singletons
+-- note: expects the general type of the constructor in TName -- not an instantiated type!
+constructorSizeOfX :: Platform -> Newtypes -> TName -> ConRepr -> (Int {- byte size -}, Int {- scan fields -})
+constructorSizeOfX _ _ _ repr | "_noreuse" `isSuffixOf` nameId (conTypeName repr)
+  = (0,0) -- special case to allow benchmarking the effect of reuse analysis
+constructorSizeOfX platform newtypes conName conRepr
   = let dataRepr = conDataRepr conRepr
     in case splitFunScheme (typeOf conName) of
         Just (_,_,tpars,_,_)
-          -> constructorSize platform newtypes dataRepr (map snd tpars)
+          -> let (size,scan) = constructorSize platform newtypes dataRepr (map snd tpars)
+             in -- trace ("constructor: " ++ show conName ++ ": size: " ++ show size ++ ", scan: " ++ show scan ++ ", " ++ show tpars) $
+                (size,scan)
         _ -> -- trace ("constructor not a function: " ++ show conName ++ ": " ++ show (pretty (typeOf conName))) $
             (0,0)
 
@@ -628,7 +670,7 @@ constructorSize platform newtypes dataRepr paramTypes
 -- return the ordered fields, the byte size of the allocation, and the scan count (including tags)
 orderConFieldsEx :: Platform -> Newtypes -> Bool -> [(Name,Type)] -> ([(Name,Type)],Int,Int)
 orderConFieldsEx platform newtypes isOpen fields
-  = visit ([],[],[],0) fields
+  = visit ([],[],[],0) fields    
   where
     visit (rraw, rmixed, rscan, scanCount0) []
       = if (length rmixed > 1)
@@ -642,15 +684,15 @@ orderConFieldsEx platform newtypes isOpen fields
     visit (rraw,rmixed,rscan,scanCount) (field@(name,tp) : fs)
       = let mDataDefRepr = newtypesDataDefRepr newtypes tp
         in case mDataDefRepr of
-             Just (DataDefValue raw scan, dataRepr)
-               -> let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
+             Just (DataDefValue (ValueRepr raw scan alignment), dataRepr)
+               -> -- let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
                   if (raw > 0 && scan > 0)
                    then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
                         -- but we count them to be sure (and for function data)
-                        visit (rraw, (field,raw):rmixed, rscan, scanCount + scan  + extra) fs
+                        visit (rraw, (field,raw):rmixed, rscan, scanCount + scan) fs
                    else if (raw > 0)
                          then visit (insertRaw field raw rraw, rmixed, rscan, scanCount) fs
-                         else visit (rraw, rmixed, field:rscan, scanCount + scan + extra) fs
+                         else visit (rraw, rmixed, field:rscan, scanCount + scan) fs
              _ -> visit (rraw, rmixed, field:rscan, scanCount + 1) fs
 
     -- insert raw fields in order of size so they align to the smallest total size in a datatype
@@ -686,3 +728,5 @@ hasTagField :: DataRepr -> Bool
 hasTagField DataStruct        = True
 hasTagField DataStructAsMaybe = True
 hasTagField rep               = False
+
+-}

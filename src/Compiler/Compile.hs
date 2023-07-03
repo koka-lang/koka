@@ -58,14 +58,16 @@ import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
 import Core.Check             ( checkCore )
 import Core.UnReturn          ( unreturn )
+import Core.CheckFBIP         ( checkFBIP )
 import Core.OpenResolve       ( openResolve )
 import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
 import Core.Inlines           ( inlinesExtends, extractInlineDefs, inlinesMerge, inlinesToList, inlinesFilter, inlinesNew )
-import Core.Borrowed          ( Borrowed )
+import Core.Borrowed          ( Borrowed, borrowedExtendICore )
 import Core.Inline            ( inlineDefs )
 import Core.Specialize
+import Core.Unroll            ( unrollDefs )
 
 import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
@@ -144,11 +146,11 @@ instance Functor IOErr where
   fmap f (IOErr ie)  = IOErr (fmap (fmap f) ie)
 
 instance Applicative IOErr where
-  pure  = return
+  pure x = IOErr (return (return x))  
   (<*>) = ap
 
 instance Monad IOErr where
-  return x          = IOErr (return (return x))
+  -- return = pure
   (IOErr ie) >>= f  = IOErr (do err <- ie
                                 case checkError err of
                                    Right (x,w) -> case f x of
@@ -214,7 +216,7 @@ compileExpression term flags loaded compileTarget program line input
                               [(qnameShow,_)]
                                 -> do let expression = mkApp (Var (qualify nameSystemCore (newName "println")) False r)
                                                         [mkApp (Var qnameShow False r) [mkApp (Var qnameExpr False r) []]]
-                                      let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (DefFun []) InlineNever ""
+                                      let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
                                       let programDef' = programAddDefs programDef [] [defMain]
                                       compileProgram' term flags (loadedModules ld) (Executable nameMain ()) "<interactive>" programDef'
                                       return ld
@@ -348,15 +350,19 @@ compileProgramFromFile term flags modules compileTarget rootPath stem
        exist <- liftIO $ doesFileExist fname
        if (exist) then return () else liftError $ errorMsg (errorFileNotFound flags fname)
        program <- lift $ parseProgramFromFile (semiInsert flags) fname
-       let isSuffix = map (\c -> if isPathSep c then '/' else c) (noexts stem)
-                       `endsWith` show (programName program)
+       let isSuffix = -- asciiEncode True (noexts stem) `endsWith` asciiEncode True (show (programName program))
+                      -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
+                      show (pathToModuleName (noexts stem)) `endsWith` show (programName program)
+                      -- map (\c -> if isPathSep c then '/' else c) (noexts stem) 
+                      --  `endsWith` moduleNameToPath (programName program)
            ppcolor c doc = color (c (colors (prettyEnvFromFlags flags))) doc
        if (isExecutable compileTarget || isSuffix) then return ()
         else liftError $ errorMsg (ErrorGeneral (programNameRange program)
                                      (text "module name" <+>
                                       ppcolor colorModule (pretty (programName program)) <+>
                                       text "is not a suffix of the file path" <+>
-                                      parens (ppcolor colorSource $ text $ dquote $ stem)))
+                                      parens (ppcolor colorSource $ text $ dquote $ stem)
+                                     ))
        let stemName = nameFromFile stem
        compileProgram' term flags modules compileTarget fname program{ programName = stemName }
 
@@ -449,9 +455,9 @@ compileProgram' term flags modules compileTarget fname program
                                                 expression = App (Var (if (isHiddenName mainName) then mainName -- .expr
                                                                                                   else unqualify mainName -- main
                                                                       ) False r) [] r
-                                                defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (DefFun []) InlineNever  ""
+                                                defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (defFun []) InlineNever ""
                                                 program2   = programAddDefs program [] [defMain]
-                                            in do (loaded3,_) <- typeCheck loaded1 flags 0 coreImports program2
+                                            in do (loaded3,_) <- ignoreWarnings $ typeCheck loaded1 flags 0 coreImports program2
                                                   return (Executable mainName2 tp, loaded3) -- TODO: refine the type of main2
                                [info]
                                   -> errorMsg (ErrorGeneral (infoRange info) (text "'main' must be declared as a function (fun)"))
@@ -486,9 +492,10 @@ checkUnhandledEffects flags loaded name range tp
                                -> let defaultHandlerName = makeHiddenName "default" effName
                                   in -- trace ("looking up: " ++ show defaultHandlerName) $
                                      case gammaLookupQ defaultHandlerName (loadedGamma loaded) of
-                                        [InfoFun _ dname _ _ _]
+                                        [fun@InfoFun{}]
                                           -> trace ("add default effect for " ++ show effName) $
-                                             let g mfx expr = let r = getRange expr
+                                             let dname = infoCName fun
+                                                 g mfx expr = let r = getRange expr
                                                               in App (Var dname False r) [(Nothing,Lam [] (maybe expr (\f -> f expr) mfx) r)] r
                                              in if (effName == nameTpAsync)  -- always put async as the most outer effect
                                                  then do mf' <- combine eff mf ls
@@ -864,6 +871,8 @@ inferCheck loaded0 flags line coreImports program
        -- remove return statements
        unreturn penv
        -- checkCoreDefs "unreturn"
+       let borrowed = borrowedExtendICore (coreProgram{ Core.coreProgDefs = cdefs }) (loadedBorrowed loaded)
+       checkFBIP penv (platform flags) (loadedNewtypes loaded) borrowed gamma
 
        -- initial simplify
        let ndebug  = optimize flags > 0
@@ -874,21 +883,26 @@ inferCheck loaded0 flags line coreImports program
        simplifyNoDup
        -- traceDefGroups "simplify1"
 
-       -- inline: inline local definitions more aggressively (2x)
-       when (optInlineMax flags > 0) $
-         let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
-                         else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
-         in inlineDefs penv (2*(optInlineMax flags)) inlines
-       -- checkCoreDefs "inlined"
-
-       simplifyDupN
-       -- traceDefGroups "inlined"
-
        -- lift recursive functions to top-level before specialize (so specializeDefs do not contain local recursive definitions)
        liftFunctions penv
        checkCoreDefs "lifted"      
        -- traceDefGroups "lifted"
 
+       -- unroll recursive definitions (before inline so generated wrappers can be inlined)
+       when (optUnroll flags > 0) $
+         do unrollDefs penv (optUnroll flags)
+            -- traceDefGroups "unrolled"
+
+       -- inline: inline local definitions more aggressively (2x)
+       when (optInlineMax flags > 0) $
+         do let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
+                           else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
+            inlineDefs penv (2*(optInlineMax flags)) inlines
+            -- checkCoreDefs "inlined"
+
+       simplifyDupN
+       -- traceDefGroups "inlined"
+     
        -- specialize 
        specializeDefs <- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
                          Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
@@ -905,8 +919,8 @@ inferCheck loaded0 flags line coreImports program
             -- lifting remaining recursive functions to top level (must be after specialize as that can generate local recursive definitions)
             liftFunctions penv
             checkCoreDefs "specialized"
-            -- traceDefGroups "specialized and lifted"          
-    
+            -- traceDefGroups "specialized and lifted"        
+
        -- simplify once more
        simplifyDupN
        coreDefsInlined <- Core.getCoreDefs
@@ -918,7 +932,7 @@ inferCheck loaded0 flags line coreImports program
 
        -- tail-call-modulo-cons optimization
        when (optctail flags) $
-         ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) 
+         ctailOptimize penv newtypes gamma (optctailCtxPath flags)
       
        -- transform effects to explicit monadic binding (and resolve .open calls)
        when (enableMon flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
@@ -1222,7 +1236,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                       _         -> CDefault         
           (cdoc,hdoc,bcore) = cFromCore ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
                                 newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
-                                (parcBorrowInference flags) (stackSize flags) mbEntry core0
+                                (parcBorrowInference flags) (optEagerPatBind flags) (stackSize flags) mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] bcore
       -- writeDocW 120 (outBase ++ ".c.kkc") bcoreDoc
       when (showFinalCore flags) $
@@ -1306,7 +1320,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
             case target flags of
               C Wasm 
                 -> do return (Just (mainTarget, 
-                               runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ cmdflags ++ " " ++ execOpts flags))) 
+                               runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ " -- " ++ cmdflags ++ " " ++ execOpts flags))) 
               C WasmWeb
                 -> do return (Just (mainTarget, runSystemEcho term flags (dquote mainTarget ++ " &")))                
               C WasmJs
@@ -1345,30 +1359,20 @@ copyCLibrary term flags cc eimport
   = case Core.eimportLookup (buildType flags) "library" eimport of
       Nothing -> return []
       Just clib 
-        -> do mb  <- do -- use conan?
-                        mbConan <- case lookup "conan" eimport of
-                                      Just pkg | not (null (conan flags)) 
-                                        -> conanCLibrary term flags cc eimport clib pkg
-                                      _ -> return (Left [])
-                        case mbConan of
+        -> do mb  <- do mbSearch <- search [] [ searchCLibrary flags cc clib (ccompLibDirs flags)
+                                              , case lookup "conan" eimport of
+                                                  Just pkg | not (null (conan flags)) 
+                                                    -> conanCLibrary term flags cc eimport clib pkg
+                                                  _ -> return (Left [])
+                                              , case lookup "vcpkg" eimport of
+                                                  Just pkg 
+                                                    -> vcpkgCLibrary term flags cc eimport clib pkg
+                                                  _ -> return (Left [])
+                                              ]                                            
+                        case mbSearch of
                           Right res -> return (Just res)
-                          Left conanWarns
-                            -> do -- use vcpkg? (we prefer this as conan is not working well on windows across cl, clang, and mingw)
-                                  mbVcpkg <- case lookup "vcpkg" eimport of
-                                                Just pkg 
-                                                  -> vcpkgCLibrary term flags cc eimport clib pkg
-                                                _ -> return (Left [])
-                                  case mbVcpkg of
-                                    Right res -> return (Just res)
-                                    Left vcpkgWarns              
-                                      -> do  -- try to find the library and headers directly
-                                            mbSearch <- searchCLibrary flags cc clib (ccompLibDirs flags)
-                                            case mbSearch of
-                                              Right res -> return (Just res)
-                                              Left searchWarns
-                                                -> do let warns = intersperse (text "or") (vcpkgWarns ++ conanWarns ++ searchWarns)
-                                                      termWarning term flags (vcat warns)
-                                                      return Nothing
+                          Left warn -> do termWarning term flags warn
+                                          return Nothing
               case mb of
                 Just (libPath,includes) 
                   -> do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
@@ -1383,7 +1387,14 @@ copyCLibrary term flags cc eimport
                           text "   hint: provide \"--cclibdir\" as an option, or use \"syslib\" in an extern import?"                        
                         raiseIO ("unable to find C library " ++ clib ++
                                  "\nlibrary search paths: " ++ show (ccompLibDirs flags))
-                               
+  where 
+    search :: [Doc] -> [IO (Either [Doc] (FilePath,[FilePath]))] -> IO (Either Doc (FilePath,[FilePath])) 
+    search warns [] = return (Left (vcat (intersperse (text "or") warns)))
+    search warns (io:ios)
+      = do mbRes <- io
+           case mbRes of
+             Right res   -> return (Right res)
+             Left warns' -> search (warns ++ warns') ios
       
 searchCLibrary :: Flags -> CC -> FilePath -> [FilePath] -> IO (Either [Doc] (FilePath {-libPath-},[FilePath] {-include paths-}))
 searchCLibrary flags cc clib searchPaths

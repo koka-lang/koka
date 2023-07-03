@@ -16,7 +16,7 @@ module Type.InferMonad( Inf, InfGamma
                       -- * Environment
                       , getGamma
                       , extendGamma, extendGammaCore
-                      , extendInfGamma, extendInfGammaCore
+                      , extendInfGamma, extendInfGammaEx, extendInfGammaCore
                       , withGammaType
 
                       -- * Name resolution
@@ -39,6 +39,7 @@ module Type.InferMonad( Inf, InfGamma
 
                       -- * Misc.
                       , allowReturn, isReturnAllowed
+                      , useHole, allowHole, disallowHole
                       , withLhs, isLhs
                       , getPrettyEnv
                       , splitEffect
@@ -840,15 +841,16 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , gamma :: !Gamma
                  , infgamma :: !InfGamma
                  , imports :: !ImportMap
-                 , returnAllowed :: Bool
-                 , inLhs :: Bool
+                 , returnAllowed :: !Bool
+                 , inLhs :: !Bool
                  }
-data St     = St{ uniq :: !Int, sub :: !Sub, preds :: ![Evidence], mbRangeMap :: Maybe RangeMap }
+data St     = St{ uniq :: !Int, sub :: !Sub, preds :: ![Evidence], holeAllowed :: !Bool, mbRangeMap :: Maybe RangeMap }
 
 
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
-  = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False) (St unique subNull [] mbrm) of
+  = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False) 
+           (St unique subNull [] False mbrm) of
       Err err warnings -> addWarnings warnings (errorMsg (ErrorType [err]))
       Ok x st warnings -> addWarnings warnings (ok (x, uniq st, (sub st) |-> mbRangeMap st))
 
@@ -867,11 +869,11 @@ instance Functor Inf where
                                       Err err w  -> Err err w)
 
 instance Applicative Inf where
-  pure  = return
-  (<*>) = ap
+  pure x = Inf (\env st -> Ok x st [])
+  (<*>)  = ap
 
 instance Monad Inf where
-  return x        = Inf (\env st -> Ok x st [])
+  -- return = pure
   (Inf i) >>= f   = Inf (\env st0 -> case i env st0 of
                                        Ok x st1 w1 -> case f x of
                                                         Inf j -> case j env st1 of
@@ -953,6 +955,27 @@ isReturnAllowed
   = do env <- getEnv
        return (returnAllowed env)
 
+useHole :: Inf Bool
+useHole 
+  = do st0 <- updateSt (\st -> st{ holeAllowed = False } )
+       return (holeAllowed st0)
+
+disallowHole :: Inf a -> Inf a
+disallowHole action
+  = do st0 <- updateSt(\st -> st{ holeAllowed = False })
+       let prev = holeAllowed st0
+       x <- action
+       updateSt(\st -> st{ holeAllowed = prev })
+       return x       
+
+allowHole :: Inf a -> Inf (a,Bool {- was the hole used? -})
+allowHole action
+  = do st0 <- updateSt(\st -> st{ holeAllowed = True })
+       let prev = holeAllowed st0
+       x <- action
+       st1 <- updateSt(\st -> st{ holeAllowed = prev })
+       return (x,not (holeAllowed st1))
+       
 
 
 getSub :: Inf Sub
@@ -1051,15 +1074,19 @@ extendInfGammaCore :: Bool -> [Core.DefGroup] -> Inf a -> Inf a
 extendInfGammaCore topLevel [] inf
   = inf
 extendInfGammaCore topLevel (coreDefs:coreDefss) inf
-  = extendInfGamma topLevel (extracts coreDefs) (extendInfGammaCore topLevel coreDefss inf)
+  = extendInfGammaEx topLevel [] (extracts coreDefs) (extendInfGammaCore topLevel coreDefss inf)
   where
     extracts (Core.DefRec defs) = map extract defs
     extracts (Core.DefNonRec def) = [extract def]
     extract def
       = coreDefInfo def -- (Core.defName def,(Core.defNameRange def, Core.defType def, Core.defSort def))
 
-extendInfGamma :: Bool -> [(Name,NameInfo)] -> Inf a -> Inf a
-extendInfGamma topLevel tnames inf
+extendInfGamma :: [(Name,NameInfo)] -> Inf a -> Inf a
+extendInfGamma tnames inf
+  = extendInfGammaEx False [] tnames inf
+
+extendInfGammaEx :: Bool -> [Name] -> [(Name,NameInfo)] -> Inf a -> Inf a
+extendInfGammaEx topLevel ignores tnames inf
   = do env <- getEnv
        infgamma' <- extend (context env) (gamma env) [] [(unqualify name,info) | (name,info) <- tnames, not (isWildcard name)] (infgamma env)
        withEnv (\env -> env{ infgamma = infgamma' }) inf
@@ -1082,7 +1109,7 @@ extendInfGamma topLevel tnames inf
                       Just info2 | infoCanonicalName name info2 /= nameReturn
                         -> do checkCasingOverlap range name (infoCanonicalName name info2) info2
                               env <- getEnv
-                              if (not (isHiddenName name) && show name /= "resume" && show name /= "resume-shallow")
+                              if (not (isHiddenName name) && show name /= "resume" && show name /= "resume-shallow" && not (name `elem` ignores))
                                then infWarning range (Pretty.ppName (prettyEnv env) name <+> text "shadows an earlier local definition or parameter")
                                else return ()
                       _ -> return ()
@@ -1098,7 +1125,7 @@ withGammaType :: Range -> Type -> Inf a -> Inf a
 withGammaType range tp inf
   = do defName <- currentDefName
        name <- uniqueName (show defName)
-       extendInfGamma False [(name,(InfoVal Public name tp range False))] inf
+       extendInfGamma [(name,(InfoVal Public name tp range False))] inf
 
 currentDefName :: Inf Name
 currentDefName

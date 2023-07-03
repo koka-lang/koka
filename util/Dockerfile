@@ -1,4 +1,4 @@
-# Created by @Lassik
+# Create a docker image with a working Koka compiler (including sources).
 #
 # Build:
 # > docker build -t <mytag> .
@@ -8,29 +8,41 @@
 # or
 # > docker run -v <local-dir> -it <mytag>
 #
+# To start with a shell prompt:
+# > docker run -it <mytag> bash
+#
 # To publish, use a tag like `kokalang/koka:v2.x.x`
 # > docker push <mytag>
 
 FROM haskell:8.10.7 AS build
-RUN mkdir -p ~/.local/bin \
- && cp /usr/local/bin/stack ~/.local/bin/stack \
- && find /usr/local -type f -delete
-RUN apt-get update \
- && apt-get install -y --no-install-recommends cmake \
- && rm -rf /var/lib/apt/lists/*
+ENV KOKAVER=dev
+
+RUN mkdir -p ~/.local/bin
+RUN cp /usr/local/bin/stack ~/.local/bin/stack
+RUN find /usr/local -type f -delete
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends ca-certificates
+RUN apt-get install -y --no-install-recommends libc-dev build-essential tar cmake
+RUN apt-get install -y --no-install-recommends gcc curl
+
+# Build Koka
 WORKDIR /build
-RUN git clone --recursive https://github.com/koka-lang/koka -b v2.4.0
+RUN git clone --recursive https://github.com/koka-lang/koka -b ${KOKAVER}
 WORKDIR /build/koka
 RUN stack build
-RUN stack exec koka -- util/bundle -- --postfix=docker
 
-FROM debian:buster
-RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-      gcc libc-dev make \
-      nodejs ca-certificates \
- && rm -rf /var/lib/apt/lists/*
-COPY --from=build /build/koka/bundle/koka-docker.tar.gz /usr/local
-WORKDIR /usr/local
-RUN tar -xzvf koka-docker.tar.gz
+# For installing C libraries (pcre2) we use Conan
+RUN apt-get install -y --no-install-recommends python3-pip
+RUN pip3 install setuptools wheel 
+RUN pip3 install conan
+
+# Build Koka install bundle
+RUN stack exec koka -- -e util/bundle -- --postfix=docker --prefix=bundle/docker
+
+# Install 
+WORKDIR /usr/local 
+RUN tar -xzvf /build/koka/bundle/koka-docker.tar.gz     
+
+# Entry
+WORKDIR /build/koka
 CMD ["koka"]

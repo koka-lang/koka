@@ -7,11 +7,20 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE NamedFieldPuns, GeneralizedNewtypeDeriving  #-}
 
------------------------------------------------------------------------------
--- precise automatic reference counting
------------------------------------------------------------------------------
+{----------------------------------------------------------------------------
+-- precise automatic reference counting (now called "Perceus")
+-- See: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v4.pdf
 
-module Backend.C.Parc ( parcCore ) where
+Notes:
+- The monad has a borrowed and owned (multi-set) environment just like the paper
+- The live variable set is a state
+- To calculate the live variables we visit the expression tree _in reverse_
+  (see the parcDefGroup, and parcExpr for let-bindings and applications for example)
+- That still works with the borrowed and owned environments as those stay
+  the same in a scope.
+----------------------------------------------------------------------------}
+
+module Backend.C.Parc ( parcCore, getDataDef', getDataInfo' ) where
 
 import Lib.Trace (trace)
 import Control.Monad
@@ -38,8 +47,6 @@ import Core.Core
 import Core.CoreVar
 import Core.Pretty
 import Core.Borrowed
-
-import Backend.C.ParcReuse( constructorSizeOf )
 
 --------------------------------------------------------------------------
 -- Reference count transformation
@@ -80,10 +87,10 @@ parcDef topLevel def
 --------------------------------------------------------------------------
 
 parcTopLevelExpr :: DefSort -> Expr -> Parc Expr
-parcTopLevelExpr (DefFun bs) expr
+parcTopLevelExpr ds@(DefFun bs _) expr
   = case expr of
       TypeLam tpars body
-        -> TypeLam tpars <$> parcTopLevelExpr (DefFun bs) body
+        -> TypeLam tpars <$> parcTopLevelExpr ds body
       Lam pars eff body
         -> do let parsBs = zip pars $ bs ++ repeat Own
               let parsSet = S.fromList $ map fst $ filter (\x -> snd x == Own) parsBs
@@ -155,7 +162,7 @@ parcExpr expr
                               -> do name <- uniqueName "res" -- name the result
                                     return def{defName = name}
                             _ -> return def
-              body1 <- ownedInScope (bv def1) $ parcExpr (Let dgs body)
+              body1 <- ownedInScope (S.singleton $ defTName def1) $ parcExpr (Let dgs body)
               def2  <- parcDef False def1
               return $ makeLet [DefNonRec def2] body1
       Let (DefRec _ : _) _
@@ -253,8 +260,8 @@ parcGuard scrutinees pats live (Guard test expr)
                  test' <- withOwned S.empty $ parcExpr test
                  return $ \liveInSomeBranch -> scoped pvs $ extendOwned ownedPvs $ extendShapes shapes $ do
                   let dups = S.intersection ownedPvs liveInThisBranch
-                  let drops = liveInSomeBranch \\ liveInThisBranch
-                  Guard test' <$> parcGuardRC dups drops expr'
+                  drops <- filterM isOwned (S.toList $ liveInSomeBranch \\ liveInThisBranch)
+                  Guard test' <$> parcGuardRC dups (S.fromList drops) expr'
 
 type Dups     = TNames
 type Drops    = TNames
@@ -452,10 +459,10 @@ inferShapes scrutineeNames pats
   where shapesOf :: TName -> Pattern -> Parc ShapeMap
         shapesOf parent pat
           = case pat of
-              PatCon{patConPatterns,patConName,patConRepr}
+              PatCon{patConPatterns,patConName,patConRepr,patConInfo}
                 -> do ms <- mapM shapesChild patConPatterns
-                      scan <- getConstructorScanFields patConName patConRepr
-                      let m  = M.unionsWith noDup ms
+                      let scan = conReprScanCount patConRepr
+                          m  = M.unionsWith noDup ms
                           shape = ShapeInfo (Just (tnamesFromList (map patName patConPatterns)))
                                             (Just (patConRepr,getName patConName)) (Just scan)
                       return (M.insert parent shape m)
@@ -580,18 +587,18 @@ getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
 getBoxForm' platform newtypes tp
   = -- trace ("getBoxForm' of " ++ show (pretty tp)) $
     case getDataDef' newtypes tp of
-      Just (DataDefValue m 0) -- 0 scan fields, m is size in bytes of raw fields
+      Just (DataDefValue (ValueRepr m 0 _)) -- 0 scan fields, m is size in bytes of raw fields
         -> -- trace "  0 scan fields" $
            case extractDataDefType tp of
              Just name
-               | name `elem` [nameTpInt, nameTpCField] ||
+               | name `elem` [nameTpInt, nameTpFieldAddr] ||
                  ((name `elem` [nameTpInt8, nameTpInt16, nameTpFloat16]) && sizePtr platform > 2) ||
                  ((name `elem` [nameTpChar, nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
                    -> BoxIdentity
              _ -> if m < sizePtr platform   -- for example, `bool`, but not `int64`
                    then BoxIdentity 
                    else BoxRaw
-      Just (DataDefValue _ _)
+      Just (DataDefValue{})
         -> BoxValue
       Just _
         -> BoxIdentity
@@ -625,15 +632,15 @@ needsDupDrop :: Type -> Parc Bool
 needsDupDrop tp
   = do dd <- getDataDef tp
        return $ case dd of
-         (DataDefValue _ 0) -> False
-         _                  -> True
+         (DataDefValue vr) | valueReprIsRaw vr -> False
+         _                 -> True
 
 isValueType :: Type -> Parc Bool
 isValueType tp
   = do dd <- getDataDef tp
        return $ case dd of
-         (DataDefValue _ _) -> True
-         _                  -> False
+         (DataDefValue{}) -> True
+         _                -> False
 
 data ValueForm
   = ValueAllRaw   -- just bits
@@ -643,10 +650,10 @@ data ValueForm
 getValueForm' :: Newtypes -> Type -> Maybe ValueForm
 getValueForm' newtypes tp
   = case getDataDef' newtypes tp of
-      Just (DataDefValue _ 0) -> Just ValueAllRaw
-      Just (DataDefValue 0 1) -> Just ValueOneScan
-      Just (DataDefValue _ _) -> Just ValueOther
-      _                       -> Nothing
+      Just (DataDefValue (ValueRepr _ 0 _)) -> Just ValueAllRaw
+      Just (DataDefValue (ValueRepr 0 1 _)) -> Just ValueOneScan
+      Just (DataDefValue _)                 -> Just ValueOther
+      _                                     -> Nothing
 
 getValueForm :: Type -> Parc (Maybe ValueForm)
 getValueForm tp = (`getValueForm'` tp) <$> getNewtypes
@@ -682,10 +689,10 @@ genDupDrop isDup tname mbConRepr mbScanCount
               in case mbDi of
                 Just di -> case (dataInfoDef di, dataInfoConstrs di, snd (getDataRepr di)) of
                              (DataDefNormal, [conInfo], [conRepr])  -- data with just one constructor
-                               -> do scan <- getConstructorScanFields (TName (conInfoName conInfo) (conInfoType conInfo)) conRepr
+                               -> do let scan = conReprScanCount conRepr
                                      -- parcTrace $ "  add scan fields: " ++ show scan ++ ", " ++ show tname
                                      return (Just (dupDropFun isDup tp (Just (conRepr,conInfoName conInfo)) (Just scan) (Var tname InfoNone)))
-                             (DataDefValue _ 0, _, _)
+                             (DataDefValue vr, _, _) | valueReprIsRaw vr
                                -> do -- parcTrace $ ("  value with no scan fields: " ++ show di ++  ", " ++ show tname)
                                      return Nothing  -- value with no scan fields
                              _ -> do -- parcTrace $ "  dup/drop(1), " ++ show tname
@@ -825,16 +832,6 @@ withNewtypes f = withEnv (\e -> e { newtypes = f (newtypes e) })
 getPlatform :: Parc Platform
 getPlatform = platform <$> getEnv
 
-
-getConstructorScanFields :: TName -> ConRepr -> Parc Int
-getConstructorScanFields conName conRepr
-  = do platform <- getPlatform
-       newtypes <- getNewtypes
-       let (size,scan) = (constructorSizeOf platform newtypes conName conRepr)
-       -- parcTrace $ "get size " ++ show conName ++ ": " ++ show (size,scan) ++ ", " ++ show conRepr
-       return scan
-
---
 
 getOwned :: Parc Owned
 getOwned = owned <$> getEnv

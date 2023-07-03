@@ -1,4 +1,3 @@
------------------------------------------------------------------------------
 -- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
@@ -14,6 +13,7 @@ module Type.Type (-- * Types
                   , Flavour(..)
                   , DataInfo(..), DataKind(..), ConInfo(..), SynInfo(..)
                   , dataInfoIsRec, dataInfoIsOpen, dataInfoIsLiteral
+                  , conInfoSize, conInfoScanCount
                   -- Predicates
                   , splitPredType, shallowSplitPreds, shallowSplitVars
                   , predType
@@ -40,9 +40,9 @@ module Type.Type (-- * Types
                   , orderEffect, labelName, labelNameFull, labelNameEx
                   , isEffectEmpty, isEffectFixed, shallowEffectExtend, shallowExtractEffectExtend
 
-                  , typeDivergent, typeTotal, typePartial
+                  , typeDivergent, typeTotal, typePartial, typePure
                   , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
-                  , typeCTail, typeCField
+                  , typeCCtx, typeCCtxx, typeFieldAddr
                   , isOptional, makeOptional, unOptional
                   , typeReuse, typeLocal
 
@@ -78,7 +78,7 @@ import Common.NamePrim
 import Common.Range
 import Common.Id
 import Common.Failure
-import Common.Syntax( Visibility, DataKind(..), DataDef(..), dataDefIsRec, dataDefIsOpen )
+import Common.Syntax( Visibility, DataKind(..), DataDef(..), ValueRepr(..), dataDefIsRec, dataDefIsOpen, valueReprSize, Platform )
 import Kind.Kind
 
 {--------------------------------------------------------------------------
@@ -202,6 +202,8 @@ data ConInfo = ConInfo{ conInfoName :: Name
                       , conInfoParamRanges :: [Range]
                       , conInfoParamVis    :: [Visibility]
                       , conInfoSingleton :: Bool -- ^ is this the only constructor of this type?
+                      , conInfoOrderedParams :: [(Name,Type)] -- ^ fields ordered by size
+                      , conInfoValueRepr :: ValueRepr
                       , conInfoVis :: Visibility
                       , conInfoDoc :: String
                       }
@@ -209,6 +211,15 @@ data ConInfo = ConInfo{ conInfoName :: Name
 instance Show ConInfo where
   show info
     = show (conInfoName info)
+
+-- return size and scan count for a constructor
+conInfoSize :: Platform -> ConInfo -> Int
+conInfoSize platform conInfo
+  = valueReprSize platform (conInfoValueRepr conInfo)
+
+conInfoScanCount :: ConInfo -> Int
+conInfoScanCount conInfo
+  = valueReprScanCount (conInfoValueRepr conInfo)
 
 -- | A type synonym is quantified by type parameters
 data SynInfo = SynInfo{ synInfoName :: Name
@@ -221,6 +232,8 @@ data SynInfo = SynInfo{ synInfoName :: Name
                       , synInfoDoc :: String
                       }
              deriving Show
+
+
 
 
 {--------------------------------------------------------------------------
@@ -514,7 +527,7 @@ typeResumeContext :: Tau -> Effect -> Effect -> Tau -> Tau
 typeResumeContext b e e0 r
   = TApp (TCon tcon) [b,e,e0,r]
   where
-    tcon = TypeCon nameTpResumeContext (kindFun kindStar (kindFun kindEffect (kindFun kindEffect kindStar)))
+    tcon = TypeCon nameTpResumeContext (kindFun kindStar (kindFun kindEffect (kindFun kindEffect (kindFun kindStar kindStar))))
 
 typeRef :: Tau
 typeRef
@@ -765,22 +778,30 @@ isTypeUnit _         = False
 
 
 -- | Type of ctail
-typeCTail :: Tau
-typeCTail
-  = TCon tconCTail
+typeCCtx :: Tau -> Tau
+typeCCtx tp
+  = TSyn tsynCCtx [tp] (TApp typeCCtxx [tp,tp])
 
-tconCTail :: TypeCon
-tconCTail
-  = TypeCon nameTpCTailAcc (kindFun kindStar kindStar)
+tsynCCtx :: TypeSyn
+tsynCCtx 
+  = TypeSyn nameTpCCtx (kindFun kindStar kindStar) 0 Nothing  
+
+typeCCtxx :: Tau
+typeCCtxx
+  = TCon tconCCtxx
+
+tconCCtxx :: TypeCon
+tconCCtxx
+  = TypeCon nameTpCCtxx (kindFun kindStar (kindFun kindStar kindStar))
 
 -- | Type of cfield
-typeCField :: Tau
-typeCField
-  = TCon tconCField
+typeFieldAddr :: Tau
+typeFieldAddr
+  = TCon tconFieldAddr
 
-tconCField :: TypeCon
-tconCField
-  = TypeCon nameTpCField (kindFun kindStar kindStar)
+tconFieldAddr :: TypeCon
+tconFieldAddr
+  = TypeCon nameTpFieldAddr (kindFun kindStar kindStar)
 
 -- | Type of vectors (@[]@)
 typeVector :: Tau

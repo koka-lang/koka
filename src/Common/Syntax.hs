@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2012-2021, Microsoft Research, Daan Leijen.
+-- Copyright 2012-2023, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -13,20 +13,27 @@ module Common.Syntax( Visibility(..)
                     , Assoc(..)
                     , Fixity(..)
                     , DataKind(..)
-                    , DefSort(..), isDefFun, defFun
+                    , DefSort(..), isDefFun, defFun, defFunEx, defSortShowFull
                     , ParamInfo(..)
                     , DefInline(..)
+                    , Fip(..), FipAlloc(..), fipIsTail, fipAlloc, noFip, isNoFip
                     , Target(..), CTarget(..), JsTarget(..), isTargetC, isTargetJS, isTargetWasm
                     , isPublic, isPrivate
                     , DataDef(..)
-                    , dataDefIsRec, dataDefIsOpen, dataDefIsValue
+                    , dataDefIsRec, dataDefIsOpen, dataDefIsValue, dataDefSize
+                    , ValueRepr(..)
+                    , valueReprIsMixed, valueReprIsRaw, valueReprNew, valueReprZero
+                    , valueReprRaw, valueReprSize, valueReprScan, valueReprSizeScan
                     , HandlerSort(..)
                     , isHandlerInstance, isHandlerNormal
                     , OperationSort(..), readOperationSort
-                    , Platform(..), platform32, platform64, platformCS, platformJS
+                    , Platform(..), platform32, platform64, platformCS, platformJS, platform64c
+                    , platformHasCompressedFields
                     , alignedSum, alignedAdd, alignUp
                     , BuildType(..)
                     ) where
+
+import Data.List(intersperse)
 
 {--------------------------------------------------------------------------
   Backend targets
@@ -64,19 +71,29 @@ instance Show Target where
                C  _      -> "c"
                Default   -> ""
 
-
-data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
-                        , sizeSize :: Int -- sizeof(size_t)
+data Platform = Platform{ sizePtr   :: Int -- sizeof(intptr_t)
+                        , sizeSize  :: Int -- sizeof(size_t)
+                        , sizeField :: Int -- sizeof(kk_field_t), usually intptr_t but may be smaller for compression
+                        , sizeHeader:: Int -- used for correct alignment calculation
                         }
 
-platform32, platform64 :: Platform
-platform32 = Platform 4 4 
-platform64 = Platform 8 8 
-platformJS = Platform 8 4 
-platformCS = Platform 8 4 
+platform32, platform64, platform64c, platformJS, platformCS :: Platform
+platform32  = Platform 4 4 4 8
+platform64  = Platform 8 8 8 8
+platform64c = Platform 8 8 4 8  -- compressed fields
+platformJS  = Platform 8 4 8 0
+platformCS  = Platform 8 4 8 0
+
+
+platformHasCompressedFields (Platform sp _ sf _) = (sp /= sf)
 
 instance Show Platform where
-  show (Platform sp ss) = "Platform(sizeof(void*)=" ++ show sp ++ ",sizeof(size_t)=" ++ show ss ++ ")"
+  show (Platform sp ss sf sh) = "Platform(sizeof(void*)=" ++ show sp ++ 
+                                        ",sizeof(size_t)=" ++ show ss ++ 
+                                        ",sizeof(kk_box_t)=" ++ show sf ++ 
+                                        ",sizeof(kk_header_t)=" ++ show sh ++ 
+                                        ")" 
+
 
 alignedSum :: Int -> [Int] -> Int
 alignedSum start xs = foldl alignedAdd start xs
@@ -148,6 +165,7 @@ readOperationSort s
       "fun" -> Just OpFun
       "brk" -> Just OpExcept
       "ctl"    -> Just OpControl
+      -- legacy
       "rawctl" -> Just OpControlRaw
       "except" -> Just OpExcept
       "control"  -> Just OpControl
@@ -165,17 +183,17 @@ instance Show DataKind where
   show CoInductive = "cotype"
   show Retractive = "rectype"
 
-data DataDef = DataDefValue{ rawFields :: Int {- size in bytes -}, scanFields :: Int {- count of scannable fields -}}
-             | DataDefNormal
-             | DataDefAuto   -- Value or Normal; determined by kind inference
+data DataDef = DataDefValue !ValueRepr  -- value type
+             | DataDefNormal            -- reference type
              | DataDefRec
              | DataDefOpen
+             | DataDefAuto              -- Value or Normal; determined by kind inference             
              deriving Eq
 
 instance Show DataDef where
   show dd = case dd of
-              DataDefValue m n -> "val(raw:" ++ show m ++ ",scan:" ++ show n ++ ")"
-              DataDefNormal{}  -> "normal"
+              DataDefValue v   -> "val" ++ show v
+              DataDefNormal    -> "normal"
               DataDefRec       -> "rec"
               DataDefOpen      -> "open"
               DataDefAuto      -> "auto"
@@ -194,15 +212,66 @@ dataDefIsOpen ddef
 
 dataDefIsValue ddef
   = case ddef of
-      DataDefValue _ _ -> True
+      DataDefValue{} -> True
       _ -> False
+
+dataDefSize :: Platform -> DataDef -> Int
+dataDefSize platform ddef
+  = case ddef of
+      DataDefValue v -> valueReprSize platform v
+      _              -> sizeField platform
+
+
+{--------------------------------------------------------------------------
+  Definition kind
+--------------------------------------------------------------------------}
+
+data ValueRepr = ValueRepr{ valueReprRawSize    :: !Int {- size in bytes -}, 
+                            valueReprScanCount  :: !Int {- count of scannable fields -},
+                            valueReprAlignment  :: !Int {- minimal alignment -}
+                            -- valueReprSize       :: !Int {- full size, always rawSize + scanFields*sizeField platform -}
+                          }
+               deriving (Eq,Ord)
+
+instance Show ValueRepr where
+  show (ValueRepr raw scan align) 
+    = "{" ++ concat (intersperse "," (map show [raw,scan,align])) ++ "}"
+
+valueReprSizeScan :: Platform -> ValueRepr -> (Int,Int)
+valueReprSizeScan platform vrepr
+  = (valueReprSize platform vrepr, valueReprScanCount vrepr)
+
+valueReprSize :: Platform -> ValueRepr -> Int
+valueReprSize platform (ValueRepr raw scan align) = raw + (scan * sizeField platform)
+
+valueReprIsMixed :: ValueRepr -> Bool
+valueReprIsMixed v  = (valueReprRawSize v > 0) && (valueReprScanCount v > 0)
+
+valueReprIsRaw :: ValueRepr -> Bool
+valueReprIsRaw v  = (valueReprRawSize v > 0) && (valueReprScanCount v == 0)
+
+valueReprNew :: Int -> Int -> Int -> ValueRepr
+valueReprNew rawSize scanCount align
+  = ValueRepr rawSize scanCount align -- (rawSize + (scanCount * sizeField platform))
+
+valueReprZero :: ValueRepr
+valueReprZero = ValueRepr 0 0 0
+
+valueReprRaw :: Int -> ValueRepr
+valueReprRaw m  = ValueRepr m 0 m
+
+valueReprScan :: Int -> ValueRepr
+valueReprScan n = ValueRepr 0 n 0
 
 {--------------------------------------------------------------------------
   Definition kind
 --------------------------------------------------------------------------}
 
 data DefSort
-  = DefFun [ParamInfo] | DefVal | DefVar
+  = DefFun { defFunParamInfos :: [ParamInfo],
+             defFunFip        :: Fip } 
+  | DefVal 
+  | DefVar
   deriving Eq
 
 data ParamInfo 
@@ -210,15 +279,26 @@ data ParamInfo
   | Own
   deriving(Eq,Show)  
 
-isDefFun (DefFun _)  = True
+isDefFun (DefFun {})  = True
 isDefFun _           = False
 
+defFunEx :: [ParamInfo] -> Fip -> DefSort
+defFunEx pinfos fip = if all (==Own) pinfos then DefFun [] fip else DefFun pinfos fip
+
 defFun :: [ParamInfo] -> DefSort
-defFun pinfos = if all (==Own) pinfos then DefFun [] else DefFun pinfos
+defFun pinfos = defFunEx pinfos noFip
+
+defSortShowFull :: DefSort -> String
+defSortShowFull ds
+  = case ds of
+      DefFun pinfos fip -> show fip ++ "fun"
+      DefVal -> "val"
+      DefVar -> "var"
+
 
 instance Show DefSort where
   show ds = case ds of
-              DefFun _ -> "fun"
+              DefFun{} -> "fun"
               DefVal -> "val"
               DefVar -> "var"
 
@@ -248,3 +328,72 @@ data Assoc  = AssocNone
             | AssocRight
             | AssocLeft
             deriving (Eq,Show)
+
+
+{--------------------------------------------------------------------------
+  Fip
+--------------------------------------------------------------------------}
+data Fip = Fip   { fipAlloc_ :: FipAlloc }
+         | Fbip  { fipAlloc_ :: FipAlloc, fipTail :: Bool }
+         | NoFip { fipTail :: Bool }
+         deriving (Eq,Ord)
+
+data FipAlloc = AllocAtMost Int | AllocFinitely | AllocUnlimited
+         deriving (Eq)
+
+instance Ord FipAlloc where
+  compare a1 a2
+    = case (a1, a2) of
+        (AllocAtMost n, AllocAtMost m) -> compare n m
+        (_            , AllocAtMost _) -> GT
+
+        (AllocAtMost n, AllocFinitely) -> LT
+        (AllocFinitely, AllocFinitely) -> EQ
+        (AllocUnlimited, AllocFinitely) -> GT
+
+        (AllocUnlimited, AllocUnlimited) -> EQ
+        (_             , AllocUnlimited) -> LT
+
+instance Semigroup FipAlloc where
+  AllocAtMost n <> AllocAtMost m = AllocAtMost (n + m)
+  _ <> _ = AllocFinitely
+
+instance Monoid FipAlloc where
+  mempty = AllocAtMost 0
+
+noFip :: Fip
+noFip = NoFip False
+
+isNoFip (NoFip _) = True
+isNoFip _         = False
+
+fipIsTail :: Fip -> Bool
+fipIsTail fip 
+  = case fip of 
+      Fbip _ t -> t
+      NoFip t  -> t
+      _        -> True
+
+fipAlloc :: Fip -> FipAlloc
+fipAlloc fip 
+  = case fip of
+      Fip n    -> n
+      Fbip n _ -> n
+      NoFip _  -> AllocUnlimited
+
+instance Show Fip where
+  show fip  = case fip of
+                Fip n       -> "fip" ++ showN n
+                Fbip n t    -> showTail t ++ "fbip" ++ showN n
+                NoFip t     -> showTail t
+            where
+              showN (AllocAtMost 0) = " "
+              showN (AllocAtMost n) = "(" ++ show n ++ ") "
+              showN AllocFinitely   = "(n) "
+              showN AllocUnlimited  = ""
+
+              showTail True  = "tail "
+              showTail _     = " "
+
+              
+         

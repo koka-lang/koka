@@ -7,10 +7,11 @@
 ---------------------------------------------------------------------------*/
 
 static kk_std_core_types__tuple2_ kk_time_unix_now_tuple(kk_context_t* ctx) {
-  int64_t asecs;
-  int64_t isecs = kk_time_unix_now(&asecs,ctx);
-  double frac = (double)asecs * 1e-18;
-  double secs = (double)isecs;
+  kk_duration_t d = kk_time_unix_now(ctx);
+  // the conversion has about 15 digits of precision
+  // we cannot do this more precisely as the api expects the fraction between 0.0 and 2.0 (for leap seconds).
+  double secs = (double)d.seconds;
+  double frac = (double)d.attoseconds * 1e-18;
   return kk_std_core_types__new_dash__lp__comma__rp_( kk_double_box(secs,ctx), kk_double_box(frac,ctx), ctx );
 }
 

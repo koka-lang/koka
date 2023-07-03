@@ -11,7 +11,7 @@
 
 module Core.Uniquefy ( uniquefy
                      , uniquefyDefGroup {- used for divergence analysis -}
-                     , uniquefyExpr
+                     , uniquefyExpr, uniquefyExprWith, uniquefyExprU
                      , uniquefyDefGroups {- used in inline -}                     
                      ) where
 
@@ -23,24 +23,31 @@ import qualified Common.NameMap as M
 import Core.Core
 import Core.CoreVar( freeLocals )
 import Common.Failure
+import Common.Unique
 
 type Locals = S.NameSet
 type Renaming = M.NameMap Name
 
 data Un a  = Un (State -> (a,State))
-data State = St{ locals :: Locals, renaming :: Renaming }
+data State = St{ locals :: Locals, renaming :: Renaming, uniq :: Int }
 
 instance Functor Un where
   fmap f (Un u)  = Un (\st -> case u st of
                                 (x,st1) -> (f x,st1))
 
 instance Applicative Un where
-  pure  = return
+  pure x  = Un (\st -> (x,st))  
   (<*>) = ap
 
 instance Monad Un where
-  return x  = Un (\st -> (x,st))
+  -- return = pure
   (Un u) >>= f  = Un (\st0 -> case u st0 of (x,st1) -> case f x of Un u1 -> u1 st1)
+
+instance HasUnique Un where
+  updateUnique f  
+    = do st' <- updateSt (\st -> st{ uniq = f (uniq st)})
+         return (uniq st')
+
 
 updateSt f
   = Un (\st -> (st,f st))
@@ -65,15 +72,32 @@ getRenaming = fmap renaming getSt
 setLocals l = updateSt (\st -> st{ locals = l })
 setRenaming r = updateSt (\st -> st{ renaming = r })
 
-runUn (Un u)
-  = fst (u (St S.empty M.empty))
+makeFullUnique 
+  = do st <- getSt
+       return (uniq st /= 0)
+
+runUn uniq (Un u)
+  = fst (u (St S.empty M.empty uniq))
 
 uniquefyExpr :: Expr -> Expr
 uniquefyExpr expr 
-  = let locals = S.map getName (freeLocals expr) 
-    in runUn $
+  = uniquefyExprWith tnamesEmpty expr
+
+uniquefyExprWith :: TNames -> Expr -> Expr
+uniquefyExprWith free expr  
+  = let locals = S.map getName (free `tnamesUnion` (freeLocals expr))
+    in runUn 0 $
        do setLocals locals
           uniquefyExprX expr
+
+uniquefyExprU :: HasUnique m => Expr -> m Expr
+uniquefyExprU expr 
+  = withUnique $ \uniq0 ->
+    runUn uniq0 $
+    do expr' <- uniquefyExprX expr
+       uniq1 <- unique
+       return (expr',uniq1)
+
 
 uniquefy :: Core -> Core
 uniquefy core
@@ -81,7 +105,7 @@ uniquefy core
 
 uniquefyDefGroups :: [DefGroup] -> [DefGroup]
 uniquefyDefGroups dgs
-  = runUn $
+  = runUn 0 $
     do locals <- getLocals
        let toplevelDefs = filter (not . nameIsNil) (map defName (flattenDefGroups dgs))
        setLocals (foldr (\name locs -> S.insert (unqualify name) locs) locals toplevelDefs)
@@ -99,7 +123,7 @@ uniquefyDefGroups dgs
 
 uniquefyDefGroup :: DefGroup -> DefGroup
 uniquefyDefGroup defgroup
-  = runUn $
+  = runUn 0 $  
     case defgroup of
       DefNonRec def
         -> fmap DefNonRec $ uniquefyDef def
@@ -205,10 +229,13 @@ uniquefyName name | nameIsNil name
   = return name
 uniquefyName name
   = do locals <- getLocals
-       if (S.member name locals)
+       full <- makeFullUnique
+       if (full || S.member name locals)
         then do renaming <- getRenaming
-                let name1 = findUniqueName 0 name locals
-                    locals1 = S.insert name1 locals
+                name1 <- if full 
+                           then uniqueNameFrom name
+                           else return (findUniqueName 0 name locals)
+                let locals1 = S.insert name1 locals
                     renaming1 = M.insert name name1 renaming
                 setLocals locals1
                 setRenaming renaming1

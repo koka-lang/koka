@@ -38,7 +38,7 @@ import Kind.Newtypes          ( Newtypes, newtypesEmpty, newtypesCompose, extrac
 import Kind.Constructors      ( Constructors, constructorsEmpty, constructorsCompose, extractConstructors )
 import Kind.Assumption        ( KGamma, kgammaInit, extractKGamma, kgammaUnion )
 
-import Type.Assumption        ( Gamma, gammaInit, gammaUnion, extractGamma, gammaNames)
+import Type.Assumption        ( Gamma, gammaInit, gammaUnion, extractGamma, gammaNames, gammaPublicNames)
 import Type.Type              ( DataInfo )
 import Core.Inlines           ( Inlines, inlinesNew, inlinesEmpty, inlinesExtends )
 import Core.Borrowed          ( Borrowed, borrowedEmpty, borrowedExtendICore )
@@ -125,7 +125,7 @@ loadedNames l
 
 loadedMatchNames :: Loaded -> [String]
 loadedMatchNames l
-  = map (showPlain . unqualify) $ filter (not . isHiddenName) (loadedNames l)
+  = map (showPlain . unqualify) $ gammaPublicNames (loadedGamma l)
   where
     -- good (c:_) = (c /= '.')
 

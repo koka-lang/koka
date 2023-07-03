@@ -53,8 +53,41 @@ fun make-rec( depth : int ) : div tree
     then Node( make-rec(depth - 1), make-rec(depth - 1) ) 
     else Node( Tip, Tip )
 
+type build  
+  Root
+  GoRight( depth : int, up : build )
+
+fun make-trmc-up( t : tree, b : build ) : div tree
+  match b
+    GoRight(depth, Root) ->
+      Node(t, make-trmc( depth, Root ))
+    GoRight(depth, up) ->
+      make-trmc-up( Node(t, make-trmc( depth, Root )), up )
+    Root -> t
+
+fun make-trmc( depth : int, b : build ) : div tree
+  if depth > 0
+    then make-trmc( depth - 1, GoRight(depth - 1, b))
+    else make-trmc-up( Node(Tip,Tip), b)
+
+fun make-trmc-fbip( dir : direction, b : build ) : div tree
+  match dir
+    Down(depth) ->
+      if depth > 0
+        then make-trmc-fbip( Down(depth - 1), GoRight(depth - 1, b))
+        else make-trmc-fbip( Up(Node(Tip,Tip)), b)
+    Up(t) -> 
+      match b
+        GoRight(depth, Root) ->
+          Node(t, make-trmc-fbip( Down(depth), Root ))
+        GoRight(depth, up) ->
+          make-trmc-fbip(Up(Node(t, make-trmc-fbip( Down(depth), Root ))), up )
+        Root -> t
+
 fun make( depth : int ) : div tree
   make-rec(depth)
+  // make-trmc( depth, Root )
+  // make-trmc-fbip( Down( depth), Root )
   // make-fbip(Down(depth), Top)
   // make-down( depth, Top )
 
@@ -126,10 +159,14 @@ pub fun main()
   // allocate and free the stretch tree
   val stretch-depth = max-depth.inc
   show( "stretch tree", stretch-depth, make(stretch-depth).check )
+
   
   // allocate long lived tree
   // val long = make(max-depth)
   val long = make(max-depth)
+
+  // test thread shared marking
+  // show("long lived tree in another thread", max-depth,  task{ long.check }.await )
 
   // allocate and free many trees in parallel
   val trees = gen-depth( min-depth, max-depth )

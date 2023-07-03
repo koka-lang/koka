@@ -89,7 +89,7 @@ extractBorrowExternals exs
 extractExternal :: External -> Maybe BorrowDef
 extractExternal ex
   = case ex of
-    External name _ params _ _ _ _ ->
+    External name _ params _ _ _ _ _ ->
       if Borrow `elem` params then Just (name, params) else Nothing
     _ -> Nothing
 
@@ -101,7 +101,7 @@ extractDefGroup (DefNonRec def)
 extractBorrowDef :: Bool -> Def -> Maybe BorrowDef
 extractBorrowDef isRec def
   = case defSort def of
-      DefFun pinfos | not (null pinfos) -> Just (defName def,pinfos)
+      DefFun pinfos _ | not (null pinfos) -> Just (defName def,pinfos)
       _ -> Nothing
 
 instance Show Borrowed where

@@ -175,7 +175,9 @@ data Flags
          , optimize         :: Int       -- optimization level; 0 or less is off
          , optInlineMax     :: Int
          , optctail         :: Bool
-         , optctailInline   :: Bool
+         , optctailCtxPath  :: Bool 
+         , optUnroll        :: Int
+         , optEagerPatBind  :: Bool      -- bind pattern fields as early as possible?
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
@@ -183,6 +185,7 @@ data Flags
          , asan             :: Bool
          , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
          , optSpecialize    :: Bool
+         , mimallocStats    :: Bool
          }
 
 flagsNull :: Flags
@@ -268,7 +271,9 @@ flagsNull
           0    -- optimize
           12   -- inlineMax
           True -- optctail
-          False -- optctailInline
+          True -- optctailCtxPath
+          (-1) -- optUnroll
+          False -- optEagerPatBind (read fields as late as possible)
           True -- parc reuse
           True -- parc specialize
           True -- parc reuse specialize
@@ -276,6 +281,7 @@ flagsNull
           False -- use asan
           False -- use stdalloc
           True  -- use specialization (only used if optimization level >= 1)
+          False -- use mimalloc stats
 
 isHelp Help = True
 isHelp _    = False
@@ -367,18 +373,21 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  -- hidden
  , hide $ fflag       ["asan"]      (\b f -> f{asan=b})             "compile with address, undefined, and leak sanitizer"
  , hide $ fflag       ["stdalloc"]  (\b f -> f{useStdAlloc=b})      "use the standard libc allocator"
+ , hide $ fflag       ["allocstats"]  (\b f -> f{mimallocStats=b})   "enable mimalloc statitistics"
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
  , hide $ fnum 10 "n" ["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
  , hide $ fflag       ["monadic"]   (\b f -> f{enableMon=b})         "enable monadic translation"
  , hide $ flag []     ["semi"]      (\b f -> f{semiInsert=b})        "insert semicolons based on layout"
- , hide $ fflag       ["binference"]   (\b f -> f{parcBorrowInference=b})     "enable reuse inference (does not work cross-module!)"
- , hide $ fflag       ["optreuse"]     (\b f -> f{parcReuse=b})          "enable in-place update analysis"
- , hide $ fflag       ["optdropspec"]  (\b f -> f{parcSpecialize=b}) "enable drop specialization"
- , hide $ fflag       ["optreusespec"] (\b f -> f{parcReuseSpec=b})  "enable reuse specialization"
- , hide $ fflag       ["opttrmc"]      (\b f -> f{optctail=b})              "enable tail-recursion-modulo-cons optimization"
- , hide $ fflag       ["opttrmcinline"] (\b f -> f{optctailInline=b})  "enable trmc inlining (increases code size)"
- , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})      "enable inline specialization"
+ , hide $ fflag       ["binference"]  (\b f -> f{parcBorrowInference=b})     "enable reuse inference (does not work cross-module!)"
+ , hide $ fflag       ["reuse"]       (\b f -> f{parcReuse=b})        "enable in-place update analysis"
+ , hide $ fflag       ["dropspec"]    (\b f -> f{parcSpecialize=b})   "enable drop specialization"
+ , hide $ fflag       ["reusespec"]   (\b f -> f{parcReuseSpec=b})    "enable reuse specialization"
+ , hide $ fflag       ["trmc"]        (\b f -> f{optctail=b})         "enable tail-recursion-modulo-cons optimization"
+ , hide $ fflag       ["trmcctx"]     (\b f -> f{optctailCtxPath=b})  "enable trmc context paths"
+ , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})    "enable inline specialization"
+ , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
+ , hide $ fflag       ["eagerpatbind"] (\b f -> f{optEagerPatBind=b}) "load pattern fields as early as possible"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
@@ -437,6 +446,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
     [("c",      \f -> f{ target=C LibC, platform=platform64 }),
      ("c64",    \f -> f{ target=C LibC, platform=platform64 }),
      ("c32",    \f -> f{ target=C LibC, platform=platform32 }),
+     ("c64c",   \f -> f{ target=C LibC, platform=platform64c }),
      ("js",     \f -> f{ target=JS JsNode, platform=platformJS }),
      ("jsnode", \f -> f{ target=JS JsNode, platform=platformJS }),
      ("jsweb",  \f -> f{ target=JS JsWeb, platform=platformJS }),
@@ -657,8 +667,11 @@ processOptions flags0 opts
                    ccCheckExist cc
                    let stdAlloc = if asan then True else useStdAlloc flags   -- asan implies useStdAlloc
                        cdefs    = ccompDefs flags 
-                                   ++ if stdAlloc then [] else [("KK_MIMALLOC",show (sizePtr (platform flags)))]
-                                   ++ if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")]
+                                   ++ (if stdAlloc then [] else [("KK_MIMALLOC",show (sizePtr (platform flags)))])
+                                   ++ (if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")])
+                                   ++ (if optctailCtxPath flags then [] else [("KK_CTAIL_NO_CONTEXT_PATH","")])
+                                   ++ (if platformHasCompressedFields (platform flags) then [("KK_INTB_SIZE",show (sizeField (platform flags)))] else [])
+                                   ++ (if not stdAlloc && mimallocStats flags then [("MI_STAT","2")] else [])
                    
                    -- vcpkg
                    -- (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
@@ -696,7 +709,10 @@ processOptions flags0 opts
                                                      else if (optimize flags <= 1) 
                                                        then (optInlineMax flags) `div` 3 
                                                        else (optInlineMax flags),
-
+                                  optctailCtxPath = (optctailCtxPath flags && isTargetC (target flags)),
+                                  optUnroll   = if (optUnroll flags < 0) 
+                                                  then (if (optimize flags > 0) then 1 else 0)
+                                                  else optUnroll flags,
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
                                   ccompDefs   = cdefs,
@@ -950,9 +966,11 @@ buildVariant flags
                         Wasm   -> "-wasm" ++ show (8*sizePtr (platform flags))
                         WasmJs -> "-wasmjs"
                         WasmWeb-> "-wasmweb"
-                        _      -> "")                       
-                 JS _  -> "js"
-                 _     -> show (target flags)
+                        _      | platformHasCompressedFields (platform flags)
+                               -> "-" ++ cpuArch ++ "c"
+                               | otherwise -> "")                       
+                 JS _  -> "-js"
+                 _     -> "-" ++ show (target flags)
     in pre ++ "-" ++ show (buildType flags)
 
 
@@ -1094,6 +1112,8 @@ ccFromPath flags path
                                   ,True)
           else if (useStdAlloc flags)
             then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)
+          else if (mimallocStats flags)
+            then return (cc{ ccName = ccName cc ++ "-allocstats" }, False)
             else return (cc,False)
 
 ccCheckExist :: CC -> IO ()

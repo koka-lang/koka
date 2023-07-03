@@ -18,7 +18,7 @@ module Syntax.Parse( parseProgramFromFile
                    -- used by the core parser
                    , lexParse, parseLex, LexParser, parseLexemes, parseInline
 
-                   , visibility, modulepath, importAlias
+                   , visibility, modulepath, importAlias, parseFip
                    , tbinderId, constructorId, funid, paramid
                    , braced, semiBraces, semis, semiColons1, semiBraced
                    , angles, anglesCommas, parensCommas, parens, curlies
@@ -38,7 +38,7 @@ import Data.Either (partitionEithers)
 import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,rparen,rangle,langle)
 import qualified Lib.PPrint as PP (string)
 
-import Control.Monad (mzero)
+import Control.Monad (mzero,when)
 import Data.Monoid (Endo(..))
 import Text.Parsec hiding (space,tab,lower,upper,alphaNum,sourceName,optional)
 import Text.Parsec.Error
@@ -170,7 +170,7 @@ expression name
   = interactive $
     do e <- aexpr
        let r = getRange e
-       return (Def (ValueBinder name () (Lam [] e r) r r)  r Public (DefFun []) InlineNever ""
+       return (Def (ValueBinder name () (Lam [] e r) r r)  r Public (DefFun [] noFip) InlineNever ""
               -- ,Def (ValueBinder (prepend ".eval" name) () (Lam [] (App (Var nameGPrint False r) [Var name False r] r)))
               )
 
@@ -323,12 +323,13 @@ externDecl dvis
             <|>
              try ( do (vis,vrng) <- visibility dvis
                       inline     <- parseInline
+                      fip        <- parseFip
                       (krng,doc) <- dockeyword "extern"
-                      return (Right (combineRange vrng krng, vis, doc, inline)))
+                      return (Right (combineRange vrng krng, vis, doc, inline, fip)))
        case lr of
          Left p -> do extern <- p
                       return [DefExtern extern]
-         Right (krng,vis,doc,inline)
+         Right (krng,vis,doc,inline,fip)
            -> do (name,nameRng) <- funid
                  (pars,pinfos,args,tp,annotate)
                    <- do keyword ":"
@@ -346,13 +347,13 @@ externDecl dvis
                          return (map lift pars,pinfos,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
                  (exprs,rng) <- externalBody
                  if (inline == InlineAlways)
-                  then return [DefExtern (External name tp pinfos nameRng (combineRanges [krng,rng]) exprs vis doc)]
+                  then return [DefExtern (External name tp pinfos nameRng (combineRanges [krng,rng]) exprs vis fip doc)]
                   else do let  externName = newHiddenExternalName name
                                fullRng    = combineRanges [krng,rng]
-                               extern     = External externName tp pinfos (before nameRng) (before fullRng) exprs Private doc
+                               extern     = External externName tp pinfos (before nameRng) (before fullRng) exprs Private fip doc
                                body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) fullRng)
                                binder     = ValueBinder name () body nameRng fullRng
-                               extfun     = Def binder fullRng vis (defFun pinfos) InlineNever doc
+                               extfun     = Def binder fullRng vis (defFunEx pinfos fip) InlineNever doc
                           return [DefExtern extern, DefValue extfun]
   where
     typeFromPars :: Range -> [ValueBinder UserType (Maybe UserExpr)] -> UserType -> UserType -> UserType
@@ -563,8 +564,10 @@ structDecl dvis =
         (try $
           do (vis,dvis,rng) <-     do{ rng <- keyword "abstract"; return (Public,Private,rng) }
                                <|> do{ (vis,rng) <- visibility dvis; return (vis,vis,rng) }
-             ddef           <-     do { specialId "value"; return (DataDefValue 0 0) }
-                               <|> do { specialId "reference"; return DataDefNormal }
+             ddef           <-     do { specialId "value"; return (DataDefValue valueReprZero) }
+                               <|> do { specialIdOr "ref" ["reference"]; 
+                                        -- pwarningMessage "using 'reference' is deprecated and is always the default now";
+                                        return DataDefNormal }
                                <|> do { return DataDefAuto }
              (trng,doc) <- dockeyword "struct"
              return (vis,dvis,ddef,rng,trng,doc))
@@ -607,8 +610,9 @@ typeDeclKind
     try(
     do (ddef,isExtend) <-     do { specialId "open"; return (DataDefOpen, False) }
                           <|> do { specialId "extend"; return (DataDefOpen, True) }
-                          <|> do { specialId "value"; return (DataDefValue 0 0, False) }
-                          <|> do { specialId "reference"; return (DataDefNormal, False) }
+                          <|> do { specialId "value"; return (DataDefValue valueReprZero, False) }
+                          <|> do { specialIdOr "ref" ["reference"]; 
+                                   return (DataDefNormal, False) }
                           <|> return (DataDefAuto, False)
        (rng,doc) <- dockeyword "type"
        return (Inductive,rng,doc,ddef,isExtend))
@@ -818,14 +822,14 @@ makeEffectDecl decl =
                              evName  = newName "ev"
                              evFld = ValueBinder evName evTp Nothing irng rng
                              evCon = UserCon (toConstructorName id) [] [(Private,evFld)] Nothing irng rng Private ""
-                         in (DataType ename tpars [evCon] rng vis Inductive (DataDefValue 0 0) False docx
+                         in (DataType ename tpars [evCon] rng vis Inductive (DataDefNormal {-DataDefValue 0 0-}) False docx
                             ,(\action -> Lam [ValueBinder evName Nothing Nothing irng rng]
                                                   (App (action) [(Nothing,App (Var (toConstructorName id) False rng) [(Nothing,Var evName False rng)] rng)] rng)
                                                   rng))
                     else let -- add a private constructor that refers to the handler type to get a proper recursion check
                              hndfld = ValueBinder nameNil hndTp Nothing irng irng
                              hndcon = UserCon (toConstructorName id) [hndEffTp,hndResTp] [(Private,hndfld)] Nothing irng irng Private ""
-                         in (DataType ename tpars [hndcon] rng vis Inductive DataDefAuto False docx, \action -> action)
+                         in (DataType ename tpars [hndcon] rng vis Inductive DataDefNormal False docx, \action -> action)
 
       -- declare the effect handler type
       kindEffect = KindCon nameKindEffect krng
@@ -1090,7 +1094,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
 
 
            -- create a typed perform wrapper: fun op(x1:a1,..,xN:aN) : <l> b { performN(evv-at(0),clause-op,x1,..,xN) }
-           opDef  = let def      = Def binder idrng vis (DefFun []) InlineAlways ("// call `" ++ show id ++ "` operation of the " ++ docEffect)
+           opDef  = let def      = Def binder idrng vis (defFun []) InlineAlways ("// call `" ++ show id ++ "` operation of the " ++ docEffect)
                         nameRng   = idrng
                         binder    = ValueBinder id () body nameRng nameRng
                         body      = Ann (Lam lparams innerBody rng) tpFull rng
@@ -1149,23 +1153,51 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
 
 pureDecl :: Visibility -> LexParser UserDef
 pureDecl dvis
-  = do (vis,vrng,rng,doc,inline,isVal)
+  = do pdecl
           <- try $ do (vis,vrng) <- visibility dvis
                       inline <- parseInline
-                      (do (rng,doc) <- dockeywordFun; return (vis,vrng,rng,doc,inline,False)
+                      (do (rng,doc) <- dockeyword "val" -- return (vis,vrng,rng,doc,inline,True)
+                          return (valDecl (combineRange vrng rng) doc vis inline)
                        <|>
-                       do (rng,doc) <- dockeyword "val"; return (vis,vrng,rng,doc,inline,True)
+                       do fip    <- parseFip
+                          (rng,doc) <- dockeywordFun  -- return (vis,vrng,rng,doc,inline,False)
+                          return (funDecl (combineRange vrng rng) doc vis inline fip)
                        <|>
                        do keyword "fn"
                           fail "hint: use 'fun' to start a named function definition (and 'fn' for anonymous functions)")
-       (if isVal then valDecl else funDecl) (combineRange vrng rng) doc vis inline
+       -- (if isVal then valDecl else funDecl) (combineRange vrng rng) doc vis inline
        -- valueDecl vrng vis <|> functionDecl vrng vis
+       pdecl
+
+parseFipAlloc :: LexParser FipAlloc
+parseFipAlloc
+  = parens (  (do (num,_) <- integer
+                  return (AllocAtMost (fromInteger num)))
+           <|> do _ <- specialId "n"
+                  return AllocFinitely)
+      <|> return (AllocAtMost 0)
+
+parseFip :: LexParser Fip
+parseFip 
+  = do isTail   <- do specialId "tail"
+                      return True
+                  <|> return False
+       ( do specialId "fip"
+            alloc <- parseFipAlloc
+            when isTail $ pwarningMessage "a 'fip' function implies already 'tail'"
+            return (Fip alloc)
+         <|> 
+         do specialId "fbip"
+            alloc <- parseFipAlloc
+            return (Fbip alloc isTail)
+         <|> return (NoFip isTail))
 
 functionDecl vrng vis
-  = do (rng,doc,inline) <- try $ do inline <- parseInline
-                                    (rng,doc) <- dockeywordFun
-                                    return (rng,doc,inline)
-       funDecl (combineRange vrng rng) doc vis inline
+  = do pdecl <- try $ do inline <- parseInline
+                         fip    <- parseFip
+                         (rng,doc) <- dockeywordFun
+                         return (funDecl (combineRange vrng rng) doc vis inline fip)
+       pdecl
 
 varDecl
   = do (vrng,doc) <- dockeyword "var"
@@ -1181,7 +1213,7 @@ valDecl rng doc vis inline
        body <- blockexpr
        return (Def (bind body) (combineRanged rng body) vis DefVal inline doc)
 
-funDecl rng doc vis inline
+funDecl rng doc vis inline fip
   = do spars <- squantifier
        -- tpars <- aquantifier  -- todo: store somewhere
        (name,nameRng) <- funid
@@ -1189,7 +1221,8 @@ funDecl rng doc vis inline
        body   <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
-       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis (defFun pinfos) inline doc)
+       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis 
+                       (defFunEx pinfos fip) inline doc)
 
 -- fundef: forall parameters, parameters, (effecttp, resulttp), annotation
 funDef :: Bool -> LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], [ParamInfo], Range, Maybe (Maybe UserType, UserType),[UserType], UserExpr -> UserExpr)
@@ -1866,9 +1899,16 @@ appexpr allowTrailingLam
 
     indexer
       = do rng0 <- lidx
-           idxs <- sepBy1 expr comma
-           rng1 <- special "]"
-           return (\exp -> App (Var nameIndex False (combineRange rng0 rng1)) (map (\a -> (Nothing,a)) (exp:idxs)) (combineRange rng0 rng1))
+           (do crng <- keyword "ctx"
+               ctx  <- ccontext crng
+               rng1 <- special "]"
+               return (\exp -> let rng = combineRanged exp rng1
+                               in App (Var nameCCtxComposeExtend False rng) [(Nothing,exp),(Nothing,ctx)] rng)
+            <|>
+            do idxs <- sepBy1 expr comma
+               rng1 <- special "]"
+               return (\exp -> App (Var nameIndex False (combineRange rng0 rng1)) (map (\a -> (Nothing,a)) (exp:idxs)) (combineRange rng0 rng1))
+               )
 
     applier
       = do rng0 <- lapp
@@ -1918,6 +1958,10 @@ atom
   <|>
     do lit <- literal
        return (Lit lit)
+  <|> 
+    do cctxHole
+  <|>
+    do cctxExpr
   <|>
     do injectExpr
   <?> "(simple) expression"
@@ -1969,6 +2013,21 @@ listExpr
 
 makeNil rng   = Var nameNull False rng
 makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
+
+cctxExpr :: LexParser UserExpr
+cctxExpr
+  = do rng <- keyword "ctx"
+       ccontext rng
+
+ccontext :: Range -> LexParser UserExpr
+ccontext rng
+  = do ctx <- ntlexpr
+       return (makeApp (Var nameCCtxCreate False rng) [ctx])
+       
+cctxHole :: LexParser UserExpr
+cctxHole 
+  = do rng <- keyword "hole" <|> do { (_,r) <- wildcard; return r }
+       return (makeApp (Var nameCCtxHoleCreate False rng) [])
 
 
 injectExpr :: LexParser UserExpr
@@ -2308,7 +2367,7 @@ anntypek
            return tp)
 
 tid
-  = do (id,rng) <- qvarid
+  = do (id,rng) <- qvarid <|> typeidCtx
        return (if isTypeVar id then TpVar id rng else TpCon id rng)
   <|>
     do (id,rng) <- wildcard <?> ""
@@ -2643,16 +2702,20 @@ ensureUnqualified entity p
 -----------------------------------------------------------
 -- Lexical tokens
 -----------------------------------------------------------
-qtypeid :: LexParser (Name,Range)
+qtypeid, typeidCtx :: LexParser (Name,Range)
 qtypeid
   = try $
     do pos <- getPosition
-       (name,range) <- qvarid
+       (name,range) <- qvarid <|> typeidCtx      
        if (not (isTypeVar name))
         then return (name,range)
         else -- trace ("not a qtype: " ++ show name) $
              do setPosition pos
                 mzero <?> "type name (and not type variable)"
+
+typeidCtx
+  = do r <- keyword "ctx"
+       return (newName "ctx",r) 
 
 qop :: LexParser (Name,Range)
 qop
@@ -2766,6 +2829,15 @@ special s
        return rng
   <?> show s
 
+
+specialIdOr :: String -> [String] -> LexParser Range
+specialIdOr kw [] = specialId kw
+specialIdOr kw deprecated
+  = choice (specialId kw : map deprecate deprecated)
+  where
+    deprecate  k = do rng <- specialId k
+                      warnDeprecated k kw
+                      return rng
 
 
 keywordOr :: String -> [String] -> LexParser Range

@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\..\out\Debug\std_core.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_core_hnd.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_int32.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_text_parse.c" />
+    <ClCompile Include="..\..\..\out\Debug\interactive.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_file.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_ddouble.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_decimal.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_double.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_random.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_date.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_duration.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_instant.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_timer.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_timestamp.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_chrono.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_effects_dash_and_dash_types.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_exn_dash_get.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_exponents.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_handlers.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_main.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_model_dash_resources.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_output_dash_and_dash_plot.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_sampling.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_smc.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_tmcmc.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_dir.c" />
+  </ItemGroup>
+</Project>

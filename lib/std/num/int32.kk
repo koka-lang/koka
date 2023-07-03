@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2021, Microsoft Research, Daan Leijen.
+  Copyright 2012-2023, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -35,12 +35,12 @@ pub inline extern int32( f : float64 ) : int32
 */
 
 // Convert an `:int32` to a boolean.
-pub fun bool( i : int32 ) : bool 
+pub fip fun bool( i : int32 ) : bool 
   (i!=zero)
 
 
 // Convert a boolean to an `:int32`.
-pub fun int32( b : bool ) : int32 
+pub fip fun int32( b : bool ) : int32 
   if (b) then one else zero
 
 
@@ -75,31 +75,31 @@ pub fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre 
   std/core/show-hex(i.uint,width,use-capitals,pre)
 
 
-pub inline extern (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-pub inline extern (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-pub inline extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)" }
-pub inline extern (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)" }
-pub inline extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"  } 
-pub inline extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"  }
+pub inline fip extern (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+pub inline fip extern (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+pub inline fip extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)" }
+pub inline fip extern (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)" }
+pub inline fip extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"  } 
+pub inline fip extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"  }
 
-pub inline extern (+)  : (int32,int32) -> int32 
-  c inline "(int32_t)((uint32_t)#1 + (uint32_t)#2)" // avoid UB
+pub inline fip extern (+)  : (int32,int32) -> int32 
+  c inline  "(int32_t)((uint32_t)#1 + (uint32_t)#2)" // avoid UB
   js inline "((#1 + #2)|0)" 
 
-pub inline extern (-)  : (int32,int32) -> int32 
+pub inline fip extern (-)  : (int32,int32) -> int32 
   c inline "(int32_t)((uint32_t)#1 - (uint32_t)#2)" // avoid UB
   js inline "((#1 - #2)|0)" 
 
 
-pub inline extern is-neg( i : int32 ) : bool 
+pub inline fip extern is-neg( i : int32 ) : bool 
   inline "0 > #1"
 
 
-pub inline extern is-pos( i : int32 ) : bool 
+pub inline fip extern is-pos( i : int32 ) : bool 
   inline "0 < #1"
 
 
-pub inline extern is-zero( i : int32 ) : bool 
+pub inline fip extern is-zero( i : int32 ) : bool 
   inline "0 == #1"
   js inline "0 === #1"
 
@@ -107,39 +107,39 @@ pub inline extern is-zero( i : int32 ) : bool
 pub val zero = 0.int32
 pub val one  = 1.int32
 
-pub fun sign( i : int32 ) : order 
+pub fip fun sign( i : int32 ) : order 
   if (i.is-pos) then Gt 
   elif (i.is-neg) then Lt 
   else Eq
 
 
 // Returns `true` if the integer `i`  is an odd number.
-pub fun is-odd( i : int32 ) : bool 
+pub fip fun is-odd( i : int32 ) : bool 
   and(i,1.int32) == 1.int32
 
 
 // Returns `true` if the integer `i`  is an even number.
-pub fun is-even( i : int32 ) : bool 
+pub fip fun is-even( i : int32 ) : bool 
   and(i,1.int32) == 0.int32
 
 
 // Increment a 32-bit integer.
-pub fun inc( i : int32 ) : int32 
+pub fip fun inc( i : int32 ) : int32 
   i + 1.int32
 
 
 // Decrement a 32-bit integer.
-pub fun dec( i : int32 ) : int32 
+pub fip fun dec( i : int32 ) : int32 
   i - 1.int32
 
 
 // Multiply two 32-bit integers.
-pub inline extern (*) : (int32,int32) -> int32 
+pub inline fip extern (*) : (int32,int32) -> int32 
   inline "(int32_t)((uint32_t)#1 * (uint32_t)#2)" // avoid UB
   js "$std_core._int32_multiply"
 
 
-pub fun compare( x : int32, y : int32) : order
+pub fip fun compare( x : int32, y : int32) : order
   if (x < y) then Lt
   elif (x > y) then Gt
   else Eq
@@ -157,7 +157,7 @@ pub fun abs( i : int32 ) : exn int32
 // Return the absolute value of an integer.
 // Returns 0 if the `:int32` is `min-int32`
 // (since the negation of `min-int32` equals itself and is still negative)
-pub fun abs0( i : int32 ) : int32
+pub fip fun abs0( i : int32 ) : int32
   if (!i.is-neg) then i
   elif (i > min-int32) then negate(i)
   else 0.int32
@@ -165,85 +165,137 @@ pub fun abs0( i : int32 ) : int32
 
 
 // Take the bitwise _and_ of two `:int32`s
-pub inline extern and : (int32,int32) -> int32 
+pub inline fip extern and : (int32,int32) -> int32 
   inline "(#1 & #2)";
 
 
 // Take the bitwise _or_ of two `:int32`s
-pub inline extern or : (int32,int32) -> int32 
+pub inline fip extern or : (int32,int32) -> int32 
   inline "(#1 | #2)";
 
 
 // Take the bitwise _xor_ of two `:int32`s
-pub inline extern xor : (int32,int32) -> int32 
+pub inline fip extern xor : (int32,int32) -> int32 
   inline "(#1 ^ #2)";
 
 // Take the bitwise _xor_ of two `:int32`s
-pub fun(^)( x : int32, y : int32) : int32
+pub fip fun(^)( x : int32, y : int32) : int32
   xor(x,y)
 
 
 // Bitwise _not_ of an `:int32`, i.e. flips all bits.
-pub inline extern not : ( i : int32 ) -> int32  
+pub inline fip extern not : ( i : int32 ) -> int32  
   inline "(~#1)"
 
 
 // Shift an `:int32` `i` to the left by `n & 31` bits.
-inline extern shl32 : (int32,int32) -> int32 
+inline fip extern shl32 : (int32,int32) -> int32 
   c  inline "kk_shl32(#1,#2)"
   js inline "#1 << #2"       // javascript masks the shift already
 
 // Shift an `:int32` `i` to the left by `n & 31` bits.
-pub fun shl( i : int32, shift : int ) : int32
+pub fip fun shl( i : int32, shift : int ) : int32
   shl32( i, shift.int32 )
 
 // Logical shift an `:int32` to the right by `n % 32` bits. Shift in zeros from the left.
-inline extern shr32 : (int32,int32) -> int32 
+inline fip extern shr32 : (int32,int32) -> int32 
   c  inline "(int32_t)kk_shr32(#1,#2)"
   cs inline "(Int32)(((UInt32)#1)>>#2)"
   js inline "#1 >>> #2"
 
 // Logical shift an `:int32` to the right by `n % 32` bits. Shift in zeros from the left.
-pub fun shr( i : int32, shift : int ) : int32
+pub fip fun shr( i : int32, shift : int ) : int32
   shr32( i, shift.int32 )
 
 
 // Arithmetic shift an `:int32` to the right by `n % 32` bits. Shifts in the sign bit from the left.
-inline extern sar32 : (int32,int32) -> int32 
+inline fip extern sar32 : (int32,int32) -> int32 
   c  inline "kk_sar32(#1,#2)"
   cs inline "(#1>>#2)"
   js inline "#1 >> #2"
 
 // Arithmetic shift an `:int32` to the right by `n % 32` bits. Shifts in the sign bit from the left.
-pub fun sar( i : int32, shift : int ) : int32
+pub fip fun sar( i : int32, shift : int ) : int32
   sar32( i, shift.int32 )
 
 
 // Bitwise rotate an `:int32` `n % 32` bits to the left.
-inline extern rotl32( i : int32, n : int32 ) : int32 
+inline fip extern rotl32( i : int32, n : int32 ) : int32 
   c inline "(int32_t)kk_bits_rotl32(#1,#2)"
   js "$std_core._int32_rotl"
 
 // Bitwise rotate an `:int32` `n % 32` bits to the left.
-pub fun rotl( i : int32, shift : int ) : int32
+pub fip fun rotl( i : int32, shift : int ) : int32
   rotl32( i, shift.int32 )
 
 // Bitwise rotate an `:int32` `n % 32` bits to the right.
-inline extern rotr32( i : int32, n : int32 ) : int32 
+inline fip extern rotr32( i : int32, n : int32 ) : int32 
   c inline "(int32_t)kk_bits_rotr32(#1,#2)"
   js "$std_core._int32_rotr"
 
 // Bitwise rotate an `:int32` `n % 32` bits to the right.
-pub fun rotr( i : int32, shift : int ) : int32
+pub fip fun rotr( i : int32, shift : int ) : int32
   rotr32( i, shift.int32 )
+
+// Count trailing zero bits. Returns 32 if `i` is zero.
+inline fip extern ctz32( i : int32 ) : int32 
+  c inline "(int32_t)kk_bits_ctz32(#1)"
+  js "$std_core._int32_ctz"
+
+// Count leading zero bits. Returns 32 if `i` is zero.
+inline fip extern clz32( i : int32 ) : int32 
+  c inline "(int32_t)kk_bits_clz32(#1)"
+  js "$std_core._int32_clz"
+
+// Count trailing zero bits. Returns 32 if `i` is zero.
+pub fip fun ctz( i : int32 ) : int
+  ctz32(i).int
+
+// Count leading zero bits. Returns 32 if `i` is zero.
+pub fip fun clz( i : int32 ) : int
+  clz32(i).int
+
+// Find first set: returns the bit-index + 1, or 0 when `i==0`.
+inline fip extern ffs32( i : int32 ) : int32 
+  c inline "(int32_t)kk_bits_ffs32(#1)"
+  js "$std_core._int32_ffs"
+
+// Find first set: returns the bit-index + 1, or 0 when `i==0`.
+pub fip fun ffs( i : int32 ) : int
+  ffs32(i).int
+
+// Count leading redundant (i.e. the number of bits
+// following the most significant bit that are identical to it).
+inline fip extern clrsb32( i : int32 ) : int32 
+  c inline "(int32_t)kk_bits_clrsb32(#1)"
+  js "$std_core._int32_clrsb"
+
+// Count leading redundant (i.e. the number of bits
+// following the most significant bit that are identical to it).
+pub fip fun clrsb( i : int32 ) : int
+  clrsb32(i).int
+
+// Count number of 1-bits.
+inline fip extern popcount32( i : int32 ) : int32
+  c inline "(int32_t)kk_bits_popcount32(#1)"
+  js "$std_core._int32_bits_popcount"  
+
+// Count number of 1-bits.
+pub fip fun popcount( i : int32 ) : int
+  popcount32(i).int
+
+// Is the number of 1-bits even?
+pub inline fip extern parity( i : int32 ) : bool
+  c inline "kk_bits_popcount_is_even32(#1)"
+  js "$std_core._int32_parity"    
 
 
 // Return the minimum of two integers
-pub fun min( i : int32, j : int32 ) : int32 
+pub fip fun min( i : int32, j : int32 ) : int32 
   if (i <= j) then i else j 
 
 // Return the maximum of two integers
-pub fun max( i : int32, j : int32 ) : int32 
+pub fip fun max( i : int32, j : int32 ) : int32 
   if (i >= j) then i else j 
 
 
@@ -263,31 +315,31 @@ pub fun cmod(i:int32, j:int32) : exn int32
 
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
-pub inline extern unsafe-cdiv : (int32,int32) -> int32 
+pub inline fip extern unsafe-cdiv : (int32,int32) -> int32 
   inline "(#1 / #2)"
   js inline "((#1/#2)|0)"
 
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
-pub inline extern unsafe-cmod : (int32,int32) -> int32 
+pub inline fip extern unsafe-cmod : (int32,int32) -> int32 
   inline "(#1 % #2)"
   js inline "((#1 % #2)|0)"
 
 
 // Convert an 32-bit integer to a float64.
-pub inline extern float64( i : int32) : float64
+pub inline fip extern float64( i : int32) : float64
   c inline "(double)(#1)"
   cs inline "(double)(#1)"
   js inline "(#1)" 
 
 
 // Negate a 32-bit integer
-pub fun negate( i : int32 ) : int32 
+pub fip fun negate( i : int32 ) : int32 
   (0.int32 - i)
 
 
 // Negate an 32-bit integer
-pub fun (~)(i : int32) : total int32 
+pub fip fun (~)(i : int32) : total int32 
   (0.int32 - i)
 
 
@@ -314,7 +366,7 @@ Of course `(min-int32 + 1) / -1` is again positive (namely `max-int32`).
 See also _Division and modulus for computer scientists, Daan Leijen, 2001_ 
 [pdf](http://research.microsoft.com/pubs/151917/divmodnote.pdf) .
 */
-pub fun (/)( x : int32, y : int32 ) : int32
+pub fip fun (/)( x : int32, y : int32 ) : int32
   if (y == 0.int32) then return 0.int32
   if (y == -1.int32 && x==min-int32) return x
   val q = unsafe-cdiv(x,y)
@@ -325,7 +377,7 @@ pub fun (/)( x : int32, y : int32 ) : int32
 
 
 // Euclidean-0 modulus. See `(/):(x : int32, y : int32) -> int32` division for more information.
-pub fun (%)( x : int32, y : int32 ) : int32
+pub fip fun (%)( x : int32, y : int32 ) : int32
   if (y == 0.int32) then return x
   if (y == -1.int32 && x==min-int32) return 0.int32
   val r = unsafe-cmod(x,y)
@@ -334,7 +386,7 @@ pub fun (%)( x : int32, y : int32 ) : int32
   else (r - y)
 
 
-pub fun divmod(x:int32,y:int32) : (int32,int32) 
+pub fip fun divmod(x:int32,y:int32) : (int32,int32) 
   if (y.is-zero) then return (zero,x)
   if (y == -1.int32 && x==min-int32) return (x,0.int32)
   val q = unsafe-cdiv(x,y)
@@ -344,8 +396,51 @@ pub fun divmod(x:int32,y:int32) : (int32,int32)
   else (q.inc,r - y)
 
 
-pub fun fold-int32( start : int32, end : int32, init : a, f : (int32,a) -> e a ) : e a 
+pub fip fun fold-int32( start : int32, end : int32, init : a, ^f : (int32,a) -> e a ) : e a 
   if (start >= end) then init else 
     val x = f(start,init)
     fold-int32(unsafe-decreasing(start.inc), end, x, f)
 
+pub fun fold-while-int32( start : int32, end : int32, init : a, f : (int32,a) -> e maybe<a> ) : e a 
+  if (start >= end) then init else 
+    match f(start,init)
+      Just(x) -> fold-while-int32(unsafe-decreasing(start.inc), end, x, f)
+      Nothing -> init
+
+
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
+pub fun for32( start: int32, end : int32, action : (int32) -> e () ) : e ()
+  fun rep( i : int32 )
+    if i <= end then
+      action(i)
+      rep(unsafe-decreasing(i.inc))
+  rep(start)
+
+
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
+// If `action` returns `Just`, the iteration is stopped and the result returned
+pub fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<a> ) : e maybe<a>
+  fun rep( i : int32 )
+    if i <= end then
+      match action(i)
+        Nothing -> rep(unsafe-decreasing(i.inc))
+        Just(x) -> Just(x)
+    else Nothing
+  rep(start)
+
+pub fun list32( lo: int32, hi: int32 ) : total list<int32>
+  if lo <= hi
+    then Cons( lo, list32( unsafe-decreasing(lo.inc), hi ) )
+    else Nil
+
+pub fip fun sum32( ^xs : list<int32> ) : int32
+  // xs.foldl( 0.int32, fn(x,y) x + y )    
+  sumacc32(xs,0.int32)
+
+fip fun sumacc32( ^xs : list<int32>, acc : int32 ) : int32
+  match xs
+    Cons(x,xx) -> sumacc32(xx,acc+x)
+    Nil -> acc
+    

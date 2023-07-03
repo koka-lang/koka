@@ -104,11 +104,11 @@ instance Functor Div where
   fmap f (Div d)   = Div (\rel -> case d rel of (x,calls) -> (f x, calls))
 
 instance Applicative Div where
-  pure  = return
-  (<*>) = ap  
+  pure x  = Div (\rel -> (x,[]))
+  (<*>)   = ap  
 
 instance Monad Div where
-  return x  = Div (\rel -> (x,[]))
+  -- return = pure
   (Div d) >>= f  = Div (\rel -> case d rel of
                                   (x,calls1) -> case f x of
                                                   Div d2 -> case d2 rel of

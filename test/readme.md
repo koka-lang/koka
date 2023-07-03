@@ -36,6 +36,7 @@ Options:
 --cabal                      # Use cabal to run koka.
 --system-ghc                 # If using stack, use --system-ghc option.
 --target-js                  # Test javascript backend
+--target-c64c                # Test compressed heap 
 -O2                          # Use optimization
 -O-1                         # Full debug mode with internal runtime assertions enabled
 --seq                        # Test sequentially (instead of in parallel) 

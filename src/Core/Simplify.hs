@@ -22,7 +22,9 @@ import Common.Syntax
 import Common.NamePrim( nameEffectOpen, nameToAny, nameReturn, nameOptionalNone, nameIsValidK
                        , nameLift, nameBind, nameEvvIndex, nameClauseTailNoYield, isClauseTailName
                        , nameBox, nameUnbox, nameAssert
-                       , nameAnd, nameOr, isNameTuple )
+                       , nameAnd, nameOr, isNameTuple
+                       , nameCCtxCompose, nameCCtxComposeExtend, nameCCtxEmpty )
+
 import Common.Unique
 import Type.Type
 import Type.Kind
@@ -349,6 +351,19 @@ bottomUp (App (Lam pars eff body) args) | length pars == length args  && all fre
 bottomUp (App (TypeApp (Var bind _) _) [App (TypeApp (Var lift _) _) [arg], cont]) | getName bind == nameBind && getName lift == nameLift
   = App cont [arg]
 
+
+-- composition extension: c[ctx hole] -> c
+bottomUp (App (TypeApp (Var cextend _) _) [ctx1, App (TypeApp (Var cempty _) _) []]) | getName cextend == nameCCtxComposeExtend && getName cempty == nameCCtxEmpty
+  = ctx1
+
+-- context composition: c ++ ctx _  == c  == ctx _ ++ c
+bottomUp (App (TypeApp (Var ctxcomp _) _) [ctx1, App (TypeApp (Var cempty _) _) []]) | getName ctxcomp == nameCCtxCompose && getName cempty == nameCCtxEmpty
+  = ctx1
+
+bottomUp (App (TypeApp (Var ctxcomp _) _) [App (TypeApp (Var cempty _) _) [],ctx2]) | getName ctxcomp == nameCCtxCompose && getName cempty == nameCCtxEmpty
+  = ctx2
+
+
 -- continuation validation
 bottomUp expr@(App (TypeApp (Var isValidK _) _) [arg])  | getName isValidK == nameIsValidK
   = case arg of
@@ -436,7 +451,7 @@ bottomUp (App (Var v _) [App (Var w _) [arg]])  | (getName v == nameUnbox && get
 
 
 -- direct application of arguments to a lambda: fun(x1...xn) { f(x1,...,xn) }  -> f
-bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars
+bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars 
   = f
   where
     argsMatchPars = and (zipWith argMatchPar pars args)
@@ -482,6 +497,7 @@ instance Applicative Match where
                   NoMatch -> NoMatch
 
 instance Monad Match where
+  -- return = pure
   m >>= f   = case m of
                 Match x -> f x
                 Unknown -> Unknown
@@ -903,11 +919,11 @@ instance Functor Simp where
   fmap f (Simplify c)  = Simplify (\u env -> case c u env of Ok x u' -> Ok (f x) u')
 
 instance Applicative Simp where
-  pure  = return
-  (<*>) = ap
+  pure x = Simplify (\u g -> Ok x u)
+  (<*>)  = ap
 
 instance Monad Simp where
-  return x      = Simplify (\u g -> Ok x u)
+  -- return = pure
   (Simplify c) >>= f  = Simplify (\u g -> case c u g of
                                       Ok x u' -> case f x of
                                                    Simplify d -> d u' g)

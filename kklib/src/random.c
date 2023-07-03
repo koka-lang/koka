@@ -226,7 +226,7 @@ uint32_t kk_srandom_range_uint32(uint32_t max, kk_context_t* ctx) {
   uint32_t x = kk_srandom_uint32(ctx);
   uint64_t m = (uint64_t)x * (uint64_t)max;
   uint32_t l = (uint32_t)m;
-  if (kk_unlikely(l < max)) {
+  if kk_unlikely(l < max) {
     uint32_t threshold = (~max+1) % max;  /* 2^32 % max  ==  (2^32 - max) % max  ==  -max % max */
     while (l < threshold) {
       x = kk_srandom_uint32(ctx);

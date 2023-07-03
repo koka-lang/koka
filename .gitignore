@@ -18,6 +18,9 @@ package-lock.json
 test.kk
 *.pdb
 *.pdn
+*.vcxproj.user
+*.vcxproj.interactive
+*.
 *~
 *.exe
 *.vsix

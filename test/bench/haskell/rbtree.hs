@@ -36,7 +36,7 @@ ins Leaf                 kx vx = Node Red Leaf kx vx Leaf
 ins (Node Red a ky vy b) kx vx =
    (if lt kx ky then Node Red (ins a kx vx) ky vy b
     else if lt ky kx then Node Red a ky vy (ins b kx vx)
-    else Node Red a ky vy (ins b kx vx))
+    else Node Red a kx vx b -- Node Red a ky vy (ins b kx vx))
 ins (Node Black a ky vy b) kx vx =
     if lt kx ky then
       (if is_red a then balance1 (Node Black Leaf ky vy b) (ins a kx vx)
