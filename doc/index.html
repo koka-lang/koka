@@ -1119,6 +1119,12 @@ libraries, package management, and deep IDE integration.
 </p>
 <ul class="ul list-star news-items loose">
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
+<p>2023-07-03: Koka v2.4.2 released: add support for <code class="code code1 language-koka lang-koka koka colorized">fip</code> and <code class="code code1 language-koka lang-koka koka colorized">fbip</code> keywords described
+in &#8220;FP<sup>2</sup>: Fully in-Place Functional Programming&#8221; 
+(ICFP&#39;23) [<a href="https://www.microsoft.com/en-us/research/uploads/prod/2023/05/fbip.pdf">pdf</a>].
+Various fixes and performance improvements.
+</p></li>
+<li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
 <p>2021-02-04 (pinned) The&nbsp;<a href="https://www.youtube.com/channel/UCS4FAVeYW_IaZqAbqhlvxlA">Context Free</a> 
 youtube channel posted a short and fun&nbsp;<a href="https://www.youtube.com/watch?v=olISecOUX1g&amp;t=959s">video</a>
 about effects in Koka (and 12 (!) other languages).
@@ -1268,25 +1274,45 @@ algorithms in a functional style.
 <a href="book.html#why" class="learn button">Read more about these core concepts</a></p></div></div></div>
 <div class="wide"><h1 id="install" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Install</h1></div>
 <div class="content">
+<!--
+On macOS (x64, M1), you can install and upgrade &koka; using Homebrew:
 
-<p class="p noindent">On macOS (x64, M1), you can install and upgrade Koka using Homebrew:
-</p>
-<p class="p copy button indent" title="Copy" data-value="brew install koka" style="float:left;font-size:75%"><span class="fa fa-copy"></span></p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">brew install koka</strong></span></code></pre>
-<p class="p noindent para-continued">On Windows (x64), open a <code class="code code2">cmd</code> prompt and use:
+&acopy;
+{.copy; data-value:"brew install koka"}
+
+    \(**brew install koka**\)
+-->
+
+
+
+<p class="p noindent">On Windows (x64), open a <code class="code code2">cmd</code> prompt and use:
 </p>
 <p class="p copy button indent" title="Copy" data-value="curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat &amp;&amp; %tmp%\install-koka.bat" style="float:left;font-size:75%"><span class="fa fa-copy"></span></p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat &amp;&amp; %tmp%\install-koka.bat</strong></span></code></pre>
-<p class="p noindent para-continued">On Linux (x64, arm64) and FreeBSD (x64) (and macOS), you can install Koka using:
+<p class="p noindent para-continued">On Linux (x64) and macOS (x64, arm64 (M1/M2)), you can install Koka using:
 </p>
 <p class="p copy button indent" title="Copy" data-value="curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh" style="float:left;font-size:75%"><span class="fa fa-copy"></span></p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
-<p class="p noindent para-continued" style="text-align:left">There are also installation packages for various Linux distributions:
-Ubuntu/Debian (<a href="https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-ubuntu-x64.deb" data-linkid="ubuntu-x64" class="localref">x64</a>,&nbsp;<a href="https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-ubuntu-arm64.deb" data-linkid="ubuntu-arm64" class="localref">arm64</a>),
-Alpine (<a href="https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-alpine-x64.apk" data-linkid="alpine-x64" class="localref">x64</a>,&nbsp;<a href="https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-alpine-arm64.apk" data-linkid="alpine-arm64" class="localref">arm64</a>),
-Arch (<a href="https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-arch-x64.pkg.tar.zst" data-linkid="arch-x64" class="localref">x64</a>,&nbsp;<a href="https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-arch-arm64.pkg.tar.zst" data-linkid="arch-arm64" class="localref">arm64</a>),
-Red Hat (<a href="https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-rhel-x64.rpm" data-linkid="rhel-x64" class="localref">x64</a>), and
-openSUSE (<a href="https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-opensuse-x64.rpm" data-linkid="opensuse-x64" class="localref">x64</a>).</p>
+<p class="p noindent para-continued">On other platforms it is usually easy to build Koka from&nbsp;<a href="https://github.com/koka-lang/koka#build-from-source">source</a> instead.
+</p><!--
+On macOS (x64, M1), you can install and upgrade &koka; using Homebrew:
+
+&acopy;
+{.copy; data-value:"brew install koka"}
+
+    \(**brew install koka**\)
+
+There are also installation packages for various Linux distributions:
+Ubuntu/Debian ([x64][ubuntu-x64], [arm64][ubuntu-arm64]),
+Alpine ([x64][alpine-x64], [arm64][alpine-arm64]),
+Arch ([x64][arch-x64], [arm64][arch-arm64]),
+Red Hat ([x64][rhel-x64]), and
+openSUSE ([x64][opensuse-x64]).
+{text-align:left}
+-->
+
+
+
 <p class="p indent">After installation, verify if Koka installed correctly:
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ koka</code></strong></span>
