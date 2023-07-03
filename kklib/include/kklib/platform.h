@@ -171,7 +171,6 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-value"
 #pragma GCC diagnostic ignored "-Warray-bounds"         // gives wrong warnings in std/os/path for string literals
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 #define kk_decl_const         __attribute__((const))    // reads no global state at all
 #define kk_decl_pure          __attribute__((pure))     // may read global state but has no observable side effects
 #define kk_decl_noinline       __attribute__((noinline))
