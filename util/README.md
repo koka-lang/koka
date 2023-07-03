@@ -10,6 +10,21 @@
 
 # Releasing
 
+Ensure latest stack:
+
+```
+$ stack upgrade
+$ stack update
+```
+
+Bump the Koka version in files:
+
+- `package.yaml`  (2 places!)
+- `util/install.sh`
+- `util/install.bat`
+- `util/Dockerfile`
+- `util/minbuild.sh`
+
 Compile Koka:
 
 ```
@@ -29,6 +44,14 @@ and create a bundle:
 
 ```
 $ stack exec koka -- -e util/bundle.kk 
+```
+
+(On Windows, to this in an Visual Studio x64 command line tools console).
+
+Test installation:
+
+```
+$ util/install.sh ./bundle/v<version>/koka-v<version>-<os>-<arch>.tar.gz
 ```
 
 Copy the bundles from `bundle/v<version>/koka-v<version>-<os>-<arch>.tar.gz` and upload them.
