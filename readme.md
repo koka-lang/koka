@@ -15,6 +15,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_
+
 _Latest release_: v2.4.2, 2023-07-03 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
@@ -508,6 +509,6 @@ Also as MSR-TR-2021-5, Mar, 2021.
 10. Anton Lorenzen and Daan Leijen. &ldquo; Reference Counting with Frame-Limited Reuse&rdquo; Microsoft Research
 technical report MSR-TR-2021-30, Nov 2021, (updated Mar 2022, v2). [pdf](https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/)
 
-11. Anton Lorenzen, Daan Leijen, and Wouter Swierstra. &ldquo; FP<sup>2</sup>: Fully in-Place Functional Programming&rdquo;
+11. Anton Lorenzen, Daan Leijen, and Wouter Swierstra. &ldquo;FP<sup>2</sup>: Fully in-Place Functional Programming&rdquo;
 The 28th ACM SIGPLAN International Conference on Functional Programming (ICFP), September 2023. 
 [pdf](https://www.microsoft.com/en-us/research/uploads/prod/2023/05/fbip.pdf) (extended tech. report MSR-TR-2023-19, May 2023).

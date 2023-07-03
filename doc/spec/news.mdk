@@ -1,6 +1,11 @@
 ~ begin news
 News:
 
+* 2023-07-03: Koka v2.4.2 released: add support for `fip` and `fbip` keywords described
+  in &ldquo;FP<sup>2</sup>: Fully in-Place Functional Programming&rdquo; 
+  (ICFP'23) [[pdf](https://www.microsoft.com/en-us/research/uploads/prod/2023/05/fbip.pdf)].
+  Various fixes and performance improvements.
+
 * 2021-02-04 (pinned) The [Context Free](https://www.youtube.com/channel/UCS4FAVeYW_IaZqAbqhlvxlA) 
   youtube channel posted a short and fun [video](https://www.youtube.com/watch?v=olISecOUX1g&t=959s)
   about effects in Koka (and 12 (!) other languages).

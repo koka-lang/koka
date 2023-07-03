@@ -17,12 +17,14 @@
 
 [Homebrew]: https://brew.sh
 
+<!--
 On macOS (x64, M1), you can install and upgrade &koka; using Homebrew:
 
 &acopy;
 {.copy; data-value:"brew install koka"}
 
     \(**brew install koka**\)
+-->
 
 On Windows (x64), open a ``cmd`` prompt and use:
 
@@ -31,12 +33,23 @@ On Windows (x64), open a ``cmd`` prompt and use:
 
     \(**curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat**\)
 
-On Linux (x64, arm64) and FreeBSD (x64) (and macOS), you can install &koka; using:
+On Linux (x64) and macOS (x64, arm64 (M1/M2)), you can install &koka; using:
 
 &acopy;
 {.copy; data-value:"curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh"}
 
     \(**curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
+
+(If you previously installed Koka on macOS using `brew`, do an `brew uninstall koka` first).
+On other platforms it is usually easy to build Koka from [source](https://github.com/koka-lang/koka#build-from-source) instead.
+
+<!--
+On macOS (x64, M1), you can install and upgrade &koka; using Homebrew:
+
+&acopy;
+{.copy; data-value:"brew install koka"}
+
+    \(**brew install koka**\)
 
 There are also installation packages for various Linux distributions:
 Ubuntu/Debian ([x64][ubuntu-x64], [arm64][ubuntu-arm64]),
@@ -45,6 +58,7 @@ Arch ([x64][arch-x64], [arm64][arch-arm64]),
 Red Hat ([x64][rhel-x64]), and
 openSUSE ([x64][opensuse-x64]).
 {text-align:left}
+-->
 
 After installation, verify if &koka; installed correctly:
 

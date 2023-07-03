@@ -16,7 +16,7 @@ import std/os/process
 
 val header = "usage:\n stack exec koka -- util/docs [-- [options]]\n\noptions:"
 
-struct iflags 
+ref struct iflags 
   publish  : bool  = False
   version  : string = ""
   speconly : bool  = False

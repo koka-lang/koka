@@ -306,7 +306,7 @@ void map( list_t xs, function_t f,
 }
 ````
 
-Moreover, the &koka; compiler also implements _tail-recursion modulo cons_ (TRMC)
+Moreover, the &koka; compiler also implements _tail-recursion modulo cons_ (TRMC) [@Leijen:trmc;@Leijen:trmc-tr]
 and instead of using a recursive call, the function is eventually optimized 
 into an in-place updating loop for the fast path, similar to 
 the C code example on the right. 
@@ -323,6 +323,11 @@ functional style.
 [Learn more about FBIP &adown;](book.html#sec-fbip)
 {.learn}
 
+[Read the paper on fully in-place functional programming][fip-paper]
+{.learn}
+
+[Read the paper on generalized tail-recursion modulo cons][trmc-paper]
+{.learn}
 
 
 ## Specialization
@@ -426,7 +431,7 @@ Here we see too that the node `t` is freed explicitly as soon as it is
 no longer live. This is usually earlier than scope-based deallocation 
 (like RAII) and therefore Perceus can guarantee to be _garbage-free_ 
 where in a (cycle-free) program objects are always immediatedly
-deallocated as soon as they become unreachable [@Reinking:perceus;@Lorenzen:reuse-tr].
+deallocated as soon as they become unreachable [@Reinking:perceus;@Lorenzen:reuse-tr;@Lorenzen:fip;@Lorenzen:fip-tr].
 Moreover, it is fully deterministic and behaves just like regular 
 malloc/free calls.
 Reference counting may still seem expensive compared to trace-based garbage collection
@@ -443,3 +448,5 @@ in practice.
 [Read the technical report on garbage-free and frame-limited reuse][reusetech]
 {.learn}
 
+[Read the technical report on fully in-place functional programming][fip-paper]
+{.learn}
