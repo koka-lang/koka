@@ -255,6 +255,7 @@ inline fip extern rotr64( i : int64, n : int64 ) : int64
 pub fip fun rotr( i : int64, shift : int) : int64
   rotr64(i,shift.int64)
 
+
 // Count trailing zero bits. Returns 64 if `i` is zero.
 inline fip extern ctz64( i : int64 ) : int64 
   c inline "(int64_t)kk_bits_ctz64(#1)"
@@ -265,17 +266,6 @@ inline fip extern clz64( i : int64 ) : int64
   c inline "(int64_t)kk_bits_clz64(#1)"
   js "$std_core._int64_clz"
 
-// Find first set: returns the bit-index + 1, or 0 when `i==0`.
-inline fip extern ffs64( i : int64 ) : int64 
-  c inline "(int64_t)kk_bits_ffs64(#1)"
-  js "$std_core._int64_ffs"
-
-// Count leading redundant (i.e. the number of bits
-// following the most significant bit that are identical to it).
-inline fip extern clrsb64( i : int64 ) : int64 
-  c inline "(int64_t)kk_bits_clrsb64(#1)"
-  js "$std_core._int64_clrsb"
-
 // Count trailing zero bits. Returns 64 if `i` is zero.
 pub fip fun ctz( i : int64 ) : int
   ctz64(i).int
@@ -284,9 +274,12 @@ pub fip fun ctz( i : int64 ) : int
 pub fip fun clz( i : int64 ) : int
   clz64(i).int
 
-// Find first set: returns the bit-index + 1, or 0 when `i==0`.
-pub fip fun ffs( i : int64 ) : int
-  ffs64(i).int
+
+// Count leading redundant (i.e. the number of bits
+// following the most significant bit that are identical to it).
+inline fip extern clrsb64( i : int64 ) : int64 
+  c inline "(int64_t)kk_bits_clrsb64(#1)"
+  js "$std_core._int64_clrsb"
 
 // Count leading redundant (i.e. the number of bits
 // following the most significant bit that are identical to it).
@@ -308,6 +301,10 @@ pub inline fip extern parity( i : int64 ) : bool
   c inline "kk_bits_popcount_is_even64(#1)"
   js "$std_core._int64_parity"    
 
+// Reverse the bytes in an `:int64`.
+pub inline fip extern bswap( i : int64 ) : int64
+  c inline "kk_bits_bswap64(#1)"
+  js "$std_core._int64_bswap"
 
 
 // Return the minimum of two integers

@@ -11,7 +11,6 @@
 ---------------------------------------------------------------------------*/
 
 // Define __builtin suffixes for gcc/clang
-#if defined(__GNUC__)
 #if (LONG_MAX == INT32_MAX) 
 #define __builtin32(name)  __builtin_##name##l
 #else
@@ -22,7 +21,6 @@
 #else
 #define __builtin64(name)  __builtin_##name##ll
 #endif
-#endif
 
 
 #if (KK_INTX_SIZE==4)
@@ -31,72 +29,78 @@
 #define kk_bitsx(name)  kk_bits_##name##64
 #endif
 
-/* -----------------------------------------------------------
-  Is a word a power of two? see: <https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2>
-  (0 is not a power of two)
------------------------------------------------------------ */
-#define _kk_bits_is_power_of2(x)  ((x!=0) && ((x&(x-1)) == 0))
-
-static inline bool kk_bits_is_power_of2_32(uint32_t x) {
-  return _kk_bits_is_power_of2(x);
-}
-
-static inline bool kk_bits_is_power_of2_64(uint64_t x) {
-  return _kk_bits_is_power_of2(x);
-}
-
-static inline bool kk_bits_is_power_of2(kk_uintx_t x) {
-  return _kk_bits_is_power_of2(x);
-}
 
 /* -----------------------------------------------------------
   Rotations
 ----------------------------------------------------------- */
 #ifdef _MSC_VER
 #include <intrin.h>
-static inline uint16_t kk_bits_rotl16(uint16_t x, uint16_t shift) {
+static inline uint16_t kk_bits_rotl16(uint16_t x, int shift) {
   return _rotl16(x, (uint8_t)shift & 15);  // in <intrin.h>
 }
-static inline uint16_t kk_bits_rotr16(uint16_t x, uint16_t shift) {
+static inline uint16_t kk_bits_rotr16(uint16_t x, int shift) {
   return _rotr16(x, (uint8_t)shift & 15);  
 }
-static inline uint32_t kk_bits_rotl32(uint32_t x, uint32_t shift) {
-  return _lrotl(x, (int)shift & 31);
+static inline uint32_t kk_bits_rotl32(uint32_t x, int shift) {
+  return _lrotl(x, shift & 31);
 }
-static inline uint32_t kk_bits_rotr32(uint32_t x, uint32_t shift) {
-  return _lrotr(x, (int)shift & 31);
+static inline uint32_t kk_bits_rotr32(uint32_t x, int shift) {
+  return _lrotr(x, shift & 31);
 }
-static inline uint64_t kk_bits_rotl64(uint64_t x, uint64_t shift) {
-  return _rotl64(x, (int)shift & 63);
+static inline uint64_t kk_bits_rotl64(uint64_t x, int shift) {
+  return _rotl64(x, shift & 63);
 }
-static inline uint64_t kk_bits_rotr64(uint64_t x, uint64_t shift) {
-  return _rotr64(x, (int)shift & 63);
+static inline uint64_t kk_bits_rotr64(uint64_t x, int shift) {
+  return _rotr64(x, shift & 63);
+}
+#elif __has_builtin(__builtin_rotateleft64) 
+static inline uint16_t kk_bits_rotl16(uint16_t x, int shift) {
+  return __builtin_rotateleft16(x, (unsigned)shift & 15);  
+}
+static inline uint16_t kk_bits_rotr16(uint16_t x, int shift) {
+  return __builtin_rotateright16(x, (unsigned)shift & 15);
+}
+static inline uint32_t kk_bits_rotl32(uint32_t x, int shift) {
+  return __builtin_rotateleft32(x, (unsigned)shift & 31);
+}
+static inline uint32_t kk_bits_rotr32(uint32_t x, int shift) {
+  return __builtin_rotateright32(x, (unsigned)shift & 31);
+}
+static inline uint64_t kk_bits_rotl64(uint64_t x, int shift) {
+  return __builtin_rotateleft64(x, (unsigned)shift & 63);
+}
+static inline uint64_t kk_bits_rotr64(uint64_t x, int shift) {
+  return __builtin_rotateright64(x, (unsigned)shift & 63);
 }
 #else
 // most compilers translate these expressions to a direct rotation instruction
-static inline uint16_t kk_bits_rotl16(uint16_t x, uint16_t shift) {
-  shift &= 15;
-  return (x << shift) | (x >> (16 - shift));
+// The term `((-mshift)&(N-1)` is written this way instead of `N - mshift` to 
+// avoid UB when `mshift==0`. See <https://blog.regehr.org/archives/1063>
+#define _kk_return_rotate_left(N)  \
+  const unsigned int mshift = (unsigned int)(shift) & ((N)-1); \
+  return ((x) << mshift) | ((x) >> ((-mshift) & ((N)-1)))
+
+#define _kk_return_rotate_right(N)  \
+  const unsigned int mshift = (unsigned int)(shift) & ((N)-1); \
+  return ((x) >> mshift) | ((x) << ((-mshift) & ((N)-1)))
+
+static inline uint16_t kk_bits_rotl16(uint16_t x, int shift) {
+  _kk_return_rotate_left(16);
 }
-static inline uint16_t kk_bits_rotr16(uint16_t x, uint16_t shift) {
-  shift &= 15;
-  return (x >> shift) | (x << (16 - shift));
+static inline uint16_t kk_bits_rotr16(uint16_t x, int shift) {
+  _kk_return_rotate_right(16);
 }
-static inline uint32_t kk_bits_rotl32(uint32_t x, uint32_t shift) {
-  shift &= 31;
-  return (x << shift) | (x >> (32 - shift));
+static inline uint32_t kk_bits_rotl32(uint32_t x, int shift) {
+  _kk_return_rotate_left(32);
 }
-static inline uint32_t kk_bits_rotr32(uint32_t x, uint32_t shift) {
-  shift &= 31;
-  return (x >> shift) | (x << (32 - shift));
+static inline uint32_t kk_bits_rotr32(uint32_t x, int shift) {
+  _kk_return_rotate_right(32);
 }
-static inline uint64_t kk_bits_rotl64(uint64_t x, uint64_t shift) {
-  shift &= 63;
-  return (x << shift) | (x >> (64 - shift));
+static inline uint64_t kk_bits_rotl64(uint64_t x, int shift) {
+  _kk_return_rotate_left(64);
 }
-static inline uint64_t kk_bits_rotr64(uint64_t x, uint64_t shift) {
-  shift &= 63;
-  return (x >> shift) | (x << (64 - shift));
+static inline uint64_t kk_bits_rotr64(uint64_t x, int shift) {
+  _kk_return_rotate_right(16);
 }
 #endif
 
@@ -116,26 +120,20 @@ static inline kk_uintx_t kk_bits_rotr(kk_uintx_t x, kk_uintx_t shift) {
   `fls` find last set: bit-index + 1, or 0 for zero
 ----------------------------------------------------------- */
 
-#if defined(__GNUC__)
+#if __has_builtin(__builtin_clz)
 static inline int kk_bits_clz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(clz)(x));
 }
 static inline int kk_bits_ctz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(ctz)(x));
 }
-static inline int kk_bits_ffs32(uint32_t x) {
-  return __builtin32(ffs)(x);
-}
 #if (KK_INTX_SIZE >= 8)
 #define KK_HAS_BITS_CLZ64
 static inline int kk_bits_clz64(uint64_t x) {
-  return (x==0 ? 64 : __builtin64(clz)(x));
+  return (x == 0 ? 64 : __builtin64(clz)(x));  
 }
 static inline int kk_bits_ctz64(uint64_t x) {
   return (x==0 ? 64 : __builtin64(ctz)(x));
-}
-static inline int kk_bits_ffs64(uint64_t x) {
-  return __builtin64(ffs)(x);
 }
 #endif
 
@@ -149,10 +147,6 @@ static inline int kk_bits_ctz32(uint32_t x) {
   unsigned long idx;
   return (_BitScanForward(&idx, x) ? (int)idx : 32);
 }
-static inline int kk_bits_ffs32(uint32_t x) {
-  unsigned long idx;
-  return (_BitScanForward(&idx, x) ? 1 + (int)idx : 0);
-}
 #if (KK_INTX_SIZE >= 8)
 #define KK_HAS_BITS_CLZ64
 static inline int kk_bits_clz64(uint64_t x) {
@@ -163,19 +157,12 @@ static inline int kk_bits_ctz64(uint64_t x) {
   unsigned long idx;
   return (_BitScanForward64(&idx, x) ? (int)idx : 64);
 }
-static inline int kk_bits_ffs64(uint64_t x) {
-  unsigned long idx;
-  return (_BitScanForward64(&idx, x) ? 1 + (int)idx : 0);
-}
 #endif
 
 #else
 #define KK_BITS_USE_GENERIC_CTZ_CLZ  1
 kk_decl_export int kk_bits_ctz32(uint32_t x);
 kk_decl_export int kk_bits_clz32(uint32_t x);
-static inline int kk_bits_ffs32(uint32_t x) {
-  return (x == 0 ? 0 : 1 + kk_bits_ctz32(x));
-}
 #endif
 
 #ifndef KK_HAS_BITS_CLZ64
@@ -190,32 +177,13 @@ static inline int kk_bits_ctz64(uint64_t x) {
   if (cnt < 32) return cnt;
   return (32 + kk_bits_ctz32((uint32_t)(x >> 32)));
 }
-static inline int kk_bits_ffs64(uint64_t x) {
-  if (x == 0) return 0;
-  int idx = kk_bits_ffs32((uint32_t)x);
-  if (idx > 0) return idx;
-  return (32 + kk_bits_ffs32((uint32_t)(x >> 32)));
-}
 #endif
-
-static inline int kk_bits_fls32(uint32_t x) {
-  return (32 - kk_bits_clz32(x));
-}
-static inline int kk_bits_fls64(uint64_t x) {
-  return (64 - kk_bits_clz64(x));
-}
 
 static inline int kk_bits_clz(kk_uintx_t x) {
   return kk_bitsx(clz)(x);
 }
 static inline int kk_bits_ctz(kk_uintx_t x) {
   return kk_bitsx(ctz)(x);
-}
-static inline int kk_bits_ffs(kk_uintx_t x) {
-  return kk_bitsx(ffs)(x);
-}
-static inline int kk_bits_fls(kk_uintx_t x) {
-  return kk_bitsx(fls)(x);
 }
 
 /* -----------------------------------------------------------
@@ -233,15 +201,15 @@ static inline int kk_bits_fls(kk_uintx_t x) {
 ----------------------------------------------------------- */
 
 static inline int kk_bits_clrsb32(int32_t x) {
-  const int32_t i = kk_sar32(x, 31) ^ x;
-  if (i == 0) return 31; // x==0 or x==1
-         else return kk_bits_clz32(i) - 1;
+  const int32_t i = kk_sar32(x, 31) ^ x;   // (x<0 ? ~x : x)
+  if (i == 0) return 31;                   // x was 0 or -1
+         else return kk_bits_clz32((uint32_t)i) - 1;
 }
 
 static inline int kk_bits_clrsb64(int64_t x) {
-  const int64_t i = kk_sar64(x, 63) ^ x;
-  if (i == 0) return 63; // x==0 or x==1
-         else return kk_bits_clz64(i) - 1;
+  const int64_t i = kk_sar64(x, 63) ^ x;   // (x<0 ? ~x : x)
+  if (i == 0) return 63;                   // x was 0 or -1
+         else return kk_bits_clz64((uint64_t)i) - 1;
 }
 
 static inline int kk_bits_clrsb(kk_intx_t x) {
@@ -267,6 +235,7 @@ static inline kk_uintx_t kk_bits_clear_lsb(kk_uintx_t x) {
   return kk_bitsx(clear_lsb)(x);
 }
 
+
 /* -----------------------------------------------------------
  keep (only) least-significant bit 
 ----------------------------------------------------------- */
@@ -283,6 +252,22 @@ static inline uint64_t kk_bits_only_keep_lsb64(uint64_t x) {
 
 static inline kk_uintx_t kk_bits_only_keep_lsb(kk_uintx_t x) {
   return kk_bitsx(only_keep_lsb)(x);
+}
+
+/* -----------------------------------------------------------
+  Is a word a power of two? (0 is not a power of two)
+----------------------------------------------------------- */
+
+static inline bool kk_bits_is_power_of2_32(uint32_t x) {
+  return (x != 0 && kk_bits_clear_lsb32(x) == 0);
+}
+
+static inline bool kk_bits_is_power_of2_64(uint64_t x) {
+  return (x != 0 && kk_bits_clear_lsb64(x) == 0);
+}
+
+static inline bool kk_bits_is_power_of2(kk_uintx_t x) {
+  return kk_bitsx(is_power_of2_)(x);
 }
 
 

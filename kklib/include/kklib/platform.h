@@ -153,6 +153,10 @@
 #define kk_constexpr
 #endif
 
+#ifndef __has_builtin
+#define __has_builtin(x)  0
+#endif
+
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #if !defined(SHARED_LIB)
 #define kk_decl_export     kk_decl_externc
