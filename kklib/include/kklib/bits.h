@@ -12,16 +12,19 @@
 
 // Define __builtin suffixes for gcc/clang
 #if (LONG_MAX == INT32_MAX) 
-#define __builtin32(name)  __builtin_##name##l
+#define __builtin32(name)       __builtin_##name##l
+#define __has_builtin32(name)   __has_builtin(__builtin_##name##l)
 #else
-#define __builtin32(name)  __builtin_##name
+#define __builtin32(name)       __builtin_##name
+#define __has_builtin32(name)   __has_builtin(__builtin_##name)
 #endif
 #if (LONG_MAX == INT64_MAX) 
-#define __builtin64(name)  __builtin_##name##l
+#define __builtin64(name)       __builtin_##name##l
+#define __has_builtin64(name)   __has_builtin(__builtin_##name##l)
 #else
-#define __builtin64(name)  __builtin_##name##ll
+#define __builtin64(name)       __builtin_##name##ll
+#define __has_builtin64(name)   __has_builtin(__builtin_##name##ll)
 #endif
-
 
 #if (KK_INTX_SIZE==4)
 #define kk_bitsx(name)  kk_bits_##name##32
@@ -33,27 +36,7 @@
 /* -----------------------------------------------------------
   Rotations
 ----------------------------------------------------------- */
-#ifdef _MSC_VER
-#include <intrin.h>
-static inline uint16_t kk_bits_rotl16(uint16_t x, int shift) {
-  return _rotl16(x, (uint8_t)shift & 15);  // in <intrin.h>
-}
-static inline uint16_t kk_bits_rotr16(uint16_t x, int shift) {
-  return _rotr16(x, (uint8_t)shift & 15);  
-}
-static inline uint32_t kk_bits_rotl32(uint32_t x, int shift) {
-  return _lrotl(x, shift & 31);
-}
-static inline uint32_t kk_bits_rotr32(uint32_t x, int shift) {
-  return _lrotr(x, shift & 31);
-}
-static inline uint64_t kk_bits_rotl64(uint64_t x, int shift) {
-  return _rotl64(x, shift & 63);
-}
-static inline uint64_t kk_bits_rotr64(uint64_t x, int shift) {
-  return _rotr64(x, shift & 63);
-}
-#elif __has_builtin(__builtin_rotateleft64) 
+#if __has_builtin(__builtin_rotateleft64) 
 static inline uint16_t kk_bits_rotl16(uint16_t x, int shift) {
   return __builtin_rotateleft16(x, (unsigned)shift & 15);  
 }
@@ -71,6 +54,26 @@ static inline uint64_t kk_bits_rotl64(uint64_t x, int shift) {
 }
 static inline uint64_t kk_bits_rotr64(uint64_t x, int shift) {
   return __builtin_rotateright64(x, (unsigned)shift & 63);
+}
+#elif defined(_MSC_VER)
+#include <intrin.h>
+static inline uint16_t kk_bits_rotl16(uint16_t x, int shift) {
+  return _rotl16(x, (uint8_t)shift & 15);  // in <intrin.h>
+}
+static inline uint16_t kk_bits_rotr16(uint16_t x, int shift) {
+  return _rotr16(x, (uint8_t)shift & 15);
+}
+static inline uint32_t kk_bits_rotl32(uint32_t x, int shift) {
+  return _lrotl(x, shift & 31);
+}
+static inline uint32_t kk_bits_rotr32(uint32_t x, int shift) {
+  return _lrotr(x, shift & 31);
+}
+static inline uint64_t kk_bits_rotl64(uint64_t x, int shift) {
+  return _rotl64(x, shift & 63);
+}
+static inline uint64_t kk_bits_rotr64(uint64_t x, int shift) {
+  return _rotr64(x, shift & 63);
 }
 #else
 // most compilers translate these expressions to a direct rotation instruction
@@ -104,11 +107,11 @@ static inline uint64_t kk_bits_rotr64(uint64_t x, int shift) {
 }
 #endif
 
-static inline kk_uintx_t kk_bits_rotl(kk_uintx_t x, kk_uintx_t shift) {
+static inline kk_uintx_t kk_bits_rotl(kk_uintx_t x, int shift) {
   return kk_bitsx(rotl)(x, shift);
 }
 
-static inline kk_uintx_t kk_bits_rotr(kk_uintx_t x, kk_uintx_t shift) {
+static inline kk_uintx_t kk_bits_rotr(kk_uintx_t x, int shift) {
   return kk_bitsx(rotr)(x, shift);
 }
 
@@ -120,14 +123,14 @@ static inline kk_uintx_t kk_bits_rotr(kk_uintx_t x, kk_uintx_t shift) {
   `fls` find last set: bit-index + 1, or 0 for zero
 ----------------------------------------------------------- */
 
-#if __has_builtin(__builtin_clz)
+#if __has_builtin32(clz)
 static inline int kk_bits_clz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(clz)(x));
 }
 static inline int kk_bits_ctz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(ctz)(x));
 }
-#if (KK_INTX_SIZE >= 8)
+#if __has_builtin64(clz)
 #define KK_HAS_BITS_CLZ64
 static inline int kk_bits_clz64(uint64_t x) {
   return (x == 0 ? 64 : __builtin64(clz)(x));  
@@ -200,17 +203,29 @@ static inline int kk_bits_ctz(kk_uintx_t x) {
  clrsb32(INT32_MIN) = 0
 ----------------------------------------------------------- */
 
+#if __has_builtin32(clrsb)
+static inline int kk_bits_clrsb32(int32_t x) {
+  return __builtin32(clrsb)(x);
+}
+#else
 static inline int kk_bits_clrsb32(int32_t x) {
   const int32_t i = kk_sar32(x, 31) ^ x;   // (x<0 ? ~x : x)
   if (i == 0) return 31;                   // x was 0 or -1
          else return kk_bits_clz32((uint32_t)i) - 1;
 }
+#endif
 
+#if __has_builtin64(clrsb)
+static inline int kk_bits_clrsb64(int64_t x) {
+  return __builtin64(clrsb)(x);
+}
+#else
 static inline int kk_bits_clrsb64(int64_t x) {
   const int64_t i = kk_sar64(x, 63) ^ x;   // (x<0 ? ~x : x)
   if (i == 0) return 63;                   // x was 0 or -1
          else return kk_bits_clz64((uint64_t)i) - 1;
 }
+#endif
 
 static inline int kk_bits_clrsb(kk_intx_t x) {
   return kk_bitsx(clrsb)(x);
@@ -356,7 +371,18 @@ static inline uint8_t kk_bits_byte_sum(kk_uintx_t x) {
 kk_decl_export int kk_bits_generic_popcount32(uint32_t x);
 kk_decl_export int kk_bits_generic_popcount64(uint64_t x);
 
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+#if __has_builtin32(popcount)
+static inline int kk_bits_popcount32(uint32_t x) {
+  return __builtin32(popcount)(x);
+}
+#if __has_builtin64(popcount)
+#define KK_HAS_BITS_POPCOUNT64
+static inline int kk_bits_popcount64(uint64_t x) {
+  return __builtin64(popcount)(x);
+}
+#endif
+
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
 extern bool kk_has_popcnt;  // initialized in runtime.c
 
@@ -369,17 +395,6 @@ static inline int kk_bits_popcount32(uint32_t x) {
 static inline int kk_bits_popcount64(uint64_t x) {
   if (kk_has_popcnt) return (int)__popcnt64(x);
   return kk_bits_generic_popcount64(x);
-}
-#endif
-
-#elif defined(__GNUC__)
-static inline int kk_bits_popcount32(uint32_t x) {
-  return __builtin32(popcount)(x);
-}
-#if (KK_INTX_SIZE >= 8)
-#define KK_HAS_BITS_POPCOUNT64
-static inline int kk_bits_popcount64(uint64_t x) {
-  return __builtin64(popcount)(x);
 }
 #endif
 
@@ -410,26 +425,35 @@ static inline int kk_bits_popcount(kk_uintx_t x) {
   swap bytes
 ------------------------------------------------------------------ */
 
-#ifdef _MSC_VER
-static inline uint16_t kk_bits_bswap16(uint16_t x) {
-  return _byteswap_ushort(x);  // in <stdlib.h>
-}
-static inline uint32_t kk_bits_bswap32(uint32_t x) {
-  return _byteswap_ulong(x);
-}
-static inline uint64_t kk_bits_bswap64(uint64_t x) {
-  return _byteswap_uint64(x);
-}
-#elif defined(__GNUC__)
+#if __has_builtin(__builtin_bswap32)
 static inline uint16_t kk_bits_bswap16(uint16_t x) {
   return __builtin_bswap16(x);
 }
 static inline uint32_t kk_bits_bswap32(uint32_t x) {
   return __builtin_bswap32(x);
 }
+
+#if __has_builtin(__builtin_bswap64)
+#define KK_HAS_BITS_BSWAP64
 static inline uint64_t kk_bits_bswap64(uint64_t x) {
   return __builtin_bswap64(x);
 }
+#endif
+
+#elif defined(_MSC_VER)
+static inline uint16_t kk_bits_bswap16(uint16_t x) {
+  return _byteswap_ushort(x);  // in <stdlib.h>
+}
+static inline uint32_t kk_bits_bswap32(uint32_t x) {
+  return _byteswap_ulong(x);
+}
+#if (KK_INTX_SIZE>=8)
+#define KK_HAS_BITS_BSWAP64
+static inline uint64_t kk_bits_bswap64(uint64_t x) {
+  return _byteswap_uint64(x);
+}
+#endif
+
 #else
 static inline uint16_t kk_bits_bswap16(uint16_t x) {
   return rotl16(x,8);
@@ -439,9 +463,13 @@ static inline uint32_t kk_bits_bswap32(uint32_t x) {
   uint32_t lo = kk_bits_bswap16(uint16_t)(x >> 16));
   return ((hi << 16) | lo);
 }
+#endif
+
+#ifndef KK_HAS_BITS_BSWAP64
+#define KK_HAS_BITS_BSWAP64
 static inline uint64_t kk_bits_bswap64(uint64_t x) {
-  uint64_t hi = kk_bits_bswap32(uint32_t)x);
-  uint64_t lo = kk_bits_bswap32(uint32_t)(x >> 32));
+  uint64_t hi = kk_bits_bswap32((uint32_t)x);
+  uint64_t lo = kk_bits_bswap32((uint32_t)(x >> 32));
   return ((hi << 32) | lo);
 }
 #endif
@@ -547,38 +575,48 @@ static inline double kk_bits_to_double(uint64_t x) {
   see <https://graphics.stanford.edu/~seander/bithacks.html#ParityParallel>
 ------------------------------------------------------------------ */
 
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-static inline bool kk_bits_popcount_is_even32(uint32_t x) {
-  return ((kk_bits_popcount32(x) & 1) == 0);
-}
-static inline bool kk_bits_popcount_is_even64(uint64_t x) {
-  return ((kk_bits_popcount64(x) & 1) == 0);
-}
-
-#elif defined(__GNUC__)
-static inline bool kk_bits_popcount_is_even32(uint32_t x) {
+#if __has_builtin32(parity)
+static inline bool kk_bits_parity32(uint32_t x) {
   return (__builtin32(parity)(x) == 0);
 }
-static inline bool kk_bits_popcount_is_even64(uint64_t x) {
+#if __has_builtin64(parity)
+#define KK_HAS_BITS_PARITY64
+static inline bool kk_bits_parity64(uint64_t x) {
   return (__builtin64(parity)(x) == 0);
 }
+#endif
+
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+static inline bool kk_bits_parity32(uint32_t x) {
+  return ((kk_bits_popcount32(x) & 1) == 0);
+}
+#if (KK_INTX_SIZE>=8)
+#define KK_HAS_BITS_PARITY64
+static inline bool kk_bits_parity64(uint64_t x) {
+  return ((kk_bits_popcount64(x) & 1) == 0);
+}
+#endif
 
 #else
-static inline bool kk_bits_popcount_is_even32(uint32_t x) {
+static inline bool kk_bits_parity32(uint32_t x) {
   x ^= x >> 16;
   x ^= x >> 8;
   x ^= x >> 4;
   x &= 0x0F;
   return (((0x6996 >> x) & 1) == 0);  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
 }
-static inline bool kk_bits_popcount_is_even64(uint64_t x) {
+#endif
+
+#ifndef KK_HAS_BITS_PARITY64
+#define KK_HAS_BITS_PARITY64
+static inline bool kk_bits_parity64(uint64_t x) {
   x ^= (x >> 32);
-  return kk_bits_popcount_is_even32((uint32_t)x);
+  return kk_bits_parity32((uint32_t)x);
 }
 #endif
 
-static inline bool kk_bits_popcount_is_even(kk_uintx_t x) {
-  return kk_bitsx(popcount_is_even)(x);
+static inline bool kk_bits_parity(kk_uintx_t x) {
+  return kk_bitsx(parity)(x);
 }
 
 /* ---------------------------------------------------------------

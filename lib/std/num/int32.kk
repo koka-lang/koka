@@ -280,7 +280,7 @@ pub fip fun popcount( i : int32 ) : int
 
 // Is the number of 1-bits even?
 pub inline fip extern parity( i : int32 ) : bool
-  c inline "kk_bits_popcount_is_even32(#1)"
+  c inline "kk_bits_parity32(#1)"
   js "$std_core._int32_parity"    
 
 // Reverse the bytes in an `:int32`.
