@@ -571,7 +571,7 @@ static inline double kk_bits_to_double(uint64_t x) {
 
 
 /* ---------------------------------------------------------------
-  Parity: returns `kk_bits_popcount(x) % 2`
+  Parity: returns `true` if `kk_bits_popcount(x)` is even.
   see <https://graphics.stanford.edu/~seander/bithacks.html#ParityParallel>
 ------------------------------------------------------------------ */
 
