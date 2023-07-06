@@ -7,21 +7,6 @@
 ---------------------------------------------------------------------------*/
 #include "kklib.h"
 
-int kk_bits_generic_popcount32(uint32_t x) {
-  x = x - ((x >> 1) & KK_U32(0x55555555));
-  x = (x & KK_U32(0x33333333)) + ((x >> 2) & KK_U32(0x33333333));
-  x = (x + (x >> 4)) & KK_U32(0x0F0F0F0F);
-  return kk_bits_byte_sum32(x);
-}
-
-int kk_bits_generic_popcount64(uint64_t x) {
-  x = x - ((x >> 1) & KK_U64(0x5555555555555555));
-  x = (x & KK_U64(0x3333333333333333)) + ((x >> 2) & KK_U64(0x3333333333333333));
-  x = (x + (x >> 4)) & KK_U64(0x0F0F0F0F0F0F0F0F);
-  return kk_bits_byte_sum64(x);
-}
-
-
 static const kk_uintx_t powers_of_10[] = { 
     1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000
 #if (KK_INTX_SIZE > 4)
@@ -58,7 +43,7 @@ int kk_bits_digits64(uint64_t u) {
 
 #if defined(KK_BITS_USE_GENERIC_CTZ_CLZ)
 
-int kk_bits_ctz32(uint32_t x) {
+int kk_bits_generic_ctz32(uint32_t x) {
   // de Bruijn multiplication, see <http://supertech.csail.mit.edu/papers/debruijn.pdf>
   static const int8_t debruijn[32] = {
     0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
@@ -69,7 +54,7 @@ int kk_bits_ctz32(uint32_t x) {
   return debruijn[(uint32_t)(x * KK_U32(0x077CB531)) >> 27];
 }
 
-int kk_bits_clz32(uint32_t x) {  
+int kk_bits_generic_clz32(uint32_t x) {  
   // de Bruijn multiplication, see <http://supertech.csail.mit.edu/papers/debruijn.pdf>
   static const int8_t debruijn[32] = {
     31, 22, 30, 21, 18, 10, 29, 2, 20, 17, 15, 13, 9, 6, 28, 1,
@@ -82,6 +67,24 @@ int kk_bits_clz32(uint32_t x) {
   x |= x >> 8;
   x |= x >> 16;
   return debruijn[(uint32_t)(x * KK_U32(0x07C4ACDD)) >> 27];
+}
+
+#endif
+
+#if defined(KK_BITS_USE_GENERIC_POPCOUNT)
+
+int kk_bits_generic_popcount32(uint32_t x) {
+  x = x - ((x >> 1) & KK_U32(0x55555555));
+  x = (x & KK_U32(0x33333333)) + ((x >> 2) & KK_U32(0x33333333));
+  x = (x + (x >> 4)) & KK_U32(0x0F0F0F0F);
+  return kk_bits_byte_sum32(x);
+}
+
+int kk_bits_generic_popcount64(uint64_t x) {
+  x = x - ((x >> 1) & KK_U64(0x5555555555555555));
+  x = (x & KK_U64(0x3333333333333333)) + ((x >> 2) & KK_U64(0x3333333333333333));
+  x = (x + (x >> 4)) & KK_U64(0x0F0F0F0F0F0F0F0F);
+  return kk_bits_byte_sum64(x);
 }
 
 #endif

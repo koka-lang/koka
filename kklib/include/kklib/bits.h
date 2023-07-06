@@ -163,9 +163,18 @@ static inline int kk_bits_ctz64(uint64_t x) {
 #endif
 
 #else
+
 #define KK_BITS_USE_GENERIC_CTZ_CLZ  1
-kk_decl_export int kk_bits_ctz32(uint32_t x);
-kk_decl_export int kk_bits_clz32(uint32_t x);
+kk_decl_export int kk_bits_generic_ctz32(uint32_t x);
+kk_decl_export int kk_bits_generic_clz32(uint32_t x);
+
+static inline int kk_bits_clz32(uint32_t x) {
+  return kk_bits_generic_clz32(x);
+}
+static inline int kk_bits_ctz32(uint32_t x) {
+  return kk_bits_generic_ctz32(x);
+}
+
 #endif
 
 #ifndef KK_HAS_BITS_CLZ64
@@ -368,21 +377,26 @@ static inline uint8_t kk_bits_byte_sum(kk_uintx_t x) {
   see <https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel>
 ------------------------------------------------------------------ */
 
-kk_decl_export int kk_bits_generic_popcount32(uint32_t x);
-kk_decl_export int kk_bits_generic_popcount64(uint64_t x);
-
 #if __has_builtin32(popcount)
 static inline int kk_bits_popcount32(uint32_t x) {
   return __builtin32(popcount)(x);
 }
 #if __has_builtin64(popcount)
-#define KK_HAS_BITS_POPCOUNT64
 static inline int kk_bits_popcount64(uint64_t x) {
   return __builtin64(popcount)(x);
 }
+#else
+static inline int kk_bits_popcount64(uint64_t x) {
+  return (kk_bits_popcount32((uint32_t)x) + kk_bits_popcount32((uint32_t)(x>>32)));
+}
 #endif
 
-#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+#else
+#define KK_BITS_USE_GENERIC_POPCOUNT
+kk_decl_export int kk_bits_generic_popcount32(uint32_t x);
+kk_decl_export int kk_bits_generic_popcount64(uint64_t x);
+
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
 extern bool kk_has_popcnt;  // initialized in runtime.c
 
@@ -390,30 +404,25 @@ static inline int kk_bits_popcount32(uint32_t x) {
   if (kk_has_popcnt) return (int)__popcnt(x);
   return kk_bits_generic_popcount32(x);
 }
-#if (KK_INTX_SIZE >= 8)
-#define KK_HAS_BITS_POPCOUNT64
+
 static inline int kk_bits_popcount64(uint64_t x) {
+  #if (KK_INTX_SIZE >= 8)
   if (kk_has_popcnt) return (int)__popcnt64(x);
+  #endif
   return kk_bits_generic_popcount64(x);
 }
-#endif
 
 #else
+
 static inline int kk_bits_popcount32(uint32_t x) {
   return kk_bits_generic_popcount32(x);
 }
 
-#define KK_HAS_BITS_POPCOUNT64
 static inline int kk_bits_popcount64(uint64_t x) {
   return kk_bits_generic_popcount64(x);
 }
 #endif
 
-#ifndef KK_HAS_BITS_POPCOUNT64
-#define KK_HAS_BITS_POPCOUNT64
-static inline int kk_bits_popcount64(uint64_t x) {
-  return (kk_bits_popcount32((uint32_t)x) + kk_bits_popcount32((uint32_t)(x>>32)));
-}
 #endif
 
 static inline int kk_bits_popcount(kk_uintx_t x) {

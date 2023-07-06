@@ -1075,7 +1075,7 @@ pub inline fip extern int( i : int32 ) : int
 
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
-pub fip extern int32( i : int) : int32
+pub inline fip extern int32( i : int) : int32
   c  "kk_integer_clamp32"
   cs "Primitive.IntToInt32"
   js "$std_core._int_clamp32"
