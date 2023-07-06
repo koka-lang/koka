@@ -967,22 +967,14 @@ static inline kk_integer_t kk_integer_min_borrow(kk_integer_t x, kk_integer_t y,
 
 static inline int32_t kk_integer_clamp32(kk_integer_t x, kk_context_t* ctx) {
   if kk_likely(kk_is_smallint(x)) {
-    /*
     const kk_intf_t i = kk_smallint_from_integer(x);
     const int32_t j = (int32_t)i;
     #if (KK_SMALLINT_MAX > INT32_MAX)
     if kk_likely(i == j) { return j; }
-                    else { return (i > INT32_MAX ? INT32_MAX : INT32_MIN); }
+                    else { return (i >= 0 ? INT32_MAX : INT32_MIN); }
     #else
     kk_assert_internal(j == i);
     return j;
-    #endif
-    */
-    const kk_intf_t i = kk_smallint_from_integer(x);
-    #if (KK_SMALLINT_MAX > INT32_MAX)
-    return (i < INT32_MIN ? INT32_MIN : (i > INT32_MAX ? INT32_MAX : (int32_t)i));
-    #else
-    return (int32_t)i;
     #endif
   }
   else {
@@ -992,11 +984,14 @@ static inline int32_t kk_integer_clamp32(kk_integer_t x, kk_context_t* ctx) {
 
 static inline int32_t kk_integer_clamp32_borrow(kk_integer_t x, kk_context_t* ctx) { // used for cfc field of evidence
   if kk_likely(kk_is_smallint(x)) {
-    kk_intf_t i = kk_smallint_from_integer(x);
+    const kk_intf_t i = kk_smallint_from_integer(x);
+    const int32_t j = (int32_t)i;
     #if (KK_SMALLINT_MAX > INT32_MAX)
-    return (i < INT32_MIN ? INT32_MIN : (i > INT32_MAX ? INT32_MAX : (int32_t)i));
+    if kk_likely(i == j) { return j; }
+    else { return (i >= 0 ? INT32_MAX : INT32_MIN); }
     #else
-    return (int32_t)i;
+    kk_assert_internal(j == i);
+    return j;
     #endif
   }
   else {
@@ -1006,11 +1001,14 @@ static inline int32_t kk_integer_clamp32_borrow(kk_integer_t x, kk_context_t* ct
 
 static inline int64_t kk_integer_clamp64(kk_integer_t x, kk_context_t* ctx) {
   if kk_likely(kk_is_smallint(x)) {
-    kk_intf_t i = kk_smallint_from_integer(x);
+    const kk_intf_t i = kk_smallint_from_integer(x);
+    const int64_t j = (int64_t)i;
     #if (KK_SMALLINT_MAX > INT64_MAX)
-    return (i < INT64_MIN ? INT64_MIN : (i > INT64_MAX ? INT64_MAX : (int64_t)i));
+    if kk_likely(i == j) { return j; }
+                    else { return (i >= 0 ? INT64_MAX : INT64_MIN); }
     #else
-    return (int64_t)i;
+    kk_assert_internal(j == i);
+    return j;
     #endif
   }
   else {
@@ -1020,11 +1018,14 @@ static inline int64_t kk_integer_clamp64(kk_integer_t x, kk_context_t* ctx) {
 
 static inline int64_t kk_integer_clamp64_borrow(kk_integer_t x, kk_context_t* ctx) {
   if kk_likely(kk_is_smallint(x)) {
-    kk_intf_t i = kk_smallint_from_integer(x);
+    const kk_intf_t i = kk_smallint_from_integer(x);
+    const int64_t j = (int64_t)i;
     #if (KK_SMALLINT_MAX > INT64_MAX)
-    return (i < INT64_MIN ? INT64_MIN : (i > INT64_MAX ? INT64_MAX : (int64_t)i));
+    if kk_likely(i == j) { return j; }
+                    else { return (i >= 0 ? INT64_MAX : INT64_MIN); }
     #else
-    return (int64_t)i;
+    kk_assert_internal(j == i);
+    return j;
     #endif
   }
   else {
