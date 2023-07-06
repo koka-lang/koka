@@ -103,7 +103,7 @@ static inline uint64_t kk_bits_rotl64(uint64_t x, int shift) {
   _kk_return_rotate_left(64);
 }
 static inline uint64_t kk_bits_rotr64(uint64_t x, int shift) {
-  _kk_return_rotate_right(16);
+  _kk_return_rotate_right(64);
 }
 #endif
 
