@@ -13,7 +13,7 @@ import Platform.Config(version)
 import Lib.Trace
 import Control.Applicative hiding (empty)
 import Control.Monad
-import Data.List ( intersperse, partition, sortOn )
+import Data.List ( intersperse, partition, sortOn, intercalate )
 import Data.Char
 -- import Data.Maybe
 -- import Data.Monoid ( mappend )
@@ -1135,6 +1135,12 @@ ntparameters pars
   where
     param (name,tp) = ppType tp <+> ppName (unqualify name)
 
+closFnParameters :: [(Name,Type)] -> Doc
+closFnParameters pars
+  = parameters ((text "void* fnPtr"):(map param pars))
+  where
+    param (name,tp) = ppType tp <+> ppName (unqualify name)
+
 parameters :: [Doc] -> Doc
 parameters pars
   = tupled (pars ++ [contextParam])
@@ -1179,14 +1185,19 @@ dataReprMayHaveSingletons dataRepr
       _                 -> False
 
 
+data CanonicalLambda = CanonicalLambda {
+    canonicalLambdaName :: Name,
+    canonicalLambdaFieldNames :: [(Name, Bool)] -- TODO: Determine whether to ignore orders
+} deriving (Show, Eq, Ord)
 
 genLambda :: [TName] -> Effect -> Expr -> Asm Doc
 genLambda params eff body
   = do funName <- newDefVarName "fun"
        toH     <- getDefToHeader
-       let newName   = prepend "new-" funName
+       let newLamName   = prepend "new-" funName
            funTpName = postpend "_t" funName
-           structDoc = text "struct" <+> ppName funTpName
+           fnTpDoc = ppName funTpName
+           structDoc = text "struct" <+> fnTpDoc
            freeVars  = [(nm,tp) | (TName nm tp) <- tnamesList (freeLocals (Lam params eff body))]
 
        platform <- getPlatform
@@ -1197,33 +1208,54 @@ genLambda params eff body
            getDataInfo name  = do newtypes <- getNewtypes
                                   return (newtypesLookupAny name newtypes)
        (allFields,vrepr) <- orderConFields emitError nameDoc getDataInfo platform 1 {- base.fun -} freeVars
+       let scanCount = valueReprScanCount vrepr
+           (paddingFields,fields) = partition (isPaddingName . fst) allFields
 
-       let (paddingFields,fields) = partition (isPaddingName . fst) allFields
-           scanCount = valueReprScanCount vrepr
-           -- fieldDocs = [ppType tp <+> ppName name | (name,tp) <- allFields]
-           tpDecl  =  text "struct" <+> ppName funTpName <+> block (
-                       vcat ([text "struct kk_function_s _base;"] ++
-                             [ppType tp <+> ppName name <.> semi | (name,tp) <- allFields])
-                     ) <.> semi -- <-> text "kk_struct_packed_end"
+       let types = map snd allFields
+       canonicalName <- newCanonicalVarName $ "lambda" ++ (if null fields then "" else "-") ++ intercalate "-" (map (asString . ppType) types)
+       let canonicalNewName = prepend "new-" canonicalName
+           canonicalFunTpName = postpend "_t" canonicalName
+           canonicalStructDoc = text "struct" <+> ppName canonicalFunTpName
+           canonicalFieldNames = map (\(nameTp, i) -> (newName $ "field-" ++ (show i), isPaddingName $ fst nameTp)) $ zip allFields [1..(length allFields)]
+           canonicalFields = zip (map fst canonicalFieldNames) types
+           canonicalFieldsMap = zip3 (map fst (filter (not . snd) canonicalFieldNames)) (map fst fields) types
+           canonical = CanonicalLambda canonicalName canonicalFieldNames
+       alreadyGenerated <- addLambdaCanonical canonical
+       if (not alreadyGenerated && not (null fields)) then do
+          let tpDecl = text "struct" <+> ppName canonicalFunTpName <+> block (
+                      vcat ([text "struct kk_function_s _base;"] ++
+                            [ppType tp <+> ppName name <.> semi | (name,tp) <- canonicalFields])
+                    ) <.> semi -- <-> text "kk_struct_packed_end"
+              newDef = text (if toH then "static inline" else "static")
+                    <+> text "kk_function_t" <+> ppName canonicalNewName <.> closFnParameters canonicalFields <+> block ( vcat (
+                    [canonicalStructDoc <.> text "* _self = kk_function_alloc_as" <.> arguments [canonicalStructDoc, pretty scanCount
+                                                                                              ] <.> semi
+                              ,text "_self->_base.fun = kk_kkfun_ptr_box(" <.> text "fnPtr" <.> text ", kk_context());"]
+                              ++ [text "_self->" <.> ppName name <+> text "=" <+> ppName name <.> semi | (name,_) <- (filter (not . snd) canonicalFieldNames)]
+                              ++ [text "_self->" <.> ppName paddingName <+> text "= kk_box_null();" | (paddingName,_) <- (filter snd canonicalFieldNames)]
+                              ++ [text "return kk_datatype_from_base(&_self->_base, kk_context());"])
+                    )
+          emitToH (vcat [linebreak,text "// canonical lambda", tpDecl, newDef] <.> linebreak)
+          return ()
+       else do
+          return ()
+
+       
+       let tpDecl  = if null fields then text "" else text "typedef struct" <+> ppName canonicalFunTpName <+> ppName funTpName <.> semi -- <-> text "kk_struct_packed_end"
 
            funSig  = text (if toH then "extern" else "static") <+> ppType (typeOf body)
                      <+> ppName funName <.> parameters ([text "kk_function_t _fself"] ++
                                                         [ppType tp <+> ppName name | (TName name tp) <- params])
 
            newDef  = funSig <.> semi
-                     <-> text (if toH then "static inline" else "static")
-                     <+> text "kk_function_t" <+> ppName newName <.> ntparameters fields <+> block ( vcat (
+                     <-> text (if (not (null fields) || toH) then "static inline" else "static")
+                     <+> text "kk_function_t" <+> ppName newLamName <.> ntparameters fields <+> block ( vcat (
                        if (null fields)
                          then [text "kk_define_static_function" <.> arguments [text "_fself", ppName funName] -- <.> semi
-                               --text "static" <+> structDoc <+> text "_self ="
-                              --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
                               ,text "return kk_function_dup(_fself,kk_context());"]
-                         else [structDoc <.> text "* _self = kk_function_alloc_as" <.> arguments [structDoc, pretty scanCount
-                                                                                              ] <.> semi
-                              ,text "_self->_base.fun = kk_kkfun_ptr_box(&" <.> ppName funName <.> text ", kk_context());"]
-                              ++ [text "_self->" <.> ppName name <+> text "=" <+> ppName name <.> semi | (name,_) <- fields]
-                              ++ [text "_self->" <.> ppName paddingName <+> text "= kk_box_null();" | (paddingName,_) <- paddingFields]
-                              ++ [text "return kk_datatype_from_base(&_self->_base, kk_context());"])
+                         else [
+                          text "return " <+> ppName canonicalNewName <.> arguments ((text "&"<.>(ppName funName)):(map (ppName . fst) fields)) <.> semi
+                         ])
                      )
 
 
@@ -1233,15 +1265,15 @@ genLambda params eff body
        let funDef = funSig <+> block (
                       (if (null fields) then text "kk_unused(_fself);"
                         else let dups = braces (hcat [genDupCall tp (ppName name) <.> semi | (name,tp) <- fields])
-                             in vcat ([structDoc <.> text "* _self = kk_function_as" <.> arguments [structDoc <.> text "*",text "_fself"] <.> semi]
-                                   ++ [ppType tp <+> ppName name <+> text "= _self->" <.> ppName name <.> semi <+> text "/*" <+> pretty tp <+> text "*/"  | (name,tp) <- fields]
+                             in vcat ([fnTpDoc <.> text "* _self = kk_function_as" <.> arguments [fnTpDoc <.> text "*",text "_fself"] <.> semi]
+                                   ++ [ppType tp <+> ppName name <+> text "= _self->" <.> ppName nameCanonical <.> semi <+> text "/*" <+> pretty tp <+> text "*/"  | (nameCanonical,name,tp) <- canonicalFieldsMap]
                                    ++ [text "kk_drop_match" <.> arguments [text "_self",dups,text "{}"]]
                                    ))
                       <-> bodyDoc
                     )
        emitToC funDef  -- TODO: make  static if for a Private definition
 
-       let funNew = ppName newName <.> arguments [ppName name | (name,_) <- fields]
+       let funNew = ppName newLamName <.> arguments [ppName name | (name,_) <- fields]
        return funNew
 
 ---------------------------------------------------------------------------------
@@ -2333,6 +2365,7 @@ data St  = St  { uniq :: Int
                , idoc :: [Doc]  -- initialization expressions
                , tdoc :: [Doc]  -- toplevel (goes to either H or C)
                , ddoc :: [Doc]  -- done expressions
+               , canonicalLambda :: S.Set CanonicalLambda
                }
 
 data Env = Env { moduleName        :: Name                    -- | current module
@@ -2348,7 +2381,7 @@ data Env = Env { moduleName        :: Name                    -- | current modul
 data Result = ResultReturn (Maybe TName) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
             | ResultAssign TName (Maybe Name)    -- variable name and optional label to break
 
-initSt uniq = St uniq [] [] [] [] []
+initSt uniq = St uniq [] [] [] [] [] S.empty
 
 instance HasUnique Asm where
   updateUnique f
@@ -2390,6 +2423,10 @@ getDone
 getTop :: Asm Doc
 getTop
   = Asm (\env st -> (vcat (reverse (tdoc st)), st{ tdoc = [] }))
+
+addLambdaCanonical :: CanonicalLambda -> Asm Bool
+addLambdaCanonical cl
+  = Asm (\env st -> (S.member cl $ canonicalLambda st, st{ canonicalLambda = S.insert cl (canonicalLambda st)}))
 
 getEnv
   = Asm (\env st -> (env, st))
@@ -2434,6 +2471,11 @@ newDefVarName s
   = do env <- getEnv
        u <- unique
        return $ postpend ("-" ++ s ++ show u) (cdefName env)
+
+newCanonicalVarName :: String -> Asm Name
+newCanonicalVarName s
+  = do env <- getEnv
+       return $ postpend ("-" ++ s) (moduleName env)
 
 getPrettyEnv :: Asm Pretty.Env
 getPrettyEnv
