@@ -125,62 +125,70 @@
         "title": "Koka: Set sdk path"
       }
     ],
-    "debuggers": [{
-      "type": "koka",
-      "label": "Koka Debugger",
-      "runtime": "node",
-      "languages": ["koka"],
-      "configurationAttributes": {
-        "launch": {
-          "required": ["program"],
-          "properties": {
-            "program": { 
-              "type": "string",
-              "description": "File to run the main function from",
-              "default": "${workspaceFolder}/${command:AskForProgramName}"
+    "debuggers": [
+      {
+        "type": "koka",
+        "label": "Koka Debugger",
+        "runtime": "node",
+        "languages": [
+          "koka"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "File to run the main function from",
+                "default": "${workspaceFolder}/${command:AskForProgramName}"
+              }
             }
           }
-        }
-      },
-      "initialConfigurations": [
-        {
-          "name": "Debug Koka Program",
-          "type": "koka",
-          "request": "launch",
-          "program": "${workspaceFolder}/${command:AskForProgramName}"
-        }
-      ],
-      "configurationSnippets": [
-        {
-          "label": "Launch",
-          "description": "Launch a Koka program",
-          "body": {
+        },
+        "initialConfigurations": [
+          {
+            "name": "Debug Koka Program",
             "type": "koka",
             "request": "launch",
-            "name": "Ask for file name",
-            "program": "^\"\\${workspaceFolder}/\\${command:AskForProgramName}\""
+            "program": "${workspaceFolder}/${command:AskForProgramName}"
           }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Launch",
+            "description": "Launch a Koka program",
+            "body": {
+              "type": "koka",
+              "request": "launch",
+              "name": "Ask for file name",
+              "program": "^\"\\${workspaceFolder}/\\${command:AskForProgramName}\""
+            }
+          }
+        ],
+        "variables": {
+          "AskForProgramName": "extension.language-koka.getProgramName"
         }
-      ],
-      "variables": {
-        "AskForProgramName": "extension.language-koka.getProgramName"
       }
-    }]
-
+    ]
   },
   "scripts": {
     "build": "tsc",
-    "watch": "tsc -w"
+    "watch": "tsc -w",
+    "package": "vsce package",
+    "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/node": "^20.2.5",
     "@types/vscode": "1.78.1",
+    "@vscode/vsce": "^2.19.0",
     "typescript": "^5.1.3"
   },
   "dependencies": {
-    "vscode-languageclient": "^6.0.0",
     "@vscode/debugadapter": "^1.61.0",
     "@vscode/debugprotocol": "^1.61.0",
-    "await-notify": "1.0.1"
+    "await-notify": "1.0.1",
+    "vscode-languageclient": "^6.0.0"
   }
 }

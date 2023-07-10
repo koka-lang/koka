@@ -94,7 +94,7 @@ instance HasSymbols UserDef where
     where
       b = defBinder d
       k = case defSort d of
-        DefFun _ -> J.SkFunction
+        DefFun _ _ -> J.SkFunction
         DefVal -> J.SkConstant
         DefVar -> J.SkVariable
       n = binderName b

@@ -1215,9 +1215,9 @@ parseFip
   = do isTail   <- do specialId "tail"
                       return True
                   <|> return False
-       ( do specialId "fip"
+       ( do rng <- specialId "fip"
             alloc <- parseFipAlloc
-            when isTail $ pwarningMessage "a 'fip' function implies already 'tail'"
+            when isTail $ pwarningMessage "a 'fip' function implies already 'tail'" rng
             return (Fip alloc)
          <|> 
          do specialId "fbip"

@@ -155,7 +155,7 @@ class KokaRuntime extends EventEmitter {
 		const target = this.config.target
 		if (target == 'C') {
 			console.log(`Executing ${this.config.command} -e ${file} -i${this.config.cwd}`)
-			this.ps = child_process.spawn(this.config.command, ['-e', file, `-i${this.config.cwd}`])
+			this.ps = child_process.spawn(this.config.command, ['-e', file, `-i${this.config.cwd}`], {cwd: this.config.cwd})
 			this.ps.stdout.on('data', (data) => {
 				this.emit('output', data.toString().trim(), 'stdout')
 			})
