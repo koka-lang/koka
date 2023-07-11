@@ -83,10 +83,11 @@ $charesc      = [nrt\\\'\"]    -- "
 
 @idchar       = $letter | $digit | _ | \-
 @lowerid      = $lower @idchar* $finalid*
+@loweridcont  = ($lower|_) @idchar* $finalid*
 @upperid      = $upper @idchar* $finalid*
 @conid        = @upperid
-@modulepath   = (@lowerid\/)+
-@qvarid       = @modulepath @lowerid
+@modulepath   = (@lowerid\/)(@loweridcont\/)*
+@qvarid       = @modulepath @loweridcont
 @qconid       = @modulepath @conid
 @symbols      = $symbol+ | \/
 @qidop        = @modulepath \(@symbols\)
