@@ -1024,11 +1024,11 @@ ccGcc name opt platform path
               else "-O2"
 
     archBits= 8 * sizePtr platform
-    arch    = -- unfortunately, these flags are not as widely supported as one may hope so we use --ccopts if needed.
-              -- if (cpuArch=="x64" && archBits==64) then ["-march=nehalem","-mtune=native"]           -- popcnt
-              -- else if (cpuArch=="arm64" && archBits==64) then ["-march=armv8.1-a","-mtune=native"]  -- lse
-              -- else ["-m" ++ show archBits]
-              []
+    arch    = -- unfortunately, these flags are not as widely supported as one may hope so we only enable at -O3
+              if (opt <= 2) then [] 
+              else if (cpuArch=="x64" && archBits==64) then ["-march=haswell","-mtune=native"]      -- popcnt, lzcnt, tzcnt, pdep, pext
+              else if (cpuArch=="arm64" && archBits==64) then ["-march=armv8.1-a","-mtune=native"]  -- lse
+              else []
 
 ccMsvc name opt platform path
   = CC name path ["-DWIN32","-nologo"] 
