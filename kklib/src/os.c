@@ -1147,7 +1147,7 @@ kk_string_t kk_cpu_arch(kk_context_t* ctx) {
   arch = (KK_SIZE_SIZE==4 ? "x32" : "x64");
 #elif defined(__i386__) || defined(__i386) || defined(_M_IX86) || defined(_X86_) || defined(__X86__)
   arch = "x86";
-#elif defined(__aarch64__) || defined(_M_ARM64)
+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(_M_HYBRID_X86_ARM64) || defined(_M_ARM64EC)
   arch = "arm64";
 #elif defined(__arm__) || defined(_ARM) || defined(_M_ARM)  || defined(_M_ARMT) || defined(__arm)
   arch = "arm";

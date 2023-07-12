@@ -124,7 +124,7 @@ int kk_bits_generic_popcount64(uint64_t x) {
 
 #define kk_split32(x)   const uint64_t x##lo = (uint32_t)(x); const uint64_t x##hi = (x)>>32;
 
-uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
+uint64_t kk_generic_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
   kk_split32(x); kk_split32(y);
   uint64_t a = xlo * ylo;
   uint64_t b = xhi * ylo;

@@ -511,11 +511,11 @@ static inline uint64_t kk_bits_bswap64(uint64_t x) {
 
 #else
 static inline uint16_t kk_bits_bswap16(uint16_t x) {
-  return rotl16(x,8);
+  return kk_bits_rotl16(x,8);
 }
 static inline uint32_t kk_bits_bswap32(uint32_t x) {
-  uint32_t hi = kk_bits_bswap16(uint16_t)x);
-  uint32_t lo = kk_bits_bswap16(uint16_t)(x >> 16));
+  uint32_t hi = kk_bits_bswap16((uint16_t)x);
+  uint32_t lo = kk_bits_bswap16((uint16_t)(x >> 16));
   return ((hi << 16) | lo);
 }
 #endif
@@ -704,7 +704,7 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
   return (uint64_t)(r);
 }
 
-#elif defined(_MSC_VER) && (_MSC_VER >= 1920) && _M_X64
+#elif defined(_MSC_VER) && (_MSC_VER >= 1920) && defined(_M_X64)
 
 #include <intrin.h>
 static inline uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
@@ -715,13 +715,28 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
   return (uint64_t)_mul128(x, y, hi);
 }
 
+#elif defined(_MSC_VER) && defined(KK_ARCH_ARM64)
+
+#include <intrin.h>
+static inline uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
+  uint64_t lo = x * y;
+  *hi = __umulh(x, y);
+  return lo;
+}
+
+static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
+  uint64_t lo = (uint64_t)(x * y);
+  *hi = __mulh(x, y);
+  return lo;
+}
+
 #else 
 
 #define KK_USE_GENERIC_WIDE_UMUL64
-uint64_t kk_wide_umul64_generic(uint64_t x, uint64_t y, uint64_t* hi);
+uint64_t kk_generic_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi);
 
 static inline uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
-  return kk_wide_umul64_generic(x, y, hi);
+  return kk_generic_wide_umul64(x, y, hi);
 }
 
 static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
