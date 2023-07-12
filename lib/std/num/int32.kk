@@ -301,24 +301,24 @@ pub fip fun max( i : int32, j : int32 ) : int32
   if (i >= j) then i else j 
 
 
-// Full 32x32 bit unsigned multiply to `(hi,lo)`.
-// where `(hi,lo).uint == hi.uint * 0x1_0000_0000 + lo.uint`
+// Full 32x32 bit unsigned multiply to `(lo,hi)`.
+// where `(lo,hi).uint == hi.uint * 0x1_0000_0000 + lo.uint`
 pub fip extern umul32( i : int32, j : int32 ) : (int32,int32)
   c "kk_wide_umul32x"
 
-// Full 32x32 bit signed multiply to `(hi,lo)`.
-// where `(hi,lo).int == hi.int * 0x1_0000_0000 + lo.uint`
+// Full 32x32 bit signed multiply to `(lo,hi)`.
+// where `(lo,hi).int == hi.int * 0x1_0000_0000 + lo.uint`
 pub fip extern imul32( i : int32, j : int32 ) : (int32,int32)
   c "kk_wide_imul32x"
 
-// Convert a pair `(hi,lo)` to an signed integer,
-// where `(hi,lo).int == hi.int * 0x1_0000_0000 + lo.uint`
-pub fun int( (hi,lo) : (int32,int32) ) : int
+// Convert a pair `(lo,hi)` to a signed integer,
+// where `(lo,hi).int == hi.int * 0x1_0000_0000 + lo.uint`
+pub fun int( (lo,hi) : (int32,int32) ) : int
   hi.int * 0x1_0000_0000 + lo.uint
 
-// Convert a pair `(hi,lo)` to an unsigned integer,
-// where `(hi,lo).uint == hi.uint * 0x1_0000_0000 + lo.uint`
-pub fun uint( (hi,lo) : (int32,int32) ) : int
+// Convert a pair `(lo,hi)` to an unsigned integer,
+// where `(lo,hi).uint == hi.uint * 0x1_0000_0000 + lo.uint`
+pub fun uint( (lo,hi) : (int32,int32) ) : int
   hi.uint * 0x1_0000_0000 + lo.uint
 
 

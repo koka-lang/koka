@@ -12,6 +12,9 @@
 // with wrapping on overflow, e.g. `max-int64 + 1.int64 == min-int64`
 module std/num/int64
 
+extern import
+  c  file "int64-inline.c"
+
 // The maximal integer value before overflow happens
 pub val max-int64 : int64 =  0x7FFF_FFFF_FFFF_FFFF.int64
 
@@ -315,6 +318,26 @@ pub fip fun min( i : int64, j : int64 ) : int64
 pub fip fun max( i : int64, j : int64 ) : int64 
   if i >= j then i else j 
 
+
+// Full 64x64 bit unsigned multiply to `(lo,hi)`.
+// where `(lo,hi).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
+pub fip extern umul64( i : int64, j : int64 ) : (int64,int64)
+  c "kk_wide_umul64x"
+
+// Full 64x64 bit signed multiply to `(lo,hi)`.
+// where `(lo,hi).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
+pub fip extern imul64( i : int64, j : int64 ) : (int64,int64)
+  c "kk_wide_imul64x"
+
+// Convert a pair `(lo,hi)` to an signed integer,
+// where `(ho,hi).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
+pub fun int( (lo,hi) : (int64,int64) ) : int
+  hi.int * 0x1_0000_0000_0000_0000 + lo.uint
+
+// Convert a pair `(lo,hi)` to an unsigned integer,
+// where `(lo,hi).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
+pub fun uint( (lo,hi) : (int64,int64) ) : int
+  hi.uint * 0x1_0000_0000_0000_0000 + lo.uint
 
 // Truncated division (as in C). See also `(/):(x : int64, y : int64) -> int64`.
 pub fun cdiv(i:int64, j:int64) : exn int64 
