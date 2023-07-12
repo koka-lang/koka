@@ -754,10 +754,10 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
   Parallel bit extract and deposit
 ------------------------------------------------------------------ */
 
-uint32_t kk_pext32_generic(uint32_t x, uint32_t mask);
-uint64_t kk_pext64_generic(uint64_t x, uint64_t mask);
-uint32_t kk_pdep32_generic(uint32_t x, uint32_t mask);
-uint64_t kk_pdep64_generic(uint64_t x, uint64_t mask);
+uint32_t kk_generic_pext32(uint32_t x, uint32_t mask);
+uint64_t kk_generic_pext64(uint64_t x, uint64_t mask);
+uint32_t kk_generic_pdep32(uint32_t x, uint32_t mask);
+uint64_t kk_generic_pdep64(uint64_t x, uint64_t mask);
 
 // todo: provide arm64 optimized version as well?
 #if defined(KK_ARCH_X64) && (defined(_MSC_VER) || defined(__GNUC__))
@@ -773,43 +773,61 @@ extern bool kk_has_bmi2;
 
 static inline uint32_t kk_pext32(uint32_t x, uint32_t mask) {
   if kk_likely(kk_has_bmi2) { return _pext_u32(x, mask); }
-                       else { return kk_pext32_generic(x, mask); }
+                       else { return kk_generic_pext32(x, mask); }
 }
 
 static inline uint64_t kk_pext64(uint64_t x, uint64_t mask) {
   if kk_likely(kk_has_bmi2) { return _pext_u64(x, mask); }
-                       else { return kk_pext64_generic(x, mask); }
+                       else { return kk_generic_pext64(x, mask); }
 }
 
 static inline uint32_t kk_pdep32(uint32_t x, uint32_t mask) {
   if kk_likely(kk_has_bmi2) { return _pdep_u32(x, mask); }
-                       else { return kk_pdep32_generic(x, mask); }
+                       else { return kk_generic_pdep32(x, mask); }
 }
 
 static inline uint64_t kk_pdep64(uint64_t x, uint64_t mask) {
   if kk_likely(kk_has_bmi2) { return _pdep_u64(x, mask); }
-                       else { return kk_pdep64_generic(x, mask); }
+                       else { return kk_generic_pdep64(x, mask); }
 }
 
 #else
 
 static inline uint32_t kk_pext32(uint32_t x, uint32_t mask) {
-  return kk_pext32_generic(x, mask);
+  return kk_generic_pext32(x, mask);
 }
 
 static inline uint64_t kk_pext64(uint64_t x, uint64_t mask) {
-  return kk_pext64_generic(x, mask); 
+  return kk_generic_pext64(x, mask); 
 }
 
 static inline uint32_t kk_pdep32(uint32_t x, uint32_t mask) {
-  return kk_pdep32_generic(x, mask);
+  return kk_generic_pdep32(x, mask);
 }
 
 static inline uint64_t kk_pdep64(uint64_t x, uint64_t mask) {
-  return kk_pdep64_generic(x, mask); 
+  return kk_generic_pdep64(x, mask); 
 }
 
 #endif
+
+
+/* ---------------------------------------------------------------
+  carry-less multiply
+
+static inline uint64_t kk_clmul64(uint64_t x, uint64_t y, uint64_t* hi) {
+  const __m128i res = _mm_clmulepi64_si128(_mm_set_epi64x(0, (int64_t)x), _mm_set_epi64x(0, (int64_t)y), 0);
+  *hi = _mm_extract_epi64(res, 1);
+  return (uint64_t)_mm_cvtsi128_si64(res);
+}
+
+static inline uint64_t kk_clmul64(uint64_t x, uint64_t y, uint64_t* hi) {
+  const poly128_t pres = vreinterpretq_u64_p128(vmull_p64((poly64_t)x, (poly64_t)y));
+  *hi = (uint64_t)vget_high_u64(res);
+  return (uint64_t)vget_low_u64(res);
+}
+
+------------------------------------------------------------------ */
 
 
 #endif // include guard

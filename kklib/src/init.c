@@ -206,6 +206,7 @@ bool kk_has_popcnt = false;
 bool kk_has_lzcnt = false;
 bool kk_has_bmi1 = false;
 bool kk_has_bmi2 = false;
+bool kk_has_clmul = false;
 
 #if defined(__GNUC__) 
 #include <cpuid.h>
@@ -244,6 +245,7 @@ static void kk_cpu_init(void)
   uint32_t cpu_info[4];
   if (kk_cpuid(cpu_info, 1)) {
     kk_has_popcnt = ((cpu_info[2] & (KK_U32(1) << 23)) != 0);
+    kk_has_clmul  = ((cpu_info[2] & (KK_U32(1) << 1)) != 0);
   }
   if (kk_cpuid(cpu_info, KK_U32(0x80000001))) {
     kk_has_lzcnt = ((cpu_info[2] & (KK_U32(1) << 5)) != 0);   // abm: https://en.wikipedia.org/wiki/X86_Bit_manipulation_instruction_set

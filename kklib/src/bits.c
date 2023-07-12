@@ -157,7 +157,7 @@ static uint32_t kk_pdep32_loop(uint32_t x, uint32_t mask) {
 }
 
 
-uint32_t kk_pdep32_generic(uint32_t x, uint32_t mask) {
+uint32_t kk_generic_pdep32(uint32_t x, uint32_t mask) {
   switch (kk_bits_popcount32(mask)) {
   case 0: return 0;
   case 1: return ((x & 1) != 0 ? mask : 0);
@@ -180,7 +180,7 @@ static uint32_t kk_pext32_loop(uint32_t x, uint32_t mask) {
   return y;
 }
 
-uint32_t kk_pext32_generic(uint32_t x, uint32_t mask) {
+uint32_t kk_generic_pext32(uint32_t x, uint32_t mask) {
   switch (kk_bits_popcount32(mask)) {
   case 0: return 0;
   case 1: return ((x & mask) != 0 ? 1 : 0);
@@ -205,7 +205,7 @@ static uint64_t kk_pdep64_loop(uint64_t x, uint64_t mask) {
   return y;
 }
 
-uint64_t kk_pdep64_generic(uint64_t x, uint64_t mask) {
+uint64_t kk_generic_pdep64(uint64_t x, uint64_t mask) {
   switch (kk_bits_popcount64(mask)) {
   case 0: return 0;
   case 1: return ((x & 1) != 0 ? mask : 0);
@@ -228,7 +228,7 @@ static uint64_t kk_pext64_loop(uint64_t x, uint64_t mask) {
   return y;
 }
 
-uint64_t kk_pext64_generic(uint64_t x, uint64_t mask) {
+uint64_t kk_generic_pext64(uint64_t x, uint64_t mask) {
   switch (kk_bits_popcount64(mask)) {
   case 0: return 0;
   case 1: return ((x & mask) != 0 ? 1 : 0);
