@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD         118     // modify on changes to trigger recompilation 
+#define KKLIB_BUILD         120     // modify on changes to trigger recompilation    
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -86,7 +86,7 @@ typedef enum kk_tag_e {
 } kk_tag_t;
 
 static inline bool kk_tag_is_raw(kk_tag_t tag) {
-  return (tag >= KK_TAG_CPTR_RAW);
+  return (tag >= KK_TAG_CPTR_RAW);  
 }
 
 /*--------------------------------------------------------------------------------------

@@ -218,9 +218,7 @@ static inline int kk_bits_clrsb32(int32_t x) {
 }
 #else
 static inline int kk_bits_clrsb32(int32_t x) {
-  const int32_t i = kk_sar32(x, 31) ^ x;   // (x<0 ? ~x : x)
-  if (i == 0) return 31;                   // x was 0 or -1
-         else return kk_bits_clz32((uint32_t)i) - 1;
+  return kk_bits_clz32((uint32_t)(x<0 ? ~x : x)) - 1;
 }
 #endif
 
@@ -230,9 +228,7 @@ static inline int kk_bits_clrsb64(int64_t x) {
 }
 #else
 static inline int kk_bits_clrsb64(int64_t x) {
-  const int64_t i = kk_sar64(x, 63) ^ x;   // (x<0 ? ~x : x)
-  if (i == 0) return 63;                   // x was 0 or -1
-         else return kk_bits_clz64((uint64_t)i) - 1;
+  return kk_bits_clz64((uint64_t)(x<0 ? ~x : x)) - 1;
 }
 #endif
 
@@ -431,6 +427,56 @@ static inline int kk_bits_popcount(kk_uintx_t x) {
 
 
 /* ---------------------------------------------------------------
+  Parity: returns `true` if `kk_bits_popcount(x)` is even.
+  see <https://graphics.stanford.edu/~seander/bithacks.html#ParityParallel>
+------------------------------------------------------------------ */
+
+#if __has_builtin32(parity)
+static inline bool kk_bits_parity32(uint32_t x) {
+  return (__builtin32(parity)(x) == 0);
+}
+#if __has_builtin64(parity)
+#define KK_HAS_BITS_PARITY64
+static inline bool kk_bits_parity64(uint64_t x) {
+  return (__builtin64(parity)(x) == 0);
+}
+#endif
+
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+static inline bool kk_bits_parity32(uint32_t x) {
+  return ((kk_bits_popcount32(x) & 1) == 0);
+}
+#if (KK_INTX_SIZE>=8)
+#define KK_HAS_BITS_PARITY64
+static inline bool kk_bits_parity64(uint64_t x) {
+  return ((kk_bits_popcount64(x) & 1) == 0);
+}
+#endif
+
+#else
+static inline bool kk_bits_parity32(uint32_t x) {
+  x ^= x >> 16;
+  x ^= x >> 8;
+  x ^= x >> 4;
+  x &= 0x0F;
+  return (((0x6996 >> x) & 1) == 0);  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
+}
+#endif
+
+#ifndef KK_HAS_BITS_PARITY64
+#define KK_HAS_BITS_PARITY64
+static inline bool kk_bits_parity64(uint64_t x) {
+  x ^= (x >> 32);
+  return kk_bits_parity32((uint32_t)x);
+}
+#endif
+
+static inline bool kk_bits_parity(kk_uintx_t x) {
+  return kk_bitsx(parity)(x);
+}
+
+
+/* ---------------------------------------------------------------
   swap bytes
 ------------------------------------------------------------------ */
 
@@ -578,56 +624,6 @@ static inline double kk_bits_to_double(uint64_t x) {
   return d;
 }
 
-
-/* ---------------------------------------------------------------
-  Parity: returns `true` if `kk_bits_popcount(x)` is even.
-  see <https://graphics.stanford.edu/~seander/bithacks.html#ParityParallel>
------------------------------------------------------------------- */
-
-#if __has_builtin32(parity)
-static inline bool kk_bits_parity32(uint32_t x) {
-  return (__builtin32(parity)(x) == 0);
-}
-#if __has_builtin64(parity)
-#define KK_HAS_BITS_PARITY64
-static inline bool kk_bits_parity64(uint64_t x) {
-  return (__builtin64(parity)(x) == 0);
-}
-#endif
-
-#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-static inline bool kk_bits_parity32(uint32_t x) {
-  return ((kk_bits_popcount32(x) & 1) == 0);
-}
-#if (KK_INTX_SIZE>=8)
-#define KK_HAS_BITS_PARITY64
-static inline bool kk_bits_parity64(uint64_t x) {
-  return ((kk_bits_popcount64(x) & 1) == 0);
-}
-#endif
-
-#else
-static inline bool kk_bits_parity32(uint32_t x) {
-  x ^= x >> 16;
-  x ^= x >> 8;
-  x ^= x >> 4;
-  x &= 0x0F;
-  return (((0x6996 >> x) & 1) == 0);  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
-}
-#endif
-
-#ifndef KK_HAS_BITS_PARITY64
-#define KK_HAS_BITS_PARITY64
-static inline bool kk_bits_parity64(uint64_t x) {
-  x ^= (x >> 32);
-  return kk_bits_parity32((uint32_t)x);
-}
-#endif
-
-static inline bool kk_bits_parity(kk_uintx_t x) {
-  return kk_bitsx(parity)(x);
-}
-
 /* ---------------------------------------------------------------
   Digits in a decimal representation
 ------------------------------------------------------------------ */
@@ -672,6 +668,133 @@ static inline uint64_t kk_bits_umidpoint64( uint64_t x, uint64_t y ) {
 static inline kk_uintx_t kk_bits_umidpoint( kk_uintx_t x, kk_uintx_t y ) {
   return kk_bitsx(umidpoint)(x,y);
 }
+
+
+/* ---------------------------------------------------------------
+  Wide multiplies
+------------------------------------------------------------------ */
+
+static inline uint32_t kk_wide_umul32(uint32_t x, uint32_t y, uint32_t* hi) {
+  const uint64_t r = (uint64_t)x * y;
+  *hi = (uint32_t)(r >> 32);
+  return (uint32_t)(r);
+}
+
+static inline uint32_t kk_wide_imul32(int32_t x, int32_t y, int32_t* hi) {
+  const int64_t r = (int64_t)x * y;
+  *hi = (int32_t)(r >> 32);
+  return (uint32_t)(r);
+}
+
+
+#if defined(__GNUC__) && defined(__SIZEOF_INT128__)
+
+__extension__ typedef unsigned __int128 kk_uint128_t;
+__extension__ typedef __int128 kk_int128_t;
+
+static inline uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
+  kk_uint128_t r = (kk_uint128_t)x * y;
+  *hi = (uint64_t)(r >> 64);
+  return (uint64_t)(r);
+}
+
+static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
+  kk_int128_t r = (kk_int128_t)x * y;
+  *hi = (int64_t)(r >> 64);
+  return (uint64_t)(r);
+}
+
+#elif defined(_MSC_VER) && (_MSC_VER >= 1920) && _M_X64
+
+#include <intrin.h>
+static inline uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
+  return _umul128(x, y, hi);
+}
+
+static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
+  return (uint64_t)_mul128(x, y, hi);
+}
+
+#else 
+
+#define KK_USE_GENERIC_WIDE_UMUL64
+uint64_t kk_wide_umul64_generic(uint64_t x, uint64_t y, uint64_t* hi);
+
+static inline uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
+  return kk_wide_umul64_generic(x, y, hi);
+}
+
+static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
+  int64_t  z;
+  uint64_t lo = kk_wide_umul64((uint64_t)x, (uint64_t)y, (uint64_t*)&z);
+  if (x < 0) { z -= y; }
+  if (y < 0) { z -= x; }
+  *hi = z;
+  return lo;
+}
+#endif
+
+
+/* ---------------------------------------------------------------
+  Parallel bit extract and deposit
+------------------------------------------------------------------ */
+
+uint32_t kk_pext32_generic(uint32_t x, uint32_t mask);
+uint64_t kk_pext64_generic(uint64_t x, uint64_t mask);
+uint32_t kk_pdep32_generic(uint32_t x, uint32_t mask);
+uint64_t kk_pdep64_generic(uint64_t x, uint64_t mask);
+
+// todo: provide arm64 optimized version as well?
+#if defined(KK_ARCH_X64) && (defined(_MSC_VER) || defined(__GNUC__))
+#if !defined(__BMI2__)
+#define __BMI2__  1
+#endif
+#include <immintrin.h>
+#if defined(__clang_msvc__)
+#include <bmi2intrin.h>
+#endif
+
+extern bool kk_has_bmi2;
+
+static inline uint32_t kk_pext32(uint32_t x, uint32_t mask) {
+  if kk_likely(kk_has_bmi2) { return _pext_u32(x, mask); }
+                       else { return kk_pext32_generic(x, mask); }
+}
+
+static inline uint64_t kk_pext64(uint64_t x, uint64_t mask) {
+  if kk_likely(kk_has_bmi2) { return _pext_u64(x, mask); }
+                       else { return kk_pext64_generic(x, mask); }
+}
+
+static inline uint32_t kk_pdep32(uint32_t x, uint32_t mask) {
+  if kk_likely(kk_has_bmi2) { return _pdep_u32(x, mask); }
+                       else { return kk_pdep32_generic(x, mask); }
+}
+
+static inline uint64_t kk_pdep64(uint64_t x, uint64_t mask) {
+  if kk_likely(kk_has_bmi2) { return _pdep_u64(x, mask); }
+                       else { return kk_pdep64_generic(x, mask); }
+}
+
+#else
+
+static inline uint32_t kk_pext32(uint32_t x, uint32_t mask) {
+  return kk_pext32_generic(x, mask);
+}
+
+static inline uint64_t kk_pext64(uint64_t x, uint64_t mask) {
+  return kk_pext64_generic(x, mask); 
+}
+
+static inline uint32_t kk_pdep32(uint32_t x, uint32_t mask) {
+  return kk_pdep32_generic(x, mask);
+}
+
+static inline uint64_t kk_pdep64(uint64_t x, uint64_t mask) {
+  return kk_pdep64_generic(x, mask); 
+}
+
+#endif
 
 
 #endif // include guard

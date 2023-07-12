@@ -167,12 +167,7 @@ static void kklib_done(void) {
   process_initialized = false;
 }
 
-
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-bool kk_has_popcnt = false;
-bool kk_has_lzcnt = false;
-bool kk_has_tzcnt = false;
-#endif
+static void kk_cpu_init(void);
 
 static void kklib_init(void) {
   if (process_initialized) return;
@@ -182,21 +177,7 @@ static void kklib_init(void) {
 #if defined(WIN32) && (defined(_CONSOLE) || defined(__MINGW32__))
   SetConsoleOutputCP(65001);   // set the console to utf-8 instead of OEM page
 #endif
-  //todo: do we need to set the IEEE floating point flags?
-  //fexcept_t fexn;
-  //fesetexceptflag(&fexn, FE_ALL_EXCEPT);
-  //_controlfp(_EM_INEXACT|_EM_OVERFLOW|_EM_UNDERFLOW, _MCW_EM);
-
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-  // <https://en.wikipedia.org/wiki/CPUID>
-  int32_t cpu_info[4];
-  __cpuid(cpu_info, 1);
-  kk_has_popcnt = ((cpu_info[2] & (KK_I32(1)<<23)) != 0);
-  __cpuid(cpu_info, (int)(0x80000001));
-  kk_has_lzcnt  = ((cpu_info[2] & (KK_I32(1)<<5)) != 0);   // abm: https://en.wikipedia.org/wiki/X86_Bit_manipulation_instruction_set
-  __cpuid(cpu_info, 7);
-  kk_has_tzcnt = ((cpu_info[1] & (KK_I32(1)<<3)) != 0);    // bmi1: https://en.wikipedia.org/wiki/X86_Bit_manipulation_instruction_set
-#endif
+  kk_cpu_init();
   atexit(&kklib_done);  
 
   #if KK_USE_MEM_ARENA
@@ -212,6 +193,66 @@ static void kklib_init(void) {
       kk_fatal_error(err, "unable to reserve the initial heap of %zi bytes", heap_size);
     }
     arena_start = mi_arena_area(arena, &arena_size);    
+  #endif
+}
+
+
+/*--------------------------------------------------------------------------------------------------
+  Possible CPU specific initialization
+--------------------------------------------------------------------------------------------------*/
+
+#if defined(KK_ARCH_X64)
+bool kk_has_popcnt = false;
+bool kk_has_lzcnt = false;
+bool kk_has_bmi1 = false;
+bool kk_has_bmi2 = false;
+
+#if defined(__GNUC__) 
+#include <cpuid.h>
+
+static inline bool kk_cpuid(uint32_t* regs4, uint32_t level) {
+  return (__get_cpuid(level, &regs4[0], &regs4[1], &regs4[2], &regs4[3]) == 1);
+}
+
+#elif defined(_MSC_VER)
+#include <intrin.h>
+
+static inline bool kk_cpuid(uint32_t* regs4, uint32_t level) {
+  __cpuid((int32_t*)regs4, (int32_t)level);
+  return true;
+}
+
+#else
+
+static inline int kk_cpuid(uint32_t* regs4, uint32_t level) {
+  kk_unused(regs4); kk_unused(level);
+  return false;
+}
+#endif
+
+#endif
+
+static void kk_cpu_init(void) 
+{
+  //todo: do we need to set the IEEE floating point flags?
+  //fexcept_t fexn;
+  //fesetexceptflag(&fexn, FE_ALL_EXCEPT);
+  //_controlfp(_EM_INEXACT|_EM_OVERFLOW|_EM_UNDERFLOW, _MCW_EM);
+
+  #if defined(KK_ARCH_X64)
+  // <https://en.wikipedia.org/wiki/CPUID>
+  uint32_t cpu_info[4];
+  if (kk_cpuid(cpu_info, 1)) {
+    kk_has_popcnt = ((cpu_info[2] & (KK_U32(1) << 23)) != 0);
+  }
+  if (kk_cpuid(cpu_info, KK_U32(0x80000001))) {
+    kk_has_lzcnt = ((cpu_info[2] & (KK_U32(1) << 5)) != 0);   // abm: https://en.wikipedia.org/wiki/X86_Bit_manipulation_instruction_set
+    if (kk_has_lzcnt) { kk_has_popcnt = true; }
+  }
+  if (kk_cpuid(cpu_info, 7)) {
+    kk_has_bmi1 = ((cpu_info[1] & (KK_U32(1) << 3)) != 0);    // bmi1: https://en.wikipedia.org/wiki/X86_Bit_manipulation_instruction_set
+    kk_has_bmi2 = ((cpu_info[1] & (KK_U32(1) << 7)) != 0);    // bmi2: https://en.wikipedia.org/wiki/X86_Bit_manipulation_instruction_set
+  }
   #endif
 }
 

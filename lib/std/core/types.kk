@@ -8,7 +8,7 @@
 
 /* Core types.
 
-   This module is implicitly imported and all functions and types
+   This module is implicitly imported and all functions and types 
    are always available. 
    These types are required to be defined for the compiler
    to work correctly (i.e. types like `:int` or `:div`)

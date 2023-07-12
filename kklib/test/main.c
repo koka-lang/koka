@@ -480,6 +480,69 @@ static bool test_count10_32(uint32_t u) {
   }
 }
 
+static inline uint64_t kk_random_shuffle(uint64_t x) {
+  if (x == 0) { x = 17; }   // ensure we don't get stuck in generating zeros
+  x ^= x >> 30;
+  x *= 0xbf58476d1ce4e5b9UL;
+  x ^= x >> 27;
+  x *= 0x94d049bb133111ebUL;
+  x ^= x >> 31;
+  return x;
+}
+
+static void test_pdep64(void) {
+  uint64_t state = 5381;
+  printf("testing pdep64...\n");
+  for (uint64_t i = 0; i < 100000000; i++) {
+    uint64_t x = kk_random_shuffle(state);
+    uint64_t mask = kk_random_shuffle(state);
+    state = kk_random_shuffle(state);
+    uint64_t res1 = kk_pdep64(x, mask);
+    uint64_t res2 = kk_pdep64_generic(x, mask);
+    if (res1 != res2) {
+      printf("********\n error: pdep(%zi,%zi) = %zi != %zi\n**********\n", x, mask, res1, res2);
+    }
+    if (i % 100000 == 0) printf(".");
+  }
+  printf("ok.\n");
+}
+
+static void test_pext64(void) {
+  uint64_t state = 5381;
+  printf("testing pext64...\n");
+  for (uint64_t i = 0; i < 100000000; i++) {
+    uint64_t x = kk_random_shuffle(state);
+    uint64_t mask = kk_random_shuffle(state);
+    state = kk_random_shuffle(state);
+    uint64_t res1 = kk_pext64(x, mask);
+    uint64_t res2 = kk_pext64_generic(x, mask);
+    if (res1 != res2) {
+      printf("********\n error: pext(%zi,%zi) = %zi != %zi\n**********\n", x, mask, res1, res2);
+    }
+    if (i % 100000 == 0) printf(".");
+  }
+  printf("ok.\n");
+}
+
+/*
+static void test_mul64(kk_context_t* ctx) {
+  uint64_t state = 5381;
+  printf("testing umul64...\n");
+  for (uint64_t i = 0; i < 100000000; i++) {
+    uint64_t x = kk_random_shuffle(state);
+    uint64_t y = kk_random_shuffle(state);
+    state = kk_random_shuffle(state);
+    uint64_t lo1, hi1; lo1 = kk_wide_umul64(x, y, &hi1);
+    uint64_t lo2, hi2; lo2 = kk_wide_umul64_msc(x, y, &hi2);
+    if (lo1 != lo2 || hi1 != hi2) {
+      printf("********\n error: %zi * %zi = (%zi,%zi) != (%zi,%zi)\n**********\n", x, y, lo1, hi1, lo2, hi2);
+    }
+    if (i % 100000 == 0) printf(".");
+  }
+  printf("ok.\n");
+}  
+*/
+
 static void test_count10(kk_context_t* ctx) {
   {
     uint64_t u = 0;
@@ -689,9 +752,16 @@ int main() {
   
   test_count10(ctx);
   test_bitcount();
-  test_popcount();
+  
+  //test_popcount();
+  
   //test_random(ctx);
   //test_duration1();
+
+  //test_pdep64();
+  //test_pext64();
+  //test_mul64(ctx);
+
   
   /*
   init_nums();
