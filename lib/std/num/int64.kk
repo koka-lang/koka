@@ -321,12 +321,12 @@ pub fip fun max( i : int64, j : int64 ) : int64
 
 // Full 64x64 bit unsigned multiply to `(lo,hi)`.
 // where `(lo,hi).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
-pub fip extern umul64( i : int64, j : int64 ) : (int64,int64)
+pub fip extern umul( i : int64, j : int64 ) : (int64,int64)
   c "kk_wide_umul64x"
 
 // Full 64x64 bit signed multiply to `(lo,hi)`.
 // where `(lo,hi).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
-pub fip extern imul64( i : int64, j : int64 ) : (int64,int64)
+pub fip extern imul( i : int64, j : int64 ) : (int64,int64)
   c "kk_wide_imul64x"
 
 // Convert a pair `(lo,hi)` to an signed integer,
