@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2020-2021, Microsoft Research, Daan Leijen.
+  Copyright 2020-2023, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -131,7 +131,7 @@ uint64_t kk_generic_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
   uint64_t c = xlo * yhi;
   uint64_t d = xhi * yhi;
 
-  kk_split32(a); kk_split32(b); kk_split32(c); (void)(alo);
+  kk_split32(a); kk_split32(b); kk_split32(c); kk_unused(alo);
   uint64_t carry = (ahi + blo + clo) >> 32;
   uint64_t lo = a + (blo << 32) + (clo << 32);
   *hi = carry + bhi + chi + d;

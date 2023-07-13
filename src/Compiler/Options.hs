@@ -998,9 +998,9 @@ ccGcc,ccMsvc :: String -> Int -> Platform -> FilePath -> CC
 ccGcc name opt platform path
   = CC name path []
         ([(DebugFull,     arch ++ ["-g","-O0","-fno-omit-frame-pointer"]),
-          (Debug,         arch ++ ["-g","-O1"]),
-          (RelWithDebInfo,arch ++ [optFlag, "-g", "-DNDEBUG"]),
-          (Release,       arch ++ [optFlag, "-DNDEBUG"]) ]
+          (Debug,         arch ++ ["-g","-Og"]),
+          (RelWithDebInfo,arch ++ ["-O2", "-g", "-DNDEBUG"]),
+          (Release,       arch ++ ["-O2", "-DNDEBUG"]) ]
         )
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
@@ -1019,13 +1019,9 @@ ccGcc name opt platform path
         (\lib -> libPrefix ++ lib ++ libExtension)
         (\obj -> obj ++ objExtension)
   where
-    optFlag = if (opt == 1) then "-Os" 
-              else if (opt > 2) then "-O3" 
-              else "-O2"
-
     archBits= 8 * sizePtr platform
-    arch    = -- unfortunately, these flags are not as widely supported as one may hope so we only enable at -O3
-              if (opt <= 2) then [] 
+    arch    = -- unfortunately, these flags are not as widely supported as one may hope so we only enable at -O2 or higher
+              if (opt < 2) then [] 
               else if (cpuArch=="x64" && archBits==64) then ["-march=haswell","-mtune=native"]      -- popcnt, lzcnt, tzcnt, pdep, pext
               else if (cpuArch=="arm64" && archBits==64) then ["-march=armv8.1-a","-mtune=native"]  -- popcnt, simd, lse
               else []
