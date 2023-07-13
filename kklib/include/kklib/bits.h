@@ -755,7 +755,7 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
 ------------------------------------------------------------------ */
 
 // todo: provide arm64 optimized version as well?
-#if defined(KK_ARCH_X64) && (defined(_MSC_VER) || (defined(__GNUC__) && defined(__BMI2__)))
+#if defined(KK_ARCH_X64) && ((defined(_MSC_VER) &&  !defined(__clang_msvc__)) || (defined(__GNUC__) && defined(__BMI2__)))
 #include <immintrin.h>
 #if defined(__clang_msvc__)
 #include <bmi2intrin.h>
