@@ -997,10 +997,10 @@ gnuWarn = words "-Wall -Wextra -Wpointer-arith -Wshadow -Wstrict-aliasing" ++
 ccGcc,ccMsvc :: String -> Int -> Platform -> FilePath -> CC
 ccGcc name opt platform path
   = CC name path []
-        ([(DebugFull,     arch ++ ["-g","-O0","-fno-omit-frame-pointer"]),
-          (Debug,         arch ++ ["-g","-Og"]),
-          (RelWithDebInfo,arch ++ ["-O2", "-g", "-DNDEBUG"]),
-          (Release,       arch ++ ["-O2", "-DNDEBUG"]) ]
+        ([(DebugFull,     ["-g","-O0","-fno-omit-frame-pointer"] ++ arch),
+          (Debug,         ["-g","-Og"] ++ arch),
+          (RelWithDebInfo,["-O2", "-g", "-DNDEBUG"] ++ arch),
+          (Release,       ["-O2", "-DNDEBUG"] ++ arch) ]
         )
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
