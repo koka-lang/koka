@@ -309,6 +309,21 @@ pub inline fip extern bswap( i : int64 ) : int64
   c inline "kk_bits_bswap64(#1)"
   js "$std_core._int64_bswap"
 
+// Bit gather (also known as _pext_ or parallel bit extract).
+// For each 1-bit in mask `m`, extract the corresponding bit from `i` and write it
+// into contiguous lower bits in the result. The remaining bits in the result are zero.
+// 
+// `bgather(0x1234.int64, 0x0F0F.int64).show-hex == "0x24"`
+pub inline fip extern bgather( i : int64, m : int64 ) : int64 
+  c inline "kk_pext64(#1,#2)"
+
+// Bit scatter (also known as _pdep_ or parallel bit deposit).
+// For each 1-bit in mask `m`, set the corresponding bit in the result from the 
+// contiguous lower bits of `i`. Any bits not set according to the mask are set to zero.
+//
+// `bscatter(0x1234.int64, 0x0F0F.int64).show-hex == "0x304"`
+pub inline fip extern bscatter( i : int64, m : int64 ) : int64 
+  c inline "kk_pdep64(#1,#2)"
 
 // Return the minimum of two integers
 pub fip fun min( i : int64, j : int64 ) : int64 

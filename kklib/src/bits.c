@@ -240,3 +240,4 @@ uint64_t kk_generic_pext64(uint64_t x, uint64_t mask) {
   }
   return kk_pext64_loop(x, mask);
 }
+

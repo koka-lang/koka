@@ -754,44 +754,35 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
   Parallel bit extract and deposit
 ------------------------------------------------------------------ */
 
-uint32_t kk_generic_pext32(uint32_t x, uint32_t mask);
-uint64_t kk_generic_pext64(uint64_t x, uint64_t mask);
-uint32_t kk_generic_pdep32(uint32_t x, uint32_t mask);
-uint64_t kk_generic_pdep64(uint64_t x, uint64_t mask);
-
 // todo: provide arm64 optimized version as well?
-#if defined(KK_ARCH_X64) && (defined(_MSC_VER) || defined(__GNUC__))
-#if !defined(__BMI2__)
-#define __BMI2__  1
-#endif
+#if defined(KK_ARCH_X64) && (defined(_MSC_VER) || (defined(__GNUC__) && defined(__BMI2__)))
 #include <immintrin.h>
 #if defined(__clang_msvc__)
 #include <bmi2intrin.h>
 #endif
 
-extern bool kk_has_bmi2;
-
 static inline uint32_t kk_pext32(uint32_t x, uint32_t mask) {
-  if kk_likely(kk_has_bmi2) { return _pext_u32(x, mask); }
-                       else { return kk_generic_pext32(x, mask); }
+  return _pext_u32(x, mask);
 }
 
 static inline uint64_t kk_pext64(uint64_t x, uint64_t mask) {
-  if kk_likely(kk_has_bmi2) { return _pext_u64(x, mask); }
-                       else { return kk_generic_pext64(x, mask); }
+  return _pext_u64(x, mask);
 }
 
 static inline uint32_t kk_pdep32(uint32_t x, uint32_t mask) {
-  if kk_likely(kk_has_bmi2) { return _pdep_u32(x, mask); }
-                       else { return kk_generic_pdep32(x, mask); }
+  return _pdep_u32(x, mask);
 }
 
 static inline uint64_t kk_pdep64(uint64_t x, uint64_t mask) {
-  if kk_likely(kk_has_bmi2) { return _pdep_u64(x, mask); }
-                       else { return kk_generic_pdep64(x, mask); }
+  return _pdep_u64(x, mask);
 }
 
 #else
+
+kk_decl_export uint32_t kk_generic_pext32(uint32_t x, uint32_t mask);
+kk_decl_export uint64_t kk_generic_pext64(uint64_t x, uint64_t mask);
+kk_decl_export uint32_t kk_generic_pdep32(uint32_t x, uint32_t mask);
+kk_decl_export uint64_t kk_generic_pdep64(uint64_t x, uint64_t mask);
 
 static inline uint32_t kk_pext32(uint32_t x, uint32_t mask) {
   return kk_generic_pext32(x, mask);

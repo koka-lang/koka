@@ -157,7 +157,7 @@
   #define KK_ARCH_ARM32     1
 #elif defined(__riscv) || defined(_M_RISCV)
   #if (LONG_MAX == INT32_MAX)
-  #define KK_ARCH_RISCV64   1
+  #define KK_ARCH_RISCV32   1
   #else
   #define KK_ARCH_RISCV64   1
   #endif
