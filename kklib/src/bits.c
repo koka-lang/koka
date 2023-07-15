@@ -140,6 +140,24 @@ uint64_t kk_generic_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
 
 #endif
 
+#ifdef KK_BITS_USE_GENERIC_REVERSE
+
+uint32_t kk_bits_generic_reverse32(uint32_t x) {
+  // from: http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
+  x = ((x >> 1) & KK_U32(0x55555555)) | ((x & KK_U32(0x55555555)) << 1); // swap odd and even bits
+  x = ((x >> 2) & KK_U32(0x33333333)) | ((x & KK_U32(0x33333333)) << 2); // swap 2-bit pairs
+  x = ((x >> 4) & KK_U32(0x0F0F0F0F)) | ((x & KK_U32(0x0F0F0F0F)) << 4); // swap 4-bit nibbles 
+  return kk_bits_bswap32(x);
+}
+
+uint64_t kk_bits_generic_reverse64(uint64_t x) {
+  x = ((x >> 1) & KK_U64(0x5555555555555555)) | ((x & KK_U64(0x5555555555555555)) << 1); // swap odd and even bits
+  x = ((x >> 2) & KK_U64(0x3333333333333333)) | ((x & KK_U64(0x3333333333333333)) << 2); // swap 2-bit pairs
+  x = ((x >> 4) & KK_U64(0x0F0F0F0F0F0F0F0F)) | ((x & KK_U64(0x0F0F0F0F0F0F0F0F)) << 4); // swap 4-bit nibbles 
+  return kk_bits_bswap64(x);
+}
+
+#endif
 
 /* ----------------------------------------------------------
   generic parallel bit extract / deposit

@@ -597,6 +597,41 @@ static inline kk_uintx_t kk_bits_bswap_from_be(kk_uintx_t u) {
 
 
 /* ---------------------------------------------------------------
+  Bit reverse
+------------------------------------------------------------------ */
+
+#if __has_builtin(__builtin_bitreverse32)
+static inline uint32_t kk_bits_reverse32(uint32_t x) {
+  return __builtin_bitreverse32(x);
+}
+#if __has_builtin(__builtin_bitrevers64)
+static inline uint64_t kk_bits_reverse64(uint64_t x) {
+  return __builtin_bitreverse64(x);
+}
+#else
+static inline uint64_t kk_bits_reverse64(uint64_t x) {
+  uint64_t hi = kk_bits_reverse32((uint32_t)x);
+  uint64_t lo = kk_bits_reverse32((uint32_t)(x >> 32));
+  return ((hi << 32) | lo);
+}
+#endif
+#else
+#define KK_BITS_USE_GENERIC_REVERSE
+kk_decl_export uint32_t kk_bits_generic_reverse32(uint32_t x);
+kk_decl_export uint64_t kk_bits_generic_reverse64(uint64_t x);
+
+static inline uint32_t kk_bits_reverse32(uint32_t x) {
+  return kk_bits_generic_reverse32(x);
+}
+
+static inline uint64_t kk_bits_reverse64(uint64_t x) {
+  return kk_bits_generic_reverse64(x);
+}
+#endif
+
+
+
+/* ---------------------------------------------------------------
   Floats to bits
 ------------------------------------------------------------------ */
 

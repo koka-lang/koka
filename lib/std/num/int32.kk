@@ -291,6 +291,11 @@ pub inline fip extern bswap( i : int32 ) : int32
   c inline "kk_bits_bswap32(#1)"
   js "$std_core._int32_bswap"
 
+
+// Reverse the bits in an `:int32`.
+pub inline fip extern breverse( i : int32 ) : int32
+  c inline "kk_bits_reverse32(#1)"
+
 // Bit gather (also known as _pext_ or parallel bit extract).
 // For each 1-bit in mask `m`, extract the corresponding bit from `i` and write it
 // into contiguous lower bits in the result. The remaining bits in the result are zero.
