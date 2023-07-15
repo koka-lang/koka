@@ -242,44 +242,26 @@ pub fip fun rotr( i : int32, shift : int ) : int32
 
 
 // Count trailing zero bits. Returns 32 if `i` is zero.
-inline fip extern ctz32( i : int32 ) : int32 
-  c inline "(int32_t)kk_bits_ctz32(#1)"
+pub inline fip extern ctz( i : int32 ) : int
+  c inline "kk_integer_from_small(kk_bits_ctz32(#1))"
   js "$std_core._int32_ctz"
 
 // Count leading zero bits. Returns 32 if `i` is zero.
-inline fip extern clz32( i : int32 ) : int32 
-  c inline "(int32_t)kk_bits_clz32(#1)"
+pub inline fip extern clz( i : int32 ) : int
+  c inline "kk_integer_from_small(kk_bits_clz32(#1))"
   js "$std_core._int32_clz"
 
-// Count trailing zero bits. Returns 32 if `i` is zero.
-pub fip fun ctz( i : int32 ) : int
-  ctz32(i).int
-
-// Count leading zero bits. Returns 32 if `i` is zero.
-pub fip fun clz( i : int32 ) : int
-  clz32(i).int
-
-
-// Count leading redundant (i.e. the number of bits
+// Count leading redundant sign bits (i.e. the number of bits
 // following the most significant bit that are identical to it).
-inline fip extern clrsb32( i : int32 ) : int32 
-  c inline "(int32_t)kk_bits_clrsb32(#1)"
+pub inline fip extern clrsb( i : int32 ) : int
+  c inline "kk_integer_from_small(kk_bits_clrsb32(#1))"
   js "$std_core._int32_clrsb"
 
-// Count leading redundant (i.e. the number of bits
-// following the most significant bit that are identical to it).
-pub fip fun clrsb( i : int32 ) : int
-  clrsb32(i).int
-
 
 // Count number of 1-bits.
-inline fip extern popcount32( i : int32 ) : int32
-  c inline "(int32_t)kk_bits_popcount32(#1)"
-  js "$std_core._int32_bits_popcount"  
-
-// Count number of 1-bits.
-pub fip fun popcount( i : int32 ) : int
-  popcount32(i).int
+pub inline fip extern popcount( i : int32 ) : int
+  c inline "kk_integer_from_small(kk_bits_popcount32(#1))"
+  js "$std_core._int32_bits_popcount"
 
 // Is the number of 1-bits even?
 pub inline fip extern parity( i : int32 ) : bool
@@ -287,7 +269,7 @@ pub inline fip extern parity( i : int32 ) : bool
   js "$std_core._int32_parity"    
 
 // Reverse the bytes in an `:int32`.
-pub inline fip extern bswap( i : int32 ) : int32
+pub inline fip extern byteswap( i : int32 ) : int32
   c inline "kk_bits_bswap32(#1)"
   js "$std_core._int32_bswap"
 
@@ -302,7 +284,7 @@ pub inline fip extern breverse( i : int32 ) : int32
 // 
 // `bgather(0x1234.int32, 0x0F0F.int32).show-hex == "0x24"`
 pub inline fip extern bgather( i : int32, m : int32 ) : int32 
-  c inline "kk_pext32(#1,#2)"
+  c inline "kk_bits_gather32(#1,#2)"
 
 // Bit scatter (also known as _pdep_ or parallel bit deposit).
 // For each 1-bit in mask `m`, set the corresponding bit in the result from the 
@@ -310,7 +292,8 @@ pub inline fip extern bgather( i : int32, m : int32 ) : int32
 //
 // `bscatter(0x1234.int32, 0x0F0F.int32).show-hex == "0x304"`
 pub inline fip extern bscatter( i : int32, m : int32 ) : int32 
-  c inline "kk_pdep32(#1,#2)"
+  c inline "kk_bits_scatter32(#1,#2)"
+
 
 // Return the minimum of two integers
 pub fip fun min( i : int32, j : int32 ) : int32 

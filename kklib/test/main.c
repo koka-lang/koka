@@ -497,8 +497,8 @@ static void test_pdep64(void) {
     uint64_t x = kk_random_shuffle(state);
     uint64_t mask = kk_random_shuffle(state);
     state = kk_random_shuffle(state);
-    uint64_t res1 = kk_pdep64(x, mask);
-    uint64_t res2 = kk_generic_pdep64(x, mask);
+    uint64_t res1 = kk_bits_scatter64(x, mask);
+    uint64_t res2 = kk_bits_generic_scatter64(x, mask);
     if (res1 != res2) {
       printf("********\n error: pdep(%zi,%zi) = %zi != %zi\n**********\n", x, mask, res1, res2);
     }
@@ -514,8 +514,8 @@ static void test_pext64(void) {
     uint64_t x = kk_random_shuffle(state);
     uint64_t mask = kk_random_shuffle(state);
     state = kk_random_shuffle(state);
-    uint64_t res1 = kk_pext64(x, mask);
-    uint64_t res2 = kk_generic_pext64(x, mask);
+    uint64_t res1 = kk_bits_gather64(x, mask);
+    uint64_t res2 = kk_bits_generic_gather64(x, mask);
     if (res1 != res2) {
       printf("********\n error: pext(%zi,%zi) = %zi != %zi\n**********\n", x, mask, res1, res2);
     }

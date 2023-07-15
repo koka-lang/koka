@@ -260,34 +260,21 @@ pub fip fun rotr( i : int64, shift : int) : int64
 
 
 // Count trailing zero bits. Returns 64 if `i` is zero.
-inline fip extern ctz64( i : int64 ) : int64 
-  c inline "(int64_t)kk_bits_ctz64(#1)"
+pub inline fip extern ctz( i : int64 ) : int 
+  c inline "kk_integer_from_small(kk_bits_ctz64(#1))"
   js "$std_core._int64_ctz"
 
 // Count leading zero bits. Returns 64 if `i` is zero.
-inline fip extern clz64( i : int64 ) : int64 
-  c inline "(int64_t)kk_bits_clz64(#1)"
+pub inline fip extern clz( i : int64 ) : int
+  c inline "kk_integer_from_small(kk_bits_clz64(#1))"
   js "$std_core._int64_clz"
 
-// Count trailing zero bits. Returns 64 if `i` is zero.
-pub fip fun ctz( i : int64 ) : int
-  ctz64(i).int
 
-// Count leading zero bits. Returns 64 if `i` is zero.
-pub fip fun clz( i : int64 ) : int
-  clz64(i).int
-
-
-// Count leading redundant (i.e. the number of bits
+// Count leading redundant sign bits (i.e. the number of bits
 // following the most significant bit that are identical to it).
-inline fip extern clrsb64( i : int64 ) : int64 
-  c inline "(int64_t)kk_bits_clrsb64(#1)"
+pub inline fip extern clrsb( i : int64 ) : int
+  c inline "kk_integer_from_small(kk_bits_clrsb64(#1))"
   js "$std_core._int64_clrsb"
-
-// Count leading redundant (i.e. the number of bits
-// following the most significant bit that are identical to it).
-pub fip fun clrsb( i : int64 ) : int
-  clrsb64(i).int
 
 
 // Count number of 1-bits.
@@ -305,7 +292,7 @@ pub inline fip extern parity( i : int64 ) : bool
   js "$std_core._int64_parity"    
 
 // Reverse the bytes in an `:int64`.
-pub inline fip extern bswap( i : int64 ) : int64
+pub inline fip extern byteswap( i : int64 ) : int64
   c inline "kk_bits_bswap64(#1)"
   js "$std_core._int64_bswap"
 
@@ -319,7 +306,7 @@ pub inline fip extern breverse( i : int64 ) : int64
 // 
 // `bgather(0x1234.int64, 0x0F0F.int64).show-hex == "0x24"`
 pub inline fip extern bgather( i : int64, m : int64 ) : int64 
-  c inline "kk_pext64(#1,#2)"
+  c inline "kk_bits_gather64(#1,#2)"
 
 // Bit scatter (also known as _pdep_ or parallel bit deposit).
 // For each 1-bit in mask `m`, set the corresponding bit in the result from the 
@@ -327,7 +314,7 @@ pub inline fip extern bgather( i : int64, m : int64 ) : int64
 //
 // `bscatter(0x1234.int64, 0x0F0F.int64).show-hex == "0x304"`
 pub inline fip extern bscatter( i : int64, m : int64 ) : int64 
-  c inline "kk_pdep64(#1,#2)"
+  c inline "kk_bits_scatter64(#1,#2)"
 
 // Return the minimum of two integers
 pub fip fun min( i : int64, j : int64 ) : int64 

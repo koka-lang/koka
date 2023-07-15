@@ -789,6 +789,12 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
   Parallel bit extract and deposit
 ------------------------------------------------------------------ */
 
+#define KK_BITS_USE_GENERIC_SCATTER_GATHER
+kk_decl_export uint32_t kk_bits_generic_gather32(uint32_t x, uint32_t mask);
+kk_decl_export uint64_t kk_bits_generic_gather64(uint64_t x, uint64_t mask);
+kk_decl_export uint32_t kk_bits_generic_scatter32(uint32_t x, uint32_t mask);
+kk_decl_export uint64_t kk_bits_generic_scatter64(uint64_t x, uint64_t mask);
+
 // todo: provide arm64 optimized version as well?
 #if defined(KK_ARCH_X64) && ((defined(_MSC_VER) &&  !defined(__clang_msvc__)) || (defined(__GNUC__) && defined(__BMI2__)))
 #include <immintrin.h>
@@ -796,43 +802,38 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
 #include <bmi2intrin.h>
 #endif
 
-static inline uint32_t kk_pext32(uint32_t x, uint32_t mask) {
+static inline uint32_t kk_bits_gather32(uint32_t x, uint32_t mask) {
   return _pext_u32(x, mask);
 }
 
-static inline uint64_t kk_pext64(uint64_t x, uint64_t mask) {
+static inline uint64_t kk_bits_gather64(uint64_t x, uint64_t mask) {
   return _pext_u64(x, mask);
 }
 
-static inline uint32_t kk_pdep32(uint32_t x, uint32_t mask) {
+static inline uint32_t kk_bits_scatter32(uint32_t x, uint32_t mask) {
   return _pdep_u32(x, mask);
 }
 
-static inline uint64_t kk_pdep64(uint64_t x, uint64_t mask) {
+static inline uint64_t kk_bits_scatter64(uint64_t x, uint64_t mask) {
   return _pdep_u64(x, mask);
 }
 
 #else
 
-kk_decl_export uint32_t kk_generic_pext32(uint32_t x, uint32_t mask);
-kk_decl_export uint64_t kk_generic_pext64(uint64_t x, uint64_t mask);
-kk_decl_export uint32_t kk_generic_pdep32(uint32_t x, uint32_t mask);
-kk_decl_export uint64_t kk_generic_pdep64(uint64_t x, uint64_t mask);
-
-static inline uint32_t kk_pext32(uint32_t x, uint32_t mask) {
-  return kk_generic_pext32(x, mask);
+static inline uint32_t kk_bits_gather32(uint32_t x, uint32_t mask) {
+  return kk_bits_generic_gather32(x, mask);
 }
 
-static inline uint64_t kk_pext64(uint64_t x, uint64_t mask) {
-  return kk_generic_pext64(x, mask); 
+static inline uint64_t kk_bits_gather64(uint64_t x, uint64_t mask) {
+  return kk_bits_generic_gather64(x, mask);
 }
 
-static inline uint32_t kk_pdep32(uint32_t x, uint32_t mask) {
-  return kk_generic_pdep32(x, mask);
+static inline uint32_t kk_bits_scatter32(uint32_t x, uint32_t mask) {
+  return kk_bits_generic_scatter32(x, mask);
 }
 
-static inline uint64_t kk_pdep64(uint64_t x, uint64_t mask) {
-  return kk_generic_pdep64(x, mask); 
+static inline uint64_t kk_bits_scatter64(uint64_t x, uint64_t mask) {
+  return kk_bits_generic_scatter64(x, mask);
 }
 
 #endif
