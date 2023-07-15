@@ -77,6 +77,13 @@ static inline kk_std_core_types__cctx kk_cctx_extend( kk_std_core_types__cctx ac
 // compose a context
 static inline kk_std_core_types__cctx kk_cctx_compose( kk_std_core_types__cctx acc1, kk_std_core_types__cctx acc2, bool is_linear, kk_context_t* ctx  ) {
   if (acc2.holeptr == NULL) return acc1;
-  return kk_cctx_extend(acc1,acc2.res,acc2.holeptr,is_linear,ctx);
+  if kk_likely(kk_block_is_unique(kk_ptr_unbox(acc2.res,ctx))) {
+    return kk_cctx_extend(acc1,acc2.res,acc2.holeptr,is_linear,ctx);
+  }
+  else {
+    kk_box_t* holeptr = NULL;
+    kk_box_t res = kk_cctx_copy(acc2.res,acc2.holeptr,&holeptr,ctx);
+    return kk_cctx_extend(acc1,res,holeptr,is_linear,ctx);
+  }  
 }
 

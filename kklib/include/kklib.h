@@ -1329,10 +1329,13 @@ static inline void kk_set_cpath_at( kk_block_t* b, kk_cpath_t cpath ) {
 #define KK_CCTX_NO_CONTEXT_PATH
 #else
 
+// context copy along the context path and return a new context.
+kk_decl_export kk_decl_noinline kk_box_t kk_cctx_copy(kk_box_t res, kk_box_t* holeptr, kk_box_t** newholeptr, kk_context_t* ctx);
+
 // functional context application by copying along the context path and attaching `child` at the hole.
 kk_decl_export kk_box_t kk_cctx_copy_apply( kk_box_t res, kk_box_t* holeptr, kk_box_t child, kk_context_t* ctx);
 
-// depricated:
+// deprecated:
 // set the context path.
 // update the field_idx with the field index + 1 that is along the context path, and return `d` as is.
 static inline kk_datatype_t kk_cctx_setcp(kk_datatype_t d, size_t field_offset, kk_context_t* ctx) {
