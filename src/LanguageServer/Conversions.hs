@@ -8,6 +8,7 @@ module LanguageServer.Conversions
     toLspPos,
     toLspRange,
     toLspLocation,
+    toLspLocationLink,
     toLspDiagnostics,
     toLspErrorDiagnostics,
     toLspWarningDiagnostic,
@@ -22,9 +23,11 @@ import           GHC.Generics              hiding (UInt)
 import qualified Common.Error as E
 import qualified Common.Range as R
 import qualified Data.Text as T
-import qualified Language.LSP.Types as J
-import Language.LSP.Types (UInt)
+import qualified Language.LSP.Protocol.Types as J
+import Colog.Core
+import Language.LSP.Protocol.Types (UInt)
 import Lib.PPrint (Doc)
+import qualified Syntax.RangeMap as R
 
 toLspPos :: R.Pos -> J.Position
 toLspPos p =
@@ -43,41 +46,49 @@ toLspLocation r =
   where
     uri = J.filePathToUri $ R.sourceName $ R.rangeSource r
 
-toLspDiagnostics :: J.DiagnosticSource -> E.Error a -> [J.Diagnostic]
+toLspLocationLink :: R.RangeInfo -> R.Range -> J.LocationLink
+toLspLocationLink src r =
+  J.LocationLink Nothing uri (toLspRange r) (toLspRange r)
+  where
+    uri = J.filePathToUri $ R.sourceName $ R.rangeSource r
+
+toLspDiagnostics :: T.Text -> E.Error a -> [J.Diagnostic]
 toLspDiagnostics src err =
   case E.checkError err of
     Right (_, ws) -> map (uncurry $ toLspWarningDiagnostic src) ws
     Left e -> toLspErrorDiagnostics src e
 
-toLspErrorDiagnostics :: J.DiagnosticSource -> E.ErrorMessage -> [J.Diagnostic]
+toLspErrorDiagnostics :: T.Text -> E.ErrorMessage -> [J.Diagnostic]
 toLspErrorDiagnostics src e =
   case e of
-    E.ErrorGeneral r doc -> [makeDiagnostic J.DsError src r doc]
-    E.ErrorParse r doc -> [makeDiagnostic J.DsError src r doc]
-    E.ErrorStatic rds -> map (uncurry $ makeDiagnostic J.DsError src) rds
-    E.ErrorKind rds -> map (uncurry $ makeDiagnostic J.DsError src) rds
-    E.ErrorType rds -> map (uncurry $ makeDiagnostic J.DsError src) rds
-    E.ErrorWarning rds e' -> map (uncurry $ makeDiagnostic J.DsError src) rds ++ toLspErrorDiagnostics src e'
-    E.ErrorIO doc -> [makeDiagnostic J.DsError src R.rangeNull doc]
+    E.ErrorGeneral r doc -> [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
+    E.ErrorParse r doc -> [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
+    E.ErrorStatic rds -> map (uncurry $ makeDiagnostic J.DiagnosticSeverity_Error src) rds
+    E.ErrorKind rds -> map (uncurry $ makeDiagnostic J.DiagnosticSeverity_Error src) rds
+    E.ErrorType rds -> map (uncurry $ makeDiagnostic J.DiagnosticSeverity_Error src) rds
+    E.ErrorWarning rds e' -> map (uncurry $ makeDiagnostic J.DiagnosticSeverity_Error src) rds ++ toLspErrorDiagnostics src e'
+    E.ErrorIO doc -> [makeDiagnostic J.DiagnosticSeverity_Error src R.rangeNull doc]
     E.ErrorZero -> []
 
-toLspWarningDiagnostic :: J.DiagnosticSource -> R.Range -> Doc -> J.Diagnostic
+toLspWarningDiagnostic :: T.Text -> R.Range -> Doc -> J.Diagnostic
 toLspWarningDiagnostic =
-  makeDiagnostic J.DsWarning
+  makeDiagnostic J.DiagnosticSeverity_Warning
 
-makeDiagnostic :: J.DiagnosticSeverity -> J.DiagnosticSource -> R.Range -> Doc -> J.Diagnostic
+makeDiagnostic :: J.DiagnosticSeverity -> T.Text -> R.Range -> Doc -> J.Diagnostic
 makeDiagnostic s src r doc =
-  J.Diagnostic range severity code source message tags related
+  J.Diagnostic range severity code codeDescription source message tags related dataX
   where
     range = toLspRange r
     severity = Just s
     code = Nothing
+    codeDescription = Nothing
     source = Just src
     message = T.pack $ show doc
     tags
-      | "is unused" `T.isInfixOf` message = Just $ J.List [J.DtUnnecessary]
+      | "is unused" `T.isInfixOf` message = Just [J.DiagnosticTag_Unnecessary]
       | otherwise = Nothing
     related = Nothing
+    dataX = Nothing
 
 fromLspPos :: J.Uri -> J.Position -> R.Pos
 fromLspPos uri (J.Position l c) =

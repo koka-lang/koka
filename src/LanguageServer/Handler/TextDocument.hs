@@ -21,33 +21,34 @@ import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import Language.LSP.Diagnostics (partitionBySource)
 import Language.LSP.Server (Handlers, flushDiagnosticsBySource, notificationHandler, publishDiagnostics, sendNotification, getVirtualFile)
-import qualified Language.LSP.Types as J
-import qualified Language.LSP.Types.Lens as J
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Lens as J
 import LanguageServer.Conversions (toLspDiagnostics)
 import LanguageServer.Monad (LSM, modifyLoaded)
 import Language.LSP.VFS (virtualFileText)
 import qualified Data.Text.Encoding as T
 import Data.Functor ((<&>))
+import qualified Language.LSP.Protocol.Message as J
 
 didOpenHandler :: Flags -> Handlers LSM
-didOpenHandler flags = notificationHandler J.STextDocumentDidOpen $ \msg -> do
+didOpenHandler flags = notificationHandler J.SMethod_TextDocumentDidOpen $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
   let version = msg ^. J.params . J.textDocument . J.version
   recompileFile flags uri (Just version) False
 
 didChangeHandler :: Flags -> Handlers LSM
-didChangeHandler flags = notificationHandler J.STextDocumentDidChange $ \msg -> do
+didChangeHandler flags = notificationHandler J.SMethod_TextDocumentDidChange $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
   let version = msg ^. J.params . J.textDocument . J.version
-  recompileFile flags uri version True -- Need to reload
+  recompileFile flags uri (Just version) True -- Need to reload
 
 didSaveHandler :: Flags -> Handlers LSM
-didSaveHandler flags = notificationHandler J.STextDocumentDidSave $ \msg -> do
+didSaveHandler flags = notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
   recompileFile flags uri Nothing False
 
 didCloseHandler :: Flags -> Handlers LSM
-didCloseHandler flags = notificationHandler J.STextDocumentDidClose $ \_msg -> do
+didCloseHandler flags = notificationHandler J.SMethod_TextDocumentDidClose $ \_msg -> do
   -- TODO: Remove file from LSM state?
   return ()
 
@@ -62,14 +63,14 @@ recompileFile flags uri version force =
       vFile <- getVirtualFile normUri
       let contents = vFile <&> (T.encodeUtf8 . virtualFileText)
 
-      sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ T.pack ("Recompiling " ++ show contents) <> T.pack filePath
+      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack ("Recompiling " ++ show contents) <> T.pack filePath
       loaded <- liftIO $ compileModuleOrFile terminal flags [] filePath contents True
       case checkError loaded of
         Right (l, _) -> do
           modifyLoaded $ M.insert normUri l
-          sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ "Successfully compiled " <> T.pack filePath
+          sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ "Successfully compiled " <> T.pack filePath
         Left e -> 
-          sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ T.pack ("Error when compiling " ++ show e) <> T.pack filePath
+          sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack ("Error when compiling " ++ show e) <> T.pack filePath
 
       -- Emit the diagnostics (errors and warnings)
       let diagSrc = T.pack "koka"

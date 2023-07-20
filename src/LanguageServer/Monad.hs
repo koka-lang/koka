@@ -22,7 +22,7 @@ import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Trans (lift, liftIO)
 import qualified Data.Map as M
 import Language.LSP.Server (LanguageContextEnv, LspT, runLspT)
-import qualified Language.LSP.Types as J
+import qualified Language.LSP.Protocol.Types as J
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 newtype LSState = LSState {lsLoaded :: M.Map J.NormalizedUri Loaded}

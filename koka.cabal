@@ -154,6 +154,7 @@ executable koka
       array
     , base >=4.9
     , bytestring
+    , co-log-core
     , containers
     , directory
     , isocline >=1.0.6
@@ -182,6 +183,7 @@ test-suite koka-test
       array
     , base >=4.9
     , bytestring
+    , co-log-core
     , containers
     , directory
     , extra

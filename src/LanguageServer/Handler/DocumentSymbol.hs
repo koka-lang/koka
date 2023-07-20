@@ -16,20 +16,21 @@ import qualified Data.Map                as M
 import Data.Maybe                        ( maybeToList )
 import qualified Data.Text               as T
 import Language.LSP.Server               ( requestHandler, Handlers )
-import qualified Language.LSP.Types      as J
-import qualified Language.LSP.Types.Lens as J
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Lens as J
 import LanguageServer.Conversions        ( toLspRange )
 import LanguageServer.Monad              ( LSM, getLoaded )
 import Syntax.Syntax
+import qualified Language.LSP.Protocol.Message as J
 
 documentSymbolHandler :: Flags -> Handlers LSM
-documentSymbolHandler flags = requestHandler J.STextDocumentDocumentSymbol $ \req responder -> do
+documentSymbolHandler flags = requestHandler J.SMethod_TextDocumentDocumentSymbol $ \req responder -> do
   let J.DocumentSymbolParams _ _ doc = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
   loaded <- getLoaded
   let symbols = findDocumentSymbols =<< maybeToList (M.lookup normUri loaded)
-  responder $ Right $ J.InL $ J.List symbols
+  responder $ Right $ J.InR $ J.InL symbols
 
 -- Traverses the syntax tree to find document symbols
 findDocumentSymbols :: Loaded -> [J.DocumentSymbol]
@@ -66,9 +67,9 @@ instance HasSymbols UserTypeDef where
       n = tbinderName b
       r = typeDefRange td
       k = case td of
-        Synonym {..}                                       -> J.SkInterface
-        DataType {typeDefConstrs = ctrs} | length ctrs > 1 -> J.SkEnum
-                                         | otherwise       -> J.SkStruct
+        Synonym {..}                                       -> J.SymbolKind_Interface
+        DataType {typeDefConstrs = ctrs} | length ctrs > 1 -> J.SymbolKind_Enum
+                                         | otherwise       -> J.SymbolKind_Struct
       cs = case td of
         DataType {typeDefConstrs = ctrs} -> symbols ctrs
         _                                -> []
@@ -78,8 +79,8 @@ instance HasSymbols UserUserCon where
     where
       n = userconName c
       ps = userconParams c
-      k | not (null ps) = J.SkConstructor
-        | otherwise     = J.SkEnumMember
+      k | not (null ps) = J.SymbolKind_Constructor
+        | otherwise     = J.SymbolKind_EnumMember
       r = userconRange c
 
 -- Value definition instances
@@ -94,9 +95,9 @@ instance HasSymbols UserDef where
     where
       b = defBinder d
       k = case defSort d of
-        DefFun _ _ -> J.SkFunction
-        DefVal -> J.SkConstant
-        DefVar -> J.SkVariable
+        DefFun _ _ -> J.SymbolKind_Function
+        DefVal -> J.SymbolKind_Constant
+        DefVar -> J.SymbolKind_Variable
       n = binderName b
       r = defRange d
       cs = symbols $ binderExpr b
@@ -104,7 +105,7 @@ instance HasSymbols UserDef where
 instance HasSymbols e => HasSymbols (ValueBinder t e) where
   symbols b = [makeSymbol n k r cs]
     where
-      k = J.SkConstant
+      k = J.SymbolKind_Constant
       n = binderName b
       r = binderRange b
       cs = symbols $ binderExpr b
@@ -126,7 +127,7 @@ instance HasSymbols UserExpr where
     _                                     -> [] -- TODO: Handle other types of (nested) expressions
 
 instance HasSymbols UserHandlerBranch where
-  symbols hb = [makeSymbol n J.SkFunction r cs]
+  symbols hb = [makeSymbol n J.SymbolKind_Function r cs]
     where
       n = hbranchName hb
       r = hbranchNameRange hb
@@ -150,7 +151,7 @@ instance HasSymbols UserPattern where
   symbols pat = case pat of
     PatVar b        -> let n = binderName b
                            r = binderRange b
-                       in [makeSymbol n J.SkConstant r []]
+                       in [makeSymbol n J.SymbolKind_Constant r []]
     PatAnn p _ _    -> symbols p
     PatCon _ ps _ _ -> symbols $ map snd ps
     PatParens p _   -> symbols p
@@ -162,8 +163,8 @@ makeSymbol n k r cs = J.DocumentSymbol name detail kind tags deprecated range se
     name = T.pack $ nameId n
     detail = Just $ T.pack $ nameModule n
     kind = k
-    tags = Just $ J.List []
+    tags = Just []
     deprecated = Just False
     range = toLspRange r
     selRange = range
-    children = Just $ J.List cs
+    children = Just cs

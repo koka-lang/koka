@@ -1,0 +1,32 @@
+name: Build Koka and Publish release
+on:
+  push:
+    tags: [v*]
+    paths: ["src/**", "lib/**", "samples/**", "util/**"]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+jobs:
+  build_and_release:
+    name: Koka build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: "vcpkg"
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: b83d86364faa85e4d0dd5393ccb628327a240d71
+          vcpkgDirectory: ~/vcpkg
+      
+      - uses: haskell/actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+      - name: Setup dependencies
+        run: |
+          stack update
+          stack run koka -- -e util/bundle

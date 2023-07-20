@@ -12,7 +12,8 @@ import LanguageServer.Handler.Hover (hoverHandler)
 import LanguageServer.Handler.Initialized (initializedHandler)
 import LanguageServer.Handler.TextDocument (didChangeHandler, didCloseHandler, didOpenHandler, didSaveHandler)
 import LanguageServer.Monad (LSM)
-import qualified Language.LSP.Types as J
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Message as J
 
 handlers :: Flags -> Handlers LSM
 handlers flags =
@@ -31,6 +32,6 @@ handlers flags =
 
 cancelHandler :: Flags -> Handlers LSM
 cancelHandler flags =  
-  notificationHandler J.SCancelRequest $ \msg -> 
+  notificationHandler J.SMethod_CancelRequest $ \msg -> 
     do
       return ()

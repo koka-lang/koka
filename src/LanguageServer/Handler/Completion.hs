@@ -19,8 +19,8 @@ import qualified Data.Text as T
 import Kind.Constructors (ConInfo (..), Constructors, constructorsList)
 import Kind.Synonym (SynInfo (..), Synonyms, synonymsToList)
 import Language.LSP.Server (Handlers, getVirtualFile, requestHandler)
-import qualified Language.LSP.Types as J
-import qualified Language.LSP.Types.Lens as J
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Lens as J
 import Language.LSP.VFS (PosPrefixInfo (..), getCompletionPrefix)
 import LanguageServer.Monad (LSM, getLoaded)
 import Lib.PPrint (Pretty (..))
@@ -46,9 +46,10 @@ import Type.Assumption
       ),
     gammaList,
   )
+import qualified Language.LSP.Protocol.Message as J
 
 completionHandler :: Flags -> Handlers LSM
-completionHandler flags = requestHandler J.STextDocumentCompletion $ \req responder -> do
+completionHandler flags = requestHandler J.SMethod_TextDocumentCompletion $ \req responder -> do
   let J.CompletionParams doc pos _ _ _ = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
@@ -59,7 +60,7 @@ completionHandler flags = requestHandler J.STextDocumentCompletion $ \req respon
         vf <- maybeToList vfile
         pf <- maybeToList =<< getCompletionPrefix pos vf
         findCompletions l pf
-  responder $ Right $ J.InL $ J.List items
+  responder $ Right $ J.InL $ items
 
 -- TODO: Make completions context-aware
 -- TODO: Complete local variables
@@ -87,13 +88,13 @@ valueCompletions = map toItem . gammaList
     toItem (n, ninfo) = makeCompletionItem n k d
       where
         k = case ninfo of
-          InfoVal {..} -> J.CiConstant
-          InfoFun {..} -> J.CiFunction
-          InfoExternal {..} -> J.CiReference
-          InfoImport {..} -> J.CiModule
+          InfoVal {..} -> J.CompletionItemKind_Constant
+          InfoFun {..} -> J.CompletionItemKind_Function
+          InfoExternal {..} -> J.CompletionItemKind_Reference
+          InfoImport {..} -> J.CompletionItemKind_Module
           InfoCon {infoCon = ConInfo {conInfoParams = ps}}
-            | not (null ps) -> J.CiConstructor
-            | otherwise -> J.CiEnumMember
+            | not (null ps) -> J.CompletionItemKind_Constructor
+            | otherwise -> J.CompletionItemKind_EnumMember
         d = show $ pretty $ infoType ninfo
 
 constructorCompletions :: Constructors -> [J.CompletionItem]
@@ -103,14 +104,14 @@ constructorCompletions = map toItem . constructorsList
       where
         ps = conInfoParams cinfo
         k
-          | not (null ps) = J.CiConstructor
-          | otherwise = J.CiEnumMember
+          | not (null ps) = J.CompletionItemKind_Constructor
+          | otherwise = J.CompletionItemKind_EnumMember
         d = show $ pretty $ conInfoType cinfo
 
 synonymCompletions :: Synonyms -> [J.CompletionItem]
 synonymCompletions = map toItem . synonymsToList
   where
-    toItem sinfo = makeCompletionItem n J.CiInterface d
+    toItem sinfo = makeCompletionItem n J.CompletionItemKind_Interface d
       where
         n = synInfoName sinfo
         d = show $ pretty $ synInfoType sinfo
@@ -118,12 +119,13 @@ synonymCompletions = map toItem . synonymsToList
 keywordCompletions :: [J.CompletionItem]
 keywordCompletions = map toItem $ S.toList reservedNames
   where
-    toItem s = makeSimpleCompletionItem s J.CiKeyword
+    toItem s = makeSimpleCompletionItem s J.CompletionItemKind_Keyword
 
 makeCompletionItem :: Name -> J.CompletionItemKind -> String -> J.CompletionItem
 makeCompletionItem n k d =
   J.CompletionItem
     label
+    labelDetails
     kind
     tags
     detail
@@ -136,16 +138,18 @@ makeCompletionItem n k d =
     insertTextFormat
     insertTextMode
     textEdit
+    textEditText
     additionalTextEdits
     commitChars
     command
     xdata
   where
     label = T.pack $ nameId n
+    labelDetails = Nothing
     kind = Just k
     tags = Nothing
-    detail = Just $ T.pack d
-    doc = Just $ J.CompletionDocString $ T.pack $ nameModule n
+    detail = Just $  T.pack d
+    doc = Just $ J.InL $ T.pack $ nameModule n
     deprecated = Just False
     preselect = Nothing
     sortText = Nothing
@@ -154,6 +158,7 @@ makeCompletionItem n k d =
     insertTextFormat = Nothing
     insertTextMode = Nothing
     textEdit = Nothing
+    textEditText = Nothing
     additionalTextEdits = Nothing
     commitChars = Nothing
     command = Nothing
@@ -163,6 +168,7 @@ makeSimpleCompletionItem :: String -> J.CompletionItemKind -> J.CompletionItem
 makeSimpleCompletionItem l k =
   J.CompletionItem
     label
+    labelDetails
     kind
     tags
     detail
@@ -175,12 +181,14 @@ makeSimpleCompletionItem l k =
     insertTextFormat
     insertTextMode
     textEdit
+    textEditText
     additionalTextEdits
     commitChars
     command
     xdata
   where
     label = T.pack l
+    labelDetails = Nothing
     kind = Just k
     tags = Nothing
     detail = Nothing
@@ -193,6 +201,7 @@ makeSimpleCompletionItem l k =
     insertTextFormat = Nothing
     insertTextMode = Nothing
     textEdit = Nothing
+    textEditText = Nothing
     additionalTextEdits = Nothing
     commitChars = Nothing
     command = Nothing
