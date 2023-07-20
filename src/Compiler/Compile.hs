@@ -9,6 +9,7 @@
     Main module.
 -}
 -----------------------------------------------------------------------------
+{-# LANGUAGE InstanceSigs #-}
 module Compiler.Compile( -- * Compile
                          compileFile
                        , compileModule
@@ -86,7 +87,7 @@ import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
                                 prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags,
                                 fullBuildDir, outName, buildVariant, osName, targetExeExtension,
-                                conanSettingsFromFlags, vcpkgFindRoot, onWindows, onMacOS)
+                                conanSettingsFromFlags, vcpkgFindRoot, onWindows, onMacOS, Mode (ModeLanguageServer))
 
 import Compiler.Module
 
@@ -371,7 +372,7 @@ compileProgramFromContents term flags modules compileTarget contents rootPath st
                                      ))
        let stemName = nameFromFile stem
        let flags2 = flags{forceModule = fname}
-       compileProgram' term flags2 modules compileTarget fname program{ programName = stemName }
+       compileProgramNoCodeGen' term flags2 modules compileTarget fname program{ programName = stemName }
 
 compileProgramFromFile :: Terminal -> Flags -> Modules -> CompileTarget () -> FilePath -> FilePath -> IOErr Loaded
 compileProgramFromFile term flags modules compileTarget rootPath stem
@@ -504,6 +505,77 @@ compileProgram' term flags modules compileTarget fname program
        -- liftIO $ termDoc term (text $ show (loadedGamma loaded4))
        -- trace (" final loaded modules: " ++ show (map modName (loadedModules loaded4))) $ return ()
        return loaded4{ loadedModules = addOrReplaceModule (loadedModule loaded4) (loadedModules loaded4) }
+
+
+compileProgramNoCodeGen' :: Terminal -> Flags -> Modules -> CompileTarget () -> FilePath -> UserProgram -> IOErr Loaded
+compileProgramNoCodeGen' term flags modules compileTarget fname program
+  = do let name   = getName program
+           outIFace = outName flags (showModName name) ++ ifaceExtension
+           mod    = (moduleNull name){
+                      modPath = outIFace,
+                      modSourcePath = fname,
+                      modProgram = (Just program),
+                      modCore = failure "Compiler.Compile.compileProgram: recursive module import"
+                    }
+           allmods = addOrReplaceModule mod modules
+           loaded = initialLoaded { loadedModule = mod
+                                  , loadedModules = allmods
+                                  }
+       loaded1 <- resolveImports (getName program) term flags (dirname fname) loaded (map ImpProgram (programImports program))
+
+       let coreImports = concatMap toCoreImport (loadedModules loaded1) -- (programImports program)
+           toCoreImport mod = let vis = case filter (\imp -> modName mod == importFullName imp) (programImports program) of
+                                          []      -> Private -- failure $ "Compiler.Compile.compileProgram': cannot find import: " ++ show (modName mod) ++ " in " ++ show (map (show . importName) (programImports program))
+                                          (imp:_) -> importVis imp -- TODO: get max
+                              in if (modName mod == name) then []
+                                  else [Core.Import (modName mod) (modPackagePath mod) vis (Core.coreProgDoc (modCore mod))]
+       (loaded2a, coreDoc) <- liftError $ typeCheck loaded1 flags 0 coreImports program       
+
+       -- cull imports to only the real dependencies
+       let mod = loadedModule loaded2a
+           inlineDefs = case (modInlines mod) of
+                          Right defs -> defs
+                          Left _     -> []
+           deps  = Core.dependencies inlineDefs (modCore mod)
+           imps  = filter (\imp -> isPublic (Core.importVis imp) || Core.importName imp == nameSystemCore
+                                    || S.member (Core.importName imp) deps) (Core.coreProgImports (modCore mod))
+           mod'  = mod{ modCore = (modCore mod){ Core.coreProgImports = imps } }
+           loaded2 = loaded2a{ loadedModule = mod' }
+
+       (newTarget,loaded3) <- liftError $
+           case compileTarget of
+             Executable entryName _
+               -> let mainName = if (isQualified entryName) then entryName else qualify (getName program) (entryName) in
+                  case gammaLookupQ mainName (loadedGamma loaded2) of
+                     []   -> errorMsg (ErrorGeneral rangeNull (text "there is no 'main' function defined" <-> text "hint: use the '-l' flag to generate a library?"))
+                     infos-> let mainType = TFun [] (TCon (TypeCon nameTpIO kindEffect)) typeUnit  -- just for display, so IO can be TCon
+                                 isMainType tp = case expandSyn tp of
+                                                   TFun [] eff resTp  -> True -- resTp == typeUnit
+                                                   _                  -> False                                
+                             in case filter (isMainType . infoType) infos of
+                               [InfoFun{infoType=tp,infoRange=r}] 
+                                  -> do mbF <- checkUnhandledEffects flags loaded2 mainName r tp
+                                        case mbF of
+                                          Nothing -> return (Executable mainName tp, loaded2)
+                                          Just f  ->
+                                            let mainName2  = qualify (getName program) (newHiddenName "hmain")
+                                                expression = App (Var (if (isHiddenName mainName) then mainName -- .expr
+                                                                                                  else unqualify mainName -- main
+                                                                      ) False r) [] r
+                                                defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (defFun []) InlineNever ""
+                                                program2   = programAddDefs program [] [defMain]
+                                            in do (loaded3,_) <- ignoreWarnings $ typeCheck loaded1 flags 0 coreImports program2
+                                                  return (Executable mainName2 tp, loaded3) -- TODO: refine the type of main2
+                               [info]
+                                  -> errorMsg (ErrorGeneral (infoRange info) (text "'main' must be declared as a function (fun)"))
+                               [] -> errorMsg (ErrorGeneral rangeNull (text "the type of 'main' must be a function without arguments" <->
+                                                                                      table [(text "expected type", ppType (prettyEnvFromFlags flags) mainType)
+                                                                                            ,(text "inferred type", ppType (prettyEnvFromFlags flags) (head (map infoType infos)))]))
+                               _  -> errorMsg (ErrorGeneral rangeNull (text "found multiple definitions for the 'main' function"))
+             Object -> return (Object,loaded2)
+             Library -> return (Library,loaded2)
+       return loaded3
+
 
 checkUnhandledEffects :: Flags -> Loaded -> Name -> Range -> Type -> Error (Maybe (UserExpr -> UserExpr))
 checkUnhandledEffects flags loaded name range tp
