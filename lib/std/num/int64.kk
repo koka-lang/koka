@@ -65,8 +65,9 @@ pub inline fip extern uint32( i : int64 ) : int32
 
 // Create an `:int64` `i` from the bits of `lo` and `hi` such
 // that `i.int = hi.int * 0x1_0000_0000 + lo.uint`.
-pub fip fun int64( lo : int32, hi : int32 ) : int64 
-  hi.int64.shl(32).or(lo.uint64)
+pub inline fip extern int64( lo : int32, hi : int32 ) : int64 
+  c inline "kk_int64_lo_hi(#1,#2)"
+  js "$std_core._int64_lo_hi"
   
 // Convert an `:int` to `:int64` but interpret the `int` as an unsigned 64-bit value.
 // `i` is clamped between `0` and `0xFFFF_FFFF_FFFF_FFFF`.\
@@ -299,6 +300,7 @@ pub inline fip extern byteswap( i : int64 ) : int64
 // Reverse the bits in an `:int64`.
 pub inline fip extern breverse( i : int64 ) : int64
   c inline "kk_bits_reverse64(#1)"
+  js "$std_core._int64_breverse"
 
 // Bit gather (also known as _pext_ or parallel bit extract).
 // For each 1-bit in mask `m`, extract the corresponding bit from `i` and write it
@@ -329,11 +331,13 @@ pub fip fun max( i : int64, j : int64 ) : int64
 // where `(lo,hi).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
 pub fip extern umul( i : int64, j : int64 ) : (int64,int64)
   c "kk_wide_umul64x"
+  js "$std_core._int64_umul"
 
 // Full 64x64 bit signed multiply to `(lo,hi)`.
 // where `(lo,hi).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
 pub fip extern imul( i : int64, j : int64 ) : (int64,int64)
   c "kk_wide_imul64x"
+  js "$std_core._int64_imul"
 
 // Convert a pair `(lo,hi)` to an signed integer,
 // where `(ho,hi).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`

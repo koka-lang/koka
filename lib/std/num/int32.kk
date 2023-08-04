@@ -258,12 +258,12 @@ pub inline fip extern clrsb( i : int32 ) : int
   js "$std_core._int32_clrsb"
 
 
-// Count number of 1-bits.
+// Count number of 1-bits (also known as _population count_ or _hamming weight_).
 pub inline fip extern popcount( i : int32 ) : int
   c inline "kk_integer_from_small(kk_bits_popcount32(#1))"
   js "$std_core._int32_bits_popcount"
 
-// Is the number of 1-bits even?
+// Is the number of 1-bits even? 
 pub inline fip extern parity( i : int32 ) : bool
   c inline "kk_bits_parity32(#1)"
   js "$std_core._int32_parity"    
@@ -273,16 +273,20 @@ pub inline fip extern byteswap( i : int32 ) : int32
   c inline "kk_bits_bswap32(#1)"
   js "$std_core._int32_bswap"
 
-
 // Reverse the bits in an `:int32`.
 pub inline fip extern breverse( i : int32 ) : int32
   c inline "kk_bits_reverse32(#1)"
+  js "$std_core._int32_breverse"
 
 // Bit gather (also known as _pext_ or parallel bit extract).
 // For each 1-bit in mask `m`, extract the corresponding bit from `i` and write it
 // into contiguous lower bits in the result. The remaining bits in the result are zero.
 // 
 // `bgather(0x1234.int32, 0x0F0F.int32).show-hex == "0x24"`
+//
+// Here is how to decode a 4-byte utf-8 encoded character `i`:
+//
+// `bgather(i,0x3F3F3F3F.int32)`
 pub inline fip extern bgather( i : int32, m : int32 ) : int32 
   c inline "kk_bits_gather32(#1,#2)"
 
@@ -308,11 +312,13 @@ pub fip fun max( i : int32, j : int32 ) : int32
 // where `(lo,hi).uint == hi.uint * 0x1_0000_0000 + lo.uint`
 pub fip extern umul( i : int32, j : int32 ) : (int32,int32)
   c "kk_wide_umul32x"
+  js "$std_core._int32_umul"
 
 // Full 32x32 bit signed multiply to `(lo,hi)`.
 // where `(lo,hi).int == hi.int * 0x1_0000_0000 + lo.uint`
 pub fip extern imul( i : int32, j : int32 ) : (int32,int32)
   c "kk_wide_imul32x"
+  js "$std_core._int32_imul"
 
 // Convert a pair `(lo,hi)` to a signed integer,
 // where `(lo,hi).int == hi.int * 0x1_0000_0000 + lo.uint`
