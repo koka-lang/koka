@@ -348,7 +348,7 @@ uint32_t kk_bits_deinterleave32(uint32_t x) {
 }
 
 uint64_t kk_bits_interleave64(uint64_t x) {
-  return ((kk_bits_scatter_odd64(x & KK_U64(0xFFFFFFFF)) << 1) | kk_bits_scatter_odd64(x>>16));  
+  return ((kk_bits_scatter_odd64(x & KK_U64(0xFFFFFFFF)) << 1) | kk_bits_scatter_odd64(x>>32));  
 }
 
 uint64_t kk_bits_deinterleave64(uint64_t x) {
