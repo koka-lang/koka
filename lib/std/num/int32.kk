@@ -190,7 +190,6 @@ pub fip fun(^)( x : int32, y : int32) : int32
 pub inline fip extern not : ( i : int32 ) -> int32  
   inline "(~#1)"
 
-
 // Shift an `:int32` `i` to the left by `n & 31` bits.
 inline fip extern shl32 : (int32,int32) -> int32 
   c  inline "kk_shl32(#1,#2)"
@@ -221,6 +220,19 @@ inline fip extern sar32 : (int32,int32) -> int32
 pub fip fun sar( i : int32, shift : int ) : int32
   sar32( i, shift.int32 )
 
+// Return the top 16-bits of an `:int32`.
+// Preserves the sign.
+pub fun hi( i : int32 ) : int32
+  sar32(i,16.int32)
+
+// Return the low 16-bits of an `:int32`.
+pub fun lo( i : int32 ) : int32
+  and(i,0xFFFF.int32)
+
+// Create an `:int32` from the give `hi` and `lo` 16-bit numbers.
+// Preserves the sign of `hi`.
+pub fun hilo( hi : int32, lo : int32 ) : int32
+  or( shl32(hi,16.int32), and(lo,0xFFFF.int32) )
 
 // Bitwise rotate an `:int32` `n % 32` bits to the left.
 inline fip extern rotl32( i : int32, n : int32 ) : int32 
@@ -297,6 +309,21 @@ pub inline fip extern bgather( i : int32, m : int32 ) : int32
 // `bscatter(0x1234.int32, 0x0F0F.int32).show-hex == "0x304"`
 pub inline fip extern bscatter( i : int32, m : int32 ) : int32 
   c inline "kk_bits_scatter32(#1,#2)"
+
+// Interleave the hi 16-bits with the lo 16-bits of the argument `i` such
+// that the hi bits are spread over the even bits and the lo bits over the odd bits of the result.
+pub inline fip extern interleave( i : int32 ) : int32
+  c inline "kk_bits_interleave32(#1)"
+
+// De-interleave the bits in `i` such that the even bits are gathered in the 
+// hi 16-bits of the result, and the odd bits in the lo 16-bits of the result.
+pub inline fip extern deinterleave( i : int32 ) : int32
+  c inline "kk_bits_deinterleave32(#1)"  
+
+// Or-combine: for every byte `b` in the argument `i`, the corresponding
+// byte in the result becomes 0 if `b==0`, and `0xFF` otherwise.
+pub inline fip extern orc( i : int32 ) : int32
+  c inline "kk_bits_orc32(#1)"
 
 
 // Return the minimum of two integers

@@ -51,7 +51,7 @@ int kk_bits_digits64(uint64_t u) {
 
 #if defined(KK_BITS_USE_GENERIC_CTZ_CLZ)
 
-int kk_bits_generic_ctz32(uint32_t x) {
+int kk_bits_ctz32(uint32_t x) {
   // de Bruijn multiplication, see <http://supertech.csail.mit.edu/papers/debruijn.pdf>
   static const int8_t debruijn[32] = {
     0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
@@ -62,7 +62,7 @@ int kk_bits_generic_ctz32(uint32_t x) {
   return debruijn[(uint32_t)(x * KK_U32(0x077CB531)) >> 27];
 }
 
-int kk_bits_generic_clz32(uint32_t x) {  
+int kk_bits_clz32(uint32_t x) {  
   // de Bruijn multiplication, see <http://supertech.csail.mit.edu/papers/debruijn.pdf>
   static const int8_t debruijn[32] = {
     31, 22, 30, 21, 18, 10, 29, 2, 20, 17, 15, 13, 9, 6, 28, 1,
@@ -77,6 +77,38 @@ int kk_bits_generic_clz32(uint32_t x) {
   return debruijn[(uint32_t)(x * KK_U32(0x07C4ACDD)) >> 27];
 }
 
+#endif
+
+
+/* ----------------------------------------------------------
+  or-combine
+-------------------------------------------------------------*/
+#if defined(KK_BITS_USE_GENERIC_ORC)
+uint32_t kk_bits_orc32(uint32_t x) {
+  // set low bit in each byte to `or` of the bits in the byte
+  x |= ((x & KK_U32(0xF0F0F0F0)) >> 4);
+  x |= ((x & KK_U32(0x0A0A0A0A)) >> 2);
+  x |= ((x & KK_U32(0x02020202)) >> 1);
+  // distribute the low bits back
+  x &= kk_bits_one_mask32;
+  x |= (x << 1);
+  x |= (x << 2); 
+  x |= (x << 4);
+  return x;
+}
+
+uint64_t kk_bits_orc64(uint64_t x) {
+  // set low bit in each byte to `or` of the bits in the byte
+  x |= ((x & KK_U64(0xF0F0F0F0F0F0F0F0)) >> 4);
+  x |= ((x & KK_U64(0x0A0A0A0A0A0A0A0A)) >> 2);
+  x |= ((x & KK_U64(0x0202020202020202)) >> 1);
+  // distribute the low bits back
+  x &= kk_bits_one_mask64;
+  x |= (x << 1); 
+  x |= (x << 2); 
+  x |= (x << 4);
+  return x;
+}
 #endif
 
 /* ----------------------------------------------------------
@@ -124,7 +156,7 @@ int kk_bits_generic_popcount64(uint64_t x) {
 
 #define kk_split32(x)   const uint64_t x##lo = (uint32_t)(x); const uint64_t x##hi = (x)>>32;
 
-uint64_t kk_generic_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
+uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
   kk_split32(x); kk_split32(y);
   uint64_t a = xlo * ylo;
   uint64_t b = xhi * ylo;
@@ -142,7 +174,7 @@ uint64_t kk_generic_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
 
 #ifdef KK_BITS_USE_GENERIC_REVERSE
 
-uint32_t kk_bits_generic_reverse32(uint32_t x) {
+uint32_t kk_bits_reverse32(uint32_t x) {
   // from: http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
   x = ((x >> 1) & KK_U32(0x55555555)) | ((x & KK_U32(0x55555555)) << 1); // swap odd and even bits
   x = ((x >> 2) & KK_U32(0x33333333)) | ((x & KK_U32(0x33333333)) << 2); // swap 2-bit pairs
@@ -150,7 +182,7 @@ uint32_t kk_bits_generic_reverse32(uint32_t x) {
   return kk_bits_bswap32(x);
 }
 
-uint64_t kk_bits_generic_reverse64(uint64_t x) {
+uint64_t kk_bits_reverse64(uint64_t x) {
   x = ((x >> 1) & KK_U64(0x5555555555555555)) | ((x & KK_U64(0x5555555555555555)) << 1); // swap odd and even bits
   x = ((x >> 2) & KK_U64(0x3333333333333333)) | ((x & KK_U64(0x3333333333333333)) << 2); // swap 2-bit pairs
   x = ((x >> 4) & KK_U64(0x0F0F0F0F0F0F0F0F)) | ((x & KK_U64(0x0F0F0F0F0F0F0F0F)) << 4); // swap 4-bit nibbles 
@@ -165,7 +197,7 @@ uint64_t kk_bits_generic_reverse64(uint64_t x) {
 
 #ifdef KK_BITS_USE_GENERIC_SCATTER_GATHER
 
-static uint32_t kk_bits_generic_scatter32_loop(uint32_t x, uint32_t mask) {
+static uint32_t kk_bits_scatter32_loop(uint32_t x, uint32_t mask) {
   uint32_t y = 0;
   while (mask != 0) {
     int shift = kk_bits_ctz32(mask);   // find lsb
@@ -177,7 +209,7 @@ static uint32_t kk_bits_generic_scatter32_loop(uint32_t x, uint32_t mask) {
 }
 
 
-uint32_t kk_bits_generic_scatter32(uint32_t x, uint32_t mask) {
+uint32_t kk_bits_scatter32(uint32_t x, uint32_t mask) {
   switch (kk_bits_popcount32(mask)) {
   case 0: return 0;
   case 1: return ((x & 1) != 0 ? mask : 0);
@@ -187,10 +219,10 @@ uint32_t kk_bits_generic_scatter32(uint32_t x, uint32_t mask) {
     return (msb | lsb);
   }
   }
-  return kk_bits_generic_scatter32_loop(x, mask);
+  return kk_bits_scatter32_loop(x, mask);
 }
 
-static uint32_t kk_bits_generic_gather32_loop(uint32_t x, uint32_t mask) {
+static uint32_t kk_bits_gather32_loop(uint32_t x, uint32_t mask) {
   uint32_t y = 0;
   while (mask != 0) {
     int shift = 31 - kk_bits_clz32(mask);  // find msb
@@ -200,7 +232,7 @@ static uint32_t kk_bits_generic_gather32_loop(uint32_t x, uint32_t mask) {
   return y;
 }
 
-uint32_t kk_bits_generic_gather32(uint32_t x, uint32_t mask) {
+uint32_t kk_bits_gather32(uint32_t x, uint32_t mask) {
   switch (kk_bits_popcount32(mask)) {
   case 0: return 0;
   case 1: return ((x & mask) != 0 ? 1 : 0);
@@ -210,11 +242,11 @@ uint32_t kk_bits_generic_gather32(uint32_t x, uint32_t mask) {
     return (msb | lsb);
   }
   }
-  return kk_bits_generic_gather32_loop(x, mask);
+  return kk_bits_gather32_loop(x, mask);
 }
 
 
-static uint64_t kk_bits_generic_scatter64_loop(uint64_t x, uint64_t mask) {
+static uint64_t kk_bits_scatter64_loop(uint64_t x, uint64_t mask) {
   uint64_t y = 0;
   while (mask != 0) {
     int shift = kk_bits_ctz64(mask);   // find lsb
@@ -225,7 +257,7 @@ static uint64_t kk_bits_generic_scatter64_loop(uint64_t x, uint64_t mask) {
   return y;
 }
 
-uint64_t kk_bits_generic_scatter64(uint64_t x, uint64_t mask) {
+uint64_t kk_bits_scatter64(uint64_t x, uint64_t mask) {
   switch (kk_bits_popcount64(mask)) {
   case 0: return 0;
   case 1: return ((x & 1) != 0 ? mask : 0);
@@ -235,10 +267,10 @@ uint64_t kk_bits_generic_scatter64(uint64_t x, uint64_t mask) {
     return (msb | lsb);
   }
   }
-  return kk_bits_generic_scatter64_loop(x, mask);
+  return kk_bits_scatter64_loop(x, mask);
 }
 
-static uint64_t kk_bits_generic_gather64_loop(uint64_t x, uint64_t mask) {
+static uint64_t kk_bits_gather64_loop(uint64_t x, uint64_t mask) {
   uint64_t y = 0;
   while (mask != 0) {
     int shift = 63 - kk_bits_clz64(mask);  // find msb
@@ -248,7 +280,7 @@ static uint64_t kk_bits_generic_gather64_loop(uint64_t x, uint64_t mask) {
   return y;
 }
 
-uint64_t kk_bits_generic_gather64(uint64_t x, uint64_t mask) {
+uint64_t kk_bits_gather64(uint64_t x, uint64_t mask) {
   switch (kk_bits_popcount64(mask)) {
   case 0: return 0;
   case 1: return ((x & mask) != 0 ? 1 : 0);
@@ -258,7 +290,110 @@ uint64_t kk_bits_generic_gather64(uint64_t x, uint64_t mask) {
     return (msb | lsb);
   }
   }
-  return kk_bits_generic_gather64_loop(x, mask);
+  return kk_bits_gather64_loop(x, mask);
 }
 
 #endif
+
+/* ----------------------------------------------------------
+  zip/unzip
+-------------------------------------------------------------*/
+
+#ifdef KK_BITS_USE_GENERIC_INTERLEAVE
+
+// scatter bits to odd positions
+static inline uint32_t kk_bits_scatter_odd32( uint32_t x ) {
+  x = (x ^ (x << 8 )) & KK_U32(0x00ff00ff);
+  x = (x ^ (x << 4 )) & KK_U32(0x0f0f0f0f);
+  x = (x ^ (x << 2 )) & KK_U32(0x33333333);
+  x = (x ^ (x << 1 )) & kk_bits_mask_odd32;
+  return x;
+}
+
+static inline uint64_t kk_bits_scatter_odd64( uint64_t x ) {
+  x = (x ^ (x << 16)) & KK_U64(0x0000ffff0000ffff);
+  x = (x ^ (x << 8 )) & KK_U64(0x00ff00ff00ff00ff);
+  x = (x ^ (x << 4 )) & KK_U64(0x0f0f0f0f0f0f0f0f);
+  x = (x ^ (x << 2 )) & KK_U64(0x3333333333333333);
+  x = (x ^ (x << 1 )) & kk_bits_mask_odd64;
+  return x;
+}
+
+// gather odd bits
+static inline uint32_t kk_bits_gather_odd32(uint32_t x) {
+  x = x & kk_bits_mask_odd32;
+  x = (x ^ (x >> 1 )) & KK_U32(0x33333333);
+  x = (x ^ (x >> 2 )) & KK_U32(0x0f0f0f0f);
+  x = (x ^ (x >> 4 )) & KK_U32(0x00ff00ff);
+  x = (x ^ (x >> 8 )) & KK_U32(0x0000ffff);
+  return x;
+}
+
+static inline uint64_t kk_bits_gather_odd64(uint64_t x) {
+  x = x & kk_bits_mask_odd64;
+  x = (x ^ (x >> 1 )) & KK_U64(0x3333333333333333);
+  x = (x ^ (x >> 2 )) & KK_U64(0x0f0f0f0f0f0f0f0f);
+  x = (x ^ (x >> 4 )) & KK_U64(0x00ff00ff00ff00ff);
+  x = (x ^ (x >> 8 )) & KK_U64(0x0000ffff0000ffff);
+  x = (x ^ (x >> 16)) & KK_U64(0x00000000ffffffff);
+  return x;
+}
+
+uint32_t kk_bits_interleave32(uint32_t x) {
+  return ((kk_bits_scatter_odd32(x & 0xFFFF) << 1) | kk_bits_scatter_odd32(x >> 16));  
+}
+
+uint32_t kk_bits_deinterleave32(uint32_t x) {
+  return ((kk_bits_gather_odd32(x) << 16) | kk_bits_gather_odd32(x >> 1));
+}
+
+uint64_t kk_bits_interleave64(uint64_t x) {
+  return ((kk_bits_scatter_odd64(x & KK_U64(0xFFFFFFFF)) << 1) | kk_bits_scatter_odd64(x>>16));  
+}
+
+uint64_t kk_bits_deinterleave64(uint64_t x) {
+  return ((kk_bits_gather_odd64(x) << 32) | kk_bits_gather_odd64(x >> 1));
+}
+
+#endif
+
+/* ----------------------------------------------------------
+  xperm
+-------------------------------------------------------------*/
+
+uint32_t kk_bits_xperm32(uint32_t x, uint32_t indices) {
+  uint32_t r = 0;
+  for (int i = 0; i < 32; i += 8) {
+    uint32_t idx = (indices >> i) & 0x03;
+    r |= ((x >> (8*idx)) & 0xFF) << i;
+  }
+  return r;
+}
+
+uint32_t kk_bits_xpermn32(uint32_t x, uint32_t indices) {
+  uint32_t r = 0;
+  for (int i = 0; i < 32; i += 4) {
+    uint32_t idx = (indices >> i) & 0x07;
+    r |= ((x >> (4*idx)) & 0x0F) << i;
+  }
+  return r;
+}
+
+uint64_t kk_bits_xperm64(uint64_t x, uint64_t indices) {
+  uint64_t r = 0;
+  for (int i = 0; i < 64; i += 8) {
+    uint64_t idx = (indices >> i) & 0x07;
+    r |= ((x >> (8*idx)) & 0xFF) << i;
+  }
+  return r;
+}
+
+uint64_t kk_bits_xpermn64(uint64_t x, uint64_t indices) {
+  uint64_t r = 0;
+  for (int i = 0; i < 64; i += 4) {
+    uint32_t idx = (indices >> i) & 0x0F;
+    r |= ((x >> (4*idx)) & 0x0F) << i;
+  }
+  return r;
+}
+

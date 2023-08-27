@@ -68,6 +68,20 @@ pub inline fip extern uint32( i : int64 ) : int32
 pub inline fip extern int64( lo : int32, hi : int32 ) : int64 
   c inline "kk_int64_lo_hi(#1,#2)"
   js "$std_core._int64_lo_hi"
+
+// Return the top 32-bits of an `:int32`.
+// Preserves the sign.
+pub fun hi( i : int64 ) : int64
+  sar64(i,32.int64)
+
+// Return the low 32-bits of an `:int64`.
+pub fun lo( i : int64 ) : int64
+  and(i,0xFFFFFFFF.int64)
+
+// Create an `:int32` from the give `hi` and `lo` 16-bit numbers.
+// Preserves the sign of `hi`.
+pub fun hilo( hi : int64, lo : int64 ) : int64
+  or( shl64(hi,32.int64), and(lo,0xFFFFFFFF.int64) )  
   
 // Convert an `:int` to `:int64` but interpret the `int` as an unsigned 64-bit value.
 // `i` is clamped between `0` and `0xFFFF_FFFF_FFFF_FFFF`.\
@@ -317,6 +331,22 @@ pub inline fip extern bgather( i : int64, m : int64 ) : int64
 // `bscatter(0x1234.int64, 0x0F0F.int64).show-hex == "0x304"`
 pub inline fip extern bscatter( i : int64, m : int64 ) : int64 
   c inline "kk_bits_scatter64(#1,#2)"
+
+// Interleave the hi 32-bits with the lo 32-bits of the argument `i` such
+// that the hi bits are spread over the even bits and the lo bits over the odd bits of the result.
+pub inline fip extern interleave( i : int64 ) : int64
+  c inline "kk_bits_interleave64(#1)"
+
+// De-interleave the bits in `i` such that the even bits are gathered in the 
+// hi 64-bits of the result, and the odd bits in the lo 64-bits of the result.
+pub inline fip extern deinterleave( i : int64 ) : int64
+  c inline "kk_bits_deinterleave64(#1)"  
+
+// Or-combine: for every byte `b` in the argument `i`, the corresponding
+// byte in the result becomes 0 if `b==0`, and `0xFF` otherwise.
+pub inline fip extern orc( i : int64 ) : int64
+  c inline "kk_bits_orc64(#1)"
+
 
 // Return the minimum of two integers
 pub fip fun min( i : int64, j : int64 ) : int64 

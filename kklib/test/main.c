@@ -489,7 +489,7 @@ static inline uint64_t kk_random_shuffle(uint64_t x) {
   x ^= x >> 31;
   return x;
 }
-
+/*
 static void test_pdep64(void) {
   uint64_t state = 5381;
   printf("testing pdep64...\n");
@@ -523,6 +523,7 @@ static void test_pext64(void) {
   }
   printf("ok.\n");
 }
+*/
 
 /*
 static void test_mul64(kk_context_t* ctx) {

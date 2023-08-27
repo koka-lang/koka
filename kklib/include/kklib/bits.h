@@ -119,8 +119,6 @@ static inline kk_uintx_t kk_bits_rotr(kk_uintx_t x, int shift) {
 /* -----------------------------------------------------------
   `clz` count leading zero bits   (32/64 for zero)
   `ctz` count trailing zero bits  (32/64 for zero)
-  `ffs` find first set: bit-index + 1, or 0 for zero
-  `fls` find last set: bit-index + 1, or 0 for zero
 ----------------------------------------------------------- */
 
 #if __has_builtin32(clz)
@@ -131,7 +129,7 @@ static inline int kk_bits_ctz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(ctz)(x));
 }
 #if __has_builtin64(clz)
-#define KK_HAS_BITS_CLZ64
+#define KK_BITS_HAS_CLZ64
 static inline int kk_bits_clz64(uint64_t x) {
   return (x == 0 ? 64 : __builtin64(clz)(x));  
 }
@@ -151,7 +149,7 @@ static inline int kk_bits_ctz32(uint32_t x) {
   return (_BitScanForward(&idx, x) ? (int)idx : 32);
 }
 #if (KK_INTX_SIZE >= 8)
-#define KK_HAS_BITS_CLZ64
+#define KK_BITS_HAS_CLZ64
 static inline int kk_bits_clz64(uint64_t x) {
   unsigned long idx;
   return (_BitScanReverse64(&idx, x) ? 63 - (int)idx : 64);
@@ -165,20 +163,13 @@ static inline int kk_bits_ctz64(uint64_t x) {
 #else
 
 #define KK_BITS_USE_GENERIC_CTZ_CLZ  1
-kk_decl_export int kk_bits_generic_ctz32(uint32_t x);
-kk_decl_export int kk_bits_generic_clz32(uint32_t x);
-
-static inline int kk_bits_clz32(uint32_t x) {
-  return kk_bits_generic_clz32(x);
-}
-static inline int kk_bits_ctz32(uint32_t x) {
-  return kk_bits_generic_ctz32(x);
-}
+kk_decl_export int kk_bits_ctz32(uint32_t x);
+kk_decl_export int kk_bits_clz32(uint32_t x);
 
 #endif
 
-#ifndef KK_HAS_BITS_CLZ64
-#define KK_HAS_BITS_CLZ64
+#ifndef KK_BITS_HAS_CLZ64
+#define KK_BITS_HAS_CLZ64
 static inline int kk_bits_clz64(uint64_t x) {
   int cnt = kk_bits_clz32((uint32_t)(x >> 32));
   if (cnt < 32) return cnt;
@@ -294,6 +285,7 @@ static inline bool kk_bits_is_power_of2(kk_uintx_t x) {
 /* -----------------------------------------------------------
   Byte operations
 
+  - or-combine: for every byte `b` in a word set it to 0xFF if any bit was set in `b`, or otherwise set it to 0
   - Is there a zero byte in a word? see: <https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord>
   - Is any byte equal to n?
   - Sum of bytes
@@ -307,13 +299,34 @@ static inline bool kk_bits_is_power_of2(kk_uintx_t x) {
 #define kk_bits_high_mask64    (kk_bits_one_mask64<<7)      // 0x8080808080808080
 #define kk_bits_high_mask      (kk_bits_one_mask<<7)        // 0x80808080 ...
 
+// todo: use orc intrinsic on riscV
+#define KK_BITS_USE_GENERIC_ORC  1
+kk_decl_export uint32_t kk_bits_orc32(uint32_t x);
+kk_decl_export uint64_t kk_bits_orc64(uint64_t x);
+
+static inline kk_uintx_t kk_bits_orc(kk_uintx_t x) {
+  return kk_bitsx(orc)(x);
+}
+
+
+#if KK_BITS_HAS_FAST_ORC
 static inline bool kk_bits_has_zero_byte32(uint32_t x) {
-  return ((x - kk_bits_one_mask32) & (~x & kk_bits_high_mask32));
+  return (~kk_bits_orc32(x) != 0);
+}
+
+static inline bool kk_bits_has_zero_byte64(uint64_t x) {
+  return (~kk_bits_orc64(x) != 0);
+}
+#else
+static inline bool kk_bits_has_zero_byte32(uint32_t x) {
+  return ((x - kk_bits_one_mask32) &     // high bit set if byte == 0 or > 0x80
+          (~x & kk_bits_high_mask32));   // high bit set if byte >= 0x80
 }
 
 static inline bool kk_bits_has_zero_byte64(uint64_t x) {
   return ((x - kk_bits_one_mask64) & (~x & kk_bits_high_mask64));
 }
+#endif
 
 // Does `x` contain a zero byte?
 static inline bool kk_bits_has_zero_byte(kk_uintx_t x) {
@@ -436,7 +449,7 @@ static inline bool kk_bits_parity32(uint32_t x) {
   return (__builtin32(parity)(x) == 0);
 }
 #if __has_builtin64(parity)
-#define KK_HAS_BITS_PARITY64
+#define KK_BITS_HAS_PARITY64
 static inline bool kk_bits_parity64(uint64_t x) {
   return (__builtin64(parity)(x) == 0);
 }
@@ -447,7 +460,7 @@ static inline bool kk_bits_parity32(uint32_t x) {
   return ((kk_bits_popcount32(x) & 1) == 0);
 }
 #if (KK_INTX_SIZE>=8)
-#define KK_HAS_BITS_PARITY64
+#define KK_BITS_HAS_PARITY64
 static inline bool kk_bits_parity64(uint64_t x) {
   return ((kk_bits_popcount64(x) & 1) == 0);
 }
@@ -463,8 +476,8 @@ static inline bool kk_bits_parity32(uint32_t x) {
 }
 #endif
 
-#ifndef KK_HAS_BITS_PARITY64
-#define KK_HAS_BITS_PARITY64
+#ifndef KK_BITS_HAS_PARITY64
+#define KK_BITS_HAS_PARITY64
 static inline bool kk_bits_parity64(uint64_t x) {
   x ^= (x >> 32);
   return kk_bits_parity32((uint32_t)x);
@@ -489,7 +502,7 @@ static inline uint32_t kk_bits_bswap32(uint32_t x) {
 }
 
 #if __has_builtin(__builtin_bswap64)
-#define KK_HAS_BITS_BSWAP64
+#define KK_BITS_HAS_BSWAP64
 static inline uint64_t kk_bits_bswap64(uint64_t x) {
   return __builtin_bswap64(x);
 }
@@ -503,7 +516,7 @@ static inline uint32_t kk_bits_bswap32(uint32_t x) {
   return _byteswap_ulong(x);
 }
 #if (KK_INTX_SIZE>=8)
-#define KK_HAS_BITS_BSWAP64
+#define KK_BITS_HAS_BSWAP64
 static inline uint64_t kk_bits_bswap64(uint64_t x) {
   return _byteswap_uint64(x);
 }
@@ -520,8 +533,8 @@ static inline uint32_t kk_bits_bswap32(uint32_t x) {
 }
 #endif
 
-#ifndef KK_HAS_BITS_BSWAP64
-#define KK_HAS_BITS_BSWAP64
+#ifndef KK_BITS_HAS_BSWAP64
+#define KK_BITS_HAS_BSWAP64
 static inline uint64_t kk_bits_bswap64(uint64_t x) {
   uint64_t hi = kk_bits_bswap32((uint32_t)x);
   uint64_t lo = kk_bits_bswap32((uint32_t)(x >> 32));
@@ -615,18 +628,13 @@ static inline uint64_t kk_bits_reverse64(uint64_t x) {
   return ((hi << 32) | lo);
 }
 #endif
+
 #else
+
 #define KK_BITS_USE_GENERIC_REVERSE
-kk_decl_export uint32_t kk_bits_generic_reverse32(uint32_t x);
-kk_decl_export uint64_t kk_bits_generic_reverse64(uint64_t x);
+kk_decl_export uint32_t kk_bits_reverse32(uint32_t x);
+kk_decl_export uint64_t kk_bits_reverse64(uint64_t x);
 
-static inline uint32_t kk_bits_reverse32(uint32_t x) {
-  return kk_bits_generic_reverse32(x);
-}
-
-static inline uint64_t kk_bits_reverse64(uint64_t x) {
-  return kk_bits_generic_reverse64(x);
-}
 #endif
 
 
@@ -768,11 +776,7 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
 #else 
 
 #define KK_USE_GENERIC_WIDE_UMUL64
-uint64_t kk_generic_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi);
-
-static inline uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
-  return kk_generic_wide_umul64(x, y, hi);
-}
+uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi);
 
 static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
   int64_t  z;
@@ -789,14 +793,9 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
   Parallel bit extract and deposit
 ------------------------------------------------------------------ */
 
-#define KK_BITS_USE_GENERIC_SCATTER_GATHER
-kk_decl_export uint32_t kk_bits_generic_gather32(uint32_t x, uint32_t mask);
-kk_decl_export uint64_t kk_bits_generic_gather64(uint64_t x, uint64_t mask);
-kk_decl_export uint32_t kk_bits_generic_scatter32(uint32_t x, uint32_t mask);
-kk_decl_export uint64_t kk_bits_generic_scatter64(uint64_t x, uint64_t mask);
-
 // todo: provide arm64 optimized version as well?
 #if defined(KK_ARCH_X64) && ((defined(_MSC_VER) &&  !defined(__clang_msvc__)) || (defined(__GNUC__) && defined(__BMI2__)))
+#define KK_BITS_HAS_FAST_SCATTER_GATHER  1
 #include <immintrin.h>
 #if defined(__clang_msvc__)
 #include <bmi2intrin.h>
@@ -820,23 +819,88 @@ static inline uint64_t kk_bits_scatter64(uint64_t x, uint64_t mask) {
 
 #else
 
-static inline uint32_t kk_bits_gather32(uint32_t x, uint32_t mask) {
-  return kk_bits_generic_gather32(x, mask);
-}
-
-static inline uint64_t kk_bits_gather64(uint64_t x, uint64_t mask) {
-  return kk_bits_generic_gather64(x, mask);
-}
-
-static inline uint32_t kk_bits_scatter32(uint32_t x, uint32_t mask) {
-  return kk_bits_generic_scatter32(x, mask);
-}
-
-static inline uint64_t kk_bits_scatter64(uint64_t x, uint64_t mask) {
-  return kk_bits_generic_scatter64(x, mask);
-}
+#define KK_BITS_USE_GENERIC_SCATTER_GATHER
+kk_decl_export uint32_t kk_bits_gather32(uint32_t x, uint32_t mask);
+kk_decl_export uint64_t kk_bits_gather64(uint64_t x, uint64_t mask);
+kk_decl_export uint32_t kk_bits_scatter32(uint32_t x, uint32_t mask);
+kk_decl_export uint64_t kk_bits_scatter64(uint64_t x, uint64_t mask);
 
 #endif
+
+static inline kk_uintx_t kk_bits_gather(kk_uintx_t x, kk_uintx_t mask) {
+  return kk_bitsx(gather)(x,mask);
+}
+
+static inline kk_uintx_t kk_bits_scatter(kk_uintx_t x, kk_uintx_t mask) {
+  return kk_bitsx(scatter)(x, mask);
+}
+
+/* ---------------------------------------------------------------
+  Bit interleaving: zip and unzip 
+------------------------------------------------------------------ */
+#define kk_bits_mask_odd32  (KK_U32(0x55555555))
+#define kk_bits_mask_odd64  (KK_U64(0x5555555555555555))
+#define kk_bits_mask_even32 (kk_bits_mask_odd32 << 1)
+#define kk_bits_mask_even64 (kk_bits_mask_odd64 << 1)
+
+#if KK_BITS_HAS_FAST_SCATTER_GATHER
+
+// interleave the hi 16-bits and the lo 16-bits of the argument `x` into a
+// single 32-bit result where hi is spread over the even bits, and lo over the odd bits. 
+static inline uint32_t kk_bits_interleave32(uint32_t x) {
+  return (kk_bits_scatter32(x>>16,kk_bits_mask_even32) | kk_bits_scatter32(x&0xFFFF,kk_bits_mask_odd32));
+}
+
+// de-interleave the bits of the argument `x` where the even bits become the 
+// hi 16-bits and the odd bits the lo 16-bits of the result
+static inline uint32_t kk_bits_deinterleave32(uint32_t x) {
+  return ((kk_bits_gather32(x, kk_bits_mask_even32) << 16) | kk_bits_gather32(x, kk_bits_mask_odd32));
+}
+
+static inline uint64_t kk_bits_interleave64(uint64_t x) {
+  return (kk_bits_scatter64(x>>32, kk_bits_mask_even64) | kk_bits_scatter64(x&KK_U64(0xFFFFFFFF), kk_bits_mask_odd64));
+}
+
+static inline uint64_t kk_bits_deinterleave64(uint64_t x) {
+  return ((kk_bits_gather64(x, kk_bits_mask_even64) << 32) | kk_bits_gather64(x, kk_bits_mask_odd64));
+}
+
+#else
+
+// todo: use riscV zip/unzip intrinsics
+#define KK_BITS_USE_GENERIC_INTERLEAVE
+kk_decl_export uint32_t kk_bits_interleave32(uint32_t x);
+kk_decl_export uint32_t kk_bits_deinterleave32(uint32_t x);
+kk_decl_export uint64_t kk_bits_interleave64(uint64_t x);
+kk_decl_export uint64_t kk_bits_deinterleave64(uint64_t x);
+
+#endif
+
+static inline kk_uintx_t kk_bits_interleave(kk_uintx_t x) {
+  return kk_bitsx(interleave)(x);
+}
+
+static inline kk_uintx_t kk_bits_deinterleave(kk_uintx_t x) {
+  return kk_bitsx(deinterleave)(x);
+}
+
+
+/* ---------------------------------------------------------------
+  Byte and nibble permutation
+------------------------------------------------------------------ */
+
+kk_decl_export uint32_t kk_bits_xperm32(uint32_t x, uint32_t indices);
+kk_decl_export uint32_t kk_bits_xpermn32(uint32_t x, uint32_t indices);
+kk_decl_export uint64_t kk_bits_xperm64(uint64_t x, uint64_t indices);
+kk_decl_export uint64_t kk_bits_xpermn64(uint64_t x, uint64_t indices);
+
+static inline kk_uintx_t kk_bits_xperm(kk_uintx_t x, kk_uintx_t indices) {
+  return kk_bitsx(xperm)(x,indices);
+}
+
+static inline kk_uintx_t kk_bits_xpermn(kk_uintx_t x, kk_uintx_t indices) {
+  return kk_bitsx(xpermn)(x,indices);
+}
 
 
 /* ---------------------------------------------------------------
