@@ -291,13 +291,13 @@ static inline bool kk_bits_is_power_of2(kk_uintx_t x) {
   - Sum of bytes
 ----------------------------------------------------------- */
 
-#define kk_bits_one_mask32     KK_U32(0x01010101)
-#define kk_bits_one_mask64     KK_U64(0x0101010101010101)
-#define kk_bits_one_mask       ((~(KK_UX(0)))/0xFF)         // 0x01010101 ...
+#define kk_mask_bytes_lo_bit32     KK_U32(0x01010101)
+#define kk_mask_bytes_lo_bit64     KK_U64(0x0101010101010101)
+#define kk_mask_bytes_lo_bit       ((~(KK_UX(0)))/0xFF)            // 0x01010101 ...
 
-#define kk_bits_high_mask32    (kk_bits_one_mask32<<7)      // 0x80808080
-#define kk_bits_high_mask64    (kk_bits_one_mask64<<7)      // 0x8080808080808080
-#define kk_bits_high_mask      (kk_bits_one_mask<<7)        // 0x80808080 ...
+#define kk_mask_bytes_hi_bit32    (kk_mask_bytes_lo_bit32<<7)      // 0x80808080
+#define kk_mask_bytes_hi_bit64    (kk_mask_bytes_lo_bit64<<7)      // 0x8080808080808080
+#define kk_mask_bytes_hi_bit      (kk_mask_bytes_lo_bit<<7)        // 0x80808080 ...
 
 // todo: use orc intrinsic on riscV
 #define KK_BITS_USE_GENERIC_ORC  1
@@ -319,12 +319,12 @@ static inline bool kk_bits_has_zero_byte64(uint64_t x) {
 }
 #else
 static inline bool kk_bits_has_zero_byte32(uint32_t x) {
-  return ((x - kk_bits_one_mask32) &     // high bit set if byte == 0 or > 0x80
-          (~x & kk_bits_high_mask32));   // high bit set if byte >= 0x80
+  return ((x - kk_mask_bytes_lo_bit32) &     // high bit set if byte == 0 or > 0x80
+          (~x & kk_mask_bytes_hi_bit32));   // high bit set if byte >= 0x80
 }
 
 static inline bool kk_bits_has_zero_byte64(uint64_t x) {
-  return ((x - kk_bits_one_mask64) & (~x & kk_bits_high_mask64));
+  return ((x - kk_mask_bytes_lo_bit64) & (~x & kk_mask_bytes_hi_bit64));
 }
 #endif
 
@@ -360,7 +360,7 @@ static inline bool kk_bits_has_byte(kk_uintx_t x, uint8_t n) {
 
 // sum of all the bytes in `x` if it is guaranteed that the sum < 256!
 static inline uint8_t kk_bits_byte_sum32(uint32_t x) {
-  // perform `x * kk_bits_one_mask`: the highest byte contains the sum of all bytes.
+  // perform `x * kk_mask_bytes_lo_bit`: the highest byte contains the sum of all bytes.
   // note: clang will compile to either shift/adds or a multiply depending on the target
   x += (x << 8);
   x += (x << 16);
@@ -677,6 +677,9 @@ static inline int kk_bits_digits(kk_uintx_t x) {
   return kk_bitsx(digits)(x);
 }
 
+static inline int64_t kk_int64_hi_lo( int64_t hi, int64_t lo ) {
+  return (hi << 32) | (lo & 0xFFFFFFFF);
+}
 
 /* ---------------------------------------------------------------
   midpoint(x,y): the average of x and y, rounded towards x.
@@ -838,31 +841,31 @@ static inline kk_uintx_t kk_bits_scatter(kk_uintx_t x, kk_uintx_t mask) {
 /* ---------------------------------------------------------------
   Bit interleaving: zip and unzip 
 ------------------------------------------------------------------ */
-#define kk_bits_mask_odd32  (KK_U32(0x55555555))
-#define kk_bits_mask_odd64  (KK_U64(0x5555555555555555))
-#define kk_bits_mask_even32 (kk_bits_mask_odd32 << 1)
-#define kk_bits_mask_even64 (kk_bits_mask_odd64 << 1)
+#define kk_mask_odd_bits32    (KK_U32(0x55555555))
+#define kk_mask_odd_bits64    (KK_U64(0x5555555555555555))
+#define kk_mask_even_bits32   (kk_mask_odd_bits32 << 1)
+#define kk_mask_even_bits64   (kk_mask_odd_bits64 << 1)
 
 #if KK_BITS_HAS_FAST_SCATTER_GATHER
 
 // interleave the hi 16-bits and the lo 16-bits of the argument `x` into a
 // single 32-bit result where hi is spread over the even bits, and lo over the odd bits. 
 static inline uint32_t kk_bits_interleave32(uint32_t x) {
-  return (kk_bits_scatter32(x>>16,kk_bits_mask_even32) | kk_bits_scatter32(x&0xFFFF,kk_bits_mask_odd32));
+  return (kk_bits_scatter32(x>>16,kk_mask_even_bits32) | kk_bits_scatter32(x&0xFFFF,kk_mask_odd_bits32));
 }
 
 // de-interleave the bits of the argument `x` where the even bits become the 
 // hi 16-bits and the odd bits the lo 16-bits of the result
 static inline uint32_t kk_bits_deinterleave32(uint32_t x) {
-  return ((kk_bits_gather32(x, kk_bits_mask_even32) << 16) | kk_bits_gather32(x, kk_bits_mask_odd32));
+  return ((kk_bits_gather32(x, kk_mask_even_bits32) << 16) | kk_bits_gather32(x, kk_mask_odd_bits32));
 }
 
 static inline uint64_t kk_bits_interleave64(uint64_t x) {
-  return (kk_bits_scatter64(x>>32, kk_bits_mask_even64) | kk_bits_scatter64(x&KK_U64(0xFFFFFFFF), kk_bits_mask_odd64));
+  return (kk_bits_scatter64(x>>32, kk_mask_even_bits64) | kk_bits_scatter64(x&KK_U64(0xFFFFFFFF), kk_mask_odd_bits64));
 }
 
 static inline uint64_t kk_bits_deinterleave64(uint64_t x) {
-  return ((kk_bits_gather64(x, kk_bits_mask_even64) << 32) | kk_bits_gather64(x, kk_bits_mask_odd64));
+  return ((kk_bits_gather64(x, kk_mask_even_bits64) << 32) | kk_bits_gather64(x, kk_mask_odd_bits64));
 }
 
 #else

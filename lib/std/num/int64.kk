@@ -65,23 +65,23 @@ pub inline fip extern uint32( i : int64 ) : int32
 
 // Create an `:int64` `i` from the bits of `lo` and `hi` such
 // that `i.int = hi.int * 0x1_0000_0000 + lo.uint`.
-pub inline fip extern int64( lo : int32, hi : int32 ) : int64 
-  c inline "kk_int64_lo_hi(#1,#2)"
-  js "$std_core._int64_lo_hi"
+pub inline fip extern int64( hi : int32, lo : int32 ) : int64 
+  c inline "kk_int64_hi_lo(#1,#2)"
+  js "$std_core._int64_hi_lo"
 
 // Return the top 32-bits of an `:int32`.
 // Preserves the sign.
-pub fun hi( i : int64 ) : int64
+pub fip fun hi( i : int64 ) : int64
   sar64(i,32.int64)
 
 // Return the low 32-bits of an `:int64`.
-pub fun lo( i : int64 ) : int64
+pub fip fun lo( i : int64 ) : int64
   and(i,0xFFFFFFFF.int64)
 
-// Create an `:int32` from the give `hi` and `lo` 16-bit numbers.
+// Create an `:int64` from the given `hi` and `lo` numbers lowest 32-bits.
 // Preserves the sign of `hi`.
-pub fun hilo( hi : int64, lo : int64 ) : int64
-  or( shl64(hi,32.int64), and(lo,0xFFFFFFFF.int64) )  
+pub fip fun hilo( hi : int64, lo : int64 ) : int64
+  or( shl64(hi,32.int64), and(lo,0xFFFF_FFFF.int64) )  
   
 // Convert an `:int` to `:int64` but interpret the `int` as an unsigned 64-bit value.
 // `i` is clamped between `0` and `0xFFFF_FFFF_FFFF_FFFF`.\

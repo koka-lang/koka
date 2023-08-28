@@ -83,30 +83,36 @@ int kk_bits_clz32(uint32_t x) {
 /* ----------------------------------------------------------
   or-combine
 -------------------------------------------------------------*/
+#define kk_mask_odd_pairs32     KK_U32(0x33333333)
+#define kk_mask_odd_nibbles32   KK_U32(0x0F0F0F0F)
+#define kk_mask_odd_pairs64     KK_U64(0x3333333333333333)
+#define kk_mask_odd_nibbles64   KK_U64(0x0F0F0F0F0F0F0F0F)
+
 #if defined(KK_BITS_USE_GENERIC_ORC)
 uint32_t kk_bits_orc32(uint32_t x) {
-  // set low bit in each byte to `or` of the bits in the byte
-  x |= ((x & KK_U32(0xF0F0F0F0)) >> 4);
-  x |= ((x & KK_U32(0x0A0A0A0A)) >> 2);
-  x |= ((x & KK_U32(0x02020202)) >> 1);
-  // distribute the low bits back
-  x &= kk_bits_one_mask32;
-  x |= (x << 1);
-  x |= (x << 2); 
-  x |= (x << 4);
+  // set high bit in each byte to `or` of the bits in the byte
+  x |= ((x & kk_mask_odd_nibbles32) << 4);
+  x |= ((x & kk_mask_odd_pairs32)   << 2);
+  x |= ((x & kk_mask_odd_bits32)    << 1);  
+  // distribute the high bit back
+  x &= kk_mask_bytes_hi_bit32;
+  x |= (x >> 1);
+  x |= (x >> 2); 
+  x |= (x >> 4);
   return x;
 }
 
 uint64_t kk_bits_orc64(uint64_t x) {
-  // set low bit in each byte to `or` of the bits in the byte
-  x |= ((x & KK_U64(0xF0F0F0F0F0F0F0F0)) >> 4);
-  x |= ((x & KK_U64(0x0A0A0A0A0A0A0A0A)) >> 2);
-  x |= ((x & KK_U64(0x0202020202020202)) >> 1);
-  // distribute the low bits back
-  x &= kk_bits_one_mask64;
-  x |= (x << 1); 
-  x |= (x << 2); 
-  x |= (x << 4);
+  // set high bit in each byte to `or` of the bits in the byte
+  x |= ((x & kk_mask_odd_nibbles64) << 4);
+  x |= ((x & kk_mask_odd_pairs64)   << 2);
+  x |= ((x & kk_mask_odd_bits64)    << 1);
+  // distribute the high bit back
+  x &= kk_mask_bytes_hi_bit64;
+  x |= (x >> 1);
+  x |= (x >> 2);
+  x |= (x >> 4);
+  return x;
   return x;
 }
 #endif
@@ -118,16 +124,16 @@ uint64_t kk_bits_orc64(uint64_t x) {
 #if defined(KK_BITS_USE_GENERIC_POPCOUNT)
 
 int kk_bits_generic_popcount32(uint32_t x) {
-  x = x - ((x >> 1) & KK_U32(0x55555555));
-  x = (x & KK_U32(0x33333333)) + ((x >> 2) & KK_U32(0x33333333));
-  x = (x + (x >> 4)) & KK_U32(0x0F0F0F0F);
+  x = x - ((x >> 1) & kk_mask_odd_bits32);
+  x = (x & kk_mask_odd_pairs32) + ((x >> 2) & kk_mask_odd_pairs32);
+  x = (x + (x >> 4)) & kk_mask_odd_nibbles32;
   return kk_bits_byte_sum32(x);
 }
 
 int kk_bits_generic_popcount64(uint64_t x) {
-  x = x - ((x >> 1) & KK_U64(0x5555555555555555));
-  x = (x & KK_U64(0x3333333333333333)) + ((x >> 2) & KK_U64(0x3333333333333333));
-  x = (x + (x >> 4)) & KK_U64(0x0F0F0F0F0F0F0F0F);
+  x = x - ((x >> 1) & kk_mask_odd_bits64);
+  x = (x & kk_mask_odd_pairs64) + ((x >> 2) & kk_mask_odd_pairs64);
+  x = (x + (x >> 4)) & kk_mask_odd_nibbles64;
   return kk_bits_byte_sum64(x);
 }
 
@@ -176,16 +182,16 @@ uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
 
 uint32_t kk_bits_reverse32(uint32_t x) {
   // from: http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
-  x = ((x >> 1) & KK_U32(0x55555555)) | ((x & KK_U32(0x55555555)) << 1); // swap odd and even bits
-  x = ((x >> 2) & KK_U32(0x33333333)) | ((x & KK_U32(0x33333333)) << 2); // swap 2-bit pairs
-  x = ((x >> 4) & KK_U32(0x0F0F0F0F)) | ((x & KK_U32(0x0F0F0F0F)) << 4); // swap 4-bit nibbles 
+  x = ((x >> 1) & kk_mask_odd_bits32) | ((x & kk_mask_odd_bits32) << 1); // swap odd and even bits
+  x = ((x >> 2) & kk_mask_odd_pairs32) | ((x & kk_mask_odd_pairs32) << 2); // swap 2-bit pairs
+  x = ((x >> 4) & kk_mask_odd_nibbles32) | ((x & kk_mask_odd_nibbles32) << 4); // swap 4-bit nibbles 
   return kk_bits_bswap32(x);
 }
 
 uint64_t kk_bits_reverse64(uint64_t x) {
-  x = ((x >> 1) & KK_U64(0x5555555555555555)) | ((x & KK_U64(0x5555555555555555)) << 1); // swap odd and even bits
-  x = ((x >> 2) & KK_U64(0x3333333333333333)) | ((x & KK_U64(0x3333333333333333)) << 2); // swap 2-bit pairs
-  x = ((x >> 4) & KK_U64(0x0F0F0F0F0F0F0F0F)) | ((x & KK_U64(0x0F0F0F0F0F0F0F0F)) << 4); // swap 4-bit nibbles 
+  x = ((x >> 1) & kk_mask_odd_bits64) | ((x & kk_mask_odd_bits64) << 1); // swap odd and even bits
+  x = ((x >> 2) & kk_mask_odd_pairs64) | ((x & kk_mask_odd_pairs64) << 2); // swap 2-bit pairs
+  x = ((x >> 4) & kk_mask_odd_nibbles64) | ((x & kk_mask_odd_nibbles64) << 4); // swap 4-bit nibbles 
   return kk_bits_bswap64(x);
 }
 
@@ -303,39 +309,39 @@ uint64_t kk_bits_gather64(uint64_t x, uint64_t mask) {
 
 // scatter bits to odd positions
 static inline uint32_t kk_bits_scatter_odd32( uint32_t x ) {
-  x = (x ^ (x << 8 )) & KK_U32(0x00ff00ff);
-  x = (x ^ (x << 4 )) & KK_U32(0x0f0f0f0f);
-  x = (x ^ (x << 2 )) & KK_U32(0x33333333);
-  x = (x ^ (x << 1 )) & kk_bits_mask_odd32;
+  x = (x ^ (x << 8 )) & KK_U32(0x00FF00FF);
+  x = (x ^ (x << 4 )) & kk_mask_odd_nibbles32;
+  x = (x ^ (x << 2 )) & kk_mask_odd_pairs32;
+  x = (x ^ (x << 1 )) & kk_mask_odd_bits32;
   return x;
 }
 
 static inline uint64_t kk_bits_scatter_odd64( uint64_t x ) {
-  x = (x ^ (x << 16)) & KK_U64(0x0000ffff0000ffff);
-  x = (x ^ (x << 8 )) & KK_U64(0x00ff00ff00ff00ff);
-  x = (x ^ (x << 4 )) & KK_U64(0x0f0f0f0f0f0f0f0f);
-  x = (x ^ (x << 2 )) & KK_U64(0x3333333333333333);
-  x = (x ^ (x << 1 )) & kk_bits_mask_odd64;
+  x = (x ^ (x << 16)) & KK_U64(0x0000FFFF0000FFFF);
+  x = (x ^ (x << 8 )) & KK_U64(0x00FF00FF00FF00FF);
+  x = (x ^ (x << 4 )) & kk_mask_odd_nibbles64;
+  x = (x ^ (x << 2 )) & kk_mask_odd_pairs64;
+  x = (x ^ (x << 1 )) & kk_mask_odd_bits64;
   return x;
 }
 
 // gather odd bits
 static inline uint32_t kk_bits_gather_odd32(uint32_t x) {
-  x = x & kk_bits_mask_odd32;
-  x = (x ^ (x >> 1 )) & KK_U32(0x33333333);
-  x = (x ^ (x >> 2 )) & KK_U32(0x0f0f0f0f);
-  x = (x ^ (x >> 4 )) & KK_U32(0x00ff00ff);
-  x = (x ^ (x >> 8 )) & KK_U32(0x0000ffff);
+  x = x & kk_mask_odd_bits32;
+  x = (x ^ (x >> 1 )) & kk_mask_odd_pairs32;
+  x = (x ^ (x >> 2 )) & kk_mask_odd_nibbles32;
+  x = (x ^ (x >> 4 )) & KK_U32(0x00FF00FF);
+  x = (x ^ (x >> 8 )) & KK_U32(0x0000FFFF);
   return x;
 }
 
 static inline uint64_t kk_bits_gather_odd64(uint64_t x) {
-  x = x & kk_bits_mask_odd64;
-  x = (x ^ (x >> 1 )) & KK_U64(0x3333333333333333);
-  x = (x ^ (x >> 2 )) & KK_U64(0x0f0f0f0f0f0f0f0f);
-  x = (x ^ (x >> 4 )) & KK_U64(0x00ff00ff00ff00ff);
-  x = (x ^ (x >> 8 )) & KK_U64(0x0000ffff0000ffff);
-  x = (x ^ (x >> 16)) & KK_U64(0x00000000ffffffff);
+  x = x & kk_mask_odd_bits64;
+  x = (x ^ (x >> 1 )) & kk_mask_odd_pairs64;
+  x = (x ^ (x >> 2 )) & kk_mask_odd_nibbles64;
+  x = (x ^ (x >> 4 )) & KK_U64(0x00FF00FF00FF00FF);
+  x = (x ^ (x >> 8 )) & KK_U64(0x0000FFFF0000FFFF);
+  x = (x ^ (x >> 16)) & KK_U64(0x00000000FFFFFFFF);
   return x;
 }
 
