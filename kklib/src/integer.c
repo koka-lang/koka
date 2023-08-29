@@ -144,13 +144,13 @@ typedef int16_t kk_extra_t;
 typedef struct kk_bigint_s {
   kk_block_t  _block;
 #if KK_INTPTR_SIZE>=8
-  uint8_t     is_neg: 1;      // negative
-  kk_extra_t  extra :15;      // extra digits available: `sizeof(digits) == (count+extra)*sizeof(kk_digit_t)`
-  int64_t     count :48;      // count of digits in the number
+  int64_t     count  :48;      // count of digits in the number
+  kk_extra_t  extra  :15;      // extra digits available: `sizeof(digits) == (count+extra)*sizeof(kk_digit_t)`
+  uint8_t     is_neg : 1;      // negative
 #else
-  uint8_t     is_neg;
-  kk_extra_t  extra;
   int32_t     count;
+  kk_extra_t  extra;
+  uint8_t     is_neg;
 #endif
   kk_digit_t  digits[1];      // digits from least-significant to most significant.
 } kk_bigint_t;

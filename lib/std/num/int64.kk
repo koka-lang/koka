@@ -69,7 +69,7 @@ pub inline fip extern int64( hi : int32, lo : int32 ) : int64
   c inline "kk_int64_hi_lo(#1,#2)"
   js "$std_core._int64_hi_lo"
 
-// Return the top 32-bits of an `:int32`.
+// Return the top 32-bits of an `:int64`.
 // Preserves the sign.
 pub fip fun hi( i : int64 ) : int64
   sar64(i,32.int64)

@@ -319,7 +319,7 @@ static inline bool kk_bits_has_zero_byte64(uint64_t x) {
 }
 #else
 static inline bool kk_bits_has_zero_byte32(uint32_t x) {
-  return ((x - kk_mask_bytes_lo_bit32) &     // high bit set if byte == 0 or > 0x80
+  return ((x - kk_mask_bytes_lo_bit32) &    // high bit set if byte == 0 or > 0x80
           (~x & kk_mask_bytes_hi_bit32));   // high bit set if byte >= 0x80
 }
 
@@ -334,23 +334,8 @@ static inline bool kk_bits_has_zero_byte(kk_uintx_t x) {
 }
 
 // is there any byte in `x` equal to `n`?
-static inline bool kk_bits_has_byte32(uint32_t x, uint8_t n) {
-  uint32_t y = n;
-  y |= (y << 8);
-  y |= (y << 16);
-  x ^= y;
-  return kk_bits_has_zero_byte32(x);
-}
-
-// is there any byte in `x` equal to `n`?
-static inline bool kk_bits_has_byte64(uint64_t x, uint8_t n) {
-  uint64_t y = n;
-  y |= (y << 8);
-  y |= (y << 16);
-  y |= (y << 32);
-  x ^= y;
-  return kk_bits_has_zero_byte64(x);
-}
+kk_decl_export bool kk_bits_has_byte32(uint32_t x, uint8_t n);
+kk_decl_export bool kk_bits_has_byte64(uint64_t x, uint8_t n);
 
 // is there any byte in `x` equal to `n`?
 static inline bool kk_bits_has_byte(kk_uintx_t x, uint8_t n) {
@@ -359,21 +344,8 @@ static inline bool kk_bits_has_byte(kk_uintx_t x, uint8_t n) {
 
 
 // sum of all the bytes in `x` if it is guaranteed that the sum < 256!
-static inline uint8_t kk_bits_byte_sum32(uint32_t x) {
-  // perform `x * kk_mask_bytes_lo_bit`: the highest byte contains the sum of all bytes.
-  // note: clang will compile to either shift/adds or a multiply depending on the target
-  x += (x << 8);
-  x += (x << 16);
-  return (x >> 24);
-}
-
-// sum of all the bytes in `x` if it is guaranteed that the sum < 256!
-static inline uint8_t kk_bits_byte_sum64(uint64_t x) {
-  x += (x << 8);
-  x += (x << 16);
-  x += (x << 32);
-  return (x >> 56);
-}
+kk_decl_export uint8_t kk_bits_byte_sum32(uint32_t x);
+kk_decl_export uint8_t kk_bits_byte_sum64(uint64_t x);
 
 // sum of all the bytes in `x` if it is guaranteed that the sum < 256!
 static inline uint8_t kk_bits_byte_sum(kk_uintx_t x) {
@@ -467,17 +439,14 @@ static inline bool kk_bits_parity64(uint64_t x) {
 #endif
 
 #else
-static inline bool kk_bits_parity32(uint32_t x) {
-  x ^= x >> 16;
-  x ^= x >> 8;
-  x ^= x >> 4;
-  x &= 0x0F;
-  return (((0x6996 >> x) & 1) == 0);  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
-}
+
+#define KK_BITS_USE_GENERIC_PARITY   1
+kk_decl_export bool kk_bits_parity32(uint32_t x);
+
 #endif
 
 #ifndef KK_BITS_HAS_PARITY64
-#define KK_BITS_HAS_PARITY64
+#define KK_BITS_HAS_PARITY64    1
 static inline bool kk_bits_parity64(uint64_t x) {
   x ^= (x >> 32);
   return kk_bits_parity32((uint32_t)x);
@@ -533,7 +502,7 @@ static inline uint32_t kk_bits_bswap32(uint32_t x) {
 }
 #endif
 
-#ifndef KK_BITS_HAS_BSWAP64
+#ifndef KK_BITS_HAS_BSWAP64     
 #define KK_BITS_HAS_BSWAP64
 static inline uint64_t kk_bits_bswap64(uint64_t x) {
   uint64_t hi = kk_bits_bswap32((uint32_t)x);
@@ -779,16 +748,10 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
 #else 
 
 #define KK_USE_GENERIC_WIDE_UMUL64
-uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi);
 
-static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
-  int64_t  z;
-  uint64_t lo = kk_wide_umul64((uint64_t)x, (uint64_t)y, (uint64_t*)&z);
-  if (x < 0) { z -= y; }
-  if (y < 0) { z -= x; }
-  *hi = z;
-  return lo;
-}
+kk_decl_export uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi);
+kk_decl_export uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi);
+
 #endif
 
 
