@@ -385,20 +385,19 @@ static uint64_t kk_os_random_weak(void) {
 
 static kk_random_ctx_t* random_init(kk_context_t* ctx) {
   kk_random_ctx_t* rnd = (kk_random_ctx_t*)kk_zalloc(sizeof(kk_random_ctx_t), ctx);
-  uint8_t key[32];
-  const bool strong = kk_os_random_buf(key, sizeof(key));
+  uint32_t key[8];
+  const bool strong = kk_os_random_buf((uint8_t*)key, sizeof(key));
   if (!strong) {
     // if we fail to get random data from the OS, we fall back to a
     // weak random source based on the C library `rand()`, the current (high precision) time, and ASLR.
     kk_warning_message("unable to use strong randomness\n");
     kk_pcg_ctx_t pcg;
     pcg_init(kk_os_random_weak(), (uint64_t)(rand()), &pcg);
-    for (size_t i = 0; i < 8; i++) {  // key is eight 32-bit words.
-      uint32_t x = pcg_uint32(&pcg);
-      ((uint32_t*)key)[i] = x;
+    for (size_t i = 0; i < 8; i++) {
+      key[i] = pcg_uint32(&pcg);
     }
   }
-  kk_chacha_init(rnd, key, (uintptr_t)&random_init /*nonce*/ );
+  kk_chacha_init(rnd, (const uint8_t*)key, (uintptr_t)&random_init /*nonce*/ );
   rnd->is_strong = strong;
   return rnd;
 }
