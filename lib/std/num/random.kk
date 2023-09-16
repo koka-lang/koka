@@ -6,7 +6,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Random numbers.
+/* Random numbers. 
 */
 module std/num/random
 

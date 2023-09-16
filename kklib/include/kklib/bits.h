@@ -293,7 +293,7 @@ static inline bool kk_bits_is_power_of2(kk_uintx_t x) {
 
 #define kk_mask_bytes_lo_bit32     KK_U32(0x01010101)
 #define kk_mask_bytes_lo_bit64     KK_U64(0x0101010101010101)
-#define kk_mask_bytes_lo_bit       ((~(KK_UX(0)))/0xFF)            // 0x01010101 ...
+#define kk_mask_bytes_lo_bit       ((~(KK_UX(0)))/0xFF)         // 0x01010101 ...
 
 #define kk_mask_bytes_hi_bit32    (kk_mask_bytes_lo_bit32<<7)      // 0x80808080
 #define kk_mask_bytes_hi_bit64    (kk_mask_bytes_lo_bit64<<7)      // 0x8080808080808080
@@ -319,7 +319,7 @@ static inline bool kk_bits_has_zero_byte64(uint64_t x) {
 }
 #else
 static inline bool kk_bits_has_zero_byte32(uint32_t x) {
-  return ((x - kk_mask_bytes_lo_bit32) &    // high bit set if byte == 0 or > 0x80
+  return ((x - kk_mask_bytes_lo_bit32) &     // high bit set if byte == 0 or > 0x80
           (~x & kk_mask_bytes_hi_bit32));   // high bit set if byte >= 0x80
 }
 
@@ -333,11 +333,8 @@ static inline bool kk_bits_has_zero_byte(kk_uintx_t x) {
   return kk_bitsx(has_zero_byte)(x);
 }
 
-// is there any byte in `x` equal to `n`?
 kk_decl_export bool kk_bits_has_byte32(uint32_t x, uint8_t n);
 kk_decl_export bool kk_bits_has_byte64(uint64_t x, uint8_t n);
-
-// is there any byte in `x` equal to `n`?
 static inline bool kk_bits_has_byte(kk_uintx_t x, uint8_t n) {
   return kk_bitsx(has_byte)(x,n);
 }
@@ -346,8 +343,6 @@ static inline bool kk_bits_has_byte(kk_uintx_t x, uint8_t n) {
 // sum of all the bytes in `x` if it is guaranteed that the sum < 256!
 kk_decl_export uint8_t kk_bits_byte_sum32(uint32_t x);
 kk_decl_export uint8_t kk_bits_byte_sum64(uint64_t x);
-
-// sum of all the bytes in `x` if it is guaranteed that the sum < 256!
 static inline uint8_t kk_bits_byte_sum(kk_uintx_t x) {
   return kk_bitsx(byte_sum)(x);
 }
@@ -439,14 +434,17 @@ static inline bool kk_bits_parity64(uint64_t x) {
 #endif
 
 #else
-
-#define KK_BITS_USE_GENERIC_PARITY   1
-kk_decl_export bool kk_bits_parity32(uint32_t x);
-
+static inline bool kk_bits_parity32(uint32_t x) {
+  x ^= x >> 16;
+  x ^= x >> 8;
+  x ^= x >> 4;
+  x &= 0x0F;
+  return (((0x6996 >> x) & 1) == 0);  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
+}
 #endif
 
 #ifndef KK_BITS_HAS_PARITY64
-#define KK_BITS_HAS_PARITY64    1
+#define KK_BITS_HAS_PARITY64
 static inline bool kk_bits_parity64(uint64_t x) {
   x ^= (x >> 32);
   return kk_bits_parity32((uint32_t)x);
@@ -502,7 +500,7 @@ static inline uint32_t kk_bits_bswap32(uint32_t x) {
 }
 #endif
 
-#ifndef KK_BITS_HAS_BSWAP64     
+#ifndef KK_BITS_HAS_BSWAP64
 #define KK_BITS_HAS_BSWAP64
 static inline uint64_t kk_bits_bswap64(uint64_t x) {
   uint64_t hi = kk_bits_bswap32((uint32_t)x);
@@ -636,6 +634,10 @@ static inline double kk_bits_to_double(uint64_t x) {
   return d;
 }
 
+static inline int64_t kk_int64_hi_lo( int32_t hi, int32_t lo ) {
+  return (((int64_t)hi << 32) | (uint32_t)lo);
+}
+
 /* ---------------------------------------------------------------
   Digits in a decimal representation
 ------------------------------------------------------------------ */
@@ -646,9 +648,6 @@ static inline int kk_bits_digits(kk_uintx_t x) {
   return kk_bitsx(digits)(x);
 }
 
-static inline int64_t kk_int64_hi_lo( int64_t hi, int64_t lo ) {
-  return (hi << 32) | (lo & 0xFFFFFFFF);
-}
 
 /* ---------------------------------------------------------------
   midpoint(x,y): the average of x and y, rounded towards x.
@@ -748,10 +747,16 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
 #else 
 
 #define KK_USE_GENERIC_WIDE_UMUL64
+uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi);
 
-kk_decl_export uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi);
-kk_decl_export uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi);
-
+static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
+  int64_t  z;
+  uint64_t lo = kk_wide_umul64((uint64_t)x, (uint64_t)y, (uint64_t*)&z);
+  if (x < 0) { z -= y; }
+  if (y < 0) { z -= x; }
+  *hi = z;
+  return lo;
+}
 #endif
 
 
@@ -804,12 +809,12 @@ static inline kk_uintx_t kk_bits_scatter(kk_uintx_t x, kk_uintx_t mask) {
 /* ---------------------------------------------------------------
   Bit interleaving: zip and unzip 
 ------------------------------------------------------------------ */
-#define kk_mask_odd_bits32    (KK_U32(0x55555555))
-#define kk_mask_odd_bits64    (KK_U64(0x5555555555555555))
-#define kk_mask_even_bits32   (kk_mask_odd_bits32 << 1)
-#define kk_mask_even_bits64   (kk_mask_odd_bits64 << 1)
 
 #if KK_BITS_HAS_FAST_SCATTER_GATHER
+#define kk_mask_odd_bits32  (KK_U32(0x55555555))
+#define kk_mask_odd_bits64  (KK_U64(0x5555555555555555))
+#define kk_mask_even_bits32 (kk_mask_odd_bits32 << 1)
+#define kk_mask_even_bits64 (kk_mask_odd_bits64 << 1)
 
 // interleave the hi 16-bits and the lo 16-bits of the argument `x` into a
 // single 32-bit result where hi is spread over the even bits, and lo over the odd bits. 
