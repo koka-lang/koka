@@ -68,6 +68,7 @@ executable koka
       Core.GenDoc
       Core.Inline
       Core.Inlines
+      Core.MatchMerge
       Core.Monadic
       Core.MonadicLift
       Core.OpenResolve
