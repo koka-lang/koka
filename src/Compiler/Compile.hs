@@ -876,6 +876,9 @@ inferCheck loaded0 flags line coreImports program
        checkFBIP penv (platform flags) (loadedNewtypes loaded) borrowed gamma
 
        matchMergeDefs
+      --  coreDefs <- Core.getCoreDefs
+      --  let coreDoc2 = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] 
+      --                  (coreProgram{ Core.coreProgDefs = coreDefs })
        -- initial simplify
        let ndebug  = optimize flags > 0
            simplifyX dupMax = simplifyDefs penv False {-unsafe-} ndebug (simplify flags) dupMax

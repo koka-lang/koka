@@ -84,7 +84,7 @@ mergeBranches branches@(b@(Branch [pat@PatCon{patConPatterns=ps}] _): rst)
               vars' = collectVars pat'
               varsMatch =  [Var tn InfoNone | tn <- vars']
             (rest, v) <- mergeBranches rst
-            (newBranches, innerV) <- mergeBranches $ map (stripOuterConstructors pat') bs ++ maybeToList err -- Add back error to sub branches
+            (newBranches, innerV) <- mergeBranches $ map (stripOuterConstructors pat') bs ++ maybeToList (fmap (generalErrorBranch) err) -- Add back error to sub branches
             return (Branch [pat'] [Guard exprTrue (Case varsMatch newBranches)] : rest, True)
 mergeBranches (b:bs) = mergeBranches bs >>= (\(bs', v) -> return (b:bs', v))
 
@@ -95,19 +95,27 @@ collectVars p
       PatCon{patConPatterns = ps} -> concatMap collectVars ps
       _ -> []
 
+-- Split branches into 
+-- - a list of those that match
+-- - those that are left
+-- - a possible (implicit error) branch found 
+-- - and the pattern that unifies the matched branches
+-- Greedily in order processing, The first branch is the branch under consideration and the others are the next parameter
 splitBranchConstructors :: Branch -> [Branch] -> Unique ([Branch], [Branch], Maybe Branch, Pattern)
 splitBranchConstructors b@(Branch [p] _) branches =
   case branches of
-    -- Start assuming the full pattern matches
+    -- Only one branch, it matches it's own pattern
     [] -> return ([b], [], if isErrorBranch b then Just b else Nothing, p) 
     b'@(Branch [p'] _):bs ->
       do
+        -- First do the rest other than b'
         (bs', bs2', e, accP) <- splitBranchConstructors b bs
         -- keep track of error branch to propagate into sub branches
-        let newError = case (e, b') of 
-              (Just e, _) -> Just e
-              (_, b') | isErrorBranch b' -> Just b'
-              _ -> Nothing
+        let newError = case (e, b') of
+              (Just e, _) -> Just e -- implicit error is in the rest of the branches
+              (_, b') | isErrorBranch b' -> Just b' -- b' is the error branch
+              _ -> Nothing -- no error branch
+        -- Acumulated pattern and p'
         patNew <- patternsMatch accP p'
         case patNew of
           -- Restrict the pattern to the smallest that matches multiple branches
@@ -125,6 +133,10 @@ isPatWild _ = False
 isErrorBranch:: Branch -> Bool
 isErrorBranch (Branch _ [Guard _ (App (TypeApp (Var name _) _) _)]) = getName name == namePatternMatchError
 isErrorBranch _ = False
+
+generalErrorBranch:: Branch -> Branch
+generalErrorBranch b@(Branch p g) | isErrorBranch b = Branch [PatWild] g
+generalErrorBranch b = b
 
 -- Returns largest common subpattern, with variables added where needed
 patternsMatch :: Pattern -> Pattern -> Unique (Maybe Pattern)
@@ -187,7 +199,7 @@ stripOuterConstructors template (Branch [pt] exprs)
           PatCon name patterns cr targs exists res ci sk -> PatCon name (map replaceInPattern patterns) cr targs exists res ci sk
           _ -> p
     replaceInGuard (Guard tst expr)
-      = Guard (rewriteTopDown replaceInExpr tst) (rewriteTopDown replaceInExpr expr)
+      = Guard (rewriteBottomUp replaceInExpr tst) (rewriteBottomUp replaceInExpr expr)
     replaceInExpr :: Expr -> Expr
     replaceInExpr e
       = case e of
@@ -212,5 +224,6 @@ getReplaceMap template p'
           replaceMap = concat replaceMaps
       in (Just (concatMap (\m -> (fromMaybe [PatWild] m)) patterns'), replaceMap)
     (PatVar tn pat, pat2) -> getReplaceMap pat pat2
+    (pat, PatVar tn pat2) -> getReplaceMap pat pat2
     (PatWild, pat2) -> (Just [pat2], [])
     _ -> failure $ "getReplaceMap: " ++ show template ++ " " ++ show p' 
