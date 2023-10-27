@@ -3,12 +3,6 @@
 <!--
 [<img align="right" src="https://travis-ci.org/koka-lang/koka.svg?branch=master"/>](https://travis-ci.org/koka-lang/koka)
 -->
-<a  href="https://matrix.to/#/#koka-lang_koka:gitter.im">
-<img align="right" style="margin: 5px" src="https://img.shields.io/matrix/koka-lang:matrix.org?label=chat%20on%20matrix"/>
-</a>
-<a href="https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">
-<img align="right" style="margin: 5px" src="https://badges.gitter.im/koka-lang/koka.svg"/>
-</a>
 
 &nbsp;
 
