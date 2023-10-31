@@ -154,7 +154,7 @@ fun printhi10()
   }
 ```
 
-where the body desugars to `repeat( 10, fn(){println(``hi``)} )`. The is
+where the body desugars to `repeat( 10, fn(){println("hi")} )`. This is
 especially convenient for the `while` loop since this is not a built-in
 control flow construct but just a regular function:
 
@@ -735,7 +735,7 @@ struct person
 val brian = Person( 29, "Brian" )
 ```
 
-Every `struct` (and other data types) come with constructor functions to
+Every `struct` (and other data types) comes with constructor functions to
 create instances, as in `Person(19,"Brian")`. Moreover, these
 constructors can use named arguments so we can also call the constructor
 as `Person( name = "Brian", age = 19, realname = "Brian H. Griffin" )`
@@ -900,14 +900,14 @@ and arbitrary recursive types respectively.
 
 Value types are (non-recursive) data types that are not heap allocated
 but passed on the stack as a value. Since data types are immutable, semantically
-these types are equivalent but value types can be more efficient as they
+these types are equivalent, but value types can be more efficient as they
 avoid heap allocation and reference counting (or more expensive as they need copying 
 instead of sharing a reference). 
 
 By default, any non-recursive inductive data type of a size up to 3 machine words (= 24 bytes
-on a 64-bit platform) is treated as a value type. For example, tuples and 3-tuples
+on a 64-bit platform) is treated as a value type. For example, 2-tuples and 3-tuples
 are passed and returned by value. Usually, that means that such tuples are for
-example returned in registers when compiling with optimization.
+example returned in registers when compiling with optimizations.
 
 We can also force a type to be compiled as a value type by using the `value` keyword
 in front of a `type` or `struct` declaration:
@@ -924,7 +924,7 @@ is polymorphic in its elements. That means that if we construct a list of tuples
 `[(1,True)]`, that the element `(1,2)` will be boxed and heap allocated -- essentially 
 the compiler transforms this expression into `[Box((1,True)]` internally.
 
-Note that for regular data types and `:int`'s boxing is free (as in isomorphic). Moreover, value types
+Note that for regular data types and `:int`s boxing is free (as in isomorphic). Moreover, value types
 up to 63 bits (on a 64-bit platform) are boxed in-place and do not require heap allocation
 (like `:int32`). The `:float64` type is also specialized; by default the Koka compiler
 only heap allocates `:float64`s when their absolute value is
@@ -1127,7 +1127,7 @@ with ctl op(<args>){ val f = fn(){ <body> }; resume( f() ) }
 ```
 ~
 
-(The translation is defined via an intermediate function `f` so `return` works as expected).
+(The translation is defined via an intermediate function `f` so `return` works as expected.)
 
 With this syntactic sugar, we can write our earlier `ask-const` example 
 using a `fun` operation instead:
@@ -1832,7 +1832,7 @@ fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,fi
 ```
 
 However, as it stands it would fail to close the file handle if an exceptional
-effect inside `action` is used (i.e. or any operation that never resumes). 
+effect inside `action` is used (or any operation that never resumes). 
 The `finally` function handles these situations, and
 takes as its first argument a function that is always executed when either returning normally, or
 when unwinding for a non-resuming operation. So, a more robust way to write
@@ -1910,7 +1910,7 @@ can make code that uses only linear effects more compact and efficient.
 ### Named and Scoped Handlers { #sec-namedh; }
 
 ~ Todo
-See `samples/named-handlers`.
+See [`samples/named-handlers`](https://github.com/koka-lang/koka/tree/master/samples/named-handlers).
 ~
 
 ## FBIP: Functional but In-Place { #sec-fbip; }
