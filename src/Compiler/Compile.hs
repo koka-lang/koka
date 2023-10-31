@@ -1070,6 +1070,8 @@ codeGen term flags compileTarget loaded
                                   when (osName == "macos") $
                                     removeFileIfExists targetOut  -- needed on macOS due to code signing issues (see https://developer.apple.com/forums/thread/669145)
                                   copyBinaryFile out targetOut
+                                  when (osName == "macos" || osName == "linux") $
+                                    makeFileExecutable targetOut
                                   return finalOut
                           else return out
                  termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
