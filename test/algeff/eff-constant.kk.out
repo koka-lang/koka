@@ -1,0 +1,3 @@
+test/algeff/eff-constant.kk(2,12): error: invalid syntax
+ encountered effect variable e when an effect label was expected
+ hint: effect variables must be after `|` (e.g `<labels|e>`), or by themselves (e.g. `e`)
