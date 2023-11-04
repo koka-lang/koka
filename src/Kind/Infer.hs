@@ -786,6 +786,7 @@ resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
        -- trace (showTypeBinder syn') $
        addRangeInfo range (Decl "alias" (getName syn') (mangleTypeName (getName syn')))
        let synInfo = SynInfo (getName syn') (typeBinderKind syn') etaParams etaTp (maxSynonymRank etaTp + 1) range vis doc
+       addSynonym synInfo
        return (Core.Synonym synInfo)
   where
     kindArity (KApp (KApp kcon k1) k2)  | kcon == kindArrow = k1 : kindArity k2
