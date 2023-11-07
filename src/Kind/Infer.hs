@@ -152,7 +152,7 @@ synTypeDef :: Name -> Core.TypeDef -> DefGroups Type
 synTypeDef modName (Core.Synonym synInfo) = []
 synTypeDef modName (Core.Data dataInfo isExtend) | isHiddenName (dataInfoName dataInfo) = []
 synTypeDef modName (Core.Data dataInfo isExtend)
-  = synAccessors modName dataInfo
+  = (if not (dataInfoIsOpen dataInfo) && not isExtend then synAccessors modName dataInfo else [])
     ++
     (if (length (dataInfoConstrs dataInfo) == 1 && not (dataInfoIsOpen dataInfo)
          && not (isHiddenName (conInfoName (head (dataInfoConstrs dataInfo))))
