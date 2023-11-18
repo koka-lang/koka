@@ -18,28 +18,34 @@ import Common.Syntax( Target(..), JsTarget(..), CTarget(..) )
 import Common.Id
 import Common.Name
 import Common.Range
-import Common.Unique()
+import Common.Unique(HasUnique)
 import Common.NamePrim( namePatternMatchError, nameSystemCore )
 import Common.Failure
-import Kind.Kind( kindStar )
+import Kind.Kind( kindStar, kindEffect )
 import Kind.Newtypes
 import Type.Type
 import Type.Pretty 
 import Type.TypeVar
 import Type.Unify( runUnifyEx, unify )
 import Core.Core
+import Core.Core as Core
 import Core.Pretty
+import Type.Operations (freshTVar)
 
-analyzeBranches :: Newtypes -> Name -> Range -> [Branch] -> [Type] -> [DataInfo] -> (Bool,[(Range,Doc)],[Branch])
+analyzeBranches :: HasUnique m => Newtypes -> Name -> Range -> [Branch] -> [Type] -> [DataInfo] -> m (Bool,[(Range,Doc)],[Branch])
 analyzeBranches newtypes defName range branches types infos
   = let (exhaustive,branches',warnings)
           = matchBranches newtypes defName range branches types infos                                    
-    in (exhaustive, warnings, branches' ++ (if exhaustive then [] else catchAll))
+    in if exhaustive then 
+        return (exhaustive, warnings, branches') 
+       else do 
+        matchError <- patternMatchError resultType defName range
+        return (exhaustive, warnings, branches' ++ catchAll matchError)
   where
     patternCount = length (branchPatterns (head branches))
     resultType   = typeOf (head branches)
-    catchAll     = [ Branch (replicate patternCount PatWild)
-                         [Guard exprTrue (patternMatchError resultType defName range)]
+    catchAll    x = [ Branch (replicate patternCount PatWild)
+                         [Guard exprTrue (x)]
                    ]
 
 
@@ -232,11 +238,21 @@ alwaysMatch (PatCon _ _ _ _ _ _ info _) = conInfoSingleton info
 -- alwaysMatch _                  = False
 
 -- construct a pattern match error
-patternMatchError :: Type -> Name -> Range -> Expr
+patternMatchError :: HasUnique m => Type -> Name -> Range -> m Expr
 patternMatchError resultType defName range
-  = App (TypeApp (Var (TName name tp) (InfoArity 1 2)) [resultType])
-            [Lit (LitString (sourceName (posSource (rangeStart range)) ++ show range)), Lit (LitString (show defName))]
+  = do 
+    tv <- freshTVar kindEffect Meta
+    let openEff = effectExtends [typePartial] tv
+        origTp  = TFun [] effectEmpty resultType
+        openTp  = TFun [] openEff resultType
+    return $ App ( 
+      Core.openEffectExpr exnEff openEff origTp openTp $ 
+      Lam [] exnEff $ 
+      App (TypeApp (Var (TName name tp) (InfoArity 1 2)) [resultType])
+                [Lit (LitString (sourceName (posSource (rangeStart range)) ++ show range)), Lit (LitString (show defName))]
+     ) []
   where
+    exnEff = effectExtend typePartial effectEmpty
     name = namePatternMatchError
     tp   = TForall [a] [] (typeFun [(newName "range",typeString),(newName "def",typeString)] typePartial (TVar a))
     a    = TypeVar (newId 0) kindStar Bound

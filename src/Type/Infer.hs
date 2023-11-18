@@ -833,7 +833,7 @@ inferExpr propagated expect (Case expr branches rng)
        defName  <- currentDefName
        sbcores  <- subst bcores
        newtypes <- getNewtypes
-       let (isTotal,warnings,cbranches) = analyzeBranches newtypes defName rng sbcores [stp] [dataInfo]
+       (isTotal,warnings,cbranches) <- analyzeBranches newtypes defName rng sbcores [stp] [dataInfo]
        mapM_ (\(rng,warning) -> infWarning rng warning) warnings
        topEff <- if isTotal
                   then return resEff
