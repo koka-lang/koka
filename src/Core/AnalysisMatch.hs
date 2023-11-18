@@ -18,7 +18,6 @@ import Common.Syntax( Target(..), JsTarget(..), CTarget(..) )
 import Common.Id
 import Common.Name
 import Common.Range
-import Common.Unique()
 import Common.NamePrim( namePatternMatchError, nameSystemCore )
 import Common.Failure
 import Kind.Kind( kindStar )
@@ -34,13 +33,10 @@ analyzeBranches :: Newtypes -> Name -> Range -> [Branch] -> [Type] -> [DataInfo]
 analyzeBranches newtypes defName range branches types infos
   = let (exhaustive,branches',warnings)
           = matchBranches newtypes defName range branches types infos                                    
-    in (exhaustive, warnings, branches' ++ (if exhaustive then [] else catchAll))
+    in (exhaustive, warnings, branches') 
   where
     patternCount = length (branchPatterns (head branches))
     resultType   = typeOf (head branches)
-    catchAll     = [ Branch (replicate patternCount PatWild)
-                         [Guard exprTrue (patternMatchError resultType defName range)]
-                   ]
 
 
 data Match = Match{ conInfos   :: ![ConInfo],           -- datatype info
@@ -230,19 +226,3 @@ alwaysMatch (PatLit _)            = False
 alwaysMatch (PatVar _ pat)        = alwaysMatch pat
 alwaysMatch (PatCon _ _ _ _ _ _ info _) = conInfoSingleton info
 -- alwaysMatch _                  = False
-
--- construct a pattern match error
-patternMatchError :: Type -> Name -> Range -> Expr
-patternMatchError resultType defName range
-  = App (TypeApp (Var (TName name tp) (InfoArity 1 2)) [resultType])
-            [Lit (LitString (sourceName (posSource (rangeStart range)) ++ show range)), Lit (LitString (show defName))]
-  where
-    name = namePatternMatchError
-    tp   = TForall [a] [] (typeFun [(newName "range",typeString),(newName "def",typeString)] typePartial (TVar a))
-    a    = TypeVar (newId 0) kindStar Bound
-
-    info = if (qualifier defName /= nameSystemCore)
-            then (InfoArity 1 2)
-            else (InfoExternal [(CS,"koka_" ++ aname ++ "<##1>(#1,#2)")
-                               ,(JS JsDefault,aname ++ "(#1,#2)")])
-    aname = asciiEncode True (nameModule name) ++ "." ++ asciiEncode False (nameId name)
