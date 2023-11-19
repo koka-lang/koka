@@ -42,7 +42,7 @@ import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
-import Common.NamePrim        ( nameCoreHnd, isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed, isPrimitiveName )
+import Common.NamePrim        ( nameCoreHnd, isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpUVIO, nameTpCps, nameTpAsync, nameTpNamed, nameTpHandled, nameTpHandled1, isPrimitiveName )
 import Common.Error
 import Common.File
 import Common.ColorScheme
@@ -473,21 +473,35 @@ compileProgram' term flags modules compileTarget fname program
        -- trace (" final loaded modules: " ++ show (map modName (loadedModules loaded4))) $ return ()
        return loaded4{ loadedModules = addOrReplaceModule (loadedModule loaded4) (loadedModules loaded4) }
 
+effName :: Effect -> Maybe Name
+effName tp = case expandSyn tp of
+    TApp (TCon (TypeCon name _)) [t]
+      | name == nameTpHandled  -> effName t
+      | name == nameTpHandled1 -> effName t
+    TApp (TCon (TypeCon hxName _)) _ 
+      -> Just hxName
+    TCon (TypeCon hxName kind)
+      -> Just hxName
+    _ -> Nothing
+
 checkUnhandledEffects :: Flags -> Loaded -> Name -> Range -> Type -> Error (Maybe (UserExpr -> UserExpr))
 checkUnhandledEffects flags loaded name range tp
   = case expandSyn tp of
       TFun _ eff _
         -> let (ls,_) = extractHandledEffect eff
-           in -- trace ("extract effects: " ++ show ls) $
-              combine eff Nothing ls
+           in do -- trace ("extract effects: " ++ show ls) $
+              res <- combine exclude eff Nothing ls
+              res1 <- combine (filter (/= nameTpAsync) (catMaybes $ map effName ls)) eff res ls
+              res2 <- combine (filter (/= nameTpUVIO) (catMaybes $ map effName ls)) eff res1 ls
+              return res2
       _ -> return Nothing
   where
-    exclude = [nameTpCps,nameTpNamed] -- nameTpAsync
+    exclude = [nameTpCps,nameTpNamed,nameTpAsync,nameTpUVIO] -- nameTpAsync
 
-    combine :: Effect -> Maybe (UserExpr -> UserExpr) -> [Effect] -> Error (Maybe (UserExpr -> UserExpr))
-    combine eff mf [] = return mf
-    combine eff mf (l:ls) = case getHandledEffectX exclude l of
-                             Nothing -> combine eff mf ls
+    combine :: [Name] -> Effect -> Maybe (UserExpr -> UserExpr) -> [Effect] -> Error (Maybe (UserExpr -> UserExpr))
+    combine exclude eff mf [] = return mf
+    combine exclude eff mf (l:ls) = case getHandledEffectX exclude l of
+                             Nothing -> combine exclude eff mf ls
                              Just (_,effName)
                                -> let defaultHandlerName = makeHiddenName "default" effName
                                   in -- trace ("looking up: " ++ show defaultHandlerName) $
@@ -497,17 +511,14 @@ checkUnhandledEffects flags loaded name range tp
                                              let dname = infoCName fun
                                                  g mfx expr = let r = getRange expr
                                                               in App (Var dname False r) [(Nothing,Lam [] (maybe expr (\f -> f expr) mfx) r)] r
-                                             in if (effName == nameTpAsync)  -- always put async as the most outer effect
-                                                 then do mf' <- combine eff mf ls
-                                                         return (Just (g mf'))
-                                                 else combine eff (Just (g mf)) ls
+                                             in combine exclude eff (Just (g mf)) ls
                                         infos
                                           -> -- trace ("not found: " ++ show (loadedGamma loaded)) $
                                              do errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->
                                                            text " inferred effect :" <+> ppType (prettyEnvFromFlags flags) eff <-->
                                                            text " unhandled effect:" <+> ppType (prettyEnvFromFlags flags) l <-->
                                                            text " hint            : wrap the main function in a handler"))
-                                                combine eff mf ls
+                                                combine exclude eff mf ls
 
 
 data ModImport = ImpProgram Import
@@ -1277,7 +1288,9 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                          ++ ccompLinkSysLibs flags
                          ++ (if onWindows && not (isTargetWasm (target flags))
                               then ["bcrypt","psapi","advapi32"]
-                              else ["m","pthread"])
+                            else if isTargetWasm (target flags)
+                              then ["m","pthread"]
+                              else ["m","pthread","uv"])
                 libs   = -- ["kklib"] -- [normalizeWith '/' (outName flags (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
                          -- ++ 
                          clibs 
@@ -1340,6 +1353,7 @@ ccompile term flags cc ctargetObj extraIncDirs csources
                       , ccFlagsBuildFromFlags cc flags
                       , ccFlagsCompile cc
                       , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
+                      , ccIncludeDir cc (localShareDir flags ++ "/kklib/libuv/include")
                       ]
                       ++
                       map (ccIncludeDir cc) (extraIncDirs ++ ccompIncludeDirs flags)

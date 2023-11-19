@@ -85,6 +85,21 @@ kk_bytes_t kk_bytes_adjust_length(kk_bytes_t b, kk_ssize_t newlen, kk_context_t*
   }
 }
 
+kk_bytes_t kk_bytes_skip_count(kk_bytes_t b, kk_ssize_t count, kk_context_t* ctx) {
+  kk_ssize_t len;
+  const uint8_t* s = kk_bytes_buf_borrow(b,&len,ctx);
+  if (len == count) {
+    kk_bytes_drop(b, ctx);
+    return kk_bytes_empty();
+  } else {
+    // copy the rest
+    kk_ssize_t newlen = len - count;
+    kk_bytes_t tb = kk_bytes_alloc_dupn(newlen, s + count, ctx);
+    kk_bytes_drop(b, ctx);
+    return tb;
+  }
+}
+
 
 /*--------------------------------------------------------------------------------------------------
   Compare

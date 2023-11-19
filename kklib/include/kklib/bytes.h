@@ -92,6 +92,7 @@ static inline kk_bytes_t kk_bytes_dup(kk_bytes_t b, kk_context_t* ctx) {
 // Adds a terminating zero at the end. Return the raw buffer pointer in `buf` if non-NULL
 kk_decl_export kk_bytes_t kk_bytes_alloc_len(kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx);
 kk_decl_export kk_bytes_t kk_bytes_adjust_length(kk_bytes_t p, kk_ssize_t newlen, kk_context_t* ctx);
+kk_decl_export kk_bytes_t kk_bytes_skip_count(kk_bytes_t p, kk_ssize_t count, kk_context_t* ctx);
 
 // allocate uninitialized bytes
 static inline kk_bytes_t kk_bytes_alloc_buf(kk_ssize_t len, uint8_t** buf, kk_context_t* ctx) {
@@ -157,7 +158,15 @@ static inline const char* kk_bytes_cbuf_borrow(const kk_bytes_t b, kk_ssize_t* l
   return (const char*)kk_bytes_buf_borrow(b, len, ctx);
 }
 
+static inline int8_t kk_bytes_at(kk_bytes_t p, uint64_t i, kk_context_t* ctx){
+  const uint8_t* buf = kk_bytes_buf_borrow(p, NULL, ctx);
+  return (int8_t)buf[i];
+}
 
+static inline void kk_bytes_set(kk_bytes_t p, uint64_t i, int8_t b, kk_context_t* ctx){
+  uint8_t* buf = (uint8_t*)kk_bytes_buf_borrow(p, NULL, ctx);
+  buf[i] = (uint8_t)b;
+}
 
 /*--------------------------------------------------------------------------------------------------
   Length, compare

@@ -31,6 +31,9 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
 # set(CMAKE_DEBUG_POSTFIX "-debug")
 # set(CMAKE_RELWITHDEBINFO_POSTFIX "d")
+set(LIBUV_BUILD_SHARED OFF CACHE BOOL "Build libuv only as a static library" FORCE)
+add_subdirectory(libuv)
+include_directories(libuv/include)
 
 # -----------------------------------------------------------------------------
 # Main target
@@ -91,7 +94,8 @@ if(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND "x${CMAKE_C_SIMULATE_ID}" S
   target_compile_definitions(kklib PRIVATE __clang_msvc__=1)
 endif()
 
-
+target_include_directories(kklib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/libuv/include)
+target_link_libraries(kklib PRIVATE uv_a)
 
 if(KK_MIMALLOC MATCHES ON)
 target_include_directories(kklib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/mimalloc/include)
@@ -144,6 +148,15 @@ install(DIRECTORY mimalloc/include/
         FILES_MATCHING PATTERN "mimalloc.h")
 endif()
 endif()
+
+
+install(DIRECTORY libuv/include/
+        DESTINATION include
+        FILES_MATCHING PATTERN "uv/*.h")
+install(DIRECTORY libuv/include/
+        DESTINATION include
+        FILES_MATCHING PATTERN "uv.h")
+
 
 write_basic_package_version_file(kklib-config-version.cmake COMPATIBILITY SameMajorVersion)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kklib-config-version.cmake

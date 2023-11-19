@@ -80,6 +80,9 @@ pub value type intptr_t
 // Provides currently no operations and currently only used for storage and for interaction with external code.
 pub value type float32
 
+// A raw wrapper around a uint8 character array.
+pub type bytes
+
 // An any type. Used for external calls
 pub type any
 

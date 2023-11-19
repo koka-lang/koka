@@ -810,12 +810,12 @@ static inline kk_uintx_t kk_bits_scatter(kk_uintx_t x, kk_uintx_t mask) {
   Bit interleaving: zip and unzip 
 ------------------------------------------------------------------ */
 
-#if KK_BITS_HAS_FAST_SCATTER_GATHER
 #define kk_mask_odd_bits32  (KK_U32(0x55555555))
 #define kk_mask_odd_bits64  (KK_U64(0x5555555555555555))
 #define kk_mask_even_bits32 (kk_mask_odd_bits32 << 1)
 #define kk_mask_even_bits64 (kk_mask_odd_bits64 << 1)
 
+#if KK_BITS_HAS_FAST_SCATTER_GATHER
 // interleave the hi 16-bits and the lo 16-bits of the argument `x` into a
 // single 32-bit result where hi is spread over the even bits, and lo over the odd bits. 
 static inline uint32_t kk_bits_interleave32(uint32_t x) {

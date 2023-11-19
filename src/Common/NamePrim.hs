@@ -107,7 +107,7 @@ module Common.NamePrim
 
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat, nameTpFloat32, nameTpFloat16
-          , nameTpString
+          , nameTpString, nameTpBytes
           -- , nameTpByte
           , nameTpInt8, nameTpInt16, nameTpInt32, nameTpInt64
           , nameTpSSizeT,nameTpIntPtrT
@@ -125,7 +125,7 @@ module Common.NamePrim
           , nameTpNamed, nameTpScope
 
 
-          , nameTpAsync, nameTpAsyncX
+          , nameTpAsync, nameTpAsyncX, nameTpUVIO
           , nameApplyK
           , nameMakeHandler, nameMakeHandlerRet
           , nameMakeContextTp
@@ -236,6 +236,7 @@ nameTpCps       = preludeName "cps"
 nameInCps       = preludeName "incps"
 nameTpCont      = preludeName "cont"
 
+nameTpUVIO     = qualify (newName "std/os/uv") (newName "uvio")
 nameTpAsync     = qualify (newName "std/async") (newName "async")
 nameTpAsyncX    = qualify (newName "std/async") (newName "asyncx")
 
@@ -413,6 +414,7 @@ nameInt32       = preludeName "int32"
 nameInt64       = preludeName "int64"
 nameSSizeT      = preludeName "ssize_t"
 nameIntPtrT     = preludeName "intptr_t"
+nameBytes     = preludeName "bytes"
 
 nameUnit        = coreTypesName "()"
 nameTrue        = coreTypesName "True"
@@ -445,6 +447,7 @@ nameTpFloat16   = coreTypesName "float16"
 
 nameTpChar      = coreTypesName "char"
 nameTpString    = coreTypesName "string"
+nameTpBytes    = coreTypesName "bytes"
 nameTpAny       = coreTypesName "any"
 nameTpVector    = coreTypesName "vector"
 

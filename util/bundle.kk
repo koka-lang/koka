@@ -142,6 +142,7 @@ fun bundle( prefixdir : path, extrametadir : string, solibsdir : string, cc : st
   copy-directory("kklib/src".path, kklibdir / "src")
   copy-directory("kklib/include".path, kklibdir / "include")
   copy-directory("kklib/mimalloc".path, kklibdir / "mimalloc")
+  copy-directory("kklib/libuv".path, kklibdir / "libuv")
   copy-file-to-dir("kklib/CMakeLists.txt".path, kklibdir)
   // copy-file-to-dir("kklib/kkmain.cmake".path, kklibdir)
 

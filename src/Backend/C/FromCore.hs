@@ -409,7 +409,7 @@ unitSemi tp
 genTopLevelStringLiteral :: Name -> Visibility -> String -> Asm ()
 genTopLevelStringLiteral name vis s
   =  do let (cstr,clen) = cstring s
-            decl = if (isPublic vis) then empty else text "static"
+            decl = if (isPublic vis) then empty else text ""
         if (clen > 0)
           then do emitToC (text "kk_declare_string_literal" <.> tupled [decl,ppName name,pretty clen,cstr] {- <.> semi -})
                   emitToInit (text "kk_init_string_literal" <.> arguments [ppName name])
@@ -759,7 +759,7 @@ genBoxCall tp arg
         ctx  = contextDoc
     in case cType tp of
       CFun _ _   -> primName_t prim "function_t" <.> tupled ([arg,ctx])
-      CPrim val  | val == "kk_unit_t" || val == "bool" || val == "kk_string_t" -- || val == "kk_integer_t" 
+      CPrim val  | val == "kk_unit_t" || val == "bool" || val == "kk_string_t" || val == "kk_bytes_t" -- || val == "kk_integer_t" 
                  -> primName_t prim val <.> parens arg  -- no context
       CData name -> primName prim (ppName name) <.> tupled [arg,ctx]
       _          -> primName_t prim (show (ppType tp)) <.> tupled [arg,ctx]  -- kk_box_t, int32_t
@@ -776,7 +776,7 @@ genUnboxCall tp arg argBorrow
         ctx  = contextDoc
     in case cType tp of
       CFun _ _   -> primName_t prim "function_t" <.> tupled [arg,ctx] -- no borrow
-      CPrim val  | val == "kk_unit_t" || val == "bool" || val == "kk_string_t"
+      CPrim val  | val == "kk_unit_t" || val == "bool" || val == "kk_string_t" || val == "kk_bytes_t"
                     -> primName_t prim val <.> parens arg  -- no borrow, no context
                  | otherwise 
                     -> primName_t prim val <.>  tupled ([arg] ++ (if (cPrimCanBeBoxed val) then [argBorrow] else []) ++ [ctx])
@@ -1049,7 +1049,7 @@ genDupDropCallX prim tp args
   = case cType tp of
       CFun _ _   -> [(primName_t prim "function_t") <.> args]
       CBox       -> [(primName_t prim "box_t") <.> args]
-      CPrim val   | val == "kk_integer_t" || val == "kk_string_t" || val == "kk_vector_t" || val == "kk_evv_t" || val == "kk_ref_t" || val == "kk_reuse_t" || val == "kk_box_t"
+      CPrim val   | val == "kk_integer_t" || val == "kk_bytes_t" || val == "kk_string_t" || val == "kk_vector_t" || val == "kk_evv_t" || val == "kk_ref_t" || val == "kk_reuse_t" || val == "kk_box_t"
                   -> [(primName_t prim val) <.> args]
                   | otherwise
                   -> -- trace ("** skip dup/drop call: " ++ pre val ++ ": " ++ show args) $
@@ -1099,6 +1099,7 @@ genHoleCall tp        = --  ppType tp <.> text "_hole()")
                         case cType tp of
                           CPrim "kk_integer_t" -> text "kk_integer_zero"
                           CPrim "kk_string_t"  -> text "kk_string_empty()"
+                          CPrim "kk_bytes_t"  -> text "kk_bytes_empty()"
                           CPrim "kk_vector_t"  -> text "kk_vector_empty()"
                           _      -> text "kk_datatype_null()"
 
@@ -1286,6 +1287,8 @@ cTypeCon c
          then CPrim "kk_integer_t"
         else if (name == nameTpString)
          then CPrim "kk_string_t"
+        else if (name == nameTpBytes)
+         then CPrim "kk_bytes_t"
         else if (name == nameTpVector)
          then CPrim "kk_vector_t"
         else if (name ==  nameTpEvv)
@@ -2199,7 +2202,7 @@ getFormat :: TName -> [(Target,String)] -> String
 getFormat tname formats
   = case lookupTarget (C CDefault) formats of  -- TODO: pass real ctarget from flags
       Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
-                 trace( "warning: C backend does not support external in " ++ show tname ) $
+                 trace( "warning: C backend does not support external in " ++ show tname ++ " looking in " ++ show formats ) $
                       ("kk_unsupported_external(\"" ++ (show tname) ++ "\")")
       Just s -> s
 

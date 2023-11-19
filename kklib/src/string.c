@@ -854,6 +854,7 @@ kk_string_t  kk_string_trim_right(kk_string_t str, kk_context_t* ctx) {
 kk_unit_t kk_println(kk_string_t s, kk_context_t* ctx) {
   // TODO: set locale to utf-8?
   puts(kk_string_cbuf_borrow(s, NULL, ctx));  // todo: allow printing embedded 0 characters?
+  fflush(stdout);
   kk_string_drop(s, ctx);
   return kk_Unit;
 }
@@ -861,6 +862,7 @@ kk_unit_t kk_println(kk_string_t s, kk_context_t* ctx) {
 kk_unit_t kk_print(kk_string_t s, kk_context_t* ctx) {
   // TODO: set locale to utf-8?
   fputs(kk_string_cbuf_borrow(s, NULL, ctx), stdout); // todo: allow printing embedded 0 characters?
+  fflush(stdout);
   kk_string_drop(s, ctx);
   return kk_Unit;
 }
@@ -868,6 +870,7 @@ kk_unit_t kk_print(kk_string_t s, kk_context_t* ctx) {
 kk_unit_t kk_trace(kk_string_t s, kk_context_t* ctx) {
   fputs(kk_string_cbuf_borrow(s, NULL, ctx), stderr); // todo: allow printing embedded 0 characters?
   fputs("\n", stderr);
+  fflush(stdout);
   kk_string_drop(s, ctx);
   return kk_Unit;
 }

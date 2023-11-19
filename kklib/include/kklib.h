@@ -422,6 +422,7 @@ typedef struct kk_context_s {
   kk_yield_t        yield;            // inlined yield structure (for efficiency)
   int32_t           marker_unique;    // unique marker generation
   kk_block_t*       delayed_free;     // list of blocks that still need to be freed
+  void*     loop;                     // a reference to an event loop (e.g. uv_loop_t* or NULL)
   kk_integer_t      unique;           // thread local unique number generation
   size_t            thread_id;        // unique thread id
   kk_box_any_t      kk_box_any;       // used when yielding as a value of any type
@@ -443,6 +444,9 @@ typedef struct kk_context_s {
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
 kk_decl_export kk_context_t* kk_get_context(void);
 kk_decl_export void          kk_free_context(void);
+
+
+kk_decl_export void          kk_debugger_break(kk_context_t* ctx);
 
 // The current context is passed as a _ctx parameter in the generated code
 #define kk_context()  _ctx
