@@ -158,6 +158,15 @@ pub struct (,,,)<a,b,c,d>(fst:a,snd:b,thd:c,field4:d)
 // A quintuple of values.
 pub struct (,,,,)<a,b,c,d,e>(fst:a,snd:b,thd:c,field4:d,field5:e)
 
+// A sextuple of values.
+pub struct (,,,,,)<a,b,c,d,e,f>(fst:a,snd:b,thd:c,field4:d,field5:e,field6:f)
+
+// A septuple of values.
+pub struct (,,,,,,)<a,b,c,d,e,f,g>(fst:a,snd:b,thd:c,field4:d,field5:e,field6:f,field7:g)
+
+// An octuple of values.
+pub struct (,,,,,,,)<a,b,c,d,e,f,g,h>(fst:a,snd:b,thd:c,field4:d,field5:e,field6:f,field7:g,field8:h)
+
 // The `:maybe` type is used to represent either a value (`Just(x)`) or `Nothing`.
 // This type is often used to represent values that can be _null_.
 pub value type maybe<a>
