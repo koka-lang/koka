@@ -23,7 +23,7 @@ import Common.NamePrim( nameEffectOpen, nameToAny, nameReturn, nameOptionalNone,
                        , nameLift, nameBind, nameEvvIndex, nameClauseTailNoYield, isClauseTailName
                        , nameBox, nameUnbox, nameAssert
                        , nameAnd, nameOr, isNameTuple
-                       , nameCCtxCompose, nameCCtxComposeExtend, nameCCtxEmpty )
+                       , nameCCtxCompose, nameCCtxComposeExtend, nameCCtxEmpty, nameClauseTailNoOp )
 
 import Common.Unique
 import Type.Type
@@ -36,6 +36,7 @@ import Core.CoreVar
 import Core.Uniquefy( uniquefyExpr )
 import qualified Common.NameMap as M
 import qualified Data.Set as S
+import Data.Maybe (mapMaybe)
 
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
@@ -54,7 +55,7 @@ simplifyN nRuns defs
 uniqueSimplify :: (HasUnique m, Simplify a) => Pretty.Env -> Bool -> Bool -> Int -> Int -> a -> m a
 uniqueSimplify penv unsafe ndebug nRuns duplicationMax expr
   = do u <- unique
-       let (x,u') = runSimplify unsafe ndebug duplicationMax u penv 
+       let (x,u') = runSimplify unsafe ndebug duplicationMax u penv
                      (simplifyN nRuns expr) -- (simplify expr) -- (simplifyN (if nRuns <= 0 then 1 else nRuns) expr)
        setUnique u'
        return x
@@ -103,7 +104,7 @@ topDown (Let dgs body)
     topDownLet sub acc [DefNonRec (Def{defName=name,defType=tp,defExpr=e})] (Var v _) | getName v == name
       = topDownLet sub acc [] e
 
-    topDownLet sub acc (DefNonRec def@(Def{defName=x,defType=tp,defExpr=letexpr@(Let dgs' body')}) : dgs) body  
+    topDownLet sub acc (DefNonRec def@(Def{defName=x,defType=tp,defExpr=letexpr@(Let dgs' body')}) : dgs) body
       = -- lift nested let bindings
         assertion "Core.Simplify.topDownLet.liftLets" (bv dgs' `tnamesDisjoint` fv body) $ -- due to uniquefy at start of simplify
         topDownLet sub acc (dgs' ++ [DefNonRec def{defExpr = body'}] ++ dgs) body
@@ -209,34 +210,34 @@ topDown expr@(App (Lam pars eff body) args) | length pars == length args
 
 
 -- Direct function applications
-topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) 
+topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args)
   | length pars == length args && length tpars == length targs
   = do let tsub    = subNew (zip tpars targs)
        newNames <- -- trace ("topDown function app: " ++ show (zip tpars targs) ++ "\n expr:" ++ show expr) $
                    mapM uniqueTName [TName nm (tsub |-> tp) | (TName nm tp) <- pars]
-       let sub     = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]        
-       return (Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body)))  
+       let sub     = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
+       return (Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body)))
   where
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")
 
 
 -- case-of-let
-topDown (Case [Let dgs expr] branches) 
+topDown (Case [Let dgs expr] branches)
   = assertion "Core.Simplify.topDown.Case-Of-Let" (bv dgs `tnamesDisjoint` fv branches) $
     return (Let dgs (Case [expr] branches))
 
 -- case-of-case: currently makes reuse worse in some cases (like bench/koka/rbtree)
-topDown (Case [Case scruts0 branches0] branches1) | doesNotDuplicate 
+topDown (Case [Case scruts0 branches0] branches1) | doesNotDuplicate
   = return (Case scruts0 (map (pushCase branches1) branches0))
   where
-    pushCase branches (Branch pats guards) 
+    pushCase branches (Branch pats guards)
       = Branch pats (map (pushCaseG branches) guards)
     pushCaseG branches (Guard guard expr)
       = Guard guard (Case [expr] branches)
 
-    doesNotDuplicate 
-      = hasSingleBranch branches0 || 
+    doesNotDuplicate
+      = hasSingleBranch branches0 ||
         length (filter (simplifiesOn branches1) branches0) + 1 >= length branches0
 
     hasSingleBranch :: [Branch] -> Bool
@@ -255,7 +256,7 @@ topDown (Case [Case scruts0 branches0] branches1) | doesNotDuplicate
 
     simplifiesOnE :: [Branch] -> Expr -> Bool
     simplifiesOnE branches expr
-      = case expr of 
+      = case expr of
           Let dgs body -> simplifiesOnE branches body
           _ -> case kmatchBranches [expr] branches of
                  Just _ -> True
@@ -301,7 +302,7 @@ bindExprs exprs
        return (makeLet (concat defss), bexprs)
   where
     uniqueBind expr
-      = case expr of 
+      = case expr of
           Var{} -> return ([], expr)
           Lit{} -> return ([], expr)
           Con{} -> return ([], expr)
@@ -372,14 +373,14 @@ bottomUp expr@(App (TypeApp (Var isValidK _) _) [arg])  | getName isValidK == na
       App _ _ -> exprTrue
       _ -> expr
 
-     
+
 -- case on a single constructor, including tuples.
 -- extracts the arguments to do a direct multi-pattern match
-bottomUp expr@(Case [App (TypeApp (Con name ConSingle{}) targs) args] branches)  
+bottomUp expr@(Case [App (TypeApp (Con name ConSingle{}) targs) args] branches)
   | length (branchPatterns (head branches)) == 1 && all (isMatchOnCon name (length args)) branches
   = Case args (map (extractMatchOnCon (length args)) branches)
 
-bottomUp expr@(Case [App (Con name ConSingle{}) args] branches)  
+bottomUp expr@(Case [App (Con name ConSingle{}) args] branches)
   | length (branchPatterns (head branches)) == 1 && all (isMatchOnCon name (length args)) branches
   = Case args (map (extractMatchOnCon (length args)) branches)
 
@@ -440,10 +441,11 @@ bottomUp expr@(Case scruts branches)
 bottomUp (App (TypeApp (Var evvIndex _) [effTp,hndTp]) [htag]) | getName evvIndex == nameEvvIndex && isEffectFixed effTp
   = makeEvIndex (effectOffset (effectLabelFromHandler hndTp) effTp)
 
+-- TODO: simplify clause-tailN to clause-tail-no-opN if it is always used in a context where it never uses a handled effect
 
 -- simplify clause-tailN to clause-tail-noyieldN if it cannot yield
-bottomUp (App (TypeApp (Var clauseTail info) (effTp:tps)) [op]) | Just n <- isClauseTailName (getName clauseTail), ([],_) <- extractHandledEffect effTp
-  = (App (TypeApp (Var (TName (nameClauseTailNoYield n) (typeOf clauseTail)) info) (effTp:tps)) [op])
+bottomUp (App (TypeApp (Var clauseTail info) (effTp:tps)) [op]) | Just n <- isClauseTailName (getName clauseTail), ([], _) <- extractHandledEffect effTp
+  = App (TypeApp (Var (TName (nameClauseTailNoYield n) (typeOf clauseTail)) info) (effTp:tps)) [op]
 
 -- box(unbox(e)) ~> e   unbox(box(e)) ~> e
 bottomUp (App (Var v _) [App (Var w _) [arg]])  | (getName v == nameUnbox && getName w == nameBox) || (getName w == nameUnbox && getName v == nameBox)
@@ -451,7 +453,7 @@ bottomUp (App (Var v _) [App (Var w _) [arg]])  | (getName v == nameUnbox && get
 
 
 -- direct application of arguments to a lambda: fun(x1...xn) { f(x1,...,xn) }  -> f
-bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars 
+bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars
   = f
   where
     argsMatchPars = and (zipWith argMatchPar pars args)
@@ -487,11 +489,11 @@ instance Functor Match where
   fmap f (Match x) = Match (f x)
   fmap f NoMatch   = NoMatch
   fmap f Unknown   = Unknown
-   
+
 
 instance Applicative Match where
   pure x      = Match x
-  m1 <*> m2   = case m1 of 
+  m1 <*> m2   = case m1 of
                   Match f -> fmap f m2
                   Unknown -> Unknown
                   NoMatch -> NoMatch
@@ -502,7 +504,7 @@ instance Monad Match where
                 Match x -> f x
                 Unknown -> Unknown
                 NoMatch -> NoMatch
-  
+
 
 matchFirst :: [Match a] -> Match a
 matchFirst (NoMatch : matches) = matchFirst matches
@@ -525,23 +527,23 @@ kmatchBranches scruts branches
 
 -- For every branch, compare all its pats with the scruts and if they all match, return the matched bindings+scruts combined with the branch body
 kmatchBranch :: [Expr] -> Branch -> Match Expr
-kmatchBranch scruts branch@(Branch pats guards) 
+kmatchBranch scruts branch@(Branch pats guards)
   = --trace ("kmatchBranch start: " ++ show scruts ++ " ___branch___ " ++ show branch) $
-    do bindings <- kmatchPatterns scruts pats 
-       expr     <- matchFirst (map matchGuard guards) 
+    do bindings <- kmatchPatterns scruts pats
+       expr     <- matchFirst (map matchGuard guards)
        Match (Let (map DefNonRec bindings) expr)
 
   where
     matchGuard (Guard guard expr)
       = if (isExprTrue guard) then Match expr
         else if (isExprFalse guard) then NoMatch
-        else Unknown       
+        else Unknown
 
 
 -- For every scrut - pat tuple, get the binding and new scrutinee and collect them into a single expr
 kmatchPatterns :: [Expr] -> [Pattern] -> Match Defs
 kmatchPatterns scruts pats
-  = do ds <- matchAll (zipWith kmatchPattern scruts pats) 
+  = do ds <- matchAll (zipWith kmatchPattern scruts pats)
        Match (concatMap (\(defs,newscrut) -> defs ++ [makeDef (newHiddenName "scrut") newscrut]) ds)
 
 -- Returns the bindings and modified scrutinee if the scrutinee and the pattern match
@@ -551,26 +553,26 @@ kmatchPattern scrut PatWild
 
 kmatchPattern scrut (PatVar name pat)
  = --trace ("kmatchPat PatVar " ++ show scrut ++ " ___pat___ " ++ show (PatVar name pat)) $
-   do (defs,newscrut) <- kmatchPattern scrut pat 
+   do (defs,newscrut) <- kmatchPattern scrut pat
       Match (defs ++ [makeDef (getName name) newscrut], Var name InfoNone)
-    
+
 kmatchPattern scrut@(Lit lit) (PatLit pLit)
   = --trace "kmatchPat PatLit " $
-    if lit /= pLit then NoMatch else Match ([], scrut) 
+    if lit /= pLit then NoMatch else Match ([], scrut)
 
 kmatchPattern scrut@(Con name _repr) (PatCon pname [] _prepr _ _ _ _info _)
   = --trace ("kmatchPat PatCon empty pats " ++ show name ++ " ___pat___ " ++ show pname) $
     if name /= pname then NoMatch else
       --trace ("kmatchPat PatCon empty pats match " ++ show name) $
       Match ([], scrut)
-      
+
 kmatchPattern scrut@(App con@(Con name conRepr) args) (PatCon pname pats _ _ _ _ _ _)
   = --trace "kmatchPat PatCon non empty pats " $
     if name /= pname then NoMatch else
-      do ds <- matchAll (zipWith kmatchPattern args pats) 
+      do ds <- matchAll (zipWith kmatchPattern args pats)
          let (defs,scruts) = unzip ds
          Match (concat defs, App con scruts)
-      
+
 kmatchPattern scrut@(App con@(TypeApp (Con name conRepr) targs) args) (PatCon pname pats _ _ _ _ _ _)
   = --trace "kmatchPat PatCon non empty pats " $
     if name /= pname then NoMatch else
@@ -580,7 +582,7 @@ kmatchPattern scrut@(App con@(TypeApp (Con name conRepr) targs) args) (PatCon pn
 
 kmatchPattern (Let letDefns letBody) pat
   = --trace ("kmatchPat Let scrut " ++ show letDefns ++ " ____pat____ " ++ show letBody) $
-    do (bindings,newscrut) <- kmatchPattern letBody pat 
+    do (bindings,newscrut) <- kmatchPattern letBody pat
        Match (flattenDefGroups letDefns ++ bindings, newscrut)
 
 kmatchPattern scrut pat
@@ -594,10 +596,10 @@ kmatchPattern scrut pat
 
 isMatchOnCon name n branch
   = case branchPatterns branch of
-      [PatCon{patConName=cname,patConPatterns=pats}] 
+      [PatCon{patConName=cname,patConPatterns=pats}]
                      -> -- trace ("noMatchOnCon: " ++ show cname ++ ": " ++ show (n,length pats)) $ 
                         (cname == name) && (length pats == n)
-      [PatVar v pat] | not (tnamesMember v (freeLocals (branchGuards branch))) 
+      [PatVar v pat] | not (tnamesMember v (freeLocals (branchGuards branch)))
                      -> isMatchOnCon name n (branch{ branchPatterns=[pat]})
       [PatVar v pat] -> False -- TODO: we can potentially allow it if v `notin` fv(guards) and we generate a binding for it                       
       [PatWild]      -> True
@@ -608,7 +610,7 @@ extractMatchOnCon n (Branch [PatCon{patConPatterns=pats}] guards) = Branch pats 
 extractMatchOnCon n (Branch [PatWild] guards)                     = Branch [PatWild | _ <- [1..n]] guards
 extractMatchOnCon n (Branch [PatVar _ pat] guards)                = extractMatchOnCon n (Branch [pat] guards) -- name is free ! (due to isMatchOnCon)
 extractMatchOnCon n (Branch patterns guards) = failure $ "Core.Simplify.bottomUp.Case.Singleton: invalid pattern: " ++ show patterns
-  
+
 
 
 
@@ -747,7 +749,7 @@ sizeOfExpr expr
 
 
 sizeOfFun :: Expr -> Int   -- for functions we must be conservative or we could lose sharing from allocations 
-sizeOfFun expr 
+sizeOfFun expr
   = case expr of
       Con _ _    -> maxSize
       Var _ _    -> 1
@@ -959,12 +961,12 @@ getNDebug
   = do env <- getEnv
        return (ndebug env)
 
-inDef :: Name -> Simp a -> Simp a       
+inDef :: Name -> Simp a -> Simp a
 inDef name simp
   = updateEnv (\env -> env{ currentDef = name:currentDef env }) simp
 
 traceS :: String -> Simp ()
 traceS msg
   = do env <- getEnv
-       trace ("Core.Simplify: " ++ concat (intersperse "." (map show (reverse (currentDef env)))) ++ ": " ++ msg) $ 
+       trace ("Core.Simplify: " ++ concat (intersperse "." (map show (reverse (currentDef env)))) ++ ": " ++ msg) $
          return ()

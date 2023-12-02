@@ -51,7 +51,7 @@ module Common.NamePrim
           , nameClause
           , nameIdentity
           , nameMaskAt, nameMaskBuiltin
-          , isClauseTailName, nameClauseTailNoYield
+          , isClauseTailName, nameClauseTailNoYield, nameClauseTailNoOp
           , nameTpEvIndex, nameYielding, nameYieldExtend
           , nameEvvIsAffine
           , nameInitially, nameFinally
@@ -349,6 +349,7 @@ nameInitially   = coreHndName "initially"
 nameFinally     = coreHndName "finally"
 
 nameClauseTailNoYield n = coreHndName ("clause-tail-noyield" ++ show n)
+nameClauseTailNoOp n = coreHndName ("clause-tail-no-op" ++ show n)
 
 isClauseTailName :: Name -> Maybe Int
 isClauseTailName name  | nameModule name /= nameId nameCoreHnd  = Nothing
