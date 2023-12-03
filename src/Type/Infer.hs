@@ -800,8 +800,8 @@ inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
     do (ctp,ceff,ccore) <- allowReturn False $ disallowHole $ inferExpr Nothing Instantiated expr
        -- infer branches
-       bress <- disallowHole $
-                let matchedNames = extractMatchedNames expr in
+       let matchedNames = extractMatchedNames expr
+       bress <- disallowHole $                
                 case (propagated,branches) of
                   (Nothing,(b:bs)) -> -- propagate the type of the first branch
                     do bres@(tpeffs,_) <- inferBranch propagated ctp (getRange expr) matchedNames b
@@ -833,30 +833,26 @@ inferExpr propagated expect (Case expr branches rng)
        defName  <- currentDefName
        sbcores  <- subst bcores
        newtypes <- getNewtypes
-       let (isTotal,warnings,cbranches) = analyzeBranches newtypes defName rng sbcores [stp] [dataInfo]
+       let (matchIsTotal,warnings,cbranches) = analyzeBranches newtypes defName rng sbcores [stp] [dataInfo]
        mapM_ (\(rng,warning) -> infWarning rng warning) warnings
-       (topEff,cbranches) <- if isTotal
-                  then return (resEff, cbranches)
-                  else do-- addTopMorphisms rng [(rng,typePartial),(rng,resEff)]
-                       -- return (orderEffect (effectExtend typePartial resEff))
-                       -- do subsumeEffect (checkEffectSubsume rng) rng typePartial resEff
-                       --   return resEff
-
-                       let newbranch = Branch (PatWild rng) [Guard guardTrue (App (Var namePatternMatchError False rng) [(Nothing, Lit (LitString (sourceName (posSource (rangeStart rng)) ++ show rng) rng)), (Nothing, Lit (LitString (show defName) rng))] rng)]
-                       let matchedNames = extractMatchedNames expr
-                       exnBranch <- inferBranch propagated ctp (getRange expr) matchedNames newbranch
-                       case exnBranch of
-                          ((tp, eff):_, cbranch) -> do
-                            inferUnify (checkEffectSubsume rng) rng eff resEff
-                            inferUnify (checkMatch rng) rng tp resTp
-                            sresEff <- subst resEff
-                            return (resEff, cbranches ++ [cbranch]) 
-                          _ -> failure "Type.Infer.inferExpr.Case: should never happen, exnBranch always contains a guard"
+       cbranches <- if matchIsTotal
+                  then return cbranches
+                  else do let litPos = Lit (LitString (sourceName (posSource (rangeStart rng)) ++ show rng) rng)
+                              litDef = Lit (LitString (show defName) rng)
+                              exnBranch = Branch (PatWild rng) [Guard guardTrue 
+                                              (App (Var namePatternMatchError False rng) [(Nothing, litPos), (Nothing, litDef)] rng)]
+                          cexnBranch <- inferBranch (Just (resTp,rng)) ctp (getRange expr) matchedNames exnBranch
+                          case cexnBranch of
+                            ((tp, eff):_, cbranch) ->
+                                 do -- inferUnify (checkMatch rng) rng tp resTp  -- already propagated
+                                    inferUnify (checkEffectSubsume rng) rng eff resEff                              
+                                    return (cbranches ++ [cbranch]) 
+                            _ -> failure "Type.Infer.inferExpr.Case: should never happen, cexnBranch always contains a guard"
        -- return core
-       core  <- subst (Core.Case [ccore] cbranches)
-       stopEff <- subst topEff
-       (gresTp,gcore) <- maybeInstantiateOrGeneralize rng (getRange branches) stopEff expect resTp core
-       return (gresTp,stopEff,gcore)
+       core    <- subst (Core.Case [ccore] cbranches)
+       sresEff <- subst resEff
+       (gresTp,gcore) <- maybeInstantiateOrGeneralize rng (getRange branches) sresEff expect resTp core
+       return (gresTp,sresEff,gcore)
   where
     typeIsCaseLegal tp
       = case expandSyn tp of
