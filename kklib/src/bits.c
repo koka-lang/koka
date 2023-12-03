@@ -113,7 +113,6 @@ uint64_t kk_bits_orc64(uint64_t x) {
   x |= (x >> 2);
   x |= (x >> 4);
   return x;
-  return x;
 }
 #endif
 
@@ -209,7 +208,7 @@ static inline bool kk_bits_parity32(uint32_t x) {
   wide multiplies
 -------------------------------------------------------------*/
 
-#if defined(KK_USE_GENERIC_WIDE_UMUL64)
+#if defined(KK_USE_GENERIC_WIDE_MUL64)
 
 /* multiply to 64-bit integers `x` and `y` using 32x32 to 64-bit multiplications:
 

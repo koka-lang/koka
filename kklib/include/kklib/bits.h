@@ -746,17 +746,10 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
 
 #else 
 
-#define KK_USE_GENERIC_WIDE_UMUL64
-uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi);
+#define KK_USE_GENERIC_WIDE_MUL64
+kk_decl_export uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi);
+kk_decl_export uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi);
 
-static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
-  int64_t  z;
-  uint64_t lo = kk_wide_umul64((uint64_t)x, (uint64_t)y, (uint64_t*)&z);
-  if (x < 0) { z -= y; }
-  if (y < 0) { z -= x; }
-  *hi = z;
-  return lo;
-}
 #endif
 
 
