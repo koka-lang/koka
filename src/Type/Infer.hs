@@ -835,14 +835,23 @@ inferExpr propagated expect (Case expr branches rng)
        newtypes <- getNewtypes
        let (isTotal,warnings,cbranches) = analyzeBranches newtypes defName rng sbcores [stp] [dataInfo]
        mapM_ (\(rng,warning) -> infWarning rng warning) warnings
-       topEff <- if isTotal
-                  then return resEff
-                  else -- addTopMorphisms rng [(rng,typePartial),(rng,resEff)]
+       (topEff,cbranches) <- if isTotal
+                  then return (resEff, cbranches)
+                  else do-- addTopMorphisms rng [(rng,typePartial),(rng,resEff)]
                        -- return (orderEffect (effectExtend typePartial resEff))
                        -- do subsumeEffect (checkEffectSubsume rng) rng typePartial resEff
                        --   return resEff
-                       do sresEff <- subst resEff
-                          return (effectExtendNoDup typePartial sresEff)
+
+                       let newbranch = Branch (PatWild rng) [Guard guardTrue (App (Var namePatternMatchError False rng) [(Nothing, Lit (LitString (sourceName (posSource (rangeStart rng)) ++ show rng) rng)), (Nothing, Lit (LitString (show defName) rng))] rng)]
+                       let matchedNames = extractMatchedNames expr
+                       exnBranch <- inferBranch propagated ctp (getRange expr) matchedNames newbranch
+                       case exnBranch of
+                          ((tp, eff):_, cbranch) -> do
+                            inferUnify (checkEffectSubsume rng) rng eff resEff
+                            inferUnify (checkMatch rng) rng tp resTp
+                            sresEff <- subst resEff
+                            return (resEff, cbranches ++ [cbranch]) 
+                          _ -> failure "Type.Infer.inferExpr.Case: should never happen, exnBranch always contains a guard"
        -- return core
        core  <- subst (Core.Case [ccore] cbranches)
        stopEff <- subst topEff
