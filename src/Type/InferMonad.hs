@@ -30,12 +30,15 @@ module Type.InferMonad( Inf, InfGamma
                       , lookupInfName
                       , getModuleName
                       , lookupImportName
-                      , lookupNameN
                       , findDataInfo
                       , withDefName
                       , currentDefName
                       , isNamedLam
                       , getLocalVars
+
+                      , FixedArg
+                      , lookupAppName, resolveAppName
+                      , fixedContext, fixedCountContext
 
                       -- * Misc.
                       , allowReturn, isReturnAllowed
@@ -71,6 +74,7 @@ module Type.InferMonad( Inf, InfGamma
                       ) where
 
 import Data.List( partition, sortBy)
+import Data.Ord(comparing)
 import Control.Applicative
 import Control.Monad
 import Lib.PPrint
@@ -1207,6 +1211,14 @@ resolveName name mbType range
     infoFilter = isInfoValFunExt
     infoFilterAmb = not . isInfoImport
 
+-- resolve an applied name (only used for emitting errors)
+resolveAppName :: Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
+resolveAppName name ctx rangeContext range 
+  = resolveNameEx infoFilter (Just infoFilterAmb) name ctx rangeContext range
+  where
+    infoFilter = if isConstructorName name then isInfoCon else isInfoValFunExt
+    infoFilterAmb = not . isInfoImport
+
 -- | Lookup a name with a number of arguments and return the fully qualified name and its type
 resolveFunName :: Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
 resolveFunName name ctx rangeContext range
@@ -1386,22 +1398,46 @@ lookupFunName name mbType range
   where
     hintQualify = "qualify the name to disambiguate it"
 
-lookupNameN :: Name -> Int -> [Name] -> Range -> Maybe (Type,Range) -> Inf [(Name,NameInfo)]
-lookupNameN name fixed named range propagated
-  = lookupNameEx (const True) name (CtxFunArgs fixed named (fmap fst propagated)) range
-  {-
-    do matches <-
-       case matches of
-         []         -> do amb <- lookupNameEx isInfoFun name CtxNone range
-                          env <- getEnv
-                          if null amb
-                           then infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be found")
-                           else infError range (text "no function" <+> Pretty.ppName (prettyEnv env) name
-                                                <+> text "accepts" <+> (pretty (fixed + length named)) <+> text "arguments"
-                                                <.> ppAmbiguous env "" amb)
-                          return []
-         _          -> return matches
--}
+
+-- lookup a name that is applied to argument (val, function, extern, or constructor)
+lookupAppName :: Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
+lookupAppName name ctx range
+  = lookupNameEx infoFilter name ctx range
+  where
+    infoFilter = if isConstructorName name then isInfoCon else isInfoValFunExt
+
+-- Create a name context where the argument count is known (and perhaps some named arguments)
+fixedCountContext :: Maybe (Type,Range) -> Int -> [Name] -> NameContext
+fixedCountContext propagated fixedCount named
+  = CtxFunArgs fixedCount named (fmap fst propagated)
+
+-- A fixed argument that has been inferred
+type FixedArg = (Range,Type,Effect,Core.Expr)
+
+-- A context where some fixed arguments have been inferred
+fixedContext :: Maybe (Type,Range) -> [(Int,FixedArg)] -> Int -> [Name] -> Inf NameContext
+fixedContext propagated fresolved fixedCount named
+  = do fargs <- fixedGuessed fresolved
+       nargs <- namedGuessed
+       return (CtxFunTypes (fixedCount > length fresolved) fargs nargs (fmap fst propagated))
+  where
+    tvars :: Int -> Inf [Type]
+    tvars n  = mapM (\_ -> Op.freshTVar kindStar Meta) [1..n]
+
+    fixedGuessed :: [(Int,FixedArg)] -> Inf [Type]
+    fixedGuessed xs   = fill 0 (sortBy (comparing fst) xs)
+                      where 
+                        fill j []  = tvars (fixedCount - j)
+                        fill j ((i,(_,tp,_,_)):rest)  
+                          = do post <- fill (i+1) rest
+                               pre  <- tvars (i - j)
+                               stp  <- subst tp
+                               return (pre ++ [stp] ++ post)
+
+    namedGuessed :: Inf [(Name,Type)]
+    namedGuessed
+      = mapM (\name -> do{ tv <- Op.freshTVar kindStar Meta; return (name,tv) }) named
+
 
 getLocalVars :: Inf [(Name,Type)]
 getLocalVars

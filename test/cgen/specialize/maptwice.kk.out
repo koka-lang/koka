@@ -2,10 +2,10 @@
 add default effect for std/core/exn
  
 cgen/specialize/maptwice/.hmain: () -> console ()
-cgen/specialize/maptwice/.lift000-maptwice: (f : (int) -> int, xs454 : list<list<int>>) -> total list<list<int>>
-cgen/specialize/maptwice/.lift000-maptwice: (f : (int) -> int, xs459 : list<list<int>>) -> total list<list<int>>
-cgen/specialize/maptwice/.lift000-main: (f : (int) -> int, xs467 : list<list<int>>) -> total list<list<int>>
-cgen/specialize/maptwice/.lift000-main: (f : (int) -> int, xs472 : list<list<int>>) -> total list<list<int>>
+cgen/specialize/maptwice/.lift000-maptwice: (f : (int) -> int, xs430 : list<list<int>>) -> total list<list<int>>
+cgen/specialize/maptwice/.lift000-maptwice: (f : (int) -> int, xs435 : list<list<int>>) -> total list<list<int>>
+cgen/specialize/maptwice/.lift000-main: (f : (int) -> int, xs443 : list<list<int>>) -> total list<list<int>>
+cgen/specialize/maptwice/.lift000-main: (f : (int) -> int, xs448 : list<list<int>>) -> total list<list<int>>
 cgen/specialize/maptwice/.mlift000-main: (int) -> exn ()
 cgen/specialize/maptwice/.mlift000-main: (list<int>) -> exn ()
 cgen/specialize/maptwice/main: () -> <console,exn> ()

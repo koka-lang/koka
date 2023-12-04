@@ -1,15 +1,15 @@
 Tree(2, [Tree(3, []), Tree(4, [])])
  
 cgen/specialize/tree-list/.copy: forall<a> (tree<a>, data : optional<a>, children : optional<list<tree<a>>>) -> tree<a>
-cgen/specialize/tree-list/.lift000-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xs634 : list<tree<a>>) -> <div|e> list<tree<b>>
-cgen/specialize/tree-list/.lift000-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xs639 : list<tree<a>>) -> <div|e> list<tree<b>>
-cgen/specialize/tree-list/.lift000-show: (xs647 : list<tree<int>>) -> div list<string>
-cgen/specialize/tree-list/.lift000-show: (xs652 : list<tree<int>>) -> div list<string>
+cgen/specialize/tree-list/.lift000-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xs590 : list<tree<a>>) -> <div|e> list<tree<b>>
+cgen/specialize/tree-list/.lift000-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xs595 : list<tree<a>>) -> <div|e> list<tree<b>>
+cgen/specialize/tree-list/.lift000-show: (xs603 : list<tree<int>>) -> div list<string>
+cgen/specialize/tree-list/.lift000-show: (xs608 : list<tree<int>>) -> div list<string>
 cgen/specialize/tree-list/.lift000-main: (tree<int>) -> <div,console> tree<int>
-cgen/specialize/tree-list/.lift000-main: (xs666 : list<tree<int>>) -> <div,console> list<tree<int>>
-cgen/specialize/tree-list/.lift000-main: (xs671 : list<tree<int>>) -> <div,console> list<tree<int>>
-cgen/specialize/tree-list/.mlift000-lift679-mapT: forall<a,e> (tree<a>, list<tree<a>>) -> <div|e> list<tree<a>>
-cgen/specialize/tree-list/.mlift000-lift679-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xx643 : list<tree<a>>, tree<b>) -> <div|e> list<tree<b>>
+cgen/specialize/tree-list/.lift000-main: (xs622 : list<tree<int>>) -> <div,console> list<tree<int>>
+cgen/specialize/tree-list/.lift000-main: (xs627 : list<tree<int>>) -> <div,console> list<tree<int>>
+cgen/specialize/tree-list/.mlift000-lift635-mapT: forall<a,e> (tree<a>, list<tree<a>>) -> <div|e> list<tree<a>>
+cgen/specialize/tree-list/.mlift000-lift635-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xx599 : list<tree<a>>, tree<b>) -> <div|e> list<tree<b>>
 cgen/specialize/tree-list/.mlift000-mapT: forall<a,e> (a, list<tree<a>>) -> <div|e> tree<a>
 cgen/specialize/tree-list/.mlift000-mapT: forall<a,b,e> (children0 : list<tree<a>>, f : (a) -> <div|e> b, b) -> <div|e> tree<b>
 cgen/specialize/tree-list/children: forall<a> (tree : tree<a>) -> list<tree<a>>

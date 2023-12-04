@@ -958,6 +958,9 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
        inferUnifyTypes contextF ((tp1,r):tps)
 
 
+{--------------------------------------------------------------------------
+  infer effect handlers
+--------------------------------------------------------------------------}
 
 inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort -> HandlerScope -> Bool
                       -> Maybe Effect
@@ -1243,7 +1246,10 @@ effectNameFromLabel effect
       _ -> failure ("Type.Infer.effectNameFromLabel: invalid effect: " ++ show effect)
 
 
-type FixedArg = (Range,Type,Effect,Core.Expr)
+
+{--------------------------------------------------------------------------
+  infer applications and resolve overloaded identifiers
+--------------------------------------------------------------------------}
 
 getRangeArg :: Either (Expr Type) FixedArg -> Range
 getRangeArg (Left expr)         = getRange expr
@@ -1254,12 +1260,13 @@ inferApp propagated expect fun nargs rng
   = -- trace "infer: App" $
     do (fixed,named) <- splitNamedArgs nargs
        amb <- case rootExpr fun of
-                (Var name isOp nameRange)
-                  -> do matches <- lookupNameN name (length fixed) (map (fst . fst) named) nameRange propagated
+                (Var name _ nameRange)
+                  -> do let sctx = fixedCountContext propagated (length fixed) (map (fst . fst) named)
+                        matches <- lookupAppName name sctx nameRange
                         -- traceDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
                         case matches of
                           []         -> do -- emit an error
-                                           resolveFunName name (CtxFunArgs (length fixed) (map (fst . fst) named) (fmap fst propagated)) rng nameRange
+                                           resolveAppName name sctx rng nameRange
                                            return (Just Nothing)  -- error
                           [(_,info)] -> return (Just (Just (infoType info, rng))) -- known type, propagate the function type into the parameters
                           _          -> return Nothing -- many matches, -- start with argument inference and try to resolve the function type
@@ -1323,7 +1330,8 @@ inferApp propagated expect fun nargs rng
            return (resTp,topEff,resCore )
 
     -- we cannot resolve an overloaded function name: infer types of arguments without propagation first.
-    -- we infer from left to right until we can resolve the function type and then propagate argument types
+    -- The code handles inferring arguments in any order by keeping track of the index, but at the moment
+    -- we always infer from left to right until we can resolve the function type and then propagate argument types.
     inferAppFromArgs :: [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFromArgs [] named       -- there are no fixed arguments, use fun first anyways (and error..)
       = inferAppFunFirst Nothing [] [] named
@@ -1352,25 +1360,15 @@ inferApp propagated expect fun nargs rng
            -- sfresolved <- mapM (\(i,(rng,tp,eff,carg)) -> do{ stp <- subst tp; return (i,(rng,stp,eff,carg)) }) fresolved
            let fresolved' = fresolved ++ [(idx,(getRange fix,tpArg,effArg,coreArg))]
            amb <- case rootExpr fun of
-                    (Var name _ nameRange) | isConstructorName name
-                      -> do sctx <- searchContext fresolved' fixed named 
-                            matches <- lookupNameEx (isInfoCon {- const True -}) name sctx nameRange
-                            -- traceDoc $ \env -> text "app args matched for constructor " <+> ppName env name <+> text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+> text ", args: " <+> list (map (ppType env) (map fst3 fresolved') )
-                            case matches of
-                              []         -> do -- emit an error
-                                               resolveConName name Nothing nameRange
-                                               return Nothing
-                              [(_,info)] -> return (Just (infoType info, rng))
-                              _          -> return Nothing
                     (Var name _ nameRange)
-                      -> do sctx <- searchContext fresolved' fixed named 
-                            matches <- lookupNameEx (isInfoValFunExt {- const True -}) name sctx nameRange
+                      -> do sctx <- fixedContext propagated fresolved' (length fixed) (map (fst . fst) named) 
+                            matches <- lookupAppName name sctx nameRange
                             --traceDoc $ \env -> text "app args matched for " <+> ppName env name <+> 
                             --                    text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+> 
                             --                    text ", args: " <+> list (map (ppType env) (map (\(_,(_,tp,_,_)) -> tp) fresolved')) 
                             case matches of
                               []         -> do -- emit an error
-                                               resolveFunName name sctx rng nameRange
+                                               resolveAppName name sctx rng nameRange
                                                return Nothing
                               [(_,info)] -> return (Just (infoType info, rng))
                               _          -> return Nothing
@@ -1380,28 +1378,10 @@ inferApp propagated expect fun nargs rng
              Just prop  -> inferAppFunFirst (Just prop) fresolved' fixed named
              Nothing    -> inferAppArgsFirst fresolved' fixs fixed named
 
-    searchContext fresolved fixed named
-      = do fargs <- fixedGuessed fresolved
-           nargs <- namedGuessed
-           return (CtxFunTypes (length fixed > length fresolved) fargs nargs (fmap fst propagated))
-      where
-        tvars :: Int -> Inf [Type]
-        tvars n  = mapM (\_ -> Op.freshTVar kindStar Meta) [1..n]
 
-        fixedGuessed :: [(Int,FixedArg)] -> Inf [Type]
-        fixedGuessed xs   = fill 0 (sortBy (comparing fst) xs)
-                          where 
-                            fill j []  = tvars (length fixed - j)
-                            fill j ((i,(_,tp,_,_)):rest)  
-                              = do post <- fill (i+1) rest
-                                   pre  <- tvars (i - j)
-                                   stp  <- subst tp
-                                   return (pre ++ [stp] ++ post)
-
-        namedGuessed :: Inf [(Name,Type)]
-        namedGuessed
-          = mapM (\((name,_),_) -> do{ tv <- Op.freshTVar kindStar Meta; return (name,tv) }) named
-    
+{--------------------------------------------------------------------------
+  infer variable
+--------------------------------------------------------------------------}
 
 inferVar :: Maybe (Type,Range) -> Expect -> Name -> Range -> Bool -> Inf (Type,Effect,Core.Expr)
 inferVar propagated expect name rng isRhs  | isConstructorName name
@@ -1486,6 +1466,10 @@ inferVarX propagated expect name rng qname1 tp1 info1
        eff <- freshEffect
        return (itp,eff,coref coreVar)
 -}
+
+{--------------------------------------------------------------------------
+  infer branches and patterns
+--------------------------------------------------------------------------}
 
 inferBranch :: Maybe (Type,Range) -> Type -> Range -> [Name] -> Branch Type -> Inf ([(Type,Effect)],Core.Branch)
 inferBranch propagated matchType matchRange matchedNames branch@(Branch pattern guards)
@@ -1821,7 +1805,7 @@ rootExpr expr
 
 
 {--------------------------------------------------------------------------
-  inferSubsumeN
+  infer arguments
 --------------------------------------------------------------------------}
 
 -- infer the types of argument expressions, some of which may have already been inferred (`:FixedArg`).

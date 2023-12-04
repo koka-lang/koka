@@ -1,6 +1,6 @@
-cgen/specialize/bintree/.lift000-main: (tree348 : tree<int>) -> tree<int>
-cgen/specialize/bintree/.lift000-main: (xs356 : list<int>) -> list<int>
-cgen/specialize/bintree/.lift000-main: (xs361 : list<int>) -> list<int>
+cgen/specialize/bintree/.lift000-main: (tree324 : tree<int>) -> tree<int>
+cgen/specialize/bintree/.lift000-main: (xs332 : list<int>) -> list<int>
+cgen/specialize/bintree/.lift000-main: (xs337 : list<int>) -> list<int>
 cgen/specialize/bintree/is-bin: forall<a> (tree : tree<a>) -> bool
 cgen/specialize/bintree/is-leaf: forall<a> (tree : tree<a>) -> bool
 cgen/specialize/bintree/main: () -> ()
