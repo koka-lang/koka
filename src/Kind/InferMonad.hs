@@ -12,6 +12,7 @@ module Kind.InferMonad( KInfer
                       , addError, addWarning
                       , freshKind,freshTypeVar,subst
                       , getKGamma
+                      , addSynonym
                       , getSynonyms, getAllNewtypes, getPlatform
                       , extendInfGamma, extendKGamma, extendKSub
                       , findInfKind
@@ -57,7 +58,7 @@ import qualified Core.Core as Core
 
 data KInfer a = KInfer (KEnv -> KSt -> KResult a)
 
-data KSt        = KSt{ kunique :: !Int, ksub :: !KSub, mbRangeMap :: Maybe RangeMap  }
+data KSt        = KSt{ kunique :: !Int, ksub :: !KSub, mbRangeMap :: Maybe RangeMap, localSyns:: !Synonyms }
 data KEnv       = KEnv{ cscheme :: !ColorScheme, platform :: !Platform, currentModule :: !Name, imports :: ImportMap
                       , kgamma :: !KGamma, infgamma :: !InfKGamma, synonyms :: !Synonyms
                       , newtypesImported :: !Newtypes, newtypesExtended :: !Newtypes }
@@ -68,8 +69,8 @@ runKindInfer cscheme platform mbRangeMap moduleName imports kgamma syns datas un
   = let imports' = case importsExtend ({-toShortModuleName-} moduleName) moduleName imports of
                      Just imp -> imp
                      Nothing  -> imports -- ignore
-    in case ki (KEnv cscheme platform moduleName imports' kgamma M.empty syns datas newtypesEmpty) (KSt unique ksubEmpty mbRangeMap) of
-         KResult x errs warns (KSt unique1 ksub rm) -> (errs,warns,rm,unique1,x)
+    in case ki (KEnv cscheme platform moduleName imports' kgamma M.empty syns datas newtypesEmpty) (KSt unique ksubEmpty mbRangeMap synonymsEmpty) of
+         KResult x errs warns (KSt unique1 ksub rm synonymsEmpty) -> (errs,warns,rm,unique1,x)
 
 
 instance Functor KInfer where
@@ -117,6 +118,14 @@ extendKSub :: KSub -> KInfer ()
 extendKSub sub
   = KInfer (\env -> \st -> KResult () [] [] st{ ksub = sub @@ ksub st })
 
+getLocalSynonyms :: KInfer Synonyms
+getLocalSynonyms
+  = KInfer (\env -> \st -> KResult (localSyns st) [] [] st)
+
+addSynonym :: SynInfo -> KInfer ()
+addSynonym synInfo
+  = KInfer (\env -> \st -> KResult () [] [] st{ localSyns = synonymsExtend synInfo (localSyns st) })
+
 addRangeInfo :: Range -> RangeInfo -> KInfer ()
 addRangeInfo range info
   = KInfer (\env -> \st -> KResult () [] [] st{ mbRangeMap = case (mbRangeMap st) of
@@ -152,7 +161,8 @@ getKGamma
 getSynonyms :: KInfer Synonyms
 getSynonyms
   = do env <- getKindEnv
-       return (synonyms env)
+       syns <- getLocalSynonyms
+       return (synonymsCompose syns (synonyms env))
 
 getAllNewtypes :: KInfer Newtypes
 getAllNewtypes
@@ -339,7 +349,10 @@ findKind name
 lookupSynInfo :: Name -> KInfer (Maybe SynInfo)
 lookupSynInfo name
   = do env <- getKindEnv
-       return (synonymsLookup name (synonyms env))
+       localSyns <- getLocalSynonyms
+       case synonymsLookup name localSyns of
+         Just x -> return (Just x)
+         Nothing -> return (synonymsLookup name (synonyms env))
 
 lookupDataInfo :: Name -> KInfer (Maybe DataInfo)
 lookupDataInfo name

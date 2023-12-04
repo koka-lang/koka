@@ -1,0 +1,6 @@
+type/alias/Empty: test
+type/alias/Test: (nt : newtest) -> test
+type/alias/is-empty: (test : test) -> bool
+type/alias/is-test: (test : test) -> bool
+type/alias/main: () -> console ()
+type/alias/test1: (n : newtest) -> int
