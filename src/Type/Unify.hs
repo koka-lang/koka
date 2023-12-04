@@ -100,12 +100,12 @@ matchNamed range tp n named
 
 -- | Does a function type match the given arguments? if the first argument 'matchSome' is true,
 -- it is considered a match even if not all arguments to the function are supplied
-matchArguments :: Bool -> Range -> Tvs -> Type -> [Type] -> [(Name,Type)] -> Unify ()
-matchArguments matchSome range free tp fixed named
+matchArguments :: Bool -> Range -> Tvs -> Type -> [Type] -> [(Name,Type)] -> Maybe Type -> Unify ()
+matchArguments matchSome range free tp fixed named mbExpResTp
   = do rho1 <- instantiate range tp
        case splitFunType rho1 of
          Nothing -> unifyError NoMatch
-         Just (pars,_,_)
+         Just (pars,_,resTp)
           -> if (length fixed + length named > length pars)
               then unifyError NoMatch
               else do -- subsume fixed parameters
@@ -117,6 +117,11 @@ matchArguments matchSome range free tp fixed named
                                                Just tpar -> subsume range free tpar (makeOptionalType targ)) named
                       -- check the rest is optional
                       let rest = [tpar | (nm,tpar) <- npars, not (nm `elem` map fst named)]
+                      -- check if the result type matches
+                      case mbExpResTp of
+                        Nothing    -> return ()
+                        Just expTp -> do subsume range free expTp resTp
+                                         return ()
                       if (matchSome || all isOptional rest)
                        then return ()
                        else unifyError NoMatch

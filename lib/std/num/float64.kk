@@ -362,7 +362,7 @@ pub extern float64-from-bits( i : int64 ) : float64
 // Calculate 2&middot;^`e`^ for an integer `e`.
 // Uses efficient bit conversion for exponents between  -1022 and 1023 and
 // otherwise falls back to the regular `exp2` function converting `e` to a float64.
-pub fun exp2( e : int ) : float64
+pub fun exp2i( e : int ) : float64
   if e >= -1022 && e <= 1023
     then float64-from-bits( (1023 + e).int64.shl(52) )
     else exp2( e.float64 )
@@ -378,7 +378,7 @@ val one-p1023 = 0x1.0p1023
 val one-m1022 = 0x1.0p-1022   // = flt-min
 
 fun mul-exp2( x : float64, e : int ) : float64 
-  x * exp2(e)
+  x * exp2i(e)
 
 // 'Load exponent': returns `x`&middot;2^`e`^ for a `is-finite` `x` and
 // otherwise `x` itself. See also `encode` which loads an integer mantissa.

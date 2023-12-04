@@ -1248,7 +1248,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                       -> do let message = "takes " ++ show (fixed + length named) ++ " argument(s)" ++
                                           (if null named then "" else " with such parameter names")
                             infError range (text "no function" <+> Pretty.ppName penv name <+> text message <.> ppAmbiguous env "" amb)
-                    (CtxFunTypes partial fixed named, (_:rest))
+                    (CtxFunTypes partial fixed named mbResTp, (_:rest))
                       -> do let docs = Pretty.niceTypes penv (fixed ++ map snd named)
                                 fdocs = take (length fixed) docs
                                 ndocs = [color (colorParameter (Pretty.colors penv)) (pretty n <+> text ":") <+> tpdoc |
@@ -1256,7 +1256,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                 pdocs = if partial then [text "..."] else []
                                 argsDoc = color (colorType (Pretty.colors penv)) $
                                            parens (hsep (punctuate comma (fdocs ++ ndocs ++ pdocs))) <+>
-                                           text "-> ..."
+                                           text "-> ..." -- todo: show nice mbResTp if present
                             infError range (text "no function" <+> Pretty.ppName penv name <+> text "is defined that matches the argument types" <->
                                          table (ctxTerm rangeContext ++
                                                 [(text "inferred type", argsDoc)
@@ -1427,7 +1427,7 @@ data NameContext
   = CtxNone       -- ^ just a name
   | CtxType Type  -- ^ a name that can appear in a context with this type
   | CtxFunArgs  Int [Name]          -- ^ function name with @n@ fixed arguments and followed by the given named arguments
-  | CtxFunTypes Bool [Type] [(Name,Type)]  -- ^ are only some arguments supplied?, function name, with fixed and named arguments
+  | CtxFunTypes Bool [Type] [(Name,Type)] (Maybe Type)  -- ^ are only some arguments supplied?, function name, with fixed and named arguments, maybe a (propagated) result type
   deriving (Show)
 
 lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
@@ -1453,8 +1453,8 @@ lookupNameEx infoFilter name ctx range
                                                                        return (concat mss)
                                                  CtxFunArgs n named -> do mss <- mapM (matchNamedArgs n named) candidates
                                                                           return (concat mss)
-                                                 CtxFunTypes partial fixed named -> do mss <- mapM (matchArgs partial fixed named) candidates
-                                                                                       return (concat mss)
+                                                 CtxFunTypes partial fixed named mbResTp  -> do mss <- mapM (matchArgs partial fixed named mbResTp) candidates
+                                                                                                return (concat mss)
                                     case matches of
                                       [(qname,info)] -> return matches
                                       _  -> do -- lookup global names defined in the current module
@@ -1488,11 +1488,11 @@ lookupNameEx infoFilter name ctx range
              (Right _,_)  -> return [(name,info)]
              (Left _,_)   -> return []
 
-    matchArgs :: Bool -> [Type] -> [(Name,Type)] -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
-    matchArgs matchSome fixed named (name,info)
+    matchArgs :: Bool -> [Type] -> [(Name,Type)] -> Maybe Type -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
+    matchArgs matchSome fixed named mbResTp (name,info)
       = -- trace ("match args: " ++ show matchSome ++ ", " ++ show fixed ++ ", " ++ show (length named) ++ " on " ++ show (infoType info)) $
         do free <- freeInGamma
-           res <- runUnify (matchArguments matchSome range free (infoType info) fixed named)
+           res <- runUnify (matchArguments matchSome range free (infoType info) fixed named mbResTp)
            case res of
              (Right _,_)  -> return [(name,info)]
              (Left _,_)   -> return []

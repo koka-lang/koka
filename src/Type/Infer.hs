@@ -1335,49 +1335,26 @@ inferApp propagated expect fun nargs rng
           = case expr of
               Lit _         -> 0
               Ann _ _ _     -> 0
-              --Var _ _ _     -> 1
-              --Parens e _    -> weight e
-              --App e args _  -> 1 + weight e + sum (map (weight . snd) args)
               _             -> 10
       -}
 
-    reorder :: [(Int,a)] -> [a]
-    reorder xs = map snd (sortBy (comparing fst) xs)
-
-    tvars :: Int -> Inf [Type]
-    tvars n  = mapM (\_ -> Op.freshTVar kindStar Meta) [1..n]
-
-    -- current resolved argument types
-    fixedGuessed :: Int -> [(Int,FixedArg)] -> Inf [Type]
-    fixedGuessed len xs   = fill 0 (sortBy (comparing fst) xs)
-                          where 
-                            fill j []  = tvars (len - j)
-                            fill j ((i,(_,tp,_,_)):rest)  
-                              = do post <- fill (i+1) rest
-                                   pre  <- tvars (i - j)
-                                   return (pre ++ [tp] ++ post)
-
-    -- current resolved named types
-    namedGuessed :: [((Name,Range),Expr Type)] -> Inf [(Name,Type)]
-    namedGuessed named
-      = mapM (\((name,_),_) -> do{ tv <- Op.freshTVar kindStar Meta; return (name,tv) }) named
-
-
     -- inferAppFirst <guessed fixed arg types> <priority order fixed args> <fixed args> <named args>
     inferAppArgsFirst :: [(Int,FixedArg)] -> [(Int,Expr Type)] -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
-    inferAppArgsFirst fresolved [] fixed []     -- we inferred all fixed arguments and there are no named ones
-      = inferAppFixedArgs (reorder fresolved)   
-    inferAppArgsFirst fresolved [] fixed named  -- we still could not resolve the function
-      = infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <-> text " hint: annotate the function parameters?" )
+    inferAppArgsFirst fresolved [] fixed named     -- we inferred all fixed arguments
+      = -- this always fails since we have not been able to resolve the function name
+        if (not (null named))
+          then infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <-> text " hint: annotate the function parameters?" )
+          else inferAppFunFirst Nothing fresolved fixed []
+
     inferAppArgsFirst fresolved ((idx,fix):fixs) fixed named  -- try to improve our guess
       = do -- traceDoc $ \env -> "infer app args first :-(: "
            (tpArg,effArg,coreArg)  <- allowReturn False $ inferExpr Nothing Instantiated fix
-           let fresolved' = [(idx,(getRange fix,tpArg,effArg,coreArg))] ++ fresolved
+           -- sfresolved <- mapM (\(i,(rng,tp,eff,carg)) -> do{ stp <- subst tp; return (i,(rng,stp,eff,carg)) }) fresolved
+           let fresolved' = fresolved ++ [(idx,(getRange fix,tpArg,effArg,coreArg))]
            amb <- case rootExpr fun of
                     (Var name _ nameRange) | isConstructorName name
-                      -> do fixedTps <- fixedGuessed (length fixed) fresolved'
-                            namedTps <- namedGuessed named
-                            matches <- lookupNameEx (isInfoCon {- const True -}) name (CtxFunTypes True fixedTps namedTps) nameRange
+                      -> do sctx <- searchContext fresolved' fixed named 
+                            matches <- lookupNameEx (isInfoCon {- const True -}) name sctx nameRange
                             -- traceDoc $ \env -> text "app args matched for constructor " <+> ppName env name <+> text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+> text ", args: " <+> list (map (ppType env) (map fst3 fresolved') )
                             case matches of
                               []         -> do -- emit an error
@@ -1386,57 +1363,45 @@ inferApp propagated expect fun nargs rng
                               [(_,info)] -> return (Just (infoType info, rng))
                               _          -> return Nothing
                     (Var name _ nameRange)
-                      -> do fixedTps <- fixedGuessed (length fixed) fresolved'
-                            namedTps <- namedGuessed named
-                            matches <- lookupNameEx (isInfoValFunExt {- const True -}) name (CtxFunTypes True fixedTps namedTps) nameRange
-                            -- traceDoc $ \env -> text "app args matched for " <+> ppName env name <+> text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+> text ", args: " <+> list (map (ppType env) (map fst3 fresolved)  )
+                      -> do sctx <- searchContext fresolved' fixed named 
+                            matches <- lookupNameEx (isInfoValFunExt {- const True -}) name sctx nameRange
+                            --traceDoc $ \env -> text "app args matched for " <+> ppName env name <+> 
+                            --                    text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+> 
+                            --                    text ", args: " <+> list (map (ppType env) (map (\(_,(_,tp,_,_)) -> tp) fresolved')) 
                             case matches of
                               []         -> do -- emit an error
-                                               resolveFunName name (CtxFunTypes True fixedTps namedTps) rng nameRange
+                                               resolveFunName name sctx rng nameRange
                                                return Nothing
                               [(_,info)] -> return (Just (infoType info, rng))
                               _          -> return Nothing
                     _ -> return Nothing
 
            case amb of
-             Just prop  -> -- TODO: we re-infer the fixed arguments again. it is hard to optimize this due to optional and delayed arguments that need wrapping...
-                           -- what we could do is check if the check arguments up to this point (in acc) are not optional or delayed, and in that case
-                           -- we can avoid redoing the inference for those.
-                           -- TODO: this can lead to exponential behavior... really bad
-                           -- trace(" reinfer") $
-                           inferAppFunFirst (Just prop) fresolved' fixed named
+             Just prop  -> inferAppFunFirst (Just prop) fresolved' fixed named
              Nothing    -> inferAppArgsFirst fresolved' fixs fixed named
 
-    inferAppFixedArgs :: [FixedArg] -> Inf (Type,Effect,Core.Expr)
-    inferAppFixedArgs acc
-      = -- trace ("inferAppFixedArgs") $
-        do -- (tpArgs,effArgs,coreArgs) <- fmap unzip3 $ mapM (inferExpr Nothing Instantiated) args  -- todo: what about higher-ranked types?
-           let (rngArgs,tpArgs,effArgs,coreArgs) = unzip4 acc
-           stpArgs <- mapM subst tpArgs
+    searchContext fresolved fixed named
+      = do fargs <- fixedGuessed fresolved
+           nargs <- namedGuessed
+           return (CtxFunTypes (length fixed > length fresolved) fargs nargs (fmap fst propagated))
+      where
+        tvars :: Int -> Inf [Type]
+        tvars n  = mapM (\_ -> Op.freshTVar kindStar Meta) [1..n]
 
-           funEff <- freshEffect
-           expTp  <- case propagated of
-                         Just (tp,_) -> return tp
-                         _           -> Op.freshTVar kindStar Meta
-           let propType = TFun [(newName "",targ) | targ <- stpArgs] funEff expTp
-           (ftp,eff1,fcore) <- allowReturn False $ inferExpr (Just (propType,rng)) Instantiated fun
-           -- check the inferred type matches the arguments
-           inferUnify (checkFun rng) rng propType ftp
-           -- add morphisms
-           -- topEff <- addTopMorphisms rng ((getRange fun, eff1):(rng,funEff):effArgs)
-           topEff <- inferUnifies (checkEffect rng) ((getRange fun, eff1) : zip rngArgs effArgs)
-           inferUnify (checkEffectSubsume rng) (getRange fun) funEff topEff
+        fixedGuessed :: [(Int,FixedArg)] -> Inf [Type]
+        fixedGuessed xs   = fill 0 (sortBy (comparing fst) xs)
+                          where 
+                            fill j []  = tvars (length fixed - j)
+                            fill j ((i,(_,tp,_,_)):rest)  
+                              = do post <- fill (i+1) rest
+                                   pre  <- tvars (i - j)
+                                   stp  <- subst tp
+                                   return (pre ++ [stp] ++ post)
 
-           let appexpr = case shortCircuit fcore coreArgs of
-                          Just cexpr -> cexpr
-                          Nothing    -> Core.App fcore coreArgs
-
-           -- instantiate or generalize result type
-           resTp1          <- subst expTp
-           (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect resTp1 appexpr
-           return (resTp,topEff,resCore )
-
-    fst3 (x,y,z) = x
+        namedGuessed :: Inf [(Name,Type)]
+        namedGuessed
+          = mapM (\((name,_),_) -> do{ tv <- Op.freshTVar kindStar Meta; return (name,tv) }) named
+    
 
 inferVar :: Maybe (Type,Range) -> Expect -> Name -> Range -> Bool -> Inf (Type,Effect,Core.Expr)
 inferVar propagated expect name rng isRhs  | isConstructorName name
@@ -2020,7 +1985,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                  extendSub (subSingle tv (TFun targs teff tres))
                                  return (zip [0..] (map Left (fixed ++ map snd named)), targs,teff,tres,Core.App)
        _  -> do -- apply the copy constructor if we can find it
-                matches <- lookupNameEx (const True) nameCopy (CtxFunTypes True [tp] []) range
+                matches <- lookupNameEx (const True) nameCopy (CtxFunTypes True [tp] [] Nothing) range
                 case matches of
                   [(qname,info)]
                     -> do (contp,_,coreInst) <- instantiateEx range (infoType info)

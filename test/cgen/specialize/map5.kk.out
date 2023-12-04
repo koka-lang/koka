@@ -1,8 +1,8 @@
 115
  
-cgen/specialize/map5/.lift000-test: forall<a> (f : (a) -> int, y : int, xs306 : list<a>) -> list<int>
-cgen/specialize/map5/.lift000-test: forall<a> (f : (a) -> int, y : int, xs311 : list<a>) -> list<int>
-cgen/specialize/map5/.lift000-main: (xs319 : list<int>) -> list<int>
-cgen/specialize/map5/.lift000-main: (xs324 : list<int>) -> list<int>
+cgen/specialize/map5/.lift000-test: forall<a> (f : (a) -> int, y : int, xs305 : list<a>) -> list<int>
+cgen/specialize/map5/.lift000-test: forall<a> (f : (a) -> int, y : int, xs310 : list<a>) -> list<int>
+cgen/specialize/map5/.lift000-main: (xs318 : list<int>) -> list<int>
+cgen/specialize/map5/.lift000-main: (xs323 : list<int>) -> list<int>
 cgen/specialize/map5/main: () -> console ()
 cgen/specialize/map5/test: forall<a> (xs : list<a>, y : int, f : (a) -> int) -> list<int>
