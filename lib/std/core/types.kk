@@ -80,6 +80,9 @@ pub value type intptr_t
 // Provides currently no operations and currently only used for storage and for interaction with external code.
 pub value type float32
 
+// The type of immutable arrays is called `:vector`.
+pub type vector<a>
+
 // An any type. Used for external calls
 pub type any
 
@@ -90,16 +93,20 @@ pub extern no-reuse() : reuse
   c inline  "NULL"
   js inline "null"
 
+/* the kinds of types are all built-in:
+V     value types (i.e. the star kind)
+E     effect rows (`<div,exn|e>`)
+X     a single effect (`div`, `exn`, `parse`, etc.), also called atomic effect
+HX    a handled effect type; use `handled` to lift it to an `X`
+HX1   a linear handled effect type; use `handled1` to lift it to an `X`
+H     heap types (always a phantom type without actual values)
+*/
 
 // The _total_ effect represents the absence of any effect.
 pub type <> :: E
 
-// The effect constructor extends an effect with another effect.
+// The effect constructor extends an effect row with another effect.
 pub type <|> :: (X,E) -> E
-
-// The type of immutable arrays is called `:vector`.
-pub type vector<a>
-
 
 // The divergence effect: a divergent function may not terminate.
 pub type div :: X

@@ -1,0 +1,7 @@
+1
+ 
+algeff/noyield2/Bar: forall<e,a> (.hnd-bar<e,a>) -> bar
+algeff/noyield2/Foo: forall<e,a> (.hnd-foo<e,a>) -> foo
+algeff/noyield2/bar: () -> bar int
+algeff/noyield2/foo: (x : (), y : (), z : ()) -> foo int
+algeff/noyield2/main: () -> console ()
