@@ -1244,7 +1244,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                          table (ctxTerm rangeContext ++
                                                 [(text "inferred type", Pretty.niceType penv tp)
                                                 ,(text "candidates", align (tablex 0 (ppCandidates env  "" amb)))]))
-                    (CtxFunArgs fixed named, (_:rest))
+                    (CtxFunArgs fixed named mbResTp, (_:rest)) -- todo: show nice mbResTp?
                       -> do let message = "takes " ++ show (fixed + length named) ++ " argument(s)" ++
                                           (if null named then "" else " with such parameter names")
                             infError range (text "no function" <+> Pretty.ppName penv name <+> text message <.> ppAmbiguous env "" amb)
@@ -1386,9 +1386,9 @@ lookupFunName name mbType range
   where
     hintQualify = "qualify the name to disambiguate it"
 
-lookupNameN :: Name -> Int -> [Name] -> Range -> Inf [(Name,NameInfo)]
-lookupNameN name fixed named range
-  = lookupNameEx (const True) name (CtxFunArgs fixed named) range
+lookupNameN :: Name -> Int -> [Name] -> Range -> Maybe (Type,Range) -> Inf [(Name,NameInfo)]
+lookupNameN name fixed named range propagated
+  = lookupNameEx (const True) name (CtxFunArgs fixed named (fmap fst propagated)) range
   {-
     do matches <-
        case matches of
@@ -1426,7 +1426,7 @@ maybeRToContext mbTypeRange
 data NameContext
   = CtxNone       -- ^ just a name
   | CtxType Type  -- ^ a name that can appear in a context with this type
-  | CtxFunArgs  Int [Name]          -- ^ function name with @n@ fixed arguments and followed by the given named arguments
+  | CtxFunArgs  Int [Name] (Maybe Type)         -- ^ function name with @n@ fixed arguments and followed by the given named arguments and a possible result type.
   | CtxFunTypes Bool [Type] [(Name,Type)] (Maybe Type)  -- ^ are only some arguments supplied?, function name, with fixed and named arguments, maybe a (propagated) result type
   deriving (Show)
 
@@ -1451,8 +1451,8 @@ lookupNameEx infoFilter name ctx range
                                                  CtxNone         -> return candidates
                                                  CtxType expect  -> do mss <- mapM (matchType expect) candidates
                                                                        return (concat mss)
-                                                 CtxFunArgs n named -> do mss <- mapM (matchNamedArgs n named) candidates
-                                                                          return (concat mss)
+                                                 CtxFunArgs n named mbResTp -> do mss <- mapM (matchNamedArgs n named mbResTp) candidates
+                                                                                  return (concat mss)
                                                  CtxFunTypes partial fixed named mbResTp  -> do mss <- mapM (matchArgs partial fixed named mbResTp) candidates
                                                                                                 return (concat mss)
                                     case matches of
@@ -1481,9 +1481,10 @@ lookupNameEx infoFilter name ctx range
              (Right _,_)  -> return [(name,info)]
              (Left _,_)   -> return []
 
-    matchNamedArgs :: Int -> [Name] -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
-    matchNamedArgs n named (name,info)
-      = do res <- runUnify (matchNamed range (infoType info) n named)
+    matchNamedArgs :: Int -> [Name] -> Maybe Type -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
+    matchNamedArgs n named mbResTp (name,info)
+      = do free <- freeInGamma
+           res <- runUnify (matchNamed range free (infoType info) n named mbResTp)
            case res of
              (Right _,_)  -> return [(name,info)]
              (Left _,_)   -> return []

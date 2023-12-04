@@ -927,15 +927,15 @@ inferExpr propagated expect (Inject label expr behind rng)
        core <- case mbHandled of
                  -- general handled effects use ".inject-effect"
                  Just coreHTag
-                   -> do (maskQName,maskTp,maskInfo) <- resolveFunName nameMaskAt (CtxFunArgs 3 []) rng rng
-                         (evvIndexQName,evvIndexTp,evvIndexInfo) <- resolveFunName nameEvvIndex (CtxFunArgs 1 []) rng rng
+                   -> do (maskQName,maskTp,maskInfo) <- resolveFunName nameMaskAt (CtxFunArgs 3 [] Nothing) rng rng
+                         (evvIndexQName,evvIndexTp,evvIndexInfo) <- resolveFunName nameEvvIndex (CtxFunArgs 1 [] Nothing) rng rng
                          let coreMask = coreExprFromNameInfo maskQName maskInfo
                              coreIndex= Core.App (Core.TypeApp (coreExprFromNameInfo evvIndexQName evvIndexInfo) [effTo])
                                                  [coreHTag]
                              core     = Core.App (Core.TypeApp coreMask [resTp,eff,effTo]) [coreIndex,coreLevel,exprCore]
                          return core
                  Nothing
-                   -> do (maskQName,maskTp,maskInfo) <- resolveFunName nameMaskBuiltin (CtxFunArgs 3 []) rng rng
+                   -> do (maskQName,maskTp,maskInfo) <- resolveFunName nameMaskBuiltin (CtxFunArgs 3 [] Nothing) rng rng
                          let coreMask = coreExprFromNameInfo maskQName maskInfo
                              core     = Core.App (Core.TypeApp coreMask [resTp,eff,effTo]) [exprCore]
                          return core
@@ -1013,7 +1013,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                           -- _            -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                  -- traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
                  (_,gtp,_) <- resolveFunName (if isQualified opName then opName else qualify (qualifier effectName) opName)
-                                               (CtxFunArgs (length pars) []) patRng nameRng -- todo: resolve more specific with known types?
+                                               (CtxFunArgs (length pars) [] Nothing) patRng nameRng -- todo: resolve more specific with known types?
                  (tp,_,_)  <- instantiateEx nameRng gtp
                  let parTps = case splitFunType tp of
                                 Just (tpars,_,_) -> (if (isInstance) then tail else id) $ -- drop the first parameter of an op for an instance (as it is the instance name)
@@ -1150,7 +1150,7 @@ inferHandledEffect rng handlerSort mbeff ops
       Nothing  -> case ops of
         (HandlerBranch name pars expr opSort nameRng rng: _)
           -> -- todo: handle errors if we find a non-operator
-             do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) []) rng nameRng
+             do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) [] Nothing) rng nameRng
                 (rho,_,_) <- instantiateEx nameRng tp
                 case splitFunType rho of
                   Just((opname,rtp):_,_,_) | isHandlerInstance handlerSort && opname == newHiddenName "hname"
@@ -1255,11 +1255,11 @@ inferApp propagated expect fun nargs rng
     do (fixed,named) <- splitNamedArgs nargs
        amb <- case rootExpr fun of
                 (Var name isOp nameRange)
-                  -> do matches <- lookupNameN name (length fixed) (map (fst . fst) named) nameRange
+                  -> do matches <- lookupNameN name (length fixed) (map (fst . fst) named) nameRange propagated
                         -- traceDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
                         case matches of
                           []         -> do -- emit an error
-                                           resolveFunName name (CtxFunArgs (length fixed) (map (fst . fst) named)) rng nameRange
+                                           resolveFunName name (CtxFunArgs (length fixed) (map (fst . fst) named) (fmap fst propagated)) rng nameRange
                                            return (Just Nothing)  -- error
                           [(_,info)] -> return (Just (Just (infoType info, rng))) -- known type, propagate the function type into the parameters
                           _          -> return Nothing -- many matches, -- start with argument inference and try to resolve the function type
@@ -2082,7 +2082,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
         isDelayed expr
           = case expr of
               Lam [] _ _   -> return True
-              Var name _ _ -> do matches <- lookupNameEx (const True) name (CtxFunArgs 0 []) (getRange expr)
+              Var name _ _ -> do matches <- lookupNameEx (const True) name (CtxFunArgs 0 [] Nothing) (getRange expr)
                                  case matches of
                                    [(_,info)] -> return (isDelayedType (infoType info))
                                    _          -> return False
@@ -2195,7 +2195,7 @@ find range rm
 
 coreVector:: Type -> [Core.Expr] -> Inf Core.Expr
 coreVector tp cs
-  = do (vecName,vecTp,vecInfo) <- resolveFunName nameVector (CtxFunArgs 0 [newName "xs"]) rangeNull rangeNull -- todo: lookup vector less fragile?
+  = do (vecName,vecTp,vecInfo) <- resolveFunName nameVector (CtxFunArgs 0 [newName "xs"] Nothing) rangeNull rangeNull -- todo: lookup vector less fragile?
        xs <- coreList tp cs
        return (Core.App (Core.TypeApp (coreExprFromNameInfo vecName vecInfo) [tp]) [xs])
 

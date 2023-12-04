@@ -80,19 +80,24 @@ overlaps range free tp1 tp2
 
 
 -- | Does a type have the given named arguments?
-matchNamed :: Range -> Type -> Int -> [Name] -> Unify ()
-matchNamed range tp n named
+matchNamed :: Range -> Tvs -> Type -> Int -> [Name] -> Maybe Type -> Unify ()
+matchNamed range free tp n named mbExpResTp
   = do rho1 <- instantiate range tp
        case splitFunType rho1 of
          Nothing -> unifyError NoMatch
-         Just (pars,_,_)
+         Just (pars,_,resTp)
           -> if (n + length named > length pars)
               then unifyError NoMatch
               else let npars = drop n pars
                        names = map fst npars
                    in if (all (\name -> name `elem` names) named)
-                       then let rest = [tp | (nm,tp) <- npars, not (nm `elem` named)]
-                            in if (all isOptional rest)
+                       then -- check if the result type matches
+                            do case mbExpResTp of
+                                 Nothing    -> return ()
+                                 Just expTp -> do subsume range free expTp resTp
+                                                  return ()
+                               let rest = [tp | (nm,tp) <- npars, not (nm `elem` named)]
+                               if (all isOptional rest)
                                 then return ()
                                 else unifyError NoMatch
                        else unifyError NoMatch
