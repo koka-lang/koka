@@ -260,7 +260,7 @@ struct kk_std_core_Sslice kk_slice_extend_borrow( struct kk_std_core_Sslice slic
 struct kk_std_core_Sslice kk_slice_advance_borrow( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
   const kk_ssize_t cnt0 = kk_integer_clamp_ssize_t_borrow(count,ctx);
   kk_ssize_t cnt = cnt0;
-  if (cnt==0 || (kk_integer_is_zero_borrow(slice.start) && cnt<0)) return slice;
+  if (cnt==0) return slice;
   const uint8_t* sstart;
   const uint8_t* s0;
   const uint8_t* s1;
@@ -269,39 +269,43 @@ struct kk_std_core_Sslice kk_slice_advance_borrow( struct kk_std_core_Sslice sli
   // advance the start
   const uint8_t* t0  = s0;
   if (cnt >= 0) {
-    do {
+    while (cnt > 0 && t0 < send) {
       t0 = kk_utf8_next(t0);
       cnt--;
-    } while (cnt > 0 && t0 < send);
+    }
   }
   else {  // cnt < 0
-    do {
+    while (cnt < 0 && t0 > sstart) {
       t0 = kk_utf8_prev(t0);
       cnt++;
-    } while (cnt < 0 && t0 > sstart);
+    }
   }
-  if (t0 == s0) return slice;  // start is unchanged
+  if (t0 == s0 && cnt0 > 0) return slice;  // start is unchanged
   // "t0" points to the new start, now advance the end by the same amount of codepoints
   const uint8_t* t1 = s1;
   cnt = cnt0;
   if (cnt >= 0) {
-    do {
+    while (cnt > 0 && t1 < send) {
       t1 = kk_utf8_next(t1);
       cnt--;
-    } while (cnt > 0 && t1 < send);
+    }
   }
   else {  // cnt < 0
-    do {
+    while (cnt < 0 && t1 > sstart) {
       t1 = kk_utf8_prev(t1);
       cnt++;
-    } while (cnt < 0 && t1 > sstart);
+    }
   }
   // t1 points to the new end
-  kk_assert_internal(t1 >= t0);
+  kk_assert_internal(t1 >= t0);  
+  const kk_ssize_t in_len = kk_integer_clamp_ssize_t_borrow(slice.len, ctx);
+  kk_ssize_t new_len = (t1-t0);
+  // kk_info_message("Here %d %d %d t: %d %d s: %d %d, st: %d %d\n", in_len, cnt0, new_len, t1, t0, s1, s0, sstart, send);
+  kk_assert_internal(t1 <= send && t0 >= sstart);
   kk_integer_drop(slice.start,ctx);
   kk_integer_drop(slice.len,ctx);
   return kk_std_core__new_Sslice(slice.str, kk_integer_from_ptrdiff_t(t0 - sstart,ctx), 
-                                            kk_integer_from_ptrdiff_t(t1 - t0,ctx), ctx);
+                                          kk_integer_from_ptrdiff_t(new_len, ctx), ctx);
 }
 
 /* Borrow iupto */
