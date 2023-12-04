@@ -114,7 +114,7 @@ matchArguments matchSome range free tp fixed named
                       -- subsume named parameters
                       mapM_ (\(name,targ) -> case lookup name npars of
                                                Nothing   -> unifyError NoMatch
-                                               Just tpar -> subsume range free tpar (makeOptional targ)) named
+                                               Just tpar -> subsume range free tpar (makeOptionalType targ)) named
                       -- check the rest is optional
                       let rest = [tpar | (nm,tpar) <- npars, not (nm `elem` map fst named)]
                       if (matchSome || all isOptional rest)

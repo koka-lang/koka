@@ -17,10 +17,16 @@ val ids   = single(id:forall<a> a -> a)  //rigid annotation
 val test3  = ids.map(auto)
 val test3a = ids.map(xauto)
 
-fun test4()  { apply(head,ids) }
-fun test4a() { apply(tail,ids) }
+fun headlist( xs : list<a> ) : exn a
+  head(xs).unjust
 
-fun test5()  { apply(fn(xs:list<list<forall<a> a -> a>>){ xs.map(head) },single(ids)) }
+fun taillist( xs : list<a> ) : list<a>
+  tail(xs)  
+
+fun test4()  { apply(headlist,ids) }
+fun test4a() { apply(taillist,ids) }
+
+fun test5()  { apply(fn(xs:list<list<forall<a> a -> a>>){ xs.map(headlist) },single(ids)) }
 
 fun test6()  { choose(id,auto) }
 fun test6a() { choose(auto,id) }

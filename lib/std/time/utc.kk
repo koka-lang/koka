@@ -715,7 +715,7 @@ fun upto( lt : leaps-table, end : utc-timestamp ) : leaps-table
 // the base offset, the drift start date and the drift rate.
 pub fun get-leap-steps( table : leaps-table = leaps-table-ti ) : list<(utc-timestamp,timespan,timespan,(timespan,utc-timestamp,ddouble))>
   val adjusts = table.adjusts.reverse
-  zip(Cons(zero,adjusts),adjusts).map fn(las)
+  zip(Cons(utc/zero,adjusts),adjusts).map fn(las)
     val start = las.snd.utc-start
     val ofs1 = las.fst.delta-tai(start)
     val ofs2 = las.snd.delta-tai(start)

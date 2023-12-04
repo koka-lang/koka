@@ -1083,7 +1083,7 @@ fun abs-max( x : ddouble, y : ddouble ) : ddouble
 
 // The maximum of a list of absolute values.
 fun abs-max( xs : list<ddouble> ) : ddouble
-  xs.foldr(zero,fn(x,m){ max(abs(x),m) })
+  xs.foldr(ddouble/zero,fn(x,m){ max(abs(x),m) })
 
 /*------------------------------------------------------
   Trigonometry
@@ -1142,7 +1142,7 @@ pub fun sincos( rad : ddouble ) : (ddouble,ddouble)
   val s2 = s.sqr
 
   // Use the Chebyshev series for best precision.
-  val sins = s * ch-factors.foldl(zero) fn(acc,f) { f + acc*s2 }
+  val sins = s * ch-factors.foldl(ddouble/zero) fn(acc,f) { f + acc*s2 }
   val coss = (one - sins.sqr).sqrt
 
   // sinb = sin(b*pi/16)
@@ -1169,7 +1169,7 @@ fun sin16( i : int ) : ddouble
   sin16-table.at(i).default(dd-nan)
 
 val sin16-table : vector<ddouble> = [
-  zero,
+  ddouble/zero,
   Ddouble( 0.19509032201612827584, -7.9910790684617312634e-18 ),
   Ddouble( 0.38268343236508978178, -1.0050772696461587612e-17 ),
   Ddouble( 0.55557023301960217765, 4.7094109405616768214e-17 ),

@@ -96,9 +96,9 @@ fun ptime(date : date, cal : calendar) : <parse,utc> time
   colon()
   val min = optional(0){num(2)}
   colon()
-  val secs = optional(zero) { val s = num(2) 
-                              val f = optional(""){ one-of(".,"); digits() }
-                              (s.ddouble + (if f.is-empty then zero else ("0." ++ f).parse-ddouble.default(zero))) } 
+  val secs = optional(ddouble/zero) { val s = num(2) 
+                                      val f = optional(""){ one-of(".,"); digits() }
+                                      (s.ddouble + (if f.is-empty then zero else ("0." ++ f).parse-ddouble.default(zero))) } 
   val tzone = choose([
                 { val sign = one-of("+-")
                   val tzhour = num(2)

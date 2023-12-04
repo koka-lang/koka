@@ -43,7 +43,7 @@ module Type.Type (-- * Types
                   , typeDivergent, typeTotal, typePartial, typePure
                   , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
                   , typeCCtx, typeCCtxx, typeFieldAddr
-                  , isOptional, makeOptional, unOptional
+                  , isOptional, makeOptionalType, unOptional
                   , typeReuse, typeLocal
 
                   --, handledToLabel
@@ -891,8 +891,8 @@ isOptional tp
       TApp (TCon tc) [t] -> tc == tconOptional
       _ -> False
 
-makeOptional :: Type -> Type
-makeOptional tp
+makeOptionalType :: Type -> Type
+makeOptionalType tp
   = TApp typeOptional [tp]
 
 unOptional :: Type -> Type

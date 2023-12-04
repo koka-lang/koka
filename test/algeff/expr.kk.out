@@ -37,7 +37,7 @@ algeff/expr/show: (r : either<string,(int, int)>) -> total string
 algeff/expr/show: (e : expr) -> total string
 algeff/expr/show1: (x : either<string,int>) -> string
 algeff/expr/show2: (x : (either<string,int>, int)) -> string
-algeff/expr/showErr: forall<a> (s : (a) -> string, x : either<string,a>) -> string
+algeff/expr/showErr: forall<a> (x : either<string,a>, s : (a) -> string) -> string
 algeff/expr/state: forall<a,e> (init : int, action : () -> <state|e> a) -> e (a, int)
 algeff/expr/test1: (e : expr) -> console ()
 algeff/expr/test2: (e : expr) -> console ()

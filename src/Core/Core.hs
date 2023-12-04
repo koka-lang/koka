@@ -49,6 +49,7 @@ module Core.Core ( -- Data structures
                    , makeList, makeVector
                    , makeDef, makeTDef, makeStats, makeDefsLet, makeDefExpr
                    , makeDropSpecial
+                   , wrapOptional
                    , unzipM
                    , Visibility(..), Fixity(..), Assoc(..), isPublic
                    , coreName
@@ -124,7 +125,7 @@ import Common.Error
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSSizeT, nameBox, nameUnbox,
                         nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpFieldAddr,
-                        isPrimitiveName, isSystemCoreName, nameKeep, nameDropSpecial)
+                        isPrimitiveName, isSystemCoreName, nameKeep, nameDropSpecial, nameOptional, nameOptionalNone, nameTpOptional)
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -172,6 +173,15 @@ makeVector tp exprs
       = Var (TName nameVector (TForall [a] [] (typeFun [(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeVector [TVar a]))))
             (InfoArity 1 1)
     a = TypeVar (0) kindStar Bound
+
+wrapOptional :: Type -> Expr -> Expr
+wrapOptional tp expr
+  = App (TypeApp (Con (TName nameOptional tpOptional) conInfo) [tp]) [expr]
+  where
+    tpOptional = TForall [a] [] (typeFun [(nameNil,TVar a)] typeTotal (makeOptionalType (TVar a)))
+    conInfo    = ConAsJust nameTpOptional DataAsMaybe (valueReprScan 1) nameOptionalNone 0
+    a = TypeVar (0) kindStar Bound
+
 
 makeList :: Type -> [Expr] -> Expr
 makeList tp exprs

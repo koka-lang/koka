@@ -178,7 +178,7 @@ synCopyCon modName info con
                  in case splitFunType rho of
                       Just (args,eff,res)
                         -> TForall vars preds (TFun ([(argName,res)] ++ [(name,if not (hasAccessor name t con)
-                                                                                 then t else makeOptional t) | (name,t) <- args]) eff res)
+                                                                                 then t else makeOptionalType t) | (name,t) <- args]) eff res)
                       Nothing
                         -> TForall vars preds (TFun [(argName,rho)] typeTotal rho)    -- for unary constructors, like unit
 

@@ -114,7 +114,7 @@ fun test1(e) {
 }
 
 
-fun showErr( s : a -> string, x : either<string,a> ) : string {
+fun showErr( x : either<string,a>, s : a -> string ) : string {
   match(x) {
     Left(l)  -> "exception: " ++ l
     Right(r) -> s(r)
@@ -122,7 +122,7 @@ fun showErr( s : a -> string, x : either<string,a> ) : string {
 }
 
 fun show1( x : either<string,int> ) {
-  showErr(show,x)
+  showErr(x,show)
 }
 
 // --------------------------------------------------------

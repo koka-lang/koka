@@ -702,7 +702,7 @@ parameter env allowBorrow
                         <|> return (nameNil,Own)
        (do specialOp "?"
            tp <- ptype env
-           return ((name, makeOptional tp), pinfo)
+           return ((name, makeOptionalType tp), pinfo)
         <|>
         do tp <- ptype env
            return ((name, tp), pinfo))
@@ -865,7 +865,7 @@ tatomParamsEx allowParams env allowBorrow
     <|>
      do specialOp "?"
         tp <- tatom env
-        return (single (makeOptional tp))
+        return (single (makeOptionalType tp))
     <?>
      "type atom"
   where

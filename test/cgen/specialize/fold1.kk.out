@@ -4,7 +4,7 @@
 add default effect for std/core/exn
  
 cgen/specialize/fold1/.hmain: () -> console ()
-cgen/specialize/fold1/.lift000-main: (xs655 : list<int>, z656 : int) -> <console,exn> int
+cgen/specialize/fold1/.lift000-main: (xs358 : list<int>, z359 : int) -> <console,exn> int
 cgen/specialize/fold1/.mlift000-main: (int) -> <exn,console> ()
 cgen/specialize/fold1/.mlift000-main: (int) -> <console,exn> ()
 cgen/specialize/fold1/.mlift000-main: (int) -> <console,exn> ()
