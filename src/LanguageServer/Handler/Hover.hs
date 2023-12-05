@@ -6,7 +6,7 @@
 
 module LanguageServer.Handler.Hover (hoverHandler, formatRangeInfoHover) where
 
-import Compiler.Module (loadedModule, modRangeMap, Loaded (loadedModules), Module (modPath, modSourcePath))
+import Compiler.Module (loadedModule, modRangeMap, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Control.Lens ((^.))
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -23,23 +23,28 @@ import Type.Pretty (ppScheme, defaultEnv, Env(..))
 import Common.ColorScheme (ColorScheme (colorNameQual))
 import Kind.Pretty (prettyKind)
 import Common.Name (nameNil)
-import Kind.ImportMap (importsEmpty)
+import Kind.ImportMap (importsEmpty, ImportMap)
 import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
+import Compiler.Compile (modName)
+import Type.Type (Name)
 
 hoverHandler :: Handlers LSM
 hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
   let J.HoverParams doc pos _ = req ^. J.params
       uri = doc ^. J.uri
-  loaded <- getLoadedModule uri
+  loadedMod <- getLoadedModule uri
+  loaded <- getLoaded
   flags <- getFlags
   let res = do
+        mod <- loadedMod
         l <- loaded
-        rmap <- modRangeMap l
-        rangeMapFindAt (fromLspPos uri pos) rmap
+        rmap <- modRangeMap mod
+        (r, rinfo) <- rangeMapFindAt (fromLspPos uri pos) rmap
+        return (modName mod, loadedImportMap l, r, rinfo)
   case res of
-    Just (r, rinfo) -> do
+    Just (mName, imports, r, rinfo) -> do
       print <- getHtmlPrinter
-      x <- liftIO $ formatRangeInfoHover print flags rinfo
+      x <- liftIO $ formatRangeInfoHover print flags mName imports rinfo
       let hc = J.InL $ J.mkMarkdown x
           rsp = J.Hover hc $ Just $ toLspRange r
       responder $ Right $ J.InL rsp
@@ -48,14 +53,14 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
 prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
 
 -- Pretty-prints type/kind information to a hover tooltip
-formatRangeInfoHover :: (Doc -> IO T.Text) -> Flags -> RangeInfo -> IO T.Text
-formatRangeInfoHover print flags rinfo = 
+formatRangeInfoHover :: (Doc -> IO T.Text) ->  Flags -> Name -> ImportMap ->RangeInfo -> IO T.Text
+formatRangeInfoHover print flags mName imports rinfo =
   let colors = colorSchemeFromFlags flags in
   case rinfo of
   Id qname info isdef ->
-    print $ (color (colorNameQual colors) $ pretty qname) <+> text " : " <+> case info of
-      NIValue tp -> ppScheme (prettyEnv flags nameNil importsEmpty) tp
-      NICon tp ->  ppScheme (prettyEnv flags nameNil importsEmpty) tp
+    print $ color (colorNameQual colors) (pretty qname) <+> text " : " <+> case info of
+      NIValue tp -> ppScheme (prettyEnv flags mName imports) tp
+      NICon tp ->  ppScheme (prettyEnv flags mName imports) tp
       NITypeCon k -> prettyKind colors k
       NITypeVar k -> prettyKind colors k
       NIModule -> text "module"
