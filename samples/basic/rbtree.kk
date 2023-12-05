@@ -15,7 +15,7 @@ type color
 type tree<a>
   Node(color : color, left : tree<a>, key : int, value : a, right : tree<a>)
   Leaf
-  
+
 
 fun is-red(t : tree<a>) : bool
   match t
@@ -32,7 +32,7 @@ fun balance-left(l :tree<a>, k : int, v : a, r : tree<a>) : tree<a>
     Node(_, lx, kx, vx, rx)
       -> Node(Black, Node(Red, lx, kx, vx, rx), k, v, r)
     Leaf -> Leaf
-    
+
 
 
 fun balance-right(l : tree<a>, k : int, v : a, r : tree<a>) : tree<a>
@@ -44,7 +44,7 @@ fun balance-right(l : tree<a>, k : int, v : a, r : tree<a>) : tree<a>
     Node(_, lx, kx, vx, rx)
       -> Node(Black, l, k, v, Node(Red, lx, kx, vx, rx))
     Leaf -> Leaf
-    
+
 
 fun ins(t : tree<a>, k : int, v : a) : tree<a>
   match t
@@ -88,7 +88,7 @@ fun make-tree(n : int) : tree<bool>
 
 
 // Count the nodes with `True` values.
-fun count( t : tree<bool> ) : int 
+fun count( t : tree<bool> ) : int
   t.fold(0) fn(k,v,r)
     if v then r + 1 else r
 

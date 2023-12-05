@@ -55,8 +55,8 @@
         ],
         "configuration": "./koka-configuration.json",
         "icon": {
-          "light": "./images/koka-logo-filled-blue.svg",
-          "dark": "./images/koka-logo-filled-blue.svg"
+          "light": "./images/koka-logo-filled-light.svg",
+          "dark": "./images/koka-logo-filled-dark.svg"
         }
       }
     ],
