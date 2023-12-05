@@ -289,14 +289,13 @@ isHiddenName name
       _       -> False
 
 makeHiddenName s name
-  = {-case nameId xname of
-      c:cs | not (isAlpha c || c `elem` "()[]") -> newQualified (nameModule xname) ("." ++ s ++ "-" ++ asciiEncode False (c:cs)) -- hidden operator
-      _    ->
-    -} prepend ("." ++ s ++ "-") xname
-  where
-    xname = case nameId name of
-              '.':cs -> newQualified (nameModule name) cs
-              s      -> name
+  = case nameId xname of
+      c:cs | not (isAlpha c || c `elem` "()[]") -> newQualified (nameModule xname) ("." ++ s ++ asciiEncode False ('-':c:cs)) -- hidden operator
+      _    -> prepend ("." ++ s ++ "-") xname
+    where
+      xname = case nameId name of
+                '.':cs -> newQualified (nameModule name) cs
+                s      -> name
 
 makeFreshHiddenName s name range
   = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
