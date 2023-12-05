@@ -1,6 +1,6 @@
 ﻿#pragma once
 #ifndef KKLIB_H
-#define KKLIB_H 
+#define KKLIB_H
 /*---------------------------------------------------------------------------
   Copyright 2020-2022, Microsoft Research, Daan Leijen.
 
@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD         128     // modify on changes to trigger recompilation 
+#define KKLIB_BUILD         129     // modify on changes to trigger recompilation
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -21,10 +21,10 @@
 #define _TIME_BITS          64
 #if !defined(_WIN32)
 #ifndef _BSD_SOURCE
-#define _BSD_SOURCE 
+#define _BSD_SOURCE
 #endif
 #ifndef _DEFAULT_SOURCE
-#define _DEFAULT_SOURCE   
+#define _DEFAULT_SOURCE
 #endif
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -71,7 +71,7 @@ typedef enum kk_tag_e {
   KK_TAG_FLOAT,       // boxed IEEE float  (32-bit)  (only on <=32-bit platforms)
   KK_TAG_INT16,       // boxed int16_t               (only on <=16-bit platforms)
   KK_TAG_CFUNPTR,     // C function pointer
-  KK_TAG_INTPTR,      // boxed intptr_t  
+  KK_TAG_INTPTR,      // boxed intptr_t
   KK_TAG_EVV_VECTOR,  // evidence vector (used in std/core/hnd)
   KK_TAG_NOTHING,     // used to avoid allocation for unnested maybe-like types
   KK_TAG_JUST,
@@ -86,7 +86,7 @@ typedef enum kk_tag_e {
 } kk_tag_t;
 
 static inline bool kk_tag_is_raw(kk_tag_t tag) {
-  return (tag >= KK_TAG_CPTR_RAW);  
+  return (tag >= KK_TAG_CPTR_RAW);
 }
 
 /*--------------------------------------------------------------------------------------
@@ -130,7 +130,7 @@ typedef struct kk_header_s {
 } kk_header_t;
 
 #define KK_SCAN_FSIZE_MAX (0xFF)
-#define KK_HEADER(scan_fsize,fidx,tag)    { scan_fsize, fidx, tag, KK_ATOMIC_VAR_INIT(0) }      // start with unique refcount 
+#define KK_HEADER(scan_fsize,fidx,tag)    { scan_fsize, fidx, tag, KK_ATOMIC_VAR_INIT(0) }      // start with unique refcount
 #define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KK_ATOMIC_VAR_INIT(INT32_MIN) } // start with a stuck refcount (RC_STUCK)
 
 static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_cpath_t cpath, kk_tag_t tag) {
@@ -141,7 +141,7 @@ static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_cpat
 #else
   kk_header_t header = KK_HEADER((uint8_t)scan_fsize, (uint8_t)cpath, (uint16_t)tag);
   *h = header;
-#endif  
+#endif
 }
 
 
@@ -155,7 +155,7 @@ static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_cpat
 typedef struct kk_box_s {
   kk_intb_t box;
 } kk_box_t;
- 
+
 // An integer is either a small int (as: 4*i + 1) or a `kk_bigint_t*` pointer. Isomorphic with boxed values.
 // See `integer.h` for definitions.
 typedef struct kk_integer_s {
@@ -164,7 +164,7 @@ typedef struct kk_integer_s {
 
 // A general datatype with constructors and singletons is either
 // an enumeration (with the lowest bit set as: 4*tag + 1) or a `kk_block_t*` pointer.
-// Isomorphic with boxed values. 
+// Isomorphic with boxed values.
 typedef struct kk_datatype_s {
   kk_intb_t dbox;
 } kk_datatype_t;
@@ -294,7 +294,7 @@ static inline kk_decl_pure bool kk_block_is_thread_shared(const kk_block_t* b) {
   return kk_unlikely(kk_refcount_is_thread_shared(kk_block_refcount(b)));
 }
 
-// Used to generically inspect the scannable fields of an object as used 
+// Used to generically inspect the scannable fields of an object as used
 // to recursively free data, or mark as shared. This must overlay with
 // any heap block and if pointer compression is used we need to use packed
 // structures to avoid any potential padding in a struct (at least up to
@@ -340,7 +340,7 @@ static inline void kk_block_field_idx_set(kk_block_t* b, uint8_t idx ) {
     #if (KK_MIMALLOC > 1)
       #define MI_MAX_ALIGN_SIZE  KK_MIMALLOC
     #else
-      #define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE 
+      #define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE
     #endif
   #endif
   #if !defined(MI_DEBUG) && defined(KK_DEBUG_FULL)
@@ -362,7 +362,7 @@ struct kk_function_s {
   kk_block_t  _block;
   kk_box_t    fun;        // kk_kkfun_ptr_t
   // followed by free variables
-}; 
+};
 typedef kk_datatype_ptr_t kk_function_t;
 
 // A vector is an array of boxed values, or an empty singleton
@@ -372,14 +372,14 @@ typedef kk_datatype_t kk_vector_t;
 struct kk_random_ctx_s;
 
 
-// High precision duration as `seconds + (attoseconds * 1e-18)`. 
+// High precision duration as `seconds + (attoseconds * 1e-18)`.
 // (attosecond precision with a range of about 300 billion years)
 typedef int64_t kk_secs_t;
 typedef int64_t kk_asecs_t;
 typedef struct kk_duration_s {
   kk_secs_t  seconds;
   kk_asecs_t attoseconds;  // always >= 0, use `kk_duration_norm` to normalize
-} kk_duration_t;  
+} kk_duration_t;
 
 
 // Box any is used when yielding
@@ -402,7 +402,7 @@ typedef enum kk_yield_kind_e {
 } kk_yield_kind_t;
 
 typedef struct kk_yield_s {
-  int32_t       marker;          // marker of the handler to yield to 
+  int32_t       marker;          // marker of the handler to yield to
   kk_function_t clause;          // the operation clause to execute when the handler is found
   kk_intf_t     conts_count;     // number of continuations in `conts`
   kk_function_t conts[KK_YIELD_CONT_MAX]; // fixed array of continuations. The final continuation `k` is
@@ -410,7 +410,7 @@ typedef struct kk_yield_s {
                                           // if the array becomes full, a fresh array is allocated and the first
                                           // entry points to its composition.
 } kk_yield_t;
-     
+
 // The thread local context.
 // The fields `yielding`, `heap` and `evv` should come first for efficiency
 typedef struct kk_context_s {
@@ -428,9 +428,9 @@ typedef struct kk_context_s {
   kk_function_t     log;              // logging function
   kk_function_t     out;              // std output
   kk_task_group_t*  task_group;       // task group for managing threads. NULL for the main thread.
-  
+
   struct kk_random_ctx_s* srandom_ctx;// strong random using chacha20, initialized on demand
-  kk_ssize_t        argc;             // command line argument count 
+  kk_ssize_t        argc;             // command line argument count
   const char**      argv;             // command line arguments
   kk_duration_t     process_start;    // time at start of the process
   int64_t           timer_freq;       // high precision timer frequency
@@ -493,7 +493,7 @@ kk_decl_export kk_datatype_ptr_t kk_evv_empty_singleton(kk_context_t* ctx);
 #else
   static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
     return mi_heap_malloc_small(ctx->heap, (size_t)sz);
-  } 
+  }
 #endif
 
 static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
@@ -590,7 +590,7 @@ static inline void kk_block_large_init(kk_block_large_t* b, kk_ssize_t size, kk_
   kk_header_init(&b->_block.header, bscan_fsize, cpath, tag);
   kk_assert_internal(scan_fsize > 0);
   kk_assert_internal(scan_fsize <= KK_INTF_MAX);
-  b->large_scan_fsize = kk_intf_box((kk_intf_t)scan_fsize);  
+  b->large_scan_fsize = kk_intf_box((kk_intf_t)scan_fsize);
 }
 
 typedef kk_block_t* kk_reuse_t;
@@ -676,7 +676,7 @@ kk_decl_export kk_reuse_t  kk_block_check_drop_reuse(kk_block_t* b, kk_refcount_
 static inline kk_block_t* kk_block_dup(kk_block_t* b) {
   kk_assert_internal(kk_block_is_valid(b));
   const kk_refcount_t rc = kk_block_refcount(b);
-  if kk_unlikely(kk_refcount_is_thread_shared(rc)) {  // (signed)rc < 0 
+  if kk_unlikely(kk_refcount_is_thread_shared(rc)) {  // (signed)rc < 0
     return kk_block_check_dup(b, rc);                 // thread-shared or sticky (overflow) ?
   }
   else {
@@ -703,13 +703,13 @@ static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
 // is if it happened to be thread shared and another thread decremented the count as well.
 static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
-  const kk_refcount_t rc = b->header.refcount;  
+  const kk_refcount_t rc = b->header.refcount;
   if kk_unlikely(kk_refcount_is_unique_or_thread_shared(rc)) {  // (signed)rc <= 0
-    kk_block_check_decref(b, rc, ctx);  // thread-shared, sticky (overflowed), or can be freed? 
+    kk_block_check_decref(b, rc, ctx);  // thread-shared, sticky (overflowed), or can be freed?
   }
   else {
     kk_block_refcount_set(b, rc-1);
-  } 
+  }
 }
 
 // Decrement the reference count, and return the memory for reuse if it drops to zero
@@ -728,7 +728,7 @@ static inline kk_reuse_t kk_block_drop_reuse(kk_block_t* b, kk_context_t* ctx) {
 
 static inline void kk_box_drop(kk_box_t b, kk_context_t* ctx);
 
-// Drop with inlined dropping of children 
+// Drop with inlined dropping of children
 static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const kk_refcount_t rc = kk_block_refcount(b);
@@ -740,7 +740,7 @@ static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
     kk_block_free(b,ctx);
   }
   else if kk_unlikely(kk_refcount_is_thread_shared(rc)) {    // (signed)rc < 0
-    kk_block_check_drop(b, rc, ctx);                         // thread-share or sticky (overflowed) ?    
+    kk_block_check_drop(b, rc, ctx);                         // thread-share or sticky (overflowed) ?
   }
   else {
     kk_block_refcount_set(b, rc-1);
@@ -764,7 +764,7 @@ static inline kk_reuse_t kk_block_dropi_reuse(kk_block_t* b, kk_context_t* ctx) 
   }
 }
 
-// Drop with known scan size 
+// Drop with known scan size
 static inline void kk_block_dropn(kk_block_t* b, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const kk_refcount_t rc = kk_block_refcount(b);
@@ -789,7 +789,7 @@ static inline void kk_block_dropn(kk_block_t* b, kk_ssize_t scan_fsize, kk_conte
 static inline kk_reuse_t kk_block_dropn_reuse(kk_block_t* b, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const kk_refcount_t rc = kk_block_refcount(b);
-  if (rc == 0) {                 
+  if (rc == 0) {
     kk_assert_internal(kk_block_scan_fsize(b) == scan_fsize);
     for (kk_ssize_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
@@ -861,7 +861,7 @@ kk_decl_export void        kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx
 
 #define kk_base_type_unbox_as_assert(tp,b,tag,ctx)  (kk_block_as(tp,kk_block_unbox(b,tag,ctx)))
 #define kk_base_type_unbox_as(tp,b,ctx)             ((tp)kk_base_type_as(tp,kk_ptr_unbox(b,ctx),ctx))
-#define kk_base_type_box(b,ctx)                     (kk_block_box(&(b)->_block,ctx))    
+#define kk_base_type_box(b,ctx)                     (kk_block_box(&(b)->_block,ctx))
 
 #define kk_constructor_is_unique(v)             (kk_base_type_is_unique(&((v)->_base)))
 #define kk_constructor_free(v,ctx)              (kk_base_type_free(&((v)->_base),ctx))
@@ -875,7 +875,7 @@ kk_decl_export void        kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx
 
 /*----------------------------------------------------------------------
   Low-level encoding of small integers (`kk_intf_t`) and pointers
-  into a boxed integer `kk_intb_t`.  
+  into a boxed integer `kk_intb_t`.
 ----------------------------------------------------------------------*/
 // We generally tag boxed values; the least-significant bit is clear for heap pointers (`kk_ptr_t == kk_block_t*`),
 // while the bit is set for values.
@@ -895,12 +895,12 @@ static inline bool kk_is_value(kk_intb_t i) {
 #define kk_value_null      ((~KK_IB(0)&~KK_TAG_MASK)|KK_TAG_VALUE)
 
 
-// If we assume `intptr_t` aligned pointers in the heap, we can use a larger heap when 
+// If we assume `intptr_t` aligned pointers in the heap, we can use a larger heap when
 // using pointer compression (by shifting them by `KK_BOX_PTR_SHIFT`).
 #if !defined(KK_BOX_PTR_SHIFT)
   #if (KK_INTB_SIZE <= 4 && KK_INTPTR_SHIFT >= 3)
     // shift by pointer alignment if we have at most 32-bit boxed ints
-    // note: unfortunately, bigint pointers must still have the lowest 2 bits as zero for 
+    // note: unfortunately, bigint pointers must still have the lowest 2 bits as zero for
     //       fast ovf arithmetic. So we are conservative here. If we always use SOFA or TAGOVF
     //       in the compressed case, we could shift by one more bit and double the heap space.
     #define KK_BOX_PTR_SHIFT   (KK_INTPTR_SHIFT - 2)
@@ -912,7 +912,7 @@ static inline bool kk_is_value(kk_intb_t i) {
 
 // Without compression, pointer encode/decode is an identity operation.
 static inline kk_intb_t kk_ptr_encode(kk_ptr_t p, kk_context_t* ctx) {
-  kk_assert_internal(((intptr_t)p & KK_TAG_MASK) == 0);  
+  kk_assert_internal(((intptr_t)p & KK_TAG_MASK) == 0);
   kk_addr_t a;
 #if KK_COMPRESS
   #if KK_CHERI
@@ -926,23 +926,23 @@ static inline kk_intb_t kk_ptr_encode(kk_ptr_t p, kk_context_t* ctx) {
   #else
   // for 64- or 128-bit we use the address as is (and for 128 bit we assume we locate our heap in the lower 2^63-1 address space)
   kk_unused(ctx);
-  #endif  
+  #endif
   #if KK_BOX_PTR_SHIFT > 0
   kk_assert_internal((a & ((1 << KK_BOX_PTR_SHIFT) - 1)) == 0);
   a = kk_sara(a, KK_BOX_PTR_SHIFT);
-  #endif 
+  #endif
 #else // no compression: |kk_intptr_t| == |kk_addr_t| == |kk_intb_t|
   kk_unused(ctx);
   a = (kk_addr_t)p;
 #endif
-  kk_assert_internal(a >= KK_INTB_MIN && a <= KK_INTB_MAX);  
+  kk_assert_internal(a >= KK_INTB_MIN && a <= KK_INTB_MAX);
   kk_assert_internal((a & KK_TAG_MASK) == 0);
   return ((kk_intb_t)a | KK_TAG_PTR);
 }
 
 static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
   kk_assert_internal(kk_is_ptr(b));
-  kk_addr_t a = b;        // may sign-extend  
+  kk_addr_t a = b;        // may sign-extend
 #if (KK_TAG_PTR != 0)
   a = (a & ~KK_TAG_MASK);
 #endif
@@ -954,7 +954,7 @@ static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
   a = a + ctx->heap_mid;
   #else
   kk_unused(ctx);
-  #endif  
+  #endif
   #if KK_CHERI
   return (kk_ptr_t)__builtin_cheri_address_set(ctx->heap_start, (vaddr_t)a);
   #else
@@ -968,7 +968,7 @@ static inline kk_ptr_t kk_ptr_decode(kk_intb_t b, kk_context_t* ctx) {
 
 // Integer value encoding/decoding. May use smaller integers (`kk_intf_t`)
 // then boxed integers if `kk_intb_t` is larger than the natural register size.
-#define KK_INTF_BOX_BITS(extra)  (KK_INTF_BITS - (KK_TAG_BITS + (extra)))  
+#define KK_INTF_BOX_BITS(extra)  (KK_INTF_BITS - (KK_TAG_BITS + (extra)))
 #define KK_INTF_BOX_MAX(extra)   (KK_INTF_MAX >> (KK_TAG_BITS + (extra)))
 #define KK_INTF_BOX_MIN(extra)   (-KK_INTF_BOX_MAX(extra) - 1)
 #define KK_UINTF_BOX_MAX(extra)  (KK_UINTF_MAX >>(KK_TAG_BITS + (extra)))
@@ -983,7 +983,7 @@ static inline kk_intb_t kk_intf_encode(kk_intf_t i, int extra_shift) {
 static inline kk_intf_t kk_intf_decode(kk_intb_t b, int extra_shift) {
   kk_assert_internal(extra_shift >= 0);
   kk_assert_internal(kk_is_value(b) || b == kk_get_context()->kk_box_any.dbox);
-  kk_intb_t i = kk_sarb( b, KK_TAG_BITS + extra_shift);  
+  kk_intb_t i = kk_sarb( b, KK_TAG_BITS + extra_shift);
   kk_assert_internal(i >= KK_INTF_MIN && i <= KK_INTF_MAX);
   return (kk_intf_t)i;
 }
@@ -1050,7 +1050,7 @@ static inline kk_decl_pure bool kk_datatype_has_tag(kk_datatype_t d, kk_tag_t t,
     return kk_datatype_ptr_has_tag(d, t, ctx);
   }
   else {
-    return (d.dbox == kk_datatype_from_tag(t).dbox); 
+    return (d.dbox == kk_datatype_from_tag(t).dbox);
   }
 }
 
@@ -1059,7 +1059,7 @@ static inline kk_decl_pure bool kk_datatype_has_ptr_tag(kk_datatype_t d, kk_tag_
 }
 
 static inline kk_decl_pure bool kk_datatype_has_singleton_tag(kk_datatype_t d, kk_tag_t t) {
-  return (d.dbox == kk_datatype_from_tag(t).dbox);  
+  return (d.dbox == kk_datatype_from_tag(t).dbox);
 }
 
 static inline bool kk_decl_pure kk_datatype_ptr_is_unique(kk_datatype_t d, kk_context_t* ctx) {
@@ -1080,8 +1080,8 @@ static inline kk_datatype_t kk_datatype_ptr_dup(kk_datatype_t d, kk_context_t* c
 
 
 static inline kk_datatype_t kk_datatype_dup(kk_datatype_t d, kk_context_t* ctx) {
-  if (kk_datatype_is_ptr(d)) { 
-    kk_datatype_ptr_dup(d,ctx); 
+  if (kk_datatype_is_ptr(d)) {
+    kk_datatype_ptr_dup(d,ctx);
   }
   return d;
 }
@@ -1268,7 +1268,7 @@ static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
   kk_function_t name = { (kk_intb_t)_##name }; \
   if (kk_box_eq(_##name->fun,kk_box_null())) { _##name->fun = kk_kkfun_ptr_box(&cfun,ctx); }  // initialize on demand we can encode the field */
 #else
-// for a compressed heap, allocate static functions once in the heap on demand; these are never deallocated  
+// for a compressed heap, allocate static functions once in the heap on demand; these are never deallocated
 #define kk_define_static_function(name,cfun,ctx) \
   static kk_function_t name = { kk_datatype_null_init }; \
   if (kk_datatype_is_null(name)) { \
@@ -1349,6 +1349,8 @@ static inline kk_datatype_t kk_cctx_setcp(kk_datatype_t d, size_t field_offset, 
 
 #endif
 
+typedef kk_box_t kk_field_addr_t;
+
 
 /*----------------------------------------------------------------------
   Further primitive datatypes and api's
@@ -1392,7 +1394,7 @@ kk_decl_export kk_string_t kk_get_host(kk_context_t* ctx);
 // Tag for value types is always an integer
 typedef kk_integer_t kk_value_tag_t;
 
-#define kk_value_tag(tag) (kk_integer_from_small(tag))   
+#define kk_value_tag(tag) (kk_integer_from_small(tag))
 
 static inline kk_decl_const bool kk_value_tag_eq(kk_value_tag_t x, kk_value_tag_t y) {
   // note: x or y may be box_any so don't assert they are smallints

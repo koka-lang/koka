@@ -13,10 +13,10 @@
 /*-------------------------------------------------------------------------
 Boxing
 
-We assume pointers are always aligned to the machine word size, and we  
-use the bottom (least significant) bit to distinguish pointers from values. 
-This way, boxing a heap pointer has zero cost and is unchanged. 
-For integers, we use a pointer to big integers, or a value for small integers 
+We assume pointers are always aligned to the machine word size, and we
+use the bottom (least significant) bit to distinguish pointers from values.
+This way, boxing a heap pointer has zero cost and is unchanged.
+For integers, we use a pointer to big integers, or a value for small integers
 (and boxing is zero cost this way as well).
 
 On platforms like arm CHERI, we have 128-bit pointers and a box is always
@@ -37,7 +37,7 @@ On 64-bit, We can encode half of the doubles as values by saving 1 bit; Possible
 (A2): heap allocate all negative doubles and use values for positive ones (in 63-bits).
       (for simplicity we always use this for floats on 32-bit platforms)
 (A0): We can also box doubles as an int64_t, which means all doubles outside the range
-      [0,2.0) and [-inf,-2.0) would be heap allocated. 
+      [0,2.0) and [-inf,-2.0) would be heap allocated.
 ----------------------------------------------------------------*/
 
 #if (KK_INTPTR_SIZE == 8)
@@ -176,7 +176,7 @@ static inline void kk_box_drop(kk_box_t b, kk_context_t* ctx) {
 
 typedef enum kk_borrow_e {
   KK_OWNED = 0,
-  KK_BORROWED  
+  KK_BORROWED
 } kk_borrow_t;
 
 static inline bool kk_is_owned(kk_borrow_t borrow) {
@@ -229,7 +229,7 @@ static inline kk_box_t kk_int32_box(int32_t i, kk_context_t* ctx) {
 }
 #endif
 
-#if (KK_INTF_SIZE<=2) 
+#if (KK_INTF_SIZE<=2)
 kk_decl_export int16_t  kk_int16_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t* ctx);
 kk_decl_export kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx);
 #else
@@ -265,7 +265,7 @@ kk_decl_export kk_box_t kk_float_box(float f, kk_context_t* ctx);
 #else
 static inline float kk_float_unbox(kk_box_t b, kk_borrow_t borrow, kk_context_t* ctx) {
   int32_t i = kk_int32_unbox(b, borrow, ctx);
-  return kk_bits_to_float((uint32_t)i);  
+  return kk_bits_to_float((uint32_t)i);
 }
 static inline kk_box_t kk_float_box(float f, kk_context_t* ctx) {
   uint32_t u = kk_bits_from_float(f);
@@ -334,7 +334,7 @@ static inline kk_box_t kk_box_unbox(kk_box_t b, kk_context_t* ctx) {
   return b;
 }
 
-// `box_any` is used to return when yielding 
+// `box_any` is used to return when yielding
 // (and should be accepted by any unbox operation, and also dup/drop operations. That is why we use a ptr)
 static inline kk_box_t kk_box_any(kk_context_t* ctx) {
   kk_datatype_ptr_dup_assert(ctx->kk_box_any, KK_TAG_BOX_ANY, ctx);
@@ -347,7 +347,7 @@ static inline kk_box_t kk_box_any(kk_context_t* ctx) {
 
 typedef struct kk_boxed_value_s {
   kk_block_t _block;
-  intptr_t   data; 
+  intptr_t   data;
 } * kk_boxed_value_t;
 
 
@@ -367,7 +367,7 @@ kk_decl_export void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box
       } \
     } \
   } while(0)
-  
+
 
 #define kk_valuetype_box(tp,x,val,scan_fsize,ctx)  \
   do { \
@@ -427,12 +427,35 @@ static inline kk_box_t kk_kkfun_ptr_boxx(kk_cfun_ptr_t fun, kk_context_t* ctx) {
 #define kk_kkfun_ptr_box(fun,ctx)  kk_kkfun_ptr_boxx((kk_cfun_ptr_t)fun, ctx)
 
 static inline kk_cfun_ptr_t kk_kkfun_ptr_unbox(kk_box_t b, kk_context_t* ctx) {
-  kk_unused(ctx);  
+  kk_unused(ctx);
   intptr_t f = kk_intf_unbox(b);
   #if KK_COMPRESS
   f = f + (intptr_t)&kk_main_start;
   #endif
   return (kk_cfun_ptr_t)f;
+}
+
+
+/*----------------------------------------------------------------
+  internal pointers as values (used for context holes)
+----------------------------------------------------------------*/
+
+static inline kk_box_t kk_internal_ptr_box(kk_box_t* p, kk_context_t* ctx) {  // never drop; only used from function call
+  kk_assert_internal(((uintptr_t)p & 0x03) == 0);  // check alignment
+  kk_intb_t i = kk_ptr_encode((kk_ptr_t)p, ctx) - KK_TAG_PTR + KK_TAG_VALUE;
+  kk_box_t b = { i };
+  return b;
+}
+
+static inline kk_box_t* kk_internal_ptr_unbox(kk_box_t b, kk_context_t* ctx) {
+  kk_intb_t i = b.box - KK_TAG_VALUE + KK_TAG_PTR;
+  kk_box_t* p = (kk_box_t*)kk_ptr_decode(i, ctx);
+  kk_assert_internal(((uintptr_t)p & 0x03) == 0);
+  return p;
+}
+
+static inline kk_box_t kk_internal_ptr_null(kk_context_t* ctx) {
+  return kk_box_null();
 }
 
 
