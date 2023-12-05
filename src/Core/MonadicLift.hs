@@ -40,7 +40,7 @@ trace s x =
   Lib.Trace.trace s
     x
 
-monadicLift :: Pretty.Env -> CorePhase ()
+monadicLift :: Pretty.Env -> CorePhase b ()
 monadicLift penv 
   = liftCorePhaseUniq $ \uniq defs ->
     runLift penv uniq (liftDefGroups True defs)

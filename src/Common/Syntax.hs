@@ -147,7 +147,7 @@ isHandlerNormal _ = False
 
 
 data OperationSort 
-  = OpVal | OpFun | OpExcept | OpControlRaw | OpControl
+  = OpVal | OpFun | OpExcept | OpControlRaw | OpControl | OpControlErr
   deriving (Eq,Ord)
   
 instance Show OperationSort where
@@ -157,6 +157,7 @@ instance Show OperationSort where
                   OpExcept -> "brk"
                   OpControl -> "ctl"
                   OpControlRaw -> "rawctl"
+                  OpControlErr -> ""
                   
 readOperationSort :: String -> Maybe OperationSort
 readOperationSort s 

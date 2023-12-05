@@ -43,7 +43,7 @@ import Core.Pretty
 --------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
-ctailOptimize :: Pretty.Env -> Newtypes -> Gamma -> Bool -> CorePhase ()
+ctailOptimize :: Pretty.Env -> Newtypes -> Gamma -> Bool -> CorePhase b ()
 ctailOptimize penv newtypes gamma useContextPath
   = liftCorePhaseUniq $ \uniq defs -> 
     runUnique uniq (uctailOptimize penv newtypes gamma useContextPath defs)

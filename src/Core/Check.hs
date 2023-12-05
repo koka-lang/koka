@@ -43,7 +43,7 @@ import qualified Type.Operations as Op ( instantiateNoEx )
 
 import qualified Data.Set as S
 
-checkCore :: Bool -> Bool -> Env -> Gamma -> CorePhase ()
+checkCore :: Bool -> Bool -> Env -> Gamma -> CorePhase b ()
 checkCore liberalEffects allowPartialApps prettyEnv gamma
   = do uniq      <- unique
        defGroups <- getCoreDefs

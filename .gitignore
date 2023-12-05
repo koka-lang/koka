@@ -4,7 +4,6 @@
 .DS_Store
 .vs/
 .vscode/
-.koka/
 node_modules/
 out/
 bundle/
@@ -30,3 +29,5 @@ test.kk
 /*.cmake
 bench
 test/bench
+.koka
+scratch

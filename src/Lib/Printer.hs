@@ -10,28 +10,30 @@
     Only the color of 'stdout' is influenced by these functions.
 -}
 -----------------------------------------------------------------------------
-module Lib.Printer( 
+module Lib.Printer(
       -- * Color
       Color(..)
       -- * Printer
-      , Printer( write, writeText, writeLn, writeTextLn, flush, 
+      , Printer( write, writeText, writeLn, writeTextLn, flush,
                   withColor, withBackColor, withReverse, withUnderline
                 --  ,setColor, setBackColor, setReverse, setUnderline 
-                ) 
+                )
       -- * Printers
     , MonoPrinter, withMonoPrinter
-    , ColorPrinter, withColorPrinter, withNoColorPrinter, withFileNoColorPrinter, isAnsiPrinter, isConsolePrinter
+    , ColorPrinter(..), withColorPrinter, withNoColorPrinter, withFileNoColorPrinter, isAnsiPrinter, isConsolePrinter
     , AnsiPrinter, withAnsiPrinter
+    , AnsiStringPrinter(..), HtmlTextPrinter(..)
     , withFilePrinter, withNewFilePrinter
-    , withHtmlPrinter, withHtmlColorPrinter
+    , withHtmlPrinter, withHtmlColorPrinter, withHtmlTextPrinter
       -- * Misc.
     , ansiWithColor
+    , ansiDefault
     , ansiColor
     ) where
 
 import Data.List( intersperse )
 -- import Data.Char( toLower )
-import System.IO  ( hFlush, stdout, hPutStr, hPutStrLn, openFile, IOMode(..), hClose, Handle )  
+import System.IO  ( hFlush, stdout, hPutStr, hPutStrLn, openFile, IOMode(..), hClose, Handle )
 import Platform.Var( Var, newVar, putVar, takeVar )
 import Platform.Runtime( finally )
 import Platform.Config( exeExtension )
@@ -47,7 +49,7 @@ import System.Console.Isocline( withTerm, termWriteLn, termWrite, termFlush )
 
 {--------------------------------------------------------------------------
   Printer
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 -- | A printer is an abstraction for something where we can send
 -- character output to.
 class Printer p where
@@ -69,7 +71,7 @@ class Printer p where
 
 {--------------------------------------------------------------------------
   Interface
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 -- | Available colors on a console. Normally, background colors are
 -- converted to their /dark/ variant.
 data Color  = Black
@@ -95,7 +97,7 @@ data Color  = Black
 
 {--------------------------------------------------------------------------
   Simple monochrome printer
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 
 -- | On windows, we cannot print unicode characters :-(
 sanitize :: String -> String
@@ -135,7 +137,7 @@ instance Printer MonoPrinter where
 
 {--------------------------------------------------------------------------
   Simple file printer
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 -- | File printer
 newtype FilePrinter = FilePrinter Handle
 
@@ -177,7 +179,7 @@ instance Printer FilePrinter where
 
 {--------------------------------------------------------------------------
   Standard ANSI escape sequences
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 -- | Use a color printer that uses ANSI escape sequences.
 withAnsiPrinter :: (AnsiPrinter -> IO a) -> IO a
 withAnsiPrinter f
@@ -186,7 +188,7 @@ withAnsiPrinter f
        finally (f (Ansi ansi)) (do ansiEscapeIO seqReset
                                    hFlush stdout)
 
-ansiDefault 
+ansiDefault
   = AnsiConsole ColorDefault ColorDefault False False
 
 
@@ -214,6 +216,47 @@ instance Printer AnsiPrinter where
   setUnderline p u      = unit $ ansiSetConsole p (\con -> con{ underline = u })
 
 
+data AnsiStringPrinter = AnsiString (Var AnsiConsole) (Var String)
+
+instance Printer AnsiStringPrinter where
+  write (AnsiString c st) s             = do
+    st' <- takeVar st
+    putVar st (st' ++ s)
+  writeText (AnsiString c st) s         = do
+    st' <- takeVar st
+    putVar st (st' ++ T.unpack s)
+  writeLn (AnsiString c st) s           = do
+    st' <- takeVar st
+    putVar st (st' ++ s ++ "\n")
+  writeTextLn (AnsiString c st) s  = do
+    st' <- takeVar st
+    putVar st (st' ++ T.unpack s ++ "\n")
+  flush p               = return () -- hFlush stdout
+  withColor p c io      = ansiStringWithConsole p (\con -> con{ fcolor = c }) io
+  withBackColor p c io  = ansiStringWithConsole p (\con -> con{ bcolor = c }) io
+  withReverse p r io    = ansiStringWithConsole p (\con -> con{ invert = r }) io
+  withUnderline p u io  = ansiStringWithConsole p (\con -> con{ underline = u }) io
+  setColor p c          = unit $ ansiStringSetConsole p (\con -> con{ fcolor = c })
+  setBackColor p c      = unit $ ansiStringSetConsole p (\con -> con{ bcolor = c })
+  setReverse p r        = unit $ ansiStringSetConsole p (\con -> con{ invert = r })
+  setUnderline p u      = unit $ ansiStringSetConsole p (\con -> con{ underline = u })
+
+
+
+ansiStringWithConsole :: AnsiStringPrinter -> (AnsiConsole -> AnsiConsole) -> IO a -> IO a
+ansiStringWithConsole p f io
+  = do old <- ansiStringSetConsole p f
+       finally io (ansiStringSetConsole p (const old))
+
+ansiStringSetConsole :: AnsiStringPrinter -> (AnsiConsole -> AnsiConsole) -> IO AnsiConsole
+ansiStringSetConsole (AnsiString varAnsi varString) f
+  = do con <- takeVar varAnsi
+       let new = f con
+       str <- takeVar varString
+       putVar varString $ str ++ T.unpack (ansiEscape (seqSetConsole con new))
+       putVar varAnsi new
+       return con
+
 -- | Helper function to put a string into a certain color
 ansiWithColor :: Color -> String -> String
 ansiWithColor color s
@@ -229,7 +272,7 @@ unit io
 
 -- Console code
 ansiWithConsole :: AnsiPrinter -> (AnsiConsole -> AnsiConsole) -> IO a -> IO a
-ansiWithConsole p f io 
+ansiWithConsole p f io
   = do old <- ansiSetConsole p f
        finally io (ansiSetConsole p (const old))
 
@@ -246,8 +289,8 @@ ansiEscapeIO xs
   | null xs   = return ()
   | otherwise = termWrite (T.unpack {-T.putStr-} (ansiEscape xs))
 
-                   
-  
+
+
 ansiEscape :: [T.Text] -> T.Text
 ansiEscape xs
   | null xs   = T.empty
@@ -262,19 +305,19 @@ seqSetConsole old new
   where
     reset = concat
             [seqReset
-            ,seqReverse (invert new) 
-            ,seqUnderline (underline new) 
+            ,seqReverse (invert new)
+            ,seqUnderline (underline new)
             ,seqColor False (fcolor new)
             ,seqColor True (bcolor new)]
 
-    diff  = concat 
+    diff  = concat
             [max seqReverse invert
             ,max seqUnderline underline
             ,max (seqColor False) fcolor
             ,max (seqColor True) bcolor
             ]
 
-    max f field 
+    max f field
       = if (field old /= field new) then f (field new) else []
 
 seqReset :: [T.Text]
@@ -300,21 +343,23 @@ seqColor backGround c
 
 
 ansiColor :: Color -> Int
-ansiColor c 
+ansiColor c
   = let i = fromEnum c
-    in if (i < 8) then 30 + i 
+    in if (i < 8) then 30 + i
         else if (i < 16) then 90 + i - 8
          else 39
 
 {--------------------------------------------------------------------------
   Color console code
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 -- | A color printer supports colored output 
 data ColorPrinter = PCon  ConsolePrinter
                   | PAnsi AnsiPrinter
+                  | PAnsiString AnsiStringPrinter
                   | PMono MonoPrinter
                   | PFile FilePrinter
                   | PHTML HtmlPrinter
+                  | PHtmlText HtmlTextPrinter
 
 -- | Use a color-enabled printer.
 withColorPrinter :: (ColorPrinter -> IO b) -> IO b
@@ -343,43 +388,46 @@ withFileNoColorPrinter fname f
 
 -- | Is this an ANSI printer?
 isAnsiPrinter :: ColorPrinter -> Bool
-isAnsiPrinter cp 
+isAnsiPrinter cp
   = case cp of
       PAnsi ansi  -> True
+      PAnsiString ansi -> True
       _           -> False
 
 isConsolePrinter :: ColorPrinter -> Bool
-isConsolePrinter cp 
+isConsolePrinter cp
   = case cp of
       PCon _  -> True
       _       -> False
 
 
 instance Printer ColorPrinter where
-  write p s             = cmap p write write write write write s
-  writeLn p s           = cmap p writeLn writeLn writeLn writeLn writeLn s
-  flush p               = cmap p flush flush flush flush flush
-  withColor p c io      = cmap p withColor withColor withColor withColor withColor c io
-  withBackColor p c io  = cmap p withBackColor withBackColor withBackColor withBackColor withBackColor c io
-  withReverse p r io    = cmap p withReverse withReverse withReverse withReverse withReverse r io
-  withUnderline p u io  = cmap p withUnderline withUnderline withUnderline withUnderline withUnderline u io
-  setColor p c          = cmap p setColor setColor setColor setColor setColor c
-  setBackColor p c      = cmap p setBackColor setBackColor setBackColor setBackColor setBackColor c
-  setReverse p r        = cmap p setReverse setReverse setReverse setReverse setReverse r
-  setUnderline p u      = cmap p setUnderline setUnderline setUnderline setUnderline setUnderline u
-  
-cmap p f g h i j
+  write p s             = cmap p write write write write write write write s
+  writeLn p s           = cmap p writeLn writeLn writeLn writeLn writeLn writeLn writeLn s
+  flush p               = cmap p flush flush flush flush flush flush flush
+  withColor p c io      = cmap p withColor withColor withColor withColor withColor withColor withColor c io
+  withBackColor p c io  = cmap p withBackColor withBackColor withBackColor withBackColor withBackColor withBackColor withBackColor c io
+  withReverse p r io    = cmap p withReverse withReverse withReverse withReverse withReverse withReverse withReverse r io
+  withUnderline p u io  = cmap p withUnderline withUnderline withUnderline withUnderline withUnderline withUnderline withUnderline u io
+  setColor p c          = cmap p setColor setColor setColor setColor setColor setColor setColor c
+  setBackColor p c      = cmap p setBackColor setBackColor setBackColor setBackColor setBackColor setBackColor setBackColor c
+  setReverse p r        = cmap p setReverse setReverse setReverse setReverse setReverse setReverse setReverse r
+  setUnderline p u      = cmap p setUnderline setUnderline setUnderline setUnderline setUnderline setUnderline setUnderline u
+
+cmap p f g h i j k l
   = case p of
-      PCon  cp -> f cp 
-      PAnsi ap -> g ap 
+      PCon  cp -> f cp
+      PAnsi ap -> g ap
       PMono mp -> h mp
       PFile fp -> i fp
       PHTML hp -> j hp
+      PAnsiString as -> k as
+      PHtmlText ht -> l ht
 
 
 {--------------------------------------------------------------------------
   Windows console code
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 -- | Windows console printer
 newtype ConsolePrinter = ConsolePrinter ()
 
@@ -391,7 +439,7 @@ instance Printer ConsolePrinter where
   flush p               = hFlush stdout
   withColor p c io      = Con.bracketConsole (do Con.setColor c; io)
   withBackColor p c io  = Con.bracketConsole (do Con.setBackColor c; io)
-  withReverse p r io    = Con.bracketConsole (do Con.setReverse r; io) 
+  withReverse p r io    = Con.bracketConsole (do Con.setReverse r; io)
   withUnderline p u io  = Con.bracketConsole (do Con.setUnderline u; io)
   setColor p c          = Con.setColor c
   setBackColor p c      = Con.setBackColor c
@@ -401,7 +449,7 @@ instance Printer ConsolePrinter where
 
 {--------------------------------------------------------------------------
   HTML printer
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 data HtmlPrinter = HtmlPrinter ()
 
 withHtmlPrinter :: (HtmlPrinter -> IO a) -> IO a
@@ -423,6 +471,39 @@ instance Printer HtmlPrinter where
   setReverse p r        = return ()
   setUnderline p u      = return ()
 
+
+{--------------------------------------------------------------------------
+  HTML Text printer
+--------------------------------------------------------------------------}
+data HtmlTextPrinter = HtmlTextPrinter (Var T.Text)
+
+withHtmlTextPrinter :: (HtmlTextPrinter -> IO a) -> IO a
+withHtmlTextPrinter f
+  = do
+    stringVar <- newVar (T.pack "")
+    f (HtmlTextPrinter stringVar)
+
+addHtml :: HtmlTextPrinter -> T.Text -> IO ()
+addHtml (HtmlTextPrinter stringVar) s = do
+  old <- takeVar stringVar
+  putVar stringVar (old <> s)
+
+instance Printer HtmlTextPrinter where
+  write p s             = addHtml p $ T.pack $ htmlEscape s
+  writeText p s         = addHtml p s
+  writeLn p s           = addHtml p $ T.pack $ htmlEscape (s ++ "\n")
+  writeTextLn p s       = addHtml p (s <> T.pack "\n")
+  flush p               = return ()
+  withColor p c io      = htmlTextSpan p (T.pack "color") (htmlColor2 c) io
+  withBackColor p c io  = htmlTextSpan p (T.pack "background-color") (htmlColor2 c) io
+  withReverse p r io    = {- no supported -} io
+  withUnderline p u io  = htmlTextSpan p (T.pack "text-decoration") (T.pack "underline") io
+  setColor p c          = return ()
+  setBackColor p c      = return ()
+  setReverse p r        = return ()
+  setUnderline p u      = return ()
+
+
 htmlSpan :: T.Text -> T.Text -> IO a -> IO a
 htmlSpan prop val io
   = do T.putStr $ T.pack "<span style='"
@@ -434,11 +515,41 @@ htmlSpan prop val io
        T.putStr $ T.pack "</span>"
        return x
 
+htmlTextSpan :: HtmlTextPrinter -> T.Text -> T.Text -> IO a -> IO a
+htmlTextSpan p prop val io
+  = do 
+    addHtml p (T.pack "<span style='" <> prop <> T.pack ":" <> val <> T.pack ";'>")
+    x <- io
+    addHtml p (T.pack "</span>")
+    return x
+  
 htmlColor :: Color -> T.Text
 htmlColor c
-  = case c of 
+  = case c of
       ColorDefault  -> T.pack "black"
       _             -> T.toLower (T.pack $ show c)
+
+-- VSCode sanitizes spans to only allow colors with hex codes
+htmlColor2 :: Color -> T.Text
+htmlColor2 c
+  = case c of
+      ColorDefault  -> T.pack "#000000"
+      Black -> T.pack "#000000"
+      White -> T.pack "#ffffff"
+      DarkRed -> T.pack "#8B0000"
+      DarkGreen -> T.pack "#006400"
+      DarkYellow -> T.pack "#8B8000"
+      DarkBlue -> T.pack "#00008B"
+      DarkMagenta -> T.pack "#8B008B"
+      DarkCyan -> T.pack "#008B8B"
+      Gray -> T.pack "#808080"
+      DarkGray -> T.pack "#A9A9A9"
+      Red -> T.pack "#FF0000"
+      Green -> T.pack "#008000"
+      Yellow -> T.pack "#FFFF00"
+      Blue -> T.pack "#0000FF"
+      Magenta -> T.pack "#FF00FF"
+      Cyan -> T.pack "#00FFFF"
 
 htmlEscape s
   = concatMap escape s

@@ -49,7 +49,7 @@ trace s x =
 
 
 
-inlineDefs :: Pretty.Env -> Int -> Inlines -> CorePhase ()
+inlineDefs :: Pretty.Env -> Int -> Inlines -> CorePhase b ()
 inlineDefs penv inlineMax inlines
   = liftCorePhaseUniq $ \uniq defs ->
     runInl penv inlineMax uniq inlines  $

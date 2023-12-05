@@ -53,7 +53,7 @@ trace s x =
     x
 
 
-checkFBIP :: Pretty.Env ->  Platform -> Newtypes -> Borrowed -> Gamma -> CorePhase ()
+checkFBIP :: Pretty.Env ->  Platform -> Newtypes -> Borrowed -> Gamma -> CorePhase b ()
 checkFBIP penv platform newtypes borrowed gamma
   = do uniq      <- unique
        defGroups <- getCoreDefs

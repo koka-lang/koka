@@ -273,7 +273,7 @@ loadFilesErr term startSt fileNames force
        -}
        walk [] startSt fileNames
   where
-    walk :: [Module] -> State -> [FilePath] -> IO (Error State)
+    walk :: [Module] -> State -> [FilePath] -> IO (Error b State)
     walk imports st files
       = case files of
           []  -> do if (not (null imports) && verbose (flags st) > 0)
@@ -292,12 +292,12 @@ loadFilesErr term startSt fileNames force
                              then compileFile term (flags st) (loadedModules (loaded0 st)) Object fname
                              else compileModule term (flags st) (loadedModules (loaded0 st)) (newName fname)
                              -}
-                             compileModuleOrFile term (flags st) [] {- (loadedModules (loaded0 st)) -} fname force
+                             compileModuleOrFile (const Nothing) Nothing term (flags st) [] [] {- (loadedModules (loaded0 st)) -} fname force Object []
                    ; case checkError err of
                        Left msg
                           -> do messageErrorMsgLnLn st msg
                                 return (errorMsg msg)
-                       Right (ld,warnings)
+                       Right ((ld, _), warnings)
                           -> do{ -- let warnings = modWarnings (loadedModule ld)
                                ; err <- if not (null warnings)
                                          then do let msg = ErrorWarning warnings ErrorZero
@@ -352,14 +352,14 @@ docNotFound cscheme path name
 {--------------------------------------------------------------------------
   Helpers
 --------------------------------------------------------------------------}
-checkInfer ::  State -> Bool -> Error Loaded -> (Loaded -> IO ()) -> IO ()
+checkInfer ::  State -> Bool -> Error b Loaded -> (Loaded -> IO ()) -> IO ()
 checkInfer st = checkInferWith st "" id
 checkInfer2 st = checkInferWith st "" (\(a,c) -> c)
 
-checkInfer3 ::  State -> String -> Bool -> Error (a,b,Loaded) -> ((a,b,Loaded) -> IO ()) -> IO ()
+checkInfer3 ::  State -> String -> Bool -> Error b (a,b,Loaded) -> ((a,b,Loaded) -> IO ()) -> IO ()
 checkInfer3 st line = checkInferWith st line (\(a,b,c) -> c)
 
-checkInferWith ::  State -> String -> (a -> Loaded) -> Bool -> Error a -> (a -> IO ()) -> IO ()
+checkInferWith ::  State -> String -> (a -> Loaded) -> Bool -> Error b a -> (a -> IO ()) -> IO ()
 checkInferWith st line  getLoaded showMarker err f
   = case checkError err of
       Left msg  -> do when showMarker (maybeMessageMarker st (getRange msg))

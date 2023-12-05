@@ -14,7 +14,7 @@ module Common.Range
           ( Pos, makePos, minPos, maxPos, posColumn, posLine, posOfs
           , posMove8, posMoves8, posNull
           , Range, showFullRange
-          , makeRange, rangeNull, combineRange, rangeEnd, rangeStart
+          , makeRange, rangeNull, combineRange, rangeEnd, rangeStart, rangeLength
           , Ranged( getRange ), combineRanged
           , combineRangeds, combineRanges, extendRange
           , Source(Source,sourceName, sourceBString), sourceText, sourceFromRange
@@ -274,6 +274,10 @@ rangeStart (Range p1 p2)  = p1
 -- | Return the end position of a range
 rangeEnd :: Range -> Pos
 rangeEnd   (Range p1 p2)  = p2
+
+-- | Return the length of a range
+rangeLength :: Range -> Int
+rangeLength (Range p1 p2) = posOfs p2 - posOfs p1
 
 -- | Return the source of a range
 rangeSource :: Range -> Source

@@ -55,7 +55,7 @@ data ColorScheme  = ColorScheme
                       , colorTypeSpecial :: Color
                       , colorTypeParam  :: Color
                       , colorNameQual   :: Color
-                      }
+                      } deriving (Show)
 
 -- | The default color scheme
 defaultColorScheme, darkColorScheme, lightColorScheme :: ColorScheme

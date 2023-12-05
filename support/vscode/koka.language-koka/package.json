@@ -1,84 +1,223 @@
 {
-	"name": "language-koka",
-	"displayName": "Koka Syntax Highlighting",
-	"description": "Official syntax support for the Koka programming language.",
-	"version": "2.0.5",
-	"publisher": "koka",
-	"engines": {
-		"vscode": "^1.0.0"
-	},
-	"icon": "images/koka-logo-filled.png",
-	"galleryBanner": {
-		"color": "#293845",
-		"theme": "dark"
-	},
-	"files": [
-		"syntaxes/*.json",
-		"images/",
-		"README.md"
-	],
-	"keywords": [
-		"koka",
-		"effect",
-		"handler",
+  "name": "language-koka",
+  "displayName": "Koka Syntax Highlighting",
+  "description": "Official syntax support for the Koka programming language.",
+  "version": "2.4.3",
+  "publisher": "koka",
+  "engines": {
+    "vscode": ">=1.81.0"
+  },
+  "icon": "images/koka-logo-filled.png",
+  "galleryBanner": {
+    "color": "#293845",
+    "theme": "dark"
+  },
+  "files": [
+    "syntaxes/*.json",
+    "images/",
+    "README.md"
+  ],
+  "keywords": [
+    "koka",
+    "effect",
+    "handler",
     "koka-lang"
-	],
-	"license": "MIT",
-	"homepage": "https://koka-lang.github.io",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/koka-lang/koka"
-	},
-	"bugs": {
-		"url": "https://github.com/koka-lang/koka/issues"
-	},
-	"categories": [
-		"Programming Languages"
-	],
+  ],
+  "license": "MIT",
+  "homepage": "https://koka-lang.github.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/koka-lang/koka"
+  },
+  "bugs": {
+    "url": "https://github.com/koka-lang/koka/issues"
+  },
+  "categories": [
+    "Programming Languages",
+    "Debuggers"
+  ],
+  "main": "./out/extension",
+  "activationEvents": [
+    "workspaceContains:**/*.kk"
+  ],
   "contributes": {
-		"configuration": {
-			"type": "object",
-			"title": "Koka configuration",
-			"properties": {
-				"koka.indentationRules.enabled": {
-					"type": "boolean",
-					"default": true,
-					"description": "Set to 'false' to disable automatically increasing indent on newlines after '{', 'match' etc."
-				}
-			}
-		},
+    "languages": [
+      {
+        "id": "koka",
+        "aliases": [
+          "Koka",
+          "koka-lang"
+        ],
+        "extensions": [
+          ".kk",
+          ".kki",
+          ".kkc"
+        ],
+        "configuration": "./koka-configuration.json",
+        "icon": {
+          "light": "./images/koka-logo-filled-blue.svg",
+          "dark": "./images/koka-logo-filled-blue.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "koka",
+        "scopeName": "source.koka",
+        "path": "./syntaxes/koka.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Koka",
+      "properties": {
+        "koka.indentationRules.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Set to 'false' to disable automatically increasing indent on newlines after '{', 'match' etc."
+        },
+        "koka.languageServer.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Set to 'true' to enable smarter language support (e.g. hover, code completion, ...) for Koka. Requires specifying the path to the Koka compiler under 'koka.languageServer.path'."
+        },
+        "koka.languageServer.kokaExecutable": {
+          "type": "string",
+          "default": null,
+          "description": "The command to launch the Koka language server (by default the extension assumes that 'koka' is on your PATH)"
+        },
+        "koka.languageServer.additionalArgs": {
+          "type": "string",
+          "default": null,
+          "description": "Additional arguments to send to the compiler when starting the language server"
+        },
+        "koka.languageServer.cwd": {
+          "type": "string",
+          "default": "",
+          "description": "If specified, the directory in which the language server will be executed."
+        },
+        "koka.debugExtension": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to log stdin / stdout trace information from the language server subprocess."
+        },
+        "koka.languageServer.trace.server": {
+          "scope": "window",
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server."
+        }
+      }
+    },
     "configurationDefaults": {
       "[koka]": {
         "editor.tabSize": 2,
         "editor.insertSpaces": true
       }
     },
-		"languages": [
-			{
-				"id": "koka",
-				"aliases": [
-					"Koka",
-					"koka-lang"
-				],
-				"extensions": [
-					".kk",
-					".kki",
-					".kkc"
-				],
-				"configuration": "./koka-configuration.json"
-			}
-		],
-		"grammars": [
-			{
-				"language": "koka",
-				"scopeName": "source.koka",
-				"path": "./syntaxes/koka.json"
-			}			
-		]
-	},
-	"scripts": {
-	},
-	"devDependencies": {
-		"vscode": "^1.0.0"
-	}
+    "commands": [
+      {
+        "command": "koka.restartLanguageServer",
+        "title": "Koka: Restart Language Server"
+      },
+      {
+        "command": "koka.downloadLatest",
+        "title": "Koka: Download and Install Latest Version"
+      },
+      {
+        "command": "koka.uninstall",
+        "title": "Koka: Uninstall System SDK"
+      },
+      {
+        "command": "koka.startWithoutDebugging",
+        "title": "Koka: Run current file"
+      },
+      {
+        "command": "koka.selectTarget",
+        "title": "Koka: Set compilation target"
+      },
+      {
+        "command": "koka.selectSDK",
+        "title": "Koka: Set sdk path"
+      },
+      {
+        "command": "koka.showLSPOutput",
+        "title": "Koka: Show Language Server Output"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "koka",
+        "label": "Koka Debugger",
+        "runtime": "node",
+        "languages": [
+          "koka"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "File to run the main function from",
+                "default": "${workspaceFolder}/${command:AskForProgramName}"
+              },
+              "args": {
+                "type": "string",
+                "description": "Additional args to pass to the compiler (separate by -- to pass args to the program)"
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "name": "Debug Koka Program",
+            "type": "koka",
+            "request": "launch",
+            "program": ""
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Koka: Run",
+            "description": "Compile and run a Koka program",
+            "body": {
+              "type": "koka",
+              "request": "launch",
+              "program": "${0}",
+              "name": "${0}"
+            }
+          }
+        ],
+        "variables": {
+          "AskForProgramName": "extension.language-koka.getProgramName"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.6",
+    "@types/vscode": "1.81.0",
+    "@vscode/vsce": "^2.22.0",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@vscode/debugadapter": "^1.61.0",
+    "@vscode/debugprotocol": "^1.61.0",
+    "await-notify": "1.0.1",
+    "vscode-languageclient": "^8.1.0"
+  }
 }

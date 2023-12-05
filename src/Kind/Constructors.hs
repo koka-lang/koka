@@ -15,7 +15,7 @@ module Kind.Constructors( -- * Constructors
                           , constructorsExtend, constructorsLookup, constructorsFind
                           , constructorsIsEmpty
                           , constructorsFindScheme
-                          , constructorsSet
+                          , constructorsSet, constructorsList
                           , constructorsCompose, constructorsFromList
                           , extractConstructors                          
                             -- * Pretty
@@ -78,6 +78,9 @@ constructorsSet :: Constructors -> S.NameSet
 constructorsSet (Constructors m)
   = S.fromList (M.keys m)
 
+constructorsList :: Constructors -> [(Name, ConInfo)]
+constructorsList (Constructors m)
+  = M.toList m
 
 {--------------------------------------------------------------------------
   Pretty printing

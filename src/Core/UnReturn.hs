@@ -47,7 +47,7 @@ trace s x =
    -- Lib.Trace.trace s
     x
 
-unreturn :: Pretty.Env -> CorePhase ()
+unreturn :: Pretty.Env -> CorePhase b ()
 unreturn penv 
   = liftCorePhaseUniq $ \uniq defs -> runUR penv uniq (urTopDefGroups defs)
 

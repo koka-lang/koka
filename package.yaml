@@ -19,15 +19,24 @@ description: Please see the README on GitHub at <https://github.com/koka-lang/ko
 
 dependencies:
   - base >= 4.9
+  - aeson
   - array
+  - async
   - bytestring
   - containers
+  - co-log-core
   - directory
+  - lens
+  - lsp
   - mtl
   - parsec
   - process
+  - stm
   - text
+  - text-rope
   - time
+  - network-simple
+  - network
   - isocline >= 1.0.6
   
 executables:
@@ -48,8 +57,11 @@ executables:
     build-tools:
       - alex
     ghc-options:
-      - -rtsopts 
+      - -rtsopts
       - -j8
+      - -O2
+      - -threaded
+      - '"-with-rtsopts=-N8"'
     cpp-options:
       - -DKOKA_MAIN="koka"      
       - -DKOKA_VARIANT="release"

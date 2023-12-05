@@ -36,7 +36,7 @@ importsExtend name fullName imp
   = let rpath = reverse $ splitModuleName name in
     case lookup rpath imp of
       Nothing -> Just ((rpath,fullName):imp)
-      Just _  -> Nothing
+      Just fullName1  -> if fullName == fullName1 then Just imp else Nothing
 
 -- | @importsExpand name map@ takes a qualified name (@core/int@) and expands
 -- it to its real fully qualified name (@std/core/int@). It also returns

@@ -18,12 +18,14 @@ module Compiler.Options( -- * Command line options
                        , colorSchemeFromFlags
                        , prettyIncludePath
                        , isValueFromFlags
+                       , updateFlagsFromArgs
                        , CC(..), BuildType(..), ccFlagsBuildFromFlags
                        , buildType, unquote
                        , outName, fullBuildDir, buildVariant
                        , cpuArch, osName
                        , optionCompletions
                        , targetExeExtension
+                       , targets
                        , conanSettingsFromFlags
                        , vcpkgFindRoot
                        , onWindows, onMacOS
@@ -83,11 +85,13 @@ prettyIncludePath flags
 data Mode
   = ModeHelp
   | ModeVersion
-  | ModeCompiler    { files :: [FilePath] }
-  | ModeInteractive { files :: [FilePath] }
+  | ModeCompiler       { files :: [FilePath] }
+  | ModeInteractive    { files :: [FilePath] }
+  | ModeLanguageServer { files :: [FilePath] }
 
 data Option
   = Interactive
+  | LanguageServer
   | Version
   | Help
   | Flag (Flags -> Flags)
@@ -165,6 +169,8 @@ data Flags
          , coreCheck        :: Bool
          , enableMon        :: Bool
          , semiInsert       :: Bool
+         , genRangeMap      :: Bool
+         , languageServerPort :: Int
          , localBinDir      :: FilePath  -- directory of koka executable
          , localDir         :: FilePath  -- install prefix: /usr/local
          , localLibDir      :: FilePath  -- precompiled object files: <prefix>/lib/koka/v2.x.x  /<cc>-<config>/libkklib.a, /<cc>-<config>/std_core.kki, ...
@@ -261,6 +267,8 @@ flagsNull
           False -- coreCheck
           True  -- enableMonadic
           True  -- semi colon insertion
+          False -- generate range map
+          6061  -- language server port
           ""    -- koka executable dir
           ""    -- prefix dir (default: <program-dir>/..)
           ""    -- localLib dir
@@ -292,6 +300,9 @@ isVersion _      = False
 isInteractive Interactive = True
 isInteractive _ = False
 
+isLanguageServer LanguageServer = True
+isLanguageServer _ = False
+
 isValueFromFlags flags
  = dataInfoIsValue
 
@@ -308,6 +319,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  [ option ['?','h'] ["help"]            (NoArg Help)                "show this information"
  , option []    ["version"]         (NoArg Version)                 "show the compiler version"
  , option ['p'] ["prompt"]          (NoArg Interactive)             "interactive mode"
+ , option []    ["language-server"] (NoArg LanguageServer)          "language server mode"
  , flag   ['e'] ["execute"]         (\b f -> f{evaluate= b})        "compile and execute"
  , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute (default)"
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to module search path (empty resets)"
@@ -388,6 +400,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})    "enable inline specialization"
  , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
  , hide $ fflag       ["eagerpatbind"] (\b f -> f{optEagerPatBind=b}) "load pattern fields as early as possible"
+ , numOption 6061 "port" [] ["lsport"]    (\i f -> f{languageServerPort=i}) "Language Server port to connect to"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
@@ -439,24 +452,6 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   configstr short long opts argDesc f desc
     = config short long (map (\s -> (s,s)) opts) argDesc f desc
-
-
-  targets :: [(String,Flags -> Flags)]
-  targets =
-    [("c",      \f -> f{ target=C LibC, platform=platform64 }),
-     ("c64",    \f -> f{ target=C LibC, platform=platform64 }),
-     ("c32",    \f -> f{ target=C LibC, platform=platform32 }),
-     ("c64c",   \f -> f{ target=C LibC, platform=platform64c }),
-     ("js",     \f -> f{ target=JS JsNode, platform=platformJS }),
-     ("jsnode", \f -> f{ target=JS JsNode, platform=platformJS }),
-     ("jsweb",  \f -> f{ target=JS JsWeb, platform=platformJS }),
-     ("wasm",   \f -> f{ target=C Wasm, platform=platform32 }),
-     ("wasm32", \f -> f{ target=C Wasm, platform=platform32 }),
-     ("wasm64", \f -> f{ target=C Wasm, platform=platform64 }),
-     ("wasmjs", \f -> f{ target=C WasmJs, platform=platform32 }),
-     ("wasmweb",\f -> f{ target=C WasmWeb, platform=platform32 }),
-     ("cs",     \f -> f{ target=CS, platform=platformCS })
-    ]
 
   targetFlag t f
     = case lookup t targets of
@@ -593,6 +588,23 @@ readHtmlBases s
              (_:post) -> (pre,post)
              _        -> ("",xs)
 
+targets :: [(String,Flags -> Flags)]
+targets =
+    [("c",      \f -> f{ target=C LibC, platform=platform64 }),
+     ("c64",    \f -> f{ target=C LibC, platform=platform64 }),
+     ("c32",    \f -> f{ target=C LibC, platform=platform32 }),
+     ("c64c",   \f -> f{ target=C LibC, platform=platform64c }),
+     ("js",     \f -> f{ target=JS JsNode, platform=platformJS }),
+     ("jsnode", \f -> f{ target=JS JsNode, platform=platformJS }),
+     ("jsweb",  \f -> f{ target=JS JsWeb, platform=platformJS }),
+     ("wasm",   \f -> f{ target=C Wasm, platform=platform32 }),
+     ("wasm32", \f -> f{ target=C Wasm, platform=platform32 }),
+     ("wasm64", \f -> f{ target=C Wasm, platform=platform64 }),
+     ("wasmjs", \f -> f{ target=C WasmJs, platform=platform32 }),
+     ("wasmweb",\f -> f{ target=C WasmWeb, platform=platform32 }),
+     ("cs",     \f -> f{ target=CS, platform=platformCS })
+    ]
+
 -- | Environment table
 environment :: [ (String, String, (String -> [String]), String) ]
 environment
@@ -632,6 +644,18 @@ getOptions extra
        args <- getArgs
        processOptions flagsNull (env ++ words extra ++ args)
 
+updateFlagsFromArgs :: Flags -> String -> Maybe Flags
+updateFlagsFromArgs flags0 args =
+  let 
+    (preOpts,postOpts) = span (/="--") (words args)
+    flags1 = case postOpts of
+                   [] -> flags0
+                   (_:rest) -> flags0{ execOpts = concat (map (++" ") rest) }
+    (options,files,errs0) = getOpt Permute optionsAll preOpts
+    errs = errs0 ++ extractErrors options
+    in if (null errs)
+        then Just $ extractFlags flags1 options else Nothing
+
 processOptions :: Flags -> [String] -> IO (Flags,Flags,Mode)
 processOptions flags0 opts
   = let (preOpts,postOpts) = span (/="--") opts
@@ -645,6 +669,7 @@ processOptions flags0 opts
                  mode = if (any isHelp options) then ModeHelp
                         else if (any isVersion options) then ModeVersion
                         else if (any isInteractive options) then ModeInteractive files
+                        else if (any isLanguageServer options) then ModeLanguageServer files
                         else if (null files) then ModeInteractive files
                                              else ModeCompiler files                 
                  flags = case mode of 
@@ -720,7 +745,9 @@ processOptions flags0 opts
                                   useStdAlloc = stdAlloc,
                                   editor      = ed,
                                   includePath = (localShareDir ++ "/lib") : includePath flags,
+                                  genRangeMap = outHtml flags > 0 || any isLanguageServer options,
                                   vcpkgTriplet= triplet
+                                  
 
                                   {-
                                   vcpkgRoot   = vcpkgRoot,

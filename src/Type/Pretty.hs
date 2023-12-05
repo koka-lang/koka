@@ -192,8 +192,9 @@ ppSchemeEffect env tp
 
 prettyDefFunType :: Env -> [ParamInfo] -> Scheme -> Doc
 prettyDefFunType env pinfos tp 
-  = let (Just params,pre,post) = ppDeclType env pinfos tp
-    in pre <.> parens (commaSep (map ppParam params)) <+> text "->" <+> post
+  = case ppDeclType env pinfos tp of
+      (Just params,pre,post) -> pre <.> parens (commaSep (map ppParam params)) <+> text "->" <+> post
+      (Nothing,pre,post) -> pre <+> text "()" <+> text "->" <+> post
   where
     ppParam (name,pinfo,tpDoc)  
       = (case pinfo of Borrow -> text "^" <+> (if nameNil == name then text "_" else ppName env name) <+> text ": "

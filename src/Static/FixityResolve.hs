@@ -31,7 +31,7 @@ import Common.Range
 import Common.Syntax
 import Syntax.Syntax
 
-fixityResolve :: ColorScheme -> Fixities -> UserProgram -> Error (UserProgram,Fixities)
+fixityResolve :: ColorScheme -> Fixities -> UserProgram -> Error b (UserProgram,Fixities)
 fixityResolve cscheme fixMap (Program source modName nameRange tdgroups defs importdefs externals fixdefs doc)
   = let fixMap1 = fixitiesCompose fixMap (extractFixMap fixdefs)
     in  do defs1 <- runFixM fixMap1 (resolveDefs defs)
@@ -164,7 +164,7 @@ fixitiesNew fs
 data FixM a = FixM (Fixities -> Res a)
 data Res a  = Res !a ![(Range,Doc)]
 
-runFixM :: Fixities -> FixM a -> Error a
+runFixM :: Fixities -> FixM a -> Error b a
 runFixM fixities (FixM f)
   = case f fixities of
       Res x errors -> if null errors then return x else errorMsg (ErrorStatic errors)

@@ -82,7 +82,7 @@ traceDoc fdoc = do penv <- getPrettyEnv
   Infer Types
 --------------------------------------------------------------------------}
 inferTypes :: Env -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -> ImportMap -> Gamma -> Name -> DefGroups Type
-                -> Core.CorePhase (Gamma, Core.DefGroups, Maybe RM.RangeMap )
+                -> Core.CorePhase b (Gamma, Core.DefGroups, Maybe RM.RangeMap )
 inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context defs
   = -- error "Type.Infer.inferTypes: not yet implemented"
     -- return (gamma0,[],uniq0)
@@ -1022,6 +1022,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                           OpControlRaw -> let eff0 = effectExtend heff eff
                                               resumeContextTp = typeResumeContext resumeArg eff eff0 res
                                           in (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") (Just resumeContextTp) () hrng patRng])
+                          OpControlErr -> failure "Type.Infer.inferHandler: using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'brk', or 'ctl' instead."
                           -- _            -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                  -- traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
                  (_,gtp,_) <- resolveFunName (if isQualified opName then opName else qualify (qualifier effectName) opName)
@@ -1331,7 +1332,7 @@ inferApp propagated expect fun nargs rng
                                     cargs = [Core.Var (Core.TName var (Core.typeOf arg)) Core.InfoNone | (var,(_,arg)) <- vargs]
                                 if (Core.isTotal fcore)
                                 then return (Core.makeLet defs (coreApp fcore cargs))
-                                else do fname <- uniqueName "fun"
+                                else do fname <- uniqueName "fct"
                                         let fdef = Core.DefNonRec (Core.Def fname ftp fcore Core.Private (defFun [] {-all own, TODO: maintain borrow annotations?-}) InlineAuto rangeNull "")
                                             fvar = Core.Var (Core.TName fname ftp) Core.InfoNone
                                         return (Core.Let (fdef:defs) (coreApp fvar cargs))

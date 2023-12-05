@@ -305,7 +305,8 @@ readTextFile :: FilePath -> IO (Maybe String)
 readTextFile fpath
   = B.exCatch (do content <- readFile fpath
                   return (if null content then Just content else (seq (last content) $ Just content)))
-              (\exn -> return Nothing)
+              (\exn -> -- trace ("reading file " ++ fpath ++ " exception: " ++ exn) 
+                   return Nothing)
 
 writeTextFile :: FilePath -> String -> IO ()
 writeTextFile fpath content

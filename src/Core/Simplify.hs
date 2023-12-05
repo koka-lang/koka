@@ -40,7 +40,7 @@ import qualified Data.Set as S
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
 
-simplifyDefs :: Pretty.Env -> Bool -> Bool -> Int -> Int -> CorePhase ()
+simplifyDefs :: Pretty.Env -> Bool -> Bool -> Int -> Int -> CorePhase b ()
 simplifyDefs penv unsafe ndebug nRuns duplicationMax
   = liftCorePhaseUniq $ \uniq defs ->
     runSimplify unsafe ndebug duplicationMax uniq penv (simplifyN nRuns (uniquefyDefBodies defs))

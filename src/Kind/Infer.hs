@@ -79,7 +79,7 @@ inferKinds
   -> Synonyms         -- ^ Initial list of synonyms
   -> Newtypes         -- ^ Initial list of data types
   -> Program UserType UserKind  -- ^ Original program
-  -> Core.CorePhase 
+  -> Core.CorePhase b
            ( DefGroups Type       --  Translated program (containing translated types)
            -- , Gamma                --  Gamma containing generated functions, i.e type scheme for every constructor
            , KGamma               --  updated kind gamma
