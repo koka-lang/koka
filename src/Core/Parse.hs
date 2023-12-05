@@ -179,9 +179,9 @@ semisEnv env p
         return (reverse xs,env0)
 
 vispub :: LexParser Visibility
-vispub 
+vispub
   = do keyword "pub"
-       return Public  
+       return Public
   <|>
     return Private
 
@@ -268,7 +268,7 @@ conDecl tname foralls sort env
        tp     <- typeAnnot env2
        let params2 = [(if nameIsNil name then newFieldName i else name, tp) | ((name,tp),i) <- zip params [1..]]
            orderedFields = []  -- no need to reconstruct as it is only used during codegen?
-       let con = (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False 
+       let con = (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False
                              orderedFields vrepr vis doc)
        -- trace (show con ++ ": " ++ show params2) $
        return con
@@ -297,7 +297,7 @@ parseTypeMod
  <?> ""
 
 parseValueRepr :: LexParser ValueRepr
-parseValueRepr 
+parseValueRepr
   = braced $ do (raw,_) <- integer
                 comma
                 (scan,_) <- integer
@@ -356,7 +356,7 @@ externDecl env
        keyword ":"
        (tp,pinfos) <- pdeftype env
        formats <- externalBody
-       return (External (qualify (modName env) name) tp pinfos formats vis fip rangeNull doc)  
+       return (External (qualify (modName env) name) tp pinfos formats vis fip rangeNull doc)
 
 
 externalBody :: LexParser [(Target,String)]
@@ -392,7 +392,7 @@ externalTarget
 externImportDecl ::  LexParser External
 externImportDecl
   = do try $ do keyword "extern"
-                keyword "import"                
+                keyword "import"
        entries <- externalImportBody
        return (ExternalImport entries rangeNull)
 
@@ -431,16 +431,16 @@ inlineDef env
 inlineDefSort
   = do isRec <- do{ specialId "recursive"; return True } <|> return False
        inl <- parseInline
-       spec <- do specialId "specialize" 
+       spec <- do specialId "specialize"
                   (s,_) <- stringLit
-                  return [c == '*' | c <- s] 
+                  return [c == '*' | c <- s]
                <|> return []
        pinfos <- do specialId "borrow"
                     (s,_) <- stringLit
-                    return [if c == '^' then Borrow else Own | c <- s] 
+                    return [if c == '^' then Borrow else Own | c <- s]
                  <|> return []
        (do fip <- try parseFip
-           (_,doc) <- dockeyword "fun"           
+           (_,doc) <- dockeyword "fun"
            return (DefFun pinfos fip,inl,isRec,spec,doc)
         <|>
         do (_,doc) <- dockeyword "val"
@@ -488,12 +488,12 @@ parseLet env
        let defs = [def | DefNonRec def <- dgs]
        expr <- parseExpr env'
        return (Let [DefRec defs] expr)
-  <|> 
+  <|>
     -}
     do (env',dgs) <- parseDefGroups env
        expr <- parseExpr env'
        return (Let dgs expr)
-  
+
 
 parseForall :: Env -> LexParser Expr
 parseForall env
@@ -686,7 +686,7 @@ qualifiedConId
 
 
 parameters :: Env -> LexParser (Env, [(Name,Type)])
-parameters env 
+parameters env
   = do iparams <- parensCommas (parameter env False)
                    <|> return []
        let (params,pinfos) = unzip iparams
@@ -697,7 +697,7 @@ parameter :: Env -> Bool -> LexParser ((Name,Type),ParamInfo)
 parameter env allowBorrow
   = do (name,pinfo) <-  try (do pinfo <- if allowBorrow then paramInfo else return Own
                                 (name,_) <- paramid
-                                keyword ":" 
+                                keyword ":"
                                 return (name,pinfo))
                         <|> return (nameNil,Own)
        (do specialOp "?"
@@ -810,7 +810,7 @@ tarrow env allowBorrow
              <|>
              do tp <- extract params "unexpected parameters not followed by an ->"
                 t <- ptypeApp env tp
-                return (t, pinfos)                   
+                return (t, pinfos)
          Right tp
           -> return (tp, [])
 
@@ -1054,9 +1054,4 @@ envLookupVar env name
     [fun@(InfoFun{})] -> return $ coreExprFromNameInfo name fun
     [val@(InfoVal{})] -> return $ coreExprFromNameInfo name val
     [extern@(Type.Assumption.InfoExternal{})] -> return $ coreExprFromNameInfo name extern
-    [] | name == nameFieldAddrOf -> return $ Var (TName nameFieldAddrOf funType) (Core.Core.InfoExternal [])
-     where
-        funType = TForall [a] [] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
-                                      typeTotal (TApp typeFieldAddr [TVar a]))
-        a = TypeVar 0 kindStar Bound
     res               -> fail $ "unknown identifier: " ++ showPlain name ++ ": " ++ show res --  ++ ":\n" ++ show (gamma env)

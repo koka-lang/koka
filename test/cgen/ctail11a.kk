@@ -15,6 +15,6 @@ pub fun main()
   with fun select(i : int )
          println(i)
          i.is-odd
-  val (odds,evens) = list(1,10).partition(select)
+  val (odds,evens) = list(1,10).partition-ctx(select)
   odds.show.println
   evens.show.println

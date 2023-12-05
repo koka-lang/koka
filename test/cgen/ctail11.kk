@@ -10,6 +10,6 @@ fun partition-acc-ctx(xs : list<a>, ^pred : a -> e bool, acc1 : ctx<list<a>>, ac
       else partition-acc-ctx(xx,pred,acc1,acc2 ++ ctx Cons(x,_))
 
 pub fun main()
-  val (odds,evens) = list(1,10).partition(fn(x){ println(x); x.is-odd })
+  val (odds,evens) = list(1,10).partition-ctx(fn(x){ println(x); x.is-odd })
   odds.show.println
   evens.show.println

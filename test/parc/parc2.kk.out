@@ -7,6 +7,6 @@ pub fun test : forall<a> (x : list<a>) -> list<a>
  (std/core/Nil() : (list<a>) )
  -> x;
  _
- -> std/core/.unroll14666-append((std/core/types/.dup(x)), x);
+ -> std/core/.unroll15732-append((std/core/types/.dup(x)), x);
  };
  };

@@ -386,7 +386,11 @@ extern import
 // Holds the address to a field of type `:a` in a constructor.
 pub type field-addr<a>
 
-// First-class constructor context (for _tail recursion module cons_ (TRMC) optimization).
+// _Internal_. Internal function name for field addresses.
+pub fip extern ".field-addr-of"( x : a, conname : string, fieldname : string ) : field-addr<a>
+  inline ""  // compiled specially
+
+// First-class constructor context (for _tail recursion modulo cons_ (TRMC) optimization).
 abstract value type cctx<a,b>
   con ".Cctx"( res : a, holeptr : field-addr<b> )
 

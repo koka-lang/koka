@@ -3,8 +3,8 @@
 2
 5
  
-cgen/specialize/branch/.lift000-main: (xs302 : list<int>) -> console ()
-cgen/specialize/branch/.lift000-main: (xs307 : list<int>) -> console ()
-cgen/specialize/branch/.lift000-main: forall<_e> (xs314 : list<int>) -> list<int>
+cgen/specialize/branch/.lift000-main: (xs303 : list<int>) -> console ()
+cgen/specialize/branch/.lift000-main: (xs308 : list<int>) -> console ()
+cgen/specialize/branch/.lift000-main: forall<_e> (xs315 : list<int>) -> list<int>
 cgen/specialize/branch/main: () -> console ()
 cgen/specialize/branch/map_other: forall<a,b> (xs : list<a>, f : (a) -> b, g : (a) -> b) -> list<b>
