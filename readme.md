@@ -66,7 +66,7 @@ To learn more:
 [build]: #build-from-source
 [Perceus]: https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
-[winclang]: https://llvm.org/builds
+[winclang]: https://github.com/llvm/llvm-project/releases/latest
 [vcpkg]: https://vcpkg.io/en/getting-started.html
 [ghcup]: https://www.haskell.org/ghcup
 [nobrace]: https://koka-lang.github.io/koka/doc/book.html#sec-layout
@@ -91,8 +91,8 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
   enhancements.
 * `v2.4.0`, 2022-02-07: automatic generation of installation packages for various Linux
   distributions (by [Rubikscraft](https://github.com/rubikscraft)), improved specialization and integer add/sub, add `rbtree-fbip` sample,
-  improve grammar (`pub` (instead of `public`, remove private (as it is always default)), 
-  `final ctl` (instead of `brk`), underscores in number literals, etc), 
+  improve grammar (`pub` (instead of `public`, remove private (as it is always default)),
+  `final ctl` (instead of `brk`), underscores in number literals, etc),
   rename `double` to `float64`, various bug fixes.
 * `v2.3.8`, 2021-12-27: improved `int` performance, various bug fixes, update wasm backend,
   initial conan support, fix js backend.
@@ -148,9 +148,9 @@ Unix. The following programs are required to build Koka:
   instructions (Koka can find vcpkg automatically if installed to `~/vcpkg`).
 * Optional: [nodejs](http://nodejs.org) if using the Javascript backend.
 * Optional: [emscripten] and [wasmtime] if using the Wasm backend.
-* Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
+* Optional: On Windows it is recommended to install the [clang][winclang] C compiler (use `LLVM-<version>-win64.exe`), or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
 
-Now clone the repository and build the compiler as (note the `--recursive` flag):
+Now clone the repository and build the compiler as:
 
 ```sh
 $ git clone --recursive https://github.com/koka-lang/koka
@@ -160,8 +160,11 @@ $ stack build
 $ stack exec koka
 ```
 
-You can also use `stack build --fast` to build a debug version of the compiler.
-Use `stack test --fast` to run the test-suite.
+(Note: if you forgot to pass `--recursive` on cloning, you will get errors when compiling Koka modules --
+you can correct this by running `git submodule update --init --recursive`).
+
+You can also use `stack build --fast` to build a debug version of the compiler,
+and use `stack test --fast` to run the test-suite.
 
 (See the [build notes](#build-notes) below if you have issues when running- or installing `stack`).
 
@@ -510,5 +513,5 @@ Also as MSR-TR-2021-5, Mar, 2021.
 technical report MSR-TR-2021-30, Nov 2021, (updated Mar 2022, v2). [pdf](https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/)
 
 11. Anton Lorenzen, Daan Leijen, and Wouter Swierstra. &ldquo;FP<sup>2</sup>: Fully in-Place Functional Programming&rdquo;
-The 28th ACM SIGPLAN International Conference on Functional Programming (ICFP), September 2023. 
+The 28th ACM SIGPLAN International Conference on Functional Programming (ICFP), September 2023.
 [pdf](https://www.microsoft.com/en-us/research/uploads/prod/2023/05/fbip.pdf) (extended tech. report MSR-TR-2023-19, May 2023).
