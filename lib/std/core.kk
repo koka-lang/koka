@@ -339,9 +339,27 @@ pub fun unzip( xs : list<(a,b)> ) : (list<a>,list<b>)
   // todo: implement TRMC for multiple results
   fun iter( ys, acc1, acc2 )
     match ys
-      Cons((x,y),xx) -> iter(xx,Cons(x,acc1),Cons(y,acc2))
-      Nil            -> (reverse(acc1),reverse(acc2))
-  iter(xs,[],[])
+      Cons((x,y),xx) -> iter(xx,acc1 ++ ctx Cons(x,_),acc2 ++ ctx Cons(y,_))
+      Nil            -> (acc1 ++. Nil,acc2 ++. Nil)
+  iter(xs,ctx _,ctx _)
+
+// Unzip a list of triples into three lists
+pub fun unzip( xs : list<(a,b,c)>) : (list<a>,list<b>,list<c>)
+  // todo: implement TRMC for multiple results
+  fun iter( ys, acc1, acc2, acc3 )
+    match ys
+      Cons((x,y,z),xx) -> iter(xx,acc1 ++ ctx Cons(x,_),acc2 ++ ctx Cons(y,_),acc3 ++ ctx Cons(z,_))
+      Nil            -> (acc1 ++. Nil,acc2 ++. Nil,acc3 ++. Nil)
+  iter(xs,ctx _,ctx _,ctx _)
+
+// Unzip a list of quadruples into four lists
+pub fun unzip( xs : list<(a,b,c,d)>) : (list<a>,list<b>,list<c>,list<d>)
+  // todo: implement TRMC for multiple results
+  fun iter( ys, acc1, acc2, acc3, acc4 )
+    match ys
+      Cons((x,y,z,w),xx) -> iter(xx,acc1 ++ ctx Cons(x,_),acc2 ++ ctx Cons(y,_),acc3 ++ ctx Cons(z,_),acc4 ++ ctx Cons(w,_))
+      Nil            -> (acc1 ++. Nil,acc2 ++. Nil,acc3 ++. Nil,acc4 ++. Nil)
+  iter(xs,ctx _,ctx _,ctx _,ctx _)
 
 // Take the first `n` elements of a list (or fewer if the list is shorter than `n`)
 pub fun take( xs : list<a>, n : int ) : list<a>
@@ -413,12 +431,12 @@ pub fun append(xs : list<a>, ys : list<a> ) : list<a>
 
 // Fold a list from the right, i.e. `foldr([1,2],0,(+)) == 1+(2+0)`
 // Note, `foldr` is less efficient than `foldl` as it reverses the list first.
-pub fun foldr(xs,z,f)
-  xs.reverse.foldl(z) fn(x,y) f(y,x)  
+pub fun foldr(xs : list<a>, z : b, f : (a, b) -> e b) : e b
+  xs.reverse.foldl(z) fn(x,y) f(y,x)
 
 // Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2`
 // Since `foldl` is tail recursive, it is preferred over `foldr` when using an associative function `f`
-pub fun foldl(xs,z,f)
+pub fun foldl(xs : list<a>, z : b, f : (b, a) -> e b) : e b
   match xs
     Cons(x,xx) -> foldl(xx,f(z,x),f)
     Nil        -> z
@@ -470,7 +488,7 @@ pub fun filter( xs : list<a>, pred : a -> e bool ) : e list<a>
 
 // Remove those elements of a list that satisfy the given predicate `pred`.
 // For example: `remove([1,2,3],odd?) == [2]`
-pub fun remove( xs : list<a>, pred : a -> bool ) : list<a>
+pub fun remove( xs : list<a>, pred : a -> e bool ) : e list<a>
   xs.filter( fn(x) !pred(x) )
 
 // Partition a list in two lists where the first list contains
@@ -486,6 +504,18 @@ fun partition-acc( xs : list<a>, pred : a -> e bool, acc1 : list<a>, acc2 : list
                     then partition-acc(xx,pred,Cons(x,acc1),acc2)
                     else partition-acc(xx,pred,acc1,Cons(x,acc2))
 
+// See issue: https://github.com/koka-lang/koka/issues/361 for why this cannot replace partition right now
+//  TLDR: functions that have effect types aren't supported by the backend in lambdas that have constructor contexts
+pub fun partition-ctx( xs : list<a>, ^pred : a -> bool ) : (list<a>,list<a>)
+  partition-acc-ctx(xs, pred, ctx _, ctx _)
+
+fun partition-acc-ctx(xs: list<a>, ^pred: (a -> bool), acc1: ctx<list<a>>, acc2: ctx<list<a>>): (list<a>, list<a>)
+  match xs
+    Nil -> (acc1 ++. Nil, acc2 ++. Nil)
+    Cons(x,xx) -> if pred(x)
+      then partition-acc-ctx(xx,pred,acc1 ++ ctx Cons(x,_),acc2)
+      else partition-acc-ctx(xx,pred,acc1,acc2 ++ ctx Cons(x,_))
+
 // Retain only those elements of a list that satisfy the given predicate `pred`.
 // For example: `filterMap([1,2,3],fn(i) { if i.odd? then Nothing else Just(i*i) }) == [4]`
 pub fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
@@ -496,16 +526,16 @@ pub fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
       Just(y) -> Cons(y,xx.filter-map(pred))
 
 // Find the first element satisfying some predicate
-pub fun find( xs : list<a>, pred : a -> bool ) : maybe<a>
+pub fun find( xs : list<a>, pred : a -> e bool ) : e maybe<a>
   xs.foreach-while fn(x)
     if pred(x) then Just(x) else Nothing
 
 // Find the first element satisfying some predicate and return it.
-pub fun find-maybe( xs : list<a>, pred : a -> maybe<b> ) : maybe<b>
+pub fun find-maybe( xs : list<a>, pred : a -> e maybe<b> ) : e maybe<b>
   xs.foreach-while(pred)
 
 // Lookup the first element satisfying some predicate
-pub fun lookup( xs : list<(a,b)>, pred : a -> bool ) : maybe<b>
+pub fun lookup( xs : list<(a,b)>, pred : a -> e bool ) : e maybe<b>
   xs.foreach-while fn(kv)
     if pred(kv.fst) then Just(kv.snd) else Nothing
 
@@ -522,14 +552,14 @@ pub fun list( m : maybe<a> ) : list<a>
     Nothing -> Nil
     Just(x) -> Cons(x,Nil)
 
-fun index-of-acc( xs : list<a>, pred : a -> bool, idx : int ) : int
+fun index-of-acc( xs : list<a>, pred : a -> e bool, idx : int ) : e int
   match xs
     Cons(x,xx) -> if pred(x) then idx else index-of-acc(xx,pred,idx+1)
     Nil        -> -1
     
 
 // Returns the index of the first element where `pred` holds, or `-1` if no such element exists.
-pub fun index-of( xs : list<a>, pred : a -> bool ) : int
+pub fun index-of( xs : list<a>, pred : a -> e bool ) : e int
   index-of-acc( xs, pred, 0 )
 
 // Invoke `action` for each element of a list
@@ -1415,6 +1445,20 @@ pub inline extern (!=) : (string,string) -> bool
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 
+pub inline fun (==)(l1: sslice, l2: sslice ): bool
+  match (l1, l2)
+    (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
+      if f1 != f2 then False
+      elif i1 != i2 then False
+      else s1 == s2
+
+pub inline fun (!=)(l1: sslice, l2: sslice ): bool
+  match (l1, l2)
+    (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
+      if f1 != f2 then True
+      elif i1 != i2 then True
+      else s1 != s2
+
 extern string-compare : ( x : string, y : string ) -> int
   c  "kk_string_cmp_int"
   cs inline "String.Compare(#1,#2)"
@@ -1567,6 +1611,15 @@ pub extern next( slice : sslice ) : maybe<(char,sslice)>
   c  "kk_slice_next"
   cs "Primitive.SliceNext"
   js "_sslice_next"
+
+pub fun substr( slice: sslice, start : int, end : int ): sslice
+  val Sslice(s, st, _) = slice
+  val newst = st + start
+  val newLen = end - start
+  if newst + newLen > s.count then
+    Sslice(s, newst, s.count - newst)
+  else
+    Sslice(s, newst, newLen)
 
 // Apply a function for each character in a string slice.
 // If `action` returns `Just`, the function returns immediately with that result.
@@ -1751,10 +1804,10 @@ pub fun head-char( s : string ) : maybe<char>
 //
 
 // Count the number of times a predicate is true for each character in a string
-pub fun count( s : string, pred : (char) -> bool ) : int
+pub fun count( s : string, pred : (char) -> e bool ) : e int
   var cnt := 0
   s.foreach fn(c)
-    if pred(c) then cnt := cnt+1
+    if mask<local>{pred(c)} then cnt := cnt+1
   cnt
 
 // Split a string into a list of lines
@@ -2015,7 +2068,7 @@ extern show-expx( d : float64, prec : int32 ) : string
   js "_double_show_exp"
 
 // Show a character as a string
-fun show-char( c : char ) : string
+pub fun show-char( c : char ) : string
 
   if c < ' ' || c > '~' then
     if c == '\n' then "\\n"
@@ -2063,7 +2116,7 @@ pub fun show( xs : list<int> ) : string
 pub fun show( xs : list<bool> ) : string
   show-list(xs,show)
 
-pub fun show-tuple( x : (a,b), showfst : a -> string, showsnd : b -> string ) : string
+pub fun show-tuple( x : (a,b), showfst : a -> e string, showsnd : b -> e string ) : e string
   "(" ++ x.fst.showfst ++ "," ++ x.snd.showsnd ++ ")"
 
 
@@ -2197,7 +2250,7 @@ pub fun trace-any( message : string, x : a ) : ()
     if !trace-enabled then xtrace-any(message,x)
 
 // Disable tracing completely.
-noinline fun notrace() : st<global> ()
+pub noinline fun notrace() : st<global> ()
   trace-enabled := False
 
 extern unsafe-assert-fail( msg : string ) : ()

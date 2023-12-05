@@ -1054,4 +1054,9 @@ envLookupVar env name
     [fun@(InfoFun{})] -> return $ coreExprFromNameInfo name fun
     [val@(InfoVal{})] -> return $ coreExprFromNameInfo name val
     [extern@(Type.Assumption.InfoExternal{})] -> return $ coreExprFromNameInfo name extern
+    [] | name == nameFieldAddrOf -> return $ Var (TName nameFieldAddrOf funType) (Core.Core.InfoExternal [])
+     where
+        funType = TForall [a] [] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
+                                      typeTotal (TApp typeFieldAddr [TVar a]))
+        a = TypeVar 0 kindStar Bound
     res               -> fail $ "unknown identifier: " ++ showPlain name ++ ": " ++ show res --  ++ ":\n" ++ show (gamma env)
