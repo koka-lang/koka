@@ -1384,6 +1384,10 @@ pub fun maximum( xs : list<float64> ) : float64
 // returned by functions that find sub strings or patterns in
 // in strings. Use `string:(slice : sslice) -> string` to
 // create a fresh substring from a slice.
+// 
+// The start and len fields of a slice are in terms of bytes.
+// Slices should only be interacted with safe methods defined in core
+// that take care to not cut strings in the middle of a utf codepoint.
 abstract value struct sslice( str : string, start : int, len : int )
 
 // Internal export for the regex module
@@ -1600,16 +1604,21 @@ pub extern next( slice : sslice ) : maybe<(char,sslice)>
   cs "Primitive.SliceNext"
   js "_sslice_next"
 
-/*
-pub fun substr( slice: sslice, start : int, end : int ): sslice
-  val Sslice(s, st, _) = slice
-  val newst = st + start
-  val newLen = end - start
-  if newst + newLen > s.count then
-    Sslice(s, newst, s.count - newst)
-  else
-    Sslice(s, newst, newLen)
-*/
+// Gets up to (`end`-`start`) characters from the slice beginning from `start`.
+// If either start or end is negative, returns the original slice
+pub fun subslice( slice: sslice, start : int, end : int ): sslice
+  if start < 0 || end < 0 then slice else
+    val Sslice(s, new-start, _) = slice.advance(start) // Go to start position
+    Sslice(s, new-start, 0).extend(end - start) // Zero out the len and then extend to the end.
+
+// Gets a slice that only includes up to n characters.
+pub fun take( slice: sslice, n : int): sslice
+  subslice(slice, 0, n)
+
+// Gets a slice that drops the first n characters, shrinking the length of the slice by n accordingly.
+// If the slice does not have n characters, then the slice is shrunk to an empty slice.
+pub fun drop( slice: sslice, n : int): sslice
+  subslice(slice, n, slice.count)  
 
 // Apply a function for each character in a string slice.
 // If `action` returns `Just`, the function returns immediately with that result.
