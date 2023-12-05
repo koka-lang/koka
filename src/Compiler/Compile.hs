@@ -353,7 +353,7 @@ compileProgram term flags modules cachedModules compileTarget fname program impo
 
 compileProgramFromFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> Modules -> CompileTarget () -> [Name] -> FilePath -> FilePath -> IOErr Loaded (Loaded, Maybe FilePath)
 compileProgramFromFile maybeContents contents term flags modules cachedModules compileTarget importPath rootPath stem
-  = do let fname = joinPath rootPath stem
+  = do fname <- liftIO $ realPath $ normalize $ joinPath rootPath stem
        -- trace ("compileProgramFromFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $ return ()
        liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+> color (colorSource (colorScheme flags)) (text (normalizeWith '/' fname)))
        exist <- liftIO $ doesFileExist fname
@@ -629,14 +629,14 @@ searchModule flags currentDir name
 getCurrentFileTime :: FilePath ->  (FilePath -> Maybe (BString, FileTime)) -> IO FileTime
 getCurrentFileTime fp maybeContents = do
   f <- realPath fp
-  case maybeContents f of
+  case maybeContents (normalize f) of
     Just (_, t) -> return t
     Nothing -> getFileTimeOrCurrent fp
 
 maybeGetCurrentFileTime :: FilePath ->  (FilePath -> Maybe (BString, FileTime)) -> IO (Maybe FileTime)
 maybeGetCurrentFileTime fp maybeContents = do
   f <- realPath fp
-  case maybeContents f of
+  case maybeContents (normalize f) of
     Just (_, t) -> return $ Just t
     Nothing -> do
       -- trace ("File " ++ show fp ++ " not in virtual filesystem") $ return ()
@@ -765,7 +765,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                  return (mod, modules)
             _ -> do
               f <- liftIO $ realPath fname
-              (loadedImp, _) <- compileProgramFromFile maybeContents (fst <$> maybeContents f) term flags modules1 cachedModules (if genUpdate then Object else compileTarget) importPath root fname
+              (loadedImp, _) <- compileProgramFromFile maybeContents (fst <$> maybeContents (normalize f)) term flags modules1 cachedModules (if genUpdate then Object else compileTarget) importPath root fname
               let mod = loadedModule loadedImp
                   allmods = addOrReplaceModule mod modules
               return (mod, loadedModules loadedImp)              

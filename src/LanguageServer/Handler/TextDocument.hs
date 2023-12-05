@@ -37,7 +37,7 @@ import Debug.Trace (trace)
 import Control.Exception (try)
 import qualified Control.Exception as Exc
 import Compiler.Options (Flags)
-import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime, normalize)
+import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime, normalize, realPath)
 import GHC.IO (unsafePerformIO)
 import Compiler.Module (Module(..))
 import Control.Monad (when, foldM)
@@ -86,8 +86,8 @@ diffVFS oldvfs vfs =
         vers = virtualFileVersion v
     in case M.lookup newK oldvfs of
       Just old@(_, _, vOld) -> 
-        if vOld == vers then 
-          return $ M.insert newK old acc 
+        if vOld == vers then
+          return $ M.insert newK old acc
         else do
           time <- liftIO getCurrentTime 
           return $ M.insert newK (text, time, vers) acc
@@ -103,7 +103,8 @@ recompileFile :: CompileTarget () -> J.Uri -> Maybe J.Int32 -> Bool -> Flags -> 
 recompileFile compileTarget uri version force flags =
   case J.uriToFilePath uri of
     Just filePath0 -> do
-      let filePath = normalize filePath0
+      path <- liftIO $ realPath filePath0
+      let filePath = normalize path
       -- Recompile the file
       vFiles <- getVirtualFiles
       let vfs = _vfsMap vFiles
