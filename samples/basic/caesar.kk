@@ -3,7 +3,7 @@
 import std/num/float64
 
 fun encode( s : string, shift : int = 3)
-  fun encode-char(c) 
+  fun encode-char(c)
     if c < 'a' || c > 'z' return c
     val base = (c - 'a').int
     val rot  = (base + shift) % 26
@@ -22,7 +22,7 @@ val english = [8.2,1.5,2.8,4.3,12.7,2.2,
                2.8,1.0,2.4,0.2,2.0,0.1]
 
 // Small helper functions
-fun percent( n : int, m : int ) 
+fun percent( n : int, m : int )
   100.0 * (n.float64 / m.float64)
 
 
@@ -54,7 +54,7 @@ fun uncaesar( s : string ) : string
   s.encode( shift )
 
 
-fun test-uncaesar() 
+fun test-uncaesar()
   println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
 
 
@@ -63,4 +63,3 @@ pub fun main()
   println( "plain  : " ++ s)
   println( "encoded: " ++ s.caesar)
   println( "cracked: " ++ s.caesar.uncaesar)
-
