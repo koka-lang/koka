@@ -366,7 +366,7 @@ fun clause-tail(op : a -> e b) : clause<a,b,e,r> {
   Clause(fn(_m,w,x){ under1(w,op,x) })
 }
 
-fun clause-tail-noyield(op : a -> e b) : clause<a,b,e,r> {
+fun clause-tail-noop(op : a -> e b) : clause<a,b,e,r> {
   Clause(fn(_m,_w,x){ op(x) })
 }
 
@@ -408,7 +408,7 @@ fun clause-tail0(op : () -> e b) : clause<(),b,e,r> {
   Clause(fn(_m,w,_x){ under0(w,op) })
 }
 
-fun clause-tail-noyield0(op : () -> e b) : clause<(),b,e,r> {
+fun clause-tail-noop0(op : () -> e b) : clause<(),b,e,r> {
   Clause(fn(_m,_w,_x){ op() })
 }
 
@@ -437,7 +437,7 @@ fun clause-tail2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
   Clause2(fn(m,w,x1,x2){ under2(w,op,x1,x2) })
 }
 
-fun clause-tail-noyield2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
+fun clause-tail-noop2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
   Clause2(fn(m,w,x1,x2){ op(x1,x2) })
 }
 
@@ -466,8 +466,8 @@ fun clause-tail3(op : (a1,a2,a3) -> e b) : clause<(a1,a2,a3),b,e,r> {
   clause-tail( fn( x:(_,_,_) ){ op(x.fst,x.snd,x.thd) } )
 }
 
-fun clause-tail-noyield3(op : (a1,a2,a3) -> e b) : clause<(a1,a2,a3),b,e,r> {
-  clause-tail-noyield( fn( x:(_,_,_) ){ op(x.fst,x.snd,x.thd) } )
+fun clause-tail-noop3(op : (a1,a2,a3) -> e b) : clause<(a1,a2,a3),b,e,r> {
+  clause-tail-noop( fn( x:(_,_,_) ){ op(x.fst,x.snd,x.thd) } )
 }
 
 // -------------------------------------------
@@ -586,8 +586,8 @@ fun state-set( i : int, x : a ) : <state<a>|e> () {
 fun state(init : s, action : () -> <state<s>|e> a) : e a {
   with s = ilocal-var(init)
   state-handle(State-hnd(
-    clause-tail-noyield( fn(x){ s } ),
-    clause-tail-noyield( fn(x){ s := x }) ),
+    clause-tail-noop( fn(x){ s } ),
+    clause-tail-noop( fn(x){ s := x }) ),
     id, { mask<local>(action) } )
 }
 
@@ -636,7 +636,7 @@ fun state-x(init,action) {
   with s = ilocal-var(init)
   state-handle(State-hnd(
     clause-tail( fn(x){ read(-1) } ),
-    clause-tail-noyield( fn(x){ s := x }) ),
+    clause-tail-noop( fn(x){ s := x }) ),
     id, action)
 }
 

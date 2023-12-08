@@ -20,7 +20,7 @@ import Common.Failure
 import Common.Range
 import Common.Syntax
 import Common.NamePrim( nameEffectOpen, nameToAny, nameReturn, nameOptionalNone, nameIsValidK
-                       , nameLift, nameBind, nameEvvIndex, nameClauseTailNoYield, isClauseTailName
+                       , nameLift, nameBind, nameEvvIndex, nameClauseTailNoOp, isClauseTailName
                        , nameBox, nameUnbox, nameAssert
                        , nameAnd, nameOr, isNameTuple
                        , nameCCtxCompose, nameCCtxComposeExtend, nameCCtxEmpty )
@@ -441,9 +441,9 @@ bottomUp (App (TypeApp (Var evvIndex _) [effTp,hndTp]) [htag]) | getName evvInde
   = makeEvIndex (effectOffset (effectLabelFromHandler hndTp) effTp)
 
 
--- simplify clause-tailN to clause-tail-noyieldN if it cannot yield
+-- simplify clause-tailN to clause-tail-noopN if it does not invoke operations itself
 bottomUp (App (TypeApp (Var clauseTail info) (effTp:tps)) [op]) | Just n <- isClauseTailName (getName clauseTail), isEffectFixed effTp, ([],_) <- extractHandledEffect effTp
-  = (App (TypeApp (Var (TName (nameClauseTailNoYield n) (typeOf clauseTail)) info) (effTp:tps)) [op])
+  = (App (TypeApp (Var (TName (nameClauseTailNoOp n) (typeOf clauseTail)) info) (effTp:tps)) [op])
 
 -- box(unbox(e)) ~> e   unbox(box(e)) ~> e
 bottomUp (App (Var v _) [App (Var w _) [arg]])  | (getName v == nameUnbox && getName w == nameBox) || (getName w == nameUnbox && getName v == nameBox)

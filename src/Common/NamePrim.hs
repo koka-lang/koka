@@ -18,7 +18,7 @@ module Common.NamePrim
           , isSystemCoreName
           , isPrimitiveModule -- no monadic lifting
           , nameCoreHnd
-          , isPrimitiveName   
+          , isPrimitiveName
           , nameOpExpr
 
           -- * Operations
@@ -51,7 +51,7 @@ module Common.NamePrim
           , nameClause
           , nameIdentity
           , nameMaskAt, nameMaskBuiltin
-          , isClauseTailName, nameClauseTailNoYield
+          , isClauseTailName, nameClauseTailNoOp
           , nameTpEvIndex, nameYielding, nameYieldExtend
           , nameEvvIsAffine
           , nameInitially, nameFinally
@@ -72,7 +72,7 @@ module Common.NamePrim
 
           -- * TRMC optimization, constructor contexts
           , nameTpCCtxx, nameTpCCtx
-          , nameCCtxCreate 
+          , nameCCtxCreate
           , nameCCtxHoleCreate
           , nameCCtxEmpty
           , nameCCtxApply
@@ -81,9 +81,9 @@ module Common.NamePrim
           , nameCCtxComposeExtend
           , nameCCtxSetCtxPath
           , nameTpFieldAddr, nameFieldAddrOf
-          
+
           {-
-          , nameTpCField, 
+          , nameTpCField,
           , nameTpCTailAcc
           , nameCFieldHole
 
@@ -348,7 +348,7 @@ nameEffectOpen  = coreTypesName ".open" -- preludeName ".open"
 nameInitially   = coreHndName "initially"
 nameFinally     = coreHndName "finally"
 
-nameClauseTailNoYield n = coreHndName ("clause-tail-noyield" ++ show n)
+nameClauseTailNoOp n = coreHndName ("clause-tail-noop" ++ show n)
 
 isClauseTailName :: Name -> Maybe Int
 isClauseTailName name  | nameModule name /= nameId nameCoreHnd  = Nothing

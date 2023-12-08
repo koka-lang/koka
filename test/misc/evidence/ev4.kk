@@ -247,7 +247,7 @@ fun op-tail(op : a -> e b) : op<a,b,e,r> {
   Tail( fn(w,x){ under1(w,op,x) } )
 }
 
-fun op-tail-noyield(op : a -> e b) : op<a,b,e,r> {
+fun op-tail-noop(op : a -> e b) : op<a,b,e,r> {
   Tail( fn(w,x){ op(x) } )
 }
 
@@ -286,7 +286,7 @@ fun op-tail2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
   Tail2( fn(w,x,y){ under2(w,op,x,y) } )
 }
 
-fun op-tail-noyield2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
+fun op-tail-noop2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
   Tail2( fn(w,x,y){ op(x,y) } )
 }
 
@@ -317,7 +317,7 @@ fun op-tail3(op : (a1,a2,a3) -> e b) : op<(a1,a2,a3),b,e,r> {
   Tail( fn(w,x:(_,_,_)){ under3(w,op,x.fst,x.snd,x.thd) } )
 }
 
-fun op-tail-noyield3(op : (a1,a2,a3) -> e b) : op<(a1,a2,a3),b,e,r> {
+fun op-tail-noop3(op : (a1,a2,a3) -> e b) : op<(a1,a2,a3),b,e,r> {
   Tail( fn(w,x:(_,_,_)){ op(x.fst,x.snd,x.thd) } )
 }
 
@@ -405,7 +405,7 @@ fun state-set( ev : ev<state-hnd<a>>, x : a ) : <state<a>|e> () {
 
 fun state(init : s, action : () -> <state<s>|e> a) : e a {
   with s = ilocal-var(init)
-  state-handle(State-hnd( op-tail-noyield( fn(x){ s } ), op-tail-noyield( fn(x){ s := x }) ), { mask<local>(action) } )
+  state-handle(State-hnd( op-tail-noop( fn(x){ s } ), op-tail-noop( fn(x){ s := x }) ), { mask<local>(action) } )
 }
 
 pub fun add21() : state<int> int {
@@ -453,7 +453,7 @@ fun test-amb-state() : list<int> {  // 1,1,1,1
 // Tests
 fun state-x(init,action) {
   with s = ilocal-var(init)
-  state-handle(State-hnd( op-tail( fn(x){ read(-1) } ), op-tail-noyield( fn(x){ s := x }) ), action)
+  state-handle(State-hnd( op-tail( fn(x){ read(-1) } ), op-tail-noop( fn(x){ s := x }) ), action)
 }
 
 fun test-difficult() : int {

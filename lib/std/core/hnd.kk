@@ -512,17 +512,25 @@ pub fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,e,r>
   Clause1(fn(m,w,x){ yield-to(m, fn(k){ clause(x, fn(r){ k({r}) } ) }) })
 */
 
+// generic control clause
 pub fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,h,e,r>
   Clause1(fn(m,_ev,x){ yield-to(m, fn(k) protect(x,clause,k) ) })
 
+// tail-resumptive clause: resumes exactly once at the end
+// (these can be executed 'in-place' without capturing a resumption)
 pub fun clause-tail1<e,r,h,a,b>(op : a -> e b) : clause1<a,b,h,e,r>
   Clause1(fn(_m,ev,x){ under1(ev,op,x) })
 
-pub fun clause-tail-noyield1<e,r,h,a,b>(op : a -> e b) : clause1<a,b,h,e,r>
+// tail-resumptive clause that does not itself invoke operations
+// (these can be executed 'in-place' without setting the correct evidence vector)
+pub fun clause-tail-noop1<e,r,h,a,b>(op : a -> e b) : clause1<a,b,h,e,r>
   Clause1(fn(_m,_ev,x){ op(x) })
 
+// clause that never resumes (e.g. an exception handler)
+// (these do not need to capture a resumption and execute finally clauses upfront)
 pub fun clause-never1( op : a -> e r ) : clause1<a,b,h,e,r>
   Clause1(fn(m,_ev,x){ yield-to-final(m, fn(_k) op(x) ) })
+
 
 //----------------------------------------------------------------
 // 0 arguments; reuse 1 argument Clauses
@@ -561,7 +569,7 @@ pub fun clause-control0( op : (b -> e r) -> e r ) : clause0<b,h,e,r>
 pub fun clause-tail0<e,r,h,b>(op : () -> e b) : clause0<b,h,e,r>
   Clause0(fn(_m,ev){ under0(ev,op) })
 
-pub fun clause-tail-noyield0<e,r,h,b>(op : () -> e b) : clause0<b,h,e,r>
+pub fun clause-tail-noop0<e,r,h,b>(op : () -> e b) : clause0<b,h,e,r>
   Clause0(fn(_m,_ev){ op() })
 
 pub fun clause-value(v : b) : clause0<b,h,e,r>
@@ -603,7 +611,7 @@ pub fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,e0,r>) ->
 pub fun clause-tail2<e,r,h,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r>
   Clause2(fn(m,ev,x1,x2){ under2(ev,op,x1,x2) })
 
-pub fun clause-tail-noyield2<e,r,h,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r>
+pub fun clause-tail-noop2<e,r,h,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r>
   Clause2(fn(_m,_ev,x1,x2){ op(x1,x2) })
 
 pub inline fun ".perform2"( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c,h,e1,r>), x : a, y : b ) : e c
@@ -635,8 +643,8 @@ pub fun clause-control3( op : (x1:a1, x2:a2, x3:a3, k: b -> e r) -> e r ) : clau
 pub fun clause-tail3<e,r,h,a1,a2,a3,b>(op : (a1,a2,a3) -> e b) : clause1<(a1,a2,a3),b,h,e,r>
   clause-tail1( fn((x1,x2,x3) ){ op(x1,x2,x3) } )
 
-pub fun clause-tail-noyield3<e,r,h,a1,a2,a3,b>(op : (a1,a2,a3) -> e b) : clause1<(a1,a2,a3),b,h,e,r>
-  clause-tail-noyield1( fn((x1,x2,x3)){ op(x1,x2,x3) } )
+pub fun clause-tail-noop3<e,r,h,a1,a2,a3,b>(op : (a1,a2,a3) -> e b) : clause1<(a1,a2,a3),b,h,e,r>
+  clause-tail-noop1( fn((x1,x2,x3)){ op(x1,x2,x3) } )
 
 pub fun clause-never3( op : (a1,a2,a3) -> e r ) : clause1<(a1,a2,a3),b,h,e,r>
   clause-never1(fn((x1,x2,x3)){ op(x1,x2,x3) } )
@@ -659,8 +667,8 @@ pub fun clause-control4( op : (x1:a1, x2:a2, x3:a3, x4:a4, k: b -> e r) -> e r )
 pub fun clause-tail4<e,r,h,a1,a2,a3,a4,b>(op : (a1,a2,a3,a4) -> e b) : clause1<(a1,a2,a3,a4),b,h,e,r>
   clause-tail1( fn((x1,x2,x3,x4)){ op(x1,x2,x3,x4) } )
 
-pub fun clause-tail-noyield4<e,r,h,a1,a2,a3,a4,b>(op : (a1,a2,a3,a4) -> e b) : clause1<(a1,a2,a3,a4),b,h,e,r>
-  clause-tail-noyield1( fn((x1,x2,x3,x4)){ op(x1,x2,x3,x4) } )
+pub fun clause-tail-noop4<e,r,h,a1,a2,a3,a4,b>(op : (a1,a2,a3,a4) -> e b) : clause1<(a1,a2,a3,a4),b,h,e,r>
+  clause-tail-noop1( fn((x1,x2,x3,x4)){ op(x1,x2,x3,x4) } )
 
 pub fun clause-never4( op : (a1,a2,a3,a4) -> e r ) : clause1<(a1,a2,a3,a4),b,h,e,r>
   clause-never1(fn((x1,x2,x3,x4)){ op(x1,x2,x3,x4) } )

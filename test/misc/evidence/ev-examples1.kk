@@ -119,8 +119,8 @@ fun state-set( x : a ) : <state<a>|e> () {
 fun state(init : s, action : () -> <state<s>|e> a) : e a {
   with s = hnd/local-var(init)
   state-handle(State-hnd(
-    clause-tail-noyield0( fn(){ s } ),
-    clause-tail-noyield1( fn(x){ s := x }) ),
+    clause-tail-noop0( fn(){ s } ),
+    clause-tail-noop1( fn(x){ s := x }) ),
     id, { mask<local>(action) } )
 }
 
@@ -169,7 +169,7 @@ fun state-x(init,action) {
   with s = hnd/local-var(init)
   state-handle(State-hnd(
     clause-tail0( fn(){ read() } ),
-    clause-tail-noyield1( fn(x){ s := x }) ),
+    clause-tail-noop1( fn(x){ s := x }) ),
     id, action)
 }
 
