@@ -546,7 +546,7 @@ isTypeLocalVar tp =
 isValueOperation tp
   = case splitPredType tp of
       (_,_,TSyn syn [opTp] _) -> typeSynName syn == nameTpValueOp
-      _ -> False    
+      _ -> False
 
 orderEffect :: Tau -> Tau
 orderEffect tp
@@ -783,8 +783,8 @@ typeCCtx tp
   = TSyn tsynCCtx [tp] (TApp typeCCtxx [tp,tp])
 
 tsynCCtx :: TypeSyn
-tsynCCtx 
-  = TypeSyn nameTpCCtx (kindFun kindStar kindStar) 0 Nothing  
+tsynCCtx
+  = TypeSyn nameTpCCtx (kindFun kindStar kindStar) 0 Nothing
 
 typeCCtxx :: Tau
 typeCCtxx
@@ -900,9 +900,6 @@ unOptional tp
   = case expandSyn tp of
       TApp (TCon tc) [t] | tc == tconOptional -> t
       _ -> tp
-
-
-
 
 -- | Remove type synonym indirections.
 pruneSyn :: Rho -> Rho

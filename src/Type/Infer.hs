@@ -532,18 +532,19 @@ inferIsolated contextRange range body inf
 -- and the expression. It returns its type, effect, and core expression. Note that the resulting type is not necessarily checked that it matches
 -- the propagated type: the propagated type is just a hint (used for example to resolve overloaded names).
 inferExpr :: Maybe (Type,Range) -> Expect -> Expr Type -> Inf (Type,Effect,Core.Expr)
-inferExpr propagated expect (Lam binders body rng)
+inferExpr propagated expect (Lam bindersL body rng)
   = isNamedLam $ \isNamed ->
     disallowHole $
     do -- traceDoc $ \env -> text "inferExpr.Lam:" <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated
-       (propArgs,propEff,propBody,skolems,expectBody) <- matchFun (length binders) propagated
+       bindersX <- mapM inferImplicitParam bindersL
+       (propArgs,propEff,propBody,skolems,expectBody) <- matchFun (length bindersX) propagated
 
        let binders0 = [case binderType binder of
                          Nothing -> binder{ binderType = fmap snd mbProp }
                          Just _  -> binder
-                      | (binder,mbProp) <- zip binders propArgs]
+                      | (binder,mbProp) <- zip bindersX propArgs]
        binders1 <- mapM instantiateBinder binders0
-       --traceDoc $ \env -> text "infexExpr.Lam: binder types: " <+> list [ppType env (binderType b) | b <- binders1] <+>
+       -- traceDoc $ \env -> text "infexExpr.Lam: binder types: " <+> list [ppName env (binderName b) <+> text "=" <+> ppType env (binderType b) | b <- binders1] <+>
        --                    text ", propagated body: " <+> ppProp env propBody
 
        eff <- case propEff of
@@ -579,11 +580,18 @@ inferExpr propagated expect (Lam binders body rng)
                                          -- subst eff
        -- traceDoc $ \env -> text " inferExpr.Lam: body eff:" <+> ppType env eff <+> text ", topeff: " <+> ppType env topEff
        parTypes2 <- subst (map binderType binders1)
-       let optPars   = zip (map binderName binders1) parTypes2
+       let optPars   = zip (map binderName binders1) parTypes2 -- (map binderName binders1) parTypes2
            bodyCore1 = Core.addLambdas optPars topEff (Core.Lam [] topEff (coref core))
        bodyCore2 <- subst bodyCore1
        stopEff <- subst topEff
-       let pars = optPars
+       let pars = zipWith renameImplicitParams bindersL optPars
+                where
+                  renameImplicitParams binder (_,parTp)
+                    = let pname = case binderExpr binder of
+                                    Just (Var ename _ rng) | isImplicitParamName (binderName binder)
+                                      -> namedImplicitParamName (binderName binder) ename
+                                    _ -> binderName binder
+                      in (pname, parTp)
 
        -- check skolem escape
        sftp0 <- subst (typeFun pars stopEff tp)
@@ -1691,6 +1699,18 @@ inferBinders infgamma binders
         in inferBinders (infgamma ++ [info]) pars
 
 
+
+inferImplicitParam par
+  = if isImplicitParamName (binderName par)
+     then  do case binderExpr par of
+                Just (Var{}) -> return ()
+                Nothing      -> return ()
+                Just expr    -> contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
+              return (par{binderName = plainImplicitParamName (binderName par), binderExpr = Nothing })
+     else return par
+
+
+
 -- | Infer automatic unwrapping for parameters with default values, and adjust their type from optional<a> to a
 -- Takes an accumulated InfGamma (initially empty), a list of parameters (as value binders) and returns
 -- the new InfGamma and a substitution from optional paramter names to the local unique names (of type a)
@@ -1698,6 +1718,7 @@ inferBinders infgamma binders
 inferOptionals :: Effect -> [(Name,NameInfo)] -> [ValueBinder Type (Maybe (Expr Type))] -> Inf ([(Name,NameInfo)],[(Core.TName,Core.Expr)],[Core.Def])
 inferOptionals eff infgamma []
   = return (infgamma,[],[])
+
 inferOptionals eff infgamma (par:pars)
   = case binderExpr par of
      Nothing

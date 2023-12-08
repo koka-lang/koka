@@ -295,7 +295,7 @@ visibility :: Visibility -> LexParser (Visibility,Range)
 visibility vis
   =   do rng <- keywordOr "pub" ["public"]
          return (Public,rng)
-  <|> do rng <- keyword "private" 
+  <|> do rng <- keyword "private"
          pwarningMessage "using 'private' is deprecated, only use 'pub' to make declarations public"
          return (Private,rng)
   <|> return (vis,rangeNull)
@@ -338,7 +338,7 @@ externDecl dvis
                          return (pars,[]{-all owned-},args,tp,\body -> Ann body tp (getRange tp))
                       <|>
                       do tpars <- typeparams
-                         (pars, pinfos, parRng) <- declParams True {-allowBorrow-} (inline /= InlineAlways) -- allow defaults? 
+                         (pars, pinfos, parRng) <- declParams True {-allowBorrow-} (inline /= InlineAlways) -- allow defaults?
                          (teff,tres)   <- annotResult
                          let tp = typeFromPars nameRng pars teff tres
                              lift :: ValueBinder UserType (Maybe UserExpr) -> ValueBinder (Maybe UserType) (Maybe UserExpr)
@@ -400,8 +400,8 @@ externalImport rng1
                             <|> semiBracesRanged externalImportKeyVal
            keyvalss <- mapM (externalIncludes target rng) keyvals
            return (target,concat keyvalss)
-           
-    externalImportKeyVal 
+
+    externalImportKeyVal
       = do key <- externalImportKey
            keyword "="
            (val,_) <- stringLit
@@ -409,7 +409,7 @@ externalImport rng1
 
     externalImportKey
       = do (id,_) <- varid
-           return (show id) 
+           return (show id)
 
     externalIncludes target rng (key,fname)  | key == "file" || key == "header-file" || key == "header-end-file"
      = do let currentFile = (Common.Range.sourceName (rangeSource rng))
@@ -423,12 +423,12 @@ externalImport rng1
                           return [("header-include-inline",content)]
                  else if (isTargetC target && key=="header-end-file")
                   then do content <- preadFile fpath
-                          return [("header-end-include-inline",content)]                 
-                  else if (key == "file") 
+                          return [("header-end-include-inline",content)]
+                  else if (key == "file")
                          then do content <- preadFile fpath
                                  return [("include-inline",content)]
                          else return [(key,fpath)]
-    externalIncludes target rng (key,val) 
+    externalIncludes target rng (key,val)
       = return [(key,val)]
 
     preadFile :: FilePath -> LexParser String
@@ -565,7 +565,7 @@ structDecl dvis =
           do (vis,dvis,rng) <-     do{ rng <- keyword "abstract"; return (Public,Private,rng) }
                                <|> do{ (vis,rng) <- visibility dvis; return (vis,vis,rng) }
              ddef           <-     do { specialId "value"; return (DataDefValue valueReprZero) }
-                               <|> do { specialIdOr "ref" ["reference"]; 
+                               <|> do { specialIdOr "ref" ["reference"];
                                         -- pwarningMessage "using 'reference' is deprecated and is always the default now";
                                         return DataDefNormal }
                                <|> do { return DataDefAuto }
@@ -611,7 +611,7 @@ typeDeclKind
     do (ddef,isExtend) <-     do { specialId "open"; return (DataDefOpen, False) }
                           <|> do { specialId "extend"; return (DataDefOpen, True) }
                           <|> do { specialId "value"; return (DataDefValue valueReprZero, False) }
-                          <|> do { specialIdOr "ref" ["reference"]; 
+                          <|> do { specialIdOr "ref" ["reference"];
                                    return (DataDefNormal, False) }
                           <|> return (DataDefAuto, False)
        (rng,doc) <- dockeyword "type"
@@ -692,7 +692,7 @@ constructorId
   <?> "constructor"
 
 -----------------------------------------------------------
--- Implicit Parameters
+-- value operations
 -----------------------------------------------------------
 
 type Param = (Visibility, ValueBinder UserType (Maybe UserExpr))
@@ -785,8 +785,8 @@ makeEffectDecl decl =
   let (EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isInstance, isScoped,
                     id, irng, tpars, kind, prng, mbInstanceUmb, operations)) = decl
 
-                             
-      rng     = combineRanges [vrng,erng,irng]  
+
+      rng     = combineRanges [vrng,erng,irng]
 
       krng    = rangeNull -- for generated code
       grng    = krng
@@ -962,7 +962,7 @@ parseFunOpDecl linear vis =
                                if (linear)
                                 then fail "'brk' (or 'final ctl') operations are invalid for a linear effect"
                                 else return (rdoc,OpExcept)
-                           
+
      (id,idrng)   <- identifier
      exists0      <- typeparams
      (pars,_,prng)  <- declParams False {-allowBorrow-} True {-allowDefaults-}
@@ -983,7 +983,7 @@ declParams allowBorrow allowDefaults
        let (pars,pinfos) = unzip ipars
        return (pars,pinfos,rng)
   where
-    paramBinder 
+    paramBinder
        = do pinfo <- if allowBorrow then paramInfo else return Own
             (name,rng,tp) <- paramType
             (opt,drng)    <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
@@ -991,7 +991,7 @@ declParams allowBorrow allowDefaults
       <?> "parameter"
 
 paramInfo :: LexParser ParamInfo
-paramInfo 
+paramInfo
   = do specialOp "^"
        return Borrow
   <|>
@@ -1016,8 +1016,8 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
                         Nothing   -> [effTp]
                         Just rtps -> rtps
            teff0    = foldr (makeEffectExtend krng) (makeEffectEmpty krng) (opEffTps ++ extraEffects)
-           
-           
+
+
            nameA    = newName ".a"
            tpVarA   = TpVar nameA krng
            isInstance = isJust mbInstanceUmb
@@ -1178,7 +1178,7 @@ parseFipAlloc
       <|> return (AllocAtMost 0)
 
 parseFip :: LexParser Fip
-parseFip 
+parseFip
   = do isTail   <- do specialId "tail"
                       return True
                   <|> return False
@@ -1186,7 +1186,7 @@ parseFip
             alloc <- parseFipAlloc
             when isTail $ pwarningMessage "a 'fip' function implies already 'tail'"
             return (Fip alloc)
-         <|> 
+         <|>
          do specialId "fbip"
             alloc <- parseFipAlloc
             return (Fbip alloc isTail)
@@ -1217,18 +1217,18 @@ funDecl rng doc vis inline fip
   = do spars <- squantifier
        -- tpars <- aquantifier  -- todo: store somewhere
        (name,nameRng) <- funid
-       (tpars,pars,pinfos,parsRng,mbtres,preds,ann) <- funDef True {-allowBorrow-}
+       (tpars,pars,pinfos,parsRng,mbtres,preds,ann) <- funDef True {-allowBorrow-} True {- allow implicits -}
        body   <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
-       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis 
+       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis
                        (defFunEx pinfos fip) inline doc)
 
 -- fundef: forall parameters, parameters, (effecttp, resulttp), annotation
-funDef :: Bool -> LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], [ParamInfo], Range, Maybe (Maybe UserType, UserType),[UserType], UserExpr -> UserExpr)
-funDef allowBorrow
+funDef :: Bool -> Bool -> LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], [ParamInfo], Range, Maybe (Maybe UserType, UserType),[UserType], UserExpr -> UserExpr)
+funDef allowBorrow allowImplicits
   = do tpars  <- typeparams
-       (pars, pinfos, transform, rng) <- parameters allowBorrow True {-allowDefault-}
+       (pars, pinfos, transform, rng) <- parameters allowBorrow True {-allowDefault-} allowImplicits
        resultTp <- annotRes
        preds <- do keyword "with"
                    parens (many1 predicate)
@@ -1253,19 +1253,21 @@ typeparams
   <|>
     do return []
 
-parameters :: Bool -> Bool -> LexParser ([(ValueBinder (Maybe UserType) (Maybe UserExpr))], [ParamInfo], UserExpr -> UserExpr, Range)
-parameters allowBorrow allowDefaults = do
-  (results, rng) <- parensCommasRng (parameter allowBorrow allowDefaults)
+
+parameters :: Bool -> Bool -> Bool -> LexParser ([(ValueBinder (Maybe UserType) (Maybe UserExpr))], [ParamInfo], UserExpr -> UserExpr, Range)
+parameters allowBorrow allowDefaults allowImplicits = do
+  (results, rng) <- parensCommasRng (parameter allowBorrow allowDefaults allowImplicits)
   let (binders, pinfos, transforms) = unzip3 results
       transform = appEndo $ foldMap Endo transforms  -- right-to-left so the left-most parameter matches first
   pure (binders, pinfos, transform, rng)
 
-parameter :: Bool -> Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), ParamInfo, UserExpr -> UserExpr)
-parameter allowBorrow allowDefaults = do
+parameter :: Bool -> Bool -> Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), ParamInfo, UserExpr -> UserExpr)
+parameter allowBorrow allowDefaults allowImplicits = do
   pinfo <- if allowBorrow then paramInfo else return Own
-  pat <- patAtom
-  tp  <- optionMaybe typeAnnotPar
-  (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
+  pat   <- if allowImplicits then parImplicit <|> patAtom else patAtom
+  tp    <- optionMaybe typeAnnotPar
+  (opt,drng) <- if allowDefaults then defaultExpr  -- todo: restricted to names for implicits
+                                 else return (Nothing,rangeNull)
 
   let rng = case pat of
               PatVar binder -> getRange (binderExpr binder)
@@ -1273,15 +1275,15 @@ parameter allowBorrow allowDefaults = do
       binder name nameRng = ValueBinder name tp opt nameRng (combineRanges [rng, getRange tp, drng])
   case pat of
     -- treat PatVar and PatWild as special cases to avoid unnecessary match expressions
-    PatVar (ValueBinder name Nothing (PatWild _) nameRng rng) -- binder   | PatWild nameRng <- binderExpr binder  -> 
+    PatVar (ValueBinder name Nothing (PatWild _) nameRng rng) -- binder   | PatWild nameRng <- binderExpr binder  ->
       -> return (binder name nameRng, pinfo, id)
-    PatWild nameRng 
+    PatWild nameRng
       -> do let name = uniqueRngHiddenName nameRng "_wildcard"
             return (binder name nameRng, pinfo, id)
-    pat 
+    pat
       -> do -- transform (fun (pattern) { body }) --> fun(.pat_X_Y) { match(.pat_X_Y) { pattern -> body }}
             let name = uniqueRngHiddenName rng "pat"
-                transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng) 
+                transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng)
                                                                         [Branch pat [Guard guardTrue body]] rng) lambdaRng
                 transform (Ann body tp rng) = Ann (transform body) tp rng
                 transform _ = failure "Syntax.Parse.parameter: unexpected function expression in parameter match transform"
@@ -1295,6 +1297,11 @@ defaultExpr
        return (Just e, combineRanged krng e)
   <|>
     return (Nothing,rangeNull)
+
+parImplicit
+  = do specialOp "?"
+       (name,rng) <- identifier
+       return (PatVar (ValueBinder (toImplicitParamName name) Nothing (PatWild rng) rng rng))
 
 
 {--------------------------------------------------------------------------
@@ -1313,8 +1320,8 @@ block
                  <|>
                     return []
        rng2 <- rcurly
-       let localize = case anyStatVar stmts1 of 
-                        Just def -> [StatFun (localScope def)] 
+       let localize = case anyStatVar stmts1 of
+                        Just def -> [StatFun (localScope def)]
                         _        -> []
            stats = localize ++ stmts1 ++ stmts2
        case (reverse stats) of
@@ -1433,7 +1440,7 @@ localUsingDecl
 withstat :: LexParser (UserExpr -> UserExpr)
 withstat
   = do krng <- keyword "with"
-       (do (par, _, transform) <- try $ parameter False{-allowBorrow-} False{-allowDefault-} <*  (keyword "=" <|> keyword "<-")
+       (do (par, _, transform) <- try $ parameter False{-allowBorrow-} False{-allowDefault-} False{-allowImplicit-} <*  (keyword "=" <|> keyword "<-")
            e <- basicexpr <|> handlerExprStat krng HandlerInstance
            pure $ applyToContinuation krng [promoteValueBinder par] $ transform e
         <|>
@@ -1473,7 +1480,7 @@ bodyexpr
   <|>
     do keyword "->" -- <|> keyword "="
        -- pwarningMessage "using '->' is deprecated, it can be left out."
-       blockexpr    
+       blockexpr
 
 blockexpr :: LexParser UserExpr   -- like expr but a block `{..}` is interpreted as statements
 blockexpr
@@ -1521,7 +1528,7 @@ funblock
 lambda alts
   = do rng <- keywordOr "fn" alts
        spars <- squantifier
-       (tpars,pars,_,parsRng,mbtres,preds,ann) <- funDef False {-allowBorrow-}
+       (tpars,pars,_,parsRng,mbtres,preds,ann) <- funDef False {-allowBorrow-} True {-allow implicits-}
        body <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
@@ -1530,7 +1537,7 @@ lambda alts
 ifexpr
   = do rng <- keyword "if"
        tst <- ntlexpr
-       (texpr,eexprs,eexpr) <- 
+       (texpr,eexprs,eexpr) <-
            do texpr <- returnexpr
               return (texpr, [], Var nameUnit False (after (getRange texpr)))
            <|>
@@ -1541,8 +1548,8 @@ ifexpr
                           <|>
                             return (Var nameUnit False (after (combineRanged texpr (map snd eexprs))))
               return (texpr,eexprs,eexpr)
-           
-            
+
+
        let fullMatch = foldr match eexpr ((tst,texpr):eexprs)
                      where
                        match (tst,texpr) eexpr
@@ -1559,13 +1566,13 @@ ifexpr
            texpr <- thenexpr
            return (tst,texpr)
 
-    thenexpr 
+    thenexpr
       = do keyword "then"
-           blockexpr 
+           blockexpr
         <|>
         do pos <- getPosition
            expr <- blockexpr
-           pwarning $ "warning " ++ show pos ++ ": using an 'if' without 'then' is deprecated.\n  hint: add the 'then' keyword."                    
+           pwarning $ "warning " ++ show pos ++ ": using an 'if' without 'then' is deprecated.\n  hint: add the 'then' keyword."
            return expr
 
 returnexpr
@@ -1849,7 +1856,7 @@ pguardTest
   Op expr
 --------------------------------------------------------------------------}
 ntlexpr :: LexParser UserExpr -- non-trailing-lambda expression
-ntlexpr 
+ntlexpr
   = opexprx False
 
 opexpr :: LexParser UserExpr
@@ -1885,7 +1892,7 @@ appexpr allowTrailingLam
        fs <- many (dotexpr <|> applier <|> indexer <|> funapps)
        return (foldl (\e f -> f e) e0 fs)
   where
-    
+
     dotexpr, indexer, applier, funapps :: LexParser (UserExpr -> UserExpr)
     dotexpr
       = do keyword "."
@@ -1958,7 +1965,7 @@ atom
   <|>
     do lit <- literal
        return (Lit lit)
-  <|> 
+  <|>
     do cctxHole
   <|>
     do cctxExpr
@@ -2023,9 +2030,9 @@ ccontext :: Range -> LexParser UserExpr
 ccontext rng
   = do ctx <- ntlexpr
        return (makeApp (Var nameCCtxCreate False rng) [ctx])
-       
+
 cctxHole :: LexParser UserExpr
-cctxHole 
+cctxHole
   = do rng <- keyword "hole" <|> do { (_,r) <- wildcard; return r }
        return (makeApp (Var nameCCtxHoleCreate False rng) [])
 
@@ -2088,11 +2095,11 @@ patAtom
        return (PatCon name ps rng (combineRanged rng r))
   <|>
     do (name,rng) <- identifier
-       (do keyword "as" 
+       (do keyword "as"
            p <- pattern
            return (PatVar (ValueBinder name Nothing p rng (combineRanged rng p)))
         <|>
-        return (PatVar (ValueBinder name Nothing (PatWild rng) rng rng)) 
+        return (PatVar (ValueBinder name Nothing (PatWild rng) rng rng))
         )
   <|>
     do (_,range) <- wildcard
@@ -2253,7 +2260,7 @@ textend
 
 
 tlabel
-  = do 
+  = do
        pos <- getPosition
        tp1 <- tid
        case tp1 of
@@ -2608,7 +2615,7 @@ rparen   = special ")"
 langle   = specialOp "<"
 rangle   = specialOp ">"
 
---lcurly   = special "{" <|> 
+--lcurly   = special "{" <|>
 --rcurly   = special "}"
 
 bar      = keyword "|" -- specialOp "|"
@@ -2696,6 +2703,12 @@ typeid
        if (isQualified name)
         then fail "qualified type variable"
         else return (name,rng)
+  {-
+  -- secretly allow definition of any name
+  <|>
+    do (s,rng) <- stringLit
+       return (newName s, rng)
+  -}
 
 ensureUnqualified :: String -> LexParser (Name,Range) -> LexParser (Name,Range)
 ensureUnqualified entity p
@@ -2711,7 +2724,7 @@ qtypeid, typeidCtx :: LexParser (Name,Range)
 qtypeid
   = try $
     do pos <- getPosition
-       (name,range) <- qvarid <|> typeidCtx      
+       (name,range) <- qvarid <|> typeidCtx
        if (not (isTypeVar name))
         then return (name,range)
         else -- trace ("not a qtype: " ++ show name) $
@@ -2720,7 +2733,7 @@ qtypeid
 
 typeidCtx
   = do r <- keyword "ctx"
-       return (newName "ctx",r) 
+       return (newName "ctx",r)
 
 qop :: LexParser (Name,Range)
 qop
@@ -2894,13 +2907,13 @@ pwarning msg = traceM msg
 uniqueRngHiddenName :: Range -> String -> Name
 uniqueRngHiddenName rng prefix =
   let pos  = rangeStart rng
-      uniq = show (posLine pos) ++ "_" ++ show (posColumn pos)  
+      uniq = show (posLine pos) ++ "_" ++ show (posColumn pos)
   in newHiddenName (prefix ++ "_" ++ uniq)
 
 uniqueRngName :: Range -> String -> Name
 uniqueRngName rng prefix =
   let pos  = rangeStart rng
-      uniq = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)  
+      uniq = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
   in newName (prefix ++ uniq)
 
 

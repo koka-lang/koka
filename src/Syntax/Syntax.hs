@@ -89,7 +89,7 @@ data FixDef
   = FixDef{ fixName   :: Name
           , fixFixity :: Fixity
           , fixRange  :: Range
-          , fixVis    :: Visibility 
+          , fixVis    :: Visibility
           }
   deriving (Show)
 
@@ -104,7 +104,7 @@ data Import
           , importFullName :: Name     -- ^ fully qualified module name
           , importRange :: Range   -- ^ range of the import declaration
           , importVis   :: Visibility  -- ^ visibility of the module
-          } 
+          }
     deriving (Show)
 
 
@@ -181,14 +181,15 @@ type Defs t
 
 data ValueBinder t e
   = ValueBinder{ binderName :: Name    -- ^ name
-               , binderType :: t        -- ^ Type. Always present for constructors.
+               , binderType :: t       -- ^ Type. Always present for constructors.
                , binderExpr  :: e      -- ^ Expression: always present for definitions as 'Expr t'
-                                       -- Function and constructor parameters use 'Maybe (Expr t)' for default values.
+                                       -- functions and constructor parameters use 'Maybe (Expr t)' for default values.
                                        -- Pattern bindings ('PatVar') use unit '()'.
                , binderNameRange :: Range  -- ^ name range
                , binderRange :: Range      -- ^ full range
                }
   deriving (Show)
+
 
 --  | A value or function definition
 data Def t
@@ -225,13 +226,13 @@ data Expr t
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Name Range
   | Inject t (Expr t) Bool {-behind?-} Range
-  | Handler{ hndlrSort         :: HandlerSort, 
+  | Handler{ hndlrSort         :: HandlerSort,
              hndlrScope        :: HandlerScope,
              hndlrOverride     :: HandlerOverride,
              hndlrAllowMask    :: Maybe Bool,
              hndlrEffect       :: (Maybe t),
              hndlrLocalPars    :: [ValueBinder (Maybe t) ()],
-             hndlrInitially    :: (Maybe (Expr t)),             
+             hndlrInitially    :: (Maybe (Expr t)),
              hndlrReturn       :: (Maybe (Expr t)),
              hndlrFinally      :: (Maybe (Expr t)),
              hndlrBranches     :: [HandlerBranch t],
@@ -261,8 +262,8 @@ data HandlerBranch t
 data Branch t
   = Branch{ branchPattern :: (Pattern t), branchGuards :: [Guard t] }
   deriving (Show)
-  
-data Guard t 
+
+data Guard t
   = Guard { guardTest :: (Expr t), guardExpr :: (Expr t) }
   deriving (Show)
 

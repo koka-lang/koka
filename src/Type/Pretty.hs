@@ -156,10 +156,10 @@ data Env     = Env{ showKinds      :: Bool
 -- | Default pretty print environment
 defaultEnv :: Env
 defaultEnv
-  = Env False False False 
+  = Env False False False
         defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty) False
         False
-        []        
+        []
         ("styles/" ++ programName ++ ".css") -- [("System.","file://c:/users/daan/dev/koka/out/lib/")]
         ("scripts/" ++ programName ++ "-highlight.js")
         False -- coreIface
@@ -191,13 +191,13 @@ ppSchemeEffect env tp
 
 
 prettyDefFunType :: Env -> [ParamInfo] -> Scheme -> Doc
-prettyDefFunType env pinfos tp 
+prettyDefFunType env pinfos tp
   = let (Just params,pre,post) = ppDeclType env pinfos tp
     in pre <.> parens (commaSep (map ppParam params)) <+> text "->" <+> post
   where
-    ppParam (name,pinfo,tpDoc)  
+    ppParam (name,pinfo,tpDoc)
       = (case pinfo of Borrow -> text "^" <+> (if nameNil == name then text "_" else ppName env name) <+> text ": "
-                       _      -> if nameNil == name then empty else ppName env name <+> text ": ") 
+                       _      -> if nameNil == name then empty else ppName env name <+> text ": ")
         <.> tpDoc
 
 ppDeclType :: Env -> [ParamInfo] -> Scheme -> (Maybe [(Name,ParamInfo,Doc)],Doc,Doc)
@@ -207,7 +207,7 @@ ppDeclType env pinfos tp
         -> let env' = niceEnv env vars
                (args,_,res) = ppDeclType env' pinfos rho
                pre  = if (null vars {- prec env == precTopTop-}) then empty
-                        else (keyword env' "forall" <.> angled (map (ppTypeVar env') vars) <.> space)            
+                        else (keyword env' "forall" <.> angled (map (ppTypeVar env') vars) <.> space)
            in (args, pre, res <.> ppPredicates env' preds)
       TFun params effect rho
         -> -- ppFun env (text ":") params eff rho
@@ -259,7 +259,7 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
               indent 2 (vcat (map (prettyConInfo env publicOnly) cons)) <-> text "}")
         else empty))
 
-prettyConInfo env0 publicOnly (ConInfo conName ntname foralls exists fields scheme sort range paramRanges paramVis singleton 
+prettyConInfo env0 publicOnly (ConInfo conName ntname foralls exists fields scheme sort range paramRanges paramVis singleton
                                       orderedFields vrepr vis doc)
   = if (publicOnly && isPrivate vis) then empty else
     (prettyComment env0 doc $
@@ -405,8 +405,8 @@ ppFun env arrow args effect result
 
 ppParam :: Env -> (Name,Type) -> Doc
 ppParam env (name,tp)
-  = (if (not (nameIsNil name || isFieldName name || isWildcard name)) 
-      then (color (colorParameter (colors env)) (ppNameEx env (unqualify name) <.> text " : ")) 
+  = (if (not (nameIsNil name || isFieldName name || isWildcard name))
+      then (color (colorParameter (colors env)) (ppNameEx env (unqualify name) <.> text " : "))
       else empty)
     <.> ppType env tp
 
@@ -419,6 +419,8 @@ ppTypeName :: Env -> Name -> Doc
 ppTypeName env name
   = color (colorType (colors env)) $ ppNameEx env name
 
+ppNameEx env name | isImplicitParamName name
+  = text "?" <.> ppNameEx env (plainImplicitParamName name)
 ppNameEx env name
   = if (fullNames env)
      then pretty name

@@ -370,7 +370,6 @@ pub value type optional<a>
   con None
 
 
-
 // ----------------------------------------------------------------------------
 // First-class constructor contexts.
 // These primitives are used by the compiler for

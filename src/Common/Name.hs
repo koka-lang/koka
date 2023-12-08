@@ -43,6 +43,7 @@ module Common.Name
           , toValueOperationName, isValueOperationName, fromValueOperationsName
           , splitModuleName, unsplitModuleName, mergeCommonPath
           , isEarlyBindName
+          , toImplicitParamName, isImplicitParamName, plainImplicitParamName, namedImplicitParamName
 
           , prepend, postpend
           , asciiEncode, showHex, moduleNameToPath, pathToModuleName
@@ -316,7 +317,7 @@ toUniqueName i name
 toHiddenUniqueName :: Int -> String -> Name -> Name
 toHiddenUniqueName i "" name
   = prepend "." (toUniqueName i name)
-toHiddenUniqueName i s name  
+toHiddenUniqueName i s name
   = makeHiddenName (s ++ show i) xname
   where
     c = (head (nameId name))
@@ -345,7 +346,7 @@ isFieldName name
 newImplicitTypeVarName i
   = newHiddenName ("t" ++ show i)
 
-isImplicitTypeVarName name 
+isImplicitTypeVarName name
   = isHiddenName name
 
 
@@ -355,6 +356,22 @@ newHiddenExternalName name
 isHiddenExternalName name
   = hiddenNameStartsWith name "extern"
 
+
+toImplicitParamName :: Name -> Name
+toImplicitParamName name
+  = prepend "?" name
+
+isImplicitParamName :: Name -> Bool
+isImplicitParamName name
+  = nameId name `startsWith` "?"
+
+plainImplicitParamName :: Name -> Name
+plainImplicitParamName name
+  = newQualified (nameModule name) (tail (nameId name))
+
+namedImplicitParamName :: Name -> Name -> Name
+namedImplicitParamName pname ename
+  = newName (nameId pname ++ "=" ++ nameId ename)
 
 -- | Create a constructor creator name from the constructor name.
 -- Used if special creation functions are used for the constructor.
@@ -532,8 +549,8 @@ moduleNameToPath name
 
 pathToModuleName :: FilePath -> Name
 pathToModuleName path
-  = newName $ dropWhile (\c -> c `elem` "_./") $ 
-    decode $ 
+  = newName $ dropWhile (\c -> c `elem` "_./") $
+    decode $
     map (\c -> if isPathSep c then '/' else c) $
     path
   where
@@ -541,7 +558,7 @@ pathToModuleName path
     decode s
       = case s of
           _ | s `startsWith` "_dash_" -> '-':decode (drop 6 s)
-          ('_':'_':cs) -> '_':decode cs          
+          ('_':'_':cs) -> '_':decode cs
           ('_':cs)     -> '/':decode cs
           ('.':cs)     -> decode cs
           ('\\':cs)    -> '/':decode cs
