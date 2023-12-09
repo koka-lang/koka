@@ -320,7 +320,10 @@ compileFile maybeContents contents term flags modules cachedModules compileTarge
        case mbP of
          Nothing -> liftError $ errorMsg (errorFileNotFound flags fpath)
          Just (root,stem)
-           -> compileProgramFromFile maybeContents contents term flags modules cachedModules compileTarget importPath root stem
+           -> do
+                -- trace ("Includes : " ++ show (includePath flags)) $ return ()
+                -- trace ("Root: " ++ root ++ " STEM: " ++ stem) $ return ()
+                compileProgramFromFile maybeContents contents term flags modules cachedModules compileTarget importPath root stem
 
 -- | Make a file path relative to a set of given paths: return the (maximal) root and stem
 -- if it is not relative to the paths, return dirname/notdir
@@ -398,7 +401,7 @@ compileProgram' maybeContents term flags modules cachedModules compileTarget fna
        iftime <- liftIO (maybeGetCurrentFileTime outIFace (const Nothing))
        let mod    = (moduleNull name){
                       modPath = outIFace,
-                      modSourcePath = fname,
+                      modSourcePath = normalize fname,
                       modProgram = (Just program),
                       modCore = failure ("Compiler.Compile.compileProgram: recursive module import (" ++ fname ++ ")"),
                       modSourceTime = ftime,
@@ -715,7 +718,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                     if srcpath /= forceModule flags && modSourceTime mod == sourceTime
                       then do
                         -- trace ("Loading module " ++ show mname ++ " from cache") $ return ()
-                        x <- loadFromModule mname (modPath mod) root stem mod
+                        x <- loadFromModule mname (modPath mod) root stem srcpath mod
                         return $ Just x
                     else
                       -- trace ("Found mod " ++ show mname ++ " in cache but was forced or old modTime " ++ show (modSourceTime mod) ++ " srctime " ++ show sourceTime ++ " force " ++ forceModule flags )
@@ -725,7 +728,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                     return Nothing
 
       loadDepend iface root stem mname
-         = -- trace ("loadDepend " ++ iface ++ " " ++ root ++ "/" ++ stem) $
+         = -- trace ("loadDepend " ++ iface ++ " root: " ++ root ++ " stem: " ++ stem) $
            do let srcpath = joinPath root stem
               ifaceTime <- liftIO $ getCurrentFileTime iface maybeContents
               sourceTime <- liftIO $ getCurrentFileTime srcpath maybeContents
@@ -752,10 +755,11 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                           then loadFromIface iface root stem mname
                           else loadFromSource False True modules root stem mname
 
-      loadFromSource force genUpdate modules1 root fname mname
-        = -- trace ("loadFromSource: " ++ show force ++ " " ++ " update " ++ show genUpdate ++ " " ++ root ++ "/" ++ fname) $
+      loadFromSource force genUpdate modules1 root stem mname
+        = -- trace ("loadFromSource: " ++ show force ++ " " ++ " update " ++ show genUpdate ++ " root:" ++ root ++ " stem:" ++ stem) $
         do
-          cached <- if force then return Nothing else tryLoadFromCache mname root fname
+          let fname = joinPath root stem
+          cached <- if force then return Nothing else tryLoadFromCache mname root stem
           case cached of
             Just (mod, modules) ->
               do liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "reusing:") <+>
@@ -764,7 +768,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                  return (mod, modules)
             _ -> do
               f <- liftIO $ realPath fname
-              (loadedImp, _) <- compileProgramFromFile maybeContents (fst <$> maybeContents (normalize f)) term flags modules1 cachedModules (if genUpdate then Object else compileTarget) importPath root fname
+              (loadedImp, _) <- compileProgramFromFile maybeContents (fst <$> maybeContents (normalize f)) term flags modules1 cachedModules (if genUpdate then Object else compileTarget) importPath root stem
               let mod = loadedModule loadedImp
                   allmods = addOrReplaceModule mod modules
               return (mod, loadedModules loadedImp)              
@@ -781,26 +785,20 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                              return mod
                       Nothing
                        -> do
-                        cached <- tryLoadFromCache mname root stem
-                        case cached of
-                            Just (mod, mods) ->
-                              do loadMessage "reusing:"
-                                 return mod
-                            Nothing -> do
-                              loadMessage "loading:"
-                              iftime <- liftIO $ getFileTime iface
-                              ftime <- liftIO $ getCurrentFileTime (joinPath root stem) maybeContents
-                              mbCore <- liftIO $ parseCore iface
-                              (core,parseInlines) <- liftError mbCore
-                              -- let core = uniquefy core0
-                              outIFace <- liftIO $ copyIFaceToOutputDir term flags iface core
-                              let mod = Module (Core.coreName core) outIFace (joinPath root stem) pkgQname pkgLocal []
-                                                  Nothing -- (error ("getting program from core interface: " ++ iface))
-                                                    core True (Left parseInlines) Nothing ftime (Just iftime) Nothing
-                              return mod
-             loadFromModule mname (modPath mod){-iface-} root stem mod
+                          loadMessage "loading:"
+                          iftime <- liftIO $ getFileTime iface
+                          ftime <- liftIO $ getCurrentFileTime (joinPath root stem) maybeContents
+                          mbCore <- liftIO $ parseCore iface
+                          (core,parseInlines) <- liftError mbCore
+                          -- let core = uniquefy core0
+                          outIFace <- liftIO $ copyIFaceToOutputDir term flags iface core
+                          let mod = Module (Core.coreName core) outIFace (joinPath root stem) pkgQname pkgLocal []
+                                              Nothing -- (error ("getting program from core interface: " ++ iface))
+                                                core True (Left parseInlines) Nothing ftime (Just iftime) Nothing
+                          return mod
+             loadFromModule mname (modPath mod){-iface-} root stem (joinPath root stem) mod
 
-      loadFromModule mname iface root source mod
+      loadFromModule mname iface root stem source mod
         = -- trace ("load from module: " ++ iface ++ ": " ++ root ++ "/" ++ source) $
           do --     loaded = initialLoaded { loadedModule = mod
              --                            , loadedModules = allmods
@@ -810,14 +808,14 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
              let latest = maxFileTimes (map modSourceTime imports)
              
              let allmods = addOrReplaceModule mod resolved1
-                 result = (mod{ modSourcePath = joinPath root source }, allmods)
+                 result = (mod{ modSourcePath = normalize $ joinPath root stem }, allmods)
               -- trace ("loaded iface: " ++ show iface ++ "\n time: "  ++ show (modTime mod) ++ "\n latest: " ++ show (latest)) $ return ()
              if (latest > (fromJust $ modTime mod)
                   && not (null source)) -- happens if no source is present but (package) depencies have updated...
                then do
                 -- trace ("iface " ++ show (modName mod) ++ " is out of date, reloading..." ++ (show (modTime mod) ++ " dependencies:\n" ++ intercalate "\n" (map (\m -> show (modName m, modTime m)) imports))) $ return ()
                 -- load from source after all
-                loadFromSource True True resolved1 root source (nameFromFile iface)
+                loadFromSource True True resolved1 root stem (nameFromFile iface)
                else
                 -- trace ("using loaded module: " ++ show (modName mod)) $
                 case compileTarget of
@@ -939,7 +937,7 @@ typeCheck loaded flags line coreImports program srcTime
        let warnings = warnings1
            fname   = sourceName (programSource program)
            module1 = (moduleNull (getName program))
-                               { modSourcePath = fname
+                               { modSourcePath = normalize fname
                                , modPath = outName flags (showModName (getName program)) ++ ifaceExtension
                                , modProgram    = Just program
                                , modWarnings   = warnings

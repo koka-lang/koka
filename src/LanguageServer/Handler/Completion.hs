@@ -65,6 +65,7 @@ import Type.TypeVar (tvsEmpty)
 import Data.ByteString (intercalate)
 import Control.Monad.ST (runST)
 import Language.LSP.Protocol.Types (InsertTextFormat(InsertTextFormat_Snippet))
+import Control.Monad.IO.Class (liftIO)
 
 completionHandler :: Handlers LSM
 completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req responder -> do
@@ -72,10 +73,11 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
   loaded <- getLoaded
+  loadedM <- liftIO $ loadedModuleFromUri loaded uri
   vfile <- getVirtualFile normUri
   let items = do
         l <- maybeToList loaded
-        lm <- maybeToList $ loadedModuleFromUri loaded uri
+        lm <- maybeToList $ loadedM
         vf <- maybeToList vfile
         pi <- maybeToList =<< getCompletionInfo pos vf lm uri
         findCompletions l lm pi

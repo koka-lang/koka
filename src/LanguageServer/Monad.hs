@@ -158,7 +158,7 @@ removeLoaded m = modifyLSState $ \s -> s {lsLoaded = case lsLoaded s of {Nothing
 getLoadedModule :: J.Uri -> LSM (Maybe Module)
 getLoadedModule uri = do
   lmaybe <- getLoaded
-  return $ loadedModuleFromUri lmaybe uri
+  liftIO $ loadedModuleFromUri lmaybe uri
 
 -- Runs the language server's state monad.
 runLSM :: LSM a -> MVar LSState -> LanguageContextEnv () -> IO a

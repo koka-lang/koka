@@ -53,7 +53,7 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
 prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
 
 -- Pretty-prints type/kind information to a hover tooltip
-formatRangeInfoHover :: (Doc -> IO T.Text) ->  Flags -> Name -> ImportMap ->RangeInfo -> IO T.Text
+formatRangeInfoHover :: (Doc -> IO T.Text) -> Flags -> Name -> ImportMap -> RangeInfo -> IO T.Text
 formatRangeInfoHover print flags mName imports rinfo =
   let colors = colorSchemeFromFlags flags
       env = prettyEnv flags mName imports in

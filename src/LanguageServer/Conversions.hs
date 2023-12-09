@@ -34,7 +34,7 @@ import qualified Syntax.RangeMap as R
 import Compiler.Module (Module (..), Loaded (..))
 import Data.Maybe (fromMaybe)
 import Data.List (find)
-import Common.File (normalize)
+import Common.File (normalize, realPath)
 
 toLspPos :: R.Pos -> J.Position
 toLspPos p =
@@ -111,8 +111,14 @@ fromLspRange uri (J.Range s e) = R.makeRange (fromLspPos uri s) (fromLspPos uri 
 fromLspLocation :: J.Location -> R.Range
 fromLspLocation (J.Location uri rng) = fromLspRange uri rng
 
-loadedModuleFromUri :: Maybe Loaded -> J.Uri -> Maybe Module
+loadedModuleFromUri :: Maybe Loaded -> J.Uri -> IO (Maybe Module)
 loadedModuleFromUri l uri = 
   case l of
-    Nothing -> Nothing
-    Just l -> find (\m -> maybe "" normalize (J.uriToFilePath uri) == modSourcePath m) $ loadedModules l
+    Nothing -> return Nothing
+    Just l -> 
+      case J.uriToFilePath uri of 
+        Nothing -> return Nothing
+        Just uri -> do
+          path <- realPath uri
+          let p = normalize path
+          return $ find (\m -> p == modSourcePath m) $ loadedModules l
