@@ -1,6 +1,18 @@
+fun showx( i : int ) : string
+  i.show
+
+fun showx( c : char ) : string
+  c.show
+
+fun showx( f : float64 ) : string
+  f.show
+
 
 fun showx( xs : list<a>, ?showx : a -> string ) : string
-  xs.map(showx).join(",")
+  "[" ++ xs.map(showx).join(",") ++ "]"
 
-fun show( xs : list<_>, ?show )
-  xs.map(show).join(",")
+fun foo1()
+  [1,2].showx
+
+fun foo2()
+  [[1],[2]].showx // (?showx = fn(xs) showx(xs))

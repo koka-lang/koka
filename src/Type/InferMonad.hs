@@ -1236,10 +1236,13 @@ resolveConName name mbType range
 
 resolveImplicitName :: Name -> Type -> Range -> Inf (Name,Type,NameInfo)
 resolveImplicitName name tp range
-  = resolveNameEx infoFilter (Just infoFilterAmb) True name (CtxType tp) range range
+  = resolveNameEx infoFilter (Just infoFilterAmb) True name ctx range range
   where
     infoFilter     = isInfoValFunExt
     infoFilterAmb  = not . isInfoImport
+    ctx = case splitFunType tp of
+            Just (pars,eff,restp) -> CtxFunTypes False (map snd pars) [] (Just restp) -- can handle implicit parameters recursively
+            _                     -> CtxType tp
 
 resolveNameEx :: (NameInfo -> Bool) -> Maybe (NameInfo -> Bool) -> Bool -> Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
 resolveNameEx infoFilter mbInfoFilterAmb asPrefix name ctx rangeContext range
