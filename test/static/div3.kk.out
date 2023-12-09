@@ -2,7 +2,7 @@ static/div3/ord: V
 static/div3/Lim: (lim : (int) -> ord) -> ord
 static/div3/Succ: (pred : ord) -> ord
 static/div3/Zero: ord
-static/div3/addord: (ord, ord) -> ord
+static/div3/addord: (x : ord, y : ord) -> ord
 static/div3/is-lim: (ord : ord) -> bool
 static/div3/is-succ: (ord : ord) -> bool
 static/div3/is-zero: (ord : ord) -> bool

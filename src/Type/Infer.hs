@@ -233,9 +233,15 @@ inferDefGroup topLevel (DefRec defs) cont
                           -> do qname <- if (topLevel) then qualifyName name else return name
                                 info <- case expr of
                                           Ann _ tp _ -> return (createNameInfoX Public qname sort nameRng tp)  -- may be off due to incomplete type: get fixed later in inferRecDef2
-                                          _          -> do tp <- Op.freshTVar kindStar Meta
-                                                           -- trace ("*** assume defVal: " ++ show qname) $
-                                                           return (createNameInfoX Public qname DefVal nameRng tp)  -- must assume Val for now: get fixed later in inferRecDef2
+                                          Lam pars _ _
+                                            -> do tpars <- mapM (\b -> do{ t <- Op.freshTVar kindStar Meta; return (binderName b,t) }) pars
+                                                  teff  <- Op.freshTVar kindEffect Meta
+                                                  tres  <- Op.freshTVar kindStar Meta
+                                                  let tp = TFun tpars teff tres
+                                                  return (createNameInfoX Public qname DefVal nameRng tp)
+                                          _ -> do tp <- Op.freshTVar kindStar Meta
+                                                  -- trace ("*** assume defVal: " ++ show qname) $
+                                                  return (createNameInfoX Public qname DefVal nameRng tp)  -- must assume Val for now: get fixed later in inferRecDef2
                                 -- trace ("*** createGammasx: assume: " ++ show name ++ ": " ++ show info) $ return ()
                                 createGammas gamma ((qname,info):infgamma) defs
 
@@ -341,7 +347,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
         penv <- getPrettyEnv
         (resTp2,coreExpr)
               <- case (mbAssumed,resCore1) of
-                         (Just (_,(TVar _)), Core.TypeLam tvars expr)  -- we assumed a monomorphic type, but generalized eventually
+                         (Just (_,rho), Core.TypeLam tvars expr) | isRho rho  -- we assumed a monomorphic type, but generalized eventually
                             -> -- fix it up by adding the polymorphic type application
                                do assumedTpX <- subst assumedTp >>= normalize True -- resTp0
                                   -- resTpX <- subst resTp0 >>= normalize

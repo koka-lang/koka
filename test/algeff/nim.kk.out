@@ -47,7 +47,7 @@ algeff/nim/is-take: (gtree : gtree) -> bool
 algeff/nim/is-winner: (gtree : gtree) -> bool
 algeff/nim/main: () -> <pure,console> ()
 algeff/nim/move: (player : player, sticks : int) -> nim int
-algeff/nim/mymap: forall<a,b,e> (list<a>, (a) -> e b) -> e list<b>
+algeff/nim/mymap: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>
 algeff/nim/pc: forall<a,e> (() -> <nim|e> a) -> e a
 algeff/nim/perfect: forall<a,e> (() -> <nim|e> a) -> e a
 algeff/nim/player: (gtree : gtree) -> player

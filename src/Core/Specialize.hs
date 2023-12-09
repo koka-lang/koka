@@ -208,12 +208,12 @@ val x  = f<t1,...tn>(e1,...em)
 -}
 {-
 specInnerCalls :: TName -> TName -> [Bool] -> Expr -> Expr
-specInnerCalls from to bools expr = 
+specInnerCalls from to bools expr =
   -- substitute first to avoid name capture
   let arity = length $ filter id bools
       sexpr = [(from,Var to (InfoArity 0 arity))] |~> expr
   -- then adjust arguments
-      rewrite e 
+      rewrite e
         = case e of
             App (Var v info) xs
               | v == to -> App (Var v info) $ filterBools bools xs
@@ -227,17 +227,17 @@ specInnerCalls from to bools expr =
 
 -- capture avoiding rewrite of all recursive calls with the given specialized parameter names
 specInnerCalls :: TName -> TName -> [Bool] -> [TName] -> Expr -> Expr
-specInnerCalls from to isSpecParam specParamNames expr 
+specInnerCalls from to isSpecParam specParamNames expr
   = sicExpr expr
   where
     arityTo  = length $ filter id (map not isSpecParam)
     varTo    = Var to (InfoArity 0 arityTo)
 
-    
+
     matchSpecParamNames args
       = (length args == length specParamNames) &&
         all eqVar (zip specParamNames args)
-   
+
     eqVar (name,Var v _)  = name == v
     eqVar (name,arg)      = trace ("specialize: specInnerCalls: argument does not match: " ++ show name ++ " as " ++ show arg) $
                             False
@@ -245,8 +245,8 @@ specInnerCalls from to isSpecParam specParamNames expr
     sicAppTo args
       = App varTo (map sicExpr (filterBools (map not isSpecParam) args))
 
-    sicExpr expr 
-      = case expr of    
+    sicExpr expr
+      = case expr of
           -- rewrite recursive calls
           App (Var v info) args  | v == from && matchSpecParamNames (filterBools isSpecParam args)
             -> sicAppTo args
@@ -254,7 +254,7 @@ specInnerCalls from to isSpecParam specParamNames expr
             -> sicAppTo args  -- always monomorph
 
           -- visitor
-          Lam params eff body 
+          Lam params eff body
             | any (== from) params -> expr  -- avoid capture
             | otherwise            -> Lam params eff (sicExpr body)
           App f args         -> App (sicExpr f) (map sicExpr args)
@@ -268,19 +268,19 @@ specInnerCalls from to isSpecParam specParamNames expr
 
     -- capture avoiding rewrite over let bindings
     sicLet [] body  = sicExpr body
-    sicLet (DefNonRec def : defs) body 
-      | defTName def == from  
+    sicLet (DefNonRec def : defs) body
+      | defTName def == from
         = makeLet (DefNonRec (sicDef def) : defs) body
-      | otherwise 
+      | otherwise
         = makeLet [DefNonRec (sicDef def)]  (sicLet defs body)
     sicLet (DefRec rdefs : defs) body
-      | any (\d -> defTName d == from) rdefs  
+      | any (\d -> defTName d == from) rdefs
         = makeLet (DefRec rdefs : defs) body
       | otherwise
         = makeLet [DefRec (map sicDef rdefs)] (sicLet defs body)
 
     -- capture avoiding rewrite over branches
-    sicBranch branch@(Branch patterns guards)    
+    sicBranch branch@(Branch patterns guards)
       | any (== from) (tnamesList (bv patterns)) = branch
       | otherwise = Branch patterns (map sicGuard guards)
 
@@ -301,17 +301,17 @@ comment = unlines . map ("// " ++) . lines
 -- The important thing is that we don't try to get the type of the body at the same time as replacing the recursive calls
 -- since the type of the body depends on the type of the functions that it calls and vice versa
 replaceCall :: Name -> Expr -> DefSort -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
-replaceCall name expr0 sort bools args mybeTypeArgs 
+replaceCall name expr0 sort bools args mybeTypeArgs
   = do
       expr <- uniquefyExprU expr0
 
       -- extract the specialized parameters
-      let ((newParams, newArgs), (speccedParams, speccedArgs)) 
+      let ((newParams, newArgs), (speccedParams, speccedArgs))
             = (unzip *** unzip)
               -- $ (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x)
               $ partitionBools bools
               $ zip (fnParams expr) args
-      
+
       -- create a new (recursive) specialized body where the specialized parameters become local defitions
       let specBody0
             = (\body -> case mybeTypeArgs of
@@ -321,20 +321,20 @@ replaceCall name expr0 sort bools args mybeTypeArgs
               $ Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""  -- bind specialized parameters
                       | (TName param typ, arg) <- zip speccedParams speccedArgs]
               $ fnBody expr
-              
-      
+
+
       -- substitute self-recursive calls to call our new specialized definition (without the specialized arguments!)
       specName <- uniqueName "spec"
       let specType  = typeOf specBody0
           specTName = TName specName specType
           specBody  = case specBody0 of
-                        Lam args eff (Let specArgs body) 
+                        Lam args eff (Let specArgs body)
                           -> -- uniquefyExpr $
                              Lam args eff $
-                               (Let specArgs $ 
+                               (Let specArgs $
                                 specInnerCalls (TName name (typeOf expr)) specTName bools speccedParams body)
                         _ -> failure "Specialize.replaceCall: Unexpected output from specialize pass"
-      
+
       -- simplify so the new specialized arguments are potentially inlined unlocking potential further specialization
       sspecBody <- uniqueSimplify defaultEnv False False 1 10 specBody
       -- trace ("\n// ----start--------\n// specializing " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs) <> "\n// specTName: " <> show (getName specTName) <> ", specBody0: \n" <> show specBody <> "\n\n, sspecBody: \n" <> show sspecBody <> "\n// ---- start recurse---") $ return ()
@@ -342,7 +342,7 @@ replaceCall name expr0 sort bools args mybeTypeArgs
       let specDef = Def specName specType sspecBody Private sort InlineAuto rangeNull
                      $ "// specialized: " <> show name <> ", on parameters " <> concat (intersperse ", " (map show speccedParams)) <> ", using:\n" <>
                        comment (unlines [show param <> " = " <> show arg | (param,arg) <- zip speccedParams speccedArgs])
-      
+
       return $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
 
 fnTypeParams :: Expr -> [TypeVar]

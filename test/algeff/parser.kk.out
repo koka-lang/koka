@@ -19,7 +19,7 @@ algeff/parser/mparse: forall<a,e> (p : () -> <many,parse|e> a, input : string) -
 algeff/parser/number: () -> <div,many,parse> int
 algeff/parser/parse: forall<a,e> (input0 : string, action : () -> <parse,many|e> a) -> <many|e> (a, string)
 algeff/parser/satisfy: forall<a> (pred : (string) -> maybe<(a, string)>) -> parse a
-algeff/parser/select: forall<a> (list<a>) -> many a
+algeff/parser/select: forall<a> (xs : list<a>) -> many a
 algeff/parser/show-parse: forall<a> (xs : list<(a, string)>, f : (a) -> string) -> string
 algeff/parser/show-parse-int: (xs : list<(int, string)>) -> string
 algeff/parser/show-parse-ints: (xs : list<(list<int>, string)>) -> string

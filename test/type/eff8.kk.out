@@ -1,1 +1,1 @@
-type/eff8/forever: forall<a,b,e> (() -> <div|e> a) -> <div|e> b
+type/eff8/forever: forall<a,b,e> (f : () -> <div|e> a) -> <div|e> b

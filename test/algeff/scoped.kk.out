@@ -28,12 +28,12 @@ algeff/scoped/local: forall<a,b,e> (s : a, action : () -> <div,nondet,state<a>|e
 algeff/scoped/main: () -> <console,div> ()
 algeff/scoped/many: forall<a,e> (p : () -> <div,nondet|e> a) -> <div,nondet|e> list<a>
 algeff/scoped/many1: forall<a,e> (p : () -> <div,nondet|e> a) -> <div,nondet|e> list<a>
-algeff/scoped/mymap: forall<a,b,e> (list<a>, (a) -> e b) -> e list<b>
+algeff/scoped/mymap: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>
 algeff/scoped/number: () -> <div,nondet,symbol> int
 algeff/scoped/once: forall<a,e> (p : () -> <cutfail,div,nondet,nondet|e> a) -> <div,nondet|e> a
 algeff/scoped/parse: forall<a,e> (input : string, action : () -> <nondet,symbol|e> a) -> <nondet|e> a
 algeff/scoped/put: forall<a> (i : a) -> (state<a>) ()
-algeff/scoped/select: forall<a> (list<a>) -> nondet a
+algeff/scoped/select: forall<a> (xs : list<a>) -> nondet a
 algeff/scoped/show: (xs : list<(int, list<int>)>) -> string
 algeff/scoped/show: (x : (int, list<list<int>>)) -> string
 algeff/scoped/show: (xss : list<list<int>>) -> string

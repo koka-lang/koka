@@ -1,2 +1,2 @@
-type/hm3/f: forall<a,b> (a) -> div b
-type/hm3/g: forall<a,b> (a) -> div b
+type/hm3/f: forall<a,b> (y : a) -> div b
+type/hm3/g: forall<a,b> (x : a) -> div b

@@ -1,2 +1,2 @@
-type/eff8b/forever: forall<a,b,e> ((string) -> <pure|e> a) -> <pure|e> b
+type/eff8b/forever: forall<a,b,e> (f : (string) -> <pure|e> a) -> <pure|e> b
 type/eff8b/test: forall<a> () -> <pure,console> a

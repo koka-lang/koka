@@ -4,7 +4,7 @@ algeff/effs3b/Amb: forall<e,a> (.hnd-amb<e,a>) -> amb
 algeff/effs3b/amb_handle: forall<a,e> () -> ((() -> <amb|e> a) -> e list<a>)
 algeff/effs3b/flip: () -> amb bool
 algeff/effs3b/main: () -> console ()
-algeff/effs3b/mmap: forall<a,b,e> ((a) -> e b, list<a>) -> e list<b>
+algeff/effs3b/mmap: forall<a,b,e> (f : (a) -> e b, xs : list<a>) -> e list<b>
 algeff/effs3b/upcast1: () -> amb string
 algeff/effs3b/upcast2: () -> string
 algeff/effs3b/xor: () -> amb bool
