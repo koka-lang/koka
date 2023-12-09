@@ -1505,21 +1505,13 @@ lookupNameEx infoFilter asPrefix name ctx range
                                                                                                 return (concat mss)
                                     case matches of
                                       [(qname,info)] -> return matches
-                                      _  -> do -- lookup global names defined in the current module
-                                               {-
-                                               let localMatches = [(qname,info) | (qname,info) <- matches, qualifier qname == context env]
-                                               case localMatches of
-                                                 [(qname,info)] -> return localMatches
-                                                 _  ->
-                                               -}
-                                                       return matches
-                                                       {- do
-                                                          let localCands = [(qname,info) | (qname,info) <- candidates, qualifier qname == context env]
-                                                          case localCands of
-                                                            [(qname,info)] -> return (qname,info)
-                                                            _            -> return localCands -- infError range (Pretty.ppName (prettyEnv env) name <+> text "is ambiguous")
+                                      _  -> if not asPrefix
+                                              then return matches
+                                              else let exactMatches = filter (\(nm,_) -> unqualify nm == name) matches
+                                                   in case exactMatches of
+                                                        [_] -> return exactMatches
+                                                        _   -> return matches -- not exactMatches to improve error messages
 
-                                                        -}
   where
     matchType :: Type -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
     matchType expect (name,info)

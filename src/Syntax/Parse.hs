@@ -1949,7 +1949,12 @@ argument
                            <|>
                               return (Nothing,exp)
          _              -> return (Nothing,exp)
-
+  <|>
+    do specialOp "?"
+       (name,rng) <- identifier
+       keyword "="
+       exp <- expr
+       return (Just (toImplicitParamName name, rng), exp)
 
 {--------------------------------------------------------------------------
   Atomic expression

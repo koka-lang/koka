@@ -2123,7 +2123,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
     extract name acc []
       = Nothing
     extract name acc (par@(i,(parName,parType)):pars)
-      = if (name == parName)
+      = if (name == parName || name == fst (splitImplicitParamName parName))
          then Just (i,parType,reverse acc ++ pars)
          else extract name (par:acc) pars
 

@@ -24,3 +24,9 @@ fun test(  x : int, y : int = 3, ?z : int ) : int
 fun foo3()
   val z = 2
   test(1)
+
+fun foo4()
+  test(1,?z=1+2,y=2+2)
+
+fun foo5()
+  [1,2].sum2( ?p1=(*))
