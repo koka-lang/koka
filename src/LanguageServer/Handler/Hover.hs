@@ -19,8 +19,8 @@ import Lib.PPrint (Pretty (..), Doc, text, (<+>), color)
 import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindAt)
 import qualified Language.LSP.Protocol.Message as J
 import Control.Monad.Cont (liftIO)
-import Type.Pretty (ppScheme, defaultEnv, Env(..))
-import Common.ColorScheme (ColorScheme (colorNameQual))
+import Type.Pretty (ppScheme, defaultEnv, Env(..), ppName)
+import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
 import Kind.Pretty (prettyKind)
 import Common.Name (nameNil)
 import Kind.ImportMap (importsEmpty, ImportMap)
@@ -55,12 +55,13 @@ prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ context = ctx, imports
 -- Pretty-prints type/kind information to a hover tooltip
 formatRangeInfoHover :: (Doc -> IO T.Text) ->  Flags -> Name -> ImportMap ->RangeInfo -> IO T.Text
 formatRangeInfoHover print flags mName imports rinfo =
-  let colors = colorSchemeFromFlags flags in
+  let colors = colorSchemeFromFlags flags
+      env = prettyEnv flags mName imports in
   case rinfo of
   Id qname info isdef ->
-    print $ color (colorNameQual colors) (pretty qname) <+> text " : " <+> case info of
-      NIValue tp -> ppScheme (prettyEnv flags mName imports) tp
-      NICon tp ->  ppScheme (prettyEnv flags mName imports) tp
+    print $ (ppName env{colors=colors{colorSource = Gray}} qname) <+> text " : " <+> case info of
+      NIValue tp -> ppScheme env tp
+      NICon tp ->  ppScheme env tp
       NITypeCon k -> prettyKind colors k
       NITypeVar k -> prettyKind colors k
       NIModule -> text "module"

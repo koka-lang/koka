@@ -715,7 +715,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                     if srcpath /= forceModule flags && modSourceTime mod == sourceTime
                       then do
                         -- trace ("Loading module " ++ show mname ++ " from cache") $ return ()
-                        x <- loadFromModule (modPath mod) root stem mod
+                        x <- loadFromModule mname (modPath mod) root stem mod
                         return $ Just x
                     else
                       -- trace ("Found mod " ++ show mname ++ " in cache but was forced or old modTime " ++ show (modSourceTime mod) ++ " srctime " ++ show sourceTime ++ " force " ++ forceModule flags )
@@ -734,11 +734,10 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                   Just mod ->
                     if (srcpath /= forceModule flags && modSourceTime mod == sourceTime)
                      then -- trace ("module " ++ show (name) ++ " already loaded") $
-                          -- loadFromModule iface root stem mod
                           return (mod,modules) -- TODO: revise! do proper dependency checking instead..
                     else if (not (rebuild flags) && srcpath /= forceModule flags && ifaceTime >= sourceTime)
                         then loadFromIface iface root stem mname
-                    else loadFromSource False True modules root stem (nameFromFile iface)
+                    else loadFromSource False True modules root stem mname
                   _ -> do
                     cached <- tryLoadFromCache mname root stem
                     case cached of
@@ -751,7 +750,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                         -- trace ("module " ++ show (name) ++ " not yet loaded") $
                         if (not (rebuild flags) && srcpath /= forceModule flags && ifaceTime >= sourceTime)
                           then loadFromIface iface root stem mname
-                          else loadFromSource False True modules root stem (nameFromFile iface)
+                          else loadFromSource False True modules root stem mname
 
       loadFromSource force genUpdate modules1 root fname mname
         = -- trace ("loadFromSource: " ++ show force ++ " " ++ " update " ++ show genUpdate ++ " " ++ root ++ "/" ++ fname) $
@@ -799,9 +798,9 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                                                   Nothing -- (error ("getting program from core interface: " ++ iface))
                                                     core True (Left parseInlines) Nothing ftime (Just iftime) Nothing
                               return mod
-             loadFromModule (modPath mod){-iface-} root stem mod
+             loadFromModule mname (modPath mod){-iface-} root stem mod
 
-      loadFromModule iface root source mod
+      loadFromModule mname iface root source mod
         = -- trace ("load from module: " ++ iface ++ ": " ++ root ++ "/" ++ source) $
           do --     loaded = initialLoaded { loadedModule = mod
              --                            , loadedModules = allmods
