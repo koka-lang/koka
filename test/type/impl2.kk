@@ -15,4 +15,4 @@ fun foo1()
   [1,2].showx
 
 fun foo2()
-  [[1],[2]].showx // (?showx = fn(xs) showx(xs))
+  [[1],[2]].showx // this resolves recursively
