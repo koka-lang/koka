@@ -1514,10 +1514,10 @@ lookupNameEx infoFilter asPrefix name ctx range
                                       [(qname,info)] -> return matches
                                       _  -> if not asPrefix
                                               then return matches
-                                              else let exactMatches = filter (\(nm,_) -> unqualify nm == name) matches
-                                                   in case exactMatches of
-                                                        [_] -> return exactMatches
-                                                        _   -> return matches -- not exactMatches to improve error messages
+                                              else let specificMatches = filter (\(nm,_) -> unqualify nm /= name) matches
+                                                   in case specificMatches of
+                                                        [_] -> return specificMatches -- prefer more specific instances
+                                                        _   -> return matches -- all matches to improve error messages
 
   where
     matchType :: Type -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
