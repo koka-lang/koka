@@ -1236,7 +1236,7 @@ resolveConName name mbType range
 
 resolveImplicitName :: Name -> Type -> Range -> Inf (Name,Type,NameInfo)
 resolveImplicitName name tp range
-  = resolveNameEx infoFilter (Just infoFilterAmb) True name ctx range range
+  = resolveNameEx infoFilter (Just infoFilterAmb) True {-prefix match-} name ctx range range
   where
     infoFilter     = isInfoValFunExt
     infoFilterAmb  = not . isInfoImport
@@ -1496,7 +1496,7 @@ lookupNameEx infoFilter asPrefix name ctx range
                            [(qname,info)] -> return candidates
                            [] -> return [] -- infError range (Pretty.ppName (prettyEnv env) name <+> text "cannot be found")
                            _  -> do when (not asPrefix) $
-                                      checkCasingOverlaps range name candidates
+                                      checkCasingOverlaps range name candidates -- todo: enable with asPrefix?
                                     -- lookup global candidates that match the expected type
                                     matches <- case ctx of
                                                  CtxNone         -> return candidates
