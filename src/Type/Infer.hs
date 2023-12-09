@@ -1886,7 +1886,7 @@ inferArgsN ctx range parArgs
 
                                                             | any Op.isOptionalOrImplicit fpars
                                                             -> -- eta expand to resolve further implicit parameters (recursively!)
-                                                              let argnames = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] fpars]
+                                                              let argnames = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] (filter (not . Op.isOptionalOrImplicit) fpars)]
                                                               in  Lam [ValueBinder name Nothing Nothing rng rng | name <- argnames]
                                                                       (App (Var ename False rng)
                                                                           [(Nothing,Var name False rng) | name <- argnames]
