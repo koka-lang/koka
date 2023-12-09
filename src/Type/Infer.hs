@@ -1874,7 +1874,9 @@ inferArgsN ctx range parArgs
                                  ArgCore (_,ctp,ceff,carg)
                                    -> return (ctp,ceff,carg)  -- TODO: generalize polymorphic parameters?
                                  ArgImplicit name rng
-                                   -> do (ename,etp,info) <- resolveImplicitName name tpar0 rng
+                                   -> do traceDoc $ \env -> text "resolving" <+> ppParam env (name,tpar0)
+                                         (ename,etp,info) <- resolveImplicitName name tpar0 rng
+                                         traceDoc $ \env -> text "resolved implicit name" <+> ppParam env (ename,etp)
                                          let argexpr = Var ename False rng
                                          inferArgExpr tpar0 argexpr
 

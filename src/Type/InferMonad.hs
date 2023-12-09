@@ -1297,7 +1297,8 @@ resolveNameEx infoFilter mbInfoFilterAmb asPrefix name ctx rangeContext range
                               _ -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found")
 
         [(qname,info)]
-           -> do checkCasing range name qname info
+           -> do when (not asPrefix) $  -- todo: check casing for asPrefix as well
+                   checkCasing range name qname info
                  return (qname,infoType info,info)
         _  -> do env <- getEnv
                  infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintTypeSig matches)
@@ -1491,7 +1492,8 @@ lookupNameEx infoFilter asPrefix name ctx range
                         case candidates of
                            [(qname,info)] -> return candidates
                            [] -> return [] -- infError range (Pretty.ppName (prettyEnv env) name <+> text "cannot be found")
-                           _  -> do checkCasingOverlaps range name candidates
+                           _  -> do when (not asPrefix) $
+                                      checkCasingOverlaps range name candidates
                                     -- lookup global candidates that match the expected type
                                     matches <- case ctx of
                                                  CtxNone         -> return candidates
