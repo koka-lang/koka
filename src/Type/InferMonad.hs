@@ -24,6 +24,7 @@ module Type.InferMonad( Inf, InfGamma
                       , resolveName, resolveNameEx
                       , resolveFunName
                       , resolveConName
+                      , resolveImplicitName
                       , lookupConName
                       , lookupFunName
                       , lookupNameEx, NameContext(..), maybeToContext
@@ -755,7 +756,7 @@ unifyError' env context range err tp1 tp2
           NoMatch     -> (nameType ++ "s do not match",[])
           NoMatchKind -> ("kinds do not match",[])
           NoMatchPred -> ("predicates do not match",[])
-          NoMatchSkolem kind 
+          NoMatchSkolem kind
                       -> ("abstract types do not match",if (not (null extra))
                                                          then []
                                                          else [(text "hint", if (isKindHeap kind || isKindScope kind)
@@ -853,7 +854,7 @@ data St     = St{ uniq :: !Int, sub :: !Sub, preds :: ![Evidence], holeAllowed :
 
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
-  = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False) 
+  = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False)
            (St unique subNull [] False mbrm) of
       Err err warnings -> addWarnings warnings (errorMsg (ErrorType [err]))
       Ok x st warnings -> addWarnings warnings (ok (x, uniq st, (sub st) |-> mbRangeMap st))
@@ -960,7 +961,7 @@ isReturnAllowed
        return (returnAllowed env)
 
 useHole :: Inf Bool
-useHole 
+useHole
   = do st0 <- updateSt (\st -> st{ holeAllowed = False } )
        return (holeAllowed st0)
 
@@ -970,7 +971,7 @@ disallowHole action
        let prev = holeAllowed st0
        x <- action
        updateSt(\st -> st{ holeAllowed = prev })
-       return x       
+       return x
 
 allowHole :: Inf a -> Inf (a,Bool {- was the hole used? -})
 allowHole action
@@ -979,7 +980,7 @@ allowHole action
        x <- action
        st1 <- updateSt(\st -> st{ holeAllowed = prev })
        return (x,not (holeAllowed st1))
-       
+
 
 
 getSub :: Inf Sub
@@ -1205,16 +1206,16 @@ findDataInfo typeName
 resolveName :: Name -> Maybe(Type,Range) -> Range -> Inf (Name,Type,NameInfo)
 resolveName name mbType range
   = case mbType of
-      Just (tp,ctxRange) -> resolveNameEx infoFilter (Just infoFilterAmb) name (CtxType tp) ctxRange range
-      Nothing            -> resolveNameEx infoFilter (Just infoFilterAmb) name CtxNone range range
+      Just (tp,ctxRange) -> resolveNameEx infoFilter (Just infoFilterAmb) False name (CtxType tp) ctxRange range
+      Nothing            -> resolveNameEx infoFilter (Just infoFilterAmb) False name CtxNone range range
   where
     infoFilter = isInfoValFunExt
     infoFilterAmb = not . isInfoImport
 
 -- resolve an applied name (only used for emitting errors)
 resolveAppName :: Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
-resolveAppName name ctx rangeContext range 
-  = resolveNameEx infoFilter (Just infoFilterAmb) name ctx rangeContext range
+resolveAppName name ctx rangeContext range
+  = resolveNameEx infoFilter (Just infoFilterAmb) False name ctx rangeContext range
   where
     infoFilter = if isConstructorName name then isInfoCon else isInfoValFunExt
     infoFilterAmb = not . isInfoImport
@@ -1222,24 +1223,31 @@ resolveAppName name ctx rangeContext range
 -- | Lookup a name with a number of arguments and return the fully qualified name and its type
 resolveFunName :: Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
 resolveFunName name ctx rangeContext range
-  = resolveNameEx infoFilter (Just infoFilterAmb) name ctx rangeContext range
+  = resolveNameEx infoFilter (Just infoFilterAmb) False name ctx rangeContext range
   where
     infoFilter = isInfoValFunExt
     infoFilterAmb = not . isInfoImport
 
-
 resolveConName :: Name -> Maybe (Type) -> Range -> Inf (Name,Type,Core.ConRepr,ConInfo)
 resolveConName name mbType range
-  = do (qname,tp,info) <- resolveNameEx isInfoCon Nothing name (maybeToContext mbType) range  range
+  = do (qname,tp,info) <- resolveNameEx isInfoCon Nothing False name (maybeToContext mbType) range  range
        return (qname,tp,infoRepr info,infoCon info)
 
-resolveNameEx :: (NameInfo -> Bool) -> Maybe (NameInfo -> Bool) -> Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
-resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
-  = do matches <- lookupNameEx infoFilter name ctx range
+
+resolveImplicitName :: Name -> Type -> Range -> Inf (Name,Type,NameInfo)
+resolveImplicitName name tp range
+  = resolveNameEx infoFilter (Just infoFilterAmb) True name (CtxType tp) range range
+  where
+    infoFilter     = isInfoValFunExt
+    infoFilterAmb  = not . isInfoImport
+
+resolveNameEx :: (NameInfo -> Bool) -> Maybe (NameInfo -> Bool) -> Bool -> Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
+resolveNameEx infoFilter mbInfoFilterAmb asPrefix name ctx rangeContext range
+  = do matches <- lookupNameEx infoFilter asPrefix name ctx range
        case matches of
         []   -> do amb <- case ctx of
                             CtxNone -> return []
-                            _       -> lookupNameEx infoFilter name CtxNone range
+                            _       -> lookupNameEx infoFilter asPrefix name CtxNone range
                    env <- getEnv
                    let penv = prettyEnv env
                        ctxTerm rangeContext = [(text "context", docFromRange (Pretty.colors penv) rangeContext)
@@ -1280,7 +1288,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                                ))
 
                     _ -> do amb2 <- case mbInfoFilterAmb of
-                                      Just infoFilterAmb -> lookupNameEx infoFilterAmb name ctx range
+                                      Just infoFilterAmb -> lookupNameEx infoFilterAmb asPrefix name ctx range
                                       Nothing            -> return []
                             case amb2 of
                               (_:_)
@@ -1366,7 +1374,7 @@ ppNameInfo env (name,info)
 
 lookupImportName :: Name -> Range -> Inf (Maybe (Name,NameInfo))
 lookupImportName name range
-  = do matches <- lookupNameEx (const True) name CtxNone range
+  = do matches <- lookupNameEx (const True) False name CtxNone range
        case matches of
         [] -> do env <- getPrettyEnv
                  infError range (text "identifier" <+> Pretty.ppName env name <+> text "cannot be found")
@@ -1378,7 +1386,7 @@ lookupImportName name range
 
 lookupConName :: Name -> Maybe (Type) -> Range -> Inf (Maybe (Name,Type,NameInfo))
 lookupConName name mbType range
-  = do matches <- lookupNameEx isInfoCon name (maybeToContext mbType) range
+  = do matches <- lookupNameEx isInfoCon False name (maybeToContext mbType) range
        case matches of
         []   -> return Nothing
         [(name,info)]  -> return (Just (name,infoType info,info))
@@ -1389,7 +1397,7 @@ lookupConName name mbType range
 
 lookupFunName :: Name -> Maybe (Type,Range) -> Range -> Inf (Maybe (Name,Type,NameInfo))
 lookupFunName name mbType range
-  = do matches <- lookupNameEx isInfoFun name (maybeRToContext mbType) range
+  = do matches <- lookupNameEx isInfoFun False name (maybeRToContext mbType) range
        case matches of
         []   -> return Nothing
         [(name,info)]  -> return (Just (name,infoType info,info))
@@ -1402,7 +1410,7 @@ lookupFunName name mbType range
 -- lookup a name that is applied to argument (val, function, extern, or constructor)
 lookupAppName :: Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
 lookupAppName name ctx range
-  = lookupNameEx infoFilter name ctx range
+  = lookupNameEx infoFilter False name ctx range
   where
     infoFilter = if isConstructorName name then isInfoCon else isInfoValFunExt
 
@@ -1426,9 +1434,9 @@ fixedContext propagated fresolved fixedCount named
 
     fixedGuessed :: [(Int,FixedArg)] -> Inf [Type]
     fixedGuessed xs   = fill 0 (sortBy (comparing fst) xs)
-                      where 
+                      where
                         fill j []  = tvars (fixedCount - j)
-                        fill j ((i,(_,tp,_,_)):rest)  
+                        fill j ((i,(_,tp,_,_)):rest)
                           = do post <- fill (i+1) rest
                                pre  <- tvars (i - j)
                                stp  <- subst tp
@@ -1466,18 +1474,20 @@ data NameContext
   | CtxFunTypes Bool [Type] [(Name,Type)] (Maybe Type)  -- ^ are only some arguments supplied?, function name, with fixed and named arguments, maybe a (propagated) result type
   deriving (Show)
 
-lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
-lookupNameEx infoFilter name ctx range
+lookupNameEx :: (NameInfo -> Bool) -> Bool -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
+lookupNameEx infoFilter asPrefix name ctx range
   = -- trace ("lookup: " ++ show name) $
     do env <- getEnv
        -- trace (" in infgamma: " ++ show (ppInfGamma (prettyEnv env) (infgamma env))) $ return ()
-       case infgammaLookupX name (infgamma env) of
+       case infgammaLookupX name (infgamma env) of  --TODO: allow prefix lookup?
          Just info  | infoFilter info
                   -> do sinfo <- subst info
                         return [(infoCanonicalName name info, sinfo)] -- TODO: what about local definitions without local type variables or variables?
          _        -> -- trace ("gamma: " ++ show (ppGamma (prettyEnv env) (gamma env))) $
                      -- lookup global candidates
-                     do let candidates = filter (infoFilter . snd) (gammaLookup name (gamma env))
+                     do let candidates = filter (infoFilter . snd) $
+                                         if asPrefix then gammaLookupPrefix name (gamma env)
+                                                     else gammaLookup name (gamma env)
                         case candidates of
                            [(qname,info)] -> return candidates
                            [] -> return [] -- infError range (Pretty.ppName (prettyEnv env) name <+> text "cannot be found")

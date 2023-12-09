@@ -15,6 +15,7 @@ module Type.Operations( instantiate
                       , freshTVar
                       , Evidence(..)
                       , freshSub
+                      , isOptionalOrImplicit, splitOptionalImplicit
                       ) where
 
 
@@ -26,6 +27,17 @@ import Type.Type
 import Type.TypeVar
 import Core.Core as Core
 import Type.Assumption
+
+
+isOptionalOrImplicit :: (Name,Type) -> Bool
+isOptionalOrImplicit (pname,ptype)
+  = isImplicitParamName pname || isOptional ptype
+
+splitOptionalImplicit :: [(Name,Type)] -> ([(Name,Type)],[(Name,Type)],[(Name,Type)])
+splitOptionalImplicit pars
+  = let (fixed,rest) = span (not . isOptionalOrImplicit) pars
+        (opts,named) = span (isOptional . snd) rest
+    in (fixed,opts,named)
 
 --------------------------------------------------------------------------
 -- Instantiation

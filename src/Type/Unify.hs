@@ -52,14 +52,14 @@ overlaps range free tp1 tp2
          (Nothing,_) -> return ()
          (_,Nothing) -> return ()
          -- rest
-         (Just (targs1,_,_), Just (targs2,_,_))
+         (Just (pars1,_,_), Just (pars2,_,_))
           -> {-
-             if (length targs1 /= length targs2)
+             if (length pars1 /= length pars2)
               then unifyError  NoMatch
-              else unifies (map snd targs1) (map snd targs2)
+              else unifies (map snd pars1) (map snd pars2)
              -}
-             let (fixed1,optional1) = span (not . isOptional) (map snd targs1)
-                 (fixed2,optional2) = span (not . isOptional) (map snd targs2)
+             let (fixed1,optional1,implicit1) = splitOptionalImplicit pars1
+                 (fixed2,optional2,implicit2) = splitOptionalImplicit pars2
              {-
                  len1 = length fixed1
                  len2 = length fixed2
@@ -70,8 +70,8 @@ overlaps range free tp1 tp2
                             return () -- todo: this is slightly too strict: if the longest prefix of fixed arguments match, we consider them overlapped
                       -}
                  hi  = max (length fixed1) (length fixed2)
-                 fo1 = take hi (fixed1 ++ map unOptional optional1)
-                 fo2 = take hi (fixed2 ++ map unOptional optional2)
+                 fo1 = take hi (map snd fixed1 ++ map (unOptional . snd) optional1 ++ map snd implicit1)
+                 fo2 = take hi (map snd fixed2 ++ map (unOptional . snd) optional2 ++ map snd implicit2)
              in if (length fo1 /= length fo2)
                  then unifyError NoMatch  -- one has more fixed arguments than the other can ever get
                  else do unifies fo1 fo2
@@ -81,7 +81,7 @@ overlaps range free tp1 tp2
 
 -- | Does a type have the given named arguments?
 matchNamed :: Range -> Tvs -> Type -> Int -> [Name] -> Maybe Type -> Unify ()
-matchNamed range free tp n named mbExpResTp
+matchNamed range free tp n {- given args -} named mbExpResTp
   = do rho1 <- instantiate range tp
        case splitFunType rho1 of
          Nothing -> unifyError NoMatch
@@ -96,15 +96,15 @@ matchNamed range free tp n named mbExpResTp
                                  Nothing    -> return ()
                                  Just expTp -> do subsume range free expTp resTp
                                                   return ()
-                               let rest = [tp | (nm,tp) <- npars, not (nm `elem` named)]
-                               if (all isOptional rest)
+                               let rest = [(nm,tp) | (nm,tp) <- npars, not (nm `elem` named)]
+                               if (all isOptionalOrImplicit rest)
                                 then return ()
                                 else unifyError NoMatch
                        else unifyError NoMatch
 
 
 -- | Does a function type match the given arguments? if the first argument 'matchSome' is true,
--- it is considered a match even if not all arguments to the function are supplied
+-- it is considered a match even if not all fixed arguments to the function are supplied
 matchArguments :: Bool -> Range -> Tvs -> Type -> [Type] -> [(Name,Type)] -> Maybe Type -> Unify ()
 matchArguments matchSome range free tp fixed named mbExpResTp
   = do rho1 <- instantiate range tp
@@ -119,15 +119,16 @@ matchArguments matchSome range free tp fixed named mbExpResTp
                       -- subsume named parameters
                       mapM_ (\(name,targ) -> case lookup name npars of
                                                Nothing   -> unifyError NoMatch
-                                               Just tpar -> subsume range free tpar (makeOptionalType targ)) named
+                                               Just tpar -> subsume range free (unOptional tpar) targ
+                            ) named
                       -- check the rest is optional
-                      let rest = [tpar | (nm,tpar) <- npars, not (nm `elem` map fst named)]
+                      let rest = [(nm,tpar) | (nm,tpar) <- npars, not (nm `elem` map fst named)]
                       -- check if the result type matches
                       case mbExpResTp of
                         Nothing    -> return ()
                         Just expTp -> do subsume range free expTp resTp
                                          return ()
-                      if (matchSome || all isOptional rest)
+                      if (matchSome || all isOptionalOrImplicit rest)
                        then return ()
                        else unifyError NoMatch
 
@@ -243,7 +244,7 @@ unify (TApp t1 ts1) (TApp u1 us2)   -- | length ts1 != length us2
 -- functions
 unify (TFun args1 eff1 res1) (TFun args2 eff2 res2) | length args1 == length args2
   = do unifies (res1:map snd args1) (res2:map snd args2)
-       withError (effErr) (unify eff1 eff2)       
+       withError (effErr) (unify eff1 eff2)
   where
     -- specialize to sub-part of the type for effect unification errors
     effErr NoMatch              = NoMatchEffect eff1 eff2

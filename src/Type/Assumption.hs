@@ -13,7 +13,7 @@ module Type.Assumption (
                     , gammaNew, gammaSingle
                     , gammaEmpty
                     , gammaExtend, gammaExtends
-                    , gammaLookup, gammaLookupQ
+                    , gammaLookup, gammaLookupQ, gammaLookupPrefix
                     , gammaLookupCanonical, gammaLookupExactCon -- for core
                     , gammaMap
                     , gammaList
@@ -210,9 +210,18 @@ gammaLookup name (Gamma gamma)
                  -- in filter (\(n,_) -> n == qname) xs
                  -- trace (" in gamma found: " ++ show (map fst xs)) $
                  filter (\(_,info) -> infoIsVisible info) $
-                 if (isQualified name)
-                  then filter (\(n,_) -> n == name || nameCaseEqual name n) xs
-                  else xs
+                  if (isQualified name)
+                    then filter (\(n,_) -> n == name || nameCaseEqual name n) xs
+                    else xs
+
+gammaLookupPrefix :: Name -> Gamma -> [(Name,NameInfo)]
+gammaLookupPrefix name (Gamma gamma)
+  = assertion "Assumption.gammaLookupPrefix"  (not (isQualified name)) $
+    filter (\(_,info) -> infoIsVisible info) $ concat $ M.elems $ M.filterWithKey isPrefix gamma
+  where
+    pre            = showPlain (unqualify name) ++ "_"
+    isPrefix nm _  = (nm == name) || nameStartsWith nm pre
+
 
 gammaMap :: (NameInfo -> NameInfo) -> Gamma -> Gamma
 gammaMap f (Gamma gamma)

@@ -19,7 +19,7 @@ module Common.Name
           , labelNameCompare
           , toHiddenUniqueName
           , newName, newQualified
-          , nameNil, nameIsNil
+          , nameNil, nameIsNil, nameStartsWith
           , nameCaseEqual, nameCaseOverlap, isSameNamespace
           , qualify, unqualify, isQualified, qualifier
           , nameId, nameModule
@@ -43,7 +43,8 @@ module Common.Name
           , toValueOperationName, isValueOperationName, fromValueOperationsName
           , splitModuleName, unsplitModuleName, mergeCommonPath
           , isEarlyBindName
-          , toImplicitParamName, isImplicitParamName, plainImplicitParamName, namedImplicitParamName
+          , toImplicitParamName, isImplicitParamName, plainImplicitParamName
+          , namedImplicitParamName, splitImplicitParamName
 
           , prepend, postpend
           , asciiEncode, showHex, moduleNameToPath, pathToModuleName
@@ -277,6 +278,10 @@ toVarName name
           _      -> s
 
 
+nameStartsWith :: Name -> String -> Bool
+nameStartsWith name pre
+  = nameId name `startsWith` pre
+
 ----------------------------------------------------------------
 -- various special names
 ----------------------------------------------------------------
@@ -372,6 +377,14 @@ plainImplicitParamName name
 namedImplicitParamName :: Name -> Name -> Name
 namedImplicitParamName pname ename
   = newName (nameId pname ++ "=" ++ nameId ename)
+
+splitImplicitParamName :: Name -> (Name,Name)
+splitImplicitParamName name
+  = let (pre,post) = span (/= '=') (nameId name)
+    in case post of
+         (_:ename) | not (null pre) && not (null ename)
+           -> (newName pre, newName ename)
+         _ -> (name,plainImplicitParamName name)
 
 -- | Create a constructor creator name from the constructor name.
 -- Used if special creation functions are used for the constructor.

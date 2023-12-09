@@ -1268,9 +1268,10 @@ effectNameFromLabel effect
   infer applications and resolve overloaded identifiers
 --------------------------------------------------------------------------}
 
-getRangeArg :: Either (Expr Type) FixedArg -> Range
-getRangeArg (Left expr)         = getRange expr
-getRangeArg (Right (rng,_,_,_)) = rng
+getRangeArg :: ArgExpr -> Range
+getRangeArg (ArgExpr expr)        = getRange expr
+getRangeArg (ArgCore (rng,_,_,_)) = rng
+getRangeArg (ArgImplicit _ rng)   = rng
 
 inferApp :: Maybe (Type,Range) -> Expect -> Expr Type -> [(Maybe (Name,Range),Expr Type)] -> Range -> Inf (Type,Effect,Core.Expr)
 inferApp propagated expect fun nargs rng
@@ -1302,6 +1303,7 @@ inferApp propagated expect fun nargs rng
            (ftp,eff1,fcore) <- allowReturn False $ inferExpr prop Instantiated fun
 
            -- match the type with a function type, wrap optional arguments, and order named arguments.
+           -- traceDoc $ \env -> text "infer fun first, tp:" <+> ppType env ftp
            (iargs,pars,funEff,funTp,coreApp) <- matchFunTypeArgs rng fun ftp fresolved fixed named
 
            -- match propagated type with the function result type
@@ -1825,7 +1827,7 @@ isAmbiguous :: NameContext -> Expr Type -> Inf Bool
 isAmbiguous ctx expr
   = case expr of
       (Var name isOp nameRange)
-        -> do matches <- lookupNameEx (const True) name ctx nameRange
+        -> do matches <- lookupNameEx (const True) False name ctx nameRange
               case matches of
                 []  -> return False
                 [_] -> return False
@@ -1851,27 +1853,35 @@ rootExpr expr
 --------------------------------------------------------------------------}
 
 -- infer the types of argument expressions, some of which may have already been inferred (`:FixedArg`).
-inferArgsN :: Context -> Range -> [(Type,Either (Expr Type) FixedArg)] -> Inf ([Effect],[Core.Expr])
+inferArgsN :: Context -> Range -> [(Type,ArgExpr)] -> Inf ([Effect],[Core.Expr])
 inferArgsN ctx range parArgs
   = do res <- inferArg [] parArgs
        return (unzip res)
   where
+    inferArgExpr tp argexpr
+      = allowReturn False $
+        inferExpr (Just (tp,getRange argexpr))
+          (if isRho tp then Instantiated else Generalized False)
+          argexpr
+
     inferArg acc []
       = return (reverse acc)
     inferArg acc ((tpar,arg):args)
       = do tpar0 <- subst tpar
            (targ,teff,core) <- case arg of
-                                 Left argexpr
-                                   -> allowReturn False $
-                                      inferExpr (Just (tpar0,getRange argexpr))
-                                        (if isRho tpar0 then Instantiated else Generalized False)
-                                        argexpr
-                                 Right (_,ctp,ceff,carg)
+                                 ArgExpr argexpr
+                                   -> inferArgExpr tpar0 argexpr
+                                 ArgCore (_,ctp,ceff,carg)
                                    -> return (ctp,ceff,carg)  -- TODO: generalize polymorphic parameters?
+                                 ArgImplicit name rng
+                                   -> do (ename,etp,info) <- resolveImplicitName name tpar0 rng
+                                         let argexpr = Var ename False rng
+                                         inferArgExpr tpar0 argexpr
+
            tpar1  <- subst tpar0
            steff  <- subst teff
            (_,coref)  <- case arg of
-                           Left argexpr | isAnnot argexpr
+                           ArgExpr argexpr | isAnnot argexpr
                              -> do -- traceDoc $ \env -> text "inferArgN1:" <+> ppType env tpar1 <+> text "~" <+> ppType env targ
                                    inferUnify ctx (getRange argexpr) tpar1 targ
                                    return (tpar1,id)
@@ -1994,7 +2004,24 @@ matchPatterns context nameRange conTp conParTypes patterns0
          else remove name (par:acc) pars
 
 
-matchFunTypeArgs :: Range -> Expr Type -> Type -> [(Int,FixedArg)] -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf ([(Int,Either (Expr Type) FixedArg)],[(Name,Type)], Effect, Type,Core.Expr -> [Core.Expr] -> Core.Expr)
+-- Match given fixed arguments and named arguments with a function type.
+-- some fixed arguments may already have been inferred (`fresolved`).
+-- also returns a list of implicit arguments that need to be resolved.
+-- returns:
+-- - iargs: a list of indexed argument terms, either user expressions, already resolved (from `fresolved`), or implicit names
+--          the indices indicate the required evaluation order (due to named arguments).
+-- - pars: list of the full function parameters (name,type)
+-- - effect of the function
+-- - the result type of the function
+-- - a core transformer that modifies the application appropriately (for constructor copy)
+
+data ArgExpr
+  = ArgExpr (Expr Type)
+  | ArgCore FixedArg
+  | ArgImplicit Name Range
+
+matchFunTypeArgs :: Range -> Expr Type -> Type -> [(Int,FixedArg)] -> [Expr Type] -> [((Name,Range),Expr Type)]
+                     -> Inf ([(Int,ArgExpr)], [(Name,Type)], Effect, Type, Core.Expr -> [Core.Expr] -> Core.Expr)
 matchFunTypeArgs context fun tp fresolved fixed named
   = case tp of
        TFun pars eff res   -> do iargs <- matchParameters pars fresolved fixed named
@@ -2009,9 +2036,9 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                  tres  <- Op.freshTVar kindStar Meta
                                  -- trace ("Type.matchFunType: " ++ show tv ++ ": " ++ show (targs,teff,tres)) $
                                  extendSub (subSingle tv (TFun targs teff tres))
-                                 return (zip [0..] (map Left (fixed ++ map snd named)), targs,teff,tres,Core.App)
+                                 return (zip [0..] (map ArgExpr (fixed ++ map snd named)), targs,teff,tres,Core.App)
        _  -> do -- apply the copy constructor if we can find it
-                matches <- lookupNameEx (const True) nameCopy (CtxFunTypes True [tp] [] Nothing) range
+                matches <- lookupNameEx (const True) False nameCopy (CtxFunTypes True [tp] [] Nothing) range
                 case matches of
                   [(qname,info)]
                     -> do (contp,_,coreInst) <- instantiateEx range (infoType info)
@@ -2021,18 +2048,18 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                   in (Core.App (coreInst coreVar) (coreArgs))
                           return (iargs,pars,eff,res,coreAddCopy)
                   _ -> do typeError context range (text "only functions or types with a copy constructor can be applied") tp []
-                          return (zip [1..] (map Left (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
+                          return (zip [1..] (map ArgExpr (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
   where
     range = getRange fun
 
-    matchParameters :: [(Name,Type)] -> [(Int,FixedArg)] -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf [(Int,Either (Expr Type) FixedArg)]
+    matchParameters :: [(Name,Type)] -> [(Int,FixedArg)] -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf [(Int,ArgExpr)]
     matchParameters pars fresolved fixed named
       = -- trace ("match parameters: " ++ show (pars,length fixed,map (fst.fst) named)) $
         do (pars1,args1) <- matchFixed pars (zip [0..] fixed) fresolved
            iargs2        <- matchNamed (zip [length fixed..] pars1) (zip [length fixed..] named)
-           return (args1 ++ map (\(i,expr) -> (i,Left expr)) (map snd (sortBy (\(i,_) (j,_) -> compare i j) iargs2)))
+           return (args1 ++ map snd (sortBy (\(i,_) (j,_) -> compare i j) iargs2))
 
-    matchFixed :: [(Name,Type)] -> [(Int,Expr Type)] -> [(Int,FixedArg)] -> Inf ([(Name,Type)],[(Int,Either (Expr Type) FixedArg)])
+    matchFixed :: [(Name,Type)] -> [(Int,Expr Type)] -> [(Int,FixedArg)] -> Inf ([(Name,Type)],[(Int,ArgExpr)])
     matchFixed pars [] fresolved
       = return (pars,[])
     matchFixed ((name,tp):pars) ((i,arg):fixed) fresolved
@@ -2042,7 +2069,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                    then return (makeOptionalType ctp, Core.wrapOptional ctp carg)
                                    else return (ctp,carg)
                (prest,rest) <- matchFixed pars fixed fresolved
-               return (prest, (i,Right (crng,newtp,ceff,newarg)):rest)
+               return (prest, (i,ArgCore (crng,newtp,ceff,newarg)):rest)
           Nothing ->
             do newarg <- if (isOptional tp)
                           then return (wrapOptional arg)
@@ -2050,15 +2077,15 @@ matchFunTypeArgs context fun tp fresolved fixed named
                           then wrapDelay arg
                           else return arg
                (prest,rest) <- matchFixed pars fixed fresolved
-               return (prest, (i,Left newarg):rest)
+               return (prest, (i,ArgExpr newarg):rest)
 
     matchFixed [] ((i,arg):_) fresolved
       = do typeError context (getRange fun) (text "function is applied to too many arguments") tp []
            return ([],[])
 
-    -- in the result, the first int is position of the parameter, the second int it the original position of
+    -- in the result, the first int is position of the parameter `j`, the second int `i` is the original position of
     -- the argument (so we can evaluate in argument order)
-    matchNamed :: [(Int,(Name,Type))] -> [(Int,((Name,Range),Expr Type))] -> Inf [(Int,(Int,Expr Type))]
+    matchNamed :: [(Int,(Name,Type))] -> [(Int,((Name,Range),Expr Type))] -> Inf [(Int,(Int,ArgExpr))]
     matchNamed [] []
       = return []
     matchNamed [] ((i,((name,rng),arg)):named)
@@ -2075,10 +2102,15 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                 then wrapDelay arg
                                 else return arg
                     rest <- matchNamed pars1 named
-                    return ((j,(i,newarg)):rest)
+                    return ((j,(i,ArgExpr newarg)):rest)
     matchNamed pars []
-      = do if (all (isOptional . snd . snd) pars)
-            then return [(j,(i,makeOptionalNone)) | (i,(j,(name,tpar))) <- zip [(length fixed + length named)..] pars]
+      = do if (all (Op.isOptionalOrImplicit . snd) pars)
+            then do let (optionals,implicits) = span (isOptional . snd . snd) pars
+                        opts = [(j,(i,ArgExpr makeOptionalNone))
+                                | (i,(j,(name,tpar))) <- zip [(length fixed + length named)..] optionals]
+                        imps = [(j,(i,ArgImplicit (snd (splitImplicitParamName name)) context))
+                                | (i,(j,(name,tpar))) <- zip [(length fixed + length named + length optionals)..] implicits]
+                    return (opts ++ imps)
             else do let hints = case rootExpr fun of
                                   (Var name isOp nameRange) | name == newName "resume"
                                     -> [(text "hint", text "cannot use \"resume\" inside a val/fun/except clause")]
@@ -2108,7 +2140,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
         isDelayed expr
           = case expr of
               Lam [] _ _   -> return True
-              Var name _ _ -> do matches <- lookupNameEx (const True) name (CtxFunArgs 0 [] Nothing) (getRange expr)
+              Var name _ _ -> do matches <- lookupNameEx (const True) False name (CtxFunArgs 0 [] Nothing) (getRange expr)
                                  case matches of
                                    [(_,info)] -> return (isDelayedType (infoType info))
                                    _          -> return False
@@ -2128,6 +2160,24 @@ matchFunTypeArgs context fun tp fresolved fixed named
       = case tp of
           TSyn syn [_,_] _ -> (typesynName syn == nameTpDelay)
           _ -> False
+
+{-
+resolveImplicits :: Range -> [(Name,Type)] -> Inf [Expr Type]
+resolveImplicits rng []
+  = return []
+
+resolveImplicits rng ((name,tp0):pars)
+  = do env <- getPrettyEnv
+       let (pname,iname) = splitImplicitParamName name
+       tp <- subst tp0
+       traceDoc $ \env -> text "resolving" <+> ppParam env (iname,tp)
+       (ename,etp,info) <- resolveImplicitName iname tp rng
+       traceDoc $ \env -> text "resolved to" <+> ppParam env (ename,etp)
+       -- infError rng (text "cannot resolve implicit parameter" <+> ppParam env (iname,tp))
+       let arg = Var ename False rng
+       args <- resolveImplicits rng pars
+       return (arg:args)
+-}
 
 {--------------------------------------------------------------------------
   Effects

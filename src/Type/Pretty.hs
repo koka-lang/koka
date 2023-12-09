@@ -13,7 +13,7 @@ module Type.Pretty (-- * Pretty
                    ,precTop, precArrow, precApp, precAtom, pparens
                    ,Env(..), defaultEnv
                    ,niceList, niceTypes, niceType, niceEnv
-                   ,typeColon, niceTypeVars, ppName
+                   ,typeColon, niceTypeVars, ppName, ppParam
                    , canonical, minCanonical
                    , prettyComment
                    ) where
