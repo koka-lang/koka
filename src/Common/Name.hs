@@ -372,15 +372,17 @@ isImplicitParamName name
 
 plainImplicitParamName :: Name -> Name
 plainImplicitParamName name
-  = newQualified (nameModule name) (tail (nameId name))
+  = if isImplicitParamName name
+      then newQualified (nameModule name) (tail (nameId name))
+      else name
 
 namedImplicitParamName :: Name -> Name -> Name
 namedImplicitParamName pname ename
-  = newName (nameId pname ++ "=" ++ nameId ename)
+  = toImplicitParamName (newName (nameId (plainImplicitParamName pname) ++ "," ++ nameId ename))
 
 splitImplicitParamName :: Name -> (Name,Name)
 splitImplicitParamName name
-  = let (pre,post) = span (/= '=') (nameId name)
+  = let (pre,post) = span (/= ',') (nameId name)
     in case post of
          (_:ename) | not (null pre) && not (null ename)
            -> (newName pre, newName ename)

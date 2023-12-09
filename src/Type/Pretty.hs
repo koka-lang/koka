@@ -405,9 +405,9 @@ ppFun env arrow args effect result
 
 ppParam :: Env -> (Name,Type) -> Doc
 ppParam env (name,tp)
-  = (if (not (nameIsNil name || isFieldName name || isWildcard name))
-      then (color (colorParameter (colors env)) (ppNameEx env (unqualify name) <.> text " : "))
-      else empty)
+  = (if (nameIsNil name || isFieldName name || isWildcard name)
+      then empty
+      else color (colorParameter (colors env)) (ppNameEx env (unqualify name)) <.> text " : ")
     <.> ppType env tp
 
 
@@ -420,7 +420,13 @@ ppTypeName env name
   = color (colorType (colors env)) $ ppNameEx env name
 
 ppNameEx env name | isImplicitParamName name
-  = text "?" <.> ppNameEx env (plainImplicitParamName name)
+  = text "?" <.>
+    let (xname,ename) = splitImplicitParamName name
+        iname = plainImplicitParamName xname
+    in if (iname == ename)
+        then ppNameEx env iname
+        else ppNameEx env iname <.> text "=" <.> ppNameEx env ename
+
 ppNameEx env name
   = if (fullNames env)
      then pretty name

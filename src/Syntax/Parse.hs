@@ -23,7 +23,7 @@ module Syntax.Parse( parseProgramFromFile
                    , braced, semiBraces, semis, semiColons1, semiBraced
                    , angles, anglesCommas, parensCommas, parens, curlies
                    , semiColon, lparen, rparen, langle, rangle, comma, lapp, lidx, bar
-                   , qtypeid, qvarid, qconid, qidop, identifier, qoperator, varid, idop
+                   , qtypeid, qvarid, qconid, qidop, identifier, qoperator, varid, idop, op
                    , integer, charLit, floatLit, stringLit
                    , special, specialId, specialOp, specialConId, wildcard
                    , keyword, dockeyword

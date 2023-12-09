@@ -696,17 +696,31 @@ parameters env
 parameter :: Env -> Bool -> LexParser ((Name,Type),ParamInfo)
 parameter env allowBorrow
   = do (name,pinfo) <-  try (do pinfo <- if allowBorrow then paramInfo else return Own
-                                (name,_) <- paramid
+                                name <- parameterName
                                 keyword ":"
                                 return (name,pinfo))
                         <|> return (nameNil,Own)
-       (do specialOp "?"
+       ({-
+        do specialOp "?"
            tp <- ptype env
            return ((name, makeOptionalType tp), pinfo)
         <|>
+        -}
         do tp <- ptype env
            return ((name, tp), pinfo))
 
+parameterName :: LexParser Name
+parameterName
+  = do specialOp "?"
+       (name,_) <- identifier
+       (do keyword "="
+           (ename,_) <- identifier
+           return (namedImplicitParamName (toImplicitParamName name) ename)
+        <|>
+           return (toImplicitParamName name))
+    <|>
+    do (name,_) <- paramid
+       return name
 
 typeAnnot :: Env -> LexParser Type
 typeAnnot env
