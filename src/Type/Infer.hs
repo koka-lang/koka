@@ -1877,8 +1877,8 @@ inferArgsN ctx range parArgs
                                    -> do traceDoc $ \env -> text "resolving" <+> ppParam env (name,tpar0)
                                          (ename,etp,info) <- resolveImplicitName name tpar0 rng
                                          traceDoc $ \env -> text "resolved implicit name" <+> ppParam env (ename,etp)
-                                         let argexpr = case splitFunType etp of
-                                                         Just (fpars,feff,ftp)
+                                         let argexpr = case splitFunScheme etp of
+                                                         Just (_,_,fpars,_,_) | any Op.isOptionalOrImplicit fpars
                                                            -> -- eta expand to resolve further implicit parameters (recursively!)
                                                               let argnames = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] fpars]
                                                               in Lam [ValueBinder name Nothing Nothing rng rng | name <- argnames]
