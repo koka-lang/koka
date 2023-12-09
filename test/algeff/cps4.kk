@@ -54,7 +54,7 @@ fun unit(x : a) : stexn<a> {
 }
 
 fun (>>=)( m : stexn<a>, f : a -> stexn<b> ) : stexn<b> {
-  return fn(s0) { 
+  return fn(s0) {
     match(m(s0)) {
       Right((x,s1)) -> f(x)(s1)
       Left(str)     -> Left(str)
@@ -79,10 +79,11 @@ fun eval( e : expr ) : stexn<int> {
           eval(y) >>= (fn(j) {
             (if (j==0) then failure("division by zero") else unit(())) >>= (fn(_){
                unit( i / j )
-      })})})}) 
+      })})})})
   }
 }
 
-fun main() {
-  run(0,eval(expr2)).show.println
+pub fun main() {
+  val s = run(0,eval(expr2)).show
+  s.println
 }

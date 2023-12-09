@@ -1500,6 +1500,10 @@ lookupNameEx infoFilter asPrefix name ctx range
                                     -- lookup global candidates that match the expected type
                                     matches <- case ctx of
                                                  CtxNone         -> return candidates
+                                                 CtxType expect  | asPrefix && not (isFun expect)
+                                                                 -> do mss1 <- mapM (matchType expect) candidates
+                                                                       mss2 <- mapM (matchArgs False [] [] (Just expect)) candidates -- also match unit functions (that may take implicit parameters still)
+                                                                       return (concat (mss1 ++ mss2))
                                                  CtxType expect  -> do mss <- mapM (matchType expect) candidates
                                                                        return (concat mss)
                                                  CtxFunArgs n named mbResTp -> do mss <- mapM (matchNamedArgs n named mbResTp) candidates

@@ -1304,18 +1304,19 @@ inferApp propagated expect fun nargs rng
 
            -- match the type with a function type, wrap optional arguments, and order named arguments.
            -- traceDoc $ \env -> text "infer fun first, tp:" <+> ppType env ftp
-           (iargs,pars,funEff,funTp,coreApp) <- matchFunTypeArgs rng fun ftp fresolved fixed named
+           (iargs,pars0,funEff0,funTp0,coreApp) <- matchFunTypeArgs rng fun ftp fresolved fixed named
 
            -- match propagated type with the function result type
-           {-
+           -- todo: is not always correct so only do this if required to resolve implicit parameters.
            (pars,funEff,funTp) <- case propagated of
-              Just (propRes,propRng) -> do inferSubsume (checkAnn propRng) rng propRes funTp0
+              Just (propRes,propRng) | null fixed && any (isImplicitParamName . fst) pars0
+                                     -> do inferSubsume (checkAnn propRng) rng propRes funTp0
                                            pars1   <- subst pars0
                                            funEff1 <- subst funEff0
                                            funTp1  <- subst funTp0
                                            return (pars1,funEff1,funTp1)
-              Nothing -> return (pars0,funEff0,funTp0)
-           -}
+              _ -> return (pars0,funEff0,funTp0)
+
            -- traceDoc $ \env -> text "infer App: propagated args:" <+> list (map (ppType env . snd) pars)
 
            -- infer the argument expressions and subsume the types
@@ -1874,19 +1875,24 @@ inferArgsN ctx range parArgs
                                  ArgCore (_,ctp,ceff,carg)
                                    -> return (ctp,ceff,carg)  -- TODO: generalize polymorphic parameters?
                                  ArgImplicit name rng
-                                   -> do traceDoc $ \env -> text "resolving" <+> ppParam env (name,tpar0)
+                                   -> do -- traceDoc $ \env -> text "resolving" <+> ppParam env (name,tpar0)
                                          (ename,etp,info) <- resolveImplicitName name tpar0 rng
-                                         traceDoc $ \env -> text "resolved implicit name" <+> ppParam env (ename,etp)
-                                         let argexpr = case splitFunScheme etp of
-                                                         Just (_,_,fpars,_,_) | any Op.isOptionalOrImplicit fpars
-                                                           -> -- eta expand to resolve further implicit parameters (recursively!)
+                                         -- traceDoc $ \env -> text "resolved implicit name" <+> ppParam env (ename,etp)
+                                         let argexpr  = case splitFunScheme etp of
+                                                          Just (_,_,fpars,_,_)
+                                                            | not (isFun tpar0) && all Op.isOptionalOrImplicit fpars
+                                                            -> -- call unit function
+                                                              App (Var ename False rng) [] rng
+
+                                                            | any Op.isOptionalOrImplicit fpars
+                                                            -> -- eta expand to resolve further implicit parameters (recursively!)
                                                               let argnames = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] fpars]
-                                                              in Lam [ValueBinder name Nothing Nothing rng rng | name <- argnames]
-                                                                     (App (Var ename False rng)
+                                                              in  Lam [ValueBinder name Nothing Nothing rng rng | name <- argnames]
+                                                                      (App (Var ename False rng)
                                                                           [(Nothing,Var name False rng) | name <- argnames]
                                                                           rng)
-                                                                     rng
-                                                         _ -> Var ename False rng
+                                                                      rng
+                                                          _ -> Var ename False rng
                                          inferArgExpr tpar0 argexpr
 
            tpar1  <- subst tpar0

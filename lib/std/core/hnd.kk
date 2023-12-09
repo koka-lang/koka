@@ -417,7 +417,8 @@ fun initially-prompt( init : (int) -> e (), res : a ) : e a
       unsafe-st{ count := add(cnt,1) }()
       if eq(cnt,0) then () else   // for every resume after the first, run the initializer
         val r = init(cnt)
-        if yielding() return yield-extend( fn(_ret) initially-prompt(unsafe-decreasing(init), cont(x)) )
+        if yielding()
+          then { yield-extend( fn(_ret) initially-prompt(unsafe-decreasing(init), cont(x)) ); () }
       initially-prompt(unsafe-decreasing(init), cont(x))
     )
   else res

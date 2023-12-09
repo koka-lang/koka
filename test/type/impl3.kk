@@ -19,7 +19,5 @@ fun sumx( xs : list<a>, ?m : monoid<a> = monoid ) : a
 fun test1()
   [1.0,2.0].sumx
 
-/*
 fun test2()
-  [[1.0]].sumx  // not yet working
-*/
+  [[1.0]].sumx
