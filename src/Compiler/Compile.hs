@@ -816,7 +816,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
              if (latest > (fromJust $ modTime mod)
                   && not (null source)) -- happens if no source is present but (package) depencies have updated...
                then do
-                trace ("iface " ++ show (modName mod) ++ " is out of date, reloading..." ++ (show (modTime mod) ++ " dependencies:\n" ++ intercalate "\n" (map (\m -> show (modName m, modTime m)) imports))) $ return ()
+                -- trace ("iface " ++ show (modName mod) ++ " is out of date, reloading..." ++ (show (modTime mod) ++ " dependencies:\n" ++ intercalate "\n" (map (\m -> show (modName m, modTime m)) imports))) $ return ()
                 -- load from source after all
                 loadFromSource True True resolved1 root stem (nameFromFile iface)
                else
