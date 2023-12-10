@@ -787,7 +787,8 @@ genUnboxCall tp arg argBorrow
 primName_t prim s = primName prim $ text $
                      (if (s `startsWith` "kk_") then "" else "kk_") ++
                      (if (s `endsWith` "_t") then reverse (drop 2 (reverse s)) else s)
-primName prim d   = d <.> text "_" <.> text prim
+primName prim d   | null prim = d
+                  | otherwise = d <.> text "_" <.> text prim
 
 
 dataStructAsMaybeSplit :: [ConInfo] -> (ConInfo,ConInfo)
@@ -1052,8 +1053,9 @@ genDupDropCallX prim tp args
       CPrim val   | val == "kk_integer_t" || val == "kk_string_t" || val == "kk_vector_t" || val == "kk_evv_t" || val == "kk_ref_t" || val == "kk_reuse_t" || val == "kk_box_t"
                   -> [(primName_t prim val) <.> args]
                   | otherwise
-                  -> -- trace ("** skip dup/drop call: " ++ pre val ++ ": " ++ show args) $
-                     []-- text "value" <.> args
+                  -> -- trace ("** skip dup/drop call: " ++ prim ++ ": " ++ show args) $
+                     [text ("kk_skip_" ++ prim) <.> args] -- []-- text "value" <.> args
+
       CData name -> [primName prim (ppName name) <.> args]
 
 genDupCall tp arg  = hcat $ genDupDropCall True tp arg
