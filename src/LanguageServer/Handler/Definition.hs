@@ -25,7 +25,7 @@ definitionHandler :: Handlers LSM
 definitionHandler = requestHandler J.SMethod_TextDocumentDefinition $ \req responder -> do
   let J.DefinitionParams doc pos _ _ = req ^. J.params
       uri = doc ^. J.uri
-  loaded <- getLoaded
+  loaded <- getLoaded uri
   let defs = do
         l <- maybeToList loaded
         rmap <- maybeToList $ modRangeMap $ loadedModule l

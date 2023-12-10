@@ -127,7 +127,7 @@ command st cmd
   = let term = terminal st
     in do{ case cmd of
   Eval line   -> do{ err <- compileExpression term (flags st) (loaded st) (Executable nameExpr ()) (program st) bigLine line
-                   ; checkInferWith st line id True err $ \ld ->
+                   ; checkInferWith st line fst True err $ \(ld, _) ->
                      do if (not (evaluate (flags st)))
                          then let tp = infoType $ gammaFind (qualify nameInteractive nameExpr) (loadedGamma ld)
                               in messageSchemeEffect st tp
@@ -136,7 +136,7 @@ command st cmd
                    }
 
   Define line -> do err <- compileValueDef term (flags st) (loaded st) (program st) (lineNo st) line
-                    checkInfer2 st True err $ \(defName,ld) ->
+                    checkInfer2Snd st True err $ \(defName,ld) ->
                        do{ let tp    = infoType $ gammaFind defName (loadedGamma ld)
                                tpdoc = prettyScheme st tp
                                sig   = show defName ++ " :: " ++ show tpdoc
@@ -149,7 +149,7 @@ command st cmd
                          }
 
   TypeOf line -> do err <- compileExpression term (flags st) (loaded st) Object (program st) bigLine line
-                    checkInfer st True err $ \ld ->
+                    checkInfer2Fst st True err $ \(ld, _) ->
                        do{ let tp = infoType $ gammaFind (qualify nameInteractive nameExpr) (loadedGamma ld)
                          ; messageSchemeEffect st tp
                          ; interpreter st{ loaded = ld } -- (loaded st){ loadedModules  = loadedModules ld }}
@@ -164,7 +164,7 @@ command st cmd
 
   TypeDef line-> -- trace ("modules: " ++ show (map (show . modName . loadedModule) (loadedModules st))) $
                  do err <- compileTypeDef term (flags st) (loaded st) (program st) (lineNo st) line
-                    checkInfer2 st True err $ \(defName, ld) ->
+                    checkInfer2Snd st True err $ \(defName, ld) ->
                      do{ let (qname,kind) = kgammaFind (getName (program st)) defName (loadedKGamma ld)
                        ; messagePrettyLnLn st (text (show defName) <+> text "::" <+> pretty kind)
                        ; interpreter st{ program  = maybe (program st) id $ modProgram (loadedModule ld)
@@ -354,7 +354,8 @@ docNotFound cscheme path name
 --------------------------------------------------------------------------}
 checkInfer ::  State -> Bool -> Error b Loaded -> (Loaded -> IO ()) -> IO ()
 checkInfer st = checkInferWith st "" id
-checkInfer2 st = checkInferWith st "" (\(a,c) -> c)
+checkInfer2Snd st = checkInferWith st "" snd
+checkInfer2Fst st = checkInferWith st "" fst
 
 checkInfer3 ::  State -> String -> Bool -> Error b (a,b,Loaded) -> ((a,b,Loaded) -> IO ()) -> IO ()
 checkInfer3 st line = checkInferWith st line (\(a,b,c) -> c)

@@ -26,7 +26,7 @@ documentSymbolHandler :: Handlers LSM
 documentSymbolHandler = requestHandler J.SMethod_TextDocumentDocumentSymbol $ \req responder -> do
   let J.DocumentSymbolParams _ _ doc = req ^. J.params
       uri = doc ^. J.uri
-  loaded <- getLoaded
+  loaded <- getLoaded uri
   let symbols = findDocumentSymbols =<< maybeToList loaded
   responder $ Right $ J.InR $ J.InL symbols
 

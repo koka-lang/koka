@@ -33,7 +33,7 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
   let J.HoverParams doc pos _ = req ^. J.params
       uri = doc ^. J.uri
   loadedMod <- getLoadedModule uri
-  loaded <- getLoaded
+  loaded <- getLoaded uri
   flags <- getFlags
   let res = do
         mod <- loadedMod

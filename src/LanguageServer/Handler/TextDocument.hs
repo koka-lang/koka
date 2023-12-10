@@ -9,12 +9,13 @@ module LanguageServer.Handler.TextDocument
     didSaveHandler,
     didCloseHandler,
     recompileFile,
+    compileEditorExpression,
     persistModules,
   )
 where
 
 import Common.Error (Error, checkPartial)
-import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen)
+import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
 import Control.Lens ((^.))
 import Control.Monad.Trans (liftIO)
 import qualified Data.Map as M
@@ -25,7 +26,7 @@ import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnosti
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import LanguageServer.Conversions (toLspDiagnostics)
-import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded)
+import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules)
 import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
 import qualified Data.Text.Encoding as T
 import Data.Functor ((<&>))
@@ -43,6 +44,12 @@ import Compiler.Module (Module(..))
 import Control.Monad (when, foldM)
 import Data.Time (addUTCTime, addLocalTime)
 import qualified Data.ByteString as J
+import Syntax.Syntax (programNull, programAddImports)
+import Common.Range (rangeNull)
+import Core.Core (Visibility(Private))
+import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
+import Common.Name (newName)
+import Syntax.Syntax (Import(..))
 
 didOpenHandler :: Handlers LSM
 didOpenHandler = notificationHandler J.SMethod_TextDocumentDidOpen $ \msg -> do
@@ -97,6 +104,50 @@ diffVFS oldvfs vfs =
         return $ M.insert newK (text, time, vers) acc)
     M.empty (M.toList vfs)
 
+compileEditorExpression :: J.Uri -> Flags -> String -> String -> LSM (Maybe FilePath)
+compileEditorExpression uri flags filePath functionName = do
+  let normUri = J.toNormalizedUri uri
+  term <- getTerminal
+  loaded <- getLoaded uri
+  case loaded of
+    Just loaded -> do
+      let mod = loadedModule loaded
+      let imports = [Import nameSystemCore nameSystemCore rangeNull Private, Import (modName mod) (modName mod) rangeNull Private]
+      let resultIO :: IO (Either Exc.SomeException (Error Loaded (Loaded, Maybe FilePath)))
+          resultIO = try $ compileExpression term flags loaded (Executable nameExpr ()) (programAddImports (programNull nameInteractiveModule) imports) 0 (functionName ++ "()") 
+      result <- liftIO resultIO
+      case result of
+        Right res -> do
+          outFile <- case checkPartial res of
+            Right ((l, outFile), _, _) -> do
+              putLoaded l
+              sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ "Successfully compiled " <> T.pack filePath
+              return outFile
+            Left (e, m) -> do
+              case m of
+                Nothing -> 
+                  trace ("Error when compiling, no cached modules " ++ show e) $
+                  return ()
+                Just l -> do
+                  trace ("Error when compiling have cached" ++ show (map modSourcePath $ loadedModules l)) $ return ()
+                  putLoaded l
+                  removeLoaded (loadedModule l)
+              sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack ("Error when compiling " ++ show e) <> T.pack filePath
+              return Nothing
+          -- Emit the diagnostics (errors and warnings)
+          let diagSrc = T.pack "koka"
+              diags = toLspDiagnostics diagSrc res
+              diagsBySrc = partitionBySource diags
+              maxDiags = 100
+          if null diags
+            then flushDiagnosticsBySource maxDiags (Just diagSrc)
+            else publishDiagnostics maxDiags normUri Nothing diagsBySrc
+          return outFile
+        Left e -> do
+          sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ "When compiling file " <> T.pack filePath <> T.pack (" compiler threw exception " ++ show e)
+          sendNotification J.SMethod_WindowShowMessage $ J.ShowMessageParams J.MessageType_Error $ "When compiling file " <> T.pack filePath <> T.pack (" compiler threw exception " ++ show e)
+          return Nothing
+
 -- Recompiles the given file, stores the compilation result in
 -- LSM's state and emits diagnostics.
 recompileFile :: CompileTarget () -> J.Uri -> Maybe J.Int32 -> Bool -> Flags -> LSM (Maybe FilePath)
@@ -112,15 +163,12 @@ recompileFile compileTarget uri version force flags =
       newvfs <- diffVFS oldvfs vfs
       modifyLSState (\old -> old{documentInfos = newvfs})
       let contents = fst <$> maybeContents newvfs filePath
-      loaded1 <- getLoaded
-      let modules = do
-            l <- loaded1
-            return $ loadedModule l : loadedModules l
+      modules <- getModules
       term <- getTerminal
       sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack $ "Recompiling " ++ filePath
 
       let resultIO :: IO (Either Exc.SomeException (Error Loaded (Loaded, Maybe FilePath)))
-          resultIO = try $ compileFile (maybeContents newvfs) contents term flags [] (if force then [] else fromMaybe [] modules) compileTarget [] filePath
+          resultIO = try $ compileFile (maybeContents newvfs) contents term flags [] (if force then [] else modules) compileTarget [] filePath
       result <- liftIO resultIO
       case result of
         Right res -> do
@@ -159,11 +207,9 @@ recompileFile compileTarget uri version force flags =
 
 persistModules :: LSM ()
 persistModules = do
-  mld <- getLoaded
-  case mld of
-    Just ld -> mapM_ persistModule (loadedModules ld)
-    Nothing -> return ()
-
+  mld <- getModules
+  mapM_ persistModule mld -- TODO: Dependency ordering
+  
 persistModule :: Module -> LSM ()
 persistModule m = do
   return ()

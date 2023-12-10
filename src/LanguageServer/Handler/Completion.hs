@@ -72,7 +72,7 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
   let J.CompletionParams doc pos _ _ context = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
-  loaded <- getLoaded
+  loaded <- getLoaded uri
   loadedM <- liftIO $ loadedModuleFromUri loaded uri
   vfile <- getVirtualFile normUri
   let items = do

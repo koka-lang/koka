@@ -17,6 +17,7 @@ module LanguageServer.Monad
     getLoaded,
     putLoaded,removeLoaded,
     getLoadedModule,
+    getModules,
     getColorScheme,
     getHtmlPrinter,
     runLSM,
@@ -57,10 +58,13 @@ import Control.Concurrent.STM.TMVar (TMVar)
 import LanguageServer.Conversions (loadedModuleFromUri)
 import qualified Data.ByteString as D
 import Platform.Filetime (FileTime)
+import Common.File (realPath,normalize)
+import Compiler.Module (Modules)
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
-  lsLoaded :: Maybe Loaded,
+  lsModules :: [Module],
+  lsLoaded :: M.Map FilePath Loaded,
   messages :: TChan (String, J.MessageType),
   flags:: Flags,
   terminal:: Terminal,
@@ -102,7 +106,7 @@ defaultLSState flags = do
                  (if verbose flags > 0 then (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info) else (\_ -> return ()))
                  (\tp -> withNewPrinter $ \p -> do putScheme p (prettyEnv flags nameNil importsEmpty) tp; return J.MessageType_Info)
                  (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info)
-  return LSState {lsLoaded = Nothing, messages = msgChan, terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, documentInfos = M.empty, documentVersions = fileVersions}
+  return LSState {lsLoaded = M.empty,lsModules=[], messages = msgChan, terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, documentInfos = M.empty, documentVersions = fileVersions}
 
 putScheme p env tp
   = writePrettyLn p (ppScheme env tp)
@@ -134,9 +138,19 @@ modifyLSState m = do
   stVar <- lift ask
   liftIO $ modifyMVar stVar $ \s -> return (m s, ())
 
+getModules :: LSM Modules
+getModules = lsModules <$> getLSState
+
 -- Fetches the loaded state holding compiled modules
-getLoaded :: LSM (Maybe Loaded)
-getLoaded = lsLoaded <$> getLSState
+getLoaded :: J.Uri -> LSM (Maybe Loaded)
+getLoaded uri = do
+  st <- getLSState
+  case J.uriToFilePath uri of 
+    Nothing -> return Nothing
+    Just uri -> do
+      path <- liftIO $ realPath uri
+      let p = normalize path
+      return $ M.lookup p (lsLoaded st)
 
 -- Fetches the loaded state holding compiled modules
 getFlags :: LSM Flags
@@ -150,14 +164,14 @@ getColorScheme = colorScheme <$> getFlags
 
 -- Replaces the loaded state holding compiled modules
 putLoaded :: Loaded -> LSM ()
-putLoaded l = modifyLSState $ \s -> s {lsLoaded = case lsLoaded s of {Nothing -> Just l; Just l' -> Just $ mergeLoaded l l'}}
+putLoaded l = modifyLSState $ \s -> s {lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s), lsLoaded = M.insert (modSourcePath $ loadedModule l) l (lsLoaded s)}
 
 removeLoaded :: Module -> LSM ()
-removeLoaded m = modifyLSState $ \s -> s {lsLoaded = case lsLoaded s of {Nothing -> Nothing; Just l -> Just $ l{loadedModules = filter (\m' -> modName m' /= modName m) (loadedModules l)}}}
+removeLoaded m = modifyLSState $ \s -> s {lsModules = filter (\m1 -> modName m1 /= modName m) (lsModules s), lsLoaded = M.delete (modSourcePath m) (lsLoaded s)}
 
 getLoadedModule :: J.Uri -> LSM (Maybe Module)
 getLoadedModule uri = do
-  lmaybe <- getLoaded
+  lmaybe <- getLoaded uri
   liftIO $ loadedModuleFromUri lmaybe uri
 
 -- Runs the language server's state monad.
@@ -167,10 +181,8 @@ runLSM lsm stVar cfg = runReaderT (runLspT cfg lsm) stVar
 getTerminal :: LSM Terminal
 getTerminal = terminal <$> getLSState
 
-mergeLoaded :: Loaded -> Loaded -> Loaded
-mergeLoaded newL oldL =
-  let compiledName = modName $ loadedModule newL
-      newModules = filter (\m -> modName m /= compiledName) (loadedModules newL)
-      newModNames = compiledName:map modName newModules
-      news = loadedModule newL:newModules ++ filter (\m -> modName m `notElem` newModNames) (loadedModules oldL) in
-  newL{loadedModules= filter modCompiled news}
+mergeModules :: Modules -> Modules -> Modules
+mergeModules newModules oldModules =
+  let nModValid = filter modCompiled newModules -- only add modules that sucessfully compiled
+      newModNames = map modName nModValid
+  in nModValid ++ filter (\m -> modName m `notElem` newModNames) oldModules

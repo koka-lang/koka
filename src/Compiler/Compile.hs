@@ -181,7 +181,7 @@ gammaFind name g
       []   -> failure ("Compiler.Compile.gammaFind: can't locate " ++ show name)
       _    -> failure ("Compiler.Compile.gammaFind: multiple definitions for " ++ show name)
 
-compileExpression :: Terminal -> Flags -> Loaded -> CompileTarget () -> UserProgram -> Int -> String -> IO (Error Loaded Loaded)
+compileExpression :: Terminal -> Flags -> Loaded -> CompileTarget () -> UserProgram -> Int -> String -> IO (Error Loaded (Loaded, Maybe FilePath))
 compileExpression term flags loaded compileTarget program line input
   = runIOErr $
     do let qnameExpr = (qualify (getName program) nameExpr)
@@ -191,9 +191,7 @@ compileExpression term flags loaded compileTarget program line input
        case compileTarget of
          -- run a particular entry point
          Executable name ()  | name /= nameExpr
-           -> do
-              (ld, _) <- compileProgram' (const Nothing) term flags (loadedModules loaded) [] compileTarget "<interactive>" programDef []
-              return ld
+           -> compileProgram' (const Nothing) term flags (loadedModules loaded) [] compileTarget "<interactive>" programDef []
          -- entry point is the expression: compile twice:
          --  first to get the type of the expression and create a 'show' wrapper,
          --  then to actually run the program
@@ -205,9 +203,7 @@ compileExpression term flags loaded compileTarget program line input
                  case splitFunType rho of
                    -- return unit: just run the expression (for its assumed side effect)
                    Just (_,_,tres)  | isTypeUnit tres
-                      -> do
-                          (ld, _) <- compileProgram' (const Nothing) term flags (loadedModules ld) [] compileTarget  "<interactive>" programDef []
-                          return ld
+                      -> compileProgram' (const Nothing) term flags (loadedModules ld) [] compileTarget  "<interactive>" programDef []
                    -- check if there is a show function, or use generic print if not.
                    Just (_,_,tres)
                       -> do -- ld <- compileProgram' term flags (loadedModules ld0) Nothing "<interactive>" programDef
@@ -225,7 +221,6 @@ compileExpression term flags loaded compileTarget program line input
                                       let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
                                       let programDef' = programAddDefs programDef [] [defMain]
                                       compileProgram' (const Nothing) term flags (loadedModules ld) [] (Executable nameMain ()) "<interactive>" programDef' []
-                                      return ld
 
                               _  -> liftErrorPartial loaded $ errorMsg (ErrorGeneral rangeNull (text "no 'show' function defined for values of type:" <+> ppType (prettyEnvFromFlags flags) tres))
                                                      -- mkApp (Var (qualify nameSystemCore (newName "gprintln")) False r)
@@ -233,9 +228,7 @@ compileExpression term flags loaded compileTarget program line input
                    Nothing
                     -> failure ("Compile.Compile.compileExpression: should not happen")
          -- no evaluation
-         _ -> do
-                (ld, _) <- compileProgram' (const Nothing)  term flags (loadedModules loaded) [] compileTarget "<interactive>" programDef []
-                return ld
+         _ -> compileProgram' (const Nothing)  term flags (loadedModules loaded) [] compileTarget "<interactive>" programDef []
 
 
 errorModuleNotFound :: Flags -> Range -> Name -> ErrorMessage
@@ -387,7 +380,11 @@ data CompileTarget a
   = InMemory
   | Object
   | Library
-  | Executable { entry :: Name, info :: a }
+  | Executable { entry :: Name, info :: a } deriving Show
+
+isInMemory :: CompileTarget a -> Bool
+isInMemory InMemory = True
+isInMemory _ = False
 
 isExecutable (Executable _ _) = True
 isExecutable _ = False
@@ -608,7 +605,10 @@ resolveImportModules compileTarget maybeContents mname term flags currentDir res
       else
     do -- trace ("\t" ++ show mname ++ ": resolving imported modules: " ++ show (impName imp) ++ ", resolved: " ++ show (map (show . modName) resolved0) ++ ", path:" ++ show importPath) $ return ()
        (mod,resolved1) <- case filter (\m -> impName imp == modName m) resolved0 of
-                            (mod:_) -> return (mod,resolved0)
+                            (mod:_) -> 
+                              if modInMemory mod && not (isInMemory compileTarget) then resolveModule compileTarget maybeContents term flags currentDir resolved0 cachedModules importPath imp
+                              else  
+                                return (mod,resolved0)
                             _       -> resolveModule compileTarget maybeContents term flags currentDir resolved0 cachedModules importPath imp
        -- trace ("\tnewly resolved from " ++ show (modName mod) ++ ": " ++ show (map (show . modName) resolved1)) $ return ()
        let imports    = Core.coreProgImports $ modCore mod
@@ -717,7 +717,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                   Just mod ->
                     if srcpath /= forceModule flags && modSourceTime mod == sourceTime
                       then do
-                        -- trace ("Loading module " ++ show mname ++ " from cache") $ return ()
+                        trace ("Loading module " ++ show mname ++ " from cache") $ return ()
                         x <- loadFromModule mname (modPath mod) root stem srcpath mod
                         return $ Just x
                     else
@@ -728,7 +728,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                     return Nothing
 
       loadDepend iface root stem mname
-         = -- trace ("loadDepend " ++ iface ++ " root: " ++ root ++ " stem: " ++ stem) $
+         = trace ("loadDepend " ++ iface ++ " root: " ++ root ++ " stem: " ++ stem) $
            do let srcpath = joinPath root stem
               ifaceTime <- liftIO $ getCurrentFileTime iface maybeContents
               sourceTime <- liftIO $ getCurrentFileTime srcpath maybeContents
@@ -756,12 +756,15 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                           else loadFromSource False True modules root stem mname
 
       loadFromSource force genUpdate modules1 root stem mname
-        = -- trace ("loadFromSource: " ++ show force ++ " " ++ " update " ++ show genUpdate ++ " root:" ++ root ++ " stem:" ++ stem) $
+        = trace ("loadFromSource: " ++ show force ++ " " ++ " update " ++ show genUpdate ++ " root:" ++ root ++ " stem:" ++ stem) $
         do
           let fname = joinPath root stem
-          cached <- if force then return Nothing else tryLoadFromCache mname root stem
+          cached <- tryLoadFromCache mname root stem
+          mbIface  <- liftIO $ searchOutputIface flags name
+          let noNeedsGen = isJust mbIface || isInMemory compileTarget
+          trace ("loadFromSource: " ++ show (force, genUpdate, noNeedsGen, mbIface, compileTarget)) $ return ()
           case cached of
-            Just (mod, modules) ->
+            Just (mod, modules) | not genUpdate && not force && noNeedsGen ->
               do liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "reusing:") <+>
                                        color (colorSource (colorScheme flags))
                                           (pretty mname))
@@ -774,7 +777,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
               return (mod, loadedModules loadedImp)              
 
       loadFromIface iface root stem mname
-        = -- trace ("loadFromIFace: " ++  iface ++ ": " ++ root ++ "/" ++ stem ++ "\n in modules: " ++ show (map modName modules)) $
+        = trace ("loadFromIFace: " ++  iface ++ ": root:" ++ root ++ " stem:" ++ stem ++ "\n in modules: " ++ show (map modName modules)) $
           do let (pkgQname,pkgLocal) = packageInfoFromDir (packages flags) (dirname iface)
                  loadMessage msg = liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text msg) <+>
                                        color (colorSource (colorScheme flags))
@@ -794,12 +797,12 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                           outIFace <- liftIO $ copyIFaceToOutputDir term flags iface core
                           let mod = Module (Core.coreName core) outIFace (joinPath root stem) pkgQname pkgLocal []
                                               Nothing -- (error ("getting program from core interface: " ++ iface))
-                                                core True (Left parseInlines) Nothing ftime (Just iftime) Nothing
+                                                core True False (Left parseInlines) Nothing ftime (Just iftime) Nothing
                           return mod
              loadFromModule mname (modPath mod){-iface-} root stem (joinPath root stem) mod
 
       loadFromModule mname iface root stem source mod
-        = -- trace ("load from module: " ++ iface ++ ": " ++ root ++ "/" ++ source) $
+        = trace ("load from module: " ++ iface ++ ": " ++ root ++ "/" ++ source) $
           do --     loaded = initialLoaded { loadedModule = mod
              --                            , loadedModules = allmods
              --                            }
@@ -813,15 +816,15 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
              if (latest > (fromJust $ modTime mod)
                   && not (null source)) -- happens if no source is present but (package) depencies have updated...
                then do
-                -- trace ("iface " ++ show (modName mod) ++ " is out of date, reloading..." ++ (show (modTime mod) ++ " dependencies:\n" ++ intercalate "\n" (map (\m -> show (modName m, modTime m)) imports))) $ return ()
+                trace ("iface " ++ show (modName mod) ++ " is out of date, reloading..." ++ (show (modTime mod) ++ " dependencies:\n" ++ intercalate "\n" (map (\m -> show (modName m, modTime m)) imports))) $ return ()
                 -- load from source after all
                 loadFromSource True True resolved1 root stem (nameFromFile iface)
                else
-                -- trace ("using loaded module: " ++ show (modName mod)) $
+                trace ("using loaded module: " ++ show (modName mod) ++ " compile target " ++ show compileTarget) $
                 case compileTarget of
                   InMemory -> return result
                   _ -> do
-                    -- trace ("loaded module requires compiling") $ return ()
+                    trace ("loaded module requires compiling") $ return ()
                     outputTime <- liftIO $ getFileTime iface
                     if fromJust (modTime mod) > outputTime then do
                       -- (imports,resolved1) <- resolveImportModules Object maybeContents name term flags (dirname iface) modules cachedModules (name:importPath) (map ImpCore (Core.coreProgImports (modCore mod)))
@@ -942,7 +945,6 @@ typeCheck loaded flags line coreImports program srcTime
                                , modProgram    = Just program
                                , modWarnings   = warnings
                                , modSourceTime = srcTime
-                               , modCompiled = True
                                }
            -- module0 = loadedModule loaded
            fixitiesPub = fixitiesNew [(name,fix) | FixDef name fix rng vis <- programFixDefs program0, vis == Public]
@@ -1130,7 +1132,8 @@ inferCheck loaded0 flags line coreImports program
                                 , loadedModule = (loadedModule loaded){
                                                     modCore     = coreProgramFinal,
                                                     modRangeMap = mbRangeMap,
-                                                    modInlines  = Right allInlineDefs
+                                                    modInlines  = Right allInlineDefs,
+                                                    modCompiled = True
                                                   }
                                 , loadedInlines = inlinesExtends allInlineDefs (loadedInlines loaded)
                                 }
@@ -1204,7 +1207,7 @@ codeGen term flags compileTarget loaded
        -- write interface file last so on any error it will not be written
        writeDocW 10000 outIface ifaceDoc
        ftime <- getFileTimeOrCurrent outIface
-       let mod1 = (loadedModule loaded){ modTime = Just ftime, modOutputTime = Just ftime }
+       let mod1 = (loadedModule loaded){ modTime = Just ftime, modOutputTime = Just ftime, modInMemory=False }
            loaded1 = loaded{ loadedModule = mod1  }
 
        -- copy final exe if -o is given

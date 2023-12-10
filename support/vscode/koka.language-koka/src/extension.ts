@@ -206,6 +206,18 @@ function createCommands(
       console.log(`Launch config ${launchConfig}`)
       vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(resource), launchConfig as vscode.DebugConfiguration)
     }),
+    vscode.commands.registerCommand('koka.interpretExpression', (resource: vscode.Uri, functionName: string) => {
+      const launchConfig =
+      {
+        name: `koka run: ${resource.path}`,
+        request: "launch",
+        type: "koka",
+        program: resource.fsPath,
+        functionName: functionName
+      }
+      console.log(`Launch config ${launchConfig}`)
+      vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(resource), launchConfig as vscode.DebugConfiguration)
+    }),
     vscode.commands.registerCommand('koka.downloadLatest', (resource: vscode.Uri) => {
       downloadSDK()
     }),
@@ -328,28 +340,32 @@ class MainCodeLensProvider implements vscode.CodeLensProvider {
 
   public async provideCodeLenses(document: TextDocument, token: CancellationToken): Promise<CodeLens[] | undefined> {
     const doc = document.getText()
-    const main = doc.indexOf('\nfun main')
-    if (main < 0) {
-      if (doc.startsWith('fun main')) {
-        return [this.createCodeLens(document, 0)]
-      } else {
-        const main1 = doc.indexOf(`\npub fun main`)
-        if (main1 < 0) {
-          if (doc.startsWith('pub fun main')) {
-            return [this.createCodeLens(document, 0)]
-          }
-          return []
-        } else {
-          return [this.createCodeLens(document, main1 + 1)]
-        }
-      }
+    const re_main = /((?<=\n)|^)((pub\s+)?fun\s+main\(\))/g;
+    const re_test = /((?<=\n)|^)((pub\s+)?fun\s+(test\w*)\(\))/g;
+    let lenses = [];
+    let match = null;
+    console.log("Scanning document for main and test function");
+    while (match = re_main.exec(doc)) {
+      lenses.push(this.createMainCodeLens(document, match.index, match[0].length))
     }
-    return [this.createCodeLens(document, main + 1)]
+    while (match = re_test.exec(doc)) {
+      console.log(match[4]);
+    }
+    console.log("Scanning document for main and test function")
+    while (match = re_main.exec(doc)) {
+      console.log(match);
+      
+    }
+    while (match = re_test.exec(doc)) {
+      console.log(match);
+      lenses.push(this.createTestCodeLens(document, match.index, match[4], match[0].length))
+    }
+    return lenses
   }
 
-  private createCodeLens(document: TextDocument, offset: number): CodeLens {
+  private createMainCodeLens(document: TextDocument, offset: number, len: number): CodeLens {
     return new CodeLens(
-      toRange(document, offset, 'main'.length),
+      toRange(document, offset, len),
       {
         arguments: [document.uri],
         command: "koka.startWithoutDebugging",
@@ -358,6 +374,16 @@ class MainCodeLensProvider implements vscode.CodeLensProvider {
     )
   }
 
+  private createTestCodeLens(document: TextDocument, offset: number, functionName: string, len: number): CodeLens {
+    return new CodeLens(
+      toRange(document, offset, len),
+      {
+        arguments: [document.uri, functionName],
+        command: "koka.interpretExpression",
+        title: `Run ${functionName}`,
+      }
+    )
+  }
 }
 
 function toRange(document: TextDocument, offset: number, length: number): vscode.Range {

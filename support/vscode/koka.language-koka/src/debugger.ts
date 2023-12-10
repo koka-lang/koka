@@ -31,6 +31,8 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 	args?: string
 	/** enable logging the Debug Adapter Protocol */
 	trace?: boolean
+	/** A single function to run (must have no effects and return a type that is showable)*/
+	functionName?: string
 }
 
 export class KokaDebugSession extends LoggingDebugSession {
@@ -166,6 +168,7 @@ class KokaRuntime extends EventEmitter {
 	}
 	ps?: child_process.ChildProcess | null
 
+
 	public async start(args: LaunchRequestArguments) {
 		const target = this.config.target
 		let compilerTarget
@@ -192,7 +195,12 @@ class KokaRuntime extends EventEmitter {
 			additionalArgs = additionalArgs + " " + args.args
 		}
 		try {
-			const resp = await this.client.sendRequest(ExecuteCommandRequest.type, { command: 'koka/genCode', arguments: [args.program, additionalArgs] })
+			let resp = null 
+			if (args.functionName) {
+				resp = await this.client.sendRequest(ExecuteCommandRequest.type, { command: 'koka/interpretExpression', arguments: [args.program, args.functionName, additionalArgs] })
+			} else {
+				resp = await this.client.sendRequest(ExecuteCommandRequest.type, { command: 'koka/genCode', arguments: [args.program, additionalArgs] })
+			}
 			console.log(`Generated code at ${resp}`)
 			if (!resp) {
 				this.emit('output', `Error generating code, see language server output for specifics`, 'stderr')
