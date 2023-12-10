@@ -146,7 +146,7 @@ instance Functor IOErr where
   fmap f (IOErr ie)  = IOErr (fmap (fmap f) ie)
 
 instance Applicative IOErr where
-  pure x = IOErr (return (return x))  
+  pure x = IOErr (return (return x))
   (<*>) = ap
 
 instance Monad IOErr where
@@ -353,7 +353,7 @@ compileProgramFromFile term flags modules compileTarget rootPath stem
        let isSuffix = -- asciiEncode True (noexts stem) `endsWith` asciiEncode True (show (programName program))
                       -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
                       show (pathToModuleName (noexts stem)) `endsWith` show (programName program)
-                      -- map (\c -> if isPathSep c then '/' else c) (noexts stem) 
+                      -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
                       --  `endsWith` moduleNameToPath (programName program)
            ppcolor c doc = color (c (colors (prettyEnvFromFlags flags))) doc
        if (isExecutable compileTarget || isSuffix) then return ()
@@ -399,9 +399,9 @@ compileProgram' term flags modules compileTarget fname program
        liftIO $ termPhase term ("resolve imports " ++ show (getName program))
        loaded1 <- resolveImports (getName program) term flags (dirname fname) loaded (map ImpProgram (programImports program))
        --trace (" loaded modules: " ++ show (map modName (loadedModules loaded1))) $ return ()
-       --trace ("------\nloaded1:\n" ++ show (loadedNewtypes loaded1) ++ "\n----") $ return ()       
+       --trace ("------\nloaded1:\n" ++ show (loadedNewtypes loaded1) ++ "\n----") $ return ()
        -- trace ("inlines: "  ++ show (loadedInlines loaded1)) $ return ()
-       
+
        if (name /= nameInteractiveModule || verbose flags > 0)
         then liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "check  :") <+>
                                            color (colorSource (colorScheme flags)) (pretty (name)))
@@ -412,7 +412,7 @@ compileProgram' term flags modules compileTarget fname program
                                           (imp:_) -> importVis imp -- TODO: get max
                               in if (modName mod == name) then []
                                   else [Core.Import (modName mod) (modPackagePath mod) vis (Core.coreProgDoc (modCore mod))]
-       (loaded2a, coreDoc) <- liftError $ typeCheck loaded1 flags 0 coreImports program       
+       (loaded2a, coreDoc) <- liftError $ typeCheck loaded1 flags 0 coreImports program
        when (showCore flags) $
          liftIO (termDoc term (vcat [
            text "-------------------------",
@@ -444,9 +444,9 @@ compileProgram' term flags modules compileTarget fname program
                      infos-> let mainType = TFun [] (TCon (TypeCon nameTpIO kindEffect)) typeUnit  -- just for display, so IO can be TCon
                                  isMainType tp = case expandSyn tp of
                                                    TFun [] eff resTp  -> True -- resTp == typeUnit
-                                                   _                  -> False                                
+                                                   _                  -> False
                              in case filter (isMainType . infoType) infos of
-                               [InfoFun{infoType=tp,infoRange=r}] 
+                               [InfoFun{infoType=tp,infoRange=r}]
                                   -> do mbF <- checkUnhandledEffects flags loaded2 mainName r tp
                                         case mbF of
                                           Nothing -> return (Executable mainName tp, loaded2)
@@ -467,7 +467,7 @@ compileProgram' term flags modules compileTarget fname program
                                _  -> errorMsg (ErrorGeneral rangeNull (text "found multiple definitions for the 'main' function"))
              Object -> return (Object,loaded2)
              Library -> return (Library,loaded2)
-       
+
        loaded4 <- liftIO $ codeGen term flags newTarget loaded3
        -- liftIO $ termDoc term (text $ show (loadedGamma loaded4))
        -- trace (" final loaded modules: " ++ show (map modName (loadedModules loaded4))) $ return ()
@@ -572,7 +572,7 @@ resolveImportModules mname term flags currentDir resolved0 (imp:imps)
        (needed,resolved2) <- resolveImportModules mname term flags currentDir resolved1 (pubImports ++ imps)
        let needed1 = filter (\m -> modName m /= modName mod) needed -- no dups
        return (mod:needed1,resolved2)
-       
+
 
 searchModule :: Flags -> FilePath -> Name -> IO (Maybe FilePath)
 searchModule flags currentDir name
@@ -785,7 +785,7 @@ typeCheck loaded flags line coreImports program
            program1  = program0
            warnings1 = []
 
-           fixitiesAll = fixitiesNew [(name,fix) | FixDef name fix rng vis <- programFixDefs program0]           
+           fixitiesAll = fixitiesNew [(name,fix) | FixDef name fix rng vis <- programFixDefs program0]
 
        (program2,_) <- fixityResolve (colorSchemeFromFlags flags) (fixitiesCompose (loadedFixities loaded) fixitiesAll) program0
 
@@ -813,7 +813,7 @@ inferCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error (L
 inferCheck loaded0 flags line coreImports program
   = Core.runCorePhase (loadedUnique loaded0) $
     do -- kind inference
-       
+
        (defs, kgamma, synonyms, newtypes, constructors, coreProgram, mbRangeMap0)
          <- inferKinds
               (isValueFromFlags flags)
@@ -837,14 +837,14 @@ inferCheck loaded0 flags line coreImports program
                               , loadedConstructors=constructors
                               }
             penv    = prettyEnv loaded flags
-            
-            traceDefGroups title  
-              = do dgs <- Core.getCoreDefs 
-                   -- let doc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] 
+
+            traceDefGroups title
+              = do dgs <- Core.getCoreDefs
+                   -- let doc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C []
                    --            (coreProgram{ Core.coreProgDefs = dgs })
-                   trace (unlines (["","/* -----------------", title, "--------------- */"] ++ -- ++ [show doc])) $ return ()                         
+                   trace (unlines (["","/* -----------------", title, "--------------- */"] ++ -- ++ [show doc])) $ return ()
                            map showDef (Core.flattenDefGroups dgs))) $ return ()
-              where 
+              where
                 showDef def = show (Core.Pretty.prettyDef (penv{coreShowDef=True}) def)
 
 
@@ -859,12 +859,12 @@ inferCheck loaded0 flags line coreImports program
               (loadedImportMap loaded)
               (loadedGamma loaded)
               (getName program)
-              defs 
-       Core.setCoreDefs cdefs      
-       
+              defs
+       Core.setCoreDefs cdefs
+
        -- check generated core
-       let checkCoreDefs title = when (coreCheck flags) (trace ("checking " ++ title) $ 
-                                                         Core.Check.checkCore False False penv gamma)    
+       let checkCoreDefs title = when (coreCheck flags) (trace ("checking " ++ title) $
+                                                         Core.Check.checkCore False False penv gamma)
        -- checkCoreDefs "initial"
        -- traceDefGroups "initial"
 
@@ -885,7 +885,7 @@ inferCheck loaded0 flags line coreImports program
 
        -- lift recursive functions to top-level before specialize (so specializeDefs do not contain local recursive definitions)
        liftFunctions penv
-       checkCoreDefs "lifted"      
+       checkCoreDefs "lifted"
        -- traceDefGroups "lifted"
 
        -- unroll recursive definitions (before inline so generated wrappers can be inlined)
@@ -902,12 +902,12 @@ inferCheck loaded0 flags line coreImports program
 
        simplifyDupN
        -- traceDefGroups "inlined"
-     
-       -- specialize 
-       specializeDefs <- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
+
+       -- specialize
+       specializeDefs <- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else
                          Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
        -- traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
-       
+
        when (optSpecialize flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
          do
             -- simplifyDupN
@@ -919,31 +919,31 @@ inferCheck loaded0 flags line coreImports program
             -- lifting remaining recursive functions to top level (must be after specialize as that can generate local recursive definitions)
             liftFunctions penv
             checkCoreDefs "specialized"
-            -- traceDefGroups "specialized and lifted"        
+            -- traceDefGroups "specialized and lifted"
 
        -- simplify once more
        simplifyDupN
        coreDefsInlined <- Core.getCoreDefs
        -- traceDefGroups "simplified"
-      
+
 
        ------------------------------
-       -- backend optimizations 
+       -- backend optimizations
 
        -- tail-call-modulo-cons optimization
        when (optctail flags) $
          ctailOptimize penv newtypes gamma (optctailCtxPath flags)
-      
+
        -- transform effects to explicit monadic binding (and resolve .open calls)
        when (enableMon flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
           -- trace "monadic transform" $
           do Core.Monadic.monTransform penv
              openResolve penv gamma           -- must be after monTransform
-       checkCoreDefs "monadic transform"  
-       
+       checkCoreDefs "monadic transform"
+
        -- simplify open applications (needed before inlining open defs)
-       simplifyNoDup 
-       -- traceDefGroups "open resolved"  
+       simplifyNoDup
+       -- traceDefGroups "open resolved"
 
        -- monadic lifting to create fast inlined paths
        monadicLift penv
@@ -954,13 +954,13 @@ inferCheck loaded0 flags line coreImports program
        let inlinesX = inlinesFilter isPrimitiveName (loadedInlines loaded)
        -- trace ("inlines2: " ++ show (map Core.inlineName (inlinesToList inlinesX))) $
        inlineDefs penv (2*optInlineMax flags) inlinesX -- (loadedInlines loaded)
-              
+
        -- remove remaining open calls; this may change effect types
        simplifyDefs penv True {-unsafe-} ndebug (simplify flags) 0 -- remove remaining .open
 
        -- final simplification
        simplifyDupN
-       checkCoreDefs "final" 
+       checkCoreDefs "final"
        -- traceDefGroups "simplify final"
 
        -- Assemble core program and return
@@ -968,14 +968,14 @@ inferCheck loaded0 flags line coreImports program
        uniqueFinal   <- unique
        -- traceM ("final: " ++ show uniqueFinal)
        let -- extract inline definitions to export
-           localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsInlined 
+           localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsInlined
            -- give priority to specializeDefs, since inlining can prevent specialize opportunities
            allInlineDefs    = specializeDefs ++ localInlineDefs
 
-           coreProgramFinal 
+           coreProgramFinal
             = uniquefy $
               coreProgram { Core.coreProgImports = coreImports
-                          , Core.coreProgDefs = coreDefsFinal  
+                          , Core.coreProgDefs = coreDefsFinal
                           , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng vis <- programFixDefs program, vis == Public]
                           }
 
@@ -989,7 +989,7 @@ inferCheck loaded0 flags line coreImports program
                                 , loadedInlines = inlinesExtends allInlineDefs (loadedInlines loaded)
                                 }
 
-           coreDoc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] 
+           coreDoc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) []
                        (coreProgram{ Core.coreProgDefs = coreDefsInlined })
 
        return (loadedFinal, coreDoc)
@@ -1065,8 +1065,8 @@ codeGen term flags compileTarget loaded
        case mbRun of
          Just (out,_)
            -> do let finalOut = outFinalPath flags
-                 exe <- if (not (null finalOut)) 
-                          then do let targetOut = ensureExt finalOut (targetExeExtension (target flags))                                                  
+                 exe <- if (not (null finalOut))
+                          then do let targetOut = ensureExt finalOut (targetExeExtension (target flags))
                                   when (osName == "macos") $
                                     removeFileIfExists targetOut  -- needed on macOS due to code signing issues (see https://developer.apple.com/forums/thread/669145)
                                   copyBinaryFile out targetOut
@@ -1095,11 +1095,11 @@ codeGen term flags compileTarget loaded
                  CS   -> codeGenCS
                  JS _ -> codeGenJS
                  _    -> let -- for Perceus (Parc) we analyze types inside abstract types and thus need
-                             -- access to all defined types; here we freshly extract all type definitions from all 
+                             -- access to all defined types; here we freshly extract all type definitions from all
                              -- imported modules.
                              newtypesAll = foldr1 newtypesCompose (map (extractNewtypes . modCore) (loadedModule loaded : loadedModules loaded))
-                         in codeGenC (modSourcePath (loadedModule loaded)) 
-                                  -- (loadedNewtypes loaded) 
+                         in codeGenC (modSourcePath (loadedModule loaded))
+                                  -- (loadedNewtypes loaded)
                                      newtypesAll (loadedBorrowed loaded) (loadedUnique loaded)
 
 
@@ -1233,7 +1233,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
           ctarget = case target flags of
                       C ctarget -> ctarget
-                      _         -> CDefault         
+                      _         -> CDefault
           (cdoc,hdoc,bcore) = cFromCore ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
                                 newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                 (parcBorrowInference flags) (optEagerPatBind flags) (stackSize flags) mbEntry core0
@@ -1250,18 +1250,18 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
       -- copy libraries
       let cc       = ccomp flags
           eimports = externalImportsFromCore (target flags) bcore
-          clibs    = clibsFromCore flags bcore 
+          clibs    = clibsFromCore flags bcore
       extraIncDirs <- fmap concat $ mapM (copyCLibrary term flags cc) eimports
 
-      -- compile      
-      ccompile term flags cc outBase extraIncDirs [outC] 
+      -- compile
+      ccompile term flags cc outBase extraIncDirs [outC]
 
       -- compile and link?
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
          do currentDir <- getCurrentDirectory
-            
+
             let mainModName= showModName (Core.coreProgName core0)
                 mainName   = if null (outBaseName flags) then mainModName else outBaseName flags
                 mainExe    = outName flags mainName
@@ -1271,7 +1271,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
             kklibObj <- kklibBuild term flags cc "kklib" (ccObjFile cc "kklib")
 
             let objs   = [kklibObj] ++
-                         [outName flags (ccObjFile cc (showModName mname)) 
+                         [outName flags (ccObjFile cc (showModName mname))
                          | mname <- (map modName modules ++ [Core.coreProgName core0])]
                 syslibs= concat [csyslibsFromCore flags mcore | mcore <- map modCore modules]
                          ++ ccompLinkSysLibs flags
@@ -1279,8 +1279,8 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                               then ["bcrypt","psapi","advapi32"]
                               else ["m","pthread"])
                 libs   = -- ["kklib"] -- [normalizeWith '/' (outName flags (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
-                         -- ++ 
-                         clibs 
+                         -- ++
+                         clibs
                          ++
                          concat [clibsFromCore flags mcore | mcore <- map modCore modules]
 
@@ -1289,10 +1289,10 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                 stksize = if (stackSize flags == 0 && (onWindows || isTargetWasm (target flags)))
                             then 8*1024*1024    -- default to 8Mb on windows and wasi
                             else stackSize flags
-                hpsize  = if (heapSize flags == 0 && isTargetWasm (target flags)) 
+                hpsize  = if (heapSize flags == 0 && isTargetWasm (target flags))
                             then 1024*1024*1024 -- default to 1Gb on wasi
                             else heapSize flags
- 
+
                 clink  = concat $
                          [ [ccPath cc]
                          , ccFlags cc
@@ -1305,7 +1305,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                          -- ++ [ccAddLibraryDir cc (fullBuildDir flags)]
                          ++ map (ccAddLib cc) libpaths  -- libs
                          ++ map (ccAddSysLib cc) syslibs
-                         
+
 
             termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
                                color (colorSource (colorScheme flags)) (text mainName))
@@ -1316,23 +1316,23 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
               termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
                                     color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
-            
+
             case target flags of
-              C Wasm 
-                -> do return (Just (mainTarget, 
-                               runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ " -- " ++ cmdflags ++ " " ++ execOpts flags))) 
+              C Wasm
+                -> do return (Just (mainTarget,
+                               runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ " -- " ++ cmdflags ++ " " ++ execOpts flags)))
               C WasmWeb
-                -> do return (Just (mainTarget, runSystemEcho term flags (dquote mainTarget ++ " &")))                
+                -> do return (Just (mainTarget, runSystemEcho term flags (dquote mainTarget ++ " &")))
               C WasmJs
                 -> do let nodeStack = if (stksize == 0) then 100000 else (stksize `div` 1024)
-                      return (Just (mainTarget, 
-                               runCommand term flags [node flags,"--stack-size=" ++ show nodeStack,mainTarget]))                               
-              _ -> do return (Just (mainTarget, 
+                      return (Just (mainTarget,
+                               runCommand term flags [node flags,"--stack-size=" ++ show nodeStack,mainTarget]))
+              _ -> do return (Just (mainTarget,
                                runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 
 
 ccompile :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> [FilePath] -> IO ()
-ccompile term flags cc ctargetObj extraIncDirs csources 
+ccompile term flags cc ctargetObj extraIncDirs csources
   = do let cmdline = concat $
                       [ [ccPath cc]
                       , ccFlags cc
@@ -1352,60 +1352,60 @@ ccompile term flags cc ctargetObj extraIncDirs csources
        runCommand term flags cmdline
 
 
--- copy static C library to the output directory (so we can link and/or bundle) and 
+-- copy static C library to the output directory (so we can link and/or bundle) and
 -- return needed include paths for imported C code
 copyCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> IO [FilePath] {-include paths-}
 copyCLibrary term flags cc eimport
   = case Core.eimportLookup (buildType flags) "library" eimport of
       Nothing -> return []
-      Just clib 
+      Just clib
         -> do mb  <- do mbSearch <- search [] [ searchCLibrary flags cc clib (ccompLibDirs flags)
-                                              , case lookup "conan" eimport of
-                                                  Just pkg | not (null (conan flags)) 
-                                                    -> conanCLibrary term flags cc eimport clib pkg
-                                                  _ -> return (Left [])
                                               , case lookup "vcpkg" eimport of
-                                                  Just pkg 
+                                                  Just pkg
                                                     -> vcpkgCLibrary term flags cc eimport clib pkg
                                                   _ -> return (Left [])
-                                              ]                                            
+                                              , case lookup "conan" eimport of
+                                                  Just pkg | not (null (conan flags))
+                                                    -> conanCLibrary term flags cc eimport clib pkg
+                                                  _ -> return (Left [])
+                                              ]
                         case mbSearch of
                           Right res -> return (Just res)
                           Left warn -> do termWarning term flags warn
                                           return Nothing
               case mb of
-                Just (libPath,includes) 
+                Just (libPath,includes)
                   -> do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
-                          color (colorSource (colorScheme flags)) (text libPath))         
-                        -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib) 
+                          color (colorSource (colorScheme flags)) (text libPath))
+                        -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
                         copyBinaryIfNewer (rebuild flags) libPath (outName flags (ccLibFile cc clib))
                         return includes
-                Nothing 
+                Nothing
                   -> -- TODO: suggest conan and/or vcpkg install?
                      do termWarning term flags $
                           text "unable to find C library:" <+> color (colorSource (colorScheme flags)) (text clib) <->
-                          text "   hint: provide \"--cclibdir\" as an option, or use \"syslib\" in an extern import?"                        
+                          text "   hint: provide \"--cclibdir\" as an option, or use \"syslib\" in an extern import?"
                         raiseIO ("unable to find C library " ++ clib ++
                                  "\nlibrary search paths: " ++ show (ccompLibDirs flags))
-  where 
-    search :: [Doc] -> [IO (Either [Doc] (FilePath,[FilePath]))] -> IO (Either Doc (FilePath,[FilePath])) 
+  where
+    search :: [Doc] -> [IO (Either [Doc] (FilePath,[FilePath]))] -> IO (Either Doc (FilePath,[FilePath]))
     search warns [] = return (Left (vcat (intersperse (text "or") warns)))
     search warns (io:ios)
       = do mbRes <- io
            case mbRes of
              Right res   -> return (Right res)
              Left warns' -> search (warns ++ warns') ios
-      
+
 searchCLibrary :: Flags -> CC -> FilePath -> [FilePath] -> IO (Either [Doc] (FilePath {-libPath-},[FilePath] {-include paths-}))
 searchCLibrary flags cc clib searchPaths
   = do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
-                 -- and the actual name of the library is not easy to extract from vcpkg (we could read 
+                 -- and the actual name of the library is not easy to extract from vcpkg (we could read
                  -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
                  do let suffixes = (if (buildType flags <= Debug) then ["d","_d","-d","-debug","_debug","-dbg","_dbg"] else [])
                     -- trace ("search in: " ++ show searchPaths) $
-                    searchPathsSuffixes searchPaths [] suffixes (ccLibFile cc clib)                     
+                    searchPathsSuffixes searchPaths [] suffixes (ccLibFile cc clib)
        case mbPath of
-        Just fname 
+        Just fname
           -> case reverse (splitPath fname) of
                (_:"lib":"debug":rbase) -> return (Right (fname, [joinPaths (reverse rbase ++ ["include"])])) -- for vcpkg
                (_:"lib":rbase)         -> return (Right (fname, [joinPaths (reverse rbase ++ ["include"])])) -- e.g. /usr/local/lib
@@ -1417,8 +1417,8 @@ conanCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> Str
 conanCLibrary term flags cc eimport clib pkg
   = do mbConanCmd <- searchProgram (conan flags)
        case mbConanCmd of
-         Nothing 
-          -> do return $ Left [text "this module requires a conan package but \"" <.> clrSource (text (conan flags)) <.> text "\" is not installed." 
+         Nothing
+          -> do return $ Left [text "this module requires a conan package but \"" <.> clrSource (text (conan flags)) <.> text "\" is not installed."
                                      <-> text "         install conan as:"
                                      <-> text "         >" <+> clrSource (text "pip3 install conan")
                                      <-> text "         or see <" <.> clrSource (text "https://docs.conan.io/en/latest/installation.html") <.> text ">"]
@@ -1429,7 +1429,7 @@ conanCLibrary term flags cc eimport clib pkg
          Just conanCmd
           -> do pkgDir <- getPackageDir conanCmd
                 if (null pkgDir)
-                  then do termWarning term flags $ 
+                  then do termWarning term flags $
                             text "unable to resolve conan package:" <+> clrSource (text pkg)
                           return (Left [])
                   else do termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) $
@@ -1438,23 +1438,23 @@ conanCLibrary term flags cc eimport clib pkg
                           mb <- searchCLibrary flags cc clib [libDir]
                           case mb of
                             Right _  -> return mb -- already installed
-                            Left _   -> install conanCmd libDir                   
+                            Left _   -> install conanCmd libDir
   where
-    pkgBase 
+    pkgBase
       = takeWhile (/='/') pkg
 
     (baseSettings,conanEnv)
-      = conanSettingsFromFlags flags cc 
-      
-    settings 
+      = conanSettingsFromFlags flags cc
+
+    settings
       = baseSettings ++ ["-o",pkgBase ++ ":shared=False","-o","shared=False"]
 
-    clrSource doc   
+    clrSource doc
       = color (colorSource (colorScheme flags)) doc
 
     getPackageDir conanCmd
-      = do let infoCmd = [conanCmd, "info", 
-                          pkg ++ "@", 
+      = do let infoCmd = [conanCmd, "info",
+                          pkg ++ "@",
                           "--package-filter", pkgBase ++ "/*",
                           "--paths", "--only","package_folder"] ++ settings
            out <- runCommandRead term flags conanEnv infoCmd  -- TODO: first check if  conan is installed?
@@ -1465,20 +1465,20 @@ conanCLibrary term flags cc eimport clib pkg
              else do return ""
 
     install conanCmd libDir
-      = do let installCmd = [conanCmd, "install", pkg ++ "@", "--build"] ++ settings                             
+      = do let installCmd = [conanCmd, "install", pkg ++ "@", "--build"] ++ settings
            if (not (autoInstallLibs flags))
-            then do termWarning term flags (text "this module requires the conan package" 
-                                          <+> clrSource (text pkg) 
+            then do termWarning term flags (text "this module requires the conan package"
+                                          <+> clrSource (text pkg)
                                           <+> text "         enable auto install using the \"--autoinstall\" option to koka,"
-                                          <+> text "         or install the package manually as:" 
+                                          <+> text "         or install the package manually as:"
                                           <-> text "         >" <+> clrSource (text (unwords installCmd))
                                           <-> text "         to install the required C library and header files")
                     return (Left [])
             else do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: conan package:") <+> clrSource (text pkg))
                     runCommandEnv term flags conanEnv installCmd
                     searchCLibrary flags cc clib [libDir] -- try to find again after install
-                      
-           
+
+
 
 vcpkgCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> String -> IO (Either [Doc] (FilePath,[FilePath]))
 vcpkgCLibrary term flags cc eimport clib pkg
@@ -1489,38 +1489,38 @@ vcpkgCLibrary term flags cc eimport clib pkg
                     text "this module requires vcpkg to install the" <+> clrSource (text clib) <+> text "library." <->
                     text "   hint: specify the root directory of vcpkg using the" <+> clrSource (text "--vcpkg=<dir>") <+> text "option" <->
                     text "         or the" <+> clrSource (text "VCPKG_ROOT") <+> text "environment variable," <->
-                  (if onMacOS then 
-                   (text "         or install vcpkg as:" <-> 
+                  (if onMacOS then
+                   (text "         or install vcpkg as:" <->
                     text "         > brew install vcpkg")
                    else
                    (text "         or install vcpkg from <" <.> clrSource (text "https://vcpkg.io/en/getting-started.html") <.> text ">"))
                   ]
-         else do let libDir = root ++ "/installed/" ++ (vcpkgTriplet flags) 
-                                ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")              
+         else do let libDir = root ++ "/installed/" ++ (vcpkgTriplet flags)
+                                ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
                  termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) $
-                    text "package: vcpkg" <+> clrSource (text pkg) 
+                    text "package: vcpkg" <+> clrSource (text pkg)
                  mbInstalled <- searchCLibrary flags cc clib [libDir]
                  case mbInstalled of
                    Right _ -> return mbInstalled
                    Left _  -> install root libDir vcpkg
   where
-    clrSource doc   
+    clrSource doc
       = color (colorSource (colorScheme flags)) doc
-  
-    install rootDir libDir vcpkgCmd    
+
+    install rootDir libDir vcpkgCmd
       = do  let packageDir = joinPaths [rootDir,"packages",pkg ++ "_" ++ vcpkgTriplet flags]
             pkgExist <- doesDirectoryExist packageDir
             when (pkgExist) $
-              termWarning term flags $ 
-                text "vcpkg" <+> clrSource (text pkg) <+> 
-                text "is installed but the library" <+> clrSource (text clib) <+> 
-                text "is not found in" <+> clrSource (text libDir)              
-            let installCmd = [vcpkgCmd, "install", pkg ++ ":" ++ vcpkgTriplet flags, "--disable-metrics"]                               
+              termWarning term flags $
+                text "vcpkg" <+> clrSource (text pkg) <+>
+                text "is installed but the library" <+> clrSource (text clib) <+>
+                text "is not found in" <+> clrSource (text libDir)
+            let installCmd = [vcpkgCmd, "install", pkg ++ ":" ++ vcpkgTriplet flags, "--disable-metrics"]
             if (not (autoInstallLibs flags))
-              then do termWarning term flags (text "this module requires vcpkg package" 
-                                              <+> clrSource (text pkg) 
+              then do termWarning term flags (text "this module requires vcpkg package"
+                                              <+> clrSource (text pkg)
                                               <-> text "   hint: enable auto install using the \"--autoinstall\" option to koka,"
-                                              <-> text "         or install the package manually as:"                                                      
+                                              <-> text "         or install the package manually as:"
                                               <-> text "         >" <+> clrSource (text (unwords installCmd))
                                               <-> text "         to install the required C library and header files")
                       return (Left [])
@@ -1528,7 +1528,7 @@ vcpkgCLibrary term flags cc eimport clib pkg
                       runCommand term flags installCmd
                       searchCLibrary flags cc clib [libDir] -- try to find again after install
 
-                            
+
 termWarning term flags doc
   = termDoc term $ color (colorWarning (colorSchemeFromFlags flags)) (text "warning:" <+> doc)
 
@@ -1540,7 +1540,7 @@ externalImportKeyFromCore target buildType core key
   = catMaybes [Core.eimportLookup buildType key keyvals  | keyvals <- externalImportsFromCore target core]
 
 externalImportsFromCore :: Target -> Core.Core -> [[(String,String)]]
-externalImportsFromCore target core 
+externalImportsFromCore target core
   = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (target,keyvals) <- imports]
 
 
@@ -1560,7 +1560,7 @@ kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
                    else do cmp <- fileTimeCompare (srcLibDir ++ "/include/kklib.h") objPath
                            return (cmp==GT)
        -- putStrLn ("binObjPath: " ++ binObjPath ++ ", newer: " ++ show binNewer)
-       if (not binNewer && not srcNewer && not (rebuild flags)) 
+       if (not binNewer && not srcNewer && not (rebuild flags))
         then return ()
          else if (binNewer)
            then -- use pre-compiled installed binary
@@ -1571,12 +1571,12 @@ kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
                                    color (colorSource (colorScheme flags)) (text name) <+>
                                     color (colorInterpreter (colorScheme flags)) (text "from:") <+>
                                      color (colorSource (colorScheme flags)) (text srcLibDir)
-                   let flags0 = if (useStdAlloc flags) then flags 
+                   let flags0 = if (useStdAlloc flags) then flags
                                   else flags{ ccompIncludeDirs = ccompIncludeDirs flags ++ [localShareDir flags ++ "/kklib/mimalloc/include"] }
-                       flags1 = flags0{ ccompDefs = ccompDefs flags ++ 
+                       flags1 = flags0{ ccompDefs = ccompDefs flags ++
                                                     [("KK_COMP_VERSION","\"" ++ version ++ "\""),
                                                      ("KK_CC_NAME", "\"" ++ ccName cc ++ "\"")] }
-                   ccompile term flags1 cc objPath [] [joinPath srcLibDir "src/all.c"] 
+                   ccompile term flags1 cc objPath [] [joinPath srcLibDir "src/all.c"]
        return objPath
 
 
@@ -1674,9 +1674,9 @@ runCommand :: Terminal -> Flags -> [String] -> IO ()
 runCommand term flags cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
        if (osName == "windows" && cmd `endsWith` "emcc") -- hack to run emcc correctly on windows (due to Python?)
-         then runSystemEcho term flags command 
+         then runSystemEcho term flags command
          else  do when (verbose flags >= 2) $
-                    termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")      
+                    termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
                   runCmd cmd (filter (not . null) args)
                     `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
@@ -1684,7 +1684,7 @@ runCommandRead :: Terminal -> Flags -> [(String,String)] -> [String] -> IO Strin
 runCommandRead term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
        when (verbose flags >= 2) $
-         termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")      
+         termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
        runCmdRead env cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
@@ -1692,14 +1692,14 @@ runCommandEnv :: Terminal -> Flags -> [(String,String)] -> [String] -> IO ()
 runCommandEnv term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
        when (verbose flags >= 2) $
-         termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")      
+         termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
        runCmdEnv env  cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
 
 shellQuote s
-  = if (all (\c -> isAlphaNum c || c `elem` ":/-_.=") s) then s 
-     else "\"" ++ concatMap quote s ++ "\"" 
+  = if (all (\c -> isAlphaNum c || c `elem` ":/-_.=") s) then s
+     else "\"" ++ concatMap quote s ++ "\""
   where
     quote '"'  = "\\\""
     quote '\'' = "\\'"
@@ -1717,11 +1717,11 @@ copyIFaceToOutputDir term flags iface core
        -- trace ("copy iface: " ++ iface ++ " to " ++ outIFace) $ return ()
        copyTextIfNewer (rebuild flags) iface outIFace
        case target flags of
-        CS 
+        CS
           -> do let libSrc = notext iface ++ dllExtension
                 let libOut = notext outIFace ++ dllExtension
                 copyBinaryIfNewer (rebuild flags) libSrc libOut
-        JS _ 
+        JS _
           -> do let jsSrc = notext iface ++ ".mjs"
                 let jsOut = notext outIFace ++ ".mjs"
                 -- copyTextFileWith  jsSrc jsOut (packagePatch iface (targetPath) imported)
@@ -1732,11 +1732,11 @@ copyIFaceToOutputDir term flags iface core
                 let cc = ccomp flags
                     srcDir = dirname iface
                 copyBinaryIfNewer (rebuild flags) (ccObjFile cc (notext iface)) (ccObjFile cc (notext outIFace))
-                mapM_ (\clib -> 
+                mapM_ (\clib ->
                   do let libFile = ccLibFile cc clib
                      -- todo: only copy if it exists?
                      copyBinaryIfNewer (rebuild flags) (joinPath srcDir libFile) (outName flags libFile)
-                 ) (clibsFromCore flags core)        
+                 ) (clibsFromCore flags core)
        return outIFace
 
 copyPkgIFaceToOutputDir :: Terminal -> Flags -> FilePath -> Core.Core -> PackageName -> [Module] -> IO ()
