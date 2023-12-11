@@ -27,7 +27,7 @@ where
 import Control.Concurrent.MVar (MVar, modifyMVar, newMVar, putMVar, readMVar, newEmptyMVar)
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Trans (lift, liftIO)
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import Language.LSP.Server (LanguageContextEnv, LspT, runLspT, sendNotification, Handlers)
 import qualified Language.LSP.Protocol.Types as J
@@ -63,16 +63,16 @@ import Compiler.Module (Modules)
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
-  lsModules :: [Module],
-  lsLoaded :: M.Map FilePath Loaded,
-  messages :: TChan (String, J.MessageType),
-  flags:: Flags,
-  terminal:: Terminal,
+  lsModules :: ![Module],
+  lsLoaded :: !(M.Map FilePath Loaded),
+  messages :: !(TChan (String, J.MessageType)),
+  flags:: !Flags,
+  terminal:: !Terminal,
   htmlPrinter :: Doc -> IO T.Text,
-  pendingRequests :: TVar (Set.Set J.SomeLspId),
-  cancelledRequests :: TVar (Set.Set J.SomeLspId),
-  documentVersions :: TVar (M.Map J.Uri J.Int32),
-  documentInfos :: M.Map FilePath (D.ByteString, FileTime, J.Int32) }
+  pendingRequests :: !(TVar (Set.Set J.SomeLspId)),
+  cancelledRequests :: !(TVar (Set.Set J.SomeLspId)),
+  documentVersions :: !(TVar (M.Map J.Uri J.Int32)),
+  documentInfos :: !(M.Map FilePath (D.ByteString, FileTime, J.Int32)) }
 
 trimnl :: [Char] -> [Char]
 trimnl str = reverse $ dropWhile (`elem` "\n\r\t ") $ reverse str

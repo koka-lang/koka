@@ -45,7 +45,7 @@ runLanguageServer flags files = do
         $
         ServerDefinition
           { onConfigurationChange = const $ pure $ Right (),
-            doInitialize = \env _ -> forkIO (reactor rin) >> forkIO (messageHandler (messages initStateVal) env) >> pure (Right env),
+            doInitialize = \env _ -> forkIO (reactor rin) >> forkIO (messageHandler (messages initStateVal) env state) >> pure (Right env),
             staticHandlers = \_caps -> lspHandlers rin,
             interpretHandler = \env -> Iso (\lsm -> runLSM lsm state env) liftIO,
             options =
@@ -75,12 +75,11 @@ runLanguageServer flags files = do
         (Just False) -- will save (wait until requests are sent to server)
         (Just $ J.InR $ J.SaveOptions $ Just False) -- trigger on save, but dont send document
 
-messageHandler :: TChan (String, J.MessageType) -> LanguageContextEnv () -> IO ()
-messageHandler msgs env = do
+messageHandler :: TChan (String, J.MessageType) -> LanguageContextEnv () -> MVar LSState -> IO ()
+messageHandler msgs env state = do
   forever $ do
     (msg, msgType) <- atomically $ readTChan msgs
-    mVar <- newEmptyMVar
-    runLSM (sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams msgType $ T.pack msg) mVar env
+    runLSM (sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams msgType $ T.pack msg) state env
 
 reactor :: TChan ReactorInput -> IO ()
 reactor inp = do
