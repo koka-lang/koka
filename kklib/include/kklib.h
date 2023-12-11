@@ -826,6 +826,8 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
   }
 }
 
+#define kk_skip_dup(x,ctx)  (x)
+#define kk_skip_drop(x,ctx) (x)
 
 /*--------------------------------------------------------------------------------------
   Thread-shared marking (see `refcount.c`)
