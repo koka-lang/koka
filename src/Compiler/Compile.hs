@@ -1360,13 +1360,13 @@ copyCLibrary term flags cc eimport
       Nothing -> return []
       Just clib
         -> do mb  <- do mbSearch <- search [] [ searchCLibrary flags cc clib (ccompLibDirs flags)
-                                              , case lookup "vcpkg" eimport of
-                                                  Just pkg
-                                                    -> vcpkgCLibrary term flags cc eimport clib pkg
-                                                  _ -> return (Left [])
                                               , case lookup "conan" eimport of
                                                   Just pkg | not (null (conan flags))
                                                     -> conanCLibrary term flags cc eimport clib pkg
+                                                  _ -> return (Left [])
+                                              , case lookup "vcpkg" eimport of
+                                                  Just pkg
+                                                    -> vcpkgCLibrary term flags cc eimport clib pkg
                                                   _ -> return (Left [])
                                               ]
                         case mbSearch of
@@ -1427,18 +1427,18 @@ conanCLibrary term flags cc eimport clib pkg
          Just conanCmd | isTargetWasm (target flags)
           -> do return $ Left [text "conan can not be used with a wasm target"]
          Just conanCmd
-          -> do pkgDir <- getPackageDir conanCmd
-                if (null pkgDir)
-                  then do termWarning term flags $
+          -> do mbPkgDir <- getPackageDir conanCmd
+                case mbPkgDir of
+                  Nothing
+                    -> do termWarning term flags $
                             text "unable to resolve conan package:" <+> clrSource (text pkg)
                           return (Left [])
-                  else do termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) $
-                              text "package: conan" <+> clrSource (text pkg) -- <.> colon <+> clrSource (text pkgDir)
+                  Just (pkgName,pkgDir)
+                    -> do termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) $
+                            text "package: conan" <+> clrSource (text pkgName) -- <.> colon <+> clrSource (text pkgDir)
                           let libDir = pkgDir ++ "/lib"
-                          mb <- searchCLibrary flags cc clib [libDir]
-                          case mb of
-                            Right _  -> return mb -- already installed
-                            Left _   -> install conanCmd libDir
+                          searchCLibrary flags cc clib [libDir]
+
   where
     pkgBase
       = takeWhile (/='/') pkg
@@ -1447,37 +1447,54 @@ conanCLibrary term flags cc eimport clib pkg
       = conanSettingsFromFlags flags cc
 
     settings
-      = baseSettings ++ ["-o",pkgBase ++ ":shared=False","-o","shared=False"]
+      = baseSettings ++ ["-o",pkgBase ++ "/*:shared=False","-o","shared=False"]
 
     clrSource doc
       = color (colorSource (colorScheme flags)) doc
 
     getPackageDir conanCmd
-      = do let infoCmd = [conanCmd, "info",
-                          pkg ++ "@",
-                          "--package-filter", pkgBase ++ "/*",
-                          "--paths", "--only","package_folder"] ++ settings
-           out <- runCommandRead term flags conanEnv infoCmd  -- TODO: first check if  conan is installed?
-           termPhase term out
-           let s = dropWhile isSpace (concat (take 1 (reverse (lines out))))
-           if (s `startsWith` "package_folder: ")
-             then return (normalize (drop 16 s))
-             else do return ""
+      = do mbPkgDir <- findPackagDir conanCmd
+           case mbPkgDir of
+             Just _   -> return mbPkgDir
+             Nothing  -> do installPackage conanCmd
+                            findPackagDir conanCmd
 
-    install conanCmd libDir
-      = do let installCmd = [conanCmd, "install", pkg ++ "@", "--build"] ++ settings
-           if (not (autoInstallLibs flags))
-            then do termWarning term flags (text "this module requires the conan package"
-                                          <+> clrSource (text pkg)
-                                          <+> text "         enable auto install using the \"--autoinstall\" option to koka,"
-                                          <+> text "         or install the package manually as:"
-                                          <-> text "         >" <+> clrSource (text (unwords installCmd))
-                                          <-> text "         to install the required C library and header files")
-                    return (Left [])
-            else do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: conan package:") <+> clrSource (text pkg))
-                    runCommandEnv term flags conanEnv installCmd
-                    searchCLibrary flags cc clib [libDir] -- try to find again after install
+    findPackagDir conanCmd
+      = do -- find out latest installed version
+           let infoCmd = [conanCmd, "list", "-c", pkg]
+           out <- runCommandRead term flags conanEnv infoCmd `catchIO` (\msg -> return "")
+           -- termPhase term out
+           let cachepkg = dropWhile isSpace $ concat $ take 1 $ dropWhile (all isSpace) $ reverse (lines out)
+           if (not (cachepkg `startsWith` pkgBase))
+             then return Nothing
+             else -- and get the binary package location
+                  do let queryCmd = [conanCmd, "install", "--requires", cachepkg] ++ settings
+                     (_,out) <- runCommandReadAll term flags conanEnv queryCmd `catchIO` (\msg -> return ("",""))
+                     -- termPhase term out
+                     let prefix = cachepkg ++ ": Appending PATH environment variable: "
+                         ppaths = [reverse $ drop 4 {- /bin -} $ reverse $
+                                    drop (length prefix) line | line <- lines out, line `startsWith` prefix]
+                     termPhase term (show (lines out))
+                     termPhase term (unlines ppaths)
+                     case ppaths of
+                       [ppath] -> do exist <- doesDirectoryExist ppath
+                                     return (if exist then Just (cachepkg,ppath) else Nothing)
+                       _       -> return Nothing
 
+
+    installPackage conanCmd
+      = do let installCmd = [conanCmd, "install", "--build", "missing", "--requires", pkg] ++ settings
+           if not (autoInstallLibs flags)
+             then termWarning term flags (text "this module requires the conan package"
+                    <+> clrSource (text pkg)
+                    <+> text "         enable auto install using the \"--autoinstall\" option to koka,"
+                    <+> text "         or install the package manually as:"
+                    <-> text "         >" <+> clrSource (text (unwords installCmd))
+                    <-> text "         to install the required C library and header files")
+             else do let profileCmd = [conanCmd, "profile", "detect"] -- ensure default profile exists
+                     runCommandReadAll term flags conanEnv profileCmd `catchIO` (\msg -> return ("",""))
+                     termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: conan package:") <+> clrSource (text pkg))
+                     runCommandEnv term flags conanEnv installCmd
 
 
 vcpkgCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> String -> IO (Either [Doc] (FilePath,[FilePath]))
@@ -1681,7 +1698,12 @@ runCommand term flags cargs@(cmd:args)
                     `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
 runCommandRead :: Terminal -> Flags -> [(String,String)] -> [String] -> IO String
-runCommandRead term flags env cargs@(cmd:args)
+runCommandRead term flags env cargs
+  = do (out,_) <- runCommandReadAll term flags env cargs
+       return out
+
+runCommandReadAll :: Terminal -> Flags -> [(String,String)] -> [String] -> IO (String,String)
+runCommandReadAll term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
        when (verbose flags >= 2) $
          termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
