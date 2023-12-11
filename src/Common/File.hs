@@ -111,7 +111,7 @@ extname fname
 
 ensureExt :: FileName -> String -> FileName
 ensureExt fname ext
-  = if (extname fname == ext) then fname else fname ++ ext        
+  = if (extname fname == ext) then fname else fname ++ ext
 
 -- | Return the directory prefix (including last separator if present)
 dirname :: FileName -> FileName
@@ -246,23 +246,24 @@ runCmd cmd args
           ExitFailure i -> raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
           ExitSuccess   -> return ()
 
-runCmdRead :: [(String,String)] -> String -> [String] -> IO String
+runCmdRead :: [(String,String)] -> String -> [String] -> IO (String,String)
 runCmdRead extraEnv cmd args
   = do mbEnv <- buildEnv extraEnv
-       (_, Just hout, _, process) <- createProcess (proc cmd args){ env = mbEnv, std_out = CreatePipe }          
+       (_, Just hout, Just herr, process) <- createProcess (proc cmd args){ env = mbEnv, std_out = CreatePipe, std_err = CreatePipe }
        exitCode <- waitForProcess process
        case exitCode of
           ExitFailure i -> do -- hClose hout
                               raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
-          ExitSuccess   -> do out <- hGetContents hout                              
+          ExitSuccess   -> do out <- hGetContents hout
+                              err <- hGetContents herr
                               -- hClose hout
-                              return out
+                              return (out,err)
 
 
 runCmdEnv :: [(String,String)] -> String -> [String] -> IO ()
 runCmdEnv extraEnv cmd args
   = do mbEnv <- buildEnv extraEnv
-       (_, _, _, process) <- createProcess (proc cmd args){ env = mbEnv }          
+       (_, _, _, process) <- createProcess (proc cmd args){ env = mbEnv }
        exitCode <- waitForProcess process
        case exitCode of
           ExitFailure i -> do -- hClose hout
@@ -271,7 +272,7 @@ runCmdEnv extraEnv cmd args
 
 buildEnv :: [(String,String)] -> IO (Maybe [(String,String)])
 buildEnv extraEnv
-  = if null extraEnv then return Nothing 
+  = if null extraEnv then return Nothing
       else do oldEnv <- getEnvironment
               let newKeys = map fst extraEnv
               return (Just (extraEnv ++ filter (\(k,_) -> not (k `elem` newKeys)) oldEnv))
@@ -376,7 +377,7 @@ copyTextIfNewerWith always srcName outName transform
         else do return ()
 
 removeFileIfExists :: FilePath -> IO ()
-removeFileIfExists fname 
+removeFileIfExists fname
   = B.exCatch (removeFile fname)
               (\exn -> return ())
 
@@ -462,7 +463,7 @@ getEnvVar name
          Nothing  -> return ""
 
 realPath :: FilePath -> IO FilePath
-realPath fpath 
+realPath fpath
   = canonicalizePath fpath
 
 
@@ -471,13 +472,13 @@ searchProgram ""
   = return Nothing
 searchProgram fname | isAbsolute fname || fname `startsWith` "."
   = do exist <- doesFileExist fname
-       if exist  
+       if exist
          then return (Just fname)
          else return Nothing
-searchProgram fname          
+searchProgram fname
   = do paths  <- getEnvPaths "PATH"
        searchPaths paths [exeExtension] fname
-       
+
 
 {-
 splitPath :: String -> [String]

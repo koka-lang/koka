@@ -1,22 +1,22 @@
 /*---------------------------------------------------------------------------
   Copyright 2012-2021, Microsoft Research, Daan Leijen.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 /* Regular expressions.
- 
+
    The regular expressions conform to the regular expressions of JavaScript
    as described at <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions>
-*/  
+*/
 module std/text/regex
 
 import std/num/int32
 
 extern import
-  c { conan="pcre2/[ >= 10.37]"; vcpkg="pcre2"; library="pcre2-8" }
+  c { conan="pcre2/[>=10.37]"; vcpkg="pcre2"; library="pcre2-8" }
 
 extern import
   cs file "regex-inline.cs"
@@ -65,11 +65,11 @@ pub fun regex( regex :string, ignorecase :bool = False, multiline : bool = False
 pub fun exec( regex :regex, s : string ) : list<sslice>
   regex-exec(regex.obj,s,0.ssize_t)
 
-// Match a regular expression `regex` over a string `s`. 
+// Match a regular expression `regex` over a string `s`.
 // Matches at most `atmost` times (and matches all by default).
 // Returns always an odd number of elements where every even
-// element is a match and the odd ones the string parts between the 
-// matches. 
+// element is a match and the odd ones the string parts between the
+// matches.
 // See also `find-all` and `strings`.
 pub fun exec-all( regex : regex, s : string, atmost : int = -1 ) : list<list<sslice>>
   regex-exec-all(regex.obj,s,0.ssize_t,atmost.ssize_t)
@@ -116,7 +116,7 @@ pub fun find-all( s : string,  r : regex, atmost : int = -1 ) : list<string>
 fun concat-replace( matches : list<list<sslice>>, repl : list<sslice> -> e string, acc : list<string> ) : e string
   match matches
     Cons(pre,Cons(m,mm)) -> concat-replace( mm, repl, Cons(repl(m), Cons( pre.captured,acc)))
-    Cons(post,Nil)       -> Cons(post.captured,acc).reverse-join 
+    Cons(post,Nil)       -> Cons(post.captured,acc).reverse-join
     Nil -> acc.reverse-join
 
 
@@ -174,13 +174,13 @@ fun filter-non-matches( xs : list<list<sslice>> ) : list<list<sslice>>
 
 // Split a string `s` in at most `atmost` parts using a regular expression `r` as separator.
 pub fun split( s : string, r : regex, atmost : int = -1 ) : list<string>
-  r.exec-all(s,atmost).filter-non-matches.captures  
+  r.exec-all(s,atmost).filter-non-matches.captures
 
-pub fun testabc(s) 
+pub fun testabc(s)
   s.contains(regex(r"[ab]+c"))
-  
+
 /*
-// Split a string `s` over separator `sep` where `sep` does not occur in 
+// Split a string `s` over separator `sep` where `sep` does not occur in
 // _tokens_ matching `exclude`.
 // For example: ``split-exclude("comma,'sep,arated',values", regex(","),regex("'[^']*'|[^',]"))``
 pub fun split-exclude( s : string, sep : regex, exclude : regex ) : list<string>
@@ -197,7 +197,7 @@ fun split-excludex( s : string, splitr : regex, acc : string ) : list<string>
     Nothing -> split-excludex( unsafe-decreasing(s.tail), splitr, acc ++ s.head) // todo: improve efficiency?
     Just(cap) ->
       if (cap.groups.matched(1))
-        split-excludex( unsafe-decreasing(cap.after1), splitr, acc ++ cap.matched) 
+        split-excludex( unsafe-decreasing(cap.after1), splitr, acc ++ cap.matched)
 
       else
         Cons(acc, split-excludex( unsafe-decreasing(cap.after1), splitr, "")) // todo: make tail recursive
