@@ -1264,30 +1264,51 @@ parameters allowBorrow allowDefaults allowImplicits = do
 parameter :: Bool -> Bool -> Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), ParamInfo, UserExpr -> UserExpr)
 parameter allowBorrow allowDefaults allowImplicits = do
   pinfo <- if allowBorrow then paramInfo else return Own
-  pat   <- if allowImplicits then parImplicit <|> patAtom else patAtom
-  tp    <- optionMaybe typeAnnotPar
-  (opt,drng) <- if allowDefaults then defaultExpr  -- todo: restricted to names for implicits
-                                 else return (Nothing,rangeNull)
+  (binder,transform) <- if allowImplicits then parImplicit <|> parNormal allowDefaults else parNormal allowDefaults
+  return (binder, pinfo, transform)
 
-  let rng = case pat of
-              PatVar binder -> getRange (binderExpr binder)
-              _ -> getRange pat
-      binder name nameRng = ValueBinder name tp opt nameRng (combineRanges [rng, getRange tp, drng])
-  case pat of
-    -- treat PatVar and PatWild as special cases to avoid unnecessary match expressions
-    PatVar (ValueBinder name Nothing (PatWild _) nameRng rng) -- binder   | PatWild nameRng <- binderExpr binder  ->
-      -> return (binder name nameRng, pinfo, id)
-    PatWild nameRng
-      -> do let name = uniqueRngHiddenName nameRng "_wildcard"
-            return (binder name nameRng, pinfo, id)
-    pat
-      -> do -- transform (fun (pattern) { body }) --> fun(.pat_X_Y) { match(.pat_X_Y) { pattern -> body }}
-            let name = uniqueRngHiddenName rng "pat"
-                transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng)
-                                                                        [Branch pat [Guard guardTrue body]] rng) lambdaRng
-                transform (Ann body tp rng) = Ann (transform body) tp rng
-                transform _ = failure "Syntax.Parse.parameter: unexpected function expression in parameter match transform"
-            return (binder name rng, pinfo, transform)
+parNormal :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
+parNormal allowDefaults
+  =  do pat <- patAtom
+        tp  <- optionMaybe typeAnnotPar
+        (opt,drng) <- if allowDefaults then defaultExpr  -- todo: restricted to names for implicits
+                                      else return (Nothing,rangeNull)
+
+        let rng = case pat of
+                    PatVar binder -> getRange (binderExpr binder)
+                    _ -> getRange pat
+            binder name nameRng = ValueBinder name tp opt nameRng (combineRanges [rng, getRange tp, drng])
+        case pat of
+          -- treat PatVar and PatWild as special cases to avoid unnecessary match expressions
+          PatVar (ValueBinder name Nothing (PatWild _) nameRng rng) -- binder   | PatWild nameRng <- binderExpr binder  ->
+            -> return (binder name nameRng, id)
+          PatWild nameRng
+            -> do let name = uniqueRngHiddenName nameRng "_wildcard"
+                  return (binder name nameRng, id)
+          pat
+            -> do -- transform (fun (pattern) { body }) --> fun(.pat_X_Y) { match(.pat_X_Y) { pattern -> body }}
+                  let name = uniqueRngHiddenName rng "pat"
+                      transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng)
+                                                                              [Branch pat [Guard guardTrue body]] rng) lambdaRng
+                      transform (Ann body tp rng) = Ann (transform body) tp rng
+                      transform _ = failure "Syntax.Parse.parameter: unexpected function expression in parameter match transform"
+                  return (binder name rng, transform)
+
+parImplicit :: LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
+parImplicit
+  = do unpack      <- do{ specialOp "??"; return True } <|> do{ specialOp "?"; return False }
+       let unpackExpr nm r  = let var = Var nm False r
+                              in (if unpack then Parens var nameNil r else var)  -- encode ?? as a Parens
+
+       (name,rng)  <- identifier
+       tp          <- optionMaybe typeAnnotPar
+       opt         <- do keyword "="
+                         (ename,erng) <- identifier
+                         return (Just (unpackExpr ename erng))
+                      <|>
+                         return (if unpack then Just (unpackExpr name rng) else Nothing)
+
+       return (ValueBinder (toImplicitParamName name) tp opt (combineRange rng (getRange opt)) rng, id)
 
 paramid = identifier <|> wildcard
 
@@ -1297,11 +1318,6 @@ defaultExpr
        return (Just e, combineRanged krng e)
   <|>
     return (Nothing,rangeNull)
-
-parImplicit
-  = do specialOp "?"
-       (name,rng) <- identifier
-       return (PatVar (ValueBinder (toImplicitParamName name) Nothing (PatWild rng) rng rng))
 
 
 {--------------------------------------------------------------------------

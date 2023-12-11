@@ -41,13 +41,13 @@ import qualified Data.Text.Encoding as T (decodeUtf8, encodeUtf8) -- ,decodeUtf8
 -- import Common.Name(showHex)
 
 {--------------------------------------------------------------------------
-  BStrings 
---------------------------------------------------------------------------}  
+  BStrings
+--------------------------------------------------------------------------}
 type BString = B.ByteString
 
 bstringEmpty = B.empty
 
-bstringToText bstr = T.pack (BC.unpack bstr) -- utfDecode bstr -- T.decodeUtf8With E.lenientDecode bstr  
+bstringToText bstr = T.pack (BC.unpack bstr) -- utfDecode bstr -- T.decodeUtf8With E.lenientDecode bstr
 
 bstringToString bstr = T.unpack (T.decodeUtf8 bstr) -- (bstringToText bstr)
 
@@ -65,7 +65,7 @@ readInput fname
 utfDecode :: B.ByteString -> T.Text
 utfDecode bs
   = decode "" (BC.unpack bs)
-  where  
+  where
     decode acc s
       = case s of
           [] -> T.pack (reverse acc)
@@ -76,18 +76,18 @@ utfDecode bs
 
           -- modified utf8 encoding of 0
           (c1:c2:cs)        | (c1 == '\xC0' && c2 == '\x80') -> decode ('\x00':acc) cs
-          
+
           -- invalid sequence of 4: use replacement
           (c1:c2:c3:c4:cs)        | (c1 >= '\xF5' && c1 <= '\xF7' && isCont c2 && isCont c3 && isCont c4) -> decode (replacement:acc) cs
           -- invalid sequence of 5: use replacement
           (c1:c2:c3:c4:c5:cs)     | (c1 >= '\xF8' && c1 <= '\xFB' && isCont c2 && isCont c3 && isCont c4 && isCont c5) -> decode (replacement:acc) cs
           -- invalid sequence of 6: use replacement
           (c1:c2:c3:c4:c5:c6:cs)  | (c1 >= '\xFC' && c1 <= '\xFD' && isCont c2 && isCont c3 && isCont c4 && isCont c5 && isCont c6) -> decode (replacement:acc) cs
-          
+
           -- continuation bytes: skip
           (c:cs)            | isCont c -> decode acc cs
           -- (c1:c2:cs)        | (c1 >= '\x80' && c1 <= '\xBF' && isCont c2) -> decode (decode2 c1 c2) cs
-          
+
           -- otherwise: use replacement character
           (c:cs)            -> decode (replacement:acc) cs
       where
@@ -101,7 +101,7 @@ utfDecode bs
 
         decode4 :: Char -> Char -> Char -> Char -> Char
         decode4 c1 c2 c3 c4 = toEnum $ ((fromEnum c1 - 0xF0) * 0x40 * 0x40 * 0x40) + ((fromEnum c2 - 0x80) * 0x40 * 0x40) + ((fromEnum c3 - 0x80) * 0x40) + (fromEnum c4 - 0x80)
-  
+
 
 -- process literate file
 extractLiterate :: BString -> BString
@@ -112,34 +112,34 @@ extractLiterate input
     scan skipping input
       = if (B.null input) then [] else
         let (line,rest) = BC.span (/='\n') input
-            (indent,iline) = BC.span (==' ') line           
+            (indent,iline) = BC.span (==' ') line
             (qs,cs) = BC.span(=='`') iline
             isQ3    = B.length qs == 3
         in if isQ3 && not skipping && (BC.all isWhite cs || startsWith cs "koka")
             then BC.pack "\n" : scanCode (BC.length indent) [] (safeTail rest)
-            else BC.pack "//" : line : BC.pack "\n" : 
+            else BC.pack "//" : line : BC.pack "\n" :
                   scan (if (isQ3) then not skipping else skipping) (safeTail rest)
 
     scanCode :: Int -> [BString] -> BString -> [BString]
     scanCode indent acc input
       = if (B.null input) then [] else
         let (line,rest) = BC.span (/='\n') input
-            (ind,iline) = BC.span (==' ') line 
+            (ind,iline) = BC.span (==' ') line
             (qs,cs) = BC.span(=='`') iline
-        in if (B.length qs == 3 && BC.all isWhite cs) 
+        in if (B.length qs == 3 && BC.all isWhite cs)
             then map (\ln -> BC.snoc ln '\n') (reverse (BC.empty : acc)) ++ scan False (safeTail rest)
             else if startsWith cs "////"
              then scanCode indent (BC.empty : map (const BC.empty) acc) (safeTail rest)
-            -- if (B.length qs == 1 && BC.all isWhite cs) 
+            -- if (B.length qs == 1 && BC.all isWhite cs)
              -- then BC.pack "\n" : scan (safeTail rest)
-             -- else 
+             -- else
              else scanCode indent (BC.drop indent line : acc) (safeTail rest)
 
     safeTail bstr
-      = if (B.null bstr) then B.empty else B.tail bstr    
+      = if (B.null bstr) then B.empty else B.tail bstr
 
     isWhite c
-      = c `elem` " \r\v\f\n"  
+      = c `elem` " \r\v\f\n"
 
 
 startsWith :: BC.ByteString -> String -> Bool
@@ -147,8 +147,8 @@ startsWith bs s
   = BC.unpack (BC.take (length s) bs) == s
 
 {--------------------------------------------------------------------------
-  Source 
---------------------------------------------------------------------------}  
+  Source
+--------------------------------------------------------------------------}
 data Source = Source{ sourceName :: !FilePath, sourceBString :: !BString }
   deriving (Show)
 
@@ -168,7 +168,7 @@ data Pos    = Pos{ posSource :: !Source
                  , posLine :: !Int
                  , posColumn :: !Int
                 }
-            
+
 posNull = Pos sourceNull (-1) 0 0
 
 instance Eq Pos where
@@ -185,7 +185,7 @@ instance Ord Pos where
 instance Show Pos where
   show p  = "(" ++ showPos 2 p ++ ")"
 
-showPos alignWidth (Pos src ofs line col) 
+showPos alignWidth (Pos src ofs line col)
   = showLine line ++ "," ++ align alignWidth (show col)
 
 showFullPos alignWidth p
@@ -219,12 +219,12 @@ posMove8 :: Pos -> Char -> Pos
 posMove8 (Pos s o l c) ch
   = let o1 = if o < 0 then o else o+1 in
     case ch of
-      '\t' -> Pos s o1 l (((c+tabSize-1) `div` tabSize)*tabSize+1) 
+      '\t' -> Pos s o1 l (((c+tabSize-1) `div` tabSize)*tabSize+1)
       '\n' -> Pos s o1 (l+1) 1
       _    -> Pos s o1 l (c+1)
 
 tabSize :: Int
-tabSize = 2  -- always 2 in Koka 
+tabSize = 2  -- always 2 in Koka
 
 {--------------------------------------------------------------------------
   Ranges
@@ -244,7 +244,7 @@ instance Ord Range where
 
 showRange endToo (Range p1 p2)
   = (if (posLine p1 >= bigLine) then "" else sourceName (posSource p1))  ++
-    if (endToo) 
+    if (endToo)
      then ("(" ++ showPos 0 p1 ++ "-" ++ showPos 0 p2 ++ ")")
      else (show p1)
 
@@ -290,7 +290,7 @@ combineRanges rs
 
 -- | Return the minimal position
 minPos :: Pos -> Pos -> Pos
-minPos (Pos _ _ l _) p  | l <= 0 = p       -- for combining nullRanges sensably
+minPos (Pos _ _ l _) p  | l <= 0 = p       -- for combining nullRanges sensibly
 minPos p (Pos _ _ l _)  | l <= 0 = p
 minPos p1 p2  = if (p1 <= p2) then p1 else p2
 
@@ -331,12 +331,12 @@ instance Ranged r => Ranged (Maybe r) where
 
 --------------------------------------------------------------------------}
 sourceFromRange :: Range -> String
-sourceFromRange (Range start end)  | posOfs start >= 0 
+sourceFromRange (Range start end)  | posOfs start >= 0
   = let text = bstringToString $
                B.take (posOfs end - posOfs start) $ B.drop (posOfs start) $
                sourceBString (posSource start)
-    in (replicate (posColumn start - 1) ' ' ++ text)    
-sourceFromRange (Range start end) 
+    in (replicate (posColumn start - 1) ' ' ++ text)
+sourceFromRange (Range start end)
   = case take (l2-l1+1) $ drop (l1-1) $ lines $ sourceText $ posSource start of
       (l:ls) -> case reverse ((spaces (c1-1) ++ (drop (c1-1) l)) : ls) of
                   (l:ls) -> unlines (reverse (take (c2) l : ls))

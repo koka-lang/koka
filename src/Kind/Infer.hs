@@ -79,7 +79,7 @@ inferKinds
   -> Synonyms         -- ^ Initial list of synonyms
   -> Newtypes         -- ^ Initial list of data types
   -> Program UserType UserKind  -- ^ Original program
-  -> Core.CorePhase 
+  -> Core.CorePhase
            ( DefGroups Type       --  Translated program (containing translated types)
            -- , Gamma                --  Gamma containing generated functions, i.e type scheme for every constructor
            , KGamma               --  updated kind gamma
@@ -91,7 +91,7 @@ inferKinds
            , Core.Core            --  Initial core program with type definition groups, externals, and some generated definitions for data types (like folds).
            , Maybe RangeMap
            )
-inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0 
+inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
             (Program source modName nameRange tdgroups defs importdefs externals fixdefs doc)
   =do unique0 <- unique
       let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors platform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
@@ -516,7 +516,12 @@ infLamValueBinder (ValueBinder name mbTp mbExpr nameRng rng)
                   Just tp -> do tp' <- infResolveType tp (Check "Function parameters must be values" rng)
                                 return (Just tp')
        mbExpr' <- case mbExpr of
-                  Nothing -> return Nothing
+                  Nothing   -> return Nothing
+                  Just (Parens (Var iname _ nrng) nm prng)  | isImplicitParamName name  -- ?? unpack
+                            -> do (qname,ikind) <- findInfKind iname rng
+                                  -- kind          <- resolveKind ikind
+                                  -- addRangeInfo r (Id qname (NITypeCon kind) False)
+                                  return (Just (Parens (Var qname False nrng) nm prng))
                   Just expr -> do expr' <- infExpr expr
                                   return (Just expr')
        return (ValueBinder name mbTp' mbExpr' nameRng rng)
@@ -814,11 +819,11 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
            name   = if (isHandlerName fname) then fromHandlerName fname else fname
            nameDoc = color (colorType cs) (pretty name)
 
-       consinfos <- mapM (resolveConstructor (getName newtp') sort 
-                            (not (dataDefIsOpen ddef) && length constructors == 1) 
+       consinfos <- mapM (resolveConstructor (getName newtp') sort
+                            (not (dataDefIsOpen ddef) && length constructors == 1)
                             typeResult typeVars tvarMap) constructors
        let (constructors',conInfos0) = unzip consinfos
-       
+
        --check recursion
        if (sort == Retractive)
         then return ()
@@ -837,16 +842,16 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
            conCount       = length conInfos0
            willNeedStructTag   = dataDefIsValue ddef && conCount > 1 && maxMembers >= 1
            extraFields = if (dataDefIsOpen ddef) then 1 {- open datatype tag -}
-                         else if willNeedStructTag then 1 {- explicit struct tag -} 
+                         else if willNeedStructTag then 1 {- explicit struct tag -}
                          else 0
        platform <- getPlatform
-       (ddef1,conInfos1) 
+       (ddef1,conInfos1)
           <- createDataDef emitError emitWarning lookupDataInfo
                 platform qname resultHasKindStar isRec sort extraFields ddef conInfos0
-       
+
        let dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars conInfos1 range ddef1 vis doc
 
-       assertion ("Kind.Infer.resolveTypeDef: assuming value struct tag but not inferred as such " ++ show (ddef,ddef1)) 
+       assertion ("Kind.Infer.resolveTypeDef: assuming value struct tag but not inferred as such " ++ show (ddef,ddef1))
                  ((willNeedStructTag && Core.needsTagField (fst (Core.getDataRepr dataInfo))) || not willNeedStructTag) $ return ()
 
 
@@ -861,7 +866,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                                let dataInfo1 = dataInfo0{ dataInfoDef = ddef2, dataInfoConstrs = conInfos2 }
                                return dataInfo1
                       _ -> return dataInfo0
-       -}                     
+       -}
        -- trace (showTypeBinder newtp') $
        addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')))
        return (Core.Data dataInfo isExtend)

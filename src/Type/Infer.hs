@@ -538,11 +538,13 @@ inferIsolated contextRange range body inf
 -- and the expression. It returns its type, effect, and core expression. Note that the resulting type is not necessarily checked that it matches
 -- the propagated type: the propagated type is just a hint (used for example to resolve overloaded names).
 inferExpr :: Maybe (Type,Range) -> Expect -> Expr Type -> Inf (Type,Effect,Core.Expr)
-inferExpr propagated expect (Lam bindersL body rng)
+inferExpr propagated expect (Lam bindersL body0 rng)
   = isNamedLam $ \isNamed ->
     disallowHole $
     do -- traceDoc $ \env -> text "inferExpr.Lam:" <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated
-       bindersX <- mapM inferImplicitParam bindersL
+       (bindersX,unpackImplicitss) <- unzip <$> mapM inferImplicitParam bindersL
+       let body = foldr (\f x -> f x) body0 unpackImplicitss
+
        (propArgs,propEff,propBody,skolems,expectBody) <- matchFun (length bindersX) propagated
 
        let binders0 = [case binderType binder of
@@ -1513,14 +1515,15 @@ inferBranch :: Maybe (Type,Range) -> Type -> Range -> [Name] -> Branch Type -> I
 inferBranch propagated matchType matchRange matchedNames branch@(Branch pattern guards)
   = inferPattern matchType (getRange branch) pattern (
     \pcore gcores ->
-       -- check for unused pattern bindings
-       do let defined = CoreVar.bv pcore
-              free    = S.fromList $ map Core.getName $ S.toList $ CoreVar.fv gcores
-          case filter (\tname -> not (S.member (Core.getName tname) free)) (Core.tnamesList defined) of
-            [] -> return ()
-            (name:_) -> do env <- getPrettyEnv
-                           infWarning (getRange pattern) (text "pattern variable" <+> ppName env (Core.getName name) <+> text "is unused (or a wrongly spelled constructor?)" <->
-                                                          text " hint: prepend an underscore to make it a wildcard pattern")
+       do when (rangeNull /= getRange pattern) $
+            -- check for unused pattern bindings
+            do let defined = CoreVar.bv pcore
+                   free    = S.fromList $ map Core.getName $ S.toList $ CoreVar.fv gcores
+               case filter (\tname -> not (S.member (Core.getName tname) free)) (Core.tnamesList defined) of
+                  [] -> return ()
+                  (name:_) -> do env <- getPrettyEnv
+                                 infWarning (getRange pattern) (text "pattern variable" <+> ppName env (Core.getName name) <+> text "is unused (or a wrongly spelled constructor?)" <->
+                                                                text " hint: prepend an underscore to make it a wildcard pattern")
           return (Core.Branch [pcore] gcores)
     )
     $ \infGamma ->
@@ -1709,15 +1712,35 @@ inferBinders infgamma binders
 
 
 
+-- infer implicit parameter declaration:  remove ? from the parameter name
+-- check if the expression is a single identifier and possibly generate unpacking of fields
 inferImplicitParam par
   = if isImplicitParamName (binderName par)
-     then  do case binderExpr par of
-                Just (Var{}) -> return ()
-                Nothing      -> return ()
-                Just expr    -> contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
-              return (par{binderName = plainImplicitParamName (binderName par), binderExpr = Nothing })
-     else return par
+     then  do let pname = plainImplicitParamName (binderName par)
+              unpack <- case binderExpr par of
+                Just (Parens (Var qname _ rng) _ _) -> inferImplicitUnpack (binderRange par) rng pname qname
+                Just (Var name _ _) -> return id
+                Nothing             -> return id
+                Just expr           -> do contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
+                                          return id
+              return (par{binderName = pname, binderExpr = Nothing }, unpack)
+     else return (par, id)
 
+inferImplicitUnpack :: Range -> Range -> Name -> Name -> Inf (Expr Type -> Expr Type)
+inferImplicitUnpack rng nrng pname qname
+  = do nt <- getNewtypes
+       case newtypesLookupAny qname nt of
+        Just (DataInfo{dataInfoSort=Inductive,
+                        dataInfoConstrs=[conInfo],
+                        dataInfoDef=ddef})  | not (dataDefIsOpen ddef)
+        -- struct: unpack the fields
+           -> let pats = [PatVar (ValueBinder fname Nothing (PatWild nrng) nrng rng)
+                            | (fname,ftp) <- conInfoParams conInfo, not (nameIsNil fname)]
+                  pat  = PatCon (conInfoName conInfo) [(Nothing,p) | p <- pats] nrng rangeNull {- no warnings for unused pattern variables -}
+                  unpack body
+                      = Case (Var pname False nrng) [Branch pat [Guard guardTrue body]] rng
+              in return unpack
+        _  -> return id
 
 
 -- | Infer automatic unwrapping for parameters with default values, and adjust their type from optional<a> to a
