@@ -28,12 +28,13 @@ import Network.Socket hiding (connect)
 import GHC.IO.IOMode (IOMode(ReadWriteMode))
 import GHC.Conc (atomically)
 import LanguageServer.Handler.TextDocument (persistModules)
-import GHC.IO.Handle (BufferMode(NoBuffering), hSetBuffering)
-import GHC.IO.StdHandles (stdout)
+import GHC.IO.Handle (BufferMode(LineBuffering), hSetBuffering)
+import GHC.IO.StdHandles (stdout, stderr)
 
 runLanguageServer :: Flags -> [FilePath] -> IO ()
 runLanguageServer flags files = do
   hSetBuffering stdout LineBuffering
+  hSetBuffering stderr LineBuffering
   connect "127.0.0.1" (show $ languageServerPort flags) (\(socket, _) -> do
     handle <- socketToHandle socket ReadWriteMode
     state <- newLSStateVar flags
