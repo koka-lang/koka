@@ -28,9 +28,12 @@ import Network.Socket hiding (connect)
 import GHC.IO.IOMode (IOMode(ReadWriteMode))
 import GHC.Conc (atomically)
 import LanguageServer.Handler.TextDocument (persistModules)
+import GHC.IO.Handle (BufferMode(NoBuffering), hSetBuffering)
+import GHC.IO.StdHandles (stdout)
 
 runLanguageServer :: Flags -> [FilePath] -> IO ()
 runLanguageServer flags files = do
+  hSetBuffering stdout LineBuffering
   connect "127.0.0.1" (show $ languageServerPort flags) (\(socket, _) -> do
     handle <- socketToHandle socket ReadWriteMode
     state <- newLSStateVar flags
@@ -44,7 +47,10 @@ runLanguageServer flags files = do
         handle
         $
         ServerDefinition
-          { onConfigurationChange = const $ pure $ Right (),
+          { parseConfig = const $ const $ Right (),
+            onConfigChange = const $ pure (),
+            defaultConfig = (),
+            configSection = T.pack "koka",
             doInitialize = \env _ -> forkIO (reactor rin) >> forkIO (messageHandler (messages initStateVal) env state) >> pure (Right env),
             staticHandlers = \_caps -> lspHandlers rin,
             interpretHandler = \env -> Iso (\lsm -> runLSM lsm state env) liftIO,
@@ -54,8 +60,7 @@ runLanguageServer flags files = do
                   optExecuteCommandCommands = Just [T.pack "koka/genCode", T.pack "koka/interpretExpression"]
                   -- optCompletionTriggerCharacters = Just ['.', ':', '/']
                 -- TODO: ? https://www.stackage.org/haddock/lts-18.21/lsp-1.2.0.0/src/Language.LSP.Server.Core.html#Options
-                },
-            defaultConfig = ()
+                }
           })
   where
     prettyMsg l = "[" <> show (L.getSeverity l) <> "] " <> show (L.getMsg l) <> "\n\n"

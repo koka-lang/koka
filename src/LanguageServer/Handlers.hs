@@ -16,6 +16,7 @@ import LanguageServer.Handler.Completion (completionHandler)
 import LanguageServer.Handler.Definition (definitionHandler)
 import LanguageServer.Handler.DocumentSymbol (documentSymbolHandler)
 import LanguageServer.Handler.Hover (hoverHandler)
+import LanguageServer.Handler.InlayHints (inlayHintsHandler)
 import LanguageServer.Handler.Commands (initializedHandler, commandHandler)
 import LanguageServer.Handler.TextDocument (didChangeHandler, didCloseHandler, didOpenHandler, didSaveHandler)
 import LanguageServer.Monad (LSM, runLSM, putLSState, LSState (..))
@@ -104,7 +105,8 @@ handlers =
       documentSymbolHandler,
       completionHandler,
       cancelHandler,
-      commandHandler
+      commandHandler,
+      inlayHintsHandler
     ]
 
 cancelHandler :: Handlers LSM

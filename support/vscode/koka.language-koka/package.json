@@ -87,7 +87,10 @@
           "description": "The command to launch the Koka language server (by default the extension assumes that 'koka' is on your PATH)"
         },
         "koka.languageServer.additionalArgs": {
-          "type": "string",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
           "default": null,
           "description": "Additional arguments to send to the compiler when starting the language server"
         },

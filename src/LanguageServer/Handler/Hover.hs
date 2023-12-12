@@ -8,7 +8,6 @@ module LanguageServer.Handler.Hover (hoverHandler, formatRangeInfoHover) where
 
 import Compiler.Module (loadedModule, modRangeMap, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Control.Lens ((^.))
-import qualified Data.Map as M
 import qualified Data.Text as T
 import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 import qualified Language.LSP.Protocol.Types as J
@@ -60,7 +59,7 @@ formatRangeInfoHover print flags mName imports rinfo =
   case rinfo of
   Id qname info isdef ->
     print $ (ppName env{colors=colors{colorSource = Gray}} qname) <+> text " : " <+> case info of
-      NIValue tp -> ppScheme env tp
+      NIValue tp _ -> ppScheme env tp
       NICon tp ->  ppScheme env tp
       NITypeCon k -> prettyKind colors k
       NITypeVar k -> prettyKind colors k

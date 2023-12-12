@@ -405,7 +405,7 @@ infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
                    canonicalName n qname
        if (isHiddenName name)
         then return ()
-        else do addRangeInfo nameRng (Id qname (NIValue tp') True)
+        else do addRangeInfo nameRng (Id qname (NIValue tp' True) True)
                 addRangeInfo rng (Decl "external" qname (mangle cname tp'))
        -- trace ("infExternal: " ++ show cname ++ ": " ++ show (pretty tp')) $
        return (Core.External cname tp' pinfos (map (formatCall tp') calls)
@@ -966,7 +966,7 @@ resolveConParam idmap (vis,vb)
                  Just e  -> {- do e' <- infExpr e
                                   return (Just e') -}
                             return (Just (failure "Kind.Infer.resolveConParam: optional parameter expression in constructor"))
-       addRangeInfo (binderNameRange vb) (Id (binderName vb) (NIValue tp) True)
+       addRangeInfo (binderNameRange vb) (Id (binderName vb) (NIValue tp True) True)
        return (vis,vb{ binderType = tp, binderExpr = expr })
 
 -- | @resolveType@ takes: a map from locally quantified type name variables to types,

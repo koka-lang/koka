@@ -115,7 +115,7 @@ getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri =
             case reverse parts of
               [] -> Nothing
               (x:xs) -> do
-                trace ("parts: " ++ show parts) $ return ()
+                -- trace ("parts: " ++ show parts) $ return ()
                 let modName = case filter (not .T.null) xs of {x:xs -> x; [] -> ""}
                 argumentText <- Rope.toText . fst <$> Rope.splitAt (fromIntegral c) currentRope
                 let isFunctionCompletion = if | T.null argumentText -> False
@@ -135,9 +135,11 @@ getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri =
                 -- currentRope is already a single line, but it may include an enclosing '\n'
                 let curLine = T.dropWhileEnd (== '\n') $ Rope.toText currentRope
                 let pi = PositionInfo curLine modName x pos currentType isFunctionCompletion
-                return $ trace (show pi) pi
+                return -- $ trace (show pi)
+                   pi
             in
-      trace (show result) $ return result
+      -- trace (show result) $
+      return result
 
 -- TODO: Complete local variables
 -- TODO: Show documentation comments in completion docs
@@ -318,7 +320,8 @@ makeFunctionCompletionItem curModName funName d funType accessor rng line =
               Nothing -> Nothing
               Just (_, _, args, _, _) -> Just args
       argumentsText =
-        if numArgs == 0 then trace ("No function arguments for " ++ show label) $ T.pack ""
+        if numArgs == 0 then -- trace ("No function arguments for " ++ show label) $
+          T.pack ""
         else case trailingFunArgTp of
           Nothing -> "(" <> T.intercalate "," (map (\i -> T.pack $ "$" ++ show i) [1..numArgs]) <> ")"
           Just tp ->
