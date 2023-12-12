@@ -27,6 +27,7 @@ import qualified Common.Error as E
 import qualified Common.Range as R
 import qualified Data.Text as T
 import qualified Language.LSP.Protocol.Types as J
+import Data.Map.Strict as M hiding (map)
 import Colog.Core
 import Language.LSP.Protocol.Types (UInt)
 import Lib.PPrint (Doc)
@@ -35,6 +36,7 @@ import Compiler.Module (Module (..), Loaded (..))
 import Data.Maybe (fromMaybe)
 import Data.List (find)
 import Common.File (normalize, realPath)
+import Common.Range (sourceNull, Source (sourceName))
 
 toLspPos :: R.Pos -> J.Position
 toLspPos p =
@@ -59,23 +61,28 @@ toLspLocationLink src r =
   where
     uri = J.filePathToUri $ R.sourceName $ R.rangeSource r
 
-toLspDiagnostics :: T.Text -> E.Error b a -> [J.Diagnostic]
-toLspDiagnostics src err =
+toLspDiagnostics :: J.NormalizedUri -> T.Text -> E.Error b a -> M.Map J.NormalizedUri [J.Diagnostic]
+toLspDiagnostics uri src err =
   case E.checkError err of
-    Right (_, ws) -> map (uncurry $ toLspWarningDiagnostic src) ws
-    Left e -> toLspErrorDiagnostics src e
+    Right (_, ws) ->  M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [toLspWarningDiagnostic src r doc])) ws
+    Left e -> toLspErrorDiagnostics uri src e
 
-toLspErrorDiagnostics :: T.Text -> E.ErrorMessage -> [J.Diagnostic]
-toLspErrorDiagnostics src e =
+toLspErrorDiagnostics :: J.NormalizedUri -> T.Text -> E.ErrorMessage -> M.Map J.NormalizedUri [J.Diagnostic]
+toLspErrorDiagnostics uri src e =
   case e of
-    E.ErrorGeneral r doc -> [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
-    E.ErrorParse r doc -> [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
-    E.ErrorStatic rds -> map (uncurry $ makeDiagnostic J.DiagnosticSeverity_Error src) rds
-    E.ErrorKind rds -> map (uncurry $ makeDiagnostic J.DiagnosticSeverity_Error src) rds
-    E.ErrorType rds -> map (uncurry $ makeDiagnostic J.DiagnosticSeverity_Error src) rds
-    E.ErrorWarning rds e' -> map (uncurry $ makeDiagnostic J.DiagnosticSeverity_Error src) rds ++ toLspErrorDiagnostics src e'
-    E.ErrorIO doc -> [makeDiagnostic J.DiagnosticSeverity_Error src R.rangeNull doc]
-    E.ErrorZero -> []
+    E.ErrorGeneral r doc -> M.singleton (uriFromRange r uri) [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
+    E.ErrorParse r doc -> M.singleton (uriFromRange r uri) [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
+    E.ErrorStatic rds -> mapRangeDocs rds
+    E.ErrorKind rds -> mapRangeDocs rds
+    E.ErrorType rds -> mapRangeDocs rds
+    E.ErrorWarning rds e' -> M.unionWith (++) (mapRangeDocs rds) (toLspErrorDiagnostics uri src e')
+    E.ErrorIO doc -> M.singleton uri [makeDiagnostic J.DiagnosticSeverity_Error src R.rangeNull doc]
+    E.ErrorZero -> M.empty
+  where mapRangeDocs rds = M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [makeDiagnostic J.DiagnosticSeverity_Error src r doc])) rds
+
+uriFromRange :: R.Range -> J.NormalizedUri -> J.NormalizedUri
+uriFromRange r uri =
+  if R.rangeSource r == sourceNull then uri else J.toNormalizedUri $ J.filePathToUri $ sourceName (R.rangeSource r)
 
 toLspWarningDiagnostic :: T.Text -> R.Range -> Doc -> J.Diagnostic
 toLspWarningDiagnostic =
@@ -86,10 +93,10 @@ makeDiagnostic s src r doc =
   J.Diagnostic range severity code codeDescription source message tags related dataX
   where
     range = toLspRange r
+    source = Just src
     severity = Just s
     code = Nothing
     codeDescription = Nothing
-    source = Just src
     message = T.pack $ show doc
     tags
       | "is unused" `T.isInfixOf` message = Just [J.DiagnosticTag_Unnecessary]

@@ -26,7 +26,7 @@ import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnosti
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import LanguageServer.Conversions (toLspDiagnostics)
-import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules)
+import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics)
 import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
 import qualified Data.Text.Encoding as T
 import Data.Functor ((<&>))
@@ -136,12 +136,14 @@ compileEditorExpression uri flags filePath functionName = do
               return Nothing
           -- Emit the diagnostics (errors and warnings)
           let diagSrc = T.pack "koka"
-              diags = toLspDiagnostics diagSrc res
-              diagsBySrc = partitionBySource diags
+              diags = toLspDiagnostics normUri diagSrc res
+              diagsBySrc = M.map partitionBySource diags
               maxDiags = 100
+          if null diags then clearDiagnostics normUri else putDiagnostics diags
+          diags <- getDiagnostics
           if null diags
             then flushDiagnosticsBySource maxDiags (Just diagSrc)
-            else publishDiagnostics maxDiags normUri Nothing diagsBySrc
+            else mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
           return outFile
         Left e -> do
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ "When compiling file " <> T.pack filePath <> T.pack (" compiler threw exception " ++ show e)
@@ -192,12 +194,14 @@ recompileFile compileTarget uri version force flags =
               return Nothing
           -- Emit the diagnostics (errors and warnings)
           let diagSrc = T.pack "koka"
-              diags = toLspDiagnostics diagSrc res
-              diagsBySrc = partitionBySource diags
+              diags = toLspDiagnostics normUri diagSrc res
+              diagsBySrc = M.map partitionBySource diags
               maxDiags = 100
+          if null diags then clearDiagnostics normUri else putDiagnostics diags
+          diags <- getDiagnostics
           if null diags
             then flushDiagnosticsBySource maxDiags (Just diagSrc)
-            else publishDiagnostics maxDiags normUri version diagsBySrc
+            else mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
           return outFile
         Left e -> do
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ "When compiling file " <> T.pack filePath <> T.pack (" compiler threw exception " ++ show e)

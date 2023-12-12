@@ -20,6 +20,9 @@ module LanguageServer.Monad
     getModules,
     getColorScheme,
     getHtmlPrinter,
+    getDiagnostics,
+    putDiagnostics,
+    clearDiagnostics,
     runLSM,
   )
 where
@@ -60,6 +63,7 @@ import qualified Data.ByteString as D
 import Platform.Filetime (FileTime)
 import Common.File (realPath,normalize)
 import Compiler.Module (Modules)
+import Data.Maybe (fromMaybe)
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
@@ -72,7 +76,9 @@ data LSState = LSState {
   pendingRequests :: !(TVar (Set.Set J.SomeLspId)),
   cancelledRequests :: !(TVar (Set.Set J.SomeLspId)),
   documentVersions :: !(TVar (M.Map J.Uri J.Int32)),
-  documentInfos :: !(M.Map FilePath (D.ByteString, FileTime, J.Int32)) }
+  documentInfos :: !(M.Map FilePath (D.ByteString, FileTime, J.Int32)),
+  diagnostics :: !(M.Map J.NormalizedUri [J.Diagnostic])
+}
 
 trimnl :: [Char] -> [Char]
 trimnl str = reverse $ dropWhile (`elem` "\n\r\t ") $ reverse str
@@ -106,7 +112,7 @@ defaultLSState flags = do
                  (if verbose flags > 0 then (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info) else (\_ -> return ()))
                  (\tp -> withNewPrinter $ \p -> do putScheme p (prettyEnv flags nameNil importsEmpty) tp; return J.MessageType_Info)
                  (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info)
-  return LSState {lsLoaded = M.empty,lsModules=[], messages = msgChan, terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, documentInfos = M.empty, documentVersions = fileVersions}
+  return LSState {lsLoaded = M.empty,lsModules=[], messages = msgChan, terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
 
 putScheme p env tp
   = writePrettyLn p (ppScheme env tp)
@@ -140,6 +146,16 @@ modifyLSState m = do
 
 getModules :: LSM Modules
 getModules = lsModules <$> getLSState
+
+putDiagnostics :: M.Map J.NormalizedUri [J.Diagnostic] -> LSM ()
+putDiagnostics diags = -- Left biased union prefers more recent diagnostics
+  modifyLSState $ \s -> s {diagnostics = M.union diags (diagnostics s)}
+
+getDiagnostics :: LSM (M.Map J.NormalizedUri [J.Diagnostic])
+getDiagnostics = diagnostics <$> getLSState
+
+clearDiagnostics :: J.NormalizedUri -> LSM ()
+clearDiagnostics uri = modifyLSState $ \s -> s {diagnostics = M.delete uri (diagnostics s)}
 
 -- Fetches the loaded state holding compiled modules
 getLoaded :: J.Uri -> LSM (Maybe Loaded)
