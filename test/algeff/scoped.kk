@@ -112,7 +112,7 @@ val hcutfail = handler{
 
 // collect creates thunks of continuations,
 // only `cutfail` will `fail` and cut the choices short
-fun collect(action) { 
+fun collect(action) {
   var q := [fail]
   with {
     return(x) -> {
@@ -165,7 +165,7 @@ fun parse(input : string, action : () -> <nondet,symbol|e> a) : <nondet|e> a {
     ctl symbol(s) -> match(cs.starts-with(s)) {
       Nothing    -> { fail() }
       Just(rest) -> { cs := rest.string; resume(s) }
-    }  
+    }
   }
 }
 
@@ -194,7 +194,7 @@ fun number() {
 
 fun expr() : <div,nondet,symbol> int {
   choice {
-    val i :int = term()
+    val i : int = term()
     symbol("+")
     val j = term()
     i+j
@@ -220,7 +220,7 @@ fun factor() {
     i
   }
 }
-
+/*
 fun test5() {
   solutions{ parse("2+8*5"){ expr() } }
 }
@@ -278,6 +278,7 @@ fun test6() {
 }
 */
 
+
 // --------------------------------------------------------------
 // Main
 // --------------------------------------------------------------
@@ -297,3 +298,4 @@ fun mymap( xs, f ) {
     Cons(x,xx) -> Cons(f(x),mymap(xx,f))
   }
 }
+*/

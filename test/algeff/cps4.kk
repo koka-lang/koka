@@ -38,11 +38,11 @@ fun eval0( e : expr ) : int {
 
 alias stexn<a> = int -> either<string,(a,int)>
 
-fun run(s,m) {
+fun run(s : int, m : stexn<a> ) : total either<string,(a,int)> {
   m(s)
 }
 
-fun show( r : either<string,(int,int)> ) : total string {
+fun show( r : either<string,(int,int)> ) : string {
   match(r) {
     Right((x,s)) -> x.core/show ++ " (state=" ++ s.core/show ++ ")"
     Left(str)    -> "error: " ++ str
@@ -84,6 +84,5 @@ fun eval( e : expr ) : stexn<int> {
 }
 
 pub fun main() {
-  val s = run(0,eval(expr2)).show
-  s.println
+  run(0,eval(expr2)).show.println
 }

@@ -308,7 +308,7 @@ addDivergentEffect coreDefs0
                     snewEff <- subst newEff
                     let tp1 = TFun targs snewEff tres
                     (resTp,resCore) <- generalize rng rng True typeTotal (TFun targs snewEff tres) (coref (Core.defExpr def))
-                    -- inferSubsume (checkEffectSubsume rng) rng (Core.defType def) resTp
+                    inferSubsume (checkEffectSubsume rng) rng (Core.defType def) resTp
                     -- fix up the core since the recursive tname still refers to the old type without the 'div' effect
                     -- let name = unqualify (Core.defName def)
                     --    resCore1 = (CoreVar.|~>) [(name, Core.Var (Core.TName name resTp) Core.InfoNone)] resCore
@@ -1317,8 +1317,8 @@ inferApp propagated expect fun nargs rng
            -- match propagated type with the function result type
            -- todo: is not always correct so only do this if required to resolve implicit parameters.
            (pars,funEff,funTp) <- case propagated of
-              Just (propRes,propRng) | null fixed && any (isImplicitParamName . fst) pars0
-                                     -> do inferSubsume (checkAnn propRng) rng propRes funTp0
+              Just (propRes,propRng) -- | null fixed && any (isImplicitParamName . fst) pars0
+                                     -> do inferSubsume (checkAnn propRng) rng funTp0 propRes
                                            pars1   <- subst pars0
                                            funEff1 <- subst funEff0
                                            funTp1  <- subst funTp0
@@ -1925,13 +1925,12 @@ inferArgsN ctx range parArgs
                                          inferArgExpr tpar0 argexpr
 
            tpar1  <- subst tpar0
-           steff  <- subst teff
            (_,coref)  <- case arg of
                            ArgExpr argexpr | isAnnot argexpr
                              -> do -- traceDoc $ \env -> text "inferArgN1:" <+> ppType env tpar1 <+> text "~" <+> ppType env targ
                                    inferUnify ctx (getRange argexpr) tpar1 targ
                                    return (tpar1,id)
-                           _ -> do -- traceDoc $ \env -> text "inferArgN2:" <+> parens (ppType env steff) <+> colon <+> ppType env tpar1 <+> text "~" <+> ppType env targ
+                           _ -> do -- traceDoc $ \env -> text "inferArgN2:" <+> (ppType env steff) <+> colon <+> ppType env tpar1 <+> text "~" <+> ppType env targ
                                    inferSubsume ctx (getRangeArg arg) tpar1 targ
            teff1  <- subst teff
            inferArg ((teff1,coref core) : acc) args
