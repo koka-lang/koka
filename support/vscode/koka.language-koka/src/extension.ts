@@ -25,8 +25,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const { sdkPath, allSDKs } = scanForSDK(vsConfig)
   const config = new KokaConfig(vsConfig, sdkPath, allSDKs)
   if (!config.command) {
-    vscode.window.showInformationMessage(`Koka SDK found but not working ${config.sdkPath}\n All SDKs: ${allSDKs}`)
-    return
+    vscode.window.showInformationMessage(`Koka SDK not functional: tried initializing from path: ${config.sdkPath}\n All SDKs: ${allSDKs}`)
+    return // No use initializing the rest of the extension's features
   }
   if (config.debugExtension) {
     stderrOutputChannel = vscode.window.createOutputChannel('Koka Language Server Stderr')
@@ -218,10 +218,10 @@ function createCommands(
       console.log(`Launch config ${launchConfig}`)
       vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(resource), launchConfig as vscode.DebugConfiguration)
     }),
-    vscode.commands.registerCommand('koka.downloadLatest', (resource: vscode.Uri) => {
+    vscode.commands.registerCommand('koka.downloadLatest', () => {
       downloadSDK()
     }),
-    vscode.commands.registerCommand('koka.uninstall', (resource: vscode.Uri) => {
+    vscode.commands.registerCommand('koka.uninstall', () => {
       uninstallSDK()
     }),
     vscode.commands.registerCommand('koka.restartLanguageServer', () => {
