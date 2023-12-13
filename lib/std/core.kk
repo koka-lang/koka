@@ -1197,6 +1197,62 @@ pub fip extern int8( i : int) : int8
   cs "Primitive.IntToInt8"
   js "$std_core._int_clamp8"
 
+// multiply two int8 values
+pub inline fip extern (*)( i : int8, i2: int8) : int8
+  inline "(#1 * #2)"
+
+// divide two int8 values
+pub inline fip extern (/)( i : int8, i2: int8) : int8
+  inline "(#1 / #2)"
+
+// multiply two int8 values
+pub inline fip extern (%)( i : int8, i2: int8) : int8
+  inline "(#1 % #2)"
+
+// add two int8 values
+pub inline fip extern (+)( i : int8, i2: int8) : int8
+  inline "(#1 + #2)"
+
+// subtract two int8 values
+pub inline fip extern (-)( i : int8, i2: int8) : int8
+  inline "(#1 - #2)"
+
+// add two int8 values
+pub inline fip extern inc( i : int8) : int8
+  inline "(#1 + 1)"
+
+// add two int8 values
+pub inline fip extern dec( i : int8) : int8
+  inline "(#1 - 1)"
+
+// check inequality of two int8 values
+pub inline fip extern (!=)( i : int8, i2: int8) : bool
+  inline "(#1 != #2)"
+
+// check equality of two int8 values
+pub inline fip extern (==)( i : int8, i2: int8) : bool
+  inline "(#1 == #2)"
+
+// compare two int8 values
+pub inline fip extern (<=)( i : int8, i2: int8) : bool
+  inline "(#1 <= #2)"
+
+// compare two int8 values
+pub inline fip extern (<)( i : int8, i2: int8) : bool
+  inline "(#1 < #2)"
+
+// compare two int8 values
+pub inline fip extern (>)( i : int8, i2: int8) : bool
+  inline "(#1 > #2)"
+
+// compare two int8 values
+pub inline fip extern (>=)( i : int8, i2: int8) : bool
+  inline "(#1 >= #2)"
+
+// check against 0
+pub inline fip extern is-zero( i : int8) : bool
+  inline "(#1 == 0)"
+
 // Convert an `:int8` to an `:int`.
 pub inline fip extern int( i : int8 ) : int
   c  "kk_integer_from_int8"
@@ -1234,6 +1290,62 @@ pub inline fip extern int( i : int16 ) : int
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int32"
 
+
+// multiply two int16 values
+pub inline fip extern (*)( i : int16, i2: int16) : int16
+  inline "(#1 * #2)"
+
+// divide two int16 values
+pub inline fip extern (/)( i : int16, i2: int16) : int16
+  inline "(#1 / #2)"
+
+// multiply two int16 values
+pub inline fip extern (%)( i : int16, i2: int16) : int16
+  inline "(#1 % #2)"
+
+// add two int16 values
+pub inline fip extern (+)( i : int16, i2: int16) : int16
+  inline "(#1 + #2)"
+
+// subtract two int16 values
+pub inline fip extern (-)( i : int16, i2: int16) : int16
+  inline "(#1 - #2)"
+
+// add two int16 values
+pub inline fip extern inc( i : int16) : int16
+  inline "(#1 + 1)"
+
+// add two int16 values
+pub inline fip extern dec( i : int16) : int16
+  inline "(#1 - 1)"
+
+// check inequality of two int16 values
+pub inline fip extern (!=)( i : int16, i2: int16) : bool
+  inline "(#1 != #2)"
+
+// check equality of two int16 values
+pub inline fip extern (==)( i : int16, i2: int16) : bool
+  inline "(#1 == #2)"
+
+// compare two int16 values
+pub inline fip extern (<=)( i : int16, i2: int16) : bool
+  inline "(#1 <= #2)"
+
+// compare two int16 values
+pub inline fip extern (<)( i : int16, i2: int16) : bool
+  inline "(#1 < #2)"
+
+// compare two int16 values
+pub inline fip extern (>)( i : int16, i2: int16) : bool
+  inline "(#1 > #2)"
+
+// compare two int16 values
+pub inline fip extern (>=)( i : int16, i2: int16) : bool
+  inline "(#1 >= #2)"
+
+// check against 0
+pub inline fip extern is-zero( i : int16) : bool
+  inline "(#1 == 0)"
 
 // ----------------------------------------------------------------------------
 // int64
@@ -1902,11 +2014,11 @@ pub fun vector( ^n : int, default : a) : vector<a>
   vector-initz(n.ssize_t, fn(_i){ default } )
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
-pub fun vector-init( ^n : int, f : int -> a ) : vector<a>
+pub fun vector-init( ^n : int, f : int -> e a ) : e vector<a>
   vector-initz( n.ssize_t, fn(i) { f(i.int) } )
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
-extern vector-initz(n : ssize_t, f : ssize_t -> a) : vector<a>
+extern vector-initz(n : ssize_t, f : ssize_t -> e a) : e vector<a>
   c "kk_vector_init"
   cs inline "Primitive.NewArray<##1>(#1,#2)"
   js inline "_vector(#1,#2)"
