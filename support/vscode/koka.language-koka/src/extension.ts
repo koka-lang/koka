@@ -341,7 +341,7 @@ class MainCodeLensProvider implements vscode.CodeLensProvider {
   public async provideCodeLenses(document: TextDocument, token: CancellationToken): Promise<CodeLens[] | undefined> {
     const doc = document.getText()
     const re_main = /((?<=\n)|^)((pub\s+)?fun\s+main\(\))/g;
-    const re_test = /((?<=\n)|^)((pub\s+)?fun\s+(test\w*)\(\))/g;
+    const re_test = /((?<=\n)|^)((pub\s+)?fun\s+(test[\w-]*)\(\))/g;
     let lenses = [];
     let match = null;
     console.log("Scanning document for main and test function");
