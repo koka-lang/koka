@@ -12,7 +12,7 @@
 module Main where
 
 import System.Exit            ( exitFailure )
-import Control.Monad          ( when )
+import Control.Monad          ( when, foldM )
 
 import Platform.Config
 import Lib.PPrint             ( Pretty(pretty), writePrettyLn )
@@ -31,6 +31,8 @@ import Kind.Synonym           ( synonymsIsEmpty, ppSynonyms, synonymsFilter )
 import Kind.Assumption        ( kgammaFilter )
 import Type.Assumption        ( ppGamma, ppGammaHidden, gammaFilter, createNameInfoX, gammaNew )
 import Type.Pretty            ( ppScheme, Env(context,importsMap) )
+import System.IO (hPutStrLn, stderr)
+import Data.List (intercalate)
 
 
 -- compiled entry
@@ -75,12 +77,22 @@ mainMode flags flags0 mode p
      ModeVersion
       -> withNoColorPrinter (\monop -> showVersion flags monop)
      ModeCompiler files
-      -> mapM_ (compile p flags) files
+      -> do 
+        errFiles <- foldM (\errfiles file -> 
+            do
+              res <- compile p flags file
+              if res then return errfiles
+              else return (file:errfiles)
+            ) [] files
+        if null errFiles then return ()
+        else do
+          hPutStrLn stderr ("Failed to compile " ++ intercalate "," files)
+          exitFailure
      ModeInteractive files
       -> interpret p flags flags0 files
 
 
-compile :: ColorPrinter -> Flags -> FilePath -> IO ()
+compile :: ColorPrinter -> Flags -> FilePath -> IO Bool
 compile p flags fname
   = do let exec = Executable (newName "main") ()
        err <- compileFile term flags []
@@ -88,6 +100,7 @@ compile p flags fname
        case checkError err of
          Left msg
            -> do putPrettyLn p (ppErrorMessage (showSpan flags) cscheme msg)
+                 return False
                  -- exitFailure  -- don't fail for tests
 
          Right (Loaded gamma kgamma synonyms newtypes constructors _ imports _ 
@@ -105,9 +118,11 @@ compile p flags fname
                  if showHiddenTypeSigs flags then do
                    -- workaround since private defs aren't in gamma
                    putPrettyLn p $ ppGammaHidden (prettyEnv flags modName imports) $ gammaFilter modName $ gammaFromDefGroups $ coreProgDefs core
-                 else if showTypeSigs flags then
+                   return True
+                 else if showTypeSigs flags then do
                    putPrettyLn p $ ppGamma (prettyEnv flags modName imports) $ gammaFilter modName gamma
-                 else pure ()
+                   return True
+                 else return True
   where
     term
       = Terminal (putErrorMessage p (showSpan flags) cscheme)
