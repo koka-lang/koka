@@ -4,6 +4,7 @@ import * as child_process from "child_process"
 import { AddressInfo, Server, createServer } from 'net'
 
 import {
+  DidChangeConfigurationNotification,
   LanguageClient,
   LanguageClientOptions,
   RevealOutputChannelOn,
@@ -11,7 +12,10 @@ import {
 } from 'vscode-languageclient/node'
 import { KokaConfig } from "./workspace"
 
-let firstRun = true;
+let stderrOutputChannel: vscode.OutputChannel
+let stdoutOutputChannel: vscode.OutputChannel
+let firstRun = true
+
 export class KokaLanguageServer {
   languageClient?: LanguageClient
   languageServerProcess?: child_process.ChildProcess
@@ -20,15 +24,13 @@ export class KokaLanguageServer {
   lspWriteEmitter: vscode.EventEmitter<string> = new vscode.EventEmitter<string>();
   lspPty?: vscode.Pseudoterminal
   lspTerminal?: vscode.Terminal
-  stderrOutputChannel?: vscode.OutputChannel
-  stdoutOutputChannel?: vscode.OutputChannel
 
-  KokaLanguageServer(context: vscode.ExtensionContext) {
+  constructor(context: vscode.ExtensionContext) {
     if (firstRun) {
-      this.stderrOutputChannel = vscode.window.createOutputChannel('Koka Language Server Stderr')
-      this.stdoutOutputChannel = vscode.window.createOutputChannel('Koka Language Server Stdout')
-      context.subscriptions.push(this.stderrOutputChannel)
-      context.subscriptions.push(this.stdoutOutputChannel)
+      stderrOutputChannel = vscode.window.createOutputChannel('Koka Language Server Stderr')
+      stdoutOutputChannel = vscode.window.createOutputChannel('Koka Language Server Stdout')
+      context.subscriptions.push(stderrOutputChannel)
+      context.subscriptions.push(stdoutOutputChannel)
       firstRun = false;
     }
   }
@@ -67,10 +69,12 @@ export class KokaLanguageServer {
           })
           if (config.debugExtension) {
             self.languageServerProcess?.stderr?.on('data', (data) => {
-              this.stderrOutputChannel.append(`${data.toString()}`)
+              // console.log(data.toString())
+              stderrOutputChannel.append(`${data.toString()}`)
             })
             self.languageServerProcess?.stdout?.on('data', (data) => {
-              this.stdoutOutputChannel.append(`${data.toString()}`)
+              // console.log(data.toString())
+              stdoutOutputChannel.append(`${data.toString()}`)
             })
           }
         })
@@ -127,13 +131,14 @@ export class KokaLanguageServer {
     )
     context.subscriptions.push(this)
 
-    return await this.languageClient.start()
+    await this.languageClient.start()
+    let isDark = vscode.window.activeColorTheme.kind == vscode.ColorThemeKind.Dark
+    this.languageClient.sendNotification(DidChangeConfigurationNotification.type, { settings: { colors: { mode: isDark ? "dark" : "light" } } })
+    return this.languageClient
   }
 
   async dispose() {
     try {
-      this.stdoutOutputChannel.clear();
-      this.stderrOutputChannel.clear();
       await this.languageClient?.stop()
       await this.languageClient?.dispose()
       const result = this.languageServerProcess?.kill('SIGINT')

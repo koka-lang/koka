@@ -22,7 +22,7 @@ module Syntax.RangeMap( RangeMap, RangeInfo(..), NameInfo(..)
 -- import Lib.Trace
 import Data.Char    ( isSpace )
 import Common.Failure 
-import Data.List    (sortBy, groupBy, minimumBy)
+import Data.List    (sortBy, groupBy, minimumBy, foldl')
 import Lib.PPrint
 import Common.Range
 import Common.Name
@@ -32,6 +32,7 @@ import Type.Type
 import Kind.Kind
 import Type.TypeVar
 import Type.Pretty() 
+import Data.Maybe (fromMaybe)
 
 newtype RangeMap = RM [(Range,RangeInfo)]
   deriving Show
@@ -171,14 +172,24 @@ rangeMapFindIn rng (RM rm)
     where start = rangeStart rng
           end = rangeEnd rng
 
-rangeMapFindAt :: Pos -> RangeMap -> Maybe (Range, RangeInfo)
+rangeMapFindAt :: Pos -> RangeMap -> Maybe [(Range, RangeInfo)]
 rangeMapFindAt pos (RM rm)
   = shortestRange $ filter (containsPos . fst) rm
   where
     containsPos rng   = rangeStart rng <= pos && rangeEnd rng >= pos
     shortestRange []  = Nothing
-    shortestRange rs  = Just $ minimumBy cmp rs
+    shortestRange rs  = Just $ minimumByList cmp rs
     cmp (r1,_) (r2,_) = compare (rangeLength r1) (rangeLength r2)
+
+minimumByList :: Foldable t => (a -> a -> Ordering) -> t a -> [a]
+minimumByList cmp la = fromMaybe [] (foldl' min' Nothing la)
+  where
+    min' mx y = Just $! case mx of
+      Nothing -> [y]
+      Just (x:xs) -> case cmp x y of
+        GT -> [y]
+        EQ -> y:x:xs
+        _ -> x:xs
 
 rangeInfoType :: RangeInfo -> Maybe Type
 rangeInfoType ri

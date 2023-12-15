@@ -20,7 +20,7 @@ import LanguageServer.Handler.InlayHints (inlayHintsHandler)
 import LanguageServer.Handler.Commands (commandHandler)
 import LanguageServer.Handler.Folding (foldingHandler)
 import LanguageServer.Handler.TextDocument (didChangeHandler, didCloseHandler, didOpenHandler, didSaveHandler)
-import LanguageServer.Monad (LSM, runLSM, putLSState, LSState (..))
+import LanguageServer.Monad (LSM, runLSM, LSState (..), updateConfig)
 import Language.LSP.Protocol.Message (TRequestMessage(..), TNotificationMessage(..), Method, MessageDirection(..), MessageKind(..), SMethod (..), SomeLspId (SomeLspId), LspId (..), NotificationMessage (..), ResponseError (..))
 import Control.Monad.Trans (lift)
 import Control.Monad.Reader (MonadReader(ask))
@@ -44,6 +44,7 @@ import Language.LSP.Protocol.Types (DidChangeTextDocumentParams(..), VersionedTe
 
 import Control.Monad (when, unless)
 import qualified Data.Text as T
+import qualified Debug.Trace as Debug
 
 newtype ReactorInput = ReactorAction (IO ())
 
@@ -63,8 +64,15 @@ handlers =
       cancelHandler,
       commandHandler,
       inlayHintsHandler,
-      foldingHandler
+      foldingHandler,
+      configurationChangeHandler
     ]
+
+configurationChangeHandler :: Handlers LSM
+configurationChangeHandler = notificationHandler J.SMethod_WorkspaceDidChangeConfiguration $ \_not -> do
+  let J.DidChangeConfigurationParams{_settings} = _not ^. params
+  updateConfig _settings
+  return ()
 
 -- Handles the initialized notification
 initializedHandler :: Handlers LSM

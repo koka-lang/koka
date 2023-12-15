@@ -80,6 +80,8 @@ runLanguageServer flags files = do
     -- io logger, prints all log level messages to stdout
     ioLogger :: LogAction IO (WithSeverity LspServerLog)
     ioLogger = L.cmap prettyMsg L.logStringStdout
+    stderrLogger :: LogAction IO (WithSeverity T.Text)
+    stderrLogger = L.cmap show L.logStringStderr
     -- lsp logger, prints all messages to stdout and to the client
     lspLogger :: LogAction (LspM config) (WithSeverity LspServerLog)
     lspLogger =

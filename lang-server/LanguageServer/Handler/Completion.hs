@@ -130,12 +130,15 @@ getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri =
                 let currentType =
                       if isFunctionCompletion then
                           let currentRange = fromLspPos uri (J.Position l newC) in
-                          do
-                            (range, rangeInfo) <- rangeMapFindAt currentRange rm
-                            t <- rangeInfoType rangeInfo
-                            case splitFunType t of
-                              Just (pars,eff,res) -> Just res
-                              Nothing             -> Just t
+                          do -- maybe monad
+                            ri <- rangeMapFindAt currentRange rm
+                            case ri of
+                              [(r, rangeInfo)] -> do
+                                t <- rangeInfoType rangeInfo
+                                case splitFunType t of
+                                  Just (pars,eff,res) -> Just res
+                                  Nothing             -> Just t
+                              _ -> Nothing
                       else Nothing
                 -- currentRope is already a single line, but it may include an enclosing '\n'
                 let curLine = T.dropWhileEnd (== '\n') $ Rope.toText currentRope

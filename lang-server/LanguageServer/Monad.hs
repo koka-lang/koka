@@ -4,15 +4,18 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module LanguageServer.Monad
   ( LSState (..),
     defaultLSState,
     newLSStateVar,
     LSM,
     getTerminal,getFlags,getColorScheme,getHtmlPrinter,
-    getLSState,putLSState,modifyLSState,
-    getLoaded,putLoaded,removeLoaded, removeLoadedUri,getLoadedModule,
+    getLSState,modifyLSState,
+    getLoaded,putLoaded,removeLoaded,removeLoadedUri,getLoadedModule,
     getModules,
+    updateConfig,
     getDiagnostics,putDiagnostics,clearDiagnostics,
     runLSM,
   )
@@ -32,7 +35,7 @@ import Lib.PPrint (Pretty(..), asString, writePrettyLn, Doc)
 import Control.Concurrent.Chan (readChan)
 import Type.Pretty (ppType, defaultEnv, Env (context, importsMap), ppScheme)
 import qualified Language.LSP.Server as J
-import GHC.Base (Type)
+import GHC.Base (Type, Alternative (..))
 import Lib.Printer (withColorPrinter, withColor, writeLn, ansiDefault, AnsiStringPrinter (AnsiString), Color (Red), ColorPrinter (PAnsiString, PHtmlText), withHtmlTextPrinter, HtmlTextPrinter (..))
 import Compiler.Options (Flags (..), prettyEnvFromFlags, verbose)
 import Common.Error (ppErrorMessage)
@@ -55,6 +58,9 @@ import Common.File (realPath,normalize)
 import Compiler.Module (Modules)
 import Data.Maybe (fromMaybe)
 import Data.List (find)
+import qualified Data.Aeson as A
+import Data.Aeson.Types
+import Common.ColorScheme (darkColorScheme, lightColorScheme)
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
@@ -68,7 +74,8 @@ data LSState = LSState {
   cancelledRequests :: !(TVar (Set.Set J.SomeLspId)),
   documentVersions :: !(TVar (M.Map J.Uri J.Int32)),
   documentInfos :: !(M.Map FilePath (D.ByteString, FileTime, J.Int32)),
-  diagnostics :: !(M.Map J.NormalizedUri [J.Diagnostic])
+  diagnostics :: !(M.Map J.NormalizedUri [J.Diagnostic]),
+  config :: Config
 }
 
 -- The monad holding (thread-safe) state used by the language server.
@@ -87,18 +94,11 @@ getLSState = do
   stVar <- lift ask
   liftIO $ readMVar stVar
 
--- Replaces the language server's state inside the LSM monad
-putLSState :: LSState -> LSM ()
-putLSState s = do
-  stVar <- lift ask
-  liftIO $ putMVar stVar s
-
 -- Updates the language server's state inside the LSM monad
 modifyLSState :: (LSState -> LSState) -> LSM ()
 modifyLSState m = do
   stVar <- lift ask
   liftIO $ modifyMVar stVar $ \s -> return (m s, ())
-
 
 defaultLSState :: Flags -> IO LSState
 defaultLSState flags = do
@@ -108,7 +108,7 @@ defaultLSState flags = do
   fileVersions <- newTVarIO M.empty
   -- Trim trailing whitespace and newlines from the end of a string
   let trimnl :: [Char] -> [Char]
-      trimnl str = reverse $ dropWhile (`elem` "\n\r\t ") $ reverse str
+      trimnl str = reverse $ dropWhile (`T.elem` "\n\r\t ") $ reverse str
   let withNewPrinter f = do
         ansiConsole <- newVar ansiDefault
         stringVar <- newVar ""
@@ -124,7 +124,11 @@ defaultLSState flags = do
                  (if verbose flags > 0 then (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info) else (\_ -> return ()))
                  (\tp -> withNewPrinter $ \p -> do putScheme p (prettyEnv flags nameNil importsEmpty) tp; return J.MessageType_Info)
                  (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info)
-  return LSState {lsLoaded = M.empty,lsModules=[], messages = msgChan, terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
+  return LSState {
+    lsLoaded = M.empty, lsModules=[], 
+    messages = msgChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, config=Config{colors=Colors{mode="dark"}},
+    terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags, 
+    documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
 
 htmlTextColorPrinter :: Doc -> IO T.Text
 htmlTextColorPrinter doc
@@ -139,6 +143,35 @@ putScheme p env tp
 
 putErrorMessage p endToo cscheme err
   = writePrettyLn p (ppErrorMessage endToo cscheme err)
+
+data Config = Config {
+  colors :: Colors
+}
+data Colors = Colors {
+  mode :: String
+}
+
+instance FromJSON Colors where
+  parseJSON (A.Object v) = Colors <$> v .: "mode"
+  parseJSON _ = empty
+
+instance FromJSON Config where
+  parseJSON (A.Object v) = Config <$> v .: "colors"
+  parseJSON _ = empty
+
+updateConfig :: A.Value -> LSM ()
+updateConfig cfg =
+  case fromJSON cfg of
+    A.Success cfg -> do 
+      modifyLSState $ \s -> 
+        let s' = s{config=cfg} in
+        if mode (colors cfg) == "dark" then
+          trace "setting color scheme to dark" $
+            s'{flags=(flags s'){colorScheme=darkColorScheme}}
+        else
+          trace "setting color scheme to light" $
+            s'{flags=(flags s'){colorScheme=lightColorScheme}}
+  
 
 -- Fetches the terminal used for printing messages 
 getTerminal :: LSM Terminal
@@ -207,13 +240,12 @@ loadedModuleFromUri l uri =
 -- Removes a loaded module from the loaded state holding compiled modules
 removeLoadedUri :: J.Uri -> LSM ()
 removeLoadedUri uri = do
-  st <- getLSState
   case J.uriToFilePath uri of
     Nothing -> return ()
     Just path -> do
       path0 <- liftIO $ realPath path
       let path = normalize path0
-      putLSState $ st {lsLoaded = M.delete path (lsLoaded st)}
+      modifyLSState (\st -> st {lsLoaded = M.delete path (lsLoaded st)})
 
 -- Fetches the loaded state holding compiled modules
 getLoaded :: J.Uri -> LSM (Maybe Loaded)

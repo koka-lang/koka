@@ -9,7 +9,7 @@ import { MainCodeLensProvider } from './code-lens'
 
 let languageServer: KokaLanguageServer;
 
-export async function deactivate() {}
+export async function deactivate() { }
 
 export async function activate(context: vscode.ExtensionContext) {
   const vsConfig = vscode.workspace.getConfiguration('koka')
@@ -26,7 +26,7 @@ export async function activate(context: vscode.ExtensionContext) {
   createBasicCommands(context);
 
   if (vsConfig.get('languageServer.enabled')) {
-    languageServer = new KokaLanguageServer()
+    languageServer = new KokaLanguageServer(context)
     await languageServer.start(kokaConfig, context)
   } else {
     return
@@ -120,7 +120,7 @@ function createCommands(
 
           const { sdkPath, allSDKs } = scanForSDK(config)
           const newConfig = new KokaConfig(config, sdkPath, allSDKs)
-          languageServer = new KokaLanguageServer()
+          languageServer = new KokaLanguageServer(context)
           await languageServer.start(newConfig, context)
 
           progress.report({
