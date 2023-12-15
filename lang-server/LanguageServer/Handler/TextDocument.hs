@@ -215,7 +215,7 @@ processCompilationResult normUri filePath update doIO = do
           diags = toLspDiagnostics normUri diagSrc res
           maxDiags = 100
           -- Union with the current file mapped to an empty list, since we want to clear diagnostics for this file when it is an error in another file
-          diags' = M.union (M.fromList [(normUri, [])]) diags
+          diags' = M.union diags (M.fromList [(normUri, [])])
       -- Clear diagnostics for this file if there are no errors / warnings
       if null diags then clearDiagnostics normUri else putDiagnostics diags'
       -- Get all the diagnostics for all files (language server doesn't support updating diagnostics for a single file)
