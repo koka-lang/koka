@@ -12,6 +12,7 @@ module LanguageServer.Conversions
     toLspDiagnostics,
     toLspErrorDiagnostics,
     toLspWarningDiagnostic,
+    makeDiagnostic,
 
     -- * Conversions from LSP types
     fromLspPos,

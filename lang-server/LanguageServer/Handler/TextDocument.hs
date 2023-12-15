@@ -25,7 +25,7 @@ import Language.LSP.Diagnostics (partitionBySource)
 import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler)
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
-import LanguageServer.Conversions (toLspDiagnostics)
+import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic)
 import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri)
 import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
 import qualified Data.Text.Encoding as T
@@ -49,6 +49,7 @@ import Common.Range (rangeNull)
 import Core.Core (Visibility(Private))
 import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
 import Common.Name (newName)
+import Lib.PPrint (text)
 
 -- Compile the file on opening
 didOpenHandler :: Handlers LSM
@@ -108,11 +109,11 @@ diffVFS oldvfs vfs =
         -- If the key is in the old map, and the version number is the same, keep the old value
         if vOld == vers then
           return $ M.insert newK old acc
-        else do 
+        else do
           -- Otherwise update the value with a new timestamp
           time <- liftIO getCurrentTime
           return $ M.insert newK (text, time, vers) acc
-      Nothing -> do 
+      Nothing -> do
         -- If the key wasn't already present in the map, get it's file time from disk (since it was just opened / created)
         time <- liftIO $ getFileTimeOrCurrent newK
         -- trace ("New file " ++ show newK ++ " " ++ show time) $ return ()
@@ -169,7 +170,7 @@ recompileFile compileTarget uri version force flags =
       let contents = fst <$> maybeContents newvfs filePath
       modules <- getModules
       term <- getTerminal
-      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack $ "Recompiling " ++ filePath 
+      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack $ "Recompiling " ++ filePath
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
       let resultIO = compileFile (maybeContents newvfs) contents term flags [] (if force then [] else modules) compileTarget [] filePath
       processCompilationResult normUri filePath True resultIO
@@ -182,13 +183,21 @@ recompileFile compileTarget uri version force flags =
 processCompilationResult :: J.NormalizedUri -> FilePath -> Bool -> IO (Error Loaded (Loaded, Maybe FilePath)) -> LSM (Maybe FilePath)
 processCompilationResult normUri filePath update doIO = do
   let ioResult :: IO (Either Exc.SomeException (Error Loaded (Loaded, Maybe FilePath)))
-      ioResult = try doIO 
+      ioResult = try doIO
   result <- liftIO ioResult
   case result of
-    Left e -> do 
+    Left e -> do
       -- Compilation threw an exception, put it in the log, as well as a notification
       sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ "When compiling file " <> T.pack filePath <> T.pack (" compiler threw exception " ++ show e)
       sendNotification J.SMethod_WindowShowMessage $ J.ShowMessageParams J.MessageType_Error $ "When compiling file " <> T.pack filePath <> T.pack (" compiler threw exception " ++ show e)
+      let diagSrc = T.pack "koka"
+          maxDiags = 100
+          diags = M.fromList [(normUri, [makeDiagnostic J.DiagnosticSeverity_Error diagSrc rangeNull (text $ show e)])]
+      putDiagnostics diags
+      diags <- getDiagnostics
+      let diagsBySrc = M.map partitionBySource diags
+      flushDiagnosticsBySource maxDiags (Just diagSrc)
+      mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
       return Nothing
     Right res -> do
       -- No exception - so check the result of the compilation
@@ -198,7 +207,7 @@ processCompilationResult normUri filePath update doIO = do
           when update $ putLoaded l -- update the loaded state for this file
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ "Successfully compiled " <> T.pack filePath
           return outFile -- return the executable file path
-        Left (e, m) -> do 
+        Left (e, m) -> do
           -- Compilation failed
           case m of
             Nothing ->
