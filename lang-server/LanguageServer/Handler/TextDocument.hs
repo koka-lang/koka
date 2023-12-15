@@ -226,7 +226,9 @@ processCompilationResult normUri filePath update doIO = do
         -- If there are no diagnostics clear all koka diagnostics
         then flushDiagnosticsBySource maxDiags (Just diagSrc)
         -- Otherwise report all diagnostics
-        else mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
+        else do
+          flushDiagnosticsBySource maxDiags (Just diagSrc)
+          mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
       return outFile
 
 -- Persists all modules to disk
