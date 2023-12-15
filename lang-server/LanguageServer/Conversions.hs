@@ -16,10 +16,7 @@ module LanguageServer.Conversions
     -- * Conversions from LSP types
     fromLspPos,
     fromLspRange,
-    fromLspLocation,
-
-    -- * Get loaded module from URI
-    loadedModuleFromUri
+    fromLspLocation
   )
 where
 import           GHC.Generics              hiding (UInt)
@@ -34,7 +31,6 @@ import Lib.PPrint (Doc)
 import qualified Syntax.RangeMap as R
 import Compiler.Module (Module (..), Loaded (..))
 import Data.Maybe (fromMaybe)
-import Data.List (find)
 import Common.File (normalize, realPath)
 import Common.Range (sourceNull, Source (sourceName))
 
@@ -117,15 +113,3 @@ fromLspRange uri (J.Range s e) = R.makeRange (fromLspPos uri s) (fromLspPos uri 
 
 fromLspLocation :: J.Location -> R.Range
 fromLspLocation (J.Location uri rng) = fromLspRange uri rng
-
-loadedModuleFromUri :: Maybe Loaded -> J.Uri -> IO (Maybe Module)
-loadedModuleFromUri l uri = 
-  case l of
-    Nothing -> return Nothing
-    Just l -> 
-      case J.uriToFilePath uri of 
-        Nothing -> return Nothing
-        Just uri -> do
-          path <- realPath uri
-          let p = normalize path
-          return $ find (\m -> p == modSourcePath m) $ loadedModules l

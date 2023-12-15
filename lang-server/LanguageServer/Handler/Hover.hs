@@ -27,45 +27,46 @@ import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)
 import Type.Type (Name)
 
+-- Handles hover requests
 hoverHandler :: Handlers LSM
 hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
   let J.HoverParams doc pos _ = req ^. J.params
       uri = doc ^. J.uri
   loadedMod <- getLoadedModule uri
   loaded <- getLoaded uri
-  flags <- getFlags
-  let res = do
+  let res = do -- maybe monad
         mod <- loadedMod
         l <- loaded
         rmap <- modRangeMap mod
+        -- Find the range info at the given position
         (r, rinfo) <- rangeMapFindAt (fromLspPos uri pos) rmap
         return (modName mod, loadedImportMap l, r, rinfo)
   case res of
     Just (mName, imports, r, rinfo) -> do
+      -- Get the html-printer and flags
       print <- getHtmlPrinter
-      x <- liftIO $ formatRangeInfoHover print flags mName imports rinfo
+      flags <- getFlags
+      let env = (prettyEnvFromFlags flags){ context = mName, importsMap = imports }
+          colors = colorSchemeFromFlags flags
+      x <- liftIO $ print $ formatRangeInfoHover env colors rinfo
       let hc = J.InL $ J.mkMarkdown x
           rsp = J.Hover hc $ Just $ toLspRange r
       responder $ Right $ J.InL rsp
     Nothing -> responder $ Right $ J.InR J.Null
 
-prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
-
--- Pretty-prints type/kind information to a hover tooltip
-formatRangeInfoHover :: (Doc -> IO T.Text) -> Flags -> Name -> ImportMap -> RangeInfo -> IO T.Text
-formatRangeInfoHover print flags mName imports rinfo =
-  let colors = colorSchemeFromFlags flags
-      env = prettyEnv flags mName imports in
+-- Pretty-prints type/kind information to a hover tooltip given a type pretty environment, color scheme
+formatRangeInfoHover :: Env -> ColorScheme -> RangeInfo -> Doc
+formatRangeInfoHover env colors rinfo =
   case rinfo of
   Id qname info isdef ->
-    print $ (ppName env{colors=colors{colorSource = Gray}} qname) <+> text " : " <+> case info of
+    ppName env{colors=colors{colorSource = Gray}} qname <+> text " : " <+> case info of
       NIValue tp _ -> ppScheme env tp
       NICon tp ->  ppScheme env tp
       NITypeCon k -> prettyKind colors k
       NITypeVar k -> prettyKind colors k
       NIModule -> text "module"
       NIKind -> text "kind"
-  Decl s name mname -> print $ text s <+> text " " <+> pretty name
-  Block s -> return $ T.pack s
-  Error doc -> print $ text "Error: " <+> doc
-  Warning doc -> print $ text "Warning: " <+> doc
+  Decl s name mname -> text s <+> text " " <+> pretty name
+  Block s -> text s
+  Error doc -> text "Error: " <+> doc
+  Warning doc -> text "Warning: " <+> doc

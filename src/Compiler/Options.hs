@@ -400,7 +400,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})    "enable inline specialization"
  , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
  , hide $ fflag       ["eagerpatbind"] (\b f -> f{optEagerPatBind=b}) "load pattern fields as early as possible"
- , numOption 6061 "port" [] ["lsport"]    (\i f -> f{languageServerPort=i}) "Language Server port to connect to"
+ , numOption (-1) "port" [] ["lsport"]    (\i f -> f{languageServerPort=i}) "Language Server port to connect to"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"

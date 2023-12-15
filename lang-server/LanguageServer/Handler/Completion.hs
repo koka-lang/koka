@@ -25,7 +25,7 @@ import Language.LSP.Server (Handlers, getVirtualFile, requestHandler)
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import Language.LSP.VFS (VirtualFile (VirtualFile))
-import LanguageServer.Monad (LSM, getLoaded)
+import LanguageServer.Monad (LSM, getLoaded, getLoadedModule)
 import Lib.PPrint (Pretty (..))
 import Syntax.Lexer (reservedNames)
 import Type.Assumption
@@ -54,7 +54,7 @@ import Data.Char (isUpper, isAlphaNum)
 import Compiler.Compile (Module (..))
 import Type.Type (Type(..), splitFunType, splitFunScheme)
 import Syntax.RangeMap (rangeMapFindAt, rangeInfoType)
-import LanguageServer.Conversions (fromLspPos, loadedModuleFromUri)
+import LanguageServer.Conversions (fromLspPos)
 import Common.Range (makePos, posNull, Range, rangeNull)
 import LanguageServer.Handler.Hover (formatRangeInfoHover)
 import Type.Unify (runUnify, unify, runUnifyEx, matchArguments)
@@ -67,23 +67,27 @@ import Control.Monad.ST (runST)
 import Language.LSP.Protocol.Types (InsertTextFormat(InsertTextFormat_Snippet))
 import Control.Monad.IO.Class (liftIO)
 
+-- Gets tab completion results for a document location
+-- This is a pretty complicated handler because it has to do a lot of work
 completionHandler :: Handlers LSM
 completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req responder -> do
   let J.CompletionParams doc pos _ _ context = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
   loaded <- getLoaded uri
-  loadedM <- liftIO $ loadedModuleFromUri loaded uri
+  loadedM <- getLoadedModule uri
   vfile <- getVirtualFile normUri
-  let items = do
+  let items = do-- list monad
         l <- maybeToList loaded
-        lm <- maybeToList $ loadedM
+        lm <- maybeToList loadedM
         vf <- maybeToList vfile
         pi <- maybeToList =<< getCompletionInfo pos vf lm uri
         findCompletions l lm pi
   responder $ Right $ J.InL items
 
 -- | Describes the line at the current cursor position
+-- We need a bit more information than the PositionInfo provided by the LSP library
+-- So we duplicate a bit of code from the LSP library here
 data PositionInfo = PositionInfo
   { fullLine :: !T.Text
     -- ^ The full contents of the line the cursor is at
@@ -92,6 +96,7 @@ data PositionInfo = PositionInfo
   , cursorPos :: !J.Position
     -- ^ The cursor position
   , argumentType :: Maybe Type
+  -- Determines if it is a function completion (. is just prior to the cursor)
   , isFunctionCompletion :: Bool
   } deriving (Show,Eq)
 

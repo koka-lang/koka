@@ -181,8 +181,8 @@ gammaFind name g
       []   -> failure ("Compiler.Compile.gammaFind: can't locate " ++ show name)
       _    -> failure ("Compiler.Compile.gammaFind: multiple definitions for " ++ show name)
 
-compileExpression :: Terminal -> Flags -> Loaded -> CompileTarget () -> UserProgram -> Int -> String -> IO (Error Loaded (Loaded, Maybe FilePath))
-compileExpression term flags loaded compileTarget program line input
+compileExpression :: (FilePath -> Maybe (BString, FileTime)) -> Terminal -> Flags -> Loaded -> CompileTarget () -> UserProgram -> Int -> String -> IO (Error Loaded (Loaded, Maybe FilePath))
+compileExpression maybeContents term flags loaded compileTarget program line input
   = runIOErr $
     do let qnameExpr = (qualify (getName program) nameExpr)
        def <- liftErrorPartial loaded (parseExpression (semiInsert flags) (show nameInteractiveModule) line qnameExpr input)
@@ -191,19 +191,19 @@ compileExpression term flags loaded compileTarget program line input
        case compileTarget of
          -- run a particular entry point
          Executable name ()  | name /= nameExpr
-           -> compileProgram' (const Nothing) term flags (loadedModules loaded) [] compileTarget "<interactive>" programDef []
+           -> compileProgram' maybeContents term flags (loadedModules loaded) [] compileTarget "<interactive>" programDef []
          -- entry point is the expression: compile twice:
          --  first to get the type of the expression and create a 'show' wrapper,
          --  then to actually run the program
            | otherwise
-           -> do (ld, f) <- compileProgram' (const Nothing) term flags{ evaluate = False } (loadedModules loaded) [] Object {-compileTarget-}  "<interactive>" programDef []
+           -> do (ld, f) <- compileProgram' maybeContents term flags{ evaluate = False } (loadedModules loaded) [] Object {-compileTarget-}  "<interactive>" programDef []
                  let tp = infoType (gammaFind qnameExpr (loadedGamma ld))
                      (_,_,rho) = splitPredType tp
                  -- _ <- liftError $ checkUnhandledEffects flags loaded nameExpr rangeNull rho
                  case splitFunType rho of
                    -- return unit: just run the expression (for its assumed side effect)
                    Just (_,_,tres)  | isTypeUnit tres
-                      -> compileProgram' (const Nothing) term flags (loadedModules ld) [] compileTarget  "<interactive>" programDef []
+                      -> compileProgram' maybeContents term flags (loadedModules ld) [] compileTarget  "<interactive>" programDef []
                    -- check if there is a show function, or use generic print if not.
                    Just (_,_,tres)
                       -> do -- ld <- compileProgram' term flags (loadedModules ld0) Nothing "<interactive>" programDef
@@ -220,7 +220,7 @@ compileExpression term flags loaded compileTarget program line input
                                                         [mkApp (Var qnameShow False r) [mkApp (Var qnameExpr False r) []]]
                                       let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
                                       let programDef' = programAddDefs programDef [] [defMain]
-                                      compileProgram' (const Nothing) term flags (loadedModules ld) [] (Executable nameMain ()) "<interactive>" programDef' []
+                                      compileProgram' maybeContents term flags (loadedModules ld) [] (Executable nameMain ()) "<interactive>" programDef' []
 
                               _  -> liftErrorPartial loaded $ errorMsg (ErrorGeneral rangeNull (text "no 'show' function defined for values of type:" <+> ppType (prettyEnvFromFlags flags) tres))
                                                      -- mkApp (Var (qualify nameSystemCore (newName "gprintln")) False r)

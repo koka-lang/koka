@@ -9,20 +9,11 @@ module LanguageServer.Monad
     defaultLSState,
     newLSStateVar,
     LSM,
-    getLSState,
-    getTerminal,
-    getFlags,
-    putLSState,
-    modifyLSState,
-    getLoaded,
-    putLoaded,removeLoaded,
-    getLoadedModule,
+    getTerminal,getFlags,getColorScheme,getHtmlPrinter,
+    getLSState,putLSState,modifyLSState,
+    getLoaded,putLoaded,removeLoaded, removeLoadedUri,getLoadedModule,
     getModules,
-    getColorScheme,
-    getHtmlPrinter,
-    getDiagnostics,
-    putDiagnostics,
-    clearDiagnostics,
+    getDiagnostics,putDiagnostics,clearDiagnostics,
     runLSM,
   )
 where
@@ -58,12 +49,12 @@ import GHC.Conc (atomically)
 import Control.Concurrent.STM (newTVarIO, TVar)
 import qualified Data.Set as Set
 import Control.Concurrent.STM.TMVar (TMVar)
-import LanguageServer.Conversions (loadedModuleFromUri)
 import qualified Data.ByteString as D
 import Platform.Filetime (FileTime)
 import Common.File (realPath,normalize)
 import Compiler.Module (Modules)
 import Data.Maybe (fromMaybe)
+import Data.List (find)
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
@@ -80,51 +71,15 @@ data LSState = LSState {
   diagnostics :: !(M.Map J.NormalizedUri [J.Diagnostic])
 }
 
-trimnl :: [Char] -> [Char]
-trimnl str = reverse $ dropWhile (`elem` "\n\r\t ") $ reverse str
+-- The monad holding (thread-safe) state used by the language server.
+type LSM = LspT () (ReaderT (MVar LSState) IO)
 
-htmlTextColorPrinter :: Doc -> IO T.Text
-htmlTextColorPrinter doc
-  = do
-    stringVar <- newVar (T.pack "")
-    let printer = PHtmlText (HtmlTextPrinter stringVar)
-    writePrettyLn printer doc
-    takeVar stringVar
-
-defaultLSState :: Flags -> IO LSState
-defaultLSState flags = do
-  msgChan <- atomically newTChan :: IO (TChan (String, J.MessageType))
-  pendingRequests <- newTVarIO Set.empty
-  cancelledRequests <- newTVarIO Set.empty
-  fileVersions <- newTVarIO M.empty
-  let withNewPrinter f = do
-        ansiConsole <- newVar ansiDefault
-        stringVar <- newVar ""
-        let p = AnsiString ansiConsole stringVar
-        tp <- (f . PAnsiString) p
-        ansiString <- takeVar stringVar
-        atomically $ writeTChan msgChan (trimnl ansiString, tp)
-  let cscheme = colorScheme flags
-      prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
-      term = Terminal (\err -> withNewPrinter $ \p -> do putErrorMessage p (showSpan flags) cscheme err; return J.MessageType_Error)
-                (if verbose flags > 1 then (\msg -> withNewPrinter $ \p -> do withColor p (colorSource cscheme) (writeLn p msg); return J.MessageType_Info)
-                                         else (\_ -> return ()))
-                 (if verbose flags > 0 then (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info) else (\_ -> return ()))
-                 (\tp -> withNewPrinter $ \p -> do putScheme p (prettyEnv flags nameNil importsEmpty) tp; return J.MessageType_Info)
-                 (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info)
-  return LSState {lsLoaded = M.empty,lsModules=[], messages = msgChan, terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
-
-putScheme p env tp
-  = writePrettyLn p (ppScheme env tp)
-
-putErrorMessage p endToo cscheme err
-  = writePrettyLn p (ppErrorMessage endToo cscheme err)
+-- Runs the language server's state monad.
+runLSM :: LSM a -> MVar LSState -> LanguageContextEnv () -> IO a
+runLSM lsm stVar cfg = runReaderT (runLspT cfg lsm) stVar
 
 newLSStateVar :: Flags -> IO (MVar LSState)
 newLSStateVar flags = defaultLSState flags >>= newMVar
-
--- The monad holding (thread-safe) state used by the language server.
-type LSM = LspT () (ReaderT (MVar LSState) IO)
 
 -- Fetches the language server's state inside the LSM monad
 getLSState :: LSM LSState
@@ -144,39 +99,86 @@ modifyLSState m = do
   stVar <- lift ask
   liftIO $ modifyMVar stVar $ \s -> return (m s, ())
 
-getModules :: LSM Modules
-getModules = lsModules <$> getLSState
 
-putDiagnostics :: M.Map J.NormalizedUri [J.Diagnostic] -> LSM ()
-putDiagnostics diags = -- Left biased union prefers more recent diagnostics
-  modifyLSState $ \s -> s {diagnostics = M.union diags (diagnostics s)}
+defaultLSState :: Flags -> IO LSState
+defaultLSState flags = do
+  msgChan <- atomically newTChan :: IO (TChan (String, J.MessageType))
+  pendingRequests <- newTVarIO Set.empty
+  cancelledRequests <- newTVarIO Set.empty
+  fileVersions <- newTVarIO M.empty
+  -- Trim trailing whitespace and newlines from the end of a string
+  let trimnl :: [Char] -> [Char]
+      trimnl str = reverse $ dropWhile (`elem` "\n\r\t ") $ reverse str
+  let withNewPrinter f = do
+        ansiConsole <- newVar ansiDefault
+        stringVar <- newVar ""
+        let p = AnsiString ansiConsole stringVar
+        tp <- (f . PAnsiString) p
+        ansiString <- takeVar stringVar
+        atomically $ writeTChan msgChan (trimnl ansiString, tp)
+  let cscheme = colorScheme flags
+      prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
+      term = Terminal (\err -> withNewPrinter $ \p -> do putErrorMessage p (showSpan flags) cscheme err; return J.MessageType_Error)
+                (if verbose flags > 1 then (\msg -> withNewPrinter $ \p -> do withColor p (colorSource cscheme) (writeLn p msg); return J.MessageType_Info)
+                                         else (\_ -> return ()))
+                 (if verbose flags > 0 then (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info) else (\_ -> return ()))
+                 (\tp -> withNewPrinter $ \p -> do putScheme p (prettyEnv flags nameNil importsEmpty) tp; return J.MessageType_Info)
+                 (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info)
+  return LSState {lsLoaded = M.empty,lsModules=[], messages = msgChan, terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
 
-getDiagnostics :: LSM (M.Map J.NormalizedUri [J.Diagnostic])
-getDiagnostics = diagnostics <$> getLSState
+htmlTextColorPrinter :: Doc -> IO T.Text
+htmlTextColorPrinter doc
+  = do
+    stringVar <- newVar (T.pack "")
+    let printer = PHtmlText (HtmlTextPrinter stringVar)
+    writePrettyLn printer doc
+    takeVar stringVar
 
-clearDiagnostics :: J.NormalizedUri -> LSM ()
-clearDiagnostics uri = modifyLSState $ \s -> s {diagnostics = M.delete uri (diagnostics s)}
+putScheme p env tp
+  = writePrettyLn p (ppScheme env tp)
 
--- Fetches the loaded state holding compiled modules
-getLoaded :: J.Uri -> LSM (Maybe Loaded)
-getLoaded uri = do
-  st <- getLSState
-  case J.uriToFilePath uri of 
-    Nothing -> return Nothing
-    Just uri -> do
-      path <- liftIO $ realPath uri
-      let p = normalize path
-      return $ M.lookup p (lsLoaded st)
+putErrorMessage p endToo cscheme err
+  = writePrettyLn p (ppErrorMessage endToo cscheme err)
+
+-- Fetches the terminal used for printing messages 
+getTerminal :: LSM Terminal
+getTerminal = terminal <$> getLSState
 
 -- Fetches the loaded state holding compiled modules
 getFlags :: LSM Flags
 getFlags = flags <$> getLSState
 
+-- Fetches the html printer used for printing markdown compatible text
 getHtmlPrinter :: LSM (Doc -> IO T.Text)
 getHtmlPrinter = htmlPrinter <$> getLSState
 
+-- Fetches the color scheme used for coloring markdown compatible text
 getColorScheme :: LSM ColorScheme
 getColorScheme = colorScheme <$> getFlags
+
+
+-- Diagnostics
+getDiagnostics :: LSM (M.Map J.NormalizedUri [J.Diagnostic])
+getDiagnostics = diagnostics <$> getLSState
+
+-- Clear diagnostics for a file
+clearDiagnostics :: J.NormalizedUri -> LSM ()
+clearDiagnostics uri = modifyLSState $ \s -> s {diagnostics = M.delete uri (diagnostics s)}
+
+putDiagnostics :: M.Map J.NormalizedUri [J.Diagnostic] -> LSM ()
+putDiagnostics diags = -- Left biased union prefers more recent diagnostics
+  modifyLSState $ \s -> s {diagnostics = M.union diags (diagnostics s)}
+
+
+-- Fetches all the most recent succesfully compiled modules (for incremental compilation)
+getModules :: LSM Modules
+getModules = lsModules <$> getLSState
+
+mergeModules :: Modules -> Modules -> Modules
+mergeModules newModules oldModules =
+  let nModValid = filter modCompiled newModules -- only add modules that sucessfully compiled
+      newModNames = map modName nModValid
+  in nModValid ++ filter (\m -> modName m `notElem` newModNames) oldModules
 
 -- Replaces the loaded state holding compiled modules
 putLoaded :: Loaded -> LSM ()
@@ -190,15 +192,36 @@ getLoadedModule uri = do
   lmaybe <- getLoaded uri
   liftIO $ loadedModuleFromUri lmaybe uri
 
--- Runs the language server's state monad.
-runLSM :: LSM a -> MVar LSState -> LanguageContextEnv () -> IO a
-runLSM lsm stVar cfg = runReaderT (runLspT cfg lsm) stVar
+loadedModuleFromUri :: Maybe Loaded -> J.Uri -> IO (Maybe Module)
+loadedModuleFromUri l uri = 
+  case l of
+    Nothing -> return Nothing
+    Just l -> 
+      case J.uriToFilePath uri of 
+        Nothing -> return Nothing
+        Just uri -> do
+          path <- realPath uri
+          let p = normalize path
+          return $ find (\m -> p == modSourcePath m) $ loadedModules l
 
-getTerminal :: LSM Terminal
-getTerminal = terminal <$> getLSState
+-- Removes a loaded module from the loaded state holding compiled modules
+removeLoadedUri :: J.Uri -> LSM ()
+removeLoadedUri uri = do
+  st <- getLSState
+  case J.uriToFilePath uri of
+    Nothing -> return ()
+    Just path -> do
+      path0 <- liftIO $ realPath path
+      let path = normalize path0
+      putLSState $ st {lsLoaded = M.delete path (lsLoaded st)}
 
-mergeModules :: Modules -> Modules -> Modules
-mergeModules newModules oldModules =
-  let nModValid = filter modCompiled newModules -- only add modules that sucessfully compiled
-      newModNames = map modName nModValid
-  in nModValid ++ filter (\m -> modName m `notElem` newModNames) oldModules
+-- Fetches the loaded state holding compiled modules
+getLoaded :: J.Uri -> LSM (Maybe Loaded)
+getLoaded uri = do
+  st <- getLSState
+  case J.uriToFilePath uri of 
+    Nothing -> return Nothing
+    Just uri -> do
+      path <- liftIO $ realPath uri
+      let p = normalize path
+      return $ M.lookup p (lsLoaded st)

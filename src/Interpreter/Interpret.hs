@@ -126,7 +126,7 @@ command ::  State -> Command -> IO ()
 command st cmd
   = let term = terminal st
     in do{ case cmd of
-  Eval line   -> do{ err <- compileExpression term (flags st) (loaded st) (Executable nameExpr ()) (program st) bigLine line
+  Eval line   -> do{ err <- compileExpression (const Nothing) term (flags st) (loaded st) (Executable nameExpr ()) (program st) bigLine line
                    ; checkInferWith st line fst True err $ \(ld, _) ->
                      do if (not (evaluate (flags st)))
                          then let tp = infoType $ gammaFind (qualify nameInteractive nameExpr) (loadedGamma ld)
@@ -148,7 +148,7 @@ command st cmd
                                          }
                          }
 
-  TypeOf line -> do err <- compileExpression term (flags st) (loaded st) Object (program st) bigLine line
+  TypeOf line -> do err <- compileExpression (const Nothing) term (flags st) (loaded st) Object (program st) bigLine line
                     checkInfer2Fst st True err $ \(ld, _) ->
                        do{ let tp = infoType $ gammaFind (qualify nameInteractive nameExpr) (loadedGamma ld)
                          ; messageSchemeEffect st tp

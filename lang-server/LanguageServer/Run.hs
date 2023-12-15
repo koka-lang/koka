@@ -6,6 +6,7 @@
 {-# LANGUAGE DataKinds #-}
 module LanguageServer.Run (runLanguageServer) where
 
+import System.Exit            ( exitFailure )
 import Compiler.Options (Flags (languageServerPort))
 import Control.Monad (void, forever)
 import Control.Monad.IO.Class (liftIO)
@@ -33,12 +34,22 @@ import GHC.IO.StdHandles (stdout, stderr)
 
 runLanguageServer :: Flags -> [FilePath] -> IO ()
 runLanguageServer flags files = do
+  if languageServerPort flags == -1 then do
+    putStr "No port specified for language server\n. Use --lsport=<port> to specify a port."
+    exitFailure 
+  else return ()
+  -- Have to set line buffering, otherwise the client doesn't receive data until buffers fill up
   hSetBuffering stdout LineBuffering
   hSetBuffering stderr LineBuffering
+  -- Connect to localhost on the port given by the client
   connect "127.0.0.1" (show $ languageServerPort flags) (\(socket, _) -> do
+    -- Create a handle to the client from the socket
     handle <- socketToHandle socket ReadWriteMode
+    -- Create a new language server state
     state <- newLSStateVar flags
-    initStateVal <- liftIO $ readMVar state
+    -- Get the message channel
+    messageChan <- liftIO $ messages <$> readMVar state
+    -- Create a new channel for the reactor to receive messages on
     rin <- atomically newTChan :: IO (TChan ReactorInput)
     void $
       runServerWithHandles
@@ -52,7 +63,8 @@ runLanguageServer flags files = do
             onConfigChange = const $ pure (),
             defaultConfig = (),
             configSection = T.pack "koka",
-            doInitialize = \env _ -> forkIO (reactor rin) >> forkIO (messageHandler (messages initStateVal) env state) >> pure (Right env),
+            -- Two threads, the request thread and the message thread (so we can send messages to the client, while the compilation is happening)
+            doInitialize = \env _ -> forkIO (reactor rin) >> forkIO (messageHandler messageChan env state) >> pure (Right env),
             staticHandlers = \_caps -> lspHandlers rin,
             interpretHandler = \env -> Iso (\lsm -> runLSM lsm state env) liftIO,
             options =
@@ -65,10 +77,10 @@ runLanguageServer flags files = do
           })
   where
     prettyMsg l = "[" <> show (L.getSeverity l) <> "] " <> show (L.getMsg l) <> "\n\n"
+    -- io logger, prints all log level messages to stdout
     ioLogger :: LogAction IO (WithSeverity LspServerLog)
     ioLogger = L.cmap prettyMsg L.logStringStdout
-    stderrLogger :: LogAction IO (WithSeverity T.Text)
-    stderrLogger = L.cmap show L.logStringStderr
+    -- lsp logger, prints all messages to stdout and to the client
     lspLogger :: LogAction (LspM config) (WithSeverity LspServerLog)
     lspLogger =
       let clientLogger = L.cmap (fmap (T.pack . show)) defaultClientLogger
@@ -81,18 +93,21 @@ runLanguageServer flags files = do
         (Just False) -- will save (wait until requests are sent to server)
         (Just $ J.InR $ J.SaveOptions $ Just False) -- trigger on save, but dont send document
 
+-- Handles messages to send to the client, just spins and sends
 messageHandler :: TChan (String, J.MessageType) -> LanguageContextEnv () -> MVar LSState -> IO ()
 messageHandler msgs env state = do
   forever $ do
     (msg, msgType) <- atomically $ readTChan msgs
     runLSM (sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams msgType $ T.pack msg) state env
 
+-- Runs in a loop, getting the next queued request and executing it
 reactor :: TChan ReactorInput -> IO ()
 reactor inp = do
   forever $ do
     ReactorAction act <- atomically $ readTChan inp
     act
 
+-- TODO: Finish persisting modules in a separate thread
 doPersist state env =
   forever $ do
     threadDelay 1000000

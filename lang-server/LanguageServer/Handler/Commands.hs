@@ -3,7 +3,7 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
 
-module LanguageServer.Handler.Commands (initializedHandler, commandHandler) where
+module LanguageServer.Handler.Commands (commandHandler) where
 
 import Compiler.Options (Flags (outFinalPath), targets, commandLineHelp, updateFlagsFromArgs)
 import Language.LSP.Server (Handlers, LspM, notificationHandler, sendNotification, MonadLsp, getVirtualFiles, withIndefiniteProgress, requestHandler)
@@ -27,61 +27,56 @@ import Compiler.Module (Loaded(..))
 import Common.Range (rangeNull)
 import Core.Core (Visibility(Private))
 
-initializedHandler :: Handlers LSM
-initializedHandler = notificationHandler J.SMethod_Initialized $ \_not -> sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info "Initialized language server."
-
-targetFlag :: String -> Flags -> Flags
-targetFlag t f
-    = case lookup t targets of
-        Just update -> update f
-        Nothing     -> f
-
+-- Handles custom commands that we support clients to call
 commandHandler :: Handlers LSM
 commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp -> do
-  flags <- getFlags
   let J.ExecuteCommandParams _ command commandParams = req ^. J.params
+  flags <- getFlags
   if command == "koka/genCode" then
     case commandParams of
+      -- koka/genCode filePath "...args to parse"
       Just [Json.String filePath, Json.String additionalArgs] -> do
-        term <- getTerminal
-        newFlags <-  case updateFlagsFromArgs flags (T.unpack additionalArgs) of
-          Just flags' -> return flags'
-          Nothing -> do
-            doc <- liftIO (commandLineHelp flags)
-            sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid arguments " <> additionalArgs
-            liftIO $ termPhaseDoc term doc
-            return flags
+        -- Update the flags with the specified arguments
+        newFlags <- getNewFlags flags additionalArgs
+        -- Recompile the file, but with executable target
         withIndefiniteProgress (T.pack "Compiling " <> filePath) J.NotCancellable $ do
           res <- recompileFile (Executable (newName "main") ()) (J.filePathToUri $ T.unpack filePath) Nothing False newFlags
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack ("Finished generating code for main file " ++ T.unpack filePath ++ " " ++ fromMaybe "No Compiled File" res)
+          -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
-      _ -> do
-        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid parameters"
+      _ -> do 
+        -- Client didn't send the right parameters for this command
+        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid parameters for koka/genCode"
         resp $ Right $ J.InR J.Null
   else if command == "koka/interpretExpression" then
     case commandParams of
+      -- The `filePath` where a top level function is defined by the name `functionName`, and any additional flags
       Just [Json.String filePath, Json.String functionName, Json.String additionalArgs] -> do
-        term <- getTerminal
-        newFlags <-  case updateFlagsFromArgs flags (T.unpack additionalArgs) of
-          Just flags' -> return flags'
-          Nothing -> do
-            doc <- liftIO (commandLineHelp flags)
-            sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid arguments " <> additionalArgs
-            liftIO $ termPhaseDoc term doc
-            return flags
+        -- Update the flags with the specified arguments
+        newFlags <- getNewFlags flags additionalArgs
+        -- Compile the expression, but with the interpret target
         withIndefiniteProgress (T.pack "Interpreting " <> functionName) J.NotCancellable $ do
-          -- term flags loaded compileTarget program line input
+          -- compile the expression
           res <- compileEditorExpression (J.filePathToUri $ T.unpack filePath) newFlags (T.unpack filePath) (T.unpack functionName)
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack ("Finished generating code for interpreting function " ++ T.unpack functionName ++ " in file " ++ T.unpack filePath ++ " Result: " ++ fromMaybe "No Compiled File" res)
+          -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
       _ -> do
-        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid parameters"
+        -- Client didn't send the right parameters for this command
+        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid parameters for koka/interpretExpression"
         resp $ Right $ J.InR J.Null
   else
     do
       sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack ("Unknown command" ++ show req)
       resp $ Right $ J.InR J.Null
 
-liftMaybe:: Monad m => Maybe (m ()) -> m ()
-liftMaybe Nothing = return ()
-liftMaybe (Just m) = m
+getNewFlags :: Flags -> T.Text -> LSM Flags
+getNewFlags flags args = do
+  term <- getTerminal
+  case updateFlagsFromArgs flags (T.unpack args) of
+    Just flags' -> return flags'
+    Nothing -> do
+      doc <- liftIO (commandLineHelp flags)
+      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid arguments " <> args
+      liftIO $ termPhaseDoc term doc
+      return flags

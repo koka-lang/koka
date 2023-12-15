@@ -21,12 +21,13 @@ import Syntax.RangeMap (RangeInfo (..), rangeMapFindAt)
 import Type.Assumption (gammaLookupQ, infoRange)
 import qualified Language.LSP.Protocol.Message as J
 
+-- Finds the definitions of the element under the cursor.
 definitionHandler :: Handlers LSM
 definitionHandler = requestHandler J.SMethod_TextDocumentDefinition $ \req responder -> do
   let J.DefinitionParams doc pos _ _ = req ^. J.params
       uri = doc ^. J.uri
   loaded <- getLoaded uri
-  let defs = do
+  let defs = do -- maybe monad
         l <- maybeToList loaded
         rmap <- maybeToList $ modRangeMap $ loadedModule l
         (_, rinfo) <- maybeToList $ rangeMapFindAt (fromLspPos uri pos) rmap
