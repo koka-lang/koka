@@ -18,6 +18,7 @@ import LanguageServer.Handler.DocumentSymbol (documentSymbolHandler)
 import LanguageServer.Handler.Hover (hoverHandler)
 import LanguageServer.Handler.InlayHints (inlayHintsHandler)
 import LanguageServer.Handler.Commands (commandHandler)
+import LanguageServer.Handler.Folding (foldingHandler)
 import LanguageServer.Handler.TextDocument (didChangeHandler, didCloseHandler, didOpenHandler, didSaveHandler)
 import LanguageServer.Monad (LSM, runLSM, putLSState, LSState (..))
 import Language.LSP.Protocol.Message (TRequestMessage(..), TNotificationMessage(..), Method, MessageDirection(..), MessageKind(..), SMethod (..), SomeLspId (SomeLspId), LspId (..), NotificationMessage (..), ResponseError (..))
@@ -61,7 +62,8 @@ handlers =
       completionHandler,
       cancelHandler,
       commandHandler,
-      inlayHintsHandler
+      inlayHintsHandler,
+      foldingHandler
     ]
 
 -- Handles the initialized notification

@@ -175,6 +175,7 @@ executable koka
       LanguageServer.Handler.Completion
       LanguageServer.Handler.Definition
       LanguageServer.Handler.DocumentSymbol
+      LanguageServer.Handler.Folding
       LanguageServer.Handler.Hover
       LanguageServer.Handler.InlayHints
       LanguageServer.Handler.TextDocument
