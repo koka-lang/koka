@@ -141,25 +141,16 @@ library
   build-tools:
       alex
   build-depends:
-      aeson
-    , array
-    , async
+      array
     , base >=4.9
     , bytestring
-    , co-log-core
     , containers
     , directory
     , isocline >=1.0.6
-    , lens
-    , lsp
     , mtl
-    , network
-    , network-simple
     , parsec
     , process
-    , stm
     , text
-    , text-rope
     , time
   default-language: Haskell2010
   if os(windows)
@@ -218,26 +209,17 @@ executable koka-nolsp
       app
   ghc-options: -rtsopts -j8 -O2 -threaded "-with-rtsopts=-N8"
   build-depends:
-      aeson
-    , array
-    , async
+      array
     , base >=4.9
     , bytestring
-    , co-log-core
     , containers
     , directory
     , isocline >=1.0.6
     , koka
-    , lens
-    , lsp
     , mtl
-    , network
-    , network-simple
     , parsec
     , process
-    , stm
     , text
-    , text-rope
     , time
   default-language: Haskell2010
 
@@ -250,12 +232,9 @@ test-suite koka-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson
-    , array
-    , async
+      array
     , base >=4.9
     , bytestring
-    , co-log-core
     , containers
     , directory
     , extra
@@ -264,16 +243,10 @@ test-suite koka-test
     , hspec-core
     , isocline >=1.0.6
     , json
-    , lens
-    , lsp
     , mtl
-    , network
-    , network-simple
     , parsec
     , process
     , regex-compat >=0.95.2.1
-    , stm
     , text
-    , text-rope
     , time
   default-language: Haskell2010

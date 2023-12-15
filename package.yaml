@@ -19,24 +19,15 @@ description: Please see the README on GitHub at <https://github.com/koka-lang/ko
 
 dependencies:
   - base >= 4.9
-  - aeson
   - array
-  - async
   - bytestring
   - containers
-  - co-log-core
   - directory
-  - lens
-  - lsp
   - mtl
   - parsec
   - process
-  - stm
   - text
-  - text-rope
   - time
-  - network-simple
-  - network
   - isocline >= 1.0.6
 
 library:
@@ -70,7 +61,17 @@ executables:
   koka:
     main: Main.hs
     source-dirs: lang-server
-    dependencies: koka
+    dependencies: 
+      - aeson
+      - async
+      - co-log-core
+      - koka
+      - lens
+      - lsp
+      - network-simple
+      - network
+      - text-rope
+      - stm
     ghc-options:
       - -rtsopts
       - -j8
