@@ -47,15 +47,16 @@ export class MainCodeLensProvider implements vscode.CodeLensProvider {
       {
         arguments: [document.uri],
         command: "koka.startWithoutDebugging",
-        title: `Run ${path.relative(this.config.cwd, document.uri.fsPath)} (debug)`,
+        title: "run debug", // `Run ${path.relative(this.config.cwd, document.uri.fsPath)} (debug)`,
+        tooltip: "Compile and run in debug mode"
       },
     ), new vscode.CodeLens(
       toRange(document, offset, len),
       {
         arguments: [document.uri, "-O2", ["--kktime"]],
         command: "koka.startWithoutDebugging",
-        title: `Run ${path.relative(this.config.cwd, document.uri.fsPath)} (release)`,
-        tooltip: "Run with compilation flag -O2\nGive argument --kktime to the executable"
+        title: `optimized`, // `Run ${path.relative(this.config.cwd, document.uri.fsPath)} (release)`,
+        tooltip: "Compile with flag -O2\nRun executable with flag --kktime"
       },
     ),
     ]
@@ -67,7 +68,8 @@ export class MainCodeLensProvider implements vscode.CodeLensProvider {
       {
         arguments: [document.uri, functionName],
         command: "koka.interpretExpression",
-        title: `Run ${functionName} (debug)`,
+        title: "run debug", //`Run ${functionName} (debug)`,
+        tooltip: "Compile and run in debug mode"
       }
     ),
     new vscode.CodeLens(
@@ -75,8 +77,8 @@ export class MainCodeLensProvider implements vscode.CodeLensProvider {
       {
         arguments: [document.uri, functionName, "-O2", ["--kktime"]],
         command: "koka.interpretExpression",
-        title: `Run ${functionName} (release)`,
-        tooltip: "Run with compilation flag -O2\nGive argument --kktime to the executable"
+        title: `optimized`, // `Run ${functionName} (release)`,
+        tooltip: "Compile with flag -O2\nRun executable with flag --kktime"
       }
     )
     ]
