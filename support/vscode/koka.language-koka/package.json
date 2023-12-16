@@ -177,9 +177,17 @@
                 "description": "Name of the function to run",
                 "default": "main"
               },
-              "args": {
+              "compilerArgs": {
                 "type": "string",
-                "description": "Additional args to pass to the compiler (separate by -- to pass args to the program)"
+                "description": "Additional args to pass to the compiler\n  Args that are intended to be forwarded to the program should be specified in programArgs\n  (e.g. --showtime should be in programArgs as --kktime)"
+              },
+              "programArgs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": null,
+                "description": "Additional args to pass to the program"
               }
             }
           }

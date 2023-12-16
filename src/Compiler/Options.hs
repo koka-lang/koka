@@ -192,7 +192,7 @@ data Flags
          , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
          , optSpecialize    :: Bool
          , mimallocStats    :: Bool
-         }
+         } deriving Eq
 
 flagsNull :: Flags
 flagsNull
@@ -942,6 +942,10 @@ data CC = CC{  ccName       :: String,
                ccObjFile    :: String -> FilePath   -- make object file namen
             }
 
+instance Eq CC where
+  CC{ccName = name1, ccPath = path1, ccFlags = flags1, ccFlagsBuild = flagsB1, ccFlagsCompile= flagsC1, ccFlagsLink=flagsL1} == 
+    CC{ccName = name2, ccPath = path2, ccFlags = flags2, ccFlagsBuild = flagsB2, ccFlagsCompile= flagsC2, ccFlagsLink=flagsL2}
+    = name1 == name2 && path1 == path2 && flags1 == flags2 && flagsB1 == flagsB2 && flagsC1 == flagsC2 && flagsL1 == flagsL2
 
 targetExeExtension target
   = case target of

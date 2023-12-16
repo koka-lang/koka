@@ -75,7 +75,7 @@ data Platform = Platform{ sizePtr   :: Int -- sizeof(intptr_t)
                         , sizeSize  :: Int -- sizeof(size_t)
                         , sizeField :: Int -- sizeof(kk_field_t), usually intptr_t but may be smaller for compression
                         , sizeHeader:: Int -- used for correct alignment calculation
-                        }
+                        } deriving Eq
 
 platform32, platform64, platform64c, platformJS, platformCS :: Platform
 platform32  = Platform 4 4 4 8

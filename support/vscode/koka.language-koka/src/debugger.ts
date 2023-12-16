@@ -28,7 +28,9 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 	/** An absolute path to the "program" to debug. */
 	program: string
 	/** Additional arguments */
-	args?: string
+	compilerArgs?: string
+	/** Additional arguments */
+	programArgs?: string[]
 	/** enable logging the Debug Adapter Protocol */
 	trace?: boolean
 	/** A single function to run (must have no effects and return a type that is showable)*/
@@ -191,11 +193,11 @@ class KokaRuntime extends EventEmitter {
 		}
 		// Args that are parsed by the compiler are in the args field. This leaves the rest of the object open for 
 		let additionalArgs = "--target=" + compilerTarget
-		if (args.args) {
-			additionalArgs = additionalArgs + " " + args.args
+		if (args.compilerArgs) {
+			additionalArgs = additionalArgs + " " + args.compilerArgs
 		}
 		try {
-			let resp = null 
+			let resp = null
 			if (args.functionName) {
 				resp = await this.client.sendRequest(ExecuteCommandRequest.type, { command: 'koka/interpretExpression', arguments: [args.program, args.functionName, additionalArgs] })
 			} else {
@@ -213,8 +215,8 @@ class KokaRuntime extends EventEmitter {
 				return;
 			}
 			if (target == 'C') {
-				// console.log(`Executing ${this.config.command} -e ${file} -i${this.config.cwd}`)
-				this.ps = child_process.spawn(resp, [], { cwd: this.config.cwd, env: process.env })
+				console.log(`Executing ${resp} ${args.programArgs ?? []}`)
+				this.ps = child_process.spawn(resp, args.programArgs ?? [], { cwd: this.config.cwd, env: process.env })
 				this.ps.stdout?.on('data', (data) => {
 					this.emit('output', data.toString().trim(), 'stdout')
 				})

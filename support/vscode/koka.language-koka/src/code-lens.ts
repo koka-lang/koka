@@ -17,50 +17,69 @@ export class MainCodeLensProvider implements vscode.CodeLensProvider {
     let has_main = false;
     console.log("Koka: Scanning document for main and test function");
     while (match = re_main.exec(doc)) {
-      if (has_main){
+      if (has_main) {
         console.log("Koka: Found multiple main functions. This is not supported in the compiler.")
         return [];
       }
       has_main = true;
-      lenses.push(this.createMainCodeLens(document, match.index, match[0].length))
+      lenses.push(...this.createMainCodeLens(document, match.index, match[0].length))
     }
     while (match = re_test.exec(doc)) {
-      if (has_main){
+      if (has_main) {
         console.log("Koka: Found both a main and a test function. Only the main function will be runnable via code lens.")
         break;
       }
-      lenses.push(this.createTestCodeLens(document, match.index, match[4], match[0].length))
+      lenses.push(...this.createTestCodeLens(document, match.index, match[4], match[0].length))
     }
     while (match = re_example.exec(doc)) {
-      if (has_main){
+      if (has_main) {
         console.log("Koka: Found both a main and an example function. Only the main function will be runnable via code lens.")
         break;
       }
-      lenses.push(this.createTestCodeLens(document, match.index, match[4], match[0].length))
+      lenses.push(...this.createTestCodeLens(document, match.index, match[4], match[0].length))
     }
     return lenses
   }
 
-  private createMainCodeLens(document: vscode.TextDocument, offset: number, len: number): vscode.CodeLens {
-    return new vscode.CodeLens(
+  private createMainCodeLens(document: vscode.TextDocument, offset: number, len: number): vscode.CodeLens[] {
+    return [new vscode.CodeLens(
       toRange(document, offset, len),
       {
         arguments: [document.uri],
         command: "koka.startWithoutDebugging",
-        title: `Run ${path.relative(this.config.cwd, document.uri.fsPath)}`,
-      }
-    )
+        title: `Run ${path.relative(this.config.cwd, document.uri.fsPath)} (debug)`,
+      },
+    ), new vscode.CodeLens(
+      toRange(document, offset, len),
+      {
+        arguments: [document.uri, "-O2", ["--kktime"]],
+        command: "koka.startWithoutDebugging",
+        title: `Run ${path.relative(this.config.cwd, document.uri.fsPath)} (release)`,
+        tooltip: "Run with compilation flag -O2\nGive argument --kktime to the executable"
+      },
+    ),
+    ]
   }
 
-  private createTestCodeLens(document: vscode.TextDocument, offset: number, functionName: string, len: number): vscode.CodeLens {
-    return new vscode.CodeLens(
+  private createTestCodeLens(document: vscode.TextDocument, offset: number, functionName: string, len: number): vscode.CodeLens[] {
+    return [new vscode.CodeLens(
       toRange(document, offset, len),
       {
         arguments: [document.uri, functionName],
         command: "koka.interpretExpression",
-        title: `Run ${functionName}`,
+        title: `Run ${functionName} (debug)`,
+      }
+    ),
+    new vscode.CodeLens(
+      toRange(document, offset, len),
+      {
+        arguments: [document.uri, functionName, "-O2", ["--kktime"]],
+        command: "koka.interpretExpression",
+        title: `Run ${functionName} (release)`,
+        tooltip: "Run with compilation flag -O2\nGive argument --kktime to the executable"
       }
     )
+    ]
   }
 }
 

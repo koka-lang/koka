@@ -40,7 +40,7 @@ import qualified Control.Exception as Exc
 import Compiler.Options (Flags)
 import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime, normalize, realPath)
 import GHC.IO (unsafePerformIO)
-import Compiler.Module (Module(..))
+import Compiler.Module (Module(..), initialLoaded)
 import Control.Monad (when, foldM)
 import Data.Time (addUTCTime, addLocalTime)
 import qualified Data.ByteString as J
@@ -136,8 +136,8 @@ updateVFS = do
   return newvfs
 
 -- Compiles a single expression (calling a top level function with no arguments) - such as a test method
-compileEditorExpression :: J.Uri -> Flags -> String -> String -> LSM (Maybe FilePath)
-compileEditorExpression uri flags filePath functionName = do
+compileEditorExpression :: J.Uri -> Flags -> Bool -> String -> String -> LSM (Maybe FilePath)
+compileEditorExpression uri flags force filePath functionName = do
   loaded <- getLoaded uri
   case loaded of
     Just loaded -> do
@@ -149,7 +149,7 @@ compileEditorExpression uri flags filePath functionName = do
           program = programAddImports (programNull nameInteractiveModule) imports
       term <- getTerminal
       -- reusing interpreter compilation entry point
-      let resultIO = compileExpression (maybeContents vfs) term flags loaded (Executable nameExpr ()) program 0 (functionName ++ "()")
+      let resultIO = compileExpression (maybeContents vfs) term flags (if force then initialLoaded else loaded) (Executable nameExpr ()) program 0 (functionName ++ "()")
       processCompilationResult normUri filePath False resultIO
     Nothing -> do
       return Nothing

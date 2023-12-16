@@ -146,26 +146,30 @@ function createCommands(
       })
     }),
     // Start a program given just a path
-    vscode.commands.registerCommand('koka.startWithoutDebugging', (resource: vscode.Uri) => {
+    vscode.commands.registerCommand('koka.startWithoutDebugging', (resource: vscode.Uri, compilerArgs?: string, programArgs?: string[]) => {
       const launchConfig =
       {
         name: `koka run: ${resource.path}`,
         request: "launch",
         type: "koka",
         program: resource.fsPath,
+        compilerArgs,
+        programArgs
       }
       console.log(`Launch config ${launchConfig}`)
       vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(resource), launchConfig as vscode.DebugConfiguration)
     }),
     // Start a program given a path and a function name
-    vscode.commands.registerCommand('koka.interpretExpression', (resource: vscode.Uri, functionName: string) => {
+    vscode.commands.registerCommand('koka.interpretExpression', (resource: vscode.Uri, functionName: string, compilerArgs?: string, programArgs?: string[]) => {
       const launchConfig =
       {
         name: `koka run: ${resource.path}`,
         request: "launch",
         type: "koka",
         program: resource.fsPath,
-        functionName: functionName
+        functionName,
+        compilerArgs,
+        programArgs
       }
       console.log(`Launch config ${launchConfig}`)
       vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(resource), launchConfig as vscode.DebugConfiguration)

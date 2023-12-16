@@ -38,9 +38,10 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
       Just [Json.String filePath, Json.String additionalArgs] -> do
         -- Update the flags with the specified arguments
         newFlags <- getNewFlags flags additionalArgs
+        let forceRecompilation = flags /= newFlags
         -- Recompile the file, but with executable target
         withIndefiniteProgress (T.pack "Compiling " <> filePath) J.NotCancellable $ do
-          res <- recompileFile (Executable (newName "main") ()) (J.filePathToUri $ T.unpack filePath) Nothing False newFlags
+          res <- recompileFile (Executable (newName "main") ()) (J.filePathToUri $ T.unpack filePath) Nothing forceRecompilation newFlags
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack ("Finished generating code for main file " ++ T.unpack filePath ++ " " ++ fromMaybe "No Compiled File" res)
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
@@ -54,10 +55,11 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
       Just [Json.String filePath, Json.String functionName, Json.String additionalArgs] -> do
         -- Update the flags with the specified arguments
         newFlags <- getNewFlags flags additionalArgs
+        let forceRecompilation = flags /= newFlags
         -- Compile the expression, but with the interpret target
         withIndefiniteProgress (T.pack "Interpreting " <> functionName) J.NotCancellable $ do
           -- compile the expression
-          res <- compileEditorExpression (J.filePathToUri $ T.unpack filePath) newFlags (T.unpack filePath) (T.unpack functionName)
+          res <- compileEditorExpression (J.filePathToUri $ T.unpack filePath) newFlags forceRecompilation (T.unpack filePath) (T.unpack functionName)
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack ("Finished generating code for interpreting function " ++ T.unpack functionName ++ " in file " ++ T.unpack filePath ++ " Result: " ++ fromMaybe "No Compiled File" res)
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
