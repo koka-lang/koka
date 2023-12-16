@@ -8,7 +8,7 @@ import * as semver from "semver"
 
 interface SDKs { sdkPath: string, allSDKs: string[] }
 const kokaExeName = os.platform() === "win32" ? "koka.exe" : "koka"
-const latestVersion = "2.4.2"
+const latestVersion = "2.4.3"
 
 const home = os.homedir();
 export async function scanForSDK(context: vscode.ExtensionContext, config: vscode.WorkspaceConfiguration): Promise<SDKs | undefined> {
@@ -55,6 +55,7 @@ export async function scanForSDK(context: vscode.ExtensionContext, config: vscod
       }
     }
   }
+  defaultSDK = config.get('languageServer.compiler') as string || defaultSDK
   if (defaultSDK === "" && !config.get('languageServer.compiler')) {
     console.log('Koka: No Koka SDK found')
     vs.window.showWarningMessage("Koka SDK not found on path or in ~/.local/bin")
@@ -179,7 +180,7 @@ export class KokaConfig {
     this.config = config
     this.debugExtension = config.get('debugExtension') as boolean
     this.defaultSDK = sdkPath
-    this.sdkPath = config.get('languageServer.compiler') as string || sdkPath
+    this.sdkPath = sdkPath
     this.allSDKs = allSDKs
     this.cwd = config.get('languageServer.cwd') as string || vscode.workspace.workspaceFolders![0].uri.fsPath
     this.langServerArgs = []
@@ -200,7 +201,7 @@ export class KokaConfig {
 
   selectSDK(path: string) {
     if (!fs.existsSync(path)) {
-      console.log(`Koka executable not found at this location ${path}`)
+      console.log(`Koka compiler not found at this location ${path}`)
       this.command = null
       return
     }
