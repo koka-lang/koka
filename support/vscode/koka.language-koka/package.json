@@ -172,6 +172,11 @@
                 "description": "File to run the main function from",
                 "default": "${workspaceFolder}/${command:AskForProgramName}"
               },
+              "functionName": {
+                "type": "string",
+                "description": "Name of the function to run",
+                "default": "main"
+              },
               "args": {
                 "type": "string",
                 "description": "Additional args to pass to the compiler (separate by -- to pass args to the program)"
