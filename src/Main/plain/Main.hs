@@ -76,8 +76,8 @@ mainMode flags flags0 mode p
      ModeVersion
       -> withNoColorPrinter (showVersion flags)
      ModeCompiler files
-      -> do 
-        errFiles <- foldM (\errfiles file -> 
+      -> do
+        errFiles <- foldM (\errfiles file ->
             do
               res <- compile p flags file
               if res then return errfiles
@@ -90,7 +90,7 @@ mainMode flags flags0 mode p
      ModeInteractive files
       -> interpret p flags flags0 files
      ModeLanguageServer files
-      -> do 
+      -> do
             putStr "Language server mode not supported in this build.\n"
             exitFailure
 

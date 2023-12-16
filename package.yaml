@@ -47,7 +47,7 @@ library:
     - -j8
     - -O2
   cpp-options:
-    - -DKOKA_MAIN="koka"      
+    - -DKOKA_MAIN="koka"
     - -DKOKA_VARIANT="release"
     - -DKOKA_VERSION="2.4.3"
     - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:isocline
@@ -60,8 +60,8 @@ library:
 executables:
   koka:
     main: Main.hs
-    source-dirs: lang-server
-    dependencies: 
+    source-dirs: src/Main/langserver
+    dependencies:
       - aeson
       - async
       - co-log-core
@@ -79,9 +79,9 @@ executables:
       - -threaded
       - '"-with-rtsopts=-N8"'
 
-  koka-nolsp:
+  koka-plain:
     main: Main.hs
-    source-dirs: app
+    source-dirs: src/Main/plain
     dependencies: koka
     ghc-options:
       - -rtsopts

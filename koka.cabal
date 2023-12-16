@@ -175,7 +175,7 @@ executable koka
       LanguageServer.Run
       Paths_koka
   hs-source-dirs:
-      lang-server
+      src/Main/langserver
   ghc-options: -rtsopts -j8 -O2 -threaded "-with-rtsopts=-N8"
   build-depends:
       aeson
@@ -201,12 +201,12 @@ executable koka
     , time
   default-language: Haskell2010
 
-executable koka-nolsp
+executable koka-plain
   main-is: Main.hs
   other-modules:
       Paths_koka
   hs-source-dirs:
-      app
+      src/Main/plain
   ghc-options: -rtsopts -j8 -O2 -threaded "-with-rtsopts=-N8"
   build-depends:
       array
