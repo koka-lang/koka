@@ -1,7 +1,7 @@
 {
   "name": "language-koka",
-  "displayName": "Koka Syntax Highlighting",
-  "description": "Official syntax support for the Koka programming language.",
+  "displayName": "Koka Language",
+  "description": "The official Koka programming language extension.",
   "version": "2.4.3",
   "publisher": "koka",
   "engines": {
@@ -74,35 +74,35 @@
         "koka.indentationRules.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Set to 'false' to disable automatically increasing indent on newlines after '{', 'match' etc."
+          "description": "Automatically increase indentation after '{', 'match' etc."
         },
         "koka.languageServer.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Set to 'true' to enable smarter language support (e.g. hover, code completion, ...) for Koka. Requires specifying the path to the Koka compiler under 'koka.languageServer.path'."
+          "description": "Enable the Koka language server (e.g. parse errors, hover, code completion, etc.) for Koka.\nMay require specifying the path to the Koka compiler under 'koka.languageServer.compiler'."
         },
-        "koka.languageServer.kokaExecutable": {
+        "koka.languageServer.compiler": {
           "type": "string",
           "default": null,
-          "description": "The command to launch the Koka language server (by default the extension assumes that 'koka' is on your PATH)"
+          "description": "The path of the Koka compiler. By default the extension assumes that 'koka' is on your PATH"
         },
-        "koka.languageServer.additionalArgs": {
+        "koka.languageServer.compilerArgs": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "default": null,
-          "description": "Additional arguments to send to the compiler when starting the language server"
+          "description": "Additional arguments used for compilation from the language server"
         },
         "koka.languageServer.cwd": {
           "type": "string",
           "default": "",
-          "description": "If specified, the directory in which the language server will be executed."
+          "description": "If specified, the directory in which the language server executes. Uses by default the current workspace root directory."
         },
         "koka.debugExtension": {
           "type": "boolean",
           "default": true,
-          "description": "Whether to log stdin / stdout trace information from the language server subprocess."
+          "description": "Log trace information from the language server subprocess."
         },
         "koka.languageServer.trace.server": {
           "scope": "window",
@@ -113,7 +113,7 @@
             "verbose"
           ],
           "default": "off",
-          "description": "Traces the communication between VS Code and the language server."
+          "description": "Trace messages between VS Code and the language server."
         }
       }
     },
@@ -179,7 +179,7 @@
               },
               "compilerArgs": {
                 "type": "string",
-                "description": "Additional args to pass to the compiler\n  Args that are intended to be forwarded to the program should be specified in programArgs\n  (e.g. --showtime should be in programArgs as --kktime)"
+                "description": "Additional arguments to pass to the compiler\nArguments that are intended to be passed to the compiled program should be specified in programArgs\n  (e.g. `--kktime`)"
               },
               "programArgs": {
                 "type": "array",
@@ -187,7 +187,7 @@
                   "type": "string"
                 },
                 "default": null,
-                "description": "Additional args to pass to the program"
+                "description": "Additional arguments to pass to the program"
               }
             }
           }

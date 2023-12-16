@@ -21,8 +21,8 @@ export function scanForSDK(config: vscode.WorkspaceConfiguration): SDKs | undefi
     let command = 'stack path --local-install-root'
     const ghc = `${home}/.ghcup/env`
     if (fs.existsSync(ghc)) {
-      // Linux ghcup installation does not show up in vscode's process.PATH, 
-      // ensure stack uses the correct ghc by sourcing the ghcup env script 
+      // Linux ghcup installation does not show up in vscode's process.PATH,
+      // ensure stack uses the correct ghc by sourcing the ghcup env script
       command = `${process.env.SHELL} -c "source ${ghc} && stack path --local-install-root"`
     }
 
@@ -53,7 +53,7 @@ export function scanForSDK(config: vscode.WorkspaceConfiguration): SDKs | undefi
       }
     }
   }
-  if (defaultSDK === "" && !config.get('languageServer.kokaExecutable')) {
+  if (defaultSDK === "" && !config.get('languageServer.compiler')) {
     console.log('Koka: No Koka SDK found')
     vs.window.showWarningMessage("Koka SDK not found on path or in ~/.local/bin")
     downloadSDK()
@@ -106,11 +106,11 @@ export class KokaConfig {
     this.config = config
     this.debugExtension = config.get('debugExtension') as boolean
     this.defaultSDK = sdkPath
-    this.sdkPath = config.get('languageServer.kokaExecutable') as string || sdkPath
+    this.sdkPath = config.get('languageServer.compiler') as string || sdkPath
     this.allSDKs = allSDKs
     this.cwd = config.get('languageServer.cwd') as string || vscode.workspace.workspaceFolders![0].uri.fsPath
     this.langServerArgs = []
-    this.additionalArgs = config.get('languageServer.additionalArgs') as string[] || []
+    this.additionalArgs = config.get('languageServer.compilerArgs') as string[] || []
     this.selectSDK(this.sdkPath)
     this.target = "C"
   }

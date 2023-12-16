@@ -12,5 +12,5 @@ fun fibonacci(n : int) : div int
 fun fib(n : int, x1 : int, x2 : int) : div int
   if n<=0 then x1 else fib(n - 1, x2, x1+x2)
 
-fun testx()
+pub fun testx()
   fibonacci(100).println

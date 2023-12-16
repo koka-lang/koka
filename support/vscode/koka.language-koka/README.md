@@ -1,11 +1,30 @@
-# Koka Syntax Highlighting
+# Koka Syntax Highlighting and Language Server
 
-Syntax highlighting support for the 
+Syntax highlighting and language server support for the
 Koka programming language in Visual Studio Code.
 
 Visit <https://koka-lang.github.io> for more information.
 
-## Token Classes
+## Language Server
+
+The language server continously analyses the code to show
+parse- and type errors, complete identifiers,
+show type information on hover, and
+can execute `main`, `test-xxx`, and `example-xxx` functions
+directly in the debug console.
+
+### Customize
+
+The extension shows "inlay hints" for inferred types of parameters
+and local declarations. You can toggle inlay hints on- and
+off in the editor inlay hints settings.
+In the extension settings, you can also set the Koka compiler
+path and specific compiler flags manually.
+
+
+## Syntax Highlighting
+
+### Token Classes
 
 * `koka.conid`: constructors.
 * `koka.op`: operators.
@@ -24,12 +43,12 @@ Visit <https://koka-lang.github.io> for more information.
 * `koka.comment`(`.line`|`.block`): comments.
 * `koka.comment.doc`(`.emph`|`.pre`|`.pre.type`|`.pre.block`): documentation inside a comment.
 
-## Customize
+### Customize
 
 You can customize the Koka syntax highlighting by editing
-the `settings.json` file of VS Code (press `Ctrl/Cmd+Shift+P` and 
+the `settings.json` file of VS Code (press `Ctrl/Cmd+Shift+P` and
 select "Open Settings (JSON)" to open it).
-Then add a [editor.tokenColorCustomizations](https://code.visualstudio.com/docs/getstarted/themes#_editor-syntax-highlighting) 
+Then add a [editor.tokenColorCustomizations](https://code.visualstudio.com/docs/getstarted/themes#_editor-syntax-highlighting)
 entry, for example:
 ```json
 "editor.tokenColorCustomizations": {
@@ -45,7 +64,7 @@ entry, for example:
     },
     { "scope": "koka.id.decl.function",
       "settings": { "foreground": "#cac199" }
-    },      
+    },
   ]
 }
 ```
