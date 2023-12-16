@@ -12,25 +12,29 @@ let languageServer: KokaLanguageServer;
 export async function deactivate() { }
 
 export async function activate(context: vscode.ExtensionContext) {
-  const vsConfig = vscode.workspace.getConfiguration('koka')
-  // We can always create the client, as it does nothing as long as it is not started
+  const vsConfig = vscode.workspace.getConfiguration('koka') // All configuration parameters are prefixed with koka
   console.log(`Koka: language server enabled ${vsConfig.get('languageServer.enabled')}`)
-  const { sdkPath, allSDKs } = scanForSDK(vsConfig)
+
+  // Create commands that do not depend on the language server
+  createBasicCommands(context, vsConfig);
+  console.log(context.globalStorageUri);
+  if (!vsConfig.get('languageServer.enabled')) {
+    return
+  }
+
+  const sdk = await scanForSDK(context, vsConfig)
+  if (!sdk){
+    return;
+  }
+  const { sdkPath, allSDKs } = sdk
   const kokaConfig = new KokaConfig(vsConfig, sdkPath, allSDKs)
   if (!kokaConfig.command) {
     vscode.window.showInformationMessage(`Koka SDK not functional: tried initializing from path: ${kokaConfig.sdkPath}\n All SDKs: ${allSDKs}`)
     return // No use initializing the rest of the extension's features
   }
 
-  // Create commands that do not depend on the language server
-  createBasicCommands(context);
-
-  if (vsConfig.get('languageServer.enabled')) {
-    languageServer = new KokaLanguageServer(context)
-    await languageServer.start(kokaConfig, context)
-  } else {
-    return
-  }
+  languageServer = new KokaLanguageServer(context)
+  await languageServer.start(kokaConfig, context)
 
   // create a new status bar item that we can now manage
   const selectSDKMenuItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100)
@@ -58,14 +62,16 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 // These commands do not depend on the language server
-function createBasicCommands(context: vscode.ExtensionContext) {
+function createBasicCommands(context: vscode.ExtensionContext, config: vscode.WorkspaceConfiguration) {
   context.subscriptions.push(
     // SDK management
-    vscode.commands.registerCommand('koka.downloadLatest', () => {
-      downloadSDK()
+    vscode.commands.registerCommand('koka.downloadLatest', async () => {
+      // Reset the download flag
+      await context.globalState.update('koka-download', true)
+      downloadSDK(context, config, true, undefined)
     }),
     vscode.commands.registerCommand('koka.uninstall', () => {
-      uninstallSDK()
+      uninstallSDK(context)
     })
   )
 }
@@ -90,7 +96,11 @@ function createCommands(
 ) {
   context.subscriptions.push(
     vscode.commands.registerCommand('koka.selectSDK', async () => {
-      const { sdkPath, allSDKs } = scanForSDK(config)
+      const sdk = await scanForSDK(context, config)
+      if (!sdk) {
+        return;
+      }
+      const { sdkPath, allSDKs } = sdk
       kokaConfig.allSDKs = allSDKs
       const result = await vscode.window.showQuickPick(kokaConfig.allSDKs)
       if (result) kokaConfig.selectSDK(result)
@@ -116,9 +126,12 @@ function createCommands(
           const languageServerIdx = context.subscriptions.indexOf(languageServer)
           if (languageServerIdx != -1) {
             context.subscriptions.splice(languageServerIdx, 1)
+          }         
+          const sdk = await scanForSDK(context, config)
+          if (!sdk) {
+            return;
           }
-
-          const { sdkPath, allSDKs } = scanForSDK(config)
+          const { sdkPath, allSDKs } = sdk
           const newConfig = new KokaConfig(config, sdkPath, allSDKs)
           languageServer = new KokaLanguageServer(context)
           await languageServer.start(newConfig, context)

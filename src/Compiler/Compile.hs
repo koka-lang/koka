@@ -606,7 +606,7 @@ resolveImportModules compileTarget maybeContents mname term flags currentDir res
     do -- trace ("\t" ++ show mname ++ ": resolving imported modules: " ++ show (impName imp) ++ ", resolved: " ++ show (map (show . modName) resolved0) ++ ", path:" ++ show importPath) $ return ()
        (mod,resolved1) <- case filter (\m -> impName imp == modName m) resolved0 of
                             (mod:_) -> 
-                              if modInMemory mod && not (isInMemory compileTarget) then resolveModule compileTarget maybeContents term flags currentDir resolved0 cachedModules importPath imp
+                              if modInMemory mod && not (isInMemory compileTarget) || Just flags /= modCompiled mod then resolveModule compileTarget maybeContents term flags currentDir resolved0 cachedModules importPath imp
                               else  
                                 return (mod,resolved0)
                             _       -> resolveModule compileTarget maybeContents term flags currentDir resolved0 cachedModules importPath imp
@@ -797,7 +797,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                           outIFace <- liftIO $ copyIFaceToOutputDir term flags iface core
                           let mod = Module (Core.coreName core) outIFace (joinPath root stem) pkgQname pkgLocal []
                                               Nothing -- (error ("getting program from core interface: " ++ iface))
-                                                core True False (Left parseInlines) Nothing ftime (Just iftime) Nothing
+                                                core (Just flags) False (Left parseInlines) Nothing ftime (Just iftime) Nothing
                           return mod
              loadFromModule mname (modPath mod){-iface-} root stem (joinPath root stem) mod
 
@@ -1133,7 +1133,7 @@ inferCheck loaded0 flags line coreImports program
                                                     modCore     = coreProgramFinal,
                                                     modRangeMap = mbRangeMap,
                                                     modInlines  = Right allInlineDefs,
-                                                    modCompiled = True
+                                                    modCompiled = Just flags
                                                   }
                                 , loadedInlines = inlinesExtends allInlineDefs (loadedInlines loaded)
                                 }
