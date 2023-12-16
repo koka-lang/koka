@@ -61,7 +61,7 @@ By default the language server support is enabled. To disable it, add the follow
 If you would like additional arguments to all invocations of the compiler, you can add them to your `settings.json` file:
 ```json
 {
-  "koka.languageServer.additionalArgs": ["--verbose"],
+  "koka.languageServer.compilerArgs": ["--verbose"],
 }
 ```
 

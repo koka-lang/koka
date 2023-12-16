@@ -200,7 +200,7 @@ export class KokaConfig {
 
   selectSDK(path: string) {
     if (!fs.existsSync(path)) {
-      console.log(`Koka executable not found at this location ${path}`)
+      console.log(`Koka compiler not found at this location ${path}`)
       this.command = null
       return
     }
