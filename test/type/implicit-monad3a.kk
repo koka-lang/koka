@@ -27,14 +27,14 @@ val monadplus_maybe = Monadplus( monad_maybe, fn(m1,m2) match m1
                                                           Just    -> m1
                                )
 
-fun monad_monadplus( ??monadplus )
+fun monad_monadplus( ??monadplus : monadplus<m> ) : monad<m>
   xmonad
 
 
 fun mbind( m, f, ??monad )
   bind(m,f)
 
-fun mpure( x, ??monad )
+fun mpure( x : a, ??monad : monad<m> ) : m<a>
   pure(x)
 
 fun testtwice<m,a>( m : m<a>, ??monadplus : monadplus<m> ) : m<list<a>>
@@ -44,11 +44,11 @@ fun testtwice<m,a>( m : m<a>, ??monadplus : monadplus<m> ) : m<list<a>>
 
 // exceptions
 fun test1()
-  match [Just(1), Just(2)].sequence(?monad=monad_maybe)
+  match [Just(1), Just(2)].sequence // resolves to `(?monad=monad_maybe)` as `monad_monadplus(monadplus_maybe)` is longer
     Just(xs) -> xs.show
     Nothing  -> "Nothing"
 
 // list of successes
 fun test2()
-  [[1],[2,3],[4,5,6]].sequence(?monad=monad_list).show-list(show)
+  [[1],[2,3],[4,5,6]].sequence.show-list(show)
 

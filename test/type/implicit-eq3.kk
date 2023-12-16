@@ -48,10 +48,21 @@ fun cmp_list<a>( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> order ) : order
 // can be resolved as `?eq = eq_int` but also with `?eq = eq_cmp(cmp_int)`
 // We cannot just prefer values, since `([1],[2]).equal`
 // can be resolved as `?eq = eq_list(eq_int)` but also as `?eq = eq_cmp(cmp_list(cmp_int))`.
-// Maybe we should prefer shortest chains?
-fun eq-cmp( x : a, y : a, ?cmp : (a,a) -> order ) : bool
+// We instead prefer shortest chains (using the most locals)
+fun eq_cmp( x : a, y : a, ?cmp : (a,a) -> order ) : bool
   cmp(x,y) == Eq
 
+fun test3()
+  equal(1,2)  // use `eq_int` instead of `eq_cmp(cmp_int)` as it is shorter
+
+fun test4a(x : int, y :int, ?cmp : (int,int) -> order)
+  (equal(x,y)  // use `eq_cmp(cmp)` to prefer implicits from the local declarations (instead of the global `eq_int`)
+  ,comp(x,y))
+
+fun test4b(x : int, y :int)
+  val cmp = cmp_int
+  (equal(x,y)  // use `eq_cmp(cmp)` to prefer implicits from the local declarations (instead of the global `eq_int`)
+  ,comp(x,y))
 
 fun show( ord : order ) : string
   match ord
@@ -63,16 +74,16 @@ fun comp<a>( x : a, y : a, ?cmp : (a,a) -> order ) : order
   cmp(x,y)
 
 
-fun test3()
+fun test5()
   comp([1,2],[1,3]).show.println
 
 
 fun cmp-and-eq(xs : list<a>, y : a, ?cmp : (a,a) -> order) : bool
-  fun cmpl(a,b) cmp_list(a,b)  // haskell could infer this from `instance Ord a => Ord [a]`)
-  fun eq(a,b)   eq-cmp(a,b)    // haskell could infer this from `class Eq a => Cmp a`
-  (comp(xs,xs,?cmp=cmpl) == Eq) && // we cannot resolve this automatically to `cmp_list` since `cmp` is in the local scope
-   equal(y,y) &&  // this could be resolved automatically without the local `eq` if we had `eq_cmp`
+  //fun cmpl(a,b) cmp_list(a,b)  // haskell could infer this from `instance Ord a => Ord [a]`)
+  // fun eq(a,b)   eq_cmp(a,b)    // haskell could infer this from `class Eq a => Ord a`
+  (comp(xs,xs) == Eq) && // we can resolve this automatically to `cmp_list(cmp)` since `cmp` directly does not type check
+   equal(y,y) &&  // this can be resolved automatically without the local `eq` since we have `eq_cmp`
    contains(xs,y)
 
-fun test4()
+fun test6()
   ['a','b'].cmp-and-eq('a')

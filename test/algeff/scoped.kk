@@ -192,32 +192,6 @@ fun number()
   val ds = many1(digit)
   parse-int(ds.join).maybe(0)
 
-
-fun expr() : <div,nondet,symbol> int
-  choice {
-    val i :int = term()
-    symbol("+")
-    val j = term()
-    i+j
-  }
-  { term() }
-
-fun term()
-  choice {
-    val i : int = factor()
-    symbol("*")
-    val j = factor()
-    i*j
-  }
-  { factor() }
-
-fun factor() : <nondet,symbol> int
-  choice(number)
-    symbol("(")
-    //val i = expr()
-    symbol(")")
-    1
-
 fun expr() : <div,nondet,symbol> int {
   choice {
     val i : int = term()
@@ -246,7 +220,7 @@ fun factor() {
     i
   }
 }
-*/
+
 /*
 fun test5() {
   solutions{ parse("2+8*5"){ expr() } }

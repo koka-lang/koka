@@ -1857,7 +1857,7 @@ isAmbiguous :: NameContext -> Expr Type -> Inf Bool
 isAmbiguous ctx expr
   = case expr of
       (Var name isOp nameRange)
-        -> do matches <- lookupNameEx (const True) False name ctx nameRange
+        -> do matches <- lookupNameEx (const True) name ctx nameRange
               case matches of
                 []  -> return False
                 [_] -> return False
@@ -1888,7 +1888,7 @@ inferArgsN ctx range parArgs
   = do res <- inferArg [] parArgs
        return (unzip res)
   where
-    inferArgExpr tp argexpr
+    inferArgExpr tp argexpr  -- TODO: add context for better error messages for implicit parameters?
       = allowReturn False $
         inferExpr (Just (tp,getRange argexpr))
           (if isRho tp then Instantiated else Generalized False)
@@ -1904,24 +1904,7 @@ inferArgsN ctx range parArgs
                                  ArgCore (_,ctp,ceff,carg)
                                    -> return (ctp,ceff,carg)  -- TODO: generalize polymorphic parameters?
                                  ArgImplicit name rng
-                                   -> do traceDoc $ \env -> text "resolving" <+> ppParam env (name,tpar0)
-                                         (ename,etp,info) <- resolveImplicitName name tpar0 rng
-                                         traceDoc $ \env -> text "resolved implicit name" <+> ppParam env (ename,etp)
-                                         let argexpr  = case splitFunScheme etp of
-                                                          Just (_,_,fpars,_,_)
-                                                            | not (isFun tpar0) && all Op.isOptionalOrImplicit fpars
-                                                            -> -- call unit function
-                                                              App (Var ename False rng) [] rng
-
-                                                            | any Op.isOptionalOrImplicit fpars
-                                                            -> -- eta expand to resolve further implicit parameters (recursively!)
-                                                              let argnames = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] (filter (not . Op.isOptionalOrImplicit) fpars)]
-                                                              in  Lam [ValueBinder name Nothing Nothing rng rng | name <- argnames]
-                                                                      (App (Var ename False rng)
-                                                                          [(Nothing,Var name False rng) | name <- argnames]
-                                                                          rng)
-                                                                      rng
-                                                          _ -> Var ename False rng
+                                   -> do argexpr <- resolveImplicitName name tpar0 rng
                                          inferArgExpr tpar0 argexpr
 
            tpar1  <- subst tpar0
@@ -2083,7 +2066,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                  extendSub (subSingle tv (TFun targs teff tres))
                                  return (zip [0..] (map ArgExpr (fixed ++ map snd named)), targs,teff,tres,Core.App)
        _  -> do -- apply the copy constructor if we can find it
-                matches <- lookupNameEx (const True) False nameCopy (CtxFunTypes True [tp] [] Nothing) range
+                matches <- lookupNameEx (const True) nameCopy (CtxFunTypes True [tp] [] Nothing) range
                 case matches of
                   [(qname,info)]
                     -> do (contp,_,coreInst) <- instantiateEx range (infoType info)
@@ -2185,7 +2168,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
         isDelayed expr
           = case expr of
               Lam [] _ _   -> return True
-              Var name _ _ -> do matches <- lookupNameEx (const True) False name (CtxFunArgs 0 [] Nothing) (getRange expr)
+              Var name _ _ -> do matches <- lookupNameEx (const True) name (CtxFunArgs 0 [] Nothing) (getRange expr)
                                  case matches of
                                    [(_,info)] -> return (isDelayedType (infoType info))
                                    _          -> return False

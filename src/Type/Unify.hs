@@ -79,8 +79,8 @@ overlaps range free tp1 tp2
 
 
 
--- | Does a type have the given named arguments?
-matchNamed :: Range -> Tvs -> Type -> Int -> [Name] -> Maybe Type -> Unify ()
+-- | Does a type have the given named arguments? Return the instantiated type if successful.
+matchNamed :: Range -> Tvs -> Type -> Int -> [Name] -> Maybe Type -> Unify Rho
 matchNamed range free tp n {- given args -} named mbExpResTp
   = do rho1 <- instantiate range tp
        case splitFunType rho1 of
@@ -98,14 +98,14 @@ matchNamed range free tp n {- given args -} named mbExpResTp
                                                   return ()
                                let rest = [(nm,tp) | (nm,tp) <- npars, not (nm `elem` named)]
                                if (all isOptionalOrImplicit rest)
-                                then return ()
+                                then subst rho1
                                 else unifyError NoMatch
                        else unifyError NoMatch
 
 
 -- | Does a function type match the given arguments? if the first argument 'matchSome' is true,
 -- it is considered a match even if not all fixed arguments to the function are supplied
-matchArguments :: Bool -> Range -> Tvs -> Type -> [Type] -> [(Name,Type)] -> Maybe Type -> Unify ()
+matchArguments :: Bool -> Range -> Tvs -> Type -> [Type] -> [(Name,Type)] -> Maybe Type -> Unify Rho
 matchArguments matchSome range free tp fixed named mbExpResTp
   = do rho1 <- instantiate range tp
        case splitFunType rho1 of
@@ -129,7 +129,7 @@ matchArguments matchSome range free tp fixed named mbExpResTp
                         Just expTp -> do subsume range free expTp resTp
                                          return ()
                       if (matchSome || all isOptionalOrImplicit rest)
-                       then return ()
+                       then subst rho1
                        else unifyError NoMatch
 
 {--------------------------------------------------------------------------
@@ -141,7 +141,7 @@ matchArguments matchSome range free tp fixed named mbExpResTp
 -- applied to the expression of type @t2@. Also returns a new type for the
 -- expected type @tp1@ where 'some' types have been properly substituted (and
 -- may be quantified).
-subsume :: Range -> Tvs -> Type -> Type -> Unify (Type,[Evidence], Core.Expr -> Core.Expr)
+subsume :: Range -> Tvs -> Type -> Type -> Unify (Type,Rho,[Evidence], Core.Expr -> Core.Expr)
 subsume range free tp1 tp2
   = -- trace (" subsume: " ++ show (tp1,tp2) ++ ", free: " ++ show (tvsList free)) $
     do -- skolemize,instantiate and unify
@@ -166,7 +166,7 @@ subsume range free tp1 tp2
        let subx = ssub @@ sub
            tp = quantifyType vars (qualifyType [(subx |-> evPred ev) | ev <- evs1] (subx |-> rho1)) -- TODO: do rho1 and we get skolem errors: see 'Prelude.choose'
        -- return
-       return (tp, subx |-> evsEnt,
+       return (tp, sub |-> rho2, subx |-> evsEnt,
                 (\expr -> Core.addTypeLambdas vars $     -- generalize
                           subx |-> (coreEnt $                      -- apply evidence evs2 & abstract evidence evs1
                                     Core.addTypeApps tvs expr)))   -- instantiate

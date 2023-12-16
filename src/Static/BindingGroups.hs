@@ -251,8 +251,8 @@ instance HasFreeVar (Pattern t) where
 
 instance HasFreeVar (Expr t) where
   freeVar expr = case expr of
-      Lam binders body rng -> foldr (\b fv -> S.delete (binderName b) fv) (freeVar body) binders        
-      Bind def body rng    -> S.union (freeVar (defBody def)) (S.delete (defName def) (freeVar body))                              
+      Lam binders body rng -> foldr (\b fv -> S.delete (binderName b) fv) (freeVar body) binders
+      Bind def body rng    -> S.union (freeVar (defBody def)) (S.delete (defName def) (freeVar body))
       Let group body rng   -> let (fv,bound) = freeBoundVar group
                               in S.union fv (S.difference (freeVar body) bound)
       Var name op rng      -> if isConstructorName name
@@ -266,13 +266,13 @@ instance HasFreeVar (Expr t) where
       Inject tp body b rng -> freeVar body
       Handler shallow scoped override allowMask eff pars reinit ret final ops hrng rng
         -> let fvs = S.unions [freeVar ret, freeVar ops, freeVar reinit, freeVar final]
-           in S.difference fvs (S.fromList (map binderName pars)) 
+           in S.difference fvs (S.fromList (map binderName pars))
 
 
 instance HasFreeVar (HandlerBranch t) where
   freeVar (HandlerBranch{ hbranchName=name, hbranchPars=pars, hbranchExpr=expr })
     = S.difference (freeVar expr) (S.fromList (map getName pars))
-  
+
 instance HasFreeVar (Branch t) where
   freeVar (Branch pattern guards)
     = S.difference (freeVar guards) (freeVar pattern)
@@ -282,7 +282,7 @@ instance HasFreeVar (Guard t) where
     = S.union (freeVar test) (freeVar expr)
 
 freeBoundVar :: DefGroup t -> (FreeVar,FreeVar)
-freeBoundVar (DefNonRec def) 
+freeBoundVar (DefNonRec def)
   = (S.singleton (defName def), freeVar (defBody def))
 freeBoundVar (DefRec defs)
   = let bound = S.fromList (map defName defs)
@@ -291,8 +291,8 @@ freeBoundVar (DefRec defs)
 
 
 hasFreeVar :: Expr t -> Name -> Bool
-hasFreeVar expr name 
-  = S.member name (freeVar expr) 
+hasFreeVar expr name
+  = S.member name (freeVar expr)
 
 unzipWith (f,g) xs
   = let (x,y) = unzip xs in (f x, g y)
@@ -324,7 +324,13 @@ group defs deps
                         isHidden ids = case ids of
                                          [id] -> isHiddenName id
                                          _ -> False
-                    in (xxs++xys++ys)
+                                                             -- and "instances"  (`eq_int`) first inside those
+                        partitionx f xs  = let (ys,zs) = partition f xs in (ys ++zs)
+                        isprefix ids     = case ids of
+                                             [id] -> '_' `elem` (tail (nameId id))
+                                             _    -> False
+
+                    in (xxs ++ partitionx isprefix xys ++ partitionx isprefix ys)
         -- create a map from definition id's to definitions.
         defMap   = M.fromListWith (\xs ys -> ys ++ xs) [(defName def,[def]) | def <- defs]
         -- create a definition group from a list of mutual recursive identifiers.
