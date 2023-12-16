@@ -4,6 +4,7 @@
 # - util/install.bat
 # - util/Dockerfile
 # - util/minbuild
+# - support/vscode/koka.language-koka/src/workspace.ts
 
 name:       koka
 version:    2.4.3

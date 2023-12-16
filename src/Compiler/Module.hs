@@ -47,6 +47,7 @@ import Syntax.RangeMap
 import Compiler.Package       ( PackageName, joinPkg )
 import qualified Core.Core as Core
 import Data.Maybe (fromJust)
+import Compiler.Options (Flags)
 
 {--------------------------------------------------------------------------
   Compilation
@@ -62,7 +63,7 @@ data Module  = Module{ modName        :: Name
                      , modWarnings    :: [(Range,Doc)]
                      , modProgram     :: Maybe (Program UserType UserKind) -- not for interfaces
                      , modCore        :: Core.Core
-                     , modCompiled    :: Bool
+                     , modCompiled    :: Maybe Flags
                      , modInMemory    :: Bool
                      , modInlines     :: Either (Gamma -> Error () [Core.InlineDef]) ([Core.InlineDef])
                      , modRangeMap    :: Maybe RangeMap
@@ -110,7 +111,7 @@ initialLoaded
 
 moduleNull :: Name -> Module
 moduleNull modName
-  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) False True (Left (\g -> return [])) Nothing fileTime0 Nothing Nothing
+  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) Nothing True (Left (\g -> return [])) Nothing fileTime0 Nothing Nothing
 
 loadedName :: Loaded -> Name
 loadedName ld
