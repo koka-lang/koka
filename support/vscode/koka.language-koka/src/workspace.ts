@@ -57,7 +57,7 @@ export function scanForSDK(config: vscode.WorkspaceConfiguration): SDKs | undefi
     console.log('Koka: No Koka SDK found')
     vs.window.showWarningMessage("Koka SDK not found on path or in ~/.local/bin")
     downloadSDK()
-  } 
+  }
   return { sdkPath: defaultSDK, allSDKs: allSDKs }
 }
 
@@ -68,14 +68,14 @@ export async function downloadSDK() {
     'Yes',
     'No'
   )
-  if (decision == 'No'){
+  if (decision == 'No') {
     return
   }
   let command = "curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh"
   if (os.platform() === "win32") {
     command = "curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat"
   }
-  const term = vscode.window.createTerminal({name: "Install Koka", cwd: home, shellPath: DefaultShellPath, isTransient: true, message: "Installing Koka, restart your editor when finished"}) 
+  const term = vscode.window.createTerminal({ name: "Install Koka", cwd: home, shellPath: DefaultShellPath, isTransient: true, message: "Installing Koka, restart your editor when finished" })
   term.sendText(command)
   term.show()
 }
@@ -87,19 +87,19 @@ export async function uninstallSDK() {
     'Yes',
     'No'
   )
-  if (decision == 'No'){
+  if (decision == 'No') {
     return
   }
   let command = "curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh -s -- -u -f"
   if (os.platform() === "win32") {
     command = "curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat -u -f"
   }
-  const term = vscode.window.createTerminal({name: "Uninstall Koka", cwd: home, shellPath: DefaultShellPath, isTransient: true, message: "Uninstalling Koka, you can close the terminal when done"}) 
+  const term = vscode.window.createTerminal({ name: "Uninstall Koka", cwd: home, shellPath: DefaultShellPath, isTransient: true, message: "Uninstalling Koka, you can close the terminal when done" })
   term.sendText(command)
   term.show()
 }
 
-const DefaultShellPath = os.platform() === "win32" ? "C:\Windows\System32\cmd.exe" : null
+const DefaultShellPath = os.platform() === "win32" ? "C:\\Windows\\System32\\cmd.exe" : null
 
 export class KokaConfig {
   constructor(config: vscode.WorkspaceConfiguration, sdkPath: string, allSDKs: string[]) {
