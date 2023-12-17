@@ -307,9 +307,11 @@ compileModuleOrFile maybeContents contents term flags modules fname force compil
       = isAlphaNum c || c `elem` "/_"
 
 compileFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> CompileTarget () -> [Name] -> FilePath -> IO (Error Loaded (Loaded, Maybe FilePath))
-compileFile maybeContents contents term flags modules compileTarget importPath fpath
+compileFile maybeContents contents term flags modules compileTarget importPath fpath0
   = runIOErr $
-    do mbP <- liftIO $ searchSourceFile flags "" fpath
+    do file1 <- liftIO $ realPath fpath0
+       let fpath = normalize file1
+       mbP <- liftIO $ searchSourceFile flags "" fpath
        case mbP of
          Nothing -> liftError $ errorMsg (errorFileNotFound flags fpath)
          Just (root,stem)
@@ -325,7 +327,7 @@ makeRelativeToPaths paths fname
   = let (root,stem) = case findMaximalPrefix paths fname of
                         Just (n,root) -> (root,drop n fname)
                         _             -> ("", fname)
-    in -- trace ("relative path of " ++ fname ++ " = " ++ show (root,stem)) $
+    in -- trace ("relative path of " ++ fname ++ " with paths " ++ show paths ++ " = " ++ show (root,stem)) $
        (root,stem)
 
 
@@ -349,7 +351,8 @@ compileProgram term flags modules compileTarget fname program importPath
 
 compileProgramFromFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> CompileTarget () -> [Name] -> FilePath -> FilePath -> IOErr Loaded (Loaded, Maybe FilePath)
 compileProgramFromFile maybeContents contents term flags modules compileTarget importPath rootPath stem
-  = do fname <- liftIO $ realPath $ normalize $ joinPath rootPath stem
+  = do fname0 <- liftIO $ realPath $ joinPath rootPath stem
+       let fname = normalize fname0
        -- trace ("compileProgramFromFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $ return ()
        liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+> color (colorSource (colorScheme flags)) (text (normalizeWith '/' fname)))
        exist <- liftIO $ doesFileExist fname
@@ -392,7 +395,7 @@ compileProgram' maybeContents term flags modules compileTarget fname program imp
        ftime <- liftIO (getCurrentFileTime fname maybeContents)
        let mod    = (moduleNull name){
                       modPath = outIFace,
-                      modSourcePath = normalize fname,
+                      modSourcePath = fname,
                       modProgram = (Just program),
                       modCore = failure ("Compiler.Compile.compileProgram: recursive module import (" ++ fname ++ ")"),
                       modTime = ftime
@@ -695,7 +698,7 @@ resolveModule maybeContents term flags currentDir modules importPath mimp
               -- trace ("loadDepend: " ++ show (ifaceTime, sourceTime)) $ return ()
               case lookupImport iface modules of
                   Just mod ->
-                    if (srcpath /= forceModule flags && modTime mod == sourceTime)
+                    if (srcpath /= forceModule flags && modTime mod >= sourceTime)
                      then -- trace ("module " ++ show (name) ++ " already loaded") $
                           return (mod,modules) -- TODO: revise! do proper dependency checking instead..
                     else if (not (rebuild flags) && srcpath /= forceModule flags && ifaceTime >= sourceTime)
@@ -755,8 +758,6 @@ resolveModule maybeContents term flags currentDir modules importPath mimp
                else do liftIO $ copyPkgIFaceToOutputDir term flags iface (modCore mod) (modPackageQPath mod) imports
                        let allmods = addOrReplaceModule mod resolved1
                        return (mod{ modSourcePath = normalize $ joinPath root source }, allmods)
-
-
 
 
 lookupImport :: FilePath {- interface name -} -> Modules -> Maybe Module
