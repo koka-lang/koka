@@ -191,8 +191,8 @@ class KokaRuntime extends EventEmitter {
 				compilerTarget = 'c'
 				break
 		}
-		// Args that are parsed by the compiler are in the args field. This leaves the rest of the object open for 
-		let additionalArgs = "--target=" + compilerTarget
+		// Args that are parsed by the compiler are in the args field. This leaves the rest of the object open for
+		let additionalArgs = "--buildtag=vscode --target=" + compilerTarget
 		if (args.compilerArgs) {
 			additionalArgs = additionalArgs + " " + args.compilerArgs
 		}
