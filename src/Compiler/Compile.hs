@@ -173,7 +173,7 @@ bindIO io f
   = do err <- io
        case checkPartial err of
          Left (msg, b) -> return (errorMsgPartial msg b)
-         Right (x,w,b)  -> fmap (flip addPartialResult b . addWarnings w) (f x) 
+         Right (x,w,b)  -> fmap (flip addPartialResult b . addWarnings w) (f x)
 
 gammaFind name g
   = case (gammaLookupQ name g) of
@@ -416,7 +416,7 @@ compileProgram' maybeContents term flags modules cachedModules compileTarget fna
        liftIO $ termPhase term ("resolve imports " ++ show (getName program))
        loaded1 <- resolveImports depTarget maybeContents (getName program) term flags (dirname fname) loaded cachedModules importPath (map ImpProgram (programImports program))
        -- trace (" loaded modules: " ++ show (map modName (loadedModules loaded1))) $ return ()
-       --trace ("------\nloaded1:\n" ++ show (loadedNewtypes loaded1) ++ "\n----") $ return ()       
+       --trace ("------\nloaded1:\n" ++ show (loadedNewtypes loaded1) ++ "\n----") $ return ()
        -- trace ("inlines: "  ++ show (loadedInlines loaded1)) $ return ()
 
        if (name /= nameInteractiveModule || verbose flags > 0)
@@ -429,7 +429,7 @@ compileProgram' maybeContents term flags modules cachedModules compileTarget fna
                                           (imp:_) -> importVis imp -- TODO: get max
                               in if (modName mod == name) then []
                                   else [Core.Import (modName mod) (modPackagePath mod) vis (Core.coreProgDoc (modCore mod))]
-        
+
        (loaded2a, coreDoc) <- liftErrorPartial loaded1 $ typeCheck loaded1 flags 0 coreImports program ftime
        when (showCore flags) $
          liftIO (termDoc term (vcat [
@@ -605,9 +605,9 @@ resolveImportModules compileTarget maybeContents mname term flags currentDir res
       else
     do -- trace ("\t" ++ show mname ++ ": resolving imported modules: " ++ show (impName imp) ++ ", resolved: " ++ show (map (show . modName) resolved0) ++ ", path:" ++ show importPath) $ return ()
        (mod,resolved1) <- case filter (\m -> impName imp == modName m) resolved0 of
-                            (mod:_) -> 
+                            (mod:_) ->
                               if modInMemory mod && not (isInMemory compileTarget) || Just flags /= modCompiled mod then resolveModule compileTarget maybeContents term flags currentDir resolved0 cachedModules importPath imp
-                              else  
+                              else
                                 return (mod,resolved0)
                             _       -> resolveModule compileTarget maybeContents term flags currentDir resolved0 cachedModules importPath imp
        -- trace ("\tnewly resolved from " ++ show (modName mod) ++ ": " ++ show (map (show . modName) resolved1)) $ return ()
@@ -644,7 +644,7 @@ maybeGetCurrentFileTime fp maybeContents = do
     Nothing -> do
       -- trace ("File " ++ show fp ++ " not in virtual filesystem") $ return ()
       ft <- getFileTime fp
-      if ft == fileTime0 then return Nothing else return $ -- (trace $ "Get maybe " ++ show ft) $ 
+      if ft == fileTime0 then return Nothing else return $ -- (trace $ "Get maybe " ++ show ft) $
         Just ft
 
 resolveModule :: CompileTarget () -> (FilePath -> Maybe (BString, FileTime)) -> Terminal -> Flags -> FilePath -> [Module] -> Modules -> [Name] -> ModImport -> IOErr Loaded (Module,[Module])
@@ -774,7 +774,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
               (loadedImp, _) <- compileProgramFromFile maybeContents (fst <$> maybeContents (normalize f)) term flags modules1 cachedModules (if genUpdate then Object else compileTarget) importPath root stem
               let mod = loadedModule loadedImp
                   allmods = addOrReplaceModule mod modules
-              return (mod, loadedModules loadedImp)              
+              return (mod, loadedModules loadedImp)
 
       loadFromIface iface root stem mname
         = -- trace ("loadFromIFace: " ++  iface ++ ": root:" ++ root ++ " stem:" ++ stem ++ "\n in modules: " ++ show (map modName modules)) $
@@ -809,7 +809,7 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
              -- (loadedImp,impss) <- resolveImports term flags (dirname iface) loaded (map ImpCore (Core.coreProgImports (modCore mod)))
              (imports,resolved1) <- resolveImportModules compileTarget maybeContents name term flags (dirname iface) modules cachedModules (name:importPath) (map ImpCore (Core.coreProgImports (modCore mod)))
              let latest = maxFileTimes (map modSourceTime imports)
-             
+
              let allmods = addOrReplaceModule mod resolved1
                  result = (mod{ modSourcePath = normalize $ joinPath root stem }, allmods)
               -- trace ("loaded iface: " ++ show iface ++ "\n time: "  ++ show (modTime mod) ++ "\n latest: " ++ show (latest)) $ return ()
@@ -834,15 +834,15 @@ resolveModule compileTarget maybeContents term flags currentDir modules cachedMo
                                         color (colorSource (colorScheme flags))
                                           (pretty (modName mod)))
                       liftIO $ copyPkgIFaceToOutputDir term flags iface (modCore mod) (modPackageQPath mod) imports
-                      let loaded = initialLoaded { 
+                      let loaded = initialLoaded {
                                     loadedModule = mod,
                                     loadedModules = allmods
                                   }
                       (newLoaded, _) <- liftIO $! codeGen term flags Object loaded
                       return (loadedModule newLoaded, loadedModules newLoaded)
                     else return result
-        
-          
+
+
 
 
 lookupImport :: FilePath {- interface name -} -> Modules -> Maybe Module
@@ -851,7 +851,7 @@ lookupImport imp (mod:mods)
   = if (modPath mod == imp)
      then Just (mod)
      else
-      -- trace ("lookupImport: " ++ show imp ++ " /= " ++ show (modPath mod)) $ 
+      -- trace ("lookupImport: " ++ show imp ++ " /= " ++ show (modPath mod)) $
       lookupImport imp mods
 
 lookupImportName :: Name -> Modules -> Maybe Module
@@ -860,7 +860,7 @@ lookupImportName imp (mod:mods)
   = if modName mod == imp
      then Just mod
      else
-      -- trace ("lookupImportName: " ++ show imp ++ " /= " ++ show (modName mod)) $ 
+      -- trace ("lookupImportName: " ++ show imp ++ " /= " ++ show (modName mod)) $
       lookupImportName imp mods
 
 
@@ -989,13 +989,13 @@ inferCheck loaded0 flags line coreImports program
 
             traceDefGroups title
               = do dgs <- Core.getCoreDefs
-                   -- let doc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] 
+                   -- let doc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C []
                    --            (coreProgram{ Core.coreProgDefs = dgs })
                    trace (unlines (["","/* -----------------", title, "--------------- */"] ++ -- ++ [show doc])) $ return ()
                            map showDef (Core.flattenDefGroups dgs))) $ return ()
               where
                 showDef def = show (Core.Pretty.prettyDef (penv{coreShowDef=True}) def)
-      
+
        -- Type inference
        (gamma,cdefs,mbRangeMap)
          <- inferTypes
@@ -1051,7 +1051,7 @@ inferCheck loaded0 flags line coreImports program
        simplifyDupN
        -- traceDefGroups "inlined"
 
-       -- specialize 
+       -- specialize
        specializeDefs <- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else
                          Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
        -- traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
@@ -1091,7 +1091,7 @@ inferCheck loaded0 flags line coreImports program
 
        -- simplify open applications (needed before inlining open defs)
        simplifyNoDup
-       -- traceDefGroups "open resolved"  
+       -- traceDefGroups "open resolved"
 
        -- monadic lifting to create fast inlined paths
        monadicLift penv
@@ -1239,7 +1239,7 @@ codeGen term flags compileTarget loaded
                              -- imported modules.
                              newtypesAll = foldr1 newtypesCompose (map (extractNewtypes . modCore) (loadedModule loaded : loadedModules loaded))
                          in codeGenC (modSourcePath (loadedModule loaded))
-                                  -- (loadedNewtypes loaded) 
+                                  -- (loadedNewtypes loaded)
                                      newtypesAll (loadedBorrowed loaded) (loadedUnique loaded)
 
 
@@ -1371,9 +1371,9 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
           ctarget = case target flags of
                       C ctarget -> ctarget
                       _         -> CDefault
-          (cdoc,hdoc,bcore) = cFromCore ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
-                                newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
-                                (parcBorrowInference flags) (optEagerPatBind flags) (stackSize flags) mbEntry core0
+          (cdoc,hdoc,mbMainDoc,bcore) = cFromCore ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
+                                          newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
+                                          (parcBorrowInference flags) (optEagerPatBind flags) (stackSize flags) mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] bcore
       -- writeDocW 120 (outBase ++ ".c.kkc") bcoreDoc
       when (showFinalCore flags) $
@@ -1390,32 +1390,42 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
           clibs    = clibsFromCore flags bcore
       extraIncDirs <- concat <$> mapM (copyCLibrary term flags cc) eimports
 
-      -- compile      
+      -- compile
       ccompile term flags cc outBase extraIncDirs [outC]
 
       -- compile and link?
-      case mbEntry of
+      case mbMainDoc of   -- like mbEntry
        Nothing -> return Nothing
-       Just _ ->
-         do currentDir <- getCurrentDirectory
+       Just mainDoc ->
+         do -- compile main C entry point (`main`)
+            let outMainBase = outBase ++ "__main"
+                outMainC    = outMainBase ++ ".c"
+                mainObj     = ccObjFile cc outMainBase
+            writeDocW 120 outMainC (mainDoc <.> linebreak)
+            ccompile term flags cc outMainBase  extraIncDirs [outMainC]
+
+            currentDir <- getCurrentDirectory
 
             let mainModName= showModName (Core.coreProgName core0)
                 mainName   = if null (outBaseName flags) then mainModName else outBaseName flags
                 mainExe    = outName flags mainName
 
+
             -- build kklib for the specified build variant
             -- cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") cmakeGeneratorFlag
             kklibObj <- kklibBuild term flags cc "kklib" (ccObjFile cc "kklib")
 
-            let objs   = kklibObj : [outName flags (ccObjFile cc (showModName mname))
-                                    | mname <- map modName modules ++ [Core.coreProgName core0]]
+            let objs   = [kklibObj] ++
+                         [outName flags (ccObjFile cc (showModName mname))
+                            | mname <- map modName modules ++ [Core.coreProgName core0]] ++
+                         [mainObj]
                 syslibs= concat [csyslibsFromCore flags mcore | mcore <- map modCore modules]
                          ++ ccompLinkSysLibs flags
                          ++ (if onWindows && not (isTargetWasm (target flags))
                               then ["bcrypt","psapi","advapi32"]
                               else ["m","pthread"])
                 libs   = -- ["kklib"] -- [normalizeWith '/' (outName flags (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
-                         -- ++ 
+                         -- ++
                          clibs
                          ++
                          concat [clibsFromCore flags mcore | mcore <- map modCore modules]
@@ -1513,7 +1523,7 @@ copyCLibrary term flags cc eimport
                 Just (libPath,includes)
                   -> do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
                           color (colorSource (colorScheme flags)) (text libPath))
-                        -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib) 
+                        -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
                         copyBinaryIfNewer (rebuild flags) libPath (outName flags (ccLibFile cc clib))
                         return includes
                 Nothing

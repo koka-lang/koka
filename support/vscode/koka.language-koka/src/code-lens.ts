@@ -9,34 +9,20 @@ export class MainCodeLensProvider implements vscode.CodeLensProvider {
 
   public async provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.CodeLens[] | undefined> {
     const doc = document.getText()
-    const re_main = /((?<=\n)|^)((pub\s+)?fun\s+main\(\))/g;
-    const re_test = /((?<=\n)|^)((pub\s+)?fun\s+(test[\w-]*)\(\))/g;
-    const re_example = /((?<=\n)|^)((pub\s+)?fun\s+(example[\w-]*)\(\))/g;
+    const hasModuleDecl = doc.match(/^module\b/);
+    const re_canRun = (hasModuleDecl ?
+                       /(?:(?<=\n)|^)(?:pub\s+)fun\s+(main|test[\w-]*|example[\w-]*)\(\s*\)/g :  // all must be pub
+                       /(?:(?<=\n)|^)(?:pub\s+)?fun\s+(main|test[\w-]*|example[\w-]*)\(\s*\)/g); // pub is default
     let lenses = [];
     let match = null;
-    let has_main = false;
     console.log("Koka: Scanning document for main and test function");
-    while (match = re_main.exec(doc)) {
-      if (has_main) {
-        console.log("Koka: Found multiple main functions. This is not supported in the compiler.")
-        return [];
+    while (match = re_canRun.exec(doc)) {
+      if (match[1] === "main") {
+        lenses.push(...this.createMainCodeLens(document, match.index, match[0].length))
       }
-      has_main = true;
-      lenses.push(...this.createMainCodeLens(document, match.index, match[0].length))
-    }
-    while (match = re_test.exec(doc)) {
-      if (has_main) {
-        console.log("Koka: Found both a main and a test function. Only the main function will be runnable via code lens.")
-        break;
+      else {
+        lenses.push(...this.createTestCodeLens(document, match.index, match[1], match[0].length))
       }
-      lenses.push(...this.createTestCodeLens(document, match.index, match[4], match[0].length))
-    }
-    while (match = re_example.exec(doc)) {
-      if (has_main) {
-        console.log("Koka: Found both a main and an example function. Only the main function will be runnable via code lens.")
-        break;
-      }
-      lenses.push(...this.createTestCodeLens(document, match.index, match[4], match[0].length))
     }
     return lenses
   }
