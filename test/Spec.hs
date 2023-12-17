@@ -7,7 +7,7 @@ import System.Directory
 import System.Environment
 import System.FilePath
 import System.IO
-import System.Process (readProcess)
+import System.Process (readProcessWithExitCode)
 import Text.Regex
 import Text.JSON
 import Test.Hspec
@@ -122,10 +122,13 @@ runKoka cfg kokaDir fp
            kokaFlags = optFlag ++ flags cfg ++ caseFlags 
        if (cabal (options cfg))
          then do let argv = ["new-run", "koka", "--"] ++ kokaFlags ++ [relTest]
-                 testSanitize kokaDir <$> readProcess "cabal" argv ""       
+                 (exitCode, stdout, sterr) <- readProcessWithExitCode "cabal" argv ""   
+                 return (testSanitize kokaDir stdout)    
          else do let stackFlags = if (sysghc (options cfg)) then ["--system-ghc","--skip-ghc-check"] else []
                      argv = ["exec","koka"] ++ stackFlags ++ ["--"] ++ kokaFlags ++ [relTest]
-                 testSanitize kokaDir <$> readProcess "stack" argv ""
+                 (exitCode, stdout, sterr) <- readProcessWithExitCode "stack" argv ""
+                 return (testSanitize kokaDir stdout)
+
        
 
 makeTest :: Cfg -> FilePath -> Spec
