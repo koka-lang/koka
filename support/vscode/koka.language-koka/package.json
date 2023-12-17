@@ -130,11 +130,11 @@
       },
       {
         "command": "koka.downloadLatest",
-        "title": "Koka: Download and Install Latest Version"
+        "title": "Koka: Download and install the latest version"
       },
       {
         "command": "koka.uninstall",
-        "title": "Koka: Uninstall System SDK"
+        "title": "Koka: Uninstall"
       },
       {
         "command": "koka.startWithoutDebugging",
@@ -146,11 +146,11 @@
       },
       {
         "command": "koka.selectSDK",
-        "title": "Koka: Set sdk path"
+        "title": "Koka: Set compiler path"
       },
       {
         "command": "koka.showLSPOutput",
-        "title": "Koka: Show Language Server Output"
+        "title": "Koka: Show language server output"
       }
     ],
     "debuggers": [
