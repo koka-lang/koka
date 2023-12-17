@@ -49,7 +49,7 @@ export class KokaLanguageServer {
   }
 
   async start(config: KokaConfig, context: vscode.ExtensionContext) {
-    console.log(`Koka: Language Server ${config.command} ${config.langServerArgs.join(" ")} Workspace: ${config.cwd}`)
+    console.log(`Koka: Language Server: ${config.command} ${config.langServerArgs.join(" ")}, Workspace: ${config.cwd}`)
     let self = this;
     function serverOptions(): Promise<StreamInfo> {
       return new Promise((resolve, reject) => {
