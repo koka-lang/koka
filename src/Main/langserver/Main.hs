@@ -97,7 +97,7 @@ mainMode flags flags0 mode p
 compile :: ColorPrinter -> Flags -> FilePath -> IO Bool
 compile p flags fname
   = do let exec = Executable (newName "main") ()
-       err <- compileFile (const Nothing) Nothing term flags [] []
+       err <- compileFile (const Nothing) Nothing term flags []
                 (if (not (evaluate flags)) then (if library flags then Library else exec) else exec) [] fname
        case checkError err of
          Left msg
@@ -105,7 +105,7 @@ compile p flags fname
                  -- exitFailure  -- don't fail for tests
                  return False
          Right ((Loaded gamma kgamma synonyms newtypes constructors _ imports _
-                (Module modName _ _ _ _ _ rawProgram core _ _ _ _ modTime _ _) _ _ _
+                (Module modName _ _ _ _ _ rawProgram core _ _ _ modTime) _ _ _
                 , _), warnings)
            -> do when (not (null warnings))
                    (let msg = ErrorWarning warnings ErrorZero

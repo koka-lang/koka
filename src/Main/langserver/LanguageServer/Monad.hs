@@ -209,7 +209,7 @@ getModules = lsModules <$> getLSState
 
 mergeModules :: Modules -> Modules -> Modules
 mergeModules newModules oldModules =
-  let nModValid = filter (\m -> isJust (modCompiled m)) newModules -- only add modules that sucessfully compiled
+  let nModValid = filter modCompiled newModules -- only add modules that sucessfully compiled
       newModNames = map modName nModValid
   in nModValid ++ filter (\m -> modName m `notElem` newModNames) oldModules
 

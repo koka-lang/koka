@@ -57,7 +57,7 @@ didOpenHandler = notificationHandler J.SMethod_TextDocumentDidOpen $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
   let version = msg ^. J.params . J.textDocument . J.version
   flags <- getFlags
-  _ <- recompileFile InMemory uri (Just version) False flags
+  _ <- recompileFile Object uri (Just version) False flags
   return ()
 
 -- Recompile the file on changes
@@ -66,7 +66,7 @@ didChangeHandler = notificationHandler J.SMethod_TextDocumentDidChange $ \msg ->
   let uri = msg ^. J.params . J.textDocument . J.uri
   let version = msg ^. J.params . J.textDocument . J.version
   flags <- getFlags
-  _ <- recompileFile InMemory uri (Just version) False flags
+  _ <- recompileFile Object uri (Just version) False flags
   return ()
 
 -- Saving a file just recompiles it
@@ -74,7 +74,7 @@ didSaveHandler :: Handlers LSM
 didSaveHandler = notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
   flags <- getFlags
-  _ <- recompileFile InMemory uri Nothing False flags
+  _ <- recompileFile Object uri Nothing False flags
   return ()
 
 -- Closing the file
@@ -172,7 +172,7 @@ recompileFile compileTarget uri version force flags =
       term <- getTerminal
       sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack $ "Recompiling " ++ filePath
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
-      let resultIO = compileFile (maybeContents newvfs) contents term flags [] (if force then [] else modules) compileTarget [] filePath
+      let resultIO = compileFile (maybeContents newvfs) contents term flags [] compileTarget [] filePath
       processCompilationResult normUri filePath True resultIO
     Nothing -> return Nothing
   where

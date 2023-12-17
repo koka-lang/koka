@@ -63,13 +63,10 @@ data Module  = Module{ modName        :: Name
                      , modWarnings    :: [(Range,Doc)]
                      , modProgram     :: Maybe (Program UserType UserKind) -- not for interfaces
                      , modCore        :: Core.Core
-                     , modCompiled    :: Maybe Flags
-                     , modInMemory    :: Bool
                      , modInlines     :: Either (Gamma -> Error () [Core.InlineDef]) ([Core.InlineDef])
+                     , modCompiled    :: Bool
                      , modRangeMap    :: Maybe RangeMap
-                     , modSourceTime  :: FileTime
-                     , modTime        :: Maybe FileTime
-                     , modOutputTime  :: Maybe FileTime
+                     , modTime        :: FileTime
                      }
 
 data Loaded = Loaded{ loadedGamma       :: Gamma
@@ -92,7 +89,7 @@ instance Show Loaded where
 
 loadedLatest :: Loaded -> FileTime
 loadedLatest loaded
-  = maxFileTimes (map (fromJust . modTime) (loadedModules loaded))
+  = maxFileTimes (map modTime (loadedModules loaded))
 
 initialLoaded :: Loaded
 initialLoaded
@@ -111,7 +108,7 @@ initialLoaded
 
 moduleNull :: Name -> Module
 moduleNull modName
-  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) Nothing True (Left (\g -> return [])) Nothing fileTime0 Nothing Nothing
+  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) (Left (\g -> return [])) False Nothing fileTime0 
 
 loadedName :: Loaded -> Name
 loadedName ld
