@@ -11,6 +11,7 @@ module LanguageServer.Monad
     defaultLSState,
     newLSStateVar,
     LSM,
+    getLastChangedFileLoaded,
     getTerminal,getFlags,getColorScheme,getHtmlPrinter,
     getLSState,modifyLSState,
     getLoaded,putLoaded,removeLoaded,removeLoadedUri,getLoadedModule,
@@ -74,6 +75,8 @@ data LSState = LSState {
   cancelledRequests :: !(TVar (Set.Set J.SomeLspId)),
   documentVersions :: !(TVar (M.Map J.Uri J.Int32)),
   documentInfos :: !(M.Map FilePath (D.ByteString, FileTime, J.Int32)),
+  -- If the file was changed last, we can reuse modules, since no dependencies have changed
+  lastChangedFile :: Maybe (FilePath, Flags, Loaded), 
   diagnostics :: !(M.Map J.NormalizedUri [J.Diagnostic]),
   config :: Config
 }
@@ -128,6 +131,7 @@ defaultLSState flags = do
     lsLoaded = M.empty, lsModules=[], 
     messages = msgChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, config=Config{colors=Colors{mode="dark"}},
     terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags, 
+    lastChangedFile = Nothing,
     documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
 
 htmlTextColorPrinter :: Doc -> IO T.Text
@@ -171,7 +175,17 @@ updateConfig cfg =
         else
           trace "setting color scheme to light" $
             s'{flags=(flags s'){colorScheme=lightColorScheme}}
-  
+
+getLastChangedFileLoaded :: (FilePath, Flags) -> LSM (Maybe Loaded)
+getLastChangedFileLoaded (path, flags) = do
+  st <- lastChangedFile<$> getLSState
+  case st of
+    Nothing -> return Nothing
+    Just (path', flags', loaded) -> do
+      if path == path' && flags == flags' then
+        return $ Just loaded
+      else
+        return Nothing
 
 -- Fetches the terminal used for printing messages 
 getTerminal :: LSM Terminal
@@ -214,8 +228,9 @@ mergeModules newModules oldModules =
   in nModValid ++ filter (\m -> modName m `notElem` newModNames) oldModules
 
 -- Replaces the loaded state holding compiled modules
-putLoaded :: Loaded -> LSM ()
-putLoaded l = modifyLSState $ \s -> s {lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s), lsLoaded = M.insert (modSourcePath $ loadedModule l) l (lsLoaded s)}
+putLoaded :: Loaded -> FilePath -> Flags -> LSM ()
+putLoaded l f flags = 
+  modifyLSState $ \s -> s {lastChangedFile = Just (f, flags, l), lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s), lsLoaded = M.insert (modSourcePath $ loadedModule l) l (lsLoaded s)}
 
 removeLoaded :: Module -> LSM ()
 removeLoaded m = modifyLSState $ \s -> s {lsModules = filter (\m1 -> modName m1 /= modName m) (lsModules s), lsLoaded = M.delete (modSourcePath m) (lsLoaded s)}

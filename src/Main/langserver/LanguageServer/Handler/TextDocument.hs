@@ -26,7 +26,7 @@ import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnosti
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic)
-import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri)
+import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded)
 import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
 import qualified Data.Text.Encoding as T
 import Data.Functor ((<&>))
@@ -144,15 +144,17 @@ compileEditorExpression uri flags force filePath functionName = do
       let mod = loadedModule loaded
       -- Get the virtual files
       vfs <- documentInfos <$> getLSState
+      modules <- getLastChangedFileLoaded (filePath, flags)
       -- Set up the imports for the expression (core and the module)
       let imports = [Import nameSystemCore nameSystemCore rangeNull Private, Import (modName mod) (modName mod) rangeNull Private]
           program = programAddImports (programNull nameInteractiveModule) imports
       term <- getTerminal
       -- reusing interpreter compilation entry point
-      let resultIO = compileExpression (maybeContents vfs) term flags (if force then initialLoaded else loaded) (Executable nameExpr ()) program 0 (functionName ++ "()")
-      processCompilationResult normUri filePath False resultIO
+      let resultIO = compileExpression (maybeContents vfs) term flags (fromMaybe initialLoaded modules) (Executable nameExpr ()) program 0 (functionName ++ "()")
+      processCompilationResult normUri filePath flags False resultIO
     Nothing -> do
-      return Nothing
+      sendNotification J.SMethod_WindowShowMessage $ J.ShowMessageParams J.MessageType_Error $ "Wait for initial type checking / compilation to finish prior to running a function " <> T.pack filePath
+      return Nothing -- TODO: better error message
   where normUri = J.toNormalizedUri uri
 
 -- Recompiles the given file, stores the compilation result in
@@ -168,20 +170,20 @@ recompileFile compileTarget uri version force flags =
       newvfs <- updateVFS
       -- Get the file contents
       let contents = fst <$> maybeContents newvfs filePath
-      modules <- getModules
+      modules <- fmap loadedModules <$> getLastChangedFileLoaded (filePath, flags)
       term <- getTerminal
       sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack $ "Recompiling " ++ filePath
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
-      let resultIO = compileFile (maybeContents newvfs) contents term flags [] compileTarget [] filePath
-      processCompilationResult normUri filePath True resultIO
+      let resultIO = compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] filePath
+      processCompilationResult normUri filePath flags True resultIO
     Nothing -> return Nothing
   where
     normUri = J.toNormalizedUri uri
 
 -- Processes the result of a compilation, updating the loaded state and emitting diagnostics
 -- Returns the executable file path if compilation succeeded
-processCompilationResult :: J.NormalizedUri -> FilePath -> Bool -> IO (Error Loaded (Loaded, Maybe FilePath)) -> LSM (Maybe FilePath)
-processCompilationResult normUri filePath update doIO = do
+processCompilationResult :: J.NormalizedUri -> FilePath -> Flags -> Bool -> IO (Error Loaded (Loaded, Maybe FilePath)) -> LSM (Maybe FilePath)
+processCompilationResult normUri filePath flags update doIO = do
   let ioResult :: IO (Either Exc.SomeException (Error Loaded (Loaded, Maybe FilePath)))
       ioResult = try doIO
   result <- liftIO ioResult
@@ -204,7 +206,7 @@ processCompilationResult normUri filePath update doIO = do
       outFile <- case checkPartial res of
         Right ((l, outFile), _, _) -> do
           -- Compilation succeeded
-          when update $ putLoaded l -- update the loaded state for this file
+          when update $ putLoaded l filePath flags-- update the loaded state for this file
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ "Successfully compiled " <> T.pack filePath
           return outFile -- return the executable file path
         Left (e, m) -> do
@@ -215,7 +217,7 @@ processCompilationResult normUri filePath update doIO = do
               return ()
             Just l -> do
               trace ("Error when compiling have cached" ++ show (map modSourcePath $ loadedModules l)) $ return ()
-              when update $ putLoaded l
+              when update $ putLoaded l filePath flags 
               removeLoaded (loadedModule l)
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack ("Error when compiling " ++ show e) <> T.pack filePath
           return Nothing
