@@ -429,15 +429,15 @@ ppNameEx env name | isImplicitParamName name
 
 ppNameEx env name
   = if (fullNames env)
-     then pretty name
+     then prettyName (colors env) name
      else if (context env == qualifier name
                || ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env))
                || isNameTuple name)
-           then pretty (unqualify name)
+           then prettyName (colors env) (unqualify name)
            else -- if coreIface env
                 -- then pretty name
                 -- else
-                pretty (importsAlias name (importsMap env))
+                prettyName (colors env) (importsAlias name (importsMap env))
 
 ---------------------------------------------------------------------------
 -- Predicates

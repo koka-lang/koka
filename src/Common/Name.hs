@@ -51,7 +51,7 @@ module Common.Name
           , asciiEncode, showHex, moduleNameToPath, pathToModuleName
           , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
 
-          , ppColorName
+          , prettyName
           , qualifyInternally, unqualifyFull, isInternalQualified
           ) where
 
@@ -148,30 +148,32 @@ labelNameCompare nm1@(Name m1 hm1 n1 hn1) nm2@(Name m2 hm2 n2 hn2)
 
 canonicalSep = '.'
 
+
+showParts :: Name -> (String,String)
+showParts (Name m _ n _)
+  = (if null m then "" else m ++ "/",
+     case n of
+       (c:cs) | not (isAlphaNum c || c=='_' || c=='(' || c== '.') -> "(" ++ n ++ ")"
+       _      -> n
+    )
+
 instance Show Name where
-  show (Name m _ n _)
-   = let (mid,post) = case (span isDigit (reverse n)) of
-                        (postfix, c:rest) | c == canonicalSep && not (null postfix)
-                           -> (reverse rest, c:reverse postfix)
-                        _  -> (n,"")
-         pre        = if null m then "" else m ++ "//"
-     in pre ++ case mid of
-                  (c:cs) -- | any (\c -> c `elem` ".([])") mid    -> "(" ++ n ++ ")"
-                         | not (isAlphaNum c || c=='_' || c=='(' || c== '.') -> "(" ++ n ++ ")"
-                  _      -> n
-
-
-showPlain (Name m _ n _)
-  = (if null m then "" else m ++ "/") ++ n
+  show name
+   = let (q,unq) = showParts name in q ++ unq
 
 instance Pretty Name where
   pretty name
     = text (show name)
 
-ppColorName :: ColorScheme -> Name -> Doc
-ppColorName cs name@(Name m _ n _)
-  = (if (null m) then empty else color (colorModule cs) (text (m ++ "/")))
-    <.> color (colorSource cs) (text (show (unqualify name)))
+
+showPlain (Name m _ n _)
+  = (if null m then "" else m ++ "/") ++ n
+
+prettyName :: ColorScheme -> Name -> Doc
+prettyName cs name
+  = let (m,n) = showParts name
+    in color (colorModule cs) (text m) <.> color (colorSource cs) (text n)
+
 
 showTupled (Name m _ n _)
   = show (m,n)
@@ -179,6 +181,7 @@ showTupled (Name m _ n _)
 readTupled s
   = let (m,n) = ((read s) :: (String,String))
     in newQualified m n
+
 
 readQualified s
   = if (take 1 s == "(")
