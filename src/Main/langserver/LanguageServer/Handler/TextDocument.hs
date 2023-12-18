@@ -25,7 +25,7 @@ import Language.LSP.Diagnostics (partitionBySource)
 import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler)
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
-import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic)
+import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
 import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded)
 import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
 import qualified Data.Text.Encoding as T
@@ -38,7 +38,7 @@ import Debug.Trace (trace)
 import Control.Exception (try)
 import qualified Control.Exception as Exc
 import Compiler.Options (Flags)
-import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime, normalize, realPath)
+import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime)
 import GHC.IO (unsafePerformIO)
 import Compiler.Module (Module(..), initialLoaded)
 import Control.Monad (when, foldM)
@@ -81,47 +81,46 @@ didSaveHandler = notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
 didCloseHandler :: Handlers LSM
 didCloseHandler = notificationHandler J.SMethod_TextDocumentDidClose $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
-  removeLoadedUri uri
+  removeLoadedUri (J.toNormalizedUri uri)
   -- Don't remove diagnostics so the file stays red in the editor, and problems are shown, but do remove the compilation state
   return ()
 
 -- Retreives a file from the virtual file system, returning the contents and the last modified time
-maybeContents :: Map FilePath (ByteString, FileTime, J.Int32) -> FilePath -> Maybe (ByteString, FileTime)
-maybeContents vfs uri = do
+maybeContents :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> FilePath -> Maybe (ByteString, FileTime)
+maybeContents vfs path = do
   -- trace ("Maybe contents " ++ show uri ++ " " ++ show (M.keys vfs)) $ return ()
+  let uri = J.toNormalizedUri $ J.filePathToUri path
   (text, ftime, vers) <- M.lookup uri vfs
   return (text, ftime)
 
 -- Creates a diff of the virtual file system including keeping track of version numbers and last modified times
 -- Modified times are not present in the LSP libraris's virtual file system, so we do it ourselves
-diffVFS :: Map FilePath (ByteString, FileTime, J.Int32) -> Map J.NormalizedUri VirtualFile -> LSM (Map FilePath (ByteString, FileTime, J.Int32))
+diffVFS :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> Map J.NormalizedUri VirtualFile -> LSM (Map J.NormalizedUri (ByteString, FileTime, J.Int32))
 diffVFS oldvfs vfs =
   -- Fold over the new map, creating a new map that has the same keys as the new map
   foldM (\acc (k, v) -> do
-    -- Get the key as a normalized file path
-    path0 <- liftIO $ realPath $ J.fromNormalizedFilePath $ fromJust $ J.uriToNormalizedFilePath k
-    let newK = normalize path0
     -- New file contents & verson
     let text = T.encodeUtf8 $ virtualFileText v
         vers = virtualFileVersion v
-    case M.lookup newK oldvfs of
+    case M.lookup k oldvfs of
       Just old@(_, _, vOld) ->
         -- If the key is in the old map, and the version number is the same, keep the old value
         if vOld == vers then
-          return $ M.insert newK old acc
+          return $ M.insert k old acc
         else do
           -- Otherwise update the value with a new timestamp
           time <- liftIO getCurrentTime
-          return $ M.insert newK (text, time, vers) acc
+          return $ M.insert k (text, time, vers) acc
       Nothing -> do
         -- If the key wasn't already present in the map, get it's file time from disk (since it was just opened / created)
-        time <- liftIO $ getFileTimeOrCurrent newK
+        path <- liftIO $ fromLspUri k
+        time <- liftIO $ getFileTimeOrCurrent (fromMaybe "" path)
         -- trace ("New file " ++ show newK ++ " " ++ show time) $ return ()
-        return $ M.insert newK (text, time, vers) acc)
+        return $ M.insert k (text, time, vers) acc)
     M.empty (M.toList vfs)
 
 -- Updates the virtual file system in the LSM state
-updateVFS :: LSM (Map FilePath (ByteString, FileTime, J.Int32))
+updateVFS :: LSM (Map J.NormalizedUri (ByteString, FileTime, J.Int32))
 updateVFS = do
   -- Get the virtual files
   vFiles <- getVirtualFiles
@@ -138,13 +137,13 @@ updateVFS = do
 -- Compiles a single expression (calling a top level function with no arguments) - such as a test method
 compileEditorExpression :: J.Uri -> Flags -> Bool -> String -> String -> LSM (Maybe FilePath)
 compileEditorExpression uri flags force filePath functionName = do
-  loaded <- getLoaded uri
+  loaded <- getLoaded normUri
   case loaded of
     Just loaded -> do
       let mod = loadedModule loaded
       -- Get the virtual files
       vfs <- documentInfos <$> getLSState
-      modules <- getLastChangedFileLoaded (filePath, flags)
+      modules <- getLastChangedFileLoaded (normUri, flags)
       -- Set up the imports for the expression (core and the module)
       let imports = [Import nameSystemCore nameSystemCore rangeNull Private, Import (modName mod) (modName mod) rangeNull Private]
           program = programAddImports (programNull nameInteractiveModule) imports
@@ -160,22 +159,20 @@ compileEditorExpression uri flags force filePath functionName = do
 -- Recompiles the given file, stores the compilation result in
 -- LSM's state and emits diagnostics
 recompileFile :: CompileTarget () -> J.Uri -> Maybe J.Int32 -> Bool -> Flags -> LSM (Maybe FilePath)
-recompileFile compileTarget uri version force flags =
-  case J.uriToFilePath uri of
-    Just filePath0 -> do
-      -- Get the file path
-      path <- liftIO $ realPath filePath0
-      let filePath = normalize path
+recompileFile compileTarget uri version force flags = do
+  path <- liftIO $ fromLspUri normUri
+  case path of
+    Just path -> do
       -- Update the virtual file system
       newvfs <- updateVFS
       -- Get the file contents
-      let contents = fst <$> maybeContents newvfs filePath
-      modules <- fmap loadedModules <$> getLastChangedFileLoaded (filePath, flags)
+      let contents = fst <$> maybeContents newvfs path
+      modules <- fmap loadedModules <$> getLastChangedFileLoaded (normUri, flags)
       term <- getTerminal
-      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack $ "Recompiling " ++ filePath
+      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack $ "Recompiling " ++ path
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
-      let resultIO = compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] filePath
-      processCompilationResult normUri filePath flags True resultIO
+      let resultIO = compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] path
+      processCompilationResult normUri path flags True resultIO
     Nothing -> return Nothing
   where
     normUri = J.toNormalizedUri uri
@@ -206,7 +203,7 @@ processCompilationResult normUri filePath flags update doIO = do
       outFile <- case checkPartial res of
         Right ((l, outFile), _, _) -> do
           -- Compilation succeeded
-          when update $ putLoaded l filePath flags-- update the loaded state for this file
+          when update $ putLoaded l normUri flags-- update the loaded state for this file
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ "Successfully compiled " <> T.pack filePath
           return outFile -- return the executable file path
         Left (e, m) -> do
@@ -217,7 +214,7 @@ processCompilationResult normUri filePath flags update doIO = do
               return ()
             Just l -> do
               trace ("Error when compiling have cached" ++ show (map modSourcePath $ loadedModules l)) $ return ()
-              when update $ putLoaded l filePath flags
+              when update $ putLoaded l normUri flags 
               removeLoaded (loadedModule l)
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack ("Error when compiling " ++ show e) <> T.pack filePath
           return Nothing

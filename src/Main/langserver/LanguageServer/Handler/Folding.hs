@@ -25,7 +25,8 @@ foldingHandler :: Handlers LSM
 foldingHandler = requestHandler J.SMethod_TextDocumentFoldingRange $ \req responder -> do
   let J.FoldingRangeParams _ _ doc = req ^. J.params
       uri = doc ^. J.uri
-  loaded <- getLoaded uri
+      normUri = J.toNormalizedUri uri
+  loaded <- getLoaded normUri
   let foldings = findFoldingRanges =<< maybeToList loaded
   responder $ Right $ J.InL foldings
 

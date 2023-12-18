@@ -309,8 +309,7 @@ compileModuleOrFile maybeContents contents term flags modules fname force compil
 compileFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> CompileTarget () -> [Name] -> FilePath -> IO (Error Loaded (Loaded, Maybe FilePath))
 compileFile maybeContents contents term flags modules compileTarget importPath fpath0
   = runIOErr $
-    do file1 <- liftIO $ realPath fpath0
-       let fpath = normalize file1
+    do let fpath = normalize fpath0
        mbP <- liftIO $ searchSourceFile flags "" fpath
        case mbP of
          Nothing -> liftError $ errorMsg (errorFileNotFound flags fpath)
@@ -351,8 +350,7 @@ compileProgram term flags modules compileTarget fname program importPath
 
 compileProgramFromFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> CompileTarget () -> [Name] -> FilePath -> FilePath -> IOErr Loaded (Loaded, Maybe FilePath)
 compileProgramFromFile maybeContents contents term flags modules compileTarget importPath rootPath stem
-  = do fname0 <- liftIO $ realPath $ joinPath rootPath stem
-       let fname = normalize fname0
+  = do let fname = normalize $ joinPath rootPath stem
        -- trace ("compileProgramFromFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $ return ()
        liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+> color (colorSource (colorScheme flags)) (text (normalizeWith '/' fname)))
        exist <- liftIO $ doesFileExist fname
@@ -616,15 +614,13 @@ searchModule flags currentDir name
 
 getCurrentFileTime :: FilePath ->  (FilePath -> Maybe (BString, FileTime)) -> IO FileTime
 getCurrentFileTime fp maybeContents = do
-  f <- realPath fp
-  case maybeContents (normalize f) of
+  case maybeContents (normalize fp) of
     Just (_, t) -> return t
     Nothing -> getFileTimeOrCurrent fp
 
 maybeGetCurrentFileTime :: FilePath ->  (FilePath -> Maybe (BString, FileTime)) -> IO (Maybe FileTime)
 maybeGetCurrentFileTime fp maybeContents = do
-  f <- realPath fp
-  case maybeContents (normalize f) of
+  case maybeContents (normalize fp) of
     Just (_, t) -> return $ Just t
     Nothing -> do
       -- trace ("File " ++ show fp ++ " not in virtual filesystem") $ return ()

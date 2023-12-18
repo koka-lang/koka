@@ -136,13 +136,14 @@ lspHandlers rin = mapHandlers goReq goNot handlers where
       SMethod_TextDocumentDidChange -> do
       -- If text document change command, and a new change comes in with a newer version for the same file, cancel the old one
         let TNotificationMessage{_params=DidChangeTextDocumentParams{_textDocument=VersionedTextDocumentIdentifier{_uri, _version}}} = msg
+        let normUri = J.toNormalizedUri _uri
         stateV <- liftIO $ readMVar state
-        liftIO $ atomically $ modifyTVar (documentVersions stateV) $ \t -> M.insert _uri _version t
+        liftIO $ atomically $ modifyTVar (documentVersions stateV) $ \t -> M.insert normUri _version t
         liftIO $ atomically $ writeTChan rin $
           ReactorAction $ do
             -- When running the request we check if the version is the same as the latest version, if not we don't run the change handler
             versions <- readTVarIO (documentVersions stVal)
-            when (M.lookup _uri versions == Just _version) $ runLSM (f msg) state env
+            when (M.lookup normUri versions == Just _version) $ runLSM (f msg) state env
       _ ->
         liftIO $ atomically $ writeTChan rin $
           ReactorAction (runLSM (f msg) state env)

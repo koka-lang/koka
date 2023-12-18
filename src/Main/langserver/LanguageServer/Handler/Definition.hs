@@ -22,17 +22,20 @@ import LanguageServer.Monad (LSM, getLoaded)
 import Syntax.RangeMap (RangeInfo (..), rangeMapFindAt, NameInfo (..))
 import Type.Assumption (gammaLookupQ, infoRange)
 import qualified Language.LSP.Protocol.Message as J
+import Control.Monad.IO.Class (liftIO)
 
 -- Finds the definitions of the element under the cursor.
 definitionHandler :: Handlers LSM
 definitionHandler = requestHandler J.SMethod_TextDocumentDefinition $ \req responder -> do
   let J.DefinitionParams doc pos _ _ = req ^. J.params
       uri = doc ^. J.uri
-  loaded <- getLoaded uri
+      normUri = J.toNormalizedUri uri
+  loaded <- getLoaded normUri
+  pos <- liftIO $ fromLspPos normUri pos
   let defs = do -- maybe monad
         l <- maybeToList loaded
         rmap <- maybeToList $ modRangeMap $ loadedModule l
-        rm <- maybeToList $ rangeMapFindAt (fromLspPos uri pos) rmap
+        rm <- maybeToList $ rangeMapFindAt pos rmap
         case rangeMapBestDefinition rm of
           Just (r, rinfo) -> findDefinitions l rinfo
           Nothing -> []

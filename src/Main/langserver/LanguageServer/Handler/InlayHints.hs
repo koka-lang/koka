@@ -22,6 +22,7 @@ import Common.Name (Name)
 import Compiler.Compile (Module(..), Loaded (..))
 import Kind.ImportMap (ImportMap)
 import Compiler.Options (prettyEnvFromFlags, Flags)
+import Control.Monad.IO.Class (liftIO)
 -- import Debug.Trace (trace)
 
 -- The LSP handler that provides inlay hints (inline type annotations etc)
@@ -29,9 +30,10 @@ inlayHintsHandler :: Handlers LSM
 inlayHintsHandler = requestHandler J.SMethod_TextDocumentInlayHint $ \req responder -> do
   let J.InlayHintParams prog doc rng = req ^. J.params
       uri = doc ^. J.uri
-      newRng = fromLspRange uri rng
-  loadedMod <- getLoadedModule uri
-  loaded <- getLoaded uri
+      normUri = J.toNormalizedUri uri
+  newRng <- liftIO $ fromLspRange normUri rng
+  loadedMod <- getLoadedModule normUri
+  loaded <- getLoaded normUri
   flags <- getFlags
   let rsp = do -- maybe monad
         l <- loaded

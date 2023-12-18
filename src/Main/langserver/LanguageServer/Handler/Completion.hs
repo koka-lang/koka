@@ -65,7 +65,7 @@ import Type.TypeVar (tvsEmpty)
 import Data.ByteString (intercalate)
 import Control.Monad.ST (runST)
 import Language.LSP.Protocol.Types (InsertTextFormat(InsertTextFormat_Snippet))
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (liftIO, MonadIO)
 
 -- Gets tab completion results for a document location
 -- This is a pretty complicated handler because it has to do a lot of work
@@ -74,15 +74,21 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
   let J.CompletionParams doc pos _ _ context = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
-  loaded <- getLoaded uri
-  loadedM <- getLoadedModule uri
+  loaded <- getLoaded normUri
+  loadedM <- getLoadedModule normUri
   vfile <- getVirtualFile normUri
-  let items = do-- list monad
-        l <- maybeToList loaded
-        lm <- maybeToList loadedM
-        vf <- maybeToList vfile
-        pi <- maybeToList =<< getCompletionInfo pos vf lm uri
-        findCompletions l lm pi
+  let maybeRes = do -- maybeMonad
+        l <- loaded
+        lm <- loadedM
+        vf <- vfile
+        return (l, lm, vf)
+  items <- case maybeRes of
+    Just (l, lm, vf) -> do  
+      completionInfos <- liftIO $ getCompletionInfo pos vf lm normUri
+      case completionInfos of
+        Just pi -> return $ findCompletions l lm pi
+        _ -> return []
+    _ -> return []
   responder $ Right $ J.InL items
 
 -- | Describes the line at the current cursor position
@@ -100,10 +106,10 @@ data PositionInfo = PositionInfo
   , isFunctionCompletion :: Bool
   } deriving (Show,Eq)
 
-getCompletionInfo :: Monad m => J.Position -> VirtualFile -> Module -> J.Uri -> m (Maybe PositionInfo)
-getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri =
-      let rm = (fromJust $ modRangeMap mod) in
-      let result = Just $ fromMaybe (PositionInfo "" "" "" pos Nothing False) $ do -- Maybe monad
+getCompletionInfo :: MonadIO m => J.Position -> VirtualFile -> Module -> J.NormalizedUri -> m (Maybe PositionInfo)
+getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri = do
+      let rm = (fromJust $ modRangeMap mod)
+          result = do -- Maybe monad
             let lastMaybe [] = Nothing
                 lastMaybe xs = Just $ last xs
 
@@ -127,28 +133,30 @@ getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri =
                                               | T.findIndex (== '.') argumentText > T.findIndex (== ' ') argumentText -> True
                                               | otherwise -> False
                     newC = c - fromIntegral (T.length x + (if isFunctionCompletion then 1 else 0))
-                let currentType =
-                      if isFunctionCompletion then
-                          let currentRange = fromLspPos uri (J.Position l newC) in
-                          do -- maybe monad
-                            ri <- rangeMapFindAt currentRange rm
-                            case ri of
-                              [(r, rangeInfo)] -> do
-                                t <- rangeInfoType rangeInfo
-                                case splitFunType t of
-                                  Just (pars,eff,res) -> Just res
-                                  Nothing             -> Just t
-                              _ -> Nothing
-                      else Nothing
-                -- currentRope is already a single line, but it may include an enclosing '\n'
-                let curLine = T.dropWhileEnd (== '\n') $ Rope.toText currentRope
-                let pi = PositionInfo curLine modName x pos currentType isFunctionCompletion
-                return -- $ trace (show pi)
-                   pi
-            in
-      -- trace (show result) $
-      return result
-
+                Just (newC, isFunctionCompletion, modName, currentRope, x)
+      case result of
+        Just (newC, isFunctionCompletion, modName, currentRope, x) -> do
+          mbCurrentType <- liftIO $ do
+            if isFunctionCompletion then do
+                currentRange <- liftIO $ fromLspPos uri (J.Position l newC)
+                return $ do -- maybe monad
+                  ri <- rangeMapFindAt currentRange rm
+                  case ri of
+                    [(r, rangeInfo)] -> do
+                      t <- rangeInfoType rangeInfo
+                      case splitFunType t of
+                        Just (pars,eff,res) -> return $ Just res
+                        Nothing             -> return $ Just t
+                    _ -> return Nothing
+            else return Nothing
+          case mbCurrentType of
+            Just currentType -> do
+              -- currentRope is already a single line, but it may include an enclosing '\n'
+              let curLine = T.dropWhileEnd (== '\n') $ Rope.toText currentRope
+              let pi = PositionInfo curLine modName x pos currentType isFunctionCompletion
+              return $ Just pi
+            Nothing -> return Nothing
+        Nothing -> return Nothing
 -- TODO: Complete local variables
 -- TODO: Show documentation comments in completion docs
 

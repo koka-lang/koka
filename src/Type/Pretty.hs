@@ -157,7 +157,9 @@ data Env     = Env{ showKinds      :: Bool
 -- | Default pretty print environment
 defaultEnv :: Env
 defaultEnv
-  = Env False False False False 
+  = Env False False 
+        True -- showFlavours 
+        False 
         defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty) False
         False
         []        

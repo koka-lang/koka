@@ -35,14 +35,16 @@ hoverHandler :: Handlers LSM
 hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
   let J.HoverParams doc pos _ = req ^. J.params
       uri = doc ^. J.uri
-  loadedMod <- getLoadedModule uri
-  loaded <- getLoaded uri
+      normUri = J.toNormalizedUri uri
+  loadedMod <- getLoadedModule normUri
+  loaded <- getLoaded normUri
+  pos <- liftIO $ fromLspPos normUri pos
   let res = do -- maybe monad
         mod <- loadedMod
         l <- loaded
         rmap <- modRangeMap mod
         -- Find the range info at the given position
-        rm <- rangeMapFindAt (fromLspPos uri pos) rmap
+        rm <- rangeMapFindAt pos rmap
         (r, rinfo) <- rangeMapBestHover rm
         return (modName mod, loadedImportMap l, r, rinfo)
   case res of

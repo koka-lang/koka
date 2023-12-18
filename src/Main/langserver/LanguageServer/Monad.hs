@@ -45,6 +45,7 @@ import Common.Name (nameNil)
 import Kind.ImportMap (importsEmpty)
 import Platform.Var (newVar, takeVar)
 import Debug.Trace (trace)
+import Common.File (realPath, normalize)
 
 import Control.Monad.STM
 import Control.Concurrent.STM.TChan
@@ -62,21 +63,22 @@ import Data.List (find)
 import qualified Data.Aeson as A
 import Data.Aeson.Types
 import Common.ColorScheme (darkColorScheme, lightColorScheme)
+import LanguageServer.Conversions (toLspUri, fromLspUri)
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
   lsModules :: ![Module],
-  lsLoaded :: !(M.Map FilePath Loaded),
+  lsLoaded :: !(M.Map J.NormalizedUri Loaded),
   messages :: !(TChan (String, J.MessageType)),
   flags:: !Flags,
   terminal:: !Terminal,
   htmlPrinter :: Doc -> IO T.Text,
   pendingRequests :: !(TVar (Set.Set J.SomeLspId)),
   cancelledRequests :: !(TVar (Set.Set J.SomeLspId)),
-  documentVersions :: !(TVar (M.Map J.Uri J.Int32)),
-  documentInfos :: !(M.Map FilePath (D.ByteString, FileTime, J.Int32)),
+  documentVersions :: !(TVar (M.Map J.NormalizedUri J.Int32)),
+  documentInfos :: !(M.Map J.NormalizedUri (D.ByteString, FileTime, J.Int32)),
   -- If the file was changed last, we can reuse modules, since no dependencies have changed
-  lastChangedFile :: Maybe (FilePath, Flags, Loaded), 
+  lastChangedFile :: Maybe (J.NormalizedUri, Flags, Loaded),
   diagnostics :: !(M.Map J.NormalizedUri [J.Diagnostic]),
   config :: Config
 }
@@ -128,9 +130,9 @@ defaultLSState flags = do
                  (\tp -> withNewPrinter $ \p -> do putScheme p (prettyEnv flags nameNil importsEmpty) tp; return J.MessageType_Info)
                  (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info)
   return LSState {
-    lsLoaded = M.empty, lsModules=[], 
+    lsLoaded = M.empty, lsModules=[],
     messages = msgChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, config=Config{colors=Colors{mode="dark"}},
-    terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags, 
+    terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags,
     lastChangedFile = Nothing,
     documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
 
@@ -166,8 +168,8 @@ instance FromJSON Config where
 updateConfig :: A.Value -> LSM ()
 updateConfig cfg =
   case fromJSON cfg of
-    A.Success cfg -> do 
-      modifyLSState $ \s -> 
+    A.Success cfg -> do
+      modifyLSState $ \s ->
         let s' = s{config=cfg} in
         if mode (colors cfg) == "dark" then
           trace "setting color scheme to dark" $
@@ -176,7 +178,7 @@ updateConfig cfg =
           trace "setting color scheme to light" $
             s'{flags=(flags s'){colorScheme=lightColorScheme}}
 
-getLastChangedFileLoaded :: (FilePath, Flags) -> LSM (Maybe Loaded)
+getLastChangedFileLoaded :: (J.NormalizedUri, Flags) -> LSM (Maybe Loaded)
 getLastChangedFileLoaded (path, flags) = do
   st <- lastChangedFile<$> getLSState
   case st of
@@ -228,47 +230,35 @@ mergeModules newModules oldModules =
   in nModValid ++ filter (\m -> modName m `notElem` newModNames) oldModules
 
 -- Replaces the loaded state holding compiled modules
-putLoaded :: Loaded -> FilePath -> Flags -> LSM ()
-putLoaded l f flags = 
-  modifyLSState $ \s -> s {lastChangedFile = Just (f, flags, l), lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s), lsLoaded = M.insert (modSourcePath $ loadedModule l) l (lsLoaded s)}
+putLoaded :: Loaded -> J.NormalizedUri -> Flags -> LSM ()
+putLoaded l f flags = do
+  fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
+  modifyLSState $ \s -> s {lastChangedFile = Just (f, flags, l), lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s), lsLoaded = M.insert (toLspUri fpath) l (lsLoaded s)}
 
 removeLoaded :: Module -> LSM ()
-removeLoaded m = modifyLSState $ \s -> s {lsModules = filter (\m1 -> modName m1 /= modName m) (lsModules s), lsLoaded = M.delete (modSourcePath m) (lsLoaded s)}
+removeLoaded m = do
+  fpath <- liftIO $ realPath (modSourcePath m)
+  modifyLSState $ \s -> s {lsModules = filter (\m1 -> modName m1 /= modName m) (lsModules s), lsLoaded = M.delete (toLspUri fpath) (lsLoaded s)}
 
-getLoadedModule :: J.Uri -> LSM (Maybe Module)
+getLoadedModule :: J.NormalizedUri -> LSM (Maybe Module)
 getLoadedModule uri = do
   lmaybe <- getLoaded uri
   liftIO $ loadedModuleFromUri lmaybe uri
 
-loadedModuleFromUri :: Maybe Loaded -> J.Uri -> IO (Maybe Module)
-loadedModuleFromUri l uri = 
-  case l of
-    Nothing -> return Nothing
-    Just l -> 
-      case J.uriToFilePath uri of 
-        Nothing -> return Nothing
-        Just uri -> do
-          path <- realPath uri
-          let p = normalize path
-          return $ find (\m -> p == modSourcePath m) $ loadedModules l
+loadedModuleFromUri :: Maybe Loaded -> J.NormalizedUri -> IO (Maybe Module)
+loadedModuleFromUri ml uri = do
+  fpath <- liftIO $ fromLspUri uri
+  return $ do
+    l <- ml
+    fpath <- fpath
+    find (\m -> fpath == modSourcePath m) $ loadedModules l
 
 -- Removes a loaded module from the loaded state holding compiled modules
-removeLoadedUri :: J.Uri -> LSM ()
+removeLoadedUri :: J.NormalizedUri -> LSM ()
 removeLoadedUri uri = do
-  case J.uriToFilePath uri of
-    Nothing -> return ()
-    Just path -> do
-      path0 <- liftIO $ realPath path
-      let path = normalize path0
-      modifyLSState (\st -> st {lsLoaded = M.delete path (lsLoaded st)})
+  modifyLSState (\st -> st {lsLoaded = M.delete uri (lsLoaded st)})    
 
 -- Fetches the loaded state holding compiled modules
-getLoaded :: J.Uri -> LSM (Maybe Loaded)
+getLoaded :: J.NormalizedUri -> LSM (Maybe Loaded)
 getLoaded uri = do
-  st <- getLSState
-  case J.uriToFilePath uri of 
-    Nothing -> return Nothing
-    Just uri -> do
-      path <- liftIO $ realPath uri
-      let p = normalize path
-      return $ M.lookup p (lsLoaded st)
+  M.lookup uri . lsLoaded <$> getLSState

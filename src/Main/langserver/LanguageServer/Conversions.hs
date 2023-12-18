@@ -12,12 +12,14 @@ module LanguageServer.Conversions
     toLspDiagnostics,
     toLspErrorDiagnostics,
     toLspWarningDiagnostic,
+    toLspUri,
     makeDiagnostic,
 
     -- * Conversions from LSP types
     fromLspPos,
     fromLspRange,
-    fromLspLocation
+    fromLspLocation,
+    fromLspUri
   )
 where
 import           GHC.Generics              hiding (UInt)
@@ -101,16 +103,32 @@ makeDiagnostic s src r doc =
     related = Nothing
     dataX = Nothing
 
-fromLspPos :: J.Uri -> J.Position -> R.Pos
-fromLspPos uri (J.Position l c) =
-  R.makePos src (-1) (fromIntegral l + 1) (fromIntegral c + 1)
+fromLspPos :: J.NormalizedUri -> J.Position -> IO R.Pos
+fromLspPos uri (J.Position l c) = do
+  filePath <- fromLspUri uri
+  return $ R.makePos (src filePath) (-1) (fromIntegral l + 1) (fromIntegral c + 1)
   where
-    src = case J.uriToFilePath uri of
-      Just filePath -> R.Source (normalize filePath) R.bstringEmpty -- TODO: Read file here (and compute the offset correctly)
+    src file = case file of
+      Just filePath -> R.Source filePath R.bstringEmpty -- TODO: Read file here (and compute the offset correctly)
       Nothing -> R.sourceNull
 
-fromLspRange :: J.Uri -> J.Range -> R.Range
-fromLspRange uri (J.Range s e) = R.makeRange (fromLspPos uri s) (fromLspPos uri e)
+fromLspRange :: J.NormalizedUri -> J.Range -> IO R.Range
+fromLspRange uri (J.Range s e) = do
+  start <- fromLspPos uri s
+  end <- fromLspPos uri e
+  return $ R.makeRange start end
 
-fromLspLocation :: J.Location -> R.Range
-fromLspLocation (J.Location uri rng) = fromLspRange uri rng
+fromLspLocation :: J.Location -> IO R.Range
+fromLspLocation (J.Location uri rng) = fromLspRange (J.toNormalizedUri uri) rng
+
+toLspUri :: FilePath -> J.NormalizedUri
+toLspUri = J.toNormalizedUri . J.filePathToUri
+
+fromLspUri :: J.NormalizedUri -> IO (Maybe FilePath)
+fromLspUri uri = do
+  let uri' = (J.uriToFilePath . J.fromNormalizedUri) uri
+  case uri' of
+    Just fpath -> do
+      p <- realPath fpath
+      return $ Just $ normalize p
+    Nothing -> return Nothing
