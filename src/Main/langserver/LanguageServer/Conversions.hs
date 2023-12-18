@@ -122,7 +122,7 @@ fromLspLocation :: J.Location -> IO R.Range
 fromLspLocation (J.Location uri rng) = fromLspRange (J.toNormalizedUri uri) rng
 
 toLspUri :: FilePath -> J.NormalizedUri
-toLspUri = J.toNormalizedUri . J.filePathToUri
+toLspUri = J.toNormalizedUri . J.filePathToUri . normalize
 
 fromLspUri :: J.NormalizedUri -> IO (Maybe FilePath)
 fromLspUri uri = do
@@ -130,5 +130,5 @@ fromLspUri uri = do
   case uri' of
     Just fpath -> do
       p <- realPath fpath
-      return $ Just $ normalize p
+      return $ Just p
     Nothing -> return Nothing
