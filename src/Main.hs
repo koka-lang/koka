@@ -21,7 +21,7 @@ import Common.ColorScheme
 import Common.Failure         ( catchIO )
 import Common.Error
 import Common.Name
-import Common.File            ( joinPath )
+import Common.File            ( joinPath, getCwd )
 import Compiler.Options
 import Compiler.Compile       ( compileFile, CompileTarget(..), Module(..), Loaded(..), Terminal(..) )
 import Core.Core              ( coreProgDefs, flattenDefGroups, defType, Def(..) )
@@ -83,11 +83,12 @@ mainMode flags flags0 mode p
 compile :: ColorPrinter -> Flags -> FilePath -> IO ()
 compile p flags fname
   = do let exec = Executable (newName "main") ()
-       err <- compileFile term flags []
+       cwd <- getCwd
+       err <- compileFile (term cwd) flags []
                 (if (not (evaluate flags)) then (if library flags then Library else exec) else exec) fname
        case checkError err of
          Left msg
-           -> do putPrettyLn p (ppErrorMessage (showSpan flags) cscheme msg)
+           -> do putPrettyLn p (ppErrorMessage cwd (showSpan flags) cscheme msg)
                  -- exitFailure  -- don't fail for tests
 
          Right (Loaded gamma kgamma synonyms newtypes constructors _ imports _
@@ -95,7 +96,7 @@ compile p flags fname
                , warnings)
            -> do when (not (null warnings))
                    (let msg = ErrorWarning warnings ErrorZero
-                    in putPrettyLn p (ppErrorMessage (showSpan flags) cscheme msg))
+                    in putPrettyLn p (ppErrorMessage cwd (showSpan flags) cscheme msg))
                  when (showKindSigs flags) $ do
                        putPrettyLn p (pretty (kgammaFilter modName kgamma))
                        let localSyns = synonymsFilter modName synonyms
@@ -109,8 +110,8 @@ compile p flags fname
                    putPrettyLn p $ ppGamma (prettyEnv flags modName imports) $ gammaFilter modName gamma
                  else pure ()
   where
-    term
-      = Terminal (putErrorMessage p (showSpan flags) cscheme)
+    term cwd
+      = Terminal (putErrorMessage p cwd (showSpan flags) cscheme)
                 (if (verbose flags > 1) then (\msg -> withColor p (colorSource cscheme) (writeLn p msg))
                                          else (\_ -> return ()))
                  (if (verbose flags > 0) then writePrettyLn p else (\_ -> return ()))
@@ -130,8 +131,8 @@ gammaFromDefGroups groups = gammaNew $ map defToGammaEntry $ flattenDefGroups gr
 putScheme p env tp
   = putPrettyLn p (ppScheme env tp)
 
-putErrorMessage p endToo cscheme err
-  = putPrettyLn p (ppErrorMessage endToo cscheme err)
+putErrorMessage p cwd endToo cscheme err
+  = putPrettyLn p (ppErrorMessage cwd endToo cscheme err)
 
 putPhase p cscheme msg
   = withColor p (colorInterpreter cscheme) (writeLn p msg)

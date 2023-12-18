@@ -32,6 +32,7 @@ module Common.Range
           ) where
 
 -- import Lib.Trace
+import Common.File(relativeToPath)
 import Common.Failure( assertion )
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
@@ -242,8 +243,12 @@ instance Ord Range where
         EQ   -> compare p2 q2
         ltgt -> ltgt
 
-showRange endToo (Range p1 p2)
-  = (if (posLine p1 >= bigLine) then "" else sourceName (posSource p1))  ++
+showRange :: FilePath -> Bool -> Range -> String
+showRange cwd endToo (Range p1 p2)
+  = (if (posLine p1 >= bigLine) then ""
+      else let src = sourceName (posSource p1)
+           in (relativeToPath cwd src)
+    )  ++
     if (endToo)
      then ("(" ++ showPos 0 p1 ++ "-" ++ showPos 0 p2 ++ ")")
      else (show p1)
@@ -257,9 +262,9 @@ rangeNull :: Range
 rangeNull
   = makeRange posNull posNull
 
-showFullRange :: Range -> String
-showFullRange range
-  = showRange True range
+showFullRange :: FilePath -> Range -> String
+showFullRange cwd range
+  = showRange cwd True range
 
 -- | Make a range
 makeRange :: Pos -> Pos -> Range

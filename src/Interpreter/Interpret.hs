@@ -26,7 +26,7 @@ import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep, startsWith )
+import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep, startsWith, getCwd )
 import Common.Name            ( Name, unqualify, qualify, newName )
 import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore )
 import Common.Range
@@ -592,11 +592,13 @@ terminal st
 
 messageErrorMsgLn :: State -> ErrorMessage -> IO ()
 messageErrorMsgLn st err
-  = messagePrettyLn st (ppErrorMessage (showSpan (flags st)) (colorSchemeFromFlags (flags st)) err)
+  = do cwd <- getCwd
+       messagePrettyLn st (ppErrorMessage cwd (showSpan (flags st)) (colorSchemeFromFlags (flags st)) err)
 
 messageErrorMsgLnLn :: State -> ErrorMessage -> IO ()
 messageErrorMsgLnLn st err
-  = messagePrettyLnLn st (ppErrorMessage (showSpan (flags st)) (colorSchemeFromFlags (flags st)) err)
+  = do cwd <- getCwd
+       messagePrettyLnLn st (ppErrorMessage cwd (showSpan (flags st)) (colorSchemeFromFlags (flags st)) err)
 
 messageError ::  State -> String -> IO ()
 messageError st msg

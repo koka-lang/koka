@@ -118,7 +118,7 @@ import Syntax.Syntax(Expr(..),ValueBinder(..))
 import qualified Lib.Trace( trace )
 
 trace s x =
-  Lib.Trace.trace (" " ++ s)
+  -- Lib.Trace.trace (" " ++ s)
    x
 
 {--------------------------------------------------------------------------
