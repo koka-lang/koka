@@ -333,9 +333,11 @@ compileProgram term flags modules compileTarget fname program
 
 compileProgramFromFile :: Terminal -> Flags -> Modules -> CompileTarget () -> FilePath -> FilePath -> IOErr Loaded
 compileProgramFromFile term flags modules compileTarget rootPath stem
-  = do let fname = joinPath rootPath stem
+  = do let fname = normalize (joinPath rootPath stem)
        -- trace ("compileProgramFromFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $ return ()
-       liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+> color (colorSource (colorScheme flags)) (text (normalizeWith '/' fname)))
+       cwd <- liftIO getCwd
+       liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+>
+                  color (colorSource (colorScheme flags)) (text (relativeToPath cwd fname)))
        liftIO $ termPhase term ("parsing " ++ fname)
        exist <- liftIO $ doesFileExist fname
        if (exist) then return () else liftError $ errorMsg (errorFileNotFound flags fname)
