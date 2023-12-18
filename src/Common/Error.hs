@@ -32,15 +32,15 @@ data Error a    = Error !ErrorMessage ![(Range,Doc)]
 -- | Error messages
 data ErrorMessage = ErrorGeneral !Range !Doc
                   | ErrorParse   !Range !Doc
-                  | ErrorStatic  [(Range,Doc)]  
-                  | ErrorKind    [(Range,Doc)] 
-                  | ErrorType    [(Range,Doc)] 
+                  | ErrorStatic  [(Range,Doc)]
+                  | ErrorKind    [(Range,Doc)]
+                  | ErrorType    [(Range,Doc)]
                   | ErrorWarning [(Range,Doc)] ErrorMessage   -- ^ warnings can be followed by errors
                   | ErrorIO      Doc
                   | ErrorZero
                   deriving (Show)
 
--- | Check an 'Error' 
+-- | Check an 'Error'
 checkError :: Error a -> Either ErrorMessage (a,[(Range,Doc)])
 checkError err
   = case err of
@@ -90,7 +90,7 @@ errorMerge err1 err2
   where
     unwarn (ErrorWarning warnings msg) = (warnings, msg)
     unwarn msg                         = ([],msg)
-       
+
 ignoreWarnings :: Error a -> Error a
 ignoreWarnings (Error (ErrorWarning _ err) _)  = Error err []
 ignoreWarnings (Error err _)                   = Error err []
@@ -98,37 +98,37 @@ ignoreWarnings (Ok x _)                        = Ok x []
 
 {--------------------------------------------------------------------------
   pretty
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 instance Pretty ErrorMessage where
-  pretty msg  = ppErrorMessage False defaultColorScheme msg
+  pretty msg  = ppErrorMessage "" False defaultColorScheme msg
 
-ppErrorMessage endToo cscheme msg
+ppErrorMessage cwd endToo cscheme msg
   = case msg of
       ErrorGeneral r doc    -> err (r,doc)
       ErrorParse r doc      -> err (r,doc)
       ErrorStatic es        -> vcat (map err es)
       ErrorKind ks          -> err (head ks)
       ErrorType es          -> err (head es)
-      ErrorWarning  ws m    | null ws   -> ppErrorMessage endToo cscheme m
-                            | otherwise -> prettyWarnings endToo cscheme ws <-> 
+      ErrorWarning  ws m    | null ws   -> ppErrorMessage cwd endToo cscheme m
+                            | otherwise -> prettyWarnings cwd endToo cscheme ws <->
                                             (case m of ErrorZero -> Lib.PPrint.empty
-                                                       _         -> ppErrorMessage endToo cscheme m)
+                                                       _         -> ppErrorMessage cwd endToo cscheme m)
       ErrorIO doc           -> color (colorError cscheme) doc
       ErrorZero             -> hang 1 (color (colorError cscheme) (text "<unknown error>"))
   where
-    err (r,doc) = hang 1 $ ppRange endToo cscheme r <.>
+    err (r,doc) = hang 1 $ ppRange cwd endToo cscheme r <.>
                   color (colorError cscheme) (colon <+> text "error:" <+> doc)
 
-prettyWarnings :: Bool -> ColorScheme -> [(Range,Doc)] -> Doc
-prettyWarnings endToo cscheme warnings
+prettyWarnings :: FilePath -> Bool -> ColorScheme -> [(Range,Doc)] -> Doc
+prettyWarnings cwd endToo cscheme warnings
   = vcat (map warn warnings)
   where
     warn (r,doc)
-      = hang 1 $ ppRange endToo cscheme r <.> color (colorWarning cscheme) (colon <+> text "warning:" <+> doc)
+      = hang 1 $ ppRange cwd endToo cscheme r <.> color (colorWarning cscheme) (colon <+> text "warning:" <+> doc)
 
 {--------------------------------------------------------------------------
   instances
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 instance Functor Error where
   fmap f e      = case e of
                     Ok x w    -> Ok (f x) w
@@ -136,11 +136,11 @@ instance Functor Error where
 
 instance Applicative Error where
   pure x = Ok x []
-  (<*>) = ap                    
+  (<*>) = ap
 
 instance Monad Error where
   -- return = pure
-  e >>= f       = case e of 
+  e >>= f       = case e of
                     Ok x w   -> addWarnings w (f x)
                     Error msg w -> Error msg w
 

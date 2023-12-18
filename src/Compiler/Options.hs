@@ -42,9 +42,9 @@ import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File        
-import Common.Name    
-import Common.Syntax          
+import Common.File
+import Common.Name
+import Common.Syntax
 import Compiler.Package
 import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
@@ -126,8 +126,8 @@ data Flags
          , buildTag         :: String
          , outBuildDir      :: FilePath      -- actual build output: <builddir>/<version>-<buildtag>/<ccomp>-<variant>
          , outBaseName      :: String
-         , outFinalPath     :: FilePath        
-         , includePath      :: [FilePath]    -- .kk/.kki files 
+         , outFinalPath     :: FilePath
+         , includePath      :: [FilePath]    -- .kk/.kki files
          , csc              :: FileName
          , node             :: FileName
          , wasmrun          :: FileName
@@ -175,7 +175,7 @@ data Flags
          , optimize         :: Int       -- optimization level; 0 or less is off
          , optInlineMax     :: Int
          , optctail         :: Bool
-         , optctailCtxPath  :: Bool 
+         , optctailCtxPath  :: Bool
          , optUnroll        :: Int
          , optEagerPatBind  :: Bool      -- bind pattern fields as early as possible?
          , parcReuse        :: Bool
@@ -213,7 +213,7 @@ flagsNull
           5     -- simplify passes
           10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
-          ""       -- builddir 
+          ""       -- builddir
           ""       -- buildtag
           ("")     -- build dir
           ""       -- exe base name
@@ -224,7 +224,7 @@ flagsNull
           "wasmtime"
           "cmake"
           ""       -- cmake args
-          
+
           ""       -- ccompPath
           []       -- ccomp args
           []       -- ccomp include dirs
@@ -236,7 +236,7 @@ flagsNull
           (if onWindows then []        -- ccomp library dirs
                         else (["/usr/local/lib","/usr/lib","/lib"]
                                ++ if onMacOS then ["/opt/homebrew/lib"] else []))
-          
+
           True     -- auto install libraries
           ""       -- vcpkg root
           ""       -- vcpkg triplet
@@ -313,7 +313,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to module search path (empty resets)"
  , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write final executable to <file> (without extension)"
  , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 1=space, 2=full, 3=aggressive)"
- , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)" 
+ , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
@@ -325,7 +325,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     ("build under <dir> ('" ++ kkbuild ++ "' by default)")
  , option []    ["buildname"]       (ReqArg outBaseNameFlag "name") "base name of the final output"
  , option []    ["outputdir"]       (ReqArg outBuildDirFlag "dir")  "write intermediate files in <dir>.\ndefaults to: <builddir>/<ver>-<buildtag>/<cc>-<variant>"
- 
+
  , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (= <prefix>/lib/koka/<ver>)"
  , option []    ["sharedir"]        (ReqArg shareDirFlag "dir")     "source library <dir> (= <prefix>/share/koka/<ver>)"
  , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
@@ -348,12 +348,12 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
  , configstr [] ["console"]  ["ansi","html","raw"] "fmt" (\s f -> f{ console = s }) "console output format: <ansi|html|raw>"
- 
+
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
  , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")  "set link prefixes for documentation"
  , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")     "set link to the css documentation style"
  , emptyline
- 
+
  , flag   []    ["showtime"]       (\b f -> f{ showElapsed = b})    "show elapsed time and rss after evaluation"
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
  , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
@@ -367,7 +367,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
  , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
  , flag   []    ["core"]           (\b f -> f{genCore=b})           "generate a core file"
- , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core" 
+ , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
  , emptyline
 
  -- hidden
@@ -481,7 +481,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
     = Flag (\f -> f{ buildDir = s })
 
   buildTagFlag s
-    = Flag (\f -> f{ buildTag = s })    
+    = Flag (\f -> f{ buildTag = s })
 
   outBuildDirFlag s
     = Flag (\f -> f{ outBuildDir = s })
@@ -496,15 +496,15 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
     = Flag (\f -> f{ outBaseName = s })
 
   outFinalPathFlag s
-    = Flag (\f -> f{ outFinalPath = s })    
+    = Flag (\f -> f{ outFinalPath = s })
 
   ccFlag s
     = Flag (\f -> f{ ccompPath = s })
 
-  extendArgs prev mbs 
+  extendArgs prev mbs
     = case mbs of Just s | not (null s) -> prev ++ unquote s
                   _      -> []
-  
+
   ccCompileArgs mbs
     = Flag (\f -> f{ ccompCompileArgs = extendArgs (ccompCompileArgs f) mbs })
 
@@ -565,8 +565,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   heapFlag s
     = case parseSize s of
         Just n -> Flag (\f -> f{ heapSize = n })
-        _      -> Flag (id)        
-    
+        _      -> Flag (id)
+
   parseSize :: String -> Maybe Int
   parseSize s = case reads (map toLower s) of
                     [(n,rest)] | rest `elem` ["k","kb","kib"] -> Just (1024*n)
@@ -575,7 +575,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
                                | null rest                    -> Just n
                     _ -> Nothing
 
-  
+
 readHtmlBases :: String -> [(String,String)]
 readHtmlBases s
   = map toBase (splitComma s)
@@ -607,10 +607,10 @@ environment
   where
     flagsEnv s      = [s]
     opt name dir    = ["--" ++ name ++ "=" ++ quote dir]
-    
+
 
 optionCompletions :: [(String,String)]
-optionCompletions 
+optionCompletions
   = concatMap complete (fst options)
   where
     complete :: OptDescr Option -> [(String,String)]
@@ -621,7 +621,7 @@ optionCompletions
                                _          -> ""
         in zip ((map (\c -> "-" ++ [c] ++ sreq) shorts) ++ (map (\s -> "--" ++ s ++ lreq) longs))
                (repeat help)
-        
+
 
 {--------------------------------------------------------------------------
   Process options
@@ -646,19 +646,21 @@ processOptions flags0 opts
                         else if (any isVersion options) then ModeVersion
                         else if (any isInteractive options) then ModeInteractive files
                         else if (null files) then ModeInteractive files
-                                             else ModeCompiler files                 
-                 flags = case mode of 
+                                             else ModeCompiler files
+                 flags = case mode of
                            ModeInteractive _ -> flags2{evaluate = True}
                            _                 -> flags2
              in do buildDir <- getKokaBuildDir (buildDir flags) (evaluate flags)
                    ed   <- if (null (editor flags))
-                            then detectEditor 
+                            then detectEditor
                             else return (editor flags)
                    pkgs <- discoverPackages buildDir
 
-                   (localDir,localLibDir,localShareDir,localBinDir) 
+                   (localDir,localLibDir,localShareDir,localBinDir)
                         <- getKokaDirs (localLibDir flags) (localShareDir flags) buildDir
-                   
+
+                   normalizedIncludes <- mapM realPath ("." : (localShareDir ++ "/lib") : includePath flags)
+
                    -- cc
                    ccmd <- if (ccompPath flags == "") then detectCC (target flags)
                            else if (ccompPath flags == "mingw") then return "gcc"
@@ -666,21 +668,21 @@ processOptions flags0 opts
                    (cc,asan) <- ccFromPath flags ccmd
                    ccCheckExist cc
                    let stdAlloc = if asan then True else useStdAlloc flags   -- asan implies useStdAlloc
-                       cdefs    = ccompDefs flags 
+                       cdefs    = ccompDefs flags
                                    ++ (if stdAlloc then [] else [("KK_MIMALLOC",show (sizePtr (platform flags)))])
                                    ++ (if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")])
                                    ++ (if optctailCtxPath flags then [] else [("KK_CTAIL_NO_CONTEXT_PATH","")])
                                    ++ (if platformHasCompressedFields (platform flags) then [("KK_INTB_SIZE",show (sizeField (platform flags)))] else [])
                                    ++ (if not stdAlloc && mimallocStats flags then [("MI_STAT","2")] else [])
-                   
+
                    -- vcpkg
                    -- (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
                    let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
                                             else if (isTargetWasm (target flags))
                                               then ("wasm" ++ show (8*sizePtr (platform flags)) ++ "-emscripten")
-                                              else tripletArch ++ 
-                                                    (if onWindows 
-                                                        then (if (ccName cc `startsWith` "mingw") 
+                                              else tripletArch ++
+                                                    (if onWindows
+                                                        then (if (ccName cc `startsWith` "mingw")
                                                                 then "-mingw-static"
                                                                 else "-windows-static-md")
                                                         else ("-" ++ tripletOsName))
@@ -689,7 +691,7 @@ processOptions flags0 opts
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
                        vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
                        vcpkgLibDirs     = if (null vcpkg) then [] else [vcpkgLibDir]
-                       vcpkgIncludeDirs = if (null vcpkg) then [] else [vcpkgIncludeDir] 
+                       vcpkgIncludeDirs = if (null vcpkg) then [] else [vcpkgIncludeDir]
                        -}
                    return (flags{ packages    = pkgs,
                                   buildDir    = buildDir,
@@ -702,15 +704,15 @@ processOptions flags0 opts
                                                   then basename (outFinalPath flags)
                                                   else outBaseName flags,
 
-                                  optSpecialize  = if (optimize flags <= 0) then False 
+                                  optSpecialize  = if (optimize flags <= 0) then False
                                                     else (optSpecialize flags),
-                                  optInlineMax   = if (optimize flags < 0) 
+                                  optInlineMax   = if (optimize flags < 0)
                                                      then 0
-                                                     else if (optimize flags <= 1) 
-                                                       then (optInlineMax flags) `div` 3 
+                                                     else if (optimize flags <= 1)
+                                                       then (optInlineMax flags) `div` 3
                                                        else (optInlineMax flags),
                                   optctailCtxPath = (optctailCtxPath flags && isTargetC (target flags)),
-                                  optUnroll   = if (optUnroll flags < 0) 
+                                  optUnroll   = if (optUnroll flags < 0)
                                                   then (if (optimize flags > 0) then 1 else 0)
                                                   else optUnroll flags,
                                   ccompPath   = ccmd,
@@ -719,8 +721,9 @@ processOptions flags0 opts
                                   asan        = asan,
                                   useStdAlloc = stdAlloc,
                                   editor      = ed,
-                                  includePath = (localShareDir ++ "/lib") : includePath flags,
+                                  includePath = normalizedIncludes,
                                   vcpkgTriplet= triplet
+
 
                                   {-
                                   vcpkgRoot   = vcpkgRoot,
@@ -744,7 +747,7 @@ getKokaBuildDir "" eval
                 else do tmp <- getTemporaryDirectory
                         return (joinPath tmp kkbuild)
       else return kkbuild
-getKokaBuildDir buildDir _ = return buildDir    
+getKokaBuildDir buildDir _ = return buildDir
 
 
 kkbuild :: String
@@ -755,11 +758,11 @@ getKokaDirs libDir1 shareDir1 buildDir0
   = do bin        <- getProgramPath
        let binDir  = dirname bin
            rootDir = rootDirFrom binDir
-       isRootRepo <- doesDirectoryExist (joinPath rootDir "kklib")       
+       isRootRepo <- doesDirectoryExist (joinPath rootDir "kklib")
        let libDir   = if (not (null libDir1)) then libDir1
                       else if (isRootRepo) then joinPath rootDir kkbuild
                       else joinPath rootDir ("lib/koka/v" ++ version)
-           shareDir = if (not (null shareDir1)) then shareDir1           
+           shareDir = if (not (null shareDir1)) then shareDir1
                       else if (isRootRepo) then rootDir
                       else joinPath rootDir ("share/koka/v" ++ version)
        return (normalizeWith '/' rootDir,
@@ -780,7 +783,7 @@ rootDirFrom binDir
                   ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
                   -- regular install
                   ("bin":es)   -> joinPaths (reverse es)
-                  -- minbuild 
+                  -- minbuild
                   (_:dir:es) | dir == kkbuild -> joinPaths (reverse es)
                   _          -> binDir
 
@@ -833,7 +836,7 @@ getEnvOptions
 
 vcpkgFindRoot :: FilePath -> IO (FilePath,FilePath)
 vcpkgFindRoot root
-  = if (null root) 
+  = if (null root)
       then do eroot <- getEnvVar "VCPKG_ROOT"
               if (not (null eroot))
                 then return (eroot, joinPath eroot vcpkgExe)
@@ -844,25 +847,25 @@ vcpkgFindRoot root
                           Nothing     -> return ("", vcpkgExe)
                           Just fname0 -> do fname <- realPath fname0
                                             let root = case (reverse (splitPath (dirname fname))) of
-                                                         ("bin":dirs) -> joinPaths (reverse ("libexec":dirs)) 
+                                                         ("bin":dirs) -> joinPaths (reverse ("libexec":dirs))
                                                          _ -> dirname fname
                                             return (root, fname)
       else return (root, joinPath root vcpkgExe)
-  where 
+  where
     vcpkgExe = "vcpkg" ++ exeExtension
 
 
 conanSettingsFromFlags :: Flags -> CC -> ([String],[(String,String)])
 conanSettingsFromFlags flags cc
   = let name = ccName cc
-        clRuntime = ["-s","compiler.runtime=" ++ (if buildType flags <= Debug then "MDd" else "MD")] 
+        clRuntime = ["-s","compiler.runtime=" ++ (if buildType flags <= Debug then "MDd" else "MD")]
         -- conan compiler <https://docs.conan.io/en/latest/integrations/compilers.html>
         settings  | (name `startsWith` "clang-cl") -- <https://github.com/conan-io/conan/pull/5705>
-                  = clRuntime  
-                  | (name `startsWith` "mingw") 
+                  = clRuntime
+                  | (name `startsWith` "mingw")
                   = []
-                  | (name `startsWith` "emcc") 
-                  = ["-s","os=Emscripten"] ++ 
+                  | (name `startsWith` "emcc")
+                  = ["-s","os=Emscripten"] ++
                     (case target flags of  -- <https://docs.conan.io/en/latest/integrations/cross_platform/emscripten.html>
                        C Wasm | sizePtr (platform flags) == 4  -> ["-s","arch=wasm"]
                        C Wasm | sizePtr (platform flags) == 8  -> ["-s","arch=wasm64"]
@@ -872,7 +875,7 @@ conanSettingsFromFlags flags cc
                   | (name `startsWith` "clang" || name `startsWith` "musl-clang") = []
                   | (name `startsWith` "musl-gcc" || name `startsWith` "musl-g++") = []
                   | (name `startsWith` "gcc" || name `startsWith` "g++")   = []
-                  | (name `startsWith` "cl")    
+                  | (name `startsWith` "cl")
                   = clRuntime
                   | (name `startsWith` "icc")   = []
                   | otherwise = []
@@ -895,7 +898,7 @@ conanSettingsFromFlags flags cc
 type Args = [String]
 
 data CC = CC{  ccName       :: String,
-               ccPath       :: FilePath,               
+               ccPath       :: FilePath,
                ccFlags      :: Args,
                ccFlagsBuild :: [(BuildType,Args)],
                ccFlagsWarn  :: Args,
@@ -932,7 +935,7 @@ targetObjExtension target
       C WasmWeb-> ".o"
       C _      -> objExtension
       JS _     -> ".mjs"
-      _        -> objExtension 
+      _        -> objExtension
 
 targetLibFile target fname
   = case target of
@@ -953,22 +956,22 @@ fullBuildDir flags
      then joinPaths [buildDir flags, buildVersionTag flags, buildVariant flags]
      else outBuildDir flags
 
-buildVersionTag :: Flags -> String   
+buildVersionTag :: Flags -> String
 buildVersionTag flags
   = "v" ++ version ++ (if (null (buildTag flags)) then "" else "-" ++ buildTag flags)
 
 buildVariant :: Flags -> String   -- for example: clang-debug, js-release
 buildVariant flags
   = let pre  = case target flags of
-                 C ctarget 
-                   -> ccName (ccomp flags) ++ 
+                 C ctarget
+                   -> ccName (ccomp flags) ++
                       (case ctarget of
                         Wasm   -> "-wasm" ++ show (8*sizePtr (platform flags))
                         WasmJs -> "-wasmjs"
                         WasmWeb-> "-wasmweb"
                         _      | platformHasCompressedFields (platform flags)
                                -> "-" ++ cpuArch ++ "c"
-                               | otherwise -> "")                       
+                               | otherwise -> "")
                  JS _  -> "-js"
                  _     -> "-" ++ show (target flags)
     in pre ++ "-" ++ show (buildType flags)
@@ -1007,7 +1010,7 @@ ccGcc name opt platform path
         []
         (\stksize -> if (onMacOS && stksize > 0)  -- stack size is usually set programmatically (except on macos/windows)
                        then ["-Wl,-stack_size,0x" ++ showHex 0 stksize]
-                       else []) 
+                       else [])
         (\heapsize -> [])
         (\libdir -> ["-L",libdir])
         (\idir -> ["-I",idir])
@@ -1021,13 +1024,13 @@ ccGcc name opt platform path
   where
     archBits= 8 * sizePtr platform
     arch    = -- unfortunately, these flags are not as widely supported as one may hope so we only enable at -O2 or higher
-              if (opt < 2) then [] 
+              if (opt < 2) then []
               else if (cpuArch=="x64" && archBits==64) then ["-march=haswell","-mtune=native"]      -- popcnt, lzcnt, tzcnt, pdep, pext
               else if (cpuArch=="arm64" && archBits==64) then ["-march=armv8.1-a","-mtune=native"]  -- popcnt, simd, lse
               else []
 
 ccMsvc name opt platform path
-  = CC name path ["-DWIN32","-nologo"] 
+  = CC name path ["-DWIN32","-nologo"]
          [(DebugFull,words "-MDd -Zi -Od -RTC1"),
           (Debug,words "-MDd -Zi -O1"),
           (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
@@ -1036,7 +1039,7 @@ ccMsvc name opt platform path
          ["-EHs","-TP","-c"]   -- always compile as C++ on msvc (for atomics etc.)
          ["-link"]             -- , "/NODEFAULTLIB:msvcrt"]
          (\stksize -> if stksize > 0 then ["/STACK:" ++ show stksize] else [])
-         (\heapsize -> [])        
+         (\heapsize -> [])
          (\libdir -> ["/LIBPATH:" ++ libdir])
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
@@ -1045,15 +1048,15 @@ ccMsvc name opt platform path
          (\lib -> [lib])
          (\(def,val) -> ["-D" ++ def ++ (if null val then "" else "=" ++ val)])
          (\lib -> libPrefix ++ lib ++ libExtension)
-         (\obj -> obj ++ objExtension)         
+         (\obj -> obj ++ objExtension)
 
 
 ccFromPath :: Flags -> FilePath -> IO (CC,Bool {-asan-})
 ccFromPath flags path
   = let name    = -- reverse $ dropWhile (not . isAlpha) $ reverse $
                   basename path
-        gcc     = ccGcc name (optimize flags) (platform flags) path        
-        mingw   = gcc{ ccName = "mingw", 
+        gcc     = ccGcc name (optimize flags) (platform flags) path
+        mingw   = gcc{ ccName = "mingw",
                        ccLibFile = \lib -> "lib" ++ lib ++ ".a",
                        ccFlagStack = (\stksize -> if stksize > 0 then ["-Wl,--stack," ++ show stksize] else [])
                      }
@@ -1067,11 +1070,11 @@ ccFromPath flags path
                      }
         clang   = gcc{ ccFlagsWarn = gnuWarn
                                      ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align"
-                                     ++ (if onMacOS && cpuArch == "arm64" then ["-Wno-unknown-warning-option","-Wno-unused-but-set-variable"] else []) 
+                                     ++ (if onMacOS && cpuArch == "arm64" then ["-Wno-unknown-warning-option","-Wno-unused-but-set-variable"] else [])
                      }
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name (optimize flags) (platform flags) path
-        clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++ 
+        clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++
                                       words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
                         ccFlagsLink = words "-Wno-unused-command-line-argument" ++ ccFlagsLink msvc,
                         ccFlagsCompile = ["-D__clang_msvc__"] ++ ccFlagsCompile msvc
@@ -1092,9 +1095,9 @@ ccFromPath flags path
                 , ccFlagsLink    = ccFlagsLink cc0 ++ ccompLinkArgs flags }
 
     in do when (isTargetWasm (target flags) && not (name `startsWith` "emcc")) $
-            putStrLn ("\nwarning: a wasm target should use the emscripten compiler (emcc),\n  but currently '" 
-                       ++ ccPath cc ++ "' is used." 
-                       ++ "\n  hint: specify the emscripten path using --cc=<emcc path>?")   
+            putStrLn ("\nwarning: a wasm target should use the emscripten compiler (emcc),\n  but currently '"
+                       ++ ccPath cc ++ "' is used."
+                       ++ "\n  hint: specify the emscripten path using --cc=<emcc path>?")
           if (asan flags)
             then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc" || ccName cc `startsWith` "g++"))
                     then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
@@ -1126,7 +1129,7 @@ ccCheckExist cc
 
 
 quote s
-  = "\"" ++ s ++ "\""  
+  = "\"" ++ s ++ "\""
 
 -- unquote a shell argument string (as well as we can)
 unquote :: String -> [String]
@@ -1168,12 +1171,12 @@ osName
       os              -> os
 
 tripletArch :: String
-tripletArch 
+tripletArch
   = cpuArch
 
-cpuArch :: String  
+cpuArch :: String
 cpuArch
-  = case System.Info.arch of 
+  = case System.Info.arch of
       "aarch64"     -> "arm64"
       "x86_64"      -> "x64"
       "i386"        -> "x86"
@@ -1211,7 +1214,7 @@ detectEditor :: IO String
 detectEditor
   = do paths <- getEnvPaths "PATH"
        findEditor paths [("code","--goto %f:%l:%c"),("atom","%f:%l:%c")]
-       
+
 findEditor :: [FilePath] -> [(String,String)] -> IO String
 findEditor paths []
   = do -- putStrLn "warning: cannot find editor"

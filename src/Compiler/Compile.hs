@@ -311,16 +311,6 @@ compileFile term flags modules compileTarget fpath
          Just (root,stem)
            -> compileProgramFromFile term flags modules compileTarget root stem
 
--- | Make a file path relative to a set of given paths: return the (maximal) root and stem
--- if it is not relative to the paths, return dirname/notdir
-makeRelativeToPaths :: [FilePath] -> FilePath -> (FilePath,FilePath)
-makeRelativeToPaths paths fname
-  = let (root,stem) = case findMaximalPrefix paths fname of
-                        Just (n,root) -> (root,drop n fname)
-                        _             -> ("", fname)
-    in -- trace ("relative path of " ++ fname ++ " = " ++ show (root,stem)) $
-       (root,stem)
-
 
 compileModule :: Terminal -> Flags -> Modules -> Name -> IO (Error Loaded)
 compileModule term flags modules name  -- todo: take force into account
@@ -756,7 +746,9 @@ searchSource flags currentDir name
 searchSourceFile :: Flags -> FilePath -> FilePath -> IO (Maybe (FilePath,FilePath))
 searchSourceFile flags currentDir fname
   = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (currentDir:includePath flags))) $ return ()
-       mbP <- searchPathsEx (currentDir : includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
+       extra <- if null currentDir then return []
+                                   else do{ d <- realPath currentDir; return [d] }
+       mbP <- searchPathsEx (extra ++ includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
        case mbP of
          Just (root,stem) | root == currentDir
            -> return $ Just (makeRelativeToPaths (includePath flags) (joinPath root stem))
