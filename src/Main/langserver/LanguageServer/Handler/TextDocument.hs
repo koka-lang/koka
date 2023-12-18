@@ -217,12 +217,12 @@ processCompilationResult normUri filePath flags update doIO = do
               return ()
             Just l -> do
               trace ("Error when compiling have cached" ++ show (map modSourcePath $ loadedModules l)) $ return ()
-              when update $ putLoaded l filePath flags 
+              when update $ putLoaded l filePath flags
               removeLoaded (loadedModule l)
           sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack ("Error when compiling " ++ show e) <> T.pack filePath
           return Nothing
       -- Emit the diagnostics (errors and warnings)
-      let diagSrc = T.pack "koka"
+      let diagSrc = T.pack "" -- "\n(koka)"
           diags = toLspDiagnostics normUri diagSrc res
           maxDiags = 100
           -- Union with the current file mapped to an empty list, since we want to clear diagnostics for this file when it is an error in another file
@@ -264,7 +264,7 @@ persistModule m = do
   --           putLoaded loaded
   --           return ()
   --         Nothing -> return ()
-  -- -- trace ("Module " ++ show (modName m)) $ 
+  -- -- trace ("Module " ++ show (modName m)) $
   -- case modOutputTime m of
   --   Nothing -> do
   --     -- trace "No output time" $ return ()
