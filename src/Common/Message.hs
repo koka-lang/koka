@@ -17,7 +17,7 @@ module Common.Message(
                      ) where
 
 import Data.Char      ( isSpace )
-import Lib.PPrint     
+import Lib.PPrint
 import Common.Failure (failure)
 import Common.Range
 import Common.ColorScheme
@@ -25,9 +25,9 @@ import Common.ColorScheme
 {--------------------------------------------------------------------------
   Pretty print helpers
 --------------------------------------------------------------------------}
-ppRange :: Bool -> ColorScheme -> Range -> Doc
-ppRange endToo colors r
-  = color (colorRange colors) (text (showRange endToo r))
+ppRange :: FilePath -> Bool -> ColorScheme -> Range -> Doc
+ppRange cwd endToo colors r
+  = color (colorRange colors) (text (showRange cwd endToo r))
 
 table :: [(Doc,Doc)] -> Doc
 table xs  = tablex 1 xs
