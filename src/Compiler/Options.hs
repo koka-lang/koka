@@ -660,6 +660,8 @@ processOptions flags0 opts
                    (localDir,localLibDir,localShareDir,localBinDir)
                         <- getKokaDirs (localLibDir flags) (localShareDir flags) buildDir
 
+                   normalizedIncludes <- mapM realPath ("." : (localShareDir ++ "/lib") : includePath flags)
+
                    -- cc
                    ccmd <- if (ccompPath flags == "") then detectCC (target flags)
                            else if (ccompPath flags == "mingw") then return "gcc"
@@ -721,8 +723,9 @@ processOptions flags0 opts
                                   asan        = asan,
                                   useStdAlloc = stdAlloc,
                                   editor      = ed,
-                                  includePath = (localShareDir ++ "/lib") : includePath flags,
+                                  includePath = normalizedIncludes,
                                   vcpkgTriplet= triplet
+
 
                                   {-
                                   vcpkgRoot   = vcpkgRoot,

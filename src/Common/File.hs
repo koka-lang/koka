@@ -42,9 +42,12 @@ module Common.File(
                   , removeFileIfExists
                   , realPath
                   , doesFileExistAndNotEmpty
+                  , makeRelativeToPaths
+                  , getCwd
+                  , relativeToPath
                   ) where
 
-import Data.List        ( intersperse )
+import Data.List        ( intersperse, isPrefixOf )
 import Data.Char        ( toLower, isSpace )
 import Platform.Config  ( pathSep, pathDelimiter, sourceExtension, exeExtension )
 import qualified Platform.Runtime as B ( {- copyBinaryFile, -} exCatch )
@@ -190,7 +193,9 @@ joinPaths dirs
 -- | Normalize path separators
 normalize :: FilePath -> FilePath
 normalize path
-  = normalizeWith '/' path
+  = case normalizeWith '/' path of
+      (c:':':'/':rest) -> [toLower c] ++ ":/" ++ rest  -- use lower case drive letters on windows
+      npath            -> npath
 
 -- | Normalize path separators with a specified path separator
 normalizeWith :: Char -> FilePath -> FilePath
@@ -214,7 +219,9 @@ isPathDelimiter :: Char -> Bool
 isPathDelimiter c
   = (c == ';' || c == pathDelimiter)
 
-
+getCwd :: IO FilePath
+getCwd
+   = realPath "."
 
 {--------------------------------------------------------------------------
   system
@@ -389,6 +396,13 @@ commonPathPrefix s1 s2
   = joinPaths $ map fst $ takeWhile (\(c,d) -> c == d) $ zip (splitPath s1) (splitPath s2)
 
 
+relativeToPath :: FilePath -> FilePath -> FilePath
+relativeToPath "" path = path
+relativeToPath prefix path
+  = let prefixes = splitPath prefix
+        paths    = splitPath path
+    in if isPrefixOf prefixes paths then joinPaths (drop (length prefixes) paths) else path
+
 -- | Is a path absolute?
 isAbsolute :: FilePath -> Bool
 isAbsolute fpath
@@ -422,13 +436,14 @@ searchPaths path exts name
   = searchPathsSuffixes path exts [] name
 
 searchPathsSuffixes :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath))
-searchPathsSuffixes path exts suffixes name
-  = fmap (fmap (\(root,name) -> joinPath root name)) (searchPathsEx path (filter (not.null) exts) suffixes name)
+searchPathsSuffixes paths exts suffixes name
+  = fmap (fmap (\(root,name) -> joinPath root name)) (searchPathsEx paths (filter (not.null) exts) suffixes name)
 
 
 searchPathsEx :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
-searchPathsEx path exts suffixes name
-  = search (concatMap (\dir -> map (\n -> (dir,n)) nameext) ("":path))
+searchPathsEx paths exts suffixes name
+  = search (concatMap (\dir -> map (\n -> (dir,n)) nameext)
+              (if isAbsolute name then [""] else paths))
   where
     search [] = return Nothing  -- notfound envname nameext path
     search ((dir,fname):xs)
@@ -436,7 +451,10 @@ searchPathsEx path exts suffixes name
           -- ; trace ("search: " ++ fullName) $ return ()
           ; exist <- doesFileExist fullName
           ; if exist
-             then return (Just (dir,fname))
+             then do rpath <- realPath fullName
+                     case findMaximalPrefix paths rpath of
+                        Just (n,root) -> return (Just (root,drop n rpath))
+                        Nothing       -> return (Just ("",rpath))
              else search xs
           }
 
@@ -446,6 +464,17 @@ searchPathsEx path exts suffixes name
 
     nname
       = joinPaths $ dropWhile (==".") $ splitPath name
+
+
+-- | Make a file path relative to a set of given paths: return the (maximal) root and stem
+-- if it is not relative to the paths, return dirname/notdir
+makeRelativeToPaths :: [FilePath] -> FilePath -> (FilePath,FilePath)
+makeRelativeToPaths paths fname
+  = let (root,stem) = case findMaximalPrefix paths fname of
+                        Just (n,root) -> (root,drop n fname)
+                        _             -> ("", fname)
+    in -- trace ("relative path of " ++ fname ++ " with paths " ++ show paths ++ " = " ++ show (root,stem)) $
+       (root,stem)
 
 
 getEnvPaths :: String -> IO [FilePath]
@@ -464,7 +493,8 @@ getEnvVar name
 
 realPath :: FilePath -> IO FilePath
 realPath fpath
-  = canonicalizePath fpath
+  = do fullpath <- canonicalizePath fpath
+       return (normalize fullpath)
 
 
 searchProgram :: FilePath -> IO (Maybe FilePath)
