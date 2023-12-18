@@ -44,11 +44,11 @@ fun testtwice( m, ??monadplus )
 
 // exceptions
 fun test1()
-  match [Just(1), Just(2)].sequence(?monad=monad_maybe)  // ambiguous: `monad_maybe` or `monad_monadplus(monadplus_maybe)`
+  match [Just(1), Just(2)].sequence  // ambiguous: `monad_maybe` or `monad_monadplus(monadplus_maybe)`
     Just(xs) -> xs.show
     Nothing  -> "Nothing"
 
 // list of successes
 fun test2()
-  [[1],[2,3],[4,5,6]].sequence(?monad=monad_list).show-list(show)
+  [[1],[2,3],[4,5,6]].sequence.show-list(show)
 
