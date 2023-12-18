@@ -155,7 +155,7 @@ interactive p
 
 valueDefinition :: LexParser UserDef
 valueDefinition
-  = interactive (pureDecl Private)
+  = interactive (pureDecl False Private)
 
 
 typeDefinition :: LexParser (UserTypeDef,[UserDef])
@@ -257,7 +257,7 @@ splitTopDefs ds
 
 topdef :: Visibility -> LexParser [TopDef]
 topdef vis
-  = do def <- pureDecl vis
+  = do def <- pureDecl True vis
        return [DefValue def]
   <|>
     do tdef <- aliasDecl vis
@@ -330,7 +330,7 @@ externDecl dvis
          Left p -> do extern <- p
                       return [DefExtern extern]
          Right (krng,vis,doc,inline,fip)
-           -> do (name,nameRng) <- funid
+           -> do (name,nameRng) <- funid True {-toplevel-}
                  (pars,pinfos,args,tp,annotate)
                    <- do keyword ":"
                          tp <- ptype  -- no "some" allowed
@@ -1151,17 +1151,17 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
 -- Value definitions
 -----------------------------------------------------------
 
-pureDecl :: Visibility -> LexParser UserDef
-pureDecl dvis
+pureDecl :: Bool -> Visibility -> LexParser UserDef
+pureDecl toplevel dvis
   = do pdecl
           <- try $ do (vis,vrng) <- visibility dvis
                       inline <- parseInline
                       (do (rng,doc) <- dockeyword "val" -- return (vis,vrng,rng,doc,inline,True)
-                          return (valDecl (combineRange vrng rng) doc vis inline)
+                          return (valDecl toplevel (combineRange vrng rng) doc vis inline)
                        <|>
                        do fip    <- parseFip
                           (rng,doc) <- dockeywordFun  -- return (vis,vrng,rng,doc,inline,False)
-                          return (funDecl (combineRange vrng rng) doc vis inline fip)
+                          return (funDecl toplevel (combineRange vrng rng) doc vis inline fip)
                        <|>
                        do keyword "fn"
                           fail "hint: use 'fun' to start a named function definition (and 'fn' for anonymous functions)")
@@ -1192,31 +1192,31 @@ parseFip
             return (Fbip alloc isTail)
          <|> return (NoFip isTail))
 
-functionDecl vrng vis
+functionDecl toplevel vrng vis
   = do pdecl <- try $ do inline <- parseInline
                          fip    <- parseFip
                          (rng,doc) <- dockeywordFun
-                         return (funDecl (combineRange vrng rng) doc vis inline fip)
+                         return (funDecl toplevel (combineRange vrng rng) doc vis inline fip)
        pdecl
 
 varDecl
   = do (vrng,doc) <- dockeyword "var"
-       bind <- binder vrng
+       bind <- pbinder False vrng
        keyword ":="
        body <- blockexpr
        return (Def (bind body) (combineRanged vrng body) Private DefVar InlineNever doc)
 
 
-valDecl rng doc vis inline
-  = do bind <- binder rng
+valDecl toplevel rng doc vis inline
+  = do bind <- pbinder toplevel rng
        keyword "="
        body <- blockexpr
        return (Def (bind body) (combineRanged rng body) vis DefVal inline doc)
 
-funDecl rng doc vis inline fip
+funDecl toplevel rng doc vis inline fip
   = do spars <- squantifier
        -- tpars <- aquantifier  -- todo: store somewhere
-       (name,nameRng) <- funid
+       (name,nameRng) <- funid toplevel
        (tpars,pars,pinfos,parsRng,mbtres,preds,ann) <- funDef True {-allowBorrow-} True {- allow implicits -}
        body   <- bodyexpr
        let fun = promote spars tpars preds mbtres
@@ -1380,7 +1380,7 @@ data Statement = StatFun (UserExpr -> UserExpr)
 
 statement :: LexParser Statement
 statement
-  = do funs <- many1 (functionDecl rangeNull Private)
+  = do funs <- many1 (functionDecl False rangeNull Private)
        return (StatFun (\body -> Let (DefRec funs) body (combineRanged funs body)))
   <|>
     do fun <- localValueDecl -- <|> localUseDecl <|> localUsingDecl
@@ -2079,14 +2079,14 @@ injectType
 -----------------------------------------------------------
 -- Patterns (and binders)
 -----------------------------------------------------------
-binder :: Range -> LexParser (UserExpr -> ValueBinder () UserExpr)
-binder preRange
-  = do (name,range) <- identifier
+pbinder :: Bool -> Range -> LexParser (UserExpr -> ValueBinder () UserExpr)
+pbinder toplevel preRange
+  = do (name,range) <- if toplevel then qidentifier else identifier
        ann <- typeAnnotation
        return (\expr -> ValueBinder name () (ann expr) range (combineRange preRange range))
 
-funid
-  = identifier
+funid toplevel
+  = (if toplevel then qidentifier else identifier)
   <|>
     do rng1 <- special "["
        rng2 <- special "]"

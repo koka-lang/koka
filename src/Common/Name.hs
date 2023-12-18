@@ -49,6 +49,8 @@ module Common.Name
           , prepend, postpend
           , asciiEncode, showHex, moduleNameToPath, pathToModuleName
           , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
+
+          , unqualifyAsName
           ) where
 
 import Lib.Trace( trace )
@@ -217,6 +219,11 @@ isQualified (Name m _ _ _)
 qualifier :: Name -> Name
 qualifier (Name m hm _ _)
   = Name "" 0 m hm
+
+unqualifyAsName :: Name -> Name
+unqualifyAsName name@(Name m _ n _)
+  | null m    = name
+  | otherwise = newQualified "" (m ++ "/" ++ n)
 
 
 ----------------------------------------------------------------
