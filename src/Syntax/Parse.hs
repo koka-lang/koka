@@ -2086,7 +2086,7 @@ pbinder toplevel preRange
        return (\expr -> ValueBinder name () (ann expr) range (combineRange preRange range))
 
 funid toplevel
-  = (if toplevel then qidentifier else identifier)
+  = (if toplevel then do{ (name,rng) <- qidentifier; return (qualifyInternally name, rng) } else identifier)
   <|>
     do rng1 <- special "["
        rng2 <- special "]"

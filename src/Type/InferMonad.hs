@@ -530,7 +530,7 @@ resolveHeapDiv free []
 resolveHeapDiv free (ev:evs)
   = case evPred ev of
       PredIFace name [hp,tp,eff]  | name == namePredHeapDiv
-        -> trace (" resolveHeapDiv: " ++ show (hp,tp,eff)) $
+        -> -- trace (" resolveHeapDiv: " ++ show (hp,tp,eff)) $
            do stp <- subst tp
               shp <- subst hp
               let tvsTp = ftv stp
@@ -1340,7 +1340,8 @@ caseOverlaps name qname info
   = let qname1 = case info of
                    InfoImport{infoAlias = alias} -> alias
                    _                             -> qname
-    in if (nameCaseOverlap ((if isQualified name then id else unqualify) (nonCanonicalName qname1)) name)
+    in if not (isInternalQualified qname) && -- TODO: fix casing check for internally qualified names
+          (nameCaseOverlap ((if isQualified name then id else unqualify) (nonCanonicalName qname1)) name)
         then Just qname1
         else Nothing
 

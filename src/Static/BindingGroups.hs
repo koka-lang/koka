@@ -92,138 +92,160 @@ bindings :: Name -> [UserDefGroup] -> [UserDefGroup]
 bindings modName defGroups
   = group defs deps
   where
-    (defs, deps) = unzipWith (concat, unions) (map (bindingsDefGroup modName) defGroups)
+    extraDeps    = extractExtraDeps defGroups
+    (defs, deps) = unzipWith (concat, unions) (map (bindingsDefGroup extraDeps modName) defGroups)
+
+
+type ExtraDeps = M.NameMap [Name]  -- maps base names (`eq`) to internally qualified names (`int/eq`,`char/eq`)
+
+extractExtraDeps :: [UserDefGroup] -> ExtraDeps
+extractExtraDeps dgs
+  = M.unionsWith (++) (map eedDefGroup dgs)
+
+eedDefGroup (DefNonRec def) = eedDef def
+eedDefGroup (DefRec defs)   = M.unionsWith (++) (map eedDef defs)
+
+eedDef :: UserDef -> ExtraDeps
+eedDef def
+  = let name = binderName (defBinder def)
+    in if isInternalQualified name
+         then M.singleton (unqualifyFull name) [name]
+         else M.empty
+
 
 unions ms
   = foldr (M.unionWith S.union) M.empty ms
 
-bindingsDefGroup :: Name -> UserDefGroup -> ([UserDef], Deps)
-bindingsDefGroup modName group
+bindingsDefGroup :: ExtraDeps -> Name -> UserDefGroup -> ([UserDef], Deps)
+bindingsDefGroup extraDeps modName group
   = case group of
-      DefNonRec def  -> let (newDef,deps) = dependencyDef modName def in ([newDef],deps)
-      DefRec defs    -> dependencies modName defs
+      DefNonRec def  -> let (newDef,deps) = dependencyDef extraDeps modName def in ([newDef],deps)
+      DefRec defs    -> dependencies extraDeps modName defs
 
 
-dependencies :: Name -> [UserDef] -> ([UserDef], Deps)
-dependencies modName defs
+dependencies :: ExtraDeps -> Name -> [UserDef] -> ([UserDef], Deps)
+dependencies extraDeps modName defs
   = (depDefs, deps)
   where
     defVars  = M.keys deps
     freeVars = S.unions (M.elems deps)
-    (depDefs, deps)  = unzipWith (id,unions) (map (dependencyDef modName) defs)
+    (depDefs, deps)  = unzipWith (id,unions) (map (dependencyDef extraDeps modName) defs)
 
-dependencyDef :: Name -> UserDef -> (UserDef, Deps)
-dependencyDef modName def
+dependencyDef :: ExtraDeps -> Name -> UserDef -> (UserDef, Deps)
+dependencyDef extraDeps modName def
   = (def{ defBinder = depBinding}, deps)
   where
-    (depBinding,deps) = dependencyBinding modName (defBinder def)
+    (depBinding,deps) = dependencyBinding extraDeps modName (defBinder def)
 
-dependencyBinding :: Name -> UserValueBinder UserExpr -> (UserValueBinder UserExpr, Deps)
-dependencyBinding modName vb
-  = -- trace ("dependency def: " ++ show (binderName vb) ++ ": " ++ show (S.toList freeVar)) $
-    (vb{ binderExpr = depBody }, M.singleton ((binderName vb)) freeVar)
+dependencyBinding :: ExtraDeps -> Name -> UserValueBinder UserExpr -> (UserValueBinder UserExpr, Deps)
+dependencyBinding extraDeps modName vb
+  = trace ("dependency def: " ++ show (binderName vb) ++ ": " ++ show (S.toList freeVar)) $
+    (vb{ binderExpr = depBody }, M.singleton (binderName vb) freeVar)
   where
-    (depBody, freeVar) = dependencyExpr modName (binderExpr vb)
+    (depBody, freeVar) = dependencyExpr extraDeps modName (binderExpr vb)
 
 
-dependencyDefFv :: Name -> UserDef -> (UserDef, FreeVar)
-dependencyDefFv modName def
-  = let (depDef, deps) = dependencyDef modName def
+dependencyDefFv :: ExtraDeps -> Name -> UserDef -> (UserDef, FreeVar)
+dependencyDefFv extraDeps modName def
+  = let (depDef, deps) = dependencyDef extraDeps modName def
     in (depDef, S.unions (M.elems deps))
 
-dependencyDefGroupFv :: Name -> UserDefGroup -> ([UserDefGroup],FreeVar,S.NameSet)
-dependencyDefGroupFv modName defGroup
+dependencyDefGroupFv :: ExtraDeps -> Name -> UserDefGroup -> ([UserDefGroup],FreeVar,S.NameSet)
+dependencyDefGroupFv extraDeps modName defGroup
   = (group defs deps, freeVar, names)
   where
     freeVar = S.difference (S.unions (M.elems deps)) names
     names   = S.fromList (M.keys deps)
-    (defs,deps) = bindingsDefGroup modName defGroup
+    (defs,deps) = bindingsDefGroup extraDeps modName defGroup
 
-dependencyExpr :: Name -> UserExpr -> (UserExpr, FreeVar)
-dependencyExpr modName expr
+dependencyExpr :: ExtraDeps -> Name -> UserExpr -> (UserExpr, FreeVar)
+dependencyExpr extraDeps modName expr
   = case expr of
-      Lam binders body rng -> let (depBody,fv1) = dependencyExpr modName body
-                                  (binders',fv2) = dependencyLamBinders modName fv1 binders
+      Lam binders body rng -> let (depBody,fv1) = dependencyExpr extraDeps modName body
+                                  (binders',fv2) = dependencyLamBinders extraDeps modName fv1 binders
                                                    -- unzip (map dependencyLamBinder binders)
                               in (Lam binders' depBody rng, fv2) -- S.difference (S.unions (fv:fvs)) (S.fromList (map binderName binders')))
-      Bind def body rng    -> let (depDef,fv1) = dependencyDefFv modName def
-                                  (depBody,fv2) = dependencyExpr modName body
+      Bind def body rng    -> let (depDef,fv1) = dependencyDefFv extraDeps modName def
+                                  (depBody,fv2) = dependencyExpr extraDeps modName body
                               in (Bind depDef depBody rng, S.union fv1 (S.delete (defName def) fv2))
-      Let group body rng   -> let (depGroups,fv1,names) = dependencyDefGroupFv modName group
-                                  (depBody,fv2)   = dependencyExpr modName body
+      Let group body rng   -> let (depGroups,fv1,names) = dependencyDefGroupFv extraDeps modName group
+                                  (depBody,fv2)   = dependencyExpr extraDeps modName body
                               in (foldr (\g b -> Let g b rng)  depBody depGroups, S.union fv1 (S.difference fv2 names))
       Var name op rng      -> let uname = name -- if (qualifier name == modName) then unqualify name else name
                               in if isConstructorName name
                                   then (expr,S.fromList [uname,newCreatorName uname])
-                                  else (expr,S.fromList [uname,toValueOperationName uname])
-      App fun nargs rng    -> let (fun', funvars) = dependencyExpr modName fun
+                                  else let extra = case M.lookup (unqualifyFull name) extraDeps of
+                                                     Just extras -> extras
+                                                     Nothing     -> []
+                                       in (expr,S.fromList ([uname,toValueOperationName uname] ++ extra))
+      App fun nargs rng    -> let (fun', funvars) = dependencyExpr extraDeps modName fun
                                   (argNames,args) = unzip nargs
-                                  (args', argvars) = unzipWith (id,S.unions) (map (dependencyExpr modName) args)
+                                  (args', argvars) = unzipWith (id,S.unions) (map (dependencyExpr extraDeps modName) args)
                               in (App fun' (zip argNames args') rng, S.union funvars argvars)
-      Ann expr t rng       -> let (depExpr,fv) = dependencyExpr modName expr
+      Ann expr t rng       -> let (depExpr,fv) = dependencyExpr extraDeps modName expr
                               in (Ann depExpr t rng, fv)
-      Case expr branches rng -> let (depExpr,fv1) = dependencyExpr modName expr
-                                    (depBranches,fv2) = dependencyBranches dependencyBranch modName branches
+      Case expr branches rng -> let (depExpr,fv1) = dependencyExpr extraDeps modName expr
+                                    (depBranches,fv2) = dependencyBranches dependencyBranch extraDeps modName branches
                                 in (Case depExpr depBranches rng, S.union fv1 fv2)
-      Parens expr name rng -> let (depExpr, fv) = dependencyExpr modName expr
+      Parens expr name rng -> let (depExpr, fv) = dependencyExpr extraDeps modName expr
                               in (Parens depExpr name rng, fv)
 --      Con    name isop range -> (expr, S.empty)
       Lit    lit           -> (expr, S.empty)
       Handler shallow scoped override allowMask eff pars reinit ret final ops hrng rng
-        -> let (depRet,fv1)     = dependencyExprMaybe modName ret
-               (depBranches,fv2)= dependencyBranches dependencyHandlerBranch modName ops
-               (depReinit,fv3)  = dependencyExprMaybe modName reinit
-               (depFinal,fv4)   = dependencyExprMaybe modName final
+        -> let (depRet,fv1)     = dependencyExprMaybe extraDeps modName ret
+               (depBranches,fv2)= dependencyBranches (dependencyHandlerBranch) extraDeps modName ops
+               (depReinit,fv3)  = dependencyExprMaybe extraDeps modName reinit
+               (depFinal,fv4)   = dependencyExprMaybe extraDeps modName final
                fvs              = S.difference (S.unions [fv1,fv2,fv3,fv4]) (S.fromList (map binderName pars))
            in (Handler shallow scoped override allowMask eff pars depReinit depRet depFinal depBranches hrng rng,fvs)
-      Inject tp body b rng -> let (depBody,fv) = dependencyExpr modName body
+      Inject tp body b rng -> let (depBody,fv) = dependencyExpr extraDeps modName body
                               in (Inject tp depBody b rng, fv)
 
-dependencyBranches f modName branches
-  = unzipWith (id,S.unions) (map (f modName) branches)
+dependencyBranches f extraDeps modName branches
+  = unzipWith (id,S.unions) (map (f extraDeps modName) branches)
 
-dependencyExprMaybe modName mbExpr
+dependencyExprMaybe extraDeps modName mbExpr
   = case mbExpr of
       Nothing -> (Nothing,S.empty)
-      Just expr -> let (depExpr,fv) = dependencyExpr modName expr
+      Just expr -> let (depExpr,fv) = dependencyExpr extraDeps modName expr
                    in (Just depExpr,fv)
 
-dependencyHandlerBranch :: Name -> UserHandlerBranch -> (UserHandlerBranch, FreeVar)
-dependencyHandlerBranch modName hb@(HandlerBranch{ hbranchName=name, hbranchPars=pars, hbranchExpr=expr })
+dependencyHandlerBranch :: ExtraDeps -> Name -> UserHandlerBranch -> (UserHandlerBranch, FreeVar)
+dependencyHandlerBranch extraDeps modName hb@(HandlerBranch{ hbranchName=name, hbranchPars=pars, hbranchExpr=expr })
   = (hb{ hbranchExpr = depExpr }, S.insert uname (S.difference fvExpr (S.fromList (map getName pars))))
   where
     uname = if (qualifier name == modName) then unqualify name else name
-    (depExpr, fvExpr)   = dependencyExpr modName expr
+    (depExpr, fvExpr)   = dependencyExpr extraDeps modName expr
 
 
-dependencyBranch :: Name -> UserBranch -> (UserBranch, FreeVar)
-dependencyBranch modName (Branch pattern guards)
-  = let (depGuards, fvGuards) = unzipWith (id,S.unions) (map (dependencyGuard modName) guards)
+dependencyBranch :: ExtraDeps -> Name -> UserBranch -> (UserBranch, FreeVar)
+dependencyBranch extraDeps modName (Branch pattern guards)
+  = let (depGuards, fvGuards) = unzipWith (id,S.unions) (map (dependencyGuard extraDeps modName) guards)
     in  (Branch pattern depGuards, S.difference fvGuards (freeVar pattern))
 
-dependencyGuard :: Name -> UserGuard -> (UserGuard, FreeVar)
-dependencyGuard modName (Guard test expr)
+dependencyGuard :: ExtraDeps -> Name -> UserGuard -> (UserGuard, FreeVar)
+dependencyGuard extraDeps modName (Guard test expr)
   = (Guard depTest depExpr, S.union fvTest fvExpr)
   where
-    (depTest, fvTest) = dependencyExpr modName test
-    (depExpr, fvExpr) = dependencyExpr modName expr
+    (depTest, fvTest) = dependencyExpr extraDeps modName test
+    (depExpr, fvExpr) = dependencyExpr extraDeps modName expr
 
-dependencyLamBinders :: Name -> FreeVar -> [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> ([ValueBinder (Maybe UserType) (Maybe UserExpr)], FreeVar)
-dependencyLamBinders modName fv []
+dependencyLamBinders :: ExtraDeps -> Name -> FreeVar -> [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> ([ValueBinder (Maybe UserType) (Maybe UserExpr)], FreeVar)
+dependencyLamBinders extraDeps modName fv []
   = ([],fv)
-dependencyLamBinders modName fv (binder:binders)
-  = let (binders0,fv0) = dependencyLamBinders modName fv binders
+dependencyLamBinders extraDeps modName fv (binder:binders)
+  = let (binders0,fv0) = dependencyLamBinders extraDeps modName fv binders
         fv1            = S.delete (binderName binder) fv0
     in case binderExpr binder of
          Nothing -> (binder:binders0,fv1)
-         Just expr -> let (expr',fv2) = dependencyExpr modName expr
+         Just expr -> let (expr',fv2) = dependencyExpr extraDeps modName expr
                       in (binder{ binderExpr = Just expr' }:binders0, S.union fv1 fv2)
 
-dependencyLamBinder :: Name -> ValueBinder (Maybe UserType) (Maybe UserExpr) -> (ValueBinder (Maybe UserType) (Maybe UserExpr), FreeVar)
-dependencyLamBinder modName binder
+dependencyLamBinder :: ExtraDeps -> Name -> ValueBinder (Maybe UserType) (Maybe UserExpr) -> (ValueBinder (Maybe UserType) (Maybe UserExpr), FreeVar)
+dependencyLamBinder extraDeps modName binder
   = case binderExpr binder of
       Nothing -> (binder,S.empty)
-      Just expr -> let (expr',fv) = dependencyExpr modName expr
+      Just expr -> let (expr',fv) = dependencyExpr extraDeps modName expr
                    in (binder{ binderExpr = Just expr' }, fv)
 
 ---------------------------------------------------------------------------

@@ -22,6 +22,7 @@ import Prelude hiding (lookup)
 import qualified Prelude
 import Data.List (lookup, intersperse)
 import Common.Name
+import Lib.Trace(trace)
 
 -- | Maps short module aliases @core@ to full module paths @std/core@.
 -- It is represented as a map from a reversed list of module path components to a full name
@@ -40,19 +41,57 @@ importsExtend name fullName imp
 
 -- | @importsExpand name map@ takes a qualified name (@core/int@) and expands
 -- it to its real fully qualified name (@std/core/int@). It also returns
--- the declared alias suffix (used to find case-errors). 
+-- the declared alias suffix (used to find case-errors).
 -- On ambiguity, or if not found at all, it returns Left with a list of candidates.
-importsExpand :: Name -> ImportMap -> Either [Name] (Name,Name)
-importsExpand name imp  
-  = if isQualified name 
+importsExpandOld :: Name -> ImportMap -> Either [Name] (Name,Name)
+importsExpandOld name imp
+  = if isQualified name
      then let rpath = reverse $ splitModuleName (qualifier name)
           in case filter (\(ralias,_) -> isPrefix rpath ralias) imp of
-               [(ralias,fullName)] 
-                   -> Right (qualify fullName (unqualify name), 
+               [(ralias,fullName)]
+                   -> Right (qualify fullName (unqualify name),
                                unsplitModuleName (reverse (take (length rpath) ralias)))
                amb -> Left (map (unsplitModuleName . reverse . fst) amb)
      else Right (name,nameNil)
   where
+    isPrefix (x:xs) (y:ys)  = x==y && isPrefix xs ys
+    isPrefix [] _           = True
+    isPrefix _ _            = False
+
+-- | @importsExpand name map@ takes a qualified name (@core/int@) and expands
+-- it to its real fully qualified name (@std/core/int@). It also returns
+-- the declared alias suffix (used to find case-errors).
+-- On ambiguity, or if not found at all, it returns Left with a list of candidates.
+-- Since declarations can have namespace'd names (@int/eq@) we take
+-- the longest prefix that matches an import module.
+importsExpand :: Name -> ImportMap -> Either [Name] (Name,Name)
+importsExpand name imp
+  = if isQualified name
+     then let rpath = reverse $ splitModuleName (qualifier name)
+          in -- trace ("imports expand: " ++ show name ++ ": " ++ show rpath) $
+             case filter (\(ralias,_) -> isPrefix rpath ralias) imp of
+               -- found a match
+               [(ralias,fullName)]
+                   -> Right (qualify fullName (unqualify name),
+                               unsplitModuleName (reverse (take (length rpath) ralias)))
+               -- no import matches.. probably a namespace'd name
+               []  -> case rpath of
+                        [q] -> Right (qualifyInternally name, nameNil)
+                        (q:qs)
+                          -> -- recursively try a shorter prefix
+                             let name2 = qualify (unsplitModuleName (reverse qs)) (unqualify name)
+                             in case importsExpand name2 imp of
+                                  Right (fullName,alias)
+                                    -> Right (prepend (show q ++ "/") fullName, alias)
+                                  other -> leftErr []
+                        _ -> leftErr []
+               amb -> leftErr amb
+     else Right (name,nameNil)
+  where
+    leftErr amb             = Left (map (unsplitModuleName . reverse . fst) amb)
+    prefixes [] = []
+    prefixes (x:xs) = (x:xs) : prefixes xs
+
     isPrefix (x:xs) (y:ys)  = x==y && isPrefix xs ys
     isPrefix [] _           = True
     isPrefix _ _            = False

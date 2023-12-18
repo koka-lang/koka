@@ -173,7 +173,7 @@ gammaExtends xs gamma
 
 gammaExtend :: Name -> NameInfo -> Gamma -> Gamma
 gammaExtend name tp (Gamma gamma)
-  = Gamma (M.insertWith combine (unqualify name) [(name,tp)] gamma)
+  = Gamma (M.insertWith combine (unqualifyFull name) [(name,tp)] gamma)
 
 combine :: [(Name,NameInfo)] -> [(Name,NameInfo)] -> [(Name,NameInfo)]
 combine xs ys
@@ -196,7 +196,7 @@ gammaLookupExactCon name gamma
 
 gammaLookupQ :: Name -> Gamma -> [NameInfo]
 gammaLookupQ name (Gamma gamma)
-  = case M.lookup (unqualify name) gamma of
+  = case M.lookup (unqualifyFull name) gamma of
       Nothing -> []
       Just xs -> -- trace ("gamma lookupQ: " ++ show name ++ " in " ++ show xs) $
                  map snd (filter (\(n,tp) -> n == name) xs)
@@ -204,14 +204,16 @@ gammaLookupQ name (Gamma gamma)
 -- | @gammaLookup context name gamma@ looks up a potentially qualified name in a module named @context@.
 gammaLookup :: Name -> Gamma -> [(Name,NameInfo)]
 gammaLookup name (Gamma gamma)
-  = case M.lookup (unqualify name) gamma of
+  = case M.lookup (unqualifyFull name) gamma of
       Nothing -> []
       Just xs -> -- let qname = if isQualified name then name else qualify context name
                  -- in filter (\(n,_) -> n == qname) xs
-                 -- trace (" in gamma found: " ++ show (map fst xs)) $
+                 trace ("gamma found: " ++ show name ++ " in " ++ show (map fst xs)) $
                  filter (\(_,info) -> infoIsVisible info) $
                   if (isQualified name)
                     then filter (\(n,_) -> n == name || nameCaseEqual name n) xs
+                  else if (isInternalQualified name)
+                    then filter (\(n,_) -> unqualify n == name || nameCaseEqual name (unqualify n)) xs
                     else xs
 
 gammaLookupPrefix :: Name -> Gamma -> [(Name,NameInfo)]

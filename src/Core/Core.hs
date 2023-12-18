@@ -154,7 +154,7 @@ exprUnit = Con (TName nameUnit typeUnit) (ConEnum nameTpUnit DataEnum valueReprZ
 patExprBool name tag
   = let tname   = TName name typeBool
         conEnum = ConEnum nameTpBool DataEnum valueReprZero tag
-        conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] [] False 
+        conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] [] False
                             [] valueReprZero Public ""
         pat = PatCon tname [] conEnum [] [] typeBool conInfo False
         expr = Con tname conEnum
@@ -205,7 +205,7 @@ makeTDef (TName name tp) expr
 
 
 makeDefExpr :: Expr -> Def
-makeDefExpr expr 
+makeDefExpr expr
   = makeDef nameNil expr
 
 makeStats :: [Expr] -> Expr
@@ -222,7 +222,7 @@ makeDefsLet defs0 expr0
   = make (reverse defs0) expr0
   where
     make [] expr          = expr
-    make (def:rdefs) expr | isExprUnit expr && defName def == nameNil && isExprUnit (defExpr def) = make rdefs (defExpr def)                          
+    make (def:rdefs) expr | isExprUnit expr && defName def == nameNil && isExprUnit (defExpr def) = make rdefs (defExpr def)
     -- disable for now as it can cause drop expressions (returning void) in unit positions (:f std/os/flags, issue #196)
     -- make (def,rdefs) expr  | isExprUnit expr && defName def == nameNil && typeOf (defExpr (last defs)) == typeUnit = make rdefs (defExpr def)
     make rdefs expr       = makeLet (map DefNonRec (reverse rdefs)) expr
@@ -320,7 +320,7 @@ eimportLookup buildType key keyvals
 
 lookupTarget :: Target -> [(Target,a)] -> Maybe a
 lookupTarget target imports
-  = let targets = case target of 
+  = let targets = case target of
                     C WasmJs  -> [target,C Wasm,C CDefault,Default]
                     C WasmWeb -> [target,C Wasm,C CDefault,Default]
                     C _       -> [target,C CDefault,Default]
@@ -329,7 +329,7 @@ lookupTarget target imports
     in case catMaybes (map (\t -> lookup t imports) targets) of
          (x:_) -> Just x
          _     -> Nothing
-    
+
 
 {--------------------------------------------------------------------------
   Type definitions
@@ -403,12 +403,12 @@ isDataStruct (DataStruct) = True
 isDataStruct _ = False
 
 isDataAsMaybe (DataAsMaybe) = True
-isDataAsMaybe _ = False 
+isDataAsMaybe _ = False
 
 isDataStructAsMaybe (DataStructAsMaybe) = True
-isDataStructAsMaybe _ = False 
+isDataStructAsMaybe _ = False
 
-isConAsJust (ConAsJust{}) = True 
+isConAsJust (ConAsJust{}) = True
 isConAsJust _             = False
 
 conReprHasCtxPath :: ConRepr -> Bool
@@ -418,7 +418,7 @@ conReprHasCtxPath repr
       _       -> True
 
 conReprCtxPath :: ConRepr -> Maybe CtxPath
-conReprCtxPath repr | conReprIsValue repr = Nothing   
+conReprCtxPath repr | conReprIsValue repr = Nothing
 conReprCtxPath repr
   = case repr of
       ConSingle{ conCtxPath = cpath } -> Just cpath
@@ -435,9 +435,9 @@ conReprScanCount conRepr = valueReprScanCount (conValRepr conRepr)
 conReprAllocSize :: Platform -> ConRepr -> Int
 conReprAllocSize platform conRepr  = fst (conReprAllocSizeScan platform conRepr)
 
--- Return the allocation size (0 for value types) and scan count 
+-- Return the allocation size (0 for value types) and scan count
 conReprAllocSizeScan :: Platform -> ConRepr -> (Int,Int)
-conReprAllocSizeScan platform conRepr  
+conReprAllocSizeScan platform conRepr
   = let (size,scan) = valueReprSizeScan platform (conValRepr conRepr)
     in if (conReprIsValue conRepr) then (0,scan) else (size,scan)
 
@@ -499,7 +499,7 @@ getDataReprEx getIsValue info
                     else if length singletons == 1 then ConSingleton typeName dataRepr valRepr
                     else ConSingle typeName dataRepr valRepr CtxNone])
          else if (isValue && not (dataInfoIsRec info)) then (
-            let dataRepr = if (length conInfos == 2 && length singletons == 1 && 
+            let dataRepr = if (length conInfos == 2 && length singletons == 1 &&
                                case (filter (\cinfo -> length (conInfoParams cinfo) == 1) conInfos) of  -- at most 1 field
                                 [cinfo] -> True
                                 _       -> False)
@@ -510,24 +510,24 @@ getDataReprEx getIsValue info
          )
          else (
           if (length conInfos == 2 && length singletons == 1)
-            then let isMaybeLike = not (dataInfoIsRec info) && 
+            then let isMaybeLike = not (dataInfoIsRec info) &&
                                    -- note: for now we can only handle a true maybe type with a single Just constructor
                                    -- with a parametric type so it is always kk_box_t at runtime.
-                                   case (filter (\cinfo -> length (conInfoParams cinfo) == 1) conInfos) of 
+                                   case (filter (\cinfo -> length (conInfoParams cinfo) == 1) conInfos) of
                                      [cinfo] -> case conInfoParams cinfo of
                                                   [(_,TVar _)] -> True  -- single field of type `a`
                                                   _ -> False
                                      _ -> False
-                        
+
                  in (if isMaybeLike
                       then (DataAsMaybe
                           ,map (\ci -> if (null (conInfoParams ci)) then ConSingleton typeName DataAsMaybe (conInfoValueRepr ci)
                                           else ConAsJust typeName DataAsMaybe (conInfoValueRepr ci) (conInfoName (head singletons))) conInfos)
                       else (DataAsList
-                          ,map (\ci tag 
+                          ,map (\ci tag
                                    -> if (null (conInfoParams ci)) then ConSingleton typeName DataAsList (conInfoValueRepr ci) tag
                                         else ConAsCons typeName DataAsList (conInfoValueRepr ci) (conInfoName (head singletons)) CtxNone tag) conInfos)
-                                             
+
                  )
            else let dataRepr = if (length singletons == length conInfos -1 || null conInfos)
                                 then DataSingleNormal else (DataNormal (not (null singletons)))
@@ -579,14 +579,14 @@ data Def = Def{ defName  :: Name
               , defDoc :: String
               }
 
-data InlineDef = InlineDef{ 
-  inlineName :: Name, 
-  inlineExpr :: Expr, 
-  inlineRec  :: Bool, 
-  inlineKind :: DefInline, 
-  inlineCost :: Int, 
+data InlineDef = InlineDef{
+  inlineName :: Name,
+  inlineExpr :: Expr,
+  inlineRec  :: Bool,
+  inlineKind :: DefInline,
+  inlineCost :: Int,
   inlineSort :: DefSort,                 -- for borrow info
-  inlineParamSpecialize :: [Bool] 
+  inlineParamSpecialize :: [Bool]
 }
 
 defIsVal :: Def -> Bool
@@ -737,7 +737,7 @@ defTName def
   = TName (defName def) (defType def)
 
 defsTNames :: [Def] -> TNames
-defsTNames defs = S.fromList (map defTName defs)  
+defsTNames defs = S.fromList (map defTName defs)
 
 defGroupTNames :: DefGroup -> TNames
 defGroupTNames (DefNonRec def) = S.singleton (defTName def)
@@ -781,7 +781,7 @@ infoIsRefCounted info
 
 
 -- | a core expression that cannot cause any evaluation _for sure_
--- For now, does not consider the effect type 
+-- For now, does not consider the effect type
 isTotal :: Expr -> Bool
 isTotal expr
  = case expr of
@@ -795,25 +795,25 @@ isTotal expr
      Case exps branches -> all isTotal exps && all isTotalBranch branches
      App f args -> isTotalFun f && all isTotal args
      -- _          -> False
-  where    
+  where
     isTotalBranch (Branch pat guards) = all isTotalGuard guards
     isTotalGuard (Guard test expr)    = isTotal test && isTotal expr
-     
+
 
 isTotalFun :: Expr -> Bool
 isTotalFun expr
   = case expr of
       Lam _ _ body  -> isTotal body
-      TypeLam _ e   -> isTotalFun e 
-      TypeApp e _   -> isTotalFun e 
-      Con _ _       -> True 
+      TypeLam _ e   -> isTotalFun e
+      TypeApp e _   -> isTotalFun e
+      Con _ _       -> True
       Lit _         -> True  -- not possible due to typing
-      Let dgs e     -> all isTotalDef (flattenDefGroups dgs) && isTotalFun e 
+      Let dgs e     -> all isTotalDef (flattenDefGroups dgs) && isTotalFun e
       Case exps branches -> all isTotal exps && all isTotalBranchFun branches
       -- App (TypeApp (Var open _) _) args  | getName open == nameEffectOpen
       --              -> all isTotal args
       App f args    -> hasTotalEffect (typeOf expr) && isTotalFun f && all isTotal args
-      Var v _       | getName v == nameKeep -> False 
+      Var v _       | getName v == nameKeep -> False
                     | getName v `elem` [nameBox,nameUnbox]  -> True
                     | otherwise -> False -- TODO: not (isPrimitiveName (getName v)) && hasTotalEffect (typeOf v)
       -- _             -> False
@@ -823,10 +823,10 @@ isTotalFun expr
 
 isTotalDef def = isTotal (defExpr def)
 
-hasTotalEffect :: Type -> Bool 
+hasTotalEffect :: Type -> Bool
 hasTotalEffect tp
   = case splitFunScheme tp of
-      Nothing -> False 
+      Nothing -> False
       Just (_,_,argTps,eff,resTp) -> isTypeTotal eff
 
 isMonType :: Type -> Bool
@@ -836,7 +836,7 @@ isMonType tp
     case expandSyn tp of
       TForall vars preds t -> isMonType t
       TFun pars eff res    -> isMonEffect eff
-      _ -> -- trace ("isMonType is false: " ++ show (pretty tp)) 
+      _ -> -- trace ("isMonType is false: " ++ show (pretty tp))
            False
 
 isMonEffect :: Effect -> Bool
@@ -1106,7 +1106,7 @@ addLambdasTName pars eff e            = Lam pars eff e
 
 -- | Bind a variable inside a term
 addNonRec :: Name -> Type -> Expr -> (Expr -> Expr)
-addNonRec x tp e e' 
+addNonRec x tp e e'
   = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else defFun [] {-all owned?-}) InlineAuto rangeNull "")] e'
 
 -- | Is an expression a value or a function
@@ -1265,7 +1265,7 @@ extractSignatures core
                 extractExternals (coreProgExternals core),
                 extractDefs (coreProgDefs core)
               ]
-    in -- trace ("extract signatures: " ++ show (map pretty tps)) $ 
+    in -- trace ("extract signatures: " ++ show (map pretty tps)) $
        tps
   where
     extractExternals = concatMap extractExternal

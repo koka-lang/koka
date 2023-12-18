@@ -21,6 +21,7 @@ module Common.Name
           , newName, newQualified
           , nameNil, nameIsNil, nameStartsWith
           , nameCaseEqual, nameCaseOverlap, isSameNamespace
+          , nameCaseEqualPrefixOf, nameCaseOverlapPrefixOf
           , qualify, unqualify, isQualified, qualifier
           , nameId, nameModule
 
@@ -50,17 +51,18 @@ module Common.Name
           , asciiEncode, showHex, moduleNameToPath, pathToModuleName
           , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
 
-          , unqualifyAsName
+          , ppColorName
+          , qualifyInternally, unqualifyFull, isInternalQualified
           ) where
 
 import Lib.Trace( trace )
-import Lib.PPrint (Pretty(pretty), text )
+import Lib.PPrint
 import Data.Char(isUpper,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
 import Common.Failure(failure)
 import Common.File( joinPaths, splitOn, endsWith, startsWith, isPathSep )
 import Common.Range( rangeStart, posLine, posColumn )
-import Data.List(intersperse)
-
+import Data.List(intersperse,isPrefixOf)
+import Common.ColorScheme
 
 isEarlyBindName name
   = isHandleName name -- || nameId name `startsWith` "clause-" || hiddenNameStartsWith name "tag"
@@ -88,9 +90,19 @@ nameCaseEqual name1 name2 -- (Name m1 _ n1 _) (Name m2 _ n2 _)
     and (zipWith (==) (reverse (splitModuleName name1)) (reverse (splitModuleName name2)))
     -- (m1 == m2) && (n1 == n2)
 
+nameCaseEqualPrefixOf name1 name2 -- (Name m1 _ n1 _) (Name m2 _ n2 _)
+  = isPrefixOf (nameId name1) (nameId name2)
+    &&
+    and (zipWith (==) (reverse (splitModuleName name1)) (reverse (splitModuleName name2)))
+    -- (m1 == m2) && (n1 == n2)
+
 nameCaseOverlap :: Name -> Name -> Bool
 nameCaseOverlap name1 name2
   = (not (nameCaseEqual name1 name2)) && (isSameNamespace name1 name2)
+
+nameCaseOverlapPrefixOf :: Name -> Name -> Bool
+nameCaseOverlapPrefixOf name1 name2
+  = (not (nameCaseEqualPrefixOf name1 name2)) && (isSameNamespace name1 name2)
 
 -- Checks whether both names are in the same namespace, ie. constructors or not
 isSameNamespace name1 name2
@@ -142,7 +154,7 @@ instance Show Name where
                         (postfix, c:rest) | c == canonicalSep && not (null postfix)
                            -> (reverse rest, c:reverse postfix)
                         _  -> (n,"")
-         pre        = if null m then "" else m ++ "/"
+         pre        = if null m then "" else m ++ "//"
      in pre ++ case mid of
                   (c:cs) -- | any (\c -> c `elem` ".([])") mid    -> "(" ++ n ++ ")"
                          | not (isAlphaNum c || c=='_' || c=='(' || c== '.') -> "(" ++ n ++ ")"
@@ -155,6 +167,11 @@ showPlain (Name m _ n _)
 instance Pretty Name where
   pretty name
     = text (show name)
+
+ppColorName :: ColorScheme -> Name -> Doc
+ppColorName cs name@(Name m _ n _)
+  = (if (null m) then empty else color (colorModule cs) (text (m ++ "/")))
+    <.> color (colorSource cs) (text (show (unqualify name)))
 
 showTupled (Name m _ n _)
   = show (m,n)
@@ -220,11 +237,23 @@ qualifier :: Name -> Name
 qualifier (Name m hm _ _)
   = Name "" 0 m hm
 
-unqualifyAsName :: Name -> Name
-unqualifyAsName name@(Name m _ n _)
+qualifyInternally :: Name -> Name
+qualifyInternally name@(Name m _ n _)
   | null m    = name
   | otherwise = newQualified "" (m ++ "/" ++ n)
 
+unqualifyFull :: Name -> Name
+unqualifyFull (Name _ _ n _)
+  = newName (stripModules n)
+  where
+    stripModules n
+      = case dropWhile (\c -> c /= '/' && c /= '(') n of
+          ('/':rest)  | not (null rest) -> stripModules rest
+          _ -> n
+
+
+isInternalQualified name
+  = unqualify name /= unqualifyFull name
 
 ----------------------------------------------------------------
 -- Modules paths

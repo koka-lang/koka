@@ -173,11 +173,11 @@ getColorScheme :: KInfer ColorScheme
 getColorScheme
   = do env <- getKindEnv
        return (cscheme env)
-       
+
 getPlatform :: KInfer Platform
 getPlatform
  = do env <- getKindEnv
-      return (platform env)       
+      return (platform env)
 
 -- | Extend the inference kind assumption; checks for 'shadow' definitions
 extendInfGamma :: [TypeBinder InfKind] -> KInfer a -> KInfer a
@@ -258,20 +258,20 @@ infQualifiedName name range
   = do env <- getKindEnv
        case importsExpand name (imports env) of
          Right (name',alias)
-          -> if (not (nameCaseEqual (qualifier name) alias))
+          -> if (not (nameCaseEqualPrefixOf alias (qualifier name)))
               then do let cs = cscheme env
-                      addError range (text "module" <+> ppModule cs name <+> text "should be cased as" <+> color (colorModule cs) (pretty alias) 
+                      addError range (text "module" <+> ppModule cs name <+> text "should be cased as" <+> color (colorModule cs) (pretty alias)
                                        -- <+> text (showPlain name ++ ", " ++ showPlain alias)
                                     )
                       return name'
               else return name'
          Left []
           -> do let cs = cscheme env
-                addError range (text "module" <+> color (colorModule cs) (pretty name) <+> text "is undefined")
+                addError range (text "module" <+> ppModule cs name <+> text "is undefined")
                 return name
          Left aliases
           -> do let cs = cscheme env
-                addError range (text "module" <+> color (colorModule cs) (pretty name) <+> ambiguous cs aliases)
+                addError range (text "module" <+> ppModule cs name <+> ambiguous cs aliases)
                 return name
 
 ppModule cs name
