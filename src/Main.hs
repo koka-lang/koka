@@ -53,7 +53,7 @@ mainArgs args
   = do (flags,flags0,mode) <- getOptions args
        let with = if (not (null (redirectOutput flags)))
                    then withFileNoColorPrinter (redirectOutput flags)
-                   else if (console flags == "html") 
+                   else if (console flags == "html")
                     then withHtmlColorPrinter
                    else if (console flags == "ansi")
                     then withColorPrinter
@@ -70,14 +70,14 @@ mainArgs args
 mainMode :: Flags -> Flags -> Mode -> ColorPrinter -> IO ()
 mainMode flags flags0 mode p
   = case mode of
-     ModeHelp
-      -> showHelp flags p
-     ModeVersion
-      -> withNoColorPrinter (\monop -> showVersion flags monop)
-     ModeCompiler files
-      -> mapM_ (compile p flags) files
-     ModeInteractive files
-      -> interpret p flags flags0 files
+      ModeHelp
+        -> showHelp flags p
+      ModeVersion
+        -> withNoColorPrinter (\monop -> showVersion flags monop)
+      ModeCompiler files
+        -> mapM_ (compile p flags) files
+      ModeInteractive files
+        -> interpret p flags flags0 files
 
 
 compile :: ColorPrinter -> Flags -> FilePath -> IO ()
@@ -90,7 +90,7 @@ compile p flags fname
            -> do putPrettyLn p (ppErrorMessage (showSpan flags) cscheme msg)
                  -- exitFailure  -- don't fail for tests
 
-         Right (Loaded gamma kgamma synonyms newtypes constructors _ imports _ 
+         Right (Loaded gamma kgamma synonyms newtypes constructors _ imports _
                 (Module modName _ _ _ _ _warnings rawProgram core _ _ modTime) _ _ _
                , warnings)
            -> do when (not (null warnings))

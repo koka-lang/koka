@@ -45,7 +45,7 @@ import Type.Assumption        ( gammaIsEmpty, ppGamma, infoType, gammaFilter )
 
 import Compiler.Options
 import Compiler.Compile
-import Compiler.Module 
+import Compiler.Module
 import Interpreter.Command
 
 {---------------------------------------------------------------
@@ -117,7 +117,7 @@ interpreterEx st
        cmd <- getCommand st
        -- ; messageLn ""
        command st cmd
-      
+
 
 {---------------------------------------------------------------
   Interprete a command
@@ -188,7 +188,7 @@ command st cmd
                               interpreterEx st
                       else do runEditor st fpath
                               -- command st Reload
-                              interpreter st 
+                              interpreter st
                    }
   Edit fname  -> do{ mbpath <- searchSource (flags st) "" (newName fname) -- searchPath (includePath (flags st)) sourceExtension fname
                    ; case mbpath of
@@ -364,9 +364,9 @@ checkInferWith st line  getLoaded showMarker err f
   = case checkError err of
       Left msg  -> do when showMarker (maybeMessageMarker st (getRange msg))
                       messageErrorMsgLn st msg
-                      if (line=="exit" || line == "quit") 
+                      if (line=="exit" || line == "quit")
                         then messageInfoLnLn st ("hint: use ':q' to quit the interpreter, use ':?' for help.")
-                        else messageInfoLn st "" 
+                        else messageInfoLn st ""
                       interpreterEx st{ errorRange = Just (getRange msg) }
       Right (x,ws)
                 -> do let ld = getLoaded x
@@ -669,22 +669,22 @@ messageHeader st
     header = color(colorInterpreter colors) $ vcat [
         text " _         _ "
        ,text "| |       | |"
-       ,text "| | _ ___ | | _ __ _"
-       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
-       ,text "|   ( (_) |   ( (_| |  "  <.> headerVersion
-       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")                    
+       ,text "| | _ ___ | | _ __ _   "  <.> welcome
+       ,text "| |/ / _ \\| |/ / _' |  " <.> headerVersion
+       ,text "|   ( (_) |   ( (_| |  "  <.> text "output dir:" <+> color (colorSource colors) (text (fullBuildDir (flags st)))
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
        {-
        ,text " _         _ "
        ,text "| |       | |"
        ,text "| | _ ___ | | _ __ _"
        ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
        ,text "|   < (_) |   < (_| |  "  <.> headerVersion
-       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")                    
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
        ,text " _          _ "
        ,text "| |        | |"
-       ,text "| | __ ___ | | __ __ _"
-       ,text "| |/ // _ \\| |/ // _` |  " <.> welcome
-       ,text "|   <| (_) |   <| (_| |  "  <.> headerVersion
+       ,text "| | __ ___ | | __ __ _"     <.> welcome
+       ,text "| |/ // _ \\| |/ // _` |  " <.> headerVersion
+       ,text "|   <| (_) |   <| (_| |  "  <.> (color (colorSource colors) (text "output dir:")) <+> text (fullBuildDir (flags st))
        ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
        -}
        ]
