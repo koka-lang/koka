@@ -70,14 +70,14 @@ mainArgs args
 mainMode :: Flags -> Flags -> Mode -> ColorPrinter -> IO ()
 mainMode flags flags0 mode p
   = case mode of
-     ModeHelp
-      -> showHelp flags p
-     ModeVersion
-      -> withNoColorPrinter (\monop -> showVersion flags monop)
-     ModeCompiler files
-      -> mapM_ (compile p flags) files
-     ModeInteractive files
-      -> interpret p flags flags0 files
+      ModeHelp
+        -> showHelp flags p
+      ModeVersion
+        -> withNoColorPrinter (\monop -> showVersion flags monop)
+      ModeCompiler files
+        -> mapM_ (compile p flags) files
+      ModeInteractive files
+        -> interpret p flags flags0 files
 
 
 compile :: ColorPrinter -> Flags -> FilePath -> IO ()

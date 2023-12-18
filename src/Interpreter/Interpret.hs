@@ -671,9 +671,9 @@ messageHeader st
     header = color(colorInterpreter colors) $ vcat [
         text " _         _ "
        ,text "| |       | |"
-       ,text "| | _ ___ | | _ __ _"
-       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
-       ,text "|   ( (_) |   ( (_| |  "  <.> headerVersion
+       ,text "| | _ ___ | | _ __ _   "  <.> welcome
+       ,text "| |/ / _ \\| |/ / _' |  " <.> headerVersion
+       ,text "|   ( (_) |   ( (_| |  "  <.> text "output dir:" <+> color (colorSource colors) (text (fullBuildDir (flags st)))
        ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
        {-
        ,text " _         _ "
@@ -684,9 +684,9 @@ messageHeader st
        ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
        ,text " _          _ "
        ,text "| |        | |"
-       ,text "| | __ ___ | | __ __ _"
-       ,text "| |/ // _ \\| |/ // _` |  " <.> welcome
-       ,text "|   <| (_) |   <| (_| |  "  <.> headerVersion
+       ,text "| | __ ___ | | __ __ _"     <.> welcome
+       ,text "| |/ // _ \\| |/ // _` |  " <.> headerVersion
+       ,text "|   <| (_) |   <| (_| |  "  <.> (color (colorSource colors) (text "output dir:")) <+> text (fullBuildDir (flags st))
        ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
        -}
        ]

@@ -651,6 +651,7 @@ processOptions flags0 opts
                            ModeInteractive _ -> flags2{evaluate = True}
                            _                 -> flags2
              in do buildDir <- getKokaBuildDir (buildDir flags) (evaluate flags)
+                   buildTag <- if (null (buildTag flags)) then getDefaultBuildTag else return (buildTag flags)
                    ed   <- if (null (editor flags))
                             then detectEditor
                             else return (editor flags)
@@ -695,6 +696,7 @@ processOptions flags0 opts
                        -}
                    return (flags{ packages    = pkgs,
                                   buildDir    = buildDir,
+                                  buildTag    = buildTag,
                                   localBinDir = localBinDir,
                                   localDir    = localDir,
                                   localLibDir = localLibDir,
@@ -749,6 +751,13 @@ getKokaBuildDir "" eval
       else return kkbuild
 getKokaBuildDir buildDir _ = return buildDir
 
+
+getDefaultBuildTag :: IO String
+getDefaultBuildTag
+  = do wslDistro <- getEnvVar "WSL_DISTRO_NAME"
+       if not (null wslDistro)
+         then return (map toLower wslDistro)
+         else return ""
 
 kkbuild :: String
 kkbuild = ".koka"
