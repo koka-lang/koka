@@ -19,7 +19,7 @@ commonFlags = ["-c", "-v0", "--console=raw",
                "-O1", -- for cgen/specialize
                -- "--cc=clang",
                -- "--checkcore",
-               "-ilib", "-itest",
+               "-itest",   -- "-ilib",
                "--buildtag=test"]
 
 data Mode = Test | New | Update
@@ -34,7 +34,7 @@ data Cfg = Cfg{ flags   :: [String],
                 options :: Options,
                 exclude :: [String],
                 fexclude:: !(String -> Bool)
-              }  
+              }
 
 makeCfg :: [String] -> Options -> [String] -> Cfg
 makeCfg flags options []
@@ -47,10 +47,10 @@ makeCfg flags options exclude
                  | otherwise = (\s -> s == item || s == (item ++ ".kk"))
     matchers   = map matcher exclude
     fexclude s = any (\m -> m s) matchers
-                   
+
 instance JSON Cfg where
   showJSON cfg = JSObject (toJSObject [])
-  readJSON val 
+  readJSON val
     = case val of
         JSObject obj
           -> let flags = case valFromObj "flags" obj of
@@ -70,10 +70,10 @@ extendCfg (Cfg flags1 opts1 exclude1 fexclude1) (Cfg flags2 opts2 exclude2 fexcl
         (exclude1 ++ exclude2) (\s -> fexclude1 s || fexclude2 s)
 
 initialCfg :: Options -> Cfg
-initialCfg options 
+initialCfg options
   = makeCfg (commonFlags ++ if (not (null (target options))) then ["--target=" ++ target options] else [])
-            options [] 
-                  
+            options []
+
 
 readFlagsFile :: FilePath -> IO [String]
 readFlagsFile fp
@@ -104,13 +104,13 @@ testSanitize kokaDir
   . sub "(^[[:alnum:]]+\\/.+:.*) [[:alpha:]]+[[:digit:]]+\\.[[:digit:]]+ :" "\\1 a00.000 :"
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
   . if null kokaDir then id else replace xkokaDir "..."
-  where 
+  where
     xkokaDir = map (\c -> if c == '\\' then '/' else c) kokaDir
     sub re = flip (subRegex (mkRegex re))
     -- limitTo n s | length s > n = take n s ++ "... (and more)"
     --             | otherwise    = s
 
-expectedSanitize :: String -> String  
+expectedSanitize :: String -> String
 expectedSanitize input
   = filter (/='\r') input   -- on windows \r still gets through sometimes
 
@@ -119,14 +119,14 @@ runKoka cfg kokaDir fp
   = do caseFlags <- readFlagsFile (fp ++ ".flags")
        let relTest = makeRelative kokaDir fp
            optFlag   = if (opt (options cfg) /= 0) then ["-O" ++ show (opt (options cfg))] else []
-           kokaFlags = optFlag ++ flags cfg ++ caseFlags 
+           kokaFlags = optFlag ++ flags cfg ++ caseFlags
        if (cabal (options cfg))
          then do let argv = ["new-run", "koka", "--"] ++ kokaFlags ++ [relTest]
-                 testSanitize kokaDir <$> readProcess "cabal" argv ""       
+                 testSanitize kokaDir <$> readProcess "cabal" argv ""
          else do let stackFlags = if (sysghc (options cfg)) then ["--system-ghc","--skip-ghc-check"] else []
                      argv = ["exec","koka"] ++ stackFlags ++ ["--"] ++ kokaFlags ++ [relTest]
                  testSanitize kokaDir <$> readProcess "stack" argv ""
-       
+
 
 makeTest :: Cfg -> FilePath -> Spec
 makeTest cfg fp
@@ -136,7 +136,7 @@ makeTest cfg fp
            let shouldRun = not isTest && mode (options cfg) == New || isTest && mode (options cfg) /= New
            when shouldRun $
              it (takeBaseName fp) $ do
-               kokaDir <- getCurrentDirectory       
+               kokaDir <- getCurrentDirectory
                out <- runKoka cfg kokaDir fp
                unless (mode (options cfg) == Test) $ (withBinaryFile expectedFile WriteMode (\h -> hPutStr h out)) -- writeFile expectedFile out
                expected <- testSanitize kokaDir <$> readFile expectedFile
@@ -158,7 +158,7 @@ discoverTests cfg0 p = discover cfg0 "" p
                    with $ mapM_ (\f -> discover cfg' f (p </> f)) fs
 
 readConfigFile :: Cfg -> FilePath -> IO Cfg
-readConfigFile cfg dir 
+readConfigFile cfg dir
   = do let fname = dir </> "config.json"
        hasCfg <- doesFileExist fname
        if (not hasCfg) then return cfg
@@ -181,19 +181,19 @@ readConfigFile cfg dir
 
 processOptions :: String -> (Options, [String]) -> (Options,[String])
 processOptions arg (options,hargs)
-  = if (take 7 arg == "--mode=") 
+  = if (take 7 arg == "--mode=")
       then let m = parseMode (drop 7 arg)
            in (options{ mode = m }, hargs)
-    else if (arg == "--cabal") 
+    else if (arg == "--cabal")
       then (options{cabal=True}, hargs)
-    else if (take 2 arg == "-O") 
+    else if (take 2 arg == "-O")
       then (options{opt=read (drop 2 arg)}, hargs)
     else if (arg == "--system-ghc")
       then (options{sysghc=True}, hargs)
     else if (arg == "--target-js")
       then (options{target="js"}, hargs)
     else if (arg == "--target-c64c")
-      then (options{target="c64c"}, hargs)      
+      then (options{target="c64c"}, hargs)
     else if (arg == "--seq")
       then (options{par=False}, hargs)
       else (options, arg : hargs)
@@ -205,8 +205,8 @@ processOptions arg (options,hargs)
     parseMode m = error $ "Unrecognized mode: " ++ show m
 
 getOptions :: IO (Options , [String])
-getOptions 
-  = do argv <- getArgs  
+getOptions
+  = do argv <- getArgs
        return (foldr processOptions (optionsDefault,[]) argv)
 
 main :: IO ()
@@ -220,9 +220,9 @@ main = do
   putStrLn "pre-compiling standard libraries..."
   -- compile all standard libraries before testing so we can run in parallel
   let cfg = initialCfg options
-  runKoka cfg "" "util/link-test.kk" 
+  runKoka cfg "" "util/link-test.kk"
   putStrLn "ok."
-  let spec = (if (target options == "js" || not (par options)) then id else parallel) $ 
+  let spec = (if (target options == "js" || not (par options)) then id else parallel) $
              discoverTests cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary
@@ -242,7 +242,7 @@ specProgress = specdoc {
         writeLine $ indentationFor nesting ++ (take (400) s)
 
   , examplePending = \(nesting, requirement) info reason -> withPendingColor $ do
-      total  <- getTotalCount    
+      total  <- getTotalCount
       writeLine $ showTotal total nesting requirement
       forM_ (lines info) $ \ s ->
         writeLine $ indentationFor nesting ++ s
@@ -252,7 +252,7 @@ specProgress = specdoc {
       = let nest = (length nesting + 1) * 2
             t    = " " ++ show total
         in replicate nest ' ' ++ req ++ replicate (12 - length req) ' ' ++ t
-    indentationFor nesting 
+    indentationFor nesting
       = replicate ((length nesting + 1) * 2) ' '
 
-    
+

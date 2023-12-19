@@ -451,6 +451,7 @@ searchPathsCanonical paths exts suffixes name
           ; exist <- doesFileExist fullName
           ; if exist
              then do rpath <- realPath fullName
+                     -- trace ("search found: " ++ fullName ++ ", in (" ++ dir ++ "," ++ fname ++ ") ,real path: " ++ rpath) $
                      case findMaximalPrefix paths rpath of
                         Just (n,root) -> return (Just (root,drop n rpath))
                         Nothing       -> return (Just ("",rpath))
