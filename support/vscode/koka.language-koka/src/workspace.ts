@@ -167,18 +167,8 @@ export async function openSamples(context: vscode.ExtensionContext, config: vsco
       return;
     }
   }
-  const decision = await vscode.window.showInformationMessage(
-    `Open Koka's latest samples folder?`,
-    { modal: true },
-    'Yes',
-    'Yes (new window)',
-    'No'
-  )
-  if (decision == 'No') {
-    return;
-  }
   const examplesUri = vscode.Uri.file(samplesFolder)
-  vscode.commands.executeCommand('vscode.openFolder', examplesUri, {forceNewWindow : decision == 'Yes (new window)'})
+  vscode.commands.executeCommand('vscode.openFolder', examplesUri, {forceNewWindow : true})
 }
 
 export async function uninstallSDK(context: vscode.ExtensionContext) {
