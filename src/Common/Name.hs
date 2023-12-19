@@ -151,12 +151,11 @@ canonicalSep = '.'
 
 
 showParts :: String -> Name -> (String,String)
-showParts sep (Name m _ n _)
-  = (if null m then "" else m ++ sep,
-     case n of
-       (c:cs) | not (isAlphaNum c || c=='_' || c=='(' || c== '.') -> "(" ++ n ++ ")"
-       _      -> n
-    )
+showParts localsep (Name m _ n _)
+  = let (pn,sep) = case n of
+                    (c:cs) | not (isAlphaNum c || c=='_' || c=='(' || c== '.') -> ("(" ++ n ++ ")", "/")
+                    _      -> (n, if '/' `elem` n then localsep else "/")
+    in (if null m then "" else m ++ sep, pn)
 
 instance Show Name where
   show name
@@ -177,7 +176,7 @@ prettyName cs name
 
 prettyCoreName :: ColorScheme -> Name -> Doc
 prettyCoreName cs name
-  = let (m,n) = showParts "@" name
+  = let (m,n) = showParts "#" name
     in color (colorModule cs) (text m) <.> text n
 
 showTupled (Name m _ n _)

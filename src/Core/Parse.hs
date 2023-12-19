@@ -63,16 +63,6 @@ requalify lexs
     (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexCons name) : lexx)  | nameId slash == "/"
       -> requalify (Lexeme (combineRange r1 r2) (LexCons (qualify (newName (showPlain mod)) name)) : lexx)
 
-    -- @ qualified for locally qualified names
-    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp at) : Lexeme r2 (LexId name) : lexx)  | nameId at == "@"
-      -> requalify (Lexeme (combineRange r1 r2) (LexId (qlocally mod name)) : lexx)
-    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp at) : Lexeme r2 (LexIdOp name) : lexx)  | nameId at == "@"
-      -> requalify (Lexeme (combineRange r1 r2) (LexId (qlocally mod name)) : lexx)
-    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp at) : Lexeme r2 (LexOp name) : lexx)  | nameId at == "@"
-      -> requalify (Lexeme (combineRange r1 r2) (LexId (qlocally mod name)) : lexx)
-    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp at) : Lexeme r2 (LexCons name) : lexx)  | nameId at == "@"
-      -> requalify (Lexeme (combineRange r1 r2) (LexCons (qlocally mod name)) : lexx)
-
     (lex:lexx)
       -> lex : requalify lexx
     [] -> []

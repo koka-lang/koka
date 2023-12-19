@@ -44,7 +44,7 @@ $return       = \r
 $linefeed     = \n
 $graphic      = [\x21-\x7E]
 $cont         = [\x80-\xBF]
-$symbol       = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\?\|\<\>\@]
+$symbol       = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\?\|\<\>]
 $special      = [\(\)\[\]\{\}\;\,]
 $anglebar     = [\<\>\|]
 $angle        = [\<\>]
@@ -81,11 +81,12 @@ $charesc      = [nrt\\\'\"]    -- "
 @charchar     = ([$graphic$space] # [\\\'])|@utf8
 @stringraw    = ([$graphic$space$tab] # [\"])|@newline|@utf8  -- "
 
-@idchar       = $letter | $digit | _ | \-
-@lowerid      = $lower @idchar* $finalid*
-@upperid      = $upper @idchar* $finalid*
+@idchar       = $letter | $digit | _ | \- | \@
+@lowerid      = [\@]? $lower @idchar* $finalid*
+@upperid      = [\@]? $upper @idchar* $finalid*
 @conid        = @upperid
-@modulepath   = (@lowerid\/)+
+@modpath      = (\/ @lowerid)*
+@modulepath   = @lowerid @modpath (\# @lowerid @modpath)? \/
 @qvarid       = @modulepath @lowerid
 @qconid       = @modulepath @conid
 @symbols      = $symbol+ | \/
@@ -234,11 +235,17 @@ stripParens s
       _ -> s
 
 newQName s
-  = let (rname,rsmod) = span (/='/') (reverse s)
-    in case rsmod of
-         ('/':'/':rmod) | null rname -> newQualified (reverse rmod) ("/")
+  = case span (/='#') s of  -- extract locally qualified names
+      (qual,'#':l:lqual) | isLower l || l == '@' -> qualify (newName qual) (requalifyLocally (newQualName (l:lqual)))
+      _ -> newQualName s
+
+newQualName s
+  = let (rname,rmod) = span (/='/') (reverse s)
+    in case rmod of
+         ('/':'/':rmod) | null rname -> newQualified (reverse rmod) ("/")  -- qualified / operator
          ('/':rmod)  -> newQualified (reverse rmod) (reverse rname)
          _           -> newName s
+
 
 fromCharEscB, fromHexEscB :: BString -> BString
 fromCharEscB bstr
