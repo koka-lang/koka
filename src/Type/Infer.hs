@@ -74,6 +74,7 @@ import Core.BindingGroups( regroup )
 -- import Core.Simplify( uniqueSimplify )
 
 import qualified Syntax.RangeMap as RM
+import Common.File (getCwd)
 
 traceDoc fdoc = do penv <- getPrettyEnv
                    trace (show (fdoc penv)) $ return ()
@@ -850,7 +851,8 @@ inferExpr propagated expect (Case expr branches rng)
        mapM_ (\(rng,warning) -> infWarning rng warning) warnings
        cbranches <- if matchIsTotal
                   then return cbranches
-                  else do let litPos = Lit (LitString (sourceName (posSource (rangeStart rng)) ++ show rng) rng)
+                  else do moduleName <- getModuleName
+                          let litPos = Lit (LitString (show moduleName ++ show rng) rng)
                               litDef = Lit (LitString (show defName) rng)
                               exnBranch = Branch (PatWild rng) [Guard guardTrue
                                               (App (Var namePatternMatchError False rng) [(Nothing, litPos), (Nothing, litDef)] rng)]

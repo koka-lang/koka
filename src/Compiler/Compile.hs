@@ -551,8 +551,8 @@ resolveImports maybeContents mname term flags currentDir loaded0 importPath impo
        -- trace (show mname ++ ": resolved imports, imported: " ++ show (map (show . modName) imports) ++ "\n  resolved to: " ++ show (map (show . modName) resolved) ++ "\n") $ return ()
        let load msg loaded []
              = return loaded
-           load msg loaded (mod:mods)
-             = do let (loaded1,errs) = loadedImportModule (isValueFromFlags flags) loaded mod (rangeNull) (modName mod)
+           load msg loaded ((malias,mod):mods)
+             = do let (loaded1,errs) = loadedImportModule (isValueFromFlags flags) loaded mod (rangeNull) malias
                   -- trace ("loaded " ++ msg ++ " module: " ++ show (modName mod)) $ return ()
                   mapM_ (\err -> liftErrorPartial loaded0 (errorMsg err)) errs
                   load msg loaded1 mods
@@ -567,7 +567,7 @@ resolveImports maybeContents mname term flags currentDir loaded0 importPath impo
 
 
        loadedImp  <- load "import" loaded0 imports
-       loadedFull <- load "inline import" loaded0 resolved
+       loadedFull <- load "inline import" loaded0 (map (\m -> (modName m, m)) resolved) -- todo: is it ok to ignore module aliases here?
        inlineDefss   <- mapM (loadInlines loadedFull) resolved
        let modsFull   = zipWith (\mod idefs -> mod{ modInlines = Right idefs }) resolved inlineDefss
            inlineDefs = concat inlineDefss
@@ -575,13 +575,13 @@ resolveImports maybeContents mname term flags currentDir loaded0 importPath impo
        -- trace ("resolved inlines: " ++ show (length inlineDefss, length inlineDefs)) $ return ()
        return loadedImp{ loadedModules = modsFull, loadedInlines = inlines }
 
-resolveImportModules :: (FilePath -> Maybe (BString, FileTime)) -> Name -> Terminal -> Flags -> FilePath -> [Module] -> [Name] -> [ModImport] -> IOErr Loaded ([Module],[Module])
+resolveImportModules :: (FilePath -> Maybe (BString, FileTime)) -> Name -> Terminal -> Flags -> FilePath -> [Module] -> [Name] -> [ModImport] -> IOErr Loaded ([(Name,Module)],[Module])
 resolveImportModules maybeContents mname term flags currentDir resolved importPath []
   = return ([],resolved)
 resolveImportModules maybeContents mname term flags currentDir resolved0 importPath (imp:imps)
   = if impName imp `elem` importPath then do
         liftError $ errorMsg $ ErrorStatic [(getRange imp, text "cyclic module dependency detected when importing: " <+> ppName (prettyEnvFromFlags flags) mname <+> text " import path: " <-> vsep (reverse (map (ppName (prettyEnvFromFlags flags)) importPath)))]
-        return (resolved0,resolved0)
+        return ([],resolved0)
       else
     do -- trace ("\t" ++ show mname ++ ": resolving imported modules: " ++ show (impName imp) ++ ", resolved: " ++ show (map (show . modName) resolved0) ++ ", path:" ++ show importPath) $ return ()
        (mod,resolved1) <- case filter (\m -> impName imp == modName m) resolved0 of
@@ -592,8 +592,8 @@ resolveImportModules maybeContents mname term flags currentDir resolved0 importP
            pubImports = map ImpCore (filter (\imp -> Core.importVis imp == Public) imports)
        -- trace (" resolve further imports (from " ++ show (modName mod) ++ ") (added module: " ++ show (impName imp) ++ " public imports: " ++ show (map (show . impName) pubImports) ++ ")") $ return ()
        (needed,resolved2) <- resolveImportModules maybeContents mname term flags currentDir resolved1 importPath (pubImports ++ imps)
-       let needed1 = filter (\m -> modName m /= modName mod) needed -- no dups
-       return (mod:needed1,resolved2)
+       let needed1 = filter (\(_,m) -> modName m /= modName mod) needed -- no dups
+       return ((impName imp,mod):needed1,resolved2)
 
 
 searchModule :: Flags -> FilePath -> Name -> IO (Maybe FilePath)
@@ -739,13 +739,13 @@ resolveModule maybeContents term flags currentDir modules importPath mimp
              --                            }
              -- (loadedImp,impss) <- resolveImports term flags (dirname iface) loaded (map ImpCore (Core.coreProgImports (modCore mod)))
              (imports,resolved1) <- resolveImportModules maybeContents name term flags (dirname iface) modules (name:importPath) (map ImpCore (Core.coreProgImports (modCore mod)))
-             let latest = maxFileTimes (map modTime imports)
+             let latest = maxFileTimes (map (modTime . snd) imports)
 
              -- trace ("loaded iface: " ++ show iface ++ "\n time: "  ++ show (modTime mod) ++ "\n latest: " ++ show (latest)) $ return ()
              if (latest >= modTime mod
                   && not (null source)) -- happens if no source is present but (package) depencies have updated...
                then loadFromSource resolved1 root source -- load from source after all
-               else do liftIO $ copyPkgIFaceToOutputDir term flags iface (modCore mod) (modPackageQPath mod) imports
+               else do liftIO $ copyPkgIFaceToOutputDir term flags iface (modCore mod) (modPackageQPath mod) (map snd imports)
                        let allmods = addOrReplaceModule mod resolved1
                        return (mod{ modSourcePath = normalize $ joinPath root source }, allmods)
 
@@ -801,7 +801,7 @@ searchSourceFile flags currentDir fname
   = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (currentDir:includePath flags))) $ return ()
        extra <- if null currentDir then return []
                                    else do{ d <- realPath currentDir; return [d] }
-       mbP <- searchPathsEx (extra ++ includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
+       mbP <- searchPathsCanonical (extra ++ includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
        case mbP of
          Just (root,stem) | root == currentDir
            -> return $ Just (makeRelativeToPaths (includePath flags) (joinPath root stem))
@@ -810,7 +810,7 @@ searchSourceFile flags currentDir fname
 searchIncludeIface :: Flags -> FilePath -> Name -> IO (Maybe FilePath)
 searchIncludeIface flags currentDir name
   = do -- trace ("search include iface: " ++ showModName name ++ " from " ++ currentDir) $ return ()
-       mbP <- searchPathsEx (currentDir : includePath flags) [] [] (showModName name ++ ifaceExtension)
+       mbP <- searchPathsCanonical (currentDir : includePath flags) [] [] (showModName name ++ ifaceExtension)
        case mbP of
          Just (root,stem)
            -> return $ Just (joinPath root stem)
