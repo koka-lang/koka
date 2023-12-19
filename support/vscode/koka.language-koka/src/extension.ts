@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import * as path from 'path'
 
-import { KokaConfig, downloadSDK, scanForSDK, uninstallSDK } from './workspace'
+import { KokaConfig, downloadSDK, scanForSDK, uninstallSDK, openSamples } from './workspace'
 import { CancellationToken, DebugConfiguration, DebugConfigurationProvider, ProviderResult, WorkspaceFolder } from 'vscode'
 import { KokaDebugSession } from './debugger'
 import { KokaLanguageServer } from './lang-server'
@@ -187,8 +187,11 @@ function createCommands(
       console.log(`Launch config ${launchConfig}`)
       vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(resource), launchConfig as vscode.DebugConfiguration)
     }),
+    // Start a program given just a path
+    vscode.commands.registerCommand('koka.openSamples', () => {
+      openSamples(context, config)
+    }),
   )
-
 }
 
 

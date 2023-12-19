@@ -140,6 +140,10 @@
       {
         "command": "koka.showLSPOutput",
         "title": "Koka: Show language server output"
+      },
+      {
+        "command": "koka.openSamples",
+        "title": "Koka: Open samples"
       }
     ],
     "debuggers": [
