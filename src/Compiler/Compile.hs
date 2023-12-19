@@ -319,16 +319,6 @@ compileFile maybeContents contents term flags modules compileTarget importPath f
                 -- trace ("Root: " ++ root ++ " STEM: " ++ stem) $ return ()
                 compileProgramFromFile maybeContents contents term flags modules compileTarget importPath root stem
 
--- | Make a file path relative to a set of given paths: return the (maximal) root and stem
--- if it is not relative to the paths, return dirname/notdir
-makeRelativeToPaths :: [FilePath] -> FilePath -> (FilePath,FilePath)
-makeRelativeToPaths paths fname
-  = let (root,stem) = case findMaximalPrefix paths fname of
-                        Just (n,root) -> (root,drop n fname)
-                        _             -> ("", fname)
-    in -- trace ("relative path of " ++ fname ++ " with paths " ++ show paths ++ " = " ++ show (root,stem)) $
-       (root,stem)
-
 
 compileModule :: Terminal -> Flags -> Modules -> Name -> CompileTarget () -> [Name] -> IO (Error Loaded (Loaded, Maybe FilePath))
 compileModule term flags modules name compileTarget importPath -- todo: take force into account
@@ -348,11 +338,15 @@ compileProgram :: Terminal -> Flags -> Modules -> CompileTarget () -> FilePath -
 compileProgram term flags modules compileTarget fname program importPath
   = runIOErr $ compileProgram' (const Nothing) term flags modules compileTarget fname program importPath
 
+
 compileProgramFromFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> CompileTarget () -> [Name] -> FilePath -> FilePath -> IOErr Loaded (Loaded, Maybe FilePath)
 compileProgramFromFile maybeContents contents term flags modules compileTarget importPath rootPath stem
-  = do let fname = normalize $ joinPath rootPath stem
+  = do let fname = normalize (joinPath rootPath stem)
        -- trace ("compileProgramFromFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $ return ()
-       liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+> color (colorSource (colorScheme flags)) (text (normalizeWith '/' fname)))
+       cwd <- liftIO getCwd
+       liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+>
+                  color (colorSource (colorScheme flags)) (text (relativeToPath cwd fname)))
+       liftIO $ termPhase term ("parsing " ++ fname)
        exist <- liftIO $ doesFileExist fname
        if (exist) then return () else liftError $ errorMsg (errorFileNotFound flags fname)
        program <- lift $ case contents of { Just x -> return $ parseProgramFromString (semiInsert flags) x fname; _ -> parseProgramFromFile (semiInsert flags) fname}
@@ -805,7 +799,9 @@ searchSource flags currentDir name
 searchSourceFile :: Flags -> FilePath -> FilePath -> IO (Maybe (FilePath,FilePath))
 searchSourceFile flags currentDir fname
   = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (currentDir:includePath flags))) $ return ()
-       mbP <- searchPathsEx (currentDir : includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
+       extra <- if null currentDir then return []
+                                   else do{ d <- realPath currentDir; return [d] }
+       mbP <- searchPathsEx (extra ++ includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
        case mbP of
          Just (root,stem) | root == currentDir
            -> return $ Just (makeRelativeToPaths (includePath flags) (joinPath root stem))

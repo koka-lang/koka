@@ -97,7 +97,7 @@ parseProgramFromFile semiInsert fname
 
 logSyntaxWarnings :: [(Range, Doc)] -> IO ()
 logSyntaxWarnings warnings
-  = putPretty (prettyWarnings True defaultColorScheme warnings) 
+  = putPretty (prettyWarnings "" True defaultColorScheme warnings) 
 
 parseProgramFromString :: Bool -> BString -> FilePath -> Error a UserProgram
 parseProgramFromString semiInsert input fname

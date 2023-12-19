@@ -45,7 +45,7 @@ import Common.Name (nameNil)
 import Kind.ImportMap (importsEmpty)
 import Platform.Var (newVar, takeVar)
 import Debug.Trace (trace)
-import Common.File (realPath, normalize)
+import Common.File (realPath, normalize, getCwd)
 
 import Control.Monad.STM
 import Control.Concurrent.STM.TChan
@@ -121,9 +121,10 @@ defaultLSState flags = do
         tp <- (f . PAnsiString) p
         ansiString <- takeVar stringVar
         atomically $ writeTChan msgChan (trimnl ansiString, tp)
+  cwd <- getCwd
   let cscheme = colorScheme flags
       prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
-      term = Terminal (\err -> withNewPrinter $ \p -> do putErrorMessage p (showSpan flags) cscheme err; return J.MessageType_Error)
+      term = Terminal (\err -> withNewPrinter $ \p -> do putErrorMessage p cwd (showSpan flags) cscheme err; return J.MessageType_Error)
                 (if verbose flags > 1 then (\msg -> withNewPrinter $ \p -> do withColor p (colorSource cscheme) (writeLn p msg); return J.MessageType_Info)
                                          else (\_ -> return ()))
                  (if verbose flags > 0 then (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info) else (\_ -> return ()))
@@ -147,8 +148,8 @@ htmlTextColorPrinter doc
 putScheme p env tp
   = writePrettyLn p (ppScheme env tp)
 
-putErrorMessage p endToo cscheme err
-  = writePrettyLn p (ppErrorMessage endToo cscheme err)
+putErrorMessage p cwd endToo cscheme err
+  = writePrettyLn p (ppErrorMessage cwd endToo cscheme err)
 
 data Config = Config {
   colors :: Colors

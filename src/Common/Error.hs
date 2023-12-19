@@ -32,9 +32,9 @@ data Error b a    = Error !ErrorMessage ![(Range,Doc)] (Maybe b) -- B is a parti
 -- | Error messages
 data ErrorMessage = ErrorGeneral !Range !Doc
                   | ErrorParse   !Range !Doc
-                  | ErrorStatic  [(Range,Doc)]  
-                  | ErrorKind    [(Range,Doc)] 
-                  | ErrorType    [(Range,Doc)] 
+                  | ErrorStatic  [(Range,Doc)]
+                  | ErrorKind    [(Range,Doc)]
+                  | ErrorType    [(Range,Doc)]
                   | ErrorWarning [(Range,Doc)] ErrorMessage   -- ^ warnings can be followed by errors
                   | ErrorIO      Doc
                   | ErrorZero
@@ -124,33 +124,33 @@ ignoreWarnings (Ok x _ m)                        = Ok x [] m
 
 {--------------------------------------------------------------------------
   pretty
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 instance Pretty ErrorMessage where
-  pretty msg  = ppErrorMessage False defaultColorScheme msg
+  pretty msg  = ppErrorMessage "" False defaultColorScheme msg
 
-ppErrorMessage endToo cscheme msg
+ppErrorMessage cwd endToo cscheme msg
   = case msg of
       ErrorGeneral r doc    -> err (r,doc)
       ErrorParse r doc      -> err (r,doc)
       ErrorStatic es        -> vcat (map err es)
       ErrorKind ks          -> err (head ks)
       ErrorType es          -> err (head es)
-      ErrorWarning  ws m    | null ws   -> ppErrorMessage endToo cscheme m
-                            | otherwise -> prettyWarnings endToo cscheme ws <-> 
+      ErrorWarning  ws m    | null ws   -> ppErrorMessage cwd endToo cscheme m
+                            | otherwise -> prettyWarnings cwd endToo cscheme ws <->
                                             (case m of ErrorZero -> Lib.PPrint.empty
-                                                       _         -> ppErrorMessage endToo cscheme m)
+                                                       _         -> ppErrorMessage cwd endToo cscheme m)
       ErrorIO doc           -> color (colorError cscheme) doc
       ErrorZero             -> hang 1 (color (colorError cscheme) (text "<unknown error>"))
   where
-    err (r,doc) = hang 1 $ ppRange endToo cscheme r <.>
+    err (r,doc) = hang 1 $ ppRange cwd endToo cscheme r <.>
                   color (colorError cscheme) (colon <+> text "error:" <+> doc)
 
-prettyWarnings :: Bool -> ColorScheme -> [(Range,Doc)] -> Doc
-prettyWarnings endToo cscheme warnings
+prettyWarnings :: FilePath -> Bool -> ColorScheme -> [(Range,Doc)] -> Doc
+prettyWarnings cwd endToo cscheme warnings
   = vcat (map warn warnings)
   where
     warn (r,doc)
-      = hang 1 $ ppRange endToo cscheme r <.> color (colorWarning cscheme) (colon <+> text "warning:" <+> doc)
+      = hang 1 $ ppRange cwd endToo cscheme r <.> color (colorWarning cscheme) (colon <+> text "warning:" <+> doc)
 
 {--------------------------------------------------------------------------
   instances

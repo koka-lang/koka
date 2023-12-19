@@ -127,7 +127,7 @@ instance Ranged Lexeme where
 
 showLexeme :: Lexeme -> String
 showLexeme (Lexeme r lex)
-  = showFullRange r ++ ": " ++ showLex lex
+  = showFullRange "" r ++ ": " ++ showLex lex
     -- showLex lex
 
 showLex :: Lex -> String
@@ -144,9 +144,9 @@ showLex lex
       LexIdOp id    -> "identifier (operator) \"" ++ show id ++ "\""
       LexWildCard id-> "wildcard \"" ++ show id ++ "\""
       LexModule id _  -> "module \"" ++ show id ++ "\""
-      LexKeyword k d-> -- "keyword " ++ k 
-                       "\"" ++ k ++ "\"" ++ (if null d then "" else " (" ++ d ++ ")")   
-      LexSpecial s  -> "\"" ++ s ++ "\""                    
+      LexKeyword k d-> -- "keyword " ++ k
+                       "\"" ++ k ++ "\"" ++ (if null d then "" else " (" ++ d ++ ")")
+      LexSpecial s  -> "\"" ++ s ++ "\""
       LexComment s  -> "comment \"" ++ s ++ "\""
       LexWhite w    -> "white"
       LexInsLCurly  -> "start of statements ('{')"
