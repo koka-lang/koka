@@ -100,11 +100,14 @@ export class KokaLanguageServer {
       append: (value: string) => this.lspWriteEmitter.fire(value),
       appendLine: (value: string) => {
         this.lspWriteEmitter.fire(value)
+        if (value.match(/error/gi)){
+          this.lspTerminal?.show(true)
+        }
       },
       clear: () => {
         this.lspWriteEmitter.fire("\x1b[2J\x1b[3J\x1b[;H")
       },
-      show: () => this.lspTerminal?.show(),
+      show: () => this.lspTerminal?.show(true),
       hide: () => this.lspTerminal?.hide(),
       dispose: () => {
         this.lspTerminal?.dispose()
