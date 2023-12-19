@@ -750,7 +750,7 @@ searchSourceFile flags currentDir fname
   = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (currentDir:includePath flags))) $ return ()
        extra <- if null currentDir then return []
                                    else do{ d <- realPath currentDir; return [d] }
-       mbP <- searchPathsEx (extra ++ includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
+       mbP <- searchPathsCanonical (extra ++ includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
        case mbP of
          Just (root,stem) | root == currentDir
            -> return $ Just (makeRelativeToPaths (includePath flags) (joinPath root stem))
@@ -759,7 +759,7 @@ searchSourceFile flags currentDir fname
 searchIncludeIface :: Flags -> FilePath -> Name -> IO (Maybe FilePath)
 searchIncludeIface flags currentDir name
   = do -- trace ("search include iface: " ++ showModName name ++ " from " ++ currentDir) $ return ()
-       mbP <- searchPathsEx (currentDir : includePath flags) [] [] (showModName name ++ ifaceExtension)
+       mbP <- searchPathsCanonical (currentDir : includePath flags) [] [] (showModName name ++ ifaceExtension)
        case mbP of
          Just (root,stem)
            -> return $ Just (joinPath root stem)
