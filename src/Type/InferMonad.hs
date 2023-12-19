@@ -1023,7 +1023,7 @@ extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
 
 -- Specialized for recursive defs where we sometimes get InfoVal even though we want InfoFun? is this correct for the csharp backend?
 coreDefInfoX def@(Core.Def name tp expr vis sort inl nameRng doc)
-  = (nonCanonicalName name, createNameInfoX Public name sort nameRng tp)
+  = (nonCanonicalName name, createNameInfoX Public name sort nameRng tp doc)
 
 extendGamma :: Bool -> [(Name,NameInfo)] -> Inf a -> Inf (a)
 extendGamma isAlreadyCanonical defs inf
@@ -1129,7 +1129,7 @@ withGammaType :: Range -> Type -> Inf a -> Inf a
 withGammaType range tp inf
   = do defName <- currentDefName
        name <- uniqueName (show defName)
-       extendInfGamma [(name,(InfoVal Public name tp range False))] inf
+       extendInfGamma [(name,(InfoVal Public name tp range False ""))] inf
 
 currentDefName :: Inf Name
 currentDefName

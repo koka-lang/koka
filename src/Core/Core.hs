@@ -28,6 +28,7 @@ module Core.Core ( -- Data structures
                    , extractSignatures
                    , typeDefIsExtension
                    , typeDefVis
+                   , typeDefDoc
                    , externalImportLookup, eimportLookup, lookupTarget
 
                      -- Core term builders
@@ -354,6 +355,9 @@ typeDefIsExtension _              = False
 
 typeDefVis (Synonym info) = synInfoVis info
 typeDefVis (Data info _)  = dataInfoVis info
+
+typeDefDoc (Synonym info) = synInfoDoc info
+typeDefDoc (Data info _)  = dataInfoDoc info
 
 flattenTypeDefGroups :: TypeDefGroups -> [TypeDef]
 flattenTypeDefGroups tdgs = concatMap (\(TypeDefGroup tdg) -> tdg) tdgs

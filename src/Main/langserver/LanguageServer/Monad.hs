@@ -47,7 +47,7 @@ import Common.ColorScheme ( colorSource, ColorScheme, darkColorScheme, lightColo
 import Common.Name (nameNil)
 import Common.File ( realPath, normalize, getCwd, realPath, normalize )
 import Common.Error (ppErrorMessage)
-import Lib.PPrint (Pretty(..), asString, writePrettyLn, Doc)
+import Lib.PPrint (Pretty(..), asString, writePrettyLn, Doc, writePretty)
 import Lib.Printer (withColorPrinter, withColor, writeLn, ansiDefault, AnsiStringPrinter (AnsiString), Color (Red), ColorPrinter (PAnsiString, PHtmlText), withHtmlTextPrinter, HtmlTextPrinter (..))
 import Compiler.Compile (Terminal (..), Loaded (..), Module (..))
 import Compiler.Options (Flags (..), prettyEnvFromFlags, verbose)
@@ -140,12 +140,13 @@ defaultLSState flags = do
     lastChangedFile = Nothing, progressReport = Nothing,
     documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
 
+-- Prints a message to html spans
 htmlTextColorPrinter :: Doc -> IO T.Text
 htmlTextColorPrinter doc
   = do
     stringVar <- newVar (T.pack "")
     let printer = PHtmlText (HtmlTextPrinter stringVar)
-    writePrettyLn printer doc
+    writePretty printer doc
     takeVar stringVar
 
 putScheme p env tp

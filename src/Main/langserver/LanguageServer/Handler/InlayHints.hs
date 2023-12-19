@@ -55,7 +55,7 @@ toInlayHint env modName (rng, rngInfo) = do
         (rngEnd /= posNull) &&
         case rngInfo of
           Id _ info _ -> case info of
-            NIValue _ isAnnotated -> not isAnnotated
+            NIValue _ _ isAnnotated -> not isAnnotated
             _ -> False
           _ -> False
   if shouldShow then
@@ -73,6 +73,6 @@ formatInfo :: Env -> Name -> RangeInfo -> Maybe String
 formatInfo env modName rinfo = case rinfo of
   Id qname info isdef ->
     case info of
-      NIValue tp _ -> Just $ " : " ++ show (ppScheme env tp)
+      NIValue tp _ _ -> Just $ " : " ++ show (ppScheme env tp)
       _ -> Nothing
   _ -> Nothing

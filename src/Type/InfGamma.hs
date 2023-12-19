@@ -53,11 +53,11 @@ infgammaIsEmpty :: InfGamma -> Bool
 infgammaIsEmpty (InfGamma infGamma)
   = M.null infGamma
 
-infgammaSingle :: Name -> Scheme -> InfGamma
-infgammaSingle name tp
-  = infgammaNew [(name,tp)]
+infgammaSingle :: Name -> Scheme -> String -> InfGamma
+infgammaSingle name tp doc
+  = infgammaNew [(name,tp,doc)]
 
-infgammaNew :: [(Name,Scheme)] -> InfGamma
+infgammaNew :: [(Name,Scheme,String)] -> InfGamma
 infgammaNew xs
   = infgammaExtends xs infgammaEmpty
 
@@ -65,17 +65,17 @@ infgammaExtend :: Name -> NameInfo -> InfGamma -> InfGamma
 infgammaExtend name info (InfGamma infgamma)
   = InfGamma (M.insert (unqualify name) info infgamma)  -- overwrite previous names
 
-infgammaExtendTp :: Name -> Name -> Scheme -> InfGamma -> InfGamma
-infgammaExtendTp name cname tp infgamma
-  = infgammaExtendX name cname tp rangeNull False infgamma
+infgammaExtendTp :: Name -> Name -> Scheme -> String -> InfGamma -> InfGamma
+infgammaExtendTp name cname tp doc infgamma
+  = infgammaExtendX name cname tp rangeNull False doc infgamma
 
-infgammaExtendX :: Name -> Name -> Scheme -> Range -> Bool -> InfGamma -> InfGamma
-infgammaExtendX name cname tp rng isVar infgamma
-  = infgammaExtend name (InfoVal Public cname tp rng isVar) infgamma
+infgammaExtendX :: Name -> Name -> Scheme -> Range -> Bool -> String -> InfGamma -> InfGamma
+infgammaExtendX name cname tp rng isVar doc infgamma
+  = infgammaExtend name (InfoVal Public cname tp rng isVar doc) infgamma
 
-infgammaExtends :: [(Name,Scheme)] -> InfGamma -> InfGamma
+infgammaExtends :: [(Name,Scheme,String)] -> InfGamma -> InfGamma
 infgammaExtends tnames ig
-  = foldl (\m (name,tp) -> infgammaExtendTp name name tp m) ig tnames
+  = foldl (\m (name,tp,doc) -> infgammaExtendTp name name tp doc m) ig tnames
 
 infgammaLookup :: Name -> InfGamma -> Maybe (Name,Type)
 infgammaLookup name infgamma

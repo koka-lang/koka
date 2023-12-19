@@ -17,7 +17,7 @@ import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 import Common.Range as R
 import Common.Name (nameNil)
 import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
-import Lib.PPrint (Pretty (..), Doc, text, (<+>), color)
+import Lib.PPrint (Pretty (..), Doc, text, (<+>), (<-->),color, Color (..), (<.>), (<->))
 import Compiler.Module (loadedModule, modRangeMap, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)
@@ -84,13 +84,21 @@ formatRangeInfoHover :: Env -> ColorScheme -> RangeInfo -> Doc
 formatRangeInfoHover env colors rinfo =
   case rinfo of
   Id qname info isdef ->
-    ppName env qname <+> text " : " <+> case info of
-      NIValue tp _ -> ppScheme env tp
-      NICon tp ->  ppScheme env tp
-      NITypeCon k -> prettyKind colors k
-      NITypeVar k -> prettyKind colors k
-      NIModule -> text "module"
-      NIKind -> text "kind"
+    let signature = ppName env qname <+> text " : " <+> case info of
+          NIValue tp "" _ -> ppScheme env tp
+          NIValue tp doc _ -> ppScheme env tp
+          NICon tp "" ->  ppScheme env tp
+          NICon tp doc ->  ppScheme env tp
+          NITypeCon k -> prettyKind colors k
+          NITypeVar k -> prettyKind colors k
+          NIModule -> text "module"
+          NIKind -> text "kind" in
+    case info of
+      NIValue tp "" _ -> text "" <.> signature
+      NIValue tp doc _ -> color DarkGreen (text doc) <-> text "" <--> signature
+      NICon tp "" ->  text "" <.> signature
+      NICon tp doc ->  color DarkGreen (text doc) <-> text "" <--> signature
+      _ -> text "" <.> signature
   Decl s name mname -> text s <+> text " " <+> pretty name
   Block s -> text s
   Error doc -> text "Error: " <+> doc

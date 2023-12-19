@@ -286,7 +286,7 @@ constructorGamma isValue dataInfos
   = conInfoGamma (concatMap (\info -> zip (dataInfoConstrs info) (snd (Core.getDataReprEx isValue info))) dataInfos)
   where
     conInfoGamma conInfos
-      = gammaNew [(conInfoName conInfo,InfoCon (conInfoVis conInfo) (conInfoType conInfo) conRepr conInfo (conInfoRange conInfo)) | (conInfo,conRepr) <- conInfos]
+      = gammaNew [(conInfoName conInfo,InfoCon (conInfoVis conInfo) (conInfoType conInfo) conRepr conInfo (conInfoRange conInfo) (conInfoDoc conInfo)) | (conInfo,conRepr) <- conInfos]
 
 constructorCheckDuplicates :: ColorScheme -> [ConInfo] -> [(Range,Doc)]
 constructorCheckDuplicates cscheme conInfos
@@ -405,7 +405,7 @@ infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
                    canonicalName n qname
        if (isHiddenName name)
         then return ()
-        else do addRangeInfo nameRng (Id qname (NIValue tp' True) True)
+        else do addRangeInfo nameRng (Id qname (NIValue tp' doc True) True)
                 addRangeInfo rng (Decl "external" qname (mangle cname tp'))
        -- trace ("infExternal: " ++ show cname ++ ": " ++ show (pretty tp')) $
        return (Core.External cname tp' pinfos (map (formatCall tp') calls)
@@ -934,7 +934,7 @@ resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (Us
        let scheme = quantifyType (typeParams ++ existVars) $
                     if (null params') then result' else typeFun [(binderName p, binderType p) | (_,p) <- params'] typeTotal result'
        addRangeInfo rng (Decl "con" qname (mangleConName qname))
-       addRangeInfo rngName (Id qname (NICon scheme) True)
+       addRangeInfo rngName (Id qname (NICon scheme doc) True)
        let fields = map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] (map snd params'))
        --    emitError makeMsg = do cs <- getColorScheme
        --                           let nameDoc = color (colorCons cs) (pretty name)
@@ -966,7 +966,7 @@ resolveConParam idmap (vis,vb)
                  Just e  -> {- do e' <- infExpr e
                                   return (Just e') -}
                             return (Just (failure "Kind.Infer.resolveConParam: optional parameter expression in constructor"))
-       addRangeInfo (binderNameRange vb) (Id (binderName vb) (NIValue tp True) True)
+       addRangeInfo (binderNameRange vb) (Id (binderName vb) (NIValue tp "" True) True)
        return (vis,vb{ binderType = tp, binderExpr = expr })
 
 -- | @resolveType@ takes: a map from locally quantified type name variables to types,

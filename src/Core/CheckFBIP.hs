@@ -401,7 +401,7 @@ getFipInfo :: [NameInfo] -> Maybe Fip
 getFipInfo xs
   = case xs of
       [info] -> case info of
-        InfoFun _ _ _ _ fip' _
+        InfoFun _ _ _ _ fip' _ _
           -> Just fip'
         Type.Assumption.InfoExternal _ _ _ _ fip' _
           -> Just fip'

@@ -142,7 +142,7 @@ compile p flags fname
 
 gammaFromDefGroups groups = gammaNew $ map defToGammaEntry $ flattenDefGroups groups
   where
-    defToGammaEntry def = (defName def, createNameInfoX (defVis def) (defName def)  (defSort def) (defNameRange def) (defType def))
+    defToGammaEntry def = (defName def, createNameInfoX (defVis def) (defName def)  (defSort def) (defNameRange def) (defType def) (defDoc def))
 
 putScheme p env tp
   = putPrettyLn p (ppScheme env tp)
