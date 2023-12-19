@@ -526,9 +526,9 @@ resolveImports mname term flags currentDir loaded0 imports0
        -- trace (show mname ++ ": resolved imports, imported: " ++ show (map (show . fst) imports) ++ "\n  resolved to: " ++ show (map (show . modName) resolved) ++ "\n") $ return ()
        let load msg loaded []
              = return loaded
-           load msg loaded ((alias,mod):mods)
-             = do let (loaded1,errs) = loadedImportModule (isValueFromFlags flags) loaded mod (rangeNull) alias
-                  -- trace ("loaded " ++ msg ++ " module: " ++ show alias ++ " = " ++ show (modName mod)) $ return ()
+           load msg loaded ((malias,mod):mods)
+             = do let (loaded1,errs) = loadedImportModule (isValueFromFlags flags) loaded mod (rangeNull) malias
+                  -- trace ("loaded " ++ msg ++ " module: " ++ show (modName mod)) $ return ()
                   mapM_ (\err -> liftError (errorMsg err)) errs
                   load msg loaded1 mods
 
@@ -542,7 +542,7 @@ resolveImports mname term flags currentDir loaded0 imports0
 
 
        loadedImp  <- load "import" loaded0 imports
-       loadedFull <- load "inline import" loaded0 (map (\mod -> (modName mod, mod)) resolved)
+       loadedFull <- load "inline import" loaded0 (map (\m -> (modName m, m)) resolved) -- todo: is it ok to ignore module aliases here?
        inlineDefss   <- mapM (loadInlines loadedFull) resolved
        let modsFull   = zipWith (\mod idefs -> mod{ modInlines = Right idefs }) resolved inlineDefss
            inlineDefs = concat inlineDefss
