@@ -7,29 +7,30 @@
 module LanguageServer.Run (runLanguageServer) where
 
 import System.Exit            ( exitFailure )
-import Compiler.Options (Flags (languageServerPort))
+import GHC.IO.IOMode (IOMode(ReadWriteMode))
+import GHC.Conc (atomically)
+import GHC.IO.Handle (BufferMode(NoBuffering), hSetBuffering)
+import GHC.IO.StdHandles (stdout, stderr)
 import Control.Monad (void, forever)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.STM
-import Control.Concurrent.STM.TChan
-import Control.Concurrent
+import Control.Monad.STM ( atomically )
+import Control.Concurrent.STM.TChan ( newTChan, readTChan, TChan )
+import Control.Concurrent ( readMVar, MVar, forkIO )
 import Language.LSP.Server
-import qualified Language.LSP.Protocol.Types as J
-import qualified Language.LSP.Protocol.Message as J
-import qualified Language.LSP.Server as J
-import LanguageServer.Handlers
-import LanguageServer.Monad (newLSStateVar, runLSM, LSM, getLSState, LSState (messages))
 import Colog.Core (LogAction, WithSeverity)
 import qualified Colog.Core as L
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Message as J
+import qualified Language.LSP.Server as J
 import Language.LSP.Logging (defaultClientLogger)
-import Network.Simple.TCP
-import Network.Socket hiding (connect)
-import GHC.IO.IOMode (IOMode(ReadWriteMode))
-import GHC.Conc (atomically)
-import GHC.IO.Handle (BufferMode(LineBuffering), hSetBuffering)
-import GHC.IO.StdHandles (stdout, stderr)
+import Network.Simple.TCP ( connect )
+import Network.Socket ( socketToHandle )
+import LanguageServer.Handlers ( lspHandlers, ReactorInput(..) )
+import LanguageServer.Monad (newLSStateVar, runLSM, LSM, getLSState, LSState (messages, progress), getProgress)
+import Compiler.Options (Flags (languageServerPort))
+import Debug.Trace (trace)
 
 runLanguageServer :: Flags -> [FilePath] -> IO ()
 runLanguageServer flags files = do
@@ -38,8 +39,8 @@ runLanguageServer flags files = do
     exitFailure 
   else return ()
   -- Have to set line buffering, otherwise the client doesn't receive data until buffers fill up
-  hSetBuffering stdout LineBuffering
-  hSetBuffering stderr LineBuffering
+  hSetBuffering stdout NoBuffering
+  hSetBuffering stderr NoBuffering
   -- Connect to localhost on the port given by the client
   connect "127.0.0.1" (show $ languageServerPort flags) (\(socket, _) -> do
     -- Create a handle to the client from the socket
@@ -48,6 +49,7 @@ runLanguageServer flags files = do
     state <- newLSStateVar flags
     -- Get the message channel
     messageChan <- liftIO $ messages <$> readMVar state
+    progressChan <- liftIO $ progress <$> readMVar state
     -- Create a new channel for the reactor to receive messages on
     rin <- atomically newTChan :: IO (TChan ReactorInput)
     void $
@@ -63,7 +65,7 @@ runLanguageServer flags files = do
             defaultConfig = (),
             configSection = T.pack "koka",
             -- Two threads, the request thread and the message thread (so we can send messages to the client, while the compilation is happening)
-            doInitialize = \env _ -> forkIO (reactor rin) >> forkIO (messageHandler messageChan env state) >> pure (Right env),
+            doInitialize = \env _ -> forkIO (reactor rin) >> forkIO (messageHandler messageChan env state) >> forkIO (progressHandler progressChan env state) >> pure (Right env),
             staticHandlers = \_caps -> lspHandlers rin,
             interpretHandler = \env -> Iso (\lsm -> runLSM lsm state env) liftIO,
             options =
@@ -100,6 +102,21 @@ messageHandler msgs env state = do
   forever $ do
     (msg, msgType) <- atomically $ readTChan msgs
     runLSM (sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams msgType $ T.pack msg) state env
+
+-- Handles messages to send to the client, just spins and sends
+progressHandler :: TChan String -> LanguageContextEnv () -> MVar LSState -> IO ()
+progressHandler msgs env state = do
+  forever $ do
+    msg <- atomically $ readTChan msgs
+    runLSM (do 
+        trace ("Progress: " <> msg) $ return ()
+        report <- getProgress
+        case report of
+          Just report -> do
+            trace ("Progress: " <> msg) $ return ()
+            report (J.ProgressAmount (Just 1) (Just $ T.pack msg))
+          Nothing -> return ()
+      ) state env
 
 -- Runs in a loop, getting the next queued request and executing it
 reactor :: TChan ReactorInput -> IO ()

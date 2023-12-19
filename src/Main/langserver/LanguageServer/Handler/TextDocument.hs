@@ -13,43 +13,41 @@ module LanguageServer.Handler.TextDocument
   )
 where
 
-import Common.Error (Error, checkPartial)
-import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
-import Control.Lens ((^.))
-import Control.Monad.Trans (liftIO)
-import qualified Data.Map as M
-import Data.Maybe (fromJust, fromMaybe)
-import qualified Data.Text as T
-import Language.LSP.Diagnostics (partitionBySource)
-import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler)
-import qualified Language.LSP.Protocol.Types as J
-import qualified Language.LSP.Protocol.Lens as J
-import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
-import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded)
-import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
-import qualified Data.Text.Encoding as T
-import Data.Functor ((<&>))
-import qualified Language.LSP.Protocol.Message as J
-import Data.ByteString (ByteString)
-import Data.Map (Map)
-import Text.Read (readMaybe)
-import Debug.Trace (trace)
+import GHC.IO (unsafePerformIO)
 import Control.Exception (try)
 import qualified Control.Exception as Exc
-import Compiler.Options (Flags)
-import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime)
-import GHC.IO (unsafePerformIO)
-import Compiler.Module (Module(..), initialLoaded)
+import Control.Lens ((^.))
+import Control.Monad.Trans (liftIO)
 import Control.Monad (when, foldM)
-import Data.Time (addUTCTime, addLocalTime)
-import qualified Data.ByteString as J
-import Syntax.Syntax ( programNull, programAddImports, Import(..) )
+import Data.ByteString (ByteString)
+import Data.Map (Map)
+import Data.Maybe (fromJust, fromMaybe)
+import Data.Functor ((<&>))
+import qualified Data.Map as M
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Lens as J
+import qualified Language.LSP.Protocol.Message as J
+import Language.LSP.Diagnostics (partitionBySource)
+import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler)
+import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
+import Lib.PPrint (text)
 import Common.Range (rangeNull)
-import Core.Core (Visibility(Private))
 import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
 import Common.Name (newName)
-import Lib.PPrint (text)
+import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime)
+import Common.Error (Error, checkPartial)
+import Core.Core (Visibility(Private))
+import Compiler.Options (Flags)
+import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
+import Compiler.Module (Module(..), initialLoaded)
+import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
+import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded)
 
+import Debug.Trace (trace)
+
+import Syntax.Syntax ( programNull, programAddImports, Import(..) )
 -- Compile the file on opening
 didOpenHandler :: Handlers LSM
 didOpenHandler = notificationHandler J.SMethod_TextDocumentDidOpen $ \msg -> do

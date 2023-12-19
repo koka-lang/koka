@@ -21,6 +21,7 @@ export class KokaLanguageServer {
   languageServerProcess?: child_process.ChildProcess
   socketServer?: Server
   outputChannel?: vscode.OutputChannel
+  traceOutputChannel?: vscode.OutputChannel
   lspWriteEmitter: vscode.EventEmitter<string> = new vscode.EventEmitter<string>();
   lspPty?: vscode.Pseudoterminal
   lspTerminal?: vscode.Terminal
@@ -115,19 +116,25 @@ export class KokaLanguageServer {
       },
 
     };
+    if (config.debugExtension) {
+      this.traceOutputChannel = vscode.window.createOutputChannel('Koka Language Server Trace', 'koka')
+    }
     const clientOptions: LanguageClientOptions = {
       documentSelector: [{ language: 'koka', scheme: 'file' }],
       outputChannel: this.outputChannel,
-      revealOutputChannelOn: RevealOutputChannelOn.Never,
+      traceOutputChannel: this.traceOutputChannel,
+      revealOutputChannelOn: RevealOutputChannelOn.Info,
       markdown: {
         isTrusted: true,
         supportHtml: true,
       }
     }
     this.languageClient = new LanguageClient(
-      'Koka Language Client',
+      'koka',
+      "Koka Language Server",
       serverOptions,
       clientOptions,
+      true
     )
     context.subscriptions.push(this)
 
@@ -139,6 +146,8 @@ export class KokaLanguageServer {
 
   async dispose() {
     try {
+      this.traceOutputChannel.dispose()
+      this.outputChannel?.dispose()
       await this.languageClient?.stop()
       await this.languageClient?.dispose()
       const result = this.languageServerProcess?.kill('SIGINT')

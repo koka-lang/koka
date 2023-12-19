@@ -101,19 +101,8 @@
         },
         "koka.debugExtension": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Log trace information from the language server subprocess."
-        },
-        "koka.languageServer.trace.server": {
-          "scope": "window",
-          "type": "string",
-          "enum": [
-            "off",
-            "messages",
-            "verbose"
-          ],
-          "default": "off",
-          "description": "Trace messages between VS Code and the language server."
         }
       }
     },

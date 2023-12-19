@@ -5,24 +5,24 @@
 
 module LanguageServer.Handler.Definition (definitionHandler) where
 
-import Compiler.Module (Loaded (..), loadedModule, modRangeMap)
 import Control.Lens ((^.))
+import Control.Monad.IO.Class (liftIO)
 import qualified Data.Map as M
-import Common.Range as R
 import Data.Foldable(maximumBy)
 import Data.Maybe (maybeToList)
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Lens as J
+import qualified Language.LSP.Protocol.Message as J
+import Language.LSP.Server (Handlers, requestHandler)
+import Common.Range as R
 import Kind.Constructors (conInfoRange, constructorsLookup)
 import Kind.Newtypes (dataInfoRange, newtypesLookupAny)
 import Kind.Synonym (synInfoRange, synonymsLookup)
-import Language.LSP.Server (Handlers, requestHandler)
-import qualified Language.LSP.Protocol.Types as J
-import qualified Language.LSP.Protocol.Lens as J
+import Type.Assumption (gammaLookupQ, infoRange)
+import Syntax.RangeMap (RangeInfo (..), rangeMapFindAt, NameInfo (..))
+import Compiler.Module (Loaded (..), loadedModule, modRangeMap)
 import LanguageServer.Conversions (fromLspPos, toLspLocation, toLspLocationLink)
 import LanguageServer.Monad (LSM, getLoaded)
-import Syntax.RangeMap (RangeInfo (..), rangeMapFindAt, NameInfo (..))
-import Type.Assumption (gammaLookupQ, infoRange)
-import qualified Language.LSP.Protocol.Message as J
-import Control.Monad.IO.Class (liftIO)
 
 -- Finds the definitions of the element under the cursor.
 definitionHandler :: Handlers LSM

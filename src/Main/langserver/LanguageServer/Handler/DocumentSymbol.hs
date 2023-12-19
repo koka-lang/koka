@@ -6,22 +6,22 @@
 module LanguageServer.Handler.DocumentSymbol( documentSymbolHandler
                                             ) where
 
+import Control.Lens                      ( (^.) )
+import qualified Data.Map                as M
+import qualified Data.Text               as T
+import Data.Maybe                        ( maybeToList )
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Lens as J
+import qualified Language.LSP.Protocol.Message as J
+import Language.LSP.Server               ( Handlers, requestHandler )
 import qualified Common.Range            as R
 import Common.Syntax                     ( DefSort (..), Visibility )
 import Common.Name                       ( Name (..), isHiddenName )
+import Common.NamePrim (nameNull, namePhantom)
 import Compiler.Module                   ( modProgram, loadedModule, Loaded (..) )
-import Control.Lens                      ( (^.) )
-import qualified Data.Map                as M
-import Data.Maybe                        ( maybeToList )
-import qualified Data.Text               as T
-import Language.LSP.Server               ( Handlers, requestHandler )
-import qualified Language.LSP.Protocol.Types as J
-import qualified Language.LSP.Protocol.Lens as J
+import Syntax.Syntax
 import LanguageServer.Conversions        ( toLspRange )
 import LanguageServer.Monad              ( LSM, getLoaded )
-import Syntax.Syntax
-import qualified Language.LSP.Protocol.Message as J
-import Common.NamePrim (nameNull, namePhantom)
 
 -- The LSP handler that provides the symbol tree of a document
 -- Symbols include

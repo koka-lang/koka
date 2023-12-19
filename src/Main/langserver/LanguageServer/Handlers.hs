@@ -6,12 +6,35 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE GADTs                     #-}
+{-# LANGUAGE GADTs #-}
 
 module LanguageServer.Handlers (ReactorInput(..), lspHandlers) where
 
-import Compiler.Options (Flags)
+import Prelude hiding (id)
+import GHC.Conc (atomically)
+import Control.Monad.IO.Class (liftIO)
+import Control.Concurrent.STM.TChan ( writeTChan )
+import Control.Concurrent.MVar (readMVar)
+import Control.Concurrent (modifyMVar)
+import Control.Concurrent.Async ( race )
+import Control.Concurrent.STM
+    ( atomically, retry, writeTChan, readTVar, readTVarIO, modifyTVar )
+import Control.Lens ((^.))
+import Control.Monad.Trans (lift)
+import Control.Monad.Reader (MonadReader(ask))
+import Control.Monad (when, unless)
+
+import qualified Data.Map as M
+import qualified Data.Set as S
+import qualified Data.Text as T
+import Language.LSP.Protocol.Lens hiding (retry)
+import Language.LSP.Protocol.Message (TRequestMessage(..), TNotificationMessage(..), Method, MessageDirection(..), MessageKind(..), SMethod (..), SomeLspId (SomeLspId), LspId (..), NotificationMessage (..), ResponseError (..))
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Message as J
+import Language.LSP.Protocol.Types (DidChangeTextDocumentParams(..), VersionedTextDocumentIdentifier (..))
 import Language.LSP.Server (Handlers, notificationHandler, sendNotification, Handler, mapHandlers, MonadLsp (..))
+
+import Compiler.Options (Flags)
 import LanguageServer.Handler.Completion (completionHandler)
 import LanguageServer.Handler.Definition (definitionHandler)
 import LanguageServer.Handler.DocumentSymbol (documentSymbolHandler)
@@ -21,29 +44,7 @@ import LanguageServer.Handler.Commands (commandHandler)
 import LanguageServer.Handler.Folding (foldingHandler)
 import LanguageServer.Handler.TextDocument (didChangeHandler, didCloseHandler, didOpenHandler, didSaveHandler)
 import LanguageServer.Monad (LSM, runLSM, LSState (..), updateConfig)
-import Language.LSP.Protocol.Message (TRequestMessage(..), TNotificationMessage(..), Method, MessageDirection(..), MessageKind(..), SMethod (..), SomeLspId (SomeLspId), LspId (..), NotificationMessage (..), ResponseError (..))
-import Control.Monad.Trans (lift)
-import Control.Monad.Reader (MonadReader(ask))
 
-import GHC.Conc (atomically)
-import Control.Monad.IO.Class (liftIO)
-
-import Control.Concurrent.STM.TChan
-import Control.Concurrent.MVar (readMVar)
-import Control.Lens ((^.))
-import Control.Concurrent (modifyMVar)
-import Control.Concurrent.Async
-import Control.Concurrent.STM
-import qualified Data.Map as M
-import qualified Data.Set as S
-import Language.LSP.Protocol.Lens hiding (retry)
-import Prelude hiding (id)
-import qualified Language.LSP.Protocol.Types as J
-import qualified Language.LSP.Protocol.Message as J
-import Language.LSP.Protocol.Types (DidChangeTextDocumentParams(..), VersionedTextDocumentIdentifier (..))
-
-import Control.Monad (when, unless)
-import qualified Data.Text as T
 import qualified Debug.Trace as Debug
 
 newtype ReactorInput = ReactorAction (IO ())

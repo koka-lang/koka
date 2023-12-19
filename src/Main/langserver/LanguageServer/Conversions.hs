@@ -23,19 +23,20 @@ module LanguageServer.Conversions
   )
 where
 import           GHC.Generics              hiding (UInt)
+import qualified Data.Text as T
+import Data.Map.Strict as M hiding (map)
+import Data.Maybe (fromMaybe)
+import qualified Language.LSP.Protocol.Types as J
+import Language.LSP.Protocol.Types (UInt)
+import Colog.Core
+
+import Common.File (normalize, realPath)
+import Common.Range (sourceNull, Source (sourceName))
 import qualified Common.Error as E
 import qualified Common.Range as R
-import qualified Data.Text as T
-import qualified Language.LSP.Protocol.Types as J
-import Data.Map.Strict as M hiding (map)
-import Colog.Core
-import Language.LSP.Protocol.Types (UInt)
 import Lib.PPrint (Doc)
 import qualified Syntax.RangeMap as R
 import Compiler.Module (Module (..), Loaded (..))
-import Data.Maybe (fromMaybe)
-import Common.File (normalize, realPath)
-import Common.Range (sourceNull, Source (sourceName))
 
 toLspPos :: R.Pos -> J.Position
 toLspPos p =
