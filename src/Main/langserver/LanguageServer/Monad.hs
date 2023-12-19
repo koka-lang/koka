@@ -1,9 +1,6 @@
 -----------------------------------------------------------------------------
 -- The language server's monad that holds state (e.g. loaded/compiled modules)
 -----------------------------------------------------------------------------
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module LanguageServer.Monad
@@ -19,50 +16,45 @@ module LanguageServer.Monad
     updateConfig,
     getDiagnostics,putDiagnostics,clearDiagnostics,
     runLSM,
+    getProgress,setProgress
   )
 where
 
-import Control.Concurrent.MVar (MVar, modifyMVar, newMVar, putMVar, readMVar, newEmptyMVar)
+import GHC.Conc (atomically)
+import GHC.Base (Alternative (..))
+import Platform.Var (newVar, takeVar)
+import Platform.Filetime (FileTime)
+import Control.Concurrent.MVar (MVar, modifyMVar, newMVar, readMVar)
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Trans (lift, liftIO)
+import Control.Concurrent.Chan (readChan)
+import Control.Concurrent.STM (newTVarIO, TVar)
+import qualified Data.Set as Set
+import Control.Concurrent.STM.TChan
+import qualified Data.Aeson as A
+import qualified Data.ByteString as D
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
+import Data.Maybe (fromMaybe, isJust)
+import Data.List (find)
+import Data.Aeson.Types
 import Language.LSP.Server (LanguageContextEnv, LspT, runLspT, sendNotification, Handlers)
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Message as J
-
-import Compiler.Compile (Terminal (..), Loaded (..), Module (..))
-import Lib.PPrint (Pretty(..), asString, writePrettyLn, Doc)
-import Control.Concurrent.Chan (readChan)
-import Type.Pretty (ppType, defaultEnv, Env (context, importsMap), ppScheme)
 import qualified Language.LSP.Server as J
-import GHC.Base (Type, Alternative (..))
-import Lib.Printer (withColorPrinter, withColor, writeLn, ansiDefault, AnsiStringPrinter (AnsiString), Color (Red), ColorPrinter (PAnsiString, PHtmlText), withHtmlTextPrinter, HtmlTextPrinter (..))
-import Compiler.Options (Flags (..), prettyEnvFromFlags, verbose)
-import Common.Error (ppErrorMessage)
-import Common.ColorScheme (colorSource, ColorScheme)
-import Common.Name (nameNil)
-import Kind.ImportMap (importsEmpty)
-import Platform.Var (newVar, takeVar)
-import Debug.Trace (trace)
-import Common.File (realPath, normalize, getCwd)
 
-import Control.Monad.STM
-import Control.Concurrent.STM.TChan
-import Control.Concurrent
-import GHC.Conc (atomically)
-import Control.Concurrent.STM (newTVarIO, TVar)
-import qualified Data.Set as Set
-import Control.Concurrent.STM.TMVar (TMVar)
-import qualified Data.ByteString as D
-import Platform.Filetime (FileTime)
-import Common.File (realPath,normalize)
+import Common.ColorScheme ( colorSource, ColorScheme, darkColorScheme, lightColorScheme )
+import Common.Name (nameNil)
+import Common.File ( realPath, normalize, getCwd, realPath, normalize )
+import Common.Error (ppErrorMessage)
+import Lib.PPrint (Pretty(..), asString, writePrettyLn, Doc, writePretty)
+import Lib.Printer (withColorPrinter, withColor, writeLn, ansiDefault, AnsiStringPrinter (AnsiString), Color (Red), ColorPrinter (PAnsiString, PHtmlText), withHtmlTextPrinter, HtmlTextPrinter (..))
+import Compiler.Compile (Terminal (..), Loaded (..), Module (..))
+import Compiler.Options (Flags (..), prettyEnvFromFlags, verbose)
 import Compiler.Module (Modules)
-import Data.Maybe (fromMaybe, isJust)
-import Data.List (find)
-import qualified Data.Aeson as A
-import Data.Aeson.Types
-import Common.ColorScheme (darkColorScheme, lightColorScheme)
+import Type.Pretty (ppType, defaultEnv, Env (context, importsMap), ppScheme)
+import Kind.ImportMap (importsEmpty)
+
 import LanguageServer.Conversions (toLspUri, fromLspUri)
 
 -- The language server's state, e.g. holding loaded/compiled modules.
@@ -70,8 +62,10 @@ data LSState = LSState {
   lsModules :: ![Module],
   lsLoaded :: !(M.Map J.NormalizedUri Loaded),
   messages :: !(TChan (String, J.MessageType)),
+  progress :: !(TChan String),
   flags:: !Flags,
   terminal:: !Terminal,
+  progressReport :: !(Maybe (J.ProgressAmount -> LSM ())),
   htmlPrinter :: Doc -> IO T.Text,
   pendingRequests :: !(TVar (Set.Set J.SomeLspId)),
   cancelledRequests :: !(TVar (Set.Set J.SomeLspId)),
@@ -108,41 +102,51 @@ modifyLSState m = do
 defaultLSState :: Flags -> IO LSState
 defaultLSState flags = do
   msgChan <- atomically newTChan :: IO (TChan (String, J.MessageType))
+  progressChan <- atomically newTChan :: IO (TChan String)
   pendingRequests <- newTVarIO Set.empty
   cancelledRequests <- newTVarIO Set.empty
   fileVersions <- newTVarIO M.empty
-  -- Trim trailing whitespace and newlines from the end of a string
-  let trimnl :: [Char] -> [Char]
-      trimnl str = reverse $ dropWhile (`T.elem` "\n\r\t ") $ reverse str
   let withNewPrinter f = do
         ansiConsole <- newVar ansiDefault
         stringVar <- newVar ""
         let p = AnsiString ansiConsole stringVar
         tp <- (f . PAnsiString) p
         ansiString <- takeVar stringVar
-        atomically $ writeTChan msgChan (trimnl ansiString, tp)
+        atomically $ writeTChan msgChan (ansiString, tp)
+  let withNewProgressPrinter doc = do
+        atomically $ writeTChan progressChan (show doc)
   cwd <- getCwd
   let cscheme = colorScheme flags
       prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
       term = Terminal (\err -> withNewPrinter $ \p -> do putErrorMessage p cwd (showSpan flags) cscheme err; return J.MessageType_Error)
                 (if verbose flags > 1 then (\msg -> withNewPrinter $ \p -> do withColor p (colorSource cscheme) (writeLn p msg); return J.MessageType_Info)
                                          else (\_ -> return ()))
-                 (if verbose flags > 0 then (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info) else (\_ -> return ()))
+                 (if verbose flags > 0 then (\msg -> do
+                    _ <- withNewPrinter $ \p -> do
+                      writePrettyLn p msg
+                      return J.MessageType_Info
+                    withNewProgressPrinter msg
+                    )
+                  else (\_ -> return ()))
                  (\tp -> withNewPrinter $ \p -> do putScheme p (prettyEnv flags nameNil importsEmpty) tp; return J.MessageType_Info)
-                 (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info)
+                 (\msg -> withNewPrinter $ \p -> do
+                    writePrettyLn p msg
+                    return J.MessageType_Info
+                )
   return LSState {
     lsLoaded = M.empty, lsModules=[],
-    messages = msgChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, config=Config{colors=Colors{mode="dark"}},
+    messages = msgChan, progress=progressChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, config=Config{colors=Colors{mode="dark"}},
     terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags,
-    lastChangedFile = Nothing,
+    lastChangedFile = Nothing, progressReport = Nothing,
     documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
 
+-- Prints a message to html spans
 htmlTextColorPrinter :: Doc -> IO T.Text
 htmlTextColorPrinter doc
   = do
     stringVar <- newVar (T.pack "")
     let printer = PHtmlText (HtmlTextPrinter stringVar)
-    writePrettyLn printer doc
+    writePretty printer doc
     takeVar stringVar
 
 putScheme p env tp
@@ -166,6 +170,13 @@ instance FromJSON Config where
   parseJSON (A.Object v) = Config <$> v .: "colors"
   parseJSON _ = empty
 
+setProgress :: Maybe (J.ProgressAmount -> LSM ()) -> LSM ()
+setProgress report = do
+  modifyLSState $ \s -> s {progressReport = report}
+
+getProgress :: LSM (Maybe (J.ProgressAmount -> LSM ()))
+getProgress = progressReport <$> getLSState
+
 updateConfig :: A.Value -> LSM ()
 updateConfig cfg =
   case fromJSON cfg of
@@ -173,11 +184,9 @@ updateConfig cfg =
       modifyLSState $ \s ->
         let s' = s{config=cfg} in
         if mode (colors cfg) == "dark" then
-          trace "setting color scheme to dark" $
-            s'{flags=(flags s'){colorScheme=darkColorScheme}}
+          s'{flags=(flags s'){colorScheme=darkColorScheme}}
         else
-          trace "setting color scheme to light" $
-            s'{flags=(flags s'){colorScheme=lightColorScheme}}
+          s'{flags=(flags s'){colorScheme=lightColorScheme}}
 
 getLastChangedFileLoaded :: (J.NormalizedUri, Flags) -> LSM (Maybe Loaded)
 getLastChangedFileLoaded (path, flags) = do
@@ -257,7 +266,7 @@ loadedModuleFromUri ml uri = do
 -- Removes a loaded module from the loaded state holding compiled modules
 removeLoadedUri :: J.NormalizedUri -> LSM ()
 removeLoadedUri uri = do
-  modifyLSState (\st -> st {lsLoaded = M.delete uri (lsLoaded st)})    
+  modifyLSState (\st -> st {lsLoaded = M.delete uri (lsLoaded st)})
 
 -- Fetches the loaded state holding compiled modules
 getLoaded :: J.NormalizedUri -> LSM (Maybe Loaded)

@@ -66,12 +66,12 @@ data RangeInfo
   | Id Name NameInfo Bool  -- qualified name, info, is the definition
 
 data NameInfo
-  = NIValue   Type Bool -- Has annotated type already
-  | NICon     Type
+  = NIValue   Type String Bool -- Has annotated type already
+  | NICon     Type String
   | NITypeCon Kind
   | NITypeVar Kind
   | NIModule
-  | NIKind  
+  | NIKind
 
 
 instance Show RangeInfo where
@@ -103,8 +103,8 @@ penalty name
 instance Enum NameInfo where
   fromEnum ni
     = case ni of
-        NIValue _ _   -> 1
-        NICon   _   -> 2
+        NIValue _ _ _   -> 1
+        NICon   _ _  -> 2
         NITypeCon _ -> 3
         NITypeVar _ -> 4
         NIModule    -> 5
@@ -195,9 +195,18 @@ rangeInfoType :: RangeInfo -> Maybe Type
 rangeInfoType ri
   = case ri of
       Id _ info _ -> case info of
-                       NIValue tp _ -> Just tp
-                       NICon tp   -> Just tp
+                       NIValue tp _ _ -> Just tp
+                       NICon tp _  -> Just tp
                        _          -> Nothing
+      _ -> Nothing
+
+rangeInfoDoc :: RangeInfo -> Maybe String
+rangeInfoDoc ri
+  = case ri of
+      Id _ info _ -> case info of
+                       NIValue _ doc _ -> Just doc
+                       NICon _ doc  -> Just doc
+                       
       _ -> Nothing
 
 instance HasTypeVar RangeMap where
@@ -223,18 +232,18 @@ instance HasTypeVar RangeInfo where
 instance HasTypeVar NameInfo where
   sub `substitute` ni
     = case ni of
-        NIValue tp annotated  -> NIValue (sub `substitute` tp) annotated
-        NICon tp    -> NICon (sub `substitute` tp)
+        NIValue tp annotated doc  -> NIValue (sub `substitute` tp) annotated doc
+        NICon tp doc   -> NICon (sub `substitute` tp) doc
         _           -> ni
 
   ftv ni
     = case ni of
-        NIValue tp _  -> ftv tp
-        NICon tp    -> ftv tp
+        NIValue tp _ _ -> ftv tp
+        NICon tp _   -> ftv tp
         _           -> tvsEmpty
 
   btv ni
     = case ni of
-        NIValue tp _  -> btv tp
-        NICon tp    -> btv tp
+        NIValue tp _ _  -> btv tp
+        NICon tp _    -> btv tp
         _           -> tvsEmpty

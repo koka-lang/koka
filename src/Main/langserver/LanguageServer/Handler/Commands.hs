@@ -5,27 +5,28 @@
 
 module LanguageServer.Handler.Commands (commandHandler) where
 
-import Compiler.Options (Flags (outFinalPath), targets, commandLineHelp, updateFlagsFromArgs)
-import Language.LSP.Server (Handlers, LspM, notificationHandler, sendNotification, MonadLsp, getVirtualFiles, withIndefiniteProgress, requestHandler)
-import qualified Language.LSP.Protocol.Types as J
 import qualified Data.Text as T
-import LanguageServer.Monad (LSM, getFlags, getTerminal, getModules, getLoaded)
-import qualified Language.LSP.Protocol.Message as J
 import Data.Aeson as Json
-import qualified Language.LSP.Protocol.Lens as J
-import Control.Lens ((^.))
 import Data.Maybe (mapMaybe, fromJust, fromMaybe)
-import GHC.Base (Type)
-import LanguageServer.Handler.TextDocument (recompileFile, compileEditorExpression)
-import Compiler.Compile (CompileTarget(..), Terminal (termError, termPhaseDoc), compileExpression, Module (..))
-import Common.Name (newName)
-import qualified Language.LSP.Server as J
+import Control.Lens ((^.))
 import Control.Monad.Trans (liftIO)
-import Syntax.Syntax (programAddImports, programNull, Import (..))
+import GHC.Base (Type)
+import qualified Language.LSP.Server as J
+import qualified Language.LSP.Protocol.Message as J
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Lens as J
+import Common.Name (newName)
 import Common.NamePrim (nameInteractiveModule)
-import Compiler.Module (Loaded(..))
 import Common.Range (rangeNull)
+import Language.LSP.Server (Handlers, LspM, notificationHandler, sendNotification, MonadLsp, getVirtualFiles, withProgress, requestHandler)
+import LanguageServer.Monad (LSM, getFlags, getTerminal, getModules, getLoaded, setProgress)
+import LanguageServer.Handler.TextDocument (recompileFile, compileEditorExpression)
+import Compiler.Compile (CompileTarget(..), Terminal (..), compileExpression, Module (..))
+import Compiler.Options (Flags (outFinalPath), targets, commandLineHelp, updateFlagsFromArgs)
+import Compiler.Module (Loaded(..))
 import Core.Core (Visibility(Private))
+import Syntax.Syntax (programAddImports, programNull, Import (..))
+import Lib.PPrint ((<+>), text, Color (..), color, (<-->))
 
 -- Handles custom commands that we support clients to call
 commandHandler :: Handlers LSM
@@ -40,9 +41,12 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
         newFlags <- getNewFlags flags additionalArgs
         let forceRecompilation = flags /= newFlags
         -- Recompile the file, but with executable target
-        withIndefiniteProgress (T.pack "Compiling " <> filePath) J.NotCancellable $ do
+        withProgress (T.pack "Compiling " <> filePath) J.Cancellable $ \report -> do
+          setProgress (Just report)
           res <- recompileFile (Executable (newName "main") ()) (J.filePathToUri $ T.unpack filePath) Nothing forceRecompilation newFlags
-          sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack ("Finished generating code for main file " ++ T.unpack filePath ++ " " ++ fromMaybe "No Compiled File" res)
+          term <- getTerminal
+          liftIO $ termDoc term $ text "Finished generating code for main file" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
+          setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
       _ -> do 
@@ -57,10 +61,13 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
         newFlags <- getNewFlags flags additionalArgs
         let forceRecompilation = flags /= newFlags
         -- Compile the expression, but with the interpret target
-        withIndefiniteProgress (T.pack "Interpreting " <> functionName) J.NotCancellable $ do
+        withProgress (T.pack "Interpreting " <> functionName) J.Cancellable $ \report -> do
+          setProgress (Just report)
           -- compile the expression
           res <- compileEditorExpression (J.filePathToUri $ T.unpack filePath) newFlags forceRecompilation (T.unpack filePath) (T.unpack functionName)
-          sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack ("Finished generating code for interpreting function " ++ T.unpack functionName ++ " in file " ++ T.unpack filePath ++ " Result: " ++ fromMaybe "No Compiled File" res)
+          term <- getTerminal
+          liftIO $ termDoc term $ text "Finished generating code for for interpreting function" <+> color DarkRed (text (T.unpack functionName)) <+>  color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
+          setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
       _ -> do

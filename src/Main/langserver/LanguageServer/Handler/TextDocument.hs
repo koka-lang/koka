@@ -9,48 +9,45 @@ module LanguageServer.Handler.TextDocument
     didSaveHandler,
     didCloseHandler,
     recompileFile,
-    compileEditorExpression,
-    persistModules,
+    compileEditorExpression
   )
 where
 
-import Common.Error (Error, checkPartial)
-import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
-import Control.Lens ((^.))
-import Control.Monad.Trans (liftIO)
-import qualified Data.Map as M
-import Data.Maybe (fromJust, fromMaybe)
-import qualified Data.Text as T
-import Language.LSP.Diagnostics (partitionBySource)
-import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler)
-import qualified Language.LSP.Protocol.Types as J
-import qualified Language.LSP.Protocol.Lens as J
-import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
-import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded)
-import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
-import qualified Data.Text.Encoding as T
-import Data.Functor ((<&>))
-import qualified Language.LSP.Protocol.Message as J
-import Data.ByteString (ByteString)
-import Data.Map (Map)
-import Text.Read (readMaybe)
-import Debug.Trace (trace)
+import GHC.IO (unsafePerformIO)
 import Control.Exception (try)
 import qualified Control.Exception as Exc
-import Compiler.Options (Flags)
-import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime)
-import GHC.IO (unsafePerformIO)
-import Compiler.Module (Module(..), initialLoaded)
+import Control.Lens ((^.))
+import Control.Monad.Trans (liftIO)
 import Control.Monad (when, foldM)
-import Data.Time (addUTCTime, addLocalTime)
-import qualified Data.ByteString as J
-import Syntax.Syntax ( programNull, programAddImports, Import(..) )
+import Data.ByteString (ByteString)
+import Data.Map (Map)
+import Data.Maybe (fromJust, fromMaybe)
+import Data.Functor ((<&>))
+import qualified Data.Map as M
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Lens as J
+import qualified Language.LSP.Protocol.Message as J
+import Language.LSP.Diagnostics (partitionBySource)
+import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler)
+import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
+import Lib.PPrint (text, (<->), (<+>), color, Color (..))
 import Common.Range (rangeNull)
-import Core.Core (Visibility(Private))
 import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
 import Common.Name (newName)
-import Lib.PPrint (text)
+import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime)
+import Common.Error (Error, checkPartial, ErrorMessage (ErrorIO))
+import Core.Core (Visibility(Private))
+import Compiler.Options (Flags)
+import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
+import Compiler.Module (Module(..), initialLoaded)
+import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
+import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded)
 
+import Debug.Trace (trace)
+
+import Syntax.Syntax ( programNull, programAddImports, Import(..) )
 -- Compile the file on opening
 didOpenHandler :: Handlers LSM
 didOpenHandler = notificationHandler J.SMethod_TextDocumentDidOpen $ \msg -> do
@@ -169,7 +166,7 @@ recompileFile compileTarget uri version force flags = do
       let contents = fst <$> maybeContents newvfs path
       modules <- fmap loadedModules <$> getLastChangedFileLoaded (normUri, flags)
       term <- getTerminal
-      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack $ "Recompiling " ++ path
+      liftIO $ termDoc term $ color DarkRed $ text "Recompiling: " <+> color DarkGreen (text path)
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
       let resultIO = compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] path
       processCompilationResult normUri path flags True resultIO
@@ -184,10 +181,11 @@ processCompilationResult normUri filePath flags update doIO = do
   let ioResult :: IO (Either Exc.SomeException (Error Loaded (Loaded, Maybe FilePath)))
       ioResult = try doIO
   result <- liftIO ioResult
+  term <- getTerminal
   case result of
     Left e -> do
       -- Compilation threw an exception, put it in the log, as well as a notification
-      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ "When compiling file " <> T.pack filePath <> T.pack (" compiler threw exception " ++ show e)
+      liftIO $ termError term $ ErrorIO $ text ("When compiling file " ++ filePath) <-> text "\tcompiler threw exception:" <+> text (show e)
       sendNotification J.SMethod_WindowShowMessage $ J.ShowMessageParams J.MessageType_Error $ "When compiling file " <> T.pack filePath <> T.pack (" compiler threw exception " ++ show e)
       let diagSrc = T.pack "koka"
           maxDiags = 100
@@ -204,7 +202,7 @@ processCompilationResult normUri filePath flags update doIO = do
         Right ((l, outFile), _, _) -> do
           -- Compilation succeeded
           when update $ putLoaded l normUri flags-- update the loaded state for this file
-          sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ "Successfully compiled " <> T.pack filePath
+          liftIO $ termDoc term $ color Green $ text "Successfully compiled " <+> color DarkGreen (text filePath)
           return outFile -- return the executable file path
         Left (e, m) -> do
           -- Compilation failed
@@ -216,7 +214,7 @@ processCompilationResult normUri filePath flags update doIO = do
               trace ("Error when compiling have cached" ++ show (map modSourcePath $ loadedModules l)) $ return ()
               when update $ putLoaded l normUri flags 
               removeLoaded (loadedModule l)
-          sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack ("Error when compiling " ++ show e) <> T.pack filePath
+          liftIO $ termError term e
           return Nothing
       -- Emit the diagnostics (errors and warnings)
       let diagSrc = T.pack "" -- "\n(koka)"
@@ -238,40 +236,3 @@ processCompilationResult normUri filePath flags update doIO = do
           flushDiagnosticsBySource maxDiags (Just diagSrc)
           mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
       return outFile
-
--- Persists all modules to disk
-persistModules :: LSM ()
-persistModules = do
-  mld <- getModules
-  mapM_ persistModule mld -- TODO: Dependency ordering
-
--- Persist a single module to disk (not yet implemented)
-persistModule :: Module -> LSM ()
-persistModule m = do
-  return ()
-  -- TODO: This works, but needs to check that the dependencies are persisted first.
-  -- let generate = do
-  --       -- trace "Generating" $ return ()
-  --       mld <- getLoaded
-  --       case mld of
-  --         Just loaded -> do
-  --           term <- getTerminal
-  --           flags <- getFlags
-  --           (loaded, file) <- liftIO $ codeGen term flags Object loaded{loadedModule = m}
-  --           putLoaded loaded
-  --           return ()
-  --         Nothing -> return ()
-  -- -- trace ("Module " ++ show (modName m)) $
-  -- case modOutputTime m of
-  --   Nothing -> do
-  --     -- trace "No output time" $ return ()
-  --     generate
-  --   -- If it has been 5 seconds since the last time the module was changed
-  --   --  and it isn't updated on disk persist again.
-  --   --  We don't do it all the time, because with virtual files and editor changes it would be too much
-  --   Just t -> do
-  --     ct <- liftIO getCurrentTime
-  --     when ((ct > addUTCTime 5 (modTime m)) && (modTime m > t)) $ do
-  --       -- trace ("Last output time" ++ show t) $ return ()
-  --       generate
-  -- return ()

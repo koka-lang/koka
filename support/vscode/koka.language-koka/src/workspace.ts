@@ -110,38 +110,14 @@ export async function downloadSDK(context: vscode.ExtensionContext, config: vsco
       }
     }, 30000);
     dispose = vscode.window.onDidCloseTerminal(async (t) => {
-      console.log("Terminal closed")
       if (t === term) {
         console.log("Koka: Installation finished")
         const sdk = await scanForSDK(context, config);
         if (!finished){
-          const {sdkPath, allSDKs} = sdk
+          const {sdkPath} = sdk
           if (sdkPath){
-            console.log(path.join(sdkPath))
-            const sdkRoot = path.dirname(path.dirname(sdkPath))
-            const examples = path.join(sdkRoot, "share", "koka", `v${latestVersion}`, "lib", "samples")
-            if (fs.existsSync(examples)) {
-              let dest = path.join(context.globalStorageUri.fsPath, "samples")
-              fs.cp(examples, dest, {recursive:true}, async (err) => {
-                if (!err){
-                  const decision = await vscode.window.showInformationMessage(
-                    `Open Koka's latest samples folder?`,
-                    { modal: true },
-                    'Yes',
-                    'Yes (new window)',
-                    'No'
-                  )
-                  if (decision == 'No') {
-                    return;
-                  }
-                  const examplesUri = vscode.Uri.file(dest)
-                  vscode.commands.executeCommand('vscode.openFolder', examplesUri, {forceNewWindow : decision == 'Yes (new window)'})
-                }
-              })
-              
-            }
-            console.log(examples)
             resolve(sdk);
+            openSamples(context, config);
           } else {
             resolve(undefined)
           }
@@ -152,6 +128,57 @@ export async function downloadSDK(context: vscode.ExtensionContext, config: vsco
   })
   dispose?.dispose()
   return result;
+}
+
+function getExamplesFolder(sdkPath: string): string {
+  if (sdkPath.includes(".stack-work")){
+    const sdkRoot = sdkPath.substring(0, sdkPath.indexOf(".stack-work"))
+    return path.join(sdkRoot, "samples")
+  }
+  const sdkRoot = path.dirname(path.dirname(sdkPath))
+  const examples = path.join(sdkRoot, "share", "koka", `v${latestVersion}`, "lib", "samples")
+  return examples;
+}
+
+export async function openSamples(context: vscode.ExtensionContext, config: vscode.WorkspaceConfiguration) {
+  const samplesFolder: string = await context.globalState.get(`koka-samples-${latestVersion}`)
+  if (!samplesFolder) {
+    const sdk = await scanForSDK(context, config);
+    const {sdkPath} = sdk
+    if (sdkPath){
+      console.log(sdkPath)
+      const examples = getExamplesFolder(sdkPath)
+      if (fs.existsSync(examples)) {
+        let dest = path.join(context.globalStorageUri.fsPath, "samples")
+        fs.cp(examples, dest, {recursive:true}, async (err) => {
+          if (!err){
+            await context.globalState.update(`koka-samples-${latestVersion}`, dest)
+          } else {
+            vscode.window.showErrorMessage(`Could not copy samples to ${dest}`)
+            return;
+          }
+        })
+      } else {
+        vscode.window.showErrorMessage(`Could not find samples folder at ${examples}`)
+        return;
+      }
+    } else {
+      vscode.window.showErrorMessage(`Could not find SDK`)
+      return;
+    }
+  }
+  const decision = await vscode.window.showInformationMessage(
+    `Open Koka's latest samples folder?`,
+    { modal: true },
+    'Yes',
+    'Yes (new window)',
+    'No'
+  )
+  if (decision == 'No') {
+    return;
+  }
+  const examplesUri = vscode.Uri.file(samplesFolder)
+  vscode.commands.executeCommand('vscode.openFolder', examplesUri, {forceNewWindow : decision == 'Yes (new window)'})
 }
 
 export async function uninstallSDK(context: vscode.ExtensionContext) {

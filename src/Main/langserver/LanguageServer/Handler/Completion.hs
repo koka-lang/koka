@@ -11,61 +11,39 @@ module LanguageServer.Handler.Completion
   )
 where
 
-import Common.Name (Name (..))
-import Compiler.Module (Loaded (..))
 import Control.Lens ((^.))
+import Control.Monad.IO.Class (liftIO, MonadIO)
 import qualified Data.Map as M
+import Data.ByteString (intercalate)
+import Data.Char (isUpper, isAlphaNum)
 import Data.Maybe (maybeToList, fromMaybe, fromJust)
+import Data.Either (isRight)
 import qualified Data.Text.Utf16.Rope as Rope
 import qualified Data.Set as S
 import qualified Data.Text as T
-import Kind.Constructors (ConInfo (..), Constructors, constructorsList)
-import Kind.Synonym (SynInfo (..), Synonyms, synonymsToList)
 import Language.LSP.Server (Handlers, getVirtualFile, requestHandler)
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
-import Language.LSP.VFS (VirtualFile (VirtualFile))
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule)
-import Lib.PPrint (Pretty (..))
-import Syntax.Lexer (reservedNames)
-import Type.Assumption
-  ( Gamma,
-    NameInfo
-      ( InfoCon,
-        InfoExternal,
-        InfoFun,
-        InfoImport,
-        InfoVal,
-        infoAlias,
-        infoArity,
-        infoCName,
-        infoCon,
-        infoFormat,
-        infoFullName,
-        infoIsVar,
-        infoRange,
-        infoType,
-        infoVis
-      ),
-    gammaList,
-  )
 import qualified Language.LSP.Protocol.Message as J
-import Data.Char (isUpper, isAlphaNum)
-import Compiler.Compile (Module (..))
-import Type.Type (Type(..), splitFunType, splitFunScheme)
-import Syntax.RangeMap (rangeMapFindAt, rangeInfoType)
-import LanguageServer.Conversions (fromLspPos)
+import Language.LSP.VFS (VirtualFile (VirtualFile))
+import Common.Name (Name (..))
 import Common.Range (makePos, posNull, Range, rangeNull)
-import LanguageServer.Handler.Hover (formatRangeInfoHover)
-import Type.Unify (runUnify, unify, runUnifyEx, matchArguments)
-import Data.Either (isRight)
-import Lib.Trace (trace)
+import Lib.PPrint (Pretty (..))
+import Kind.Constructors (ConInfo (..), Constructors, constructorsList)
+import Kind.Synonym (SynInfo (..), Synonyms, synonymsToList)
+import Type.Assumption
 import Type.InferMonad (subst, instantiate)
 import Type.TypeVar (tvsEmpty)
-import Data.ByteString (intercalate)
-import Control.Monad.ST (runST)
+import Type.Type (Type(..), splitFunType, splitFunScheme)
+import Type.Unify (runUnify, unify, runUnifyEx, matchArguments)
+import Compiler.Compile (Module (..))
+import Compiler.Module (Loaded (..))
+import Syntax.Lexer (reservedNames)
+import Syntax.RangeMap (rangeMapFindAt, rangeInfoType)
 import Language.LSP.Protocol.Types (InsertTextFormat(InsertTextFormat_Snippet))
-import Control.Monad.IO.Class (liftIO, MonadIO)
+import LanguageServer.Conversions (fromLspPos)
+import LanguageServer.Monad (LSM, getLoaded, getLoadedModule)
+import Lib.Trace (trace)
 
 -- Gets tab completion results for a document location
 -- This is a pretty complicated handler because it has to do a lot of work

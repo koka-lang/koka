@@ -5,24 +5,24 @@
 
 module LanguageServer.Handler.InlayHints (inlayHintsHandler) where
 
+import Control.Monad.IO.Class (liftIO)
+import Control.Lens ((^.))
+import Data.Maybe (mapMaybe)
+import qualified Data.Text as T
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Protocol.Lens as J
+import Common.Name (Name)
+import Common.Range (Range (..), rangeEnd, Pos(..), rangeNull, posNull)
+import Type.Pretty (ppType, Env (..), defaultEnv, ppScheme)
+import Kind.ImportMap (ImportMap)
+import Compiler.Compile (Module(..), Loaded (..))
+import Compiler.Options (prettyEnvFromFlags, Flags)
+import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindIn)
 import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getFlags)
 import LanguageServer.Conversions (fromLspPos, toLspRange, toLspPos, fromLspRange)
 import LanguageServer.Handler.Hover (formatRangeInfoHover)
-import qualified Data.Text as T
-import Common.Range (Range (..), rangeEnd, Pos(..), rangeNull, posNull)
-import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindIn)
-import Control.Lens ((^.))
-import Data.Maybe (mapMaybe)
-import Type.Pretty (ppType, Env (..), defaultEnv, ppScheme)
-import Common.Name (Name)
-import Compiler.Compile (Module(..), Loaded (..))
-import Kind.ImportMap (ImportMap)
-import Compiler.Options (prettyEnvFromFlags, Flags)
-import Control.Monad.IO.Class (liftIO)
 -- import Debug.Trace (trace)
 
 -- The LSP handler that provides inlay hints (inline type annotations etc)
@@ -55,7 +55,7 @@ toInlayHint env modName (rng, rngInfo) = do
         (rngEnd /= posNull) &&
         case rngInfo of
           Id _ info _ -> case info of
-            NIValue _ isAnnotated -> not isAnnotated
+            NIValue _ _ isAnnotated -> not isAnnotated
             _ -> False
           _ -> False
   if shouldShow then
@@ -73,6 +73,6 @@ formatInfo :: Env -> Name -> RangeInfo -> Maybe String
 formatInfo env modName rinfo = case rinfo of
   Id qname info isdef ->
     case info of
-      NIValue tp _ -> Just $ " : " ++ show (ppScheme env tp)
+      NIValue tp _ _ -> Just $ " : " ++ show (ppScheme env tp)
       _ -> Nothing
   _ -> Nothing

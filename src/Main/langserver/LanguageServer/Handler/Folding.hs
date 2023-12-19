@@ -1,24 +1,24 @@
 {-# LANGUAGE RecordWildCards, FlexibleInstances #-}
 module LanguageServer.Handler.Folding(foldingHandler) where
 
-import qualified Common.Range            as R
-import Compiler.Module (loadedModule, Loaded, Module)
 import Control.Lens ((^.))
 import qualified Data.Text as T
-import Language.LSP.Server (Handlers, requestHandler)
+import Data.Maybe (maybeToList)
 import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Protocol.Lens as J
+import Language.LSP.Protocol.Types (FoldingRangeKind(FoldingRangeKind_Region))
+import Language.LSP.Server (Handlers, requestHandler)
+import Common.Name (nameNil, Name (nameId))
+import qualified Common.Range            as R
+import Common.Range (Pos(..), Ranged (getRange))
+import Common.Syntax
+import Compiler.Module (loadedModule, Loaded, Module)
+import Compiler.Compile (modName, Module (modProgram))
+import Syntax.Syntax
+import Type.Pretty (ppName)
 import LanguageServer.Conversions (fromLspPos, toLspRange)
 import LanguageServer.Monad (LSM, getLoaded)
-import qualified Language.LSP.Protocol.Message as J
-import Common.Name (nameNil, Name (nameId))
-import Compiler.Compile (modName, Module (modProgram))
-import Data.Maybe (maybeToList)
-import Syntax.Syntax
-import Common.Syntax
-import Language.LSP.Protocol.Types (FoldingRangeKind(FoldingRangeKind_Region))
-import Type.Pretty (ppName)
-import Common.Range (Pos(..), Ranged (getRange))
 
 -- Handles hover requests
 foldingHandler :: Handlers LSM

@@ -6,12 +6,37 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE GADTs                     #-}
+{-# LANGUAGE GADTs #-}
 
 module LanguageServer.Handlers (ReactorInput(..), lspHandlers) where
 
-import Compiler.Options (Flags)
+import Prelude hiding (id)
+import GHC.Conc (atomically)
+import Control.Monad.IO.Class (liftIO)
+import Control.Concurrent.STM.TChan ( writeTChan )
+import Control.Concurrent.MVar (readMVar)
+import Control.Concurrent (modifyMVar)
+import Control.Concurrent.Async ( race )
+import Control.Concurrent.STM
+    ( atomically, retry, writeTChan, readTVar, readTVarIO, modifyTVar )
+import Control.Lens ((^.))
+import Control.Monad.Trans (lift)
+import Control.Monad.Reader (MonadReader(ask))
+import Control.Monad (when, unless)
+
+import qualified Data.Map as M
+import qualified Data.Set as S
+import qualified Data.Text as T
+import Language.LSP.Protocol.Lens hiding (color, text, retry)
+import Language.LSP.Protocol.Message (TRequestMessage(..), TNotificationMessage(..), Method, MessageDirection(..), MessageKind(..), SMethod (..), SomeLspId (SomeLspId), LspId (..), NotificationMessage (..), ResponseError (..))
+import qualified Language.LSP.Protocol.Types as J
+import qualified Language.LSP.Protocol.Message as J
+import Language.LSP.Protocol.Types (DidChangeTextDocumentParams(..), VersionedTextDocumentIdentifier (..))
 import Language.LSP.Server (Handlers, notificationHandler, sendNotification, Handler, mapHandlers, MonadLsp (..))
+
+import Compiler.Options (Flags)
+import Lib.PPrint (Doc, text, color)
+import Common.ColorScheme (Color (..))
 import LanguageServer.Handler.Completion (completionHandler)
 import LanguageServer.Handler.Definition (definitionHandler)
 import LanguageServer.Handler.DocumentSymbol (documentSymbolHandler)
@@ -20,31 +45,10 @@ import LanguageServer.Handler.InlayHints (inlayHintsHandler)
 import LanguageServer.Handler.Commands (commandHandler)
 import LanguageServer.Handler.Folding (foldingHandler)
 import LanguageServer.Handler.TextDocument (didChangeHandler, didCloseHandler, didOpenHandler, didSaveHandler)
-import LanguageServer.Monad (LSM, runLSM, LSState (..), updateConfig)
-import Language.LSP.Protocol.Message (TRequestMessage(..), TNotificationMessage(..), Method, MessageDirection(..), MessageKind(..), SMethod (..), SomeLspId (SomeLspId), LspId (..), NotificationMessage (..), ResponseError (..))
-import Control.Monad.Trans (lift)
-import Control.Monad.Reader (MonadReader(ask))
+import LanguageServer.Monad (LSM, runLSM, LSState (..), updateConfig, getTerminal)
 
-import GHC.Conc (atomically)
-import Control.Monad.IO.Class (liftIO)
-
-import Control.Concurrent.STM.TChan
-import Control.Concurrent.MVar (readMVar)
-import Control.Lens ((^.))
-import Control.Concurrent (modifyMVar)
-import Control.Concurrent.Async
-import Control.Concurrent.STM
-import qualified Data.Map as M
-import qualified Data.Set as S
-import Language.LSP.Protocol.Lens hiding (retry)
-import Prelude hiding (id)
-import qualified Language.LSP.Protocol.Types as J
-import qualified Language.LSP.Protocol.Message as J
-import Language.LSP.Protocol.Types (DidChangeTextDocumentParams(..), VersionedTextDocumentIdentifier (..))
-
-import Control.Monad (when, unless)
-import qualified Data.Text as T
 import qualified Debug.Trace as Debug
+import Compiler.Compile (Terminal(..))
 
 newtype ReactorInput = ReactorAction (IO ())
 
@@ -76,7 +80,10 @@ configurationChangeHandler = notificationHandler J.SMethod_WorkspaceDidChangeCon
 
 -- Handles the initialized notification
 initializedHandler :: Handlers LSM
-initializedHandler = notificationHandler J.SMethod_Initialized $ \_not -> sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info (T.pack "Initialized language server.")
+initializedHandler = 
+  notificationHandler J.SMethod_Initialized $ \_not -> do
+    term <- getTerminal
+    liftIO $ termDoc term $ color DarkGray (text "Initialized language server.")
 
 -- Handles cancel requests
 cancelHandler :: Handlers LSM

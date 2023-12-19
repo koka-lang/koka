@@ -169,7 +169,7 @@ coreNameInfo :: TName -> (Name,NameInfo)
 coreNameInfo tname = coreNameInfoX 
   where
     coreNameInfoX 
-      = (getName tname, createNameInfoX Public (getName tname) DefVal rangeNull (typeOf tname))
+      = (getName tname, createNameInfoX Public (getName tname) DefVal rangeNull (typeOf tname) "")
 
 {--------------------------------------------------------------------------
   Expressions

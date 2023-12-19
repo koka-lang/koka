@@ -21,6 +21,7 @@ export class KokaLanguageServer {
   languageServerProcess?: child_process.ChildProcess
   socketServer?: Server
   outputChannel?: vscode.OutputChannel
+  traceOutputChannel?: vscode.OutputChannel
   lspWriteEmitter: vscode.EventEmitter<string> = new vscode.EventEmitter<string>();
   lspPty?: vscode.Pseudoterminal
   lspTerminal?: vscode.Terminal
@@ -82,8 +83,10 @@ export class KokaLanguageServer {
     }
     // This issue: https://github.com/microsoft/vscode/issues/571
     // This sample: https://github.com/ShMcK/vscode-pseudoterminal/blob/master/src/extension.ts
+    const formatText = (text: string) => `\r${text.split(/(\r?\n)/g).join("\r")}\r`;
+
     this.lspPty = {
-      onDidWrite: (listener) => this.lspWriteEmitter.event((e) => listener(e.replace('\r\n', '\n').replace('\n', '\r\n'))),
+      onDidWrite: (listener) => this.lspWriteEmitter.event((e) => listener(formatText(e))),
       open: () => { },
       close: () => { }
     };
@@ -97,12 +100,14 @@ export class KokaLanguageServer {
       append: (value: string) => this.lspWriteEmitter.fire(value),
       appendLine: (value: string) => {
         this.lspWriteEmitter.fire(value)
-        this.lspWriteEmitter.fire('\r\n')
+        if (value.match(/error/gi)){
+          this.lspTerminal?.show(true)
+        }
       },
       clear: () => {
         this.lspWriteEmitter.fire("\x1b[2J\x1b[3J\x1b[;H")
       },
-      show: () => this.lspTerminal?.show(),
+      show: () => this.lspTerminal?.show(true),
       hide: () => this.lspTerminal?.hide(),
       dispose: () => {
         this.lspTerminal?.dispose()
@@ -115,19 +120,24 @@ export class KokaLanguageServer {
       },
 
     };
+    // if (config.debugExtension) {
+    //   this.traceOutputChannel = vscode.window.createOutputChannel('Koka Language Server Trace', 'koka-trace')
+    // }
     const clientOptions: LanguageClientOptions = {
       documentSelector: [{ language: 'koka', scheme: 'file' }],
       outputChannel: this.outputChannel,
-      revealOutputChannelOn: RevealOutputChannelOn.Never,
+      revealOutputChannelOn: RevealOutputChannelOn.Info,
       markdown: {
         isTrusted: true,
         supportHtml: true,
       }
     }
     this.languageClient = new LanguageClient(
-      'Koka Language Client',
+      'koka',
+      "Koka Language Server - Client",
       serverOptions,
       clientOptions,
+      // config.debugExtension
     )
     context.subscriptions.push(this)
 
@@ -139,6 +149,8 @@ export class KokaLanguageServer {
 
   async dispose() {
     try {
+      this.traceOutputChannel?.dispose()
+      this.outputChannel?.dispose()
       await this.languageClient?.stop()
       await this.languageClient?.dispose()
       const result = this.languageServerProcess?.kill('SIGINT')
