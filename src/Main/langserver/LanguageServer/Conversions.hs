@@ -37,7 +37,7 @@ import qualified Common.Range as R
 import Lib.PPrint (Doc)
 import qualified Syntax.RangeMap as R
 import Compiler.Module (Module (..), Loaded (..))
-
+ 
 toLspPos :: R.Pos -> J.Position
 toLspPos p =
   J.Position (fromIntegral (max 0 (R.posLine p - 1))) (fromIntegral (max 0 (R.posColumn p - 1)))-- LSP positions are zero-based

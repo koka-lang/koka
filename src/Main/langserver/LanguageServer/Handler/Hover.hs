@@ -17,7 +17,7 @@ import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 import Common.Range as R
 import Common.Name (nameNil)
 import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
-import Lib.PPrint (Pretty (..), Doc, text, (<+>), (<-->),color, Color (..), (<.>), (<->))
+import Lib.PPrint (Pretty (..), Doc, string, (<+>), (<-->),color, Color (..), (<.>), (<->), text)
 import Compiler.Module (loadedModule, modRangeMap, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)
@@ -29,6 +29,8 @@ import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindAt)
 import LanguageServer.Conversions (fromLspPos, toLspRange)
 import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getHtmlPrinter, getFlags)
 import Debug.Trace (trace)
+import Lib.PPrint (makeMarkdown)
+import Lib.PPrint (stringStripComments)
 
 -- Handles hover requests
 hoverHandler :: Handlers LSM
@@ -54,14 +56,14 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
       flags <- getFlags
       let env = (prettyEnvFromFlags flags){ context = mName, importsMap = imports }
           colors = colorSchemeFromFlags flags
-      x <- liftIO $ print $ formatRangeInfoHover env colors rinfo
+      x <- liftIO $ print $ makeMarkdown (formatRangeInfoHover env colors rinfo)
       let hc = J.InL $ J.mkMarkdown x
           rsp = J.Hover hc $ Just $ toLspRange r
       responder $ Right $ J.InL rsp
     Nothing -> responder $ Right $ J.InR J.Null
 
 -- Get best rangemap info for a given position
-rangeMapBestHover rm = 
+rangeMapBestHover rm =
   case rm of
     [] -> Nothing
     [r] -> Just r
@@ -95,11 +97,13 @@ formatRangeInfoHover env colors rinfo =
           NIKind -> text "kind" in
     case info of
       NIValue tp "" _ -> text "" <.> signature
-      NIValue tp doc _ -> color DarkGreen (text doc) <-> text "" <--> signature
+      NIValue tp doc _ -> color Green (stringStripComments doc) <--> signature
       NICon tp "" ->  text "" <.> signature
-      NICon tp doc ->  color DarkGreen (text doc) <-> text "" <--> signature
+      NICon tp doc ->  color Green (stringStripComments doc) <--> signature
       _ -> text "" <.> signature
   Decl s name mname -> text s <+> text " " <+> pretty name
   Block s -> text s
   Error doc -> text "Error: " <+> doc
   Warning doc -> text "Warning: " <+> doc
+
+

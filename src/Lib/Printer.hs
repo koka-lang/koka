@@ -491,8 +491,8 @@ addHtml (HtmlTextPrinter stringVar) s = do
 instance Printer HtmlTextPrinter where
   write p s             = addHtml p $ T.pack $ htmlEscape s
   writeText p s         = addHtml p s
-  writeLn p s           = addHtml p $ T.pack $ htmlEscape (s ++ "\n")
-  writeTextLn p s       = addHtml p (s <> T.pack "\n")
+  writeLn p s           = addHtml p $ T.pack $ htmlEscape (s ++ "  \n")
+  writeTextLn p s       = addHtml p (s <> T.pack "  \n>")
   flush p               = return ()
   withColor p c io      = htmlTextSpan p (T.pack "color") (htmlColor2 c) io
   withBackColor p c io  = htmlTextSpan p (T.pack "background-color") (htmlColor2 c) io
