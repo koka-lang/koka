@@ -137,8 +137,7 @@ loadedMatchNames l
 
 loadedImportModule :: (DataInfo -> Bool) -> Loaded -> Module -> Range -> Name -> (Loaded,[ErrorMessage])
 loadedImportModule isValue (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 unique1 mod1 imp1 inlines1 borrowed1) mod range impName
-  = -- trace ("loadedImport: " ++ show impName ++ " into " ++ show [mod | mod <- importsList imps1]) $
-    let core = modCore mod
+  = let core = modCore mod
         (imps2,errs)
           = case importsExtend impName (modName mod) imps1 of
               Nothing   -> (imps1,[ErrorGeneral range (text "Module" <+> pretty impName <+> text "is already imported")])
@@ -156,7 +155,8 @@ loadedImportModule isValue (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 u
                 (addOrReplaceModule mod imp1)
                 inlines1
                 (borrowedExtendICore core borrowed1)
-    in (loaded,errs)
+    in -- trace ("loadedImport: " ++ show impName ++ " = " ++ show (modName mod) ++ " into " ++ show [mod | mod <- importsList imps2]) $
+       (loaded,errs)
 
 addOrReplaceModule :: Module -> Modules -> Modules
 addOrReplaceModule mod []

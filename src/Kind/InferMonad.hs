@@ -69,7 +69,8 @@ runKindInfer cscheme platform mbRangeMap moduleName imports kgamma syns datas un
   = let imports' = case importsExtend ({-toShortModuleName-} moduleName) moduleName imports of
                      Just imp -> imp
                      Nothing  -> imports -- ignore
-    in case ki (KEnv cscheme platform moduleName imports' kgamma M.empty syns datas newtypesEmpty) (KSt unique ksubEmpty mbRangeMap synonymsEmpty) of
+    in trace ("Kind.InferMonad.kindInfer: imports: " ++ show (importsList imports')) $
+       case ki (KEnv cscheme platform moduleName imports' kgamma M.empty syns datas newtypesEmpty) (KSt unique ksubEmpty mbRangeMap synonymsEmpty) of
          KResult x errs warns (KSt unique1 ksub rm synonymsEmpty) -> (errs,warns,rm,unique1,x)
 
 

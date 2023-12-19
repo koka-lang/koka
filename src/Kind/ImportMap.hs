@@ -68,15 +68,18 @@ importsExpand :: Name -> ImportMap -> Either [Name] (Name,Name)
 importsExpand name imp
   = if isQualified name
      then let rpath = reverse $ splitModuleName (qualifier name)
-          in -- trace ("imports expand: " ++ show name ++ ": " ++ show rpath) $
+          in -- trace ("imports expand: " ++ show name ++ ": " ++ show rpath ++ ", in: " ++ show imp) $
              case filter (\(ralias,_) -> isPrefix rpath ralias) imp of
                -- found a match
                [(ralias,fullName)]
-                   -> Right (qualify fullName (unqualify name),
-                               unsplitModuleName (reverse (take (length rpath) ralias)))
+                   -> let qname = qualify fullName (unqualify name)
+                      in -- trace ("kind imports expand: " ++ show name ++ " to " ++ show qname) $
+                         Right (qname, unsplitModuleName (reverse (take (length rpath) ralias)))
                -- no import matches.. probably a namespace'd name
                []  -> case rpath of
-                        [q] -> Right (qualifyInternally name, nameNil)
+                        [q] ->
+                           -- trace ("kind imports qualify locally: " ++ show name) $
+                           Right (qualifyInternally name, nameNil)
                         (q:qs)
                           -> -- recursively try a shorter prefix
                              let name2 = qualify (unsplitModuleName (reverse qs)) (unqualify name)
