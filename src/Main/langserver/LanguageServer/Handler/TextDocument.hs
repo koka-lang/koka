@@ -32,12 +32,12 @@ import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.Diagnostics (partitionBySource)
 import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler)
 import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
-import Lib.PPrint (text)
+import Lib.PPrint (text, (<->), (<+>), color, Color (..))
 import Common.Range (rangeNull)
 import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
 import Common.Name (newName)
 import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime)
-import Common.Error (Error, checkPartial)
+import Common.Error (Error, checkPartial, ErrorMessage (ErrorIO))
 import Core.Core (Visibility(Private))
 import Compiler.Options (Flags)
 import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
@@ -166,7 +166,7 @@ recompileFile compileTarget uri version force flags = do
       let contents = fst <$> maybeContents newvfs path
       modules <- fmap loadedModules <$> getLastChangedFileLoaded (normUri, flags)
       term <- getTerminal
-      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ T.pack $ "Recompiling " ++ path
+      liftIO $ termDoc term $ color DarkRed $ text "Recompiling: " <+> color DarkGreen (text path)
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
       let resultIO = compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] path
       processCompilationResult normUri path flags True resultIO
@@ -181,10 +181,11 @@ processCompilationResult normUri filePath flags update doIO = do
   let ioResult :: IO (Either Exc.SomeException (Error Loaded (Loaded, Maybe FilePath)))
       ioResult = try doIO
   result <- liftIO ioResult
+  term <- getTerminal
   case result of
     Left e -> do
       -- Compilation threw an exception, put it in the log, as well as a notification
-      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ "When compiling file " <> T.pack filePath <> T.pack (" compiler threw exception " ++ show e)
+      liftIO $ termError term $ ErrorIO $ text ("When compiling file " ++ filePath) <-> text "\tcompiler threw exception:" <+> text (show e)
       sendNotification J.SMethod_WindowShowMessage $ J.ShowMessageParams J.MessageType_Error $ "When compiling file " <> T.pack filePath <> T.pack (" compiler threw exception " ++ show e)
       let diagSrc = T.pack "koka"
           maxDiags = 100
@@ -201,7 +202,7 @@ processCompilationResult normUri filePath flags update doIO = do
         Right ((l, outFile), _, _) -> do
           -- Compilation succeeded
           when update $ putLoaded l normUri flags-- update the loaded state for this file
-          sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Info $ "Successfully compiled " <> T.pack filePath
+          liftIO $ termDoc term $ color Green $ text "Successfully compiled " <+> color DarkGreen (text filePath)
           return outFile -- return the executable file path
         Left (e, m) -> do
           -- Compilation failed
@@ -213,7 +214,7 @@ processCompilationResult normUri filePath flags update doIO = do
               trace ("Error when compiling have cached" ++ show (map modSourcePath $ loadedModules l)) $ return ()
               when update $ putLoaded l normUri flags 
               removeLoaded (loadedModule l)
-          sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack ("Error when compiling " ++ show e) <> T.pack filePath
+          liftIO $ termError term e
           return Nothing
       -- Emit the diagnostics (errors and warnings)
       let diagSrc = T.pack "" -- "\n(koka)"

@@ -83,8 +83,10 @@ export class KokaLanguageServer {
     }
     // This issue: https://github.com/microsoft/vscode/issues/571
     // This sample: https://github.com/ShMcK/vscode-pseudoterminal/blob/master/src/extension.ts
+    const formatText = (text: string) => `\r${text.split(/(\r?\n)/g).join("\r")}\r`;
+
     this.lspPty = {
-      onDidWrite: (listener) => this.lspWriteEmitter.event((e) => listener(e.replace('\r\n', '\n').replace('\n', '\r\n'))),
+      onDidWrite: (listener) => this.lspWriteEmitter.event((e) => listener(formatText(e))),
       open: () => { },
       close: () => { }
     };
@@ -98,7 +100,6 @@ export class KokaLanguageServer {
       append: (value: string) => this.lspWriteEmitter.fire(value),
       appendLine: (value: string) => {
         this.lspWriteEmitter.fire(value)
-        this.lspWriteEmitter.fire('\r\n')
       },
       clear: () => {
         this.lspWriteEmitter.fire("\x1b[2J\x1b[3J\x1b[;H")

@@ -106,18 +106,15 @@ defaultLSState flags = do
   pendingRequests <- newTVarIO Set.empty
   cancelledRequests <- newTVarIO Set.empty
   fileVersions <- newTVarIO M.empty
-  -- Trim trailing whitespace and newlines from the end of a string
-  let trimnl :: [Char] -> [Char]
-      trimnl str = reverse $ dropWhile (`T.elem` "\n\r\t ") $ reverse str
   let withNewPrinter f = do
         ansiConsole <- newVar ansiDefault
         stringVar <- newVar ""
         let p = AnsiString ansiConsole stringVar
         tp <- (f . PAnsiString) p
         ansiString <- takeVar stringVar
-        atomically $ writeTChan msgChan (trimnl ansiString, tp)
+        atomically $ writeTChan msgChan (ansiString, tp)
   let withNewProgressPrinter doc = do
-        atomically $ writeTChan progressChan (trimnl (show doc))
+        atomically $ writeTChan progressChan (show doc)
   cwd <- getCwd
   let cscheme = colorScheme flags
       prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
@@ -132,7 +129,10 @@ defaultLSState flags = do
                     )
                   else (\_ -> return ()))
                  (\tp -> withNewPrinter $ \p -> do putScheme p (prettyEnv flags nameNil importsEmpty) tp; return J.MessageType_Info)
-                 (\msg -> withNewPrinter $ \p -> do writePrettyLn p msg; return J.MessageType_Info)
+                 (\msg -> withNewPrinter $ \p -> do
+                    writePrettyLn p msg
+                    return J.MessageType_Info
+                )
   return LSState {
     lsLoaded = M.empty, lsModules=[],
     messages = msgChan, progress=progressChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, config=Config{colors=Colors{mode="dark"}},
