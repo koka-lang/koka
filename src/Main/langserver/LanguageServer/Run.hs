@@ -28,7 +28,6 @@ import Network.Simple.TCP
 import Network.Socket hiding (connect)
 import GHC.IO.IOMode (IOMode(ReadWriteMode))
 import GHC.Conc (atomically)
-import LanguageServer.Handler.TextDocument (persistModules)
 import GHC.IO.Handle (BufferMode(LineBuffering), hSetBuffering)
 import GHC.IO.StdHandles (stdout, stderr)
 
@@ -108,9 +107,3 @@ reactor inp = do
   forever $ do
     ReactorAction act <- atomically $ readTChan inp
     act
-
--- TODO: Finish persisting modules in a separate thread
-doPersist state env =
-  forever $ do
-    threadDelay 1000000
-    runLSM persistModules state env

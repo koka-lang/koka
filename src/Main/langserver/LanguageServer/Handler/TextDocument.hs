@@ -9,8 +9,7 @@ module LanguageServer.Handler.TextDocument
     didSaveHandler,
     didCloseHandler,
     recompileFile,
-    compileEditorExpression,
-    persistModules,
+    compileEditorExpression
   )
 where
 
@@ -238,40 +237,3 @@ processCompilationResult normUri filePath flags update doIO = do
           flushDiagnosticsBySource maxDiags (Just diagSrc)
           mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
       return outFile
-
--- Persists all modules to disk
-persistModules :: LSM ()
-persistModules = do
-  mld <- getModules
-  mapM_ persistModule mld -- TODO: Dependency ordering
-
--- Persist a single module to disk (not yet implemented)
-persistModule :: Module -> LSM ()
-persistModule m = do
-  return ()
-  -- TODO: This works, but needs to check that the dependencies are persisted first.
-  -- let generate = do
-  --       -- trace "Generating" $ return ()
-  --       mld <- getLoaded
-  --       case mld of
-  --         Just loaded -> do
-  --           term <- getTerminal
-  --           flags <- getFlags
-  --           (loaded, file) <- liftIO $ codeGen term flags Object loaded{loadedModule = m}
-  --           putLoaded loaded
-  --           return ()
-  --         Nothing -> return ()
-  -- -- trace ("Module " ++ show (modName m)) $
-  -- case modOutputTime m of
-  --   Nothing -> do
-  --     -- trace "No output time" $ return ()
-  --     generate
-  --   -- If it has been 5 seconds since the last time the module was changed
-  --   --  and it isn't updated on disk persist again.
-  --   --  We don't do it all the time, because with virtual files and editor changes it would be too much
-  --   Just t -> do
-  --     ct <- liftIO getCurrentTime
-  --     when ((ct > addUTCTime 5 (modTime m)) && (modTime m > t)) $ do
-  --       -- trace ("Last output time" ++ show t) $ return ()
-  --       generate
-  -- return ()
