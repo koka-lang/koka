@@ -525,8 +525,8 @@ resolveImports mname term flags currentDir loaded0 imports0
        -- trace (show mname ++ ": resolved imports, imported: " ++ show (map (show . modName) imports) ++ "\n  resolved to: " ++ show (map (show . modName) resolved) ++ "\n") $ return ()
        let load msg loaded []
              = return loaded
-           load msg loaded (mod:mods)
-             = do let (loaded1,errs) = loadedImportModule (isValueFromFlags flags) loaded mod (rangeNull) (modName mod)
+           load msg loaded ((malias,mod):mods)
+             = do let (loaded1,errs) = loadedImportModule (isValueFromFlags flags) loaded mod (rangeNull) malias
                   -- trace ("loaded " ++ msg ++ " module: " ++ show (modName mod)) $ return ()
                   mapM_ (\err -> liftError (errorMsg err)) errs
                   load msg loaded1 mods
@@ -541,7 +541,7 @@ resolveImports mname term flags currentDir loaded0 imports0
 
 
        loadedImp  <- load "import" loaded0 imports
-       loadedFull <- load "inline import" loaded0 resolved
+       loadedFull <- load "inline import" loaded0 (map (\m -> (modName m, m)) resolved) -- todo: is it ok to ignore module aliases here?
        inlineDefss   <- mapM (loadInlines loadedFull) resolved
        let modsFull   = zipWith (\mod idefs -> mod{ modInlines = Right idefs }) resolved inlineDefss
            inlineDefs = concat inlineDefss
@@ -549,12 +549,12 @@ resolveImports mname term flags currentDir loaded0 imports0
        -- trace ("resolved inlines: " ++ show (length inlineDefss, length inlineDefs)) $ return ()
        return loadedImp{ loadedModules = modsFull, loadedInlines = inlines }
 
-resolveImportModules :: Name -> Terminal -> Flags -> FilePath -> [Module] -> [ModImport] -> IOErr ([Module],[Module])
+resolveImportModules :: Name -> Terminal -> Flags -> FilePath -> [Module] -> [ModImport] -> IOErr ([(Name,Module)],[Module])
 resolveImportModules mname term flags currentDir resolved []
   = return ([],resolved)
 resolveImportModules mname term flags currentDir resolved0 (imp:imps)
   = do -- trace (show mname ++ ": resolving imported modules: " ++ show (impName imp) ++ ", resolved: " ++ show (map (show . modName) resolved0)) $ return ()
-       (mod,resolved1) <- case filter (\m -> impName imp == modName m) resolved0 of
+       (mod,resolved1) <- case filter (\m -> impFullName imp == modName m) resolved0 of
                             (mod:_) -> return (mod,resolved0)
                             _       -> resolveModule term flags currentDir resolved0 imp
        -- trace (" newly resolved from " ++ show (modName mod) ++ ": " ++ show (map (show . modName) resolved1)) $ return ()
@@ -562,8 +562,8 @@ resolveImportModules mname term flags currentDir resolved0 (imp:imps)
            pubImports = map ImpCore (filter (\imp -> Core.importVis imp == Public) imports)
        -- trace (" resolve further imports (from " ++ show (modName mod) ++ ") (added module: " ++ show (impName imp) ++ " public imports: " ++ show (map (show . impName) pubImports) ++ ")") $ return ()
        (needed,resolved2) <- resolveImportModules mname term flags currentDir resolved1 (pubImports ++ imps)
-       let needed1 = filter (\m -> modName m /= modName mod) needed -- no dups
-       return (mod:needed1,resolved2)
+       let needed1 = filter (\(_,m) -> modName m /= modName mod) needed -- no dups
+       return ((impName imp,mod):needed1,resolved2)
 
 
 searchModule :: Flags -> FilePath -> Name -> IO (Maybe FilePath)
@@ -689,12 +689,12 @@ resolveModule term flags currentDir modules mimp
              --                            }
              -- (loadedImp,impss) <- resolveImports term flags (dirname iface) loaded (map ImpCore (Core.coreProgImports (modCore mod)))
              (imports,resolved1) <- resolveImportModules name term flags (dirname iface) modules (map ImpCore (Core.coreProgImports (modCore mod)))
-             let latest = maxFileTimes (map modTime imports)
+             let latest = maxFileTimes (map (modTime . snd) imports)
              -- trace ("loaded iface: " ++ show iface ++ "\n time: "  ++ show (modTime mod) ++ "\n latest: " ++ show (latest)) $ return ()
              if (latest >= modTime mod
                   && not (null source)) -- happens if no source is present but (package) depencies have updated...
                then loadFromSource resolved1 root source -- load from source after all
-               else do liftIO $ copyPkgIFaceToOutputDir term flags iface (modCore mod) (modPackageQPath mod) imports
+               else do liftIO $ copyPkgIFaceToOutputDir term flags iface (modCore mod) (modPackageQPath mod) (map snd imports)
                        let allmods = addOrReplaceModule mod resolved1
                        return (mod{ modSourcePath = joinPath root source }, allmods)
 
