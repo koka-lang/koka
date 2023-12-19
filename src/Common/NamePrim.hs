@@ -23,7 +23,7 @@ module Common.NamePrim
 
           -- * Operations
           , namePatternMatchError, nameMainConsole
-          , nameCopy
+          , nameCopy, copyNameOf
           , nameAssign, nameRefSet, nameAssigned
           , nameByref, nameDeref, nameIndex
           , nameDecreasing, nameSubStr1, nameDec
@@ -180,6 +180,11 @@ nameInteractive = newName "interactive"
 nameMain        = newName ".main"
 nameCopy        = newName ".copy"
 nameOpExpr      = newName ".opexpr"
+
+copyNameOf :: Name -> Name
+copyNameOf typename
+  = qualify (qualifier typename) (qualifyLocally (unqualify typename) nameCopy)
+
 
 {--------------------------------------------------------------------------
   Primitive operations

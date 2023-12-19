@@ -1545,7 +1545,7 @@ resolveImplicitName name tp range
                                 else let docs = take 8 [d | (d,_,_,_) <- candidates] ++
                                                (if length candidates > 8 then [text "..."] else [])
                                     in text "candidates:" <+> align (vcat docs)) <->
-                              (text "hint: add a type annotation to the function parameters?"))
+                              (text "hint: add a type annotation to the function parameters or qualify then name?"))
 
 lookupImplicitName :: Int -> (NameInfo -> Bool) -> Name -> Type -> Range -> Inf [(Doc,Expr Type,Int,Int)]
 lookupImplicitName recurseDepth infoFilter name tp range | recurseDepth > 10
@@ -1558,7 +1558,7 @@ lookupImplicitName recurseDepth infoFilter name tp range
                                                             let lname = infoCanonicalName name info
                                                             return [(lname,sinfo)]
                      _ -> return []
-       let globals0 = filter (infoFilter . snd) $ gammaLookupPrefix name (gamma env)
+       let globals0 = filter (infoFilter . snd) $ gammaLookup name (gamma env)
        -- traceDoc $ \penv -> text "  lookup of" <+> Pretty.ppName penv name <+> text "found:" <+> list [Pretty.ppName penv name | (name,_) <- locals0 ++ globals0]
        let ctx = case splitFunType tp of
                    Just (pars,eff,restp) -> CtxFunTypes False (map snd pars) [] (Just restp) -- can handle further implicits better

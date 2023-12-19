@@ -6,6 +6,9 @@ ref type foo
 ref type foo2
   Foo2(x:int,y:int)
 
+fun test0( f : foo )
+  f(x=2).y
+
 fun string/plus( x : string, y : string ) : string
   x ++ y
 

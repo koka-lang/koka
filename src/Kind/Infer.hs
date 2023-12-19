@@ -173,6 +173,7 @@ synCopyCon :: Name -> DataInfo -> ConInfo -> DefGroup Type
 synCopyCon modName info con
   = let rc = conInfoRange con
         tp = typeApp (TCon (TypeCon (dataInfoName info) (dataInfoKind info))) [TVar (TypeVar id kind Meta) | TypeVar id kind _ <- (dataInfoParams info)]
+        defName = unqualify $ copyNameOf (dataInfoName info)
 
         fullTp = let (vars,preds,rho) = splitPredType (conInfoType con)
                  in case splitFunType rho of
@@ -191,7 +192,7 @@ synCopyCon modName info con
         params = [ValueBinder name Nothing (if not (hasAccessor name t con) then Nothing else (Just (app (var name) [var argName]))) rc rc| (name,t) <- conInfoParams con]
         expr = Lam ([ValueBinder argName Nothing Nothing rc rc] ++ params) body rc
         body = app (var (conInfoName con)) [var name | (name,tp) <- conInfoParams con]
-        def  = DefNonRec (Def (ValueBinder nameCopy () (Ann expr fullTp rc) rc rc) rc (dataInfoVis info) (defFun []) InlineAuto "")
+        def  = DefNonRec (Def (ValueBinder defName () (Ann expr fullTp rc) rc rc) rc (dataInfoVis info) (defFun []) InlineAuto "")
     in def
 
 hasAccessor :: Name -> Type -> ConInfo -> Bool
@@ -218,6 +219,8 @@ synAccessors modName info
         synAccessor :: (Name,(Type,Range,Visibility,ConInfo)) -> DefGroup Type
         synAccessor (name,(tp,rng,visibility,cinfo))
           = let dataName = unqualify $ dataInfoName info
+                defName  = qualifyLocally dataName name -- TODO: only for type names that are valid module names!
+
                 arg = if (all isAlphaNum (show dataName))
                        then dataName else newName ".this"
                 fld = newName ".x"
@@ -251,7 +254,7 @@ synAccessors modName info
                 messages
                   = [Lit (LitString (sourceName (posSource (rangeStart rng)) ++ show rng) rng), Lit (LitString (show name) rng)]
                 doc = "// Automatically generated. Retrieves the `" ++ show name ++ "` constructor field of the `:" ++ nameId (dataInfoName info) ++ "` type.\n"
-            in DefNonRec (Def (ValueBinder name () expr rng rng) rng visibility (defFunEx [Borrow] noFip) InlineAlways doc)
+            in DefNonRec (Def (ValueBinder defName () expr rng rng) rng visibility (defFunEx [Borrow] noFip) InlineAlways doc)
 
     in map synAccessor fields
 

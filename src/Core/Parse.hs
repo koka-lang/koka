@@ -48,10 +48,12 @@ parseCore fname
   = do input <- readInput fname
        return (lexParse False (requalify . allowDotIds) program fname 1 input)
 
+
+
 requalify :: [Lexeme] -> [Lexeme]
 requalify lexs
  = case lexs of
-    -- identifier
+    -- identifier (needed as we allow dot in idenifiers, e.g. `std/core/types/.Cctx`)
     (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexId name) : lexx)  | nameId slash == "/"
       -> requalify (Lexeme (combineRange r1 r2) (LexId (qualify (newName (showPlain mod)) name)) : lexx)
     (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexIdOp name) : lexx)  | nameId slash == "/"
@@ -61,9 +63,21 @@ requalify lexs
     (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexCons name) : lexx)  | nameId slash == "/"
       -> requalify (Lexeme (combineRange r1 r2) (LexCons (qualify (newName (showPlain mod)) name)) : lexx)
 
+    -- @ qualified for locally qualified names
+    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp at) : Lexeme r2 (LexId name) : lexx)  | nameId at == "@"
+      -> requalify (Lexeme (combineRange r1 r2) (LexId (qlocally mod name)) : lexx)
+    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp at) : Lexeme r2 (LexIdOp name) : lexx)  | nameId at == "@"
+      -> requalify (Lexeme (combineRange r1 r2) (LexId (qlocally mod name)) : lexx)
+    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp at) : Lexeme r2 (LexOp name) : lexx)  | nameId at == "@"
+      -> requalify (Lexeme (combineRange r1 r2) (LexId (qlocally mod name)) : lexx)
+    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp at) : Lexeme r2 (LexCons name) : lexx)  | nameId at == "@"
+      -> requalify (Lexeme (combineRange r1 r2) (LexCons (qlocally mod name)) : lexx)
+
     (lex:lexx)
       -> lex : requalify lexx
     [] -> []
+  where
+    qlocally mod name = qualify (unqualifyAsModuleName mod) (requalifyLocally name)
 
 allowDotIds :: [Lexeme] -> [Lexeme]
 allowDotIds lexs
@@ -682,7 +696,7 @@ qualifiedConId
 qfunid :: LexParser (Name,Range)
 qfunid
   = do (name,range) <- funid True  -- allow qualified identifier (for a definition)
-       return (qualifyLocally name, range)
+       return (requalifyLocally name, range)
 
 {--------------------------------------------------------------------------
   Type signatures, parameters, kind annotations etc

@@ -51,8 +51,9 @@ module Common.Name
           , asciiEncode, showHex, moduleNameToPath, pathToModuleName
           , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
 
-          , prettyName
-          , qualifyLocally, unqualifyFull, isLocallyQualified, fullQualifier
+          , prettyName, prettyCoreName
+          , requalifyLocally, qualifyLocally, unqualifyFull, isLocallyQualified, fullQualifier
+          , unqualifyAsModuleName
           ) where
 
 import Lib.Trace( trace )
@@ -149,9 +150,9 @@ labelNameCompare nm1@(Name m1 hm1 n1 hn1) nm2@(Name m2 hm2 n2 hn2)
 canonicalSep = '.'
 
 
-showParts :: Name -> (String,String)
-showParts (Name m _ n _)
-  = (if null m then "" else m ++ "/",
+showParts :: String -> Name -> (String,String)
+showParts sep (Name m _ n _)
+  = (if null m then "" else m ++ sep,
      case n of
        (c:cs) | not (isAlphaNum c || c=='_' || c=='(' || c== '.') -> "(" ++ n ++ ")"
        _      -> n
@@ -159,7 +160,7 @@ showParts (Name m _ n _)
 
 instance Show Name where
   show name
-   = let (q,unq) = showParts name in q ++ unq
+   = let (q,unq) = showParts "/" name in q ++ unq
 
 instance Pretty Name where
   pretty name
@@ -171,9 +172,13 @@ showPlain (Name m _ n _)
 
 prettyName :: ColorScheme -> Name -> Doc
 prettyName cs name
-  = let (m,n) = showParts name
+  = let (m,n) = showParts "/" name
     in color (colorModule cs) (text m) <.> text n
 
+prettyCoreName :: ColorScheme -> Name -> Doc
+prettyCoreName cs name
+  = let (m,n) = showParts "@" name
+    in color (colorModule cs) (text m) <.> text n
 
 showTupled (Name m _ n _)
   = show (m,n)
@@ -240,8 +245,12 @@ qualifier :: Name -> Name
 qualifier (Name m hm _ _)
   = Name "" 0 m hm
 
-qualifyLocally :: Name -> Name
-qualifyLocally name@(Name m _ n _)
+qualifyLocally :: Name -> Name -> Name
+qualifyLocally m n
+  = requalifyLocally (qualify m n)
+
+requalifyLocally :: Name -> Name
+requalifyLocally name@(Name m _ n _)
   | null m    = name
   | otherwise = newQualified "" (m ++ "/" ++ n)
 
@@ -275,7 +284,9 @@ splitModulePath s
 isLocallyQualified name
   = unqualify name /= unqualifyFull name
 
-
+unqualifyAsModuleName :: Name -> Name
+unqualifyAsModuleName (Name m _ n _)
+  = newName ((if null m then "" else m ++ "/") ++ n)
 
 ----------------------------------------------------------------
 -- Modules paths

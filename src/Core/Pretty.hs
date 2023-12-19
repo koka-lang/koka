@@ -390,7 +390,9 @@ prettyExpr env (Case exprs branches)
     tab (prettyBranches env branches) <--> text "}"
 
 prettyVar env tname
-  = prettyName (colors env) (getName tname)
+  = if (coreIface env)
+      then prettyCoreName (colors env) (getName tname)
+      else prettyName (colors env) (getName tname)
     -- <.> braces (ppType env{ prec = precTop } (typeOf tname))
 
 {--------------------------------------------------------------------------

@@ -79,7 +79,7 @@ importsExpand name imp
                []  -> case rpath of
                         [q] ->
                            -- trace ("kind imports qualify locally: " ++ show name) $
-                           Right (qualifyLocally name, nameNil)
+                           Right (requalifyLocally name, nameNil)
                         (q:qs)
                           -> -- recursively try a shorter prefix
                              let name2 = qualify (unsplitModuleName (reverse qs)) (unqualify name)
@@ -98,6 +98,7 @@ importsExpand name imp
     isPrefix (x:xs) (y:ys)  = x==y && isPrefix xs ys
     isPrefix [] _           = True
     isPrefix _ _            = False
+
 
 -- | Given a fully qualified name, return the shorter aliased name.
 -- For example, with @import System.Foo as F@ a name @System.Foo.bar@ is shortened to @F.bar@.
