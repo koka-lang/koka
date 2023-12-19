@@ -209,11 +209,12 @@ export class KokaConfig {
     this.defaultSDK = sdkPath
     this.sdkPath = sdkPath
     this.allSDKs = allSDKs
-    this.cwd = config.get('languageServer.cwd') as string || vscode.workspace.workspaceFolders![0].uri.fsPath
+    this.cwd = config.get('languageServer.cwd') as string ?? vscode.workspace.workspaceFolders![0].uri.fsPath
     this.langServerArgs = []
-    this.additionalArgs = config.get('languageServer.compilerArgs') as string[] || []
+    this.additionalArgs = config.get('languageServer.compilerArgs') as string[] ?? []
     this.selectSDK(this.sdkPath)
     this.target = "C"
+    this.autoFocusTerminal = config.get('languageServer.autoFocusTerminal') as boolean ?? false;
   }
   defaultSDK: string
   sdkPath: string
@@ -223,6 +224,7 @@ export class KokaConfig {
   command?: string | null
   langServerArgs: string[]
   additionalArgs: string[]
+  autoFocusTerminal: boolean
   target: string
   cwd: string
 
