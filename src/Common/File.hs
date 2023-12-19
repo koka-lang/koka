@@ -12,7 +12,7 @@
 module Common.File(
                   -- * System
                     getEnvPaths, getEnvVar
-                  , searchPaths, searchPathsSuffixes, searchPathsEx
+                  , searchPaths, searchPathsSuffixes, searchPathsEx, searchPathsCanonical
                   , searchProgram
                   , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
                   , getProgramPath
@@ -439,9 +439,8 @@ searchPathsSuffixes :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe
 searchPathsSuffixes paths exts suffixes name
   = fmap (fmap (\(root,name) -> joinPath root name)) (searchPathsEx paths (filter (not.null) exts) suffixes name)
 
-
-searchPathsEx :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
-searchPathsEx paths exts suffixes name
+searchPathsCanonical :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
+searchPathsCanonical paths exts suffixes name
   = search (concatMap (\dir -> map (\n -> (dir,n)) nameext)
               (if isAbsolute name then [""] else paths))
   where
@@ -458,6 +457,25 @@ searchPathsEx paths exts suffixes name
              else search xs
           }
 
+    nameext
+      = concatMap (\fname -> fname : map (fname++) exts) $
+        map (\suffix -> (notext nname) ++ suffix ++ (extname nname)) ("" : suffixes)
+
+    nname
+      = joinPaths $ dropWhile (==".") $ splitPath name
+
+searchPathsEx :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
+searchPathsEx path exts suffixes name
+  = search (concatMap (\dir -> map (\n -> (dir,n)) nameext) ("":path))
+  where
+    search [] = return Nothing  -- notfound envname nameext path
+    search ((dir,fname):xs)
+      = do{ let fullName = joinPath dir fname
+          ; exist <- doesFileExist fullName
+          ; if exist
+             then return (Just (dir,fname))
+             else search xs
+          }
     nameext
       = concatMap (\fname -> fname : map (fname++) exts) $
         map (\suffix -> (notext nname) ++ suffix ++ (extname nname)) ("" : suffixes)

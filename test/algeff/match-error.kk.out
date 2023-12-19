@@ -1,5 +1,5 @@
 Hi
-uncaught exception: test/algeff/match-error.kk(14, 3): test: pattern match failure
+uncaught exception: algeff/match-error(14, 3): test: pattern match failure
 add default effect for std/core/exn
  
 algeff/match-error/Bye: greet
