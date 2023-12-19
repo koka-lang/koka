@@ -118,7 +118,7 @@ import Syntax.Syntax(Expr(..),ValueBinder(..))
 import qualified Lib.Trace( trace )
 
 trace s x =
-  -- Lib.Trace.trace (" " ++ s)
+  Lib.Trace.trace (" " ++ s)
    x
 
 {--------------------------------------------------------------------------
@@ -304,7 +304,7 @@ isolate rng free ps eff
     in case filter (\l -> labelName l `elem` [nameTpLocal,nameTpRead,nameTpWrite]) ls of
           (lab@(TApp labcon [TVar h]) : _)
             -> -- has heap variable 'h' in its effect
-               do trace ("isolate:" ++ show (sourceName (rangeSource rng)) ++ ": " ++ show (pretty eff)) $ return ()
+               do -- trace ("isolate:" ++ show (sourceName (rangeSource rng)) ++ ": " ++ show (pretty eff)) $ return ()
                   (polyPs,ps1) <- splitHDiv h ps
                   let isLocal = (labelName lab == nameTpLocal)
                   if not (-- null polyPs ||  -- TODO: we might want to isolate too if it is not null?
@@ -1028,19 +1028,30 @@ extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
 coreDefInfoX def@(Core.Def name tp expr vis sort inl nameRng doc)
   = (nonCanonicalName name, createNameInfoX Public name sort nameRng tp)
 
+-- extend gamma with qualified names
 extendGamma :: Bool -> [(Name,NameInfo)] -> Inf a -> Inf (a)
 extendGamma isAlreadyCanonical defs inf
   = do env <- getEnv
-       (gamma') <- extend (context env) defs (gamma env)
+       (gamma') <- extend (prettyEnv env) (context env) defs (gamma env)
        withEnv (\env -> env{ gamma = gamma' }) inf
   where
-    extend ctx [] (gamma)
+    extend penv ctx [] (gamma)
       = return (gamma)
-    extend ctx ((name,info):rest) (gamma)
+    extend penv ctx ((name,info):rest) (gamma)
       = do let matches = gammaLookup name gamma
-               localMatches = [(qname,info) | (qname,info) <- matches, not (isInfoImport info), qualifier qname == ctx || qualifier qname == nameNil, isSameNamespace qname name ]
+               localMatches = [(qname,info) | (qname,info) <- matches, not (isInfoImport info),
+                                              qualifier qname == ctx || qualifier qname == nameNil,
+                                              unqualify name == unqualify qname,
+                                              isSameNamespace qname name ]
+           case localMatches of
+             ((qname,qinfo):_) -> infError (infoRange info) (text "definition" <+> Pretty.ppName penv name <+>
+                                                             text "is already defined in this module, at" <+> text (show (rangeStart (infoRange qinfo))) <->
+                                                             text "hint: use a local qualifier?")
+             [] -> return ()
+           extend penv ctx rest (gammaExtend name info gamma)
+           {-
            mapM (checkNoOverlap ctx name info) localMatches
-           -- trace (" extend gamma: " ++ show (name,info)) $
+           trace (" extend gamma: " ++ show (name,info)) $ return ()
            let (cinfo)
                    = -- if null localMatches then (info) else
                     if (isAlreadyCanonical) then info else
@@ -1052,6 +1063,7 @@ extendGamma isAlreadyCanonical defs inf
                             _ -> info
            -- Lib.Trace.trace (" extend gamma: " ++ show (pretty name, pretty (infoType info), show cinfo) ++ " with " ++ show (infoCanonicalName name cinfo) ++ " (matches: " ++ show (length matches,ctx,map fst matches)) $
            extend ctx rest (gammaExtend name cinfo gamma)
+           -}
 
 
     checkNoOverlap :: Name -> Name -> NameInfo -> (Name,NameInfo) -> Inf ()
@@ -1269,7 +1281,11 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                          table (ctxTerm rangeContext ++
                                                 [(text "inferred type", Pretty.niceType penv tp)
                                                 ,(text "candidates", align (tablex 0 (ppCandidates env  "" amb)))]))
-                    (CtxFunArgs fixed named mbResTp, (_:rest)) -- todo: show nice mbResTp?
+                    (CtxFunArgs fixed named (Just resTp), (_:rest))
+                      -> do let message = "with " ++ show (fixed + length named) ++ " argument(s) matches the result type"
+                            infError range (text "no function" <+> Pretty.ppName penv name <+> text message <+>
+                                            Pretty.niceType penv resTp <.> ppAmbiguous env "" amb)
+                    (CtxFunArgs fixed named Nothing, (_:rest))
                       -> do let message = "takes " ++ show (fixed + length named) ++ " argument(s)" ++
                                           (if null named then "" else " with such parameter names")
                             infError range (text "no function" <+> Pretty.ppName penv name <+> text message <.> ppAmbiguous env "" amb)
@@ -1308,7 +1324,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
         _  -> do env <- getEnv
                  infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintTypeSig matches)
   where
-    hintTypeSig = "give a type annotation to the function parameters or arguments"
+    hintTypeSig = "give a type annotation to the function parameters or qualify the name"
 
 checkCasingOverlaps :: Range -> Name -> [(Name,NameInfo)] -> Inf ()
 checkCasingOverlaps range name matches
@@ -1340,7 +1356,7 @@ caseOverlaps name qname info
   = let qname1 = case info of
                    InfoImport{infoAlias = alias} -> alias
                    _                             -> qname
-    in if not (isInternalQualified qname) && -- TODO: fix casing check for internally qualified names
+    in if not (isLocallyQualified qname) && -- TODO: fix casing check for internally qualified names
           (nameCaseOverlap ((if isQualified name then id else unqualify) (nonCanonicalName qname1)) name)
         then Just qname1
         else Nothing

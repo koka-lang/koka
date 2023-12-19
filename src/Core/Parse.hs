@@ -682,7 +682,7 @@ qualifiedConId
 qfunid :: LexParser (Name,Range)
 qfunid
   = do (name,range) <- funid True  -- allow qualified identifier (for a definition)
-       return (qualifyInternally name, range)
+       return (qualifyLocally name, range)
 
 {--------------------------------------------------------------------------
   Type signatures, parameters, kind annotations etc

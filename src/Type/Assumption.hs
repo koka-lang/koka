@@ -39,6 +39,7 @@ module Type.Assumption (
                     , coreVarInfoFromNameInfo, coreExprFromNameInfo
                     ) where
 import Lib.Trace
+import Data.List(isPrefixOf)
 import Common.Range
 import Common.Failure
 import Common.Syntax( DefSort(..), isDefFun, defFun, Fip, noFip )
@@ -193,7 +194,7 @@ gammaLookupExactCon name gamma
       filter isInfoCon xs
 
 
-
+-- Return exactly matching qualified names
 gammaLookupQ :: Name -> Gamma -> [NameInfo]
 gammaLookupQ name (Gamma gamma)
   = case M.lookup (unqualifyFull name) gamma of
@@ -201,20 +202,26 @@ gammaLookupQ name (Gamma gamma)
       Just xs -> -- trace ("gamma lookupQ: " ++ show name ++ " in " ++ show xs) $
                  map snd (filter (\(n,tp) -> n == name) xs)
 
--- | @gammaLookup context name gamma@ looks up a potentially qualified name in a module named @context@.
+-- | @gammaLookup name gamma@ looks up a potentially (partially) qualified name and returns all matches.
 gammaLookup :: Name -> Gamma -> [(Name,NameInfo)]
 gammaLookup name (Gamma gamma)
-  = case M.lookup (unqualifyFull name) gamma of
+  = let stemName = unqualifyFull name
+    in case M.lookup stemName gamma of
       Nothing -> []
-      Just xs -> -- let qname = if isQualified name then name else qualify context name
-                 -- in filter (\(n,_) -> n == qname) xs
-                 trace ("gamma found: " ++ show name ++ " in " ++ show (map fst xs)) $
-                 filter (\(_,info) -> infoIsVisible info) $
-                  if (isQualified name)
-                    then filter (\(n,_) -> n == name || nameCaseEqual name n) xs
-                  else if (isInternalQualified name)
-                    then filter (\(n,_) -> unqualify n == name || nameCaseEqual name (unqualify n)) xs
-                    else xs
+      Just candidates
+         -> -- trace ("gamma lookup: " ++ show name ++ ": " ++ show (map fst candidates)) $
+            filter (\(_,info) -> infoIsVisible info) $
+            if stemName == name then candidates
+             else let qual = fullQualifier name    -- todo: resolve module aliases first
+                  in let candidates' = filter (\(n,_) -> matchQualifier qual n) candidates
+                     in -- trace ("gamma lookup: " ++ show name ++ ": " ++ show (map fst candidates')) $
+                        candidates'
+
+matchQualifier :: String -> Name -> Bool
+matchQualifier qual name
+  = let qualn = fullQualifier name
+    in isPrefixOf (reverse qual) (reverse qualn)
+
 
 gammaLookupPrefix :: Name -> Gamma -> [(Name,NameInfo)]
 gammaLookupPrefix name (Gamma gamma)
@@ -364,7 +371,7 @@ instance Pretty Gamma where
 
 ppGammaInternal :: Bool -> Env -> Gamma -> Doc
 ppGammaInternal showHidden env gamma
-    = vcat [fill maxwidth (text (showPlain name)) {-(ppName env name)-} <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
+    = vcat [fill maxwidth (prettyName (colors env) name) {-(ppName env name)-} <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
         | (name,scheme) <- nameSchemes,
           showHidden || not (isHiddenName name)
         ]

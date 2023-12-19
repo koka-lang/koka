@@ -52,7 +52,7 @@ module Common.Name
           , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
 
           , prettyName
-          , qualifyInternally, unqualifyFull, isInternalQualified
+          , qualifyLocally, unqualifyFull, isLocallyQualified, fullQualifier
           ) where
 
 import Lib.Trace( trace )
@@ -172,7 +172,7 @@ showPlain (Name m _ n _)
 prettyName :: ColorScheme -> Name -> Doc
 prettyName cs name
   = let (m,n) = showParts name
-    in color (colorModule cs) (text m) <.> color (colorSource cs) (text n)
+    in color (colorModule cs) (text m) <.> text n
 
 
 showTupled (Name m _ n _)
@@ -240,23 +240,42 @@ qualifier :: Name -> Name
 qualifier (Name m hm _ _)
   = Name "" 0 m hm
 
-qualifyInternally :: Name -> Name
-qualifyInternally name@(Name m _ n _)
+qualifyLocally :: Name -> Name
+qualifyLocally name@(Name m _ n _)
   | null m    = name
   | otherwise = newQualified "" (m ++ "/" ++ n)
 
 unqualifyFull :: Name -> Name
-unqualifyFull (Name _ _ n _)
-  = newName (stripModules n)
+unqualifyFull name
+  = unqualify (unqualifyLocally name)
+
+fullQualifier :: Name -> String
+fullQualifier name
+  = nameModule (unqualifyLocally name)
+
+unqualifyLocally :: Name -> Name
+unqualifyLocally name@(Name m _ n _)
+  = let (lq,stem) = splitModulePath n
+    in if null lq
+         then name
+         else newQualified (if null m then lq else m ++ "/" ++ lq) stem
+
+splitModulePath :: String -> (String,String)
+splitModulePath s
+  = let (rmods,stem) = split [] s
+    in (concat (intersperse "/" (reverse rmods)), stem)
   where
-    stripModules n
-      = case dropWhile (\c -> c /= '/' && c /= '(') n of
-          ('/':rest)  | not (null rest) -> stripModules rest
-          _ -> n
+    split rmods s@(c:cs) | (isAlpha c || c == '_') -- module names start with a-zA-Z_
+      = case span (\c -> c /= '/') cs of
+          (mod,'/':rest)  | not (null rest) -> split ((c:mod):rmods) rest
+          _ -> (rmods,s)
+    split rmods s = (rmods,s)
 
 
-isInternalQualified name
+isLocallyQualified name
   = unqualify name /= unqualifyFull name
+
+
 
 ----------------------------------------------------------------
 -- Modules paths

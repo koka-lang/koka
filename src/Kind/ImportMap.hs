@@ -79,7 +79,7 @@ importsExpand name imp
                []  -> case rpath of
                         [q] ->
                            -- trace ("kind imports qualify locally: " ++ show name) $
-                           Right (qualifyInternally name, nameNil)
+                           Right (qualifyLocally name, nameNil)
                         (q:qs)
                           -> -- recursively try a shorter prefix
                              let name2 = qualify (unsplitModuleName (reverse qs)) (unqualify name)

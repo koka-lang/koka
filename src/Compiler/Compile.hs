@@ -393,7 +393,7 @@ compileProgram' term flags modules compileTarget fname program
        --trace (" loaded modules: " ++ show (map modName (loadedModules loaded1))) $ return ()
        --trace ("------\nloaded1:\n" ++ show (loadedNewtypes loaded1) ++ "\n----") $ return ()
        -- trace ("inlines: "  ++ show (loadedInlines loaded1)) $ return ()
-       trace ("imports: " ++ show (importsList (loadedImportMap loaded1))) $ return ()
+       -- trace ("imports: " ++ show (importsList (loadedImportMap loaded1))) $ return ()
 
        if (name /= nameInteractiveModule || verbose flags > 0)
         then liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "check  :") <+>

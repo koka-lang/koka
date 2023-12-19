@@ -108,7 +108,7 @@ eedDefGroup (DefRec defs)   = M.unionsWith (++) (map eedDef defs)
 eedDef :: UserDef -> ExtraDeps
 eedDef def
   = let name = binderName (defBinder def)
-    in if isInternalQualified name
+    in if isLocallyQualified name
          then M.singleton (unqualifyFull name) [name]
          else M.empty
 
@@ -139,7 +139,7 @@ dependencyDef extraDeps modName def
 
 dependencyBinding :: ExtraDeps -> Name -> UserValueBinder UserExpr -> (UserValueBinder UserExpr, Deps)
 dependencyBinding extraDeps modName vb
-  = trace ("dependency def: " ++ show (binderName vb) ++ ": " ++ show (S.toList freeVar)) $
+  = -- trace ("dependency def: " ++ show (binderName vb) ++ ": " ++ show (S.toList freeVar)) $
     (vb{ binderExpr = depBody }, M.singleton (binderName vb) freeVar)
   where
     (depBody, freeVar) = dependencyExpr extraDeps modName (binderExpr vb)

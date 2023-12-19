@@ -558,8 +558,8 @@ infExpr expr
                                    let (names,exprs) = unzip nargs
                                    exprs' <- mapM infExpr exprs
                                    return (App fun' (zip names exprs') range)
-      Var    name isOp range -> do name' <- infQualifiedName name range
-                                   return (Var name' isOp range)
+      Var    name isOp range -> do -- resolve qualified term identifiers during type inference
+                                   return (Var name isOp range)
       Lit    lit             -> return (Lit lit)
       Ann    expr tp range   -> do expr' <- infExpr expr
                                    tp'   <- infResolveType tp (Check "Expressions must be values" range)
