@@ -116,13 +116,12 @@ export class KokaLanguageServer {
       },
 
     };
-    if (config.debugExtension) {
-      this.traceOutputChannel = vscode.window.createOutputChannel('Koka Language Server Trace', 'koka')
-    }
+    // if (config.debugExtension) {
+    //   this.traceOutputChannel = vscode.window.createOutputChannel('Koka Language Server Trace', 'koka-trace')
+    // }
     const clientOptions: LanguageClientOptions = {
       documentSelector: [{ language: 'koka', scheme: 'file' }],
       outputChannel: this.outputChannel,
-      traceOutputChannel: this.traceOutputChannel,
       revealOutputChannelOn: RevealOutputChannelOn.Info,
       markdown: {
         isTrusted: true,
@@ -131,10 +130,10 @@ export class KokaLanguageServer {
     }
     this.languageClient = new LanguageClient(
       'koka',
-      "Koka Language Server",
+      "Koka Language Server - Client",
       serverOptions,
       clientOptions,
-      true
+      // config.debugExtension
     )
     context.subscriptions.push(this)
 
@@ -146,7 +145,7 @@ export class KokaLanguageServer {
 
   async dispose() {
     try {
-      this.traceOutputChannel.dispose()
+      this.traceOutputChannel?.dispose()
       this.outputChannel?.dispose()
       await this.languageClient?.stop()
       await this.languageClient?.dispose()
