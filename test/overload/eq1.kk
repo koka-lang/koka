@@ -1,9 +1,9 @@
 
 fun int/eq( x : int, y : int ) : bool
-  True // (x == y)
+  (x == y)
 
 fun float64/eq( x : float64, y : float64 ) : bool
-  False //(x == y)
+  (x == y)
 
 fun list/eq<a>( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
   match xs
