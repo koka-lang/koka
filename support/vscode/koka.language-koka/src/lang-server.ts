@@ -100,8 +100,10 @@ export class KokaLanguageServer {
       append: (value: string) => this.lspWriteEmitter.fire(value),
       appendLine: (value: string) => {
         this.lspWriteEmitter.fire(value)
-        if (value.match(/error/gi)){
-          this.lspTerminal?.show(true)
+        if (config.autoFocusTerminal){
+          if (value.match(/error/gi)){
+            this.lspTerminal?.show(true)
+          }
         }
       },
       clear: () => {

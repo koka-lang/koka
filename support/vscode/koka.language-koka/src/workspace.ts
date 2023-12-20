@@ -167,18 +167,8 @@ export async function openSamples(context: vscode.ExtensionContext, config: vsco
       return;
     }
   }
-  const decision = await vscode.window.showInformationMessage(
-    `Open Koka's latest samples folder?`,
-    { modal: true },
-    'Yes',
-    'Yes (new window)',
-    'No'
-  )
-  if (decision == 'No') {
-    return;
-  }
   const examplesUri = vscode.Uri.file(samplesFolder)
-  vscode.commands.executeCommand('vscode.openFolder', examplesUri, {forceNewWindow : decision == 'Yes (new window)'})
+  vscode.commands.executeCommand('vscode.openFolder', examplesUri, {forceNewWindow : true})
 }
 
 export async function uninstallSDK(context: vscode.ExtensionContext) {
@@ -209,11 +199,12 @@ export class KokaConfig {
     this.defaultSDK = sdkPath
     this.sdkPath = sdkPath
     this.allSDKs = allSDKs
-    this.cwd = config.get('languageServer.cwd') as string || vscode.workspace.workspaceFolders![0].uri.fsPath
+    this.cwd = config.get('languageServer.cwd') as string ?? vscode.workspace.workspaceFolders![0].uri.fsPath
     this.langServerArgs = []
-    this.additionalArgs = config.get('languageServer.compilerArgs') as string[] || []
+    this.additionalArgs = config.get('languageServer.compilerArgs') as string[] ?? []
     this.selectSDK(this.sdkPath)
     this.target = "C"
+    this.autoFocusTerminal = config.get('languageServer.autoFocusTerminal') as boolean ?? false;
   }
   defaultSDK: string
   sdkPath: string
@@ -223,6 +214,7 @@ export class KokaConfig {
   command?: string | null
   langServerArgs: string[]
   additionalArgs: string[]
+  autoFocusTerminal: boolean
   target: string
   cwd: string
 

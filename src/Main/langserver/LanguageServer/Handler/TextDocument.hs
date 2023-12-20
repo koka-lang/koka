@@ -166,7 +166,6 @@ recompileFile compileTarget uri version force flags = do
       let contents = fst <$> maybeContents newvfs path
       modules <- fmap loadedModules <$> getLastChangedFileLoaded (normUri, flags)
       term <- getTerminal
-      liftIO $ termDoc term $ color DarkRed $ text "Recompiling: " <+> color DarkGreen (text path)
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
       let resultIO = compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] path
       processCompilationResult normUri path flags True resultIO
@@ -202,7 +201,7 @@ processCompilationResult normUri filePath flags update doIO = do
         Right ((l, outFile), _, _) -> do
           -- Compilation succeeded
           when update $ putLoaded l normUri flags-- update the loaded state for this file
-          liftIO $ termDoc term $ color Green $ text "Successfully compiled " <+> color DarkGreen (text filePath)
+          liftIO $ termDoc term $ color Green $ text "Success! "
           return outFile -- return the executable file path
         Left (e, m) -> do
           -- Compilation failed
