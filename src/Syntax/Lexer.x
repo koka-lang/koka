@@ -84,14 +84,16 @@ $charesc      = [nrt\\\'\"]    -- "
 @idchar       = $letter | $digit | _ | \- | \@
 @lowerid      = [\@]? $lower @idchar* $finalid*
 @upperid      = [\@]? $upper @idchar* $finalid*
+@wildcard     = [\@]? _ @idchar*
 @conid        = @upperid
-@modpath      = (\/ @lowerid)*
-@modulepath   = @lowerid @modpath (\# @lowerid @modpath)? \/
+@modpart      = @lowerid\/
+@modulepath   = @modpart+ (\# @modpart*)?
 @qvarid       = @modulepath @lowerid
 @qconid       = @modulepath @conid
 @symbols      = $symbol+ | \/
 @qidop        = @modulepath \(@symbols\)
 @idop         = \(@symbols\)
+
 
 @sign         = [\-]?
 @digitsep     = _ $digit+
@@ -123,7 +125,7 @@ program :-
 -- qualified identifiers
 <0> @qconid               { string $ LexCons . newQName }
 <0> @qvarid               { string $ LexId . newQName }
-<0> @qidop                { string $ LexIdOp . newQName . stripParens }
+<0> @qidop                { string $ LexIdOp . newQName }
 
 -- identifiers
 <0> @lowerid              { string $ \s -> if isReserved s
@@ -132,7 +134,7 @@ program :-
                                                then LexError messageMalformed
                                                else LexId (newName s) }
 <0> @conid                { string $ LexCons . newName }
-<0> _@idchar*             { string $ LexWildCard . newName }
+<0> @wildcard             { string $ LexWildCard . newName }
 
 -- specials
 <0> $special              { string $ LexSpecial }
@@ -227,24 +229,25 @@ program :-
 -----------------------------------------------------------
 -- helpers
 -----------------------------------------------------------
+newQName s
+  = case span (/='#') s of  -- extract locally qualified names
+      (qual,'#':l:lqual) | not (null qual) && last qual == '/' && (isLower l || l == '@')
+        -> qualify (newName (init qual)) (requalifyLocally (newQualName (l:lqual)))
+      _ -> newQualName s
+
+newQualName s
+  = let (rname,rmod) = span (/='/') (reverse (stripParens s))
+    in case rmod of
+         ('/':'/':rmod) | null rname -> newQualified (reverse rmod) ("/")  -- qualified / operator
+         ('/':rmod)  -> newQualified (reverse rmod) (reverse rname)
+         _           -> newName s
+
 stripParens s
   = case reverse s of
       (')':cs) -> case span (/='(') cs of
                     (op,'(':qualifier) -> reverse (op ++ qualifier)
                     _ -> s
       _ -> s
-
-newQName s
-  = case span (/='#') s of  -- extract locally qualified names
-      (qual,'#':l:lqual) | isLower l || l == '@' -> qualify (newName qual) (requalifyLocally (newQualName (l:lqual)))
-      _ -> newQualName s
-
-newQualName s
-  = let (rname,rmod) = span (/='/') (reverse s)
-    in case rmod of
-         ('/':'/':rmod) | null rname -> newQualified (reverse rmod) ("/")  -- qualified / operator
-         ('/':rmod)  -> newQualified (reverse rmod) (reverse rname)
-         _           -> newName s
 
 
 fromCharEscB, fromHexEscB :: BString -> BString

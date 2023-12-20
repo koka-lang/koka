@@ -778,7 +778,7 @@ ppConEnum ctx tname
       then text "true"
      else if (name == nameFalse)
       then text "false"
-     else if (name == nameTuple 0)
+     else if (name == nameUnit)
       then text "Unit.unit"
       else ppType ctx (typeOf tname) <.> dot <.> ppDefName (getName tname)
 
@@ -834,7 +834,7 @@ genExprBasic expr
                          {- if (getName tname == defName)
                           then result (text "this")  -- recursive call to a first-class function: this only works because we disallow polymorphic recursive local definitions
                           else -}
-                         result (ppQName ctx (getName tname))                  
+                         result (ppQName ctx (getName tname))
           Con tname repr
             -> genCon tname repr [] []
           App e es

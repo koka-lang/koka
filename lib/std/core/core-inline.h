@@ -85,10 +85,10 @@ static inline double kk_double_abs(double d) {
   return (isfinite(d) && d < 0.0 ? -d : d);
 }
 
-static inline kk_std_core_types__tuple2_ kk_integer_div_mod_tuple(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+static inline kk_std_core_types__tuple2 kk_integer_div_mod_tuple(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_integer_t mod;
   kk_integer_t div = kk_integer_div_mod(x,y,&mod,ctx);
-  return kk_std_core_types__new_dash__lp__comma__rp_(kk_integer_box(div,ctx),kk_integer_box(mod,ctx),ctx);
+  return kk_std_core_types__new_Tuple2(kk_integer_box(div,ctx),kk_integer_box(mod,ctx),ctx);
 }
 
 kk_box_t kk_main_console( kk_function_t action, kk_context_t* ctx );

@@ -159,11 +159,11 @@ pub fun (/)(p1 : path, p2: path) : path
   Path(p1.root,push-parts(p2.parts.reverse, p1.parts))
 
 // Convenience function that adds a string path.
-pub fun (/)(p1 : path, p2: string) : path
+pub fun pathstring/(/)(p1 : path, p2: string) : path
   p1 / p2.path
 
 // Convenience function that adds two strings into a path.
-pub fun (/)(p1 : string, p2: string) : path
+pub fun string/(/)(p1 : string, p2: string) : path
   p1.path / p2.path
 
 // Return the first path if it is not empty, otherwise return the second one.
@@ -242,7 +242,7 @@ pub fun cwd()
 // for unnormalized paths with `".."` parts. For example
 // `"/foo/symlink/../test.txt"` may resolve to `"/bar/test.txt"` if
 // ``symlink`` is a symbolic link to a sub directory of `"/bar"`.
-pub fun realpath( s : string ) : io path
+pub fun string/realpath( s : string ) : io path
   xrealpath(s).path
 
 extern xrealpath( p : string ) : io string

@@ -22,13 +22,13 @@ import named-handlers/file
 import named-handlers/file-scoped
 import named-handlers/heap
 
-pub fun main() 
+pub fun main()
   caesar/main()
   fibonacci/main()
   garsia-wachs/main()
   rbtree/main()
   nim/main()
   parser/main()
-  scoped/main()
+  handlers/scoped/main()
   ambient/main()
 

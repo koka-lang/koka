@@ -1,6 +1,6 @@
 /*---------------------------------------------------------------------------
   Copyright 2012-2021, Microsoft Research, Daan Leijen.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
@@ -13,7 +13,7 @@ For example:
 ```
 struct myflags(
   verbose : bool = False,
-  version : bool = False, 
+  version : bool = False,
   name : string = "",
   output : string = "",
   arguments : list<string> = []
@@ -71,7 +71,7 @@ import std/os/env
 
 struct myflags(
   verbose : bool = False,
-  version : bool = False, 
+  version : bool = False,
   name : string = "",
   output : string = "",
   arguments : list<string> = []
@@ -109,9 +109,9 @@ pub fun test( cmdargs )
     println( "\nsuccess!" );
     println( "flags: " ++ flags.show-flags)
     println( "arguments: " ++ args.join(" ") );
-    if flags.version then myflags.usage(header).println  
-  else 
-    println( errs.join("\n") ++ "\n" ++ myflags.usage(header) )  
+    if flags.version then myflags.usage(header).println
+  else
+    println( errs.join("\n") ++ "\n" ++ myflags.usage(header) )
 
 
 // Specifies how to handle flags that follow non-flag command line arguments.
@@ -164,7 +164,7 @@ fun show-flag( flag : flag<a> ) : list<(string,string,string)>
   val short = flag.short-names.list.map(fn(c){ "-" ++ c.string ++ show-short-flag(flag.parser) }).join(" ")
   val long  = flag.long-names.map(fn(name){ "--" ++ name ++ show-long-flag(flag.parser) }).join(" ")
   match (lines(flag.help))
-    Cons(hd,tl) -> [(short,long,hd)] ++ tl.map( fn(s){ ("","",s)}) 
+    Cons(hd,tl) -> [(short,long,hd)] ++ tl.map( fn(s){ ("","",s)})
     Nil         -> [(short,long,"")]
 
 
@@ -194,11 +194,11 @@ value type flag-kind<a>
 // `ordering` (=`Permute`) that specifies how optare handled that follow non-flag arguments.
 // Returns three lists: the list of parsed flags,
 // a list of non-flag arguments, and a list of potential error messages.
-pub fun parse( initial : a, flags : list<flag<a>>, args : list<string>, ordering : flag-order<a> = Permute ) 
+pub fun parse( initial : a, flags : list<flag<a>>, args : list<string>, ordering : flag-order<a> = Permute )
                         : total (a, list<string>, list<string>)
 
   var done := False  // done scanning flags? (the rest is treated as an argument)
-  val opts = args.map fn(arg) 
+  val opts = args.map fn(arg)
 
     val opts = if (done) then [Arg(arg)] else process-next(arg,flags)
     opts.foreach fn(opt)
@@ -222,7 +222,7 @@ pub fun parse( initial : a, flags : list<flag<a>>, args : list<string>, ordering
 
 fun process-next( arg : string, flags : list<flag<a>> ) : list<flag-kind<a>>
   match(arg.starts-with("--"))
-    Just(slice) -> if (slice.is-empty) then [End] else [parse-long(slice.string,flags)]      
+    Just(slice) -> if (slice.is-empty) then [End] else [parse-long(slice.string,flags)]
     _ -> match(arg.starts-with("-"))
       Just(slice) | !slice.is-empty -> parse-shorts(slice.string,flags)
       _ -> [Arg(arg)]
@@ -243,16 +243,16 @@ fun parse-long( s : string, flags : list<flag<a>> ) : total flag-kind<a>
   val (baseflagname,negated) = match (flagname.starts-with("no-"))
                                  Just(slice) -> (slice.string,True)
                                  _           -> (flagname,False)
-  val exacts   = flags.filter fn(opt)    
+  val exacts   = flags.filter fn(opt)
                     opt.long-names.map(to-lower).any fn(name)
                       name==flagname || name==baseflagname
-  val prefixes = flags.filter fn(opt) 
-                    opt.long-names.map(to-lower).any fn(name)  
-                      name.starts-with(flagname).bool || name.starts-with(baseflagname).bool 
-  val applicable = if (exacts.is-nil) then prefixes else exacts  
+  val prefixes = flags.filter fn(opt)
+                    opt.long-names.map(to-lower).any fn(name)
+                      name.starts-with(flagname).bool || name.starts-with(baseflagname).bool
+  val applicable = if (exacts.is-nil) then prefixes else exacts
   match(applicable)
-    Nil -> error-unknown(optstr) 
-    Cons(_,Cons(_,_)) -> error-ambiguous(applicable,optstr) 
+    Nil -> error-unknown(optstr)
+    Cons(_,Cons(_,_)) -> error-ambiguous(applicable,optstr)
     Cons(desc,_) ->
       match(desc.parser)
           Bool(set)
@@ -277,7 +277,7 @@ fun parse-long( s : string, flags : list<flag<a>> ) : total flag-kind<a>
                 else Flg(fn(o) { parse(o,Nothing) } )
 
 
-  
+
 
 fun parse-shorts( s : string,  flags : list<flag<a>> ) : list<flag-kind<a>>
   var done := False
@@ -287,7 +287,7 @@ fun parse-shorts( s : string,  flags : list<flag<a>> ) : list<flag-kind<a>>
     val applicable = flags.filter( fn(opt){ opt.short-names.contains(c.string) } )
     match(applicable)
       Nil -> Just(error-unknown(optstr))
-      Cons(_,Cons(_,_))   
+      Cons(_,Cons(_,_))
         -> Just(error-ambiguous(applicable,optstr))
       Cons(desc,_)
         -> match(desc.parser)
@@ -328,14 +328,6 @@ fun error-unknown-message( opt )
   ( "unrecognized flag \"" ++ opt ++ "\"")
 
 
-// Unzip a list of triples into three lists
-fun unzip3( xs : list<(a,b,c)> ) : (list<a>,list<b>,list<c>)
-  fun iter( ys, acc1, acc2, acc3 )
-    match(ys)
-      Cons((x,y,z),xx) -> iter(xx,Cons(x,acc1),Cons(y,acc2),Cons(z,acc3))
-      Nil              -> (reverse(acc1),reverse(acc2),reverse(acc3))
-  iter(xs,[],[],[])
-
 fun zipWith3(f : (a,b,c) -> e d, xs : list<a>, ys : list<b>, zs : list<c> ) : e list<d>
   zipWith3Acc(f, [], xs, ys, zs )
 
@@ -346,7 +338,7 @@ fun zipWith3Acc( f, acc, xs, ys, zs )
     Cons(x,xx) ->
       match(ys)
         Nil -> reverse(acc)
-        Cons(y,yy) -> 
+        Cons(y,yy) ->
           match (zs)
             Cons(z,zz) -> zipWith3Acc(f, Cons( f(x,y,z), acc), xx, yy, zz)
             _          -> reverse(acc)

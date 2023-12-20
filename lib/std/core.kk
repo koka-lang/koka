@@ -43,7 +43,7 @@ extern import
 // ----------------------------------------------------------------------------
 
 // An alias for the empty effect.
-pub alias total = <>
+// pub alias total = <>
 
 // The console effect signifies that a function may write to the console.
 pub type console :: X
@@ -105,14 +105,14 @@ pub fun ignore( x : a ) : ()
   ()
 
 // Return a 'constant' function that ignores its argument and always returns the same result
-pub fun const( default : a ) : total (( x : b ) -> a)
+pub fun default/const( default : a ) : total (( x : b ) -> a)
   fn(_) default
 
 // ----------------------------------------------------------------------------
 // Standard Data types
 // ----------------------------------------------------------------------------
 
-pub fip fun int( b : bool ) : int
+pub fip fun bool/int( b : bool ) : int
   if b then 1 else 0
 
 pub fip fun mbint( m : maybe<int> ) : int
@@ -121,28 +121,28 @@ pub fip fun mbint( m : maybe<int> ) : int
     Just(i) -> i
 
 // Convert an int to a boolean, using `False` for 0 and `True` otherwise.
-pub fun bool( i : int ) : bool
+pub fun int/bool( i : int ) : bool
   i != 0
 
 // Convert a `:maybe` type to a boolean using `False` for `Nothing` and `True` for `Just`.
-pub fun bool( m : maybe<a> ) : bool
+pub fun maybe/bool( m : maybe<a> ) : bool
   match m
     Nothing -> False
     _       -> True
 
 // Convert a string to a boolean, using `False` for the empty string and `True` otherwise.
-pub fun bool( s : string ) : bool
+pub fun string/bool( s : string ) : bool
   s != ""
 
 // Match a `:maybe` value and either return a default value on `Nothing` or apply a function to the value on `Just`
-pub fun maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
+pub fun maybe/maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
   match m
     Nothing -> onNothing
     Just(x) -> onJust(x)
 
 // Convert a `:maybe<a>` value to `:a`, using the `nothing` parameter for `Nothing`.
 // This is an alias for `default`.
-pub fun maybe( m : maybe<a>, nothing : a ) : a
+pub fun default/maybe( m : maybe<a>, nothing : a ) : a
   default(m,nothing)
 
 // Convert a `:maybe<a>` value to `:a`, using the `nothing` parameter for `Nothing`.
@@ -157,25 +157,25 @@ pub fun unjust( m : maybe<a> ) : exn a
     Just(x) -> x
     Nothing -> throw("unexpected Nothing in std/core/unjust")
 
-pub fun map( m : maybe<a>, f : a -> e b ) : e maybe<b>
+pub fun maybe/map( m : maybe<a>, f : a -> e b ) : e maybe<b>
   match m
     Nothing -> Nothing
     Just(x) -> Just(f(x))
 
-pub fun (||)( m1 : maybe<a>, m2: maybe<a> ) : maybe<a>
+pub fun maybe/(||)( m1 : maybe<a>, m2: maybe<a> ) : maybe<a>
   match m1
     Nothing -> m2
     _       -> m1
 
 // Convert a `:either` to a `:maybe` type discarding the value of the `Left` constructor
 // and using `Just` for the `Right` constructor.
-pub fun maybe( e : either<a,b> ) : maybe<b>
+pub fun either/maybe( e : either<a,b> ) : maybe<b>
   match e
     Left -> Nothing
     Right(x) -> Just(x)
 
 // Map over the `Right` component of an `:either` type.
-pub fun map( e : either<a,b>, f : b -> e c  ) : e either<a,c>
+pub fun either/map( e : either<a,b>, f : b -> e c  ) : e either<a,c>
   match e
     Right(x) -> Right(f(x))
     Left(x)  -> Left(x)
@@ -189,13 +189,13 @@ pub type list<a>
   con Cons(head:a, tail : list<a> )
 
 // Return the head of list if the list is not empty.
-pub fun head( xs : list<a> ) : maybe<a>
+pub fun list/head( xs : list<a> ) : maybe<a>
   match xs
     Cons(x) -> Just(x)
     _       -> Nothing
 
 // Return the head of list if the list is not empty, or use `default` otherwise
-pub fun head( xs : list<a>, default : a ) : a
+pub fun default/head( xs : list<a>, default : a ) : a
   match xs
     Cons(x) -> x
     _       -> default
@@ -216,42 +216,42 @@ pub fun is-empty( xs : list<a> ) : bool
 pub co type stream<a>
   con Next(head:a, tail: stream<a> )
 
-pub fip fun int( x : order ) : int
+pub fip fun order/int( x : order ) : int
   match x
     Lt -> -1
     Eq -> 0
     Gt -> 1
 
-pub fun order( i : int ) : order
+pub fun int/order( i : int ) : order
   if i < 0 then Lt
   elif i > 0 then Gt
   else Eq
 
-pub fun (==)( x : order, y : order ) : bool
+pub fun order/(==)( x : order, y : order ) : bool
   x.int == y.int
 
-pub fun (!=)( x : order, y : order ) : bool
+pub fun order/(!=)( x : order, y : order ) : bool
   x.int != y.int
 
-pub fun (>=)( x : order, y : order ) : bool
+pub fun order/(>=)( x : order, y : order ) : bool
   x.int >= y.int
 
-pub fun (<=)( x : order, y : order ) : bool
+pub fun order/(<=)( x : order, y : order ) : bool
   x.int <= y.int
 
-pub fun (>)( x : order, y : order ) : bool
+pub fun order/(>)( x : order, y : order ) : bool
   x.int > y.int
 
-pub fun (<)( x : order, y : order ) : bool
+pub fun order/(<)( x : order, y : order ) : bool
   x.int < y.int
 
-pub fun map( t : (a,a), f : a -> e b ) : e (b, b)
+pub fun tuple2/map( t : (a,a), f : a -> e b ) : e (b, b)
   (t.fst.f, t.snd.f)
 
-pub fun map( t : (a,a,a), f : a -> e b ) : e (b, b, b)
+pub fun tuple3/map( t : (a,a,a), f : a -> e b ) : e (b, b, b)
   (t.fst.f, t.snd.f, t.thd.f)
 
-pub fun map( t : (a,a,a,a), f : a -> e b ) : e (b,b,b,b)
+pub fun tuple4/map( t : (a,a,a,a), f : a -> e b ) : e (b,b,b,b)
   (t.fst.f, t.snd.f, t.thd.f, t.field4.f)
 
 // ----------------------------------------------------------------------------
@@ -263,7 +263,7 @@ pub fun single(x)
   [x]
 
 // Returns the length of a list.
-pub fun length(xs)
+pub fun list/length(xs)
   fun len(ys,acc)
     match ys
       Cons(_,yy) -> yy.len(acc+1)
@@ -280,7 +280,7 @@ pub fun list( lo: int, hi: int ) : total list<int>
 
 // Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
 // If `lo > hi`  the function returns the empty list.
-pub fun list( lo: int, hi: int, stride : int ) : total list<int>
+pub fun stride/list( lo: int, hi: int, stride : int ) : total list<int>
   if lo <= hi
     then Cons( lo, list(  unsafe-decreasing(lo + stride), hi, stride ))
     else Nil
@@ -288,20 +288,20 @@ pub fun list( lo: int, hi: int, stride : int ) : total list<int>
 // Applies a function `f` to list of increasing elements from `lo`  to `hi`
 // (including both `lo`  and `hi` ).
 // If `lo > hi`  the function returns the empty list.
-pub fun list( lo: int, hi: int, f : int -> e a ) : e list<a>
+pub fun function/list( lo: int, hi: int, f : int -> e a ) : e list<a>
   if lo <= hi
     then Cons( f(lo), list( unsafe-decreasing(lo.inc), hi, f ))
     else Nil
 
 // Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
 // If `lo > hi`  the function returns the empty list.
-pub fun list( lo: int, hi: int, stride : int, f : int -> e a ) : e list<a>
+pub fun stridefunction/list( lo: int, hi: int, stride : int, f : int -> e a ) : e list<a>
   if lo <= hi
     then Cons( f(lo), list(  unsafe-decreasing(lo + stride), hi, stride, f ))
     else Nil
 
 // Create a list of characters from `lo`  to `hi`  (inclusive).
-pub fun list( lo : char, hi : char ) : total list<char>
+pub fun char/list( lo : char, hi : char ) : total list<char>
   list(lo.int, hi.int).map( char )
 
 // Zip two lists together by pairing the corresponding elements.
@@ -344,7 +344,7 @@ pub fun unzip( xs : list<(a,b)> ) : (list<a>,list<b>)
   iter(xs,ctx _,ctx _)
 
 // Unzip a list of triples into three lists
-pub fun unzip( xs : list<(a,b,c)>) : (list<a>,list<b>,list<c>)
+pub fun unzip3( xs : list<(a,b,c)>) : (list<a>,list<b>,list<c>)
   // todo: implement TRMC for multiple results
   fun iter( ys, acc1, acc2, acc3 )
     match ys
@@ -353,7 +353,7 @@ pub fun unzip( xs : list<(a,b,c)>) : (list<a>,list<b>,list<c>)
   iter(xs,ctx _,ctx _,ctx _)
 
 // Unzip a list of quadruples into four lists
-pub fun unzip( xs : list<(a,b,c,d)>) : (list<a>,list<b>,list<c>,list<d>)
+pub fun unzip4( xs : list<(a,b,c,d)>) : (list<a>,list<b>,list<c>,list<d>)
   // todo: implement TRMC for multiple results
   fun iter( ys, acc1, acc2, acc3, acc4 )
     match ys
@@ -374,7 +374,7 @@ pub fun drop( xs : list<a>, n : int ) : list<a>
     _ -> xs
 
 // Apply a function `f`  to each element of the input list in sequence.
-pub fun map(xs : list<a>, f : a -> e b) : e list<b>
+pub fun list/map(xs : list<a>, f : a -> e b) : e list<b>
   match xs
     Cons(x,xx) -> Cons(f(x), xx.map(f))
     Nil -> Nil
@@ -420,7 +420,7 @@ pub fun reverse-append( xs : list<a>, tl : list<a> ) : list<a>
   reverse-acc(tl,xs)
 
 // Append two lists.
-pub fun (++)(xs : list<a>, ys : list<a> ) : list<a>
+pub fun list/(++)(xs : list<a>, ys : list<a> ) : list<a>
   append(xs,ys)
 
 // Append two lists.
@@ -456,7 +456,7 @@ pub fun replicate( x : a, n : int ) : list<a>
    else Nil
 
 // split a list at position `n`
-pub fun split( xs : list<a>, n : int ) : (list<a>, list<a>)
+pub fun list/split( xs : list<a>, n : int ) : (list<a>, list<a>)
   (xs.take(n), xs.drop(n))
 
 pub fun span( xs : list<a>, predicate : a -> e bool ) : e (list<a>,list<a>)
@@ -514,7 +514,7 @@ pub fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
       Just(y) -> Cons(y,xx.filter-map(pred))
 
 // Find the first element satisfying some predicate
-pub fun find( xs : list<a>, pred : a -> e bool ) : e maybe<a>
+pub fun list/find( xs : list<a>, pred : a -> e bool ) : e maybe<a>
   xs.foreach-while fn(x)
     if pred(x) then Just(x) else Nothing
 
@@ -529,13 +529,13 @@ pub fun lookup( xs : list<(a,b)>, pred : a -> e bool ) : e maybe<b>
 
 // Convert a list to a `:maybe` type, using `Nothing` for an empty list, and otherwise `Just` on the head element.
 // Note: this is just `head`.
-pub fun maybe( xs : list<a> ) : maybe<a>
+pub fun list/maybe( xs : list<a> ) : maybe<a>
   match xs
     Nil -> Nothing
     Cons(x,_) -> Just(x)
 
 // Convert a `:maybe` type to a list type.
-pub fun list( m : maybe<a> ) : list<a>
+pub fun maybe/list( m : maybe<a> ) : list<a>
   match m
     Nothing -> Nil
     Just(x) -> Cons(x,Nil)
@@ -608,7 +608,7 @@ pub fun join( xs : list<string> ) : string
   xs.joinsep("")
 
 // Concatenate all strings in a list using a specific separator
-pub fun join( xs : list<string>, sep : string ) : string
+pub fun joinsep/join( xs : list<string>, sep : string ) : string
   xs.joinsep(sep)
 
 // Concatenate all strings in a list in reverse order
@@ -660,14 +660,14 @@ pub fun concat-maybe( xs : list<maybe<a>> ) : list<a>
     Nil -> Nil
 
 // Return the last element of a list (or `Nothing` for the empty list)
-pub fun last( xs : list<a> ) : maybe<a>
+pub fun list/last( xs : list<a> ) : maybe<a>
   match xs
     Cons(x,Nil) -> Just(x)
     Cons(_,xx)  -> last(xx)
     Nil         -> Nothing
 
 // Return the last element of a list (or `default` for the empty list)
-pub fun last( xs : list<a>, default : a ) : a
+pub fun default/last( xs : list<a>, default : a ) : a
   match xs
     Cons(x,Nil) -> x
     Cons(_,xx)  -> last(xx,default)
@@ -681,7 +681,7 @@ pub fun init( xs : list<a> ) : list<a>
     _ -> Nil
 
 // Get (zero-based) element `n`  of a list. Return a `:maybe` type.
-pub fun []( xs : list<a>, n : int ) : maybe<a>
+pub fun list/index( xs : list<a>, n : int ) : maybe<a>
   match xs
     Cons(x,xx) -> if n>0 then xx[n - 1]
                   elif n==0 then Just(x)
@@ -704,49 +704,49 @@ pub fun any( xs : list<a>, predicate : a -> e bool ) : e bool
 // Characters
 // ----------------------------------------------------------------------------
 
-pub inline fip extern (==) : (char,char) -> bool
+pub inline fip extern char/(==) : (char,char) -> bool
   inline "(#1 == #2)"
   js inline "(#1 === #2)"
 
-pub inline fip extern (!=) : (char,char) -> bool
+pub inline fip extern char/(!=) : (char,char) -> bool
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 
-pub inline fip extern (<=) : (char,char) -> bool
+pub inline fip extern char/(<=) : (char,char) -> bool
   inline "(#1 <= #2)"
 
-pub inline fip extern (>=) : (char,char) -> bool
+pub inline fip extern char/(>=) : (char,char) -> bool
   inline "(#1 >= #2)"
 
-pub inline fip extern (<)  : (char,char) -> bool
+pub inline fip extern char/(<)  : (char,char) -> bool
   inline "(#1 < #2)"
 
-pub inline fip extern (>)  : (char,char) -> bool
+pub inline fip extern char/(>)  : (char,char) -> bool
   inline "(#1 > #2)"
 
-pub fip fun compare( x : char, y : char ) : order
+pub fip fun char/compare( x : char, y : char ) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq
 
 // Convert a character to its unicode code point
-pub inline fip extern int : (char) -> int
+pub inline fip extern char/int : (char) -> int
   inline "#1"
   c "kk_integer_from_int"
   cs inline "new BigInteger(#1)"
 
 // Convert a unicode code point to a character
-pub inline fip extern char( i : int) : char
+pub inline fip extern int/char( i : int) : char
   inline "(#1)"
   c "kk_integer_clamp32"
   cs inline "Primitive.IntToInt32(#1)"
 
 // Add two character code points
-pub fip fun (+)(c : char, d : char) : total char
+pub fip fun char/(+)(c : char, d : char) : total char
   (c.int + d.int).char
 
 // Substract two character codePoints
-pub fip fun (-)(c : char, d : char) : total char
+pub fip fun char/(-)(c : char, d : char) : total char
   (c.int - d.int).char
 
 // Is the character a lower-case ASCII character ?
@@ -789,31 +789,31 @@ pub fip fun is-white( c : char )     : bool
 // Booleans
 // ----------------------------------------------------------------------------
 
-pub fip fun (==)( x : bool, y : bool) : bool
+pub fip fun bool/(==)( x : bool, y : bool) : bool
   if x then y else !y
 
-pub fip fun (!=)( x : bool, y : bool) : bool
+pub fip fun bool/(!=)( x : bool, y : bool) : bool
   if x then !y else y
 
-pub fip fun (<)( x : bool, y : bool) : bool
+pub fip fun bool/(<)( x : bool, y : bool) : bool
   (!x && y)
 
-pub fip fun (<=)( x : bool, y : bool) : bool
+pub fip fun bool/(<=)( x : bool, y : bool) : bool
   !(x > y)
 
-pub fip fun (>)( x : bool, y : bool) : bool
+pub fip fun bool/(>)( x : bool, y : bool) : bool
   (x && !y)
 
-pub fip fun (>=)( x : bool, y : bool) : bool
+pub fip fun bool/(>=)( x : bool, y : bool) : bool
   !(x < y)
 
-pub fip fun compare( x : bool, y : bool) : order
+pub fip fun bool/compare( x : bool, y : bool) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq
 
 // Transform a boolean to a maybe type, using `Nothing` for `False`
-pub fun maybe( b : bool ) : maybe<()>
+pub fun bool/maybe( b : bool ) : maybe<()>
   if b then Just(()) else Nothing
 
 
@@ -822,43 +822,43 @@ pub fun maybe( b : bool ) : maybe<()>
 // ----------------------------------------------------------------------------
 
 // Compare two integers
-pub inline fip extern compare(^x : int, ^y : int) : order
+pub inline fip extern int/compare(^x : int, ^y : int) : order
   c inline "kk_int_as_order(kk_integer_cmp_borrow(#1,#2,kk_context()),kk_context())"
   cs "Primitive.IntCompare"
   js "$std_core._int_compare"
 
 // Are two integers equal?
-pub inline fip extern (==)(^x : int, ^y : int) : bool
+pub inline fip extern int/(==)(^x : int, ^y : int) : bool
   c  "kk_integer_eq_borrow"
   cs inline "(#1 == #2)"
   js "$std_core._int_eq"
 
 // Are two integers not equal?
-pub inline fip extern (!=)(^x : int, ^y : int) : bool
+pub inline fip extern int/(!=)(^x : int, ^y : int) : bool
   c  "kk_integer_neq_borrow"
   cs inline "(#1 != #2)"
   js "$std_core._int_ne"
 
 // Is the first integer smaller or equal to the second?
-pub inline fip extern (<=)(^x : int, ^y : int) : bool
+pub inline fip extern int/(<=)(^x : int, ^y : int) : bool
   c  "kk_integer_lte_borrow"
   cs inline "(#1 <= #2)"
   js "$std_core._int_le"
 
 // Is the first integer greater or equal to the second?
-pub inline fip extern (>=)(^x : int, ^y : int) : bool
+pub inline fip extern int/(>=)(^x : int, ^y : int) : bool
   c  "kk_integer_gte_borrow"
   cs inline "(#1 >= #2)"
   js "$std_core._int_ge"
 
 // Is the first integer smaller than the second?
-pub inline fip extern (<)(^x : int, ^y : int) : bool
+pub inline fip extern int/(<)(^x : int, ^y : int) : bool
   c  "kk_integer_lt_borrow"
   cs inline "(#1 < #2)"
   js "$std_core._int_lt"
 
 // Is the first integer greater than the second?
-pub inline fip extern (>)(^x : int, ^y : int) : bool
+pub inline fip extern int/(>)(^x : int, ^y : int) : bool
   c  "kk_integer_gt_borrow"
   cs inline "(#1 > #2)"
   js "$std_core._int_gt"
@@ -869,32 +869,32 @@ inline fip extern int-add : (int,int) -> int
   js "$std_core._int_add"
 
 // Add two integers.
-pub fip fun (+)(x : int, y : int ) : int
+pub fip fun int/(+)(x : int, y : int ) : int
   int-add(x,y)
 
-inline fip extern int-sub : (int,int) -> int
+inline fip extern int/int-sub : (int,int) -> int
   c  "kk_integer_sub"
   cs inline "(#1 - #2)"
   js "$std_core._int_sub"
 
 // Substract two integers.
-pub fip fun (-)(x : int, y : int ) : int
+pub fip fun int/(-)(x : int, y : int ) : int
   int-sub(x,y)
 
 // Multiply two integers.
-pub inline fip extern (*) : (int,int) -> int
+pub inline fip extern int/(*) : (int,int) -> int
   c  "kk_integer_mul"
   cs inline "(#1 * #2)"
   js "$std_core._int_mul"
 
 // Euclidean-0 division of two integers. See also `divmod:(x : int, y : int) -> (int,int)`.
-pub inline fip extern (/)(x:int,y:int) : int
+pub inline fip extern int/(/)(x:int,y:int) : int
   c  "kk_integer_div"
   cs "Primitive.IntDiv"
   js "$std_core._int_div"
 
 // Euclidean modulus of two integers; always a non-negative number. See also `divmod:(x : int, y : int) -> (int,int)`.
-pub inline fip extern (%)  : (int,int) -> int
+pub inline fip extern int/(%)  : (int,int) -> int
   c  "kk_integer_mod"
   cs "Primitive.IntMod"
   js "$std_core._int_mod"
@@ -917,54 +917,54 @@ pub inline fip extern (%)  : (int,int) -> int
 //
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
-pub inline fip extern divmod(x:int,y:int) : (int,int)
+pub inline fip extern int/divmod(x:int,y:int) : (int,int)
   c  "kk_integer_div_mod_tuple"
   cs "Primitive.IntDivMod"
   js "$std_core._int_divmod"
 
-pub fip fun negate(i : int) : int
+pub fip fun int/negate(i : int) : int
   ~i
 
 // Negate an integer.
-pub inline fip extern (~)(i:int) : int
+pub inline fip extern int/(~)(i:int) : int
   c  "kk_integer_neg"
   cs inline "(-#1)"
   js "$std_core._int_negate"
 
 // Convert an integer to a `:float64`. May return `nan` if the integer is too large to represent as a `:float64`.
-pub inline fip extern float64( i : int) : float64
+pub inline fip extern int/float64( i : int) : float64
   c  "kk_integer_as_double"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 
 // Convert an integer to a `:float32`. May return `nan` if the integer is too large to represent as a `:float32`.
-pub inline fip extern float32( i : int) : float32
+pub inline fip extern int/float32( i : int) : float32
   c  "kk_integer_as_float"
   cs "Primitive.IntToFloat"
   js "$std_core._int_to_float"
 
 // Is this an odd integer?
-pub inline fip extern is-odd( i : int ) : bool
+pub inline fip extern int/is-odd( i : int ) : bool
   c  "kk_integer_is_odd"
   cs inline "!(#1.IsEven)"
   js "$std_core._int_isodd"
 
 // Is this equal to zero?
-pub inline fip extern is-zero( ^x : int) : bool
+pub inline fip extern int/is-zero( ^x : int) : bool
   c  inline "kk_integer_is_zero_borrow(#1)"
   cs inline "(#1.IsZero)"
   js "$std_core._int_iszero"
 
 // Return the absolute value of an integer.
-pub inline fip extern abs(i : int) : int
+pub inline fip extern int/abs(i : int) : int
   c  "kk_integer_abs"
   cs "BigInteger.Abs"
   js "$std_core._int_abs"
 
-pub fip fun inc( i : int ) : int
+pub fip fun int/inc( i : int ) : int
   i + 1
 
-pub fip fun dec( i : int ) : int
+pub fip fun int/dec( i : int ) : int
   i - 1
 
 // Calculate `10^exp`
@@ -1063,13 +1063,13 @@ pub fun maybe( i : int ) : maybe<int>
   if i==0 then Nothing else Just(i)
 
 // fold over the integers between [`start`,`end`] (inclusive).
-pub fun fold-int( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
+pub fun int/fold-int( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
   if start >= end then init else
     val x = f(start,init)
     fold-int(unsafe-decreasing(start.inc), end, x, f)
 
 // fold over the integers between [0,`upto`)  (not including `upto`).
-pub fun fold-int( upto : int, init : a, f : (int,a) -> e a ) : e a
+pub fun intupto/fold-int( upto : int, init : a, f : (int,a) -> e a ) : e a
   fold-int( 0, upto.dec, init, f )
 
 
@@ -1086,7 +1086,7 @@ pub fun fold-while-int( start : int, end : int, init : a, f : (int,a) -> e maybe
 // ----------------------------------------------------------------------------
 
 // Convert an `:int32` to an `:int`.
-pub inline fip extern int( i : int32 ) : int
+pub inline fip extern int32/int( i : int32 ) : int
   c  "kk_integer_from_int"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int32"
@@ -1104,33 +1104,33 @@ pub inline fip fun i32( i : int ) : int32
 
 
 // Minimal set of operations that we need in `std/core`.
-inline fip extern (<=) : (int32,int32) -> bool
+inline fip extern int32/(<=) : (int32,int32) -> bool
   inline "(#1 <= #2)"
   js inline "(#1 <= #2)"
 
-inline fip extern (<)  : (int32,int32) -> bool
+inline fip extern int32/(<)  : (int32,int32) -> bool
   inline "(#1 < #2)"
   js inline "(#1 < #2)"
 
-inline fip extern (+)  : (int32,int32) -> int32
+inline fip extern int32/(+)  : (int32,int32) -> int32
   inline "(#1 + #2)"
   js inline "((#1 + #2)|0)"
 
-inline fip extern (-)  : (int32,int32) -> int32
+inline fip extern int32/(-)  : (int32,int32) -> int32
   inline "(#1 - #2)"
   js inline "((#1 - #2)|0)"
 
-inline fip extern is-pos( i : int32 ) : bool
+inline fip extern int32/is-pos( i : int32 ) : bool
   inline "(#1>0)"
 
-inline fip extern is-neg( i : int32 ) : bool
+inline fip extern int32/is-neg( i : int32 ) : bool
   inline "(#1<0)"
 
 
-fip fun incr( i : int32 ) : int32
+fip fun int32/incr( i : int32 ) : int32
   i + 1.int32
 
-fip fun decr( i : int32 ) : int32
+fip fun int32/decr( i : int32 ) : int32
   i - 1.int32
 
 // ----------------------------------------------------------------------------
@@ -1147,43 +1147,43 @@ pub fip extern ssize_t( i : int) : ssize_t
   js "$std_core._int_clamp32"
 
 // Convert an `:ssize_t` to an `:int`.
-pub inline fip extern int( i : ssize_t ) : int
+pub inline fip extern ssize_t/int( i : ssize_t ) : int
   c  "kk_integer_from_ssize_t"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int32"
 
 // Minimal set of operations that we need in `std/core`.
-inline fip extern (<=) : (ssize_t,ssize_t) -> bool
+inline fip extern ssize_t/(<=) : (ssize_t,ssize_t) -> bool
   inline "(#1 <= #2)"
 
-inline fip extern (>=) : (ssize_t,ssize_t) -> bool
+inline fip extern ssize_t/(>=) : (ssize_t,ssize_t) -> bool
   inline "(#1 >= #2)"
 
-inline fip extern (<)  : (ssize_t,ssize_t) -> bool
+inline fip extern ssize_t/(<)  : (ssize_t,ssize_t) -> bool
   inline "(#1 < #2)"
 
-inline fip extern (+)  : (ssize_t,ssize_t) -> ssize_t
+inline fip extern ssize_t/(+)  : (ssize_t,ssize_t) -> ssize_t
   inline "(#1 + #2)"
   js inline "((#1 + #2)|0)"
 
-inline fip extern (-)  : (ssize_t,ssize_t) -> ssize_t
+inline fip extern ssize_t/(-)  : (ssize_t,ssize_t) -> ssize_t
   inline "(#1 - #2)"
   js inline "((#1 - #2)|0)"
 
-inline fip extern is-pos( i : ssize_t ) : bool
+inline fip extern ssize_t/is-pos( i : ssize_t ) : bool
   inline "(#1 > 0)"
 
-inline fip extern is-neg( i : ssize_t ) : bool
+inline fip extern ssize_t/is-neg( i : ssize_t ) : bool
   inline "(#1 < 0)"
 
-fip extern is-zero( i : ssize_t ) : bool
+fip extern ssize_t/is-zero( i : ssize_t ) : bool
   inline "(#1 == 0)"
   js inline "(#1 === 0)"
 
-fip extern decr(i : ssize_t ) : ssize_t
+fip extern ssize_t/decr(i : ssize_t ) : ssize_t
   inline "(#1 - 1)"
 
-fip extern incr(i : ssize_t ) : ssize_t
+fip extern ssize_t/incr(i : ssize_t ) : ssize_t
   inline "(#1 + 1)"
 
 
@@ -1198,7 +1198,7 @@ pub fip extern int8( i : int) : int8
   js "$std_core._int_clamp8"
 
 // Convert an `:int8` to an `:int`.
-pub inline fip extern int( i : int8 ) : int
+pub inline fip extern int8/int( i : int8 ) : int
   c  "kk_integer_from_int8"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int32"
@@ -1212,7 +1212,7 @@ pub fip extern uint8( i : int) : int8
   js "$std_core._int_clamp_byte"
 
 // Convert an `:int8` to an `:int` but interpret the `:int8` as an unsigned 8-bit value between 0 and 255.
-pub inline fip extern uint( i : int8 ) : int
+pub inline fip extern int8/uint( i : int8 ) : int
   c  "kk_integer_from_uint8"
   cs inline "(new BigInteger(#1 >= 0 ? #1 : 256 + #1))"
   js "$std_core._int_from_int32"
@@ -1229,7 +1229,7 @@ pub fip extern int16( i : int) : int16
   js "$std_core._int_clamp16"
 
 // Convert an `:int16` to an `:int`.
-pub inline fip extern int( i : int16 ) : int
+pub inline fip extern int16/int( i : int16 ) : int
   c  "kk_integer_from_int16"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int32"
@@ -1246,7 +1246,7 @@ pub fip extern int64( i : int) : int64
   js "$std_core._int_clamp64"
 
 // Convert an `:int64_t` to an `:int`.
-pub inline fip extern int( i : int64 ) : int
+pub inline fip extern int64/int( i : int64 ) : int
   c  "kk_integer_from_int64"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int64"
@@ -1267,7 +1267,7 @@ pub fip extern intptr_t( i : int) : intptr_t
   js "$std_core._int_clamp64"
 
 // Convert an `:intptr_t` to an `:int`.
-pub inline fip extern int( i : intptr_t ) : int
+pub inline fip extern intptr_t/int( i : intptr_t ) : int
   c  "kk_integer_from_intptr_t"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_from_int64"
@@ -1301,74 +1301,74 @@ extern xparse-int( s : string, hex : bool ) : maybe<int>
 // todo: move to std/num/float64
 // ----------------------------------------------------------------------------
 
-pub inline fip extern (==) : (float64,float64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-pub inline fip extern (!=) : (float64,float64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-pub inline fip extern (<=) : (float64,float64) -> bool  { inline "(#1 <= #2)" }
-pub inline fip extern (>=) : (float64,float64) -> bool  { inline "(#1 >= #2)" }
-pub inline fip extern (<)  : (float64,float64) -> bool  { inline "(#1 < #2)" }
-pub inline fip extern (>)  : (float64,float64) -> bool  { inline "(#1 > #2)" }
-pub inline fip extern (+) : (float64,float64) -> float64 { inline "(#1 + #2)" }
-pub inline fip extern (-) : (float64,float64) -> float64 { inline "(#1 - #2)" }
-pub inline fip extern (*) : (float64,float64) -> float64 { inline "(#1 * #2)" }
-pub inline fip extern (/) : (float64,float64) -> float64 { inline "(#1 / #2)" }
-pub inline fip extern (%) : (float64,float64) -> float64 { c inline "fmod(#1,#2)"; inline "(#1 % #2)" }
+pub inline fip extern float64/(==) : (float64,float64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+pub inline fip extern float64/(!=) : (float64,float64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+pub inline fip extern float64/(<=) : (float64,float64) -> bool  { inline "(#1 <= #2)" }
+pub inline fip extern float64/(>=) : (float64,float64) -> bool  { inline "(#1 >= #2)" }
+pub inline fip extern float64/(<)  : (float64,float64) -> bool  { inline "(#1 < #2)" }
+pub inline fip extern float64/(>)  : (float64,float64) -> bool  { inline "(#1 > #2)" }
+pub inline fip extern float64/(+) : (float64,float64) -> float64 { inline "(#1 + #2)" }
+pub inline fip extern float64/(-) : (float64,float64) -> float64 { inline "(#1 - #2)" }
+pub inline fip extern float64/(*) : (float64,float64) -> float64 { inline "(#1 * #2)" }
+pub inline fip extern float64/(/) : (float64,float64) -> float64 { inline "(#1 / #2)" }
+pub inline fip extern float64/(%) : (float64,float64) -> float64 { c inline "fmod(#1,#2)"; inline "(#1 % #2)" }
 
 
 // Is the value negative?
-pub fip fun is-neg( d : float64 ) : bool
+pub fip fun float64/is-neg( d : float64 ) : bool
   d < 0.0
 
 // Is the value positive?
-pub fip fun is-pos( d : float64 ) : bool
+pub fip fun float64/is-pos( d : float64 ) : bool
   d > 0.0
 
 // Is the value zero?
-pub fip fun is-zero( d : float64 ) : bool
+pub fip fun float64/is-zero( d : float64 ) : bool
   d == 0.0
 
-pub fip fun sign( d : float64 ) : order
+pub fip fun float64/sign( d : float64 ) : order
   if d < 0.0 then Lt elif d > 0.0 then Gt else Eq
 
 // Negate a `:float64`.
-pub inline fip extern (~)( f : float64 ) : float64
+pub inline fip extern float64/(~)( f : float64 ) : float64
   inline "(-#1)"  // inline so `~0.0` becomes negative zero
 
 // convert a `:float64` to an `:int` using `round` to round to its nearest integer.
 // (rounding to an even number on a tie)
 // Returns `0` if the argument is not `finite?`.
-pub inline extern int( f : float64 ) : int
+pub inline extern float64/int( f : float64 ) : int
   c  "kk_integer_from_double"
   cs "Primitive.IntDouble"
   js "$std_core._int_double"
 
 // Returns the value `f`  raised to the power `p` .
-pub inline fip extern (^)( f : float64, p : float64) : float64
+pub inline fip extern float64/(^)( f : float64, p : float64) : float64
   c inline "pow(#1,#2)"
   cs "Math.Pow"
   js "Math.pow"
 
 // Return the absolute value of a `:float64` `f`
-pub inline fip extern abs( f : float64 ) : float64
+pub inline fip extern float64/abs( f : float64 ) : float64
   c inline "kk_double_abs(#1)"
   cs "Math.Abs"
   js "Math.abs"
 
 // Returns the smallest of two floats
-pub fip fun min( x : float64, y : float64 ) : float64
+pub fip fun float64/min( x : float64, y : float64 ) : float64
   if x <= y then x else y
 
 // Returns the largest of two floats
-pub fip fun max( x : float64, y : float64 ) : float64
+pub fip fun float64/max( x : float64, y : float64 ) : float64
   if x >= y then x else y
 
 // Returns the smallest element of a list of floats (or `0` for the empty list)
-pub fun minimum( xs : list<float64> ) : float64
+pub fun float64/minimum( xs : list<float64> ) : float64
   match xs
     Nil -> 0.0
     Cons(x,xx) -> xx.foldl( x, min )
 
 // Returns the largest element of a list of floats (or `0` for the empty list)
-pub fun maximum( xs : list<float64> ) : float64
+pub fun float64/maximum( xs : list<float64> ) : float64
   match xs
     Nil -> 0.0
     Cons(x,xx) -> xx.foldl( x, max )
@@ -1387,60 +1387,60 @@ pub fun maximum( xs : list<float64> ) : float64
 abstract value struct sslice( str : string, start : int, len : int )
 
 // Internal export for the regex module
-pub fun ".new-sslice"( str :string, start: int, len : int )
+pub fun "@new-sslice"( str :string, start: int, len : int )
   Sslice(str,start,len)
 
 // Convert a character to a string
-pub extern string : ( c : char ) -> string
+pub extern char/string : ( c : char ) -> string
   c  "kk_string_from_char"
   cs inline "Primitive.CharToString(#1)"
   js inline "_char_to_string(#1)"
 
 // Convert a vector of characters to a string.
-pub extern string : (vector<char>) -> string
+pub extern vector/string : (vector<char>) -> string
   c  "kk_string_from_chars"
   cs inline "Primitive.CharsToString(#1)"
   js inline "_chars_to_string(#1)"
 
 // Convert a string to a vector of characters.
-pub extern vector : ( s : string ) -> vector<char>
+pub extern string/vector : ( s : string ) -> vector<char>
   c  "kk_string_to_chars"
   cs inline "Primitive.StringToChars(#1)"
   js inline "_string_to_chars(#1)"
 
 // Convert a string to a list of characters
-pub extern list( s : string ) : total list<char>
+pub extern string/list( s : string ) : total list<char>
   c  "kk_string_to_list"
   cs inline "Primitive.StringToList(#1)"
   js inline "_string_to_list(#1)"
 
 // Convert a list of characters to a string
-pub extern string( cs : list<char> ) : total string
+pub extern listchar/string( cs : list<char> ) : total string
   c  "kk_string_from_list"
   cs inline "Primitive.ListToString(#1)"
   js inline "_list_to_string(#1)"
 
 // Are two strings equal?
 // Uses exact equality between character codes.
-pub inline extern (==) : (string,string) -> bool
+pub inline extern string/(==) : (string,string) -> bool
   c  "kk_string_is_eq"
   cs inline "(#1 == #2)"
   js inline "(#1 === #2)"
 
 // Are two strings not equal?
-pub inline extern (!=) : (string,string) -> bool
+pub inline extern string/(!=) : (string,string) -> bool
   c  "kk_string_is_neq"
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 
-pub inline fun (==)(l1: sslice, l2: sslice ): bool
+pub inline fun slice/(==)(l1: sslice, l2: sslice ): bool
   match (l1, l2)
     (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
       if f1 != f2 then False
       elif i1 != i2 then False
       else s1 == s2
 
-pub inline fun (!=)(l1: sslice, l2: sslice ): bool
+pub inline fun slice/(!=)(l1: sslice, l2: sslice ): bool
   match (l1, l2)
     (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
       if f1 != f2 then True
@@ -1454,37 +1454,37 @@ extern string-compare : ( x : string, y : string ) -> int
 
 // Compare two strings.
 // Uses the character codes directly for comparison
-pub fun compare( x : string, y : string) : order
+pub fun string/compare( x : string, y : string) : order
   string-compare(x,y).order
 
-pub fun (>=)( x : string, y : string ) : bool { compare(x,y) > Lt }
-pub fun (<=)( x : string, y : string ) : bool { compare(x,y) < Gt }
-pub fun (>)( x : string, y : string ) : bool  { compare(x,y) == Gt }
-pub fun (<)( x : string, y : string ) : bool  { compare(x,y) == Lt }
+pub fun string/(>=)( x : string, y : string ) : bool { compare(x,y) > Lt }
+pub fun string/(<=)( x : string, y : string ) : bool { compare(x,y) < Gt }
+pub fun string/(>)( x : string, y : string ) : bool  { compare(x,y) == Gt }
+pub fun string/(<)( x : string, y : string ) : bool  { compare(x,y) == Lt }
 
 // Append two strings.
-pub extern (++)(x : string, y : string) : string
+pub extern string/(++)(x : string, y : string) : string
   c "kk_string_cat"
   inline "(#1 + #2)"
 
 // Choose a non-empty string
-pub fun (||)( x : string, y : string ) : string
+pub fun string/(||)( x : string, y : string ) : string
   if x.is-empty then y else x
 
 // Length returns the length in the platform specific encoding (and should not be exported)
-inline extern length( s : string ) : int
+inline extern string/length( s : string ) : int
   c inline "kk_string_len_int(#1,kk_context())"
   cs inline "#1.Length"
   js inline "#1.length"
 
 // O(n). Return the number of characters in a string.
-pub extern count( s : string ) : int
+pub extern string/count( s : string ) : int
   c  "kk_string_count_int"
   cs "Primitive.StringCount"
   js "_string_count"
 
 // O(n). Return the number of characters in a string slice
-pub extern count( slice : sslice ) : int
+pub extern slice/count( slice : sslice ) : int
   c  "kk_slice_count"
   cs "Primitive.SliceCount"
   js "_sslice_count"
@@ -1505,7 +1505,7 @@ pub fun first(s : string, n : int = 1) : sslice
   if n==1 then slice else slice.extend( n - 1 )
 
 // O(`n`). The last `n` (default = `1`) characters in a string
-pub fun last(s : string, n : int = 1) : sslice
+pub fun string/last(s : string, n : int = 1) : sslice
   val slice = s.last1
   if n==1 then slice
             else slice.advance(1 - n).extend(n - 1)
@@ -1518,7 +1518,7 @@ pub fun slice( s : string ) : sslice
 val empty = Sslice("",0,0)
 
 // Is a slice empty?
-pub fun is-empty( slice : sslice ) : bool
+pub fun slice/is-empty( slice : sslice ) : bool
   !slice.len.is-pos
 
 // An invalid slice
@@ -1529,15 +1529,15 @@ pub fun is-valid( slice : sslice ) : bool
   slice.start >= 0
 
 // Is a slice not empty?
-pub fun is-notempty( slice : sslice ) : bool
+pub fun slice/is-notempty( slice : sslice ) : bool
   slice.len.is-pos
 
 // Return the first character of a string as a string (or the empty string)
-pub fun head( s : string ) : string
+pub fun string/head( s : string ) : string
   s.first.string
 
 // Return the tail of a string (or the empty string)
-pub fun tail( s : string ) : string
+pub fun string/tail( s : string ) : string
   s.first.after.string
 
 // Return the common prefix of two strings (upto `upto` characters (default is minimum length of the two strings))
@@ -1613,17 +1613,17 @@ pub fun substr( slice: sslice, start : int, end : int ): sslice
 
 // Apply a function for each character in a string slice.
 // If `action` returns `Just`, the function returns immediately with that result.
-pub fun foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe<a>
+pub fun slice/foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe<a>
   match slice.next
     Nothing -> Nothing
     Just((c,rest)) ->
       match action(c)
-        Nothing -> foreach-while(unsafe-decreasing(rest),action)
+        Nothing -> slice/foreach-while(unsafe-decreasing(rest),action)
         res     -> res
 
 
 // Apply a function for each character in a string slice.
-pub fun foreach( slice : sslice, action : (c:char) -> e ()) : e ()
+pub fun slice/foreach( slice : sslice, action : (c:char) -> e ()) : e ()
   foreach-while( slice ) fn(c)
     action(c)
     Nothing
@@ -1637,7 +1637,7 @@ inline extern xindex-of(s : string, sub : string ) : ssize_t
 
 // O(n). If it occurs, return the position of substring `sub` in `s`, tupled with
 // the position just following the substring `sub`.
-pub fun find( s : string, sub : string ) : maybe<sslice>
+pub fun string/find( s : string, sub : string ) : maybe<sslice>
   val i = s.xindex-of(sub)
   if i.is-zero then Nothing else Just(Sslice(s,i.decr.int,sub.length))
 
@@ -1677,19 +1677,19 @@ pub fun ends-with( s : string, post : string ) : maybe<sslice>
     else Nothing
 
 // Does string `s`  contain the string `sub`  ?
-pub inline extern contains: (s : string, sub : string ) -> bool
+pub inline extern string/contains: (s : string, sub : string ) -> bool
   c  "kk_string_contains"
   cs inline "((#1).Contains(#2))"
   js inline "((#1).indexOf(#2) >= 0)"
 
 // Concatenate a vector of strings
-pub inline extern join: (v : vector<string> ) -> string
+pub inline extern vector/join: (v : vector<string> ) -> string
   c  "kk_string_join"
   cs "String.Concat"
   js inline "((#1).join(''))"
 
 // Concatenate a vector of strings with a separator `sep`
-pub inline extern join: (v : vector<string>, sep : string ) -> total string
+pub inline extern vectorsep/join: (v : vector<string>, sep : string ) -> total string
   c  "kk_string_join_with"
   cs "Primitive.Concat"
   js inline "((#1).join(#2))"
@@ -1699,14 +1699,14 @@ pub fun truncate( s : string, count : int ) : string
   s.first.extend(count - 1).string
 
 // Trim off a substring `sub` while `s` starts with that string.
-pub fun trim-left( s : string, sub : string ) : string
+pub fun stringsub/trim-left( s : string, sub : string ) : string
   if sub.is-empty return s
   match s.starts-with(sub)
     Just(slice) -> trim-left(unsafe-decreasing(slice.string),sub)
     Nothing -> s
 
 // Trim off a substring `sub` while `s` ends with that string.
-pub fun trim-right( s : string, sub : string ) : string
+pub fun stringsub/trim-right( s : string, sub : string ) : string
   if sub.is-empty return s
   match s.ends-with(sub)
     Just(slice) -> trim-right(unsafe-decreasing(slice.string),sub)
@@ -1718,25 +1718,25 @@ extern repeatz( s : string, n : ssize_t ) : string
   js "_string_repeat"
 
 // Repeat a string `n` times
-pub fun repeat( s : string, ^n : int ) : string
+pub fun string/repeat( s : string, ^n : int ) : string
   repeatz(s,n.ssize_t)
 
 // Convert a `:maybe` string to a string using the empty sting for `Nothing`
-pub fun string( ms : maybe<string> ) : string
+pub fun maybe/string( ms : maybe<string> ) : string
   match ms
     Nothing -> ""
     Just(s) -> s
 
 // Is a string empty?
-pub fun is-empty( s : string ) : bool
+pub fun string/is-empty( s : string ) : bool
   s == ""
 
 // Is a string not empty?
-pub fun is-notempty( s : string ) : bool
+pub fun string/is-notempty( s : string ) : bool
   s != ""
 
 // Transform a string to a maybe type, using `Nothing` for an empty string
-pub fun maybe( s : string ) : maybe<string>
+pub fun string/maybe( s : string ) : maybe<string>
   if s.is-empty then Nothing else Just(s)
 
 inline extern splitv( s : string,  sep : string ) : vector<string>
@@ -1744,20 +1744,20 @@ inline extern splitv( s : string,  sep : string ) : vector<string>
   cs inline "(#1.Split(new String[]{#2}, StringSplitOptions.None))"
   js inline "((#1).split(#2))"
 
-inline extern splitv( s : string,  sep : string, n : ssize_t ) : vector<string>
+inline extern splitvn( s : string,  sep : string, n : ssize_t ) : vector<string>
   c  "kk_string_splitv_atmost"
   cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)"
   js inline "(#1).split(#2, #3)"
 
 // Split a string into parts that were delimited by `sep`. The delimeters are not included in the results.
 // For example: `split("1,,2",",") == ["1","","2]`
-pub fun split( s : string, sep : string ) : list<string>
+pub fun string/split( s : string, sep : string ) : list<string>
   splitv(s,sep).list
 
 // Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).
 // For example: `split("1,2,3",",",2) == ["1","2,3"]`
-pub fun split( s : string, sep: string, ^n : int) : list<string>
-  splitv(s,sep,n.ssize_t).list
+pub fun splitn/split( s : string, sep: string, ^n : int) : list<string>
+  splitvn(s,sep,n.ssize_t).list
 
 // Replace every occurrence of `pattern` to `repl` in a string.
 pub inline extern replace-all( s : string, pattern : string, repl : string ) : string
@@ -1766,22 +1766,22 @@ pub inline extern replace-all( s : string, pattern : string, repl : string ) : s
   js inline r"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)"
 
 // Count occurences of `pattern` in a string.
-pub inline extern count( s : string, pattern : string ) : int
+pub inline extern stringpat/count( s : string, pattern : string ) : int
   c  "kk_string_count_pattern"
   cs inline "Primitive.Count(#1,#2)"
   js inline r"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)"
 
 // Apply a function `f` to each character in a string
-pub fun map( s : string, f : char -> e char ) : e string
+pub fun string/map( s : string, f : char -> e char ) : e string
   s.list.map(f).string // todo: optimize
 
 // Invoke a function for each character in a string.
 // If `action` returns `Just`, the function returns immediately with that result.
-pub fun foreach-while( s : string, action : (c:char) -> e maybe<a> ) : e maybe<a>
+pub fun string/foreach-while( s : string, action : (c:char) -> e maybe<a> ) : e maybe<a>
   s.slice.foreach-while(action)
 
 // Invoke a function for each character in a string
-pub fun foreach( s : string, action : (c:char) -> e () ) : e ()
+pub fun string/foreach( s : string, action : (c:char) -> e () ) : e ()
   s.slice.foreach(action)
 
 // Return the first character of a string (or `Nothing` for the empty string).
@@ -1794,7 +1794,7 @@ pub fun head-char( s : string ) : maybe<char>
 //
 
 // Count the number of times a predicate is true for each character in a string
-pub fun count( s : string, pred : (char) -> e bool ) : e int
+pub fun stringpred/count( s : string, pred : (char) -> e bool ) : e int
   var cnt := 0
   s.foreach fn(c)
     if mask<local>{pred(c)} then cnt := cnt+1
@@ -1845,13 +1845,13 @@ pub fun trim( s : string ) : string
   s.trim-left.trim-right
 
 // Trim the starting white space of a string
-pub inline extern trim-left( s : string ) : string
+pub inline extern string/trim-left( s : string ) : string
   c  "kk_string_trim_left"
   cs inline "(#1).TrimStart()"
   js inline "((#1).replace(/^\\s\\s*/,''))"
 
 // Trim the ending white space of a string.
-pub inline extern trim-right( s : string ) : string
+pub inline extern string/trim-right( s : string ) : string
   c  "kk_string_trim_right"
   cs inline "(#1).TrimEnd()"
   js inline "((#1).replace(/\\s+$/,''))"
@@ -1878,7 +1878,7 @@ inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a>
   js inline "Array(#1)"
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-pub inline extern []( ^v : vector<a>, ^index : int ) : exn a
+pub inline extern vector/index( ^v : vector<a>, ^index : int ) : exn a
   c "kk_vector_at_int_borrow"
   cs inline "(#1)[Primitive.IntToInt32(#2)]"
   js inline "$std_core._vector_at(#1,#2)"
@@ -1912,38 +1912,38 @@ extern vector-initz(n : ssize_t, f : ssize_t -> a) : vector<a>
   js inline "_vector(#1,#2)"
 
 // Create an empty vector.
-pub inline extern vector : forall<a> () -> vector<a>
+pub inline extern unit/vector : forall<a> () -> vector<a>
   c inline "kk_vector_empty()"
   cs inline "new ##1[0]"
   js inline "[]"
 
 // Invoke a function `f` for each element in a vector `v`
-pub fun foreach( v : vector<a>, f : (a) -> e () ) : e ()
+pub fun vector/foreach( v : vector<a>, f : (a) -> e () ) : e ()
   v.foreach-indexedz( fn(_,x) { f(x) })
 
 // Invoke a function `f` for each element in a vector `v`
-pub fun foreach-indexed( v : vector<a>, f : (int,a) -> e () ) : e ()
+pub fun vector/foreach-indexed( v : vector<a>, f : (int,a) -> e () ) : e ()
   foreach-indexedz( v, fn(i,x) { f(i.int,x) } )
 
-fun foreach-indexedz( v : vector<a>, f : (ssize_t,a) -> e () ) : e ()
+fun vector/foreach-indexedz( v : vector<a>, f : (ssize_t,a) -> e () ) : e ()
   forz( 0.ssize_t, v.lengthz.decr ) fn(i)
     f(i,v.unsafe-idx(i))
 
 // Invoke a function `f` for each element in a vector `v`.
 // If `f` returns `Just`, the iteration is stopped early and the result is returned.
-pub fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
+pub fun vector/foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
   for-whilez( 0.ssize_t, v.lengthz.decr ) fn(i)
     f(v.unsafe-idx(i))
 
 // Apply a total function `f` to each element in a vector `v`
-pub fun map( v : vector<a>, f : a -> e b ) : e vector<b>
+pub fun vector/map( v : vector<a>, f : a -> e b ) : e vector<b>
   val w = unsafe-vector(v.length.ssize_t)
   v.foreach-indexedz fn(i,x)
     unsafe-assign(w,i,f(x))
   w
 
 // Convert a vector to a list.
-pub fun list( v : vector<a> ) : list<a>
+pub fun vector/list( v : vector<a> ) : list<a>
   v.vlist
 
 // Convert a vector to a list with an optional tail.
@@ -1953,7 +1953,7 @@ pub extern vlist( v : vector<a>, tail : list<a> = [] ) : list<a>
   js inline "_vlist(#1,#2)"
 
 // Convert a list to a vector.
-pub fun vector( xs : list<a> ) : vector<a>
+pub fun list/vector( xs : list<a> ) : vector<a>
   xs.unvlist
 
 pub extern unvlist( xs : list<a> ) : vector<a>
@@ -2000,7 +2000,7 @@ extern gshow : forall<a> a -> string
   js inline "#1.toString()"
 
 // Convert an `:int` to a string
-pub extern show( i : int ) : string
+pub extern int/show( i : int ) : string
   c "kk_integer_to_string"
   cs inline "#1.ToString()"
   js inline "#1.toString()"
@@ -2021,7 +2021,7 @@ pub fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : st
 // Show a `:float64` as a string.
 // If `d >= 1.0e-5` and `d < 1.0e+21`, `show-fixed` is used and otherwise `show-exp`.
 // Default `precision` is `-17`.
-pub fun show( d : float64, precision : int = -17 ) : string
+pub fun float64/show( d : float64, precision : int = -17 ) : string
   val dabs = d.abs
   if dabs >= 1.0e-5 && dabs < 1.0e+21
     then show-fixed(d,precision)
@@ -2074,36 +2074,36 @@ pub fun show-char( c : char ) : string
     else c.string
 
 // Show a `:char` as a character literal
-pub fun show( c : char ) : string
+pub fun char/show( c : char ) : string
   "'" ++ c.show-char ++ "'"
 
 // Show a string as a string literal
-pub noinline fun show( s : string ) : string
+pub noinline fun string/show( s : string ) : string
   "\"" ++ s.list.map(show-char).join ++ "\""
 
 // Convert a `:bool` to a string
-pub fun show( b : bool ) : string
+pub fun bool/show( b : bool ) : string
   if b then "True" else "False"
 
 // Convert a unit value `()` to a string
-pub fun show( u : () ) : string
+pub fun unit/show( u : () ) : string
   "()"
 
 // Show an `:sslice` as a string literal
-pub fun show( s : sslice ) : string
+pub fun sslice/show( s : sslice ) : string
   s.string.show
 
 // Convert a list to a string
 pub fun show-list( xs : list<a>, show-elem : (a) -> e string ) : e string
   "[" ++ xs.map(show-elem).join(",") ++ "]"
 
-pub fun show( xs : list<string> ) : string
+pub fun stringlist/show( xs : list<string> ) : string
   show-list(xs,show)
 
-pub fun show( xs : list<int> ) : string
+pub fun intlist/show( xs : list<int> ) : string
   show-list(xs,show)
 
-pub fun show( xs : list<bool> ) : string
+pub fun boollist/show( xs : list<bool> ) : string
   show-list(xs,show)
 
 pub fun show-tuple( x : (a,b), showfst : a -> e string, showsnd : b -> e string ) : e string
@@ -2163,51 +2163,51 @@ noinline fun printsln( s : string ) : console ()
   )()
 
 // Print a string to the console.
-pub fun print(s : string)
+pub fun string/print(s : string)
   prints(s)
 
 // Print an integer to the console.
-pub fun print(i : int)
+pub fun int/print(i : int)
   prints(show(i))
 
 // Print a float64 to the console.
-pub fun print(d : float64)
+pub fun float64/print(d : float64)
   prints(show(d))
 
 // Print a boolean to the console
-pub fun print( b : bool )
+pub fun bool/print( b : bool )
   prints(show(b))
 
 // Print a character to the console.
-pub fun print(c : char)
+pub fun char/print(c : char)
   prints(c.string)
 
 // Print a unit value to the console
-pub fun print( u : () )
+pub fun unit/print( u : () )
   prints(show(()))
 
 // Print a string to the console, including a final newline character.
-pub fun println(s : string) : console ()
+pub fun string/println(s : string) : console ()
   printsln(s)
 
 // Print an integer to the console, including a final newline character.
-pub fun println(i : int)
+pub fun int/println(i : int)
   printsln(show(i))
 
 // Print a float64 to the console, including a final newline character.
-pub fun println(d : float64)
+pub fun float64/println(d : float64)
   printsln(show(d))
 
 // Print a boolean to the console, including a final newline character
-pub fun println( b : bool )
+pub fun bool/println( b : bool )
   printsln(show(b))
 
 // Print a character to the console, including a final newline character.
-pub fun println(c : char)
+pub fun char/println(c : char)
   printsln(c.string)
 
 // Print a unit value to the console, including a final newline character
-pub fun println( u : () )
+pub fun unit/println( u : () )
   printsln(show(()))
 
 
@@ -2265,7 +2265,7 @@ pub effect exn
   // Throw an exception
   ctl throw-exn( exn : exception ) : a
 
-pub fun ".default-exn"(action : () -> <exn,console|e> () ) : <console|e> ()
+pub fun "@default-exn"(action : () -> <exn,console|e> () ) : <console|e> ()
   handle( action )
     final ctl throw-exn( exn : exception )
       "uncaught exception: ".prints
@@ -2300,7 +2300,7 @@ pub fun error-pattern(location : string, definition : string) : exn a
 
 // Catch any exception raised in `action` and handle it.
 // Use `on-exn` or `on-exit` when appropiate.
-pub fun try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a
+pub fun exn/try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a
   with final ctl throw-exn(exn) hndl(exn)
   action()
 
@@ -2315,7 +2315,7 @@ pub value type error<a>
   Ok( result : a )
 
 // Transform an exception effect to an  `:error` type.
-pub fun try( action : () -> <exn|e> a ) : e error<a>
+pub fun error/try( action : () -> <exn|e> a ) : e error<a>
   try({ Ok(action()) }, fn(exn){ Error(exn) })
 
 // Return a default value when an exception is raised
@@ -2333,19 +2333,19 @@ pub fun exn( err : error<a> ) : exn a
   untry(err)
 
 // Use default value `def` in case of an error.
-pub fun default( t : error<a>, def : a ) : a
+pub fun error/default( t : error<a>, def : a ) : a
   match t
     Error  -> def
     Ok(x)  -> x
 
 // Transform an `:error` type to a `:maybe` value.
-pub fun maybe( t : error<a> ) : maybe<a>
+pub fun error/maybe( t : error<a> ) : maybe<a>
   match t
     Error  -> Nothing
     Ok(x)  -> Just(x)
 
 // Transform an `:error` type to an `:either` value.
-pub fun either( t : error<a> ) : either<exception,a>
+pub fun error/either( t : error<a> ) : either<exception,a>
   match t
     Error(exn) -> Left(exn)
     Ok(x)      -> Right(x)
@@ -2371,34 +2371,34 @@ pub fun on-exit( hndler : () -> e (), action : () -> e a ) : e a
 pub type null<a>
 
 // Unsafe: transform any type to a `null` type; used internally by the compiler.
-pub extern ".null-any"(x : a) : null<a>
+pub extern "@null-any"(x : a) : null<a>
   c  inline "(kk_box_is_null(#1) ? kk_datatype_null() : kk_datatype_unbox(#1))"
   cs inline "#1"
   js inline "(#1==null ? null : #1)"  // undefined -> null
 
 // Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
-pub extern null(x : maybe<a>) : null<a>
+pub extern maybe/null(x : maybe<a>) : null<a>
   c  inline "(kk_std_core_types__is_Nothing(#1,kk_context()) ? kk_datatype_null() : kk_datatype_unbox((#1)._cons.Just.value) /* kk_datatype_unbox(kk_datatype_unjust(#1,kk_context())) */ )"
   cs inline "(#1.tag_ == __std_core._maybe_Tag.Nothing ? default(##1) : #1.@value)"
   js inline "(#1==null ? null : #1.value)"
 
 // Transform a `:null` type to a `:maybe` type. Note that it is not
 // always the case that `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
-pub extern maybe( n : null<a> ) : maybe<a>
+pub extern null/maybe( n : null<a> ) : maybe<a>
   c  inline "(kk_datatype_is_null(#1) ? kk_std_core_types__new_Nothing(kk_context()) : kk_std_core_types__new_Just(kk_datatype_box(#1),kk_context()))"
   cs inline "(EqualityComparer<##1>.Default.Equals(#1,default(##1)) ? __std_core._maybe<##1>.Nothing_ : new __std_core._maybe<##1>(#1))"
   js inline "(#1==null ? $std_core_types.Nothing : $std_core_types.Just(#1))"
 
 // Cast a integer that is zero to a null
-pub fun null( i : int ) : null<int>
+pub fun int/null( i : int ) : null<int>
     i.maybe.null
 
 // Cast an empty string a null
-pub fun null( s : string ) : null<string>
+pub fun string/null( s : string ) : null<string>
     s.maybe.null
 
 // Cast a boolean `False` to null
-pub fun null( b : bool ) : null<()>
+pub fun bool/null( b : bool ) : null<()>
     b.maybe.null
 
 // val null-const : forall<a> null<a> = null(Nothing)
@@ -2421,7 +2421,7 @@ pub inline extern inject-local<a,h,e>( action : () -> e a ) : total (() -> <loca
   inline "#1"
 
 // Assign to an entry in a local `:vector` variable.
-pub inline extern []( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> ()
+pub inline extern array/index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> ()
   c  "kk_ref_vector_assign_borrow"
   cs inline "(#1)[(int)#2] = #3"
   js inline "(#1)[#2] = #3"
@@ -2476,7 +2476,7 @@ pub fun while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <di
     while(predicate, action)
 
 // The `repeat` fun executes `action`  `n`  times.
-pub fun repeat( ^n : int, action : () -> e () ) : e ()
+pub fun action/repeat( ^n : int, action : () -> e () ) : e ()
   for(1,n) fn(i)
     action()
 
@@ -2536,7 +2536,7 @@ pub inline extern ".open"<e1 :: E, e2 :: E, a, b>( x : a ) : total b
 */
 
 // Magic casting to the `:any` type.
-pub inline extern ".toany"( x : a ) : any
+pub inline extern "@toany"( x : a ) : any
   inline "#1"
   cs inline "(object)(#1)"
 

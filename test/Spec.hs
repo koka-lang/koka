@@ -92,8 +92,8 @@ testSanitize kokaDir
   . sub "[[:blank:]]+" " "
   . sub "\\\\" "/"
   -- type variable names and box names
-  . sub "\\.box-x[[:digit:]]+(-x[[:digit:]]+)?" ".box"
-  . sub "(\\.[a-zA-Z])[[:digit:]]+" "\\1"
+  . sub "\\@box-x[[:digit:]]+(-x[[:digit:]]+)?" "@box"
+  . sub "(\\@[a-zA-Z])[[:digit:]]+" "\\1"
   . sub "([a-zA-Z])\\.[[:digit:]]+" "\\1"
   -- . sub "([a-zA-Z])\\.[[:digit:]]+\\.[[:digit:]]+" "\\1"
   . sub "<[[:digit:]]+>" "<0>"

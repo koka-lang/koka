@@ -952,7 +952,7 @@ inferExpr propagated expect (Inject label expr behind rng)
        -- traceDoc $ \env -> text "inject: effTo:" <+> ppType env effTo <+> text "," <+> ppType env exprEff <+> text ", exprTp: " <+> ppType env sexprTp
        let coreLevel  = if behind then Core.exprTrue else Core.exprFalse -- Core.Lit (Core.LitInt (if behind then 1 else 0))
        core <- case mbHandled of
-                 -- general handled effects use ".inject-effect"
+                 -- general handled effects use "@inject-effect"
                  Just coreHTag
                    -> do (maskQName,maskTp,maskInfo) <- resolveFunName nameMaskAt (CtxFunArgs 3 [] Nothing) rng rng
                          (evvIndexQName,evvIndexTp,evvIndexInfo) <- resolveFunName nameEvvIndex (CtxFunArgs 1 [] Nothing) rng rng

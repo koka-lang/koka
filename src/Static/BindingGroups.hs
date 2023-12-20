@@ -26,15 +26,17 @@ import Lib.Trace (trace)
 
 bindingGroups :: UserProgram -> UserProgram
 bindingGroups (Program source modName nameRange typeDefs defs imports externals fixDefs doc)
-  = Program source modName nameRange (bindingsTypeDefs typeDefs) (bindings ({-toShortModuleName-} modName) defs) imports externals fixDefs doc
+  = Program source modName nameRange
+      (bindingsTypeDefs modName typeDefs)
+      (bindings ({-toShortModuleName-} modName) defs) imports externals fixDefs doc
 
 ---------------------------------------------------------------------------
 -- Binding groups in type definitions
 ---------------------------------------------------------------------------
-bindingsTypeDefs :: [UserTypeDefGroup] -> [UserTypeDefGroup]
-bindingsTypeDefs typeDefGroups
+bindingsTypeDefs :: Name -> [UserTypeDefGroup] -> [UserTypeDefGroup]
+bindingsTypeDefs modName typeDefGroups
   = let (ds,extends) = partition isDefinition (flatten typeDefGroups)
-    in groupTypeDefs ds (M.fromList (map dependencyTypeDef ds)) ++ (map TypeDefNonRec extends)
+    in groupTypeDefs ds (M.fromList (map (dependencyTypeDef modName) ds)) ++ (map TypeDefNonRec extends)
   where
     flatten groups
       = concatMap (\g -> case g of { TypeDefRec typeDefs -> typeDefs; TypeDefNonRec td -> [td]}) groups
@@ -44,11 +46,13 @@ bindingsTypeDefs typeDefGroups
           DataType binder args cons range vis sort ddef isExtend doc -> not isExtend
           _ -> True
 
-dependencyTypeDef :: UserTypeDef -> (Name,S.NameSet)
-dependencyTypeDef typeDef
+dependencyTypeDef :: Name -> UserTypeDef -> (Name,S.NameSet)
+dependencyTypeDef modName typeDef
   = case typeDef of
-      Synonym binder args tp range vis doc    -> (typeDefName typeDef, freeTypes tp)
-      DataType binder args cons range vis sort ddef isExtend doc -> (typeDefName typeDef, freeTypes cons)
+      Synonym binder args tp range vis doc    -> (typeDefName typeDef, S.map normalize (freeTypes tp))
+      DataType binder args cons range vis sort ddef isExtend doc -> (typeDefName typeDef, S.map normalize (freeTypes cons))
+  where
+    normalize name = if qualifier name == modName then unqualify name else name
 
 ---------------------------------------------------------------------------
 -- Free type constructors
@@ -385,7 +389,8 @@ groupTypeDefs typeDefs deps
                                    then [TypeDefRec (M.find id typeMap)]
                                    else map TypeDefNonRec (M.find id typeMap)
                           _    -> [TypeDefRec (concat [M.find id typeMap | id <- ids])]
-     in -- trace ("Static.BindingGroups: typedef binding order: " ++ show typeOrder) $
+     in -- trace("Static.BindingGroups: typedef binding order: " ++ show typeOrder) $
+        -- trace("Static.BindingGroups: typedef deps: " ++ show deps) $
         -- trace ("Static.BindingGropus: typedefs: " ++ show (map (tbinderName . typeDefBinder) typeDefs)) $
         concatMap makeGroup typeOrder
 

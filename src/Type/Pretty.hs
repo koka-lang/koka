@@ -432,7 +432,8 @@ ppNameEx env name
      then prettyName (colors env) name
      else if (context env == qualifier name
                || ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env))
-               || isNameTuple name)
+              -- || isNameTuple name
+              )
            then prettyName (colors env) (unqualify name)
            else -- if coreIface env
                 -- then pretty name

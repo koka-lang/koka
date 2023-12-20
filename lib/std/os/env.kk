@@ -34,10 +34,10 @@ pub fun get-env() : ndet env
   environ.force
 
 // Returns the value of an environment variable `name` (or `Nothing` if not present)
-pub fun get-env( name : string ) : ndet maybe<string>
+pub fun string/get-env( name : string ) : ndet maybe<string>
   get-env().lookup(fn(nm){ nm == name })
 
-val argv : delayed<<ndet>,list<string>> = 
+val argv : delayed<<ndet>,list<string>> =
   delay{ os-get-argv().list }
 
 extern os-get-argv() : ndet vector<string>
@@ -100,17 +100,17 @@ pub extern get-cpu-is-little-endian() : ndet bool
 
 // Return the processor natural integer register size in bits.
 //
-// Note: Usually this equals the `get-cpu-size-bits` and `get-cpu-pointer-bits` on modern cpu's 
+// Note: Usually this equals the `get-cpu-size-bits` and `get-cpu-pointer-bits` on modern cpu's
 // but they can differ on segmented architectures.
 // For example, on the old x86 FAR-NEAR model, the addresses are 32-bit but the maximum object size is 16-bit.
-// Or on the more recent-[x32 ABI](https://en.wikipedia.org/wiki/X32_ABI) 
+// Or on the more recent-[x32 ABI](https://en.wikipedia.org/wiki/X32_ABI)
 // the addresses and objects are 32-bits but the architecture has 64-bit registers.
 pub extern get-cpu-int-bits() : ndet int
   c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(kk_intx_t),kk_context())"
   js inline "32"
 
 // Return the processor maximum object size in bits (`8*sizeof(size_t)`). This is usually
-// equal to the `get-cpu-arch-bits` but may be different on segmented architectures. 
+// equal to the `get-cpu-arch-bits` but may be different on segmented architectures.
 pub extern get-cpu-size-bits() : ndet int
   c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(size_t),kk_context())"
   js inline "32"
@@ -131,4 +131,4 @@ pub extern get-cpu-pointer-bits() : ndet int
 // equal to `8*sizeof(void*)` but can be less if compressed pointers are used.
 pub extern get-cpu-boxed-bits() : ndet int
   c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(kk_intb_t),kk_context())"
-  js inline "32"  
+  js inline "32"

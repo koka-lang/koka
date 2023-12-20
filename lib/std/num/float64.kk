@@ -6,7 +6,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* 64-bit IEEE floating point numbers. 
+/* 64-bit IEEE floating point numbers.
 
 Also described as _double_ precision or _binary64_ numbers in the standards.
 See also <https://en.wikipedia.org/wiki/Double-precision_floating-point_format>.
@@ -180,7 +180,7 @@ pub inline extern ceiling( d : float64 ) : float64
 pub extern fmadd( x : float64, y : float64, z : float64 ) : float64
   c  "fma"
   js "_fmadd"
-  cs "Math.FusedMultiplyAdd"  
+  cs "Math.FusedMultiplyAdd"
 
 // Return the integral part of a `:float64` `d` .
 // If `d >= 0.0` , return the largest integer equal or less to `d` ,
@@ -325,16 +325,16 @@ pub fun logaddexp2( x : float64, y : float64 ) : float64
 // Return if two floats are nearly equal with respect to some `epsilon` (=`8*flt-epsilon`).
 // The epsilon is the nearest difference for numbers around 1.0. The routine automatically
 // scales the epsilon for larger and smaller numbers, and for subnormal numbers.
-pub fun nearly-eq( x : float64, y : float64, epsilon : float64 = 8.0*flt-epsilon ) : bool 
+pub fun nearly-eq( x : float64, y : float64, epsilon : float64 = 8.0*flt-epsilon ) : bool
   if x == y return True
   val diff = (x - y).abs
   if x==0.0 || y==0.0 || diff < flt-min then
     // very close to zero, scale the epsilon for denormalized numbers
     (2.0*diff < (epsilon * flt-min))
-  else 
+  else
     val sum = x.abs + y.abs
     ((2.0*diff / (if sum > flt-max then flt-max else sum)) < epsilon)
-  
+
 
 // Return if two floats are nearly equal with respect to an `epsilon` of `8*flt-epsilon`.
 // See also `nearly-eq` which takes an explicit `epsilon`.
@@ -346,17 +346,17 @@ pub fun (~=)(x : float64, y : float64 ) : bool
 //-----------------------------------------
 
 // Low-level: return the bits of a 64-bit `:float64` as in `:int64`
-pub extern float64-to-bits( d : float64 ) : int64 
+pub extern float64-to-bits( d : float64 ) : int64
   c  "kk_double_to_bits"
   cs "Primitive.DoubleToBits"
   js "_double_to_bits"
 
 
-// Low-level: create a `:float64` from the given 64-bit integer. 
+// Low-level: create a `:float64` from the given 64-bit integer.
 pub extern float64-from-bits( i : int64 ) : float64
   c  "kk_double_from_bits"
   cs "Primitive.DoubleFromBits"
-  js "_double_from_bits" 
+  js "_double_from_bits"
 
 
 // Calculate 2&middot;^`e`^ for an integer `e`.
@@ -377,7 +377,7 @@ pub fun encode( man : int, exp : int ) : float64
 val one-p1023 = 0x1.0p1023
 val one-m1022 = 0x1.0p-1022   // = flt-min
 
-fun mul-exp2( x : float64, e : int ) : float64 
+fun mul-exp2( x : float64, e : int ) : float64
   x * exp2i(e)
 
 // 'Load exponent': returns `x`&middot;2^`e`^ for a `is-finite` `x` and
@@ -409,7 +409,7 @@ fun decode-normalized( d : float64, e-adjust : int = 0 ) : (int,int)
   val exp  = and(i.shr(52),0x7FF.int64) - 1043.int64
   val man  = and(i,0x000F_FFFF_FFFF_FFFF.int64) + 0x0010_0000_0000_0000.int64
   ( (if i.is-neg then ~man else man).int, exp.int - 32 + e-adjust )
-  
+
 
 // 'Fraction/exponent': return the normalized fraction `f` and exponent `exp`
 // for a number `x` such that `x == f`&middot;2^`exp`^.
@@ -424,12 +424,12 @@ pub fun frexp( x : float64 ) : (float64, int)
 
 // Returns the greatest `:float64` less than `x`.
 // This behaves exactly as `nextDown` in the IEEE 754-2008 standard.
-// The identity `x.next-down == ~next-down(~x)` holds for all `x`. 
+// The identity `x.next-down == ~next-down(~x)` holds for all `x`.
 // When `x` is finite `x == x.next-down.next-up` also holds.
 pub fun next-down( x : float64 ) : float64
   if x.is-nan || x.is-neginf then x
   elif x.is-zero then ~flt-true-min
-  else 
+  else
     val i = float64-to-bits(x)
     val next = if i.is-neg then i.inc else i.dec
     float64-from-bits(next)
@@ -437,12 +437,12 @@ pub fun next-down( x : float64 ) : float64
 
 // Returns the least `:float64` greater than `x`.
 // This behaves exactly as `nextUp` in the IEEE 754-2008 standard.
-// The identity `x.next-up == ~next-down(~x)` holds for all `x`. 
+// The identity `x.next-up == ~next-down(~x)` holds for all `x`.
 // When `x` is finite `x == x.next-up.next-down` also holds.
 pub fun next-up( x : float64 ) : float64
   if x.is-nan || x.is-posinf then x
   elif x.is-zero then flt-true-min
-  else 
+  else
     val i = float64-to-bits(x)
     val next = if i.is-neg then i.dec else i.inc
     float64-from-bits(next)
@@ -468,14 +468,14 @@ pub fun compare( x : float64, y : float64 ) : order
   val ix = bx.sar(63).shr(1).xor(bx)
   val iy = by.sar(63).shr(1).xor(by)
   compare(ix,iy)
-  
+
 
 // The midpoint is the average of `x` and `y`.
 // Avoids overflow on large numbers.
-pub fun midpoint( x : float64, y : float64 ) : float64 
+pub fun midpoint( x : float64, y : float64 ) : float64
   if is-subnormal(x) || is-subnormal(y)
     then (x + y) / 2.0
-    else (x / 2.0) + (y / 2.0)  
+    else (x / 2.0) + (y / 2.0)
 
 
 // Linear interpolation, calculating `x + t*(y - x)` but avoids troublesome edge cases.
@@ -620,7 +620,7 @@ pub fun hypot( x : float64, y : float64 ) : float64
 
 // The square root of the sum of the squares of three floats.
 // Prevents overflow for large numbers.
-pub fun hypot( x : float64, y : float64, z : float64 ) : float64
+pub fun xyz/hypot( x : float64, y : float64, z : float64 ) : float64
   val xx = abs(x)
   val yy = abs(y)
   val zz = abs(z)
@@ -632,7 +632,7 @@ pub fun hypot( x : float64, y : float64, z : float64 ) : float64
 // The square root of the sum of squares of a list of floats.
 // Prevents overflow for large numbers and uses Kahan-Babu&scaron;kan-Neumaier summation
 // for precision.
-pub fun hypot( xs : list<float64> ) : float64
+pub fun list/hypot( xs : list<float64> ) : float64
   val hi = xs.abs-max
   if hi==0.0 then 0.0 else
     hi * xs.map( fn(x) sqr(x / hi) ).sum.sqrt
@@ -647,7 +647,7 @@ pub fun abs-max( x : float64, y : float64 ) : float64
   max(abs(x),abs(y))
 
 // The maximum of a list of absolute values.
-pub fun abs-max( xs : list<float64> ) : float64
+pub fun list/abs-max( xs : list<float64> ) : float64
   xs.foldl(0.0, fn(m,x) max(abs(x),m) )
 
 //-----------------------------------------
@@ -764,8 +764,8 @@ pub extern asinh( d : float64 ) : float64
 // ------------------------
 // explicit implementations
 // ------------------------
-  
-/*  
+
+/*
 // Return `log(1.0 + x)`.
 // Avoids potential imprecision for small `x` where adding `1.0` explicitly
 // may lead to rounding errors.

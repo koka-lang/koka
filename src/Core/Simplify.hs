@@ -895,7 +895,7 @@ occurrencesDefGroup dg oc
 
 uniqueTName (TName name tp)
   = do i <- unique
-       return (TName (postpend ("." ++ show i) name) tp)
+       return (TName (postpend ("@" ++ show i) name) tp)
 
 
 {--------------------------------------------------------------------------

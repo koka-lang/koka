@@ -334,14 +334,15 @@ defDecl env
 pdefSort
   = do isRec <- do{ specialId "recursive"; return True } <|> return False
        inl <- parseInline
-       (do fip <- try parseFip
-           (_,doc) <- dockeyword "fun"
-           _       <- do { specialOp "**"; return ()}
-                      <|>
-                      do { specialOp "*"; return () }
-                      <|>
-                      return ()
-           return (defFunEx [] fip,inl,isRec,doc)  -- borrow info comes from type
+       try $
+        (do fip <- parseFip
+            (_,doc) <- dockeyword "fun"
+            _       <- do { specialOp "**"; return ()}
+                       <|>
+                       do { specialOp "*"; return () }
+                       <|>
+                       return ()
+            return (defFunEx [] fip,inl,isRec,doc)  -- borrow info comes from type
         <|>
         do (_,doc) <- dockeyword "val"
            return (DefVal,inl,False,doc))
@@ -621,7 +622,7 @@ parsePatternBasic env
 
 parsePatCon  :: Env -> LexParser (Env,Pattern)
 parsePatCon env
-  = do skip  <- do specialId ".skip"
+  = do skip  <- do specialId "@skip"
                    return True
                 <|> return False
        cname <- qualifiedConId

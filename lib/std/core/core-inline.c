@@ -28,7 +28,7 @@ kk_std_core__list kk_vector_to_list(kk_vector_t v, kk_std_core__list tail, kk_co
     }
     cons = kk_std_core__as_Cons(hd,ctx);
   }
-  if (cons == NULL) { list = tail; } 
+  if (cons == NULL) { list = tail; }
                else { cons->tail = tail; }
   kk_vector_drop(v,ctx);
   return list;
@@ -46,7 +46,7 @@ kk_vector_t kk_list_to_vector(kk_std_core__list xs, kk_context_t* ctx) {
   }
   // alloc the vector and copy
   kk_box_t* p;
-  kk_vector_t v = kk_vector_alloc_uninit(len, &p, ctx);  
+  kk_vector_t v = kk_vector_alloc_uninit(len, &p, ctx);
   ys = xs;
   for( kk_ssize_t i = 0; i < len; i++) {
     struct kk_std_core_Cons* cons = kk_std_core__as_Cons(ys,ctx);
@@ -59,7 +59,7 @@ kk_vector_t kk_list_to_vector(kk_std_core__list xs, kk_context_t* ctx) {
 
 kk_vector_t kk_vector_init( kk_ssize_t n, kk_function_t init, kk_context_t* ctx) {
   kk_box_t* p;
-  kk_vector_t v = kk_vector_alloc_uninit(n, &p, ctx);  
+  kk_vector_t v = kk_vector_alloc_uninit(n, &p, ctx);
   for(kk_ssize_t i = 0; i < n; i++) {
     kk_function_dup(init,ctx);
     p[i] = kk_function_call(kk_box_t,(kk_function_t,kk_ssize_t,kk_context_t*),init,(init,i,ctx),ctx);
@@ -160,7 +160,7 @@ kk_string_t kk_slice_to_string( kk_std_core__sslice  sslice, kk_context_t* ctx )
   const uint8_t* end;
   kk_sslice_start_end_borrow(sslice, &start, &end, ctx);
   // is it the full string?
-  if (kk_integer_is_zero_borrow(sslice.start) && 
+  if (kk_integer_is_zero_borrow(sslice.start) &&
       kk_integer_eq_borrow(sslice.len,kk_integer_from_ssize_t(kk_string_len_borrow(sslice.str,ctx),ctx),ctx)) {
     // TODO: drop sslice and dup sslice.str?
     return sslice.str;
@@ -195,7 +195,7 @@ kk_std_core__sslice kk_slice_between( struct kk_std_core_Sslice slice1, struct k
     kk_info_message("between: not equal slices: %p vs. %p\n", s1, s2);
     return kk_std_core__new_Sslice(kk_string_empty(), kk_integer_zero, kk_integer_min_one, ctx); // invalid slice
   }
-  
+
   kk_integer_t start;
   kk_integer_t len;
   if (kk_integer_lte_borrow(slice1.start,slice2.start,ctx)) {
@@ -205,7 +205,7 @@ kk_std_core__sslice kk_slice_between( struct kk_std_core_Sslice slice1, struct k
   else  {
     start = kk_integer_dup(slice2.start,ctx);
     len   = kk_integer_sub(kk_integer_dup(slice1.start,ctx),kk_integer_dup(slice2.start,ctx),ctx);
-  }  
+  }
   return kk_std_core__new_Sslice(slice1.str, start, len, ctx);
 }
 
@@ -222,12 +222,12 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
   kk_assert_internal(clen > 0 && clen <= kk_integer_clamp_ssize_t_borrow(slice.len,ctx));
   kk_integer_t iclen = kk_integer_min(kk_integer_from_ssize_t(clen,ctx),kk_integer_dup(slice.len,ctx),ctx);
   // TODO: specialize type to avoid boxing
-  // note: don't drop slice as we take over all fields  
+  // note: don't drop slice as we take over all fields
   kk_integer_t istart = kk_integer_add(slice.start,kk_integer_dup(iclen,ctx),ctx);
   kk_integer_t ilen   = kk_integer_sub(slice.len,iclen,ctx);
   kk_std_core__sslice snext = kk_std_core__new_Sslice(slice.str, istart, ilen, ctx);
-  kk_std_core_types__tuple2_ res = kk_std_core_types__new_dash__lp__comma__rp_( kk_char_box(c,ctx), kk_std_core__sslice_box(snext,ctx), ctx);
-  return kk_std_core_types__new_Just( kk_std_core_types__tuple2__box(res,ctx), ctx );
+  kk_std_core_types__tuple2 res = kk_std_core_types__new_Tuple2( kk_char_box(c,ctx), kk_std_core__sslice_box(snext,ctx), ctx);
+  return kk_std_core_types__new_Just( kk_std_core_types__tuple2_box(res,ctx), ctx );
 }
 
 /* Borrow count */
@@ -297,14 +297,14 @@ struct kk_std_core_Sslice kk_slice_advance_borrow( struct kk_std_core_Sslice sli
     }
   }
   // t1 points to the new end
-  kk_assert_internal(t1 >= t0);  
+  kk_assert_internal(t1 >= t0);
   const kk_ssize_t in_len = kk_integer_clamp_ssize_t_borrow(slice.len, ctx);
   kk_ssize_t new_len = (t1-t0);
   // kk_info_message("Here %d %d %d t: %d %d s: %d %d, st: %d %d\n", in_len, cnt0, new_len, t1, t0, s1, s0, sstart, send);
   kk_assert_internal(t1 <= send && t0 >= sstart);
   kk_integer_drop(slice.start,ctx);
   kk_integer_drop(slice.len,ctx);
-  return kk_std_core__new_Sslice(slice.str, kk_integer_from_ptrdiff_t(t0 - sstart,ctx), 
+  return kk_std_core__new_Sslice(slice.str, kk_integer_from_ptrdiff_t(t0 - sstart,ctx),
                                           kk_integer_from_ptrdiff_t(new_len, ctx), ctx);
 }
 
@@ -326,7 +326,7 @@ kk_std_core__error kk_error_ok( kk_box_t result, kk_context_t* ctx ) {
   return kk_std_core__new_Ok( result, ctx );
 }
 
-kk_std_core__error kk_error_from_errno( int err, kk_context_t* ctx ) {  
+kk_std_core__error kk_error_from_errno( int err, kk_context_t* ctx ) {
   kk_string_t msg;
   #if defined(__GLIBC__) && !defined(WIN32) && !defined(__APPLE__) && !defined(__FreeBSD__)
     // GNU version of strerror_r
@@ -347,7 +347,7 @@ kk_std_core__error kk_error_from_errno( int err, kk_context_t* ctx ) {
     // Old style
     msg = kk_string_alloc_from_qutf8( strerror(err), ctx );
   #endif
-  return kk_std_core__new_Error( kk_std_core__new_Exception( msg, kk_std_core__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(err,ctx), ctx), ctx), ctx );  
+  return kk_std_core__new_Error( kk_std_core__new_Exception( msg, kk_std_core__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(err,ctx), ctx), ctx), ctx );
 }
 
 

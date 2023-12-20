@@ -11,11 +11,11 @@
 -}
 
 module Core.AnalysisCCtx( analyzeCCtx,
-                          
+
                           makeCCtxEmpty,
                           makeCCtxCreate,
                           makeCCtxSetContextPath,
-                          makeFieldAddrOf 
+                          makeFieldAddrOf
                           -- getFieldName
                         ) where
 
@@ -27,7 +27,7 @@ import Common.Syntax( Target(..), JsTarget(..), CTarget(..) )
 import Common.Id
 import Common.Name
 import Common.NamePrim(nameCCtxHoleCreate,nameCCtxCreate,nameCCtxEmpty,nameCCtxSetCtxPath,
-                       nameFieldAddrOf,nameTpFieldAddr, 
+                       nameFieldAddrOf,nameTpFieldAddr,
                        nameEffectOpen)
 import Common.Range
 import Common.Unique(HasUnique(..))
@@ -62,7 +62,7 @@ cctxCreate expr | isHole expr
 -- non-empty context
 cctxCreate expr
   = do -- mtrace ("expr: " ++ show expr)
-       (Ctx defs top (Hole addr holetp)) <- cctxExpr expr  
+       (Ctx defs top (Hole addr holetp)) <- cctxExpr expr
        let tp = typeOf top
        let cctx = makeCCtxCreate tp holetp top addr
        return (Let (map DefNonRec defs) cctx)
@@ -79,7 +79,7 @@ cctxExpr expr
         -> cctxCon name repr targs args
 
       -- App (App (TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f]) []) | getName open == nameEffectOpen
-      
+
       _ -> illegal
 
       {-
@@ -87,12 +87,12 @@ cctxExpr expr
       Lam _ _ _   -> illegal "lambda"
       TypeLam _ e -> illegal ""
       Lit _       -> illegal
-      Let dgs e   -> 
-      Case _ _    -> 
-      App _ _     -> 
+      Let dgs e   ->
+      Case _ _    ->
+      App _ _     ->
       -}
 
--- todo: check dataRepr for non-value constructor         
+-- todo: check dataRepr for non-value constructor
 cctxCon :: TName -> ConRepr -> [Type] -> [Expr] -> CCtx Ctx
 cctxCon conName conRepr targs args
   = case span (not . isHole) args of
@@ -105,7 +105,7 @@ cctxConRecurse conName conRepr targs args
   =  do -- mtrace "recurse"
         (pre,ctx,post) <- cctxFind [] [] args
         mapM_ cctxCheckNoHole (pre ++ post)
-        (ds,vars) <- unzip <$> mapM makeUniqueDef pre      
+        (ds,vars) <- unzip <$> mapM makeUniqueDef pre
         fname <- getFieldName conName (length pre + 1)
         let ctxrepr = conRepr{ conCtxPath = CtxField fname }
         (d1,var1) <- makeUniqueDef (App (makeTypeApp (Con conName ctxrepr) targs) (vars ++ [top ctx] ++ post))
@@ -118,7 +118,7 @@ cctxConFinal conName conRepr targs pre hole post
         mapM_ cctxCheckNoHole (pre ++ post)
         fname <- getFieldName conName (length pre + 1)
         let holetp = typeOf hole
-            ctxrepr = conRepr{ conCtxPath = CtxField fname }       
+            ctxrepr = conRepr{ conCtxPath = CtxField fname }
         ensureValidHoleType holetp
         (d1,var1) <- makeUniqueDef (App (makeTypeApp (Con conName ctxrepr) targs) (pre ++ [hole] ++ post))
         (d2,addr) <- makeUniqueDef (makeFieldAddrOf var1 conName (getName fname)   holetp)
@@ -133,10 +133,10 @@ cctxCheckNoHole expr
 
 cctxFind :: [(Range,Doc)] -> [Expr] -> [Expr] -> CCtx ([Expr],Ctx,[Expr])
 -- no args
-cctxFind errs acc [] 
+cctxFind errs acc []
   = emitErrors errs
 -- try recursively
-cctxFind errs acc (arg:args) 
+cctxFind errs acc (arg:args)
   = do r <- try (cctxExpr arg)
        case r of
          Left errs' -> cctxFind (errs ++ errs') (arg:acc) args
@@ -149,18 +149,18 @@ illegal
 makeUniqueDef :: Expr -> CCtx (Def,Expr)
 makeUniqueDef expr
   = do name <- uniqueName "cctx"
-       return (makeDef name expr, Var (TName name (typeOf expr)) InfoNone) 
+       return (makeDef name expr, Var (TName name (typeOf expr)) InfoNone)
 
 isHole :: Expr -> Bool
 isHole (App (TypeApp (Var (TName hname htp) _) [tp,_etp]) []) = (hname == nameCCtxHoleCreate)
-isHole (App (App (TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [TypeApp (Var hname _) _]) []) 
+isHole (App (App (TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [TypeApp (Var hname _) _]) [])
   = (getName open == nameEffectOpen) && (getName hname == nameCCtxHoleCreate)
 isHole _ = False
 
 -- Initial empty context (ctx hole)
 makeCCtxEmpty :: Type -> Expr
 makeCCtxEmpty tp
-  = App (TypeApp (Var (TName nameCCtxEmpty funType) 
+  = App (TypeApp (Var (TName nameCCtxEmpty funType)
                         -- (InfoArity 1 0)
                         (InfoExternal [(C CDefault,"kk_cctx_empty(kk_context())"),(JS JsDefault,"$std_core_types._cctx_empty()")])
                       ) [tp]) []
@@ -172,8 +172,8 @@ makeCCtxEmpty tp
 -- Create a context (ctx Cons(e,Cons(2,hole)))
 makeCCtxCreate :: Type -> Type -> Expr -> Expr -> Expr
 makeCCtxCreate tp holetp top holeaddr
-  = App (TypeApp (Var (TName nameCCtxCreate funType) 
-                -- (InfoArity 1 3) 
+  = App (TypeApp (Var (TName nameCCtxCreate funType)
+                -- (InfoArity 1 3)
                 (InfoExternal [(C CDefault,"kk_cctx_create(#1,#2,kk_context())"),
                                (JS JsDefault,"$std_core_types._cctx_create(#1,#2)")])
          ) [tp,holetp]) [top,holeaddr]
@@ -198,7 +198,7 @@ makeFieldAddrOf obj conName fieldName fieldTp
 -- Set the index of the field in a constructor to follow the path to the hole at runtime.
 makeCCtxSetContextPath :: Expr -> TName -> Name -> Expr
 makeCCtxSetContextPath obj conName fieldName
-  = App (Var (TName nameCCtxSetCtxPath funType) (InfoExternal [(Default,".cctx-setcp(#1,#2,#3)")]))
+  = App (Var (TName nameCCtxSetCtxPath funType) (InfoExternal [(Default,"@cctx-setcp(#1,#2,#3)")]))
         [obj, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
   where
     tp = typeOf obj
@@ -225,12 +225,12 @@ data Result a = Err [(Range,Doc)]
               | Ok a Int
 
 instance Functor CCtx where
-  fmap f (CCtx c)  = CCtx (\u env -> case c u env of 
+  fmap f (CCtx c)  = CCtx (\u env -> case c u env of
                                        Ok x u' -> Ok (f x) u'
                                        Err errs -> Err errs)
 
 instance Applicative CCtx where
-  pure x = CCtx (\u g -> Ok x u)  
+  pure x = CCtx (\u g -> Ok x u)
   (<*>) = ap
 
 instance Monad CCtx where
@@ -258,7 +258,7 @@ updateEnv f (CCtx c)
 
 emitError :: Doc -> CCtx a
 emitError doc
-  = do env <- getEnv 
+  = do env <- getEnv
        emitErrors [(rng env,doc)]
 
 emitErrors :: [(Range,Doc)] -> CCtx a
@@ -277,11 +277,11 @@ try (CCtx c)
 mtrace :: String -> CCtx ()
 mtrace msg
   = do env <- getEnv
-       trace ("Core.AnalysisCCtx: " ++ msg) $ 
-         return ()    
+       trace ("Core.AnalysisCCtx: " ++ msg) $
+         return ()
 
 getFieldName :: TName -> Int -> CCtx TName
-getFieldName cname fieldIdx 
+getFieldName cname fieldIdx
   = do info <- lookupFieldName cname fieldIdx
        case info of
          Left err -> failure ("Core.AnalysisCCtx: " ++ err)
@@ -294,7 +294,7 @@ ensureValidHoleType tp
          Left (TVar{})  -> emitError (text "the hole in the constructor context has an unresolved or polymorphic type")
          Left _         -> emitError (text "the hole in the constructor context has an invalid data type")
          Right name -> case newtypesLookupAny name (newtypes env) of
-                        Just dataInfo -> 
+                        Just dataInfo ->
                           do let (dataRepr,_) = getDataRepr dataInfo
                              when (dataDefIsValue (dataInfoDef dataInfo) || dataReprIsValue dataRepr) $
                                emitError (text "the hole in a constructor context cannot be a value type")
@@ -311,7 +311,7 @@ lookupFieldName :: TName -> Int -> CCtx (Either String TName)
 lookupFieldName cname field
   = do env <- getEnv
        case newtypesLookupAny (getDataTypeName cname) (newtypes env) of
-         Just dataInfo -> 
+         Just dataInfo ->
            do let (dataRepr,_) = getDataRepr dataInfo
               if (dataReprIsValue dataRepr)
                 then return (Left ("contexts cannot go through a value type (" ++ show (getName cname) ++ ")"))

@@ -24,7 +24,7 @@ fun hello()
   println("Hello " ++ name ++ ", " ++ ask())  // "Hello <ask>, <ask>"
 
 
-pub fun test2() 
+pub fun test2()
   with fun ask() "there"    // a `fun` operation resumes implicitly with its result
   hello()
 
@@ -43,26 +43,26 @@ pub fun test2()
 
 effect ctl raise(s : string ) : a
 
-fun safe-div(x,y) 
+fun safe-div(x,y)
   if y==0 then raise("division by zero") else x / y
 
 
-fun rcatch(action,h) 
+fun rcatch(action,h)
   with ctl raise(s) h(s)   // handle `raise` with function `h`
   action()                     // in `action()`
 
 
-fun zerodiv(x,y) 
+fun zerodiv(x,y)
   rcatch( fn() safe-div(x,y), fn(s) 0 )
 
 
 // reify the exception effect back to a `:maybe` value
-fun to-maybe(action) 
+fun to-maybe(action)
   with final ctl raise(s) Nothing   // a control clause marked as `final` cannot resume; this can be more efficient as it runs finalizers eagerly and does not capture a resumption.
   Just(action())
 
 
-pub fun test1() 
+pub fun test1()
   zerodiv(10,0).println
 
 
@@ -72,12 +72,12 @@ pub fun test1()
 //  State
 // --------------------------------------------------------
 
-effect state<s> 
+effect state<s>
   fun get() : s
   fun put( x : s ) : ()
 
 
-fun counter() 
+fun counter()
   val i = get()
   if i <= 0 then () else
     println("hi")
@@ -89,12 +89,12 @@ fun counter()
 fun state(init, action)
   var s := init        // use a local mutable variable
   handle action
-    return(x)  (x,s) 
-    fun get()  s 
-    fun put(x) s := x 
-  
+    return(x)  (x,s)
+    fun get()  s
+    fun put(x) s := x
 
-pub fun test3() 
+
+pub fun test3()
   state(1,counter).snd
 
 
@@ -111,27 +111,27 @@ pub fun test3()
 // ````
 effect<a> ctl yield( item : a ) : ()
 
-fun iterate(xs : list<a> ) : yield<a> () 
+fun iterate(xs : list<a> ) : yield<a> ()
   match xs
     Cons(x,xx) -> { yield(x); iterate(xx) }
     Nil -> ()
-    
 
-fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () 
+
+fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e ()
   with ctl yield(x) if f(x) then resume(()) else ()   // resume is explicit in a `ctl` operation
   action()
 
 
-pub fun test4() 
-  foreach( fn(x:int){ println(x); x <= 1 } ) 
+pub fun test4()
+  foreach( fn(x:int){ println(x); x <= 1 } )
     [1,2,3].iterate
 
-fun test4b() 
+fun test4b()
   with return(x) ()                // just force final result to ()
   with amb
   with foreach fn(x:int)
     if flip() then println(x) else println("flip false " ++ x.show)
-    x <= 1  
+    x <= 1
   [1,2,3].iterate
 
 
@@ -141,24 +141,24 @@ fun test4b()
 
 effect ctl flip() : bool
 
-fun xor() : flip bool 
+fun xor() : flip bool
   val p = flip()
   val q = flip()
   (p||q) && not(p&&q)
 
 
 // handler that randomly flips
-val coinflip = handler 
+val coinflip = handler
   fun flip() srandom-bool()      // we can still define an operation as `fun` even if declared as `ctl`
 
 
 // handler that returns all possible outcomes
-val amb = handler 
-  return(x)  [x] 
+val amb = handler
+  return(x)  [x]
   ctl flip() resume(False) ++ resume(True)
 
 
-pub fun test5() 
+pub fun test5()
   amb(xor).show.println
 
 
@@ -167,14 +167,14 @@ pub fun test5()
 //  Combine effects
 // --------------------------------------------------------
 
-fun surprising() : <flip,state<int>> bool 
+fun surprising() : <flip,state<int>> bool
   val p = flip()
   val i = get()
   put(i+1)
   if (i>0 && p) then xor() else False
 
 
-pub fun test6() 
+pub fun test6()
   state(0){ amb(surprising) }.show.println
 
 pub fun test7()
@@ -184,7 +184,7 @@ pub fun test7()
 // --------------------------------------------------------
 //  Testing
 // --------------------------------------------------------
-pub fun main() 
+pub fun main()
   test1()
   test2()
   test3()
@@ -194,11 +194,11 @@ pub fun main()
   42
 
 
-fun show( xs : list<(bool,int)> ) : string  
-  xs.show-list fn(x) 
+fun tuplelist/show( xs : list<(bool,int)> ) : string
+  xs.show-list fn(x)
     x.show-tuple(show,show)
 
 
-fun show( x : (list<bool>,int) ) : string  
+fun show( x : (list<bool>,int) ) : string
   x.show-tuple(show,show)
 

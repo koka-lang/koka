@@ -95,8 +95,8 @@ genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReu
 
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
                             <.> text ", platform:" <+> string (show (8 * sizePtr platform)) <.> text "-bit"
-            initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> parameters []
-            doneSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".done")) <.> parameters []
+            initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName "@init")) <.> parameters []
+            doneSignature = text "void" <+> ppName (qualify (coreProgName core) (newName "@done")) <.> parameters []
 
         emitToInit $ vcat $ [text "static bool _kk_initialized = false;"
                             ,text "if (_kk_initialized) return;"
@@ -174,11 +174,11 @@ genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReu
 
     initImport :: Import -> Doc
     initImport imp
-      = ppName (qualify (importName imp) (newName ".init")) <.> arguments [] <.> semi
+      = ppName (qualify (importName imp) (newName "@init")) <.> arguments [] <.> semi
 
     doneImport :: Import -> Doc
     doneImport imp
-      = ppName (qualify (importName imp) (newName ".done")) <.> arguments [] <.> semi
+      = ppName (qualify (importName imp) (newName "@done")) <.> arguments [] <.> semi
 
 
 
@@ -225,7 +225,7 @@ genMain progName platform stackSize (Just (name,_))
   = emitToC $
     text "\n// main exit\nstatic void _kk_main_exit(void)" <+> block (vcat [
             text "kk_context_t* _ctx = kk_get_context();",
-            ppName (qualify progName (newName ".done")) <.> parens (text "_ctx") <.> semi
+            ppName (qualify progName (newName "@done")) <.> parens (text "_ctx") <.> semi
           ])
     <->
     text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
@@ -233,10 +233,10 @@ genMain progName platform stackSize (Just (name,_))
       , if stackSize == 0 then empty else
         text $ "kk_os_set_stack_size(KK_IZ(" ++ show stackSize ++ "));"
       , text "kk_context_t* _ctx = kk_main_start(argc, argv);"
-      , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
+      , ppName (qualify progName (newName "@init")) <.> parens (text "_ctx") <.> semi
       , text "atexit(&_kk_main_exit);"
       , ppName name <.> parens (text "_ctx") <.> semi
-      , ppName (qualify progName (newName ".done")) <.> parens (text "_ctx") <.> semi
+      , ppName (qualify progName (newName "@done")) <.> parens (text "_ctx") <.> semi
       , text "kk_main_end(_ctx);"
       , text "return 0;"
       ])
@@ -1157,7 +1157,7 @@ typeConClassName name
 
 typeClassName :: Name -> Name
 typeClassName name
-  = (prepend "." name)  -- prepend . to create separate namespace
+  = (prepend "@" name)  -- prepend . to create separate namespace
 
 ppDefName :: Name -> Doc
 ppDefName name
@@ -1193,7 +1193,7 @@ genLambda params eff body
        env <- getEnv
        let emitError doc     = do let msg = show doc
                                   failure ("Backend.C.genLambda: " ++ msg)
-           nameDoc           = text (show (cdefName env) ++ ".<lambda>")
+           nameDoc           = text (show (cdefName env) ++ "@<lambda>")
            getDataInfo name  = do newtypes <- getNewtypes
                                   return (newtypesLookupAny name newtypes)
        (allFields,vrepr) <- orderConFields emitError nameDoc getDataInfo platform 1 {- base.fun -} freeVars
@@ -2435,7 +2435,7 @@ withDef name toHeader asm
 newVarName :: String -> Asm Name
 newVarName s
   = do u <- unique
-       return (newName ("." ++ s ++ show u))
+       return (newName ("@" ++ s ++ show u))
 
 newVarNames :: Int -> Asm [Name]
 newVarNames 0 = return []

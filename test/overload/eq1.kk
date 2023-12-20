@@ -1,9 +1,9 @@
 
 fun int/eq( x : int, y : int ) : bool
-  (x == y)
+  True // (x == y)
 
 fun float64/eq( x : float64, y : float64 ) : bool
-  (x == y)
+  False //(x == y)
 
 fun list/eq<a>( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
   match xs
@@ -14,5 +14,5 @@ fun list/eq<a>( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
 
 
 fun test1()
-  eq([1,2],[1,3]).println
+  eq([1,2],[1,3])
 

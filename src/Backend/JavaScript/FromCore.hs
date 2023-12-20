@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2012-2021, Microsoft Research, Daan Leijen, Edsko de Vries.  
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen, Edsko de Vries.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -13,7 +13,7 @@ module Backend.JavaScript.FromCore
 import Platform.Config(version)
 import Lib.Trace
 import Control.Applicative hiding (empty)
-import Control.Monad 
+import Control.Monad
 import qualified Control.Monad.Fail as F
 import Data.List ( intersperse, partition )
 import Data.Char
@@ -85,12 +85,12 @@ genModule buildType mbMain imports core
                                       (text " " <-> text "// main entry:" <->
                                        ppName (unqualify name) <.> text "($std_core.id);" -- pass id for possible cps translated main
                                       ))
-        return $  
+        return $
               -- <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
               -- <-> text "define(" <.> ( -- (squotes $ ppModFileName $ coreProgName core) <.> comma <->
               --     list ( {- (squotes $ text "_external"): -} (map squotes (map fst (externalImports++mainImports)) ++ map moduleImport imports)) <.> comma <+>
               --     text "function" <.> tupled ( {- (text "_external"): -} (map snd (externalImports ++ mainImports) ++ map (ppModName . importName) imports)) <+> text "{" <->
-                  
+
                     vcat (
                     [ text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
                     , text "\"use strict\";"
@@ -125,7 +125,7 @@ genModule buildType mbMain imports core
                     ])
   where
     importDecls :: [Doc]
-    importDecls 
+    importDecls
       = [text "import * as" <+> dname <+> text "from" <+> squotes (dpath <.> text ".mjs") <.> semi
         | (dpath,dname) <- externalImports ++ normalImports]
 
@@ -159,13 +159,13 @@ includeExternal buildType  ext
   = case externalImportLookup (JS JsDefault) buildType "include-inline" ext of
       Just content -> [align $ vcat $! map text (lines content)]
       _ -> []
-      
+
 
 
 importExternal :: BuildType -> External -> [(Doc,Doc)]
 importExternal buildType  ext
   = case externalImportLookup (JS JsDefault) buildType  "library" ext of
-      Just path -> [(text path, case externalImportLookup (JS JsDefault) buildType  "library-id" ext of 
+      Just path -> [(text path, case externalImportLookup (JS JsDefault) buildType  "library-id" ext of
                                   Just name -> text name
                                   Nothing   -> text path)]
       _ -> []
@@ -195,10 +195,10 @@ genDef topLevel def@(Def name tp expr vis sort inl rng comm)
                     case mdoc of
                       Just doc -> return (if (topLevel) then ppVis vis doc else doc)
                       Nothing  -> do doc <- genStat (ResultAssign name Nothing) expr
-                                     return (if (topLevel) 
-                                               then ppVis vis (text "var" <+> ppName (unqualify name) <.> semi <--> doc) 
+                                     return (if (topLevel)
+                                               then ppVis vis (text "var" <+> ppName (unqualify name) <.> semi <--> doc)
                                                else doc)
-                                                              
+
        return $ vcat [ text " "
                      , if null comm
                          then empty
@@ -276,7 +276,7 @@ genTypeDef (Data info isExtend)
                         ConEnum{}
                           -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                         ConSingleton{} | conInfoName c == nameOptionalNone
-                          -> singletonValue "undefined"                        
+                          -> singletonValue "undefined"
                         ConSingleton _ DataStructAsMaybe _ _
                           -> singletonValue "null"
                         ConSingleton _ DataAsMaybe _ _
@@ -288,7 +288,7 @@ genTypeDef (Data info isExtend)
                         ConSingle{}  -> genConstr penv c repr name args []
                         ConAsCons{}  -> genConstr penv c repr name args []
                         ConAsJust{}  -> genConstr penv c repr name args [] -- [(tagField, getConTag modName c repr)]
-                        ConStruct{conDataRepr=DataStructAsMaybe} 
+                        ConStruct{conDataRepr=DataStructAsMaybe}
                                      -> genConstr penv c repr name args []
                         -- normal with tag
                         _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
@@ -611,11 +611,11 @@ genMatch result scrutinees branches
 
                      ConIso{} -- always success
                        -> []
-                     ConStruct{conDataRepr=DataStructAsMaybe} 
+                     ConStruct{conDataRepr=DataStructAsMaybe}
                        | getName tn == nameOptional
                        -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest modName (scrutinee,field) ) fields
                        | otherwise
-                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null" 
+                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null"
                               fieldTests = concatMap
                                              (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
@@ -624,7 +624,7 @@ genMatch result scrutinees branches
                        | getName tn == nameOptional
                        -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest modName (scrutinee,field) ) fields
                        | otherwise
-                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null" 
+                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null"
                               fieldTests = concatMap
                                              (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
@@ -696,7 +696,7 @@ genExpr expr
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameIntPtrT && isSmallInt i
        -> return (empty, pretty i <.> text "n")
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt i
-       -> return (empty, pretty i <.> text "n")       
+       -> return (empty, pretty i <.> text "n")
 
      -- special: .cctx-field-addr-of: create a tuple with the object and the field name as a string
      App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameFieldAddrOf
@@ -731,7 +731,7 @@ genExpr expr
                          [Lit (LitInt i)] | getName tname == nameIntPtrT  && isSmallInt i
                            -> return (empty,pretty i <.> text "n")
                          [Lit (LitInt i)] | getName tname == nameInt64  && isSmallInt i
-                           -> return (empty,pretty i <.> text "n")                           
+                           -> return (empty,pretty i <.> text "n")
                          _ -> -- genInlineExternal tname formats argDocs
                               do (decls,argDocs) <- genExprs args
                                  (edecls,doc) <- genExprExternal tname formats argDocs
@@ -1145,7 +1145,7 @@ localUnique asm
 newVarName :: String -> Asm Name
 newVarName s
   = do u <- unique
-       return (newName ("." ++ s ++ show u))
+       return (newName ("@" ++ s ++ show u))
 
 newVarNames :: Int -> Asm [Name]
 newVarNames 0 = return []

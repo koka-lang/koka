@@ -845,7 +845,7 @@ makeEffectDecl decl =
       tagDef     = Def (ValueBinder tagName ()
                          (Ann (App (Var nameHTag False krng)
                                -- todo: this needs to be prefixed with the actual module name
-                               [(Nothing,Lit (LitString (show id ++ "." ++ basename (sourceName (rangeSource irng))) krng))]
+                               [(Nothing,Lit (LitString (show id ++ "@" ++ basename (sourceName (rangeSource irng))) krng))]
                                krng)
                           (quantify QForall tpars
                             (makeTpApp (TpCon nameTpHTag krng) [makeTpApp (TpCon hndName krng) (map tpVar tparsNonScoped) krng] krng))
@@ -1056,7 +1056,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
                        = if (length pars <= 2) -- set by std/core/hnd
                           then (nameTpClause (length pars), [binderType par | (par) <- pars])
                           else (nameTpClause 1,
-                                [makeTpApp (TpCon (nameTuple (length pars)) krng)    -- as tuple on clause1
+                                [makeTpApp (TpCon (nameTpTuple (length pars)) krng)    -- as tuple on clause1
                                            [binderType par | (par) <- pars] krng])
 
            clauseRhoTp = makeTpApp (TpCon clauseName krng)
@@ -2317,7 +2317,7 @@ tatomic
 
 tuple :: ([(Name,UserType)],Range) -> UserType
 tuple ([tp],rng) = snd tp
-tuple (tps,rng) = TpApp (TpCon (nameTuple (length tps)) rng) (map snd tps) rng
+tuple (tps,rng) = TpApp (TpCon (nameTpTuple (length tps)) rng) (map snd tps) rng
 
 
 tatom :: LexParser ([(Name,UserType)],Range)
@@ -2334,7 +2334,7 @@ tatom
        (do tps  <- sepBy paramTypeX comma
            rng2 <- rparen
            {- case tps of
-            []  -> return (single (TpCon nameUnit (combineRange rng1 rng2)))
+            []  -> return (single (TpCon nameTpUnit (combineRange rng1 rng2)))
             _   -> -}
            return ([(name,tp) | (name,rng,tp) <- tps], combineRange rng1 rng2)
         <|>
@@ -2470,7 +2470,7 @@ ttuple
   = do rng1 <- lparen
        cs   <- many (comma)
        rng2 <- rparen
-       return (unqualify (nameTuple (length cs+1)), combineRange rng1 rng2) -- unqualify: local lookup?
+       return (unqualify (nameTpTuple (length cs+1)), combineRange rng1 rng2) -- unqualify: local lookup?
 
 
 temptyOrExtend

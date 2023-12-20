@@ -26,7 +26,7 @@ class (Monad m, Functor m) => HasUnique m where
   updateUnique :: (Int -> Int) -> m Int
   -- getUnique    :: m Int
   setUnique    :: Int -> m ()
-  
+
   unique  :: m Int
   uniques :: Int -> m [Int]
   uniqueId :: String -> m Id
@@ -56,13 +56,13 @@ class (Monad m, Functor m) => HasUnique m where
 
   uniqueName baseName
     = do i <- unique
-         return (newHiddenName (baseName ++ "." ++ show i))
+         return (newHiddenName (baseName ++ "@" ++ show i))
 
   uniqueNameFrom baseName
     = do i <- unique
          return (toUniqueName i baseName)
 
-         
+
 {--------------------------------------------------------------------------
   Helper instance for unique variables
 --------------------------------------------------------------------------}
@@ -78,7 +78,7 @@ runUniqueWith ids uniq
 runUnique :: Int -> Unique a -> (a,Int)
 runUnique i (Unique u)
   = u i
-  
+
 withUnique :: HasUnique m => (Int -> (a,Int)) -> m a
 withUnique f
   = do u <- unique
@@ -99,7 +99,7 @@ instance Applicative Unique where
   (<*>) = ap
 
 instance Monad Unique where
-  -- return = pure 
+  -- return = pure
   (Unique u) >>= f  = Unique (\i -> case u i of
                                       (x,j) -> case f x of
                                                  Unique v -> v j)

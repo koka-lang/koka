@@ -214,7 +214,7 @@ compileExpression term flags loaded compileTarget program line input
                                 mkApp e es = App e [(Nothing,x) | x <- es] r
                             case filter matchShow (gammaLookup (newName "show") (loadedGamma ld)) of
                               [(qnameShow,_)]
-                                -> do let expression = mkApp (Var (qualify nameSystemCore (newName "println")) False r)
+                                -> do let expression = mkApp (Var (qualify nameSystemCore (newName "string/println")) False r)
                                                         [mkApp (Var qnameShow False r) [mkApp (Var qnameExpr False r) []]]
                                       let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
                                       let programDef' = programAddDefs programDef [] [defMain]

@@ -147,14 +147,19 @@ labelNameCompare nm1@(Name m1 hm1 n1 hn1) nm2@(Name m2 hm2 n2 hn2)
       lg -> lg
 
 
-canonicalSep = '.'
+canonicalSep = '@'
 
 
 showParts :: String -> Name -> (String,String)
 showParts localsep (Name m _ n _)
-  = let (pn,sep) = case n of
-                    (c:cs) | not (isAlphaNum c || c=='_' || c=='(' || c== '.') -> ("(" ++ n ++ ")", "/")
-                    _      -> (n, if '/' `elem` n then localsep else "/")
+  = let (pn,sep) = let (rid,rqual) = span (/='/') (reverse n)  -- can be locally qualified
+                       qual = reverse rqual
+                       qid  = case reverse rid of
+                                (c:cs) | not (isAlphaNum c || c=='_' || c=='(' || c== '@') -> (qual ++ "(" ++ (c:cs) ++ ")")
+                                [] | rqual == "/" -> "(/)"
+                                   | rqual `startsWith` "//" -> reverse (tail rqual) ++ "(/)"
+                                _  -> n
+                   in (qid, if null qual || qid `startsWith` "(" then "/" else localsep)
     in (if null m then "" else m ++ sep, pn)
 
 instance Show Name where
@@ -176,7 +181,7 @@ prettyName cs name
 
 prettyCoreName :: ColorScheme -> Name -> Doc
 prettyCoreName cs name
-  = let (m,n) = showParts "#" name
+  = let (m,n) = showParts "/#" name
     in color (colorModule cs) (text m) <.> text n
 
 showTupled (Name m _ n _)
@@ -318,26 +323,26 @@ mergeCommonPath mname name
 isWildcard name
   = case nameId name of
       ('_':_)     -> True
-      ('.':'_':_) -> True
+      ('@':'_':_) -> True
       _           -> False
 
 isConstructorName name
   = case nameId name of
-      ('.':c:cs) -> isUpper c || c == '('
+      ('@':c:cs) -> isUpper c || c == '('
       (c:cs)     -> isUpper c || c == '('
       _          -> False
 
 toConstructorName name
   = newQualified (nameModule name) $
     case nameId name of
-      ('.':c:cs) -> '.':toUpper c : cs  -- keep hidden names hidden
+      ('@':c:cs) -> '@':toUpper c : cs  -- keep hidden names hidden
       (c:cs)     -> toUpper c : cs
       ""         -> ""
 
 toVarName name
   = newQualified (nameModule name) $
     case nameId name of
-      ('.':cs)   -> '.':toLowers cs  -- keep hidden names hidden
+      ('@':cs)   -> '@':toLowers cs  -- keep hidden names hidden
       cs         -> toLowers cs
   where
     toLowers s  -- while uppercase, map toLower
@@ -355,21 +360,21 @@ nameStartsWith name pre
 ----------------------------------------------------------------
 
 newHiddenName s
-  = newName ("." ++ s)
+  = newName ("@" ++ s)
 
 isHiddenName name
   = case nameId name of
-      ('.':_) -> True
+      ('@':_) -> True
       _       -> False
 
 makeHiddenName s name
   = {-case nameId xname of
-      c:cs | not (isAlpha c || c `elem` "()[]") -> newQualified (nameModule xname) ("." ++ s ++ "-" ++ asciiEncode False (c:cs)) -- hidden operator
+      c:cs | not (isAlpha c || c `elem` "()[]") -> newQualified (nameModule xname) ("@" ++ s ++ "-" ++ asciiEncode False (c:cs)) -- hidden operator
       _    ->
-    -} prepend ("." ++ s ++ "-") xname
+    -} prepend ("@" ++ s ++ "-") xname
   where
     xname = case nameId name of
-              '.':cs -> newQualified (nameModule name) cs
+              '@':cs -> newQualified (nameModule name) cs
               s      -> name
 
 makeFreshHiddenName s name range
@@ -377,7 +382,7 @@ makeFreshHiddenName s name range
     where idFromPos pos = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
 
 hiddenNameStartsWith name pre
-  = nameId name `startsWith` ("." ++ pre ++ "-")
+  = nameId name `startsWith` ("@" ++ pre ++ "-")
 
 toUniqueName :: Int -> Name -> Name
 toUniqueName i name
@@ -389,12 +394,12 @@ toUniqueName i name
 
 toHiddenUniqueName :: Int -> String -> Name -> Name
 toHiddenUniqueName i "" name
-  = prepend "." (toUniqueName i name)
+  = prepend "@" (toUniqueName i name)
 toHiddenUniqueName i s name
   = makeHiddenName (s ++ show i) xname
   where
     c = (head (nameId name))
-    xname = if (isAlpha c || c=='.' ) then name else newQualified (nameModule name) ("op")
+    xname = if (isAlpha c || c=='@' ) then name else newQualified (nameModule name) ("op")
 
 
 newPaddingName i
@@ -402,11 +407,11 @@ newPaddingName i
 
 isPaddingName name
   = -- hiddenNameStartsWith name "padding"
-    nameId name `startsWith` (".padding")
+    nameId name `startsWith` ("@padding")
 
 isCCtxName name
   = -- hiddenNameStartsWith name "padding"
-    nameId name `startsWith` (".cctx")
+    nameId name `startsWith` ("@cctx")
 
 
 newFieldName i
@@ -470,7 +475,7 @@ toHandlerName name
 
 isHandlerName :: Name -> Bool
 isHandlerName name
-  = nameId name `startsWith` ".hnd-"
+  = nameId name `startsWith` "@hnd-"
 
 -- | Create an effect type name from an operations type name.
 fromHandlerName :: Name -> Name
@@ -495,7 +500,7 @@ toOperationsName name
 -- | Is this an operations name?
 isOperationsName :: Name -> Bool
 isOperationsName name
-  = nameId name `startsWith` ".ops-"
+  = nameId name `startsWith` "@ops-"
 
 -- | Create an effect type name from an operations type name.
 fromOperationsName :: Name -> Name
@@ -510,7 +515,7 @@ toOpSelectorName name
 -- | Is this an operations name?
 isOpSelectorName :: Name -> Bool
 isOpSelectorName name
-  = nameId name `startsWith` ".select-"
+  = nameId name `startsWith` "@select-"
 
 -- | Create an effect type name from an operations type name.
 fromOpSelectorName :: Name -> Name
@@ -545,7 +550,7 @@ toOpenTagName name
 
 isOpenTagName :: Name -> Bool
 isOpenTagName name
-  = nameId name `startsWith` ".tag-"
+  = nameId name `startsWith` "@tag-"
 
 -- | Create a name for a value operation
 toValueOperationName :: Name -> Name
@@ -555,7 +560,7 @@ toValueOperationName name
 -- | Is this an name of a value operation?
 isValueOperationName :: Name -> Bool
 isValueOperationName name
-  = nameId name `startsWith` ".val-"
+  = nameId name `startsWith` "@val-"
 
 -- | Create an operation name from a value operation name
 fromValueOperationsName :: Name -> Name
@@ -566,9 +571,9 @@ prepend :: String -> Name -> Name
 prepend s name
   = newQualified (nameModule name)
     (case nameId name of
-      ('.':t) -> case s of
-                   '.':_ -> s ++ t  -- keep hidden names hidden
-                   _     -> '.' : s ++ t
+      ('@':t) -> case s of
+                   '@':_ -> s ++ t  -- keep hidden names hidden
+                   _     -> '@' : s ++ t
       t       -> s ++ t
     )
 
@@ -661,19 +666,19 @@ asciiEncode isModule name
   = case name of
       (c:cs)  | isAlphaNum c -> encodeChars name
       ""      -> "_null_"
-      ".<>"   -> "_total_"
-      ".<|>"  -> "_extend_"
-      ".()"   -> "_unit_"
-      ".(,)"  -> "_tuple2_"
-      ".(,,)" -> "_tuple3_"
-      ".(,,,)"-> "_tuple4_"
+      "@<>"   -> "_total_"
+      "@<|>"  -> "_extend_"
+      "@()"   -> "_unit_"
+      "@(,)"  -> "_tuple2_"
+      "@(,,)" -> "_tuple3_"
+      "@(,,,)"-> "_tuple4_"
       "()"    -> "_Unit_"
       "(,)"   -> "_Tuple2_"
       "(,,)"  -> "_Tuple3_"
       "(,,,)" -> "_Tuple4_"
       "[]"    -> "_index_"
-      -- '.':'c':'o':'n':' ':cs -> trace ("con name: " ++ name) $ "_con_" ++ encodeChars cs
-      -- '.':'t':'y':'p':'e':' ':cs -> "_type_" ++ encodeChars cs
+      -- '@':'c':'o':'n':' ':cs -> trace ("con name: " ++ name) $ "_con_" ++ encodeChars cs
+      -- '@':'t':'y':'p':'e':' ':cs -> "_type_" ++ encodeChars cs
       _       -> encodeChars name
   where
     encodeChars s
@@ -685,7 +690,7 @@ asciiEncode isModule name
       = case c of
           '/' | isModule -> "_"
           '-' | not isModule && isAlphaNum post -> "_"
-          '.' | isDigit post || post == ' ' || pre == ' ' -> "_"
+          '@' | (isDigit post || post == ' ' || pre == ' ' || pre == '/') -> "_"
 
           '_' -> "__"
           '.' -> "_dot_"

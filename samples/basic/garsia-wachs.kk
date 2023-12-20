@@ -31,7 +31,7 @@ pub value type list1<a>
 
 fun map( xs, f )
   val Cons1(y,ys) = xs
-  Cons1(f(y), core/map(ys,f))
+  Cons1(f(y), core/list/map(ys,f))
 
 
 fun zip( xs :list1<a>, ys :list1<b> ) : list1<(a,b)>
@@ -88,7 +88,7 @@ fun build( depth : int, xs : list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,li
 fun test()
   val wlist = Cons1(("a",3), [("b",2),("c",1),("d",4),("e",5)])
   val tree  = wlist.garciawachs()
-  tree.show()  
+  tree.show()
 
 
 fun garciawachs( xs : list1<(a,int)> ) : div tree<a>

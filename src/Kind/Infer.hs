@@ -187,7 +187,7 @@ synCopyCon modName info con
         app x []  = x
         app x xs  = App x [(Nothing,y) | y <- xs] rc
 
-        argName  = newName ".this"
+        argName  = newName "@this"
 
         params = [ValueBinder name Nothing (if not (hasAccessor name t con) then Nothing else (Just (app (var name) [var argName]))) rc rc| (name,t) <- conInfoParams con]
         expr = Lam ([ValueBinder argName Nothing Nothing rc rc] ++ params) body rc
@@ -222,8 +222,8 @@ synAccessors modName info
                 defName  = qualifyLocally dataName name -- TODO: only for type names that are valid module names!
 
                 arg = if (all isAlphaNum (show dataName))
-                       then dataName else newName ".this"
-                fld = newName ".x"
+                       then dataName else newName "@this"
+                fld = newName "@x"
 
                 dataTp = typeApp (TCon (TypeCon (dataInfoName info) (dataInfoKind info))) (map TVar (dataInfoParams info))
                 fullTp = let (foralls,preds,rho) = splitPredType tp

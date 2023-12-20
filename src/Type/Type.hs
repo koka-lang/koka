@@ -875,7 +875,7 @@ typeMakeTuple tps
 
 typeTuple :: Int -> Tau
 typeTuple n
-  = TCon (TypeCon (nameTuple n) ({-kindArrowN n-} kindFunN (replicate n kindStar) kindStar))
+  = TCon (TypeCon (nameTpTuple n) ({-kindArrowN n-} kindFunN (replicate n kindStar) kindStar))
 
 typeOptional :: Tau
 typeOptional

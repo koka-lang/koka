@@ -438,7 +438,7 @@ prettyPattern env pat
                                (env'',docs) = foldr prettyPatternType (env',[]) (zip args targs)
                            in (env'',
                                parens $
-                                (if skip then keyword env ".skip " else empty) <.>
+                                (if skip then keyword env "@skip " else empty) <.>
                                 prettyConName env tname <.>
                                  (if (null exists) then empty
                                    else angled (map (ppTypeVar env'') exists)) <.>
