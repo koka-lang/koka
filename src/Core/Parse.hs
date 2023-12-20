@@ -46,68 +46,8 @@ type ParseInlines = Gamma -> Error [InlineDef]
 parseCore :: FilePath -> IO (Error (Core, ParseInlines))
 parseCore fname
   = do input <- readInput fname
-       return (lexParse False (requalify . allowDotIds) program fname 1 input)
+       return (lexParse False id program fname 1 input)
 
-
-
-requalify :: [Lexeme] -> [Lexeme]
-requalify lexs
- = case lexs of
-    -- identifier (needed as we allow dot in idenifiers, e.g. `std/core/types/.Cctx`)
-    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexId name) : lexx)  | nameId slash == "/"
-      -> requalify (Lexeme (combineRange r1 r2) (LexId (qualify (newName (showPlain mod)) name)) : lexx)
-    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexIdOp name) : lexx)  | nameId slash == "/"
-      -> requalify (Lexeme (combineRange r1 r2) (LexId (qualify (newName (showPlain mod)) name)) : lexx)
-    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexOp name) : lexx)  | nameId slash == "/"
-      -> requalify (Lexeme (combineRange r1 r2) (LexId (qualify (newName (showPlain mod)) name)) : lexx)
-    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexCons name) : lexx)  | nameId slash == "/"
-      -> requalify (Lexeme (combineRange r1 r2) (LexCons (qualify (newName (showPlain mod)) name)) : lexx)
-
-    (lex:lexx)
-      -> lex : requalify lexx
-    [] -> []
-  where
-    qlocally mod name = qualify (unqualifyAsModuleName mod) (requalifyLocally name)
-
-allowDotIds :: [Lexeme] -> [Lexeme]
-allowDotIds lexs
-  = case lexs of
-      -- identifier
-      (Lexeme r1 (LexKeyword "." _) : Lexeme r2 (LexId name) : lexx)
-        -> allowDotIds (Lexeme (combineRange r1 r2) (LexId (prepend "." name)) : lexx)
-      (Lexeme r1 (LexKeyword "." _) : Lexeme r2 (LexWildCard name) : lexx)
-        -> allowDotIds (Lexeme (combineRange r1 r2) (LexWildCard (prepend "." name)) : lexx)
-      (Lexeme r1 (LexId name) : Lexeme r2 (LexKeyword "." _) : Lexeme r3 (LexInt i _) : lexx)
-        -> allowDotIds (Lexeme (combineRange r1 r3) (LexId (postpend ("." ++ show i) name)) : lexx)
-
-      -- operator
-      (Lexeme r1 (LexKeyword "." _) : Lexeme r2 (LexOp name) : lexx)
-        -> allowDotIds (Lexeme (combineRange r1 r2) (LexId (prepend "." name)) : lexx)
-      (Lexeme r1 (LexOp name) : Lexeme r2 (LexKeyword "." _) : Lexeme r3 (LexInt i _) : lexx)
-        -> allowDotIds (Lexeme (combineRange r1 r3) (LexId (postpend ("." ++ show i) name)) : lexx)
-
-      -- constructor
-      (Lexeme r1 (LexKeyword "." _) : Lexeme r2 (LexCons name) : lexx)
-        -> allowDotIds (Lexeme (combineRange r1 r2) (LexCons (prepend "." name)) : lexx)
-      (Lexeme r1 (LexCons name) : Lexeme r2 (LexKeyword "." _) : Lexeme r3 (LexInt i _) : lexx)
-        -> allowDotIds (Lexeme (combineRange r1 r3) (LexCons (postpend ("." ++ show i) name)) : lexx)
-
-      -- (-.4), (++.2)
-      (Lexeme r1 (LexSpecial "(") : Lexeme r2 (LexOp name) : Lexeme r4 (LexInt i _) : Lexeme r5 (LexSpecial ")") :  lexx) -- | last (nameId name) == '.'
-        -> allowDotIds (Lexeme (combineRange r1 r5) (LexId (postpend (show i) name)) : lexx)
-      -- (/.4)
-      (Lexeme r1 (LexSpecial "(") : Lexeme r2 (LexOp name) : Lexeme _ (LexKeyword "." _) : Lexeme r4 (LexInt i _) : Lexeme r5 (LexSpecial ")") :  lexx) -- | last (nameId name) == '.'
-        -> allowDotIds (Lexeme (combineRange r1 r5) (LexId (postpend ("." ++ show i) name)) : lexx)
-      -- ([].1)
-      (Lexeme r1 (LexSpecial "(") : Lexeme _ (LexSpecial "[") : Lexeme _ (LexSpecial "]") : Lexeme _ (LexKeyword "." _) : Lexeme _ (LexInt i _) : Lexeme r2 (LexSpecial ")") : lexx)
-        -> allowDotIds (Lexeme (combineRange r1 r2) (LexId (postpend ("." ++ show i) (newName "[]"))) : lexx)
-      -- ([])
-      (Lexeme r1 (LexSpecial "(") : Lexeme _ (LexSpecial "[") : Lexeme _ (LexSpecial "]") : Lexeme r2 (LexSpecial ")") : lexx)
-        -> allowDotIds (Lexeme (combineRange r1 r2) (LexId (newName "[]")) : lexx)
-
-      (lex:lexx)
-        -> lex : allowDotIds lexx
-      [] -> []
 
 parseInlines :: Core -> Source -> Env -> [Lexeme] -> ParseInlines
 parseInlines prog source env inlines gamma
