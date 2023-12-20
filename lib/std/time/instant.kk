@@ -84,7 +84,7 @@ abstract struct timescale
 
 
 // Are two timescales the same?
-pub fun (==)(t1 : timescale, t2 : timescale ) : bool
+pub fun timescale/(==)(t1 : timescale, t2 : timescale ) : bool
   (t1.name == t2.name)
 
 // Does this timescale have leap seconds?
@@ -133,7 +133,7 @@ abstract value struct instant
 
 
 // Return the time scale that instant `i` uses.
-pub fun timescale( i : instant ) : timescale
+pub fun instant/timescale( i : instant ) : timescale
   i.ts
 
 // The seconds in the day of instant `i` (in its time scale).
@@ -144,7 +144,7 @@ pub fun seconds-in-day(i : instant) : timespan
 
 
 // Return `:timestamp` since 2000-01-01 in the time scale of the instant
-pub fun timestamp( i : instant ) : timestamp
+pub fun instant/timestamp( i : instant ) : timestamp
   i.since
 
 // Return days since 2000-01-01 in the time scale of the instant
@@ -159,15 +159,15 @@ pub fun days-clock( i : instant ) : (int,clock)
 
 // Create an instant from a time stamp `t` interpreted in time scale `ts`.\
 // Be careful to ensure that `t` should indeed be interpreted in the given time scale.
-pub fun instant( ts : timescale, t : timestamp ) : instant
+pub fun timescale/instant( ts : timescale, t : timestamp ) : instant
   Instant(t, ts)
 
 // Return the instant at (TAI) SI seconds duration since the `epoch`.
-pub fun instant( d : duration ) : instant
+pub fun duration/instant( d : duration ) : instant
   instant(ts-tai, d.timestamp)
 
 // Return the instant in time scale `ts`, `days` and `secs` after 2000-01-01 in that timescale.
-pub fun instant( ts : timescale, days : int, secs : timespan, leap : int = 0) : instant
+pub fun date/instant( ts : timescale, days : int, secs : timespan, leap : int = 0) : instant
   ts.instant(timestamp-days(days,secs,leap))
 
 // Return a `:timestamp` for instant `i` in a certain time scale `tscale`.
@@ -175,7 +175,7 @@ pub fun timestamp-in( i : instant, tscale : timescale  ) : timestamp
   i.since.convert(i.ts,tscale)
 
 // Return the (TAI) SI second duration since the `epoch` at this instant.
-pub fun duration( i : instant ) : duration
+pub fun instant/duration( i : instant ) : duration
   i.timestamp-in(ts-tai).unsafe-duration // ok, because SI seconds
 
 
@@ -258,7 +258,7 @@ fun unsafe-add(i : instant, tspan : timespan ) : instant
   Instant( i.since + tspan, i.ts ) // directly add
 
 // Subtract a duration from an instant in time.
-pub fun (-)( i : instant, d : duration ) : instant
+pub fun duration/(-)( i : instant, d : duration ) : instant
   i + (~d)
 
 // Return the duration between to instants in time.
@@ -267,7 +267,7 @@ pub fun (-)( i : instant, j : instant ) : duration
 
 // Show an instant as a number of (TAI) SI seconds since the `epoch` in a given precision.
 // This can be used as an unambigious time stamp.
-pub fun show( i : instant, max-prec : int = 9, secs-width : int = 1 ) : string
+pub fun instant/show( i : instant, max-prec : int = 9, secs-width : int = 1 ) : string
   i.use-timescale(ts-tai).show-raw(max-prec,secs-width,"s")
 
 // Internal: show an instant as a raw timestamp in a given precision, postfixed with the time scale name.
@@ -351,7 +351,7 @@ pub fun gps-timestamp(i : instant ) : duration
   i.timestamp-in(ts-gps).unsafe-duration + gps2000
 
 // Create an instant from a raw GPS time since the GPS epoch (1980-01-06Z)
-pub fun gps-instant(gps : duration) : instant
+pub fun duration/gps-instant(gps : duration) : instant
   instant( gps - gps2000  )
 
 
@@ -363,7 +363,7 @@ pub fun gps-week-timestamp(i : instant ) : (int,duration)
   (w, s)
 
 // Create an instant from a GPS time in weeks and SI seconds since the GPS epoch (1980-01-06Z)
-pub fun gps-instant(weeks : int, secs : duration) : instant
+pub fun date/gps-instant(weeks : int, secs : duration) : instant
   gps-instant( (weeks * 25200).duration + secs )
 
 // The [TT](https://en.wikipedia.org/wiki/Terrestrial_Time) (Terrestrial time)
@@ -375,17 +375,17 @@ pub val ts-tt : timescale = tai-timescale( "TT", duration(32.184))
 val tt2000 = duration(630720000)
 
 // Get the TT time in SI seconds since the TT epoch (1977-01-01 TAI)
-pub fun tt-instant(i : instant ) : duration
+pub fun instant/tt-instant(i : instant ) : duration
   i.timestamp-in(ts-tt).unsafe-duration + tt2000
 
 // Create an instant from a raw TT time since the TT epoch (1977-01-01 TAI)
-pub fun tt-instant(tt : duration)
+pub fun duration/tt-instant(tt : duration)
   instant( tt - tt2000 )
 
 
 // Show a timestamp with an optional maximum precision (`max-prec` (=`9`)) and
 // minimum width for the seconds (=`1`).
-pub fun show( t : timestamp, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string
+pub fun timestamp/show( t : timestamp, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string
   t.ts-show(max-prec,secs-width,unit)
 
 
@@ -396,24 +396,24 @@ val jd-epoch-delta  = timespan(2400000.5)   // relative to the MJD epoch
 val mjd-epoch-delta = timespan(51544)       // relative to our epoch (2000-01-01)
 
 // Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day).
-pub fun instant-at-jd( jd : float64, ts : timescale ) : instant
+pub fun float64/instant-at-jd( jd : float64, ts : timescale ) : instant
   instant-at-jd(ddouble(jd),ts)
 
 // Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day)
 // and time scale `ts` .
-pub fun instant-at-jd( jd : ddouble, ts : timescale  ) : instant
+pub fun ddouble/instant-at-jd( jd : ddouble, ts : timescale  ) : instant
   instant-at-mjd( jd - jd-epoch-delta, ts )
 
 // Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).
 // and time scale `ts`.\
 // `modified-julian-day = julian-day - 2400000.5`
-pub fun instant-at-mjd( mjd : float64, ts : timescale ) : instant
+pub fun float64/instant-at-mjd( mjd : float64, ts : timescale ) : instant
   instant-at-mjd(ddouble(mjd),ts)
 
 // Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).
 // and time scale `ts`.\
 // `modified-julian-day = julian-day - 2400000.5`
-pub fun instant-at-mjd( mjd : ddouble, ts : timescale  ) : instant
+pub fun ddouble/instant-at-mjd( mjd : ddouble, ts : timescale  ) : instant
   val d     = mjd - mjd-epoch-delta // since 2000-01-01
   val days  = d.floor
   val frac  = d - days

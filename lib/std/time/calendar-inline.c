@@ -24,7 +24,7 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
   #if (_WIN32 && KK_INTPTR_SIZE==8)
   if (t < 0) { t += 3155673600; } // try to avoid errors for negative times on some platforms by adding 100 years..
   #endif
-  time_t loct = t;    
+  time_t loct = t;
   #if defined(_GNU_SOURCE)
     // GNU libc has the tm_zone and tm_gmtoff fields
     struct tm loctm;
@@ -37,7 +37,7 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
     }
   #elif defined(_WIN32) && !defined(__MINGW32__)
     struct tm gmtm;
-    if (gmtime_s(&gmtm, &t) == 0) {      // switched parameters :-(      
+    if (gmtime_s(&gmtm, &t) == 0) {      // switched parameters :-(
       loct = mktime(&gmtm);              // interpret gmt as local time
       struct tm loctm;
       localtime_s(&loctm, &t);           // switched parameters :-(
@@ -84,8 +84,8 @@ static kk_std_time_calendar__local_timezone kk_local_get_timezone(kk_context_t* 
   return kk_datatype_from_tag((kk_tag_t)1); // dummy value; we cannot store the local timezone as it is a global :-(
 }
 
-static kk_std_core_types__tuple2_ kk_local_get_utc_delta_tuple(kk_std_time_calendar__local_timezone tz, double unix_secs, kk_context_t* ctx) {
+static kk_std_core_types__tuple2 kk_local_get_utc_delta_tuple(kk_std_time_calendar__local_timezone tz, double unix_secs, kk_context_t* ctx) {
   kk_string_t tzonename;
   long utc_delta = kk_local_utc_delta(unix_secs, &tzonename, ctx);
-  return kk_std_core_types__new_dash__lp__comma__rp_( kk_double_box((double)utc_delta,ctx), kk_string_box(tzonename), ctx );
+  return kk_std_core_types__new_Tuple2( kk_double_box((double)utc_delta,ctx), kk_string_box(tzonename), ctx );
 }

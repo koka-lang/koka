@@ -294,7 +294,7 @@ import std/time/instant
 // Return the UTC timescale with the latest leap second information.
 pub effect fun utc() : timescale
 
-pub fun ".default-utc"( action : () -> <utc|e> a) : e a
+pub fun "@default-utc"( action : () -> <utc|e> a) : e a
   with fun utc() { ts-ti }
   action()
 
@@ -338,21 +338,21 @@ To indicate a time in a leap second, you can use a fraction `frac` that is large
 
 This works well for systems that support [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html).
 */
-pub fun unix-instant( u : float64, frac : float64 = 0.0, ts : timescale = ts-ti ) : instant
+pub fun float64/unix-instant( u : float64, frac : float64 = 0.0, ts : timescale = ts-ti ) : instant
   val t    = timespan(u,frac.fraction)
   val leap = frac.truncate.int
   unix-instant(t,leap,ts)
 
 // Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
 // Use a fraction `> 1` to indicate a time inside a leap second.
-pub fun unix-instant( u : int, frac : float64 = 0.0, ts : timescale = ts-ti ) : instant
+pub fun int/unix-instant( u : int, frac : float64 = 0.0, ts : timescale = ts-ti ) : instant
   val t    = timespan(u.ddouble + frac.fraction.ddouble)
   val leap = frac.truncate.int
   unix-instant(t,leap,ts)
 
 // Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
 // and optional leap seconds to designate instants inside a leap seconds.
-pub fun unix-instant( t : timespan, leap : int = 0, ts : timescale = ts-ti ) : instant
+pub fun timespan/unix-instant( t : timespan, leap : int = 0, ts : timescale = ts-ti ) : instant
   ts-ti.instant( timestamp(t - unix2000, leap) ).use-timescale(ts)
 
 
@@ -647,10 +647,10 @@ val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,zero)
 fun is-zero( la : leap-adjust ) : bool
   la.offset.is-zero && la.drift.is-zero
 
-pub fun show( l : leap-adjust ) : string
+pub fun leap-adjust/show( l : leap-adjust ) : string
   [l.utc-start.show,": offset: ",l.offset.show,", drift-start: ",l.drift-start.show,", drift: ",l.drift.show].join
 
-pub fun show( t : leaps-table ) : string
+pub fun leaps-table/show( t : leaps-table ) : string
   t.adjusts.map(show).unlines
 
 /*----------------------------------------------------------------------------
@@ -720,7 +720,7 @@ pub fun get-leap-steps( table : leaps-table = leaps-table-ti ) : list<(utc-times
     val ofs1 = las.fst.delta-tai(start)
     val ofs2 = las.snd.delta-tai(start)
     (start,ofs1,ofs2,(las.snd.offset,las.snd.drift-start,las.snd.drift))
-  
+
 
 // -----------------------------------------------------------
 // Parsing UTC leap second tables

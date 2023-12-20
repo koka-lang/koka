@@ -144,17 +144,17 @@ fun show0( i : int, width : int = 2) : string
 
 // Convert an `:instant` to a `:time` value in a given timezone `tz` (=`tz-utc` by default)
 // and calendar (=`cal-iso` by default).
-pub fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = i.timescale ) : time
+pub fun instant/time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = i.timescale ) : time
   val j = i.use-timescale(ts)
   val (d,c,tzdelta,tzabbrv) = instant-dc(j,tz,cal)
   Time(d,c,cal,tzdelta,tzabbrv,tz,j)
 
 // Convert a `:time` `t` to a new `:time` value in a potentially different
 // timezone `tz` (=`t.timezone` by default) and calendar (=`t.calendar` by default).
-pub fun time( t : time, tz : timezone = t.timezone, cal : calendar = t.calendar, ts : timescale = t.instant.timescale ) : time
+pub fun time/time( t : time, tz : timezone = t.timezone, cal : calendar = t.calendar, ts : timescale = t.instant.timescale ) : time
   time(t.instant,tz,cal,ts)
 
-pub fun time( ts : timescale, year : int, month : int = 1, day : int = 1,
+pub fun timescale/time( ts : timescale, year : int, month : int = 1, day : int = 1,
                  hours : int = 0, minutes : int = 0, secs : int = 0,
                  frac : float64 = 0.0, tz : timezone = tz-utc,
                  cal : calendar = cal-iso ) : time
@@ -199,13 +199,13 @@ pub fun time-ti( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso )
   time(i,tz,cal,ts-ti)
 
 
-pub fun time( ts : timescale, d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso) : time
+pub fun timescale/date/time( ts : timescale, d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso) : time
 
   time(ts.instant(d,c,tz,cal),tz,cal,ts)
 
 // Return the `:time` value for a given `:date` and `:clock` (=`clock0`) in a timezone `tz` (=`tz-utc` by default)
 // interpreted by calendar `cal` (=`cal-iso`)
-pub fun time( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = utc() ) : <utc> time
+pub fun date/time( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = utc() ) : <utc> time
 
   ts.time(d,c,tz,cal)
 
@@ -239,13 +239,13 @@ pub fun add-years( t : time, years : int ) : time
 // Add an SI second `:duration` to a time.\
 // `(time(2015,12,31,23,59,59,0.5) + duration(1)).show == "2016-01-01T00:00:00.500Z"`\
 // `(time(2016,12,31,23,59,59,0.5) + duration(1)).show == "2016-12-31T23:59:60.500Z"` &quad; (into a leap second)
-pub fun (+)( t : time, d : duration ) : time
+pub fun duration/(+)( t : time, d : duration ) : time
   (t.instant + d).time(t.timezone,t.calendar)
 
 // Subtract an SI second `:duration` from a time.\
 // `(time(2016,1,1,0,0,0,0.5) - duration(1)).show == "2015-12-31T23:59:59.500Z"`\
 // `(time(2017,1,1,0,0,0,0.5) - duration(1)).show == "2016-12-31T23:59:60.500Z"` &quad; (into a leap second)
-pub fun (-)( t : time, d : duration ) : time
+pub fun duration/(-)( t : time, d : duration ) : time
   t + (~d)
 
 // Return the exact SI second duration between to times.\
@@ -310,7 +310,7 @@ pub fun weekday( t : time ) : weekday
 // Return a `:time` as a fractional year.\
 // `year-frac(time(2000,7,2)) == fixed(2000.5)`
 pub fun year-frac( t : time ) : ddouble
-  val dfrac = t.mjd.fraction.float64 // t.clock.total-seconds.float64 / 86400.0 
+  val dfrac = t.mjd.fraction.float64 // t.clock.total-seconds.float64 / 86400.0
   val yfrac = ((t.day-of-year - 1).float64 + dfrac) / t.days-in-year.float64
   timespan(t.year,yfrac)
 
@@ -427,19 +427,19 @@ pub fun jd( t : time ) : ddouble
 val jd-epoch-delta  = timespan(2400000.5)
 
 // Return the current time in an optional timezone (=`tz-utc`) and optional calendar (=`cal-iso`).
-pub fun time-now(ts : timescale, tz : timezone = tz-utc, cal : calendar = cal-iso) : <ndet> time
+pub fun timescale/time-now(ts : timescale, tz : timezone = tz-utc, cal : calendar = cal-iso) : <ndet> time
   now-in(ts).time(tz,cal)
 
 // Return the current time in an optional timezone (=`tz-utc`) and optional calendar (=`cal-iso`).
-pub fun time-now(tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = utc() ) : <ndet,utc> time
+pub fun timezone/time-now(tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = utc() ) : <ndet,utc> time
   ts.time-now(tz,cal)
 
 // Return the current time in the local timezone and optional calendar (=`cal-iso`).
-pub fun local-time-now(ts : timescale, cal : calendar = cal-iso) : ndet time
+pub fun timescale/local-time-now(ts : timescale, cal : calendar = cal-iso) : ndet time
   ts.time-now(tz-local(),cal)
 
 // Return the current time in the local timezone and optional calendar (=`cal-iso`).
-pub fun local-time-now(cal : calendar = cal-iso) : <ndet,utc> time
+pub fun calendar/local-time-now(cal : calendar = cal-iso) : <ndet,utc> time
   time-now(tz-local(),cal)
 
 // Convert a `:time` `t` to a new `:time` value in the local time zone
@@ -448,12 +448,12 @@ pub fun local-time( t : time, cal : calendar = t.calendar ) : ndet time
   t.time(tz-local(),cal)
 
 // Convert an `:instant` to a `:time` value in the local timezone, in an optional calendar (=`cal-iso` by default).
-pub fun local-time( i : instant, cal : calendar = cal-iso ) : ndet time
+pub fun instant/local-time( i : instant, cal : calendar = cal-iso ) : ndet time
   time(i,tz-local(),cal)
 
 // Return the `:time` value for a given date and clock in the local timezone
 // interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
-pub fun local-time( ts : timescale,
+pub fun timescale/local-time( ts : timescale,
                        year : int, month : int = 1, day : int = 1,
                        hours : int = 0, minutes : int = 0, secs : int = 0,
                        frac : float64 = 0.0, cal : calendar = cal-iso ) : ndet time
@@ -462,7 +462,7 @@ pub fun local-time( ts : timescale,
 
 // Return the `:time` value for a given date and clock in the local timezone
 // interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
-pub fun local-time( year : int, month : int = 1, day : int = 1,
+pub fun year/local-time( year : int, month : int = 1, day : int = 1,
                        hours : int = 0, minutes : int = 0, secs : int = 0,
                        frac : float64 = 0.0, cal : calendar = cal-iso, ts : timescale = utc() ) : <ndet,utc> time
 
@@ -471,13 +471,13 @@ pub fun local-time( year : int, month : int = 1, day : int = 1,
 
 // Return the `:time` value for a given `:date` and `:clock` (=`clock0`) in the local timezone
 // interpreted by calendar `cal` (=`cal-iso`)
-pub fun local-time( ts : timescale, d : date, c : clock = clock0, cal : calendar = cal-iso ) : ndet time
+pub fun date/local-time( ts : timescale, d : date, c : clock = clock0, cal : calendar = cal-iso ) : ndet time
 
   ts.time(d,c,tz-local(),cal)
 
 // Return the `:time` value for a given `:date` and `:clock` (=`clock0`) in the local timezone
 // interpreted by calendar `cal` (=`cal-iso`)
-pub fun local-time( d : date, c : clock = clock0, cal : calendar = cal-iso, ts : timescale = utc() ) : <ndet,utc> time
+pub fun dateutc/local-time( d : date, c : clock = clock0, cal : calendar = cal-iso, ts : timescale = utc() ) : <ndet,utc> time
 
   ts.time(d,c,tz-local(),cal)
 

@@ -26,17 +26,17 @@ pub alias timespan = ddouble
 // A zero-valued timespan.
 pub val timespan0 : timespan = zero
 
-pub fun timespan( seconds : int, frac : float64 = 0.0 ) : timespan
+pub fun int/timespan( seconds : int, frac : float64 = 0.0 ) : timespan
   if frac.is-zero then ddouble(seconds) else ddouble(seconds) + ddouble(frac)
 
-pub fun timespan( secs : float64 ) : timespan
+pub fun float64/timespan( secs : float64 ) : timespan
   ddouble(secs)
 
-pub fun timespan( secs : float64, frac : float64 ) : timespan
+pub fun tuple64/timespan( secs : float64, frac : float64 ) : timespan
   ddouble(secs,frac)
 
 // Timespan from a `:ddouble`. Just for convenience as `:timespan` is an alias
-pub fun timespan( secs : ddouble ) : timespan
+pub fun ddouble/timespan( secs : ddouble ) : timespan
   secs
 
 // Divide using `div` to allow for different timespan representations
@@ -101,7 +101,7 @@ pub fun timestamp( t : timespan, leap : int = 0 ) : timestamp
   Timestamp(t,leap.int32)
 
 // Create a time stamp from an integer timespan since 2000-01-01 and possible leap seconds.
-pub fun timestamp( t : int, frac : float64 = 0.0, leap : int = 0 ) : timestamp
+pub fun int/timestamp( t : int, frac : float64 = 0.0, leap : int = 0 ) : timestamp
   timestamp(t.ddouble + frac.ddouble,leap)
 
 // Timestamp from days, seconds into the day and possible leap second.

@@ -81,26 +81,26 @@ pub struct clock
 //}
 
 // Create a clock from seconds; normalizes the clock with seconds and minutes under 60.
-pub fun clock( seconds : ddouble ) : clock
+pub fun ddouble/clock( seconds : ddouble ) : clock
   clock(seconds.floor.int,seconds.ffraction)
 
 // Create a clock from a seconds as an `:int` with an optional fraction.
 // Normalizes the clock with seconds and minutes under 60 but
 // adds the fraction as is to the final seconds, so that might
 // be `>= 60` if the fraction `>= 1.0`;
-pub fun clock( seconds : int, frac : float64 ) : clock
+pub fun intfloat64/clock( seconds : int, frac : float64 ) : clock
   clock(seconds,frac.ddouble)
 
 // Create a clock from a seconds as an `:int` with an optional fraction.
 // Normalizes the clock with seconds and minutes under 60 but
 // adds the fraction as is to the final seconds, so that might
 // be `>= 60` if the fraction `>= 1.0`;
-pub fun clock( seconds : int, frac : ddouble = zero) : clock
+pub fun intddouble/clock( seconds : int, frac : ddouble = zero) : clock
   val (hm,s) = divmod(seconds,60)
   val (h,m)  = divmod(hm,60)
   Clock(h,m,s.ddouble + frac)
 
-pub fun clock( seconds : ddouble, leap : int) : clock
+pub fun leap/clock( seconds : ddouble, leap : int) : clock
   clock(seconds.floor.int, seconds.ffraction + leap.ddouble)
 
 
@@ -135,7 +135,7 @@ pub fun round-to-prec( c : clock, prec : int = 9) : clock
 // Show a clock in ISO format up to an optional maximum precision (=`9`).\
 // `Clock(23,30,fixed(1.123)).show == "23:30:01.123"`\
 // `Clock(23,30,fixed(1.123)).show(0) == "23:30:01"`
-pub fun show( c : clock, prec : int = 9 ) : string
+pub fun clock/show( c : clock, prec : int = 9 ) : string
   c.hours.show0 ++ ":" ++ c.minutes.show0 ++ ":" ++ c.seconds.show-seconds(prec,2)
 
 // Show seconds
@@ -152,18 +152,18 @@ pub fun show-seconds( secs : ddouble, max-prec : int = 9, secs-width : int = 1, 
 
 
 // Compare two clocks as by their total seconds.
-pub fun compare( c : clock, d : clock ) : order
+pub fun clock/compare( c : clock, d : clock ) : order
   compare(c.total-seconds,d.total-seconds)
 
-pub fun (<)( i : clock, j : clock )  : bool { compare(i,j) == Lt }
-pub fun (<=)( i : clock, j : clock ) : bool { compare(i,j) != Gt }
-pub fun (>)( i : clock, j : clock )  : bool { compare(i,j) == Gt }
-pub fun (>=)( i : clock, j : clock ) : bool { compare(i,j) != Lt }
-pub fun (==)( i : clock, j : clock ) : bool { compare(i,j) == Eq }
-pub fun (!=)( i : clock, j : clock ) : bool { compare(i,j) != Eq }
+pub fun clock/(<)( i : clock, j : clock )  : bool { compare(i,j) == Lt }
+pub fun clock/(<=)( i : clock, j : clock ) : bool { compare(i,j) != Gt }
+pub fun clock/(>)( i : clock, j : clock )  : bool { compare(i,j) == Gt }
+pub fun clock/(>=)( i : clock, j : clock ) : bool { compare(i,j) != Lt }
+pub fun clock/(==)( i : clock, j : clock ) : bool { compare(i,j) == Eq }
+pub fun clock/(!=)( i : clock, j : clock ) : bool { compare(i,j) != Eq }
 
 // Add two clock together.
-pub fun (+)( c : clock, d : clock ) : clock
+pub fun clock/(+)( c : clock, d : clock ) : clock
   Clock(c.hours + d.hours, c.minutes + d.minutes, c.seconds + d.seconds )
 
 /*----------------------------------------------------------------------------
@@ -207,7 +207,7 @@ pub fun weekday( i : int ) : weekday
 
 
 // Show a `:weekday` as an English string (`Sun.show == "Sunday"`).
-pub fun show( wd : weekday ) : string
+pub fun weekday/show( wd : weekday ) : string
   match wd
     Mon -> "Monday"
     Tue -> "Tuesday"
@@ -219,16 +219,16 @@ pub fun show( wd : weekday ) : string
 
 
 // Return the `:weekday` that comes `n` days after week day `wd`.
-pub fun (+)(wd : weekday, n : int ) : weekday
+pub fun weekday/(+)(wd : weekday, n : int ) : weekday
   (wd.int + n).weekday
 
 // Return the `:weekday` that comes `n` days before week day `wd`.
-pub fun (-)(wd : weekday, n : int ) : weekday
+pub fun weekdayint/(-)(wd : weekday, n : int ) : weekday
   (wd.int - n).weekday
 
 // Return the difference between two week days:\
 // `wd2 == wd1 + (wd2 - wd1)`
-pub fun (-)(wd1 : weekday, wd2 : weekday ) : int
+pub fun weekday/(-)(wd1 : weekday, wd2 : weekday ) : int
   (wd1.int  - wd2.int)%7
 
 
@@ -241,15 +241,15 @@ pub fun show-short( wd : weekday ) : string
   wd.show.first(3).string
 
 // Compare weekdays.
-pub fun compare( wd1 : weekday, wd2 : weekday ) : order
+pub fun weekday/compare( wd1 : weekday, wd2 : weekday ) : order
   compare(wd1.int,wd2.int)
 
-pub fun (<)( i : weekday, j : weekday )  : bool { compare(i,j) == Lt }
-pub fun (<=)( i : weekday, j : weekday ) : bool { compare(i,j) != Gt }
-pub fun (>)( i : weekday, j : weekday )  : bool { compare(i,j) == Gt }
-pub fun (>=)( i : weekday, j : weekday ) : bool { compare(i,j) != Lt }
-pub fun (==)( i : weekday, j : weekday ) : bool { compare(i,j) == Eq }
-pub fun (!=)( i : weekday, j : weekday ) : bool { compare(i,j) != Eq }
+pub fun weekday/(<)( i : weekday, j : weekday )  : bool { compare(i,j) == Lt }
+pub fun weekday/(<=)( i : weekday, j : weekday ) : bool { compare(i,j) != Gt }
+pub fun weekday/(>)( i : weekday, j : weekday )  : bool { compare(i,j) == Gt }
+pub fun weekday/(>=)( i : weekday, j : weekday ) : bool { compare(i,j) != Lt }
+pub fun weekday/(==)( i : weekday, j : weekday ) : bool { compare(i,j) == Eq }
+pub fun weekday/(!=)( i : weekday, j : weekday ) : bool { compare(i,j) != Eq }
 
 /*----------------------------------------------------------------------------
 

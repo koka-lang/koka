@@ -1,6 +1,6 @@
 /*---------------------------------------------------------------------------
   Copyright 2012-2021, Microsoft Research, Daan Leijen.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
@@ -11,9 +11,9 @@
 */
 module std/text/unicode
 
-// Grapheme's are an alias for `:string`. 
+// Grapheme's are an alias for `:string`.
 // Each grapheme is a self-contained symbol consisting of
-// a unicode character followed by combining characters and/or 
+// a unicode character followed by combining characters and/or
 // combining marks.
 pub alias grapheme = string
 
@@ -26,7 +26,7 @@ extern import {
 // Calculation of graphemes
 //--------------------------------------------------------------
 
-// Is this a combining character? 
+// Is this a combining character?
 pub fun is-combining( c : char ) : bool {
   val i = c.int
   ((i >= 0x0300 && i <= 0x036F) ||
@@ -39,7 +39,7 @@ pub fun is-combining( c : char ) : bool {
 // Join combining characters with their base into a grapheme.
 fun join-combining( cs : list<char>, comb : list<char> = [], acc : list<grapheme> = []) : list<grapheme> {
   match(cs) {
-    Cons(c,cc) -> if (c.is-combining) 
+    Cons(c,cc) -> if (c.is-combining)
                    then cc.join-combining( Cons(c,comb), acc )
                    else cc.join-combining( [c], consrev(comb,acc) )
     Nil        -> consrev(comb,acc).reverse
@@ -92,19 +92,19 @@ pub fun normalize( s  : string, norm : normalization = NFC ) : string {
 
 
 //--------------------------------------------------------------
-// Column widths 
+// Column widths
 //--------------------------------------------------------------
 
 // Return the column-width of a unicode character.
 // Equivalent to ``wcwidth``
-pub fun width( c : char ) : int {
+pub fun char/width( c : char ) : int {
   if (zero-widths.force.contains(c.int)) then 0
   elif (asian-wide.force.contains(c.int)) then 2
   else 1
 }
 
 // Return the total column-width of a string.
-pub fun width( s : string ) : int {
+pub fun string/width( s : string ) : int {
   var total := 0
   s.foreach( fn(c) {
     total := total + c.width
@@ -117,28 +117,28 @@ pub fun width( s : string ) : int {
 //--------------------------------------------------------------
 
 // These characters are considered wide, i.e. 2 columns wide.
-val asian-wide : delayed<total,rtree> = delay{ 
+val asian-wide : delayed<total,rtree> = delay{
   build-rtree([
     single(0x1100,0x115F),
-    single(0x2329,0x2329), 
+    single(0x2329,0x2329),
     single(0x232A,0x232A),
-    single(0x2E80,0x303E), 
+    single(0x2E80,0x303E),
     single(0x3040,0xA4CF),
-    single(0xAC00,0xD7A3), 
-    single(0xF900,0xFAFF), 
-    single(0xFE10,0xFE19), 
-    single(0xFE30,0xFE6F), 
-    single(0xFF00,0xFF60), 
+    single(0xAC00,0xD7A3),
+    single(0xF900,0xFAFF),
+    single(0xFE10,0xFE19),
+    single(0xFE30,0xFE6F),
+    single(0xFF00,0xFF60),
     single(0xFFE0,0xFFE6),
     single(0x20000,0x2FFFD),
     single(0x30000,0x3FFFD),
-  ]) 
+  ])
 }
 
 // These characters have zero width
-val zero-widths : delayed<total,rtree> = delay{ 
+val zero-widths : delayed<total,rtree> = delay{
   build-rtree([
-    single(0x0000, 0x001F), single(0x007F, 0x00A0),                                      
+    single(0x0000, 0x001F), single(0x007F, 0x00A0),
     single(0x0300, 0x036F), single(0x0483, 0x0486), single(0x0488, 0x0489),
     single(0x0591, 0x05BD), single(0x05BF, 0x05BF), single(0x05C1, 0x05C2),
     single(0x05C4, 0x05C5), single(0x05C7, 0x05C7), single(0x0600, 0x0603),
@@ -187,7 +187,7 @@ val zero-widths : delayed<total,rtree> = delay{
     single(0x1D173, 0x1D182), single(0x1D185, 0x1D18B), single(0x1D1AA, 0x1D1AD),
     single(0x1D242, 0x1D244), single(0xE0001, 0xE0001), single(0xE0020, 0xE007F),
     single(0xE0100, 0xE01EF)
-  ]) 
+  ])
 }
 
 
@@ -223,10 +223,10 @@ fun single(lo,hi) {
 
 fun bin(x,y) {
   match((x,y)) {
-    (Bin(xlo,xhi),Bin(ylo,yhi)) -> Bin(min(xlo,ylo),max(xhi,yhi),x,y) 
+    (Bin(xlo,xhi),Bin(ylo,yhi)) -> Bin(min(xlo,ylo),max(xhi,yhi),x,y)
     (Tip,_) -> y
     _ -> x
-  }  
+  }
 }
 
 fun combine( xs : list<rtree> ) : rtree {
@@ -239,7 +239,7 @@ fun combine( xs : list<rtree> ) : rtree {
 
 fun combine-pairs( xs : list<rtree> ) : list<rtree> {
   match(xs) {
-    Cons(x,Cons(y,rest)) -> Cons( bin(x,y), combine-pairs(rest) ) 
+    Cons(x,Cons(y,rest)) -> Cons( bin(x,y), combine-pairs(rest) )
     _ -> xs
   }
 }

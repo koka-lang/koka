@@ -42,7 +42,7 @@ pub fun await( p : promise<a> ) : pure a
   unsafe_await( p.promise )
 
 // Await the result of a list of promises.
-pub fun await( ps : list<promise<a>> ) : pure list<a>
+pub fun list/await( ps : list<promise<a>> ) : pure list<a>
   ps.map(await)
 
 // Run a list of pure computations in parallel.
@@ -60,7 +60,7 @@ pub noinline fun taskn( count : int, stride : int, work : () -> pure a, combine 
 */
 
 // ---------------------------------------------------------
-// LVar's 
+// LVar's
 // Note: currently unsafe in the pure effect!! needs work
 
 abstract struct lvar<a>

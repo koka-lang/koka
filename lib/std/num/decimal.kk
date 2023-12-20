@@ -9,7 +9,7 @@
 // Arbitrary precision decimal numbers.
 //
 // Decimals have arbitrary precision and range and
-// do exact decimal arithmetic and are well suited for 
+// do exact decimal arithmetic and are well suited for
 // financial calculations for example.
 module std/num/decimal
 
@@ -33,7 +33,7 @@ fun round-exp( exp : int ) : int
 
 // Create a decimal from an integer `i` with an optional
 // exponent `exp` (=`0`) such that the result equals `i`&times;10^`exp`^.
-pub fun decimal( i : int, exp : int = 0 ) : decimal
+pub fun int/decimal( i : int, exp : int = 0 ) : decimal
   decimal-exp(i,exp)
 
 
@@ -62,7 +62,7 @@ are required. For example:
 ```
 .
 */
-pub fun decimal( d : float64, max-prec : int = -1 ) : decimal
+pub fun float64/decimal( d : float64, max-prec : int = -1 ) : decimal
   val (man,exp)  = d.decode
   if exp >= 0 then (man * (2^exp)).decimal else
     val prec = if max-prec < 0  then ~exp else min(max-prec,~exp)
@@ -340,11 +340,11 @@ pub fun truncate( x : decimal ) : decimal
 
 
 // Convert a decimal to a `:float64`. This may lose precision.
-pub fun float64( x : decimal ) : float64 
+pub fun float64( x : decimal ) : float64
   // todo: handle decimals with many digits better
   if !x.exp.is-neg then
     x.num.float64 * pow(10.0,x.exp.float64)
-  else 
+  else
     val (q,r) = x.num.divmod-exp10(~x.exp)
     q.float64 + r.float64 * exp10(x.exp.float64)
 
@@ -362,7 +362,7 @@ pub fun ffraction( x : decimal ) : decimal
 /* --------------------------------------------------------------------------------------
     Show
  -------------------------------------------------------------------------------------- */
- 
+
 // Show a decimal `d` using its internal representation.
 pub fun show-raw(d : decimal)
   d.num.show ++ "e" ++ d.exp.show
@@ -402,12 +402,12 @@ while for a positive precision, exactly `prec` digits are used.
 ```
 .
 */
-pub fun show-fixed( d : decimal, prec : int = -1000 ) : string 
+pub fun show-fixed( d : decimal, prec : int = -1000 ) : string
   val x = d.round-to-prec(prec.abs)
   if x.exp >= 0 then
     val frac = if prec<=0 then "" else "." ++ repeat("0",prec)
     x.num.show ++ repeat("0",x.exp) ++ frac
-  else 
+  else
     val digits = ~x.exp
     val sign  = if x.is-neg then "-" else ""
     val i     = x.num.abs

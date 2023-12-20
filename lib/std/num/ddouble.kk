@@ -180,7 +180,7 @@ abstract value struct ddouble
   lo : float64
 
 // Create a `:ddouble` from a `:float64`.
-pub fun ddouble( d : float64 ) : ddouble
+pub fun float64/ddouble( d : float64 ) : ddouble
   Ddouble(d,0.0)
 
 val maxprecise : int = 9007199254740991
@@ -193,7 +193,7 @@ fun is-precise(i : int ) : bool
 // Create a `:ddouble` from an `:int`.
 // A `:ddouble` can represent integers precisely up to 30 digits.
 // If an integer is passed that is out of range an infinity is returned.
-pub fun ddouble( i : int ) : ddouble
+pub fun int/ddouble( i : int ) : ddouble
   ddouble-int-exp(i,0)
 
 fun ddouble-int-exp( i : int, e : int ) : ddouble
@@ -619,11 +619,11 @@ pub fun exp2( exp : ddouble ) : ddouble
   pow(two,exp)
 
 // Create a `:ddouble` `x` such that `x` equals `d`&middot;10^`e`^.
-pub fun ddouble-exp( d : float64, e : int )
+pub fun float64/ddouble-exp( d : float64, e : int )
   d.ddouble.mul-exp10(e)
 
 // Create a `:ddouble` `x` such that `x` equals `i`&middot;10^`e`^.
-pub fun ddouble-exp( i : int, exp : int ) : ddouble
+pub fun int/ddouble-exp( i : int, exp : int ) : ddouble
   i.ddouble.mul-exp10(exp)
 
 fun mul-exp10( x : ddouble, exp : int ) : ddouble
@@ -738,7 +738,7 @@ pub fun show-sum( x : ddouble, prec : int = -17 ) : string
 
 // Parse a floating point number with up to 31 digits precision.
 // Return `dd-nan` if the string is an invalid number.
-pub fun ddouble( s : string ) : ddouble
+pub fun string/ddouble( s : string ) : ddouble
   s.parse-ddouble.default(dd-nan)
 
 /*
@@ -1009,13 +1009,13 @@ pub fun logaddexp2( x : ddouble, y : ddouble ) : ddouble
 // Return if two `:ddouble`s are nearly equal with respect to some `epsilon` (=`8*dd-epsilon`).
 // The epsilon is the nearest difference for numbers around 1.0. The routine automatically
 // scales the epsilon for larger and smaller numbers, and for numbers close to zero.
-pub fun nearly-eq( x : ddouble, y : ddouble, epsilon : ddouble = dd-epsilon8 ) : bool 
+pub fun nearly-eq( x : ddouble, y : ddouble, epsilon : ddouble = dd-epsilon8 ) : bool
   if x == y return True
   val diff = (x - y).abs
   if x.is-zero || y.is-zero || diff < dd-min then
     // very close to zero, scale the epsilon for subnormal numbers
     (two*diff < (epsilon * dd-min))
-  else 
+  else
     val sum = x.abs + y.abs
     ((two*diff / (if sum > dd-max then dd-max else sum)) < epsilon)
 
@@ -1035,7 +1035,7 @@ pub fun (~=)(x : ddouble, y : ddouble ) : bool
 // `[1.0e3,1.0e97,1.0e3,-1.0e97].sum == 2000.0`\
 // A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
 // Math. Mechanik, 54:39--51, 1974.
-pub fun sum( xs : list<ddouble> ) : ddouble
+pub fun list/sum( xs : list<ddouble> ) : ddouble
   var total := zero
   var comp  := zero
   xs.foreach fn(x)
@@ -1059,7 +1059,7 @@ pub fun hypot( x : ddouble, y : ddouble ) : ddouble
 
 // The square root of the sum of the squares of three doubles.
 // Prevents overflow for large numbers.
-pub fun hypot( x : ddouble, y : ddouble, z : ddouble ) : ddouble
+pub fun xyz/hypot( x : ddouble, y : ddouble, z : ddouble ) : ddouble
   val xx = abs(x)
   val yy = abs(y)
   val zz = abs(z)
@@ -1071,7 +1071,7 @@ pub fun hypot( x : ddouble, y : ddouble, z : ddouble ) : ddouble
 // The square root of the sum of squares of a list of doubles.
 // Prevents overflow for large numbers and uses Kahan-Babu&scaron;kan-Neumaier summation
 // for precision.
-pub fun hypot( xs : list<ddouble> ) : ddouble
+pub fun list/hypot( xs : list<ddouble> ) : ddouble
   val hi = xs.abs-max
   if hi.is-zero then zero else
     hi * xs.map(fn(x){ sqr(x / hi) }).sum.sqrt
@@ -1082,7 +1082,7 @@ fun abs-max( x : ddouble, y : ddouble ) : ddouble
   max(abs(x),abs(y))
 
 // The maximum of a list of absolute values.
-fun abs-max( xs : list<ddouble> ) : ddouble
+fun list/abs-max( xs : list<ddouble> ) : ddouble
   xs.foldr(ddouble/zero,fn(x,m){ max(abs(x),m) })
 
 /*------------------------------------------------------
@@ -1203,25 +1203,25 @@ pub fun atan( x : ddouble ) : ddouble
   atan2(x,one)
 
 // The arc-tangent of a point (`x`,`y`). Returns the angle with respect to the x-axis in radians between -&pi; and &pi;.
-pub fun atan2( y : ddouble, x : ddouble ) : ddouble 
+pub fun atan2( y : ddouble, x : ddouble ) : ddouble
   if x.is-zero then
     if y.is-zero then zero /* dd-nan */ else dd-pi2.with-sign-of(y)
-  elif y.is-zero then 
+  elif y.is-zero then
     if x.is-pos then zero else dd-pi
-  elif x == y then 
+  elif x == y then
     if y.is-pos then dd-pi4 else ~dd-pi34
-  elif x == ~y then 
+  elif x == ~y then
     if y.is-pos then dd-pi34 else ~dd-pi4
-  else 
+  else
     val r = sqrt( x.sqr + y.sqr )
     val xr = x / r
     val yr = y / r
     val z = atan2( y.float64, x.float64 ).ddouble // approximation
     val (sinz,cosz) = sincos(z)
-    if xr.hi.abs > yr.abs.hi 
+    if xr.hi.abs > yr.abs.hi
      then z + ((yr - sinz) / cosz)
      else z - ((xr - cosz) / sinz)
-  
+
 
 // The hyperbolic sine of `x`.
 pub fun sinh( x : ddouble ) : ddouble

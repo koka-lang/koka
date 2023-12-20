@@ -43,15 +43,15 @@ pub fun unsafe-duration( t : timestamp ) : duration
 
 
 // Create a duration from whole seconds `secs` and a fraction of seconds `frac`.
-pub fun duration( secs : int, frac : float64 = 0.0 ) : duration
+pub fun int/duration( secs : int, frac : float64 = 0.0 ) : duration
   Duration(timespan(secs,frac))
 
 // Create a duration from seconds as a `:float64`.
-pub fun duration( secs : float64 ) : duration
+pub fun float64/duration( secs : float64 ) : duration
   Duration(timespan(secs))
 
 // Create a duration from seconds and a fraction as a `:float64`'s.
-pub fun duration( secs : float64, frac : float64 ) : duration
+pub fun float64frac/duration( secs : float64, frac : float64 ) : duration
   Duration(timespan(secs,frac))
 
 // Convert a duration to a `:timespan`.
@@ -131,10 +131,10 @@ pub fun show( d : duration, max-prec : int = 9 ) : string
   d.secs.show-fixed(~max-prec.abs) ++ "s"
 
 // Create a `:duration` of `n` milli-seconds.
-pub fun milli-seconds( n : int ) : duration { Duration(n.timespan / 1000.timespan) }
+pub fun int/milli-seconds( n : int ) : duration { Duration(n.timespan / 1000.timespan) }
 
 // Create a `:duration` of `n` seconds.
-pub fun seconds( n : int ) : duration { duration(n) }
+pub fun int/seconds( n : int ) : duration { duration(n) }
 
 // Create a `:duration` of `n` minutes.
 pub fun minutes( n : int ) : duration { duration(n*60) }

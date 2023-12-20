@@ -152,7 +152,7 @@ fun replace-captures( caps : list<sslice>, repl : string ) : string
 // Replace all occurrences of `regex` with the replacement string `repl` in a string `s`.
 // The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
 // `$&` for the entire match `==$0`.
-pub fun replace-all( s : string, regex : regex, repl : string, atmost : int = -1 ) : string
+pub fun string/replace-all( s : string, regex : regex, repl : string, atmost : int = -1 ) : string
   if (repl.contains("$"))
     then replace-all(s, regex, fn(caps){ replace-captures(caps,repl) }, atmost)
     else replace-all(s, regex, fn(_){ repl }, atmost)
@@ -160,7 +160,7 @@ pub fun replace-all( s : string, regex : regex, repl : string, atmost : int = -1
 // Replace the first occurrence of `regex` with a replacement string `repl` in a string `s`.
 // The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
 // `$&` for the entire match `==$0`.
-pub fun replace( s : string, regex : regex, repl : string ) : string
+pub fun string/replace( s : string, regex : regex, repl : string ) : string
   replace-all( s, regex, repl, 1 )
 
 
