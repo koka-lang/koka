@@ -8,6 +8,7 @@ module LanguageServer.Handler.InlayHints (inlayHintsHandler) where
 import Control.Monad.IO.Class (liftIO)
 import Control.Lens ((^.))
 import Data.Maybe (mapMaybe)
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Message as J
@@ -41,7 +42,9 @@ inlayHintsHandler = requestHandler J.SMethod_TextDocumentInlayHint $ \req respon
         rmap <- modRangeMap lm
         -- trace (show $ rangeMapFindIn newRng rmap) $ return ()
         let env = (prettyEnvFromFlags flags){ context = modName lm, importsMap = loadedImportMap l, showFlavours=False }
-        return $ mapMaybe (toInlayHint env (modName lm)) $ rangeMapFindIn newRng rmap
+        let hints = mapMaybe (toInlayHint env (modName lm)) $ rangeMapFindIn newRng rmap
+        let hintsDistinct = Map.fromList $ map (\hint -> (hint ^. J.position, hint)) hints
+        return $ Map.elems hintsDistinct
   case rsp of
     Nothing -> responder $ Right $ J.InR J.Null
     Just rsp -> responder $ Right $ J.InL rsp

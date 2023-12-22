@@ -64,8 +64,12 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
     Just (l, lm, vf) -> do  
       completionInfos <- liftIO $ getCompletionInfo pos vf lm normUri
       case completionInfos of
-        Just pi -> return $ findCompletions l lm pi
-        _ -> return []
+        Just posInfo -> 
+          let completions = findCompletions l lm posInfo
+          in -- trace (show completions) $ 
+            return completions
+        _ -> -- trace ("No completion infos for position ") 
+          return []
     _ -> return []
   responder $ Right $ J.InL items
 
@@ -86,7 +90,7 @@ data PositionInfo = PositionInfo
 
 getCompletionInfo :: MonadIO m => J.Position -> VirtualFile -> Module -> J.NormalizedUri -> m (Maybe PositionInfo)
 getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri = do
-      let rm = (fromJust $ modRangeMap mod)
+      let rm = fromJust $ modRangeMap mod
           result = do -- Maybe monad
             let lastMaybe [] = Nothing
                 lastMaybe xs = Just $ last xs
@@ -103,38 +107,40 @@ getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri = do
 
             case reverse parts of
               [] -> Nothing
-              (x:xs) -> do
+              (searchTerm:xs) -> do
                 -- trace ("parts: " ++ show parts) $ return ()
-                let modName = case filter (not .T.null) xs of {x:xs -> x; [] -> ""}
+                let argument = case filter (not .T.null) xs of {x:xs -> x; [] -> ""}
                 argumentText <- Rope.toText . fst <$> Rope.splitAt (fromIntegral c) currentRope
                 let isFunctionCompletion = if | T.null argumentText -> False
                                               | T.findIndex (== '.') argumentText > T.findIndex (== ' ') argumentText -> True
                                               | otherwise -> False
-                    newC = c - fromIntegral (T.length x + (if isFunctionCompletion then 1 else 0))
-                Just (newC, isFunctionCompletion, modName, currentRope, x)
+                    newC = c - fromIntegral (T.length searchTerm + (if isFunctionCompletion then 1 else 0))
+                Just (newC, isFunctionCompletion, argument, currentRope, searchTerm)
       case result of
-        Just (newC, isFunctionCompletion, modName, currentRope, x) -> do
-          mbCurrentType <- liftIO $ do
+        Just (newC, isFunctionCompletion, argument, currentRope, searchTerm) -> do
+          -- trace (show (newC, isFunctionCompletion, argument, currentRope, searchTerm)) $ return ()
+          mbCurrentType <- liftIO $! do
             if isFunctionCompletion then do
-                currentRange <- liftIO $ fromLspPos uri (J.Position l newC)
-                return $ do -- maybe monad
+                currentRange <- liftIO $! fromLspPos uri (J.Position l newC)
+                return $! do -- maybe monad
                   ri <- rangeMapFindAt currentRange rm
                   case ri of
                     [(r, rangeInfo)] -> do
                       t <- rangeInfoType rangeInfo
                       case splitFunType t of
-                        Just (pars,eff,res) -> return $ Just res
-                        Nothing             -> return $ Just t
-                    _ -> return Nothing
-            else return Nothing
-          case mbCurrentType of
-            Just currentType -> do
-              -- currentRope is already a single line, but it may include an enclosing '\n'
-              let curLine = T.dropWhileEnd (== '\n') $ Rope.toText currentRope
-              let pi = PositionInfo curLine modName x pos currentType isFunctionCompletion
-              return $ Just pi
-            Nothing -> return Nothing
-        Nothing -> return Nothing
+                        Just (pars,eff,res) -> Just res
+                        Nothing             -> Just t
+                    [] -> --trace ("No range info found for that location") $ 
+                      Nothing
+                    _ -> -- trace ("Multiple completions") 
+                      Nothing
+            else -- trace ("Not a function completion")
+              return Nothing
+          -- currentRope is already a single line, but it may include an enclosing '\n'
+          let curLine = T.dropWhileEnd (== '\n') $ Rope.toText currentRope
+              posInfo = PositionInfo curLine argument searchTerm pos mbCurrentType isFunctionCompletion
+          return $ Just posInfo
+        _ -> return Nothing
 -- TODO: Complete local variables
 -- TODO: Show documentation comments in completion docs
 
