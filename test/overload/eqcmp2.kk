@@ -1,3 +1,7 @@
+// This works with extended resolving for
+// variable function applications f(x,..) where `f` can be
+// 1. disambguated (using shortest chains)
+// 2. use a global instead of a local as long as the local is the implicit parameter
 
 fun int/eq( x : int, y : int ) : bool
   (x == y)
@@ -20,8 +24,8 @@ fun contains( xs : list<a>, y : a, ?eq : (a,a) -> bool ) : bool
 fun equal( x : a, y : a, ?eq : (a,a) -> bool ) : bool
   eq(x,y)
 
-//fun test1()
-//  xequal([1,2],[1,3]).println
+fun test1()
+  eq([1,2],[1,3]).println
 
 fun test2()
   contains(['a','b'],'c').println
@@ -82,10 +86,11 @@ fun cmp-and-eq(xs : list<a>, y : a, ?cmp : (a,a) -> order) : bool
   //fun cmpl(a,b) cmp_list(a,b) // haskell could infer this from `instance Ord a => Ord [a]`)
   // fun eq(a,b)   eq_cmp(a,b)  // haskell could infer this from `class Eq a => Ord a`
   compare(xs,xs) == Eq &&       // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
-  cmp(xs,xs) == Eq &&       // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
   list/cmp(xs,xs) == Eq &&      // or be explicit
-  // cmp(xs,xs) &&              // this fails as the local `cmp` matches first (as regular resolving)
-  eq(y,y) &&                    // this can be resolved automatically without the local `eq` since we have `cmp/eq`
+  cmp(xs,xs) == Eq &&           // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
+                                // we allow to resolve the local bypass `list/cmp` since it eventually uses the local `cmp` directly,
+                                // i.e. it is a type conversion on the local.
+  eq(y,y) &&                    // this can be resolved automatically without the local `eq` since we have `cmp/eq(cmp)`
   contains(xs,y)
 
 
