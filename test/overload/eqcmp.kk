@@ -53,16 +53,16 @@ fun cmp/eq( x : a, y : a, ?cmp : (a,a) -> order ) : bool
   cmp(x,y) == Eq
 
 fun test3()
-  equal(1,2)  // use `int/eq` instead of `cmp/eq(int/cmp)` as it is shorter
-  // eq(1,2)        // is ambiguous as regular identifier resolution doesn't do this (and we have `int/eq` and `cmp/eq(int/cmp)`)
+  // equal(1,2)  // use `int/eq` instead of `cmp/eq(int/cmp)` as it is shorter
+  eq(1,2)        // is ambiguous as regular identifier resolution doesn't do this (and we have `int/eq` and `cmp/eq(int/cmp)`)
 
 fun test4a(x : int, y :int, ?cmp : (int,int) -> order)
-  (equal(x,y)  // use `cmp/eq(cmp)` to prefer implicits originating from the local declarations (instead of the global `int/eq`)
+  (eq(x,y)  // use `cmp/eq(cmp)` to prefer implicits originating from the local declarations (instead of the global `int/eq`)
   ,cmp(x,y))
 
 fun test4b(x : int, y :int)
   val cmp = int/cmp
-  (equal(x,y)  // use `cmp/eq(cmp)` to prefer implicits originating from the local declarations (instead of the global `int/eq`)
+  (eq(x,y)  // use `cmp/eq(cmp)` to prefer implicits originating from the local declarations (instead of the global `int/eq`)
   ,cmp(x,y))
 
 fun show( ord : order ) : string
@@ -82,10 +82,12 @@ fun cmp-and-eq(xs : list<a>, y : a, ?cmp : (a,a) -> order) : bool
   //fun cmpl(a,b) cmp_list(a,b) // haskell could infer this from `instance Ord a => Ord [a]`)
   // fun eq(a,b)   eq_cmp(a,b)  // haskell could infer this from `class Eq a => Ord a`
   compare(xs,xs) == Eq &&       // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
+  cmp(xs,xs) == Eq &&       // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
   list/cmp(xs,xs) == Eq &&      // or be explicit
   // cmp(xs,xs) &&              // this fails as the local `cmp` matches first (as regular resolving)
   eq(y,y) &&                    // this can be resolved automatically without the local `eq` since we have `cmp/eq`
   contains(xs,y)
+
 
 fun test6()
   ['a','b'].cmp-and-eq('a')

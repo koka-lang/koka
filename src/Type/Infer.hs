@@ -685,14 +685,7 @@ inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,r
                                    return nameRefSet
               inferExpr propagated expect
                         (App (Var nameSet False arng) [(Nothing,App (Var nameByref False (before lrng)) [lhs] lrng), rhs] rng)
-              {-
-              (_,_,info) <- resolveName target Nothing lrng
-              case info of
-                InfoVal{ infoIsVar = True }
-                  -> inferExpr propagated expect
-                        (App (Var nameRefSet False lrng) [(Nothing,App (Var nameByref False lrng) [lhs] lrng), rhs] rng)
-                _ -> errorAssignable
-              -}
+
       _ -> errorAssignable
   where
     errorAssignable
@@ -1290,31 +1283,34 @@ inferApp propagated expect fun nargs rng
        amb <- case rootExpr fun of
                 (Var name _ nameRange)
                   -> do let sctx = fixedCountContext propagated (length fixed) (map (fst . fst) named)
-                        matches <- lookupAppName name sctx nameRange
+                        matches <- lookupAppNameX False name sctx nameRange
                         -- traceDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
                         case matches of
-                          []         -> do -- emit an error
+                          (Left [])  -> do -- emit an error
                                            resolveAppName name sctx rng nameRange
-                                           return (Just Nothing)  -- error
-                          [(_,info)] -> return (Just (Just (infoType info, rng))) -- known type, propagate the function type into the parameters
-                          _          -> return Nothing -- many matches, -- start with argument inference and try to resolve the function type
-                _ -> return (Just Nothing) -- function expression first
+                                           return (Just (Nothing,fun,[]))  -- error
+                          Right (tp,funExpr,implicits)
+                              -> return (Just (Just (tp,rng), funExpr, implicits)) -- known type, propagate the function type into the parameters
+                          _   -> return Nothing -- many matches, -- start with argument inference and try to resolve the function type
+                _ -> return (Just (Nothing,fun,[])) -- function expression first
        case amb of
-         Just prop -> inferAppFunFirst prop [] fixed named
-         Nothing   -> inferAppFromArgs fixed named
+         Just (prop,funExpr,implicits) -> inferAppFunFirst prop funExpr [] fixed (named {- ++ implicits -})
+         Nothing                       -> inferAppFromArgs fixed named
   where
     -- infer the function type first, and propagate it to the arguments
     -- can take an `fresolved` list of fixed arguments that have been inferred already (in the case
     -- where a overloaded function name could only be resolved after inferring some arguments)
-    inferAppFunFirst :: Maybe (Type,Range) -> [(Int,FixedArg)] -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
-    inferAppFunFirst prop fresolved fixed named
-      = -- trace (" inferAppFunFirst") $
-        do -- infer type of function
-           (ftp,eff1,fcore) <- allowReturn False $ inferExpr prop Instantiated fun
+    inferAppFunFirst :: Maybe (Type,Range) -> Expr Type -> [(Int,FixedArg)] -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
+    inferAppFunFirst prop funExpr fresolved fixed named
+      = do traceDoc $ \penv -> text (" inferAppFunFirst: fun: " ++ show funExpr ++ ", named: " ++ show named)
+                               <+> text ":" <+> ppProp penv prop
+           -- infer type of function
+           (ftp,eff1,fcore) <- allowReturn False $ inferExpr prop Instantiated funExpr
+           traceDoc $ \penv -> text "inferred type of fun: " <+> ppType penv ftp
 
            -- match the type with a function type, wrap optional arguments, and order named arguments.
            -- traceDoc $ \env -> text "infer fun first, tp:" <+> ppType env ftp
-           (iargs,pars0,funEff0,funTp0,coreApp) <- matchFunTypeArgs rng fun ftp fresolved fixed named
+           (iargs,pars0,funEff0,funTp0,coreApp) <- matchFunTypeArgs rng funExpr ftp fresolved fixed named
 
            -- match propagated type with the function result type
            -- todo: is not always correct so only do this if required to resolve implicit parameters.
@@ -1375,7 +1371,7 @@ inferApp propagated expect fun nargs rng
     -- we always infer from left to right until we can resolve the function type and then propagate argument types.
     inferAppFromArgs :: [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFromArgs [] named       -- there are no fixed arguments, use fun first anyways (and error..)
-      = inferAppFunFirst Nothing [] [] named
+      = inferAppFunFirst Nothing fun [] [] named
     inferAppFromArgs fixed named
       = do inferAppArgsFirst [] ({-sortBy (comparing (weight . snd))-} (zip [0..] fixed)) fixed named
       {-
@@ -1393,31 +1389,31 @@ inferApp propagated expect fun nargs rng
       = -- this always fails since we have not been able to resolve the function name
         if (not (null named))
           then infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <-> text " hint: annotate the function parameters?" )
-          else inferAppFunFirst Nothing fresolved fixed []
+          else inferAppFunFirst Nothing fun fresolved fixed []
 
     inferAppArgsFirst fresolved ((idx,fix):fixs) fixed named  -- try to improve our guess
-      = do -- traceDoc $ \env -> "infer app args first :-(: "
+      = do traceDoc $ \penv -> text "inferAppArgsFirst: "
            (tpArg,effArg,coreArg)  <- allowReturn False $ inferExpr Nothing Instantiated fix
            -- sfresolved <- mapM (\(i,(rng,tp,eff,carg)) -> do{ stp <- subst tp; return (i,(rng,stp,eff,carg)) }) fresolved
            let fresolved' = fresolved ++ [(idx,(getRange fix,tpArg,effArg,coreArg))]
            amb <- case rootExpr fun of
                     (Var name _ nameRange)
                       -> do sctx <- fixedContext propagated fresolved' (length fixed) (map (fst . fst) named)
-                            matches <- lookupAppName name sctx nameRange
+                            matches <- lookupAppNameX (null fixs {- allow disambiguate -}) name sctx nameRange
                             -- traceDoc $ \env -> text "app args matched for " <+> ppName env name <+>
                             --                    text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+>
                             --                    text ", res: " <+> ppProp env propagated <+>
                             --                    text ", args: " <+> list (map (ppType env) (map (\(_,(_,tp,_,_)) -> tp) fresolved'))
                             case matches of
-                              []         -> do -- emit an error
+                              Left []    -> do -- emit an error
                                                resolveAppName name sctx rng nameRange
                                                return Nothing
-                              [(_,info)] -> return (Just (infoType info, rng))
+                              Right (itp,funExpr,implicits) -> return (Just ((itp,rng),funExpr,implicits))
                               _          -> return Nothing
                     _ -> return Nothing
 
            case amb of
-             Just prop  -> inferAppFunFirst (Just prop) fresolved' fixed named
+             Just (prop,funExpr,implicits)  -> inferAppFunFirst (Just prop) funExpr fresolved' fixed (named {- ++ implicits -})
              Nothing    -> inferAppArgsFirst fresolved' fixs fixed named
 
 
@@ -1451,9 +1447,18 @@ inferVar propagated expect name rng isRhs  | isConstructorName name
        return (itp,eff,coref coreVar)
 
 inferVar propagated expect name rng isRhs
-  = -- trace("inferVar; " ++ show name) $
-    do (qname,tp,info) <- resolveName name propagated rng
-       -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> colon <+> ppType env{showIds=True} tp
+  = -- trace("inferVar: " ++ show name) $
+    do vinfo <- resolveName name propagated rng
+       inferVarName propagated expect name rng isRhs vinfo
+       {-
+    do res <- resolveVarName name propagated rng
+       case res of
+         Right expr -> inferExpr propagated expect expr -- TODO: what about isRsh?
+         Left vinfo -> inferVarName propagated expect name rng isRhs vinfo
+       -}
+
+inferVarName propagated expect name rng isRhs (qname,tp,info)
+  = do -- traceDoc $ \env -> text "inferVarName:" <+> pretty name <+> colon <+> ppType env{showIds=True} tp
        if (isTypeLocalVar tp && isRhs)
         then do -- traceDoc $ \penv -> text "localvar:" <+> pretty name <+> text ":" <+> ppType penv tp
                 let irng = extendRange rng (-1)

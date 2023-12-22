@@ -1969,12 +1969,13 @@ pub extern unvlist( xs : list<a> ) : vector<a>
 // Delayed (or _lazy_) values are computed (with effect `:e`) only the first time
 // `force` is called and cached afterwards.
 abstract value type delayed<e,a>
-  con Delay( dref : ref<global,either<() -> e a,a>> )
+  con XDelay( dref : ref<global,either<() -> e a,a>> )
 
 // Create a new `:delayed` value.
 pub fun delay( action : () -> e a ) : delayed<e,a>
   unsafe-total
-    Delay(ref(Left(action)))
+    val r : ref<global,either<_,_>> = ref(Left(action))
+    XDelay(r)
 
 // Force a delayed value; the value is computed only on the first
 // call to `force` and cached afterwards.

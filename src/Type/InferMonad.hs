@@ -25,6 +25,8 @@ module Type.InferMonad( Inf, InfGamma
                       , resolveFunName
                       , resolveConName
                       , resolveImplicitName
+                      , lookupAppNameX
+
                       , lookupConName
                       , lookupFunName
                       , lookupNameEx, NameContext(..), maybeToContext
@@ -74,7 +76,7 @@ module Type.InferMonad( Inf, InfGamma
                       , addRangeInfo
                       ) where
 
-import Data.List( partition, sortBy)
+import Data.List( partition, sortBy, nub)
 import Data.Ord(comparing)
 import Control.Applicative
 import Control.Monad
@@ -1469,6 +1471,12 @@ fixedContext propagated fresolved fixedCount named
     namedGuessed
       = mapM (\name -> do{ tv <- Op.freshTVar kindStar Meta; return (name,tv) }) named
 
+implicitTypeContext :: Type -> NameContext
+implicitTypeContext tp
+  = case splitFunType tp of
+      Just (ppars,peff,prestp) -> CtxFunTypes False (map snd ppars) [] (Just prestp) -- can handle further implicits better
+      _                        -> CtxType tp
+
 
 getLocalVars :: Inf [(Name,Type)]
 getLocalVars
@@ -1497,6 +1505,22 @@ data NameContext
   | CtxFunTypes Bool [Type] [(Name,Type)] (Maybe Type)  -- ^ are only some arguments supplied?, function name, with fixed and named arguments, maybe a (propagated) result type
   deriving (Show)
 
+ppNameContext :: Pretty.Env -> NameContext -> Doc
+ppNameContext penv ctx
+  = case ctx of
+      CtxNone -> text "CtxNone"
+      CtxType tp -> text "CtxType" <+> Pretty.ppType penv tp
+      CtxFunArgs n names mbResTp -> text "CtxFunArgs" <+> pretty n <+> list [Pretty.ppName penv name | name <- names] <+> ppMbType penv mbResTp
+      CtxFunTypes some fixed named mbResTp
+        -> text "CtxFunTypes" <+> pretty some <+> list [Pretty.ppType penv atp | atp <- fixed]
+           <+> list [Pretty.ppParam penv nt | nt <- named] <+> ppMbType penv mbResTp
+  where
+    ppMbType penv Nothing   = Lib.PPrint.empty
+    ppMbType penv (Just tp) = text ":" <+> Pretty.ppType penv tp
+
+ppNameCtx :: Pretty.Env -> (Name,NameContext) -> Doc
+ppNameCtx penv (name,ctx) = Pretty.ppName penv name <+> text ":" <+> ppNameContext penv ctx
+
 
 lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
 lookupNameEx infoFilter name ctx range
@@ -1524,35 +1548,94 @@ lookupNameEx infoFilter name ctx range
             Just (pars,eff,restp) -> CtxFunTypes False (map snd pars) [] (Just restp) -- can handle implicit parameters recursively
             _                     -> CtxType tp
 -}
+
 traceDoc :: (Pretty.Env -> Doc) -> Inf ()
 traceDoc f
   = do penv <- getPrettyEnv
        trace (show (f penv)) $ return ()
 
+{-
+resolveVarName :: Name -> (Maybe (Type,Range)) -> Range -> Inf (Either (Name,Type,NameInfo) (Expr Type))
+resolveVarName name Nothing range
+  = do res <- resolveName name Nothing range
+       return (Left res)
+
+resolveVarName name (Just (tp,rng)) range
+  = do candidates <- lookupDisambiguatedName False name (implicitTypeContext tp) range
+       case candidates of
+         Right (_,itp,Var qname _ _)
+                    -> do traceDoc $ \penv -> text "resolveVarName: found" <+> Pretty.ppName penv qname <+> text ", use resolveName now for info"
+                          res <- resolveName qname (Just (tp,rng)) range
+                          return (Left res)
+         Right (_,itp,expr) -> return (Right expr)
+         Left docs  -> do traceDoc $ \penv -> text "resolveVarName: ambiguous:" <+> Pretty.ppName penv name <-> vcat docs
+                          res <- resolveName name (Just (tp,rng)) range  -- for the error message
+                          return (Left res)
+
+
+
+resolveAppNameX :: Name -> NameContext -> Range -> Inf (Maybe (Type,Expr Type))
+resolveAppNameX name ctx range
+  = do candidates <- lookupDisambiguatedName True name ctx range
+       case candidates of
+         Right (_,tp,expr) -> return (Just (tp,expr))
+         Left docs0      -> do penv <- getPrettyEnv
+                               infError range (text "cannot resolve function" <+> ppNameCtx penv (name,ctx) <->
+                                (if null docs0 then Lib.PPrint.empty
+                                  else let docs = take 8 docs0 ++ (if length docs0 > 8 then [text "..."] else [])
+                                      in text "candidates:" <+> align (vcat docs)) <->
+                                (text "hint: add a type annotation to the function parameters or qualify the name?"))
+                               return Nothing
+-}
+
+lookupAppNameX :: Bool -> Name -> NameContext -> Range -> Inf (Either [Doc] (Type,Expr Type,[((Name,Range),Expr Type)]))
+lookupAppNameX allowDisambiguate name ctx range
+  = do candidates <- lookupDisambiguatedName allowDisambiguate name ctx range
+       case candidates of
+         Right (vtp,tp,expr) -> case expr of
+                                  Lam fixed (App fun@(Var qname _ _) args _) _
+                                    -> let implicitArgs = [(pname,par) | (Just pname,par) <- drop (length fixed) args]
+                                      in do traceDoc $ \penv -> text "lookup app; add implicits" <+> text (show implicitArgs)
+                                            return (Right (vtp,fun,implicitArgs))
+                                  _ -> do traceDoc $ \penv -> text "lookup app: use expression directly"
+                                          return (Right (tp,expr,[]))
+         Left docs       -> return (Left docs)
+
+
 resolveImplicitName :: Name -> Type -> Range -> Inf (Expr Type)
 resolveImplicitName name tp range
-  = do defName <- currentDefName
-       traceDoc $ \penv -> Pretty.ppName penv defName <.> text ": resolving implicit:" <+> Pretty.ppParam penv (name,tp)
-       candidates0 <- lookupImplicitName 0 isInfoValFunExt name tp range
-       let candidates = sortBy (\(_,_,d1,l1) (_,_,d2,l2) -> compare (-l1,d1) (-l2,d2)) candidates0  -- prefer most locals, shortest depth
-       traceDoc $ \penv -> text " resolved implicit to:" <+> list [d | (d,_,_,_) <- candidates]
+  = do candidates <- lookupDisambiguatedName True name (implicitTypeContext tp) range
        case candidates of
-         [(_,expr,_,_)] -> return expr
-         ((_,expr,d1,l1):(_,_,d2,l2):_) | (l1 > l2 || d1 < d2) -> return expr
-         _ -> do penv <- getPrettyEnv
-                 infError range (text "cannot resolve implicit parameter" <+> Pretty.ppParam penv (name,tp) <->
-                              (if null candidates then Lib.PPrint.empty
-                                else let docs = take 8 [d | (d,_,_,_) <- candidates] ++
-                                               (if length candidates > 8 then [text "..."] else [])
-                                    in text "candidates:" <+> align (vcat docs)) <->
-                              (text "hint: add a type annotation to the function parameters or qualify then name?"))
+         Right (_,_,expr) -> return expr
+         Left docs0 -> do penv <- getPrettyEnv
+                          infError range (text "cannot resolve implicit parameter" <+> Pretty.ppParam penv (name,tp) <->
+                                        (if null docs0 then Lib.PPrint.empty
+                                          else let docs = take 8 docs0 ++ (if length docs0 > 8 then [text "..."] else [])
+                                              in text "candidates:" <+> align (vcat docs)) <->
+                                        (text "hint: add a type annotation to the function parameters or qualify then name?"))
 
-lookupImplicitName :: Int -> (NameInfo -> Bool) -> Name -> Type -> Range -> Inf [(Doc,Expr Type,Int,Int)]
-lookupImplicitName recurseDepth infoFilter name tp range | recurseDepth > 10
+lookupDisambiguatedName :: Bool -> Name -> NameContext -> Range -> Inf (Either [Doc] (Type, Type, Expr Type))
+lookupDisambiguatedName allowDisambiguate name ctx range
+  = do defName <- currentDefName
+       traceDoc $ \penv -> Pretty.ppName penv defName <.> text ": lookup:" <+> ppNameCtx penv (name,ctx)
+       candidates0 <- lookupImplicitName 0 isInfoValFunExt name ctx range
+       let candidates = sortBy (\(_,_,_,_,d1,lrs1) (_,_,_,_,d2,lrs2) -> compare (-(length lrs1),d1) (-(length lrs2),d2)) candidates0  -- prefer most locals, shortest depth
+       traceDoc $ \penv -> text " found in order:" <+> list [d | (d,_,_,_,_,_) <- candidates]
+       case candidates of
+         [(_,vtp,tp,expr,_,_)]  -- unambiguous
+           -> return (Right (vtp,tp,expr))
+         ((_,vtp,tp,expr,d1,lrs1):(_,_,_,_,d2,lrs2):_)
+            | allowDisambiguate && (length lrs1 > length lrs2 || d1 < d2)  -- can disambiguate
+           -> trace " pick first" $ return (Right (vtp,tp,expr))
+         _ -> return (Left [doc | (doc,_,_,_,_,_) <- candidates]) -- otherwise
+
+
+lookupImplicitName :: Int -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Doc,Type,Type,Expr Type,Int,[Name])]
+lookupImplicitName recurseDepth infoFilter name ctx range | recurseDepth > 10
   = return []
-lookupImplicitName recurseDepth infoFilter name tp range
+lookupImplicitName recurseDepth infoFilter name ctx range
   = do env <- getEnv
-       -- traceDoc $ \penv -> text " lookup implicit:" <+> Pretty.ppParam penv (name,tp)
+       -- traceDoc $ \penv -> text " lookup implicit:" <+> ppNameCtx penv (name,ctx)
        locals0  <- case infgammaLookupX name (infgamma env) of
                      Just info | isInfoValFunExt info -> do sinfo <- subst info
                                                             let lname = infoCanonicalName name info
@@ -1560,45 +1643,63 @@ lookupImplicitName recurseDepth infoFilter name tp range
                      _ -> return []
        let globals0 = filter (infoFilter . snd) $ gammaLookup name (gamma env)
        -- traceDoc $ \penv -> text "  lookup of" <+> Pretty.ppName penv name <+> text "found:" <+> list [Pretty.ppName penv name | (name,_) <- locals0 ++ globals0]
-       let ctx = case splitFunType tp of
-                   Just (pars,eff,restp) -> CtxFunTypes False (map snd pars) [] (Just restp) -- can handle further implicits better
-                   _                     -> CtxType tp
-       locals   <- filterMatchNameContextEx range True ctx locals0
-       globals  <- filterMatchNameContextEx range True ctx globals0
+       locals1  <- filterMatchNameContextEx range True ctx locals0
+       globals1 <- filterMatchNameContextEx range True ctx globals0
+
+       locals   <- concatMapM (toImplicitExpr (prettyEnv env) True) locals1
        -- traceDoc $ \penv -> text "  filtered lookup of" <+> Pretty.ppName penv name <+> text "found:" <+> list [Pretty.ppName penv name | (name,_,_) <- locals ++ globals]
        case locals of
-         [_] -> concatMapM (toImplicitExpr (prettyEnv env) True) locals
-         _   -> let globals' = if null locals0 then globals else filter ((name /=) . fst3) globals  -- only allow prefixes if a local of the exact name exists
-                in concatMapM (toImplicitExpr (prettyEnv env) False) globals'
+         {-
+         [_] -> -- a local matches the type context: always prefer it
+                concatMapM (toImplicitExpr (prettyEnv env) True) locals
+         -}
+         _   -> do globals <- concatMapM (toImplicitExpr (prettyEnv env) False) globals1
+                   let candidates = locals ++ globals
+                   case locals0 of
+                    [(lname,_)]
+                      -> -- a local `lname` was present but did not type check directly
+                         -- only allow global resolves that have this local as their root (i.e. they are conversions)
+                         let localRootIsLname (_,_,_,_,_,[lroot]) = (lroot == lname)
+                             localRootIsLname _                 = False
+                         in return (filter localRootIsLname candidates)
+                    _ -> -- no local matched, use globals as is
+                         return candidates
+
+
   where
     concatMapM f xs = concat <$> mapM f xs
     fst3 (x,y,z)    = x
 
-    toImplicitExpr :: Pretty.Env -> Bool -> (Name,NameInfo,Rho) -> Inf [(Doc,Expr Type,Int,Int)]
+    toImplicitExpr :: Pretty.Env -> Bool -> (Name,NameInfo,Rho) -> Inf [(Doc,Type,Type,Expr Type,Int,[Name])]
     toImplicitExpr penv isLocal (iname,inameInfo,itp {-instantiated type-})
-      = do let docName = text "?" <.> Pretty.ppName penv name <.> text "=" <.> Pretty.ppName penv iname
+      = do let docName = (if recurseDepth == 0 then Lib.PPrint.empty else text "?") <.> Pretty.ppName penv name <.> text "=" <.> Pretty.ppName penv iname
            -- traceDoc (\_ -> text "  found implicit: " <+> Pretty.ppParam penv (iname,itp))
            case splitFunType itp of
-              Just (ipars,_,_)  | any Op.isOptionalOrImplicit ipars
+              Just (ipars,ieff,iresTp)  | any Op.isOptionalOrImplicit ipars
                 -- eta-expand and resolve further implicit parameters
                 -> do let (fixed,opt,implicit) = splitOptionalImplicit ipars
                           nameFixed    = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] fixed]
                           argsFixed    = [(Nothing,Var name False range) | name <- nameFixed]
+                          etaTp        = TFun fixed ieff iresTp
                           eta iargs    = (if null fixed then id
                                            else \body -> Lam [ValueBinder name Nothing Nothing range range | name <- nameFixed] body range)
                                             (App (Var iname False range)
                                                 (argsFixed ++
-                                                [(Just (pname,range),expr) | ((ipname,_),(_,expr,_,_)) <- zip implicit iargs, let (pname,_) = splitImplicitParamName ipname])
+                                                [(Just (pname,range),expr) | ((ipname,_),(_,_,_,expr,_,_)) <- zip implicit iargs, let (pname,_) = splitImplicitParamName ipname])
                                                 range)
 
-                          depth iargs  = 1 + sum [depth | (_,_,depth,_) <- iargs]
-                          locals iargs = if null iargs && isLocal then 1 else sum [locs | (_,_,_,locs) <- iargs]
-                          doc iargs = docName <.> tupled [d | (d,_,_,_) <- iargs]
+                          depth iargs  = 1 + sum [depth | (_,_,_,_,depth,_) <- iargs]
+                          localRoots iargs = if null iargs && isLocal
+                                              then [iname]
+                                              else nub (concat [locs | (_,_,_,_,_,locs) <- iargs])
+                          doc iargs = docName <.> tupled [d | (d,_,_,_,_,_) <- iargs]
 
-                      iargss <- sequence <$> mapM (\(pname,ptp) -> lookupImplicitName (recurseDepth + 1) infoFilter (snd (splitImplicitParamName pname)) ptp range) implicit -- cartesian product of all possible arguments
-                      return [(doc iargs,eta iargs,depth iargs,locals iargs) | iargs <- iargss]
 
-              _ -> return [(docName,Var iname False range,1,if isLocal then 1 else 0)]
+                      -- recursively lookup implicit arguments
+                      iargss <- sequence <$> mapM (\(pname,ptp) -> lookupImplicitName (recurseDepth + 1) infoFilter (snd (splitImplicitParamName pname)) (implicitTypeContext ptp) range) implicit -- cartesian product of all possible arguments
+                      return [(doc iargs, itp, etaTp, eta iargs,depth iargs,localRoots iargs) | iargs <- iargss]
+
+              _ -> return [(docName, itp, itp, Var iname False range, 1, if isLocal then [iname] else [])]
 
 
 
