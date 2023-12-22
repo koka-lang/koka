@@ -4,7 +4,7 @@ pub fun main()
   val n = 10000
   println("The " ++ n.show ++ "th fibonacci number is " ++ fibonacci(10000).show)
 
-
+// Calculate the `n`'th fibnacci number.
 fun fibonacci(n : int) : div int
   fib(n, 0, 1)
 

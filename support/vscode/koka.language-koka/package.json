@@ -23,7 +23,7 @@
     "handler",
     "koka-lang"
   ],
-  "license": "MIT",
+  "license": "Apache-2.0",
   "homepage": "https://koka-lang.github.io",
   "repository": {
     "type": "git",

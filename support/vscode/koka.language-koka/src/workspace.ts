@@ -92,14 +92,14 @@ export async function downloadSDK(context: vscode.ExtensionContext, config: vsco
   }
   let command = "curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh && exit"
   if (os.platform() === "win32") {
-    command = "curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat && exit"
+    command = "curl -sSL -o %tmp%\\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\\install-koka.bat && exit"
   }
   const term = vscode.window.createTerminal({ name: "Install Koka", cwd: home, shellPath: DefaultShellPath, isTransient: true, message: "Installing Koka" })
   term.sendText(command)
   term.show()
   let dispose: vscode.Disposable | undefined = undefined;
   const result = await new Promise<SDKs|undefined>((resolve, reject) => {
-    let finished = false; 
+    let finished = false;
     // Race between a 30 second timeout on watching terminals
     // and the terminal finishing installation
     setTimeout(() => {
@@ -183,7 +183,7 @@ export async function uninstallSDK(context: vscode.ExtensionContext) {
   }
   let command = "curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh -s -- -u -f"
   if (os.platform() === "win32") {
-    command = "curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat -u -f"
+    command = "curl -sSL -o %tmp%\\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\\install-koka.bat -u -f"
   }
   const term = vscode.window.createTerminal({ name: "Uninstall Koka", cwd: home, shellPath: DefaultShellPath, isTransient: true, message: "Uninstalling Koka, you can close the terminal when done" })
   term.sendText(command)
