@@ -66,7 +66,8 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
       case completionInfos of
         Just posInfo -> 
           let completions = findCompletions l lm posInfo
-          in trace (show completions) $ return completions
+          in -- trace (show completions) $ 
+            return completions
         _ -> -- trace ("No completion infos for position ") 
           return []
     _ -> return []
