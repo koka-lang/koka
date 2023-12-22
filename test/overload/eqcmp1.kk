@@ -85,7 +85,9 @@ fun cmp-and-eq(xs : list<a>, y : a, ?cmp : (a,a) -> order) : bool
   list/cmp(xs,xs) == Eq &&      // or be explicit
   // cmp(xs,xs) == Eq &&        // this fails as the local `cmp` matches first (as regular resolving)
   eq(y,y) &&                    // this can be resolved automatically without the local `eq` since we have `cmp/eq`
-  contains(xs,y)
+  contains(xs,y) &&
+  //compare(1,2) == Eq
+
 
 
 fun test6()

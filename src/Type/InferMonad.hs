@@ -1655,6 +1655,8 @@ lookupImplicitName recurseDepth infoFilter name ctx range
          -}
          _   -> do globals <- concatMapM (toImplicitExpr (prettyEnv env) False) globals1
                    let candidates = locals ++ globals
+                   return candidates
+                   {-
                    case locals0 of
                     [(lname,_)]
                       -> -- a local `lname` was present but did not type check directly
@@ -1664,6 +1666,7 @@ lookupImplicitName recurseDepth infoFilter name ctx range
                          in return (filter localRootIsLname candidates)
                     _ -> -- no local matched, use globals as is
                          return candidates
+                    -}
 
 
   where

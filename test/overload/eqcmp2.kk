@@ -1,6 +1,6 @@
 // This works with extended resolving for
 // variable function applications f(x,..) where `f` can be
-// 1. disambguated (using shortest chains)
+// 1. disambiguated (using shortest chains)
 // 2. use a global instead of a local as long as the local is the implicit parameter
 
 fun int/eq( x : int, y : int ) : bool
@@ -12,7 +12,7 @@ fun char/eq( x : char, y : char ) : bool
 fun list/eq<a>( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
   match xs
     Cons(x,xx) -> match ys
-      Cons(y,yy) | eq(x,y) -> list/eq(xx,yy)
+      Cons(y,yy) | eq(x,y) -> eq(xx,yy)  // bypass local `eq` for `list/eq(xx,yy,eq)`
       _ -> False
     Nil -> ys.is-nil
 
@@ -58,7 +58,7 @@ fun cmp/eq( x : a, y : a, ?cmp : (a,a) -> order ) : bool
 
 fun test3()
   // equal(1,2)  // use `int/eq` instead of `cmp/eq(int/cmp)` as it is shorter
-  eq(1,2)        // is ambiguous as regular identifier resolution doesn't do this (and we have `int/eq` and `cmp/eq(int/cmp)`)
+  eq(1,2)        // is ambiguous as regular identifier resolution since we have `int/eq` and `cmp/eq(int/cmp)`
 
 fun test4a(x : int, y :int, ?cmp : (int,int) -> order)
   (eq(x,y)  // use `cmp/eq(cmp)` to prefer implicits originating from the local declarations (instead of the global `int/eq`)
@@ -75,24 +75,28 @@ fun show( ord : order ) : string
     Eq -> "eq"
     Gt -> "gt"
 
-
 fun test5()
   cmp([1,2],[1,3]).show.println
 
-fun compare( x : a, y : a, ?cmp : (a,a) -> order ) : order
+fun xcompare( x : a, y : a, ?cmp : (a,a) -> order ) : order
   cmp(x,y)
 
 fun cmp-and-eq(xs : list<a>, y : a, ?cmp : (a,a) -> order) : bool
   //fun cmpl(a,b) cmp_list(a,b) // haskell could infer this from `instance Ord a => Ord [a]`)
   // fun eq(a,b)   eq_cmp(a,b)  // haskell could infer this from `class Eq a => Ord a`
-  compare(xs,xs) == Eq &&       // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
+  xcompare(xs,xs) == Eq &&       // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
   list/cmp(xs,xs) == Eq &&      // or be explicit
   cmp(xs,xs) == Eq &&           // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
-                                // we allow to resolve the local bypass `list/cmp` since it eventually uses the local `cmp` directly,
+                                // we allow to bypass the local `cmp` for `list/cmp` since it eventually uses the local `cmp` directly,
                                 // i.e. it is a type conversion on the local.
   eq(y,y) &&                    // this can be resolved automatically without the local `eq` since we have `cmp/eq(cmp)`
-  contains(xs,y)
+  contains(xs,y) &&             // `?cmp = list/cmp(local/cmp)`
+  cmp(1,2) == Eq  &&            // `int/cmp`
+  xcompare(1,2) == Eq
 
+// foo :: Ord a => [a] -> a -> Bool
+// foo xs y   = (1 == 2) &&    // use `instance Eq Int`
+//              xs == xs       // use `class Eq a => Ord a`, and `instance Ord a => Ord [a]`
 
 fun test6()
   ['a','b'].cmp-and-eq('a')
