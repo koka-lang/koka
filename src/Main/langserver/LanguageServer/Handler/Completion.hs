@@ -128,7 +128,7 @@ getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri = do
                     [(r, rangeInfo)] -> do
                       t <- rangeInfoType rangeInfo
                       case splitFunType t of
-                        Just (pars,eff,res) -> Just res
+                        Just (pars,eff,res) -> trace ("Got result" ++ show res) $ Just res
                         Nothing             -> Just t
                     [] -> --trace ("No range info found for that location") $ 
                       Nothing

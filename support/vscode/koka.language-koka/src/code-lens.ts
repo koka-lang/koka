@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-Copyright 2023, Tim Whiting, Fredrik Wieczerkowski
+Copyright 2023, Tim Whiting, Daan Leijen
 
 This is free software; you can redistribute it and/or modify it under the
 terms of the Apache License, Version 2.0. A copy of the License can be
