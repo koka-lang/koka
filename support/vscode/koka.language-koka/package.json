@@ -97,12 +97,12 @@
         "koka.languageServer.cwd": {
           "type": "string",
           "default": "",
-          "description": "If specified, the directory in which the language server executes. Uses by default the current workspace root directory."
+          "description": "The directory in which the language server executes. Uses by default the current workspace root directory."
         },
         "koka.languageServer.autoFocusTerminal": {
           "type": "boolean",
           "default": false,
-          "description": "Whether to auto focus the language server terminal when errors happen."
+          "description": "Set focus to the language server terminal on errors."
         },
         "koka.debugExtension": {
           "type": "boolean",

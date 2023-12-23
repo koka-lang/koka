@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import * as path from 'path'
 
-import { KokaConfig, downloadSDK, scanForSDK, uninstallSDK, openSamples } from './workspace'
+import { KokaConfig, downloadKoka, scanForSDK, uninstallKoka, openSamples } from './workspace'
 import { CancellationToken, DebugConfiguration, DebugConfigurationProvider, ProviderResult, WorkspaceFolder } from 'vscode'
 import { KokaDebugSession } from './debugger'
 import { KokaLanguageServer } from './lang-server'
@@ -68,10 +68,10 @@ function createBasicCommands(context: vscode.ExtensionContext, config: vscode.Wo
     vscode.commands.registerCommand('koka.downloadLatest', async () => {
       // Reset the download flag
       await context.globalState.update('koka-download', true)
-      downloadSDK(context, config, true, undefined)
+      downloadKoka(context, config, "", true, undefined)
     }),
     vscode.commands.registerCommand('koka.uninstall', () => {
-      uninstallSDK(context)
+      uninstallKoka(context)
     })
   )
 }
@@ -126,7 +126,7 @@ function createCommands(
           const languageServerIdx = context.subscriptions.indexOf(languageServer)
           if (languageServerIdx != -1) {
             context.subscriptions.splice(languageServerIdx, 1)
-          }         
+          }
           const sdk = await scanForSDK(context, config)
           if (!sdk) {
             return;
