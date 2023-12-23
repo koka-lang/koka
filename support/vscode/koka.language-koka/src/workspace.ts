@@ -14,13 +14,15 @@ const home          = os.homedir();
 const kokaExeName   = (os.platform() === "win32" ? "koka.exe" : "koka")
 const defaultShell  = (os.platform() === "win32" ? "C:\\Windows\\System32\\cmd.exe" : null)
 
-// Development: set kokaDevDir to (un)install from a local bundle instead of github
-const kokaDevDir    = "c:/users/daan/dev/koka-ls"
+// Development: set kokaDevDir to a non-empty string to (un)install from a local bundle instead of github
+const kokaDevDir    = ""
+                      // "c:/users/daan/dev/koka-ls"
+                      // "/Users/daan/dev/koka-ls"
 const kokaBundleBase= `${kokaDevDir}/bundle/v${latestVersion}/koka-v${latestVersion}`
 const kokaBundle    = (os.platform() == "win32"
                        ? `${kokaBundleBase}-windows-x64.tar.gz`
                        : (os.platform() == "darwin"
-                           ? `${kokaBundleBase}-osx-arm64.tar.gz`
+                           ? `${kokaBundleBase}-macos-arm64.tar.gz`
                            : `${kokaBundleBase}-linux-x64.tar.gz`))
 
 
@@ -217,6 +219,7 @@ export async function downloadKoka(context: vscode.ExtensionContext, config: vsc
     dispose = vscode.window.onDidCloseTerminal(async (t) => {
       // installation is done
       // todo: should we get the installation path directly from the install script instead of rescanning?
+      console.log("Koka: terminal install is done")
       if (t === term) {
         await context.globalState.update('koka-open-samples',"")  // open samples later on
         // const sdk = await findInstallSDK(context, config); // scan again for the just installed SDK
