@@ -57,7 +57,7 @@ export class KokaLanguageServer {
   }
 
   async start(config: KokaConfig, context: vscode.ExtensionContext) {
-    console.log(`Koka: Language Server: ${config.command} ${config.languageServerArgs.join(" ")}, Workspace: ${config.cwd}`)
+    console.log(`Koka: Language Server: ${config.compilerPath} ${config.languageServerArgs.join(" ")}, Workspace: ${config.cwd}`)
     let self = this;
     function serverOptions(): Promise<StreamInfo> {
       return new Promise((resolve, reject) => {
@@ -71,11 +71,11 @@ export class KokaLanguageServer {
         }).listen(0, "127.0.0.1", () => {
           const port = (self.socketServer!.address() as AddressInfo).port
           console.log(`Starting language server in ${config.cwd} on port ${port}`)
-          self.languageServerProcess = child_process.spawn(config.command, [...config.languageServerArgs, `--lsport=${port}`], {
+          self.languageServerProcess = child_process.spawn(config.compilerPath, [...config.languageServerArgs, `--lsport=${port}`], {
             cwd: config.cwd,
             env: process.env,
           })
-          if (config.debugExtension) {
+          if (config.enableDebugExtension) {
             self.languageServerProcess?.stderr?.on('data', (data) => {
               // console.log(data.toString())
               stderrOutputChannel.append(`${data.toString()}`)
@@ -129,9 +129,6 @@ export class KokaLanguageServer {
       },
 
     };
-    // if (config.debugExtension) {
-    //   this.traceOutputChannel = vscode.window.createOutputChannel('Koka Language Server Trace', 'koka-trace')
-    // }
     const clientOptions: LanguageClientOptions = {
       documentSelector: [{ language: 'koka', scheme: 'file' }],
       outputChannel: this.outputChannel,
@@ -145,8 +142,7 @@ export class KokaLanguageServer {
       'koka',
       "Koka Language Server - Client",
       serverOptions,
-      clientOptions,
-      // config.debugExtension
+      clientOptions
     )
     context.subscriptions.push(this)
 

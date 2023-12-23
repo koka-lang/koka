@@ -143,7 +143,7 @@
         "title": "Koka: Run a function in the current file"
       },
       {
-        "command": "koka.selectSDK",
+        "command": "koka.selectCompiler",
         "title": "Koka: Select compiler path"
       },
       {
