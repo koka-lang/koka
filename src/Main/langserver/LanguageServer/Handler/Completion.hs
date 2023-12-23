@@ -1,3 +1,11 @@
+------------------------------------------------------------------------------
+-- Copyright 2023, Tim Whiting, Fredrik Wieczerkowski
+--
+-- This is free software; you can redistribute it and/or modify it under the
+-- terms of the Apache License, Version 2.0. A copy of the License can be
+-- found in the LICENSE file at the root of this distribution.
+-----------------------------------------------------------------------------
+
 -----------------------------------------------------------------------------
 -- The LSP handler that provides code completions
 -----------------------------------------------------------------------------
@@ -43,7 +51,7 @@ import Syntax.RangeMap (rangeMapFindAt, rangeInfoType)
 import Language.LSP.Protocol.Types (InsertTextFormat(InsertTextFormat_Snippet))
 import LanguageServer.Conversions (fromLspPos)
 import LanguageServer.Monad (LSM, getLoaded, getLoadedModule)
-import Lib.Trace (trace)
+-- import Lib.Trace (trace)
 
 -- Gets tab completion results for a document location
 -- This is a pretty complicated handler because it has to do a lot of work
@@ -114,7 +122,7 @@ getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri = do
                 let isFunctionCompletion = if | T.null argumentText -> False
                                               | T.findIndex (== '.') argumentText > T.findIndex (== ' ') argumentText -> True
                                               | otherwise -> False
-                    newC = c - fromIntegral (T.length searchTerm + (if isFunctionCompletion then 1 else 0))
+                    newC = c - fromIntegral (T.length searchTerm + (if isFunctionCompletion then 2 else 1))
                 Just (newC, isFunctionCompletion, argument, currentRope, searchTerm)
       case result of
         Just (newC, isFunctionCompletion, argument, currentRope, searchTerm) -> do
@@ -122,13 +130,15 @@ getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri = do
           mbCurrentType <- liftIO $! do
             if isFunctionCompletion then do
                 currentRange <- liftIO $! fromLspPos uri (J.Position l newC)
+                -- trace ("looking at range" ++ show currentRange) $ return ()
                 return $! do -- maybe monad
                   ri <- rangeMapFindAt currentRange rm
                   case ri of
                     [(r, rangeInfo)] -> do
                       t <- rangeInfoType rangeInfo
                       case splitFunType t of
-                        Just (pars,eff,res) -> Just res
+                        Just (pars,eff,res) -> -- trace ("Got result" ++ show res) $ 
+                          Just res
                         Nothing             -> Just t
                     [] -> --trace ("No range info found for that location") $ 
                       Nothing
