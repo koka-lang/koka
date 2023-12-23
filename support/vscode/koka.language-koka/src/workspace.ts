@@ -22,8 +22,8 @@ const kokaExeName   = (os.platform() === "win32" ? "koka.exe" : "koka")
 const defaultShell  = (os.platform() === "win32" ? "C:\\Windows\\System32\\cmd.exe" : null)
 
 // Development: set kokaDevDir to a non-empty string to (un)install from a local bundle instead of github
-const kokaDevDir    = // ""
-                      "c:/users/daan/dev/koka-ls"
+const kokaDevDir    = ""
+                      // "c:/users/daan/dev/koka-ls"
                       // "/Users/daan/dev/koka-ls"
 const kokaBundleBase= `${kokaDevDir}/bundle/v${latestVersion}/koka-v${latestVersion}`
 const kokaBundle    = (os.platform() == "win32"
@@ -245,7 +245,9 @@ async function installKoka(context: vscode.ExtensionContext, config: vscode.Work
       // todo: should we get the installation path directly from the install script instead of rescanning?
       console.log("Koka: terminal install is done")
       if (t === term) {
-        await context.globalState.update('koka-opened-samples',"no")  // open samples later on
+        if (!force) {
+          await context.globalState.update('koka-opened-samples',"no")  // open samples later on
+        }
 
         const paths = findCompilerPaths(config); // rescan to find the just installed compiler
         const message = (paths.length>0 ? `Koka installed successfully at ${paths[0]}`

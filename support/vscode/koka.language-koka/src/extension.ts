@@ -129,6 +129,7 @@ function createBasicCommands(context: vscode.ExtensionContext, vsConfig: vscode.
       await stopLanguageServer(context)
       await kokaConfig.installCompiler(context,vsConfig)
       await vscode.commands.executeCommand("koka.restartLanguageServer")  // shows progress
+      await vscode.commands.executeCommand("koka.openSamples")
       // await startLanguageServer(context,vsConfig,kokaConfig,false)
     }),
 
