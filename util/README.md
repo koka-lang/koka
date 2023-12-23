@@ -24,11 +24,13 @@ Bump the Koka version in files:
 - `util/install.bat`
 - `util/Dockerfile`
 - `util/minbuild.sh`
+- `support/vscode/koka.language-koka/src/workspace.ts`
+- `support/vscode/koka.language-koka/package.json`
 
 Compile Koka:
 
 ```
-$ stack build 
+$ stack build
 $ stack exec koka  # check if interpreter works
 
 > :l samples/all
@@ -43,7 +45,7 @@ $ stack test
 and create a bundle:
 
 ```
-$ stack exec koka -- -e util/bundle.kk 
+$ stack exec koka -- -e util/bundle.kk
 ```
 
 (On Windows, to this in an Visual Studio x64 command line tools console).

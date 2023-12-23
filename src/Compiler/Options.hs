@@ -400,7 +400,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})    "enable inline specialization"
  , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
  , hide $ fflag       ["eagerpatbind"] (\b f -> f{optEagerPatBind=b}) "load pattern fields as early as possible"
- , numOption (-1) "port" [] ["lsport"]    (\i f -> f{languageServerPort=i}) "Language Server port to connect to"
+ , hide $ numOption (-1) "port" [] ["lsport"]    (\i f -> f{languageServerPort=i}) "language Server port"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
@@ -646,7 +646,7 @@ getOptions extra
 
 updateFlagsFromArgs :: Flags -> String -> Maybe Flags
 updateFlagsFromArgs flags0 args =
-  let 
+  let
     (preOpts,postOpts) = span (/="--") (words args)
     flags1 = case postOpts of
                    [] -> flags0
@@ -751,7 +751,7 @@ processOptions flags0 opts
                                   includePath = normalizedIncludes,
                                   genRangeMap = outHtml flags > 0 || any isLanguageServer options,
                                   vcpkgTriplet= triplet
-                                  
+
 
 
                                   {-
@@ -954,7 +954,7 @@ data CC = CC{  ccName       :: String,
             }
 
 instance Eq CC where
-  CC{ccName = name1, ccPath = path1, ccFlags = flags1, ccFlagsBuild = flagsB1, ccFlagsCompile= flagsC1, ccFlagsLink=flagsL1} == 
+  CC{ccName = name1, ccPath = path1, ccFlags = flags1, ccFlagsBuild = flagsB1, ccFlagsCompile= flagsC1, ccFlagsLink=flagsL1} ==
     CC{ccName = name2, ccPath = path2, ccFlags = flags2, ccFlagsBuild = flagsB2, ccFlagsCompile= flagsC2, ccFlagsLink=flagsL2}
     = name1 == name2 && path1 == path2 && flags1 == flags2 && flagsB1 == flagsB2 && flagsC1 == flagsC2 && flagsL1 == flagsL2
 

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import * as path from 'path'
 
-import { KokaConfig, downloadKoka, scanForSDK, uninstallKoka, openSamples } from './workspace'
+import { KokaConfig, downloadKoka, findInstallSDK, uninstallKoka, openSamples } from './workspace'
 import { CancellationToken, DebugConfiguration, DebugConfigurationProvider, ProviderResult, WorkspaceFolder } from 'vscode'
 import { KokaDebugSession } from './debugger'
 import { KokaLanguageServer } from './lang-server'
@@ -17,15 +17,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Create commands that do not depend on the language server
   createBasicCommands(context, vsConfig);
-  console.log(context.globalStorageUri);
+  console.log("Koka global storage: " + context.globalStorageUri.path);
   if (!vsConfig.get('languageServer.enabled')) {
     return
   }
 
-  const sdk = await scanForSDK(context, vsConfig)
+  const sdk = await findInstallSDK(context, vsConfig)
   if (!sdk){
-    return;
+    console.log("Koka SDK not found")
+    return
   }
+  console.log("Koka SDK found at " + sdk.sdkPath)
+
   const { sdkPath, allSDKs } = sdk
   const kokaConfig = new KokaConfig(vsConfig, sdkPath, allSDKs)
   if (!kokaConfig.command) {
@@ -35,6 +38,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   languageServer = new KokaLanguageServer(context)
   await languageServer.start(kokaConfig, context)
+  console.log( "Koka: language server started")
 
   // create a new status bar item that we can now manage
   const selectSDKMenuItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100)
@@ -51,6 +55,15 @@ export async function activate(context: vscode.ExtensionContext) {
   selectCompileTarget.show()
   selectCompileTarget.text = `Koka Backend: ${kokaConfig.target}`
 
+  // Open samples? (Once after the initial install)
+  const open = await context.globalState.get('koka-open-samples')
+  console.log("Koka: open samples: " + open);
+  if (open !== "done") {
+    await context.globalState.update('koka-open-samples',"done")
+    await openSamples(context,vsConfig);
+  }
+
+
   // Register debug adapter
   registerDebugConfiguration(context, kokaConfig)
   // Initialize commands
@@ -59,6 +72,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider({ language: "koka", scheme: "file" }, new MainCodeLensProvider(kokaConfig))
   )
+
 }
 
 // These commands do not depend on the language server
@@ -67,7 +81,7 @@ function createBasicCommands(context: vscode.ExtensionContext, config: vscode.Wo
     // SDK management
     vscode.commands.registerCommand('koka.downloadLatest', async () => {
       // Reset the download flag
-      await context.globalState.update('koka-download', true)
+      await context.globalState.update('koka-download', "")
       downloadKoka(context, config, "", true, undefined)
     }),
     vscode.commands.registerCommand('koka.uninstall', () => {
@@ -96,7 +110,7 @@ function createCommands(
 ) {
   context.subscriptions.push(
     vscode.commands.registerCommand('koka.selectSDK', async () => {
-      const sdk = await scanForSDK(context, config)
+      const sdk = await findInstallSDK(context, config)
       if (!sdk) {
         return;
       }
@@ -127,7 +141,7 @@ function createCommands(
           if (languageServerIdx != -1) {
             context.subscriptions.splice(languageServerIdx, 1)
           }
-          const sdk = await scanForSDK(context, config)
+          const sdk = await findInstallSDK(context, config)
           if (!sdk) {
             return;
           }
