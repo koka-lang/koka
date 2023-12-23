@@ -16,7 +16,7 @@ set KOKA_IEXPRESS=N
 set KOKA_PREV_VERSION=
 set KOKA_PREV_PREFIX=
 set KOKA_ARCH=x64
-set KOKA_VSCODE=Y
+set KOKA_VSCODE=N
 
 set CLANG_VERSION=17.0.6
 set CLANG_INSTALL_BASE=LLVM-%CLANG_VERSION%-win64.exe
@@ -67,8 +67,8 @@ goto args_next
     set KOKA_IEXPRESS=Y
     goto args_next
   )
-  if "%kk_flag%" == "--novscode" (
-    set KOKA_VSCODE=N
+  if "%kk_flag%" == "--vscode" (
+    set KOKA_VSCODE=Y
     goto args_next
   )
 
@@ -291,7 +291,8 @@ if exist "%USERPROFILE%\.atom\packages" (
   setx koka_editor "atom %%f:%%l:%%c" > nul
 )
 
-if "%KOKA_VSCODE%" == "N" goto done_vscode
+rem Do not try to install an extension when invoked from vscode
+if "%KOKA_VSCODE%" == "Y" goto done_vscode
 where /Q code
 if errorlevel 1 goto done_vscode
 
@@ -423,7 +424,7 @@ del /Q "%CLANG_INSTALL%"
 goto done_clang
 
 :CLANG_SHOWURL
-echo Please install clang for Windows manually from: https://llvm.org/builds
+echo Please install clang for Windows manually from: https://github.com/llvm/llvm-project/releases/latest
 
 :done_clang
 
@@ -439,7 +440,9 @@ echo.
 if "%KOKA_IEXPRESS%" == "Y" (
   set /p "KOKA_ANSWER=Press <enter> to finish installation.."
 ) else (
-  echo Type 'koka' to enter the interactive compiler.
+  if "%KOKA_VSCODE%" == "N" (
+    echo Type 'koka' to enter the interactive compiler.
+  )
 )
 echo.
 

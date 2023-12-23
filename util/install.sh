@@ -4,7 +4,7 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.4.3"        
+VERSION="v2.4.3"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -13,6 +13,7 @@ MINIMAL="no"            # compiler only? (or also vscode integration etc)
 OSARCH=""
 OSNAME=""
 OSDISTRO=""
+VSCODE=""               # set if installing from the vscode extension
 
 KOKA_DIST_BASE_URL="https://github.com/koka-lang/koka/releases/download"
 KOKA_DIST_URL=""        # $KOKA_DIST_BASE_URL/$VERSION
@@ -24,7 +25,7 @@ adjust_version() {  # <osarch>
   case "$1" in
     unix-freebsd-x64)
       VERSION="v2.4.0";;
-  esac    
+  esac
 }
 
 #---------------------------------------------------------
@@ -86,12 +87,12 @@ detect_osarch() {
       arch="x64";;
     x86*|i[35678]86*)
       arch="x86";;
-    arm64*|aarch64*|armv8*)   
+    arm64*|aarch64*|armv8*)
       arch="arm64";;
-    arm*)              
+    arm*)
       arch="arm";;
     parisc*)
-      arch="hppa";;          
+      arch="hppa";;
   esac
 
   OSNAME="linux"
@@ -106,7 +107,7 @@ detect_osarch() {
       info "Warning: unable to detect OS, assuming generic Linux"
   esac
   OSARCH="$OSNAME-$arch"
-  
+
   if [ "$OSNAME" = "linux" ]; then
     distrocfg=`cat /etc/*-release`
     if contains "$distrocfg" "rhel"; then
@@ -123,7 +124,7 @@ detect_osarch() {
       OSDISTRO="ubuntu" # default
     fi
   fi
-  
+
   # For tier-2 platforms, adjust the default version
   adjust_version $OSARCH
 
@@ -142,11 +143,11 @@ KOKA_PREV_PREFIX=
 detect_previous_install() {
   if which koka > /dev/null ; then
     KOKA_PREV_EXE="$(which koka)"
-    if [ -e "$KOKA_PREV_EXE" ] ; then 
+    if [ -e "$KOKA_PREV_EXE" ] ; then
       KOKA_PREV_PREFIX="${KOKA_PREV_EXE%/bin/koka*}"   # remove trailing "/bin/koka*"
       KOKA_PREV_VERSION="$($KOKA_PREV_EXE --version --console=raw)"  # get version info
       KOKA_PREV_VERSION="${KOKA_PREV_VERSION%%,*}"     # remove everything after the first ",*"
-      KOKA_PREV_VERSION="v${KOKA_PREV_VERSION#Koka }"  # remove "Koka " prefix 
+      KOKA_PREV_VERSION="v${KOKA_PREV_VERSION#Koka }"  # remove "Koka " prefix
       # echo "found previous koka version $KOKA_PREV_VERSION (installed at: $KOKA_PREV_PREFIX)"
     fi
   fi
@@ -170,14 +171,14 @@ process_options() {
       -q|--quiet)
           QUIET="yes";;
       -f|--force)
-          FORCE="yes";;    
+          FORCE="yes";;
       -p) shift
           PREFIX="$1";;
       -p=*|--prefix=*)
           PREFIX="$flag_arg";;
       -u=*|--url=*)
           KOKA_DIST_URL="$flag_arg";;
-      -b) shift 
+      -b) shift
           KOKA_DIST_SOURCE="$1";;
       -b=*|--bundle=*)
           KOKA_DIST_SOURCE="$flag_arg";;
@@ -187,14 +188,16 @@ process_options() {
           VERSION="v${flag_arg#v}";;  # always prefix with a v
       -m|--minimal)
           MINIMAL="yes";;
+      --vscode)
+          VSCODE="yes";;
       -u|--uninstall)
           # FORCE="yes"
-          MODE="uninstall";;      
+          MODE="uninstall";;
       -h|--help|-\?|help|\?)
           MODE="help";;
       *) case "$flag" in
            -*) warn "warning: unknown option \"$1\".";;
-           *)  KOKA_DIST_SOURCE="$1";;  
+           *)  KOKA_DIST_SOURCE="$1";;
          esac;;
     esac
     shift
@@ -202,7 +205,7 @@ process_options() {
 
   # adjust x64 arch for older versions to amd64
   case "$VERSION" in
-    v2.0.*|v2.1.[0123456]) 
+    v2.0.*|v2.1.[0123456])
       case "$OSARCH" in
         *-x64) OSARCH="${OSARCH%-x64}-amd64";;
       esac;;
@@ -313,7 +316,7 @@ install_dependencies() {
   if has_cmd apt-get ; then
     apt_get_install build-essential $deps
   elif has_cmd dnf ; then
-    dnf_groupinstall "Development Tools" # this is for Fedora 32+， CentOS 8 and CentOS Stream  
+    dnf_groupinstall "Development Tools" # this is for Fedora 32+， CentOS 8 and CentOS Stream
     dnf_install $deps
   elif has_cmd yum ; then
     yum_install build-essential $deps
@@ -325,7 +328,7 @@ install_dependencies() {
     pacman_install base-devel $deps
   else
     case "$OSARCH" in
-      macos-*|osx-*)  
+      macos-*|osx-*)
         ;;  # macos already has all dependencies pre-installed
       *)
         info "Unable to install dependencies; continuing..";;
@@ -353,7 +356,7 @@ download_file() {  # <url|file> <destination file>
       info "Downloading: $1"
       if has_cmd curl ; then
         if ! curl ${QUIET:+-sS} --proto =https --tlsv1.2 -f -L -o "$2" "$1"; then
-          download_failed "curl" $1          
+          download_failed "curl" $1
         fi
       elif has_cmd wget ; then
         if ! wget ${QUIET:+-q} --https-only "-O$2" "$1"; then
@@ -395,8 +398,8 @@ download_dist() {  # <bundle url|file> <destination file>
       info "Using $OSDISTRO bundle"
       download_url="$distro_url"
     else
-      info "Using generic linux bundle"      
-    fi    
+      info "Using generic linux bundle"
+    fi
   fi
   download_file "$download_url" "$2"
 }
@@ -406,7 +409,7 @@ download_dist() {  # <bundle url|file> <destination file>
 #-----------------------------------------------------
 
 install_dist() {  # <prefix> <version>
-  # set parameters  
+  # set parameters
   prefix="$1"
   version="$2"
   koka_share_dir="$prefix/share/koka"
@@ -422,7 +425,7 @@ install_dist() {  # <prefix> <version>
     stop "Extraction failed."
   fi
 
-  info "Installing to prefix: $prefix"  
+  info "Installing to prefix: $prefix"
 
   # install the exe and figure out whether to use sudo for the rest
   if [ ! -d "$koka_bin_dir" ] ; then
@@ -431,7 +434,7 @@ install_dist() {  # <prefix> <version>
         stop "Cannot create $koka_bin_dir installation directory"
       fi
     fi
-  fi    
+  fi
   if ! install -c -m 0755 "$KOKA_TEMP_DIR/bin/koka" "$koka_exe" 2>/dev/null; then
     if ! sudocmd install -c -o 0 -g 0 -m 0755 "$KOKA_TEMP_DIR/bin/koka" "$koka_exe"; then
       stop "Installation of koka to $koka_exe has failed"
@@ -440,7 +443,7 @@ install_dist() {  # <prefix> <version>
     USE_SUDO="never"
   fi
   info "- install executable            : $koka_exe"
-  
+
   # install symlink
   info "- install executable symlink    : $koka_symlink"
   if [ -e "$koka_symlink" ]; then
@@ -481,33 +484,35 @@ install_dist() {  # <prefix> <version>
         fi
         if ! cp -p -r $koka_atom_dir/* ~/.atom/packages/language-koka/ ; then
           info "  (failed to copy atom support files)"
-        elif [ ! -z "$need_restart" ] ; then 
+        elif [ ! -z "$need_restart" ] ; then
           info "  Please restart Atom for Koka syntax highlighting to take effect."
         fi
       fi
-    fi  
-    
-    # install Visual Studio Code editor support
-    export NODE_NO_WARNINGS=1
-    vscode="code"
-    if ! which "$vscode" > /dev/null ; then
-      if [ "$(uname)" = "Darwin" ] ; then
-        vscode="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" # macOS may not have code in the PATH
-      fi
     fi
-    if which "$vscode" > /dev/null ; then
-      info "- install vscode editor support.."
-      if "$vscode" --list-extensions | grep "koka-lang.language-koka" > /dev/null ; then
-        "$vscode" --uninstall-extension koka-lang.language-koka > /dev/null  # old installation package
+
+    if ! [ "$VSCODE" = "yes" ]; then
+      # install Visual Studio Code editor support
+      export NODE_NO_WARNINGS=1
+      vscode="code"
+      if ! which "$vscode" > /dev/null ; then
+        if [ "$(uname)" = "Darwin" ] ; then
+          vscode="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" # macOS may not have code in the PATH
+        fi
       fi
-      if ! "$vscode" --force --install-extension koka.language-koka > /dev/null ; then  # new one from vs code marketplace
-        info "  failed to install vscode editor support!"
+      if which "$vscode" > /dev/null ; then
+        info "- install vscode editor support.."
+        if "$vscode" --list-extensions | grep "koka-lang.language-koka" > /dev/null ; then
+          "$vscode" --uninstall-extension koka-lang.language-koka > /dev/null  # old installation package
+        fi
+        if ! "$vscode" --force --install-extension koka.language-koka > /dev/null ; then  # new one from vs code marketplace
+          info "  failed to install vscode editor support!"
+        fi
       fi
     fi
 
     # emacs message
-    if which emacs ; then 
-      info "- emacs syntax mode installed at: $koka_share_dir/$version/contrib/emacs" 
+    if which emacs ; then
+      info "- emacs syntax mode installed at: $koka_share_dir/$version/contrib/emacs"
     fi
   fi
 }
@@ -535,8 +540,8 @@ uninstall_dist() {  # <prefix> <version>
         info "Unable to remove $koka_share_dir/$version; continuing.."
       fi
     fi
-    if [ -z "$(ls -A $koka_share_dir)" ]; then   
-      info "- remove $koka_share_dir" 
+    if [ -z "$(ls -A $koka_share_dir)" ]; then
+      info "- remove $koka_share_dir"
       sudocmd rmdir "$koka_share_dir" 2>/dev/null # remove if empty
     fi
   else
@@ -591,7 +596,7 @@ uninstall_dist() {  # <prefix> <version>
 #---------------------------------------------------------
 
 main_uninstall() {
-  # confirm uninstall 
+  # confirm uninstall
   if [ -z "$FORCE" ] ; then
     read -p "Uninstalling koka version $VERSION. Are you sure? [yN] " choice </dev/tty
     case $choice in
@@ -632,19 +637,22 @@ main_install() {
         info "Uninstalling previous koka version $KOKA_PREV_VERSION"
         uninstall_dist $KOKA_PREV_PREFIX $KOKA_PREV_VERSION
         info "Uninstall successful of koka $KOKA_PREV_VERSION";;
-      *) 
+      *)
         info "Uninstall of previous koka version is canceled";;
     esac
   elif [ "$KOKA_PREV_PREFIX,$KOKA_PREV_VERSION" = "$PREFIX,$VERSION" ] ; then
     info "Updated koka version $VERSION in-place"
   fi
-  
+
   info ""
   info "--------------------------------------------------"
   info "Installed Koka $VERSION at $PREFIX/bin/koka"
   info ""
-  info "Type 'koka' to enter the interactive compiler"
-  info ""
+
+  if ! [ "$VSCODE" = "yes" ]; then
+    info "Type 'koka' to enter the interactive compiler"
+    info ""
+  fi
 }
 
 
@@ -658,6 +666,7 @@ main_help() {
   info "  -u, --uninstall          uninstall koka ($VERSION)"
   info "  -p, --prefix=<dir>       prefix directory ($PREFIX)"
   # info "  -b, --bundle=<file|url>  full bundle location (.../koka-$VERSION-$OSARCH.tar.gz)"
+  info "      --vscode             set when installing from within vscode"
   info "  -m, --minimal            minimal install without editor support etc."
   info "      --version=<ver>      version tag ($VERSION)"
   info "      --url=<url>          download url"
@@ -670,12 +679,12 @@ main_help() {
 
 main_start() {
   detect_osarch
-  detect_previous_install  
+  detect_previous_install
   process_options $@
   if [ "$MODE" = "help" ] ; then
-    main_help    
+    main_help
   elif [ "$MODE" = "uninstall" ] ; then
-    main_uninstall 
+    main_uninstall
   else
     main_install
   fi

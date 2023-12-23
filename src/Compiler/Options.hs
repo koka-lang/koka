@@ -33,7 +33,7 @@ module Compiler.Options( -- * Command line options
 
 
 import Data.Char              ( toLower, toUpper, isAlpha, isSpace )
-import Data.List              ( intersperse )
+import Data.List              ( intersperse, isInfixOf )
 import Control.Monad          ( when )
 import qualified System.Info  ( os, arch )
 import System.Environment     ( getArgs )
@@ -1165,7 +1165,7 @@ ccCheckExist cc
                        when (ccName cc == "cl") $
                          putStrLn ("   hint: run in an x64 Native Tools command prompt? or use the --cc=clang-cl flag?")
                        when (ccName cc == "clang-cl") $
-                         putStrLn ("   hint: install clang for Windows from <https://llvm.org/builds/> ?")
+                         putStrLn ("   hint: install clang for Windows from <https://github.com/llvm/llvm-project/releases/latest> ?")
 
 
 quote s
@@ -1228,7 +1228,10 @@ cpuArch
 
 detectCC :: Target -> IO String
 detectCC target
-  = do paths <- getEnvPaths "PATH"
+  = do paths0 <- getEnvPaths "PATH"
+       let extra = if (onWindows && not (any (isInfixOf "LLVM") paths0))
+                     then ["C:\\Program Files\\LLVM\\bin"] else []       -- find LLVM after initial install when the LLVM path may not be set yet
+           paths = extra ++ paths0
        (name,path) <- do envCC <- getEnvVar "CC"
                          findCC paths ((if (isTargetWasm target) then ["emcc"] else []) ++
                                        (if (envCC=="") then [] else [envCC]) ++

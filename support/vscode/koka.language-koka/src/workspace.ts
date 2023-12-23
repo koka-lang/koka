@@ -189,23 +189,24 @@ export async function downloadKoka(context: vscode.ExtensionContext, config: vsc
 
   // download and install in a terminal
   let command = ""
+  const flags = "--vscode"  // TODO: add `--force` to force all default actions? (like installing clang on windows if needed)
   if (os.platform() === "win32") {
     if (kokaDevDir) {
       const kokadev = "c:/users/daan/dev/koka-ls"
-      command = `${kokaDevDir}/util/install.bat --novscode ${kokaBundle} && exit`
+      command = `${kokaDevDir}/util/install.bat ${flags} ${kokaBundle} && exit`
     }
     else {
       const tmpDir = (process.env.TMP || process.env.TEMP || "%HOMEDRIVE%%HOMEPATH%")
-      command = `curl -sSL -o "${tmpDir}\\install-koka.bat" https://github.com/koka-lang/koka/releases/latest/download/install.bat && "${tmpDir}\\install-koka.bat" && exit`
+      command = `curl -sSL -o "${tmpDir}\\install-koka.bat" https://github.com/koka-lang/koka/releases/latest/download/install.bat && "${tmpDir}\\install-koka.bat" ${flags} && exit`
     }
   }
   else {
     if (kokaDevDir) {
       const kokadev = "c:/users/daan/dev/koka-ls"
-      command = `${kokaDevDir}/util/install.sh --novscode ${kokaBundle} && exit`
+      command = `${kokaDevDir}/util/install.sh ${flags} ${kokaBundle} && exit`
     }
     else {
-      command = "curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh && exit"
+      command = `curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh -s -- ${flags} && exit`
     }
   }
   const term = vscode.window.createTerminal({ name: "Install Koka", cwd: home, shellPath: defaultShell, isTransient: true, message: "Installing Koka" })
@@ -221,7 +222,7 @@ export async function downloadKoka(context: vscode.ExtensionContext, config: vsc
         // const sdk = await findInstallSDK(context, config); // scan again for the just installed SDK
         const sdk = findSDK(config);
         const message = (sdk.sdkPath ? `Koka installed successfully at ${sdk.sdkPath}`
-                                     : `Koka install finished but unable to find the installed compiler`)
+                                      : `Koka install finished but unable to find the installed compiler`)
         console.log(message)
         resolve( sdk.sdkPath ? sdk : undefined )  // todo: can we avoid undefined?
         await vscode.window.showInformationMessage(message)
@@ -244,23 +245,24 @@ export async function uninstallKoka(context: vscode.ExtensionContext) {
   }
 
   let command = ""
+  const flags = "--uninstall --force --vscode"
   if (os.platform() === "win32") {
     if (kokaDevDir) {
       const kokadev = "c:/users/daan/dev/koka-ls"
-      command = `"${kokaDevDir}/util/install.bat" -u -f`
+      command = `"${kokaDevDir}/util/install.bat" ${flags}`
     }
     else {
       const tmpDir = (process.env.TMP || process.env.TEMP || "%HOMEDRIVE%%HOMEPATH%")
-      command = `curl -sSL -o "${tmpDir}\\install-koka.bat" https://github.com/koka-lang/koka/releases/latest/download/install.bat && "${tmpDir}\\install-koka.bat" -u -f`
+      command = `curl -sSL -o "${tmpDir}\\install-koka.bat" https://github.com/koka-lang/koka/releases/latest/download/install.bat && "${tmpDir}\\install-koka.bat" ${flags}`
     }
   }
   else {
     if (kokaDevDir) {
       const kokadev = "c:/users/daan/dev/koka-ls"
-      command = `${kokaDevDir}/util/install.sh -u -f`
+      command = `${kokaDevDir}/util/install.sh ${flags}`
     }
     else {
-      command = "curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh -s -- -u -f"
+      command = "curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh -s -- ${flags}"
     }
   }
   const term = vscode.window.createTerminal({ name: "Uninstall Koka", cwd: home, shellPath: defaultShell, isTransient: true, message: "Uninstalling Koka, you can close the terminal when done" })
