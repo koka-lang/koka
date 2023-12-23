@@ -10,14 +10,18 @@ Visit <https://koka-lang.github.io> for more information.
 The language server continously analyses the code to show
 parse- and type errors, complete identifiers,
 show type information on hover, and
-can execute `main`, `test-xxx`, and `example-xxx` functions
+can execute `main`, `test..`, and `example..` functions
 directly in the debug console.
+
+## Run and edit the standard examples
+
+Open the command panel in VSCode `(Ctrl/Cmd + Shift + P)`, and run the
+`Koka: Open samples` command (when you start typing the command will surface to the top).
 
 ## Install the latest Koka compiler
 
-Open the command panel in VSCode `(Ctrl/Cmd+Shift+P)` and run the
-`Koka: Download and Install Latest Version` command (when you start
-typing the command and it should surface to the top).
+Open the command panel in VSCode `(Ctrl/Cmd + Shift + P)` and run the
+`Koka: Download and install the latest compiler` command.
 In the extension settings, you can also set the Koka compiler
 path and specific compiler flags manually.
 
@@ -54,7 +58,7 @@ while the _debug console_ shows the output of the program.
 - [x] Document outline
 - [x] Code folding ranges
 - [x] Code Lenses (`run debug` and `run optimized`)
-
+- [ ] Jump to definition works for sources loaded in the editor
 
 # Syntax Highlighting
 

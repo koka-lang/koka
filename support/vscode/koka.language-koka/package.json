@@ -119,36 +119,40 @@
     },
     "commands": [
       {
+        "command": "koka.installCompiler",
+        "title": "Koka: Download and install the latest compiler"
+      },
+      {
+        "command": "koka.openSamples",
+        "title": "Koka: Open samples"
+      },
+      {
         "command": "koka.restartLanguageServer",
         "title": "Koka: Restart Language Server"
       },
       {
-        "command": "koka.downloadLatest",
-        "title": "Koka: Download and install the latest version"
+        "command": "koka.uninstallCompiler",
+        "title": "Koka: Uninstall the compiler"
       },
       {
-        "command": "koka.uninstall",
-        "title": "Koka: Uninstall"
-      },
-      {
-        "command": "koka.startWithoutDebugging",
+        "command": "koka.runMain",
         "title": "Koka: Run current file"
+      },
+      {
+        "command": "koka.runFunction",
+        "title": "Koka: Run a function in the current file"
+      },
+      {
+        "command": "koka.selectSDK",
+        "title": "Koka: Select compiler path"
       },
       {
         "command": "koka.selectTarget",
         "title": "Koka: Set compilation target"
       },
       {
-        "command": "koka.selectSDK",
-        "title": "Koka: Set compiler path"
-      },
-      {
         "command": "koka.showLSPOutput",
         "title": "Koka: Show language server output"
-      },
-      {
-        "command": "koka.openSamples",
-        "title": "Koka: Open samples"
       }
     ],
     "debuggers": [

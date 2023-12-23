@@ -36,7 +36,7 @@ runLanguageServer :: Flags -> [FilePath] -> IO ()
 runLanguageServer flags files = do
   if languageServerPort flags == -1 then do
     putStr "No port specified for language server\n. Use --lsport=<port> to specify a port."
-    exitFailure 
+    exitFailure
   else return ()
   -- Have to set line buffering, otherwise the client doesn't receive data until buffers fill up
   hSetBuffering stdout NoBuffering
@@ -71,7 +71,7 @@ runLanguageServer flags files = do
             options =
               defaultOptions
                 { optTextDocumentSync = Just syncOptions,
-                  optExecuteCommandCommands = Just [T.pack "koka/genCode", T.pack "koka/interpretExpression"],
+                  optExecuteCommandCommands = Just [T.pack "koka/compile", T.pack "koka/compileFunction"],
                   optCompletionTriggerCharacters = Just ['.', ':', '/']
                 -- TODO: ? https://www.stackage.org/haddock/lts-18.21/lsp-1.2.0.0/src/Language.LSP.Server.Core.html#Options
                 }
@@ -107,7 +107,7 @@ progressHandler :: TChan String -> LanguageContextEnv () -> MVar LSState -> IO (
 progressHandler msgs env state = do
   forever $ do
     msg <- atomically $ readTChan msgs
-    runLSM (do 
+    runLSM (do
         trace ("Progress: " <> msg) $ return ()
         report <- getProgress
         case report of

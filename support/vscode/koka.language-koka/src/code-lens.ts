@@ -1,3 +1,10 @@
+/*---------------------------------------------------------------------------
+Copyright 2023, Tim Whiting, Fredrik Wieczerkowski
+
+This is free software; you can redistribute it and/or modify it under the
+terms of the Apache License, Version 2.0. A copy of the License can be
+found in the LICENSE file at the root of this distribution.
+---------------------------------------------------------------------------*/
 import path = require("path");
 import * as vscode from "vscode"
 import { KokaConfig } from "./workspace";
@@ -32,7 +39,7 @@ export class MainCodeLensProvider implements vscode.CodeLensProvider {
       toRange(document, offset, len),
       {
         arguments: [document.uri],
-        command: "koka.startWithoutDebugging",
+        command: "koka.runMain",
         title: "run debug", // `Run ${path.relative(this.config.cwd, document.uri.fsPath)} (debug)`,
         tooltip: "Compile and run in debug mode"
       },
@@ -40,7 +47,7 @@ export class MainCodeLensProvider implements vscode.CodeLensProvider {
       toRange(document, offset, len),
       {
         arguments: [document.uri, "-O2", ["--kktime"]],
-        command: "koka.startWithoutDebugging",
+        command: "koka.runMain",
         title: `optimized`, // `Run ${path.relative(this.config.cwd, document.uri.fsPath)} (release)`,
         tooltip: "Compile with flag -O2\nRun executable with flag --kktime"
       },
@@ -53,7 +60,7 @@ export class MainCodeLensProvider implements vscode.CodeLensProvider {
       toRange(document, offset, len),
       {
         arguments: [document.uri, functionName],
-        command: "koka.interpretExpression",
+        command: "koka.runFunction",
         title: "run debug", //`Run ${functionName} (debug)`,
         tooltip: "Compile and run in debug mode"
       }
@@ -62,7 +69,7 @@ export class MainCodeLensProvider implements vscode.CodeLensProvider {
       toRange(document, offset, len),
       {
         arguments: [document.uri, functionName, "-O2", ["--kktime"]],
-        command: "koka.interpretExpression",
+        command: "koka.runFunction",
         title: `optimized`, // `Run ${functionName} (release)`,
         tooltip: "Compile with flag -O2\nRun executable with flag --kktime"
       }

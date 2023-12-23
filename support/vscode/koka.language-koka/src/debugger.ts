@@ -1,3 +1,10 @@
+/*---------------------------------------------------------------------------
+Copyright 2023, Tim Whiting, Fredrik Wieczerkowski
+
+This is free software; you can redistribute it and/or modify it under the
+terms of the Apache License, Version 2.0. A copy of the License can be
+found in the LICENSE file at the root of this distribution.
+---------------------------------------------------------------------------*/
 import * as child_process from 'child_process'
 import * as fs from "fs"
 
@@ -199,9 +206,9 @@ class KokaRuntime extends EventEmitter {
 		try {
 			let resp = null
 			if (args.functionName) {
-				resp = await this.client.sendRequest(ExecuteCommandRequest.type, { command: 'koka/interpretExpression', arguments: [args.program, args.functionName, additionalArgs] })
+				resp = await this.client.sendRequest(ExecuteCommandRequest.type, { command: 'koka/compileFunction', arguments: [args.program, args.functionName, additionalArgs] })
 			} else {
-				resp = await this.client.sendRequest(ExecuteCommandRequest.type, { command: 'koka/genCode', arguments: [args.program, additionalArgs] })
+				resp = await this.client.sendRequest(ExecuteCommandRequest.type, { command: 'koka/compile', arguments: [args.program, additionalArgs] })
 			}
 			console.log(`Generated code at ${resp}`)
 			if (!resp) {

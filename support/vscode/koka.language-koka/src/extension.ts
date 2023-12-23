@@ -1,3 +1,10 @@
+/*---------------------------------------------------------------------------
+Copyright 2023, Tim Whiting, Fredrik Wieczerkowski, Daan Leijen.
+
+This is free software; you can redistribute it and/or modify it under the
+terms of the Apache License, Version 2.0. A copy of the License can be
+found in the LICENSE file at the root of this distribution.
+---------------------------------------------------------------------------*/
 import * as vscode from 'vscode'
 import * as path from 'path'
 
@@ -40,34 +47,42 @@ export async function activate(context: vscode.ExtensionContext) {
   await languageServer.start(kokaConfig, context)
   console.log( "Koka: language server started")
 
-  // create a new status bar item that we can now manage
+  const selectSDKMenuItem = null; // Do not show for now as it is too intrusive as it as always visible
+  /*
+  // create a new status bar item to select the Koka backend target// create a new status bar item to select the Koka compiler
   const selectSDKMenuItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100)
   selectSDKMenuItem.command = 'koka.selectSDK'
   context.subscriptions.push(selectSDKMenuItem)
   selectSDKMenuItem.show()
   selectSDKMenuItem.text = `Koka SDK`
   selectSDKMenuItem.tooltip = `${kokaConfig.sdkPath}`
+  */
 
-  // create a new status bar item that we can now manage
+  const selectCompileTarget = null; // Do not show for now and only use C from vscode (as not all targets work without further tool installation)
+  /*
+  // create a new status bar item to select the Koka backend target
   const selectCompileTarget = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100)
   selectCompileTarget.command = 'koka.selectTarget'
   context.subscriptions.push(selectCompileTarget)
   selectCompileTarget.show()
   selectCompileTarget.text = `Koka Backend: ${kokaConfig.target}`
+  */
 
-  // Open samples? (Once after the initial install)
-  const open = await context.globalState.get('koka-open-samples')
-  console.log("Koka: open samples: " + open);
-  if (open !== "done") {
-    await context.globalState.update('koka-open-samples',"done")
+  // Open samples?
+  // This happens after the first time the Koka compiler is found (either already installed, or just installed)
+  const open = await context.globalState.get('koka-opened-samples')
+  console.log("Koka: opened samples before: " + open);
+  if (open !== "yes") {
+    await context.globalState.update('koka-opened-samples',"yes")
     await openSamples(context,vsConfig);
   }
 
-
   // Register debug adapter
   registerDebugConfiguration(context, kokaConfig)
+
   // Initialize commands
-  createCommands(context, vsConfig, kokaConfig, selectSDKMenuItem, selectCompileTarget)
+  createCommands(context, vsConfig, kokaConfig, selectSDKMenuItem, selectCompileTarget )
+
   // Code lens (run and test)
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider({ language: "koka", scheme: "file" }, new MainCodeLensProvider(kokaConfig))
@@ -78,13 +93,15 @@ export async function activate(context: vscode.ExtensionContext) {
 // These commands do not depend on the language server
 function createBasicCommands(context: vscode.ExtensionContext, config: vscode.WorkspaceConfiguration) {
   context.subscriptions.push(
-    // SDK management
-    vscode.commands.registerCommand('koka.downloadLatest', async () => {
+    // Install latest Koka
+    vscode.commands.registerCommand('koka.installCompiler', async () => {
       // Reset the download flag
       await context.globalState.update('koka-download', "")
       downloadKoka(context, config, "", true, undefined)
     }),
-    vscode.commands.registerCommand('koka.uninstall', () => {
+
+    // Uninstall
+    vscode.commands.registerCommand('koka.uninstallCompiler', () => {
       uninstallKoka(context)
     })
   )
@@ -105,9 +122,10 @@ function createCommands(
   context: vscode.ExtensionContext,
   config: vscode.WorkspaceConfiguration,
   kokaConfig: KokaConfig,
-  selectSDKMenuItem: vscode.StatusBarItem,
-  selectCompileTarget: vscode.StatusBarItem,
+  selectSDKMenuItem: vscode.StatusBarItem,   // can be null
+  selectCompileTarget: vscode.StatusBarItem, // can be null
 ) {
+  // select SDK
   context.subscriptions.push(
     vscode.commands.registerCommand('koka.selectSDK', async () => {
       const sdk = await findInstallSDK(context, config)
@@ -117,14 +135,31 @@ function createCommands(
       const { sdkPath, allSDKs } = sdk
       kokaConfig.allSDKs = allSDKs
       const result = await vscode.window.showQuickPick(kokaConfig.allSDKs)
-      if (result) kokaConfig.selectSDK(result)
-      selectSDKMenuItem.tooltip = `${kokaConfig.sdkPath}`
+      if (result) {
+        kokaConfig.selectSDK(result)
+      }
+      if (selectSDKMenuItem) {
+        selectSDKMenuItem.tooltip = `${kokaConfig.sdkPath}`
+      }
       await vscode.commands.executeCommand('koka.restartLanguageServer')
     }),
-    // Language Server management
-    vscode.commands.registerCommand('koka.showLSPOutput', async () => {
-      languageServer.showOutputChannel()
+
+    vscode.commands.registerCommand('koka.selectTarget', async () => {
+      const result = await vscode.window.showQuickPick(['c', 'c32', 'c64c', 'jsnode', 'wasm'])
+      if (result) {
+        kokaConfig.selectTarget(result)
+      }
+      if (selectCompileTarget) {
+        selectCompileTarget.text = `Koka Target: ${kokaConfig.target}`
+      }
     }),
+
+    // Open samples
+    vscode.commands.registerCommand('koka.openSamples', () => {
+      openSamples(context, config)
+    }),
+
+    // Restart language server
     vscode.commands.registerCommand('koka.restartLanguageServer', () => {
       if (!config.get('languageServer.enabled'))
         return vscode.window.showErrorMessage('Language server is not enabled')
@@ -159,21 +194,17 @@ function createCommands(
         },
       )
     }),
-    // Configuration
-    vscode.commands.registerCommand('koka.selectTarget', async () => {
-      const result = await vscode.window.showQuickPick(['C', 'WASM', 'JS', 'C#'])
-      if (result) kokaConfig.selectTarget(result)
-      selectCompileTarget.text = `Koka Backend: ${kokaConfig.target}`
-    }),
-    // Debug Adaptor stuff
+
+    // Debug Adaptor
     vscode.commands.registerCommand('extension.language-koka.getProgramName', c => {
       return vscode.window.showInputBox({
         placeHolder: "Please enter the name of a koka file in the workspace folder",
         value: path.relative(config.cwd, vscode.window.activeTextEditor?.document.fileName || '') || 'test.kk'
       })
     }),
+
     // Start a program given just a path
-    vscode.commands.registerCommand('koka.startWithoutDebugging', (resource: vscode.Uri, compilerArgs?: string, programArgs?: string[]) => {
+    vscode.commands.registerCommand('koka.runMain', (resource: vscode.Uri, compilerArgs?: string, programArgs?: string[]) => {
       const launchConfig =
       {
         name: `koka run: ${resource.path}`,
@@ -186,8 +217,9 @@ function createCommands(
       console.log(`Launch config ${launchConfig}`)
       vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(resource), launchConfig as vscode.DebugConfiguration)
     }),
+
     // Start a program given a path and a function name
-    vscode.commands.registerCommand('koka.interpretExpression', (resource: vscode.Uri, functionName: string, compilerArgs?: string, programArgs?: string[]) => {
+    vscode.commands.registerCommand('koka.runFunction', (resource: vscode.Uri, functionName: string, compilerArgs?: string, programArgs?: string[]) => {
       const launchConfig =
       {
         name: `koka run: ${resource.path}`,
@@ -201,9 +233,10 @@ function createCommands(
       console.log(`Launch config ${launchConfig}`)
       vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(resource), launchConfig as vscode.DebugConfiguration)
     }),
-    // Start a program given just a path
-    vscode.commands.registerCommand('koka.openSamples', () => {
-      openSamples(context, config)
+
+    // Show LSP output
+    vscode.commands.registerCommand('koka.showLSPOutput', async () => {
+      languageServer.showOutputChannel()
     }),
   )
 }

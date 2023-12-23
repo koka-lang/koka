@@ -1,3 +1,10 @@
+/*---------------------------------------------------------------------------
+Copyright 2023, Tim Whiting, Fredrik Wieczerkowski
+
+This is free software; you can redistribute it and/or modify it under the
+terms of the Apache License, Version 2.0. A copy of the License can be
+found in the LICENSE file at the root of this distribution.
+---------------------------------------------------------------------------*/
 
 import * as vscode from "vscode"
 import * as child_process from "child_process"
@@ -50,7 +57,7 @@ export class KokaLanguageServer {
   }
 
   async start(config: KokaConfig, context: vscode.ExtensionContext) {
-    console.log(`Koka: Language Server: ${config.command} ${config.langServerArgs.join(" ")}, Workspace: ${config.cwd}`)
+    console.log(`Koka: Language Server: ${config.command} ${config.languageServerArgs.join(" ")}, Workspace: ${config.cwd}`)
     let self = this;
     function serverOptions(): Promise<StreamInfo> {
       return new Promise((resolve, reject) => {
@@ -64,7 +71,7 @@ export class KokaLanguageServer {
         }).listen(0, "127.0.0.1", () => {
           const port = (self.socketServer!.address() as AddressInfo).port
           console.log(`Starting language server in ${config.cwd} on port ${port}`)
-          self.languageServerProcess = child_process.spawn(config.command, [...config.langServerArgs, `--lsport=${port}`], {
+          self.languageServerProcess = child_process.spawn(config.command, [...config.languageServerArgs, `--lsport=${port}`], {
             cwd: config.cwd,
             env: process.env,
           })

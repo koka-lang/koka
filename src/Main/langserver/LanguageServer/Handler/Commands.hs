@@ -33,9 +33,9 @@ commandHandler :: Handlers LSM
 commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp -> do
   let J.ExecuteCommandParams _ command commandParams = req ^. J.params
   flags <- getFlags
-  if command == "koka/genCode" then
+  if command == "koka/compile" then
     case commandParams of
-      -- koka/genCode filePath "...args to parse"
+      -- koka/compile filePath "...args to parse"
       Just [Json.String filePath, Json.String additionalArgs] -> do
         -- Update the flags with the specified arguments
         newFlags <- getNewFlags flags additionalArgs
@@ -49,11 +49,11 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
-      _ -> do 
+      _ -> do
         -- Client didn't send the right parameters for this command
-        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid parameters for koka/genCode"
+        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid parameters for koka/compile"
         resp $ Right $ J.InR J.Null
-  else if command == "koka/interpretExpression" then
+  else if command == "koka/compileFunction" then
     case commandParams of
       -- The `filePath` where a top level function is defined by the name `functionName`, and any additional flags
       Just [Json.String filePath, Json.String functionName, Json.String additionalArgs] -> do
@@ -61,18 +61,18 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
         newFlags <- getNewFlags flags additionalArgs
         let forceRecompilation = flags /= newFlags
         -- Compile the expression, but with the interpret target
-        withProgress (T.pack "Interpreting " <> functionName) J.Cancellable $ \report -> do
+        withProgress (T.pack "Compiling " <> functionName) J.Cancellable $ \report -> do
           setProgress (Just report)
           -- compile the expression
           res <- compileEditorExpression (J.filePathToUri $ T.unpack filePath) newFlags forceRecompilation (T.unpack filePath) (T.unpack functionName)
           term <- getTerminal
-          liftIO $ termDoc term $ text "Finished generating code for for interpreting function" <+> color DarkRed (text (T.unpack functionName)) <+>  color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
+          liftIO $ termDoc term $ text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) <+>  color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
       _ -> do
         -- Client didn't send the right parameters for this command
-        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid parameters for koka/interpretExpression"
+        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid parameters for koka/compileFunction"
         resp $ Right $ J.InR J.Null
   else
     do
