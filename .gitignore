@@ -4,6 +4,7 @@
 .DS_Store
 .vs/
 .vscode/
+support/vscode/koka.language-koka/whatsnew.md
 node_modules/
 out/
 bundle/

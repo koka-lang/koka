@@ -44,17 +44,22 @@ export class KokaConfig {
     this.cwd = config.get('languageServer.cwd') as string || vscode.workspace.workspaceFolders![0].uri.fsPath
     this.compilerArgs = config.get('languageServer.compilerArgs') as string[] || []
     this.autoFocusTerminal = config.get('languageServer.autoFocusTerminal') as boolean ?? false;
+    this.version = latestVersion
+    this.compilerVersion = "1.0.0"
   }
-  compilerPaths: string[]
   enableDebugExtension: boolean
-  compilerPath: string
   languageServerArgs: string[]
-  compilerArgs: string[]
   autoFocusTerminal: boolean
   target: string
   cwd: string
+  version: string                   // latestVersion of the extension
+  compilerPath: string              // path in use for the compiler
+  compilerVersion : string          // version of that compiler
+  compilerArgs: string[]            // extra arguments to pass
+  compilerPaths: string[]           // all found paths to koka compilers
 
-  isValid() : Boolean {
+
+  hasValidCompiler() : Boolean {
     return !!(this.compilerPaths && this.compilerPaths.length > 0 && this.compilerPath)
   }
 
@@ -69,7 +74,7 @@ export class KokaConfig {
     }
     this.compilerPaths = paths;
     this.updateCompilerPath(this.compilerPaths[0])
-    return this.isValid()
+    return this.hasValidCompiler()
   }
 
   updateCompilerPath(path: string) {
@@ -78,8 +83,12 @@ export class KokaConfig {
       this.compilerPath = ""
       return
     }
-    // Test we can execute the sdk command
-    fs.accessSync(path, fs.constants.X_OK)
+
+    // Test if we can execute
+    const compilerVersion = getKokaVersion(path)
+    if (!compilerVersion) return
+
+    this.compilerVersion = compilerVersion
     this.compilerPath = path
     this.languageServerArgs = ["--language-server", `-i${this.cwd}`, ...this.compilerArgs]
   }
@@ -115,7 +124,7 @@ export async function findInstallCompilerPaths(context: vscode.ExtensionContext,
   }
 
   const defaultPath = paths[0]
-  const version = getKokaVersion(defaultPath)
+  const version = getKokaVersion(defaultPath) ?? "1.0.0"
   if (semver.lt(version, latestVersion) ) {
     const reason = `The currently installed Koka compiler is version ${version} while the latest is ${latestVersion}`
     await installKoka(context, config, reason, false)
@@ -185,19 +194,26 @@ function findCompilerPaths(config: vscode.WorkspaceConfiguration) : string[] {
 
 function getKokaVersion(exePath: string) : string {
   const options = { env: process.env }
-  const result = child_process.execSync(`${exePath} --version`, options)
-  const versionRegex = /version: ([0-9]+\.[0-9]+.[0-9]+)/g;
-  const match = versionRegex.exec(result.toString())
-  console.log("Koka: found installed version " + match[1].toString())
-  return match[1].toString();
+  let version = ""
+  try {
+    const buf = child_process.execSync(`"${exePath}" --version`, options) // can throw
+    if (buf) {
+      const versionRegex = /version: ([0-9]+\.[0-9]+.[0-9]+)/g;
+      const match = versionRegex.exec(buf.toString())
+      version = match[1].toString()
+      console.log("Koka: found installed version " + version)
+    }
+  }
+  catch(err) { }
+  return version
 }
 
 async function installKoka(context: vscode.ExtensionContext, config: vscode.WorkspaceConfiguration,
                                         reason: string, force : boolean) {
   // only prompt once for a download for each new extension version
   if (!force) {
-    const response = await context.globalState.get('koka-latest-installed-version')
-    if (typeof response === 'string' && response && semver.eq(response, latestVersion)){
+    const latestInstalled = await context.globalState.get('koka-latest-installed-version') as string ?? "1.0.0"
+    if (semver.eq(latestInstalled, latestVersion)) {
       return
     }
   }
@@ -208,6 +224,7 @@ async function installKoka(context: vscode.ExtensionContext, config: vscode.Work
     'No'
   )
   if (decision == 'No') {
+    // pretend it is installed and don't auto prompt again in the future (until the extension is updated)
     await context.globalState.update('koka-latest-installed-version', latestVersion)
     return
   }
@@ -245,13 +262,19 @@ async function installKoka(context: vscode.ExtensionContext, config: vscode.Work
       // todo: should we get the installation path directly from the install script instead of rescanning?
       console.log("Koka: terminal install is done")
       if (t === term) {
-        if (!force) {
-          await context.globalState.update('koka-opened-samples',"no")  // open samples later on
-        }
-
         const paths = findCompilerPaths(config); // rescan to find the just installed compiler
-        const message = (paths.length>0 ? `Koka installed successfully at ${paths[0]}`
-                            : `Koka install finished but unable to find the installed compiler`)
+        let message = ""
+        if (paths.length>0) {
+          // TODO: we cannot be sure the first path entry is the newly installed compiler.
+          message = "Koka installed successfully"
+          await context.globalState.update('koka-latest-installed-version', latestVersion)
+          if (!force) {
+            await context.globalState.update('koka-opened-samples',"no")  // open samples later on
+          }
+        }
+        else {
+          message = "Koka installation finished but unable to find the installed compiler"
+        }
         console.log(message)
         resolve( paths )
         await vscode.window.showInformationMessage(message)

@@ -15,7 +15,8 @@
   "files": [
     "syntaxes/*.json",
     "images/",
-    "README.md"
+    "README.md",
+    "whatsnew.md"
   ],
   "keywords": [
     "koka",
@@ -123,6 +124,10 @@
         "title": "Koka: Download and install the latest compiler"
       },
       {
+        "command": "koka.whatsnew",
+        "title": "Koka: Show what is new in the latest release"
+      },
+      {
         "command": "koka.openSamples",
         "title": "Koka: Open samples"
       },
@@ -135,20 +140,16 @@
         "title": "Koka: Uninstall the compiler"
       },
       {
-        "command": "koka.runMain",
-        "title": "Koka: Run current file"
-      },
-      {
-        "command": "koka.runFunction",
-        "title": "Koka: Run a function in the current file"
-      },
-      {
         "command": "koka.selectCompiler",
         "title": "Koka: Select compiler path"
       },
       {
         "command": "koka.selectTarget",
         "title": "Koka: Set compilation target"
+      },
+      {
+        "command": "koka.clearState",
+        "title": "Koka: Clear all global state"
       },
       {
         "command": "koka.showLSPOutput",
@@ -223,7 +224,7 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "package": "vsce package",
+    "package": "npx copyfiles -V ../../../whatsnew.md support/vscode/koka.language-koka/ && vsce package",
     "publish": "vsce publish"
   },
   "devDependencies": {
@@ -231,7 +232,8 @@
     "@types/vscode": "1.81.0",
     "@vscode/vsce": "^2.22.0",
     "@types/semver": "^7.5.6",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "copyfiles": "^2.4.1"
   },
   "dependencies": {
     "@vscode/debugadapter": "^1.61.0",
