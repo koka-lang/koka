@@ -9,7 +9,7 @@ import * as vscode from 'vscode'
 import * as path from 'path'
 import * as semver from "semver"
 
-import { KokaConfig, openSamples } from './workspace'
+import { KokaConfig } from './workspace'
 import { CancellationToken, DebugConfiguration, DebugConfigurationProvider, ProviderResult, WorkspaceFolder } from 'vscode'
 import { KokaDebugSession } from './debugger'
 import { KokaLanguageServer } from './lang-server'
@@ -18,8 +18,8 @@ import { start } from 'repl'
 import { FailureHandlingKind } from 'vscode-languageclient'
 import { SemVer } from 'semver'
 
+// global as we may stop the language server and restart with a fresh object
 let languageServer : KokaLanguageServer = null;
-
 
 export async function deactivate() { }
 
@@ -29,17 +29,17 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // initialize the koka configuration
   const kokaConfig = new KokaConfig(context,vsConfig)
-  console.log("Koka: version: " + kokaConfig.version)
+  console.log("Koka: version: " + kokaConfig.extensionVersion)
 
   // Create commands that do not depend on the language server
   createBasicCommands(context, vsConfig, kokaConfig);
 
   // Check for an initial install/update
   const prevVersion = await context.globalState.get('koka-extension-version') as string ?? "1.0.0"
-  if (semver.neq(prevVersion,kokaConfig.version)) {
+  if (semver.neq(prevVersion,kokaConfig.extensionVersion)) {
     // first time activation after an update/install
-    await context.globalState.update('koka-extension-version', kokaConfig.version)
-    onUpdate(context,vsConfig,kokaConfig)
+    await context.globalState.update('koka-extension-version', kokaConfig.extensionVersion)
+    await onUpdate(context,vsConfig,kokaConfig)
   }
 
   // only continue after here if the language server is enabled in the settings
@@ -111,8 +111,7 @@ async function onUpdate(context : vscode.ExtensionContext, vsConfig: vscode.Work
 async function clearGlobalState(context : vscode.ExtensionContext, vsConfig: vscode.WorkspaceConfiguration, kokaConfig : KokaConfig) {
   await context.globalState.update("koka-compiler-version",null);               // last seen compiler version
   await context.globalState.update("koka-extension-version",null);              // last seen extension version
-  await context.globalState.update("koka-latest-installed-version",null);       // last installed koka compiler
-  // await context.globalState.update("koka-samples-" + kokaConfig.version,null);  // samples directory path
+  await context.globalState.update("koka-latest-installed-compiler",null);      // last installed (by us) koka compiler version
 }
 
 // Restart the language service
@@ -215,7 +214,7 @@ function createCommands(
       kokaConfig.updateCompilerPaths(context,vsConfig,false);  // update with latest found paths
       const path = await vscode.window.showQuickPick(kokaConfig.compilerPaths)
       if (path) {
-        kokaConfig.updateCompilerPath(path)
+        kokaConfig.setCompilerPath(path)
       }
       if (selectSDKMenuItem) {
         selectSDKMenuItem.tooltip = `${path}`
@@ -236,7 +235,7 @@ function createCommands(
 
     // Open samples
     vscode.commands.registerCommand('koka.openSamples', () => {
-      openSamples(context, kokaConfig)
+      kokaConfig.openSamples(context)
     }),
 
     // Restart language server
