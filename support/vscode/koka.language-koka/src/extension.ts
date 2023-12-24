@@ -28,7 +28,8 @@ export async function activate(context: vscode.ExtensionContext) {
   console.log(`Koka: extension path: ${context.extensionPath}, language server is ${(vsConfig.get('languageServer.enabled') ? "enabled" : "disabled")}`)
 
   // initialize the koka configuration
-  const kokaConfig = new KokaConfig(vsConfig)
+  const kokaConfig = new KokaConfig(context,vsConfig)
+  console.log("Koka: version: " + kokaConfig.version)
 
   // Create commands that do not depend on the language server
   createBasicCommands(context, vsConfig, kokaConfig);
