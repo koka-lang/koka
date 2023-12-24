@@ -464,50 +464,11 @@ info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 
 ## Language Server
 
-The language server is started by running the koka compilter with the --language-server flag
-and then connecting to it with a client that supports the Language Server Protocol (LSP)
+See the [`support/vscode/README.md`](support/vscode/README.md) for how to
+build the VS Code language server.
 
-For example, using VSCode, install the Koka extension or run the extension debug configuration in the project.
-Open up a folder and start editing `.kk` files. (The extension finds the koka executable and then automatically starts the language server for you).
+# Older Release Notes
 
-The VSCode extension searches in the following locations for the koka executable:
-- A koka development environment in ~/koka
-- A local install ~/.local/bin
-- The PATH environment variable
-
-To specify the command to start the language server manually, such as to provide additional flags to the koka compiler override the `koka.languageServer.command` VSCode setting.
-To specify the current working directory to run the compiler from use the `koka.languageServer.cwd` setting. If there are problems with the language server, you can enable the `koka.languageServer.trace.server` setting to see the language server logs, or turn off the language server by setting the `koka.languageServer.enable` setting to `false`.
-
-To develop the language server, you can use this VSCode debug configuration (add the configuration to .vscode/launch.json).
-
-```json
-{
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-  "version": "0.2.0",
-  "configurations": [
-    {
-        "name": "Launch Extension",
-        "request": "launch",
-        "type": "extensionHost",
-        "args": [
-            "--extensionDevelopmentPath=${workspaceFolder}/support/vscode/koka.language-koka"
-        ],
-        "outFiles": [
-            "${workspaceFolder}/support/vscode/koka.language-koka/out/**/*.js"
-        ]
-    }
-]
-}
-```
-
-- Run `npm install && npm run build` in the `support/vscode/koka.language-koka` directory 
-- Update the LSP server in the `src/LanguageServer` directory with your changes
-- Run `stack build` 
-- Restart the debug configuration and make sure a notification pops up that you are using the development version of the koka sdk
-
-## Older Release Notes
 
 * `v2.1.9`, 2021-06-23: initial support for cross-module specialization (by Steven Fontanella).
 * `v2.1.8`, 2021-06-17: initial support for macOS M1 and Linux arm64, improved readline, minor fixes.
@@ -529,6 +490,7 @@ To develop the language server, you can use this VSCode debug configuration (add
 * `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C
   compilation, local install support.
 * `v2.0.0`, 2020-08-21: initial v2 release.
+
 
 # References
 
