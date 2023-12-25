@@ -1279,7 +1279,7 @@ inferApp propagated expect fun nargs rng
   = -- trace "infer: App" $
     do (fixed,named) <- splitNamedArgs nargs
        amb <- case rootExpr fun of
-                (Var name _ nameRange) | not (isConstructorName name) --TODO: allow constructors as well
+                (Var name _ nameRange)
                   -> do let sctx = fixedCountContext propagated (length fixed) (map (fst . fst) named)
                         matches <- lookupAppNameX False name sctx nameRange
                         -- traceDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
@@ -1730,7 +1730,7 @@ inferImplicitParam par
   = if isImplicitParamName (binderName par)
      then  do let pname = plainImplicitParamName (binderName par)
               unpack <- case binderExpr par of
-                Just (Parens (Var qname _ rng) _ _) -> inferImplicitUnpack (binderRange par) rng pname qname
+                Just (Parens (Var qname _ rng) _ _) -> inferImplicitUnpack (binderRange par) rng pname qname -- encoded in the parser with a parens expression..
                 Just (Var name _ _) -> return id
                 Nothing             -> return id
                 Just expr           -> do contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
@@ -1748,10 +1748,26 @@ inferImplicitUnpack rng nrng pname qname
         -- struct: unpack the fields
            -> let pats = [PatVar (ValueBinder fname Nothing (PatWild nrng) nrng rng)
                             | (fname,ftp) <- conInfoParams conInfo, not (nameIsNil fname)]
-                  pat  = PatCon (conInfoName conInfo) [(Nothing,p) | p <- pats] nrng rangeNull {- no warnings for unused pattern variables -}
+                  pat  = PatCon (conInfoName conInfo) [(Nothing,p) | p <- pats] nrng rangeNull {- no warnings for unused pattern variables by using a null range -}
                   unpack body
-                      = Case (Var pname False nrng) [Branch pat [Guard guardTrue body]] rng
-              in return unpack
+                       = Case (Var pname False nrng) [Branch pat [Guard guardTrue body]] rng
+                  bases :: [(Name,Name)]
+                  bases = [(fname,fqname) | (fname,ftp) <- conInfoParams conInfo,
+                                            nameStartsWith fname "base",
+                                            fqname <- extractStructType ftp]
+                  compose [] e     = e
+                  compose (f:fs) e = f (compose fs e)
+
+                  extractStructType :: Type -> [Name]
+                  extractStructType tp
+                    = case expandSyn tp of
+                        TApp (TCon tcon) targs -> [typeConName tcon]
+                        TCon tcon              -> [typeConName tcon]
+                        _                      -> []
+
+              in do unpackBases <- mapM (\(fname,fqname) -> inferImplicitUnpack rng nrng fname fqname) bases  -- todo: stop recursion!
+                    return (compose (unpack:unpackBases))
+
         _  -> return id
 
 

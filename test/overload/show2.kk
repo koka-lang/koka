@@ -29,6 +29,9 @@ fun test1()
 fun test1a()
   ['h','i'].showx
 
+fun test1b()
+  [].showx        // yikes, instantiates [] to `list<char>` (!) (as that is the shortest chain)
+
 fun test2()
   [[1],[2]].showx // this resolves recursively
 

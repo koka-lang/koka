@@ -24,6 +24,7 @@ module Type.Assumption (
                     , isInfoCon
                     , isInfoImport
                     , isInfoFun
+                    , isInfoVal
                     , isInfoValFunExt
                     , isInfoFunOrExternal
                     , infoElement
@@ -80,6 +81,10 @@ isInfoImport _                    = False
 isInfoCon :: NameInfo -> Bool
 isInfoCon (InfoCon{}) = True
 isInfoCon _                 = False
+
+isInfoVal :: NameInfo -> Bool
+isInfoVal (InfoVal{}) = True
+isInfoVal _           = False
 
 isInfoValFunExt :: NameInfo -> Bool
 isInfoValFunExt (InfoVal{}) = True

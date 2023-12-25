@@ -26,7 +26,7 @@ import Data.List( partition )
 import Lib.PPrint
 import Common.Name
 import Common.NamePrim( isNameTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty,
-                        nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore, nameCoreTypes )
+                        nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore, nameCoreTypes, nameUnit )
 import Common.ColorScheme
 import Common.IdNice
 import Common.Syntax
@@ -479,7 +479,7 @@ ppTypeCon env (TypeCon name kind)
     = colorByKindDef env kind colorTypeCon $
       --(if name == nameEffectEmpty then id else)
       (wrapKind (showKinds env) env kind) $
-      ppNameEx env name
+      if name == nameUnit then text "()" else ppNameEx env name
 
 ppTypeSyn :: Env -> TypeSyn -> Doc
 ppTypeSyn env (TypeSyn name kind rank _)

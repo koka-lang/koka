@@ -325,7 +325,7 @@ isolate rng free ps eff
                                      nofailUnify $ unify (effectExtend st tv) eff
                             neweff <- subst tv
                             sps    <- subst ps1
-                            trace ("isolate to:"  ++ show (pretty neweff)) $ return ()
+                            -- trace ("isolate to:"  ++ show (pretty neweff)) $ return ()
                             -- return (sps, neweff, id) -- TODO: supply evidence (i.e. apply the run function)
                             -- and try again
                             (sps',eff',coref) <- isolate rng free sps neweff
@@ -1587,17 +1587,19 @@ lookupAppNameX allowDisambiguate name ctx range
   = do iapps <- -- lookupDisambiguatedName allowDisambiguate False name ctx range
                 lookupAppNames 0 False {- no bypass -}
                  (not allowDisambiguate) {- allow type bypass: at first when allowDisambiguate is False we like to see all possible instantations -}
-                 isInfoValFunExt name ctx range
+                 filter name ctx range
        -- create ImplicitExpr for easy comparing
        penv <- getPrettyEnv
        let iapps' = [(toImplicitAppExpr penv "" name range iapp, iapp) | iapp <- iapps]
        -- traceDoc $ \penv -> text "lookupAppNameX:" <+> Pretty.ppName penv name <+> text ":" <+> list [pretty iexpr | (iexpr,_) <- iapps']
        case pick allowDisambiguate fst iapps'  of
          Right (imp,(iname,info,itp,iexprs))
-          -> do traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
+          -> do -- traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
                 return (Right (itp, Var iname False range, [((name,range),ieExpr iexpr) | (name,iexpr) <- iexprs]))
          Left docs
           -> return (Left docs)
+  where
+    filter = if isConstructorName name then isInfoCon else isInfoValFunExt
 
 -- resolve an implicit name to an expression
 resolveImplicitName :: Name -> Type -> Range -> Inf (Expr Type)
@@ -1605,7 +1607,7 @@ resolveImplicitName name tp range
   = do -- candidates <- lookupDisambiguatedName True True name (implicitTypeContext tp) range
        iexprs <- lookupImplicitNames 0 isInfoValFunExt name (implicitTypeContext tp) range
        case pick True id iexprs of
-         Right iexpr -> do traceDefDoc $ \penv -> text "resolved implicit" <+> Pretty.ppParam penv (name,tp) <+> text ", to" <+> pretty iexpr
+         Right iexpr -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> Pretty.ppParam penv (name,tp) <+> text ", to" <+> pretty iexpr
                            return (ieExpr iexpr)
          Left docs0 -> do penv <- getPrettyEnv
                           infError range (text "cannot resolve implicit parameter" <+> Pretty.ppParam penv (name,tp) <->
@@ -1644,7 +1646,7 @@ toImplicitAppExpr penv prefix name range (iname,info,itp,iargs)
        in case iargs of
             [] -> ImplicitExpr docName itp (Var iname False range) 1 (if isLocal then [iname] else [])
             _  -> case splitFunType itp of
-                    Just (ipars,ieff,iresTp) | any Op.isOptionalOrImplicit ipars
+                    Just (ipars,ieff,iresTp) | any Op.isOptionalOrImplicit ipars -- eta-expand
                       -- eta-expand and resolve further implicit parameters
                       -- todo: eta-expansion may become part of subsumption?
                       ->  let (fixed,opt,implicits) = splitOptionalImplicit ipars in

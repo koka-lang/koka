@@ -6,7 +6,7 @@ ref struct monad<m>
   bind : forall<a,b> (m<a>, a -> m<b>) -> m<b>
 
 ref struct monadplus<m>
-  monad : monad<m>
+  base  : monad<m>                          // field names starting with "base" get unpacked recursively in ??
   plus  : forall<a> (m<a>,m<a>) -> m<a>
 
 //fun sequence( ms : list<m<a>>, ??monad : monad<m> ) : m<list<a>>
@@ -27,24 +27,20 @@ val maybe/monadplus = Monadplus( maybe/monad, fn(m1,m2) match m1
                                                           Just    -> m1
                                )
 
-fun monad_monadplus( ??monadplus )
-  monad
-
-
-fun mbind( m, f, ??monad )
-  bind(m,f)
-
-fun mpure( x, ??monad )
-  pure(x)
+fun monadplus/monad( ??monadplus )
+  base
 
 fun testtwice( m, ??monadplus )
-  // this works since we named the field `monad` which gets now introduced locally
-  with x <- mbind(plus(m,m))
-  mpure([x])
+  // this works since the base member is unpacked as well, as:
+  // ??monadplus ~> match monadplus
+  //                  Monadplus base plus -> match base
+  //                                           Monad pure bind -> ...
+  with x <- bind(plus(m,m))
+  pure([x])
 
 // exceptions
 fun test1()
-  match [Just(1), Just(2)].sequence  // ambiguous: `monad_maybe` or `monad_monadplus(monadplus_maybe)`
+  match [Just(1), Just(2)].sequence  // ambiguous: `maybe/monad` or `monadplus/monad(maybe/monadplus)`
     Just(xs) -> xs.show
     Nothing  -> "Nothing"
 
