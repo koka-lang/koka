@@ -1527,8 +1527,10 @@ lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name
 lookupNameEx infoFilter name ctx range
   = -- trace ("lookup: " ++ show name) $
     do env <- getEnv
+       mod <- getModuleName
+       let locname = if (qualifier name == mod) then unqualify name else name
        -- trace (" in infgamma: " ++ show (ppInfGamma (prettyEnv env) (infgamma env))) $ return ()
-       case infgammaLookupX name (infgamma env) of  --TODO: allow prefix lookup?
+       case infgammaLookupX locname (infgamma env) of  --TODO: allow prefix lookup?
          Just info  | infoFilter info
                   -> do sinfo <- subst info
                         return [(infoCanonicalName name info, sinfo)] -- TODO: what about local definitions without local type variables or variables?

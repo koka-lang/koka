@@ -9,8 +9,8 @@ ref struct monadplus<m>
   monad : monad<m>
   plus  : forall<a> (m<a>,m<a>) -> m<a>
 
-fun sequence( ms : list<m<a>>, ??monad : monad<m> ) : m<list<a>>
-//fun sequence( ms, ??monad )
+//fun sequence( ms : list<m<a>>, ??monad : monad<m> ) : m<list<a>>
+fun sequence( ms, ??monad )
   match ms
     Nil -> pure([])
     Cons(m,mm) ->

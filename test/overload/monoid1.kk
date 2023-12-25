@@ -2,16 +2,15 @@ value struct monoid<a>
   mzero : a
   mplus : (a,a) -> a
 
-
-val monoid_intplus = Monoid(0,(+))
-val monoid_intmul  = Monoid(1,(*))
-val monoid_float   = Monoid(0.0,(+))
+val intplus/monoid = Monoid(0,(+))
+val intmul/monoid  = Monoid(1,(*))
+val float/monoid   = Monoid(0.0,(+))
 
 fun msum( xs, ?m = monoid )
   xs.foldl(m.mzero,m.mplus)
 
 
-fun monoid( ?m : monoid<a> = monoid)  : monoid<list<a>>
+fun list/monoid( ?m : monoid<a> = monoid)  : monoid<list<a>>
   val zero = m.mzero
   val plus = m.mplus
   Monoid([zero], fn(xs,ys) zipwith(xs,ys,plus))

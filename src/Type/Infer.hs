@@ -143,7 +143,7 @@ inferDefGroup topLevel (DefNonRec def) cont
        let cgroup1 = Core.DefNonRec core1
        return ([cgroup1],x)
 inferDefGroup topLevel (DefRec defs) cont
-  = trace ("\ninfer group: " ++ show (map defName defs)) $
+  = -- trace ("\ninfer group: " ++ show (map defName defs)) $
     do (gamma,infgamma) <- createGammas [] [] defs
        --coreDefs0 <- extendGamma gamma (mapM (inferRecDef topLevel infgamma) defs)
        (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGammaEx topLevel [] infgamma $
@@ -241,7 +241,7 @@ inferDefGroup topLevel (DefRec defs) cont
                                           _ -> do tp <- Op.freshTVar kindStar Meta
                                                   -- trace ("*** assume defVal: " ++ show qname) $
                                                   return (createNameInfoX Public qname DefVal nameRng tp)  -- must assume Val for now: get fixed later in inferRecDef2
-                                -- trace ("*** createGammasx: assume: " ++ show name ++ ": " ++ show info) $ return ()
+                                -- trace ("*** createGammasx: assume: " ++ show qname ++ ": " ++ show info) $ return ()
                                 createGammas gamma ((qname,info):infgamma) defs
 
 checkRecVal :: Core.DefGroup -> Inf ()
@@ -1302,8 +1302,7 @@ inferApp propagated expect fun nargs rng
     inferAppFunFirst :: Maybe (Type,Range) -> Expr Type -> [(Int,FixedArg)] ->
                           [Expr Type] -> [((Name,Range),Expr Type)] -> [((Name,Range), Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop funExpr fresolved fixed named0 implicits
-      = do -- traceDefDoc $ \penv -> text (" inferAppFunFirst: fun: " ++ show funExpr ++ ", named: " ++ show named0 ++ ", implicits: " ++ show implicits)
-           --                    <-> text "  :" <+> ppProp penv prop
+      = do -- traceDefDoc $ \penv -> text (" inferAppFunFirst: fun: " ++ show funExpr ++ ", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <-> text "  :" <+> ppProp penv prop
 
            -- only add resolved implicits that were not already named
            let alreadyGiven = [name | ((name,_),_) <- named0]

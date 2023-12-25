@@ -9,8 +9,8 @@ ref struct monadplus<m>
   xmonad : monad<m>
   plus   : forall<a> (m<a>,m<a>) -> m<a>
 
-fun sequence( ms : list<m<a>>, ??monad : monad<m> ) : m<list<a>>
-//fun sequence( ms, ??monad )
+//fun sequence( ms : list<m<a>>, ??monad : monad<m> ) : m<list<a>>
+fun sequence( ms, ??monad )
   match ms
     Nil -> pure([])
     Cons(m,mm) ->
@@ -52,3 +52,5 @@ fun test1()
 fun test2()
   [[1],[2,3],[4,5,6]].sequence.show-list(show)
 
+fun test3()
+  [[1],[2,3]].testtwice.concat.sequence.show-list(show)

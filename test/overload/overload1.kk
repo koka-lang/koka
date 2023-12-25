@@ -1,5 +1,5 @@
 import std/num
-import std/num/float64 as blah
+import blah = std/num/float64
 
 fun int/eq( x : int, y : int ) : bool
   x == y
