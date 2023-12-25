@@ -370,7 +370,7 @@ pub value type optional<a>
   // The `Optional` constructor is used when an optional argument is given.
   con Optional( value : a )
   // `None` is used when an optional argument is not provided.
-  con None
+  con None   // note: must come second; see Core/Core.hs
 
 
 // ----------------------------------------------------------------------------

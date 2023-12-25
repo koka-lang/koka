@@ -10,8 +10,8 @@ fun pure( x : a, ?monad : monad<m> ) : m<a>
 fun bind( x : m<a>, f : a -> m<b>, ?monad : monad<m> ) : m<b>
   (monad.mbind)(x,f)
 
-//fun sequence( ms : list<m<a>>, ?monad : monad<m> ) : m<list<a>>
-fun sequence( ms, ?monad )
+fun sequence( ms : list<m<a>>, ?monad : monad<m> ) : m<list<a>>
+//fun sequence( ms, ?monad )
   match ms
     Nil -> pure([])
     Cons(m,mm) ->
@@ -19,8 +19,8 @@ fun sequence( ms, ?monad )
       with xx <- bind(sequence(mm))
       pure(Cons(x,xx))
 
-val monad_list = Monad( fn(x) [x], fn(m,f) m.flatmap(f) )
-val monad_maybe = Monad( fn(x) Just(x), fn(m,f) match m { Just(x) -> f(x); _ -> Nothing } )
+val list/monad = Monad( fn(x) [x], fn(m,f) m.flatmap(f) )
+val maybe/monad = Monad( fn(x) Just(x), fn(m,f) match m { Just(x) -> f(x); _ -> Nothing } )
 
 // exceptions
 fun test1()

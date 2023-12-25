@@ -49,7 +49,7 @@ module Core.Core ( -- Data structures
                    , makeList, makeVector
                    , makeDef, makeTDef, makeStats, makeDefsLet, makeDefExpr
                    , makeDropSpecial
-                   , wrapOptional
+                   , wrapOptional, makeOptionalNone
                    , unzipM
                    , Visibility(..), Fixity(..), Assoc(..), isPublic
                    , coreName
@@ -178,10 +178,17 @@ wrapOptional :: Type -> Expr -> Expr
 wrapOptional tp expr
   = App (TypeApp (Con (TName nameOptional tpOptional) conInfo) [tp]) [expr]
   where
+    conInfo    = ConAsJust nameTpOptional DataAsMaybe (valueReprScan 1) nameOptionalNone {-the Nothing-} 0
     tpOptional = TForall [a] [] (typeFun [(nameNil,TVar a)] typeTotal (makeOptionalType (TVar a)))
-    conInfo    = ConAsJust nameTpOptional DataAsMaybe (valueReprScan 1) nameOptionalNone 0
     a = TypeVar (0) kindStar Bound
 
+makeOptionalNone :: Type -> Expr
+makeOptionalNone tp
+  = TypeApp (Con (TName nameOptionalNone tpOptionalNone) conInfo) [tp]
+  where
+    conInfo    = ConSingleton nameTpOptional DataAsMaybe valueReprZero 1
+    tpOptionalNone = TForall [a] [] (typeFun [(nameNil,TVar a)] typeTotal (makeOptionalType (TVar a)))
+    a = TypeVar (0) kindStar Bound
 
 makeList :: Type -> [Expr] -> Expr
 makeList tp exprs
