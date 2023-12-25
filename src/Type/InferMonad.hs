@@ -1636,7 +1636,7 @@ toImplicitAppExpr penv prefix name range (iname,info,itp,iargs)
        in case iargs of
             [] -> ImplicitExpr docName itp (Var iname False range) 1 (if isLocal then [iname] else [])
             _  -> case splitFunType itp of
-                    Just (ipars,ieff,iresTp)
+                    Just (ipars,ieff,iresTp) | any Op.isOptionalOrImplicit ipars
                       -- eta-expand and resolve further implicit parameters
                       -- todo: eta-expansion may become part of subsumption?
                       ->  let (fixed,opt,implicit) = splitOptionalImplicit ipars in
@@ -1657,6 +1657,7 @@ toImplicitAppExpr penv prefix name range (iname,info,itp,iargs)
                                                 else nub (concatMap (ieLocalRoots . snd) iargs)
                               doc           = docName <.> tupled ([text "_" | _ <- fixed] ++ [ieDoc iexpr | (_,iexpr) <- iargs])
                           in ImplicitExpr doc itp eta depth localRoots
+                    _ -> failure ("Type.InferMonad.lookupImplicitNames: illegal type for implicit? " ++ show range ++ ", " ++ show (Pretty.ppParam penv (name,itp)))
 
 -- Lookup application name `f` in an expression `f(...)` where the name  context usually contains
 -- types of (partially) inferred (fixed) arguments.
@@ -1717,44 +1718,6 @@ lookupNames allowBypass infoFilter name ctx range
                            return (locals1 ++ globals1)
 
 
-
-lookupLocalName infoFilter name
-  = do env <- getEnv
-       case infgammaLookupX name (infgamma env) of
-         Just info | isInfoValFunExt info -> do sinfo <- subst info
-                                                return (Just (infoCanonicalName name info, sinfo))
-         _ -> return Nothing
-
-
-  {-|
-    -- trace ("lookup: " ++ show name) $
-    do env <- getEnv
-       -- trace (" in infgamma: " ++ show (ppInfGamma (prettyEnv env) (infgamma env))) $ return ()
-       case infgammaLookupX name (infgamma env) of  --TODO: allow prefix lookup?
-         Just info  | infoFilter info
-                  -> do sinfo <- subst info
-                        return [(infoCanonicalName name info, sinfo)] -- TODO: what about local definitions without local type variables or variables?
-         _        -> -- trace ("gamma: " ++ show (ppGamma (prettyEnv env) (gamma env))) $
-                     -- lookup global candidates
-                     do let candidates = filter (infoFilter . snd) $
-                                         if asPrefix then gammaLookupPrefix name (gamma env)
-                                                     else gammaLookup name (gamma env)
-                        case candidates of
-                           [(qname,info)] -> return candidates
-                           [] -> return [] -- infError range (Pretty.ppName (prettyEnv env) name <+> text "cannot be found")
-                           _  -> do when (not asPrefix) $
-                                      checkCasingOverlaps range name candidates -- todo: enable with asPrefix?
-                                    -- lookup global candidates that match the expected type
-                                    matches <- filterMatchNameContext range asPrefix ctx candidates
-                                    case matches of
-                                      [(qname,info)] -> return matches
-                                      _  -> if not asPrefix
-                                              then return matches
-                                              else let specificMatches = filter (\(nm,_) -> unqualify nm /= name) matches
-                                                   in case specificMatches of
-                                                        [_] -> return specificMatches -- prefer more specific instances
-                                                        _   -> return matches -- all matches to improve error messages
--}
 
 filterMatchNameContext :: Range -> NameContext -> [(Name,NameInfo)] -> Inf [(Name,NameInfo)]
 filterMatchNameContext range ctx candidates
