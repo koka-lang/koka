@@ -29,13 +29,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // initialize the koka configuration
   const kokaConfig = new KokaConfig(context,vsConfig)
-  console.log("Koka: version: " + kokaConfig.extensionVersion)
+  console.log(`Koka: extension version: ${kokaConfig.extensionVersion}, latest compiler version: ${kokaConfig.latestCompilerVersion}`)
 
   // Create commands that do not depend on the language server
   createBasicCommands(context, vsConfig, kokaConfig);
 
   // Check for an initial install/update
   const prevVersion = await context.globalState.get('koka-extension-version') as string ?? "1.0.0"
+  console.log(`Koka: previous extension version: ${prevVersion}`)
   if (semver.neq(prevVersion,kokaConfig.extensionVersion)) {
     // first time activation after an update/install
     await context.globalState.update('koka-extension-version', kokaConfig.extensionVersion)
@@ -44,12 +45,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // only continue after here if the language server is enabled in the settings
   if (!vsConfig.get('languageServer.enabled')) {
+    console.log(`Koka: do not start language server as it is disabled in the settings`)
     return
   }
 
   // start the language service
   await startLanguageServer(context,vsConfig,kokaConfig,true /* allow install */)
-  if (!languageServer || !kokaConfig.hasValidCompiler()) return;
+  if (!languageServer || !kokaConfig.hasValidCompiler()) {
+    console.log(`Koka: no valid compiler, don't start the language server (${kokaConfig.compilerPath})`)
+    return;
+  }
   console.log( "Koka: language server started")
   const selectSDKMenuItem = null; // Do not show for now as it is too intrusive as it as always visible
   /*
@@ -99,19 +104,23 @@ async function checkCompilerUpdate(context : vscode.ExtensionContext, vsConfig: 
 
 // Called after initial install and later updates of the compiler
 async function onCompilerUpdate(context : vscode.ExtensionContext, vsConfig: vscode.WorkspaceConfiguration, kokaConfig : KokaConfig) {
-  vscode.commands.executeCommand('koka.openSamples')
+  console.log("Koka: compiler is updated")
+  await vscode.commands.executeCommand('koka.openSamples')
 }
 
 // Called after initial install and later updates of the extension
 async function onUpdate(context : vscode.ExtensionContext, vsConfig: vscode.WorkspaceConfiguration, kokaConfig : KokaConfig) {
-  vscode.commands.executeCommand('koka.whatsnew')
+  console.log("Koka: extension is updated")
+  await vscode.commands.executeCommand('koka.whatsnew')
+  console.log("Koka: end of onUpdate")
 }
 
 // Clear all global state (for development)
 async function clearGlobalState(context : vscode.ExtensionContext, vsConfig: vscode.WorkspaceConfiguration, kokaConfig : KokaConfig) {
-  await context.globalState.update("koka-compiler-version",null);               // last seen compiler version
-  await context.globalState.update("koka-extension-version",null);              // last seen extension version
-  await context.globalState.update("koka-latest-installed-compiler",null);      // last installed (by us) koka compiler version
+  console.log("Koka: clear global state")
+  await context.globalState.update("koka-compiler-version",undefined);               // last seen compiler version
+  await context.globalState.update("koka-extension-version",undefined);              // last seen extension version
+  await context.globalState.update("koka-latest-installed-compiler",undefined);      // last installed (by us) koka compiler version
 }
 
 // Restart the language service

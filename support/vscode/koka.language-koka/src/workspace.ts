@@ -235,7 +235,7 @@ async function installKoka(context: vscode.ExtensionContext, config: vscode.Work
   // only prompt once for a download for each new extension version
   if (!force) {
     const latestInstalled = await context.globalState.get('koka-latest-installed-compiler') as string ?? "1.0.0"
-    console.log(`Koka: latest installed: ${latestInstalled}, latest known is ${latestCompilerVersion}`)
+    console.log(`Koka: latest installed compiler: ${latestInstalled}, latest known compiler is ${latestCompilerVersion}`)
     if (semver.gte(latestInstalled, latestCompilerVersion)) {
       return
     }
@@ -379,7 +379,10 @@ async function getSamplesDir(context: vscode.ExtensionContext, compilerPath : st
   if (fs.existsSync(samplesDir)) return samplesDir
 
   // create a samples directory by copying the compiler installed samples
-  if (!compilerPath || !fs.existsSync(compilerPath)) return ""
+  if (!compilerPath || !fs.existsSync(compilerPath)) {
+    vscode.window.showErrorMessage('Can only open Koka samples once the compiler is installed')
+    return ""
+  }
 
   const examples = getCompilerSamplesDir(compilerPath, compilerVersion)
   console.log("Koka: getSamplesDir: examples path: " + examples)
@@ -388,7 +391,7 @@ async function getSamplesDir(context: vscode.ExtensionContext, compilerPath : st
   fs.mkdirSync(samplesDir,{recursive:true})
   fs.cp(examples, samplesDir, {recursive:true}, async (err) => {
     if (err) {
-      vscode.window.showErrorMessage(`Unable to copy Koka samples to ${samplesDir} (from ${examples})`)
+      vscode.window.showErrorMessage(`Unable to copy Koka samples. (to ${samplesDir} from ${examples})`)
       return "";
     }
     console.log(`Koka: getSamplesDir: copied examples to ${samplesDir} (from ${examples})`)

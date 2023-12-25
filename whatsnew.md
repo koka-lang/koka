@@ -7,7 +7,8 @@ generating direct C code without needing a runtime system. To learn more:
 
 * Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
 * Browse the [library documentation][libraries].
-* Visit the Koka [repository](https://github.com/koka-lang/koka).
+* View the Koka _Samples_ in VS Code by opening the command panel `(Ctrl/Cmd + Shift + P)`,
+  and running the `Koka: Open samples` command (when you start typing the command will surface to the top),
 
 ## What is new
 
