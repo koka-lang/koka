@@ -2081,12 +2081,12 @@ injectType
 -----------------------------------------------------------
 pbinder :: Bool -> Range -> LexParser (UserExpr -> ValueBinder () UserExpr)
 pbinder toplevel preRange
-  = do (name,range) <- if toplevel then qidentifier else identifier
+  = do (name,range) <- lqidentifier toplevel
        ann <- typeAnnotation
        return (\expr -> ValueBinder name () (ann expr) range (combineRange preRange range))
 
 funid toplevel
-  = (if toplevel then do{ (name,rng) <- qidentifier; return (requalifyLocally name, rng) } else identifier)
+  = lqidentifier toplevel
   <|>
     do rng1 <- special "["
        rng2 <- special "]"
@@ -2095,6 +2095,12 @@ funid toplevel
   <|>
     do (s,rng) <- stringLit
        return (newName s, rng)
+
+lqidentifier toplevel
+  = if toplevel
+      then do (name,rng) <- qidentifier
+              return (requalifyLocally name, rng)
+      else identifier
 
 pattern :: LexParser UserPattern
 pattern

@@ -9,9 +9,9 @@ fun plus( x : a, y : a, ??monoid : monoid<a> ) : a
   mplus(x,y)
 
 
-val monoid_intplus = Monoid(0,(+))
-val monoid_intmul  = Monoid(1,(*))
-val monoid_float   = Monoid(0.0,(+))
+val intplus/monoid = Monoid(0,(+))
+val intmul/monoid  = Monoid(1,(*))
+val float/monoid   = Monoid(0.0,(+))
 
 fun msum( xs, ?monoid )
   xs.foldl(zero(),fn(x,y) plus(x,y))
@@ -25,7 +25,7 @@ fun msum-expand( xs, ??monoid )
   //                                   Monoid(mzero,mplus) -> xs.foldl(mzero,mplus)
   // no eta expansion is needed anymore and mzero is a value.
 
-fun monoid( ?monoid : monoid<a>)  : monoid<list<a>>
+fun list/monoid( ?monoid : monoid<a>)  : monoid<list<a>>
   Monoid([zero()], fn(xs,ys) zipwith(xs,ys,fn(x,y) plus(x,y)))  // again eta expansion
 
 fun monoid-expand( ??monoid )
