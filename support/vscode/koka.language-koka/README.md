@@ -16,7 +16,7 @@ You can execute any `main`, `test..`, and `example..` functions
 directly in the debug console by clicking on the
 `run debug | optimized` code lenses displayed above these functions.
 
-<img style="width:15em; border:1px solid grey" src="./images/codelens.png">
+<img style="width:15em; border:1px solid grey" src="support/vscode/koka.language-koka/images/codelens.png">
 
 
 ## Install the latest Koka compiler
