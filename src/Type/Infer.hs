@@ -1288,25 +1288,25 @@ inferApp propagated expect fun nargs rng
                         case matches of
                           (Left [])  -> do -- emit an error
                                            resolveAppName name sctx rng nameRange
-                                           return (Just (Nothing,fun,[]))  -- error
-                          Right (tp,funExpr,implicits)
-                              -> return (Just (Just (tp,rng), funExpr, implicits)) -- known type, propagate the function type into the parameters
+                                           return (Just (Nothing,fun))  -- error
+                          Right (iname,info,tp)
+                              -> return (Just (Just (tp,rng), Var iname False nameRange)) -- known type, propagate the function type into the parameters
                           _   -> return Nothing -- many matches, -- start with argument inference and try to resolve the function type
-                _ -> return (Just (Nothing,fun,[])) -- function expression first
+                _ -> return (Just (Nothing,fun)) -- function expression first
        case amb of
-         Just (prop,funExpr,implicits) -> inferAppFunFirst prop funExpr [] fixed (named {- ++ implicits -})
-         Nothing                       -> inferAppFromArgs fixed named
+         Just (prop,funExpr) -> inferAppFunFirst prop funExpr [] fixed named
+         Nothing             -> inferAppFromArgs fixed named
   where
     -- infer the function type first, and propagate it to the arguments
     -- can take an `fresolved` list of fixed arguments that have been inferred already (in the case
     -- where a overloaded function name could only be resolved after inferring some arguments)
     inferAppFunFirst :: Maybe (Type,Range) -> Expr Type -> [(Int,FixedArg)] -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop funExpr fresolved fixed named
-      = do traceDoc $ \penv -> text (" inferAppFunFirst: fun: " ++ show funExpr ++ ", named: " ++ show named)
-                               <+> text ":" <+> ppProp penv prop
+      = do --traceDoc $ \penv -> text (" inferAppFunFirst: fun: " ++ show funExpr ++ ", named: " ++ show named)
+           --                    <+> text ":" <+> ppProp penv prop
            -- infer type of function
            (ftp,eff1,fcore) <- allowReturn False $ inferExpr prop Instantiated funExpr
-           traceDoc $ \penv -> text "inferred type of fun: " <+> ppType penv ftp
+           --traceDoc $ \penv -> text "inferred type of fun: " <+> ppType penv ftp
 
            -- match the type with a function type, wrap optional arguments, and order named arguments.
            -- traceDoc $ \env -> text "infer fun first, tp:" <+> ppType env ftp
@@ -1392,7 +1392,7 @@ inferApp propagated expect fun nargs rng
           else inferAppFunFirst Nothing fun fresolved fixed []
 
     inferAppArgsFirst fresolved ((idx,fix):fixs) fixed named  -- try to improve our guess
-      = do traceDoc $ \penv -> text "inferAppArgsFirst: "
+      = do --traceDoc $ \penv -> text "inferAppArgsFirst: "
            (tpArg,effArg,coreArg)  <- allowReturn False $ inferExpr Nothing Instantiated fix
            -- sfresolved <- mapM (\(i,(rng,tp,eff,carg)) -> do{ stp <- subst tp; return (i,(rng,stp,eff,carg)) }) fresolved
            let fresolved' = fresolved ++ [(idx,(getRange fix,tpArg,effArg,coreArg))]
@@ -1408,12 +1408,12 @@ inferApp propagated expect fun nargs rng
                               Left []    -> do -- emit an error
                                                resolveAppName name sctx rng nameRange
                                                return Nothing
-                              Right (itp,funExpr,implicits) -> return (Just ((itp,rng),funExpr,implicits))
+                              Right (iname,info,itp) -> return (Just ((itp,rng),Var iname False nameRange))
                               _          -> return Nothing
                     _ -> return Nothing
 
            case amb of
-             Just (prop,funExpr,implicits)  -> inferAppFunFirst (Just prop) funExpr fresolved' fixed (named {- ++ implicits -})
+             Just (prop,funExpr)  -> inferAppFunFirst (Just prop) funExpr fresolved' fixed named
              Nothing    -> inferAppArgsFirst fresolved' fixs fixed named
 
 

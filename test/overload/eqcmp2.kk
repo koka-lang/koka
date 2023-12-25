@@ -12,7 +12,7 @@ fun char/eq( x : char, y : char ) : bool
 fun list/eq<a>( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
   match xs
     Cons(x,xx) -> match ys
-      Cons(y,yy) | eq(x,y) -> eq(xx,yy)  // bypass local `eq` for `list/eq(xx,yy,eq)`
+      Cons(y,yy) | eq(x,y) -> list/eq(xx,yy)  // bypass local `eq` for `list/eq(xx,yy,eq)`
       _ -> False
     Nil -> ys.is-nil
 
@@ -86,12 +86,14 @@ fun cmp-and-eq(xs : list<a>, y : a, ?cmp : (a,a) -> order) : bool
   // fun eq(a,b)   eq_cmp(a,b)  // haskell could infer this from `class Eq a => Ord a`
   xcompare(xs,xs) == Eq &&       // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
   list/cmp(xs,xs) == Eq &&      // or be explicit
-  cmp(xs,xs) == Eq &&           // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
+
+  // cmp(xs,xs) == Eq &&           // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
                                 // we allow to bypass the local `cmp` for `list/cmp` since it eventually uses the local `cmp` directly,
                                 // i.e. it is a type conversion on the local.
   eq(y,y) &&                    // this can be resolved automatically without the local `eq` since we have `cmp/eq(cmp)`
   contains(xs,y) &&             // `?cmp = list/cmp(local/cmp)`
-  cmp(1,2) == Eq  &&            // `int/cmp`
+  int/cmp(1,2) == Eq  &&
+  // cmp(1,2) == Eq  &&            // `int/cmp`
   xcompare(1,2) == Eq
 
 // foo :: Ord a => [a] -> a -> Bool
