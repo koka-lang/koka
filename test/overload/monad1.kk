@@ -10,8 +10,8 @@ fun pure( x : a, ?monad : monad<m> ) : m<a>
 fun bind( x : m<a>, f : a -> m<b>, ?monad : monad<m> ) : m<b>
   (monad.mbind)(x,f)
 
-fun sequence( ms : list<m<a>>, ?monad : monad<m> ) : m<list<a>>
-//fun sequence( ms, ?monad )
+//fun sequence( ms : list<m<a>>, ?monad : monad<m> ) : m<list<a>>
+fun sequence( ms, ?monad )
   match ms
     Nil -> pure([])
     Cons(m,mm) ->

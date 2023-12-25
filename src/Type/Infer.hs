@@ -143,7 +143,7 @@ inferDefGroup topLevel (DefNonRec def) cont
        let cgroup1 = Core.DefNonRec core1
        return ([cgroup1],x)
 inferDefGroup topLevel (DefRec defs) cont
-  = -- trace ("\ninfer group: " ++ show (map defName defs)) $
+  = trace ("\ninfer group: " ++ show (map defName defs)) $
     do (gamma,infgamma) <- createGammas [] [] defs
        --coreDefs0 <- extendGamma gamma (mapM (inferRecDef topLevel infgamma) defs)
        (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGammaEx topLevel [] infgamma $
