@@ -57,7 +57,7 @@ import LanguageServer.Conversions (fromLspPos, fromLspUri)
 import LanguageServer.Monad (LSM, getLoaded, getLoadedModule)
 import qualified Data.Text.Encoding as T
 import Common.File (isLiteralDoc)
-import Lib.Trace (trace)
+-- import Lib.Trace (trace)
 
 -- Gets tab completion results for a document location
 -- This is a pretty complicated handler because it has to do a lot of work
@@ -75,13 +75,13 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
         vf <- vfile
         return (l, lm, vf)
   items <- case maybeRes of
-    Just (l, lm, vf) -> do  
-      completionInfos <- liftIO $ getCompletionInfo pos vf lm normUri
-      trace ("Completion infos: " ++ show completionInfos) $ return ()
-      case completionInfos of
-        Just posInfo -> 
-          let completions = findCompletions l lm posInfo
-          in trace (show completions) $ 
+    Just (l, lm, vf) -> do
+      completionInfo <- liftIO $ getCompletionInfo pos vf lm normUri
+      -- trace ("Completion info: " ++ show completionInfo) $ return ()
+      case completionInfo of
+        Just info ->
+          let completions = findCompletions l lm info
+          in -- trace (show completions) $ 
             return completions
         _ -> -- trace ("No completion infos for position ") 
           return []
@@ -89,8 +89,8 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
   responder $ Right $ J.InL items
 
 -- | Describes the information gained from lexing needed to suggest completions
-data PositionInfo = PositionInfo
-  { 
+data CompletionInfo = CompletionInfo
+  {
     fullLine :: !T.Text
   , cursorPos :: !J.Position
     -- ^ The cursor position
@@ -105,7 +105,7 @@ previousLexemes :: [Lexeme] -> [Lexeme] -> Pos -> [Lexeme]
 previousLexemes !lexemes !acc !pos =
   case lexemes of
     [] -> acc
-    (lex@(Lexeme rng _):rst) -> 
+    (lex@(Lexeme rng _):rst) ->
       if rangeEnd rng >= pos && rangeStart rng <= pos then
         lex:acc
       else if rangeEnd rng < pos then
@@ -113,7 +113,33 @@ previousLexemes !lexemes !acc !pos =
       else
         acc
 
-getCompletionInfo :: MonadIO m => J.Position -> VirtualFile -> Module -> J.NormalizedUri -> m (Maybe PositionInfo)
+-- Drop matchings () pairs, also drop to ;
+-- e.g. 
+--   a.b(x, y, fn() {z}). drops to 
+--   a.b.
+-- this way we know that we are completing a function whose first argument is the result of b
+-- If we were doing this instead
+--   a. and a is a function type we know that we are completing a function whose first argument is actually the function type a
+-- Working with lambda literals is a TODO:
+dropMatched :: [Lexeme] -> [Lexeme]
+dropMatched xs =
+  case xs of
+    [] -> []
+    (Lexeme x' LexInsSemi):xs -> []
+    (Lexeme x' (LexSpecial ";"):xs) -> []
+    (Lexeme x' LexInsLCurly):xs -> []
+    (Lexeme x' (LexSpecial "{"):xs) -> []
+    (Lexeme x' (LexSpecial ")")):xs -> dropToLex (LexSpecial "(") xs
+
+    x:xs -> x:dropMatched xs
+  where
+    dropToLex x xs =
+      case xs of
+        [] -> []
+        (Lexeme x' l):xs | l == x -> dropMatched xs
+        (Lexeme x' l):xs -> dropToLex x xs
+
+getCompletionInfo :: MonadIO m => J.Position -> VirtualFile -> Module -> J.NormalizedUri -> m (Maybe CompletionInfo)
 getCompletionInfo pos vf mod uri = do
   let text = T.encodeUtf8 $ virtualFileText vf
   filePath <- fromMaybe "" <$> liftIO (fromLspUri uri)
@@ -123,15 +149,18 @@ getCompletionInfo pos vf mod uri = do
       xs = lexing source 1 input
       lexemes = layout True xs
       !prior = previousLexemes lexemes [] pos'
+      context = dropMatched prior
       lines = T.lines (virtualFileText vf)
       row = case prior of
         [] -> 0
         (Lexeme rng tkn):_ -> fromIntegral $ posLine (rangeStart rng)
       line = if length lines < row then "" else lines !! (row - 1) -- rows are 1 indexed in koka
-  trace ("Prior: " ++ intercalate "\n" (map show (take 4 prior)) ++ " row" ++ show row ++ " pos: " ++ show pos' ++ "\n") $ return ()
-  return $! case prior of
-    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexId nm)):_ -> completeFunction line "" rng2
-    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexId nm)):_ -> completeFunction line (T.pack $ nameId partial) rng2
+  -- trace ("Prior: " ++ intercalate "\n" (map show context) ++ " row" ++ show row ++ " pos: " ++ show pos' ++ "\n") $ return ()
+  return $! case context of
+    [(Lexeme rng1 (LexKeyword "." _)), (Lexeme rng2 (LexId nm))] -> completeFunction line "" rng2 False
+    [(Lexeme rng0 (LexId partial)), (Lexeme rng1 (LexKeyword "." _)), (Lexeme rng2 (LexId nm))] -> completeFunction line (T.pack $ nameId partial) rng2 False
+    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexId nm)):_ -> completeFunction line "" rng2 True
+    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexId nm)):_-> completeFunction line (T.pack $ nameId partial) rng2 True
     (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexString _)):_ -> completeString line ""
     (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexString _)):_ -> completeString line (T.pack $ nameId partial)
     (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexChar _)):_ -> completeChar line ""
@@ -141,49 +170,52 @@ getCompletionInfo pos vf mod uri = do
     (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexFloat _ _)):_ -> completeFloat line ""
     (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexFloat _ _)):_ -> completeFloat line (T.pack $ nameId partial)
     _ -> Nothing
-  where 
-    completeString line partial = 
-      return (PositionInfo line pos partial (Just typeString) True)
-    completeInt line partial = 
-      return (PositionInfo line pos partial (Just typeInt) True)
-    completeFloat line partial = 
-      return (PositionInfo line pos partial (Just typeFloat) True)
-    completeChar line partial = 
-      return (PositionInfo line pos partial (Just typeChar) True)
-    completeFunction line partial rng =
-      let rangeInfo = rangeMapFind rng (fromJust $ modRangeMap mod)
-      in case rangeInfo of
-        (r, rangeInfo):_ -> do
-          trace ("range info1 " ++ show rangeInfo) $ return ()
+  where
+    completeString line partial =
+      return (CompletionInfo line pos partial (Just typeString) True)
+    completeInt line partial =
+      return (CompletionInfo line pos partial (Just typeInt) True)
+    completeFloat line partial =
+      return (CompletionInfo line pos partial (Just typeFloat) True)
+    completeChar line partial =
+      return (CompletionInfo line pos partial (Just typeChar) True)
+    completeFunction line partial rng resultOfFunction =
+      let rm = rangeMapFind rng (fromJust $ modRangeMap mod)
+      in completeRangeInfo line partial rm resultOfFunction
+    completeRangeInfo line partial rm resultOfFunction =
+      case rm of
+        [] -> return (CompletionInfo line pos partial Nothing True)
+        (r, rangeInfo):rst ->
           case rangeInfoType rangeInfo of
-            Just t -> 
-              case splitFunType t of
-                Just (pars,eff,res) -> return (PositionInfo line pos partial (Just res) True)
-                Nothing             -> return (PositionInfo line pos partial (Just t) True)
-            Nothing -> return (PositionInfo line pos "" Nothing True)
-        _ -> Nothing
+            Just t ->
+              if not resultOfFunction then return (CompletionInfo line pos partial (Just t) True)
+              else
+                case splitFunType t of
+                  Just (pars,eff,res) -> return (CompletionInfo line pos partial (Just res) True)
+                  Nothing             -> return (CompletionInfo line pos partial (Just t) True)
+            Nothing -> completeRangeInfo line partial rst resultOfFunction
 
 -- TODO: Complete arguments
 -- TODO: Complete local variables
 -- TODO: Show documentation comments in completion docs
 
-filterInfix :: PositionInfo -> T.Text -> Bool
-filterInfix pinfo n = (searchTerm pinfo `T.isInfixOf` n) && (('.' /= T.head n) || ".Hnd-" `T.isPrefixOf` n)
+filterInfix :: CompletionInfo -> T.Text -> Bool
+filterInfix cinfo n = (searchTerm cinfo `T.isInfixOf` n) && (('.' /= T.head n) || ".Hnd-" `T.isPrefixOf` n)
 
-filterInfixConstructors :: PositionInfo -> T.Text -> Bool
-filterInfixConstructors pinfo n = (searchTerm pinfo `T.isInfixOf` n) && (('.' /= T.head n) || ".Hnd-" `T.isPrefixOf` n)
+filterInfixConstructors :: CompletionInfo -> T.Text -> Bool
+filterInfixConstructors cinfo n = (searchTerm cinfo `T.isInfixOf` n) && (('.' /= T.head n) || ".Hnd-" `T.isPrefixOf` n)
 
-findCompletions :: Loaded -> Module -> PositionInfo -> [J.CompletionItem]
-findCompletions loaded mod pinfo@PositionInfo{isFunctionCompletion = fcomplete} = filter (filterInfix pinfo . (^. J.label)) completions
+findCompletions :: Loaded -> Module -> CompletionInfo -> [J.CompletionItem]
+findCompletions loaded mod cinfo@CompletionInfo{isFunctionCompletion = fcomplete} = filter (filterInfix cinfo . (^. J.label)) completions
   where
     curModName = modName mod
-    search = searchTerm pinfo
+    search = searchTerm cinfo
     gamma = loadedGamma loaded
     constrs = loadedConstructors loaded
     syns = loadedSynonyms loaded
     completions =
-      if fcomplete then valueCompletions curModName gamma pinfo else keywordCompletions curModName
-        ++ valueCompletions curModName gamma pinfo
+      if fcomplete then valueCompletions curModName gamma cinfo else keywordCompletions curModName
+        ++ valueCompletions curModName gamma cinfo
         ++ constructorCompletions curModName constrs
         ++ synonymCompletions curModName syns
 
@@ -194,10 +226,10 @@ typeUnifies :: Type -> Maybe Type -> Bool
 typeUnifies t1 t2 =
   case t2 of
     Nothing -> True
-    Just t2 ->  let (res, _, _) = (runUnifyEx 0 $ matchArguments True rangeNull tvsEmpty t1 [t2] [] Nothing) in  isRight res
+    Just t2 ->  let (res, _, _) = (runUnifyEx 0 $ matchArguments True rangeNull tvsEmpty t1 [t2] [] Nothing) in isRight res
 
-valueCompletions :: Name -> Gamma -> PositionInfo -> [J.CompletionItem]
-valueCompletions curModName gamma pinfo@PositionInfo{argumentType=tp, searchTerm=search, isFunctionCompletion} = map toItem . filter matchInfo $ filter (\(n, ni) -> filterInfix pinfo $ T.pack $ nameId n) $ gammaList gamma
+valueCompletions :: Name -> Gamma -> CompletionInfo -> [J.CompletionItem]
+valueCompletions curModName gamma cinfo@CompletionInfo{argumentType=tp, searchTerm=search, isFunctionCompletion} = map toItem . filter matchInfo $ filter (\(n, ni) -> filterInfix cinfo $ T.pack $ nameId n) $ gammaList gamma
   where
     isHandler n = '.' == T.head n
     matchInfo :: (Name, NameInfo) -> Bool
@@ -208,14 +240,14 @@ valueCompletions curModName gamma pinfo@PositionInfo{argumentType=tp, searchTerm
         InfoImport {infoType} -> typeUnifies infoType tp
         InfoCon {infoType } -> typeUnifies infoType tp
     toItem (n, ninfo) = case ninfo of
-        InfoCon {infoCon} | isHandler $ T.pack (nameId n) -> makeHandlerCompletionItem curModName infoCon d rng (fullLine pinfo)
-        InfoFun {infoType} -> makeFunctionCompletionItem curModName n d infoType isFunctionCompletion rng (fullLine pinfo)
+        InfoCon {infoCon} | isHandler $ T.pack (nameId n) -> makeHandlerCompletionItem curModName infoCon d rng (fullLine cinfo)
+        InfoFun {infoType} -> makeFunctionCompletionItem curModName n d infoType isFunctionCompletion rng (fullLine cinfo)
         InfoVal {infoType} -> case splitFunScheme infoType of
-          Just (tvars, tpreds, pars, eff, res) -> makeFunctionCompletionItem curModName n d infoType isFunctionCompletion rng (fullLine pinfo)
+          Just (tvars, tpreds, pars, eff, res) -> makeFunctionCompletionItem curModName n d infoType isFunctionCompletion rng (fullLine cinfo)
           Nothing -> makeCompletionItem curModName n k d
         _ -> makeCompletionItem curModName n k d
       where
-        pos@(J.Position l c) = cursorPos pinfo
+        pos@(J.Position l c) = cursorPos cinfo
         rng = J.Range (J.Position l $ c - fromIntegral (T.length search)) pos
         k = case ninfo of
           InfoVal {..} -> J.CompletionItemKind_Constant
