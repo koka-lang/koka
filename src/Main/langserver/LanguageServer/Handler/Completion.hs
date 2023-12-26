@@ -10,9 +10,9 @@
 -- The LSP handler that provides code completions
 -----------------------------------------------------------------------------
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE BangPatterns #-}
 
 module LanguageServer.Handler.Completion
   ( completionHandler,
@@ -22,36 +22,42 @@ where
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import qualified Data.Map as M
-import Data.ByteString (intercalate)
+import Data.ByteString ()
 import Data.Char (isUpper, isAlphaNum)
 import Data.Maybe (maybeToList, fromMaybe, fromJust)
 import Data.Either (isRight)
 import qualified Data.Text.Utf16.Rope as Rope
 import qualified Data.Set as S
 import qualified Data.Text as T
+import Data.List (intercalate)
 import Language.LSP.Server (Handlers, getVirtualFile, requestHandler)
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
-import Language.LSP.VFS (VirtualFile (VirtualFile))
+import Language.LSP.VFS (VirtualFile (VirtualFile), virtualFileText)
 import Common.Name (Name (..))
-import Common.Range (makePos, posNull, Range, rangeNull)
+import Common.Range (makePos, posNull, Range(..), rangeEnd, rangeStart, rangeNull, Source (..), extractLiterate, Pos(..))
 import Lib.PPrint (Pretty (..))
 import Kind.Constructors (ConInfo (..), Constructors, constructorsList)
 import Kind.Synonym (SynInfo (..), Synonyms, synonymsToList)
 import Type.Assumption
 import Type.InferMonad (subst, instantiate)
 import Type.TypeVar (tvsEmpty)
-import Type.Type (Type(..), splitFunType, splitFunScheme)
+import Type.Type (Type(..), splitFunType, splitFunScheme, typeString, typeInt, typeFloat, typeChar)
 import Type.Unify (runUnify, unify, runUnifyEx, matchArguments)
 import Compiler.Compile (Module (..))
 import Compiler.Module (Loaded (..))
-import Syntax.Lexer (reservedNames)
-import Syntax.RangeMap (rangeMapFindAt, rangeInfoType)
+import Syntax.Lexer (reservedNames, lexing, Lexeme (..), Lex (..))
+import Syntax.Lexeme
+import Syntax.RangeMap (rangeMapFind, rangeInfoType)
+import Syntax.Parse (parseProgramFromFile, parseProgramFromString)
+import Syntax.Layout (layout)
 import Language.LSP.Protocol.Types (InsertTextFormat(InsertTextFormat_Snippet))
-import LanguageServer.Conversions (fromLspPos)
+import LanguageServer.Conversions (fromLspPos, fromLspUri)
 import LanguageServer.Monad (LSM, getLoaded, getLoadedModule)
--- import Lib.Trace (trace)
+import qualified Data.Text.Encoding as T
+import Common.File (isLiteralDoc)
+import Lib.Trace (trace)
 
 -- Gets tab completion results for a document location
 -- This is a pretty complicated handler because it has to do a lot of work
@@ -71,86 +77,93 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
   items <- case maybeRes of
     Just (l, lm, vf) -> do  
       completionInfos <- liftIO $ getCompletionInfo pos vf lm normUri
+      trace ("Completion infos: " ++ show completionInfos) $ return ()
       case completionInfos of
         Just posInfo -> 
           let completions = findCompletions l lm posInfo
-          in -- trace (show completions) $ 
+          in trace (show completions) $ 
             return completions
         _ -> -- trace ("No completion infos for position ") 
           return []
     _ -> return []
   responder $ Right $ J.InL items
 
--- | Describes the line at the current cursor position
--- We need a bit more information than the PositionInfo provided by the LSP library
--- So we duplicate a bit of code from the LSP library here
+-- | Describes the information gained from lexing needed to suggest completions
 data PositionInfo = PositionInfo
-  { fullLine :: !T.Text
-    -- ^ The full contents of the line the cursor is at
-  , argument :: !T.Text
-  , searchTerm :: !T.Text
+  { 
+    fullLine :: !T.Text
   , cursorPos :: !J.Position
+    -- ^ The cursor position
+  , searchTerm :: !T.Text
     -- ^ The cursor position
   , argumentType :: Maybe Type
   -- Determines if it is a function completion (. is just prior to the cursor)
   , isFunctionCompletion :: Bool
   } deriving (Show,Eq)
 
+previousLexemes :: [Lexeme] -> [Lexeme] -> Pos -> [Lexeme]
+previousLexemes !lexemes !acc !pos =
+  case lexemes of
+    [] -> acc
+    (lex@(Lexeme rng _):rst) -> 
+      if rangeEnd rng >= pos && rangeStart rng <= pos then
+        lex:acc
+      else if rangeEnd rng < pos then
+        previousLexemes rst (lex:acc) pos
+      else
+        acc
+
 getCompletionInfo :: MonadIO m => J.Position -> VirtualFile -> Module -> J.NormalizedUri -> m (Maybe PositionInfo)
-getCompletionInfo pos@(J.Position l c) (VirtualFile _ _ ropetext) mod uri = do
-      let rm = fromJust $ modRangeMap mod
-          result = do -- Maybe monad
-            let lastMaybe [] = Nothing
-                lastMaybe xs = Just $ last xs
+getCompletionInfo pos vf mod uri = do
+  let text = T.encodeUtf8 $ virtualFileText vf
+  filePath <- fromMaybe "" <$> liftIO (fromLspUri uri)
+  pos' <- liftIO $ fromLspPos uri pos
+  let source = Source filePath text
+      input  = if isLiteralDoc filePath then extractLiterate text else text
+      xs = lexing source 1 input
+      lexemes = layout True xs
+      !prior = previousLexemes lexemes [] pos'
+      lines = T.lines (virtualFileText vf)
+      row = case prior of
+        [] -> 0
+        (Lexeme rng tkn):_ -> fromIntegral $ posLine (rangeStart rng)
+      line = if length lines < row then "" else lines !! (row - 1) -- rows are 1 indexed in koka
+  trace ("Prior: " ++ intercalate "\n" (map show (take 4 prior)) ++ " row" ++ show row ++ " pos: " ++ show pos' ++ "\n") $ return ()
+  return $! case prior of
+    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexId nm)):_ -> completeFunction line "" rng2
+    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexId nm)):_ -> completeFunction line (T.pack $ nameId partial) rng2
+    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexString _)):_ -> completeString line ""
+    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexString _)):_ -> completeString line (T.pack $ nameId partial)
+    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexChar _)):_ -> completeChar line ""
+    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexChar _)):_ -> completeChar line (T.pack $ nameId partial)
+    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexInt _ _)):_ -> completeInt line ""
+    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexInt _ _)):_ -> completeInt line (T.pack $ nameId partial)
+    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexFloat _ _)):_ -> completeFloat line ""
+    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexFloat _ _)):_ -> completeFloat line (T.pack $ nameId partial)
+    _ -> Nothing
+  where 
+    completeString line partial = 
+      return (PositionInfo line pos partial (Just typeString) True)
+    completeInt line partial = 
+      return (PositionInfo line pos partial (Just typeInt) True)
+    completeFloat line partial = 
+      return (PositionInfo line pos partial (Just typeFloat) True)
+    completeChar line partial = 
+      return (PositionInfo line pos partial (Just typeChar) True)
+    completeFunction line partial rng =
+      let rangeInfo = rangeMapFind rng (fromJust $ modRangeMap mod)
+      in case rangeInfo of
+        (r, rangeInfo):_ -> do
+          trace ("range info1 " ++ show rangeInfo) $ return ()
+          case rangeInfoType rangeInfo of
+            Just t -> 
+              case splitFunType t of
+                Just (pars,eff,res) -> return (PositionInfo line pos partial (Just res) True)
+                Nothing             -> return (PositionInfo line pos partial (Just t) True)
+            Nothing -> return (PositionInfo line pos "" Nothing True)
+        _ -> Nothing
 
-            let currentRope = fst $ Rope.splitAtLine 1 $ snd $ Rope.splitAtLine (fromIntegral l) ropetext
-            beforePos <- Rope.toText . fst <$> Rope.splitAt (fromIntegral c + 1) currentRope
-            currentWord <-
-                if | T.null beforePos -> Just ""
-                   | T.last beforePos == ' ' -> Just "" -- Up to whitespace but not including it
-                   | otherwise -> lastMaybe (T.words beforePos)
-
-            let parts = T.split (=='.') -- The () are for operators and / is for qualified names otherwise everything must be adjacent
-                          $ T.takeWhileEnd (\x -> isAlphaNum x || x `elem` ("()-_./'"::String)) currentWord
-
-            case reverse parts of
-              [] -> Nothing
-              (searchTerm:xs) -> do
-                -- trace ("parts: " ++ show parts) $ return ()
-                let argument = case filter (not .T.null) xs of {x:xs -> x; [] -> ""}
-                argumentText <- Rope.toText . fst <$> Rope.splitAt (fromIntegral c) currentRope
-                let isFunctionCompletion = if | T.null argumentText -> False
-                                              | T.findIndex (== '.') argumentText > T.findIndex (== ' ') argumentText -> True
-                                              | otherwise -> False
-                    newC = c - fromIntegral (T.length searchTerm + (if isFunctionCompletion then 2 else 1))
-                Just (newC, isFunctionCompletion, argument, currentRope, searchTerm)
-      case result of
-        Just (newC, isFunctionCompletion, argument, currentRope, searchTerm) -> do
-          -- trace (show (newC, isFunctionCompletion, argument, currentRope, searchTerm)) $ return ()
-          mbCurrentType <- liftIO $! do
-            if isFunctionCompletion then do
-                currentRange <- liftIO $! fromLspPos uri (J.Position l newC)
-                -- trace ("looking at range" ++ show currentRange) $ return ()
-                return $! do -- maybe monad
-                  ri <- rangeMapFindAt currentRange rm
-                  case ri of
-                    [(r, rangeInfo)] -> do
-                      t <- rangeInfoType rangeInfo
-                      case splitFunType t of
-                        Just (pars,eff,res) -> -- trace ("Got result" ++ show res) $ 
-                          Just res
-                        Nothing             -> Just t
-                    [] -> --trace ("No range info found for that location") $ 
-                      Nothing
-                    _ -> -- trace ("Multiple completions") 
-                      Nothing
-            else -- trace ("Not a function completion")
-              return Nothing
-          -- currentRope is already a single line, but it may include an enclosing '\n'
-          let curLine = T.dropWhileEnd (== '\n') $ Rope.toText currentRope
-              posInfo = PositionInfo curLine argument searchTerm pos mbCurrentType isFunctionCompletion
-          return $ Just posInfo
-        _ -> return Nothing
+-- TODO: Complete arguments
 -- TODO: Complete local variables
 -- TODO: Show documentation comments in completion docs
 

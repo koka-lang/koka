@@ -54,7 +54,7 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
         l <- loaded
         rmap <- modRangeMap mod
         -- Find the range info at the given position
-        rm <- rangeMapFindAt pos rmap
+        let rm = rangeMapFindAt pos rmap
         (r, rinfo) <- rangeMapBestHover rm
         return (modName mod, loadedImportMap l, r, rinfo)
   case res of

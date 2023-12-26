@@ -48,7 +48,7 @@ import Compiler.Module (Module (..), Loaded (..))
  
 toLspPos :: R.Pos -> J.Position
 toLspPos p =
-  J.Position (fromIntegral (max 0 (R.posLine p - 1))) (fromIntegral (max 0 (R.posColumn p - 1)))-- LSP positions are zero-based
+  J.Position (fromIntegral (max 0 (R.posLine p - 1))) (fromIntegral (max 0 (R.posColumn p)))-- LSP positions are zero-based
 
 toLspRange :: R.Range -> J.Range
 toLspRange r =
@@ -115,7 +115,7 @@ makeDiagnostic s src r doc =
 fromLspPos :: J.NormalizedUri -> J.Position -> IO R.Pos
 fromLspPos uri (J.Position l c) = do
   filePath <- fromLspUri uri
-  return $ R.makePos (src filePath) (-1) (fromIntegral l + 1) (fromIntegral c + 1)
+  return $ R.makePos (src filePath) (-1) (fromIntegral l + 1) (fromIntegral c)
   where
     src file = case file of
       Just filePath -> R.Source filePath R.bstringEmpty -- TODO: Read file here (and compute the offset correctly)

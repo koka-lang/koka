@@ -12,6 +12,7 @@ module Syntax.RangeMap( RangeMap, RangeInfo(..), NameInfo(..)
                       , rangeMapLookup
                       , rangeMapFindAt
                       , rangeMapFindIn
+                      , rangeMapFind
                       , rangeMapAppend
                       , rangeInfoType
                       , mangle
@@ -172,14 +173,18 @@ rangeMapFindIn rng (RM rm)
     where start = rangeStart rng
           end = rangeEnd rng
 
-rangeMapFindAt :: Pos -> RangeMap -> Maybe [(Range, RangeInfo)]
+rangeMapFindAt :: Pos -> RangeMap -> [(Range, RangeInfo)]
 rangeMapFindAt pos (RM rm)
   = shortestRange $ filter (containsPos . fst) rm
   where
     containsPos rng   = rangeStart rng <= pos && rangeEnd rng >= pos
-    shortestRange []  = Nothing
-    shortestRange rs  = Just $ minimumByList cmp rs
+    shortestRange []  = []
+    shortestRange rs  = minimumByList cmp rs
     cmp (r1,_) (r2,_) = compare (rangeLength r1) (rangeLength r2)
+
+rangeMapFind :: Range -> RangeMap -> [(Range, RangeInfo)]
+rangeMapFind rng (RM rm)
+  = filter ((== rng) . fst) rm
 
 minimumByList :: Foldable t => (a -> a -> Ordering) -> t a -> [a]
 minimumByList cmp la = fromMaybe [] (foldl' min' Nothing la)

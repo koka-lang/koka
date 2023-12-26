@@ -78,7 +78,7 @@ import Data.Ord(comparing)
 import Control.Applicative
 import Control.Monad
 import Lib.PPrint
-import Common.Range
+import Common.Range hiding (Pos)
 import Common.Unique
 import Common.Failure
 import Common.Error

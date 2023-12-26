@@ -11,14 +11,13 @@
 -----------------------------------------------------------------------------
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 module Common.Range
-          ( Pos, makePos, minPos, maxPos, posColumn, posLine, posOfs
+          ( Pos(..), makePos, minPos, maxPos
           , posMove8, posMoves8, posNull
           , Range, showFullRange
           , makeRange, rangeNull, combineRange, rangeEnd, rangeStart, rangeLength
           , Ranged( getRange ), combineRanged
           , combineRangeds, combineRanges, extendRange
           , Source(Source,sourceName, sourceBString), sourceText, sourceFromRange
-          , posSource
           , rangeSource
           , sourceNull
           , bigLine

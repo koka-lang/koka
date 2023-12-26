@@ -43,7 +43,7 @@ definitionHandler = requestHandler J.SMethod_TextDocumentDefinition $ \req respo
   let defs = do -- maybe monad
         l <- maybeToList loaded
         rmap <- maybeToList $ modRangeMap $ loadedModule l
-        rm <- maybeToList $ rangeMapFindAt pos rmap
+        let rm = rangeMapFindAt pos rmap
         case rangeMapBestDefinition rm of
           Just (r, rinfo) -> findDefinitions l rinfo
           Nothing -> []
