@@ -346,17 +346,18 @@ group defs deps
                         noDeps ids = case ids of
                                        [id] -> isEarlyBindName id || S.null (M.find id defDeps0)
                                        _    -> False
-                        (xxs,xys) = partition isHidden xs    -- and hidden names first inside those
                         isHidden ids = case ids of
                                          [id] -> isHiddenName id
                                          _ -> False
-                                                             -- and "instances"  (`eq_int`) first inside those
                         partitionx f xs  = let (ys,zs) = partition f xs in (ys ++zs)
+                        {-
+                        (xxs,xys) = partition isHidden xs    -- and hidden names first inside those
+                                                             -- and "instances"  (`eq_int`) first inside those
                         isprefix ids     = case ids of
                                              [id] -> '_' `elem` (tail (nameId id))
                                              _    -> False
-
-                    in (xxs ++ partitionx isprefix xys ++ partitionx isprefix ys)
+                        -}
+                    in (partitionx isHidden xs ++ ys)
         -- create a map from definition id's to definitions.
         defMap   = M.fromListWith (\xs ys -> ys ++ xs) [(defName def,[def]) | def <- defs]
         -- create a definition group from a list of mutual recursive identifiers.

@@ -84,7 +84,19 @@ matchNamed :: Range -> Tvs -> Type -> Int -> [Name] -> Maybe Type -> Unify Rho
 matchNamed range free tp n {- given args -} named mbExpResTp
   = do rho1 <- instantiate range tp
        case splitFunType rho1 of
-         Nothing -> unifyError NoMatch
+         Nothing
+          -> unifyError NoMatch
+          {-
+              do parTps <- mapM (\pname -> do tpar <- freshTVar kindStar Meta
+                                              return (pname,tpar)) (replicate n nameNil ++ named)
+                 resTp <- case mbExpResTp of
+                                  Just rtp -> return rtp
+                                  Nothing  -> freshTVar kindStar Meta
+                 effTp <- freshTVar kindEffect Meta
+                 let funTp = TFun parTps effTp resTp
+                 subsume range free tp funTp
+                 subst funTp
+          -}
          Just (pars,_,resTp)
           -> if (n + length named > length pars)
               then unifyError NoMatch
@@ -110,6 +122,16 @@ matchArguments matchSome range free tp fixed named mbExpResTp
   = do rho1 <- instantiate range tp
        case splitFunType rho1 of
          Nothing -> unifyError NoMatch
+         {-
+                    do resTp <- case mbExpResTp of
+                                  Just rtp -> return rtp
+                                  Nothing  -> freshTVar kindStar Meta
+                       effTp <- freshTVar kindEffect Meta
+                       let funTp = TFun ([(nameNil,tpar) | tpar <- fixed] ++ named)
+                                        effTp resTp
+                       subsume range free tp funTp
+                       subst funTp
+         -}
          Just (pars,_,resTp)
           -> if (length fixed + length named > length pars)
               then unifyError NoMatch

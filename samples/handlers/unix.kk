@@ -30,7 +30,7 @@ fun bio( action : () -> <bio|e> a ) : e (a,string)
 
 fun example1()
   with bio
-  echo("hi ") 
+  echo("hi ")
   echo("unix world")
 
 
@@ -38,7 +38,7 @@ fun example1()
 // Exit
 // Show non-linear control by exiting a computation. (exception monad)
 
-effect exit 
+effect exit
   ctl exit( exitcode : int ) : a
 
 fun status( action : () -> <exit|e> a ) : e int
@@ -63,9 +63,9 @@ type user
   Alice
   Bob
 
-fun show( user : user ) : string
+fun user/show( user : user ) : string
   match user
-    Root  -> "root"    
+    Root  -> "root"
     Alice -> "alice"
     Bob   -> "bob"
 
@@ -75,7 +75,7 @@ effect whoami
 
 
 fun env( user : user, action : () -> <whoami|e> a ) : e a
-  with fun whoami() show(user)    
+  with fun whoami() show(user)
   action()
 
 fun example3()
@@ -84,33 +84,33 @@ fun example3()
   with env(Alice)
   echo("hi ")
   echo(whoami())
-  
 
-fun show( (_,s) : ((),string) ) : string
+
+fun unitstr/show( (_,s) : ((),string) ) : string
   show(s)
 
-fun show( (i,s) : (int,string) ) : string
-  "exit with status " ++ i.show ++ "\n" ++ show(s)  
+fun intstr/show( (i,s) : (int,string) ) : string
+  "exit with status " ++ i.show ++ "\n" ++ show(s)
 
 
 // -----------------------------------------
 // Session management
 // su: substitute user
 
-effect su 
+effect su
   ctl su( u : user ) : ()
 
 fun session-manager1( initial-user : user, action : () -> <su,whoami|e> a ) : e a
   with env(initial-user)
-  with ctl su( u : user ) 
+  with ctl su( u : user )
          mask<whoami>
-           with env(u) 
+           with env(u)
            resume(())
   action()
 
 fun session-manager2( initial-user : user, action : () -> <su,whoami|e> a ) : e a
   with fun whoami() show(initial-user)
-  with ctl su( u : user ) 
+  with ctl su( u : user )
          with override fun whoami() show(u)
          resume(())
   action()
@@ -131,18 +131,18 @@ fun example4()
   su(Alice)
   echo(", and hi ")
   echo(whoami())
-  
+
 
 // -----------------------------------------
 // Multitasking
-// 
+//
 
-effect fork 
+effect fork
   ctl fork() : bool     // true if this is the parent
 
 
-fun forking( action : () -> <fork|e> a ) : e list<a> 
-  with handler 
+fun forking( action : () -> <fork|e> a ) : e list<a>
+  with handler
     return(x) [x]
     ctl fork() resume(True) ++ resume(False)
   action()
@@ -155,7 +155,7 @@ type pstate<e,a>
 effect interrupt
   ctl interrupt() : ()
 
-fun reify-process( action : () -> <interrupt|e> a ) : e pstate<e,a> 
+fun reify-process( action : () -> <interrupt|e> a ) : e pstate<e,a>
   with raw ctl interrupt() Paused( fn() rcontext.resume(()) )
   Done(action())
 
@@ -164,7 +164,7 @@ fun scheduler( pstates : list<pstate<<fork,div|e>,a>> ) : <div|e> list<a>
     match todos
       Nil -> dones
       Cons(Done(x),pp) -> schedule(pp, Cons(x,dones))
-      Cons(Paused(p),pp) -> 
+      Cons(Paused(p),pp) ->
         val ps = forking( p )
         schedule( pp ++ ps, dones )
   schedule(pstates,[])
@@ -180,7 +180,7 @@ fun ritchie() : <bio|e> ()
   echo("but ")
   echo("you have to be a genius to understand the simplicity.\n")
 
-fun hamlet() : <bio|e> () 
+fun hamlet() : <bio|e> ()
   echo("To be, or not to be, ")
   echo("that is the question:\n")
   echo("Whether 'tis nobler in the mind to suffer\n")
@@ -191,7 +191,7 @@ fun example5()
   with timeshare
   with status
   with session-manager3(Root)
-  if fork() then 
+  if fork() then
     su(Alice)
     ritchie()
   else
@@ -210,7 +210,7 @@ fun example6()
   with interrupt-write
   with status
   with session-manager3(Root)
-  if fork() then 
+  if fork() then
     su(Alice)
     ritchie()
   else

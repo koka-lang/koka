@@ -223,7 +223,7 @@ inferDefGroup topLevel (DefRec defs) cont
                     -> do qname <- qualifyName name
                           let nameInfo = createNameInfoX Public qname sort nameRng tp -- (not topLevel || isValue) nameRng tp  -- NOTE: Val is fixed later in "FixLocalInfo"
                           -- trace ("*** createGammas: assume: " ++ show name ++ ": " ++ show nameInfo) $ return ()
-                          createGammas ((name,nameInfo):gamma) infgamma defs
+                          createGammas ((qname,nameInfo):gamma) infgamma defs
                   _ -> case lookup name gamma of
                          Just _
                           -> do env <- getPrettyEnv
@@ -953,7 +953,7 @@ inferExpr propagated expect (Inject label expr behind rng)
                              core     = Core.App (Core.TypeApp coreMask [resTp,eff,effTo]) [coreIndex,coreLevel,exprCore]
                          return core
                  Nothing
-                   -> do (maskQName,maskTp,maskInfo) <- resolveFunName nameMaskBuiltin (CtxFunArgs 3 [] Nothing) rng rng
+                   -> do (maskQName,maskTp,maskInfo) <- resolveFunName nameMaskBuiltin (CtxFunArgs 1 [] Nothing) rng rng
                          let coreMask = coreExprFromNameInfo maskQName maskInfo
                              core     = Core.App (Core.TypeApp coreMask [resTp,eff,effTo]) [exprCore]
                          return core
@@ -1284,9 +1284,11 @@ inferApp propagated expect fun nargs rng
                         matches <- lookupAppNameX False name sctx nameRange
                         -- traceDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
                         case matches of
+                          {-
                           (Left [])  -> do -- emit an error
                                            resolveAppName name sctx rng nameRange
                                            return (Just (Nothing,fun,[]))  -- error
+                          -}
                           Right (tp,funExpr,implicits)
                               -> return (Just (Just (tp,rng), funExpr, implicits)) -- known type, propagate the function type into the parameters
                           _   -> return Nothing -- many matches, -- start with argument inference and try to resolve the function type
@@ -1410,9 +1412,11 @@ inferApp propagated expect fun nargs rng
                             --                    text ", res: " <+> ppProp env propagated <+>
                             --                    text ", args: " <+> list (map (ppType env) (map (\(_,(_,tp,_,_)) -> tp) fresolved'))
                             case matches of
+                              {-
                               Left []    -> do -- emit an error
                                                resolveAppName name sctx rng nameRange
                                                return Nothing
+                              -}
                               Right (itp,funExpr,implicits) -> return (Just ((itp,rng),funExpr,implicits))
                               _          -> return Nothing
                     _ -> return Nothing
@@ -1453,14 +1457,12 @@ inferVar propagated expect name rng isRhs  | isConstructorName name
 
 inferVar propagated expect name rng isRhs
   = -- trace("inferVar: " ++ show name) $
-    do vinfo <- resolveName name propagated rng
+    -- we cannot directly "resolveName" with a propagated type
+    -- as sometimes the types do not match and need to coerce due to local variables or references on the right-hand-side
+    do vinfo <- case propagated of
+                  Just prop | isRhs -> resolveRhsName name prop rng
+                  _  -> resolveName name propagated rng
        inferVarName propagated expect name rng isRhs vinfo
-       {-
-    do res <- resolveVarName name propagated rng
-       case res of
-         Right expr -> inferExpr propagated expect expr -- TODO: what about isRsh?
-         Left vinfo -> inferVarName propagated expect name rng isRhs vinfo
-       -}
 
 inferVarName propagated expect name rng isRhs (qname,tp,info)
   = do -- traceDoc $ \env -> text "inferVarName:" <+> pretty name <+> colon <+> ppType env{showIds=True} tp

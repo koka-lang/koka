@@ -157,7 +157,8 @@ data Env     = Env{ showKinds      :: Bool
 defaultEnv :: Env
 defaultEnv
   = Env False False False
-        defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty) False
+        defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty)
+        False     -- fullNames
         False
         []
         ("styles/" ++ programName ++ ".css") -- [("System.","file://c:/users/daan/dev/koka/out/lib/")]
@@ -430,8 +431,8 @@ ppNameEx env name | isImplicitParamName name
 ppNameEx env name
   = if (fullNames env)
      then prettyName (colors env) name
-     else if (context env == qualifier name
-               || ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env))
+     else if (context env == qualifier name ||
+                ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env))
               -- || isNameTuple name
               )
            then prettyName (colors env) (unqualify name)

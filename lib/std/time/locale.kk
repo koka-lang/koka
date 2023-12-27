@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright 2012-2021, Microsoft Research, Daan Leijen
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the LICENSE file at the root of this distribution.
@@ -15,8 +15,8 @@ module std/time/locale
 
 // The `:time-locale` describes time and date formats for a specific locale.
 pub struct time-locale
-  // Language name, for example `en` or `fr-ca`.                          
-  lang-name       : string                            
+  // Language name, for example `en` or `fr-ca`.
+  lang-name       : string
   day-names       : list<string>
   month-names     : list<string>
   month-names-short: list<string> = month-names.map(fn(m) { m.first(3).string })
@@ -41,7 +41,7 @@ pub val time-locale-en : time-locale = Time-locale( "en",
 )
 
 // ISO English time locale (`en-iso`). Uses English names for
-// months and days but displays numeric dates and times using unambigious ISO format. 
+// months and days but displays numeric dates and times using unambigious ISO format.
 pub val time-locale-en-iso : time-locale = Time-locale( "en-iso",
   day-names   = time-locale-en.day-names,
   month-names = time-locale-en.month-names,
@@ -50,7 +50,7 @@ pub val time-locale-en-iso : time-locale = Time-locale( "en-iso",
 )
 
 // French time locale (`fr`)
-pub val time-locale-fr : time-locale = Time-locale( "fr",                                                      
+pub val time-locale-fr : time-locale = Time-locale( "fr",
   ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"],
   ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"],
   ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."],
@@ -102,10 +102,10 @@ val locales = [
   time-locale-nl
 ]
 
-// Return a builtin locale given a locale string (e.g. ``en-GB``, ``es``); 
+// Return a builtin locale given a locale string (e.g. ``en-GB``, ``es``);
 // Use `time-locale-iso` if no particular match is found.
 // Supports ``de``,``en``,``es``,``fr``,``nl`` and ``en-iso``.
 pub fun get-time-locale( locale : string ) : time-locale
-  val res = locales.find fn(l) 
+  val res = locales.find fn(l)
               locale.starts-with(l.lang-name).bool
   res.default(time-locale-en-iso)

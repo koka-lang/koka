@@ -67,6 +67,7 @@ import Common.ColorScheme
 
 isEarlyBindName name
   = isHandleName name -- || nameId name `startsWith` "clause-" || hiddenNameStartsWith name "tag"
+    || isCreatorName name
 
 ----------------------------------------------------------------
 -- Names
@@ -467,6 +468,11 @@ splitImplicitParamName name
 newCreatorName :: Name -> Name
 newCreatorName name
   = makeHiddenName "create" name
+
+isCreatorName :: Name -> Bool
+isCreatorName name
+  = hiddenNameStartsWith name "create"
+
 
 -- | Create a handler type name from an effect type name.
 toHandlerName :: Name -> Name

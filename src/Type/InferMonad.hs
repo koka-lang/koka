@@ -22,7 +22,7 @@ module Type.InferMonad( Inf, InfGamma
 
                       -- * Name resolution
                       , qualifyName
-                      , resolveName, resolveNameEx
+                      , resolveName, resolveNameEx, resolveRhsName
                       , resolveFunName
                       , resolveConName
                       , resolveImplicitName
@@ -92,7 +92,7 @@ import Common.File(endsWith,normalizeWith)
 import Common.Name
 import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
                        nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn,
-                       nameTpLocal)
+                       nameTpLocal, nameCopy)
 -- import Common.Syntax( DefSort(..) )
 import Common.ColorScheme
 import Kind.Kind
@@ -1219,8 +1219,9 @@ findDataInfo typeName
          Just info -> return info
          Nothing   -> failure ("Type.InferMonad.findDataInfo: unknown type: " ++ show typeName ++ "\n in: " ++ show (types env))
 
+
 -- | Lookup a name with a certain type and return the fully qualified name and its type
-resolveName :: Name -> Maybe(Type,Range) -> Range -> Inf (Name,Type,NameInfo)
+resolveName :: Name -> Maybe (Type,Range) -> Range -> Inf (Name,Type,NameInfo)
 resolveName name mbType range
   = case mbType of
       Just (tp,ctxRange) -> resolveNameEx infoFilter (Just infoFilterAmb) name (CtxType tp) ctxRange range
@@ -1228,6 +1229,23 @@ resolveName name mbType range
   where
     infoFilter = isInfoValFunExt
     infoFilterAmb = not . isInfoImport
+
+-- | Lookup a name with a certain type and return the fully qualified name and its type
+-- because of local variables and references a typed lookup may fail as we need to
+-- dereference first. So we do a typed lookup first and fall back to untyped lookup
+resolveRhsName :: Name -> (Type,Range) -> Range -> Inf (Name,Type,NameInfo)
+resolveRhsName name (tp,ctxRange) range
+  = do candidates <- lookupNameEx isInfoValFunExt name (CtxType tp) range
+       case candidates of
+         -- unambiguous and matched
+         [(qname,info)]
+              -> do checkCasing range name qname info
+                    return (qname,infoType info,info)
+         -- not found; this may be due to needing a coercion term
+         []   -> resolveName name Nothing range    -- try again without type info
+         -- still ambiguous (even with a type), call regular lookup to throw an error
+         amb  -> resolveName name (Just (tp,ctxRange)) range
+
 
 -- resolve an applied name (only used for emitting errors)
 resolveAppName :: Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
@@ -1523,27 +1541,6 @@ ppNameCtx :: Pretty.Env -> (Name,NameContext) -> Doc
 ppNameCtx penv (name,ctx) = Pretty.ppName penv name <+> text ":" <+> ppNameContext penv ctx
 
 
-lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
-lookupNameEx infoFilter name ctx range
-  = -- trace ("lookup: " ++ show name) $
-    do env <- getEnv
-       mod <- getModuleName
-       let locname = if (qualifier name == mod) then unqualify name else name
-       -- trace (" in infgamma: " ++ show (ppInfGamma (prettyEnv env) (infgamma env))) $ return ()
-       case infgammaLookupX locname (infgamma env) of  --TODO: allow prefix lookup?
-         Just info  | infoFilter info
-                  -> do sinfo <- subst info
-                        return [(infoCanonicalName name info, sinfo)] -- TODO: what about local definitions without local type variables or variables?
-         _        -> -- trace ("gamma: " ++ show (ppGamma (prettyEnv env) (gamma env))) $
-                     -- lookup global candidates
-                     do let candidates = filter (infoFilter . snd) $ gammaLookup name (gamma env)
-                        case candidates of
-                           [(qname,info)] -> return candidates
-                           [] -> return [] -- infError range (Pretty.ppName (prettyEnv env) name <+> text "cannot be found")
-                           _  -> do checkCasingOverlaps range name candidates
-                                    -- return only candidates that match the expected type
-                                    filterMatchNameContext range ctx candidates
-
 {-
     infoFilter     = isInfoValFunExt
     infoFilterAmb  = not . isInfoImport
@@ -1583,8 +1580,9 @@ ieCompare ie1 ie2
 -- lookup an application name `f(...)` where the name context usually contains (partially) inferred
 -- argument types.
 lookupAppNameX :: Bool -> Name -> NameContext -> Range -> Inf (Either [Doc] (Type,Expr Type,[((Name,Range),Expr Type)]))
-lookupAppNameX allowDisambiguate name ctx range
-  = do iapps <- -- lookupDisambiguatedName allowDisambiguate False name ctx range
+lookupAppNameX allowDisambiguate name0 ctx range
+  = do (name,filter) <- namespaceName name0
+       iapps <- -- lookupDisambiguatedName allowDisambiguate False name ctx range
                 lookupAppNames 0 False {- no bypass -}
                  (not allowDisambiguate) {- allow type bypass: at first when allowDisambiguate is False we like to see all possible instantations -}
                  filter name ctx range
@@ -1594,12 +1592,20 @@ lookupAppNameX allowDisambiguate name ctx range
        -- traceDoc $ \penv -> text "lookupAppNameX:" <+> Pretty.ppName penv name <+> text ":" <+> list [pretty iexpr | (iexpr,_) <- iapps']
        case pick allowDisambiguate fst iapps'  of
          Right (imp,(iname,info,itp,iexprs))
-          -> do -- traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
+          -> do traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
                 return (Right (itp, Var iname False range, [((name,range),ieExpr iexpr) | (name,iexpr) <- iexprs]))
          Left docs
           -> return (Left docs)
-  where
-    filter = if isConstructorName name then isInfoCon else isInfoValFunExt
+
+namespaceName name  | isConstructorName name
+  = do defName <- currentDefName
+       let creatorName = newCreatorName name
+       if (defName /= unqualify creatorName && defName /= nameCopy) -- a bit hacky, but ensure we don't call the creator function inside itself or the copy function
+         then return (creatorName, isInfoFun)
+         else return (name, isInfoCon)
+namespaceName name
+  = return (name,isInfoValFunExt)
+
 
 -- resolve an implicit name to an expression
 resolveImplicitName :: Name -> Type -> Range -> Inf (Expr Type)
@@ -1607,7 +1613,7 @@ resolveImplicitName name tp range
   = do -- candidates <- lookupDisambiguatedName True True name (implicitTypeContext tp) range
        iexprs <- lookupImplicitNames 0 isInfoValFunExt name (implicitTypeContext tp) range
        case pick True id iexprs of
-         Right iexpr -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> Pretty.ppParam penv (name,tp) <+> text ", to" <+> pretty iexpr
+         Right iexpr -> do traceDefDoc $ \penv -> text "resolved implicit" <+> Pretty.ppParam penv (name,tp) <+> text ", to" <+> pretty iexpr
                            return (ieExpr iexpr)
          Left docs0 -> do penv <- getPrettyEnv
                           infError range (text "cannot resolve implicit parameter" <+> Pretty.ppParam penv (name,tp) <->
@@ -1679,6 +1685,7 @@ toImplicitAppExpr penv prefix name range (iname,info,itp,iargs)
                           in ImplicitExpr doc etaTp eta depth localRoots
                     _ -> failure ("Type.InferMonad.lookupImplicitNames: illegal type for implicit? " ++ show range ++ ", " ++ show (Pretty.ppParam penv (name,itp)))
 
+
 -- Lookup application name `f` in an expression `f(...)` where the name  context usually contains
 -- types of (partially) inferred (fixed) arguments.
 -- Returns list of resolved names together with any required implicit arguments.
@@ -1713,6 +1720,37 @@ lookupAppNames recurseDepth allowBypass allowTypeBypass infoFilter name ctx rang
               _ -> return [(iname,info,itp,[])]
 
 
+
+lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
+lookupNameEx infoFilter name ctx range
+  = do candidates <- lookupNames False False infoFilter name ctx range
+       traceDoc $ \penv -> text " lookupNameEx:" <+> ppNameCtx penv (name,ctx) <+> colon
+                           <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- candidates]
+       return [(name,info) | (name,info,_) <- candidates]
+
+{-
+lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
+lookupNameEx infoFilter name ctx range
+  = -- trace ("lookup: " ++ show name) $
+    do env <- getEnv
+       mod <- getModuleName
+       let locname = if (qualifier name == mod) then unqualify name else name
+       -- trace (" in infgamma: " ++ show (ppInfGamma (prettyEnv env) (infgamma env))) $ return ()
+       case infgammaLookupX locname (infgamma env) of  --TODO: allow prefix lookup?
+         Just info  | infoFilter info
+                  -> do sinfo <- subst info
+                        return [(infoCanonicalName name info, sinfo)] -- TODO: what about local definitions without local type variables or variables?
+         _        -> -- trace ("gamma: " ++ show (ppGamma (prettyEnv env) (gamma env))) $
+                     -- lookup global candidates
+                     do let candidates = filter (infoFilter . snd) $ gammaLookup name (gamma env)
+                        case candidates of
+                           [(qname,info)] -> return candidates
+                           [] -> return [] -- infError range (Pretty.ppName (prettyEnv env) name <+> text "cannot be found")
+                           _  -> do checkCasingOverlaps range name candidates
+                                    -- return only candidates that match the expected type
+                                    filterMatchNameContext range ctx candidates
+-}
+
 -- lookup names that match the given name context
 -- `allowBypass` allows looking beyond a local name and return global matches as well.
 -- generally, a local name that matches the type is never bypassed though.
@@ -1723,22 +1761,32 @@ lookupAppNames recurseDepth allowBypass allowTypeBypass infoFilter name ctx rang
 lookupNames :: Bool -> Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo,Rho)]
 lookupNames allowBypass allowTypeBypass infoFilter name ctx range
   = do env <- getEnv
-       -- traceDoc $ \penv -> text " lookup implicit:" <+> ppNameCtx penv (name,ctx)
-       locals0  <- case infgammaLookupX name (infgamma env) of
+       -- traceDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
+       mod <- getModuleName
+       let locname = if (qualifier name == mod) then unqualify name else name -- could use a qualified name to refer to a recursive function itself
+       locals0  <- case infgammaLookupX locname (infgamma env) of
                      Just info | infoFilter info -> do sinfo <- subst info
                                                        let lname = infoCanonicalName name info
                                                        return [(lname,sinfo)]
                      _ -> return []
-       locals1 <- filterMatchNameContextEx range True ctx locals0
+       let forImplicitNames = allowTypeBypass
+       locals1 <- filterMatchNameContextEx range forImplicitNames ctx locals0
        if (not (null locals0) && not allowBypass)
          then -- a local name was found and we are not allowed to bypass
+              -- return [(iname,info,infoType info) | (iname,info) <- locals0]
               return locals1
          else do if (not (null locals1) && not allowTypeBypass)
                    then -- a local name was found and matched the type: always prefer it
                         return locals1
                    else do -- otherwise consider globals as well
                            let globals0 = filter (infoFilter . snd) $ gammaLookup name (gamma env)
-                           globals1 <- filterMatchNameContextEx range True ctx globals0
+                           traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
+                            <+> text ", locals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- locals0]
+                            <+> text ", globals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- globals0]
+                           globals1 <- filterMatchNameContextEx range forImplicitNames ctx globals0
+                           traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
+                            <+> text ", locals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- locals1]
+                            <+> text ", globals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- globals1]
                            return (locals1 ++ globals1)
 
 
@@ -1755,7 +1803,7 @@ filterMatchNameContextEx range forImplicitNames ctx candidates
       CtxType expect  | forImplicitNames && not (isFun expect)
                       -> do mss1 <- mapM (matchType expect) candidates
                             mss2 <- mapM (matchArgs False [] [] (Just expect)) candidates -- also match unit functions (that may take implicit parameters still)
-                            return (concat (mss1 ++ mss2))
+                            return (concat (mss1 ++ mss2))  -- TODO: remove duplicates
       CtxType expect  -> do mss <- mapM (matchType expect) candidates
                             return (concat mss)
       CtxFunArgs n named mbResTp
@@ -1783,8 +1831,10 @@ filterMatchNameContextEx range forImplicitNames ctx candidates
 
     matchArgs :: Bool -> [Type] -> [(Name,Type)] -> Maybe Type -> (Name,NameInfo) -> Inf [(Name,NameInfo,Rho)]
     matchArgs matchSome fixed named mbResTp (name,info)
-      = -- trace ("match args: " ++ show matchSome ++ ", " ++ show fixed ++ ", " ++ show (length named) ++ " on " ++ show (infoType info)) $
-        do free <- freeInGamma
+      = do free <- freeInGamma
+           traceDefDoc $ \penv -> text "  match fixed:" <+> list [Pretty.ppType penv fix | fix <- fixed]
+                                     <+> text ", named" <+> list [Pretty.ppParam penv nametp | nametp <- named]
+                                     <+> text "on" <+> Pretty.ppParam penv (name,infoType info)
            res <- runUnify (matchArguments matchSome range free (infoType info) fixed named mbResTp)
            case res of
              (Right rho,_) -> return [(name,info,rho)]
