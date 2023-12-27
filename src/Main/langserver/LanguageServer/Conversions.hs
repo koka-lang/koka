@@ -52,7 +52,7 @@ toLspPos p =
 
 toLspRange :: R.Range -> J.Range
 toLspRange r =
-  J.Range (J.Position l1 c1) (J.Position l2 $ c2 + 1) -- LSP range ends are exclusive
+  J.Range (J.Position l1 (max 0 (c1 - 1))) (J.Position l2 c2) -- LSP range ends are exclusive
   where
     J.Position l1 c1 = toLspPos $ R.rangeStart r
     J.Position l2 c2 = toLspPos $ R.rangeEnd r
