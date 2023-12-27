@@ -221,19 +221,22 @@ class KokaRuntime extends EventEmitter {
 				this.emit('end', -1)
 				return;
 			}
-			if (target == 'C') {
+			if (target == 'c') {
 				console.log(`Executing ${resp} ${args.programArgs ?? []}`)
 				this.ps = child_process.spawn(resp, args.programArgs ?? [], { cwd: this.config.cwd, env: process.env })
 				this.ps.stdout?.on('data', (data) => {
-					this.emit('output', data.toString().trim(), 'stdout')
+					this.emit('output', data.toString(), 'stdout')
 				})
 				this.ps.stderr?.on('data', (data) => {
-					this.emit('output', data.toString().trim(), 'stderr')
+					this.emit('output', data.toString(), 'stderr')
 				})
 				this.ps.on('close', (code) => {
 					this.emit('end', code)
 					this.ps = null
 				})
+			} else {
+				this.emit('output', `Running code for target ${target} is not yet supported. Output is at ${resp}`)
+				this.emit('end', -1)
 			}
 			// else if (target == 'JS' || target == 'WASM') {
 			// 	const realTarget = target == 'JS' ? 'jsweb' : 'wasmweb'
