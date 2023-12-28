@@ -1893,7 +1893,7 @@ inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a>
   js inline "Array(#1)"
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-pub inline extern []( ^v : vector<a>, ^index : int ) : exn a
+pub extern []( ^v : vector<a>, ^index : int ) : exn a
   c "kk_vector_at_int_borrow"
   cs inline "(#1)[Primitive.IntToInt32(#2)]"
   js inline "$std_core._vector_at(#1,#2)"

@@ -68,6 +68,16 @@ kk_vector_t kk_vector_init( kk_ssize_t n, kk_function_t init, kk_context_t* ctx)
   return v;
 }
 
+
+static inline kk_box_t kk_vector_at_int_borrow( kk_vector_t v, kk_integer_t n, kk_context_t* ctx) {
+  kk_ssize_t i = kk_integer_clamp_ssize_t_borrow(n,ctx);
+  if (kk_likely(kk_vector_len_borrow(v, ctx) < i)) {
+    kk_box_t b = kk_vector_at_borrow(v, i, ctx);
+    return b;
+  }
+  return kk_std_core_throw_exn(kk_std_core__new_Exception(kk_string_alloc_dup_valid_utf8("index out of bounds", ctx), kk_std_core__new_ExnRange(ctx), ctx), ctx);
+}
+
 kk_box_t kk_main_console( kk_function_t action, kk_context_t* ctx ) {
   return kk_function_call(kk_box_t,(kk_function_t,kk_unit_t,kk_context_t*),action,(action,kk_Unit,ctx),ctx);
 }

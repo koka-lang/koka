@@ -75,11 +75,7 @@ static inline kk_unit_t kk_vector_unsafe_assign( kk_vector_t v, kk_ssize_t i, kk
 
 kk_vector_t kk_vector_init( kk_ssize_t n, kk_function_t init, kk_context_t* ctx);
 
-static inline kk_box_t kk_vector_at_int_borrow( kk_vector_t v, kk_integer_t n, kk_context_t* ctx) {
-  // TODO: check bounds
-  kk_box_t b = kk_vector_at_borrow(v,kk_integer_clamp_ssize_t_borrow(n,ctx),ctx);
-  return b;
-}
+static kk_box_t kk_vector_at_int_borrow( kk_vector_t v, kk_integer_t n, kk_context_t* ctx);
 
 static inline double kk_double_abs(double d) {
   return (isfinite(d) && d < 0.0 ? -d : d);
