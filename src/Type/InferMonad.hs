@@ -1235,7 +1235,7 @@ resolveName name mbType range
 -- dereference first. So we do a typed lookup first and fall back to untyped lookup
 resolveRhsName :: Name -> (Type,Range) -> Range -> Inf (Name,Type,NameInfo)
 resolveRhsName name (tp,ctxRange) range
-  = do candidates <- lookupNameEx isInfoValFunExt name (CtxType tp) range
+  = do candidates <- lookupNameCtx isInfoValFunExt name (CtxType tp) range
        case candidates of
          -- unambiguous and matched
          [(qname,info)]
@@ -1721,16 +1721,19 @@ lookupAppNames recurseDepth allowBypass allowTypeBypass infoFilter name ctx rang
 
 
 
-lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
-lookupNameEx infoFilter name ctx range
+lookupNameCtx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
+lookupNameCtx infoFilter name ctx range
   = do candidates <- lookupNames False False infoFilter name ctx range
-       traceDoc $ \penv -> text " lookupNameEx:" <+> ppNameCtx penv (name,ctx) <+> colon
+       traceDoc $ \penv -> text " lookupNameCtx:" <+> ppNameCtx penv (name,ctx) <+> colon
                            <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- candidates]
        return [(name,info) | (name,info,_) <- candidates]
 
-{-
+
+
 lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
 lookupNameEx infoFilter name ctx range
+  = lookupNameCtx infoFilter name ctx range
+  {-
   = -- trace ("lookup: " ++ show name) $
     do env <- getEnv
        mod <- getModuleName
@@ -1749,7 +1752,7 @@ lookupNameEx infoFilter name ctx range
                            _  -> do checkCasingOverlaps range name candidates
                                     -- return only candidates that match the expected type
                                     filterMatchNameContext range ctx candidates
--}
+  -}
 
 -- lookup names that match the given name context
 -- `allowBypass` allows looking beyond a local name and return global matches as well.
