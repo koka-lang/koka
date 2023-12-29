@@ -217,3 +217,5 @@ fun example6()
     su(Bob)
     hamlet()
 
+fun main()
+  example6()

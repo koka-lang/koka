@@ -14,9 +14,9 @@ import handlers/basic
 import handlers/nim
 import handlers/vec
 import handlers/yield
-
 import handlers/parser
 import handlers/scoped
+import handlers/unix
 
 import named-handlers/ask
 import named-handlers/file
@@ -32,4 +32,5 @@ pub fun main()
   parser/main()
   handlers/scoped/main()
   ambient/main()
+  unix/main()
 
