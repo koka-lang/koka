@@ -1783,13 +1783,13 @@ lookupNames allowBypass allowTypeBypass infoFilter name ctx range
                         return locals1
                    else do -- otherwise consider globals as well
                            let globals0 = filter (infoFilter . snd) $ gammaLookup name (gamma env)
-                           traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
-                            <+> text ", locals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- locals0]
-                            <+> text ", globals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- globals0]
+                            --  traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
+                            --   <+> text ", locals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- locals0]
+                            --   <+> text ", globals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- globals0]
                            globals1 <- filterMatchNameContextEx range forImplicitNames ctx globals0
-                           traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
-                            <+> text ", locals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- locals1]
-                            <+> text ", globals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- globals1]
+                            --  traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
+                            --   <+> text ", locals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- locals1]
+                            --   <+> text ", globals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- globals1]
                            return (locals1 ++ globals1)
 
 

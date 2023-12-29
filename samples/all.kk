@@ -15,8 +15,8 @@ import handlers/nim
 import handlers/vec
 import handlers/yield
 
-//import handlers/parser
-//import handlers/scoped
+import handlers/parser
+import handlers/scoped
 
 // import named-handlers/ask
 // import named-handlers/file
@@ -29,7 +29,7 @@ pub fun main()
   garsia-wachs/main()
   rbtree/main()
   nim/main()
-//  parser/main()
-//  handlers/scoped/main()
+  parser/main()
+  handlers/scoped/main()
   ambient/main()
 
