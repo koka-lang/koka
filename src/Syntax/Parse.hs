@@ -642,7 +642,8 @@ constructor defvis foralls resTp
 makeUserCon :: Name -> [UserTypeBinder] -> UserType -> [UserTypeBinder] -> [(Visibility,ValueBinder UserType (Maybe UserExpr))] -> Range -> Range -> Visibility -> String -> (UserCon UserType UserType UserKind, [UserDef])
 makeUserCon con foralls resTp exists pars nameRng rng vis doc
   = (UserCon con exists conParams Nothing nameRng rng vis doc
-    ,if (any (isJust . binderExpr . snd) pars) then [creator] else [])
+    , if (any (isJust . binderExpr . snd) pars) then [creator] else []
+    )
   where
     conParams
       = [(vis,par{ binderExpr = Nothing }) | (vis,par) <- pars]

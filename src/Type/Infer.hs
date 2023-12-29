@@ -1282,7 +1282,7 @@ inferApp propagated expect fun nargs rng
                 (Var name _ nameRange)
                   -> do let sctx = fixedCountContext propagated (length fixed) (map (fst . fst) named)
                         matches <- lookupAppNameX False name sctx nameRange
-                        -- traceDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
+                        traceDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
                         case matches of
                           {-
                           (Left [])  -> do -- emit an error
@@ -1304,7 +1304,10 @@ inferApp propagated expect fun nargs rng
     inferAppFunFirst :: Maybe (Type,Range) -> Expr Type -> [(Int,FixedArg)] ->
                           [Expr Type] -> [((Name,Range),Expr Type)] -> [((Name,Range), Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop funExpr fresolved fixed named0 implicits
-      = do traceDefDoc $ \penv -> text (" inferAppFunFirst: fun: " ++ show funExpr ++ ", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <-> text "  :" <+> ppProp penv prop
+      = do traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
+                                  text ("fixed count: " ++ show (length fixed)) <.>
+                                  text (", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <->
+                                  text "  :" <+> ppProp penv prop
 
            -- only add resolved implicits that were not already named
            let alreadyGiven = [name | ((name,_),_) <- named0]
@@ -1312,7 +1315,7 @@ inferApp propagated expect fun nargs rng
 
            -- infer type of function
            (ftp,eff1,fcore) <- allowReturn False $ inferExpr prop Instantiated funExpr
-           traceDefDoc $ \penv -> text "inferred type of fun: " <+> ppType penv ftp
+           -- traceDefDoc $ \penv -> text "inferred type of fun: " <+> ppType penv ftp
 
            -- match the type with a function type, wrap optional arguments, and order named arguments.
            -- traceDoc $ \env -> text "infer fun first, tp:" <+> ppType env ftp
@@ -1330,7 +1333,7 @@ inferApp propagated expect fun nargs rng
                                            return (pars1,funEff1,funTp1)
               _ -> return (pars0,funEff0,funTp0)
 
-           traceDefDoc $ \env -> text "infer App: propagated args:" <+> list (map (ppType env . snd) pars)
+           -- traceDefDoc $ \env -> text "infer App: propagated args:" <+> list (map (ppType env . snd) pars)
 
            -- infer the argument expressions and subsume the types
            (effArgs,coreArgs) <- -- withGammaType rng (TFun pars funEff funTp) $ -- ensure the free 'some' types are free in gamma
@@ -1367,7 +1370,7 @@ inferApp propagated expect fun nargs rng
 
            -- instantiate or generalize result type
            funTp1 <- subst funTp
-           traceDefDoc $ \env -> text " inferAppFunFirst: inst or gen:" <+> pretty (show expect) <+> colon <+> ppType env funTp1 <.> text ", top eff: " <+> ppType env topEff
+           -- traceDefDoc $ \env -> text " inferAppFunFirst: inst or gen:" <+> pretty (show expect) <+> colon <+> ppType env funTp1 <.> text ", top eff: " <+> ppType env topEff
            (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect funTp1 core
 
            -- traceDoc $ \env -> text " inferAppFunFirst: resTp:" <+> ppType env resTp <.> text ", top eff: " <+> ppType env stopEff
@@ -1932,9 +1935,9 @@ inferArgsN ctx range parArgs
                                  ArgExpr argexpr
                                    -> inferArgExpr tpar0 argexpr
                                  ArgCore (_,ctp,ceff,carg)
-                                   -> do traceDefDoc $ \penv -> text "inferArgN: argCore:" <+>
-                                                                     ppType penv tpar0 <+> text ", ctp:"
-                                                                     <+> ppType penv ctp
+                                   -> do -- traceDefDoc $ \penv -> text "inferArgN: argCore:" <+>
+                                         --                            ppType penv tpar0 <+> text ", ctp:"
+                                         --                            <+> ppType penv ctp
                                          if isRho tpar0
                                            then return (ctp,ceff,carg)
                                            else do (gtp,garg) <- generalize range range False ceff ctp carg
@@ -1947,11 +1950,11 @@ inferArgsN ctx range parArgs
            tpar1  <- subst tpar0
            (_,coref)  <- case arg of
                            ArgExpr argexpr | isAnnot argexpr
-                             -> do traceDefDoc $ \env -> text "inferArgN1:" <+> ppType env tpar1 <+> text "~" <+> ppType env targ
+                             -> do -- traceDefDoc $ \env -> text "inferArgN1:" <+> ppType env tpar1 <+> text "~" <+> ppType env targ
                                    inferSubsume ctx (getRangeArg arg) tpar1 targ
                                    -- inferUnify ctx (getRange argexpr) tpar1 targ
                                    return (tpar1,id)
-                           _ -> do traceDefDoc $ \env -> text "inferArgN2:" <+> (ppType env teff) <+> colon <+> ppType env tpar1 <+> text "~" <+> ppType env targ
+                           _ -> do -- traceDefDoc $ \env -> text "inferArgN2:" <+> (ppType env teff) <+> colon <+> ppType env tpar1 <+> text "~" <+> ppType env targ
                                    inferSubsume ctx (getRangeArg arg) tpar1 targ
            teff1  <- subst teff
            inferArg ((teff1,coref core) : acc) args

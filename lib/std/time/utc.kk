@@ -638,7 +638,7 @@ abstract struct leap-adjust(
   utc-start  : utc-timestamp,  // start time in NTP seconds since epoch (2000-01-01)
   offset     : timespan,       // base offset
   drift-start: utc-timestamp = timestamp0,   // start of drift adjustment
-  drift      : ddouble = zero
+  drift      : ddouble = ddouble/zero
 )
 
 val leaps-table0 = Leaps-table(epoch,[])

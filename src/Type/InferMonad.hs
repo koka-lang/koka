@@ -1580,22 +1580,46 @@ ieCompare ie1 ie2
 -- lookup an application name `f(...)` where the name context usually contains (partially) inferred
 -- argument types.
 lookupAppNameX :: Bool -> Name -> NameContext -> Range -> Inf (Either [Doc] (Type,Expr Type,[((Name,Range),Expr Type)]))
-lookupAppNameX allowDisambiguate name0 ctx range
-  = do (name,filter) <- namespaceName name0
-       iapps <- -- lookupDisambiguatedName allowDisambiguate False name ctx range
+lookupAppNameX allowDisambiguate name ctx range | not (isConstructorName name)  -- or zero arguments?
+  = do iapps <- lookupAppNamesX allowDisambiguate isInfoValFunExt name ctx range
+       pickBest allowDisambiguate range iapps
+
+lookupAppNameX allowDisambiguate name ctx range  -- (isConstructorName cname)
+  = do let cname = newCreatorName name
+       defName <- currentDefName
+       -- traceDefDoc $ \penv -> text "lookupAppNameX, constructor name:" <+> Pretty.ppName penv name <+> text "in definition" <+> Pretty.ppName penv defName
+       iapps   <- if (defName == unqualify cname || defName == nameCopy) -- a bit hacky, but ensure we don't call the creator function inside itself or the copy function
+                   then lookupAppNamesX allowDisambiguate isInfoCon name ctx range
+                   else  do iapps1 <- lookupAppNamesX allowDisambiguate isInfoFun cname ctx range
+                            iapps2 <- lookupAppNamesX allowDisambiguate isInfoCon name ctx range
+                            let cnames = [name | (_,(name,_,_,_)) <- iapps1]
+                                iapps3 = filter (\(_,(name,_,_,_)) -> not (newCreatorName name `elem` cnames)) iapps2
+                            return (iapps1 ++ iapps3)
+       pickBest allowDisambiguate range iapps
+
+pickBest :: Bool -> Range -> [(ImplicitExpr,(Name,NameInfo,Rho,[(Name,ImplicitExpr)]))] -> Inf (Either [Doc] (Type,Expr Type,[((Name,Range),Expr Type)]))
+pickBest allowDisambiguate range iapps
+  = case pick allowDisambiguate fst iapps of
+      Right (imp,(iname,info,itp,iexprs))
+        -> do traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
+              return (Right (itp, Var iname False range, [((name,range),ieExpr iexpr) | (name,iexpr) <- iexprs]))
+      Left docs
+        -> return (Left docs)
+
+lookupAppNamesX :: Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range
+                      -> Inf [(ImplicitExpr,(Name,NameInfo,Rho,[(Name,ImplicitExpr)]))]
+lookupAppNamesX allowDisambiguate filter name ctx range
+  = do iapps <- -- lookupDisambiguatedName allowDisambiguate False name ctx range
                 lookupAppNames 0 False {- no bypass -}
                  (not allowDisambiguate) {- allow type bypass: at first when allowDisambiguate is False we like to see all possible instantations -}
                  filter name ctx range
        -- create ImplicitExpr for easy comparing
        penv <- getPrettyEnv
        let iapps' = [(toImplicitAppExpr penv "" name range iapp, iapp) | iapp <- iapps]
-       -- traceDoc $ \penv -> text "lookupAppNameX:" <+> Pretty.ppName penv name <+> text ":" <+> list [pretty iexpr | (iexpr,_) <- iapps']
-       case pick allowDisambiguate fst iapps'  of
-         Right (imp,(iname,info,itp,iexprs))
-          -> do traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
-                return (Right (itp, Var iname False range, [((name,range),ieExpr iexpr) | (name,iexpr) <- iexprs]))
-         Left docs
-          -> return (Left docs)
+       traceDefDoc $ \penv -> text "lookupAppNameX:" <+> Pretty.ppName penv name <+> text ":"
+                               <+> ppNameContext penv ctx <+> text "="
+                               <+> list [pretty iexpr | (iexpr,_) <- iapps']
+       return iapps'
 
 namespaceName name  | isConstructorName name
   = do defName <- currentDefName
@@ -1724,8 +1748,8 @@ lookupAppNames recurseDepth allowBypass allowTypeBypass infoFilter name ctx rang
 lookupNameCtx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
 lookupNameCtx infoFilter name ctx range
   = do candidates <- lookupNames False False infoFilter name ctx range
-       traceDoc $ \penv -> text " lookupNameCtx:" <+> ppNameCtx penv (name,ctx) <+> colon
-                           <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- candidates]
+       traceDefDoc $ \penv -> text " lookupNameCtx:" <+> ppNameCtx penv (name,ctx) <+> colon
+                              <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- candidates]
        return [(name,info) | (name,info,_) <- candidates]
 
 
@@ -1782,14 +1806,15 @@ lookupNames allowBypass allowTypeBypass infoFilter name ctx range
                    then -- a local name was found and matched the type: always prefer it
                         return locals1
                    else do -- otherwise consider globals as well
-                           let globals0 = filter (infoFilter . snd) $ gammaLookup name (gamma env)
+                           let globals' = gammaLookup name (gamma env)
+                           let globals0 = filter (infoFilter . snd) $ globals'
                             --  traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
-                            --   <+> text ", locals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- locals0]
-                            --   <+> text ", globals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- globals0]
+                            --     <+> text ", locals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- locals0]
+                            --     <+> text ", globals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- globals']
                            globals1 <- filterMatchNameContextEx range forImplicitNames ctx globals0
                             --  traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
-                            --   <+> text ", locals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- locals1]
-                            --   <+> text ", globals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- globals1]
+                            --     <+> text ", locals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- locals1]
+                            --     <+> text ", globals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- globals1]
                            return (locals1 ++ globals1)
 
 
