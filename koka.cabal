@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -21,9 +21,8 @@ source-repository head
   type: git
   location: https://github.com/koka-lang/koka
 
-executable koka
-  main-is: Main.hs
-  other-modules:
+library
+  exposed-modules:
       Backend.C.Box
       Backend.C.FromCore
       Backend.C.Parc
@@ -125,6 +124,7 @@ executable koka
       Platform.ReadLine
       Platform.Runtime
       Platform.Var
+  other-modules:
       Paths_koka
   hs-source-dirs:
       src
@@ -132,7 +132,7 @@ executable koka
   other-extensions:
       CPP
       OverloadedStrings
-  ghc-options: -rtsopts -j8
+  ghc-options: -j8 -O2
   cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="2.4.3" -DREADLINE=0
   include-dirs:
       src/Platform/cpp/Platform
@@ -157,6 +157,71 @@ executable koka
     cpp-options: -DWINDOWS
   if os(darwin)
     cpp-options: -DDARWIN
+
+executable koka
+  main-is: Main.hs
+  other-modules:
+      LanguageServer.Conversions
+      LanguageServer.Handler.Commands
+      LanguageServer.Handler.Completion
+      LanguageServer.Handler.Definition
+      LanguageServer.Handler.DocumentSymbol
+      LanguageServer.Handler.Folding
+      LanguageServer.Handler.Hover
+      LanguageServer.Handler.InlayHints
+      LanguageServer.Handler.TextDocument
+      LanguageServer.Handlers
+      LanguageServer.Monad
+      LanguageServer.Run
+      Paths_koka
+  hs-source-dirs:
+      src/Main/langserver
+  ghc-options: -rtsopts -j8 -O2 -threaded "-with-rtsopts=-N8"
+  build-depends:
+      aeson
+    , array
+    , async
+    , base >=4.9
+    , bytestring
+    , co-log-core
+    , containers
+    , directory
+    , isocline >=1.0.6
+    , koka
+    , lens
+    , lsp
+    , mtl
+    , network
+    , network-simple
+    , parsec
+    , process
+    , stm
+    , text
+    , text-rope
+    , time
+  default-language: Haskell2010
+
+executable koka-plain
+  main-is: Main.hs
+  other-modules:
+      Paths_koka
+  hs-source-dirs:
+      src/Main/plain
+  ghc-options: -rtsopts -j8 -O2 -threaded "-with-rtsopts=-N8"
+  build-depends:
+      array
+    , base >=4.9
+    , bytestring
+    , containers
+    , directory
+    , isocline >=1.0.6
+    , koka
+    , mtl
+    , parsec
+    , process
+    , text
+    , time
+  default-language: Haskell2010
 
 test-suite koka-test
   type: exitcode-stdio-1.0

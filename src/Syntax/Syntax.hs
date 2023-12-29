@@ -284,6 +284,13 @@ data Lit
   | LitString   String Range
   deriving (Show)
 
+litRange :: Lit -> Range
+litRange lit
+  = case lit of
+      LitInt _ range    -> range
+      LitFloat _ range  -> range
+      LitChar _ range   -> range
+      LitString _ range -> range
 
 stripExpr :: Expr t -> Expr t
 stripExpr (Parens e _ _) = stripExpr e

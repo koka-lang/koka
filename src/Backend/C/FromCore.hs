@@ -67,11 +67,11 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Maybe Doc,Core)
 cFromCore ctarget buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference eagerPatBind stackSize mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform eagerPatBind)
            (genModule ctarget buildType sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core) of
-      (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
+      ((bcore,mainDoc),cdoc,hdoc) -> (cdoc,hdoc,mainDoc,bcore)
   where
     moduleName = coreProgName core
     penv       = penv0{ Pretty.context = moduleName, Pretty.fullNames = False }
@@ -82,7 +82,7 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
-genModule :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> Asm (Core,Maybe Doc)
 genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
                                let borrowed = borrowedExtendICore bcore borrowed0
@@ -97,6 +97,7 @@ genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReu
                             <.> text ", platform:" <+> string (show (8 * sizePtr platform)) <.> text "-bit"
             initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> parameters []
             doneSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".done")) <.> parameters []
+            currentModuleInclude = text "#include" <+> dquotes (text (moduleNameToPath (coreProgName core)) <.> text ".h")
 
         emitToInit $ vcat $ [text "static bool _kk_initialized = false;"
                             ,text "if (_kk_initialized) return;"
@@ -109,8 +110,7 @@ genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReu
 
         emitToDone $ vcat (map doneImport (reverse (coreProgImports core)))
 
-        emitToC $ vcat $ [headComment
-                         ,text "#include" <+> dquotes (text (moduleNameToPath (coreProgName core)) <.> text ".h")]
+        emitToC $ vcat $ [headComment,currentModuleInclude]
                          ++ externalImportIncludes
                          ++ externalIncludesC
 
@@ -127,7 +127,7 @@ genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReu
         emitToH (linebreak <.> text "// value declarations")
         genTopGroups (coreProgDefs core)
 
-        genMain (coreProgName core) platform stackSize mbMain
+        let mainDoc = genMain [headComment,currentModuleInclude] (coreProgName core) platform stackSize mbMain
 
         emitToDone $ vcat [text "static bool _kk_done = false;"
                           ,text "if (_kk_done) return;"
@@ -151,7 +151,7 @@ genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReu
                           , linebreak <.> doneSignature <.> semi <.> linebreak]
                           ++ externalEndIncludesH
                           ++ [text "#endif // header"]
-        return core -- box/unboxed core
+        return (core, mainDoc) -- box/unboxed core
   where
     modName         = ppModName (coreProgName core0)
 
@@ -219,16 +219,15 @@ importExternalInclude ctarget buildType sourceDir ext
       _ -> []
 
 
-genMain :: Name -> Platform -> Int -> Maybe (Name,Bool) -> Asm ()
-genMain progName platform stackSize Nothing = return ()
-genMain progName platform stackSize (Just (name,_))
-  = emitToC $
-    text "\n// main exit\nstatic void _kk_main_exit(void)" <+> block (vcat [
+genMain :: [Doc] -> Name -> Platform -> Int -> Maybe (Name,Bool) -> Maybe Doc
+genMain header progName platform stackSize Nothing = Nothing
+genMain header progName platform stackSize (Just (name,_))
+  = Just $ vcat $ header ++
+    [ text "\n// main exit\nstatic void _kk_main_exit(void)" <+> block (vcat [
             text "kk_context_t* _ctx = kk_get_context();",
             ppName (qualify progName (newName ".done")) <.> parens (text "_ctx") <.> semi
           ])
-    <->
-    text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
+    , text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
         text $ "kk_assert(sizeof(size_t)==" ++ show (sizeSize platform) ++ " && sizeof(void*)==" ++ show (sizePtr platform) ++ ");"
       , if stackSize == 0 then empty else
         text $ "kk_os_set_stack_size(KK_IZ(" ++ show stackSize ++ "));"
@@ -240,6 +239,7 @@ genMain progName platform stackSize (Just (name,_))
       , text "kk_main_end(_ctx);"
       , text "return 0;"
       ])
+    ]
 
 ---------------------------------------------------------------------------------
 -- Generate C statements for value definitions
@@ -2663,6 +2663,7 @@ reserved
     , "instanceof"
     , "new"
     , "return"
+    , "register"
     , "switch"
     , "this"
     , "throw"

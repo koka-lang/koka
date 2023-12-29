@@ -27,6 +27,7 @@ module Type.Assumption (
                     , isInfoValFunExt
                     , isInfoFunOrExternal
                     , infoElement
+                    , infoDocString
                     , infoCanonicalName
                     , fipFromNameInfo
                     -- * From Core
@@ -55,13 +56,14 @@ import qualified Core.Core as Core
 import qualified Core.CoreVar as CoreVar
 
 import Lib.Trace
+import Syntax.Syntax (TypeDef(typeDefDoc))
 
 data NameInfo
-  = InfoVal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoRange :: Range, infoIsVar :: Bool }
-  | InfoFun{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoArity :: (Int,Int), infoFip :: Fip, infoRange :: Range }
-  | InfoCon{ infoVis :: Visibility, infoType :: Scheme, infoRepr  :: Core.ConRepr, infoCon :: ConInfo, infoRange :: Range }
-  | InfoExternal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoFormat :: [(Target,String)], infoFip :: Fip, infoRange :: Range }
-  | InfoImport{ infoVis :: Visibility, infoType :: Scheme, infoAlias :: Name, infoFullName :: Name, infoRange :: Range }
+  = InfoVal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoRange :: Range, infoIsVar :: Bool, infoDoc::String }
+  | InfoFun{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoArity :: (Int,Int), infoFip :: Fip, infoRange :: Range, infoDoc::String }
+  | InfoCon{ infoVis :: Visibility, infoType :: Scheme, infoRepr  :: Core.ConRepr, infoCon :: ConInfo, infoRange :: Range, infoDoc::String }
+  | InfoExternal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoFormat :: [(Target,String)], infoFip :: Fip, infoRange :: Range}
+  | InfoImport{ infoVis :: Visibility, infoType :: Scheme, infoAlias :: Name, infoFullName :: Name, infoRange :: Range}
   deriving (Show)
 
 infoCanonicalName :: Name -> NameInfo -> Name
@@ -100,6 +102,11 @@ fipFromNameInfo (InfoFun{infoFip=fip})      = fip
 fipFromNameInfo (InfoExternal{infoFip=fip}) = fip
 fipFromNameInfo _ = noFip
 
+infoDocString :: NameInfo -> String
+infoDocString (InfoVal{infoDoc=doc}) = doc
+infoDocString (InfoFun{infoDoc=doc}) = doc
+infoDocString (InfoCon{infoDoc=doc}) = doc
+infoDocString _ = ""
 
 infoElement :: NameInfo -> String
 infoElement info
@@ -117,17 +124,17 @@ infoIsVisible info = case infoVis info of
 coreVarInfoFromNameInfo :: NameInfo -> Core.VarInfo
 coreVarInfoFromNameInfo info
   = case info of
-      InfoVal _ _ tp _ _             -> Core.InfoNone
-      InfoFun _ _ tp (m,n) _ _       -> Core.InfoArity m n
+      InfoVal _ _ tp _ _ _            -> Core.InfoNone
+      InfoFun _ _ tp (m,n) _ _ _      -> Core.InfoArity m n
       InfoExternal _ _ tp format _ _ -> Core.InfoExternal format
       _                              -> matchFailure "Type.Infer.coreVarInfoFromNameInfo"
 
 coreExprFromNameInfo qname info
   = -- trace ("create name: " ++ show qname) $
     case info of
-      InfoVal vis cname tp _ _              -> Core.Var (Core.TName cname tp) (Core.InfoNone)
-      InfoFun vis cname tp ((m,n)) _ _      -> Core.Var (Core.TName cname tp) (Core.InfoArity m n)
-      InfoCon vis  tp repr _ _              -> Core.Con (Core.TName qname tp) repr
+      InfoVal vis cname tp _ _ _             -> Core.Var (Core.TName cname tp) (Core.InfoNone)
+      InfoFun vis cname tp ((m,n)) _ _ _     -> Core.Var (Core.TName cname tp) (Core.InfoArity m n)
+      InfoCon vis  tp repr _ _ _             -> Core.Con (Core.TName qname tp) repr
       InfoExternal vis cname tp format _ _  -> Core.Var (Core.TName cname tp) (Core.InfoExternal format)
       InfoImport _ _ _ _ _                  -> matchFailure "Type.Infer.coreExprFromNameInfo"
 
@@ -281,6 +288,7 @@ extractGamma isValue privateAsPublic (Core.Core name imports fixDefs tdefgroups 
 extractTypeDefGroup isValue updateVis (Core.TypeDefGroup tdefs)
   = gammaUnions (L.map (extractTypeDef isValue updateVis) tdefs)
 
+extractTypeDef :: (DataInfo -> Bool) -> (Visibility -> Visibility) -> Core.TypeDef -> Gamma
 extractTypeDef isValue updateVis tdef
   = case tdef of
      Core.Data dataInfo isExtend
@@ -290,7 +298,7 @@ extractTypeDef isValue updateVis tdef
      _ -> gammaEmpty
   where
     extractConInfo (conInfo,conRepr)
-      = gammaSingle (conInfoName conInfo) (InfoCon (updateVis (conInfoVis conInfo)) (conInfoType conInfo) conRepr conInfo (conInfoRange conInfo))
+      = gammaSingle (conInfoName conInfo) (InfoCon (updateVis (conInfoVis conInfo)) (conInfoType conInfo) conRepr conInfo (conInfoRange conInfo) (Core.typeDefDoc tdef))
 
 
 extractDefGroup updateVis (Core.DefRec defs)
@@ -302,24 +310,24 @@ extractDefGroup updateVis (Core.DefNonRec def)
 
 
 extractDef updateVis def@(Core.Def name tp expr vis sort inl nameRng doc)
-  = let info = createNameInfoX (updateVis vis) name sort nameRng tp -- specials since we cannot call isTopLevel as in coreDefInfo
+  = let info = createNameInfoX (updateVis vis) name sort nameRng tp doc -- specials since we cannot call isTopLevel as in coreDefInfo
     in gammaSingle (nonCanonicalName name) info
 
 
 coreDefInfo :: Core.Def -> (Name,NameInfo)
 coreDefInfo def@(Core.Def name tp expr vis sort inl nameRng doc)
   = (nonCanonicalName name,
-      createNameInfoX vis name (if (isDefFun sort && not (CoreVar.isTopLevel def)) then DefVal else sort) nameRng tp)
+      createNameInfoX vis name (if (isDefFun sort && not (CoreVar.isTopLevel def)) then DefVal else sort) nameRng tp doc)
     -- since we use coreDefInfo also for local definitions, we need to be careful to to use DefFun for
     -- things that do not get lifted to toplevel due to free type/variables. test: codegen/rec5
 
-createNameInfoX :: Visibility -> Name -> DefSort -> Range -> Type -> NameInfo
-createNameInfoX vis name sort rng tp
+createNameInfoX :: Visibility -> Name -> DefSort -> Range -> Type -> String -> NameInfo
+createNameInfoX vis name sort rng tp doc
   = -- trace ("createNameInfoX: " ++ show name ++ ", " ++ show sort ++ ": " ++ show (pretty tp)) $
     case sort of
-      DefFun _ fip -> InfoFun vis name tp (getArity tp) fip rng
-      DefVar       -> InfoVal vis name tp rng True
-      _            -> InfoVal vis name tp rng False
+      DefFun _ fip -> InfoFun vis name tp (getArity tp) fip rng doc
+      DefVar       -> InfoVal vis name tp rng True doc
+      _            -> InfoVal vis name tp rng False doc
 
 createNameInfo name isVal rng tp
   = createNameInfoX Public name (if isVal then DefVal else defFun []) rng tp

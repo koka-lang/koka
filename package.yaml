@@ -4,6 +4,8 @@
 # - util/install.bat
 # - util/Dockerfile
 # - util/minbuild
+# - support/vscode/koka.language-koka/src/workspace.ts
+# - support/vscode/koka.language-koka/package.json
 
 name:       koka
 version:    2.4.3
@@ -29,37 +31,66 @@ dependencies:
   - text
   - time
   - isocline >= 1.0.6
-  
+
+library:
+  other-extensions:
+    - CPP
+    - OverloadedStrings
+  source-dirs:
+    - src
+    - src/Platform/cpp
+  c-sources:
+    - src/Platform/cpp/Platform/cconsole.c
+  include-dirs:
+    - src/Platform/cpp/Platform
+  build-tools:
+    - alex
+  ghc-options:
+    - -j8
+    - -O2
+  cpp-options:
+    - -DKOKA_MAIN="koka"
+    - -DKOKA_VARIANT="release"
+    - -DKOKA_VERSION="2.4.3"
+    - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:isocline
+  when:
+    - condition: os(windows)
+      cpp-options: -DWINDOWS
+    - condition: os(darwin)
+      cpp-options: -DDARWIN
+
 executables:
   koka:
     main: Main.hs
-    # source-dirs: app
-    # dependencies: koka
-    other-extensions:
-      - CPP
-      - OverloadedStrings
-    source-dirs:
-      - src
-      - src/Platform/cpp
-    c-sources:
-      - src/Platform/cpp/Platform/cconsole.c
-    include-dirs:
-      - src/Platform/cpp/Platform
-    build-tools:
-      - alex
+    source-dirs: src/Main/langserver
+    dependencies:
+      - aeson
+      - async
+      - co-log-core
+      - koka
+      - lens
+      - lsp
+      - network-simple
+      - network
+      - text-rope
+      - stm
     ghc-options:
-      - -rtsopts 
+      - -rtsopts
       - -j8
-    cpp-options:
-      - -DKOKA_MAIN="koka"      
-      - -DKOKA_VARIANT="release"
-      - -DKOKA_VERSION="2.4.3"
-      - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:isocline
-    when:
-      - condition: os(windows)
-        cpp-options: -DWINDOWS
-      - condition: os(darwin)
-        cpp-options: -DDARWIN
+      - -O2
+      - -threaded
+      - '"-with-rtsopts=-N8"'
+
+  koka-plain:
+    main: Main.hs
+    source-dirs: src/Main/plain
+    dependencies: koka
+    ghc-options:
+      - -rtsopts
+      - -j8
+      - -O2
+      - -threaded
+      - '"-with-rtsopts=-N8"'
 
 tests:
   koka-test:

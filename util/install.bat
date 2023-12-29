@@ -4,7 +4,7 @@ rem Installation script for Koka; use -h to see command line options.
 rem ------------------------------------------------------------------
 
 setlocal
-set KOKA_VERSION=v2.4.2
+set KOKA_VERSION=v2.4.3
 set KOKA_PREFIX=%LOCALAPPDATA%\koka
 set KOKA_UNINSTALL=N
 set KOKA_HELP=N
@@ -16,12 +16,13 @@ set KOKA_IEXPRESS=N
 set KOKA_PREV_VERSION=
 set KOKA_PREV_PREFIX=
 set KOKA_ARCH=x64
+set KOKA_VSCODE=N
 
-set CLANG_VERSION=16.0.6
+set CLANG_VERSION=17.0.6
 set CLANG_INSTALL_BASE=LLVM-%CLANG_VERSION%-win64.exe
 set CLANG_INSTALL=%TEMP%\%CLANG_INSTALL_BASE%
 set CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%CLANG_VERSION%/%CLANG_INSTALL_BASE%
-set CLANG_INSTALL_SHA256=9a8cd30cc92fdf403d96217347861545a5bbff7a1a1a8527b5785ff0e9101111
+set CLANG_INSTALL_SHA256=89dc351af8e8fa1cafc6b48411e608aa9457c930a10f984aad5d21ab020165b2
 
 
 rem check if %LOCALAPPDATA% was not empty
@@ -42,7 +43,7 @@ goto args_next
     set KOKA_UNINSTALL=Y
     goto args_next
   )
-  if "%kk_flag%" == "--uninstall" (  
+  if "%kk_flag%" == "--uninstall" (
     set KOKA_UNINSTALL=Y
     goto args_next
   )
@@ -66,7 +67,11 @@ goto args_next
     set KOKA_IEXPRESS=Y
     goto args_next
   )
-  
+  if "%kk_flag%" == "--vscode" (
+    set KOKA_VSCODE=Y
+    goto args_next
+  )
+
   if "%kk_flag%" == "--version" (
     set KOKA_VERSION=%~2
     goto args_next2
@@ -80,7 +85,7 @@ goto args_next
     goto args_next2
   )
   if "%kk_flag%" == "-b" (
-    set KOKA_DIST_SOURCE=%~2    
+    set KOKA_DIST_SOURCE=%~2
     goto args_next2
   )
   if "%kk_flag%" == "--bundle" (
@@ -140,7 +145,7 @@ rem ---------------------------------------------------------
 rem Start install
 rem ---------------------------------------------------------
 
-if "%KOKA_DIST_SOURCE%" == "" goto install_download 
+if "%KOKA_DIST_SOURCE%" == "" goto install_download
 goto install_unpack
 
 
@@ -157,7 +162,7 @@ echo   -f, --force              continue without prompting
 echo   -u, --uninstall          uninstall koka (%KOKA_VERSION%)
 echo   -p, --prefix=^<dir^>       prefix directory (%KOKA_PREFIX%)
 echo   --url=^<url^>              download url (%KOKA_DIST_SOURCE_URL%)
-echo   --version=^<ver^>          version tag (%KOKA_VERSION%) 
+echo   --version=^<ver^>          version tag (%KOKA_VERSION%)
 rem echo   -b, --bundle=^<file^|url^>  full bundle location (%KOKA_DIST_SOURCE%)
 echo.
 goto end
@@ -172,13 +177,13 @@ echo Uninstalling %KOKA_VERSION% from prefix: %KOKA_PREFIX%
 
 if not exist "%KOKA_PREFIX%\share\koka\%KOKA_VERSION%" (
   echo Cannot find koka version %KOKA_VERSION% at %KOKA_PREFIX%
-  echo Done. 
+  echo Done.
   goto end
 )
 
 set KOKA_ANSWER=N
 if "%KOKA_FORCE%" neq "Y" (
-  set /p "KOKA_ANSWER=Are you sure? [yN] " 
+  set /p "KOKA_ANSWER=Are you sure? [yN] "
 )
 if /i "%KOKA_ANSWER:~,1%" neq "Y" goto end
 
@@ -206,7 +211,7 @@ rem ---------------------------------------------------------
 :install_download
 
 set KOKA_DIST_SOURCE=%TEMP%\koka-%KOKA_VERSION%-windows.tar.gz
-  
+
 echo Downloading: %KOKA_DIST_SOURCE_URL%
 curl --proto =https --tlsv1.2 -f -L -o "%KOKA_DIST_SOURCE%"  "%KOKA_DIST_SOURCE_URL%"
 if errorlevel 1 (
@@ -215,7 +220,7 @@ if errorlevel 1 (
 )
 
 rem ---------------------------------------------------------
-rem Install: unpack 
+rem Install: unpack
 rem ---------------------------------------------------------
 
 :install_unpack
@@ -241,7 +246,7 @@ copy /B /Y "%KOKA_PREFIX%\bin\koka.exe" "%KOKA_PREFIX%\bin\koka-%KOKA_VERSION%.e
 
 rem -----------------------------------------------------------------
 rem Install: set PATH environment variable.
-rem Note: we need powershell to set the path globally as 
+rem Note: we need powershell to set the path globally as
 rem the `setx` command cuts of environment values at 1024 characters!
 rem -----------------------------------------------------------------
 
@@ -258,7 +263,7 @@ if not errorlevel 1 (
   echo.
   set KOKA_ANSWER=Y
   if "%KOKA_FORCE%" neq "Y" (
-    set /p "KOKA_ANSWER=Add the koka binary directory to the search PATH? [Yn] " 
+    set /p "KOKA_ANSWER=Add the koka binary directory to the search PATH? [Yn] "
   )
   if /i "%KOKA_ANSWER:~,1%" == "N" goto done_env
 
@@ -286,6 +291,8 @@ if exist "%USERPROFILE%\.atom\packages" (
   setx koka_editor "atom %%f:%%l:%%c" > nul
 )
 
+rem Do not try to install an extension when invoked from vscode
+if "%KOKA_VSCODE%" == "Y" goto done_vscode
 where /Q code
 if errorlevel 1 goto done_vscode
 
@@ -299,7 +306,7 @@ cmd /C "code --force --install-extension koka.language-koka"
 if errorlevel 1 (
   echo Could not install VS Code editor support
   goto done_vscode
-) 
+)
 
 set  koka_editor=code --goto %%f:%%l:%%c
 setx koka_editor "code --goto %%f:%%l:%%c" > nul
@@ -319,7 +326,7 @@ rem ---------------------------------------------------------
 
 if "%KOKA_PREV_PREFIX%" == "" goto done_install
 
-rem always delete a previous koka.exe _if installed at a different prefix_ on the PATH 
+rem always delete a previous koka.exe _if installed at a different prefix_ on the PATH
 rem (so the newly installed koka gets found instead of an older one)
 if "%KOKA_PREV_PREFIX%" neq "%KOKA_PREFIX%" (
   echo "%PATH%" | find "%KOKA_PREV_PREFIX%\bin" >nul
@@ -342,14 +349,14 @@ if not exist "%KOKA_PREV_PREFIX%\lib\koka\%KOKA_PREV_VERSION%" goto done_install
 echo.
 set KOKA_ANSWER=N
 if "%KOKA_FORCE%" neq "Y" (
-  set /p "KOKA_ANSWER=Found previous koka installation %KOKA_PREV_VERSION%, Uninstall? [yN] " 
+  set /p "KOKA_ANSWER=Found previous koka installation %KOKA_PREV_VERSION%, Uninstall? [yN] "
 )
 if /i "%KOKA_ANSWER:~,1%" neq "Y" goto done_install
 
 :uninstallprev
 echo Uninstalling previous koka installation %KOKA_PREV_VERSION%..
 if exist "%KOKA_PREV_PREFIX%\bin\koka-%KOKA_PREV_VERSION%.exe" (
-  echo - remove executable            : ^<prefix^>\bin\koka-%KOKA_PREV_VERSION%.exe  
+  echo - remove executable            : ^<prefix^>\bin\koka-%KOKA_PREV_VERSION%.exe
   del /Q "%KOKA_PREV_PREFIX%\bin\koka-%KOKA_PREV_VERSION%.exe"
 )
 echo - remove pre-compiled libraries: ^<prefix^>\lib\koka\%KOKA_PREV_VERSION%
@@ -374,12 +381,12 @@ if not errorlevel 1 goto done_clang
 
 echo.
 echo -----------------------------------------------------------------------
-echo Cannot find the clang-cl compiler. 
+echo Cannot find the clang-cl compiler.
 echo A C compiler is required for Koka to function.
 
 set KOKA_ANSWER=Y
 if "%KOKA_FORCE%" neq "Y" (
-  set /p "KOKA_ANSWER=Would you like to download and install clang %CLANG_VERSION% for Windows? [Yn] " 
+  set /p "KOKA_ANSWER=Would you like to download and install clang %CLANG_VERSION% for Windows? [Yn] "
 )
 if /i "%KOKA_ANSWER:~,1%" neq "Y" (
   echo Canceled automatic install.
@@ -388,14 +395,14 @@ if /i "%KOKA_ANSWER:~,1%" neq "Y" (
 )
 
 echo.
-echo Downloading clang over https from: 
+echo Downloading clang over https from:
 echo  %CLANG_INSTALL_URL%
 curl --proto =https --tlsv1.2 -f -L -o "%CLANG_INSTALL%" "%CLANG_INSTALL_URL%"
 if errorlevel 1 goto CLANG_SHOWURL
 
 if "%CLANG_INSTALL_SHA256%" neq "" (
   echo Verifying sha256 hash ...
-  timeout /T 1 > nul  
+  timeout /T 1 > nul
   CertUtil -hashfile "%CLANG_INSTALL%" sha256 | find "%CLANG_INSTALL_SHA256%" > nul
   if errorlevel 1 (
     echo Installation of %CLANG_INSTALL% is canceled as it does not match the
@@ -404,7 +411,7 @@ if "%CLANG_INSTALL_SHA256%" neq "" (
     goto CLANG_SHOWURL
   )
   echo Ok.
-  timeout /T 1 > nul  
+  timeout /T 1 > nul
 )
 
 echo.
@@ -417,7 +424,7 @@ del /Q "%CLANG_INSTALL%"
 goto done_clang
 
 :CLANG_SHOWURL
-echo Please install clang for Windows manually from: https://llvm.org/builds
+echo Please install clang for Windows manually from: https://github.com/llvm/llvm-project/releases/latest
 
 :done_clang
 
@@ -431,9 +438,11 @@ echo Installed koka %KOKA_VERSION% to: %KOKA_PREFIX%\bin\koka
 echo.
 
 if "%KOKA_IEXPRESS%" == "Y" (
-  set /p "KOKA_ANSWER=Press <enter> to finish installation.." 
+  set /p "KOKA_ANSWER=Press <enter> to finish installation.."
 ) else (
-  echo Type 'koka' to enter the interactive compiler.
+  if "%KOKA_VSCODE%" == "N" (
+    echo Type 'koka' to enter the interactive compiler.
+  )
 )
 echo.
 
@@ -446,7 +455,7 @@ setlocal
 
 :end
 if "%KOKA_IEXPRESS%" == "Y" (
-  set /p "KOKA_ANSWER=Press <enter> to finish installation.." 
+  set /p "KOKA_ANSWER=Press <enter> to finish installation.."
 )
 echo.
 endlocal

@@ -126,6 +126,7 @@ type TvScheme = M.Map TypeVar (Prec -> Doc)
 -- | Pretty print environment for types.
 data Env     = Env{ showKinds      :: Bool
                   , showIds        :: Bool -- show id numbers
+                  , showFlavours :: Bool
                   , expandSynonyms :: Bool
                   , colors  :: ColorScheme
                   , nice    :: Nice
@@ -156,7 +157,9 @@ data Env     = Env{ showKinds      :: Bool
 -- | Default pretty print environment
 defaultEnv :: Env
 defaultEnv
-  = Env False False False 
+  = Env False False 
+        True -- showFlavours 
+        False 
         defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty) False
         False
         []        
@@ -192,8 +195,9 @@ ppSchemeEffect env tp
 
 prettyDefFunType :: Env -> [ParamInfo] -> Scheme -> Doc
 prettyDefFunType env pinfos tp 
-  = let (Just params,pre,post) = ppDeclType env pinfos tp
-    in pre <.> parens (commaSep (map ppParam params)) <+> text "->" <+> post
+  = case ppDeclType env pinfos tp of
+      (Just params,pre,post) -> pre <.> parens (commaSep (map ppParam params)) <+> text "->" <+> post
+      (Nothing,pre,post) -> pre <+> text "()" <+> text "->" <+> post
   where
     ppParam (name,pinfo,tpDoc)  
       = (case pinfo of Borrow -> text "^" <+> (if nameNil == name then text "_" else ppName env name) <+> text ": "
@@ -460,10 +464,11 @@ ppTypeVar :: Env -> TypeVar -> Doc
 ppTypeVar env (TypeVar id kind flavour)
     = colorByKindDef env kind colorTypeVar $
       wrapKind (showKinds env) env kind $
-      (case flavour of
-         Meta   -> text "_"
-         Skolem -> if (coreIface env) then text "__" else text "$"
-         _      -> empty) <.> nicePretty (nice env) id <.> (if (showIds env) then text ("=" ++ show id) else empty)
+      let flav = case flavour of
+                    Meta   -> text "_"
+                    Skolem -> if (coreIface env) then text "__" else text "$"
+                    _      -> empty in
+      (if showFlavours env then flav else empty) <.> nicePretty (nice env) id <.> (if (showIds env) then text ("=" ++ show id) else empty)
 
 ppTypeCon :: Env -> TypeCon -> Doc
 ppTypeCon env (TypeCon name kind)

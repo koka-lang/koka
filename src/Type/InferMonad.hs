@@ -78,7 +78,7 @@ import Data.Ord(comparing)
 import Control.Applicative
 import Control.Monad
 import Lib.PPrint
-import Common.Range
+import Common.Range hiding (Pos)
 import Common.Unique
 import Common.Failure
 import Common.Error
@@ -851,7 +851,7 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
 data St     = St{ uniq :: !Int, sub :: !Sub, preds :: ![Evidence], holeAllowed :: !Bool, mbRangeMap :: Maybe RangeMap }
 
 
-runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error (a,Int,Maybe RangeMap)
+runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
   = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False) 
            (St unique subNull [] False mbrm) of
@@ -1023,7 +1023,7 @@ extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
 
 -- Specialized for recursive defs where we sometimes get InfoVal even though we want InfoFun? is this correct for the csharp backend?
 coreDefInfoX def@(Core.Def name tp expr vis sort inl nameRng doc)
-  = (nonCanonicalName name, createNameInfoX Public name sort nameRng tp)
+  = (nonCanonicalName name, createNameInfoX Public name sort nameRng tp doc)
 
 extendGamma :: Bool -> [(Name,NameInfo)] -> Inf a -> Inf (a)
 extendGamma isAlreadyCanonical defs inf
@@ -1129,7 +1129,7 @@ withGammaType :: Range -> Type -> Inf a -> Inf a
 withGammaType range tp inf
   = do defName <- currentDefName
        name <- uniqueName (show defName)
-       extendInfGamma [(name,(InfoVal Public name tp range False))] inf
+       extendInfGamma [(name,(InfoVal Public name tp range False ""))] inf
 
 currentDefName :: Inf Name
 currentDefName

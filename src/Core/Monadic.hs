@@ -47,7 +47,7 @@ trace s x =
    -- Lib.Trace.trace s
     x
 
-monTransform :: Pretty.Env -> CorePhase ()
+monTransform :: Pretty.Env -> CorePhase b ()
 monTransform penv 
   = liftCorePhaseUniq $ \uniq defs -> runMon penv uniq (monDefGroups defs)
 

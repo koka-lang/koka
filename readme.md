@@ -3,12 +3,6 @@
 <!--
 [<img align="right" src="https://travis-ci.org/koka-lang/koka.svg?branch=master"/>](https://travis-ci.org/koka-lang/koka)
 -->
-<a  href="https://matrix.to/#/#koka-lang_koka:gitter.im">
-<img align="right" style="margin: 5px" src="https://img.shields.io/matrix/koka-lang:matrix.org?label=chat%20on%20matrix"/>
-</a>
-<a href="https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">
-<img align="right" style="margin: 5px" src="https://badges.gitter.im/koka-lang/koka.svg"/>
-</a>
 
 &nbsp;
 
@@ -279,9 +273,6 @@ More advanced projects:
 * [x] Update the JavaScript backend to 1) use modern modules instead of amdefine, 2) use the new bigints instead of
   bigint.js, and 3) add support for int64. (landed in the `dev` branch)
 * [x] Port `std/text/regex` from v1 (using PCRE)
-* [ ] A language server for Visual Studio Code and Atom. Koka can already generate a
-  typed [range map](src/Syntax/RangeMap.hs) so this should be managable. Partially done: see PR #100 (by @fwcd) -- it just
-  needs work on packaging it to make it easy to build and install as part of the Koka installer.
 * [ ] Package management of Koka modules.
 * [x] Compile to WASM (using emscripten on the current C backend)
 * [ ] Improve compilation of local state to use local variables directly (in C) without allocation. Tricky though due to multiple resumptions.
@@ -317,6 +308,17 @@ The following is the immediate todo list to be completed in the coming months:
 
 * [ ] Port `std/async` (using `libuv`).
 * [ ] Proper overloading with (a form of) type classes. (in design phase).
+
+LSP Related Tasks:
+* [ ] Generate completions for effect handlers (with empty bodies of all the functions)
+* [ ] Generate show / (==) for datatypes
+* [ ] Find References
+* [ ] Generate Type Annotations
+
+Extension Related Tasks:
+
+VSCode:
+* [ ] Add support for debugging an executable
 
 Contact me if you are interested in tackling some of these :-)
 
@@ -460,7 +462,13 @@ $ out\v2.0.5\cl-release\test_bench_koka_rbtree --kktime
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
 
-## Older Release Notes
+## Language Server
+
+See the [`support/vscode/README.md`](support/vscode/README.md) for how to
+build the VS Code language server.
+
+# Older Release Notes
+
 
 * `v2.1.9`, 2021-06-23: initial support for cross-module specialization (by Steven Fontanella).
 * `v2.1.8`, 2021-06-17: initial support for macOS M1 and Linux arm64, improved readline, minor fixes.
@@ -482,6 +490,7 @@ info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 * `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C
   compilation, local install support.
 * `v2.0.0`, 2020-08-21: initial v2 release.
+
 
 # References
 

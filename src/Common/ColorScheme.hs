@@ -12,6 +12,8 @@
 module Common.ColorScheme( ColorScheme(..)
                          , Color(..)
                          , defaultColorScheme
+                         , darkColorScheme
+                         , lightColorScheme
                          -- * Flags
                          , readColorFlags
                          , ansiColor
@@ -55,7 +57,7 @@ data ColorScheme  = ColorScheme
                       , colorTypeSpecial :: Color
                       , colorTypeParam  :: Color
                       , colorNameQual   :: Color
-                      }
+                      } deriving (Show, Eq)
 
 -- | The default color scheme
 defaultColorScheme, darkColorScheme, lightColorScheme :: ColorScheme
@@ -89,7 +91,7 @@ darkColorScheme
                             , colorTypeKeywordOp = colorType c -- colorReservedOp c
                             , colorTypeParam   = colorParameter c
                             }
-    in c
+    in defaultTo c White
   
 lightColorScheme
   = let c = darkColorScheme {
@@ -104,7 +106,44 @@ lightColorScheme
               , colorMarker      = colorInterpreter c
               , colorString      = Red           
             }
-    in c  
+    in defaultTo c Black   
+
+defaultColor :: Color -> Color -> Color
+defaultColor color clr
+  = if (clr == ColorDefault) then color else clr
+
+defaultTo :: ColorScheme -> Color -> ColorScheme
+defaultTo cs color = 
+  cs{  colorType = defaultColor color $ colorType cs
+    , colorParameter = defaultColor color $ colorParameter cs
+    , colorKind = defaultColor color $ colorKind cs
+    , colorMarker = defaultColor color $ colorMarker cs
+    , colorWarning = defaultColor color $ colorWarning cs
+    , colorError = defaultColor color $ colorError cs
+    , colorSource = defaultColor color $ colorSource cs
+    , colorInterpreter = defaultColor color $ colorInterpreter cs
+    , colorCommand = defaultColor color $ colorCommand cs
+    , colorKeyword = defaultColor color $ colorKeyword cs
+    , colorEffect = defaultColor color $ colorEffect cs
+    , colorRange = defaultColor color $ colorRange cs
+    , colorSep = defaultColor color $ colorSep cs
+    -- syntax coloring
+    , colorComment = defaultColor color $ colorComment cs
+    , colorReserved = defaultColor color $ colorReserved cs
+    , colorReservedOp = defaultColor color $ colorReservedOp cs
+    , colorSpecial = defaultColor color $ colorSpecial cs
+    , colorString = defaultColor color $ colorString cs
+    , colorNumber = defaultColor color $ colorNumber cs
+    , colorModule = defaultColor color $ colorModule cs
+    , colorCons = defaultColor color $ colorCons cs
+    , colorTypeCon = defaultColor color $ colorTypeCon cs
+    , colorTypeVar = defaultColor color $ colorTypeVar cs
+    , colorTypeKeyword = defaultColor color $ colorTypeKeyword cs
+    , colorTypeKeywordOp = defaultColor color $ colorTypeKeywordOp cs
+    , colorTypeSpecial = defaultColor color $ colorTypeSpecial cs
+    , colorTypeParam = defaultColor color $ colorTypeParam cs
+    , colorNameQual = defaultColor color $ colorNameQual cs
+    }
 
 emptyColorScheme
   = makeColorScheme ColorDefault

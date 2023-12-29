@@ -207,7 +207,7 @@ lookupConInfos newtypes tp
   = case expandSyn tp of
       TCon tcon -> case lookupDataInfo newtypes (typeconName tcon) of
                      Just di -> dataInfoGetConInfos di    -- [] for open or literals
-                     Nothing -> trace ("Core.AnalysisMatch.lookupConInfos: not found: " ++ show (typeconName tcon) ++ ": " ++ show newtypes) $
+                     Nothing -> trace ("Core.AnalysisMatch.lookupConInfos: not found: " ++ show (typeconName tcon)) $
                                 []
       TApp t targs -> lookupConInfos newtypes t -- list<a>
       _         -> -- trace ("Core.AnalysisMatch.lookupConInfos: not a tcon: " ++ show (pretty t)) $

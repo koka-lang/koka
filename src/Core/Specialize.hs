@@ -87,7 +87,7 @@ runSpecM uniq readState specM =
   Specialization
 --------------------------------------------------------------------------}
 
-specialize :: Inlines -> Env -> CorePhase ()
+specialize :: Inlines -> Env -> CorePhase b ()
 specialize specEnv penv
   = liftCorePhaseUniq  $ \uniq defs ->
     -- TODO: use uniqe int to generate names and remove call to uniquefyDefGroups?

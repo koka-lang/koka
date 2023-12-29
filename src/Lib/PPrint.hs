@@ -18,7 +18,7 @@ module Lib.PPrint
         ( Doc, Docs
         , Pretty(pretty,prettyList), putPretty
 
-        , show, putDoc, hPutDoc, asString
+        , show, putDoc, hPutDoc, asString, makeMarkdown
 
         , (<.>)
         , (<+>)
@@ -42,7 +42,7 @@ module Lib.PPrint
         , comma, space, dot, backslash
         , semi, colon, equals
 
-        , string, bool, int, integer, float, double, rational
+        , string, stringStripComments, bool, int, integer, float, double, rational
 
         , softline, softbreak
         , empty, char, text, text', line, linebreak, nest, group
@@ -57,7 +57,7 @@ module Lib.PPrint
         , writePretty, writePrettyLn
         , writeDoc, writeDocW
         , isEmptyDoc
-        
+
         , dstartsWith
         , dendsWith
         , dcontains
@@ -65,7 +65,7 @@ module Lib.PPrint
 
 
 import System.IO           -- (Handle,hPutStr,hPutChar,stdout,openFile,hClose)
-import Lib.Printer  
+import Lib.Printer
 import Platform.Runtime( finally )
 
 import Data.Text.Encoding (encodeUtf8) -- ,decodeUtf8With)
@@ -119,7 +119,7 @@ vsep            = fold (<->) . filter (not . isEmpty)
 
 cat             = group . vcat
 fillCat         = fold (<//>)
-hcat            = fold (<.>) 
+hcat            = fold (<.>)
 vcat            = fold (<-->) . filter (not . isEmpty)
 
 fold f []       = empty
@@ -180,6 +180,18 @@ string ""       = empty
 string ('\n':s) = line <.> string s
 string s        = case (span (/='\n') s) of
                     (xs,ys) -> text xs <.> string ys
+
+-- stringStripComments is like "string" but removes leading // or /// after newlines or at the very start
+stringStripComments ('/':'/':'/':s) = ssc s
+stringStripComments ('/':'/':s) = ssc s
+stringStripComments s           = ssc s
+
+ssc ""       = empty
+ssc ('\n':'/':'/':'/':s) = line <.> ssc s
+ssc ('\n':'/':'/':s) = line <.> ssc s
+ssc ('\n':s) = line <.> ssc s
+ssc s        = case (span (/='\n') s) of
+                    (xs,ys) -> text xs <.> ssc ys
 
 bool :: Bool -> Doc
 bool b          = text (show b)
@@ -303,9 +315,20 @@ data SimpleDoc  = SEmpty
                 | SChar Int Char SimpleDoc
                 | SText Int String SimpleDoc
                 | SLine Int SimpleDoc
-                | SColorOpen Bool Color SimpleDoc 
+                | SColorOpen Bool Color SimpleDoc
                 | SColorClose SimpleDoc
 
+makeMarkdown :: Doc -> Doc
+makeMarkdown doc =
+  case doc of
+    Line True -> Cat (Text "  ") (Line True)
+    Column f -> Column (makeMarkdown . f)
+    Nesting f -> Nesting (makeMarkdown . f)
+    Cat l r -> Cat (makeMarkdown l) (makeMarkdown r)
+    Nest i d -> Nest i (makeMarkdown d)
+    Union l r -> Union (makeMarkdown l) (makeMarkdown r)
+    Colored f c d -> Colored f c (makeMarkdown d)
+    _ -> doc
 
 isEmpty Empty   = True
 isEmpty _       = False
@@ -356,27 +379,27 @@ dstartsWith :: Doc -> String -> Bool
 dstartsWith doc ""  = True
 dstartsWith doc pre
   = dstartsWithT (texts doc) pre (length pre)
-  
+
 dstartsWithT [] pre n  = (n==0)
-dstartsWithT (s:xs) pre n 
+dstartsWithT (s:xs) pre n
   = let m = length s
-    in if (m >= n) 
+    in if (m >= n)
         then (take n s == pre)
-        else (take m pre == s && dstartsWithT xs (drop m pre) (n - m)) 
+        else (take m pre == s && dstartsWithT xs (drop m pre) (n - m))
 
 dendsWith :: Doc -> String -> Bool
 dendsWith doc ""  = True
 dendsWith doc post
   = dendsWithT (rtexts doc) (reverse post) (length post)
-  
-dendsWithT [] rpost n  = (n==0)
-dendsWithT (s:xs) rpost n 
-  = let m = length s
-    in if (m >= n) 
-        then (take n s == rpost)
-        else (take m rpost == s && dendsWithT xs (drop m rpost) (n - m)) 
 
-    
+dendsWithT [] rpost n  = (n==0)
+dendsWithT (s:xs) rpost n
+  = let m = length s
+    in if (m >= n)
+        then (take n s == rpost)
+        else (take m rpost == s && dendsWithT xs (drop m rpost) (n - m))
+
+
 texts :: Doc -> [String]  -- lazy list of text fragments
 texts doc
   = case doc of
@@ -391,7 +414,7 @@ texts doc
       Nesting f   -> texts (f 0)
       Colored f c d -> texts d
       _             -> []
-      
+
 
 rtexts :: Doc -> [String]  -- lazy list of reversed text fragments
 rtexts doc
@@ -438,7 +461,7 @@ renderPrettyB rfrac w x
       --         n = indentation of current line
       --         k = current column
       --        (ie. (k >= n) && (k - n == count of inserted characters)
-      best b n k []      
+      best b n k []
         = mempty
       best b n k ((i,d):ds)
         = case d of
@@ -528,7 +551,7 @@ renderCompact x
                         Union x y   -> scan k (y:ds)
                         Column f    -> scan k (f k:ds)
                         Nesting f   -> scan k (f 0:ds)
-                        Colored f c x-> SColorOpen f c (scan k (x : ColoredEnd : ds))  
+                        Colored f c x-> SColorOpen f c (scan k (x : ColoredEnd : ds))
                         ColoredEnd   -> SColorClose (scan k ds)
 
 
@@ -556,14 +579,14 @@ displayP p w simpleDoc
 
       display' k SEmpty            = return (k,SEmpty)
       display' k (SChar i c x)     | k+1 >= w && i+1 < w = display k (SLine (i+1) (skipSpaces (SChar i c x)))
-      display' k (SChar i c x)     = do{ write p [c]; display (k+1) x }
+      display' k (SChar i c x)     = do { write p [c]; display (k+1) x }
       display' k (SText i s x)     | k+(length s) >= w && i+(length s) < w = display k (SLine (i+1) (skipSpaces (SText i s x)))
-      display' k (SText i s x)     = do{ write p s; display (k+(length s)) x  }
-      display' k (SLine i x)       = do{ writeLn p ""; write p (indentation i); display i x }
-      display' k (SColorOpen f c x)= do{ let with = if f then withColor else withBackColor
-                                       ; (kc,cont) <- with p c (display k x)
-                                       ; display kc cont
-                                       }
+      display' k (SText i s x)     = do { write p s; display (k+(length s)) x  }
+      display' k (SLine i x)       = do { writeLn p ""; write p (indentation i); display i x }
+      display' k (SColorOpen f c x)= do { let with = if f then withColor else withBackColor
+                                        ; (kc,cont) <- with p c (display k x)
+                                        ; display kc cont
+                                        }
       display' k (SColorClose x)   = return (k,x)
 
       skipSpaces (SChar i c x)     | isSpace c = skipSpaces x
@@ -592,17 +615,17 @@ instance Show Doc where
 
 putDoc :: Doc -> IO ()
 putDoc doc              = hPutDoc stdout doc
-                             
+
 
 hPutDoc :: Handle -> Doc -> IO ()
-hPutDoc handle doc      
+hPutDoc handle doc
   = hPutDocW defaultWidth handle doc
-    
+
 hPutDocW :: Int -> Handle -> Doc -> IO ()
 hPutDocW width handle doc
   = do s <- return $ encodeUtf8
                    $ TL.toStrict
-                   $ B.toLazyText 
+                   $ B.toLazyText
                    $ renderPrettyB 0.5 width doc
        B.hPutStr handle s
 
@@ -643,7 +666,7 @@ indentation 15 = "               "
 indentation 16 = "                "
 indentation 17 = "                 "
 indentation n  = spaces n
-                
+
 defaultWidth :: Int
 defaultWidth = 160
-             
+

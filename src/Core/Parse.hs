@@ -41,12 +41,12 @@ import Lib.Trace
 {--------------------------------------------------------------------------
   Parse core interface files
 --------------------------------------------------------------------------}
-type ParseInlines = Gamma -> Error [InlineDef]
+type ParseInlines = Gamma -> Error () [InlineDef]
 
-parseCore :: FilePath -> IO (Error (Core, ParseInlines))
+parseCore :: FilePath -> IO (Error b (Core, ParseInlines))
 parseCore fname
   = do input <- readInput fname
-       return (lexParse False (requalify . allowDotIds) program fname 1 input)
+       return $ ignoreSyntaxWarnings $ lexParse False (requalify . allowDotIds) program fname 1 input
 
 requalify :: [Lexeme] -> [Lexeme]
 requalify lexs
@@ -107,7 +107,7 @@ allowDotIds lexs
 
 parseInlines :: Core -> Source -> Env -> [Lexeme] -> ParseInlines
 parseInlines prog source env inlines gamma
-  = parseLexemes (pInlines env{ gamma = gamma }) source inlines
+  = ignoreSyntaxWarnings $ parseLexemes (pInlines env{ gamma = gamma }) source inlines
 
 pInlines :: Env -> LexParser [InlineDef]
 pInlines env
@@ -1046,7 +1046,7 @@ envLookupCon :: Env -> Name -> LexParser NameInfo
 envLookupCon env name
   = case gammaLookupExactCon name (gamma env) of
      [con@(InfoCon{})] -> return con
-     res               -> fail $ "unknown constructor: " ++ show name ++ ": " ++ show res -- ++ ":\n" ++ show (gamma env)
+     res               -> fail $ "when parsing " ++ show (modName env) ++ " unknown constructor: " ++ show name ++ ": " ++ show res -- ++ ":\n" ++ show (gamma env)
 
 envLookupVar :: Env -> Name -> LexParser Expr
 envLookupVar env name

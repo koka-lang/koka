@@ -51,7 +51,7 @@ traceGroups dgs
     showDG (DefNonRec def) = show (defName def)    
 
 
-liftFunctions :: Pretty.Env -> CorePhase ()
+liftFunctions :: Pretty.Env -> CorePhase b ()
 liftFunctions penv 
   = liftCorePhaseUniq $ \uniq defs ->
     runLift penv uniq (liftDefGroups True defs)

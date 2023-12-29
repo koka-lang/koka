@@ -1,6 +1,6 @@
 //------------------------------------------------
-// The choices handler is wrongly typed 
-// since it doesn't issue a 'resume' 
+// The choices handler is wrongly typed
+// since it doesn't issue a 'resume'
 //------------------------------------------------
 
 effect nondet {
@@ -26,7 +26,7 @@ val solutions = handler {
 }
 
 fun show( xss : list<list<int>> ) : string {
-  xss.showList(fun(xs) { xs.showList(core/show) } )
+  xss.showList(fn(xs) { xs.showList(core/show) } )
 }
 
 fun test1() {
@@ -39,12 +39,12 @@ effect state<s> {
   fun put(i:s) : ()
 }
 
-fun state(init,action) 
+fun state(init,action)
   var s := init
   handle(action)
     fun get()  { s }
     fun set(x) { s := x }
-  
+
 
 fun incr(i = 1) : state<int> () {
   put(get()+i)
