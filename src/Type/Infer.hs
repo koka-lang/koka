@@ -1034,7 +1034,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                           -- _            -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                  -- traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
                  (_,gtp,_) <- resolveFunName (if isQualified opName then opName else qualify (qualifier effectName) opName)
-                                               (CtxFunArgs (length pars) [] Nothing) patRng nameRng -- todo: resolve more specific with known types?
+                                               (CtxFunArgs (length pars + (if isInstance then 1 else 0)) [] Nothing) patRng nameRng -- todo: resolve more specific with known types?
                  (tp,_,_)  <- instantiateEx nameRng gtp
                  let parTps = case splitFunType tp of
                                 Just (tpars,_,_) -> (if (isInstance) then tail else id) $ -- drop the first parameter of an op for an instance (as it is the instance name)
