@@ -21,8 +21,8 @@ const defaultShell  = (os.platform() === "win32" ? "C:\\Windows\\System32\\cmd.e
 
 // Development: set kokaDevDir to a non-empty string to (un)install from a local bundle instead of github
 const kokaDevDir    = ""
-                      // "c:/users/daan/dev/koka-ls"
-                      // "/Users/daan/dev/koka-ls"
+                      // "c:/users/daan/dev/koka-dev"
+                      // "/Users/daan/dev/koka-dev"
 
 // Configuration
 export class KokaConfig {
@@ -32,8 +32,9 @@ export class KokaConfig {
     this.compilerVersion = "1.0.0"
     this.languageServerArgs = []
     this.target = "c"
-    this.enableDebugExtension = vsConfig.get('debugExtension') as boolean
-    this.cwd = vsConfig.get('languageServer.cwd') as string || vscode.workspace.workspaceFolders![0].uri.fsPath
+    this.enableDebugExtension = vsConfig.get('dev.debugExtension') as boolean
+    this.developmentPath = vsConfig.get('dev.developmentPath') as string ?? ""
+    this.cwd = vsConfig.get('languageServer.workingDirectory') as string || vscode.workspace.workspaceFolders![0].uri.fsPath
     this.compilerArgs = vsConfig.get('languageServer.compilerArgs') as string[] || []
     this.autoFocusTerminal = vsConfig.get('languageServer.autoFocusTerminal') as boolean ?? false;
 
@@ -47,6 +48,7 @@ export class KokaConfig {
   autoFocusTerminal: boolean        // focus on the terminal automatically on errors?
   target: string                    // backend target (c,c32,c64c,wasm,jsnode)
   cwd: string                       // working directory for running the compiler
+  developmentPath : string          // root path to a development repository of the compiler
   extensionVersion: string          // Version of the extension
   latestCompilerVersion: string     // Latest known version of the compiler (used at build time of the extension)
 
@@ -67,8 +69,8 @@ export class KokaConfig {
   // and possibly prompt the use to install the koka compiler if it is not found or out of date
   async updateCompilerPaths(context: vscode.ExtensionContext, vsConfig: vscode.WorkspaceConfiguration, allowInstall : Boolean) : Promise<Boolean> {
     let paths = []
-    if (allowInstall) paths = await findInstallCompilerPaths(context, vsConfig, this.latestCompilerVersion)
-                 else paths = findCompilerPaths(vsConfig)
+    if (allowInstall) paths = await findInstallCompilerPaths(context, vsConfig, this.latestCompilerVersion, this.developmentPath)
+                 else paths = findCompilerPaths(vsConfig, this.developmentPath)
 
     if (paths.length === 0) {
       console.log("Koka: cannot find a compiler")
@@ -105,7 +107,7 @@ export class KokaConfig {
 
   // install the latest Koka compiler
   async installCompiler(context: vscode.ExtensionContext, vsConfig: vscode.WorkspaceConfiguration) : Promise<Boolean> {
-    await installKoka(context, vsConfig, "", this.latestCompilerVersion, true /* force */)
+    await installKoka(context, vsConfig, "", this.latestCompilerVersion, this.developmentPath, true /* force */)
     // todo: use instead `this.updateCompilerPath(pathToTheJustInstalledCompiler)`
     return this.updateCompilerPaths(context,vsConfig,false)
   }
@@ -129,28 +131,29 @@ export class KokaConfig {
 
 async function findInstallCompilerPaths(context: vscode.ExtensionContext,
                                                vsConfig: vscode.WorkspaceConfiguration,
-                                               latestCompilerVersion : string): Promise<string[]> {
-  const paths = findCompilerPaths(vsConfig)
+                                               latestCompilerVersion : string,
+                                               developmentPath : string): Promise<string[]> {
+  const paths = findCompilerPaths(vsConfig, developmentPath)
   if (paths.length === 0) {
     console.log('Koka: unable to find an installed Koka compiler')
     const reason = "The Koka compiler cannot be not found in the PATH"
-    await installKoka(context, vsConfig, reason, latestCompilerVersion, false)
-    return findCompilerPaths(vsConfig)
+    await installKoka(context, vsConfig, reason, latestCompilerVersion, developmentPath, false)
+    return findCompilerPaths(vsConfig, developmentPath)
   }
 
   const defaultPath = paths[0]
   const compilerVersion = getCompilerVersion(defaultPath) ?? "1.0.0"
   if (semver.lt(compilerVersion, latestCompilerVersion) ) {
     const reason = `The currently installed Koka compiler is version ${compilerVersion} while the latest is ${latestCompilerVersion}`
-    await installKoka(context, vsConfig, reason, latestCompilerVersion, false)
-    return findCompilerPaths(vsConfig)
+    await installKoka(context, vsConfig, reason, latestCompilerVersion, developmentPath, false)
+    return findCompilerPaths(vsConfig, developmentPath)
   }
 
   console.log("Koka: using Koka compiler at: " + defaultPath);
   return paths
 }
 
-function findCompilerPaths(vsConfig: vscode.WorkspaceConfiguration) : string[] {
+function findCompilerPaths(vsConfig: vscode.WorkspaceConfiguration, developmentPath : string) : string[] {
   let compPaths = []
 
   // add user configured path?
@@ -165,31 +168,28 @@ function findCompilerPaths(vsConfig: vscode.WorkspaceConfiguration) : string[] {
     }
   }
 
-  // check developer paths
-  const devPaths = [path.join(home, 'koka')] // , path.join(home,'dev','koka')]
-  for( const devp of devPaths) {
-    if (fs.existsSync(devp)) {
-      let cmdGetInstallRoot = 'stack path --local-install-root'
+  // check developer path
+  if (developmentPath && fs.existsSync(developmentPath)) {
+    let cmdGetInstallRoot = 'stack path --local-install-root'
 
-      // Linux ghcup installation does not show up in vscode's process.PATH,
-      // ensure stack uses the correct ghc by sourcing the ghcup env script
-      if (!["win32","darwin"].includes(os.platform())) {
-        const ghcEnv = `${home}/.ghcup/env`
-        if (fs.existsSync(ghcEnv)) {
-          cmdGetInstallRoot = `${process.env.SHELL} -c "source ${ghcEnv} && stack path --local-install-root"`
-        }
+    // Linux ghcup installation does not show up in vscode's process.PATH,
+    // ensure stack uses the correct ghc by sourcing the ghcup env script
+    if (!["win32"].includes(os.platform())) {
+      const ghcEnv = `${home}/.ghcup/env`
+      if (fs.existsSync(ghcEnv)) {
+        cmdGetInstallRoot = `${process.env.SHELL} -c "source ${ghcEnv} && stack path --local-install-root"`
       }
+    }
 
-      const result = child_process.execSync(cmdGetInstallRoot, { cwd: devp, env: process.env })
-      const exePath = path.join( result.toString().trim(), 'bin', kokaExeName )
-      if (fs.existsSync(exePath)) {
-        // vs.window.showInformationMessage(`Koka: found developer build at: ${devp}`)
-        console.log("Koka: found development build of koka at " + exePath)
-        compPaths.push(exePath)
-      }
-      else {
-        console.log("Koka: developer environment found, but no binary was built")
-      }
+    const result = child_process.execSync(cmdGetInstallRoot, { cwd: developmentPath, env: process.env })
+    const exePath = path.join( result.toString().trim(), 'bin', kokaExeName )
+    if (fs.existsSync(exePath)) {
+      // vs.window.showInformationMessage(`Koka: found developer build at: ${devp}`)
+      console.log("Koka: found development build of koka at " + exePath)
+      compPaths.push(exePath)
+    }
+    else {
+      console.log("Koka: developer environment found, but no binary was built")
     }
   }
 
@@ -231,7 +231,9 @@ function getCompilerVersion(compilerPath: string) : string {
 -------------------------------------------------*/
 
 async function installKoka(context: vscode.ExtensionContext, config: vscode.WorkspaceConfiguration,
-                           reason: string, latestCompilerVersion: string, force : boolean) {
+                           reason: string, latestCompilerVersion: string,
+                           developmentPath : string,
+                           force : boolean) {
   // only prompt once for a download for each new extension version
   if (!force) {
     const latestInstalled = await context.globalState.get('koka-latest-installed-compiler') as string ?? "1.0.0"
@@ -290,7 +292,7 @@ async function installKoka(context: vscode.ExtensionContext, config: vscode.Work
       // todo: should we get the installation path directly from the install script instead of rescanning?
       console.log("Koka: terminal install is done")
       if (t === term) {
-        const paths = findCompilerPaths(config); // rescan to find the just installed compiler
+        const paths = findCompilerPaths(config, developmentPath); // rescan to find the just installed compiler
         let message = ""
         if (paths.length>0) {
           // TODO: we cannot be sure the first path entry is the newly installed compiler.

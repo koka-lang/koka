@@ -45,7 +45,7 @@ import qualified Common.Range as R
 import Lib.PPrint (Doc)
 import qualified Syntax.RangeMap as R
 import Compiler.Module (Module (..), Loaded (..))
- 
+
 toLspPos :: R.Pos -> J.Position
 toLspPos p =
   J.Position (fromIntegral (max 0 (R.posLine p - 1))) (fromIntegral (max 0 (R.posColumn p)))-- LSP positions are zero-based
@@ -115,7 +115,7 @@ makeDiagnostic s src r doc =
 fromLspPos :: J.NormalizedUri -> J.Position -> IO R.Pos
 fromLspPos uri (J.Position l c) = do
   filePath <- fromLspUri uri
-  return $ R.makePos (src filePath) (-1) (fromIntegral l + 1) (fromIntegral c)
+  return $ R.makePos (src filePath) (-1) (fromIntegral l + 1) (fromIntegral c + 1)
   where
     src file = case file of
       Just filePath -> R.Source filePath R.bstringEmpty -- TODO: Read file here (and compute the offset correctly)

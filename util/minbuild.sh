@@ -5,7 +5,7 @@
 # For use on platforms where stack is not working and to document
 # the minimal needed commands to build the full compiler.
 
-KOKA_VERSION=2.4.2
+KOKA_VERSION=2.4.5
 KOKA_VARIANT=release
 
 echo ""
@@ -25,9 +25,9 @@ if ! which ghc > /dev/null ; then
   echo "See: <https://www.haskell.org/ghcup> for more information"
   echo ""
   exit 1
-fi  
+fi
 
-# generate the lexer if not provided 
+# generate the lexer if not provided
 # note: the Lexer.hs file can be copied from another platform as well.
 if ! [ -f src/Syntax/Lexer.hs ] ; then
   if ! which alex > /dev/null ; then
@@ -48,7 +48,7 @@ EXTRADEFS=
 case "$(uname)" in
   [Dd]arwin)
     EXTRADEFS="-DDARWIN";;
-esac  
+esac
 
 # build the compiler (for used packages see 'package.yaml')
 set -o xtrace
@@ -57,5 +57,5 @@ ghc -isrc:src/Platform/cpp -odir=.koka/minbuild -hidir=.koka/minbuild -o .koka/m
     --make -j4 -O2 src/Main.hs src/Platform/cpp/Platform/cconsole.c
 
 set +o xtrace
-echo "Koka compiled at: out/minbuild/koka"    
+echo "Koka compiled at: out/minbuild/koka"
 echo ""

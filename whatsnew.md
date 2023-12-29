@@ -1,4 +1,4 @@
-# Welcome to Koka, release v2.4.3
+# Welcome to Koka, release v2.4.5
 
 <img style="float: right; width:16em" src="images/koka-logo-filled.svg">
 
