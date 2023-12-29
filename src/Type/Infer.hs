@@ -1171,7 +1171,8 @@ inferHandledEffect rng handlerSort mbeff ops
       Nothing  -> case ops of
         (HandlerBranch name pars expr opSort nameRng rng: _)
           -> -- todo: handle errors if we find a non-operator
-             do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) [] Nothing) rng nameRng
+             do let isInstance = isHandlerInstance handlerSort
+                (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars + (if isInstance then 1 else 0)) [] Nothing) rng nameRng
                 (rho,_,_) <- instantiateEx nameRng tp
                 case splitFunType rho of
                   Just((opname,rtp):_,_,_) | isHandlerInstance handlerSort && opname == newHiddenName "hname"
