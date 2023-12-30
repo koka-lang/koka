@@ -26,7 +26,7 @@ import Common.Range as R
 import Kind.Constructors (conInfoRange, constructorsLookup)
 import Kind.Newtypes (dataInfoRange, newtypesLookupAny)
 import Kind.Synonym (synInfoRange, synonymsLookup)
-import Type.Assumption (gammaLookupQ, infoRange)
+import Type.Assumption (gammaLookupCanonical, gammaLookupQ, infoRange)
 import Syntax.RangeMap (RangeInfo (..), rangeMapFindAt, NameInfo (..))
 import Compiler.Module (Loaded (..), loadedModule, modRangeMap)
 import LanguageServer.Conversions (fromLspPos, toLspLocation, toLspLocationLink)
@@ -50,7 +50,7 @@ definitionHandler = requestHandler J.SMethod_TextDocumentDefinition $ \req respo
   responder $ Right $ J.InR $ J.InL defs
 
 -- Get best rangemap info for a given position
-rangeMapBestDefinition rm = 
+rangeMapBestDefinition rm =
   case rm of
     [] -> Nothing
     [r] -> Just r
@@ -72,13 +72,17 @@ rangeInfoPriority (r,ri) =
 -- represented by the given range info.
 findDefinitions :: Loaded -> RangeInfo -> [J.DefinitionLink]
 findDefinitions loaded rinfo = case rinfo of
-  Id qname _ _ ->
-    let rngs =
-          map infoRange (gammaLookupQ qname gamma)
-            ++ map conInfoRange (maybeToList $ constructorsLookup qname constrs)
-            ++ map synInfoRange (maybeToList $ synonymsLookup qname synonyms)
-            ++ map dataInfoRange (maybeToList $ newtypesLookupAny qname newtypes)
-     in map (J.DefinitionLink . toLspLocationLink rinfo) rngs
+  Id qname idInfo _
+    -> let ranges = case idInfo of
+                      NIValue{}   -> map infoRange $ gammaLookupCanonical qname gamma
+                      NICon{}     -> map conInfoRange $ maybeToList $ constructorsLookup qname constrs
+                      NITypeCon _ -> (map synInfoRange $ maybeToList $ synonymsLookup qname synonyms)
+                                     ++
+                                     (map dataInfoRange $ maybeToList $ newtypesLookupAny qname newtypes)
+                      NITypeVar _ -> []
+                      NIModule    -> []  -- todo: open source of the module from the import map?
+                      NIKind      -> []
+       in map (J.DefinitionLink . toLspLocationLink rinfo) ranges
   _ -> []
   where
     gamma = loadedGamma loaded
