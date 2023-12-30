@@ -285,7 +285,7 @@ loadFilesErr term startSt fileNames force
                     messageLn st ""
                     let st' = st{ program = programAddImports (program st) ({- map toImport imports ++ -} map toImport (loadedModules (loaded st))) }
                         toImport mod
-                            = Import (modName mod) (modName mod) rangeNull Private
+                            = Import (modName mod) (modName mod) rangeNull rangeNull rangeNull Private
                     return (return st')
           (fname:fnames)
               -> do{ err <- {- if (False) -- any isPathSep fname)

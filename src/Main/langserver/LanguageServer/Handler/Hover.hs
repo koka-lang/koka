@@ -25,7 +25,7 @@ import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 import Common.Range as R
 import Common.Name (nameNil)
 import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
-import Lib.PPrint (Pretty (..), Doc, string, (<+>), (<-->),color, Color (..), (<.>), (<->), text)
+import Lib.PPrint (Pretty (..), Doc, string, (<+>), (<-->),color, Color (..), (<.>), (<->), text, empty)
 import Compiler.Module (loadedModule, modRangeMap, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)
@@ -64,7 +64,7 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
       flags <- getFlags
       let env = (prettyEnvFromFlags flags){ context = mName, importsMap = imports }
           colors = colorSchemeFromFlags flags
-      x <- liftIO $ print $ makeMarkdown (formatRangeInfoHover env colors rinfo)
+      x <- liftIO $ print $ makeMarkdown (formatRangeInfoHover loaded env colors rinfo)
       let hc = J.InL $ J.mkMarkdown x
           rsp = J.Hover hc $ Just $ toLspRange r
       responder $ Right $ J.InL rsp
@@ -90,8 +90,8 @@ rangeInfoPriority (r,ri) =
     Error _ -> 5
 
 -- Pretty-prints type/kind information to a hover tooltip given a type pretty environment, color scheme
-formatRangeInfoHover :: Env -> ColorScheme -> RangeInfo -> Doc
-formatRangeInfoHover env colors rinfo =
+formatRangeInfoHover :: (Maybe Loaded) -> Env -> ColorScheme -> RangeInfo -> Doc
+formatRangeInfoHover mbLoaded env colors rinfo =
   case rinfo of
   Id qname info isdef ->
     let signature = ppName env qname <+> text " : " <+> case info of
@@ -101,7 +101,13 @@ formatRangeInfoHover env colors rinfo =
           NICon tp doc ->  ppScheme env tp
           NITypeCon k -> prettyKind colors k
           NITypeVar k -> prettyKind colors k
-          NIModule -> text "module"
+          NIModule -> text "module" <.>
+                      (case mbLoaded of
+                         Just loaded -> case filter (\mod -> modName mod == qname) (loadedModules loaded) of
+                                          [mod] | not (null (modSourcePath mod)) -> text (" (" ++ modSourcePath mod ++ ")")
+                                          _     -> empty
+                         _ -> empty)
+
           NIKind -> text "kind" in
     case info of
       NIValue tp "" _ -> text "" <.> signature

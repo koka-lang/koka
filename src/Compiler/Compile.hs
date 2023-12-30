@@ -323,7 +323,7 @@ compileFile maybeContents contents term flags modules compileTarget importPath f
 compileModule :: Terminal -> Flags -> Modules -> Name -> CompileTarget () -> [Name] -> IO (Error Loaded (Loaded, Maybe FilePath))
 compileModule term flags modules name compileTarget importPath -- todo: take force into account
   = runIOErr $
-    do let imp = ImpProgram (Import name name rangeNull Private)
+    do let imp = ImpProgram (Import name name rangeNull rangeNull rangeNull Private)
        loaded <- resolveImports (const Nothing) (newName "") term flags "" initialLoaded{ loadedModules = modules } importPath [imp]
        -- trace ("compileModule: loaded modules: " ++ show (map modName (loadedModules loaded))) $ return ()
        case filter (\m -> modName m == name) (loadedModules loaded) of

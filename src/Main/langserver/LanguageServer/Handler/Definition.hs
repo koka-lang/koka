@@ -28,9 +28,10 @@ import Kind.Newtypes (dataInfoRange, newtypesLookupAny)
 import Kind.Synonym (synInfoRange, synonymsLookup)
 import Type.Assumption (gammaLookupCanonical, gammaLookupQ, infoRange)
 import Syntax.RangeMap (RangeInfo (..), rangeMapFindAt, NameInfo (..))
-import Compiler.Module (Loaded (..), loadedModule, modRangeMap)
+import Compiler.Module (Loaded (..), loadedModule, modRangeMap, modName, modSourcePath)
 import LanguageServer.Conversions (fromLspPos, toLspLocation, toLspLocationLink)
 import LanguageServer.Monad (LSM, getLoaded)
+import Lib.Trace(trace)
 
 -- Finds the definitions of the element under the cursor.
 definitionHandler :: Handlers LSM
@@ -71,21 +72,24 @@ rangeInfoPriority (r,ri) =
 -- Finds the definition locations of the element
 -- represented by the given range info.
 findDefinitions :: Loaded -> RangeInfo -> [J.DefinitionLink]
-findDefinitions loaded rinfo = case rinfo of
-  Id qname idInfo _
-    -> let ranges = case idInfo of
-                      NIValue{}   -> map infoRange $ gammaLookupCanonical qname gamma
-                      NICon{}     -> map conInfoRange $ maybeToList $ constructorsLookup qname constrs
-                      NITypeCon _ -> (map synInfoRange $ maybeToList $ synonymsLookup qname synonyms)
-                                     ++
-                                     (map dataInfoRange $ maybeToList $ newtypesLookupAny qname newtypes)
-                      NITypeVar _ -> []
-                      NIModule    -> []  -- todo: open source of the module from the import map?
-                      NIKind      -> []
-       in map (J.DefinitionLink . toLspLocationLink rinfo) ranges
-  _ -> []
-  where
-    gamma = loadedGamma loaded
-    constrs = loadedConstructors loaded
-    synonyms = loadedSynonyms loaded
-    newtypes = loadedNewtypes loaded
+findDefinitions loaded rinfo
+  = case rinfo of
+      Id qname idInfo _
+        -> -- trace ("find definition of id: " ++ show qname) $
+           let ranges = case idInfo of
+                          NIValue{}   -> map infoRange $ gammaLookupCanonical qname gamma
+                          NICon{}     -> map conInfoRange $ maybeToList $ constructorsLookup qname constrs
+                          NITypeCon _ -> (map synInfoRange $ maybeToList $ synonymsLookup qname synonyms)
+                                        ++
+                                        (map dataInfoRange $ maybeToList $ newtypesLookupAny qname newtypes)
+                          NITypeVar _ -> []
+                          NIModule    -> -- trace ("module definition: " ++ show qname) $
+                                         [R.makeSourceRange (modSourcePath mod) 1 1 1 1 | mod <- loadedModules loaded, modName mod == qname]
+                          NIKind      -> []
+          in map (J.DefinitionLink . toLspLocationLink rinfo) ranges
+      _ -> []
+    where
+      gamma = loadedGamma loaded
+      constrs = loadedConstructors loaded
+      synonyms = loadedSynonyms loaded
+      newtypes = loadedNewtypes loaded

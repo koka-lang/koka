@@ -252,7 +252,7 @@ programBody vis source modName nameRange doc
   where
     prelude = if (show modName `startsWith` "std/core")
                then []
-               else [Import nameSystemCore nameSystemCore rangeNull Private]
+               else [Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private]
 
 braced p
   = do lcurly
@@ -311,16 +311,16 @@ importDecl
   = do (vis,vrng,rng0) <- try $ do (vis,vrng) <- visibility Private
                                    rng0  <- keyword "import"
                                    return (vis,vrng,rng0)
-       (asname,name,rng) <- importAlias
-       return (Import asname name (combineRanges [vrng,rng0,rng]) vis)
+       (asname,name,asrng,namerng) <- importAlias
+       return (Import asname name asrng namerng (combineRanges [vrng,rng0,namerng]) vis)
 
-importAlias :: LexParser (Name,Name,Range)
+importAlias :: LexParser (Name,Name,Range,Range)
 importAlias
   = do (name1,rng1) <- modulepath
        (do keyword "="
            (name2,rng2) <- modulepath
-           return (name1,name2,rng2)
-        <|> return (name1,name1,rng1))
+           return (name1,name2,rng1,rng2)
+        <|> return (name1,name1,rng1,rng1))
 
 
 

@@ -89,7 +89,7 @@ data FixDef
   = FixDef{ fixName   :: Name
           , fixFixity :: Fixity
           , fixRange  :: Range
-          , fixVis    :: Visibility 
+          , fixVis    :: Visibility
           }
   deriving (Show)
 
@@ -102,9 +102,11 @@ type Imports  = [Import]
 data Import
   = Import{ importName ::  Name    -- ^ module name
           , importFullName :: Name     -- ^ fully qualified module name
-          , importRange :: Range   -- ^ range of the import declaration
+          , importNameRange :: Range
+          , importFullNameRange :: Range
+          , importRange :: Range   -- ^ range of the full import declaration
           , importVis   :: Visibility  -- ^ visibility of the module
-          } 
+          }
     deriving (Show)
 
 
@@ -225,13 +227,13 @@ data Expr t
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Name Range
   | Inject t (Expr t) Bool {-behind?-} Range
-  | Handler{ hndlrSort         :: HandlerSort, 
+  | Handler{ hndlrSort         :: HandlerSort,
              hndlrScope        :: HandlerScope,
              hndlrOverride     :: HandlerOverride,
              hndlrAllowMask    :: Maybe Bool,
              hndlrEffect       :: (Maybe t),
              hndlrLocalPars    :: [ValueBinder (Maybe t) ()],
-             hndlrInitially    :: (Maybe (Expr t)),             
+             hndlrInitially    :: (Maybe (Expr t)),
              hndlrReturn       :: (Maybe (Expr t)),
              hndlrFinally      :: (Maybe (Expr t)),
              hndlrBranches     :: [HandlerBranch t],
@@ -261,8 +263,8 @@ data HandlerBranch t
 data Branch t
   = Branch{ branchPattern :: (Pattern t), branchGuards :: [Guard t] }
   deriving (Show)
-  
-data Guard t 
+
+data Guard t
   = Guard { guardTest :: (Expr t), guardExpr :: (Expr t) }
   deriving (Show)
 
@@ -524,7 +526,7 @@ programNull name = Program sourceNull name rangeNull [] [] [preludeImport] [] []
 -- | Import declaration for the standard prelude
 preludeImport :: Import
 preludeImport
-  = Import nameSystemCore nameSystemCore rangeNull Private
+  = Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private
 
 makeProgram :: Name -> [TypeDef t t k] -> (Defs t) -> Program t k
 makeProgram name typedefs defs

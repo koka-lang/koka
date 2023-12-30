@@ -150,7 +150,7 @@ compileEditorExpression uri flags force filePath functionName = do
       vfs <- documentInfos <$> getLSState
       modules <- getLastChangedFileLoaded (normUri, flags)
       -- Set up the imports for the expression (core and the module)
-      let imports = [Import nameSystemCore nameSystemCore rangeNull Private, Import (modName mod) (modName mod) rangeNull Private]
+      let imports = [Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private, Import (modName mod) (modName mod) rangeNull rangeNull rangeNull Private]
           program = programAddImports (programNull nameInteractiveModule) imports
       term <- getTerminal
       -- reusing interpreter compilation entry point
@@ -219,7 +219,7 @@ processCompilationResult normUri filePath flags update doIO = do
               return ()
             Just l -> do
               trace ("Error when compiling have cached" ++ show (map modSourcePath $ loadedModules l)) $ return ()
-              when update $ putLoaded l normUri flags 
+              when update $ putLoaded l normUri flags
               removeLoaded (loadedModule l)
           liftIO $ termError term e
           return Nothing

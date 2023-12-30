@@ -194,7 +194,7 @@ importDecl
   = do (vis,doc) <- try $ do vis <- vispub
                              (_,doc) <- dockeyword "import"
                              return (vis,doc)
-       (asname,name,_) <- importAlias
+       (asname,name,_,_) <- importAlias
        pkg <- (do{ keyword "="; (s,_) <- stringLit; return s } <|> return "")
        return (Import name pkg vis doc, (asname, name))
 

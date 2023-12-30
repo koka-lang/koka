@@ -91,12 +91,13 @@ inferKinds
            , Core.Core            --  Initial core program with type definition groups, externals, and some generated definitions for data types (like folds).
            , Maybe RangeMap
            )
-inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0 
+inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
             (Program source modName nameRange tdgroups defs importdefs externals fixdefs doc)
   =do unique0 <- unique
       let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors platform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
           (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors platform rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
           (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors platform rm2 modName imports kgamma1 syns1 data1 unique2 (infDefGroups defs)
+          (_,_,rm4,_,_) = runKindInfer colors platform rm3 modName imports kgamma1 syns1 data1 unique3 (infImports importdefs)
   --        (errs4,warns4,unique4,cgroups)                 = runKindInfer colors modName imports kgamma1 syns1 unique3 (infCoreTDGroups cgroups)
           (synInfos,dataInfos) = unzipEither (extractInfos cgroups)
           conInfos  = concatMap dataInfoConstrs dataInfos
@@ -118,7 +119,7 @@ inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
                                       -- ,cgroups
                                       -- ,externals1
                                       ,Core.Core modName [] [] cgroups [] externals1 doc
-                                      ,rm3
+                                      ,rm4
                                       )
                           else errorMsg (ErrorKind errs))
 
@@ -301,6 +302,16 @@ constructorCheckDuplicates cscheme conInfos
           text "is already defined at" <+> text (show (conInfoRange ci1)))]
     duplicate _
       = []
+
+
+infImports :: [Import] -> KInfer ()
+infImports imports
+  = mapM_ infImport imports
+
+infImport :: Import -> KInfer ()
+infImport (Import alias qname aliasRange nameRange range vis)
+  = do addRangeInfo nameRange  (Id qname NIModule True)
+       addRangeInfo aliasRange (Id qname NIModule True)
 
 {---------------------------------------------------------------
   Infer kinds for type definition groups
@@ -814,11 +825,11 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
            name   = if (isHandlerName fname) then fromHandlerName fname else fname
            nameDoc = color (colorType cs) (pretty name)
 
-       consinfos <- mapM (resolveConstructor (getName newtp') sort 
-                            (not (dataDefIsOpen ddef) && length constructors == 1) 
+       consinfos <- mapM (resolveConstructor (getName newtp') sort
+                            (not (dataDefIsOpen ddef) && length constructors == 1)
                             typeResult typeVars tvarMap) constructors
        let (constructors',conInfos0) = unzip consinfos
-       
+
        --check recursion
        if (sort == Retractive)
         then return ()
@@ -837,16 +848,16 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
            conCount       = length conInfos0
            willNeedStructTag   = dataDefIsValue ddef && conCount > 1 && maxMembers >= 1
            extraFields = if (dataDefIsOpen ddef) then 1 {- open datatype tag -}
-                         else if willNeedStructTag then 1 {- explicit struct tag -} 
+                         else if willNeedStructTag then 1 {- explicit struct tag -}
                          else 0
        platform <- getPlatform
-       (ddef1,conInfos1) 
+       (ddef1,conInfos1)
           <- createDataDef emitError emitWarning lookupDataInfo
                 platform qname resultHasKindStar isRec sort extraFields ddef conInfos0
-       
+
        let dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars conInfos1 range ddef1 vis doc
 
-       assertion ("Kind.Infer.resolveTypeDef: assuming value struct tag but not inferred as such " ++ show (ddef,ddef1)) 
+       assertion ("Kind.Infer.resolveTypeDef: assuming value struct tag but not inferred as such " ++ show (ddef,ddef1))
                  ((willNeedStructTag && Core.needsTagField (fst (Core.getDataRepr dataInfo))) || not willNeedStructTag) $ return ()
 
 
@@ -861,7 +872,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                                let dataInfo1 = dataInfo0{ dataInfoDef = ddef2, dataInfoConstrs = conInfos2 }
                                return dataInfo1
                       _ -> return dataInfo0
-       -}                     
+       -}
        -- trace (showTypeBinder newtp') $
        addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')))
        return (Core.Data dataInfo isExtend)
