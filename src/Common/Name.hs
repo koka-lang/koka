@@ -290,7 +290,7 @@ isHiddenName name
 
 makeHiddenName s name
   = case nameId xname of
-      c:cs | not (isAlpha c || c `elem` "()[]") -> newQualified (nameModule xname) ("." ++ s ++ asciiEncode False ('-':c:cs)) -- hidden operator
+      c:cs | not (isAlpha c || c `elem` "()[]") -> newQualified (nameModule xname) ("." ++ s ++ asciiDashEncode False ('-':c:cs)) -- hidden operator
       _    -> prepend ("." ++ s ++ "-") xname
     where
       xname = case nameId name of
@@ -622,7 +622,71 @@ asciiEncode isModule name
 
           _   -> "_x" ++ showHex 2 (fromEnum c) ++ "_"
 
+{---------------------------------------------------------------
+  Ascii encode a name - but keep it a valid name (by using just numbers, letters and dots)
+---------------------------------------------------------------}
+asciiDashEncode :: Bool -> String -> String
+asciiDashEncode isModule name
+  = case name of
+      (c:cs)  | isAlphaNum c -> encodeChars name
+      ""      -> "null"
+      ".<>"   -> "total"
+      ".<|>"  -> "extend"
+      ".()"   -> "hunit"
+      ".(,)"  -> "htuple2"
+      ".(,,)" -> "htuple3"
+      ".(,,,)"-> "htuple4"
+      "()"    -> "unit"
+      "(,)"   -> "tuple2"
+      "(,,)"  -> "tuple3"
+      "(,,,)" -> "tuple4"
+      "[]"    -> "index"
+      -- '.':'c':'o':'n':' ':cs -> trace ("con name: " ++ name) $ "_con_" ++ encodeChars cs
+      -- '.':'t':'y':'p':'e':' ':cs -> "_type_" ++ encodeChars cs
+      _       -> encodeChars name
+  where
+    encodeChars s
+      = concat (zipWith3 encodeChar (' ':s) s (tail (s ++ " ")))
 
+    encodeChar :: Char -> Char -> Char -> String
+    encodeChar pre c post | isAlphaNum c  = [c]
+    encodeChar pre c post
+      = case c of
+          '_' -> "underscore"
+          '.' -> "dot"
+          '-' -> "dash"
+          '/' -> "fs"
+
+          '+' -> "plus"
+          '*' -> "star"
+          '&' -> "amp"
+          '~' -> "tilde"
+          '!' -> "excl"
+          '@' -> "at"
+          '#' -> "hash"
+          '$' -> "dollar"
+          '%' -> "perc"
+          '^' -> "hat"
+          '=' -> "eq"
+          ':' -> "colon"
+          '<' -> "lt"
+          '>' -> "gt"
+          '[' -> "lb"
+          ']' -> "rb"
+          '?' -> "ques"
+          '\\'-> "bs"
+          '(' -> "lp"
+          ')' -> "rp"
+          ',' -> "comma"
+          ' ' -> "space"
+          '\'' -> "sq"
+          '\"' -> "dq"
+          '`'  -> "bq"
+          '{'  -> "lc"
+          '}'  -> "rc"
+          '|'  -> "bar"
+
+          _   -> "x" ++ showHex 2 (fromEnum c)
 
 showHex :: Int -> Int -> String
 showHex len i
