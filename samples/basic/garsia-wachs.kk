@@ -5,7 +5,7 @@
 */
 
 pub fun main()
-  test().println
+  example().println
 
 
 //----------------------------------------------------
@@ -85,7 +85,7 @@ fun build( depth : int, xs : list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,li
       (Node(l.fst,r.fst), r.snd)
 
 
-fun test()
+pub fun example()
   val wlist = Cons1(("a",3), [("b",2),("c",1),("d",4),("e",5)])
   val tree  = wlist.garciawachs()
   tree.show()  

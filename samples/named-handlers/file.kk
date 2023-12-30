@@ -35,7 +35,7 @@ fun wrong-escape1()
   with f <- file("stack.yaml")
   f
 
-pub fun test() 
+pub fun example() 
   val f = wrong-escape1()
   f.read-line.println
 */

@@ -54,7 +54,7 @@ fun uncaesar( s : string ) : string
   s.encode( shift )
 
 
-fun test-uncaesar()
+pub fun example-uncaesar()
   println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
 
 

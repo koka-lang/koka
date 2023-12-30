@@ -100,7 +100,7 @@ pub fun show( tp : ntype, top : bool = True ) : string
 
 
 // Test unification
-pub fun test()
+pub fun example()
   with subst
   val a = fresh()
   val b = fresh()
@@ -109,6 +109,6 @@ pub fun test()
   unify(tp1,tp2).resolve-all
 
 pub fun main()
-  val tp = test()
+  val tp = example()
   println( "unified type: " ++ tp.show )
 

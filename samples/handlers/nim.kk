@@ -57,12 +57,12 @@ fun game(n)
 
 val perfect = handler fun move(_p,n){ max(1,n%4) }
 
-pub fun test-perfect1()
+pub fun example-perfect1()
   with perfect
   game(7)        // alice
 
 
-pub fun test-perfect2()
+pub fun example-perfect2()
   with perfect
   game(12)  // bob
 
@@ -104,7 +104,7 @@ fun show-gtree(gt :gtree, indent:int) : _ string
       p.show ++ lines.join
 
 
-pub fun test-gtree()
+pub fun example-gtree()
   with gametree
   game(3)   // figure 1 in the paper
 
@@ -128,14 +128,14 @@ val check = handler
       else cheat(p)
 
 
-pub fun test-check()
+pub fun example-check()
   with perfect
   with cheat-report
   with check
   game(7)  // alice
 
 
-pub fun test-use()
+pub fun example-use()
   with x = map([1,2,3])
   x+2
 
@@ -150,14 +150,14 @@ val pc = handler
       Bob   -> n
 
 
-pub fun test-pc1()
+pub fun example-pc1()
   with pc
   with cheat-report
   with check
   game(12)
 
 
-pub fun test-pc2()
+pub fun example-pc2()
   // the `perfect` on the outside is necessary as the type system
   // does not detect that `check` will never perform a `move`.
   with perfect
@@ -184,7 +184,7 @@ val all-results = handler
   ctl choose() resume(True) ++ resume(False)
 
 
-pub fun test-choose()
+pub fun example-choose()
   with ctl choose() resume(True) ++ (resume(False):list<_>)
   with bob-chooses
   [game(7)]   // [bob,alice]
@@ -193,7 +193,7 @@ pub fun test-choose()
 val coin = handler
   fun choose() srandom-float64() > 0.5
 
-pub fun test-coin()
+pub fun example-coin()
   with coin
   with bob-chooses
   game(7)
@@ -235,7 +235,7 @@ fun print-board( gs : gstate ) : io ()
   scores.join("\n").println
 
 
-pub fun test-print1()
+pub fun example-print1()
   with state(s0)
   with printer
   with coin
@@ -249,7 +249,7 @@ fun replay(n : int, action : () -> <div|e> a) : <div|e> a
   action()
 
 
-pub fun test-print2()
+pub fun example-print2()
   with state(s0)
   with printer
   with replay(10)
@@ -262,18 +262,18 @@ pub fun test-print2()
 
 pub fun main()
   [""
-  ,test-perfect1().show
-  ,test-perfect2().show
-  ,test-gtree().show
-  ,test-check().show
-  ,test-pc2().show
-  ,test-choose().show
-  //,test-coin().show
-  //,test-print1().show
-  //,test-print2().show
+  ,example-perfect1().show
+  ,example-perfect2().show
+  ,example-gtree().show
+  ,example-check().show
+  ,example-pc2().show
+  ,example-choose().show
+  //,example-coin().show
+  //,example-print1().show
+  //,example-print2().show
   ,""
   ].join("\n-----------\n").print
   try {
-    test-pc1().show.println // raises exception
+    example-pc1().show.println // raises exception
   } fn(exn){ println(exn.show) }
 
