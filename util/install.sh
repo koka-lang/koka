@@ -4,7 +4,7 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.4.5"
+VERSION="v2.6.0"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""

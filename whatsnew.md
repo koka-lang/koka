@@ -1,4 +1,4 @@
-# Welcome to Koka, release v2.4.5
+# Welcome to Koka, release v2.6.0
 
 <img style="float: right; width:16em" src="images/koka-logo-filled.svg">
 
@@ -12,11 +12,11 @@ generating direct C code without needing a runtime system. To learn more:
 
 ## What is new
 
-In the latest update, 2023-12-xx:
+In the latest update, 2023-12-30:
 
-- Initial VS Code language server support (by [Tim Whiting](https://github.com/TimWhiting)
-   and [Fredrik Wieczerkowski](https://github.com/fwcd) with parse- and type errors,
-  type information on hover, jump to definition etc.
+- Initial VS Code language support with type information, jump to definition,
+  run test functions directly from the editor, automatic Koka installation, and many more things.
+  Special thanks to [Tim Whiting](https://github.com/TimWhiting) and [Fredrik Wieczerkowski](https://github.com/fwcd) for all their work on making this possible!
 
 - The ability to run `main`, `test...`, and `example...` functions directly from
   the editor by clicking on the `run debug | optimized` code lenses.
@@ -30,7 +30,7 @@ In the latest update, 2023-12-xx:
 
 - Using further [fip/fbip][fip] annotations to mark more functions as _fully in-place_.
 
-- Various bug fixes.
+- Various bug fixes and extended bit-level operations on `int32`/`int64`.
 
 Enjoy!
 
@@ -43,8 +43,8 @@ Enjoy!
 [kokarepo]: https://github.com/koka-lang/koka
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka
 
-[fip]: https://www.microsoft.com/en-us/research/uploads/prod/2023/05/fip-tr-v2.pdf
-[fccontext]: https://www.microsoft.com/en-us/research/uploads/prod/2023/07/fiptree-tr-v3.pdf
+[fip]: https://www.microsoft.com/en-us/research/uploads/prod/2023/05/fbip.pdf
+[fccontext]: https://www.microsoft.com/en-us/research/uploads/prod/2023/07/fiptree-tr-v4.pdf
 
 
 ## Previous Releases

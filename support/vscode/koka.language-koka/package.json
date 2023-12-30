@@ -2,8 +2,8 @@
   "name": "language-koka",
   "displayName": "Koka Language",
   "description": "The official Koka programming language extension.",
-  "version": "2.4.5",
-  "compilerVersion": "2.4.5",
+  "version": "2.6.0",
+  "compilerVersion": "2.6.0",
   "publisher": "koka",
   "engines": {
     "vscode": ">=1.81.0"

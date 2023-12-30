@@ -10,7 +10,7 @@
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_
 
-_Latest release_: v2.4.2, 2023-07-03 ([Install]).
+_Latest release_: v2.6.0, 2023-12-30 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -69,17 +69,24 @@ To learn more:
 [emscripten]: https://emscripten.org/docs/getting_started/downloads.html
 [musl]: https://musl.libc.org/
 [wasmtime]: https://wasmtime.dev/
+[fiptree-tr]: https://www.microsoft.com/en-us/research/uploads/prod/2023/07/fiptree-tr-v4.pdf
 
 Enjoy,
   Daan Leijen
 
-Special thanks to: [Anton Lorenzen](https://antonlorenzen.de/) for his work on frame-limited
+Special thanks to: [Tim Whiting](https://github.com/TimWhiting) and [Fredrik Wieczerkowski](https://github.com/fwcd)
+for their work on the VS Code language integration,
+[Anton Lorenzen](https://antonlorenzen.de/) for his work on one-hole context ([pdf][fiptree-tr]), fully in-place programming [[11](#references)] and frame-limited
 reuse in Perceus [[10]](#references), [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence passing [[9,6]](#references) and the formalization of Perceus reference counting [[8]](#references),
 [Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references),
 and all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 ## Recent Releases
 
+* `v2.6.0`, 2023-12-30: initial VS Code language support with type information, jump to definition,
+  run test functions directly from the editor, automatic Koka installation, and many more things.
+  Special thanks to [Tim Whiting](https://github.com/TimWhiting) and [Fredrik Wieczerkowski](https://github.com/fwcd) for all their work on making this possible!
+  Also includes support for one-hole contexts ([pdf][fiptree-tr]) and extended bit operations on `int32`/`int64` and various bug fixes.
 * `v2.4.2`, 2023-07-03: interim release with support for the new `fip` and `fbip` keywords
   to support fully-in-place programming [[11](#references)]. Various bug fixes and performance
   enhancements.
@@ -160,7 +167,7 @@ you can correct this by running `git submodule update --init --recursive`).
 You can also use `stack build --fast` to build a debug version of the compiler,
 and use `stack test --fast` to run the test-suite.
 
-To run a single test you can run stack test filtering based on paths such as `stack test --test-arguments '-m "lib"'`. 
+To run a single test you can run stack test filtering based on paths such as `stack test --test-arguments '-m "lib"'`.
 This will run all tests that are under the `test/lib` directory.
 
 (See the [build notes](#build-notes) below if you have issues when running- or installing `stack`).
