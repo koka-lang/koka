@@ -1604,21 +1604,27 @@ pub extern next( slice : sslice ) : maybe<(char,sslice)>
   cs "Primitive.SliceNext"
   js "_sslice_next"
 
+// Truncates a slice to length 0
+pub fun truncate( slice: sslice ): sslice
+  Sslice(slice.str, slice.start, 0)
+
 // Gets up to (`end`-`start`) characters from the slice beginning from `start`.
 // If either start or end is negative, returns the original slice
 pub fun subslice( slice: sslice, start : int, end : int ): sslice
   if start < 0 || end < 0 then slice else
-    val Sslice(s, new-start, _) = slice.advance(start) // Go to start position
-    Sslice(s, new-start, 0).extend(end - start) // Zero out the len and then extend to the end.
+    // Advances to start, zeros the length, and then extends (end - start characters)
+    slice.advance(start).truncate.extend(end - start)
 
-// Gets a slice that only includes up to n characters.
+// Gets a slice that only includes up to n characters from the start of the slice.
 pub fun take( slice: sslice, n : int): sslice
-  subslice(slice, 0, n)
+  if n <= 0 then return slice else slice.truncate.extend(n)
 
 // Gets a slice that drops the first n characters, shrinking the length of the slice by n accordingly.
 // If the slice does not have n characters, then the slice is shrunk to an empty slice.
+// 
+// If maintaining the length of the slice is important, use `advance` instead.
 pub fun drop( slice: sslice, n : int): sslice
-  subslice(slice, n, slice.count)  
+  if n <= 0 then return slice else slice.advance(n).truncate.extend(slice.count - n)
 
 // Apply a function for each character in a string slice.
 // If `action` returns `Just`, the function returns immediately with that result.
