@@ -1,6 +1,6 @@
 [ubuntu-x64]:   https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-ubuntu-x64.deb {.localref}
 [alpine-x64]:   https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-alpine-x64.apk {.localref}
-[rhel-x64]:     https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-rhel-x64.rpm {.localref} 
+[rhel-x64]:     https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-rhel-x64.rpm {.localref}
 [arch-x64]:     https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-arch-x64.pkg.tar.zst {.localref}
 [opensuse-x64]: https://github.com/koka-lang/koka/releases/download/v2.4.0/koka-v2.4.0-opensuse-x64.rpm {.localref}
 
@@ -17,6 +17,8 @@
 
 [Homebrew]: https://brew.sh
 
+[vscode]: https://code.visualstudio.com/
+
 <!--
 On macOS (x64, M1), you can install and upgrade &koka; using Homebrew:
 
@@ -25,6 +27,47 @@ On macOS (x64, M1), you can install and upgrade &koka; using Homebrew:
 
     \(**brew install koka**\)
 -->
+
+### Install with the VS Code editor
+
+[![vscode-install]](https://marketplace.visualstudio.com/items?itemName=koka.language-koka)
+
+[vscode-install]: images/vscode-install.png "VS Code Extension Installation" { .floatright }
+
+The easiest way to start with Koka is to use the excellent [VS Code editor][vscode]
+and install the Koka extension.
+Go to the extension panel, search for ``Koka`` and
+install the official extension as shown on the right.
+
+Installing the extension also prompts to install
+the latest Koka compiler on your platform
+(available for Windows x64, MacOS x64 and arm64, and Linux x64).
+
+<!--
+![vscode-install-compiler]
+
+[vscode-install-compiler]: images/vscode-install-compiler.png "VS Code Compiler Installation" { .floatright }
+
+
+![vscode-commands]
+
+[vscode-commands]: images/vscode-commands.png "VS Code Extension Commands" { .floatright }
+-->
+
+Once installed, the samples directory is opened. You can also open this
+manually from the command panel ``(Ctrl/Cmd + Shift + P)``,
+and running the ``Koka: Open samples`` command (when you start typing the command will surface to the top).
+Open for example the ``basic/caesar.kk`` file:
+
+![vscode-caesar]
+
+[vscode-caesar]: images/vscode-caesar.png "VS Code caesar examples" { width:60% }
+
+When you click ``run debug`` (or ``optimized``) &koka; compiles and runs the function,
+showing the output in the VS Code terminal.
+
+
+### Manual Installation
 
 On Windows (x64), open a ``cmd`` prompt and use:
 
