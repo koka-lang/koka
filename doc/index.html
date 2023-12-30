@@ -1119,51 +1119,61 @@ libraries, package management, and deep IDE integration.
 </p>
 <ul class="ul list-star news-items loose">
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
+<p>2023-12-30: Koka v2.6.0 released with VS Code language integration with type information, jump to definition,
+run test functions directly from the editor, automatic Koka installation, and many more things.
+Special thanks to&nbsp;<a href="https://github.com/TimWhiting">Tim Whiting</a> and&nbsp;<a href="https://github.com/fwcd">Fredrik Wieczerkowski</a> for all their work on making this possible!
+</p></li>
+<li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
+<p>2023-12-27: Update of the technical report on &quot;<a href="https://www.microsoft.com/en-us/research/uploads/prod/2023/07/fiptree-tr-v4.pdf" data-linkid="fiptree-tr">The functional essence of binary trees</a>&quot; where we use fully-in-place programming and
+the new hole contexts to create fully verified functional implementations of binary search tree
+algorithms with performance on par with imperative C implementations.
+</p></li>
+<li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
 <p>2023-07-03: Koka v2.4.2 released: add support for <code class="code code1 language-koka lang-koka koka colorized">fip</code> and <code class="code code1 language-koka lang-koka koka colorized">fbip</code> keywords described
-in &#8220;FP<sup>2</sup>: Fully in-Place Functional Programming&#8221; 
+in &#8220;FP<sup>2</sup>: Fully in-Place Functional Programming&#8221;
 (ICFP&#39;23) [<a href="https://www.microsoft.com/en-us/research/uploads/prod/2023/05/fbip.pdf">pdf</a>].
 Various fixes and performance improvements.
 </p></li>
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
-<p>2021-02-04 (pinned) The&nbsp;<a href="https://www.youtube.com/channel/UCS4FAVeYW_IaZqAbqhlvxlA">Context Free</a> 
+<p>2021-02-04 (pinned) The&nbsp;<a href="https://www.youtube.com/channel/UCS4FAVeYW_IaZqAbqhlvxlA">Context Free</a>
 youtube channel posted a short and fun&nbsp;<a href="https://www.youtube.com/watch?v=olISecOUX1g&amp;t=959s">video</a>
 about effects in Koka (and 12 (!) other languages).
 </p></li>
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
 <p>2021-09-01 (pinned) The ICFP&#39;21 tutorial
-&#8220;<em class="em-low1">Programming with Effect Handlers and FBIP in Koka</em>&#8221; is now available on 
+&#8220;<em class="em-low1">Programming with Effect Handlers and FBIP in Koka</em>&#8221; is now available on
 <a href="https://www.youtube.com/watch?v=6OFhD_mHtKA">youtube</a>.
 </p></li>
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
 <p>2022-02-07: Koka v2.4.0 released: improved specialization and <code class="code code1 language-koka lang-koka koka colorized">int</code> operations, add <code class="code code1 language-koka lang-koka koka colorized">rbtree-fbip</code> sample,
-improve grammar (<code class="code code1 language-koka lang-koka koka colorized">pub</code> (instead of <code class="code code2">public</code>, remove private (as everything is private by default now)), 
+improve grammar (<code class="code code1 language-koka lang-koka koka colorized">pub</code> (instead of <code class="code code2">public</code>, remove private (as everything is private by default now)),
 <code class="code code1 language-koka lang-koka koka colorized">final ctl</code> (instead of <code class="code code1 language-koka lang-koka koka colorized">brk</code>), underscores in number literals, etc), rename <code class="code code1 language-koka lang-koka koka colorized">double</code> to <code class="code code1 language-koka lang-koka koka colorized">float64</code>, various bug fixes.
 </p></li>
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
-<p>2021-12-27: Koka v2.3.8 released: improved <code class="code code1 language-koka lang-koka koka colorized">int</code> performance, various bug fixes, update wasm backend, 
+<p>2021-12-27: Koka v2.3.8 released: improved <code class="code code1 language-koka lang-koka koka colorized">int</code> performance, various bug fixes, update wasm backend,
 initial conan support, fix js backend.
 </p></li>
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
-<p>2021-11-26: Koka v2.3.6 released: 
-<code class="code code1 language-koka lang-koka koka colorized">maybe</code>-like types are already value types, but now also no longer need heap allocation 
+<p>2021-11-26: Koka v2.3.6 released:
+<code class="code code1 language-koka lang-koka koka colorized">maybe</code>-like types are already value types, but now also no longer need heap allocation
 if not nested (and <code class="code code1 language-koka lang-koka koka colorized">[<span style="color:purple">Just</span>(<span class="constant" style="color:purple">1</span>)]</code> uses the same heap space as <code class="code code1 language-koka lang-koka koka colorized">[<span class="constant" style="color:purple">1</span>]</code>),
 improved atomic refcounting (by Anton Lorenzen), improved specialization (by Steven Fontanella),
-various small fixes, add <code class="code code1 language-koka lang-koka koka colorized"><span style="color:navy">std/os/</span>readline</code>, fix build on freeBSD  
+various small fixes, add <code class="code code1 language-koka lang-koka koka colorized"><span style="color:navy">std/os/</span>readline</code>, fix build on freeBSD
 </p></li>
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
-<p>2021-10-15: Koka v2.3.2 released, with initial wasm support 
-(use <code class="code code1 language-koka lang-koka koka colorized">--target<span style="color:blue">=</span>wasm</code>, and install&nbsp;<a href="https://emscripten.org/docs/getting_started/downloads.html" data-linkid="emscripten">emscripten</a> and&nbsp;<a href="https://wasmtime.dev/" data-linkid="wasmtime">wasmtime</a>), 
+<p>2021-10-15: Koka v2.3.2 released, with initial wasm support
+(use <code class="code code1 language-koka lang-koka koka colorized">--target<span style="color:blue">=</span>wasm</code>, and install&nbsp;<a href="https://emscripten.org/docs/getting_started/downloads.html" data-linkid="emscripten">emscripten</a> and&nbsp;<a href="https://wasmtime.dev/" data-linkid="wasmtime">wasmtime</a>),
 improved reuse specialization (by Anton Lorenzen), and various bug fixes.
 </p></li>
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
-<p>2021-09-29: Koka v2.3.1 released, with improved TRMC optimizations, and improved reuse 
-(the rbtree benchmark is as fast as C++ now), and 
+<p>2021-09-29: Koka v2.3.1 released, with improved TRMC optimizations, and improved reuse
+(the rbtree benchmark is as fast as C++ now), and
 faster effect operations. Experimental: allow elision of <code class="code code1 language-koka lang-koka koka colorized"><span style="color:blue">-&gt;</span></code> in anonymous
 function expressions (e.g. <code class="code code1 language-koka lang-koka koka colorized">xs<span style="color:blue">.</span>map( fn(x) x + <span class="constant" style="color:purple">1</span> )</code>) and operation clauses.
-Command line options changed a bit with <code class="code code2">.koka</code> as the standard output directory.  
+Command line options changed a bit with <code class="code code2">.koka</code> as the standard output directory.
 </p></li>
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
-<p>2021-09-20: Koka v2.3.0 released, with new 
+<p>2021-09-20: Koka v2.3.0 released, with new
 <a href="https://koka-lang.github.io/koka/doc/book.html#sec-layout">brace elision</a> and if/match
 conditions without parenthesis. Updated the javascript backend
 using ES6 modules and BigInt. new <code class="code code1 language-koka lang-koka koka colorized"><span style="color:blue">module</span> <span style="color:navy">std/num/int64</span></code>, improved effect operation performance.
