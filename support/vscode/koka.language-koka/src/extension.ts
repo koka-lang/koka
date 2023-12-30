@@ -177,12 +177,17 @@ function createBasicCommands(context: vscode.ExtensionContext, vsConfig: vscode.
 
     // Install latest Koka
     vscode.commands.registerCommand('koka.installCompiler', async () => {
+      const noLanguageServer = (languageServer === null);
       await stopLanguageServer(context)
       await kokaConfig.installCompiler(context,vsConfig)
-      await vscode.commands.executeCommand("koka.restartLanguageServer")  // shows progress
-      await checkCompilerUpdate(context,vsConfig,kokaConfig)
-      // await vscode.commands.executeCommand("koka.openSamples")
-      // await startLanguageServer(context,vsConfig,kokaConfig,false)
+      if (noLanguageServer) {
+        // if this is the first time the compiler is installed, we need to reload
+        return vscode.window.showErrorMessage('Reload VS Code to start the Koka language service with the new compiler')
+      }
+      else {
+        await vscode.commands.executeCommand("koka.restartLanguageServer")  // shows progress
+        await checkCompilerUpdate(context,vsConfig,kokaConfig)
+      }
     }),
 
     // Uninstall
@@ -230,7 +235,7 @@ function createCommands(
         selectSDKMenuItem.tooltip = `${path}`
       }
       await vscode.commands.executeCommand('koka.restartLanguageServer')
-      // await restartLanguageServer(context,vsConfig,kokaConfig)
+      //await restartLanguageServer(context,vsConfig,kokaConfig)
     }),
 
     vscode.commands.registerCommand('koka.selectTarget', async () => {
