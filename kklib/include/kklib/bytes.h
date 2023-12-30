@@ -176,6 +176,11 @@ static inline kk_ssize_t kk_decl_pure kk_bytes_len(kk_bytes_t str, kk_context_t*
 }
 
 static inline bool kk_bytes_is_empty(kk_bytes_t s, kk_context_t* ctx) {
+  // Fast path with no allocation
+  if (kk_datatype_is_singleton(s)) {
+    kk_bytes_drop(s, ctx);
+    return true;
+  }
   return (kk_bytes_len(s, ctx) == 0);
 }
 

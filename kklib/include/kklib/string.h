@@ -279,7 +279,7 @@ static inline bool kk_string_is_empty_borrow(kk_string_t s, kk_context_t* ctx) {
 }
 
 static inline bool kk_string_is_empty(kk_string_t s, kk_context_t* ctx) {
-  return (kk_string_len(s, ctx) == 0);
+  return (kk_bytes_is_empty(s.bytes, ctx));
 }
 
 /*--------------------------------------------------------------------------------------------------

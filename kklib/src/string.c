@@ -784,6 +784,7 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t str, kk_string_t sepstr, kk_ssiz
 --------------------------------------------------------------------------------------------------*/
 
 kk_string_t kk_string_to_upper(kk_string_t str, kk_context_t* ctx) {
+  if (kk_bytes_is_empty(str.bytes, ctx)) return str;
   kk_ssize_t len;
   const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
   kk_string_t tstr;
@@ -804,6 +805,7 @@ kk_string_t kk_string_to_upper(kk_string_t str, kk_context_t* ctx) {
 }
 
 kk_string_t  kk_string_to_lower(kk_string_t str, kk_context_t* ctx) {
+  if (kk_bytes_is_empty(str.bytes, ctx)) return str;
   kk_ssize_t len;
   const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
   kk_string_t tstr;

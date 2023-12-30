@@ -1743,12 +1743,16 @@ pub fun string( ms : maybe<string> ) : string
     Just(s) -> s
 
 // Is a string empty?
-pub fun is-empty( s : string ) : bool
-  s == ""
+pub extern is-empty( s : string ) : bool
+  c "kk_string_is_empty"
+  cs inline "(#1.Length == 0)"
+  js inline "(#1.length == 0)"
 
 // Is a string not empty?
-pub fun is-notempty( s : string ) : bool
-  s != ""
+pub extern is-notempty( s : string ) : bool
+  c inline "!kk_string_is_empty(#1, kk_context())"
+  cs inline "(#1.Length != 0)"
+  js inline "(#1.length != 0)"
 
 // Transform a string to a maybe type, using `Nothing` for an empty string
 pub fun maybe( s : string ) : maybe<string>
