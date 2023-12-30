@@ -15,9 +15,10 @@ import * as semver from "semver"
 
 
 // Constants
-const home          = os.homedir();
-const kokaExeName   = (os.platform() === "win32" ? "koka.exe" : "koka")
-const defaultShell  = (os.platform() === "win32" ? "C:\\Windows\\System32\\cmd.exe" : null)
+const home            = os.homedir();
+const kokaExeName     = (os.platform() === "win32" ? "koka.exe" : "koka")
+const defaultShell    = (os.platform() === "win32" ? "C:\\Windows\\System32\\cmd.exe" : null)
+const binaryPlatforms = ["win32-x64","darwin-arm64","darwin-x64","linux-x64"]
 
 // Development: set kokaDevDir to a non-empty string to (un)install from a local bundle instead of github
 const kokaDevDir    = ""
@@ -243,9 +244,16 @@ async function installKoka(context: vscode.ExtensionContext, config: vscode.Work
     }
   }
 
+  // check platform
+  let warning = ""
+  const platform = `${os.platform()}-${os.arch()}`
+  if (!binaryPlatforms.includes(platform)) {
+    warning = `Unfortunately, it looks like your platform ${platform} does not have a binary installer -- see <https://github.com/koka-lang/koka> for build instructions.  `
+  }
+
   // ask the user to install
   const decision = await vscode.window.showInformationMessage(
-    `${(reason ? reason + ".  \n" : "")}Would you like to download and install the latest Koka compiler?`,
+    `${(reason ? reason + ".  \n" : "")}${warning}Would you like to download and install the latest Koka compiler?`,
     { }, // modal: true },
     'Yes',
     'No'

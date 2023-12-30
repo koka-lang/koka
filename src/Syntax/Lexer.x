@@ -69,7 +69,7 @@ $charesc      = [nrt\\\'\"]    -- "
 @utf8unsafe   = \xE2 \x80 [\x8E-\x8F\xAA-\xAE]
               | \xE2 \x81 [\xA6-\xA9]
 
-@utf8         = @utf8valid          
+@utf8         = @utf8valid
 
 @linechar     = [$graphic$space$tab]|@utf8
 @commentchar  = ([$graphic$space$tab] # [\/\*])|@newline|@utf8
@@ -182,10 +182,10 @@ program :-
 
 <stringraw> @utf8unsafe   { string $ unsafeChar "raw string" }
 <stringraw> @stringraw    { more id }
-<stringraw> \"\#*         { withRawDelim $ \s delim -> 
+<stringraw> \"\#*         { withRawDelim $ \s delim ->
                               if (s == delim)
                                 then -- done
-                                     pop $ \_ -> less (length delim) $ withmore $ 
+                                     pop $ \_ -> less (length delim) $ withmore $
                                                    string (LexString . reverse . drop (length delim) . reverse)
                               else if (length s > length delim)
                                 then -- too many terminating hashse
@@ -267,7 +267,7 @@ startsWith [] _  = False
 startsWith (c:cs) (p:ps) = if (p==c) then startsWith cs ps else False
 
 unsafeChar :: String -> String -> Lex
-unsafeChar kind s 
+unsafeChar kind s
   = LexError ("unsafe character in " ++ kind ++ ": \\u" ++ showHex 4 (fromEnum (head s)))
 
 -----------------------------------------------------------
@@ -302,7 +302,7 @@ reservedNames
     , "effect", "receffect"
     , "named"
     , "mask"
-    , "override"   
+    , "override"
 
     -- deprecated
     , "private", "public"  -- use pub
@@ -415,7 +415,7 @@ data State = State { pos      :: !Pos    -- current position
                    , previous :: !Char
                    , current  :: !BString
                    , previousLex :: Lex
-                   , rawEnd   :: String  
+                   , rawEnd   :: String
                    }
 
 type Action = BString -> State -> State -> (Maybe Lex, State)
@@ -464,10 +464,10 @@ withmore action
 
 
 rawdelim :: Action -> Action
-rawdelim action 
+rawdelim action
   = \bs st0 st1 -> let s = bstringToString bs
                        delim = "\"" ++ replicate (length s - 2) '#'
-                   in -- trace ("raw delim: " ++ show delim) $ 
+                   in -- trace ("raw delim: " ++ show delim) $
                       action bs st0 st1{ rawEnd = delim }
 
 withRawDelim :: (String -> String -> Action) -> Action
