@@ -94,7 +94,7 @@ export class KokaConfig {
     }
     this.compilerVersion = compilerVersion
     this.compilerPath = path
-    this.languageServerArgs = ["--language-server", `-i${this.cwd}`, ...this.compilerArgs]
+    this.languageServerArgs = ["--language-server", "--buildtag=vscode", `-i${this.cwd}`, ...this.compilerArgs]
     return true
   }
 
