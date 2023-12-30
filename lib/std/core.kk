@@ -1384,7 +1384,7 @@ pub fun maximum( xs : list<float64> ) : float64
 // returned by functions that find sub strings or patterns in
 // in strings. Use `string:(slice : sslice) -> string` to
 // create a fresh substring from a slice.
-// 
+//
 // The start and len fields of a slice are in terms of bytes.
 // Slices should only be interacted with safe methods defined in core
 // that take care to not cut strings in the middle of a utf codepoint.
@@ -1621,7 +1621,7 @@ pub fun take( slice: sslice, n : int): sslice
 
 // Gets a slice that drops the first n characters, shrinking the length of the slice by n accordingly.
 // If the slice does not have n characters, then the slice is shrunk to an empty slice.
-// 
+//
 // If maintaining the length of the slice is important, use `advance` instead.
 pub fun drop( slice: sslice, n : int): sslice
   if n <= 0 then return slice else slice.advance(n).truncate.extend(slice.count - n)
@@ -1917,11 +1917,11 @@ pub fun vector( ^n : int, default : a) : vector<a>
   vector-initz(n.ssize_t, fn(_i){ default } )
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
-pub fun vector-init( ^n : int, f : int -> a ) : vector<a>
+pub fun vector-init( ^n : int, f : int -> e a ) : e vector<a>
   vector-initz( n.ssize_t, fn(i) { f(i.int) } )
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
-extern vector-initz(n : ssize_t, f : ssize_t -> a) : vector<a>
+extern vector-initz(n : ssize_t, f : ssize_t -> e a) : e vector<a>
   c "kk_vector_init"
   cs inline "Primitive.NewArray<##1>(#1,#2)"
   js inline "_vector(#1,#2)"
