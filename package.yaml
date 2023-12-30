@@ -1,13 +1,16 @@
-# Note: when increasing the version, ** increase the version below at the cpp-options as well **
+#
+# ** when increasing the version, increase the version below at the cpp-options as well! ***
+#
 # Other files that contain a version are:
 # - util/install.sh
 # - util/install.bat
 # - util/minbuild
-# - support/vscode/koka.language-koka/src/workspace.ts
+# - support/vscode/koka.language-koka/package.json
+# - whatsnew.md, readme.md
 
 
 name:       koka
-version:    2.6.0
+version:    2.6.1
 github:     "koka-lang/koka"
 license:    Apache-2.0
 author:     Daan Leijen
@@ -50,7 +53,7 @@ library:
   cpp-options:
     - -DKOKA_MAIN="koka"
     - -DKOKA_VARIANT="release"
-    - -DKOKA_VERSION="2.6.0"
+    - -DKOKA_VERSION="2.6.1"
     - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:isocline
   when:
     - condition: os(windows)
