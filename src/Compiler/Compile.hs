@@ -1400,13 +1400,13 @@ copyCLibrary term flags cc eimport
       Nothing -> return []
       Just clib
         -> do mb  <- do mbSearch <- search [] [ searchCLibrary flags cc clib (ccompLibDirs flags)
-                                              , case lookup "conan" eimport of
-                                                  Just pkg | not (null (conan flags))
-                                                    -> conanCLibrary term flags cc eimport clib pkg
-                                                  _ -> return (Left [])
                                               , case lookup "vcpkg" eimport of
                                                   Just pkg
                                                     -> vcpkgCLibrary term flags cc eimport clib pkg
+                                                  _ -> return (Left [])
+                                              , case lookup "conan" eimport of
+                                                  Just pkg | not (null (conan flags))
+                                                    -> conanCLibrary term flags cc eimport clib pkg
                                                   _ -> return (Left [])
                                               ]
                         case mbSearch of
