@@ -334,8 +334,10 @@ defDecl env
 pdefSort
   = do isRec <- do{ specialId "recursive"; return True } <|> return False
        inl <- parseInline
-       (do fip <- try parseFip
-           (_,doc) <- dockeyword "fun"
+       (do (fip, doc) <- try $ do
+                      fip <- parseFip
+                      (_,doc) <- dockeyword "fun"
+                      return (fip, doc)
            _       <- do { specialOp "**"; return ()}
                       <|>
                       do { specialOp "*"; return () }
