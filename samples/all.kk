@@ -16,13 +16,14 @@ import handlers/parser
 import handlers/scoped
 import handlers/vec
 import handlers/yield
+import handlers/unix
 
 import named-handlers/ask
 import named-handlers/file
 import named-handlers/file-scoped
 import named-handlers/heap
 
-pub fun main() 
+pub fun main()
   caesar/main()
   fibonacci/main()
   garsia-wachs/main()
@@ -31,4 +32,5 @@ pub fun main()
   parser/main()
   scoped/main()
   ambient/main()
+  unix/main()
 
