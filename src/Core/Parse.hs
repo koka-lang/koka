@@ -43,10 +43,10 @@ import Lib.Trace
 --------------------------------------------------------------------------}
 type ParseInlines = Gamma -> Error () [InlineDef]
 
-parseCore :: FilePath -> IO (Error b (Core, ParseInlines))
-parseCore fname
+parseCore :: FilePath -> FilePath -> IO (Error b (Core, ParseInlines))
+parseCore fname sourceName
   = do input <- readInput fname
-       return $ ignoreSyntaxWarnings $ lexParse False (requalify . allowDotIds) program fname 1 input
+       return $ ignoreSyntaxWarnings $ lexParse False (requalify . allowDotIds) (program sourceName) fname 1 input
 
 requalify :: [Lexeme] -> [Lexeme]
 requalify lexs
@@ -115,16 +115,16 @@ pInlines env
        eof
        return idefs
 
-program :: Source -> LexParser (Core,ParseInlines)
-program source
+program :: FilePath -> Source -> LexParser (Core,ParseInlines)
+program srcName source
   = do many semiColon
-       (prog,env,inlines) <- pmodule
+       (prog,env,inlines) <- pmodule srcName
        eof
        return (prog, parseInlines prog source env inlines)
 
 
-pmodule :: LexParser (Core,Env,[Lexeme])
-pmodule
+pmodule :: FilePath -> LexParser (Core,Env,[Lexeme])
+pmodule srcName
   = do (rng,doc) <- dockeyword "module"
        keyword "interface"
        (name,_)<- modulepath
@@ -134,7 +134,7 @@ pmodule
 
                   externImports <- semis externImportDecl
                   fixs <- semis fixDecl
-                  (impsyns,env1) <- semisEnv (envInitial name impMap) localAlias
+                  (impsyns,env1) <- semisEnv (envInitial name srcName impMap) localAlias
                   (tdefs,env2)   <- semisEnv env1 typeDecl
                   -- add synonyms
                   let syns = concatMap (\td -> case td of
@@ -158,13 +158,14 @@ localAlias :: Env -> LexParser (SynInfo, Env)
 localAlias env
   = do try $ do { specialId "local"; keyword "alias" }
        (qname,_) <- qtypeid  -- can be qualified
+       range    <- prange env
        let name = envQualify env qname
        (env,params) <- typeParams env
        kind     <- kindAnnotFull
        keyword "="
        tp       <- ptype env
        (rank,_)  <- do{ keyword "="; integer } <|> return (0::Integer,rangeNull)
-       let synInfo = SynInfo name kind params tp (fromInteger rank) rangeNull Private ""
+       let synInfo = SynInfo name kind params tp (fromInteger rank) range Private ""
        return (synInfo, envExtendSynonym env synInfo)
 
 semisEnv :: Env -> (Env -> LexParser (a,Env)) -> LexParser ([a],Env)
@@ -231,7 +232,7 @@ typeDecl env
                       <|>
                       do (name,_) <- idop -- (<>), (<|>)
                          return (qualify (modName env) name)
-
+       range    <- prange env
        -- trace ("core type: " ++ show tname) $ return ()
        (env,params) <- typeParams env
        kind       <- kindAnnotFull
@@ -239,13 +240,14 @@ typeDecl env
        let cons1    = case cons of
                         [con] -> [con{ conInfoSingleton = True }]
                         _     -> cons
-           dataInfo = DataInfo sort tname kind params cons1 rangeNull ddef vis doc
+           dataInfo = DataInfo sort tname kind params cons1 range ddef vis doc
        return (Data dataInfo isExtend, env)
   <|>
     do (vis,doc) <- try $ do vis <- vispub
                              (_,doc) <- dockeyword "alias"
                              return (vis,doc)
        (name,_) <- tbinderId
+       range    <- prange env
        --trace ("core alias: " ++ show name) $ return ()
        (env,params) <- typeParams env
        kind     <- kindAnnotFull
@@ -253,7 +255,7 @@ typeDecl env
        tp       <- ptype env
        (rank,_)  <- do{ keyword "="; integer } <|> return (0::Integer,rangeNull)
        let qname   = qualify (modName env) name
-       let synInfo = SynInfo qname kind params tp (fromInteger rank) rangeNull vis doc
+       let synInfo = SynInfo qname kind params tp (fromInteger rank) range vis doc
        return (Synonym synInfo, envExtendSynonym env synInfo)
 
 conDecl tname foralls sort env
@@ -261,6 +263,7 @@ conDecl tname foralls sort env
                              (_,doc) <- dockeyword "con"
                              return (vis,doc)
        (name,_)  <- constructorId
+       range    <- prange env
        -- trace ("core con: " ++ show name) $ return ()
        (env1,existss) <- typeParams env
        (env2,params)  <- parameters env1
@@ -268,7 +271,7 @@ conDecl tname foralls sort env
        tp     <- typeAnnot env2
        let params2 = [(if nameIsNil name then newFieldName i else name, tp) | ((name,tp),i) <- zip params [1..]]
            orderedFields = []  -- no need to reconstruct as it is only used during codegen?
-       let con = (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False
+       let con = (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort range (map (const range) params2) (map (const Public) params2) False
                              orderedFields vrepr vis doc)
        -- trace (show con ++ ": " ++ show params2) $
        return con
@@ -316,6 +319,7 @@ defDecl env
                                        (sort,inl,isRec,doc) <- pdefSort
                                        return (vis,sort,inl,doc)
        (name,_) <- funid <|> idop
+       range    <- prange env
        -- inl      <- parseInline
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
@@ -325,7 +329,7 @@ defDecl env
                     _            -> sort0
        -- trace ("parse def: " ++ show name ++ ": " ++ show tp) $ return ()
        return (Def (qualify (modName env) name) tp (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file"))
-                   vis sort inl rangeNull doc)
+                   vis sort inl range doc)
 
 pdefSort
   = do isRec <- do{ specialId "recursive"; return True } <|> return False
@@ -351,12 +355,13 @@ externDecl env
                                   fip <- parseFip
                                   (_,doc) <- dockeyword "extern"
                                   return (vis,fip,doc)
-       (name,_) <- (funid)
+       (name,_) <- funid
+       range    <- prange env
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
        (tp,pinfos) <- pdeftype env
        formats <- externalBody
-       return (External (qualify (modName env) name) tp pinfos formats vis fip rangeNull doc)
+       return (External (qualify (modName env) name) tp pinfos formats vis fip range doc)
 
 
 externalBody :: LexParser [(Target,String)]
@@ -563,11 +568,29 @@ parseDefGroups0 env
 parseDefGroup :: Env -> LexParser (Env,DefGroup)
 parseDefGroup env
   = do (sort,inl,isRec,doc) <- pdefSort
-       (name,tp)  <- funid <|> do{ wildcard; return (nameNil,rangeNull) }
+       (name,_)   <- funid <|> do{ wildcard; return (nameNil,rangeNull) }
+       range      <- prange env
        -- inl        <- parseInline
        tp         <- typeAnnot env
        expr       <- parseBody env
-       return (envExtendLocal env (name,tp), DefNonRec (Def name tp expr Private sort inl rangeNull doc))
+       return (envExtendLocal env (name,tp), DefNonRec (Def name tp expr Private sort inl range doc))
+
+prange :: Env -> LexParser Range
+prange env
+  = do special "["
+       l1 <- linecol
+       special ","
+       c1 <- linecol
+       special ","
+       l2 <- linecol
+       special ","
+       c2 <- linecol
+       special "]"
+       return (envRange env l1 c1 l2 c2)
+  where
+    linecol :: LexParser Int
+    linecol = do (i,_) <- integer
+                 return (fromInteger i)
 
 
 
@@ -972,24 +995,29 @@ katom
 data Env = Env{ bound :: !(M.NameMap TypeVar)
               , syns  :: !Synonyms
               , modName :: !Name
+              , srcPath :: !FilePath
               , imports :: !ImportMap
               , unique  :: !Int
               , gamma  ::  !Gamma            -- only used for inline definitions
               , locals :: !(M.NameMap Type) -- only used for inline definitions
               }
 
-envInitial :: Name -> ImportMap -> Env
-envInitial modName imports
-  = Env M.empty synonymsEmpty modName imports 1000 gammaEmpty M.empty
+envRange :: Env -> Int -> Int -> Int -> Int -> Range
+envRange env l1 c1 l2 c2
+  = makeSourceRange (srcPath env) l1 c1 l2 c2
+
+envInitial :: Name -> FilePath -> ImportMap -> Env
+envInitial modName srcPath imports
+  = Env M.empty synonymsEmpty modName srcPath imports 1000 gammaEmpty M.empty
 
 envExtend :: Env -> (Name,Kind) -> Env
-envExtend (Env env syns mname imports unique gamma locals) (name,kind)
+envExtend (Env env syns mname srcpath imports unique gamma locals) (name,kind)
   = let id = newId unique
         tv = TypeVar id kind Bound
-    in Env (M.insert name tv env) syns mname imports (unique+1) gamma locals
+    in Env (M.insert name tv env) syns mname srcpath imports (unique+1) gamma locals
 
 envType :: Env -> Name -> Kind -> Type
-envType env@(Env bound syns mname _ _ _ _) name kind
+envType env@(Env bound syns mname _ _ _ _ _) name kind
   = case M.lookup name bound of
       Nothing -> let qname = envQualify env name
                  in case synonymsLookup qname syns of
@@ -1003,7 +1031,7 @@ envType env@(Env bound syns mname _ _ _ _) name kind
       Just tv -> TVar tv
 
 envQualify :: Env -> Name -> Name
-envQualify (Env _ _ mname imports _ _ _) name
+envQualify (Env _ _ mname _ imports _ _ _) name
   = if isQualified name
      then case (importsExpand name imports) of
             Right (qname,_) -> qname
@@ -1031,8 +1059,8 @@ envTypeApp env tp tps
 
 
 envExtendLocal :: Env -> (Name,Type) -> Env
-envExtendLocal (Env env syns mname imports unique gamma locals) (name,tp)
-  = Env env syns mname imports (unique+1) gamma (M.insert name tp locals)
+envExtendLocal (Env env syns mname srcpath imports unique gamma locals) (name,tp)
+  = Env env syns mname srcpath imports (unique+1) gamma (M.insert name tp locals)
 
 
 envLookupLocal :: Env -> Name -> LexParser Type

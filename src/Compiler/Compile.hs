@@ -722,7 +722,7 @@ resolveModule maybeContents term flags currentDir modules importPath mimp
                        -> do
                           loadMessage "loading:"
                           ftime <- liftIO $ getFileTime iface
-                          mbCore <- liftIO $ parseCore iface
+                          mbCore <- liftIO $ parseCore iface (joinPath root stem)
                           (core,parseInlines) <- liftError mbCore
                           -- let core = uniquefy core0
                           outIFace <- liftIO $ copyIFaceToOutputDir term flags iface core
