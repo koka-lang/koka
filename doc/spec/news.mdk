@@ -5,7 +5,7 @@ News:
   run test functions directly from the editor, automatic Koka installation, and many more things.
   Special thanks to [Tim Whiting](https://github.com/TimWhiting) and [Fredrik Wieczerkowski](https://github.com/fwcd) for all their work on making this possible!
 
-* 2023-12-27: Update of the technical report on "The functional essence of binary trees" [pdf][fiptree-tr] where we use fully-in-place programming and
+* 2023-12-27: Update of the technical report on "[The functional essence of binary trees][fiptree-tr]" where we use fully-in-place programming and
   the new hole contexts to create fully verified functional implementations of binary search tree
   algorithms with performance on par with imperative C implementations.
 
