@@ -95,6 +95,7 @@ export async function activate(context: vscode.ExtensionContext) {
 // Check if the compiler has updated
 async function checkCompilerUpdate(context : vscode.ExtensionContext, vsConfig: vscode.WorkspaceConfiguration, kokaConfig : KokaConfig) {
   const prevCompilerVersion = await context.globalState.get('koka-compiler-version') as string ?? "1.0.0"
+  console.log(`Koka: check compiler update, previous: ${prevCompilerVersion}, current: ${kokaConfig.compilerVersion}` )
   if (semver.neq(prevCompilerVersion,kokaConfig.compilerVersion)) {
     // first time activation after an update/install of the compiler
     await context.globalState.update('koka-compiler-version', kokaConfig.compilerVersion)

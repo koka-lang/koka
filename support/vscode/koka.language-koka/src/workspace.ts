@@ -21,7 +21,7 @@ const defaultShell  = (os.platform() === "win32" ? "C:\\Windows\\System32\\cmd.e
 
 // Development: set kokaDevDir to a non-empty string to (un)install from a local bundle instead of github
 const kokaDevDir    = ""
-                      // "c:/users/daan/dev/koka-dev"
+                      //"c:/users/daan/dev/koka-dev"
                       // "/Users/daan/dev/koka-dev"
 
 // Configuration
@@ -35,7 +35,7 @@ export class KokaConfig {
     this.enableDebugExtension = vsConfig.get('dev.debugExtension') as boolean
     this.developmentPath = vsConfig.get('dev.developmentPath') as string ?? ""
     this.cwd = vsConfig.get('languageServer.workingDirectory') as string || vscode.workspace.workspaceFolders![0].uri.fsPath
-    this.compilerArgs = vsConfig.get('languageServer.compilerArgs') as string[] || []
+    this.compilerArgs = vsConfig.get('languageServer.compilerArguments') as string[] || []
     this.autoFocusTerminal = vsConfig.get('languageServer.autoFocusTerminal') as boolean ?? false;
 
     const extVersion = context.extension.packageJSON.version as string ?? "1.0.0"
