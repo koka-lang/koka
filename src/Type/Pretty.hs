@@ -15,7 +15,7 @@ module Type.Pretty (-- * Pretty
                    ,niceList, niceTypes, niceType, niceEnv
                    ,typeColon, niceTypeVars, ppName
                    , canonical, minCanonical
-                   , prettyComment
+                   , prettyComment, prettyRange
                    ) where
 
 
@@ -309,12 +309,16 @@ ppSynInfo env isLocal publicOnly showBody (SynInfo name kind params scheme rank 
         (if isLocal
           then keyword env "local alias"
           else (ppVis env vis) <.> keyword env "alias") <+>
-        ppName env name <.> pretty range <.> -- <+> (ppSynInfo env True synInfo)
+        ppName env name <.> prettyRange env range <.> -- <+> (ppSynInfo env True synInfo)
         let docs = niceTypes env (map TVar params ++ [scheme])
         in (if null params then empty else angled (init docs))
          <.> (if kind /= kindStar then text " ::" <+> ppKind (colors env) precTop kind else empty)
          <+> (if not showBody then empty else keyword env "=" <+> last docs))
          <+> text "=" <+> pretty rank
+
+
+prettyRange env range
+  = if coreIface env then pretty range else empty
 
 
 {--------------------------------------------------------------------------

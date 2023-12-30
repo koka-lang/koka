@@ -290,8 +290,6 @@ prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
   where
     ppBody = prettyExpr env{coreShowVis=False} expr
 
-prettyRange env range
-  = if coreIface env then pretty range else empty
 
 prettyVis env vis doc
   = if (not (coreShowVis env)) then doc else
