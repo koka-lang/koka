@@ -160,6 +160,9 @@ you can correct this by running `git submodule update --init --recursive`).
 You can also use `stack build --fast` to build a debug version of the compiler,
 and use `stack test --fast` to run the test-suite.
 
+To run a single test you can run stack test filtering based on paths such as `stack test --test-arguments '-m "lib"'`. 
+This will run all tests that are under the `test/lib` directory.
+
 (See the [build notes](#build-notes) below if you have issues when running- or installing `stack`).
 
 ## Create an Install Bundle

@@ -5,7 +5,6 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
-
 -----------------------------------------------------------------------------
 -- Conversions between LSP types and internal types, e.g. positions/ranges
 -----------------------------------------------------------------------------
@@ -27,32 +26,32 @@ module LanguageServer.Conversions
     fromLspPos,
     fromLspRange,
     fromLspLocation,
-    fromLspUri
+    fromLspUri,
   )
 where
-import           GHC.Generics              hiding (UInt)
-import qualified Data.Text as T
+
+import Colog.Core
+import qualified Common.Error as E
+import Common.File (normalize, realPath)
+import Common.Range (Source (sourceName), sourceNull)
+import qualified Common.Range as R
+import Compiler.Module (Loaded (..), Module (..))
 import Data.Map.Strict as M hiding (map)
 import Data.Maybe (fromMaybe)
-import qualified Language.LSP.Protocol.Types as J
+import qualified Data.Text as T
+import GHC.Generics hiding (UInt)
 import Language.LSP.Protocol.Types (UInt)
-import Colog.Core
-
-import Common.File (normalize, realPath)
-import Common.Range (sourceNull, Source (sourceName))
-import qualified Common.Error as E
-import qualified Common.Range as R
+import qualified Language.LSP.Protocol.Types as J
 import Lib.PPrint (Doc)
 import qualified Syntax.RangeMap as R
-import Compiler.Module (Module (..), Loaded (..))
 
 toLspPos :: R.Pos -> J.Position
 toLspPos p =
-  J.Position (fromIntegral (max 0 (R.posLine p - 1))) (fromIntegral (max 0 (R.posColumn p)))-- LSP positions are zero-based
+  J.Position (fromIntegral (max 0 (R.posLine p - 1))) (fromIntegral (max 0 (R.posColumn p - 1))) -- LSP positions are zero-based
 
 toLspRange :: R.Range -> J.Range
 toLspRange r =
-  J.Range (J.Position l1 (max 0 (c1 - 1))) (J.Position l2 c2) -- LSP range ends are exclusive
+  J.Range (J.Position l1 c1) (J.Position l2 (c2 + 1)) -- LSP range ends are exclusive
   where
     J.Position l1 c1 = toLspPos $ R.rangeStart r
     J.Position l2 c2 = toLspPos $ R.rangeEnd r
@@ -72,7 +71,7 @@ toLspLocationLink src r =
 toLspDiagnostics :: J.NormalizedUri -> T.Text -> E.Error b a -> M.Map J.NormalizedUri [J.Diagnostic]
 toLspDiagnostics uri src err =
   case E.checkError err of
-    Right (_, ws) ->  M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [toLspWarningDiagnostic src r doc])) ws
+    Right (_, ws) -> M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [toLspWarningDiagnostic src r doc])) ws
     Left e -> toLspErrorDiagnostics uri src e
 
 toLspErrorDiagnostics :: J.NormalizedUri -> T.Text -> E.ErrorMessage -> M.Map J.NormalizedUri [J.Diagnostic]
@@ -86,7 +85,8 @@ toLspErrorDiagnostics uri src e =
     E.ErrorWarning rds e' -> M.unionWith (++) (mapRangeDocs rds) (toLspErrorDiagnostics uri src e')
     E.ErrorIO doc -> M.singleton uri [makeDiagnostic J.DiagnosticSeverity_Error src R.rangeNull doc]
     E.ErrorZero -> M.empty
-  where mapRangeDocs rds = M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [makeDiagnostic J.DiagnosticSeverity_Error src r doc])) rds
+  where
+    mapRangeDocs rds = M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [makeDiagnostic J.DiagnosticSeverity_Error src r doc])) rds
 
 uriFromRange :: R.Range -> J.NormalizedUri -> J.NormalizedUri
 uriFromRange r uri =
