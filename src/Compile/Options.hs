@@ -184,6 +184,7 @@ data Flags
          , semiInsert       :: !Bool
          , genRangeMap      :: !Bool
          , languageServerPort :: !Int
+         , languageServerStdio :: !Bool
          , localBinDir      :: !FilePath  -- directory of koka executable
          , localDir         :: !FilePath  -- install prefix: /usr/local
          , localLibDir      :: !FilePath  -- precompiled object files: <prefix>/lib/koka/v2.x.x  /<cc>-<config>/libkklib.a, /<cc>-<config>/std_core.kki, ...
@@ -330,6 +331,7 @@ flagsNull
           True  -- semi colon insertion
           False -- generate range map
           6061  -- language server port
+          False -- language server stdio
           ""    -- koka executable dir
           ""    -- prefix dir (default: <program-dir>/..)
           ""    -- localLib dir
@@ -466,6 +468,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
  , hide $ fflag       ["eagerpatbind"] (\b f -> f{optEagerPatBind=b}) "load pattern fields as early as possible"
  , hide $ numOption (-1) "port" [] ["lsport"]    (\i f -> f{languageServerPort=i}) "language Server port"
+ , hide $ flag []     ["lsstdio"]     (\b f -> f{languageServerStdio=b}) "language Server stdio"
  , hide $ flag []     ["buildhash"]   (\b f -> f{useBuildDirHash=b})   "use hash in build directory name"
 
  -- deprecated
