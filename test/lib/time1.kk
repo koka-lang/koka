@@ -19,9 +19,9 @@ pub import std/time/timezone
 
 fun check(name : string, res : string, tst : () -> <ndet,utc> string ) : <io,utc> () {
   val got = tst()
-  println(name.pad-right(14,' ') + ": "
-    + (if (got == res) then "ok: " + res
-                       else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
+  println(name.pad-right(14,' ') ++ ": "
+    + (if (got == res) then "ok: " ++ res
+                       else "FAILED!:\n expect: " ++ res ++ "\n gotten: " ++ got ++ "\n"))
 }
 
 pub fun test-timezones() {
@@ -97,12 +97,12 @@ fun test-tzs( tzs : timezones ) {
 pub fun test() {
   val ts-utc = ts-utc-load()
   with fun utc() { ts-utc }
-  println( "tz-local(): " + now().time(tz=tz-local()).show )
+  println( "tz-local(): " ++ now().time(tz=tz-local()).show )
   val tzs = //try(timezones-empty){
             load-timezones(verbose=True) //}
-  println( "US/Pacific: " + now().time(tz=tzs.timezone("US/Pacific")).show )
+  println( "US/Pacific: " ++ now().time(tz=tzs.timezone("US/Pacific")).show )
   val zlocal = tzs.guess-local-timezone()
-  println( "gues local: " + now().time(tz=zlocal).show + " (" + zlocal.name + ")")
+  println( "gues local: " ++ now().time(tz=zlocal).show ++ " (" ++ zlocal.name ++ ")")
   test-tzs(tzs)
 }
 

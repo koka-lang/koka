@@ -197,11 +197,11 @@ fun test0() {
 
                    
 fun show1( x : (list<bool>,int) ) {
-  "([" + x.fst.map(show).join(",") + "], " + x.snd.show + ")"
+  "([" ++ x.fst.map(show).join(",") ++ "], " ++ x.snd.show ++ ")"
 }
                    
 fun show2( xs : list<(bool,int)> ) {
-  "[" + xs.map(fn(x){ "(" + x.fst.show + "," + x.snd.show + ")"}).join(",") + "]"
+  "[" ++ xs.map(fn(x){ "(" ++ x.fst.show ++ "," ++ x.snd.show ++ ")"}).join(",") ++ "]"
 }
                    
 fun test1() = state_handler(amb_handler(foo()),1).pure.show1

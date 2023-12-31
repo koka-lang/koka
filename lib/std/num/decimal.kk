@@ -43,7 +43,7 @@ fun decimal-exp( i : int, exp : int = 0 ) : decimal
   // use exponents only at specific intervals to avoid too much re-scaling
   val x = round-exp(exp)  // always x <= exp
   val diff = exp - x
-  // trace("decimal-exp: " + i.show + "e" + exp.show + ", diff: " + diff.show + ", x: " + x.show)
+  // trace("decimal-exp: " ++ i.show ++ "e" ++ exp.show ++ ", diff: " ++ diff.show ++ ", x: " ++ x.show)
   if diff.is-zero then Decimal(i,exp) else Decimal(i.mul-exp10(diff.abs),x)
 
 /* Create a decimal from a `:float64` with a specified maximal precision (=`-1`).
@@ -95,7 +95,7 @@ fun pdecimal() : parse decimal
   val whole = digits()
   val frac = optional("", { char('.'); digits() })
   val exp  = optional(0, { one-of("eE"); pint() })
-  // trace("frac:" + frac)
+  // trace("frac:" ++ frac)
   val i = decimal-exp( (whole ++ frac).parse-int-default(0), exp - frac.count )
   if neg then ~i else i
 
@@ -117,10 +117,10 @@ pub fun reduce( x : decimal ) : decimal
 // Add two decimals.
 pub fun (+)( x : decimal, y : decimal ) : decimal
   val e  = min(x.exp,y.exp)
-  // trace("add: " ++ x.show-raw ++ " + " ++ y.show-raw ++ ", using exp: " ++ e.show )
+  // trace("add: " ++ x.show-raw ++ " ++ " ++ y.show-raw ++ ", using exp: " ++ e.show )
   val xx = x.expand(e)
   val yy = y.expand(e)
-  // trace("expanded add: " ++ xx.show-raw ++ " + " ++ yy.show-raw)
+  // trace("expanded add: " ++ xx.show-raw ++ " ++ " ++ yy.show-raw)
   Decimal(xx.num + yy.num, e)
 
 // Negate a decimal.
@@ -233,7 +233,7 @@ pub fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Half-even ) : 
     Truncate  -> if !q.is-neg then q else q.inc
     Away-from-zero  -> if !q.is-pos then q else q.inc
 
-  //trace("round: " + x.showx + ", q: " + q.show + ", r: " + r.show + ", q1: " + q1.show + "e-" + prec.show )
+  //trace("round: " ++ x.showx ++ ", q: " ++ q.show ++ ", r: " ++ r.show ++ ", q1: " ++ q1.show ++ "e-" ++ prec.show )
   decimal-exp(q1,~prec)
 
 // Optimize: Use float64 division when within precision bounds.

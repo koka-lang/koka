@@ -8,26 +8,26 @@ fun home?() {
 }
 
 fun cd(path,action) {
-  with val cwd = cwd + path + "/"
+  with val cwd = cwd + path ++ "/"
   action()
 }
 
 // cd2 a, b, and c are equivalent
 // avoid using `mask` through the `override` keyword
 fun cd2a(path,action) {
-  with override val cwd = cwd + path + "/"
+  with override val cwd = cwd + path ++ "/"
   action()
 }
 
 fun cd2b(path,action) {
   val cur = cwd
   with mask<cwd>
-  with val cwd = cur + path + "/"
+  with val cwd = cur + path ++ "/"
   action()
 }
 
 fun cd2c(path,action) {
-  with val cwd = cwd + path + "/"
+  with val cwd = cwd + path ++ "/"
   mask behind<cwd>(action)
 }
 
@@ -51,12 +51,12 @@ fun ex2() {
 ambient fun log(msg : string) : ()
 
 fun log-working-dir() : <cwd, log> () {
-  log("current working dir is: " + cwd)
+  log("current working dir is: " ++ cwd)
 }
 
 fun ex3() {
   with val cwd = "/"
-  with fun log(msg) { append-to-file(cwd + "log.txt", msg) }
+  with fun log(msg) { append-to-file(cwd ++ "log.txt", msg) }
   cd("var") { cd("lib") { log-working-dir() } }
 }
 
@@ -81,7 +81,7 @@ fun ex4() {
 
 fun ex5() {
   with val cwd = "/var/lib/"
-  with control read-file(f) { resume("dummy contents for " + f) }
+  with control read-file(f) { resume("dummy contents for " ++ f) }
   cd("var") {
     cd("lib") {
       println(cat("file.txt"))
@@ -106,11 +106,11 @@ fun is-defined?(m) {
 }
 
 fun append-to-file(path, content) {
-  println("appending to: " + path + "; content: \"" + content + "\"")
+  println("appending to: " ++ path ++ "; content: \"" ++ content ++ "\"")
 }
 
 fun read-async(filename : string, k : string -> <console|e> ()) : <console|e> () {
-  println("reading file :" + filename)
+  println("reading file :" ++ filename)
   k("contents")
-  println("done reading file :" + filename)
+  println("done reading file :" ++ filename)
 }

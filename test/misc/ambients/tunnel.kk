@@ -131,6 +131,6 @@ fun test3b() {
 }
 
 fun main() {
-  println( ", even count a: " + test3a().show )
-  println( ", even count b: " + test3b().show )
+  println( ", even count a: " ++ test3a().show )
+  println( ", even count b: " ++ test3b().show )
 }

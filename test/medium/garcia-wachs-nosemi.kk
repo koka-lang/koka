@@ -13,7 +13,7 @@ pub type tree<a>
 fun show( t : tree<char> ) : string 
   match(t) 
     Leaf(c)   -> core/show(c)
-    Node(l,r) -> "Node(" + show(l) + "," + show(r) + ")"
+    Node(l,r) -> "Node(" ++ show(l) ++ "," ++ show(r) ++ ")"
 
 
 

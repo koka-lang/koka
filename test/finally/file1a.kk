@@ -39,14 +39,14 @@ alias hfile = int
 
 fun fopen( fname : string ) : <console,ndet> hfile {
   val f = unique() + 1
-  println("open : " + f.show)
+  println("open : " ++ f.show)
   f
 }
 
 fun fclose( f : hfile ) {
-  println("close: " + f.show)
+  println("close: " ++ f.show)
 }
 
 fun fwrite( f : hfile, msg ) {
-  println("write: " + f.show + ": " + msg )
+  println("write: " ++ f.show ++ ": " ++ msg )
 }

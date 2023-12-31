@@ -67,7 +67,7 @@ val choices = handler {
 }
 
 fun show(sxss : (int,list<list<int>>)) : string {
-  "(state=" + sxss.fst.show + ", " + sxss.snd.show + ")"
+  "(state=" ++ sxss.fst.show ++ ", " ++ sxss.snd.show ++ ")"
 }
 fun test2() {
   global(0){ choices{ knapsack(3,[3,2,1]) }}

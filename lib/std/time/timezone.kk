@@ -16,7 +16,7 @@ The latest version can be found at: <https://github.com/moment/moment-timezone/b
 val tzs = load-timezones()
 println( now().time(tzs.timezone("US/Pacific")).show )
 val zlocal = tzs.guess-local-timezone()
-println( now().time(zlocal).show + " (" + zlocal.tz-name + ")")
+println( now().time(zlocal).show ++ " (" ++ zlocal.tz-name ++ ")")
 println( now().time(tz-local()).show )
 ```
 */
@@ -61,7 +61,7 @@ pub fun load-timezones( fname : path = path(""),
        Just(parse-packed-zones(s))
 
      fn(exn)
-       trace("failed parse: " + exn.show)
+       trace("failed parse: " ++ exn.show)
        Nothing
      })
 
@@ -102,7 +102,7 @@ fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-perio
     Nil -> timezone-period0
     Cons(tzp,earlier) ->
       if (i >= tzp.start.default(i)) then
-        //trace("timezone: " + tzp.abbrv + ", start: " + tzp.start.default(i).time.show)
+        //trace("timezone: " ++ tzp.abbrv ++ ", start: " ++ tzp.start.default(i).time.show)
         tzp
       else 
         find-offset(i,earlier)
@@ -122,12 +122,12 @@ pub fun timezone( tzi : timezone-info ) : timezone
 
 // Show a time zone period.
 pub fun show( tzp : timezone-period) : string
-  tzp.abbrv.pad-right(4) + " " + tzp.offset.show-tzdelta(utc="+00:00") + " from " + tzp.start.map(fn(i){ i.time.show }).default("-infinity")
+  tzp.abbrv.pad-right(4) ++ " " ++ tzp.offset.show-tzdelta(utc="+00:00") ++ " from " ++ tzp.start.map(fn(i){ i.time.show }).default("-infinity")
 
 // Show time zone information.
 pub fun show (tzi : timezone-info, show-periods : bool = False  ) : string
-  tzi.name + ", population: " + tzi.population.show
-    + (if !show-periods then "" else ":\n  " + (tzi.periods)().map(show : timezone-period -> string).join("\n  "))
+  tzi.name ++ ", population: " ++ tzi.population.show
+    + (if !show-periods then "" else ":\n  " ++ (tzi.periods)().map(show : timezone-period -> string).join("\n  "))
 
 
 /*----------------------------------------------------------------------------
@@ -145,7 +145,7 @@ pub fun parse-packed-zones( s : string ) : exn timezones
 
   val zonesarr = zonesfld.lines.map fn(line)
     match line.find(rxzone)    
-      Nothing   -> error("invalid timezone info:\n  " + line)
+      Nothing   -> error("invalid timezone info:\n  " ++ line)
       Just(cap) -> cap.groups[1]
 
   val zones = zonesarr.map(parse-packed-zone)
@@ -158,13 +158,13 @@ pub fun parse-packed-zones( s : string ) : exn timezones
 
   val links = linksfld.lines.map fn(line)
     match line.find(rxlink)
-      Nothing   -> error("invalid timezone link:\n  " + line)
+      Nothing   -> error("invalid timezone link:\n  " ++ line)
       Just(cap) -> (cap.groups[1],cap.groups[2])
 
   val ldict = links.map(fn(link)
     val (key,other) = link
     match zdict[key.normalize]
-      Nothing  -> error("invalid timezone link: unknown time zone: " + key.normalize + ", to: " + other + ", " + zdict.keys.join("\n"))
+      Nothing  -> error("invalid timezone link: unknown time zone: " ++ key.normalize ++ ", to: " ++ other ++ ", " ++ zdict.keys.join("\n"))
       Just(tz) -> (other.normalize,tz(name=other,aliased=True))
    ).dict
 
@@ -177,7 +177,7 @@ val rxlinks = regex(r#""links"\s*:\s*\[([\s\S]*?)^[ \t]*\]"#, multiLine=True)
 val rxlink  = regex(r#"^\s*"([^"\|]+)\|([^"\|]+)",?\s*$"#)
 
 fun parse-packed-zone( s : string ) : exn timezone-info
-  //trace("parseing: " + s)
+  //trace("parseing: " ++ s)
   val parts     = s.split("|")
   val name      = parts[0].default("")
   val abbrs     = parts[1].default("")
@@ -203,7 +203,7 @@ fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sind
       Nil -> (0.0,[])
       Cons(start,rest) -> (start * 60.0, Cons(0.0,rest))
 
-    if diffs.length + 1 != indices.length  error("invalid timezone data:\n  diffs: " + sxdiffs + "\n  ind  : " + sindices  )
+    if diffs.length + 1 != indices.length  error("invalid timezone data:\n  diffs: " ++ sxdiffs ++ "\n  ind  : " ++ sindices  )
     val endings = diffs.foldl((start0,[]), fn(acc:(float64,list<maybe<instant>>),diff)
                     val iu = acc.fst + diff*60.0
                     val i = unix-instant(iu)
@@ -216,13 +216,13 @@ fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sind
     periods
 
   fn(exn)
-    trace("invalid timezone database entry for " + name.show + ":\n " + exn.show)
+    trace("invalid timezone database entry for " ++ name.show ++ ":\n " ++ exn.show)
     []
 
 
 fun parse-fixed-base60( s : string ) : exn float64
   match(s.find(rxfixbase60))
-    Nothing -> error("invalid fixed base60 number: " + s)
+    Nothing -> error("invalid fixed base60 number: " ++ s)
     Just(cap) ->
       val sign = if cap.groups[1]=="-" then ~1 else 1
       val num  = parse-base60(cap.groups[2])
@@ -236,7 +236,7 @@ val rxfixbase60 = regex(r"^([\-\+])?([\da-zA-X]*)(?:\.([\da-zA-X]+))?$")
 fun parse-base60( s : string ) : exn int
   if s.is-empty return 0
   match(s.find(rxbase60))
-    Nothing -> error("invalid base60 number: " + s)
+    Nothing -> error("invalid base60 number: " ++ s)
     Just(cap) ->
       val sign = if cap.groups[1]=="-" then ~1 else 1
       val num  = cap.groups[2].list.foldl(0) fn(n,d)
@@ -250,7 +250,7 @@ fun digit60( d : char ) : exn int
   if d.is-digit then (d - '0').int
   elif d.is-lower then (d - 'a').int + 10
   elif d.is-upper then (d - 'A').int + 36
-  else error("invalid digit in base 60: " + d.show)
+  else error("invalid digit in base 60: " ++ d.show)
 
 
 /*----------------------------------------------------------------------------
@@ -323,7 +323,7 @@ pub fun guess-local-timezone( tzs : timezones, default : maybe<timezone> = Nothi
       val offsets = dates.sample-offsets(tz-local())
       val matches = tzs.tzones.list.map(snd).filter fn(tzi)
                       (!tzi.aliased &&  dates.match-offsets(offsets,tzi.timezone))
-      // trace("timezone guess matches: " + matches.show-list(fn(tzi){ tzi.show }))
+      // trace("timezone guess matches: " ++ matches.show-list(fn(tzi){ tzi.show }))
       match matches
         Nil -> match default
           Nothing  -> tz-local()

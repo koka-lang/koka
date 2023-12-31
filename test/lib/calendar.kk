@@ -298,9 +298,9 @@ fun julgreg-days-to-date( days : int, switch : int ) : date {
 // Test
 // ----------------------------------------------------
 fun check( msg : string, expect : string, result : string ) : io () {
-  if (expect==result) then () // println( msg + ": ok.") 
+  if (expect==result) then () // println( msg ++ ": ok.") 
   else {
-    println(msg + ": FAILED:\n expect : " + expect + "\n result: " + result )
+    println(msg ++ ": FAILED:\n expect : " ++ expect ++ "\n result: " ++ result )
     error("failure")
   }
 }
@@ -310,33 +310,33 @@ fun test-day-cal( day : int, cal : calendar ) : io date {
   val days1 = days-at-date( date1, cal )
   val date2 = date-at-days( days1, cal )
   val days2 = days-at-date( date2, cal )
-  check( "inverse days1: " + cal.name.show + ", " + date1.show, day.show, days1.show )
-  check( "inverse days2: " + day.show, day.show, days2.show )
-  check( "inverse date: " + date1.show, date1.show, date2.show )
+  check( "inverse days1: " ++ cal.name.show ++ ", " ++ date1.show, day.show, days1.show )
+  check( "inverse days2: " ++ day.show, day.show, days2.show )
+  check( "inverse date: " ++ date1.show, date1.show, date2.show )
   date1
 }
 
 fun test-day( day : int ) {
   val idate = test-day-cal( day, cal-iso )
   val xidate = test-day-cal( day, xcal-iso )
-  //println(" iso date: " + idate.show + ", " + xidate.show )
-  check( "equal iso date: " + idate.show, idate.show, xidate.show)
+  //println(" iso date: " ++ idate.show ++ ", " ++ xidate.show )
+  check( "equal iso date: " ++ idate.show, idate.show, xidate.show)
   val wdate  = test-day-cal( day, cal-iso-week )
   val xwdate = test-day-cal( day, xcal-iso-week )
-  check( "equal iso week date: " + wdate.show, wdate.show, xwdate.show)
+  check( "equal iso week date: " ++ wdate.show, wdate.show, xwdate.show)
   val mdate  = test-day-cal( day, cal-iso-month )
   val xmdate = test-day-cal( day, xcal-iso-month )
-  check( "equal iso month date: " + mdate.show, mdate.show, xmdate.show)
+  check( "equal iso month date: " ++ mdate.show, mdate.show, xmdate.show)
   val jdate  = test-day-cal( day, cal-julian )
   val xjdate = test-day-cal( day, xcal-julian )
-  check( "equal julian date: " + jdate.show, jdate.show, xjdate.show)
+  check( "equal julian date: " ++ jdate.show, jdate.show, xjdate.show)
   val cdate = test-day-cal(day, cal-coptic )
   val xcdate = test-day-cal(day, xcal-coptic)
-  // println("coptic: " + cdate.show + ", " + xcdate.show)
-  check("equal coptic date: " + cdate.show, cdate.show, xcdate.show )
+  // println("coptic: " ++ cdate.show ++ ", " ++ xcdate.show)
+  check("equal coptic date: " ++ cdate.show, cdate.show, xcdate.show )
   val edate  = test-day-cal( day, cal-ethiopian )
   val xedate = test-day-cal( day, xcal-ethiopian )
-  check( "equal ethiopian date: " + edate.show, edate.show, xedate.show)
+  check( "equal ethiopian date: " ++ edate.show, edate.show, xedate.show)
   ()
 }
 
@@ -348,10 +348,10 @@ fun test( years : int = 500 ) {
 }
 
 fun for-days( ylo : int, yhi : int, action : int -> io () ) : io () {
-  println("days in years: " + ylo.show + " up to " + yhi.show)
+  println("days in years: " ++ ylo.show ++ " up to " ++ yhi.show)
   for(ylo,yhi) fn(y) {
     val base = y*366 - 730119
-    println("year: " + time(2000,1,base).year.show)
+    println("year: " ++ time(2000,1,base).year.show)
     for(0,365) fn(day) { action(base + day)}
   }
 }

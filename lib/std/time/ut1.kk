@@ -104,11 +104,11 @@ pub fun load-iersA( basename : string = "finals2000A",
                     verbose : bool = True
                   ) : <io,async> ((i:instant) -> maybe<duration>)
 
-  val fname-all    = basename + ".all"
+  val fname-all    = basename ++ ".all"
   val finals-all   = load-iersA-all( fname-all, baseurl + fname-all,
                                      duration(download-delay.seconds * 8.ddouble),
                                      duration(download-timeout.seconds * 8.ddouble), verbose )
-  val fname-daily  = basename + ".daily"
+  val fname-daily  = basename ++ ".daily"
   val finals-daily = load-iersA-daily( fname-daily, baseurl + fname-daily,
                                        download-delay, download-timeout, verbose )
   (fn(i:instant)
@@ -165,7 +165,7 @@ fun load-latest-iersA( fname : path, url   : string,
   val xurl   = if url=="auto" then usno-url + fname.basename else url
   val dtt    = load-latest( xfname, xurl, parse-iersA, fn(dtt:dut-table){ Just(dtt.expire) },
                             download-timeout=download-timeout,download-delay=download-delay,
-                            error-prefix="load IERS A data (" + fname.basename + ")",
+                            error-prefix="load IERS A data (" ++ fname.basename ++ ")",
                             verbose=verbose
                           )
   val ts-utc = ts-utc-load(verbose=verbose)
@@ -200,10 +200,10 @@ fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<durat
                 elif dut1 - 0.5 > dut2 && dut1 - 1.5 < dut2 then dut2 + 1.0 // a leap second was subtracted
                 else dut1 // a jump outside a reasonable range; don't interpolate
       val dut = dut1 + ((dut3 - dut1) * mjd.fraction)
-      //val _ = trace("dut interpolate: " + dut1.show + ", and " + dut3.show + ", to " + dut.show)
+      //val _ = trace("dut interpolate: " ++ dut1.show ++ ", and " ++ dut3.show ++ ", to " ++ dut.show)
       // calculate deltaT (TT - UT1) from DUT (=UT1 - UTC)
       val dt  = (i.timestamp-in(ts-tt) - dut.ddouble) - utci.timestamp.unsafe-timespan-withleap // include leap seconds!
-      //val _ = trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
+      //val _ = trace("dut found: mjd: " ++ mjd.show ++ ", dut: " ++ dut.show ++ ", dt: " ++ dt.show)
       Just( unsafe-duration(dt) )
 
 
@@ -224,9 +224,9 @@ fun parse-iersA( s : string ) : maybe<dut-table>
                   Just(cap) -> cap.groups[1].parse-float64.maybe(end - 365.0)
                   Nothing   -> end - 365.0  // guess one year early
                 ).instant-at-mjd(ts-ti)
-  //trace("finals2000A expire: " + expire.time.show)
-  //trace("entries: " + entries.list.map(fn(d){ show(d) }).join("\n"))
-  //trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
+  //trace("finals2000A expire: " ++ expire.time.show)
+  //trace("entries: " ++ entries.list.map(fn(d){ show(d) }).join("\n"))
+  //trace("finals: " ++ entries.length.show ++ ", start: " ++ start.show ++ ", end: " ++ end.show )
   Just(Dut-table(expire,start,end,entries))
 
 val rx-finals-dut = regex(r"^.{57}[IP]([\-\+ ]\d+(?:\.\d+))", multiline=True)
@@ -248,14 +248,14 @@ fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b>
 fun tai-to-ut1( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timestamp
   val i  = tai.instant
   val dt = deltat(i,dt-override)
-  // trace("tai-to-ut: dt: " + dt.show )
+  // trace("tai-to-ut: dt: " ++ dt.show )
   (i - dt).timestamp-in(ts-tt)
 
 fun ut1-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) : duration
   val i   = ts-tt.instant(t)             // approximately tt
   val i1  = i + deltat(i,dt-override)    // approximate tai
   val i2  = i + deltat(i1,dt-override)   // improve over previous approximation
-  // trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)
+  // trace("ut-to-tai: dt1: " ++ deltat(i0).show ++ ", dt2: " ++ deltat(i1).show)
   i2.duration
 
 // Takes an optional `dt` parameter to calculate &Delta;T (=TT - UT1)
@@ -341,7 +341,7 @@ pub fun deltat( i : instant, dt-override : (i : instant) -> maybe<duration> = de
               val y = i.time(ts=ts-tt).year-frac.float64.round-to-prec(4)
               deltat-builtin(y).duration
 
-  // trace("deltat: year: " + y.show-ddouble + ", dt: " + dt.show)
+  // trace("deltat: year: " ++ y.show-ddouble ++ ", dt: " ++ dt.show)
   dt
 
 fun deltat-builtin( y : float64,

@@ -71,5 +71,5 @@ fun testPerfect2() {
 }
 
 fun main() {
-  println( testPerfect1().show  + ", " + testPerfect2().show )
+  println( testPerfect1().show  ++ ", " ++ testPerfect2().show )
 }

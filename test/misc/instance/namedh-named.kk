@@ -12,7 +12,7 @@ fun reader(init : a, action : reader<a> -> e b) : e b {
 fun main() {
   with a = reader("hello")
   with b = reader("world")
-  println( a.ask() + " " + b.ask() )
+  println( a.ask() ++ " " ++ b.ask() )
 }
 
 fun escape() : reader<int> {
