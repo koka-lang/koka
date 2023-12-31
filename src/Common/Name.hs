@@ -12,18 +12,18 @@
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 module Common.Name
           ( Name, Names     -- instance Eq Ord Show
-          , showName        -- show with quotes
+          -- , showName        -- show with quotes
           , showPlain
           , showTupled, readTupled -- show and read back reliably
-          , readQualified
+          , readQualified, readQualifiedName
           , labelNameCompare
           , toHiddenUniqueName
-          , newName, newQualified
+          , newName, newModuleName, newQualified, newLocallyQualified
           , nameNil, nameIsNil, nameStartsWith
           , nameCaseEqual, nameCaseOverlap, isSameNamespace
           , nameCaseEqualPrefixOf, nameCaseOverlapPrefixOf
           , qualify, unqualify, isQualified, qualifier
-          , nameId, nameModule
+          , nameModule, nameStem, nameLocal, nameLocalQual
 
           , newPaddingName, isPaddingName, isCCtxName
           , newFieldName, isFieldName, isWildcard
@@ -49,7 +49,7 @@ module Common.Name
 
           , prepend, postpend
           , asciiEncode, showHex, moduleNameToPath, pathToModuleName
-          , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
+          -- , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
 
           , prettyName, prettyCoreName
           , requalifyLocally, qualifyLocally, unqualifyFull, isLocallyQualified, fullQualifier
@@ -66,8 +66,7 @@ import Data.List(intersperse,isPrefixOf)
 import Common.ColorScheme
 
 isEarlyBindName name
-  = isHandleName name -- || nameId name `startsWith` "clause-" || hiddenNameStartsWith name "tag"
-    || isCreatorName name
+  = isHandleName name || isCreatorName name
 
 ----------------------------------------------------------------
 -- Names
@@ -80,23 +79,30 @@ type Names = [Name]
 -- The hash is case-insensitive, just like comparisions on names.
 -- Use 'nameCaseEqual' for case-sensitive comparisions.
 data Name  = Name
-             { nameModule :: !String
-             , hashModule :: !Int
-             , nameId     :: !String
-             , hashId     :: !Int
+             { nameModule     :: !String
+             , hashModule     :: !Int
+             , nameLocalQual  :: !String
+             , hashLocalQual  :: !Int
+             , nameStem       :: !String
+             , hashStem       :: !Int
              }
 
-nameCaseEqual name1 name2 -- (Name m1 _ n1 _) (Name m2 _ n2 _)
-  = nameId name1 == nameId name2
-    &&
-    and (zipWith (==) (reverse (splitModuleName name1)) (reverse (splitModuleName name2)))
-    -- (m1 == m2) && (n1 == n2)
+joinWith sep m n  = (if null m then n else m ++ sep ++ n)
+join m n          = joinWith "/" m n
 
-nameCaseEqualPrefixOf name1 name2 -- (Name m1 _ n1 _) (Name m2 _ n2 _)
-  = isPrefixOf (nameId name1) (nameId name2)
+nameLocal :: Name -> String
+nameLocal (Name m _ l _ n _)
+  = join l n
+
+nameCaseEqual name1 name2
+  = nameLocal name1 == nameLocal name2
     &&
     and (zipWith (==) (reverse (splitModuleName name1)) (reverse (splitModuleName name2)))
-    -- (m1 == m2) && (n1 == n2)
+
+nameCaseEqualPrefixOf name1 name2
+  = isPrefixOf (nameLocal name1) (nameLocal name2)
+    &&
+    and (zipWith (==) (reverse (splitModuleName name1)) (reverse (splitModuleName name2)))
 
 nameCaseOverlap :: Name -> Name -> Bool
 nameCaseOverlap name1 name2
@@ -108,13 +114,13 @@ nameCaseOverlapPrefixOf name1 name2
 
 -- Checks whether both names are in the same namespace, ie. constructors or not
 isSameNamespace name1 name2
-  = case (nameId name1, nameId name2) of
-      (c:cs, d:ds) -> (isUpper c == isUpper d)
-      _            -> True
+  = (isConstructorName name1 == isConstructorName name2)
 
-lowerCompare (Name m1 _ n1 _) (Name m2 _ n2 _)
+lowerCompare (Name m1 _ l1 _ n1 _) (Name m2 _ l2 _ n2 _)
   = case lowerCompareS m1 m2 of
-      EQ -> lowerCompareS n1 n2
+      EQ -> case lowerCompareS l1 l2 of
+              EQ -> lowerCompareS n1 n2
+              lg -> lg
       lg -> lg
 
 lowerCompareS (c:cs) (d:ds)
@@ -126,184 +132,286 @@ lowerCompareS [] (d:ds) = LT
 lowerCompareS [] []     = EQ
 
 instance Eq Name where
-  n1@(Name _ hm1 _ hn1) == n2@(Name _ hm2 _ hn2)
-    = (hn1 == hn2) && (hm1 == hm2) && (lowerCompare n1 n2 == EQ)
+  n1@(Name _ hm1 _ hl1 _ hn1) == n2@(Name _ hm2 _ hl2 _ hn2)
+    = (hn1 == hn2) && (hl1 == hl2) && (hm1 == hm2) && (lowerCompare n1 n2 == EQ)
 
 instance Ord Name where
-  compare n1@(Name _ hm1 _ hn1) n2@(Name _ hm2 _ hn2)
+  compare n1@(Name _ hm1 _ hl1 _ hn1) n2@(Name _ hm2 _ hl2 _ hn2)
     = case compare hm1 hm2 of
-        EQ -> case compare hn1 hn2 of
-                EQ -> lowerCompare n1 n2
+        EQ -> case compare hl1 hl2 of
+                EQ -> case compare hn1 hn2 of
+                        EQ -> lowerCompare n1 n2
+                        lg -> lg
                 lg -> lg
         lg -> lg
 
 -- Effects compare by name first, then by module name for efficiency at runtime
-labelNameCompare nm1@(Name m1 hm1 n1 hn1) nm2@(Name m2 hm2 n2 hn2)
+labelNameCompare (Name m1 hm1 l1 hl1 n1 hn1) (Name m2 hm2 l2 hl2 n2 hn2)
   = case compare hn1 hn2 of
       EQ -> case lowerCompareS n1 n2 of
-              EQ -> case compare hm1 hm2 of
-                      EQ -> lowerCompareS m1 m2
+              EQ -> case compare hl1 hl2 of
+                      EQ -> case lowerCompareS l1 l2 of
+                              EQ -> case compare hm1 hm2 of
+                                      EQ -> lowerCompareS m1 m2
+                                      lg -> lg
+                              lg -> lg
                       lg -> lg
               lg -> lg
       lg -> lg
 
 
-canonicalSep = '@'
+isSymbolId :: String -> Bool
+isSymbolId s
+  = case s of
+      c:cs -> not (isIdStartChar c) || any (not . isIdChar) cs
+      _    -> False
+  where
+    isIdStartChar c  = (isAlpha c || c == '_' || c == '@')
+    isIdChar c       = (isAlphaNum c || c == '_' || c == '@' || c == '-')
+    isIdEndChar c    = (c == '\'' || c == '?')
+
+wrapId :: String -> String
+wrapId s
+  = if isSymbolId s then "(" ++ s ++ ")" else s
 
 
-showParts :: String -> Name -> (String,String)
-showParts localsep (Name m _ n _)
-  = let (pn,sep) = let (rid,rqual) = span (/='/') (reverse n)  -- can be locally qualified
-                       qual = reverse rqual
-                       qid  = case reverse rid of
-                                (c:cs) | not (isAlphaNum c || c=='_' || c=='(' || c== '@') -> (qual ++ "(" ++ (c:cs) ++ ")")
-                                [] | rqual == "/" -> "(/)"
-                                   | rqual `startsWith` "//" -> reverse (tail rqual) ++ "(/)"
-                                _  -> n
-                   in (qid, if null qual || qid `startsWith` "(" then "/" else localsep)
-    in (if null m then "" else m ++ sep, pn)
+showName :: Bool -> Name -> String
+showName explicitLocalQualifier (Name m _ l _ n _)
+  = let ln = join l (wrapId n)
+    in if null m
+        then ln
+        else if null ln then m
+                        else m ++ (if explicitLocalQualifier && not (null l) then "/#" else "/") ++ ln
+
+
+showPlain name
+  = showName False name
+
+showExplicit name
+   = showName True name
+
 
 instance Show Name where
   show name
-   = let (q,unq) = showParts "/" name in q ++ unq
+   = showPlain name
 
 instance Pretty Name where
   pretty name
     = text (show name)
 
+prettyName :: ColorScheme -> Name -> Doc      -- plain
+prettyName cs (Name m _ l _ n _)
+  = let ln = join l (wrapId n)
+    in if null m then text ln
+                 else color (colorModule cs) (text m) <.>
+                      (if null ln then empty else text "/" <.> text ln)
 
-showPlain (Name m _ n _)
-  = (if null m then "" else m ++ "/") ++ n
+prettyCoreName :: ColorScheme -> Name -> Doc  -- explicit /# if needed
+prettyCoreName cs (Name m _ l _ n _)
+  = let ln = join l (wrapId n)
+    in if null m then text ln
+                 else color (colorModule cs) (text m) <.>
+                      (if null ln then empty
+                                  else (if null l then text "/" else text "/#") <.> text ln)
 
-prettyName :: ColorScheme -> Name -> Doc
-prettyName cs name
-  = let (m,n) = showParts "/" name
-    in color (colorModule cs) (text m) <.> text n
 
-prettyCoreName :: ColorScheme -> Name -> Doc
-prettyCoreName cs name
-  = let (m,n) = showParts "/#" name
-    in color (colorModule cs) (text m) <.> text n
-
-showTupled (Name m _ n _)
-  = show (m,n)
+-- todo: remove these as we can now read/write reliably using readQualifiedName
+showTupled (Name m _ l _ n _)
+  = show (m,l,n)
 
 readTupled s
-  = let (m,n) = ((read s) :: (String,String))
-    in newQualified m n
-
+  = let (m,l,n) = ((read s) :: (String,String,String))
+    in newLocallyQualified m l n
 
 readQualified s
   = if (take 1 s == "(")
      then readTupled s
-     else let (n,m) = span (/='/') (reverse s)
-          in newQualified (reverse (drop 1 m)) (reverse n)
+     else readQualifiedName s
 
-
--- | Show quotes around the name
-showName :: Name -> String
-showName name
-  = show (show name)
 
 newName :: String -> Name
 newName s
   = newQualified "" s
 
+newModuleName :: String -> Name
+newModuleName s
+  = newQualified s ""
 
 newQualified :: String -> String -> Name
 newQualified m n
-  = Name m (hash m) n (hash n)
-  where
-    -- The hash function:
-    --  1) can be compared: h1 < h2  => name1 < name2 && h1 > h2 => name1 > name2
-    --  2) assumes 32 bit integers and no characters in strings >= \x128
-    --  3) is case in-sensitive (ie. does tolower first)
-    -- The hash is done taking the first 4 characters. This is of course a
-    -- terrible hash but we use it mostly to speed up *comparisions* for the NameMap
-    hash :: String -> Int
-    hash s = foldl (\h c -> h*256 + fromEnum c) 0 (map toLower (take 4 (s ++ "\0\0\0\0")))
+  = newLocallyQualified m "" n
 
+newLocallyQualified :: String -> String -> String -> Name
+newLocallyQualified m l n
+  = Name m (hash m) l (hash l) n (hash n)
+
+-- The hash function:
+--  1) can be compared: h1 < h2  => name1 < name2 && h1 > h2 => name1 > name2
+--  2) assumes 32 bit integers and no characters in strings >= \x128
+--  3) is case in-sensitive (ie. does tolower first)
+-- The hash is done taking the first 4 characters. This is of course a
+-- terrible hash but we use it mostly to speed up *comparisions* for the NameMap
+hash :: String -> Int
+hash s = foldl (\h c -> h*256 + fromEnum c) 0 (map toLower (take 4 (s ++ "\0\0\0\0")))
+
+nameMapStem :: Name -> (String -> String) -> Name
+nameMapStem (Name m hm l hl n _) f
+  = let fn = f n in Name m hm l hl fn (hash fn)
+
+
+
+readQualifiedName :: String -> Name
+readQualifiedName s
+  = let (qual,lqual,id) = splitName s
+    in newQualified qual ((if null lqual then "" else lqual ++ "/") ++ id)
+  where
+    splitName :: String -> (String,String,String)
+    splitName s
+      = case reverse s of
+          (')':rs1) -> -- operator
+                      let (rop,rest) = span (/='(') rs1
+                      in case rest of
+                            ('(':rs2) -> let (qual,lqual,id) = splitIdNameRev rs2
+                                        in (qual,lqual,id ++ "(" ++ reverse rop ++ ")")
+                            _ -> failure ("Lexer.splitName: unmatched parenthesis in name: " ++ s)
+          rs -> splitIdNameRev rs
+      where
+        splitIdNameRev :: String -> (String,String,String)
+        splitIdNameRev rs
+          = let (rid,rest) = span (/='#') rs
+            in case rest of
+                ('#':'/':rs2) -> -- local qualifier
+                                  let (lqual,id) = splitQualIdRev rid
+                                  in (reverse rs2, lqual, id)
+                [] -> let (qual,id) = splitQualIdRev rid
+                      in (qual,"",id)
+                _  -> failure ("Lexer.splitName.IdName: illegal locally qualified name: " ++ (reverse s))
+
+        splitQualIdRev :: String -> (String,String)
+        splitQualIdRev rs
+          = let (rid,rqual) = span (/='/') rs
+            in case rqual of
+                ('/':rs1) -> -- qualififier
+                              (reverse rs1, reverse rid)
+                _         -> ("",reverse rid)
+
+
+{-
+-- A "local name" can be locally qualified (`int/(+)`).
+-- we can split this out somewhat efficiently.
+splitLocalName :: String -> (String,String)
+splitLocalName s
+  = case s of
+      ('(':_) -> ("",s)  -- symbols, no local qualifier
+      _       -> let (pre1,post1) = span (/='/') s
+                 in case post1 of
+                      ('/':rest) -> let (lqual,id) = splitLocalName rest
+                                    in (pre1 ++ "/" ++ lqual, id)
+                      "" -> ("",s)  -- no local quantifier
+-}
+
+isModuleName :: Name -> Bool
+isModuleName name
+  = null (nameStem name)
+
+isQualified :: Name -> Bool
+isQualified name
+  = not (null (nameModule name))
+
+isLocallyQualified :: Name -> Bool
+isLocallyQualified name
+  = not (null (nameLocalQual name))
+
+isSymbolName :: Name -> Bool
+isSymbolName name
+  = isSymbolId (nameStem name)
+
+isConstructorName :: Name -> Bool
+isConstructorName name
+  = case nameStem name of
+      '@':c:cs -> isUpper c
+      c:cs     -> isUpper c
+      _        -> False
+
+isWildcard :: Name -> Bool
+isWildcard name
+  = case nameStem name of
+      ('_':_)     -> True
+      ('@':'_':_) -> True
+      _           -> False
+
+isHiddenName :: Name -> Bool
+isHiddenName name
+  = case nameStem name of
+      ('@':_)      -> True
+      _            -> False
+
+nameSplit :: Name -> (String,String,String)
+nameSplit (Name m _ l _ n _)
+  = (m,l,n)
+
+----------------------------------------------------------------
+--
+----------------------------------------------------------------
 
 nameNil :: Name
 nameNil
   = newName ""
 
 nameIsNil :: Name -> Bool
-nameIsNil (Name m _ n _)
-  = null n
+nameIsNil name
+  = null (nameStem name) && null (nameModule name)
 
 qualify :: Name -> Name -> Name
-qualify (Name x _ m hm) (Name y _ n hn) | null x && null y = Name m hm n hn
-qualify (Name x _ m hm) (Name y _ n hn) | null x && m == y = Name m hm n hn
+qualify (Name m hm _ 0 _ 0) (Name _ 0 l hl n hn)  = Name m hm l hl n hl
 qualify n1 n2
   = failure ("Common.Name.qualify: Cannot use qualify on qualified names: " ++ show (n1,n2))
 
 unqualify :: Name -> Name
-unqualify (Name _ _ n hn)
-  = Name "" 0 n hn
-
-isQualified :: Name -> Bool
-isQualified (Name m _ _ _)
-  = not (null m)
+unqualify (Name _ _ l hl n hn)
+  = Name "" 0 l hl n hn
 
 qualifier :: Name -> Name
-qualifier (Name m hm _ _)
-  = Name "" 0 m hm
+qualifier (Name m hm _ _ _ _)
+  = Name m hm "" 0 "" 0
 
 qualifyLocally :: Name -> Name -> Name
-qualifyLocally m n
-  = requalifyLocally (qualify m n)
+qualifyLocally (Name loc _ _ 0 _ 0) (Name m _ l _ n _)
+  = newLocallyQualified m (join loc l) n
 
 requalifyLocally :: Name -> Name
-requalifyLocally name@(Name m _ n _)
-  | null m    = name
-  | otherwise = newQualified "" (m ++ "/" ++ n)
+requalifyLocally name@(Name m _ l _ n _)
+  = if null m then name else newLocallyQualified "" (join m l) n
 
 unqualifyFull :: Name -> Name
-unqualifyFull name
-  = unqualify (unqualifyLocally name)
+unqualifyFull (Name _ _ _ _ n hn)
+  = Name "" 0 "" 0 n hn
 
 fullQualifier :: Name -> String
 fullQualifier name
   = nameModule (unqualifyLocally name)
 
 unqualifyLocally :: Name -> Name
-unqualifyLocally name@(Name m _ n _)
-  = let (lq,stem) = splitModulePath n
-    in if null lq
-         then name
-         else newQualified (if null m then lq else m ++ "/" ++ lq) stem
-
-splitModulePath :: String -> (String,String)
-splitModulePath s
-  = let (rmods,stem) = split [] s
-    in (concat (intersperse "/" (reverse rmods)), stem)
-  where
-    split rmods s@(c:cs) | (isAlpha c || c == '_') -- module names start with a-zA-Z_
-      = case span (\c -> c /= '/') cs of
-          (mod,'/':rest)  | not (null rest) -> split ((c:mod):rmods) rest
-          _ -> (rmods,s)
-    split rmods s = (rmods,s)
-
-
-isLocallyQualified name
-  = unqualify name /= unqualifyFull name
+unqualifyLocally name@(Name m _ l _ n _)
+  = if null l then name else newQualified (join m l) n
 
 unqualifyAsModuleName :: Name -> Name
-unqualifyAsModuleName (Name m _ n _)
-  = newName ((if null m then "" else m ++ "/") ++ n)
+unqualifyAsModuleName (Name m _ l _ n _)
+  = newModuleName (join m l)
+
+
 
 ----------------------------------------------------------------
 -- Modules paths
 ----------------------------------------------------------------
-splitModuleName :: Name -> [Name]
-splitModuleName name
-  = if (isQualified name) then splitModuleName (qualifier name)
-     else map newName $ splitOn (=='/') (show name)
 
-unsplitModuleName :: [Name] -> Name
+splitModuleName :: Name -> [String]
+splitModuleName name
+  = splitOn (=='/') (nameModule name)
+
+unsplitModuleName :: [String] -> Name
 unsplitModuleName xs
-  = newName (concat (intersperse "/" (map show xs)))
+  = newModuleName (concat (intersperse "/" xs))
 
 mergeCommonPath :: Name -> Name -> Name
 mergeCommonPath mname name
@@ -321,28 +429,19 @@ mergeCommonPath mname name
 ----------------------------------------------------------------
 -- wildcards & constructors
 ----------------------------------------------------------------
-isWildcard name
-  = case nameId name of
-      ('_':_)     -> True
-      ('@':'_':_) -> True
-      _           -> False
 
-isConstructorName name
-  = case nameId name of
-      ('@':c:cs) -> isUpper c || c == '('
-      (c:cs)     -> isUpper c || c == '('
-      _          -> False
-
+toConstructorName :: Name -> Name
 toConstructorName name
-  = newQualified (nameModule name) $
-    case nameId name of
+  = nameMapStem name $ \stem ->
+    case stem of
       ('@':c:cs) -> '@':toUpper c : cs  -- keep hidden names hidden
       (c:cs)     -> toUpper c : cs
       ""         -> ""
 
+toVarName :: Name -> Name
 toVarName name
-  = newQualified (nameModule name) $
-    case nameId name of
+  = nameMapStem name $ \stem ->
+    case stem of
       ('@':cs)   -> '@':toLowers cs  -- keep hidden names hidden
       cs         -> toLowers cs
   where
@@ -354,7 +453,24 @@ toVarName name
 
 nameStartsWith :: Name -> String -> Bool
 nameStartsWith name pre
-  = nameId name `startsWith` pre
+  = nameStem name `startsWith` pre
+
+prepend :: String -> Name -> Name
+prepend pre name
+  = nameMapStem name $ \stem ->
+    case stem of
+      ('@':t) -> case pre of -- keep hidden names hidden
+                   '@':_ -> pre ++ t
+                   _     -> '@' : pre ++ t
+      t       -> pre ++ t
+
+
+postpend :: String -> Name -> Name
+postpend post name
+  = nameMapStem name $ \stem ->
+    let (xs,ys) = span (\c -> c=='?' || c=='\'') (reverse stem)
+    in reverse (xs ++ reverse post ++ ys)
+
 
 ----------------------------------------------------------------
 -- various special names
@@ -363,70 +479,28 @@ nameStartsWith name pre
 newHiddenName s
   = newName ("@" ++ s)
 
-isHiddenName name
-  = case nameId name of
-      ('@':_) -> True
-      _       -> False
-
-makeHiddenName s name
-  = {-case nameId xname of
-      c:cs | not (isAlpha c || c `elem` "()[]") -> newQualified (nameModule xname) ("@" ++ s ++ "-" ++ asciiEncode False (c:cs)) -- hidden operator
-      _    ->
-    -} prepend ("@" ++ s ++ "-") xname
-  where
-    xname = case nameId name of
-              '@':cs -> newQualified (nameModule name) cs
-              s      -> name
-
-makeFreshHiddenName s name range
-  = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
-    where idFromPos pos = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
-
-hiddenNameStartsWith name pre
-  = nameId name `startsWith` ("@" ++ pre ++ "-")
-
-toUniqueName :: Int -> Name -> Name
-toUniqueName i name
-  = newQualified (nameModule name) $
-    reverse (insert (reverse (nameId name)))
-  where
-    insert (c:cs) | c `elem` "'?" = c : insert cs
-    insert cs     = reverse (show i) ++ cs
-
-toHiddenUniqueName :: Int -> String -> Name -> Name
-toHiddenUniqueName i "" name
-  = prepend "@" (toUniqueName i name)
-toHiddenUniqueName i s name
-  = makeHiddenName (s ++ show i) xname
-  where
-    c = (head (nameId name))
-    xname = if (isAlpha c || c=='@' ) then name else newQualified (nameModule name) ("op")
-
-
 newPaddingName i
   = newHiddenName ("padding" ++ show i)
 
 isPaddingName name
-  = -- hiddenNameStartsWith name "padding"
-    nameId name `startsWith` ("@padding")
+  = nameStartsWith name "@padding"
 
 isCCtxName name
-  = -- hiddenNameStartsWith name "padding"
-    nameId name `startsWith` ("@cctx")
+  = nameStartsWith name "@cctx"
 
 
 newFieldName i
   = newHiddenName ("field" ++ show i)
 
 isFieldName name
-  = isHiddenName name -- hiddenNameStartsWith name "field"
+  = nameStartsWith name "@field"
 
 
 newImplicitTypeVarName i
-  = newHiddenName ("t" ++ show i)
+  = newHiddenName ("tv" ++ show i)
 
 isImplicitTypeVarName name
-  = isHiddenName name
+  = nameStartsWith name "@tv"
 
 
 newHiddenExternalName name
@@ -436,31 +510,45 @@ isHiddenExternalName name
   = hiddenNameStartsWith name "extern"
 
 
-toImplicitParamName :: Name -> Name
-toImplicitParamName name
-  = prepend "?" name
 
-isImplicitParamName :: Name -> Bool
-isImplicitParamName name
-  = nameId name `startsWith` "?"
 
-plainImplicitParamName :: Name -> Name
-plainImplicitParamName name
-  = if isImplicitParamName name
-      then newQualified (nameModule name) (tail (nameId name))
-      else name
+makeHidden :: Name -> Name
+makeHidden name
+  = nameMapStem name $ \stem ->
+    case stem of
+      ('@':cs)      -> stem
+      _             -> '@':stem
 
-namedImplicitParamName :: Name -> Name -> Name
-namedImplicitParamName pname ename
-  = toImplicitParamName (newName (nameId (plainImplicitParamName pname) ++ "," ++ nameId ename))
+makeHiddenName :: String -> Name -> Name
+makeHiddenName s name
+  = makeHidden (prepend (s ++ "-") name)
 
-splitImplicitParamName :: Name -> (Name,Name)
-splitImplicitParamName name
-  = let (pre,post) = span (/= ',') (nameId name)
-    in case post of
-         (_:ename) | not (null pre) && not (null ename)
-           -> (newName pre, newName ename)
-         _ -> (name,plainImplicitParamName name)
+unmakeHidden :: String -> Name -> Name
+unmakeHidden pre name
+  = nameMapStem name $ \stem ->
+    if stem `startsWith` ("@" ++ pre ++ "-")
+      then drop (length pre + 2) stem
+      else err
+  where
+    err = failure ("Name.unmakeHidden: expecting hidden name prefixed with @" ++ pre ++ "-, but found: " ++ show name)
+
+
+makeFreshHiddenName s name range
+  = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
+    where idFromPos pos = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
+
+hiddenNameStartsWith name pre
+  = nameStartsWith name ("@" ++ pre ++ "-")
+
+
+toUniqueName :: Int -> Name -> Name
+toUniqueName i name
+  = postpend (show i) name
+
+toHiddenUniqueName :: Int -> String -> Name -> Name
+toHiddenUniqueName i pre name
+  = makeHiddenName pre (toUniqueName i name)
+
 
 -- | Create a constructor creator name from the constructor name.
 -- Used if special creation functions are used for the constructor.
@@ -481,12 +569,13 @@ toHandlerName name
 
 isHandlerName :: Name -> Bool
 isHandlerName name
-  = nameId name `startsWith` "@hnd-"
+  = hiddenNameStartsWith name "hnd"
 
 -- | Create an effect type name from an operations type name.
 fromHandlerName :: Name -> Name
 fromHandlerName name
-  = newQualified (nameModule name) (drop 5 (nameId name))
+  = unmakeHidden "hnd" name
+
 
 -- | Create a handle function name from an effect type name.
 toHandleName :: Name -> Name
@@ -506,12 +595,13 @@ toOperationsName name
 -- | Is this an operations name?
 isOperationsName :: Name -> Bool
 isOperationsName name
-  = nameId name `startsWith` "@ops-"
+  = hiddenNameStartsWith name "ops"
 
 -- | Create an effect type name from an operations type name.
 fromOperationsName :: Name -> Name
 fromOperationsName name
-  = newQualified (nameModule name) (drop 5 (nameId name))
+  = unmakeHidden "ops" name
+
 
 -- | Create an operations type name from an effect type name.
 toOpSelectorName :: Name -> Name
@@ -521,18 +611,18 @@ toOpSelectorName name
 -- | Is this an operations name?
 isOpSelectorName :: Name -> Bool
 isOpSelectorName name
-  = nameId name `startsWith` "@select-"
+  = hiddenNameStartsWith name "select"
 
 -- | Create an effect type name from an operations type name.
 fromOpSelectorName :: Name -> Name
 fromOpSelectorName name
-  = newQualified (nameModule name) (drop 8 (nameId name))
+  = unmakeHidden "select" name
+
 
 -- | Create an effect tag name from an effect type name.
 toEffectTagName :: Name -> Name
 toEffectTagName name
   = makeHiddenName "tag" name
-
 
 -- | Create an operation type name from an operation name.
 toOpTypeName :: Name -> Name
@@ -556,7 +646,7 @@ toOpenTagName name
 
 isOpenTagName :: Name -> Bool
 isOpenTagName name
-  = nameId name `startsWith` "@tag-"
+  = hiddenNameStartsWith name "tag"
 
 -- | Create a name for a value operation
 toValueOperationName :: Name -> Name
@@ -566,30 +656,43 @@ toValueOperationName name
 -- | Is this an name of a value operation?
 isValueOperationName :: Name -> Bool
 isValueOperationName name
-  = nameId name `startsWith` "@val-"
+  = hiddenNameStartsWith name "val"
 
 -- | Create an operation name from a value operation name
 fromValueOperationsName :: Name -> Name
 fromValueOperationsName name
-  = newQualified (nameModule name) (drop 5 (nameId name))
-
-prepend :: String -> Name -> Name
-prepend s name
-  = newQualified (nameModule name)
-    (case nameId name of
-      ('@':t) -> case s of
-                   '@':_ -> s ++ t  -- keep hidden names hidden
-                   _     -> '@' : s ++ t
-      t       -> s ++ t
-    )
-
-postpend :: String -> Name -> Name
-postpend s cname
-  = let (name,post) = canonicalSplit cname
-    in newQualified (nameModule name) (nameId name ++ s ++ post)
+  = unmakeHidden "val" name
 
 
+toImplicitParamName :: Name -> Name
+toImplicitParamName name
+  = prepend "implicit@" name
 
+isImplicitParamName :: Name -> Bool
+isImplicitParamName name
+  = nameStartsWith name "implicit@"
+
+plainImplicitParamName :: Name -> Name
+plainImplicitParamName name
+  = if isImplicitParamName name
+      then nameMapStem name (drop (length "implicit@"))
+      else name
+
+namedImplicitParamName :: Name -> Name -> Name
+namedImplicitParamName pname ename
+  = toImplicitParamName (newName (nameStem (plainImplicitParamName pname) ++ "@-@" ++ nameStem ename))
+
+splitImplicitParamName :: Name -> (Name,Name)
+splitImplicitParamName name
+  = case splitAt "@-@" (nameStem name) of
+      (pre,post) | not (null pre) && not (null post) -> (newName pre, newName post)
+      _ -> (name, plainImplicitParamName name)
+  where
+    splitAt sub s      | s `startsWith` sub  = ("",drop (length sub) s)
+    splitAt sub (c:cs) = let (pre,post) = splitAt sub cs in (c:pre,post)
+    splitAt sub ""     = ("","")
+
+{-
 canonicalName :: Int -> Name -> Name
 canonicalName n name
   = if (n==0) then name
@@ -608,30 +711,7 @@ canonicalSplit name
   = case (span isDigit (reverse (nameId name))) of
       (postfix, c:rest) | c == canonicalSep && not (null postfix) -> (newQualified (nameModule name) (reverse rest), c:reverse postfix)
       _        -> (name,"")
-
-
-----------------------------------------------------------------
--- camel-case to dash-case
-----------------------------------------------------------------
-camelToDash :: String -> String
-camelToDash s
-  = case splitCamel s of
-      (x:xs) -> x ++ concatMap (\y -> '-' : map toLower y) xs
-      _      -> ""
-
-splitCamel :: String -> [String]
-splitCamel ""  = []
-splitCamel ('-':cs) = splitCamel cs
-splitCamel (c:cs)
-  = let (pre,post) = span (not . isBreak) cs
-    in if null pre
-        then let (pre2,post2) = span isUpper post
-             in if (null pre2 || (not (null post2) && isBreak (head post2)))
-                 then (c:pre2) : splitCamel post2
-                 else (c:init pre2) : splitCamel (last pre2 : post2)
-        else (c:pre) : splitCamel post
-  where
-    isBreak c = isUpper c || c=='-'
+-}
 
 ----------------------------------------------------------------
 -- name to file path
@@ -640,10 +720,9 @@ moduleNameToPath :: Name -> FilePath
 moduleNameToPath name
   = asciiEncode True (show name)
 
-
 pathToModuleName :: FilePath -> Name
 pathToModuleName path
-  = newName $ dropWhile (\c -> c `elem` "_./") $
+  = newModuleName $ dropWhile (\c -> c `elem` "_./") $
     decode $
     map (\c -> if isPathSep c then '/' else c) $
     path
@@ -666,6 +745,7 @@ pathToModuleName path
   Ascii encode a name
   - on module names  '/' becomes '_'
   - on normal names '-' becomes '_'
+
 ---------------------------------------------------------------}
 asciiEncode :: Bool -> String -> String
 asciiEncode isModule name

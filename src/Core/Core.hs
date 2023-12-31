@@ -124,7 +124,7 @@ import Common.Id
 import Common.Error
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameUnit, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSSizeT, nameBox, nameUnbox,
-                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpFieldAddr,
+                        nameVector, nameCons, nameListNil, nameTpList, nameUnit, nameTpUnit, nameTpFieldAddr,
                         isPrimitiveName, isSystemCoreName, nameKeep, nameDropSpecial, nameOptional, nameOptionalNone, nameTpOptional)
 import Common.Syntax
 import Kind.Kind
@@ -195,10 +195,10 @@ makeList tp exprs
   = foldr cons nil exprs
   where
     nilTp    = TForall [a] [] (TApp typeList [TVar a])
-    nilCon   = Con (TName nameNull nilTp) (ConSingleton nameTpList DataAsList valueReprZero 0)
+    nilCon   = Con (TName nameListNil nilTp) (ConSingleton nameTpList DataAsList valueReprZero 0)
     nil      = TypeApp nilCon [tp]
     consTp   = TForall [a] [] (typeFun [(nameNil,TVar a),(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeList [TVar a]))
-    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList (valueReprScan 2) nameNull CtxNone 2)  -- NOTE: depends on Cons being second in the definition in std/core :-(
+    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList (valueReprScan 2) nameListNil CtxNone 2)  -- NOTE: depends on Cons being second in the definition in std/core :-(
     cons expr xs = App (TypeApp consCon [tp]) [expr,xs]
     a = TypeVar (0) kindStar Bound
 

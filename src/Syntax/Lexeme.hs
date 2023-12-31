@@ -18,12 +18,12 @@ module Syntax.Lexeme
              ) where
 
 import Data.Char(isLower,isDigit,toUpper)
-import Common.Name  ( Name, nameId )
+import Common.Name  ( Name, nameLocal )
 import Common.Range
 
 isTypeVar :: Name -> Bool
 isTypeVar name
-  = case nameId name of
+  = case nameLocal name of
       (c:cs) -> (isLower c && all isDigit cs)
       _      -> False
 

@@ -253,7 +253,7 @@ synAccessors modName info
                      else []
                 messages
                   = [Lit (LitString (sourceName (posSource (rangeStart rng)) ++ show rng) rng), Lit (LitString (show name) rng)]
-                doc = "// Automatically generated. Retrieves the `" ++ show name ++ "` constructor field of the `:" ++ nameId (dataInfoName info) ++ "` type.\n"
+                doc = "// Automatically generated. Retrieves the `" ++ show name ++ "` constructor field of the `:" ++ nameLocal (dataInfoName info) ++ "` type.\n"
             in DefNonRec (Def (ValueBinder defName () expr rng rng) rng visibility (defFunEx [Borrow] noFip) InlineAlways doc)
 
     in map synAccessor fields
@@ -271,7 +271,7 @@ synTester info con
         branch1   = Branch (PatCon (conInfoName con) patterns rc rc) [Guard guardTrue (Var nameTrue False rc)]
         branch2   = Branch (PatWild rc) [Guard guardTrue (Var nameFalse False rc)]
         patterns  = [(Nothing,PatWild rc) | _ <- conInfoParams con]
-        doc = "// Automatically generated. Tests for the `" ++ nameId (conInfoName con) ++ "` constructor of the `:" ++ nameId (dataInfoName info) ++ "` type.\n"
+        doc = "// Automatically generated. Tests for the `" ++ nameLocal (conInfoName con) ++ "` constructor of the `:" ++ nameLocal (dataInfoName info) ++ "` type.\n"
     in [DefNonRec (Def (ValueBinder name () expr rc rc) rc (conInfoVis con) (defFunEx [Borrow] (Fip (AllocAtMost 0))) InlineAlways doc)]
 
 synConstrTag :: (ConInfo) -> DefGroup Type
@@ -404,8 +404,8 @@ infExternal :: [Name] -> External -> KInfer (Core.External,[Name])
 infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
   = do tp' <- infResolveType tp (Check "Externals must be values" rng)
        qname <- qualifyDef name
-       let cname = let n = length (filter (==qname) names) in
-                   canonicalName n qname
+       let cname = qname {- let n = length (filter (==qname) names) in
+                   canonicalName n qname -}
        if (isHiddenName name)
         then return ()
         else do addRangeInfo nameRng (Id qname (NIValue tp') True)

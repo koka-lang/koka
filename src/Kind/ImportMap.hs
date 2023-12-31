@@ -26,19 +26,20 @@ import Lib.Trace(trace)
 
 -- | Maps short module aliases @core@ to full module paths @std/core@.
 -- It is represented as a map from a reversed list of module path components to a full name
--- i.e. import my/core = std/core  ->  [(["core","my"], "std/core")]
-type ImportMap = [([Name],Name)]
+-- i.e. import my/core = std/core  ->  [(["core","my"], newModuleName "std/core")]
+type ImportMap = [([String],Name)]
 
 importsEmpty :: ImportMap
 importsEmpty  = []
 
 importsExtend :: Name -> Name -> ImportMap -> Maybe ImportMap
-importsExtend name fullName imp
-  = let rpath = reverse $ splitModuleName name in
+importsExtend aliasName fullName imp
+  = let rpath = reverse $ splitModuleName aliasName in
     case lookup rpath imp of
       Nothing -> Just ((rpath,fullName):imp)
       Just _  -> Nothing
 
+{-
 -- | @importsExpand name map@ takes a qualified name (@core/int@) and expands
 -- it to its real fully qualified name (@std/core/int@). It also returns
 -- the declared alias suffix (used to find case-errors).
@@ -57,6 +58,7 @@ importsExpandOld name imp
     isPrefix (x:xs) (y:ys)  = x==y && isPrefix xs ys
     isPrefix [] _           = True
     isPrefix _ _            = False
+-}
 
 -- | @importsExpand name map@ takes a qualified name (@core/int@) and expands
 -- it to its real fully qualified name (@std/core/int@). It also returns
@@ -75,7 +77,7 @@ importsExpand name imp
                    -> let qname = qualify fullName (unqualify name)
                       in -- trace ("kind imports expand: " ++ show name ++ " to " ++ show qname) $
                          Right (qname, unsplitModuleName (reverse (take (length rpath) ralias)))
-               -- no import matches.. probably a namespace'd name
+               -- no import matches.. probably a locally qualified name?
                []  -> case rpath of
                         [q] ->
                            -- trace ("kind imports qualify locally: " ++ show name) $
@@ -84,8 +86,8 @@ importsExpand name imp
                           -> -- recursively try a shorter prefix
                              let name2 = qualify (unsplitModuleName (reverse qs)) (unqualify name)
                              in case importsExpand name2 imp of
-                                  Right (fullName,alias)
-                                    -> Right (prepend (show q ++ "/") fullName, alias)
+                                  Right (qname,alias)
+                                    -> Right (qualifyLocally (newModuleName q) qname, alias)
                                   other -> leftErr []
                         _ -> leftErr []
                amb -> leftErr amb

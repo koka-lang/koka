@@ -48,7 +48,7 @@ trace s x =
     x
 
 monTransform :: Pretty.Env -> CorePhase ()
-monTransform penv 
+monTransform penv
   = liftCorePhaseUniq $ \uniq defs -> runMon penv uniq (monDefGroups defs)
 
 
@@ -104,7 +104,7 @@ monExpr' topLevel expr
           | getName open == nameEffectOpen && not (isMonExpr f) -- not (isMonEffect effFrom)
           -> do args' <- mapM monExpr args
                 return $ \k -> applies args' (\argss -> k (App (TypeApp (App eopen [f]) targs) argss))
-      
+
       --  lift _open_ applications
       App eopen@(TypeApp (Var open _) [effFrom,effTo,_,_]) [f]
         | getName open == nameEffectOpen
@@ -254,17 +254,17 @@ appBind tpArg tpEff tpRes fun args cont
 
 applyBind tpArg tpEff tpRes expr cont
   = case cont of
-      Lam [aname] eff (Var v _) | getName v == getName aname -> expr      
+      Lam [aname] eff (Var v _) | getName v == getName aname -> expr
       _ -> monMakeBind tpArg tpEff tpRes expr cont
            -- App (TypeApp (Var (TName nameBind typeBind) info) [tpArg, tpRes, tpEff]) [expr,cont]
-  
-    
+
+
 monMakeBind :: Type -> Effect -> Type -> Expr -> Expr -> Expr
 monMakeBind tpArg tpEff tpRes arg next
   =  App (TypeApp (Var (TName nameBind typeBind) info) [tpArg, tpRes, tpEff]) [arg,next]
   where
     info = Core.InfoArity 2 3 -- Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)"),(JS,"$std_core._bind(#1,#2)")]
-    
+
 typeBind :: Type
 typeBind
   = TForall [tvarA,tvarB,tvarE] []
@@ -308,7 +308,7 @@ isNeverMon expr
       App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f] | getName open == nameEffectOpen
         -> isTypeTotal effFrom  -- TODO: more cases? generally handler free
       TypeApp e _ -> isNeverMon e
-      Var v _     -> getName v == canonicalName 1 nameDeref --TODO: remove special case?
+      Var v _     -> getName v == nameDeref -- canonicalName 1 nameDeref --TODO: remove special case?
       _ -> isTotal expr
 
 

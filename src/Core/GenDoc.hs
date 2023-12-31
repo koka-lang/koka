@@ -142,7 +142,7 @@ genDoc env kgamma gamma core p
                         _ -> False
 
         selfName tcon def
-          = ((typeConName tcon) == nonCanonicalName (defName def))
+          = ((typeConName tcon) == {- nonCanonicalName -} (defName def))
 
 
         typeDefTCon tdef
@@ -288,7 +288,7 @@ splitModuleDoc doc
 fmtTypeDefTOC :: (TypeDef,[Def]) -> [String]
 fmtTypeDefTOC  (Synonym info, defs)
   = [doctag "li" "" $
-     (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (synInfoName info)))) $
+     (doctag "a" ("link\" href=\"#" ++ linkEncode (nameLocal (mangleTypeName (synInfoName info)))) $
       cspan "keyword" "alias" ++ "&nbsp;" ++ cspan "type" (niceTypeName (synInfoName info))) ++ "\n"]
     ++
     map (fmtDefTOC True) defs
@@ -297,14 +297,14 @@ fmtTypeDefTOC  (Synonym info, defs)
 fmtTypeDefTOC (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [conInfo] } isExtend, defs)  | conInfoName conInfo == dataInfoName info
   -- struct
   = [doctag "li" "" $
-     (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
+     (doctag "a" ("link\" href=\"#" ++ linkEncode (nameLocal (mangleTypeName (dataInfoName info)))) $
       cspan "keyword" "struct" ++ "&nbsp;" ++ cspan "type" (niceTypeName (dataInfoName info))) ++ "\n"]
      ++
     map (fmtDefTOC True) defs
 
 fmtTypeDefTOC (Data info isExtend, defs)  -- todo: handle extend
   = [doctag "li" "" $
-     (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
+     (doctag "a" ("link\" href=\"#" ++ linkEncode (nameLocal (mangleTypeName (dataInfoName info)))) $
       cspan "keyword" (if (hasKindLabelResult (dataInfoKind info)) then "effect" else show (dataInfoSort info))
        ++ "&nbsp;" ++ span "type" (niceTypeName (dataInfoName info))) ++ "\n"]
     ++ map fmtConTOC constructors
@@ -322,13 +322,13 @@ subTOC fmts
 fmtConTOC :: ConInfo -> String
 fmtConTOC info
   = doctag "li" "nested" $
-    doctag "a" ("link\" href=\"#" ++ linkEncode(nameId (mangleConName (conInfoName info)))) $
+    doctag "a" ("link\" href=\"#" ++ linkEncode(nameLocal (mangleConName (conInfoName info)))) $
     cspan "keyword" "con" ++ "&nbsp;" ++ cspan "constructor" (niceNameId (conInfoName info))
 
 fmtDefTOC :: Bool -> Def -> String
 fmtDefTOC nested def
   = doctag "li" (if nested then "nested" else "") $
-    doctag "a" ("link\" href=\"#" ++ linkEncode (nameId mname)) $
+    doctag "a" ("link\" href=\"#" ++ linkEncode (nameLocal mname)) $
     cspan "keyword" (showDefSort (defSort def)) ++ "&nbsp;" ++ niceNameId (defName def)
   where
     mname = mangle (defName def) (defType def)
@@ -340,7 +340,7 @@ fmtDefTOC nested def
 
 fmtPublicImport :: Env -> KGamma -> Gamma -> Import -> String
 fmtPublicImport env kgamma gamma imp
-  = doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (importName imp))) (
+  = doctag "div" ("decl\" id=\"" ++ linkEncode (nameLocal (importName imp))) (
     concat
       [doctag "div" "header code"$
         doctag "span" "def" $
@@ -376,7 +376,7 @@ fmtModuleName env qname
 fmtTypeDef :: Env -> KGamma -> Gamma -> (TypeDef,[Def]) -> String
 fmtTypeDef env kgamma gamma (Synonym info, defs)
   = nestedDecl defs $
-    doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (synInfoName info)))) (
+    doctag "div" ("decl\" id=\"" ++ linkEncode (nameLocal (mangleTypeName (synInfoName info)))) (
     concat
       [doctag "div" "header code"$
         concat
@@ -397,7 +397,7 @@ fmtTypeDef env kgamma gamma (Synonym info, defs)
 fmtTypeDef env kgamma gamma (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [conInfo] } isExtend, defs)  | conInfoName conInfo == dataInfoName info
   -- struct
   = nestedDecl defs $
-    doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
+    doctag "div" ("decl\" id=\"" ++ linkEncode (nameLocal (mangleTypeName (dataInfoName info)))) $
     concat
       [ doctag "div" "header code"$
         concat
@@ -419,7 +419,7 @@ fmtTypeDef env kgamma gamma (Data info@DataInfo{ dataInfoSort = Inductive, dataI
 
 fmtTypeDef env kgamma gamma (Data info isExtend, defs) -- TODO: show extend correctly
   = nestedDecl defs $
-    doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
+    doctag "div" ("decl\" id=\"" ++ linkEncode (nameLocal (mangleTypeName (dataInfoName info)))) $
     concat
       [doctag "div" "header code"$
         concat
@@ -458,7 +458,7 @@ nestedDecl xs
   = id -- if null xs then id else doctag "div" "nested"
 
 fmtConstructor env kgamma gamma info
-  = doctag "div" ("con-decl\" id=\"" ++ linkEncode (nameId (mangleConName (conInfoName info)))) $
+  = doctag "div" ("con-decl\" id=\"" ++ linkEncode (nameLocal (mangleConName (conInfoName info)))) $
     concat
       [doctag "div" "header code"$
         concat
@@ -480,7 +480,7 @@ showParam env kgamma gamma (name,tp)
 
 fmtDef :: Env -> KGamma -> Gamma -> Def -> String
 fmtDef env kgamma gamma def
-  = doctag "div" ("decl\" id=\"" ++ linkEncode (nameId mname)) $
+  = doctag "div" ("decl\" id=\"" ++ linkEncode (nameLocal mname)) $
     concat
       [doctag "div" "header code" $
         concat
@@ -513,11 +513,11 @@ niceTypeName name
   = fmtTypeName (unqualify name)
 
 niceNameId name
-  = fmtName (nonCanonicalName (unqualify name))
+  = fmtName ({- nonCanonicalName -} (unqualify name))
 
 linkToSource mname
   = if isQualified mname
-     then map (\c -> if c == '/' then '_' else c) (nameModule mname) ++ "-source.html#" ++ linkEncode (nameId mname)
+     then map (\c -> if c == '/' then '_' else c) (nameModule mname) ++ "-source.html#" ++ linkEncode (nameLocal mname)
      else ""
 
 showKind env k

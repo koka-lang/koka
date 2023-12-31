@@ -188,7 +188,7 @@ combine xs ys
 
 gammaLookupCanonical:: Name -> Gamma -> [NameInfo]
 gammaLookupCanonical name gamma
-  = let xs = (gammaLookupQ (nonCanonicalName name) gamma)
+  = let xs = (gammaLookupQ name {-(nonCanonicalName name)-} gamma)
     in -- trace ("gamma lookup canonical: " ++ show name ++ " in " ++ show xs) $
        filter (\ni -> infoCanonicalName nameNil ni == name) xs
 
@@ -284,7 +284,7 @@ extractGammaImports imports modName
     gammaExtend modAlias (InfoImport Private typeVoid modAlias modName rangeNull) $
     gammaUnions (L.map extractImport imports)
   where
-    modAlias = newName (reverse (takeWhile (/='.') (reverse (nameId modName))))
+    modAlias = modName -- newName (reverse (takeWhile (/='.') (reverse (nameId modName))))
 
 extractImport (name,qname)
   = gammaSingle name (InfoImport Private typeVoid name qname rangeNull)
@@ -326,12 +326,12 @@ extractDefGroup updateVis (Core.DefNonRec def)
 
 extractDef updateVis def@(Core.Def name tp expr vis sort inl nameRng doc)
   = let info = createNameInfoX (updateVis vis) name sort nameRng tp -- specials since we cannot call isTopLevel as in coreDefInfo
-    in gammaSingle (nonCanonicalName name) info
+    in gammaSingle name {- (nonCanonicalName name) -} info
 
 
 coreDefInfo :: Core.Def -> (Name,NameInfo)
 coreDefInfo def@(Core.Def name tp expr vis sort inl nameRng doc)
-  = (nonCanonicalName name,
+  = (name {- nonCanonicalName name -},
       createNameInfoX vis name (if (isDefFun sort && not (CoreVar.isTopLevel def)) then DefVal else sort) nameRng tp)
     -- since we use coreDefInfo also for local definitions, we need to be careful to to use DefFun for
     -- things that do not get lifted to toplevel due to free type/variables. test: codegen/rec5
@@ -360,7 +360,7 @@ getArity tp
 
 
 extractExternal updateVis (Core.External name tp pinfos body vis fip nameRng doc)
-  = gammaSingle (nonCanonicalName name) (InfoExternal (updateVis vis) name tp body fip nameRng)
+  = gammaSingle name {- (nonCanonicalName name) -} (InfoExternal (updateVis vis) name tp body fip nameRng)
 extractExternal updateVis _
   = gammaEmpty
 

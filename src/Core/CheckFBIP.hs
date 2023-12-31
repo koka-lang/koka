@@ -78,7 +78,7 @@ chkTopLevelDef :: [Name] -> Def -> Chk ()
 chkTopLevelDef defGroupNames def
   = withCurrentDef def $ do
       case defSort def of
-        -- only check fip and fbip annotated functions 
+        -- only check fip and fbip annotated functions
         DefFun borrows fip | not (isNoFip fip) ->
           withFip fip $
             do out <- extractOutput $
@@ -257,7 +257,7 @@ chkWrap tname info
 
 chkAllocation :: TName -> ConRepr -> Chk ()
 chkAllocation cname repr | isConAsJust repr = pure ()
-chkAllocation cname repr | "_noreuse" `isSuffixOf` nameId (conTypeName repr)
+chkAllocation cname repr | "_noreuse" `isSuffixOf` nameLocal (conTypeName repr)
   = requireCapability mayAlloc $ \ppenv -> Just $
       cat [text "types suffixed with _noreuse are not reused: ", ppName ppenv $ conTypeName repr]
 chkAllocation cname crepr
@@ -489,7 +489,7 @@ isBorrowed nm
        pure $ getName nm `S.member` delta st
 
 markSeen :: TName -> VarInfo -> Chk ()
-markSeen tname info | infoIsRefCounted info -- is locally defined?                      
+markSeen tname info | infoIsRefCounted info -- is locally defined?
   = do isHeapValue <- needsDupDrop tname
        when isHeapValue $
          writeOutput (Output (M.singleton tname 1) M.empty Leaf)
@@ -669,7 +669,7 @@ needsDupDrop tname
        mbdi <- getDataInfo tp
        return $
           case mbdi of
-            Nothing -> True  
+            Nothing -> True
             Just di -> case dataInfoDef di of
                           DataDefValue vrepr | valueReprIsRaw vrepr -> False
                           _  -> if dataInfoName di == nameTpInt  -- ignore special types (just `int` for now)

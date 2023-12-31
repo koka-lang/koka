@@ -44,15 +44,15 @@ trace s x =
     x
 
 traceGroups :: [DefGroup] -> String
-traceGroups dgs 
-  = show (map showDG dgs) 
+traceGroups dgs
+  = show (map showDG dgs)
   where
     showDG (DefRec defs) = show (map defName defs)
-    showDG (DefNonRec def) = show (defName def)    
+    showDG (DefNonRec def) = show (defName def)
 
 
 liftFunctions :: Pretty.Env -> CorePhase ()
-liftFunctions penv 
+liftFunctions penv
   = liftCorePhaseUniq $ \uniq defs ->
     runLift penv uniq (liftDefGroups True defs)
 
@@ -77,12 +77,12 @@ liftDefGroup True (DefRec defs)
   = do (defs', dgroups) <- collectLifted $ mapM (liftDef True) defs
        -- defs' depend on dgroups, but dgroups might depend on defs'
        -- we could to a topological sort here (as in Static/BindingGroups) but for simplicity
-       -- we approximate here for now. 
+       -- we approximate here for now.
        -- Note that it can be important to have precice DefRec groups for other optimizations, like TRMC. (src/Core/CTail)
        let dnames = defsTNames defs'
            (gnonrecs,grecs) = partition (\dg -> tnamesDisjoint (fv dg) dnames) dgroups
        -- trace ("liftDefRec: " ++ show (map defName defs) ++ ":\n - " ++ traceGroups gnonrecs ++ "\n - " ++ traceGroups grecs) $
-       return (gnonrecs ++ [DefRec (flattenDefGroups grecs ++ defs')]) 
+       return (gnonrecs ++ [DefRec (flattenDefGroups grecs ++ defs')])
 
 
 
@@ -91,19 +91,19 @@ liftDefGroup False (DefNonRec def)
        return [DefNonRec def']
 
 liftDefGroup False (DefRec defs)
-  = do {- traceDoc $ \penv -> text "not-toplevel, recursive def:" <+> text (show (length defs)) 
-                             <+> ppName penv (defName (head defs)) 
-                             <+> text ", tvs:" 
-                             <+> tupled (map (ppTypeVar penv) (tvsList (ftv (defExpr (head defs))))) 
+  = do {- traceDoc $ \penv -> text "not-toplevel, recursive def:" <+> text (show (length defs))
+                             <+> ppName penv (defName (head defs))
+                             <+> text ", tvs:"
+                             <+> tupled (map (ppTypeVar penv) (tvsList (ftv (defExpr (head defs)))))
                              <+> text ", fvs:"
                              <+> tupled (map (ppName penv . getName) fvs)
-                             <//> prettyDef penv{coreShowDef=True} (head defs) 
+                             <//> prettyDef penv{coreShowDef=True} (head defs)
        -}
        (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) (zip pinfoss (zip names exprDocs))
        let subst       = zip names callExprs
            liftedDefs  = map (substWithLiftedExpr subst) liftedDefs0
        groups <- liftDefGroup True (DefRec liftedDefs) -- lift all recs to top-level
-       -- traceDoc $ \penv -> text ("lifted: " ++ show (map defName liftedDefs)) 
+       -- traceDoc $ \penv -> text ("lifted: " ++ show (map defName liftedDefs))
        emitLifteds groups
 
        let defs' = zipWith (\def callExpr -> def{ defExpr = callExpr
@@ -232,7 +232,7 @@ makeDef fvs tvs (pinfos, (origName, (expr, doc)))
           _ -> failure $ ("Core.FunLift.makeDef: lifting non-function? " ++ show expr)
 
     unwild (TName name tp)
-      = TName (if (head (nameId name) == '_') then prepend "wild" name else name) tp
+      = TName (if isWildcard name then prepend "wild" name else name) tp
 
     alltpars = tvs ++ tpars
     allpars  = fvs ++ pars
@@ -241,8 +241,8 @@ makeDef fvs tvs (pinfos, (origName, (expr, doc)))
 
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
     liftedTp  = typeOf liftedFun
-    liftedDef dnames name inl 
-            = Def name liftedTp liftedFun Private (defFun allpinfos) inl rangeNull 
+    liftedDef dnames name inl
+            = Def name liftedTp liftedFun Private (defFun allpinfos) inl rangeNull
               $ "// lifted local: " ++ concat (intersperse ", " (map (show . unqualify) (dnames ++ [getName origName]))) ++ "\n" ++ doc
 
     funExpr name
@@ -366,7 +366,7 @@ withCurrentDef def action
     action
 
 currentDefNames :: Lift [Name]
-currentDefNames 
+currentDefNames
   = do env <- getEnv
        return (map defName (currentDef env))
 

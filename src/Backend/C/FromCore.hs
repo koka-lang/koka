@@ -93,7 +93,7 @@ genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReu
                                   else return rcore
                            )
 
-        let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
+        let headComment   = text "// Koka generated module:" <+> string (show (coreProgName core)) <.> text ", koka version:" <+> string version
                             <.> text ", platform:" <+> string (show (8 * sizePtr platform)) <.> text "-bit"
             initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName "@init")) <.> parameters []
             doneSignature = text "void" <+> ppName (qualify (coreProgName core) (newName "@done")) <.> parameters []
@@ -398,7 +398,7 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                   <.> sig
                   <+> ( if isTailCall
                           then tcoBlock tpDoc bodyDoc
-                          else debugComment ("genFunDef: no tail calls to " ++ showName name ++ " found")
+                          else debugComment ("genFunDef: no tail calls to " ++ show name ++ " found")
                             <.> tblock tpDoc bodyDoc
                       )
 

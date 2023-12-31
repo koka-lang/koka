@@ -360,7 +360,7 @@ minimalForm tp
       TSyn syn args t       -> canonicalForm t
       TForall vars preds t  -> TForall vars preds (canonicalForm t)
       TApp t ts             -> TApp (canonicalForm t) (map canonicalForm ts)
-      TFun args eff res     -> TFun [(nameNull,canonicalForm t) | (_,t) <- args] (orderEffect (canonicalForm eff)) (canonicalForm res)
+      TFun args eff res     -> TFun [(nameListNil,canonicalForm t) | (_,t) <- args] (orderEffect (canonicalForm eff)) (canonicalForm res)
       _ -> tp
 
 

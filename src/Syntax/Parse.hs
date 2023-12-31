@@ -1364,7 +1364,7 @@ block
     combine (StatExpr e) exp  = let r = getRange e
                                 in Bind (Def (ValueBinder (newName "_") () e r r) r Private DefVal InlineAuto "") exp r
     combine (StatVar def) exp = let (ValueBinder name () expr nameRng rng) = defBinder def
-                                in  App (Var nameLocal False rng)
+                                in  App (Var nameLocalVar False rng)
                                         -- put parens over the lambda so it comes later during type inference (so the type of expr can be propagated in)
                                         -- see test/ambient/ambient3
                                         [(Nothing, expr),
@@ -2040,7 +2040,7 @@ listExpr
         then return (makeNil (combineRange rng1 rng2))
         else return (adjustRange (combineRange rng1 rng2) (foldr (makeCons rng1) (makeNil rng2) (es)))
 
-makeNil rng   = Var nameNull False rng
+makeNil rng   = Var nameListNil False rng
 makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
 
 cctxExpr :: LexParser UserExpr
@@ -2171,7 +2171,7 @@ listPattern
              in return (PatParens pat (combineRange rng1 rng2))
 
 makeNilPat :: Range -> UserPattern
-makeNilPat rng   = PatCon nameNull [] rng rng
+makeNilPat rng   = PatCon nameListNil [] rng rng
 
 makeConsPat :: UserPattern -> UserPattern -> UserPattern
 makeConsPat x xs = PatCon nameCons [(Nothing,x),(Nothing,xs)] (getRange x) (getRange x)
@@ -2785,7 +2785,7 @@ qvarid
 -- is really qidop and idop from the spec
 qidop :: LexParser (Name,Range)
 qidop
-  = do (Lexeme rng (LexIdOp id)) <- parseLex (LexIdOp nameNull)
+  = do (Lexeme rng (LexIdOp id)) <- parseLex (LexIdOp nameNil)
        return (id,rng)
   <?> ""
 

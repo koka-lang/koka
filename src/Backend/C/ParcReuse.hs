@@ -262,7 +262,7 @@ ruGuard (Guard test expr)  -- expects patAdded in depth-order
 ruTryReuseCon :: TName -> ConRepr -> Expr -> Reuse Expr
 ruTryReuseCon cname repr conApp | isConAsJust repr  -- never try to reuse a Just-like constructor
   = return conApp
-ruTryReuseCon cname repr conApp | "_noreuse" `isSuffixOf` nameId (conTypeName repr)
+ruTryReuseCon cname repr conApp | "_noreuse" `isSuffixOf` nameLocal (conTypeName repr)
   = return conApp -- special case to allow benchmarking the effect of reuse analysis
 ruTryReuseCon cname repr conApp
   = do -- newtypes <- getNewtypes
@@ -567,7 +567,7 @@ getConstructorSize conName conRepr
        platform <- getPlatform
        let (size,_) = constructorSizeOfByName platform newtypes (getName conName) conRepr
        return size
--}     
+-}
 
 --------------------------------------------------------------------------
 -- Tracing
@@ -599,22 +599,22 @@ getRuFixedDataAllocSize dataType
 getFixedDataAllocSize :: Platform -> Newtypes -> Type -> Maybe (Int, Int)
 getFixedDataAllocSize platform newtypes dataType
   = let mdataName = extractDataName dataType in
-    if maybe False (\nm -> "_noreuse" `isSuffixOf` nameId nm) mdataName
+    if maybe False (\nm -> "_noreuse" `isSuffixOf` nameLocal nm) mdataName
     then Nothing else
         let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName in
         case mdataInfo of
           Just dataInfo
-            -> let ddef = dataInfoDef dataInfo 
-               in if dataDefIsValue ddef 
+            -> let ddef = dataInfoDef dataInfo
+               in if dataDefIsValue ddef
                     then Nothing
                     else let cis = dataInfoConstrs dataInfo
                              sizeScanCounts = map (valueReprSizeScan platform . conInfoValueRepr) cis
                          in case sizeScanCounts of
                               (ss:sss) | all (==ss) sss -> Just ss
                               _        -> Nothing
-               {- 
+               {-
                in case ddef of
-                    DataDefValue vrepr 
+                    DataDefValue vrepr
                       -> let cis   = dataInfoConstrs dataInfo
                              sizes = map (conInfoSize platform) cis
                          in case sizes of
@@ -635,7 +635,7 @@ getFixedDataAllocSize platform newtypes dataType
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSizeOf :: Platform -> Newtypes -> ConInfo -> ConRepr -> (Int {- byte size -}, Int {- scan fields -})
-constructorSizeOf platform newtypes conInfo conRepr 
+constructorSizeOf platform newtypes conInfo conRepr
   = constructorSizeOfX platform newtypes (TName (conInfoName conInfo) (conInfoType conInfo)) conRepr
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
@@ -670,7 +670,7 @@ constructorSize platform newtypes dataRepr paramTypes
 -- return the ordered fields, the byte size of the allocation, and the scan count (including tags)
 orderConFieldsEx :: Platform -> Newtypes -> Bool -> [(Name,Type)] -> ([(Name,Type)],Int,Int)
 orderConFieldsEx platform newtypes isOpen fields
-  = visit ([],[],[],0) fields    
+  = visit ([],[],[],0) fields
   where
     visit (rraw, rmixed, rscan, scanCount0) []
       = if (length rmixed > 1)

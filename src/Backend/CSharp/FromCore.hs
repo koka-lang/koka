@@ -51,7 +51,7 @@ import Type.Pretty(defaultEnv)
 csharpFromCore :: BuildType -> Bool -> Maybe (Name,Type) -> Core -> Doc
 csharpFromCore buildType useCps mbMain core
   = let body = runAsm initEnv (genProgram core)
-    in text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version <->
+    in text "// Koka generated module:" <+> string (show (coreProgName core)) <.> text ", koka version:" <+> string version <->
        text "#pragma warning disable 164 // unused label" <->
        text "#pragma warning disable 162 // unreachable code" <->
        text "#pragma warning disable 219 // variable is assigned but never used" <->

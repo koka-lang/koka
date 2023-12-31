@@ -494,24 +494,11 @@ prettyDefName :: Env -> Name -> Doc
 prettyDefName env name
   = color (colorSource (colors env)) $
     pretty (unqualify name)
-  where
-    fmtName cname
-      = let (name,postfix) = canonicalSplit cname
-            s = show name
-            pre = case s of
-                   ""  -> empty
-                   (c:cs) -> if (isAlphaNum c || c == '_' || c == '(' || c == '[') then text s else parens (text s)
-        in (if null postfix then pre else (pre <.> text postfix))
+
 
 ppOperatorName env name
   = color (colorSource (colors env)) $
-    fmtName (unqualify name)
-  where
-    fmtName name
-      = let s = show name
-        in case s of
-             "" -> empty
-             (c:cs) -> if (isAlphaNum c) then text ("`" ++ s ++ "`") else text s
+    pretty (unqualify name)
 
 
 prettyTypeVar :: Env -> TypeVar -> Doc

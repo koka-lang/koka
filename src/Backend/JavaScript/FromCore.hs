@@ -92,7 +92,7 @@ genModule buildType mbMain imports core
               --     text "function" <.> tupled ( {- (text "_external"): -} (map snd (externalImports ++ mainImports) ++ map (ppModName . importName) imports)) <+> text "{" <->
 
                     vcat (
-                    [ text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
+                    [ text "// Koka generated module:" <+> string (show (coreProgName core)) <.> text ", koka version:" <+> string version
                     , text "\"use strict\";"
                     , text " "
                     , text "// imports"
@@ -236,7 +236,7 @@ tryFunDef name comment expr
                                       <+> comm
                                       <+> ( if isTailCall
                                               then tcoBlock bodyDoc
-                                              else debugComment ("genFunDef: no tail calls to " ++ showName name ++ " found")
+                                              else debugComment ("genFunDef: no tail calls to " ++ show name ++ " found")
                                                 <.> block bodyDoc
                                           )
 

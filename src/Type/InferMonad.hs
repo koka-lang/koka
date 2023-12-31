@@ -1029,7 +1029,7 @@ extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
 
 -- Specialized for recursive defs where we sometimes get InfoVal even though we want InfoFun? is this correct for the csharp backend?
 coreDefInfoX def@(Core.Def name tp expr vis sort inl nameRng doc)
-  = (nonCanonicalName name, createNameInfoX Public name sort nameRng tp)
+  = (name {- nonCanonicalName name -}, createNameInfoX Public name sort nameRng tp)
 
 -- extend gamma with qualified names
 extendGamma :: Bool -> [(Name,NameInfo)] -> Inf a -> Inf (a)
@@ -1140,7 +1140,7 @@ extendInfGammaEx topLevel ignores tnames inf
 createCanonicalName ctx gamma qname
   = let matches = gammaLookup (unqualify qname) gamma
         localMatches = [(qname,info) | (qname,info) <- matches, not (isInfoImport info), qualifier qname == ctx || qualifier qname == nameNil ]
-        cname = canonicalName (length localMatches) qname
+        cname = {- canonicalName (length localMatches) -} qname
     in cname
 
 withGammaType :: Range -> Type -> Inf a -> Inf a
@@ -1378,7 +1378,7 @@ caseOverlaps name qname info
                    InfoImport{infoAlias = alias} -> alias
                    _                             -> qname
     in if not (isLocallyQualified qname) && -- TODO: fix casing check for internally qualified names
-          (nameCaseOverlap ((if isQualified name then id else unqualify) (nonCanonicalName qname1)) name)
+          (nameCaseOverlap ((if isQualified name then id else unqualify) ({- nonCanonicalName -} qname1)) name)
         then Just qname1
         else Nothing
 

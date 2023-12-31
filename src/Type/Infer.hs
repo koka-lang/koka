@@ -31,11 +31,11 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , namePatternMatchError, nameSystemCore, nameTpHandled, nameTpHandled1
                       , nameToAny, nameFalse, nameTrue
                       , nameTpYld
-                      , nameTpHandlerBranch0, nameTpHandlerBranch1,nameCons,nameNull,nameVector
+                      , nameTpHandlerBranch0, nameTpHandlerBranch1,nameCons,nameListNil,nameVector
                       , nameInject, nameInjectExn, nameTpPartial
                       , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
                       , nameMakeContextTp
-                      , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocal
+                      , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocalVar
                       , nameTpValueOp, nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
                       , nameInt32, nameOr, nameAnd, nameEffectOpen
@@ -1198,7 +1198,7 @@ checkCoverage rng effect handlerConName branches
     modName = qualifier handlerConName
 
     fieldToOpName fname
-      = let (pre,post)      = span (/='-') (nameId fname)
+      = let (pre,post)      = span (/='-') (nameLocal fname)
             (opSort,opName) = case (readOperationSort pre,post) of
                                 (Just opSort, _:opName) -> (opSort,opName)
                                 _ -> failure $ "Type.Infer.checkCoverage: illegal operation field name: " ++ show fname ++ " in " ++ show handlerConName
@@ -2349,7 +2349,7 @@ coreVector tp cs
 coreList :: Type -> [Core.Expr] -> Inf Core.Expr
 coreList tp cs
   = do (consName,consTp,consRepr,_) <- resolveConName nameCons Nothing rangeNull
-       (nilName,nilTp,nilRepr,_) <- resolveConName nameNull Nothing rangeNull
+       (nilName,nilTp,nilRepr,_) <- resolveConName nameListNil Nothing rangeNull
        let consx = Core.TypeApp (Core.Con (Core.TName consName consTp) consRepr) [tp]
            cons x xs = Core.App consx [x,xs]
            nil  = Core.TypeApp (Core.Con (Core.TName nilName nilTp) nilRepr) [tp]
@@ -2367,7 +2367,7 @@ usesLocals :: S.NameSet -> Expr Type -> Bool
 usesLocals lvars expr
   = case expr of
       App (Var newLocal False rng) [_,(_, Parens (Lam [ValueBinder name _ _ _ _] body _ ) _ _)] _  -- fragile: expects this form from the parser
-         | newLocal == nameLocal
+         | newLocal == nameLocalVar
          -> usesLocals (S.delete name lvars) body
 
       Lam    binds expr rng  -> usesLocals lvars expr

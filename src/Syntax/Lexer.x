@@ -86,13 +86,16 @@ $charesc      = [nrt\\\'\"]    -- "
 @upperid      = [\@]? $upper @idchar* $finalid*
 @wildcard     = [\@]? _ @idchar*
 @conid        = @upperid
+
 @modpart      = @lowerid\/
 @modulepath   = @modpart+ (\# @modpart*)?
 @qvarid       = @modulepath @lowerid
 @qconid       = @modulepath @conid
-@symbols      = $symbol+ | \/
-@qidop        = @modulepath \(@symbols\)
-@idop         = \(@symbols\)
+
+@op           = $symbol+ | \/
+@idsym        = (@idchar | $symbol)+ | \/
+@qidop        = @modulepath \(@idsym\)
+@idop         = \(@idsym\)
 
 
 @sign         = [\-]?
@@ -123,9 +126,9 @@ program :-
 
 
 -- qualified identifiers
-<0> @qconid               { string $ LexCons . newQName }
-<0> @qvarid               { string $ LexId . newQName }
-<0> @qidop                { string $ LexIdOp . newQName }
+<0> @qconid               { string $ LexCons . readQualifiedName }
+<0> @qvarid               { string $ LexId . readQualifiedName }
+<0> @qidop                { string $ LexIdOp . readQualifiedName }
 
 -- identifiers
 <0> @lowerid              { string $ \s -> if isReserved s
@@ -150,8 +153,8 @@ program :-
 <0> $anglebar $anglebar+  { less 1 $ string $ \s -> if (s=="|") then LexKeyword s "" else LexOp (newName s) }
 
 -- operators
-<0> @idop                 { string $ LexIdOp . newName . stripParens }
-<0> @symbols              { string $ \s -> if isReserved s
+<0> @idop                 { string $ LexIdOp . readQualifiedName }
+<0> @op                   { string $ \s -> if isReserved s
                                              then LexKeyword s ""
                                            else if isPrefixOp s
                                              then LexPrefix (newName s)
@@ -229,6 +232,9 @@ program :-
 -----------------------------------------------------------
 -- helpers
 -----------------------------------------------------------
+
+
+{-
 newQName s
   = case span (/='#') s of  -- extract locally qualified names
       (qual,'#':l:lqual) | not (null qual) && last qual == '/' && (isLower l || l == '@')
@@ -242,13 +248,14 @@ newQualName s
          ('/':rmod)  -> newQualified (reverse rmod) (reverse rname)
          _           -> newName s
 
+
 stripParens s
   = case reverse s of
       (')':cs) -> case span (/='(') cs of
                     (op,'(':qualifier) -> reverse (op ++ qualifier)
                     _ -> s
       _ -> s
-
+-}
 
 fromCharEscB, fromHexEscB :: BString -> BString
 fromCharEscB bstr

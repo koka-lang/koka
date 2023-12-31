@@ -101,7 +101,7 @@ module Common.NamePrim
           , nameOptional, nameOptionalNone
           , nameTpDelay
           -- * Lists
-          , nameNull, nameCons, nameTpList
+          , nameListNil, nameCons, nameTpList
           -- * Type constructors
           , nameEffectEmpty, nameEffectExtend, nameEffectAppend
 
@@ -136,7 +136,7 @@ module Common.NamePrim
 
           , nameTpRef, nameRef
           , nameTpLocalVar, nameTpLocal
-          , nameLocal, nameRunLocal, nameLocalSet, nameLocalGet, nameLocalNew
+          , nameLocalVar, nameRunLocal, nameLocalSet, nameLocalGet, nameLocalNew
 
 
           , nameTpOptional
@@ -217,7 +217,7 @@ namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
 {--------------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------------}
-nameNull        = preludeName "Nil"
+nameListNil     = preludeName "Nil"
 nameCons        = preludeName "Cons"
 nameTpList      = preludeName "list"
 
@@ -357,9 +357,9 @@ nameFinally     = coreHndName "finally"
 nameClauseTailNoOp n = coreHndName ("clause-tail-noop" ++ show n)
 
 isClauseTailName :: Name -> Maybe Int
-isClauseTailName name  | nameModule name /= nameId nameCoreHnd  = Nothing
+isClauseTailName name  | nameModule name /= nameModule nameCoreHnd  = Nothing
 isClauseTailName name
-  = let s = nameId name
+  = let s = nameLocal name
     in if (s `startsWith` "clause-tail" && all isDigit (drop 11 s))
         then Just (read (drop 11 s))
         else Nothing
@@ -378,7 +378,7 @@ nameAssign      = coreTypesName "assign"
 nameRefSet      = coreTypesName "set"
 nameLocalSet    = coreTypesName "local-set"
 nameLocalGet    = coreTypesName "local-get"
-nameDeref       = coreTypesName "!"
+nameDeref       = qualifyLocally (newModuleName "ref") (coreTypesName "!")
 nameByref       = coreTypesName "byref"
 
 namePredHeapDiv = coreTypesName "hdiv"
@@ -390,7 +390,7 @@ nameTpLocalVar  = coreTypesName "local-var"
 nameTpLocal     = coreTypesName "local"
 nameRef         = coreTypesName "ref"
 nameLocalNew    = coreTypesName "local-new"
-nameLocal       = coreHndName   "local-var"
+nameLocalVar    = coreHndName   "local-var"
 nameRunLocal    = coreTypesName "local-scope"
 
 nameTpTotal     = nameEffectEmpty -- coreTypesName "total"
@@ -498,18 +498,18 @@ nameTpTuple n   = coreTypesName ("tuple" ++ show n) -- ("(" ++ (replicate (n-1) 
 isNameTuple :: Name -> Bool
 isNameTuple name
   = (name == nameUnit) ||
-    (nameModule name == nameId nameCoreTypes && (startsWith s "Tuple" && all isDigit (drop 5 s)))
+    (nameModule name == nameModule nameCoreTypes && (startsWith s "Tuple" && all isDigit (drop 5 s)))
     -- length s >= 2 && head s == '(' && last s == ')' && all (==',') (tail (init s))
   where
-    s = nameId name
+    s = nameLocal name
 
 isNameTpTuple :: Name -> Bool
 isNameTpTuple name
   = (name == nameTpUnit) ||
-    (nameModule name == nameId nameCoreTypes && (startsWith s "tuple" && all isDigit (drop 5 s)))
+    (nameModule name == nameModule nameCoreTypes && (startsWith s "tuple" && all isDigit (drop 5 s)))
     -- length s >= 2 && head s == '(' && last s == ')' && all (==',') (tail (init s))
   where
-    s = nameId name
+    s = nameLocal name
 
 
 preludeName s
@@ -521,21 +521,21 @@ coreHndName s
 coreTypesName s
   = qualify nameCoreTypes (newName s)
 
-nameSystemCore  = newName "std/core"
-nameCoreHnd     = newName "std/core/hnd"
-nameCoreTypes   = newName "std/core/types"
-nameDict        = newName "std/data/dict"
+nameSystemCore  = newModuleName "std/core"
+nameCoreHnd     = newModuleName "std/core/hnd"
+nameCoreTypes   = newModuleName "std/core/types"
+nameDict        = newModuleName "std/data/dict"
 
 isSystemCoreName name
   = let m = nameModule name
-    in  m `elem` [nameId nameSystemCore, nameId nameCoreHnd, nameId nameCoreTypes]
+    in  m `elem` [nameModule nameSystemCore, nameModule nameCoreHnd, nameModule nameCoreTypes]
 
 isPrimitiveName name
   = let m = nameModule name
-    in  m `elem` [nameId nameCoreHnd, nameId nameCoreTypes]
+    in  m `elem` [nameModule nameCoreHnd, nameModule nameCoreTypes]
 
 isPrimitiveModule name
-  = nameId name `elem` [nameId nameCoreHnd, nameId nameCoreTypes]
+  = nameModule name `elem` [nameModule nameCoreHnd, nameModule nameCoreTypes]
 
 {--------------------------------------------------------------------------
   Primitive kind constructors

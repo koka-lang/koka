@@ -68,7 +68,7 @@ fmtAttr cscheme tok lexeme display
           TokRichComment _ -> styleColor (colorComment cscheme)
           TokWhite    -> ""
           TokError    -> "ansi-red"
-      
+
     styleColor :: Color -> IC.Style
     styleColor color
       = case color of
@@ -100,8 +100,8 @@ fmtPrint cscheme p token _
       TokString   -> withColor p (colorString cscheme) . write p
       TokSpecial  -> withColor p (colorSpecial cscheme) . write p
       TokTypeKeyword -> \s -> withColor p (if (not (isKeywordOp s)) then colorTypeKeyword cscheme else colorTypeKeywordOp cscheme) (write p s)
-      TokKeyword  -> withColor p (colorKeyword cscheme) . write p 
-      TokComment  -> withColor p (colorComment cscheme) . write p 
+      TokKeyword  -> withColor p (colorKeyword cscheme) . write p
+      TokComment  -> withColor p (colorComment cscheme) . write p
       TokRichComment cs -> -- \s -> mapM_ (fmtComment (withColor p (colorComment cscheme) . write p)) (cs) -- sequence_ (commentFlatten (withColor p (colorComment cscheme) . write p) cs) -- withColor p (colorComment cscheme) . write p
                            withColor p (colorComment cscheme) . write p
       TokWhite    -> write p
@@ -124,7 +124,7 @@ fmtPrint cscheme p token _
         block s = "\n" ++ s ++ "\n"
 
         fmtLexs ctx lexs = sequence_ $ highlightLexemes id (fmtPrint cscheme p) ctx [] lexs
-          
+
 
 
 showLexeme :: Lexeme -> String
@@ -152,7 +152,7 @@ showLexeme (Lexeme _ lex)
       LexError msg  -> ""
 
 normalize :: String -> String
-normalize s 
+normalize s
   = take 1 s ++ takeWhile (/='.') (drop 1 s)
 
 isKeywordOp :: String -> Bool
@@ -179,7 +179,7 @@ data Token a
   | TokSpecial
   | TokKeyword
 
-  | TokTypeVar 
+  | TokTypeVar
   | TokTypeId Name
   | TokTypeOp Name
   | TokTypeSpecial
@@ -190,7 +190,7 @@ data Token a
   | TokCons Name
   | TokNumber
   | TokString
-  | TokComment 
+  | TokComment
   | TokRichComment [TokenComment a]
   | TokWhite
   | TokError
@@ -201,7 +201,7 @@ data TokenComment a
   | ComEmph String
   | ComPre String
   | ComPreBlock String
-  | ComUrl String 
+  | ComUrl String
   | ComLine String
   | ComCode [a] String
   | ComCodeBlock String [a] String
@@ -237,7 +237,7 @@ ctxNesting _                = 0
 
 highlight :: (Token Lexeme -> Lexeme -> String -> a) -> ([Lexeme] -> [Lexeme]) -> Context -> FilePath -> Int -> BString -> [a]
 highlight fmt transform ctx sourceName lineNo input
-  = let xs = lexer sourceName lineNo input 
+  = let xs = lexer sourceName lineNo input
     in highlightLexemes transform fmt ctx [] (transform (combineLineComments xs))
 
 
@@ -252,7 +252,7 @@ highlightLexeme :: ([Lexeme] -> [Lexeme]) -> (Token Lexeme -> Lexeme -> String -
 highlightLexeme transform fmt0 ctx0 lexeme@(Lexeme rng lex) lexs
   = (ctx,con)
   where
-    fmt tok s 
+    fmt tok s
         = fmt0 tok lexeme s
 
     ctx = adjustContext ctx0 lex lexs
@@ -264,8 +264,8 @@ highlightLexeme transform fmt0 ctx0 lexeme@(Lexeme rng lex) lexs
                                         else TokId id ""
                              in fmt tok (showId (unqualify id))
             LexWildCard id-> fmt (if (isCtxType ctx) then TokTypeVar else TokId id "") (show id)
-            LexOp id      -> fmt (if (isCtxType ctx) then (if (showPlain id) `elem` ["<",">","|","::"] then TokTypeSpecial else TokTypeOp id) 
-                                                     else TokOp id "") 
+            LexOp id      -> fmt (if (isCtxType ctx) then (if (showPlain id) `elem` ["<",">","|","::"] then TokTypeSpecial else TokTypeOp id)
+                                                     else TokOp id "")
                                  (showOp (unqualify id))
             LexPrefix id  -> fmt (TokOp id "") (showId (unqualify id))
             LexIdOp id    -> fmt (TokOp id "") (showId (unqualify id))
@@ -273,7 +273,7 @@ highlightLexeme transform fmt0 ctx0 lexeme@(Lexeme rng lex) lexs
             LexFloat _ _  -> fmt TokNumber (show lex)
             LexString s   -> fmt TokString (show s)
             LexChar c     -> fmt TokString (show c)
-            
+
             LexModule id mid  -> fmt (TokModule mid) (show id)
             LexCons id        -> fmt (if (isCtxType ctx) then TokTypeId id else TokCons id) (showId (unqualify id))
             LexTypedId id tp  -> -- trace ("**fmt type id: " ++ show id ++ ": " ++ show tp) $
@@ -291,15 +291,12 @@ highlightLexeme transform fmt0 ctx0 lexeme@(Lexeme rng lex) lexs
 
     showId :: Name -> String
     showId name
-      = if (nameId name == "!" || nameId name == "~") then showPlain name
-        else show name {-
-             case nameId name of  
-              (c:cs)  | not (isAlphaNum c || c == '_' || c == '(') -> "(" ++ show name ++ ")"
-              _       -> show name -}
+      = if (nameStem name == "!" || nameLocal name == "~") then showPlain name
+        else show name
 
     showOp :: Name -> String
     showOp name
-      = case nameId name of
+      = case nameStem name of
           (c:cs)  | isAlphaNum c  -> "`" ++ show name ++ "`"
           _       -> showPlain name
 
@@ -320,7 +317,7 @@ highlightLexeme transform fmt0 ctx0 lexeme@(Lexeme rng lex) lexs
 
 adjustContext ctx lex lexs
   = case ctx of
-      CtxNormal 
+      CtxNormal
         -> case lex of
              LexOp op             | showPlain op == "::" -> CtxType [] "::"
              LexKeyword ":" _       -> CtxType [] ":"
@@ -341,7 +338,7 @@ adjustContext ctx lex lexs
              LexOp op           | showPlain op == "<" -> push NestAngle nest
                                 | showPlain op == ">" -> pop NestAngle nest
                                 | otherwise           -> ctx
-             
+
              LexWildCard _      -> ctx
              LexWhite w         | length w < 2 -> ctx
              LexComment _       -> ctx
@@ -387,7 +384,7 @@ adjustContext ctx lex lexs
 lexComment :: FilePath -> Int -> String -> [TokenComment Lexeme]
 lexComment sourceName lineNo content
   = -- trace ("lex comment:\n" ++ content ++ "\n\n")  $
-    scan lineNo [] [] (filter (/= '\r') content)  
+    scan lineNo [] [] (filter (/= '\r') content)
   where
     -- Top level
     scan :: Int -> [TokenComment Lexeme] -> [Char] -> [Char] -> [TokenComment Lexeme]
@@ -399,33 +396,33 @@ lexComment sourceName lineNo content
     scan n lacc acc ('$':c:rest)  = scanMath n (ComText (reverse acc) : lacc) (c:rest)
 
     -- code
-    scan n lacc acc ('`':c:rest)    
-      | c /= '`' = scanCode n ComCode (ComText (reverse acc) : lacc) "" (c:rest)                                   
-      | c == ':' = scanCode n ComCode (ComText (reverse (acc)) : lacc) ":" rest      
+    scan n lacc acc ('`':c:rest)
+      | c /= '`' = scanCode n ComCode (ComText (reverse acc) : lacc) "" (c:rest)
+      | c == ':' = scanCode n ComCode (ComText (reverse (acc)) : lacc) ":" rest
     scan n lacc acc ('`':'`':'`':c:rest) | whiteLine acc && c /= '`'
       = let (pre,xpost) = span (\c -> c /= '\n' && c /= '{' && c /= ' ') (c:rest)
             (attr,post) = span (\c -> c /= '\n') xpost
-            cls = case dropWhile (/='.') attr of 
+            cls = case dropWhile (/='.') attr of
                     []    -> ""
                     (_:cs) -> takeWhile isAlphaNum cs
             comCode = if (pre == "unchecked") then ComCodeBlock cls else ComCodeLit cls
         in if (pre=="unchecked" || pre=="koka" || pre=="")
             then scanCodeBlock (n+1) comCode (n+1) (ComText (reverse (dropLine acc)) : lacc) [] (dropLine post)
             else scanPreBlock 3 n (ComText (reverse ("```" ++ pre ++ acc)) : lacc) [] post
-    scan n lacc acc ('`':rest)       
-      = let (pre,post) = span (=='`') rest 
+    scan n lacc acc ('`':rest)
+      = let (pre,post) = span (=='`') rest
             lacc' = ComText (reverse ('`':pre ++ acc)) : lacc
-        in if (whiteLine acc && length pre >= 2) 
+        in if (whiteLine acc && length pre >= 2)
             then scanPreBlock (length pre + 1) n lacc' [] post
             else scanPre (length pre + 1) n lacc' [] post
-    
+
     -- regular
     scan n lacc acc ('\n':rest)     = scan (n+1) lacc ('\n':acc) rest
     scan n lacc acc (c:rest)        = scan n lacc (c:acc) rest
     scan n lacc acc []              = reverse (ComText (reverse acc) : lacc)
-    
+
     -- scanTag: ignore things inside "<tag...>" and "<script .. </script>" or "<style .. </style>" tags
-    scanTag n lacc ('<':rest)       | (tag == "script" || tag == "style") = skipToEndTag 
+    scanTag n lacc ('<':rest)       | (tag == "script" || tag == "style") = skipToEndTag
                                     where
                                       (tagName,rest2) = span isAlphaNum rest
                                       tag = map toLower tagName
@@ -442,7 +439,7 @@ lexComment sourceName lineNo content
                                       spanToEndTag acc ('<':cs)     = spanToEndTag ("<":acc) cs
                                       spanToEndTag acc []           = (concat (reverse acc), [])
                                       spanToEndTag acc cs           = let (pre,post) = span (/='<') cs
-                                                                      in spanToEndTag (pre:acc) post                                                                          
+                                                                      in spanToEndTag (pre:acc) post
 
     scanTag n lacc content          = let (tag,close) = span (\c -> not (c `elem` ">\n")) content
                                           (end,rest)  = if null close then ([],[]) else ([head close], tail close)
@@ -452,9 +449,9 @@ lexComment sourceName lineNo content
     scanMath n lacc content         = let (math,close) = span (\c -> not (c `elem` "$\n")) content
                                           (end,rest)   = if null close then ([],[]) else ([head close], tail close)
                                       in scan (if ('\n' `elem` end) then (n+1) else n) (ComText ("$" ++ math ++ end) : lacc) [] rest
-    
+
     -- scanPre formatted ``pre``
-    scanPre m n lacc acc ('`':rest)  
+    scanPre m n lacc acc ('`':rest)
       = let (pre,post) = span (=='`') rest
         in if (length pre+1 == m)
             then scan n lacc ('`':pre ++ acc) post
@@ -469,13 +466,13 @@ lexComment sourceName lineNo content
     scanCode n com lacc acc (c:rest)        = scanCode n com lacc (c:acc) rest
     scanCode n com lacc acc []              = endCode n com lacc acc "" []
 
-    endCode n com lacc acc post rest = let lexemes = lexer sourceName n (stringToBString $ reverse (dropWhile (==' ') acc)) 
+    endCode n com lacc acc post rest = let lexemes = lexer sourceName n (stringToBString $ reverse (dropWhile (==' ') acc))
                                        in scan n (com (lexemes) (reverse acc) : lacc) (reverse post) rest
 
     -- pre block ```
-    scanPreBlock m n lacc acc ('`':rest) 
+    scanPreBlock m n lacc acc ('`':rest)
       = let (pre,post) = span (=='`') rest
-        in if (m == length pre + 1) 
+        in if (m == length pre + 1)
             then scan n lacc ('`':pre ++ acc) post
             else scanPreBlock m n lacc ('`':acc) rest
     scanPreBlock m n lacc acc (c:rest)        = scanPreBlock m (if (c=='\n') then n+1 else n) lacc (c:acc) rest
@@ -496,7 +493,7 @@ lexComment sourceName lineNo content
     scanCodeBlock2 n com m lacc pre acc []      = endCodeBlock n com m lacc pre acc []
 
     endCodeBlock n com m lacc pre acc rest      = let src     = dropLine (reverse acc)
-                                                      lexemes = lexer sourceName m (stringToBString src) 
+                                                      lexemes = lexer sourceName m (stringToBString src)
                                                   in -- trace("code block:\n" ++ src ++ "\n\n") $
                                                      scan n (com (lexemes) (if null pre then src else (pre ++ "\n" ++ src)) : lacc) [] rest
 
@@ -504,11 +501,11 @@ lexComment sourceName lineNo content
     onLine pre post
       = (whiteLine pre && whiteLine post)
 
-    whiteLine s 
+    whiteLine s
       = case (dropWhile (\c -> c `elem` " \t\r") s) of
           (c:_) -> (c == '\n')
           []    -> True
-        
+
     dropLine s
       = case (dropWhile (\c -> c `elem` " \t\r") s) of
           ('\n':cs) -> cs

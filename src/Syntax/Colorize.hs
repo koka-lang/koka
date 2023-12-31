@@ -162,7 +162,7 @@ transform isLiterate rng rangeMap env lexeme content
                  NIKind         -> span "kind" content
                 )
           (Decl s name mname)
-             -> (range:ranges, (startTag "span" ("decl-" ++ s ++ "\" id=\"" ++ linkEncode (nameId mname)) ++ content))
+             -> (range:ranges, (startTag "span" ("decl-" ++ s ++ "\" id=\"" ++ linkEncode (nameLocal mname)) ++ content))
           (Block s)
              -> ((range:ranges), (startTag "span" s ++ content))
           (Error doc)
@@ -286,11 +286,8 @@ showLexemes env kgamma gamma lexs
       = case gammaLookup name gamma of
           [(qname,InfoCon{})]    | nameCaseEqual (unqualify name) (unqualify qname) -> LexCons qname
           [(qname,_)]            | nameCaseEqual (unqualify name) (unqualify qname) -> lex qname
-          _  -> if (isQualified name)
-                 then case gammaLookup (unsplitModuleName [name]) gamma of
-                        [(_,InfoImport{infoFullName=qname})] -> LexModule name qname
-                        _ -> lex name
-                 else lex name
+          [(_,InfoImport{infoFullName=qname})] -> LexModule name qname
+          _  -> lex name
 
     tryQualifyType lex name
       = case kgammaLookup ctx name kgamma of
@@ -343,14 +340,9 @@ fmtTypeName name
 
 fmtName :: Name -> String
 fmtName name
-  = let (pname,postfix) = canonicalSplit name
+  = let pname = name {- (pname,postfix) = canonicalSplit name -}
         pre = fmtNameString (show pname)
-              {-
-              case nameId pname of
-              (c:cs)  | not (isAlphaNum c || c == '_' || c == '[' || c=='(') -> "(" ++ fmtNameString (showPlain pname) ++ ")"
-              _       -> fmtNameString (show pname)
-              -}
-        post = if null postfix then "" else cspan "postfix" postfix
+        post = "" -- if null postfix then "" else cspan "postfix" postfix
     in pre++post
 
 fmtNameString :: String -> String
@@ -394,7 +386,7 @@ linkFromTypeName env qname
   = linkFromTypeNameX env (mangleTypeName qname)
 
 linkFromTypeNameX env qname
-  = linkBase env (nameModule qname) ++ "#" ++ linkEncode (nameId qname)
+  = linkBase env (nameModule qname) ++ "#" ++ linkEncode (nameLocal qname)
 
 
 -- | Encode a link string with browser safe codes (ie. ' ' to '%20')
@@ -501,7 +493,7 @@ signature env toLit isLiterate knd qname mname scontent content
               (if (context env == qualifier qname && toLit == isLiterate)
                     then ""
                     else linkBaseX env (nameModule mname) (if toLit then "" else "-source"))
-              ++ (if (nameIsNil mname) then "" else "#" ++ linkEncode (nameId mname))
+              ++ (if (nameIsNil mname) then "" else "#" ++ linkEncode (nameLocal mname))
          else ""
 
 linkBase env modname

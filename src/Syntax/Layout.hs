@@ -21,7 +21,7 @@ import Common.Range hiding (after)
 import Lib.Trace
 import Syntax.Lexeme
 import Syntax.Lexer
-import Common.Name  ( Name, nameId )
+import Common.Name  ( Name, nameLocal )
 
 testFile fname
   = do input <- readInput ("test/" ++ fname)
@@ -31,21 +31,21 @@ test xs
   = testEx "" xs
 
 testEx fname input
-  = let source = Source fname input 
-        xs = lexing source 1 input 
+  = let source = Source fname input
+        xs = lexing source 1 input
     in putStrLn (unlines (map show (layout True xs)))
 
 -- | @layout idmods lexs@ does layout processing on a list of lexemes @lexs@.
 layout :: Bool -> [Lexeme] -> [Lexeme]
 layout semiInsert lexemes
   = let semi f = if semiInsert then f else id
-        ls =  semi indentLayout $ 
+        ls =  semi indentLayout $
               -- semi lineLayout $
-              removeWhite $ 
+              removeWhite $
               associateComments $
-              removeWhiteSpace $ 
-              combineLineComments $ 
-              semi checkComments $ 
+              removeWhiteSpace $
+              combineLineComments $
+              semi checkComments $
               lexemes
     in -- trace (unlines (map show ls)) $
        if null ls then [] else seq (last ls) ls
@@ -103,15 +103,15 @@ associateComments lexs
           (Lexeme r1 (LexComment (comment@('/':'/':'.':cs))) : ls) | not (any isSpace (trimRight cs))
              -> Lexeme r1 (LexSpecial (trimRight comment)) : scan ls
           -- comment association
-          (Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k _) : ls)  
-            | k `elem` docKeyword && adjacent comment r1 r2 
+          (Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k _) : ls)
+            | k `elem` docKeyword && adjacent comment r1 r2
              -> Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k comment) : scan ls
           (Lexeme r1 (LexComment comment) : l : Lexeme r2 (LexKeyword k _) : ls)  -- pub type, inline fun
             | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l
             -> Lexeme r1 (LexComment comment) : l : Lexeme r2 (LexKeyword k comment) : scan ls
           (Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k _) : ls) -- pub inline fun, pub value type
             | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l1 && isAttr l2
-            -> Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k comment) : scan ls             
+            -> Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k comment) : scan ls
           -- other
           (l:ls)
              -> l : scan ls
@@ -124,7 +124,7 @@ associateComments lexs
                      ,"control","rcontrol","except","rawctl","brk"
                      ,"cotype","rectype"
                      ,"external","function"
-                     ]                     
+                     ]
 
         isAttr l   = case l of  -- just approximate is ok
                       Lexeme _ (LexKeyword{}) -> True
@@ -138,7 +138,7 @@ associateComments lexs
 
 trimRight s
   = reverse (dropWhile isSpace (reverse s))
-  
+
 -----------------------------------------------------------
 -- Combine adjacent line comments into one  block comment (for html output)
 -----------------------------------------------------------
@@ -165,15 +165,15 @@ checkComments lexemes
     check prevLine commentRng []
       = []
     check prevLine commentRng (lexeme@(Lexeme rng lex) : ls)
-      = lexeme : 
+      = lexeme :
         case lex of
-          LexComment _ -> check prevLine rng ls 
+          LexComment _ -> check prevLine rng ls
           LexWhite _   -> check prevLine commentRng ls
           _            -> checkIndent ++
                           check (endLine rng) commentRng ls
       where
-        checkIndent 
-          = if (startLine rng > prevLine && startLine rng == endLine commentRng && endCol commentRng > 1 {- for wrap-around line columns -}) 
+        checkIndent
+          = if (startLine rng > prevLine && startLine rng == endLine commentRng && endCol commentRng > 1 {- for wrap-around line columns -})
              then [Lexeme commentRng (LexError "layout: comments cannot be placed in the indentation of a line")]
              else []
 
@@ -186,7 +186,7 @@ data Layout = Layout{ open :: Lexeme, column :: Int }
 
 indentLayout :: [Lexeme] -> [Lexeme]
 indentLayout []     = [Lexeme rangeNull LexInsSemi]
-indentLayout (l:ls) = let start = Lexeme (before (getRange l)) (LexWhite "") -- ignored                          
+indentLayout (l:ls) = let start = Lexeme (before (getRange l)) (LexWhite "") -- ignored
                       in brace (Layout start 1) [] start (l:ls)
 
 brace :: Layout -> [Layout] -> Lexeme -> [Lexeme] -> [Lexeme]
@@ -195,7 +195,7 @@ brace :: Layout -> [Layout] -> Lexeme -> [Lexeme] -> [Lexeme]
 brace _ [] prev []
   = []
 
--- end-of-file: ending braces  
+-- end-of-file: ending braces
 brace layout (ly:lys) prev []
   = let rcurly = insertRCurly layout prev
     in insertSemi prev ++ rcurly ++ brace ly lys (last rcurly) []
@@ -211,14 +211,14 @@ brace layout@(Layout (Lexeme _ layoutLex) layoutCol) layouts  prev@(Lexeme prevR
     = brace layout layouts prev (insertLCurly prev ++ lexemes)
   -- brace: insert }
   | newline && indent < layoutCol && not (isCloseBrace lex && layoutLex == LexSpecial "{")
-    = brace layout layouts prev (insertRCurly layout prev ++ lexemes) 
+    = brace layout layouts prev (insertRCurly layout prev ++ lexemes)
   -- push new layout
   | isOpenBrace lex
     = [lexeme] ++
       (if (nextIndent > layoutCol) then [] else [Lexeme rng (LexError ("layout: line must be indented more than the enclosing layout context (column " ++ show layoutCol ++ ")"))]) ++
       brace (Layout lexeme nextIndent) (layout:layouts) lexeme ls
   -- pop layout
-  | isCloseBrace lex 
+  | isCloseBrace lex
     = insertSemi prev ++ [lexeme] ++
       case layouts of
         (ly:lys) -> brace ly lys lexeme ls
@@ -229,46 +229,46 @@ brace layout@(Layout (Lexeme _ layoutLex) layoutCol) layouts  prev@(Lexeme prevR
   | otherwise
     = [lexeme] ++ brace layout layouts lexeme ls
   where
-    newline = endLine prevRng < startLine rng 
-    indent  = startCol rng 
-    nextIndent = case ls of 
+    newline = endLine prevRng < startLine rng
+    indent  = startCol rng
+    nextIndent = case ls of
                    (Lexeme rng _ : _) -> startCol rng
                    _                  -> 1
 
 insertLCurly :: Lexeme -> [Lexeme]
-insertLCurly prev@(Lexeme prevRng prevLex) 
+insertLCurly prev@(Lexeme prevRng prevLex)
   = [Lexeme (after prevRng) LexInsLCurly]
 
 insertRCurly :: Layout -> Lexeme -> [Lexeme]
-insertRCurly (Layout (Lexeme layoutRng layoutLex) layoutCol) prev@(Lexeme prevRng prevLex) 
+insertRCurly (Layout (Lexeme layoutRng layoutLex) layoutCol) prev@(Lexeme prevRng prevLex)
   = (if (layoutLex == LexInsLCurly) then [] else [Lexeme (after (prevRng)) (LexError ("layout: an open brace '{' (at " ++ show layoutRng ++ ", layout column " ++ show layoutCol ++ ") is matched by an implicit closing brace"))]) ++
     [Lexeme (after prevRng) LexInsRCurly]
 
 insertSemi :: Lexeme -> [Lexeme]
-insertSemi prev@(Lexeme prevRng prevLex) 
+insertSemi prev@(Lexeme prevRng prevLex)
   = if isSemi prevLex then [] else [Lexeme (after prevRng) LexInsSemi]
 
 isExprContinuation :: Lex -> Lex -> Bool
 isExprContinuation prevLex lex
   = (isStartContinuationToken lex || isEndContinuationToken prevLex)
 
-isStartContinuationToken :: Lex -> Bool 
+isStartContinuationToken :: Lex -> Bool
 isStartContinuationToken lex
       = case lex of
           LexSpecial s    -> s `elem` [")",">","]",",","{","}"]
-          LexKeyword k _  -> k `elem` ["then","else","elif","->","=","|",":",".",":="] 
-          LexOp op        -> not (nameId op `elem` ["<"])
+          LexKeyword k _  -> k `elem` ["then","else","elif","->","=","|",":",".",":="]
+          LexOp op        -> not (nameLocal op `elem` ["<"])
           LexInsLCurly    -> True
           LexInsRCurly    -> True
           _ -> False
 
-isEndContinuationToken :: Lex -> Bool 
+isEndContinuationToken :: Lex -> Bool
 isEndContinuationToken lex
       = case lex of
           LexSpecial s    -> s `elem` ["(","<","[",",","{"]
           LexKeyword k _  -> k `elem` ["."]
           LexInsLCurly    -> True
-          LexOp op        -> not (nameId op `elem` [">"])
+          LexOp op        -> not (nameLocal op `elem` [">"])
           _ -> False
 
 
@@ -282,13 +282,13 @@ isOpenBrace lex
   = case lex of
       LexSpecial "{"  -> True
       LexInsLCurly    -> True
-      _               -> False    
+      _               -> False
 
 isSemi lex
   = case lex of
       LexSpecial ";"  -> True
       LexInsSemi      -> True
-      _               -> False                
+      _               -> False
 
 -----------------------------------------------------------
 -- Deprecated
@@ -309,8 +309,8 @@ semiInsert (Lexeme prevRng prevLex) lexemes
           LexSpecial "}" -> semi : lexeme : semiInsert lexeme ls -- always before '}'
           _ -> if (endLine prevRng < startLine rng && endingToken prevLex && not (continueToken lex))
                 then semi : lexeme : semiInsert lexeme ls
-                else lexeme : semiInsert lexeme ls  
-  where 
+                else lexeme : semiInsert lexeme ls
+  where
     semi = Lexeme (after prevRng) LexInsSemi
 
     endingToken lex
@@ -333,16 +333,16 @@ semiInsert (Lexeme prevRng prevLex) lexemes
           LexSpecial s   -> s `elem` ["{",")","]"]
           LexOp s        -> show s == ">"
           _              -> False
-          
+
 
 -----------------------------------------------------------
 -- Identify module identifiers: assumes no whitespace
 -----------------------------------------------------------
 identifyModules :: [Lexeme] -> [Lexeme]
 identifyModules lexemes
-  = let (names,headerCount) = scanImports 0 [] (map unLexeme lexemes) 
+  = let (names,headerCount) = scanImports 0 [] (map unLexeme lexemes)
     in replaceModules (const True) (take headerCount lexemes)
-        ++ 
+        ++
        replaceModules (`elem` names) (drop headerCount lexemes)
        -- debug: map (\n -> Lexeme rangeNull (LexId n)) names
   where
