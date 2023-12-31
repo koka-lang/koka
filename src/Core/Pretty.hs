@@ -64,7 +64,7 @@ prettyCore env0 target inlineDefs core@(Core name imports fixDefs typeDefGroups 
   = prettyComment env doc $
     keyword env "module" <+>
     (if (coreIface env) then text "interface " else empty) <.>
-    prettyDefName env name <->
+    prettyModuleName env name <->
     (vcat $ concat $
       [ separator "import declarations"
       , map (prettyImport envX) (imports)
@@ -118,8 +118,8 @@ prettyImport env imp
   = -- prettyComment env (importModDoc imp) $
     prettyVis env (importVis imp) $
     keyword env "import"
-      <+> pretty (importsAlias (importName imp) (importsMap env)) <+> text "="
-      <+> prettyName (colors env) (importName imp)
+      <+> prettyModuleName env (importsAlias (importName imp) (importsMap env)) <+> text "="
+      <+> prettyModuleName env (importName imp)
       <+> text "=" <+> prettyLit env (LitString (importPackage imp))
       <.> semi
 
@@ -489,6 +489,10 @@ prettyTName :: Env -> TName -> Doc
 prettyTName env (TName name tp)
   = prettyName (colors env) name <.> text ":" <+> ppType env tp
 
+
+prettyModuleName :: Env -> Name -> Doc
+prettyModuleName env name
+  = prettyCoreName (colors env) name
 
 prettyDefName :: Env -> Name -> Doc
 prettyDefName env name

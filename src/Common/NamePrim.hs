@@ -176,7 +176,7 @@ import Common.File( startsWith )
 nameExpr        = newName "@expr"
 nameType        = newName "@type"
 
-nameInteractiveModule  = newName "interactive"
+nameInteractiveModule  = newModuleName "interactive"
 nameInteractive = newName "interactive"
 nameMain        = newName "@main"
 nameCopy        = newName "@copy"
@@ -184,7 +184,7 @@ nameOpExpr      = newName "@opexpr"
 
 copyNameOf :: Name -> Name
 copyNameOf typename
-  = qualify (qualifier typename) (qualifyLocally (unqualify typename) nameCopy)
+  = qualify (qualifier typename) (qualifyLocally (nameAsModuleName (unqualify typename)) nameCopy)
 
 
 {--------------------------------------------------------------------------
@@ -242,8 +242,8 @@ nameTpCps       = preludeName "cps"
 nameInCps       = preludeName "incps"
 nameTpCont      = preludeName "cont"
 
-nameTpAsync     = qualify (newName "std/async") (newName "async")
-nameTpAsyncX    = qualify (newName "std/async") (newName "asyncx")
+nameTpAsync     = newQualified "std/async" "async"
+nameTpAsyncX    = newQualified "std/async" "asyncx"
 
 nameYieldOp n    = preludeName ("@yieldop" ++ (if (n == 0) then "" else "-x" ++ show n))
 nameToAny       = preludeName "@toany"

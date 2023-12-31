@@ -219,7 +219,7 @@ synAccessors modName info
         synAccessor :: (Name,(Type,Range,Visibility,ConInfo)) -> DefGroup Type
         synAccessor (name,(tp,rng,visibility,cinfo))
           = let dataName = unqualify $ dataInfoName info
-                defName  = qualifyLocally dataName name -- TODO: only for type names that are valid module names!
+                defName  = qualifyLocally (nameAsModuleName dataName) name -- TODO: only for type names that are valid module names!
 
                 arg = if (all isAlphaNum (show dataName))
                        then dataName else newName "@this"
@@ -406,6 +406,7 @@ infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
        qname <- qualifyDef name
        let cname = qname {- let n = length (filter (==qname) names) in
                    canonicalName n qname -}
+       checkExternal cname nameRng
        if (isHiddenName name)
         then return ()
         else do addRangeInfo nameRng (Id qname (NIValue tp') True)

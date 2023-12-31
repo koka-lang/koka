@@ -36,8 +36,10 @@ import Common.Failure
 data QNameMap a = QM !(M.Map Name [(Name,a)])
 
 instance Show a => Show (QNameMap a) where
-  show qm
-    = show (toAscList qm)
+  show (QM m)
+    = show (M.toAscList m)
+  --show qm
+  --  = show (toAscList qm)
 
 data Lookup a = Found Name a
               | Ambiguous [Name]
@@ -55,7 +57,7 @@ single name x
   = QM (M.singleton (unqualify name) [(name,x)])
 
 fromList :: [(Name,a)] -> QNameMap a
-fromList xs 
+fromList xs
   = foldl (\qm (name,x) -> insert name x qm) empty xs
 
 -- | Lookup a fully qualified name
@@ -63,27 +65,27 @@ lookupQ :: Name -> QNameMap a -> Maybe a
 lookupQ name (QM m)
   = case M.lookup (unqualify name) m of
       Nothing -> Nothing
-      Just xs -> Prelude.lookup name xs 
+      Just xs -> Prelude.lookup name xs
 
--- | Lookup a potentially unqualified name within a module context. 
+-- | Lookup a potentially unqualified name within a module context.
 -- (The module context is ignored if a qualified name is looked up)
 lookup :: Name -> Name -> QNameMap a -> Lookup a
 lookup context name (QM m)
   = case M.lookup (unqualify name) m of
       Nothing   -> NotFound
       Just [(qname,x)]  | not (isQualified name) -> Found qname x
-      Just xs   -> let qname = if isQualified name then name else qualify context name 
+      Just xs   -> let qname = if isQualified name then name else qualify context name
                    in case Prelude.filter (\p -> fst p == qname) xs of
                         [(realname,x)]  -> Found realname x
                         _ -> Ambiguous (map fst xs)
-                     
+
 
 filterNames :: (Name -> Bool) -> QNameMap a -> QNameMap a
 filterNames pred (QM m)
   = QM (M.map belongs m)
   where
     belongs xs  = [(name,x) | (name,x) <- xs, pred name]
-  
+
 insert :: Name -> a -> QNameMap a -> QNameMap a
 insert name x (QM m)
   = QM (M.insertWith (safeCombine "insert")  (unqualify name) [(name,x)] m)
@@ -96,13 +98,13 @@ union (QM m1) (QM m2)
 unions :: [QNameMap a] -> QNameMap a
 unions qs
   = foldl union empty qs
-    
+
 toAscList :: QNameMap a -> [(Name,a)]
 toAscList (QM m)
   = concatMap snd (M.toAscList m)
 
 
-safeCombine :: String -> [(Name,a)] -> [(Name,a)] -> [(Name,a)]    
+safeCombine :: String -> [(Name,a)] -> [(Name,a)] -> [(Name,a)]
 safeCombine method xs ys
   = let ynames = map fst ys
         xnames = map fst xs

@@ -448,20 +448,20 @@ pub fun finalize( r : resume-context<b,e,e0,r>, x : r ) : e r
 abstract value type clause1<a,b,h,e::E,r>
   Clause1( clause: (marker<e,r>, ev<h>, a) -> e b )
 
-inline extern cast-ev0( f : (marker<e1,r>,ev<h>) -> e1 b) : e ((marker<e1,r>,ev<h>) -> e b)
+inline extern cast-clause0( f : (marker<e1,r>,ev<h>) -> e1 b) : e ((marker<e1,r>,ev<h>) -> e b)
   inline "#1"
 
-inline extern cast-ev1( f : (marker<e1,r>,ev<h>,a) -> e1 b) : e ((marker<e1,r>,ev<h>,a) -> e b)
+inline extern cast-clause1( f : (marker<e1,r>,ev<h>,a) -> e1 b) : e ((marker<e1,r>,ev<h>,a) -> e b)
   inline "#1"
 
-inline extern cast-ev2( f : (marker<e1,r>,ev<h>,a1,a2) -> e1 b) : e ((marker<e1,r>,ev<h>,a1,a2) -> e b)
+inline extern cast-clause2( f : (marker<e1,r>,ev<h>,a1,a2) -> e1 b) : e ((marker<e1,r>,ev<h>,a1,a2) -> e b)
   inline "#1"
 
 
 pub inline fun "@perform1"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b
   match ev
     Ev(_tag,m,h,_c,_w) -> match h.op
-      Clause1(f) -> cast-ev1(f)(m,ev,x)
+      Clause1(f) -> cast-clause1(f)(m,ev,x)
 
 fun evv-swap-with(ev : ev<h>)
   match(ev)
@@ -545,7 +545,7 @@ abstract value type clause0<b,h,e,r>
 pub inline fun "@perform0"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,h,e1,r>) ) : e b
   match ev
     Ev(_tag,m,h,_c,_w) -> match h.op
-      Clause0(f) -> cast-ev0(f)(m,ev)
+      Clause0(f) -> cast-clause0(f)(m,ev)
 
 inline fun under0( ev : ev<i>, op : () -> e b) : e b
   val w0 = evv-swap-with(ev)
@@ -618,7 +618,7 @@ pub fun clause-tail-noop2<e,r,h,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,
 pub inline fun "@perform2"( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c,h,e1,r>), x : a, y : b ) : e c
   match evx
     Ev(_tag,m,h,_c,_w) -> match h.op
-      Clause2(f) -> cast-ev2(f)(m,evx,x,y)
+      Clause2(f) -> cast-clause2(f)(m,evx,x,y)
 
 pub fun clause-never2( op : (a1,a2) -> e r ) : clause2<a1,a2,b,h,e,r>
   Clause2(fn(m,_ev,x1,x2){ yield-to-final(m, fn(_k){ op(x1,x2) }) })
@@ -633,7 +633,7 @@ pub fun clause-never2( op : (a1,a2) -> e r ) : clause2<a1,a2,b,h,e,r>
 fun xperform1( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b
   match ev
     Ev(_tag,m,h,_c,_w) -> match h.op
-      Clause1(f) -> cast-ev1(f)(m,ev,x)
+      Clause1(f) -> cast-clause1(f)(m,ev,x)
 
 pub fun clause-control-raw3( op : (x1:a1, x2:a2, x3:a3, r: resume-context<b,e,e0,r>) -> e r ) : clause1<(a1,a2,a3),b,h,e,r>
   clause-control-raw1( fn((x1,x2,x3),r){ op(x1,x2,x3,r) } )

@@ -18,7 +18,7 @@ module Common.Name
           , readQualified, readQualifiedName
           , labelNameCompare
           , toHiddenUniqueName
-          , newName, newModuleName, newQualified, newLocallyQualified
+          , newName, newModuleName, newQualified, newLocallyQualified, nameAsModuleName
           , nameNil, nameIsNil, nameStartsWith
           , nameCaseEqual, nameCaseOverlap, isSameNamespace
           , nameCaseEqualPrefixOf, nameCaseOverlapPrefixOf
@@ -87,7 +87,7 @@ data Name  = Name
              , hashStem       :: !Int
              }
 
-joinWith sep m n  = (if null m then n else m ++ sep ++ n)
+joinWith sep m n  = (if null m then n else if null n then m else m ++ sep ++ n)
 join m n          = joinWith "/" m n
 
 nameLocal :: Name -> String
@@ -160,6 +160,9 @@ labelNameCompare (Name m1 hm1 l1 hl1 n1 hn1) (Name m2 hm2 l2 hl2 n2 hn2)
       lg -> lg
 
 
+isIdChar c
+  = (isAlphaNum c || c == '_' || c == '@' || c == '-')
+
 isSymbolId :: String -> Bool
 isSymbolId s
   = case s of
@@ -167,7 +170,6 @@ isSymbolId s
       _    -> False
   where
     isIdStartChar c  = (isAlpha c || c == '_' || c == '@')
-    isIdChar c       = (isAlphaNum c || c == '_' || c == '@' || c == '-')
     isIdEndChar c    = (c == '\'' || c == '?')
 
 wrapId :: String -> String
@@ -178,41 +180,38 @@ wrapId s
 showName :: Bool -> Name -> String
 showName explicitLocalQualifier (Name m _ l _ n _)
   = let ln = join l (wrapId n)
-    in if null m
-        then ln
-        else if null ln then m
-                        else m ++ (if explicitLocalQualifier && not (null l) then "/#" else "/") ++ ln
-
-
-showPlain name
-  = showName False name
+    in if null m then ln
+                 else if null ln then m
+                                 else m ++ (if explicitLocalQualifier && not (null l) then "/#" else "/") ++ ln
 
 showExplicit name
    = showName True name
 
+showPlain (Name m _ l _ n _)
+  = join m (join l n)
+
 
 instance Show Name where
   show name
-   = showPlain name
+   = showName False name
 
 instance Pretty Name where
   pretty name
     = text (show name)
 
-prettyName :: ColorScheme -> Name -> Doc      -- plain
+prettyName :: ColorScheme -> Name -> Doc      -- not explicit /#
 prettyName cs (Name m _ l _ n _)
   = let ln = join l (wrapId n)
     in if null m then text ln
-                 else color (colorModule cs) (text m) <.>
-                      (if null ln then empty else text "/" <.> text ln)
+                 else color (colorModule cs) (text m <.> (if null ln then empty else text "/")) <.> text ln
 
 prettyCoreName :: ColorScheme -> Name -> Doc  -- explicit /# if needed
 prettyCoreName cs (Name m _ l _ n _)
   = let ln = join l (wrapId n)
     in if null m then text ln
-                 else color (colorModule cs) (text m) <.>
-                      (if null ln then empty
-                                  else (if null l then text "/" else text "/#") <.> text ln)
+                 else color (colorModule cs)
+                          (text m <.> (if null ln then empty else (if null l then text "/" else text "/#")))
+                      <.> text ln
 
 
 -- todo: remove these as we can now read/write reliably using readQualifiedName
@@ -263,7 +262,7 @@ nameMapStem (Name m hm l hl n _) f
 readQualifiedName :: String -> Name
 readQualifiedName s
   = let (qual,lqual,id) = splitName s
-    in newQualified qual ((if null lqual then "" else lqual ++ "/") ++ id)
+    in newLocallyQualified qual lqual id
   where
     splitName :: String -> (String,String,String)
     splitName s
@@ -272,7 +271,7 @@ readQualifiedName s
                       let (rop,rest) = span (/='(') rs1
                       in case rest of
                             ('(':rs2) -> let (qual,lqual,id) = splitIdNameRev rs2
-                                        in (qual,lqual,id ++ "(" ++ reverse rop ++ ")")
+                                        in (qual,lqual,id ++ reverse rop)
                             _ -> failure ("Lexer.splitName: unmatched parenthesis in name: " ++ s)
           rs -> splitIdNameRev rs
       where
@@ -291,7 +290,7 @@ readQualifiedName s
         splitQualIdRev rs
           = let (rid,rqual) = span (/='/') rs
             in case rqual of
-                ('/':rs1) -> -- qualififier
+                ('/':rs1) -> -- qualifier
                               (reverse rs1, reverse rid)
                 _         -> ("",reverse rid)
 
@@ -363,7 +362,8 @@ nameIsNil name
   = null (nameStem name) && null (nameModule name)
 
 qualify :: Name -> Name -> Name
-qualify (Name m hm _ 0 _ 0) (Name _ 0 l hl n hn)  = Name m hm l hl n hl
+qualify (Name m hm _ 0 _ 0) (Name _ 0 l hl n hn)  = Name m hm l hl n hn
+qualify (Name m1 _ _ 0 _ 0) name@(Name m2 _ _ _ _ _) | m1 == m2 = name
 qualify n1 n2
   = failure ("Common.Name.qualify: Cannot use qualify on qualified names: " ++ show (n1,n2))
 
@@ -375,9 +375,15 @@ qualifier :: Name -> Name
 qualifier (Name m hm _ _ _ _)
   = Name m hm "" 0 "" 0
 
+nameAsModuleName :: Name -> Name
+nameAsModuleName name
+  = newModuleName (showPlain name)
+
 qualifyLocally :: Name -> Name -> Name
 qualifyLocally (Name loc _ _ 0 _ 0) (Name m _ l _ n _)
   = newLocallyQualified m (join loc l) n
+qualifyLocally name1 name2
+  = failure ("Common.Name.qualifyLocally: illegal qualification: " ++ showExplicit name1 ++ ", " ++ showExplicit name2)
 
 requalifyLocally :: Name -> Name
 requalifyLocally name@(Name m _ l _ n _)
@@ -466,6 +472,13 @@ prepend pre name
 
 
 postpend :: String -> Name -> Name
+postpend post name | isSymbolName name
+  = -- we must always end in symbols
+    nameMapStem name $ \stem ->
+    let (rsyms,rid) = span (not . isIdChar) (reverse stem)
+    in if null rid
+         then "@" ++ post ++ reverse rsyms
+         else reverse rid ++ post ++ reverse rsyms
 postpend post name
   = nameMapStem name $ \stem ->
     let (xs,ys) = span (\c -> c=='?' || c=='\'') (reverse stem)

@@ -2799,7 +2799,7 @@ qconid
 modulepath :: LexParser (Name,Range)
 modulepath
   = do (id,rng) <- qvarid
-       return (newName (showPlain id), rng) -- return the entire module path as one identifier
+       return (nameAsModuleName id, rng) -- return the entire module path as one identifier
   <?> "module path"
 
 wildcard :: LexParser (Name,Range)

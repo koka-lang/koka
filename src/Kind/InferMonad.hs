@@ -21,6 +21,7 @@ module Kind.InferMonad( KInfer
                       , qualifyDef
                       , addRangeInfo
                       , infQualifiedName
+                      , checkExternal
                       )  where
 
 
@@ -36,6 +37,7 @@ import Common.ColorScheme
 import Common.Unique
 import Common.Name
 import Common.QNameMap( Lookup(..) )
+
 import qualified Common.NameMap as M
 
 import Kind.Kind
@@ -58,10 +60,11 @@ import qualified Core.Core as Core
 
 data KInfer a = KInfer (KEnv -> KSt -> KResult a)
 
-data KSt        = KSt{ kunique :: !Int, ksub :: !KSub, mbRangeMap :: Maybe RangeMap, localSyns:: !Synonyms }
+data KSt        = KSt{ kunique :: !Int, ksub :: !KSub, mbRangeMap :: Maybe RangeMap, localSyns:: !Synonyms, externals :: M.NameMap Range }
 data KEnv       = KEnv{ cscheme :: !ColorScheme, platform :: !Platform, currentModule :: !Name, imports :: ImportMap
                       , kgamma :: !KGamma, infgamma :: !InfKGamma, synonyms :: !Synonyms
-                      , newtypesImported :: !Newtypes, newtypesExtended :: !Newtypes }
+                      , newtypesImported :: !Newtypes, newtypesExtended :: !Newtypes
+                      }
 data KResult a  = KResult{ result:: !a, errors:: ![(Range,Doc)], warnings :: ![(Range,Doc)], st :: !KSt }
 
 runKindInfer :: ColorScheme -> Platform -> Maybe RangeMap -> Name -> ImportMap -> KGamma -> Synonyms -> Newtypes -> Int -> KInfer a -> ([(Range,Doc)],[(Range,Doc)],Maybe RangeMap,Int,a)
@@ -69,8 +72,9 @@ runKindInfer cscheme platform mbRangeMap moduleName imports kgamma syns datas un
   = let imports' = case importsExtend ({-toShortModuleName-} moduleName) moduleName imports of
                      Just imp -> imp
                      Nothing  -> imports -- ignore
-    in case ki (KEnv cscheme platform moduleName imports' kgamma M.empty syns datas newtypesEmpty) (KSt unique ksubEmpty mbRangeMap synonymsEmpty) of
-         KResult x errs warns (KSt unique1 ksub rm synonymsEmpty) -> (errs,warns,rm,unique1,x)
+    in -- trace ("Kind.InferMonad.runKindInfer: current module: " ++ show moduleName) $
+       case ki (KEnv cscheme platform moduleName imports' kgamma M.empty syns datas newtypesEmpty) (KSt unique ksubEmpty mbRangeMap synonymsEmpty M.empty) of
+         KResult x errs warns (KSt unique1 ksub rm _ _) -> (errs,warns,rm,unique1,x)
 
 
 instance Functor KInfer where
@@ -132,6 +136,14 @@ addRangeInfo range info
                                                               Just rm -> Just (rangeMapInsert range info rm)
                                                               other   -> other
                                              })
+
+addExternal :: Name -> Range -> KInfer ()
+addExternal name range
+  = KInfer (\env -> \st -> KResult () [] [] st{ externals = M.insert name range (externals st) })
+
+lookupExternal :: Name -> KInfer (Maybe Range)
+lookupExternal name
+  = KInfer (\env -> \st -> KResult (M.lookup name (externals st)) [] [] st)
 
 {---------------------------------------------------------------
   Operations
@@ -199,9 +211,11 @@ extendInfGamma tbinders ki
 extendInfGammaUnsafe :: [TypeBinder InfKind] -> KInfer a -> KInfer a
 extendInfGammaUnsafe tbinders (KInfer ki)
   -- ASSUME: assumes left-biased union
-  = KInfer (\env -> \st -> ki (env{ infgamma = M.union infGamma (infgamma env) }) st)
+  = -- trace ("Kind.extendInfGammaUnsafe: " ++ show bindMap) $
+    KInfer (\env -> \st -> ki (env{ infgamma = M.union infGamma (infgamma env) }) st)
   where
-    infGamma = M.fromList (map (\(TypeBinder name infkind _ _) -> (name,infkind)) tbinders)
+    infGamma = M.fromList bindMap
+    bindMap  = map (\(TypeBinder name infkind _ _) -> (name,infkind)) tbinders
 
 
 -- | Extend the kind assumption; checks for duplicate definitions
@@ -250,6 +264,19 @@ extendKGammaUnsafe (tdefs) (KInfer ki)
     kNewtypes  = newtypesNew (concatMap nameNewtype tdefs)
     nameNewtype (Core.Data dataInfo _ )   = [dataInfo]
     nameNewtype _                         = []
+
+checkExternal :: Name -> Range -> KInfer ()
+checkExternal name range
+  = do mbRes <- lookupExternal name
+       case mbRes of
+         Just range0 -> do env <- getKindEnv
+                           let cs = cscheme env
+                           addError range (text "external" <+> prettyName cs name <+> text "is already defined at" <+> text (show (rangeStart range0))
+                                           <-> text "hint: use a local qualifier?")
+                           return ()
+         Nothing     -> addExternal name range
+
+
 
 infQualifiedName :: Name -> Range -> KInfer Name
 infQualifiedName name range  | not (isQualified name)
@@ -302,7 +329,7 @@ findInfKind name0 range
                                                       addError range (text "type" <+> (ppType cs (unqualify name0)) <+> text "should be cased as" <+> ppType cs (unqualify name'))
                                               else return ()
                                              case mbAlias of
-                                              Just alias | nameModule name0 /= showPlain alias
+                                              Just alias | nameModule name0 /= nameModule alias
                                                 -> do let cs = cscheme env
                                                       addError range (text "module" <+> color (colorModule cs) (text (nameModule name0)) <+> text "should be cased as" <+> color (colorModule cs) (pretty alias)
                                                          -- <+> text (show (name,qname,mbAlias,name0))
@@ -311,8 +338,8 @@ findInfKind name0 range
                                               _ -> return ()
                                              return (qname,KICon kind)
                       NotFound         -> do let cs = cscheme env
-                                             -- trace ("cannot find type: " ++ show (ppType cs name)) $
-                                             addError range (text "Type" <+> (ppType cs name) <+> text "is not defined" <->
+                                             trace ("cannot find type: " ++ show name ++ ", " ++ show (currentModule env) ++ ", " ++ show (kgamma env)) $
+                                              addError range (text "Type" <+> (ppType cs name) <+> text "is not defined" <->
                                                              text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <.> ppType cs name <.> text ">") <+> text "?")
                                              k <- freshKind
                                              return (name,k)
