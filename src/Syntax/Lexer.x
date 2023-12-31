@@ -93,7 +93,7 @@ $charesc      = [nrt\\\'\"]    -- "
 @qconid       = @modulepath @conid
 
 @op           = $symbol+ | \/
-@idsym        = @idchar* $symbol+ | \/
+@idsym        = @lowerid? $symbol+ | \/
 @qidop        = @modulepath \(@idsym\)
 @idop         = \(@idsym\)
 

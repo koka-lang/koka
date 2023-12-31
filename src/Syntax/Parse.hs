@@ -82,10 +82,10 @@ optional p  = do { p; return True } <|> return False
 -----------------------------------------------------------
 -- Parse varieties
 -----------------------------------------------------------
-parseProgramFromFile :: Bool -> FilePath -> IO (Error UserProgram)
-parseProgramFromFile semiInsert fname
+parseProgramFromFile :: Bool -> Bool -> FilePath -> IO (Error UserProgram)
+parseProgramFromFile allowAt semiInsert fname
   = do input <- readInput fname
-       return (lexParse semiInsert id program fname 1 input)
+       return (lexParse allowAt semiInsert id program fname 1 input)
 
 
 parseValueDef :: Bool -> FilePath -> Int -> String -> Error UserDef
@@ -105,14 +105,14 @@ parseExpression semiInsert sourceName line name input
   = lexParseS semiInsert (const (expression name))  sourceName line input
 
 lexParseS semiInsert p sourceName line str
-  = lexParse semiInsert id p sourceName line (stringToBString str)
+  = lexParse False semiInsert id p sourceName line (stringToBString str)
 
-lexParse :: Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error a
-lexParse semiInsert preprocess p sourceName line rawinput
+lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error a
+lexParse allowAt semiInsert preprocess p sourceName line rawinput
   = let source = Source sourceName rawinput
         input  = if (isLiteralDoc sourceName) then extractLiterate rawinput else rawinput
         xs = lexing source line input
-        lexemes = preprocess $ layout semiInsert xs
+        lexemes = preprocess $ layout allowAt semiInsert xs
     in  -- trace  (unlines (map show lexemes)) $
         case (parse (p source) sourceName lexemes) of
           Left err -> makeParseError (errorRangeLexeme xs source) err

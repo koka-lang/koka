@@ -180,7 +180,7 @@ isIdStartChar c
 
 isIdEndChar :: Char -> Bool
 isIdEndChar c
-  = isIdChar c || c == '\'' || c == '?'
+  = isIdChar c || c == '\''
 
 isSymbolId :: String -> Bool
 isSymbolId "" = False

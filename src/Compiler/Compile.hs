@@ -341,7 +341,7 @@ compileProgramFromFile term flags modules compileTarget rootPath stem
        liftIO $ termPhase term ("parsing " ++ fname)
        exist <- liftIO $ doesFileExist fname
        if (exist) then return () else liftError $ errorMsg (errorFileNotFound flags fname)
-       program <- lift $ parseProgramFromFile (semiInsert flags) fname
+       program <- lift $ parseProgramFromFile False {-allow @ in identifiers-} (semiInsert flags) fname
        let isSuffix = -- asciiEncode True (noexts stem) `endsWith` asciiEncode True (show (programName program))
                       -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
                       show (pathToModuleName (noexts stem)) `endsWith` show (programName program)

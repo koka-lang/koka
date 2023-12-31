@@ -21,7 +21,7 @@ import Common.Range hiding (after)
 import Lib.Trace
 import Syntax.Lexeme
 import Syntax.Lexer
-import Common.Name  ( Name, nameLocal )
+import Common.Name  ( Name, nameLocal, nameStem )
 
 testFile fname
   = do input <- readInput ("test/" ++ fname)
@@ -33,11 +33,11 @@ test xs
 testEx fname input
   = let source = Source fname input
         xs = lexing source 1 input
-    in putStrLn (unlines (map show (layout True xs)))
+    in putStrLn (unlines (map show (layout True True xs)))
 
--- | @layout idmods lexs@ does layout processing on a list of lexemes @lexs@.
-layout :: Bool -> [Lexeme] -> [Lexeme]
-layout semiInsert lexemes
+-- | @layout allowAtIds semiInsert lexs@ does layout processing on a list of lexemes @lexs@.
+layout :: Bool -> Bool -> [Lexeme] -> [Lexeme]
+layout allowAt semiInsert lexemes
   = let semi f = if semiInsert then f else id
         ls =  semi indentLayout $
               -- semi lineLayout $
@@ -46,6 +46,7 @@ layout semiInsert lexemes
               removeWhiteSpace $
               combineLineComments $
               semi checkComments $
+              (if allowAt then id else checkIds)
               lexemes
     in -- trace (unlines (map show ls)) $   -- see all lexemes
        if null ls then [] else seq (last ls) ls
@@ -154,6 +155,32 @@ combineLineComments lexs
           (l:ls)
               -> l : scan ls
           []  -> []
+
+-----------------------------------------------------------
+-- Check if identifiers contain @ characters
+-- (these are not generally allowed in user programs but are exposed
+--  in kki files and primitive modules (std/core/types, std/core/hnd))
+-----------------------------------------------------------
+checkIds :: [Lexeme] -> [Lexeme]
+checkIds lexemes
+  = check lexemes
+  where
+    check [] = []
+    check (lexeme@(Lexeme rng lex):lexs)
+      = lexeme : case lex of
+          LexId       id -> checkId id
+          LexCons     id -> checkId id
+          LexOp       id -> checkId id
+          LexPrefix   id -> checkId id
+          LexIdOp     id -> checkId id
+          LexWildCard id -> checkId id
+          -- LexKeyword  id ->  -- allow @ signs for future keywords
+          _              -> check lexs
+      where
+        checkId id
+          = if any (=='@') (nameStem id)
+              then (Lexeme rng (LexError ("identifiers cannot contain '@' characters (in '" ++ show id ++ "')")) : check lexs)
+              else check lexs
 
 -----------------------------------------------------------
 -- Check for comments in indentation

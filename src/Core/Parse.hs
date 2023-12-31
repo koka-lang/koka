@@ -46,7 +46,7 @@ type ParseInlines = Gamma -> Error [InlineDef]
 parseCore :: FilePath -> IO (Error (Core, ParseInlines))
 parseCore fname
   = do input <- readInput fname
-       return (lexParse False id program fname 1 input)
+       return (lexParse True {-allow @-} False {- no semi-colon insertion -} id program fname 1 input)
 
 
 parseInlines :: Core -> Source -> Env -> [Lexeme] -> ParseInlines
