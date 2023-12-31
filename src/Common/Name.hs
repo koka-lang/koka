@@ -78,12 +78,22 @@ type Names = [Name]
 -- such that they can be compared too. (h1 > h2 => name1 > name2)
 -- The hash is case-insensitive, just like comparisions on names.
 -- Use 'nameCaseEqual' for case-sensitive comparisions.
+--
+-- Notes:
+-- - We use `nameLocal` for the locally qualified name in the module (`int/show`)
+-- - The stem is the plain name and operators are not parenthesized (`++`)
+-- - The stem should always be a valid identifier; this means that an operator
+--   must keep ending with symbols. When hiding names etc, we can get names like `@temp12-++` for example
+-- - We assume that users cannot start identifiers with an `@`. (We may in the future allow
+--   user identifiers to contain `@` though after the first character.)
+-- - Plain module names have an empty local qualifier and stem
+-- - If there is a local qualifier, the stem cannot be empty
 data Name  = Name
-             { nameModule     :: !String
+             { nameModule     :: !String        -- module name (`std/core`)
              , hashModule     :: !Int
-             , nameLocalQual  :: !String
+             , nameLocalQual  :: !String        -- local qualifier (`int`)
              , hashLocalQual  :: !Int
-             , nameStem       :: !String
+             , nameStem       :: !String        -- the stem (`show`)
              , hashStem       :: !Int
              }
 
@@ -160,17 +170,24 @@ labelNameCompare (Name m1 hm1 l1 hl1 n1 hn1) (Name m2 hm2 l2 hl2 n2 hn2)
       lg -> lg
 
 
+isIdChar :: Char -> Bool
 isIdChar c
   = (isAlphaNum c || c == '_' || c == '@' || c == '-')
 
+isIdStartChar :: Char -> Bool
+isIdStartChar c
+  = (isAlpha c || c == '_' || c == '@')
+
+isIdEndChar :: Char -> Bool
+isIdEndChar c
+  = isIdChar c || c == '\'' || c == '?'
+
 isSymbolId :: String -> Bool
-isSymbolId s
-  = case s of
-      c:cs -> not (isIdStartChar c) || any (not . isIdChar) cs
-      _    -> False
-  where
-    isIdStartChar c  = (isAlpha c || c == '_' || c == '@')
-    isIdEndChar c    = (c == '\'' || c == '?')
+isSymbolId "" = False
+isSymbolId s  = not (isIdStartChar (head s)) || not (isIdEndChar (last s))
+  -- where
+  --
+  --   isIdEndChar c    = (c == '\'' || c == '?')
 
 wrapId :: String -> String
 wrapId s
@@ -362,10 +379,10 @@ nameIsNil name
   = null (nameStem name) && null (nameModule name)
 
 qualify :: Name -> Name -> Name
-qualify (Name m hm _ 0 _ 0) (Name _ 0 l hl n hn)  = Name m hm l hl n hn
+qualify (Name m hm _ 0 _ 0) (Name _ 0 l hl n hn)     = Name m hm l hl n hn
 qualify (Name m1 _ _ 0 _ 0) name@(Name m2 _ _ _ _ _) | m1 == m2 = name
 qualify n1 n2
-  = failure ("Common.Name.qualify: Cannot use qualify on qualified names: " ++ show (n1,n2))
+  = failure ("Common.Name.qualify: illegal qualification: " ++ show (n1,n2))
 
 unqualify :: Name -> Name
 unqualify (Name _ _ l hl n hn)

@@ -1601,7 +1601,7 @@ pickBest :: Bool -> Range -> [(ImplicitExpr,(Name,NameInfo,Rho,[(Name,ImplicitEx
 pickBest allowDisambiguate range iapps
   = case pick allowDisambiguate fst iapps of
       Right (imp,(iname,info,itp,iexprs))
-        -> do traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
+        -> do -- traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
               return (Right (itp, Var iname False range, [((name,range),ieExpr iexpr) | (name,iexpr) <- iexprs]))
       Left docs
         -> return (Left docs)
@@ -1616,9 +1616,9 @@ lookupAppNamesX allowDisambiguate filter name ctx range
        -- create ImplicitExpr for easy comparing
        penv <- getPrettyEnv
        let iapps' = [(toImplicitAppExpr penv "" name range iapp, iapp) | iapp <- iapps]
-       traceDefDoc $ \penv -> text "lookupAppNameX:" <+> Pretty.ppName penv name <+> text ":"
-                               <+> ppNameContext penv ctx <+> text "="
-                               <+> list [pretty iexpr | (iexpr,_) <- iapps']
+        --  traceDefDoc $ \penv -> text "lookupAppNameX:" <+> Pretty.ppName penv name <+> text ":"
+        --                          <+> ppNameContext penv ctx <+> text "="
+        --                          <+> list [pretty iexpr | (iexpr,_) <- iapps']
        return iapps'
 
 namespaceName name  | isConstructorName name
@@ -1637,7 +1637,7 @@ resolveImplicitName name tp range
   = do -- candidates <- lookupDisambiguatedName True True name (implicitTypeContext tp) range
        iexprs <- lookupImplicitNames 0 isInfoValFunExt name (implicitTypeContext tp) range
        case pick True id iexprs of
-         Right iexpr -> do traceDefDoc $ \penv -> text "resolved implicit" <+> Pretty.ppParam penv (name,tp) <+> text ", to" <+> pretty iexpr
+         Right iexpr -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> Pretty.ppParam penv (name,tp) <+> text ", to" <+> pretty iexpr
                            return (ieExpr iexpr)
          Left docs0 -> do penv <- getPrettyEnv
                           infError range (text "cannot resolve implicit parameter" <+> Pretty.ppParam penv (name,tp) <->
@@ -1748,8 +1748,8 @@ lookupAppNames recurseDepth allowBypass allowTypeBypass infoFilter name ctx rang
 lookupNameCtx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
 lookupNameCtx infoFilter name ctx range
   = do candidates <- lookupNames False False infoFilter name ctx range
-       traceDefDoc $ \penv -> text " lookupNameCtx:" <+> ppNameCtx penv (name,ctx) <+> colon
-                              <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- candidates]
+       -- traceDefDoc $ \penv -> text " lookupNameCtx:" <+> ppNameCtx penv (name,ctx) <+> colon
+       --                       <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- candidates]
        return [(name,info) | (name,info,_) <- candidates]
 
 
@@ -1860,9 +1860,9 @@ filterMatchNameContextEx range forImplicitNames ctx candidates
     matchArgs :: Bool -> [Type] -> [(Name,Type)] -> Maybe Type -> (Name,NameInfo) -> Inf [(Name,NameInfo,Rho)]
     matchArgs matchSome fixed named mbResTp (name,info)
       = do free <- freeInGamma
-           traceDefDoc $ \penv -> text "  match fixed:" <+> list [Pretty.ppType penv fix | fix <- fixed]
-                                     <+> text ", named" <+> list [Pretty.ppParam penv nametp | nametp <- named]
-                                     <+> text "on" <+> Pretty.ppParam penv (name,infoType info)
+            --  traceDefDoc $ \penv -> text "  match fixed:" <+> list [Pretty.ppType penv fix | fix <- fixed]
+            --                            <+> text ", named" <+> list [Pretty.ppParam penv nametp | nametp <- named]
+            --                            <+> text "on" <+> Pretty.ppParam penv (name,infoType info)
            res <- runUnify (matchArguments matchSome range free (infoType info) fixed named mbResTp)
            case res of
              (Right rho,_) -> return [(name,info,rho)]

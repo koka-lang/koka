@@ -1,7 +1,7 @@
 struct counter<h>( count : ref<h,int> )
 
-fun count( c : counter<h>, assigned : int) : write<h> () { 
-  c.assign1/count.set(assigned) 
+fun count( c : counter<h>, assigned : int) : write<h> () {
+  c.counter/count.set(assigned)
 }
 
 fun main() {

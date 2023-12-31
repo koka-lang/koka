@@ -8,9 +8,9 @@ type expr {
   Div( e1 : expr, e2: expr )
 }
 
-fun show( e : expr ) : total string {
+fun expr/show( e : expr ) : total string {
   match(e) {
-    Int(i) -> core/show(i)
+    Int(i) -> show(i)
     Div(e1,e2) -> "(" ++ e1.show ++ "/" ++ e2.show ++ ")"
   }
 }
@@ -42,9 +42,9 @@ fun run(s : int, m : stexn<a> ) : total either<string,(a,int)> {
   m(s)
 }
 
-fun show( r : either<string,(int,int)> ) : string {
+fun either/show( r : either<string,(int,int)> ) : string {
   match(r) {
-    Right((x,s)) -> x.core/show ++ " (state=" ++ s.core/show ++ ")"
+    Right((x,s)) -> x.show ++ " (state=" ++ s.show ++ ")"
     Left(str)    -> "error: " ++ str
   }
 }

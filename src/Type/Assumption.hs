@@ -376,12 +376,13 @@ instance Pretty Gamma where
 
 ppGammaInternal :: Bool -> Env -> Gamma -> Doc
 ppGammaInternal showHidden env gamma
-    = vcat [fill maxwidth (prettyName (colors env) name) {-(ppName env name)-} <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
+    = vcat [fill maxwidth (prettyName (colors env) name) {-(ppName env name)-} <.>
+             color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
         | (name,scheme) <- nameSchemes,
           showHidden || not (isHiddenName name)
         ]
     where
-      nameSchemes   = [(name,infoType info) | (name,info) <- gammaList gamma]
+      nameSchemes   = [(name,infoType info) | (name,info) <- gammaList gamma, not (isInfoImport info)]
       maxwidth      = 12 `min` foldl max 0 [length (show name) | (name,scheme) <- nameSchemes]
       nice scheme   = align (head (niceTypes env [scheme]))
 

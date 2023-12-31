@@ -91,6 +91,8 @@ testSanitize kokaDir
   . sub "[\r\n]+" "\n"
   . sub "[[:blank:]]+" " "
   . sub "\\\\" "/"
+  -- using @ for hidden names now
+  . sub "\\." "@"
   -- type variable names and box names
   . sub "\\@box-x[[:digit:]]+(-x[[:digit:]]+)?" "@box"
   . sub "(\\@[a-zA-Z])[[:digit:]]+" "\\1"

@@ -28,7 +28,7 @@ import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
 import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep, startsWith, getCwd )
 import Common.Name            ( Name, unqualify, qualify, newName )
-import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore )
+import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore )
 import Common.Range
 import Common.Error
 
@@ -129,7 +129,7 @@ command st cmd
   Eval line   -> do{ err <- compileExpression term (flags st) (loaded st) (Executable nameExpr ()) (program st) bigLine line
                    ; checkInferWith st line id True err $ \ld ->
                      do if (not (evaluate (flags st)))
-                         then let tp = infoType $ gammaFind (qualify nameInteractive nameExpr) (loadedGamma ld)
+                         then let tp = infoType $ gammaFind (qualify nameInteractiveModule nameExpr) (loadedGamma ld)
                               in messageSchemeEffect st tp
                          else messageLn st ""
                         interpreter st{ loaded = ld } -- (loaded st){ loadedModules  = loadedModules ld }}
@@ -150,7 +150,7 @@ command st cmd
 
   TypeOf line -> do err <- compileExpression term (flags st) (loaded st) Object (program st) bigLine line
                     checkInfer st True err $ \ld ->
-                       do{ let tp = infoType $ gammaFind (qualify nameInteractive nameExpr) (loadedGamma ld)
+                       do{ let tp = infoType $ gammaFind (qualify nameInteractiveModule nameExpr) (loadedGamma ld)
                          ; messageSchemeEffect st tp
                          ; interpreter st{ loaded = ld } -- (loaded st){ loadedModules  = loadedModules ld }}
                          }

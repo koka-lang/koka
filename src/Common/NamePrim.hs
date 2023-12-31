@@ -13,7 +13,7 @@ module Common.NamePrim
           (
           -- * Interpreter
             nameExpr, nameMain, nameType
-          , nameInteractive, nameInteractiveModule
+          , nameInteractiveModule
           , nameSystemCore, nameCoreTypes
           , isSystemCoreName
           , isPrimitiveModule -- no monadic lifting
@@ -177,7 +177,7 @@ nameExpr        = newName "@expr"
 nameType        = newName "@type"
 
 nameInteractiveModule  = newModuleName "interactive"
-nameInteractive = newName "interactive"
+
 nameMain        = newName "@main"
 nameCopy        = newName "@copy"
 nameOpExpr      = newName "@opexpr"

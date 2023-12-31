@@ -1283,7 +1283,7 @@ inferApp propagated expect fun nargs rng
                 (Var name _ nameRange)
                   -> do let sctx = fixedCountContext propagated (length fixed) (map (fst . fst) named)
                         matches <- lookupAppNameX False name sctx nameRange
-                        traceDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
+                        -- traceDefDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
                         case matches of
                           {-
                           (Left [])  -> do -- emit an error
@@ -1305,10 +1305,10 @@ inferApp propagated expect fun nargs rng
     inferAppFunFirst :: Maybe (Type,Range) -> Expr Type -> [(Int,FixedArg)] ->
                           [Expr Type] -> [((Name,Range),Expr Type)] -> [((Name,Range), Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop funExpr fresolved fixed named0 implicits
-      = do traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
-                                  text ("fixed count: " ++ show (length fixed)) <.>
-                                  text (", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <->
-                                  text "  :" <+> ppProp penv prop
+      = do -- traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
+           --                       text ("fixed count: " ++ show (length fixed)) <.>
+           --                       text (", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <->
+           --                       text "  :" <+> ppProp penv prop
 
            -- only add resolved implicits that were not already named
            let alreadyGiven = [name | ((name,_),_) <- named0]
