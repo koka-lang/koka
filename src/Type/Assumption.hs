@@ -217,15 +217,47 @@ gammaLookup name (Gamma gamma)
          -> -- trace ("gamma lookup: " ++ show name ++ ": " ++ show (map fst candidates)) $
             filter (\(_,info) -> infoIsVisible info) $
             if stemName == name then candidates
-             else let qual = fullQualifier name    -- todo: resolve module aliases first
-                  in let candidates' = filter (\(n,_) -> matchQualifier qual n) candidates
-                     in -- trace ("gamma lookup: " ++ show name ++ ": " ++ show (map fst candidates')) $
-                        candidates'
+             else let candidates' = filter (\(n,_) -> matchQualifiers name n) candidates
+                  in -- trace ("gamma lookup matched: " ++ show name ++ ": " ++ show (map fst candidates')) $
+                      candidates'
 
-matchQualifier :: String -> Name -> Bool
-matchQualifier qual name
-  = let qualn = fullQualifier name
-    in isPrefixOf (reverse qual) (reverse qualn)
+-- Given a user qualified name, see if the qualifiers match a resolved name.
+-- The user qualified name has already been de-aliased in kind inference (see `Kind/ImportMap/importsExpand`)
+-- The user qualified name may not distinguish local qualification from module qualification,
+-- e.g. `std/core/int/show` vs  `std/core/#int/show`.
+-- ambiguities may occur, where `std/num/float32/foo` should match both `std/num/#float32/foo` and `std/num/float32/#foo`
+matchQualifiers :: Name -> Name -> Bool
+matchQualifiers uname name
+  = matchPaths (splitRevQualifiers uname) (splitRevQualifiers name)
+  where
+    -- not qualified
+    matchPaths ([],[]) (mpath,lpath)
+      = True
+
+    -- no user specified local path
+    matchPaths (umpath,[]) (mpath,[])
+      = umpath `isPrefixOf` mpath
+
+    matchPaths (umpath,[]) (mpath,lpath)  -- not (null lpath)
+      = (umpath `isPrefixOf` lpath) ||    -- user module is a postfix the local qualifier
+        (lpath `isPrefixOf` umpath && (drop (length lpath) umpath) `isPrefixOf` mpath) ||  -- stradle both
+        (umpath `isPrefixOf` mpath)       -- user module is postfix of the module qualifier
+                                          -- (we can not mention local qualifiers, so `std/core/show` matches `std/core/#int/show` for example)
+
+    -- user specified local path: umpath/#ulpath must be a valid postfix of  mpath/#lpath
+    matchPaths (umpath,ulpath) (mpath,lpath)  -- not (null ulpath)
+      = case umpath of
+          [] -> ulpath `isPrefixOf` lpath
+          _  -> ulpath == lpath && umpath `isPrefixOf` mpath
+
+-- Split out the module and local qualifier as a _reverse_ list of components
+-- e.g. `std/core/#int/show` -> (["core","std"],["int"])
+splitRevQualifiers :: Name -> ([String],[String])
+splitRevQualifiers name
+  = let mpath = reverse (splitModuleName name)
+        lpath = reverse (splitLocalQualName name)
+    in (mpath,lpath)
+
 
 
 gammaLookupPrefix :: Name -> Gamma -> [(Name,NameInfo)]

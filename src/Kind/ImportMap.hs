@@ -20,7 +20,7 @@ module Kind.ImportMap( ImportMap
 
 import Prelude hiding (lookup)
 import qualified Prelude
-import Data.List (lookup, intersperse)
+import Data.List (lookup, intersperse, isPrefixOf)
 import Common.Name
 import Lib.Trace(trace)
 
@@ -39,27 +39,51 @@ importsExtend aliasName fullName imp
       Nothing -> Just ((rpath,fullName):imp)
       Just _  -> Nothing
 
-{-
+-- | Given a fully qualified name, return the shorter aliased name.
+-- For example, with @import f = system/foo@ a name @system/foo/bar@ is shortened to @f/bar@.
+importsAlias :: Name -> ImportMap -> Name
+importsAlias name imp
+  = let mname = qualifier name
+    in case filter (\(_,modName) -> modName==mname) imp of
+         [(ralias,_)] -> let alias = unsplitModuleName (reverse ralias)
+                         in qualify alias (unqualify name)
+         _            -> name
+
+importsList :: ImportMap -> [(Name,Name)]
+importsList importMap
+  = map (\(ralias,modName) -> (unsplitModuleName (reverse ralias),modName)) importMap
+
 -- | @importsExpand name map@ takes a qualified name (@core/int@) and expands
 -- it to its real fully qualified name (@std/core/int@). It also returns
 -- the declared alias suffix (used to find case-errors).
 -- On ambiguity, or if not found at all, it returns Left with a list of candidates.
-importsExpandOld :: Name -> ImportMap -> Either [Name] (Name,Name)
-importsExpandOld name imp
-  = if isQualified name
-     then let rpath = reverse $ splitModuleName (qualifier name)
-          in case filter (\(ralias,_) -> isPrefix rpath ralias) imp of
-               [(ralias,fullName)]
-                   -> Right (qualify fullName (unqualify name),
-                               unsplitModuleName (reverse (take (length rpath) ralias)))
-               amb -> Left (map (unsplitModuleName . reverse . fst) amb)
-     else Right (name,nameNil)
-  where
-    isPrefix (x:xs) (y:ys)  = x==y && isPrefix xs ys
-    isPrefix [] _           = True
-    isPrefix _ _            = False
--}
+-- Since declarations can have namespace'd names (@int/eq@) we take
+-- the longest prefix that matches an import module.
+importsExpand :: Name -> ImportMap -> Either [Name] (Name,Name)
+importsExpand name imports
+  = let rpath = reverse (splitModuleName (qualifier name))
+    in importResolvePath (unqualify name) rpath imports
 
+importResolvePath :: Name -> [String] -> ImportMap -> Either [Name] (Name,Name)
+importResolvePath basename [] imports
+  = Right (basename, nameNil)  -- unqualified
+importResolvePath basename rpath imports
+  = case filter (\(ralias,_) -> rpath `isPrefixOf` ralias) imports of
+      -- found a unique match
+      [(ralias,modName)]
+          -> let qname = qualify modName basename
+                 alias = unsplitModuleName (reverse (take (length rpath) ralias))
+             in -- trace ("kind imports expand: " ++ show name ++ " to " ++ show qname) $
+                Right (qname, alias)
+      -- no match: assume local qualification (note: rpath cannot be null)
+      []  -> case rpath of
+              (q:qs) -> case importResolvePath basename qs imports of
+                          Right (qname,alias) -> Right (qualifyLocally (newModuleName q) qname, alias)
+                          Left err            -> Left err
+      -- ambiguous
+      amb -> Left (map (unsplitModuleName . reverse . fst) amb)
+
+{-
 -- | @importsExpand name map@ takes a qualified name (@core/int@) and expands
 -- it to its real fully qualified name (@std/core/int@). It also returns
 -- the declared alias suffix (used to find case-errors).
@@ -100,18 +124,5 @@ importsExpand name imp
     isPrefix (x:xs) (y:ys)  = x==y && isPrefix xs ys
     isPrefix [] _           = True
     isPrefix _ _            = False
+-}
 
-
--- | Given a fully qualified name, return the shorter aliased name.
--- For example, with @import System.Foo as F@ a name @System.Foo.bar@ is shortened to @F.bar@.
-importsAlias :: Name -> ImportMap -> Name
-importsAlias name imp
-  = let mname = if (isQualified name) then qualifier name else name
-    in case filter (\(_,fullname) -> fullname==mname) imp of
-         [(ralias,_)] -> let alias = unsplitModuleName (reverse ralias)
-                         in if (isQualified name) then qualify alias (unqualify name) else alias
-         _            -> name
-
-importsList :: ImportMap -> [(Name,Name)]
-importsList importMap
-  = map (\(ralias,fullname) -> (unsplitModuleName (reverse ralias),fullname)) importMap

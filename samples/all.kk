@@ -30,7 +30,7 @@ pub fun main()
   rbtree/main()
   nim/main()
   parser/main()
-  handlers/scoped/main()
+  scoped/main()
   ambient/main()
   unix/main()
 

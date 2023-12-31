@@ -46,7 +46,7 @@ fun unit(x : a) : stexn<a> {
 }
 
 fun (>>=)( m : stexn<a>, f : a -> stexn<b> ) : stexn<b> {
-  return fn(s0) { 
+  return fn(s0) {
     match(m(s0)) {
       Right((x,s1)) -> f(x)(s1)
       Left(str)     -> Left(str)
@@ -71,13 +71,13 @@ fun eval( e : expr ) : stexn<int> {
           eval(y) >>= (fn(j) {
             (if (j==0) then mfail("division by zero") else unit(())) >>= (fn(_){
                unit( i / j )
-      })})})}) 
+      })})})})
   }
 }
 
-fun show( r : either<string,(int,int)> ) : total string {
+fun either/show( r : either<string,(int,int)> ) : total string {
   match(r) {
-    Right((x,s)) -> x.core/show ++ " (state=" ++ s.core/show ++ ")"
+    Right((x,s)) -> x.core/show ++ " (state=" ++ s.show ++ ")"
     Left(str)    -> "error: " ++ str
   }
 }

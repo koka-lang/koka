@@ -42,7 +42,7 @@ module Common.Name
           , toConstructorName, isConstructorName, toVarName
           , toOpenTagName, isOpenTagName
           , toValueOperationName, isValueOperationName, fromValueOperationsName
-          , splitModuleName, unsplitModuleName, mergeCommonPath
+          , splitModuleName, unsplitModuleName, mergeCommonPath, splitLocalQualName
           , isEarlyBindName
           , toImplicitParamName, isImplicitParamName, plainImplicitParamName
           , namedImplicitParamName, splitImplicitParamName
@@ -210,7 +210,7 @@ showPlain (Name m _ l _ n _)
 
 instance Show Name where
   show name
-   = showName False name
+   = showExplicit name
 
 instance Pretty Name where
   pretty name
@@ -393,8 +393,8 @@ qualifier (Name m hm _ _ _ _)
   = Name m hm "" 0 "" 0
 
 nameAsModuleName :: Name -> Name
-nameAsModuleName name
-  = newModuleName (showPlain name)
+nameAsModuleName (Name m _ l _ n _)
+  = newModuleName (join m (join l n))
 
 qualifyLocally :: Name -> Name -> Name
 qualifyLocally (Name loc _ _ 0 _ 0) (Name m _ l _ n _)
@@ -402,18 +402,22 @@ qualifyLocally (Name loc _ _ 0 _ 0) (Name m _ l _ n _)
 qualifyLocally name1 name2
   = failure ("Common.Name.qualifyLocally: illegal qualification: " ++ showExplicit name1 ++ ", " ++ showExplicit name2)
 
+-- move the module qualifier to the local qualifier
 requalifyLocally :: Name -> Name
 requalifyLocally name@(Name m _ l _ n _)
   = if null m then name else newLocallyQualified "" (join m l) n
 
+-- only keep the stem
 unqualifyFull :: Name -> Name
 unqualifyFull (Name _ _ _ _ n hn)
   = Name "" 0 "" 0 n hn
 
+-- full qualifier: module + local qualifier
 fullQualifier :: Name -> String
 fullQualifier name
   = nameModule (unqualifyLocally name)
 
+-- add the local qualifier to the module qualifier
 unqualifyLocally :: Name -> Name
 unqualifyLocally name@(Name m _ l _ n _)
   = if null l then name else newQualified (join m l) n
@@ -447,6 +451,10 @@ mergeCommonPath mname name
     merge (m:ms) (n:ns) | m==n && and (zipWith (==) ms ns) = (m:ms) ++ (drop (length ms) ns)
     merge (m:ms) ns     = m : merge ms ns
     merge [] ns         = ns
+
+splitLocalQualName :: Name -> [String]
+splitLocalQualName name
+  = splitOn (=='/') (nameLocalQual name)
 
 
 ----------------------------------------------------------------
