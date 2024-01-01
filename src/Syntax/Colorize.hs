@@ -340,10 +340,16 @@ fmtTypeName name
 
 fmtName :: Name -> String
 fmtName name
-  = let pname = name {- (pname,postfix) = canonicalSplit name -}
+  = let lqual = nameLocalQual name
+        stem  = fmtNameString (show (unqualifyFull name))
+    in (if null lqual then "" else cspan "localqualifier" (fmtNameString (lqual ++ "/"))) ++ stem
+
+   {-
+   let pname = name {- (pname,postfix) = canonicalSplit name -}
         pre = fmtNameString (show pname)
         post = "" -- if null postfix then "" else cspan "postfix" postfix
-    in pre++post
+   in pre++post
+   -}
 
 fmtNameString :: String -> String
 fmtNameString s
@@ -583,7 +589,8 @@ shorthands = [
   ("typeparam","tpp"),
   ("typevar","tv"),
   ("special","sp"),
-  ("delimiter","dl")
+  ("delimiter","dl"),
+  ("localqualifier","lq")
  ]
 
 
