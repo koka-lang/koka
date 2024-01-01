@@ -26,7 +26,7 @@ val solutions = handler {
   ctl choice(xs) -> xs.flatmap(fn(x){ resume(x) })
 }
 
-fun show( xss : list<list<int>> ) : string {
+fun listlist/show( xss : list<list<int>> ) : string {
   xss.show-list(fn(xs) { xs.show-list(core/show) } )
 }
 
@@ -73,11 +73,11 @@ val choices = handler {
   }
 }
 
-fun show(x : (int,list<list<int>>)) : string {
+fun intlist/show(x : (int,list<list<int>>)) : string {
   "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
 }
 
-fun show(xs : list<(int,list<int>)>) : string {
+fun listint/show(xs : list<(int,list<int>)>) : string {
   xs.show-list fn(x) {
     "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
   }
@@ -114,7 +114,7 @@ val solution = handler {
   rcontrol choice(xs) { xs.untilJust( fn(x) { rcontext.resume(x) }) }
 }
 
-fun show(m : maybe<list<int>> ) : string {
+fun maybelist/show(m : maybe<list<int>> ) : string {
   match(m) {
     Nothing -> "none"
     Just(xs)-> "one: " ++ xs.show

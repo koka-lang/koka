@@ -1,3 +1,3 @@
 (1, 0): error: Type cow is declared as being
- (co)inductive but it occurs recursively in a negative position.
+ (co)inductive but it occurs recursively in a negative position@
  hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences

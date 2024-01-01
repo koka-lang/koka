@@ -1,6 +1,8 @@
 1 (state=2)
  
-algeff/cps4/>>=: forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
+algeff/cps4/either/show: (r : either<string,(int, int)>) -> string
+algeff/cps4/expr/show: (e : expr) -> string
+algeff/cps4/(>>=): forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
 algeff/cps4/Div: (e1 : expr, e2 : expr) -> expr
 algeff/cps4/Int: (i : int) -> expr
 algeff/cps4/eval: (e : expr) -> stexn<int>
@@ -12,8 +14,6 @@ algeff/cps4/failure: forall<a,b,c,e> (err : a) -> ((s : b) -> e either<a,c>)
 algeff/cps4/is-div: (expr : expr) -> bool
 algeff/cps4/is-int: (expr : expr) -> bool
 algeff/cps4/main: () -> console ()
-algeff/cps4/run: forall<a,b,e> (s : a, m : (a) -> e b) -> e b
-algeff/cps4/show: (r : either<string,(int, int)>) -> total string
-algeff/cps4/show: (e : expr) -> total string
+algeff/cps4/run: forall<a> (s : int, m : stexn<a>) -> either<string,(a, int)>
 algeff/cps4/tick: forall<a,e> () -> ((s : int) -> e either<a,((), int)>)
 algeff/cps4/unit: forall<a> (x : a) -> stexn<a>

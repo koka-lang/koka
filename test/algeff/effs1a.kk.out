@@ -2,9 +2,9 @@
 [False,False,True,True,False]
 [False,False]
  
-algeff/effs1a/Amb: forall<e,a> (.hnd-amb<e,a>) -> amb
-algeff/effs1a/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
-algeff/effs1a/amb_handle: forall<a,e> (() -> <amb|e> a) -> e list<a>
+algeff/effs1a/Amb: forall<e,a> (@hnd-amb<e,a>) -> amb
+algeff/effs1a/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>
+algeff/effs1a/amb_handle: forall<a,e> (@action : () -> <amb|e> a) -> e list<a>
 algeff/effs1a/flip: () -> amb bool
 algeff/effs1a/foo: () -> <amb,state<int>> bool
 algeff/effs1a/get: forall<a> () -> (state<a>) a

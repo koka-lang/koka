@@ -1,9 +1,9 @@
 [False,False,True,True]
 [False,False]
  
-algeff/exn1/Amb: forall<e,a> (.hnd-amb<e,a>) -> amb
-algeff/exn1/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
-algeff/exn1/amb_handle: forall<a,e> (() -> <amb|e> a) -> e list<a>
+algeff/exn1/Amb: forall<e,a> (@hnd-amb<e,a>) -> amb
+algeff/exn1/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>
+algeff/exn1/amb_handle: forall<a,e> (@action : () -> <amb|e> a) -> e list<a>
 algeff/exn1/flip: () -> amb bool
 algeff/exn1/foo: () -> <amb,state<int>> bool
 algeff/exn1/get: forall<a> () -> (state<a>) a

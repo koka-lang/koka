@@ -6,19 +6,21 @@
 ()
 False
  
-algeff/implicits/Abort: forall<e,a> (.hnd-abort<e,a>) -> abort
-algeff/implicits/Children: forall<e,a> (.hnd-children<e,a>) -> children
-algeff/implicits/Choice: forall<e,a> (.hnd-choice<e,a>) -> choice
-algeff/implicits/Cwd: forall<e,a> (.hnd-cwd<e,a>) -> cwd
-algeff/implicits/Emit: forall<e,a> (.hnd-emit<e,a>) -> emit
-algeff/implicits/Emitx: forall<e,a> (.hnd-emitx<e,a>) -> emitx
+algeff/implicits/rose/sub: (rose : rose) -> list<rose>
+algeff/implicits/rose/v: (rose : rose) -> vertex
+algeff/implicits/Abort: forall<e,a> (@hnd-abort<e,a>) -> abort
+algeff/implicits/Children: forall<e,a> (@hnd-children<e,a>) -> children
+algeff/implicits/Choice: forall<e,a> (@hnd-choice<e,a>) -> choice
+algeff/implicits/Cwd: forall<e,a> (@hnd-cwd<e,a>) -> cwd
+algeff/implicits/Emit: forall<e,a> (@hnd-emit<e,a>) -> emit
+algeff/implicits/Emitx: forall<e,a> (@hnd-emitx<e,a>) -> emitx
 algeff/implicits/Graph: graph
-algeff/implicits/Mark: forall<e,a> (.hnd-mark<e,a>) -> mark
-algeff/implicits/Marked: forall<e,a> (.hnd-marked<e,a>) -> marked
+algeff/implicits/Mark: forall<e,a> (@hnd-mark<e,a>) -> mark
+algeff/implicits/Marked: forall<e,a> (@hnd-marked<e,a>) -> marked
 algeff/implicits/Rose: (v : vertex, sub : list<rose>) -> rose
-algeff/implicits/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
-algeff/implicits/Total: forall<e,a> (.hnd-total<e,a>) -> total
-algeff/implicits/Width: forall<e,a> (.hnd-width<e,a>) -> width
+algeff/implicits/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>
+algeff/implicits/Total: forall<e,a> (@hnd-total<e,a>) -> total
+algeff/implicits/Width: forall<e,a> (@hnd-width<e,a>) -> width
 algeff/implicits/abort: () -> abort ()
 algeff/implicits/bound: (g : graph) -> int
 algeff/implicits/children: (v : vertex) -> children list<vertex>
@@ -47,8 +49,6 @@ algeff/implicits/pretty-emit2: forall<a,e> (action : () -> <console,emit,width|e
 algeff/implicits/set: forall<a> (x : a) -> (state<a>) ()
 algeff/implicits/state1: forall<a,e> (action : () -> <state<int>|e> a) -> e a
 algeff/implicits/state2: forall<a,b,e> (init : a, action : () -> <state<a>|e> b) -> e b
-algeff/implicits/sub: (rose : rose) -> list<rose>
 algeff/implicits/test1: () -> bool
 algeff/implicits/total: () -> total int
-algeff/implicits/v: (rose : rose) -> vertex
 algeff/implicits/width: value<int>

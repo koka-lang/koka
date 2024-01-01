@@ -1,12 +1,12 @@
 [(7,""),(3,"*3"),(1,"+2*3")]
  
-algeff/parser/Many: forall<e,a> (.hnd-many<e,a>) -> many
-algeff/parser/Parse: forall<e,a> (.hnd-parse<e,a>) -> parse
+algeff/parser/Many: forall<e,a> (@hnd-many<e,a>) -> many
+algeff/parser/Parse: forall<e,a> (@hnd-parse<e,a>) -> parse
 algeff/parser/alpha: () -> parse int
 algeff/parser/char: (p : (char) -> bool) -> parse char
 algeff/parser/choice: forall<a,e> (p1 : () -> <many|e> a, p2 : () -> <many|e> a) -> <many|e> a
 algeff/parser/digit: () -> parse int
-algeff/parser/eager: forall<a,e> (() -> <many|e> a) -> e list<a>
+algeff/parser/eager: forall<a,e> (@action : () -> <many|e> a) -> e list<a>
 algeff/parser/eparse: forall<a,e> (p : () -> <many,parse|e> a, input : string) -> e list<(a, string)>
 algeff/parser/expr: () -> <div,many,parse> int
 algeff/parser/factor: () -> <div,many,parse> int
@@ -23,7 +23,7 @@ algeff/parser/select: forall<a> (xs : list<a>) -> many a
 algeff/parser/show-parse: forall<a> (xs : list<(a, string)>, f : (a) -> string) -> string
 algeff/parser/show-parse-int: (xs : list<(int, string)>) -> string
 algeff/parser/show-parse-ints: (xs : list<(list<int>, string)>) -> string
-algeff/parser/solutions: forall<a,e> (() -> <many|e> a) -> e list<a>
+algeff/parser/solutions: forall<a,e> (@action : () -> <many|e> a) -> e list<a>
 algeff/parser/symbol: (c : char) -> parse ()
 algeff/parser/term: () -> <div,many,parse> int
 algeff/parser/test1: () -> <console,div> ()

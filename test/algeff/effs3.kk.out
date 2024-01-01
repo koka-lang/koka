@@ -1,6 +1,6 @@
 negative or zero
  
-algeff/effs3/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+algeff/effs3/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>
 algeff/effs3/get: forall<a> () -> (state<a>) a
 algeff/effs3/main: () -> console ()
 algeff/effs3/set: forall<a> (x : a) -> (state<a>) ()

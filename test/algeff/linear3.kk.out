@@ -1,6 +1,6 @@
 42
  
-algeff/linear3/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+algeff/linear3/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>
 algeff/linear3/foo: () -> (state<int>) int
 algeff/linear3/get: forall<a> () -> (state<a>) a
 algeff/linear3/main: () -> <console,div> ()

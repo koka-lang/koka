@@ -1,4 +1,4 @@
-test/algeff/wrong/linear2.kk(19, 3): error: handler for state needs to be linear but uses a non-linear effect: amb
+test/algeff/wrong/linear2@kk(19, 3): error: handler for state needs to be linear but uses a non-linear effect: amb
  context: handle(action)
  fun get() { s }
  fun put(t) { if flip() then s := t; () }

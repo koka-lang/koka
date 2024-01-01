@@ -3,7 +3,7 @@ uncaught exception: algeff/match-error(14, 3): test: pattern match failure
 add default effect for std/core/exn
  
 algeff/match-error/Bye: greet
-algeff/match-error/Change: forall<a,e,b> (.hnd-change<a,e,b>) -> change<a>
+algeff/match-error/Change: forall<a,e,b> (@hnd-change<a,e,b>) -> change<a>
 algeff/match-error/Hi: greet
 algeff/match-error/change: forall<a> (v : a) -> (change<a>) maybe<a>
 algeff/match-error/is-bye: (greet : greet) -> bool

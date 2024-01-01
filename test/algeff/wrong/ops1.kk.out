@@ -1,5 +1,5 @@
-test/algeff/wrong/ops1.kk(45, 3): error: operator flip is not part of the handled effect
+test/algeff/wrong/ops1@kk(45, 3): error: operator flip is not part of the handled effect
  term : handle(action) {
- ...
+ @@@
  }
  inferred type: state

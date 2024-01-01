@@ -30,7 +30,7 @@ val solutions = handler {
   ctl flip() -> resume(True) ++ resume(False)
 }
 
-fun show( xss : list<list<int>> ) : string {
+fun listlist/show( xss : list<list<int>> ) : string {
   xss.show-list(fn(xs) { xs.show-list(core/show) } )
 }
 
@@ -75,11 +75,11 @@ val choices = handler {
   ctl flip() -> { incr(); resume(flip()) }
 }
 
-fun show(x : (int,list<list<int>>)) : string {
+fun intlist/show(x : (int,list<list<int>>)) : string {
   "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
 }
 
-fun show(xs : list<(int,list<int>)>) : string {
+fun listint/show(xs : list<(int,list<int>)>) : string {
   xs.show-list fn(x) {
     "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
   }
@@ -221,17 +221,17 @@ fun factor() {
   }
 }
 
-/*
+
 fun test5() {
   solutions{ parse("2+8*5"){ expr() } }
 }
 
 
-
+/*
 // --------------------------------------------------------------
 // Scoped handlers
 // --------------------------------------------------------------
-/*
+
 effect call {
   bcall() : ();
   ecall() : ()
@@ -279,7 +279,6 @@ fun test6() {
 }
 */
 
-
 // --------------------------------------------------------------
 // Main
 // --------------------------------------------------------------
@@ -299,4 +298,3 @@ fun mymap( xs, f ) {
     Cons(x,xx) -> Cons(f(x),mymap(xx,f))
   }
 }
-*/

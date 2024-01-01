@@ -1,6 +1,6 @@
-test/algeff/wrong/type1.kk(10, 9): error: types do not match (due to an infinite type)
+test/algeff/wrong/type1@kk(10, 9): error: types do not match (due to an infinite type)
  context : flip() -> [resume(False)]
  term : flip
  inferred type: (resume : (bool) -> _e list<_a>) -> _e list<list<_a>>
- expected type: ((_b) -> _e list<list<_a>>) -> _e list<list<_a>>
+ expected type: ((bool) -> _e list<list<_a>>) -> _e list<list<_a>>
  hint : give a type to the function definition?

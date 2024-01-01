@@ -1,8 +1,8 @@
 positive
  
-algeff/effs4/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+algeff/effs4/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>
 algeff/effs4/get: forall<a> () -> (state<a>) a
 algeff/effs4/main: () -> console ()
 algeff/effs4/set: forall<a> (x : a) -> (state<a>) ()
-algeff/effs4/state: forall<a,b> (() -> (state<a>) b) -> ((s : a) -> b)
+algeff/effs4/state: forall<a,b> (@action : () -> (state<a>) b) -> ((s : a) -> b)
 algeff/effs4/test: () -> (state<int>) string

@@ -20,14 +20,14 @@ fun (==)(p1, p2) {
   }
 }
 
-fun show(p:player) : string {
+fun player/show(p:player) : string {
   match(p) {
     Bob   -> "bob"
     Alice -> "alice"
   }
 }
 
-fun show(ps : list<player> ) : string {
+fun playerlist/show(ps : list<player> ) : string {
   ps.show-list(show)
 }
 
@@ -92,7 +92,7 @@ val gametree = handler {
   }
 }
 
-fun show(gt :gtree) : div string {
+fun gtree/show(gt :gtree) : div string {
   showGt(gt,2)
 }
 
@@ -278,7 +278,7 @@ fun main() {
   //,testPrint2().show
   ,""
   ].join("\n-----------\n").print
-  testPc1().show.println // raises exception  
+  testPc1().show.println // raises exception
 }
 
 fun mymap( xs, f ) {

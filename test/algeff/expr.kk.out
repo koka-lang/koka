@@ -9,18 +9,19 @@ ticks: 2
 ticks: 2
 2
  
-algeff/expr/>>=: forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
+algeff/expr/either/show: (r : either<string,(int, int)>) -> string
+algeff/expr/(>>=): forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
 algeff/expr/Div: (e1 : expr, e2 : expr) -> expr
-algeff/expr/Exc: forall<e,a> (.hnd-exc<e,a>) -> exc
+algeff/expr/Exc: forall<e,a> (@hnd-exc<e,a>) -> exc
 algeff/expr/Int: (i : int) -> expr
-algeff/expr/Out: forall<e,a> (.hnd-out<e,a>) -> out
-algeff/expr/State: forall<e,a> (.hnd-state<e,a>) -> state
+algeff/expr/Out: forall<e,a> (@hnd-out<e,a>) -> out
+algeff/expr/State: forall<e,a> (@hnd-state<e,a>) -> state
 algeff/expr/eval: (e : expr) -> stexn<int>
 algeff/expr/eval0: (e : expr) -> int
 algeff/expr/eval1: (e : expr) -> exc int
 algeff/expr/eval2: (e : expr) -> <exc,state> int
 algeff/expr/eval3: (e : expr) -> <exc,out,state> int
-algeff/expr/exc: forall<a,e> (() -> <exc|e> a) -> e either<string,a>
+algeff/expr/exc: forall<a,e> (@action : () -> <exc|e> a) -> e either<string,a>
 algeff/expr/expr1: expr
 algeff/expr/expr2: expr
 algeff/expr/exprX: expr
@@ -31,10 +32,9 @@ algeff/expr/line: (e : expr) -> out ()
 algeff/expr/main: () -> console ()
 algeff/expr/mfail: forall<a,b,c,e> (err : a) -> ((s : b) -> e either<a,c>)
 algeff/expr/mtick: forall<a,e> () -> ((s : int) -> e either<a,((), int)>)
-algeff/expr/out: forall<a,e> (() -> <console,out|e> a) -> <console|e> a
+algeff/expr/out: forall<a,e> (@action : () -> <console,out|e> a) -> <console|e> a
 algeff/expr/run: forall<a,b,e> (s : a, m : (a) -> e b) -> e b
-algeff/expr/show: (r : either<string,(int, int)>) -> total string
-algeff/expr/show: (e : expr) -> total string
+algeff/expr/show: (e : expr) -> string
 algeff/expr/show1: (x : either<string,int>) -> string
 algeff/expr/show2: (x : (either<string,int>, int)) -> string
 algeff/expr/showErr: forall<a> (x : either<string,a>, s : (a) -> string) -> string

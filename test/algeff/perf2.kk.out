@@ -1,4 +1,4 @@
-algeff/perf2/Choose: forall<e,a> (.hnd-choose<e,a>) -> choose
+algeff/perf2/Choose: forall<e,a> (@hnd-choose<e,a>) -> choose
 algeff/perf2/append-safe: (queen : int, xs : solution, xss : solutions) -> div solutions
 algeff/perf2/choose-all: forall<a,e> (action : () -> <choose|e> a) -> e list<a>
 algeff/perf2/extend: (queen : int, acc : solutions, xss : solutions) -> div solutions
