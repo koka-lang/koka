@@ -53,8 +53,8 @@ fun list/cmp<a>( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> order ) : order
 // We cannot just prefer values, since `eq([1],[2])`
 // can be resolved as `eq = list/eq(int/eq)` but also as `eq = cmp/eq(list/cmp(int/cmp))`.
 // For implicits we instead prefer shortest chains originating from the most locals.
-// fun cmp/eq( x : a, y : a, ?cmp : (a,a) -> order ) : bool
-//   cmp(x,y) == Eq
+fun cmp/eq( x : a, y : a, ?cmp : (a,a) -> order ) : bool
+  cmp(x,y) == Eq
 
 fun test3()
   // equal(1,2)  // use `int/eq` instead of `cmp/eq(int/cmp)` as it is shorter

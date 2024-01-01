@@ -981,7 +981,8 @@ ieCompare ie1 ie2
 
 -- lookup an application name `f(...)` where the name context usually contains (partially) inferred
 -- argument types.
-lookupAppName :: Bool -> Name -> NameContext -> Range -> Inf (Either [(Name,NameInfo)] (Type,Expr Type,[((Name,Range),Expr Type)]))
+lookupAppName :: Bool -> Name -> NameContext -> Range ->
+                   Inf (Either [(Name,NameInfo)] (Type,Expr Type,[((Name,Range),Expr Type, Doc)]))
 lookupAppName allowDisambiguate name ctx range | not (isConstructorName name)  -- or zero arguments?
   = do iapps <- lookupAppNamesEx allowDisambiguate isInfoValFunExt name ctx range
        pickBestName allowDisambiguate name range iapps
@@ -999,12 +1000,13 @@ lookupAppName allowDisambiguate name ctx range  -- (isConstructorName cname)
                             return (iapps1 ++ iapps3)
        pickBestName allowDisambiguate name range iapps
 
-pickBestName :: Bool -> Name -> Range -> [(ImplicitExpr,(Name,NameInfo,Rho,[(Name,ImplicitExpr)]))] -> Inf (Either [(Name,NameInfo)] (Type,Expr Type,[((Name,Range),Expr Type)]))
+pickBestName :: Bool -> Name -> Range -> [(ImplicitExpr,(Name,NameInfo,Rho,[(Name,ImplicitExpr)]))] ->
+                 Inf (Either [(Name,NameInfo)] (Type,Expr Type,[((Name,Range),Expr Type,Doc)]))
 pickBestName allowDisambiguate name range iapps
   = case pick allowDisambiguate fst iapps of
-      Right (imp,(iname,info,itp,iexprs))
+      Right (imp,(qname,info,itp,iexprs))
         -> do -- traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
-              return (Right (itp, Var iname False range, [((name,range),ieExpr iexpr) | (name,iexpr) <- iexprs]))
+              return (Right (itp, Var qname False range, [((iname,range),ieExpr iexpr,ieDoc iexpr) | (iname,iexpr) <- iexprs]))
       Left xs
         -> let matches = nubBy (\x y -> fst x == fst y) [(name,info) | (_,(name,info,_,_)) <- xs]
            in if (allowDisambiguate && not (null matches))
@@ -1146,7 +1148,7 @@ lookupAppNames recurseDepth allowBypass allowTypeBypass infoFilter name ctx rang
                                         let (pnameName,pnameExpr) = splitImplicitParamName pname
                                         in do iexprs <- lookupImplicitNames (recurseDepth + 1)
                                                             infoFilter (pnameExpr)
-                                                            (implicitTypeContext ptp) range
+                                                            (implicitTypeContext ptp) (endOfRange range) -- use end of range to deprioritize with hover info
                                               return [(pnameName,iexpr) | iexpr <- iexprs]
                                      ) implicits
 

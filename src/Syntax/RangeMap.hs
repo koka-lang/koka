@@ -16,7 +16,7 @@ module Syntax.RangeMap( RangeMap, RangeInfo(..), NameInfo(..)
                       , mangleTypeName
                       ) where
 
--- import Lib.Trace
+import Lib.Trace
 import Data.Char    ( isSpace )
 import Common.Failure
 import Data.List    (sortBy, groupBy)
@@ -54,11 +54,12 @@ mangle name tp
              else c : compress cc
 
 data RangeInfo
-  = Decl String Name Name      -- alias, type, cotype, rectype, fun, val
-  | Block String      -- type, kind, pattern
+  = Decl String Name Name  -- alias, type, cotype, rectype, fun, val
+  | Block String           -- type, kind, pattern
   | Error Doc
   | Warning Doc
-  | Id Name NameInfo Bool  -- qualified name, info, is the definition
+  | Id Name NameInfo [Doc] Bool  -- qualified name, info, extra doc (from implicits), is this the definition?
+  | Implicits Doc                -- inferred implicit arguments
 
 data NameInfo
   = NIValue   Type
@@ -73,19 +74,21 @@ instance Show RangeInfo where
   show ri
     = case ri of
         Decl kind nm1 nm2 -> "Decl " ++ kind ++ " " ++ show nm1 ++ " " ++ show nm2
-        Block kind -> "Block " ++ kind
-        Error doc  -> "Error"
-        Warning doc -> "Warning"
-        Id name info isDef -> "Id " ++ show name ++ (if isDef then " (def)" else "")
+        Block kind        -> "Block " ++ kind
+        Error doc         -> "Error"
+        Warning doc       -> "Warning"
+        Id name info _ isDef -> "Id " ++ show name ++ (if isDef then " (def)" else "")
+        Implicits doc        -> "Implicits " ++ show doc
 
 instance Enum RangeInfo where
   fromEnum r
     = case r of
-        Decl _ name _   -> 0
-        Block _         -> 10
-        Id name info _  -> 20
-        Warning _       -> 30
-        Error _         -> 40
+        Decl _ name _    -> 0
+        Block _          -> 10
+        Id name info _ _ -> 20
+        Implicits _      -> 25
+        Warning _        -> 40
+        Error _          -> 50
 
   toEnum i
     = failure "Syntax.RangeMap.RangeInfo.toEnum"
@@ -95,6 +98,7 @@ penalty name
   = if (nameModule name == "std/core/hnd")
      then 10 else 0
 
+-- (inverse) priorities
 instance Enum NameInfo where
   fromEnum ni
     = case ni of
@@ -110,8 +114,8 @@ instance Enum NameInfo where
 
 isHidden ri
   = case ri of
-      Decl kind nm1 nm2  -> isHiddenName nm1
-      Id name info isDef -> isHiddenName name
+      Decl kind nm1 nm2       -> isHiddenName nm1
+      Id name info docs isDef -> isHiddenName name
       _ -> False
 
 
@@ -124,7 +128,7 @@ cut r
 
 rangeMapInsert :: Range -> RangeInfo -> RangeMap -> RangeMap
 rangeMapInsert r info (RM rm)
-  = -- trace ("insert: " ++ showFullRange (r) ++ ": " ++ show info) $
+  = -- trace ("rangemap insert: " ++ show r ++ ": " ++ show info) $
     if isHidden info
      then RM rm
     else if beginEndToken info
@@ -133,7 +137,7 @@ rangeMapInsert r info (RM rm)
   where
     beginEndToken info
       = case info of
-          Id name _ _ -> (name == nameUnit || name == nameListNil || isNameTuple name)
+          Id name _ _ _ -> (name == nameUnit || name == nameListNil || isNameTuple name)
           _ -> False
 
 rangeMapAppend :: RangeMap -> RangeMap -> RangeMap
@@ -147,7 +151,7 @@ rangeMapSort (RM rm)
 rangeMapLookup :: Range -> RangeMap -> ([(Range,RangeInfo)],RangeMap)
 rangeMapLookup r (RM rm)
   = let (rinfos,rm') = span startsAt (dropWhile isBefore rm)
-    in -- trace ("lookup: " ++ showFullRange r ++ ": " ++ show (length rinfos)) $
+    in -- trace ("lookup: " ++ show r ++ ": " ++ show rinfos) $
        (prioritize rinfos, RM rm')
   where
     pos = rangeStart r
@@ -155,11 +159,22 @@ rangeMapLookup r (RM rm)
     startsAt (rng,_)  = rangeStart rng == pos
 
     prioritize rinfos
-      = map last
-        (groupBy eq (sortBy cmp rinfos))
+      = let idocs = concatMap (\(_,rinfo) -> case rinfo of
+                                               Implicits doc -> [doc]
+                                               _             -> []) rinfos
+        in map (mergeDocs idocs) $
+           map last $ groupBy eq $ sortBy cmp $
+           filter (not . isImplicits . snd) rinfos
       where
+        isImplicits (Implicits _) = True
+        isImplicits _             = False
+
         eq (_,ri1) (_,ri2)  = (EQ == compare ((fromEnum ri1) `div` 10) ((fromEnum ri2) `div` 10))
         cmp (_,ri1) (_,ri2) = compare (fromEnum ri1) (fromEnum ri2)
+
+        -- merge implicit documentation into identifiers
+        mergeDocs ds (rng, Id name info docs isDef) = (rng, Id name info (docs ++ ds) isDef)
+        mergeDocs ds x = x
 
 
 instance HasTypeVar RangeMap where
@@ -173,14 +188,14 @@ instance HasTypeVar RangeMap where
     = btv (map snd rm)
 
 instance HasTypeVar RangeInfo where
-  sub `substitute` (Id nm info isdef)  = Id nm (sub `substitute` info) isdef
-  sub `substitute` ri            = ri
+  sub `substitute` (Id nm info docs isdef)  = Id nm (sub `substitute` info) docs isdef
+  sub `substitute` ri                       = ri
 
-  ftv (Id nm info _) = ftv info
-  ftv ri             = tvsEmpty
+  ftv (Id nm info _ _) = ftv info
+  ftv ri               = tvsEmpty
 
-  btv (Id nm info _) = btv info
-  btv ri             = tvsEmpty
+  btv (Id nm info _ _) = btv info
+  btv ri               = tvsEmpty
 
 instance HasTypeVar NameInfo where
   sub `substitute` ni

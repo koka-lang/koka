@@ -23,6 +23,7 @@ module Common.Range
           , sourceNull
           , bigLine
           , after
+          , endOfRange
           , showRange
           , BString, bstringToString, bstringToText, stringToBString
           , bstringEmpty
@@ -306,6 +307,11 @@ maxPos p1 p2 = if (p1 <= p2) then p2 else p1
 extendRange :: Range -> Int -> Range
 extendRange (Range start end) ofs
   = Range start (end{ posColumn = posColumn end + ofs })
+
+-- | Create a range for the final character in the range
+endOfRange :: Range -> Range
+endOfRange range@(Range p1@(Pos _ ofs1 l1 c1) p2@(Pos src ofs2 l2 c2))
+  = if (ofs2 - ofs1) <= 1 then range else Range (Pos src (ofs2-1) l2 (c2-1)) p2
 
 {--------------------------------------------------------------------------
   Ranged class

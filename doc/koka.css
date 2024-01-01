@@ -199,6 +199,7 @@ pre.koka.source {
 .koka .namespace, .koka .mo     { color: navy }
 .koka .comment                  { color: green }
 .koka .localqualifier,.koka .lq { color: darkgray }
+.koka .pc .localqualifier,.koka .pc .lq { color: navy }
 
 /* These are perhaps too fancy ? */
 .koka .type.typeparam, .koka .tp.tpp { color: #555 }
