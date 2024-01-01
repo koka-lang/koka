@@ -1882,33 +1882,42 @@ inferArgsN ctx range parArgs
       = return (reverse acc)
     inferArg acc ((tpar,arg):args)
       = do tpar0 <- subst tpar
-           (targ,teff,core) <- case arg of
-                                 ArgExpr argexpr
-                                   -> inferArgExpr tpar0 argexpr
-                                 ArgCore (_,ctp,ceff,carg)
-                                   -> do -- traceDefDoc $ \penv -> text "inferArgN: argCore:" <+>
-                                         --                            ppType penv tpar0 <+> text ", ctp:"
-                                         --                            <+> ppType penv ctp
-                                         if isRho tpar0
-                                           then return (ctp,ceff,carg)
-                                           else do (gtp,garg) <- generalize range range False ceff ctp carg
-                                                   return (gtp,ceff,garg)
-                                         -- return (ctp,ceff,carg)  -- TODO: generalize polymorphic parameters?
-                                 ArgImplicit name rng
-                                   -> do argExpr <- resolveImplicitName name tpar0 rng
-                                         inferArgExpr tpar0 argExpr
+           let subsumeArg (targ,teff,core)
+                 = do tpar1  <- subst tpar0
+                      (_,coref)  <- inferSubsume ctx (getRangeArg arg) tpar1 targ
+                                    {- case arg of
+                                      ArgExpr argexpr | isAnnot argexpr
+                                        -> do -- traceDefDoc $ \env -> text "inferArgN1:" <+> ppType env tpar1 <+> text "~" <+> ppType env targ
+                                              inferSubsume ctx (getRangeArg arg) tpar1 targ
+                                              -- inferUnify ctx (getRange argexpr) tpar1 targ
+                                              return (tpar1,id)
+                                      _ -> do -- traceDefDoc $ \env -> text "inferArgN2:" <+> (ppType env teff) <+> colon <+> ppType env tpar1 <+> text "~" <+> ppType env targ
+                                              inferSubsume ctx (getRangeArg arg) tpar1 targ
+                                      -}
 
-           tpar1  <- subst tpar0
-           (_,coref)  <- case arg of
-                           ArgExpr argexpr | isAnnot argexpr
-                             -> do -- traceDefDoc $ \env -> text "inferArgN1:" <+> ppType env tpar1 <+> text "~" <+> ppType env targ
-                                   inferSubsume ctx (getRangeArg arg) tpar1 targ
-                                   -- inferUnify ctx (getRange argexpr) tpar1 targ
-                                   return (tpar1,id)
-                           _ -> do -- traceDefDoc $ \env -> text "inferArgN2:" <+> (ppType env teff) <+> colon <+> ppType env tpar1 <+> text "~" <+> ppType env targ
-                                   inferSubsume ctx (getRangeArg arg) tpar1 targ
-           teff1  <- subst teff
-           inferArg ((teff1,coref core) : acc) args
+                      teff1  <- subst teff
+                      return (teff1,coref core)
+
+           (eff,core)  <- case arg of
+                            ArgExpr argexpr
+                              -> do res <- inferArgExpr tpar0 argexpr
+                                    subsumeArg res
+                            ArgCore (_,ctp,ceff,carg)
+                              -> do -- traceDefDoc $ \penv -> text "inferArgN: argCore:" <+>
+                                    --                            ppType penv tpar0 <+> text ", ctp:"
+                                    --                            <+> ppType penv ctp
+                                    res <- if isRho tpar0
+                                            then return (ctp,ceff,carg)
+                                            else do (gtp,garg) <- generalize range range False ceff ctp carg
+                                                    return (gtp,ceff,garg)
+                                    subsumeArg res
+                            ArgImplicit name rng
+                              -> do (argExpr,termDoc) <- resolveImplicitName name tpar0 rng
+                                    withHiddenTermDoc rng termDoc $
+                                      do res <- inferArgExpr tpar0 argExpr
+                                         subsumeArg res
+
+           inferArg ((eff,core) : acc) args
 
 
 -- | Is an expression annotated?
@@ -2142,23 +2151,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
           TSyn syn [_,_] _ -> (typesynName syn == nameTpDelay)
           _ -> False
 
-{-
-resolveImplicits :: Range -> [(Name,Type)] -> Inf [Expr Type]
-resolveImplicits rng []
-  = return []
 
-resolveImplicits rng ((name,tp0):pars)
-  = do env <- getPrettyEnv
-       let (pname,iname) = splitImplicitParamName name
-       tp <- subst tp0
-       traceDoc $ \env -> text "resolving" <+> ppParam env (iname,tp)
-       (ename,etp,info) <- resolveImplicitName iname tp rng
-       traceDoc $ \env -> text "resolved to" <+> ppParam env (ename,etp)
-       -- infError rng (text "cannot resolve implicit parameter" <+> ppParam env (iname,tp))
-       let arg = Var ename False rng
-       args <- resolveImplicits rng pars
-       return (arg:args)
--}
 
 {--------------------------------------------------------------------------
   Effects

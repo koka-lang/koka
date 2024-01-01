@@ -1,10 +1,10 @@
-fun showx( i : int ) : string
+fun int/showx( i : int ) : string
   i.show
 
-fun showx( c : char ) : string
+fun char/showx( c : char ) : string
   c.show
 
-fun showx( f : float64 ) : string
+fun float64/showx( f : float64 ) : string
   f.show
 
 fun showx( xs : list<a>, ?showx : a -> string ) : string

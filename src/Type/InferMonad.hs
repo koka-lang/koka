@@ -73,9 +73,11 @@ module Type.InferMonad( Inf, InfGamma
                       , contextError
                       , termError
                       , infError, infWarning
+                      , withHiddenTermDoc
 
                       -- * Documentation, Intellisense
                       , addRangeInfo
+
                       ) where
 
 import Data.List( partition, sortBy, nub)
@@ -720,10 +722,11 @@ unifyError context range err xtp1 xtp2
        unifyError' (prettyEnv env){Pretty.fullNames = False} context range err tp1 tp2
 
 unifyError' env context range err tp1 tp2
-  = do infError range $
+  = do termDoc <- getTermDoc "term" range
+       infError range $
         text message <->
         table ([(text "context", docFromRange (Pretty.colors env) rangeContext)
-               ,(text "term", docFromRange (Pretty.colors env) range)
+               , termDoc
                ,(text ("inferred " ++ nameType), nice2)
                ]
                ++ nomatch
@@ -784,10 +787,11 @@ predicateError contextRange range message pred
        predicateError' (prettyEnv env) contextRange range message spred
 
 predicateError' env contextRange range message pred
-  = do infError range $
+  = do termDoc <- getTermDoc "origin" range
+       infError range $
         text message <->
         table  [(text "context", docFromRange (Pretty.colors env) contextRange)
-               ,(text "origin", docFromRange (Pretty.colors env) range)
+               , termDoc
                ,(text "constraint", nicePred)
                ]
   where
@@ -802,10 +806,11 @@ typeError contextRange range message xtp extra
        typeError' (prettyEnv env) contextRange range message tp extra
 
 typeError' env contextRange range message tp extra
-  = do infError range $
+  = do termDoc <- getTermDoc "term" range
+       infError range $
         message <->
         table ([(text "context", docFromRange (Pretty.colors env) contextRange)
-              ,(text "term", docFromRange (Pretty.colors env) range)
+              , termDoc
               ,(text "inferred type", Pretty.niceType env tp)
               ] ++ extra)
 
@@ -815,10 +820,11 @@ contextError contextRange range message extra
        contextError' (prettyEnv env) contextRange range message extra
 
 contextError' env contextRange range message extra
-  = do infError range $
+  = do termDoc <- getTermDoc "term" range
+       infError range $
         message <->
         table  ([(text "context", docFromRange (Pretty.colors env) contextRange)
-                ,(text "term", docFromRange (Pretty.colors env) range)
+                , termDoc
                 ]
                 ++ extra)
 
@@ -828,9 +834,10 @@ termError range message tp extra
        termError' (prettyEnv env) range message tp extra
 
 termError' env range message tp extra
-  = do infError range $
+  = do termDoc <- getTermDoc "term" range
+       infError range $
         message <->
-        table  ([(text "term", docFromRange (Pretty.colors env) range)
+        table  ([ termDoc
                 ,(text "inferred type", Pretty.niceType env tp)
                 ]
                 ++ extra)
@@ -948,7 +955,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
         _  -> do env <- getEnv
                  infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintTypeSig matches)
   where
-    hintTypeSig = "give a type annotation to the function parameters or qualify the name"
+    hintTypeSig = "give a type annotation to the function parameters or qualify the name?"
 
 
 ----------------------------------------------------------------
@@ -1018,20 +1025,27 @@ lookupAppNamesEx allowDisambiguate filter name ctx range
 
 
 -- resolve an implicit name to an expression
-resolveImplicitName :: Name -> Type -> Range -> Inf (Expr Type)
+resolveImplicitName :: Name -> Type -> Range -> Inf (Expr Type, Doc)
 resolveImplicitName name tp range
   = do -- candidates <- lookupDisambiguatedName True True name (implicitTypeContext tp) range
        iexprs <- lookupImplicitNames 0 isInfoValFunExt name (implicitTypeContext tp) range
+       penv <- getPrettyEnv
        case pick True id iexprs of
          Right iexpr -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> Pretty.ppParam penv (name,tp) <+> text ", to" <+> pretty iexpr
-                           return (ieExpr iexpr)
-         Left docs0 -> do penv <- getPrettyEnv
-                          infError range (text "cannot resolve implicit parameter" <+> Pretty.ppParam penv (name,tp) <->
-                                        (if null docs0 then Lib.PPrint.empty
-                                          else let docs = take 8 docs0 ++ (if length docs0 > 8 then [text "..."] else [])
-                                              in text "candidates:" <+> align (vcat docs)) <->
-                                        (text "hint: add a type annotation to the function parameters or qualify then name?"))
+                           let contextDoc = ieDoc iexpr
+                           return (ieExpr iexpr, contextDoc)
+         Left docs0 -> do infError range
+                              (text "cannot resolve implicit parameter" <->
+                               table [(text "term",       docFromRange (Pretty.colors penv) range),
+                                      (text "parameter",  text "?" <.> ppNameType penv (name,tp)),
+                                      (text "candidates", if null docs0 then text "<none>"
+                                                          else let docs = take 8 docs0 ++ (if length docs0 > 8 then [text "..."] else [])
+                                                                in align (vcat docs)),
+                                      (text "hint", text "add a (implicit) parameter to the function?")])
+                          return (Var name False range, Lib.PPrint.empty)
 
+ppNameType penv (name,tp)
+  = Pretty.ppName penv name <+> colon <+> Pretty.ppType penv tp
 
 -- pick the best match in a list of candidates
 -- if allowDisambiguate is False, only one candidate is allowed, otherwise there
@@ -1061,7 +1075,7 @@ lookupImplicitNames recurseDepth infoFilter name ctx range
 toImplicitAppExpr :: Pretty.Env -> String -> Name -> Range -> (Name,NameInfo,Rho,[(Name,ImplicitExpr)]) -> ImplicitExpr
 toImplicitAppExpr penv prefix name range (iname,info,itp,iargs)
       = let isLocal = not (isQualified iname)
-            docName = text prefix <.> Pretty.ppName penv name <.> text "=" <.> Pretty.ppName penv iname
+            docName = text prefix <.> Pretty.ppName penv name <+> text "=" <+> Pretty.ppName penv iname
             -- coreVar = coreExprFromNameInfo iname info
        in case iargs of
             [] -> ImplicitExpr docName itp (Var iname False range) 1 (if isLocal then [iname] else [])
@@ -1097,7 +1111,7 @@ toImplicitAppExpr penv prefix name range (iname,info,itp,iargs)
                                                 else nub (concatMap (ieLocalRoots . snd) iargs)
                               doc           = docName <.> tupled ([text "_" | _ <- fixed] ++ [ieDoc iexpr | (_,iexpr) <- iargs])
                           in ImplicitExpr doc etaTp eta depth localRoots
-                    _ -> failure ("Type.InferMonad.lookupImplicitNames: illegal type for implicit? " ++ show range ++ ", " ++ show (Pretty.ppParam penv (name,itp)))
+                    _ -> failure ("Type.InferMonad.lookupImplicitNames: illegal type for implicit? " ++ show range ++ ", " ++ show (ppNameType penv (name,itp)))
 
 
 -- Lookup application name `f` in an expression `f(...)` where the name  context usually contains
@@ -1231,7 +1245,7 @@ filterMatchNameContextEx :: Range -> Bool -> NameContext -> [(Name,NameInfo)] ->
 filterMatchNameContextEx range forImplicitNames ctx candidates
   = case ctx of
       CtxNone         -> return [(name,info,infoType info) | (name,info) <- candidates]
-      CtxType expect  | forImplicitNames && not (isFun expect)
+      CtxType expect  | forImplicitNames && not (isFun expect) -- when looking up a value (like `monad`) we also want to consider (unit) functions that may take further implicit arguments
                       -> do mss1 <- mapM (matchType expect) candidates
                             mss2 <- mapM (matchArgs False [] [] (Just expect)) candidates -- also match unit functions (that may take implicit parameters still)
                             return (concat (mss1 ++ mss2))  -- TODO: remove duplicates
@@ -1444,13 +1458,14 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , imports :: !ImportMap
                  , returnAllowed :: !Bool
                  , inLhs :: !Bool
+                 , hiddenTermDoc :: Maybe (Range,Doc)
                  }
 data St     = St{ uniq :: !Int, sub :: !Sub, preds :: ![Evidence], holeAllowed :: !Bool, mbRangeMap :: Maybe RangeMap }
 
 
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
-  = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False)
+  = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False Nothing)
            (St unique subNull [] False mbrm) of
       Err err warnings -> addWarnings warnings (errorMsg (ErrorType [err]))
       Ok x st warnings -> addWarnings warnings (ok (x, uniq st, (sub st) |-> mbRangeMap st))
@@ -1546,6 +1561,10 @@ withLhs :: Inf a -> Inf a
 withLhs inf
   = withEnv (\env -> env{ inLhs = True }) inf
 
+withHiddenTermDoc :: Range -> Doc -> Inf a -> Inf a
+withHiddenTermDoc range doc inf
+  = withEnv (\env -> env{ hiddenTermDoc = Just (range,doc) }) inf
+
 isLhs :: Inf Bool
 isLhs
   = do env <- getEnv
@@ -1555,6 +1574,14 @@ isReturnAllowed :: Inf Bool
 isReturnAllowed
   = do env <- getEnv
        return (returnAllowed env)
+
+getTermDoc :: String -> Range -> Inf (Doc,Doc)
+getTermDoc term range
+  = do env <- getEnv
+       case hiddenTermDoc env of
+         Just (rng,doc) -- | range == rng
+           -> return (text "implicit" <+> text term, doc)
+         _ -> return (text term, docFromRange (Pretty.colors (prettyEnv env)) range)
 
 useHole :: Inf Bool
 useHole
