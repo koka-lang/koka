@@ -1298,10 +1298,10 @@ inferApp propagated expect fun nargs rng
     inferAppFunFirst :: Maybe (Type,Range) -> Expr Type -> [(Int,FixedArg)] ->
                           [Expr Type] -> [((Name,Range),Expr Type)] -> [((Name,Range), Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop funExpr fresolved fixed named0 implicits
-      = do -- traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
-           --                       text ("fixed count: " ++ show (length fixed)) <.>
-           --                       text (", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <->
-           --                       text "  :" <+> ppProp penv prop
+      = do traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
+                                  text ("fixed count: " ++ show (length fixed)) <.>
+                                  text (", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <->
+                                  text (", fres count: " ++ show (length fresolved)) <+> text ":" <+> ppProp penv prop
 
            -- only add resolved implicits that were not already named
            let alreadyGiven = [name | ((name,_),_) <- named0]
@@ -1309,7 +1309,7 @@ inferApp propagated expect fun nargs rng
 
            -- infer type of function
            (ftp,eff1,fcore) <- allowReturn False $ inferExpr prop Instantiated funExpr
-           -- traceDefDoc $ \penv -> text "inferred type of fun: " <+> ppType penv ftp
+           traceDefDoc $ \penv -> text "inferred type of fun: " <+> ppType penv ftp
 
            -- match the type with a function type, wrap optional arguments, and order named arguments.
            -- traceDoc $ \env -> text "infer fun first, tp:" <+> ppType env ftp

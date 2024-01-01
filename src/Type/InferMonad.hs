@@ -80,7 +80,7 @@ module Type.InferMonad( Inf, InfGamma
 
                       ) where
 
-import Data.List( partition, sortBy, nub)
+import Data.List( partition, sortBy, nub, nubBy)
 import Data.Ord(comparing)
 import Control.Applicative
 import Control.Monad
@@ -981,10 +981,10 @@ ieCompare ie1 ie2
 
 -- lookup an application name `f(...)` where the name context usually contains (partially) inferred
 -- argument types.
-lookupAppName :: Bool -> Name -> NameContext -> Range -> Inf (Either [Doc] (Type,Expr Type,[((Name,Range),Expr Type)]))
+lookupAppName :: Bool -> Name -> NameContext -> Range -> Inf (Either [(Name,NameInfo)] (Type,Expr Type,[((Name,Range),Expr Type)]))
 lookupAppName allowDisambiguate name ctx range | not (isConstructorName name)  -- or zero arguments?
   = do iapps <- lookupAppNamesEx allowDisambiguate isInfoValFunExt name ctx range
-       pickBest allowDisambiguate range iapps
+       pickBestName allowDisambiguate name range iapps
 
 lookupAppName allowDisambiguate name ctx range  -- (isConstructorName cname)
   = do let cname = newCreatorName name
@@ -997,16 +997,22 @@ lookupAppName allowDisambiguate name ctx range  -- (isConstructorName cname)
                             let cnames = [name | (_,(name,_,_,_)) <- iapps1]
                                 iapps3 = filter (\(_,(name,_,_,_)) -> not (newCreatorName name `elem` cnames)) iapps2
                             return (iapps1 ++ iapps3)
-       pickBest allowDisambiguate range iapps
+       pickBestName allowDisambiguate name range iapps
 
-pickBest :: Bool -> Range -> [(ImplicitExpr,(Name,NameInfo,Rho,[(Name,ImplicitExpr)]))] -> Inf (Either [Doc] (Type,Expr Type,[((Name,Range),Expr Type)]))
-pickBest allowDisambiguate range iapps
+pickBestName :: Bool -> Name -> Range -> [(ImplicitExpr,(Name,NameInfo,Rho,[(Name,ImplicitExpr)]))] -> Inf (Either [(Name,NameInfo)] (Type,Expr Type,[((Name,Range),Expr Type)]))
+pickBestName allowDisambiguate name range iapps
   = case pick allowDisambiguate fst iapps of
       Right (imp,(iname,info,itp,iexprs))
         -> do -- traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
               return (Right (itp, Var iname False range, [((name,range),ieExpr iexpr) | (name,iexpr) <- iexprs]))
-      Left docs
-        -> return (Left docs)
+      Left xs
+        -> let matches = nubBy (\x y -> fst x == fst y) [(name,info) | (_,(name,info,_,_)) <- xs]
+           in if (allowDisambiguate && not (null matches))
+                then do env <- getEnv
+                        let hintQualify = "qualify the name to disambiguate it?"
+                        infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintQualify matches)
+                        return (Left matches)
+                else return (Left matches)
 
 lookupAppNamesEx :: Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range
                       -> Inf [(ImplicitExpr,(Name,NameInfo,Rho,[(Name,ImplicitExpr)]))]
@@ -1034,7 +1040,8 @@ resolveImplicitName name tp range
          Right iexpr -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> Pretty.ppParam penv (name,tp) <+> text ", to" <+> pretty iexpr
                            let contextDoc = ieDoc iexpr
                            return (ieExpr iexpr, contextDoc)
-         Left docs0 -> do infError range
+         Left iexprs -> do let docs0 = map ieDoc iexprs
+                           infError range
                               (text "cannot resolve implicit parameter" <->
                                table [(text "term",       docFromRange (Pretty.colors penv) range),
                                       (text "parameter",  text "?" <.> ppNameType penv (name,tp)),
@@ -1042,7 +1049,7 @@ resolveImplicitName name tp range
                                                           else let docs = take 8 docs0 ++ (if length docs0 > 8 then [text "..."] else [])
                                                                 in align (vcat docs)),
                                       (text "hint", text "add a (implicit) parameter to the function?")])
-                          return (Var name False range, Lib.PPrint.empty)
+                           return (Var name False range, Lib.PPrint.empty)
 
 ppNameType penv (name,tp)
   = Pretty.ppName penv name <+> colon <+> Pretty.ppType penv tp
@@ -1050,7 +1057,7 @@ ppNameType penv (name,tp)
 -- pick the best match in a list of candidates
 -- if allowDisambiguate is False, only one candidate is allowed, otherwise there
 -- must be a "best" candidate (most local roots, shortest chain)
-pick :: Bool -> (a -> ImplicitExpr) -> [a] -> Either [Doc] a
+pick :: Bool -> (a -> ImplicitExpr) -> [a] -> Either [a] a
 pick allowDisambiguate select xs
   = case xs of
       []  -> Left []
@@ -1058,7 +1065,7 @@ pick allowDisambiguate select xs
       _   -> case sortBy (\x y -> ieCompare (select x) (select y)) xs of
               [x]     -> Right x
               (x:y:_) | allowDisambiguate && (ieCompare (select x) (select y) == LT) -> Right x
-              ys      -> Left (map (ieDoc . select) ys)
+              ys      -> Left ys
 
 
 -----------------------------------------------------------------------
@@ -1162,7 +1169,7 @@ lookupFunName name mbType range
         _    -> do env <- getEnv
                    infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintQualify matches)
   where
-    hintQualify = "qualify the name to disambiguate it"
+    hintQualify = "qualify the name to disambiguate it?"
 
 lookupNameCtx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
 lookupNameCtx infoFilter name ctx range
