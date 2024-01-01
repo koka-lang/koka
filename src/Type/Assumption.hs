@@ -213,13 +213,14 @@ gammaLookup name (Gamma gamma)
   = let stemName = unqualifyFull name
     in case M.lookup stemName gamma of
       Nothing -> []
-      Just candidates
+      Just candidates0
          -> -- trace ("gamma lookup: " ++ show name ++ ": " ++ show (map fst candidates)) $
-            filter (\(_,info) -> infoIsVisible info) $
-            if stemName == name then candidates
-             else let candidates' = filter (\(n,_) -> matchQualifiers name n) candidates
-                  in -- trace ("gamma lookup matched: " ++ show name ++ ": " ++ show (map fst candidates')) $
-                      candidates'
+            let candidates1 = filter (\(_,info) -> infoIsVisible info) candidates0
+            in  if stemName == name then candidates1  -- fast path for unqualified names
+                 else let qpaths      = splitRevQualifiers name
+                          candidates2 = filter (\(n,_) -> matchRevQualifierPaths qpaths (splitRevQualifiers n)) candidates1
+                      in -- trace ("gamma lookup matched: " ++ show name ++ ": " ++ show (map fst candidates2)) $
+                          candidates2
 
 -- Given a user qualified name, see if the qualifiers match a resolved name.
 -- The user qualified name has already been de-aliased in kind inference (see `Kind/ImportMap/importsExpand`)
@@ -228,7 +229,11 @@ gammaLookup name (Gamma gamma)
 -- ambiguities may occur, where `std/num/float32/foo` should match both `std/num/#float32/foo` and `std/num/float32/#foo`
 matchQualifiers :: Name -> Name -> Bool
 matchQualifiers uname name
-  = matchPaths (splitRevQualifiers uname) (splitRevQualifiers name)
+  = matchRevQualifierPaths (splitRevQualifiers uname) (splitRevQualifiers name)
+
+matchRevQualifierPaths :: ([String],[String]) -> ([String],[String]) -> Bool
+matchRevQualifierPaths upaths paths
+  = matchPaths upaths paths
   where
     -- not qualified
     matchPaths ([],[]) (mpath,lpath)
@@ -249,6 +254,7 @@ matchQualifiers uname name
       = case umpath of
           [] -> ulpath `isPrefixOf` lpath
           _  -> ulpath == lpath && umpath `isPrefixOf` mpath
+
 
 -- Split out the module and local qualifier as a _reverse_ list of components
 -- e.g. `std/core/#int/show` -> (["core","std"],["int"])
