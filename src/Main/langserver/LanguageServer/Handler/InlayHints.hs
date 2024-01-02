@@ -74,11 +74,12 @@ toInlayHint opts env modName (rng, rngInfo) = do
           _ -> False
   if shouldShow then
     let info = formatInfo opts env modName rng rngInfo in
-    map (\(rng, str, kind) ->
+    mapMaybe (\(rng, str, kind) ->
         let rngEnd = rangeEnd rng in
         let position = toLspPos rngEnd{posColumn = posColumn rngEnd + 1} in
         let text = T.pack str in
-        J.InlayHint position (J.InL text) (Just kind) (Just [J.TextEdit (J.Range position position) text]) Nothing (Just True) (Just True) Nothing
+        if T.null text then Nothing else
+          Just $ J.InlayHint position (J.InL text) (Just kind) (Just [J.TextEdit (J.Range position position) text]) Nothing (Just True) (Just True) Nothing
     ) info
   else []
 

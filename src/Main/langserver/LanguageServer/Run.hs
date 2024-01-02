@@ -80,7 +80,7 @@ runLanguageServer flags files = do
               defaultOptions
                 { optTextDocumentSync = Just syncOptions,
                   optExecuteCommandCommands = Just [T.pack "koka/compile", T.pack "koka/compileFunction"],
-                  optCompletionTriggerCharacters = Just ['.', ':', '/']
+                  optCompletionTriggerCharacters = Just ['.', ':', '/', ' ']
                 -- TODO: ? https://www.stackage.org/haddock/lts-18.21/lsp-1.2.0.0/src/Language.LSP.Server.Core.html#Options
                 }
           })
