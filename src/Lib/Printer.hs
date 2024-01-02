@@ -489,10 +489,10 @@ addHtml (HtmlTextPrinter stringVar) s = do
   putVar stringVar (old <> s)
 
 instance Printer HtmlTextPrinter where
-  write p s             = addHtml p $ T.pack $ htmlEscape s
+  write p s             = addHtml p $ T.pack $ {- htmlEscape -}s
   writeText p s         = addHtml p s
-  writeLn p s           = addHtml p $ T.pack $ (htmlEscape s ++ "  \n")
-  writeTextLn p s       = addHtml p (s <> T.pack "  \n")
+  writeLn p s           = addHtml p $ T.pack $ (htmlEscape s ++ "<br>")
+  writeTextLn p s       = addHtml p (s <> T.pack "<br>")
   flush p               = return ()
   withColor p c io      = htmlTextSpan p (T.pack "color") (htmlColor2 c) io
   withBackColor p c io  = htmlTextSpan p (T.pack "background-color") (htmlColor2 c) io
@@ -561,4 +561,5 @@ htmlEscape s
           '>' -> "&gt;"
           '"' -> "&quot;"
           '\'' -> "&apos;"
+          '_'  -> "&#95;"
           _   -> [c]

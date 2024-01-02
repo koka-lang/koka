@@ -32,6 +32,7 @@ fun list/set( ?eq : (a,a) -> bool ) : set<list,a>
 fun two( x : a, y : a, ??set : set<s,a> ) : s<a>
   union( single(x), single(x) )
 
+// test an `:int`.
 fun inttest(??set)
   two(1,2).elements.show-list(show)
 

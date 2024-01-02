@@ -80,7 +80,7 @@ module Type.InferMonad( Inf, InfGamma
 
                       ) where
 
-import Data.List( partition, sortBy, nub, nubBy)
+import Data.List( partition, sortBy, nub, nubBy, intersperse)
 import Data.Ord(comparing)
 import Control.Applicative
 import Control.Monad
@@ -1084,7 +1084,9 @@ lookupImplicitNames recurseDepth infoFilter name ctx range
 toImplicitAppExpr :: Pretty.Env -> String -> Name -> Range -> (Name,NameInfo,Rho,[(Name,ImplicitExpr)]) -> ImplicitExpr
 toImplicitAppExpr penv prefix name range (iname,info,itp,iargs)
       = let isLocal = not (isQualified iname)
-            docName = text prefix <.> Pretty.ppName penv name <+> text "=" <+> Pretty.ppName penv iname
+            withColor clr doc = color (clr (Pretty.colors penv)) doc
+            docName = withColor colorImplicitParameter (text prefix <.> Pretty.ppNamePlain penv name <.> text "=")
+                      <.> withColor colorImplicitExpr (Pretty.ppNamePlain penv iname)
             -- coreVar = coreExprFromNameInfo iname info
        in case iargs of
             [] -> ImplicitExpr docName itp (Var iname False range) 1 (if isLocal then [iname] else [])
@@ -1118,7 +1120,9 @@ toImplicitAppExpr penv prefix name range (iname,info,itp,iargs)
                               localRoots    = if null iargs && isLocal
                                                 then [iname]
                                                 else nub (concatMap (ieLocalRoots . snd) iargs)
-                              doc           = docName <.> tupled ([text "_" | _ <- fixed] ++ [ieDoc iexpr | (_,iexpr) <- iargs])
+                              doc           = docName <.> withColor colorImplicitExpr (
+                                                            parens (hcat (intersperse comma ([text "_" | _ <- fixed] ++ [ieDoc iexpr | (_,iexpr) <- iargs])))
+                                                          )
                           in ImplicitExpr doc etaTp eta depth localRoots
                     _ -> failure ("Type.InferMonad.lookupImplicitNames: illegal type for implicit? " ++ show range ++ ", " ++ show (ppNameType penv (name,itp)))
 

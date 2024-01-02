@@ -321,7 +321,7 @@ data SimpleDoc  = SEmpty
 makeMarkdown :: Doc -> Doc
 makeMarkdown doc =
   case doc of
-    Line True -> Cat (Text "  ") (Line True)
+    Line True -> Text "\n\n" -- Cat (Text "  ") (Line True)
     Column f -> Column (makeMarkdown . f)
     Nesting f -> Nesting (makeMarkdown . f)
     Cat l r -> Cat (makeMarkdown l) (makeMarkdown r)

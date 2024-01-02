@@ -38,7 +38,7 @@ import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindAt)
 import LanguageServer.Conversions (fromLspPos, toLspRange)
 import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getHtmlPrinter, getFlags)
 import Debug.Trace (trace)
-import Lib.PPrint (makeMarkdown)
+import Lib.PPrint (makeMarkdown, displayS, renderCompact)
 import Lib.PPrint (stringStripComments)
 
 -- Handles hover requests
@@ -69,12 +69,15 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
             flags <- getFlags
             let env = (prettyEnvFromFlags flags){ context = mName, importsMap = imports }
                 colors = colorSchemeFromFlags flags
-            x <- liftIO $ print $ makeMarkdown (formatRangeInfoHover loaded env colors rinfo)
-            let hc = J.InL $ J.mkMarkdown x
+            markdown <- liftIO $ print $ -- makeMarkdown $
+                        (formatRangeInfoHover loaded env colors rinfo)
+            let md = J.mkMarkdown markdown
+                hc = J.InL md
                 rsp = J.Hover hc $ Just $ toLspRange r
+            -- trace ("hover: " ++ show markdown) $
             responder $ Right $ J.InL rsp
     Nothing
-      -> trace "no hover info" $
+      -> -- trace "no hover info" $
          responder $ Right $ J.InR J.Null
 
 
@@ -106,13 +109,14 @@ formatRangeInfoHover mbLoaded env colors rinfo =
                                                       _     -> empty
                                     _ -> empty)
                       NIKind -> text "kind"
-        header = case info of
-                    NIValue tp ""  _ -> signature
-                    NIValue tp doc _ -> color Green (stringStripComments doc) <-> signature
-                    NICon tp ""      -> signature
-                    NICon tp doc     -> color Green (stringStripComments doc) <-> signature
-                    _                -> signature
-    in if null docs then header else vcat (header:docs)
+        comment = case info of
+                    NIValue tp ""  _ -> empty
+                    NIValue tp doc _ -> hline <.> stringStripComments doc
+                    NICon tp ""      -> empty
+                    NICon tp doc     -> hline <.> stringStripComments doc
+                    _                -> empty
+    in asKokaCode (if null docs then signature else (signature <.> text "  " <-> color Gray (vcat docs)))
+       <.> comment
 
   Decl s name mname -> text s <+> text " " <+> pretty name
   Block s -> text s
@@ -120,4 +124,7 @@ formatRangeInfoHover mbLoaded env colors rinfo =
   Warning doc -> text "Warning: " <+> doc
   Implicits implicits -> text "Implicits: " <+> text (show implicits)
 
+asKokaCode :: Doc -> Doc
+asKokaCode doc = text ("```koka\n" ++ displayS (renderCompact doc) "" ++ "\n```")
 
+hline = text "\n* * *\n"

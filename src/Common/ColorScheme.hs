@@ -29,7 +29,7 @@ import Lib.Printer
 -- | Color scheme for the interpreter
 data ColorScheme  = ColorScheme
                       { colorType    :: Color
-                      , colorParameter   :: Color
+                      , colorParameter :: Color
                       , colorKind    :: Color
                       , colorMarker  :: Color
                       , colorWarning :: Color
@@ -57,6 +57,8 @@ data ColorScheme  = ColorScheme
                       , colorTypeSpecial :: Color
                       , colorTypeParam  :: Color
                       , colorNameQual   :: Color
+                      , colorImplicitParameter  :: Color
+                      , colorImplicitExpr       :: Color
                       } deriving (Show, Eq)
 
 -- | The default color scheme
@@ -64,12 +66,12 @@ defaultColorScheme, darkColorScheme, lightColorScheme :: ColorScheme
 defaultColorScheme
   = darkColorScheme
 
-darkColorScheme  
+darkColorScheme
   = let c = emptyColorScheme{ colorInterpreter = DarkRed
                             , colorCommand     = Red
                             , colorError       = Red
                             , colorComment     = DarkGreen
-                            , colorReserved    = DarkYellow  
+                            , colorReserved    = DarkYellow
                             -- , colorReservedOp  = DarkYellow
                             , colorCons        = DarkGreen
                             , colorModule      = DarkCyan
@@ -90,9 +92,11 @@ darkColorScheme
                             , colorTypeKeyword = Cyan -- colorReserved c
                             , colorTypeKeywordOp = colorType c -- colorReservedOp c
                             , colorTypeParam   = colorParameter c
+                            , colorImplicitParameter = Gray
+                            , colorImplicitExpr      = colorSource c
                             }
     in defaultTo c White
-  
+
 lightColorScheme
   = let c = darkColorScheme {
                 colorNumber      = DarkGray
@@ -104,16 +108,16 @@ lightColorScheme
               , colorNameQual    = DarkGray
               , colorRange       = colorInterpreter c
               , colorMarker      = colorInterpreter c
-              , colorString      = Red           
+              , colorString      = Red
             }
-    in defaultTo c Black   
+    in defaultTo c Black
 
 defaultColor :: Color -> Color -> Color
 defaultColor color clr
   = if (clr == ColorDefault) then color else clr
 
 defaultTo :: ColorScheme -> Color -> ColorScheme
-defaultTo cs color = 
+defaultTo cs color =
   cs{  colorType = defaultColor color $ colorType cs
     , colorParameter = defaultColor color $ colorParameter cs
     , colorKind = defaultColor color $ colorKind cs
@@ -143,6 +147,8 @@ defaultTo cs color =
     , colorTypeSpecial = defaultColor color $ colorTypeSpecial cs
     , colorTypeParam = defaultColor color $ colorTypeParam cs
     , colorNameQual = defaultColor color $ colorNameQual cs
+    , colorImplicitParameter = defaultColor color $ colorImplicitParameter cs
+    , colorImplicitExpr = defaultColor color $ colorImplicitExpr cs
     }
 
 emptyColorScheme
@@ -155,7 +161,7 @@ makeColorScheme clr
                  clr clr clr clr
                  clr clr clr clr
                  clr clr clr clr
-                 clr clr clr
+                 clr clr clr clr clr
 
 {--------------------------------------------------------------------------
   Read colors
@@ -179,7 +185,7 @@ readColorFlag :: String -> ColorScheme -> ColorScheme
 readColorFlag s scheme
   = let (name,xs) = span (\c -> c /= '=' && c /= ':') s
     in case xs of
-         (c:clr) | c=='=' || c==':' 
+         (c:clr) | c=='=' || c==':'
                    -> case (readUpdate name, readColor clr) of
                         (Just update,Just color) -> update color scheme
                         _                        -> scheme
@@ -189,12 +195,12 @@ readColorFlag s scheme
 
 readUpdate :: String -> Maybe (Color -> ColorScheme -> ColorScheme)
 readUpdate s
-  = lookup (norm s) updaters 
+  = lookup (norm s) updaters
 
 
 readColor :: String -> Maybe Color
 readColor s
-  = lookup (norm s) colors 
+  = lookup (norm s) colors
 
 
 norm :: String -> String
@@ -205,7 +211,7 @@ norm s
 
 {--------------------------------------------------------------------------
   Tables
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 updaters  = [("type", \color scheme -> scheme{ colorType = color, colorTypeCon = color, colorTypeVar = color, colorTypeKeyword = color, colorEffect = color })
             ,("kind", \color scheme -> scheme{ colorKind = color })
             ,("marker", \color scheme -> scheme{ colorMarker = color })
@@ -233,10 +239,12 @@ updaters  = [("type", \color scheme -> scheme{ colorType = color, colorTypeCon =
             ,("constructor",\color scheme -> scheme{ colorCons = color })
             ,("none",\color scheme -> makeColorScheme color)
             ,("all",\color scheme -> makeColorScheme color)
+            ,("implicitparameter",\color scheme -> scheme{ colorImplicitParameter = color})
+            ,("implicitexpr",\color scheme -> scheme{ colorImplicitExpr = color})
             ]
 
 colors  = [("black",Black)
-          ,("darkred",DarkRed) 
+          ,("darkred",DarkRed)
           ,("darkgreen",DarkGreen)
           ,("darkyellow",DarkYellow)
           ,("darkblue",DarkBlue)

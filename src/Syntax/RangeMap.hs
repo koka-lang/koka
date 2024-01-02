@@ -204,7 +204,8 @@ rangeMapFindAt lexemes pos (RM rm)
                     dropWhile (\(rng,_) -> rangeStart rng < lexStart) rm
     in  {- trace ("range map find at: " ++ show pos ++ "\n"
                ++ "start pos: " ++ show lexStart ++ "\n"
-               ++ "rinfos: " ++ show rinfos
+               ++ "rinfos: " ++ show rinfos ++ "\n"
+               ++ "prioritized: " ++ show (prioritize rinfos)
                -- ++ unlines (map show lexemes)
                -- ++ unlines (map show rm)
              ) $ -}

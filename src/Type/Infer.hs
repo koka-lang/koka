@@ -1921,7 +1921,7 @@ inferArgsN ctx range parArgs
                                                     return (gtp,ceff,garg)
                                     subsumeArg res
                             ArgImplicit name rng nameRng
-                              -> do (argExpr,termDoc) <- resolveImplicitName name tpar0 rng
+                              -> do (argExpr,termDoc) <- resolveImplicitName name tpar0 (endOfRange rng)
                                     addRangeInfo nameRng (RM.Implicits termDoc)
                                     withHiddenTermDoc rng termDoc $
                                       do res <- inferArgExpr tpar0 argExpr

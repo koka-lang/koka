@@ -15,7 +15,7 @@ module Type.Pretty (-- * Pretty
                    ,niceList, niceTypes, niceType, niceEnv
                    ,typeColon, niceTypeVars, ppName, ppParam
                    , canonical, minCanonical
-                   , prettyComment, prettyRange
+                   , prettyComment, prettyRange, ppNamePlain
                    ) where
 
 
@@ -366,7 +366,7 @@ ppType env tp
       TVar tv       -> ppTypeVar env tv
       TCon cv       -> --if (typeConName cv == nameEffectEmpty && not (coreIface env))
                        --
-                       --  then ppNameEx env nameTpTotal
+                       --  then ppNamePlain env nameTpTotal
                       --  else
                         ppTypeCon env cv
       TApp (TCon con) [_,_] | typeConName con == nameEffectExtend
@@ -376,7 +376,7 @@ ppType env tp
                                       else text "|" <.> ppType env{prec=precTop} tl
                        in color (colorEffect (colors env)) $
                           case ls of
-                            --[]  | tl == effectEmpty && not (coreIface env) -> ppNameEx env nameTpTotal
+                            --[]  | tl == effectEmpty && not (coreIface env) -> ppNamePlain env nameTpTotal
                             [l] | tl == effectEmpty && not (coreIface env) -> ppType env{prec=precAtom} l
                             _   -> text "<" <.> hcat (punctuate comma (map (ppType env{prec=precTop}) ls)) <.> tldoc <.> text ">"
 
@@ -416,27 +416,28 @@ ppParam :: Env -> (Name,Type) -> Doc
 ppParam env (name,tp)
   = (if (nameIsNil name || isFieldName name || isWildcard name)
       then empty
-      else color (colorParameter (colors env)) (ppNameEx env (unqualify name)) <.> text " : ")
+      else color (colorParameter (colors env)) (ppNamePlain env (unqualify name)) <.> text " : ")
     <.> ppType env tp
 
 
 ppName :: Env -> Name -> Doc
 ppName env name
-  = color (colorSource (colors env)) $ ppNameEx env name
+  = color (colorSource (colors env)) $
+    ppNamePlain env name
 
 ppTypeName :: Env -> Name -> Doc
 ppTypeName env name
-  = color (colorType (colors env)) $ ppNameEx env name
+  = color (colorType (colors env)) $ ppNamePlain env name
 
-ppNameEx env name | isImplicitParamName name
+ppNamePlain env name | isImplicitParamName name
   = text "?" <.>
     let (xname,ename) = splitImplicitParamName name
         iname = plainImplicitParamName xname
     in if (iname == ename)
-        then ppNameEx env iname
-        else ppNameEx env iname <.> text "=" <.> ppNameEx env ename
+        then ppNamePlain env iname
+        else ppNamePlain env iname <.> text "=" <.> ppNamePlain env ename
 
-ppNameEx env name
+ppNamePlain env name
   = if (fullNames env)
      then prettyName (colors env) name
      else if (context env == qualifier name ||
@@ -489,12 +490,12 @@ ppTypeCon env (TypeCon name kind)
     = colorByKindDef env kind colorTypeCon $
       --(if name == nameEffectEmpty then id else)
       (wrapKind (showKinds env) env kind) $
-      if name == nameTpUnit then text "()" else ppNameEx env name
+      if name == nameTpUnit then text "()" else ppNamePlain env name
 
 ppTypeSyn :: Env -> TypeSyn -> Doc
 ppTypeSyn env (TypeSyn name kind rank _)
     = colorByKindDef env kind colorTypeCon $
-      wrapKind (showKinds env) env kind (ppNameEx env name)
+      wrapKind (showKinds env) env kind (ppNamePlain env name)
 
 
 colorByKindDef env kind defcolor doc
