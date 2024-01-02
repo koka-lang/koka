@@ -14,7 +14,7 @@ fun list/showx( xs : list<a>, ?showx : a -> string ) : string
   "[" ++ xs.map(showx).join(",") ++ "]"
 
 fun chars/showx( cs : list<char>, ?showx : char -> string ) : string
-  "\"" ++ cs.map(showx).join ++ "\""
+  "\"" ++ cs.map(implicit/showx).join ++ "\""
 
 fun test1()
   [1,2].showx
