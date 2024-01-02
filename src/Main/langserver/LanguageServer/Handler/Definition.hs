@@ -28,10 +28,10 @@ import Kind.Newtypes (dataInfoRange, newtypesLookupAny)
 import Kind.Synonym (synInfoRange, synonymsLookup)
 import Type.Assumption (gammaLookupCanonical, gammaLookupQ, infoRange)
 import Syntax.RangeMap (RangeInfo (..), rangeMapFindAt, NameInfo (..))
-import Compiler.Module (Loaded (..), loadedModule, modRangeMap, modName, modSourcePath)
+import Compiler.Module (Loaded (..), loadedModule, modRangeMap, modName, modSourcePath, modLexemes)
 import LanguageServer.Conversions (fromLspPos, toLspLocation, toLspLocationLink)
-import LanguageServer.Monad (LSM, getLoaded)
-import Lib.Trace(trace)
+import LanguageServer.Monad (LSM, getLoaded, getLoadedModule)
+import Debug.Trace(trace)
 
 -- Finds the definitions of the element under the cursor.
 definitionHandler :: Handlers LSM
@@ -39,15 +39,18 @@ definitionHandler = requestHandler J.SMethod_TextDocumentDefinition $ \req respo
   let J.DefinitionParams doc pos _ _ = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
-  loaded <- getLoaded normUri
+  mbMod  <- getLoadedModule normUri
+  mbLoaded <- getLoaded normUri
   pos <- liftIO $ fromLspPos normUri pos
-  let defs = do -- maybe monad
-        l <- maybeToList loaded
-        rmap <- maybeToList $ modRangeMap $ loadedModule l
-        let rm = rangeMapFindAt pos rmap
-        case rangeMapBestDefinition rm of
+  let defs = concat $ maybeToList $ do -- maybe monad
+        l    <- mbLoaded
+        mod  <- mbMod
+        rmap <- modRangeMap $ loadedModule l
+        (r,info) <- rangeMapFindAt (modLexemes mod) pos rmap
+        {-case rangeMapBestDefinition rm of
           Just (r, rinfo) -> findDefinitions l rinfo
-          Nothing -> []
+          Nothing -> []-}
+        return (findDefinitions l info)
   responder $ Right $ J.InR $ J.InL defs
 
 -- Get best rangemap info for a given position
@@ -77,8 +80,9 @@ findDefinitions loaded rinfo
       Id qname idInfo docs _
         -> -- trace ("find definition of id: " ++ show qname) $
            let ranges = case idInfo of
-                          NIValue{}   -> map infoRange $ gammaLookupCanonical qname gamma
-                          NICon{}     -> map conInfoRange $ maybeToList $ constructorsLookup qname constrs
+                          NIValue{}   -> map infoRange $ gammaLookupQ qname gamma
+                          NICon{}     -> -- trace ("lookup con: " ++ show qname) $
+                                         map infoRange $ gammaLookupQ qname gamma
                           NITypeCon _ -> (map synInfoRange $ maybeToList $ synonymsLookup qname synonyms)
                                         ++
                                         (map dataInfoRange $ maybeToList $ newtypesLookupAny qname newtypes)

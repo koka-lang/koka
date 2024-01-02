@@ -32,10 +32,10 @@ import Common.Syntax
 import Syntax.Syntax
 
 fixityResolve :: ColorScheme -> Fixities -> UserProgram -> Error b (UserProgram,Fixities)
-fixityResolve cscheme fixMap (Program source modName nameRange tdgroups defs importdefs externals fixdefs doc)
+fixityResolve cscheme fixMap (Program source lexemes modName nameRange tdgroups defs importdefs externals fixdefs doc)
   = let fixMap1 = fixitiesCompose fixMap (extractFixMap fixdefs)
     in  do defs1 <- runFixM fixMap1 (resolveDefs defs)
-           return (Program source modName nameRange tdgroups defs1 importdefs externals fixdefs doc,fixMap1)
+           return (Program source lexemes modName nameRange tdgroups defs1 importdefs externals fixdefs doc,fixMap1)
 
 extractFixMap :: [FixDef] -> Fixities
 extractFixMap fixDefs
@@ -120,7 +120,7 @@ isJust Nothing  = False
 resolveBranch (Branch pattern guards)
   = do guards' <- mapM resolveGuard guards
        return (Branch pattern guards')
-  
+
 resolveGuard (Guard test expr)
   = do test' <- resolveExpr test
        expr' <- resolveExpr expr

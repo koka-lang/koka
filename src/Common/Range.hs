@@ -21,7 +21,7 @@ module Common.Range
           , rangeSource
           , sourceNull
           , bigLine
-          , after
+          , after, rangeContains, rangeIsBefore, rangeStartsAt
           , endOfRange
           , showRange, showCompactRange
           , BString, bstringToString, bstringToText, stringToBString
@@ -331,6 +331,18 @@ extendRange (Range start end) ofs
 endOfRange :: Range -> Range
 endOfRange range@(Range p1@(Pos _ ofs1 l1 c1) p2@(Pos src ofs2 l2 c2))
   = if (ofs2 - ofs1) <= 1 then range else Range (Pos src (ofs2-1) l2 (c2-1)) p2
+
+
+rangeContains, rangeIsBefore, rangeStartsAt :: Range -> Pos -> Bool
+rangeContains (Range p1 p2) pos
+  = (p1 <= pos && p2 >= pos)
+
+rangeIsBefore rng pos
+  = rangeEnd rng < pos
+
+rangeStartsAt rng pos
+  = rangeStart rng == pos
+
 
 {--------------------------------------------------------------------------
   Ranged class

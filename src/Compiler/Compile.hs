@@ -350,8 +350,8 @@ compileProgramFromFile maybeContents contents term flags modules compileTarget i
        exist <- liftIO $ doesFileExist fname
        if (exist) then return () else liftError $ errorMsg (errorFileNotFound flags fname)
        program <- lift $ case contents of
-                           Just x -> return $ parseProgramFromString False {-allow @ in identifiers-} (semiInsert flags) x fname
-                           _      -> parseProgramFromFile False {-allow @ in identifiers-} (semiInsert flags) fname
+                          Just x -> return $ parseProgramFromString False {-allow @ in identifiers-} (semiInsert flags) x fname
+                          _      -> parseProgramFromFile False {-allow @ in identifiers-} (semiInsert flags) fname
        let isSuffix = -- asciiEncode True (noexts stem) `endsWith` asciiEncode True (show (programName program))
                       -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
                       show (pathToModuleName (noexts stem)) `endsWith` show (programName program)
@@ -1029,7 +1029,7 @@ inferCheck loaded0 flags line coreImports program
                                 , loadedUnique = uniqueFinal
                                 , loadedModule = (loadedModule loaded){
                                                     modCore     = coreProgramFinal,
-                                                    modRangeMap = mbRangeMap,
+                                                    modRangeMap = fmap rangeMapSort mbRangeMap,
                                                     modInlines  = Right allInlineDefs
                                                   }
                                 , loadedInlines = inlinesExtends allInlineDefs (loadedInlines loaded)

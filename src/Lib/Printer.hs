@@ -16,7 +16,7 @@ module Lib.Printer(
       -- * Printer
       , Printer( write, writeText, writeLn, writeTextLn, flush,
                   withColor, withBackColor, withReverse, withUnderline
-                --  ,setColor, setBackColor, setReverse, setUnderline 
+                --  ,setColor, setBackColor, setReverse, setUnderline
                 )
       -- * Printers
     , MonoPrinter, withMonoPrinter
@@ -352,7 +352,7 @@ ansiColor c
 {--------------------------------------------------------------------------
   Color console code
 --------------------------------------------------------------------------}
--- | A color printer supports colored output 
+-- | A color printer supports colored output
 data ColorPrinter = PCon  ConsolePrinter
                   | PAnsi AnsiPrinter
                   | PAnsiString AnsiStringPrinter
@@ -374,13 +374,13 @@ withHtmlColorPrinter :: (ColorPrinter -> IO b) -> IO b
 withHtmlColorPrinter f
   = withHtmlPrinter (f. PHTML)
 
--- | Disable the color output of a color printer. 
+-- | Disable the color output of a color printer.
 -- This can be useful if one wants to avoid overloading.
 withNoColorPrinter :: (ColorPrinter -> IO b) -> IO b
 withNoColorPrinter f
   = withMonoPrinter (\p -> f (PMono p))
 
--- | Disable the color output of a color printer. 
+-- | Disable the color output of a color printer.
 -- This can be useful if one wants to avoid overloading.
 withFileNoColorPrinter :: FilePath -> (ColorPrinter -> IO b) -> IO b
 withFileNoColorPrinter fname f
@@ -491,8 +491,8 @@ addHtml (HtmlTextPrinter stringVar) s = do
 instance Printer HtmlTextPrinter where
   write p s             = addHtml p $ T.pack $ htmlEscape s
   writeText p s         = addHtml p s
-  writeLn p s           = addHtml p $ T.pack $ htmlEscape (s ++ "  \n")
-  writeTextLn p s       = addHtml p (s <> T.pack "  \n>")
+  writeLn p s           = addHtml p $ T.pack $ (htmlEscape s ++ "  \n")
+  writeTextLn p s       = addHtml p (s <> T.pack "  \n")
   flush p               = return ()
   withColor p c io      = htmlTextSpan p (T.pack "color") (htmlColor2 c) io
   withBackColor p c io  = htmlTextSpan p (T.pack "background-color") (htmlColor2 c) io
@@ -517,12 +517,12 @@ htmlSpan prop val io
 
 htmlTextSpan :: HtmlTextPrinter -> T.Text -> T.Text -> IO a -> IO a
 htmlTextSpan p prop val io
-  = do 
+  = do
     addHtml p (T.pack "<span style='" <> prop <> T.pack ":" <> val <> T.pack ";'>")
     x <- io
     addHtml p (T.pack "</span>")
     return x
-  
+
 htmlColor :: Color -> T.Text
 htmlColor c
   = case c of

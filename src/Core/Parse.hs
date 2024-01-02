@@ -46,8 +46,10 @@ type ParseInlines = Gamma -> Error () [InlineDef]
 parseCore :: FilePath -> FilePath -> IO (Error b (Core, ParseInlines))
 parseCore fname sourceName
   = do input <- readInput fname
-       return $ ignoreSyntaxWarnings $
-        lexParse True {-allow @-} False  {- no semi-colon insertion -} id (program sourceName) fname 1 input
+       return $
+          -- Error monad
+          do ((res,warn),lexemes) <- lexParse True {-allow @-} False  {- no semi-colon insertion -} id (program sourceName) fname 1 input
+             return res
 
 
 parseInlines :: Core -> Source -> Env -> [Lexeme] -> ParseInlines

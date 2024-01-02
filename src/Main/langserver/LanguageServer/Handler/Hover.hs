@@ -22,11 +22,12 @@ import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.Server (Handlers, sendNotification, requestHandler)
+
 import Common.Range as R
 import Common.Name (nameNil)
 import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
-import Lib.PPrint (Pretty (..), Doc, string, (<+>), (<-->),color, Color (..), (<.>), (<->), text, empty)
-import Compiler.Module (loadedModule, modRangeMap, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
+import Lib.PPrint (Pretty (..), Doc, string, (<+>), (<-->),color, Color (..), (<.>), (<->), text, empty, vcat)
+import Compiler.Module (loadedModule, modRangeMap, modLexemes, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)
 import Kind.Pretty (prettyKind)
@@ -50,25 +51,33 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
   loaded <- getLoaded normUri
   pos <- liftIO $ fromLspPos normUri pos
   let res = do -- maybe monad
-        mod <- loadedMod
-        l <- loaded
+        mod  <- loadedMod
+        l    <- loaded
         rmap <- modRangeMap mod
         -- Find the range info at the given position
-        let rm = rangeMapFindAt pos rmap
+        {- let rm = rangeMapFindAt (modLexemes mod) pos rmap
         (r, rinfo) <- rangeMapBestHover rm
+        -}
+        (r,rinfo) <- -- trace ("hover lookup in rangemap") $
+                     rangeMapFindAt (modLexemes mod) pos rmap
         return (modName mod, loadedImportMap l, r, rinfo)
   case res of
-    Just (mName, imports, r, rinfo) -> do
-      -- Get the html-printer and flags
-      print <- getHtmlPrinter
-      flags <- getFlags
-      let env = (prettyEnvFromFlags flags){ context = mName, importsMap = imports }
-          colors = colorSchemeFromFlags flags
-      x <- liftIO $ print $ makeMarkdown (formatRangeInfoHover loaded env colors rinfo)
-      let hc = J.InL $ J.mkMarkdown x
-          rsp = J.Hover hc $ Just $ toLspRange r
-      responder $ Right $ J.InL rsp
-    Nothing -> responder $ Right $ J.InR J.Null
+    Just (mName, imports, r, rinfo)
+      -> -- trace ("hover found " ++ show rinfo) $
+         do -- Get the html-printer and flags
+            print <- getHtmlPrinter
+            flags <- getFlags
+            let env = (prettyEnvFromFlags flags){ context = mName, importsMap = imports }
+                colors = colorSchemeFromFlags flags
+            x <- liftIO $ print $ makeMarkdown (formatRangeInfoHover loaded env colors rinfo)
+            let hc = J.InL $ J.mkMarkdown x
+                rsp = J.Hover hc $ Just $ toLspRange r
+            responder $ Right $ J.InL rsp
+    Nothing
+      -> trace "no hover info" $
+         responder $ Right $ J.InR J.Null
+
+
 
 -- Get best rangemap info for a given position
 rangeMapBestHover rm =
@@ -94,27 +103,29 @@ formatRangeInfoHover :: (Maybe Loaded) -> Env -> ColorScheme -> RangeInfo -> Doc
 formatRangeInfoHover mbLoaded env colors rinfo =
   case rinfo of
   Id qname info docs isdef ->
-    let signature = ppName env qname <+> text " : " <+> case info of
-          NIValue tp "" _ -> ppScheme env tp
-          NIValue tp doc _ -> ppScheme env tp
-          NICon tp "" ->  ppScheme env tp
-          NICon tp doc ->  ppScheme env tp
-          NITypeCon k -> prettyKind colors k
-          NITypeVar k -> prettyKind colors k
-          NIModule -> text "module" <.>
-                      (case mbLoaded of
-                         Just loaded -> case filter (\mod -> modName mod == qname) (loadedModules loaded) of
-                                          [mod] | not (null (modSourcePath mod)) -> text (" (" ++ modSourcePath mod ++ ")")
-                                          _     -> empty
-                         _ -> empty)
+    let signature = ppName env qname <+> text ":"
+                    <+> case info of
+                      NIValue tp "" _ -> ppScheme env tp
+                      NIValue tp doc _ -> ppScheme env tp
+                      NICon tp "" ->  ppScheme env tp
+                      NICon tp doc ->  ppScheme env tp
+                      NITypeCon k -> prettyKind colors k
+                      NITypeVar k -> prettyKind colors k
+                      NIModule -> text "module" <.>
+                                  (case mbLoaded of
+                                    Just loaded -> case filter (\mod -> modName mod == qname) (loadedModules loaded) of
+                                                      [mod] | not (null (modSourcePath mod)) -> text (" (" ++ modSourcePath mod ++ ")")
+                                                      _     -> empty
+                                    _ -> empty)
+                      NIKind -> text "kind"
+        header = case info of
+                    NIValue tp ""  _ -> signature
+                    NIValue tp doc _ -> color Green (stringStripComments doc) <-> signature
+                    NICon tp ""      -> signature
+                    NICon tp doc     -> color Green (stringStripComments doc) <-> signature
+                    _                -> signature
+    in if null docs then header else vcat (header:docs)
 
-          NIKind -> text "kind" in
-    case info of
-      NIValue tp "" _ -> text "" <.> signature
-      NIValue tp doc _ -> color Green (stringStripComments doc) <--> signature
-      NICon tp "" ->  text "" <.> signature
-      NICon tp doc ->  color Green (stringStripComments doc) <--> signature
-      _ -> text "" <.> signature
   Decl s name mname -> text s <+> text " " <+> pretty name
   Block s -> text s
   Error doc -> text "Error: " <+> doc

@@ -20,7 +20,7 @@ module Syntax.RangeMap( RangeMap, RangeInfo(..), NameInfo(..)
                       , mangleTypeName
                       ) where
 
-import Lib.Trace
+import Debug.Trace(trace)
 import Data.Char    ( isSpace )
 import Common.Failure
 import Data.List    (sortBy, groupBy, minimumBy, foldl')
@@ -34,6 +34,7 @@ import Kind.Kind
 import Type.TypeVar
 import Type.Pretty()
 import Data.Maybe (fromMaybe)
+import Syntax.Lexeme
 
 newtype RangeMap = RM [(Range,RangeInfo)]
   deriving Show
@@ -154,6 +155,29 @@ rangeMapSort :: RangeMap -> RangeMap
 rangeMapSort (RM rm)
   = RM (sortBy (\(r1,_) (r2,_) -> compare r1 r2) rm)
 
+-- | select the best matching range infos from a selection
+prioritize :: [(Range,RangeInfo)] -> [(Range,RangeInfo)]
+prioritize rinfos
+  = let idocs = concatMap (\(_,rinfo) -> case rinfo of
+                                            Implicits doc -> [doc]
+                                            _             -> []) rinfos
+    in map (mergeDocs idocs) $
+        map last $
+        groupBy eq $
+        sortBy cmp $
+        filter (not . isImplicits . snd) rinfos
+  where
+    isImplicits (Implicits _) = True
+    isImplicits _             = False
+
+    eq (_,ri1) (_,ri2)  = (EQ == compare ((fromEnum ri1) `div` 10) ((fromEnum ri2) `div` 10))
+    cmp (_,ri1) (_,ri2) = compare (fromEnum ri1) (fromEnum ri2)
+
+    -- merge implicit documentation into identifiers
+    mergeDocs ds (rng, Id name info docs isDef) = (rng, Id name info (docs ++ ds) isDef)
+    mergeDocs ds x = x
+
+
 rangeMapLookup :: Range -> RangeMap -> ([(Range,RangeInfo)],RangeMap)
 rangeMapLookup r (RM rm)
   = let (rinfos,rm') = span startsAt (dropWhile isBefore rm)
@@ -164,23 +188,7 @@ rangeMapLookup r (RM rm)
     isBefore (rng,_)  = rangeStart rng < pos
     startsAt (rng,_)  = rangeStart rng == pos
 
-    prioritize rinfos
-      = let idocs = concatMap (\(_,rinfo) -> case rinfo of
-                                               Implicits doc -> [doc]
-                                               _             -> []) rinfos
-        in map (mergeDocs idocs) $
-           map last $ groupBy eq $ sortBy cmp $
-           filter (not . isImplicits . snd) rinfos
-      where
-        isImplicits (Implicits _) = True
-        isImplicits _             = False
 
-        eq (_,ri1) (_,ri2)  = (EQ == compare ((fromEnum ri1) `div` 10) ((fromEnum ri2) `div` 10))
-        cmp (_,ri1) (_,ri2) = compare (fromEnum ri1) (fromEnum ri2)
-
-        -- merge implicit documentation into identifiers
-        mergeDocs ds (rng, Id name info docs isDef) = (rng, Id name info (docs ++ ds) isDef)
-        mergeDocs ds x = x
 
 rangeMapFindIn :: Range -> RangeMap -> [(Range, RangeInfo)]
 rangeMapFindIn rng (RM rm)
@@ -188,14 +196,34 @@ rangeMapFindIn rng (RM rm)
     where start = rangeStart rng
           end = rangeEnd rng
 
-rangeMapFindAt :: Pos -> RangeMap -> [(Range, RangeInfo)]
-rangeMapFindAt pos (RM rm)
+
+-- we need the lexemes to find the right start token
+rangeMapFindAt :: [Lexeme] -> Pos -> RangeMap -> Maybe (Range, RangeInfo)
+rangeMapFindAt lexemes pos (RM rm)
+  = let lexStart  = case dropWhile (\lex -> not (rangeContains (getRange lex) pos)) lexemes of
+                      (lex:_) -> rangeStart (getRange lex)
+                      []      -> pos
+        rinfos    = takeWhile (\(rng,_) -> rangeStart rng == lexStart) $
+                    dropWhile (\(rng,_) -> rangeStart rng < lexStart) rm
+    in  {- trace ("range map find at: " ++ show pos ++ "\n"
+               ++ "start pos: " ++ show lexStart ++ "\n"
+               ++ "rinfos: " ++ show rinfos
+               -- ++ unlines (map show lexemes)
+               -- ++ unlines (map show rm)
+             ) $ -}
+        maybeHead (prioritize rinfos)
+
+maybeHead []    = Nothing
+maybeHead (x:_) = Just x
+
+{-
   = shortestRange $ filter (containsPos . fst) rm
   where
     containsPos rng   = rangeStart rng <= pos && rangeEnd rng >= pos
     shortestRange []  = []
     shortestRange rs  = minimumByList cmp rs
     cmp (r1,_) (r2,_) = compare (rangeLength r1) (rangeLength r2)
+-}
 
 rangeMapFind :: Range -> RangeMap -> [(Range, RangeInfo)]
 rangeMapFind rng (RM rm)

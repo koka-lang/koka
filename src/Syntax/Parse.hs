@@ -89,11 +89,9 @@ parseProgramFromFile allowAt semiInsert fname
   = do input <- readInput fname
        let result = parseProgramFromString allowAt semiInsert input fname
        case checkError result of
-          Right (a, warnings) ->
-            do
-              logSyntaxWarnings warnings
-              return result
-          Left err            -> return result
+          Right (a, warnings) -> do logSyntaxWarnings warnings
+                                    return result
+          Left err  -> return result
 
 logSyntaxWarnings :: [(Range, Doc)] -> IO ()
 logSyntaxWarnings warnings
@@ -101,8 +99,8 @@ logSyntaxWarnings warnings
 
 parseProgramFromString :: Bool -> Bool -> BString -> FilePath -> Error a UserProgram
 parseProgramFromString allowAt semiInsert input fname
-  = do (result, syntaxWarnings) <- lexParse allowAt semiInsert id program fname 1 input
-       addWarnings (map (\(s, r) -> (r, text s)) syntaxWarnings) $ return result
+  = do ((prog,lexemes), syntaxWarnings) <- lexParse allowAt semiInsert id program fname 1 input
+       addWarnings (map (\(s, r) -> (r, text s)) syntaxWarnings) $ return prog{ programLexemes = lexemes }
 
 parseValueDef :: Bool -> FilePath -> Int -> String -> Error () UserDef
 parseValueDef semiInsert sourceName line input
@@ -128,7 +126,7 @@ ignoreSyntaxWarnings result =
 lexParseS :: Bool -> (Source -> LexParser b) -> FilePath -> Int -> String -> Error a b
 lexParseS semiInsert p sourceName line str
   = do
-      (result, syntaxWarnings) <- (lexParse False semiInsert id p sourceName line (stringToBString str))
+      ((result,lexemes), syntaxWarnings) <- (lexParse False semiInsert id p sourceName line (stringToBString str))
       return $ trace (concat (intersperse "\n" (map fst syntaxWarnings))) $ result
 
 runStateParser :: LexParser a -> SourceName -> [Lexeme] -> Either ParseError (a, [(String, Range)])
@@ -140,7 +138,7 @@ runStateParser p sourceName lex =
          s <- getState
          return (r, s)
 
-lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error b (a, [(String, Range)])
+lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error b ((a,[Lexeme]), [(String, Range)])
 lexParse allowAt semiInsert preprocess p sourceName line rawinput
   = let source = Source sourceName rawinput
         input  = if (isLiteralDoc sourceName) then extractLiterate rawinput else rawinput
@@ -149,7 +147,7 @@ lexParse allowAt semiInsert preprocess p sourceName line rawinput
     in  -- trace  (unlines (map show lexemes)) $
         case (runStateParser (p source) sourceName lexemes) of
           Left err -> makeParseError (errorRangeLexeme xs source) err
-          Right x  -> return x
+          Right (x,s)  -> return ((x,lexemes),s)
 
 parseLexemes :: LexParser a -> Source -> [Lexeme] -> Error () (a, [(String, Range)])
 parseLexemes p source@(Source sourceName _) lexemes
@@ -238,6 +236,7 @@ pmodule source
   <|>
     programBody Public source (pathToModuleName (noexts (basename (sourceName source)))) (rangeNull) ""
 
+programBody :: Visibility -> Source -> Name -> Range -> String -> LexParser UserProgram
 programBody vis source modName nameRange doc
   = do many semiColon
        (imports, fixDefss, topDefss)
@@ -247,7 +246,7 @@ programBody vis source modName nameRange doc
                         return (imps,fixs,tdefs))
        many semiColon
        let (defs,typeDefs,externals) = splitTopDefs (concat topDefss)
-       return (Program source modName nameRange [TypeDefRec typeDefs] [DefRec defs]
+       return (Program source [] modName nameRange [TypeDefRec typeDefs] [DefRec defs]
                  (prelude ++ imports) externals (concat fixDefss) doc)
   where
     prelude = if (show modName `startsWith` "std/core")

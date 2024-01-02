@@ -200,10 +200,10 @@ getCompletionInfo pos vf mod uri = do
 -- TODO: Show documentation comments in completion docs
 
 filterInfix :: CompletionInfo -> T.Text -> Bool
-filterInfix cinfo n = (searchTerm cinfo `T.isInfixOf` n) && (('.' /= T.head n) || ".Hnd-" `T.isPrefixOf` n)
+filterInfix cinfo n = (searchTerm cinfo `T.isInfixOf` n) && (T.null n || ('.' /= T.head n) || ".Hnd-" `T.isPrefixOf` n)
 
 filterInfixConstructors :: CompletionInfo -> T.Text -> Bool
-filterInfixConstructors cinfo n = (searchTerm cinfo `T.isInfixOf` n) && (('.' /= T.head n) || ".Hnd-" `T.isPrefixOf` n)
+filterInfixConstructors cinfo n = (searchTerm cinfo `T.isInfixOf` n) && (T.null n || ('.' /= T.head n) || ".Hnd-" `T.isPrefixOf` n)
 
 findCompletions :: Loaded -> Module -> CompletionInfo -> [J.CompletionItem]
 findCompletions loaded mod cinfo@CompletionInfo{isFunctionCompletion = fcomplete} = filter (filterInfix cinfo . (^. J.label)) completions

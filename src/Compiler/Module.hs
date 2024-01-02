@@ -17,6 +17,7 @@ module Compiler.Module( Module(..), Modules, moduleNull
                       , addOrReplaceModule, removeModule
                       , modPackageName -- , modPackageQName
                       , modPackagePath, modPackageQPath
+                      , modLexemes
                       , PackageName
                       , loadedMatchNames
                       ) where
@@ -30,6 +31,7 @@ import Common.Error
 import Common.File            ( FileTime, fileTime0, maxFileTimes, splitPath )
 
 import Syntax.Syntax
+import Syntax.Lexeme
 import Static.FixityResolve   ( Fixities, fixitiesEmpty, fixitiesNew, fixitiesCompose )
 
 import Kind.ImportMap
@@ -108,7 +110,7 @@ initialLoaded
 
 moduleNull :: Name -> Module
 moduleNull modName
-  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) (Left (\g -> return [])) False Nothing fileTime0 
+  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) (Left (\g -> return [])) False Nothing fileTime0
 
 loadedName :: Loaded -> Name
 loadedName ld
@@ -125,6 +127,11 @@ modPackagePath mod
 modPackageQPath :: Module -> PackageName
 modPackageQPath mod
   = joinPkg (modPackageQName mod) (modPackageLocal mod)
+
+modLexemes :: Module -> [Lexeme]
+modLexemes mod = case modProgram mod of
+                   Just program -> programLexemes program
+                   _            -> []
 
 loadedNames :: Loaded -> [Name]
 loadedNames l
