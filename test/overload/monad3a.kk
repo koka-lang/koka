@@ -9,7 +9,7 @@ ref struct monadplus<m>
   xmonad : monad<m>
   plus   : forall<a> (m<a>,m<a>) -> m<a>
 
-//fun sequence( ms : list<m<a>>, ??monad : monad<m> ) : m<list<a>>
+// sequence a list of actions
 fun sequence( ms, ??monad )
   match ms
     Nil -> pure([])

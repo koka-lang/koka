@@ -94,14 +94,12 @@ formatRangeInfoHover :: (Maybe Loaded) -> Env -> ColorScheme -> RangeInfo -> Doc
 formatRangeInfoHover mbLoaded env colors rinfo =
   case rinfo of
   Id qname info docs isdef ->
-    let signature = ppName env qname <+> text ":"
-                    <+> case info of
-                      NIValue tp "" _ -> ppScheme env tp
-                      NIValue tp doc _ -> ppScheme env tp
-                      NICon tp "" ->  ppScheme env tp
-                      NICon tp doc ->  ppScheme env tp
-                      NITypeCon k -> prettyKind colors k
-                      NITypeVar k -> prettyKind colors k
+    let signature = ppName env qname <+>
+                    case info of
+                      NIValue tp doc _  -> text ":" <+> ppScheme env tp
+                      NICon tp doc      -> text ":" <+> ppScheme env tp
+                      NITypeCon k       -> text "::" <+> prettyKind colors k
+                      NITypeVar k       -> text "::" <+> prettyKind colors k
                       NIModule -> text "module" <.>
                                   (case mbLoaded of
                                     Just loaded -> case filter (\mod -> modName mod == qname) (loadedModules loaded) of
@@ -118,11 +116,11 @@ formatRangeInfoHover mbLoaded env colors rinfo =
     in asKokaCode (if null docs then signature else (signature <.> text "  " <-> color Gray (vcat docs)))
        <.> comment
 
-  Decl s name mname -> text s <+> text " " <+> pretty name
-  Block s -> text s
-  Error doc -> text "Error: " <+> doc
-  Warning doc -> text "Warning: " <+> doc
-  Implicits implicits -> text "Implicits: " <+> text (show implicits)
+  Decl s name mname   -> asKokaCode (text s <+> pretty name)
+  Block s             -> asKokaCode (text s)
+  Error doc           -> text "error:" <+> doc
+  Warning doc         -> text "warning:" <+> doc
+  Implicits implicits -> text "implicits:" <+> text (show implicits)  -- should not occur
 
 asKokaCode :: Doc -> Doc
 asKokaCode doc = text ("```koka\n" ++ displayS (renderCompact doc) "" ++ "\n```")

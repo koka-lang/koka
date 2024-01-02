@@ -39,8 +39,7 @@ import Type.Assumption( NameInfo(..) )
 {--------------------------------------------------------------------------
   InfGamma
 --------------------------------------------------------------------------}
--- | Environment mapping names to type schemes. Due to overloading
--- there may be multiple entries for the same name
+-- | Environment mapping names to type schemes.
 newtype InfGamma   = InfGamma (M.NameMap NameInfo)
 
 -- data InfInfo = InfInfo { infName :: Name, infType :: Type, infRange :: Range, infSort :: DefSort }
