@@ -324,7 +324,7 @@
       , "captures": {
           "1": { "name": "keyword.other koka.keyword.module" },
           "3": { "name": "keyword.other koka.keyword.interface" },
-          "4": { "name": "variable.other.member.definition.module koka.moduleid" }
+          "4": { "name": "entity.name.variable koka.moduleid" }
         }
       },
 
@@ -332,9 +332,9 @@
       { "match": "(import)(\\s+(([a-z][\\w\\-]*/)*[a-z][\\w\\-]*)(\\s+(=)(\\s+(([a-z][\\w\\-]*/)*[a-z][\\w\\-]*))?))"
       , "captures": {
           "1": { "name": "keyword koka.keyword.import" },
-          "3": { "name": "variable.other.member.definition.module koka.moduleid" },
+          "3": { "name": "entity.name.variable koka.moduleid" },
           "6": { "name": "keyword koka.keyword.op" },
-          "8": { "name": "variable.other.member.definition.module koka.moduleid" }
+          "8": { "name": "entity.name.variable koka.moduleid" }
         }
       },
 
@@ -342,7 +342,7 @@
       { "match": "(import)(\\s+(([a-z][\\w\\-]*/)*[a-z][\\w\\-]*))"
       , "captures": {
           "1": { "name": "keyword koka.keyword.import" },
-          "3": { "name": "variable.other.member.definition.module koka.moduleid" }
+          "3": { "name": "entity.name.variable koka.moduleid" }
         }
       },
 
@@ -354,7 +354,7 @@
     "qidentifier" :
       { "match": "((?:[@a-z][\\w\\-@]*/#?)+)(@?[a-z][\\w\\-@]*[\\']*)"
       , "captures": {
-          "1": { "name": "variable.other.member.definition.module koka.moduleid" },
+          "1": { "name": "entity.name.variable koka.moduleid" },
           "2": { "name": "source koka.id" }
         }
       },
@@ -362,7 +362,7 @@
     "qoperator" :
       { "match": "((?:[@a-z][\\w\\-@]*/#?)+)(\\([^\\n\\r\\)]+\\))"
       , "captures": {
-          "1": { "name": "variable.other.member.definition.module koka.moduleid" },
+          "1": { "name": "entity.name.variable koka.moduleid" },
           "2": { "name": "source.operator koka.op" }
         }
       },
@@ -375,7 +375,7 @@
     "qconstructor" :
       { "match": "((?:[@a-z][\\w\\-@]*/#?)+)(@?[A-Z][\\w\\-@]*[\\']*)"
       , "captures": {
-          "1": { "name": "variable.other.member.definition.module koka.moduleid" },
+          "1": { "name": "entity.name.variable koka.moduleid" },
           "2": { "name": "entity.name.tag.css.constant.other.constructor koka.conid" }
         }
       },
@@ -401,16 +401,17 @@
       { "match": "((?:(?:inline|noinline)\\s+)?(?:tail\\s+)?(?:(?:fip|fbip)(?:\\(\\d+\\))?\\s+)?(?:fun|fn|ctl|ret))\\s+((?:[@a-z][\\w\\-@]*/#?)*)([@a-z][\\w\\-@]*[\\']*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\]|\\\"[^\\s\\\"]+\\\")"
       , "captures": {
           "1": { "name": "keyword.declaration.function koka.keyword.fun" },
-          "2": { "name": "variable.other.member.definition.module koka.moduleid" },
+          "2": { "name": "entity.name.variable koka.moduleid" },
           "3": { "name": "entity.name.function koka.id.decl.function" }
         }
       },
 
     "param_identifier" :
-      { "match": "([^]\\s+)?([@a-z][\\w\\-@]*[\\']*)\\s*(?=[:,\\)])"
+      { "match": "([^]\\s+)?(\\?[\\?]?\\s*)?([@a-z][\\w\\-@]*[\\']*)\\s*(?=[:,\\)])"
       , "captures": {
-           "1": { "name": "entity.name.function koka.id.param" },
-           "2": { "name": "koka.keyword.borrow" }
+           "1": { "name": "koka.keyword.borrow" },
+           "2": { "name": "koka.keyword.implicit" },
+           "3": { "name": "source koka.id.param" }
         }
       },
 
@@ -423,7 +424,7 @@
       { "match": "((?:(?:inline|noinline)\\s+)?(?:(?:fip|fbip)\\s+)?extern)\\s+((?:[@a-z][\\w\\-@]*/#?)*)([@a-z][\\w\\-@]*[\\']*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\]|\\\"[^\\s\\\"]+\\\")?"
       , "captures": {
           "1": { "name": "keyword.declaration.function koka.keyword.extern" },
-          "2": { "name": "variable.other.member.definition.module koka.moduleid" },
+          "2": { "name": "entity.name.variable koka.moduleid" },
           "3": { "name": "entity.name.function koka.id.decl.function" }
         }
       },
@@ -432,7 +433,7 @@
        { "match": "((?:(?:inline|noinline)\\s+)?val)\\s+((?:[@a-z][\\w\\-@]*/#?)*)([@a-z][\\w\\-@]*[\\']*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))?"
        , "captures": {
            "1": { "name": "keyword.declaration  koka.keyword.val" },
-           "2": { "name": "variable.other.member.definition.module koka.moduleid" },
+           "2": { "name": "entity.name.variable koka.moduleid" },
            "3": { "name": "entity.name koka.id.decl.val" }
          }
        },
@@ -464,14 +465,15 @@
 
     "type_qidentifier" :
       { "match": "([@a-z][\\w\\-@]*[\\']*/#?)+"
-      , "name": "variable.other.member.definition.module koka.moduleid"
+      , "name": "entity.name.variable koka.moduleid"
       },
 
     "type_parameter" :
-      { "match": "([\\$]?[a-zA-Z][\\w\\-]*[\\']*)\\s*:(?!:)"
+      { "match": "([\\^]\\s+)?((?:[\\?][\\?]?\\s*)?[@a-z][\\w\\-@]*[\\']*)\\s*(?=:(?!:))"
       , "captures": {
-           "1": { "name" : "source.typeparam koka.type.typeparam" }
-         }
+          "1": { "name": "keyword.other koka.keyword.borrow" },
+          "2": { "name": "entity.name.label source.typeparam koka.type.typeparam" }
+        }
       },
 
     "type_kind" :
@@ -547,16 +549,6 @@
                          "2": {"name": "invalid.keyword koka.keyword.invalid" }}
       , "patterns": [
           {"include": "#type_content" }
-        ]
-      },
-
-    "fun_parameters":
-      { "patterns": [
-          { "include": "#param_identifier" },
-          { "match": "[,]"
-          , "name": "punctuation.separator koka.special"
-          },
-          { "include": "#top_type" }
         ]
       },
 

@@ -1,7 +1,7 @@
 // monads as implicit parameters
 // use ?? to unpack pure and bind
 
-ref struct monad<m>
+ref struct monad<m  >
   pure : forall<a> a -> m<a>
   bind : forall<a,b> (m<a>, a -> m<b>) -> m<b>
 
@@ -25,7 +25,7 @@ val list/monadplus  = Monadplus( list/monad, (++) )
 val maybe/monadplus = Monadplus( maybe/monad, fn(m1,m2) match m1
                                                           Nothing -> m2
                                                           Just    -> m1
-                        )
+                               )
 
 fun monadplus/monad( ??monadplus : monadplus<m> ) : monad<m>
   xmonad
