@@ -84,7 +84,7 @@ instance Show RangeInfo where
         Block kind        -> "Block " ++ kind
         Error doc         -> "Error"
         Warning doc       -> "Warning"
-        Id name info _ isDef -> "Id " ++ show name ++ (if isDef then " (def)" else "")
+        Id name info docs isDef -> "Id " ++ show name ++ (if isDef then " (def)" else "") ++ " " ++ show docs
         Implicits doc        -> "Implicits " ++ show doc
 
 instance Enum RangeInfo where
@@ -188,16 +188,13 @@ rangeMapLookup r (RM rm)
     isBefore (rng,_)  = rangeStart rng < pos
     startsAt (rng,_)  = rangeStart rng == pos
 
-
-
 rangeMapFindIn :: Range -> RangeMap -> [(Range, RangeInfo)]
 rangeMapFindIn rng (RM rm)
   = filter (\(rng, info) -> rangeStart rng >= start || rangeEnd rng <= end) rm
     where start = rangeStart rng
           end = rangeEnd rng
 
-
--- we need the lexemes to find the right start token
+-- we should use the lexemes to find the right start token
 rangeMapFindAt :: [Lexeme] -> Pos -> RangeMap -> Maybe (Range, RangeInfo)
 rangeMapFindAt lexemes pos (RM rm)
   = let lexStart  = case dropWhile (\lex -> not (rangeContains (getRange lex) pos)) lexemes of
@@ -216,14 +213,6 @@ rangeMapFindAt lexemes pos (RM rm)
 maybeHead []    = Nothing
 maybeHead (x:_) = Just x
 
-{-
-  = shortestRange $ filter (containsPos . fst) rm
-  where
-    containsPos rng   = rangeStart rng <= pos && rangeEnd rng >= pos
-    shortestRange []  = []
-    shortestRange rs  = minimumByList cmp rs
-    cmp (r1,_) (r2,_) = compare (rangeLength r1) (rangeLength r2)
--}
 
 rangeMapFind :: Range -> RangeMap -> [(Range, RangeInfo)]
 rangeMapFind rng (RM rm)

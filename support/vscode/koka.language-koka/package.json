@@ -112,6 +112,18 @@
           "description": "Set focus to the language server terminal on errors.",
           "order": 5
         },
+        "koka.languageServer.inlayHints.showImplicitArguments": {
+          "type": "boolean",
+          "default": true,
+          "description": "Report implicit arguments for inlay hints.",
+          "order": 6
+        },
+        "koka.languageServer.inlayHints.showInferredTypes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Report inferred types for inlay hints.",
+          "order": 7
+        },
         "koka.dev.developmentPath": {
           "type": "string",
           "default": "",

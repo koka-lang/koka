@@ -84,19 +84,7 @@ rangeMapBestHover rm =
   case rm of
     [] -> Nothing
     [r] -> Just r
-    xs -> Just $ maximumBy (\a b -> compare (rangeInfoPriority a) (rangeInfoPriority b)) xs
-
-rangeInfoPriority :: (Range,RangeInfo) -> Int
-rangeInfoPriority (r,ri) =
-  case ri of
-    Block _ -> -1
-    Id _ (NICon{}) _ True -> 3
-    Id _ _ _ True -> 2
-    Id _ _ _ _ -> 0
-    Decl "con" _ _ -> 3 -- Constructors are more important than other decls (such as automatically generated ones)
-    Decl _ _ _ -> 1
-    Warning _ -> 4
-    Error _ -> 5
+    r:rst -> Just r
 
 -- Pretty-prints type/kind information to a hover tooltip given a type pretty environment, color scheme
 formatRangeInfoHover :: (Maybe Loaded) -> Env -> ColorScheme -> RangeInfo -> Doc
@@ -130,5 +118,6 @@ formatRangeInfoHover mbLoaded env colors rinfo =
   Block s -> text s
   Error doc -> text "Error: " <+> doc
   Warning doc -> text "Warning: " <+> doc
+  Implicits implicits -> text "Implicits: " <+> text (show implicits)
 
 

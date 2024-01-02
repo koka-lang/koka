@@ -71,6 +71,7 @@ rangeInfoPriority (r,ri) =
     Decl _ _ _ -> 1
     Warning _ -> 4
     Error _ -> 5
+    Implicits _ -> -1 -- Use the id
 
 -- Finds the definition locations of the element
 -- represented by the given range info.
