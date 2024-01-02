@@ -42,7 +42,7 @@ module Lib.PPrint
         , comma, space, dot, backslash
         , semi, colon, equals
 
-        , string, stringStripComments, bool, int, integer, float, double, rational
+        , string, bool, int, integer, float, double, rational
 
         , softline, softbreak
         , empty, char, text, text', line, linebreak, nest, group
@@ -61,6 +61,7 @@ module Lib.PPrint
         , dstartsWith
         , dendsWith
         , dcontains
+
         ) where
 
 
@@ -181,17 +182,6 @@ string ('\n':s) = line <.> string s
 string s        = case (span (/='\n') s) of
                     (xs,ys) -> text xs <.> string ys
 
--- stringStripComments is like "string" but removes leading // or /// after newlines or at the very start
-stringStripComments ('/':'/':'/':s) = ssc s
-stringStripComments ('/':'/':s) = ssc s
-stringStripComments s           = ssc s
-
-ssc ""       = empty
-ssc ('\n':'/':'/':'/':s) = line <.> ssc s
-ssc ('\n':'/':'/':s) = line <.> ssc s
-ssc ('\n':s) = line <.> ssc s
-ssc s        = case (span (/='\n') s) of
-                    (xs,ys) -> text xs <.> ssc ys
 
 bool :: Bool -> Doc
 bool b          = text (show b)

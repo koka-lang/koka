@@ -14,6 +14,7 @@
 
 module LanguageServer.Handler.Hover (hoverHandler, formatRangeInfoHover) where
 
+import Data.Char(isSpace)
 import Control.Lens ((^.))
 import Control.Monad.Cont (liftIO)
 import Data.Foldable(maximumBy)
@@ -26,7 +27,7 @@ import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 import Common.Range as R
 import Common.Name (nameNil)
 import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
-import Lib.PPrint (Pretty (..), Doc, string, (<+>), (<-->),color, Color (..), (<.>), (<->), text, empty, vcat)
+import Lib.PPrint (Pretty (..), Doc, string, (<+>), (<-->),color, Color (..), (<.>), (<->), text, empty, vcat, hcat)
 import Compiler.Module (loadedModule, modRangeMap, modLexemes, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)
@@ -35,11 +36,12 @@ import Kind.ImportMap (importsEmpty, ImportMap)
 import Type.Pretty (ppScheme, defaultEnv, Env(..), ppName)
 import Type.Type (Name)
 import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindAt)
+import Syntax.Colorize( removeComment )
 import LanguageServer.Conversions (fromLspPos, toLspRange)
 import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getHtmlPrinter, getFlags)
 import Debug.Trace (trace)
 import Lib.PPrint (makeMarkdown, displayS, renderCompact)
-import Lib.PPrint (stringStripComments)
+
 
 -- Handles hover requests
 hoverHandler :: Handlers LSM
@@ -109,9 +111,9 @@ formatRangeInfoHover mbLoaded env colors rinfo =
                       NIKind -> text "kind"
         comment = case info of
                     NIValue tp ""  _ -> empty
-                    NIValue tp doc _ -> hline <.> stringStripComments doc
+                    NIValue tp doc _ -> ppComment doc
                     NICon tp ""      -> empty
-                    NICon tp doc     -> hline <.> stringStripComments doc
+                    NICon tp doc     -> ppComment doc
                     _                -> empty
     in asKokaCode (if null docs then signature else (signature <.> text "  " <-> color Gray (vcat docs)))
        <.> comment
@@ -121,6 +123,11 @@ formatRangeInfoHover mbLoaded env colors rinfo =
   Error doc           -> text "error:" <+> doc
   Warning doc         -> text "warning:" <+> doc
   Implicits implicits -> text "implicits:" <+> text (show implicits)  -- should not occur
+
+ppComment :: String -> Doc
+ppComment s
+  = hline <.> (hcat $ map (\ln -> text ln <.> text "  \n") $ dropWhile null $ lines $ removeComment s)
+
 
 asKokaCode :: Doc -> Doc
 asKokaCode doc = text ("```koka\n" ++ displayS (renderCompact doc) "" ++ "\n```")
