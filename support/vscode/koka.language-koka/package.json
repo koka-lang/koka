@@ -2,7 +2,7 @@
   "name": "language-koka",
   "displayName": "Koka Language",
   "description": "The official Koka programming language extension.",
-  "version": "2.6.1",
+  "version": "2.9.1",
   "compilerVersion": "2.6.0",
   "publisher": "koka",
   "engines": {

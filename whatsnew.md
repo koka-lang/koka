@@ -1,4 +1,4 @@
-# Welcome to Koka, release v2.6.0
+# Welcome to Koka, release v2.9.1
 
 <img style="float: right; width:16em" src="images/koka-logo-filled.svg">
 
@@ -12,7 +12,14 @@ generating direct C code without needing a runtime system. To learn more:
 
 ## What is new
 
-In the latest update, 2023-12-30:
+2024-01-01:
+
+- Support for locally qualified names to always be able to name (overloaded) identifiers explicitly
+
+- Implicit parameters
+
+
+### v2.6.0, 2023-12-30:
 
 - Initial VS Code language support with type information, jump to definition,
   run test functions directly from the editor, automatic Koka installation, and many more things.
