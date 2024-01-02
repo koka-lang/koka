@@ -17,14 +17,14 @@ Welcome to &koka; -- a strongly typed functional-style language with effect type
 
 ~ smaller { font-size:smaller; }
 Note: &koka; v2 is a research language that is currently under development
-and not ready for production use. 
+and not ready for production use.
 Nevertheless, the language is stable and the compiler
-implements the full specification. The main things lacking at the moment are 
-libraries, package management, and deep IDE integration. 
+implements the full specification. The main things lacking at the moment are
+libraries, package management, and deep IDE integration.
 
 [INCLUDE=news.mdk]
 
-~ 
+~
 
 [langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  {target='_top'}
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html {target='_top'}
@@ -50,16 +50,26 @@ libraries, package management, and deep IDE integration.
 
 ## Running the compiler
 
+![vscode-codelens]
+
+Note that when using the VS Code editor, you can directly compile and run public
+functions that are named ``main``, ``example...``, or ``test...`` from
+the editor environment.
+
+[vscode-codelens]: images/vscode-codelens.png { .floatright; width:300px; }
+
+Of course, we can also run the compiler directly from a command line or
+use the interactive environment.
+
+### Command line usage
+
 You can compile a &koka; source as (note that all [`samples`][samples] are pre-installed):
 
     $ koka samples/basic/caesar.kk
     compile: samples/basic/caesar.kk
     loading: std/core
     loading: std/core/types
-    loading: std/core/hnd
-    loading: std/num/float64
-    loading: std/text/parse
-    loading: std/num/int32
+    ...
     check  : samples/basic/caesar
     linking: samples_basic_caesar
     created: .koka/v2.3.1/gcc-debug/samples_basic_caesar
@@ -83,7 +93,6 @@ of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka
     $ time ./kk-rbtree
     420000
     real    0m0.626s
-    ...
 
 (On Windows you can give the `--kktime` option to see the elapsed time).
 We can compare this against an in-place updating C++ implementation using ``stl::map``
@@ -94,15 +103,14 @@ We can compare this against an in-place updating C++ implementation using ``stl:
     $ time ./cpp-rbtree
     420000
     real    0m0.667s
-    ...
 
-The excellent performance relative to C++ here (on Ubuntu 20.04 with an AMD 5950X) 
+The excellent performance relative to C++ here (on Ubuntu 20.04 with an AMD 5950X)
 is the result of Perceus automatically
 transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
 
-## Running the interactive compiler
+### Running the interactive compiler
 
 Without giving any input files, the interactive environment runs by default:
 
@@ -158,7 +166,6 @@ You can also set command line options in the interactive environment using ``:se
 For example, we can load the ``rbtree`` example again and print out the elapsed runtime with ``--showtime``:
 
     > :set --showtime
-
     > :l samples/basic/rbtree.kk
     ...
     linking: interactive
@@ -172,12 +179,11 @@ For example, we can load the ``rbtree`` example again and print out the elapsed 
 and then enable optimizations with ``-O2`` and run again (on Windows with an AMD 5950X):
 
     > :set -O2
-    
-    > :r 
+    > :r
     ...
     linking: interactive
     created: .koka\v2.3.1\clang-cl-drelease\interactive
-    
+
     > main()
     ...
     420000
@@ -190,11 +196,11 @@ And finally we quit the interpreter:
     I think of my body as a side effect of my mind.
       -- Carrie Fisher (1956)
 
-
+<!--
 ## Samples and Editors
 
 The [``samples/syntax``](https://github.com/koka-lang/koka/tree/master/samples/syntax)
-and [``samples/basic``](https://github.com/koka-lang/koka/tree/master/samples/basic) 
+and [``samples/basic``](https://github.com/koka-lang/koka/tree/master/samples/basic)
 directories contain various basic &koka; examples to start with. If you type:
 
     > :l samples/
@@ -210,8 +216,8 @@ you can type ``:e`` in the interactive prompt to edit your program further. For 
     modules:
         samples/basic/caesar
 
-    > :e 
-    
+    > :e
+
     <edit the source and reload>
 
     > :r
@@ -220,7 +226,7 @@ you can type ``:e`` in the interactive prompt to edit your program further. For 
         samples/basic/caesar
 
     > main()
-    
+-->
 
 What next?
 

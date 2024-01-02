@@ -38,12 +38,12 @@ import Lib.JSON
 
 type PackageName = String
 data Packages    = Packages { packages :: [Package],
-                              roots    :: [FilePath] }
+                              roots    :: [FilePath] } deriving Eq
 
 data Package     = Package { pkgDir   :: FilePath,    -- /x/node_modules/A/lib
                              pkgQualName  :: PackageName, -- A/B/C
                              pkgLocal :: FilePath,    -- lib
-                             pkgSub   :: [Package] }
+                             pkgSub   :: [Package] } deriving Eq
 
 packagesEmpty :: Packages
 packagesEmpty = Packages [] []

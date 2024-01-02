@@ -11,7 +11,7 @@
   margin-right: -1ex;
 	margin-top: -1.4ex;
   color: #999;
-  padding: 0ex 0ex 0ex 0.2ex;  
+  padding: 0ex 0ex 0ex 0.2ex;
   content: "checked";
   font-family: Nunito;
   font-size: x-small;
@@ -54,7 +54,7 @@ body,pre,.sidepanel,.news-items {
   background-color: #ccc;
 }
 ::-webkit-scrollbar-track {
-  -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.3); 
+  -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
 }
 
 
@@ -68,7 +68,7 @@ code, .madoko code {
 }
 
 .grammar table,
-table.grammar  {   
+table.grammar  {
   margin: 0.5ex 0.5ex 0.5ex 2ex;
   padding: 0.5ex 1ex 0.5ex 1ex;
 }
@@ -80,13 +80,13 @@ table.grammar  {
 
 
 .grammar td:nth-child(2) {
-  font-style: normal; 
+  font-style: normal;
   padding: 0em 1ex;
   text-align: center;
 }
 
 .grammar td:nth-child(4) {
-  font-style: normal; 
+  font-style: normal;
   padding-left: 2ex;
 }
 
@@ -107,13 +107,13 @@ table .kw, table .tp, table .co,
 
 .nt {
   font-style: italic;
-}          
+}
 
-.opt, .many, .manyn {   
+.opt, .many, .manyn {
   padding: 0ex 0.5ex;
 }
 
-.manyx {   
+.manyx {
   padding-left: 0.5ex;
 }
 
@@ -128,11 +128,11 @@ table .kw, table .tp, table .co,
   font-size: 16pt;
 }
 
-.button {  
+.button {
   display: inline-block;
   border: 1px solid #AAA;
   margin: 0ex 1ex 1ex 0ex;
-  padding: 1ex;  
+  padding: 1ex;
   transition: all 0.25s;
   cursor: pointer;
   border-radius: 1ex;
@@ -146,11 +146,11 @@ table .kw, table .tp, table .co,
 
 .button:hover {
   /* background-color: #fffad7 !important; */
-  background-color: #b9dae8 !important;  
+  background-color: #b9dae8 !important;
 }
 
-.small-button.button {  
-  padding: 0.25ex 1ex;  
+.small-button.button {
+  padding: 0.25ex 1ex;
   transition: all 0.25s;
   cursor: pointer;
   margin: 0.25ex 0ex;
@@ -182,7 +182,7 @@ pre.lang-cpp::before {
   margin-right: -0.5ex;
 	color: #999;
 	border: 1px solid #AAA;
-  padding: 0ex 0.2ex; 
+  padding: 0ex 0.2ex;
 }
 
 pre.lang-arm64::before {
@@ -207,8 +207,12 @@ html {
   display: flex;
 }
 
-.madoka h2, .madoko h3, .madoko h4 {
+.madoka h2 {
   margin-top: 2em;
+}
+
+.madoko h3, .madoko h4 {
+  margin-top: 1em;
 }
 .madoko h3 {
   font-size: 130%;
@@ -269,7 +273,7 @@ html {
   /* slate teal */
   /* background-color: #215166;
      background: linear-gradient(#15323f,#2d708d);
-     background: linear-gradient(#1b4253,#347fa0); */         
+     background: linear-gradient(#1b4253,#347fa0); */
   background-color: #1b4253;
 }
 .colored .button {
@@ -291,7 +295,7 @@ html {
 }
 .colored .button:hover {
   /* background-color: #fffad7 !important; */
-  background-color: #2e708d !important;  
+  background-color: #2e708d !important;
 }
 
 .penrose.colored .wide, .penrose.colored .sidepanel {
@@ -307,8 +311,8 @@ html {
 	overflow-y: auto;
 	padding-top: 1ex;
   margin-top: -1em;
-  padding-right: 1ex;  
-  /* border: 1px solid #ccc; */	
+  padding-right: 1ex;
+  /* border: 1px solid #ccc; */
 }
 
 .advanced h3, .advanced h4 {
@@ -323,7 +327,7 @@ html {
 .tooltip-copied::after, .tooltip-copied::before {
   position: absolute;
   z-index: 1000;
-  pointer-events:none;   
+  pointer-events:none;
   animation: tooltip-appear;
   animation-duration: 0.1s;
   animation-timing-function: ease-in;
@@ -349,11 +353,18 @@ html {
   right: 0%;
   bottom: -7px;
   margin-right: 7px;
-  border: 7px solid transparent;  
+  border: 7px solid transparent;
   border-bottom-color:#215166;
 }
-    
+
 @keyframes tooltip-appear {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+.floatright {
+  width:35%;
+  float:right;
+  clear:both;
+  margin:0em 0em 1em 2em;
 }

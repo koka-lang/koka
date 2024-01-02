@@ -4,7 +4,7 @@
    The novel application of FBIP to improve on standard 
    Okasaki-style red-black tree rebalancing was initially done by Anton Lorenzen.
 
-   See also `rbtree.kk`, the benchmarks in `test/bench/koka`, and
+   See also `rbtree.kk`, the benchmarks in `example/bench/koka`, and
    <https://koka-lang.github.io/koka/doc/book.html#why-fbip> for more information on FBIP.
 */
 module rbtree-fbip

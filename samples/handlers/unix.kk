@@ -28,7 +28,7 @@ fun bio( action : () -> <bio|e> a ) : e (a,string)
   with fun write(fd,s) buf := buf ++ s
   action()
 
-fun example1()
+pub fun example1()
   with bio
   echo("hi ")
   echo("unix world")
@@ -46,7 +46,7 @@ fun status( action : () -> <exit|e> a ) : e int
   action()
   0
 
-fun example2() : (int,string)
+pub fun example2() : (int,string)
   with bio
   with status
   echo("hi ")
@@ -78,12 +78,16 @@ fun env( user : user, action : () -> <whoami|e> a ) : e a
   with fun whoami() show(user)
   action()
 
-fun example3()
+pub fun example3()
   with bio
   with status
   with env(Alice)
   echo("hi ")
   echo(whoami())
+<<<<<<< HEAD
+=======
+
+>>>>>>> dev
 
 
 fun unitstr/show( (_,s) : ((),string) ) : string
@@ -122,7 +126,7 @@ fun session-manager3( initial-user : user, action : () -> <su,whoami|e> a ) : e 
   action()
 
 
-fun example4()
+pub fun example4()
   with bio
   with status
   with session-manager3(Root)
@@ -185,7 +189,7 @@ fun hamlet() : <bio|e> ()
   echo("that is the question:\n")
   echo("Whether 'tis nobler in the mind to suffer\n")
 
-fun example5()
+pub fun example5()
   with return(x:(list<int>,string)) x.snd.println
   with bio
   with timeshare
@@ -203,7 +207,7 @@ fun interrupt-write( action : () -> <bio,interrupt|e> a ) : <bio,interrupt|e> a
   with override fun write(fd,s) { interrupt(); write(fd,s) }
   action()
 
-fun example6()
+pub fun example6()
   with return(x:(list<int>,string)) x.snd.println
   with bio
   with timeshare
@@ -217,5 +221,5 @@ fun example6()
     su(Bob)
     hamlet()
 
-fun main()
-  example6()
+pub fun main()
+  example5()

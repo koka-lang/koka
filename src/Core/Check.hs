@@ -43,7 +43,7 @@ import qualified Type.Operations as Op ( instantiateNoEx )
 
 import qualified Data.Set as S
 
-checkCore :: Bool -> Bool -> Env -> Gamma -> CorePhase ()
+checkCore :: Bool -> Bool -> Env -> Gamma -> CorePhase b ()
 checkCore liberalEffects allowPartialApps prettyEnv gamma
   = do uniq      <- unique
        defGroups <- getCoreDefs
@@ -169,7 +169,7 @@ coreNameInfo :: TName -> (Name,NameInfo)
 coreNameInfo tname = coreNameInfoX 
   where
     coreNameInfoX 
-      = (getName tname, createNameInfoX Public (getName tname) DefVal rangeNull (typeOf tname))
+      = (getName tname, createNameInfoX Public (getName tname) DefVal rangeNull (typeOf tname) "")
 
 {--------------------------------------------------------------------------
   Expressions

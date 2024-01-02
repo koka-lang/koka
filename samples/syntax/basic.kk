@@ -6,17 +6,17 @@ module syntax/basic
 
 // Named function declarations use `fun`
 // while anonymous function expressions use `fn`
-pub fun test1() {
+pub fun example1() {
   map( list(1,5), fn(i){ println(i) } )
 }
 
 // Indented blocks get automatic curly braces (if not braced explicitly)
 // We can write the previous example with just indentation:
-pub fun test1a() 
+pub fun example1a() 
   map( list(1,5), fn(i){ println(i) } )
 
 // If the body of an anonymous function is an expression, we do not need curly braces:
-pub fun test1b()
+pub fun example1b()
   map( list(1,5), fn(i) println(i) )  
 
 
@@ -27,20 +27,20 @@ pub fun test1b()
 // e.f(e1,...,eN)  ~>  f(e,e1,...,eN)
 // ````
 // This is also called _dot chaining_ (and part of Koka since 2012)
-pub fun test2() 
+pub fun example2() 
   list(1,5).map( fn(i) println(i) )
 
 
 // `fn` anonymous function arguments can be put outside the parenthesis following the call:
 // `f(e1,...,eN) fn(x){ ... }  ~>  f(e1,...,eN, fn(x){ ... })`
 // This is also called _trailing lambdas_ (and Koka was the first language to have this)
-pub fun test3() 
+pub fun example3() 
   list(1,5).map fn(i){
     println(i)
   }
 
 // Of course, the indentation rule allows us to elide the braces here as well:
-pub fun test3a() 
+pub fun example3a() 
   list(1,5).map fn(i)
     println(i)
 
@@ -56,19 +56,19 @@ fun twice(f)
 
 
 // Use an anonymous function without arguments
-pub fun test4() 
+pub fun example4() 
   twice{ println("hi") }    // == twice( fn(){ println("hi" ) } )
 
 
 // Or with indentation:  
-pub fun test4a()
+pub fun example4a()
   twice
     println("hi")  
 
 
 // This syntax enable many control-flow operations to be defined as functions,
 // like `while`:
-pub fun test5()
+pub fun example5()
   var i := 0
   while{ i < 10 } 
     i := i + 1
@@ -100,3 +100,6 @@ pub fun increment(xs)  xs.map(fn(x) x + 1).filter(fn(x) x > 2)
 pub fun increment2(xs) {
   xs.map(fn(x){ x + 1 }).filter(fn(x){ x > 2 })
 }
+
+pub fun show(l: list<()>): string
+  ""

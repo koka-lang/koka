@@ -135,17 +135,17 @@ fun eparse(p,input)
   parse(input,p)
 
 
-fun test1()
+pub fun example1()
   mparse( expr, "1+2*3").show-parse-int.println
 
 
-fun test2()
+pub fun example2()
   eparse( expr, "1+2*3").show-parse-int.println
 
 
 pub fun main()
-  test1()
-  test2()
+  example1()
+  example2()
 
 
 // Some show functions

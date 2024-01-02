@@ -46,6 +46,8 @@ import Core.Borrowed          ( Borrowed, borrowedEmpty, borrowedExtendICore )
 import Syntax.RangeMap
 import Compiler.Package       ( PackageName, joinPkg )
 import qualified Core.Core as Core
+import Data.Maybe (fromJust)
+import Compiler.Options (Flags)
 
 {--------------------------------------------------------------------------
   Compilation
@@ -61,7 +63,8 @@ data Module  = Module{ modName        :: Name
                      , modWarnings    :: [(Range,Doc)]
                      , modProgram     :: Maybe (Program UserType UserKind) -- not for interfaces
                      , modCore        :: Core.Core
-                     , modInlines     :: Either (Gamma -> Error [Core.InlineDef]) ([Core.InlineDef])
+                     , modInlines     :: Either (Gamma -> Error () [Core.InlineDef]) ([Core.InlineDef])
+                     , modCompiled    :: Bool
                      , modRangeMap    :: Maybe RangeMap
                      , modTime        :: FileTime
                      }
@@ -79,6 +82,10 @@ data Loaded = Loaded{ loadedGamma       :: Gamma
                     , loadedInlines     :: Inlines
                     , loadedBorrowed    :: Borrowed
                     }
+
+instance Show Loaded where
+  show ld
+    = show (map modName $ loadedModules ld)
 
 loadedLatest :: Loaded -> FileTime
 loadedLatest loaded
@@ -101,7 +108,7 @@ initialLoaded
 
 moduleNull :: Name -> Module
 moduleNull modName
-  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) (Left (\g -> return [])) Nothing fileTime0
+  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) (Left (\g -> return [])) False Nothing fileTime0 
 
 loadedName :: Loaded -> Name
 loadedName ld
@@ -162,7 +169,7 @@ addOrReplaceModule :: Module -> Modules -> Modules
 addOrReplaceModule mod []
   = [mod]
 addOrReplaceModule mod (m:ms)
-  = if (modPath mod == modPath m)
+  = if modPath mod == modPath m
      then mod:ms
      else m : addOrReplaceModule mod ms
 

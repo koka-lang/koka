@@ -11,20 +11,19 @@
 -----------------------------------------------------------------------------
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 module Common.Range
-          ( Pos, makePos, minPos, maxPos, posColumn, posLine, posOfs
+          ( Pos(..), makePos, minPos, maxPos
           , posMove8, posMoves8, posNull
           , Range, showFullRange
-          , makeRange, rangeNull, combineRange, rangeEnd, rangeStart
+          , makeRange, rangeNull, combineRange, rangeEnd, rangeStart, rangeLength, makeSourceRange
           , Ranged( getRange ), combineRanged
           , combineRangeds, combineRanges, extendRange
           , Source(Source,sourceName, sourceBString), sourceText, sourceFromRange
-          , posSource
           , rangeSource
           , sourceNull
           , bigLine
           , after
           , endOfRange
-          , showRange
+          , showRange, showCompactRange
           , BString, bstringToString, bstringToText, stringToBString
           , bstringEmpty
           , readInput
@@ -33,6 +32,7 @@ module Common.Range
           ) where
 
 -- import Lib.Trace
+import Lib.PPrint( Pretty(pretty), text )
 import Common.File(relativeToPath)
 import Common.Failure( assertion )
 import qualified Data.ByteString as B
@@ -244,6 +244,13 @@ instance Ord Range where
         EQ   -> compare p2 q2
         ltgt -> ltgt
 
+instance Pretty Range where
+  pretty r = text (showCompactRange r)
+
+showCompactRange :: Range -> String
+showCompactRange (Range p1 p2)
+  = "[" ++ showPos 0 p1 ++ "," ++ showPos 0 p2 ++ "]"
+
 showRange :: FilePath -> Bool -> Range -> String
 showRange cwd endToo (Range p1 p2)
   = (if (posLine p1 >= bigLine) then ""
@@ -253,6 +260,8 @@ showRange cwd endToo (Range p1 p2)
     if (endToo)
      then ("(" ++ showPos 0 p1 ++ "-" ++ showPos 0 p2 ++ ")")
      else (show p1)
+
+
 
 -- | Does r2 start after range r1?
 after :: Range -> Range -> Bool
@@ -273,6 +282,12 @@ makeRange p1 p2
   = assertion "Range.makeRange: positions from different sources" (posSource p1 == posSource p2) $
     Range (minPos p1 p2) (maxPos p1 p2)
 
+makeSourceRange :: FilePath -> Int -> Int -> Int -> Int -> Range
+makeSourceRange srcPath l1 c1 l2 c2
+  = makeRange (makePos src (-1) l1 c1) (makePos src (-1) l2 c2)
+  where
+    src = Source srcPath B.empty
+
 -- | Return the start position of a range
 rangeStart :: Range -> Pos
 rangeStart (Range p1 p2)  = p1
@@ -280,6 +295,10 @@ rangeStart (Range p1 p2)  = p1
 -- | Return the end position of a range
 rangeEnd :: Range -> Pos
 rangeEnd   (Range p1 p2)  = p2
+
+-- | Return the length of a range
+rangeLength :: Range -> Int
+rangeLength (Range p1 p2) = posOfs p2 - posOfs p1
 
 -- | Return the source of a range
 rangeSource :: Range -> Source

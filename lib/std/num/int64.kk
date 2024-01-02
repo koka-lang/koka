@@ -257,7 +257,7 @@ pub fip fun sar( i : int64, shift : int) : int64
 
 // Bitwise rotate an `:int64` `n % 64` bits to the left.
 inline fip extern rotl64( i : int64, n : int64 ) : int64
-  c inline "(int64_t)kk_bits_rotl64(#1,#2)"
+  c inline "(int64_t)kk_bits_rotl64(#1,(int)#2)"
   js "$std_core._int64_rotl"
 
 // Bitwise rotate an `:int64` `n % 64` bits to the left.
@@ -266,7 +266,7 @@ pub fun rotl( i : int64, shift : int) : int64
 
 // Bitwise rotate an `:int64` `n % 64` bits to the right.
 inline fip extern rotr64( i : int64, n : int64 ) : int64
-  c inline "(int64_t)kk_bits_rotr64(#1,#2)"
+  c inline "(int64_t)kk_bits_rotr64(#1,(int)#2)"
   js "$std_core._int64_rotr"
 
 // Bitwise rotate an `:int64` `n % 64` bits to the right.

@@ -31,7 +31,7 @@ fun listlist/show( xss : list<list<int>> ) : string
     xs.show-list(int/show)
 
 
-fun test1()
+pub fun example1()
   with solutions
   knapsack(3,[3,2,1])
 
@@ -85,12 +85,12 @@ fun intlist/show(xs : list<(int,list<int>)>) : string
     "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
 
 
-fun test2()
+pub fun example2()
   with global(0)
   with choices
   knapsack(3,[3,2,1])
 
-fun test3()
+pub fun example3()
   with local(0)
   with choices
   knapsack(3,[3,2,1])
@@ -141,7 +141,7 @@ fun call(p)
 fun once(p)
   call{ val x = p(); cut(); x }
 
-fun test4()
+pub fun example4()
   with solutions
   with once
   knapsack(3,[3,2,1])
@@ -215,7 +215,7 @@ fun factor()
     i
 
 
-fun test5()
+pub fun example5()
   with solutions
   parse("2+8*5"){ expr() }
 
@@ -225,9 +225,9 @@ fun test5()
 // --------------------------------------------------------------
 
 pub fun main()
-  test1().show.println
-  test2().show.println
-  test3().show.println
-  test4().show.println
-  test5().show.println
+  example1().show.println
+  example2().show.println
+  example3().show.println
+  example4().show.println
+  example5().show.println
 

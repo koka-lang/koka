@@ -37,7 +37,7 @@ importsExtend aliasName fullName imp
   = let rpath = reverse $ splitModuleName aliasName in
     case lookup rpath imp of
       Nothing -> Just ((rpath,fullName):imp)
-      Just _  -> Nothing
+      Just fullName1  -> if fullName == fullName1 then Just imp else Nothing
 
 -- | Given a fully qualified name, return the shorter aliased name.
 -- For example, with @import f = system/foo@ a name @system/foo/bar@ is shortened to @f/bar@.

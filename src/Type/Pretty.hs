@@ -15,7 +15,7 @@ module Type.Pretty (-- * Pretty
                    ,niceList, niceTypes, niceType, niceEnv
                    ,typeColon, niceTypeVars, ppName, ppParam
                    , canonical, minCanonical
-                   , prettyComment
+                   , prettyComment, prettyRange
                    ) where
 
 
@@ -126,6 +126,7 @@ type TvScheme = M.Map TypeVar (Prec -> Doc)
 -- | Pretty print environment for types.
 data Env     = Env{ showKinds      :: Bool
                   , showIds        :: Bool -- show id numbers
+                  , showFlavours :: Bool
                   , expandSynonyms :: Bool
                   , colors  :: ColorScheme
                   , nice    :: Nice
@@ -156,9 +157,11 @@ data Env     = Env{ showKinds      :: Bool
 -- | Default pretty print environment
 defaultEnv :: Env
 defaultEnv
-  = Env False False False
+  = Env False False
+        True -- showFlavours
+        False
         defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty)
-        False     -- fullNames
+        False -- fullNames
         False
         []
         ("styles/" ++ programName ++ ".css") -- [("System.","file://c:/users/daan/dev/koka/out/lib/")]
@@ -193,8 +196,9 @@ ppSchemeEffect env tp
 
 prettyDefFunType :: Env -> [ParamInfo] -> Scheme -> Doc
 prettyDefFunType env pinfos tp
-  = let (Just params,pre,post) = ppDeclType env pinfos tp
-    in pre <.> parens (commaSep (map ppParam params)) <+> text "->" <+> post
+  = case ppDeclType env pinfos tp of
+      (Just params,pre,post) -> pre <.> parens (commaSep (map ppParam params)) <+> text "->" <+> post
+      (Nothing,pre,post) -> pre <+> text "()" <+> text "->" <+> post
   where
     ppParam (name,pinfo,tpDoc)
       = (case pinfo of Borrow -> text "^" <+> (if nameNil == name then text "_" else ppName env name) <+> text ": "
@@ -252,7 +256,7 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
          CoInductive -> keyword env "co type"
          Retractive  -> keyword env "rec type") <+>  -- this "rec" means a retractive type
       -- ppVis env vis <+>
-      ppName env name <.>
+      ppName env name <.> pretty range <.>
       (if null args then empty else space <.> angled (map (ppTypeVar env) args)) <.>
       (if kind /= kindStar then text " ::" <+> ppKind (colors env) 0 kind else empty) <+>
       (if (showBody && not (null cons))
@@ -266,7 +270,7 @@ prettyConInfo env0 publicOnly (ConInfo conName ntname foralls exists fields sche
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <.>
       keyword env0 "con" <+>
-      ppName env0 conName <.>
+      ppName env0 conName <.> pretty range <.>
       (if null exists then empty else (angled (map (ppTypeVar env) exists))) <.>
       (if null fields
         then empty
@@ -306,12 +310,16 @@ ppSynInfo env isLocal publicOnly showBody (SynInfo name kind params scheme rank 
         (if isLocal
           then keyword env "local alias"
           else (ppVis env vis) <.> keyword env "alias") <+>
-        ppName env name <.> -- <+> (ppSynInfo env True synInfo)
+        ppName env name <.> prettyRange env range <.> -- <+> (ppSynInfo env True synInfo)
         let docs = niceTypes env (map TVar params ++ [scheme])
         in (if null params then empty else angled (init docs))
          <.> (if kind /= kindStar then text " ::" <+> ppKind (colors env) precTop kind else empty)
          <+> (if not showBody then empty else keyword env "=" <+> last docs))
          <+> text "=" <+> pretty rank
+
+
+prettyRange env range
+  = if coreIface env then pretty range else empty
 
 
 {--------------------------------------------------------------------------
@@ -470,10 +478,11 @@ ppTypeVar :: Env -> TypeVar -> Doc
 ppTypeVar env (TypeVar id kind flavour)
     = colorByKindDef env kind colorTypeVar $
       wrapKind (showKinds env) env kind $
-      (case flavour of
-         Meta   -> text "_"
-         Skolem -> if (coreIface env) then text "__" else text "$"
-         _      -> empty) <.> nicePretty (nice env) id <.> (if (showIds env) then text ("=" ++ show id) else empty)
+      let flav = case flavour of
+                    Meta   -> text "_"
+                    Skolem -> if (coreIface env) then text "__" else text "$"
+                    _      -> empty in
+      (if showFlavours env then flav else empty) <.> nicePretty (nice env) id <.> (if (showIds env) then text ("=" ++ show id) else empty)
 
 ppTypeCon :: Env -> TypeCon -> Doc
 ppTypeCon env (TypeCon name kind)

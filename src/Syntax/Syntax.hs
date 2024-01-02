@@ -102,7 +102,9 @@ type Imports  = [Import]
 data Import
   = Import{ importName ::  Name    -- ^ module name
           , importFullName :: Name     -- ^ fully qualified module name
-          , importRange :: Range   -- ^ range of the import declaration
+          , importNameRange :: Range
+          , importFullNameRange :: Range
+          , importRange :: Range   -- ^ range of the full import declaration
           , importVis   :: Visibility  -- ^ visibility of the module
           }
     deriving (Show)
@@ -285,6 +287,13 @@ data Lit
   | LitString   String Range
   deriving (Show)
 
+litRange :: Lit -> Range
+litRange lit
+  = case lit of
+      LitInt _ range    -> range
+      LitFloat _ range  -> range
+      LitChar _ range   -> range
+      LitString _ range -> range
 
 stripExpr :: Expr t -> Expr t
 stripExpr (Parens e _ _) = stripExpr e
@@ -518,7 +527,7 @@ programNull name = Program sourceNull name rangeNull [] [] [preludeImport] [] []
 -- | Import declaration for the standard prelude
 preludeImport :: Import
 preludeImport
-  = Import nameSystemCore nameSystemCore rangeNull Private
+  = Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private
 
 makeProgram :: Name -> [TypeDef t t k] -> (Defs t) -> Program t k
 makeProgram name typedefs defs

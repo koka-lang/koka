@@ -12,7 +12,7 @@
 module Main where
 
 import System.Exit            ( exitFailure )
-import Control.Monad          ( when )
+import Control.Monad          ( when, foldM )
 
 import Platform.Config
 import Lib.PPrint             ( Pretty(pretty), writePrettyLn )
@@ -31,7 +31,8 @@ import Kind.Synonym           ( synonymsIsEmpty, ppSynonyms, synonymsFilter )
 import Kind.Assumption        ( kgammaFilter )
 import Type.Assumption        ( ppGamma, ppGammaHidden, gammaFilter, createNameInfoX, gammaNew )
 import Type.Pretty            ( ppScheme, Env(context,importsMap) )
-
+import System.IO (hPutStrLn, stderr)
+import Data.List (intercalate)
 
 -- compiled entry
 main      = mainArgs ""
@@ -70,30 +71,43 @@ mainArgs args
 mainMode :: Flags -> Flags -> Mode -> ColorPrinter -> IO ()
 mainMode flags flags0 mode p
   = case mode of
-      ModeHelp
-        -> showHelp flags p
-      ModeVersion
-        -> withNoColorPrinter (\monop -> showVersion flags monop)
-      ModeCompiler files
-        -> mapM_ (compile p flags) files
-      ModeInteractive files
-        -> interpret p flags flags0 files
+     ModeHelp
+      -> showHelp flags p
+     ModeVersion
+      -> withNoColorPrinter (\monop -> showVersion flags monop)
+     ModeCompiler files
+      -> do 
+        errFiles <- foldM (\errfiles file -> 
+            do
+              res <- compile p flags file
+              if res then return errfiles
+              else return (file:errfiles)
+            ) [] files
+        if null errFiles then return ()
+        else do
+          hPutStrLn stderr ("Failed to compile " ++ intercalate "," files)
+          exitFailure
+     ModeInteractive files
+      -> interpret p flags flags0 files
+     ModeLanguageServer files
+      -> do
+        hPutStrLn stderr "Language server mode not supported in this build of koka.\n"
+        exitFailure
 
-
-compile :: ColorPrinter -> Flags -> FilePath -> IO ()
+compile :: ColorPrinter -> Flags -> FilePath -> IO Bool
 compile p flags fname
   = do let exec = Executable (newName "main") ()
        cwd <- getCwd
-       err <- compileFile (term cwd) flags []
-                (if (not (evaluate flags)) then (if library flags then Library else exec) else exec) fname
+       err <- compileFile (const Nothing) Nothing (term cwd) flags []
+                (if (not (evaluate flags)) then (if library flags then Library else exec) else exec) [] fname
        case checkError err of
          Left msg
            -> do putPrettyLn p (ppErrorMessage cwd (showSpan flags) cscheme msg)
                  -- exitFailure  -- don't fail for tests
-
-         Right (Loaded gamma kgamma synonyms newtypes constructors _ imports _
-                (Module modName _ _ _ _ _warnings rawProgram core _ _ modTime) _ _ _
-               , warnings)
+                 return False
+         Right ((Loaded gamma kgamma synonyms newtypes constructors _ imports _
+                (Module modName _ _ _ _ _ rawProgram core _ _ _ modTime) _ _ _
+                , _), warnings)
            -> do when (not (null warnings))
                    (let msg = ErrorWarning warnings ErrorZero
                     in putPrettyLn p (ppErrorMessage cwd (showSpan flags) cscheme msg))
@@ -106,9 +120,11 @@ compile p flags fname
                  if showHiddenTypeSigs flags then do
                    -- workaround since private defs aren't in gamma
                    putPrettyLn p $ ppGammaHidden (prettyEnv flags modName imports) $ gammaFilter modName $ gammaFromDefGroups $ coreProgDefs core
-                 else if showTypeSigs flags then
+                   return True
+                 else if showTypeSigs flags then do
                    putPrettyLn p $ ppGamma (prettyEnv flags modName imports) $ gammaFilter modName gamma
-                 else pure ()
+                   return True
+                 else return True
   where
     term cwd
       = Terminal (putErrorMessage p cwd (showSpan flags) cscheme)
@@ -126,7 +142,7 @@ compile p flags fname
 
 gammaFromDefGroups groups = gammaNew $ map defToGammaEntry $ flattenDefGroups groups
   where
-    defToGammaEntry def = (defName def, createNameInfoX (defVis def) (defName def)  (defSort def) (defNameRange def) (defType def))
+    defToGammaEntry def = (defName def, createNameInfoX (defVis def) (defName def)  (defSort def) (defNameRange def) (defType def) (defDoc def))
 
 putScheme p env tp
   = putPrettyLn p (ppScheme env tp)

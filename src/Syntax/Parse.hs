@@ -9,14 +9,14 @@
     Parse concrete syntax.
 -}
 -----------------------------------------------------------------------------
-module Syntax.Parse( parseProgramFromFile
+module Syntax.Parse( parseProgramFromFile, parseProgramFromString
                    , parseValueDef
                    , parseTypeDef
                    , parseExpression
                    , parseType
 
                    -- used by the core parser
-                   , lexParse, parseLex, LexParser, parseLexemes, parseInline
+                   , lexParse, parseLex, LexParser, parseLexemes, parseInline, ignoreSyntaxWarnings
 
                    , visibility, modulepath, importAlias, parseFip
                    , tbinderId, constructorId, funid, paramid
@@ -44,6 +44,7 @@ import Text.Parsec hiding (space,tab,lower,upper,alphaNum,sourceName,optional)
 import Text.Parsec.Error
 import Text.Parsec.Pos           (newPos)
 
+import Common.Error as Err
 import Common.Name
 import Common.NamePrim
 import Common.Range hiding (after)
@@ -60,12 +61,13 @@ import Syntax.Lexeme
 import Syntax.Lexer   ( lexing )
 import Syntax.Layout  ( layout )
 import Syntax.Promote ( promote, promoteType, quantify, promoteFree )
+import Common.ColorScheme (defaultColorScheme)
 
 -----------------------------------------------------------
 -- Parser on token stream
 -----------------------------------------------------------
 
-type LexParser a  = Parsec [Lexeme] () a -- GenParser Lexeme () a
+type LexParser a  = Parsec [Lexeme] [(String, Range)] a -- GenParser Lexeme () a
 
 parseLex :: Lex -> LexParser Lexeme
 parseLex lex
@@ -82,50 +84,81 @@ optional p  = do { p; return True } <|> return False
 -----------------------------------------------------------
 -- Parse varieties
 -----------------------------------------------------------
-parseProgramFromFile :: Bool -> Bool -> FilePath -> IO (Error UserProgram)
+parseProgramFromFile :: Bool -> Bool -> FilePath -> IO (Error a UserProgram)
 parseProgramFromFile allowAt semiInsert fname
   = do input <- readInput fname
-       return (lexParse allowAt semiInsert id program fname 1 input)
+       let result = parseProgramFromString allowAt semiInsert input fname
+       case checkError result of
+          Right (a, warnings) ->
+            do
+              logSyntaxWarnings warnings
+              return result
+          Left err            -> return result
 
+logSyntaxWarnings :: [(Range, Doc)] -> IO ()
+logSyntaxWarnings warnings
+  = putPretty (prettyWarnings "" True defaultColorScheme warnings)
 
-parseValueDef :: Bool -> FilePath -> Int -> String -> Error UserDef
+parseProgramFromString :: Bool -> Bool -> BString -> FilePath -> Error a UserProgram
+parseProgramFromString allowAt semiInsert input fname
+  = do (result, syntaxWarnings) <- lexParse allowAt semiInsert id program fname 1 input
+       addWarnings (map (\(s, r) -> (r, text s)) syntaxWarnings) $ return result
+
+parseValueDef :: Bool -> FilePath -> Int -> String -> Error () UserDef
 parseValueDef semiInsert sourceName line input
   = lexParseS semiInsert (const valueDefinition)  sourceName line input
 
-parseTypeDef :: Bool -> FilePath -> Int -> String -> Error (UserTypeDef,[UserDef])
+parseTypeDef :: Bool -> FilePath -> Int -> String -> Error () (UserTypeDef,[UserDef])
 parseTypeDef semiInsert sourceName line input
   = lexParseS semiInsert (const typeDefinition)  sourceName line input
 
-parseType :: Bool -> FilePath -> Int -> Name -> String -> Error UserTypeDef
+parseType :: Bool -> FilePath -> Int -> Name -> String -> Error () UserTypeDef
 parseType semiInsert sourceName line name input
   = lexParseS semiInsert (const (userType name))  sourceName line input
 
-parseExpression :: Bool -> FilePath -> Int -> Name -> String -> Error UserDef
+parseExpression :: Bool -> FilePath -> Int -> Name -> String -> Error () UserDef
 parseExpression semiInsert sourceName line name input
   = lexParseS semiInsert (const (expression name))  sourceName line input
 
-lexParseS semiInsert p sourceName line str
-  = lexParse False semiInsert id p sourceName line (stringToBString str)
+ignoreSyntaxWarnings :: Error b (a, [(String, Range)]) -> Error b a
+ignoreSyntaxWarnings result =
+  do (x, syntaxWarnings) <- result
+     return x
 
-lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error a
+lexParseS :: Bool -> (Source -> LexParser b) -> FilePath -> Int -> String -> Error a b
+lexParseS semiInsert p sourceName line str
+  = do
+      (result, syntaxWarnings) <- (lexParse False semiInsert id p sourceName line (stringToBString str))
+      return $ trace (concat (intersperse "\n" (map fst syntaxWarnings))) $ result
+
+runStateParser :: LexParser a -> SourceName -> [Lexeme] -> Either ParseError (a, [(String, Range)])
+runStateParser p sourceName lex =
+  runParser (pp p) [] sourceName lex
+  where
+    pp p =
+      do r <- p
+         s <- getState
+         return (r, s)
+
+lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error b (a, [(String, Range)])
 lexParse allowAt semiInsert preprocess p sourceName line rawinput
   = let source = Source sourceName rawinput
         input  = if (isLiteralDoc sourceName) then extractLiterate rawinput else rawinput
         xs = lexing source line input
         lexemes = preprocess $ layout allowAt semiInsert xs
     in  -- trace  (unlines (map show lexemes)) $
-        case (parse (p source) sourceName lexemes) of
+        case (runStateParser (p source) sourceName lexemes) of
           Left err -> makeParseError (errorRangeLexeme xs source) err
           Right x  -> return x
 
-parseLexemes :: LexParser a -> Source -> [Lexeme] -> Error a
+parseLexemes :: LexParser a -> Source -> [Lexeme] -> Error () (a, [(String, Range)])
 parseLexemes p source@(Source sourceName _) lexemes
-  = case (parse p sourceName lexemes) of
+  = case (runStateParser p sourceName lexemes) of
       Left err -> makeParseError (errorRangeLexeme lexemes source) err
       Right x  -> return x
 
 
-makeParseError :: (ParseError -> Range) -> ParseError -> Error a
+makeParseError :: (ParseError -> Range) -> ParseError -> Error b a
 makeParseError toRange perr
   = errorMsg (ErrorParse (toRange perr) errorDoc)
   where
@@ -219,7 +252,7 @@ programBody vis source modName nameRange doc
   where
     prelude = if (show modName `startsWith` "std/core")
                then []
-               else [Import nameSystemCore nameSystemCore rangeNull Private]
+               else [Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private]
 
 braced p
   = do lcurly
@@ -278,16 +311,16 @@ importDecl
   = do (vis,vrng,rng0) <- try $ do (vis,vrng) <- visibility Private
                                    rng0  <- keyword "import"
                                    return (vis,vrng,rng0)
-       (asname,name,rng) <- importAlias
-       return (Import asname name (combineRanges [vrng,rng0,rng]) vis)
+       (asname,name,asrng,namerng) <- importAlias
+       return (Import asname name asrng namerng (combineRanges [vrng,rng0,namerng]) vis)
 
-importAlias :: LexParser (Name,Name,Range)
+importAlias :: LexParser (Name,Name,Range,Range)
 importAlias
   = do (name1,rng1) <- modulepath
        (do keyword "="
            (name2,rng2) <- modulepath
-           return (name1,name2,rng2)
-        <|> return (name1,name1,rng1))
+           return (name1,name2,rng1,rng2)
+        <|> return (name1,name1,rng1,rng1))
 
 
 
@@ -296,7 +329,7 @@ visibility vis
   =   do rng <- keywordOr "pub" ["public"]
          return (Public,rng)
   <|> do rng <- keyword "private"
-         pwarningMessage "using 'private' is deprecated, only use 'pub' to make declarations public"
+         pwarningMessage "using 'private' is deprecated, only use 'pub' to make declarations public" rng
          return (Private,rng)
   <|> return (vis,rangeNull)
 
@@ -318,7 +351,7 @@ externDecl dvis
             <|>
              try ( do (krng,_) <- dockeyword "extern"
                       specialId "include"
-                      warnDeprecated "include" "import"
+                      warnDeprecated "include" "import" krng
                       return (Left (externalImport krng)))
             <|>
              try ( do (vis,vrng) <- visibility dvis
@@ -1183,9 +1216,9 @@ parseFip
   = do isTail   <- do specialId "tail"
                       return True
                   <|> return False
-       ( do specialId "fip"
+       ( do rng <- specialId "fip"
             alloc <- parseFipAlloc
-            when isTail $ pwarningMessage "a 'fip' function implies already 'tail'"
+            when isTail $ pwarningMessage "a 'fip' function implies already 'tail'" rng
             return (Fip alloc)
          <|>
          do specialId "fbip"
@@ -1543,7 +1576,7 @@ funblock
        return (Lam [] exp (getRange exp))
 
 lambda alts
-  = do rng <- keywordOr "fn" alts
+  = do rng <- keyword "fn" -- keywordOr "fn" alts
        spars <- squantifier
        (tpars,pars,_,parsRng,mbtres,preds,ann) <- funDef False {-allowBorrow-} True {-allow implicits-}
        body <- bodyexpr
@@ -1552,13 +1585,13 @@ lambda alts
        return (ann fun)
 
 ifexpr
-  = do rng <- keyword "if"
+  = do rng <- do keyword "if"
        tst <- ntlexpr
        (texpr,eexprs,eexpr) <-
            do texpr <- returnexpr
               return (texpr, [], Var nameUnit False (after (getRange texpr)))
            <|>
-           do texpr   <- thenexpr
+           do texpr   <- thenexpr rng
               eexprs  <- many elif
               eexpr   <- do keyword "else"
                             blockexpr
@@ -1578,18 +1611,18 @@ ifexpr
        return fullMatch
   where
     elif
-      = do keyword "elif"
+      = do rng <- keyword "elif"
            tst <- ntlexpr -- parens expr
-           texpr <- thenexpr
+           texpr <- thenexpr rng
            return (tst,texpr)
 
-    thenexpr
+    thenexpr rng
       = do keyword "then"
            blockexpr
         <|>
         do pos <- getPosition
            expr <- blockexpr
-           pwarning $ "warning " ++ show pos ++ ": using an 'if' without 'then' is deprecated.\n  hint: add the 'then' keyword."
+           pwarning ("warning " ++ show pos ++ ": using an 'if' without 'then' is deprecated.\n  hint: add the 'then' keyword.") rng
            return expr
 
 returnexpr
@@ -1754,7 +1787,7 @@ handlerOp :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
 handlerOp
   = do rng <- keyword "return"
        (name,prng,tp) <- do (name,prng) <- paramid
-                            pwarningMessage "'return x' is deprecated; use 'return(x)' instead."
+                            pwarningMessage "'return x' is deprecated; use 'return(x)' instead." prng
                             tp         <- optionMaybe typeAnnotPar
                             return (name,prng,tp)
                         <|>
@@ -1796,9 +1829,11 @@ handlerOp
                  <|>
                  -- deprecated
                  do lookAhead qidentifier
-                    pwarningMessage "using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'brk', or 'ctl' instead."
-                    return OpControl
+                    return OpControlErr
        (name, nameRng) <- qidentifier
+       if opSort == OpControlErr then
+        pwarningMessage "using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'brk', or 'ctl' instead." nameRng
+       else return ()
        (oppars,prng) <- opParams
        expr <- bodyexpr
        let rexpr  = expr -- if (resumeKind /= ResumeTail) then expr else resumeCall expr pars nameRng
@@ -1848,7 +1883,7 @@ guards
        return [Guard guardTrue exp]
   <|>
     do exp <- block
-       pwarningMessage "use '->' for pattern matches"
+       pwarningMessage "use '->' for pattern matches" (getRange exp)
        return [Guard guardTrue exp]
 
 guardBar
@@ -2882,7 +2917,7 @@ specialIdOr kw deprecated
   = choice (specialId kw : map deprecate deprecated)
   where
     deprecate  k = do rng <- specialId k
-                      warnDeprecated k kw
+                      warnDeprecated k kw rng
                       return rng
 
 
@@ -2892,7 +2927,7 @@ keywordOr kw deprecated
   = choice (keyword kw : map deprecate deprecated)
   where
     deprecate  k = do rng <- keyword k
-                      warnDeprecated k kw
+                      warnDeprecated k kw rng
                       return rng
 
 dockeywordOr :: String -> [String] -> LexParser (Range,String)
@@ -2901,7 +2936,7 @@ dockeywordOr kw deprecated
   = choice (dockeyword kw : map deprecate deprecated)
   where
     deprecate k  = do x <- dockeyword k
-                      warnDeprecated k kw
+                      warnDeprecated k kw (fst x)
                       return x
 
 
@@ -2918,18 +2953,17 @@ dockeyword s
   <?> show s
 
 
-warnDeprecated dep new
+warnDeprecated dep new rng
   = do pos <- getPosition
-       pwarning $ "warning " ++ show pos ++ ": keyword \"" ++ dep ++ "\" is deprecated. Consider using \"" ++ new ++ "\" instead."
+       pwarning ("warning " ++ show pos ++ ": keyword \"" ++ dep ++ "\" is deprecated. Consider using \"" ++ new ++ "\" instead.") rng
 
 
-pwarningMessage msg
+pwarningMessage msg rng
   = do pos <- getPosition
-       pwarning $ "warning " ++ show pos ++ ": " ++ msg
+       pwarning ("warning " ++ show pos ++ ": " ++ msg) rng
 
-pwarning :: String -> LexParser ()
-pwarning msg = traceM msg
-
+pwarning :: String -> Range -> LexParser ()
+pwarning msg rng = modifyState (\prev -> prev ++ [(msg, rng)])
 
 
 uniqueRngHiddenName :: Range -> String -> Name

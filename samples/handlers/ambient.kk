@@ -106,7 +106,7 @@ effect val cwd : string
 fun is-home()
   cwd == "/home"
 
-fun test1() 
+pub fun example1() 
   with val cwd = "/"
   is-home()
 

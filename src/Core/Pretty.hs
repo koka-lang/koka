@@ -17,6 +17,7 @@ import qualified Data.Set as S
 import Common.Name
 import Common.ColorScheme
 import Common.Syntax
+import Common.Range
 import qualified Common.NameSet as S
 import Lib.PPrint
 import Core.Core
@@ -164,7 +165,9 @@ prettyExternal env (External name tp pinfos body vis fip nameRng doc) | coreIfac
 prettyExternal env (External name tp pinfos body vis fip nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $
-    keyword env (show fip ++ "extern") <+> prettyDefName env name <+> text ":" <+> prettyDefFunType env pinfos tp <+> prettyEntries body
+    keyword env (show fip ++ "extern") <+> prettyDefName env name  <.> prettyRange env nameRng
+     <+> text ":" <+> prettyDefFunType env pinfos tp
+     <+> prettyEntries body
   where
     prettyEntries [(Default,content)] = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
@@ -276,7 +279,7 @@ prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
             keyword env (defSortShowFull sort)
             <+> (if nameIsNil name && coreShowDef env
                   then text "_"
-                  else prettyDefName env name)
+                  else prettyDefName env name) <.> prettyRange env nameRng
             <+> text ":" <+> (case sort of
                   DefFun pinfos _ -> prettyDefFunType env pinfos scheme
                   _               -> prettyType env scheme
@@ -372,7 +375,8 @@ prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal inl nameRng doc)]) e')
            in {- if (nameIsNil x) then exprDoc
                else -}
               (keyword env "val" <+> hang 2 (
-                (if nameIsNil x then text "_" else prettyDefName env x) <+> text ":" <+> prettyType env tp
+                (if nameIsNil x then text "_" else prettyDefName env x) <.> prettyRange env nameRng
+                <+> text ":" <+> prettyType env tp
                 <-> text "=" <+> exprDoc))
          , prettyExpr env e'
          ]

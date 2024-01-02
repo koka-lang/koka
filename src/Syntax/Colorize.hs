@@ -153,10 +153,10 @@ transform isLiterate rng rangeMap env lexeme content
                in
                (ranges,
                 case info of
-                 NIValue tp     -> signature env toLit isLiterate "type" qname (mangle qname tp) (pdocs $ showType env tp) $
+                 NIValue tp _ _ -> signature env toLit isLiterate "type" qname (mangle qname tp) (pdocs $ showType env tp) $
                                      (case lexeme of (Lexeme _ (LexKeyword _ _)) -> cspan "keyword" pcontent  -- for 'return'
                                                      _  -> pcontent)
-                 NICon tp       -> signature env toLit isLiterate "type" qname (mangleConName qname) (pdocs $ showType env tp) $ cspan "constructor" pcontent
+                 NICon tp _     -> signature env toLit isLiterate "type" qname (mangleConName qname) (pdocs $ showType env tp) $ cspan "constructor" pcontent
                  NITypeVar kind -> signature env toLit isLiterate "kind" qname qname (pdocs $ showKind env kind) $ cspan "type typevar" $ spanEffect kind pcontent
                  NITypeCon kind -> signature env toLit isLiterate "kind" qname (mangleTypeName qname) (pdocs $ showKind env kind) $ cspan "type" $ spanEffect kind pcontent
                  NIModule       -> signature env toLit isLiterate "module" qname (qualify qname nameNil) (pdocs $ showModule qname) (cspan "namespace" pcontent)

@@ -1,7 +1,7 @@
 /* Example of red-black tree<a> balanced insertion.
 
    This uses Okasaki style functional rebalancing.
-   See also the benchmarks in `test/bench/koka` and `rbtree-fbip.kk`
+   See also the benchmarks in `example/bench/koka` and `rbtree-fbip.kk`
 */
 module rbtree
 

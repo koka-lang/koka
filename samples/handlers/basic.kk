@@ -24,7 +24,7 @@ fun hello()
   println("Hello " ++ name ++ ", " ++ ask())  // "Hello <ask>, <ask>"
 
 
-pub fun test2()
+pub fun example2()
   with fun ask() "there"    // a `fun` operation resumes implicitly with its result
   hello()
 
@@ -62,9 +62,8 @@ fun to-maybe(action)
   Just(action())
 
 
-pub fun test1()
+pub fun example1()
   zerodiv(10,0).println
-
 
 
 
@@ -94,7 +93,7 @@ fun state(init, action)
     fun put(x) s := x
 
 
-pub fun test3()
+pub fun example3()
   state(1,counter).snd
 
 
@@ -122,11 +121,11 @@ fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e ()
   action()
 
 
-pub fun test4()
+pub fun example4()
   foreach( fn(x:int){ println(x); x <= 1 } )
     [1,2,3].iterate
 
-fun test4b()
+pub fun example4b()
   with return(x) ()                // just force final result to ()
   with amb
   with foreach fn(x:int)
@@ -158,7 +157,7 @@ val amb = handler
   ctl flip() resume(False) ++ resume(True)
 
 
-pub fun test5()
+pub fun example5()
   amb(xor).show.println
 
 
@@ -174,10 +173,10 @@ fun surprising() : <flip,state<int>> bool
   if (i>0 && p) then xor() else False
 
 
-pub fun test6()
+pub fun example6()
   state(0){ amb(surprising) }.show.println
 
-pub fun test7()
+pub fun example7()
   amb{ state(0,surprising) }.show.println
 
 
@@ -185,20 +184,20 @@ pub fun test7()
 //  Testing
 // --------------------------------------------------------
 pub fun main()
-  test1()
-  test2()
-  test3()
-  test4()
-  test5()
-  test6()
+  example1()
+  example2()
+  example3()
+  example4()
+  example5()
+  example6()
   42
 
 
-fun tuplelist/show( xs : list<(bool,int)> ) : string
+fun listboolint/show( xs : list<(bool,int)> ) : string
   xs.show-list fn(x)
     x.show-tuple(show,show)
 
 
-fun show( x : (list<bool>,int) ) : string
+fun listint/show( x : (list<bool>,int) ) : string
   x.show-tuple(show,show)
 

@@ -61,7 +61,7 @@ trace s x =
 
 
 
-unrollDefs :: Pretty.Env -> Int -> CorePhase ()
+unrollDefs :: Pretty.Env -> Int -> CorePhase b ()
 unrollDefs penv unrollMax 
   = liftCorePhaseUniq $ \uniq defs ->
     runUnroll penv unrollMax uniq $

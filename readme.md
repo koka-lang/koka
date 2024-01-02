@@ -3,12 +3,6 @@
 <!--
 [<img align="right" src="https://travis-ci.org/koka-lang/koka.svg?branch=master"/>](https://travis-ci.org/koka-lang/koka)
 -->
-<a  href="https://matrix.to/#/#koka-lang_koka:gitter.im">
-<img align="right" style="margin: 5px" src="https://img.shields.io/matrix/koka-lang:matrix.org?label=chat%20on%20matrix"/>
-</a>
-<a href="https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">
-<img align="right" style="margin: 5px" src="https://badges.gitter.im/koka-lang/koka.svg"/>
-</a>
 
 &nbsp;
 
@@ -16,7 +10,7 @@
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_
 
-_Latest release_: v2.4.2, 2023-07-03 ([Install]).
+_Latest release_: v2.6.0, 2023-12-30 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -75,17 +69,24 @@ To learn more:
 [emscripten]: https://emscripten.org/docs/getting_started/downloads.html
 [musl]: https://musl.libc.org/
 [wasmtime]: https://wasmtime.dev/
+[fiptree-tr]: https://www.microsoft.com/en-us/research/uploads/prod/2023/07/fiptree-tr-v4.pdf
 
 Enjoy,
   Daan Leijen
 
-Special thanks to: [Anton Lorenzen](https://antonlorenzen.de/) for his work on frame-limited
+Special thanks to: [Tim Whiting](https://github.com/TimWhiting) and [Fredrik Wieczerkowski](https://github.com/fwcd)
+for their work on the VS Code language integration,
+[Anton Lorenzen](https://antonlorenzen.de/) for his work on one-hole context ([pdf][fiptree-tr]), fully in-place programming [[11](#references)] and frame-limited
 reuse in Perceus [[10]](#references), [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence passing [[9,6]](#references) and the formalization of Perceus reference counting [[8]](#references),
 [Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references),
 and all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 ## Recent Releases
 
+* `v2.6.0`, 2023-12-30: initial VS Code language support with type information, jump to definition,
+  run test functions directly from the editor, automatic Koka installation, and many more things.
+  Special thanks to [Tim Whiting](https://github.com/TimWhiting) and [Fredrik Wieczerkowski](https://github.com/fwcd) for all their work on making this possible!
+  Also includes support for one-hole contexts ([pdf][fiptree-tr]) and extended bit operations on `int32`/`int64` and various bug fixes.
 * `v2.4.2`, 2023-07-03: interim release with support for the new `fip` and `fbip` keywords
   to support fully-in-place programming [[11](#references)]. Various bug fixes and performance
   enhancements.
@@ -165,6 +166,9 @@ you can correct this by running `git submodule update --init --recursive`).
 
 You can also use `stack build --fast` to build a debug version of the compiler,
 and use `stack test --fast` to run the test-suite.
+
+To run a single test you can run stack test filtering based on paths such as `stack test --test-arguments '-m "lib"'`.
+This will run all tests that are under the `test/lib` directory.
 
 (See the [build notes](#build-notes) below if you have issues when running- or installing `stack`).
 
@@ -279,9 +283,6 @@ More advanced projects:
 * [x] Update the JavaScript backend to 1) use modern modules instead of amdefine, 2) use the new bigints instead of
   bigint.js, and 3) add support for int64. (landed in the `dev` branch)
 * [x] Port `std/text/regex` from v1 (using PCRE)
-* [ ] A language server for Visual Studio Code and Atom. Koka can already generate a
-  typed [range map](src/Syntax/RangeMap.hs) so this should be managable. Partially done: see PR #100 (by @fwcd) -- it just
-  needs work on packaging it to make it easy to build and install as part of the Koka installer.
 * [ ] Package management of Koka modules.
 * [x] Compile to WASM (using emscripten on the current C backend)
 * [ ] Improve compilation of local state to use local variables directly (in C) without allocation. Tricky though due to multiple resumptions.
@@ -317,6 +318,17 @@ The following is the immediate todo list to be completed in the coming months:
 
 * [ ] Port `std/async` (using `libuv`).
 * [ ] Proper overloading with (a form of) type classes. (in design phase).
+
+LSP Related Tasks:
+* [ ] Generate completions for effect handlers (with empty bodies of all the functions)
+* [ ] Generate show / (==) for datatypes
+* [ ] Find References
+* [ ] Generate Type Annotations
+
+Extension Related Tasks:
+
+VSCode:
+* [ ] Add support for debugging an executable
 
 Contact me if you are interested in tackling some of these :-)
 
@@ -460,7 +472,13 @@ $ out\v2.0.5\cl-release\test_bench_koka_rbtree --kktime
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
 
-## Older Release Notes
+## Language Server
+
+See the [`support/vscode/README.md`](support/vscode/README.md) for how to
+build the VS Code language server.
+
+# Older Release Notes
+
 
 * `v2.1.9`, 2021-06-23: initial support for cross-module specialization (by Steven Fontanella).
 * `v2.1.8`, 2021-06-17: initial support for macOS M1 and Linux arm64, improved readline, minor fixes.
@@ -482,6 +500,7 @@ info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 * `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C
   compilation, local install support.
 * `v2.0.0`, 2020-08-21: initial v2 release.
+
 
 # References
 

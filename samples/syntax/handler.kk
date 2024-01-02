@@ -6,7 +6,7 @@
 */
 module syntax/handler
 
-effect test 
+effect example 
   ctl raise( msg :string ) : a
 
 
@@ -15,7 +15,7 @@ effect test
    function: that function takes a unit-function `action`
    that is run under the handler.
 */
-pub fun test1() : console int 
+pub fun example1() : console int 
   val h = handler 
             ctl raise(msg) { println(msg); 42 }
   h(fn() raise("error"))
@@ -23,20 +23,20 @@ pub fun test1() : console int
 
 // The `with` statement (see `syntax/with`) can help to
 // specify the previous handler more easily as:
-pub fun test2() : console int
+pub fun example2() : console int
   with handler 
     ctl raise(msg) { println(msg); 42 }
   raise("error")
 
 
-fun test2-expanded() : console int {
+pub fun example2-expanded() : console int {
   (handler{ ctl raise(msg){ println(msg); 42 } })(fn(){ raise("error") })
 }
 
 
 // Moreover, if there is only one operation, we can
 // shorten this further as:
-pub fun test3() : console int
+pub fun example3() : console int
   with ctl raise(msg){ println(msg); 42 }
   raise("error")
 
@@ -60,7 +60,7 @@ pub fun test3() : console int
 //   An operation that always resumes with a constant. As efficient
 //   as `fun` operations.
 
-pub fun test4() : console int 
+pub fun example4() : console int 
   with final ctl raise(msg) { println(msg); 42 }
   raise("error")
 

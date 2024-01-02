@@ -1384,6 +1384,10 @@ pub fun float64/maximum( xs : list<float64> ) : float64
 // returned by functions that find sub strings or patterns in
 // in strings. Use `string:(slice : sslice) -> string` to
 // create a fresh substring from a slice.
+//
+// The start and len fields of a slice are in terms of bytes.
+// Slices should only be interacted with safe methods defined in core
+// that take care to not cut strings in the middle of a utf codepoint.
 abstract value struct sslice( str : string, start : int, len : int )
 
 // Internal export for the regex module
@@ -1600,16 +1604,27 @@ pub extern next( slice : sslice ) : maybe<(char,sslice)>
   cs "Primitive.SliceNext"
   js "_sslice_next"
 
-/*
-pub fun substr( slice: sslice, start : int, end : int ): sslice
-  val Sslice(s, st, _) = slice
-  val newst = st + start
-  val newLen = end - start
-  if newst + newLen > s.count then
-    Sslice(s, newst, s.count - newst)
-  else
-    Sslice(s, newst, newLen)
-*/
+// Truncates a slice to length 0
+pub fun truncate( slice: sslice ): sslice
+  Sslice(slice.str, slice.start, 0)
+
+// Gets up to (`end`-`start`) characters from the slice beginning from `start`.
+// If either start or end is negative, returns the original slice
+pub fun subslice( slice: sslice, start : int, end : int ): sslice
+  if start < 0 || end < 0 then slice else
+    // Advances to start, zeros the length, and then extends (end - start characters)
+    slice.advance(start).truncate.extend(end - start)
+
+// Gets a slice that only includes up to n characters from the start of the slice.
+pub fun take( slice: sslice, n : int): sslice
+  if n <= 0 then return slice else slice.truncate.extend(n)
+
+// Gets a slice that drops the first n characters, shrinking the length of the slice by n accordingly.
+// If the slice does not have n characters, then the slice is shrunk to an empty slice.
+//
+// If maintaining the length of the slice is important, use `advance` instead.
+pub fun drop( slice: sslice, n : int): sslice
+  if n <= 0 then return slice else slice.advance(n).truncate.extend(slice.count - n)
 
 // Apply a function for each character in a string slice.
 // If `action` returns `Just`, the function returns immediately with that result.
@@ -1902,11 +1917,11 @@ pub fun vector( ^n : int, default : a) : vector<a>
   vector-initz(n.ssize_t, fn(_i){ default } )
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
-pub fun vector-init( ^n : int, f : int -> a ) : vector<a>
+pub fun vector-init( ^n : int, f : int -> e a ) : e vector<a>
   vector-initz( n.ssize_t, fn(i) { f(i.int) } )
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
-extern vector-initz(n : ssize_t, f : ssize_t -> a) : vector<a>
+extern vector-initz(n : ssize_t, f : ssize_t -> e a) : e vector<a>
   c "kk_vector_init"
   cs inline "Primitive.NewArray<##1>(#1,#2)"
   js inline "_vector(#1,#2)"
