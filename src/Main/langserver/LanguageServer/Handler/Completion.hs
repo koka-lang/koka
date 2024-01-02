@@ -49,7 +49,7 @@ import Kind.Synonym (SynInfo (..), Synonyms, synonymsToList)
 import Type.Assumption
 import Type.InferMonad (subst, instantiate)
 import Type.TypeVar (tvsEmpty)
-import Type.Type (Type(..), splitFunType, splitFunScheme, typeString, typeInt, typeFloat, typeChar)
+import Type.Type (Type(..), splitFunType, splitFunScheme, typeString, typeInt, typeFloat, typeChar, typeList, TypeVar (..), Flavour (..))
 import Type.Unify (runUnify, unify, runUnifyEx, matchArguments)
 import Compiler.Compile (Module (..))
 import Compiler.Module ( Loaded(..), modLexemes )
@@ -65,6 +65,7 @@ import qualified Data.Text.Encoding as T
 import Common.File (isLiteralDoc)
 import Lib.Trace (trace)
 import Kind.Newtypes (Newtypes, DataInfo (..), newtypesTypeDefs)
+import Kind.Kind (kindStar)
 
 -- Gets tab completion results for a document location
 -- This is a pretty complicated handler because it has to do a lot of work
@@ -180,31 +181,47 @@ getCompletionInfo pos vf mod uri = do
       line = if length lines < row then "" else lines !! (row - 1) -- rows are 1 indexed in koka
       endRng = rngEnd prior
   -- trace ("Prior: " ++ intercalate "\n" (map show (take 4 prior)) ++ " context " ++ intercalate "\n" (map show context)  ++ " row" ++ show row ++ " pos: " ++ show pos' ++ "\n") $ return ()
+  
+  -- Matches all of the kinds of completions we support. Both without any partial name and with a partial name
   return $! case context of
+    -- Names followed by . (use the type of the name as a filter)
     [(Lexeme rng1 (LexKeyword "." _)), (Lexeme rng2 (LexId nm))] -> completeFunction line nameNil endRng rng2 False
     [(Lexeme rng0 (LexId partial)), (Lexeme rng1 (LexKeyword "." _)), (Lexeme rng2 (LexId nm))] -> completeFunction line partial rng0 rng2 False
+    -- Names followed by . (but with a chain of prior names) i.e. a.b.c (use the result type of the name as a filter)
     (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexId nm)):_ -> completeFunction line nameNil endRng rng2 True
     (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexId nm)):_-> completeFunction line partial rng0 rng2 True
+    -- Strings followed by .
     (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexString _)):_ -> completeString line nameNil endRng
     (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexString _)):_ -> completeString line partial rng0
+    -- Chars followed by .
     (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexChar _)):_ -> completeChar line nameNil endRng
     (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexChar _)):_ -> completeChar line partial rng0
+    -- Ints followed by .
     (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexInt _ _)):_ -> completeInt line nameNil endRng
     (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexInt _ _)):_ -> completeInt line partial rng0
+    -- Floats followed by .
     (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexFloat _ _)):_ -> completeFloat line nameNil endRng
     (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexFloat _ _)):_ -> completeFloat line partial rng0
+    -- Lists followed by .
+    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexSpecial "]")):_ -> completeList line nameNil endRng
+    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexSpecial "]")):_ -> completeList line partial rng0
+    -- closing paren followed by : (type or effect)
     (Lexeme rng1 (LexKeyword ":" _)):(Lexeme rng2 (LexSpecial ")")):_ -> completeTypeOrEffect line nameNil endRng
     (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword ":" _)):(Lexeme rng2 (LexSpecial ")")):_ -> completeTypeOrEffect line partial rng0
+    -- : (type)
     (Lexeme rng1 (LexKeyword ":" _)):_ -> completeType line nameNil endRng
     (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword ":" _)):_ -> completeType line partial rng0
+    -- plain identifier - suggest all values that contain identifier regardless of context type
     (Lexeme rng (LexId partial)):_ -> completeIdentifier line partial rng
     _ -> Nothing
   where
+    -- Range where to insert if there is no partial name to replace
     rngEnd prior = case prior of
       [] -> rangeNull
       (Lexeme rng _):_ ->
+        -- Move to after the .
         let adjust = extendRange rng 1 in
-        makeRange (rangeEnd adjust) (rangeEnd adjust) -- TODO: Extend?
+        makeRange (rangeEnd adjust) (rangeEnd adjust)
     completeString line partial rng =
       return (CompletionInfo line pos partial rng (Just typeString) CompletionKindFunction)
     completeInt line partial rng =
@@ -213,6 +230,10 @@ getCompletionInfo pos vf mod uri = do
       return (CompletionInfo line pos partial rng (Just typeFloat) CompletionKindFunction)
     completeChar line partial rng =
       return (CompletionInfo line pos partial rng (Just typeChar) CompletionKindFunction)
+    completeList line partial rng =
+      let tyvar = TypeVar (-1) kindStar Skolem
+          tvar  = TVar tyvar in
+      return (CompletionInfo line pos partial rng (Just (TForall [tyvar] [] (TApp typeList [tvar]))) CompletionKindFunction)
     completeFunction line partial rnginsert rng resultOfFunction =
       let rm = rangeMapFind rng (fromJust $ modRangeMap mod)
       in completeRangeInfo line partial rm rnginsert resultOfFunction
@@ -259,9 +280,6 @@ findCompletions loaded mod cinfo@CompletionInfo{completionKind = kind} = result
     filtered = map snd $ filter (\(n, i) -> filterInfix (n, cinfo)) completions
     result = if kind == CompletionKindFunction then filtered else keywordCompletions cinfo curModName ++ filtered
 
--- TODO: Type completions, ideally only inside type expressions
--- ++ newtypeCompletions ntypes
-
 typeUnifies :: Type -> Maybe Type -> Bool
 typeUnifies t1 t2 =
   case t2 of
@@ -275,7 +293,6 @@ valueCompletions curModName gamma cinfo@CompletionInfo{argumentType=tp, searchTe
       map (toItem lspRng) . filter matchInfo $ filter (\(n, ni) -> filterInfix (n, cinfo)) $ gammaList gamma
     else []
   where
-    isHandler n = '.' == T.head n
     matchInfo :: (Name, NameInfo) -> Bool
     matchInfo (n, ninfo) = case ninfo of
         InfoVal {infoType} -> typeUnifies infoType tp
@@ -283,8 +300,9 @@ valueCompletions curModName gamma cinfo@CompletionInfo{argumentType=tp, searchTe
         InfoExternal {infoType} -> typeUnifies infoType tp
         InfoImport {infoType} -> typeUnifies infoType tp
         InfoCon {infoType } -> typeUnifies infoType tp
-    toItem lspRng (n, ninfo) = case ninfo of
-        InfoCon {infoCon} | isHandler $ T.pack (nameLocal n) -> (n, makeHandlerCompletionItem curModName infoCon d lspRng (fullLine cinfo))
+    toItem lspRng (n, ninfo) = case ninfo of 
+        -- We only let hidden names get to this point if they are handlers
+        InfoCon {infoCon} | isHiddenName n -> (n, makeHandlerCompletionItem curModName infoCon d lspRng (fullLine cinfo))
         InfoFun {infoType} -> (n, makeFunctionCompletionItem curModName n d infoType (completionKind == CompletionKindFunction) lspRng (fullLine cinfo))
         InfoVal {infoType} -> case splitFunScheme infoType of
           Just (tvars, tpreds, pars, eff, res) -> (n, makeFunctionCompletionItem curModName n d infoType (completionKind == CompletionKindFunction) lspRng (fullLine cinfo))
