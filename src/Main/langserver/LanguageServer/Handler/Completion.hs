@@ -84,13 +84,13 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
   items <- case maybeRes of
     Just (l, lm, vf) -> do
       completionInfo <- liftIO $ getCompletionInfo pos vf lm normUri
-      trace ("Completion info: " ++ show completionInfo) $ return ()
+      -- trace ("Completion info: " ++ show completionInfo) $ return ()
       case completionInfo of
         Just info ->
           let completions = findCompletions l lm info
-          in trace (show completions) $
+          in-- trace (show completions) $
             return completions
-        _ -> trace ("No completion infos for position ")
+        _ -> -- trace ("No completion infos for position ")
           return []
     _ -> return []
   responder $ Right $ J.InL items
@@ -179,7 +179,7 @@ getCompletionInfo pos vf mod uri = do
         (Lexeme rng tkn):_ -> fromIntegral $ posLine (rangeStart rng)
       line = if length lines < row then "" else lines !! (row - 1) -- rows are 1 indexed in koka
       endRng = rngEnd prior
-  trace ("Prior: " ++ intercalate "\n" (map show (take 4 prior)) ++ " context " ++ intercalate "\n" (map show context)  ++ " row" ++ show row ++ " pos: " ++ show pos' ++ "\n") $ return ()
+  -- trace ("Prior: " ++ intercalate "\n" (map show (take 4 prior)) ++ " context " ++ intercalate "\n" (map show context)  ++ " row" ++ show row ++ " pos: " ++ show pos' ++ "\n") $ return ()
   return $! case context of
     [(Lexeme rng1 (LexKeyword "." _)), (Lexeme rng2 (LexId nm))] -> completeFunction line nameNil endRng rng2 False
     [(Lexeme rng0 (LexId partial)), (Lexeme rng1 (LexKeyword "." _)), (Lexeme rng2 (LexId nm))] -> completeFunction line partial rng0 rng2 False
