@@ -15,6 +15,7 @@ module Syntax.RangeMap( RangeMap, RangeInfo(..), NameInfo(..)
                       , rangeMapFind
                       , rangeMapAppend
                       , rangeInfoType
+                      , lexemesFromPos
                       , mangle
                       , mangleConName
                       , mangleTypeName
@@ -210,6 +211,9 @@ rangeMapFindAt lexemes pos (RM rm)
                -- ++ unlines (map show rm)
              ) $ -}
         maybeHead (prioritize rinfos)
+
+lexemesFromPos :: Pos -> [Lexeme] -> [Lexeme]
+lexemesFromPos pos lexes = dropWhile (\lex -> not (rangeContains (getRange lex) pos)) lexes
 
 maybeHead []    = Nothing
 maybeHead (x:_) = Just x

@@ -22,17 +22,19 @@ import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Protocol.Lens as J
 import Common.Name (Name)
-import Common.Range (Range (..), rangeEnd, Pos(..), rangeNull, posNull, extendRange)
+import Common.Range (Range (..), rangeEnd, Pos(..), rangeNull, posNull, extendRange, minPos, makeRange, rangeStart)
 import Type.Pretty (ppType, Env (..), defaultEnv, ppScheme)
 import Kind.ImportMap (ImportMap)
 import Compiler.Compile (Module(..), Loaded (..))
+import Compiler.Module (modLexemes)
 import Compiler.Options (prettyEnvFromFlags, Flags)
-import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindIn)
+import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindIn, lexemesFromPos)
+import Syntax.Lexeme (Lexeme (..), Lex (..))
 import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getFlags, getInlayHintOptions, InlayHintOptions (..))
 import LanguageServer.Conversions (fromLspPos, toLspRange, toLspPos, fromLspRange)
 import LanguageServer.Handler.Hover (formatRangeInfoHover)
-import Lib.PPrint (hcat, sep, text, punctuate)
+import Lib.PPrint (hcat, sep, text, punctuate, tupled, comma, (<.>), (<+>), isEmptyDoc)
 -- import Debug.Trace (trace)
 
 -- The LSP handler that provides inlay hints (inline type annotations etc)
@@ -52,7 +54,7 @@ inlayHintsHandler = requestHandler J.SMethod_TextDocumentInlayHint $ \req respon
         rmap <- modRangeMap lm
         -- trace (show $ rangeMapFindIn newRng rmap) $ return ()
         let env = (prettyEnvFromFlags flags){ context = modName lm, importsMap = loadedImportMap l, showFlavours=False }
-        let hints = concatMap (toInlayHint options env (modName lm)) $ rangeMapFindIn newRng rmap
+        let hints = concatMap (toInlayHint options env lm) $ rangeMapFindIn newRng rmap
         let hintsDistinct = Map.fromList $ map (\hint -> (hint ^. J.position, hint)) hints
         return $ Map.elems hintsDistinct
   case rsp of
@@ -60,8 +62,8 @@ inlayHintsHandler = requestHandler J.SMethod_TextDocumentInlayHint $ \req respon
     Just rsp -> responder $ Right $ J.InL rsp
 
 -- Takes a range and range info and returns an inlay hint if it should be shown
-toInlayHint :: InlayHintOptions -> Env -> Name -> (Range, RangeInfo) -> [J.InlayHint]
-toInlayHint opts env modName (rng, rngInfo) = do
+toInlayHint :: InlayHintOptions -> Env -> Module -> (Range, RangeInfo) -> [J.InlayHint]
+toInlayHint opts env mod (rng, rngInfo) = do
   let rngEnd = rangeEnd rng
       -- should show identifier hint if it's not annotated already
       shouldShow =
@@ -73,28 +75,51 @@ toInlayHint opts env modName (rng, rngInfo) = do
           Implicits _ -> showImplicitArguments opts
           _ -> False
   if shouldShow then
-    let info = formatInfo opts env modName rng rngInfo in
-    mapMaybe (\(rng, str, kind) ->
+    let info = formatInfo opts env mod rng rngInfo in
+    mapMaybe (\(rng, str, kind, padding) ->
         let rngEnd = rangeEnd rng in
         let position = toLspPos rngEnd{posColumn = posColumn rngEnd + 1} in
         let text = T.pack str in
         if T.null text then Nothing else
-          Just $ J.InlayHint position (J.InL text) (Just kind) (Just [J.TextEdit (J.Range position position) text]) Nothing (Just True) (Just True) Nothing
+          Just $ J.InlayHint position (J.InL text) (Just kind) (Just [J.TextEdit (J.Range position position) text]) Nothing (Just padding) (Just padding) Nothing
     ) info
   else []
 
 -- Pretty-prints type information for an inlay hint
-formatInfo :: InlayHintOptions -> Env -> Name -> Range -> RangeInfo -> [(Range, String, J.InlayHintKind)]
-formatInfo opts env modName rng rinfo = case rinfo of
-  Id qname info docs isdef ->
-    let implicitArguments = [(inlayRange, show (hcat $ punctuate (text ", ") docs), J.InlayHintKind_Parameter) | showImplicitArguments opts] in
+formatInfo :: InlayHintOptions -> Env -> Module -> Range -> RangeInfo -> [(Range, String, J.InlayHintKind, Bool)]
+formatInfo opts env mod rng rinfo = case rinfo of
+  Id qname info docs isdef -> 
     case info of
-      NIValue tp _ isAnnotated ->
-        let typeAnnotation = [(rng, " : " ++ show (ppScheme env tp), J.InlayHintKind_Type) | not isAnnotated && showInferredTypes opts]
-            result = typeAnnotation ++ implicitArguments
+      NIValue tp _ isAnnotated -> 
+        let typeAnnotation = [(rng, " : " ++ show (ppScheme env tp), J.InlayHintKind_Type, True) | not isAnnotated && showInferredTypes opts]
+            result = typeAnnotation ++ implicits docs
         in if null result then [] else result
-      _ -> if null implicitArguments then [] else implicitArguments
-  Implicits implicits -> [(inlayRange, show implicits, J.InlayHintKind_Parameter) | showImplicitArguments opts]
+      _ -> if null docs then [] else implicits docs
+  Implicits imp -> implicit imp
   _ -> []
  where
-  inlayRange = extendRange rng 1
+  implicitLex = lexemesFromPos (rangeEnd rng) (modLexemes mod)
+  isDotFunction = case implicitLex of
+    _:(Lexeme rng (LexKeyword "." _)):_ -> True
+    _:(Lexeme rng (LexSpecial ";")):_ -> True
+    _:(Lexeme rng LexInsSemi):_ -> True
+    _:(Lexeme rng LexInsLCurly):_ -> True
+    _ -> False
+  isEmptyFunction = case implicitLex of
+    _:(Lexeme rng (LexSpecial "(")):(Lexeme rng1 (LexSpecial ")")):_ -> True
+    _ -> False
+  inlayRange = if isDotFunction then rng else finalParameterRange implicitLex 0
+  finalParameterRange lexes match = case lexes of 
+    Lexeme r (LexSpecial "("):rst -> finalParameterRange rst (match + 1)
+    Lexeme r (LexSpecial ")"):rst -> 
+      let Pos src off l c = rangeStart r
+          newPos = Pos src off l (c - 1) in
+      if match == 1 then makeRange newPos newPos else finalParameterRange rst (match - 1)
+    x:rst -> finalParameterRange rst match
+    [] -> rng
+  implicit imp = 
+    [(inlayRange, if isDotFunction then show (tupled [imp]) else if isEmptyFunction then show imp else show (comma <+> imp), J.InlayHintKind_Parameter, False) | showImplicitArguments opts]
+  implicits docs = 
+    let doc = (hcat $ punctuate (text ", ") docs)
+    in if isEmptyDoc doc then [] else [(inlayRange, show (if isDotFunction then tupled docs else if isEmptyFunction then doc else comma <+> doc), J.InlayHintKind_Parameter, False) | showImplicitArguments opts]
+  
