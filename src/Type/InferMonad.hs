@@ -1025,7 +1025,7 @@ lookupAppNamesEx allowDisambiguate filter name ctx range
                  filter name ctx range
        -- create ImplicitExpr for easy comparing
        penv <- getPrettyEnv
-       let iapps' = [(toImplicitAppExpr penv "" name range iapp, iapp) | iapp <- iapps]
+       let iapps' = [(toImplicitAppExpr False penv "" name range iapp, iapp) | iapp <- iapps]
         --  traceDefDoc $ \penv -> text "lookupAppName:" <+> Pretty.ppName penv name <+> text ":"
         --                          <+> ppNameContext penv ctx <+> text "="
         --                          <+> list [pretty iexpr | (iexpr,_) <- iapps']
@@ -1077,15 +1077,17 @@ pick allowDisambiguate select xs
 -- lookup an implicit name, potentially eta-expanding functions to provide implicit arguments recursively
 lookupImplicitNames :: Int -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [ImplicitExpr]
 lookupImplicitNames recurseDepth infoFilter name ctx range
-  = do candidates <- lookupAppNames recurseDepth True {-allow bypass-} True {-allow type bypass-} infoFilter name ctx range
+  = do candidates <- lookupAppNames (recurseDepth+1) True {-allow bypass-} True {-allow type bypass-} infoFilter name ctx range
        penv <- getPrettyEnv
-       return (map (toImplicitAppExpr penv "?" name range) candidates)
+       return (map (toImplicitAppExpr (recurseDepth > 0) penv "?" name range) candidates)
 
-toImplicitAppExpr :: Pretty.Env -> String -> Name -> Range -> (Name,NameInfo,Rho,[(Name,ImplicitExpr)]) -> ImplicitExpr
-toImplicitAppExpr penv prefix name range (iname,info,itp,iargs)
+toImplicitAppExpr :: Bool -> Pretty.Env -> String -> Name -> Range -> (Name,NameInfo,Rho,[(Name,ImplicitExpr)]) -> ImplicitExpr
+toImplicitAppExpr shorten penv prefix name range (iname,info,itp,iargs)
       = let isLocal = not (isQualified iname)
             withColor clr doc = color (clr (Pretty.colors penv)) doc
-            docName = withColor colorImplicitParameter (text prefix <.> Pretty.ppNamePlain penv name <.> text "=")
+            docName = (if (shorten && toImplicitParamName name == iname)  -- ?cmp = ?cmp
+                        then Lib.PPrint.empty
+                        else withColor colorImplicitParameter (text prefix <.> Pretty.ppNamePlain penv name <.> text "="))
                       <.> withColor colorImplicitExpr (Pretty.ppNamePlain penv iname)
             -- coreVar = coreExprFromNameInfo iname info
        in case iargs of
@@ -1150,7 +1152,7 @@ lookupAppNames recurseDepth allowBypass allowTypeBypass infoFilter name ctx rang
                       iargss <- sequence <$> -- cartesian product of all possible argument
                                 mapM (\(pname,ptp) ->
                                         let (pnameName,pnameExpr) = splitImplicitParamName pname
-                                        in do iexprs <- lookupImplicitNames (recurseDepth + 1)
+                                        in do iexprs <- lookupImplicitNames recurseDepth
                                                             infoFilter (pnameExpr)
                                                             (implicitTypeContext ptp) (endOfRange range) -- use end of range to deprioritize with hover info
                                               return [(pnameName,iexpr) | iexpr <- iexprs]
@@ -1219,25 +1221,21 @@ lookupNames :: Bool -> Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Rang
 lookupNames allowBypass allowTypeBypass infoFilter name ctx range
   = do env <- getEnv
        -- traceDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
-       mod <- getModuleName
-       let locname = if (qualifier name == mod) then unqualify name else name -- could use a qualified name to refer to a recursive function itself
-       locals0  <- case infgammaLookupX locname (infgamma env) of
-                     Just info | infoFilter info -> do sinfo <- subst info
-                                                       let lname = infoCanonicalName name info
-                                                       return [(lname,sinfo)]
-                     _ -> return []
+       locals0  <- lookupLocalName infoFilter name
        let forImplicitNames = allowTypeBypass
        locals1 <- filterMatchNameContextEx range forImplicitNames ctx locals0
-       if (not (null locals0) && not allowBypass)
+       if (not (null locals0)) -- && not allowBypass)
          then -- a local name was found and we are not allowed to bypass
               -- return [(iname,info,infoType info) | (iname,info) <- locals0]
               return locals1
-         else do if (not (null locals1) && not allowTypeBypass)
+         else {- do if (not (null locals1) && not allowTypeBypass)
                    then -- a local name was found and matched the type: always prefer it
                         return locals1
-                   else do -- otherwise consider globals as well
-                           let globals' = gammaLookup name (gamma env)
-                           let globals0 = filter (infoFilter . snd) $ globals'
+                   else -}
+                        do -- otherwise consider globals as well, and implicits in the local scope as well
+                           ilocals <- lookupLocalName infoFilter (toImplicitParamName name)  -- consider "@implicit/<name>"
+                           let globals0 = ilocals ++
+                                          filter (infoFilter . snd) (gammaLookup name (gamma env))
                             --  traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
                             --     <+> text ", locals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- locals0]
                             --     <+> text ", globals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- globals']
@@ -1247,6 +1245,16 @@ lookupNames allowBypass allowTypeBypass infoFilter name ctx range
                             --     <+> text ", globals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- globals1]
                            return (locals1 ++ globals1)
 
+lookupLocalName :: (NameInfo -> Bool) -> Name -> Inf [(Name,NameInfo)]
+lookupLocalName infoFilter name
+  = do env <- getEnv
+       mod <- getModuleName
+       let locname = if (qualifier name == mod) then unqualify name else name -- could use a qualified name to refer to a recursive function itself
+       case infgammaLookupX locname (infgamma env) of
+                     Just info | infoFilter info -> do sinfo <- subst info
+                                                       let lname = infoCanonicalName name info
+                                                       return [(lname,sinfo)]
+                     _ -> return []
 
 
 filterMatchNameContext :: Range -> NameContext -> [(Name,NameInfo)] -> Inf [(Name,NameInfo)]
