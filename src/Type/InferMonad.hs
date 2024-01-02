@@ -1097,7 +1097,7 @@ toImplicitAppExpr shorten penv prefix name range (iname,info,itp,iargs)
                       -- eta-expand and resolve further implicit parameters
                       -- todo: eta-expansion may become part of subsumption?
                       ->  let (fixed,opt,implicits) = splitOptionalImplicit ipars in
-                          assertion "Type.InferMonad.lookupImplicitNames" (length implicits == length iargs) $
+                          assertion "Type.InferMonad.toImplicitAppExpr" (length implicits == length iargs) $
                           let nameFixed    = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] fixed]
                               argsFixed    = [(Nothing,Var name False range) | name <- nameFixed]
                               etaTp         = TFun fixed ieff iresTp
@@ -1107,16 +1107,6 @@ toImplicitAppExpr shorten penv prefix name range (iname,info,itp,iargs)
                                                     (argsFixed ++
                                                       [(Just (pname,range),ieExpr iexpr) | (pname,iexpr) <- iargs])
                                                     range)
-                              {-
-                              coreFixedPars = [Core.TName name tp | (name,(_,tp)) <- zip nameFixed fixed]
-                              coreFixedArgs = [Core.Var tname Core.InfoNone | tname <- coreFixedPars]
-                              coreNones     = [Core.makeOptionalNone tp | (_,tp) <- opt]
-                              coreImplicits = [ieCoreExpr iexpr | (pname,iexpr) <- iargs]
-
-                              coreBody      = Core.App coreVar (coreFixedArgs ++ coreNones ++ coreImplicits)
-                              coreEta       = if null fixed then coreBody
-                                                else Core.Lam coreFixedPars ieff coreBody
-                              -}
 
                               depth         = 1 + sum [ieDepth iexpr | (_,iexpr) <- iargs]
                               localRoots    = if null iargs && isLocal
@@ -1126,7 +1116,7 @@ toImplicitAppExpr shorten penv prefix name range (iname,info,itp,iargs)
                                                             parens (hcat (intersperse comma ([text "_" | _ <- fixed] ++ [ieDoc iexpr | (_,iexpr) <- iargs])))
                                                           )
                           in ImplicitExpr doc etaTp eta depth localRoots
-                    _ -> failure ("Type.InferMonad.lookupImplicitNames: illegal type for implicit? " ++ show range ++ ", " ++ show (ppNameType penv (name,itp)))
+                    _ -> failure ("Type.InferMonad.toImplicitAppExpr: illegal type for implicit? " ++ show range ++ ", " ++ show (ppNameType penv (name,itp)))
 
 
 -- Lookup application name `f` in an expression `f(...)` where the name  context usually contains
