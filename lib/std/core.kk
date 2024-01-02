@@ -362,13 +362,13 @@ pub fun unzip4( xs : list<(a,b,c,d)>) : (list<a>,list<b>,list<c>,list<d>)
   iter(xs,ctx _,ctx _,ctx _,ctx _)
 
 // Take the first `n` elements of a list (or fewer if the list is shorter than `n`)
-pub fun take( xs : list<a>, n : int ) : list<a>
+pub fun list/take( xs : list<a>, n : int ) : list<a>
   match xs
     Cons(x,xx) | n > 0 -> Cons(x, take(xx, n - 1))
     _ -> Nil
 
 // Drop the first `n` elements of a list (or fewer if the list is shorter than `n`)
-pub fun drop( xs : list<a>, n : int ) : list<a>
+pub fun list/drop( xs : list<a>, n : int ) : list<a>
   match xs
     Cons(_,xx) | n > 0 -> drop(xx, n - 1)
     _ -> xs
@@ -1437,14 +1437,14 @@ pub inline extern string/(!=) : (string,string) -> bool
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 
-pub inline fun slice/(==)(l1: sslice, l2: sslice ): bool
+pub inline fun sslice/(==)(l1: sslice, l2: sslice ): bool
   match (l1, l2)
     (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
       if f1 != f2 then False
       elif i1 != i2 then False
       else s1 == s2
 
-pub inline fun slice/(!=)(l1: sslice, l2: sslice ): bool
+pub inline fun sslice/(!=)(l1: sslice, l2: sslice ): bool
   match (l1, l2)
     (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
       if f1 != f2 then True
@@ -1488,7 +1488,7 @@ pub extern string/count( s : string ) : int
   js "_string_count"
 
 // O(n). Return the number of characters in a string slice
-pub extern slice/count( slice : sslice ) : int
+pub extern sslice/count( slice : sslice ) : int
   c  "kk_slice_count"
   cs "Primitive.SliceCount"
   js "_sslice_count"
@@ -1522,7 +1522,7 @@ pub fun slice( s : string ) : sslice
 val empty = Sslice("",0,0)
 
 // Is a slice empty?
-pub fun slice/is-empty( slice : sslice ) : bool
+pub fun sslice/is-empty( slice : sslice ) : bool
   !slice.len.is-pos
 
 // An invalid slice
@@ -1533,7 +1533,7 @@ pub fun is-valid( slice : sslice ) : bool
   slice.start >= 0
 
 // Is a slice not empty?
-pub fun slice/is-notempty( slice : sslice ) : bool
+pub fun sslice/is-notempty( slice : sslice ) : bool
   slice.len.is-pos
 
 // Return the first character of a string as a string (or the empty string)
@@ -1605,7 +1605,7 @@ pub extern next( slice : sslice ) : maybe<(char,sslice)>
   js "_sslice_next"
 
 // Truncates a slice to length 0
-pub fun truncate( slice: sslice ): sslice
+pub fun sslice/truncate( slice: sslice ): sslice
   Sslice(slice.str, slice.start, 0)
 
 // Gets up to (`end`-`start`) characters from the slice beginning from `start`.
@@ -1616,14 +1616,14 @@ pub fun subslice( slice: sslice, start : int, end : int ): sslice
     slice.advance(start).truncate.extend(end - start)
 
 // Gets a slice that only includes up to n characters from the start of the slice.
-pub fun take( slice: sslice, n : int): sslice
+pub fun sslice/take( slice: sslice, n : int): sslice
   if n <= 0 then return slice else slice.truncate.extend(n)
 
 // Gets a slice that drops the first n characters, shrinking the length of the slice by n accordingly.
 // If the slice does not have n characters, then the slice is shrunk to an empty slice.
 //
 // If maintaining the length of the slice is important, use `advance` instead.
-pub fun drop( slice: sslice, n : int): sslice
+pub fun sslice/drop( slice: sslice, n : int): sslice
   if n <= 0 then return slice else slice.advance(n).truncate.extend(slice.count - n)
 
 // Apply a function for each character in a string slice.
@@ -1710,7 +1710,7 @@ pub inline extern vectorsep/join: (v : vector<string>, sep : string ) -> total s
   js inline "((#1).join(#2))"
 
 // Truncate a string to `count` characters.
-pub fun truncate( s : string, count : int ) : string
+pub fun string/truncate( s : string, count : int ) : string
   s.first.extend(count - 1).string
 
 // Trim off a substring `sub` while `s` starts with that string.

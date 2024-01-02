@@ -84,10 +84,6 @@ pub fun example3()
   with env(Alice)
   echo("hi ")
   echo(whoami())
-<<<<<<< HEAD
-=======
-
->>>>>>> dev
 
 
 fun unitstr/show( (_,s) : ((),string) ) : string
