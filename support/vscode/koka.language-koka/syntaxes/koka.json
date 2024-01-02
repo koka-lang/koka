@@ -300,17 +300,17 @@
       },
 
     "reservedop" :
-      { "match": "(=|=>|\\->|<\\-|\\||\\.|:|:=)(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>])"
+      { "match": "(=|=>|\\->|<\\-|\\||\\.|:|:=)(?![$%&\\*\\+!/\\\\\\^~=\\.:\\-\\?\\|<>])"
       , "name": "keyword koka.keyword.op"
       },
 
     "reservedid" :
-      { "match": "(return(?=(?:\\(|\\s+\\(?)\\w[\\w\\-]*\\s*(?:\\)\\s*(?:[^;])))|infix|infixr|infixl|type|co|rec|struct|alias|forall|exists|some|extern|fun|fn|val|var|con|with(?:\\s+override)?|module|import|as|in|ctx|hole|pub|abstract|effect|named|(?:raw\\s+|final\\s+)ctl|break|continue|unsafe|mask(?:\\s+behind)?|handle|handler)(?![\\w\\-?'])"
+      { "match": "(return(?=(?:\\(|\\s+\\(?)\\w[\\w\\-]*\\s*(?:\\)\\s*(?:[^;])))|infix|infixr|infixl|type|co|rec|struct|alias|forall|exists|some|extern|fun|fn|val|var|con|with(?:\\s+override)?|module|import|as|in|ctx|hole|pub|abstract|effect|named|(?:raw\\s+|final\\s+)ctl|break|continue|unsafe|mask(?:\\s+behind)?|handle|handler)(?![\\w\\-'])"
       , "name": "keyword.other koka.keyword"
       },
 
     "reservedcontrol" :
-      { "match": "(if|then|else|elif|match|return)(?![\\w\\-?'])"
+      { "match": "(if|then|else|elif|match|return)(?![\\w\\-'])"
       , "name": "keyword.control koka.keyword.control.$1"
       },
 
@@ -395,35 +395,10 @@
       , "name": "source.wildcard koka.id.wildcard"
       },
 
-    "type_variable" :
-      { "match": "([a-z][0-9]*|_[\\w\\-]*[\\'\\?]*|self)(?!\\w)"
-      , "name": "markup.italic constant.numeric.type support.type koka.type.typevar"
-      },
 
-    "type_identifier" :
-      { "match": "[@a-z][\\w\\-@]*[\\']*"
-      , "name": "constant.numeric.type support.type koka.type.typecon"
-      },
-
-    "type_qidentifier" :
-      { "match": "([@a-z][\\w\\-@]*[\\']*/#?)+"
-      , "name": "variable.other.member.definition.module koka.moduleid"
-      },
-
-    "type_parameter" :
-      { "match": "([a-zA-Z][\\w\\-]*[\\'\\?]*)\\s*:(?!:)"
-      , "captures": {
-           "1": { "name" : "source.typeparam koka.type.typeparam" }
-         }
-      },
-
-    "type_kind" :
-      { "match": "[A-Z](?![\\w\\-])"
-      , "name": "constant.numeric.type support.type koka.type.kind"
-      },
 
     "decl_function":
-      { "match": "((?:(?:inline|noinline)\\s+)?(?:tail\\s+)?(?:(?:fip|fbip)(?:\\(\\d+\\))?\\s+)?(?:fun|fn|ctl|ret))\\s+((?:[@a-z][\\w\\-@]*/)*)([@a-z][\\w\\-@]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\]|\\\"[^\\s\\\"]+\\\")"
+      { "match": "((?:(?:inline|noinline)\\s+)?(?:tail\\s+)?(?:(?:fip|fbip)(?:\\(\\d+\\))?\\s+)?(?:fun|fn|ctl|ret))\\s+((?:[@a-z][\\w\\-@]*/#?)*)([@a-z][\\w\\-@]*[\\']*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\]|\\\"[^\\s\\\"]+\\\")"
       , "captures": {
           "1": { "name": "keyword.declaration.function koka.keyword.fun" },
           "2": { "name": "variable.other.member.definition.module koka.moduleid" },
@@ -445,7 +420,7 @@
       },
 
     "decl_external":
-      { "match": "((?:(?:inline|noinline)\\s+)?(?:(?:fip|fbip)\\s+)?extern)\\s+((?:[@a-z][\\w\\-@]*/)*)([@a-z][\\w\\-@]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\]|\\\"[^\\s\\\"]+\\\")?"
+      { "match": "((?:(?:inline|noinline)\\s+)?(?:(?:fip|fbip)\\s+)?extern)\\s+((?:[@a-z][\\w\\-@]*/#?)*)([@a-z][\\w\\-@]*[\\']*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\]|\\\"[^\\s\\\"]+\\\")?"
       , "captures": {
           "1": { "name": "keyword.declaration.function koka.keyword.extern" },
           "2": { "name": "variable.other.member.definition.module koka.moduleid" },
@@ -454,7 +429,7 @@
       },
 
      "decl_val":
-       { "match": "((?:(?:inline|noinline)\\s+)?val)\\s+((?:[@a-z][\\w\\-@]*/)*)([@a-z][\\w\\-@]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\))?"
+       { "match": "((?:(?:inline|noinline)\\s+)?val)\\s+((?:[@a-z][\\w\\-@]*/#?)*)([@a-z][\\w\\-@]*[\\']*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))?"
        , "captures": {
            "1": { "name": "keyword.declaration  koka.keyword.val" },
            "2": { "name": "variable.other.member.definition.module koka.moduleid" },
@@ -463,7 +438,7 @@
        },
 
     "decl_var":
-      { "match": "(var)\\s+([a-z][\\w\\-]*[\\'\\?]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))"
+      { "match": "(var)\\s+([a-z][\\w\\-]*[\\']*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))"
       , "captures": {
           "1": { "name": "keyword.declaration koka.keyword.var" },
           "2": { "name": "entity.name koka.id.decl.var" }
@@ -471,8 +446,37 @@
       },
 
     "decl_param" :
-      { "match": "([a-z][\\w\\-]*[\\'\\?]*)\\s*(?=:)"
+      { "match": "([a-z][\\w\\-]*[\\']*)\\s*(?=:)"
       , "name" : "entity.name koka.id.param"
+      },
+
+
+
+    "type_variable" :
+      { "match": "([_]?[a-z][0-9]*|_[\\w\\-]*[\\']*|self)(?!\\w)"
+      , "name": "markup.italic constant.numeric.type support.type koka.type.typevar"
+      },
+
+    "type_identifier" :
+      { "match": "[\\$]?[@a-z][\\w\\-@]*[\\']*"
+      , "name": "constant.numeric.type support.type koka.type.typecon"
+      },
+
+    "type_qidentifier" :
+      { "match": "([@a-z][\\w\\-@]*[\\']*/#?)+"
+      , "name": "variable.other.member.definition.module koka.moduleid"
+      },
+
+    "type_parameter" :
+      { "match": "([\\$]?[a-zA-Z][\\w\\-]*[\\']*)\\s*:(?!:)"
+      , "captures": {
+           "1": { "name" : "source.typeparam koka.type.typeparam" }
+         }
+      },
+
+    "type_kind" :
+      { "match": "[A-Z](?![\\w\\-])"
+      , "name": "constant.numeric.type support.type koka.type.kind"
       },
 
     "top_type":
@@ -557,7 +561,7 @@
       },
 
     "type_app":
-      { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|\\s\\d])"
+      { "begin": "<(?![%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|\\s\\d])"
       , "end": ">|\\n|  "
       , "beginCaptures": { "0": { "name": "constant.numeric.type support.type koka.type.special" } }
       , "endCaptures": { "0": { "name": "constant.numeric.type support.type koka.type.special" } }
@@ -602,7 +606,7 @@
           ]
         },
 
-        { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|])"
+        { "begin": "<(?![%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|])"
         , "end": ">|\\n|  "
         , "beginCaptures": { "0": { "name": "constant.numeric.type support.type koka.type.special" } }
         , "endCaptures": { "0": { "name": "constant.numeric.type support.type koka.type.special" } }
