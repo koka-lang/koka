@@ -25,7 +25,7 @@ import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 import Common.Range as R
 import Common.Name (nameNil)
 import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
-import Lib.PPrint (Pretty (..), Doc, string, (<+>), (<-->),color, Color (..), (<.>), (<->), text, empty)
+import Lib.PPrint (Pretty (..), Doc, string, (<+>), (<-->),color, Color (..), (<.>), (<->), text, empty, vcat)
 import Compiler.Module (loadedModule, modRangeMap, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)
@@ -88,14 +88,16 @@ rangeInfoPriority (r,ri) =
     Decl _ _ _ -> 1
     Warning _ -> 4
     Error _ -> 5
+    Implicits _ -> -1 -- The info we want to show should be part of Id
 
 -- Pretty-prints type/kind information to a hover tooltip given a type pretty environment, color scheme
 formatRangeInfoHover :: (Maybe Loaded) -> Env -> ColorScheme -> RangeInfo -> Doc
 formatRangeInfoHover mbLoaded env colors rinfo =
   case rinfo of
   Id qname info docs isdef ->
+    let addDocs doc = if null docs then doc else doc <--> vcat docs in
     let signature = ppName env qname <+> text " : " <+> case info of
-          NIValue tp "" _ -> ppScheme env tp
+          NIValue tp "" _ -> ppScheme env tp 
           NIValue tp doc _ -> ppScheme env tp
           NICon tp "" ->  ppScheme env tp
           NICon tp doc ->  ppScheme env tp
@@ -109,15 +111,16 @@ formatRangeInfoHover mbLoaded env colors rinfo =
                          _ -> empty)
 
           NIKind -> text "kind" in
-    case info of
+    addDocs (case info of
       NIValue tp "" _ -> text "" <.> signature
       NIValue tp doc _ -> color Green (stringStripComments doc) <--> signature
       NICon tp "" ->  text "" <.> signature
       NICon tp doc ->  color Green (stringStripComments doc) <--> signature
-      _ -> text "" <.> signature
+      _ -> text "" <.> signature)
   Decl s name mname -> text s <+> text " " <+> pretty name
   Block s -> text s
   Error doc -> text "Error: " <+> doc
   Warning doc -> text "Warning: " <+> doc
+  Implicits implicits -> text "Implicits: " <+> text (show implicits)
 
 

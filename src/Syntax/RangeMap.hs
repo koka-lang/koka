@@ -83,7 +83,7 @@ instance Show RangeInfo where
         Block kind        -> "Block " ++ kind
         Error doc         -> "Error"
         Warning doc       -> "Warning"
-        Id name info _ isDef -> "Id " ++ show name ++ (if isDef then " (def)" else "")
+        Id name info docs isDef -> "Id " ++ show name ++ (if isDef then " (def)" else "") ++ " " ++ show docs
         Implicits doc        -> "Implicits " ++ show doc
 
 instance Enum RangeInfo where
@@ -158,29 +158,30 @@ rangeMapLookup :: Range -> RangeMap -> ([(Range,RangeInfo)],RangeMap)
 rangeMapLookup r (RM rm)
   = let (rinfos,rm') = span startsAt (dropWhile isBefore rm)
     in -- trace ("lookup: " ++ show r ++ ": " ++ show rinfos) $
-       (prioritize rinfos, RM rm')
+       (prioritizeRInfos rinfos, RM rm')
   where
     pos = rangeStart r
     isBefore (rng,_)  = rangeStart rng < pos
     startsAt (rng,_)  = rangeStart rng == pos
 
-    prioritize rinfos
-      = let idocs = concatMap (\(_,rinfo) -> case rinfo of
-                                               Implicits doc -> [doc]
-                                               _             -> []) rinfos
-        in map (mergeDocs idocs) $
-           map last $ groupBy eq $ sortBy cmp $
-           filter (not . isImplicits . snd) rinfos
-      where
-        isImplicits (Implicits _) = True
-        isImplicits _             = False
+prioritizeRInfos :: [(a, RangeInfo)] -> [(a, RangeInfo)]
+prioritizeRInfos rinfos
+  = let idocs = concatMap (\(_,rinfo) -> case rinfo of
+                                            Implicits doc -> [doc]
+                                            _             -> []) rinfos
+    in map (mergeDocs idocs) $
+        map last $ groupBy eq $ sortBy cmp $
+        filter (not . isImplicits . snd) rinfos
+  where
+    isImplicits (Implicits _) = True
+    isImplicits _             = False
 
-        eq (_,ri1) (_,ri2)  = (EQ == compare ((fromEnum ri1) `div` 10) ((fromEnum ri2) `div` 10))
-        cmp (_,ri1) (_,ri2) = compare (fromEnum ri1) (fromEnum ri2)
+    eq (_,ri1) (_,ri2)  = (EQ == compare ((fromEnum ri1) `div` 10) ((fromEnum ri2) `div` 10))
+    cmp (_,ri1) (_,ri2) = compare (fromEnum ri1) (fromEnum ri2)
 
-        -- merge implicit documentation into identifiers
-        mergeDocs ds (rng, Id name info docs isDef) = (rng, Id name info (docs ++ ds) isDef)
-        mergeDocs ds x = x
+    -- merge implicit documentation into identifiers
+    mergeDocs ds (rng, Id name info docs isDef) = (rng, Id name info (docs ++ ds) isDef)
+    mergeDocs ds x = x
 
 rangeMapFindIn :: Range -> RangeMap -> [(Range, RangeInfo)]
 rangeMapFindIn rng (RM rm)
@@ -190,7 +191,7 @@ rangeMapFindIn rng (RM rm)
 
 rangeMapFindAt :: Pos -> RangeMap -> [(Range, RangeInfo)]
 rangeMapFindAt pos (RM rm)
-  = shortestRange $ filter (containsPos . fst) rm
+  = shortestRange $ prioritizeRInfos $ filter (containsPos . fst) rm
   where
     containsPos rng   = rangeStart rng <= pos && rangeEnd rng >= pos
     shortestRange []  = []
