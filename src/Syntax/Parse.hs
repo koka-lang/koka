@@ -1292,6 +1292,7 @@ parameters allowBorrow allowDefaults allowImplicits = do
   (results, rng) <- parensCommasRng (parameter allowBorrow allowDefaults allowImplicits)
   let (binders, pinfos, transforms) = unzip3 results
       transform = appEndo $ foldMap Endo transforms  -- right-to-left so the left-most parameter matches first
+  -- TODO: check correct parameter order: normal, named, implicit
   pure (binders, pinfos, transform, rng)
 
 parameter :: Bool -> Bool -> Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), ParamInfo, UserExpr -> UserExpr)
@@ -1304,8 +1305,8 @@ parNormal :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), U
 parNormal allowDefaults
   =  do pat <- patAtom
         tp  <- optionMaybe typeAnnotPar
-        (opt,drng) <- if allowDefaults then defaultExpr  -- todo: restricted to names for implicits
-                                      else return (Nothing,rangeNull)
+        (opt,drng) <- if allowDefaults then defaultExpr
+                                       else return (Nothing,rangeNull)
 
         let rng = case pat of
                     PatVar binder -> getRange (binderExpr binder)

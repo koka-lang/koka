@@ -1702,18 +1702,20 @@ inferBinders infgamma binders
 
 
 
--- infer implicit parameter declaration:  remove ? from the parameter name
+-- infer implicit parameter declaration:
 -- check if the expression is a single identifier and possibly generate unpacking of fields
 inferImplicitParam par
   = if isImplicitParamName (binderName par)
-     then  do let pname = plainImplicitParamName (binderName par)
+     then  do -- let pname = plainImplicitParamName (binderName par)
               unpack <- case binderExpr par of
-                Just (Parens (Var qname _ rng) _ _) -> inferImplicitUnpack (binderRange par) rng pname qname -- encoded in the parser with a parens expression..
+                Just (Parens (Var qname _ rng) _ _)  -- encoded in the parser with a parens expression..
+                  -> inferImplicitUnpack (binderRange par) rng (binderName par) qname
                 Just (Var name _ _) -> return id
                 Nothing             -> return id
                 Just expr           -> do contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
                                           return id
-              return (par{binderName = pname, binderExpr = Nothing }, unpack)
+              return (par{ -- leave the binder name locally qualified as `@implicit/name` -- binderName = pname,
+                           binderExpr = Nothing }, unpack)
      else return (par, id)
 
 inferImplicitUnpack :: Range -> Range -> Name -> Name -> Inf (Expr Type -> Expr Type)

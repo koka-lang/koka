@@ -702,23 +702,24 @@ fromValueOperationsName name
   = unmakeHidden "val" name
 
 
-toImplicitParamName :: Name -> Name
-toImplicitParamName name
-  = prepend "implicit@" name
+implicitNameSpace :: String
+implicitNameSpace = "implicit"
 
 isImplicitParamName :: Name -> Bool
 isImplicitParamName name
-  = nameStartsWith name "implicit@"
+  = (nameLocalQual name == implicitNameSpace)
+
+toImplicitParamName :: Name -> Name
+toImplicitParamName name
+  = qualifyLocally (newModuleName implicitNameSpace) name
 
 plainImplicitParamName :: Name -> Name
 plainImplicitParamName name
-  = if isImplicitParamName name
-      then nameMapStem name (drop (length "implicit@"))
-      else name
+  = unqualifyFull name
 
 namedImplicitParamName :: Name -> Name -> Name
 namedImplicitParamName pname ename
-  = toImplicitParamName (newName (nameStem (plainImplicitParamName pname) ++ "@-@" ++ nameStem ename))
+  = toImplicitParamName (newName (nameStem pname ++ "@-@" ++ nameStem ename))
 
 splitImplicitParamName :: Name -> (Name,Name)
 splitImplicitParamName name
