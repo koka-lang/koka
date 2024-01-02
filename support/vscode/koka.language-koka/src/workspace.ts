@@ -35,9 +35,11 @@ export class KokaConfig {
     this.target = "c"
     this.enableDebugExtension = vsConfig.get('dev.debugExtension') as boolean
     this.developmentPath = vsConfig.get('dev.developmentPath') as string ?? ""
-    this.cwd = vsConfig.get('languageServer.workingDirectory') as string || vscode.workspace.workspaceFolders![0].uri.fsPath
+    this.cwd = vsConfig.get('languageServer.workingDirectory') as string || vscode.workspace.workspaceFolders[0]?.uri?.fsPath || home // TODO: use better default?
     this.compilerArgs = vsConfig.get('languageServer.compilerArguments') as string[] || []
     this.autoFocusTerminal = vsConfig.get('languageServer.autoFocusTerminal') as boolean ?? false;
+    this.showImplicitArguments = vsConfig.get('languageServer.inlayHints.showImplicitArguments') as boolean ?? false;
+    this.showInferredTypes = vsConfig.get('languageServer.inlayHints.showInferredTypes') as boolean ?? false;
 
     const extVersion = context.extension.packageJSON.version as string ?? "1.0.0"
     this.extensionVersion = semver.coerce(extVersion).format()
@@ -57,6 +59,11 @@ export class KokaConfig {
   compilerVersion : string          // version of that compiler
   compilerArgs: string[]            // extra arguments to pass
   compilerPaths: string[]           // all found paths to koka compilers in the system
+
+  // Configuration options for the language server
+  // Inlay Hints Options
+  showInferredTypes: boolean
+  showImplicitArguments: boolean
 
   // Does the compiler path point to a valid compiler?
   hasValidCompiler() : Boolean {

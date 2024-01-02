@@ -13,6 +13,7 @@
 
 module LanguageServer.Monad
   ( LSState (..),
+    InlayHintOptions(..),
     defaultLSState,
     newLSStateVar,
     LSM,
@@ -22,6 +23,7 @@ module LanguageServer.Monad
     getLoaded,putLoaded,removeLoaded,removeLoadedUri,getLoadedModule,
     getModules,
     updateConfig,
+    getInlayHintOptions,
     getDiagnostics,putDiagnostics,clearDiagnostics,
     runLSM,
     getProgress,setProgress
@@ -143,7 +145,8 @@ defaultLSState flags = do
                 )
   return LSState {
     lsLoaded = M.empty, lsModules=[],
-    messages = msgChan, progress=progressChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, config=Config{colors=Colors{mode="dark"}},
+    messages = msgChan, progress=progressChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests, 
+    config = Config{colors=Colors{mode="dark"}, inlayHintOpts=InlayHintOptions{showImplicitArguments=True, showInferredTypes=True}},
     terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags,
     lastChangedFile = Nothing, progressReport = Nothing,
     documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
@@ -164,10 +167,16 @@ putErrorMessage p cwd endToo cscheme err
   = writePrettyLn p (ppErrorMessage cwd endToo cscheme err)
 
 data Config = Config {
-  colors :: Colors
+  colors :: Colors,
+  inlayHintOpts :: InlayHintOptions
 }
 data Colors = Colors {
   mode :: String
+}
+
+data InlayHintOptions  = InlayHintOptions {
+  showImplicitArguments :: Bool,
+  showInferredTypes :: Bool
 }
 
 instance FromJSON Colors where
@@ -175,7 +184,11 @@ instance FromJSON Colors where
   parseJSON _ = empty
 
 instance FromJSON Config where
-  parseJSON (A.Object v) = Config <$> v .: "colors"
+  parseJSON (A.Object v) = Config <$> v .: "colors" <*> v .: "inlayHints"
+  parseJSON _ = empty
+
+instance FromJSON InlayHintOptions where
+  parseJSON (A.Object v) = InlayHintOptions <$> v .: "showImplicitArguments" <*> v .: "showInferredTypes"
   parseJSON _ = empty
 
 setProgress :: Maybe (J.ProgressAmount -> LSM ()) -> LSM ()
@@ -195,6 +208,9 @@ updateConfig cfg =
           s'{flags=(flags s'){colorScheme=darkColorScheme}}
         else
           s'{flags=(flags s'){colorScheme=lightColorScheme}}
+
+getInlayHintOptions :: LSM InlayHintOptions
+getInlayHintOptions = inlayHintOpts . config <$> getLSState
 
 getLastChangedFileLoaded :: (J.NormalizedUri, Flags) -> LSM (Maybe Loaded)
 getLastChangedFileLoaded (path, flags) = do
