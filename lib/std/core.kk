@@ -76,6 +76,29 @@ pub alias io-noexn = <div,io-total>
 // The `:io` effect is used for functions that perform arbitrary I/O operations.
 pub alias io = <exn,io-noexn>
 
+// File locations
+extern file/kk-modulename-extern() : string
+  c inline ""
+  js inline ""
+  cs inline ""
+
+extern file/kk-line-extern() : string
+  c inline ""
+  js inline ""
+  cs inline ""
+
+extern file/kk-fileinfo-extern() : string
+  c inline ""
+  js inline ""
+  cs inline ""
+
+// Automatically replaced with the current file's module name
+pub val file/kk-modulename : string = file/kk-modulename-extern()
+// Automatically replaced with the current line of the file
+pub val file/kk-line : string = file/kk-line-extern()
+// Automatically replaced with the current file's name and line
+pub val file/kk-fileinfo : string = file/kk-fileinfo-extern()
+
 // ----------------------------------------------------------------------------
 // Masking
 // ----------------------------------------------------------------------------
@@ -2250,6 +2273,10 @@ val trace-enabled : ref<global,bool> = unsafe-total{ ref(True) }
 pub fun trace( message : string ) : ()
   unsafe-total
     if !trace-enabled then xtrace(message)
+
+pub fun trace-info( message : string, ?kk-fileinfo: string ) : ()
+  unsafe-total
+    if !trace-enabled then xtrace(message ++ " " ++ implicit/kk-fileinfo)
 
 pub fun trace-any( message : string, x : a ) : ()
   unsafe-total

@@ -103,3 +103,6 @@ pub fun increment2(xs) {
 
 pub fun show(l: list<()>): string
   ""
+
+pub fun example-trace(): ()
+  trace-info("Hello")

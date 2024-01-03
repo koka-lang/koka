@@ -1,4 +1,5 @@
 {-# OPTIONS -cpp #-}
+{-# LANGUAGE MultiWayIf #-}
 -----------------------------------------------------------------------------
 -- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
@@ -40,6 +41,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
                       , nameInt32, nameOr, nameAnd, nameEffectOpen
                       , nameCCtxCreate, nameCCtxHoleCreate, isNameTuple
+                      , nameCoreFileLine, nameCoreFileInfo, nameCoreModuleName
                        )
 import Common.Range
 import Common.Unique
@@ -74,7 +76,6 @@ import Core.BindingGroups( regroup )
 -- import Core.Simplify( uniqueSimplify )
 
 import qualified Syntax.RangeMap as RM
-import Common.File (getCwd)
 
 
 {--------------------------------------------------------------------------
@@ -1497,15 +1498,23 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
            -> do addRangeInfo rng (RM.Id qname (RM.NIValue tp (infoDocString info) True) [] True)
                  inferExpr propagated expect (App (Var (toValueOperationName qname) False rangeNull) [] rangeNull)
          _ -> --  inferVarX propagated expect name rng qname1 tp1 info1
-              do let coreVar = coreExprFromNameInfo qname info
-                 -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
-                 (itp,coref) <- maybeInstantiate rng expect tp
-                 sitp <- subst itp
-                 addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue sitp (infoDocString info) True) [] False)
-
-                 -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp)
+              do 
                  eff <- freshEffect
-                 return (itp,eff,coref coreVar)
+                 mod  <- getModuleName
+                 if
+                    | qname == nameCoreFileInfo -> return (typeString, eff, Core.Lit (Core.LitString (showPlain mod ++ " " ++ show (posLine (rangeStart rng)))))
+                    | qname == nameCoreFileLine -> return (typeString, eff, Core.Lit (Core.LitString (show (posLine $ rangeStart rng))))
+                    | qname == nameCoreModuleName -> return (typeString, eff, Core.Lit (Core.LitString (showPlain mod)))
+                    | True -> do
+                      let coreVar = coreExprFromNameInfo qname info
+                      -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
+                      (itp,coref) <- maybeInstantiate rng expect tp
+                      sitp <- subst itp
+                      addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue sitp (infoDocString info) True) [] False)
+
+                      -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp)
+                      
+                      return (itp,eff,coref coreVar)
 
 
 
