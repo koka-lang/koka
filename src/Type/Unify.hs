@@ -135,7 +135,8 @@ matchArguments matchSome range free tp fixed named mbExpResTp
          Just (pars,_,resTp)
           -> if (length fixed + length named > length pars)
               then unifyError NoMatch
-              else do -- subsume fixed parameters
+              else do -- trace (" matchArguments: " ++ show (map pretty pars, map pretty fixed, map pretty named)) $ return ()
+                      -- subsume fixed parameters
                       let (fpars,npars) = splitAt (length fixed) pars
                       mapM_  (\(tpar,targ) -> subsume range free (unOptional tpar) targ) (zip (map snd fpars) fixed)
                       -- subsume named parameters
@@ -143,16 +144,16 @@ matchArguments matchSome range free tp fixed named mbExpResTp
                                                Nothing   -> unifyError NoMatch
                                                Just tpar -> subsume range free (unOptional tpar) targ
                             ) named
-                      -- check the rest is optional
-                      let rest = [(nm,tpar) | (nm,tpar) <- npars, not (nm `elem` map fst named)]
                       -- check if the result type matches
                       case mbExpResTp of
                         Nothing    -> return ()
                         Just expTp -> do subsume range free expTp resTp
                                          return ()
+                      -- check the rest is optional or implicit
+                      let rest = [(nm,tpar) | (nm,tpar) <- npars, not (nm `elem` map fst named)]
                       if (matchSome || all isOptionalOrImplicit rest)
-                       then subst rho1
-                       else unifyError NoMatch
+                        then subst rho1
+                        else unifyError NoMatch
 
 {--------------------------------------------------------------------------
   Subsumption

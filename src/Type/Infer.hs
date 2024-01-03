@@ -1399,9 +1399,9 @@ inferApp propagated expect fun nargs rng
     inferAppArgsFirst :: [(Int,FixedArg)] -> [(Int,Expr Type)] -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppArgsFirst fresolved [] fixed named     -- we inferred all fixed arguments
       = -- this always fails since we have not been able to resolve the function name
-        if (not (null named))
+        {- if (not (null named))
           then infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <-> text " hint: annotate the function parameters?" )
-          else inferAppFunFirst Nothing fun fresolved fixed [] []
+          else -} inferAppFunFirst Nothing fun fresolved fixed [] []
 
     inferAppArgsFirst fresolved ((idx,fix):fixs) fixed named  -- try to improve our guess
       = do --traceDoc $ \penv -> text "inferAppArgsFirst: "
@@ -1413,9 +1413,10 @@ inferApp propagated expect fun nargs rng
                       -> do sctx    <- fixedContext propagated fresolved' (length fixed) (map (fst . fst) named)
                             matches <- lookupAppName (null fixs {- allow disambiguate -}) name sctx nameRange
                             -- traceDoc $ \env -> text "app args matched for " <+> ppName env name <+>
-                            --                    text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+>
-                            --                    text ", res: " <+> ppProp env propagated <+>
-                            --                    text ", args: " <+> list (map (ppType env) (map (\(_,(_,tp,_,_)) -> tp) fresolved'))
+                            --                     text " =" <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+>
+                            --                     text ", res:" <+> ppProp env propagated <+>
+                            --                     text ", args:" <+> list (map (ppType env) (map (\(_,(_,tp,_,_)) -> tp) fresolved')) <+>
+                            --                     text ", named:" <+> list (map (pretty . fst . fst) named)
                             case matches of
                               Right (itp,funExpr,implicits)
                                  -> return (Just ((itp,rng),funExpr,implicits))
