@@ -6,7 +6,7 @@
   "compilerVersion": "2.6.0",
   "publisher": "koka",
   "engines": {
-    "vscode": ">=1.81.0"
+    "vscode": ">=1.85.0"
   },
   "icon": "images/koka-logo-filled.png",
   "galleryBanner": {
@@ -257,7 +257,15 @@
           "AskForProgramName": "extension.language-koka.getProgramName"
         }
       }
-    ]
+    ],
+    "terminal": {
+      "profiles": [
+        {
+          "title": "Koka Interpreter",
+          "id": "koka.interpreter"
+        }
+      ]
+    }
   },
   "scripts": {
     "build": "tsc",
@@ -267,7 +275,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.5.6",
-    "@types/vscode": "1.81.0",
+    "@types/vscode": "1.85.0",
     "@vscode/vsce": "^2.22.0",
     "@types/semver": "^7.5.6",
     "typescript": "^5.2.2",
