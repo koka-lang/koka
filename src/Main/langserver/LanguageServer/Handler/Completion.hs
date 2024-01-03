@@ -91,7 +91,7 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
       case completionInfo of
         Just info ->
           let completions = findCompletions l lm info
-          in-- trace (show completions) $
+          in-- trace (show completions) $P
             return completions
         _ -> -- trace ("No completion infos for position ")
           return []
@@ -264,7 +264,7 @@ getCompletionInfo pos vf mod uri = do
 -- TODO: Show documentation comments in completion docs
 
 filterInfix :: (Name,CompletionInfo) -> Bool
-filterInfix (n, cinfo) = (showPlain (searchTerm cinfo) `isInfixOf` showPlain n) && (nameIsNil n || not (isHiddenName n) || "@Hnd-" `isPrefixOf` showPlain n)
+filterInfix (n, cinfo) = (showPlain (searchTerm cinfo) `isInfixOf` showPlain n) && (nameIsNil n || not (isHiddenName n) || "@Hnd-" `isInfixOf` showPlain n)
 
 findCompletions :: Loaded -> Module -> CompletionInfo -> [J.CompletionItem]
 findCompletions loaded mod cinfo@CompletionInfo{completionKind = kind} = result
@@ -502,20 +502,26 @@ makeHandlerCompletionItem curModName conInfo d r line =
     doc = Just $ J.InL $ T.pack $ nameModule typeName
     deprecated = Just False
     preselect = Nothing
-    sortText = Just $ if nameModule curModName == nameModule typeName then "0" <> typeNameId else "2" <> typeNameId
+    sortText = Just $ if nameModule curModName == nameModule typeName then "0" <> typeNameId else "1" <> typeNameId
     filterText = Just typeNameId
     insertText = Nothing
     insertTextFormat = Just InsertTextFormat_Snippet
     insertTextMode = Nothing
     handlerClause :: (Int, [T.Text]) -> (Name, Type) -> (Int, [T.Text])
     handlerClause (i, acc) (name, tp) =
+      -- trace ("Handler clause: " ++ show name ++ " " ++ show tp ++ " args: " ++ show (handlerArgs newName tp)) $
       -- TODO: Consider adding snippet locations for the body of the handlers as well
       if T.isPrefixOf "val" newName then
         (i + 1, acc ++ [clauseIndentation <> newName <> " = $" <> T.pack (show (i + 1))])
-      else (if not (null funArgs) then fst (last funArgs) + 1 else 1, acc ++ [clauseIndentation <> newName <> "(" <> T.intercalate "," (map snd funArgs) <> ")\n" <> clauseBodyIndentation <> "()"])
+      else 
+        (if not (null funArgs) then fst (last funArgs) + 1 else 1,
+          acc ++ [clauseIndentation <> newName <> "(" <> T.intercalate "," (map snd funArgs) <> ")\n" <> clauseBodyIndentation <> "()"])
       where
         funArgs = zipWith (\i s -> (i, T.pack $ "$" ++ show (i + 1))) [i..] (handlerArgs newName tp)
-        newName = T.replace "brk" "final ctl" $ T.replace "-" " " (T.pack (show name))
+        newNameList = T.splitOn "-" $ T.replace "brk" "final ctl" $ T.pack (show name)
+        newName = case newNameList of
+          [] -> T.pack ""
+          x:tl -> x <> T.pack " " <> T.intercalate (T.pack "-") tl
     textEdit = Just $ J.InL $ J.TextEdit r $ "handler\n" <> T.intercalate "\n" (snd (foldl handlerClause (1, []) (conInfoParams conInfo)))
     textEditText = Nothing
     additionalTextEdits = Nothing
@@ -525,9 +531,12 @@ makeHandlerCompletionItem curModName conInfo d r line =
 
 handlerArgs :: T.Text -> Type -> [Type]
 handlerArgs name tp =
-  case tp of
-    TApp _ args -> if T.isPrefixOf "val" name then take (length args - 3) args else take (length args - 4) args
-    _ -> []
+  case tp of 
+    TApp _ args -> 
+      -- trace ("Hey these are the args" ++ show args) $
+      if T.isPrefixOf "val" name then take (length args - 3) args else take (length args - 4) args
+    TForall _ _ t -> handlerArgs name t
+
 
 makeSimpleCompletionItem :: Name -> String -> J.CompletionItemKind -> J.CompletionItem
 makeSimpleCompletionItem curModName l k =
