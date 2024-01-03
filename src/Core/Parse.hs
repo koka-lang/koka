@@ -687,12 +687,19 @@ parameter env allowBorrow
 parameterName :: LexParser Name
 parameterName
   = do specialOp "?"
-       (name,_) <- identifier
+       name <- parameterId
        (do keyword "="
            (ename,_) <- identifier
            return (namedImplicitParamName (toImplicitParamName name) ename)
         <|>
            return (toImplicitParamName name))
+    <|>
+    parameterId
+
+parameterId :: LexParser Name
+parameterId
+  = do (qname,_) <- qvarid  -- implicit/p
+       return (requalifyLocally qname)
     <|>
     do (name,_) <- paramid
        return name
@@ -1044,8 +1051,10 @@ envLookupCon env name
 
 envLookupVar :: Env -> Name -> LexParser Expr
 envLookupVar env name
- = case gammaLookupCanonical name (gamma env) of
-    [fun@(InfoFun{})] -> return $ coreExprFromNameInfo name fun
-    [val@(InfoVal{})] -> return $ coreExprFromNameInfo name val
-    [extern@(Type.Assumption.InfoExternal{})] -> return $ coreExprFromNameInfo name extern
-    res               -> fail $ "unknown identifier: " ++ show name ++ ": " ++ show res --  ++ ":\n" ++ show (gamma env)
+ = case M.lookup (requalifyLocally name) (locals env) of
+     Just tp -> return (Var (TName name tp) InfoNone)   -- implicit/par
+     _ -> case gammaLookupCanonical name (gamma env) of
+            [fun@(InfoFun{})] -> return $ coreExprFromNameInfo name fun
+            [val@(InfoVal{})] -> return $ coreExprFromNameInfo name val
+            [extern@(Type.Assumption.InfoExternal{})] -> return $ coreExprFromNameInfo name extern
+            res               -> fail $ "unknown identifier: " ++ show name ++ ": " ++ show res --  ++ ":\n" ++ show (gamma env)

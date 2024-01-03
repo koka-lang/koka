@@ -983,53 +983,44 @@ ieCompare ie1 ie2
 -- argument types.
 lookupAppName :: Bool -> Name -> NameContext -> Range ->
                    Inf (Either [(Name,NameInfo)] (Type,Expr Type,[((Name,Range),Expr Type, Doc)]))
-lookupAppName allowDisambiguate name ctx range | not (isConstructorName name)  -- or zero arguments?
-  = do iapps <- lookupAppNamesEx allowDisambiguate isInfoValFunExt name ctx range
-       pickBestName allowDisambiguate name range iapps
+lookupAppName allowDisambiguate name ctx range
+  = do -- find all implicit solutions
+       iapps <- if not (isConstructorName name)
+                  then -- normal identifier
+                       lookupAppNamesEx isInfoValFunExt name
+                  else -- constructor application
+                       do let cname = newCreatorName name
+                          defName <- currentDefName
+                          -- traceDefDoc $ \penv -> text "lookupAppName, constructor name:" <+> Pretty.ppName penv name <+> text "in definition" <+> Pretty.ppName penv defName
+                          if (defName == unqualify cname || defName == nameCopy) -- a bit hacky, but ensure we don't call the creator function inside itself or the copy function
+                            then lookupAppNamesEx isInfoCon name
+                            else do iapps1 <- lookupAppNamesEx isInfoFun cname
+                                    iapps2 <- lookupAppNamesEx isInfoCon name
+                                    let cnames = [name | (_,(name,_,_,_)) <- iapps1]
+                                        iapps3 = filter (\(_,(name,_,_,_)) -> not (newCreatorName name `elem` cnames)) iapps2
+                                    return (iapps1 ++ iapps3)
+       -- try to find a best candidate
+       case pick allowDisambiguate fst iapps of
+          Right (imp,(qname,info,itp,iexprs))
+            -> do -- traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
+                  return (Right (itp, Var qname False range, [((iname,range),ieExpr iexpr,ieDoc iexpr) | (iname,iexpr) <- iexprs]))
+          Left xs
+            -> let matches = nubBy (\x y -> fst x == fst y) [(name,info) | (_,(name,info,_,_)) <- xs]
+              in if (allowDisambiguate && not (null matches))
+                    then do env <- getEnv
+                            let hintQualify = "qualify the name to disambiguate it?"
+                            infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintQualify matches)
+                            return (Left matches)
+                    else return (Left matches)
+  where
+    lookupAppNamesEx :: (NameInfo -> Bool) -> Name -> Inf [(ImplicitExpr,(Name,NameInfo,Rho,[(Name,ImplicitExpr)]))]
+    lookupAppNamesEx infoFilter xname
+      = do iapps <- lookupAppNames 0 -- False {- no bypass -}
+                       (not allowDisambiguate) {- allow unitFunVal: at first when allowDisambiguate is False we like to see all possible instantations -}
+                       infoFilter xname ctx range
+           penv  <- getPrettyEnv
+           return [(toImplicitAppExpr False penv "" xname range iapp, iapp) | iapp <- iapps]
 
-lookupAppName allowDisambiguate name ctx range  -- (isConstructorName cname)
-  = do let cname = newCreatorName name
-       defName <- currentDefName
-       -- traceDefDoc $ \penv -> text "lookupAppName, constructor name:" <+> Pretty.ppName penv name <+> text "in definition" <+> Pretty.ppName penv defName
-       iapps   <- if (defName == unqualify cname || defName == nameCopy) -- a bit hacky, but ensure we don't call the creator function inside itself or the copy function
-                   then lookupAppNamesEx allowDisambiguate isInfoCon name ctx range
-                   else  do iapps1 <- lookupAppNamesEx allowDisambiguate isInfoFun cname ctx range
-                            iapps2 <- lookupAppNamesEx allowDisambiguate isInfoCon name ctx range
-                            let cnames = [name | (_,(name,_,_,_)) <- iapps1]
-                                iapps3 = filter (\(_,(name,_,_,_)) -> not (newCreatorName name `elem` cnames)) iapps2
-                            return (iapps1 ++ iapps3)
-       pickBestName allowDisambiguate name range iapps
-
-pickBestName :: Bool -> Name -> Range -> [(ImplicitExpr,(Name,NameInfo,Rho,[(Name,ImplicitExpr)]))] ->
-                 Inf (Either [(Name,NameInfo)] (Type,Expr Type,[((Name,Range),Expr Type,Doc)]))
-pickBestName allowDisambiguate name range iapps
-  = case pick allowDisambiguate fst iapps of
-      Right (imp,(qname,info,itp,iexprs))
-        -> do -- traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
-              return (Right (itp, Var qname False range, [((iname,range),ieExpr iexpr,ieDoc iexpr) | (iname,iexpr) <- iexprs]))
-      Left xs
-        -> let matches = nubBy (\x y -> fst x == fst y) [(name,info) | (_,(name,info,_,_)) <- xs]
-           in if (allowDisambiguate && not (null matches))
-                then do env <- getEnv
-                        let hintQualify = "qualify the name to disambiguate it?"
-                        infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintQualify matches)
-                        return (Left matches)
-                else return (Left matches)
-
-lookupAppNamesEx :: Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range
-                      -> Inf [(ImplicitExpr,(Name,NameInfo,Rho,[(Name,ImplicitExpr)]))]
-lookupAppNamesEx allowDisambiguate filter name ctx range
-  = do iapps <- -- lookupDisambiguatedName allowDisambiguate False name ctx range
-                lookupAppNames 0 -- False {- no bypass -}
-                 (not allowDisambiguate) {- allow unitFunVal: at first when allowDisambiguate is False we like to see all possible instantations -}
-                 filter name ctx range
-       -- create ImplicitExpr for easy comparing
-       penv <- getPrettyEnv
-       let iapps' = [(toImplicitAppExpr False penv "" name range iapp, iapp) | iapp <- iapps]
-        --  traceDefDoc $ \penv -> text "lookupAppName:" <+> Pretty.ppName penv name <+> text ":"
-        --                          <+> ppNameContext penv ctx <+> text "="
-        --                          <+> list [pretty iexpr | (iexpr,_) <- iapps']
-       return iapps'
 
 
 -- resolve an implicit name to an expression
@@ -1053,8 +1044,6 @@ resolveImplicitName name tp range
                                       (text "hint", text "add a (implicit) parameter to the function?")])
                            return (Var name False range, Lib.PPrint.empty)
 
-ppNameType penv (name,tp)
-  = Pretty.ppName penv name <+> colon <+> Pretty.ppType penv tp
 
 -- pick the best match in a list of candidates
 -- if allowDisambiguate is False, only one candidate is allowed, otherwise there
@@ -1136,26 +1125,39 @@ lookupAppNames recurseDepth allowUnitFunVal infoFilter name ctx range
     concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
     concatMapM f xs = concat <$> mapM f xs
 
+    lookupImplicits :: (Name,NameInfo,Rho) -> Inf [(Name,NameInfo,Rho,[(Name,ImplicitExpr)])]
     lookupImplicits (iname,info,itp {- instantiated type -})
       = do -- traceDoc (\_ -> text "  found implicit: " <+> Pretty.ppParam penv (iname,itp))
-           case splitFunType itp of
-              Just (ipars,ieff,iresTp)  | any Op.isOptionalOrImplicit ipars
-                -- resolve further implicit parameters
-                -> do let (_,_,implicits) = splitOptionalImplicit ipars
-                      -- recursively lookup required implicit arguments
-                      iargss <- sequence <$> -- cartesian product of all possible argument
-                                mapM (\(pname,ptp) ->
-                                        let (pnameName,pnameExpr) = splitImplicitParamName pname
-                                        in do iexprs <- lookupImplicitNames recurseDepth
-                                                            infoFilter (pnameExpr)
-                                                            (implicitTypeContext ptp) (endOfRange range) -- use end of range to deprioritize with hover info
-                                              return [(pnameName,iexpr) | iexpr <- iexprs]
-                                     ) implicits
+           iargss <-  case splitFunType itp of
+                        Just (ipars,ieff,iresTp)  | any Op.isOptionalOrImplicit ipars
+                          -- resolve further implicit parameters
+                          -> resolveImplicits (implicitsToResolve ipars)
+                        _ -> return [[]]
+           return [(iname,info,itp,iargs) | iargs <- iargss]
 
-                      return [(iname,info,itp,iargs) | iargs <- iargss]
+    implicitsToResolve :: [(Name,Type)] -> [(Name,Type)]
+    implicitsToResolve ipars
+      = let (_,_,implicits)  = splitOptionalImplicit ipars
+            alreadyGiven     = case ctx of
+                                  CtxFunTypes partial fixed named mbResTp
+                                    -> map fst named
+                                  CtxFunArgs n named mbResTp
+                                    -> named
+                                  _ -> []
+        in filter (\(name,_) -> not (name `elem` alreadyGiven)) implicits
 
-              _ -> return [(iname,info,itp,[])]
-
+    resolveImplicits :: [(Name,Type)] -> Inf [[(Name,ImplicitExpr)]] -- all possible solutions (up to recursion depth)
+    resolveImplicits []  = return [[]]
+    resolveImplicits implicits
+      = -- recursively lookup required implicit arguments
+        sequence <$> -- cartesian product of all possible argument
+        mapM (\(pname,ptp) ->
+                let (pnameName,pnameExpr) = splitImplicitParamName pname
+                in do iexprs <- lookupImplicitNames recurseDepth
+                                    infoFilter (pnameExpr)
+                                    (implicitTypeContext ptp) (endOfRange range) -- use end of range to deprioritize with hover info
+                      return [(pnameName,iexpr) | iexpr <- iexprs]
+            ) implicits
 
 
 ----------------------------------------------------------------
@@ -1260,8 +1262,8 @@ filterMatchNameContextEx range ctx candidates
     matchArgs matchSome fixed named mbResTp (name,info)
       = do free <- freeInGamma
             --  traceDefDoc $ \penv -> text "  match fixed:" <+> list [Pretty.ppType penv fix | fix <- fixed]
-            --                            <+> text ", named" <+> list [Pretty.ppParam penv nametp | nametp <- named]
-            --                            <+> text "on" <+> Pretty.ppParam penv (name,infoType info)
+            --                               <+> text ", named" <+> list [Pretty.ppParam penv nametp | nametp <- named]
+            --                               <+> text "on" <+> Pretty.ppParam penv (name,infoType info)
            res <- runUnify (matchArguments matchSome range free (infoType info) fixed named mbResTp)
            case res of
              (Right rho,_) -> return [(name,info,rho)]
@@ -1841,3 +1843,5 @@ traceDoc f
   = do penv <- getPrettyEnv
        trace (show (f penv)) $ return ()
 
+ppNameType penv (name,tp)
+  = Pretty.ppName penv name <+> colon <+> Pretty.ppType penv tp

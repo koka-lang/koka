@@ -5,10 +5,10 @@ value struct monad<m>
   mbind : forall<a,b> (m<a>, a -> m<b>) -> m<b>
 
 fun pure( x : a, ?monad : monad<m> ) : m<a>
-  (monad.mpure)(x)
+  (implicit/monad.mpure)(x)
 
 fun bind( x : m<a>, f : a -> m<b>, ?monad : monad<m> ) : m<b>
-  (monad.mbind)(x,f)
+  (implicit/monad.mbind)(x,f)
 
 //fun sequence( ms : list<m<a>>, ?monad : monad<m> ) : m<list<a>>
 fun sequence( ms, ?monad )
