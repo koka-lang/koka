@@ -1,3 +1,4 @@
+// A set
 struct set<s,a>
   empty   : s<a>
   single  : (a) -> s<a>

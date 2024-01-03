@@ -158,7 +158,7 @@ transform isLiterate rng rangeMap env lexeme content
                                                      _  -> pcontent)
                  NICon tp _     -> signature env toLit isLiterate "type" qname (mangleConName qname) (pdocs $ showType env tp) $ cspan "constructor" pcontent
                  NITypeVar kind -> signature env toLit isLiterate "kind" qname qname (pdocs $ showKind env kind) $ cspan "type typevar" $ spanEffect kind pcontent
-                 NITypeCon kind -> signature env toLit isLiterate "kind" qname (mangleTypeName qname) (pdocs $ showKind env kind) $ cspan "type" $ spanEffect kind pcontent
+                 NITypeCon kind _ -> signature env toLit isLiterate "kind" qname (mangleTypeName qname) (pdocs $ showKind env kind) $ cspan "type" $ spanEffect kind pcontent
                  NIModule       -> signature env toLit isLiterate "module" qname (qualify qname nameNil) (pdocs $ showModule qname) (cspan "namespace" pcontent)
                  NIKind         -> span "kind" content -- todo: add pdocs?
                 )

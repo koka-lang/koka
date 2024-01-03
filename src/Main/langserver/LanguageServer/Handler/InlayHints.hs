@@ -88,9 +88,9 @@ toInlayHint opts env mod (rng, rngInfo) = do
 -- Pretty-prints type information for an inlay hint
 formatInfo :: InlayHintOptions -> Env -> Module -> Range -> RangeInfo -> [(Range, String, J.InlayHintKind, Bool)]
 formatInfo opts env mod rng rinfo = case rinfo of
-  Id qname info docs False -> 
+  Id qname info docs False ->
     case info of
-      NIValue tp _ isAnnotated -> 
+      NIValue tp _ isAnnotated ->
         let typeAnnotation = [(rng, " : " ++ show (ppScheme env tp), J.InlayHintKind_Type, True) | not isAnnotated && showInferredTypes opts]
             qualifiers = [(qualRng, getqualifier qname, J.InlayHintKind_Type, False) | showFullQualifiers opts && getqualifier qname /= ""]
             result = qualifiers ++ typeAnnotation ++ implicits docs
@@ -99,15 +99,15 @@ formatInfo opts env mod rng rinfo = case rinfo of
   Implicits imp -> implicit imp
   _ -> []
  where
-  posPrev r = 
+  posPrev r =
     let Pos src off l c = rangeStart r
         in Pos src off l (c - 1)
   lexes = lexemesFromPos (rangeEnd rng) (modLexemes mod)
-  qualRng = 
+  qualRng =
     let rngS = posPrev rng
     in makeRange rngS rngS
   getqualifier qname = case lexes of
-    (Lexeme rng (LexId name)):rst -> missingQualifier name qname
+    (Lexeme rng (LexId name)):rst -> missingQualifier (modName mod) name qname
     _ -> ""
   isDotFunction = case lexes of
     _:(Lexeme rng (LexKeyword "." _)):_ -> True
@@ -119,16 +119,15 @@ formatInfo opts env mod rng rinfo = case rinfo of
     _:(Lexeme rng (LexSpecial "(")):(Lexeme rng1 (LexSpecial ")")):_ -> True
     _ -> False
   inlayRange = if isDotFunction then rng else finalParameterRange lexes 0
-  finalParameterRange lexes match = case lexes of 
+  finalParameterRange lexes match = case lexes of
     Lexeme r (LexSpecial "("):rst -> finalParameterRange rst (match + 1)
-    Lexeme r (LexSpecial ")"):rst -> 
+    Lexeme r (LexSpecial ")"):rst ->
       let newPos = posPrev r in
       if match == 1 then makeRange newPos newPos else finalParameterRange rst (match - 1)
     x:rst -> finalParameterRange rst match
     [] -> rng
-  implicit imp = 
+  implicit imp =
     [(inlayRange, if isDotFunction then show (tupled [imp]) else if isEmptyFunction then show imp else show (comma <+> imp), J.InlayHintKind_Parameter, False) | showImplicitArguments opts]
-  implicits docs = 
+  implicits docs =
     let doc = (hcat $ punctuate (text ", ") docs)
     in if isEmptyDoc doc then [] else [(inlayRange, show (if isDotFunction then tupled docs else if isEmptyFunction then doc else comma <+> doc), J.InlayHintKind_Parameter, False) | showImplicitArguments opts]
-  

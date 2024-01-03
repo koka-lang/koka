@@ -84,7 +84,7 @@ findDefinitions loaded rinfo
                           NIValue{}   -> map infoRange $ gammaLookupQ qname gamma
                           NICon{}     -> -- trace ("lookup con: " ++ show qname) $
                                          map infoRange $ gammaLookupQ qname gamma
-                          NITypeCon _ -> (map synInfoRange $ maybeToList $ synonymsLookup qname synonyms)
+                          NITypeCon{} -> (map synInfoRange $ maybeToList $ synonymsLookup qname synonyms)
                                         ++
                                         (map dataInfoRange $ maybeToList $ newtypesLookupAny qname newtypes)
                           NITypeVar _ -> []

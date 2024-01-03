@@ -100,7 +100,7 @@ formatRangeInfoHover mbLoaded env colors rinfo =
                     case info of
                       NIValue tp doc _  -> text ":" <+> ppScheme env tp
                       NICon tp doc      -> text ":" <+> ppScheme env tp
-                      NITypeCon k       -> text "::" <+> prettyKind colors k
+                      NITypeCon k doc   -> text "::" <+> prettyKind colors k
                       NITypeVar k       -> text "::" <+> prettyKind colors k
                       NIModule -> text "module" <.>
                                   (case mbLoaded of
@@ -110,10 +110,9 @@ formatRangeInfoHover mbLoaded env colors rinfo =
                                     _ -> empty)
                       NIKind -> text "kind"
         comment = case info of
-                    NIValue tp ""  _ -> empty
                     NIValue tp doc _ -> ppComment doc
-                    NICon tp ""      -> empty
                     NICon tp doc     -> ppComment doc
+                    NITypeCon k doc  -> ppComment doc
                     _                -> empty
     in asKokaCode (if null docs then signature else (signature <.> text "  " <-> color Gray (vcat docs)))
        <.> comment
@@ -126,7 +125,9 @@ formatRangeInfoHover mbLoaded env colors rinfo =
 
 ppComment :: String -> Doc
 ppComment s
-  = hline <.> (hcat $ map (\ln -> text ln <.> text "  \n") $ dropWhile null $ lines $ removeComment s)
+  = if null s
+      then hline <.> text "<empty>"
+      else hline <.> (hcat $ map (\ln -> text ln <.> text "  \n") $ dropWhile null $ lines $ removeComment s)
 
 
 asKokaCode :: Doc -> Doc

@@ -72,7 +72,7 @@ data RangeInfo
 data NameInfo
   = NIValue   Type String Bool -- Has annotated type already
   | NICon     Type String
-  | NITypeCon Kind
+  | NITypeCon Kind String
   | NITypeVar Kind
   | NIModule
   | NIKind
@@ -110,12 +110,12 @@ penalty name
 instance Enum NameInfo where
   fromEnum ni
     = case ni of
-        NIValue _ _ _   -> 1
-        NICon   _ _  -> 2
-        NITypeCon _ -> 3
-        NITypeVar _ -> 4
-        NIModule    -> 5
-        NIKind      -> 6
+        NIValue _ _ _ -> 1
+        NICon   _ _   -> 2
+        NITypeCon _ _ -> 3
+        NITypeVar _   -> 4
+        NIModule      -> 5
+        NIKind        -> 6
 
   toEnum i
     = failure "Syntax.RangeMap.NameInfo.toEnum"

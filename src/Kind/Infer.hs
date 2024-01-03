@@ -787,8 +787,8 @@ checkExtendLabel r= Check "The elements of an effect must be effect constants" r
 ---------------------------------------------------------------}
 resolveTypeDef :: Bool -> [Name] -> TypeDef (KUserType InfKind) UserType InfKind -> KInfer (Core.TypeDef)
 resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
-  = do syn' <- resolveTypeBinderDef syn
-       params' <- mapM resolveTypeBinder params
+  = do syn' <- resolveTypeBinderDef doc syn
+       params' <- mapM (resolveTypeBinder "") params
        typeVars  <- mapM (\param -> freshTypeVar param Bound) params'
        let tvarMap = M.fromList (zip (map getName params') typeVars)
        tp' <- resolveType tvarMap True tp
@@ -819,8 +819,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                           kind  <- resolveKind ikind
                           -- addRangeInfo range (Id qname (NITypeCon kind) [] False)
                           return (TypeBinder qname kind (tbinderNameRange newtp) (tbinderRange newtp))
-                  else resolveTypeBinderDef newtp
-       params' <- mapM resolveTypeBinder params
+                  else resolveTypeBinderDef doc newtp
+       params' <- mapM (resolveTypeBinder "") params
        let typeResult = TCon (TypeCon (getName newtp') (typeBinderKind newtp'))
        typeVars  <- let (kargs,kres) = extractKindFun (typeBinderKind newtp')
                     in if (null params' && not (null kargs))
@@ -919,17 +919,17 @@ showTypeBinder (TypeBinder name kind _ _)
   = show name ++ ": " ++ show kind
 
 
-resolveTypeBinderDef :: TypeBinder InfKind -> KInfer (TypeBinder Kind)
-resolveTypeBinderDef (TypeBinder name infkind rngName rng)
+resolveTypeBinderDef :: String -> TypeBinder InfKind -> KInfer (TypeBinder Kind)
+resolveTypeBinderDef doc (TypeBinder name infkind rngName rng)
   = do infkind' <- resolveKind infkind
        qname    <- qualifyDef name
-       addRangeInfo rngName (Id qname (NITypeCon infkind') [] True)
+       addRangeInfo rngName (Id qname (NITypeCon infkind' doc) [] True)
        return (TypeBinder qname infkind' rngName rng)
 
-resolveTypeBinder :: TypeBinder InfKind -> KInfer (TypeBinder Kind)
-resolveTypeBinder (TypeBinder name infkind rngName rng)
+resolveTypeBinder :: String -> TypeBinder InfKind -> KInfer (TypeBinder Kind)
+resolveTypeBinder doc (TypeBinder name infkind rngName rng)
   = do infkind' <- resolveKind infkind
-       addRangeInfo rngName (Id name (NITypeCon infkind') [] True)
+       addRangeInfo rngName (Id name (NITypeCon infkind' doc) [] True)
        return (TypeBinder name infkind' rngName rng)
 
 resolveKind :: InfKind -> KInfer Kind
@@ -944,7 +944,7 @@ resolveKind infkind
 resolveConstructor :: Name -> DataKind -> Bool -> Type -> [TypeVar] -> M.NameMap TypeVar -> UserCon (KUserType InfKind) UserType InfKind -> KInfer (UserCon Type Type Kind, ConInfo)
 resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (UserCon name exist params mbResult rngName rng vis doc)
   = do qname  <- qualifyDef name
-       exist' <- mapM resolveTypeBinder exist
+       exist' <- mapM (resolveTypeBinder doc) exist
        existVars <- mapM (\ename -> freshTypeVar ename Bound) exist'
        let idmap' = M.union (M.fromList (zip (map getName exist) existVars)) idmap  -- ASSUME: left-biased union
        params' <- mapM (resolveConParam idmap') params -- mapM (resolveType idmap' False) params
@@ -997,12 +997,12 @@ resolveType :: M.NameMap TypeVar -> Bool -> KUserType InfKind -> KInfer Type
 resolveType idmap partialSyn userType
   = case userType of
       TpQuan QForall tname tp rng
-        -> do tname' <- resolveTypeBinder tname
+        -> do tname' <- resolveTypeBinder "" tname
               tvar   <- freshTypeVar tname' Bound
               tp'    <- resolveType (M.insert (getName tname) tvar idmap) False tp
               return (quantifyType [tvar] tp')
       TpQuan QSome tname tp rng
-        -> do tname' <- resolveTypeBinder tname
+        -> do tname' <- resolveTypeBinder "" tname
               tvar   <- freshTypeVar tname' Meta
               tp'    <- resolveType (M.insert (getName tname) tvar idmap) False tp
               -- trace ("Kind.Infer.Some") $
@@ -1080,7 +1080,7 @@ resolveApp idmap partialSyn (TpCon name r,[fixed,ext]) rng  | name == nameEffect
 resolveApp idmap partialSyn (TpCon name r,args) rng
   =  do (qname,ikind) <- findInfKind name rng
         kind  <- resolveKind ikind
-        addRangeInfo r (Id qname (NITypeCon kind) [] False)
+        addRangeInfo r (Id qname (NITypeCon kind "") [] False)
 
         mbSyn <- lookupSynInfo name
         case mbSyn of

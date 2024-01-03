@@ -57,7 +57,8 @@ module Common.Name
           , unqualifyAsModuleName
           ) where
 
-import Lib.Trace( trace )
+-- import Lib.Trace( trace )
+-- import Debug.Trace
 import Lib.PPrint
 import Data.Char(isUpper,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
 import Common.Failure(failure)
@@ -363,6 +364,18 @@ isHiddenName name
       ('@':_)      -> True
       _            -> False
 
+
+missingQualifier :: Name -> Name -> Name -> String
+missingQualifier currentMod name qname
+  = let missing0 = reverse $ drop (length (showPlain name)) $ reverse (showPlain qname)
+        standard = [show currentMod,"std/core/types","std/core/hnd","std/core"]
+        missing  = case filter (\std -> (std ++ "/") `isPrefixOf` missing0) standard of
+                    (std:_) -> drop (length std + 1) missing0
+                    _       -> missing0
+    in -- trace ("missingQualifier: " ++ show [currentMod,name,qname] ++ ", missing: " ++ show (missing0,missing))$
+       missing
+
+{-
 nameSplit :: Name -> (String,String,String)
 nameSplit (Name m _ l _ n _)
   = (m,l,n)
@@ -389,6 +402,7 @@ ensureTrailingSlash n =
   case reverse n of
     ('/':_) -> n
     _ -> n ++ "/"
+-}
 
 ----------------------------------------------------------------
 --
