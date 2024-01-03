@@ -146,7 +146,7 @@ defaultLSState flags = do
   return LSState {
     lsLoaded = M.empty, lsModules=[],
     messages = msgChan, progress=progressChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests,
-    config = Config{colors=Colors{mode="dark"}, inlayHintOpts=InlayHintOptions{showImplicitArguments=True, showInferredTypes=True}},
+    config = Config{colors=Colors{mode="dark"}, inlayHintOpts=InlayHintOptions{showImplicitArguments=True, showInferredTypes=True, showFullQualifiers=True}},
     terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags,
     lastChangedFile = Nothing, progressReport = Nothing,
     documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
@@ -176,7 +176,8 @@ data Colors = Colors {
 
 data InlayHintOptions  = InlayHintOptions {
   showImplicitArguments :: Bool,
-  showInferredTypes :: Bool
+  showInferredTypes :: Bool,
+  showFullQualifiers :: Bool
 }
 
 instance FromJSON Colors where
@@ -188,7 +189,7 @@ instance FromJSON Config where
   parseJSON _ = empty
 
 instance FromJSON InlayHintOptions where
-  parseJSON (A.Object v) = InlayHintOptions <$> v .: "showImplicitArguments" <*> v .: "showInferredTypes"
+  parseJSON (A.Object v) = InlayHintOptions <$> v .: "showImplicitArguments" <*> v .: "showInferredTypes" <*> v .: "showFullQualifiers"
   parseJSON _ = empty
 
 setProgress :: Maybe (J.ProgressAmount -> LSM ()) -> LSM ()

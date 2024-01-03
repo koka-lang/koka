@@ -83,7 +83,8 @@
           "type": "string",
           "default": null,
           "description": "The path of the Koka compiler. By default the extension assumes that 'koka' is on your PATH",
-          "order": 1
+          "order": 1,
+          "scope": "machine-overridable"
         },
         "koka.languageServer.compilerArguments": {
           "type": "array",
@@ -124,11 +125,18 @@
           "description": "Report inferred types for inlay hints.",
           "order": 7
         },
+        "koka.languageServer.inlayHints.showFullQualifiers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Report full missing parts of qualifiers.",
+          "order": 8
+        },
         "koka.dev.developmentPath": {
           "type": "string",
           "default": "",
           "description": "Path to the cloned repository of a development Koka compiler to use for the language server. Uses `stack path --local-install-root` to find the Koka compiler build.",
-          "order": 10
+          "order": 10,
+          "scope": "machine-overridable"
         },
         "koka.dev.debugExtension": {
           "type": "boolean",
@@ -159,7 +167,8 @@
       },
       {
         "command": "koka.restartLanguageServer",
-        "title": "Koka: Restart Language Server"
+        "title": "Koka: Restart Language Server",
+        "enablement": "koka.advancedCommands"
       },
       {
         "command": "koka.uninstallCompiler",
@@ -167,11 +176,13 @@
       },
       {
         "command": "koka.selectCompiler",
-        "title": "Koka: Select compiler path"
+        "title": "Koka: Select compiler path",
+        "enablement": "koka.advancedCommands"
       },
       {
         "command": "koka.selectTarget",
-        "title": "Koka: Set compilation target"
+        "title": "Koka: Set compilation target",
+        "enablement": "koka.advancedCommands"
       },
       {
         "command": "koka.clearState",
@@ -179,7 +190,8 @@
       },
       {
         "command": "koka.showLSPOutput",
-        "title": "Koka: Show language server output"
+        "title": "Koka: Show language server output",
+        "enablement": "koka.advancedCommands"
       }
     ],
     "debuggers": [

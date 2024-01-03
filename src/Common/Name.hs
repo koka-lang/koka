@@ -43,6 +43,7 @@ module Common.Name
           , toOpenTagName, isOpenTagName
           , toValueOperationName, isValueOperationName, fromValueOperationsName
           , splitModuleName, unsplitModuleName, mergeCommonPath, splitLocalQualName
+          , missingQualifier
           , isEarlyBindName
           , toImplicitParamName, isImplicitParamName, plainImplicitParamName
           , namedImplicitParamName, splitImplicitParamName
@@ -365,6 +366,29 @@ isHiddenName name
 nameSplit :: Name -> (String,String,String)
 nameSplit (Name m _ l _ n _)
   = (m,l,n)
+
+missingQualifier :: Name -> Name -> String
+missingQualifier name qname =
+  case (nameSplit name, nameSplit qname) of
+    ((qualifier1, localQual1, name1), (qualifier2, localQual2, name2)) | name1 == name2 ->
+      -- trace ("missingQualifier: " ++ show (name1, name2, qualifier1, localQual1, qualifier2, localQual2)) $
+      let q = if qualifier1 == "" then qualifier2 else ""
+          lq
+            | ensureTrailingSlash localQual1 == ensureTrailingSlash qualifier2 = ""
+            | ensureTrailingSlash localQual2 == ensureTrailingSlash qualifier1 = ""
+            | localQual1 == "" = localQual2
+            | otherwise = ""
+      in case (q, lq)  of
+           ("", "") -> ""
+           ("", lq) -> ensureTrailingSlash lq
+           (q, "") -> ensureTrailingSlash q
+           (q, lq) -> q ++ "/" ++ ensureTrailingSlash lq
+    _ -> ""
+
+ensureTrailingSlash n =
+  case reverse n of
+    ('/':_) -> n
+    _ -> n ++ "/"
 
 ----------------------------------------------------------------
 --

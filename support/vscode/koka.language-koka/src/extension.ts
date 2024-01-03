@@ -223,6 +223,7 @@ function createCommands(
   selectSDKMenuItem: vscode.StatusBarItem,   // can be null
   selectCompileTarget: vscode.StatusBarItem, // can be null
 ) {
+  vscode.commands.executeCommand('setContext', 'koka.advancedCommands', true)
   // select SDK
   context.subscriptions.push(
     vscode.commands.registerCommand('koka.selectCompiler', async () => {
@@ -320,6 +321,17 @@ function createCommands(
       languageServer.showOutputChannel()
     }),
   )
+  // Doesn't seem to work. It gets called on a configuration change, but the language server doesn't report differently,
+  //   so the config seems stale still
+  // context.subscriptions.push(
+  //   vscode.workspace.onDidChangeConfiguration((e)=> {
+  //     if (e.affectsConfiguration("koka")) {
+  //       vscode.window.showInformationMessage("Koka: configuration changed, restarting language server")
+  //       kokaConfig.refreshConfig(vscode.workspace.getConfiguration())
+  //       vscode.commands.executeCommand("koka.restartLanguageServer")
+  //     }
+  //   })
+  // )
 }
 
 

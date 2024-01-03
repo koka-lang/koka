@@ -33,19 +33,13 @@ export class KokaConfig {
     this.compilerVersion = "1.0.0"
     this.languageServerArgs = []
     this.target = "c"
-    this.enableDebugExtension = vsConfig.get('dev.debugExtension') as boolean
-    this.developmentPath = vsConfig.get('dev.developmentPath') as string ?? ""
-    this.cwd = vsConfig.get('languageServer.workingDirectory') as string || vscode.workspace.workspaceFolders[0]?.uri?.fsPath || home // TODO: use better default?
-    this.compilerArgs = vsConfig.get('languageServer.compilerArguments') as string[] || []
-    this.autoFocusTerminal = vsConfig.get('languageServer.autoFocusTerminal') as boolean ?? false;
-    this.showImplicitArguments = vsConfig.get('languageServer.inlayHints.showImplicitArguments') as boolean ?? false;
-    this.showInferredTypes = vsConfig.get('languageServer.inlayHints.showInferredTypes') as boolean ?? false;
-
+    this.refreshConfig(vsConfig)
     const extVersion = context.extension.packageJSON.version as string ?? "1.0.0"
     this.extensionVersion = semver.coerce(extVersion).format()
     const latestCompVersion = context.extension.packageJSON.compilerVersion as string ?? "1.0.0"
     this.latestCompilerVersion = semver.coerce(latestCompVersion).format()
   }
+
   enableDebugExtension: boolean
   languageServerArgs: string[]
   autoFocusTerminal: boolean        // focus on the terminal automatically on errors?
@@ -64,6 +58,18 @@ export class KokaConfig {
   // Inlay Hints Options
   showInferredTypes: boolean
   showImplicitArguments: boolean
+  showFullQualifiers: boolean
+
+  refreshConfig(vsConfig: vscode.WorkspaceConfiguration): void {
+    this.enableDebugExtension = vsConfig.get('dev.debugExtension') as boolean
+    this.developmentPath = vsConfig.get('dev.developmentPath') as string ?? ""
+    this.cwd = vsConfig.get('languageServer.workingDirectory') as string || vscode.workspace.workspaceFolders[0]?.uri?.fsPath || home // TODO: use better default?
+    this.compilerArgs = vsConfig.get('languageServer.compilerArguments') as string[] || []
+    this.autoFocusTerminal = vsConfig.get('languageServer.autoFocusTerminal') as boolean ?? false;
+    this.showImplicitArguments = vsConfig.get('languageServer.inlayHints.showImplicitArguments') as boolean ?? false;
+    this.showInferredTypes = vsConfig.get('languageServer.inlayHints.showInferredTypes') as boolean ?? false;
+    this.showFullQualifiers = vsConfig.get('languageServer.inlayHints.showFullQualifiers') as boolean ?? false;
+  }
 
   // Does the compiler path point to a valid compiler?
   hasValidCompiler() : Boolean {
@@ -369,7 +375,7 @@ async function uninstallKoka(context: vscode.ExtensionContext) {
       shellCmd = `${kokaDevDir}/util/install.sh ${flags}`
     }
     else {
-      shellCmd = "curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh -s -- ${flags}"
+      shellCmd = `curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh -s -- ${flags}`
     }
   }
   const term = vscode.window.createTerminal({ name: "Uninstall Koka", cwd: home, shellPath: defaultShell, isTransient: true, message: "Uninstalling Koka, you can close the terminal when done" })

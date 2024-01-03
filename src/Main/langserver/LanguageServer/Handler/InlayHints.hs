@@ -21,7 +21,7 @@ import qualified Data.Text as T
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Protocol.Lens as J
-import Common.Name (Name)
+import Common.Name (Name, qualifier, showPlain, missingQualifier, splitLocalQualName)
 import Common.Range (Range (..), rangeEnd, Pos(..), rangeNull, posNull, extendRange, minPos, makeRange, rangeStart)
 import Type.Pretty (ppType, Env (..), defaultEnv, ppScheme)
 import Kind.ImportMap (ImportMap)
@@ -53,7 +53,7 @@ inlayHintsHandler = requestHandler J.SMethod_TextDocumentInlayHint $ \req respon
         lm <- loadedMod
         rmap <- modRangeMap lm
         -- trace (show $ rangeMapFindIn newRng rmap) $ return ()
-        let env = (prettyEnvFromFlags flags){ context = modName lm, importsMap = loadedImportMap l, showFlavours=False }
+        let env = (prettyEnvFromFlags flags){ context = modName lm, importsMap = loadedImportMap l, showFlavours=False, fullNames=showFullQualifiers options }
         let hints = concatMap (toInlayHint options env lm) $ rangeMapFindIn newRng rmap
         let hintsDistinct = Map.fromList $ map (\hint -> (hint ^. J.position, hint)) hints
         return $ Map.elems hintsDistinct
@@ -70,7 +70,7 @@ toInlayHint opts env mod (rng, rngInfo) = do
         (rngEnd /= posNull) &&
         case rngInfo of
           Id _ info docs _ -> case info of
-            NIValue _ _ isAnnotated -> not isAnnotated || not (null docs)
+            NIValue _ _ isAnnotated -> not isAnnotated || not (null docs) || showFullQualifiers opts
             _ -> not (null docs)
           Implicits _ -> showImplicitArguments opts
           _ -> False
@@ -92,28 +92,37 @@ formatInfo opts env mod rng rinfo = case rinfo of
     case info of
       NIValue tp _ isAnnotated -> 
         let typeAnnotation = [(rng, " : " ++ show (ppScheme env tp), J.InlayHintKind_Type, True) | not isAnnotated && showInferredTypes opts]
-            result = typeAnnotation ++ implicits docs
+            qualifiers = [(qualRng, getqualifier qname, J.InlayHintKind_Type, False) | showFullQualifiers opts && getqualifier qname /= ""]
+            result = qualifiers ++ typeAnnotation ++ implicits docs
         in if null result then [] else result
       _ -> if null docs then [] else implicits docs
   Implicits imp -> implicit imp
   _ -> []
  where
-  implicitLex = lexemesFromPos (rangeEnd rng) (modLexemes mod)
-  isDotFunction = case implicitLex of
+  posPrev r = 
+    let Pos src off l c = rangeStart r
+        in Pos src off l (c - 1)
+  lexes = lexemesFromPos (rangeEnd rng) (modLexemes mod)
+  qualRng = 
+    let rngS = posPrev rng
+    in makeRange rngS rngS
+  getqualifier qname = case lexes of
+    (Lexeme rng (LexId name)):rst -> missingQualifier name qname
+    _ -> ""
+  isDotFunction = case lexes of
     _:(Lexeme rng (LexKeyword "." _)):_ -> True
     _:(Lexeme rng (LexSpecial ";")):_ -> True
     _:(Lexeme rng LexInsSemi):_ -> True
     _:(Lexeme rng LexInsLCurly):_ -> True
     _ -> False
-  isEmptyFunction = case implicitLex of
+  isEmptyFunction = case lexes of
     _:(Lexeme rng (LexSpecial "(")):(Lexeme rng1 (LexSpecial ")")):_ -> True
     _ -> False
-  inlayRange = if isDotFunction then rng else finalParameterRange implicitLex 0
+  inlayRange = if isDotFunction then rng else finalParameterRange lexes 0
   finalParameterRange lexes match = case lexes of 
     Lexeme r (LexSpecial "("):rst -> finalParameterRange rst (match + 1)
     Lexeme r (LexSpecial ")"):rst -> 
-      let Pos src off l c = rangeStart r
-          newPos = Pos src off l (c - 1) in
+      let newPos = posPrev r in
       if match == 1 then makeRange newPos newPos else finalParameterRange rst (match - 1)
     x:rst -> finalParameterRange rst match
     [] -> rng
