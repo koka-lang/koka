@@ -41,7 +41,7 @@ import Common.Name
       isHiddenName,
       nameIsNil,
       showPlain,
-      nameNil )
+      nameNil, qualify )
 import Common.Range (makePos, posNull, Range(..), rangeEnd, rangeStart, rangeNull, Source (..), extractLiterate, Pos(..), rangeLength, makeRange, extendRange)
 import Lib.PPrint (Pretty (..))
 import Kind.Constructors (ConInfo (..), Constructors, constructorsList)
@@ -66,6 +66,8 @@ import Common.File (isLiteralDoc)
 import Lib.Trace (trace)
 import Kind.Newtypes (Newtypes, DataInfo (..), newtypesTypeDefs)
 import Kind.Kind (kindStar)
+import Common.NamePrim (nameSystemCore)
+import Common.Name (newName)
 
 -- Gets tab completion results for a document location
 -- This is a pretty complicated handler because it has to do a lot of work
@@ -249,8 +251,10 @@ getCompletionInfo pos vf mod uri = do
             Just t ->
               if not resultOfFunction then return (CompletionInfo line pos partial rnginsert (Just t) CompletionKindFunction)
               else
-                case splitFunType t of
-                  Just (pars,eff,res) -> return (CompletionInfo line pos partial rnginsert (Just res) CompletionKindFunction)
+                case splitFunScheme t of
+                  Just (_, _, _, _,res) -> 
+                    -- trace (" res: " ++ show res) $
+                    return (CompletionInfo line pos partial rnginsert (Just res) CompletionKindFunction)
                   Nothing             -> return (CompletionInfo line pos partial rnginsert (Just t) CompletionKindFunction)
             Nothing -> completeRangeInfo line partial rst rnginsert resultOfFunction
     completeIdentifier line partial rnginsert = return (CompletionInfo line pos partial rnginsert Nothing CompletionKindValue)
@@ -280,11 +284,16 @@ findCompletions loaded mod cinfo@CompletionInfo{completionKind = kind} = result
     filtered = map snd $ filter (\(n, i) -> filterInfix (n, cinfo)) completions
     result = if kind == CompletionKindFunction then filtered else keywordCompletions cinfo curModName ++ filtered
 
-typeUnifies :: Type -> Maybe Type -> Bool
-typeUnifies t1 t2 =
+typeUnifies :: Type -> Maybe Type -> Name -> Bool
+typeUnifies t1 t2 name =
   case t2 of
     Nothing -> True
-    Just t2 ->  let (res, _, _) = (runUnifyEx 0 $ matchArguments True rangeNull tvsEmpty t1 [t2] [] Nothing) in isRight res
+    Just t2 -> 
+      let (res, _, _) = (runUnifyEx 0 $ matchArguments True rangeNull tvsEmpty t1 [t2] [] Nothing) 
+          typeMatches = isRight res in
+        -- if name == qualify nameSystemCore (newName "join") then trace ("t1: " ++ show t1 ++ " t2: " ++ show t2 ++ " " ++ show typeMatches) typeMatches 
+        -- else
+          typeMatches
 
 valueCompletions :: Name -> Gamma -> CompletionInfo -> [(Name, J.CompletionItem)]
 valueCompletions curModName gamma cinfo@CompletionInfo{argumentType=tp, searchTerm=search, completionKind, searchRange=searchRange}
@@ -295,11 +304,11 @@ valueCompletions curModName gamma cinfo@CompletionInfo{argumentType=tp, searchTe
   where
     matchInfo :: (Name, NameInfo) -> Bool
     matchInfo (n, ninfo) = case ninfo of
-        InfoVal {infoType} -> typeUnifies infoType tp
-        InfoFun {infoType} -> typeUnifies infoType tp
-        InfoExternal {infoType} -> typeUnifies infoType tp
-        InfoImport {infoType} -> typeUnifies infoType tp
-        InfoCon {infoType } -> typeUnifies infoType tp
+        InfoVal {infoType} -> typeUnifies infoType tp n
+        InfoFun {infoType} -> typeUnifies infoType tp n
+        InfoExternal {infoType} -> typeUnifies infoType tp n
+        InfoImport {infoType} -> typeUnifies infoType tp n
+        InfoCon {infoType } -> typeUnifies infoType tp n
     toItem lspRng (n, ninfo) = case ninfo of 
         -- We only let hidden names get to this point if they are handlers
         InfoCon {infoCon} | isHiddenName n -> (n, makeHandlerCompletionItem curModName infoCon d lspRng (fullLine cinfo))
@@ -443,7 +452,7 @@ makeFunctionCompletionItem curModName funName d funType accessor rng line =
               Nothing -> Nothing
               Just (_, _, args, _, _) -> Just args
       argumentsText =
-        if numArgs == 0 then -- trace ("No function arguments for " ++ show label) $
+        if numArgs == 0 then -- trace ("No function arguments for " ++ show label ++ " " ++ show (pretty funType)) $
           T.pack ""
         else case trailingFunArgTp of
           Nothing -> "(" <> T.intercalate "," (map (\i -> T.pack $ "$" ++ show i) [1..numArgs]) <> ")"

@@ -1499,9 +1499,10 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
          _ -> --  inferVarX propagated expect name rng qname1 tp1 info1
               do let coreVar = coreExprFromNameInfo qname info
                  -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
-                 addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue tp (infoDocString info) True) [] False)
                  (itp,coref) <- maybeInstantiate rng expect tp
                  sitp <- subst itp
+                 addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue sitp (infoDocString info) True) [] False)
+
                  -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp)
                  eff <- freshEffect
                  return (itp,eff,coref coreVar)

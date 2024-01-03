@@ -88,7 +88,7 @@ toInlayHint opts env mod (rng, rngInfo) = do
 -- Pretty-prints type information for an inlay hint
 formatInfo :: InlayHintOptions -> Env -> Module -> Range -> RangeInfo -> [(Range, String, J.InlayHintKind, Bool)]
 formatInfo opts env mod rng rinfo = case rinfo of
-  Id qname info docs isdef -> 
+  Id qname info docs False -> 
     case info of
       NIValue tp _ isAnnotated -> 
         let typeAnnotation = [(rng, " : " ++ show (ppScheme env tp), J.InlayHintKind_Type, True) | not isAnnotated && showInferredTypes opts]
