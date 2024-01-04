@@ -57,16 +57,6 @@ kk_vector_t kk_list_to_vector(kk_std_core__list xs, kk_context_t* ctx) {
   return v;
 }
 
-kk_vector_t kk_vector_init( kk_ssize_t n, kk_function_t init, kk_context_t* ctx) {
-  kk_box_t* p;
-  kk_vector_t v = kk_vector_alloc_uninit(n, &p, ctx);  
-  for(kk_ssize_t i = 0; i < n; i++) {
-    kk_function_dup(init,ctx);
-    p[i] = kk_function_call(kk_box_t,(kk_function_t,kk_ssize_t,kk_context_t*),init,(init,i,ctx),ctx);
-  }
-  kk_function_drop(init,ctx);
-  return v;
-}
 
 kk_box_t kk_main_console( kk_function_t action, kk_context_t* ctx ) {
   return kk_function_call(kk_box_t,(kk_function_t,kk_unit_t,kk_context_t*),action,(action,kk_Unit,ctx),ctx);

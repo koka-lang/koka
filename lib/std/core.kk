@@ -1914,17 +1914,15 @@ inline extern lengthz( ^v : vector<a> ) : ssize_t
 
 // Create a new vector of length `n`  with initial elements `default` .
 pub fun vector( ^n : int, default : a) : vector<a>
-  vector-initz(n.ssize_t, fn(_i){ default } )
+  vector-init(n, fn(_i){ default } )
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
 pub fun vector-init( ^n : int, f : int -> e a ) : e vector<a>
-  vector-initz( n.ssize_t, fn(i) { f(i.int) } )
-
-// Create a new vector of length `n`  with initial elements given by function `f` .
-extern vector-initz(n : ssize_t, f : ssize_t -> e a) : e vector<a>
-  c "kk_vector_init"
-  cs inline "Primitive.NewArray<##1>(#1,#2)"
-  js inline "_vector(#1,#2)"
+  val n' = n.ssize_t
+  val v = unsafe-vector(n')
+  forz( 0.ssize_t, n' ) fn(i)
+    unsafe-assign(v,i,f(i.int))
+  v
 
 // Create an empty vector.
 pub inline extern vector : forall<a> () -> vector<a>
