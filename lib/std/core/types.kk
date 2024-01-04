@@ -144,7 +144,7 @@ pub type handled1   :: HX1 -> X;
 
 // The `:void` type is empty and has no constructors.
 // See also the `:()` unit type and the `:bool` type.
-type void
+pub type void
 
 // The type of booleans has two inhabitants: `True` and `False`.
 pub type bool
