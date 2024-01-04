@@ -78,19 +78,13 @@ pub alias io = <exn,io-noexn>
 
 // File locations
 extern file/kk-modulename-extern() : string
-  c inline ""
-  js inline ""
-  cs inline ""
+  inline ""
 
 extern file/kk-line-extern() : string
-  c inline ""
-  js inline ""
-  cs inline ""
+  inline ""
 
 extern file/kk-fileinfo-extern() : string
-  c inline ""
-  js inline ""
-  cs inline ""
+  inline ""
 
 // Automatically replaced with the current file's module name
 pub val file/kk-modulename : string = file/kk-modulename-extern()
