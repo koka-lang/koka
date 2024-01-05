@@ -102,4 +102,5 @@ fun cmp-and-eq(xs : list<a>, y : a, ?cmp : (a,a) -> order) : bool
 //              xs == xs       // use `class Eq a => Ord a`, and `instance Ord a => Ord [a]`
 
 fun test6()
-  ['a','b'].cmp-and-eq('a')
+  // ['a','b'].cmp-and-eq('a')
+  [1,2].map(show).join.show

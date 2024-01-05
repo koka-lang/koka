@@ -1000,6 +1000,8 @@ lookupAppName allowDisambiguate name ctx range
                                         iapps3 = filter (\(_,(name,_,_,_)) -> not (newCreatorName name `elem` cnames)) iapps2
                                     return (iapps1 ++ iapps3)
        -- try to find a best candidate
+       traceDefDoc $ \penv -> text "lookupAppName: disambiguate:" <+> text (pretty allowDisambiguate) <->
+                              vcat [text (ieDoc iexpr) | (iexpr,_) <- iapps]
        case pick allowDisambiguate fst iapps of
           Right (imp,(qname,info,itp,iexprs))
             -> do -- traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
@@ -1026,8 +1028,7 @@ lookupAppName allowDisambiguate name ctx range
 -- resolve an implicit name to an expression
 resolveImplicitName :: Name -> Type -> Range -> Inf (Expr Type, Doc)
 resolveImplicitName name tp range
-  = do -- candidates <- lookupDisambiguatedName True True name (implicitTypeContext tp) range
-       iexprs <- lookupImplicitNames 0 isInfoValFunExt name (implicitTypeContext tp) range
+  = do iexprs <- lookupImplicitNames 0 isInfoValFunExt name (implicitTypeContext tp) range
        penv <- getPrettyEnv
        case pick True id iexprs of
          Right iexpr -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> Pretty.ppParam penv (name,tp) <+> text ", to" <+> pretty iexpr

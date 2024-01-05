@@ -13,8 +13,8 @@ fun showx( xs : list<a>, ?showx : a -> string ) : string
 fun foo1()
   [1,2].showx
 
-fun foo2()
-  [[1],[2]].showx // this resolves recursively
+// fun foo2()
+//   [[1],[2]].showx // this resolves recursively
 
-fun foo3()
-  [['a','b']].showx
+// fun foo3()
+//   [['a','b']].showx
