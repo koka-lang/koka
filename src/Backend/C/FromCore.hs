@@ -2689,6 +2689,7 @@ reserved
     ++ -- special macros
     [ "errno"
     , "exception_info"
+    , "or"
     ]
 
 inlineblock :: Doc -> Doc

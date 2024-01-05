@@ -25,8 +25,15 @@ struct interpm<t>
   interp: some<e> t -> e interpm<t>
 
 fun main()
-  val x: value = (or/subtype.inj)(1)
+  val x: or<int,or<string,()>> = (or/subtype.inj)(1)  // using or<int,or<func,()>> gives weird errors
   x.show.println
+
+fun test1( x : or<int,()> )
+  x.show
+
+fun test2( x : or<int,or<string,()>> )
+  x.show
+
 
 fun or/show(or: or<a,b>, ?showa: a -> string = show, ?showb: b -> string = show): string
   match or

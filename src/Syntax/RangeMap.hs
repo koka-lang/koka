@@ -159,7 +159,8 @@ rangeMapSort (RM rm)
 -- | select the best matching range infos from a selection
 prioritize :: [(Range,RangeInfo)] -> [(Range,RangeInfo)]
 prioritize rinfos
-  = let idocs = concatMap (\(_,rinfo) -> case rinfo of
+  = let idocs = reverse $
+                concatMap (\(_,rinfo) -> case rinfo of
                                             Implicits doc -> [doc]
                                             _             -> []) rinfos
     in map (mergeDocs idocs) $

@@ -125,12 +125,16 @@ formatRangeInfoHover mbLoaded env colors rinfo =
 
 ppComment :: String -> Doc
 ppComment s
-  = if null s
-      then hline <.> text "<empty>"
+  = if null (filter (not . isSpace) s)
+      then empty
       else hline <.> (hcat $ map (\ln -> text ln <.> text "  \n") $ dropWhile null $ lines $ removeComment s)
 
 
 asKokaCode :: Doc -> Doc
-asKokaCode doc = text ("```koka\n" ++ displayS (renderCompact doc) "" ++ "\n```")
+asKokaCode doc = let code   = displayS (renderCompact doc) ""
+                     wrap s = "```koka\n" ++ s ++ "\n```"
+                     txt    = wrap code
+                 in -- trace ("hover code:\n" ++ txt) $
+                    text txt
 
 hline = text "\n* * *\n"

@@ -80,7 +80,7 @@ module Type.InferMonad( Inf, InfGamma
 
                       ) where
 
-import Data.List( partition, sortBy, nub, nubBy, intersperse)
+import Data.List( partition, sortBy, nub, nubBy, intersperse, foldl')
 import Data.Ord(comparing)
 import Control.Applicative
 import Control.Monad
@@ -981,9 +981,9 @@ ieCompare ie1 ie2
 
 -- lookup an application name `f(...)` where the name context usually contains (partially) inferred
 -- argument types.
-lookupAppName :: Bool -> Name -> NameContext -> Range ->
+lookupAppNameX :: Bool -> Name -> NameContext -> Range ->
                    Inf (Either [(Name,NameInfo)] (Type,Expr Type,[((Name,Range),Expr Type, Doc)]))
-lookupAppName allowDisambiguate name ctx range
+lookupAppNameX allowDisambiguate name ctx range
   = do -- find all implicit solutions
        iapps <- if not (isConstructorName name)
                   then -- normal identifier
@@ -1000,8 +1000,8 @@ lookupAppName allowDisambiguate name ctx range
                                         iapps3 = filter (\(_,(name,_,_,_)) -> not (newCreatorName name `elem` cnames)) iapps2
                                     return (iapps1 ++ iapps3)
        -- try to find a best candidate
-       traceDefDoc $ \penv -> text "lookupAppName: disambiguate:" <+> text (pretty allowDisambiguate) <->
-                              vcat [text (ieDoc iexpr) | (iexpr,_) <- iapps]
+       traceDefDoc $ \penv -> text "lookupAppName: disambiguate:" <+> (pretty allowDisambiguate) <->
+                              indent 2 (vcat [(ieDoc iexpr) | (iexpr,_) <- iapps])
        case pick allowDisambiguate fst iapps of
           Right (imp,(qname,info,itp,iexprs))
             -> do -- traceDefDoc $ \penv -> text "resolved app name" <+> pretty imp
@@ -1026,8 +1026,8 @@ lookupAppName allowDisambiguate name ctx range
 
 
 -- resolve an implicit name to an expression
-resolveImplicitName :: Name -> Type -> Range -> Inf (Expr Type, Doc)
-resolveImplicitName name tp range
+resolveImplicitNameX :: Name -> Type -> Range -> Inf (Expr Type, Doc)
+resolveImplicitNameX name tp range
   = do iexprs <- lookupImplicitNames 0 isInfoValFunExt name (implicitTypeContext tp) range
        penv <- getPrettyEnv
        case pick True id iexprs of
@@ -1040,7 +1040,7 @@ resolveImplicitName name tp range
                                table [(text "term",       docFromRange (Pretty.colors penv) range),
                                       (text "parameter",  text "?" <.> ppNameType penv (name,tp)),
                                       (text "candidates", if null docs0 then text "<none>"
-                                                          else let docs = take 8 docs0 ++ (if length docs0 > 8 then [text "..."] else [])
+                                                          else let docs = take 10 docs0 ++ (if length docs0 > 10 then [text "..."] else [])
                                                                 in align (vcat docs)),
                                       (text "hint", text "add a (implicit) parameter to the function?")])
                            return (Var name False range, Lib.PPrint.empty)
@@ -1061,6 +1061,303 @@ pick allowDisambiguate select xs
                       ys      -> Left ys
 
 
+
+
+-- lookup an application name `f(...)` where the name context usually contains (partially) inferred
+-- argument types.
+lookupAppName :: Bool -> Name -> NameContext -> Range ->
+                   Inf (Either [Doc] (Type,Expr Type,[((Name,Range),Expr Type, Doc)]))
+lookupAppName allowDisambiguate name ctx range
+  = do -- find all implicit solutions
+       roots <- if not (isConstructorName name)
+                  then -- normal identifier
+                       return [(isInfoValFunExt,name,ctx,range)]
+                  else -- constructor application
+                       do let cname = newCreatorName name
+                          defName <- currentDefName
+                          -- traceDefDoc $ \penv -> text "lookupAppName, constructor name:" <+> Pretty.ppName penv name <+> text "in definition" <+> Pretty.ppName penv defName
+                          if (defName == unqualify cname || defName == nameCopy) -- a bit hacky, but ensure we don't call the creator function inside itself or the copy function
+                            then return [(isInfoCon,name,ctx,range)]
+                            else return [(isInfoFun,cname,ctx,range),(isInfoCon,name,ctx,range)]
+
+       res <- resolveImplicitArg allowDisambiguate
+                                (not allowDisambiguate) {- allow unitFunVal: at first, when allowDisambiguate is False, we like to see all possible instantations -}
+                                roots
+
+       case res of
+          Right iarg@(ImplicitArg qname _ rho iargs)
+            -> do when (not (null iargs)) $
+                    traceDefDoc $ \penv -> text "resolved app name with implicits:" <+> prettyImplicitArg penv iarg
+                  penv <- getPrettyEnv
+                  let implicits = [((pname,range),
+                                     toImplicitArgExpr (endOfRange range) iarg,
+                                     prettyImplicitAssign penv False "" pname iarg) | (pname, Done iarg) <- iargs]
+                  return (Right (rho, Var qname False range, implicits))
+          Left docs0
+            -> if (allowDisambiguate && not (null docs0))
+                then do env <- getEnv
+                        infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <->
+                                        table [(text "candidates", if null docs0 then text "<none>"
+                                                                    else let docs = take 10 docs0 ++ (if length docs0 > 10 then [text "..."] else [])
+                                                                         in align (vcat docs)),
+                                               (text "hint", text "qualify the name?")])
+                        return (Left docs0)
+                else return (Left docs0)
+
+
+-- resolve an implicit name to an expression
+resolveImplicitName :: Name -> Type -> Range -> Inf (Expr Type, Doc)
+resolveImplicitName name tp range
+  = do res <- resolveImplicitArg True {-disambiguate-} True {-allow unit fun val-}
+                                  [(isInfoValFunExt, name, implicitTypeContext tp, range)]
+       penv <- getPrettyEnv
+       case res of
+         Right iarg  -> do traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv False "?" name iarg
+                           return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
+         Left docs0  -> do infError range
+                              (text "cannot resolve implicit parameter" <->
+                               table [(text "term",       docFromRange (Pretty.colors penv) range),
+                                      (text "parameter",  text "?" <.> ppNameType penv (name,tp)),
+                                      (text "candidates", if null docs0 then text "<none>"
+                                                          else let docs = take 10 docs0 ++ (if length docs0 > 10 then [text "..."] else [])
+                                                                in align (vcat docs)),
+                                      (text "hint", text "add a (implicit) parameter to the function?")])
+                           return (Var name False range, Lib.PPrint.empty)
+
+-----------------------------------------------------------------------
+-- Looking up application names and implicit names
+-- This is done in a breath-first search to reduce exponential search times
+-----------------------------------------------------------------------
+
+data ImplicitArg   = ImplicitArg{ iaName :: Name
+                                , iaInfo :: NameInfo
+                                , iaType :: Rho
+                                , iaImplicitArgs :: [(Name, Partial)]
+                                }
+
+data Partial   = Step (Inf [ImplicitArg])
+               | Done ImplicitArg
+
+
+data Cost  = Least Int
+           | Exact Int
+
+instance Ord Cost where
+  compare x y
+    = case (x,y) of
+        (Exact i, Exact j) -> compare i j
+        (Exact i, Least j) -> LT
+        (Least i, Exact j) -> GT
+        (Least i, Least j) -> compare i j
+
+instance Eq Cost where
+  x == y  = (compare x y == EQ)
+
+cadd x y
+   = case (x,y) of
+        (Exact i, Exact j) -> Exact (i + j)
+        (Exact i, Least j) -> Least (i + j)
+        (Least i, Exact j) -> Least (i + j)
+        (Least i, Least j) -> Least (i + j)
+
+csum xs
+  = foldl' cadd (Exact 0) xs
+
+
+-- Is an implicit arg fully evaluated?
+isDone :: ImplicitArg -> Bool
+isDone (ImplicitArg _ _ _ iargs)
+  = all (\(pname,partial) -> case partial of
+                              Done iarg  -> isDone iarg
+                              Step _     -> False
+        ) iargs
+
+
+-- cost: chain depth + 100*qualified name (while locals cost zero)
+implicitArgCost :: ImplicitArg -> Cost
+implicitArgCost iarg
+  = let base = if isQualified (iaName iarg) then 100 else 0
+    in cadd (Exact base) (csum (map (partialCost . snd) (iaImplicitArgs iarg)))
+
+partialCost :: Partial -> Cost
+partialCost (Step inf)  = Least 1
+partialCost (Done iarg)    = cadd (Exact 1) (implicitArgCost iarg)
+
+-- let isLocal = not (isQualified iname)
+--             withColor clr doc = color (clr (Pretty.colors penv)) doc
+--             docName = (if (shorten && toImplicitParamName name == iname)  -- ?cmp = ?cmp
+--                         then Lib.PPrint.empty
+--                         else withColor colorImplicitParameter (text prefix <.> Pretty.ppNamePlain penv name <.> text "="))
+--                       <.> withColor colorImplicitExpr (Pretty.ppNamePlain penv iname)
+
+prettyImplicitArg :: Pretty.Env -> ImplicitArg -> Doc
+prettyImplicitArg penv (ImplicitArg name info rho iargs)
+  = let withColor clr doc = color (clr (Pretty.colors penv)) doc in
+    withColor colorImplicitExpr (Pretty.ppNamePlain penv name) <.>
+    if null iargs then Lib.PPrint.empty
+                  else let fcount = case splitFunType rho of
+                                      Just (ipars,_,_) -> let (fixed,_,_) = splitOptionalImplicit ipars
+                                                          in length fixed
+                                      _ -> 0 -- should never happen? (since we got implicit arguments)
+                           docargs  = [prettyPartial penv pname partial | (pname,partial) <- iargs]
+                           docfixed = [text "_" | _ <- [1..fcount]]
+                       in parens (hcat (intersperse comma (docfixed ++ docargs)))
+
+prettyPartial :: Pretty.Env -> Name -> Partial -> Doc
+prettyPartial penv pname partial
+  = case partial of
+      Step _    -> Pretty.ppNamePlain penv pname <.> text "=" <.> text "..."
+      Done iarg -> prettyImplicitAssign penv True "" pname iarg
+
+prettyImplicitAssign :: Pretty.Env -> Bool -> String -> Name -> ImplicitArg -> Doc
+prettyImplicitAssign penv shorten prefix pname iarg
+  = let withColor clr doc = color (clr (Pretty.colors penv)) doc in
+    withColor colorImplicitParameter ({- text prefix <.> -} Pretty.ppNamePlain penv pname) <.>
+    (if shorten && pname == iaName iarg
+       then Lib.PPrint.empty
+       else text "=" <.> prettyImplicitArg penv iarg)
+
+
+
+resolveImplicitArg :: Bool -> Bool -> [(NameInfo -> Bool, Name, NameContext, Range)] -> Inf (Either [Doc] (ImplicitArg))
+resolveImplicitArg allowDisambiguate allowUnitFunVal roots
+  = do candidates1 <- concatMapM (\(infoFilter,name,ctx,range) -> lookupImplicitArg allowUnitFunVal infoFilter name ctx range) roots
+       let candidates2 = filter (not . existConCreator candidates1) candidates1
+       resolveBest allowDisambiguate 0 candidates2
+  where
+    -- | always prefer a creator definition over a plain constructor if it exists
+    existConCreator :: [ImplicitArg] -> ImplicitArg -> Bool
+    existConCreator candidates (ImplicitArg name info _ _)
+      = isInfoCon info && any (\iarg -> iaName iarg == cname) candidates
+      where
+        cname = newCreatorName name
+
+resolveBest :: Bool -> Int -> [ImplicitArg] -> Inf (Either [Doc] ImplicitArg)
+resolveBest allowDisambiguate depth candidates | depth > 5
+  = do penv <- getPrettyEnv
+       return (Left (map (prettyImplicitArg penv) candidates))
+resolveBest allowDisambiguate depth candidates
+  = case findBest allowDisambiguate candidates of
+      Found iarg       -> assertion "Type.InferMonad.resolveBest: unresolved implicit" (isDone iarg) $
+                          return (Right iarg)
+      Continue sorted  -> do candidates' <- resolveStep sorted
+                             resolveBest allowDisambiguate (depth + 1) candidates'
+      _                -> do penv <- getPrettyEnv
+                             return (Left (map (prettyImplicitArg penv) candidates))
+
+concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
+concatMapM f xs = concat <$> mapM f xs
+
+
+resolveStep :: [ImplicitArg] -> Inf [ImplicitArg]
+resolveStep iargs
+  = concatMapM step iargs
+  where
+    step :: ImplicitArg -> Inf [ImplicitArg]
+    step iarg
+      = if isDone iarg
+          then return [iarg]
+          else do let (pnames,partials) = unzip (iaImplicitArgs iarg)
+                  yss <- sequence <$> mapM (\partial -> case partial of
+                                                  Done arg -> resolveStep [arg]
+                                                  Step inf -> inf
+                                           ) partials
+                  return [iarg{ iaImplicitArgs = zip pnames (map Done ys) } | ys <- yss]
+
+
+data Select a  = Found a
+               | None
+               | Amb
+               | Continue [a]
+
+findBest :: Bool -> [ImplicitArg] -> Select (ImplicitArg)
+findBest allowDisambiguate candidates
+  = case candidates of
+      []     -> None
+      [iarg] -> if isDone iarg then Found iarg else Continue [iarg]
+      _      -> if not allowDisambiguate
+                  then if length (filter isDone candidates) > 1
+                         then Amb
+                         else Continue candidates
+                  else case sortBy (\x y -> compare (implicitArgCost x) (implicitArgCost y)) candidates of
+                         sorted@(x:ys) -> case implicitArgCost x of
+                            (Least _) -> Continue sorted
+                            (Exact i) -> let keep = filter (\y -> case implicitArgCost y of
+                                                                        Exact j -> i == j
+                                                                        Least j -> i >= j) sorted
+                                         in case keep of
+                                              [_]   -> Found x
+                                              _     -> if all (\y -> implicitArgCost y == Exact i) keep
+                                                         then Amb else Continue keep
+
+
+-- Lookup application name `f` in an expression `f(...)` where the name  context usually contains
+-- types of (partially) inferred (fixed) arguments.
+-- Returns list of resolved names together with any required implicit arguments.
+lookupImplicitArg :: Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [ImplicitArg]
+lookupImplicitArg allowUnitFunVal infoFilter name ctx range
+  = do -- traceDefDoc $ \penv -> text "lookupImplicitArg:" <+> pretty name
+       candidates0 <- lookupNames infoFilter name ctx range
+       candidates1 <- case ctx of
+                        CtxType expect | allowUnitFunVal && not (isFun expect)
+                           -> lookupNames infoFilter name (CtxFunTypes False [] [] (Just expect)) range
+                        _  -> return []
+       return (map toImplicitArg (candidates0 ++ candidates1))
+  where
+    toImplicitArg :: (Name,NameInfo,Rho) -> ImplicitArg
+    toImplicitArg (iname,info,itp {- instantiated type -})
+      = let iargs = case splitFunType itp of
+                      Just (ipars,ieff,iresTp)  | any Op.isOptionalOrImplicit ipars
+                        -- resolve further implicit parameters
+                        -> map resolveImplicit (implicitsToResolve ipars)
+                      _ -> []
+        in (ImplicitArg iname info itp iargs)
+
+    implicitsToResolve :: [(Name,Type)] -> [(Name,Type)]
+    implicitsToResolve ipars
+      = -- only return implicits that were not already given explicitly by the user (in `named`)
+        let (_,_,implicits)  = splitOptionalImplicit ipars
+            alreadyGiven     = case ctx of
+                                  CtxFunTypes partial fixed named mbResTp
+                                    -> map fst named
+                                  CtxFunArgs n named mbResTp
+                                    -> named
+                                  _ -> []
+        in filter (\(name,_) -> not (name `elem` alreadyGiven)) implicits
+
+    resolveImplicit :: (Name,Type) -> (Name,Partial)
+    resolveImplicit (pname,ptp)
+      = -- recursively solve further implicits (but return the computation to allow for breath first search)
+        let (pnameName,pnameExpr) = splitImplicitParamName pname
+        in  (pnameName, Step $
+                        lookupImplicitArg True {- allow unit val -}
+                          infoFilter pnameExpr
+                          (implicitTypeContext ptp) (endOfRange range)) -- use end of range to deprioritize with hover info
+
+
+toImplicitArgExpr :: Range -> ImplicitArg -> Expr Type
+toImplicitArgExpr range (ImplicitArg iname info itp iargs)
+      = case iargs of
+          [] -> Var iname False range
+          _  -> case splitFunType itp of
+                  Just (ipars,ieff,iresTp) | any Op.isOptionalOrImplicit ipars -- eta-expand
+                    -- eta-expand and resolve further implicit parameters
+                    -- todo: eta-expansion may become part of subsumption?
+                    ->  let (fixed,opt,implicits) = splitOptionalImplicit ipars in
+                        assertion "Type.InferMonad.toImplicitAppExpr" (length implicits == length iargs) $
+                        let nameFixed    = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] fixed]
+                            argsFixed    = [(Nothing,Var name False range) | name <- nameFixed]
+                            argsImplicit = [(Just (pname,range), toImplicitArgExpr (endOfRange range) iarg) | (pname,Done iarg) <- iargs]
+                            etaTp        = TFun fixed ieff iresTp
+                            eta          = (if null fixed then id
+                                            else \body -> Lam [ValueBinder name Nothing Nothing range range | name <- nameFixed] body range)
+                                              (App (Var iname False range)
+                                                      (argsFixed ++ argsImplicit)
+                                                      range)
+                        in eta
+                  _ -> failure ("Type.InferMonad.toImplicitAppExpr: illegal type for implicit? " ++ show range ++ ", " ++ show iname)
+
+
 -----------------------------------------------------------------------
 -- Looking up application names and implicit names is mutually recursive
 -----------------------------------------------------------------------
@@ -1068,7 +1365,8 @@ pick allowDisambiguate select xs
 -- lookup an implicit name, potentially eta-expanding functions to provide implicit arguments recursively
 lookupImplicitNames :: Int -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [ImplicitExpr]
 lookupImplicitNames recurseDepth infoFilter name ctx range
-  = do candidates <- lookupAppNames (recurseDepth+1) {- True {-allow bypass-} -} True {-allow unitFunVal's-} infoFilter name ctx range
+  = do traceDefDoc $ \penv -> text "lookupImplicitNames:" <+> pretty recurseDepth <+> pretty name
+       candidates <- lookupAppNames (recurseDepth+1) {- True {-allow bypass-} -} True {-allow unitFunVal's-} infoFilter name ctx range
        penv <- getPrettyEnv
        return (map (toImplicitAppExpr (recurseDepth > 0) penv "?" name range) candidates)
 
@@ -1081,7 +1379,7 @@ toImplicitAppExpr shorten penv prefix name range (iname,info,itp,iargs)
                         else withColor colorImplicitParameter (text prefix <.> Pretty.ppNamePlain penv name <.> text "="))
                       <.> withColor colorImplicitExpr (Pretty.ppNamePlain penv iname)
             -- coreVar = coreExprFromNameInfo iname info
-       in case iargs of
+        in case iargs of
             [] -> ImplicitExpr docName itp (Var iname False range) 1 (if isLocal then [iname] else [])
             _  -> case splitFunType itp of
                     Just (ipars,ieff,iresTp) | any Op.isOptionalOrImplicit ipars -- eta-expand
@@ -1109,15 +1407,16 @@ toImplicitAppExpr shorten penv prefix name range (iname,info,itp,iargs)
                           in ImplicitExpr doc etaTp eta depth localRoots
                     _ -> failure ("Type.InferMonad.toImplicitAppExpr: illegal type for implicit? " ++ show range ++ ", " ++ show (ppNameType penv (name,itp)))
 
-
 -- Lookup application name `f` in an expression `f(...)` where the name  context usually contains
 -- types of (partially) inferred (fixed) arguments.
 -- Returns list of resolved names together with any required implicit arguments.
 lookupAppNames :: Int -> Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo,Rho,[(Name,ImplicitExpr)])]
-lookupAppNames recurseDepth allowUnitFunVal infoFilter name ctx range | recurseDepth > 5
-  = return []
+lookupAppNames recurseDepth allowUnitFunVal infoFilter name ctx range | recurseDepth > 2
+  = do traceDefDoc $ \penv -> text "lookupAppNames:" <+> pretty recurseDepth <+> pretty name <+> text "stop recursion"
+       return []
 lookupAppNames recurseDepth allowUnitFunVal infoFilter name ctx range
-  = do candidates0 <- lookupNames infoFilter name ctx range
+  = do traceDefDoc $ \penv -> text "lookupAppNames:" <+> pretty recurseDepth <+> pretty name
+       candidates0 <- lookupNames infoFilter name ctx range
        candidates1 <- case ctx of
                         CtxType expect | allowUnitFunVal && not (isFun expect)
                            -> lookupNames infoFilter name (CtxFunTypes False [] [] (Just expect)) range
@@ -1129,7 +1428,7 @@ lookupAppNames recurseDepth allowUnitFunVal infoFilter name ctx range
 
     lookupImplicits :: (Name,NameInfo,Rho) -> Inf [(Name,NameInfo,Rho,[(Name,ImplicitExpr)])]
     lookupImplicits (iname,info,itp {- instantiated type -})
-      = do -- traceDoc (\_ -> text "  found implicit: " <+> Pretty.ppParam penv (iname,itp))
+      = do traceDefDoc (\penv -> text "lookupAppNames" <+> pretty recurseDepth <+> text "found implicit: " <+> ppNameType penv (iname,itp))
            iargss <-  case splitFunType itp of
                         Just (ipars,ieff,iresTp)  | any Op.isOptionalOrImplicit ipars
                           -- resolve further implicit parameters
@@ -1139,7 +1438,8 @@ lookupAppNames recurseDepth allowUnitFunVal infoFilter name ctx range
 
     implicitsToResolve :: [(Name,Type)] -> [(Name,Type)]
     implicitsToResolve ipars
-      = let (_,_,implicits)  = splitOptionalImplicit ipars
+      = -- only return implicits that were not already given explicitly by the user (in `named`)
+        let (_,_,implicits)  = splitOptionalImplicit ipars
             alreadyGiven     = case ctx of
                                   CtxFunTypes partial fixed named mbResTp
                                     -> map fst named
@@ -1404,7 +1704,7 @@ ppCandidates :: Env -> String -> [(Name,NameInfo)] -> [(Doc,Doc)]
 ppCandidates env hint nameInfos
    = let penv = prettyEnv env
          modName = context env
-         n = 6
+         n = 10
          sorted      = sortBy (\(name1,info1) (name2,info2) ->
                                 if (qualifier name1 == modName && qualifier name2 /= modName)
                                  then LT

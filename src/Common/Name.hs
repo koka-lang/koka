@@ -762,7 +762,7 @@ namedImplicitParamName pname ename
 splitImplicitParamName :: Name -> (Name,Name)
 splitImplicitParamName name
   = case splitAt "@-@" (nameStem name) of
-      (pre,post) | not (null pre) && not (null post) -> (newName pre, newName post)
+      (pre,post) | not (null pre) && not (null post) -> (toImplicitParamName (newName pre), newName post)
       _ -> (name, plainImplicitParamName name)
   where
     splitAt sub s      | s `startsWith` sub  = ("",drop (length sub) s)

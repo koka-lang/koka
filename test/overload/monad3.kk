@@ -48,3 +48,5 @@ fun test1()
 fun test2()
   [[1],[2,3],[4,5,6]].sequence.show-list(show)
 
+fun test3()
+  [[1],[2,3]].testtwice.concat.sequence.show-list(show)
