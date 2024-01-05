@@ -27,7 +27,20 @@ import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 import Common.Range as R
 import Common.Name (nameNil)
 import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
-import Lib.PPrint (Pretty (..), Doc, string, (<+>), (<-->),color, Color (..), (<.>), (<->), text, empty, vcat, hcat)
+import Lib.PPrint
+    ( Pretty(..),
+      Doc,
+      string,
+      (<+>),
+      (<-->),
+      color,
+      Color(..),
+      (<.>),
+      (<->),
+      text,
+      empty,
+      vcat,
+      hcat )
 import Compiler.Module (loadedModule, modRangeMap, modLexemes, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)
@@ -40,7 +53,7 @@ import Syntax.Colorize( removeComment )
 import LanguageServer.Conversions (fromLspPos, toLspRange)
 import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getHtmlPrinter, getFlags)
 import Debug.Trace (trace)
-import Lib.PPrint (makeMarkdown, displayS, renderCompact)
+import LanguageServer.Handler.Pretty (ppComment, asKokaCode)
 
 
 -- Handles hover requests
@@ -62,17 +75,17 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
         -}
         (r,rinfo) <- -- trace ("hover lookup in rangemap") $
                      rangeMapFindAt (modLexemes mod) pos rmap
-        return (modName mod, loadedImportMap l, r, rinfo)
+        return (modName mod, l, r, rinfo)
   case res of
-    Just (mName, imports, r, rinfo)
+    Just (mName, l, r, rinfo)
       -> -- trace ("hover found " ++ show rinfo) $
          do -- Get the html-printer and flags
             print <- getHtmlPrinter
             flags <- getFlags
-            let env = (prettyEnvFromFlags flags){ context = mName, importsMap = imports }
+            let env = (prettyEnvFromFlags flags){ context = mName, importsMap = loadedImportMap l }
                 colors = colorSchemeFromFlags flags
-            markdown <- liftIO $ print $ -- makeMarkdown $
-                        (formatRangeInfoHover loaded env colors rinfo)
+            markdown <- liftIO $ print $ -- makeMarkdown $ -- makeMarkdown $
+                        (formatRangeInfoHover l env colors rinfo)
             let md = J.mkMarkdown markdown
                 hc = J.InL md
                 rsp = J.Hover hc $ Just $ toLspRange r
@@ -92,8 +105,8 @@ rangeMapBestHover rm =
     r:rst -> Just r
 
 -- Pretty-prints type/kind information to a hover tooltip given a type pretty environment, color scheme
-formatRangeInfoHover :: (Maybe Loaded) -> Env -> ColorScheme -> RangeInfo -> Doc
-formatRangeInfoHover mbLoaded env colors rinfo =
+formatRangeInfoHover :: Loaded -> Env -> ColorScheme -> RangeInfo -> Doc
+formatRangeInfoHover loaded env colors rinfo =
   case rinfo of
   Id qname info docs isdef ->
     let signature = ppName env qname <+>
@@ -103,11 +116,10 @@ formatRangeInfoHover mbLoaded env colors rinfo =
                       NITypeCon k doc   -> text "::" <+> prettyKind colors k
                       NITypeVar k       -> text "::" <+> prettyKind colors k
                       NIModule -> text "module" <.>
-                                  (case mbLoaded of
-                                    Just loaded -> case filter (\mod -> modName mod == qname) (loadedModules loaded) of
-                                                      [mod] | not (null (modSourcePath mod)) -> text (" (" ++ modSourcePath mod ++ ")")
-                                                      _     -> empty
-                                    _ -> empty)
+                                  (case filter (\mod -> modName mod == qname) (loadedModules loaded) of
+                                        [mod] | not (null (modSourcePath mod)) -> text (" (" ++ modSourcePath mod ++ ")")
+                                        _     -> empty
+                                    )
                       NIKind -> text "kind"
         comment = case info of
                     NIValue tp doc _ -> ppComment doc
@@ -122,19 +134,3 @@ formatRangeInfoHover mbLoaded env colors rinfo =
   Error doc           -> text "error:" <+> doc
   Warning doc         -> text "warning:" <+> doc
   Implicits implicits -> text "implicits:" <+> text (show implicits)  -- should not occur
-
-ppComment :: String -> Doc
-ppComment s
-  = if null (filter (not . isSpace) s)
-      then empty
-      else hline <.> (hcat $ map (\ln -> text ln <.> text "  \n") $ dropWhile null $ lines $ removeComment s)
-
-
-asKokaCode :: Doc -> Doc
-asKokaCode doc = let code   = displayS (renderCompact doc) ""
-                     wrap s = "```koka\n" ++ s ++ "\n```"
-                     txt    = wrap code
-                 in -- trace ("hover code:\n" ++ txt) $
-                    text txt
-
-hline = text "\n* * *\n"

@@ -169,6 +169,8 @@ executable koka
       LanguageServer.Handler.Folding
       LanguageServer.Handler.Hover
       LanguageServer.Handler.InlayHints
+      LanguageServer.Handler.Pretty
+      LanguageServer.Handler.SignatureHelp
       LanguageServer.Handler.TextDocument
       LanguageServer.Handlers
       LanguageServer.Monad

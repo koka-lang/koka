@@ -1126,7 +1126,7 @@ resolveImplicitName name tp range
 
 -----------------------------------------------------------------------
 -- Looking up application names and implicit names
--- This is done in a breath-first search to reduce exponential search times
+-- This is done in a breadth-first search to reduce exponential search times
 -----------------------------------------------------------------------
 
 data ImplicitArg   = ImplicitArg{ iaName :: Name

@@ -16,6 +16,9 @@ module Syntax.RangeMap( RangeMap, RangeInfo(..), NameInfo(..)
                       , rangeMapAppend
                       , rangeInfoType
                       , lexemesFromPos
+                      , getFunctionNameReverse, getFunctionIncompleteReverse, FnSyntax(..)
+                      , previousLexemesReversed, dropMatchedParensReverse, dropAutoGenClosing
+                      , getCurrentBlockReverse, getCurrentStatementReverse
                       , mangle
                       , mangleConName
                       , mangleTypeName
@@ -195,6 +198,149 @@ rangeMapFindIn rng (RM rm)
   = filter (\(rng, info) -> rangeStart rng >= start || rangeEnd rng <= end) rm
     where start = rangeStart rng
           end = rangeEnd rng
+
+-- Gets all lexemes less than the given position and then reverses their order
+previousLexemesReversed :: [Lexeme] -> Pos -> [Lexeme]
+previousLexemesReversed lexemes pos =
+  reverse $ takeWhile (\lex -> rangeStart (getRange lex) <= pos) lexemes
+
+-- Dropes everything inside and including matched parentheses, assumes the ending paren is already dropped
+dropMatchedParensReverse :: [Lexeme] -> [Lexeme]
+dropMatchedParensReverse = dropToLexMatching (== LexSpecial ")") (== LexSpecial "(")
+
+-- Assumes in the middle of the function parameters 
+-- (drops to nearest open paren that didn't have a close paren before it)
+-- This takes care of finding signature info when a cursor is in an argument list
+getFunctionIncompleteReverse :: [Lexeme] -> FnSyntax
+getFunctionIncompleteReverse xs = getFunctionNameReverse (dropMatchedParensReverse (dropAutoGenClosing xs))
+
+-- Assumes it is given reverse ordered lexemes ending at an end of a function invocation
+-- 
+-- e.g.
+--   a.b(x, y, fn() {z}).abc
+--   => FnChained "b" "abc" -- had a .abc after the b
+-- also 
+--   a.b
+--   => FnNormal "a"
+-- and
+--   a.
+--   => FnNormal "a"
+-- and finally
+--   (abc).abc => NotFound
+getFunctionNameReverse :: [Lexeme] -> FnSyntax
+getFunctionNameReverse xs =
+  let xs' = getCurrentStatementReverse $ dropAutoGenClosing xs in
+  -- trace ("getFunctionNameReverse: " ++ show xs') $
+  let go xs =
+        case xs of
+          [] -> EmptyStatement
+          -- "" 10 1.0 'c' [] x etc...
+          v@(Lexeme _ (LexString s)):xs -> FnValue v
+          v@(Lexeme _ (LexInt _ _)):xs -> FnValue v
+          v@(Lexeme _ (LexFloat _ _)):xs -> FnValue v
+          v@(Lexeme _ (LexChar _)):xs -> FnValue v
+          v@(Lexeme _ (LexSpecial "]")):xs -> FnValue v
+          [x@(Lexeme _ (LexId _))] -> FnValue x
+          -- x(). or (x.y). or even (1 + 2). %the last will return a chain ending in FnNotFound%
+          (Lexeme _ (LexKeyword "." _)):xs -> FnIncomplete $ go xs
+          -- x() or (x.y) or even (1 + 2) %the last will return FnNotFound% 
+          (Lexeme _ (LexSpecial ")")):xs -> 
+            let dropped = dropMatchedParensReverse xs in
+            -- trace ("getFunctionNameReverse: " ++ show xs ++ " dropped: " ++ show dropped) $
+            case go dropped of
+              -- (a).b -- if there is nothing before the parenthesized expression
+              -- it doesn't mean there isn't a chained function target
+              EmptyStatement -> go xs
+              res -> res 
+          -- x.partial, x().partial etc
+          fn@(Lexeme _ (LexId _)):(Lexeme _ (LexKeyword "." _)):xs -> chain fn $ go xs
+          _ -> FnNotFound xs
+  in go xs'
+
+-- Add a function to a chain of discovered functions
+chain :: Lexeme -> FnSyntax -> FnSyntax
+chain fn0 chain =
+  case chain of
+    FnChained{} -> FnChained fn0 chain
+    FnValue{} -> FnChained fn0 chain
+    FnIncomplete chain0 -> FnChained fn0 chain0
+    EmptyStatement -> FnValue fn0
+    FnNotFound prefix -> FnValue fn0
+
+data FnSyntax = -- a.b.c
+                FnChained{
+                 fnName:: Lexeme, 
+                 fnChain:: FnSyntax -- The chain's return type is the function's first argument type
+                } 
+              | FnIncomplete{fnChain::FnSyntax} -- a.b.
+              | FnValue{fnValue:: Lexeme} -- a / ] / 10 / "abc" / etc
+              | FnNotFound{fnPrefix:: [Lexeme]}
+              | EmptyStatement -- start of line
+
+instance Show FnSyntax where
+  show fn =
+    case fn of
+      FnChained fn chain -> show fn ++ "." ++ show chain
+      FnIncomplete chain -> show chain ++ "."
+      FnValue fn -> show fn
+      FnNotFound prefix -> show (length prefix) ++ ":" ++ show (take 6 prefix)
+      EmptyStatement -> "EmptyStatement"
+
+-- Assumes reverse ordered lexemes
+-- Gets the current statement (e.g. up to the last ; or implicit ;, accounting for nesting, and blocks)
+-- Ignores statements within nested blocks
+getCurrentStatementReverse :: [Lexeme] -> [Lexeme]
+getCurrentStatementReverse xs =
+  let go :: Int -> [Lexeme] -> [Lexeme]
+      go blockn xs =
+        case xs of
+          [] -> []
+          (Lexeme _ LexInsSemi):xs | blockn == 0 -> []
+          (Lexeme _ (LexSpecial ";"):xs) | blockn == 0 -> []
+          x@(Lexeme _ (LexSpecial "}")):xs -> x:go (blockn + 1) xs
+          x@(Lexeme _ LexInsRCurly):xs -> x:go (blockn + 1) xs
+          x@(Lexeme _ (LexSpecial "{")):xs -> x:go (blockn - 1) xs
+          x@(Lexeme _ LexInsLCurly):xs -> x:go (blockn - 1) xs
+          x:xs -> x:go blockn xs
+  in go 0 (getCurrentBlockReverse xs)
+
+-- Gets the current block of syntax (e.g. up to the last { or implicit {, accounting for nesting)
+getCurrentBlockReverse :: [Lexeme] -> [Lexeme]
+getCurrentBlockReverse xs =
+  let go n xs =
+        case xs of
+          [] -> []
+          (Lexeme _ (LexSpecial "{"):xs) | n == 0 -> []
+          (Lexeme _ LexInsLCurly):xs | n == 0-> []
+          x@(Lexeme _ (LexSpecial "}")):xs -> x:go (n + 1) xs
+          x@(Lexeme _ LexInsRCurly):xs -> x:go (n + 1) xs
+          x@(Lexeme _ (LexSpecial "{")):xs -> x:go (n - 1) xs
+          x@(Lexeme _ LexInsLCurly):xs -> x:go (n - 1) xs
+          x:xs -> x:getCurrentBlockReverse xs
+  in go 0 xs
+
+-- Drops to a matching lexeme using `isStartLex` and `isEndLex` to detect nested lexemes
+-- Assumes the first lexeme is already a start lexeme
+dropToLexMatching :: (Lex -> Bool) -> (Lex -> Bool) -> [Lexeme] -> [Lexeme]
+dropToLexMatching = dropToLexMatchingN 1
+
+dropToLexMatchingN :: Int -> (Lex -> Bool) -> (Lex -> Bool) -> [Lexeme] -> [Lexeme]
+dropToLexMatchingN n isStartLex isEndLex xs =
+  case xs of
+    [] -> []
+    (Lexeme _ l):xs | isStartLex l -> dropToLexMatchingN (n + 1) isStartLex isEndLex xs
+    (Lexeme _ l):xs | isEndLex l && n > 1 -> dropToLexMatchingN (n - 1) isStartLex isEndLex xs
+    (Lexeme _ l):xs | isEndLex l && n == 1 -> xs -- dropping from 1 to 0
+    (Lexeme _ l):xs -> dropToLexMatchingN n isStartLex isEndLex xs
+
+-- Assumes reverse ordered lexemes dropping till we get to actual written code
+dropAutoGenClosing :: [Lexeme] -> [Lexeme]
+dropAutoGenClosing lexes =
+  case lexes of
+    [] -> []
+    (Lexeme _ LexInsSemi):xs -> dropAutoGenClosing xs
+    (Lexeme _ LexInsRCurly):xs -> dropAutoGenClosing xs
+    _ -> lexes
 
 -- we should use the lexemes to find the right start token
 rangeMapFindAt :: [Lexeme] -> Pos -> RangeMap -> Maybe (Range, RangeInfo)

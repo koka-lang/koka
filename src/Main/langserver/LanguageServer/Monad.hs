@@ -14,6 +14,7 @@
 module LanguageServer.Monad
   ( LSState (..),
     InlayHintOptions(..),
+    SignatureContext(..),clearSignatureContext,updateSignatureContext,getSignatureContext,
     defaultLSState,
     newLSStateVar,
     LSM,
@@ -54,7 +55,7 @@ import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Server as J
 
 import Common.ColorScheme ( colorSource, ColorScheme, darkColorScheme, lightColorScheme )
-import Common.Name (nameNil)
+import Common.Name (nameNil, Name, readQualifiedName)
 import Common.File ( realPath, normalize, getCwd, realPath, normalize )
 import Common.Error (ppErrorMessage)
 import Lib.PPrint (Pretty(..), asString, writePrettyLn, Doc, writePretty)
@@ -84,8 +85,20 @@ data LSState = LSState {
   -- If the file was changed last, we can reuse modules, since no dependencies have changed
   lastChangedFile :: Maybe (J.NormalizedUri, Flags, Loaded),
   diagnostics :: !(M.Map J.NormalizedUri [J.Diagnostic]),
+  signatureContext :: !(Maybe SignatureContext),
   config :: Config
 }
+
+data SignatureContext = SignatureContext {
+  sigFunctionName:: Name
+}
+
+instance FromJSON SignatureContext where
+  parseJSON (A.Object v) = SignatureContext <$> readQualifiedName <$> v .: "sigFunctionName"
+  parseJSON _ = return $ SignatureContext nameNil
+
+instance ToJSON SignatureContext where
+  toJSON (SignatureContext name) = object ["sigFunctionName" .= (show name)]
 
 -- The monad holding (thread-safe) state used by the language server.
 type LSM = LspT () (ReaderT (MVar LSState) IO)
@@ -149,7 +162,9 @@ defaultLSState flags = do
     config = Config{colors=Colors{mode="dark"}, inlayHintOpts=InlayHintOptions{showImplicitArguments=True, showInferredTypes=True, showFullQualifiers=True}},
     terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags,
     lastChangedFile = Nothing, progressReport = Nothing,
-    documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
+    documentInfos = M.empty, documentVersions = fileVersions,
+    signatureContext = Nothing,
+    diagnostics = M.empty}
 
 -- Prints a message to html spans
 htmlTextColorPrinter :: Doc -> IO T.Text
@@ -210,6 +225,17 @@ updateConfig cfg =
         else
           s'{flags=(flags s'){colorScheme=lightColorScheme}}
     _ -> return ()
+
+updateSignatureContext :: SignatureContext -> LSM ()
+updateSignatureContext context =
+  modifyLSState $ \s -> s{signatureContext=Just context}
+
+clearSignatureContext :: LSM ()
+clearSignatureContext =
+  modifyLSState $ \s -> s{signatureContext=Nothing}
+
+getSignatureContext :: LSM (Maybe SignatureContext)
+getSignatureContext = signatureContext <$> getLSState
 
 getInlayHintOptions :: LSM InlayHintOptions
 getInlayHintOptions = inlayHintOpts . config <$> getLSState

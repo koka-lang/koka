@@ -219,8 +219,8 @@ processCompilationResult normUri filePath flags update doIO = do
               return ()
             Just l -> do
               trace ("Error when compiling have cached" ++ show (map modSourcePath $ loadedModules l)) $ return ()
-              when update $ putLoaded l normUri flags
-              removeLoaded (loadedModule l)
+              -- when update $ putLoaded l normUri flags
+              -- removeLoaded (loadedModule l)
           liftIO $ termError term e
           return Nothing
       -- Emit the diagnostics (errors and warnings)

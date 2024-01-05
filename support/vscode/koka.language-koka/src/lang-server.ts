@@ -12,6 +12,7 @@ import { AddressInfo, Server, createServer } from 'net'
 
 import {
   DidChangeConfigurationNotification,
+  ExecuteCommandRequest,
   LanguageClient,
   LanguageClientOptions,
   RevealOutputChannelOn,
@@ -136,6 +137,20 @@ export class KokaLanguageServer {
       markdown: {
         isTrusted: true,
         supportHtml: true,
+      },
+      middleware: {
+          executeCommand: async (command, args, next) => {
+            console.log("intercepted command", command, args)
+            if (command == "koka/signature-help/set-context") {
+              // Trigger the signature help but with some context set on the backend
+              console.log("Sending set-context request to server")
+              next(command, args)
+              console.log("Asking VSCode to trigger parameter hints")
+              vscode.commands.executeCommand("editor.action.triggerParameterHints")
+            } else {
+              next(command, args)
+            }
+          }
       }
     }
     this.languageClient = new LanguageClient(

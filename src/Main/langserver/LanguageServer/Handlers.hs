@@ -57,6 +57,7 @@ import LanguageServer.Monad (LSM, runLSM, LSState (..), updateConfig, getTermina
 
 import qualified Debug.Trace as Debug
 import Compiler.Compile (Terminal(..))
+import LanguageServer.Handler.SignatureHelp (signatureHelpHandler)
 
 newtype ReactorInput = ReactorAction (IO ())
 
@@ -77,7 +78,8 @@ handlers =
       commandHandler,
       inlayHintsHandler,
       foldingHandler,
-      configurationChangeHandler
+      configurationChangeHandler,
+      signatureHelpHandler
     ]
 
 configurationChangeHandler :: Handlers LSM

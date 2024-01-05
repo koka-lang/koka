@@ -27,7 +27,7 @@ import Common.Name (newName)
 import Common.NamePrim (nameInteractiveModule)
 import Common.Range (rangeNull)
 import Language.LSP.Server (Handlers, LspM, notificationHandler, sendNotification, MonadLsp, getVirtualFiles, withProgress, requestHandler)
-import LanguageServer.Monad (LSM, getFlags, getTerminal, getModules, getLoaded, setProgress)
+import LanguageServer.Monad (LSM, getFlags, getTerminal, getModules, getLoaded, setProgress, updateSignatureContext)
 import LanguageServer.Handler.TextDocument (recompileFile, compileEditorExpression)
 import Compiler.Compile (CompileTarget(..), Terminal (..), compileExpression, Module (..))
 import Compiler.Options (Flags (outFinalPath), targets, commandLineHelp, updateFlagsFromArgs)
@@ -35,11 +35,15 @@ import Compiler.Module (Loaded(..))
 import Core.Core (Visibility(Private))
 import Syntax.Syntax (programAddImports, programNull, Import (..))
 import Lib.PPrint ((<+>), text, Color (..), color, (<-->))
+import qualified Data.Aeson as A
 
 -- Handles custom commands that we support clients to call
 commandHandler :: Handlers LSM
 commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp -> do
   let J.ExecuteCommandParams _ command commandParams = req ^. J.params
+  let parameterError = do
+        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid parameters for " <> command
+        resp $ Right $ J.InR J.Null
   flags <- getFlags
   if command == "koka/compile" then
     case commandParams of
@@ -57,10 +61,7 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
-      _ -> do
-        -- Client didn't send the right parameters for this command
-        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid parameters for koka/compile"
-        resp $ Right $ J.InR J.Null
+      _ -> parameterError
   else if command == "koka/compileFunction" then
     case commandParams of
       -- The `filePath` where a top level function is defined by the name `functionName`, and any additional flags
@@ -78,13 +79,17 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
-      _ -> do
-        -- Client didn't send the right parameters for this command
-        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid parameters for koka/compileFunction"
-        resp $ Right $ J.InR J.Null
+      _ -> parameterError
+  else if command == "koka/signature-help/set-context" then
+    case commandParams of
+      Just [a@(Json.Object _)] ->
+        case fromJSON a of
+          A.Success context -> updateSignatureContext context
+          _ -> parameterError
+      Nothing -> parameterError
   else
     do
-      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack ("Unknown command" ++ show req)
+      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack ("Unknown command: " ++ show req)
       resp $ Right $ J.InR J.Null
 
 getNewFlags :: Flags -> T.Text -> LSM Flags
