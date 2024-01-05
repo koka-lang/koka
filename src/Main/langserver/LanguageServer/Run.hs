@@ -36,7 +36,7 @@ import Language.LSP.Logging (defaultClientLogger)
 import Network.Simple.TCP ( connect )
 import Network.Socket ( socketToHandle )
 import LanguageServer.Handlers ( lspHandlers, ReactorInput(..) )
-import LanguageServer.Monad (newLSStateVar, runLSM, LSM, getLSState, LSState (messages, progress), getProgress)
+import LanguageServer.Monad (newLSStateVar, runLSM, LSM, getLSState, LSState (messages, progress), getProgress, updateSignatureContext, SignatureContext(..))
 import Compiler.Options (Flags (languageServerPort))
 import Debug.Trace (trace)
 
@@ -79,8 +79,9 @@ runLanguageServer flags files = do
             options =
               defaultOptions
                 { optTextDocumentSync = Just syncOptions,
-                  optExecuteCommandCommands = Just [T.pack "koka/compile", T.pack "koka/compileFunction"],
-                  optCompletionTriggerCharacters = Just ['.', ':', '/', ' ']
+                  optExecuteCommandCommands = Just [T.pack "koka/compile", T.pack "koka/compileFunction", T.pack "koka/signature-help/set-context"],
+                  optCompletionTriggerCharacters = Just ['.', ':', '/', ' '],
+                  optSignatureHelpTriggerCharacters = Just ['(', ',', ' ']
                 -- TODO: ? https://www.stackage.org/haddock/lts-18.21/lsp-1.2.0.0/src/Language.LSP.Server.Core.html#Options
                 }
           })

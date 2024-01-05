@@ -37,13 +37,14 @@ import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.VFS (VirtualFile (VirtualFile), virtualFileText)
 import Common.Name
     ( Name(..),
-      nameLocal,
       isHiddenName,
       nameIsNil,
       showPlain,
-      nameNil, qualify )
+      nameNil,
+      qualify,
+      newName )
 import Common.Range (makePos, posNull, Range(..), rangeEnd, rangeStart, rangeNull, Source (..), extractLiterate, Pos(..), rangeLength, makeRange, extendRange)
-import Lib.PPrint (Pretty (..))
+import Lib.PPrint (Pretty (..), Doc)
 import Kind.Constructors (ConInfo (..), Constructors, constructorsList)
 import Kind.Synonym (SynInfo (..), Synonyms, synonymsToList)
 import Type.Assumption
@@ -55,19 +56,20 @@ import Compiler.Compile (Module (..))
 import Compiler.Module ( Loaded(..), modLexemes )
 import Syntax.Lexer (reservedNames, lexing, Lexeme (..), Lex (..))
 import Syntax.Lexeme
-import Syntax.RangeMap (rangeMapFind, rangeInfoType)
+import Syntax.RangeMap (rangeMapFind, rangeInfoType, RangeInfo, getFunctionNameReverse, previousLexemesReversed, dropAutoGenClosing, FnSyntax(..))
 import Syntax.Parse (parseProgramFromFile, parseProgramFromString)
 import Syntax.Layout (layout)
 import Language.LSP.Protocol.Types (InsertTextFormat(InsertTextFormat_Snippet))
 import LanguageServer.Conversions (fromLspPos, fromLspUri, toLspPos, toLspRange)
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule)
+import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, SignatureContext(..))
+import LanguageServer.Handler.Hover (formatRangeInfoHover)
 import qualified Data.Text.Encoding as T
 import Common.File (isLiteralDoc)
 import Lib.Trace (trace)
 import Kind.Newtypes (Newtypes, DataInfo (..), newtypesTypeDefs)
 import Kind.Kind (kindStar)
 import Common.NamePrim (nameSystemCore)
-import Common.Name (newName)
+import Data.Aeson (fromJSON, ToJSON (toJSON))
 
 -- Gets tab completion results for a document location
 -- This is a pretty complicated handler because it has to do a lot of work
@@ -96,7 +98,7 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
         _ -> -- trace ("No completion infos for position ")
           return []
     _ -> return []
-  responder $ Right $ J.InL items
+  responder $ Right $ J.InR $ J.InL $ J.CompletionList False Nothing items
 
 -- | Describes the information gained from lexing needed to suggest completions
 data CompletionInfo = CompletionInfo
@@ -111,52 +113,6 @@ data CompletionInfo = CompletionInfo
   -- Determines if it is a function completion (. is just prior to the cursor)
   , completionKind :: CompletionKind
   } deriving (Show,Eq)
-
-previousLexemes :: [Lexeme] -> [Lexeme] -> Pos -> [Lexeme]
-previousLexemes !lexemes !acc !pos =
-  case lexemes of
-    [] -> acc
-    (lex@(Lexeme rng _):rst) ->
-      if rangeEnd rng >= pos && rangeStart rng <= pos then
-        lex:acc
-      else if rangeEnd rng < pos then
-        previousLexemes rst (lex:acc) pos
-      else
-        acc
-
--- Drop matchings () pairs, also drop to ;
--- e.g.
---   a.b(x, y, fn() {z}). drops to
---   a.b.
--- this way we know that we are completing a function whose first argument is the result of b
--- If we were doing this instead
---   a. and a is a function type we know that we are completing a function whose first argument is actually the function type a
--- Working with lambda literals is a TODO:
-dropMatched :: [Lexeme] -> [Lexeme]
-dropMatched xs =
-  case xs of
-    [] -> []
-    (Lexeme x' LexInsSemi):xs -> []
-    (Lexeme x' (LexSpecial ";"):xs) -> []
-    (Lexeme x' LexInsLCurly):xs -> []
-    (Lexeme x' (LexSpecial "{"):xs) -> []
-    (Lexeme x' (LexSpecial ")")):xs -> dropToLex (LexSpecial "(") xs
-
-    x:xs -> x:dropMatched xs
-  where
-    dropToLex x xs =
-      case xs of
-        [] -> []
-        (Lexeme x' l):xs | l == x -> dropMatched xs
-        (Lexeme x' l):xs -> dropToLex x xs
-
-dropAutoGen :: [Lexeme] -> [Lexeme]
-dropAutoGen lexes =
-  case lexes of
-    [] -> []
-    (Lexeme x' LexInsSemi):xs -> dropAutoGen xs
-    (Lexeme x' LexInsRCurly):xs -> dropAutoGen xs
-    _ -> lexes
 
 data CompletionKind = CompletionKindFunction | CompletionKindValue | CompletionKindType | CompletionKindEffectLabel | CompletionKindTypeOrEffect deriving (Show,Eq)
 
@@ -174,48 +130,45 @@ getCompletionInfo pos vf mod uri = do
       input  = if isLiteralDoc filePath then extractLiterate text else text
       xs = lexing source 1 input
       lexemes = layout False {-no at-} True {-semi insert-} xs
-      !prior = previousLexemes lexemes [] pos'
-      context = dropMatched (dropAutoGen prior)
+      !prior = previousLexemesReversed lexemes pos'
+      fncontext = getFunctionNameReverse prior
+      tpcontext = dropAutoGenClosing prior -- TODO: Test this out, should it be opening?
       lines = T.lines (virtualFileText vf)
       row = case prior of
         [] -> 0
         (Lexeme rng tkn):_ -> fromIntegral $ posLine (rangeStart rng)
       line = if length lines < row then "" else lines !! (row - 1) -- rows are 1 indexed in koka
       endRng = rngEnd prior
-  -- trace ("Prior: " ++ intercalate "\n" (map show (take 4 prior)) ++ " context " ++ intercalate "\n" (map show context)  ++ " row" ++ show row ++ " pos: " ++ show pos' ++ "\n") $ return ()
-  
+  -- trace ("Prior: " ++ intercalate "\n" (map show (take 4 prior)) ++ " context " ++ show fncontext ++ " row" ++ show row ++ " pos: " ++ show pos' ++ "\n") $ return ()
+
   -- Matches all of the kinds of completions we support. Both without any partial name and with a partial name
-  return $! case context of
+  return $! case fncontext of
     -- Names followed by . (use the type of the name as a filter)
-    [(Lexeme rng1 (LexKeyword "." _)), (Lexeme rng2 (LexId nm))] -> completeFunction line nameNil endRng rng2 False
-    [(Lexeme rng0 (LexId partial)), (Lexeme rng1 (LexKeyword "." _)), (Lexeme rng2 (LexId nm))] -> completeFunction line partial rng0 rng2 False
-    -- Names followed by . (but with a chain of prior names) i.e. a.b.c (use the result type of the name as a filter)
-    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexId nm)):_ -> completeFunction line nameNil endRng rng2 True
-    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexId nm)):_-> completeFunction line partial rng0 rng2 True
-    -- Strings followed by .
-    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexString _)):_ -> completeString line nameNil endRng
-    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexString _)):_ -> completeString line partial rng0
-    -- Chars followed by .
-    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexChar _)):_ -> completeChar line nameNil endRng
-    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexChar _)):_ -> completeChar line partial rng0
-    -- Ints followed by .
-    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexInt _ _)):_ -> completeInt line nameNil endRng
-    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexInt _ _)):_ -> completeInt line partial rng0
-    -- Floats followed by .
-    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexFloat _ _)):_ -> completeFloat line nameNil endRng
-    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexFloat _ _)):_ -> completeFloat line partial rng0
-    -- Lists followed by .
-    (Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexSpecial "]")):_ -> completeList line nameNil endRng
-    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword "." _)):(Lexeme rng2 (LexSpecial "]")):_ -> completeList line partial rng0
-    -- closing paren followed by : (type or effect)
-    (Lexeme rng1 (LexKeyword ":" _)):(Lexeme rng2 (LexSpecial ")")):_ -> completeTypeOrEffect line nameNil endRng
-    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword ":" _)):(Lexeme rng2 (LexSpecial ")")):_ -> completeTypeOrEffect line partial rng0
-    -- : (type)
-    (Lexeme rng1 (LexKeyword ":" _)):_ -> completeType line nameNil endRng
-    (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword ":" _)):_ -> completeType line partial rng0
-    -- plain identifier - suggest all values that contain identifier regardless of context type
-    (Lexeme rng (LexId partial)):_ -> completeIdentifier line partial rng
-    _ -> Nothing
+    FnIncomplete (FnValue (Lexeme rng (LexId nm))) -> completeFunction line nameNil endRng rng False
+    FnChained (Lexeme rng0 (LexId partial)) (FnValue (Lexeme rng2 (LexId nm))) -> completeFunction line partial rng0 rng2 False 
+    FnIncomplete (FnChained (Lexeme rng (LexId nm)) _) -> completeFunction line nameNil endRng rng True
+    FnChained (Lexeme rng0 (LexId partial)) (FnChained (Lexeme rng2 (LexId nm)) _) -> completeFunction line partial rng0 rng2 True
+    FnIncomplete (FnValue (Lexeme rng (LexString _))) -> completeString line nameNil endRng
+    FnChained (Lexeme rng0 (LexId partial)) (FnValue (Lexeme rng2 (LexString _))) -> completeString line partial rng0
+    FnIncomplete (FnValue (Lexeme rng (LexInt _ _))) -> completeInt line nameNil endRng
+    FnChained (Lexeme rng0 (LexId partial)) (FnValue (Lexeme rng2 (LexInt _ _))) -> completeInt line partial rng0
+    FnIncomplete (FnValue (Lexeme rng (LexFloat _ _))) -> completeFloat line nameNil endRng
+    FnChained (Lexeme rng0 (LexId partial)) (FnValue (Lexeme rng2 (LexFloat _ _))) -> completeFloat line partial rng0
+    FnIncomplete (FnValue (Lexeme rng (LexChar _))) -> completeChar line nameNil endRng
+    FnChained (Lexeme rng0 (LexId partial)) (FnValue (Lexeme rng2 (LexChar _))) -> completeChar line partial rng0
+    FnIncomplete (FnValue (Lexeme rng (LexSpecial "]"))) -> completeList line nameNil endRng
+    FnChained (Lexeme rng0 (LexId partial)) (FnValue (Lexeme rng2 (LexSpecial "]"))) -> completeList line partial rng0
+    FnValue (Lexeme rng (LexId partial)) -> completeIdentifier line partial rng
+    FnChained (Lexeme rng (LexId partial)) _ -> completeIdentifier line partial rng
+    _ -> 
+      case tpcontext of  
+        -- closing paren followed by : (type or effect)
+        (Lexeme rng1 (LexKeyword ":" _)):(Lexeme rng2 (LexSpecial ")")):_ -> completeTypeOrEffect line nameNil endRng
+        (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword ":" _)):(Lexeme rng2 (LexSpecial ")")):_ -> completeTypeOrEffect line partial rng0
+        -- : (type)
+        (Lexeme rng1 (LexKeyword ":" _)):_ -> completeType line nameNil endRng
+        (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword ":" _)):_ -> completeType line partial rng0
+        _ -> Nothing
   where
     -- Range where to insert if there is no partial name to replace
     rngEnd prior = case prior of
@@ -252,7 +205,7 @@ getCompletionInfo pos vf mod uri = do
               if not resultOfFunction then return (CompletionInfo line pos partial rnginsert (Just t) CompletionKindFunction)
               else
                 case splitFunScheme t of
-                  Just (_, _, _, _,res) -> 
+                  Just (_, _, _, _,res) ->
                     -- trace (" res: " ++ show res) $
                     return (CompletionInfo line pos partial rnginsert (Just res) CompletionKindFunction)
                   Nothing             -> return (CompletionInfo line pos partial rnginsert (Just t) CompletionKindFunction)
@@ -288,8 +241,8 @@ typeUnifies :: Type -> Maybe Type -> Name -> Bool
 typeUnifies t1 t2 name =
   case t2 of
     Nothing -> True
-    Just t2 -> 
-      let (res, _, _) = (runUnifyEx 0 $ matchArguments True rangeNull tvsEmpty t1 [t2] [] Nothing) 
+    Just t2 ->
+      let (res, _, _) = (runUnifyEx 0 $ matchArguments True rangeNull tvsEmpty t1 [t2] [] Nothing)
           typeMatches = isRight res in
         -- if name == qualify nameSystemCore (newName "join") then trace ("t1: " ++ show t1 ++ " t2: " ++ show t2 ++ " " ++ show typeMatches) typeMatches 
         -- else
@@ -298,7 +251,7 @@ typeUnifies t1 t2 name =
 valueCompletions :: Name -> Gamma -> CompletionInfo -> [(Name, J.CompletionItem)]
 valueCompletions curModName gamma cinfo@CompletionInfo{argumentType=tp, searchTerm=search, completionKind, searchRange=searchRange}
   = let lspRng = toLspRange searchRange in
-    if CompletionKindFunction == completionKind || CompletionKindValue == completionKind then 
+    if CompletionKindFunction == completionKind || CompletionKindValue == completionKind then
       map (toItem lspRng) . filter matchInfo $ filter (\(n, ni) -> filterInfix (n, cinfo)) $ gammaList gamma
     else []
   where
@@ -309,16 +262,16 @@ valueCompletions curModName gamma cinfo@CompletionInfo{argumentType=tp, searchTe
         InfoExternal {infoType} -> typeUnifies infoType tp n
         InfoImport {infoType} -> typeUnifies infoType tp n
         InfoCon {infoType } -> typeUnifies infoType tp n
-    toItem lspRng (n, ninfo) = case ninfo of 
+    toItem lspRng (n, ninfo) = case ninfo of
         -- We only let hidden names get to this point if they are handlers
-        InfoCon {infoCon} | isHiddenName n -> (n, makeHandlerCompletionItem curModName infoCon d lspRng (fullLine cinfo))
-        InfoFun {infoType} -> (n, makeFunctionCompletionItem curModName n d infoType (completionKind == CompletionKindFunction) lspRng (fullLine cinfo))
+        InfoCon {infoCon} | isHiddenName n -> (n, makeHandlerCompletionItem curModName infoCon typeDoc lspRng (fullLine cinfo))
+        InfoFun {infoType} -> (n, makeFunctionCompletionItem curModName n typeDoc infoType (completionKind == CompletionKindFunction) lspRng (fullLine cinfo))
         InfoVal {infoType} -> case splitFunScheme infoType of
-          Just (tvars, tpreds, pars, eff, res) -> (n, makeFunctionCompletionItem curModName n d infoType (completionKind == CompletionKindFunction) lspRng (fullLine cinfo))
-          Nothing -> (n, makeCompletionItem curModName n k d)
-        _ -> (n, makeCompletionItem curModName n k d)
+          Just (tvars, tpreds, pars, eff, res) -> (n, makeFunctionCompletionItem curModName n typeDoc infoType (completionKind == CompletionKindFunction) lspRng (fullLine cinfo))
+          Nothing -> (n, makeCompletionItem curModName n kind typeDoc)
+        _ -> (n, makeCompletionItem curModName n kind typeDoc)
       where
-        k = case ninfo of
+        kind = case ninfo of
           InfoVal {..} -> J.CompletionItemKind_Constant
           InfoFun {..} -> J.CompletionItemKind_Function
           InfoExternal {..} -> J.CompletionItemKind_Reference
@@ -326,7 +279,7 @@ valueCompletions curModName gamma cinfo@CompletionInfo{argumentType=tp, searchTe
           InfoCon {infoCon = ConInfo {conInfoParams = ps}}
             | not (null ps) -> J.CompletionItemKind_Constructor
             | otherwise -> J.CompletionItemKind_EnumMember
-        d = show $ pretty $ infoType ninfo
+        typeDoc = show $ pretty $ infoType ninfo
 
 constructorCompletions :: Name -> Constructors -> [(Name, J.CompletionItem)]
 constructorCompletions curModName cstrs = map toItem $ filter (\(n,ci) -> not (isHiddenName n)) (constructorsList cstrs)
@@ -342,18 +295,18 @@ constructorCompletions curModName cstrs = map toItem $ filter (\(n,ci) -> not (i
 synonymCompletions :: CompletionInfo -> Name -> Synonyms -> [(Name, J.CompletionItem)]
 synonymCompletions cinfo curModName syns = if isTypeCompletion (completionKind cinfo) then map toItem (synonymsToList syns) else []
   where
-    toItem sinfo = (n, makeCompletionItem curModName n J.CompletionItemKind_Interface d)
+    toItem sinfo = (name, makeCompletionItem curModName name J.CompletionItemKind_Interface details)
       where
-        n = synInfoName sinfo
-        d = show $ pretty $ synInfoType sinfo
+        name = synInfoName sinfo
+        details = show $ pretty $ synInfoType sinfo
 
 datatypeCompletions :: CompletionInfo -> Name -> Newtypes -> [(Name, J.CompletionItem)]
 datatypeCompletions cinfo curModName ntps = if isTypeCompletion (completionKind cinfo) then map (toItem . snd) (M.toList (newtypesTypeDefs ntps)) else []
   where
-    toItem dinfo = (n, makeCompletionItem curModName n J.CompletionItemKind_Interface d)
+    toItem dinfo = (name, makeCompletionItem curModName name J.CompletionItemKind_Interface details)
       where
-        n = dataInfoName dinfo
-        d = show $ pretty n
+        name = dataInfoName dinfo
+        details = showPlain name
 
 keywordCompletions :: CompletionInfo -> Name -> [J.CompletionItem]
 keywordCompletions cinfo curModName  = if completionKind cinfo == CompletionKindValue then map toItem $ S.toList reservedNames else []
@@ -361,7 +314,7 @@ keywordCompletions cinfo curModName  = if completionKind cinfo == CompletionKind
     toItem s = makeSimpleCompletionItem curModName s J.CompletionItemKind_Keyword
 
 makeCompletionItem :: Name -> Name -> J.CompletionItemKind -> String -> J.CompletionItem
-makeCompletionItem curModName n k d =
+makeCompletionItem curModName name0 kind0 details =
   J.CompletionItem
     label
     labelDetails
@@ -383,15 +336,15 @@ makeCompletionItem curModName n k d =
     command
     xdata
   where
-    label = T.pack $ nameLocal n
+    label = T.pack $ nameStem name0
     labelDetails = Nothing
-    kind = Just k
+    kind = Just kind0
     tags = Nothing
-    detail = Just $  T.pack d
-    doc = Just $ J.InL $ T.pack $ nameModule n
+    detail = Just $  T.pack details
+    doc = Just $ J.InL $ T.pack $ nameModule name0
     deprecated = Just False
     preselect = Nothing
-    sortText = Just $ if nameModule curModName == nameModule n then T.pack $ "0" ++ nameLocal n else T.pack $ "2" ++ nameLocal n
+    sortText = Just $ if nameModule curModName == nameModule name0 then T.pack "0" <> label else T.pack "2" <> label
     filterText = Nothing
     insertText = Nothing
     insertTextFormat = Nothing
@@ -404,7 +357,7 @@ makeCompletionItem curModName n k d =
     xdata = Nothing
 
 makeFunctionCompletionItem :: Name -> Name -> String -> Type -> Bool -> J.Range -> T.Text-> J.CompletionItem
-makeFunctionCompletionItem curModName funName d funType accessor rng line =
+makeFunctionCompletionItem curModName funName typeDoc funType hasDotPrefix rng line =
   J.CompletionItem
     label
     labelDetails
@@ -426,14 +379,14 @@ makeFunctionCompletionItem curModName funName d funType accessor rng line =
     command
     xdata
     where
-      label = T.pack $ nameLocal funName
+      label = T.pack $ nameStem funName
       indentation = T.length $ T.takeWhile (== ' ') line
       trailingFunIndentation = T.replicate indentation " "
       labelDetails = Nothing
       kind = Just J.CompletionItemKind_Snippet
       tags = Nothing
-      detail = Just $  T.pack d
-      doc = Just $ J.InL $ T.pack $ nameModule funName
+      detail = Just $  T.pack typeDoc
+      doc = Just $ J.InR ""
       deprecated = Just False
       preselect = Nothing
       sortText = Just $ if nameModule curModName == nameModule funName then "0" <> label else "2" <> label
@@ -444,26 +397,26 @@ makeFunctionCompletionItem curModName funName d funType accessor rng line =
       arguments = case splitFunScheme funType
         of Just (tvars, tpreds, pars, eff, res) -> pars
            Nothing -> []
-      numArgs = length arguments - (if accessor then 1 else 0)
-      trailingFunArgTp = case arguments
-        of [] -> Nothing
-           xs -> let arg = last xs
-            in case splitFunScheme (snd arg) of
-              Nothing -> Nothing
-              Just (_, _, args, _, _) -> Just args
+      numArgs = length arguments - (if hasDotPrefix then 1 else 0)
+      -- trailingFunArgTp = case arguments
+      --   of [] -> Nothing
+      --      xs -> let arg = last xs
+      --       in case splitFunScheme (snd arg) of
+      --         Nothing -> Nothing
+      --         Just (_, _, args, _, _) -> Just args
       argumentsText =
         if numArgs == 0 then -- trace ("No function arguments for " ++ show label ++ " " ++ show (pretty funType)) $
           T.pack ""
-        else case trailingFunArgTp of
-          Nothing -> "(" <> T.intercalate "," (map (\i -> T.pack $ "$" ++ show i) [1..numArgs]) <> ")"
-          Just tp ->
-            let mainArgs = "(" <> T.intercalate "," (map (\i -> T.pack $ "$" ++ show i) [1..numArgs-1]) <> ")"
-            in mainArgs <> " fn(" <> T.intercalate "," (map (\i -> T.pack $ "$" ++ show i) [numArgs..numArgs+length tp-1]) <> ")\n" <> trailingFunIndentation <> "()"
+        -- else case trailingFunArgTp of
+        else "(" <> T.intercalate "," (map (\i -> T.pack $ "$" ++ show i) [1..numArgs]) <> ")"
+          -- Just tp ->
+          --   let mainArgs = "(" <> T.intercalate "," (map (\i -> T.pack $ "$" ++ show i) [1..numArgs-1]) <> ")"
+          --   in mainArgs <> " fn(" <> T.intercalate "," (map (\i -> T.pack $ "$" ++ show i) [numArgs..numArgs+length tp-1]) <> ")\n" <> trailingFunIndentation <> "()"
       textEdit = Just $ J.InL $ J.TextEdit rng $ label <> argumentsText
       textEditText = Nothing
       additionalTextEdits = Nothing
       commitChars = Just [T.pack "\t"]
-      command = Nothing
+      command = Just (J.Command "Signature Help" "koka/signature-help/set-context" (Just [toJSON (SignatureContext funName)]))
       xdata = Nothing
 
 makeHandlerCompletionItem :: Name -> ConInfo -> String -> J.Range -> T.Text -> J.CompletionItem
@@ -493,7 +446,7 @@ makeHandlerCompletionItem curModName conInfo d r line =
     clauseIndentation = T.replicate indentation " "
     clauseBodyIndentation = T.replicate (indentation + 2) " "
     typeName = conInfoTypeName conInfo
-    typeNameId = T.replace "@hnd-" "" $ T.pack $ nameLocal typeName
+    typeNameId = T.replace "@hnd-" "" $ T.pack $ nameStem typeName
     label = "handler for " <> typeNameId
     labelDetails = Nothing
     kind = Just J.CompletionItemKind_Snippet
@@ -513,7 +466,7 @@ makeHandlerCompletionItem curModName conInfo d r line =
       -- TODO: Consider adding snippet locations for the body of the handlers as well
       if T.isPrefixOf "val" newName then
         (i + 1, acc ++ [clauseIndentation <> newName <> " = $" <> T.pack (show (i + 1))])
-      else 
+      else
         (if not (null funArgs) then fst (last funArgs) + 1 else 1,
           acc ++ [clauseIndentation <> newName <> "(" <> T.intercalate "," (map snd funArgs) <> ")\n" <> clauseBodyIndentation <> "()"])
       where
@@ -531,8 +484,8 @@ makeHandlerCompletionItem curModName conInfo d r line =
 
 handlerArgs :: T.Text -> Type -> [Type]
 handlerArgs name tp =
-  case tp of 
-    TApp _ args -> 
+  case tp of
+    TApp _ args ->
       -- trace ("Hey these are the args" ++ show args) $
       if T.isPrefixOf "val" name then take (length args - 3) args else take (length args - 4) args
     TForall _ _ t -> handlerArgs name t
