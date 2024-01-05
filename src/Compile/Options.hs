@@ -58,6 +58,7 @@ import Core.Core( dataInfoIsValue )
   Convert flags to pretty environment
 --------------------------------------------------------------------------}
 import qualified Type.Pretty as TP
+import System.IO (hPutStrLn, stderr)
 
 prettyEnvFromFlags :: Flags -> TP.Env
 prettyEnvFromFlags flags
@@ -1217,12 +1218,12 @@ ccFromPath flags path
                 , ccFlagsLink    = ccFlagsLink cc0 ++ ccompLinkArgs flags }
 
     in do when (isTargetWasm (target flags) && not (name `startsWith` "emcc")) $
-            putStrLn ("\nwarning: a wasm target should use the emscripten compiler (emcc),\n  but currently '"
+            hPutStrLn stderr ("\nwarning: a wasm target should use the emscripten compiler (emcc),\n  but currently '"
                        ++ ccPath cc ++ "' is used."
                        ++ "\n  hint: specify the emscripten path using --cc=<emcc path>?")
           if (asan flags)
             then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc" || ccName cc `startsWith` "g++"))
-                    then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
+                    then do hPutStrLn stderr "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
                             return (cc,False)
                     -- asan on Apple Silicon can't find leaks and throws an error
                     -- We can't check for arch, since GHC 8.10 runs on Rosetta and detects x86_64
@@ -1243,11 +1244,11 @@ ccCheckExist cc
        mbPath <- searchPaths paths [exeExtension] (ccPath cc)
        case mbPath of
          Just _  -> return ()
-         Nothing -> do putStrLn ("\nwarning: cannot find the C compiler: " ++ ccPath cc)
+         Nothing -> do hPutStrLn stderr ("\nwarning: cannot find the C compiler: " ++ ccPath cc)
                        when (ccName cc == "cl") $
-                         putStrLn ("   hint: run in an x64 Native Tools command prompt? or use the --cc=clang-cl flag?")
+                         hPutStrLn stderr ("   hint: run in an x64 Native Tools command prompt? or use the --cc=clang-cl flag?")
                        when (ccName cc == "clang-cl") $
-                         putStrLn ("   hint: install clang for Windows from <https://github.com/llvm/llvm-project/releases/latest> ?")
+                         hPutStrLn stderr ("   hint: install clang for Windows from <https://github.com/llvm/llvm-project/releases/latest> ?")
 
 
 quote s
