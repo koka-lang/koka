@@ -92,7 +92,7 @@ typeHint env range rinfo
   = case rinfo of
       Id qname (NIValue tp _doc isAnnotated) _idocs isDef | not isAnnotated
         -> -- trace ("typeHint: " ++ show qname ++ ": " ++ show tp) $
-           let fmt = show $ text ":" <+> ppScheme env tp
+           let fmt = show $ text " : " <.> ppScheme env tp
            in [newInlayHint range fmt J.InlayHintKind_Type False]
       _ -> []
 
