@@ -9,7 +9,7 @@
     Add braces and semicolons based on layout.
 -}
 -----------------------------------------------------------------------------
-module Syntax.Layout( layout, testFile, combineLineComments, lexSource ) where
+module Syntax.Layout( layout, combineLineComments, lexSource ) where
 
 import Data.Char(isSpace)
 import Data.List(partition)
@@ -23,18 +23,6 @@ import Syntax.Lexeme
 import Syntax.Lexer
 import Common.Name  ( Name, nameLocal, nameStem )
 import Common.File  ( startsWith, seqList, isLiteralDoc )
-
-testFile fname
-  = do input <- readInput ("test/" ++ fname)
-       testEx fname input
-
-test xs
-  = testEx "" xs
-
-testEx fname input
-  = let source = Source fname input
-        xs = lexing source 1 input
-    in putStrLn (unlines (map show (layout True True xs)))
 
 -- Lex a source
 lexSource :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> Int -> Source -> [Lexeme]
