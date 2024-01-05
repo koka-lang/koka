@@ -73,10 +73,10 @@ module Type.InferMonad( Inf, InfGamma
                       , contextError
                       , termError
                       , infError, infWarning
-                      , withHiddenTermDoc
+                      , withHiddenTermDoc, inHiddenTermDoc
 
                       -- * Documentation, Intellisense
-                      , addRangeInfo
+                      , addRangeInfo, withNoRangeInfo
 
                       ) where
 
@@ -1646,7 +1646,19 @@ lookupSynonym name
 
 addRangeInfo :: Range -> RangeInfo -> Inf ()
 addRangeInfo rng info
-  = Inf (\env st -> Ok () (st{ mbRangeMap = case mbRangeMap st of { Just rm -> Just (rangeMapInsert rng info rm); other -> other }}) [])
+  = Inf (\env st -> Ok () (st{
+          mbRangeMap = case (mbRangeMap st) of
+                        Just rm -> Just (rangeMapInsert rng info rm)
+                        rm      -> rm
+        }) [])
+
+withNoRangeInfo :: Inf a -> Inf a
+withNoRangeInfo inf
+  = do st0 <- updateSt (\st -> st{ mbRangeMap = Nothing })
+       let rm0 = mbRangeMap st0
+       x   <- inf
+       updateSt( \st -> st{ mbRangeMap = rm0 })
+       return x
 
 {--------------------------------------------------------------------------
   Helpers
@@ -1671,6 +1683,13 @@ withLhs inf
 withHiddenTermDoc :: Range -> Doc -> Inf a -> Inf a
 withHiddenTermDoc range doc inf
   = withEnv (\env -> env{ hiddenTermDoc = Just (range,doc) }) inf
+
+inHiddenTermDoc :: Inf Bool
+inHiddenTermDoc
+  = do env <- getEnv
+       case hiddenTermDoc env of
+         Just _ -> return True
+         _      -> return False
 
 isLhs :: Inf Bool
 isLhs

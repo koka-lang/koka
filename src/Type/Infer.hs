@@ -1312,7 +1312,8 @@ inferApp propagated expect fun nargs rng
            -- only add resolved implicits that were not already named
            let alreadyGiven = [name | ((name,_),_) <- named0]
                rimplicits   = [imp | imp@((name,_),_,_) <- implicits, not (name `elem` alreadyGiven)]
-               named        = named0 ++ [(nameRange,expr) | (nameRange,expr,_) <- rimplicits]
+               named        = named0 ++ [((name,rangeNull) {-so no range info is emmitted when checking -}
+                                          , expr) | ((name,_),expr,_) <- rimplicits]
 
            mapM_ (\(_,_,doc) -> addRangeInfo (getRange funExpr) (RM.Implicits doc)) rimplicits
 
@@ -1430,7 +1431,7 @@ inferApp propagated expect fun nargs rng
 
 
 getRangeArg :: ArgExpr -> Range
-getRangeArg (ArgExpr expr)        = getRange expr
+getRangeArg (ArgExpr expr _)      = getRange expr
 getRangeArg (ArgCore (rng,_,_,_)) = rng
 getRangeArg (ArgImplicit _ rng _) = rng
 
@@ -1885,8 +1886,9 @@ inferArgsN ctx range parArgs
   = do res <- inferArg [] parArgs
        return (unzip res)
   where
-    inferArgExpr tp argexpr  -- TODO: add context for better error messages for implicit parameters?
-      = allowReturn False $
+    inferArgExpr tp argexpr hidden -- TODO: add context for better error messages for implicit parameters?
+      = (if hidden then withNoRangeInfo else id) $
+        allowReturn False $
         inferExpr (Just (tp,getRange argexpr))
           (if isRho tp then Instantiated else Generalized False)
           argexpr
@@ -1912,8 +1914,8 @@ inferArgsN ctx range parArgs
                       return (teff1,coref core)
 
            (eff,core)  <- case arg of
-                            ArgExpr argexpr
-                              -> do res <- inferArgExpr tpar0 argexpr
+                            ArgExpr argexpr hidden
+                              -> do res <- inferArgExpr tpar0 argexpr hidden
                                     subsumeArg res
                             ArgCore (_,ctp,ceff,carg)
                               -> do -- traceDefDoc $ \penv -> text "inferArgN: argCore:" <+>
@@ -1926,9 +1928,9 @@ inferArgsN ctx range parArgs
                                     subsumeArg res
                             ArgImplicit name rng nameRng
                               -> do (argExpr,termDoc) <- resolveImplicitName name tpar0 (endOfRange rng)
-                                    addRangeInfo nameRng (RM.Implicits termDoc)
+                                    --  addRangeInfo nameRng (RM.Implicits termDoc)
                                     withHiddenTermDoc rng termDoc $
-                                      do res <- inferArgExpr tpar0 argExpr
+                                      do res <- inferArgExpr tpar0 argExpr True {- hidder -}
                                          subsumeArg res
 
            inferArg ((eff,core) : acc) args
@@ -2020,7 +2022,7 @@ matchPatterns context nameRange conTp conParTypes patterns0
 -- - a core transformer that modifies the application appropriately (for constructor copy)
 
 data ArgExpr
-  = ArgExpr (Expr Type)
+  = ArgExpr (Expr Type) Bool {- hide range info -}
   | ArgCore FixedArg
   | ArgImplicit Name Range {- application range -} Range {- name range -}
 
@@ -2040,7 +2042,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                  tres  <- Op.freshTVar kindStar Meta
                                  -- trace ("Type.matchFunType: " ++ show tv ++ ": " ++ show (targs,teff,tres)) $
                                  extendSub (subSingle tv (TFun targs teff tres))
-                                 return (zip [0..] (map ArgExpr (fixed ++ map snd named)), targs,teff,tres,Core.App)
+                                 return (zip [0..] (map (\x -> ArgExpr x False) (fixed ++ map snd named)), targs,teff,tres,Core.App)
        _  -> do -- apply the copy constructor if we can find it
                 matches <- lookupNameCtx isInfoValFunExt nameCopy (CtxFunTypes True [tp] [] Nothing) range
                 case matches of
@@ -2052,7 +2054,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                   in (Core.App (coreInst coreVar) (coreArgs))
                           return (iargs,pars,eff,res,coreAddCopy)
                   _ -> do typeError context range (text "only functions or types with a copy constructor can be applied") tp []
-                          return (zip [1..] (map ArgExpr (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
+                          return (zip [1..] (map (\x -> ArgExpr x True) (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
   where
     range = getRange fun
 
@@ -2081,7 +2083,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                           then wrapDelay arg
                           else return arg
                (prest,rest) <- matchFixed pars fixed fresolved
-               return (prest, (i,ArgExpr newarg):rest)
+               return (prest, (i,ArgExpr newarg False):rest)
 
     matchFixed [] ((i,arg):_) fresolved
       = do typeError context (getRange fun) (text "function is applied to too many arguments") tp []
@@ -2106,11 +2108,11 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                 then wrapDelay arg
                                 else return arg
                     rest <- matchNamed pars1 named
-                    return ((j,(i,ArgExpr newarg)):rest)
+                    return ((j,(i,ArgExpr newarg (rangeIsNull rng))):rest)
     matchNamed pars []
       = do if (all (Op.isOptionalOrImplicit . snd) pars)
             then do let (optionals,implicits) = span (isOptional . snd . snd) pars
-                        opts = [(j,(i,ArgExpr makeOptionalNone))
+                        opts = [(j,(i,ArgExpr makeOptionalNone True))
                                 | (i,(j,(name,tpar))) <- zip [(length fixed + length named)..] optionals]
                         imps = [(j,(i,ArgImplicit (snd (splitImplicitParamName name)) context range))
                                 | (i,(j,(name,tpar))) <- zip [(length fixed + length named + length optionals)..] implicits]

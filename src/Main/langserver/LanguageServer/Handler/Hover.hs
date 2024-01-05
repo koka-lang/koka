@@ -28,19 +28,6 @@ import Common.Range as R
 import Common.Name (nameNil)
 import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
 import Lib.PPrint
-    ( Pretty(..),
-      Doc,
-      string,
-      (<+>),
-      (<-->),
-      color,
-      Color(..),
-      (<.>),
-      (<->),
-      text,
-      empty,
-      vcat,
-      hcat )
 import Compiler.Module (loadedModule, modRangeMap, modLexemes, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)

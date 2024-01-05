@@ -32,7 +32,7 @@ module Common.Name
           , makeHiddenName, makeFreshHiddenName
           , toUniqueName
           , newImplicitTypeVarName, isImplicitTypeVarName
-          , newCreatorName
+          , newCreatorName, isCreatorName
           , toHandlerName, fromHandlerName, isHandlerName
           , toOpSelectorName, fromOpSelectorName, isOpSelectorName
           , toOperationsName, fromOperationsName, isOperationsName

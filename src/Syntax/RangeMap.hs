@@ -140,7 +140,7 @@ cut r
 rangeMapInsert :: Range -> RangeInfo -> RangeMap -> RangeMap
 rangeMapInsert r info (RM rm)
   = -- trace ("rangemap insert: " ++ show r ++ ": " ++ show info) $
-    if isHidden info
+    if (rangeIsNull r || isHidden info)
      then RM rm
     else if beginEndToken info
      then RM ((r,info):(makeRange (rangeEnd r) (rangeEnd r),info):rm)
@@ -183,6 +183,28 @@ prioritize rinfos
     mergeDocs ds x = x
 
 
+mergeImplicits :: [(Range,RangeInfo)] -> [(Range,RangeInfo)]
+mergeImplicits rinfos
+  = merge rinfos
+  where
+    idocs = concatMap (\(rng,rinfo) -> case rinfo of
+                                        Implicits doc -> [(rng,doc)]
+                                        _             -> []) rinfos
+
+    findDocs rng
+      = reverse $ map snd $ filter (\(r,_) -> rangeContains rng (rangeStart r)) idocs
+
+    merge [] = []
+    merge ((rng,rinfo):rinfos)
+      = case rinfo of
+          Implicits _
+            -> merge rinfos
+          Id name info docs isDef
+            -> (rng, Id name info (docs ++ findDocs rng) isDef) : merge rinfos
+          _ -> (rng,rinfo) : merge rinfos
+
+
+
 rangeMapLookup :: Range -> RangeMap -> ([(Range,RangeInfo)],RangeMap)
 rangeMapLookup r (RM rm)
   = let (rinfos,rm') = span startsAt (dropWhile isBefore rm)
@@ -195,7 +217,8 @@ rangeMapLookup r (RM rm)
 
 rangeMapFindIn :: Range -> RangeMap -> [(Range, RangeInfo)]
 rangeMapFindIn rng (RM rm)
-  = filter (\(rng, info) -> rangeStart rng >= start || rangeEnd rng <= end) rm
+  = mergeImplicits $
+    filter (\(rng, info) -> rangeStart rng >= start || rangeEnd rng <= end) rm
     where start = rangeStart rng
           end = rangeEnd rng
 
@@ -208,18 +231,18 @@ previousLexemesReversed lexemes pos =
 dropMatchedParensReverse :: [Lexeme] -> [Lexeme]
 dropMatchedParensReverse = dropToLexMatching (== LexSpecial ")") (== LexSpecial "(")
 
--- Assumes in the middle of the function parameters 
+-- Assumes in the middle of the function parameters
 -- (drops to nearest open paren that didn't have a close paren before it)
 -- This takes care of finding signature info when a cursor is in an argument list
 getFunctionIncompleteReverse :: [Lexeme] -> FnSyntax
 getFunctionIncompleteReverse xs = getFunctionNameReverse (dropMatchedParensReverse (dropAutoGenClosing xs))
 
 -- Assumes it is given reverse ordered lexemes ending at an end of a function invocation
--- 
+--
 -- e.g.
 --   a.b(x, y, fn() {z}).abc
 --   => FnChained "b" "abc" -- had a .abc after the b
--- also 
+-- also
 --   a.b
 --   => FnNormal "a"
 -- and
@@ -243,15 +266,15 @@ getFunctionNameReverse xs =
           [x@(Lexeme _ (LexId _))] -> FnValue x
           -- x(). or (x.y). or even (1 + 2). %the last will return a chain ending in FnNotFound%
           (Lexeme _ (LexKeyword "." _)):xs -> FnIncomplete $ go xs
-          -- x() or (x.y) or even (1 + 2) %the last will return FnNotFound% 
-          (Lexeme _ (LexSpecial ")")):xs -> 
+          -- x() or (x.y) or even (1 + 2) %the last will return FnNotFound%
+          (Lexeme _ (LexSpecial ")")):xs ->
             let dropped = dropMatchedParensReverse xs in
             -- trace ("getFunctionNameReverse: " ++ show xs ++ " dropped: " ++ show dropped) $
             case go dropped of
               -- (a).b -- if there is nothing before the parenthesized expression
               -- it doesn't mean there isn't a chained function target
               EmptyStatement -> go xs
-              res -> res 
+              res -> res
           -- x.partial, x().partial etc
           fn@(Lexeme _ (LexId _)):(Lexeme _ (LexKeyword "." _)):xs -> chain fn $ go xs
           _ -> FnNotFound xs
@@ -269,9 +292,9 @@ chain fn0 chain =
 
 data FnSyntax = -- a.b.c
                 FnChained{
-                 fnName:: Lexeme, 
+                 fnName:: Lexeme,
                  fnChain:: FnSyntax -- The chain's return type is the function's first argument type
-                } 
+                }
               | FnIncomplete{fnChain::FnSyntax} -- a.b.
               | FnValue{fnValue:: Lexeme} -- a / ] / 10 / "abc" / etc
               | FnNotFound{fnPrefix:: [Lexeme]}

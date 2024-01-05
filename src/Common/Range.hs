@@ -14,7 +14,7 @@ module Common.Range
           ( Pos(..), makePos, minPos, maxPos
           , posMove8, posMoves8, posNull
           , Range, showFullRange
-          , makeRange, rangeNull, combineRange, rangeEnd, rangeStart, rangeLength, makeSourceRange
+          , makeRange, rangeNull, rangeIsNull, combineRange, rangeEnd, rangeStart, rangeLength, makeSourceRange
           , Ranged( getRange ), combineRanged
           , combineRangeds, combineRanges, extendRange
           , Source(Source,sourceName, sourceBString), sourceText, sourceFromRange
@@ -22,7 +22,7 @@ module Common.Range
           , sourceNull
           , bigLine
           , after, rangeContains, rangeIsBefore, rangeStartsAt
-          , endOfRange
+          , endOfRange, rangeJustBefore, rangeJustAfter
           , showRange, showCompactRange
           , BString, bstringToString, bstringToText, stringToBString
           , bstringEmpty
@@ -272,6 +272,10 @@ rangeNull :: Range
 rangeNull
   = makeRange posNull posNull
 
+rangeIsNull :: Range -> Bool
+rangeIsNull (Range p1 p2)
+  = (posOfs p1 < 0) || (posOfs p2 < 0)
+
 showFullRange :: FilePath -> Range -> String
 showFullRange cwd range
   = showRange cwd True range
@@ -343,6 +347,15 @@ rangeIsBefore rng pos
 rangeStartsAt rng pos
   = rangeStart rng == pos
 
+rangeJustBefore range@(Range (Pos src ofs l c) _)
+  = if ofs < 0 then range
+     else let pos = Pos src (ofs-1) l (c-1)
+          in makeRange pos pos
+
+rangeJustAfter range@(Range _ (Pos src ofs l c))
+  = if ofs < 0 then range
+     else let pos = Pos src (ofs+1) l (c+1)
+          in makeRange pos pos
 
 {--------------------------------------------------------------------------
   Ranged class
