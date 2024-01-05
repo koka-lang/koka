@@ -487,12 +487,10 @@ nameReuseDrop   = coreTypesName "@reuse-drop"
 nameDropSpecial    = coreTypesName "@drop-special"
 
 nameTuple :: Int -> Name
-nameTuple 0     = nameUnit
-nameTuple n     = coreTypesName ("Tuple" ++ show n) -- ("(" ++ (replicate (n-1) ',') ++ ")")
+nameTuple n     = if (n <= 1) then nameUnit else coreTypesName ("Tuple" ++ show n) -- ("(" ++ (replicate (n-1) ',') ++ ")")
 
 nameTpTuple :: Int -> Name
-nameTpTuple 0   = nameTpUnit
-nameTpTuple n   = coreTypesName ("tuple" ++ show n) -- ("(" ++ (replicate (n-1) ',') ++ ")")
+nameTpTuple n   = if (n <= 1) then nameTpUnit else coreTypesName ("tuple" ++ show n) -- ("(" ++ (replicate (n-1) ',') ++ ")")
 
 
 isNameTuple :: Name -> Bool

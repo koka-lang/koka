@@ -1,4 +1,3 @@
-warning (line 29, column 19): keyword "fun" is deprecated@ Consider using "fn" instead@
 test/algeff/wrong/scoped1@kk(62, 7): error: type is not polymorphic enough
  context : handler {
  @@@

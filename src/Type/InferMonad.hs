@@ -1053,10 +1053,11 @@ pick allowDisambiguate select xs
   = case xs of
       []  -> Left []
       [x] -> Right x
-      _   -> case sortBy (\x y -> ieCompare (select x) (select y)) xs of
-              [x]     -> Right x
-              (x:y:_) | allowDisambiguate && (ieCompare (select x) (select y) == LT) -> Right x
-              ys      -> Left ys
+      _   -> if not allowDisambiguate
+              then Left xs
+              else case sortBy (\x y -> ieCompare (select x) (select y)) xs of
+                      (x:y:_) | (ieCompare (select x) (select y) == LT) -> Right x
+                      ys      -> Left ys
 
 
 -----------------------------------------------------------------------
