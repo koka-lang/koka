@@ -1,10 +1,10 @@
 [2,3,4]
  
-cgen/specialize/map/@lift-main293: (xs264 : list<int>) -> console string
-cgen/specialize/map/@lift-main294: (xs277 : list<int>) -> console list<string>
-cgen/specialize/map/@lift-main295: (xs284 : list<int>) -> list<int>
-cgen/specialize/map/@lift-test292: (xs256 : list<int>) -> list<int>
-cgen/specialize/map/@unroll-map-int148: (xs : list<int>, f : (int) -> int) -> list<int>
+cgen/specialize/map/@lift-xxx: (xsxxx : list<int>) -> console string
+cgen/specialize/map/@lift-xxx: (xsxxx : list<int>) -> console list<string>
+cgen/specialize/map/@lift-xxx: (xsxxx : list<int>) -> list<int>
+cgen/specialize/map/@lift-xxx: (xsxxx : list<int>) -> list<int>
+cgen/specialize/map/@unroll-xxx: (xs : list<int>, f : (int) -> int) -> list<int>
 cgen/specialize/map/main: () -> console ()
 cgen/specialize/map/map-int: (xs : list<int>, f : (int) -> int) -> list<int>
 cgen/specialize/map/test: () -> list<int>

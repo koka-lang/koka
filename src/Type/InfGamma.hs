@@ -15,19 +15,17 @@ module Type.InfGamma (
                     , infgammaIsEmpty
                     , infgammaExtend
                     , infgammaExtends
-                    , infgammaLookup
+                    , infgammaLookup, infgammaLookupEx
                     , infgammaMap
                     , infgammaList
                     , ppInfGamma
                     , infgammaUnion
-                    , infgammaLookupX
-                    , infgammaLookupEx
                     , infgammaExtendX
                     ) where
 
+import Debug.Trace
 import Lib.PPrint
 import qualified Common.NameMap as M
-import Debug.Trace
 import Common.Range
 import Common.Name
 import Common.ColorScheme
@@ -63,12 +61,19 @@ infgammaNew xs
 
 infgammaExtend :: Name -> NameInfo -> InfGamma -> InfGamma
 infgammaExtend name info (InfGamma infgamma)
-  = InfGamma (M.insertWith combine (unqualifyFull name) [info] infgamma)  -- overwrite previous names
+  = -- note: qualified names can get inserted into gamma due to recursive definitions, or
+    -- during inference by inserting fully qualified expressions (in resolveAppName)
+    -- (if isQualified name then trace ("infGammaExtend: insert qualified: " ++ show name) else id) $
+    InfGamma (M.insertWith combine (unqualifyFull name) [info] infgamma)  -- overwrite previous names
 
 combine :: [NameInfo] -> [NameInfo] -> [NameInfo]
 combine [] ys = ys
 combine (x:xx) ys
   = combine xx (x : filter (\y -> infoCName y /= infoCName x) ys)
+
+infgammaExtends :: [(Name,Scheme,String)] -> InfGamma -> InfGamma
+infgammaExtends tnames ig
+  = foldl (\m (name,tp,doc) -> infgammaExtendTp name name tp doc m) ig tnames
 
 infgammaExtendTp :: Name -> Name -> Scheme -> String -> InfGamma -> InfGamma
 infgammaExtendTp name cname tp doc infgamma
@@ -78,32 +83,30 @@ infgammaExtendX :: Name -> Name -> Scheme -> Range -> Bool -> String -> InfGamma
 infgammaExtendX name cname tp rng isVar doc infgamma
   = infgammaExtend name (InfoVal Public cname tp rng isVar doc) infgamma
 
-infgammaExtends :: [(Name,Scheme,String)] -> InfGamma -> InfGamma
-infgammaExtends tnames ig
-  = foldl (\m (name,tp,doc) -> infgammaExtendTp name name tp doc m) ig tnames
 
+-- lookup an exact match
 infgammaLookup :: Name -> InfGamma -> Maybe (Name,Type)
 infgammaLookup name infgamma
-  = case infgammaLookupX name infgamma of
-      Just info -> Just (infoCName info, infoType info)
-      Nothing   -> Nothing
+  = case infgammaLookupEx (const True) name infgamma of
+      Right (name,info) -> Just (name,infoType info)
+      _                 -> Nothing
 
-infgammaLookupX :: Name -> InfGamma -> Maybe NameInfo
-infgammaLookupX name infgamma
-  = case infgammaLookupEx name infgamma of
-      [info] | unqualify (infoCName info) == unqualify name -> Just info
-      _      -> Nothing
-
-isMatch name info
-  = -- note: the only qualified names in infgamma are from local recursive definitions (so we can safely unqualify)
-    matchQualifiers name (infoCName info)
-
-infgammaLookupEx :: Name -> InfGamma -> [NameInfo]
-infgammaLookupEx name (InfGamma infgamma)
-  = let mbcandidates = M.lookup (unqualifyFull name) infgamma
-    in case mbcandidates of
-         Nothing -> []
-         Just candidates -> filter (isMatch name) candidates
+-- lookup a local name: return either a list of matching (locally qualified) names, or an exact match
+infgammaLookupEx :: (NameInfo -> Bool) -> Name -> InfGamma -> Either [(Name,NameInfo)] (Name,NameInfo)
+infgammaLookupEx guard name (InfGamma infgamma)
+  = let mbinfos = M.lookup (unqualifyFull name) infgamma
+    in case mbinfos of
+         Nothing    -> Left []
+         Just infos -> let lqname = requalifyLocally name in
+                       -- trace ("infgammaLookupEx: " ++ show (name,lqname) ++ ": " ++ show (map infoCName infos)) $
+                       case filter (\info -> guard info && infoCName info == lqname) infos of
+                        (info:_) -> -- first exact match in the local scope
+                                    Right (infoCName info, info)
+                        _        -> -- match qualifiers
+                                    case filter (\info -> guard info && matchQualifiers name (infoCName info)) infos of
+                                      [info]    -- recursive definitions add the fully qualified name to the infgamma; in that case we also consider it an exact match
+                                                | unqualify (infoCName info) == lqname -> Right (infoCName info, info)
+                                      matches  -> Left [(infoCName info, info) | info <- matches]
 
 
 infgammaMap :: (Scheme -> Scheme) -> InfGamma -> InfGamma

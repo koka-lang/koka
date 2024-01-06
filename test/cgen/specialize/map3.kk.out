@@ -1,12 +1,12 @@
 [6,7,8,9,10,11,12,13,14,15]
  
-cgen/specialize/map3/@lift-main336: (xs307 : list<int>) -> console string
-cgen/specialize/map3/@lift-main337: (xs320 : list<int>) -> console list<string>
-cgen/specialize/map3/@lift-main338: (xs327 : list<int>) -> list<int>
-cgen/specialize/map3/@lift-test335: (y : int, xs299 : list<int>) -> list<int>
-cgen/specialize/map3/@mlift-unroll-map-poly187345: forall<a,e> (a, list<a>) -> e list<a>
-cgen/specialize/map3/@mlift-unroll-map-poly187346: forall<a,b,e> (f : (a) -> e b, xx : list<a>, b) -> e list<b>
-cgen/specialize/map3/@unroll-map-poly187: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>
+cgen/specialize/map3/@lift-xxx: (xsxxx : list<int>) -> console string
+cgen/specialize/map3/@lift-xxx: (xsxxx : list<int>) -> console list<string>
+cgen/specialize/map3/@lift-xxx: (xsxxx : list<int>) -> list<int>
+cgen/specialize/map3/@lift-xxx: (y : int, xsxxx : list<int>) -> list<int>
+cgen/specialize/map3/@mlift-xxx: forall<a,e> (a, list<a>) -> e list<a>
+cgen/specialize/map3/@mlift-xxx: forall<a,b,e> (f : (a) -> e b, xx : list<a>, b) -> e list<b>
+cgen/specialize/map3/@unroll-xxx: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>
 cgen/specialize/map3/main: () -> console ()
 cgen/specialize/map3/map-poly: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>
 cgen/specialize/map3/test: (xs : list<int>, y : int) -> list<int>

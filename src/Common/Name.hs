@@ -147,7 +147,7 @@ instance Eq Name where
   n1@(Name _ hm1 _ hl1 _ hn1) == n2@(Name _ hm2 _ hl2 _ hn2)
     = let eq = (hn1 == hn2) && (hl1 == hl2) && (hm1 == hm2) in
       assertion ("Common.Name.Eq: wrong hashes: " ++ show [(hm1,hl1,hn1),(hm2,hl2,hn2)] ++ show (n1,n2))
-                (if not eq then showExplicit n1 /= showExplicit n2 else True) $
+                (if not eq then showFullyExplicit n1 /= showFullyExplicit n2 else True) $
       (eq && (lowerCompare n1 n2 == EQ))
 
 
@@ -208,8 +208,14 @@ showName explicitLocalQualifier (Name m _ l _ n _)
                  else if null ln then m
                                  else m ++ (if explicitLocalQualifier && not (null l) then "/#" else "/") ++ ln
 
+showFullyExplicit (Name m _ l _ n _)
+   = let ln = join l (wrapId n)
+     in if null m then if null l then ln else "#" ++ ln
+                  else if null ln then m
+                                  else m ++ "/#" ++ ln
+
 showExplicit name
-   = showName True name
+  = showName True name
 
 showPlain (Name m _ l _ n _)
   = join m (join l n)

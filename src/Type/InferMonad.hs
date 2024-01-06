@@ -863,7 +863,8 @@ resolveName name mbType range
 -- dereference first. So we do a typed lookup first and fall back to untyped lookup
 resolveRhsName :: Name -> (Type,Range) -> Range -> Inf (Name,Type,NameInfo)
 resolveRhsName name (tp,ctxRange) range
-  = do candidates <- lookupNameCtx isInfoValFunExt name (CtxType tp) range
+  = do -- traceDefDoc $ \penv -> text "resolveRhsName:" <+> text (show name)
+       candidates <- lookupNameCtx isInfoValFunExt name (CtxType tp) range
        case candidates of
          -- unambiguous and matched
          [(qname,info)]
@@ -1087,10 +1088,10 @@ isDone (ImplicitArg _ _ _ iargs)
         ) iargs
 
 
--- cost: chain depth + 100*qualified name (while locals cost zero)
+-- cost: chain depth + 100*#qualified leaf name (while locals cost zero)
 implicitArgCost :: ImplicitArg -> Cost
 implicitArgCost iarg
-  = let base = if isQualified (iaName iarg) then 100 else 0
+  = let base = if isQualified (iaName iarg) then (if null (iaImplicitArgs iarg) then 100 else 1) else 0
     in cadd (Exact base) (csum (map (partialCost . snd) (iaImplicitArgs iarg)))
 
 partialCost :: Partial -> Cost
@@ -1131,6 +1132,8 @@ prettyImplicitAssign penv shorten prefix pname iarg
 -- Resolving application names and implicit names
 -- This is done in a breadth-first search to reduce exponential search times
 -----------------------------------------------------------------------
+resolveMaxChainDepth :: Int
+resolveMaxChainDepth = 10   -- prevent infinite expansion
 
 resolveImplicitArg :: Bool -> Bool -> [(NameInfo -> Bool, Name, NameContext, Range)] -> Inf (Either [Doc] (ImplicitArg))
 resolveImplicitArg allowDisambiguate allowUnitFunVal roots
@@ -1148,7 +1151,7 @@ resolveImplicitArg allowDisambiguate allowUnitFunVal roots
 -- evaluate implicit arguments breadth-first step-by-step until we find a unique
 -- solution or are surely ambiguous
 resolveBest :: Bool -> Int -> [ImplicitArg] -> Inf (Either [Doc] ImplicitArg)
-resolveBest allowDisambiguate depth candidates | depth > 5
+resolveBest allowDisambiguate depth candidates | depth > resolveMaxChainDepth
   = do penv <- getPrettyEnv
        return (Left (map (prettyImplicitArg penv) candidates))
 resolveBest allowDisambiguate depth candidates
@@ -1319,48 +1322,31 @@ lookupNameCtx infoFilter name ctx range
        return [(name,info) | (name,info,_) <- candidates]
 
 
--- lookup names that match the given name context
--- `allowBypass` allows looking beyond a local name and return global matches as well.
--- generally, a local name that matches the type is never bypassed though.
--- However, `allowTypeBypass` even allows looking beyond a local name that fits the type
--- just to see if there are any possible ambiguities -- this is used for function applications
--- to stop inferring arguments whenever there is no more ambiguity (as a local may at first match
--- the type for some polymorphic function but no longer after some arguments have been inferred)
+-- lookup names in the local and global scope that match the given name context
+-- Returns also an instantiated rho required to match the name context
 lookupNames :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo,Rho)]
 lookupNames infoFilter name ctx range
-  = do env <- getEnv
-       -- traceDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
-       locals <- lookupLocalName infoFilter True name
-       if (not (null locals))
-         then -- a local name that matches exactly was found; use it always
-              filterMatchNameContextEx range ctx locals
-         else  do -- otherwise consider globals as well, and also locally qualified names in the local scope
-                  -- todo: should we prioritize locally qualified names when disambiguating?
-                  ilocals <- lookupLocalName infoFilter False name  -- consider "@implicit/<name>"
-                  let globals0 = ilocals ++
-                                  filter (infoFilter . snd) (gammaLookup name (gamma env))
-                  -- traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
-                  --      <+> text ", ilocals:" <+> list [Pretty.ppName penv (name) | (name,info) <- ilocals]
-                  --      <+> text ", globals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- globals0]
-                  globals1 <- filterMatchNameContextEx range ctx globals0
-                  --  traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
-                  --     <+> text ", locals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- locals1]
-                  --     <+> text ", globals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- globals1]
-                  return globals1
+  = do -- traceDefDoc $ \penv -> text " lookupNames:" <+> text (show name) <+> colon <+> ppNameContext penv ctx
+       matches <- do lres <- lookupLocalName infoFilter name
+                     case lres of
+                      Right local -> return [local] -- a local name that matches exactly was found; use it always
+                      Left locals -> -- otherwise consider globals as well besides the locally qualified locals that matched
+                                     -- todo: should we prioritize local locally qualified names when disambiguating?
+                                     do globals <- lookupGlobalName infoFilter name
+                                        return (locals ++ globals)
+       -- traceDefDoc $ \penv -> text " lookupNames:" <+> text (show name) <+> colon <+> ppNameContext penv ctx <+> text ", matches:" <+> list [text (show name) | (name,info) <- matches]
+       filterMatchNameContextEx range ctx matches
 
-lookupLocalName :: (NameInfo -> Bool) -> Bool -> Name -> Inf [(Name,NameInfo)]
-lookupLocalName infoFilter matchExact name
+lookupLocalName :: (NameInfo -> Bool) -> Name -> Inf (Either [(Name,NameInfo)] (Name,NameInfo))
+lookupLocalName infoFilter name
   = do env <- getEnv
-       mod <- getModuleName
-       let locname  = if (qualifier name == mod) then {-unqualify-} name        -- could use a qualified name to refer to a recursive function itself
-                                                 else requalifyLocally name -- or refer to an implicit `implicit/x`
-           matches1 = if matchExact
-                        then case infgammaLookupX name (infgamma env) of
-                               Just info | infoFilter info -> [info]
-                               _         -> []
-                        else filter infoFilter (infgammaLookupEx name (infgamma env))
-       matches2 <- subst matches1
-       return [(infoCName info, info) | info <- matches2]
+       subst $ infgammaLookupEx infoFilter name (infgamma env)
+
+lookupGlobalName :: (NameInfo -> Bool) -> Name -> Inf [(Name,NameInfo)]
+lookupGlobalName infoFilter name
+  = do env <- getEnv
+       return (filter (infoFilter . snd) (gammaLookup name (gamma env)))
+
 
 filterMatchNameContext :: Range -> NameContext -> [(Name,NameInfo)] -> Inf [(Name,NameInfo)]
 filterMatchNameContext range ctx candidates
@@ -1895,9 +1881,9 @@ extendInfGammaEx topLevel ignores tnames inf
                     infError range (Pretty.ppName (prettyEnv env) name <+> text "is already defined at" <+> pretty (show (infoRange info2))
                                      <-> text " hint: if these are potentially recursive definitions, give a full type signature to disambiguate them.")
             Nothing
-              -> do case (infgammaLookupX name infgamma) of
-                      Just info2 | infoCanonicalName name info2 /= nameReturn  -- TODO: adapt to multiple matches?
-                        -> do checkCasingOverlap range name (infoCanonicalName name info2) info2
+              -> do case (infgammaLookupEx (const True) name infgamma) of
+                      Right (cname,info2) | cname /= nameReturn  -- TODO: adapt to multiple matches?
+                        -> do checkCasingOverlap range name cname info2
                               env <- getEnv
                               if (not (isHiddenName name) && show name /= "resume" && show name /= "resume-shallow" && not (name `elem` ignores))
                                then infWarning range (Pretty.ppName (prettyEnv env) name <+> text "shadows an earlier local definition or parameter")
@@ -1988,10 +1974,11 @@ getLocalVars
 lookupInfName :: Name -> Inf (Maybe (Name,Type))
 lookupInfName name
   = do env <- getEnv
-       case infgammaLookupEx name (infgamma env) of
-         [info] -> return (Just (infoCName info,infoType info))
-         []     -> return Nothing
-         infos  -> failure ("InferMonad.lookupInfName: ambigous local? " ++ show name ++ ":\n" ++ unlines (map show infos))
+       case infgammaLookupEx (const True) (unqualify name) (infgamma env) of
+         Right (name,info) -> return (Just (name,infoType info))
+         Left []    -> return Nothing
+         Left infos -> do def <- currentDefName
+                          failure ("InferMonad.lookupInfName: ambigous local? " ++ show def ++ ": " ++ show name ++ ":\n" ++ unlines (map show infos))
 
 
 findDataInfo :: Name -> Inf DataInfo

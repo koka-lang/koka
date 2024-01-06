@@ -383,7 +383,7 @@ nameByref       = coreTypesName "byref"
 
 namePredHeapDiv = coreTypesName "hdiv"
 namePredEffDiv  = coreTypesName "ediv"
-nameReturn      = coreTypesName "@return"
+nameReturn      = newHiddenName "return"
 
 nameTpRef       = coreTypesName "ref"
 nameTpLocalVar  = coreTypesName "local-var"

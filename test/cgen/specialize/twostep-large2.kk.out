@@ -1,28 +1,28 @@
 65000
 65000
  
-cgen/specialize/twostep-large2/@lift-a561: forall<e,a> (f : () -> e a, lo425 : int, hi426 : int) -> e list<a>
-cgen/specialize/twostep-large2/@lift-large562: (f : (int) -> int, lo433 : int, hi434 : int) -> list<list<list<int>>>
-cgen/specialize/twostep-large2/@lift-large563: (f : (int) -> int, lo441 : int, hi442 : int) -> list<list<int>>
-cgen/specialize/twostep-large2/@lift-large564: (f : (int) -> int, lo449 : int, hi450 : int) -> list<int>
-cgen/specialize/twostep-large2/@lift-main565: () -> console ()
-cgen/specialize/twostep-large2/@lift-main566: () -> int
-cgen/specialize/twostep-large2/@lift-main567: (lo475 : int, hi476 : int) -> list<list<list<int>>>
-cgen/specialize/twostep-large2/@lift-main568: (lo483 : int, hi484 : int) -> list<list<int>>
-cgen/specialize/twostep-large2/@lift-main569: (lo491 : int, hi492 : int) -> list<int>
-cgen/specialize/twostep-large2/@lift-main570: (xs499 : list<int>) -> list<int>
-cgen/specialize/twostep-large2/@lift-main571: (xs504 : list<int>) -> list<int>
-cgen/specialize/twostep-large2/@lift-main572: () -> int
-cgen/specialize/twostep-large2/@lift-main573: (lo524 : int, hi525 : int) -> list<list<list<int>>>
-cgen/specialize/twostep-large2/@lift-main574: (lo532 : int, hi533 : int) -> list<list<int>>
-cgen/specialize/twostep-large2/@lift-main575: (lo540 : int, hi541 : int) -> list<int>
-cgen/specialize/twostep-large2/@lift-main576: (xs548 : list<int>) -> list<int>
-cgen/specialize/twostep-large2/@lift-main577: (xs553 : list<int>) -> list<int>
-cgen/specialize/twostep-large2/@lift-repeatN560: forall<e,a> (f : () -> e a, lo417 : int, hi418 : int) -> e list<a>
-cgen/specialize/twostep-large2/@mlift-lift-a561606: forall<e,a> (a, list<a>) -> e list<a>
-cgen/specialize/twostep-large2/@mlift-lift-a561607: forall<e,a> (f : () -> e a, hi426 : int, lo4250@580 : int, a) -> e list<a>
-cgen/specialize/twostep-large2/@mlift-lift-repeatN560604: forall<e,a> (a, list<a>) -> e list<a>
-cgen/specialize/twostep-large2/@mlift-lift-repeatN560605: forall<e,a> (f : () -> e a, hi418 : int, lo4170@578 : int, a) -> e list<a>
+cgen/specialize/twostep-large2/@lift-xxx: forall<e,a> (f : () -> e a, loxxx : int, hixxx : int) -> e list<a>
+cgen/specialize/twostep-large2/@lift-xxx: (f : (int) -> int, loxxx : int, hixxx : int) -> list<list<list<int>>>
+cgen/specialize/twostep-large2/@lift-xxx: (f : (int) -> int, loxxx : int, hixxx : int) -> list<list<int>>
+cgen/specialize/twostep-large2/@lift-xxx: (f : (int) -> int, loxxx : int, hixxx : int) -> list<int>
+cgen/specialize/twostep-large2/@lift-xxx: () -> console ()
+cgen/specialize/twostep-large2/@lift-xxx: () -> int
+cgen/specialize/twostep-large2/@lift-xxx: (loxxx : int, hixxx : int) -> list<list<list<int>>>
+cgen/specialize/twostep-large2/@lift-xxx: (loxxx : int, hixxx : int) -> list<list<int>>
+cgen/specialize/twostep-large2/@lift-xxx: (loxxx : int, hixxx : int) -> list<int>
+cgen/specialize/twostep-large2/@lift-xxx: (xsxxx : list<int>) -> list<int>
+cgen/specialize/twostep-large2/@lift-xxx: (xsxxx : list<int>) -> list<int>
+cgen/specialize/twostep-large2/@lift-xxx: () -> int
+cgen/specialize/twostep-large2/@lift-xxx: (loxxx : int, hixxx : int) -> list<list<list<int>>>
+cgen/specialize/twostep-large2/@lift-xxx: (loxxx : int, hixxx : int) -> list<list<int>>
+cgen/specialize/twostep-large2/@lift-xxx: (loxxx : int, hixxx : int) -> list<int>
+cgen/specialize/twostep-large2/@lift-xxx: (xsxxx : list<int>) -> list<int>
+cgen/specialize/twostep-large2/@lift-xxx: (xsxxx : list<int>) -> list<int>
+cgen/specialize/twostep-large2/@lift-xxx: forall<e,a> (f : () -> e a, loxxx : int, hixxx : int) -> e list<a>
+cgen/specialize/twostep-large2/@mlift-xxx: forall<e,a> (a, list<a>) -> e list<a>
+cgen/specialize/twostep-large2/@mlift-xxx: forall<e,a> (f : () -> e a, hixxx : int, a00.000 : int, a) -> e list<a>
+cgen/specialize/twostep-large2/@mlift-xxx: forall<e,a> (a, list<a>) -> e list<a>
+cgen/specialize/twostep-large2/@mlift-xxx: forall<e,a> (f : () -> e a, hixxx : int, a00.000 : int, a) -> e list<a>
 cgen/specialize/twostep-large2/a: forall<a,e> (i : int, f : () -> e a) -> e list<a>
 cgen/specialize/twostep-large2/calls-large: (f : (int) -> int) -> console ()
 cgen/specialize/twostep-large2/large: (f : (int) -> int) -> int

@@ -1,10 +1,10 @@
 [3,4,5]
  
-cgen/specialize/map2/@lift-main300: (xs271 : list<int>) -> console string
-cgen/specialize/map2/@lift-main301: (xs284 : list<int>) -> console list<string>
-cgen/specialize/map2/@lift-main302: (xs291 : list<int>) -> list<int>
-cgen/specialize/map2/@lift-test299: (y : int, xs263 : list<int>) -> list<int>
-cgen/specialize/map2/@unroll-map-int152: (xs : list<int>, f : (int) -> int) -> list<int>
+cgen/specialize/map2/@lift-xxx: (xsxxx : list<int>) -> console string
+cgen/specialize/map2/@lift-xxx: (xsxxx : list<int>) -> console list<string>
+cgen/specialize/map2/@lift-xxx: (xsxxx : list<int>) -> list<int>
+cgen/specialize/map2/@lift-xxx: (y : int, xsxxx : list<int>) -> list<int>
+cgen/specialize/map2/@unroll-xxx: (xs : list<int>, f : (int) -> int) -> list<int>
 cgen/specialize/map2/main: () -> console ()
 cgen/specialize/map2/map-int: (xs : list<int>, f : (int) -> int) -> list<int>
 cgen/specialize/map2/test: (y : int) -> list<int>

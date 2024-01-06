@@ -92,21 +92,24 @@ testSanitize kokaDir
   . sub "[\r\n]+" "\n"
   . sub "[[:blank:]]+" " "
   . sub "\\\\" "/"
-  -- using @ for hidden names now
-  . sub "\\." "@"
-  -- type variable names and box names
+   -- type variable names and box names
   . sub "\\@box-x[[:digit:]]+(-x[[:digit:]]+)?" "@box"
   . sub "(\\@[a-zA-Z])[[:digit:]]+" "\\1"
-  . sub "([a-zA-Z])\\.[[:digit:]]+" "\\1"
+  . sub "([a-zA-Z])@[[:digit:]]+" "\\1"
   -- . sub "([a-zA-Z])\\.[[:digit:]]+\\.[[:digit:]]+" "\\1"
   . sub "<[[:digit:]]+>" "<0>"
   -- for tests using --showhiddentypesigs,
+  -- @unroll-xxx
   -- e.g. .lift250-main => .lift000-main
   --      f: (z00.192 : a) -> a => f: (a.00.000 : a) -> a
-  . sub "(\\.m?)lift[[:digit:]]+" "\\1lift000"
-  . sub "(^[[:alnum:]]+\\/.+:.*) [[:alpha:]]+[[:digit:]]+\\.[[:digit:]]+ :" "\\1 a00.000 :"
+  . sub "([[:alpha:]][[:alpha:]]+)[[:digit:]][[:digit:]][[:digit:]]+" "\\1xxx"  -- xs254 ~> xsxxx
+  . sub "@unroll-[[:alnum:]@-]+" "@unroll-xxx"                   -- @unroll-main12 ~> @unroll-xxx
+  . sub "(@m?)lift-[[:alnum:]@-]+" "\\1lift-xxx"                 -- @mlift-main33  ~> @mlift-xxx
+  . sub "(^[[:alnum:]]+\\/.+:.*) [[:alpha:]]+[[:digit:]]+@[[:digit:]]+ :" "\\1 a00.000 :"
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
-  . if null kokaDir then id else replace xkokaDir "..."
+  -- using @ for hidden names now
+  . sub "\\." "@"
+ . if null kokaDir then id else replace xkokaDir "..."
   where
     xkokaDir = case map (\c -> if c == '\\' then '/' else c) kokaDir of
                  (c:':':rest) -> [toLower c] ++ ":" ++ rest
