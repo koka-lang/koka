@@ -2,11 +2,11 @@
 add default effect for std/core/exn
  
 cgen/specialize/maptwice/@hmain: () -> console ()
-cgen/specialize/maptwice/@lift-main338: (f : (int) -> int, xs323 : list<list<int>>) -> list<list<int>>
-cgen/specialize/maptwice/@lift-main339: (f : (int) -> int, xs328 : list<list<int>>) -> list<list<int>>
-cgen/specialize/maptwice/@lift-maptwice336: (f : (int) -> int, xs310 : list<list<int>>) -> list<list<int>>
-cgen/specialize/maptwice/@lift-maptwice337: (f : (int) -> int, xs315 : list<list<int>>) -> list<list<int>>
-cgen/specialize/maptwice/@mlift-main353: (int) -> exn ()
-cgen/specialize/maptwice/@mlift-main354: (list<int>) -> exn ()
+cgen/specialize/maptwice/@lift-main368: (f : (int) -> int, xs353 : list<list<int>>) -> list<list<int>>
+cgen/specialize/maptwice/@lift-main369: (f : (int) -> int, xs358 : list<list<int>>) -> list<list<int>>
+cgen/specialize/maptwice/@lift-maptwice366: (f : (int) -> int, xs340 : list<list<int>>) -> list<list<int>>
+cgen/specialize/maptwice/@lift-maptwice367: (f : (int) -> int, xs345 : list<list<int>>) -> list<list<int>>
+cgen/specialize/maptwice/@mlift-main385: (int) -> exn ()
+cgen/specialize/maptwice/@mlift-main386: (list<int>) -> exn ()
 cgen/specialize/maptwice/main: () -> <console,exn> ()
 cgen/specialize/maptwice/maptwice: (f : (int) -> int) -> list<list<int>>

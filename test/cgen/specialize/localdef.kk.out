@@ -1,7 +1,9 @@
 ["0","1","2","3","4","5","6","7","8","9","10"]
  
-cgen/specialize/localdef/@lift-li104: forall<a,e> (f : (int) -> e a, low : int, high : int, acc : list<a>) -> e list<a>
-cgen/specialize/localdef/@lift-main224: (low214 : int, high215 : int, acc216 : list<string>) -> console list<string>
-cgen/specialize/localdef/@mlift-lift-li104231: forall<a,e> (acc : list<a>, f : (int) -> e a, high0@106 : int, low : int, a) -> e list<a>
+cgen/specialize/localdef/@lift-li177: forall<a,e> (f : (int) -> e a, low : int, high : int, acc : list<a>) -> e list<a>
+cgen/specialize/localdef/@lift-main316: (xs285 : list<string>) -> console string
+cgen/specialize/localdef/@lift-main317: (xs298 : list<string>) -> console list<string>
+cgen/specialize/localdef/@lift-main318: (low306 : int, high307 : int, acc308 : list<string>) -> console list<string>
+cgen/specialize/localdef/@mlift-lift-li177325: forall<a,e> (acc : list<a>, f : (int) -> e a, high0@179 : int, low : int, a) -> e list<a>
 cgen/specialize/localdef/li: forall<a,e> (lo : int, hi : int, f : (int) -> e a) -> e list<a>
 cgen/specialize/localdef/main: () -> console ()

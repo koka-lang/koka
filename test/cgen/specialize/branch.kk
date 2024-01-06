@@ -12,5 +12,5 @@ fun map_other(xs : list<a>, f : a -> b, g : a -> b) : list<b> {
 fun main() {
     val plusone = fn(x) { x + 1 }
     val minusone = fn(x) { x - 1 }
-    [1,2,3,4].map_other(plusone, minusone).foreach(println)
+    [1,2,3,4].map_other(plusone, minusone).foreach(fn(xs) println(xs))
 }

@@ -4,10 +4,10 @@
 add default effect for std/core/exn
  
 cgen/specialize/fold1/@hmain: () -> console ()
-cgen/specialize/fold1/@lift-main347: (xs341 : list<int>, z342 : int) -> <console,exn> int
-cgen/specialize/fold1/@mlift-main355: (int) -> <exn,console> ()
-cgen/specialize/fold1/@mlift-main356: (int) -> <console,exn> ()
-cgen/specialize/fold1/@mlift-main357: (int) -> <console,exn> ()
+cgen/specialize/fold1/@lift-main452: (xs446 : list<int>, z447 : int) -> <console,exn> int
+cgen/specialize/fold1/@mlift-main460: (int) -> <exn,console> ()
+cgen/specialize/fold1/@mlift-main461: (int) -> <console,exn> ()
+cgen/specialize/fold1/@mlift-main462: (int) -> <console,exn> ()
 cgen/specialize/fold1/bar: forall<e> (f : (int, int) -> <exn|e> int) -> <exn|e> int
 cgen/specialize/fold1/foo: forall<e> (f : (int, int) -> e int) -> e int
 cgen/specialize/fold1/main: () -> <console,exn> ()
