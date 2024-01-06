@@ -1,4 +1,4 @@
+type/args1/test/x: (test : test) -> int
+type/args1/test/y: (test : test) -> int
 type/args1/Test: (x : int, y : int) -> test
 type/args1/foo: () -> test
-type/args1/x: (test : test) -> int
-type/args1/y: (test : test) -> int

@@ -8,7 +8,7 @@ fun show(Node(a : int, children) : tree<int>) : div string {
     "Tree(" ++ std/core/show(a) ++ ", [" ++ children.map(show).join(", ") ++ "])"
 }
 
-fun mapT(Node(a, children) : tree<a>, f : a -> e b) : e tree<b> {
+fun mapT(Node(a, children) : tree<a>, f : a -> <div|e> b) : <div|e> tree<b> {
     Node(f(a), map(children, fn(tree) { tree.mapT(f) }))
 }
 

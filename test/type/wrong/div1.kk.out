@@ -1,2 +1,2 @@
-test/type/wrong/div1.kk(1, 5): error: value definition is recursive.
+test/type/wrong/div1@kk(1, 5): error: value definition is recursive@
  recursive group: [type/wrong/div1/recursive,type/wrong/div1/wrong]

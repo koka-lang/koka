@@ -903,7 +903,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                    case (ctx,amb) of
                     (CtxType tp, [(qname,info)])
                       -> do let [nice1,nice2] = Pretty.niceTypes penv [tp,infoType info]
-                            infError range (text "identifier" <+> Pretty.ppName penv name <+> text "does not match the argument types" <->
+                            infError range (Pretty.ppName penv name <+> text "does not match the argument types" <->
                                                table (ctxTerm rangeContext ++
                                                       [(text "inferred type",nice2)
                                                       ,(text "expected type",nice1)]))
@@ -911,7 +911,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                       -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "has no matching definition" <->
                                          table (ctxTerm rangeContext ++
                                                 [(text "inferred type", Pretty.niceType penv tp)
-                                                ,(text "candidates", align (tablex 0 (ppCandidates env  "" amb)))]))
+                                                ,(text "candidates", ppCandidates env amb)]))
                     (CtxFunArgs fixed named (Just resTp), (_:rest))
                       -> do let message = "with " ++ show (fixed + length named) ++ " argument(s) matches the result type"
                             infError range (text "no function" <+> Pretty.ppName penv name <+> text message <+>
@@ -932,7 +932,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                             infError range (text "no function" <+> Pretty.ppName penv name <+> text "is defined that matches the argument types" <->
                                          table (ctxTerm rangeContext ++
                                                 [(text "inferred type", argsDoc)
-                                                ,(text "candidates", align (tablex 0 (ppCandidates env  "" amb)))]
+                                                ,(text "candidates", ppCandidates env amb)]
                                                 ++
                                                 (if (name == newName "+")
                                                   then [(text "hint", text "did you mean to use append (++)? (instead  of addition (+) )")]
@@ -953,7 +953,12 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                  checkCasing range name qname info
                  return (qname,infoType info,info)
         _  -> do env <- getEnv
-                 infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintTypeSig matches)
+                 (term,termDoc) <- getTermDoc "context" rangeContext
+                 infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous." <->
+                                 table  [(term, termDoc),
+                                         (text "inferred type", ppNameContext (prettyEnv env) ctx),
+                                         (text "candidates", ppCandidates env matches),
+                                         (text "hint", text "give a type annotation or qualify the name?")])
   where
     hintTypeSig = "give a type annotation to the function parameters or qualify the name?"
 
@@ -965,9 +970,9 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
 -- lookup an application name `f(...)` where the name context usually contains (partially) inferred
 -- argument types. We reuse the lookup for implicit arguments as it works the same
 -- (except that for implicit arguments we allow value types to be resolved with unit functions (for conversions))
-lookupAppName :: Bool -> Name -> NameContext -> Range ->
+lookupAppName :: Bool -> Name -> NameContext -> Range -> Range ->
                    Inf (Either [Doc] (Type,Expr Type,[((Name,Range),Expr Type, Doc)]))
-lookupAppName allowDisambiguate name ctx range
+lookupAppName allowDisambiguate name ctx contextRange range
   = do roots <- if not (isConstructorName name)
                   then -- normal identifier
                        return [(isInfoValFunExt,name,ctx,range)]
@@ -995,28 +1000,32 @@ lookupAppName allowDisambiguate name ctx range
           Left docs
             -> if (allowDisambiguate && not (null docs))
                 then do env <- getEnv
+                        (term,termDoc) <- getTermDoc "context" contextRange
                         infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <->
-                                        table [(text "candidates", ppAmbDocs docs),
+                                        table [(term, termDoc),
+                                               (text "inferred type", ppNameContext (prettyEnv env) ctx),
+                                               (text "candidates", ppAmbDocs docs),
                                                (text "hint", text "qualify the name?")])
                         return (Left docs)
                 else return (Left docs)
 
 
 -- resolve an implicit argument (name) to an expression
-resolveImplicitName :: Name -> Type -> Range -> Inf (Expr Type, Doc)
-resolveImplicitName name tp range
+resolveImplicitName :: Name -> Type -> Range -> Range -> Inf (Expr Type, Doc)
+resolveImplicitName name tp contextRange range
   = do res <- resolveImplicitArg True {-disambiguate-} True {-allow unit fun val for conversions -}
                                   [(isInfoValFunExt, name, implicitTypeContext tp, range)]
        penv <- getPrettyEnv
        case res of
          Right iarg  -> do traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv False "?" name iarg
                            return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
-         Left docs   -> do infError range
+         Left docs   -> do (term,termDoc) <- getTermDoc "context" contextRange
+                           infError range
                               (text "cannot resolve implicit parameter" <->
-                               table [(text "term",       docFromRange (Pretty.colors penv) range),
+                               table [(term, termDoc),
                                       (text "parameter",  text "?" <.> ppNameType penv (name,tp)),
                                       (text "candidates", ppAmbDocs docs),
-                                      (text "hint", text "add a (implicit) parameter to the function?")])
+                                      (text "hint", text "add a (implicit) parameter to the function signature?")])
                            return (Var name False range, Lib.PPrint.empty)
 
 ppAmbDocs :: [Doc] -> Doc
@@ -1408,15 +1417,21 @@ data NameContext
 ppNameContext :: Pretty.Env -> NameContext -> Doc
 ppNameContext penv ctx
   = case ctx of
-      CtxNone -> text "CtxNone"
-      CtxType tp -> text "CtxType" <+> Pretty.ppType penv tp
-      CtxFunArgs n names mbResTp -> text "CtxFunArgs" <+> pretty n <+> list [Pretty.ppName penv name | name <- names] <+> ppMbType penv mbResTp
+      CtxNone -> text "..."
+      CtxType tp
+        -> Pretty.ppType penv tp
+      CtxFunArgs n names mbResTp
+        -> -- text "CtxFunArgs" <+> pretty n <+> list [Pretty.ppName penv name | name <- names] <+> ppMbType penv mbResTp
+           tupled ([text "_" | _ <- [1..n]] ++ [Pretty.ppName penv name <+> text ": _" | name <- names])
+           <+> text "->" <+> ppMaybeType mbResTp
       CtxFunTypes some fixed named mbResTp
-        -> text "CtxFunTypes" <+> pretty some <+> list [Pretty.ppType penv atp | atp <- fixed]
-           <+> list [Pretty.ppParam penv nt | nt <- named] <+> ppMbType penv mbResTp
+        -> -- text "CtxFunTypes" <+> pretty some <+> list [Pretty.ppType penv atp | atp <- fixed]
+           -- <+> list [Pretty.ppParam penv nt | nt <- named] <+> ppMbType penv mbResTp
+           tupled ([Pretty.ppType penv ftp | ftp <- fixed] ++ [Pretty.ppParam penv nt | nt <- named]
+                   ++ (if some then [text "..."] else [])) <+> text "->" <+> ppMaybeType mbResTp
   where
-    ppMbType penv Nothing   = Lib.PPrint.empty
-    ppMbType penv (Just tp) = text ":" <+> Pretty.ppType penv tp
+    ppMaybeType Nothing   = text "_"
+    ppMaybeType (Just tp) = Pretty.ppType penv tp
 
 ppNameCtx :: Pretty.Env -> (Name,NameContext) -> Doc
 ppNameCtx penv (name,ctx) = Pretty.ppName penv name <+> text ":" <+> ppNameContext penv ctx
@@ -1519,11 +1534,16 @@ ppOr env names  = hcat (map (\name -> Pretty.ppName env name <.> text ", ") (ini
 
 ppAmbiguous :: Env -> String -> [(Name,NameInfo)] -> Doc
 ppAmbiguous env hint infos
-  = text ". Possible candidates: " <-> table (ppCandidates env hint infos)
+  = vcat ([text ". Possible candidates: ",
+           ppCandidates env infos]
+          ++
+          (if (null hint) then [] else [text "hint:" <+> text hint]))
 
-ppCandidates :: Env -> String -> [(Name,NameInfo)] -> [(Doc,Doc)]
-ppCandidates env hint nameInfos
-   = let penv = prettyEnv env
+
+ppCandidates :: Env -> [(Name,NameInfo)] -> Doc
+ppCandidates env nameInfos
+   = align $ table $
+     let penv = prettyEnv env
          modName = context env
          n = 10
          sorted      = sortBy (\(name1,info1) (name2,info2) ->
@@ -1537,8 +1557,6 @@ ppCandidates env hint nameInfos
      in (if null rest
           then map (ppNameInfo env) defs
           else map (ppNameInfo env) (init defs) ++ [(text "...", text "or" <+> pretty (length rest + 1) <+> text "other definitions")])
-        ++
-        (if (null hint) then [] else [(text "hint",text hint)])
 
 ppNameInfo env (name,info)
   = (Pretty.ppName (prettyEnv env) (importsAlias name (imports env)), Pretty.ppType (prettyEnv env) (infoType info))

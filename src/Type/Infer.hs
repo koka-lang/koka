@@ -1282,7 +1282,7 @@ inferApp propagated expect fun nargs rng
        amb <- case rootExpr fun of
                 (Var name _ nameRange)
                   -> do let sctx = fixedCountContext propagated (length fixed) (map (fst . fst) named)
-                        matches <- lookupAppName False name sctx nameRange
+                        matches <- lookupAppName False name sctx rng nameRange
                         -- traceDefDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
                         case matches of
                           Right (tp,funExpr,implicits)
@@ -1412,7 +1412,7 @@ inferApp propagated expect fun nargs rng
            amb <- case rootExpr fun of
                     (Var name _ nameRange)
                       -> do sctx    <- fixedContext propagated fresolved' (length fixed) (map (fst . fst) named)
-                            matches <- lookupAppName (null fixs {- allow disambiguate -}) name sctx nameRange
+                            matches <- lookupAppName (null fixs {- allow disambiguate -}) name sctx rng nameRange
                             -- traceDoc $ \env -> text "app args matched for " <+> ppName env name <+>
                             --                     text " =" <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+>
                             --                     text ", res:" <+> ppProp env propagated <+>
@@ -1927,7 +1927,7 @@ inferArgsN ctx range parArgs
                                                     return (gtp,ceff,garg)
                                     subsumeArg res
                             ArgImplicit name rng nameRng
-                              -> do (argExpr,termDoc) <- resolveImplicitName name tpar0 (endOfRange rng)
+                              -> do (argExpr,termDoc) <- resolveImplicitName name tpar0 rng (endOfRange rng)
                                     --  addRangeInfo nameRng (RM.Implicits termDoc)
                                     withHiddenTermDoc rng termDoc $
                                       do res <- inferArgExpr tpar0 argExpr True {- hidder -}

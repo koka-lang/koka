@@ -1,4 +1,4 @@
-test/type/wrong/higherrank3v.kk(4, 9): error: type is not polymorphic enough
+test/type/wrong/higherrank3v@kk(4, 9): error: type is not polymorphic enough
  context : auto(f)
  term : f
  inferred type : ($a) -> $a

@@ -30,7 +30,7 @@ ppRange cwd endToo colors r
   = color (colorRange colors) (text (showRange cwd endToo r))
 
 table :: [(Doc,Doc)] -> Doc
-table xs  = tablex 1 xs
+table xs  = tablex 0 xs
 
 tablex n xs
   = let (headers,docs) = unzip xs

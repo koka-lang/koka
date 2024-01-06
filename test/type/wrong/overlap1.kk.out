@@ -1,4 +1,2 @@
-test/type/wrong/overlap1.kk(3, 5): error: definition f overlaps with an earlier definition of the same name
- type : (x : int, y : int) -> int
- overlaps: (x : int, y : int) -> int
- because : definitions with the same name must differ on the argument types
+test/type/wrong/overlap1@kk(3, 5): error: definition f is already defined in this module, at (2, 5)
+ hint: use a local qualifier?

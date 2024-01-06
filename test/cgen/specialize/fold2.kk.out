@@ -1,5 +1,5 @@
 55
  
-cgen/specialize/fold2/.lift000-main: (xs169 : list<int>, z170 : int) -> console int
-cgen/specialize/fold2/.lift000-main: (xs181 : list<int>, z182 : int) -> console int
+cgen/specialize/fold2/@lift-main193: (xs171 : list<int>, z172 : int) -> console int
+cgen/specialize/fold2/@lift-main194: (xs183 : list<int>, z184 : int) -> console int
 cgen/specialize/fold2/main: () -> console ()

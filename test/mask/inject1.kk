@@ -1,9 +1,9 @@
 // Test mask
 
-fun foo(action : () -> e a ) : <ndet|e> a
+fun foo(action : () -> <div|e> a ) : <ndet,div|e> a
 {
   val x = mask<ndet>(action)
-  if (False) then foo(action) else x 
+  if (False) then foo(action) else x
 }
 
 fun main() {

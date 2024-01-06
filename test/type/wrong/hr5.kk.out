@@ -1,4 +1,4 @@
-test/type/wrong/hr5.kk(3,13): error: types do not match
+test/type/wrong/hr5@kk(3,13): error: types do not match
  context : ids : forall<a> list<forall<b> b -> a>
  term : ids
  inferred type: list<forall<a> (a) -> a>

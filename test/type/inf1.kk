@@ -3,10 +3,10 @@ pub value struct linear-set<v>
   pub list: list<v>
   eq: some<e> (v, v) -> e bool
 
-pub fun (+)(l: linear-set<v>, a: v) : e linear-set<v>
+pub fun val/(+)(l: linear-set<v>, a: v) : e linear-set<v>
   if (l.list.any(fn(x) (l.eq)(x, a))) then l else l(list=Cons(a, l.list))
 
-pub fun (+)(l1: linear-set<v>, l2: linear-set<v>) : e linear-set<v>
+pub fun set/(+)(l1: linear-set<v>, l2: linear-set<v>) : e linear-set<v>
   l2.list.foldl(l1, fn(acc, x) acc + x)
 
 pub fun foo0(l1: linear-set<int>, l2: linear-set<int>): e linear-set<int>

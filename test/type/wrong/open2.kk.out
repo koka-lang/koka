@@ -1,4 +1,4 @@
-test/type/wrong/open2.kk(5,13): error: Invalid type
+test/type/wrong/open2@kk(5,13): error: Invalid type
  type context : test
  type : test
  inferred kind: V -> V

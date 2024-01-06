@@ -414,7 +414,7 @@ ppFun env arrow args effect result
 
 ppParam :: Env -> (Name,Type) -> Doc
 ppParam env (name,tp)
-  = (if (nameIsNil name || isFieldName name || isWildcard name)
+  = (if (nameIsNil name || isFieldName name || isWildcard name || isHiddenName name)
       then empty
       else color (colorParameter (colors env)) (ppNamePlain env (unqualify name)) <.> text " : ")
     <.> ppType env tp
