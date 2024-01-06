@@ -44,6 +44,7 @@ module Common.NamePrim
 
           , nameIntAdd, nameIntSub
 
+          , nameEq, nameShow
           -- Effects
           , nameTpHTag, nameHTag
           , nameTpClause, namePerform
@@ -516,6 +517,8 @@ isNameTpTuple name
   where
     s = nameLocal name
 
+nameShow = newName "show"
+nameEq = newName "=="
 
 preludeName s
   = qualify nameSystemCore (newName s)

@@ -43,14 +43,14 @@ bindingsTypeDefs modName typeDefGroups
 
     isDefinition td
       = case td of
-          DataType binder args cons range vis sort ddef isExtend doc -> not isExtend
+          DataType binder args cons derives range vis sort ddef isExtend doc -> not isExtend
           _ -> True
 
 dependencyTypeDef :: Name -> UserTypeDef -> (Name,S.NameSet)
 dependencyTypeDef modName typeDef
   = case typeDef of
       Synonym binder args tp range vis doc    -> (typeDefName typeDef, S.map normalize (freeTypes tp))
-      DataType binder args cons range vis sort ddef isExtend doc -> (typeDefName typeDef, S.map normalize (freeTypes cons))
+      DataType binder args cons derives range vis sort ddef isExtend doc -> (typeDefName typeDef, S.map normalize (freeTypes cons) )
   where
     normalize name = if qualifier name == modName then unqualify name else name
 
