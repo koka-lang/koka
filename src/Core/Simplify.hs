@@ -215,7 +215,9 @@ topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args)
        newNames <- -- trace ("topDown function app: " ++ show (zip tpars targs) ++ "\n expr:" ++ show expr) $
                    mapM uniqueTName [TName nm (tsub |-> tp) | (TName nm tp) <- pars]
        let sub     = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
-       return (Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body)))
+       let newexpr = (Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body)))
+       -- trace (" topDown: new expr: " ++ show newexpr) $
+       return newexpr
   where
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")

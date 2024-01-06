@@ -1307,9 +1307,9 @@ inferApp propagated expect fun nargs rng
                             Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop funExpr fresolved fixed named0 implicits
       = do -- traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
-                                  -- text ("fixed count: " ++ show (length fixed)) <.>
-                                  -- text (", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <->
-                                  -- text (", fres count: " ++ show (length fresolved)) <+> text ":" <+> ppProp penv prop
+      --                             text ("fixed count: " ++ show (length fixed)) <.>
+      --                             text (", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <->
+      --                             text (", fres count: " ++ show (length fresolved)) <+> text ":" <+> ppProp penv prop
 
            -- only add resolved implicits that were not already named
            let alreadyGiven = [name | ((name,_),_) <- named0]
@@ -1404,7 +1404,7 @@ inferApp propagated expect fun nargs rng
       = -- this always fails since we have not been able to resolve the function name
         {- if (not (null named))
           then infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <-> text " hint: annotate the function parameters?" )
-          else -} inferAppFunFirst Nothing fun fresolved fixed [] []
+          else -} inferAppFunFirst Nothing fun fresolved fixed named []
 
     inferAppArgsFirst fresolved ((idx,fix):fixs) fixed named  -- try to improve our guess
       = do --traceDoc $ \penv -> text "inferAppArgsFirst: "

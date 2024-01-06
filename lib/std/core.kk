@@ -2009,7 +2009,7 @@ pub fun force( delayed : delayed<e,a> ) : e a
 // ----------------------------------------------------------------------------
 
 // Generic show: shows the internal representation of an object as a string
-// Note: this breaks parametricity so it should not be pub
+// Note: this breaks parametricity so it should not be public
 extern gshow : forall<a> a -> string
   c "kk_show_any"
   cs inline "#1.ToString()"
@@ -2030,7 +2030,7 @@ extern int-show-hex(i:int,use-capitals:bool) : string
 // The `width`  parameter specifies how wide the hex value is where `"0"`  is used to align.\
 // The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
 // The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
-pub fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string = "0x" )
+pub fun int/show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string = "0x" )
   (if i<0 then "-" else "") ++ pre ++ int-show-hex(i.abs,use-capitals).pad-left(width,'0')
 
 
@@ -2050,7 +2050,7 @@ pub fun float64/show( d : float64, precision : int = -17 ) : string
 // This may still show a number in exponential notation if the it is too small or large,
 // in particular, for  a `d` where `d > 1.0e21` or `d < 1.0e-15`, or if
 // `precision.abs > 17`, the `show-exp` routine is used.
-pub fun show-fixed( d : float64, precision : int = -2 ) : string
+pub fun float64/show-fixed( d : float64, precision : int = -2 ) : string
   val dabs = d.abs
   if dabs < 1.0e-15 || dabs > 1.0e+21
     then show-exp(d,precision)
@@ -2065,7 +2065,7 @@ extern show-fixedx( d : float64, prec : int32 ) : string
 // The optional `precision` (= `-17`) specifies the precision.
 // If `>=0` it specifies the number of digits behind the dot (up to `17` max).
 // If negative, then at most the absolute value of `precision` digits behind the dot are used.
-pub fun show-exp( d : float64, precision : int = -17 )
+pub fun float64/show-exp( d : float64, precision : int = -17 )
   show-expx(d,precision.int32)
 
 extern show-expx( d : float64, prec : int32 ) : string
@@ -2109,21 +2109,32 @@ pub fun unit/show( u : () ) : string
 pub fun sslice/show( s : sslice ) : string
   s.string.show
 
-// Convert a list to a string
+// Show a list
+pub fun list/show( xs : list<a>, ?show : a -> e string ) : e string
+  "[" ++ xs.map(show).join(",") ++ "]"
+
+// Show a tuple
+pub fun tuple2/show( x : (a,b), ?show1 : a -> e string = show, ?show2 : b -> e string = show) : e string
+  "(" ++ x.fst.show1 ++ "," ++ x.snd.show2 ++ ")"
+
+// Show a triple
+pub fun tuple3/show( x : (a,b,c), ?show1 : a -> e string = show, ?show2 : b -> e string = show, ?show3 : c -> e string) : e string
+  "(" ++ x.fst.show1 ++ "," ++ x.snd.show2 ++ "," ++ x.thd.show3 ++ ")"
+
+// Show a `:maybe` type
+pub fun maybe/show( mb : maybe<a>, ?show : a -> e string ) : e string
+  match mb
+    Just(x) -> "Just(" ++ x.show ++ ")"
+    Nothing -> "Nothing"
+
+
+// _deprecated_, use `list/show` instead.
 pub fun show-list( xs : list<a>, show-elem : (a) -> e string ) : e string
-  "[" ++ xs.map(show-elem).join(",") ++ "]"
+  list/show(xs,?show=show-elem)
 
-pub fun stringlist/show( xs : list<string> ) : string
-  show-list(xs,show)
-
-pub fun intlist/show( xs : list<int> ) : string
-  show-list(xs,show)
-
-pub fun boollist/show( xs : list<bool> ) : string
-  show-list(xs,show)
-
+// _deprecated_, use `tuple2/show` instead
 pub fun show-tuple( x : (a,b), showfst : a -> e string, showsnd : b -> e string ) : e string
-  "(" ++ x.fst.showfst ++ "," ++ x.snd.showsnd ++ ")"
+  tuple2/show(x,?show1=showfst,?show2=showsnd)
 
 
 // ----------------------------------------------------------------------------
@@ -2182,6 +2193,19 @@ noinline fun printsln( s : string ) : console ()
 pub fun string/print(s : string)
   prints(s)
 
+// Print a value that has a `show` function
+pub fun show/print( x : a, ?show : a -> string ) : console ()
+  prints(x.show)
+
+// Print a string to the console, including a final newline character.
+pub fun string/println(s : string) : console ()
+  printsln(s)
+
+// Print a value that has a `show` function, including a final newline character.
+pub fun show/println( x : a, ?show : a -> string ) : console ()
+  printsln(x.show)
+
+/*
 // Print an integer to the console.
 pub fun int/print(i : int)
   prints(show(i))
@@ -2201,11 +2225,9 @@ pub fun char/print(c : char)
 // Print a unit value to the console
 pub fun unit/print( u : () )
   prints(show(()))
+*/
 
-// Print a string to the console, including a final newline character.
-pub fun string/println(s : string) : console ()
-  printsln(s)
-
+/*
 // Print an integer to the console, including a final newline character.
 pub fun int/println(i : int)
   printsln(show(i))
@@ -2225,7 +2247,7 @@ pub fun char/println(c : char)
 // Print a unit value to the console, including a final newline character
 pub fun unit/println( u : () )
   printsln(show(()))
-
+*/
 
 // ----------------------------------------------------------------------------
 // Trace, assert, todo

@@ -1051,8 +1051,9 @@ envLookupCon env name
 
 envLookupVar :: Env -> Name -> LexParser Expr
 envLookupVar env name
- = case M.lookup (requalifyLocally name) (locals env) of
-     Just tp -> return (Var (TName name tp) InfoNone)   -- implicit/par
+ = let lqname = requalifyLocally name
+   in case M.lookup lqname (locals env) of
+     Just tp -> return (Var (TName lqname tp) InfoNone)   -- implicit/par
      _ -> case gammaLookupCanonical name (gamma env) of
             [fun@(InfoFun{})] -> return $ coreExprFromNameInfo name fun
             [val@(InfoVal{})] -> return $ coreExprFromNameInfo name val

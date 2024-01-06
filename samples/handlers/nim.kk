@@ -27,11 +27,6 @@ pub fun player/show(p:player) : string
     Alice -> "alice"
 
 
-pub fun playerlist/show(ps : list<player> ) : string
-  ps.show-list(show)
-
-
-
 // --------------------------------------------------------
 // Game of Nim
 // --------------------------------------------------------
@@ -90,7 +85,7 @@ val gametree = handler
     Take(p,subtrees)
 
 
-pub fun show(gt :gtree) : div string
+pub fun gtree/show(gt :gtree) : div string
   show-gtree(gt,2)
 
 

@@ -954,7 +954,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                  return (qname,infoType info,info)
         _  -> do env <- getEnv
                  (term,termDoc) <- getTermDoc "context" rangeContext
-                 infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous." <->
+                 infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be resolved." <->
                                  table  [(term, termDoc),
                                          (text "inferred type", ppNameContext (prettyEnv env) ctx),
                                          (text "candidates", ppCandidates env matches),
@@ -990,8 +990,7 @@ lookupAppName allowDisambiguate name ctx contextRange range
                                  roots
        case res of
           Right iarg@(ImplicitArg qname _ rho iargs)
-            -> do when (not (null iargs)) $
-                    traceDefDoc $ \penv -> text "resolved app name with implicits:" <+> prettyImplicitArg penv iarg
+            -> do -- when (not (null iargs)) $ traceDefDoc $ \penv -> text "resolved app name with implicits:" <+> prettyImplicitArg penv iarg
                   penv <- getPrettyEnv
                   let implicits = [((pname,range),
                                      toImplicitArgExpr (endOfRange range) iarg,
@@ -1001,7 +1000,7 @@ lookupAppName allowDisambiguate name ctx contextRange range
             -> if (allowDisambiguate && not (null docs))
                 then do env <- getEnv
                         (term,termDoc) <- getTermDoc "context" contextRange
-                        infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <->
+                        infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be resolved" <->
                                         table [(term, termDoc),
                                                (text "inferred type", ppNameContext (prettyEnv env) ctx),
                                                (text "candidates", ppAmbDocs docs),
@@ -1017,7 +1016,7 @@ resolveImplicitName name tp contextRange range
                                   [(isInfoValFunExt, name, implicitTypeContext tp, range)]
        penv <- getPrettyEnv
        case res of
-         Right iarg  -> do traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv False "?" name iarg
+         Right iarg  -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv False "?" name iarg
                            return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
          Left docs   -> do (term,termDoc) <- getTermDoc "context" contextRange
                            infError range
@@ -1227,7 +1226,7 @@ findBest allowDisambiguate candidates
 -- Returns list of (partial) implicit arguments
 lookupImplicitArg :: Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [ImplicitArg]
 lookupImplicitArg allowUnitFunVal infoFilter name ctx range
-  = do -- traceDefDoc $ \penv -> text "lookupImplicitArg:" <+> pretty name
+  = do -- traceDefDoc $ \penv -> text "lookupImplicitArg:" <+> ppNameCtx penv (name,ctx)
        candidates0 <- lookupNames infoFilter name ctx range
        candidates1 <- case ctx of
                         -- for implicits we also allow conversion unit functions for values
@@ -1255,7 +1254,11 @@ lookupImplicitArg allowUnitFunVal infoFilter name ctx range
                                   CtxFunArgs n named mbResTp
                                     -> named
                                   _ -> []
-        in filter (\(name,_) -> not (name `elem` alreadyGiven)) implicits
+            toResolve        = filter (\(name,_) -> let (pname,_) = splitImplicitParamName name
+                                                    in not (pname `elem` alreadyGiven)) implicits
+        in -- trace ("implicitsToResolve: " ++ show (map (fst . splitImplicitParamName . fst) toResolve) ++ ", " ++ show alreadyGiven) $
+           toResolve
+
 
     resolveImplicit :: (Name,Type) -> (Name,Partial)
     resolveImplicit (pname,ptp)
@@ -1303,7 +1306,8 @@ lookupFunName name mbType range
         []   -> return Nothing
         [(name,info)]  -> return (Just (name,infoType info,info))
         _    -> do env <- getEnv
-                   infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintQualify matches)
+                   infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be resolved"
+                                     <.> ppAmbiguous env hintQualify matches)
   where
     hintQualify = "qualify the name to disambiguate it?"
 

@@ -456,8 +456,6 @@ prettyPattern env pat
   where
     commaSep :: [Doc] -> Doc
     commaSep = hcat . punctuate comma
-    prettyArg :: TName -> Doc
-    prettyArg tname = parens (prettyName (colors env) (getName tname) <+> text "::" <+> prettyType env (typeOf tname))
 
     prettyConName env tname
       = pretty (getName tname)
@@ -489,7 +487,7 @@ showXChar c
 
 prettyTName :: Env -> TName -> Doc
 prettyTName env (TName name tp)
-  = prettyName (colors env) name <.> text ":" <+> ppType env tp
+  = prettyCoreName (colors env) name <.> text ":" <+> ppType env tp
 
 
 prettyModuleName :: Env -> Name -> Doc

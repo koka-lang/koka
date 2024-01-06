@@ -136,11 +136,11 @@ fun eparse(p,input)
 
 
 pub fun example1()
-  mparse( expr, "1+2*3").show-parse-int.println
+  mparse( expr, "1+2*3").println
 
 
 pub fun example2()
-  eparse( expr, "1+2*3").show-parse-int.println
+  eparse( expr, "1+2*3").println
 
 
 pub fun main()
@@ -148,15 +148,3 @@ pub fun main()
   example2()
 
 
-// Some show functions
-fun show-parse( xs : list<(a,string)>, f : a -> string ) : string
-  xs.show-list fn(r)
-    r.show-tuple(f,show)
-
-
-fun show-parse-int( xs : list<(int,string)> ) : string
-  xs.show-parse(show)
-
-
-fun show-parse-ints( xs : list<(list<int>,string)> ) : string
-  xs.show-parse(fn(is) is.show-list(show))

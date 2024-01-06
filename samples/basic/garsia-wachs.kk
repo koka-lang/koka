@@ -16,7 +16,7 @@ type tree<a>
   Node(left : tree<a>, right : tree<a>)
 
 
-fun show( t : tree<string> ) : string
+fun tree/show( t : tree<string> ) : string
   match t
     Leaf(s)   -> s.show
     Node(l,r) -> "Node(" ++ l.show ++ "," ++ r.show ++ ")"

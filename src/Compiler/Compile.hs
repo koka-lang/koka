@@ -204,9 +204,11 @@ compileExpression maybeContents term flags loaded compileTarget program line inp
                    -- return unit: just run the expression (for its assumed side effect)
                    Just (_,_,tres)  | isTypeUnit tres
                       -> compileProgram' maybeContents term flags (loadedModules ld) compileTarget  "<interactive>" programDef []
+                   Just (_,_,tres)  | isFun tres
+                      -> liftErrorPartial loaded $ errorMsg (ErrorGeneral rangeNull (text "function values cannot be shown (maybe call it by adding parenthesis, e.g. f() ?)"))
                    -- check if there is a show function, or use generic print if not.
                    Just (_,_,tres)
-                      -> do -- ld <- compileProgram' term flags (loadedModules ld0) Nothing "<interactive>" programDef
+                      -> {- do -- ld <- compileProgram' term flags (loadedModules ld0) Nothing "<interactive>" programDef
                             let matchShow (_,info) = let (_,_,itp) = splitPredType (infoType info)
                                                      in case splitFunType itp of
                                                           Just (targ:targs,_,_) | tres == snd targ && all (isOptional . snd) targs
@@ -216,15 +218,19 @@ compileExpression maybeContents term flags loaded compileTarget program line inp
                                 mkApp e es = App e [(Nothing,x) | x <- es] r
                             case filter matchShow (gammaLookup (newName "show") (loadedGamma ld)) of
                               [(qnameShow,_)]
-                                -> do let expression = mkApp (Var (qualify nameSystemCore (qualifyLocally (newModuleName "string") (newName "println"))) False r)
-                                                        [mkApp (Var qnameShow False r) [mkApp (Var qnameExpr False r) []]]
+                                -> -}
+                                   do let r = rangeNull
+                                          mkApp e es = App e [(Nothing,x) | x <- es] r
+                                      let expression = mkApp (Var (qualify nameSystemCore (qualifyLocally (newModuleName "string") (newName "println"))) False r)
+                                                        [mkApp (Var {-qnameShow-} (newName "show") False r) [mkApp (Var qnameExpr False r) []]]
                                       let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
                                       let programDef' = programAddDefs programDef [] [defMain]
                                       compileProgram' maybeContents term flags (loadedModules ld) (Executable nameMain ()) "<interactive>" programDef' []
-
+                              {-
                               _  -> liftErrorPartial loaded $ errorMsg (ErrorGeneral rangeNull (text "no 'show' function defined for values of type:" <+> ppType (prettyEnvFromFlags flags) tres))
                                                      -- mkApp (Var (qualify nameSystemCore (newName "gprintln")) False r)
                                                      --   [mkApp (Var nameExpr False r) []]
+                              -}
                    Nothing
                     -> failure ("Compile.Compile.compileExpression: should not happen")
          -- no evaluation

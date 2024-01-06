@@ -86,9 +86,6 @@ pub fun example3()
   echo(whoami())
 
 
-fun unitstr/show( (_,s) : ((),string) ) : string
-  show(s)
-
 fun intstr/show( (i,s) : (int,string) ) : string
   "exit with status " ++ i.show ++ "\n" ++ show(s)
 

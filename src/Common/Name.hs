@@ -61,7 +61,7 @@ module Common.Name
 -- import Debug.Trace
 import Lib.PPrint
 import Data.Char(isUpper,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
-import Common.Failure(failure)
+import Common.Failure(failure,assertion)
 import Common.File( joinPaths, splitOn, endsWith, startsWith, isPathSep )
 import Common.Range( rangeStart, posLine, posColumn )
 import Data.List(intersperse,isPrefixOf)
@@ -145,7 +145,12 @@ lowerCompareS [] []     = EQ
 
 instance Eq Name where
   n1@(Name _ hm1 _ hl1 _ hn1) == n2@(Name _ hm2 _ hl2 _ hn2)
-    = (hn1 == hn2) && (hl1 == hl2) && (hm1 == hm2) && (lowerCompare n1 n2 == EQ)
+    = let eq = (hn1 == hn2) && (hl1 == hl2) && (hm1 == hm2) in
+      assertion ("Common.Name.Eq: wrong hashes: " ++ show [(hm1,hl1,hn1),(hm2,hl2,hn2)] ++ show (n1,n2))
+                (if not eq then showExplicit n1 /= showExplicit n2 else True) $
+      (eq && (lowerCompare n1 n2 == EQ))
+
+
 
 instance Ord Name where
   compare n1@(Name _ hm1 _ hl1 _ hn1) n2@(Name _ hm2 _ hl2 _ hn2)
