@@ -35,8 +35,8 @@ fun test2( x : or<int,or<string,()>> )
   x.show
 
 
-fun or/show(or: or<a,b>, ?showa: a -> string = show, ?showb: b -> string = show): string
+fun or/show(or: or<a,b>, ?a/show: a -> string, ?b/show: b -> string): string
   match or
-    L(a) -> showa(a)
-    R(b) -> showb(b)
+    L(a) -> show(a)
+    R(b) -> show(b)
 

@@ -26,4 +26,4 @@ fun test1()
 
 // list of successes
 fun test2()
-  [[1],[2,3],[4,5,6]].sequence.show-list(show)
+  [[1],[2,3],[4,5,6]].sequence.show

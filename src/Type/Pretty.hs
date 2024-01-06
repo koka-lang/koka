@@ -432,12 +432,7 @@ ppTypeName env name
   = color (colorType (colors env)) $ ppNamePlain env name
 
 ppNamePlain env name | isImplicitParamName name
-  = text "?" <.>
-    let (xname,ename) = splitImplicitParamName name
-        iname = plainImplicitParamName xname
-    in if (iname == ename)
-        then ppNamePlain env iname
-        else ppNamePlain env iname <.> text "=" <.> ppNamePlain env ename
+  = text "?" <.> ppNamePlain env (fromImplicitParamName name)
 
 ppNamePlain env name
   = if (fullNames env)

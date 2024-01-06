@@ -688,11 +688,7 @@ parameterName :: LexParser Name
 parameterName
   = do specialOp "?"
        name <- parameterId
-       (do keyword "="
-           (ename,_) <- identifier
-           return (namedImplicitParamName (toImplicitParamName name) ename)
-        <|>
-           return (toImplicitParamName name))
+       return (toImplicitParamName name)
     <|>
     parameterId
 

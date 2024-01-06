@@ -45,8 +45,8 @@ module Common.Name
           , splitModuleName, unsplitModuleName, mergeCommonPath, splitLocalQualName
           , missingQualifier
           , isEarlyBindName
-          , toImplicitParamName, isImplicitParamName, plainImplicitParamName
-          , namedImplicitParamName, splitImplicitParamName
+          , toImplicitParamName, isImplicitParamName, splitImplicitParamName
+          , fromImplicitParamName
 
           , prepend, postpend
           , asciiEncode, showHex, moduleNameToPath, pathToModuleName
@@ -750,12 +750,35 @@ implicitNameSpace = "implicit"
 
 isImplicitParamName :: Name -> Bool
 isImplicitParamName name
-  = (nameLocalQual name == implicitNameSpace)
+  = case splitLocalQualName name of
+      (m:ms) -> (m == implicitNameSpace)
+      _      -> False
 
 toImplicitParamName :: Name -> Name
 toImplicitParamName name
   = qualifyLocally (newModuleName implicitNameSpace) name
 
+fromImplicitParamName :: Name -> Name
+fromImplicitParamName name
+  = case splitLocalQualName name of
+      (m:ms) | m == implicitNameSpace -> qualifyLocally (unsplitModuleName ms) (unqualifyFull name)
+      _      -> name
+
+splitImplicitParamName :: Name -> (Name,Name)
+splitImplicitParamName name
+  = (name, unqualifyFull name)
+
+    {-
+    case splitAt "@-@" (nameStem name) of
+      (pre,post) | not (null pre) && not (null post) -> (toImplicitParamName (newName pre), newName post)
+      _ -> (name, plainImplicitParamName name)
+  where
+    splitAt sub s      | s `startsWith` sub  = ("",drop (length sub) s)
+    splitAt sub (c:cs) = let (pre,post) = splitAt sub cs in (c:pre,post)
+    splitAt sub ""     = ("","")
+    -}
+
+{-
 plainImplicitParamName :: Name -> Name
 plainImplicitParamName name
   = unqualifyFull name
@@ -763,16 +786,7 @@ plainImplicitParamName name
 namedImplicitParamName :: Name -> Name -> Name
 namedImplicitParamName pname ename
   = toImplicitParamName (newName (nameStem pname ++ "@-@" ++ nameStem ename))
-
-splitImplicitParamName :: Name -> (Name,Name)
-splitImplicitParamName name
-  = case splitAt "@-@" (nameStem name) of
-      (pre,post) | not (null pre) && not (null post) -> (toImplicitParamName (newName pre), newName post)
-      _ -> (name, plainImplicitParamName name)
-  where
-    splitAt sub s      | s `startsWith` sub  = ("",drop (length sub) s)
-    splitAt sub (c:cs) = let (pre,post) = splitAt sub cs in (c:pre,post)
-    splitAt sub ""     = ("","")
+-}
 
 {-
 canonicalName :: Int -> Name -> Name

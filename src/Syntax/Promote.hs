@@ -73,10 +73,7 @@ promote somePars forallPars preds mbResTp expr
     argresTypes (Ann expr tp r)     = let (es,expr') = argresTypes expr in (es,Ann expr' tp r)
     argresTypes (Lam args expr rng) = let (es,expr') = resType expr
                                           (fs,args') = unzip (map (\binder
-                                                                      -> let pname = case binderExpr binder of
-                                                                                       Just (Var name _ _) | isImplicitParamName (binderName binder)
-                                                                                         -> namedImplicitParamName (binderName binder) name
-                                                                                       _ -> binderName binder
+                                                                      -> let pname = binderName binder
                                                                          in case binderType binder of
                                                                               Nothing -> ((pname, Right rng), binder)
                                                                               Just tp

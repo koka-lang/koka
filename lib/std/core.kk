@@ -2114,12 +2114,12 @@ pub fun list/show( xs : list<a>, ?show : a -> e string ) : e string
   "[" ++ xs.map(show).join(",") ++ "]"
 
 // Show a tuple
-pub fun tuple2/show( x : (a,b), ?show1 : a -> e string = show, ?show2 : b -> e string = show) : e string
-  "(" ++ x.fst.show1 ++ "," ++ x.snd.show2 ++ ")"
+pub fun tuple2/show( x : (a,b), ?fst/show : a -> e string, ?snd/show : b -> e string) : e string
+  "(" ++ x.fst.show ++ "," ++ x.snd.show ++ ")"
 
 // Show a triple
-pub fun tuple3/show( x : (a,b,c), ?show1 : a -> e string = show, ?show2 : b -> e string = show, ?show3 : c -> e string) : e string
-  "(" ++ x.fst.show1 ++ "," ++ x.snd.show2 ++ "," ++ x.thd.show3 ++ ")"
+pub fun tuple3/show( x : (a,b,c), ?fst/show : a -> e string, ?snd/show : b -> e string, ?thd/show : c -> e string) : e string
+  "(" ++ x.fst.show ++ "," ++ x.snd.show ++ "," ++ x.thd.show ++ ")"
 
 // Show a `:maybe` type
 pub fun maybe/show( mb : maybe<a>, ?show : a -> e string ) : e string
@@ -2134,7 +2134,7 @@ pub fun show-list( xs : list<a>, show-elem : (a) -> e string ) : e string
 
 // _deprecated_, use `tuple2/show` instead
 pub fun show-tuple( x : (a,b), showfst : a -> e string, showsnd : b -> e string ) : e string
-  tuple2/show(x,?show1=showfst,?show2=showsnd)
+  tuple2/show(x,?fst/show=showfst,?snd/show=showsnd)
 
 
 // ----------------------------------------------------------------------------

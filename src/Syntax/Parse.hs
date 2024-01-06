@@ -1331,18 +1331,13 @@ parNormal allowDefaults
 parImplicit :: LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
 parImplicit
   = do unpack      <- do{ specialOp "??"; return True } <|> do{ specialOp "?"; return False }
-       let unpackExpr nm r  = let var = Var nm False r
-                              in (if unpack then Parens var nameNil r else var)  -- encode ?? as a Parens
-
-       (name,rng)  <- identifier
+       (qname,rng) <- qidentifier
        tp          <- optionMaybe typeAnnotPar
-       opt         <- do keyword "="
-                         (ename,erng) <- identifier
-                         return (Just (unpackExpr ename erng))
-                      <|>
-                         return (if unpack then Just (unpackExpr name rng) else Nothing)
-
-       return (ValueBinder (toImplicitParamName name) tp opt (combineRange rng (getRange opt)) rng, id)
+       let name       = toImplicitParamName (requalifyLocally qname)
+           unpackExpr = if unpack
+                          then Just (Parens (Var (unqualifyFull name) False rng) nameNil rng) -- encode ?? as a default value assuming it is a type name
+                          else Nothing
+       return (ValueBinder name tp unpackExpr (combineRange rng (getRange tp)) rng, id)
 
 paramid = identifier <|> wildcard
 
@@ -2003,7 +1998,8 @@ argument
          _              -> return (Nothing,exp)
   <|>
     do specialOp "?"
-       (name,rng) <- identifier
+       (qname,rng) <- qidentifier
+       let name = requalifyLocally qname
        keyword "="
        exp <- expr
        return (Just (toImplicitParamName name, rng), exp)

@@ -21,12 +21,13 @@ module Type.InfGamma (
                     , ppInfGamma
                     , infgammaUnion
                     , infgammaLookupX
+                    , infgammaLookupEx
                     , infgammaExtendX
                     ) where
 
 import Lib.PPrint
 import qualified Common.NameMap as M
-
+import Lib.Trace
 import Common.Range
 import Common.Name
 import Common.ColorScheme
@@ -34,13 +35,13 @@ import Common.Syntax( Visibility(..) )
 import Type.Type
 import Type.TypeVar
 import Type.Pretty
-import Type.Assumption( NameInfo(..) )
+import Type.Assumption( NameInfo(..), matchQualifiers )
 
 {--------------------------------------------------------------------------
   InfGamma
 --------------------------------------------------------------------------}
 -- | Environment mapping names to type schemes.
-newtype InfGamma   = InfGamma (M.NameMap NameInfo)
+newtype InfGamma   = InfGamma (M.NameMap [NameInfo])
 
 -- data InfInfo = InfInfo { infName :: Name, infType :: Type, infRange :: Range, infSort :: DefSort }
 
@@ -62,7 +63,12 @@ infgammaNew xs
 
 infgammaExtend :: Name -> NameInfo -> InfGamma -> InfGamma
 infgammaExtend name info (InfGamma infgamma)
-  = InfGamma (M.insert (unqualify name) info infgamma)  -- overwrite previous names
+  = InfGamma (M.insertWith combine (unqualifyFull name) [info] infgamma)  -- overwrite previous names
+
+combine :: [NameInfo] -> [NameInfo] -> [NameInfo]
+combine [] ys = ys
+combine (x:xx) ys
+  = combine xx (x : filter (\y -> infoCName y /= infoCName x) ys)
 
 infgammaExtendTp :: Name -> Name -> Scheme -> String -> InfGamma -> InfGamma
 infgammaExtendTp name cname tp doc infgamma
@@ -78,27 +84,42 @@ infgammaExtends tnames ig
 
 infgammaLookup :: Name -> InfGamma -> Maybe (Name,Type)
 infgammaLookup name infgamma
-  = fmap (\info -> (infoCName info, infoType info)) (infgammaLookupX name infgamma)
-
+  = case infgammaLookupX name infgamma of
+      Just info -> Just (infoCName info, infoType info)
+      Nothing   -> Nothing
 
 infgammaLookupX :: Name -> InfGamma -> Maybe NameInfo
-infgammaLookupX name (InfGamma infgamma)
-  = M.lookup name infgamma
+infgammaLookupX name infgamma
+  = case infgammaLookupEx name infgamma of
+      [info] | infoCName info == name -> Just info
+      _      -> Nothing
+
+infgammaLookupEx :: Name -> InfGamma -> [NameInfo]
+infgammaLookupEx name (InfGamma infgamma)
+  = let mbcandidates = M.lookup (unqualifyFull name) infgamma
+    in case mbcandidates of
+         Nothing -> []
+         Just candidates -> case filter (\info -> (infoCName info) == name) candidates of
+          [info] -> [info] -- there exists an exact match
+          _      -> -- trace ("infGammaLookupEx: " ++ show name ++ ":\n" ++ unlines (map show candidates)) $
+                    if not (null (nameLocalQual name))
+                      then filter (\info -> matchQualifiers name (infoCName info)) candidates -- filter matching names
+                      else candidates
 
 infgammaMap :: (Scheme -> Scheme) -> InfGamma -> InfGamma
 infgammaMap f (InfGamma infgamma)
-  = InfGamma (M.map (\info -> info{ infoType = f (infoType info)}) infgamma)
+  = InfGamma (M.map (\infos -> map (\info -> info{ infoType = f (infoType info)}) infos) infgamma)
 
 
 infgammaList :: InfGamma -> [(Name,Scheme)]
 infgammaList (InfGamma infgamma)
-  = [(name,infoType info) | (name,info) <- M.toAscList infgamma]
+  = [(infoCName info, infoType info) | (_,infos) <- M.toAscList infgamma, info <- infos]
 
 
 -- | right-biased union
 infgammaUnion :: InfGamma -> InfGamma -> InfGamma
 infgammaUnion (InfGamma g1) (InfGamma g2)
-  = InfGamma (M.union g2 g1)
+  = InfGamma (M.unionWith combine g2 g1)
 
 infgammaUnions :: [InfGamma] -> InfGamma
 infgammaUnions gs

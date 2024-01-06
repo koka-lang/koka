@@ -597,14 +597,15 @@ inferExpr propagated expect (Lam bindersL body0 rng)
            bodyCore1 = Core.addLambdas optPars topEff (Core.Lam [] topEff (coref core))
        bodyCore2 <- subst bodyCore1
        stopEff <- subst topEff
-       let pars = zipWith renameImplicitParams bindersL optPars
+       let pars = optPars
+                {- zipWith renameImplicitParams bindersL optPars
                 where
                   renameImplicitParams binder (_,parTp)
                     = let pname = case binderExpr binder of
                                     Just (Var ename _ rng) | isImplicitParamName (binderName binder)
                                       -> namedImplicitParamName (binderName binder) ename
                                     _ -> binderName binder
-                      in (pname, parTp)
+                      in (pname, parTp) -}
 
        -- check skolem escape
        sftp0 <- subst (typeFun pars stopEff tp)
@@ -653,7 +654,7 @@ inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name ==
        if (False && not allowed)
         then infError rng (text "illegal expression context for a return statement")
         else  do (tp,eff,core) <- inferExpr propagated expect expr
-                 mbTp <- lookupInfName (unqualify nameReturn)
+                 mbTp <- lookupInfName nameReturn -- (unqualify nameReturn)
                  case mbTp of
                    Nothing
                     -> do infError rng (text "illegal context for a return statement")
@@ -1713,12 +1714,11 @@ inferImplicitParam par
   = if isImplicitParamName (binderName par)
      then  do -- let pname = plainImplicitParamName (binderName par)
               unpack <- case binderExpr par of
-                Just (Parens (Var qname _ rng) _ _)  -- encoded in the parser with a parens expression..
-                  -> inferImplicitUnpack (binderRange par) rng (binderName par) qname
-                Just (Var name _ _) -> return id
-                Nothing             -> return id
-                Just expr           -> do contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
-                                          return id
+                Just (Parens (Var qname _ rng) _ _) -- encoded in the parser as a default expression
+                           -> inferImplicitUnpack (binderRange par) rng (binderName par) qname
+                Nothing    -> return id
+                Just expr  -> do contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
+                                 return id
               return (par{ -- leave the binder name locally qualified as `@implicit/name` -- binderName = pname,
                            binderExpr = Nothing }, unpack)
      else return (par, id)
@@ -1753,7 +1753,8 @@ inferImplicitUnpack rng nrng pname qname
               in do unpackBases <- mapM (\(fname,fqname) -> inferImplicitUnpack rng nrng fname fqname) bases  -- todo: stop recursion!
                     return (compose (unpack:unpackBases))
 
-        _  -> return id
+        _  -> do traceDefDoc $ \penv -> text "inferImplicitUnpack: cannot resolve" <+> text (show qname)
+                 return id
 
 
 -- | Infer automatic unwrapping for parameters with default values, and adjust their type from optional<a> to a

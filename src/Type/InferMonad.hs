@@ -1330,12 +1330,13 @@ lookupNames :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,
 lookupNames infoFilter name ctx range
   = do env <- getEnv
        -- traceDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
-       locals <- lookupLocalName infoFilter name
+       locals <- lookupLocalName infoFilter True name
        if (not (null locals))
          then -- a local name that matches exactly was found; use it always
               filterMatchNameContextEx range ctx locals
-         else  do -- otherwise consider globals as well, and also locally qualified implicits in the local scope
-                  ilocals <- lookupLocalName infoFilter (toImplicitParamName name)  -- consider "@implicit/<name>"
+         else  do -- otherwise consider globals as well, and also locally qualified names in the local scope
+                  -- todo: should we prioritize locally qualified names when disambiguating?
+                  ilocals <- lookupLocalName infoFilter False name  -- consider "@implicit/<name>"
                   let globals0 = ilocals ++
                                   filter (infoFilter . snd) (gammaLookup name (gamma env))
                   --  traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
@@ -1347,18 +1348,19 @@ lookupNames infoFilter name ctx range
                   --     <+> text ", globals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- globals1]
                   return globals1
 
-lookupLocalName :: (NameInfo -> Bool) -> Name -> Inf [(Name,NameInfo)]
-lookupLocalName infoFilter name
+lookupLocalName :: (NameInfo -> Bool) -> Bool -> Name -> Inf [(Name,NameInfo)]
+lookupLocalName infoFilter matchExact name
   = do env <- getEnv
        mod <- getModuleName
-       let locname = if (qualifier name == mod) then unqualify name        -- could use a qualified name to refer to a recursive function itself
-                                                else requalifyLocally name -- or refer to an implicit `implicit/x`
-       case infgammaLookupX locname (infgamma env) of
-                     Just info | infoFilter info -> do sinfo <- subst info
-                                                       let lname = infoCanonicalName name info
-                                                       return [(lname,sinfo)]
-                     _ -> return []
-
+       let locname  = if (qualifier name == mod) then {-unqualify-} name        -- could use a qualified name to refer to a recursive function itself
+                                                 else requalifyLocally name -- or refer to an implicit `implicit/x`
+           matches1 = if matchExact
+                        then case infgammaLookupX locname (infgamma env) of
+                               Just info | infoFilter info -> [info]
+                               _         -> []
+                        else filter infoFilter (infgammaLookupEx locname (infgamma env))
+       matches2 <- subst matches1
+       return [(infoCName info, info) | info <- matches2]
 
 filterMatchNameContext :: Range -> NameContext -> [(Name,NameInfo)] -> Inf [(Name,NameInfo)]
 filterMatchNameContext range ctx candidates
@@ -1894,7 +1896,7 @@ extendInfGammaEx topLevel ignores tnames inf
                                      <-> text " hint: if these are potentially recursive definitions, give a full type signature to disambiguate them.")
             Nothing
               -> do case (infgammaLookupX name infgamma) of
-                      Just info2 | infoCanonicalName name info2 /= nameReturn
+                      Just info2 | infoCanonicalName name info2 /= nameReturn  -- TODO: adapt to multiple matches?
                         -> do checkCasingOverlap range name (infoCanonicalName name info2) info2
                               env <- getEnv
                               if (not (isHiddenName name) && show name /= "resume" && show name /= "resume-shallow" && not (name `elem` ignores))
@@ -1986,7 +1988,10 @@ getLocalVars
 lookupInfName :: Name -> Inf (Maybe (Name,Type))
 lookupInfName name
   = do env <- getEnv
-       return (infgammaLookup name (infgamma env))
+       case infgammaLookupEx name (infgamma env) of
+         [info] -> return (Just (infoCName info,infoType info))
+         []     -> return Nothing
+         infos  -> failure ("InferMonad.lookupInfName: ambigous local? " ++ show name ++ ":\n" ++ unlines (map show infos))
 
 
 findDataInfo :: Name -> Inf DataInfo

@@ -1,8 +1,8 @@
 fun sum1( xs, ?(+), ?zero )
   xs.foldl(implicit/zero,implicit/(+))
 
-fun sum2( xs : list<a>, ?p1 : (a,a) -> a = (+), ?p2 : (a,a) -> a = (+), ?zero : a ) : a
-  xs.foldl(zero,fn(x,y) p1(x,p2(y,y)))
+fun sum2( xs : list<a>, ?fst/(+) : (a,a) -> a, ?snd/(+) : (a,a) -> a, ?zero : a ) : a
+  xs.foldl(zero,fn(x,y) fst/(+)(x,snd/(+)(y,y)))
 
 val zero = 0
 val zero_int = 0
@@ -10,7 +10,7 @@ val zero_float = 0.0
 
 fun test1()
   val zero = 0
-  [1,2].sum1(?(+)=(+),?zero=zero)
+  [1,2].sum1(?(+)=(+), ?zero=zero)
 
 
 fun test2()
@@ -29,4 +29,4 @@ fun test4()
   test(1,y=2+2,?z=1+2)
 
 fun test5()
-  [1,2].sum2( ?p2=(*))
+  [1,2].sum2( ?snd/(+)=(*))
