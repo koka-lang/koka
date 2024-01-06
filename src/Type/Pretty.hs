@@ -16,6 +16,7 @@ module Type.Pretty (-- * Pretty
                    ,typeColon, niceTypeVars, ppName, ppParam
                    , canonical, minCanonical
                    , prettyComment, prettyRange, ppNamePlain
+                   , keyword
                    ) where
 
 
@@ -80,6 +81,7 @@ niceEnv :: Env -> [TypeVar] -> Env
 niceEnv env typevars
   = env{ nice = niceTypeExtendVars typevars (nice env) }
 
+keyword :: Env -> String -> Doc
 keyword env s
   = color (colorTypeKeyword (colors env)) (text s)
 
@@ -440,10 +442,10 @@ ppNamePlain env name | isImplicitParamName name
 ppNamePlain env name
   = if (fullNames env)
      then prettyName (colors env) name
-     else if (context env == qualifier name ||
-                ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env))
-              -- || isNameTuple name
-              )
+     else if (not (isModuleName name) &&
+              (context env == qualifier name ||
+               ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env)))
+             )
            then prettyName (colors env) (unqualify name)
            else -- if coreIface env
                 -- then pretty name

@@ -65,18 +65,18 @@ mangle name tp
              else c : compress cc
 
 data RangeInfo
-  = Decl String Name Name  -- alias, type, cotype, rectype, fun, val
-  | Block String           -- type, kind, pattern
+  = Decl String Name Name (Maybe Type)   -- alias, type, cotype, rectype, fun, val
+  | Block String                -- type, kind, pattern
   | Error Doc
   | Warning Doc
   | Id Name NameInfo [Doc] Bool  -- qualified name, info, extra doc (from implicits), is this the definition?
   | Implicits Doc                -- inferred implicit arguments
 
 data NameInfo
-  = NIValue   Type String Bool -- Has annotated type already
-  | NICon     Type String
-  | NITypeCon Kind String
-  | NITypeVar Kind
+  = NIValue   { niSort :: String, niType:: Type, niComment :: String, niIsAnnotated :: Bool }  -- sort is fun, val, etc.
+  | NICon     { niType :: Type, niComment :: String }
+  | NITypeCon { niKind :: Kind, niComment :: String }
+  | NITypeVar { niKind :: Kind }
   | NIModule
   | NIKind
 
@@ -84,17 +84,20 @@ data NameInfo
 instance Show RangeInfo where
   show ri
     = case ri of
-        Decl kind nm1 nm2 -> "Decl " ++ kind ++ " " ++ show nm1 ++ " " ++ show nm2
-        Block kind        -> "Block " ++ kind
-        Error doc         -> "Error"
-        Warning doc       -> "Warning"
+        Decl kind nm1 nm2 mbType -> "Decl " ++ kind ++ " " ++ show nm1 ++ " " ++ show nm2 ++
+                                    (case mbType of
+                                       Just tp -> ": " ++ show (pretty tp)
+                                       _       -> "")
+        Block kind          -> "Block " ++ kind
+        Error doc           -> "Error"
+        Warning doc         -> "Warning"
         Id name info docs isDef -> "Id " ++ show name ++ (if isDef then " (def)" else "") ++ " " ++ show docs
         Implicits doc        -> "Implicits " ++ show doc
 
 instance Enum RangeInfo where
   fromEnum r
     = case r of
-        Decl _ name _    -> 0
+        Decl _ name _ _  -> 0
         Block _          -> 10
         Id name info _ _ -> 20
         Implicits _      -> 25
@@ -113,19 +116,19 @@ penalty name
 instance Enum NameInfo where
   fromEnum ni
     = case ni of
-        NIValue _ _ _ -> 1
-        NICon   _ _   -> 2
-        NITypeCon _ _ -> 3
-        NITypeVar _   -> 4
-        NIModule      -> 5
-        NIKind        -> 6
+        NIValue{}   -> 1
+        NICon{}     -> 2
+        NITypeCon{} -> 3
+        NITypeVar{} -> 4
+        NIModule    -> 5
+        NIKind      -> 6
 
   toEnum i
     = failure "Syntax.RangeMap.NameInfo.toEnum"
 
 isHidden ri
   = case ri of
-      Decl kind nm1 nm2       -> isHiddenName nm1
+      Decl kind nm1 nm2 _     -> isHiddenName nm1
       Id name info docs isDef -> isHiddenName name
       _ -> False
 
@@ -407,17 +410,17 @@ rangeInfoType :: RangeInfo -> Maybe Type
 rangeInfoType ri
   = case ri of
       Id _ info _ _ -> case info of
-                          NIValue tp _ _  -> Just tp
-                          NICon tp _      -> Just tp
-                          _               -> Nothing
+                          NIValue _ tp _ _  -> Just tp
+                          NICon tp _        -> Just tp
+                          _                 -> Nothing
       _ -> Nothing
 
 rangeInfoDoc :: RangeInfo -> Maybe String
 rangeInfoDoc ri
   = case ri of
       Id _ info _ _ -> case info of
-                         NIValue _ doc _ -> Just doc
-                         NICon _ doc  -> Just doc
+                         NIValue _ _ doc _ -> Just doc
+                         NICon _ doc       -> Just doc
 
       _ -> Nothing
 
@@ -444,18 +447,18 @@ instance HasTypeVar RangeInfo where
 instance HasTypeVar NameInfo where
   sub `substitute` ni
     = case ni of
-        NIValue tp annotated doc  -> NIValue (sub `substitute` tp) annotated doc
+        NIValue sort tp annotated doc  -> NIValue sort (sub `substitute` tp) annotated doc
         NICon tp doc   -> NICon (sub `substitute` tp) doc
         _           -> ni
 
   ftv ni
     = case ni of
-        NIValue tp _ _ -> ftv tp
-        NICon tp _   -> ftv tp
-        _           -> tvsEmpty
+        NIValue _ tp _ _ -> ftv tp
+        NICon tp _       -> ftv tp
+        _                -> tvsEmpty
 
   btv ni
     = case ni of
-        NIValue tp _ _  -> btv tp
-        NICon tp _    -> btv tp
-        _           -> tvsEmpty
+        NIValue _ tp _ _  -> btv tp
+        NICon tp _        -> btv tp
+        _                 -> tvsEmpty

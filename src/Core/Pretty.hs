@@ -9,7 +9,7 @@
 -}
 -----------------------------------------------------------------------------
 
-module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef, prettyDefs, prettyDefGroup, keyword, source ) where
+module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef, prettyDefs, prettyDefGroup, source ) where
 
 import Lib.Trace
 import Data.Char( isAlphaNum )
@@ -36,8 +36,6 @@ import Type.Pretty
 prettyNames :: Bool
 prettyNames = True
 
-keyword env s
-  = color (colorKeyword (colors env)) (text s)
 
 source env doc
   = color (colorSource (colors env)) doc

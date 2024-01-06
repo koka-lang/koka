@@ -33,7 +33,7 @@ import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)
 import Kind.Pretty (prettyKind)
 import Kind.ImportMap (importsEmpty, ImportMap)
-import Type.Pretty (ppScheme, defaultEnv, Env(..), ppName)
+import Type.Pretty (ppScheme, defaultEnv, Env(..), ppName, keyword)
 import Type.Type (Name)
 import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindAt)
 import Syntax.Colorize( removeComment )
@@ -93,31 +93,35 @@ rangeMapBestHover rm =
 
 -- Pretty-prints type/kind information to a hover tooltip given a type pretty environment, color scheme
 formatRangeInfoHover :: Loaded -> Env -> ColorScheme -> RangeInfo -> Doc
-formatRangeInfoHover loaded env colors rinfo =
-  case rinfo of
-  Id qname info docs isdef ->
-    let signature = ppName env qname <+>
-                    case info of
-                      NIValue tp doc _  -> text ":" <+> ppScheme env tp
-                      NICon tp doc      -> text ":" <+> ppScheme env tp
-                      NITypeCon k doc   -> text "::" <+> prettyKind colors k
-                      NITypeVar k       -> text "::" <+> prettyKind colors k
-                      NIModule -> text "module" <.>
-                                  (case filter (\mod -> modName mod == qname) (loadedModules loaded) of
-                                        [mod] | not (null (modSourcePath mod)) -> text (" (" ++ modSourcePath mod ++ ")")
-                                        _     -> empty
-                                    )
-                      NIKind -> text "kind"
-        comment = case info of
-                    NIValue tp doc _ -> ppComment doc
-                    NICon tp doc     -> ppComment doc
-                    NITypeCon k doc  -> ppComment doc
-                    _                -> empty
-    in asKokaCode (if null docs then signature else (signature <.> text "  " <-> color Gray (vcat docs)))
-       <.> comment
+formatRangeInfoHover loaded env colors rinfo
+  = let kw s      = keyword env s
+    in case rinfo of
+      Decl s name mname mbType -> asKokaCode (kw s <+> pretty name <.>
+                                              case mbType of
+                                                Just tp -> text " :" <+> ppScheme env tp
+                                                Nothing -> empty)
+      Block s             -> asKokaCode (kw s)
+      Error doc           -> text "error:" <+> doc
+      Warning doc         -> text "warning:" <+> doc
+      Implicits implicits -> text "implicits:" <+> text (show implicits)  -- should not occur
 
-  Decl s name mname   -> asKokaCode (text s <+> pretty name)
-  Block s             -> asKokaCode (text s)
-  Error doc           -> text "error:" <+> doc
-  Warning doc         -> text "warning:" <+> doc
-  Implicits implicits -> text "implicits:" <+> text (show implicits)  -- should not occur
+      Id qname info docs isdef ->
+        let namedoc   = ppName env qname
+            signature = case info of
+                          NIValue sort tp doc _  -> (if null sort then empty else kw sort) <+> namedoc <+> text ":" <+> ppScheme env tp
+                          NICon tp doc      -> kw "con" <+> namedoc <+> text ":" <+> ppScheme env tp
+                          NITypeCon k doc   -> kw "type" <+> namedoc <+> text "::" <+> prettyKind colors k
+                          NITypeVar k       -> kw "type" <+> namedoc <+> text "::" <+> prettyKind colors k
+                          NIModule -> kw "module" <+> namedoc <.>
+                                      (case filter (\mod -> modName mod == qname) (loadedModules loaded) of
+                                            [mod] | not (null (modSourcePath mod)) -> text (" (at \"" ++ modSourcePath mod ++ "\")")
+                                            _     -> empty
+                                        )
+                          NIKind -> kw "kind" <+> namedoc
+            comment = case info of
+                        NIValue _ tp doc _ -> ppComment doc
+                        NICon tp doc       -> ppComment doc
+                        NITypeCon k doc    -> ppComment doc
+                        _                  -> empty
+        in asKokaCode (if null docs then signature else (signature <.> text "  " <-> color Gray (vcat docs)))
+          <.> comment

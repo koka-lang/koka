@@ -30,6 +30,7 @@ module Type.Assumption (
                     , infoElement
                     , infoDocString
                     , infoCanonicalName
+                    , infoSort
                     , fipFromNameInfo
                     -- * From Core
                     , extractGammaImports
@@ -67,6 +68,16 @@ data NameInfo
   | InfoExternal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoFormat :: [(Target,String)], infoFip :: Fip, infoRange :: Range}
   | InfoImport{ infoVis :: Visibility, infoType :: Scheme, infoAlias :: Name, infoFullName :: Name, infoRange :: Range}
   deriving (Show)
+
+infoSort :: NameInfo -> String
+infoSort info
+  = case info of
+      InfoVal{}      -> "val"
+      InfoFun{}      -> "fun"
+      InfoExternal{} -> "extern"
+      InfoCon{}      -> "con"
+      InfoImport{}   -> "module"
+
 
 infoCanonicalName :: Name -> NameInfo -> Name
 infoCanonicalName name info

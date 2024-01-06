@@ -278,8 +278,9 @@ addRangeInfoCoreDef topLevel mod def coreDef
   = let qname = if (topLevel && not (isQualified (Core.defName coreDef)))
                  then qualify mod (Core.defName coreDef)
                  else Core.defName coreDef
-    in do addRangeInfo (Core.defNameRange coreDef) (RM.Id qname (RM.NIValue (Core.defType coreDef) (defDoc def) True) [] True)
-          addRangeInfo (defRange def) (RM.Decl (if defIsVal def then "val" else "fun") qname (RM.mangle qname (Core.defType coreDef)))
+        sort = (if defIsVal def then "val" else "fun")
+    in do addRangeInfo (Core.defNameRange coreDef) (RM.Id qname (RM.NIValue sort (Core.defType coreDef) (defDoc def) True) [] True)
+          addRangeInfo (defRange def) (RM.Decl sort qname (RM.mangle qname (Core.defType coreDef)) (Just (Core.defType coreDef)))
 
 
 -- | Add divergent effect to the type of the core definitions
@@ -470,7 +471,7 @@ isAnnotatedBinder (ValueBinder _ Just{} _ _ _) = True
 isAnnotatedBinder _                                 = False
 
 inferBindDef :: Def Type -> Inf (Effect,Core.Def)
-inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
+inferBindDef def@(Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
   = -- trace ("infer bind def: " ++ show name ++ ", var?:" ++ show (sort==DefVar)) $
     do withDefName name $ disallowHole $
         do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated expr
@@ -487,7 +488,8 @@ inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
                                return (Core.Def name refTp refExpr vis sort inl nameRng doc)
 
            if (not (isWildcard name))
-            then addRangeInfo nameRng (RM.Id name (RM.NIValue (Core.defType coreDef) doc (isAnnot expr)) [] True)
+            then let sort = (if defIsVal def then "val" else "fun")
+                 in addRangeInfo nameRng (RM.Id name (RM.NIValue sort (Core.defType coreDef) doc (isAnnot expr)) [] True)
             else if (isTypeUnit (Core.typeOf coreDef))
              then return ()
              else do seff <- subst eff
@@ -627,7 +629,7 @@ inferExpr propagated expect (Lam bindersL body0 rng)
         else let b = head polyBinders
              in typeError (rng) (binderNameRange b) (text "unannotated parameters cannot be polymorphic") (binderType b) [(text "hint",text "annotate the parameter with a polymorphic type")]
 
-       mapM_ (\(arg,binder,tp) -> addRangeInfo (binderNameRange binder) (RM.Id (binderName binder) (RM.NIValue tp "" (case arg of {Just s -> True; Nothing -> False})) [] True)) (zip3 propArgs binders1 parTypes2)
+       mapM_ (\(arg,binder,tp) -> addRangeInfo (binderNameRange binder) (RM.Id (binderName binder) (RM.NIValue "val" tp "" (case arg of {Just s -> True; Nothing -> False})) [] True)) (zip3 propArgs binders1 parTypes2)
        eff <- freshEffect
        return (ftp, eff, fcore )
 
@@ -659,7 +661,7 @@ inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name ==
                     -> do inferUnify (checkReturn rng) (getRange expr) retTp tp
                  resTp <- Op.freshTVar kindStar Meta
                  let typeReturn = typeFun [(nameNil,tp)] typeTotal resTp
-                 addRangeInfo nameRng (RM.Id (newName "return") (RM.NIValue tp "" True) [] False)
+                 addRangeInfo nameRng (RM.Id (newName "return") (RM.NIValue "return" tp "" True) [] False)
                  return (resTp, eff, Core.App (Core.Var (Core.TName nameReturn typeReturn)
                                       (Core.InfoExternal [(Default,"return #1")])) [core])
 -- | Assign expression
@@ -920,7 +922,7 @@ inferExpr propagated expect (Lit lit)
 inferExpr propagated expect (Parens expr name rng)
   = do (tp,eff,core) <- inferExpr propagated expect expr
        if (name /= nameNil)
-         then do addRangeInfo rng (RM.Id name (RM.NIValue tp "" True) [] True)
+         then do addRangeInfo rng (RM.Id name (RM.NIValue "val" tp "" True) [] True)
          else return ()
        return (tp,eff,core)
 
@@ -1486,23 +1488,23 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                                                                              [(Nothing,App (Var nameByref False irng)
                                                                                            [(Nothing,Var name False irng)] irng)] irng)
                                                                         name rng)
-                addRangeInfo rng (RM.Id qname (RM.NIValue tp1  (infoDocString info) True) [] False)
+                addRangeInfo rng (RM.Id qname (RM.NIValue (infoSort info) tp1  (infoDocString info) True) [] False)
                 -- traceDoc $ \env -> text " deref" <+> pretty name <+> text "to" <+> ppType env tp1
                 return (tp1,eff1,core1)
         else case info of
          InfoVal{ infoIsVar = True }  | isRhs  -- is it a right-hand side variable?
            -> do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
-                 addRangeInfo rng (RM.Id qname (RM.NIValue tp1 (infoDocString info) True) [] False)
+                 addRangeInfo rng (RM.Id qname (RM.NIValue (infoSort info) tp1 (infoDocString info) True) [] False)
                  return (tp1,eff1,core1)
          InfoVal{} | isValueOperation tp
-           -> do addRangeInfo rng (RM.Id qname (RM.NIValue tp (infoDocString info) True) [] True)
+           -> do addRangeInfo rng (RM.Id qname (RM.NIValue (infoSort info) tp (infoDocString info) True) [] True)
                  inferExpr propagated expect (App (Var (toValueOperationName qname) False rangeNull) [] rangeNull)
          _ -> --  inferVarX propagated expect name rng qname1 tp1 info1
               do let coreVar = coreExprFromNameInfo qname info
                  -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
                  (itp,coref) <- maybeInstantiate rng expect tp
                  sitp <- subst itp
-                 addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue sitp (infoDocString info) True) [] False)
+                 addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue (infoSort info) sitp (infoDocString info) True) [] False)
 
                  -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp)
                  eff <- freshEffect
@@ -1650,7 +1652,7 @@ inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withP
 
 
 inferPattern matchType branchRange (PatVar binder) withPattern inferPart
-  =  do addRangeInfo (binderNameRange binder) (RM.Id (binderName binder) (RM.NIValue matchType "" (isAnnotatedBinder binder)) [] True)
+  =  do addRangeInfo (binderNameRange binder) (RM.Id (binderName binder) (RM.NIValue "val" matchType "" (isAnnotatedBinder binder)) [] True)
         case (binderType binder) of
           Just tp -> inferUnify (checkAnn (getRange binder)) (binderNameRange binder) matchType tp
           Nothing -> return ()

@@ -23,7 +23,7 @@ module Common.Name
           , nameCaseEqual, nameCaseOverlap, isSameNamespace
           , nameCaseEqualPrefixOf, nameCaseOverlapPrefixOf
           , qualify, unqualify, isQualified, qualifier
-          , nameModule, nameStem, nameLocal, nameLocalQual
+          , nameModule, nameStem, nameLocal, nameLocalQual, isModuleName
 
           , newPaddingName, isPaddingName, isCCtxName
           , newFieldName, isFieldName, isWildcard

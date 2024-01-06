@@ -67,8 +67,8 @@ rangeInfoPriority (r,ri) =
     Id _ (NICon{}) _ True -> 3
     Id _ _ _ True -> 2
     Id _ _ _ _ -> 0
-    Decl "con" _ _ -> 3 -- Constructors are more important than other decls (such as automatically generated ones)
-    Decl _ _ _ -> 1
+    Decl "con" _ _ _ -> 3 -- Constructors are more important than other decls (such as automatically generated ones)
+    Decl _ _ _ _     -> 1
     Warning _ -> 4
     Error _ -> 5
     Implicits _ -> -1 -- Use the id

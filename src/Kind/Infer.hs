@@ -97,7 +97,7 @@ inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
       let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors platform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
           (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors platform rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
           (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors platform rm2 modName imports kgamma1 syns1 data1 unique2 (infDefGroups defs)
-          (_,_,rm4,_,_) = runKindInfer colors platform rm3 modName imports kgamma1 syns1 data1 unique3 (infImports importdefs)
+          (_,_,rm4,_,_) = runKindInfer colors platform rm3 modName imports kgamma1 syns1 data1 unique3 (infImports modName nameRange importdefs)
   --        (errs4,warns4,unique4,cgroups)                 = runKindInfer colors modName imports kgamma1 syns1 unique3 (infCoreTDGroups cgroups)
           (synInfos,dataInfos) = unzipEither (extractInfos cgroups)
           conInfos  = concatMap dataInfoConstrs dataInfos
@@ -307,9 +307,10 @@ constructorCheckDuplicates cscheme conInfos
       = []
 
 
-infImports :: [Import] -> KInfer ()
-infImports imports
-  = mapM_ infImport imports
+infImports :: Name -> Range -> [Import] -> KInfer ()
+infImports modName modRange imports
+  = do addRangeInfo modRange  (Id modName NIModule [] True)
+       mapM_ infImport imports
 
 infImport :: Import -> KInfer ()
 infImport (Import alias qname aliasRange nameRange range vis)
@@ -420,8 +421,8 @@ infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
        checkExternal cname nameRng
        if (isHiddenName name)
         then return ()
-        else do addRangeInfo nameRng (Id qname (NIValue tp' doc True) [] True)
-                addRangeInfo rng (Decl "external" qname (mangle cname tp'))
+        else do addRangeInfo nameRng (Id qname (NIValue "extern" tp' doc True) [] True)
+                addRangeInfo rng (Decl "extern" qname (mangle cname tp') (Just tp'))
        -- trace ("infExternal: " ++ show cname ++ ": " ++ show (pretty tp')) $
        return (Core.External cname tp' pinfos (map (formatCall tp') calls)
                   vis fip nameRng doc, qname:names)
@@ -804,7 +805,7 @@ resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
                       return (typeApp tp' (map TVar etaVars), typeVars ++ etaVars)
 
        -- trace (showTypeBinder syn') $
-       addRangeInfo range (Decl "alias" (getName syn') (mangleTypeName (getName syn')))
+       addRangeInfo range (Decl "alias" (getName syn') (mangleTypeName (getName syn')) (Just tp'))
        let synInfo = SynInfo (getName syn') (typeBinderKind syn') etaParams etaTp (maxSynonymRank etaTp + 1) range vis doc
        addSynonym synInfo
        return (Core.Synonym synInfo)
@@ -883,7 +884,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                       _ -> return dataInfo0
        -}
        -- trace (showTypeBinder newtp') $
-       addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')))
+       addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')) Nothing)
        return (Core.Data dataInfo isExtend)
   where
     conVis (UserCon name exist params result rngName rng vis _) = vis
@@ -953,7 +954,7 @@ resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (Us
                     Just tp -> resolveType idmap' False tp
        let scheme = quantifyType (typeParams ++ existVars) $
                     if (null params') then result' else typeFun [(binderName p, binderType p) | (_,p) <- params'] typeTotal result'
-       addRangeInfo rng (Decl "con" qname (mangleConName qname))
+       addRangeInfo rng (Decl "con" qname (mangleConName qname) (Just scheme))
        addRangeInfo rngName (Id qname (NICon scheme doc) [] True)
        let fields = map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] (map snd params'))
        --    emitError makeMsg = do cs <- getColorScheme
@@ -986,7 +987,7 @@ resolveConParam idmap (vis,vb)
                  Just e  -> {- do e' <- infExpr e
                                   return (Just e') -}
                             return (Just (failure "Kind.Infer.resolveConParam: optional parameter expression in constructor"))
-       addRangeInfo (binderNameRange vb) (Id (binderName vb) (NIValue tp "" True) [] True)
+       addRangeInfo (binderNameRange vb) (Id (binderName vb) (NIValue "val" tp "" True) [] True)
        return (vis,vb{ binderType = tp, binderExpr = expr })
 
 -- | @resolveType@ takes: a map from locally quantified type name variables to types,
