@@ -38,7 +38,6 @@ import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getFlags, getInlay
 import LanguageServer.Conversions (fromLspPos, toLspRange, toLspPos, fromLspRange)
 import LanguageServer.Handler.Hover (formatRangeInfoHover)
 
--- import Debug.Trace (trace)
 
 -- The LSP handler that provides inlay hints (inline type annotations etc)
 inlayHintsHandler :: Handlers LSM
@@ -100,8 +99,8 @@ typeHint env range rinfo
 qualifierHint :: Env -> Name -> [Lexeme] -> Range -> RangeInfo -> [J.InlayHint]
 qualifierHint env modName lexemes rng rinfo
   = case rinfo of
-      Id qname _ _ _  | isQualified qname
-        -> -- trace ("implicitsQualifier: " ++ show rinfo ++ ": " ++ show (take 1 lexemes)) $
+      Id qname _ _ _  | qname /= unqualifyFull qname
+        -> -- trace ("qualifierHint: " ++ show rinfo ++ ": " ++ show (take 1 lexemes)) $
            let qual = getQualifier qname
            in if null qual then [] else [newInlayHint (rangeJustBefore rng) qual J.InlayHintKind_Type False]
       _ -> []
@@ -143,6 +142,7 @@ finalCallRange (lex1:lexes)
       = case lexes of
           (Lexeme rng (LexKeyword "." _)):_ -> True
           (Lexeme rng (LexSpecial ";")):_   -> True
+          (Lexeme rng (LexOp _)):_          -> True
           (Lexeme rng LexInsSemi):_         -> True
           (Lexeme rng LexInsLCurly):_       -> True
           _ -> False

@@ -630,7 +630,9 @@ inferExpr propagated expect (Lam bindersL body0 rng)
         else let b = head polyBinders
              in typeError (rng) (binderNameRange b) (text "unannotated parameters cannot be polymorphic") (binderType b) [(text "hint",text "annotate the parameter with a polymorphic type")]
 
-       mapM_ (\(arg,binder,tp) -> addRangeInfo (binderNameRange binder) (RM.Id (binderName binder) (RM.NIValue "val" tp "" (case arg of {Just s -> True; Nothing -> False})) [] True)) (zip3 propArgs binders1 parTypes2)
+       mapM_ (\(binder,tp) -> addRangeInfo (binderNameRange binder) (RM.Id (binderName binder)
+                                (RM.NIValue "val" tp "" (case binderType binder of {Just _ -> True; Nothing -> False})) [] True))
+             (zip binders0 parTypes2)
        eff <- freshEffect
        return (ftp, eff, fcore )
 

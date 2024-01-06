@@ -27,7 +27,7 @@ module Type.InfGamma (
 
 import Lib.PPrint
 import qualified Common.NameMap as M
-import Lib.Trace
+import Debug.Trace
 import Common.Range
 import Common.Name
 import Common.ColorScheme
@@ -91,20 +91,20 @@ infgammaLookup name infgamma
 infgammaLookupX :: Name -> InfGamma -> Maybe NameInfo
 infgammaLookupX name infgamma
   = case infgammaLookupEx name infgamma of
-      [info] | infoCName info == name -> Just info
+      [info] | unqualify (infoCName info) == unqualify name -> Just info
       _      -> Nothing
+
+isMatch name info
+  = -- note: the only qualified names in infgamma are from local recursive definitions (so we can safely unqualify)
+    matchQualifiers name (infoCName info)
 
 infgammaLookupEx :: Name -> InfGamma -> [NameInfo]
 infgammaLookupEx name (InfGamma infgamma)
   = let mbcandidates = M.lookup (unqualifyFull name) infgamma
     in case mbcandidates of
          Nothing -> []
-         Just candidates -> case filter (\info -> (infoCName info) == name) candidates of
-          [info] -> [info] -- there exists an exact match
-          _      -> -- trace ("infGammaLookupEx: " ++ show name ++ ":\n" ++ unlines (map show candidates)) $
-                    if not (null (nameLocalQual name))
-                      then filter (\info -> matchQualifiers name (infoCName info)) candidates -- filter matching names
-                      else candidates
+         Just candidates -> filter (isMatch name) candidates
+
 
 infgammaMap :: (Scheme -> Scheme) -> InfGamma -> InfGamma
 infgammaMap f (InfGamma infgamma)

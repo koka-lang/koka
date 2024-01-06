@@ -1036,8 +1036,8 @@ pub fun (~=)(x : ddouble, y : ddouble ) : bool
 // A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
 // Math. Mechanik, 54:39--51, 1974.
 pub fun list/sum( xs : list<ddouble> ) : ddouble
-  var total : ddouble := zero
-  var comp  : ddouble := zero
+  var total := zero
+  var comp  := zero
   xs.foreach fn(x)
     val t = total + x
     val c = if total.abs >= x.abs then (total - t) + x else (x - t) + total

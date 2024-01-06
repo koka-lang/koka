@@ -121,10 +121,10 @@ import Core.Pretty()
 import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert )
 import Syntax.Syntax(Expr(..),ValueBinder(..))
 
-import qualified Lib.Trace( trace )
+import qualified Debug.Trace as DT
 
 trace s x =
-  Lib.Trace.trace (" " ++ s)
+  DT.trace (" " ++ s)
    x
 
 {--------------------------------------------------------------------------
@@ -1339,9 +1339,9 @@ lookupNames infoFilter name ctx range
                   ilocals <- lookupLocalName infoFilter False name  -- consider "@implicit/<name>"
                   let globals0 = ilocals ++
                                   filter (infoFilter . snd) (gammaLookup name (gamma env))
-                  --  traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
-                  --     <+> text ", locals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- locals0]
-                  --     <+> text ", globals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- globals']
+                  -- traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
+                  --      <+> text ", ilocals:" <+> list [Pretty.ppName penv (name) | (name,info) <- ilocals]
+                  --      <+> text ", globals0:" <+> list [Pretty.ppName penv (name) | (name,info) <- globals0]
                   globals1 <- filterMatchNameContextEx range ctx globals0
                   --  traceDefDoc $ \penv -> text " lookupNames:" <+> ppNameCtx penv (name,ctx)
                   --     <+> text ", locals:" <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- locals1]
@@ -1355,10 +1355,10 @@ lookupLocalName infoFilter matchExact name
        let locname  = if (qualifier name == mod) then {-unqualify-} name        -- could use a qualified name to refer to a recursive function itself
                                                  else requalifyLocally name -- or refer to an implicit `implicit/x`
            matches1 = if matchExact
-                        then case infgammaLookupX locname (infgamma env) of
+                        then case infgammaLookupX name (infgamma env) of
                                Just info | infoFilter info -> [info]
                                _         -> []
-                        else filter infoFilter (infgammaLookupEx locname (infgamma env))
+                        else filter infoFilter (infgammaLookupEx name (infgamma env))
        matches2 <- subst matches1
        return [(infoCName info, info) | info <- matches2]
 

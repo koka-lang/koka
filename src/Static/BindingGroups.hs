@@ -175,7 +175,7 @@ dependencyExpr extraDeps modName expr
       Let group body rng   -> let (depGroups,fv1,names) = dependencyDefGroupFv extraDeps modName group
                                   (depBody,fv2)   = dependencyExpr extraDeps modName body
                               in (foldr (\g b -> Let g b rng)  depBody depGroups, S.union fv1 (S.difference fv2 names))
-      Var name op rng      -> let uname = name -- if (qualifier name == modName) then unqualify name else name
+      Var name op rng      -> let uname = unqualify name -- if (qualifier name == modName) then unqualify name else name
                               in if isConstructorName name
                                   then (expr,S.fromList [uname,newCreatorName uname])
                                   else let extra = case M.lookup (unqualifyFull name) extraDeps of

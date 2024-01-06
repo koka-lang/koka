@@ -95,7 +95,8 @@ fun cmp-and-eq(xs : list<a>, y : a, ?cmp : (a,a) -> order) : bool
   int/cmp(1,2) == Eq  &&
   cmp(1,2) == Eq  &&         // we cannot resolve this to `int/cmp` unless we allow a bypass
   xcompare(1,2) == Eq  &&        // we can resolve ?cmp=int/cmp as we allow bypass for implicits.. (as long as a local cmp does not type check)
-  implicit/cmp(y,y) == Eq
+  implicit/cmp(y,y) == Eq &&
+  cmp(y,y) == Eq
 
 // foo :: Ord a => [a] -> a -> Bool
 // foo xs y   = (1 == 2) &&    // use `instance Eq Int`

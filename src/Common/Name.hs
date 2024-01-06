@@ -54,11 +54,11 @@ module Common.Name
 
           , prettyName, prettyCoreName
           , requalifyLocally, qualifyLocally, unqualifyFull, isLocallyQualified, fullQualifier
-          , unqualifyAsModuleName
+          , unqualifyAsModuleName, unqualifyLocally
           ) where
 
 -- import Lib.Trace( trace )
--- import Debug.Trace
+import Debug.Trace
 import Lib.PPrint
 import Data.Char(isUpper,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
 import Common.Failure(failure,assertion)
@@ -377,7 +377,7 @@ missingQualifier currentMod name qname
         missing  = case filter (\std -> (std ++ "/") `isPrefixOf` missing0) standard of
                     (std:_) -> drop (length std + 1) missing0
                     _       -> missing0
-    in -- trace ("missingQualifier: " ++ show [currentMod,name,qname] ++ ", missing: " ++ show (missing0,missing))$
+    in -- trace ("missingQualifier: " ++ show [currentMod,name,qname] ++ ", missing: " ++ show (missing0,missing)) $
        missing
 
 {-
