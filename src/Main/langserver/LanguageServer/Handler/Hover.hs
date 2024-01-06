@@ -38,7 +38,7 @@ import Type.Type (Name)
 import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindAt)
 import Syntax.Colorize( removeComment )
 import LanguageServer.Conversions (fromLspPos, toLspRange)
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getHtmlPrinter, getFlags)
+import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getHtmlPrinter, getFlags, getLoadedSuccess)
 import Debug.Trace (trace)
 import LanguageServer.Handler.Pretty (ppComment, asKokaCode)
 
@@ -49,12 +49,12 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
   let J.HoverParams doc pos _ = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
-  loadedMod <- getLoadedModule normUri
-  loaded <- getLoaded normUri
+  -- outdated information is fine even if ranges are slightly different, we want to still be able to get hover info
+  loaded <- getLoadedSuccess normUri  
   pos <- liftIO $ fromLspPos normUri pos
   let res = do -- maybe monad
-        mod  <- loadedMod
         l    <- loaded
+        let mod  = loadedModule l
         rmap <- modRangeMap mod
         -- Find the range info at the given position
         {- let rm = rangeMapFindAt (modLexemes mod) pos rmap

@@ -34,7 +34,7 @@ import Compiler.Options (prettyEnvFromFlags, Flags)
 import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindIn, lexemesFromPos)
 import Syntax.Lexeme (Lexeme (..), Lex (..))
 import Language.LSP.Server (Handlers, sendNotification, requestHandler)
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getFlags, getInlayHintOptions, InlayHintOptions (..))
+import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getFlags, getInlayHintOptions, InlayHintOptions (..), getLoadedLatest)
 import LanguageServer.Conversions (fromLspPos, toLspRange, toLspPos, fromLspRange)
 import LanguageServer.Handler.Hover (formatRangeInfoHover)
 
@@ -48,12 +48,11 @@ inlayHintsHandler = requestHandler J.SMethod_TextDocumentInlayHint $ \req respon
       normUri = J.toNormalizedUri uri
   options <- getInlayHintOptions
   newRng <- liftIO $ fromLspRange normUri rng
-  loadedMod <- getLoadedModule normUri
-  loaded <- getLoaded normUri
+  loaded <- getLoadedLatest normUri -- don't trust outdated versions
   flags <- getFlags
   let rsp = do -- maybe monad
         l <- loaded
-        lm <- loadedMod
+        let lm = loadedModule l
         rmap <- modRangeMap lm
         -- trace (show $ rangeMapFindIn newRng rmap) $ return ()
         let env = (prettyEnvFromFlags flags){

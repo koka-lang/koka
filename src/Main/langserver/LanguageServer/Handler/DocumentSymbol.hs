@@ -29,7 +29,7 @@ import Common.NamePrim (namePhantom)
 import Compiler.Module                   ( modProgram, loadedModule, Loaded (..) )
 import Syntax.Syntax
 import LanguageServer.Conversions        ( toLspRange )
-import LanguageServer.Monad              ( LSM, getLoaded )
+import LanguageServer.Monad              ( LSM, getLoaded, getLoadedLatest, getLoadedSuccess )
 
 -- The LSP handler that provides the symbol tree of a document
 -- Symbols include
@@ -46,7 +46,7 @@ documentSymbolHandler = requestHandler J.SMethod_TextDocumentDocumentSymbol $ \r
   let J.DocumentSymbolParams _ _ doc = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
-  loaded <- getLoaded normUri
+  loaded <- getLoadedSuccess normUri -- Don't care about outdated information
   let symbols = findDocumentSymbols =<< maybeToList loaded
   responder $ Right $ J.InR $ J.InL symbols
 

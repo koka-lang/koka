@@ -61,7 +61,7 @@ import Syntax.Parse (parseProgramFromFile, parseProgramFromString)
 import Syntax.Layout (layout)
 import Language.LSP.Protocol.Types (InsertTextFormat(InsertTextFormat_Snippet))
 import LanguageServer.Conversions (fromLspPos, fromLspUri, toLspPos, toLspRange)
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, SignatureContext(..))
+import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, SignatureContext(..), getLoadedSuccess)
 import LanguageServer.Handler.Hover (formatRangeInfoHover)
 import qualified Data.Text.Encoding as T
 import Common.File (isLiteralDoc)
@@ -78,12 +78,11 @@ completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req respo
   let J.CompletionParams doc pos _ _ context = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
-  loaded <- getLoaded normUri
-  loadedM <- getLoadedModule normUri
+  loaded <- getLoadedSuccess normUri -- We want gamma and things, so we want the last successful version
   vfile <- getVirtualFile normUri
   let maybeRes = do -- maybeMonad
         l <- loaded
-        lm <- loadedM
+        let lm = loadedModule l
         vf <- vfile
         return (l, lm, vf)
   items <- case maybeRes of
