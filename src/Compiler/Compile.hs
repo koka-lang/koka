@@ -205,7 +205,7 @@ compileExpression maybeContents term flags loaded compileTarget program line inp
                    Just (_,_,tres)  | isTypeUnit tres
                       -> compileProgram' maybeContents term flags (loadedModules ld) compileTarget  "<interactive>" programDef []
                    Just (_,_,tres)  | isFun tres
-                      -> liftErrorPartial loaded $ errorMsg (ErrorGeneral rangeNull (text "function values cannot be shown (maybe call it by adding parenthesis, e.g. f() ?)"))
+                      -> liftErrorPartial loaded $ errorMsg (ErrorGeneral rangeNull (text "function values cannot be shown (maybe add parenthesis, e.g. foo() ?)"))
                    -- check if there is a show function, or use generic print if not.
                    Just (_,_,tres)
                       -> {- do -- ld <- compileProgram' term flags (loadedModules ld0) Nothing "<interactive>" programDef
@@ -223,7 +223,8 @@ compileExpression maybeContents term flags loaded compileTarget program line inp
                                           mkApp e es = App e [(Nothing,x) | x <- es] r
                                       let expression = mkApp (Var (qualify nameSystemCore (qualifyLocally (newModuleName "string") (newName "println"))) False r)
                                                         [mkApp (Var {-qnameShow-} (newName "show") False r) [mkApp (Var qnameExpr False r) []]]
-                                      let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
+                                      let qmain = (qualify (getName program) nameMain)
+                                      let defMain = Def (ValueBinder qmain () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
                                       let programDef' = programAddDefs programDef [] [defMain]
                                       compileProgram' maybeContents term flags (loadedModules ld) (Executable nameMain ()) "<interactive>" programDef' []
                               {-
@@ -484,9 +485,7 @@ wrapMain  term flags loaded0 loaded1 compileTarget program coreImports = do
                                     Nothing -> return (Executable mainName tp, loaded0)
                                     Just f  ->
                                       let mainName2  = qualify (getName program) (newHiddenName "hmain")
-                                          expression = App (Var (if (isHiddenName mainName) then mainName -- .expr
-                                                                                            else unqualify mainName -- main
-                                                                ) False r) [] r
+                                          expression = App (Var mainName False r) [] r
                                           defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (defFun []) InlineNever ""
                                           program2   = programAddDefs program [] [defMain]
                                       in do (loaded3,_) <- ignoreWarnings $ typeCheck loaded1 flags 0 coreImports program2
