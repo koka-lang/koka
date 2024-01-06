@@ -26,7 +26,7 @@ import Compiler.Compile (modName, Module (modProgram))
 import Syntax.Syntax
 import Type.Pretty (ppName)
 import LanguageServer.Conversions (fromLspPos, toLspRange)
-import LanguageServer.Monad (LSM, getLoaded)
+import LanguageServer.Monad (LSM, getLoaded, getLoadedLatest)
 
 -- Handles hover requests
 foldingHandler :: Handlers LSM
@@ -34,7 +34,7 @@ foldingHandler = requestHandler J.SMethod_TextDocumentFoldingRange $ \req respon
   let J.FoldingRangeParams _ _ doc = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
-  loaded <- getLoaded normUri
+  loaded <- getLoadedLatest normUri
   let foldings = findFoldingRanges =<< maybeToList loaded
   responder $ Right $ J.InL foldings
 

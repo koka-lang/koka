@@ -14,10 +14,10 @@ import Language.LSP.Server (Handlers, requestHandler, sendNotification, getVirtu
 import Data.Aeson
 import Data.Aeson.Types as A
 import Common.Name ( Name, readQualifiedName, nameNil )
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, SignatureContext(..), clearSignatureContext, getSignatureContext, getFlags, getHtmlPrinter)
+import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, SignatureContext(..), clearSignatureContext, getSignatureContext, getFlags, getHtmlPrinter, getLoadedSuccess)
 import Debug.Trace (trace)
 import Syntax.RangeMap (rangeMapFindAt, previousLexemesReversed, getFunctionIncompleteReverse, FnSyntax (..), getFunctionNameReverse)
-import Compiler.Module (modRangeMap, modLexemes, loadedGamma, Module (..), Loaded (loadedImportMap))
+import Compiler.Module (modRangeMap, modLexemes, loadedGamma, Module (..), Loaded (loadedImportMap, loadedModule))
 import Control.Monad.IO.Class (liftIO)
 import LanguageServer.Conversions (fromLspPos, fromLspUri)
 import Syntax.Lexeme (Lexeme(..))
@@ -49,19 +49,19 @@ signatureHelpHandler :: Handlers LSM
 signatureHelpHandler = requestHandler J.SMethod_TextDocumentSignatureHelp $ \req responder -> do
   let J.SignatureHelpParams doc pos prog context = req ^. J.params
       uri = J.toNormalizedUri $ doc ^. J.uri
-  loaded <- getLoaded uri
+  -- Get additional signature context given by the client (from completions)
   sig <- getSignatureContext
-  lm <- getLoadedModule uri
+  -- Get the last successful typechecked version (so we can get gamma), it might be out of date a bit
+  loaded <- getLoadedSuccess uri 
   pos <- liftIO $ fromLspPos uri pos
   vfile <- getVirtualFile uri
   filePath <- fromMaybe "" <$> liftIO (fromLspUri uri)
   let res = do -- maybe monad
-        mod  <- lm
         l    <- loaded
         vf   <- vfile
-        return (l, mod, vf)
+        return (l, vf)
   case res of
-    Just (l, mod, vf) -> do
+    Just (l, vf) -> do
       let text = T.encodeUtf8 $ virtualFileText vf
 
       let source = Source filePath text
@@ -88,7 +88,7 @@ signatureHelpHandler = requestHandler J.SMethod_TextDocumentSignatureHelp $ \req
         -- TODO: Check if the pos is on a place with that name anyways
         print <- getHtmlPrinter
         flags <- getFlags
-        let env = (prettyEnvFromFlags flags){ context = modName mod, importsMap = loadedImportMap l }
+        let env = (prettyEnvFromFlags flags){ context = modName (loadedModule l), importsMap = loadedImportMap l }
             colors = colorSchemeFromFlags flags
         let gamma = loadedGamma l
         let results = gammaLookup id gamma

@@ -51,7 +51,7 @@ import Compiler.Options (Flags)
 import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
 import Compiler.Module (Module(..), initialLoaded)
 import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
-import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded)
+import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded, putLoadedSuccess, getLoadedLatest)
 
 import Debug.Trace (trace)
 
@@ -142,7 +142,7 @@ updateVFS = do
 -- Compiles a single expression (calling a top level function with no arguments) - such as a test method
 compileEditorExpression :: J.Uri -> Flags -> Bool -> String -> String -> LSM (Maybe FilePath)
 compileEditorExpression uri flags force filePath functionName = do
-  loaded <- getLoaded normUri
+  loaded <- getLoadedLatest normUri
   case loaded of
     Just loaded -> do
       let mod = loadedModule loaded
@@ -208,7 +208,7 @@ processCompilationResult normUri filePath flags update doIO = do
       outFile <- case checkPartial res of
         Right ((l, outFile), _, _) -> do
           -- Compilation succeeded
-          when update $ putLoaded l normUri flags-- update the loaded state for this file
+          when update $ putLoadedSuccess l normUri flags-- update the loaded state for this file
           liftIO $ termDoc term $ color Green $ text "Success! "
           return outFile -- return the executable file path
         Left (e, m) -> do
@@ -219,8 +219,8 @@ processCompilationResult normUri filePath flags update doIO = do
               return ()
             Just l -> do
               trace ("Error when compiling have cached" ++ show (map modSourcePath $ loadedModules l)) $ return ()
-              -- when update $ putLoaded l normUri flags
-              -- removeLoaded (loadedModule l)
+              when update $ putLoaded l normUri flags
+              removeLoaded (loadedModule l)
           liftIO $ termError term e
           return Nothing
       -- Emit the diagnostics (errors and warnings)
