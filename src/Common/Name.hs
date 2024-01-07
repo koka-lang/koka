@@ -760,7 +760,7 @@ fromValueOperationsName name
 
 
 implicitNameSpace :: String
-implicitNameSpace = "implicit"
+implicitNameSpace = "@implicit"
 
 isImplicitParamName :: Name -> Bool
 isImplicitParamName name

@@ -83,14 +83,14 @@ $charesc      = [nrt\\\'\"]    -- "
 @stringraw    = ([$graphic$space$tab] # [\"])|@newline|@utf8  -- "
 
 @idchar       = $letter | $digit | _ | \- | \@
-@lowerid      = [\?]? [\@]? $lower @idchar* $finalid*
+@lowerid      = [\@]? $lower @idchar* $finalid*
 @upperid      = [\@]? $upper @idchar* $finalid*
 @wildcard     = [\@]? _ @idchar*
 @conid        = @upperid
 
 @modpart      = @lowerid\/
-@modulepath   = @modpart+ (\# @modpart*)?
-@qvarid       = [\?]? @modulepath @lowerid
+@modulepath   = @modpart+ (\# @modpart*)? | \? @modpart*
+@qvarid       = @modulepath @lowerid
 @qconid       = @modulepath @conid
 
 @op           = $symbol+ | \/

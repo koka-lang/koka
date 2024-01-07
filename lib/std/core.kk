@@ -254,6 +254,7 @@ pub fun tuple3/map( t : (a,a,a), f : a -> e b ) : e (b, b, b)
 pub fun tuple4/map( t : (a,a,a,a), f : a -> e b ) : e (b,b,b,b)
   (t.fst.f, t.snd.f, t.thd.f, t.field4.f)
 
+
 // ----------------------------------------------------------------------------
 // List functions
 // ----------------------------------------------------------------------------
@@ -424,7 +425,7 @@ pub fun list/(++)(xs : list<a>, ys : list<a> ) : list<a>
   append(xs,ys)
 
 // Append two lists.
-pub fun append(xs : list<a>, ys : list<a> ) : list<a>
+pub fun list/append(xs : list<a>, ys : list<a> ) : list<a>
   match xs
     Cons(x,xx) -> Cons(x,append(xx,ys))
     Nil -> ys
@@ -699,6 +700,31 @@ pub fun any( xs : list<a>, predicate : a -> e bool ) : e bool
   match xs
     Cons(x,xx) -> if predicate(x) then True else xx.any(predicate)
     Nil -> False
+
+
+// Element-wise list comparison
+pub fbip fun list/cmp( xs : list<a>, ys : list<a>, ^?cmp : (a,a) -> order ) : order
+  match xs
+    Cons(x,xx) -> match ys
+                    Nil        -> Gt
+                    Cons(y,yy) -> match cmp(x,y)
+                                    Eq -> cmp(xx,yy)
+                                    lg -> lg
+    Nil -> match ys
+             Nil  -> Eq
+             Cons -> Lt
+
+// Element-wise list equality
+pub fbip fun list/(==)( xs : list<a>, ys : list<a>, ^?(==) : (a,a) -> bool ) : bool
+  match xs
+    Cons(x,xx) -> match ys
+                    Nil        -> False
+                    Cons(y,yy) -> (x==y) && (xx==yy)
+    Nil -> match ys
+             Nil  -> True
+             Cons -> False
+
+
 
 // ----------------------------------------------------------------------------
 // Characters

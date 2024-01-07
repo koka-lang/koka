@@ -690,7 +690,7 @@ parameterName
 
 parameterId :: LexParser Name
 parameterId
-  = do (qname,_) <- qvarid  -- implicit/p
+  = do (qname,_) <- qvarid <|> qidop  -- implicit/p
        return (requalifyLocally qname)
     <|>
     do (name,_) <- paramid
