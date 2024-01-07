@@ -36,10 +36,10 @@ import Type.Pretty()
 import Type.Operations
 import qualified Core.Core as Core
 
-import qualified Lib.Trace(trace)
+import qualified Debug.Trace(trace)
 
 trace s x =
-   Lib.Trace.trace s
+   Debug.Trace.trace s
     x
 
 -- | Do two types overlap on the argument types? Used to check for overlapping definitions of overloaded identifiers.
@@ -121,8 +121,7 @@ matchArguments :: Bool -> Range -> Tvs -> Type -> [Type] -> [(Name,Type)] -> May
 matchArguments matchSome range free tp fixed named mbExpResTp
   = do rho1 <- instantiate range tp
        case splitFunType rho1 of
-         Nothing -> unifyError NoMatch
-         {-
+         Nothing -> --unifyError NoMatch
                     do resTp <- case mbExpResTp of
                                   Just rtp -> return rtp
                                   Nothing  -> freshTVar kindStar Meta
@@ -131,29 +130,36 @@ matchArguments matchSome range free tp fixed named mbExpResTp
                                         effTp resTp
                        subsume range free tp funTp
                        subst funTp
-         -}
+
          Just (pars,_,resTp)
           -> if (length fixed + length named > length pars)
               then unifyError NoMatch
               else do -- trace (" matchArguments: " ++ show (map pretty pars, map pretty fixed, map pretty named)) $ return ()
                       -- subsume fixed parameters
                       let (fpars,npars) = splitAt (length fixed) pars
-                      mapM_  (\(tpar,targ) -> subsume range free (unOptional tpar) targ) (zip (map snd fpars) fixed)
+                      mapM_  (\(tpar,targ) -> subsumeSubst range free (unOptional tpar) targ) (zip (map snd fpars) fixed)
                       -- subsume named parameters
                       mapM_ (\(name,targ) -> case lookup name npars of
                                                Nothing   -> unifyError NoMatch
-                                               Just tpar -> subsume range free (unOptional tpar) targ
+                                               Just tpar -> subsumeSubst range free (unOptional tpar) targ
                             ) named
                       -- check if the result type matches
                       case mbExpResTp of
                         Nothing    -> return ()
-                        Just expTp -> do subsume range free expTp resTp
+                        Just expTp -> do subsumeSubst range free expTp resTp
                                          return ()
                       -- check the rest is optional or implicit
                       let rest = [(nm,tpar) | (nm,tpar) <- npars, not (nm `elem` map fst named)]
                       if (matchSome || all isOptionalOrImplicit rest)
-                        then subst rho1
+                        then do subst rho1
                         else unifyError NoMatch
+
+subsumeSubst :: Range -> Tvs -> Type -> Type -> Unify (Type,Rho,[Evidence], Core.Expr -> Core.Expr)
+subsumeSubst range free tp1 tp2
+  = do stp1 <- subst tp1
+       stp2 <- subst tp2
+       subsume range free stp1 stp2
+
 
 {--------------------------------------------------------------------------
   Subsumption
