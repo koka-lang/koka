@@ -1153,7 +1153,13 @@ resolveImplicitArg allowDisambiguate allowUnitFunVal roots
 resolveBest :: Bool -> Int -> [ImplicitArg] -> Inf (Either [Doc] ImplicitArg)
 resolveBest allowDisambiguate depth candidates | depth > resolveMaxChainDepth
   = do penv <- getPrettyEnv
-       return (Left (map (prettyImplicitArg penv) candidates))
+       let amb = Left (map (prettyImplicitArg penv) candidates)
+       if not allowDisambiguate
+         then return amb
+         else case findBest allowDisambiguate (filter isDone candidates) of
+                Found iarg  -> return (Right iarg)  -- pick best among candidates within the recursion depth. is this ok?
+                _           -> return amb
+
 resolveBest allowDisambiguate depth candidates
   = case findBest allowDisambiguate candidates of
       Found iarg       -> -- found a unique one, it should always be fully resolved by now
