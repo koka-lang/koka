@@ -83,7 +83,7 @@ fun cmp-and-eq(xs : list<a>, y : a, ?cmp : (a,a) -> order) : bool
   // fun eq(a,b)   eq_cmp(a,b)  // haskell could infer this from `class Eq a => Ord a`
   compare(xs,xs) == Eq &&       // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
   list/cmp(xs,xs) == Eq &&      // or be explicit
-  // cmp(xs,xs) == Eq &&        // this fails as the local `cmp` matches first (as regular resolving)
+  cmp(xs,xs) == Eq &&
   eq(y,y) &&                    // this can be resolved automatically without the local `eq` since we have `cmp/eq`
   contains(xs,y) &&
   compare(1,2) == Eq

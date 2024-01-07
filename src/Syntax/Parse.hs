@@ -1330,14 +1330,17 @@ parNormal allowDefaults
 
 parImplicit :: LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
 parImplicit
-  = do unpack      <- do{ specialOp "??"; return True } <|> do{ specialOp "?"; return False }
-       (qname,rng) <- qidentifier
-       tp          <- optionMaybe typeAnnotPar
-       let name       = toImplicitParamName (requalifyLocally qname)
-           unpackExpr = if unpack
-                          then Just (Parens (Var (unqualifyFull name) False rng) nameNil rng) -- encode ?? as a default value assuming it is a type name
+  = do (unpack,qname,rng) <- try $ (do unpack      <- do{ special "?"; return True } <|> return False
+                                       (qname,rng) <- qidentifier
+                                       if not (isImplicitParamName qname)
+                                         then fail "unexpected implicit parameter name"
+                                         else return (unpack,qname,rng)
+                                    <?> "implicit parameter name")
+       tp <- optionMaybe typeAnnotPar
+       let unpackExpr = if unpack
+                          then Just (Parens (Var (unqualifyFull qname) False rng) nameNil rng) -- encode ?? as a default value assuming it is a type name
                           else Nothing
-       return (ValueBinder name tp unpackExpr (combineRange rng (getRange tp)) rng, id)
+       return (ValueBinder qname tp unpackExpr (combineRange rng (getRange tp)) rng, id)
 
 paramid = identifier <|> wildcard
 
@@ -1996,13 +1999,6 @@ argument
                            <|>
                               return (Nothing,exp)
          _              -> return (Nothing,exp)
-  <|>
-    do specialOp "?"
-       (qname,rng) <- qidentifier
-       let name = requalifyLocally qname
-       keyword "="
-       exp <- expr
-       return (Just (toImplicitParamName name, rng), exp)
 
 {--------------------------------------------------------------------------
   Atomic expression
@@ -2220,7 +2216,7 @@ typeAnnot
 typeAnnotPar :: LexParser UserType
 typeAnnotPar
   = do keyword ":"
-       (do rng <- specialOp "?"
+       (do rng <- special "?"
            tp <- ptype
            return (TpApp (TpCon nameTpOptional rng) [tp] (combineRanged rng tp))
         <|>
@@ -2416,7 +2412,7 @@ paramTypeX
 
 
 parameterType rng
-  = do rng2 <- specialOp "?"
+  = do rng2 <- special "?"
        tp <- ptype
        return (TpApp (TpCon nameTpOptional rng) [tp] (combineRanged rng2 tp))
     <|>

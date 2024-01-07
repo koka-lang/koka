@@ -229,19 +229,23 @@ instance Pretty Name where
   pretty name
     = text (show name)
 
-prettyName :: ColorScheme -> Name -> Doc      -- not explicit /#
-prettyName cs (Name m _ l _ n _)
-  = let ln = join l (wrapId n)
-    in if null m then text ln
-                 else color (colorModule cs) (text m <.> (if null ln then empty else text "/")) <.> text ln
-
-prettyCoreName :: ColorScheme -> Name -> Doc  -- explicit /# if needed
-prettyCoreName cs (Name m _ l _ n _)
+prettyNameEx :: String -> ColorScheme -> Name -> Doc  -- explicit /# if needed
+prettyNameEx lsep cs (Name m _ l _ n _)
   = let ln = join l (wrapId n)
     in if null m then text ln
                  else color (colorModule cs)
-                          (text m <.> (if null ln then empty else (if null l then text "/" else text "/#")))
+                          (text m <.> (if null ln then empty else (if null l then text "/" else text lsep)))
                       <.> text ln
+
+prettyName :: ColorScheme -> Name -> Doc      -- not explicit /#
+prettyName cs name
+  = if isImplicitParamName name
+      then text "?" <.> prettyNameEx "/" cs (requalifyLocally (fromImplicitParamName name))
+      else prettyNameEx "/" cs name
+
+prettyCoreName :: ColorScheme -> Name -> Doc  -- explicit /# if needed
+prettyCoreName cs name
+  = prettyNameEx "/#" cs name
 
 
 -- todo: remove these as we can now read/write reliably using readQualifiedName
@@ -290,6 +294,8 @@ nameMapStem (Name m hm l hl n _) f
 
 
 readQualifiedName :: String -> Name
+readQualifiedName ('?':s)
+  = toImplicitParamName (requalifyLocally (readQualifiedName s))
 readQualifiedName s
   = let (qual,lqual,id) = splitName s
     in newLocallyQualified qual lqual id
@@ -384,7 +390,9 @@ missingQualifier currentMod name qname
                     (std:_) -> drop (length std + 1) missing0
                     _       -> missing0
     in -- trace ("missingQualifier: " ++ show [currentMod,name,qname] ++ ", missing: " ++ show (missing0,missing)) $
-       missing
+       if missing `startsWith` (implicitNameSpace ++ "/")
+         then "?" ++ drop (length implicitNameSpace + 1) missing
+         else missing
 
 {-
 nameSplit :: Name -> (String,String,String)

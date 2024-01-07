@@ -686,11 +686,7 @@ parameter env allowBorrow
 
 parameterName :: LexParser Name
 parameterName
-  = do specialOp "?"
-       name <- parameterId
-       return (toImplicitParamName name)
-    <|>
-    parameterId
+  = parameterId
 
 parameterId :: LexParser Name
 parameterId
@@ -855,7 +851,7 @@ tatomParamsEx allowParams env allowBorrow
      do tp <- teffect env
         return (single tp)
     <|>
-     do specialOp "?"
+     do special "?"
         tp <- tatom env
         return (single (makeOptionalType tp))
     <?>

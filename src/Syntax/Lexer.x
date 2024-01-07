@@ -45,8 +45,8 @@ $return       = \r
 $linefeed     = \n
 $graphic      = [\x21-\x7E]
 $cont         = [\x80-\xBF]
-$symbol       = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\?\|\<\>]
-$special      = [\(\)\[\]\{\}\;\,]
+$symbol       = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\|\<\>]
+$special      = [\(\)\[\]\{\}\;\,\?]
 $anglebar     = [\<\>\|]
 $angle        = [\<\>]
 $finalid      = [\']
@@ -83,14 +83,14 @@ $charesc      = [nrt\\\'\"]    -- "
 @stringraw    = ([$graphic$space$tab] # [\"])|@newline|@utf8  -- "
 
 @idchar       = $letter | $digit | _ | \- | \@
-@lowerid      = [\@]? $lower @idchar* $finalid*
+@lowerid      = [\?]? [\@]? $lower @idchar* $finalid*
 @upperid      = [\@]? $upper @idchar* $finalid*
 @wildcard     = [\@]? _ @idchar*
 @conid        = @upperid
 
 @modpart      = @lowerid\/
 @modulepath   = @modpart+ (\# @modpart*)?
-@qvarid       = @modulepath @lowerid
+@qvarid       = [\?]? @modulepath @lowerid
 @qconid       = @modulepath @conid
 
 @op           = $symbol+ | \/
@@ -136,7 +136,7 @@ program :-
                                                then LexKeyword s ""
                                            else if isMalformed s
                                                then LexError messageMalformed
-                                               else LexId (newName s) }
+                                               else LexId (readQualifiedName s) }
 <0> @conid                { string $ LexCons . newName }
 <0> @wildcard             { string $ LexWildCard . newName }
 

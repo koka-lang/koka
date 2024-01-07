@@ -31,6 +31,9 @@ fun main()
 fun test1( x : or<int,()> )
   x.show
 
+fun test1a( x : or<int,()> )
+  x.show(?b/show=unit/show)
+
 fun test2( x : or<int,or<string,()>> )
   x.show
 

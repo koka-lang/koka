@@ -87,15 +87,13 @@ fun cmp-and-eq(xs : list<a>, y : a, ?cmp : (a,a) -> order) : bool
   xcompare(xs,xs) == Eq &&      // we can resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
   list/cmp(xs,xs) == Eq &&      // or be explicit
 
-  cmp(xs,xs) == Eq &&        // we cannot resolve this automatically to `list/cmp(cmp)` since `cmp` directly does not type check
-                                // we could maybe allow to bypass the local `cmp` for `list/cmp` since it eventually uses the local `cmp` directly,
-                                // i.e. it is a type conversion on the local.
+  cmp(xs,xs) == Eq &&
   eq(y,y) &&                    // this can be resolved automatically without the local `eq` since we have `cmp/eq(cmp)`
-  contains(xs,y) &&             // `?cmp = list/cmp(local/cmp)`
+  contains(xs,y) &&
   int/cmp(1,2) == Eq  &&
   cmp(1,2) == Eq  &&         // we cannot resolve this to `int/cmp` unless we allow a bypass
   xcompare(1,2) == Eq  &&        // we can resolve ?cmp=int/cmp as we allow bypass for implicits.. (as long as a local cmp does not type check)
-  implicit/cmp(y,y) == Eq &&
+  ?cmp(y,y) == Eq &&
   cmp(y,y) == Eq
 
 // foo :: Ord a => [a] -> a -> Bool
