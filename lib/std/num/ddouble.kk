@@ -934,7 +934,7 @@ pub fun ln( x : ddouble ) : ddouble
      Only one iteration is needed, since Newton's iteration
      approximately doubles the number of digits per iteration.
   */
-  if x <= ddouble/zero then (if x==ddouble/zero then dd-neginf else dd-nan)
+  if x <= zero then (if x==zero then dd-neginf else dd-nan)
   elif x == one then zero
   elif x == dd-e then one
   elif x.is-posinf then x

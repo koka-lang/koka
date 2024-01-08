@@ -178,8 +178,9 @@ matchShape tp1 tp2
 pureMatchShape :: Type -> Type -> Bool
 pureMatchShape tp1 tp2
   = case runUnique 0 (runUnify (matchShape tp1 tp2)) of
-      ((Just (),sub),unique) -> True
-      _                      -> False
+      ((Right (),sub),unique) -> -- trace ("match shape: " ++ show (pretty (tp1,tp2)))
+                                 True
+      _                       -> False
 
 {--------------------------------------------------------------------------
   Subsumption

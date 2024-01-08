@@ -1103,13 +1103,13 @@ prettyImplicitArg :: Pretty.Env -> ImplicitArg -> Doc
 prettyImplicitArg penv (ImplicitArg name info rho iargs)
   = let withColor clr doc = color (clr (Pretty.colors penv)) doc in
     withColor colorImplicitExpr (Pretty.ppNamePlain penv name) <.>
+    -- Pretty.ppType penv rho <+>
     if null iargs then Lib.PPrint.empty
                   else let fcount   = case splitFunType rho of
                                       Just (ipars,_,restp) -> let (fixed,_,_) = splitOptionalImplicit ipars
                                                               in length fixed
                                       _ -> 0 -- should never happen? (since we got implicit arguments)
-                           docargs  = [-- Pretty.ppType penv rho <+>
-                                       prettyPartial penv pname partial | (pname,partial) <- iargs]
+                           docargs  = [prettyPartial penv pname partial | (pname,partial) <- iargs]
                            docfixed = [text "_" | _ <- [1..fcount]]
                        in parens (hcat (intersperse comma (docfixed ++ docargs)))
 
@@ -1164,22 +1164,24 @@ resolveBest allowDisambiguate depth candidates | depth > resolveMaxChainDepth
                 _           -> return amb
 
 resolveBest allowDisambiguate depth candidates
-  = case findBest allowDisambiguate candidates of
-      Found iarg       -> -- found a unique one, it should always be fully resolved by now
-                          assertion "Type.InferMonad.resolveBest: unresolved implicit!" (isDone iarg) $
-                          return (Right iarg)
-      Continue sorted  -> do -- keep looking
-                             when (depth>=3) $
-                               traceDefDoc $ \penv -> text "resolveBest" <+> pretty depth <+> text "continue with:" <->
-                                                       indent 2 (vcat (map (prettyImplicitArg penv) sorted))
-                             candidates' <- resolveStep [] sorted
-                             resolveBest allowDisambiguate (depth + 1) candidates'
-      _                -> do -- no solutions, or ambiguous
-                            --  when allowDisambiguate $
-                            --    traceDefDoc $ \penv -> text "resolveBest" <+> pretty depth <+> text "is ambiguous:" <->
-                            --                            indent 2 (vcat (map (prettyImplicitArg penv) candidates))
-                             penv <- getPrettyEnv
-                             return (Left (map (prettyImplicitArg penv) candidates))
+  = do -- traceDefDoc $ \penv -> text "resolveBest" <+> pretty depth <+> text "candidates:" <->
+       --                                                indent 2 (vcat (map (prettyImplicitArg penv) candidates))
+       case findBest allowDisambiguate candidates of
+        Found iarg       -> -- found a unique one, it should always be fully resolved by now
+                            assertion "Type.InferMonad.resolveBest: unresolved implicit!" (isDone iarg) $
+                            return (Right iarg)
+        Continue sorted  -> do -- keep looking
+                              when (depth>=3) $
+                                traceDefDoc $ \penv -> text "resolveBest" <+> pretty depth <+> text "continue with:" <->
+                                                        indent 2 (vcat (map (prettyImplicitArg penv) sorted))
+                              candidates' <- resolveStep [] sorted
+                              resolveBest allowDisambiguate (depth + 1) candidates'
+        _                -> do -- no solutions, or ambiguous
+                              --  when allowDisambiguate $
+                              --    traceDefDoc $ \penv -> text "resolveBest" <+> pretty depth <+> text "is ambiguous:" <->
+                              --                            indent 2 (vcat (map (prettyImplicitArg penv) candidates))
+                              penv <- getPrettyEnv
+                              return (Left (map (prettyImplicitArg penv) candidates))
 
 -- Resolve all implicit candidates one step more, this can give
 -- many more new candidates (or less when further implicits cannot be resolved)
@@ -1196,25 +1198,18 @@ resolveStep previousTypes iargs
                          mapM partialStep partials
                   return [iarg{ iaImplicitArgs = zip pnames (map Done ys) } | ys <- yss]
       where
+        partialStep :: Partial -> Inf [ImplicitArg]
         partialStep (Step inf)
           = do xs <- inf -- compute one more step
-               filterM (infNotIn previousTypes) xs  -- but filter out solutions that have been tried before (to stop infinite chains)
+               -- but filter out solutions that have been tried before (to stop infinite chains)
+               -- this happens when the shape of a type matches a previous one
+               -- (the shape is the same if types match exactly up to unique renaming of free variables)
+               return $ filter (\iarg -> not (any (\(name,tp) -> pureMatchShape tp (iaType iarg)) previousTypes)) xs
 
         partialStep (Done arg)
           = do let previous = (iaName iarg,iaType iarg):previousTypes
                resolveStep previous [arg]           -- recurse to the leaves
 
--- Has an implicit argument been resolved before using a type of the same shape?
--- (i.e. where the types match exactly up to unique renaming of free variables)
-infNotIn :: [(Name,Rho)] -> ImplicitArg -> Inf Bool
-infNotIn [] iarg         = return True
-infNotIn ((name,tp):rest) iarg
-  = if (name /= iaName iarg)
-     then infNotIn rest iarg
-     else do (res,sub) <- runUnify (matchShape tp (iaType iarg))
-             case res of
-               Right _ -> return False
-               _       -> infNotIn rest iarg
 
 
 
@@ -1232,13 +1227,14 @@ findBest allowDisambiguate candidates
                 None
       [iarg] -> -- a unique solution
                 if isDone iarg then Found iarg else Continue [iarg]
-      _      -> let sorted = filterAlwaysWorse $
-                             sortBy (\x y -> compare (implicitArgCost x) (implicitArgCost y)) candidates
+      _      -> let sorted = sortBy (\x y -> compare (implicitArgCost x) (implicitArgCost y)) candidates
                 in if not allowDisambiguate
                   -- cannot disambiguate
-                  then if length (filter isDone sorted) > 1
+                  then if length (filter isDone candidates) > 1
                          then -- definitely ambiguous since we cannot disambiguate
-                              Amb
+                              case filterAlwaysWorse sorted of  -- unless some solutions are always worse than others.. (this helps with type propagation to the arguments)
+                                [iarg]  | isDone iarg -> Found iarg
+                                _       -> Amb
                          else -- we need to keep evaluating to be sure (as future implicits may not be resolved)
                               Continue sorted
                   -- can disambiguate: sort according to current cost: exact always comes before least
@@ -1263,17 +1259,20 @@ filterAlwaysWorse []  = []
 filterAlwaysWorse sorted@(iarg:iargs)
   = case implicitArgCost iarg of
       Least _     -> sorted
-      Exact xcost -> iarg : filterAlwaysWorse (filter (isAlwaysWorse xcost) iargs)
+      Exact cost1 -> let tp1 = withoutImplicits (iaType iarg)
+                     in iarg : filterAlwaysWorse (filter (not . isAlwaysWorse tp1 cost1) iargs)
   where
-    isAlwaysWorse xcost iarg2
+    withoutImplicits tp
+      = case splitFunType tp of
+          Just (ipars,effTp,resTp)
+            -> let (fixed,named,implicits) = splitOptionalImplicit ipars
+               in TFun (fixed ++ named) effTp resTp
+          _ -> tp
+
+    isAlwaysWorse tp1 cost1 iarg2
       = case implicitArgCost iarg2 of
-          Least i  | i < xcost  -> False
-                   -- | i > xcost -> True  -- cannot do this: while allowDisambiguate is False the type may later improve so we cannot disambiguate on that
-          Exact i  | i <= xcost -> False
-          _ -> let (res,_) = runUnify $ matchShape (iaType iarg) (iaType iarg2)
-               in case res of
-                    Just _ -> True   -- even when later allowDisambiguate is true we will never pick this solution over iarg
-                    _      -> False
+          Least i  -> False
+          Exact i  -> (i >= cost1) && pureMatchShape tp1 (withoutImplicits (iaType iarg2))   -- on a match, even when later allowDisambiguate is true we will never pick this solution over iarg
 
 -----------------------------------------------------------------------
 -- Looking up application names and implicit names
