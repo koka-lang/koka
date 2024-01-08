@@ -179,7 +179,7 @@ pub inline fip extern (*) : (int64,int64) -> int64
   js inline "BigInt.asIntN(64,#1 * #2)"
 
 
-pub fip fun compare( x : int64, y : int64) : order
+pub fip fun cmp( x : int64, y : int64) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq

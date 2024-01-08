@@ -65,8 +65,8 @@ fun hello/eq( h1 : hello<a>, h2 : hello<a>, ?eq : (a,a) -> bool ) : bool
 //  - An additional argument in my favor is that already in the current system it is not lexical resolution
 //      due to type conversions that do end up using local identifiers
 fun hello/cmp( h1 : hello<a>, h2 : hello<a>, ?cmp : (a,a) -> order ) : order
-  match int/compare(h1.x,h2.x)
-    Eq -> char/compare(h1.y,h2.y)
+  match int/cmp(h1.x,h2.x)
+    Eq -> char/cmp(h1.y,h2.y)
     ord -> ord
 
 // A middle ground might be to resolve as you do without bypassing, then try to bypass

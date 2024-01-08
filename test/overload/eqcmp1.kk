@@ -28,7 +28,7 @@ fun test2()
 
 
 fun int/cmpx(x : int, y : int ) : order
-  int/compare(x,y)
+  int/cmp(x,y)
 
 fun char/cmpx(x : char, y : char ) : order
   Eq

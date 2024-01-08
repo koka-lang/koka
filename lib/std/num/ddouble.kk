@@ -353,18 +353,18 @@ pub fun is-neginf( x : ddouble ) : bool
   x.hi.is-neginf
 
 // Compare two `:ddouble` values.
-pub fun compare( x : ddouble, y : ddouble ) : order
-  match compare(x.hi,y.hi)
-    Eq  -> compare(x.lo,y.lo)
+pub fun cmp( x : ddouble, y : ddouble ) : order
+  match cmp(x.hi,y.hi)
+    Eq  -> cmp(x.lo,y.lo)
     ord -> ord
 
 
-pub fun (>) (x : ddouble, y : ddouble) : bool { compare(x,y) == Gt }
-pub fun (>=)(x : ddouble, y : ddouble) : bool { compare(x,y) != Lt }
-pub fun (==)(x : ddouble, y : ddouble) : bool { compare(x,y) == Eq }
-pub fun (!=)(x : ddouble, y : ddouble) : bool { compare(x,y) != Eq }
-pub fun (<) (x : ddouble, y : ddouble) : bool { compare(x,y) == Lt }
-pub fun (<=)(x : ddouble, y : ddouble) : bool { compare(x,y) != Gt }
+pub fun (>) (x : ddouble, y : ddouble) : bool { cmp(x,y) == Gt }
+pub fun (>=)(x : ddouble, y : ddouble) : bool { cmp(x,y) != Lt }
+pub fun (==)(x : ddouble, y : ddouble) : bool { cmp(x,y) == Eq }
+pub fun (!=)(x : ddouble, y : ddouble) : bool { cmp(x,y) != Eq }
+pub fun (<) (x : ddouble, y : ddouble) : bool { cmp(x,y) == Lt }
+pub fun (<=)(x : ddouble, y : ddouble) : bool { cmp(x,y) != Gt }
 
 // The minimum of `x` and `y`.
 pub fun min( x : ddouble, y : ddouble ) : ddouble
@@ -934,7 +934,7 @@ pub fun ln( x : ddouble ) : ddouble
      Only one iteration is needed, since Newton's iteration
      approximately doubles the number of digits per iteration.
   */
-  if x <= zero then (if x==zero then dd-neginf else dd-nan)
+  if x <= ddouble/zero then (if x==ddouble/zero then dd-neginf else dd-nan)
   elif x == one then zero
   elif x == dd-e then one
   elif x.is-posinf then x

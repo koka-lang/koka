@@ -37,11 +37,11 @@ fun solar-calendar( name : string, long-name: string,
                     has-year-zero?: bool = True,
                     month-prefix  : string = "",
                     show-era      : (date)->string = fn(d){ "" },
-                    ts            : timescale = ts-utc ) : calendar 
+                    ts            : timescale = ts-utc ) : calendar
 {
   fun date-to-days( d : date ) : int {
     val y = if (has-year-zero? || d.year.pos?) then d.year else d.year.inc
-    days-before-year( y ) + days-before-month( y, d.month ) 
+    days-before-year( y ) + days-before-month( y, d.month )
      + d.day.dec - epoch-shift
   }
 
@@ -54,10 +54,10 @@ fun solar-calendar( name : string, long-name: string,
     Date(year,month,day)
   }
 
-  earth-calendar( 
-    name, long-name, 
-    days-to-date, date-to-days, 
-    month-prefix, show-era, ts 
+  earth-calendar(
+    name, long-name,
+    days-to-date, date-to-days,
+    month-prefix, show-era, ts
   )
 }
 
@@ -81,7 +81,7 @@ fun solar-ecalendar( name : string, long-name: string,
   }
 
   solar-calendar(name,long-name,
-    days-before-year, days-to-yeardoy, 
+    days-before-year, days-to-yeardoy,
     days-before-month, days-to-month,
     epoch-shift, has-year-zero?, month-prefix, show-era, ts
   )
@@ -93,20 +93,20 @@ fun solar-ecalendar( name : string, long-name: string,
 // ----------------------------------------------------
 
 val xcal-iso = solar-ecalendar(
-  "x", "ISO", 
-  iso-days-before-year, iso-estimate-year, 
+  "x", "ISO",
+  iso-days-before-year, iso-estimate-year,
   iso-days-before-month, iso-doy-to-month
 )
 
 val xcal-gregorian = solar-ecalendar(
-  "xGC", "Gregorian", 
-  iso-days-before-year, iso-estimate-year, 
+  "xGC", "Gregorian",
+  iso-days-before-year, iso-estimate-year,
   iso-days-before-month, iso-doy-to-month,
   has-year-zero? = False,
   show-era = fn(d:date){ if (d.year.neg?) then "BCE" else "CE" }
 )
 
-fun iso-days-before-month( year : int, month : int ) : int { 
+fun iso-days-before-month( year : int, month : int ) : int {
   val adj = iso-adjust( month<=2, year )
   (367*month - 362)/12 - adj
 }
@@ -119,7 +119,7 @@ fun iso-doy-to-month( year : int, doy : int ) : int {
 fun iso-adjust( before-march? : bool, year : int ) : int {
   if (before-march?) then 0 elif (iso-is-leap?(year)) then 1 else 2
 }
-    
+
 fun iso-is-leap?( year : int ) {
   (year%4 == 0) && (year%100 != 0 || year%400 == 0)
 }
@@ -140,13 +140,13 @@ fun iso-estimate-year( days : int ) : (int,maybe<int>) {
 // ----------------------------------------------------
 
 val xcal-iso-week = solar-ecalendar(
-  "xIW", "ISO Week", 
-  isow-days-before-year, isow-estimate-year, 
+  "xIW", "ISO Week",
+  isow-days-before-year, isow-estimate-year,
   isow-days-before-month, isow-doy-to-month,
-  month-prefix = "W"  
+  month-prefix = "W"
 )
 
-fun isow-days-before-month( year : int, month : int ) : int { 
+fun isow-days-before-month( year : int, month : int ) : int {
   7*(month - 1)
 }
 
@@ -170,18 +170,18 @@ fun isow-estimate-year( days : int ) : (int,maybe<int>) {
 // ----------------------------------------------------
 
 val xcal-iso-month = solar-ecalendar(
-  "xIM", "ISO Month", 
-  isow-days-before-year, isow-estimate-year, 
+  "xIM", "ISO Month",
+  isow-days-before-year, isow-estimate-year,
   isom-days-before-month, isom-doy-to-month,
-  month-prefix = "M"  
+  month-prefix = "M"
 )
 
-fun isom-days-before-month( year : int, month : int ) : int { 
+fun isom-days-before-month( year : int, month : int ) : int {
   30*month.dec + month.dec/3
 }
 
 fun isom-doy-to-month( year : int, doy : int ) : int {
-  val m = (100*doy.inc)/3034   
+  val m = (100*doy.inc)/3034
   min(m.inc,12)
 }
 
@@ -191,20 +191,20 @@ fun isom-doy-to-month( year : int, doy : int ) : int {
 // ----------------------------------------------------
 
 val xcal-coptic = solar-ecalendar(
-  "xCC", "Coptic", 
-  coptic-days-before-year, coptic-estimate-year, // coptic-days-to-yeardoy, 
+  "xCC", "Coptic",
+  coptic-days-before-year, coptic-estimate-year, // coptic-days-to-yeardoy,
   coptic-days-before-month, coptic-doy-to-month,
   epoch-shift = 626515,  // 2001-01-01 - 284-08-29 Julian
   show-era = fn(d:date){ if (d.year.pos?) then "A.M." else "" }  // Anno Martyrum
 )
 
-fun coptic-days-before-month( year : int, month : int ) : int { 
+fun coptic-days-before-month( year : int, month : int ) : int {
   30*(month - 1)
 }
 
 fun coptic-doy-to-month( year : int, doy : int ) : int {
   doy/30 + 1
-}   
+}
 
 fun coptic-days-before-year( year : int ) {
   365*year.dec + year/4
@@ -222,8 +222,8 @@ fun coptic-days-to-yeardoy( days : int ) : (int,int) {
 }
 
 val xcal-ethiopian = solar-calendar(
-  "xEC", "Ethiopian", 
-  coptic-days-before-year, coptic-days-to-yeardoy, 
+  "xEC", "Ethiopian",
+  coptic-days-before-year, coptic-days-to-yeardoy,
   coptic-days-before-month, coptic-doy-to-month,
   epoch-shift = 727324,  // year 0000-01-01 = 0007-08-30 (Julian), year 0001-01-01 = 0008-08-29! (Julian))
   show-era = fn(d:date){ if (d.year.pos?) then "A.M." else "" }  // Anno Martyrum
@@ -234,15 +234,15 @@ val xcal-ethiopian = solar-calendar(
 // ----------------------------------------------------
 
 val xcal-julian = solar-ecalendar(
-  "xJC", "Julian", 
-  julian-days-before-year, julian-estimate-year, 
+  "xJC", "Julian",
+  julian-days-before-year, julian-estimate-year,
   julian-days-before-month, julian-doy-to-month,
   epoch-shift    = 730121, // 2000-01-01 - 0000-12-30  // 730121 + 366
   has-year-zero? = False,
   show-era       = fn(d:date){ if (d.year.neg?) then "BC" else "AD" }
 )
 
-fun julian-days-before-month( year : int, month : int ) : int { 
+fun julian-days-before-month( year : int, month : int ) : int {
   val adj = julian-adjust( month<=2, year )
   (367*month - 362)/12 - adj
 }
@@ -255,7 +255,7 @@ fun julian-doy-to-month( year : int, doy : int ) : int {
 fun julian-adjust( before-march? : bool, year : int ) : int {
   if (before-march?) then 0 elif (year%4==0) then 1 else 2
 }
-    
+
 fun julian-days-before-year( year : int ) {
   val leapdays = year.dec/4
   365*year.dec + leapdays
@@ -271,7 +271,7 @@ fun xjulian-gregorian( switch : date = Date(1582,10,15) ) : calendar {
   earth-calendar( "JG", "Julian-Gregorian",
     fn(days) { julgreg-days-to-date(days,switch-days) },
     fn(d)    { julgreg-date-to-days(d,switch) },
-    show-era = fn(d:date) { 
+    show-era = fn(d:date) {
       if (d < switch) {
         if (d.year >= 1500) then "CE (O.S.)" else (cal-julian.show-era)(d)
       }
@@ -283,13 +283,13 @@ fun xjulian-gregorian( switch : date = Date(1582,10,15) ) : calendar {
 }
 
 fun julgreg-date-to-days( d : date, switch : date ) : int {
-  if (compare(d,switch).lt?) 
+  if (cmp(d,switch).lt?)
     then (xcal-julian.date-to-days)(d)
-    else (xcal-iso.date-to-days)(d) 
+    else (xcal-iso.date-to-days)(d)
 }
 
 fun julgreg-days-to-date( days : int, switch : int ) : date {
-  if (days < switch) 
+  if (days < switch)
    then (xcal-julian.days-to-date)(days)
    else (xcal-iso.days-to-date)(days)
 }
@@ -298,7 +298,7 @@ fun julgreg-days-to-date( days : int, switch : int ) : date {
 // Test
 // ----------------------------------------------------
 fun check( msg : string, expect : string, result : string ) : io () {
-  if (expect==result) then () // println( msg + ": ok.") 
+  if (expect==result) then () // println( msg + ": ok.")
   else {
     println(msg + ": FAILED:\n expect : " + expect + "\n result: " + result )
     error("failure")
@@ -342,7 +342,7 @@ fun test-day( day : int ) {
 
 fun test( years : int = 500 ) {
   for-days( ~years, years ) fn(day){
-    test-day(day)    
+    test-day(day)
   }
   println("ok.")
 }

@@ -24,10 +24,10 @@ fun maybe/eq( mb1 : maybe<a>, mb2 : maybe<a>, ?eq : (a,a) -> bool ) : bool
 
 
 fun int/cmpx(x : int, y : int ) : order
-  int/compare(x,y)
+  int/cmp(x,y)
 
 fun char/cmpx(x : char, y : char ) : order
-  char/compare(x,y)
+  char/cmp(x,y)
 
 fun list/cmpx<a>( xs : list<a>, ys : list<a>, ?cmpx : (a,a) -> order ) : order
   match xs

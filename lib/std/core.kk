@@ -702,8 +702,77 @@ pub fun any( xs : list<a>, predicate : a -> e bool ) : e bool
     Nil -> False
 
 
-// Element-wise list comparison
-pub fbip fun list/cmp( xs : list<a>, ys : list<a>, ^?cmp : (a,a) -> order ) : order
+// ----------------------------------------------------------------------------
+// Generic equality
+// ----------------------------------------------------------------------------
+
+// Element-wise tuple equality
+pub fun tuple2/(==)( (x1,y1) : (a,b), (x2,y2) : (a,b), ?fst/(==) : (a,a) -> bool, ?snd/(==) : (b,b) -> bool ) : bool
+  (x1==x2) && (y1==y2)
+
+// Element-wise triple equality
+pub fun tuple3/(==)( (x1,y1,z1) : (a,b,c), (x2,y2,z2) : (a,b,c), ?fst/(==) : (a,a) -> bool, ?snd/(==) : (b,b) -> bool, ?thd/(==) : (c,c) -> bool ) : bool
+  (x1==x2) && (y1==y2) && (z1==z2)
+
+// Equality on `:maybe`
+pub fun maybe/(==)( mb1 : maybe<a>, mb2 : maybe<a>, ?(==) : (a,a) -> bool ) : bool
+  match mb1
+    Just(x)  -> match mb2
+                  Just(y) -> x==y
+                  Nothing -> False
+    Nothing  -> match mb2
+                  Nothing -> True
+                  _       -> False
+
+// Element-wise list equality
+pub fun list/(==)( xs : list<a>, ys : list<a>, ?(==) : (a,a) -> bool ) : bool
+  match xs
+    Cons(x,xx) -> match ys
+                    Nil        -> False
+                    Cons(y,yy) -> (x==y) && (xx==yy)
+    Nil -> match ys
+             Nil  -> True
+             Cons -> False
+
+// Generic inequality
+pub fun eq/(!=)(x : a, y : a, ?(==) : (a,a) -> bool ) : bool
+  not(x==y)
+
+// Generic equality if `cmp` exists
+pub fun cmp/(==)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+  match cmp(x,y)
+    Eq -> True
+    _  -> False
+
+// ----------------------------------------------------------------------------
+// Generic compare
+// ----------------------------------------------------------------------------
+
+pub fip fun order/(&&)( x : order, y : order ) : order
+  match x
+    Eq -> y
+    lg -> lg
+
+// Order on tuples
+pub fun tuple2/cmp( (x1,y1) : (a,b), (x2,y2) : (a,b), ?fst/cmp : (a,a) -> order, ?snd/cmp : (b,b) -> order ) : order
+  fst/cmp(x1,x2) && snd/cmp(y1,y2)
+
+// Order on triples
+pub fbip fun tuple3/cmp( (x1,y1,z1) : (a,b,c), (x2,y2,z2) : (a,b,c), ^?fst/cmp : (a,a) -> order, ^?snd/cmp : (b,b) -> order, ^?thd/cmp : (c,c) -> order ) : order
+  fst/cmp(x1,x2) && snd/cmp(y1,y2) && thd/cmp(z1,z2)
+
+// Order on `:maybe` values
+pub fun maybe/cmp( mb1 : maybe<a>, mb2 : maybe<a>, ?cmp : (a,a) -> order ) : order
+  match mb1
+    Just(x)  -> match mb2
+                  Just(y) -> cmp(x,y)
+                  Nothing -> Gt
+    Nothing  -> match mb2
+                  Nothing -> Eq
+                  _       -> Lt
+
+// Order on lists
+pub fun list/cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> order ) : order
   match xs
     Cons(x,xx) -> match ys
                     Nil        -> Gt
@@ -714,15 +783,21 @@ pub fbip fun list/cmp( xs : list<a>, ys : list<a>, ^?cmp : (a,a) -> order ) : or
              Nil  -> Eq
              Cons -> Lt
 
-// Element-wise list equality
-pub fbip fun list/(==)( xs : list<a>, ys : list<a>, ^?(==) : (a,a) -> bool ) : bool
-  match xs
-    Cons(x,xx) -> match ys
-                    Nil        -> False
-                    Cons(y,yy) -> (x==y) && (xx==yy)
-    Nil -> match ys
-             Nil  -> True
-             Cons -> False
+// Generic greater than
+pub fun cmp/(>)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+  cmp(x,y) == Gt
+
+// Generic lower than
+pub fun cmp/(<)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+  cmp(x,y) == Lt
+
+// Generic greater than or equal
+pub fun cmp/(>=)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+  y < x
+
+// Generic lower than or equal
+pub fun cmp/(<=)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+  y > x
 
 
 
@@ -750,7 +825,7 @@ pub inline fip extern char/(<)  : (char,char) -> bool
 pub inline fip extern char/(>)  : (char,char) -> bool
   inline "(#1 > #2)"
 
-pub fip fun char/compare( x : char, y : char ) : order
+pub fip fun char/cmp( x : char, y : char ) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq
@@ -833,7 +908,7 @@ pub fip fun bool/(>)( x : bool, y : bool) : bool
 pub fip fun bool/(>=)( x : bool, y : bool) : bool
   !(x < y)
 
-pub fip fun bool/compare( x : bool, y : bool) : order
+pub fip fun bool/cmp( x : bool, y : bool) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq
@@ -848,7 +923,7 @@ pub fun bool/maybe( b : bool ) : maybe<()>
 // ----------------------------------------------------------------------------
 
 // Compare two integers
-pub inline fip extern int/compare(^x : int, ^y : int) : order
+pub inline fip extern int/cmp(^x : int, ^y : int) : order
   c inline "kk_int_as_order(kk_integer_cmp_borrow(#1,#2,kk_context()),kk_context())"
   cs "Primitive.IntCompare"
   js "$std_core._int_compare"
@@ -987,9 +1062,11 @@ pub inline fip extern int/abs(i : int) : int
   cs "BigInteger.Abs"
   js "$std_core._int_abs"
 
+// Increment
 pub fip fun int/inc( i : int ) : int
   i + 1
 
+// Decrement
 pub fip fun int/dec( i : int ) : int
   i - 1
 
@@ -1055,6 +1132,7 @@ pub fip fun is-pos(i : int ) : bool
 pub fip fun is-neg(i : int ) : bool
   i < 0
 
+// Compare an integer `i` with zero
 pub inline fip extern sign( ^i : int ) : order
   c  inline "kk_int_as_order(kk_integer_signum_borrow(#1,kk_context()),kk_context())"
   cs "Primitive.IntSign"
@@ -1477,20 +1555,20 @@ pub inline fun sslice/(!=)(l1: sslice, l2: sslice ): bool
       elif i1 != i2 then True
       else s1 != s2
 
-extern string-compare : ( x : string, y : string ) -> int
+extern string-cmp : ( x : string, y : string ) -> int
   c  "kk_string_cmp_int"
   cs inline "String.Compare(#1,#2)"
   js inline "(#1===#2 ? 0 : (#1 > #2 ? 1 : -1))"
 
 // Compare two strings.
 // Uses the character codes directly for comparison
-pub fun string/compare( x : string, y : string) : order
-  string-compare(x,y).order
+pub fun string/cmp( x : string, y : string) : order
+  string-cmp(x,y).order
 
-pub fun string/(>=)( x : string, y : string ) : bool { compare(x,y) > Lt }
-pub fun string/(<=)( x : string, y : string ) : bool { compare(x,y) < Gt }
-pub fun string/(>)( x : string, y : string ) : bool  { compare(x,y) == Gt }
-pub fun string/(<)( x : string, y : string ) : bool  { compare(x,y) == Lt }
+pub fun string/(>=)( x : string, y : string ) : bool { cmp(x,y) > Lt }
+pub fun string/(<=)( x : string, y : string ) : bool { cmp(x,y) < Gt }
+pub fun string/(>)( x : string, y : string ) : bool  { cmp(x,y) == Gt }
+pub fun string/(<)( x : string, y : string ) : bool  { cmp(x,y) == Lt }
 
 // Append two strings.
 pub extern string/(++)(x : string, y : string) : string

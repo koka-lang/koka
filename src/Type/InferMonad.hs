@@ -1175,6 +1175,9 @@ resolveBest allowDisambiguate depth candidates
                              candidates' <- resolveStep [] sorted
                              resolveBest allowDisambiguate (depth + 1) candidates'
       _                -> do -- no solutions, or ambiguous
+                            --  when allowDisambiguate $
+                            --    traceDefDoc $ \penv -> text "resolveBest" <+> pretty depth <+> text "is ambiguous:" <->
+                            --                            indent 2 (vcat (map (prettyImplicitArg penv) candidates))
                              penv <- getPrettyEnv
                              return (Left (map (prettyImplicitArg penv) candidates))
 

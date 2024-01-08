@@ -912,6 +912,7 @@ inferCheck loaded0 flags line coreImports program
               (getName program)
               defs
        Core.setCoreDefs cdefs
+       -- trace (show (color (colorInterpreter (colorScheme flags)) (text "codegen"))) $ return ()
 
        -- check generated core
        let checkCoreDefs title = when (coreCheck flags) (trace ("checking " ++ title) $

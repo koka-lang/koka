@@ -155,18 +155,18 @@ pub fun add-days( ts : timestamp, days : int ) : timestamp
   ts + (days * isolar-secs-per-day).timespan
 
 // Compare two `:timestamp`s.
-pub fun compare( i : timestamp, j : timestamp ) : order
-  match compare(i.since,j.since)   // compare without leap-seconds first!
-    Eq  -> compare(i.leap,j.leap)
+pub fun cmp( i : timestamp, j : timestamp ) : order
+  match cmp(i.since,j.since)   // cmp without leap-seconds first!
+    Eq  -> cmp(i.leap,j.leap)
     ord -> ord
 
 
-pub fun (<)( i : timestamp, j : timestamp )  : bool { compare(i,j) == Lt }
-pub fun (<=)( i : timestamp, j : timestamp ) : bool { compare(i,j) != Gt }
-pub fun (>)( i : timestamp, j : timestamp )  : bool { compare(i,j) == Gt }
-pub fun (>=)( i : timestamp, j : timestamp ) : bool { compare(i,j) != Lt }
-pub fun (==)( i : timestamp, j : timestamp ) : bool { compare(i,j) == Eq }
-pub fun (!=)( i : timestamp, j : timestamp ) : bool { compare(i,j) != Eq }
+pub fun (<)( i : timestamp, j : timestamp )  : bool { cmp(i,j) == Lt }
+pub fun (<=)( i : timestamp, j : timestamp ) : bool { cmp(i,j) != Gt }
+pub fun (>)( i : timestamp, j : timestamp )  : bool { cmp(i,j) == Gt }
+pub fun (>=)( i : timestamp, j : timestamp ) : bool { cmp(i,j) != Lt }
+pub fun (==)( i : timestamp, j : timestamp ) : bool { cmp(i,j) == Eq }
+pub fun (!=)( i : timestamp, j : timestamp ) : bool { cmp(i,j) != Eq }
 
 // The minimum of two timestamps.
 pub fun min( i : timestamp, j : timestamp ) : timestamp

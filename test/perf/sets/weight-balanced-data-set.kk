@@ -40,7 +40,7 @@ fun insert(kx, t) {
   match(t) {
     Tip -> singleton(kx)
     Bin(sz, ky, l, r)
-       -> match(compare(kx, ky)) {
+       -> match(cmp(kx, ky)) {
          Lt -> balanceL(ky, insert(kx, l), r)
          Gt -> balanceR(ky, l, insert(kx, r))
          Eq -> Bin(sz, kx, l, r)
@@ -52,7 +52,7 @@ fun member(kx, ^t) {
   match(t) {
     Tip -> False
     Bin(_, ky, l, r)
-      -> match(compare(kx, ky)) {
+      -> match(cmp(kx, ky)) {
         Lt -> member(kx, l)
         Gt -> member(kx, r)
         Eq -> True

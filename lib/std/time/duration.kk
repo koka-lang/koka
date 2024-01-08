@@ -96,15 +96,15 @@ pub fun is-pos( d : duration ) : bool
   d.secs.is-pos
 
 // Compare two `:duration`s.
-pub fun compare( i : duration, j : duration ) : order
-  compare(i.secs,j.secs)
+pub fun cmp( i : duration, j : duration ) : order
+  cmp(i.secs,j.secs)
 
-pub fun (<)( i : duration, j : duration )  : bool { compare(i,j) == Lt }
-pub fun (<=)( i : duration, j : duration ) : bool { compare(i,j) != Gt }
-pub fun (>)( i : duration, j : duration )  : bool { compare(i,j) == Gt }
-pub fun (>=)( i : duration, j : duration ) : bool { compare(i,j) != Lt }
-pub fun (==)( i : duration, j : duration ) : bool { compare(i,j) == Eq }
-pub fun (!=)( i : duration, j : duration ) : bool { compare(i,j) != Eq }
+pub fun (<)( i : duration, j : duration )  : bool { cmp(i,j) == Lt }
+pub fun (<=)( i : duration, j : duration ) : bool { cmp(i,j) != Gt }
+pub fun (>)( i : duration, j : duration )  : bool { cmp(i,j) == Gt }
+pub fun (>=)( i : duration, j : duration ) : bool { cmp(i,j) != Lt }
+pub fun (==)( i : duration, j : duration ) : bool { cmp(i,j) == Eq }
+pub fun (!=)( i : duration, j : duration ) : bool { cmp(i,j) != Eq }
 
 // The minimum of two durations.
 pub fun min( i : duration, j : duration ) : duration
