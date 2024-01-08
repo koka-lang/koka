@@ -16,11 +16,13 @@ module Type.Unify ( Unify, UnifyError(..), runUnify, runUnifyEx
                   , overlaps
                   , matchNamed
                   , matchArguments
+                  , matchShape
                   , extractNormalizeEffect
                   ) where
 
 import Control.Applicative
 import Control.Monad
+import Data.List(nub)
 import Lib.PPrint
 import Common.Range
 import Common.Unique
@@ -159,6 +161,19 @@ subsumeSubst range free tp1 tp2
   = do stp1 <- subst tp1
        stp2 <- subst tp2
        subsume range free stp1 stp2
+
+-- | See if two types match exactly up to renaming of free type variables
+matchShape :: Type -> Type -> Unify ()
+matchShape tp1 tp2
+  = do unify tp1 tp2
+       sub <- getSubst
+       let dom = tvsList (subDom sub)
+       codom <- nub <$>
+                mapM (\(_,t) -> case t of
+                                  TVar tv -> return tv
+                                  _       -> unifyError NoMatch) (subList sub)
+       let oneToOne = (length dom == length codom)
+       if oneToOne then return () else unifyError NoMatch
 
 
 {--------------------------------------------------------------------------

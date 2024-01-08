@@ -995,7 +995,7 @@ lookupAppName allowDisambiguate name ctx contextRange range
                   penv <- getPrettyEnv
                   let implicits = [((pname,range),
                                      toImplicitArgExpr (endOfRange range) iarg,
-                                     prettyImplicitAssign penv False "" pname iarg) | (pname, Done iarg) <- iargs]
+                                     prettyImplicitAssign penv False {-leave out `?par=`?-} "" pname iarg) | (pname, Done iarg) <- iargs]
                   return (Right (rho, Var qname False range, implicits))
           Left docs
             -> if (allowDisambiguate && not (null docs))
@@ -1104,11 +1104,12 @@ prettyImplicitArg penv (ImplicitArg name info rho iargs)
   = let withColor clr doc = color (clr (Pretty.colors penv)) doc in
     withColor colorImplicitExpr (Pretty.ppNamePlain penv name) <.>
     if null iargs then Lib.PPrint.empty
-                  else let fcount = case splitFunType rho of
-                                      Just (ipars,_,_) -> let (fixed,_,_) = splitOptionalImplicit ipars
-                                                          in length fixed
+                  else let fcount   = case splitFunType rho of
+                                      Just (ipars,_,restp) -> let (fixed,_,_) = splitOptionalImplicit ipars
+                                                              in length fixed
                                       _ -> 0 -- should never happen? (since we got implicit arguments)
-                           docargs  = [prettyPartial penv pname partial | (pname,partial) <- iargs]
+                           docargs  = [-- Pretty.ppType penv rho <+>
+                                       prettyPartial penv pname partial | (pname,partial) <- iargs]
                            docfixed = [text "_" | _ <- [1..fcount]]
                        in parens (hcat (intersperse comma (docfixed ++ docargs)))
 
@@ -1120,11 +1121,13 @@ prettyPartial penv pname partial
 
 prettyImplicitAssign :: Pretty.Env -> Bool -> String -> Name -> ImplicitArg -> Doc
 prettyImplicitAssign penv shorten prefix pname iarg
-  = let withColor clr doc = color (clr (Pretty.colors penv)) doc in
-    withColor colorImplicitParameter ({- text prefix <.> -} Pretty.ppNamePlain penv pname) <.>
-    (if shorten && pname == iaName iarg
-       then Lib.PPrint.empty
-       else text "=" <.> prettyImplicitArg penv iarg)
+  = let withColor clr doc = color (clr (Pretty.colors penv)) doc
+        pardoc            = withColor colorImplicitParameter ({- text prefix <.> -} Pretty.ppNamePlain penv pname)
+    in if shorten && pname == iaName iarg && null (iaImplicitArgs iarg)
+        then pardoc
+        else if shorten && fromImplicitParamName pname == unqualifyFull (iaName iarg)
+          then prettyImplicitArg penv iarg
+          else pardoc <.> text "=" <.> prettyImplicitArg penv iarg
 
 
 
@@ -1133,11 +1136,11 @@ prettyImplicitAssign penv shorten prefix pname iarg
 -- This is done in a breadth-first search to reduce exponential search times
 -----------------------------------------------------------------------
 resolveMaxChainDepth :: Int
-resolveMaxChainDepth = 10   -- prevent infinite expansion
+resolveMaxChainDepth = 8   -- prevent infinite expansion
 
 resolveImplicitArg :: Bool -> Bool -> [(NameInfo -> Bool, Name, NameContext, Range)] -> Inf (Either [Doc] (ImplicitArg))
 resolveImplicitArg allowDisambiguate allowUnitFunVal roots
-  = do candidates1 <- concatMapM (\(infoFilter,name,ctx,range) -> lookupImplicitArg allowUnitFunVal infoFilter name ctx range) roots
+  = do candidates1 <- concatMapM (\(infoFilter,name,ctx,range) -> lookupImplicitArg allowUnitFunVal infoFilter [] name ctx range) roots
        let candidates2 = filter (not . existConCreator candidates1) candidates1
        resolveBest allowDisambiguate 0 candidates2
   where
@@ -1166,6 +1169,9 @@ resolveBest allowDisambiguate depth candidates
                           assertion "Type.InferMonad.resolveBest: unresolved implicit!" (isDone iarg) $
                           return (Right iarg)
       Continue sorted  -> do -- keep looking
+                             when (depth>=2) $
+                               traceDefDoc $ \penv -> text "resolveBest" <+> pretty depth <+> text "continue with:" <->
+                                                       indent 2 (vcat (map (prettyImplicitArg penv) sorted))
                              candidates' <- resolveStep sorted
                              resolveBest allowDisambiguate (depth + 1) candidates'
       _                -> do -- no solutions, or ambiguous
@@ -1233,9 +1239,10 @@ findBest allowDisambiguate candidates
 
 -- Lookup an implicit parameter name (or app name `f(...)`).
 -- Returns list of (partial) implicit arguments
-lookupImplicitArg :: Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [ImplicitArg]
-lookupImplicitArg allowUnitFunVal infoFilter name ctx range
-  = do -- traceDefDoc $ \penv -> text "lookupImplicitArg:" <+> ppNameCtx penv (name,ctx)
+-- (`depth` is just passed for tracing)
+lookupImplicitArg :: Bool -> (NameInfo -> Bool) -> [Rho] -> Name -> NameContext -> Range -> Inf [ImplicitArg]
+lookupImplicitArg allowUnitFunVal infoFilter previousTypes name ctx range
+  = do -- traceDefDoc $ \penv -> text "lookupImplicitArg:" <+> pretty (length previousTypes) <+> ppNameCtx penv (name,ctx)
        candidates0 <- lookupNames infoFilter name ctx range
        candidates1 <- case ctx of
                         -- for implicits we also allow conversion unit functions for values
@@ -1274,9 +1281,24 @@ lookupImplicitArg allowUnitFunVal infoFilter name ctx range
       = -- recursively solve further implicits (but return the computation to allow for breath first search)
         let (pnameName,pnameExpr) = splitImplicitParamName pname
         in  (pnameName, Step $ -- delay evaluation so we can do breadth first search
-                        lookupImplicitArg True {- allow unit val -}
-                          infoFilter pnameExpr
-                          (implicitTypeContext ptp) (endOfRange range)) -- use end of range to deprioritize with hover info
+                        do matched <- anyM (infMatchShape ptp) previousTypes
+                           if matched
+                             then return []
+                             else lookupImplicitArg True {- allow unit val -}
+                                    infoFilter (previousTypes ++ [ptp]) pnameExpr
+                                    (implicitTypeContext ptp) (endOfRange range)) -- use end of range to deprioritize with hover info
+
+    anyM :: Monad m => (a -> m Bool) -> [a] -> m Bool
+    anyM pred []      = return False
+    anyM pred (x:xs)  = do match <- pred x
+                           if match then return True else anyM pred xs
+
+
+    infMatchShape tp1 tp2
+      = do (res,sub) <- runUnify (matchShape tp1 tp2)
+           case res of
+            Right _ -> return True
+            _       -> return False
 
 
 -- Convert an implicit argument to an expression (that is supplied as the argument)
@@ -1340,8 +1362,10 @@ lookupNames infoFilter name ctx range
                                      -- todo: should we prioritize local locally qualified names when disambiguating?
                                      do globals <- lookupGlobalName infoFilter name
                                         return (locals ++ globals)
-       -- traceDefDoc $ \penv -> text " lookupNames:" <+> text (show name) <+> colon <+> ppNameContext penv ctx <+> text ", matches:" <+> list [text (show name) | (name,info) <- matches]
-       filterMatchNameContextEx range ctx matches
+       tmatches <- filterMatchNameContextEx range ctx matches
+       -- traceDefDoc $ \penv -> text " lookupNames:" <+> text (show name) <+> colon <+> ppNameContext penv ctx <+> text ", matches:" <+> list [text (show name) <+> colon <+> Pretty.ppType penv tp | (name,info,tp) <- tmatches]
+       return tmatches
+
 
 lookupLocalName :: (NameInfo -> Bool) -> Name -> Inf (Either [(Name,NameInfo)] (Name,NameInfo))
 lookupLocalName infoFilter name
