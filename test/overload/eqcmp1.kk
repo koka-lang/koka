@@ -78,20 +78,28 @@ fun show( ord : order ) : string
 fun test5()
   cmpx([1,2],[1,3]).show.println
 
-fun compare( x : a, y : a, ?cmpx : (a,a) -> order ) : order
+fun xcompare( x : a, y : a, ?cmpx : (a,a) -> order ) : order
   cmpx(x,y)
 
 fun cmpx-and-eq(xs : list<a>, y : a, ?cmpx : (a,a) -> order) : bool
   //fun cmpl(a,b) cmp_list(a,b) // haskell could infer this from `instance Ord a => Ord [a]`)
   // fun eq(a,b)   eq_cmp(a,b)  // haskell could infer this from `class Eq a => Ord a`
-  compare(xs,xs) == Eq &&       // we can resolve this automatically to `list/cmpx(cmpx)` since `cmpx` directly does not type check
+  xcompare(xs,xs) == Eq &&      // we can resolve this automatically to `list/cmpx(cmpx)` since `cmpx` directly does not type check
   list/cmpx(xs,xs) == Eq &&      // or be explicit
+
   cmpx(xs,xs) == Eq &&
-  eq(y,y) &&                    // this can be resolved automatically without the local `eq` since we have `cmpx/eq`
+  eq(y,y) &&                    // this can be resolved automatically without the local `eq` since we have `cmpx/eq(cmpx)`
   contains(xs,y) &&
-  compare(1,2) == Eq
+  int/cmpx(1,2) == Eq  &&
+  cmpx(1,2) == Eq  &&         // we cannot resolve this to `int/cmpx` unless we allow a bypass
+  xcompare(1,2) == Eq  &&        // we can resolve ?cmpx=int/cmpx as we allow bypass for implicits.. (as long as a local cmpx does not type check)
+  ?cmpx(y,y) == Eq &&
+  cmpx(y,y) == Eq
 
-
+// foo :: Ord a => [a] -> a -> Bool
+// foo xs y   = (1 == 2) &&    // use `instance Eq Int`
+//              xs == xs       // use `class Eq a => Ord a`, and `instance Ord a => Ord [a]`
 
 fun test6()
-  ['a','b'].cmpx-and-eq('a')
+  // ['a','b'].cmpx-and-eq('a')
+  [1,2].map(show).join.show

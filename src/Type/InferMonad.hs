@@ -1140,7 +1140,7 @@ resolveMaxChainDepth = 8   -- prevent infinite expansion
 
 resolveImplicitArg :: Bool -> Bool -> [(NameInfo -> Bool, Name, NameContext, Range)] -> Inf (Either [Doc] (ImplicitArg))
 resolveImplicitArg allowDisambiguate allowUnitFunVal roots
-  = do candidates1 <- concatMapM (\(infoFilter,name,ctx,range) -> lookupImplicitArg allowUnitFunVal infoFilter [] name ctx range) roots
+  = do candidates1 <- concatMapM (\(infoFilter,name,ctx,range) -> lookupImplicitArg allowUnitFunVal infoFilter name ctx range) roots
        let candidates2 = filter (not . existConCreator candidates1) candidates1
        resolveBest allowDisambiguate 0 candidates2
   where
@@ -1169,10 +1169,10 @@ resolveBest allowDisambiguate depth candidates
                           assertion "Type.InferMonad.resolveBest: unresolved implicit!" (isDone iarg) $
                           return (Right iarg)
       Continue sorted  -> do -- keep looking
-                             when (depth>=2) $
+                             when (depth>=3) $
                                traceDefDoc $ \penv -> text "resolveBest" <+> pretty depth <+> text "continue with:" <->
                                                        indent 2 (vcat (map (prettyImplicitArg penv) sorted))
-                             candidates' <- resolveStep sorted
+                             candidates' <- resolveStep [] sorted
                              resolveBest allowDisambiguate (depth + 1) candidates'
       _                -> do -- no solutions, or ambiguous
                              penv <- getPrettyEnv
@@ -1180,8 +1180,8 @@ resolveBest allowDisambiguate depth candidates
 
 -- Resolve all implicit candidates one step more, this can give
 -- many more new candidates (or less when further implicits cannot be resolved)
-resolveStep :: [ImplicitArg] -> Inf [ImplicitArg]
-resolveStep iargs
+resolveStep :: [(Name,Rho)] -> [ImplicitArg] -> Inf [ImplicitArg]
+resolveStep previousTypes iargs
   = concatMapM step iargs
   where
     step :: ImplicitArg -> Inf [ImplicitArg]
@@ -1190,11 +1190,30 @@ resolveStep iargs
           then return [iarg]
           else do let (pnames,partials) = unzip (iaImplicitArgs iarg)
                   yss <- sequence <$>  -- take the cartesian product of the argument solutions
-                         mapM (\partial -> case partial of
-                                             Done arg -> resolveStep [arg]
-                                             Step inf -> inf
-                              ) partials
+                         mapM partialStep partials
                   return [iarg{ iaImplicitArgs = zip pnames (map Done ys) } | ys <- yss]
+      where
+        partialStep (Step inf)
+          = do xs <- inf -- compute one more step
+               filterM (infNotIn previousTypes) xs  -- but filter out solutions that have been tried before (to stop infinite chains)
+
+        partialStep (Done arg)
+          = do let previous = (iaName iarg,iaType iarg):previousTypes
+               resolveStep previous [arg]           -- recurse to the leaves
+
+-- Has an implicit argument been resolved before using a type of the same shape?
+-- (i.e. where the types match exactly up to unique renaming of free variables)
+infNotIn :: [(Name,Rho)] -> ImplicitArg -> Inf Bool
+infNotIn [] iarg         = return True
+infNotIn ((name,tp):rest) iarg
+  = if (name /= iaName iarg)
+     then infNotIn rest iarg
+     else do (res,sub) <- runUnify (matchShape tp (iaType iarg))
+             case res of
+               Right _ -> return False
+               _       -> infNotIn rest iarg
+
+
 
 -- We can find a unique solution, none, surely ambiguous, or we need to continue further
 data Select a  = Found a
@@ -1240,16 +1259,19 @@ findBest allowDisambiguate candidates
 -- Lookup an implicit parameter name (or app name `f(...)`).
 -- Returns list of (partial) implicit arguments
 -- (`depth` is just passed for tracing)
-lookupImplicitArg :: Bool -> (NameInfo -> Bool) -> [Rho] -> Name -> NameContext -> Range -> Inf [ImplicitArg]
-lookupImplicitArg allowUnitFunVal infoFilter previousTypes name ctx range
-  = do -- traceDefDoc $ \penv -> text "lookupImplicitArg:" <+> pretty (length previousTypes) <+> ppNameCtx penv (name,ctx)
+lookupImplicitArg :: Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [ImplicitArg]
+lookupImplicitArg allowUnitFunVal infoFilter name ctx range
+  = do -- traceDefDoc $ \penv -> text "lookupImplicitArg:" <+> ppNameCtx penv (name,ctx)
        candidates0 <- lookupNames infoFilter name ctx range
-       candidates1 <- case ctx of
+       candidates  <- case ctx of
                         -- for implicits we also allow conversion unit functions for values
+                        -- if `expect` is a type variable we may need to remove duplicate candidates here.
                         CtxType expect | allowUnitFunVal && not (isFun expect)
-                           -> lookupNames infoFilter name (CtxFunTypes False [] [] (Just expect)) range
-                        _  -> return []
-       return (map toImplicitArg (candidates0 ++ candidates1))
+                           -> do candidates1 <- lookupNames infoFilter name (CtxFunTypes False [] [] (Just expect)) range
+                                 return (nubBy (\(_,info1,_) (_,info2,_) -> infoCName info1 == infoCName info2)
+                                               (candidates0 ++ candidates1))
+                        _  -> return candidates0
+       return (map toImplicitArg candidates)
   where
     toImplicitArg :: (Name,NameInfo,Rho) -> ImplicitArg
     toImplicitArg (iname,info,itp {- instantiated type -})
@@ -1281,24 +1303,8 @@ lookupImplicitArg allowUnitFunVal infoFilter previousTypes name ctx range
       = -- recursively solve further implicits (but return the computation to allow for breath first search)
         let (pnameName,pnameExpr) = splitImplicitParamName pname
         in  (pnameName, Step $ -- delay evaluation so we can do breadth first search
-                        do matched <- anyM (infMatchShape ptp) previousTypes
-                           if matched
-                             then return []
-                             else lookupImplicitArg True {- allow unit val -}
-                                    infoFilter (previousTypes ++ [ptp]) pnameExpr
-                                    (implicitTypeContext ptp) (endOfRange range)) -- use end of range to deprioritize with hover info
-
-    anyM :: Monad m => (a -> m Bool) -> [a] -> m Bool
-    anyM pred []      = return False
-    anyM pred (x:xs)  = do match <- pred x
-                           if match then return True else anyM pred xs
-
-
-    infMatchShape tp1 tp2
-      = do (res,sub) <- runUnify (matchShape tp1 tp2)
-           case res of
-            Right _ -> return True
-            _       -> return False
+                        lookupImplicitArg True {- allow unit val -} infoFilter pnameExpr
+                          (implicitTypeContext ptp) (endOfRange range)) -- use end of range to deprioritize with hover info
 
 
 -- Convert an implicit argument to an expression (that is supplied as the argument)
