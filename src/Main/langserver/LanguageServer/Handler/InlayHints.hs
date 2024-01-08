@@ -107,8 +107,12 @@ qualifierHint env modName lexemes rng rinfo
   where
     getQualifier qname
       = case lexemes of
-          (Lexeme rng (LexId name)):_ | unqualifyFull qname == unqualifyFull name -> missingQualifier modName name qname
-          _                           -> ""
+          (Lexeme rng (LexId name)):_ | unqualifyFull qname == unqualifyFull name
+            -> missingQualifier modName name qname
+          (Lexeme rng (LexOp name)):_ | unqualifyFull qname == unqualifyFull name
+            -> let qual = missingQualifier modName name qname
+               in if null qual then "" else " " ++ qual
+          _ -> ""
 
 -- | Show implicit arguments
 implicitsHint :: Env -> [Lexeme] -> Range -> RangeInfo -> [J.InlayHint]
@@ -140,12 +144,13 @@ finalCallRange (lex1:lexes)
 
     isDotFunction
       = case lexes of
-          (Lexeme rng (LexKeyword "." _)):_ -> True
-          (Lexeme rng (LexSpecial ";")):_   -> True
-          (Lexeme rng (LexOp _)):_          -> True
-          (Lexeme rng LexInsSemi):_         -> True
-          (Lexeme rng LexInsLCurly):_       -> True
-          _ -> False
+          (Lexeme _ (LexKeyword "." _)):_ -> True
+          (Lexeme _ (LexSpecial ";")):_   -> True
+          (Lexeme _ LexInsSemi):_         -> True
+          (Lexeme _ LexInsLCurly):_       -> True
+          _ -> case lex1 of
+                 Lexeme _ (LexOp _) -> True  -- add parenthesis
+                 _                  -> False
 
     findCallEnd lexemes depth
       = case lexemes of
