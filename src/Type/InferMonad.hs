@@ -1232,16 +1232,18 @@ findBest allowDisambiguate candidates
                 None
       [iarg] -> -- a unique solution
                 if isDone iarg then Found iarg else Continue [iarg]
-      _      -> if not allowDisambiguate
+      _      -> let sorted = filterAlwaysWorse $
+                             sortBy (\x y -> compare (implicitArgCost x) (implicitArgCost y)) candidates
+                in if not allowDisambiguate
                   -- cannot disambiguate
-                  then if length (filter isDone candidates) > 1
+                  then if length (filter isDone sorted) > 1
                          then -- definitely ambiguous since we cannot disambiguate
                               Amb
                          else -- we need to keep evaluating to be sure (as future implicits may not be resolved)
-                              Continue candidates
+                              Continue sorted
                   -- can disambiguate: sort according to current cost: exact always comes before least
-                  else case sortBy (\x y -> compare (implicitArgCost x) (implicitArgCost y)) candidates of
-                         sorted@(x:ys) -> case implicitArgCost x of
+                  else case sorted of
+                         (x:ys) -> case implicitArgCost x of
                             (Least _) -> Continue sorted  -- none is exact yet
                             (Exact i) -> let -- only keep those with the same exact score, or with a lesser/equal least score
                                              keep = filter (\y -> case implicitArgCost y of
@@ -1254,6 +1256,24 @@ findBest allowDisambiguate candidates
                                                          then Amb            -- multiple exact with the same score (and no more least)
                                                          else Continue keep  -- keep evaluating
 
+-- filter out solutions that are always worse than an earlier one even if the types may later improve
+-- expects the implicit args to be sorted on cost
+filterAlwaysWorse :: [ImplicitArg] -> [ImplicitArg]
+filterAlwaysWorse []  = []
+filterAlwaysWorse sorted@(iarg:iargs)
+  = case implicitArgCost iarg of
+      Least _     -> sorted
+      Exact xcost -> iarg : filterAlwaysWorse (filter (isAlwaysWorse xcost) iargs)
+  where
+    isAlwaysWorse xcost iarg2
+      = case implicitArgCost iarg2 of
+          Least i  | i < xcost  -> False
+                   -- | i > xcost -> True  -- cannot do this: while allowDisambiguate is False the type may later improve so we cannot disambiguate on that
+          Exact i  | i <= xcost -> False
+          _ -> let (res,_) = runUnify $ matchShape (iaType iarg) (iaType iarg2)
+               in case res of
+                    Just _ -> True   -- even when later allowDisambiguate is true we will never pick this solution over iarg
+                    _      -> False
 
 -----------------------------------------------------------------------
 -- Looking up application names and implicit names

@@ -16,7 +16,7 @@ module Type.Unify ( Unify, UnifyError(..), runUnify, runUnifyEx
                   , overlaps
                   , matchNamed
                   , matchArguments
-                  , matchShape
+                  , matchShape, pureMatchShape
                   , extractNormalizeEffect
                   ) where
 
@@ -175,6 +175,11 @@ matchShape tp1 tp2
        let oneToOne = (length dom == length codom)
        if oneToOne then return () else unifyError NoMatch
 
+pureMatchShape :: Type -> Type -> Bool
+pureMatchShape tp1 tp2
+  = case runUnique 0 (runUnify (matchShape tp1 tp2)) of
+      ((Just (),sub),unique) -> True
+      _                      -> False
 
 {--------------------------------------------------------------------------
   Subsumption
