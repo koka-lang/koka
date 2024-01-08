@@ -2,7 +2,7 @@
  
 cgen/specialize/zipwithacc/@lift-xxx: (xsxxx : list<int>) -> console string
 cgen/specialize/zipwithacc/@lift-xxx: (xsxxx : list<int>) -> console list<string>
-cgen/specialize/zipwithacc/@lift-xxx: (i382 : int, accxxx : list<int>, xsxxx : list<int>, ysxxx : list<int>) -> console list<int>
+cgen/specialize/zipwithacc/@lift-xxx: (i380 : int, accxxx : list<int>, xsxxx : list<int>, ysxxx : list<int>) -> console list<int>
 cgen/specialize/zipwithacc/@mlift-xxx: forall<e,a,b,c> (acc : list<b>, f : (int, a, c) -> e b, i : int, xx : list<a>, yy : list<c>, b) -> 
  e list<b>
 cgen/specialize/zipwithacc/@unroll-xxx: forall<a,b,c,e> (f : (int, a, b) -> e c, i : int, acc : list<c>, xs : list<a>, ys : list<b>) -> e list<c>
