@@ -12,7 +12,16 @@ fun list/eq<a>( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
       _ -> False
     Nil -> ys.is-nil
 
+fun choose(x,y)
+  if True then x else y
+
 
 fun test1()
+  eq(1,2)
+
+fun test2(x)
+  int/eq(x,x)
+
+fun test3()
   eq([1,2],[1,3])
 

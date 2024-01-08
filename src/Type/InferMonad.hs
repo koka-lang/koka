@@ -1272,7 +1272,7 @@ filterAlwaysWorse sorted@(iarg:iargs)
     isAlwaysWorse tp1 cost1 iarg2
       = case implicitArgCost iarg2 of
           Least i  -> False
-          Exact i  -> (i >= cost1) && pureMatchShape tp1 (withoutImplicits (iaType iarg2))   -- on a match, even when later allowDisambiguate is true we will never pick this solution over iarg
+          Exact i  -> (i > cost1) && pureMatchShape tp1 (withoutImplicits (iaType iarg2))   -- on a match, even when later allowDisambiguate is true we will never pick this solution over iarg
 
 -----------------------------------------------------------------------
 -- Looking up application names and implicit names
