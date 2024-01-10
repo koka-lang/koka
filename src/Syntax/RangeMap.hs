@@ -143,7 +143,7 @@ cut r
 rangeMapInsert :: Range -> RangeInfo -> RangeMap -> RangeMap
 rangeMapInsert r info (RM rm)
   = -- trace ("rangemap insert: " ++ show r ++ ": " ++ show info) $
-    if (rangeIsNull r || isHidden info)
+    if (rangeIsNull r || rangeIsHidden r || isHidden info)
      then RM rm
     else if beginEndToken info
      then RM ((r,info):(makeRange (rangeEnd r) (rangeEnd r),info):rm)

@@ -1329,8 +1329,9 @@ lookupImplicitArg allowUnitFunVal infoFilter name ctx range
 
 -- Convert an implicit argument to an expression (that is supplied as the argument)
 toImplicitArgExpr :: Range -> ImplicitArg -> Expr Type
-toImplicitArgExpr range (ImplicitArg iname info itp iargs)
-      = case iargs of
+toImplicitArgExpr xrange (ImplicitArg iname info itp iargs)
+      = let range = rangeHide xrange in  -- don't add things in the expression to the rangemap
+        case iargs of
           [] -> Var iname False range
           _  -> case splitFunType itp of
                   Just (ipars,ieff,iresTp) | any Op.isOptionalOrImplicit ipars -- eta-expansion needed?

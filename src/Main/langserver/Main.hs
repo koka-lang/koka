@@ -15,7 +15,7 @@ import System.Exit            ( exitFailure )
 import Control.Monad          ( when, foldM )
 
 import Platform.Config
-import Lib.PPrint             ( Pretty(pretty), writePrettyLn )
+import Lib.PPrint             ( Pretty(pretty), writePrettyLn, text )
 import Lib.Printer
 import Common.ColorScheme
 import Common.Failure         ( catchIO )
@@ -77,8 +77,8 @@ mainMode flags flags0 mode p
      ModeVersion
       -> withNoColorPrinter (\monop -> showVersion flags monop)
      ModeCompiler files
-      -> do 
-        errFiles <- foldM (\errfiles file -> 
+      -> do
+        errFiles <- foldM (\errfiles file ->
             do
               res <- compile p flags file
               if res then return errfiles
@@ -117,14 +117,13 @@ compile p flags fname
                        when (not (synonymsIsEmpty localSyns))
                         (putPrettyLn p (ppSynonyms (prettyEnv flags modName imports) localSyns))
 
-                 if showHiddenTypeSigs flags then do
-                   -- workaround since private defs aren't in gamma
-                   putPrettyLn p $ ppGammaHidden (prettyEnv flags modName imports) $ gammaFilter modName $ gammaFromDefGroups $ coreProgDefs core
-                   return True
-                 else if showTypeSigs flags then do
-                   putPrettyLn p $ ppGamma (prettyEnv flags modName imports) $ gammaFilter modName gamma
-                   return True
-                 else return True
+                 if showHiddenTypeSigs flags
+                   then -- workaround since private defs aren't in gamma
+                        putPrettyLn p $ ppGammaHidden (prettyEnv flags modName imports) $ gammaFilter modName $ gammaFromDefGroups $ coreProgDefs core
+                   else if showTypeSigs flags
+                          then putPrettyLn p $ ppGamma (prettyEnv flags modName imports) $ gammaFilter modName gamma
+                          else return ()
+                 return True
   where
     term cwd
       = Terminal (putErrorMessage p cwd (showSpan flags) cscheme)

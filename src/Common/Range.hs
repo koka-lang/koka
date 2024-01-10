@@ -29,6 +29,7 @@ module Common.Range
           , readInput
           , extractLiterate
           , rawSourceFromRange
+          , rangeIsHidden, rangeHide
           ) where
 
 -- import Lib.Trace
@@ -232,14 +233,17 @@ tabSize = 2  -- always 2 in Koka
   Ranges
 --------------------------------------------------------------------------}
 -- | Source range
-data Range  = Range !Pos !Pos
+data Range  = Range{ rangeStart :: !Pos,
+                     rangeEnd :: !Pos,
+                     rangeIsHidden :: !Bool  -- do not add to the range map (used for internally generated expressions)
+                   }
             deriving Eq
 
 instance Show Range where
-  show (Range p1 p2)  = show p1
+  show (Range p1 p2 _)  = show p1
 
 instance Ord Range where
-  compare (Range p1 p2) (Range q1 q2)
+  compare (Range p1 p2 _) (Range q1 q2 _)
     = case compare p1 q1 of
         EQ   -> compare p2 q2
         ltgt -> ltgt
@@ -248,11 +252,11 @@ instance Pretty Range where
   pretty r = text (showCompactRange r)
 
 showCompactRange :: Range -> String
-showCompactRange (Range p1 p2)
+showCompactRange (Range p1 p2 _)
   = "[" ++ showPos 0 p1 ++ "," ++ showPos 0 p2 ++ "]"
 
 showRange :: FilePath -> Bool -> Range -> String
-showRange cwd endToo (Range p1 p2)
+showRange cwd endToo (Range p1 p2 _)
   = (if (posLine p1 >= bigLine) then ""
       else let src = sourceName (posSource p1)
            in (relativeToPath cwd src)
@@ -273,7 +277,7 @@ rangeNull
   = makeRange posNull posNull
 
 rangeIsNull :: Range -> Bool
-rangeIsNull (Range p1 p2)
+rangeIsNull (Range p1 p2 _)
   = (posOfs p1 < 0) || (posOfs p2 < 0)
 
 showFullRange :: FilePath -> Range -> String
@@ -284,7 +288,7 @@ showFullRange cwd range
 makeRange :: Pos -> Pos -> Range
 makeRange p1 p2
   = assertion "Range.makeRange: positions from different sources" (posSource p1 == posSource p2) $
-    Range (minPos p1 p2) (maxPos p1 p2)
+    Range (minPos p1 p2) (maxPos p1 p2) False
 
 makeSourceRange :: FilePath -> Int -> Int -> Int -> Int -> Range
 makeSourceRange srcPath l1 c1 l2 c2
@@ -292,17 +296,9 @@ makeSourceRange srcPath l1 c1 l2 c2
   where
     src = Source srcPath B.empty
 
--- | Return the start position of a range
-rangeStart :: Range -> Pos
-rangeStart (Range p1 p2)  = p1
-
--- | Return the end position of a range
-rangeEnd :: Range -> Pos
-rangeEnd   (Range p1 p2)  = p2
-
 -- | Return the length of a range
 rangeLength :: Range -> Int
-rangeLength (Range p1 p2) = posOfs p2 - posOfs p1
+rangeLength (Range p1 p2 _) = posOfs p2 - posOfs p1
 
 -- | Return the source of a range
 rangeSource :: Range -> Source
@@ -310,12 +306,17 @@ rangeSource = posSource . rangeStart
 
 -- | Combine to ranges into a range to encompasses both.
 combineRange :: Range -> Range -> Range
-combineRange (Range start1 end1) (Range start2 end2)
-  = Range (minPos start1 start2) (maxPos end1 end2)
+combineRange (Range start1 end1 h1) (Range start2 end2 h2)
+  = Range (minPos start1 start2) (maxPos end1 end2) (h1 || h2)
 
 combineRanges :: [Range] -> Range
 combineRanges rs
   = foldr combineRange rangeNull rs
+
+rangeHide :: Range -> Range
+rangeHide (Range p1 p2 _)
+  = Range p1 p2 True
+
 
 -- | Return the minimal position
 minPos :: Pos -> Pos -> Pos
@@ -328,17 +329,17 @@ maxPos :: Pos -> Pos -> Pos
 maxPos p1 p2 = if (p1 <= p2) then p2 else p1
 
 extendRange :: Range -> Int -> Range
-extendRange (Range start end) ofs
-  = Range start (end{ posColumn = posColumn end + ofs })
+extendRange (Range start end h) ofs
+  = Range start (end{ posColumn = posColumn end + ofs }) h
 
 -- | Create a range for the final character in the range
 endOfRange :: Range -> Range
-endOfRange range@(Range p1@(Pos _ ofs1 l1 c1) p2@(Pos src ofs2 l2 c2))
-  = if (ofs2 - ofs1) <= 1 then range else Range (Pos src (ofs2-1) l2 (c2-1)) p2
+endOfRange range@(Range p1@(Pos _ ofs1 l1 c1) p2@(Pos src ofs2 l2 c2) h)
+  = if (ofs2 - ofs1) <= 1 then range else Range (Pos src (ofs2-1) l2 (c2-1)) p2 h
 
 
 rangeContains, rangeIsBefore, rangeStartsAt :: Range -> Pos -> Bool
-rangeContains (Range p1 p2) pos
+rangeContains (Range p1 p2 _) pos
   = (p1 <= pos && p2 >= pos)
 
 rangeIsBefore rng pos
@@ -347,15 +348,15 @@ rangeIsBefore rng pos
 rangeStartsAt rng pos
   = rangeStart rng == pos
 
-rangeJustBefore range@(Range (Pos src ofs l c) _)
+rangeJustBefore range@(Range (Pos src ofs l c) _ h)
   = if ofs < 0 then range
      else let pos = Pos src (ofs-1) l (c-1)
-          in makeRange pos pos
+          in Range pos pos h
 
-rangeJustAfter range@(Range _ (Pos src ofs l c))
+rangeJustAfter range@(Range _ (Pos src ofs l c) h)
   = if ofs < 0 then range
      else let pos = Pos src (ofs+1) l (c+1)
-          in makeRange pos pos
+          in Range pos pos h
 
 {--------------------------------------------------------------------------
   Ranged class
@@ -386,12 +387,12 @@ instance Ranged r => Ranged (Maybe r) where
 
 --------------------------------------------------------------------------}
 sourceFromRange :: Range -> String
-sourceFromRange (Range start end)  | posOfs start >= 0
+sourceFromRange (Range start end _)  | posOfs start >= 0
   = let text = bstringToString $
                B.take (posOfs end - posOfs start) $ B.drop (posOfs start) $
                sourceBString (posSource start)
     in (replicate (posColumn start - 1) ' ' ++ text)
-sourceFromRange (Range start end)
+sourceFromRange (Range start end _)
   = case take (l2-l1+1) $ drop (l1-1) $ lines $ sourceText $ posSource start of
       (l:ls) -> case reverse ((spaces (c1-1) ++ (drop (c1-1) l)) : ls) of
                   (l:ls) -> unlines (reverse (take (c2) l : ls))
@@ -406,7 +407,7 @@ sourceFromRange (Range start end)
     l2 = if posLine end >= bigLine then (if posLine start >= bigLine then posLine end - posLine start +1 else 1) else posLine end
 
 rawSourceFromRange :: Range -> String
-rawSourceFromRange (Range start end)
+rawSourceFromRange (Range start end _)
   = bstringToString $
     B.take (posOfs end - posOfs start) $ B.drop (posOfs start) $
     sourceBString (posSource start)
