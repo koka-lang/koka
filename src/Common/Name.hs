@@ -555,12 +555,11 @@ prepend pre name
 
 postpend :: String -> Name -> Name
 postpend post name | isSymbolName name
-  = -- we must always end in symbols
+  = -- we must always end in symbols for operators so postpend inserts before the symbols
     nameMapStem name $ \stem ->
     let (rsyms,rid) = span (not . isIdChar) (reverse stem)
-    in if null rid
-         then "@" ++ post ++ reverse rsyms
-         else reverse rid ++ post ++ reverse rsyms
+    in (if null rid || rid == "@" then "@x" else reverse rid) -- ensure it becomes a valid lowerid
+        ++ post ++ reverse rsyms
 postpend post name
   = nameMapStem name $ \stem ->
     let (xs,ys) = span (\c -> c=='?' || c=='\'') (reverse stem)
