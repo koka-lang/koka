@@ -972,7 +972,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
 -- argument types. We reuse the lookup for implicit arguments as it works the same
 -- (except that for implicit arguments we allow value types to be resolved with unit functions (for conversions))
 lookupAppName :: Bool -> Name -> NameContext -> Range -> Range ->
-                   Inf (Either [Doc] (Type,Expr Type,[((Name,Range),Expr Type, Doc)]))
+                   Inf (Either [Doc] (Type,Expr Type,[((Name,Range),Expr Type, (Bool -> Doc))]))
 lookupAppName allowDisambiguate name ctx contextRange range
   = do roots <- if not (isConstructorName name)
                   then -- normal identifier
@@ -995,7 +995,7 @@ lookupAppName allowDisambiguate name ctx contextRange range
                   penv <- getPrettyEnv
                   let implicits = [((pname,range),
                                      toImplicitArgExpr (endOfRange range) iarg,
-                                     prettyImplicitAssign penv False {-leave out `?par=`?-} "" pname iarg) | (pname, Done iarg) <- iargs]
+                                     prettyImplicitAssign penv "" pname iarg) | (pname, Done iarg) <- iargs]
                   return (Right (rho, Var qname False range, implicits))
           Left docs
             -> if (allowDisambiguate && not (null docs))
@@ -1017,7 +1017,7 @@ resolveImplicitName name tp contextRange range
                                   [(isInfoValFunExt, name, implicitTypeContext tp, range)]
        penv <- getPrettyEnv
        case res of
-         Right iarg  -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv False "?" name iarg
+         Right iarg  -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv "?" name iarg
                            return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
          Left docs   -> do (term,termDoc) <- getTermDoc "context" contextRange
                            infError range
@@ -1117,17 +1117,15 @@ prettyPartial :: Pretty.Env -> Name -> Partial -> Doc
 prettyPartial penv pname partial
   = case partial of
       Step _    -> Pretty.ppNamePlain penv pname <.> text "=" <.> text "..."
-      Done iarg -> prettyImplicitAssign penv True "" pname iarg
+      Done iarg -> prettyImplicitAssign penv "" pname iarg True
 
-prettyImplicitAssign :: Pretty.Env -> Bool -> String -> Name -> ImplicitArg -> Doc
-prettyImplicitAssign penv shorten prefix pname iarg
-  = let withColor clr doc = color (clr (Pretty.colors penv)) doc
-        pardoc            = withColor colorImplicitParameter ({- text prefix <.> -} Pretty.ppNamePlain penv pname)
-    in if shorten && pname == iaName iarg && null (iaImplicitArgs iarg)
-        then pardoc
-        else if shorten && fromImplicitParamName pname == unqualifyFull (iaName iarg)
-          then prettyImplicitArg penv iarg
-          else pardoc <.> text "=" <.> prettyImplicitArg penv iarg
+prettyImplicitAssign :: Pretty.Env -> String -> Name -> ImplicitArg -> (Bool -> Doc)
+prettyImplicitAssign penv prefix pname iarg
+  = let pardoc = color (colorImplicitParameter (Pretty.colors penv)) (Pretty.ppNamePlain penv pname) <.> text "="
+    in seq pardoc $
+        if ((pname == iaName iarg && null (iaImplicitArgs iarg)) || fromImplicitParamName pname == unqualifyFull (iaName iarg))
+         then (\shorten -> (if shorten then Lib.PPrint.empty else pardoc) <.> prettyImplicitArg penv iarg)
+         else (\shorten -> pardoc <.> prettyImplicitArg penv iarg)
 
 
 
@@ -1467,7 +1465,8 @@ data NameContext
 ppNameContext :: Pretty.Env -> NameContext -> Doc
 ppNameContext penv ctx
   = case ctx of
-      CtxNone -> text "..."
+      CtxNone
+        -> text "_"
       CtxType tp
         -> Pretty.ppType penv tp
       CtxFunArgs n names mbResTp

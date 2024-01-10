@@ -1306,13 +1306,13 @@ inferApp propagated expect fun nargs rng
     -- can take an `fresolved` list of fixed arguments that have been inferred already (in the case
     -- where a overloaded function name could only be resolved after inferring some arguments)
     inferAppFunFirst :: Maybe (Type,Range) -> Expr Type -> [(Int,FixedArg)] ->
-                          [Expr Type] -> [((Name,Range),Expr Type)] -> [((Name,Range), Expr Type, Doc)] ->
+                          [Expr Type] -> [((Name,Range),Expr Type)] -> [((Name,Range), Expr Type, (Bool -> Doc))] ->
                             Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop funExpr fresolved fixed named0 implicits
       = do -- traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
-      --                             text ("fixed count: " ++ show (length fixed)) <.>
-      --                             text (", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <->
-      --                             text (", fres count: " ++ show (length fresolved)) <+> text ":" <+> ppProp penv prop
+                                  --  text ("fixed count: " ++ show (length fixed)) <.>
+                                  --  text (", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <->
+                                  --  text (", fres count: " ++ show (length fresolved)) <+> text ":" <+> ppProp penv prop
 
            -- only add resolved implicits that were not already named
            let alreadyGiven = [name | ((name,_),_) <- named0]
@@ -1320,7 +1320,8 @@ inferApp propagated expect fun nargs rng
                named        = named0 ++ [((name,rangeNull) {-so no range info is emmitted when checking -}
                                           , expr) | ((name,_),expr,_) <- rimplicits]
 
-           mapM_ (\(_,_,doc) -> addRangeInfo (getRange funExpr) (RM.Implicits doc)) rimplicits
+           penv <- getPrettyEnv
+           mapM_ (\((name,_),_,fdoc) -> addRangeInfo (getRange funExpr) (RM.Implicits fdoc)) rimplicits
 
            -- infer type of function
            (ftp,eff1,fcore) <- allowReturn False $ inferExpr prop Instantiated funExpr
@@ -1933,7 +1934,6 @@ inferArgsN ctx range parArgs
                                     subsumeArg res
                             ArgImplicit name rng nameRng
                               -> do (argExpr,termDoc) <- resolveImplicitName name tpar0 rng (endOfRange rng)
-                                    --  addRangeInfo nameRng (RM.Implicits termDoc)
                                     withHiddenTermDoc rng termDoc $
                                       do res <- inferArgExpr tpar0 argExpr True {- hidder -}
                                          subsumeArg res

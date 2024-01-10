@@ -69,8 +69,8 @@ data RangeInfo
   | Block String                -- type, kind, pattern
   | Error Doc
   | Warning Doc
-  | Id Name NameInfo [Doc] Bool  -- qualified name, info, extra doc (from implicits), is this the definition?
-  | Implicits Doc                -- inferred implicit arguments
+  | Id Name NameInfo [Doc] Bool           -- qualified name, info, extra doc (from implicits), is this the definition?
+  | Implicits (Bool {-shorten?-} -> Doc)  -- inferred implicit arguments
 
 data NameInfo
   = NIValue   { niSort :: String, niType:: Type, niComment :: String, niIsAnnotated :: Bool }  -- sort is fun, val, etc.
@@ -92,7 +92,7 @@ instance Show RangeInfo where
         Error doc           -> "Error"
         Warning doc         -> "Warning"
         Id name info docs isDef -> "Id " ++ show name ++ (if isDef then " (def)" else "") ++ " " ++ show docs
-        Implicits doc        -> "Implicits " ++ show doc
+        Implicits fdoc      -> "Implicits " ++ show (fdoc False)
 
 instance Enum RangeInfo where
   fromEnum r
@@ -167,8 +167,8 @@ prioritize :: [(Range,RangeInfo)] -> [(Range,RangeInfo)]
 prioritize rinfos
   = let idocs = reverse $
                 concatMap (\(_,rinfo) -> case rinfo of
-                                            Implicits doc -> [doc]
-                                            _             -> []) rinfos
+                                            Implicits fdoc -> [fdoc False {-do not shorten for hover info-}]
+                                            _              -> []) rinfos
     in map (mergeDocs idocs) $
         map last $
         groupBy eq $
@@ -186,13 +186,13 @@ prioritize rinfos
     mergeDocs ds x = x
 
 
-mergeImplicits :: [(Range,RangeInfo)] -> [(Range,RangeInfo)]
-mergeImplicits rinfos
+mergeImplicits :: Bool -> [(Range,RangeInfo)] -> [(Range,RangeInfo)]
+mergeImplicits shorten rinfos
   = merge rinfos
   where
     idocs = concatMap (\(rng,rinfo) -> case rinfo of
-                                        Implicits doc -> [(rng,doc)]
-                                        _             -> []) rinfos
+                                        Implicits fdoc -> [(rng,fdoc shorten)]
+                                        _              -> []) rinfos
 
     findDocs rng
       = reverse $ map snd $ filter (\(r,_) -> rangeContains rng (rangeStart r)) idocs
@@ -220,7 +220,7 @@ rangeMapLookup r (RM rm)
 
 rangeMapFindIn :: Range -> RangeMap -> [(Range, RangeInfo)]
 rangeMapFindIn rng (RM rm)
-  = mergeImplicits $
+  = mergeImplicits True {-shorten implicits for inlay info-} $
     filter (\(rng, info) -> rangeStart rng >= start || rangeEnd rng <= end) rm
     where start = rangeStart rng
           end = rangeEnd rng

@@ -50,7 +50,7 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
   -- outdated information is fine even if ranges are slightly different, we want to still be able to get hover info
-  loaded <- getLoadedSuccess normUri  
+  loaded <- getLoadedSuccess normUri
   pos <- liftIO $ fromLspPos normUri pos
   let res = do -- maybe monad
         l    <- loaded
@@ -103,7 +103,7 @@ formatRangeInfoHover loaded env colors rinfo
       Block s             -> asKokaCode (kw s)
       Error doc           -> text "error:" <+> doc
       Warning doc         -> text "warning:" <+> doc
-      Implicits implicits -> text "implicits:" <+> text (show implicits)  -- should not occur
+      Implicits fdoc      -> text "implicits:" <+> fdoc False  -- should not occur
 
       Id qname info docs isdef ->
         let namedoc   = ppName env qname
