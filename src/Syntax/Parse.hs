@@ -1325,7 +1325,7 @@ parNormal allowDefaults
                       transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng)
                                                                               [Branch pat [Guard guardTrue body]] rng) lambdaRng
                       transform (Ann body tp rng) = Ann (transform body) tp rng
-                      transform (Parens body name rng) = Parens (transform body) name rng
+                      transform (Parens body name pre rng) = Parens (transform body) name pre rng
                       transform _ = failure "Syntax.Parse.parameter: unexpected function expression in parameter match transform"
                   return (binder name rng, transform)
 
@@ -1339,7 +1339,7 @@ parImplicit
                                     <?> "implicit parameter name")
        tp <- optionMaybe typeAnnotPar
        let unpackExpr = if unpack
-                          then Just (Parens (Var (unqualifyFull qname) False rng) nameNil rng) -- encode ?? as a default value assuming it is a type name
+                          then Just (Parens (Var (unqualifyFull qname) False rng) nameNil "" rng) -- encode ?? as a default value assuming it is a type name
                           else Nothing
        return (ValueBinder qname tp unpackExpr (combineRange rng (getRange tp)) rng, id)
 
@@ -1374,7 +1374,7 @@ block
                         _        -> []
            stats = localize ++ stmts1 ++ stmts2
        case (reverse stats) of
-         (StatExpr exp:_) -> return (Parens (foldr combine exp (init stats)) nameNil (combineRange rng1 rng2))
+         (StatExpr exp:_) -> return (Parens (foldr combine exp (init stats)) nameNil "" (combineRange rng1 rng2))
          []               -> return (Var nameUnit False (combineRange rng1 rng2))
          _                -> fail "Last statement in a block must be an expression"
   where
@@ -1387,7 +1387,7 @@ block
     localScope vdef exp = let erng = getRange exp
                               drng = getRange vdef
                               nrng = binderNameRange (defBinder vdef)
-                          in App (Var nameRunLocal False nrng)
+                          in App (Var nameRunLocal False (rangeHide nrng))
                                   [(Nothing,Lam [] exp erng)]
                                   drng
 
@@ -1396,11 +1396,11 @@ block
     combine (StatExpr e) exp  = let r = getRange e
                                 in Bind (Def (ValueBinder (newName "_") () e r r) r Private DefVal InlineAuto "") exp r
     combine (StatVar def) exp = let (ValueBinder name () expr nameRng rng) = defBinder def
-                                in  App (Var nameLocalVar False rng)
+                                in  App (Var nameLocalVar False (rangeHide rng))
                                         -- put parens over the lambda so it comes later during type inference (so the type of expr can be propagated in)
-                                        -- see test/ambient/ambient3
+                                        -- see test/ambient/ambient3 -- todo: is this still the case?
                                         [(Nothing, expr),
-                                         (Nothing, Parens (Lam [ValueBinder name Nothing Nothing nameRng nameRng] exp (combineRanged def exp)) name rng)]
+                                         (Nothing, Parens (Lam [ValueBinder name Nothing Nothing nameRng nameRng] exp (combineRanged def exp)) name "var" nameRng)]
                                          (combineRanged rng exp)
 
 makeReturn r0 e
@@ -1506,15 +1506,15 @@ withstat
 
 applyToContinuation wrng params expr body
   = let lam = Lam params body (combineRanged wrng body)
-        fun = Parens lam (newName "with") wrng -- Parens makes it last in type inference so types can better propagate (ambients/heap1) (todo: no longer the case right?)
+        fun = Parens lam (newName "with") "expr" wrng -- Parens makes it last in type inference so types can better propagate (ambients/heap1) (todo: no longer the case right?)
         funarg = [(Nothing,fun)]
         fullrange = combineRanged wrng fun
     in case unParens expr of
         App f args range -> App f (args ++ funarg) fullrange
         atom             -> App atom funarg fullrange
   where
-    unParens (Parens p _ _) = unParens(p)
-    unParens p               = p
+    unParens (Parens p _ _ _) = unParens(p)
+    unParens p                = p
 
 typeAnnotation :: LexParser (UserExpr -> UserExpr)
 typeAnnotation
@@ -1584,7 +1584,7 @@ lambda alts
        body <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
-       return (ann (Parens fun (newName "fun") rng))
+       return (ann (Parens fun (newName "fn") "" rng))
 
 ifexpr
   = do rng <- do keyword "if"
@@ -2058,7 +2058,7 @@ tupleExpr
        rng2 <- rparen
        case es of
          []  -> return (Var nameUnit False (combineRange rng1 rng2))
-         [e] -> return (Parens e nameNil (combineRanged rng1 rng2))
+         [e] -> return (Parens e nameNil "" (combineRanged rng1 rng2))
          _   -> return (App (Var (nameTuple (length es)) False (combineRange rng1 rng2)) [(Nothing,e) | e <- es] (combineRange rng1 rng2))
 
 
@@ -2981,7 +2981,7 @@ uniqueRngName rng prefix =
 --------------------------------------------------------------------------}
 adjustRange :: Range -> UserExpr -> UserExpr
 adjustRange rng expr
-  = Parens expr nameNil rng
+  = Parens expr nameNil "" rng
 
 
 adjustTpRange :: Range -> UserType -> UserType

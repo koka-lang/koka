@@ -70,7 +70,7 @@ data RangeInfo
   | Error Doc
   | Warning Doc
   | Id Name NameInfo [Doc] Bool           -- qualified name, info, extra doc (from implicits), is this the definition?
-  | Implicits (Bool {-shorten?-} -> Doc)  -- inferred implicit arguments
+  | Implicits (Bool {-shorten?-} -> Doc)  -- inferred implicit arguments and (implicit) resume arguments
 
 data NameInfo
   = NIValue   { niSort :: String, niType:: Type, niComment :: String, niIsAnnotated :: Bool }  -- sort is fun, val, etc.
@@ -195,7 +195,7 @@ mergeImplicits shorten rinfos
                                         _              -> []) rinfos
 
     findDocs rng
-      = reverse $ map snd $ filter (\(r,_) -> rangeContains rng (rangeStart r)) idocs
+      = reverse $ map snd $ filter (\(r,_) -> r == rng) idocs
 
     merge [] = []
     merge ((rng,rinfo):rinfos)
@@ -438,11 +438,11 @@ instance HasTypeVar RangeInfo where
   sub `substitute` (Id nm info docs isdef)  = Id nm (sub `substitute` info) docs isdef
   sub `substitute` ri                       = ri
 
-  ftv (Id nm info _ _) = ftv info
-  ftv ri               = tvsEmpty
+  ftv (Id nm info _ _)    = ftv info
+  ftv ri                  = tvsEmpty
 
-  btv (Id nm info _ _) = btv info
-  btv ri               = tvsEmpty
+  btv (Id nm info _ _)    = btv info
+  btv ri                  = tvsEmpty
 
 instance HasTypeVar NameInfo where
   sub `substitute` ni

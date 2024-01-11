@@ -228,7 +228,7 @@ data Expr t
   | Lit    Lit
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
-  | Parens (Expr t)              Name Range
+  | Parens (Expr t)              Name String Range  --  name and string are used for the range map
   | Inject t (Expr t) Bool {-behind?-} Range
   | Handler{ hndlrSort         :: HandlerSort,
              hndlrScope        :: HandlerScope,
@@ -298,9 +298,9 @@ litRange lit
       LitString _ range -> range
 
 stripExpr :: Expr t -> Expr t
-stripExpr (Parens e _ _) = stripExpr e
-stripExpr (Ann e _ _)    = stripExpr e
-stripExpr e              = e
+stripExpr (Parens e _ _ _) = stripExpr e
+stripExpr (Ann e _ _)      = stripExpr e
+stripExpr e                = e
 
 
 
@@ -396,7 +396,7 @@ instance Ranged (Expr t) where
         Lit    lit             -> getRange lit
         Ann    expr tp range   -> range
         Case   exprs branches range -> range
-        Parens expr name range     -> range
+        Parens expr name pre range  -> range
         Handler shallow scoped override _ eff pars reinit ret final ops hrng range -> range
         Inject tp expr behind range -> range
 

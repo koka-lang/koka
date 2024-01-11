@@ -73,7 +73,7 @@ createInlayHints :: InlayHintOptions -> Env -> Module -> (Range, RangeInfo) -> [
 createInlayHints opts env mod (rng, rinfo)
   = concat [
       guard showFullQualifiers    $ qualifierHint env (modName mod) lexemes rng rinfo,
-      guard showInferredTypes     $ typeHint env rng rinfo,
+      guard showInferredTypes     $ typeHint env lexemes rng rinfo,
       guard showImplicitArguments $ implicitsHint env lexemes rng rinfo
     ]
   where
@@ -85,15 +85,18 @@ createInlayHints opts env mod (rng, rinfo)
 
 
 -- | Show type hint
-typeHint :: Env -> Range -> RangeInfo -> [J.InlayHint]
-typeHint env range rinfo
+typeHint :: Env -> [Lexeme] -> Range -> RangeInfo -> [J.InlayHint]
+typeHint env lexemes range rinfo
   = case rinfo of
-      Id qname (NIValue _ tp _doc isAnnotated) _idocs isDef | isDef && not isAnnotated
+      Id qname (NIValue _ tp _doc isAnnotated) _idocs isDef | isDef && not isAnnotated && not hasAnnot
         -> -- trace ("typeHint: " ++ show qname ++ ": " ++ show tp) $
            let fmt = show $ text " : " <.> ppScheme env tp
            in [newInlayHint range fmt J.InlayHintKind_Type False]
       _ -> []
-
+  where
+    hasAnnot = case lexemes of
+                 _ : Lexeme _ (LexKeyword ":" _) : _  -> True
+                 _                                    -> False
 
 -- | Show qualified name
 qualifierHint :: Env -> Name -> [Lexeme] -> Range -> RangeInfo -> [J.InlayHint]

@@ -158,7 +158,7 @@ instance HasSymbols UserExpr where
     App e nes _                           -> symbols e ++ symbols (map snd nes)
     Ann e _ _                             -> symbols e
     Case e bs _                           -> symbols e ++ symbols bs
-    Parens e _ _                          -> symbols e
+    Parens e _ _ _                        -> symbols e
     Handler _ _ _ _ _ bs e1 e2 e3 hbs _ _ -> symbols bs ++ symbols e1
                                                         ++ symbols e2
                                                         ++ symbols e3

@@ -191,8 +191,8 @@ dependencyExpr extraDeps modName expr
       Case expr branches rng -> let (depExpr,fv1) = dependencyExpr extraDeps modName expr
                                     (depBranches,fv2) = dependencyBranches dependencyBranch extraDeps modName branches
                                 in (Case depExpr depBranches rng, S.union fv1 fv2)
-      Parens expr name rng -> let (depExpr, fv) = dependencyExpr extraDeps modName expr
-                              in (Parens depExpr name rng, fv)
+      Parens expr name pre rng -> let (depExpr, fv) = dependencyExpr extraDeps modName expr
+                                  in (Parens depExpr name pre rng, fv)
 --      Con    name isop range -> (expr, S.empty)
       Lit    lit           -> (expr, S.empty)
       Handler shallow scoped override allowMask eff pars reinit ret final ops hrng rng
@@ -287,7 +287,7 @@ instance HasFreeVar (Expr t) where
       App fun nargs rng    -> freeVar (fun:map snd nargs)
       Ann expr t rng       -> freeVar expr
       Case expr bs rng     -> S.union (freeVar expr) (freeVar bs)
-      Parens expr name rng -> freeVar expr
+      Parens expr name pre rng -> freeVar expr
       Lit    lit           -> S.empty
       Inject tp body b rng -> freeVar body
       Handler shallow scoped override allowMask eff pars reinit ret final ops hrng rng

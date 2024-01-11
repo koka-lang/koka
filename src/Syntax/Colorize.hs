@@ -170,7 +170,7 @@ transform isLiterate rng rangeMap env lexeme content
              -> ([range,range] ++ ranges, (startTag "span" ("error") ++ startTag "span" "popup" ++ tag "span" "popup-content" (cspan "keyword" "error: " ++ show doc) ++ content))
           (Warning doc)
              -> ([range,range] ++ ranges, (startTag "span" ("warning") ++ startTag "span" "popup" ++ tag "span" "popup-content" (cspan "keyword" "warning: " ++ show doc) ++ content))
-          (Implicits doc)
+          (Implicits fdoc)
              -> (ranges, content) -- shouldn't happen
 
     spanEffect kind

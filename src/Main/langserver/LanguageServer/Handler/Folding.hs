@@ -120,7 +120,7 @@ instance HasFoldingRanges UserExpr where
     App e nes _                           -> foldings e ++ foldings (map snd nes)
     Ann e _ r                             -> foldings e ++ makeFoldingNoName r
     Case e bs r                           -> foldings e ++ foldings bs ++ makeFoldingNoName r
-    Parens e _ _                          -> foldings e
+    Parens e _ _ _                        -> foldings e
     Handler _ _ _ _ _ bs e1 e2 e3 hbs _ r -> foldings bs ++ foldings e1
                                                         ++ foldings e2
                                                         ++ foldings e3

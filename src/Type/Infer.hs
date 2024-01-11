@@ -531,7 +531,7 @@ inferIsolated contextRange range body inf
    where
      hasVarDecl expr
        = case expr of
-           Parens x _ _ -> hasVarDecl x
+           Parens x _ _ _ -> hasVarDecl x
            Let _ x _  -> hasVarDecl x
            Bind _ x _ -> hasVarDecl x
            Ann x _ _  -> hasVarDecl x
@@ -901,7 +901,7 @@ inferExpr propagated expect (Case expr branches rng)
 
     extractMatchedNames expr
       = case expr of
-          Parens e _ _                -> extractMatchedNames e
+          Parens e _ _ _              -> extractMatchedNames e
           App (Var tname _ _) args _  | isNameTuple tname -> concat (map (extractMatchedNamesX . snd) args)
           _                           -> extractMatchedNamesX expr
 
@@ -925,10 +925,10 @@ inferExpr propagated expect (Lit lit)
        return (tp,eff,core)
 
 
-inferExpr propagated expect (Parens expr name rng)
+inferExpr propagated expect (Parens expr name pre rng)
   = do (tp,eff,core) <- inferExpr propagated expect expr
        if (name /= nameNil)
-         then do addRangeInfo rng (RM.Id name (RM.NIValue "expr" tp "" False) [] False)
+         then do addRangeInfo rng (RM.Id name (RM.NIValue pre tp "" False) [] False)
          else return ()
        return (tp,eff,core)
 
@@ -1031,18 +1031,24 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
        let -- create expressions for each clause
            opName b1 b2 = compare (show (unqualify (hbranchName b1))) (show (unqualify (hbranchName b2)))
            clause (HandlerBranch opName pars body opSort nameRng patRng, resumeArg)
-            = do let (clauseName, cparams) = case opSort of
-                          OpVal        -> (nameClause "tail" (length pars), pars)
-                          OpFun        -> (nameClause "tail" (length pars), pars)
-                          OpExcept     -> (nameClause "never" (length pars), pars)
+            = do (clauseName, cparams, prefix) <- case opSort of
+                          OpVal        -> return (nameClause "tail" (length pars), pars, "val")
+                          OpFun        -> return (nameClause "tail" (length pars), pars, "fun")
+                          OpExcept     -> return (nameClause "never" (length pars), pars, "brk")
                           -- don't optimize ctl to exc since exc runs the finalizers before the clause (unlike ctl)
                           -- OpControl    | not (hasFreeVar body (newName "resume"))
                           --             -> (nameClause "never" (length pars), pars)  -- except
-                          OpControl    -> let resumeTp = TFun [(nameNil,resumeArg)] eff res
-                                          in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () hrng patRng])
-                          OpControlRaw -> let eff0 = effectExtend heff eff
-                                              resumeContextTp = typeResumeContext resumeArg eff eff0 res
-                                          in (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") (Just resumeContextTp) () hrng patRng])
+                          OpControl    -> do let resumeTp = TFun [(nameNil,resumeArg)] eff res
+                                                 resumeDoc shorten = if shorten then text "resume" else empty
+                                             addRangeInfo nameRng (RM.Implicits resumeDoc)
+                                             return (nameClause "control" (length pars),
+                                                     pars ++ [ValueBinder (newName "resume") (Just resumeTp) () (rangeHide nameRng) nameRng],
+                                                     "ctl")
+                          OpControlRaw -> do let eff0 = effectExtend heff eff
+                                                 resumeContextTp = typeResumeContext resumeArg eff eff0 res
+                                             return (nameClause "control-raw" (length pars),
+                                                     pars ++ [ValueBinder (newName "rcontext") (Just resumeContextTp) () (rangeHide hrng) patRng],
+                                                     "raw ctl")
                           OpControlErr -> failure "Type.Infer.inferHandler: using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'brk', or 'ctl' instead."
                           -- _            -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                  -- traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
@@ -1058,11 +1064,12 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                                                     ValueBinder name annTp _ nameRng rng   -> ValueBinder name annTp Nothing nameRng rng)
                                 $ zip (cparams :: [ValueBinder (Maybe Type) ()]) (parTps)
                      frng = combineRanged nameRng body
-                     -- use Parens for better rangeMap info
                      cname = case opSort of
                                OpVal -> fromValueOperationsName opName
                                _     -> opName
-                     capp  = App (Var clauseName False hrng) [(Nothing,Parens (Lam cparamsx body nameRng) cname nameRng)] frng
+                     capp  = App (Var clauseName False (rangeHide nameRng))
+                                 [(Nothing,Parens (Lam cparamsx body (getRange body)) cname prefix nameRng)] (getRange body)
+                 -- addRangeInfo nameRng (RM.Id cname (RM.NIValue "fun" gtp "" False) [] False)
                  return (Nothing, capp)
 
        clauses <- mapM clause (zip (sortBy opName branches) resumeArgs)
@@ -1103,7 +1110,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                         _ -> failure ("Type.Infer: unexpected handler type: " ++ show (ppType penv handleRho))
        -- traceDoc $ \penv -> text " action type is" <+> ppType penv actionTp
        let handlerExpr = Parens (Lam [ValueBinder actionName (Just actionTp) Nothing rng rng]
-                                     (handleExpr (Var actionName False rng)) hrng) (newName "handler") rng
+                                     (handleExpr (Var actionName False rng)) hrng) (newName "handler") "expr" rng
 
        -- and check the handle expression
        hres@(xhtp,_,_) <- inferExpr propagated expect handlerExpr
@@ -1494,7 +1501,7 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                 (tp1,eff1,core1) <- inferExpr propagated expect (Parens (App (Var nameLocalGet False irng)
                                                                              [(Nothing,App (Var nameByref False irng)
                                                                                            [(Nothing,Var name False irng)] irng)] irng)
-                                                                        name rng)
+                                                                        name "var" rng)
                 addRangeInfo rng (RM.Id qname (RM.NIValue (infoSort info) tp1  (infoDocString info) False) [] False)
                 -- traceDoc $ \env -> text " deref" <+> pretty name <+> text "to" <+> ppType env tp1
                 return (tp1,eff1,core1)
@@ -1720,7 +1727,7 @@ inferImplicitParam par
   = if isImplicitParamName (binderName par)
      then  do -- let pname = plainImplicitParamName (binderName par)
               unpack <- case binderExpr par of
-                Just (Parens (Var qname _ rng) _ _) -- encoded in the parser as a default expression
+                Just (Parens (Var qname _ rng) _ _ _) -- encoded in the parser as a default expression
                            -> inferImplicitUnpack (rangeHide (binderRange par)) (rangeHide rng) (binderName par) qname
                 Nothing    -> return id
                 Just expr  -> do contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
@@ -1880,8 +1887,8 @@ rootExpr expr
       -- Let defs e _ -> rootExpr e
       -- Bind def e _ -> rootExpr e
       -- Ann e t r  -> rootExpr e  -- better to do FunFirst in this case
-      Parens e _ r -> rootExpr e
-      _            -> expr
+      Parens e _ _ r -> rootExpr e
+      _              -> expr
 
 
 
@@ -1947,7 +1954,7 @@ inferArgsN ctx range parArgs
 
 
 -- | Is an expression annotated?
-isAnnot (Parens expr _ rng)   = isAnnot expr
+isAnnot (Parens expr _ _ rng) = isAnnot expr
 isAnnot (Ann expr tp rng)     = True
 isAnnot (Let defs body rng)   = isAnnot body
 isAnnot (Bind defs body rng)  = isAnnot body
@@ -2296,7 +2303,7 @@ ppProp env (Just (tp,_))  = ppType env tp
 usesLocals :: S.NameSet -> Expr Type -> Bool
 usesLocals lvars expr
   = case expr of
-      App (Var newLocal False rng) [_,(_, Parens (Lam [ValueBinder name _ _ _ _] body _ ) _ _)] _  -- fragile: expects this form from the parser
+      App (Var newLocal False rng) [_,(_, Parens (Lam [ValueBinder name _ _ _ _] body _) _ _ _)] _  -- fragile: expects this form from the parser
          | newLocal == nameLocalVar
          -> usesLocals (S.delete name lvars) body
 
@@ -2306,7 +2313,7 @@ usesLocals lvars expr
       App    fun nargs range -> any (usesLocals lvars) (fun : map snd nargs)
       Ann    expr tp range   -> usesLocals lvars expr
       Case   expr brs range  -> usesLocals lvars expr || any (usesLocalsBranch lvars) brs
-      Parens expr name range -> usesLocals lvars expr
+      Parens expr name pre range -> usesLocals lvars expr
       Handler shallow scoped override allowMask eff pars reinit ret final ops hrng rng
                              -> or (usesLocalsMb lvars reinit : usesLocalsMb lvars ret : usesLocalsMb lvars final : map (usesLocalsOp lvars) ops)
       Inject tp expr b range -> usesLocals lvars expr

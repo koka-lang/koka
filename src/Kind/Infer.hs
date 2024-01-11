@@ -534,11 +534,11 @@ infLamValueBinder (ValueBinder name mbTp mbExpr nameRng rng)
                                 return (Just tp')
        mbExpr' <- case mbExpr of
                   Nothing   -> return Nothing
-                  Just (Parens (Var iname _ nrng) nm prng)  | isImplicitParamName name  -- ?? unpack
+                  Just (Parens (Var iname _ nrng) nm pre prng)  | isImplicitParamName name  -- ?? unpack
                             -> do (qname,ikind) <- findInfKind iname rng
                                   -- kind          <- resolveKind ikind
                                   -- addRangeInfo r (Id qname (NITypeCon kind) [] False)
-                                  return (Just (Parens (Var qname False nrng) nm prng))
+                                  return (Just (Parens (Var qname False nrng) nm "implicit" prng))
                   Just expr -> do expr' <- infExpr expr
                                   return (Just expr')
        return (ValueBinder name mbTp' mbExpr' nameRng rng)
@@ -585,8 +585,8 @@ infExpr expr
       Case   expr brs range  -> do expr' <- infExpr expr
                                    brs'   <- mapM infBranch brs
                                    return (Case expr' brs' range)
-      Parens expr name range -> do expr' <- infExpr expr
-                                   return (Parens expr' name range)
+      Parens expr name pre range -> do expr' <- infExpr expr
+                                       return (Parens expr' name pre range)
       Handler hsort scoped override allowMask meff pars reinit ret final ops hrng rng
                              -> do pars' <- mapM infHandlerValueBinder pars
                                    meff' <- case meff of
