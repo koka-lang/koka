@@ -50,7 +50,7 @@ isTargetJS (JS _) = True
 isTargetJS _      = False
 
 isTargetWasm :: Target -> Bool
-isTargetWasm target 
+isTargetWasm target
   = case target of
       C Wasm    -> True
       C WasmJs  -> True
@@ -88,22 +88,22 @@ platformCS  = Platform 8 4 8 0
 platformHasCompressedFields (Platform sp _ sf _) = (sp /= sf)
 
 instance Show Platform where
-  show (Platform sp ss sf sh) = "Platform(sizeof(void*)=" ++ show sp ++ 
-                                        ",sizeof(size_t)=" ++ show ss ++ 
-                                        ",sizeof(kk_box_t)=" ++ show sf ++ 
-                                        ",sizeof(kk_header_t)=" ++ show sh ++ 
-                                        ")" 
+  show (Platform sp ss sf sh) = "Platform(sizeof(void*)=" ++ show sp ++
+                                        ",sizeof(size_t)=" ++ show ss ++
+                                        ",sizeof(kk_box_t)=" ++ show sf ++
+                                        ",sizeof(kk_header_t)=" ++ show sh ++
+                                        ")"
 
 
 alignedSum :: Int -> [Int] -> Int
 alignedSum start xs = foldl alignedAdd start xs
-     
+
 alignedAdd :: Int -> Int -> Int
 alignedAdd x y = (alignUp x y) + y
-     
+
 alignUp :: Int -> Int -> Int
 alignUp x y  | y <= 0  = x
-alignUp x y  = ((x + y - 1) `div` y)*y    
+alignUp x y  = ((x + y - 1) `div` y)*y
 
 
 
@@ -115,7 +115,7 @@ instance Show BuildType where
   show Debug          = "debug"
   show RelWithDebInfo = "drelease"
   show Release        = "release"
-  
+
 
 {--------------------------------------------------------------------------
   Visibility
@@ -146,22 +146,22 @@ isHandlerNormal (HandlerNormal) = True
 isHandlerNormal _ = False
 
 
-data OperationSort 
+data OperationSort
   = OpVal | OpFun | OpExcept | OpControlRaw | OpControl | OpControlErr
   deriving (Eq,Ord)
-  
+
 instance Show OperationSort where
   show opsort = case opsort of
                   OpVal -> "val"
                   OpFun -> "fun"
-                  OpExcept -> "brk"
+                  OpExcept -> "final ctl"
                   OpControl -> "ctl"
-                  OpControlRaw -> "rawctl"
+                  OpControlRaw -> "raw ctl"
                   OpControlErr -> ""
-                  
+
 readOperationSort :: String -> Maybe OperationSort
-readOperationSort s 
-  = case s of 
+readOperationSort s
+  = case s of
       "val" -> Just OpVal
       "fun" -> Just OpFun
       "brk" -> Just OpExcept
@@ -172,7 +172,7 @@ readOperationSort s
       "control"  -> Just OpControl
       "rcontrol" -> Just OpControlRaw
       _ -> Nothing
-  
+
 {--------------------------------------------------------------------------
   DataKind
 --------------------------------------------------------------------------}
@@ -188,7 +188,7 @@ data DataDef = DataDefValue !ValueRepr  -- value type
              | DataDefNormal            -- reference type
              | DataDefRec
              | DataDefOpen
-             | DataDefAuto              -- Value or Normal; determined by kind inference             
+             | DataDefAuto              -- Value or Normal; determined by kind inference
              deriving Eq
 
 instance Show DataDef where
@@ -227,7 +227,7 @@ dataDefSize platform ddef
   Definition kind
 --------------------------------------------------------------------------}
 
-data ValueRepr = ValueRepr{ valueReprRawSize    :: !Int {- size in bytes -}, 
+data ValueRepr = ValueRepr{ valueReprRawSize    :: !Int {- size in bytes -},
                             valueReprScanCount  :: !Int {- count of scannable fields -},
                             valueReprAlignment  :: !Int {- minimal alignment -}
                             -- valueReprSize       :: !Int {- full size, always rawSize + scanFields*sizeField platform -}
@@ -235,7 +235,7 @@ data ValueRepr = ValueRepr{ valueReprRawSize    :: !Int {- size in bytes -},
                deriving (Eq,Ord)
 
 instance Show ValueRepr where
-  show (ValueRepr raw scan align) 
+  show (ValueRepr raw scan align)
     = "{" ++ concat (intersperse "," (map show [raw,scan,align])) ++ "}"
 
 valueReprSizeScan :: Platform -> ValueRepr -> (Int,Int)
@@ -270,15 +270,15 @@ valueReprScan n = ValueRepr 0 n 0
 
 data DefSort
   = DefFun { defFunParamInfos :: [ParamInfo],
-             defFunFip        :: Fip } 
-  | DefVal 
+             defFunFip        :: Fip }
+  | DefVal
   | DefVar
   deriving Eq
 
-data ParamInfo 
+data ParamInfo
   = Borrow
   | Own
-  deriving(Eq,Show)  
+  deriving(Eq,Show)
 
 isDefFun (DefFun {})  = True
 isDefFun _           = False
@@ -369,14 +369,14 @@ isNoFip (NoFip _) = True
 isNoFip _         = False
 
 fipIsTail :: Fip -> Bool
-fipIsTail fip 
-  = case fip of 
+fipIsTail fip
+  = case fip of
       Fbip _ t -> t
       NoFip t  -> t
       _        -> True
 
 fipAlloc :: Fip -> FipAlloc
-fipAlloc fip 
+fipAlloc fip
   = case fip of
       Fip n    -> n
       Fbip n _ -> n
@@ -396,5 +396,5 @@ instance Show Fip where
               showTail True  = "tail "
               showTail _     = " "
 
-              
-         
+
+

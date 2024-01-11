@@ -1,9 +1,9 @@
 [3,4,5]
  
-cgen/specialize/map2/@lift-xxx: (xsxxx : list<int>) -> console string
-cgen/specialize/map2/@lift-xxx: (xsxxx : list<int>) -> console list<string>
-cgen/specialize/map2/@lift-xxx: (xsxxx : list<int>) -> list<int>
-cgen/specialize/map2/@lift-xxx: (y : int, xsxxx : list<int>) -> list<int>
+cgen/specialize/map2/@lift-xxx: (list<int>) -> console string
+cgen/specialize/map2/@lift-xxx: (list<int>) -> console list<string>
+cgen/specialize/map2/@lift-xxx: (list<int>) -> list<int>
+cgen/specialize/map2/@lift-xxx: (y : int, list<int>) -> list<int>
 cgen/specialize/map2/@unroll-xxx: (xs : list<int>, f : (int) -> int) -> list<int>
 cgen/specialize/map2/main: () -> console ()
 cgen/specialize/map2/map-int: (xs : list<int>, f : (int) -> int) -> list<int>

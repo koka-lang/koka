@@ -13,13 +13,13 @@ pub fun print-ret : (x : int) -> console int
  };
 pub fun test : () -> console int
  = fn<console>(){
- val x@122 : int
+ val x@xxx : int
  = parc/parc21/bo(3, 4);
  val _ : ()
- = std/core/prints((std/core/int/show(x@122)));
- val _0 : ()
+ = std/core/prints((std/core/int/show(x@xxx)));
+ val _@0 : ()
  = std/core/prints((std/core/int/show(3)));
- val _1 : ()
+ val _@1 : ()
  = std/core/prints((std/core/int/show(4)));
  parc/parc21/bo(3, 4);
  };

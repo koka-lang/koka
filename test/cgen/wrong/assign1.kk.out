@@ -1,6 +1,6 @@
 test/cgen/wrong/assign1@kk(6, 5): error: identifier count cannot be resolved@
  context : count
- inferred type: @@@
+ inferred type: _
  candidates : counter/count : forall<h> (counter : counter<h>) -> ref<h,int>
  stringpat/count : (s : string, pattern : string) -> int
  string/count : (s : string) -> int

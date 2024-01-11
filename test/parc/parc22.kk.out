@@ -15,14 +15,14 @@ pub fun hello/i : (^ hello : parc/parc22/hello) -> int
 pub fun hello/@copy : (@this : parc/parc22/hello, i : optional<int>) -> parc/parc22/hello
  = fn(@this: parc/parc22/hello, i: optional<int>){
  parc/parc22/World((match (i) {
- (std/core/types/Optional(((@skip std/core/types/@Box((@i@31: int)) : @Box ) as @box: @Box)) : optional<int> )
+ (std/core/types/Optional(((@skip std/core/types/@Box((@uniq-i@xxx: int)) : @Box ) as @box-xxx: @Box)) : optional<int> )
  -> val _ : int
- = std/core/types/@dup(@i@31);
+ = std/core/types/@dup(@uniq-i@xxx);
  val _ : ()
  = std/core/types/@drop(i);
  val _ : ()
  = std/core/types/@drop(@this, (std/core/int32(1)));
- @i@31;
+ @uniq-i@xxx;
  (@skip std/core/types/None() : (optional<int>) )
  -> val _ : ()
  = std/core/types/@drop(i);
@@ -49,9 +49,9 @@ pub fun hello/@copy : (@this : parc/parc22/hello, i : optional<int>) -> parc/par
  };
 pub fun f : (h : parc/parc22/hello) -> parc/parc22/hello
  = fn(h: parc/parc22/hello){
- val @ru@149 : reuse
+ val @ru-x149 : reuse
  = std/core/types/no-reuse();
  val _ : ()
- = std/core/types/@assign-reuse(@ru@149, (std/core/types/@drop-reuse(h, (std/core/int32(1)))));
- std/core/types/@alloc-at(@ru@149, (parc/parc22/World(2)));
+ = std/core/types/@assign-reuse(@ru-x149, (std/core/types/@drop-reuse(h, (std/core/int32(1)))));
+ std/core/types/@alloc-at(@ru-x149, (parc/parc22/World(2)));
  };

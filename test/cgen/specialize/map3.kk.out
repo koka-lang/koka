@@ -1,9 +1,9 @@
 [6,7,8,9,10,11,12,13,14,15]
  
-cgen/specialize/map3/@lift-xxx: (xsxxx : list<int>) -> console string
-cgen/specialize/map3/@lift-xxx: (xsxxx : list<int>) -> console list<string>
-cgen/specialize/map3/@lift-xxx: (xsxxx : list<int>) -> list<int>
-cgen/specialize/map3/@lift-xxx: (y : int, xsxxx : list<int>) -> list<int>
+cgen/specialize/map3/@lift-xxx: (list<int>) -> console string
+cgen/specialize/map3/@lift-xxx: (list<int>) -> console list<string>
+cgen/specialize/map3/@lift-xxx: (list<int>) -> list<int>
+cgen/specialize/map3/@lift-xxx: (y : int, list<int>) -> list<int>
 cgen/specialize/map3/@mlift-xxx: forall<a,e> (a, list<a>) -> e list<a>
 cgen/specialize/map3/@mlift-xxx: forall<a,b,e> (f : (a) -> e b, xx : list<a>, b) -> e list<b>
 cgen/specialize/map3/@unroll-xxx: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>

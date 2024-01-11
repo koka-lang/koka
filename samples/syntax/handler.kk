@@ -6,7 +6,7 @@
 */
 module syntax/handler
 
-effect example 
+effect example
   ctl raise( msg :string ) : a
 
 
@@ -15,8 +15,8 @@ effect example
    function: that function takes a unit-function `action`
    that is run under the handler.
 */
-pub fun example1() : console int 
-  val h = handler 
+pub fun example1() : console int
+  val h = handler
             ctl raise(msg) { println(msg); 42 }
   h(fn() raise("error"))
 
@@ -24,7 +24,7 @@ pub fun example1() : console int
 // The `with` statement (see `syntax/with`) can help to
 // specify the previous handler more easily as:
 pub fun example2() : console int
-  with handler 
+  with handler
     ctl raise(msg) { println(msg); 42 }
   raise("error")
 
@@ -45,10 +45,10 @@ pub fun example3() : console int
 // - `ctl`: ("control")
 //   Most generally is `ctl` which binds implicitly the
 //   `resume` function that can be used to resume at the call-site
-//   of the operation (see `handlers/basic`). 
+//   of the operation (see `handlers/basic`).
 //   You can mark a control operation as _final_: `final ctl`.
-//   This is esed for operations that never resume, like exceptions.
-//   and is more efficient as it runs any finalizers eagerly and does 
+//   This is used for operations that never resume, like exceptions.
+//   and is more efficient as it runs any finalizers eagerly and does
 //   need to capture a resumption.
 // - `fun`:
 //   `fun op(<args>{ <body> })  ~>  ctl op(<args>){ resume (<body>) }`
@@ -60,7 +60,7 @@ pub fun example3() : console int
 //   An operation that always resumes with a constant. As efficient
 //   as `fun` operations.
 
-pub fun example4() : console int 
+pub fun example4() : console int
   with final ctl raise(msg) { println(msg); 42 }
   raise("error")
 

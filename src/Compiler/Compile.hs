@@ -588,7 +588,9 @@ resolveImportModules maybeContents mname term flags currentDir resolved importPa
   = return ([],resolved)
 resolveImportModules maybeContents mname term flags currentDir resolved0 importPath (imp:imps)
   = if impName imp `elem` importPath then do
-        liftError $ errorMsg $ ErrorStatic [(getRange imp, text "cyclic module dependency detected when importing: " <+> ppName (prettyEnvFromFlags flags) mname <+> text " import path: " <-> vsep (reverse (map (ppName (prettyEnvFromFlags flags)) importPath)))]
+        liftError $ errorMsg $ ErrorStatic [(getRange imp,
+          text "cyclic module dependency detected when importing:" <+> ppName (prettyEnvFromFlags flags) (impName imp) <->
+          text "imports:" <+> align (vcat (reverse (map (ppName (prettyEnvFromFlags flags)) importPath))))]
         return ([],resolved0)
       else
     do -- trace ("\t" ++ show mname ++ ": resolving imported modules: " ++ show (impName imp) ++ ", resolved: " ++ show (map (show . modName) resolved0) ++ ", path:" ++ show importPath) $ return ()

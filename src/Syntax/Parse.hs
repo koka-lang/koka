@@ -1798,7 +1798,7 @@ handlerOp
                             tp         <- optionMaybe typeAnnotPar
                             return (name,prng,tp))
        expr <- bodyexpr
-       return (ClauseRet (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)), Nothing)
+       return (ClauseRet (Parens (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)) (newName "return") "" rng), Nothing)
   -- TODO is "raw" needed for value definitions?
   <|>
     do keyword "val"

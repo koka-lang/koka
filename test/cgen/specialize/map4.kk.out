@@ -1,7 +1,7 @@
 160
  
-cgen/specialize/map4/@lift-xxx: (xsxxx : list<int>) -> list<int>
-cgen/specialize/map4/@lift-xxx: forall<a> (g : (a) -> int, y : int, xsxxx : list<a>) -> list<int>
+cgen/specialize/map4/@lift-xxx: (list<int>) -> list<int>
+cgen/specialize/map4/@lift-xxx: forall<a> (g : (a) -> int, y : int, list<a>) -> list<int>
 cgen/specialize/map4/@mlift-xxx: forall<a,e> (a, list<a>) -> e list<a>
 cgen/specialize/map4/@mlift-xxx: forall<a,b,e> (f : (a) -> e b, xx : list<a>, b) -> e list<b>
 cgen/specialize/map4/@unroll-xxx: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>

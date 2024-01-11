@@ -4,8 +4,8 @@ import std/core = std/core = "";
 pub fun test : (xs : list<maybe<int>>, y : int) -> int
  = fn(xs: list<maybe<int>>, y: int){
  match (xs) {
- (std/core/Cons(((@skip std/core/types/@Box(((std/core/types/Just(((@skip std/core/types/@Box((x: int)) : @Box ) as @box: @Box)) : maybe<int> ) as 
- @pat0: maybe<int>)) : @Box ) as @box: @Box), (@pat1: list<maybe<int>>)) : list<maybe<int>> )
+ (std/core/Cons(((@skip std/core/types/@Box(((std/core/types/Just(((@skip std/core/types/@Box((x: int)) : @Box ) as @box-xxx: @Box)) : maybe<int> ) as 
+ @pat@xxx: maybe<int>)) : @Box ) as @box-xxx: @Box), (@pat@xxx: list<maybe<int>>)) : list<maybe<int>> )
  | std/core/int/(==)(x, y) -> val _ : ()
  = std/core/types/@drop(y);
  val _ : ()
@@ -13,11 +13,11 @@ pub fun test : (xs : list<maybe<int>>, y : int) -> int
  (std/core/types/True() : bool )
  -> val _ : ()
  = val _ : ()
- = std/core/types/@drop(@pat1);
+ = std/core/types/@drop(@pat@xxx);
  val _ : int
  = std/core/types/@dup(x);
  val _ : ()
- = std/core/types/@drop(@box);
+ = std/core/types/@drop(@box-xxx);
  std/core/types/Unit;
  std/core/types/@free(xs);
  _
@@ -30,7 +30,7 @@ pub fun test : (xs : list<maybe<int>>, y : int) -> int
  std/core/types/Unit;
  });
  x;
- (std/core/Cons(((@skip std/core/types/@Box(((std/core/types/Nothing() : maybe<int> ) as @pat3: maybe<int>)) : @Box ) as @box: @Box), (@pat4: list<
+ (std/core/Cons(((@skip std/core/types/@Box(((std/core/types/Nothing() : maybe<int> ) as @pat@xxx: maybe<int>)) : @Box ) as @box-xxx: @Box), (@pat@xxx: list<
  maybe<int>>)) : list<maybe<int>> )
  -> val _ : ()
  = std/core/types/@drop(y);
@@ -39,9 +39,9 @@ pub fun test : (xs : list<maybe<int>>, y : int) -> int
  (std/core/types/True() : bool )
  -> val _ : ()
  = val _ : ()
- = std/core/types/@drop(@pat4);
+ = std/core/types/@drop(@pat@xxx);
  val _ : ()
- = std/core/types/@drop(@box);
+ = std/core/types/@drop(@box-xxx);
  std/core/types/Unit;
  std/core/types/@free(xs);
  _

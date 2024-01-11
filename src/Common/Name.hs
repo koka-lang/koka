@@ -546,11 +546,14 @@ nameStartsWith name pre
 prepend :: String -> Name -> Name
 prepend pre name
   = nameMapStem name $ \stem ->
-    case stem of
-      ('@':t) -> case pre of -- keep hidden names hidden
-                   '@':_ -> pre ++ t
-                   _     -> '@' : pre ++ t
-      t       -> pre ++ t
+    let append p s = case (reverse p, s) of
+                      ('-':_, c:cs)  | not (isAlpha c) -> p ++ "x" ++ s -- keep well-formed identifiers
+                      _ -> p ++ s
+    in case stem of
+        ('@':t) -> case pre of -- keep hidden names hidden
+                    '@':_ -> append pre t
+                    _     -> '@' : append pre t
+        _       -> append pre stem
 
 
 postpend :: String -> Name -> Name
@@ -567,19 +570,15 @@ postpend post name
 
 
 ----------------------------------------------------------------
--- various special names
+-- hidden names
 ----------------------------------------------------------------
 makeHidden :: Name -> Name
 makeHidden name
-  = nameMapStem name $ \stem ->
-    case stem of
-      ('@':cs)      -> stem
-      _             -> '@':stem
+  = prepend "@" name
 
 makeHiddenName :: String -> Name -> Name
 makeHiddenName s name
-  = -- makeHidden (prepend (s ++ "-") name)
-    makeHidden (prepend (s ++ "-") name)
+  = prepend ("@" ++ s ++ "-") name
 
 unmakeHidden :: String -> Name -> Name
 unmakeHidden pre name
@@ -592,15 +591,19 @@ unmakeHidden pre name
 
 newHiddenNameEx :: String -> String -> Name
 newHiddenNameEx base s
-  = newName ("@" ++ base ++ "-" ++ case s of
-                                     (c:cs) | isAlpha c -> s
-                                     _      -> "u" ++ s)
-
+  = makeHiddenName base (newName s)
 
 newHiddenName :: String -> Name
 newHiddenName base
-  = newName ("@" ++ base)
+  = makeHidden (newName base)
 
+toUniqueName :: Int -> Name -> Name
+toUniqueName i name
+  = postpend ("@" ++ show i) name
+
+toHiddenUniqueName :: Int -> String -> Name -> Name
+toHiddenUniqueName i pre name
+  = makeHiddenName pre (toUniqueName i name)
 
 makeFreshHiddenName s name range
   = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
@@ -644,13 +647,6 @@ isHiddenExternalName name
   = hiddenNameStartsWith name "extern"
 
 
-toUniqueName :: Int -> Name -> Name
-toUniqueName i name
-  = postpend ("@" ++ show i) name
-
-toHiddenUniqueName :: Int -> String -> Name -> Name
-toHiddenUniqueName i pre name
-  = makeHiddenName pre (toUniqueName i name)
 
 
 -- | Create a constructor creator name from the constructor name.

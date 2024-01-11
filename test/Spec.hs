@@ -93,10 +93,10 @@ testSanitize kokaDir
   . sub "[[:blank:]]+" " "
   . sub "\\\\" "/"
    -- type variable names and box names
-  . sub "\\@box-x[[:digit:]]+(-x[[:digit:]]+)?" "@box"
-  . sub "(\\@[a-zA-Z])[[:digit:]]+" "\\1"
-  . sub "([a-zA-Z])@[[:digit:]]+" "\\1"
-  -- . sub "([a-zA-Z])\\.[[:digit:]]+\\.[[:digit:]]+" "\\1"
+  . sub "\\@box-x[[:digit:]]+(-x[[:digit:]]+)?" "@box-xxx"
+  . sub "(\\@[a-zA-Z])[[:digit:]]+" "\\1xxx"
+  . sub "([a-zA-Z])@[[:digit:]@]+" "\\1@xxx"
+  . sub "([a-zA-Z])\\.[[:digit:]]+\\.[[:digit:]]+" "\\1@xxx"
   . sub "<[[:digit:]]+>" "<0>"
   -- for tests using --showhiddentypesigs,
   -- @unroll-xxx
@@ -131,11 +131,12 @@ runKoka cfg kokaDir fp
            kokaFlags = optFlag ++ flags cfg ++ caseFlags
        if (cabal (options cfg))
          then do let argv = ["new-run", "koka", "--"] ++ kokaFlags ++ [relTest]
-                 (exitCode, stdout, sterr) <- readProcessWithExitCode "cabal" argv ""
+                 (exitCode, stdout, stderr) <- readProcessWithExitCode "cabal" argv ""
                  return (testSanitize kokaDir stdout)
          else do let stackFlags = if (sysghc (options cfg)) then ["--system-ghc","--skip-ghc-check"] else []
                      argv = ["exec","koka"] ++ stackFlags ++ ["--"] ++ kokaFlags ++ [relTest]
-                 (exitCode, stdout, sterr) <- readProcessWithExitCode "stack" argv ""
+                 (exitCode, stdout, stderr) <- readProcessWithExitCode "stack" argv ""
+                 -- putStrLn stdout
                  return (testSanitize kokaDir stdout)
 
 

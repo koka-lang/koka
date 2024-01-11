@@ -928,7 +928,7 @@ inferExpr propagated expect (Lit lit)
 inferExpr propagated expect (Parens expr name pre rng)
   = do (tp,eff,core) <- inferExpr propagated expect expr
        if (name /= nameNil)
-         then do addRangeInfo rng (RM.Id name (RM.NIValue pre tp "" False) [] False)
+         then do addRangeInfo rng (RM.Id name (RM.NIValue (if null pre then "expr" else pre) tp "" False) [] False)
          else return ()
        return (tp,eff,core)
 
@@ -1034,7 +1034,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
             = do (clauseName, cparams, prefix) <- case opSort of
                           OpVal        -> return (nameClause "tail" (length pars), pars, "val")
                           OpFun        -> return (nameClause "tail" (length pars), pars, "fun")
-                          OpExcept     -> return (nameClause "never" (length pars), pars, "brk")
+                          OpExcept     -> return (nameClause "never" (length pars), pars, "final ctl")
                           -- don't optimize ctl to exc since exc runs the finalizers before the clause (unlike ctl)
                           -- OpControl    | not (hasFreeVar body (newName "resume"))
                           --             -> (nameClause "never" (length pars), pars)  -- except
@@ -1046,6 +1046,8 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                                                      "ctl")
                           OpControlRaw -> do let eff0 = effectExtend heff eff
                                                  resumeContextTp = typeResumeContext resumeArg eff eff0 res
+                                                 resumeDoc shorten = if shorten then text "rcontext" else empty
+                                             addRangeInfo nameRng (RM.Implicits resumeDoc)
                                              return (nameClause "control-raw" (length pars),
                                                      pars ++ [ValueBinder (newName "rcontext") (Just resumeContextTp) () (rangeHide hrng) patRng],
                                                      "raw ctl")
@@ -1067,8 +1069,8 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                      cname = case opSort of
                                OpVal -> fromValueOperationsName opName
                                _     -> opName
-                     capp  = App (Var clauseName False (rangeHide nameRng))
-                                 [(Nothing,Parens (Lam cparamsx body (getRange body)) cname prefix nameRng)] (getRange body)
+                     capp  = App (Var clauseName False (rangeHide hrng))
+                                 [(Nothing,Parens (Lam cparamsx body (getRange body)) cname prefix nameRng)] frng
                  -- addRangeInfo nameRng (RM.Id cname (RM.NIValue "fun" gtp "" False) [] False)
                  return (Nothing, capp)
 
