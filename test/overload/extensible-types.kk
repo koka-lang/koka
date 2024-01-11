@@ -8,7 +8,7 @@ value type or<a,b>
 
 val or/subtype = Subtype(fn(a) L(a), fn(b) match b {L(x) -> Just(x); _ -> Nothing})
 
-fun convert/subtype(??subtype: subtype<a,b>): subtype<a,or<c,b>>
+fun convert/subtype(.?subtype: subtype<a,b>): subtype<a,or<c,b>>
   Subtype(fn(a) R(inj(a)), fn(b) match b {R(a) -> prj(a); _ -> Nothing})
 
 alias value = or<int, or<func, ()>>;

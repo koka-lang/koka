@@ -1,5 +1,5 @@
 // monads as implicit parameters
-// use ?? to unpack pure and bind
+// use .? to unpack pure and bind
 
 value struct monad<m>
   pure : forall<a> a -> m<a>
@@ -7,7 +7,7 @@ value struct monad<m>
 
 
 //fun sequence( ms : list<m<a>>, ?monad : monad<m> ) : m<list<a>>
-fun sequence( ms, ??monad )
+fun sequence( ms, .?monad )
   match ms
     Nil -> pure([])
     Cons(m,mm) ->

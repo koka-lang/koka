@@ -1331,7 +1331,7 @@ parNormal allowDefaults
 
 parImplicit :: LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
 parImplicit
-  = do (unpack,qname,rng) <- try $ (do unpack      <- do{ special "?"; return True } <|> return False
+  = do (unpack,qname,rng) <- try $ (do unpack      <- do{ keyword "."; return True } <|> return False
                                        (qname,rng) <- qidentifier
                                        if not (isImplicitParamName qname)
                                          then fail "unexpected implicit parameter name"

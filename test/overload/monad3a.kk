@@ -1,5 +1,5 @@
 // monads as implicit parameters
-// use ?? to unpack pure and bind
+// use .? to unpack pure and bind
 
 ref struct monad<m  >
   pure : forall<a> a -> m<a>
@@ -10,7 +10,7 @@ ref struct monadplus<m>
   plus   : forall<a> (m<a>,m<a>) -> m<a>
 
 // sequence a list of actions
-fun sequence( ms, ??monad )
+fun sequence( ms, .?monad )
   match ms
     Nil -> pure([])
     Cons(m,mm) ->
@@ -27,17 +27,17 @@ val maybe/monadplus = Monadplus( maybe/monad, fn(m1,m2) match m1
                                                           Just    -> m1
                                )
 
-fun monadplus/monad( ??monadplus : monadplus<m> ) : monad<m>
+fun monadplus/monad( .?monadplus : monadplus<m> ) : monad<m>
   xmonad
 
 
-fun mbind( m, f, ??monad )
+fun mbind( m, f, .?monad )
   bind(m,f)
 
-fun mpure( x : a, ??monad : monad<m> ) : m<a>
+fun mpure( x : a, .?monad : monad<m> ) : m<a>
   pure(x)
 
-fun testtwice<m,a>( m : m<a>, ??monadplus : monadplus<m> ) : m<list<a>>
+fun testtwice<m,a>( m : m<a>, .?monadplus : monadplus<m> ) : m<list<a>>
   // works because `?monad` gets resolved to `monad_monadplus(monadplus)` for `mbind/mpure`
   with x <- mbind(plus(m,m))
   mpure([x])
