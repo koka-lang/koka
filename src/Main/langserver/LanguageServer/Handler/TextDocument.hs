@@ -177,7 +177,7 @@ recompileFile compileTarget uri version force flags = do
       term <- getTerminal
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
       let resultIO = do res <- compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] path
-                        liftIO $ termPhaseDoc term (color (colorInterpreter (colorSchemeFromFlags flags)) (text "succes"))
+                        liftIO $ termPhaseDoc term (color (colorInterpreter (colorSchemeFromFlags flags)) (text "success"))
                         return res
       processCompilationResult normUri path flags True resultIO
     Nothing -> return Nothing
