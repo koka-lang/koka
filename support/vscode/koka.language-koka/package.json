@@ -69,6 +69,13 @@
         "path": "./syntaxes/koka.json"
       }
     ],
+    "configurationDefaults": {
+      "[koka]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.inlayHints.enabled": "offUnlessPressed"
+      }
+    },
     "configuration": {
       "type": "object",
       "title": "Koka",
@@ -116,19 +123,19 @@
         "koka.languageServer.inlayHints.showImplicitArguments": {
           "type": "boolean",
           "default": true,
-          "description": "Report implicit arguments for inlay hints.",
+          "description": "Show implicit arguments as inlay hints.",
           "order": 6
         },
         "koka.languageServer.inlayHints.showInferredTypes": {
           "type": "boolean",
           "default": true,
-          "description": "Report inferred types for inlay hints.",
+          "description": "Show inferred types as inlay hints.",
           "order": 7
         },
         "koka.languageServer.inlayHints.showFullQualifiers": {
           "type": "boolean",
-          "default": false,
-          "description": "Report full missing parts of qualifiers.",
+          "default": true,
+          "description": "Show disambiguated qualified names as inlay hints.",
           "order": 8
         },
         "koka.dev.developmentPath": {
@@ -144,12 +151,6 @@
           "description": "Log trace information from the language server subprocess.",
           "order": 11
         }
-      }
-    },
-    "configurationDefaults": {
-      "[koka]": {
-        "editor.tabSize": 2,
-        "editor.insertSpaces": true
       }
     },
     "commands": [
