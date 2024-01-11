@@ -54,13 +54,13 @@ class (Monad m, Functor m) => HasUnique m where
     = do is <- uniques n
          return (map (genId baseName) is)
 
-  uniqueName baseName
+  uniqueName pre
     = do i <- unique
-         return (newHiddenName (baseName ++ "@" ++ show i))
+         return (newHiddenNameEx pre (show i))
 
   uniqueNameFrom baseName
     = do i <- unique
-         return (toUniqueName i baseName)
+         return (toHiddenUniqueName i "uniq" baseName)
 
 
 {--------------------------------------------------------------------------

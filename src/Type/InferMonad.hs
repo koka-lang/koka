@@ -1958,7 +1958,7 @@ createCanonicalName ctx gamma qname
 withGammaType :: Range -> Type -> Inf a -> Inf a
 withGammaType range tp inf
   = do defName <- currentDefName
-       name <- uniqueName (show defName)
+       name <- uniqueNameFrom defName
        extendInfGamma [(name,(InfoVal Public name tp range False ""))] inf
 
 currentDefName :: Inf Name

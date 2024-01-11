@@ -1804,8 +1804,8 @@ inferOptionals eff infgamma (par:pars)
             let infgamma' = infgamma ++ [(binderName par,createNameInfoX Public (binderName par) DefVal (getRange par) tp "")]
 
             -- build up core to get the optional value
-            local <- uniqueName (show (binderName par))
-            temp  <- uniqueName (show (binderName par))
+            local <- uniqueNameFrom (binderName par)
+            temp  <- uniqueNameFrom (binderName par)
             -- let coreVar (qname,tp,info) = Core.Var (Core.TName qname tp) (coreVarInfoFromNameInfo info)
             dataInfo <- findDataInfo nameTpOptional
             (coreNameOpt,coreTpOpt,coreReprOpt,conInfoOpt) <- resolveConName nameOptional Nothing fullRange

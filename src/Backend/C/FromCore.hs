@@ -2435,7 +2435,7 @@ withDef name toHeader asm
 newVarName :: String -> Asm Name
 newVarName s
   = do u <- unique
-       return (newName ("@" ++ s ++ show u))
+       return (newHiddenNameEx s (show u))
 
 newVarNames :: Int -> Asm [Name]
 newVarNames 0 = return []

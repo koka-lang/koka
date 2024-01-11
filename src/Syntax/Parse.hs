@@ -410,7 +410,7 @@ externDecl dvis
       = unzip (map genParArg (zip pars [1..]))
 
     genParArg ((name,tp),idx)
-      = let fullName = if name == nameNil then newHiddenName ("arg" ++ show idx) else name
+      = let fullName = if name == nameNil then newHiddenNameEx "arg" (show idx) else name
             rng = rangeNull -- before (getRange tp)
         in (ValueBinder fullName Nothing Nothing rng rng
            ,(Nothing,Var fullName False rng))
@@ -2966,7 +2966,7 @@ uniqueRngHiddenName :: Range -> String -> Name
 uniqueRngHiddenName rng prefix =
   let pos  = rangeStart rng
       uniq = show (posLine pos) ++ "_" ++ show (posColumn pos)
-  in newHiddenName (prefix ++ "_" ++ uniq)
+  in newHiddenNameEx prefix uniq
 
 uniqueRngName :: Range -> String -> Name
 uniqueRngName rng prefix =

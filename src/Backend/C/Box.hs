@@ -66,7 +66,7 @@ boxDef def
          let bdef = def{ defExpr = bexpr }
          -- simplify the whole def to avoid simplifying away functions to values (e.g. `fun f(x){ g(x) } ~> val f = g`)
          uniqueSimplify Pretty.defaultEnv True {- unsafe -} False {-ndebug-} 3 {-runs-} 6 {- duplicationMax -} bdef
-         
+
 
 -- add box/unbox such that the type of `expr` matches `BoxType`
 boxExpr :: BoxType -> Expr -> Unique Expr
@@ -94,10 +94,6 @@ boxExpr expectTp expr
                                  return (Case bexprs bbranches)
       _                    -> bcoerce (boxTypeOf expr) expectTp expr
 
-{-
-    isBoxOp (App (Var (TName name _) (InfoExternal _)) [arg]) = (name == newHiddenName ("box") || name == newHiddenName ("unbox"))
-    isBoxOp _ = False
--}
 
 boxBranch :: [BoxType] -> BoxType -> Branch -> Unique Branch
 boxBranch patTps expectTp (Branch patterns guards)
@@ -135,7 +131,7 @@ boxPattern fromTp pat | cType (fromTp) /= cType toTp
                        PatVar tname PatWild
                          -> -- ok, no nested match
                             do i <- unique
-                               let uname = newHiddenName ("fun-unbox-x" ++ show i)
+                               let uname = newHiddenNameEx "fun-unbox-x"  (show i)
                                coerce <- bcoerce fromTp toTp (Var (TName uname fromTp) InfoNone)  -- regenerate the coercion
                                let def = makeTDef (TName (getName tname) toTp) coerce
                                --trace ("unbox function: " ++ show uname ++ ": " ++ show (pretty fromTp) ++ " to " ++ show (pretty toTp)
@@ -144,7 +140,7 @@ boxPattern fromTp pat | cType (fromTp) /= cType toTp
                        _ -> failure "Backend/C/FromCore.boxPattern: nested match on a function?"
                 else -- regular box/unbox
                      do i <- unique
-                        let uname = newHiddenName ("box-x" ++ show i)
+                        let uname = newHiddenNameEx "box-x" (show i)
                         (bpat,defs) <- boxPatternX toTp pat
                         -- trace ("unbox pattern: " ++ show uname ++ ": " ++ show (pretty toTp)) $
                         -- return (PatVar (TName uname toTp) bpat, defs)  -- toTp for generating correct unbox call in the C backend
@@ -395,8 +391,8 @@ boxConRepr = ConSingle nameTpBox (DataSingle False) (valueReprScan 1) CtxNone 0
 boxConInfo :: ConInfo
 boxConInfo
   = ConInfo nameBox nameTpBox [a] [] [(nameNil,TVar a)] tp
-            Inductive rangeNull [] [Public] True 
-            [(nameNil,TVar a)] 
+            Inductive rangeNull [] [Public] True
+            [(nameNil,TVar a)]
             (valueReprScan 1) {- size is wrong with knowing the platform ? -}
             Public ""
   where

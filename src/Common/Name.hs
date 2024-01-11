@@ -29,7 +29,7 @@ module Common.Name
           , newFieldName, isFieldName, isWildcard
           , newHiddenExternalName, isHiddenExternalName
           , newHiddenName, isHiddenName, hiddenNameStartsWith
-          , makeHiddenName, makeFreshHiddenName
+          , makeHiddenName, makeFreshHiddenName, newHiddenNameEx
           , toUniqueName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName, isCreatorName
@@ -569,29 +569,69 @@ postpend post name
 ----------------------------------------------------------------
 -- various special names
 ----------------------------------------------------------------
+makeHidden :: Name -> Name
+makeHidden name
+  = nameMapStem name $ \stem ->
+    case stem of
+      ('@':cs)      -> stem
+      _             -> '@':stem
 
-newHiddenName s
-  = newName ("@" ++ s)
+makeHiddenName :: String -> Name -> Name
+makeHiddenName s name
+  = -- makeHidden (prepend (s ++ "-") name)
+    makeHidden (prepend (s ++ "-") name)
+
+unmakeHidden :: String -> Name -> Name
+unmakeHidden pre name
+  = nameMapStem name $ \stem ->
+    if stem `startsWith` ("@" ++ pre ++ "-")
+      then drop (length pre + 2) stem
+      else err
+  where
+    err = failure ("Name.unmakeHidden: expecting hidden name prefixed with @" ++ pre ++ "-, but found: " ++ show name)
+
+newHiddenNameEx :: String -> String -> Name
+newHiddenNameEx base s
+  = newName ("@" ++ base ++ "-" ++ case s of
+                                     (c:cs) | isAlpha c -> s
+                                     _      -> "u" ++ s)
+
+
+newHiddenName :: String -> Name
+newHiddenName base
+  = newName ("@" ++ base)
+
+
+makeFreshHiddenName s name range
+  = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
+    where idFromPos pos = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
+
+hiddenNameStartsWith :: Name -> String -> Bool
+hiddenNameStartsWith name pre
+  = (nameStem name == ("@" ++ pre)) || (nameStartsWith name ("@" ++ pre ++ "-"))
 
 newPaddingName i
-  = newHiddenName ("padding" ++ show i)
+  = newHiddenNameEx "padding"  (show i)
 
 isPaddingName name
-  = nameStartsWith name "@padding"
+  = hiddenNameStartsWith name "padding"
+
+newCCtxName s
+  = newHiddenNameEx "cctx" s
 
 isCCtxName name
-  = nameStartsWith name "@cctx"
+  = hiddenNameStartsWith name "cctx"
 
 
 newFieldName i
-  = newHiddenName ("field" ++ show i)
+  = newHiddenNameEx "field"  (show i)
 
 isFieldName name
-  = nameStartsWith name "@field"
+  = hiddenNameStartsWith name "field"
 
 
 newImplicitTypeVarName i
-  = newHiddenName ("tv" ++ show i)
+  = newHiddenNameEx "tv" (show i)
 
 isImplicitTypeVarName name
   = nameStartsWith name "@tv"
@@ -604,40 +644,9 @@ isHiddenExternalName name
   = hiddenNameStartsWith name "extern"
 
 
-
-
-makeHidden :: Name -> Name
-makeHidden name
-  = nameMapStem name $ \stem ->
-    case stem of
-      ('@':cs)      -> stem
-      _             -> '@':stem
-
-makeHiddenName :: String -> Name -> Name
-makeHiddenName s name
-  = makeHidden (prepend (s ++ "-") name)
-
-unmakeHidden :: String -> Name -> Name
-unmakeHidden pre name
-  = nameMapStem name $ \stem ->
-    if stem `startsWith` ("@" ++ pre ++ "-")
-      then drop (length pre + 2) stem
-      else err
-  where
-    err = failure ("Name.unmakeHidden: expecting hidden name prefixed with @" ++ pre ++ "-, but found: " ++ show name)
-
-
-makeFreshHiddenName s name range
-  = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
-    where idFromPos pos = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
-
-hiddenNameStartsWith name pre
-  = nameStartsWith name ("@" ++ pre ++ "-")
-
-
 toUniqueName :: Int -> Name -> Name
 toUniqueName i name
-  = postpend (show i) name
+  = postpend ("@" ++ show i) name
 
 toHiddenUniqueName :: Int -> String -> Name -> Name
 toHiddenUniqueName i pre name
