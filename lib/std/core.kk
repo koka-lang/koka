@@ -1166,21 +1166,21 @@ pub fun sum( xs : list<int> ) : int
 pub fun maybe( i : int ) : maybe<int>
   if i==0 then Nothing else Just(i)
 
-// fold over the integers between [`start`,`end`] (inclusive).
-pub fun int/fold-int( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
+// Fold over the integers between [`start`,`end`] (inclusive).
+pub fun int/fold( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
   if start >= end then init else
     val x = f(start,init)
-    fold-int(unsafe-decreasing(start.inc), end, x, f)
+    fold(unsafe-decreasing(start.inc), end, x, f)
 
-// fold over the integers between [0,`upto`)  (not including `upto`).
-pub fun intupto/fold-int( upto : int, init : a, f : (int,a) -> e a ) : e a
-  fold-int( 0, upto.dec, init, f )
+// Fold over the integers between [0,`upto`)  (not including `upto`).
+pub fun int/fold-upto( upto : int, init : a, f : (int,a) -> e a ) : e a
+  fold( 0, upto.dec, init, f )
 
-
-pub fun fold-while-int( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
+// Fold over the integes between [`start``,`end`] (inclusive) or until `f` returns `Nothing`
+pub fun int/fold-while( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
   if start >= end then init else
     match f(start,init)
-      Just(x) -> fold-while-int(unsafe-decreasing(start.inc), end, x, f)
+      Just(x) -> fold-while(unsafe-decreasing(start.inc), end, x, f)
       Nothing -> init
 
 // ----------------------------------------------------------------------------

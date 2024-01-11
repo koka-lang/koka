@@ -667,7 +667,7 @@ inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name ==
                     -> do inferUnify (checkReturn rng) (getRange expr) retTp tp
                  resTp <- Op.freshTVar kindStar Meta
                  let typeReturn = typeFun [(nameNil,tp)] typeTotal resTp
-                 addRangeInfo nameRng (RM.Id (newName "return") (RM.NIValue "return" tp "" False) [] False)
+                 addRangeInfo nameRng (RM.Id (newName "return") (RM.NIValue "expr" tp "" False) [] False)
                  return (resTp, eff, Core.App (Core.Var (Core.TName nameReturn typeReturn)
                                       (Core.InfoExternal [(Default,"return #1")])) [core])
 -- | Assign expression

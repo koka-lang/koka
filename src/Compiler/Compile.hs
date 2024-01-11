@@ -924,6 +924,7 @@ inferCheck loaded0 flags line coreImports program
 
        -- remove return statements
        unreturn penv
+
        -- checkCoreDefs "unreturn"
        let borrowed = borrowedExtendICore (coreProgram{ Core.coreProgDefs = cdefs }) (loadedBorrowed loaded)
        checkFBIP penv (platform flags) (loadedNewtypes loaded) borrowed gamma
