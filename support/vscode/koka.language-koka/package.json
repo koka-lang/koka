@@ -74,6 +74,19 @@
         "editor.tabSize": 2,
         "editor.insertSpaces": true,
         "editor.inlayHints.enabled": "offUnlessPressed"
+      },
+      "editor.tokenColorCustomizations": {
+        "textMateRules": [
+          { "scope": "koka.type.typeparam",
+            "settings": { "foreground": "#AAA" }
+          },
+          { "scope": "koka.param.implicit",
+            "settings": { "foreground": "#AAA" }
+          },
+          { "scope": "koka.comment.doc.pre",
+            "settings": { "foreground": "#84a084" }
+          }
+        ]
       }
     },
     "configuration": {
