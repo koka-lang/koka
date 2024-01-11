@@ -48,7 +48,7 @@ trace s x =
     x
 
 unreturn :: Pretty.Env -> CorePhase b ()
-unreturn penv 
+unreturn penv
   = liftCorePhaseUniq $ \uniq defs -> runUR penv uniq (urTopDefGroups defs)
 
 
@@ -120,7 +120,8 @@ urExpr expr
 
       -- return
       App ret@(Var v _) [arg] | getName v == nameReturn
-        -> return (R arg)
+        -> do arg' <- urPure arg
+              return (R arg')
 
       -- pure expressions that do not contain return (as checked by the grammar)
       App f args
