@@ -88,7 +88,7 @@ createInlayHints opts env mod (rng, rinfo)
 typeHint :: Env -> Range -> RangeInfo -> [J.InlayHint]
 typeHint env range rinfo
   = case rinfo of
-      Id qname (NIValue _ tp _doc isAnnotated) _idocs isDef | not isAnnotated
+      Id qname (NIValue _ tp _doc isAnnotated) _idocs isDef | isDef && not isAnnotated
         -> -- trace ("typeHint: " ++ show qname ++ ": " ++ show tp) $
            let fmt = show $ text " : " <.> ppScheme env tp
            in [newInlayHint range fmt J.InlayHintKind_Type False]
@@ -110,6 +110,9 @@ qualifierHint env modName lexemes rng rinfo
           (Lexeme rng (LexId name)):_ | unqualifyFull qname == unqualifyFull name
             -> missingQualifier modName name qname
           (Lexeme rng (LexOp name)):_ | unqualifyFull qname == unqualifyFull name
+            -> let qual = missingQualifier modName name qname
+               in if null qual then "" else " " ++ qual
+          (Lexeme rng (LexIdOp name)) :_  | unqualifyFull qname == unqualifyFull name
             -> let qual = missingQualifier modName name qname
                in if null qual then "" else " " ++ qual
           _ -> ""

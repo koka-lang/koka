@@ -45,9 +45,10 @@ import Common.Range (rangeNull)
 import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
 import Common.Name (newName)
 import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime)
+import Common.ColorScheme(ColorScheme(..))
 import Common.Error (Error, checkPartial, ErrorMessage (ErrorIO))
 import Core.Core (Visibility(Private))
-import Compiler.Options (Flags)
+import Compiler.Options (Flags, colorSchemeFromFlags)
 import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
 import Compiler.Module (Module(..), initialLoaded)
 import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
@@ -175,8 +176,8 @@ recompileFile compileTarget uri version force flags = do
       modules <- fmap loadedModules <$> getLastChangedFileLoaded (normUri, flags)
       term <- getTerminal
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
-      let resultIO = do compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] path
-                        liftIO $ termPhaseDoc term (color Green (text "succes"))
+      let resultIO = do res <- compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] path
+                        liftIO $ termPhaseDoc term (color (colorInterpreter (colorSchemeFromFlags flags)) (text "succes"))
                         return res
       processCompilationResult normUri path flags True resultIO
     Nothing -> return Nothing

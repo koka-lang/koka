@@ -1325,6 +1325,7 @@ parNormal allowDefaults
                       transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng)
                                                                               [Branch pat [Guard guardTrue body]] rng) lambdaRng
                       transform (Ann body tp rng) = Ann (transform body) tp rng
+                      transform (Parens body name rng) = Parens (transform body) name rng
                       transform _ = failure "Syntax.Parse.parameter: unexpected function expression in parameter match transform"
                   return (binder name rng, transform)
 
@@ -1488,7 +1489,9 @@ localUsingDecl
 withstat :: LexParser (UserExpr -> UserExpr)
 withstat
   = do krng <- keyword "with"
-       (do (par, _, transform) <- try $ parameter False{-allowBorrow-} False{-allowDefault-} False{-allowImplicit-} <*  (keyword "=" <|> keyword "<-")
+       (do (par, _, transform) <- try $ do x <- parameter False{-allowBorrow-} False{-allowDefault-} False{-allowImplicit-}
+                                           (keyword "=" <|> keyword "<-")
+                                           return x
            e <- basicexpr <|> handlerExprStat krng HandlerInstance
            pure $ applyToContinuation krng [promoteValueBinder par] $ transform e
         <|>
@@ -1502,12 +1505,13 @@ withstat
            _ -> binder
 
 applyToContinuation wrng params expr body
-  = let fun = Parens (Lam params body (combineRanged wrng body)) nameNil (getRange body) -- Parens makes it last in type inference so types can better propagate (ambients/heap1)
+  = let lam = Lam params body (combineRanged wrng body)
+        fun = Parens lam (newName "with") wrng -- Parens makes it last in type inference so types can better propagate (ambients/heap1) (todo: no longer the case right?)
         funarg = [(Nothing,fun)]
         fullrange = combineRanged wrng fun
     in case unParens expr of
-      App f args range -> App f (args ++ funarg) fullrange
-      atom             -> App atom funarg fullrange
+        App f args range -> App f (args ++ funarg) fullrange
+        atom             -> App atom funarg fullrange
   where
     unParens (Parens p _ _) = unParens(p)
     unParens p               = p
@@ -1580,7 +1584,7 @@ lambda alts
        body <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
-       return (ann fun)
+       return (ann (Parens fun (newName "fun") rng))
 
 ifexpr
   = do rng <- do keyword "if"

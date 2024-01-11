@@ -172,7 +172,7 @@ synTypeDef modName (Core.Data dataInfo isExtend)
 
 synCopyCon :: Name -> DataInfo -> ConInfo -> DefGroup Type
 synCopyCon modName info con
-  = let rc = conInfoRange con
+  = let rc = rangeHide (conInfoRange con)
         tp = typeApp (TCon (TypeCon (dataInfoName info) (dataInfoKind info))) [TVar (TypeVar id kind Meta) | TypeVar id kind _ <- (dataInfoParams info)]
         defName = unqualify $ copyNameOf (dataInfoName info)
 
@@ -218,8 +218,9 @@ synAccessors modName info
           = all (\ps -> any (\(n,(t,_,_,_)) -> n == name && t == tp) ps) paramss
 
         synAccessor :: (Name,(Type,Range,Visibility,ConInfo)) -> DefGroup Type
-        synAccessor (name,(tp,rng,visibility,cinfo))
-          = let dataName = unqualify $ dataInfoName info
+        synAccessor (name,(tp,xrng,visibility,cinfo))
+          = let rng      = rangeHide xrng
+                dataName = unqualify $ dataInfoName info
                 defName  = qualifyLocally (nameAsModuleName dataName) name -- TODO: only for type names that are valid module names!
 
                 arg = if (all isAlphaNum (show dataName))
@@ -231,7 +232,7 @@ synAccessors modName info
                          in tForall (dataInfoParams info ++ foralls) preds $
                             typeFun [(arg,dataTp)] (if isPartial then typePartial else typeTotal) rho
 
-                expr       = Ann (Lam [ValueBinder arg Nothing Nothing rng rng] caseExpr rng) fullTp rng
+                expr       = Ann (Lam [ValueBinder arg Nothing Nothing rng rng] caseExpr rng) fullTp xrng
                 caseExpr   = Case (Var arg False rng) (map snd branches ++ defaultBranch) rng
                 -- visibility = if (all (==Public) (map fst branches)) then Public else Private
 
@@ -255,7 +256,7 @@ synAccessors modName info
                 messages
                   = [Lit (LitString (sourceName (posSource (rangeStart rng)) ++ show rng) rng), Lit (LitString (show name) rng)]
                 doc = "// Automatically generated. Retrieves the `" ++ show name ++ "` constructor field of the `:" ++ nameLocal (dataInfoName info) ++ "` type.\n"
-            in DefNonRec (Def (ValueBinder defName () expr rng rng) rng visibility (defFunEx [Borrow] noFip) InlineAlways doc)
+            in DefNonRec (Def (ValueBinder defName () expr xrng xrng) rng visibility (defFunEx [Borrow] noFip) InlineAlways doc)
 
     in map synAccessor fields
 
@@ -265,7 +266,7 @@ synTester info con | isHiddenName (conInfoName con)
 synTester info con
   = let name = (prepend "is-" (toVarName (unqualify (conInfoName con))))
         arg = unqualify $ dataInfoName info
-        rc  = conInfoRange con
+        rc  = rangeHide (conInfoRange con)
 
         expr      = Lam [ValueBinder arg Nothing Nothing rc rc] caseExpr rc
         caseExpr  = Case (Var arg False rc) [branch1,branch2] rc
@@ -278,7 +279,7 @@ synTester info con
 synConstrTag :: (ConInfo) -> DefGroup Type
 synConstrTag (con)
   = let name = toOpenTagName (unqualify (conInfoName con))
-        rc   = conInfoRange con
+        rc   = rangeHide (conInfoRange con)
         expr = Lit (LitString (show (conInfoName con)) rc)
     in DefNonRec (Def (ValueBinder name () expr rc rc) rc (conInfoVis con) DefVal InlineNever "")
 
@@ -987,7 +988,7 @@ resolveConParam idmap (vis,vb)
                  Just e  -> {- do e' <- infExpr e
                                   return (Just e') -}
                             return (Just (failure "Kind.Infer.resolveConParam: optional parameter expression in constructor"))
-       addRangeInfo (binderNameRange vb) (Id (binderName vb) (NIValue "val" tp "" True) [] True)
+       -- addRangeInfo (binderNameRange vb) (Id (binderName vb) (NIValue "val" tp "" True) [] True)
        return (vis,vb{ binderType = tp, binderExpr = expr })
 
 -- | @resolveType@ takes: a map from locally quantified type name variables to types,
