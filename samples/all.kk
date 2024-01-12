@@ -8,6 +8,8 @@ import basic/rbtree
 import syntax/basic
 import syntax/handler
 import syntax/with
+import syntax/qualifiers
+import syntax/implicits
 
 import handlers/ambient
 import handlers/basic

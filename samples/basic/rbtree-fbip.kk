@@ -1,7 +1,7 @@
 /* Example of red-black tree balanced insertion
    using "functional-but-inplace" (FBIP) techniques for improved performance.
-   
-   The novel application of FBIP to improve on standard 
+
+   The novel application of FBIP to improve on standard
    Okasaki-style red-black tree rebalancing was initially done by Anton Lorenzen.
 
    See also `rbtree.kk`, the benchmarks in `example/bench/koka`, and
@@ -19,7 +19,7 @@ type tree<a>
   Node(color : color, lchild : tree<a>, key : int, value : a, rchild : tree<a>)
   Leaf
 
-// We use a "zipper" to keep track of where we are in the tree  
+// We use a "zipper" to keep track of where we are in the tree
 type zipper<a>
   NodeR(color : color, lchild : tree<a>, key : int, value : a, zip : zipper<a>)
   NodeL(color : color, zip : zipper<a>, key : int, value : a, rchild : tree<a>)
@@ -43,7 +43,7 @@ fun balance-red( z : zipper<a>, l : tree<a>, k : int, v : a, r : tree<a> ) : tre
       Done -> Node(Black, l1, k1, v1, Node(Red,l,k,v,r))
     NodeL(Red, z1, k1, v1, r1) -> match z1
       NodeR(_c2, l2, k2, v2, z2) -> z2.balance-red( Node(Black, l2, k2, v2, l), k, v, Node(Black, r, k1, v1, r1) )
-      NodeL(_c2, z2, k2, v2, r2) -> z2.balance-red( Node(Black, l, k, v, r), k1, v1, Node(Black, r1, k2, v2, r2) )              
+      NodeL(_c2, z2, k2, v2, r2) -> z2.balance-red( Node(Black, l, k, v, r), k1, v1, Node(Black, r1, k2, v2, r2) )
       Done -> Node(Black, Node(Red,l,k,v,r), k1, v1, r1)
     Done -> Node(Black,l,k,v,r)
 
@@ -72,12 +72,12 @@ fun fold(t : tree<a>, acc : b, f : (int, a, b) -> b) : b
 
 // Make a boolean tree
 fun make-tree(n : int) : tree<bool>
-  fold-int( 0, n - 1, Leaf) fn(i,t)
+  int/fold( 0, n - 1, Leaf) fn(i,t)
     t.insert( i, i%10 == 0 )
 
 
 // Count the nodes with `True` values.
-fun count( t : tree<bool> ) : int 
+fun count( t : tree<bool> ) : int
   t.fold(0) fn(k,v,r)
     if v then r + 1 else r
 
