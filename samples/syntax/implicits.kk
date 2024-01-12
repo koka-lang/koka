@@ -9,7 +9,7 @@
 //
 // Prerequisites:
 //  - syntax/basic
-//  - syntex/qualifiers
+//  - syntax/qualifiers
 module syntax/implicits
 
 // Suppose we have some equality definitions
@@ -49,7 +49,7 @@ pub fun example1()
 //
 // So, in the recursive call below, `list-eq(xx,yy)`, the implicit
 // parameter is resolved to the local `eq` parameter itself.
-// (in vs code, press `ctrl+alt` to see the implicits as inlay hints)
+// (in VS Code, press `ctrl+alt` to see the implicits as inlay hints)
 fun list-eq( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
   match xs
     Cons(x,xx) -> match ys
@@ -100,7 +100,7 @@ pub fun example4()
 // Implicit parameters are resolved recursively.
 // Below, the implicit `?eq` is resolved first to `list/eq`, and
 // then the implicit `?eq` of `list/eq` is resolved to `int/eq`.
-// (again, in vs code press `ctrl+alt` to see the inlay hints)
+// (again, in VS Code press `ctrl+alt` to see the inlay hints)
 pub fun example5()
   eq( [[1,2],[]], [[1,2],[]] )
 
