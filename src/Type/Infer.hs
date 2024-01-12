@@ -57,7 +57,7 @@ import Kind.Newtypes
 import Kind.ImportMap
 
 import Type.Type
-import Type.Kind( handledToLabel, getKind, labelIsLinear )
+import Type.Kind( handledToLabel, getKind, labelIsLinear, isHandledEffect )
 import Type.Pretty
 import Type.Assumption
 import Type.TypeVar
@@ -1202,8 +1202,10 @@ inferHandledEffect rng handlerSort mbeff ops
                                       return rtp
                   Just(_,eff,_) | not (isHandlerInstance handlerSort)
                                 -> case extractEffectExtend eff of
-                                    ((l:_),_) -> return (l)  -- TODO: can we assume the effect comes first?
-                                    _ -> failure $ "Type.Infer.inferHandledEffect: invalid effect type: " ++ show eff
+                                    (ls,_) -> 
+                                      case filter isHandledEffect ls of
+                                        (l:_) -> return (l)  -- TODO: can we assume the effect comes first?
+                                        _ -> failure $ "Type.Infer.inferHandledEffect: cannot find handled effect in " ++ show eff
                   _ -> infError rng (text ("cannot resolve effect operation: " ++ show qname ++ ".") <--> text " hint: maybe wrong number of parameters?")
         _ -> infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
