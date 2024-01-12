@@ -6,6 +6,8 @@
 */
 module syntax/handler
 
+// An effect declaration of type `:example` with
+// a single (control) operation `raise`.
 effect example
   ctl raise( msg :string ) : a
 
@@ -22,20 +24,14 @@ pub fun example1() : console int
 
 
 // The `with` statement (see `syntax/with`) can help to
-// specify the previous handler more easily as:
+// specify the previous handler more concisely as:
 pub fun example2() : console int
   with handler
     ctl raise(msg) { println(msg); 42 }
   raise("error")
 
 
-pub fun example2-expanded() : console int {
-  (handler{ ctl raise(msg){ println(msg); 42 } })(fn(){ raise("error") })
-}
-
-
-// Moreover, if there is only one operation, we can
-// shorten this further as:
+// If there is only one operation, we can shorten this further as:
 pub fun example3() : console int
   with ctl raise(msg){ println(msg); 42 }
   raise("error")
@@ -65,9 +61,16 @@ pub fun example4() : console int
   raise("error")
 
 
+// A dynamically bound value `ask`
 effect val ask : int
 
-pub fun main()
-  with val ask = 42
+// Dynamic binding with static typing!
+fun print-ask() : <ask,console> ()
   println(ask)
+
+// Using different handlers for each invocation
+pub fun main()
+  with val ask = 42 in print-ask()
+  with val ask = 43 in print-ask()
+
 

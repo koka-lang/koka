@@ -1,6 +1,5 @@
-/* Basic syntax examples 
-   By using a `pub` module, all functions are by default pub.
-   (this is not recommended in general of course)
+/* Basic syntax examples
+   See also: <https://koka-lang.github.io/koka/doc/book.html>
 */
 module syntax/basic
 
@@ -12,35 +11,35 @@ pub fun example1() {
 
 // Indented blocks get automatic curly braces (if not braced explicitly)
 // We can write the previous example with just indentation:
-pub fun example1a() 
+pub fun example1a()
   map( list(1,5), fn(i){ println(i) } )
 
 // If the body of an anonymous function is an expression, we do not need curly braces:
 pub fun example1b()
-  map( list(1,5), fn(i) println(i) )  
+  map( list(1,5), fn(i) println(i) )
 
 
 // Use the dot-syntax to chain functions calls,
 // where the left-expression is passed as the first argument to the
 // right-expression:
-// ````
+// ```
 // e.f(e1,...,eN)  ~>  f(e,e1,...,eN)
-// ````
-// This is also called _dot chaining_ (and part of Koka since 2012)
-pub fun example2() 
+// ```
+// This is also called _dot chaining_.
+pub fun example2()
   list(1,5).map( fn(i) println(i) )
 
 
-// `fn` anonymous function arguments can be put outside the parenthesis following the call:
+// Trailing `fn` anonymous function arguments can be put outside the parenthesis following the call:
 // `f(e1,...,eN) fn(x){ ... }  ~>  f(e1,...,eN, fn(x){ ... })`
-// This is also called _trailing lambdas_ (and Koka was the first language to have this)
-pub fun example3() 
+// This is also called _trailing lambdas_ (and Koka was the first language to have this as far as we know)
+pub fun example3()
   list(1,5).map fn(i){
     println(i)
   }
 
 // Of course, the indentation rule allows us to elide the braces here as well:
-pub fun example3a() 
+pub fun example3a()
   list(1,5).map fn(i)
     println(i)
 
@@ -54,41 +53,40 @@ fun twice(f)
   f()
   f()
 
-
-// Use an anonymous function without arguments
-pub fun example4() 
-  twice{ println("hi") }    // == twice( fn(){ println("hi" ) } )
+pub fun example4()
+  twice{ println("hi") }    // == `twice( fn(){ println("hi" ) } )`
 
 
-// Or with indentation:  
+// Or with indentation:
 pub fun example4a()
   twice
-    println("hi")  
+    println("hi")
 
 
 // This syntax enable many control-flow operations to be defined as functions,
 // like `while`:
 pub fun example5()
   var i := 0
-  while{ i < 10 } 
+  while{ i < 10 }
     i := i + 1
     println(i)
 
-  
 
-// In Koka, everything between curly braces (_suspenders_)
-// is not directly evaluated, and may be never evaluated, or
+
+// In Koka, expressions between curly braces (_suspenders_)
+// are not directly evaluated -- and may be never evaluated, or
 // evaluated multiple times (as in `while`).
-// Things between parenthesis are always evaluated to a value
+//
+// Expressions between parenthesis are always evaluated to a value
 // (including evaluating their effects) before a call.
 //
-// This is why there is no ML-style currying (like `f e1 e2`)
+// This is one of the reasons why there is no ML-style currying (like `f e1 e2`)
 // as we need  to distinguish `f(e1)(e2)` versus `f(e1,e2)`: in the
 // first form there may be a side effect induced by `f` before
 // `e2` is evaluated and passed to the result of `f(e1)`
 // while in the second form both `e1` and `e2` are evaluated
 // before calling `f`.
-pub fun main() 
+pub fun main()
   [21,21].foldl(0,(+)).println
 
 
@@ -100,6 +98,3 @@ pub fun increment(xs)  xs.map(fn(x) x + 1).filter(fn(x) x > 2)
 pub fun increment2(xs) {
   xs.map(fn(x){ x + 1 }).filter(fn(x){ x > 2 })
 }
-
-pub fun show(l: list<()>): string
-  ""
