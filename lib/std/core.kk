@@ -1996,25 +1996,26 @@ inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a>
   cs inline "(new ##1[#1])"
   js inline "Array(#1)"
 
-// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-pub inline extern vector/index( ^v : vector<a>, ^index : int ) : exn a
-  c "kk_vector_at_int_borrow"
-  cs inline "(#1)[Primitive.IntToInt32(#2)]"
-  js inline "$std_core._vector_at(#1,#2)"
-
-// Return the element at position `index` in vector `v`, or `Nothing` if out of bounds
-pub fun at( ^v : vector<a>, ^index : int ) : maybe<a>
-  val idx = index.ssize_t
-  if v.lengthz <= idx then Nothing else Just(unsafe-idx(v,idx))
-
-// Return the length of a vector.
-pub fun length( ^v : vector<a> ) : int
-  v.lengthz.int
-
 inline extern lengthz( ^v : vector<a> ) : ssize_t
   c  "kk_vector_len_borrow"
   cs inline "((#1).Length)"
   js inline "((#1).length)"
+
+
+// Return the element at position `index`  in vector `v`.
+// Raise an out of bounds exception if `index < 0`  or `index >= v.length`.
+pub fun vector/index( ^v : vector<a>, ^index : int ) : exn a
+  val idx = index.ssize_t()
+  if idx < v.lengthz then unsafe-idx(v,idx) else throw("index out of bounds",ExnRange)
+
+// Return the element at position `index` in vector `v`, or `Nothing` if out of bounds
+pub fun at( ^v : vector<a>, ^index : int ) : maybe<a>
+  val idx = index.ssize_t
+  if idx < v.lengthz then Just(unsafe-idx(v,idx)) else Nothing
+
+// Return the length of a vector.
+pub fun length( ^v : vector<a> ) : int
+  v.lengthz.int
 
 // Create a new vector of length `n`  with initial elements `default` .
 pub fun vector( ^n : int, default : a) : vector<a>
