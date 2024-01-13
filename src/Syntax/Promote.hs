@@ -69,14 +69,11 @@ promote somePars forallPars preds mbResTp expr
     isRight (Left tp)   = False
 
     argresTypes :: UserExpr -> ([(Name,Either UserType Range)],UserExpr)
-    argresTypes (Parens expr name r)= let (es,expr') = argresTypes expr in (es,Parens expr' name r)
+    argresTypes (Parens expr name pre r)= let (es,expr') = argresTypes expr in (es,Parens expr' name pre r)
     argresTypes (Ann expr tp r)     = let (es,expr') = argresTypes expr in (es,Ann expr' tp r)
     argresTypes (Lam args expr rng) = let (es,expr') = resType expr
                                           (fs,args') = unzip (map (\binder
-                                                                      -> let pname = case binderExpr binder of
-                                                                                       Just (Var name _ _) | isImplicitParamName (binderName binder)
-                                                                                         -> namedImplicitParamName (binderName binder) name
-                                                                                       _ -> binderName binder
+                                                                      -> let pname = binderName binder
                                                                          in case binderType binder of
                                                                               Nothing -> ((pname, Right rng), binder)
                                                                               Just tp
@@ -91,7 +88,7 @@ promote somePars forallPars preds mbResTp expr
     argresTypes expr                = ([],expr)
 
     resType :: Expr UserType -> ([(Name,Either UserType Range)],Expr UserType)
-    resType (Parens expr name r)     = let (es,expr') = resType expr in (es,Parens expr' name r)
+    resType (Parens expr name pre r)     = let (es,expr') = resType expr in (es,Parens expr' name pre r)
     {-
     resType (Ann expr tp rng)   = case mbResTp of
                                     Just (teff,tres) -> ([Left teff, Left tres], Ann expr tp rng)

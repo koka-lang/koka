@@ -68,6 +68,7 @@ on_path() {
   echo ":$PATH:" | grep -q :"$1":
 }
 
+
 #---------------------------------------------------------
 # Detect OS and cpu architecture for download bundle
 #---------------------------------------------------------
@@ -175,7 +176,7 @@ process_options() {
       -p) shift
           PREFIX="$1";;
       -p=*|--prefix=*)
-          PREFIX="$flag_arg";;
+          PREFIX=`eval echo $flag_arg`;; # no quotes so ~ gets expanded (issue #412)
       -u=*|--url=*)
           KOKA_DIST_URL="$flag_arg";;
       -b) shift
@@ -490,7 +491,7 @@ install_dist() {  # <prefix> <version>
       fi
     fi
 
-    if ! [ "$VSCODE" = "yes" ]; then
+    if ! [ "$VSCODE" = "yes" ]; then  # --vscode is passed from the vs code extension
       # install Visual Studio Code editor support
       export NODE_NO_WARNINGS=1
       vscode="code"
@@ -502,10 +503,12 @@ install_dist() {  # <prefix> <version>
       if which "$vscode" > /dev/null ; then
         info "- install vscode editor support.."
         if "$vscode" --list-extensions | grep "koka-lang.language-koka" > /dev/null ; then
-          "$vscode" --uninstall-extension koka-lang.language-koka > /dev/null  # old installation package
-        fi
-        if ! "$vscode" --force --install-extension koka.language-koka > /dev/null ; then  # new one from vs code marketplace
-          info "  failed to install vscode editor support!"
+          # already installed
+          info "  vscode extension is already installed"
+        else
+          if ! "$vscode" --force --install-extension koka.language-koka > /dev/null ; then  # latest one from vs code marketplace
+            info "  failed to install vscode editor support!"
+          fi
         fi
       fi
     fi

@@ -360,7 +360,7 @@ ppFunctionHeaderGen ctx name vars preds tp
       _ -> matchFailure "Backend.CSharp.FromCore.ppFunctionHeaderGen"
   where
     predToParam (p,n)
-      = (newHiddenName (show n), predType p)
+      = (newHiddenNameEx "pred" (show n), predType p)
 
 
 type ModuleName = Name
@@ -1764,7 +1764,7 @@ newVarNames i
 newVarName :: String -> Asm Name
 newVarName s
   = do u <- unique
-       return (newHiddenName (s ++ show u))
+       return (newHiddenNameEx s (show u))
 
 ---------------------------------------------------------------------------
 -- Helpers for name generation

@@ -1,7 +1,6 @@
 /* Shows `with` syntax examples.
    Prerequisites:
    - syntax/basic
-   - syntax/handler
 */
 module syntax/with
 
@@ -18,12 +17,12 @@ module syntax/with
    ````
 */
 
-pub fun twice(f) 
+pub fun twice(f)
   f()
   f()
 
 
-pub fun example1() 
+pub fun example1()
   with twice
   with twice
   println("hi")
@@ -62,9 +61,8 @@ pub fun example2()
 
 
 pub fun example2-expanded()
-  list(1,10).map(fn(x){
+  list(1,10).map fn(x)
     println(x)
-  })
 
 
 /* Of course, we can use `with` with a `handler` expression */
@@ -72,16 +70,16 @@ pub fun example2-expanded()
 // a dynamically bound value `ask`
 effect val ask : int
 
-fun ask-twice() 
+fun ask-twice()
   ask + ask
 
-
-pub fun example3() 
-  with handler{ val ask = 21 }
+pub fun example3()
+  with handler
+         val ask = 21
   println(ask-twice())
 
 
-pub fun example3-expanded() 
+pub fun example3-expanded()
   (handler{ val ask = 21 }) (fn(){
     println(ask-twice())
   })
@@ -101,7 +99,7 @@ pub fun example3-expanded()
    ````
 */
 
-pub fun example4() 
+pub fun example4()
   with val ask = 21
   println(ask-twice())
 
@@ -111,7 +109,7 @@ pub fun example4-expanded()
     println(ask-twice())
   })
 
-pub fun main() 
+pub fun main()
   example1()
   example2()
   example3()

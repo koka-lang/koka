@@ -7,7 +7,7 @@ fun char/showx( c : char ) : string
 fun float64/showx( f : float64 ) : string
   f.show
 
-fun showx( xs : list<a>, ?showx : a -> string ) : string
+fun list/showx( xs : list<a>, ?showx : a -> string ) : string
   "[" ++ xs.map(showx).join(",") ++ "]"
 
 fun foo1()

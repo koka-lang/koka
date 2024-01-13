@@ -30,7 +30,7 @@ import Type.Assumption (gammaLookupCanonical, gammaLookupQ, infoRange)
 import Syntax.RangeMap (RangeInfo (..), rangeMapFindAt, NameInfo (..))
 import Compiler.Module (Loaded (..), loadedModule, modRangeMap, modName, modSourcePath, modLexemes)
 import LanguageServer.Conversions (fromLspPos, toLspLocation, toLspLocationLink)
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule)
+import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getLoadedLatest, getLoadedSuccess)
 import Debug.Trace(trace)
 
 -- Finds the definitions of the element under the cursor.
@@ -39,12 +39,11 @@ definitionHandler = requestHandler J.SMethod_TextDocumentDefinition $ \req respo
   let J.DefinitionParams doc pos _ _ = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
-  mbMod  <- getLoadedModule normUri
-  mbLoaded <- getLoaded normUri
+  mbLoaded <- getLoadedSuccess normUri -- Don't care about outdated information
   pos <- liftIO $ fromLspPos normUri pos
   let defs = concat $ maybeToList $ do -- maybe monad
         l    <- mbLoaded
-        mod  <- mbMod
+        let mod  = loadedModule l
         rmap <- modRangeMap $ loadedModule l
         (r,info) <- rangeMapFindAt (modLexemes mod) pos rmap
         {-case rangeMapBestDefinition rm of
@@ -67,8 +66,8 @@ rangeInfoPriority (r,ri) =
     Id _ (NICon{}) _ True -> 3
     Id _ _ _ True -> 2
     Id _ _ _ _ -> 0
-    Decl "con" _ _ -> 3 -- Constructors are more important than other decls (such as automatically generated ones)
-    Decl _ _ _ -> 1
+    Decl "con" _ _ _ -> 3 -- Constructors are more important than other decls (such as automatically generated ones)
+    Decl _ _ _ _     -> 1
     Warning _ -> 4
     Error _ -> 5
     Implicits _ -> -1 -- Use the id

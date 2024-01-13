@@ -14,13 +14,15 @@
 module LanguageServer.Monad
   ( LSState (..),
     InlayHintOptions(..),
+    SignatureContext(..),clearSignatureContext,updateSignatureContext,getSignatureContext,
     defaultLSState,
     newLSStateVar,
     LSM,
     getLastChangedFileLoaded,
     getTerminal,getFlags,getColorScheme,getHtmlPrinter,
     getLSState,modifyLSState,
-    getLoaded,putLoaded,removeLoaded,removeLoadedUri,getLoadedModule,
+    getLoaded,putLoaded,putLoadedSuccess,removeLoaded,removeLoadedUri,
+    getLoadedModule,getLoadedSuccess,getLoadedLatest,
     getModules,
     updateConfig,
     getInlayHintOptions,
@@ -54,8 +56,8 @@ import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Server as J
 
 import Common.ColorScheme ( colorSource, ColorScheme, darkColorScheme, lightColorScheme )
-import Common.Name (nameNil)
-import Common.File ( realPath, normalize, getCwd, realPath, normalize )
+import Common.Name (nameNil, Name, readQualifiedName)
+import Common.File ( realPath, normalize, getCwd, realPath, normalize, getCurrentTime )
 import Common.Error (ppErrorMessage)
 import Lib.PPrint (Pretty(..), asString, writePrettyLn, Doc, writePretty)
 import Lib.Printer (withColorPrinter, withColor, writeLn, ansiDefault, AnsiStringPrinter (AnsiString), Color (Red), ColorPrinter (PAnsiString, PHtmlText), withHtmlTextPrinter, HtmlTextPrinter (..))
@@ -70,7 +72,8 @@ import LanguageServer.Conversions (toLspUri, fromLspUri)
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
   lsModules :: ![Module],
-  lsLoaded :: !(M.Map J.NormalizedUri Loaded),
+  lsLoaded :: !(M.Map J.NormalizedUri (Loaded, FileTime)),
+  lsLoadedSuccess :: !(M.Map J.NormalizedUri (Loaded, FileTime)),
   messages :: !(TChan (String, J.MessageType)),
   progress :: !(TChan String),
   flags:: !Flags,
@@ -84,8 +87,20 @@ data LSState = LSState {
   -- If the file was changed last, we can reuse modules, since no dependencies have changed
   lastChangedFile :: Maybe (J.NormalizedUri, Flags, Loaded),
   diagnostics :: !(M.Map J.NormalizedUri [J.Diagnostic]),
+  signatureContext :: !(Maybe SignatureContext),
   config :: Config
 }
+
+data SignatureContext = SignatureContext {
+  sigFunctionName:: Name
+}
+
+instance FromJSON SignatureContext where
+  parseJSON (A.Object v) = SignatureContext <$> readQualifiedName <$> v .: "sigFunctionName"
+  parseJSON _ = return $ SignatureContext nameNil
+
+instance ToJSON SignatureContext where
+  toJSON (SignatureContext name) = object ["sigFunctionName" .= (show name)]
 
 -- The monad holding (thread-safe) state used by the language server.
 type LSM = LspT () (ReaderT (MVar LSState) IO)
@@ -144,12 +159,14 @@ defaultLSState flags = do
                     return J.MessageType_Info
                 )
   return LSState {
-    lsLoaded = M.empty, lsModules=[],
+    lsLoaded = M.empty, lsLoadedSuccess = M.empty, lsModules=[],
     messages = msgChan, progress=progressChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests,
     config = Config{colors=Colors{mode="dark"}, inlayHintOpts=InlayHintOptions{showImplicitArguments=True, showInferredTypes=True, showFullQualifiers=True}},
     terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags,
     lastChangedFile = Nothing, progressReport = Nothing,
-    documentInfos = M.empty, documentVersions = fileVersions, diagnostics = M.empty}
+    documentInfos = M.empty, documentVersions = fileVersions,
+    signatureContext = Nothing,
+    diagnostics = M.empty}
 
 -- Prints a message to html spans
 htmlTextColorPrinter :: Doc -> IO T.Text
@@ -211,6 +228,17 @@ updateConfig cfg =
           s'{flags=(flags s'){colorScheme=lightColorScheme}}
     _ -> return ()
 
+updateSignatureContext :: SignatureContext -> LSM ()
+updateSignatureContext context =
+  modifyLSState $ \s -> s{signatureContext=Just context}
+
+clearSignatureContext :: LSM ()
+clearSignatureContext =
+  modifyLSState $ \s -> s{signatureContext=Nothing}
+
+getSignatureContext :: LSM (Maybe SignatureContext)
+getSignatureContext = signatureContext <$> getLSState
+
 getInlayHintOptions :: LSM InlayHintOptions
 getInlayHintOptions = inlayHintOpts . config <$> getLSState
 
@@ -269,17 +297,32 @@ mergeModules newModules oldModules =
 putLoaded :: Loaded -> J.NormalizedUri -> Flags -> LSM ()
 putLoaded l f flags = do
   fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
-  modifyLSState $ \s -> s {lastChangedFile = Just (f, flags, l), lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s), lsLoaded = M.insert (toLspUri fpath) l (lsLoaded s)}
+  time <- liftIO getCurrentTime
+  modifyLSState $ \s -> s {
+    lastChangedFile = Just (f, flags, l), 
+    lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s), 
+    lsLoaded = M.insert (toLspUri fpath) (l, time) (lsLoaded s)
+    }
+
+putLoadedSuccess :: Loaded -> J.NormalizedUri -> Flags -> LSM ()
+putLoadedSuccess l f flags = do
+  fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
+  time <- liftIO getCurrentTime
+  modifyLSState $ \s -> s {
+    lastChangedFile = Just (f, flags, l), 
+    lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s), 
+    lsLoaded = M.insert (toLspUri fpath) (l,time) (lsLoaded s),
+    lsLoadedSuccess = M.insert (toLspUri fpath) (l,time) (lsLoaded s)
+    }
 
 removeLoaded :: Module -> LSM ()
 removeLoaded m = do
   fpath <- liftIO $ realPath (modSourcePath m)
   modifyLSState $ \s -> s {lsModules = filter (\m1 -> modName m1 /= modName m) (lsModules s), lsLoaded = M.delete (toLspUri fpath) (lsLoaded s)}
 
-getLoadedModule :: J.NormalizedUri -> LSM (Maybe Module)
-getLoadedModule uri = do
-  lmaybe <- getLoaded uri
-  liftIO $ loadedModuleFromUri lmaybe uri
+getLoadedModule :: J.NormalizedUri -> Maybe Loaded -> LSM (Maybe Module)
+getLoadedModule uri loaded = do
+  liftIO $ loadedModuleFromUri loaded uri
 
 loadedModuleFromUri :: Maybe Loaded -> J.NormalizedUri -> IO (Maybe Module)
 loadedModuleFromUri ml uri = do
@@ -295,6 +338,23 @@ removeLoadedUri uri = do
   modifyLSState (\st -> st {lsLoaded = M.delete uri (lsLoaded st)})
 
 -- Fetches the loaded state holding compiled modules
-getLoaded :: J.NormalizedUri -> LSM (Maybe Loaded)
+getLoadedLatest :: J.NormalizedUri -> LSM (Maybe Loaded)
+getLoadedLatest uri = do
+  ld <- M.lookup uri . lsLoaded <$> getLSState
+  return $ fst <$> ld
+
+-- Fetches the loaded state holding compiled modules, with a flag indicating if it is the latest version
+getLoaded :: J.NormalizedUri -> LSM (Maybe (Loaded, Bool))
 getLoaded uri = do
-  M.lookup uri . lsLoaded <$> getLSState
+  lastSuccess <- M.lookup uri . lsLoadedSuccess <$> getLSState
+  success <- M.lookup uri . lsLoaded <$> getLSState
+  case (lastSuccess, success) of
+    (Just (l1, t1), Just (l2, t2)) -> return $ Just (l1, t1 == t2)
+    _ -> return Nothing
+
+-- Fetches the last successful loaded state
+getLoadedSuccess :: J.NormalizedUri -> LSM (Maybe Loaded)
+getLoadedSuccess uri = do
+  lastSuccess <- M.lookup uri . lsLoadedSuccess <$> getLSState
+  return $ fst <$> lastSuccess
+

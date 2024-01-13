@@ -27,20 +27,20 @@ import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 import Common.Range as R
 import Common.Name (nameNil)
 import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
-import Lib.PPrint (Pretty (..), Doc, string, (<+>), (<-->),color, Color (..), (<.>), (<->), text, empty, vcat, hcat)
+import Lib.PPrint
 import Compiler.Module (loadedModule, modRangeMap, modLexemes, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)
 import Kind.Pretty (prettyKind)
 import Kind.ImportMap (importsEmpty, ImportMap)
-import Type.Pretty (ppScheme, defaultEnv, Env(..), ppName)
+import Type.Pretty (ppScheme, defaultEnv, Env(..), ppName, keyword)
 import Type.Type (Name)
 import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindAt)
 import Syntax.Colorize( removeComment )
 import LanguageServer.Conversions (fromLspPos, toLspRange)
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getHtmlPrinter, getFlags)
+import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getHtmlPrinter, getFlags, getLoadedSuccess)
 import Debug.Trace (trace)
-import Lib.PPrint (makeMarkdown, displayS, renderCompact)
+import LanguageServer.Handler.Pretty (ppComment, asKokaCode)
 
 
 -- Handles hover requests
@@ -49,12 +49,12 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
   let J.HoverParams doc pos _ = req ^. J.params
       uri = doc ^. J.uri
       normUri = J.toNormalizedUri uri
-  loadedMod <- getLoadedModule normUri
-  loaded <- getLoaded normUri
+  -- outdated information is fine even if ranges are slightly different, we want to still be able to get hover info
+  loaded <- getLoadedSuccess normUri
   pos <- liftIO $ fromLspPos normUri pos
   let res = do -- maybe monad
-        mod  <- loadedMod
         l    <- loaded
+        let mod  = loadedModule l
         rmap <- modRangeMap mod
         -- Find the range info at the given position
         {- let rm = rangeMapFindAt (modLexemes mod) pos rmap
@@ -62,17 +62,17 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
         -}
         (r,rinfo) <- -- trace ("hover lookup in rangemap") $
                      rangeMapFindAt (modLexemes mod) pos rmap
-        return (modName mod, loadedImportMap l, r, rinfo)
+        return (modName mod, l, r, rinfo)
   case res of
-    Just (mName, imports, r, rinfo)
+    Just (mName, l, r, rinfo)
       -> -- trace ("hover found " ++ show rinfo) $
          do -- Get the html-printer and flags
             print <- getHtmlPrinter
             flags <- getFlags
-            let env = (prettyEnvFromFlags flags){ context = mName, importsMap = imports }
+            let env = (prettyEnvFromFlags flags){ context = mName, importsMap = loadedImportMap l }
                 colors = colorSchemeFromFlags flags
-            markdown <- liftIO $ print $ -- makeMarkdown $
-                        (formatRangeInfoHover loaded env colors rinfo)
+            markdown <- liftIO $ print $ -- makeMarkdown $ -- makeMarkdown $
+                        (formatRangeInfoHover l env colors rinfo)
             let md = J.mkMarkdown markdown
                 hc = J.InL md
                 rsp = J.Hover hc $ Just $ toLspRange r
@@ -92,45 +92,36 @@ rangeMapBestHover rm =
     r:rst -> Just r
 
 -- Pretty-prints type/kind information to a hover tooltip given a type pretty environment, color scheme
-formatRangeInfoHover :: (Maybe Loaded) -> Env -> ColorScheme -> RangeInfo -> Doc
-formatRangeInfoHover mbLoaded env colors rinfo =
-  case rinfo of
-  Id qname info docs isdef ->
-    let signature = ppName env qname <+>
-                    case info of
-                      NIValue tp doc _  -> text ":" <+> ppScheme env tp
-                      NICon tp doc      -> text ":" <+> ppScheme env tp
-                      NITypeCon k doc   -> text "::" <+> prettyKind colors k
-                      NITypeVar k       -> text "::" <+> prettyKind colors k
-                      NIModule -> text "module" <.>
-                                  (case mbLoaded of
-                                    Just loaded -> case filter (\mod -> modName mod == qname) (loadedModules loaded) of
-                                                      [mod] | not (null (modSourcePath mod)) -> text (" (" ++ modSourcePath mod ++ ")")
-                                                      _     -> empty
-                                    _ -> empty)
-                      NIKind -> text "kind"
-        comment = case info of
-                    NIValue tp doc _ -> ppComment doc
-                    NICon tp doc     -> ppComment doc
-                    NITypeCon k doc  -> ppComment doc
-                    _                -> empty
-    in asKokaCode (if null docs then signature else (signature <.> text "  " <-> color Gray (vcat docs)))
-       <.> comment
+formatRangeInfoHover :: Loaded -> Env -> ColorScheme -> RangeInfo -> Doc
+formatRangeInfoHover loaded env colors rinfo
+  = let kw s      = keyword env s
+    in case rinfo of
+      Decl s name mname mbType -> asKokaCode (kw s <+> pretty name <.>
+                                              case mbType of
+                                                Just tp -> text " :" <+> ppScheme env tp
+                                                Nothing -> empty)
+      Block s             -> asKokaCode (kw s)
+      Error doc           -> text "error:" <+> doc
+      Warning doc         -> text "warning:" <+> doc
+      Implicits fdoc      -> text "implicits:" <+> fdoc False  -- should not occur
 
-  Decl s name mname   -> asKokaCode (text s <+> pretty name)
-  Block s             -> asKokaCode (text s)
-  Error doc           -> text "error:" <+> doc
-  Warning doc         -> text "warning:" <+> doc
-  Implicits implicits -> text "implicits:" <+> text (show implicits)  -- should not occur
-
-ppComment :: String -> Doc
-ppComment s
-  = if null s
-      then hline <.> text "<empty>"
-      else hline <.> (hcat $ map (\ln -> text ln <.> text "  \n") $ dropWhile null $ lines $ removeComment s)
-
-
-asKokaCode :: Doc -> Doc
-asKokaCode doc = text ("```koka\n" ++ displayS (renderCompact doc) "" ++ "\n```")
-
-hline = text "\n* * *\n"
+      Id qname info docs isdef ->
+        let namedoc   = ppName env qname
+            signature = case info of
+                          NIValue sort tp doc _  -> (if null sort then empty else kw sort) <+> namedoc <+> text ":" <+> ppScheme env tp
+                          NICon tp doc      -> kw "con" <+> namedoc <+> text ":" <+> ppScheme env tp
+                          NITypeCon k doc   -> kw "type" <+> namedoc <+> text "::" <+> prettyKind colors k
+                          NITypeVar k       -> kw "type" <+> namedoc <+> text "::" <+> prettyKind colors k
+                          NIModule -> kw "module" <+> namedoc <.>
+                                      (case filter (\mod -> modName mod == qname) (loadedModules loaded) of
+                                            [mod] | not (null (modSourcePath mod)) -> text (" (at \"" ++ modSourcePath mod ++ "\")")
+                                            _     -> empty
+                                        )
+                          NIKind -> kw "kind" <+> namedoc
+            comment = case info of
+                        NIValue _ tp doc _ -> ppComment doc
+                        NICon tp doc       -> ppComment doc
+                        NITypeCon k doc    -> ppComment doc
+                        _                  -> empty
+        in asKokaCode (if null docs then signature else (signature <.> text "  " <-> color Gray (vcat docs)))
+          <.> comment

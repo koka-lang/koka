@@ -5,10 +5,10 @@ value struct monad<m>
   mbind : forall<a,b> (m<a>, a -> m<b>) -> m<b>
 
 fun pure( x : a, ?monad : monad<m> ) : m<a>
-  (implicit/monad.mpure)(x)
+  (?monad.mpure)(x)
 
 fun bind( x : m<a>, f : a -> m<b>, ?monad : monad<m> ) : m<b>
-  (implicit/monad.mbind)(x,f)
+  (?monad.mbind)(x,f)
 
 //fun sequence( ms : list<m<a>>, ?monad : monad<m> ) : m<list<a>>
 fun sequence( ms, ?monad )
@@ -30,6 +30,6 @@ fun test1()
 
 // list of successes
 fun test2()
-  [[1],[2,3],[4,5,6]].sequence.show-list(show)
+  [[1],[2,3],[4,5,6]].sequence.show
 
 // fun wrong1() pure(1)

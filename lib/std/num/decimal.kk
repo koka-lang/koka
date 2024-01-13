@@ -216,7 +216,7 @@ pub fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Half-even ) : 
 
   fun round-half( keep-on-eq : bool )
     val half = p.exp10 / 2
-    match compare(r,half)
+    match cmp(r,half)
       Eq -> if keep-on-eq then q else q.inc
       Gt -> q.inc
       Lt -> q
@@ -290,20 +290,20 @@ pub fun (/)( x : decimal, y : decimal ) : decimal
 
 
 // Compare decimals.
-pub fun compare( x : decimal, y : decimal ) : order
+pub fun cmp( x : decimal, y : decimal ) : order
   // todo: optimize further to avoid allocations.
   val e  = min(x.exp,y.exp)
   val xx = x.expand(e)
   val yy = y.expand(e)
-  compare(xx.num,yy.num)
+  cmp(xx.num,yy.num)
 
 
-pub fun (>) (x : decimal, y : decimal) : bool { compare(x,y) == Gt }
-pub fun (>=)(x : decimal, y : decimal) : bool { compare(x,y) != Lt }
-pub fun (==)(x : decimal, y : decimal) : bool { compare(x,y) == Eq }
-pub fun (!=)(x : decimal, y : decimal) : bool { compare(x,y) != Eq }
-pub fun (<) (x : decimal, y : decimal) : bool { compare(x,y) == Lt }
-pub fun (<=)(x : decimal, y : decimal) : bool { compare(x,y) != Gt }
+pub fun (>) (x : decimal, y : decimal) : bool { cmp(x,y) == Gt }
+pub fun (>=)(x : decimal, y : decimal) : bool { cmp(x,y) != Lt }
+pub fun (==)(x : decimal, y : decimal) : bool { cmp(x,y) == Eq }
+pub fun (!=)(x : decimal, y : decimal) : bool { cmp(x,y) != Eq }
+pub fun (<) (x : decimal, y : decimal) : bool { cmp(x,y) == Lt }
+pub fun (<=)(x : decimal, y : decimal) : bool { cmp(x,y) != Gt }
 
 // The sign of a decimal number.
 pub fun sign( x : decimal ) : order

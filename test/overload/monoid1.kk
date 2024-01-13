@@ -6,13 +6,13 @@ val intplus/monoid = Monoid(0,(+))
 val intmul/monoid  = Monoid(1,(*))
 val float/monoid   = Monoid(0.0,(+))
 
-fun msum( xs, ?m = monoid )
-  xs.foldl(m.mzero,m.mplus)
+fun msum( xs, ?m/monoid )
+  xs.foldl(m/monoid.mzero,m/monoid.mplus)
 
 
-fun list/monoid( ?m : monoid<a> = monoid)  : monoid<list<a>>
-  val zero = m.mzero
-  val plus = m.mplus
+fun list/monoid( ?m/monoid : monoid<a>)  : monoid<list<a>>
+  val zero = m/monoid.mzero
+  val plus = m/monoid.mplus
   Monoid([zero], fn(xs,ys) zipwith(xs,ys,plus))
 
 

@@ -14,7 +14,7 @@ fun list/showx( xs : list<a>, ?showx : a -> string ) : string
   "[" ++ xs.map(showx).join(",") ++ "]"
 
 fun chars/showx( cs : list<char>, ?showx : char -> string ) : string
-  "\"" ++ cs.map(implicit/showx).join ++ "\""
+  "\"" ++ cs.map(?showx).join ++ "\""
 
 fun test1()
   [1,2].showx
@@ -31,3 +31,6 @@ fun test3()
   [[1,2]].showx  // resolves recursively and uses `list/showx(?showlistx=default/showlistx(?showx=int/showx))`
 
 // fun test3a() [['a','b']].showx  // resolves recursively and uses `list/showx(?showlistx=chars/showlistx)`
+
+fun test4()
+  [1,2] < [2 + 1,3]

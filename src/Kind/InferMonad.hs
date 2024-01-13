@@ -338,8 +338,8 @@ findInfKind name0 range
                                               _ -> return ()
                                              return (qname,KICon kind)
                       NotFound         -> do let cs = cscheme env
-                                             trace ("cannot find type: " ++ show name ++ ", " ++ show (currentModule env) ++ ", " ++ show (kgamma env)) $
-                                              addError range (text "Type" <+> (ppType cs name) <+> text "is not defined" <->
+                                             -- trace ("cannot find type: " ++ show name ++ ", " ++ show (currentModule env) ++ ", " ++ show (kgamma env)) $
+                                             addError range (text "Type" <+> (ppType cs name) <+> text "is not defined" <->
                                                              text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <.> ppType cs name <.> text ">") <+> text "?")
                                              k <- freshKind
                                              return (name,k)

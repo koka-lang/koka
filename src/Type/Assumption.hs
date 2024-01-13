@@ -30,6 +30,7 @@ module Type.Assumption (
                     , infoElement
                     , infoDocString
                     , infoCanonicalName
+                    , infoSort
                     , fipFromNameInfo
                     -- * From Core
                     , extractGammaImports
@@ -39,6 +40,7 @@ module Type.Assumption (
                     , createNameInfoX
                     , getArity
                     , coreVarInfoFromNameInfo, coreExprFromNameInfo
+                    , matchQualifiers
                     ) where
 import Lib.Trace
 import Data.List(isPrefixOf)
@@ -67,6 +69,16 @@ data NameInfo
   | InfoExternal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoFormat :: [(Target,String)], infoFip :: Fip, infoRange :: Range}
   | InfoImport{ infoVis :: Visibility, infoType :: Scheme, infoAlias :: Name, infoFullName :: Name, infoRange :: Range}
   deriving (Show)
+
+infoSort :: NameInfo -> String
+infoSort info
+  = case info of
+      InfoVal{}      -> "val"
+      InfoFun{}      -> "fun"
+      InfoExternal{} -> "extern"
+      InfoCon{}      -> "con"
+      InfoImport{}   -> "module"
+
 
 infoCanonicalName :: Name -> NameInfo -> Name
 infoCanonicalName name info
@@ -231,7 +243,7 @@ gammaLookup name (Gamma gamma)
 
 -- Given a user qualified name, see if the qualifiers match a resolved name.
 -- The user qualified name has already been de-aliased in kind inference (see `Kind/ImportMap/importsExpand`)
--- The user qualified name may not distinguish local qualification from module qualification,
+-- Note that the user qualified name might not distinguish local qualification from module qualification,
 -- e.g. `std/core/int/show` vs  `std/core/#int/show`.
 -- ambiguities may occur, where `std/num/float32/foo` should match both `std/num/#float32/foo` and `std/num/float32/#foo`
 matchQualifiers :: Name -> Name -> Bool

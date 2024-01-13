@@ -59,7 +59,7 @@ import Kind.Newtypes
 import Kind.ImportMap
 
 import Type.Type
-import Type.Kind( handledToLabel, getKind, labelIsLinear )
+import Type.Kind( handledToLabel, getKind, labelIsLinear, isHandledEffect )
 import Type.Pretty
 import Type.Assumption
 import Type.TypeVar
@@ -279,8 +279,9 @@ addRangeInfoCoreDef topLevel mod def coreDef
   = let qname = if (topLevel && not (isQualified (Core.defName coreDef)))
                  then qualify mod (Core.defName coreDef)
                  else Core.defName coreDef
-    in do addRangeInfo (Core.defNameRange coreDef) (RM.Id qname (RM.NIValue (Core.defType coreDef) (defDoc def) True) [] True)
-          addRangeInfo (defRange def) (RM.Decl (if defIsVal def then "val" else "fun") qname (RM.mangle qname (Core.defType coreDef)))
+        sort = (if defIsVal def then "val" else "fun")
+    in do addRangeInfo (Core.defNameRange coreDef) (RM.Id qname (RM.NIValue sort (Core.defType coreDef) (defDoc def) (True)) [] True)
+          addRangeInfo (defRange def) (RM.Decl sort qname (RM.mangle qname (Core.defType coreDef)) (Just (Core.defType coreDef)))
 
 
 -- | Add divergent effect to the type of the core definitions
@@ -471,7 +472,7 @@ isAnnotatedBinder (ValueBinder _ Just{} _ _ _) = True
 isAnnotatedBinder _                                 = False
 
 inferBindDef :: Def Type -> Inf (Effect,Core.Def)
-inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
+inferBindDef def@(Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
   = -- trace ("infer bind def: " ++ show name ++ ", var?:" ++ show (sort==DefVar)) $
     do withDefName name $ disallowHole $
         do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated expr
@@ -488,7 +489,8 @@ inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
                                return (Core.Def name refTp refExpr vis sort inl nameRng doc)
 
            if (not (isWildcard name))
-            then addRangeInfo nameRng (RM.Id name (RM.NIValue (Core.defType coreDef) doc (isAnnot expr)) [] True)
+            then let sort = (if defIsVal def then "val" else "fun")
+                 in addRangeInfo nameRng (RM.Id name (RM.NIValue sort (Core.defType coreDef) doc (isAnnot expr)) [] True)
             else if (isTypeUnit (Core.typeOf coreDef))
              then return ()
              else do seff <- subst eff
@@ -530,7 +532,7 @@ inferIsolated contextRange range body inf
    where
      hasVarDecl expr
        = case expr of
-           Parens x _ _ -> hasVarDecl x
+           Parens x _ _ _ -> hasVarDecl x
            Let _ x _  -> hasVarDecl x
            Bind _ x _ -> hasVarDecl x
            Ann x _ _  -> hasVarDecl x
@@ -596,14 +598,15 @@ inferExpr propagated expect (Lam bindersL body0 rng)
            bodyCore1 = Core.addLambdas optPars topEff (Core.Lam [] topEff (coref core))
        bodyCore2 <- subst bodyCore1
        stopEff <- subst topEff
-       let pars = zipWith renameImplicitParams bindersL optPars
+       let pars = optPars
+                {- zipWith renameImplicitParams bindersL optPars
                 where
                   renameImplicitParams binder (_,parTp)
                     = let pname = case binderExpr binder of
                                     Just (Var ename _ rng) | isImplicitParamName (binderName binder)
                                       -> namedImplicitParamName (binderName binder) ename
                                     _ -> binderName binder
-                      in (pname, parTp)
+                      in (pname, parTp) -}
 
        -- check skolem escape
        sftp0 <- subst (typeFun pars stopEff tp)
@@ -628,7 +631,12 @@ inferExpr propagated expect (Lam bindersL body0 rng)
         else let b = head polyBinders
              in typeError (rng) (binderNameRange b) (text "unannotated parameters cannot be polymorphic") (binderType b) [(text "hint",text "annotate the parameter with a polymorphic type")]
 
-       mapM_ (\(arg,binder,tp) -> addRangeInfo (binderNameRange binder) (RM.Id (binderName binder) (RM.NIValue tp "" (case arg of {Just s -> True; Nothing -> False})) [] True)) (zip3 propArgs binders1 parTypes2)
+       mapM_ (\(binder,tp) -> addRangeInfo (binderNameRange binder) (RM.Id (binderName binder)
+                                (RM.NIValue "val" tp "" (case (propagated,binderType binder) of
+                                                           (Just (_,rng), Just _) | rangeIsHidden rng -> True -- there was an actual annotation
+                                                           _   -> False
+                                                        )) [] True))
+             (zip binders0 parTypes2)
        eff <- freshEffect
        return (ftp, eff, fcore )
 
@@ -652,7 +660,7 @@ inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name ==
        if (False && not allowed)
         then infError rng (text "illegal expression context for a return statement")
         else  do (tp,eff,core) <- inferExpr propagated expect expr
-                 mbTp <- lookupInfName (unqualify nameReturn)
+                 mbTp <- lookupInfName nameReturn -- (unqualify nameReturn)
                  case mbTp of
                    Nothing
                     -> do infError rng (text "illegal context for a return statement")
@@ -660,7 +668,7 @@ inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name ==
                     -> do inferUnify (checkReturn rng) (getRange expr) retTp tp
                  resTp <- Op.freshTVar kindStar Meta
                  let typeReturn = typeFun [(nameNil,tp)] typeTotal resTp
-                 addRangeInfo nameRng (RM.Id (newName "return") (RM.NIValue tp "" True) [] False)
+                 addRangeInfo nameRng (RM.Id (newName "return") (RM.NIValue "expr" tp "" False) [] False)
                  return (resTp, eff, Core.App (Core.Var (Core.TName nameReturn typeReturn)
                                       (Core.InfoExternal [(Default,"return #1")])) [core])
 -- | Assign expression
@@ -768,7 +776,7 @@ inferExpr propagated expect (Ann expr annTp0 rng)
                   Nothing -> return annTp0
        -- traceDoc $ \env -> text "infer annotation:" <+> ppType env annTp <+> text ", propagated:" <+> ppProp env propagated
 
-       (tp,eff,core) <- inferExpr (Just (annTp,rng)) (if isRho annTp then Instantiated else Generalized False) expr
+       (tp,eff,core) <- inferExpr (Just (annTp,rangeHide rng)) (if isRho annTp then Instantiated else Generalized False) expr
        sannTp <- subst annTp
        stp    <- subst tp
        -- traceDoc $ \env -> text "  subsume annotation:" <+> ppType env sannTp <+> text " to: " <+> ppType env stp
@@ -894,7 +902,7 @@ inferExpr propagated expect (Case expr branches rng)
 
     extractMatchedNames expr
       = case expr of
-          Parens e _ _                -> extractMatchedNames e
+          Parens e _ _ _              -> extractMatchedNames e
           App (Var tname _ _) args _  | isNameTuple tname -> concat (map (extractMatchedNamesX . snd) args)
           _                           -> extractMatchedNamesX expr
 
@@ -918,10 +926,10 @@ inferExpr propagated expect (Lit lit)
        return (tp,eff,core)
 
 
-inferExpr propagated expect (Parens expr name rng)
+inferExpr propagated expect (Parens expr name pre rng)
   = do (tp,eff,core) <- inferExpr propagated expect expr
        if (name /= nameNil)
-         then do addRangeInfo rng (RM.Id name (RM.NIValue tp "" True) [] True)
+         then do addRangeInfo rng (RM.Id name (RM.NIValue (if null pre then "expr" else pre) tp "" False) [] False)
          else return ()
        return (tp,eff,core)
 
@@ -1024,18 +1032,26 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
        let -- create expressions for each clause
            opName b1 b2 = compare (show (unqualify (hbranchName b1))) (show (unqualify (hbranchName b2)))
            clause (HandlerBranch opName pars body opSort nameRng patRng, resumeArg)
-            = do let (clauseName, cparams) = case opSort of
-                          OpVal        -> (nameClause "tail" (length pars), pars)
-                          OpFun        -> (nameClause "tail" (length pars), pars)
-                          OpExcept     -> (nameClause "never" (length pars), pars)
+            = do (clauseName, cparams, prefix) <- case opSort of
+                          OpVal        -> return (nameClause "tail" (length pars), pars, "val")
+                          OpFun        -> return (nameClause "tail" (length pars), pars, "fun")
+                          OpExcept     -> return (nameClause "never" (length pars), pars, "final ctl")
                           -- don't optimize ctl to exc since exc runs the finalizers before the clause (unlike ctl)
                           -- OpControl    | not (hasFreeVar body (newName "resume"))
                           --             -> (nameClause "never" (length pars), pars)  -- except
-                          OpControl    -> let resumeTp = TFun [(nameNil,resumeArg)] eff res
-                                          in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () hrng patRng])
-                          OpControlRaw -> let eff0 = effectExtend heff eff
-                                              resumeContextTp = typeResumeContext resumeArg eff eff0 res
-                                          in (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") (Just resumeContextTp) () hrng patRng])
+                          OpControl    -> do let resumeTp = TFun [(nameNil,resumeArg)] eff res
+                                                 resumeDoc shorten = if shorten then text "resume" else empty
+                                             addRangeInfo nameRng (RM.Implicits resumeDoc)
+                                             return (nameClause "control" (length pars),
+                                                     pars ++ [ValueBinder (newName "resume") (Just resumeTp) () (rangeHide nameRng) nameRng],
+                                                     "ctl")
+                          OpControlRaw -> do let eff0 = effectExtend heff eff
+                                                 resumeContextTp = typeResumeContext resumeArg eff eff0 res
+                                                 resumeDoc shorten = if shorten then text "rcontext" else empty
+                                             addRangeInfo nameRng (RM.Implicits resumeDoc)
+                                             return (nameClause "control-raw" (length pars),
+                                                     pars ++ [ValueBinder (newName "rcontext") (Just resumeContextTp) () (rangeHide hrng) patRng],
+                                                     "raw ctl")
                           OpControlErr -> failure "Type.Infer.inferHandler: using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'brk', or 'ctl' instead."
                           -- _            -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                  -- traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
@@ -1051,11 +1067,12 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                                                     ValueBinder name annTp _ nameRng rng   -> ValueBinder name annTp Nothing nameRng rng)
                                 $ zip (cparams :: [ValueBinder (Maybe Type) ()]) (parTps)
                      frng = combineRanged nameRng body
-                     -- use Parens for better rangeMap info
                      cname = case opSort of
                                OpVal -> fromValueOperationsName opName
                                _     -> opName
-                     capp  = App (Var clauseName False hrng) [(Nothing,Parens (Lam cparamsx body nameRng) cname nameRng)] frng
+                     capp  = App (Var clauseName False (rangeHide hrng))
+                                 [(Nothing,Parens (Lam cparamsx body (getRange body)) cname prefix nameRng)] frng
+                 -- addRangeInfo nameRng (RM.Id cname (RM.NIValue "fun" gtp "" False) [] False)
                  return (Nothing, capp)
 
        clauses <- mapM clause (zip (sortBy opName branches) resumeArgs)
@@ -1096,7 +1113,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                         _ -> failure ("Type.Infer: unexpected handler type: " ++ show (ppType penv handleRho))
        -- traceDoc $ \penv -> text " action type is" <+> ppType penv actionTp
        let handlerExpr = Parens (Lam [ValueBinder actionName (Just actionTp) Nothing rng rng]
-                                     (handleExpr (Var actionName False rng)) hrng) (newName "handler") rng
+                                     (handleExpr (Var actionName False rng)) hrng) (newName "handler") "expr" rng
 
        -- and check the handle expression
        hres@(xhtp,_,_) <- inferExpr propagated expect handlerExpr
@@ -1186,8 +1203,10 @@ inferHandledEffect rng handlerSort mbeff ops
                                       return rtp
                   Just(_,eff,_) | not (isHandlerInstance handlerSort)
                                 -> case extractEffectExtend eff of
-                                    ((l:_),_) -> return (l)  -- TODO: can we assume the effect comes first?
-                                    _ -> failure $ "Type.Infer.inferHandledEffect: invalid effect type: " ++ show eff
+                                    (ls,_) -> 
+                                      case filter isHandledEffect ls of
+                                        (l:_) -> return (l)  -- TODO: can we assume the effect comes first?
+                                        _ -> failure $ "Type.Infer.inferHandledEffect: cannot find handled effect in " ++ show eff
                   _ -> infError rng (text ("cannot resolve effect operation: " ++ show qname ++ ".") <--> text " hint: maybe wrong number of parameters?")
         _ -> infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
@@ -1283,7 +1302,7 @@ inferApp propagated expect fun nargs rng
        amb <- case rootExpr fun of
                 (Var name _ nameRange)
                   -> do let sctx = fixedCountContext propagated (length fixed) (map (fst . fst) named)
-                        matches <- lookupAppName False name sctx nameRange
+                        matches <- lookupAppName False name sctx rng nameRange
                         -- traceDefDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
                         case matches of
                           Right (tp,funExpr,implicits)
@@ -1302,20 +1321,22 @@ inferApp propagated expect fun nargs rng
     -- can take an `fresolved` list of fixed arguments that have been inferred already (in the case
     -- where a overloaded function name could only be resolved after inferring some arguments)
     inferAppFunFirst :: Maybe (Type,Range) -> Expr Type -> [(Int,FixedArg)] ->
-                          [Expr Type] -> [((Name,Range),Expr Type)] -> [((Name,Range), Expr Type, Doc)] ->
+                          [Expr Type] -> [((Name,Range),Expr Type)] -> [((Name,Range), Expr Type, (Bool -> Doc))] ->
                             Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop funExpr fresolved fixed named0 implicits
       = do -- traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
-                                  -- text ("fixed count: " ++ show (length fixed)) <.>
-                                  -- text (", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <->
-                                  -- text (", fres count: " ++ show (length fresolved)) <+> text ":" <+> ppProp penv prop
+                                  --  text ("fixed count: " ++ show (length fixed)) <.>
+                                  --  text (", named: " ++ show named0 ++ ", implicits: " ++ show implicits) <->
+                                  --  text (", fres count: " ++ show (length fresolved)) <+> text ":" <+> ppProp penv prop
 
            -- only add resolved implicits that were not already named
            let alreadyGiven = [name | ((name,_),_) <- named0]
                rimplicits   = [imp | imp@((name,_),_,_) <- implicits, not (name `elem` alreadyGiven)]
-               named        = named0 ++ [(nameRange,expr) | (nameRange,expr,_) <- rimplicits]
+               named        = named0 ++ [((name,rangeNull) {-so no range info is emmitted when checking -}
+                                          , expr) | ((name,_),expr,_) <- rimplicits]
 
-           mapM_ (\(_,_,doc) -> addRangeInfo (getRange funExpr) (RM.Implicits doc)) rimplicits
+           penv <- getPrettyEnv
+           mapM_ (\((name,_),_,fdoc) -> addRangeInfo (getRange funExpr) (RM.Implicits fdoc)) rimplicits
 
            -- infer type of function
            (ftp,eff1,fcore) <- allowReturn False $ inferExpr prop Instantiated funExpr
@@ -1402,7 +1423,7 @@ inferApp propagated expect fun nargs rng
       = -- this always fails since we have not been able to resolve the function name
         {- if (not (null named))
           then infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <-> text " hint: annotate the function parameters?" )
-          else -} inferAppFunFirst Nothing fun fresolved fixed [] []
+          else -} inferAppFunFirst Nothing fun fresolved fixed named []
 
     inferAppArgsFirst fresolved ((idx,fix):fixs) fixed named  -- try to improve our guess
       = do --traceDoc $ \penv -> text "inferAppArgsFirst: "
@@ -1412,7 +1433,7 @@ inferApp propagated expect fun nargs rng
            amb <- case rootExpr fun of
                     (Var name _ nameRange)
                       -> do sctx    <- fixedContext propagated fresolved' (length fixed) (map (fst . fst) named)
-                            matches <- lookupAppName (null fixs {- allow disambiguate -}) name sctx nameRange
+                            matches <- lookupAppName (null fixs {- allow disambiguate -}) name sctx rng nameRange
                             -- traceDoc $ \env -> text "app args matched for " <+> ppName env name <+>
                             --                     text " =" <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+>
                             --                     text ", res:" <+> ppProp env propagated <+>
@@ -1431,7 +1452,7 @@ inferApp propagated expect fun nargs rng
 
 
 getRangeArg :: ArgExpr -> Range
-getRangeArg (ArgExpr expr)        = getRange expr
+getRangeArg (ArgExpr expr _)      = getRange expr
 getRangeArg (ArgCore (rng,_,_,_)) = rng
 getRangeArg (ArgImplicit _ rng _) = rng
 
@@ -1485,20 +1506,19 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                 (tp1,eff1,core1) <- inferExpr propagated expect (Parens (App (Var nameLocalGet False irng)
                                                                              [(Nothing,App (Var nameByref False irng)
                                                                                            [(Nothing,Var name False irng)] irng)] irng)
-                                                                        name rng)
-                addRangeInfo rng (RM.Id qname (RM.NIValue tp1  (infoDocString info) True) [] False)
+                                                                        name "var" rng)
+                addRangeInfo rng (RM.Id qname (RM.NIValue (infoSort info) tp1  (infoDocString info) False) [] False)
                 -- traceDoc $ \env -> text " deref" <+> pretty name <+> text "to" <+> ppType env tp1
                 return (tp1,eff1,core1)
         else case info of
          InfoVal{ infoIsVar = True }  | isRhs  -- is it a right-hand side variable?
            -> do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
-                 addRangeInfo rng (RM.Id qname (RM.NIValue tp1 (infoDocString info) True) [] False)
+                 addRangeInfo rng (RM.Id qname (RM.NIValue (infoSort info) tp1 (infoDocString info) False) [] False)
                  return (tp1,eff1,core1)
          InfoVal{} | isValueOperation tp
-           -> do addRangeInfo rng (RM.Id qname (RM.NIValue tp (infoDocString info) True) [] True)
+           -> do addRangeInfo rng (RM.Id qname (RM.NIValue (infoSort info) tp (infoDocString info) False) [] False)
                  inferExpr propagated expect (App (Var (toValueOperationName qname) False rangeNull) [] rangeNull)
-         _ -> --  inferVarX propagated expect name rng qname1 tp1 info1
-              do 
+         _ -> --  inferVarX propagated expect name rng qname1 tp1 info1         
                  eff <- freshEffect
                  mod  <- getModuleName
                  if
@@ -1510,7 +1530,7 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                       -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
                       (itp,coref) <- maybeInstantiate rng expect tp
                       sitp <- subst itp
-                      addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue sitp (infoDocString info) True) [] False)
+                      addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue (infoSort info) sitp (infoDocString info) False) [] False)
 
                       -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp)
                       
@@ -1658,7 +1678,7 @@ inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withP
 
 
 inferPattern matchType branchRange (PatVar binder) withPattern inferPart
-  =  do addRangeInfo (binderNameRange binder) (RM.Id (binderName binder) (RM.NIValue matchType "" (isAnnotatedBinder binder)) [] True)
+  =  do addRangeInfo (binderNameRange binder) (RM.Id (binderName binder) (RM.NIValue "val" matchType "" (isAnnotatedBinder binder)) [] True)
         case (binderType binder) of
           Just tp -> inferUnify (checkAnn (getRange binder)) (binderNameRange binder) matchType tp
           Nothing -> return ()
@@ -1719,12 +1739,11 @@ inferImplicitParam par
   = if isImplicitParamName (binderName par)
      then  do -- let pname = plainImplicitParamName (binderName par)
               unpack <- case binderExpr par of
-                Just (Parens (Var qname _ rng) _ _)  -- encoded in the parser with a parens expression..
-                  -> inferImplicitUnpack (binderRange par) rng (binderName par) qname
-                Just (Var name _ _) -> return id
-                Nothing             -> return id
-                Just expr           -> do contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
-                                          return id
+                Just (Parens (Var qname _ rng) _ _ _) -- encoded in the parser as a default expression
+                           -> inferImplicitUnpack (rangeHide (binderRange par)) (rangeHide rng) (binderName par) qname
+                Nothing    -> return id
+                Just expr  -> do contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
+                                 return id
               return (par{ -- leave the binder name locally qualified as `@implicit/name` -- binderName = pname,
                            binderExpr = Nothing }, unpack)
      else return (par, id)
@@ -1759,7 +1778,8 @@ inferImplicitUnpack rng nrng pname qname
               in do unpackBases <- mapM (\(fname,fqname) -> inferImplicitUnpack rng nrng fname fqname) bases  -- todo: stop recursion!
                     return (compose (unpack:unpackBases))
 
-        _  -> return id
+        _  -> do traceDefDoc $ \penv -> text "inferImplicitUnpack: cannot resolve" <+> text (show qname)
+                 return id
 
 
 -- | Infer automatic unwrapping for parameters with default values, and adjust their type from optional<a> to a
@@ -1803,8 +1823,8 @@ inferOptionals eff infgamma (par:pars)
             let infgamma' = infgamma ++ [(binderName par,createNameInfoX Public (binderName par) DefVal (getRange par) tp "")]
 
             -- build up core to get the optional value
-            local <- uniqueName (show (binderName par))
-            temp  <- uniqueName (show (binderName par))
+            local <- uniqueNameFrom (binderName par)
+            temp  <- uniqueNameFrom (binderName par)
             -- let coreVar (qname,tp,info) = Core.Var (Core.TName qname tp) (coreVarInfoFromNameInfo info)
             dataInfo <- findDataInfo nameTpOptional
             (coreNameOpt,coreTpOpt,coreReprOpt,conInfoOpt) <- resolveConName nameOptional Nothing fullRange
@@ -1879,8 +1899,8 @@ rootExpr expr
       -- Let defs e _ -> rootExpr e
       -- Bind def e _ -> rootExpr e
       -- Ann e t r  -> rootExpr e  -- better to do FunFirst in this case
-      Parens e _ r -> rootExpr e
-      _            -> expr
+      Parens e _ _ r -> rootExpr e
+      _              -> expr
 
 
 
@@ -1894,8 +1914,9 @@ inferArgsN ctx range parArgs
   = do res <- inferArg [] parArgs
        return (unzip res)
   where
-    inferArgExpr tp argexpr  -- TODO: add context for better error messages for implicit parameters?
-      = allowReturn False $
+    inferArgExpr tp argexpr hidden -- TODO: add context for better error messages for implicit parameters?
+      = (if hidden then withNoRangeInfo else id) $
+        allowReturn False $
         inferExpr (Just (tp,getRange argexpr))
           (if isRho tp then Instantiated else Generalized False)
           argexpr
@@ -1921,8 +1942,8 @@ inferArgsN ctx range parArgs
                       return (teff1,coref core)
 
            (eff,core)  <- case arg of
-                            ArgExpr argexpr
-                              -> do res <- inferArgExpr tpar0 argexpr
+                            ArgExpr argexpr hidden
+                              -> do res <- inferArgExpr tpar0 argexpr hidden
                                     subsumeArg res
                             ArgCore (_,ctp,ceff,carg)
                               -> do -- traceDefDoc $ \penv -> text "inferArgN: argCore:" <+>
@@ -1934,17 +1955,18 @@ inferArgsN ctx range parArgs
                                                     return (gtp,ceff,garg)
                                     subsumeArg res
                             ArgImplicit name rng nameRng
-                              -> do (argExpr,termDoc) <- resolveImplicitName name tpar0 (endOfRange rng)
-                                    addRangeInfo nameRng (RM.Implicits termDoc)
+                              -> do (argExpr,termDoc) <- resolveImplicitName name tpar0 rng (endOfRange rng)
+                                    -- for any errors in `rng` we can show a nice representation as `termDoc` since
+                                    -- the `argExpr` is generated by implicit name resolving
                                     withHiddenTermDoc rng termDoc $
-                                      do res <- inferArgExpr tpar0 argExpr
+                                      do res <- inferArgExpr tpar0 argExpr True {- hidden -}
                                          subsumeArg res
 
            inferArg ((eff,core) : acc) args
 
 
 -- | Is an expression annotated?
-isAnnot (Parens expr _ rng)   = isAnnot expr
+isAnnot (Parens expr _ _ rng) = isAnnot expr
 isAnnot (Ann expr tp rng)     = True
 isAnnot (Let defs body rng)   = isAnnot body
 isAnnot (Bind defs body rng)  = isAnnot body
@@ -2029,7 +2051,7 @@ matchPatterns context nameRange conTp conParTypes patterns0
 -- - a core transformer that modifies the application appropriately (for constructor copy)
 
 data ArgExpr
-  = ArgExpr (Expr Type)
+  = ArgExpr (Expr Type) Bool {- hide range info -}
   | ArgCore FixedArg
   | ArgImplicit Name Range {- application range -} Range {- name range -}
 
@@ -2049,7 +2071,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                  tres  <- Op.freshTVar kindStar Meta
                                  -- trace ("Type.matchFunType: " ++ show tv ++ ": " ++ show (targs,teff,tres)) $
                                  extendSub (subSingle tv (TFun targs teff tres))
-                                 return (zip [0..] (map ArgExpr (fixed ++ map snd named)), targs,teff,tres,Core.App)
+                                 return (zip [0..] (map (\x -> ArgExpr x False) (fixed ++ map snd named)), targs,teff,tres,Core.App)
        _  -> do -- apply the copy constructor if we can find it
                 matches <- lookupNameCtx isInfoValFunExt nameCopy (CtxFunTypes True [tp] [] Nothing) range
                 case matches of
@@ -2061,7 +2083,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                   in (Core.App (coreInst coreVar) (coreArgs))
                           return (iargs,pars,eff,res,coreAddCopy)
                   _ -> do typeError context range (text "only functions or types with a copy constructor can be applied") tp []
-                          return (zip [1..] (map ArgExpr (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
+                          return (zip [1..] (map (\x -> ArgExpr x True) (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
   where
     range = getRange fun
 
@@ -2090,7 +2112,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                           then wrapDelay arg
                           else return arg
                (prest,rest) <- matchFixed pars fixed fresolved
-               return (prest, (i,ArgExpr newarg):rest)
+               return (prest, (i,ArgExpr newarg False):rest)
 
     matchFixed [] ((i,arg):_) fresolved
       = do typeError context (getRange fun) (text "function is applied to too many arguments") tp []
@@ -2115,11 +2137,11 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                 then wrapDelay arg
                                 else return arg
                     rest <- matchNamed pars1 named
-                    return ((j,(i,ArgExpr newarg)):rest)
+                    return ((j,(i,ArgExpr newarg (rangeIsNull rng))):rest)
     matchNamed pars []
       = do if (all (Op.isOptionalOrImplicit . snd) pars)
             then do let (optionals,implicits) = span (isOptional . snd . snd) pars
-                        opts = [(j,(i,ArgExpr makeOptionalNone))
+                        opts = [(j,(i,ArgExpr makeOptionalNone True))
                                 | (i,(j,(name,tpar))) <- zip [(length fixed + length named)..] optionals]
                         imps = [(j,(i,ArgImplicit (snd (splitImplicitParamName name)) context range))
                                 | (i,(j,(name,tpar))) <- zip [(length fixed + length named + length optionals)..] implicits]
@@ -2293,7 +2315,7 @@ ppProp env (Just (tp,_))  = ppType env tp
 usesLocals :: S.NameSet -> Expr Type -> Bool
 usesLocals lvars expr
   = case expr of
-      App (Var newLocal False rng) [_,(_, Parens (Lam [ValueBinder name _ _ _ _] body _ ) _ _)] _  -- fragile: expects this form from the parser
+      App (Var newLocal False rng) [_,(_, Parens (Lam [ValueBinder name _ _ _ _] body _) _ _ _)] _  -- fragile: expects this form from the parser
          | newLocal == nameLocalVar
          -> usesLocals (S.delete name lvars) body
 
@@ -2303,7 +2325,7 @@ usesLocals lvars expr
       App    fun nargs range -> any (usesLocals lvars) (fun : map snd nargs)
       Ann    expr tp range   -> usesLocals lvars expr
       Case   expr brs range  -> usesLocals lvars expr || any (usesLocalsBranch lvars) brs
-      Parens expr name range -> usesLocals lvars expr
+      Parens expr name pre range -> usesLocals lvars expr
       Handler shallow scoped override allowMask eff pars reinit ret final ops hrng rng
                              -> or (usesLocalsMb lvars reinit : usesLocalsMb lvars ret : usesLocalsMb lvars final : map (usesLocalsOp lvars) ops)
       Inject tp expr b range -> usesLocals lvars expr

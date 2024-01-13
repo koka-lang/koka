@@ -1,3 +1,3 @@
+type/match1/test/arg: forall<a> (test : test<a>) -> a
 type/match1/Test: forall<a> (arg : a) -> test<a>
-type/match1/arg: forall<a> (test : test<a>) -> a
 type/match1/xtest: forall<a> (x : test<a>) -> console a

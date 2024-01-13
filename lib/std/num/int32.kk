@@ -142,7 +142,7 @@ pub inline fip extern (*) : (int32,int32) -> int32
   js "$std_core._int32_multiply"
 
 
-pub fip fun compare( x : int32, y : int32) : order
+pub fip fun cmp( x : int32, y : int32) : order
   if (x < y) then Lt
   elif (x > y) then Gt
   else Eq

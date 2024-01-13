@@ -65,15 +65,15 @@ pub fun seconds( t : time ) : timespan
 // Compare two `:time`s. Compares the actual instants in time
 // and can thus compare across calendars and timezones.\
 // `time(2001,7,2,tz=tz-fixed("GMT+1",duration(3600))) > time(2001,7,1,23,30,0)` &quad; (`False`!)
-pub fun compare( t1 : time, t2 : time ) : order
-  compare(t1.instant,t2.instant)
+pub fun cmp( t1 : time, t2 : time ) : order
+  cmp(t1.instant,t2.instant)
 
-pub fun (<)( i : time, j : time )  : bool { compare(i,j) == Lt }
-pub fun (<=)( i : time, j : time ) : bool { compare(i,j) != Gt }
-pub fun (>)( i : time, j : time )  : bool { compare(i,j) == Gt }
-pub fun (>=)( i : time, j : time ) : bool { compare(i,j) != Lt }
-pub fun (==)( i : time, j : time ) : bool { compare(i,j) == Eq }
-pub fun (!=)( i : time, j : time ) : bool { compare(i,j) != Eq }
+pub fun (<)( i : time, j : time )  : bool { cmp(i,j) == Lt }
+pub fun (<=)( i : time, j : time ) : bool { cmp(i,j) != Gt }
+pub fun (>)( i : time, j : time )  : bool { cmp(i,j) == Gt }
+pub fun (>=)( i : time, j : time ) : bool { cmp(i,j) != Lt }
+pub fun (==)( i : time, j : time ) : bool { cmp(i,j) == Eq }
+pub fun (!=)( i : time, j : time ) : bool { cmp(i,j) != Eq }
 
 // The minimum of two times (as by their actual instant in time)
 pub fun min( i : time, j : time ) : time

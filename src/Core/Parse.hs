@@ -686,19 +686,11 @@ parameter env allowBorrow
 
 parameterName :: LexParser Name
 parameterName
-  = do specialOp "?"
-       name <- parameterId
-       (do keyword "="
-           (ename,_) <- identifier
-           return (namedImplicitParamName (toImplicitParamName name) ename)
-        <|>
-           return (toImplicitParamName name))
-    <|>
-    parameterId
+  = parameterId
 
 parameterId :: LexParser Name
 parameterId
-  = do (qname,_) <- qvarid  -- implicit/p
+  = do (qname,_) <- qvarid <|> qidop  -- implicit/p
        return (requalifyLocally qname)
     <|>
     do (name,_) <- paramid
@@ -859,7 +851,7 @@ tatomParamsEx allowParams env allowBorrow
      do tp <- teffect env
         return (single tp)
     <|>
-     do specialOp "?"
+     do special "?"
         tp <- tatom env
         return (single (makeOptionalType tp))
     <?>
@@ -1051,8 +1043,9 @@ envLookupCon env name
 
 envLookupVar :: Env -> Name -> LexParser Expr
 envLookupVar env name
- = case M.lookup (requalifyLocally name) (locals env) of
-     Just tp -> return (Var (TName name tp) InfoNone)   -- implicit/par
+ = let lqname = requalifyLocally name
+   in case M.lookup lqname (locals env) of
+     Just tp -> return (Var (TName lqname tp) InfoNone)   -- implicit/par
      _ -> case gammaLookupCanonical name (gamma env) of
             [fun@(InfoFun{})] -> return $ coreExprFromNameInfo name fun
             [val@(InfoVal{})] -> return $ coreExprFromNameInfo name val

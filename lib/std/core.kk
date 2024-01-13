@@ -271,6 +271,7 @@ pub fun tuple3/map( t : (a,a,a), f : a -> e b ) : e (b, b, b)
 pub fun tuple4/map( t : (a,a,a,a), f : a -> e b ) : e (b,b,b,b)
   (t.fst.f, t.snd.f, t.thd.f, t.field4.f)
 
+
 // ----------------------------------------------------------------------------
 // List functions
 // ----------------------------------------------------------------------------
@@ -441,7 +442,7 @@ pub fun list/(++)(xs : list<a>, ys : list<a> ) : list<a>
   append(xs,ys)
 
 // Append two lists.
-pub fun append(xs : list<a>, ys : list<a> ) : list<a>
+pub fun list/append(xs : list<a>, ys : list<a> ) : list<a>
   match xs
     Cons(x,xx) -> Cons(x,append(xx,ys))
     Nil -> ys
@@ -717,6 +718,106 @@ pub fun any( xs : list<a>, predicate : a -> e bool ) : e bool
     Cons(x,xx) -> if predicate(x) then True else xx.any(predicate)
     Nil -> False
 
+
+// ----------------------------------------------------------------------------
+// Generic equality
+// ----------------------------------------------------------------------------
+
+// Element-wise tuple equality
+pub fun tuple2/(==)( (x1,y1) : (a,b), (x2,y2) : (a,b), ?fst/(==) : (a,a) -> bool, ?snd/(==) : (b,b) -> bool ) : bool
+  (x1==x2) && (y1==y2)
+
+// Element-wise triple equality
+pub fun tuple3/(==)( (x1,y1,z1) : (a,b,c), (x2,y2,z2) : (a,b,c), ?fst/(==) : (a,a) -> bool, ?snd/(==) : (b,b) -> bool, ?thd/(==) : (c,c) -> bool ) : bool
+  (x1==x2) && (y1==y2) && (z1==z2)
+
+// Equality on `:maybe`
+pub fun maybe/(==)( mb1 : maybe<a>, mb2 : maybe<a>, ?(==) : (a,a) -> bool ) : bool
+  match mb1
+    Just(x)  -> match mb2
+                  Just(y) -> x==y
+                  Nothing -> False
+    Nothing  -> match mb2
+                  Nothing -> True
+                  _       -> False
+
+// Element-wise list equality
+pub fun list/(==)( xs : list<a>, ys : list<a>, ?(==) : (a,a) -> bool ) : bool
+  match xs
+    Cons(x,xx) -> match ys
+                    Nil        -> False
+                    Cons(y,yy) -> (x==y) && (xx==yy)
+    Nil -> match ys
+             Nil  -> True
+             Cons -> False
+
+// Generic inequality
+pub fun eq/(!=)(x : a, y : a, ?(==) : (a,a) -> bool ) : bool
+  not(x==y)
+
+// Generic equality if `cmp` exists
+pub fun cmp/(==)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+  match cmp(x,y)
+    Eq -> True
+    _  -> False
+
+// ----------------------------------------------------------------------------
+// Generic compare
+// ----------------------------------------------------------------------------
+
+pub fip fun order/(&&)( x : order, y : order ) : order
+  match x
+    Eq -> y
+    lg -> lg
+
+// Order on tuples
+pub fun tuple2/cmp( (x1,y1) : (a,b), (x2,y2) : (a,b), ?fst/cmp : (a,a) -> order, ?snd/cmp : (b,b) -> order ) : order
+  fst/cmp(x1,x2) && snd/cmp(y1,y2)
+
+// Order on triples
+pub fbip fun tuple3/cmp( (x1,y1,z1) : (a,b,c), (x2,y2,z2) : (a,b,c), ^?fst/cmp : (a,a) -> order, ^?snd/cmp : (b,b) -> order, ^?thd/cmp : (c,c) -> order ) : order
+  fst/cmp(x1,x2) && snd/cmp(y1,y2) && thd/cmp(z1,z2)
+
+// Order on `:maybe` values
+pub fun maybe/cmp( mb1 : maybe<a>, mb2 : maybe<a>, ?cmp : (a,a) -> order ) : order
+  match mb1
+    Just(x)  -> match mb2
+                  Just(y) -> cmp(x,y)
+                  Nothing -> Gt
+    Nothing  -> match mb2
+                  Nothing -> Eq
+                  _       -> Lt
+
+// Order on lists
+pub fun list/cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> order ) : order
+  match xs
+    Cons(x,xx) -> match ys
+                    Nil        -> Gt
+                    Cons(y,yy) -> match cmp(x,y)
+                                    Eq -> cmp(xx,yy)
+                                    lg -> lg
+    Nil -> match ys
+             Nil  -> Eq
+             Cons -> Lt
+
+// Generic greater than
+pub fun cmp/(>)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+  cmp(x,y) == Gt
+
+// Generic lower than
+pub fun cmp/(<)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+  cmp(x,y) == Lt
+
+// Generic greater than or equal
+pub fun cmp/(>=)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+  y < x
+
+// Generic lower than or equal
+pub fun cmp/(<=)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+  y > x
+
+
+
 // ----------------------------------------------------------------------------
 // Characters
 // ----------------------------------------------------------------------------
@@ -741,7 +842,7 @@ pub inline fip extern char/(<)  : (char,char) -> bool
 pub inline fip extern char/(>)  : (char,char) -> bool
   inline "(#1 > #2)"
 
-pub fip fun char/compare( x : char, y : char ) : order
+pub fip fun char/cmp( x : char, y : char ) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq
@@ -824,7 +925,7 @@ pub fip fun bool/(>)( x : bool, y : bool) : bool
 pub fip fun bool/(>=)( x : bool, y : bool) : bool
   !(x < y)
 
-pub fip fun bool/compare( x : bool, y : bool) : order
+pub fip fun bool/cmp( x : bool, y : bool) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq
@@ -839,7 +940,7 @@ pub fun bool/maybe( b : bool ) : maybe<()>
 // ----------------------------------------------------------------------------
 
 // Compare two integers
-pub inline fip extern int/compare(^x : int, ^y : int) : order
+pub inline fip extern int/cmp(^x : int, ^y : int) : order
   c inline "kk_int_as_order(kk_integer_cmp_borrow(#1,#2,kk_context()),kk_context())"
   cs "Primitive.IntCompare"
   js "$std_core._int_compare"
@@ -978,9 +1079,11 @@ pub inline fip extern int/abs(i : int) : int
   cs "BigInteger.Abs"
   js "$std_core._int_abs"
 
+// Increment
 pub fip fun int/inc( i : int ) : int
   i + 1
 
+// Decrement
 pub fip fun int/dec( i : int ) : int
   i - 1
 
@@ -1046,6 +1149,7 @@ pub fip fun is-pos(i : int ) : bool
 pub fip fun is-neg(i : int ) : bool
   i < 0
 
+// Compare an integer `i` with zero
 pub inline fip extern sign( ^i : int ) : order
   c  inline "kk_int_as_order(kk_integer_signum_borrow(#1,kk_context()),kk_context())"
   cs "Primitive.IntSign"
@@ -1079,21 +1183,21 @@ pub fun sum( xs : list<int> ) : int
 pub fun maybe( i : int ) : maybe<int>
   if i==0 then Nothing else Just(i)
 
-// fold over the integers between [`start`,`end`] (inclusive).
-pub fun int/fold-int( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
+// Fold over the integers between [`start`,`end`] (inclusive).
+pub fun int/fold( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
   if start >= end then init else
     val x = f(start,init)
-    fold-int(unsafe-decreasing(start.inc), end, x, f)
+    fold(unsafe-decreasing(start.inc), end, x, f)
 
-// fold over the integers between [0,`upto`)  (not including `upto`).
-pub fun intupto/fold-int( upto : int, init : a, f : (int,a) -> e a ) : e a
-  fold-int( 0, upto.dec, init, f )
+// Fold over the integers between [0,`upto`)  (not including `upto`).
+pub fun int/fold-upto( upto : int, init : a, f : (int,a) -> e a ) : e a
+  fold( 0, upto.dec, init, f )
 
-
-pub fun fold-while-int( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
+// Fold over the integes between [`start``,`end`] (inclusive) or until `f` returns `Nothing`
+pub fun int/fold-while( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
   if start >= end then init else
     match f(start,init)
-      Just(x) -> fold-while-int(unsafe-decreasing(start.inc), end, x, f)
+      Just(x) -> fold-while(unsafe-decreasing(start.inc), end, x, f)
       Nothing -> init
 
 // ----------------------------------------------------------------------------
@@ -1468,20 +1572,20 @@ pub inline fun sslice/(!=)(l1: sslice, l2: sslice ): bool
       elif i1 != i2 then True
       else s1 != s2
 
-extern string-compare : ( x : string, y : string ) -> int
+extern string-cmp : ( x : string, y : string ) -> int
   c  "kk_string_cmp_int"
   cs inline "String.Compare(#1,#2)"
   js inline "(#1===#2 ? 0 : (#1 > #2 ? 1 : -1))"
 
 // Compare two strings.
 // Uses the character codes directly for comparison
-pub fun string/compare( x : string, y : string) : order
-  string-compare(x,y).order
+pub fun string/cmp( x : string, y : string) : order
+  string-cmp(x,y).order
 
-pub fun string/(>=)( x : string, y : string ) : bool { compare(x,y) > Lt }
-pub fun string/(<=)( x : string, y : string ) : bool { compare(x,y) < Gt }
-pub fun string/(>)( x : string, y : string ) : bool  { compare(x,y) == Gt }
-pub fun string/(<)( x : string, y : string ) : bool  { compare(x,y) == Lt }
+pub fun string/(>=)( x : string, y : string ) : bool { cmp(x,y) > Lt }
+pub fun string/(<=)( x : string, y : string ) : bool { cmp(x,y) < Gt }
+pub fun string/(>)( x : string, y : string ) : bool  { cmp(x,y) == Gt }
+pub fun string/(<)( x : string, y : string ) : bool  { cmp(x,y) == Lt }
 
 // Append two strings.
 pub extern string/(++)(x : string, y : string) : string
@@ -1909,39 +2013,55 @@ inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a>
   cs inline "(new ##1[#1])"
   js inline "Array(#1)"
 
-// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-pub inline extern vector/index( ^v : vector<a>, ^index : int ) : exn a
-  c "kk_vector_at_int_borrow"
-  cs inline "(#1)[Primitive.IntToInt32(#2)]"
-  js inline "$std_core._vector_at(#1,#2)"
-
-// Return the element at position `index` in vector `v`, or `Nothing` if out of bounds
-pub fun at( ^v : vector<a>, ^index : int ) : maybe<a>
-  val idx = index.ssize_t
-  if v.lengthz <= idx then Nothing else Just(unsafe-idx(v,idx))
-
-// Return the length of a vector.
-pub fun length( ^v : vector<a> ) : int
-  v.lengthz.int
-
 inline extern lengthz( ^v : vector<a> ) : ssize_t
   c  "kk_vector_len_borrow"
   cs inline "((#1).Length)"
   js inline "((#1).length)"
 
+
+// Return the element at position `index`  in vector `v`.
+// Raise an out of bounds exception if `index < 0`  or `index >= v.length`.
+pub fun vector/index( ^v : vector<a>, ^index : int ) : exn a
+  val idx = index.ssize_t()
+  if idx < v.lengthz then unsafe-idx(v,idx) else throw("index out of bounds",ExnRange)
+
+// Return the element at position `index` in vector `v`, or `Nothing` if out of bounds
+pub fun at( ^v : vector<a>, ^index : int ) : maybe<a>
+  val idx = index.ssize_t
+  if idx < v.lengthz then Just(unsafe-idx(v,idx)) else Nothing
+
+// Return the length of a vector.
+pub fun length( ^v : vector<a> ) : int
+  v.lengthz.int
+
 // Create a new vector of length `n`  with initial elements `default` .
 pub fun vector( ^n : int, default : a) : vector<a>
-  vector-initz(n.ssize_t, fn(_i){ default } )
+  vector-initz(n.ssize_t, default)
 
-// Create a new vector of length `n`  with initial elements given by function `f` .
+// Create a new vector of length `n`  with initial elements given by _total_ function `f`.
+// (can be more efficient than `vector-init`)
+pub fun vector-init-total( ^n : int, f : int -> a ) : e vector<a>
+  vector-initf( n.ssize_t, fn(i) f(i.int) )
+
+// Create a new vector of length `n`  with initial elements given by function `f` which can have a control effect.
 pub fun vector-init( ^n : int, f : int -> e a ) : e vector<a>
-  vector-initz( n.ssize_t, fn(i) { f(i.int) } )
+  val len = n.ssize_t
+  val v = unsafe-vector(len)
+  forz( 0.ssize_t, len - 1.ssize_t ) fn(i)
+    unsafe-assign(v,i,f(i.int))
+  v
 
-// Create a new vector of length `n`  with initial elements given by function `f` .
-extern vector-initz(n : ssize_t, f : ssize_t -> e a) : e vector<a>
-  c "kk_vector_init"
+// Create a new vector of length `n`  with initial elements `init`` .
+extern vector-initz(n : ssize_t, init : a) : e vector<a>
+  c "kk_vector_initz"
   cs inline "Primitive.NewArray<##1>(#1,#2)"
-  js inline "_vector(#1,#2)"
+  js inline "_vector_initz(#1,#2)"
+
+// Create a new vector of length `n`  with initial elements given by a total function `f` .
+extern vector-initf(n : ssize_t, f : ssize_t -> a) : vector<a>
+  c "kk_vector_initf"
+  cs inline "Primitive.NewArray<##1>(#1,#2)"
+  js inline "_vector_initf(#1,#2)"
 
 // Create an empty vector.
 pub inline extern unit/vector : forall<a> () -> vector<a>
@@ -2026,7 +2146,7 @@ pub fun force( delayed : delayed<e,a> ) : e a
 // ----------------------------------------------------------------------------
 
 // Generic show: shows the internal representation of an object as a string
-// Note: this breaks parametricity so it should not be pub
+// Note: this breaks parametricity so it should not be public
 extern gshow : forall<a> a -> string
   c "kk_show_any"
   cs inline "#1.ToString()"
@@ -2047,7 +2167,7 @@ extern int-show-hex(i:int,use-capitals:bool) : string
 // The `width`  parameter specifies how wide the hex value is where `"0"`  is used to align.\
 // The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
 // The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
-pub fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string = "0x" )
+pub fun int/show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string = "0x" )
   (if i<0 then "-" else "") ++ pre ++ int-show-hex(i.abs,use-capitals).pad-left(width,'0')
 
 
@@ -2067,7 +2187,7 @@ pub fun float64/show( d : float64, precision : int = -17 ) : string
 // This may still show a number in exponential notation if the it is too small or large,
 // in particular, for  a `d` where `d > 1.0e21` or `d < 1.0e-15`, or if
 // `precision.abs > 17`, the `show-exp` routine is used.
-pub fun show-fixed( d : float64, precision : int = -2 ) : string
+pub fun float64/show-fixed( d : float64, precision : int = -2 ) : string
   val dabs = d.abs
   if dabs < 1.0e-15 || dabs > 1.0e+21
     then show-exp(d,precision)
@@ -2082,7 +2202,7 @@ extern show-fixedx( d : float64, prec : int32 ) : string
 // The optional `precision` (= `-17`) specifies the precision.
 // If `>=0` it specifies the number of digits behind the dot (up to `17` max).
 // If negative, then at most the absolute value of `precision` digits behind the dot are used.
-pub fun show-exp( d : float64, precision : int = -17 )
+pub fun float64/show-exp( d : float64, precision : int = -17 )
   show-expx(d,precision.int32)
 
 extern show-expx( d : float64, prec : int32 ) : string
@@ -2126,21 +2246,32 @@ pub fun unit/show( u : () ) : string
 pub fun sslice/show( s : sslice ) : string
   s.string.show
 
-// Convert a list to a string
+// Show a list
+pub fun list/show( xs : list<a>, ?show : a -> e string ) : e string
+  "[" ++ xs.map(show).join(",") ++ "]"
+
+// Show a tuple
+pub fun tuple2/show( x : (a,b), ?fst/show : a -> e string, ?snd/show : b -> e string) : e string
+  "(" ++ x.fst.show ++ "," ++ x.snd.show ++ ")"
+
+// Show a triple
+pub fun tuple3/show( x : (a,b,c), ?fst/show : a -> e string, ?snd/show : b -> e string, ?thd/show : c -> e string) : e string
+  "(" ++ x.fst.show ++ "," ++ x.snd.show ++ "," ++ x.thd.show ++ ")"
+
+// Show a `:maybe` type
+pub fun maybe/show( mb : maybe<a>, ?show : a -> e string ) : e string
+  match mb
+    Just(x) -> "Just(" ++ x.show ++ ")"
+    Nothing -> "Nothing"
+
+
+// _deprecated_, use `list/show` instead.
 pub fun show-list( xs : list<a>, show-elem : (a) -> e string ) : e string
-  "[" ++ xs.map(show-elem).join(",") ++ "]"
+  list/show(xs,?show=show-elem)
 
-pub fun stringlist/show( xs : list<string> ) : string
-  show-list(xs,show)
-
-pub fun intlist/show( xs : list<int> ) : string
-  show-list(xs,show)
-
-pub fun boollist/show( xs : list<bool> ) : string
-  show-list(xs,show)
-
+// _deprecated_, use `tuple2/show` instead
 pub fun show-tuple( x : (a,b), showfst : a -> e string, showsnd : b -> e string ) : e string
-  "(" ++ x.fst.showfst ++ "," ++ x.snd.showsnd ++ ")"
+  tuple2/show(x,?fst/show=showfst,?snd/show=showsnd)
 
 
 // ----------------------------------------------------------------------------
@@ -2199,6 +2330,19 @@ noinline fun printsln( s : string ) : console ()
 pub fun string/print(s : string)
   prints(s)
 
+// Print a value that has a `show` function
+pub fun show/print( x : a, ?show : a -> string ) : console ()
+  prints(x.show)
+
+// Print a string to the console, including a final newline character.
+pub fun string/println(s : string) : console ()
+  printsln(s)
+
+// Print a value that has a `show` function, including a final newline character.
+pub fun show/println( x : a, ?show : a -> string ) : console ()
+  printsln(x.show)
+
+/*
 // Print an integer to the console.
 pub fun int/print(i : int)
   prints(show(i))
@@ -2218,11 +2362,9 @@ pub fun char/print(c : char)
 // Print a unit value to the console
 pub fun unit/print( u : () )
   prints(show(()))
+*/
 
-// Print a string to the console, including a final newline character.
-pub fun string/println(s : string) : console ()
-  printsln(s)
-
+/*
 // Print an integer to the console, including a final newline character.
 pub fun int/println(i : int)
   printsln(show(i))
@@ -2242,7 +2384,7 @@ pub fun char/println(c : char)
 // Print a unit value to the console, including a final newline character
 pub fun unit/println( u : () )
   printsln(show(()))
-
+*/
 
 // ----------------------------------------------------------------------------
 // Trace, assert, todo
@@ -2517,7 +2659,7 @@ pub fun action/repeat( ^n : int, action : () -> e () ) : e ()
   for(1,n) fn(i)
     action()
 
-// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// Executes `action`  for each integer between [`start`,`end`]  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
 pub fun for( ^start: int, end : int, action : (int) -> e () ) : e ()
   fun rep( ^i : int )
@@ -2526,7 +2668,7 @@ pub fun for( ^start: int, end : int, action : (int) -> e () ) : e ()
       rep(unsafe-decreasing(i.inc))
   rep(start)
 
-// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// Executes `action`  for each integer between [`start`,`end`]  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
 fun forz( start: ssize_t, end : ssize_t, action : (ssize_t) -> e () ) : e ()
   fun rep( i : ssize_t )

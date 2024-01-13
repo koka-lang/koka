@@ -1,4 +1,4 @@
 type void { }
-type () {
-  con ()
+type unit {
+  con Unit
 }

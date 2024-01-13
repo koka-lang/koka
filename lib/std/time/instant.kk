@@ -204,15 +204,15 @@ pub fun round-to-prec(i : instant, prec : int ) : instant
    else Instant( i.since.round-to-prec(prec), i.ts )
 
 // Compare two `:instant`s in time.
-pub fun compare( i : instant, j : instant ) : order
-  compare(i.since, j.use-timescale(i.ts).since)
+pub fun cmp( i : instant, j : instant ) : order
+  cmp(i.since, j.use-timescale(i.ts).since)
 
-pub fun (<)( i : instant, j : instant )  : bool { compare(i,j) == Lt }
-pub fun (<=)( i : instant, j : instant ) : bool { compare(i,j) != Gt }
-pub fun (>)( i : instant, j : instant )  : bool { compare(i,j) == Gt }
-pub fun (>=)( i : instant, j : instant ) : bool { compare(i,j) != Lt }
-pub fun (==)( i : instant, j : instant ) : bool { compare(i,j) == Eq }
-pub fun (!=)( i : instant, j : instant ) : bool { compare(i,j) != Eq }
+pub fun (<)( i : instant, j : instant )  : bool { cmp(i,j) == Lt }
+pub fun (<=)( i : instant, j : instant ) : bool { cmp(i,j) != Gt }
+pub fun (>)( i : instant, j : instant )  : bool { cmp(i,j) == Gt }
+pub fun (>=)( i : instant, j : instant ) : bool { cmp(i,j) != Lt }
+pub fun (==)( i : instant, j : instant ) : bool { cmp(i,j) == Eq }
+pub fun (!=)( i : instant, j : instant ) : bool { cmp(i,j) != Eq }
 
 // The minimum of two instants.
 pub fun min( i : instant, j : instant ) : instant

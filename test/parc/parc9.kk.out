@@ -4,6 +4,6 @@ import std/core = std/core = "";
 pub fun test : (x : list<int>) -> list<int>
  = fn(x: list<int>){
  val _ : ()
- = std/core/types/.drop(x);
+ = std/core/types/@drop(x);
  std/core/Nil;
  };

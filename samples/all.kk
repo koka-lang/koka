@@ -8,6 +8,8 @@ import basic/rbtree
 import syntax/basic
 import syntax/handler
 import syntax/with
+import syntax/qualifiers
+import syntax/implicits
 
 import handlers/ambient
 import handlers/basic
@@ -18,19 +20,30 @@ import handlers/parser
 import handlers/scoped
 import handlers/unix
 
-import named-handlers/ask
-import named-handlers/file
-import named-handlers/file-scoped
-import named-handlers/heap
+import handlers/named/ask
+import handlers/named/file
+import handlers/named/file-scoped
+import handlers/named/heap
+import handlers/named/unify
+
+fun run( name : string, action : () -> <console|e> a ) : <console|e> ()
+  println("run " ++ name ++ "\n---------------")
+  action()
+  println("")
 
 pub fun main()
-  caesar/main()
-  fibonacci/main()
-  garsia-wachs/main()
-  rbtree/main()
-  nim/main()
-  parser/main()
-  scoped/main()
-  ambient/main()
-  unix/main()
+  run("caesar",caesar/main)
+  run("fibonacci",fibonacci/main)
+  run("garsia-wachs",garsia-wachs/main)
+  run("rbtree",rbtree/main)
+
+  run("unify",unify/main)
+  run("heap",heap/main)
+
+  run("nim",nim/main)
+  run("parser",parser/main)
+  run("scoped",scoped/main)
+  run("ambient",ambient/main)
+  run("unix",unix/main)
+
 

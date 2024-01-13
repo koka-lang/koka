@@ -353,18 +353,18 @@ pub fun is-neginf( x : ddouble ) : bool
   x.hi.is-neginf
 
 // Compare two `:ddouble` values.
-pub fun compare( x : ddouble, y : ddouble ) : order
-  match compare(x.hi,y.hi)
-    Eq  -> compare(x.lo,y.lo)
+pub fun cmp( x : ddouble, y : ddouble ) : order
+  match cmp(x.hi,y.hi)
+    Eq  -> cmp(x.lo,y.lo)
     ord -> ord
 
 
-pub fun (>) (x : ddouble, y : ddouble) : bool { compare(x,y) == Gt }
-pub fun (>=)(x : ddouble, y : ddouble) : bool { compare(x,y) != Lt }
-pub fun (==)(x : ddouble, y : ddouble) : bool { compare(x,y) == Eq }
-pub fun (!=)(x : ddouble, y : ddouble) : bool { compare(x,y) != Eq }
-pub fun (<) (x : ddouble, y : ddouble) : bool { compare(x,y) == Lt }
-pub fun (<=)(x : ddouble, y : ddouble) : bool { compare(x,y) != Gt }
+pub fun (>) (x : ddouble, y : ddouble) : bool { cmp(x,y) == Gt }
+pub fun (>=)(x : ddouble, y : ddouble) : bool { cmp(x,y) != Lt }
+pub fun (==)(x : ddouble, y : ddouble) : bool { cmp(x,y) == Eq }
+pub fun (!=)(x : ddouble, y : ddouble) : bool { cmp(x,y) != Eq }
+pub fun (<) (x : ddouble, y : ddouble) : bool { cmp(x,y) == Lt }
+pub fun (<=)(x : ddouble, y : ddouble) : bool { cmp(x,y) != Gt }
 
 // The minimum of `x` and `y`.
 pub fun min( x : ddouble, y : ddouble ) : ddouble

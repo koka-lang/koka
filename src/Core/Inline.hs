@@ -160,7 +160,7 @@ inlAppExpr expr m n onlyZeroCost
                   -> do traceDoc $ \penv -> text "inlined:" <+> ppName penv (getName tname)
                         return (inlineExpr info)
                 Just (info,m',n')
-                  -> do traceDoc $ \penv -> text "inline candidate:" <+> ppName penv (getName tname) <+> 
+                  -> do traceDoc $ \penv -> text "inline candidate:" <+> ppName penv (getName tname) <+>
                                               text (show (m',n')) <+> text "vs" <+> text (show (m,n)) <+>
                                                 text ", onlyZeroCost:" <+> pretty onlyZeroCost <+>
                                                   text ", inlineCost:" <+>  pretty (inlineCost info)
@@ -174,7 +174,7 @@ inlAppExpr expr m n onlyZeroCost
       App eopen@(TypeApp (Var open info) targs) [f] | getName open == nameEffectOpen
         -> do -- traceDoc $ \penv -> text "go through open:" <+> text (show (m,n))
               f' <- inlAppExpr f m n onlyZeroCost
-              return (App eopen [f'])      
+              return (App eopen [f'])
 
       _ -> return (expr)  -- no inlining
 
@@ -276,7 +276,7 @@ inlLookup name
 traceDoc :: (Pretty.Env -> Doc) -> Inl ()
 traceDoc f
   = do env <- getEnv
-       inlTrace (show (f (prettyEnv env)))       
+       inlTrace (show (f (prettyEnv env)))
 
 inlTrace :: String -> Inl ()
 inlTrace msg

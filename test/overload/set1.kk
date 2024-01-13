@@ -30,14 +30,14 @@ fun list/set( ?eq : (a,a) -> bool ) : set<list,a>
   Set([],single,union,contains,id)
 
 
-fun two( x : a, y : a, ??set : set<s,a> ) : s<a>
+fun two( x : a, y : a, .?set : set<s,a> ) : s<a>
   union( single(x), single(x) )
 
 // test an `:int`.
-fun inttest(??set)
+fun inttest(.?set)
   two(1,2).elements.show-list(show)
 
-fun unittest(??set)
+fun unittest(.?set)
   two((),()).elements.show-list(show)
 
 fun int/eq(x:int,y:int) x==y

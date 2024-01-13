@@ -6,15 +6,15 @@ pub fun test : forall<a> (x : int, y : a, z : a) -> a
  match (x) {
  0
  -> val _ : ()
- = std/core/types/.drop(z);
+ = std/core/types/@drop(z);
  val _ : ()
- = std/core/types/.drop(x);
+ = std/core/types/@drop(x);
  y;
  _
  -> val _ : ()
- = std/core/types/.drop(y);
+ = std/core/types/@drop(y);
  val _ : ()
- = std/core/types/.drop(x);
+ = std/core/types/@drop(x);
  z;
  };
  };

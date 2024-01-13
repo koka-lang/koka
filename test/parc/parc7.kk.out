@@ -4,6 +4,6 @@ import std/core = std/core = "";
 pub fun test : forall<a,b> (x : a, y : b) -> a
  = fn(x: 10, y: 11){
  val _ : ()
- = std/core/types/.drop(y);
+ = std/core/types/@drop(y);
  x;
  };

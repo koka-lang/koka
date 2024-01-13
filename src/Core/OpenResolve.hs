@@ -47,7 +47,7 @@ trace s x =
 data Env = Env{ penv :: Pretty.Env, gamma :: Gamma }
 
 openResolve :: Pretty.Env -> Gamma -> CorePhase b ()
-openResolve penv gamma 
+openResolve penv gamma
   = liftCorePhase $ \defs -> resDefGroups (Env penv gamma) defs
 
 {--------------------------------------------------------------------------
@@ -142,25 +142,25 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                                   [(qname,info)] -> coreExprFromNameInfo qname info
                                   ress -> failure $ "Core.OpenResolve.resOpen: unknown name: " ++ show name -- ++ ", " ++ show gamma
                  -- actionPar = TName (newHiddenName "action") (TFun targs effFrom tres)
-                 params = [TName (newHiddenName ("x" ++ show i)) (snd targ) | (i,targ) <- zip [1..] targs]
-                 exprName = TName (newHiddenName "x0") (tpFrom)
+                 params = [TName (newHiddenNameEx "x" (show i)) (snd targ) | (i,targ) <- zip [1..] targs]
+                 exprName = TName (newHiddenNameEx "x" "0") (tpFrom)
                  exprVar  = Var exprName InfoNone
                  exprApp lam  = App (Lam [exprName] typeTotal lam) [expr]
-                 
+
                  wrapperThunk openExpr evExprs
                    = exprApp $
                        Lam params effTo $
                            App (makeTypeApp openExpr [tres,effFrom,effTo])
                                (evExprs ++ [Lam [] effTo (App exprVar [Var p InfoNone | p <- params])])
-                    
-                           
+
+
                  wrapper openExpr evExprs
                    = exprApp $
                        Lam params effTo $
                          App (makeTypeApp openExpr (map snd targs ++ [tres,effFrom,effTo]))
                              (evExprs ++ [exprVar] ++ [Var p InfoNone | p <- params])
-                           
-                   
+
+
                  evIndexOf l
                    = let (htagTp,hndTp)
                              = let (name,_,tpArgs) = labelNameEx l
@@ -174,24 +174,24 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                           [] -> trace ("  no handled effect, in no handled effect context: use cast")
                                 expr
                           _  -> trace ("  no handled effect; use none: " ++ show expr) $
-                                if (isHandlerFree expr) 
+                                if (isHandlerFree expr)
                                  then trace ("***  remove open-none") $  -- fully total with using any operations that need evidence; just leave it as is
                                       expr
-                                else if (n <= 4) 
+                                else if (n <= 4)
                                  then wrapper (resolve (nameOpenNone n)) []  -- fails in perf1c with exceeded stack size if --optmaxdup < 500 (since it prevents a tailcall)
                                       -- expr  -- fails in nim as it evidence is not cleared
                                  else wrapperThunk (resolve (nameOpenNone 0)) []
-                                      
+
                  [l] -> -- just one: used open-atN for efficiency
                         trace ("  one handled effect; use at: " ++ show (ppType penv l)) $
-                        if (n <= 4) 
+                        if (n <= 4)
                          then wrapper (resolve (nameOpenAt n)) [evIndexOf l]
                          else wrapperThunk (resolve (nameOpenAt 0)) [evIndexOf l]
 
                  _ -> --failure $ "Core.OpenResolve.resOpen: todo: from: " ++ show (ppType penv effFrom) ++ ", to " ++ show (ppType penv effTo)
                       --           ++ " with handled: " ++ show (map (ppType penv) lsFrom, map (ppType penv) lsTo)
                       let indices = makeVector typeEvIndex (map evIndexOf lsFrom)
-                      in if (n <= 3) 
+                      in if (n <= 3)
                           then wrapper (resolve (nameOpen n)) [indices]
                           else wrapperThunk (resolve (nameOpen 0)) [indices]
 
@@ -204,26 +204,26 @@ matchLabels (l1:ls1) (l2:ls2) = (labelName l1 == labelName l2) && matchLabels ls
 matchLabels [] []             = True
 matchLabels _ _               = False
 
--- is a function expression handler free? : meaning if invoked, 
+-- is a function expression handler free? : meaning if invoked,
 -- it will never need evidence (invoke an operation) or change the evidence (use a handler).
-isHandlerFree :: Expr -> Bool   
-isHandlerFree expr  
+isHandlerFree :: Expr -> Bool
+isHandlerFree expr
   = case expr of
       TypeLam tpars body -> isHandlerFree body
       TypeApp body targs -> isHandlerFree body
       Lam pars eff body  -> not (containsHandledEffect [] eff) && isHandlerFree body
-      App f args         -> all isHandlerFree (f:args) 
-      Var vname (Core.InfoExternal{})  
+      App f args         -> all isHandlerFree (f:args)
+      Var vname (Core.InfoExternal{})
                   -> case handlerFreeFunType (typeOf vname) of
                        Nothing  -> True
                        Just ok  -> ok
-      Var vname _ -> case handlerFreeFunType (typeOf vname) of 
+      Var vname _ -> case handlerFreeFunType (typeOf vname) of
                        Nothing   -> True
                        Just ok   -> ok && (isSystemCoreName (getName vname))
       Con{} -> True
       Lit{} -> True
       _     -> False
-      
+
 handlerFreeFunType :: Type -> Maybe Bool
 handlerFreeFunType tp
   = case splitFunScheme tp of

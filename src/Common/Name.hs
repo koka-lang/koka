@@ -23,16 +23,16 @@ module Common.Name
           , nameCaseEqual, nameCaseOverlap, isSameNamespace
           , nameCaseEqualPrefixOf, nameCaseOverlapPrefixOf
           , qualify, unqualify, isQualified, qualifier
-          , nameModule, nameStem, nameLocal, nameLocalQual
+          , nameModule, nameStem, nameLocal, nameLocalQual, isModuleName
 
           , newPaddingName, isPaddingName, isCCtxName
           , newFieldName, isFieldName, isWildcard
           , newHiddenExternalName, isHiddenExternalName
           , newHiddenName, isHiddenName, hiddenNameStartsWith
-          , makeHiddenName, makeFreshHiddenName
+          , makeHiddenName, makeFreshHiddenName, newHiddenNameEx
           , toUniqueName
           , newImplicitTypeVarName, isImplicitTypeVarName
-          , newCreatorName
+          , newCreatorName, isCreatorName
           , toHandlerName, fromHandlerName, isHandlerName
           , toOpSelectorName, fromOpSelectorName, isOpSelectorName
           , toOperationsName, fromOperationsName, isOperationsName
@@ -45,8 +45,8 @@ module Common.Name
           , splitModuleName, unsplitModuleName, mergeCommonPath, splitLocalQualName
           , missingQualifier
           , isEarlyBindName
-          , toImplicitParamName, isImplicitParamName, plainImplicitParamName
-          , namedImplicitParamName, splitImplicitParamName
+          , toImplicitParamName, isImplicitParamName, splitImplicitParamName
+          , fromImplicitParamName
 
           , prepend, postpend
           , asciiEncode, showHex, moduleNameToPath, pathToModuleName
@@ -54,14 +54,14 @@ module Common.Name
 
           , prettyName, prettyCoreName
           , requalifyLocally, qualifyLocally, unqualifyFull, isLocallyQualified, fullQualifier
-          , unqualifyAsModuleName
+          , unqualifyAsModuleName, unqualifyLocally
           ) where
 
 -- import Lib.Trace( trace )
--- import Debug.Trace
+import Debug.Trace
 import Lib.PPrint
 import Data.Char(isUpper,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
-import Common.Failure(failure)
+import Common.Failure(failure,assertion)
 import Common.File( joinPaths, splitOn, endsWith, startsWith, isPathSep )
 import Common.Range( rangeStart, posLine, posColumn )
 import Data.List(intersperse,isPrefixOf)
@@ -145,7 +145,12 @@ lowerCompareS [] []     = EQ
 
 instance Eq Name where
   n1@(Name _ hm1 _ hl1 _ hn1) == n2@(Name _ hm2 _ hl2 _ hn2)
-    = (hn1 == hn2) && (hl1 == hl2) && (hm1 == hm2) && (lowerCompare n1 n2 == EQ)
+    = let eq = (hn1 == hn2) && (hl1 == hl2) && (hm1 == hm2) in
+      assertion ("Common.Name.Eq: wrong hashes: " ++ show [(hm1,hl1,hn1),(hm2,hl2,hn2)] ++ show (n1,n2))
+                (if not eq then showFullyExplicit n1 /= showFullyExplicit n2 else True) $
+      (eq && (lowerCompare n1 n2 == EQ))
+
+
 
 instance Ord Name where
   compare n1@(Name _ hm1 _ hl1 _ hn1) n2@(Name _ hm2 _ hl2 _ hn2)
@@ -203,8 +208,14 @@ showName explicitLocalQualifier (Name m _ l _ n _)
                  else if null ln then m
                                  else m ++ (if explicitLocalQualifier && not (null l) then "/#" else "/") ++ ln
 
+showFullyExplicit (Name m _ l _ n _)
+   = let ln = join l (wrapId n)
+     in if null m then if null l then ln else "#" ++ ln
+                  else if null ln then m
+                                  else m ++ "/#" ++ ln
+
 showExplicit name
-   = showName True name
+  = showName True name
 
 showPlain (Name m _ l _ n _)
   = join m (join l n)
@@ -218,19 +229,23 @@ instance Pretty Name where
   pretty name
     = text (show name)
 
-prettyName :: ColorScheme -> Name -> Doc      -- not explicit /#
-prettyName cs (Name m _ l _ n _)
-  = let ln = join l (wrapId n)
-    in if null m then text ln
-                 else color (colorModule cs) (text m <.> (if null ln then empty else text "/")) <.> text ln
-
-prettyCoreName :: ColorScheme -> Name -> Doc  -- explicit /# if needed
-prettyCoreName cs (Name m _ l _ n _)
+prettyNameEx :: String -> ColorScheme -> Name -> Doc  -- explicit /# if needed
+prettyNameEx lsep cs (Name m _ l _ n _)
   = let ln = join l (wrapId n)
     in if null m then text ln
                  else color (colorModule cs)
-                          (text m <.> (if null ln then empty else (if null l then text "/" else text "/#")))
+                          (text m <.> (if null ln then empty else (if null l then text "/" else text lsep)))
                       <.> text ln
+
+prettyName :: ColorScheme -> Name -> Doc      -- not explicit /#
+prettyName cs name
+  = if isImplicitParamName name
+      then text "?" <.> prettyNameEx "/" cs (requalifyLocally (fromImplicitParamName name))
+      else prettyNameEx "/" cs name
+
+prettyCoreName :: ColorScheme -> Name -> Doc  -- explicit /# if needed
+prettyCoreName cs name
+  = prettyNameEx "/#" cs name
 
 
 -- todo: remove these as we can now read/write reliably using readQualifiedName
@@ -279,6 +294,8 @@ nameMapStem (Name m hm l hl n _) f
 
 
 readQualifiedName :: String -> Name
+readQualifiedName ('?':s)
+  = toImplicitParamName (requalifyLocally (readQualifiedName s))
 readQualifiedName s
   = let (qual,lqual,id) = splitName s
     in newLocallyQualified qual lqual id
@@ -372,8 +389,10 @@ missingQualifier currentMod name qname
         missing  = case filter (\std -> (std ++ "/") `isPrefixOf` missing0) standard of
                     (std:_) -> drop (length std + 1) missing0
                     _       -> missing0
-    in -- trace ("missingQualifier: " ++ show [currentMod,name,qname] ++ ", missing: " ++ show (missing0,missing))$
-       missing
+    in -- trace ("missingQualifier: " ++ show [currentMod,name,qname] ++ ", missing: " ++ show (missing0,missing)) $
+       if missing `startsWith` (implicitNameSpace ++ "/")
+         then "?" ++ drop (length implicitNameSpace + 1) missing
+         else missing
 
 {-
 nameSplit :: Name -> (String,String,String)
@@ -527,21 +546,23 @@ nameStartsWith name pre
 prepend :: String -> Name -> Name
 prepend pre name
   = nameMapStem name $ \stem ->
-    case stem of
-      ('@':t) -> case pre of -- keep hidden names hidden
-                   '@':_ -> pre ++ t
-                   _     -> '@' : pre ++ t
-      t       -> pre ++ t
+    let append p s = case (reverse p, s) of
+                      ('-':_, c:cs)  | not (isAlpha c) -> p ++ "x" ++ s -- keep well-formed identifiers
+                      _ -> p ++ s
+    in case stem of
+        ('@':t) -> case pre of -- keep hidden names hidden
+                    '@':_ -> append pre t
+                    _     -> '@' : append pre t
+        _       -> append pre stem
 
 
 postpend :: String -> Name -> Name
 postpend post name | isSymbolName name
-  = -- we must always end in symbols
+  = -- we must always end in symbols for operators so postpend inserts before the symbols
     nameMapStem name $ \stem ->
     let (rsyms,rid) = span (not . isIdChar) (reverse stem)
-    in if null rid
-         then "@" ++ post ++ reverse rsyms
-         else reverse rid ++ post ++ reverse rsyms
+    in (if null rid || rid == "@" then "@x" else reverse rid) -- ensure it becomes a valid lowerid
+        ++ post ++ reverse rsyms
 postpend post name
   = nameMapStem name $ \stem ->
     let (xs,ys) = span (\c -> c=='?' || c=='\'') (reverse stem)
@@ -549,31 +570,71 @@ postpend post name
 
 
 ----------------------------------------------------------------
--- various special names
+-- hidden names
 ----------------------------------------------------------------
+makeHidden :: Name -> Name
+makeHidden name
+  = prepend "@" name
 
-newHiddenName s
-  = newName ("@" ++ s)
+makeHiddenName :: String -> Name -> Name
+makeHiddenName s name
+  = prepend ("@" ++ s ++ "-") name
+
+unmakeHidden :: String -> Name -> Name
+unmakeHidden pre name
+  = nameMapStem name $ \stem ->
+    if stem `startsWith` ("@" ++ pre ++ "-")
+      then drop (length pre + 2) stem
+      else err
+  where
+    err = failure ("Name.unmakeHidden: expecting hidden name prefixed with @" ++ pre ++ "-, but found: " ++ show name)
+
+newHiddenNameEx :: String -> String -> Name
+newHiddenNameEx base s
+  = makeHiddenName base (newName s)
+
+newHiddenName :: String -> Name
+newHiddenName base
+  = makeHidden (newName base)
+
+toUniqueName :: Int -> Name -> Name
+toUniqueName i name
+  = postpend ("@" ++ show i) name
+
+toHiddenUniqueName :: Int -> String -> Name -> Name
+toHiddenUniqueName i pre name
+  = makeHiddenName pre (toUniqueName i name)
+
+makeFreshHiddenName s name range
+  = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
+    where idFromPos pos = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
+
+hiddenNameStartsWith :: Name -> String -> Bool
+hiddenNameStartsWith name pre
+  = (nameStem name == ("@" ++ pre)) || (nameStartsWith name ("@" ++ pre ++ "-"))
 
 newPaddingName i
-  = newHiddenName ("padding" ++ show i)
+  = newHiddenNameEx "padding"  (show i)
 
 isPaddingName name
-  = nameStartsWith name "@padding"
+  = hiddenNameStartsWith name "padding"
+
+newCCtxName s
+  = newHiddenNameEx "cctx" s
 
 isCCtxName name
-  = nameStartsWith name "@cctx"
+  = hiddenNameStartsWith name "cctx"
 
 
 newFieldName i
-  = newHiddenName ("field" ++ show i)
+  = newHiddenNameEx "field"  (show i)
 
 isFieldName name
-  = nameStartsWith name "@field"
+  = hiddenNameStartsWith name "field"
 
 
 newImplicitTypeVarName i
-  = newHiddenName ("tv" ++ show i)
+  = newHiddenNameEx "tv" (show i)
 
 isImplicitTypeVarName name
   = nameStartsWith name "@tv"
@@ -586,44 +647,6 @@ isHiddenExternalName name
   = hiddenNameStartsWith name "extern"
 
 
-
-
-makeHidden :: Name -> Name
-makeHidden name
-  = nameMapStem name $ \stem ->
-    case stem of
-      ('@':cs)      -> stem
-      _             -> '@':stem
-
-makeHiddenName :: String -> Name -> Name
-makeHiddenName s name
-  = makeHidden (prepend (s ++ "-") name)
-
-unmakeHidden :: String -> Name -> Name
-unmakeHidden pre name
-  = nameMapStem name $ \stem ->
-    if stem `startsWith` ("@" ++ pre ++ "-")
-      then drop (length pre + 2) stem
-      else err
-  where
-    err = failure ("Name.unmakeHidden: expecting hidden name prefixed with @" ++ pre ++ "-, but found: " ++ show name)
-
-
-makeFreshHiddenName s name range
-  = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
-    where idFromPos pos = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
-
-hiddenNameStartsWith name pre
-  = nameStartsWith name ("@" ++ pre ++ "-")
-
-
-toUniqueName :: Int -> Name -> Name
-toUniqueName i name
-  = postpend (show i) name
-
-toHiddenUniqueName :: Int -> String -> Name -> Name
-toHiddenUniqueName i pre name
-  = makeHiddenName pre (toUniqueName i name)
 
 
 -- | Create a constructor creator name from the constructor name.
@@ -741,16 +764,39 @@ fromValueOperationsName name
 
 
 implicitNameSpace :: String
-implicitNameSpace = "implicit"
+implicitNameSpace = "@implicit"
 
 isImplicitParamName :: Name -> Bool
 isImplicitParamName name
-  = (nameLocalQual name == implicitNameSpace)
+  = case splitLocalQualName name of
+      (m:ms) -> (m == implicitNameSpace)
+      _      -> False
 
 toImplicitParamName :: Name -> Name
 toImplicitParamName name
   = qualifyLocally (newModuleName implicitNameSpace) name
 
+fromImplicitParamName :: Name -> Name
+fromImplicitParamName name
+  = case splitLocalQualName name of
+      (m:ms) | m == implicitNameSpace -> qualifyLocally (unsplitModuleName ms) (unqualifyFull name)
+      _      -> name
+
+splitImplicitParamName :: Name -> (Name,Name)
+splitImplicitParamName name
+  = (name, unqualifyFull name)
+
+    {-
+    case splitAt "@-@" (nameStem name) of
+      (pre,post) | not (null pre) && not (null post) -> (toImplicitParamName (newName pre), newName post)
+      _ -> (name, plainImplicitParamName name)
+  where
+    splitAt sub s      | s `startsWith` sub  = ("",drop (length sub) s)
+    splitAt sub (c:cs) = let (pre,post) = splitAt sub cs in (c:pre,post)
+    splitAt sub ""     = ("","")
+    -}
+
+{-
 plainImplicitParamName :: Name -> Name
 plainImplicitParamName name
   = unqualifyFull name
@@ -758,16 +804,7 @@ plainImplicitParamName name
 namedImplicitParamName :: Name -> Name -> Name
 namedImplicitParamName pname ename
   = toImplicitParamName (newName (nameStem pname ++ "@-@" ++ nameStem ename))
-
-splitImplicitParamName :: Name -> (Name,Name)
-splitImplicitParamName name
-  = case splitAt "@-@" (nameStem name) of
-      (pre,post) | not (null pre) && not (null post) -> (newName pre, newName post)
-      _ -> (name, plainImplicitParamName name)
-  where
-    splitAt sub s      | s `startsWith` sub  = ("",drop (length sub) s)
-    splitAt sub (c:cs) = let (pre,post) = splitAt sub cs in (c:pre,post)
-    splitAt sub ""     = ("","")
+-}
 
 {-
 canonicalName :: Int -> Name -> Name

@@ -83,7 +83,7 @@ fun fold(t : tree<a>, acc : b, f : (int, a, b) -> b) : b
 
 // Make a boolean tree
 fun make-tree(n : int) : tree<bool>
-  fold-int( 0, n - 1, Leaf) fn(i,t)
+  int/fold( 0, n - 1, Leaf) fn(i,t)
     t.insert( i, i%10 == 0 )
 
 

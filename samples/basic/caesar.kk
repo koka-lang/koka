@@ -1,5 +1,8 @@
-/* Ceasar encoding/decoding.
-*/
+// Caesar encoding/decoding.
+//
+// This is inspired by an example in Graham Hutton's most excellent "Programming in Haskell" book.
+// (at <http://www.cs.nott.ac.uk/~pszgmh/pih.html>)
+
 import std/num/float64
 
 fun encode( s : string, shift : int = 3)
@@ -18,7 +21,7 @@ fun caesar(s : string ) : string
 // The letter frequency table for English
 val english = [8.2,1.5,2.8,4.3,12.7,2.2,
                2.0,6.1,7.0,0.2,0.8,4.0,2.4,
-               6.7,7.5,1.9,0.1, 6.0,6.3,9.1,
+               6.7,7.5,1.9,0.1,6.0,6.3,9.1,
                2.8,1.0,2.4,0.2,2.0,0.1]
 
 // Small helper functions
@@ -50,8 +53,8 @@ fun uncaesar( s : string ) : string
   val chitab = list(0,25).map fn(n)       // build a list of chisqr numbers for each shift between 0 and 25
                  chisqr( table.rotate(n), english )
   val min    = chitab.minimum             // find the mininal element
-  val shift  = chitab.index-of(fn(f) f == min).negate  // and use its position as our shift
-  s.encode( shift )
+  val shift  = chitab.index-of(fn(f) f == min) // and use its position as our shift
+  s.encode( ~shift )                      // decoding is encoding with a negated shift
 
 
 pub fun example-uncaesar()

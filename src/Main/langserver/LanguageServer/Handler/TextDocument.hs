@@ -45,13 +45,14 @@ import Common.Range (rangeNull)
 import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
 import Common.Name (newName)
 import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime)
+import Common.ColorScheme(ColorScheme(..))
 import Common.Error (Error, checkPartial, ErrorMessage (ErrorIO))
 import Core.Core (Visibility(Private))
-import Compiler.Options (Flags)
+import Compiler.Options (Flags, colorSchemeFromFlags)
 import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
 import Compiler.Module (Module(..), initialLoaded)
 import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
-import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded)
+import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded, putLoadedSuccess, getLoadedLatest)
 
 import Debug.Trace (trace)
 
@@ -142,7 +143,7 @@ updateVFS = do
 -- Compiles a single expression (calling a top level function with no arguments) - such as a test method
 compileEditorExpression :: J.Uri -> Flags -> Bool -> String -> String -> LSM (Maybe FilePath)
 compileEditorExpression uri flags force filePath functionName = do
-  loaded <- getLoaded normUri
+  loaded <- getLoadedLatest normUri
   case loaded of
     Just loaded -> do
       let mod = loadedModule loaded
@@ -175,7 +176,9 @@ recompileFile compileTarget uri version force flags = do
       modules <- fmap loadedModules <$> getLastChangedFileLoaded (normUri, flags)
       term <- getTerminal
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
-      let resultIO = compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] path
+      let resultIO = do res <- compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] path
+                        liftIO $ termPhaseDoc term (color (colorInterpreter (colorSchemeFromFlags flags)) (text "success"))
+                        return res
       processCompilationResult normUri path flags True resultIO
     Nothing -> return Nothing
   where
@@ -208,8 +211,8 @@ processCompilationResult normUri filePath flags update doIO = do
       outFile <- case checkPartial res of
         Right ((l, outFile), _, _) -> do
           -- Compilation succeeded
-          when update $ putLoaded l normUri flags-- update the loaded state for this file
-          liftIO $ termDoc term $ color Green $ text "Success! "
+          when update $ putLoadedSuccess l normUri flags-- update the loaded state for this file
+          -- liftIO $ termDoc term $ color Green $ text "success "
           return outFile -- return the executable file path
         Left (e, m) -> do
           -- Compilation failed

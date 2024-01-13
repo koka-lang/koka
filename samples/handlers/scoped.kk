@@ -26,11 +26,6 @@ val solutions = handler
   ctl flip() resume(True) ++ resume(False)
 
 
-fun listlist/show( xss : list<list<int>> ) : string
-  xss.show-list fn(xs)
-    xs.show-list(int/show)
-
-
 pub fun example1()
   with solutions
   knapsack(3,[3,2,1])

@@ -42,7 +42,7 @@ effect exit
   ctl exit( exitcode : int ) : a
 
 fun status( action : () -> <exit|e> a ) : e int
-  with ctl exit(code) code
+  with final ctl exit(code) code                    // use `final` since we never resume
   action()
   0
 
@@ -85,9 +85,6 @@ pub fun example3()
   echo("hi ")
   echo(whoami())
 
-
-fun unitstr/show( (_,s) : ((),string) ) : string
-  show(s)
 
 fun intstr/show( (i,s) : (int,string) ) : string
   "exit with status " ++ i.show ++ "\n" ++ show(s)
@@ -156,7 +153,7 @@ effect interrupt
   ctl interrupt() : ()
 
 fun reify-process( action : () -> <interrupt|e> a ) : e pstate<e,a>
-  with raw ctl interrupt() Paused( fn() rcontext.resume(()) )
+  with raw ctl interrupt() Paused( fn() rcontext.resume(()) )        // `raw` to have the resume outlive its lexical scope (otherwise finalizers are run automatically)
   Done(action())
 
 fun scheduler( pstates : list<pstate<<fork,div|e>,a>> ) : <div|e> list<a>

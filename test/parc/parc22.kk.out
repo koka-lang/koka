@@ -4,54 +4,54 @@ import std/core = std/core = "";
 pub rec type parc/parc22/hello[1,1,2,16] {
  pub con parc/parc22/World[2,3,2,7](i: int){0,1,8} : (i : int) -> parc/parc22/hello;
 };
-// Automatically generated. Retrieves the `i` constructor field of the `:hello` type.
-pub fun i : (^ hello : parc/parc22/hello) -> int
+// Automatically generated@ Retrieves the `i` constructor field of the `:hello` type@
+pub fun hello/i : (^ hello : parc/parc22/hello) -> int
  = fn(hello: parc/parc22/hello){
  match (hello) {
- (.skip parc/parc22/World((.x: int)) : parc/parc22/hello )
- -> std/core/types/.dup(.x);
+ (@skip parc/parc22/World((@x: int)) : parc/parc22/hello )
+ -> std/core/types/@dup(@x);
  };
  };
-pub fun .copy : (.this : parc/parc22/hello, i : optional<int>) -> parc/parc22/hello
- = fn(.this: parc/parc22/hello, i0: optional<int>){
- parc/parc22/World((match (i0) {
- (std/core/types/Optional(((.skip std/core/types/.Box((.i: int)) : .Box ) as .box: .Box)) : optional<int> )
+pub fun hello/@copy : (@this : parc/parc22/hello, i : optional<int>) -> parc/parc22/hello
+ = fn(@this: parc/parc22/hello, i: optional<int>){
+ parc/parc22/World((match (i) {
+ (std/core/types/Optional(((@skip std/core/types/@Box((@uniq-i@xxx: int)) : @Box ) as @box-xxx: @Box)) : optional<int> )
  -> val _ : int
- = std/core/types/.dup(.i);
+ = std/core/types/@dup(@uniq-i@xxx);
  val _ : ()
- = std/core/types/.drop(i0);
+ = std/core/types/@drop(i);
  val _ : ()
- = std/core/types/.drop(.this, (std/core/int32(1)));
- .i;
- (.skip std/core/types/None() : (optional<int>) )
+ = std/core/types/@drop(@this, (std/core/int32(1)));
+ @uniq-i@xxx;
+ (@skip std/core/types/None() : (optional<int>) )
  -> val _ : ()
- = std/core/types/.drop(i0);
- (match (.this) {
- (.skip parc/parc22/World((.x: int)) : parc/parc22/hello )
+ = std/core/types/@drop(i);
+ (match (@this) {
+ (@skip parc/parc22/World((@x: int)) : parc/parc22/hello )
  -> val _ : ()
- = (match ((std/core/types/.is-unique(.this))) {
+ = (match ((std/core/types/@is-unique(@this))) {
  (std/core/types/True() : bool )
  -> val _ : ()
- = std/core/types/();
- std/core/types/.free(.this);
+ = std/core/types/Unit;
+ std/core/types/@free(@this);
  _
  -> val _ : ()
  = val _ : int
- = std/core/types/.dup(.x);
- std/core/types/();
+ = std/core/types/@dup(@x);
+ std/core/types/Unit;
  val _ : ()
- = std/core/types/.dec-ref(.this);
- std/core/types/();
+ = std/core/types/@dec-ref(@this);
+ std/core/types/Unit;
  });
- .x;
+ @x;
  });
  }));
  };
 pub fun f : (h : parc/parc22/hello) -> parc/parc22/hello
  = fn(h: parc/parc22/hello){
- val .ru : reuse
+ val @ru-x149 : reuse
  = std/core/types/no-reuse();
  val _ : ()
- = std/core/types/.assign-reuse(.ru, (std/core/types/.drop-reuse(h, (std/core/int32(1)))));
- std/core/types/.alloc-at(.ru, (parc/parc22/World(2)));
+ = std/core/types/@assign-reuse(@ru-x149, (std/core/types/@drop-reuse(h, (std/core/int32(1)))));
+ std/core/types/@alloc-at(@ru-x149, (parc/parc22/World(2)));
  };

@@ -16,6 +16,7 @@ module Type.Pretty (-- * Pretty
                    ,typeColon, niceTypeVars, ppName, ppParam
                    , canonical, minCanonical
                    , prettyComment, prettyRange, ppNamePlain
+                   , keyword
                    ) where
 
 
@@ -80,6 +81,7 @@ niceEnv :: Env -> [TypeVar] -> Env
 niceEnv env typevars
   = env{ nice = niceTypeExtendVars typevars (nice env) }
 
+keyword :: Env -> String -> Doc
 keyword env s
   = color (colorTypeKeyword (colors env)) (text s)
 
@@ -388,7 +390,7 @@ ppType env tp
 
       TApp (TCon con) [arg]
                     | typeConName con == nameTpOptional && colorizing env
-                    -> text "?" <.> ppType env{prec=precAtom} arg
+                    -> text "?" <+> ppType env{prec=precAtom} arg
                     | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1) && not (coreIface env)
                     -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTpTuple (name)
@@ -414,7 +416,7 @@ ppFun env arrow args effect result
 
 ppParam :: Env -> (Name,Type) -> Doc
 ppParam env (name,tp)
-  = (if (nameIsNil name || isFieldName name || isWildcard name)
+  = (if (nameIsNil name || isFieldName name || isWildcard name || isHiddenName name)
       then empty
       else color (colorParameter (colors env)) (ppNamePlain env (unqualify name)) <.> text " : ")
     <.> ppType env tp
@@ -430,20 +432,15 @@ ppTypeName env name
   = color (colorType (colors env)) $ ppNamePlain env name
 
 ppNamePlain env name | isImplicitParamName name
-  = text "?" <.>
-    let (xname,ename) = splitImplicitParamName name
-        iname = plainImplicitParamName xname
-    in if (iname == ename)
-        then ppNamePlain env iname
-        else ppNamePlain env iname <.> text "=" <.> ppNamePlain env ename
+  = text "?" <.> ppNamePlain env (fromImplicitParamName name)
 
 ppNamePlain env name
   = if (fullNames env)
      then prettyName (colors env) name
-     else if (context env == qualifier name ||
-                ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env))
-              -- || isNameTuple name
-              )
+     else if (not (isModuleName name) &&
+              (context env == qualifier name ||
+               ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env)))
+             )
            then prettyName (colors env) (unqualify name)
            else -- if coreIface env
                 -- then pretty name

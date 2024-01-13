@@ -192,12 +192,3 @@ pub fun main()
   example6()
   42
 
-
-fun listboolint/show( xs : list<(bool,int)> ) : string
-  xs.show-list fn(x)
-    x.show-tuple(show,show)
-
-
-fun listint/show( x : (list<bool>,int) ) : string
-  x.show-tuple(show,show)
-

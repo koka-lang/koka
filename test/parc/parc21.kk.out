@@ -8,18 +8,18 @@ pub fun bo : (a : int, ^ b : int) -> int
 pub fun print-ret : (x : int) -> console int
  = fn<console>(x: int){
  val _ : ()
- = std/core/prints((std/core/show((std/core/types/.dup(x)))));
+ = std/core/prints((std/core/int/show((std/core/types/@dup(x)))));
  x;
  };
 pub fun test : () -> console int
  = fn<console>(){
- val i : int
+ val x@xxx : int
  = parc/parc21/bo(3, 4);
  val _ : ()
- = std/core/prints((std/core/show(i)));
- val _0 : ()
- = std/core/prints((std/core/show(3)));
- val _1 : ()
- = std/core/prints((std/core/show(4)));
+ = std/core/prints((std/core/int/show(x@xxx)));
+ val _@0 : ()
+ = std/core/prints((std/core/int/show(3)));
+ val _@1 : ()
+ = std/core/prints((std/core/int/show(4)));
  parc/parc21/bo(3, 4);
  };

@@ -10,7 +10,7 @@ ref struct monadplus<m>
   plus  : forall<a> (m<a>,m<a>) -> m<a>
 
 //fun sequence( ms : list<m<a>>, ??monad : monad<m> ) : m<list<a>>
-fun sequence( ms, ??monad )
+fun sequence( ms, .?monad )
   match ms
     Nil -> pure([])
     Cons(m,mm) ->
@@ -27,12 +27,12 @@ val maybe/monadplus = Monadplus( maybe/monad, fn(m1,m2) match m1
                                                           Just    -> m1
                                )
 
-fun monadplus/monad( ??monadplus )
+fun monadplus/monad( .?monadplus )
   base
 
-fun testtwice( m, ??monadplus )
+fun testtwice( m, .?monadplus )
   // this works since the base member is unpacked as well, as:
-  // ??monadplus ~> match monadplus
+  // .?monadplus ~> match monadplus
   //                  Monadplus base plus -> match base
   //                                           Monad pure bind -> ...
   with x <- bind(plus(m,m))
@@ -46,5 +46,7 @@ fun test1()
 
 // list of successes
 fun test2()
-  [[1],[2,3],[4,5,6]].sequence.show-list(show)
+  [[1],[2,3],[4,5,6]].sequence.show
 
+fun test3()
+  [[1],[2,3]].testtwice.concat.sequence.show

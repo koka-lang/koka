@@ -1,6 +1,6 @@
-test/type/wrong/hr7a.kk(4,47): error: types do not match
- context : ... d -> d) -> (int -> int)>
- term : ... d -> d) -> (int -> int)>
+test/type/wrong/hr7a@kk(4,47): error: types do not match
+ context : @@@ d -> d) -> (int -> int)>
+ term : @@@ d -> d) -> (int -> int)>
  inferred type: list<(forall<a> (a) -> a) -> ((int) -> int)>
  expected type: list<((int) -> int) -> ((int) -> int)>
  because : type cannot be instantiated to match the annotation

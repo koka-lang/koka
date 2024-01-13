@@ -14,9 +14,23 @@ generating direct C code without needing a runtime system. To learn more:
 
 2024-01-01:
 
-- Support for locally qualified names to always be able to name (overloaded) identifiers explicitly
+- Locally qualified names to always be able to refer to (overloaded) identifiers explicitly.
+  ```koka
+  fun int/eq( x : int, y : int ) : bool
+  (x == y)
 
-- Implicit parameters
+  fun float64/eq( x : float64, y : float64 ) : bool
+    (x == y)
+
+  fun test1()
+    eq(1,2) && eq(1.0,2.0)   // resolved to `int/eq` and `float64/eq`
+
+  fun test2(x,y)
+    int/eq(x,y)              // specify explicitly
+  ```
+
+
+- Impliciti
 
 
 ### v2.6.0, 2023-12-30:

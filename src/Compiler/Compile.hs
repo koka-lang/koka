@@ -204,9 +204,11 @@ compileExpression maybeContents term flags loaded compileTarget program line inp
                    -- return unit: just run the expression (for its assumed side effect)
                    Just (_,_,tres)  | isTypeUnit tres
                       -> compileProgram' maybeContents term flags (loadedModules ld) compileTarget  "<interactive>" programDef []
+                   Just (_,_,tres)  | isFun tres
+                      -> liftErrorPartial loaded $ errorMsg (ErrorGeneral rangeNull (text "function values cannot be shown (maybe add parenthesis, e.g. foo() ?)"))
                    -- check if there is a show function, or use generic print if not.
                    Just (_,_,tres)
-                      -> do -- ld <- compileProgram' term flags (loadedModules ld0) Nothing "<interactive>" programDef
+                      -> {- do -- ld <- compileProgram' term flags (loadedModules ld0) Nothing "<interactive>" programDef
                             let matchShow (_,info) = let (_,_,itp) = splitPredType (infoType info)
                                                      in case splitFunType itp of
                                                           Just (targ:targs,_,_) | tres == snd targ && all (isOptional . snd) targs
@@ -216,15 +218,20 @@ compileExpression maybeContents term flags loaded compileTarget program line inp
                                 mkApp e es = App e [(Nothing,x) | x <- es] r
                             case filter matchShow (gammaLookup (newName "show") (loadedGamma ld)) of
                               [(qnameShow,_)]
-                                -> do let expression = mkApp (Var (qualify nameSystemCore (qualifyLocally (newModuleName "string") (newName "println"))) False r)
-                                                        [mkApp (Var qnameShow False r) [mkApp (Var qnameExpr False r) []]]
-                                      let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
+                                -> -}
+                                   do let r = rangeNull
+                                          mkApp e es = App e [(Nothing,x) | x <- es] r
+                                      let expression = mkApp (Var (qualify nameSystemCore (qualifyLocally (newModuleName "string") (newName "println"))) False r)
+                                                        [mkApp (Var {-qnameShow-} (newName "show") False r) [mkApp (Var qnameExpr False r) []]]
+                                      let qmain = (qualify (getName program) nameMain)
+                                      let defMain = Def (ValueBinder qmain () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
                                       let programDef' = programAddDefs programDef [] [defMain]
                                       compileProgram' maybeContents term flags (loadedModules ld) (Executable nameMain ()) "<interactive>" programDef' []
-
+                              {-
                               _  -> liftErrorPartial loaded $ errorMsg (ErrorGeneral rangeNull (text "no 'show' function defined for values of type:" <+> ppType (prettyEnvFromFlags flags) tres))
                                                      -- mkApp (Var (qualify nameSystemCore (newName "gprintln")) False r)
                                                      --   [mkApp (Var nameExpr False r) []]
+                              -}
                    Nothing
                     -> failure ("Compile.Compile.compileExpression: should not happen")
          -- no evaluation
@@ -478,9 +485,7 @@ wrapMain  term flags loaded0 loaded1 compileTarget program coreImports = do
                                     Nothing -> return (Executable mainName tp, loaded0)
                                     Just f  ->
                                       let mainName2  = qualify (getName program) (newHiddenName "hmain")
-                                          expression = App (Var (if (isHiddenName mainName) then mainName -- .expr
-                                                                                            else unqualify mainName -- main
-                                                                ) False r) [] r
+                                          expression = App (Var mainName False r) [] r
                                           defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (defFun []) InlineNever ""
                                           program2   = programAddDefs program [] [defMain]
                                       in do (loaded3,_) <- ignoreWarnings $ typeCheck loaded1 flags 0 coreImports program2
@@ -583,7 +588,9 @@ resolveImportModules maybeContents mname term flags currentDir resolved importPa
   = return ([],resolved)
 resolveImportModules maybeContents mname term flags currentDir resolved0 importPath (imp:imps)
   = if impName imp `elem` importPath then do
-        liftError $ errorMsg $ ErrorStatic [(getRange imp, text "cyclic module dependency detected when importing: " <+> ppName (prettyEnvFromFlags flags) mname <+> text " import path: " <-> vsep (reverse (map (ppName (prettyEnvFromFlags flags)) importPath)))]
+        liftError $ errorMsg $ ErrorStatic [(getRange imp,
+          text "cyclic module dependency detected when importing:" <+> ppName (prettyEnvFromFlags flags) (impName imp) <->
+          text "imports:" <+> align (vcat (reverse (map (ppName (prettyEnvFromFlags flags)) importPath))))]
         return ([],resolved0)
       else
     do -- trace ("\t" ++ show mname ++ ": resolving imported modules: " ++ show (impName imp) ++ ", resolved: " ++ show (map (show . modName) resolved0) ++ ", path:" ++ show importPath) $ return ()
@@ -907,6 +914,7 @@ inferCheck loaded0 flags line coreImports program
               (getName program)
               defs
        Core.setCoreDefs cdefs
+       -- trace (show (color (colorInterpreter (colorScheme flags)) (text "codegen"))) $ return ()
 
        -- check generated core
        let checkCoreDefs title = when (coreCheck flags) (trace ("checking " ++ title) $
@@ -916,6 +924,7 @@ inferCheck loaded0 flags line coreImports program
 
        -- remove return statements
        unreturn penv
+
        -- checkCoreDefs "unreturn"
        let borrowed = borrowedExtendICore (coreProgram{ Core.coreProgDefs = cdefs }) (loadedBorrowed loaded)
        checkFBIP penv (platform flags) (loadedNewtypes loaded) borrowed gamma

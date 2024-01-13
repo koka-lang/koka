@@ -4,6 +4,6 @@ import std/core = std/core = "";
 pub fun test : (x : int, y : int) -> int
  = fn(x: int, y: int){
  val _ : ()
- = std/core/types/.drop(y);
- std/core/int-add((std/core/types/.dup(x)), x);
+ = std/core/types/@drop(y);
+ std/core/int-add((std/core/types/@dup(x)), x);
  };

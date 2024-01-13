@@ -461,13 +461,13 @@ pub fun next-up( x : float64 ) : float64
 // `posinf`,
 // signaling nan,
 // and quiet nan.
-pub fun compare( x : float64, y : float64 ) : order
+pub fun cmp( x : float64, y : float64 ) : order
   val bx = float64-to-bits(x)
   val by = float64-to-bits(y)
   // flip exp+mantissa bits if negative to get a two's complement number
   val ix = bx.sar(63).shr(1).xor(bx)
   val iy = by.sar(63).shr(1).xor(by)
-  compare(ix,iy)
+  cmp(ix,iy)
 
 
 // The midpoint is the average of `x` and `y`.
@@ -482,7 +482,7 @@ pub fun midpoint( x : float64, y : float64 ) : float64
 // Follows the C++20 [specification](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html).
 // In particular, if `x.is-finite && y.is-finite`, then:
 // - exact: `lerp(x,y,0.0) == x` and  `lerp(x,y,1.0) == y`
-// - monotonic: if `x <= y` and `t1 <= t2`, then `compare( lerp(x,y,t1), lerp(x,y,t2) ) <= Eq` (and other cases)
+// - monotonic: if `x <= y` and `t1 <= t2`, then `cmp( lerp(x,y,t1), lerp(x,y,t2) ) <= Eq` (and other cases)
 // - deterministic: only `lerp(x,x,flt-inf)` results in `nan`
 // - bounded: `t<0.0 || t>1.0 || is-finite(lerp(x,y,t))`
 // - consistent: `lerp(x,x,t) == x`

@@ -1,6 +1,5 @@
-test/type/wrong/hm4.kk(4, 5): error: types do not match
+test/type/wrong/hm4@kk(4, 5): error: Unit does not match the argument types
  context : {}
  term : {}
  inferred type: ()
  expected type: int
- because : function returns values of different types

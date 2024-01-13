@@ -1,3 +1,5 @@
+// Fibonacci numbers.
+// The `:int` type in Koka has infinite precision.
 module fibonacci
 
 pub fun main()

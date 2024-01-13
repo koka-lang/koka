@@ -44,21 +44,21 @@ pub fun show( d : date, month-prefix : string = "" ) : string
   d.year.show-year ++ "-" ++ month-prefix ++ d.month.show0 ++ "-" ++ d.day.show0(day-width)
 
 // Compare two dates by fields.
-pub fun compare( d : date, e : date ) : order
-  match(compare(d.year,e.year))
-    Eq -> match(compare(d.month,e.month))
-      Eq  -> compare(d.day,e.day)
+pub fun cmp( d : date, e : date ) : order
+  match(cmp(d.year,e.year))
+    Eq -> match(cmp(d.month,e.month))
+      Eq  -> cmp(d.day,e.day)
       ord -> ord
 
     ord -> ord
 
 
-pub fun (<)( i : date, j : date )  : bool { compare(i,j) == Lt }
-pub fun (<=)( i : date, j : date ) : bool { compare(i,j) != Gt }
-pub fun (>)( i : date, j : date )  : bool { compare(i,j) == Gt }
-pub fun (>=)( i : date, j : date ) : bool { compare(i,j) != Lt }
-pub fun (==)( i : date, j : date ) : bool { compare(i,j) == Eq }
-pub fun (!=)( i : date, j : date ) : bool { compare(i,j) != Eq }
+pub fun (<)( i : date, j : date )  : bool { cmp(i,j) == Lt }
+pub fun (<=)( i : date, j : date ) : bool { cmp(i,j) != Gt }
+pub fun (>)( i : date, j : date )  : bool { cmp(i,j) == Gt }
+pub fun (>=)( i : date, j : date ) : bool { cmp(i,j) != Lt }
+pub fun (==)( i : date, j : date ) : bool { cmp(i,j) == Eq }
+pub fun (!=)( i : date, j : date ) : bool { cmp(i,j) != Eq }
 
 // Add two dates field-wise together.
 pub fun (+)( d1 : date, d2 : date ) : date
@@ -152,15 +152,15 @@ pub fun show-seconds( secs : ddouble, max-prec : int = 9, secs-width : int = 1, 
 
 
 // Compare two clocks as by their total seconds.
-pub fun clock/compare( c : clock, d : clock ) : order
-  compare(c.total-seconds,d.total-seconds)
+pub fun clock/cmp( c : clock, d : clock ) : order
+  cmp(c.total-seconds,d.total-seconds)
 
-pub fun clock/(<)( i : clock, j : clock )  : bool { compare(i,j) == Lt }
-pub fun clock/(<=)( i : clock, j : clock ) : bool { compare(i,j) != Gt }
-pub fun clock/(>)( i : clock, j : clock )  : bool { compare(i,j) == Gt }
-pub fun clock/(>=)( i : clock, j : clock ) : bool { compare(i,j) != Lt }
-pub fun clock/(==)( i : clock, j : clock ) : bool { compare(i,j) == Eq }
-pub fun clock/(!=)( i : clock, j : clock ) : bool { compare(i,j) != Eq }
+pub fun clock/(<)( i : clock, j : clock )  : bool { cmp(i,j) == Lt }
+pub fun clock/(<=)( i : clock, j : clock ) : bool { cmp(i,j) != Gt }
+pub fun clock/(>)( i : clock, j : clock )  : bool { cmp(i,j) == Gt }
+pub fun clock/(>=)( i : clock, j : clock ) : bool { cmp(i,j) != Lt }
+pub fun clock/(==)( i : clock, j : clock ) : bool { cmp(i,j) == Eq }
+pub fun clock/(!=)( i : clock, j : clock ) : bool { cmp(i,j) != Eq }
 
 // Add two clock together.
 pub fun clock/(+)( c : clock, d : clock ) : clock
@@ -241,15 +241,15 @@ pub fun show-short( wd : weekday ) : string
   wd.show.first(3).string
 
 // Compare weekdays.
-pub fun weekday/compare( wd1 : weekday, wd2 : weekday ) : order
-  compare(wd1.int,wd2.int)
+pub fun weekday/cmp( wd1 : weekday, wd2 : weekday ) : order
+  cmp(wd1.int,wd2.int)
 
-pub fun weekday/(<)( i : weekday, j : weekday )  : bool { compare(i,j) == Lt }
-pub fun weekday/(<=)( i : weekday, j : weekday ) : bool { compare(i,j) != Gt }
-pub fun weekday/(>)( i : weekday, j : weekday )  : bool { compare(i,j) == Gt }
-pub fun weekday/(>=)( i : weekday, j : weekday ) : bool { compare(i,j) != Lt }
-pub fun weekday/(==)( i : weekday, j : weekday ) : bool { compare(i,j) == Eq }
-pub fun weekday/(!=)( i : weekday, j : weekday ) : bool { compare(i,j) != Eq }
+pub fun weekday/(<)( i : weekday, j : weekday )  : bool { cmp(i,j) == Lt }
+pub fun weekday/(<=)( i : weekday, j : weekday ) : bool { cmp(i,j) != Gt }
+pub fun weekday/(>)( i : weekday, j : weekday )  : bool { cmp(i,j) == Gt }
+pub fun weekday/(>=)( i : weekday, j : weekday ) : bool { cmp(i,j) != Lt }
+pub fun weekday/(==)( i : weekday, j : weekday ) : bool { cmp(i,j) == Eq }
+pub fun weekday/(!=)( i : weekday, j : weekday ) : bool { cmp(i,j) != Eq }
 
 /*----------------------------------------------------------------------------
 

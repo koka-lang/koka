@@ -5,11 +5,11 @@ pub import std/num/decimal
 
 
 
-fun show( xy : (int,int) ) : string {
+fun intint/show( xy : (int,int) ) : string {
   xy.fst.show-hex ++ "p" ++ xy.snd.show
 }
 
-fun show( xy : (float64,int) ) : string {
+fun floatint/show( xy : (float64,int) ) : string {
   xy.fst.show ++ "e" ++ xy.snd.show
 }
 fun main() {

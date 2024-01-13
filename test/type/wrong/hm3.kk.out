@@ -1,5 +1,5 @@
-test/type/wrong/hm3.kk(2,11): error: types do not match
- context : f(True)
+test/type/wrong/hm3@kk(2,11): error: True does not match the argument types
+ context : True
  term : True
  inferred type: bool
  expected type: int

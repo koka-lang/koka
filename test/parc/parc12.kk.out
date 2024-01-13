@@ -3,18 +3,18 @@ import std/core/types = std/core/types = "";
 import std/core = std/core = "";
 pub fun test : (x : int) -> int
  = fn(x: int){
- val .match : int
- = std/core/int-add((std/core/types/.dup(x)), 1);
- match (.match) {
+ val @match-x129 : int
+ = std/core/int-add((std/core/types/@dup(x)), 1);
+ match (@match-x129) {
  2
  -> val _ : ()
- = std/core/types/.drop(x);
+ = std/core/types/@drop(x);
  val _ : ()
- = std/core/types/.drop(.match);
+ = std/core/types/@drop(@match-x129);
  3;
  _
  -> val _ : ()
- = std/core/types/.drop(.match);
+ = std/core/types/@drop(@match-x129);
  x;
  };
  };

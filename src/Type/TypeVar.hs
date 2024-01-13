@@ -223,6 +223,17 @@ instance HasTypeVar a => HasTypeVar (Maybe a) where
                   Just x -> btv x
                   Nothing -> tvsEmpty
 
+instance (HasTypeVar a, HasTypeVar b) => HasTypeVar (Either a b) where
+  sub `substitute` lr  = case lr of
+                  Right x -> Right (sub `substitute` x)
+                  Left y  -> Left  (sub `substitute` y)
+  ftv lr      = case lr of
+                  Right x -> ftv x
+                  Left y  -> ftv y
+  btv lr      = case lr of
+                  Right x -> btv x
+                  Left y  -> btv y
+
 {--------------------------------------------------------------------------
   Type variables
 --------------------------------------------------------------------------}

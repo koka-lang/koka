@@ -1,0 +1,6 @@
+"hello"
+ 
+algeff/eff-rec2/Parse: forall<e,a> (.hnd-parse<e,a>) -> parse
+algeff/eff-rec2/current-input: () -> <div,parse> sslice
+algeff/eff-rec2/main: () -> <console,div> ()
+algeff/eff-rec2/parse-safe: forall<a,e> (input0 : sslice, p : () -> <parse|e> a) -> e a
