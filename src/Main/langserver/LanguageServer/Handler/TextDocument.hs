@@ -227,7 +227,7 @@ processCompilationResult normUri filePath flags update doIO = do
           liftIO $ termError term e
           return Nothing
       -- Emit the diagnostics (errors and warnings)
-      let diagSrc = T.pack "" -- "\n(koka)"
+      let diagSrc = T.pack "koka"
           diags = toLspDiagnostics normUri diagSrc res
           maxDiags = 100
           -- Union with the current file mapped to an empty list, since we want to clear diagnostics for this file when it is an error in another file
@@ -236,7 +236,7 @@ processCompilationResult normUri filePath flags update doIO = do
       if null diags then clearDiagnostics normUri else putDiagnostics diags'
       -- Get all the diagnostics for all files (language server doesn't support updating diagnostics for a single file)
       diags <- getDiagnostics
-      -- Partition them by source (koka, typescript, linterx, etc.) -- we should only have koka for now
+      -- Partition them by source (koka, koka-lints, etc.) -- we should only have koka (compiler diagnostics) for now
       let diagsBySrc = M.map partitionBySource diags
       if null diags
         -- If there are no diagnostics clear all koka diagnostics
