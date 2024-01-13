@@ -10,6 +10,8 @@ import syntax/handler
 import syntax/with
 import syntax/qualifiers
 import syntax/implicits
+import syntax/contexts
+import syntax/fip
 
 import handlers/ambient
 import handlers/basic
@@ -36,6 +38,8 @@ pub fun main()
   run("fibonacci",fibonacci/main)
   run("garsia-wachs",garsia-wachs/main)
   run("rbtree",rbtree/main)
+  run("contexts",contexts/main)
+  run("fip",fip/main)
 
   run("unify",unify/main)
   run("heap",heap/main)

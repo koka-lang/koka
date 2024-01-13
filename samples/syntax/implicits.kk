@@ -92,7 +92,7 @@ fun list/eq( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
 // the second `eq(xx,yy)` resolves to `list/eq(xx,yy)`, bypassing
 // the local `?eq` parameter (as its fully qualified name is `?eq` (==`@implicit/eq`)).
 // The implicit parameter to `list/eq` is resolved to the local parameter `?eq` again.
-// (these are just the regular rules for disambiguating qualified names, not specific to implicits)
+// (these are just the regular rules for disambiguating qualified names based on types -- not specific to implicits)
 pub fun example4()
   eq([1,2],[1,2])
 
@@ -105,8 +105,10 @@ pub fun example5()
   eq( [[1,2],[]], [[1,2],[]] )
 
 
+// # Experimental territory
+
 // When resolving an implicit parameter, the compiler also considers
-// unit functions that only take implicit parameters themselves.
+// matching functions that take further implicit parameters themselves.
 // These are called _conversions_. For example, given a `compare` function,
 // we could provide an `eq` function:
 fun compare/eq( x : a, y : a, ?compare : (a,a) -> order )
