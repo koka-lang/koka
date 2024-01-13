@@ -204,7 +204,6 @@ effect state<s>
   fun put(x : s) : ()
 
 
-
 fun state(init,action)
   var s := init
   handle(action)

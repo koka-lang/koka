@@ -59,6 +59,7 @@ stringToBString str = T.encodeUtf8 (T.pack str)
 readInput :: FilePath -> IO BString
 readInput fname
   = do input <- B.readFile fname
+       -- input <- withBinaryFile fname ReadMode $ \h -> B.hGetContents h
        -- trace ("input bytes: " ++ show (map (\c -> showHex (fromEnum c) "") (take 400 (BC.unpack input)))) $
        case BC.unpack $ B.take 3 input of
          "\xEF\xBB\xBF" -> return (B.drop 3 input) -- remove BOM

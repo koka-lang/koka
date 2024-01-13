@@ -34,6 +34,7 @@ import Type.Assumption        ( ppGamma, ppGammaHidden, gammaFilter, createNameI
 import Type.Pretty            ( ppScheme, Env(context,importsMap) )
 import System.IO (hPutStrLn, stderr)
 import Data.List (intercalate)
+import GHC.IO.Encoding( setLocaleEncoding, utf8 )
 
 -- compiled entry
 main      = mainArgs ""
@@ -52,7 +53,8 @@ mainh     = mainArgs "-ilib -itest --console=raw"
 
 
 mainArgs args
-  = do (flags,flags0,mode) <- getOptions args
+  = do setLocaleEncoding utf8  -- set system wide utf8 regardless of locale
+       (flags,flags0,mode) <- getOptions args
        let with = if (not (null (redirectOutput flags)))
                    then withFileNoColorPrinter (redirectOutput flags)
                    else if (console flags == "html")
