@@ -364,6 +364,7 @@ html {
 
 .floatright {
   width:35%;
+  min-width:300px;
   float:right;
   clear:both;
   margin:0em 0em 1em 2em;

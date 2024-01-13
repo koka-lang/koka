@@ -55,16 +55,18 @@ the latest Koka compiler on your platform
 -->
 
 Once installed, the samples directory is opened. You can also open this
-manually from the command panel ``(Ctrl/Cmd + Shift + P)``,
+manually from the command panel (``Ctrl/Cmd+Shift+P``),
 and running the ``Koka: Open samples`` command (when you start typing the command will surface to the top).
 Open for example the ``basic/caesar.kk`` file:
 
 ![vscode-caesar]
 
-[vscode-caesar]: images/vscode-caesar.png "VS Code caesar examples" { width:60% }
+[vscode-caesar]: images/vscode-caesar.png "VS Code caesar examples" { width:60%; min-width:300px; }
 
 When you click ``run debug`` (or ``optimized``) &koka; compiles and runs the function,
-showing the output in the VS Code terminal.
+showing the output in the VS Code terminal.\
+Press and hold `ctrl+alt` (or `ctrl+option` on MacOS) to show inlay hints -- showing inferred
+types, full qualified names, and implicit arguments.
 
 
 ### Manual Installation

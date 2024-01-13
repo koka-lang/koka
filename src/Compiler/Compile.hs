@@ -57,7 +57,7 @@ import Syntax.Parse           ( parseProgramFromFile, parseValueDef, parseExpres
 
 import Syntax.RangeMap
 import Syntax.Colorize        ( colorize )
-import Core.GenDoc            ( genDoc )
+import Syntax.GenDoc          ( genDoc )
 import Core.Check             ( checkCore )
 import Core.UnReturn          ( unreturn )
 import Core.CheckFBIP         ( checkFBIP )

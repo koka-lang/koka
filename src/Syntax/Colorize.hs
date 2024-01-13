@@ -20,7 +20,7 @@ module Syntax.Colorize( colorize
                       , popup
                       , fmtHtml
                       , fmtName, fmtTypeName
-                      , fmtNameString
+                      , fmtNameString, fmtModuleName
                       , linkFromModName
                       , linkEncode
                       , fmtLiterate, showDoc
@@ -190,7 +190,7 @@ showKind env k
   = concat $ highlight fmtHtml id (CtxType [] "::") "" 1 (compress [] (show (prettyKind (colors env) k)))
 
 showModule qname
-  = span "module" (fmtName qname)
+  = cspan "module" (fmtModuleName qname)
 
 compress acc []  = stringToBString $ reverse acc
 compress acc (c:cs)
@@ -339,6 +339,10 @@ linkFromId env name tp gamma
 
 fmtTypeName :: Name -> String
 fmtTypeName name
+  = fmtNameString (show name)
+
+fmtModuleName :: Name -> String
+fmtModuleName name
   = fmtNameString (show name)
 
 fmtName :: Name -> String
