@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD          131    // modify on changes to trigger recompilation
+#define KKLIB_BUILD          132    // modify on changes to trigger recompilation
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -896,6 +896,8 @@ static inline bool kk_is_value(kk_intb_t i) {
 // null values; can be an arbitrary value.
 #define kk_value_null      ((~KK_IB(0)&~KK_TAG_MASK)|KK_TAG_VALUE)
 
+// for static initializers
+#define kk_value_init(v)   (((kk_intb_t)(v)<<KK_TAG_BITS)|KK_TAG_VALUE)
 
 // If we assume `intptr_t` aligned pointers in the heap, we can use a larger heap when
 // using pointer compression (by shifting them by `KK_BOX_PTR_SHIFT`).
@@ -997,6 +999,9 @@ static inline kk_intf_t kk_intf_decode(kk_intb_t b, int extra_shift) {
   We use the `_ptr` suffix if it is guaranteed that the datatype
   is a pointer and not a value (singleton).
 ----------------------------------------------------------------------*/
+
+#define kk_datatype_null_init         kk_value_null
+#define kk_datatype_tag_init(tag)     kk_value_init((tag)<<1)
 
 // create a singleton
 static inline kk_decl_const kk_datatype_t kk_datatype_from_tag(kk_tag_t t) {
@@ -1157,7 +1162,6 @@ static inline void kk_datatype_ptr_decref(kk_datatype_t d, kk_context_t* ctx) {
 #define kk_datatype_as_assert(tp,v,tag,ctx)        (kk_block_assert(tp,kk_datatype_as_ptr(v,ctx),tag))
 
 
-#define kk_datatype_null_init  kk_value_null
 
 static inline kk_datatype_t kk_datatype_null(void) {
   kk_datatype_t d = { kk_datatype_null_init };

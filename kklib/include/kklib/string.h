@@ -117,11 +117,15 @@ static inline kk_string_t kk_string_empty() {
 
 // Define string literals
 #if 0
+
 #define kk_define_string_literal(decl,name,len,chars) \
   static struct { struct kk_bytes_s _base; size_t length; char str[len+1]; } _static_##name = \
     { { { KK_HEADER_STATIC(0,KK_TAG_STRING) } }, len, chars }; \
   decl kk_string_t name = { { (intptr_t)&_static_##name._base._block } };
+  
+
 #else
+
 #define kk_declare_string_literal(decl,name,len,chars) \
   static kk_ssize_t  _static_len_##name = len; \
   static const char* _static_##name = chars; \
@@ -131,13 +135,13 @@ static inline kk_string_t kk_string_empty() {
   if (kk_datatype_is_null(name.bytes)) { name = kk_string_alloc_from_utf8n(_static_len_##name, _static_##name, ctx); }
 
 #define kk_define_string_literal(decl,name,len,chars,ctx) \
-  kk_declare_string_literal(decl,name,len,chars) \
+  kk_declare_string_literal(decl,name,len,chars); \
   kk_init_string_literal(name,ctx)
 
-#endif
-
 #define kk_define_string_literal_empty(decl,name) \
-  decl kk_string_t name = kk_string_empty();
+   decl kk_string_t name = { { kk_datatype_tag_init(1) } };  // must match kk_string_empty!
+
+#endif
 
 
 static inline kk_string_t kk_string_unbox(kk_box_t v) {

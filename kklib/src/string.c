@@ -20,6 +20,7 @@
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define KK_ARCH_ALLOW_WORD_READS  (1)  
 
+
 static uint8_t kk_ascii_toupper(uint8_t c) {
   return (c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c);
 }
@@ -372,6 +373,8 @@ kk_string_t kk_string_alloc_from_qutf8(const char* str, kk_context_t* ctx) {
 }
 
 kk_string_t kk_string_alloc_from_utf8n(kk_ssize_t len, const char* cstr, kk_context_t* ctx) {
+  // fast path for string initialization
+  if (len == 0 || cstr == NULL || cstr[0] == 0) return kk_string_empty();
   // for safety, we still always validate.
   return kk_qutf8_convert(len, cstr, false, ctx);
 }
