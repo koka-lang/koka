@@ -1,6 +1,6 @@
 # Welcome to Koka
 
-<img style="float: right; width:16em" src="images/koka-logo-filled.svg">
+<img style="float: right; width:12em" src="images/koka-logo-filled.svg">
 
 Koka is a strongly typed functional-style language with effect types and handlers --
 generating direct C code without needing a runtime system. To learn more:
@@ -14,6 +14,8 @@ generating direct C code without needing a runtime system. To learn more:
 
 ### v3.0.0, 2024-01-13:
 
+<img style="float:right; height:18em; border:1px solid gray; margin:1ex" src="images/impliciteq.png"> 
+
 - Introducing __locally qualified names__ to always be able to refer to (overloaded) identifiers explicitly.
   See the `samples/basic/qualifiers` example for more information.  
   (use the `Koka: Open samples` command to open the samples directory).
@@ -22,9 +24,9 @@ generating direct C code without needing a runtime system. To learn more:
   See the `samples/basic/implicits` example for more information.
 
 - Many improvements to the VS Code integration. Press and hold `ctrl+alt` (or `ctrl+option` on
-  MacOS) to show inlay hints -- showing inferred types, full qualified names, and implicit arguments.
+  MacOS) to show inlay hints -- showing inferred types, fully qualified names, and implicit arguments.
 
-  <img style="height:5em; border:1px solid grey" src="images/inlayhints-off.png"> &nbsp;versus&nbsp; <img style="height:5em; border:1px solid grey" src="images/inlayhints.png">
+  <img style="height:5em; border:1px solid grey; margin:1ex" src="images/inlayhints-off.png"> &nbsp;versus&nbsp; <img style="height:5em; border:1px solid grey; margin:1ex" src="images/inlayhints.png">
 
 
 ### v2.6.0, 2023-12-30:
