@@ -11,6 +11,7 @@ generating direct C code without needing a runtime system. To learn more:
   and running the `Koka: Open samples` command.  
   (when you start typing the command will surface to the top).
 
+### v3.0.1, development
 
 ### v3.0.0, 2024-01-13:
 
