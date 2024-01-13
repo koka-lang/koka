@@ -2018,17 +2018,32 @@ inline extern lengthz( ^v : vector<a> ) : ssize_t
 
 // Create a new vector of length `n`  with initial elements `default` .
 pub fun vector( ^n : int, default : a) : vector<a>
-  vector-initz(n.ssize_t, fn(_i){ default } )
+  vector-initz(n.ssize_t, default)
 
-// Create a new vector of length `n`  with initial elements given by function `f` .
+// Create a new vector of length `n`  with initial elements given by _total_ function `f`.
+// (can be more efficient than `vector-init`)
+pub fun vector-init-total( ^n : int, f : int -> a ) : e vector<a>
+  vector-initf( n.ssize_t, fn(i) f(i.int) )
+
+// Create a new vector of length `n`  with initial elements given by function `f` which can have a control effect.
 pub fun vector-init( ^n : int, f : int -> e a ) : e vector<a>
-  vector-initz( n.ssize_t, fn(i) { f(i.int) } )
+  val len = n.ssize_t
+  val v = unsafe-vector(len)
+  forz( 0.ssize_t, len - 1.ssize_t ) fn(i)
+    unsafe-assign(v,i,f(i.int))
+  v
 
-// Create a new vector of length `n`  with initial elements given by function `f` .
-extern vector-initz(n : ssize_t, f : ssize_t -> e a) : e vector<a>
-  c "kk_vector_init"
+// Create a new vector of length `n`  with initial elements `init`` .
+extern vector-initz(n : ssize_t, init : a) : e vector<a>
+  c "kk_vector_initz"
   cs inline "Primitive.NewArray<##1>(#1,#2)"
-  js inline "_vector(#1,#2)"
+  js inline "_vector_initz(#1,#2)"
+
+// Create a new vector of length `n`  with initial elements given by a total function `f` .
+extern vector-initf(n : ssize_t, f : ssize_t -> a) : vector<a>
+  c "kk_vector_initf"
+  cs inline "Primitive.NewArray<##1>(#1,#2)"
+  js inline "_vector_initf(#1,#2)"
 
 // Create an empty vector.
 pub inline extern unit/vector : forall<a> () -> vector<a>
@@ -2622,7 +2637,7 @@ pub fun action/repeat( ^n : int, action : () -> e () ) : e ()
   for(1,n) fn(i)
     action()
 
-// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// Executes `action`  for each integer between [`start`,`end`]  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
 pub fun for( ^start: int, end : int, action : (int) -> e () ) : e ()
   fun rep( ^i : int )
@@ -2631,7 +2646,7 @@ pub fun for( ^start: int, end : int, action : (int) -> e () ) : e ()
       rep(unsafe-decreasing(i.inc))
   rep(start)
 
-// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// Executes `action`  for each integer between [`start`,`end`]  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
 fun forz( start: ssize_t, end : ssize_t, action : (ssize_t) -> e () ) : e ()
   fun rep( i : ssize_t )

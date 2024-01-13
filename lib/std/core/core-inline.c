@@ -57,7 +57,18 @@ kk_vector_t kk_list_to_vector(kk_std_core__list xs, kk_context_t* ctx) {
   return v;
 }
 
-kk_vector_t kk_vector_init( kk_ssize_t n, kk_function_t init, kk_context_t* ctx) {
+kk_vector_t kk_vector_initz( kk_ssize_t n, kk_box_t init, kk_context_t* ctx) {
+  kk_box_t* p;
+  kk_vector_t v = kk_vector_alloc_uninit(n, &p, ctx);
+  for(kk_ssize_t i = 0; i < n; i++) {
+    kk_box_dup(init,ctx);          // todo: add dup_n to dup in one go?
+    p[i] = init;
+  }
+  kk_box_drop(init,ctx);
+  return v;
+}
+
+kk_vector_t kk_vector_initf( kk_ssize_t n, kk_function_t init, kk_context_t* ctx) {
   kk_box_t* p;
   kk_vector_t v = kk_vector_alloc_uninit(n, &p, ctx);
   for(kk_ssize_t i = 0; i < n; i++) {
