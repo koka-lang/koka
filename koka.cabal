@@ -64,7 +64,6 @@ library
       Core.CTail
       Core.Divergent
       Core.FunLift
-      Core.GenDoc
       Core.Inline
       Core.Inlines
       Core.Monadic
@@ -99,6 +98,7 @@ library
       Static.BindingGroups
       Static.FixityResolve
       Syntax.Colorize
+      Syntax.GenDoc
       Syntax.Highlight
       Syntax.Layout
       Syntax.Lexeme

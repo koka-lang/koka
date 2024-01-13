@@ -351,6 +351,7 @@ adjustContext ctx lex lexs
              LexKeyword "forall" _ -> ctx
              LexKeyword "some" _   -> ctx
              LexKeyword "exists" _ -> ctx
+             LexSpecial "?"        -> ctx  -- optional types
 
              LexKeyword "=" _   | decl == "alias" -> ctx
              LexSpecial ","     | not (null nest) || decl == "struct-tuple" -> ctx
