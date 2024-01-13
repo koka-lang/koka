@@ -48,6 +48,7 @@ module Common.NamePrim
           , nameIntAdd, nameIntSub
 
           -- Effects
+          , nameTpEventLoop
           , nameTpHTag, nameHTag
           , nameTpClause, namePerform
           , nameTpEvv, nameEvvAt, nameEvvIndex
@@ -215,6 +216,7 @@ nameTpPure      = preludeName "pure"
 
 nameTpAsync     = newQualified "std/async" "async"
 nameTpAsyncX    = newQualified "std/async" "asyncx"
+nameTpEventLoop = preludeName  "event-loop"
 nameTpBuilder   = newQualified "std/text/string" "builder"
 nameTpArray     = newQualified "std/data/array" "array"
 nameTpMDict     = qualify nameDict (newName "mdict")

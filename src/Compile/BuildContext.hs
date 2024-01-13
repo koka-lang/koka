@@ -56,7 +56,7 @@ import qualified Data.Map.Strict as M
 import Platform.Config
 import Lib.PPrint
 import Common.Name
-import Common.NamePrim (nameSystemCore, nameTpNamed, nameTpAsync, isSystemCoreName)
+import Common.NamePrim (nameSystemCore, nameTpNamed, nameTpAsync, isSystemCoreName, nameTpEventLoop)
 import Common.Range
 import Common.File
 import Common.Error
@@ -398,17 +398,23 @@ buildcThrowOnError buildc
 buildcCompileMainBody :: Bool -> String -> [String] -> FilePath -> Name -> Name -> Type -> BuildContext -> Build (BuildContext,Maybe (Type, Maybe (FilePath,IO ())))
 buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName tp buildc1
   = do  -- then compile with a main function
-        (tp,showIt,mainBody,extraImports) <- completeMain True exprName tp buildc1
+        (tp,showIt,mainBody,extraImports,needsEventLoop) <- completeMain True exprName tp buildc1
         let mainName = qualify mainModName (newName "@main")
             mainDef  = bunlines $ importDecls ++ extraImports ++ [
                         "pub fun @expr() : _ ()",
                         "#line 1",
                         "  " ++ showIt expr,
-                        "",
-                        "pub fun @main() : io-noexn ()",
-                        "  " ++ mainBody,
-                        ""
-                        ]
+                        ""] ++ 
+                        if needsEventLoop then 
+                          ["pub fun @main() : io-event ()",
+                            "  default-event-loop(fn() " ++ mainBody ++ ")", 
+                            ""] 
+                        else 
+                          ["pub fun @main() : io-noexn ()",
+                            "  " ++ mainBody,
+                            ""
+                            ]
+        -- trace (show mainDef) $ return ()
         withVirtualFile sourcePath mainDef $ \_ ->
            do buildc2 <- buildcBuildEx False [mainModName] [mainName] buildc1
               hasErr  <- buildcHasError buildc2
@@ -425,15 +431,19 @@ bunlines xs = stringToBString $ unlines xs
 
 -- complete a main function by adding a show function (if `addShow` is `True`), and
 -- adding any required rdefault effect handlers (for async, utc etc.)
-completeMain :: Bool -> Name -> Type -> BuildContext -> Build (Type,String -> String,String,[String])
+completeMain :: Bool -> Name -> Type -> BuildContext -> Build (Type,String -> String,String,[String], Bool)
 completeMain addShow exprName tp buildc
   = case splitFunScheme tp of
       Just (_,_,_,eff,resTp)
         -> let (ls,_) = extractHandledEffect eff  -- only effect that are in the evidence vector
            in do print    <- printExpr resTp
                  (mainBody,extraImports) <- addDefaultHandlers rangeNull eff ls [] callExpr
-                 return (resTp,print,mainBody,extraImports)
-      _ -> return (tp, id, callExpr, []) -- todo: given an error?
+                 if any (\x -> labelName x == nameTpEventLoop) (fst (extractEffectExtend eff)) then 
+                    -- trace "eventloop" $
+                    return (resTp,print,mainBody,"import std/os/uv":extraImports,True)
+                 else -- trace ("noeventloop " ++ (show (extractEffectExtend eff))) $ 
+                    return (resTp,print,mainBody,extraImports,False)
+      _ -> return (tp, id, callExpr, [],False) -- todo: given an error?
   where
     callExpr
       = show exprName ++ "()"

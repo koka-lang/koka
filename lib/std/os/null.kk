@@ -33,6 +33,6 @@ pub fun string/null( s : string ) : null<string>
 
 // Cast a boolean `False` to null
 pub fun bool/null( b : bool ) : null<()>
-    b.maybe.null
+    if b then Just(()).null else Nothing.null
 
 // val null-const : forall<a> null<a> = null(Nothing)

@@ -62,7 +62,7 @@ void kk_free_fun(void* p, kk_block_t* b, kk_context_t* ctx) {
 
 kk_string_t kk_get_host(kk_context_t* ctx) {
   kk_unused(ctx);
-  kk_define_string_literal(static, host, 5, "libc", ctx);
+  kk_define_string_literal(static, host, 4, "libc", ctx);
   return kk_string_dup(host,ctx);
 }
 
