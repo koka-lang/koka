@@ -1,4 +1,10 @@
-module samples/all
+// Various examples of Koka programs and features
+// In VS Code, hold `ctrl` and click on any import to open that module.
+//
+// - `basic`:    small typical Koka programs
+// - `syntax`:   explain various specific features, like with-syntax or implicit parameters
+// - `handlers`: show effect handler programs
+module all
 
 import basic/caesar
 import basic/fibonacci
