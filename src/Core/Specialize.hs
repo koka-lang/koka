@@ -18,6 +18,7 @@ import Data.Monoid((<>), Alt(..), Endo(..))
 import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust, fromJust)
 import Data.Function
 
+import Control.Monad(guard)
 import Lib.PPrint
 import Common.Failure (failure)
 import Common.File (splitOn)

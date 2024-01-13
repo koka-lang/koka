@@ -7,10 +7,10 @@ alias elem = int32
 ref type pad
   Pad
 
-type unit2
+ref type unit2
   Unit2(a : pad, b : pad)
 
-type pair<a>
+ref type pair<a>
   Pair(a : a, b : a)
 
 type sublist<a>

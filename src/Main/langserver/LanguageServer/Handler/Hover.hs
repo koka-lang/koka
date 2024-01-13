@@ -16,7 +16,7 @@ module LanguageServer.Handler.Hover (hoverHandler, formatRangeInfoHover) where
 
 import Data.Char(isSpace)
 import Control.Lens ((^.))
-import Control.Monad.Cont (liftIO)
+import Control.Monad.IO.Class (liftIO)
 import Data.Foldable(maximumBy)
 import qualified Data.Text as T
 import qualified Language.LSP.Protocol.Types as J

@@ -631,7 +631,7 @@ instance Functor (CorePhase b) where
 
 instance Applicative (CorePhase b) where
   pure x = CP (\uniq defs -> return (CPState x uniq defs))
-  (<*>)  = ap
+  m<*>n  = do{ f<-m; x<-n; return (f x) } 
 
 instance Monad (CorePhase b) where
   -- return = pure
