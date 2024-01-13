@@ -21,9 +21,8 @@ generating direct C code without needing a runtime system. To learn more:
 - __Implicit parameters__ are a new experimental feature that allow parameterized overloading of equality, show, etc.
   See the `samples/basic/implicits` example for more information.
 
-- Many improvements to the VS Code integration. By default inlay hints are off in Koka and can be shown by pressing
-  `ctrl+alt` (or `ctrl+option` on MacOS). The inlay hints show all inferred information, like inferred types,
-  but also fully qualified names and implicit arguments.
+- Many improvements to the VS Code integration. Press and hold `ctrl+alt` (or `ctrl+option` on
+  MacOS) to show inlay hints -- showing inferred types, full qualified names, and implicit arguments.
 
   <img style="height:5em; border:1px solid grey" src="images/inlayhints-off.png"> &nbsp;versus&nbsp; <img style="height:5em; border:1px solid grey" src="images/inlayhints.png">
 
