@@ -20,9 +20,9 @@ module Common.NamePrim
           , nameCoreHnd
           , isPrimitiveName
           , nameOpExpr
-          
+
           -- Core names
-          , nameCoreFileLine, nameCoreModuleName, nameCoreFileInfo
+          , nameCoreFileLine, nameCoreFileModule, nameCoreFileFile
 
           -- * Operations
           , namePatternMatchError, nameMainConsole
@@ -200,9 +200,9 @@ nameTrace   = preludeName "trace"
 nameLog     = preludeName "log"
 namePhantom = preludeName "phantom"
 
-nameCoreFileInfo = newLocallyQualified "std/core" "file" "kk-fileinfo"
-nameCoreFileLine = newLocallyQualified "std/core" "file" "kk-line"
-nameCoreModuleName = newLocallyQualified "std/core" "file" "kk-modulename"
+nameCoreFileFile   = qualify nameSystemCore (newLocallyQualified "" "file" "kk-file")
+nameCoreFileLine   = qualify nameSystemCore (newLocallyQualified "" "file" "kk-line")
+nameCoreFileModule = qualify nameSystemCore (newLocallyQualified "" "file" "kk-module")
 
 
 {--------------------------------------------------------------------------

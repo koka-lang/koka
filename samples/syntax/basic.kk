@@ -99,5 +99,7 @@ pub fun increment2(xs) {
   xs.map(fn(x){ x + 1 }).filter(fn(x){ x > 2 })
 }
 
+// `trace-info` also traces the current file and line number.
 pub fun example-trace(): ()
-  trace-info("Hello")
+  trace-info("example trace")
+  trace("module: " ++ kk-module)

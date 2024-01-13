@@ -17,12 +17,12 @@
   and we cannot generally use C string functions to manipulate our strings.
 
   There are four possible representations for strings:
-  
+
   - singleton empty string
   - small string of at most 7 utf-8 bytes
   - normal string of utf-8 bytes
   - raw string pointing to a buffer of utf-8 bytes
-  
+
   These are not necessarily canonical (e.g. a normal or small string can have length 0 besides being empty)
 
   Strings use kk_bytes_t directly: they are just bytes except always contain valid utf-8.
@@ -33,57 +33,57 @@
 
 /*-------------------------------------------------------------------------------------------------------------
   qutf-8 and qutf-16
-  
+
   There few important cases where *external* text is not quite utf-8 or utf-16.
   We call these "qutf-8" and "qutf-16" for "quite like" utf-8/16:
 
   - qutf-8: this is mostly utf-8, but allows invalid utf-8 like overlong sequences or lone
     continuation bytes -- as such, any byte sequence is valid qutf-8. This occurs a lot in
-    practice, for example by bad json encoding containing binary data, but also as a result 
+    practice, for example by bad json encoding containing binary data, but also as a result
     of a _locale_ that cannot be decoded properly, or generally just random byte input.
 
   - qutf-16: this is mostly utf-16 but allows again any invalid utf-16 which consists
-    of lone halves of surrogate pairs -- and again, any sequence of uint16_t is valid qutf-16. 
-    This is actually what is used in Windows file names and JavaScript. 
-  
-  In particular for qutf-16 we would like to guarantee that decoding to utf-8 and encoding 
+    of lone halves of surrogate pairs -- and again, any sequence of uint16_t is valid qutf-16.
+    This is actually what is used in Windows file names and JavaScript.
+
+  In particular for qutf-16 we would like to guarantee that decoding to utf-8 and encoding
   again to qutf-16 is an identity transformation -- for example, we may list the contents
   of a directory and then try to read each file. As a consequence we cannot replace invalid
-  codes in qutf-16 with a generic replacement character. One proposed solution for this is 
-  to use wtf-8 (used in Rust <https://github.com/rust-lang/rust/issues/12056#issuecomment-55786546>) 
-  instead of utf-8 internally. 
-  
+  codes in qutf-16 with a generic replacement character. One proposed solution for this is
+  to use wtf-8 (used in Rust <https://github.com/rust-lang/rust/issues/12056#issuecomment-55786546>)
+  instead of utf-8 internally.
+
   We like to use strict utf-8 internally though, so we can always output valid utf-8 directly
-  without further conversions. (also, new formats like wtf-8 often have tricky edge cases, like   
+  without further conversions. (also, new formats like wtf-8 often have tricky edge cases, like
   naively appending strings may change the interpretation of surrogate pairs in wtf-8)
 
   Instead, we solve this by staying in strict utf-8 internally, but we reserve a
   particular set of code-points to have a special meaning when converting to/from qutf-8 and qutf-16.
   For now, we use an (hopefully forever) unassigned range in the "supplementary special-purpose plane" (14)
-  
+
   - ED800 - EDFFF: corresponds to a lone half `h` of a surrogate pair where `h = code - E0000`.
   - EE000 - EE07F: <unused>
   - EE080 - EE0FF: corresponds to an invalid byte `b` in an invalid utf-8 sequence where `b = code - EE000`.
                    (note: invalid bytes in utf-8 are always >= 0x80 so we need only a limited range).
-  
-  We call this the "raw range". The advantage over using the replacement character is that we 
-  now retain full information what the original (invalid) sequences were (and can thus do an 
+
+  We call this the "raw range". The advantage over using the replacement character is that we
+  now retain full information what the original (invalid) sequences were (and can thus do an
   identity transform) -- and we stay with valid utf-8. Moreover, we can handle both invalid
   utf-8 and invalid utf-16 with this.
-  
+
   When decoding qutf-8/16 to utf-8, we decode invalid sequences to these code points; and only when
   encoding back to qutf-8/16, we encode these code points specially again to make this an identity
-  transformation. 
-  
+  transformation.
+
   _Otherwise these are just regular code points and valid utf-8 with no special treatment_.
 
-  Security wise this is also good practice -- for example, we decode the overlong qutf-8 
-  sequence `0xC0 0x80` not to a 0 character, but to two raw code points: 0xEE0C0 0xEE080. This 
+  Security wise this is also good practice -- for example, we decode the overlong qutf-8
+  sequence `0xC0 0x80` not to a 0 character, but to two raw code points: 0xEE0C0 0xEE080. This
   way, we maintain an identity transform while still preventing hidden embedded 0 characters.
-  
+
   (Actually, to make it a true identity transform, when decoding qutf-8/16 we also need to treat
    bytes/surrogate pairs that happen be code points in our raw range as an invalid sequence.
-   This should be fine in practice as these are unassigned anyways). 
+   This should be fine in practice as these are unassigned anyways).
 ------------------------------------------------------------------------------------------------------------*/
 
 #define KK_RAW_PLANE      ((kk_char_t)(0xE0000))
@@ -120,7 +120,7 @@ static inline kk_string_t kk_string_empty() {
 #define kk_define_string_literal(decl,name,len,chars) \
   static struct { struct kk_bytes_s _base; size_t length; char str[len+1]; } _static_##name = \
     { { { KK_HEADER_STATIC(0,KK_TAG_STRING) } }, len, chars }; \
-  decl kk_string_t name = { { (intptr_t)&_static_##name._base._block } };  
+  decl kk_string_t name = { { (intptr_t)&_static_##name._base._block } };
 #else
 #define kk_declare_string_literal(decl,name,len,chars) \
   static kk_ssize_t  _static_len_##name = len; \
@@ -128,13 +128,17 @@ static inline kk_string_t kk_string_empty() {
   decl kk_string_t name = { { kk_datatype_null_init } };
 
 #define kk_init_string_literal(name,ctx) \
-  if (kk_datatype_is_null(name.bytes)) { name = kk_string_alloc_from_utf8n(_static_len_##name, _static_##name, ctx); }  
+  if (kk_datatype_is_null(name.bytes)) { name = kk_string_alloc_from_utf8n(_static_len_##name, _static_##name, ctx); }
 
 #define kk_define_string_literal(decl,name,len,chars,ctx) \
   kk_declare_string_literal(decl,name,len,chars) \
   kk_init_string_literal(name,ctx)
 
 #endif
+
+#define kk_define_string_literal_empty(decl,name) \
+  decl kk_string_t name = kk_string_empty();
+
 
 static inline kk_string_t kk_string_unbox(kk_box_t v) {
   return kk_unsafe_bytes_as_string( kk_bytes_unbox(v) );
@@ -210,7 +214,7 @@ static inline kk_string_t kk_string_alloc_dupn_valid_utf8(kk_ssize_t len, const 
 }
 
 // must be guaranteed valid utf8
-static inline kk_string_t kk_string_alloc_dup_valid_utf8(const char* s, kk_context_t* ctx) { 
+static inline kk_string_t kk_string_alloc_dup_valid_utf8(const char* s, kk_context_t* ctx) {
   kk_assert_internal(kk_utf8_is_valid(s));
   if (s == NULL) return kk_string_empty();
   return kk_string_alloc_dupn_valid_utf8( kk_sstrlen(s), (const uint8_t*)s, ctx);
@@ -241,7 +245,7 @@ static inline kk_string_t kk_string_alloc_raw(const char* s, bool free, kk_conte
 }
 
 static inline const uint8_t* kk_string_buf_borrow(const kk_string_t str, kk_ssize_t* len, kk_context_t* ctx) {
-  return kk_bytes_buf_borrow(str.bytes, len, ctx);  
+  return kk_bytes_buf_borrow(str.bytes, len, ctx);
 }
 
 static inline const char* kk_string_cbuf_borrow(const kk_string_t str, kk_ssize_t* len, kk_context_t* ctx) {
@@ -295,12 +299,12 @@ static inline bool kk_utf8_is_cont(uint8_t c) {
 // Advance to the next codepoint. (does not advance past the end)
 // This should not validate, but advance to the next non-continuation byte.
 static inline const uint8_t* kk_utf8_next(const uint8_t* s) {
-  s++;                                // always skip first byte 
+  s++;                                // always skip first byte
   for (; kk_utf8_is_cont(*s); s++) {} // skip continuation bytes
   return s;
 }
 
-// Retreat to the previous codepoint. 
+// Retreat to the previous codepoint.
 // This should not validate, but backup to the previous non-continuation byte.
 static inline const uint8_t* kk_utf8_prev(const uint8_t* s) {
   s--;                                // skip back at least 1 byte

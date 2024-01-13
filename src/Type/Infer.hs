@@ -41,7 +41,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
                       , nameInt32, nameOr, nameAnd, nameEffectOpen
                       , nameCCtxCreate, nameCCtxHoleCreate, isNameTuple
-                      , nameCoreFileLine, nameCoreFileInfo, nameCoreModuleName
+                      , nameCoreFileLine, nameCoreFileFile, nameCoreFileModule
                        )
 import Common.Range
 import Common.Unique
@@ -1203,7 +1203,7 @@ inferHandledEffect rng handlerSort mbeff ops
                                       return rtp
                   Just(_,eff,_) | not (isHandlerInstance handlerSort)
                                 -> case extractEffectExtend eff of
-                                    (ls,_) -> 
+                                    (ls,_) ->
                                       case filter isHandledEffect ls of
                                         (l:_) -> return (l)  -- TODO: can we assume the effect comes first?
                                         _ -> failure $ "Type.Infer.inferHandledEffect: cannot find handled effect in " ++ show eff
@@ -1518,25 +1518,29 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
          InfoVal{} | isValueOperation tp
            -> do addRangeInfo rng (RM.Id qname (RM.NIValue (infoSort info) tp (infoDocString info) False) [] False)
                  inferExpr propagated expect (App (Var (toValueOperationName qname) False rangeNull) [] rangeNull)
-         _ -> --  inferVarX propagated expect name rng qname1 tp1 info1         
+         _ -> do --  inferVarX propagated expect name rng qname1 tp1 info1
                  eff <- freshEffect
-                 mod  <- getModuleName
-                 if
-                    | qname == nameCoreFileInfo -> return (typeString, eff, Core.Lit (Core.LitString (showPlain mod ++ " " ++ show (posLine (rangeStart rng)))))
-                    | qname == nameCoreFileLine -> return (typeString, eff, Core.Lit (Core.LitString (show (posLine $ rangeStart rng))))
-                    | qname == nameCoreModuleName -> return (typeString, eff, Core.Lit (Core.LitString (showPlain mod)))
-                    | True -> do
-                      let coreVar = coreExprFromNameInfo qname info
-                      -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
-                      (itp,coref) <- maybeInstantiate rng expect tp
-                      sitp <- subst itp
-                      addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue (infoSort info) sitp (infoDocString info) False) [] False)
+                 case lookup qname compilationConstants of
+                  Just (tp,fcore)
+                    -> do mod  <- getModuleName
+                          return (tp,eff,fcore mod rng)
+                  Nothing
+                    -> do let coreVar = coreExprFromNameInfo qname info
+                          -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
+                          (itp,coref) <- maybeInstantiate rng expect tp
+                          sitp <- subst itp
+                          addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue (infoSort info) sitp (infoDocString info) False) [] False)
+                          -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp)
+                          return (itp,eff,coref coreVar)
 
-                      -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp)
-                      
-                      return (itp,eff,coref coreVar)
-
-
+compilationConstants :: [(Name,(Type,Name -> Range -> Core.Expr))]
+compilationConstants
+  = [(nameCoreFileFile,   (typeString, \mod rng ->
+        -- Core.Lit (Core.LitString (sourceName (rangeSource rng))))),
+        Core.Lit (Core.LitString (showPlain mod ++ ".kk")))),  -- for now, use the module name to not leak info of a dev system
+     (nameCoreFileLine,   (typeString, \mod rng -> Core.Lit (Core.LitString (show (posLine $ rangeStart rng))))),
+     (nameCoreFileModule, (typeString, \mod rng -> Core.Lit (Core.LitString (showPlain mod))))
+   ]
 
 {--------------------------------------------------------------------------
   infer branches and patterns

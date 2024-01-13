@@ -76,22 +76,6 @@ pub alias io-noexn = <div,io-total>
 // The `:io` effect is used for functions that perform arbitrary I/O operations.
 pub alias io = <exn,io-noexn>
 
-// File locations
-extern file/kk-modulename-extern() : string
-  inline ""
-
-extern file/kk-line-extern() : string
-  inline ""
-
-extern file/kk-fileinfo-extern() : string
-  inline ""
-
-// Automatically replaced with the current file's module name
-pub val file/kk-modulename : string = file/kk-modulename-extern()
-// Automatically replaced with the current line of the file
-pub val file/kk-line : string = file/kk-line-extern()
-// Automatically replaced with the current file's name and line
-pub val file/kk-fileinfo : string = file/kk-fileinfo-extern()
 
 // ----------------------------------------------------------------------------
 // Masking
@@ -2387,50 +2371,6 @@ pub fun unit/println( u : () )
 */
 
 // ----------------------------------------------------------------------------
-// Trace, assert, todo
-// ----------------------------------------------------------------------------
-
-extern xtrace : ( message : string ) -> ()
-  c  "kk_trace"
-  cs "Primitive.Trace"
-  js "_trace"
-
-extern xtrace-any : forall<a> ( message: string, x : a ) -> ()
-  c  "kk_trace_any"
-  cs "Primitive.TraceAny"
-  js "_trace_any"
-
-val trace-enabled : ref<global,bool> = unsafe-total{ ref(True) }
-
-// Trace a message used for debug purposes.
-// The behaviour is system dependent. On a browser and node it uses
-// `console.log`  by default.
-// Disabled if `notrace` is called.
-pub fun trace( message : string ) : ()
-  unsafe-total
-    if !trace-enabled then xtrace(message)
-
-pub fun trace-info( message : string, ?kk-fileinfo: string ) : ()
-  unsafe-total
-    if !trace-enabled then xtrace(message ++ " " ++ implicit/kk-fileinfo)
-
-pub fun trace-any( message : string, x : a ) : ()
-  unsafe-total
-    if !trace-enabled then xtrace-any(message,x)
-
-// Disable tracing completely.
-pub noinline fun notrace() : st<global> ()
-  trace-enabled := False
-
-extern unsafe-assert-fail( msg : string ) : ()
-  c "kk_assert_fail"
-  js inline "function() { throw new Error(\"assertion failed: \" + #1) }()"
-
-pub fun assert( message : string, condition : bool ) : ()   // Compiler removes assert calls in optimized builds
-  if !condition then unsafe-assert-fail(message)
-
-
-// ----------------------------------------------------------------------------
 // Exceptions
 // ----------------------------------------------------------------------------
 
@@ -2729,3 +2669,64 @@ pub extern phantom<a>() : a
   c inline "kk_box_null()"
   inline "undefined"
 
+
+// ------------------------------------------------------------------------------
+// File locations
+// ------------------------------------------------------------------------------
+
+// Compilation constant that is replaced with the current file's module name
+pub val file/kk-module : string = ""
+
+// Compilation constant that is replaced with the current line number
+pub val file/kk-line : string = ""
+
+// Compilation constant that is replaced with the current file name
+pub val file/kk-file : string = ""
+
+pub fun file/kk-file-line( ?kk-file, ?kk-line )
+  ?kk-file ++ "(line " ++ ?kk-line ++ ")"
+
+// ----------------------------------------------------------------------------
+// Trace, assert, todo
+// ----------------------------------------------------------------------------
+
+extern xtrace : ( message : string ) -> ()
+  c  "kk_trace"
+  cs "Primitive.Trace"
+  js "_trace"
+
+extern xtrace-any : forall<a> ( message: string, x : a ) -> ()
+  c  "kk_trace_any"
+  cs "Primitive.TraceAny"
+  js "_trace_any"
+
+val trace-enabled : ref<global,bool> = unsafe-total{ ref(True) }
+
+// Trace a message used for debug purposes.
+// The behaviour is system dependent. On a browser and node it uses
+// `console.log`  by default.
+// Disabled if `notrace` is called.
+pub fun trace( message : string ) : ()
+  unsafe-total
+    if !trace-enabled then xtrace(message)
+
+pub fun trace-info( message : string, ?kk-file-line : string ) : ()
+  trace(?kk-file-line ++ ": " ++ message)
+
+pub fun trace-show( x : a, ?show : a -> string, ?kk-file-line : string ) : ()
+  trace-info(x.show)
+
+pub fun trace-any( message : string, x : a ) : ()
+  unsafe-total
+    if !trace-enabled then xtrace-any(message,x)
+
+// Disable tracing completely.
+pub noinline fun notrace() : st<global> ()
+  trace-enabled := False
+
+extern unsafe-assert-fail( msg : string ) : ()
+  c "kk_assert_fail"
+  js inline "function() { throw new Error(\"assertion failed: \" + #1) }()"
+
+pub fun assert( message : string, condition : bool, ?kk-file-line : string ) : ()   // Compiler removes assert calls in optimized builds
+  if !condition then unsafe-assert-fail(kk-file-line ++ ": " ++ message)
