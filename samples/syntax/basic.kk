@@ -98,3 +98,6 @@ pub fun increment(xs)  xs.map(fn(x) x + 1).filter(fn(x) x > 2)
 pub fun increment2(xs) {
   xs.map(fn(x){ x + 1 }).filter(fn(x){ x > 2 })
 }
+
+pub fun example-trace(): ()
+  trace-info("Hello")
