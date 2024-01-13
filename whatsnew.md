@@ -17,19 +17,25 @@ generating direct C code without needing a runtime system. To learn more:
 <img style="float:right; height:18em; border:1px solid gray; margin:1ex" src="images/impliciteq.png"> 
 
 - Introducing __locally qualified names__ to always be able to refer to (overloaded) identifiers explicitly.
-  See the `samples/basic/qualifiers` example for more information.  
-  (use the `Koka: Open samples` command to open the samples directory).
+  See the `samples/basic/qualifiers` example for more information. (use the `Koka: Open samples` command to open the samples directory).
 
 - __Implicit parameters__ are a new experimental feature that allow parameterized overloading of equality, show, etc.
   See the `samples/basic/implicits` example for more information.
 
 - Many improvements to the VS Code integration. Press and hold `ctrl+alt` (or `ctrl+option` on
-  MacOS) to show inlay hints -- showing inferred types, fully qualified names, and implicit arguments.
+  MacOS) to show __inlay hints__ -- showing inferred types, fully qualified names, and implicit arguments.
 
   <img style="height:5em; border:1px solid grey; margin:1ex" src="images/inlayhints-off.png"> &nbsp;versus&nbsp; <img style="height:5em; border:1px solid grey; margin:1ex" src="images/inlayhints.png">
 
 
 ### v2.6.0, 2023-12-30:
+
+- Using the new __first-class constructor contexts__ to improve efficiency of various `std/core` functions
+  like `partition`. See the `samples/syntax/contexts.kk` example for an overview, and 
+  the accompanying [paper][fccontext] for an in-depth discussion.
+
+- Using further __fully in-place__ `fip` and `fbip` annotations for various `std/core` functions.
+  See the `samples/syntax/fip.kk` example for an overview and the [paper][fip] for a more technical overview.
 
 - Initial VS Code language support with type information, jump to definition,
   run test functions directly from the editor, automatic Koka installation, and many more things.
@@ -41,11 +47,6 @@ generating direct C code without needing a runtime system. To learn more:
   <img style="width:15em; border:1px solid grey" src="images/codelens.png">
 
 - The VS Code extension prompts to automatically install the latest Koka compiler.
-
-- Using the new [first-class contexts][fccontext] to improve efficiency of various `std/core` functions
-  like `partition`.
-
-- Using further [fip/fbip][fip] annotations to mark more functions as _fully in-place_.
 
 - Various bug fixes and extended bit-level operations on `int32`/`int64`.
 

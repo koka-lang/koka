@@ -10,7 +10,7 @@
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_
 
-_Latest release_: v2.6.0, 2023-12-30 ([Install]).
+_Latest release_: v3.0.0, 2024-01-13 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -83,7 +83,10 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
-* `v2.6.0`, 2023-12-30: initial VS Code language support with type information, jump to definition,
+* `v3.0.0`, 2024-01-13: improved vs code language support with inlay-hints. New locally qualified names,
+  and initial support for implicit parameters. Samples can be found in `samples/syntax`. Various
+  bug fixes.
+* `v2.6.0`, 2023-12-30: initial vs code language support with type information, jump to definition,
   run test functions directly from the editor, automatic Koka installation, and many more things.
   Special thanks to [Tim Whiting](https://github.com/TimWhiting) and [Fredrik Wieczerkowski](https://github.com/fwcd) for all their work on making this possible!
   Also includes support for one-hole contexts ([pdf][fiptree-tr]) and extended bit operations on `int32`/`int64` and various bug fixes.
