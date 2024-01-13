@@ -1,4 +1,4 @@
-# Welcome to Koka, release v2.9.1
+# Welcome to Koka
 
 <img style="float: right; width:16em" src="images/koka-logo-filled.svg">
 
@@ -7,30 +7,25 @@ generating direct C code without needing a runtime system. To learn more:
 
 * Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
 * Browse the [library documentation][libraries].
-* View the Koka _Samples_ in VS Code by opening the command panel `(Ctrl/Cmd + Shift + P)`,
-  and running the `Koka: Open samples` command (when you start typing the command will surface to the top),
-
-## What is new
-
-2024-01-01:
-
-- Locally qualified names to always be able to refer to (overloaded) identifiers explicitly.
-  ```koka
-  fun int/eq( x : int, y : int ) : bool
-  (x == y)
-
-  fun float64/eq( x : float64, y : float64 ) : bool
-    (x == y)
-
-  fun test1()
-    eq(1,2) && eq(1.0,2.0)   // resolved to `int/eq` and `float64/eq`
-
-  fun test2(x,y)
-    int/eq(x,y)              // specify explicitly
-  ```
+* View the Koka __Samples__ in VS Code by opening the command panel `(Ctrl/Cmd + Shift + P)`,
+  and running the `Koka: Open samples` command.
+  (when you start typing the command will surface to the top).
 
 
-- Impliciti
+### v3.0.0, 2024-01-13:
+
+- Introducing __locally qualified names__ to always be able to refer to (overloaded) identifiers explicitly.
+  See the `samples/basic/qualifiers` example for more information.  
+  (use the `Koka: Open samples` command to open the samples directory).
+
+- __Implicit parameters__ are a new experimental feature that allow parameterized overloading of equality, show, etc.
+  See the `samples/basic/implicits` example for more information.
+
+- Many improvements to the VS Code integration. By default inlay hints are off in Koka and can be shown by pressing
+  `ctrl+alt` (or `ctrl+option` on MacOS). The inlay hints show all inferred information, like inferred types,
+  but also fully qualified names and implicit arguments.
+
+  <img style="height:5em; border:1px solid grey" src="images/inlayhints-off.png"> &nbsp;versus&nbsp; <img style="height:5em; border:1px solid grey" src="images/inlayhints.png">
 
 
 ### v2.6.0, 2023-12-30:

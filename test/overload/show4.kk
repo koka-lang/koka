@@ -34,3 +34,8 @@ fun test3()
 
 fun test4()
   [1,2] < [2 + 1,3]
+
+
+fun test(xs)
+  val ys = [xs,['a','b']].map(length)
+  ys.show
