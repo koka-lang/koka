@@ -39,7 +39,7 @@ pub import std/num/random
 
 pub import std/time
 pub import std/time/timestamp
-// pub import std/time/astro
+pub import std/time/astro
 // pub import std/time/download
 // pub import std/time/timezone
 // pub import std/time/ut1

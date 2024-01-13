@@ -22,7 +22,7 @@ const binaryPlatforms = ["win32-x64","darwin-arm64","darwin-x64","linux-x64"]
 
 // Development: set kokaDevDir to a non-empty string to (un)install from a local bundle instead of github
 const kokaDevDir    = ""
-                      //"c:/users/daan/dev/koka-dev"
+                      //"c:/users/daan/dev/koka"
                       // "/Users/daan/dev/koka-dev"
 
 // Configuration
