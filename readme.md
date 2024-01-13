@@ -274,8 +274,6 @@ Please help develop Koka: there are many opportunities to improve Koka or do res
 
 * [ ] Emacs (partially done) and Vim syntax highlighting.
 * [ ] Add more samples, improve documentation, landing page etc. Make it easier for people to contribute.
-* [ ] Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
-* [ ] Update file and os primitives for the JavaScript backend.
 * [x] Run the full test suite.
 * [x] Run the Bayesian probalistic machine learning program with large parameters.
 * [x] Functions with a pattern match in the argument (by Steven Fontanella).
@@ -286,8 +284,8 @@ More advanced projects:
 * [x] Update the JavaScript backend to 1) use modern modules instead of amdefine, 2) use the new bigints instead of
   bigint.js, and 3) add support for int64. (landed in the `dev` branch)
 * [x] Port `std/text/regex` from v1 (using PCRE)
-* [ ] Package management of Koka modules.
 * [x] Compile to WASM (using emscripten on the current C backend)
+* [ ] Package management of Koka modules.
 * [ ] Improve compilation of local state to use local variables directly (in C) without allocation. Tricky though due to multiple resumptions.
 * [ ] Improve performance of array/mutable reference programming. Koka is has great performance for
       algebraic datatypes but lags when using more imperative array algorithms. This requires better
@@ -304,9 +302,10 @@ More advanced projects:
 Master/PhD level:
 
 * [x] Better language level FBIP support with guaranteed datatype matching, automatic derivative and visitor generation.
-* [ ] Can we use C++ exceptions to implement "zero-cost" `if yielding() ...` branches and remove the need join points (see [9]).
 * [x] Float up `open` calls to improve effect handling (worked on by Naoya Furudono)
 * [x] Formalize opening and closing effect row types (worked on by Kazuki Ikemori)
+* [ ] Can we use C++ exceptions to implement "zero-cost" `if yielding() ...` branches and remove the need join points (see [9]).
+* [ ] Improve case-of-known simplification with shape information
 
 Currently being worked on:
 
@@ -315,12 +314,11 @@ Currently being worked on:
   with which they are called. This is an important optimization for functional style languages to reduce the allocation of lambda's.
   (contact: Steven Fontanella)
 * [x] Borrowing analysis for Perceus and improved reuse analysis. (contact: Anton Lorenzen)
-* [ ] Improve case-of-known simplification with shape information
 
 The following is the immediate todo list to be completed in the coming months:
 
-* [ ] Port `std/async` (using `libuv`).
-* [ ] Proper overloading with (a form of) type classes. (in design phase).
+* [ ] Port `std/async` with `libuv` integration.
+* [x] Initial support for overloading through implicit parameters.
 
 LSP Related Tasks:
 * [ ] Generate completions for effect handlers (with empty bodies of all the functions)
