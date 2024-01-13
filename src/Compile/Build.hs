@@ -314,7 +314,7 @@ moduleCodeGen mainEntries parsedMap tcheckedMap optimizedMap codegenMap
                       inlines = inlinesFromModules imports
                   mbEntry <- getMainEntry (defsGamma defs) mainEntries mod
                   seqIO   <- sequentialIO
-                  link    <- pooledIO $ codeGen term flags seqIO
+                  link    <- pooledIO $! codeGen term flags seqIO
                                                 (defsNewtypes defs) (defsBorrowed defs) (defsKGamma defs) (defsGamma defs)
                                                 mbEntry imports mod
                   let mod' = mod{ modPhase = PhaseCodeGen }

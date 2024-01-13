@@ -48,6 +48,7 @@ module Common.NamePrim
           , nameIntAdd, nameIntSub
 
           -- Effects
+          , nameTpEventLoop
           , nameTpHTag, nameHTag
           , nameTpClause, namePerform
           , nameTpEvv, nameEvvAt, nameEvvIndex, nameEvvIndexMask
@@ -123,7 +124,7 @@ module Common.NamePrim
 
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat, nameTpFloat32, nameTpFloat16
-          , nameTpString
+          , nameTpString, nameTpBytes
           -- , nameTpByte
           , nameTpInt8, nameTpInt16, nameTpInt32, nameTpInt64
           , nameTpSSizeT,nameTpIntPtrT
@@ -227,6 +228,7 @@ nameTpPure      = preludeName "pure"
 
 nameTpAsync     = newQualified "std/async" "async"
 nameTpAsyncX    = newQualified "std/async" "asyncx"
+nameTpEventLoop = preludeName  "event-loop"
 nameTpBuilder   = newQualified "std/text/string" "builder"
 nameTpArray     = newQualified "std/data/array" "array"
 nameTpMDict     = qualify nameDict (newName "mdict")
@@ -474,6 +476,7 @@ nameTpFloat16   = coreTypesName "float16"
 
 nameTpChar      = coreTypesName "char"
 nameTpString    = coreTypesName "string"
+nameTpBytes     = coreTypesName "bytes"
 nameTpAny       = coreTypesName "any"
 nameTpVector    = coreTypesName "vector"
 
