@@ -15,7 +15,63 @@
 </head>
 
 <body class="koka doc body madoko">
-<h1 class="mo">std<span class="fslash">/</span>time</h1>
+<h1 class="mo">std<span class="fslash">/</span>time<a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
+<table class="index"><tr><td class="code"><span class="nested0">std</span></td></tr>
+<tr><td class="code"><span class="nested1"><a class="link" href="https://koka-lang.github.io/koka/doc/std_core.html"><span class="mo">core</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">Core functions.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested1">time</span></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_calendar.html"><span class="mo">calendar</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">Calendars.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_calendars.html"><span class="mo">calendars</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">Various calendars: TAI, GPS, ISO week, Julian, Coptic, etc.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_chrono.html"><span class="mo">chrono</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">Get the system time.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_date.html"><span class="mo">date</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">Date, clock, and week days support.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_duration.html"><span class="mo">duration</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">Time durations in SI seconds.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_format.html"><span class="mo">format</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">Formatting of time into a string.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_instant.html"><span class="mo">instant</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">Instants in time.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_locale.html"><span class="mo">locale</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">Localization of time formats.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_parse.html"><span class="mo">parse</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">Parsing of time strings.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_time.html"><span class="mo">time</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">Time represents instants as human readable calendar time.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_timer.html"><span class="mo">timer</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">High resolution timer.
+</p></div></td></tr>
+<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_utc.html"><span class="mo">utc</span></a></span></td><td><div class="doc koka comment">
+
+<p class="p noindent">UTC time scales and leap second support.
+</p></div></td></tr>
+</table>
+<h2>Description</h2>
 <div class="doc koka comment">
 
 <p class="p noindent"> Date and time functionality.
@@ -120,7 +176,7 @@ For example, here are some durations between different times:
 <span class="op">&gt;</span> (time(<span class="number">2017</span>,<span class="number">1</span>,<span class="number">1</span>,<span class="number">0</span>,<span class="number">0</span>,<span class="number">0</span>,<span class="number">0.5</span>) <span class="op"><span class="minus">-</span></span> time(<span class="number">2016</span>,<span class="number">12</span>,<span class="number">31</span>,<span class="number">23</span>,<span class="number">59</span>,<span class="number">59</span>))<span class="kw op">.</span>show
 <span class="st">"2.5s"</span> <span class="comment">// over a leap second
 </span>
-<span class="op">&gt;</span> (time(<span class="number">2017</span>,<span class="number">1</span>,<span class="number">1</span>,<span class="number">0</span>,<span class="number">0</span>,<span class="number">0</span>,<span class="number">0.5</span>) <span class="op"><span class="minus">-</span></span> time(<span class="number">2017</span>,<span class="number">1</span>,<span class="number">1</span>,<span class="number">2</span>,<span class="number">59</span>,<span class="number">59</span>,tz<span class="kw">=</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_calendar.html#tz_fixed">tz<span class="dash">-</span>fixed<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>calendar<span class="fslash last">/</span></span>tz<span class="dash">-</span>fixed: <span class="tp sp">(</span><span class="tp tpp">hours</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">mins</span> <span class="tp kw op">:</span> <span class="tp op">?</span><span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">name</span> <span class="tp kw op">:</span> <span class="tp op">?</span><span class="tp">string</span><span class="tp sp">,</span> <span class="tp tpp">abbrv</span> <span class="tp kw op">:</span> <span class="tp op">?</span><span class="tp">string</span><span class="tp sp">,</span> <span class="tp tpp">hourwidth</span> <span class="tp kw op">:</span> <span class="tp op">?</span><span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">timezone</span></span></a>(<span class="number">3</span>))<span class="kw op">.</span>show
+<span class="op">&gt;</span> (time(<span class="number">2017</span>,<span class="number">1</span>,<span class="number">1</span>,<span class="number">0</span>,<span class="number">0</span>,<span class="number">0</span>,<span class="number">0.5</span>) <span class="op"><span class="minus">-</span></span> time(<span class="number">2017</span>,<span class="number">1</span>,<span class="number">1</span>,<span class="number">2</span>,<span class="number">59</span>,<span class="number">59</span>,tz<span class="kw">=</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_calendar.html#tz_fixed">tz<span class="dash">-</span>fixed<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>calendar<span class="fslash last">/</span></span>tz<span class="dash">-</span>fixed: <span class="tp sp">(</span><span class="tp tpp">hours</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">mins</span> <span class="tp kw op">:</span> <span class="tp sp">?</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">name</span> <span class="tp kw op">:</span> <span class="tp sp">?</span> <span class="tp">string</span><span class="tp sp">,</span> <span class="tp tpp">abbrv</span> <span class="tp kw op">:</span> <span class="tp sp">?</span> <span class="tp">string</span><span class="tp sp">,</span> <span class="tp tpp">hourwidth</span> <span class="tp kw op">:</span> <span class="tp sp">?</span> <span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">timezone</span></span></a>(<span class="number">3</span>))<span class="kw op">.</span>show
 <span class="st">"2.5s"</span> <span class="comment">// UTC+3, and over a leap second
 </span></span></pre>
 
@@ -142,11 +198,11 @@ other time irregularties:
 
 
 
-<p class="p noindent">See the <code class="koka"><a class="doc link" href="#utc">std<span class="fslash">/</span>time<span class="fslash">/</span>utc</a></code> module for more information on leap seconds.
+<p class="p noindent">See the <code class="koka"><a class="doc link" href="#utc">utc</a></code> module for more information on leap seconds.
 </p><h3 id="sec-time-zones" class="h2" data-heading-depth="2" style="display:block"><span class="heading-before"><span class="heading-label">1.2</span>.&#8194;</span>Time zones</h3>
 <p class="p noindent">If calculating with timezones besides the UTC (<code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_calendar.html#tz_utc">tz<span class="dash">-</span>utc<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>calendar<span class="fslash last">/</span></span>tz<span class="dash">-</span>utc: <span class="tp">timezone</span></span></a></code>)
 and local timezone (<code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_calendar.html#tz_local">tz<span class="dash">-</span>local<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>calendar<span class="fslash last">/</span></span>tz<span class="dash">-</span>local: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">ndet</span> <span class="tp">timezone</span></span></a></code>), one needs to use the <code class="koka"><a class="doc link" href="https://koka-lang.github.io/koka/doc/std_time_timezone.html"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>timezone</span></a></code>
-module to load the latest time zone information (<code class="koka"><a class="doc link" href="https://koka-lang.github.io/koka/doc/std_time_timezone.html#load_timezones">std<span class="fslash">/</span>time<span class="fslash">/</span>timezone<span class="fslash">/</span>load<span class="dash">-</span>timezones</a></code>).
+module to load the latest time zone information (<code class="koka"><a class="doc link" href="https://koka-lang.github.io/koka/doc/std_time_timezone.html#load_timezones">load<span class="dash">-</span>timezones</a></code>).
 </p><pre class="koka source"><span class="plaincode">import std/time
 import std/time/timezone
 
@@ -163,13 +219,13 @@ fun test-timezones() {
   val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes)
   t2.time(tz=tz2).show.println   // "1999-01-01T16:30:59+11:00"
 }
-</span><span class="nicecode"><span class="kw">import</span> <a class="doc link" href="https://koka-lang.github.io/koka/doc/std.html#time">std<span class="fslash">/</span>time</a>
-<span class="kw">import</span> <a class="doc link" href="#timezone">std<span class="fslash">/</span>time<span class="fslash">/</span>timezone</a>
+</span><span class="nicecode"><span class="kw">import</span> <a class="doc link" href="https://koka-lang.github.io/koka/doc/std.html#time">time</a>
+<span class="kw">import</span> <a class="doc link" href="#timezone">timezone</a>
 
 <span class="kw">fun</span> test<span class="dash">-</span>timezones() {
   <span class="kw">val</span> tzs <span class="kw">=</span> load<span class="dash">-</span>timezones()
-  <span class="kw">val</span> tz1 <span class="kw">=</span> tzs<span class="kw op">.</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_time.html#timezone">timezone<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>time<span class="fslash last">/</span></span>timezone: <span class="tp sp">(</span><span class="tp tpp">time</span> <span class="tp kw op">:</span> <span class="tp">time</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">timezone</span></span></a>(<span class="st">"America/New&#95;York"</span>)
-  <span class="kw">val</span> tz2 <span class="kw">=</span> tzs<span class="kw op">.</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_time.html#timezone">timezone<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>time<span class="fslash last">/</span></span>timezone: <span class="tp sp">(</span><span class="tp tpp">time</span> <span class="tp kw op">:</span> <span class="tp">time</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">timezone</span></span></a>(<span class="st">"Pacific/Kosrae"</span>)
+  <span class="kw">val</span> tz1 <span class="kw">=</span> tzs<span class="kw op">.</span>timezone(<span class="st">"America/New&#95;York"</span>)
+  <span class="kw">val</span> tz2 <span class="kw">=</span> tzs<span class="kw op">.</span>timezone(<span class="st">"Pacific/Kosrae"</span>)
 
   <span class="comment">/&#42; A flight of 12.5 hours from New York to Kosrae &#42;/</span>
   <span class="kw">val</span> t1  <span class="kw">=</span> instant(<span class="number">1997</span>,<span class="number">12</span>,<span class="number">31</span>,<span class="number">12</span>,<span class="number">1</span>,<span class="number">0</span>,tz<span class="kw">=</span>tz1) <span class="op">+</span> (<span class="number">12</span><span class="kw op">.</span>hours <span class="op">+</span> <span class="number">30</span><span class="kw op">.</span>minutes)
@@ -195,14 +251,14 @@ fun nfib(n : int) : int {
 fun test-nfib() {
   print-elapsed{ nfib(30) }   // "elapsed 0.111s"
 }
-</span><span class="nicecode"><span class="kw">import</span> <a class="doc link" href="#timer">std<span class="fslash">/</span>time<span class="fslash">/</span>timer</a>
+</span><span class="nicecode"><span class="kw">import</span> <a class="doc link" href="#timer">timer</a>
 
 <span class="kw">fun</span> nfib(n <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="co">V</span></span></a>) <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="co">V</span></span></a> {
   <span class="kw">if</span> (n <span class="op">&lt;=</span> <span class="number">1</span>) <span class="kw">then</span> <span class="number">1</span> <span class="kw">else</span> <span class="number">1</span> <span class="op">+</span> nfib(n <span class="op"><span class="minus">-</span></span> <span class="number">1</span>) <span class="op">+</span> nfib(n <span class="op"><span class="minus">-</span></span> <span class="number">2</span>)
 }
 
 <span class="kw">fun</span> test<span class="dash">-</span>nfib() {
-  <a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_timer.html#print_elapsed">print<span class="dash">-</span>elapsed<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>timer<span class="fslash last">/</span></span>print<span class="dash">-</span>elapsed: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <span class="tp sp">(</span><span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">&lt;</span><span class="tp">ndet</span><span class="tp sp">,</span><span class="tp">console</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tpp">msg</span> <span class="tp kw op">:</span> <span class="tp op">?</span><span class="tp">string</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">&lt;</span><span class="tp">ndet</span><span class="tp sp">,</span><span class="tp">console</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <span class="tp tv">a</span></span></a>{ nfib(<span class="number">30</span>) }   <span class="comment">// "elapsed 0.111s"
+  <a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_timer.html#print_elapsed">print<span class="dash">-</span>elapsed<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>timer<span class="fslash last">/</span></span>print<span class="dash">-</span>elapsed: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <span class="tp sp">(</span><span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">&lt;</span><span class="tp">ndet</span><span class="tp sp">,</span><span class="tp">console</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tpp">msg</span> <span class="tp kw op">:</span> <span class="tp sp">?</span> <span class="tp">string</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">&lt;</span><span class="tp">ndet</span><span class="tp sp">,</span><span class="tp">console</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <span class="tp tv">a</span></span></a>{ nfib(<span class="number">30</span>) }   <span class="comment">// "elapsed 0.111s"
 </span>}
 </span></pre>
 
@@ -230,61 +286,6 @@ that duration calculations work properly up to 6 months into the future.
 
 <p class="p noindent">.
 </p></div>
-<table class="index"><tr><td class="code"><span class="nested0">std</span></td></tr>
-<tr><td class="code"><span class="nested1"><a class="link" href="https://koka-lang.github.io/koka/doc/std_core.html"><span class="mo">core</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Core functions.
-</p></div></td></tr>
-<tr><td class="code"><span class="nested1">time</span></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_calendar.html"><span class="mo">calendar</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Calendars.  
-</p></div></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_calendars.html"><span class="mo">calendars</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Various calendars: TAI, GPS, ISO week, Julian, Coptic, etc.
-</p></div></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_chrono.html"><span class="mo">chrono</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Get the system time.
-</p></div></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_date.html"><span class="mo">date</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Date, clock, and week days support.
-</p></div></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_duration.html"><span class="mo">duration</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Time durations in SI seconds.
-</p></div></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_format.html"><span class="mo">format</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Formatting of time into a string.
-</p></div></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_instant.html"><span class="mo">instant</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Instants in time.
-</p></div></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_locale.html"><span class="mo">locale</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Localization of time formats.
-</p></div></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_parse.html"><span class="mo">parse</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Parsing of time strings.
-</p></div></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_time.html"><span class="mo">time</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Time represents instants as human readable calendar time.
-</p></div></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_timer.html"><span class="mo">timer</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">High resolution timer.
-</p></div></td></tr>
-<tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_utc.html"><span class="mo">utc</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">UTC time scales and leap second support.
-</p></div></td></tr>
-</table>
 </body>
 </html>
 

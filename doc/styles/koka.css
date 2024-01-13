@@ -1,6 +1,6 @@
 /*---------------------------------------------------------------------------
   Copyright 2012-2021, Microsoft Research, Daan Leijen.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
@@ -13,11 +13,11 @@ body.madoko,body.koka,.serif,.sans-serif,.comment {
   font-family: 'Nunito', 'Calibri', serif;
 }
 
-.sans-serif { 
+.sans-serif {
   font-family: 'Nunito', 'Segoe UI', 'Calibri', sans-serif;
 }
-.sans-section { 
-  font-family: 'Nunito', 'Century Gothic', 'Apple Gothic',  sans-serif; 
+.sans-section {
+  font-family: 'Nunito', 'Century Gothic', 'Apple Gothic',  sans-serif;
 }
 
 pre.koka, code.koka, .koka.doc .header {
@@ -30,7 +30,7 @@ pre.koka, code.koka, .koka.doc .header {
     max-width  : 62em;
     margin     : 1em auto;
     padding    : 0em 1em 45em 1em; /* so a link to the end always puts the definition on top of the screen */
-    line-height: 1.4;    
+    line-height: 1.4;
   }
   .koka.doc p {
     text-align: left;
@@ -57,10 +57,10 @@ pre.koka, code.koka, .koka.doc .header {
     font-size: 9pt;
     margin: 0pt;
   }
-  h2,h3,h4 { 
-    page-break-after: avoid; 
-  }  
-  p { 
+  h2,h3,h4 {
+    page-break-after: avoid;
+  }
+  p {
     text-align: justify;
   }
   @page:left  { margin: 8% 5% 8% 5%; }
@@ -71,19 +71,19 @@ pre.koka, code.koka, .koka.doc .header {
 
 
 
-/* source code font styles: 
+/* source code font styles:
    font stack designed for windows, mac, and linux.
    see also: http://www.apaddedcell.com/sites/www.apaddedcell.com/files/fonts-article/final/index.html
 */
 body {
-  -webkit-text-size-adjust: 100%; /* so math displays well on mobile devices */  
+  -webkit-text-size-adjust: 100%; /* so math displays well on mobile devices */
   text-size-adjust:100%;
   color: black;
 }
 
 
-h1 { 
-  font-size: 150%; 
+h1 {
+  font-size: 150%;
 }
 h1.mo, h1 .mo, h1 .toc-link {
   color: inherit !important;
@@ -92,10 +92,10 @@ h1.mo, h1 .mo, h1 .toc-link {
 /* Fix monospace display (see http://code.stephenmorley.org/html-and-css/fixing-browsers-broken-monospace-font-handling/) */
 .koka.source,
 .koka.codeblock,
-.koka.preblock, 
+.koka.preblock,
 code, code.koka, .koka .code, .madoko code,
 pre, pre.koka, .madoko pre,
-.monospace { 
+.monospace {
   font-family: Consolas, "Menlo", "Andale Mono", Lucida Console, Monaco, "Roboto Mono", monospace,monospace;
 }
 
@@ -107,7 +107,7 @@ pre, pre.koka, .madoko pre,
   xfont-size: 90%;        /* more even with text */
 }
 
-code, code.koka, .koka .code, .madoko code { 
+code, code.koka, .koka .code, .madoko code {
   border-radius: 4px;
   padding: 0pt 0.2ex;
 }
@@ -118,11 +118,11 @@ pre code code, .madoko pre code code {
 
 /* source code blocks */
 .koka.codeblock,
-.koka.preblock { 
+.koka.preblock {
   padding: 0.5ex 1ex 0.5ex 1ex;
 }
 
-.koka.source  { 
+.koka.source  {
   padding: 0.5ex 1em 0.5ex 1em;
 }
 
@@ -133,7 +133,7 @@ pre code code, .madoko pre code code {
   margin-right: 1ex;
 }
 
-.koka .dash { 
+.koka .dash {
   margin-left: -0.05ex; margin-right: -0.05ex
 }
 
@@ -142,14 +142,14 @@ pre code code, .madoko pre code code {
 }
 
 .koka .fslash {
-  font-size: 90%;  
+  font-size: 90%;
 }
 .koka .fslash .last {
   margin-right: 0.5ex;
 }
 
-.koka .postfix { 
-  color: gray 
+.koka .postfix {
+  color: gray
 }
 
 
@@ -158,7 +158,7 @@ pre code code, .madoko pre code code {
 .koka.codeblock,
 .koka.preblock,
 .koka.code, code,
-.koka.pre, pre { 
+.koka.pre, pre {
   xwhite-space: pre-wrap;
   overflow-x: auto;
 }
@@ -177,28 +177,29 @@ pre.koka.source {
 }
 
 /* Used for online tutorials */
-.plaincode  { 
+.plaincode  {
   display: none;
   white-space: pre-wrap;
 }
 
 .koka.source a:hover,
 .koka.code a:hover, code.koka a:hover
-.koka.pre a:hover, pre.koka a:hover { 
-  text-decoration: none 
+.koka.pre a:hover, pre.koka a:hover {
+  text-decoration: none
 }
 
 
 /* standard tokens */
 .koka .type, .koka .tp          { color: teal }
-.koka .keyword, .koka .kw       { color: blue }     
+.koka .keyword, .koka .kw       { color: blue }
 .koka .string, .koka .st        { color: maroon }
 .koka .module, .koka .mo        { color: navy }
 .koka .number, .koka .nu        { color: black }
 .koka .constructor, .koka .co   {  color: purple }
 .koka .namespace, .koka .mo     { color: navy }
 .koka .comment                  { color: green }
-
+.koka .localqualifier,.koka .lq { color: darkgray }
+.koka .pc .localqualifier,.koka .pc .lq { color: navy }
 
 /* These are perhaps too fancy ? */
 .koka .type.typeparam, .koka .tp.tpp { color: #555 }
@@ -211,13 +212,13 @@ pre.koka.source {
   color: black;
 }
 
-.koka.preblock,     
+.koka.preblock,
 .koka.codeblock
-      { display: block 
+      { display: block
       ; margin-top: 1ex
       ; margin-bottom: 1ex
       }
-      
+
 .koka.line
       { display: block
       ; border-bottom: 1px dotted
@@ -227,8 +228,8 @@ pre.koka.source {
 
 
 /* addornments */
-.koka .error, 
-.koka .warning { 
+.koka .error,
+.koka .warning {
   border-bottom: dotted;
   border-width: 2px;
 }
@@ -242,39 +243,39 @@ pre.koka.source {
 .koka .decl.rectype,
 .koka .decl.fun,
 .koka .decl.val,
-.koka .decl.external { 
+.koka .decl.external {
   /* background-color: yellow */
 }
 
 .koka .decl.alias,
-.koka .decl.alias .koka .keywordop { 
-  color: teal 
+.koka .decl.alias .koka .keywordop {
+  color: teal
 }
 
 /* popup boxes: for space we call this pp (for popup) and pc (for popup-content) */
-a.pp    { 
+a.pp    {
   position: relative;
   text-decoration: none;
   color: black;
 }
 
-.pc { 
+.pc {
   display: none;
 }
 
-a.pp:hover  { 
+a.pp:hover  {
   z-index: 100;
   text-decoration: none;
 }
 
-a.pp:hover .pc, .tooltip { 
+a.pp:hover .pc, .tooltip {
   display:block;
   position:absolute;
   top:1.5em;
   left:2ex;
   padding: 0.2ex 0.75ex 0.2ex 0.5ex;
   border:1px solid black;
-  background: #fffdf0;   
+  background: #fffdf0;
   white-space: pre;
 }
 
@@ -292,7 +293,7 @@ h1.koka.module
       { font-weight: normal
       }
 
-.koka .toc-link 
+.koka .toc-link
       { font-size: 75%
       ; float: right
       ; color: navy
@@ -305,7 +306,7 @@ h1.koka.module
       ; margin-bottom: 0.5em
       }
 
-.koka.doc .link 
+.koka.doc .link
       { text-decoration: none
       ; color: black
       }
@@ -315,7 +316,7 @@ h1.koka.module
       }
 
 .koka.doc .decl .decl
-      { margin-left: 1em 
+      { margin-left: 1em
       }
 
 .koka.doc .decl .comment
@@ -324,7 +325,7 @@ h1.koka.module
 .koka.doc.body>.comment
       { margin-bottom: 1em }
 
-.koka.doc .decl, 
+.koka.doc .decl,
 .koka.doc .con-decl
       { margin-top: 1.2em
       ; border: 1px solid #AAA
@@ -335,21 +336,21 @@ h1.koka.module
   font-size: 150%;
   margin-top: -0.5em;
   margin-bottom: 0.25em;
-}  
+}
 /*
 .koka.doc.header,
 .koka.doc.decl,
-.koka.doc.con-decl { 
+.koka.doc.con-decl {
   border-top-left-radius: 8px
 }
 */
 
-div.nested { 
-  margin: 1.25em 0em 1.25em 1em 
+div.nested {
+  margin: 1.25em 0em 1.25em 1em
 }
 
 .koka.doc .nested .decl
-      { margin-left: 0em }  
+      { margin-left: 0em }
 
 .koka.doc .con-decl
       { /* border: dotted 1px */
@@ -368,7 +369,7 @@ div.nested {
 
 /* Table of contents */
 
-.koka.doc ul.toc 
+.koka.doc ul.toc
       { list-style-type: none
       ; margin: 0em
       ; float: left;
@@ -384,7 +385,7 @@ div.nested {
       { padding-left: 1em
       }
 
-.koka.doc div.toc 
+.koka.doc div.toc
       { overflow: auto
       ; width: 100%
       }
@@ -421,7 +422,7 @@ div.nested {
 /* Print in black&white. Commented out for now  */
 /*
 @media print {
-  .koka .keyword, .koka .kw       { font-weight: bold; color: black; }      
+  .koka .keyword, .koka .kw       { font-weight: bold; color: black; }
   .koka .string, .koka .st        { color: gray }
   .koka .module, .koka .mo        { color: gray }
   .koka .number, .koka .nu        { color: black }
@@ -430,8 +431,8 @@ div.nested {
   .koka .namespace, .koka .mo     { color: gray }
   .koka .comment                  { color: black }
 
-  .koka .type.typeparam, .koka .tp.tpp { color: #555 } 
+  .koka .type.typeparam, .koka .tp.tpp { color: #555 }
   .koka .type.typevar, .koka .tp.tv    { font-style: italic }
-  .koka .type.keyword.operator, .koka .tp.kw.op { color: gray } 
+  .koka .type.keyword.operator, .koka .tp.kw.op { color: gray }
 }
 */
