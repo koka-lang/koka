@@ -115,7 +115,7 @@ module Common.NamePrim
 
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat, nameTpFloat32, nameTpFloat16
-          , nameTpString
+          , nameTpString, nameTpBytes
           -- , nameTpByte
           , nameTpInt8, nameTpInt16, nameTpInt32, nameTpInt64
           , nameTpSSizeT,nameTpIntPtrT
@@ -440,6 +440,7 @@ nameTpFloat16   = coreTypesName "float16"
 
 nameTpChar      = coreTypesName "char"
 nameTpString    = coreTypesName "string"
+nameTpBytes     = coreTypesName "bytes"
 nameTpAny       = coreTypesName "any"
 nameTpVector    = coreTypesName "vector"
 
