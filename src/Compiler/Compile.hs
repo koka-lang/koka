@@ -223,8 +223,8 @@ compileExpression maybeContents term flags loaded compileTarget program line inp
                                           mkApp e es = App e [(Nothing,x) | x <- es] r
                                       let expression = mkApp (Var (qualify nameSystemCore (qualifyLocally (newModuleName "string") (newName "println"))) False r)
                                                         [mkApp (Var {-qnameShow-} (newName "show") False r) [mkApp (Var qnameExpr False r) []]]
-                                      let qmain = (qualify (getName program) nameMain)
-                                      let defMain = Def (ValueBinder qmain () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
+                                      -- let qmain = (qualify (getName program) nameMain)
+                                      let defMain = Def (ValueBinder nameMain () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
                                       let programDef' = programAddDefs programDef [] [defMain]
                                       compileProgram' maybeContents term flags (loadedModules ld) (Executable nameMain ()) "<interactive>" programDef' []
                               {-
