@@ -1,7 +1,7 @@
 ~ begin news
 News:
 
-* 2024-01-13: Koka v3.0.0 released with improved VS Code integration and inlay hints. Initial support for
+* 2024-01-13: Koka v3.0.1 released with improved VS Code integration and inlay hints. Initial support for
   locally qualified names and implicit parameters (see the `samples/syntax`). Various small bug fixes.
 
 * 2023-12-30: Koka v2.6.0 released with VS Code language integration with type information, jump to definition,
