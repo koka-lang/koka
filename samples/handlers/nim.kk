@@ -262,9 +262,10 @@ pub fun main()
   ,example-check().show
   ,example-pc2().show
   ,example-choose().show
-  //,example-coin().show
-  //,example-print1().show
-  //,example-print2().show
+  // the following three are non deterministic
+  // ,example-coin().show
+  // ,example-print1().show
+  // ,example-print2().show
   ,""
   ].join("\n-----------\n").print
   try {

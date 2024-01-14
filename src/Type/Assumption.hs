@@ -41,6 +41,7 @@ module Type.Assumption (
                     , getArity
                     , coreVarInfoFromNameInfo, coreExprFromNameInfo
                     , matchQualifiers
+                    , showHidden
                     ) where
 import Lib.Trace
 import Data.List(isPrefixOf)
@@ -449,6 +450,9 @@ ppGamma = ppGammaInternal False
 
 ppGammaHidden :: Env -> Gamma -> Doc
 ppGammaHidden = ppGammaInternal True
+
+showHidden :: Gamma -> String
+showHidden g = show (ppGammaHidden Type.Pretty.defaultEnv g)
 
 instance HasTypeVar Gamma where
   sub `substitute` (Gamma gamma)
