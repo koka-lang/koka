@@ -26,8 +26,9 @@ import Lib.Trace
 -- import Type.Pretty
 
 import Data.Char(isAlphaNum)
-import Data.List(groupBy,intersperse,nubBy,sortOn)
+import Data.List(groupBy,intersperse,nubBy,sortOn,find)
 import Data.Maybe(catMaybes)
+import qualified Data.Set as S
 import Control.Monad(when)
 
 import Lib.PPrint
@@ -40,6 +41,7 @@ import Common.Syntax( Platform(..) )
 import Common.Name
 import Common.NamePrim
 import Common.Syntax
+import Common.Id as CId
 import Common.File( startsWith )
 import qualified Common.NameMap as M
 import Syntax.Syntax
@@ -55,6 +57,7 @@ import Kind.Repr( createDataDef )
 import Type.Type
 import Type.Assumption
 import Type.TypeVar( tvsIsEmpty, ftv, subNew, (|->), tvsMember, tvsList )
+import qualified Type.TypeVar as TV
 import Type.Pretty
 import Type.Kind( getKind )
 
@@ -63,6 +66,8 @@ import Kind.InferMonad
 import Kind.Unify
 
 import Syntax.RangeMap
+import Syntax.Pretty (ppDef)
+import Common.IdNice (niceShow, niceEmpty)
 
 
 {--------------------------------------------------------------------------
@@ -106,7 +111,8 @@ inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
           errs4     = constructorCheckDuplicates colors conInfos
           errs      = errs1 ++ errs2 ++ errs3 ++ errs4
           warns     = warns1 ++ warns2 ++ warns3
-          dgroups   = concatMap (synTypeDefGroup modName) cgroups
+      dgroups0 <- mapM (synTypeDefGroup modName) cgroups
+      let dgroups = concat dgroups0
       setUnique unique3
       Core.liftError  (addWarnings warns $
                         if (null errs)
@@ -145,9 +151,16 @@ extractInfos groups
 {---------------------------------------------------------------
 
 ---------------------------------------------------------------}
-synTypeDefGroup :: Name -> Core.TypeDefGroup -> DefGroups Type
+synTypeDefGroup :: Name -> Core.TypeDefGroup -> Core.CorePhase b (DefGroups Type)
 synTypeDefGroup modName (Core.TypeDefGroup ctdefs)
-  = concatMap (synTypeDef modName) ctdefs
+  = do 
+  let defs = concatMap (synTypeDef modName) ctdefs
+  deriveDefs <- synDerives modName ctdefs
+  return (defs ++ deriveDefs)
+
+getData :: Core.TypeDef -> [DataInfo]
+getData (Core.Synonym synInfo) = []
+getData (Core.Data dataInfo _) = [dataInfo]
 
 synTypeDef :: Name -> Core.TypeDef -> DefGroups Type
 synTypeDef modName (Core.Synonym synInfo) = []
@@ -201,6 +214,162 @@ hasAccessor name tp cinfo
   = not (isFieldName name || name==nameNil) &&  -- named?
     (let tvs = ftv tp          -- and no existentials?
      in all (\tv -> not (tvsMember tv tvs)) (conInfoExists cinfo))
+
+mkBind :: Name -> Range -> ValueBinder (Maybe Type) (Maybe (Expr Type))
+mkBind arg r = ValueBinder arg Nothing Nothing r r
+
+synDerives :: Name -> [Core.TypeDef] -> Core.CorePhase b  (DefGroups Type)
+synDerives modName ctdefs = do
+  let dataInfos = concatMap getData ctdefs
+      names = S.fromList (concatMap dataInfoDerives dataInfos)
+  mapM (\n -> synDeriveDefs modName n dataInfos) (S.toList names)
+
+-- Generate synthetic defs (deriving (show, (==))) etc
+synDeriveDefs :: Name -> Name -> [DataInfo] -> Core.CorePhase b (DefGroup Type)
+synDeriveDefs modName kind infos | kind == nameShow = 
+  do 
+    defs <- mapM (synShowString modName) (filter (\i -> kind `elem` dataInfoDerives i) infos)
+    return $ DefRec defs
+synDeriveDefs modName kind infos | kind == nameEq = 
+  do 
+    defs <- mapM (synEquality modName) (filter (\i -> kind `elem` dataInfoDerives i) infos)
+    return $ DefRec defs
+synDeriveDefs modName kind infos = return $ DefRec [] -- TODO: Error out?
+
+nonFunctionFields fields = map snd (filter fst fields)
+synShowString :: Name -> DataInfo -> Core.CorePhase b (Def Type)
+synShowString modName info = do 
+  evar <- TV.freshTypeVar kindEffect Bound
+  let drng        = dataInfoRange info
+      dive        = effectExtend (TCon (TypeCon nameTpDiv kindEffect)) (TVar evar)
+      dataName    = dataInfoName info
+      defName     = newLocallyQualified "" (nameStem dataName) "show"
+      visibility  = dataInfoVis info
+      doc         = "// Automatically generated. Shows a string representation of the `" ++ nameStem (dataInfoName info) ++ "` type.\n"
+      def         = Def (ValueBinder defName () showExpr drng drng) drng visibility (DefFun [Borrow] (NoFip False)) InlineAlways doc
+      tyParams    = dataInfoParams info
+      nice        = niceTypeExtendVars tyParams niceEmpty
+      showTV tv   = show $ ppTypeVar defaultEnv{nice=nice} tv 
+      dataTp      = typeApp (TCon (TypeCon dataName (dataInfoKind info))) (map TVar tyParams)
+      selfArg     = if all isAlphaNum (show dataName) then dataName else newHiddenName "this"
+      tVarName tv = toImplicitParamName (newLocallyQualified "" ("show" ++ showTV tv) "show")
+      starTVs     = filter isStarTypeVar tyParams
+      tvArgs      = map (\x -> (tVarName x, typeFun [(newName ("tv" ++ showTV x), TVar x)] dive typeString)) starTVs
+      tvBinds     = map (\(x, _) -> mkBind x drng) tvArgs
+      fullTp      = tForall (dataInfoParams info ++ [evar]) [] $ typeFun ((selfArg,dataTp):tvArgs) dive typeString
+      showExpr    = Ann (Lam (mkBind selfArg drng:tvBinds) caseExpr drng) fullTp drng
+      caseExpr    = Case (Var selfArg False drng) (map snd branches) drng
+      branches    = concatMap makeBranch (dataInfoConstrs info)
+      makeBranch :: ConInfo -> [(Visibility, Branch Type)]
+      makeBranch con
+        = let 
+              crng                  = conInfoRange con
+              getTV :: Type -> Maybe Name
+              getTV ty =
+                let d = find (\x -> case ty of {TVar xx -> x == xx; _ -> False }) starTVs
+                in fmap tVarName d
+              tyShowName :: Type -> Expr Type
+              tyShowName ty = 
+                  case getTV ty of 
+                    Just x -> Var (fst $ splitImplicitParamName x) False crng
+                    Nothing -> Var nameShow False crng
+              showTp :: Expr Type -> Type -> Expr Type
+              showTp exp ty =
+                -- Use fully qualified defName if the type is the same as the data type
+                if ty == dataTp then App (Var defName False crng) [(Nothing, exp)] crng
+                else App (tyShowName ty) [(Nothing, exp)] crng
+              appendOp              = Var (newName "++") False crng
+              lString s             = Lit (LitString s crng)
+              appendStr expr1 expr2 = App appendOp [(Nothing, expr1), (Nothing, expr2)] crng
+              start                 = lString (nameStem (conInfoName con) ++ "(")
+              fields                = map (\x -> (not (isFun (snd x)), x)) (conInfoParams con)
+              pVar fld rng          = if fst fld then PatVar (ValueBinder (fst (snd fld)) Nothing (PatWild rng) rng rng) 
+                                      else PatWild rng
+              patterns              = [(Nothing,pVar fld crng) | fld <- fields]
+              showField2(fldN,fldTp)= appendStr (lString (nameStem fldN ++ ": ")) (showTp (Var fldN False crng) fldTp)
+              varExprs              = map showField2 (nonFunctionFields fields)
+              varExprs2             = intersperse (lString ", ") varExprs
+              toString              = appendStr start (foldr appendStr (lString ")") varExprs2)
+              conMatch              = PatCon (conInfoName con) patterns crng crng
+              branchExpr            = [(conInfoVis con, Branch conMatch [Guard guardTrue toString])]
+              branchExprNoFields    = [(conInfoVis con, Branch conMatch [Guard guardTrue (lString (nameStem (conInfoName con)))])]
+            in if null fields then branchExprNoFields else branchExpr
+  return -- $ trace (show $ ppDef defaultEnv def) 
+    def
+
+singleCon:: DataInfo -> Bool
+singleCon info = length (dataInfoConstrs info) == 1
+
+synEquality :: Name -> DataInfo -> Core.CorePhase b (Def Type)
+synEquality modName info = do 
+  evar <- TV.freshTypeVar kindEffect Bound
+  let ediv        = effectExtend (TCon (TypeCon nameTpDiv kindEffect)) $ TVar evar
+      drng        = dataInfoRange info
+      dataName    = dataInfoName info
+      tyParams    = dataInfoParams info
+      starTVs     = filter isStarTypeVar tyParams
+      selfArg     = newHiddenName "this"
+      otherArg    = newHiddenName "other"
+      dataTp      = typeApp (TCon (TypeCon dataName (dataInfoKind info))) (map TVar tyParams)
+      nice        = niceTypeExtendVars tyParams niceEmpty
+      showTV tv   = show $ ppTypeVar defaultEnv{nice=nice} tv 
+      tVarName tv = toImplicitParamName (newLocallyQualified "" ("eq" ++ showTV tv) "==")
+      tvArgs      = map (\x -> (tVarName x, typeFun 
+                          [(newName ("this" ++ showTV x), TVar x), 
+                           (newName ("other" ++ showTV x), TVar x)] ediv typeBool)) 
+                      starTVs
+      tvBinds     = map (\(x, _) -> mkBind x drng) tvArgs
+      fullTp      = tForall (dataInfoParams info ++ [evar]) [] $
+                      typeFun ((selfArg,dataTp):(otherArg,dataTp):tvArgs) ediv typeBool
+      branches    = concatMap makeBranch (dataInfoConstrs info)
+      litBool b rng = if b then Var nameTrue False rng else Var nameFalse False rng
+      caseArg     = [(Nothing, Var selfArg False drng), (Nothing, Var otherArg False drng)]
+      caseExpr    = Case (App (Var (nameTuple 2) False drng) caseArg drng) ((map snd branches) ++ defaultBranch) drng
+      defExpr     = Ann (Lam ((mkBind selfArg drng):(mkBind otherArg drng):tvBinds) caseExpr drng) fullTp drng
+      visibility  = dataInfoVis info
+      doc         = "// Automatically generated. Equality comparison of the `" ++ nameStem (dataInfoName info) ++ "` type (ignores function fields).\n"
+      defName     = newLocallyQualified "" (nameStem dataName) "=="
+      def         = Def (ValueBinder defName () defExpr drng drng) drng visibility (DefFun [Borrow] (NoFip False)) InlineAlways doc 
+      tupleBranch :: Pattern Type -> Pattern Type -> Expr Type -> Range -> Branch Type
+      tupleBranch p1 p2 res r = Branch (PatCon (nameTuple 2) [(Nothing, p1), (Nothing, p2)] r r) [Guard guardTrue res]
+      defaultBranch :: [Branch Type]
+      defaultBranch = if singleCon info then [] else [tupleBranch (PatWild drng) (PatWild drng) (litBool False drng) drng]
+      makeBranch :: ConInfo -> [(Visibility, Branch Type)]
+      makeBranch con
+        = let crng = conInfoRange con
+              getTV :: Type -> Maybe Name
+              getTV ty =
+                let d = find (\x -> case ty of {TVar xx -> x == xx; _ -> False }) starTVs
+                in fmap tVarName d
+              tpEqName :: Type -> Expr Type
+              tpEqName ty = 
+                case getTV ty of 
+                  Just x -> Var (fst $ splitImplicitParamName x) True crng
+                  Nothing -> Var nameEq True crng
+              eqTp :: Expr Type -> Expr Type -> Type -> Expr Type
+              eqTp expL expR ty   =
+                -- Use fully qualified defName if the type is the same as the data type
+                if ty == dataTp then App (Var defName True crng) [(Nothing, expL), (Nothing, expR)] crng
+                else App (tpEqName ty) [(Nothing, expL), (Nothing, expR)] crng
+              fields = map (\x -> (not (isFun (snd x)), x)) (conInfoParams con)
+              pVar :: (Bool, (Name, Type)) -> String -> Pattern Type
+              pVar fld prefix     = if fst fld then PatVar (ValueBinder (makeHiddenName prefix (fst (snd fld))) Nothing (PatWild crng) crng crng) 
+                                    else PatWild crng
+              patternsL           = [(Nothing,pVar fld "this") | fld <- fields]
+              patternsR           = [(Nothing,pVar fld "other") | fld <- fields]
+              andOp               = Var (newName "&&") True crng
+              andExpr expr1 expr2 = App andOp [(Nothing, expr1), (Nothing, expr2)] crng
+              nonFunctionFields   = map snd (filter fst fields)
+              eqField(fldN, fldT) = eqTp (Var (makeHiddenName "this" fldN) False crng) (Var (makeHiddenName "other" fldN) False crng) fldT
+              varExprs            = map eqField nonFunctionFields
+              branchExpr = case varExprs of
+                [] -> litBool True crng
+                _ -> foldr1 andExpr varExprs
+              branch              = tupleBranch (PatCon (conInfoName con) patternsL crng crng) (PatCon (conInfoName con) patternsR crng crng)
+            in [(conInfoVis con, branch branchExpr crng)]
+  return $ -- trace (show $ ppDef defaultEnv def) 
+    def
+
 
 synAccessors :: Name -> DataInfo -> [DefGroup Type]
 synAccessors modName info
@@ -376,7 +545,7 @@ bindTypeDef tdef -- extension
   where
     isExtend =
       case tdef of
-        (DataType newtp args constructors range vis sort ddef isExtend doc) -> isExtend
+        (DataType newtp args constructors derives range vis sort ddef isExtend doc) -> isExtend
         _ -> False
 
 bindTypeBinder :: TypeBinder UserKind -> KInfer (TypeBinder InfKind)
@@ -659,7 +828,7 @@ infTypeDef (tbinder, Synonym syn args tp range vis doc)
        tbinder' <- unifyBinder tbinder syn range infgamma kind
        return (Synonym tbinder' infgamma tp' range vis doc)
 
-infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort ddef isExtend doc))
+infTypeDef (tbinder, td@(DataType newtp args constructors derives range vis sort ddef isExtend doc))
   = do infgamma <- mapM bindTypeBinder args
        constructors' <-  extendInfGamma infgamma (mapM infConstructor constructors)
        -- todo: unify extended datatype kind with original
@@ -668,7 +837,7 @@ infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort ddef is
        if not isExtend then return ()
         else do (qname,kind) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
                 unify (Check "extended type must have the same kind as the open type" (tbinderRange newtp) ) (tbinderRange newtp) (typeBinderKind tbinder') kind
-       return (DataType tbinder' infgamma constructors' range vis sort ddef isExtend doc)
+       return (DataType tbinder' infgamma constructors' derives range vis sort ddef isExtend doc)
 
 unifyBinder tbinder defbinder range infgamma reskind
  = do let kind = infKindFunN (map typeBinderKind infgamma) reskind
@@ -814,7 +983,7 @@ resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
     kindArity (KApp (KApp kcon k1) k2)  | kcon == kindArrow = k1 : kindArity k2
     kindArity _ = []
 
-resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort ddef isExtend doc)
+resolveTypeDef isRec recNames (DataType newtp params constructors derives range vis sort ddef isExtend doc)
   = do -- trace ("datatype: " ++ show(tbinderName newtp) ++ " " ++ show isExtend) $ return ()
        newtp' <- if isExtend
                   then do (qname,ikind) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
@@ -866,7 +1035,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
           <- createDataDef emitError emitWarning lookupDataInfo
                 platform qname resultHasKindStar isRec sort extraFields ddef conInfos0
 
-       let dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars conInfos1 range ddef1 vis doc
+       let dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars conInfos1 derives range ddef1 vis doc
 
        assertion ("Kind.Infer.resolveTypeDef: assuming value struct tag but not inferred as such " ++ show (ddef,ddef1))
                  ((willNeedStructTag && Core.needsTagField (fst (Core.getDataRepr dataInfo))) || not willNeedStructTag) $ return ()

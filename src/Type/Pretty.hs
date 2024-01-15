@@ -8,7 +8,7 @@
 module Type.Pretty (-- * Pretty
                     ppType, ppScheme, ppTypeVar, ppDataInfo, ppSynInfo
                    ,prettyDataInfo, prettyConInfo, prettyDefFunType
-                   ,ppSchemeEffect, ppDeclType, ppPred
+                   ,ppSchemeEffect, ppDeclType, ppPred, ppVis
                    ,niceTypeInitial, niceTypeExtend, niceTypeExtendVars
                    ,precTop, precArrow, precApp, precAtom, pparens
                    ,Env(..), defaultEnv
@@ -242,7 +242,7 @@ ppDataInfo env showBody isExtend dataInfo
 commaSep = hsep . punctuate comma
 
 
-prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name kind args cons range datadef vis doc)
+prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name kind args cons derives range datadef vis doc)
   = if (publicOnly && isPrivate vis) then empty else
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <.>

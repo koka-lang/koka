@@ -187,7 +187,7 @@ typeDecl env
        let cons1    = case cons of
                         [con] -> [con{ conInfoSingleton = True }]
                         _     -> cons
-           dataInfo = DataInfo sort tname kind params cons1 range ddef vis doc
+           dataInfo = DataInfo sort tname kind params cons1 [] range ddef vis doc
        return (Data dataInfo isExtend, env)
   <|>
     do (vis,doc) <- try $ do vis <- vispub

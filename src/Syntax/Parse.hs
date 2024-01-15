@@ -584,9 +584,10 @@ dataTypeDecl dvis =
       let name = tbind kind
           resTp = TpApp (tpCon name) (map tpVar tpars) (combineRanged name tpars)
       (cs,crng)    <- semiBracesRanged (constructor defvis tpars resTp) <|> return ([],rangeNull)
+      derives <- pDeriving
       let (constrs,creatorss) = unzip cs
           range   = combineRanges [vrng,trng, getRange (tbind kind),prng,crng]
-      return (DataType name tpars constrs range vis typeSort ddef isExtend doc, concat creatorss)
+      return (DataType name tpars constrs derives range vis typeSort ddef isExtend doc, concat creatorss)
    where
     tpVar tb = TpVar (tbinderName tb) (tbinderRange tb)
     tpCon tb = TpCon (tbinderName tb) (tbinderRange tb)
@@ -608,15 +609,24 @@ structDecl dvis =
       tpars <- angles tbinders <|> return []
       let name = tbind KindNone
           resTp = TpApp (tpCon name) (map tpVar tpars) (combineRanged name tpars)
-
       (pars,prng)  <- conPars defvis
+      derives <- pDeriving
       let (tid,rng) = getRName name
           conId     = toConstructorName tid
           (usercon,creators) = makeUserCon conId tpars resTp [] pars rng (combineRange rng prng) defvis doc
-      return (DataType name tpars [usercon] (combineRanges [vrng,trng,rng,prng]) vis Inductive ddef False doc, creators)
+      return (DataType name tpars [usercon] derives (combineRanges [vrng,trng,rng,prng]) vis Inductive ddef False doc, creators)
 
 tpVar tb = TpVar (tbinderName tb) (tbinderRange tb)
 tpCon tb = TpCon (tbinderName tb) (tbinderRange tb)
+
+pDeriving :: LexParser [Name]
+pDeriving =
+  do 
+     (try $ do option rangeNull semiColon -- semicolon is automatically inserted after the closing block, but this is still part of the block
+               specialId "deriving"
+               result <- parensCommas identifier
+               return $ map fst result)
+      <|> return []
 
   {-
   <|>
@@ -855,14 +865,14 @@ makeEffectDecl decl =
                              evName  = newName "ev"
                              evFld = ValueBinder evName evTp Nothing irng rng
                              evCon = UserCon (toConstructorName id) [] [(Private,evFld)] Nothing irng rng Private ""
-                         in (DataType ename tpars [evCon] rng vis Inductive (DataDefNormal {-DataDefValue 0 0-}) False docx
+                         in (DataType ename tpars [evCon] [] rng vis Inductive (DataDefNormal {-DataDefValue 0 0-}) False docx
                             ,(\action -> Lam [ValueBinder evName Nothing Nothing irng rng]
                                                   (App (action) [(Nothing,App (Var (toConstructorName id) False rng) [(Nothing,Var evName False rng)] rng)] rng)
                                                   rng))
                     else let -- add a private constructor that refers to the handler type to get a proper recursion check
                              hndfld = ValueBinder nameNil hndTp Nothing irng irng
                              hndcon = UserCon (toConstructorName id) [hndEffTp,hndResTp] [(Private,hndfld)] Nothing irng irng Private ""
-                         in (DataType ename tpars [hndcon] rng vis Inductive DataDefNormal False docx, \action -> action)
+                         in (DataType ename tpars [hndcon] [] rng vis Inductive DataDefNormal False docx, \action -> action)
 
       -- declare the effect handler type
       kindEffect = KindCon nameKindEffect krng
@@ -903,7 +913,7 @@ makeEffectDecl decl =
       getOpName (OpDecl (doc,opId,_,idrng,linear,opSort,exists0,pars,prng,mbteff,tres)) = show (unqualify opId)
 
       hndCon     = UserCon (toConstructorName hndName) [] [(Public,fld) | fld <- opFields] Nothing krng grng vis ""
-      hndTpDecl  = DataType hndTpName (tparsNonScoped ++ [hndEffTp,hndResTp]) [hndCon] grng vis sort DataDefNormal False ("// handlers for the " ++ docEffect)
+      hndTpDecl  = DataType hndTpName (tparsNonScoped ++ [hndEffTp,hndResTp]) [hndCon] [] grng vis sort DataDefNormal False ("// handlers for the " ++ docEffect)
 
       -- declare the handle function
 

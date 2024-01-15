@@ -137,6 +137,7 @@ data TypeDef t u k
   | DataType{ typeDefBinder :: (TypeBinder k)
             , typeDefParams :: [TypeBinder k]
             , typeDefConstrs :: [UserCon t u k]
+            , typeDefDerives :: [Name]
             , typeDefRange :: Range
             , typeDefVis :: Visibility
             , typeDefSort :: DataKind

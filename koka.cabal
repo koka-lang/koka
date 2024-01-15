@@ -104,6 +104,7 @@ library
       Syntax.Lexeme
       Syntax.Lexer
       Syntax.Parse
+      Syntax.Pretty
       Syntax.Promote
       Syntax.RangeMap
       Syntax.Syntax
