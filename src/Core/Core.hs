@@ -126,7 +126,7 @@ import Common.Error
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameUnit, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSSizeT, nameBox, nameUnbox,
                         nameVector, nameCons, nameListNil, nameTpList, nameUnit, nameTpUnit, nameTpFieldAddr,
-                        isPrimitiveName, isSystemCoreName, nameKeep, nameDropSpecial, nameOptional, nameOptionalNone, nameTpOptional)
+                        isPrimitiveName, nameKeep, nameDropSpecial, nameOptional, nameOptionalNone, nameTpOptional)
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -631,7 +631,7 @@ instance Functor (CorePhase b) where
 
 instance Applicative (CorePhase b) where
   pure x = CP (\uniq defs -> return (CPState x uniq defs))
-  m<*>n  = do{ f<-m; x<-n; return (f x) } 
+  m<*>n  = do{ f<-m; x<-n; return (f x) }
 
 instance Monad (CorePhase b) where
   -- return = pure

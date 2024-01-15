@@ -419,14 +419,6 @@ nameTpHandled1  = coreTypesName "handled1"
 
 nameIdentity    = coreTypesName "id"
 
-nameByte        = preludeName "uint8"
-nameInt8        = preludeName "int8"
-nameInt16       = preludeName "int16"
-nameInt32       = preludeName "int32"
-nameInt64       = preludeName "int64"
-nameSSizeT      = preludeName "ssize_t"
-nameIntPtrT     = preludeName "intptr_t"
-
 nameUnit        = coreTypesName "Unit"
 nameTrue        = coreTypesName "True"
 nameFalse       = coreTypesName "False"
@@ -443,6 +435,15 @@ nameTpVoid      = coreTypesName "void"
 nameTpUnit      = coreTypesName "unit"
 nameTpBool      = coreTypesName "bool"
 nameTpInt       = coreTypesName "int"
+
+-- conversion functions in core
+nameByte        = preludeName "uint8"
+nameInt8        = preludeName "int8"
+nameInt16       = preludeName "int16"
+nameInt32       = preludeName "int32"
+nameInt64       = preludeName "int64"
+nameSSizeT      = preludeName "ssize_t"
+nameIntPtrT     = preludeName "intptr_t"
 
 -- nameTpByte      = coreTypesName "uint8"
 nameTpInt8      = coreTypesName "int8"

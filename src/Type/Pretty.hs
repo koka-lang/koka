@@ -27,7 +27,8 @@ import Data.List( partition )
 import Lib.PPrint
 import Common.Name
 import Common.NamePrim( isNameTpTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty,
-                        nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore, nameCoreTypes, nameTpUnit )
+                        nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore, nameCoreTypes, nameTpUnit,
+                        isSystemCoreName )
 import Common.ColorScheme
 import Common.IdNice
 import Common.Syntax
@@ -439,7 +440,8 @@ ppNamePlain env name
      then prettyName (colors env) name
      else if (not (isModuleName name) &&
               (context env == qualifier name ||
-               ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env)))
+               (-- (qualifier name == nameSystemCore || qualifier name == nameCoreTypes)
+                isSystemCoreName name && not (coreIface env)))
              )
            then prettyName (colors env) (unqualify name)
            else -- if coreIface env
