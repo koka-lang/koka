@@ -1,5 +1,5 @@
 /*
-  from the posits paper: http://www.johngustafson.net/pdfs/BeatingFloatingPoint.pdf
+  from the posits paper: https://www.johngustafson.net/pdfs/BeatingFloatingPoint.pdf
 */
 
 pub import std/num/ddouble

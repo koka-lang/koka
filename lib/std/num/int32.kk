@@ -422,7 +422,7 @@ arithmetic `min-int32 == -1 * min-int32 == -1 * (min-int32 / -1) + (min-int32 % 
 Of course `(min-int32 + 1) / -1` is again positive (namely `max-int32`).
 
 See also _Division and modulus for computer scientists, Daan Leijen, 2001_
-[pdf](http://research.microsoft.com/pubs/151917/divmodnote.pdf) .
+[pdf](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf) .
 */
 pub fip fun (/)( x : int32, y : int32 ) : int32
   if (y == 0.int32) then return 0.int32

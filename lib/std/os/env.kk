@@ -65,12 +65,12 @@ pub fun get-args() : ndet list<string>
     xs -> xs.drop(1)
 
 // Return the main OS name: windows, linux, macos, unix, posix, ios, tvos, watchos, unknown.
-// Sometimes has a _dash_ subsystem, like: unix-\<freebsd,openbsd,dragonfly,bsd\>, and windows-mingw.
+// Sometimes has a _dash_ subsystem, like: unix-&lt;freebsd,openbsd,dragonfly,bsd&gt;, and windows-mingw.
 pub extern get-os-name() : ndet string
   c  "kk_os_name"
   js inline "$std_core.host()"
 
-// Return the main processor architecture: x64, x86, arm64, arm, riscv32, riscv64, alpha, ppc64, etc.
+// Return the main processor architecture: x64, x86, arm64, arm32, riscv32, riscv64, alpha64, ppc64, etc.
 pub extern get-cpu-arch() : ndet string
   c "kk_cpu_arch"
   js inline "$std_core.host()"
@@ -86,7 +86,7 @@ pub extern get-compiler-version() : ndet string
   c "kk_compiler_version"
   js inline "\"2\""
 
-// The backend compiler name.
+// The backend compiler name, like `gcc`, `clang`, `cl`, `clang-cl`, `mingw`, or `icc` (and `js` for JavaScript).
 pub extern get-cc-name() : ndet string
   c "kk_cc_name"
   js inline "\"js\""
@@ -102,15 +102,15 @@ pub extern get-cpu-is-little-endian() : ndet bool
 //
 // Note: Usually this equals the `get-cpu-size-bits` and `get-cpu-pointer-bits` on modern cpu's
 // but they can differ on segmented architectures.
-// For example, on the old x86 FAR-NEAR model, the addresses are 32-bit but the maximum object size is 16-bit.
+// For example, on the old x86 FAR-NEAR model, the addresses are 32-bit but the integer register size is 16-bit.
 // Or on the more recent-[x32 ABI](https://en.wikipedia.org/wiki/X32_ABI)
-// the addresses and objects are 32-bits but the architecture has 64-bit registers.
+// the addresses and object sizes are 32-bits but the architecture has 64-bit integer registers.
 pub extern get-cpu-int-bits() : ndet int
   c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(kk_intx_t),kk_context())"
   js inline "32"
 
 // Return the processor maximum object size in bits (`8*sizeof(size_t)`). This is usually
-// equal to the `get-cpu-arch-bits` but may be different on segmented architectures.
+// equal to the `get-cpu-int-bits` but may be different on segmented architectures.
 pub extern get-cpu-size-bits() : ndet int
   c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(size_t),kk_context())"
   js inline "32"
@@ -128,7 +128,8 @@ pub extern get-cpu-pointer-bits() : ndet int
   js inline "32"
 
 // Return the size of boxed values in the heap (`8*sizeof(kk_box_t)`). This is usually
-// equal to `8*sizeof(void*)` but can be less if compressed pointers are used.
+// equal to `8*sizeof(void*)` but can be less if compressed pointers are used (when
+// compiled with `--target=c64c` for example).
 pub extern get-cpu-boxed-bits() : ndet int
   c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(kk_intb_t),kk_context())"
   js inline "32"

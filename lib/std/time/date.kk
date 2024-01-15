@@ -255,7 +255,7 @@ pub fun weekday/(!=)( i : weekday, j : weekday ) : bool { cmp(i,j) != Eq }
 
 ----------------------------------------------------------------------------*/
 
-// Return the ISO calendar date of Easter in a given year (Algorithm by [J.M. Oudin](http://aa.usno.navy.mil/faq/docs/easter.php)).
+// Return the ISO calendar date of Easter in a given year (Algorithm by [J.M. Oudin](https://aa.usno.navy.mil/faq/docs/easter.php)).
 pub fun easter( year : int ) : date
   val c  = year/100
   val n  = year - 19*(year/19)

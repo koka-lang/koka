@@ -1018,7 +1018,7 @@ pub inline fip extern int/(%)  : (int,int) -> int
 // * `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
 //
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
-// available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
+// available at: <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf> .
 pub inline fip extern int/divmod(x:int,y:int) : (int,int)
   c  "kk_integer_div_mod_tuple"
   cs "Primitive.IntDivMod"

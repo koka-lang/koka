@@ -1,7 +1,7 @@
 // This module implements the GarsiaWachs algorithm.
 // It is an adaptation of the algorithm in ML as described by JeanChristophe Filli�tre:
-// in ''A funal implementation of the GarsiaWachs algorithm. (funal pearl). ML workshop 2008, pages 91--96''.
-// See: http://www.lri.fr/~filliatr/publis/gwWml08.pdf
+// in ''A functioal implementation of the GarsiaWachs algorithm. (functional pearl). ML workshop 2008, pages 91--96''.
+// See: <https://www.lri.fr/~filliatr/pub/wml08-slides.pdf>
 //
 // The algorithm is interesting since it uses mutable references shared between a list and tree but the
 // side effects are not observable from outside. Koka automatically infers that the final algorithm is pure.
@@ -25,7 +25,7 @@ public type tree<a> {
 
 fun show( t : tree<string> ) : string {
   match(t) {
-    Leaf(s)   -> show(s)  
+    Leaf(s)   -> show(s)
     Node(l,r) -> "Node(" + show(l) + "," + show(r) + ")"
   }
 }

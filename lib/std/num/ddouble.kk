@@ -106,32 +106,32 @@ up to 2^106^ - 2).
 T.\ Dekker.
 _A Floating-Point Technique for Extending the Available Precision_.
 Numerische\ Mathematik, vol. 18 (3), June 1971, 224--242.
-[pdf](http://gdz.sub.uni-goettingen.de/dms/resolveppn/?PPN=GDZPPN001170007).
+[pdf](https://gdz.sub.uni-goettingen.de/dms/resolveppn/?PPN=GDZPPN001170007).
 ~~
 
 ~~ BibItem { #Goldberg:float; bibitem-label:"[2]"}
 David Goldberg.
 _What Every Computer Scientist Should Know About Floating-point Arithmetic_.
-ACM Computing Survey. vol. 23 (1), March 1991. doi: [10.1145/103162.103163](http://doi.org/10.1145/103162.103163).
-[pdf](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.22.6768&rep=rep1&type=pdf).
+ACM Computing Survey. vol. 23 (1), March 1991. doi: [10.1145/103162.103163](https://doi.org/10.1145/103162.103163).
+[pdf](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.22.6768&rep=rep1&type=pdf).
 ~~
 
 ~~ BibItem { #Gustafson:posit; bibitem-label:"[3]"; searchterm:"Gustafson+John+Beating+floating+point+at+its+own+game+posit+arithmetic"; }
 John\ L. Gustafson and Isaac\ Yonemoto.
 _Beating Floating Point at its Own Game: Posit Arithmetic_. 2017.
-[pdf](http://www.johngustafson.net/pdfs/BeatingFloatingPoint.pdf).
+[pdf](https://www.johngustafson.net/pdfs/BeatingFloatingPoint.pdf).
 ~~
 
 ~~ BibItem { #Hida:qd; bibitem-label:"[4]"; searchterm:"Hida+Quad-Double+Arithmetic:+Algorithms,+Implementation,+and+Application" }
 Yozo Hida,\ Xiaoye S.\ Li, and David\ H.\ Bailey.
 _Quad-Double Arithmetic: Algorithms, Implementation, and Application_.
-Lawrence Berkeley National Laboratory Technical Report LBNL-46996. 2000. [pdf](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
+Lawrence Berkeley National Laboratory Technical Report LBNL-46996. 2000. [pdf](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
 ~~
 
 ~~ BibItem { #Hida:qdlib; bibitem-label:"[5]"; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
 Yozo Hida,\ Xiaoye\ S.\ Li, and David\ H.\ Bailey.
 _Library for double-double and quad-double arithmetic._
-(2007). [pdf](http://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
+(2007). [pdf](https://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
 ~~
 
 ~~ Bibitem { #lin; bibitem-label:"[6]"; searchterm:'Linnainmaa+"Software+for+Doubled-Precision+Floating-Point+Computations"' }
@@ -155,7 +155,7 @@ Discrete & Computational Geometry, vol. 18, 305--363, 1997. [pdf](https://people
 ~
 
 [ddwiki]: https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format#Double-double_arithmetic
-[qd]:     http://crd-legacy.lbl.gov/~dhbailey/mpdist
+[qd]:     https://crd-legacy.lbl.gov/~dhbailey/mpdist
 
 \/
 */

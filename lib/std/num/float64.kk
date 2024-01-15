@@ -74,7 +74,7 @@ pub val flt-max     = 0x1.F_FFFF_FFFF_FFFFp+1023 // 1.79769313486231570815e+308
 // Smallest positive normalized float64 value
 pub val flt-min     = 0x1.0p-1022 // 2.22507385850720138309e-308
 
-// Smallest positive subnormal value (i.e. [``DBL_TRUE_MIN``](http://en.cppreference.com/w/cpp/types/climits))
+// Smallest positive subnormal value (i.e. [``DBL_TRUE_MIN``](https://en.cppreference.com/w/cpp/types/climits))
 pub val flt-true-min= 0x1.0p-1074 // 4.9406564584124654418e-324
 
 // Machine epsilon: the difference between 1.0 and the next representable `:float64` value.
@@ -479,7 +479,7 @@ pub fun midpoint( x : float64, y : float64 ) : float64
 
 
 // Linear interpolation, calculating `x + t*(y - x)` but avoids troublesome edge cases.
-// Follows the C++20 [specification](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html).
+// Follows the C++20 [specification](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html).
 // In particular, if `x.is-finite && y.is-finite`, then:
 // - exact: `lerp(x,y,0.0) == x` and  `lerp(x,y,1.0) == y`
 // - monotonic: if `x <= y` and `t1 <= t2`, then `cmp( lerp(x,y,t1), lerp(x,y,t2) ) <= Eq` (and other cases)

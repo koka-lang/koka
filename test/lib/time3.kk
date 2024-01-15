@@ -60,8 +60,8 @@ fun test-astro() {
 
 pub val sofai = ts-ti.instant(2006,1,15,21,24,37,0.5)
 
-// from: <http://www.iausofa.org/sofa_ts_c.pdf>
-// and: <http://docs.astropy.org/en/v0.2.2/time/index.html#time-scale>
+// from: <https://www.iausofa.org/sofa_ts_c.pdf>
+// and: <https://docs.astropy.org/en/v0.2.2/time/index.html#time-scale>
 fun test-sofa(ts-utc) {
   check("sofa1","2010-07-24T11:19:13.502Z TT"){  instant(2010,7,24,11,18,7,0.318).time(ts=ts-tt).show  }
   check("sofa2","2454526.499998842593"){  instant(2008,2,29,23,59,59,0.9).jd(ts-utc).show-fixed(12)  }
@@ -75,7 +75,7 @@ fun test-sofa(ts-utc) {
   // these differ slightly from astropy but up to 2micro-seconds
   check("sofa4tdb","2006-01-15T21:25:42.684373055Z TDB"){  i.time(ts=ts-tdb).show  }   // astropy: 42.684371185
   check("sofa4tcb","2006-01-15T21:25:56.893952304Z TCB"){  i.time(ts=ts-tcb).show  }   // astropy: 56.893950657  (differs because derived from tdb)
-  // but we agree on the JD number of the skyfield library: http://rhodesmill.org/skyfield/time.html#uniform-time-scales-tai-tt-and-tdb
+  // but we agree on the JD number of the skyfield library: https://rhodesmill.org/skyfield/time.html#uniform-time-scales-tai-tt-and-tdb
   check("skyfield-tt","2453751.392855138889") { i.jd(ts-tt).show-fixed(12) }  // skyfield: 2453751.392855139
   check("skyfield-tdb","2453751.392855143207"){  i.jd(ts-tdb).show-fixed(12)  }  // skyfield: 2453751.3928551432
   check("skyfield-tai1","2456658.500405092593"){  instant(2014,1,1).jd(ts-tai).show-fixed(12)  } // skyfield: 2456658.5004050927

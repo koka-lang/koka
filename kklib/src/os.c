@@ -16,7 +16,7 @@
 /*--------------------------------------------------------------------------------------------------
   Posix abstraction layer
 --------------------------------------------------------------------------------------------------*/
-  
+
 #if defined(WIN32)
 #define _UNICODE
 #include <sys/types.h>
@@ -125,7 +125,7 @@ static int kk_posix_read_retry(const kk_file_t inp, uint8_t* buf, const kk_ssize
     #else
     if (todo > KK_SSIZE_MAX) todo = KK_SSIZE_MAX;
     kk_ssize_t n = read(inp, buf + ofs, todo);
-    #endif  
+    #endif
     if (n < 0) {
       if (errno != EAGAIN && errno != EINTR) {
         err = errno;
@@ -159,7 +159,7 @@ static int kk_posix_write_retry(const kk_file_t out, const uint8_t* buf, const k
     #else
     if (todo > KK_SSIZE_MAX) todo = KK_SSIZE_MAX;
     kk_ssize_t n = write(out, buf + ofs, todo);
-    #endif  
+    #endif
     if (n < 0) {
       if (errno != EAGAIN && errno != EINTR) {
         err = errno;
@@ -267,7 +267,7 @@ kk_decl_export int kk_os_read_line(kk_string_t* result, kk_context_t* ctx)
   mkdir
 --------------------------------------------------------------------------------------------------*/
 #if defined(WIN32)
-static bool kk_is_dir(const wchar_t* wpath) {  
+static bool kk_is_dir(const wchar_t* wpath) {
   kk_stat_t st = { 0 };
   _wstat64(wpath, &st);
   return ((st.st_mode & S_IFDIR) != 0);  // true for symbolic link as well
@@ -280,7 +280,7 @@ static bool kk_is_dir(const char* cpath) {
 }
 #endif
 
-int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx) 
+int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx)
 {
   int err = 0;
   if (mode < 0) {
@@ -308,7 +308,7 @@ int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx)
           if (p > cpath && !kk_is_dir(cpath)) {  // if cpath starts with / the initial iteration is empty (issue #225)
             #if defined(WIN32)
             int res = _wmkdir(cpath);
-            #else 
+            #else
             int res = mkdir(cpath, mode);
             #endif
             if (res != 0 && errno != EEXIST) {
@@ -317,9 +317,9 @@ int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx)
           }
           #if defined(WIN32)
           *p = (uint16_t)c;
-          #else     
+          #else
           *p = c;
-          #endif    
+          #endif
         }
       } while (err == 0 && *p++ != 0);
     }
@@ -372,7 +372,7 @@ static int kk_posix_copy_file(const int inp, const int out, const kk_ssize_t est
     if (err != EINVAL) return err;
     // fall through if `copy_file_range` failed immediately with `EINVAL` (might be a non-seekable device?)
     err = 0;
-  }  
+  }
 #endif
 
   kk_ssize_t buflen = 1024 * 1024; // max 1MiB buffer
@@ -388,12 +388,12 @@ static int kk_posix_copy_file(const int inp, const int out, const kk_ssize_t est
     if (err == 0 && read_count > 0) {
       err = kk_posix_write_retry(out, buf, read_count, &write_count);
       if (err == 0 && write_count != read_count) err = EIO;
-    }    
-  } while (err == 0 && read_count == buflen /* < buflen == EOF */ );  
+    }
+  } while (err == 0 && read_count == buflen /* < buflen == EOF */ );
   kk_free(buf,ctx);
   return err;
 }
-#endif  // not __APPLE__ 
+#endif  // not __APPLE__
 
 kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx) {
   int inp = 0;
@@ -415,7 +415,7 @@ kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool prese
     close(inp);
     return err;
   }
-  
+
   // copy contents
   err = 0;
 
@@ -425,10 +425,10 @@ kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool prese
   if (fcopyfile(inp, out, 0, COPYFILE_ALL) != 0) {
     err = errno;
   }
-#else 
+#else
   // Posix
   err = kk_posix_copy_file(inp, out, finfo.st_size, ctx);
-  
+
   // maintain access/mod time
   if (err == 0 && preserve_mtime) {
     struct timespec times[2];
@@ -544,7 +544,7 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
   dir_cursor d = 0;
   dir_entry entry;
   int err;
-  bool ok = os_findfirst(dir, &d, &entry, &err, ctx);  
+  bool ok = os_findfirst(dir, &d, &entry, &err, ctx);
   if (!ok) {
     *contents = kk_vector_empty();
     return err;
@@ -552,7 +552,7 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
 
   kk_ssize_t count = 0;
   kk_ssize_t len = 100;
-  kk_vector_t vec = kk_vector_alloc(len, kk_integer_box(kk_integer_zero,ctx), ctx);  
+  kk_vector_t vec = kk_vector_alloc(len, kk_integer_box(kk_integer_zero,ctx), ctx);
   do {
     kk_string_t name = os_direntry_name(&entry, ctx);
     if (!kk_string_is_empty_borrow(name,ctx)) {
@@ -574,7 +574,7 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
 
   if(count != len) {
     *contents = kk_vector_realloc(vec, count, kk_box_null(), ctx);
-  } 
+  }
   return err;
 }
 
@@ -647,7 +647,7 @@ kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
   kk_assert_internal(ctx->argc <= wargc);
   if (ctx->argc < wargc) skip = wargc - ctx->argc;
   kk_box_t* buf;
-  kk_vector_t args = kk_vector_alloc_uninit(wargc - skip, &buf, ctx);  
+  kk_vector_t args = kk_vector_alloc_uninit(wargc - skip, &buf, ctx);
   for (kk_ssize_t i = 0; i < wargc - skip; i++) {
     kk_ssize_t j = (i == 0 ? 0 : i + skip);
     kk_string_t arg = kk_string_alloc_from_qutf16w(wargv[j], ctx);
@@ -657,12 +657,12 @@ kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
   return args;
 }
 #else
-kk_vector_t kk_os_get_argv(kk_context_t* ctx) {  
+kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
   if (ctx->argc==0 || ctx->argv==NULL) return kk_vector_empty();
   kk_box_t* buf;
   kk_vector_t args = kk_vector_alloc_uninit(ctx->argc, &buf, ctx);
   for (kk_ssize_t i = 0; i < ctx->argc; i++) {
-    kk_string_t arg = kk_string_alloc_from_qutf8(ctx->argv[i], ctx);    
+    kk_string_t arg = kk_string_alloc_from_qutf8(ctx->argv[i], ctx);
     buf[i] = kk_string_box(arg);
   }
   return args;
@@ -680,7 +680,7 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
     if (env[i]==0) count++;
   }
   kk_box_t* buf;
-  kk_vector_t v = kk_vector_alloc_uninit(count*2, &buf, ctx);  
+  kk_vector_t v = kk_vector_alloc_uninit(count*2, &buf, ctx);
   const uint16_t* p = (const uint16_t*)env;
   // copy the strings into the vector
   for(kk_ssize_t i = 0; i < count; i++) {
@@ -718,7 +718,7 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   kk_ssize_t count;
   for (count = 0; env[count]!=NULL; count++) { /* nothing */ }
   kk_box_t* buf;
-  kk_vector_t v = kk_vector_alloc_uninit(count*2, &buf, ctx);  
+  kk_vector_t v = kk_vector_alloc_uninit(count*2, &buf, ctx);
   // copy the strings into the vector
   for (kk_ssize_t i = 0; i < count; i++) {
     const char* p = env[i];
@@ -921,7 +921,7 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
   wchar_t buf[264];
   DWORD len = GetModuleFileNameW(NULL, buf, 264);
   buf[min(len,263)] = 0;
-  if (len == 0) { 
+  if (len == 0) {
     // fail, fall back
     return kk_os_app_path_generic(ctx);
   }
@@ -952,7 +952,7 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
 #include <unistd.h>
 kk_string_t kk_os_app_path(kk_context_t* ctx) {
   pid_t pid = getpid();
-  char* buf = (char*)kk_malloc(PROC_PIDPATHINFO_MAXSIZE + 1,ctx);  
+  char* buf = (char*)kk_malloc(PROC_PIDPATHINFO_MAXSIZE + 1,ctx);
   int ret = proc_pidpath(pid, buf, PROC_PIDPATHINFO_MAXSIZE /* must be this value or the call fails */);
   if (ret > 0) {
     // failed, use fall back
@@ -1025,19 +1025,19 @@ kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx) {
   }
 #else
   const char* h = getenv("HOME");
-  if (h != NULL) return kk_string_alloc_from_qutf8(h, ctx);  
+  if (h != NULL) return kk_string_alloc_from_qutf8(h, ctx);
 #endif
   // fallback
   return kk_string_alloc_dup_valid_utf8(".", ctx);
 }
 
-kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx) 
-{  
+kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
+{
 #if defined(WIN32)
   const wchar_t* tmp = _wgetenv(L"TEMP");
   if (tmp == NULL) tmp = _wgetenv(L"TMP");
   if (tmp == NULL) tmp = _wgetenv(L"TMPDIR");
-  if (tmp != NULL) return kk_string_alloc_from_qutf16w(tmp, ctx);  
+  if (tmp != NULL) return kk_string_alloc_from_qutf16w(tmp, ctx);
   const wchar_t* ad = _wgetenv(L"LOCALAPPDATA");
   if (ad!=NULL) {
     kk_string_t s = kk_string_alloc_from_qutf16w(ad, ctx);
@@ -1047,7 +1047,7 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
   const char* tmp = getenv("TMPDIR");
   if (tmp == NULL) tmp = getenv("TMP");
   if (tmp == NULL) tmp = getenv("TEMP");
-  if (tmp != NULL) return kk_string_alloc_from_qutf8(tmp, ctx);  
+  if (tmp != NULL) return kk_string_alloc_from_qutf8(tmp, ctx);
 #endif
 
   // fallback
@@ -1066,11 +1066,11 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
 #if (defined(unix) || defined(__unix__)) && !defined(__APPLE__) && !defined(__wasi__)
 #include <sys/resource.h>
 bool kk_os_set_stack_size( kk_ssize_t stack_size ) {
-  rlim_t stack_limit = (rlim_t)(stack_size > 0 ? stack_size : 128*1024*1024);  
+  rlim_t stack_limit = (rlim_t)(stack_size > 0 ? stack_size : 128*1024*1024);
   struct rlimit rl = { 0 };
   if (getrlimit(RLIMIT_STACK, &rl) != 0) return false;
   if (rl.rlim_cur >= stack_limit) return true;
-  rl.rlim_cur = (rl.rlim_max < stack_limit ? rl.rlim_max : stack_limit); 
+  rl.rlim_cur = (rl.rlim_max < stack_limit ? rl.rlim_max : stack_limit);
   if (setrlimit(RLIMIT_STACK, &rl) != 0) return false;
   return true;
 }
@@ -1102,7 +1102,7 @@ kk_string_t kk_os_name(kk_context_t* ctx) {
   #if TARGET_OS_MAC
     name = "macos";
   #elif (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
-    name = "ios";  
+    name = "ios";
   #elif TARGET_OS_WATCH
     name = "watchos";
   #elif TARGET_OS_TV
@@ -1113,14 +1113,14 @@ kk_string_t kk_os_name(kk_context_t* ctx) {
 #elif defined(__CYGWIN__) && !defined(WIN32)
   name = "unix-cygwin";
 #elif defined(__wasi__)
-  name = "wasi";  
+  name = "wasi";
 #elif defined(__hpux)
   name = "unix-hpux";
 #elif defined(_AIX)
   name = "unix-aix";
 #elif defined(__sun) && defined(__SVR4)
   name = "unix-solaris";
-#elif defined(unix) || defined(__unix__) 
+#elif defined(unix) || defined(__unix__)
   #include <sys/param.h>
   #if defined(__FreeBSD__)
   name = "unix-freebsd";
@@ -1131,7 +1131,7 @@ kk_string_t kk_os_name(kk_context_t* ctx) {
   #elif defined(__HAIKU__)
   name = "unix-haiku";
   #elif defined(BSD)
-  name = "unix-bsd"; 
+  name = "unix-bsd";
   #else
   name = "unix";
   #endif
@@ -1150,20 +1150,20 @@ kk_string_t kk_cpu_arch(kk_context_t* ctx) {
 #elif defined(__aarch64__) || defined(_M_ARM64) || defined(_M_HYBRID_X86_ARM64) || defined(_M_ARM64EC)
   arch = "arm64";
 #elif defined(__arm__) || defined(_ARM) || defined(_M_ARM)  || defined(_M_ARMT) || defined(__arm)
-  arch = "arm";
+  arch = "arm32";
 #elif defined(__riscv) || defined(_M_RISCV)
   arch = (KK_INTPTR_SIZE==4 ? "riscv32" : "riscv64");
 #elif defined(__alpha__) || defined(_M_ALPHA) || defined(__alpha)
-  arch = "alpha";
-#elif defined(__wasi__)  
+  arch = "alpha64";
+#elif defined(__wasi__)
   arch = (KK_INTPTR_SIZE==4 ? "wasm32" : "wasm64");
 #elif defined(__powerpc) || defined(__powerpc__) || defined(_M_PPC) || defined(__ppc) || defined(_ARCH_PPC)
   arch = (KK_INTPTR_SIZE==4 ? "ppc32" : (KK_ARCH_LITTLE_ENDIAN ? "ppc64le" : "ppc64"));
 #elif defined(__mips__) || defined(__MIPS__) || defined(__mips)
-  arch = (KK_INTPTR_SIZE==4 ? "mips" : "mips64");
+  arch = (KK_INTPTR_SIZE==4 ? "mips32" : "mips64");
 #elif defined(__sparc__) || defined(__sparc)
   arch = (KK_INTPTR_SIZE==4 ? "sparc32" : "sparc64");
-#elif defined(__ia64__) || defined(__ia64) || defined(_M_IA64) || defined(__itanium__)  
+#elif defined(__ia64__) || defined(__ia64) || defined(_M_IA64) || defined(__itanium__)
   arch = "ia64"
 #elif defined(__hppa__)
   arch = "hppa";
@@ -1192,7 +1192,7 @@ kk_string_t kk_cc_name(kk_context_t* ctx) {
   const char* ccname = "cc";
 #if defined(KK_CC_NAME)
   ccname = KK_CC_NAME;
-#elif defined(__clang_msvc__)  
+#elif defined(__clang_msvc__)
   ccname = "clang-cl"
 #elif defined(__clang__)
   ccname = "clang";
@@ -1203,7 +1203,7 @@ kk_string_t kk_cc_name(kk_context_t* ctx) {
 #elif defined(_MSC_VER)
   ccname = "cl";
 #elif defined(__GNUC__)
-  ccname = "gcc"; 
+  ccname = "gcc";
 #endif
   return kk_string_alloc_dup_valid_utf8(ccname,ctx);
 }
@@ -1224,14 +1224,14 @@ int kk_cpu_count(kk_context_t* ctx) {
   int mib[4];
   kk_ssize_t len = kk_ssizeof(cpu_count);
   mib[0] = CTL_HW;
-  mib[1] = HW_AVAILCPU;  
+  mib[1] = HW_AVAILCPU;
   sysctl(mib, 2, &cpu_count, &len, NULL, 0);
   #if defined(HW_NCPU)
   if (cpu_count < 1) {
     mib[1] = HW_NCPU;
     sysctl(mib, 2, &cpu_count, &len, NULL, 0);
   }
-  #endif 
+  #endif
 #elif defined(MPC_GETNUMSPUS)
   cpu_count = mpctl(MPC_GETNUMSPUS, NULL, NULL);
 #endif

@@ -60,7 +60,7 @@ pub fun graphemes( s  : string ) : list<grapheme> {
 // Normalization
 //--------------------------------------------------------------
 
-// Type of unicode [normalization](http://www.unicode.org/reports/tr15)
+// Type of unicode [normalization](https://www.unicode.org/reports/tr15)
 pub type normalization {
   // Canonical composition (default). Use composed characters when possible.
   con NFC

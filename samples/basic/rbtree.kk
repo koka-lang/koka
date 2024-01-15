@@ -1,6 +1,9 @@
-/* Example of red-black tree<a> balanced insertion.
+/* Example of red-black tree balanced insertion.
 
-   This uses Okasaki style functional rebalancing.
+   This is based on the rebalancing algorithm shown in
+   Chris Okasaki's beautiful book, "Purely Functional Data Structures",
+   (Cambridge University Press, 1998, <https://www.amazon.com/Purely-Functional-Data-Structures-Okasaki/dp/0521663504>).
+
    See also the benchmarks in `example/bench/koka` and `rbtree-fbip.kk`
 */
 module rbtree

@@ -1,7 +1,18 @@
 /* Based on the paper:
-   "A Functional Implementation of the Garsia–Wachs Algorithm", by Jean-Christophe Filliatre
-   <https://www.lri.fr/~filliatr/publis/gw-wml08.pdf>
-   This shows how effect types can safely encapsulate the mutating algorithm.
+
+    "A Functional Implementation of the Garsia–Wachs Algorithm", Jean-Christophe Filliatre,
+    ML workshop 2008, pages 91--96. [slides](https://www.lri.fr/~filliatr/pub/wml08-slides.pdf)
+
+  which describes a functional implementation of the tree minimization algorithm show in:
+
+    "A new algorithm for minimum cost binary trees", Adriano M. Garsia and Michelle L. Wachs,
+    SIAM Journal on Computing, 6(4):622–642, 1977.
+
+  which was further exlained by Donald E. Knuth in
+  "The Art of Computer Programming -- Optimum binary search trees" (Vol. 3, Sec. 6.2.2).
+
+  The algorithm is interesting since it uses mutable references shared between a list and tree but the
+  side effects are not observable from outside. Koka automatically infers that the final algorithm is pure.
 */
 
 pub fun main()

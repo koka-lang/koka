@@ -32,7 +32,7 @@ pub val sofai = ts-ti.instant(2006,1,15,21,24,37,0.5)
 
 // TAI start at 0 on `1958-01-01Z`
 // TT is TAI ++ 32.184, so was `1958-01-01T00:00:32.184 TT`
-// At that time, delta-T (=TT - UT1) was 32.166s (see: http://maia.usno.navy.mil/ser7/historic_deltat.data)
+// At that time, delta-T (=TT - UT1) was 32.166s (see: https://maia.usno.navy.mil/ser7/historic_deltat.data)
 // so UT1 was `1958-01-01T00:00:00.018 UT1`
 // Also, TAI was at that time defined equal to UT2, but when applying
 // the defined adjustment from UT1:

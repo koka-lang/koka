@@ -33,7 +33,7 @@ pub fun now() : <ndet,utc> instant
 //
 // This uses the best available system clock for the requested
 // timescale. For example
-// it uses [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html)
+// it uses [``CLOCK_UTC``](https://www.madore.org/~david/computers/unix-leap-seconds.html)
 // when available to get proper UTC time, or ``CLOCK_TAI`` for TAI time.
 //
 // Otherwise, it usually uses Unix (POSIX) time (``CLOCK_REALTIME``).

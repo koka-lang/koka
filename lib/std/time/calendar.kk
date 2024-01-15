@@ -439,7 +439,7 @@ pub val cal-iso = iso-calendar( ts-ti, "", "ISO" )
 // This is a proleptic Gregorian
 // calendar except that it uses the year 0 for 1 BCE, -1 for 2 BCE etc.
 //
-// You can create an ISO 8601 UTC calendar using the latest IETF leap
+// You can create an ISO 8601 UTC calendar using the latest IERS leap
 // second data using [`cal-utc-load`](std_time_download.html#cal_utc_load).
 pub fun cal-utc-create( leaps : leaps-table ) : calendar
   val ts-utc = ts-utc-create(leaps)

@@ -27,7 +27,7 @@ import std/time/calendar
 // using the latest IERS leap second information from file `fname`
 // (= `"config/leap-seconds.list"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
-// <https://www.ietf.org/timezones/data/leap-seconds.list>\
+// <https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list>\
 // Set the `url` to the empty string to suppress automatic downloading.
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
@@ -47,7 +47,7 @@ pub fun cal-utc-sls-load( fname : path = path(""),
 // Construct a UTC based ISO calendar using the latest IERS leap second information from file `fname`
 // (= `"config/leap-seconds.list"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
-// <https://www.ietf.org/timezones/data/leap-seconds.list>\
+// <https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list>\
 // Set the `url` to the empty string to suppress automatic downloading.
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
@@ -69,7 +69,7 @@ pub fun cal-utc-load( fname : path = path(""),
 // Construct a UTC time scale using the latest IERS leap second information from file `fname`
 // (= `"config/leap-seconds.list"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
-// <https://www.ietf.org/timezones/data/leap-seconds.list>\
+// <https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list>\
 // Set the `url` to the empty string to suppress automatic downloading.
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
@@ -87,7 +87,7 @@ pub fun ts-utc-load( fname : path = path(""),
 // Load the latest leap second information from file `fname`
 // (= `"config/leap-seconds.list"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
-// <https://www.ietf.org/timezones/data/leap-seconds.list>\
+// <https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list>\
 // Set the `url` to the empty string to suppress automatic downloading.
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
@@ -100,7 +100,7 @@ pub fun load-leaps-table( fname : path = path(""),
                              ) : <io,async> leaps-table
 
   val xfname = (fname || appdir() ++ path("config/leap-seconds.list"))
-  val xurl   = (if url=="auto" then "https://www.ietf.org/timezones/data/leap-seconds.list" else url)
+  val xurl   = (if url=="auto" then "https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list" else url)
   fun parse( leaps : string ) : maybe<leaps-table> { Just(parse-leap-seconds(leaps))}
   val leaps-table
     = load-latest( xfname, xurl, parse, fn(lt:leaps-table){ Just(lt.expire) },

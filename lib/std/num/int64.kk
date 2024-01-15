@@ -439,7 +439,7 @@ arithmetic `min-int64 == -1 * min-int64 == -1 * (min-int64 / -1) + (min-int64 % 
 Of course `(min-int64 + 1) / -1` is again positive (namely `max-int64`).
 
 See also _Division and modulus for computer scientists, Daan Leijen, 2001_
-[pdf](http://research.microsoft.com/pubs/151917/divmodnote.pdf) .
+[pdf](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf) .
 */
 pub fip fun (/)( x : int64, y : int64 ) : int64
   if y == 0.int64 return 0.int64

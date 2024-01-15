@@ -30,8 +30,8 @@ basis of many other time scales (see [``std/time/astro``](std_time_astro.html)).
 
 The occurrence of leap seconds cannot be reliably predicted though and
 the IERS
-usually [announces](https://www.iers.org/SharedDocs/News/EN/BulletinC.html)
-leap seconds about half a year in advance. The [IETF leap second][ietfl]
+usually [announces](https://hpiers.obspm.fr/iers/bul/bulc/bulletinc.dat)
+leap seconds about half a year in advance. The [IERS leap second][iersl]
 table contains a list of all currently announced leap seconds. _As such,
 any future duration calculation in UTC is essentially non-deterministic since
 it may be off by a number of (as yet unannounced) leap seconds_. This means
@@ -140,7 +140,7 @@ is calculated and uses historical data for time steps before 1972.
 
 ~ Begin TableFigure { #tab-utc; caption:"Leap second time steps since 1958. The function \
   &Delta;(_date_) returns the number of days since _date_. Entries after \
-  1972 are based on [IETF data][ietfl]. The entries before 1972 are  \
+  1972 are based on [IERS data][iersl]. The entries before 1972 are  \
   derived from the _Explanatory Supplement to the Astronomical Almanac_, by \
   P. Kenneth Seidelmann [@Almanac, pages [86--87][astroa]]. Entries before 1961 are based on the \
   time steps broadcast by the NIST [WWV] radio station."}
@@ -258,7 +258,7 @@ System of Astronomical Constants, Astronomy \& Astrophysics, Vol. 73, pages 282-
 [^fn-taiepoch]: The difference TAI-UT2 was supposed to be zero on 1958-01-01Z TAI but different
     observatories used their own versions of UT2 leading to longitude errors
     of a "few 0.01s" [@taiepoch]. At 1958-01-01 TAI the &Delta;T = TT - UT1 was 31.166s &plusmn; 0.003s
-    (see [historical &Delta;T](http://maia.usno.navy.mil/ser7/historic_deltat.data)),
+    (see [historical &Delta;T](https://maia.usno.navy.mil/ser7/historic_deltat.data)),
     which equals 1958-01-01T00:00:00.018 UT1 time.
     When we calculate UT2 using the current definition [@Almanac, page 85]:
 
@@ -270,11 +270,11 @@ System of Astronomical Constants, Astronomy \& Astrophysics, Vol. 73, pages 282-
 
     we get 1958-01-01T00:00:00.013023922Z UT2. A difference of about 0.013s with TAI.
 
-[ietfl]: https://www.ietf.org/timezones/data/leap-seconds.list
-[dat]: http://maia.usno.navy.mil/ser7/tai-utc.dat
+[iersl]: https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list
+[dat]: https://maia.usno.navy.mil/ser7/tai-utc.dat
 [astroa]: https://books.google.com/books?id=uJ4JhGJANb4C&lpg=PA87&vq=wwv&pg=PA87#v=onepage&q=wwv&f=false
 [utchistory]: https://syrte.obspm.fr/journees2004/pdf/Arias2.pdf
-[taiepoch]:http://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle_query?2000ASPC..208..175G&amp;data_type=PDF_HIGH&amp;whole_paper=YES&amp;type=PRINTER&amp;filetype=.pdf
+[taiepoch]:https://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle_query?2000ASPC..208..175G&amp;data_type=PDF_HIGH&amp;whole_paper=YES&amp;type=PRINTER&amp;filetype=.pdf
 [WWV]: https://www.nist.gov/time-and-frequency-services/nist-radio-stations/wwv
 [UTC]: std_time_astro.html
 [TAI]: std_time_astro.html
@@ -336,7 +336,7 @@ To indicate a time in a leap second, you can use a fraction `frac` that is large
 1973-01-01T00:00:00Z
 ````
 
-This works well for systems that support [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html).
+This works well for systems that support [``CLOCK_UTC``](https://www.madore.org/~david/computers/unix-leap-seconds.html).
 */
 pub fun float64/unix-instant( u : float64, frac : float64 = 0.0, ts : timescale = ts-ti ) : instant
   val t    = timespan(u,frac.fraction)
@@ -460,7 +460,7 @@ fun utc-sls-timescale( name : string, leaps : leaps-table, smooth : timespan = 1
 // with leap seconds while still being quite precise.
 // See also: <https://www.cl.cam.ac.uk/~mgk25/time/utc-sls>.
 //
-// You can create a UTC-SLS time scale based on the latest IETF leap second
+// You can create a UTC-SLS time scale based on the latest IERS leap second
 // data using [`cal-utc-sls-load`](std_time_download.html#cal_utc_sls_load).
 pub fun ts-utc-sls-create( leaps : leaps-table ) : timescale
   utc-sls-timescale( "UTC-SLS", leaps )
@@ -695,7 +695,7 @@ pub val leaps-table-pre1972 : leaps-table =
 
 // Default TI leaps table has leap second information up to the compiler release (currently `leaps-table-y2017`).
 pub val leaps-table-ti : leaps-table =
-  val post72 = parse-leap-seconds( default-ietf-leap-seconds )
+  val post72 = parse-leap-seconds( default-iers-leap-seconds )
   post72.extend(leaps-table-pre1972)
 
 // Leap second table up to 2017-01-01Z.
@@ -726,7 +726,7 @@ pub fun get-leap-steps( table : leaps-table = leaps-table-ti ) : list<(utc-times
 // Parsing UTC leap second tables
 // -----------------------------------------------------------
 
-// Parse a leap second table from text `leaps` in the  [IETF leap second](https://www.ietf.org/timezones/data/leap-seconds.list)
+// Parse a leap second table from text `leaps` in the  [IERS leap second][iersl]
 // file format.
 
 pub fun parse-leap-seconds( leaps : string ) : leaps-table
@@ -764,13 +764,13 @@ pub fun parse-leap-seconds( leaps : string ) : leaps-table
 val rxleap   = regex(r"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
 */
 
-// IETF leap second data valid until 2017-06-28
-val default-ietf-leap-seconds = r"
-  # From: https://www.ietf.org/timezones/data/leap-seconds.list
-  # Updated through IERS Bulletin C52
-  # File expires on:  28 June 2017
+// IERS leap second data valid until 2024-12-28
+val default-iers-leap-seconds = r"
+  # From: https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list
+  #	Updated through IERS Bulletin C (https://hpiers.obspm.fr/iers/bul/bulc/bulletinc.dat)
+  # File expires on:  28 December 2024
   #
-  #@  3707596800
+  #@	3944332800
   #
   2272060800  10  # 1 Jan 1972
   2287785600  11  # 1 Jul 1972
@@ -799,7 +799,7 @@ val default-ietf-leap-seconds = r"
   3439756800  34  # 1 Jan 2009
   3550089600  35  # 1 Jul 2012
   3644697600  36  # 1 Jul 2015
-  3692217600  37  # 1 Jan 2017"
+  3692217600  37  # 1 Jan 2017
   // 3723753600  35  # 1 Jan 2018" //testing negative 2 seconds
 
 // -----------------------------------------------------------
@@ -810,7 +810,7 @@ val jd-epoch-shift     = 2400000.5.timespan  // JD to MJD
 val mjd-epoch-shift    = 51544.timespan // 2000-01-01Z - 1858-11-17Z modified julian date epoch
 
 // Parse the standard UTC leap second adjustment file in the "old" .dat format as
-// in <http://maia.usno.navy.mil/ser7/tai-utc.dat>, where entries have the shape
+// in <https://maia.usno.navy.mil/ser7/tai-utc.dat>, where entries have the shape
 // ````
 // 1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
 // ````
@@ -818,7 +818,7 @@ val mjd-epoch-shift    = 51544.timespan // 2000-01-01Z - 1858-11-17Z modified ju
 // (`1.4228180`s), and the drift, starting at `37300` MJD of 0.001296s per day.
 // Lines that start with ``#`` are comments. As an extension you can have an
 // expiration date on a line that starts with ``#@`` followed by seconds since
-// the NTP epoch (1900-01-01). Just as in a standard IETF leap second file.
+// the NTP epoch (1900-01-01). Just as in a standard IERS leap second file.
 pub fun parse-leap-seconds-dat( leaps : string  ) : leaps-table
   val adjusts = leaps.lines.flatmap-maybe(parse-taiadjust).reverse
   val expire = parse-leap-expire(leaps,adjusts)
@@ -902,7 +902,7 @@ val default-leap-seconds-pre72 = r"
   1959 DEC 16 =JD 2436919.29167 TAI-UTC= 0.6281220 S + (MJD - 36569.) X 0.000864 S
   1960 JAN  1 =JD 2436934.5     TAI-UTC= 0.9434820 S + (MJD - 36934.) X 0.001296 S
 
-  # from: http://maia.usno.navy.mil/ser7/tai-utc.dat
+  # from: https://maia.usno.navy.mil/ser7/tai-utc.dat
   1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
   1961 AUG  1 =JD 2437512.5  TAI-UTC=   1.3728180 S + (MJD - 37300.) X 0.001296 S
   1962 JAN  1 =JD 2437665.5  TAI-UTC=   1.8458580 S + (MJD - 37665.) X 0.0011232S

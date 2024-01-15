@@ -65,15 +65,15 @@ pub val ts-ut1-approx = ts-ut1-create()
 // To calculate UT2 more precisely, use `cal-ut2-load` (or `cal-ut2-create`).
 pub val ts-ut2-approx = ts-ut2-create()
 
-val usno-url = "http://maia.usno.navy.mil/ser7/"  // "http://toshi.nofs.navy.mil/ser7/"
+val usno-url = "https://maia.usno.navy.mil/ser7/"  // "https://toshi.nofs.navy.mil/ser7/"
 
-// Create a new UT1 calendar using [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
+// Create a new UT1 calendar using [IERS bulletin A](https://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
 // data for precise UT1 calculation. Uses linear interpolation between daily UT1-UTC values.
 // This is a convenience function that composes `load-iers-ut1` and `cal-ut1-create`.
 //
 // By default loads the daily and full data from the files `basename` (= `"config/finals2000A"` in the application directory).
 // If the files are not present, they will be downloaded from `url`. The default `url` is:\
-// <http://maia.usno.navy.mil/ser7>\
+// <https://maia.usno.navy.mil/ser7>\
 // Set the `url` to the empty string to suppress automatic downloading.
 // If the ``.daily`` file is older than `download-delay` (=`1.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish (daily file is about 40kb).
@@ -88,12 +88,12 @@ pub fun ts-ut1-load(  basename : string = "finals2000A",
                     ) : <io,async> timescale
   ts-ut1-create( load-iersA( basename, baseurl, download-delay, download-timeout, verbose ) )
 
-// Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
+// Load [IERS bulletin A](https://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
 // information for precise UT1 determination. Loads and caches both the _daily_ and _all_
 // data. Downloads a fresh daily file about every week (`download-delay`) with a given `download-timeout` (=`5`s).
 // The full data is refreshed only every `8*download-delay` (=`8.weeks`). The `basename` gives
 // the basic file name `finals2000A` and the `baseurl` the download URL
-// (= <http://maia.usno.navy.mil/ser7/>).
+// (= <https://maia.usno.navy.mil/ser7/>).
 // Set the `baseurl` to the empty string to suppress automatic downloading. The files are cached
 // in the `config/` directory of the application installation directory.
 // Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
@@ -114,15 +114,15 @@ pub fun load-iersA( basename : string = "finals2000A",
   (fn(i:instant)
     match finals-daily(i)
       Nothing -> finals-all(i)
-      just    -> just 
+      just    -> just
   )
 
-// Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
+// Load [IERS bulletin A](https://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
 // information for precise UT1 determination. Loads the full bulletin A data since 1973
 // with about 1 year of predictions. Uses linear interpolation between daily UT1-UTC values.
 // By default loads the file `fname` (= `"config/finals2000A.all"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
-// <http://maia.usno.navy.mil/ser7/finals2000A.all>\
+// <https://maia.usno.navy.mil/ser7/finals2000A.all>\
 // Set the `url` to the empty string to suppress automatic downloading.
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish (the
@@ -137,13 +137,13 @@ pub fun load-iersA-all( fname : string = "",
   load-latest-iersA( (fname || "finals2000A.all").path, url, download-delay, download-timeout, verbose )
 
 
-// Load the daily [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
+// Load the daily [IERS bulletin A](https://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
 // information for precise UT1 determination. The daily file contains information for the past 90 days
 // with 90 days of predictions. This file is about 40kb and much smaller than the full data.
 // Uses linear interpolation between daily UT1-UTC values.
 // By default loads the file `fname` (= `"config/finals2000A.daily"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
-// <http://maia.usno.navy.mil/ser7/finals2000A.daily>\
+// <https://maia.usno.navy.mil/ser7/finals2000A.daily>\
 // Set the `url` to the empty string to suppress automatic downloading.
 // If the file is older than `download-delay` (=`1.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
@@ -209,7 +209,7 @@ fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<durat
 
 
 // Parse a ``finals2000A.all`` file into a DUT table for precise &Delta;T calculation (using `dut-deltat`)
-// See <http://maia.usno.navy.mil/ser7/finals2000A.all>, or <http://toshi.nofs.navy.mil/ser7/finals2000A.all>
+// See <https://maia.usno.navy.mil/ser7/finals2000A.all>, or <https://toshi.nofs.navy.mil/ser7/finals2000A.all>
 fun parse-iersA( s : string ) : maybe<dut-table>
   val start   = match( s.find(rx-finals-start) )
                   Nothing   -> 41684.0
@@ -281,7 +281,7 @@ fun ut2-offset( i : instant ) : timespan
   // The periodic definition comes from:
   //   McCarthy, Dennis D. (July 1991). "Astronomical Time".
   //   Proceedings of the IEEE. 79 (7): 915-920. doi:10.1109/5.84967.
-  //   <http://www.cl.cam.ac.uk/~mgk25/volatile/astronomical-time.pdf>
+  //   <https://www.cl.cam.ac.uk/~mgk25/volatile/astronomical-time.pdf>
   // and:
   //   P.K.\ Seidelmann.
   //   _Explanatory Supplement to the Astronomical Almanac_. page 85.
@@ -391,10 +391,10 @@ fun deltat-future-approx( y : float64) : float64
   elif y <= 2005.0 then
     val t = y - 2000.0
     63.86 + t*(0.3345 + t*(~0.060374 + t*(0.0017275 + t*(0.000651814 + t*0.00002373599))))
-  elif y <= 2050.0 then 
+  elif y <= 2050.0 then
     val t = y - 2000.0
     62.92 + t*(0.32217 + t*0.005589)
-  elif y <= 2150.0 then 
+  elif y <= 2150.0 then
     val u = (y - 1820.0)/100.0
     ~20.0 + 32.0*u*u - 0.5628*(2150.0 - y)
   else deltat-generic(y)
@@ -445,7 +445,7 @@ fun parse-deltat( determined : string = "", predicted : string = "") : ((year:fl
   val det  = parse-determined(determined)
   val pred = parse-predicted(predicted)
   (fn(year:float64)
-    match det.interpolate(year)    
+    match det.interpolate(year)
       Nothing -> pred.interpolate(year)
       jdt     -> jdt
   )
@@ -484,7 +484,7 @@ val rxcomment = regex(r"//.*")
 //-----------------------------------------------------------------
 
 // Half-yearly history delta-t values from 1750 up to 1987
-  // From: http://maia.usno.navy.mil/ser7/historic_deltat.data
+  // From: https://maia.usno.navy.mil/ser7/historic_deltat.data
 // Note: values before 1750 are excluded as the Espenak & Meeus (2006) estimates are more
 // precise. The values in the original table are from McCarthy and Babcock (1986).
 // Table runs from 1750 to 1987 (excluded) for each half year.
@@ -554,12 +554,12 @@ val deltat-table-historic : () -> deltat-table = once
 // The following two tables should be updated yearly to contain
 // the latest builtin information Delta-T.
 //
-// determined data: <http://maia.usno.navy.mil/ser7/deltat.data>
-// predicted  data: <http://maia.usno.navy.mil/ser7/deltat.preds>
+// determined data: <https://maia.usno.navy.mil/ser7/deltat.data>
+// predicted  data: <https://maia.usno.navy.mil/ser7/deltat.preds>
 //-----------------------------------------------------------------
 
 // Monthly observed delta-t data from 1973 up to 2019
-// See: <http://maia.usno.navy.mil/ser7/deltat.data>
+// See: <https://maia.usno.navy.mil/ser7/deltat.data>
 val deltat-table-determined = once
  parse-determined( r"
   1973  2  1  43.4724
@@ -1117,7 +1117,7 @@ val deltat-table-determined = once
   ")}
 
 // Quarterly Predicted delta-t values, from 2019 upto 2027
-// from <http://maia.usno.navy.mil/ser7/deltat.preds>.
+// from <https://maia.usno.navy.mil/ser7/deltat.preds>.
 val deltat-table-predicted = once
  parse-predicted(r"
   MJD        YEAR    TT-UT Pred  UT1-UTC Pred  ERROR

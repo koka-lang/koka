@@ -38,7 +38,7 @@ pub fun strong-random(action : () -> <random,ndet|e> a) : <ndet|e> a
 // of 2^32. It has a 96-bit state, so the average period is 2^127.
 // The chance of a cycle of less than 2^(32+max(96-k,0)) is 2^-(32+k),
 // (e.g. the chance of a cycle of less than 2^48 is 2^-80).
-// <http://pracrand.sourceforge.net/RNG_engines.txt>
+// <https://pracrand.sourceforge.net/RNG_engines.txt>
 abstract value struct sfc(x:int32, y:int32, z:int32, cnt:int32)
 
 pub value struct sfc-result( rnd : int32, rstate : sfc )

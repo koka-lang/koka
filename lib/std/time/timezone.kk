@@ -9,7 +9,7 @@
 /* Timezone support.
 
 Can load timezone information from a time zone file using `load-timezones`.
-The format of that file is [packed json]([packed json format](http://momentjs.com/timezone/docs/#/data-formats/packed-format).
+The format of that file is [packed json]([packed json format](https://momentjs.com/timezone/docs/#/data-formats/packed-format).
 The latest version can be found at: <https://github.com/moment/moment-timezone/blob/develop/data/packed/latest.json>.
 
 ```
@@ -41,7 +41,7 @@ extern import
   js file "timezone-inline.js"
 
 
-// Load a time zone information from a [packed json](http://momentjs.com/timezone/docs/#/data-formats/packed-format)
+// Load a time zone information from a [packed json](https://momentjs.com/timezone/docs/#/data-formats/packed-format)
 // format. Looks by default for the file `fname` (= `"config/timezones.json"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
 // <https://raw.githubusercontent.com/moment/moment-timezone/develop/data/packed/latest.json>\
@@ -104,7 +104,7 @@ fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-perio
       if (i >= tzp.start.default(i)) then
         //trace("timezone: " + tzp.abbrv + ", start: " + tzp.start.default(i).time.show)
         tzp
-      else 
+      else
         find-offset(i,earlier)
 
 
@@ -136,7 +136,7 @@ pub fun show (tzi : timezone-info, show-periods : bool = False  ) : string
   <https://github.com/moment/moment-timezone/blob/develop/data/packed/latest.json>
 ----------------------------------------------------------------------------*/
 
-// Parse time zone information from a [packed json format](http://momentjs.com/timezone/docs/#/data-formats/packed-format).\
+// Parse time zone information from a [packed json format](https://momentjs.com/timezone/docs/#/data-formats/packed-format).\
 pub fun parse-packed-zones( s : string ) : exn timezones
   // zones
   val zonesfld = match(s.find(rxzones))
@@ -144,7 +144,7 @@ pub fun parse-packed-zones( s : string ) : exn timezones
     Just(cap) -> cap.groups[1].trim
 
   val zonesarr = zonesfld.lines.map fn(line)
-    match line.find(rxzone)    
+    match line.find(rxzone)
       Nothing   -> error("invalid timezone info:\n  " + line)
       Just(cap) -> cap.groups[1]
 
@@ -227,7 +227,7 @@ fun parse-fixed-base60( s : string ) : exn float64
       val sign = if cap.groups[1]=="-" then ~1 else 1
       val num  = parse-base60(cap.groups[2])
       val frac = cap.groups[3].list.foldr(0.0) fn(d,n)
-                    (n + d.digit60.float64) / 60.0                 
+                    (n + d.digit60.float64) / 60.0
       (sign.float64 * num.float64) + frac
 
 
@@ -267,7 +267,7 @@ pub fun timezones( zones : list<timezone-info> )
 // Empty `:timezones`.
 pub val timezones-empty = Timezones([].dict)
 
-// Load time zone information from a [packed json](http://momentjs.com/timezone/docs/#/data-formats/packed-format)
+// Load time zone information from a [packed json](https://momentjs.com/timezone/docs/#/data-formats/packed-format)
 // file. Looks by default for the file `"config/timezones.json"` in the application directory
 // but an optional file name can be supplied.
 // The latest version can be found at: <https://github.com/moment/moment-timezone/blob/develop/data/packed/latest.json>.
