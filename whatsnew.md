@@ -11,6 +11,8 @@ generating direct C code without needing a runtime system. To learn more:
   and running the `Koka: Open samples` command.  
   (when you start typing the command will surface to the top).
 
+### v3.0.x
+
 ### v3.0.1, 2024-01-13:
 
 <img style="float:right; height:18em; border:1px solid gray; margin:1ex" src="images/impliciteq.png"> 
