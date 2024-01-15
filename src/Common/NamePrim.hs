@@ -29,7 +29,7 @@ module Common.NamePrim
           , nameCopy, copyNameOf
           , nameAssign, nameRefSet, nameAssigned
           , nameByref, nameDeref, nameIndex
-          , nameDecreasing, nameSubStr1, nameDec
+          , nameDecreasing, nameSubStr1
           , nameAssert
 
           , nameUnit
@@ -200,6 +200,8 @@ nameTrace   = preludeName "trace"
 nameLog     = preludeName "log"
 namePhantom = preludeName "phantom"
 
+nameIntConst    = preludeName "@int-const"  -- javascript backend
+
 nameCoreFileFile   = qualify nameSystemCore (newLocallyQualified "" "file" "kk-file")
 nameCoreFileLine   = qualify nameSystemCore (newLocallyQualified "" "file" "kk-line")
 nameCoreFileModule = qualify nameSystemCore (newLocallyQualified "" "file" "kk-module")
@@ -213,13 +215,11 @@ nameTpDelay          = preludeName "delay"
 namePatternMatchError = preludeName "error-pattern"
 nameMainConsole      = preludeName "main-console"
 nameSubStr1          = preludeName "substr1"
-nameDec              = preludeName "dec"
-
 
 nameTpArray     = qualify (newName "std/data/array") (newName "array")
 nameVector      = preludeName "unvlist"
 
-namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
+namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr","filter"]
 
 {--------------------------------------------------------------------------
   Lists
@@ -228,11 +228,24 @@ nameListNil     = preludeName "Nil"
 nameCons        = preludeName "Cons"
 nameTpList      = preludeName "list"
 
-nameIntConst    = preludeName "@int-const"
+
+{--------------------------------------------------------------------------
+  std/core/int
+--------------------------------------------------------------------------}
+
+-- conversion functions in core
+nameByte        = coreIntName "uint8"
+nameInt8        = coreIntName "int8"
+nameInt16       = coreIntName "int16"
+nameInt32       = coreIntName "int32"
+nameInt64       = coreIntName "int64"
+nameSSizeT      = coreIntName "ssize_t"
+nameIntPtrT     = coreIntName "intptr_t"
+
+nameIntAdd      = coreIntName "int-add"
+nameIntSub      = coreIntName "int-sub"
 
 
-nameIntAdd      = preludeName "int-add"
-nameIntSub      = preludeName "int-sub"
 
 {--------------------------------------------------------------------------
   Primitive type constructors
@@ -371,8 +384,6 @@ isClauseTailName name
         then Just (read (drop 11 s))
         else Nothing
 
-
-
 {--------------------------------------------------------------------------
   std/core/types
 --------------------------------------------------------------------------}
@@ -435,15 +446,6 @@ nameTpVoid      = coreTypesName "void"
 nameTpUnit      = coreTypesName "unit"
 nameTpBool      = coreTypesName "bool"
 nameTpInt       = coreTypesName "int"
-
--- conversion functions in core
-nameByte        = preludeName "uint8"
-nameInt8        = preludeName "int8"
-nameInt16       = preludeName "int16"
-nameInt32       = preludeName "int32"
-nameInt64       = preludeName "int64"
-nameSSizeT      = preludeName "ssize_t"
-nameIntPtrT     = preludeName "intptr_t"
 
 -- nameTpByte      = coreTypesName "uint8"
 nameTpInt8      = coreTypesName "int8"
@@ -527,14 +529,18 @@ coreHndName s
 coreTypesName s
   = qualify nameCoreTypes (newName s)
 
+coreIntName s
+  = qualify nameCoreInt (newName s)
+
 nameSystemCore  = newModuleName "std/core"
+nameCoreInt     = newModuleName "std/core/int"
 nameCoreHnd     = newModuleName "std/core/hnd"
 nameCoreTypes   = newModuleName "std/core/types"
 nameDict        = newModuleName "std/data/dict"
 
 isSystemCoreName name
   = let m = nameModule name
-    in  m `elem` [nameModule nameSystemCore, nameModule nameCoreHnd, nameModule nameCoreTypes]
+    in  m `elem` [nameModule nameSystemCore, nameModule nameCoreInt, nameModule nameCoreHnd, nameModule nameCoreTypes]
 
 isPrimitiveName name
   = let m = nameModule name
