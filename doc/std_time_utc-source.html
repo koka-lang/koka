@@ -58,10 +58,10 @@ in practice:
   If you need to store a future date, say &#96;&#96;2020-01-01T12:00:00Z&#96;&#96;, then
   store it as an ISO calendar date (&#96;:std/time/time/time&#96;), not as a time stamp.
 
-&#42; Do not use Unix time stamps as those may be ambigious (see &#96;unix-instant&#96;);
+&#42; Do not use Unix time stamps as those may be ambiguous (see &#96;unix-instant&#96;);
   this library
   already defaults to time stamps as SI seconds since &#96;epoch&#96; which are
-  monotonic and unambigious. If no interaction with the user is needed,
+  monotonic and unambiguous. If no interaction with the user is needed,
   consider using TAI time and calendar instead.
 
 ## Effect types and future leap seconds

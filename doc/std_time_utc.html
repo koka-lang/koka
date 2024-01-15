@@ -63,10 +63,10 @@ If you need to store a future date, say <code class="code code2">2020-01-01T12:0
 store it as an ISO calendar date (<code class="koka"><a class="doc link" href="https://koka-lang.github.io/koka/doc/std_time_time.html#type_space_time"><span class="tp">time</span></a></code>), not as a time stamp.
 </p></li>
 <li class="li ul-li list-star-li loose-li">
-<p>Do not use Unix time stamps as those may be ambigious (see <code class="koka">unix<span class="dash">-</span>instant</code>);
+<p>Do not use Unix time stamps as those may be ambiguous (see <code class="koka">unix<span class="dash">-</span>instant</code>);
 this library
 already defaults to time stamps as SI seconds since <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_instant.html#epoch">epoch<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>instant<span class="fslash last">/</span></span>epoch: <span class="tp">instant</span></span></a></code> which are
-monotonic and unambigious. If no interaction with the user is needed,
+monotonic and unambiguous. If no interaction with the user is needed,
 consider using TAI time and calendar instead.
 </p></li></ul>
 <h3 id="sec-effect-types-and-future-leap-seconds" class="h2" data-heading-depth="2" style="display:block"><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Effect types and future leap seconds</h3>
