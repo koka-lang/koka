@@ -531,10 +531,11 @@
 
 
     "top_type_type":
-      { "begin": "((?:(?:value|ref|open|extend|rec|co)?\\s*type)|(?:named\\s+)?(?:scoped\\s+)?(?:linear\\s+)?(?:rec\\s+)?(?:effect|context|ambient))\\s+(?!fn|fun|val|raw|final|ctl|ret)([a-z][\\w\\-]+|<>|<\\|>|\\(,*\\))"
+      { "begin": "((?:(?:value|ref|open|extend|rec|co)?\\s*type)|(?:named\\s+)?(?:scoped\\s+)?(?:linear\\s+)?(?:rec\\s+)?(?:effect|context|ambient))\\s+(?!fn|fun|val|raw|final|ctl|ret)((?:[@a-z][\\w\\-@]*/#?)*)(@?[a-z][\\w\\-@]*[\\']*)"
       , "end": "(?=[\\)\\{\\}\\[\\]=;\"`A-Z]|  [\\r\\n]|(infix|infixr|infixl|inline|noinline|fip|fbip|tail|type|co|rec|effect|context|ambient|alias|extern|fn|fun|function|val|var|raw|final|ctl|con|if|then|else|elif|match|inject|mask|named|handle|handler|return|module|import|as|pub|abstract|value|ref|open|extend)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type koka.keyword" }
-                         , "2" : { "name": "constant.numeric.type support.type koka.type.typecon" }}
+                         , "2" : { "name": "entity.name.variable koka.moduleid" }
+                         , "3" : { "name": "constant.numeric.type support.type koka.type.typecon" }}
       , "endCaptures": { "0": { "name": "punctuation.separator koka.special" }}
       , "patterns": [
           {"include": "#type_content_top" }
@@ -557,10 +558,11 @@
       },
 
     "top_type_struct":
-      { "match": "((?:(?:value|ref)\\s*)?struct)\\s+([a-z][\\w\\-]*|\\(,*\\))"
+      { "match": "((?:(?:value|ref)\\s*)?struct)\\s+((?:[@a-z][\\w\\-@]*/#?)*)(@?[a-z][\\w\\-@]*[\\']*)"
       , "captures": {
           "1": { "name": "keyword.declaration koka.keyword.struct" },
-          "2": { "name": "constant.numeric.type support.type koka.type.typecon" }
+          "2": { "name": "entity.name.variable koka.moduleid" },
+          "3": { "name": "constant.numeric.type support.type koka.type.typecon" }
         }
       },
 
