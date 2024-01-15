@@ -90,7 +90,7 @@ See also &lt;https://en.wikipedia.org/wiki/Double-precision&#95;floating-point&#
 <span class="comment">// Smallest positive normalized float64 value
 </span><span class="decl-val" id="flt_min"><span class="kw">pub</span> <span class="kw">val</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_num_float64.html#flt_min">flt-min<span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>float64<span class="fslash last">/</span></span>flt<span class="dash">-</span>min: <span class="tp">float64</span></span></a>     <span class="kw">=</span> <span class="number">0x1.0p-1022</span></span> <span class="comment">// 2.22507385850720138309e-308
 </span>
-<span class="comment">// Smallest positive subnormal value (i.e. [&#96;&#96;DBL&#95;TRUE&#95;MIN&#96;&#96;](http://en.cppreference.com/w/cpp/types/climits))
+<span class="comment">// Smallest positive subnormal value (i.e. [&#96;&#96;DBL&#95;TRUE&#95;MIN&#96;&#96;](https://en.cppreference.com/w/cpp/types/climits))
 </span><span class="decl-val" id="flt_true_min"><span class="kw">pub</span> <span class="kw">val</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_num_float64.html#flt_true_min">flt-true-min<span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>float64<span class="fslash last">/</span></span>flt<span class="dash">-</span>true<span class="dash">-</span>min: <span class="tp">float64</span></span></a><span class="kw">=</span> <span class="number">0x1.0p-1074</span></span> <span class="comment">// 4.9406564584124654418e-324
 </span>
 <span class="comment">// Machine epsilon: the difference between 1.0 and the next representable &#96;:float64&#96; value.
@@ -495,7 +495,7 @@ See also &lt;https://en.wikipedia.org/wiki/Double-precision&#95;floating-point&#
 
 
 <span class="comment">// Linear interpolation, calculating &#96;x + t&#42;(y - x)&#96; but avoids troublesome edge cases.
-// Follows the C++20 [specification](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html).
+// Follows the C++20 [specification](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html).
 // In particular, if &#96;x.is-finite &amp;&amp; y.is-finite&#96;, then:
 // - exact: &#96;lerp(x,y,0.0) == x&#96; and  &#96;lerp(x,y,1.0) == y&#96;
 // - monotonic: if &#96;x &lt;= y&#96; and &#96;t1 &lt;= t2&#96;, then &#96;cmp( lerp(x,y,t1), lerp(x,y,t2) ) &lt;= Eq&#96; (and other cases)

@@ -73,7 +73,7 @@ The different time scales relate as follows:
    seconds in a coordinate reference frame at the gravitational center of the solar
    system. TCB and TCG are related by a coordinate transformation taking
    into account relativistic effects (see IAU 2000 resolution
-   [B1.5](http://syrte.obspm.fr/IAU&#95;resolutions/Resol-UAIEng.ps)). In the
+   [B1.5](https://syrte.obspm.fr/IAU&#95;resolutions/Resol-UAIEng.ps)). In the
    library, instead of transforming TCG, we compute TCB from (the
    approximated) TDB (&#96;ts-tdb&#96;) using the IAU 2006 resolution [B3][IAU-B3]:\
    TDB = TCB - L~b~ &amp;times; (JD~TCB~ - T~0~) &amp;times; 86400 + TDB~0~,
@@ -116,26 +116,26 @@ your own time scale which uses a potentially more precise approximation using
 L.\ Fairhead and P.\ Bretagnon.
 &#95;An analytical formula for the time transformation TB-TT&#95;.
 Astronomy and Astrophysics, vol. 229, no. 1, March 1990, p. 240--247.
-[ADS](http://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle&#95;query?1990A%26A...229..240F)
+[ADS](https://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle&#95;query?1990A%26A...229..240F)
 ~~
 
 ~~ BibItem { #Kaplan:circ; bibitem-label:"[2]"; searchterm:"Kaplan+The+IAU+Resolutions+on+Astronomical+Reference+Systems" }
 George H.\ Kaplan.
 &#95;The IAU Resolutions on Astronomical Reference Systems,
 Time Scales, and Earth Rotation Models -- Explanation and Implementation&#95;.
-USNO Circular [179](http://aa.usno.navy.mil/pubations/docs/Circular&#95;179.pdf)
+USNO Circular [179](https://aa.usno.navy.mil/pubations/docs/Circular&#95;179.pdf)
 ~~
 
 ~~ BibItem { #Seidelmann:why; bibitem-label:"[3]"; searchterm:"Seidelmann+Fukushima+Why+new+time+scales" }
 P.K.\ Seidelmann and T.\ Fukushima.
 &#95;Why new time scales?&#95;
 Astronomy and Astrophysics, vol. 265, no. 2, p. 833--838.
-[ADS](http://adsabs.harvard.edu/full/1992A%26A...265..833S)
+[ADS](https://adsabs.harvard.edu/full/1992A%26A...265..833S)
 ~~
 
 ~
 
-[IAU-B3]: http://www.iau.org/static/resolutions/IAU2006&#95;Resol3.pdf
+[IAU-B3]: https://www.iau.org/static/resolutions/IAU2006&#95;Resol3.pdf
 [IAU-IV]: https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932
 [IERS-2010]: https://www.iers.org/SharedDocs/Publikationen/EN/IERS/pubations/tn/TechnNote36/tn36.pdf?&#95;&#95;blob=pubationFile&amp;v=1
 [TIpropose]: https://syrte.obspm.fr/journees2004/pdf/McCarthy2.pdf#page=4
@@ -371,7 +371,7 @@ pub val cal-tcb  = iso-calendar( ts-tcb )//, fixed(32184,3) )
 // a different TCB time scale (using &#96;ts-tdb-create&#96;) you can use
 // this function to create a TCB time scale from it. It computes
 // TCB from the provided TDB using the IAU 2006 resolution
-// [B3](http://www.iau.org/static/resolutions/IAU2006&#95;Resol3.pdf):\ TDB = TCB -
+// [B3](https://www.iau.org/static/resolutions/IAU2006&#95;Resol3.pdf):\ TDB = TCB -
 // L~b~ &amp;times; (JD~TCB~ - T~0~) &amp;times; 86400 + TDB~0~, with T~0~ =
 // 2443144.5003725, L~b~ = 1.55051976772&amp;times;10^-8^, TDB~0~ =
 // -6.55&amp;times;10^-5^.
