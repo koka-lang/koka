@@ -119,3 +119,10 @@ li {
 .banner {
   before: "[&caption;]{.banner-caption}";
 }
+
+flexrow {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  .tight;
+}

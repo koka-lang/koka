@@ -14,12 +14,10 @@ import std/num/random
 This is a short introduction to the &koka; programming language.
 
 &koka; is a _function-oriented_ language that separates pure values from
-side-effecting computations (The word 'k&omacron;ka' (or &#x52B9;&#x679C;) means
-"effect" or "effective" in Japanese). &koka; is also
-flexible and `fun`: &koka; has many features that help programmers to easily
-change their data types and code organization correctly even in large-scale
-programs, while having a small strongly-typed language core with a familiar
-brace syntax.
+side-effecting computation (Given the importance of effect typing,
+the name &koka; was derived from the Japanese word for
+_effective_
+(&#x52B9;&#x679C;, &#12371;&#12358;&#12363;, [K&omacron;ka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C))). 
 
 ## Basics { #sec-basics }
 
@@ -132,14 +130,13 @@ For example, here is how we can print the numbers
 fun main() { print10() }
 ////
 fun print10()
-  for(1,10) fn(i) {
+  for(1,10) fn(i)
     println(i)
-  }
 ```
 
 which is desugared to `for( 1, 10, fn(i){ println(i) } )`. (In fact, since we
 pass the `i` argument directly to `println`, we could have also passed the function itself
-directly, and write `for(1,10,println)`.)
+directly as `for(1,10,println)`.)
 
 Anonymous functions without any arguments can be shortened further by leaving
 out the `fn` keyword as well and just use braces directly. Here is an example using
@@ -149,12 +146,12 @@ the `repeat` function:
 fun main() { printhi10() }
 ////
 fun printhi10()
-  repeat(10) {
+  repeat(10)
     println("hi")
-  }
 ```
 
-where the body desugars to `repeat( 10, fn(){println(``hi``)} )`. The is
+where the body desugars to `repeat( 10, { println(``hi``) } )` which 
+desugars further to `repeat( 10, fn(){ println(``hi``)} )`. The is
 especially convenient for the `while` loop since this is not a built-in
 control flow construct but just a regular function:
 
@@ -163,10 +160,9 @@ fun main() { print11() }
 ////
 fun print11()
   var i := 10
-  while { i >= 0 } {
+  while { i >= 0 }
     println(i)
     i := i - 1
-  }
 ```
 
 Note how the first argument to `while` is in braces instead of the usual
@@ -175,28 +171,13 @@ before a function call, whereas an expression between _braces_ (ah,
 _suspenders_!) is suspended and may be never evaluated or more than once
 (as in our example).
 
-Of course, the previous examples can also use identation and elide
-the braces (see Section [#sec-layout]), and a more typical way of writing these is:
-```unchecked
-fun printhi10()
-  repeat(10)
-    println("hi")
-
-fun print11()
-  var i := 10
-  while { i >= 0 }
-    println(i)
-    i := i - 1
-```
-
-
 ### With Statements { #sec-with; }
 
 To the best of our knowledge, &koka; was the first language to have
 generalized _trailing lambdas_. It was also one of the first languages
 to have _dot notation_ (This was independently developed but it turns out
-the D language has a similar feature (called [UFCS](https://tour.dlang.org/tour/en/gems/uniform-function-call-syntax-ufcs)) which predates dot-notation). Another novel
-syntactical feature is the `with` statement.
+the D language has a similar feature (called [UFCS](https://tour.dlang.org/tour/en/gems/uniform-function-call-syntax-ufcs)) which predates dot-notation). 
+Another novel syntactical feature is the `with` statement.
 With the ease of passing a function block as a parameter, these
 often become nested. For example:
 ```
@@ -294,19 +275,18 @@ it is all just function applications with minimal syntactic sugar.
 
 The `with` statement is especially useful in combination with
 effect handlers. An effect describes an abstract set of operations
-whose concrete implementation can be supplied by a handler.
-
+whose concrete implementation can be dynamically bound by a handler.
 Here is an example of an effect handler for emitting messages:
 ```
-// Emitting messages; how to emit is TBD.  Just one abstract operation: emit.
+// declare an abstract operation: emit, how it emits is defined dynamically by a handler.
 effect fun emit(msg : string) : ()
 
-// Emits a standard greeting.
-fun hello()
+// emit a standard greeting.
+fun hello() : emit ()
   emit("hello world!")
 
-// Emits a standard greeting to the console.
-pub fun hello-console1()
+// emit a standard greeting to the console.
+pub fun hello-console1() : console ()
   with handler
     fun emit(msg) println(msg)
   hello()
@@ -332,7 +312,7 @@ with handler{ ctl op(x){ <body> } }
 ```
 ~
 
-Using this convenience, we can write the previous example in a more concise and natural way as:
+Using this convenience, we can write the previous example in more concisely as:
 
 ```unchecked
 pub fun hello-console2()
@@ -340,8 +320,8 @@ pub fun hello-console2()
   hello()
 ```
 
-Intuitively, we can view the handler `with fun emit` as a dynamic binding of the function `emit`
-over the rest of the scope.
+Intuitively, we can view the handler `with fun emit` as a (statically typed) dynamic binding 
+of the function `emit` over the rest of the scope.
 
 [Read more about effect handlers &adown;][#sec-handlers]
 {.learn}
@@ -392,11 +372,14 @@ fun sublist( xs : list<a>, start : int, len : int = xs.length ) : list<a>
 
 Hover over the `sublist` identifier to see its full type, where the ``len``
 parameter has gotten an optional `:int` type signified by the question mark:
-`:?int`.
+`: ? int`.
 
 
 ### A larger example: cracking Caesar encoding
 
+Here is a slightly larger program inspired by an 
+example in Graham Hutton's most 
+excellent "[Programming in Haskell](http://www.cs.nott.ac.uk/~pszgmh/pih.html)" book:
 
 ```
 fun main()

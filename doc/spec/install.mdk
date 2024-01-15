@@ -58,15 +58,26 @@ Once installed, the samples directory is opened. You can also open this
 manually from the command panel (``Ctrl/Cmd+Shift+P``),
 and running the ``Koka: Open samples`` command (when you start typing the command will surface to the top).
 Open for example the ``basic/caesar.kk`` file:
+When you click ``run debug`` (or ``optimized``) &koka; compiles and runs the function,
+showing the output in the VS Code terminal.
 
 ![vscode-caesar]
 
-[vscode-caesar]: images/vscode-caesar.png "VS Code caesar examples" { width:60%; min-width:300px; }
-
-When you click ``run debug`` (or ``optimized``) &koka; compiles and runs the function,
-showing the output in the VS Code terminal.\
 Press and hold `ctrl+alt` (or `ctrl+option` on MacOS) to show inlay hints -- showing inferred
-types, full qualified names, and implicit arguments.
+types, fully qualified names, and implicit arguments.
+
+~ begin flexrow { margin-top:-1em; }
+![vscode-inlay-off]
+
+&quad;versus&quad;
+
+![vscode-inlay-on]
+~ end flexrow
+
+
+[vscode-caesar]: images/vscode-caesar.png "VS Code caesar examples" { width:60%; min-width:400px; }
+[vscode-inlay-off]: images/vscode-inlay-off.png "VS Code example without inlay hints" { height:4em; min-width:200px; }
+[vscode-inlay-on]:  images/vscode-inlay-on.png "VS Code example with inlay hints on" { height:4em; min-width:200px; }
 
 
 ### Manual Installation

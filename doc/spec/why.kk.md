@@ -177,7 +177,7 @@ fun traverse( xs : list<int> ) : yield ()
 The `traverse` function calls `yield` and therefore gets the `:yield` effect in its type,
 and if we want to use `traverse`, we need to _handle_ the `:yield` effect. 
 This is much like defining an exception handler, except we can receive values (here an `:int`),
-and we can _resume_ with a result (which determines if we keep traversing):
+and we can _resume_ to the call-site with a result (here, with a boolean that determines if we keep traversing):
 ```
 fun print-elems() : console () 
   with ctl yield(i)
@@ -185,12 +185,13 @@ fun print-elems() : console ()
     resume(i<=2)
   traverse([1,2,3,4])
 ```
-The `with` statement binds the handler for `yield` control operation over the
+The `with` statement dynamically binds the handler for `yield` control operation over the
 rest of the scope, in this case `traverse([1,2,3,4])`. 
 Every time `yield` is called, our control handler is called, prints the current value,
-and resumes to the call site with a boolean result (indeed, dynamic binding with static typing!).
-Note how the handler discharges the `:yield` effect -- and replaces
-it with a `:console` effect. When we run the example, we get:
+and resumes to the call-site with a boolean result.
+The dynamic binding here is quite safe since we still use static typing! Indeed,
+the handler discharges the `:yield` effect -- and replaces
+it with a `:console` effect (due to `println`). When we run the example, we get:
 ````
 yielded: 1
 yielded: 2
@@ -389,12 +390,12 @@ on arm64 become:
 ````arm64
 spec_fold:
   ...                       
-  LBB15_3:   
+  LOOP0:   
     mov  x21, x0              ; x20 is t, x21 = acc (x19 = koka context _ctx)
-  LBB15_4:                    ; the "match(t)" point
+  LOOP1:                      ; the "match(t)" point
     cmp  x20, #9              ; is t a Leaf?
     b.eq LBB15_1              ;   if so, goto Leaf brach
-  LBB15_5:                    ;   otherwise, this is the Cons(_,l,k,v,r) branch
+  LBB15_5:                    ;   otherwise, this is the Node(_,l,k,v,r) branch
     mov  x23, x20             ; load the fields of t:
     ldp  x22, x0, [x20, #8]   ;   x22 = l, x0 = k   (ldp == load pair)
     ldp  x24, x20, [x20, #24] ;   x24 = v, x20 = r  
@@ -410,15 +411,15 @@ spec_fold:
     mov  x2, x19
     bl   spec_fold
     cmp  x24, #1              ; boxed value is False? 
-    b.eq LBB15_3              ;   if v is False, the result in x0 is the accumulator
+    b.eq LOOP0                ;   if v is False, the result in x0 is the accumulator
     add  x21, x0, #4          ; otherwise add 1 (as a small int 4*n)
     orr  x8, x21, #1          ;   check for bigint or overflow in one test 
     cmp  x8, w21, sxtw        ;   (see kklib/include/integer.h for details)
-    b.eq LBB15_4              ; and tail-call into spec_fold if no overflow or bigint
+    b.eq LOOP1                ; and tail-call into spec_fold if no overflow or bigint
     mov  w1, #5               ; otherwise, use generic bigint addition              
     mov  x2, x19
     bl   _kk_integer_add_generic
-    b    LBB15_3
+    b    LOOP0   
   ...
 ````
 
@@ -432,7 +433,7 @@ no longer live. This is usually earlier than scope-based deallocation
 (like RAII) and therefore Perceus can guarantee to be _garbage-free_ 
 where in a (cycle-free) program objects are always immediatedly
 deallocated as soon as they become unreachable [@Reinking:perceus;@Lorenzen:reuse-tr;@Lorenzen:fip;@Lorenzen:fip-tr].
-Moreover, it is fully deterministic and behaves just like regular 
+Moreover, it is deterministic and behaves just like regular 
 malloc/free calls.
 Reference counting may still seem expensive compared to trace-based garbage collection
 which only (re)visits all live objects and never needs to free objects

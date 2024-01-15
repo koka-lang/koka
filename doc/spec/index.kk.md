@@ -128,11 +128,11 @@ Welcome to &koka; -- a strongly typed functional-style language with effect type
 {text-align:left;}
 
 ~ smaller { font-size:smaller; }
-Note: &koka; v2 is a research language that is currently under development
-and not ready for production use. 
+Note: &koka; v3 is a research language that is currently under development
+and not ready for production use.
 Nevertheless, the language is stable and the compiler
-implements the full specification. The main things lacking at the moment are 
-libraries, package management, and deep IDE integration. 
+implements the full specification. The main things lacking at the moment are
+(async) libraries and package management.
 
 [INCLUDE=news]
 
