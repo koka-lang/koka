@@ -395,13 +395,13 @@ fun finalize(cont : (() -> b) -> e r, res : a) : e a
 inline extern add(i : int, j : int) : int
   c  "kk_integer_add"
   cs inline "(#1 + #2)"
-  js inline "(#1 + #2)" // "$std_core._int_add"
+  js inline "(#1 + #2)" // "$std_core_int._int_add"
 
 // are two integers equal?
 inline extern eq( ^x : int, ^y : int) : bool
   c  "kk_integer_eq_borrow"
   cs inline "(#1 == #2)"
-  js inline "(#1 == #2)" // $std_core._int_eq"
+  js inline "(#1 == #2)" // $std_core_int._int_eq"
 
 
 pub fun initially(init : (int) -> e (), action : () -> e a ) : e a

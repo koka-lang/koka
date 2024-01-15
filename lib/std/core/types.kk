@@ -15,10 +15,16 @@
 */
 module std/core/types
 
+pub infixr 80  (^)
+pub infixl 70  (*), (%), (/), cdiv, cmod
 pub infixr 60  (++)
+pub infixl 60  (+), (-)
 pub infixr 55  (++.)
+pub infix  40  (!=), (==), (<=), (>=), (<), (>)
 pub infixr 30  (&&)
 pub infixr 20  (||)
+// prefix     (!), (-)
+
 
 // build: 124
 
@@ -184,6 +190,15 @@ pub type order
   Lt
   Eq
   Gt
+
+// The type of lists, which can be either empty (`Nil`) or an element followed
+// by a list (`Cons`).
+pub type list<a>
+  // The empty list.
+  con Nil                  // note: must come first; see Core/Core.hs
+  // A ``head``  element followed by the ``tail``  of the list.
+  con Cons(head:a, tail : list<a> )
+
 
 // Explicitly box values using the `Box` constructor.
 pub value type box<a>
@@ -408,36 +423,36 @@ pub inline fip extern "@cctx-hole-create"() : a
 // _Internal_. Create an initial non-empty context.
 pub inline fip extern "@cctx-create"( x : a, xhole : field-addr<b> ) : cctx<a,b>
   c   "kk_cctx_create"
-  js  "_cctx_create"
+  js  "$std_core_types._cctx_create"
 
 // _Internal_. Extend a constructor context with a non-empty context
 pub inline fip extern "@cctx-extend"( c : cctx<a,b>, x : b, xhole : field-addr<c> ) : cctx<a,c>
   c inline "kk_cctx_extend(#1,#2,#3,false /*is-linear*/,kk_context())"
-  js "_cctx_extend"
+  js "$std_core_types._cctx_extend"
 
 // _Internal_. Compose a constructor context with a non-empty context
 pub inline fip extern "@cctx-compose-extend"( c1 : cctx<a,b>, c2 : cctx<b,c> ) : cctx<a,c>
   c inline "kk_cctx_extend(#1,#2.res,#2.holeptr,false /*is-linear*/,kk_context())"
-  js "_cctx_compose"
+  js "$std_core_types._cctx_compose"
 
 // Apply a constructor context
 pub inline fip extern index( c : cctx<a,b>, x : b ) : a
   c inline "kk_cctx_apply(#1,#2,false /*is-linear*/,kk_context())"
-  js "_cctx_apply"
+  js "$std_core_types._cctx_apply"
 
 // Apply a constructor context.
 pub inline fip extern (++.)( c : cctx<a,b>, x : b ) : a
   c inline "kk_cctx_apply(#1,#2,false /*is-linear*/,kk_context())"
-  js "_cctx_apply"
+  js "$std_core_types._cctx_apply"
 
 // Compose two constructor contexts.
 pub inline fip extern (++)( c1 : cctx<a,b>, c2 : cctx<b,c> ) : cctx<a,c>
   c inline "kk_cctx_compose(#1,#2,false /*is-linear*/,kk_context())"
-  js "_cctx_compose"
+  js "$std_core_types._cctx_compose"
 
 // Create an empty context
 pub inline fip extern cctx-empty() : cctx<a,a>
   c  "kk_cctx_empty"
-  js "_cctx_empty"
+  js "$std_core_types._cctx_empty"
 
 

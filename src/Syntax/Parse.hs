@@ -249,7 +249,7 @@ programBody vis source modName nameRange doc
        return (Program source [] modName nameRange [TypeDefRec typeDefs] [DefRec defs]
                  (prelude ++ imports) externals (concat fixDefss) doc)
   where
-    prelude = if (show modName `startsWith` "std/core")
+    prelude = if (isSystemCoreName modName)
                then []
                else [Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private]
 

@@ -200,7 +200,7 @@ nameTrace   = preludeName "trace"
 nameLog     = preludeName "log"
 namePhantom = preludeName "phantom"
 
-nameIntConst    = preludeName "@int-const"  -- javascript backend
+nameIntConst    = coreIntName "@int-const"  -- javascript backend
 
 nameCoreFileFile   = qualify nameSystemCore (newLocallyQualified "" "file" "kk-file")
 nameCoreFileLine   = qualify nameSystemCore (newLocallyQualified "" "file" "kk-line")
@@ -217,16 +217,16 @@ nameMainConsole      = preludeName "main-console"
 nameSubStr1          = preludeName "substr1"
 
 nameTpArray     = qualify (newName "std/data/array") (newName "array")
-nameVector      = preludeName "unvlist"
+nameVector      = coreVectorName "unvlist"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr","filter"]
 
 {--------------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------------}
-nameListNil     = preludeName "Nil"
-nameCons        = preludeName "Cons"
-nameTpList      = preludeName "list"
+nameListNil     = coreTypesName "Nil"
+nameCons        = coreTypesName "Cons"
+nameTpList      = coreTypesName "list"
 
 
 {--------------------------------------------------------------------------
@@ -300,10 +300,10 @@ nameTpIO        = preludeName "io"
 
 nameTpNamed     = preludeName "nmd"
 nameTpScope     = preludeName "scope"
-nameTpPartial   = preludeName "exn"
 nameTpPure      = preludeName "pure"
+nameTpPartial   = coreExnName "exn"
 
-nameTpException  = preludeName "exception"
+nameTpException  = coreExnName "exception"
 
 nameTpMDict     = qualify nameDict (newName "mdict")
 nameTpDict      = qualify nameDict (newName "dict")
@@ -529,18 +529,19 @@ coreHndName s
 coreTypesName s
   = qualify nameCoreTypes (newName s)
 
-coreIntName s
-  = qualify nameCoreInt (newName s)
+coreIntName s   = newQualified "std/core/int" s
+coreListName s  = newQualified "std/core/list" s
+coreExnName s   = newQualified "std/core/exn" s
+coreVectorName s= newQualified "std/core/vector" s
 
 nameSystemCore  = newModuleName "std/core"
-nameCoreInt     = newModuleName "std/core/int"
 nameCoreHnd     = newModuleName "std/core/hnd"
 nameCoreTypes   = newModuleName "std/core/types"
 nameDict        = newModuleName "std/data/dict"
 
 isSystemCoreName name
   = let m = nameModule name
-    in  m `elem` [nameModule nameSystemCore, nameModule nameCoreInt, nameModule nameCoreHnd, nameModule nameCoreTypes]
+    in  (m == "std/core" || m `startsWith` "std/core/")
 
 isPrimitiveName name
   = let m = nameModule name

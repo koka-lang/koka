@@ -1,6 +1,7 @@
 module std/core/int
 
 import std/core/types
+import std/core/hnd
 
 extern import
   js file "int-inline.js"
@@ -145,6 +146,12 @@ pub inline fip extern abs(i : int) : int
   c  "kk_integer_abs"
   cs "BigInteger.Abs"
   js "$std_core_int._int_abs"
+
+pub fun order( i : int ) : order
+  if i < 0 then Lt
+  elif i > 0 then Gt
+  else Eq
+
 
 // Increment
 pub fip fun inc( i : int ) : int
