@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2021, Microsoft Research, Daan Leijen.
+  Copyright 2012-2024, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -378,8 +378,14 @@ div.nested {
       ; padding: 0.5ex 2em 1ex 0.5ex
       /* ; width: 10.5em; */
       ; white-space: nowrap
-      ; border-bottom: 1px solid #AAA
+      /* ; border-bottom: 1px solid #AAA */
       }
+
+.koka.doc div.toc {
+  margin-top: 1em;
+  border: 1px solid #AAA;
+  border-radius: 0.5ex;
+}
 
 .koka.doc ul.toc li.nested
       { padding-left: 1em
@@ -399,12 +405,15 @@ div.nested {
 /* Index documentation */
 .koka table.index {
   border: 1px solid #AAA;
+  line-height: 1.1;
+  border-radius: 0.5ex;
+  margin-bottom: 1em;
+  width:100%;
 }
 
 .koka.doc table.index td {
   vertical-align: top;
   padding-right: 2.5em;
-  padding-bottom: 0.5ex;
 }
 
 .koka.doc table.index .nested1 {
@@ -417,6 +426,10 @@ div.nested {
 
 .koka.doc table.index .nested3 {
   margin-left: 4em;
+}
+
+.koka.doc table.index td.code {
+  width:10em;
 }
 
 /* Print in black&white. Commented out for now  */

@@ -346,6 +346,8 @@ fmtModuleName name
   = fmtNameString (show name)
 
 fmtName :: Name -> String
+fmtName name | isImplicitParamName name
+  = cspan "localqualifier" "?" ++ fmtName (fromImplicitParamName name)
 fmtName name
   = let lqual = nameLocalQual name
         stem  = fmtNameString (show (unqualifyFull name))

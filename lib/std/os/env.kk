@@ -7,7 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 /*
-Access to the program environment and commmand line arguments.
+Access to the program environment and command line arguments.
 
 Print the environment: `get-env().map(fn(p) { p.fst + "=" + p.snd }).join("\n").print`
 */

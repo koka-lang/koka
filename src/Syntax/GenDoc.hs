@@ -17,6 +17,7 @@ import Lib.Trace
 import Prelude hiding (span)
 import Data.List( sortBy, intersperse, partition )
 import Data.Char( isSpace, toUpper)
+import Control.Monad( when )
 import Common.File( dirname, extname, basename )
 import Lib.Printer
 import Common.Name
@@ -40,6 +41,8 @@ import Syntax.RangeMap( mangle, mangleTypeName, mangleConName )
 
 genDoc :: Printer p => Env -> KGamma -> Gamma -> Core -> p -> IO ()
 genDoc env kgamma gamma core p
+  {-
+  -- is this a pure exporting module (like `std/time`)
   | noDeclarations
     -- && all (\imp -> importVis imp == Private) (coreProgImports core)
     && not (null (coreProgImports core))
@@ -52,16 +55,22 @@ genDoc env kgamma gamma core p
        writeLn p $ ptag "h2" "" "Description"
        writeLn p $ showDoc env kgamma gamma (coreProgDoc core)
 
+  -- regular modules
   | otherwise
+  -}
   = -- trace ("genDoc: " ++ show (coreProgName core, noDeclarations, map importVis (coreProgImports core))) $
     htmlBody $
     do writeLn p $ ptag "h1" "" ( (atag (linkFromModName env (coreProgName core) "-source") $ span "module" $ fmtModuleName (coreProgName core))
                                  ++ (atag "toc.html" (span "toc-link" "&#x25b2;toc")))
-       writeLn p $ doctag "div" "toc code" $ concatMap (doctag "ul" "toc") $ filter (not . null) $ map concat tocFmts
-       -- writeLn p $ ptag "h2" "" "Description"
+       when (not (null publicImports)) $
+         do writeLn p $ fmtImports env kgamma gamma publicImports
+
+       when (not noDeclarations) $
+         do writeLn p $ doctag "div" "toc code" $ concatMap (doctag "ul" "toc") $ filter (not . null) $ map concat tocFmts
+
        writeLn p $ showModuleDoc env kgamma gamma (coreProgDoc core)
-       -- writeLn p $ ptag "h2" "" "Exports"
-       mapM_ (writeLn p) (map (fmtPublicImport env kgamma gamma) publicImports)
+
+       -- mapM_ (writeLn p) (map (fmtPublicImport env kgamma gamma) publicImports)
        mapM_ (writeLn p) (map (fmtTypeDef env kgamma gamma) typeDefsDefs)
        mapM_ (writeLn p) (map (fmtDef env kgamma gamma) otherDefs)
        writeLn p $ fmtPrivateImports env kgamma gamma privateImports
@@ -274,7 +283,7 @@ splitModuleDoc doc
                       dropWhile isSpace $
                       removeComment doc
     in (capitalize $ pre,
-        dropWhile (\c -> (c=='.' || isSpace c)) post)
+        reverse $ ('.' :) $ dropWhile (\c -> (c=='.' || isSpace c)) $ reverse post)
   where
     extract acc s
       = case s of

@@ -247,11 +247,12 @@ programBody vis source modName nameRange doc
        many semiColon
        let (defs,typeDefs,externals) = splitTopDefs (concat topDefss)
        return (Program source [] modName nameRange [TypeDefRec typeDefs] [DefRec defs]
-                 (prelude ++ imports) externals (concat fixDefss) doc)
+                 (prelude imports) externals (concat fixDefss) doc)
   where
-    prelude = if (isSystemCoreName modName)
-               then []
-               else [Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private]
+    prelude imports
+      = if (isSystemCoreName modName || any (\imp -> importName imp == nameSystemCore) imports)
+          then imports
+          else [Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private] ++ imports
 
 braced p
   = do lcurly
