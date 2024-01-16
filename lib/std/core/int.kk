@@ -21,8 +21,8 @@ module std/core/int
 import std/core/types
 
 extern import
-  c  file "int-inline.h"
-  js file "int-inline.js"
+  c  file "inline/int.h"
+  js file "inline/int.js"
 
 // Compare two integers
 pub inline fip fun cmp(^x : int, ^y : int) : order
@@ -298,4 +298,63 @@ noinline extern xparse( s : string, hex : bool ) : maybe<int>
   c  "kk_integer_xparse"
   cs "Primitive.IntParse"
   js "_int_parse"
+
+
+
+// ----------------------------------------------------------------------------
+// int8, int16, intptr_t
+// ----------------------------------------------------------------------------
+
+// clamp an `:int` to fit in an `:int8`.
+pub fip extern int8( i : int) : int8
+  c  "kk_integer_clamp_int8"
+  cs "Primitive.IntToInt8"
+  js "$std_core_types._int_clamp8"
+
+// Convert an `:int8` to an `:int`.
+pub inline fip extern int8/int( i : int8 ) : int
+  c  "kk_integer_from_int8"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core_types._int_from_int32"
+
+
+// clamp an `:int` to fit in an `:int8` but interpret the `:int` as an unsigned 8-bit value,
+// and clamp between 0 and 255.
+pub fip extern uint8( i : int) : int8
+  c  "kk_integer_clamp_byte"
+  cs "Primitive.IntToUInt8"
+  js "$std_core_types._int_clamp_byte"
+
+// Convert an `:int8` to an `:int` but interpret the `:int8` as an unsigned 8-bit value between 0 and 255.
+pub inline fip extern int8/uint( i : int8 ) : int
+  c  "kk_integer_from_uint8"
+  cs inline "(new BigInteger(#1 >= 0 ? #1 : 256 + #1))"
+  js "$std_core_types._int_from_int32"
+
+
+// clamp an `:int` to fit in an `:int16`.
+pub fip extern int16( i : int) : int16
+  c  "kk_integer_clamp_int16"
+  cs "Primitive.IntToInt16"
+  js "$std_core_types._int_clamp16"
+
+// Convert an `:int16` to an `:int`.
+pub inline fip extern int16/int( i : int16 ) : int
+  c  "kk_integer_from_int16"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core_types._int_from_int32"
+
+
+
+// clamp an `:int` to fit in an `:intptr_t`.
+pub fip extern intptr_t( i : int) : intptr_t
+  c  "kk_integer_clamp_intptr_t"
+  cs "Primitive.IntToInt64"
+  js "$std_core_types._int_clamp64"
+
+// Convert an `:intptr_t` to an `:int`.
+pub inline fip extern intptr_t/int( i : intptr_t ) : int
+  c  "kk_integer_from_intptr_t"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core_types._int_from_int64"
 

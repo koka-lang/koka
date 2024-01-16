@@ -15,8 +15,8 @@ import std/core/exn
 import std/core/int
 
 extern import
-  c  file "vector-inline"
-  js file "vector-inline.js"
+  c  file "inline/vector"
+  js file "inline/vector.js"
 
 // ----------------------------------------------------------------------------
 //  Vectors

@@ -15,7 +15,7 @@ import std/core/string
 import std/core/show
 
 extern import
-  js file "console-inline.js"
+  js file "inline/console.js"
 
 
 // The console effect signifies that a function may write to the console.

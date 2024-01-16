@@ -14,7 +14,7 @@ import std/core/hnd
 import std/core/string
 
 extern import
-  c file "debug-inline.c"
+  c file "inline/debug.c"
 
 // ------------------------------------------------------------------------------
 // File locations

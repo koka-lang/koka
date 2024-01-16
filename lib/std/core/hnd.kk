@@ -30,8 +30,8 @@ module std/core/hnd
 import std/core/types
 
 extern import
-  c  file "hnd-inline"
-  js file "hnd-inline.js"
+  c  file "inline/hnd"
+  js file "inline/hnd.js"
 
 // -------------------------------------------
 // Internal types

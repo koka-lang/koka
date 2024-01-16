@@ -119,8 +119,8 @@ static kk_std_core_types__list kk_regex_exec_ex( pcre2_code* re, pcre2_match_dat
       kk_ssize_t sstart = groups[i*2];       // on no-match, sstart and send == -1.
       kk_ssize_t send   = groups[i*2 + 1];
       kk_assert(send >= sstart);
-      kk_std_core_string__sslice sslice = kk_std_core_string__new_Sslice( kk_string_dup(str_borrow,ctx), kk_integer_from_ssize_t(sstart,ctx), kk_integer_from_ssize_t(send - sstart,ctx), ctx );
-      hd = kk_std_core_types__new_Cons(kk_reuse_null,0,kk_std_core_string__sslice_box(sslice,ctx), hd, ctx);
+      kk_std_core_sslice__sslice sslice = kk_std_core_sslice__new_Sslice( kk_string_dup(str_borrow,ctx), kk_integer_from_ssize_t(sstart,ctx), kk_integer_from_ssize_t(send - sstart,ctx), ctx );
+      hd = kk_std_core_types__new_Cons(kk_reuse_null,0,kk_std_core_sslice__sslice_box(sslice,ctx), hd, ctx);
       if (i == 0) {
         if (mstart != NULL) { *mstart = sstart; }
         if (end    != NULL) { *end = send; }
@@ -183,8 +183,8 @@ static kk_std_core_types__list kk_regex_exec_all( kk_box_t bre, kk_string_t str,
       if (rc > 0) {
         // found a match;
         // push string up to match, and the actual matched regex
-        kk_std_core_string__sslice pre = kk_std_core_string__new_Sslice( kk_string_dup(str,ctx), kk_integer_from_ssize_t(start,ctx), kk_integer_from_ssize_t(mstart - start,ctx), ctx );
-        kk_std_core_types__list   prelist = kk_std_core_types__new_Cons( kk_reuse_null, 0, kk_std_core_string__sslice_box(pre,ctx), kk_std_core_types__new_Nil(ctx), ctx );
+        kk_std_core_sslice__sslice pre = kk_std_core_sslice__new_Sslice( kk_string_dup(str,ctx), kk_integer_from_ssize_t(start,ctx), kk_integer_from_ssize_t(mstart - start,ctx), ctx );
+        kk_std_core_types__list   prelist = kk_std_core_types__new_Cons( kk_reuse_null, 0, kk_std_core_sslice__sslice_box(pre,ctx), kk_std_core_types__new_Nil(ctx), ctx );
         kk_std_core_types__list   capcons = kk_std_core_types__new_Cons( kk_reuse_null, 0, kk_std_core_types__list_box(cap,ctx), kk_std_core_types__new_Nil(ctx) /*tail*/, ctx );
         kk_std_core_types__list   cons = kk_std_core_types__new_Cons( kk_reuse_null, 0, kk_std_core_types__list_box(prelist,ctx), capcons, ctx );
         if (tail==NULL) res = cons;
@@ -204,8 +204,8 @@ static kk_std_core_types__list kk_regex_exec_all( kk_box_t bre, kk_string_t str,
     }
 
     // push final string part as well and end the list
-    kk_std_core_string__sslice post    = kk_std_core_string__new_Sslice( kk_string_dup(str,ctx), kk_integer_from_ssize_t(next,ctx), kk_integer_from_ssize_t(len - next,ctx), ctx );
-    kk_std_core_types__list   postlist= kk_std_core_types__new_Cons( kk_reuse_null, 0, kk_std_core_string__sslice_box(post,ctx), kk_std_core_types__new_Nil(ctx), ctx );
+    kk_std_core_sslice__sslice post    = kk_std_core_sslice__new_Sslice( kk_string_dup(str,ctx), kk_integer_from_ssize_t(next,ctx), kk_integer_from_ssize_t(len - next,ctx), ctx );
+    kk_std_core_types__list   postlist= kk_std_core_types__new_Cons( kk_reuse_null, 0, kk_std_core_sslice__sslice_box(post,ctx), kk_std_core_types__new_Nil(ctx), ctx );
     kk_std_core_types__list   cons    = kk_std_core_types__new_Cons( kk_reuse_null, 0, kk_std_core_types__list_box(postlist,ctx), kk_std_core_types__new_Nil(ctx), ctx );
     if (tail==NULL) res = cons;
               else *tail = cons;
@@ -222,9 +222,9 @@ done:
 }
 
 /*
-kk_std_core_string__sslice kk_slice_upto( struct kk_std_core_Sslice slice1, struct kk_std_core_Sslice slice2, kk_context_t* ctx ) {
+kk_std_core_sslice__sslice kk_slice_upto( struct kk_std_core_Sslice slice1, struct kk_std_core_Sslice slice2, kk_context_t* ctx ) {
   kk_ssize_t start = slice1.start;
   kk_ssize_t len   = (slice1.start <= slice2.start ? slice2.start - slice1.start : -1);
-  return kk_std_core_string__new_Sslice(slice1.str, start, len, ctx);
+  return kk_std_core_sslice__new_Sslice(slice1.str, start, len, ctx);
 }
 */

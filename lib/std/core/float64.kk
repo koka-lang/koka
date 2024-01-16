@@ -15,7 +15,7 @@ module std/core/float64
 import std/core/types
 
 extern import
-  c file "float64-inline.h"
+  c file "inline/float64.h"
 
 pub inline fip extern (==) : (float64,float64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
 pub inline fip extern (!=) : (float64,float64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }

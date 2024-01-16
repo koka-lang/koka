@@ -13,8 +13,8 @@ import std/core/types
 import std/core/hnd
 
 extern import
-  c  file "exn-inline"
-  js file "exn-inline.js"
+  c  file "inline/exn"
+  js file "inline/exn.js"
 
 
 // Exceptions

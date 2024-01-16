@@ -248,7 +248,7 @@ pub inline fip extern zero32() : int32
 
 
 extern import
-  js file "types-inline.js"
+  js file "inline/types.js"
 
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
@@ -461,8 +461,8 @@ pub value type optional<a>
 // ----------------------------------------------------------------------------
 
 extern import
-  c header-end-file "types-cctx-inline.h"
-  js file "types-cctx-inline.js"
+  c header-end-file "inline/types-cctx.h"
+  js file "inline/types-cctx.js"
 
 
 // _Internal_. Internal type for constructor contexts.

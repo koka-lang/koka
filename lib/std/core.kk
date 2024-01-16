@@ -25,6 +25,7 @@ pub import std/core/int
 pub import std/core/float64
 pub import std/core/vector
 pub import std/core/string
+pub import std/core/sslice
 pub import std/core/list
 pub import std/core/maybe
 pub import std/core/either
@@ -35,8 +36,8 @@ pub import std/core/delayed
 pub import std/core/console
 
 extern import
-  c  file "core/core-inline"
-  cs file "core/core-inline.cs"
+  c  file "core/inline/core"
+  cs file "core/inline/core.cs"
 
 // ----------------------------------------------------------------------------
 // Builtin effects

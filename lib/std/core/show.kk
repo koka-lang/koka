@@ -14,12 +14,13 @@ import std/core/hnd
 import std/core/int
 import std/core/char
 import std/core/string
+import std/core/sslice
 import std/core/list
 
 
 
 extern import
-  js file "show-inline.js"
+  js file "inline/show.js"
 
 // ----------------------------------------------------------------------------
 // Show
