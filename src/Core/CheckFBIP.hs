@@ -236,8 +236,11 @@ chkArg (Borrow, expr)
       (Var tname info) -> markBorrowed tname info
       (Lit _) -> pure ()
       _ -> do chkExpr expr
-              requireCapability mayDealloc $ \ppenv -> Just $
-                vcat [text "passing owned expressions as borrowed causes deallocation:", source ppenv (prettyExpr ppenv expr)]
+              ndd <- needsDupDropTp (typeOf expr)
+              when ndd $
+                requireCapability mayDealloc $ \ppenv -> Just $
+                  vcat [text "passing owned expressions as borrowed causes deallocation:", source ppenv (prettyExpr ppenv expr)]
+
 
 chkLit :: Lit -> Chk ()
 chkLit lit
@@ -665,8 +668,11 @@ zipParamInfo xs = zip (xs ++ repeat Own)
 needsDupDrop :: TName -> Chk Bool
 needsDupDrop tname | isCCtxName (getName tname)  = return False  -- ignore generated contexts
 needsDupDrop tname
-  = do let tp = tnameType tname
-       mbdi <- getDataInfo tp
+  = needsDupDropTp (tnameType tname)
+
+needsDupDropTp :: Type -> Chk Bool
+needsDupDropTp tp
+  = do mbdi <- getDataInfo tp
        return $
           case mbdi of
             Nothing -> True
