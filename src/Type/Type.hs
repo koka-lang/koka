@@ -41,14 +41,15 @@ module Type.Type (-- * Types
                   , isEffectEmpty, isEffectFixed, shallowEffectExtend, shallowExtractEffectExtend
 
                   , typeDivergent, typeTotal, typePartial, typePure
-                  , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
+                  , typeList, typeVector, typeApp, typeRef --, typeNull
+                  , typeOptional, typeMakeTuple
                   , typeCCtx, typeCCtxx, typeFieldAddr
                   , isOptional, makeOptionalType, unOptional
                   , typeReuse, typeLocal
 
                   --, handledToLabel
                   , tconHandled, tconHandled1
-                  , typeCps
+                  -- , typeCps
                   , isEffectAsync, isAsyncFunction
 
                   -- , isDelay
@@ -602,9 +603,9 @@ typeLocal
   = TCon (TypeCon nameTpLocal kindLocal)
 
 
-typeCps :: Type
-typeCps
-  = TApp tconHandled [TCon (TypeCon nameTpCps kindHandled)]
+-- typeCps :: Type
+-- typeCps
+--   = TApp tconHandled [TCon (TypeCon nameTpCps kindHandled)]
 
 tconHandled :: Type
 tconHandled = TCon $ TypeCon nameTpHandled kind
@@ -817,9 +818,9 @@ tconList :: TypeCon
 tconList
   = TypeCon nameTpList (kindFun kindStar kindStar)
 
-typeNull :: Tau -> Tau
-typeNull tp
-  = typeApp (TCon (TypeCon nameTpNull kindStar)) [tp]
+-- typeNull :: Tau -> Tau
+-- typeNull tp
+--   = typeApp (TCon (TypeCon nameTpNull kindStar)) [tp]
 
 -- | Type of evidence.
 typeEv :: Tau

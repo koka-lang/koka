@@ -28,7 +28,7 @@ import Common.Range
 import Common.Unique
 import Common.Failure
 import Common.Name
-import Common.NamePrim( namePredHeapDiv, nameTpCont )
+import Common.NamePrim( namePredHeapDiv )
 import Kind.Kind
 import qualified Kind.Unify( match )
 import Type.Type
@@ -323,15 +323,15 @@ unify (TForall vars1 preds1 tp1) (TForall vars2 preds2 tp2) | length vars1 == le
        -- no need to check for escaping skolems as we don't unify to bound variables
 
 -- special unsafe(!) handling of continuations; just for cps translation :-(
-unify t1@(TSyn syn1 args1 tp1) t2@(TSyn syn2 args2 tp2) | typesynName syn1 == nameTpCont && typesynName syn2 == nameTpCont
-  = -- trace ("cont==cont") $
-    unifies (take (n-1) args1) (take (n-1) args2)
-  where
-    n = length args1
+-- unify t1@(TSyn syn1 args1 tp1) t2@(TSyn syn2 args2 tp2) | typesynName syn1 == nameTpCont && typesynName syn2 == nameTpCont
+--   = -- trace ("cont==cont") $
+--     unifies (take (n-1) args1) (take (n-1) args2)
+--   where
+--     n = length args1
 
-unify t1@(TSyn syn1 args1 tp1) t2@(TFun [(_,tpar)] teff tres) | typesynName syn1 == nameTpCont
-  = -- trace ("cont==fun") $
-    unifies (take 2 args1) [tpar,teff]
+-- unify t1@(TSyn syn1 args1 tp1) t2@(TFun [(_,tpar)] teff tres) | typesynName syn1 == nameTpCont
+--   = -- trace ("cont==fun") $
+--     unifies (take 2 args1) [tpar,teff]
 
 -- synonyms
 unify t1@(TSyn syn1 args1 tp1) t2@(TSyn syn2 args2 tp2)

@@ -1,7 +1,6 @@
 module std/core/char
 
 import std/core/types
-import std/core/hnd
 import std/core/int
 
 // ----------------------------------------------------------------------------

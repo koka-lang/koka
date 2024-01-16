@@ -305,6 +305,14 @@ pub extern run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<
   js inline "((#1)())"
 
 
+// Add the state effect to a function effect.
+pub inline extern inject-st : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)
+  inline "#1"
+
+// Inject the local effect into a function effect.
+pub inline extern inject-local<a,h,e>( action : () -> e a ) : total (() -> <local<h>|e> a)
+  inline "#1"
+
 // ----------------------------------------------------------------------------
 // Local Variables
 // ----------------------------------------------------------------------------
@@ -373,6 +381,26 @@ pub fun unsafe-no-ndet( action : () -> <ndet|e> a ) : e a
 // _Unsafe_. This function pretends the give action is terminating
 pub fun unsafe-no-div( action : () -> <div|e> a ) : e a
   unsafe-total-cast( action )()
+
+
+// ----------------------------------------------------------------------------
+// Used during codegen
+// ----------------------------------------------------------------------------
+
+// Magic casting to the `:any` type.
+pub inline extern "@toany"( x : a ) : any
+  inline "#1"
+  cs inline "(object)(#1)"
+
+// Internal: used for value effects
+// TODO: revisit value effects codegen
+pub alias value<a> = a
+
+// Internal: used for value effects
+// TODO: revisit value effects codegen
+pub extern phantom<a>() : a
+  c inline "kk_box_null()"
+  inline "undefined"
 
 
 // ----------------------------------------------------------------------------

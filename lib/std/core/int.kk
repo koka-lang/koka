@@ -258,6 +258,22 @@ pub fun fold-while( start : int, end : int, init : a, f : (int,a) -> e maybe<a> 
       Just(x) -> fold-while(unsafe-decreasing(start.inc), end, x, f)
       Nothing -> init
 
+// Convert an `:int` to a string
+pub extern show( i : int ) : string
+  c "kk_integer_to_string"
+  cs inline "#1.ToString()"
+  js inline "#1.toString()"
+
+// Convert an int to a boolean, using `False` for 0 and `True` otherwise.
+pub fun bool( i : int ) : bool
+  i != 0
+
+// Convert a `:maybe<int>` to an `:int` using zero for `Nothing`
+pub fip fun mbint( m : maybe<int> ) : int
+  match m
+    Nothing -> 0
+    Just(i) -> i
+
 // ----------------------------------------------------------------------------
 // 32-bit integers
 // Just define the operations needed for defining the std/core interface but
@@ -450,3 +466,27 @@ pub inline fip extern intptr_t/int( i : intptr_t ) : int
   c  "kk_integer_from_intptr_t"
   cs inline "(new BigInteger(#1))"
   js "$std_core_int._int_from_int64"
+
+
+// ----------------------------------------------------------------------------
+// Parse numbers
+// ----------------------------------------------------------------------------
+
+// Parse an integer using `parseInt`. If an illegal digit character is encountered the
+// `default` value is returned. An empty string will also result in `default`.
+// pub fun parse-int-default( s : string, def : int = 0, hex : bool = False ) : int
+//   if s.is-empty then def else s.parse-int(hex).default(def)
+
+// Parse an integer.
+// If an illegal digit character is encountered `Nothing` is returned.
+// An empty string, or a string starting with white space will result in `Nothing`
+// A string can start with a `-` sign for negative numbers,
+// and with `0x` or `0X` for hexadecimal numbers (in which case the `hex` parameter is ignored).
+pub fun parse-int( s : string, hex : bool = False) : maybe<int>
+  s.xparse(hex)
+
+extern xparse( s : string, hex : bool ) : maybe<int>
+  c  "kk_integer_xparse"
+  cs "Primitive.IntParse"
+  js "$std_core_int._int_parse"
+

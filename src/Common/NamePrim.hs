@@ -36,11 +36,14 @@ module Common.NamePrim
           , nameReturn, nameTrace, nameLog, namePhantom
           , nameEffectOpen
           , nameToAny
+          , nameBind, nameBind2
+          {-
           , nameIsValidK
-          , nameLift, nameBind, nameBind2
+          , nameLift
           , nameInject, nameInjectExn, nameInjectResource
           , nameTpResourceTag, nameConResourceTag
           , nameConEv
+          -}
 
           , nameIntAdd, nameIntSub
 
@@ -115,24 +118,28 @@ module Common.NamePrim
           , nameTpInt8, nameTpInt16, nameTpInt32, nameTpInt64
           , nameTpSSizeT,nameTpIntPtrT
           , nameTpAny
-          , nameTpNull
           , nameTpException
           , nameTpMaybe
           , nameTpHandled, nameTpHandled1
+          {-
           , nameTpOperation, nameYieldOp
           , nameTpCps, nameTpYld, nameTpCont
           , nameInCps
           , nameTpHandlerBranch0, nameTpHandlerBranch1
-          , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
+          -- , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
+          -- , nameTpNull
+          -}
           , nameTpValueOp
           , nameTpNamed, nameTpScope
 
 
           , nameTpAsync, nameTpAsyncX
+          {-
           , nameApplyK
           , nameMakeHandler, nameMakeHandlerRet
           , nameMakeContextTp
           , nameTpOpMatch, nameOpMatch, nameOpNoMatch
+          -}
           , nameTpMDict, nameTpDict, nameTpBuilder
 
           , nameTpUnit, nameTpVoid
@@ -189,37 +196,32 @@ copyNameOf :: Name -> Name
 copyNameOf typename
   = qualify (qualifier typename) (qualifyLocally (nameAsModuleName (unqualify typename)) nameCopy)
 
-
-{--------------------------------------------------------------------------
-  Primitive operations
---------------------------------------------------------------------------}
 nameIf          = newName "if"
 nameCase        = newName "case"
 
-nameTrace   = preludeName "trace"
-nameLog     = preludeName "log"
-namePhantom = preludeName "phantom"
-
-nameIntConst    = coreIntName "@int-const"  -- javascript backend
-
-nameCoreFileFile   = qualify nameSystemCore (newLocallyQualified "" "file" "kk-file")
-nameCoreFileLine   = qualify nameSystemCore (newLocallyQualified "" "file" "kk-line")
-nameCoreFileModule = qualify nameSystemCore (newLocallyQualified "" "file" "kk-module")
-
 
 {--------------------------------------------------------------------------
-  Primitive constructors
+  Core
 --------------------------------------------------------------------------}
-nameTpDelay          = preludeName "delay"
+nameTpIO        = preludeName "io"
+nameTpNamed     = preludeName "nmd"
+nameTpScope     = preludeName "scope"
+nameTpPure      = preludeName "pure"
 
-namePatternMatchError = preludeName "error-pattern"
-nameMainConsole      = preludeName "main-console"
-nameSubStr1          = preludeName "substr1"
+nameTpAsync     = newQualified "std/async" "async"
+nameTpAsyncX    = newQualified "std/async" "asyncx"
+nameTpBuilder   = newQualified "std/text/string" "builder"
+nameTpArray     = newQualified "std/data/array" "array"
+nameTpMDict     = qualify nameDict (newName "mdict")
+nameTpDict      = qualify nameDict (newName "dict")
 
-nameTpArray     = qualify (newName "std/data/array") (newName "array")
-nameVector      = coreVectorName "unvlist"
+nameTpDelay     = preludeName "delay"
+nameMainConsole = preludeName "main-console"
 
+nameSubStr1     = coreStringName "substr1"
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr","filter"]
+
+
 
 {--------------------------------------------------------------------------
   Lists
@@ -228,10 +230,28 @@ nameListNil     = coreTypesName "Nil"
 nameCons        = coreTypesName "Cons"
 nameTpList      = coreTypesName "list"
 
+{--------------------------------------------------------------------------
+  std/core/debug
+--------------------------------------------------------------------------}
+
+nameAssert      = coreDebugName "assert"
+nameTrace       = coreDebugName "trace"
+nameLog         = coreDebugName "log"
+
+nameCoreFileFile   = qualify nameCoreDebug (newLocallyQualified "" "file" "kk-file")
+nameCoreFileLine   = qualify nameCoreDebug (newLocallyQualified "" "file" "kk-line")
+nameCoreFileModule = qualify nameCoreDebug (newLocallyQualified "" "file" "kk-module")
+
+{--------------------------------------------------------------------------
+  std/core/vector
+--------------------------------------------------------------------------}
+nameVector      = coreVectorName "unvlist"
 
 {--------------------------------------------------------------------------
   std/core/int
 --------------------------------------------------------------------------}
+
+nameIntConst    = coreIntName "@int-const"  -- javascript backend
 
 -- conversion functions in core
 nameByte        = coreIntName "uint8"
@@ -245,81 +265,17 @@ nameIntPtrT     = coreIntName "intptr_t"
 nameIntAdd      = coreIntName "int-add"
 nameIntSub      = coreIntName "int-sub"
 
+{--------------------------------------------------------------------------
+  std/core/exn
+--------------------------------------------------------------------------}
+nameTpException = coreExnName "exception"
+nameTpPartial   = coreExnName "exn"
+namePatternMatchError = coreExnName "error-pattern"
 
 
 {--------------------------------------------------------------------------
-  Primitive type constructors
+  Contexts: std/core/types
 --------------------------------------------------------------------------}
-nameTpOperation = preludeName "operation"
-nameTpHandlerBranch0 = preludeName "handler-branch0"
-nameTpHandlerBranch1 = preludeName "handler-branch1"
-
-nameTpValueOp   = preludeName "value"
-
-nameAssert      = preludeName "assert"
-
-nameTpCps       = preludeName "cps"
-nameInCps       = preludeName "incps"
-nameTpCont      = preludeName "cont"
-
-nameTpAsync     = newQualified "std/async" "async"
-nameTpAsyncX    = newQualified "std/async" "asyncx"
-
-nameYieldOp n    = preludeName ("@yieldop" ++ (if (n == 0) then "" else "-x" ++ show n))
-nameToAny       = preludeName "@toany"
-nameApplyK      = preludeName "@applyK"
-nameIsValidK    = preludeName "@isValidK"
-nameMakeHandler handlerSort n
-  = preludeName ("@make" ++ (if (not (isHandlerNormal handlerSort)) then show handlerSort else "") ++ "Handler" ++ show n)
-nameMakeHandlerRet n
-  = preludeName ("@makeHandlerRet" ++ show n)
-
-nameMakeContextTp n = preludeName ("resume-context" ++ (if (n==0) then "" else "1"))
-
-nameMakeNull    = preludeName "@null-any"
-nameConstNull   = preludeName "null-const"
-nameReturnNull   = preludeName "null-return"
-nameReturnNull1   = preludeName "null-return1"
-
-nameLift        = preludeName "lift"
-nameTpYld       = preludeName "yld"
-nameInject      = preludeName "@inject-effect"
-nameInjectExn   = preludeName "inject-exn"
-nameInjectResource = preludeName "@inject-resource"
-nameTpResourceTag = preludeName "resource-tag"
-nameConResourceTag = preludeName "@Resource-tag"
-
-nameTpOpMatch   = preludeName "opmatch"
-nameOpMatch     = preludeName "@conOpMatch"
-nameOpNoMatch   = preludeName "@conOpNoMatch"
-
-nameConEv       = preludeName "Ev"
-
-nameTpNull      = preludeName "null"
-nameTpIO        = preludeName "io"
-
-nameTpNamed     = preludeName "nmd"
-nameTpScope     = preludeName "scope"
-nameTpPure      = preludeName "pure"
-nameTpPartial   = coreExnName "exn"
-
-nameTpException  = coreExnName "exception"
-
-nameTpMDict     = qualify nameDict (newName "mdict")
-nameTpDict      = qualify nameDict (newName "dict")
-nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
-
-{-
-nameTpCTailAcc    = cfieldName "ctail"
-nameTpCField      = cfieldName "cfield"
-nameCFieldHole    = cfieldName "@cfield-hole"
-nameCFieldOf      = cfieldName "@cfield-of"
-nameCTailUnit     = cfieldName "@ctail-unit"
-nameCTailCompose  = cfieldName "@ctail-compose"
-nameCTailApply    = cfieldName "@ctail-apply"
-nameCTailSetCtxPath=cfieldName "@ctail-set-context-path"
--}
-
 cfieldName name   = coreTypesName name
 
 nameTpCCtxx       = cfieldName "cctx"
@@ -329,12 +285,11 @@ nameCCtxCreate    = cfieldName "@cctx-create"
 nameCCtxHoleCreate= cfieldName "@cctx-hole-create"
 nameCCtxExtend    = cfieldName "@cctx-extend"
 nameCCtxComposeExtend = cfieldName "@cctx-compose-extend"
-nameCCtxEmpty     = cfieldName "cctx-empty"
 nameCCtxSetCtxPath= cfieldName "@cctx-setcp"
 
+nameCCtxEmpty     = cfieldName "cctx-empty"
 nameCCtxApply     = cfieldName "([])"
 nameCCtxCompose   = cfieldName "(++)"
-
 
 nameTpFieldAddr   = cfieldName "field-addr"
 nameFieldAddrOf   = cfieldName "@field-addr-of"
@@ -387,6 +342,10 @@ isClauseTailName name
 {--------------------------------------------------------------------------
   std/core/types
 --------------------------------------------------------------------------}
+nameToAny       = coreTypesName "@toany"
+namePhantom     = coreTypesName "phantom"
+nameTpValueOp   = coreTypesName "value"
+
 nameDecreasing  = coreTypesName "unsafe-decreasing"
 nameUnsafeTotal = coreTypesName "unsafe-total"
 
@@ -523,21 +482,21 @@ isNameTpTuple name
 preludeName s
   = qualify nameSystemCore (newName s)
 
-coreHndName s
-  = qualify nameCoreHnd (newName s)
-
-coreTypesName s
-  = qualify nameCoreTypes (newName s)
+coreHndName s   = qualify nameCoreHnd (newName s)
+coreTypesName s = qualify nameCoreTypes (newName s)
+coreDebugName s = qualify nameCoreDebug (newName s)
 
 coreIntName s   = newQualified "std/core/int" s
 coreListName s  = newQualified "std/core/list" s
 coreExnName s   = newQualified "std/core/exn" s
 coreVectorName s= newQualified "std/core/vector" s
+coreStringName s= newQualified "std/core/string" s
 
 nameSystemCore  = newModuleName "std/core"
 nameCoreHnd     = newModuleName "std/core/hnd"
 nameCoreTypes   = newModuleName "std/core/types"
 nameDict        = newModuleName "std/data/dict"
+nameCoreDebug   = newModuleName "std/core/debug"
 
 isSystemCoreName name
   = let m = nameModule name
@@ -562,3 +521,57 @@ nameKindHeap    = newName "H"
 nameKindScope   = newName "S"
 nameKindHandled = newName "HX"
 nameKindHandled1 = newName "HX1"
+
+
+
+{-
+nameTpOperation      = preludeName "operation"
+nameTpHandlerBranch0 = preludeName "handler-branch0"
+nameTpHandlerBranch1 = preludeName "handler-branch1"
+
+nameTpCps       = preludeName "cps"
+nameInCps       = preludeName "incps"
+nameTpCont      = preludeName "cont"
+
+nameYieldOp n    = preludeName ("@yieldop" ++ (if (n == 0) then "" else "-x" ++ show n))
+
+nameApplyK      = preludeName "@applyK"
+nameIsValidK    = preludeName "@isValidK"
+nameMakeHandler handlerSort n
+  = preludeName ("@make" ++ (if (not (isHandlerNormal handlerSort)) then show handlerSort else "") ++ "Handler" ++ show n)
+nameMakeHandlerRet n
+  = preludeName ("@makeHandlerRet" ++ show n)
+
+nameMakeContextTp n = preludeName ("resume-context" ++ (if (n==0) then "" else "1"))
+
+-- nameTpNull      = preludeName "null"
+-- nameMakeNull    = preludeName "@null-any"
+-- nameConstNull   = preludeName "null-const"
+-- nameReturnNull   = preludeName "null-return"
+-- nameReturnNull1   = preludeName "null-return1"
+
+nameLift        = preludeName "lift"
+nameTpYld       = preludeName "yld"
+nameInject      = preludeName "@inject-effect"
+nameInjectExn   = preludeName "inject-exn"
+nameInjectResource = preludeName "@inject-resource"
+nameTpResourceTag = preludeName "resource-tag"
+nameConResourceTag = preludeName "@Resource-tag"
+
+nameTpOpMatch   = preludeName "opmatch"
+nameOpMatch     = preludeName "@conOpMatch"
+nameOpNoMatch   = preludeName "@conOpNoMatch"
+
+nameConEv       = preludeName "Ev"
+-}
+
+{-
+nameTpCTailAcc    = cfieldName "ctail"
+nameTpCField      = cfieldName "cfield"
+nameCFieldHole    = cfieldName "@cfield-hole"
+nameCFieldOf      = cfieldName "@cfield-of"
+nameCTailUnit     = cfieldName "@ctail-unit"
+nameCTailCompose  = cfieldName "@ctail-compose"
+nameCTailApply    = cfieldName "@ctail-apply"
+nameCTailSetCtxPath=cfieldName "@ctail-set-context-path"
+-}

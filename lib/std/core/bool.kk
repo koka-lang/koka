@@ -1,7 +1,6 @@
 module std/core/bool
 
 import std/core/types
-import std/core/hnd
 
 // ----------------------------------------------------------------------------
 // Booleans
@@ -34,3 +33,16 @@ pub fip fun cmp( x : bool, y : bool) : order
 pub fun maybe( b : bool ) : maybe<()>
   if b then Just(()) else Nothing
 
+// Convert a `:maybe` type to a boolean using `False` for `Nothing` and `True` for `Just`.
+pub fun bool( m : maybe<a> ) : bool
+  match m
+    Nothing -> False
+    _       -> True
+
+// Convert a `:bool` to a string
+pub fun show( b : bool ) : string
+  if b then "True" else "False"
+
+// Convert a boolean to an `:int`
+pub fip fun int( b : bool ) : int
+  if b then 1 else 0

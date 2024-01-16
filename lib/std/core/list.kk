@@ -2,9 +2,10 @@ module std/core/list
 
 import std/core/types
 import std/core/hnd
-import std/core/int
-import std/core/char
 import std/core/exn
+import std/core/int
+import std/core/float64
+import std/core/char
 import std/core/string
 
 // Return the head of list if the list is not empty.
@@ -81,6 +82,32 @@ pub fun stridefunction/list( lo: int, hi: int, stride : int, f : int -> e a ) : 
 // Create a list of characters from `lo`  to `hi`  (inclusive).
 pub fun char/list( lo : char, hi : char ) : total list<char>
   list(lo.int, hi.int).map( char )
+
+// Element-wise list equality
+pub fun list/(==)( xs : list<a>, ys : list<a>, ?(==) : (a,a) -> bool ) : bool
+  match xs
+    Cons(x,xx) -> match ys
+                    Nil        -> False
+                    Cons(y,yy) -> (x==y) && (xx==yy)
+    Nil -> match ys
+             Nil  -> True
+             Cons -> False
+
+// Order on lists
+pub fun list/cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> order ) : order
+  match xs
+    Cons(x,xx) -> match ys
+                    Nil        -> Gt
+                    Cons(y,yy) -> match cmp(x,y)
+                                    Eq -> cmp(xx,yy)
+                                    lg -> lg
+    Nil -> match ys
+             Nil  -> Eq
+             Cons -> Lt
+
+// Show a list
+pub fun list/show( xs : list<a>, ?show : a -> e string ) : e string
+  "[" ++ xs.map(show).join(",") ++ "]"
 
 // Zip two lists together by pairing the corresponding elements.
 // The returned list is only as long as the smallest input list.
@@ -506,3 +533,16 @@ pub fun unlines( xs : list<string> ) : string
 // Apply a function `f` to each character in a string
 pub fun string/map( s : string, f : char -> e char ) : e string
   s.list.map(f).string // todo: optimize
+
+
+// Returns the smallest element of a list of floats (or `0` for the empty list)
+pub fun float64/minimum( xs : list<float64> ) : float64
+  match xs
+    Nil -> 0.0
+    Cons(x,xx) -> xx.foldl( x, min )
+
+// Returns the largest element of a list of floats (or `0` for the empty list)
+pub fun float64/maximum( xs : list<float64> ) : float64
+  match xs
+    Nil -> 0.0
+    Cons(x,xx) -> xx.foldl( x, max )

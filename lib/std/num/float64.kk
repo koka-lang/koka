@@ -565,7 +565,7 @@ fun pdecdouble() : parse float64
   val man  = digits()
   val frac = optional("", { char('.'); digits0() }).trim-right("0")
   val exp : int = optional( 0, { one-of("eE"); pint() })
-  //val m : int = (man ++ frac).parse-int-default(0)
+  //val m : int = (man ++ frac).parse-int.default(0)
   //val e : int = exp - frac.count
   //m.float64 * exp10(e.float64)
   cur.string.prim-parse-float64  // more precision than simple multiply

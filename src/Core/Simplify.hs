@@ -19,8 +19,9 @@ import Lib.PPrint
 import Common.Failure
 import Common.Range
 import Common.Syntax
-import Common.NamePrim( nameEffectOpen, nameToAny, nameReturn, nameOptionalNone, nameIsValidK
-                       , nameLift, nameBind, nameEvvIndex, nameClauseTailNoOp, isClauseTailName
+import Common.NamePrim( nameEffectOpen, nameToAny, nameReturn, nameOptionalNone
+                       --, isValidK , nameLift
+                       , nameBind, nameEvvIndex, nameClauseTailNoOp, isClauseTailName
                        , nameBox, nameUnbox, nameAssert
                        , nameAnd, nameOr, isNameTuple
                        , nameCCtxCompose, nameCCtxComposeExtend, nameCCtxEmpty )
@@ -350,8 +351,8 @@ bottomUp (App (Lam pars eff body) args) | length pars == length args  && all fre
 
 
 -- bind( lift(arg), cont ) -> cont(arg)
-bottomUp (App (TypeApp (Var bind _) _) [App (TypeApp (Var lift _) _) [arg], cont]) | getName bind == nameBind && getName lift == nameLift
-  = App cont [arg]
+-- bottomUp (App (TypeApp (Var bind _) _) [App (TypeApp (Var lift _) _) [arg], cont]) | getName bind == nameBind && getName lift == nameLift
+--   = App cont [arg]
 
 
 -- composition extension: c[ctx hole] -> c
@@ -367,13 +368,14 @@ bottomUp (App (TypeApp (Var ctxcomp _) _) [App (TypeApp (Var cempty _) _) [],ctx
 
 
 -- continuation validation
+{-
 bottomUp expr@(App (TypeApp (Var isValidK _) _) [arg])  | getName isValidK == nameIsValidK
   = case arg of
       Var optNone _  | getName optNone == nameOptionalNone  -> exprFalse
       Lam _ _ _ -> exprTrue
       App _ _ -> exprTrue
       _ -> expr
-
+-}
 
 -- case on a single constructor, including tuples.
 -- extracts the arguments to do a direct multi-pattern match

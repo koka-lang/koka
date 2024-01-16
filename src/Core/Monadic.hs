@@ -24,9 +24,11 @@ import Common.Failure
 import Common.Name
 import Common.Range
 import Common.Unique
-import Common.NamePrim( nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, nameDeref, nameByref,
-                        nameTrue, nameFalse, nameTpBool, nameApplyK, nameUnsafeTotal, nameIsValidK,
-                        nameBind, nameLift, nameTpYld, nameSystemCore, namePerform )
+import Common.NamePrim( nameEffectOpen,
+                        nameReturn, nameDeref, nameByref,
+                        nameTrue, nameFalse, nameTpBool, nameUnsafeTotal,
+                        nameBind
+                      )
 import Common.Error
 import Common.Syntax
 

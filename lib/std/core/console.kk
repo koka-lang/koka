@@ -2,6 +2,8 @@ module std/core/console
 
 import std/core/types
 import std/core/hnd
+import std/core/string
+import std/core/show
 
 extern import
   js file "console-inline.js"
@@ -38,16 +40,34 @@ extern xprints( s : string) : console ()
 pub inline extern unsafe-nostate( action : () -> <st<h>,console> a ) : (() -> console a)
   inline "#1"
 
-pub noinline fun prints( s : string ) : console ()
+noinline fun prints( s : string ) : console ()
   (unsafe-nostate
     match !redirect
       Nothing -> xprints(s)
       Just(f) -> f(s)
   )()
 
-pub noinline fun printsln( s : string ) : console ()
+noinline fun printsln( s : string ) : console ()
   (unsafe-nostate
     match !redirect
       Nothing -> xprintsln(s)
-      Just(f) -> { f(s); f("\n") }
+      Just(f) -> { f(s ++ "\n") }
   )()
+
+
+
+// Print a string to the console.
+pub fun string/print(s : string)
+  prints(s)
+
+// Print a value that has a `show` function
+pub fun show/print( x : a, ?show : a -> string ) : console ()
+  prints(x.show)
+
+// Print a string to the console, including a final newline character.
+pub fun string/println(s : string) : console ()
+  printsln(s)
+
+// Print a value that has a `show` function, including a final newline character.
+pub fun show/println( x : a, ?show : a -> string ) : console ()
+  printsln(x.show)

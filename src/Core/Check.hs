@@ -17,7 +17,6 @@ import Control.Applicative
 import Lib.Trace
 import Lib.PPrint
 import Common.Failure
-import Common.NamePrim( nameYieldOp )
 import Common.Name
 import Common.Unique
 import Common.Error
@@ -166,9 +165,9 @@ checkDef d
        matchSub "checking annotation on definition" (prettyDef d) (dtp) tp
 
 coreNameInfo :: TName -> (Name,NameInfo)
-coreNameInfo tname = coreNameInfoX 
+coreNameInfo tname = coreNameInfoX
   where
-    coreNameInfoX 
+    coreNameInfoX
       = (getName tname, createNameInfoX Public (getName tname) DefVal rangeNull (typeOf tname) "")
 
 {--------------------------------------------------------------------------

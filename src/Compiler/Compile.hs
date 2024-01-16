@@ -44,7 +44,7 @@ import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
-import Common.NamePrim        ( nameCoreHnd, isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed, isPrimitiveName )
+import Common.NamePrim        ( nameCoreHnd, isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, {- nameTpCps, -} nameTpAsync, nameTpNamed, isPrimitiveName )
 import Common.Error
 import Common.File
 import Common.ColorScheme
@@ -184,7 +184,7 @@ gammaFind name g
 compileExpression :: (FilePath -> Maybe (BString, FileTime)) -> Terminal -> Flags -> Loaded -> CompileTarget () -> UserProgram -> Int -> String -> IO (Error Loaded (Loaded, Maybe FilePath))
 compileExpression maybeContents term flags loaded compileTarget program line input
   = runIOErr $
-    do let qnameExpr = (qualify (getName program) nameExpr)           
+    do let qnameExpr = (qualify (getName program) nameExpr)
        def <- liftErrorPartial loaded (parseExpression (semiInsert flags) (show nameInteractiveModule) line qnameExpr input)
        let programDef = programAddDefs program [] [def]
        -- specialized code: either just call the expression, or wrap in a show function
@@ -508,17 +508,17 @@ checkUnhandledEffects flags loaded name range tp
               combine eff Nothing ls
       _ -> return Nothing
   where
-    exclude = [nameTpCps,nameTpNamed] -- nameTpAsync
+    exclude = [nameTpNamed] -- nameTpCps,nameTpAsync
 
     combine :: Effect -> Maybe (UserExpr -> UserExpr) -> [Effect] -> Error Loaded (Maybe (UserExpr -> UserExpr))
     combine eff mf [] = return mf
     combine eff mf (l:ls) = case getHandledEffectX exclude l of
                              Nothing -> combine eff mf ls
                              Just (_,effName)
-                               -> let defaultHandlerName = makeHiddenName "default" effName
+                               -> let defaultHandlerName = makeHiddenName "default" (unqualify effName)
                                   in -- trace ("looking up: " ++ show defaultHandlerName) $
-                                     case gammaLookupQ defaultHandlerName (loadedGamma loaded) of
-                                        [fun@InfoFun{}]
+                                     case gammaLookup defaultHandlerName (loadedGamma loaded) of
+                                        [(_,fun@InfoFun{})]
                                           -> trace ("add default effect for " ++ show effName) $
                                              let dname = infoCName fun
                                                  g mfx expr = let r = getRange expr
@@ -989,7 +989,7 @@ inferCheck loaded0 flags line coreImports program
        when (optctail flags) $
          ctailOptimize penv newtypes gamma (optctailCtxPath flags)
 
-       -- transform effects to explicit monadic binding (and resolve .open calls)       
+       -- transform effects to explicit monadic binding (and resolve .open calls)
        when (enableMon flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
           -- trace "monadic transform" $
           do Core.Monadic.monTransform penv

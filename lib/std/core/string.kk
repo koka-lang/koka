@@ -3,8 +3,8 @@ module std/core/string
 import std/core/types
 import std/core/hnd
 import std/core/int
-import std/core/vector
 import std/core/order
+import std/core/vector
 
 extern import
   js file "string-inline.js"
@@ -167,6 +167,7 @@ pub fun string/head( s : string ) : string
 // Return the tail of a string (or the empty string)
 pub fun string/tail( s : string ) : string
   s.first.after.string
+
 
 // Return the common prefix of two strings (upto `upto` characters (default is minimum length of the two strings))
 pub extern common-prefix(s : string, t : string, ^upto : int = -1 ) : sslice
@@ -499,4 +500,9 @@ pub extern listchar/string( cs : list<char> ) : total string
   c  "kk_string_from_list"
   cs inline "Primitive.ListToString(#1)"
   js inline "_list_to_string(#1)"
+
+
+// Convert a string to a boolean, using `False` for the empty string and `True` otherwise.
+pub fun bool( s : string ) : bool
+  s != ""
 

@@ -1,7 +1,6 @@
 module std/core/order
 
 import std/core/types
-import std/core/hnd
 import std/core/int
 
 pub fip fun int( x : order ) : int
@@ -27,3 +26,4 @@ pub fun(>)( x : order, y : order ) : bool
 
 pub fun(<)( x : order, y : order ) : bool
   x.int < y.int
+

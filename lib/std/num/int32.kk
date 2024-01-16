@@ -53,7 +53,7 @@ pub fip fun bool/int32( b : bool ) : int32
 // The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
 // The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
 pub fun show-hex( i : int32, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string
-  std/core/show-hex(i.int,width,use-capitals,pre)
+  std/core/show/show-hex(i.int,width,use-capitals,pre)
 
 
 // Convert an `:int` to `:int32` but interpret the `int` as an unsigned 32-bit value.
@@ -75,7 +75,7 @@ pub fun uint( i : int32 ) : int
 // The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
 // The `pre` (=`"0x"`) is an optional prefix for the number.
 pub fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre : string = "0x" ) : string
-  std/core/show-hex(i.uint,width,use-capitals,pre)
+  std/core/show/show-hex(i.uint,width,use-capitals,pre)
 
 
 pub inline fip extern (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }

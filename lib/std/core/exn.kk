@@ -3,34 +3,25 @@ module std/core/exn
 import std/core/types
 import std/core/hnd
 import std/core/int
-import std/core/console
 
 extern import
   js file "exn-inline.js"
+
+// _Internal_: we cannot import `std/core/string` yet, so define it here as well
+extern (++)(x : string, y : string) : string
+  c "kk_string_cat"
+  inline "(#1 + #2)"
 
 // Exceptions
 pub effect exn
   // Throw an exception
   ctl throw-exn( exn : exception ) : a
 
-// _Internal_: we cannot import `std/core/string`, so define it here as well
-extern (++)(x : string, y : string) : string
-  c "kk_string_cat"
-  inline "(#1 + #2)"
-
-
 // Raise a pattern match exception. This is function is used internally by the
 // compiler to generate error messages on pattern match failures.
 pub fun error-pattern(location : string, definition : string) : exn a
   throw(location ++ ": " ++ definition ++ ": pattern match failure",
          ExnPattern(location,definition))
-
-pub fun "@default-exn"(action : () -> <exn,console|e> () ) : <console|e> ()
-  handle( action )
-    final ctl throw-exn( exn : exception )
-      "uncaught exception: ".prints
-      show(exn).printsln
-
 
 // The exception data type
 pub value struct exception( message :string, info :exception-info )
@@ -120,3 +111,9 @@ pub fun on-exit( hndler : () -> e (), action : () -> e a ) : e a
 
 pub fun exn-error-range() : exn a
   throw("index out-of-range", ExnRange)
+
+
+// _Unsafe_. This function removes the exception effect (`:exn`) from the effect of an action
+pub fun unsafe-no-exn( action : () -> <exn|e> a ) : e a
+  unsafe-total( action )
+

@@ -28,14 +28,16 @@ import Common.Name
 import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy, nameTpDelay
                       , nameReturn, nameRef, nameByref, nameDeref
                       , nameRefSet, nameAssign, nameTpUnit, nameTuple
-                      , nameMakeHandler, nameMakeHandlerRet
+                      -- , nameMakeHandler, nameMakeHandlerRet
                       , namePatternMatchError, nameSystemCore, nameTpHandled, nameTpHandled1
                       , nameToAny, nameFalse, nameTrue
-                      , nameTpYld
-                      , nameTpHandlerBranch0, nameTpHandlerBranch1,nameCons,nameListNil,nameVector
-                      , nameInject, nameInjectExn, nameTpPartial
-                      , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
-                      , nameMakeContextTp
+                      -- , nameTpYld
+                      -- , nameTpHandlerBranch0, nameTpHandlerBranch1
+                      , nameCons, nameListNil, nameVector
+                      -- , nameInject, nameInjectExn
+                      , nameTpPartial
+                      -- , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
+                      -- , nameMakeContextTp
                       , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocalVar
                       , nameTpValueOp, nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag

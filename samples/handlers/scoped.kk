@@ -179,7 +179,7 @@ fun many1(p : () -> <nondet,div|e> a) : <nondet,div|e> list<a>
 
 fun number()
   val ds = many1(digit)
-  parse-int(ds.join).maybe(0)
+  parse-int(ds.join).default(0)
 
 
 fun expr() : <div,nondet,symbol> int
