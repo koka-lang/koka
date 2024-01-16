@@ -6,7 +6,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-static kk_std_core__error kk_os_run_command_error( kk_string_t cmd, kk_context_t* ctx ) {
+static kk_std_core_exn__error kk_os_run_command_error( kk_string_t cmd, kk_context_t* ctx ) {
   kk_string_t output;
   const int err = kk_os_run_command(cmd,&output,ctx);
   if (err != 0) return kk_error_from_errno(err,ctx);

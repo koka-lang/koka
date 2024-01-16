@@ -7,6 +7,7 @@ import std/core/order
 import std/core/vector
 
 extern import
+  c  file "string-inline"
   js file "string-inline.js"
 
 // ----------------------------------------------------------------------------

@@ -140,7 +140,7 @@ fun replace-captures( caps : list<sslice>, repl : string ) : string
     match cap
       [_,digit,amp,dollar] ->
         if dollar.is-valid then "$" else
-          val grp = if amp.is-valid then 0 else parse-int-default(digit.string,0)
+          val grp = if amp.is-valid then 0 else parse-int(digit.string).default(0)
           match caps[grp]
             Nothing -> ""
             Just(s) -> s.string

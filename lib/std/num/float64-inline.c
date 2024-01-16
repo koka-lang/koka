@@ -20,6 +20,6 @@ static double kk_prim_parse_double( kk_string_t str, kk_context_t* ctx) {
   const char* s = kk_string_cbuf_borrow(str,NULL,ctx);
   char* end;
   double d = strtod(s,&end);
-  kk_string_drop(str,ctx);  
+  kk_string_drop(str,ctx);
   return d;
 }

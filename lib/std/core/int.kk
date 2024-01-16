@@ -4,14 +4,16 @@ import std/core/types
 import std/core/hnd
 
 extern import
+  c  file "int-inline.h"
   js file "int-inline.js"
 
 
 // Compare two integers
-pub inline fip extern cmp(^x : int, ^y : int) : order
-  c inline "kk_int_as_order(kk_integer_cmp_borrow(#1,#2,kk_context()),kk_context())"
-  cs "Primitive.IntCompare"
-  js "$std_core_int._int_compare"
+pub inline fip fun cmp(^x : int, ^y : int) : order
+  if (x==y) then Eq elif (x>y) then Gt else Lt
+  // c inline "kk_int_as_order(kk_integer_cmp_borrow(#1,#2,kk_context()),kk_context())"
+  // cs "Primitive.IntCompare"
+  // js "$std_core_int._int_compare"
 
 // Are two integers equal?
 pub inline fip extern (==)(^x : int, ^y : int) : bool
@@ -103,7 +105,7 @@ pub inline fip extern (%)  : (int,int) -> int
 //
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf> .
-pub inline fip extern divmod(x:int,y:int) : (int,int)
+pub fip extern divmod(x:int,y:int) : (int,int)
   c  "kk_integer_div_mod_tuple"
   cs "Primitive.IntDivMod"
   js "$std_core_int._int_divmod"
@@ -224,10 +226,11 @@ pub fip fun is-neg(i : int ) : bool
   i < 0
 
 // Compare an integer `i` with zero
-pub inline fip extern sign( ^i : int ) : order
-  c  inline "kk_int_as_order(kk_integer_signum_borrow(#1,kk_context()),kk_context())"
-  cs "Primitive.IntSign"
-  js "$std_core_int._int_sign"
+pub inline fip fun sign( ^i : int ) : order
+  cmp(i,0)
+  // c  inline "kk_int_as_order(kk_integer_signum_borrow(#1,kk_context()),kk_context())"
+  // cs "Primitive.IntSign"
+  // js "$std_core_int._int_sign"
 
 // Return the minimum of two integers
 pub fip fun min( i : int, j : int ) : int

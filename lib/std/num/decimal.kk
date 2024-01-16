@@ -96,7 +96,7 @@ fun pdecimal() : parse decimal
   val frac = optional("", { char('.'); digits() })
   val exp  = optional(0, { one-of("eE"); pint() })
   // trace("frac:" + frac)
-  val i = decimal-exp( (whole ++ frac).parse-int-default(0), exp - frac.count )
+  val i = decimal-exp( (whole ++ frac).parse-int.default(0), exp - frac.count )
   if neg then ~i else i
 
 // Ensure a decimal `x` has an exponent such that `x.exp <= e`.

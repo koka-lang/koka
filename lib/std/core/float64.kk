@@ -4,6 +4,9 @@ import std/core/types
 import std/core/hnd
 import std/core/int
 
+extern import
+  c file "float64-inline.h"
+
 pub inline fip extern (==) : (float64,float64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
 pub inline fip extern (!=) : (float64,float64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
 pub inline fip extern (<=) : (float64,float64) -> bool  { inline "(#1 <= #2)" }
