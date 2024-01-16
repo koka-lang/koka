@@ -154,3 +154,8 @@ pub fun example-partition()
 
 pub fun main()
   example-partition().println()
+
+pub fun test-ctx1()
+  (ctx Cons(1,_)) ++ (ctx Cons(2,_)) ++. Nil
+pub fun test-ctx2()
+  (ctx Cons(1,_)) ++ (ctx Cons(_,Nil)) ++. 3

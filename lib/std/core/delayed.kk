@@ -11,6 +11,7 @@ module std/core/delayed
 
 import std/core/types
 import std/core/hnd
+import std/core/unsafe
 
 // ----------------------------------------------------------------------------
 // Delayed values
@@ -35,7 +36,7 @@ pub fun force( delayed : delayed<e,a> ) : e a
     match !r
       Right(x) -> x
       Left(action) ->
-        val x = (inject-st{mask<div>(action)})()
+        val x = mask-st{ mask<div>(action) }()
         r := Right(x)
         x
 

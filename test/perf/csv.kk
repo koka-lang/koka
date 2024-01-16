@@ -4,6 +4,7 @@
 
 module csv
 
+import std/core/undiv
 import std/text/parse
 import std/num/float64
 
@@ -36,7 +37,7 @@ fun to-csv-rows(xs : list<csv>) : csv {
 fun csv-float64() : parse float64 {
     fun int-length(n : int) : int {
         if(n <= 0) { 0 }
-        else { 1 + int-length(unsafe-decreasing(n / 10)) }
+        else { 1 + int-length(pretend-decreasing(n / 10)) }
     }
     val before-dot = pint()
     val after-dot = choose([fn() { char('.'); pint() }, fn() { 0 }])
@@ -68,7 +69,7 @@ fun checkContinue() {
         Nothing -> Nil
     }
 }
-    
+
 fun getString() {
     val c = any-char()
     if(c == '\"') {

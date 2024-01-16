@@ -20,7 +20,7 @@ extern import
 pub effect random
   fun random-int32() : int32
 
-pub fun "@default-random"(action : () -> <random,ndet|e> a) : <ndet|e> a
+pub fun @default-random(action : () -> <random,ndet|e> a) : <ndet|e> a
   strong-random(action)
 
 // Pick random numbers from a the best strong random source in the OS.

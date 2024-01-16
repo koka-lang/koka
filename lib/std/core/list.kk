@@ -10,6 +10,7 @@
 module std/core/list
 
 import std/core/types
+import std/core/undiv
 import std/core/hnd
 import std/core/exn
 import std/core/char
@@ -63,14 +64,14 @@ pub fun length(xs)
 // If `lo > hi`  the function returns the empty list.
 pub fun list( lo: int, hi: int ) : total list<int>
   if lo <= hi
-    then Cons( lo, list( unsafe-decreasing(lo.inc), hi ) )
+    then Cons( lo, list( pretend-decreasing(lo.inc), hi ) )
     else Nil
 
 // Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
 // If `lo > hi`  the function returns the empty list.
 pub fun stride/list( lo: int, hi: int, stride : int ) : total list<int>
   if lo <= hi
-    then Cons( lo, list(  unsafe-decreasing(lo + stride), hi, stride ))
+    then Cons( lo, list(  pretend-decreasing(lo + stride), hi, stride ))
     else Nil
 
 // Applies a function `f` to list of increasing elements from `lo`  to `hi`
@@ -78,14 +79,14 @@ pub fun stride/list( lo: int, hi: int, stride : int ) : total list<int>
 // If `lo > hi`  the function returns the empty list.
 pub fun function/list( lo: int, hi: int, f : int -> e a ) : e list<a>
   if lo <= hi
-    then Cons( f(lo), list( unsafe-decreasing(lo.inc), hi, f ))
+    then Cons( f(lo), list( pretend-decreasing(lo.inc), hi, f ))
     else Nil
 
 // Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
 // If `lo > hi`  the function returns the empty list.
 pub fun stridefunction/list( lo: int, hi: int, stride : int, f : int -> e a ) : e list<a>
   if lo <= hi
-    then Cons( f(lo), list(  unsafe-decreasing(lo + stride), hi, stride, f ))
+    then Cons( f(lo), list(  pretend-decreasing(lo + stride), hi, stride, f ))
     else Nil
 
 // Create a list of characters from `lo`  to `hi`  (inclusive).
@@ -273,7 +274,7 @@ pub fun foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
 // Create a list of `n`  repeated elementes `x`
 pub fun replicate( x : a, n : int ) : list<a>
   if n > 0
-   then Cons(x, replicate(x,unsafe-decreasing(n.dec)))
+   then Cons(x, replicate(x,pretend-decreasing(n.dec)))
    else Nil
 
 // split a list at position `n`

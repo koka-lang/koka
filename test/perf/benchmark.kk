@@ -1,5 +1,6 @@
 module benchmark
 
+import std/core/undiv
 import std/time
 import std/num/ddouble
 
@@ -28,7 +29,7 @@ effect ask<a> {
 fun re-wrap(d : delayed<e,a>, b : benchmark<<ask<a>|e>>) : benchmark<e> {
     match(b) {
         BGroup(name, bs) {
-            BGroup(name, bs.map(fn(b1) { re-wrap(d, unsafe-decreasing(b1)) }))
+            BGroup(name, bs.map(fn(b1) { re-wrap(d, pretend-decreasing(b1)) }))
         }
         Bench(pre, f, post) {
             Bench(fn() {
@@ -65,7 +66,7 @@ fun eval-env() : ask<a> () { val e = ask(); () }
 fun list-benchmarks(b : benchmark<e>, name : string = "") : total list<string> {
     match(b) {
         BGroup(s, bs) {
-            val ls = bs.map(fn(b1) { list-benchmarks(unsafe-decreasing(b1), name ++ "/" ++ s) }).concat
+            val ls = bs.map(fn(b1) { list-benchmarks(pretend-decreasing(b1), name ++ "/" ++ s) }).concat
             Cons(name ++ "/" ++ s, ls)
         }
         Bench(_,_,_) { Nil }

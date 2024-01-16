@@ -16,6 +16,8 @@
 module std/core
 
 pub import std/core/types
+import std/core/undiv
+import std/core/unsafe
 pub import std/core/hnd
 pub import std/core/exn
 pub import std/core/bool
@@ -126,7 +128,7 @@ pub fun for( ^start: int, end : int, action : (int) -> e () ) : e ()
   fun rep( ^i : int )
     if i <= end then
       action(i)
-      rep(unsafe-decreasing(i.inc))
+      rep(pretend-decreasing(i.inc))
   rep(start)
 
 
@@ -137,7 +139,7 @@ pub fun for-while( start: int, end : int, action : (int) -> e maybe<a> ) : e may
   fun rep( i : int )
     if i <= end then
       match action(i)
-        Nothing -> rep(unsafe-decreasing(i.inc))
+        Nothing -> rep(pretend-decreasing(i.inc))
         Just(x) -> Just(x)
     else Nothing
   rep(start)
@@ -146,7 +148,7 @@ pub fun for-while( start: int, end : int, action : (int) -> e maybe<a> ) : e may
 pub fun fold( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
   if start >= end then init else
     val x = f(start,init)
-    fold(unsafe-decreasing(start.inc), end, x, f)
+    fold(pretend-decreasing(start.inc), end, x, f)
 
 // Fold over the integers between [0,`upto`)  (not including `upto`).
 pub fun fold-upto( upto : int, init : a, f : (int,a) -> e a ) : e a
@@ -156,7 +158,7 @@ pub fun fold-upto( upto : int, init : a, f : (int,a) -> e a ) : e a
 pub fun fold-while( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
   if start >= end then init else
     match f(start,init)
-      Just(x) -> fold-while(unsafe-decreasing(start.inc), end, x, f)
+      Just(x) -> fold-while(pretend-decreasing(start.inc), end, x, f)
       Nothing -> init
 
 
@@ -210,7 +212,7 @@ pub extern host() : ndet string
 
 
 // The default exception handler
-pub fun "@default-exn"(action : () -> <exn,console|e> () ) : <console|e> ()
+pub fun @default-exn(action : () -> <exn,console|e> () ) : <console|e> ()
   handle( action )
     final ctl throw-exn( exn : exception )
       "uncaught exception: ".print

@@ -10,6 +10,7 @@
 module std/core/vector
 
 import std/core/types
+import std/core/undiv
 import std/core/hnd
 import std/core/exn
 import std/core/int
@@ -145,7 +146,7 @@ fun forz( start: ssize_t, end : ssize_t, action : (ssize_t) -> e () ) : e ()
   fun rep( i : ssize_t )
     if i <= end then
       action(i)
-      rep(unsafe-decreasing(i.incr))
+      rep(pretend-decreasing(i.incr))
   rep(start)
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
@@ -155,7 +156,7 @@ fun for-whilez( start: ssize_t, end : ssize_t, action : (ssize_t) -> e maybe<a> 
   fun rep( i : ssize_t )
     if i <= end then
       match action(i)
-        Nothing -> rep(unsafe-decreasing(i.incr))
+        Nothing -> rep(pretend-decreasing(i.incr))
         Just(x) -> Just(x)
     else Nothing
   rep(start)

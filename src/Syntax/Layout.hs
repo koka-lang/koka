@@ -41,12 +41,12 @@ layout allowAt semiInsert lexemes
   = let semi f = if semiInsert then f else id
         ls =  semi indentLayout $
               -- semi lineLayout $
+              (if allowAt then id else checkIds) $
               removeWhite $
               associateComments $
               removeWhiteSpace $
               combineLineComments $
               semi checkComments $
-              (if allowAt then id else checkIds)
               lexemes
     in -- trace (unlines (map show ls)) $   -- see all lexemes
        if null ls then [] else seq (last ls) ls
@@ -169,6 +169,8 @@ checkIds lexemes
   = check lexemes
   where
     check [] = []
+    check (lexeme1@(Lexeme _ (LexKeyword keyw _)) : lexeme2@(Lexeme _ (LexId id)) : lexs)  -- ok to define @ functions
+       | keyw `elem` ["fun","val","extern"] = lexeme1 : lexeme2 : check lexs
     check (lexeme@(Lexeme rng lex):lexs)
       = lexeme : case lex of
           LexId       id -> checkId id
@@ -182,7 +184,7 @@ checkIds lexemes
       where
         checkId id
           = if any (=='@') (nameStem id)
-              then (Lexeme rng (LexError ("identifiers cannot contain '@' characters (in '" ++ show id ++ "')")) : check lexs)
+              then (Lexeme rng (LexError ("\"@\": identifiers cannot contain '@' characters (in '" ++ show id ++ "')")) : check lexs)
               else check lexs
 
 -----------------------------------------------------------

@@ -1,3 +1,5 @@
+import std/core/undiv
+
 // Tail recursion on a field that has a single constructor
 type tree
   Tip
@@ -7,9 +9,9 @@ ref type ind<a>
   Ind( ind : a)
 
 fun make( depth : int ) : tree
-  if depth > 0 then 
+  if depth > 0 then
     val d = depth.dec
-    Node( Ind(make(unsafe-decreasing(d))), Ind(make(unsafe-decreasing(d))) ) 
+    Node( Ind(make(pretend-decreasing(d))), Ind(make(pretend-decreasing(d))) )
   else Node( Ind(Tip), Ind(Tip) )
 
 fun check( t : tree ) : int

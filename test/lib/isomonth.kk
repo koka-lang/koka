@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright 2012-2021, Microsoft Research, Daan Leijen
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the LICENSE file at the root of this distribution.
@@ -8,20 +8,22 @@
 
 module isomonth
 
+import std/core/undiv
+
 pub import std/num/fixed
 pub import std/xtime
 
 fun xdate-of( days : int ) : date {
   val (year,doy) = xdoy-of(days)
-  
+
 }
 
 // days since 0000-01-01
 fun xdoy-of( days : int ) : (int,int) {
   val (era,doe)    = divmod(days,146097)
   val (approx,rem) = divmod(doe*100,36525) // (doe * 400) / 146097
-  val start     = if (rem < 36225) then doe+1 else xbefore-year(approx.inc)    
-  val (yoe,doy) = if (doe < start) then (approx, doe - xbefore-year(approx))    
+  val start     = if (rem < 36225) then doe+1 else xbefore-year(approx.inc)
+  val (yoe,doy) = if (doe < start) then (approx, doe - xbefore-year(approx))
                                    else (approx.inc, doe - start)
   // trace("doe: " + doe.show + ", approx: " + approx.show + ", start: " + start.show )
   (400*era + yoe, doy)
@@ -66,7 +68,7 @@ fun gyear-of-mjd( mjd : int ) : int {
 // ISO week calendar: date to days
 //--------------------------------------------------------------
 
-val isow-epoch-shift = 730219 // to Monday, 0001-01-01  
+val isow-epoch-shift = 730219 // to Monday, 0001-01-01
 
 // Convert a `:date` in the ISO week calendar (the weeks are the `month`s of the year) to days since the epoch.
 fun isow-date-to-days(d : date ) : int {
@@ -87,7 +89,7 @@ fun isow-before-year(year : int) : int {
 
 // Return the days before Gregorian year `gyear`.
 fun gbefore-year(gyear : int ) : int {
-  365*(gyear - 1) + gleapdays-before(gyear) 
+  365*(gyear - 1) + gleapdays-before(gyear)
 }
 
 // Number of leap days before a Gregorian year.
@@ -120,7 +122,7 @@ fun isow-days-to-doy( days:int ) : (int,int) {
 
 // Return the number of days in an ISO week/month year.
 fun isow-days-in-year( year : int ) : int {
-  fun weekday(y:int) { 
+  fun weekday(y:int) {
     (y + gleapdays-before(y)).dec % 7     // The first weekday of the year `y` (0001-01-01 is a Monday)
   }
   if (weekday(year)==3 || weekday(year+1)==4) // `year` starts or ends on a Thursday
@@ -173,12 +175,12 @@ fun isom-month-of( doy : int ) : int {
 
 
 //--------------------------------------------------------------
-// 
+//
 //--------------------------------------------------------------
 
 fun islong( year : int ) : bool {
   fun p(y:int) { (((y + y/4) - y/100) + y/400) % 7 }
-  (p(year)==4 || p(year.dec)==3) 
+  (p(year)==4 || p(year.dec)==3)
 }
 
 fun lastweek( year : int ) : int {
@@ -196,7 +198,7 @@ fun lastday(month : int ) : int {
 
 fun xcheck( msg : string, expect : string, chk :() -> io string ) : io () {
   val res = chk()
-  if (res==expect) then () // println(msg + ": " + expect + ": ok.") 
+  if (res==expect) then () // println(msg + ": " + expect + ": ok.")
   else {
     println(msg + ": FAILED!!!\n expect: " + expect + "\n got   : " + res)
     error("failed")
@@ -256,7 +258,7 @@ fun for-monthdates(years=400, action : (date) -> io ()) : io () {
   }
 }
 
-fun for-days(years=400, action : (int) -> io ()) : io () {  
+fun for-days(years=400, action : (int) -> io ()) : io () {
   for(~years,years) fn(y) {
     val base = y*366
     for(0,365) fn(day) { action(base + day) }
@@ -271,7 +273,7 @@ fun for-days(years=400, action : (int) -> io ()) : io () {
 fun group-by( xs : list<a>, n : int ) : list<list<a>> {
   match(xs) {
     Nil -> Nil
-    _   -> Cons(xs.take(n), group-by(unsafe-decreasing(xs.drop(n)),n))
+    _   -> Cons(xs.take(n), group-by(pretend-decreasing(xs.drop(n)),n))
   }
 }
 
@@ -322,19 +324,19 @@ fun test-week-dates() {
     val mds = md.show
     check("date-" + ds, wds) { time(d).weekdate.show }
     check("date-" + wds, ds) { time(wd).date.show }
-    check("date-isow-" + ds, wds) { 
+    check("date-isow-" + ds, wds) {
       val i = instant-at(d)
       val id = i.time(cal=cal-iso-week).date
       (Weekdate(id.year,id.month,id.day.weekday)).show
     }
-    check("date-isow-" + wds, ds) { 
+    check("date-isow-" + wds, ds) {
       val id = Date(wd.year,wd.week,wd.day.int)
       instant-at(id,cal=cal-iso-week).time.date.show
     }
     check("date-isom-" + mds, mds) {  instant-at(d).time(cal=cal-iso-month).date.show  }
     check("date-isom-" + ds, ds) {  instant-at(md,cal=cal-iso-month).time.date.show  }
     println("")
-  })    
+  })
 }
 
 fun test-week-in-years() {
@@ -348,13 +350,13 @@ fun test-week-in-years() {
     val weeks = if (long-years.find(fn(y) { (2000+y)==year }).bool) then 53 else 52
     check("year-" + year.show, weeks.show) { time(year).weeks-in-year.show }
 
-    check("isow-" + year.show, weeks.show) { 
-      val d = instant-at(year,12,28).time(cal=cal-iso-week).date 
+    check("isow-" + year.show, weeks.show) {
+      val d = instant-at(year,12,28).time(cal=cal-iso-week).date
       if (d.month==53) then "53" else "52"
     }
- 
-    check("isom-" + year.show, weeks.show) { 
-      val d = instant-at(year,12,28).time(cal=cal-iso-month).date 
+
+    check("isom-" + year.show, weeks.show) {
+      val d = instant-at(year,12,28).time(cal=cal-iso-month).date
       if (d.month==12 && d.day > 31) then "53" else "52"
     }
   })
@@ -379,7 +381,7 @@ fun test-nth() {
   check("nth4", "2017-11-19") { time(2016,10,10).nth-weekday-of-month(60,Sun).date.show }
   check("nth5", "2016-10-30") { time(2016,11,1).nth-weekday(0,Sun).date.show }
   check("nth6", "2016-10-26") { time(2016,11,16).start-of-month.nth-weekday(0,Wed).date.show }
-  check("nth7", "2016-11-13") { time(2016,11,10).nth-weekday(1,Sun).date.show }  
+  check("nth7", "2016-11-13") { time(2016,11,10).nth-weekday(1,Sun).date.show }
 }
 
 pub fun main() {

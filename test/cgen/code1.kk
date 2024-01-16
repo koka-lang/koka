@@ -1,3 +1,4 @@
+import std/core/undiv
 
 pub fun f(x : int) : div int {
   if (x==0) then 1 else g(x) + 1;
@@ -19,7 +20,7 @@ fun incr(x : int) : int {
 }
 
 fun fib(n:int) : int {
-  if (n==0) then 1 else fib(unsafe-decreasing(n - 1))
+  if (n==0) then 1 else fib(pretend-decreasing(n - 1))
 }
 
 val incrx = (if (fib(10)==1) then incr else id)
@@ -53,19 +54,19 @@ fun box-test4( xs : list<int> ) : int {
   drop(xs)
   match(x) {
     Cons(Just(x)) -> x
-    Cons(Just(y1) as x1,Cons(Just(y2) as x3, _ as x4) as x2) 
+    Cons(Just(y1) as x1,Cons(Just(y2) as x3, _ as x4) as x2)
       -> dup(y); drop(x); y
-         
-         drop-match(x, 
+
+         drop-match(x,
            {drop-match(x1, {}, {dup(y1)});
-            drop-match(x2, { drop-match(x3, {}, {dup(y2)} ); drop(x4) }, { dup(y2) }) 
+            drop-match(x2, { drop-match(x3, {}, {dup(y2)} ); drop(x4) }, { dup(y2) })
            },
            {dup(y1);dup(y2)})
-         
+
     Cons(y,xx) ->  drop-match(x,{},{dup(y);dup(xx)})
-         
-      
-       
+
+
+
     _ -> 42
   }
 }

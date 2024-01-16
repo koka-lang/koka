@@ -12,6 +12,8 @@
 // e.g. `max-int32 + 1.int32 == min-int32`.
 module std/num/int32
 
+import std/core/undiv
+
 extern import
   c  file "int32-inline.c"
 
@@ -461,12 +463,12 @@ pub fip fun divmod(x:int32,y:int32) : (int32,int32)
 pub fip fun fold-int32( start : int32, end : int32, init : a, ^f : (int32,a) -> e a ) : e a
   if (start >= end) then init else
     val x = f(start,init)
-    fold-int32(unsafe-decreasing(start.inc), end, x, f)
+    fold-int32(pretend-decreasing(start.inc), end, x, f)
 
 pub fun fold-while-int32( start : int32, end : int32, init : a, f : (int32,a) -> e maybe<a> ) : e a
   if (start >= end) then init else
     match f(start,init)
-      Just(x) -> fold-while-int32(unsafe-decreasing(start.inc), end, x, f)
+      Just(x) -> fold-while-int32(pretend-decreasing(start.inc), end, x, f)
       Nothing -> init
 
 
@@ -476,7 +478,7 @@ pub fun for32( start: int32, end : int32, action : (int32) -> e () ) : e ()
   fun rep( i : int32 )
     if i <= end then
       action(i)
-      rep(unsafe-decreasing(i.inc))
+      rep(pretend-decreasing(i.inc))
   rep(start)
 
 
@@ -487,14 +489,14 @@ pub fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<a> )
   fun rep( i : int32 )
     if i <= end then
       match action(i)
-        Nothing -> rep(unsafe-decreasing(i.inc))
+        Nothing -> rep(pretend-decreasing(i.inc))
         Just(x) -> Just(x)
     else Nothing
   rep(start)
 
 pub fun list32( lo: int32, hi: int32 ) : total list<int32>
   if lo <= hi
-    then Cons( lo, list32( unsafe-decreasing(lo.inc), hi ) )
+    then Cons( lo, list32( pretend-decreasing(lo.inc), hi ) )
     else Nil
 
 pub fip fun sum32( ^xs : list<int32> ) : int32

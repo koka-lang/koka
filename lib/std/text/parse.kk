@@ -10,6 +10,8 @@
 */
 module std/text/parse
 
+import std/core/undiv
+
 pub alias parser<e,a> = () -> <parse|e> a
 
 pub effect parse
@@ -103,7 +105,7 @@ pub fun char-is( msg :string, pred : char -> bool ) : parse char
 
 fun next-while0( slice : sslice, pred : char -> bool, acc : list<char> ) : (list<char>,sslice)
   match slice.next
-    Just((c,rest)) | pred(c) -> next-while0(unsafe-decreasing(rest), pred, Cons(c,acc) )
+    Just((c,rest)) | pred(c) -> next-while0(pretend-decreasing(rest), pred, Cons(c,acc) )
     _ -> (acc.reverse,slice)
 
 
@@ -180,7 +182,7 @@ pub fun one-of( chars : string ) : parse char
   // chars.list.map(fn(c){ (fn(){ char(c) } ) }).choose
 
 fun many-acc( p : parser<e,a>, acc : list<a> ) : <parse|e> list<a>
-  (fn() val x = p() in many-acc(unsafe-decreasing(p),Cons(x,acc))) || (fn() acc.reverse)
+  (fn() val x = p() in many-acc(pretend-decreasing(p),Cons(x,acc))) || (fn() acc.reverse)
 
 pub fun many( p : parser<e,a> ) : <parse|e> list<a>
   many-acc(p,[])
@@ -191,7 +193,7 @@ pub fun many1( p : parser<e,a> ) : <parse|e> list<a>
 fun count-acc( n : int, acc : list<a>, p : parser<e,a> ) : <parse|e> list<a>
   if n <= 0 then acc.reverse else
     val x = p()
-    count-acc(unsafe-decreasing(n - 1), Cons(x,acc), p)
+    count-acc(pretend-decreasing(n - 1), Cons(x,acc), p)
 
 
 pub fun count( n : int, p : parser<e,a> ) : <parse|e> list<a>

@@ -294,7 +294,7 @@ import std/time/instant
 // Return the UTC timescale with the latest leap second information.
 pub effect fun utc() : timescale
 
-pub fun "@default-utc"( action : () -> <utc|e> a) : e a
+pub fun @default-utc( action : () -> <utc|e> a) : e a
   with fun utc() { ts-ti }
   action()
 

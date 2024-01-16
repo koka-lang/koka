@@ -26,14 +26,14 @@ type zipper<a>
   Done
 
 // Reconstruct a tree from a zipper (updates in place)
-fun move-up(z : zipper<a>, t : tree<a>) : tree<a>
+fip fun move-up(z : zipper<a>, t : tree<a>) : tree<a>
   match z
     NodeR(c, l, k, v, z1) -> z1.move-up(Node(c, l, k, v, t))
     NodeL(c, z1, k, v, r) -> z1.move-up(Node(c, t, k, v, r))
     Done -> t
 
 // Rebalance upwards from a zipper
-fun balance-red( z : zipper<a>, l : tree<a>, k : int, v : a, r : tree<a> ) : tree<a>
+fip(1) fun balance-red( z : zipper<a>, l : tree<a>, k : int, v : a, r : tree<a> ) : tree<a>
   match z
     NodeR(Black, l1, k1, v1, z1) -> z1.move-up( Node( Black, l1, k1, v1, Node(Red,l,k,v,r) ) )
     NodeL(Black, z1, k1, v1, r1) -> z1.move-up( Node( Black, Node(Red,l,k,v,r), k1, v1, r1 ) )
@@ -49,7 +49,7 @@ fun balance-red( z : zipper<a>, l : tree<a>, k : int, v : a, r : tree<a> ) : tre
 
 
 // Find an insertion point while constructing a zipper (updates in place)
-fun ins(t : tree<a>, k : int, v : a, z : zipper<a>) : tree<a>
+fbip(1) fun ins(t : tree<a>, k : int, v : a, z : zipper<a>) : tree<a>
   match t
     Node(c, l, kx, vx, r)
       -> if k < kx   then ins(l, k, v, NodeL(c, z, kx, vx, r))
@@ -59,7 +59,7 @@ fun ins(t : tree<a>, k : int, v : a, z : zipper<a>) : tree<a>
 
 
 // Insert an element into the tree
-fun insert(t : tree<a>, k : int, v : a) : tree<a>
+fbip(1) fun insert(t : tree<a>, k : int, v : a) : tree<a>
   ins(t, k, v, Done)
 
 

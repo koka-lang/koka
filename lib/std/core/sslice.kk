@@ -10,6 +10,7 @@
 module std/core/sslice
 
 import std/core/types
+import std/core/undiv
 import std/core/hnd
 import std/core/int
 import std/core/string
@@ -34,7 +35,7 @@ extern import
 abstract value struct sslice( str : string, start : int, len : int )
 
 // Internal export for the regex module
-pub fun "@new-sslice"( str :string, start: int, len : int )
+pub fun @new-sslice( str :string, start: int, len : int )
   Sslice(str,start,len)
 
 
@@ -208,7 +209,7 @@ pub fun slice/foreach-while( slice : sslice, action : (c : char) -> e maybe<a> )
     Nothing -> Nothing
     Just((c,rest)) ->
       match action(c)
-        Nothing -> slice/foreach-while(unsafe-decreasing(rest),action)
+        Nothing -> slice/foreach-while(pretend-decreasing(rest),action)
         res     -> res
 
 
@@ -300,13 +301,13 @@ pub fun string/truncate( s : string, count : int ) : string
 pub fun stringsub/trim-left( s : string, sub : string ) : string
   if sub.is-empty return s
   match s.starts-with(sub)
-    Just(slice) -> trim-left(unsafe-decreasing(slice.string),sub)
+    Just(slice) -> trim-left(pretend-decreasing(slice.string),sub)
     Nothing -> s
 
 // Trim off a substring `sub` while `s` ends with that string.
 pub fun stringsub/trim-right( s : string, sub : string ) : string
   if sub.is-empty return s
   match s.ends-with(sub)
-    Just(slice) -> trim-right(unsafe-decreasing(slice.string),sub)
+    Just(slice) -> trim-right(pretend-decreasing(slice.string),sub)
     Nothing -> s
 

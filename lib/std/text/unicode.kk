@@ -11,6 +11,8 @@
 */
 module std/text/unicode
 
+import std/core/undiv
+
 // Grapheme's are an alias for `:string`.
 // Each grapheme is a self-contained symbol consisting of
 // a unicode character followed by combining characters and/or
@@ -233,7 +235,7 @@ fun combine( xs : list<rtree> ) : rtree {
   match (combine-pairs(xs)) {
     Nil         -> Tip
     Cons(x,Nil) -> x
-    ys          -> combine(unsafe-decreasing(ys))
+    ys          -> combine(pretend-decreasing(ys))
   }
 }
 

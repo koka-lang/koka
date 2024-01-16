@@ -118,7 +118,7 @@ pub fun exn-error-range() : exn a
   throw("index out-of-range", ExnRange)
 
 
-// _Unsafe_. This function removes the exception effect (`:exn`) from the effect of an action
-pub fun unsafe-no-exn( action : () -> <exn|e> a ) : e a
-  unsafe-total( action )
+// // _Unsafe_. This function removes the exception effect (`:exn`) from the effect of an action
+// pub fun unsafe-no-exn( action : () -> <exn|e> a ) : e a
+//   unsafe-total( action )
 

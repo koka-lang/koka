@@ -10,6 +10,7 @@
 module std/core/console
 
 import std/core/types
+import std/core/unsafe
 import std/core/hnd
 import std/core/string
 import std/core/show

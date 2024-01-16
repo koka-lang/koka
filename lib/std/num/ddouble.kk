@@ -161,6 +161,7 @@ Discrete & Computational Geometry, vol. 18, 305--363, 1997. [pdf](https://people
 */
 module std/num/ddouble
 
+import std/core/undiv
 import std/num/float64
 import std/num/decimal
 import std/text/parse
@@ -593,8 +594,8 @@ pub fun ldexp( x : ddouble, exp : int ) : ddouble
 
 fun npwr-acc( x : ddouble, acc : ddouble, n : int ) : ddouble
   if n <= 0 then acc
-  elif n.is-even then npwr-acc( sqr(x), acc, unsafe-decreasing(n/2) )
-  else npwr-acc( x, x*acc, unsafe-decreasing(n.dec))
+  elif n.is-even then npwr-acc( sqr(x), acc, pretend-decreasing(n/2) )
+  else npwr-acc( x, x*acc, pretend-decreasing(n.dec))
 
 fun npwr( x : ddouble, n : int ) : ddouble
   if n==0 then (if x.is-zero then dd-nan else one)

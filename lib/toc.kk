@@ -14,6 +14,8 @@ See the [Koka book](book.html) for further information on the Koka language.
 module toc
 
 pub import std/core/types
+pub import std/core/unsafe
+pub import std/core/undiv
 pub import std/core
 
 pub import std/os/env

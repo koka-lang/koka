@@ -718,10 +718,12 @@ conBinder defVis
     "constructor field"
 
 constructorId
-  = try ttuple
+  = {-
+    try ttuple
   <|>
     tlist
   <|>
+    -}
     conid
   <?> "constructor"
 
@@ -2108,7 +2110,15 @@ injectType
       tp <- ptype
       rangle
       return (rng1, \exp -> Inject (promoteType tp) exp behind (combineRanged rng1 exp))
-
+      {-
+      tps1 <- sepBy1 ptype comma
+      rng2 <- rangle
+      let rng  = combineRange rng1 rng2
+          (tp:tps) = reverse tps1
+          base = \exp -> Inject (promoteType tp) exp behind rng
+          rest = \exp -> foldl (\e t -> Inject (promoteType t) (Lam [] e rng) behind rng) exp tps
+      return (rng, \exp -> rest (base exp))
+      -}
 -----------------------------------------------------------
 -- Patterns (and binders)
 -----------------------------------------------------------
@@ -2120,14 +2130,18 @@ pbinder toplevel preRange
 
 funid toplevel
   = lqidentifier toplevel
+  {-
   <|>
     do rng1 <- special "["
        rng2 <- special "]"
        return (nameIndex,combineRange rng1 rng2)
+  -}
+  {-
   -- secretly allow definition of any name
   <|>
     do (s,rng) <- stringLit
        return (newName s, rng)
+  -}
 
 lqidentifier toplevel
   = if toplevel
@@ -2496,10 +2510,17 @@ tbinderDef
        return (\kind -> TypeBinder id kind rng rng)
 
 tbinderId
-  = typeid <|> tlist <|> ttuple
---  <|> toptional <|> tdelay
-  <|> temptyOrExtend
-
+  = typeid
+  -- <|> tlist <|> ttuple
+  --  <|> toptional <|> tdelay
+  -- <|> temptyOrExtend
+  -- secretly allow definition of any name
+  {-
+  <|>
+    do (s,rng) <- stringLit
+       return (newName s, rng)
+  -}
+{-
 tlist
   = do rng1 <- special "["
        rng2 <- special "]"
@@ -2520,7 +2541,7 @@ temptyOrExtend
         <|>
         do rng2 <- rangle
            return (nameEffectEmpty, combineRange rng1 rng2))
-
+-}
 
 tbinders :: LexParser [TypeBinder UserKind]
 tbinders

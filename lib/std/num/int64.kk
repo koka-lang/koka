@@ -12,6 +12,8 @@
 // with wrapping on overflow, e.g. `max-int64 + 1.int64 == min-int64`
 module std/num/int64
 
+import std/core/undiv
+
 extern import
   c  file "int64-inline.c"
 
@@ -490,7 +492,7 @@ pub fip fun divmod( x :int64, y :int64 ) : (int64,int64)
 pub fun fold-int64( start : int64, end : int64, init : a, f : (int64,a) -> e a ) : e a
   if start >= end then init else
     val x = f(start,init)
-    fold-int64(unsafe-decreasing(start.inc), end, x, f)
+    fold-int64(pretend-decreasing(start.inc), end, x, f)
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
@@ -499,14 +501,14 @@ pub fun for-while64( start: int64, end : int64, ^action : (int64) -> e maybe<a> 
   fun rep( i : int64 )
     if i <= end then
       match action(i)
-        Nothing -> rep(unsafe-decreasing(i.inc))
+        Nothing -> rep(pretend-decreasing(i.inc))
         Just(x) -> Just(x)
     else Nothing
   rep(start)
 
 pub fun list64( lo: int64, hi: int64 ) : total list<int64>
   if lo <= hi
-    then Cons( lo, list64( unsafe-decreasing(lo.inc), hi ) )
+    then Cons( lo, list64( pretend-decreasing(lo.inc), hi ) )
     else Nil
 
 pub fun sum64( xs : list<int64> ) : int64

@@ -650,7 +650,7 @@ nofailUnify u
                 return x
          (Left err,sub)
           -> do extendSub sub
-                failure ("Type.InferMonad.runUnify: should never fail!")
+                failure ("Type.InferMonad.runUnify: should never fail!: " ++ show err)
 
 withSkolemized :: Range -> Type -> Maybe Doc -> (Type -> [TypeVar] -> Inf (a,Tvs)) -> Inf a
 withSkolemized rng tp mhint action

@@ -26,18 +26,12 @@ import Common.Failure
 import Common.Error
 import Common.Name
 import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy, nameTpDelay
-                      , nameReturn, nameRef, nameByref, nameDeref
-                      , nameRefSet, nameAssign, nameTpUnit, nameTuple
-                      -- , nameMakeHandler, nameMakeHandlerRet
+                      , nameReturn, nameRef, nameByref, nameDeref, nameAssign
+                      , nameRefSet, nameTpUnit, nameTuple
                       , namePatternMatchError, nameSystemCore, nameTpHandled, nameTpHandled1
                       , nameToAny, nameFalse, nameTrue
-                      -- , nameTpYld
-                      -- , nameTpHandlerBranch0, nameTpHandlerBranch1
                       , nameCons, nameListNil, nameVector
-                      -- , nameInject, nameInjectExn
                       , nameTpPartial
-                      -- , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
-                      -- , nameMakeContextTp
                       , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocalVar
                       , nameTpValueOp, nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
@@ -686,7 +680,7 @@ inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,r
                                    then return ((mbName,App (Var nameByref False vrng) [(Nothing, arg)] lrng) : rest)
                                    else return args
                           _ -> return args
-                inferExpr propagated expect (App fun (xargs ++ [(Nothing {- Just (nameAssigned,rangeNull) -},rexpr)]) rng)
+                inferExpr propagated expect (App fun (xargs ++ [(Nothing,rexpr)]) rng)
       Var target _ lrng
         -> do (_,gtp,_) <- resolveName target Nothing lrng
               (tp,_,_) <- instantiateEx lrng gtp

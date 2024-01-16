@@ -9,6 +9,7 @@
 // Formatting of time into a string.
 module std/time/format
 
+import std/core/undiv
 import std/text/parse
 import std/num/ddouble
 import std/time/timestamp
@@ -234,7 +235,7 @@ fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string
     Nil -> ""
     Cons(c,cs) ->
       val (formatted,rest) = format-pat(t,c,cs,locale)
-      formatted ++ format-list(t, unsafe-decreasing(rest), locale)
+      formatted ++ format-list(t, pretend-decreasing(rest), locale)
 
 
 fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (string,list<char>)

@@ -27,8 +27,8 @@ module Common.NamePrim
           -- * Operations
           , namePatternMatchError, nameMainConsole
           , nameCopy, copyNameOf
-          , nameAssign, nameRefSet, nameAssigned
-          , nameByref, nameDeref, nameIndex
+          , nameAssign
+          , nameRefSet, nameByref, nameDeref, nameIndex
           , nameDecreasing, nameSubStr1
           , nameAssert
 
@@ -234,9 +234,9 @@ nameTpList      = coreTypesName "list"
   std/core/debug
 --------------------------------------------------------------------------}
 
-nameAssert      = coreDebugName "assert"
-nameTrace       = coreDebugName "trace"
-nameLog         = coreDebugName "log"
+nameAssert      = qualify nameCoreDebug (newName "assert")
+nameTrace       = qualify nameCoreDebug (newName "trace")
+nameLog         = qualify nameCoreDebug (newName "log")
 
 nameCoreFileFile   = qualify nameCoreDebug (newLocallyQualified "" "file" "kk-file")
 nameCoreFileLine   = qualify nameCoreDebug (newLocallyQualified "" "file" "kk-line")
@@ -296,7 +296,7 @@ nameCCtxEmpty     = newLocallyQualified "std/core/types" "cctx" "empty"
 nameCCtxApply     = newLocallyQualified "std/core/types" "cctx" "(++.)"
 nameCCtxCompose   = newLocallyQualified "std/core/types" "cctx" "(++)"
 
-nameTpFieldAddr   = cfieldName "field-addr"
+nameTpFieldAddr   = cfieldName "@field-addr"
 nameFieldAddrOf   = cfieldName "@field-addr-of"
 
 {--------------------------------------------------------------------------
@@ -348,24 +348,24 @@ isClauseTailName name
   std/core/types
 --------------------------------------------------------------------------}
 nameToAny       = coreTypesName "@toany"
-namePhantom     = coreTypesName "phantom"
-nameTpValueOp   = coreTypesName "value"
+namePhantom     = coreTypesName "@phantom"
+nameTpValueOp   = coreTypesName "@value"
 
-nameDecreasing  = coreTypesName "unsafe-decreasing"
-nameUnsafeTotal = coreTypesName "unsafe-total"
+nameDecreasing  = qualify nameCoreUndiv (newName "pretend-decreasing")
+nameUnsafeTotal = qualify nameCoreUnsafe (newName "unsafe-total")
 
-nameAssigned    = newName "assigned"
 nameIndex       = newName "index"
-nameAssign      = coreTypesName "assign"
+nameReturn      = newHiddenName "return"
+nameAssign      = newHiddenName "@assign"  -- used for :=
+
 nameRefSet      = coreTypesName "set"
 nameLocalSet    = coreTypesName "local-set"
 nameLocalGet    = coreTypesName "local-get"
 nameDeref       = qualifyLocally (newModuleName "ref") (coreTypesName "!")
-nameByref       = coreTypesName "byref"
+nameByref       = coreTypesName "@byref"
 
 namePredHeapDiv = coreTypesName "hdiv"
 namePredEffDiv  = coreTypesName "ediv"
-nameReturn      = newHiddenName "return"
 
 nameTpRef       = coreTypesName "ref"
 nameTpLocalVar  = coreTypesName "local-var"
@@ -402,9 +402,9 @@ nameJust        = coreTypesName "Just"
 nameNothing     = coreTypesName "Nothing"
 nameTpMaybe     = coreTypesName "maybe"
 
-nameOptional    = coreTypesName "Optional"
-nameOptionalNone= coreTypesName "None"
-nameTpOptional  = coreTypesName "optional"
+nameOptional    = coreTypesName "@Optional"
+nameOptionalNone= coreTypesName "@None"
+nameTpOptional  = coreTypesName "@optional"
 
 nameTpVoid      = coreTypesName "void"
 nameTpUnit      = coreTypesName "unit"
@@ -434,8 +434,8 @@ nameBoxCon      = coreTypesName "@Box"
 nameBox         = coreTypesName "@box"
 nameUnbox       = coreTypesName "@unbox"
 
-nameTpReuse     = coreTypesName "reuse"
-nameReuseNull   = coreTypesName "no-reuse"
+nameTpReuse     = coreTypesName "@reuse"
+nameReuseNull   = coreTypesName "@no-reuse"
 nameDropReuse   = coreTypesName "@drop-reuse"
 nameFreeReuse   = coreTypesName "@free-reuse"
 nameAllocAt     = coreTypesName "@alloc-at"
@@ -444,8 +444,8 @@ nameReuse       = coreTypesName "@reuse"
 nameReuseIsValid= coreTypesName "@reuse-is-valid"
 nameConFieldsAssign = coreTypesName "@con-fields-assign"
 nameConTagFieldsAssign = coreTypesName "@con-tag-fields-assign"
-nameKeep        = coreTypesName "keep"
 nameSetTag      = coreTypesName "@set-tag"
+nameKeep        = coreTypesName "keep"
 
 nameDup         = coreTypesName "@dup"
 nameDrop        = coreTypesName "@drop"
@@ -489,7 +489,6 @@ preludeName s
 
 coreHndName s   = qualify nameCoreHnd (newName s)
 coreTypesName s = qualify nameCoreTypes (newName s)
-coreDebugName s = qualify nameCoreDebug (newName s)
 
 coreIntName s   = newQualified "std/core/int" s
 coreListName s  = newQualified "std/core/list" s
@@ -499,6 +498,8 @@ coreStringName s= newQualified "std/core/string" s
 
 nameSystemCore  = newModuleName "std/core"
 nameCoreHnd     = newModuleName "std/core/hnd"
+nameCoreUndiv   = newModuleName "std/core/undiv"
+nameCoreUnsafe  = newModuleName "std/core/unsafe"
 nameCoreTypes   = newModuleName "std/core/types"
 nameDict        = newModuleName "std/data/dict"
 nameCoreDebug   = newModuleName "std/core/debug"
@@ -508,11 +509,10 @@ isSystemCoreName name
     in  (m == "std/core" || m `startsWith` "std/core/")
 
 isPrimitiveName name
-  = let m = nameModule name
-    in  m `elem` [nameModule nameCoreHnd, nameModule nameCoreTypes]
+  = isPrimitiveModule (qualifier name)
 
 isPrimitiveModule name
-  = nameModule name `elem` [nameModule nameCoreHnd, nameModule nameCoreTypes]
+  = name `elem` [nameCoreHnd, nameCoreTypes]
 
 {--------------------------------------------------------------------------
   Primitive kind constructors

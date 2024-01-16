@@ -30,7 +30,7 @@ module Compiler.Compile( -- * Compile
                        , CompileTarget(..)
                        ) where
 
-import Lib.Trace              ( trace )
+import Debug.Trace              ( trace )
 import Data.Char              ( isAlphaNum, toLower, isSpace )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory, doesDirectoryExist )
@@ -110,9 +110,6 @@ import Core.CTail( ctailOptimize )
 import System.Directory ( doesFileExist )
 import Compiler.Package
 -- import qualified Core.Check
-
--- Debugging
-import Lib.Trace
 
 import qualified Data.Map
 import Core.Core (Core(coreProgImports))
@@ -221,7 +218,7 @@ compileExpression maybeContents term flags loaded compileTarget program line inp
                                 -> -}
                                    do let r = rangeNull
                                           mkApp e es = App e [(Nothing,x) | x <- es] r
-                                      let expression = mkApp (Var (qualify nameSystemCore (qualifyLocally (newModuleName "string") (newName "println"))) False r)
+                                      let expression = mkApp (Var (newLocallyQualified "std/core/console" "string" "println") False r)
                                                         [mkApp (Var {-qnameShow-} (newName "show") False r) [mkApp (Var qnameExpr False r) []]]
                                       -- let qmain = (qualify (getName program) nameMain)
                                       let defMain = Def (ValueBinder nameMain () (Lam [] expression r) r r)  r Public (defFun []) InlineNever ""
@@ -346,19 +343,21 @@ compileProgram term flags modules compileTarget fname program importPath
   = runIOErr $ compileProgram' (const Nothing) term flags modules compileTarget fname program importPath
 
 
-compileProgramFromFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> CompileTarget () -> [Name] -> FilePath -> FilePath -> IOErr Loaded (Loaded, Maybe FilePath)
+compileProgramFromFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> CompileTarget ()
+                            -> [Name] -> FilePath -> FilePath -> IOErr Loaded (Loaded, Maybe FilePath)
 compileProgramFromFile maybeContents contents term flags modules compileTarget importPath rootPath stem
   = do let fname = normalize (joinPath rootPath stem)
-       -- trace ("compileProgramFromFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $ return ()
+       -- trace ("compileProgramFromFile: " ++ show (rootPath,stem) ++ ", import path: " ++ show importPath ++ ", modules: " ++ show (map modName modules)) $ return ()
        cwd <- liftIO getCwd
        liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+>
                   color (colorSource (colorScheme flags)) (text (relativeToPath cwd fname)))
        liftIO $ termPhase term ("parsing " ++ fname)
        exist <- liftIO $ doesFileExist fname
        if (exist) then return () else liftError $ errorMsg (errorFileNotFound flags fname)
+       let allowAt = stem `elem` ["/std/core/types.kk","/std/core/hnd.kk"] {- allow @ in identifiers? -}
        program <- lift $ case contents of
-                          Just x -> return $ parseProgramFromString False {-allow @ in identifiers-} (semiInsert flags) x fname
-                          _      -> parseProgramFromFile False {-allow @ in identifiers-} (semiInsert flags) fname
+                          Just x -> return $ parseProgramFromString allowAt (semiInsert flags) x fname
+                          _      -> parseProgramFromFile allowAt (semiInsert flags) fname
        let isSuffix = -- asciiEncode True (noexts stem) `endsWith` asciiEncode True (show (programName program))
                       -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
                       show (pathToModuleName (noexts stem)) `endsWith` show (programName program)

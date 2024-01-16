@@ -1,5 +1,6 @@
 pub module ev5
 
+import std/core/undiv
 import std/num/int32
 
 extern include {
@@ -175,13 +176,13 @@ fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, result : a
     }
     Yielding {
       // evv-set(w0)  // only needed if we do evidence expected check
-      yield-cont(fn(cont,res){ prompt(w0,w1,unsafe-decreasing(m),ret,cont(res)); })
+      yield-cont(fn(cont,res){ prompt(w0,w1,pretend-decreasing(m),ret,cont(res)); })
     }
     Yield(clause,mbcont) {
       fun deep(f) {
         guard(w0)
         match(mbcont) {
-          Just(cont) -> prompt(w0,w1,unsafe-decreasing(m),ret,cont(f))
+          Just(cont) -> prompt(w0,w1,pretend-decreasing(m),ret,cont(f))
           Nothing    -> cast-ev1(error)("trying to resume a non-resumable resumption")
         }
       }
@@ -254,7 +255,7 @@ fun finally( fin : () -> e (), action : () -> e a ) : e a {
 }
 
 fun finally-prompt(fin : () -> e (), res : a ) : e a {
-  if (yielding-non-final()) return yield-cont(fn(cont,x){ finally-prompt(unsafe-decreasing(fin),cont(x)) })
+  if (yielding-non-final()) return yield-cont(fn(cont,x){ finally-prompt(pretend-decreasing(fin),cont(x)) })
   fin()
   if (yielding()) return yield-extend( fn(_x){ res } )
   res
