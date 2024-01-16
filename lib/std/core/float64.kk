@@ -6,14 +6,13 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-// Standard `:float64` functions.
+// Basic `:float64` functions.
 //
-// See also `module std/num/float64`.
+// A 64-bit IEEE 754 double precision floating point value.
+// See also `module std/num/float64` for more advanced operations.
 module std/core/float64
 
 import std/core/types
-import std/core/hnd
-import std/core/int
 
 extern import
   c file "float64-inline.h"
@@ -56,7 +55,7 @@ pub inline fip extern (~)( f : float64 ) : float64
 pub inline extern int( f : float64 ) : int
   c  "kk_integer_from_double"
   cs "Primitive.IntDouble"
-  js "$std_core_int._int_double"
+  js "$std_core_types._int_double"
 
 // Returns the value `f`  raised to the power `p` .
 pub inline fip extern (^)( f : float64, p : float64) : float64

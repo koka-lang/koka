@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2024, Microsoft Research, Daan Leijen.
+  Copyright 2023-2024, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -11,8 +11,10 @@ module std/core/debug
 
 import std/core/types
 import std/core/hnd
-import std/core/int
 import std/core/string
+
+extern import
+  c file "debug-inline.c"
 
 // ------------------------------------------------------------------------------
 // File locations
@@ -68,7 +70,7 @@ pub fun trace-any( message : string, x : a ) : ()
 pub noinline fun notrace() : st<global> ()
   trace-enabled := False
 
-extern unsafe-assert-fail( msg : string ) : ()
+noinline extern unsafe-assert-fail( msg : string ) : ()
   c "kk_assert_fail"
   js inline "function() { throw new Error(\"assertion failed: \" + #1) }()"
 

@@ -7,6 +7,8 @@
 ---------------------------------------------------------------------------*/
 
 // Standard `:bool` functions.
+//
+// Booleans are either `True` or `False`.
 module std/core/bool
 
 import std/core/types

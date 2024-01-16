@@ -53,20 +53,20 @@ pub extern vector/string : (vector<char>) -> string
   js inline "_chars_to_string(#1)"
 
 // Convert a string to a vector of characters.
-pub extern string/vector : ( s : string ) -> vector<char>
+pub extern vector : ( s : string ) -> vector<char>
   c  "kk_string_to_chars"
   cs inline "Primitive.StringToChars(#1)"
   js inline "_string_to_chars(#1)"
 
 // Are two strings equal?
 // Uses exact equality between character codes.
-pub inline extern string/(==) : (string,string) -> bool
+pub inline extern (==) : (string,string) -> bool
   c  "kk_string_is_eq"
   cs inline "(#1 == #2)"
   js inline "(#1 === #2)"
 
 // Are two strings not equal?
-pub inline extern string/(!=) : (string,string) -> bool
+pub inline extern (!=) : (string,string) -> bool
   c  "kk_string_is_neq"
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
@@ -92,31 +92,26 @@ extern string-cmp : ( x : string, y : string ) -> int
 
 // Compare two strings.
 // Uses the character codes directly for comparison
-pub fun string/cmp( x : string, y : string) : order
+pub fun cmp( x : string, y : string) : order
   string-cmp(x,y).order
 
-pub fun string/(>=)( x : string, y : string ) : bool { cmp(x,y) > Lt }
-pub fun string/(<=)( x : string, y : string ) : bool { cmp(x,y) < Gt }
-pub fun string/(>)( x : string, y : string ) : bool  { cmp(x,y) == Gt }
-pub fun string/(<)( x : string, y : string ) : bool  { cmp(x,y) == Lt }
-
-// Append two strings.
-pub extern string/(++)(x : string, y : string) : string
-  c "kk_string_cat"
-  inline "(#1 + #2)"
+pub fun (>=)( x : string, y : string ) : bool { cmp(x,y) > Lt }
+pub fun (<=)( x : string, y : string ) : bool { cmp(x,y) < Gt }
+pub fun (>)( x : string, y : string ) : bool  { cmp(x,y) == Gt }
+pub fun (<)( x : string, y : string ) : bool  { cmp(x,y) == Lt }
 
 // Choose a non-empty string
-pub fun string/(||)( x : string, y : string ) : string
+pub fun (||)( x : string, y : string ) : string
   if x.is-empty then y else x
 
 // Length returns the length in the platform specific encoding (and should not be exported)
-inline extern string/length( s : string ) : int
+inline extern length( s : string ) : int
   c inline "kk_string_len_int(#1,kk_context())"
   cs inline "#1.Length"
   js inline "#1.length"
 
 // O(n). Return the number of characters in a string.
-pub extern string/count( s : string ) : int
+pub extern count( s : string ) : int
   c  "kk_string_count_int"
   cs "Primitive.StringCount"
   js "_string_count"
@@ -143,7 +138,7 @@ pub fun first(s : string, n : int = 1) : sslice
   if n==1 then slice else slice.extend( n - 1 )
 
 // O(`n`). The last `n` (default = `1`) characters in a string
-pub fun string/last(s : string, n : int = 1) : sslice
+pub fun last(s : string, n : int = 1) : sslice
   val slice = s.last1
   if n==1 then slice
             else slice.advance(1 - n).extend(n - 1)
@@ -171,11 +166,11 @@ pub fun sslice/is-notempty( slice : sslice ) : bool
   slice.len.is-pos
 
 // Return the first character of a string as a string (or the empty string)
-pub fun string/head( s : string ) : string
+pub fun head( s : string ) : string
   s.first.string
 
 // Return the tail of a string (or the empty string)
-pub fun string/tail( s : string ) : string
+pub fun tail( s : string ) : string
   s.first.after.string
 
 
@@ -287,9 +282,9 @@ inline extern xindex-of(s : string, sub : string ) : ssize_t
 
 // O(n). If it occurs, return the position of substring `sub` in `s`, tupled with
 // the position just following the substring `sub`.
-pub fun string/find( s : string, sub : string ) : maybe<sslice>
-  val i = s.xindex-of(sub)
-  if i.is-zero then Nothing else Just(Sslice(s,i.decr.int,sub.length))
+pub fun find( s : string, sub : string ) : maybe<sslice>
+  val i = s.xindex-of(sub).int
+  if i.is-zero then Nothing else Just(Sslice(s,i.dec,sub.length))
 
 // Does string `s`  contain the string `sub`  ?
 inline extern xlast-index-of(s : string, sub : string ) : ssize_t
@@ -299,8 +294,8 @@ inline extern xlast-index-of(s : string, sub : string ) : ssize_t
 
 // Return the last index of substring `sub` in `s` if it occurs.
 pub fun find-last( s : string, sub : string ) : maybe<sslice>
-  val i = s.xlast-index-of(sub)
-  if i.is-zero then Nothing else Just(Sslice(s,i.decr.int,sub.length))
+  val i = s.xlast-index-of(sub).int
+  if i.is-zero then Nothing else Just(Sslice(s,i.dec,sub.length))
 
 inline extern xstarts-with: (s : string, pre : string ) -> bool
   c  "kk_string_starts_with"
@@ -327,7 +322,7 @@ pub fun ends-with( s : string, post : string ) : maybe<sslice>
     else Nothing
 
 // Does string `s`  contain the string `sub`  ?
-pub inline extern string/contains: (s : string, sub : string ) -> bool
+pub inline extern contains: (s : string, sub : string ) -> bool
   c  "kk_string_contains"
   cs inline "((#1).Contains(#2))"
   js inline "((#1).indexOf(#2) >= 0)"
@@ -345,7 +340,7 @@ pub inline extern vectorsep/join: (v : vector<string>, sep : string ) -> total s
   js inline "((#1).join(#2))"
 
 // Truncate a string to `count` characters.
-pub fun string/truncate( s : string, count : int ) : string
+pub fun truncate( s : string, count : int ) : string
   s.first.extend(count - 1).string
 
 // Trim off a substring `sub` while `s` starts with that string.
@@ -368,7 +363,7 @@ extern repeatz( s : string, n : ssize_t ) : string
   js "_string_repeat"
 
 // Repeat a string `n` times
-pub fun string/repeat( s : string, ^n : int ) : string
+pub fun repeat( s : string, ^n : int ) : string
   repeatz(s,n.ssize_t)
 
 // Convert a `:maybe` string to a string using the empty sting for `Nothing`
@@ -378,15 +373,15 @@ pub fun maybe/string( ms : maybe<string> ) : string
     Just(s) -> s
 
 // Is a string empty?
-pub fun string/is-empty( s : string ) : bool
+pub fun is-empty( s : string ) : bool
   s == ""
 
 // Is a string not empty?
-pub fun string/is-notempty( s : string ) : bool
+pub fun is-notempty( s : string ) : bool
   s != ""
 
 // Transform a string to a maybe type, using `Nothing` for an empty string
-pub fun string/maybe( s : string ) : maybe<string>
+pub fun maybe( s : string ) : maybe<string>
   if s.is-empty then Nothing else Just(s)
 
 
@@ -405,11 +400,11 @@ pub inline extern stringpat/count( s : string, pattern : string ) : int
 
 // Invoke a function for each character in a string.
 // If `action` returns `Just`, the function returns immediately with that result.
-pub fun string/foreach-while( s : string, action : (c:char) -> e maybe<a> ) : e maybe<a>
+pub fun foreach-while( s : string, action : (c:char) -> e maybe<a> ) : e maybe<a>
   s.slice.foreach-while(action)
 
 // Invoke a function for each character in a string
-pub fun string/foreach( s : string, action : (c:char) -> e () ) : e ()
+pub fun foreach( s : string, action : (c:char) -> e () ) : e ()
   s.slice.foreach(action)
 
 // Return the first character of a string (or `Nothing` for the empty string).
@@ -465,13 +460,13 @@ pub fun trim( s : string ) : string
   s.trim-left.trim-right
 
 // Trim the starting white space of a string
-pub inline extern string/trim-left( s : string ) : string
+pub inline extern trim-left( s : string ) : string
   c  "kk_string_trim_left"
   cs inline "(#1).TrimStart()"
   js inline "((#1).replace(/^\\s\\s*/,''))"
 
 // Trim the ending white space of a string.
-pub inline extern string/trim-right( s : string ) : string
+pub inline extern trim-right( s : string ) : string
   c  "kk_string_trim_right"
   cs inline "(#1).TrimEnd()"
   js inline "((#1).replace(/\\s+$/,''))"
@@ -490,7 +485,7 @@ inline extern splitvn( s : string,  sep : string, n : ssize_t ) : vector<string>
 
 // Split a string into parts that were delimited by `sep`. The delimeters are not included in the results.
 // For example: `split("1,,2",",") == ["1","","2]`
-pub fun string/split( s : string, sep : string ) : list<string>
+pub fun split( s : string, sep : string ) : list<string>
   splitv(s,sep).list
 
 // Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).
@@ -500,7 +495,7 @@ pub fun splitn/split( s : string, sep: string, ^n : int) : list<string>
 
 
 // Convert a string to a list of characters
-pub extern string/list( s : string ) : total list<char>
+pub extern list( s : string ) : total list<char>
   c  "kk_string_to_list"
   cs inline "Primitive.StringToList(#1)"
   js inline "_string_to_list(#1)"

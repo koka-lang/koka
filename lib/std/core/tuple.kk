@@ -10,6 +10,7 @@
 module std/core/tuple
 
 import std/core/types
+import std/core/hnd
 
 // Map a function over a tuple of elements of the same type.
 pub fun tuple2/map( t : (a,a), f : a -> e b ) : e (b, b)
@@ -46,3 +47,21 @@ pub fbip fun tuple3/cmp( (x1,y1,z1) : (a,b,c), (x2,y2,z2) : (a,b,c), ^?fst/cmp :
             Eq -> thd/cmp(z1,z2)
             lg -> lg
     lg -> lg
+
+
+// Convert a unit value `()` to a string
+pub fun unit/show( u : () ) : string
+  "()"
+
+// Show a tuple
+pub fun tuple2/show( x : (a,b), ?fst/show : a -> e string, ?snd/show : b -> e string) : e string
+  "(" ++ x.fst.show ++ "," ++ x.snd.show ++ ")"
+
+// Show a triple
+pub fun tuple3/show( x : (a,b,c), ?fst/show : a -> e string, ?snd/show : b -> e string, ?thd/show : c -> e string) : e string
+  "(" ++ x.fst.show ++ "," ++ x.snd.show ++ "," ++ x.thd.show ++ ")"
+
+// _deprecated_, use `tuple2/show` instead
+pub fun show-tuple( x : (a,b), showfst : a -> e string, showsnd : b -> e string ) : e string
+  show(x,?fst/show=showfst,?snd/show=showsnd)
+

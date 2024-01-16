@@ -11,16 +11,11 @@ module std/core/exn
 
 import std/core/types
 import std/core/hnd
-import std/core/int
 
 extern import
   c  file "exn-inline"
   js file "exn-inline.js"
 
-// _Internal_: we cannot import `std/core/string` yet, so define it here as well
-extern (++)(x : string, y : string) : string
-  c "kk_string_cat"
-  inline "(#1 + #2)"
 
 // Exceptions
 pub effect exn

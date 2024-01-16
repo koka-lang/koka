@@ -141,6 +141,23 @@ pub fun for-while( start: int, end : int, action : (int) -> e maybe<a> ) : e may
     else Nothing
   rep(start)
 
+// Fold over the integers between [`start`,`end`] (inclusive).
+pub fun fold( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
+  if start >= end then init else
+    val x = f(start,init)
+    fold(unsafe-decreasing(start.inc), end, x, f)
+
+// Fold over the integers between [0,`upto`)  (not including `upto`).
+pub fun fold-upto( upto : int, init : a, f : (int,a) -> e a ) : e a
+  fold( 0, upto.dec, init, f )
+
+// Fold over the integes between [`start``,`end`] (inclusive) or until `f` returns `Nothing`
+pub fun fold-while( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
+  if start >= end then init else
+    match f(start,init)
+      Just(x) -> fold-while(unsafe-decreasing(start.inc), end, x, f)
+      Nothing -> init
+
 
 // ----------------------------------------------------------------------------
 // Generic equality and comparison

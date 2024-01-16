@@ -29,6 +29,23 @@ pub fun show( i : int64 ) : string
   show(i.int)
 
 
+// clamp an `:int` to fit in an `:int64_t`.
+pub fip extern int64( i : int) : int64
+  c  "kk_integer_clamp64"
+  cs "Primitive.IntToInt64"
+  js "$std_core_types._int_clamp64"
+
+// Convert an `:int64_t` to an `:int`.
+pub inline fip extern int( i : int64 ) : int
+  c  "kk_integer_from_int64"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core_types._int_from_int64"
+
+// Convenient shorthand to `int64`, e.g. `1234.i64`
+pub inline fip fun i64( i : int ) : int64
+  i.int64
+
+
 // Convert an `:int64` to a boolean.
 pub fun bool( i : int64 ) : bool
   (i!=zero)
@@ -41,19 +58,19 @@ pub fip fun bool/int64( b : bool ) : int64
 // Convert an `:int32` to an `:int64` (using sign extension).
 pub inline fip extern int32/int64( i : int32 ) : int64
   c inline "(int64_t)(#1)"
-  js "$std_core._int64_from_int32"
+  js "$std_core_types._int64_from_int32"
 
 // Convert an `:int32` to an `:int64` interpreting the `:int32` as unsigned.
 pub inline fip extern uint64( i : int32 ) : int64
   c inline "(int64_t)((uint32_t)(#1))"
-  js "$std_core._int64_from_uint32"
+  js "$std_core_types._int64_from_uint32"
 
 // Clamp an `:int64` to an `:int32`
 // `-1.int64.int32 == -1.int32`
 // `0x8000_0000.int64.int32 == 0x7FFF_FFFF.int32` (clamped)
 pub inline fip extern int32( i : int64 ) : int32
   c  "kk_int64_clamp_int32"
-  js "$std_core._int64_clamp_int32"
+  js "$std_core_types._int64_clamp_int32"
 
 // Clamp an `:int64` to an `:int32` but interpreting the `:int32` as unsigned
 // (and thus clamp between 0 and 0xFFFFFFFF).
@@ -61,13 +78,13 @@ pub inline fip extern int32( i : int64 ) : int32
 // `0xFFFFFFFF.int64.uint32 == -1.int32`
 pub inline fip extern uint32( i : int64 ) : int32
   c  "kk_int64_clamp_uint32"
-  js "$std_core._int64_clamp_uint32"
+  js "$std_core_types._int64_clamp_uint32"
 
 // Create an `:int64` `i` from the bits of `lo` and `hi` such
 // that `i.int = hi.int * 0x1_0000_0000 + lo.uint`.
 pub inline fip extern hilo32/int64( hi : int32, lo : int32 ) : int64
   c inline "kk_int64_hi_lo(#1,#2)"
-  js "$std_core._int64_hi_lo"
+  js "$std_core_types._int64_hi_lo"
 
 // Return the top 32-bits of an `:int64`.
 // Preserves the sign.
@@ -229,7 +246,7 @@ pub inline fip extern not : ( i : int64 ) -> int64
 // Shift an `:int64` `i` to the left by `n % 64` bits.
 inline fip extern shl64 : (int64,int64) -> int64
   c inline "kk_shl64(#1,#2)"
-  js "$std_core._int64_shl"
+  js "$std_core_types._int64_shl"
 
 // Shift an `:int64` `i` to the left by `n % 64` bits.
 pub fip fun shl( i : int64, shift : int) : int64
@@ -239,7 +256,7 @@ pub fip fun shl( i : int64, shift : int) : int64
 inline fip extern shr64 : (int64,int64) -> int64
   c inline "(int64_t)kk_shr64(#1,#2)"
   cs inline "(int64)(((Uint64)#1)>>#2)"
-  js "$std_core._int64_shr"
+  js "$std_core_types._int64_shr"
 
 // Logical shift an `:int64` to the right by `n % 64` bits. Shift in zeros from the left.
 pub fip fun shr( i : int64, shift : int) : int64
@@ -249,7 +266,7 @@ pub fip fun shr( i : int64, shift : int) : int64
 // Arithmetic shift an `:int64` to the right by `n % 64` bits. Preserves the sign bit.
 inline fip extern sar64 : (int64,int64) -> int64
   c inline "kk_sar64(#1,#2)"
-  js "$std_core._int64_sar"
+  js "$std_core_types._int64_sar"
 
 // Arithmetic shift an `:int64` to the right by `n % 64` bits. Shift in the sign bit from the left.
 pub fip fun sar( i : int64, shift : int) : int64
@@ -258,7 +275,7 @@ pub fip fun sar( i : int64, shift : int) : int64
 // Bitwise rotate an `:int64` `n % 64` bits to the left.
 inline fip extern rotl64( i : int64, n : int64 ) : int64
   c inline "(int64_t)kk_bits_rotl64(#1,(int)#2)"
-  js "$std_core._int64_rotl"
+  js "$std_core_types._int64_rotl"
 
 // Bitwise rotate an `:int64` `n % 64` bits to the left.
 pub fun rotl( i : int64, shift : int) : int64
@@ -267,7 +284,7 @@ pub fun rotl( i : int64, shift : int) : int64
 // Bitwise rotate an `:int64` `n % 64` bits to the right.
 inline fip extern rotr64( i : int64, n : int64 ) : int64
   c inline "(int64_t)kk_bits_rotr64(#1,(int)#2)"
-  js "$std_core._int64_rotr"
+  js "$std_core_types._int64_rotr"
 
 // Bitwise rotate an `:int64` `n % 64` bits to the right.
 pub fip fun rotr( i : int64, shift : int) : int64
@@ -277,25 +294,25 @@ pub fip fun rotr( i : int64, shift : int) : int64
 // Count trailing zero bits. Returns 64 if `i` is zero.
 pub inline fip extern ctz( i : int64 ) : int
   c inline "kk_integer_from_small(kk_bits_ctz64(#1))"
-  js "$std_core._int64_ctz"
+  js "$std_core_types._int64_ctz"
 
 // Count leading zero bits. Returns 64 if `i` is zero.
 pub inline fip extern clz( i : int64 ) : int
   c inline "kk_integer_from_small(kk_bits_clz64(#1))"
-  js "$std_core._int64_clz"
+  js "$std_core_types._int64_clz"
 
 
 // Count leading redundant sign bits (i.e. the number of bits
 // following the most significant bit that are identical to it).
 pub inline fip extern clrsb( i : int64 ) : int
   c inline "kk_integer_from_small(kk_bits_clrsb64(#1))"
-  js "$std_core._int64_clrsb"
+  js "$std_core_types._int64_clrsb"
 
 
 // Count number of 1-bits.
 inline fip extern popcount64( i : int64 ) : int64
   c inline "(int64_t)kk_bits_popcount64(#1)"
-  js "$std_core._int64_popcount"
+  js "$std_core_types._int64_popcount"
 
 // Count number of 1-bits.
 pub fip fun popcount( i : int64 ) : int
@@ -304,17 +321,17 @@ pub fip fun popcount( i : int64 ) : int
 // Is the number of 1-bits even?
 pub inline fip extern parity( i : int64 ) : bool
   c inline "kk_bits_parity64(#1)"
-  js "$std_core._int64_parity"
+  js "$std_core_types._int64_parity"
 
 // Reverse the bytes in an `:int64`.
 pub inline fip extern byteswap( i : int64 ) : int64
   c inline "kk_bits_bswap64(#1)"
-  js "$std_core._int64_bswap"
+  js "$std_core_types._int64_bswap"
 
 // Reverse the bits in an `:int64`.
 pub inline fip extern breverse( i : int64 ) : int64
   c inline "kk_bits_reverse64(#1)"
-  js "$std_core._int64_breverse"
+  js "$std_core_types._int64_breverse"
 
 // Bit gather (also known as _pext_ or parallel bit extract).
 // For each 1-bit in mask `m`, extract the corresponding bit from `i` and write it
@@ -361,22 +378,22 @@ pub fip fun max( i : int64, j : int64 ) : int64
 // where `(lo,hi).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
 pub fip extern umul( i : int64, j : int64 ) : (int64,int64)
   c "kk_wide_umul64x"
-  js "$std_core._int64_umul"
+  js "$std_core_types._int64_umul"
 
 // Full 64x64 bit signed multiply to `(lo,hi)`.
 // where `(lo,hi).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
 pub fip extern imul( i : int64, j : int64 ) : (int64,int64)
   c "kk_wide_imul64x"
-  js "$std_core._int64_imul"
+  js "$std_core_types._int64_imul"
 
 // Convert a pair `(lo,hi)` to an signed integer,
 // where `(ho,hi).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
-pub fun int( (lo,hi) : (int64,int64) ) : int
+pub fun lohi/int( (lo,hi) : (int64,int64) ) : int
   hi.int * 0x1_0000_0000_0000_0000 + lo.uint
 
 // Convert a pair `(lo,hi)` to an unsigned integer,
 // where `(lo,hi).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
-pub fun uint( (lo,hi) : (int64,int64) ) : int
+pub fun lohi/uint( (lo,hi) : (int64,int64) ) : int
   hi.uint * 0x1_0000_0000_0000_0000 + lo.uint
 
 // Truncated division (as in C). See also `(/):(x : int64, y : int64) -> int64`.

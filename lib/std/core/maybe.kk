@@ -61,3 +61,10 @@ pub fun cmp( mb1 : maybe<a>, mb2 : maybe<a>, ?cmp : (a,a) -> order ) : order
     Nothing  -> match mb2
                   Nothing -> Eq
                   _       -> Lt
+
+
+// Show a `:maybe` type
+pub fun show( mb : maybe<a>, ?show : a -> e string ) : e string
+  match mb
+    Just(x) -> "Just(" ++ x.show ++ ")"
+    Nothing -> "Nothing"

@@ -35,8 +35,3 @@ kk_std_core_exn__error kk_error_from_errno( int err, kk_context_t* ctx ) {
   return kk_std_core_exn__new_Error( kk_std_core_exn__new_Exception( msg, kk_std_core_exn__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(err,ctx), ctx), ctx), ctx );
 }
 
-kk_unit_t kk_assert_fail( kk_string_t msg, kk_context_t* ctx ) {
-  kk_fatal_error(EINVAL, "assertion failed: %s\n", kk_string_cbuf_borrow(msg,NULL,ctx));
-  kk_string_drop(msg,ctx);
-  return kk_Unit;
-}

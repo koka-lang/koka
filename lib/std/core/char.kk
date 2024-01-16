@@ -6,7 +6,11 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-// Standard `:char` functions
+// Standard `:char` functions.
+//
+// Characters are unicode _codepoint_\/s.
+// This is different from a unicode _grapheme_ which represents a single displayed
+// symbol and can consists of multiple codepoints due to combining characters and marks.
 module std/core/char
 
 import std/core/types

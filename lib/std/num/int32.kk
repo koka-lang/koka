@@ -28,13 +28,17 @@ pub val bits-int32 : int32 = 32.int32
 pub fun show( i : int32 ) : string
   show(i.int)
 
+// Convenient shorthand to `int32`, e.g. `1234.i32`
+pub inline fip fun i32( i : int ) : int32
+  i.int32
+
 /*
 // Convert a `:float64` to an `:int32`. The float64 is clamped to the
 // minimum or maximum `:int32` value if it is outside the range. A `nan` is
 // mapped to `0`.
 pub inline extern int32( f : float64 ) : int32
   cs "Primitive.DoubleToInt32"
-  js "$std_core._double_to_int32"
+  js "$std_core_types._double_to_int32"
 */
 
 // Convert an `:int32` to a boolean.
@@ -139,7 +143,7 @@ pub fip fun dec( i : int32 ) : int32
 // Multiply two 32-bit integers.
 pub inline fip extern (*) : (int32,int32) -> int32
   inline "(int32_t)((uint32_t)#1 * (uint32_t)#2)" // avoid UB
-  js "$std_core._int32_multiply"
+  js "$std_core_types._int32_multiply"
 
 
 pub fip fun cmp( x : int32, y : int32) : order
@@ -237,7 +241,7 @@ pub fun hilo( hi : int32, lo : int32 ) : int32
 // Bitwise rotate an `:int32` `n % 32` bits to the left.
 inline fip extern rotl32( i : int32, n : int32 ) : int32
   c inline "(int32_t)kk_bits_rotl32(#1,#2)"
-  js "$std_core._int32_rotl"
+  js "$std_core_types._int32_rotl"
 
 // Bitwise rotate an `:int32` `n % 32` bits to the left.
 pub fip fun rotl( i : int32, shift : int ) : int32
@@ -246,7 +250,7 @@ pub fip fun rotl( i : int32, shift : int ) : int32
 // Bitwise rotate an `:int32` `n % 32` bits to the right.
 inline fip extern rotr32( i : int32, n : int32 ) : int32
   c inline "(int32_t)kk_bits_rotr32(#1,#2)"
-  js "$std_core._int32_rotr"
+  js "$std_core_types._int32_rotr"
 
 // Bitwise rotate an `:int32` `n % 32` bits to the right.
 pub fip fun rotr( i : int32, shift : int ) : int32
@@ -256,39 +260,39 @@ pub fip fun rotr( i : int32, shift : int ) : int32
 // Count trailing zero bits. Returns 32 if `i` is zero.
 pub inline fip extern ctz( i : int32 ) : int
   c inline "kk_integer_from_small(kk_bits_ctz32(#1))"
-  js "$std_core._int32_ctz"
+  js "$std_core_types._int32_ctz"
 
 // Count leading zero bits. Returns 32 if `i` is zero.
 pub inline fip extern clz( i : int32 ) : int
   c inline "kk_integer_from_small(kk_bits_clz32(#1))"
-  js "$std_core._int32_clz"
+  js "$std_core_types._int32_clz"
 
 // Count leading redundant sign bits (i.e. the number of bits
 // following the most significant bit that are identical to it).
 pub inline fip extern clrsb( i : int32 ) : int
   c inline "kk_integer_from_small(kk_bits_clrsb32(#1))"
-  js "$std_core._int32_clrsb"
+  js "$std_core_types._int32_clrsb"
 
 
 // Count number of 1-bits (also known as _population count_ or _hamming weight_).
 pub inline fip extern popcount( i : int32 ) : int
   c inline "kk_integer_from_small(kk_bits_popcount32(#1))"
-  js "$std_core._int32_bits_popcount"
+  js "$std_core_types._int32_bits_popcount"
 
 // Is the number of 1-bits even?
 pub inline fip extern parity( i : int32 ) : bool
   c inline "kk_bits_parity32(#1)"
-  js "$std_core._int32_parity"
+  js "$std_core_types._int32_parity"
 
 // Reverse the bytes in an `:int32`.
 pub inline fip extern byteswap( i : int32 ) : int32
   c inline "kk_bits_bswap32(#1)"
-  js "$std_core._int32_bswap"
+  js "$std_core_types._int32_bswap"
 
 // Reverse the bits in an `:int32`.
 pub inline fip extern breverse( i : int32 ) : int32
   c inline "kk_bits_reverse32(#1)"
-  js "$std_core._int32_breverse"
+  js "$std_core_types._int32_breverse"
 
 // Bit gather (also known as _pext_ or parallel bit extract).
 // For each 1-bit in mask `m`, extract the corresponding bit from `i` and write it
@@ -339,13 +343,13 @@ pub fip fun max( i : int32, j : int32 ) : int32
 // where `(lo,hi).uint == hi.uint * 0x1_0000_0000 + lo.uint`
 pub fip extern umul( i : int32, j : int32 ) : (int32,int32)
   c "kk_wide_umul32x"
-  js "$std_core._int32_umul"
+  js "$std_core_types._int32_umul"
 
 // Full 32x32 bit signed multiply to `(lo,hi)`.
 // where `(lo,hi).int == hi.int * 0x1_0000_0000 + lo.uint`
 pub fip extern imul( i : int32, j : int32 ) : (int32,int32)
   c "kk_wide_imul32x"
-  js "$std_core._int32_imul"
+  js "$std_core_types._int32_imul"
 
 // Convert a pair `(lo,hi)` to a signed integer,
 // where `(lo,hi).int == hi.int * 0x1_0000_0000 + lo.uint`

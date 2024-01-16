@@ -12,13 +12,13 @@ module std/core/list
 import std/core/types
 import std/core/hnd
 import std/core/exn
-import std/core/int
-import std/core/float64
 import std/core/char
 import std/core/string
+import std/core/int
+import std/core/float64
 
 // Return the head of list if the list is not empty.
-pub fun list/head( xs : list<a> ) : maybe<a>
+pub fun head( xs : list<a> ) : maybe<a>
   match xs
     Cons(x) -> Just(x)
     _       -> Nothing
@@ -51,7 +51,7 @@ pub fun single(x)
   [x]
 
 // Returns the length of a list.
-pub fun list/length(xs)
+pub fun length(xs)
   fun len(ys,acc)
     match ys
       Cons(_,yy) -> yy.len(acc+1)
@@ -93,7 +93,7 @@ pub fun char/list( lo : char, hi : char ) : total list<char>
   list(lo.int, hi.int).map( char )
 
 // Element-wise list equality
-pub fun list/(==)( xs : list<a>, ys : list<a>, ?(==) : (a,a) -> bool ) : bool
+pub fun (==)( xs : list<a>, ys : list<a>, ?(==) : (a,a) -> bool ) : bool
   match xs
     Cons(x,xx) -> match ys
                     Nil        -> False
@@ -103,7 +103,7 @@ pub fun list/(==)( xs : list<a>, ys : list<a>, ?(==) : (a,a) -> bool ) : bool
              Cons -> False
 
 // Order on lists
-pub fun list/cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> order ) : order
+pub fun cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> order ) : order
   match xs
     Cons(x,xx) -> match ys
                     Nil        -> Gt
@@ -115,8 +115,15 @@ pub fun list/cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> order ) : order
              Cons -> Lt
 
 // Show a list
-pub fun list/show( xs : list<a>, ?show : a -> e string ) : e string
+pub fun show( xs : list<a>, ?show : a -> e string ) : e string
   "[" ++ xs.map(show).join(",") ++ "]"
+
+
+// _deprecated_, use `list/show` instead.
+pub fun show-list( xs : list<a>, show-elem : (a) -> e string ) : e string
+  show(xs,?show=show-elem)
+
+
 
 // Zip two lists together by pairing the corresponding elements.
 // The returned list is only as long as the smallest input list.
@@ -176,19 +183,19 @@ pub fun unzip4( xs : list<(a,b,c,d)>) : (list<a>,list<b>,list<c>,list<d>)
   iter(xs,ctx _,ctx _,ctx _,ctx _)
 
 // Take the first `n` elements of a list (or fewer if the list is shorter than `n`)
-pub fun list/take( xs : list<a>, n : int ) : list<a>
+pub fun take( xs : list<a>, n : int ) : list<a>
   match xs
     Cons(x,xx) | n > 0 -> Cons(x, take(xx, n - 1))
     _ -> Nil
 
 // Drop the first `n` elements of a list (or fewer if the list is shorter than `n`)
-pub fun list/drop( xs : list<a>, n : int ) : list<a>
+pub fun drop( xs : list<a>, n : int ) : list<a>
   match xs
     Cons(_,xx) | n > 0 -> drop(xx, n - 1)
     _ -> xs
 
 // Apply a function `f`  to each element of the input list in sequence.
-pub fun list/map(xs : list<a>, f : a -> e b) : e list<b>
+pub fun map(xs : list<a>, f : a -> e b) : e list<b>
   match xs
     Cons(x,xx) -> Cons(f(x), xx.map(f))
     Nil -> Nil
@@ -238,7 +245,7 @@ pub fun (++)(xs : list<a>, ys : list<a> ) : list<a>
   append(xs,ys)
 
 // Append two lists.
-pub fun list/append(xs : list<a>, ys : list<a> ) : list<a>
+pub fun append(xs : list<a>, ys : list<a> ) : list<a>
   match xs
     Cons(x,xx) -> Cons(x,append(xx,ys))
     Nil -> ys
@@ -270,7 +277,7 @@ pub fun replicate( x : a, n : int ) : list<a>
    else Nil
 
 // split a list at position `n`
-pub fun list/split( xs : list<a>, n : int ) : (list<a>, list<a>)
+pub fun split( xs : list<a>, n : int ) : (list<a>, list<a>)
   (xs.take(n), xs.drop(n))
 
 pub fun span( xs : list<a>, predicate : a -> e bool ) : e (list<a>,list<a>)
@@ -328,7 +335,7 @@ pub fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
       Just(y) -> Cons(y,xx.filter-map(pred))
 
 // Find the first element satisfying some predicate
-pub fun list/find( xs : list<a>, pred : a -> e bool ) : e maybe<a>
+pub fun find( xs : list<a>, pred : a -> e bool ) : e maybe<a>
   xs.foreach-while fn(x)
     if pred(x) then Just(x) else Nothing
 
@@ -343,7 +350,7 @@ pub fun lookup( xs : list<(a,b)>, pred : a -> e bool ) : e maybe<b>
 
 // Convert a list to a `:maybe` type, using `Nothing` for an empty list, and otherwise `Just` on the head element.
 // Note: this is just `head`.
-pub fun list/maybe( xs : list<a> ) : maybe<a>
+pub fun maybe( xs : list<a> ) : maybe<a>
   match xs
     Nil -> Nothing
     Cons(x,_) -> Just(x)
@@ -474,7 +481,7 @@ pub fun concat-maybe( xs : list<maybe<a>> ) : list<a>
     Nil -> Nil
 
 // Return the last element of a list (or `Nothing` for the empty list)
-pub fun list/last( xs : list<a> ) : maybe<a>
+pub fun last( xs : list<a> ) : maybe<a>
   match xs
     Cons(x,Nil) -> Just(x)
     Cons(_,xx)  -> last(xx)
@@ -495,7 +502,7 @@ pub fun init( xs : list<a> ) : list<a>
     _ -> Nil
 
 // Get (zero-based) element `n`  of a list. Return a `:maybe` type.
-pub fun list/index( xs : list<a>, n : int ) : maybe<a>
+pub fun index( xs : list<a>, n : int ) : maybe<a>
   match xs
     Cons(x,xx) -> if n>0 then xx[n - 1]
                   elif n==0 then Just(x)

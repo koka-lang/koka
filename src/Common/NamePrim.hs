@@ -251,19 +251,24 @@ nameVector      = coreVectorName "unvlist"
   std/core/int
 --------------------------------------------------------------------------}
 
-nameIntConst    = coreIntName "@int-const"  -- javascript backend
 
 -- conversion functions in core
-nameByte        = coreIntName "uint8"
-nameInt8        = coreIntName "int8"
-nameInt16       = coreIntName "int16"
-nameInt32       = coreIntName "int32"
-nameInt64       = coreIntName "int64"
-nameSSizeT      = coreIntName "ssize_t"
-nameIntPtrT     = coreIntName "intptr_t"
+nameByte        = newQualified "std/num/int8" "uint8"
+nameInt8        = newQualified "std/num/int8" "int8"
+nameInt16       = newQualified "std/num/int16" "int16"
+nameInt64       = newQualified "std/num/int64" "int64"
+nameIntPtrT     = newQualified "std/num/intptr_t"  "intptr_t"
 
 nameIntAdd      = coreIntName "int-add"
 nameIntSub      = coreIntName "int-sub"
+
+-- these are used by evidence in std/core/hnd
+nameInt32       = coreTypesName "int32"
+nameSSizeT      = coreTypesName "ssize_t"
+
+-- javascript backend
+nameIntConst    = coreTypesName "@int-const"
+
 
 {--------------------------------------------------------------------------
   std/core/exn
@@ -287,9 +292,9 @@ nameCCtxExtend    = cfieldName "@cctx-extend"
 nameCCtxComposeExtend = cfieldName "@cctx-compose-extend"
 nameCCtxSetCtxPath= cfieldName "@cctx-setcp"
 
-nameCCtxEmpty     = cfieldName "cctx-empty"
-nameCCtxApply     = cfieldName "([])"
-nameCCtxCompose   = cfieldName "(++)"
+nameCCtxEmpty     = newLocallyQualified "std/core/types" "cctx" "empty"
+nameCCtxApply     = newLocallyQualified "std/core/types" "cctx" "(++.)"
+nameCCtxCompose   = newLocallyQualified "std/core/types" "cctx" "(++)"
 
 nameTpFieldAddr   = cfieldName "field-addr"
 nameFieldAddrOf   = cfieldName "@field-addr-of"
