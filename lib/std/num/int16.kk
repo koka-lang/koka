@@ -10,7 +10,7 @@
 //
 // 16-bit signed two's complement representation.
 // Provides no operations and used only for storage and interaction with external code.
-
+module std/num/int16
 
 // clamp an `:int` to fit in an `:int16`.
 pub fip extern int16( i : int) : int16
@@ -19,7 +19,7 @@ pub fip extern int16( i : int) : int16
   js "$std_core_types._int_clamp16"
 
 // Convert an `:int16` to an `:int`.
-pub inline fip extern int16/int( i : int16 ) : int
+pub inline fip extern int( i : int16 ) : int
   c  "kk_integer_from_int16"
   cs inline "(new BigInteger(#1))"
   js "$std_core_types._int_from_int32"

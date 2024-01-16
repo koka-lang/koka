@@ -29,8 +29,11 @@ pub import std/text/regex
 pub import std/text/parse
 pub import std/text/unicode
 
+pub import std/num/int8
+pub import std/num/int16
 pub import std/num/int32
 pub import std/num/int64
+pub import std/num/intptr
 pub import std/num/float64
 pub import std/num/decimal
 pub import std/num/ddouble

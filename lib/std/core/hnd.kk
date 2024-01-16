@@ -11,14 +11,13 @@
   Internal primitives to implement evidence based algebraic
   effect handlers. These are emitted by the compiler during evidence
   translation and this module is always implicitly imported.
-
   The paper:
 
-  Ningning Xie, and Daan Leijen. _Generalized Evidence Passing for Effect Handlers_,
-  or _efficient compilation of effect handlers to C_.
-  Proceedings of the ACM International Conference on Functional Programming (ICFP'21),
-  August 2021, Vol 5: pp. 71, doi: 10.1145/3473576.
-  <https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers-or-efficient-compilation-of-effect-handlers-to-c/>
+  > Ningning Xie, and Daan Leijen. _Generalized Evidence Passing for Effect Handlers_,
+  > or _efficient compilation of effect handlers to C_.
+  > Proceedings of the ACM International Conference on Functional Programming (ICFP'21),
+  > August 2021, Vol 5: pp. 71, doi: 10.1145/3473576.
+  > <https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers-or-efficient-compilation-of-effect-handlers-to-c/>
 
   describes how the monadic evidence translation works on which this
   module is based. This module is compiled _without monadic translation_ and

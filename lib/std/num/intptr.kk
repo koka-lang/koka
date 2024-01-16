@@ -6,14 +6,14 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-// Signed integers equal to an `intptr_t` in C.
+// `intptr_t` signed integer.
 //
-// A signed two's complement integer equal to an `intptr_t` in C, i.e.
+// A signed two's complement integer equal to an `intptr_t` type in C, i.e.
 // it has the same bit-size as a native pointer (`void*`).
 // Provides no operations and used only for storage and interaction with external code.
 // The Javascript backend uses `int64` for this.
 // See also: `:ssize_t`
-
+module std/num/intptr
 
 // clamp an `:int` to fit in an `:intptr_t`.
 pub fip extern intptr_t( i : int) : intptr_t
