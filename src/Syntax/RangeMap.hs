@@ -81,6 +81,16 @@ data NameInfo
   | NIKind
 
 
+instance Show NameInfo where
+  show ni
+    = case ni of
+        NITypeCon kind doc        -> "TypeCon: " ++ doc
+        NIValue sort tp doc isAnn -> "Value " ++ sort ++ ": " ++ show (pretty tp) ++ ": " ++ doc
+        NICon tp doc              -> "Con : " ++ show (pretty tp) ++ ": " ++ doc
+        NITypeVar kind            -> "TypeVar"
+        NIModule                  -> "Module"
+        NIKind                    -> "Kind"
+
 instance Show RangeInfo where
   show ri
     = case ri of
@@ -91,7 +101,7 @@ instance Show RangeInfo where
         Block kind          -> "Block " ++ kind
         Error doc           -> "Error"
         Warning doc         -> "Warning"
-        Id name info docs isDef -> "Id " ++ show name ++ (if isDef then " (def)" else "") ++ " " ++ show docs
+        Id name info docs isDef -> "Id " ++ show name ++ (if isDef then " (def)" else "") ++ " " ++ show docs ++ ", info: " ++ show info
         Implicits fdoc      -> "Implicits " ++ show (fdoc False)
 
 instance Enum RangeInfo where

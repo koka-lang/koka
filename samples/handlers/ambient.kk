@@ -9,7 +9,7 @@ module handlers/ambient
 // an ambient value `width : int`  (= dynamic binding of type int) (= implicit parameter of type int)
 effect val width : int
 
-fun f() 
+fun f()
   // with val width = 78   // done in `main`
   val g = with val width = 80 in (fn() width + 1)
   val h = fn() (with val width = 80 in width + 1)
@@ -29,11 +29,13 @@ fun emit1(action)
   action()
 
 
+// emit a string
 effect fun emit( s : string ) : ()
 
-fun pretty-emit1(action)
+fun pretty-emit1(action : () -> <console,emit,exn|e> a) : <console|e> error<a>
   try
     with fun emit(s) s.println
+    emit("hi")
     action()
 
 
@@ -58,8 +60,8 @@ effect state<s>
 fun state1(action)
   var s := 0
   handle(action)
-    fun get()  s 
-    fun set(x) s := x 
+    fun get()  s
+    fun set(x) s := x
 
 
 effect fun total() : int
@@ -67,8 +69,8 @@ effect fun total() : int
 fun emit4(action)
   var out := ""
   with return(x)   out
-  with fun emit(s) out := out ++ s ++ "\n" 
-  with fun total() out.count 
+  with fun emit(s) out := out ++ s ++ "\n"
+  with fun total() out.count
   action()
 
 
@@ -83,19 +85,19 @@ fun pretty-abort(action)
 effect ctl choice() : bool
 
 fun pretty-all(action)
-  with ctl choice() append(resume(True), resume(False)) 
+  with ctl choice() append(resume(True), resume(False))
   [pretty-abort(action)]
 
 
-fun pretty-all2(action) 
+fun pretty-all2(action)
   with ctl choice() append(resume(True), resume(False))
-  with return(x) [x] 
+  with return(x) [x]
   pretty-abort(action)
 
 
-fun state2(init,action) 
-  with return(f) f(init) 
-  with handler 
+fun state2(init,action)
+  with return(f) f(init)
+  with handler
     ctl get()  (fn(s) resume(s)(s))
     ctl set(x) (fn(s) resume(())(x))
   val x = action()
@@ -106,14 +108,14 @@ effect val cwd : string
 fun is-home()
   cwd == "/home"
 
-pub fun example1() 
+pub fun example1()
   with val cwd = "/"
   is-home()
 
-fun gchildren( g : graph, v : vertex ) : list<vertex> 
+fun gchildren( g : graph, v : vertex ) : list<vertex>
   []
 
-fun bound( g : graph ) 
+fun bound( g : graph )
   10
 
 alias vertex = int;
@@ -126,21 +128,21 @@ effect fun children( v : vertex ) : list<vertex>
 
 fun dfs( g : graph, vs : list<vertex> ) : pure list<rose>
   var visited := vector(g.bound,False)
-  with fun children(v) g.gchildren(v) 
-  with fun marked(v)   visited[v] 
-  with fun mark(v)     visited[v] := True 
+  with fun children(v) g.gchildren(v)
+  with fun marked(v)   visited[v]
+  with fun mark(v)     visited[v] := True
   dfs-loop(vs)
 
 
-fun dfs-loop( vs : list<vertex> ) 
+fun dfs-loop( vs : list<vertex> )
   match vs
     Nil -> Nil
     Cons(v,vv) ->
-      if marked(v) then dfs-loop(vv) else 
+      if marked(v) then dfs-loop(vv) else
         mark(v)
         val sub = dfs-loop( children(v) )
         Cons( Rose(v,sub), dfs-loop(vv) )
-      
+
 
 pub fun main()
   with val width = 78 in f().println

@@ -152,7 +152,7 @@ fun tuple/eq2( (x1,y1), (x2,y2), ?a/eq, ?b/eq ) : bool
 
 // As we can see, implicit parameters can really help reduce boilerplate!
 pub fun example8()
-  eq(([1],"a"),([1],"a"))  // `?a/eq=list/eq(_,_,int/eq),?b/eq=compare/eq(_,_,string/compare)`
+  eq(([1],"a"),([1],"a"))   // `?a/eq=list/eq(_,_,int/eq),?b/eq=compare/eq(_,_,string/compare)`
 
 
 // see `test/overload` for further examples.

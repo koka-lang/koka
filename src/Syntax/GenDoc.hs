@@ -549,7 +549,9 @@ showDeclType env kgamma gamma pinfos tp
     hlBorrow Borrow = highlightType env kgamma gamma ("^")
     hlBorrow _      = ""
     hlType doc = highlightType env kgamma gamma (show doc)
-    hlParam name = if (not (nameIsNil name || isFieldName name)) then cspan "type typeparam" (fmtName name) ++ " " ++ colon  else "" -- (cspan "type special" ":")
+    hlParam name = if (not (nameIsNil name || isFieldName name || isHiddenName name))
+                     then cspan "type typeparam" (fmtName name) ++ " " ++ colon
+                     else "" -- (cspan "type special" ":")
 
 showType env kgamma gamma tp
   = head (showTypes env kgamma gamma [tp])

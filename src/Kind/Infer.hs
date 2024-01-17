@@ -22,7 +22,7 @@
 
 module Kind.Infer (inferKinds ) where
 
-import Lib.Trace
+import Debug.Trace
 -- import Type.Pretty
 
 import Data.Char(isAlphaNum)
@@ -815,11 +815,11 @@ resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
     kindArity _ = []
 
 resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort ddef isExtend doc)
-  = do -- trace ("datatype: " ++ show(tbinderName newtp) ++ " " ++ show isExtend) $ return ()
+  = do -- trace ("datatype: " ++ show(tbinderName newtp) ++ " " ++ show isExtend ++ ", doc: " ++ doc) $ return ()
        newtp' <- if isExtend
                   then do (qname,ikind) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
                           kind  <- resolveKind ikind
-                          -- addRangeInfo range (Id qname (NITypeCon kind) [] False)
+                          -- addRangeInfo range (Id qname (NITypeCon kind doc) [] False)
                           return (TypeBinder qname kind (tbinderNameRange newtp) (tbinderRange newtp))
                   else resolveTypeBinderDef doc newtp
        params' <- mapM (resolveTypeBinder "") params

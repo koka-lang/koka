@@ -796,7 +796,7 @@ parseEffectDecl dvis =
                            tpars, kind, prng, mbInstanceUmb, operations)
       <|>
       do (tpars,kind,prng) <- typeKindParams
-         op@(OpDecl (doc,opId,krng,idrng,linear,opSort,exists0,pars,prng,mbteff,tres)) <- parseOpDecl singleShot vis
+         op@(OpDecl (opDoc,opId,krng,idrng,linear,opSort,exists0,pars,prng,mbteff,tres)) <- parseOpDecl singleShot vis
          let mbInstance = Nothing
              effectId   = if isValueOperationName opId then fromValueOperationsName opId else opId
          return $ -- trace ("parsed effect decl " ++ show opId ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show linear ) $
@@ -849,7 +849,7 @@ makeEffectDecl decl =
 
       -- declare the effect type (for resources, generate a hidden constructor to check the types)
       docEffect  = "`:" ++ show id ++ "` effect"
-      docx       = (if (doc/="") then doc else "// " ++ docEffect)
+      docx       = if null doc then "// " ++ docEffect else doc
 
       (effTpDecl,wrapAction)
                 = if isInstance
@@ -898,7 +898,7 @@ makeEffectDecl decl =
       -- parse the operations and return the constructor fields and function definitions
       opCount = length operations
       (opFields,opSelects,opDefs,opValDefs)
-          = unzip4 $ map (operationDecl opCount vis tparsScoped tparsNonScoped docEffect hndName
+          = unzip4 $ map (operationDecl opCount vis tparsScoped tparsNonScoped docEffect docx hndName
                                                  id mbInstanceUmb effTp (tpCon hndTpName)
                                                  ([hndEffTp,hndResTp]) extraEffects)
                                                  (zip [0..opCount-1] (sortBy cmpName operations))
@@ -1035,10 +1035,10 @@ paramInfo
 
 -- smart constructor for operations
 operationDecl :: Int -> Visibility -> [UserTypeBinder] -> [UserTypeBinder] ->
-                 String -> Name -> Name -> Maybe [UserType] -> UserType -> UserType -> [UserTypeBinder] ->
+                 String -> String -> Name -> Name -> Maybe [UserType] -> UserType -> UserType -> [UserTypeBinder] ->
                  [UserType] -> (Int,OpDecl) ->
                  (ValueBinder UserType (Maybe UserExpr), UserDef, UserDef, Maybe UserDef)
-operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effName mbInstanceUmb effTp hndTp hndTpVars extraEffects (opIndex,op)
+operationDecl opCount vis forallsScoped forallsNonScoped docEffect docEffectDecl hndName effName mbInstanceUmb effTp hndTp hndTpVars extraEffects (opIndex,op)
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
            foralls  = forallsScoped ++ forallsNonScoped
            OpDecl (doc,id,kwrng,idrng,linear,opSort,exists0,pars,prng,mbteff,tres) = op
@@ -1128,9 +1128,13 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
                                       ++ [(Nothing,PatWild grng) | _ <- [i+1..fieldCount-1]]
                       in def
 
+           docDef = (if null doc
+                          then (if null docEffectDecl then "" else docEffectDecl ++ "\n")
+                          else (doc ++ "\n")) ++
+                        ("// call `" ++ show id ++ "` operation of the " ++ docEffect)
 
            -- create a typed perform wrapper: fun op(x1:a1,..,xN:aN) : <l> b { performN(evv-at(0),clause-op,x1,..,xN) }
-           opDef  = let def      = Def binder idrng vis (defFun []) InlineAlways ("// call `" ++ show id ++ "` operation of the " ++ docEffect)
+           opDef  = let def       = Def binder idrng vis (defFun []) InlineAlways docDef
                         nameRng   = idrng
                         binder    = ValueBinder id () body nameRng nameRng
                         body      = Ann (Lam lparams innerBody rng) tpFull rng
@@ -1175,7 +1179,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
                              phantom = App (Var namePhantom False krng) [] krng
                              annot   = Ann phantom qualTpe krng
                          in Just $ Def (ValueBinder opName () annot idrng krng)
-                                        krng vis DefVal InlineNever "// phantom definition for value operations"
+                                        krng vis DefVal InlineNever (if null doc then docEffectDecl else doc)
 
                        else Nothing
 

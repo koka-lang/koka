@@ -6,6 +6,13 @@
 
    See also `rbtree.kk`, the benchmarks in `example/bench/koka`, and
    <https://koka-lang.github.io/koka/doc/book.html#why-fbip> for more information on FBIP.
+
+   There is also a paper that goes in-depth about tree rebalancing, FIP, and contexts:
+
+   > "The Functional Essence of Imperative Binary Search Trees"
+   > Anton Lorenzen, Daan Leijen, Wouter Swierstra , Sam Lindley, MSR-TR-2023-28, July 2023.
+   > <https://www.microsoft.com/en-us/research/publication/fiptree-tr/>
+
 */
 module rbtree-fbip
 
@@ -26,6 +33,8 @@ type zipper<a>
   Done
 
 // Reconstruct a tree from a zipper (updates in place)
+// This function is "fully in-place" (fip) as it does not (de)allocate and runs in constant stack space
+// (see also ``samples/syntax/fip``)
 fip fun move-up(z : zipper<a>, t : tree<a>) : tree<a>
   match z
     NodeR(c, l, k, v, z1) -> z1.move-up(Node(c, l, k, v, t))
@@ -33,6 +42,7 @@ fip fun move-up(z : zipper<a>, t : tree<a>) : tree<a>
     Done -> t
 
 // Rebalance upwards from a zipper
+// This function can allocate at most one extra node so it is fip(1)
 fip(1) fun balance-red( z : zipper<a>, l : tree<a>, k : int, v : a, r : tree<a> ) : tree<a>
   match z
     NodeR(Black, l1, k1, v1, z1) -> z1.move-up( Node( Black, l1, k1, v1, Node(Red,l,k,v,r) ) )
@@ -49,6 +59,7 @@ fip(1) fun balance-red( z : zipper<a>, l : tree<a>, k : int, v : a, r : tree<a> 
 
 
 // Find an insertion point while constructing a zipper (updates in place)
+// This is `fbip` (functional but in-place) as it can deallocate (in the case a value is already present).
 fbip(1) fun ins(t : tree<a>, k : int, v : a, z : zipper<a>) : tree<a>
   match t
     Node(c, l, kx, vx, r)
