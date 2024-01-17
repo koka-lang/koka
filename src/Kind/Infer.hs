@@ -535,7 +535,7 @@ infLamValueBinder (ValueBinder name mbTp mbExpr nameRng rng)
        mbExpr' <- case mbExpr of
                   Nothing   -> return Nothing
                   Just (Parens (Var iname _ nrng) nm pre prng)  | isImplicitParamName name  -- ?? unpack
-                            -> do (qname,ikind) <- findInfKind iname rng
+                            -> do (qname,ikind,_) <- findInfKind iname rng
                                   -- kind          <- resolveKind ikind
                                   -- addRangeInfo r (Id qname (NITypeCon kind) [] False)
                                   return (Just (Parens (Var qname False nrng) nm "implicit" prng))
@@ -666,7 +666,7 @@ infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort ddef is
        reskind <- if dataDefIsOpen ddef then return infKindStar else freshKind
        tbinder' <- unifyBinder tbinder newtp range infgamma reskind
        if not isExtend then return ()
-        else do (qname,kind) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
+        else do (qname,kind,_) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
                 unify (Check "extended type must have the same kind as the open type" (tbinderRange newtp) ) (tbinderRange newtp) (typeBinderKind tbinder') kind
        return (DataType tbinder' infgamma constructors' range vis sort ddef isExtend doc)
 
@@ -754,11 +754,11 @@ infUserType expected  context userType
               args' <- mapM (\(kind,arg) -> infUserType kind (Infer range) arg) (zip kinds args)
               return (TpApp tp' args' rng)
       TpVar name rng
-        -> do (qname,kind) <- findInfKind name rng
+        -> do (qname,kind,_) <- findInfKind name rng
               unify context range expected kind
               return (TpVar qname rng)
       TpCon name rng
-        -> do (qname,kind) <- findInfKind name rng
+        -> do (qname,kind,_) <- findInfKind name rng
               unify context range expected kind
               return (TpCon qname rng)
       TpParens tp rng
@@ -817,7 +817,7 @@ resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
 resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort ddef isExtend doc)
   = do -- trace ("datatype: " ++ show(tbinderName newtp) ++ " " ++ show isExtend ++ ", doc: " ++ doc) $ return ()
        newtp' <- if isExtend
-                  then do (qname,ikind) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
+                  then do (qname,ikind,_) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
                           kind  <- resolveKind ikind
                           -- addRangeInfo range (Id qname (NITypeCon kind doc) [] False)
                           return (TypeBinder qname kind (tbinderNameRange newtp) (tbinderRange newtp))
@@ -1080,9 +1080,9 @@ resolveApp idmap partialSyn (TpCon name r,[fixed,ext]) rng  | name == nameEffect
        return (shallowEffectExtend fixed' ext')
 
 resolveApp idmap partialSyn (TpCon name r,args) rng
-  =  do (qname,ikind) <- findInfKind name rng
+  =  do (qname,ikind,doc) <- findInfKind name rng
         kind  <- resolveKind ikind
-        addRangeInfo r (Id qname (NITypeCon kind "") [] False)
+        addRangeInfo r (Id qname (NITypeCon kind doc) [] False)
 
         mbSyn <- lookupSynInfo name
         case mbSyn of

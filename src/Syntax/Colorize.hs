@@ -380,7 +380,7 @@ fmtOpString s
 linkFromTypeId :: Env -> Name -> KGamma -> String -> String
 linkFromTypeId env name kgamma content
   = case kgammaLookup (context env) name kgamma of
-      Found qname kind
+      Found qname (kind,doc)
         -> -- atag (linkFromTypeName env qname) content
            signature env True True "kind" qname (mangleTypeName qname) (showKind env kind) $ content
       _ -> if isQualified name

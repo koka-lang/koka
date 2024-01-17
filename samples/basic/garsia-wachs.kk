@@ -22,6 +22,8 @@ pub fun main()
 //----------------------------------------------------
 // Trees
 //----------------------------------------------------
+
+// A tree with all values in the leaves.
 type tree<a>
   Leaf(value : a)
   Node(left : tree<a>, right : tree<a>)
@@ -36,8 +38,11 @@ fun tree/show( t : tree<string> ) : string
 //----------------------------------------------------
 // Non empty lists
 //----------------------------------------------------
+
+// A list with at least one element.
 pub value type list1<a>
-  Cons1( head : a, tail : list<a> )
+  // The head of a list with at least one element.
+  con Cons1( head : a, tail : list<a> )
 
 
 fun map( xs, f )
@@ -98,11 +103,11 @@ fun build( depth : int, xs : list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,li
 
 pub fun example()
   val wlist = Cons1(("a",3), [("b",2),("c",1),("d",4),("e",5)])
-  val tree  = wlist.garciawachs()
+  val tree  = wlist.garsia-wachs()
   tree.show()
 
 
-fun garciawachs( xs : list1<(a,int)> ) : div tree<a>
+fun garsia-wachs( xs : list1<(a,int)> ) : div tree<a>
   val refs   = xs.map( fn((x,_)) (x,ref(0)) )
   val wleafs = zip( refs.map(Leaf), xs.map(snd) )
   val tree   = balance(wleafs)

@@ -157,15 +157,15 @@ command st cmd
 
   KindOf line -> do err <- compileType term (flags st) (loaded st) (program st) bigLine line
                     checkInfer st True err $ \ld ->
-                       do{ let kind = kgammaFind (getName (program st)) nameType (loadedKGamma ld)
-                         ; messagePrettyLnLn st (prettyKind (colorSchemeFromFlags (flags st)) (snd kind))
+                       do{ let (_,kind,_) = kgammaFind (getName (program st)) nameType (loadedKGamma ld)
+                         ; messagePrettyLnLn st (prettyKind (colorSchemeFromFlags (flags st)) kind)
                          ; interpreter st{ loaded = ld }
                          }
 
   TypeDef line-> -- trace ("modules: " ++ show (map (show . modName . loadedModule) (loadedModules st))) $
                  do err <- compileTypeDef term (flags st) (loaded st) (program st) (lineNo st) line
                     checkInfer2Snd st True err $ \(defName, ld) ->
-                     do{ let (qname,kind) = kgammaFind (getName (program st)) defName (loadedKGamma ld)
+                     do{ let (qname,kind,doc) = kgammaFind (getName (program st)) defName (loadedKGamma ld)
                        ; messagePrettyLnLn st (text (show defName) <+> text "::" <+> pretty kind)
                        ; interpreter st{ program  = maybe (program st) id $ modProgram (loadedModule ld)
                                        , loaded   = ld

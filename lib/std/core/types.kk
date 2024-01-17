@@ -183,7 +183,9 @@ pub struct tuple5<a,b,c,d,e>(fst:a,snd:b,thd:c,field4:d,field5:e)
 // This type is often used to represent values that can be _null_.
 // See also `module std/core/maybe`.
 pub value type maybe<a>
+  // No result
   con Nothing
+  // A single result
   con Just( value : a )
 
 // The choice type represents one of two possible types `:a` or `:b`.
@@ -192,7 +194,7 @@ pub value type either<a,b>
   con Left( left : a )
   con Right( right : b )
 
-// An enumeration to represent order
+// An enumeration to represent order: `Lt`, `Eq`, or `Gt`.
 // See also `module std/core/order`.
 pub type order
   Lt

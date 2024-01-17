@@ -18,10 +18,12 @@ module rbtree-fbip
 
 import std/os/env
 
+// A color is either `Red` or `Black`
 type color
   Red
   Black
 
+// An ordered tree with `:int` keys and values `:a` in each node.
 type tree<a>
   Node(color : color, lchild : tree<a>, key : int, value : a, rchild : tree<a>)
   Leaf

@@ -231,17 +231,17 @@ extendKGamma ranges (Core.TypeDefGroup (tdefs)) ki
     check :: (KGamma,[Core.TypeDef]) -> (Range,Core.TypeDef) -> KInfer (KGamma,[Core.TypeDef])
     check (kgamma,tdefs) (range,tdef)
       = if (Core.typeDefIsExtension tdef) then return (kgamma,tdefs)
-         else do let (name,kind) = nameKind tdef
+         else do let (name,kind,doc) = nameKind tdef
                  -- trace("extend kgamma: " ++ show (name)) $
                  case kgammaLookupQ name kgamma of
-                   Nothing -> return (kgammaExtend name kind kgamma,tdef:tdefs)
+                   Nothing -> return (kgammaExtend name kind doc kgamma,tdef:tdefs)
                    Just _  -> do env <- getKindEnv
                                  addError range $ text "Type" <+> ppType (cscheme env) name <+>
                                                   text "is already defined"
                                  return (kgamma,tdefs)
       where
-        nameKind (Core.Synonym synInfo) = (synInfoName synInfo, synInfoKind synInfo)
-        nameKind (Core.Data dataInfo isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
+        nameKind (Core.Synonym synInfo) = (synInfoName synInfo, synInfoKind synInfo, synInfoDoc synInfo)
+        nameKind (Core.Data dataInfo isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo, dataInfoDoc dataInfo)
 
 
 -- | This extend KGamma does not check for duplicates
@@ -254,8 +254,9 @@ extendKGammaUnsafe (tdefs) (KInfer ki)
                                   , newtypesExtended = newtypesCompose (newtypesExtended env) kNewtypes }) st)
   where
     kGamma = kgammaNewNub (map nameKind tdefs) -- duplicates are removed here
-    nameKind (Core.Synonym synInfo)        = (synInfoName synInfo, synInfoKind synInfo)
-    nameKind (Core.Data dataInfo isExtend) = (dataInfoName dataInfo, dataInfoKind dataInfo)
+    nameKind (Core.Synonym synInfo) = (synInfoName synInfo, synInfoKind synInfo, synInfoDoc synInfo)
+    nameKind (Core.Data dataInfo isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo, dataInfoDoc dataInfo)
+
 
     kSyns  = synonymsNew (concatMap nameSyn tdefs)
     nameSyn (Core.Synonym synInfo ) = [synInfo]
@@ -304,7 +305,7 @@ infQualifiedName name range
 ppModule cs name
   = color (colorModule cs) (text (nameModule name))
 
-findInfKind :: Name -> Range -> KInfer (Name,InfKind)
+findInfKind :: Name -> Range -> KInfer (Name,InfKind,String)
 findInfKind name0 range
   = do env <- getKindEnv
        let (name,mbAlias) = case importsExpand name0 (imports env) of
@@ -316,13 +317,14 @@ findInfKind name0 range
        -- todo: check for the locally inferred names for casing too.
        -- trace("find: " ++ show (name,qname) ++ ": " ++ show (M.elems (infgamma env))) $ return ()
        case M.lookup name (infgamma env)  of
-         Just infkind -> return (name,infkind)
+         Just infkind -> return (name,infkind,"")
          Nothing ->
            case M.lookup qname (infgamma env) of
-             Just infkind -> return (qname,infkind)
+             Just infkind -> return (qname,infkind,"")
              Nothing
                  -> case kgammaLookup (currentModule env) name (kgamma env) of
-                      Found qname kind -> do let name' = if isQualified name then qname else (unqualify qname)
+                      Found qname (kind,doc)
+                                       -> do let name' = if isQualified name then qname else (unqualify qname)
                                              if (-- trace ("compare: " ++ show (qname,name,name0)) $
                                                  not (nameCaseEqual name' name))
                                               then do let cs = cscheme env
@@ -336,17 +338,17 @@ findInfKind name0 range
                                                          -- <+> text ( nameModule name0 ++ ", " ++ showPlain alias)
                                                          )
                                               _ -> return ()
-                                             return (qname,KICon kind)
+                                             return (qname,KICon kind, doc)
                       NotFound         -> do let cs = cscheme env
                                              -- trace ("cannot find type: " ++ show name ++ ", " ++ show (currentModule env) ++ ", " ++ show (kgamma env)) $
                                              addError range (text "Type" <+> (ppType cs name) <+> text "is not defined" <->
                                                              text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <.> ppType cs name <.> text ">") <+> text "?")
                                              k <- freshKind
-                                             return (name,k)
+                                             return (name,k,"")
                       Ambiguous names  -> do let cs = cscheme env
                                              addError range (text "Type" <+> ppType cs name <+> ambiguous cs names)
                                              k <- freshKind
-                                             return (name,k)
+                                             return (name,k,"")
 
 ambiguous :: ColorScheme -> [Name] -> Doc
 ambiguous cs [name1,name2]
@@ -366,11 +368,11 @@ qualifyDef name
   = do env <- getKindEnv
        return (qualify (currentModule env) name)
 
-findKind :: Name -> KInfer (Name,Kind)
+findKind :: Name -> KInfer (Name,Kind,String)
 findKind name
   = do env <- getKindEnv
        case kgammaLookup (currentModule env) name (kgamma env) of
-        Found qname kind -> return (qname,kind)
+        Found qname (kind,doc) -> return (qname,kind,doc)
         _  -> failure ("Kind.Infer.findKind: unknown type constructor: " ++ show name)
 
 lookupSynInfo :: Name -> KInfer (Maybe SynInfo)

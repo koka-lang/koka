@@ -55,49 +55,55 @@ kgammaIsEmpty (KGamma qm)
 {--------------------------------------------------------------------------
   KGamma
 --------------------------------------------------------------------------}
+data TypeNameInfo = TypeNameInfo{ tninfoKind :: Kind, tninfoDoc :: String }
+
+
 -- | Environment mapping types to kind schemes
-newtype KGamma   = KGamma {unKGamma :: QNameMap Kind}
+newtype KGamma   = KGamma {unKGamma :: QNameMap TypeNameInfo}
 
 kgammaEmpty :: KGamma
 kgammaEmpty
   = KGamma empty
 
-kgammaSingle :: Name -> Kind -> KGamma
-kgammaSingle name kind
-  = KGamma (single name kind)
+kgammaSingle :: Name -> Kind -> String -> KGamma
+kgammaSingle name kind doc
+  = KGamma (single name (TypeNameInfo kind doc))
 
-kgammaNew :: [(Name,Kind)] -> KGamma
+kgammaNew :: [(Name,TypeNameInfo)] -> KGamma
 kgammaNew xs
   = KGamma (fromList xs)
 
-kgammaNewNub :: [(Name,Kind)] -> KGamma
+kgammaNewNub :: [(Name,Kind,String)] -> KGamma
 kgammaNewNub xs
-  = KGamma (fromList (L.nubBy (\(n1,x) (n2,y) -> n1 == n2) xs))
+  = KGamma (fromList (L.map (\(n,k,d) -> (n,TypeNameInfo k d)) (L.nubBy (\(n1,_,_) (n2,_,_) -> n1 == n2) xs)))
 
 
 
-kgammaExtend :: Name -> Kind -> KGamma -> KGamma
-kgammaExtend name scheme (KGamma kgamma)
-  = KGamma (insert name scheme kgamma)
+kgammaExtend :: Name -> Kind -> String -> KGamma -> KGamma
+kgammaExtend name scheme doc (KGamma kgamma)
+  = KGamma (insert name (TypeNameInfo scheme doc) kgamma)
 
-kgammaLookup :: Name -> Name -> KGamma -> Lookup Kind
+kgammaLookup :: Name -> Name -> KGamma -> Lookup (Kind,String)
 kgammaLookup context name (KGamma kgamma)
-  = lookup context name kgamma
+  = case lookup context name kgamma of
+      Found n tni -> Found n (tninfoKind tni, tninfoDoc tni)
+      NotFound    -> NotFound
+      Ambiguous names -> Ambiguous names
 
 -- | Lookup a fully qualified name
-kgammaLookupQ :: Name -> KGamma -> Maybe Kind
+kgammaLookupQ :: Name -> KGamma -> Maybe TypeNameInfo
 kgammaLookupQ name (KGamma kgamma)
   = lookupQ name kgamma
 
-kgammaFind :: Name -> Name -> KGamma -> (Name,Kind)
+kgammaFind :: Name -> Name -> KGamma -> (Name,Kind,String)
 kgammaFind context name kg@(KGamma kgamma)
   = case kgammaLookup context name kg of
-      Found qname scheme -> (qname,scheme)
-      _ -> error ("Kind.Assumption.kgammaFind: unbound type '" ++ show name ++ "' in " ++ show kgamma)
+      Found qname (scheme,doc) -> (qname,scheme,doc)
+      _ -> error ("Kind.Assumption.kgammaFind: unbound type '" ++ show name ++ "' in " ++ show (kgammaList kg))
 
 kgammaList :: KGamma -> [(Name,Kind)]
 kgammaList (KGamma kgamma)
-  = L.sortBy (\(n1,_) (n2,_) -> compare (show n1) (show n2)) (toAscList kgamma)
+  = L.map (\(n,tni) -> (n, tninfoKind tni)) (L.sortBy (\(n1,_) (n2,_) -> compare (show n1) (show n2)) (toAscList kgamma))
 
 kgammaFilter :: Name -> KGamma -> KGamma
 kgammaFilter modName (KGamma kgamma)
@@ -146,7 +152,7 @@ extractTypeDef :: Core.TypeDef -> KGamma
 extractTypeDef tdef
   = case tdef of
       Core.Synonym synInfo | Core.isPublic (synInfoVis synInfo)
-        -> kgammaSingle (synInfoName synInfo) (synInfoKind synInfo)
+        -> kgammaSingle (synInfoName synInfo) (synInfoKind synInfo) (synInfoDoc synInfo)
       Core.Data dataInfo False | Core.isPublic (dataInfoVis dataInfo)
-        -> kgammaSingle (dataInfoName dataInfo) (dataInfoKind dataInfo)
+        -> kgammaSingle (dataInfoName dataInfo) (dataInfoKind dataInfo) (dataInfoDoc dataInfo)
       _ -> kgammaEmpty

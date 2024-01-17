@@ -10,6 +10,8 @@ import std/num/random
 // --------------------------------------------------------
 // Definition of players
 // --------------------------------------------------------
+
+// A player is either `Bob` or `Alice`
 type player
   Bob
   Alice
@@ -32,6 +34,7 @@ pub fun player/show(p:player) : string
 // Game of Nim
 // --------------------------------------------------------
 
+// Operation to move a certain number of sticks.
 effect ctl move( player :player, sticks :int) : int
 
 
@@ -68,6 +71,7 @@ pub fun example-perfect2()
 // Game trees
 // --------------------------------------------------------
 
+// A game tree
 type gtree
   Take( player: player, moves: list<(int,gtree)> )
   Winner( player: player )
