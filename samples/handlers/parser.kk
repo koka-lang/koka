@@ -4,9 +4,11 @@
    Implements a parser that can modularly set to be eager or fully backtracking.
 */
 
-// First defined the `many` effect to describe multiple of results and failure
+// First define the `many` effect to describe multiple of results and failure
 effect many
+  // flip a coin and return either `True` or `False` .. or both
   ctl flip() : bool
+  // fail the current computation
   ctl fail() : a
 
 

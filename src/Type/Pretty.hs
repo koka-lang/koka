@@ -252,7 +252,7 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
         else case datadef of
                DataDefRec -> text "recursive "
                DataDefOpen -> text "open "
-               DataDefValue v -> text "value " -- ++ show v ++ " ")
+               DataDefValue v -> text ("value" ++ show v ++ " ")
                _ -> empty) <.>
       (case datakind of
          Inductive -> keyword env "type"
@@ -260,10 +260,6 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
          Retractive  -> keyword env "rec type") <+>  -- this "rec" means a retractive type
       -- ppVis env vis <+>
       ppName env name <.> pretty range <.>
-      (if isExtend then empty  -- value repr comes late so comment association works
-         else case datadef of
-                DataDefValue v -> text (show v)
-                _              -> empty) <.>
       (if null args then empty else space <.> angled (map (ppTypeVar env) args)) <.>
       (if kind /= kindStar then text " ::" <+> ppKind (colors env) 0 kind else empty) <+>
       (if (showBody && not (null cons))

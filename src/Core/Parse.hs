@@ -168,7 +168,7 @@ pfixity
 --------------------------------------------------------------------------}
 typeDecl :: Env -> LexParser (TypeDef,Env)
 typeDecl env
-  = do (vis,(ddef0,isExtend,sort,doc))  <- try $ do vis <- vispub
+  = do (vis,(ddef,isExtend,sort,doc))   <- try $ do vis <- vispub
                                                     info <- typeSort
                                                     return (vis,info)
        tname <- if (isExtend)
@@ -180,10 +180,6 @@ typeDecl env
                       do (name,_) <- idop -- (<>), (<|>)
                          return (qualify (modName env) name)
        range    <- prange env
-       ddef     <- case ddef0 of
-                      DataDefValue _ -> do vrepr <- parseValueRepr
-                                           return (DataDefValue vrepr)
-                      _              -> return ddef0
        -- trace ("core type: " ++ show tname) $ return ()
        (env,params) <- typeParams env
        kind       <- kindAnnotFull
@@ -243,8 +239,8 @@ parseTypeMod
  =   do{ specialId "open"; return (DataDefOpen, False, Inductive) }
  <|> do{ specialId "extend"; return (DataDefOpen, True, Inductive) }
  <|> do specialId "value"
-        -- let vrepr = failure "Core.Parse.parseTypeMod: need to parse value repr after id"
-        return (DataDefValue valueReprZero, False, Inductive)
+        vrepr <- parseValueRepr
+        return (DataDefValue vrepr, False, Inductive)
  <|> do{ specialId "co"; return (DataDefNormal, False, CoInductive) }
  <|> do{ specialId "rec"; return (DataDefNormal, False, Retractive) }
  <|> return (DataDefNormal, False, Inductive)

@@ -67,7 +67,7 @@ data NameInfo
   = InfoVal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoRange :: Range, infoIsVar :: Bool, infoDoc::String }
   | InfoFun{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoArity :: (Int,Int), infoFip :: Fip, infoRange :: Range, infoDoc::String }
   | InfoCon{ infoVis :: Visibility, infoType :: Scheme, infoRepr  :: Core.ConRepr, infoCon :: ConInfo, infoRange :: Range, infoDoc::String }
-  | InfoExternal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoFormat :: [(Target,String)], infoFip :: Fip, infoRange :: Range}
+  | InfoExternal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoFormat :: [(Target,String)], infoFip :: Fip, infoRange :: Range, infoDoc :: String}
   | InfoImport{ infoVis :: Visibility, infoType :: Scheme, infoAlias :: Name, infoFullName :: Name, infoRange :: Range}
   deriving (Show)
 
@@ -125,6 +125,7 @@ infoDocString :: NameInfo -> String
 infoDocString (InfoVal{infoDoc=doc}) = doc
 infoDocString (InfoFun{infoDoc=doc}) = doc
 infoDocString (InfoCon{infoDoc=doc}) = doc
+infoDocString (InfoExternal{infoDoc=doc}) = doc
 infoDocString _ = ""
 
 infoElement :: NameInfo -> String
@@ -143,10 +144,10 @@ infoIsVisible info = case infoVis info of
 coreVarInfoFromNameInfo :: NameInfo -> Core.VarInfo
 coreVarInfoFromNameInfo info
   = case info of
-      InfoVal _ _ tp _ _ _            -> Core.InfoNone
-      InfoFun _ _ tp (m,n) _ _ _      -> Core.InfoArity m n
-      InfoExternal _ _ tp format _ _ -> Core.InfoExternal format
-      _                              -> matchFailure "Type.Infer.coreVarInfoFromNameInfo"
+      InfoVal _ _ tp _ _ _             -> Core.InfoNone
+      InfoFun _ _ tp (m,n) _ _ _       -> Core.InfoArity m n
+      InfoExternal _ _ tp format _ _ _ -> Core.InfoExternal format
+      _                                -> matchFailure "Type.Infer.coreVarInfoFromNameInfo"
 
 coreExprFromNameInfo qname info
   = -- trace ("create name: " ++ show qname) $
@@ -154,8 +155,8 @@ coreExprFromNameInfo qname info
       InfoVal vis cname tp _ _ _             -> Core.Var (Core.TName cname tp) (Core.InfoNone)
       InfoFun vis cname tp ((m,n)) _ _ _     -> Core.Var (Core.TName cname tp) (Core.InfoArity m n)
       InfoCon vis  tp repr _ _ _             -> Core.Con (Core.TName qname tp) repr
-      InfoExternal vis cname tp format _ _  -> Core.Var (Core.TName cname tp) (Core.InfoExternal format)
-      InfoImport _ _ _ _ _                  -> matchFailure "Type.Infer.coreExprFromNameInfo"
+      InfoExternal vis cname tp format _ _ _ -> Core.Var (Core.TName cname tp) (Core.InfoExternal format)
+      InfoImport _ _ _ _ _                   -> matchFailure "Type.Infer.coreExprFromNameInfo"
 
 
 {--------------------------------------------------------------------------
@@ -419,7 +420,7 @@ getArity tp
 
 
 extractExternal updateVis (Core.External name tp pinfos body vis fip nameRng doc)
-  = gammaSingle name {- (nonCanonicalName name) -} (InfoExternal (updateVis vis) name tp body fip nameRng)
+  = gammaSingle name {- (nonCanonicalName name) -} (InfoExternal (updateVis vis) name tp body fip nameRng doc)
 extractExternal updateVis _
   = gammaEmpty
 

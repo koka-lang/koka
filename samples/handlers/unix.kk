@@ -12,7 +12,9 @@
 // Basic I/O
 // Shows output state (writer monad)
 
-effect bio  // basic I/O
+// basic I/O
+effect bio
+  // Write a string to a file descriptor
   fun write( fd : filedesc, s : string ) : ()
 
 alias filedesc = int

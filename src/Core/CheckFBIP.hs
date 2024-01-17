@@ -406,7 +406,7 @@ getFipInfo xs
       [info] -> case info of
         InfoFun _ _ _ _ fip' _ _
           -> Just fip'
-        Type.Assumption.InfoExternal _ _ _ _ fip' _
+        Type.Assumption.InfoExternal _ _ _ _ fip' _ _
           -> Just fip'
         _ -> Nothing
       infos -> Nothing

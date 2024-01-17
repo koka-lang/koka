@@ -216,6 +216,7 @@ fun state(init,action)
     fun put(x) s := x
 
 
+// The current state of the game as a list of moves.
 alias gstate = list<(player,int)>
 
 val s0 = [(Alice,0),(Bob,0)]

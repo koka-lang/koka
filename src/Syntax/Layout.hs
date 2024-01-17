@@ -102,7 +102,12 @@ associateComments lexs
       = case lexs of
           -- special comments
           (Lexeme r1 (LexComment (comment@('/':'/':'.':cs))) : ls) | not (any isSpace (trimRight cs))
-             -> Lexeme r1 (LexSpecial (trimRight comment)) : scan ls
+            -> Lexeme r1 (LexSpecial (trimRight comment)) : scan ls
+          (l1@(Lexeme r1 (LexComment comment)) : ls)
+            -> case scanDocKeyword (commentLine r1 comment) [] ls of
+                 Just (pre,Lexeme r2 (LexKeyword k _),ls') -> (l1:pre) ++ [Lexeme r2 (LexKeyword k comment)] ++ scan ls'
+                 Nothing -> l1 : scan ls
+          {-
           -- comment association
           (Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k _) : ls)
             | k `elem` docKeyword && adjacent comment r1 r2
@@ -116,11 +121,28 @@ associateComments lexs
           (Lexeme r1 (LexComment comment) : l1 : l2 : l3 : Lexeme r2 (LexKeyword k _) : ls) -- pub inline fip extern
             | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l1 && isAttr l2 && isAttr l3
             -> Lexeme r1 (LexComment comment) : l1 : l2 : l3 : Lexeme r2 (LexKeyword k comment) : scan ls
+          -}
           -- other
           (l:ls)
              -> l : scan ls
           [] -> []
       where
+        commentLine rng comment
+          = case (reverse comment) of
+              '\n':_ -> posLine (rangeEnd rng)
+              _      -> posLine (rangeEnd rng) + 1
+
+        scanDocKeyword line acc ls
+          = case ls of
+              [] -> Nothing
+              (Lexeme rng _ : _)  | posLine (rangeStart rng) /= line
+                 -> Nothing
+              (l@(Lexeme _ (LexKeyword k _)) : rest)  | k `elem` docKeyword
+                 -> Just (reverse acc, l, rest)
+              (l:rest)
+                 -> scanDocKeyword line (l:acc) rest
+
+
         docKeyword = ["fun","val","ctl","final","raw"
                      ,"type","effect","struct","con","alias"
                      ,"extern","module"
