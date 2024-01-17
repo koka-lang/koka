@@ -5,7 +5,6 @@
  
 algeff/scoped/intlist/show: (x : (int, list<list<int>>)) -> string
 algeff/scoped/listint/show: (xs : list<(int, list<int>)>) -> string
-algeff/scoped/listlist/show: (xss : list<list<int>>) -> string
 algeff/scoped/Cutfail: forall<e,a> (@hnd-cutfail<e,a>) -> cutfail
 algeff/scoped/Nondet: forall<e,a> (@hnd-nondet<e,a>) -> nondet
 algeff/scoped/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>
@@ -25,7 +24,7 @@ algeff/scoped/flip: () -> nondet bool
 algeff/scoped/get: forall<a> () -> (state<a>) a
 algeff/scoped/global: forall<a,b,e> (s : a, action : () -> <div,nondet,state<a>|e> b) -> <div|e> (a, list<b>)
 algeff/scoped/hcutfail: forall<a,e> (() -> <cutfail,nondet|e> a) -> <nondet|e> a
-algeff/scoped/incr: (i : optional<int>) -> (state<int>) ()
+algeff/scoped/incr: (i : @optional<int>) -> (state<int>) ()
 algeff/scoped/knapsack: (w : int, vs : list<int>) -> <div,nondet> list<int>
 algeff/scoped/local: forall<a,b,e> (s : a, action : () -> <div,nondet,state<a>|e> b) -> <div|e> list<(a, b)>
 algeff/scoped/main: () -> <console,div> ()

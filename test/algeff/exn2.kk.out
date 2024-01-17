@@ -6,7 +6,6 @@ exit
 exit
 exit
 [False,False]
-add default effect for std/core/exn
  
 algeff/exn2/Amb: forall<e,a> (@hnd-amb<e,a>) -> amb
 algeff/exn2/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>

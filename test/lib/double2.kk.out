@@ -86,4 +86,3 @@ acosh: -1230000000000000: ok: nan
 acosh: -12300000000000000: ok: nan
 acosh: -inf: ok: nan
 acosh: nan: ok: nan
-add default effect for std/core/exn

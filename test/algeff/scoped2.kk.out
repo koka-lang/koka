@@ -5,7 +5,6 @@ one: [3]
  
 algeff/scoped2/intlist/show: (x : (int, list<list<int>>)) -> string
 algeff/scoped2/listint/show: (xs : list<(int, list<int>)>) -> string
-algeff/scoped2/listlist/show: (xss : list<list<int>>) -> string
 algeff/scoped2/maybelist/show: (m : maybe<list<int>>) -> string
 algeff/scoped2/Nondet: forall<e,a> (@hnd-nondet<e,a>) -> nondet
 algeff/scoped2/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>
@@ -14,7 +13,7 @@ algeff/scoped2/choices: forall<a,e> (() -> <nondet,nondet,state<int>|e> a) -> <n
 algeff/scoped2/fail: forall<a> () -> nondet a
 algeff/scoped2/get: forall<a> () -> (state<a>) a
 algeff/scoped2/global: forall<a,b,e> (s : a, action : () -> <div,nondet,state<a>|e> b) -> <div|e> (a, list<b>)
-algeff/scoped2/incr: (i : optional<int>) -> (state<int>) ()
+algeff/scoped2/incr: (i : @optional<int>) -> (state<int>) ()
 algeff/scoped2/knapsack: (w : int, vs : list<int>) -> <div,nondet> list<int>
 algeff/scoped2/local: forall<a,b,e> (s : a, action : () -> <div,nondet,state<a>|e> b) -> <div|e> list<(a, b)>
 algeff/scoped2/main: () -> <console,div> ()

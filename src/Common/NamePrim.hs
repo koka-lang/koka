@@ -65,7 +65,9 @@ module Common.NamePrim
           --
           , nameUnsafeTotal
           , nameIntConst
-          , nameByte, nameInt16, nameInt32, nameInt64, nameSSizeT, nameIntPtrT
+          , nameByte, nameInt16, nameInt64
+          , nameInternalInt32, nameInt32
+          , nameInternalSSizeT, nameSSizeT, nameIntPtrT
 
           , nameTpBox, nameUnbox, nameBox, nameBoxCon
 
@@ -253,18 +255,21 @@ nameVector      = coreVectorName "unvlist"
 
 
 -- conversion functions in core
-nameByte        = newQualified "std/num/int8" "uint8"
-nameInt8        = newQualified "std/num/int8" "int8"
-nameInt16       = newQualified "std/num/int16" "int16"
+nameByte        = newQualified "std/core/int"  "uint8"
+nameInt8        = newQualified "std/core/int"  "int8"
+nameInt16       = newQualified "std/core/int"  "int16"
+nameInt32       = newQualified "std/num/int32" "int32"
 nameInt64       = newQualified "std/num/int64" "int64"
-nameIntPtrT     = newQualified "std/num/intptr_t"  "intptr_t"
+nameSSizeT      = newQualified "std/core/int"  "ssize_t"
+nameIntPtrT     = newQualified "std/core/int"  "intptr_t"
 
 nameIntAdd      = coreIntName "int-add"
 nameIntSub      = coreIntName "int-sub"
 
--- these are used by evidence in std/core/hnd
-nameInt32       = coreTypesName "int32"
-nameSSizeT      = coreTypesName "ssize_t"
+-- these are used by evidence in std/core/hnd and can be compiler generated
+nameInternalInt32  = coreTypesName "@make-int32"
+nameInternalSSizeT = coreTypesName "@make-ssize_t"
+
 
 -- javascript backend
 nameIntConst    = coreTypesName "@int-const"

@@ -1846,28 +1846,7 @@ genInline expr
        when (not (null decls)) $
          failure ("Backend.C.FromCore.genInline: not an inlineable expression? " ++ show expr)
        return doc
-    {-
-    case expr of
-      _  | isPureExpr expr -> genPure expr
 
-      TypeLam _ e -> genInline e
-      TypeApp e _ -> genInline e
-      App f args
-        -> do argDocs <- mapM genInline args
-              case extractExtern f of
-                Just (tname,formats)
-                  -> case args of
-                       [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt32 i
-                         -> return (pretty i)
-                       _ -> genInlineExternal tname formats argDocs
-                Nothing
-                  -> case (f,args) of
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt i
-                         -> return (pretty i)
-                       _ -> do fdoc <- genInline f
-                               return (fdoc <.> tupled argDocs)
-      _ -> failure ("Backend.C.FromCore.genInline: invalid expression:\n" ++ show expr)
--}
 
 
 ---------------------------------------------------------------------------------
@@ -2026,11 +2005,11 @@ genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)
 genAppSpecial f args
   = do platform <- getPlatform
        case (f,args) of
-        (Var tname _, [Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt32 i
+        (Var tname _, [Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameInternalInt32] && isSmallInt32 i
           -> return (Just (genLitInt32 i))
         (Var tname _, [Lit (LitInt i)]) | getName tname == nameInt64 && isSmallInt64 i
           -> return (Just (genLitInt64 i))
-        (Var tname _, [Lit (LitInt i)]) | getName tname == nameSSizeT && isSmallSSizeT platform i
+        (Var tname _, [Lit (LitInt i)]) | getName tname `elem` [nameSSizeT,nameInternalSSizeT] && isSmallSSizeT platform i
           -> return (Just (genLitSSizeT i))
         (Var tname _, [Lit (LitInt i)]) | getName tname == nameIntPtrT && isSmallIntPtrT platform i
           -> return (Just (genLitIntPtrT i))
@@ -2040,13 +2019,13 @@ genAppSpecial f args
                Just (tname,formats)
                  -- inline external
                  -> case args of
-                     [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt32 i
+                     [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameInternalInt32] && isSmallInt32 i
                        -> return (Just (genLitInt32 i))
                      [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt64 i
                        -> return (Just (genLitInt64 i))
                      [Lit (LitInt i)] | getName tname == nameByte && isSmallUInt8 platform i
                        -> return (Just (genLitUInt8 i))
-                     [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallSSizeT platform i
+                     [Lit (LitInt i)] | getName tname `elem` [nameSSizeT,nameInternalSSizeT] && isSmallSSizeT platform i
                        -> return (Just (genLitSSizeT i))
                      [Lit (LitInt i)] | getName tname == nameIntPtrT && isSmallIntPtrT platform i
                        -> return (Just (genLitIntPtrT i))
@@ -2268,8 +2247,9 @@ isInlineableExpr expr
 
       -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
       App (Var v (InfoExternal _)) [] -> getName v `elem` [nameYielding,nameReuseNull,nameCCtxHoleCreate]
-      -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
-      App (Var v _) [arg] | getName v `elem` [nameBox,nameInt32,nameReuse,nameReuseIsValid,nameIsUnique] -> isInlineableExpr arg
+      App (Var v _) [arg] | getName v `elem` [nameBox,nameInt32,nameInternalInt32,nameSSizeT,
+                                              nameInternalSSizeT,nameReuse,nameReuseIsValid,nameIsUnique]
+                          -> isInlineableExpr arg
 
       -- App (Var v (InfoExternal _)) args -> hasTotalEffect (typeOf v) &&  all isPureExpr args  -- yielding() etc.
 

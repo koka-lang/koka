@@ -34,6 +34,20 @@ pub fun show( i : int32 ) : string
 pub inline fip fun i32( i : int ) : int32
   i.int32
 
+// Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
+// value if it is outside the range of an `:int32`.
+// Needed for control flow contexts in `module std/core/hnd`
+pub inline fip extern int32( i : int) : int32
+  c  "kk_integer_clamp32"
+  cs "Primitive.IntToInt32"
+  js "$std_core_types._int_clamp32"
+
+// Convert an `:int32` to an `:int`.
+pub inline fip extern int( i : int32 ) : int
+  c  "kk_integer_from_int"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core_types._int_from_int32"
+
 /*
 // Convert a `:float64` to an `:int32`. The float64 is clamped to the
 // minimum or maximum `:int32` value if it is outside the range. A `nan` is
@@ -83,39 +97,62 @@ pub fun uint( i : int32 ) : int
 pub fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre : string = "0x" ) : string
   std/core/show/show-hex(i.uint,width,use-capitals,pre)
 
+// Are two 32-bit integers equal?
+pub inline fip extern (==) : (int32,int32) -> bool
+  inline "(#1 == #2)"
+  js inline "(#1 === #2)"
 
-pub inline fip extern (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-pub inline fip extern (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-pub inline fip extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)" }
-pub inline fip extern (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)" }
-pub inline fip extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"  }
-pub inline fip extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"  }
+// Are two 32-bit integers not equal?
+pub inline fip extern (!=) : (int32,int32) -> bool
+  inline "(#1 != #2)"
+  js inline "(#1 !== #2)"
 
+// Is the first 32-bit integer smaller or equal to the second?
+pub inline fip extern (<=) : (int32,int32) -> bool
+  inline "(#1 <= #2)"
+
+// Is the first 32-bit integer larger or equal to the second?
+pub inline fip extern (>=) : (int32,int32) -> bool
+  inline "(#1 >= #2)"
+
+// Is the first 32-bit integer smaller than the second?
+pub inline fip extern (<)  : (int32,int32) -> bool
+  inline "(#1 < #2)"
+
+// Is the first 32-bit integer larger than the second?
+pub inline fip extern (>)  : (int32,int32) -> bool
+  inline "(#1 > #2)"
+
+// Add two 32-bit integers.
 pub inline fip extern (+)  : (int32,int32) -> int32
   c inline  "(int32_t)((uint32_t)#1 + (uint32_t)#2)" // avoid UB
   js inline "((#1 + #2)|0)"
 
+// Subtract two 32-bit integers.
 pub inline fip extern (-)  : (int32,int32) -> int32
   c inline "(int32_t)((uint32_t)#1 - (uint32_t)#2)" // avoid UB
   js inline "((#1 - #2)|0)"
 
-
+// Is the 32-bit integer negative?
 pub inline fip extern is-neg( i : int32 ) : bool
   inline "0 > #1"
 
-
+// Is the 32-bit integer positive (i.e. larger than zero)?
 pub inline fip extern is-pos( i : int32 ) : bool
   inline "0 < #1"
 
-
+// Is the 32-bit integer equal to zero?
 pub inline fip extern is-zero( i : int32 ) : bool
   inline "0 == #1"
   js inline "0 === #1"
 
-
+// The zero 32-bit integer.
 pub val zero = 0.int32
+
+// The 32-bit integer with value 1.
 pub val one  = 1.int32
 
+// Compare the argument against zero.
 pub fip fun sign( i : int32 ) : order
   if (i.is-pos) then Gt
   elif (i.is-neg) then Lt

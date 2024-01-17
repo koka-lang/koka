@@ -26,10 +26,6 @@ val solutions = handler {
   ctl choice(xs) -> xs.flatmap(fn(x){ resume(x) })
 }
 
-fun listlist/show( xss : list<list<int>> ) : string {
-  xss.show-list(fn(xs) { xs.show-list(core/show) } )
-}
-
 fun test1() {
   solutions{ knapsack(3,[3,2,1]) }
 }

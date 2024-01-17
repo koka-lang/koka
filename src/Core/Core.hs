@@ -124,7 +124,7 @@ import Common.Unique
 import Common.Id
 import Common.Error
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameUnit, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
-                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSSizeT, nameBox, nameUnbox,
+                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInternalInt32, nameInternalSSizeT, nameBox, nameUnbox,
                         nameVector, nameCons, nameListNil, nameTpList, nameUnit, nameTpUnit, nameTpFieldAddr,
                         isPrimitiveName, nameKeep, nameDropSpecial, nameOptional, nameOptionalNone, nameTpOptional)
 import Common.Syntax
@@ -1165,19 +1165,19 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
 
 makeInt32 :: Integer -> Expr
 makeInt32 i
-  = let int32 = Var (TName nameInt32 (typeFun [(nameNil,typeInt)] typeTotal typeInt32)) (InfoArity 1 0 )
+  = let int32 = Var (TName nameInternalInt32 (typeFun [(nameNil,typeInt)] typeTotal typeInt32)) (InfoArity 1 0 )
     in App int32 [Lit (LitInt i)]
 
 makeEvIndex :: Integer -> Expr
 makeEvIndex i | i < 0 = failure $ ("Core.Core.makeEvIndex: index < 0: " ++ show i)
 makeEvIndex i
-  = let sizet = Var (TName nameSSizeT (typeFun [(nameNil,typeInt)] typeTotal typeEvIndex)) (InfoArity 1 0 )
+  = let sizet = Var (TName nameInternalSSizeT (typeFun [(nameNil,typeInt)] typeTotal typeEvIndex)) (InfoArity 1 0 )
     in App sizet [Lit (LitInt i)]
 
 makeSizeT :: Integer -> Expr
 makeSizeT i | i < 0 = failure $ ("Core.Core.makeSizeT: size_t < 0: " ++ show i)
 makeSizeT i
-  = let sizet = Var (TName nameSSizeT (typeFun [(nameNil,typeInt)] typeTotal typeSSizeT)) (InfoArity 1 0 )
+  = let sizet = Var (TName nameInternalSSizeT (typeFun [(nameNil,typeInt)] typeTotal typeSSizeT)) (InfoArity 1 0 )
     in App sizet [Lit (LitInt i)]
 
 ---------------------------------------------------------------------------

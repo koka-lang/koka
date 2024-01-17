@@ -35,7 +35,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocalVar
                       , nameTpValueOp, nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
-                      , nameInt32, nameOr, nameAnd, nameEffectOpen
+                      , nameInternalInt32, nameOr, nameAnd, nameEffectOpen
                       , nameCCtxCreate, nameCCtxHoleCreate, isNameTuple
                       , nameCoreFileLine, nameCoreFileFile, nameCoreFileModule
                        )
@@ -1076,7 +1076,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
        let grng = rangeNull
        let handlerCon = let hcon = Var handlerConName False hrng
                         in if null clauses then hcon else App hcon clauses rng
-           handlerCfc = (\i -> App (Var nameInt32 False grng) [(Nothing,Lit (LitInt i grng))] grng) $
+           handlerCfc = (\i -> App (Var nameInternalInt32 False grng) [(Nothing,Lit (LitInt i grng))] grng) $
                         if (null branches) then 1 --linear
                                            else foldr1 cfcLub (map hbranchCfc branches)
                       where

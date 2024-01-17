@@ -1,10 +1,11 @@
 module parc/parc12
 import std/core/types = std/core/types = "";
+import std/core/int = std/core/int = "";
 import std/core = std/core = "";
 pub fun test : (x : int) -> int
  = fn(x: int){
  val @match-x129 : int
- = std/core/int-add((std/core/types/@dup(x)), 1);
+ = std/core/int/int-add((std/core/types/@dup(x)), 1);
  match (@match-x129) {
  2
  -> val _ : ()

@@ -7,4 +7,3 @@ fr/ld 5: ok: 2.2250738585072014e-308 == ldexp(0.5, -1021 )
 fr/ld 6: ok: 1.7976931348623157e+308 == ldexp(1, 1024 )
 fr/ld 7: ok: -1.7976931348623157e+308 == ldexp(-1, 1024 )
 kahan : ok: 2000
-add default effect for std/core/exn

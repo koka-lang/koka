@@ -25,13 +25,13 @@ algeff/implicits/abort: () -> abort ()
 algeff/implicits/bound: (g : graph) -> int
 algeff/implicits/children: (v : vertex) -> children list<vertex>
 algeff/implicits/choice: () -> choice bool
-algeff/implicits/cwd: value<string>
+algeff/implicits/cwd: @value<string>
 algeff/implicits/dfs: (g : graph, vs : list<vertex>) -> pure list<rose>
 algeff/implicits/dfs-loop: (vs : list<vertex>) -> <children,div,mark,marked> list<rose>
 algeff/implicits/emit: (s : string) -> emit ()
 algeff/implicits/emit1: forall<a,e> (action : () -> <emitx|e> a) -> e a
 algeff/implicits/emit4: forall<a,e> (action : () -> <emit,total|e> a) -> e string
-algeff/implicits/emitx: value<(s : string) -> io ()>
+algeff/implicits/emitx: @value<(s : string) -> io ()>
 algeff/implicits/f: () -> <console,width> ()
 algeff/implicits/gchildren: (g : graph, v : vertex) -> list<vertex>
 algeff/implicits/get: forall<a> () -> (state<a>) a
@@ -51,4 +51,4 @@ algeff/implicits/state1: forall<a,e> (action : () -> <state<int>|e> a) -> e a
 algeff/implicits/state2: forall<a,b,e> (init : a, action : () -> <state<a>|e> b) -> e b
 algeff/implicits/test1: () -> bool
 algeff/implicits/total: () -> total int
-algeff/implicits/width: value<int>
+algeff/implicits/width: @value<int>

@@ -1,7 +1,6 @@
 55
 55
 55
-add default effect for std/core/exn
  
 cgen/specialize/fold1/@hmain: () -> console ()
 cgen/specialize/fold1/@lift-xxx: (list<int>, int) -> <console,exn> int

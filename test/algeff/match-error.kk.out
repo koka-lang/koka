@@ -1,6 +1,5 @@
 Hi
 uncaught exception: algeff/match-error(14, 3): test: pattern match failure
-add default effect for std/core/exn
  
 algeff/match-error/Bye: greet
 algeff/match-error/Change: forall<a,e,b> (@hnd-change<a,e,b>) -> change<a>

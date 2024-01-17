@@ -31,7 +31,7 @@ pub ref type list1<a> {
 
 fun map( xs, f ) {
   val Cons1(y,ys) = xs
-  Cons1(f(y), core/map(ys,f))
+  Cons1(f(y), list/map(ys,f))
 }
 
 fun zip( xs :list1<a>, ys :list1<b> ) : list1<(a,b)> {

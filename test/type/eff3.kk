@@ -5,5 +5,5 @@ fun test() {
 }
 
 fun test2() {
-  choose( const((),ref(1)), ref(2).set(3))
+  choose( const(())(ref(1)), ref(2).set(3))
 }

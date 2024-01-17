@@ -79,4 +79,3 @@
 78:-1028,2049: ok: 0x1.0p+1021
 79:-1028,2050: ok: 0x1.0p+1022
 80:-1028,2051: ok: 0x1.0p+1023
-add default effect for std/core/exn

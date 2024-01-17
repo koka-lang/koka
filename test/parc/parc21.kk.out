@@ -1,5 +1,7 @@
 module parc/parc21
 import std/core/types = std/core/types = "";
+import std/core/int = std/core/int = "";
+import std/core/console = std/core/console = "";
 import std/core = std/core = "";
 pub fun bo : (a : int, ^ b : int) -> int
  = fn(a: int, b: int){
@@ -8,7 +10,7 @@ pub fun bo : (a : int, ^ b : int) -> int
 pub fun print-ret : (x : int) -> console int
  = fn<console>(x: int){
  val _ : ()
- = std/core/prints((std/core/int/show((std/core/types/@dup(x)))));
+ = std/core/console/prints((std/core/int/show((std/core/types/@dup(x)))));
  x;
  };
 pub fun test : () -> console int
@@ -16,10 +18,10 @@ pub fun test : () -> console int
  val x@xxx : int
  = parc/parc21/bo(3, 4);
  val _ : ()
- = std/core/prints((std/core/int/show(x@xxx)));
+ = std/core/console/prints((std/core/int/show(x@xxx)));
  val _@0 : ()
- = std/core/prints((std/core/int/show(3)));
+ = std/core/console/prints((std/core/int/show(3)));
  val _@1 : ()
- = std/core/prints((std/core/int/show(4)));
+ = std/core/console/prints((std/core/int/show(4)));
  parc/parc21/bo(3, 4);
  };

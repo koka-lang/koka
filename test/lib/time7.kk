@@ -9,6 +9,7 @@
 // Sample data from the book Calendrical Calculations, 3rd edition, appendix C, 33 dates in various calendars.
 module time7
 
+import std/num/float64
 import std/num/ddouble
 import std/time/timestamp
 pub import std/time

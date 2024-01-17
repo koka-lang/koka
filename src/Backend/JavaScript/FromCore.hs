@@ -689,13 +689,9 @@ genExpr expr
        -> genExpr arg
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameByte && (i >= 0 && i < 256)
        -> return (empty, pretty i)
-     App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
+     App (Var tname _) [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt i
        -> return (empty, pretty i)
-     App (Var tname _) [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallInt i
-       -> return (empty, pretty i)
-     App (Var tname _) [Lit (LitInt i)] | getName tname == nameIntPtrT && isSmallInt i
-       -> return (empty, pretty i <.> text "n")
-     App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt i
+     App (Var tname _) [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
        -> return (empty, pretty i <.> text "n")
 
      -- special: .cctx-field-addr-of: create a tuple with the object and the field name as a string
@@ -724,13 +720,9 @@ genExpr expr
                      -> case args of
                          [Lit (LitInt i)] | getName tname == nameByte  && i >= 0 && i < 256
                            -> return (empty,pretty i)
-                         [Lit (LitInt i)] | getName tname == nameInt32  && isSmallInt i
+                         [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT]  && isSmallInt i
                            -> return (empty,pretty i)
-                         [Lit (LitInt i)] | getName tname == nameSSizeT  && isSmallInt i
-                           -> return (empty,pretty i)
-                         [Lit (LitInt i)] | getName tname == nameIntPtrT  && isSmallInt i
-                           -> return (empty,pretty i <.> text "n")
-                         [Lit (LitInt i)] | getName tname == nameInt64  && isSmallInt i
+                         [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT]  && isSmallInt i
                            -> return (empty,pretty i <.> text "n")
                          _ -> -- genInlineExternal tname formats argDocs
                               do (decls,argDocs) <- genExprs args
@@ -852,14 +844,14 @@ genInline expr
               case extractExtern f of
                 Just (tname,formats)
                   -> case args of
-                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT] && isSmallInt i
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt i
                          -> return (pretty i)
                        [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
                          -> return (pretty i <.> text "n")
                        _ -> genInlineExternal tname formats argDocs
                 Nothing
                   -> case (f,args) of
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameSSizeT] && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt i
                          -> return (pretty i)
                        ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
                          -> return (pretty i <.> text "n")

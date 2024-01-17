@@ -1150,7 +1150,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
                                ++ arguments) grng
 
 
-                        zeroIdx        = App (Var nameSSizeT False krng) [(Nothing,Lit (LitInt 0 krng))] krng
+                        zeroIdx        = App (Var nameInternalSSizeT False krng) [(Nothing,Lit (LitInt 0 krng))] krng
                         resourceName   = newHiddenName "hname"
                         resourceBinder = ValueBinder resourceName effTp  Nothing krng grng
                         perform        = Var (namePerform (length pars)) False krng

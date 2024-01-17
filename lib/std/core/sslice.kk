@@ -204,17 +204,17 @@ pub fun drop( slice: sslice, n : int): sslice
 
 // Apply a function for each character in a string slice.
 // If `action` returns `Just`, the function returns immediately with that result.
-pub fun slice/foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe<a>
+pub fun foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe<a>
   match slice.next
     Nothing -> Nothing
     Just((c,rest)) ->
       match action(c)
-        Nothing -> slice/foreach-while(pretend-decreasing(rest),action)
+        Nothing -> foreach-while(pretend-decreasing(rest),action)
         res     -> res
 
 
 // Apply a function for each character in a string slice.
-pub fun slice/foreach( slice : sslice, action : (c:char) -> e ()) : e ()
+pub fun foreach( slice : sslice, action : (c:char) -> e ()) : e ()
   foreach-while( slice ) fn(c)
     action(c)
     Nothing
@@ -222,11 +222,11 @@ pub fun slice/foreach( slice : sslice, action : (c:char) -> e ()) : e ()
 
 // Invoke a function for each character in a string.
 // If `action` returns `Just`, the function returns immediately with that result.
-pub fun foreach-while( s : string, action : (c:char) -> e maybe<a> ) : e maybe<a>
+pub fun string/foreach-while( s : string, action : (c:char) -> e maybe<a> ) : e maybe<a>
   s.slice.foreach-while(action)
 
 // Invoke a function for each character in a string
-pub fun foreach( s : string, action : (c:char) -> e () ) : e ()
+pub fun string/foreach( s : string, action : (c:char) -> e () ) : e ()
   s.slice.foreach(action)
 
 // Return the first character of a string (or `Nothing` for the empty string).
@@ -239,7 +239,7 @@ pub fun head-char( s : string ) : maybe<char>
 //
 
 // Count the number of times a predicate is true for each character in a string
-pub fun stringpred/count( s : string, pred : (char) -> e bool ) : e int
+pub fun pred/count( s : string, pred : (char) -> e bool ) : e int
   var cnt := 0
   s.foreach fn(c)
     if mask<local>{pred(c)} then cnt := cnt+1
@@ -298,14 +298,14 @@ pub fun string/truncate( s : string, count : int ) : string
   s.first.extend(count - 1).string
 
 // Trim off a substring `sub` while `s` starts with that string.
-pub fun stringsub/trim-left( s : string, sub : string ) : string
+pub fun trim-left( s : string, sub : string ) : string
   if sub.is-empty return s
   match s.starts-with(sub)
     Just(slice) -> trim-left(pretend-decreasing(slice.string),sub)
     Nothing -> s
 
 // Trim off a substring `sub` while `s` ends with that string.
-pub fun stringsub/trim-right( s : string, sub : string ) : string
+pub fun trim-right( s : string, sub : string ) : string
   if sub.is-empty return s
   match s.ends-with(sub)
     Just(slice) -> trim-right(pretend-decreasing(slice.string),sub)

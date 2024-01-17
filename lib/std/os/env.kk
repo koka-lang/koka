@@ -34,7 +34,7 @@ pub fun get-env() : ndet env
   environ.force
 
 // Returns the value of an environment variable `name` (or `Nothing` if not present)
-pub fun string/get-env( name : string ) : ndet maybe<string>
+pub fun get-env-value( name : string ) : ndet maybe<string>
   get-env().lookup(fn(nm){ nm == name })
 
 val argv : delayed<<ndet>,list<string>> =

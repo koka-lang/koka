@@ -4,9 +4,9 @@ import std/core = std/core = "";
 pub fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  = fn(xs: list<0>, ys: list<0>){
  match (xs) {
- (std/core/Cons((z: 47), (@pat@xxx: list<0>)) : list<a> )
+ (std/core/types/Cons((z: 47), (@pat@xxx: list<0>)) : list<a> )
  -> (match (ys) {
- (std/core/Cons((z@xxx: 47), (@pat@xxx: list<0>)) : list<a> )
+ (std/core/types/Cons((z@xxx: 47), (@pat@xxx: list<0>)) : list<a> )
  -> val _ : ()
  = (match ((std/core/types/@is-unique(ys))) {
  (std/core/types/True() : bool )
@@ -24,8 +24,8 @@ pub fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  = std/core/types/@dec-ref(ys);
  std/core/types/Unit;
  });
- val @ru-x153 : reuse
- = std/core/types/no-reuse();
+ val @ru-x153 : @reuse
+ = std/core/types/@no-reuse();
  val _ : ()
  = (match ((std/core/types/@is-unique(xs))) {
  (std/core/types/True() : bool )
@@ -43,11 +43,11 @@ pub fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  = std/core/types/@dec-ref(xs);
  std/core/types/Unit;
  });
- std/core/types/@alloc-at(@ru-x153, (std/core/Cons(z@xxx, std/core/Nil)));
- (@skip std/core/Nil() : (list<a>) )
+ std/core/types/@alloc-at(@ru-x153, (std/core/types/Cons(z@xxx, std/core/types/Nil)));
+ (@skip std/core/types/Nil() : (list<a>) )
  -> xs;
  });
- (@skip std/core/Nil() : (list<a>) )
+ (@skip std/core/types/Nil() : (list<a>) )
  -> ys;
  };
  };

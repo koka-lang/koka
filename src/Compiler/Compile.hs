@@ -30,7 +30,7 @@ module Compiler.Compile( -- * Compile
                        , CompileTarget(..)
                        ) where
 
-import Debug.Trace              ( trace )
+import Debug.Trace            ( trace )
 import Data.Char              ( isAlphaNum, toLower, isSpace )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory, doesDirectoryExist )

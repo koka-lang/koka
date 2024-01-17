@@ -99,7 +99,7 @@ fun gtree/show(gt :gtree) : div string {
 fun showGt(gt :gtree, indent:int) : _ string {
   val showi = (show : (int) -> string)
   match(gt) {
-    Take(p,moves) -> p.show ++ moves.show-list(fn(x) { "\n" ++ " ".repeat(indent) ++  x.fst.core/show ++ " -> " ++ x.snd.showGt(indent+2) })
+    Take(p,moves) -> p.show ++ moves.show-list(fn(x) { "\n" ++ " ".repeat(indent) ++  x.fst.show ++ " -> " ++ x.snd.showGt(indent+2) })
     Winner(p)     -> p.show ++ " wins"
   }
 }

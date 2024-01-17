@@ -18,5 +18,3 @@ leap-neg3 : ok: 2020-01-01T00:00:34Z TAI
 leap-neg4 : ok: 2020-01-01T00:00:35Z TAI
 leap-neg5 : ok: 2020-01-01T00:00:36Z TAI
 leap-neg6 : ok: 2020-01-01T00:00:36Z TAI
-add default effect for std/core/exn
-add default effect for std/time/utc/utc

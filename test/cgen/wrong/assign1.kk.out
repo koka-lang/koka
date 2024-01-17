@@ -2,8 +2,8 @@ test/cgen/wrong/assign1@kk(6, 5): error: identifier count cannot be resolved@
  context : count
  inferred type: _
  candidates : counter/count : forall<h> (counter : counter<h>) -> ref<h,int>
- stringpat/count : (s : string, pattern : string) -> int
- string/count : (s : string) -> int
- sslice/count : (slice : sslice) -> int
- stringpred/count: forall<e> (s : string, pred : (char) -> e bool) -> e int
+ count : (slice : sslice) -> int
+ stringpat/count: (s : string, pattern : string) -> int
+ count : (s : string) -> int
+ pred/count : forall<e> (s : string, pred : (char) -> e bool) -> e int
  hint : give a type annotation or qualify the name?

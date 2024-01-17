@@ -19,7 +19,6 @@ bob
 [bob,alice]
 -----------
 uncaught exception: bob cheated!
-add default effect for std/core/exn
  
 algeff/nim/gtree/player: (gtree : gtree) -> player
 algeff/nim/gtree/show: (gt : gtree) -> div string

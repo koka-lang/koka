@@ -25,7 +25,7 @@ fun eval0( e : expr ) : int {
 
 fun show( e : expr ) : total string {
   match(e) {
-    Int(i) -> core/show(i)
+    Int(i) -> show(i)
     Div(e1,e2) -> "(" ++ e1.show ++ "/" ++ e2.show ++ ")"
   }
 }
@@ -77,7 +77,7 @@ fun eval( e : expr ) : stexn<int> {
 
 fun either/show( r : either<string,(int,int)> ) : total string {
   match(r) {
-    Right((x,s)) -> x.core/show ++ " (state=" ++ s.show ++ ")"
+    Right((x,s)) -> x.show ++ " (state=" ++ s.show ++ ")"
     Left(str)    -> "error: " ++ str
   }
 }

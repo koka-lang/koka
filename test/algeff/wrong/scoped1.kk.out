@@ -5,6 +5,6 @@ test/algeff/wrong/scoped1@kk(62, 7): error: type is not polymorphic enough
  term : choice(xs) {
  @@@
  }
- inferred type : forall<b,e> std/core/hnd/clause1<list<b>,b,@hnd-nondet,<nondet,state<int>|e>,b>
- is less general than: forall<b> std/core/hnd/clause1<list<b>,b,@hnd-nondet,<nondet,state<int>|_e>,$a>
+ inferred type : forall<b,e> clause1<list<b>,b,@hnd-nondet,<nondet,state<int>|e>,b>
+ is less general than: forall<b> clause1<list<b>,b,@hnd-nondet,<nondet,state<int>|_e>,$a>
  hint : give a higher-rank type annotation to a function parameter?

@@ -15,6 +15,7 @@ See also <https://en.wikipedia.org/wiki/Double-precision_floating-point_format>.
 module std/num/float64
 
 import std/text/parse
+import std/num/int32
 import std/num/int64
 
 extern import

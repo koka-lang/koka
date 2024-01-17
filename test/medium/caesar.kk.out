@@ -4,7 +4,7 @@ cracked: Koka is a well-typed language
  
 medium/caesar/caesar: (s : string) -> string
 medium/caesar/chisqr: (xs : list<float64>, ys : list<float64>) -> float64
-medium/caesar/encode: (s : string, shift : optional<int>) -> string
+medium/caesar/encode: (s : string, shift : @optional<int>) -> string
 medium/caesar/english: list<float64>
 medium/caesar/example-uncaesar: () -> console ()
 medium/caesar/freqs: (s : string) -> list<float64>

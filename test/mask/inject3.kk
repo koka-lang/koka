@@ -1,7 +1,7 @@
 // Test inject over exceptions (should insert "inject-exn")
 fun foo( action : () -> e int ) : e int {
   try {
-    mask<exn>(action)  
+    mask<exn>(action)
     throw("test")
     60
   } fn(exn) {
@@ -10,5 +10,5 @@ fun foo( action : () -> e int ) : e int {
 }
 
 fun main() {
-  try-default(42){ foo{ throw("should throw") }}.println
+  try{ foo{ throw("should throw") }}.default(42).println
 }

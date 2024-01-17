@@ -43,6 +43,7 @@ pub infixr 20  (||)
 // ----------------------------------------------------------------------------
 
 // An arbitrary precision signed integer.
+// See `module std/core/int` for integer operations.
 pub type int
 
 // A 64-bit IEEE 754 double precision floating point value.
@@ -60,7 +61,8 @@ pub value type char
 // The encoding of a string is internal and there
 // is no constant-time indexing of characters in a string.
 // Use the `:sslice` type for efficient matching and retrieving
-// sub-strings from string. See `module std/core/sslice` for slice operations.
+// sub-strings from string. See `module std/core/string` and
+// `module std/core/sslice` for string operations.
 pub type string
 
 // A 8-bit signed integer (represented in two's complement).
@@ -97,6 +99,7 @@ pub value type intptr_t
 pub value type float32
 
 // The type of immutable polymorphic arrays is called `:vector`.
+// See `module std/core/vector` for vector operations.
 pub type vector<a>
 
 // An any type. Used for external calls.
@@ -248,10 +251,6 @@ pub fip fun bool/(!)( b : bool ) : bool
 pub fip fun not( b : bool ) : bool
   if b then False else True
 
-// _Internal_: 32-bit zero, needed for markers in `module std/core/hnd`.
-pub inline fip extern zero32() : int32
-  inline "0"
-
 
 extern import
   js file "inline/types.js"
@@ -259,30 +258,19 @@ extern import
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
 // Needed for control flow contexts in `module std/core/hnd`
-pub inline fip extern int32( i : int) : int32
+pub inline fip extern @make-int32( i : int) : int32
   c  "kk_integer_clamp32"
   cs "Primitive.IntToInt32"
   js "$std_core_types._int_clamp32"
 
-// Convert an `:int32` to an `:int`.
-pub inline fip extern int32/int( i : int32 ) : int
-  c  "kk_integer_from_int"
-  cs inline "(new BigInteger(#1))"
-  js "$std_core_types._int_from_int32"
-
 // Convert an integer to an `:ssize_t`. The number is _clamped_ to the maximal or minimum `:ssize_t`
 // value if it is outside the range of an `:ssize_t`.
 // Needed for evidence indices in `module std/core/hnd`
-pub fip extern ssize_t( i : int) : ssize_t
+pub fip extern @make-ssize_t( i : int) : ssize_t
   c  "kk_integer_clamp_ssize_t"
   cs "Primitive.IntToInt32"
   js "$std_core_types._int_clamp32"
 
-// Convert an `:ssize_t` to an `:int`.
-pub inline fip extern ssize_t/int( i : ssize_t ) : int
-  c  "kk_integer_from_ssize_t"
-  cs inline "(new BigInteger(#1))"
-  js "$std_core_types._int_from_int32"
 
 // Append two strings
 pub extern (++)(x : string, y : string) : string

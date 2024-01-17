@@ -6,7 +6,7 @@ fun myid() : ((x:a) -> e a) {
 val hs : forall<e> list<int -> e int> = [myid()]
 
 fun bar() {
-  head(hs).maybe(id)(10)
+  head(hs).default(id)(10)
 }
 
 fun main() {

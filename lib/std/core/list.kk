@@ -24,6 +24,12 @@ pub fun head( xs : list<a> ) : maybe<a>
     Cons(x) -> Just(x)
     _       -> Nothing
 
+// Return the head of list with a default value in case the list is empty.
+pub fun default/head( xs : list<a>, default : a ) : a
+  match xs
+    Cons(x) -> x
+    _       -> default
+
 // Return the tail of list. Returns the empty list if `xs` is empty.
 pub fun tail( xs : list<a> ) : list<a>
   match xs

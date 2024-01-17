@@ -521,7 +521,11 @@ genExpr expr
             -> genExpr (App arg args)
 
           -- int32 constants
-          App (Var tname _) [Lit (LitInt i)]  | getName tname == nameInt32 && isSmallInt i
+          App (Var tname _) [Lit (LitInt i)]  | getName tname `elem` [nameInt32,nameInternalInt32] && isSmallInt i
+            -> result (pretty i)
+
+          -- ssize_t constants
+          App (Var tname _) [Lit (LitInt i)]  | getName tname `elem` [nameSSizeT,nameInternalSSizeT] && isSmallInt i
             -> result (pretty i)
 
           -- function calls
