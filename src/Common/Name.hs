@@ -939,6 +939,8 @@ asciiEncode isModule name
 
 
 showHex :: Int -> Int -> String
+showHex len i | i < 0
+  = failure ("Common.Name.showHex: negative number: " ++ show i)
 showHex len i
   = let hexs = map showHexChar (reverse (hexDigits i))
     in replicate (len - length hexs) '0' ++ hexs

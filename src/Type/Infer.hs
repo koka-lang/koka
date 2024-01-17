@@ -928,13 +928,14 @@ inferExpr propagated expect (Lit lit)
                                                       else if x0 >= -0x8000 then 0x10000 + x0
                                                       else if x0 >= -0x80000000 then 0x100000000 + x0
                                                       else fromInteger (0x10000000000000000 + i)
-                                           in if (x <= 0x7F || (i < 0 && x <= 0xFF))
-                                                then ["hex8 = 0x" ++ showHex 2 x,"bit8 = 0b" ++ showBinary 8 x]
-                                                else if (x <= 0x7FFF || (i < 0 && x <= 0xFFFF))
-                                                  then ["hex16= 0x" ++ showHex 4 x,"bit16= 0b" ++ showBinary 16 x]
-                                                  else if (x <= 0x7FFFFFFF || (i < 0 && x <= 0xFFFFFFFF))
-                                                    then ["hex32= 0x" ++ showHex 8 x, "bit32= 0b" ++ showBinary 32 x]
-                                                    else ["hex64= 0x" ++ showHex 16 x, "bit64= 0b" ++ showBinary 64 x]
+                                           in if (x < 0) then []
+                                                else if (x <= 0x7F || (i < 0 && x <= 0xFF))
+                                                  then ["hex8 = 0x" ++ showHex 2 x,"bit8 = 0b" ++ showBinary 8 x]
+                                                  else if (x <= 0x7FFF || (i < 0 && x <= 0xFFFF))
+                                                    then ["hex16= 0x" ++ showHex 4 x,"bit16= 0b" ++ showBinary 16 x]
+                                                    else if (x <= 0x7FFFFFFF || (i < 0 && x <= 0xFFFFFFFF))
+                                                      then ["hex32= 0x" ++ showHex 8 x, "bit32= 0b" ++ showBinary 32 x]
+                                                      else ["hex64= 0x" ++ showHex 16 x, "bit64= 0b" ++ showBinary 64 x]
                                 )
                 LitChar c r  -> (typeChar,Core.Lit (Core.LitChar c),r,
                                      let i = fromEnum c
