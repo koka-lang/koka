@@ -107,5 +107,5 @@ val locales = [
 // Supports ``de``,``en``,``es``,``fr``,``nl`` and ``en-iso``.
 pub fun get-time-locale( locale : string ) : time-locale
   val res = locales.find fn(l)
-              locale.starts-with(l.lang-name).bool
+              locale.starts-with(l.lang-name).is-just
   res.default(time-locale-en-iso)

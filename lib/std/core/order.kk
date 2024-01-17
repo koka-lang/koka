@@ -18,21 +18,21 @@ pub fip fun int( x : order ) : int
     Eq -> 0
     Gt -> 1
 
-pub fun(==)( x : order, y : order ) : bool
+pub fip fun (==)( x : order, y : order ) : bool
   x.int == y.int
 
-pub fun(!=)( x : order, y : order ) : bool
+pub fip fun (!=)( x : order, y : order ) : bool
   x.int != y.int
 
-pub fun(>=)( x : order, y : order ) : bool
+pub fip fun (>=)( x : order, y : order ) : bool
   x.int >= y.int
 
-pub fun(<=)( x : order, y : order ) : bool
+pub fip fun (<=)( x : order, y : order ) : bool
   x.int <= y.int
 
-pub fun(>)( x : order, y : order ) : bool
+pub fip fun (>)( x : order, y : order ) : bool
   x.int > y.int
 
-pub fun(<)( x : order, y : order ) : bool
+pub fip fun (<)( x : order, y : order ) : bool
   x.int < y.int
 

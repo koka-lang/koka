@@ -13,6 +13,7 @@
 */
 module std/time/time
 
+import std/num/float64
 import std/num/ddouble
 import std/time/timestamp
 import std/time/duration

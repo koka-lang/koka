@@ -63,8 +63,24 @@ pub fun cmp( mb1 : maybe<a>, mb2 : maybe<a>, ?cmp : (a,a) -> order ) : order
                   _       -> Lt
 
 
+// Order two `:maybe` values in ascending order
+pub fip fun order2( mb1 : maybe<a>, mb2 : maybe<a>, ^?order2 : (a,a) -> (a,a) ) : (maybe<a>,maybe<a>)
+  match mb1
+    Just(x)  -> match mb2
+                  Just(y) -> val (l,g) = order2(x,y) in (Just(l),Just(g))
+                  Nothing -> (Nothing,Just(x))
+    Nothing  -> (Nothing,mb2)
+
+
+
 // Show a `:maybe` type
 pub fun show( mb : maybe<a>, ?show : a -> e string ) : e string
   match mb
     Just(x) -> "Just(" ++ x.show ++ ")"
     Nothing -> "Nothing"
+
+// Convert a maybe type to a boolean, equivalent to `is-just`.
+pub fun bool( mb : maybe<a> ) : bool
+  match mb
+    Just    -> True
+    Nothing -> False

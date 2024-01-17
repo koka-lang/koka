@@ -20,30 +20,41 @@ import std/core/int
 // Characters
 // ----------------------------------------------------------------------------
 
+// Are two characters equal?
 pub inline fip extern (==) : (char,char) -> bool
   inline "(#1 == #2)"
   js inline "(#1 === #2)"
 
+// Are two characters not equal?
 pub inline fip extern (!=) : (char,char) -> bool
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 
+// Is a character code point lower or equal to that of another?
 pub inline fip extern (<=) : (char,char) -> bool
   inline "(#1 <= #2)"
 
+// Is a character code point greater or equal to that of another?
 pub inline fip extern (>=) : (char,char) -> bool
   inline "(#1 >= #2)"
 
+// Is a character code point lower to that of another?
 pub inline fip extern (<)  : (char,char) -> bool
   inline "(#1 < #2)"
 
+// Is a character code point greater to that of another?
 pub inline fip extern (>)  : (char,char) -> bool
   inline "(#1 > #2)"
 
+// Compare character code points.
 pub fip fun cmp( x : char, y : char ) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq
+
+// Order two characters in ascending order.
+pub fip fun order2( x : char, y : char ) : (char,char)
+  if x <= y then (x,y) else (y,x)
 
 // Convert a character to its unicode code point
 pub inline fip extern int : (char) -> int

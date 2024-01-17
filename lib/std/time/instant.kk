@@ -89,7 +89,7 @@ pub fun timescale/(==)(t1 : timescale, t2 : timescale ) : bool
 
 // Does this timescale have leap seconds?
 pub fun has-leap-seconds(ts : timescale) : bool
-  ts.mb-seconds-in-day.bool
+  ts.mb-seconds-in-day.is-just
 
 
 // Convert a timespan between time scales

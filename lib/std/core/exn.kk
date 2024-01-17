@@ -66,12 +66,8 @@ pub value type error<a>
   Ok( result : a )
 
 // Transform an exception effect to an  `:error` type.
-pub fun error/try( action : () -> <exn|e> a ) : e error<a>
+pub fun try( action : () -> <exn|e> a ) : e error<a>
   try({ Ok(action()) }, fn(exn){ Error(exn) })
-
-// Return a default value when an exception is raised
-pub fun try-default( value : a , action : () -> <exn|e> a ) : e a
-  try( action, fn(_) { value })
 
 // Transform an `:error` type back to an `exn` effect.
 pub fun untry( err : error<a> ) : exn a
@@ -84,19 +80,19 @@ pub fun exn( err : error<a> ) : exn a
   untry(err)
 
 // Use default value `def` in case of an error.
-pub fun error/default( t : error<a>, def : a ) : a
+pub fun default( t : error<a>, def : a ) : a
   match t
     Error  -> def
     Ok(x)  -> x
 
 // Transform an `:error` type to a `:maybe` value.
-pub fun error/maybe( t : error<a> ) : maybe<a>
+pub fun maybe( t : error<a> ) : maybe<a>
   match t
     Error  -> Nothing
     Ok(x)  -> Just(x)
 
 // Transform an `:error` type to an `:either` value.
-pub fun error/either( t : error<a> ) : either<exception,a>
+pub fun either( t : error<a> ) : either<exception,a>
   match t
     Error(exn) -> Left(exn)
     Ok(x)      -> Right(x)
@@ -110,6 +106,7 @@ pub fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <
     TryExn(exn) { hndler(exn); throw(exn)
 
 */
+
 // Set a `hndler` that is always called when the `action` finishes (either normally or with an exception).
 pub fun on-exit( hndler : () -> e (), action : () -> e a ) : e a
   finally(hndler,action)

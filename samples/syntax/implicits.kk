@@ -12,6 +12,8 @@
 //  - syntax/qualifiers
 module syntax/implicits
 
+import std/num/float64
+
 // Suppose we have some equality definitions
 // (using local qualifiers) to disambiguate them
 

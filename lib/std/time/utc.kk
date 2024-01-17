@@ -735,7 +735,7 @@ pub fun parse-leap-seconds( leaps : string ) : leaps-table
   Leaps-table(expire,adjusts)
 
 fun parse-leap( line : string ) : maybe<leap-adjust>
-  if (line.trim-left(" ").starts-with("#").bool)
+  if (line.trim-left(" ").starts-with("#").is-just)
    then Nothing
    else line.slice.parse(pleap).maybe
 
@@ -833,7 +833,7 @@ fun parse-leap-expire( leaps : string, adjusts : list<leap-adjust>) : instant
 
 // val rxexpire = regex(r"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)
 fun parse-expire( line : string ) : maybe<timestamp>
-  if (line.trim-left(" ").starts-with("#@").bool)
+  if (line.trim-left(" ").starts-with("#@").is-just)
    then line.slice.parse(pexpire).maybe
    else Nothing
 

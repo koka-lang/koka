@@ -35,20 +35,15 @@ pub fip fun (>)( x : bool, y : bool) : bool
 pub fip fun (>=)( x : bool, y : bool) : bool
   !(x < y)
 
+// Compare two booleans with `False < True`.
 pub fip fun cmp( x : bool, y : bool) : order
   if x < y then Lt
   elif x > y then Gt
   else Eq
 
-// Transform a boolean to a maybe type, using `Nothing` for `False`
-pub fun maybe( b : bool ) : maybe<()>
-  if b then Just(()) else Nothing
-
-// Convert a `:maybe` type to a boolean using `False` for `Nothing` and `True` for `Just`.
-pub fun bool( m : maybe<a> ) : bool
-  match m
-    Nothing -> False
-    _       -> True
+// Order two booleans in ascending order.
+pub fip fun order2( x : bool, y : bool ) : (bool,bool)
+  if x <= y then (x,y) else (y,x)
 
 // Convert a `:bool` to a string
 pub fun show( b : bool ) : string

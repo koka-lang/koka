@@ -422,11 +422,6 @@ inline fip extern unsafe-cmod : (int64,int64) -> int64
   inline "#1 % #2"
 
 
-// Convert an 64-bit integer to a `:float64`.
-pub fip fun float64( i : int64 ) : float64
-  i.int.float64
-
-
 // Negate a 64-bit integer
 pub fip fun negate( i : int64 ) : int64
   0.int64 - i

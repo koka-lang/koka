@@ -5,6 +5,7 @@
 
 ~ hidden
 ```
+import std/num/float64
 import std/num/random
 ```
 ~

@@ -16,19 +16,13 @@ import std/core/exn
 import std/core/char
 import std/core/string
 import std/core/int
-import std/core/float64
+
 
 // Return the head of list if the list is not empty.
 pub fun head( xs : list<a> ) : maybe<a>
   match xs
     Cons(x) -> Just(x)
     _       -> Nothing
-
-// Return the head of list if the list is not empty, or use `default` otherwise
-pub fun default/head( xs : list<a>, default : a ) : a
-  match xs
-    Cons(x) -> x
-    _       -> default
 
 // Return the tail of list. Returns the empty list if `xs` is empty.
 pub fun tail( xs : list<a> ) : list<a>
@@ -114,6 +108,7 @@ pub fun cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> order ) : order
     Nil -> match ys
              Nil  -> Eq
              Cons -> Lt
+
 
 // Show a list
 pub fun show( xs : list<a>, ?show : a -> e string ) : e string
@@ -349,12 +344,6 @@ pub fun lookup( xs : list<(a,b)>, pred : a -> e bool ) : e maybe<b>
   xs.foreach-while fn(kv)
     if pred(kv.fst) then Just(kv.snd) else Nothing
 
-// Convert a list to a `:maybe` type, using `Nothing` for an empty list, and otherwise `Just` on the head element.
-// Note: this is just `head`.
-pub fun maybe( xs : list<a> ) : maybe<a>
-  match xs
-    Nil -> Nothing
-    Cons(x,_) -> Just(x)
 
 // Convert a `:maybe` type to a list type.
 pub fun maybe/list( m : maybe<a> ) : list<a>
@@ -488,13 +477,6 @@ pub fun last( xs : list<a> ) : maybe<a>
     Cons(_,xx)  -> last(xx)
     Nil         -> Nothing
 
-// Return the last element of a list (or `default` for the empty list)
-pub fun default/last( xs : list<a>, default : a ) : a
-  match xs
-    Cons(x,Nil) -> x
-    Cons(_,xx)  -> last(xx,default)
-    Nil         -> default
-
 // Return the list without its last element.
 // Return an empty list for an empty list.
 pub fun init( xs : list<a> ) : list<a>
@@ -551,15 +533,3 @@ pub fun unlines( xs : list<string> ) : string
 pub fun string/map( s : string, f : char -> e char ) : e string
   s.list.map(f).string // todo: optimize
 
-
-// Returns the smallest element of a list of floats (or `0` for the empty list)
-pub fun float64/minimum( xs : list<float64> ) : float64
-  match xs
-    Nil -> 0.0
-    Cons(x,xx) -> xx.foldl( x, min )
-
-// Returns the largest element of a list of floats (or `0` for the empty list)
-pub fun float64/maximum( xs : list<float64> ) : float64
-  match xs
-    Nil -> 0.0
-    Cons(x,xx) -> xx.foldl( x, max )

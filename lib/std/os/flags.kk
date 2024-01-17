@@ -248,7 +248,7 @@ fun parse-long( s : string, flags : list<flag<a>> ) : total flag-kind<a>
                       name==flagname || name==baseflagname
   val prefixes = flags.filter fn(opt)
                     opt.long-names.map(to-lower).any fn(name)
-                      name.starts-with(flagname).bool || name.starts-with(baseflagname).bool
+                      name.starts-with(flagname).is-just || name.starts-with(baseflagname).is-just
   val applicable = if (exacts.is-nil) then prefixes else exacts
   match(applicable)
     Nil -> error-unknown(optstr)

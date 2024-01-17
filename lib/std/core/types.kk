@@ -46,7 +46,7 @@ pub infixr 20  (||)
 pub type int
 
 // A 64-bit IEEE 754 double precision floating point value.
-// See also `module std/core/float64` and `module std/num/float64` for more operations on `:float64`s.
+// See `module std/num/float64` for operations on `:float64`s.
 pub value type float64
 
 // A unicode character.
@@ -60,7 +60,7 @@ pub value type char
 // The encoding of a string is internal and there
 // is no constant-time indexing of characters in a string.
 // Use the `:sslice` type for efficient matching and retrieving
-// sub-strings from string.
+// sub-strings from string. See `module std/core/sslice` for slice operations.
 pub type string
 
 // A 8-bit signed integer (represented in two's complement).
@@ -96,13 +96,13 @@ pub value type intptr_t
 // Provides currently no operations and currently only used for storage and for interaction with external code.
 pub value type float32
 
-// The type of immutable arrays is called `:vector`.
+// The type of immutable polymorphic arrays is called `:vector`.
 pub type vector<a>
 
-// An any type. Used for external calls
+// An any type. Used for external calls.
 pub type any
 
-// Internal type used for in-place update of unique pattern matches
+// Internal type used for in-place update of unique pattern matches.
 pub type @reuse
 
 pub extern @no-reuse() : @reuse
@@ -178,16 +178,19 @@ pub struct tuple5<a,b,c,d,e>(fst:a,snd:b,thd:c,field4:d,field5:e)
 
 // The `:maybe` type is used to represent either a value (`Just(x)`) or `Nothing`.
 // This type is often used to represent values that can be _null_.
+// See also `module std/core/maybe`.
 pub value type maybe<a>
   con Nothing
   con Just( value : a )
 
 // The choice type represents one of two possible types `:a` or `:b`.
+// See also `module std/core/either`.
 pub value type either<a,b>
   con Left( left : a )
   con Right( right : b )
 
 // An enumeration to represent order
+// See also `module std/core/order`.
 pub type order
   Lt
   Eq
@@ -195,6 +198,7 @@ pub type order
 
 // The type of lists, which can be either empty (`Nil`) or an element followed
 // by a list (`Cons`).
+// See `module std/core/list` for operations on lists.
 pub type list<a>
   // The empty list.
   con Nil                  // note: must come first; see Core/Core.hs
@@ -228,11 +232,11 @@ pub noinline fip fun keep( x : a ) : a
 pub fip fun id(x : a) : a
   x
 
-// Logical conjuction
+// Logical conjuction. This is compiled specially avoid evaluating the second argument if `x==False`.
 pub fip fun (&&)( x : bool, y : bool) : bool   // inlined in the compiler for short-circuit evaluation
   if x then y else False
 
-// Logical disjunction
+// Logical disjunction. This is compiled specially avoid evaluating the second argument if `x==True`.
 pub fip fun (||)( x : bool, y : bool) : bool  // inlined in the compiler for short-circuit evaluation
   if x then True else y
 

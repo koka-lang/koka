@@ -22,8 +22,8 @@ static inline kk_integer_t  kk_string_count_int(kk_string_t s, kk_context_t* ctx
   return kk_integer_from_ssize_t( kk_string_count(s,ctx), ctx );
 }
 
-static inline kk_integer_t kk_string_cmp_int(kk_string_t s1, kk_string_t s2, kk_context_t* ctx) {
-  return kk_integer_from_small( kk_string_cmp(s1,s2,ctx) );
+static inline kk_integer_t kk_string_cmp_int_borrow(kk_string_t s1, kk_string_t s2, kk_context_t* ctx) {
+  return kk_integer_from_small( kk_string_cmp_borrow(s1,s2,ctx) );
 }
 
 kk_string_t  kk_string_join(kk_vector_t v, kk_context_t* ctx);

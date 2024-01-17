@@ -4,11 +4,12 @@
 */
 module nim
 
+import std/num/float64
+import std/num/random
+
 // --------------------------------------------------------
 // Definition of players
 // --------------------------------------------------------
-import std/num/random
-
 type player
   Bob
   Alice

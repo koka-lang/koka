@@ -51,20 +51,23 @@ pub inline extern (!=) : (string,string) -> bool
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 
-extern string-cmp : ( x : string, y : string ) -> int
-  c  "kk_string_cmp_int"
+fip extern string-cmp( ^x : string, ^y : string ) : int
+  c  "kk_string_cmp_int_borrow"
   cs inline "String.Compare(#1,#2)"
   js inline "(#1===#2 ? 0 : (#1 > #2 ? 1 : -1))"
 
 // Compare two strings.
 // Uses the character codes directly for comparison
-pub fun cmp( x : string, y : string) : order
+pub fip fun cmp( ^x : string, ^y : string) : order
   string-cmp(x,y).order
 
-pub fun (>=)( x : string, y : string ) : bool { cmp(x,y) > Lt }
-pub fun (<=)( x : string, y : string ) : bool { cmp(x,y) < Gt }
-pub fun (>)( x : string, y : string ) : bool  { cmp(x,y) == Gt }
-pub fun (<)( x : string, y : string ) : bool  { cmp(x,y) == Lt }
+pub fip fun order2( x : string, y : string ) : (string,string)
+  if (x<=y) then (x,y) else (y,x)
+
+pub fip fun (>=)( ^x : string, ^y : string ) : bool { cmp(x,y) > Lt }
+pub fip fun (<=)( ^x : string, ^y : string ) : bool { cmp(x,y) < Gt }
+pub fip fun (>)( ^x : string, ^y : string ) : bool  { cmp(x,y) == Gt }
+pub fip fun (<)( ^x : string, ^y : string ) : bool  { cmp(x,y) == Lt }
 
 // Choose a non-empty string
 pub fun (||)( x : string, y : string ) : string
@@ -218,8 +221,4 @@ pub extern listchar/string( cs : list<char> ) : total string
   cs inline "Primitive.ListToString(#1)"
   js inline "_list_to_string(#1)"
 
-
-// Convert a string to a boolean, using `False` for the empty string and `True` otherwise.
-pub fun bool( s : string ) : bool
-  s != ""
 

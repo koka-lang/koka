@@ -24,7 +24,6 @@ pub import std/core/bool
 pub import std/core/order
 pub import std/core/char
 pub import std/core/int
-pub import std/core/float64
 pub import std/core/vector
 pub import std/core/string
 pub import std/core/sslice

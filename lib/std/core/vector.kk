@@ -134,7 +134,7 @@ pub extern vlist( v : vector<a>, tail : list<a> = [] ) : list<a>
 pub fun list/vector( xs : list<a> ) : vector<a>
   xs.unvlist
 
-pub extern unvlist( xs : list<a> ) : vector<a>
+extern unvlist( xs : list<a> ) : vector<a>
   c  "kk_list_to_vector"
   cs inline "Primitive.UnVList<##1>(#1)"
   js inline "_unvlist(#1)"

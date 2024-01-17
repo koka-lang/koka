@@ -24,12 +24,21 @@ extern import
   c  file "inline/int.h"
   js file "inline/int.js"
 
+pub fip fun order( i : int ) : order
+  if i < 0 then Lt
+  elif i > 0 then Gt
+  else Eq
+
 // Compare two integers
 pub inline fip fun cmp(^x : int, ^y : int) : order
   if (x==y) then Eq elif (x>y) then Gt else Lt
   // c inline "kk_int_as_order(kk_integer_cmp_borrow(#1,#2,kk_context()),kk_context())"
   // cs "Primitive.IntCompare"
   // js "$std_core_types._int_compare"
+
+// Order two integers in ascending order.
+pub inline fip fun order2(x : int, y : int) : (int,int)
+  if (x<=y) then (x,y) else (y,x)
 
 // Are two integers equal?
 pub inline fip extern (==)(^x : int, ^y : int) : bool
@@ -136,18 +145,6 @@ pub inline fip extern (~)(i:int) : int
   cs inline "(-#1)"
   js "$std_core_types._int_negate"
 
-// Convert an integer to a `:float64`. May return `nan` if the integer is too large to represent as a `:float64`.
-pub inline fip extern float64( i : int) : float64
-  c  "kk_integer_as_double"
-  cs "Primitive.IntToDouble"
-  js "$std_core_types._int_to_double"
-
-// Convert an integer to a `:float32`. May return `nan` if the integer is too large to represent as a `:float32`.
-pub inline fip extern float32( i : int) : float32
-  c  "kk_integer_as_float"
-  cs "Primitive.IntToFloat"
-  js "$std_core_types._int_to_float"
-
 // Is this an odd integer?
 pub inline fip extern is-odd( i : int ) : bool
   c  "kk_integer_is_odd"
@@ -166,10 +163,6 @@ pub inline fip extern abs(i : int) : int
   cs "BigInteger.Abs"
   js "$std_core_types._int_abs"
 
-pub fun order( i : int ) : order
-  if i < 0 then Lt
-  elif i > 0 then Gt
-  else Eq
 
 
 // Increment
