@@ -118,12 +118,17 @@ pub fun while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <di
 
 // The `repeat` fun executes `action`  `n`  times.
 pub fun repeat( ^n : int, action : () -> e () ) : e ()
-  for(1,n) fn(i)
+  for(n) fn(i)
     action()
 
-// Executes `action`  for each integer between [`start`,`end`]  (including both `start`  and `end` ).
+// Executes `action` `n` times for each integer from `0` to `n-1`.
+// If `n <= 0`  the function returns without any call to `action` .
+pub fun for( ^n : int, action : (int) -> e () ) : e ()
+  for(0, n - 1, action)
+
+// Executes `action`  for each integer from `start` to `end` (including `end` ).
 // If `start > end`  the function returns without any call to `action` .
-pub fun for( ^start: int, end : int, action : (int) -> e () ) : e ()
+pub fun range/for( ^start: int, end : int, action : (int) -> e () ) : e ()
   fun rep( ^i : int )
     if i <= end then
       action(i)
@@ -131,10 +136,16 @@ pub fun for( ^start: int, end : int, action : (int) -> e () ) : e ()
   rep(start)
 
 
-// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// Executes `action`  for each integer between `start`  to `end`  (including `end` ).
 // If `start > end`  the function returns without any call to `action` .
 // If `action` returns `Just`, the iteration is stopped and the result returned
-pub fun for-while( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a>
+pub fun for-while( n : int, action : (int) -> e maybe<a> ) : e maybe<a>
+  for-while(0, n - 1, action)
+
+// Executes `action`  for each integer between `start`  to `end`  (including `end` ).
+// If `start > end`  the function returns without any call to `action` .
+// If `action` returns `Just`, the iteration is stopped and the result returned
+pub fun range/for-while( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a>
   fun rep( i : int )
     if i <= end then
       match action(i)
@@ -143,18 +154,18 @@ pub fun for-while( start: int, end : int, action : (int) -> e maybe<a> ) : e may
     else Nothing
   rep(start)
 
-// Fold over the integers between [`start`,`end`] (inclusive).
-pub fun fold( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
+// Fold over the integers between [`start`,`end`] (including `end`).
+pub fun range/fold( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
   if start >= end then init else
     val x = f(start,init)
     fold(pretend-decreasing(start.inc), end, x, f)
 
-// Fold over the integers between [0,`upto`)  (not including `upto`).
-pub fun fold-upto( upto : int, init : a, f : (int,a) -> e a ) : e a
+// Fold over the integers between [0,`upto`)  (excluding `upto`).
+pub fun fold( upto : int, init : a, f : (int,a) -> e a ) : e a
   fold( 0, upto.dec, init, f )
 
-// Fold over the integes between [`start``,`end`] (inclusive) or until `f` returns `Nothing`
-pub fun fold-while( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
+// Fold over the integes between [`start``,`end`] (including `end`) or until `f` returns `Nothing`
+pub fun range/fold-while( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
   if start >= end then init else
     match f(start,init)
       Just(x) -> fold-while(pretend-decreasing(start.inc), end, x, f)

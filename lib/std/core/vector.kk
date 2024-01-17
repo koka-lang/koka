@@ -73,7 +73,7 @@ pub fun vector-init-total( ^n : int, f : int -> a ) : e vector<a>
 pub fun vector-init( ^n : int, f : int -> e a ) : e vector<a>
   val len = n.ssize_t
   val v = unsafe-vector(len)
-  forz( 0.ssize_t, len - 1.ssize_t ) fn(i)
+  forz( len ) fn(i)
     unsafe-assign(v,i,f(i.int))
   v
 
@@ -104,13 +104,13 @@ pub fun foreach-indexed( v : vector<a>, f : (int,a) -> e () ) : e ()
   foreach-indexedz( v, fn(i,x) { f(i.int,x) } )
 
 fun foreach-indexedz( v : vector<a>, f : (ssize_t,a) -> e () ) : e ()
-  forz( 0.ssize_t, v.lengthz.decr ) fn(i)
+  forz( v.lengthz ) fn(i)
     f(i,v.unsafe-idx(i))
 
 // Invoke a function `f` for each element in a vector `v`.
 // If `f` returns `Just`, the iteration is stopped early and the result is returned.
 pub fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
-  for-whilez( 0.ssize_t, v.lengthz.decr ) fn(i)
+  for-whilez( v.lengthz ) fn(i)
     f(v.unsafe-idx(i))
 
 // Apply a total function `f` to each element in a vector `v`
@@ -140,26 +140,26 @@ extern unvlist( xs : list<a> ) : vector<a>
   js inline "_unvlist(#1)"
 
 
-// Executes `action`  for each integer between [`start`,`end`]  (including both `start`  and `end` ).
-// If `start > end`  the function returns without any call to `action` .
-fun forz( start: ssize_t, end : ssize_t, action : (ssize_t) -> e () ) : e ()
+// Executes `action` `n` times for each integer between [`0`,`n`)  (excluding `n` ).
+// If `n <= 0`  the function returns without any call to `action` .
+fun forz( n : ssize_t, action : (ssize_t) -> e () ) : e ()
   fun rep( i : ssize_t )
-    if i <= end then
+    if i < n then
       action(i)
       rep(pretend-decreasing(i.incr))
-  rep(start)
+  rep(0.ssize_t)
 
-// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
-// If `start > end`  the function returns without any call to `action` .
+// Executes `action` at most `n` times for each integer between `0`  upto `n`  (excluding `n` ).
+// If `n <= 0`  the function returns without any call to `action` .
 // If `action` returns `Just`, the iteration is stopped and the result returned
-fun for-whilez( start: ssize_t, end : ssize_t, action : (ssize_t) -> e maybe<a> ) : e maybe<a>
+fun for-whilez( n : ssize_t, action : (ssize_t) -> e maybe<a> ) : e maybe<a>
   fun rep( i : ssize_t )
-    if i <= end then
+    if i < n then
       match action(i)
         Nothing -> rep(pretend-decreasing(i.incr))
         Just(x) -> Just(x)
     else Nothing
-  rep(start)
+  rep(0.ssize_t)
 
 
 

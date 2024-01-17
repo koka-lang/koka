@@ -89,7 +89,7 @@ pub fun stridefunction/list( lo: int, hi: int, stride : int, f : int -> e a ) : 
     then Cons( f(lo), list(  pretend-decreasing(lo + stride), hi, stride, f ))
     else Nil
 
-// Create a list of characters from `lo`  to `hi`  (inclusive).
+// Create a list of characters from `lo`  to `hi`  (including `hi`).
 pub fun char/list( lo : char, hi : char ) : total list<char>
   list(lo.int, hi.int).map( char )
 
