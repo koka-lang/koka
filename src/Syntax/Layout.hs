@@ -113,7 +113,7 @@ associateComments lexs
           (Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k _) : ls) -- pub inline fun, pub value type
             | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l1 && isAttr l2
             -> Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k comment) : scan ls
-          (Lexeme r1 (LexComment comment) : l1 : l2 : l3 : Lexeme r2 (LexKeyword k _) : ls) -- pub inline fip fun
+          (Lexeme r1 (LexComment comment) : l1 : l2 : l3 : Lexeme r2 (LexKeyword k _) : ls) -- pub inline fip extern
             | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l1 && isAttr l2 && isAttr l3
             -> Lexeme r1 (LexComment comment) : l1 : l2 : l3 : Lexeme r2 (LexKeyword k comment) : scan ls
           -- other

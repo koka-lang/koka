@@ -13,6 +13,9 @@ generating direct C code without needing a runtime system. To learn more:
 
 ### v3.0.x
 
+- Improved VS Code integration. 
+- Revised `std/core` which is now split in separate modules.
+
 ### v3.0.1, 2024-01-13:
 
 <img style="float:right; height:18em; border:1px solid gray; margin:1ex" src="images/impliciteq.png"> 
