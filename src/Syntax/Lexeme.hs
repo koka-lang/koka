@@ -41,7 +41,7 @@ data Lex    = LexInt     !Integer !String {- original number, used for documenta
             | LexChar    !Char
             | LexString   !String
             | LexId       !Name
-            | LexCons     !Name
+            | LexCons     !Name !String  {- can have a doc attached -}
             | LexOp       !Name
             | LexPrefix   !Name
             | LexIdOp     !Name
@@ -110,7 +110,7 @@ instance Enum Lex where
         LexInsRCurly    -> 14
         LexInsSemi      -> 15
         LexError _      -> 16
-        LexCons _       -> 17
+        LexCons _ _     -> 17
         LexTypedId _ _  -> 18
 
   toEnum lex
@@ -153,7 +153,7 @@ showLex lex
       LexInsRCurly  -> "end of statements ('}')"
       LexInsSemi    -> "end of statement (';')"
       LexError msg  -> msg
-      LexCons id    -> "constructor \"" ++ show id ++ "\""
+      LexCons id _  -> "constructor \"" ++ show id ++ "\""
       LexTypedId id tp -> "typedid " ++ show id ++ ":" ++ tp
   where
     showSpaces = map (\c -> if (c==' ') then '_' else c)

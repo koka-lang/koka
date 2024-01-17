@@ -103,25 +103,11 @@ associateComments lexs
           -- special comments
           (Lexeme r1 (LexComment (comment@('/':'/':'.':cs))) : ls) | not (any isSpace (trimRight cs))
             -> Lexeme r1 (LexSpecial (trimRight comment)) : scan ls
+          -- try to associate comments
           (l1@(Lexeme r1 (LexComment comment)) : ls)
-            -> case scanDocKeyword (commentLine r1 comment) [] ls of
-                 Just (pre,Lexeme r2 (LexKeyword k _),ls') -> (l1:pre) ++ [Lexeme r2 (LexKeyword k comment)] ++ scan ls'
-                 Nothing -> l1 : scan ls
-          {-
-          -- comment association
-          (Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k _) : ls)
-            | k `elem` docKeyword && adjacent comment r1 r2
-             -> Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k comment) : scan ls
-          (Lexeme r1 (LexComment comment) : l : Lexeme r2 (LexKeyword k _) : ls)  -- pub type, inline fun
-            | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l
-            -> Lexeme r1 (LexComment comment) : l : Lexeme r2 (LexKeyword k comment) : scan ls
-          (Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k _) : ls) -- pub inline fun, pub value type
-            | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l1 && isAttr l2
-            -> Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k comment) : scan ls
-          (Lexeme r1 (LexComment comment) : l1 : l2 : l3 : Lexeme r2 (LexKeyword k _) : ls) -- pub inline fip extern
-            | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l1 && isAttr l2 && isAttr l3
-            -> Lexeme r1 (LexComment comment) : l1 : l2 : l3 : Lexeme r2 (LexKeyword k comment) : scan ls
-          -}
+            -> case scanDocKeyword comment (commentLine r1 comment) [] ls of
+                 Just (pre,rest) -> (l1:pre) ++ scan rest
+                 Nothing         -> l1 : scan ls
           -- other
           (l:ls)
              -> l : scan ls
@@ -132,35 +118,38 @@ associateComments lexs
               '\n':_ -> posLine (rangeEnd rng)
               _      -> posLine (rangeEnd rng) + 1
 
-        scanDocKeyword line acc ls
+        scanDocKeyword doc line acc ls
           = case ls of
               [] -> Nothing
-              (Lexeme rng _ : _)  | posLine (rangeStart rng) /= line
+              (Lexeme rng lex : _)  | posLine (rangeStart rng) /= line
                  -> Nothing
-              (l@(Lexeme _ (LexKeyword k _)) : rest)  | k `elem` docKeyword
-                 -> Just (reverse acc, l, rest)
-              (l:rest)
-                 -> scanDocKeyword line (l:acc) rest
+              (l@(Lexeme r (LexKeyword k _)) : rest)  | k `elem` docKeyword
+                 -> Just (reverse acc ++ [Lexeme r (LexKeyword k doc)], rest)
+              (l@(Lexeme r (LexCons c _)) : rest)
+                 -> Just (reverse acc ++ [Lexeme r (LexCons c doc)], rest)
+              (l@(Lexeme _ lex):rest)
+                 -> if isValidPrefix lex
+                      then scanDocKeyword doc line (l:acc) rest
+                      else Nothing
 
+        isValidPrefix lex
+          = case lex of
+              LexKeyword{} -> True              -- pub
+              LexId{}      -> True              -- inline
+              LexInt _ _   -> True              -- fip(1)
+              LexSpecial s -> s `elem` ["(",")","{","}",","]  -- value{2,0,2}
+              _            -> False
 
         docKeyword = ["fun","val","ctl","final","raw"
-                     ,"type","effect","struct","con","alias"
+                     ,"type","effect","struct","alias"
                      ,"extern","module"
+                     -- con
                      -- deprecated:
                      ,"control","rcontrol","except","rawctl","brk"
                      ,"cotype","rectype"
                      ,"external","function"
                      ]
 
-        isAttr l   = case l of  -- just approximate is ok
-                      Lexeme _ (LexKeyword{}) -> True
-                      Lexeme _ (LexId{})      -> True
-                      _ -> False
-
-        adjacent comment r1 r2
-          = case (reverse comment) of
-              '\n':_ -> posLine (rangeEnd r1) == posLine (rangeStart r2)
-              _      -> posLine (rangeEnd r1) == posLine (rangeStart r2) - 1
 
 trimRight s
   = reverse (dropWhile isSpace (reverse s))
@@ -196,7 +185,7 @@ checkIds lexemes
     check (lexeme@(Lexeme rng lex):lexs)
       = lexeme : case lex of
           LexId       id -> checkId id
-          LexCons     id -> checkId id
+          LexCons   id _ -> checkId id
           LexOp       id -> checkId id
           LexPrefix   id -> checkId id
           LexIdOp     id -> checkId id
@@ -371,7 +360,7 @@ semiInsert (Lexeme prevRng prevLex) lexemes
       = case lex of
           LexId _     -> True
           LexIdOp _   -> True
-          LexCons _   -> True
+          LexCons _ _ -> True
           LexInt _ _  -> True
           LexFloat _ _-> True
           LexChar _   -> True

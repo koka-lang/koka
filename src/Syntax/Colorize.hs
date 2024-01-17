@@ -287,7 +287,7 @@ showLexemes env kgamma gamma lexs
 
     tryQualify lex name
       = case gammaLookup name gamma of
-          [(qname,InfoCon{})]    | nameCaseEqual (unqualify name) (unqualify qname) -> LexCons qname
+          [(qname,InfoCon{})]    | nameCaseEqual (unqualify name) (unqualify qname) -> LexCons qname ""
           [(qname,_)]            | nameCaseEqual (unqualify name) (unqualify qname) -> lex qname
           [(_,InfoImport{infoFullName=qname})] -> LexModule name qname
           _  -> lex name

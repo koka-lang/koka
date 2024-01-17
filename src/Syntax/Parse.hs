@@ -665,9 +665,9 @@ typeKindParams
 constructor :: Visibility -> [UserTypeBinder] -> UserType -> LexParser (UserCon UserType UserType UserKind, [UserDef])
 constructor defvis foralls resTp
   = do ((vis,vrng),(rng0,doc),(con,rng)) <- try $ do v <- visibility defvis
-                                                     k <- dockeyword "con" <|> return (rangeNull,"")
-                                                     c <- constructorId
-                                                     return (v,k,c)
+                                                     krng <- keyword "con" <|> return rangeNull
+                                                     (c,(crng,doc)) <- docconid
+                                                     return (v,(krng,doc),(c,crng))
        exists    <- typeparams
        (pars,prng) <- conPars vis
        return (makeUserCon con foralls resTp exists pars rng (combineRanges [vrng,rng0,rng,getRange exists,prng]) vis doc)
@@ -2774,10 +2774,12 @@ idop
 conid :: LexParser (Name,Range)
 conid
   = ensureUnqualified "constructor" qconid
+  {-
   -- secretly allow any name
   <|>
     do (s,rng) <- stringLit
        return (newName s,rng)
+  -}
 
 op :: LexParser (Name,Range)
 op = ensureUnqualified "operator" qop
@@ -2795,12 +2797,12 @@ typeid
        return (newName s, rng)
   -}
 
-ensureUnqualified :: String -> LexParser (Name,Range) -> LexParser (Name,Range)
+ensureUnqualified :: String -> LexParser (Name,a) -> LexParser (Name,a)
 ensureUnqualified entity p
-  = do (name,rng) <- p
+  = do (name,x) <- p
        if (isQualified name)
         then fail ("qualified " ++ entity)
-        else return (name,rng)
+        else return (name,x)
 
 -----------------------------------------------------------
 -- Lexical tokens
@@ -2849,7 +2851,7 @@ qidop
 -- is really qconid and conid in the spec
 qconid :: LexParser (Name,Range)
 qconid
-  = do (Lexeme rng (LexCons id)) <- parseLex (LexCons nameNil)
+  = do (Lexeme rng (LexCons id doc)) <- parseLex (LexCons nameNil "")
        return (id,rng)
   <?> "constructor"
 
@@ -2917,7 +2919,7 @@ specialId s
 specialConId :: String -> LexParser Range
 specialConId s
   = try (
-      do (Lexeme rng (LexCons id)) <- parseLex (LexCons nameNil)
+      do (Lexeme rng (LexCons id _)) <- parseLex (LexCons nameNil "")
          if (showPlain id == s)
           then return rng
           else fail s
@@ -2973,6 +2975,13 @@ dockeyword s
   = do (Lexeme rng (LexKeyword _ doc)) <- parseLex (LexKeyword s "")
        return (rng,doc)
   <?> show s
+
+docconid :: LexParser (Name,(Range,String))
+docconid
+  = ensureUnqualified "constructor" $
+    (do (Lexeme rng (LexCons id doc)) <- parseLex (LexCons nameNil "")
+        return (id,(rng,doc))
+     <?> "constructor")
 
 
 warnDeprecated dep new rng

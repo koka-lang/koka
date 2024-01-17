@@ -25,13 +25,18 @@ type color
 
 // An ordered tree with `:int` keys and values `:a` in each node.
 type tree<a>
+  // Each node has a color to keep the tree balanced such that any path from the root to the leaves has an equal number of black nodes.
   Node(color : color, lchild : tree<a>, key : int, value : a, rchild : tree<a>)
   Leaf
 
-// We use a "zipper" to keep track of where we are in the tree
+// We use a "zipper" to keep track of where we are in the tree.
+// This represents the reverse path from the current node up to the root.
 type zipper<a>
+  // we visited the right child
   NodeR(color : color, lchild : tree<a>, key : int, value : a, zip : zipper<a>)
+  // we visited the left child
   NodeL(color : color, zip : zipper<a>, key : int, value : a, rchild : tree<a>)
+  // the root of the tree
   Done
 
 // Reconstruct a tree from a zipper (updates in place)

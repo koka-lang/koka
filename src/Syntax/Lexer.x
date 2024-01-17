@@ -127,7 +127,7 @@ program :-
 
 
 -- qualified identifiers
-<0> @qconid               { string $ LexCons . readQualifiedName }
+<0> @qconid               { string $ \s -> LexCons (readQualifiedName s) "" }
 <0> @qvarid               { string $ LexId . readQualifiedName }
 <0> @qidop                { string $ LexIdOp . readQualifiedName }
 
@@ -137,7 +137,7 @@ program :-
                                            else if isMalformed s
                                                then LexError messageMalformed
                                                else LexId (readQualifiedName s) }
-<0> @conid                { string $ LexCons . newName }
+<0> @conid                { string $ \s -> LexCons (newName s) "" }
 <0> @wildcard             { string $ LexWildCard . newName }
 
 -- specials
@@ -566,7 +566,7 @@ lexing source lineNo input
               LexSpecial ")" -> True
               LexSpecial "]" -> True
               LexId _        -> True
-              LexCons _      -> True
+              LexCons _ _    -> True
               LexIdOp _      -> True
               _              -> False
 
