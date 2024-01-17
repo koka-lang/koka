@@ -197,11 +197,11 @@ prioritize rinfos
 
 
 mergeImplicits :: Bool -> [(Range,RangeInfo)] -> [(Range,RangeInfo)]
-mergeImplicits shorten rinfos
+mergeImplicits forInlay rinfos
   = merge rinfos
   where
     idocs = concatMap (\(rng,rinfo) -> case rinfo of
-                                        Implicits fdoc -> [(rng,fdoc shorten)]
+                                        Implicits fdoc -> [(rng,fdoc forInlay)]
                                         _              -> []) rinfos
 
     findDocs rng
@@ -213,7 +213,7 @@ mergeImplicits shorten rinfos
           Implicits _
             -> merge rinfos
           Id name info docs isDef
-            -> (rng, Id name info (docs ++ findDocs rng) isDef) : merge rinfos
+            -> (rng, Id name info ((if forInlay then [] else docs) ++ findDocs rng) isDef) : merge rinfos
           _ -> (rng,rinfo) : merge rinfos
 
 
@@ -228,9 +228,9 @@ rangeMapLookup r (RM rm)
     isBefore (rng,_)  = rangeStart rng < pos
     startsAt (rng,_)  = rangeStart rng == pos
 
-rangeMapFindIn :: Range -> RangeMap -> [(Range, RangeInfo)]
-rangeMapFindIn rng (RM rm)
-  = mergeImplicits True {-shorten implicits for inlay info-} $
+rangeMapFindIn :: Bool -> Range -> RangeMap -> [(Range, RangeInfo)]
+rangeMapFindIn forInlay rng (RM rm)
+  = mergeImplicits forInlay {-for inlay -} $
     filter (\(rng, info) -> rangeStart rng >= start || rangeEnd rng <= end) rm
     where start = rangeStart rng
           end = rangeEnd rng

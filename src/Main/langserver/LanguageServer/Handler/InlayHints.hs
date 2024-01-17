@@ -53,14 +53,14 @@ inlayHintsHandler = requestHandler J.SMethod_TextDocumentInlayHint $ \req respon
         l <- loaded
         let lm = loadedModule l
         rmap <- modRangeMap lm
-        -- trace (show $ rangeMapFindIn newRng rmap) $ return ()
+        -- trace (show $ rangeMapFindIn True newRng rmap) $ return ()
         let env = (prettyEnvFromFlags flags){
                       context = modName lm,
                       importsMap = loadedImportMap l,
                       showFlavours=False
                       -- fullNames=showFullQualifiers options
                    }
-        let hints = concatMap (createInlayHints options env lm) $ rangeMapFindIn newRng rmap
+        let hints = concatMap (createInlayHints options env lm) $ rangeMapFindIn True {-for inlay hints-} newRng rmap
         let hintsDistinct = nubBy (\h1 h2 -> h1 ^. J.position == h2 ^. J.position) hints
         return hintsDistinct
   case rsp of

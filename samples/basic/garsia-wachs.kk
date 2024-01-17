@@ -42,7 +42,7 @@ fun tree/show( t : tree<string> ) : string
 // A list with at least one element.
 pub value type list1<a>
   // The head of a list with at least one element.
-  con Cons1( head : a, tail : list<a> )
+  Cons1( head : a, tail : list<a> )
 
 
 fun map( xs, f )
