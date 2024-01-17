@@ -59,7 +59,7 @@ import Common.ColorScheme ( colorSource, ColorScheme, darkColorScheme, lightColo
 import Common.Name (nameNil, Name, readQualifiedName)
 import Common.File ( realPath, normalize, getCwd, realPath, normalize, getCurrentTime )
 import Common.Error (ppErrorMessage)
-import Lib.PPrint (Pretty(..), asString, writePrettyLn, Doc, writePretty)
+import Lib.PPrint (Pretty(..), asString, writePrettyLn,  Doc, writePretty, writePrettyW)
 import Lib.Printer (withColorPrinter, withColor, writeLn, ansiDefault, AnsiStringPrinter (AnsiString), Color (Red), ColorPrinter (PAnsiString, PHtmlText), withHtmlTextPrinter, HtmlTextPrinter (..))
 import Compiler.Compile (Terminal (..), Loaded (..), Module (..))
 import Compiler.Options (Flags (..), prettyEnvFromFlags, verbose)
@@ -174,7 +174,8 @@ htmlTextColorPrinter doc
   = do
     stringVar <- newVar (T.pack "")
     let printer = PHtmlText (HtmlTextPrinter stringVar)
-    writePretty printer doc
+    -- writePretty printer doc
+    writePrettyW printer 1000 doc
     takeVar stringVar
 
 putScheme p env tp
@@ -299,8 +300,8 @@ putLoaded l f flags = do
   fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
   time <- liftIO getCurrentTime
   modifyLSState $ \s -> s {
-    lastChangedFile = Just (f, flags, l), 
-    lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s), 
+    lastChangedFile = Just (f, flags, l),
+    lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s),
     lsLoaded = M.insert (toLspUri fpath) (l, time) (lsLoaded s)
     }
 
@@ -309,8 +310,8 @@ putLoadedSuccess l f flags = do
   fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
   time <- liftIO getCurrentTime
   modifyLSState $ \s -> s {
-    lastChangedFile = Just (f, flags, l), 
-    lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s), 
+    lastChangedFile = Just (f, flags, l),
+    lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s),
     lsLoaded = M.insert (toLspUri fpath) (l,time) (lsLoaded s),
     lsLoadedSuccess = M.insert (toLspUri fpath) (l,time) (lsLoaded s)
     }

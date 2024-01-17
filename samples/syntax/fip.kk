@@ -85,7 +85,7 @@ fip(1) fun insert( t : tree<int>, k : int ) : tree<int>
 // function does not only need to be borrowed, but borrow its arguments as well
 // (e.g. we need `^?cmp : (^a,^a) -> order`).
 //
-// The `insert-poly`` actually _does_ execute in-place at runtime like a `fip(1)`
+// The `insert-poly` actually _does_ execute in-place at runtime like a `fip(1)`
 // function, we just can't check it statically (at this time).
 fun insert-poly( t : tree<a>, k : a, ^?cmp : (a,a) -> order ) : tree<a>
   match t

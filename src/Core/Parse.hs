@@ -206,10 +206,10 @@ typeDecl env
        return (Synonym synInfo, envExtendSynonym env synInfo)
 
 conDecl tname foralls sort env
-  = do (vis,doc) <- try $ do vis <- vispub
-                             (_,doc) <- dockeyword "con"
-                             return (vis,doc)
-       (name,_)  <- constructorId
+  = do vis <- try $ do vis <- vispub
+                       keyword "con"
+                       return vis
+       (name,(_,doc)) <- docconid
        range    <- prange env
        -- trace ("core con: " ++ show name) $ return ()
        (env1,existss) <- typeParams env

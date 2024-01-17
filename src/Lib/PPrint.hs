@@ -56,6 +56,7 @@ module Lib.PPrint
         , color, bcolor
         , writePretty, writePrettyLn
         , writeDoc, writeDocW
+        , writePrettyW
         , isEmptyDoc
 
         , dstartsWith
@@ -591,11 +592,15 @@ displayP p w simpleDoc
 -- | Display a document on a 'Printer'.
 writePretty :: Printer p => p -> Doc -> IO ()
 writePretty p doc
-  = displayP p defaultWidth (renderPretty 0.8 defaultWidth doc)
+  = writePrettyW p 80 doc
 
 writePrettyLn :: Printer p => p -> Doc -> IO ()
 writePrettyLn p doc
   = writePretty p (doc <.> linebreak)
+
+writePrettyW :: Printer p => p -> Int -> Doc -> IO ()
+writePrettyW p w doc
+  = displayP p w (renderPretty 0.8 w doc)
 
 -----------------------------------------------------------
 -- default pretty printers: show, putDoc and hPutDoc

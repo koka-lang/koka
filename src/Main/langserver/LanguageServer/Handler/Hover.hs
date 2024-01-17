@@ -72,12 +72,14 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
             let env = (prettyEnvFromFlags flags){ context = mName, importsMap = loadedImportMap l }
                 colors = colorSchemeFromFlags flags
             markdown <- liftIO $ print $ -- makeMarkdown $ -- makeMarkdown $
-                        (formatRangeInfoHover l env colors rinfo)
+                        let doc = formatRangeInfoHover l env colors rinfo
+                        in trace ("formatted hover:\n" ++ show doc) $
+                           doc
             let md = J.mkMarkdown markdown
                 hc = J.InL md
                 rsp = J.Hover hc $ Just $ toLspRange r
-            -- trace ("hover: " ++ show markdown) $
-            responder $ Right $ J.InL rsp
+            trace ("hover markdown:\n" ++ show markdown) $
+             responder $ Right $ J.InL rsp
     Nothing
       -> -- trace "no hover info" $
          responder $ Right $ J.InR J.Null

@@ -342,7 +342,7 @@ fun last-weekday( t : time, wd : weekday ) : time
 
 // Return the `n`th week day since the beginning of the month of time `t`.\
 // `time(2016,10,10).nth-weekday-of-month(2,Sun).date` &quad; (2016-10-09, Second Sunday of October 2016)\
-// `time(2016,10,10).nth-weekday-of-month(60,Sun).date` &quad; (2017-11-19, 60th Sunday since Octorber 1, 2016)\
+// `time(2016,10,10).nth-weekday-of-month(60,Sun).date` &quad; (2017-11-19, 60th Sunday since October 1, 2016)\
 pub fun nth-weekday-of-month( t : time, n : int, wd : weekday ) : time
   t.copy-dc(Date(t.year,t.month,1)).nth-weekday(n,wd)
 

@@ -485,6 +485,7 @@ pub inline fip extern @cctx-compose-extend( c1 : cctx<a,b>, c2 : cctx<b,c> ) : c
 // Apply a constructor context to its final value (of type `:b`), which is
 // put into the hole of the context, and returns the root of the resulting structure `:a`.
 // This is a constant time operation for unique contexts.
+//
 // `(ctx Cons(1,_)) ++ (ctx Cons(_,Nil)) ++. 3 == [1,3]`
 pub inline fip extern cctx/(++.)( c : cctx<a,b>, x : b ) : a
   c inline "kk_cctx_apply(#1,#2,false /*is-linear*/,kk_context())"
@@ -492,6 +493,7 @@ pub inline fip extern cctx/(++.)( c : cctx<a,b>, x : b ) : a
 
 // Compose two constructor contexts.
 // This is a constant time operation for unique contexts.
+//
 // `(ctx Cons(1,_)) ++ (ctx Cons(2,_)) ++. Nil == [1,2]`
 pub inline fip extern cctx/(++)( c1 : cctx<a,b>, c2 : cctx<b,c> ) : cctx<a,c>
   c inline "kk_cctx_compose(#1,#2,false /*is-linear*/,kk_context())"
