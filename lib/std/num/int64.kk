@@ -99,7 +99,7 @@ pub fip fun lo( i : int64 ) : int64
 
 // Create an `:int64` from the given `hi` and `lo` numbers lowest 32-bits.
 // Preserves the sign of `hi`.
-pub fip fun hilo( hi : int64, lo : int64 ) : int64
+pub fip fun hilo/int64( hi : int64, lo : int64 ) : int64
   or( shl64(hi,32.int64), and(lo,0xFFFF_FFFF.int64) )
 
 // Convert an `:int` to `:int64` but interpret the `int` as an unsigned 64-bit value.
@@ -131,41 +131,64 @@ pub fun show-hex64( i : int64, width : int = 16, use-capitals : bool = True, pre
   std/core/show/show-hex(i.uint,width,use-capitals,pre)
 
 
-pub inline fip extern (<=) : (int64,int64) -> bool  { inline "(#1 <= #2)" }
-pub inline fip extern (==) : (int64,int64) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-pub inline fip extern (!=) : (int64,int64) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-pub inline fip extern (>=) : (int64,int64) -> bool  { inline "(#1 >= #2)" }
-pub inline fip extern (<)  : (int64,int64) -> bool  { inline "(#1 < #2)"  }
-pub inline fip extern (>)  : (int64,int64) -> bool  { inline "(#1 > #2)"  }
+// Are two 64-bit integers equal?
+pub inline fip extern (==)(x : int64, y : int64) : bool
+  inline "(#1 == #2)"
+  js inline "(#1 === #2)"
 
-pub inline fip extern (+)  : (int64,int64) -> int64
-  c inline "(int64_t)((uint64_t)#1 + (uint64_t)#2)"
+// Are two 64-bit integers not equal?
+pub inline fip extern (!=)(x : int64, y : int64) : bool
+  inline "(#1 != #2)"
+  js inline "(#1 !== #2)"
+
+// Is the first 64-bit integer smaller or equal to the second?
+pub inline fip extern (<=)(x : int64, y : int64) : bool
+  inline "(#1 <= #2)"
+
+// Is the first 64-bit integer larger or equal to the second?
+pub inline fip extern (>=)(x : int64, y : int64) : bool
+  inline "(#1 >= #2)"
+
+// Is the first 64-bit integer smaller than the second?
+pub inline fip extern (<)(x : int64, y : int64) : bool
+  inline "(#1 < #2)"
+
+// Is the first 64-bit integer larger than the second?
+pub inline fip extern (>)(x : int64, y : int64) : bool
+  inline "(#1 > #2)"
+
+// Add two 64-bit integers.
+pub inline fip extern (+)(x : int64, y : int64) : int64
+  c inline "(int64_t)((uint64_t)#1 + (uint64_t)#2)"  // avoid UB
   js inline "BigInt.asIntN(64,#1 + #2)"
 
-
-pub inline fip extern (-)  : (int64,int64) -> int64
-  inline "(int64_t)((uint64_t)#1 - (uint64_t)#2)"
+// Subtract two 64-bit integers.
+pub inline fip extern (-)(x : int64, y : int64) : int64
+  c inline "(int64_t)((uint64_t)#1 - (uint64_t)#2)" // avoid UB
   js inline "BigInt.asIntN(64,#1 - #2)"
 
-
+// Is the 64-bit integer negative?
 pub inline fip extern is-neg( i : int64 ) : bool
   inline "0 > #1"
   js inline "0n > #1"
 
-
+// Is the 64-bit integer positive? (i.e. larger than zero)
 pub inline fip extern is-pos( i : int64 ) : bool
   inline "0 < #1"
   js inline "0n < #1"
 
-
+// Is the 64-bit integer zero?
 pub inline fip extern is-zero( i : int64 ) : bool
   inline "0 == #1"
   js inline "0n === #1"
 
-
+// The 64-bit integer for zero.
 pub val zero = 0.int64
+
+// The 64-bit integer for 1.
 pub val one  = 1.int64
 
+// Compare a 64-integer to zero.
 pub fip fun sign( i : int64 ) : order
   if i.is-pos then Gt
   elif i.is-neg then Lt
@@ -376,26 +399,26 @@ pub fip fun max( i : int64, j : int64 ) : int64
   if i >= j then i else j
 
 
-// Full 64x64 bit unsigned multiply to `(lo,hi)`.
-// where `(lo,hi).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
+// Full 64x64 bit unsigned multiply to `(hi,lo)`.
+// where `(hi,lo).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
 pub fip extern umul( i : int64, j : int64 ) : (int64,int64)
   c "kk_wide_umul64x"
   js "$std_core_types._int64_umul"
 
-// Full 64x64 bit signed multiply to `(lo,hi)`.
-// where `(lo,hi).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
+// Full 64x64 bit signed multiply to `(hi,lo)`.
+// where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
 pub fip extern imul( i : int64, j : int64 ) : (int64,int64)
   c "kk_wide_imul64x"
   js "$std_core_types._int64_imul"
 
-// Convert a pair `(lo,hi)` to an signed integer,
-// where `(ho,hi).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
-pub fun lohi/int( (lo,hi) : (int64,int64) ) : int
+// Convert a pair `(hi,lo)` to an signed integer,
+// where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
+pub fun hilo/int( (hi,lo) : (int64,int64) ) : int
   hi.int * 0x1_0000_0000_0000_0000 + lo.uint
 
-// Convert a pair `(lo,hi)` to an unsigned integer,
-// where `(lo,hi).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
-pub fun lohi/uint( (lo,hi) : (int64,int64) ) : int
+// Convert a pair `(hi,lo)` to an unsigned integer,
+// where `(hi,lo).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
+pub fun hilo/uint( (hi,lo) : (int64,int64) ) : int
   hi.uint * 0x1_0000_0000_0000_0000 + lo.uint
 
 // Truncated division (as in C). See also `(/):(x : int64, y : int64) -> int64`.

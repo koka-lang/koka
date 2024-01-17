@@ -98,38 +98,38 @@ pub fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre 
   std/core/show/show-hex(i.uint,width,use-capitals,pre)
 
 // Are two 32-bit integers equal?
-pub inline fip extern (==) : (int32,int32) -> bool
+pub inline fip extern (==)(x : int32, y : int32) : bool
   inline "(#1 == #2)"
   js inline "(#1 === #2)"
 
 // Are two 32-bit integers not equal?
-pub inline fip extern (!=) : (int32,int32) -> bool
+pub inline fip extern (!=)(x : int32, y : int32) : bool
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 
 // Is the first 32-bit integer smaller or equal to the second?
-pub inline fip extern (<=) : (int32,int32) -> bool
+pub inline fip extern (<=)(x : int32, y : int32) : bool
   inline "(#1 <= #2)"
 
 // Is the first 32-bit integer larger or equal to the second?
-pub inline fip extern (>=) : (int32,int32) -> bool
+pub inline fip extern (>=)(x : int32, y : int32) : bool
   inline "(#1 >= #2)"
 
 // Is the first 32-bit integer smaller than the second?
-pub inline fip extern (<)  : (int32,int32) -> bool
+pub inline fip extern (<)(x : int32, y : int32) : bool
   inline "(#1 < #2)"
 
 // Is the first 32-bit integer larger than the second?
-pub inline fip extern (>)  : (int32,int32) -> bool
+pub inline fip extern (>)(x : int32, y : int32) : bool
   inline "(#1 > #2)"
 
 // Add two 32-bit integers.
-pub inline fip extern (+)  : (int32,int32) -> int32
+pub inline fip extern (+)(x : int32, y : int32) : int32
   c inline  "(int32_t)((uint32_t)#1 + (uint32_t)#2)" // avoid UB
   js inline "((#1 + #2)|0)"
 
 // Subtract two 32-bit integers.
-pub inline fip extern (-)  : (int32,int32) -> int32
+pub inline fip extern (-)(x : int32, y : int32) : int32
   c inline "(int32_t)((uint32_t)#1 - (uint32_t)#2)" // avoid UB
   js inline "((#1 - #2)|0)"
 
@@ -274,7 +274,7 @@ pub fun lo( i : int32 ) : int32
 
 // Create an `:int32` from the give `hi` and `lo` 16-bit numbers.
 // Preserves the sign of `hi`.
-pub fun hilo( hi : int32, lo : int32 ) : int32
+pub fun hilo/int32( hi : int32, lo : int32 ) : int32
   or( shl32(hi,16.int32), and(lo,0xFFFF.int32) )
 
 // Bitwise rotate an `:int32` `n % 32` bits to the left.
@@ -378,26 +378,26 @@ pub fip fun max( i : int32, j : int32 ) : int32
   if (i >= j) then i else j
 
 
-// Full 32x32 bit unsigned multiply to `(lo,hi)`.
-// where `(lo,hi).uint == hi.uint * 0x1_0000_0000 + lo.uint`
+// Full 32x32 bit unsigned multiply to `(hi,lo)`.
+// where `(hi,lo).uint == hi.uint * 0x1_0000_0000 + lo.uint`
 pub fip extern umul( i : int32, j : int32 ) : (int32,int32)
   c "kk_wide_umul32x"
   js "$std_core_types._int32_umul"
 
-// Full 32x32 bit signed multiply to `(lo,hi)`.
-// where `(lo,hi).int == hi.int * 0x1_0000_0000 + lo.uint`
+// Full 32x32 bit signed multiply to `(hi,lo)`.
+// where `(hi,lo).int == hi.int * 0x1_0000_0000 + lo.uint`
 pub fip extern imul( i : int32, j : int32 ) : (int32,int32)
   c "kk_wide_imul32x"
   js "$std_core_types._int32_imul"
 
 // Convert a pair `(lo,hi)` to a signed integer,
 // where `(lo,hi).int == hi.int * 0x1_0000_0000 + lo.uint`
-pub fun tuple/int( (lo,hi) : (int32,int32) ) : int
+pub fun hilo/int( (hi,lo) : (int32,int32) ) : int
   hi.int * 0x1_0000_0000 + lo.uint
 
 // Convert a pair `(lo,hi)` to an unsigned integer,
 // where `(lo,hi).uint == hi.uint * 0x1_0000_0000 + lo.uint`
-pub fun tuple/uint( (lo,hi) : (int32,int32) ) : int
+pub fun hilo/uint( (hi,lo) : (int32,int32) ) : int
   hi.uint * 0x1_0000_0000 + lo.uint
 
 
