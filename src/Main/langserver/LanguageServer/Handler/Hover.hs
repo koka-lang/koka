@@ -73,13 +73,13 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
                 colors = colorSchemeFromFlags flags
             markdown <- liftIO $ print $ -- makeMarkdown $ -- makeMarkdown $
                         let doc = formatRangeInfoHover l env colors rinfo
-                        in trace ("formatted hover:\n" ++ show doc) $
+                        in --trace ("formatted hover:\n" ++ show doc) $
                            doc
             let md = J.mkMarkdown markdown
                 hc = J.InL md
                 rsp = J.Hover hc $ Just $ toLspRange r
-            trace ("hover markdown:\n" ++ show markdown) $
-             responder $ Right $ J.InL rsp
+            -- trace ("hover markdown:\n" ++ show markdown) $
+            responder $ Right $ J.InL rsp
     Nothing
       -> -- trace "no hover info" $
          responder $ Right $ J.InR J.Null

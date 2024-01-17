@@ -733,12 +733,14 @@ inferExpr propagated expect (App (Var byref _ _) [(_,Var name _ rng)] _)  | byre
   = inferVar propagated expect name rng False
 
 -- | Hole expressions
-inferExpr propagated expect (App fun@(Var hname _ _) [] rng)  | hname == nameCCtxHoleCreate
+inferExpr propagated expect (App fun@(Var hname _ nameRng) [] rng)  | hname == nameCCtxHoleCreate
   = do ok <- useHole
        when (not ok) $
          contextError rng rng (text "ill-formed constructor context")
             [(text "because",text "there can be only one hole, and it must occur under a constructor context 'ctx'")]
-       inferApp propagated expect fun [] rng
+       (tp,eff,core) <- inferApp propagated expect fun [] rng
+       addRangeInfo nameRng (RM.Id (newName "hole") (RM.NIValue "expr" tp "" False) [] False)
+       return (tp,eff,core)
 
 -- | Context expressions
 inferExpr propagated expect (App (Var ctxname _ nameRng) [(_,expr)] rng)  | ctxname == nameCCtxCreate
@@ -758,6 +760,8 @@ inferExpr propagated expect (App (Var ctxname _ nameRng) [(_,expr)] rng)  | ctxn
        score <- subst core
        (ccore,errs) <- withUnique (analyzeCCtx rng newtypes score)
        mapM_ (\(rng,err) -> infError rng err) errs
+       let ctp = Core.typeOf ccore
+       addRangeInfo nameRng (RM.Id (newName "ctx") (RM.NIValue "expr" ctp "" False) [] False)
        return (Core.typeOf ccore,eff,ccore)
 
 -- | Application nodes. Inference is complicated here since we need to disambiguate overloaded identifiers.
@@ -912,12 +916,40 @@ inferExpr propagated expect (Var name isOp rng)
   = inferVar propagated expect name rng True
 
 inferExpr propagated expect (Lit lit)
-  = do let (tp,core) =
+  = do let (tp,core,rng,docs) =
               case lit of
-                LitInt i _  -> (typeInt,Core.Lit (Core.LitInt i))
-                LitChar c _  -> (typeChar,Core.Lit (Core.LitChar c))
-                LitFloat f _  -> (typeFloat,Core.Lit (Core.LitFloat f))
-                LitString s _  -> (typeString,Core.Lit (Core.LitString s))
+                LitInt i r  -> (typeInt,Core.Lit (Core.LitInt i),r,
+                                   ["dec  = " ++ show i] ++
+                                    if i < toInteger (minBound :: Int) || i > toInteger (maxBound :: Int)
+                                      then []
+                                      else let x0 = (fromInteger i) :: Int
+                                               x  = if x0 >= 0 then x0
+                                                      else if x0 >= -0x80 then 0x100 + x0
+                                                      else if x0 >= -0x8000 then 0x10000 + x0
+                                                      else if x0 >= -0x80000000 then 0x100000000 + x0
+                                                      else fromInteger (0x10000000000000000 + i)
+                                           in if (x <= 0x7F || (i < 0 && x <= 0xFF))
+                                                then ["hex8 = 0x" ++ showHex 2 x,"bit8 = 0b" ++ showBinary 8 x]
+                                                else if (x <= 0x7FFF || (i < 0 && x <= 0xFFFF))
+                                                  then ["hex16= 0x" ++ showHex 4 x,"bit16= 0b" ++ showBinary 16 x]
+                                                  else if (x <= 0x7FFFFFFF || (i < 0 && x <= 0xFFFFFFFF))
+                                                    then ["hex32= 0x" ++ showHex 8 x, "bit32= 0b" ++ showBinary 32 x]
+                                                    else ["hex64= 0x" ++ showHex 16 x, "bit64= 0b" ++ showBinary 64 x]
+                                )
+                LitChar c r  -> (typeChar,Core.Lit (Core.LitChar c),r,
+                                     let i = fromEnum c
+                                     in ["unicode= " ++
+                                          if (i < 0 || i > 0xFFFFF)
+                                            then show i ++ " (out of range)"
+                                            else if i <= 0xFFFF
+                                                   then "u" ++ showHex 4 i
+                                                   else "U" ++ showHex 6 i]
+                                 )
+                LitFloat f r  -> (typeFloat,Core.Lit (Core.LitFloat f),r,
+                                     ["hex64= " ++ showHexFloat f])
+                LitString s r  -> (typeString,Core.Lit (Core.LitString s),r,
+                                     ["count= " ++ show (length s)])
+       addRangeInfo rng (RM.Id (newName "literal") (RM.NIValue "expr" tp "" False) (map text docs) False)
        eff <- freshEffect
        return (tp,eff,core)
 

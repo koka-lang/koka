@@ -49,12 +49,14 @@ module Common.Name
           , fromImplicitParamName
 
           , prepend, postpend
-          , asciiEncode, showHex, moduleNameToPath, pathToModuleName
+          , asciiEncode, moduleNameToPath, pathToModuleName
           -- , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
 
           , prettyName, prettyCoreName
           , requalifyLocally, qualifyLocally, unqualifyFull, isLocallyQualified, fullQualifier
           , unqualifyAsModuleName, unqualifyLocally
+
+          , showHex, showBinary, showHexFloat
           ) where
 
 -- import Lib.Trace( trace )
@@ -66,6 +68,12 @@ import Common.File( joinPaths, splitOn, endsWith, startsWith, isPathSep )
 import Common.Range( rangeStart, posLine, posColumn )
 import Data.List(intersperse,isPrefixOf)
 import Common.ColorScheme
+
+-- just for hover info
+import Data.Numbers.FloatingHex( showHFloat )
+import Numeric (showIntAtBase)
+import Data.Char( intToDigit )
+
 
 isEarlyBindName name
   = isHandleName name || isCreatorName name
@@ -944,3 +952,12 @@ showHex len i
       = let (d,m) = i `divMod` 16
         in if d == 0 then [m]
                      else m : hexDigits d
+
+showBinary :: Int -> Int -> String
+showBinary len i
+  = let bits = showIntAtBase 2 intToDigit i ""
+    in replicate (len - length bits) '0' ++ bits
+
+showHexFloat :: Double -> String
+showHexFloat d
+  = showHFloat d ""

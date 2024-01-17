@@ -33,6 +33,7 @@ dependencies:
   - text
   - time
   - isocline >= 1.0.6
+  - FloatingHex >= 0.5
 
 library:
   other-extensions:

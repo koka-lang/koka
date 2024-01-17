@@ -19,7 +19,7 @@ import Syntax.Colorize (removeComment)
 
 ppComment :: String -> Doc
 ppComment s
-  = trace ("ppComment: bare comment:\n" ++ show (removeComment s)) $
+  = -- trace ("ppComment: bare comment:\n" ++ show (removeComment s)) $
     if null (filter (not . isSpace) s)
       then empty
       else hline <.> (hcat $ map fmtLine $ dropWhile null $ lines $ removeComment s)
