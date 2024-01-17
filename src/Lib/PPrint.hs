@@ -592,7 +592,7 @@ displayP p w simpleDoc
 -- | Display a document on a 'Printer'.
 writePretty :: Printer p => p -> Doc -> IO ()
 writePretty p doc
-  = writePrettyW p 80 doc
+  = writePrettyW p defaultWidth doc
 
 writePrettyLn :: Printer p => p -> Doc -> IO ()
 writePrettyLn p doc

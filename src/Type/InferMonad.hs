@@ -1939,7 +1939,7 @@ extendInfGammaEx topLevel ignores tnames inf
                     infError range (Pretty.ppName (prettyEnv env) name <+> text "is already defined at" <+> pretty (show (infoRange info2))
                                      <-> text " hint: if these are potentially recursive definitions, give a full type signature to disambiguate them.")
             Nothing
-              -> do case (infgammaLookupEx (const True) name infgamma) of
+              -> do case (infgammaLookup name infgamma) of
                       Right (cname,info2) | cname /= nameReturn  -- TODO: adapt to multiple matches?
                         -> do checkCasingOverlap range name cname info2
                               env <- getEnv
@@ -2032,10 +2032,9 @@ getLocalVars
 lookupInfName :: Name -> Inf (Maybe (Name,Type))
 lookupInfName name
   = do env <- getEnv
-       case infgammaLookupEx (const True) (unqualify name) (infgamma env) of
-         Right (name,info) -> return (Just (name,infoType info))
-         Left []    -> return Nothing
-         Left [_]   -> return Nothing -- a recursive def. has a fully qualified name so matches also just the stem.
+       case infgammaLookup (unqualify name) (infgamma env) of
+         Right (name,info)  -> return (Just (name,infoType info))
+         Left []            -> return Nothing
          Left infos -> do def <- currentDefName
                           failure ("InferMonad.lookupInfName: ambigous local? " ++ show def ++ ": " ++ show name ++ ":\n" ++ unlines (map show infos))
 

@@ -1,7 +1,7 @@
-fun while(p,f) {
+fun whilex(p,f) {
   if (p()) then {
     f();
-    while(p,f);
+    whilex(p,f);
   }
   else {
     print("done");

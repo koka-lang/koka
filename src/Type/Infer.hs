@@ -252,9 +252,19 @@ checkRecVal (Core.DefRec defs)
 
 fixCanonicalName :: Core.Def -> Inf Core.Def
 fixCanonicalName def
-  = do (_,_,info) <- resolveName (Core.defName def) (Just (Core.defType def, Core.defNameRange def)) (Core.defNameRange def) -- should never fail
-       let cname = infoCanonicalName (Core.defName def) info
-       return (def{ Core.defName = cname })
+  = do -- first look in the inf gamma for recursive definitions (since they may not resolve unambiguously)
+       mbAssumedType <- lookupInfName (Core.defName def)
+       case mbAssumedType of
+         Just (qname,_)
+           -> return (def{ Core.defName = qname })
+         _ -> -- failure ("Type.Infer.fixCanonicalName: cannot find in infGamma: " ++ show (Core.defName def))
+              -- otherwise, we resolve normally
+              do (_,_,info) <- resolveName (Core.defName def) (Just (Core.defType def, Core.defNameRange def)) (Core.defNameRange def) -- should never fail
+                 let cname = infoCanonicalName (Core.defName def) info
+                 return (def{ Core.defName = cname })
+
+
+
 
 mapMDefs :: Monad m => (Core.Def -> m Core.Def) -> Core.DefGroups -> m Core.DefGroups
 mapMDefs f cgroups

@@ -305,15 +305,15 @@ val dd-default-prec = -31
 ------------------------------------------------------*/
 
 // Zero constant
-pub val zero = ddouble(0.0)
+pub val zero : ddouble = ddouble(0.0)
 
 // One
-pub val one  = ddouble(1.0)
+pub val one : ddouble = ddouble(1.0)
 
 // Ten (`10.ddouble`)
-pub val ten  = ddouble(10.0)
+pub val ten : ddouble = ddouble(10.0)
 
-val two         = ddouble(2.0)
+val two = ddouble(2.0)
 
 // Is this `:ddouble` equal to is-zero
 pub fun is-zero( x : ddouble ) : bool
@@ -1037,8 +1037,8 @@ pub fun (~=)(x : ddouble, y : ddouble ) : bool
 // A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
 // Math. Mechanik, 54:39--51, 1974.
 pub fun list/sum( xs : list<ddouble> ) : ddouble
-  var total := zero
-  var comp  := zero
+  var total : ddouble := zero
+  var comp  : ddouble := zero
   xs.foreach fn(x)
     val t = total + x
     val c = if total.abs >= x.abs then (total - t) + x else (x - t) + total

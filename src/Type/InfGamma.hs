@@ -15,7 +15,8 @@ module Type.InfGamma (
                     , infgammaIsEmpty
                     , infgammaExtend
                     , infgammaExtends
-                    , infgammaLookup, infgammaLookupEx
+                    , infgammaLookupEx
+                    , infgammaLookup
                     , infgammaMap
                     , infgammaList
                     , ppInfGamma
@@ -84,14 +85,17 @@ infgammaExtendX name cname tp rng isVar doc infgamma
   = infgammaExtend name (InfoVal Public cname tp rng isVar doc) infgamma
 
 
--- lookup an exact match
-infgammaLookup :: Name -> InfGamma -> Maybe (Name,Type)
+-- lookup any exact match in the local scope
+-- note that recursive definitions add the fully qualified name to the infgamma,
+-- in that case we also consider it an exact match with just the stem.
+infgammaLookup :: Name -> InfGamma -> Either [(Name,NameInfo)] (Name,NameInfo)
 infgammaLookup name infgamma
   = case infgammaLookupEx (const True) name infgamma of
-      Right (name,info) -> Just (name,infoType info)
-      _                 -> Nothing
+      Left [(name,info)] -> Right (name,info)
+      other              -> other
 
--- lookup a local name: return either a list of matching (locally qualified) names, or an exact match
+
+-- lookup a local name: return either a list of possibly matching (locally qualified) names, or an exact match
 infgammaLookupEx :: (NameInfo -> Bool) -> Name -> InfGamma -> Either [(Name,NameInfo)] (Name,NameInfo)
 infgammaLookupEx guard name (InfGamma infgamma)
   = let mbinfos = M.lookup (unqualifyFull name) infgamma
