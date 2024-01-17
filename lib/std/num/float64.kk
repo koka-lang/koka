@@ -333,7 +333,7 @@ pub fun is-subnormal( d :float64 ) : bool
 pub inline extern round( d : float64 ) : float64
   c  "kk_double_round_even"
   cs inline "Math.Round(#1,MidpointRounding.ToEven)"
-  js "$std_core._double_round_even"
+  js "$std_core_types._double_round_even"
 
 // Return the largest integer equal or less than `d`
 pub inline extern floor( d : float64 ) : float64
@@ -385,7 +385,7 @@ pub fun round-to-prec( d : float64, prec : int  ) : float64
 // Round a `:float64` to a `:float32`
 pub extern float64/float32( f : float64 ) : float32
   c inline "(float)(#1)"
-  js "$std_core._double_to_float"
+  js "$std_core_types._double_to_float"
 
 // Extend a `:float32` to a `:float64`
 pub extern float32/float64( f : float32 ) : float64

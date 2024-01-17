@@ -181,7 +181,7 @@ pub fip fun exp10( exp : int ) : int
 pub fip extern pow( i : int, exp : int ) : int
   c  "kk_integer_pow"
   cs "Primitive.IntPow"
-  js "_int_pow"
+  js "$std_core_types._int_pow"
 
 // Raise an integer `i` to the power of `exp`.
 pub fip fun (^)(i : int, exp : int ) : int
@@ -195,23 +195,23 @@ pub fip fun exp2( exp : int ) : int
 pub fip extern is-exp10( i : int ) : int
   c  "kk_integer_ctz"
   cs "Primitive.IntCountPow10"
-  js "_int_count_pow10"
+  js "$std_core_types._int_count_pow10"
 
 // Return the number of decimal digits of `i`. Return `0` when `i==0`.
 pub fip extern count-digits( i : int ) : int
   c  "kk_integer_count_digits"
   cs "Primitive.IntCountDigits"
-  js "_int_count_digits"
+  js "$std_core_types._int_count_digits"
 
 pub fip extern mul-exp10( i : int, n : int ) : int
   c  "kk_integer_mul_pow10"
   cs "Primitive.IntMulPow10"
-  js "_int_mul_pow10"
+  js "$std_core_types._int_mul_pow10"
 
 pub fip extern cdiv-exp10( i : int, n : int ) : int
   c  "kk_integer_cdiv_pow10"
   cs "Primitive.IntCDivPow10"
-  js "_int_cdiv_pow10"
+  js "$std_core_types._int_cdiv_pow10"
 
 pub fun cdivmod-exp10( i : int, n : int ) : (int,int)
   if n <= 0 return (i,0)
