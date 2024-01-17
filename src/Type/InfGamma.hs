@@ -97,15 +97,20 @@ infgammaLookupEx guard name (InfGamma infgamma)
   = let mbinfos = M.lookup (unqualifyFull name) infgamma
     in case mbinfos of
          Nothing    -> Left []
-         Just infos -> let lqname = requalifyLocally name in
+         Just infos -> let lqname = requalifyLocally name in  -- maybe it is a locally qualified name?
                        -- trace ("infgammaLookupEx: " ++ show (name,lqname) ++ ": " ++ show (map infoCName infos)) $
                        case filter (\info -> guard info && infoCName info == lqname) infos of
                         (info:_) -> -- first exact match in the local scope
                                     Right (infoCName info, info)
                         _        -> -- match qualifiers
                                     case filter (\info -> guard info && matchQualifiers name (infoCName info)) infos of
+                                      -- recursive definitions add the fully qualified name to the infgamma;
+                                      -- we cannot consider it an exact match though as another global definition may match better.
+                                      -- see also issue #433
+                                      {-
                                       [info]    -- recursive definitions add the fully qualified name to the infgamma; in that case we also consider it an exact match
                                                 | unqualify (infoCName info) == lqname -> Right (infoCName info, info)
+                                      -}
                                       matches  -> Left [(infoCName info, info) | info <- matches]
 
 

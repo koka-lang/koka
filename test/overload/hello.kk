@@ -5,9 +5,6 @@
 fun int/eq( x : int, y : int ) : bool
   (x == y)
 
-fun float64/eq( x : float64, y : float64 ) : bool
-  (x == y)
-
 fun char/eq( x : char, y : char ) : bool
   (x == y)
 

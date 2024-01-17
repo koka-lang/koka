@@ -2035,6 +2035,7 @@ lookupInfName name
        case infgammaLookupEx (const True) (unqualify name) (infgamma env) of
          Right (name,info) -> return (Just (name,infoType info))
          Left []    -> return Nothing
+         Left [_]   -> return Nothing -- a recursive def. has a fully qualified name so matches also just the stem.
          Left infos -> do def <- currentDefName
                           failure ("InferMonad.lookupInfName: ambigous local? " ++ show def ++ ": " ++ show name ++ ":\n" ++ unlines (map show infos))
 

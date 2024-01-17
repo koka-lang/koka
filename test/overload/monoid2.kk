@@ -1,3 +1,5 @@
+import std/num/float64
+
 value struct monoid<a>
   mzero : a
   mplus : (a,a) -> a

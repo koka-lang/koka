@@ -59,7 +59,7 @@ import Common.ColorScheme ( colorSource, ColorScheme, darkColorScheme, lightColo
 import Common.Name (nameNil, Name, readQualifiedName)
 import Common.File ( realPath, normalize, getCwd, realPath, normalize, getCurrentTime )
 import Common.Error (ppErrorMessage)
-import Lib.PPrint (Pretty(..), asString, writePrettyLn,  Doc, writePretty, writePrettyW)
+import Lib.PPrint (Pretty(..), asString, writePrettyLn,  Doc, writePretty, writePrettyW, (<->), text)
 import Lib.Printer (withColorPrinter, withColor, writeLn, ansiDefault, AnsiStringPrinter (AnsiString), Color (Red), ColorPrinter (PAnsiString, PHtmlText), withHtmlTextPrinter, HtmlTextPrinter (..))
 import Compiler.Compile (Terminal (..), Loaded (..), Module (..))
 import Compiler.Options (Flags (..), prettyEnvFromFlags, verbose)
