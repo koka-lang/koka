@@ -75,6 +75,7 @@ effect val ask : int
 fun print-ask() : <ask,console> ()
   println(ask)
 
+
 // Using different handlers for each invocation
 pub fun main()
   with val ask = 42 in print-ask()

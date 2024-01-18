@@ -33,7 +33,7 @@ module Common.NamePrim
           , nameAssert
 
           , nameUnit
-          , nameReturn, nameTrace, nameLog, namePhantom
+          , nameReturn, nameTrace, nameLog
           , nameEffectOpen
           , nameToAny
           , nameBind, nameBind2
@@ -131,7 +131,7 @@ module Common.NamePrim
           -- , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
           -- , nameTpNull
           -}
-          , nameTpValueOp
+          , nameTpValueOp, nameValueOp
           , nameTpNamed, nameTpScope
 
 
@@ -353,8 +353,8 @@ isClauseTailName name
   std/core/types
 --------------------------------------------------------------------------}
 nameToAny       = coreTypesName "@toany"
-namePhantom     = coreTypesName "@phantom"
-nameTpValueOp   = coreTypesName "@value"
+nameValueOp     = coreTypesName "@Valueop"
+nameTpValueOp   = coreTypesName "@valueop"
 
 nameDecreasing  = qualify nameCoreUndiv (newName "pretend-decreasing")
 nameUnsafeTotal = qualify nameCoreUnsafe (newName "unsafe-total")

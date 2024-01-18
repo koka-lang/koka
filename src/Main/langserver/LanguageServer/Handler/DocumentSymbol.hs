@@ -25,7 +25,7 @@ import Language.LSP.Server               ( Handlers, requestHandler )
 import qualified Common.Range            as R
 import Common.Syntax                     ( DefSort (..), Visibility )
 import Common.Name                       ( Name (..), isHiddenName, nameLocal )
-import Common.NamePrim (namePhantom)
+
 import Compiler.Module                   ( modProgram, loadedModule, Loaded (..) )
 import Syntax.Syntax
 import LanguageServer.Conversions        ( toLspRange )
@@ -212,7 +212,7 @@ instance HasSymbols UserPattern where
 
 makeSymbolSelect :: Name -> J.SymbolKind -> R.Range -> R.Range -> [J.DocumentSymbol] -> [J.DocumentSymbol]
 makeSymbolSelect n k r rngSelect cs =
-  [J.DocumentSymbol name detail kind tags deprecated range selRange children | nameLocal n /= "" && not (isHiddenName n) && n /= namePhantom]
+  [J.DocumentSymbol name detail kind tags deprecated range selRange children | nameLocal n /= "" && not (isHiddenName n)]
   where
     name = T.pack $ nameLocal n
     detail = Just $ T.pack $ nameModule n
@@ -225,7 +225,7 @@ makeSymbolSelect n k r rngSelect cs =
 
 makeSymbol :: Name -> J.SymbolKind -> R.Range -> [J.DocumentSymbol] -> [J.DocumentSymbol]
 makeSymbol n k r cs =
-  [J.DocumentSymbol name detail kind tags deprecated range selRange children | nameLocal n /= "" && not (isHiddenName n) && n /= namePhantom]
+  [J.DocumentSymbol name detail kind tags deprecated range selRange children | nameLocal n /= "" && not (isHiddenName n)]
   where
     name = T.pack $ nameLocal n
     detail = Just $ T.pack $ nameModule n

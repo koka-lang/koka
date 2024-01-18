@@ -546,7 +546,8 @@ isTypeLocalVar tp =
 
 isValueOperation tp
   = case splitPredType tp of
-      (_,_,TSyn syn [opTp] _) -> typeSynName syn == nameTpValueOp
+      -- (_,_,TSyn syn [_,_] _) -> typeSynName syn == nameTpValueOp
+      (_,_,TApp (TCon (TypeCon name _)) [_,_]) -> name == nameTpValueOp
       _ -> False
 
 orderEffect :: Tau -> Tau

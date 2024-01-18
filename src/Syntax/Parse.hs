@@ -875,7 +875,7 @@ makeEffectDecl decl =
       docx       = doc ++ docOperations
       docOperations = "\n// Operations:\n// ```koka\n" ++ (unlines $ map ("// "++) $
                       [ show (opdeclSort op) ++ " " ++ show (toBasicOperationsName (opdeclName op)) | op <- operations ])
-                      ++ "// \n```"
+                      ++ "// ```\n"
 
       (effTpDecl,wrapAction)
                 = if isInstance
@@ -1135,7 +1135,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect docEffectDecl
 
            -- create an operation selector explicitly so we can hide the handler constructor
            selectId    = toOpSelectorName id
-           opSelect = let def       = Def binder krng vis (defFun [Borrow]) InlineAlways ("// select `" ++ show id ++ "` operation out of the " ++ docEffect ++ " handler")
+           opSelect = let def       = Def binder krng vis (defFun [Borrow]) InlineAlways ("// select `" ++ show id ++ "` operation out of " ++ docEffect)
                           nameRng   = krng
                           binder    = ValueBinder selectId () body nameRng nameRng
                           body      = Ann (Lam [hndParam] innerBody grng) fullTp grng
@@ -1203,8 +1203,8 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect docEffectDecl
            -- create a temporary value definition for type checking
            opValDef = if isValueOperationName id then
                          let opName  = fromValueOperationsName id
-                             qualTpe = promoteType (TpApp (TpCon nameTpValueOp krng) [tres] krng)
-                             phantom = App (Var namePhantom False krng) [] krng
+                             qualTpe = promoteType (TpApp (TpCon nameTpValueOp krng) [teff,tres] krng)
+                             phantom = Var nameValueOp False krng -- App (Var namePhantom False krng) [] krng
                              annot   = Ann phantom qualTpe krng
                          in Just $ Def (ValueBinder opName () annot (rangeHide idrng) krng)
                                         idrng vis DefVal InlineNever docDef

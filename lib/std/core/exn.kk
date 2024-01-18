@@ -104,7 +104,6 @@ pub fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <
   match mask<exn>{ try(action) }
     TryOk(x)    { x
     TryExn(exn) { hndler(exn); throw(exn)
-
 */
 
 // Set a `hndler` that is always called when the `action` finishes (either normally or with an exception).

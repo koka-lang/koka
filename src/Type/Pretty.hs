@@ -384,6 +384,8 @@ ppType env tp
                             _   -> text "<" <.> hcat (punctuate comma (map (ppType env{prec=precTop}) ls)) <.> tldoc <.> text ">"
 
       TApp (TCon con) [eff,res]
+                    | typeConName con == nameTpValueOp && not (coreIface env)
+                    -> text "->" <+> ppType env eff <+> ppType env res
                     | typeConName con == nameTpDelay
                     -> text "$" <+>
                        (if (isTypeTotal eff) then empty else (ppType env{prec = precArrow} eff <.> space)) <.>
@@ -392,8 +394,6 @@ ppType env tp
       TApp (TCon con) [arg]
                     | typeConName con == nameTpOptional && not (coreIface env)
                     -> text "?" <+> ppType env{prec=precAtom} arg
-                    | typeConName con == nameTpValueOp && not (coreIface env)
-                    -> text "val" <+> ppType env{prec=precAtom} arg
                     | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1) && not (coreIface env)
                     -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTpTuple (name)

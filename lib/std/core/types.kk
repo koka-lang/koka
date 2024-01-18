@@ -407,13 +407,8 @@ pub inline extern @toany( x : a ) : any
 
 // Internal: used for value effects
 // TODO: revisit value effects codegen
-pub alias @value<a> = a
-
-// Internal: used for value effects
-// TODO: revisit value effects codegen
-pub extern @phantom<a>() : a
-  c inline "kk_box_null()"
-  inline "undefined"
+pub type @valueop<e::E,a::V>
+  con @Valueop
 
 
 // ----------------------------------------------------------------------------
