@@ -468,9 +468,15 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl 
            (resTp,resCore) <- maybeGeneralize rng nameRng eff expect tp coreExpr -- may not have been generalized due to annotation
            -- traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env resTp
            inferUnify (checkValue rng) nameRng typeTotal eff
-           if (verbose penv >= 3)
-            then Lib.Trace.trace (show (text " inferred" <+> pretty name <.> text ":" <+> niceType penv tp)) $ return ()
-            else return ()
+           when (verbose penv >= 3) $
+            Lib.Trace.trace (show (text " inferred" <+> pretty name <.> text ":" <+> niceType penv tp)) $ return ()
+
+           when (isDefFun sort) $
+             case splitFunScheme resTp of
+               Just (_,_,_,_,resultTp)
+                 -> addRangeInfo (endOfRange vrng {-')'-}) (RM.Id (newName "result") (RM.NIValue "expr" resultTp "" False) [] True)
+               _ -> return ()
+
            subst (Core.Def name resTp resCore vis sort inl nameRng doc)  -- must 'subst' since the total unification can cause substitution. (see test/type/hr1a)
 
 isAnnotatedBinder :: ValueBinder (Maybe Type) x -> Bool

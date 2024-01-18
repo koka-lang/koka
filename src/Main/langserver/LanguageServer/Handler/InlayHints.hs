@@ -95,6 +95,7 @@ typeHint env lexemes range rinfo
       _ -> []
   where
     hasAnnot = case lexemes of
+                 Lexeme _ (LexKeyword ":" _) : _      -> True
                  _ : Lexeme _ (LexKeyword ":" _) : _  -> True
                  _                                    -> False
 

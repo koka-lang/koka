@@ -336,7 +336,7 @@ extendRange (Range start end h) ofs
 -- | Create a range for the final character in the range
 endOfRange :: Range -> Range
 endOfRange range@(Range p1@(Pos _ ofs1 l1 c1) p2@(Pos src ofs2 l2 c2) h)
-  = if (ofs2 - ofs1) <= 1 then range else Range (Pos src (ofs2-1) l2 (c2-1)) p2 h
+  = if (ofs2 - ofs1) <= 1 then range else Range p2 p2 h
 
 
 rangeContains, rangeIsBefore, rangeStartsAt :: Range -> Pos -> Bool
@@ -355,9 +355,8 @@ rangeJustBefore range@(Range (Pos src ofs l c) _ h)
           in Range pos pos h
 
 rangeJustAfter range@(Range _ (Pos src ofs l c) h)
-  = if ofs < 0 then range
-     else let pos = Pos src (ofs+1) l (c+1)
-          in Range pos pos h
+  = let pos = Pos src (ofs+1) l (c+1)
+    in Range pos pos h
 
 {--------------------------------------------------------------------------
   Ranged class

@@ -968,7 +968,7 @@ makeEffectDecl decl =
                     (Nothing, Var (newName "hnd") False krng),
                     (Nothing, Var (newName "ret") False krng),
                     (Nothing, wrapAction (Var (newName "action") False krng))]
-      handleDef  =  Def (ValueBinder handleName () handleBody (rangeHide irng) rng)
+      handleDef  =  Def (ValueBinder handleName () handleBody (rangeHide irng) grng)
                         grng vis (defFun []) InlineNever ("// handler for the " ++ docEffect)
 
    in [DefType effTpDecl, DefValue tagDef, DefType hndTpDecl, DefValue handleDef]
@@ -1289,7 +1289,7 @@ funDecl toplevel rng doc vis inline fip
        body   <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
-       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis
+       return (Def (ValueBinder name () (ann fun) nameRng (combineRange nameRng parsRng)) (combineRanged rng fun) vis
                        (defFunEx pinfos fip) inline doc)
 
 -- fundef: forall parameters, parameters, (effecttp, resulttp), annotation
