@@ -131,7 +131,7 @@ inferDefGroup topLevel (DefNonRec def) cont
                     in if topLevel
                            then let core0 = core{ Core.defName = qualify mod (Core.defName core) }
                                 in extendGammaCore False {- already canonical? -} [Core.DefNonRec core0] $
-                                    do coreDef <- fixCanonicalName core0
+                                    do coreDef <- fixCanonicalName False core0
                                        x <- cont
                                        return (x,coreDef)
                            else do x <- extendInfGammaCore topLevel [Core.DefNonRec core] cont
@@ -146,7 +146,7 @@ inferDefGroup topLevel (DefRec defs) cont
        (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGammaEx topLevel [] infgamma $
                                  do assumed <- mapM (\def -> lookupInfName (getName def)) defs
                                     coreDefs0 <- mapM (\def -> inferDef Instantiated def) defs
-                                    coreDefs1 <- mapM fixCanonicalName coreDefs0
+                                    coreDefs1 <- mapM (fixCanonicalName True) coreDefs0
                                     return (coreDefs1,assumed)
        -- re-analyze the mutual recursive groups
        scoreDefsX <- subst coreDefsX
@@ -250,10 +250,10 @@ checkRecVal (Core.DefRec defs)
       = if (not (Core.defIsVal def)) then return () else
          do infError (Core.defNameRange def) (text ("value definition is recursive.\n  recursive group: " ++ show (map Core.defName defs)))
 
-fixCanonicalName :: Core.Def -> Inf Core.Def
-fixCanonicalName def
+fixCanonicalName :: Bool -> Core.Def -> Inf Core.Def
+fixCanonicalName isRec def
   = do -- first look in the inf gamma for recursive definitions (since they may not resolve unambiguously)
-       mbAssumedType <- lookupInfName (Core.defName def)
+       mbAssumedType <- if isRec then lookupInfName (Core.defName def) else return Nothing
        case mbAssumedType of
          Just (qname,_)
            -> return (def{ Core.defName = qname })
