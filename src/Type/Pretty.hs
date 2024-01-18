@@ -28,7 +28,7 @@ import Lib.PPrint
 import Common.Name
 import Common.NamePrim( isNameTpTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty,
                         nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore, nameCoreTypes, nameTpUnit,
-                        isSystemCoreName )
+                        isSystemCoreName, nameTpValueOp )
 import Common.ColorScheme
 import Common.IdNice
 import Common.Syntax
@@ -390,8 +390,10 @@ ppType env tp
                        ppType env{prec=precArrow} res
 
       TApp (TCon con) [arg]
-                    | typeConName con == nameTpOptional && colorizing env
+                    | typeConName con == nameTpOptional && not (coreIface env)
                     -> text "?" <+> ppType env{prec=precAtom} arg
+                    | typeConName con == nameTpValueOp && not (coreIface env)
+                    -> text "val" <+> ppType env{prec=precAtom} arg
                     | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1) && not (coreIface env)
                     -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTpTuple (name)

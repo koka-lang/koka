@@ -41,7 +41,7 @@ module Common.Name
           , toOpsConName, toOpConName, toOpTypeName
           , toConstructorName, isConstructorName, toVarName
           , toOpenTagName, isOpenTagName
-          , toValueOperationName, isValueOperationName, fromValueOperationsName
+          , toValueOperationName, isValueOperationName, fromValueOperationsName, toBasicOperationsName
           , splitModuleName, unsplitModuleName, mergeCommonPath, splitLocalQualName
           , missingQualifier
           , isEarlyBindName
@@ -769,6 +769,11 @@ isValueOperationName name
 fromValueOperationsName :: Name -> Name
 fromValueOperationsName name
   = unmakeHidden "val" name
+
+-- | Create an operation name from either a value operation name or regular operations name
+toBasicOperationsName :: Name -> Name
+toBasicOperationsName name
+  = if isValueOperationName name then unmakeHidden "val" name else name
 
 
 implicitNameSpace :: String

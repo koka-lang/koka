@@ -27,6 +27,7 @@ import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 import Common.Range as R
 import Common.Name (nameNil)
 import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
+import Kind.Kind(isKindEffect,isKindHandled,isKindHandled1,isKindLabel)
 import Lib.PPrint
 import Compiler.Module (loadedModule, modRangeMap, modLexemes, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
 import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
@@ -112,7 +113,12 @@ formatRangeInfoHover loaded env colors rinfo
             signature = case info of
                           NIValue sort tp doc _  -> (if null sort then empty else kw sort) <+> namedoc <+> text ":" <+> ppScheme env tp
                           NICon tp doc      -> kw "con" <+> namedoc <+> text ":" <+> ppScheme env tp
-                          NITypeCon k doc   -> kw "type" <+> namedoc <+> text "::" <+> prettyKind colors k
+                          NITypeCon k doc   -> (if isKindEffect k || isKindHandled k || isKindLabel k
+                                                  then kw "effect"
+                                                  else if isKindHandled1 k
+                                                    then kw "linear effect"
+                                                    else kw "type")
+                                                <+> namedoc <+> text "::" <+> prettyKind colors k
                           NITypeVar k       -> kw "type" <+> namedoc <+> text "::" <+> prettyKind colors k
                           NIModule -> kw "module" <+> namedoc <.>
                                       (case filter (\mod -> modName mod == qname) (loadedModules loaded) of
