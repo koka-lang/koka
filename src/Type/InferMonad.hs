@@ -1048,8 +1048,9 @@ data ImplicitArg   = ImplicitArg{ iaName :: Name
                                 }
 
 -- Further implicit arguments are delayed (in an `Inf` computation) so we can breadth-first search
-data Partial   = Step (Inf [ImplicitArg])
-               | Done ImplicitArg
+data Partial   = Step  (Inf [ImplicitArg])  -- compute on demand
+               | Done  ImplicitArg          -- this step is done
+               | Infty NameContext          -- an infinite chain on the given context
 
 
 -- An implicit argument has a cost where we prefer the least solution when disambiguating
@@ -1083,8 +1084,9 @@ csum xs
 isDone :: ImplicitArg -> Bool
 isDone (ImplicitArg _ _ _ iargs)
   = all (\(pname,partial) -> case partial of
-                              Done iarg  -> isDone iarg
-                              Step _     -> False
+                              Done iarg -> isDone iarg
+                              Step _    -> False
+                              Infty _   -> False
         ) iargs
 
 
@@ -1095,9 +1097,9 @@ implicitArgCost iarg
     in cadd (Exact base) (csum (map (partialCost . snd) (iaImplicitArgs iarg)))
 
 partialCost :: Partial -> Cost
-partialCost (Step inf)  = Least 1
-partialCost (Done iarg) = cadd (Exact 1) (implicitArgCost iarg)
-
+partialCost (Step inf)    = Least 1
+partialCost (Done iarg)   = cadd (Exact 1) (implicitArgCost iarg)
+partialCost (Infty tp)    = Least 10000
 
 prettyImplicitArg :: Pretty.Env -> ImplicitArg -> Doc
 prettyImplicitArg penv (ImplicitArg name info rho iargs)
@@ -1116,8 +1118,9 @@ prettyImplicitArg penv (ImplicitArg name info rho iargs)
 prettyPartial :: Pretty.Env -> Name -> Partial -> Doc
 prettyPartial penv pname partial
   = case partial of
-      Step _    -> Pretty.ppNamePlain penv pname <.> text "=" <.> text "..."
-      Done iarg -> prettyImplicitAssign penv "" pname iarg True
+      Step _     -> Pretty.ppNamePlain penv pname <.> text "=" <.> text "..."
+      Done iarg  -> prettyImplicitAssign penv "" pname iarg True
+      Infty nctx -> text "... : " <+> ppNameContext penv nctx
 
 prettyImplicitAssign :: Pretty.Env -> String -> Name -> ImplicitArg -> (Bool -> Doc)
 prettyImplicitAssign penv prefix pname iarg
@@ -1138,7 +1141,7 @@ resolveMaxChainDepth = 8   -- prevent infinite expansion
 
 resolveImplicitArg :: Bool -> Bool -> [(NameInfo -> Bool, Name, NameContext, Range)] -> Inf (Either [Doc] (ImplicitArg))
 resolveImplicitArg allowDisambiguate allowUnitFunVal roots
-  = do candidates1 <- concatMapM (\(infoFilter,name,ctx,range) -> lookupImplicitArg allowUnitFunVal infoFilter name ctx range) roots
+  = do candidates1 <- concatMapM (\(infoFilter,name,ctx,range) -> lookupImplicitArg allowUnitFunVal infoFilter [] name ctx range) roots
        let candidates2 = filter (not . existConCreator candidates1) candidates1
        resolveBest allowDisambiguate 0 candidates2
   where
@@ -1162,7 +1165,7 @@ resolveBest allowDisambiguate depth candidates | depth > resolveMaxChainDepth
                 _           -> return amb
 
 resolveBest allowDisambiguate depth candidates
-  = do -- traceDefDoc $ \penv -> text "resolveBest" <+> pretty depth <+> text "candidates:" <->
+  = do --traceDefDoc $ \penv -> text "resolveBest" <+> pretty (depth,allowDisambiguate) <+> text "candidates:" <->
        --                                                indent 2 (vcat (map (prettyImplicitArg penv) candidates))
        case findBest allowDisambiguate candidates of
         Found iarg       -> -- found a unique one, it should always be fully resolved by now
@@ -1184,7 +1187,7 @@ resolveBest allowDisambiguate depth candidates
 -- Resolve all implicit candidates one step more, this can give
 -- many more new candidates (or less when further implicits cannot be resolved)
 resolveStep :: [(Name,Rho)] -> [ImplicitArg] -> Inf [ImplicitArg]
-resolveStep previousTypes iargs
+resolveStep previousTypes0 iargs
   = concatMapM step iargs
   where
     step :: ImplicitArg -> Inf [ImplicitArg]
@@ -1192,21 +1195,29 @@ resolveStep previousTypes iargs
       = if isDone iarg
           then return [iarg]
           else do let (pnames,partials) = unzip (iaImplicitArgs iarg)
-                  yss <- sequence <$>  -- take the cartesian product of the argument solutions
+                  pss <- sequence <$>  -- take the cartesian product of the argument solutions
                          mapM partialStep partials
-                  return [iarg{ iaImplicitArgs = zip pnames (map Done ys) } | ys <- yss]
+                  return [iarg{ iaImplicitArgs = zip pnames ps } | ps <- pss]
       where
-        partialStep :: Partial -> Inf [ImplicitArg]
+        previousTypes
+          = (iaName iarg,iaType iarg):previousTypes0
+
+        partialStep :: Partial -> Inf [Partial]
         partialStep (Step inf)
-          = do xs <- inf -- compute one more step
+          = do -- traceDefDoc $ \penv -> text "partial step, previous types:" <+> hcat (map (Pretty.ppType penv . snd) previousTypes)
+               xs <- inf -- compute one more step
                -- but filter out solutions that have been tried before (to stop infinite chains)
                -- this happens when the shape of a type matches a previous one
                -- (the shape is the same if types match exactly up to unique renaming of free variables)
-               return $ filter (\iarg -> not (any (\(name,tp) -> pureMatchShape tp (iaType iarg)) previousTypes)) xs
+               return $ map Done $
+                  filter (\iarg -> not (any (\(name,tp) -> pureMatchShape tp (iaType iarg)) previousTypes)) xs
 
         partialStep (Done arg)
-          = do let previous = (iaName iarg,iaType iarg):previousTypes
-               resolveStep previous [arg]           -- recurse to the leaves
+          = do xs <- resolveStep previousTypes [arg]           -- recurse to the leaves
+               return (map Done xs)
+
+        partialStep (Infty nctx)
+          = return [Infty nctx]
 
 
 
@@ -1279,9 +1290,9 @@ filterAlwaysWorse sorted@(iarg:iargs)
 -- Lookup an implicit parameter name (or app name `f(...)`).
 -- Returns list of (partial) implicit arguments
 -- (`depth` is just passed for tracing)
-lookupImplicitArg :: Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [ImplicitArg]
-lookupImplicitArg allowUnitFunVal infoFilter name ctx range
-  = do -- traceDefDoc $ \penv -> text "lookupImplicitArg:" <+> ppNameCtx penv (name,ctx)
+lookupImplicitArg :: Bool -> (NameInfo -> Bool) -> [(Name,NameContext)] -> Name -> NameContext -> Range -> Inf [ImplicitArg]
+lookupImplicitArg allowUnitFunVal infoFilter previousCtxs name ctx range
+  = do -- traceDefDoc $ \penv -> text "lookupImplicitArg:" <+> ppNameCtx penv (name,ctx) <+> text ", previous:" <+> list (map (ppNameCtx penv) previousCtxs)
        candidates0 <- lookupNames infoFilter name ctx range
        candidates  <- case ctx of
                         -- for implicits we also allow conversion unit functions for values
@@ -1322,9 +1333,15 @@ lookupImplicitArg allowUnitFunVal infoFilter name ctx range
     resolveImplicit (pname,ptp)
       = -- recursively solve further implicits (but return the computation to allow for breath first search)
         let (pnameName,pnameExpr) = splitImplicitParamName pname
-        in  (pnameName, Step $ -- delay evaluation so we can do breadth first search
-                        lookupImplicitArg True {- allow unit val -} infoFilter pnameExpr
-                          (implicitTypeContext ptp) (endOfRange range)) -- use end of range to deprioritize with hover info
+            newCtxs = (name,ctx):previousCtxs
+            newCtx  = implicitTypeContext ptp
+        in  (pnameName, if any (\(nm,ctx) -> nm == pnameExpr && pureMatchShapeNameCtx newCtx ctx) newCtxs
+                          then -- we already looked for a type of the exact same shape, this search branch will go on forever
+                               Infty newCtx
+                          else Step $ -- delay evaluation so we can do breadth first search
+                               lookupImplicitArg True {- allow unit val -} infoFilter
+                                 newCtxs pnameExpr newCtx
+                                 (endOfRange range)) -- use end of range to deprioritize with hover info
 
 
 -- Convert an implicit argument to an expression (that is supplied as the argument)
@@ -1485,6 +1502,19 @@ ppNameContext penv ctx
 
 ppNameCtx :: Pretty.Env -> (Name,NameContext) -> Doc
 ppNameCtx penv (name,ctx) = Pretty.ppName penv name <+> text ":" <+> ppNameContext penv ctx
+
+
+pureMatchShapeNameCtx :: NameContext -> NameContext -> Bool
+pureMatchShapeNameCtx ctx1 ctx2
+  = case (ctx1,ctx2) of
+      (CtxType tp1, CtxType tp2)  -> pureMatchShape tp1 tp2
+      (CtxFunTypes some1 fixed1 named1 mbResTp1, CtxFunTypes some2 fixed2 named2 mbResTp2 )
+        -> (some1 == some2) && and (zipWith pureMatchShape fixed1 fixed2) && null named1 && null named2
+           && (case (mbResTp1,mbResTp2) of
+                 (Nothing,Nothing) -> True
+                 (Just tp1, Just tp2) -> pureMatchShape tp1 tp2
+                 _ -> False)
+      _ -> False
 
 
 -- Create a name context where the argument count is known (and perhaps some named arguments)

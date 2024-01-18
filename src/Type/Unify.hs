@@ -123,7 +123,7 @@ matchArguments :: Bool -> Range -> Tvs -> Type -> [Type] -> [(Name,Type)] -> May
 matchArguments matchSome range free tp fixed named mbExpResTp
   = do rho1 <- instantiate range tp
        case splitFunType rho1 of
-         Nothing -> --unifyError NoMatch
+         Nothing -> -- unifyError NoMatch
                     do resTp <- case mbExpResTp of
                                   Just rtp -> return rtp
                                   Nothing  -> freshTVar kindStar Meta

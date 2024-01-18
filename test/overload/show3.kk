@@ -1,4 +1,5 @@
 // encode Haskell show instances where we show list of characters specially
+import std/num/float64
 
 fun int/showx( i : int ) : string
   i.show
