@@ -230,17 +230,6 @@ pub fun @default-exn(action : () -> <exn,console|e> () ) : <console|e> ()
 
 
 // ----------------------------------------------------------------------------
-// References
-// ----------------------------------------------------------------------------
-
-// Assign to an entry in a local `:vector` variable.
-pub inline extern index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> ()
-  c  "kk_ref_vector_assign_borrow"
-  cs inline "(#1)[(int)#2] = #3"
-  js inline "(#1)[#2] = #3"
-
-
-// ----------------------------------------------------------------------------
 // Non determinism
 // ----------------------------------------------------------------------------
 

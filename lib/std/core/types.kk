@@ -478,7 +478,7 @@ pub inline fip extern @cctx-compose-extend( c1 : cctx<a,b>, c2 : cctx<b,c> ) : c
   js "$std_core_types._cctx_compose"
 
 // // Apply a constructor context
-// pub inline fip extern cctx/index( c : cctx<a,b>, x : b ) : a
+// pub inline fip extern cctx/[]( c : cctx<a,b>, x : b ) : a
 //   c inline "kk_cctx_apply(#1,#2,false /*is-linear*/,kk_context())"
 //   js "$std_core_types._cctx_apply"
 

@@ -45,9 +45,16 @@ inline extern lengthz( ^v : vector<a> ) : ssize_t
   js inline "((#1).length)"
 
 
+// Assign to an entry in a local `:vector` variable.
+pub inline extern assign/@index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> ()
+  c  "kk_ref_vector_assign_borrow"
+  cs inline "(#1)[(int)#2] = #3"
+  js inline "(#1)[#2] = #3"
+
+
 // Return the element at position `index`  in vector `v`.
 // Raise an out of bounds exception if `index < 0`  or `index >= v.length`.
-pub fun index( ^v : vector<a>, ^index : int ) : exn a
+pub fun @index( ^v : vector<a>, ^index : int ) : exn a
   val idx = index.ssize_t()
   if idx < v.lengthz then unsafe-idx(v,idx) else throw("index out of bounds",ExnRange)
 
@@ -160,6 +167,7 @@ fun for-whilez( n : ssize_t, action : (ssize_t) -> e maybe<a> ) : e maybe<a>
         Just(x) -> Just(x)
     else Nothing
   rep(0.ssize_t)
+
 
 
 

@@ -359,7 +359,7 @@ nameTpValueOp   = coreTypesName "@value"
 nameDecreasing  = qualify nameCoreUndiv (newName "pretend-decreasing")
 nameUnsafeTotal = qualify nameCoreUnsafe (newName "unsafe-total")
 
-nameIndex       = newName "index"
+nameIndex       = newHiddenName "index"
 nameReturn      = newHiddenName "return"
 nameAssign      = newHiddenName "@assign"  -- used for :=
 

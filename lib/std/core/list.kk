@@ -491,9 +491,9 @@ pub fun init( xs : list<a> ) : list<a>
     _ -> Nil
 
 // Get (zero-based) element `n`  of a list. Return a `:maybe` type.
-pub fun index( xs : list<a>, n : int ) : maybe<a>
+pub fun @index( xs : list<a>, n : int ) : maybe<a>
   match xs
-    Cons(x,xx) -> if n>0 then xx[n - 1]
+    Cons(x,xx) -> if n>0 then xx[n - 1]   // == @index(xx,n-1)
                   elif n==0 then Just(x)
                   else Nothing
     Nil -> Nothing
