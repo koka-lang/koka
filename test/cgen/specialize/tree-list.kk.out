@@ -1,6 +1,6 @@
 Tree(2, [Tree(3, []), Tree(4, [])])
  
-cgen/specialize/tree-list/tree/@copy: forall<a> (tree<a>, data : @optional<a>, children : @optional<list<tree<a>>>) -> tree<a>
+cgen/specialize/tree-list/tree/@copy: forall<a> (tree<a>, data : ? a, children : ? (list<tree<a>>)) -> tree<a>
 cgen/specialize/tree-list/tree/children: forall<a> (tree : tree<a>) -> list<tree<a>>
 cgen/specialize/tree-list/tree/data: forall<a> (tree : tree<a>) -> a
 cgen/specialize/tree-list/@lift-xxx: (tree<int>) -> <div,console> tree<int>

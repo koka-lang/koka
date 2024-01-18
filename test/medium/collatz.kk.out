@@ -1,4 +1,4 @@
 Took 111 steps@
  
-medium/collatz/collatz: (n : int, steps : @optional<int>) -> div maybe<int>
+medium/collatz/collatz: (n : int, steps : ? int) -> div maybe<int>
 medium/collatz/main: () -> io ()

@@ -24,7 +24,7 @@ algeff/scoped/flip: () -> nondet bool
 algeff/scoped/get: forall<a> () -> (state<a>) a
 algeff/scoped/global: forall<a,b,e> (s : a, action : () -> <div,nondet,state<a>|e> b) -> <div|e> (a, list<b>)
 algeff/scoped/hcutfail: forall<a,e> (() -> <cutfail,nondet|e> a) -> <nondet|e> a
-algeff/scoped/incr: (i : @optional<int>) -> (state<int>) ()
+algeff/scoped/incr: (i : ? int) -> (state<int>) ()
 algeff/scoped/knapsack: (w : int, vs : list<int>) -> <div,nondet> list<int>
 algeff/scoped/local: forall<a,b,e> (s : a, action : () -> <div,nondet,state<a>|e> b) -> <div|e> list<(a, b)>
 algeff/scoped/main: () -> <console,div> ()

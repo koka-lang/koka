@@ -12,10 +12,10 @@ pub fun hello/i : (^ hello : parc/parc22/hello) -> int
  -> std/core/types/@dup(@x);
  };
  };
-pub fun hello/@copy : (@this : parc/parc22/hello, i : @optional<int>) -> parc/parc22/hello
- = fn(@this: parc/parc22/hello, i: @optional<int>){
+pub fun hello/@copy : (@this : parc/parc22/hello, i : ? int) -> parc/parc22/hello
+ = fn(@this: parc/parc22/hello, i: ? int){
  parc/parc22/World((match (i) {
- (std/core/types/@Optional(((@skip std/core/types/@Box((@uniq-i@xxx: int)) : @Box ) as @box-xxx: @Box)) : @optional<int> )
+ (std/core/types/@Optional(((@skip std/core/types/@Box((@uniq-i@xxx: int)) : @Box ) as @box-xxx: @Box)) : ? int )
  -> val _ : int
  = std/core/types/@dup(@uniq-i@xxx);
  val _ : ()
@@ -23,7 +23,7 @@ pub fun hello/@copy : (@this : parc/parc22/hello, i : @optional<int>) -> parc/pa
  val _ : ()
  = std/core/types/@drop(@this, (std/core/types/@make-int32(1)));
  @uniq-i@xxx;
- (@skip std/core/types/@None() : (@optional<int>) )
+ (@skip std/core/types/@None() : ? int )
  -> val _ : ()
  = std/core/types/@drop(i);
  (match (@this) {

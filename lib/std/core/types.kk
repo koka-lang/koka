@@ -18,7 +18,7 @@
    * `V`   value types (i.e. the star kind)
    * `E`   effect rows (`<div,exn|e>`)
    * `X`   a single effect (`div`, `exn`, `parse`, etc.), also called atomic effect
-   * `HX`  a handled effect type; use `handled` to lift it to an `X`
+   * `HX`  a handled effect type (i.e. a used-defined effect); use `handled` to lift it to an `X`
    * `HX1` a linear handled effect type; use `handled1` to lift it to an `X`
    * `H`   heap types (always a phantom type without actual values)
 
@@ -143,6 +143,10 @@ pub alias st<h> = <read<h>, write<h>, alloc<h>>
 pub type global :: H
 
 // Handled effects are lifted to an atomic effect using the `:handled` type constructor
+// All user defined effects are `:handled` since they require a handler to be dismissed.
+// In contrast, some built-in effects, like `:div` or `:st` do not require a handler
+// as these are handled by the system.
+// In particular, the runtime evidence vector only contains `:handled` (and `:handled1`) effects.
 pub type handled    :: HX -> X;
 
 // Linear effects are lifted to an atomic effect using the `:handled1` type constructor
@@ -406,7 +410,6 @@ pub inline extern @toany( x : a ) : any
   cs inline "(object)(#1)"
 
 // Internal: used for value effects
-// TODO: revisit value effects codegen
 pub type @valueop<e::E,a::V>
   con @Valueop
 
@@ -416,7 +419,7 @@ pub type @valueop<e::E,a::V>
 // ----------------------------------------------------------------------------
 
 // _Internal_: Optional is used by the compiler to pass optional arguments.
-// It is usually displayed as `:?a` for some type `:a`.
+// It is usually displayed as `: ? tp` for some type `:tp`.
 pub value type @optional<a>
   // The `Optional` constructor is used when an optional argument is given.
   con @Optional( value : a )

@@ -5,7 +5,7 @@ algeff/perf2/extend: (queen : int, acc : solutions, xss : solutions) -> div solu
 algeff/perf2/fail: forall<a> () -> choose a
 algeff/perf2/find-solution: (n : int, col : int) -> <choose,div> solution
 algeff/perf2/find-solutions: (n : int, i : int) -> div solutions
-algeff/perf2/is-safe: (queen : int, xs : solution, diag : @optional<int>) -> bool
+algeff/perf2/is-safe: (queen : int, xs : solution, diag : ? int) -> bool
 algeff/perf2/main: () -> <console,div,ndet> ()
 algeff/perf2/pick: (n : int) -> choose int
 algeff/perf2/queens: (n : int) -> div solutions

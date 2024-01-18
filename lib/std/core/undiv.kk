@@ -20,10 +20,10 @@ import std/core/types
 pub inline fip extern pretend-decreasing( x : a ) : a
   inline "#1"
 
-// _Unsafe_. This function pretends the give action is terminating.
+// _Unsafe_. This function pretends that the given action is terminating.
 pub fun pretend-no-div( action : () -> <div|e> a ) : e a
-  unsafe-total-cast( action )()
+  pretend-nodiv-cast( action )()
 
-inline fip extern unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() -> a)
+inline fip extern pretend-nodiv-cast : forall<e,a> ( action : () -> <div|e> a ) -> (() -> e a)
   inline "#1"
 
