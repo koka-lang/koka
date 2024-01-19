@@ -48,7 +48,7 @@ pub fun example3a()
 // just with a pair of curly braces:
 // `{ ... }   ~>  fn(){ ... }`
 // This is also called _suspenders_ and very useful to define "control-flow" functions.
-// (The term "suspenders" was coined by Conor mcBride in the Frank language).
+// (The term "suspenders" was coined by Conor McBride in the Frank language).
 fun twice(f)
   f()
   f()

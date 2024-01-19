@@ -8,7 +8,7 @@
     "A new algorithm for minimum cost binary trees", Adriano M. Garsia and Michelle L. Wachs,
     SIAM Journal on Computing, 6(4):622–642, 1977.
 
-  which was further exlained by Donald E. Knuth in
+  which was further explained by Donald E. Knuth in
   "The Art of Computer Programming -- Optimum binary search trees" (Vol. 3, Sec. 6.2.2).
 
   The algorithm is interesting since it uses mutable references shared between a list and tree but the
