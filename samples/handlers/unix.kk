@@ -1,11 +1,13 @@
 // Based on Daniel Hillerström's PhD Thesis,
-// "Foundations for Programming and Implementing Effect Handlers" (chap. 2)
-// <https://www.dhil.net/research/papers/thesis.pdf>
-// which shows how to build an OS API as a composition of (orthogonal) effect handlers.
 //
+// > "Foundations for Programming and Implementing Effect Handlers" (chap. 2)
+// > <https://www.dhil.net/research/papers/thesis.pdf>
+//
+// which shows how to build an OS API as a composition of (orthogonal) effect handlers.
 // The terminology and design is based on:
-// "The UNIX Time- Sharing System" by Dennis M. Ritchie and Ken Thompson
-// https://dsf.berkeley.edu/cs262/unix.pdf
+//
+// > "The UNIX Time- Sharing System" by Dennis M. Ritchie and Ken Thompson
+// > https://dsf.berkeley.edu/cs262/unix.pdf
 
 
 // -----------------------------------------

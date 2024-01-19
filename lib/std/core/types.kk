@@ -195,14 +195,19 @@ pub value type maybe<a>
 // The choice type represents one of two possible types `:a` or `:b`.
 // See also `module std/core/either`.
 pub value type either<a,b>
+  // Left result, usually used for errors.
   con Left( left : a )
+  // Right result, usually used for success.
   con Right( right : b )
 
 // An enumeration to represent order: `Lt`, `Eq`, or `Gt`.
 // See also `module std/core/order`.
 pub type order
+  // lower-than
   Lt
+  // equal
   Eq
+  // greater-than
   Gt
 
 // The type of lists, which can be either empty (`Nil`) or an element followed
@@ -357,8 +362,10 @@ pub inline extern inject-local<a,h,e>( action : () -> e a ) : total (() -> <loca
 // Local Variables
 // ----------------------------------------------------------------------------
 
-// A local variable `:var<s,a>` points to a value of type `:a` in local scope `:s`
+// A local heap effect.
 pub type local :: (H) -> X
+
+// A local variable `:local-var<s,a>` points to a value of type `:a` in local scope `:s`.
 pub type local-var :: (H,V) -> V
 
 // Allocate a fresh local with an initial value.
@@ -379,14 +386,13 @@ pub inline extern local-get : forall<a,s,e> (v: local-var<s,a>) -> <local<s>|e> 
   cs inline "#1.Value";
   js inline "((#1).value)";
 
-
-inline extern unsafe-no-local-cast : forall<a,e> ( action : forall<h> () -> <local<h>|e> a ) -> (() -> e a)
-  inline "#1"
-
 // _Internal_: if local mutation is unobservable, the `:local` effect can be erased by using the `local-scope` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 pub inline fun local-scope<a,e>( action : forall<h> () -> <local<h> | e> a) : e a
   unsafe-no-local-cast(action)()
+
+inline extern unsafe-no-local-cast : forall<a,e> ( action : forall<h> () -> <local<h>|e> a ) -> (() -> e a)
+  inline "#1"
 
 /*
 inline extern local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a) -> e a

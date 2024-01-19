@@ -48,8 +48,8 @@ inline extern lengthz( ^v : vector<a> ) : ssize_t
 // Assign to an entry in a local `:vector` variable.
 pub inline extern assign/@index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> ()
   c  "kk_ref_vector_assign_borrow"
-  cs inline "(#1)[(int)#2] = #3"
-  js inline "(#1)[#2] = #3"
+  cs inline "(#1)[(int)#2] = #3"  // check bounds?
+  js inline "(#1)[#2] = #3"       // todo: check bounds!
 
 
 // Return the element at position `index`  in vector `v`.

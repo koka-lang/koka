@@ -10,11 +10,12 @@ module rbtree
 
 import std/os/env
 
+// A tree node color is either `Red` or `Black`
 type color
   Red
   Black
 
-
+// An ordered tree with `:int` keys and values `:a` in each node.
 type tree<a>
   Node(color : color, left : tree<a>, key : int, value : a, right : tree<a>)
   Leaf
@@ -26,6 +27,7 @@ fun tree/is-red(t : tree<a>) : bool
     _         -> False
 
 
+// balance with a new the left-side for a node `k`, `v`, `r`
 fun balance-left(l :tree<a>, k : int, v : a, r : tree<a>) : tree<a>
   match l
     Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
@@ -37,7 +39,7 @@ fun balance-left(l :tree<a>, k : int, v : a, r : tree<a>) : tree<a>
     Leaf -> Leaf
 
 
-
+// balance with a new right-side for a node `l`, `k`, `v`
 fun balance-right(l : tree<a>, k : int, v : a, r : tree<a>) : tree<a>
   match r
     Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
@@ -49,6 +51,7 @@ fun balance-right(l : tree<a>, k : int, v : a, r : tree<a>) : tree<a>
     Leaf -> Leaf
 
 
+// insert a new value `v` with key `k` into a tree `t`, rebalancing on the way up
 fun ins(t : tree<a>, k : int, v : a) : tree<a>
   match t
     Node(Red, l, kx, vx, r)
@@ -70,7 +73,7 @@ fun set-black(t : tree<a>) : tree<a>
     _ -> t
 
 
-// Tree insertion
+// Balanced tree insertion
 fun insert(t : tree<a>, k : int, v : a) : tree<a>
   if t.is-red
     then ins(t, k, v).set-black

@@ -1,10 +1,10 @@
 // First-class constructor contexts allow specifying efficient
 // top-down algorithms directly in a purely functional style.
-//
 // See the paper for a more in-depth discussion:
-//  "The Functional Essence of Imperative Binary Search Trees",
-//  Anton Lorenzen, Daan Leijen, Wouter Swierstra, and Sam Lindley,
-//  <https://www.microsoft.com/en-us/research/publication/fiptree-tr/>
+//
+// >  "The Functional Essence of Imperative Binary Search Trees",
+// >  Anton Lorenzen, Daan Leijen, Wouter Swierstra, and Sam Lindley,
+// >  <https://www.microsoft.com/en-us/research/publication/fiptree-tr/>
 //
 // Prerequisites:
 //   - `syntax/basic`
@@ -26,9 +26,10 @@ fun map-std( xs : list<a>, ^f : a -> e b ) : e list<b>
 // that Koka can actually optimize tail recursive calls under a series
 // of constructors and `map-std` will be compiled in an efficient way.
 // See the paper:
-//   "Tail Recursion Modulo Context: An Equational Approach",
-//   Daan Leijen and Anton Lorenzen, POPL'23,
-//   <https://www.microsoft.com/en-us/research/publication/tail-recursion-modulo-context-an-equational-approach-2/>
+//
+// >  "Tail Recursion Modulo Context: An Equational Approach",
+// >  Daan Leijen and Anton Lorenzen, POPL'23,
+// >  <https://www.microsoft.com/en-us/research/publication/tail-recursion-modulo-context-an-equational-approach-2/>
 //
 // To be sure this optimization happens, we can write `tail fun` to get
 // a warning if our function is not quite TRMC.

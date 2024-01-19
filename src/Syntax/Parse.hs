@@ -2162,6 +2162,7 @@ pbinder toplevel preRange
 
 funid toplevel
   = lqidentifier toplevel
+  -- [] doesn't work with local qualification
   {-
   <|>
     do rng1 <- special "["
