@@ -30,7 +30,7 @@ pub type console :: X
 noinline val redirect : ref<global,maybe<(string) -> console ()>> =
   unsafe-total { ref(Nothing) }
 
-// redirect `print` and `println` calls to a specified function.
+// Redirect `print` and `println` calls to a specified function.
 noinline fun print-redirect( print : (msg : string) -> console () ) : <ndet,console,st<global>> ()
   redirect := Just(print)
 

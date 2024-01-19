@@ -227,11 +227,11 @@ pub fun divmod-exp10( i : int, n : int ) : (int,int)
 pub fip fun is-even(i:int) : bool
   !is-odd(i)
 
-// Is the integer positive (stricly greater than zero)
+// Is the integer positive (strictly greater than zero)
 pub fip fun is-pos(i : int ) : bool
   i > 0
 
-// Is the integer negative (stricly smaller than zero)
+// Is the integer negative (strictly smaller than zero)
 pub fip fun is-neg(i : int ) : bool
   i < 0
 

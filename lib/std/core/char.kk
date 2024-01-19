@@ -72,15 +72,15 @@ pub inline fip extern int/char( i : int) : char
 pub fip fun (+)(c : char, d : char) : total char
   (c.int + d.int).char
 
-// Substract two character codePoints
+// Subtract two character code points
 pub fip fun (-)(c : char, d : char) : total char
   (c.int - d.int).char
 
-// Is the character a lower-case ASCII character ?
+// Is the character a lower-case ASCII character?
 pub fip fun is-lower( c : char ) : bool
   c >= 'a' && c <= 'z'
 
-// Is the character an upper-case ASCII character ?
+// Is the character an upper-case ASCII character?
 pub fip fun is-upper( c : char ) : bool
   c >= 'A' && c <= 'Z'
 
@@ -88,11 +88,11 @@ pub fip fun is-upper( c : char ) : bool
 pub fip fun is-digit( c : char ) : bool
   c >= '0' && c <= '9'
 
-// Is the character an ASCII hexa-decimal digit ?
+// Is the character an ASCII hexa-decimal digit?
 pub fip fun is-hex-digit( c : char ) : bool
   c.is-digit || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F')
 
-// Is the character an ASCII letter is-
+// Is the character an ASCII letter?
 pub fip fun is-alpha( c : char ) : bool
   c.is-lower || c.is-upper
 
@@ -100,11 +100,11 @@ pub fip fun is-alpha( c : char ) : bool
 pub fip fun is-alpha-num( c : char ) : bool
   c.is-alpha || c.is-digit
 
-// Is the character an ASCII character, e.g. `c <= '\x7F'`  ?
+// Is the character an ASCII character, e.g. `c <= '\x7F'`?
 pub fip fun is-ascii( c : char )     : bool
   c <= '\x7F'
 
-// Is the character an ASCII control character, e.g. `c < ' '`  ?
+// Is the character an ASCII control character, e.g. `c < ' '`?
 pub fip fun is-control( c : char )   : bool
   c < ' '
 

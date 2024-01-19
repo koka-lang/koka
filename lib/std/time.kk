@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------
    Copyright 2012-2021, Microsoft Research, Daan Leijen
 
-   Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
+   Licensed under the Apache License, Version 2.0 ("The License"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
@@ -164,7 +164,7 @@ internal representation).
 There are two other good UTC time scales though:
 
 - `ts-ti-sls` smooths leap seconds over the last 1000s of a day with a leap
-  seccond so they never appear in any displayed time or timestamp.
+  second so they never appear in any displayed time or timestamp.
 - `ts-utc-create`/`cal-utc-load` creates a proper UTC timescale from a leap
   second table. This ensures future leap seconds are fully accounted for and
   that duration calculations work properly up to 6 months into the future.

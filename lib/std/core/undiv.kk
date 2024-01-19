@@ -14,7 +14,7 @@ import std/core/types
 // _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (`:div`).
 // The compiler has a very limited termination analysis, only recognizing direct recursion on
 // inductive datatypes. When it is clear a function has a decreasing parameter but it is not recognized
-// as such by the compliler, you can wrap the arguments in `pretend-decreasing` to inform the
+// as such by the compiler, you can wrap the arguments in `pretend-decreasing` to inform the
 // termination analysis to consider that parameter decreasing on a recursive call. Use with care
 // to not accidentally allow actual divergence (without having that reflected in the effect type).
 pub inline fip extern pretend-decreasing( x : a ) : a

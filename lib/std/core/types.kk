@@ -124,7 +124,7 @@ pub type effect-extend :: (X,E) -> E
 // The divergence effect: a divergent function may not terminate.
 pub type div :: X
 
-// The non-determism effect.
+// The non-determinism effect.
 pub type ndet :: X
 
 // The alloc effect signifies a function may allocate in a heap `:h`
@@ -246,7 +246,7 @@ pub noinline fip fun keep( x : a ) : a
 pub fip fun id(x : a) : a
   x
 
-// Logical conjuction. This is compiled specially avoid evaluating the second argument if `x==False`.
+// Logical conjunction. This is compiled specially avoid evaluating the second argument if `x==False`.
 pub fip fun (&&)( x : bool, y : bool) : bool   // inlined in the compiler for short-circuit evaluation
   if x then y else False
 

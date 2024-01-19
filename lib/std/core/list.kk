@@ -272,7 +272,7 @@ pub fun foldl1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
 pub fun foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
   xs.reverse.foldl1(f)
 
-// Create a list of `n`  repeated elementes `x`
+// Create a list of `n` repeated elements `x`
 pub fun replicate( x : a, n : int ) : list<a>
   if n > 0
    then Cons(x, replicate(x,pretend-decreasing(n.dec)))

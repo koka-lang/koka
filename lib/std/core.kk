@@ -90,7 +90,7 @@ pub type scope :: S -> X
 pub fun apply(f,x)
   f(x)
 
-// Compose two funs `f` and `g`.
+// Compose two functions `f` and `g`.
 pub fun o(f,g)
   fn(x) f(g(x))
 
@@ -164,7 +164,7 @@ pub fun range/fold( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
 pub fun fold( upto : int, init : a, f : (int,a) -> e a ) : e a
   fold( 0, upto.dec, init, f )
 
-// Fold over the integes between [`start``,`end`] (including `end`) or until `f` returns `Nothing`
+// Fold over the integers between [`start``,`end`] (including `end`) or until `f` returns `Nothing`
 pub fun range/fold-while( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
   if start >= end then init else
     match f(start,init)

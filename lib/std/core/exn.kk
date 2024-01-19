@@ -50,13 +50,13 @@ pub fun throw( message: string, info : exception-info = ExnError ) : exn a
   throw-exn(Exception(message,info))
 
 // Catch any exception raised in `action` and handle it.
-// Use `on-exn` or `on-exit` when appropiate.
+// Use `on-exn` or `on-exit` when appropriate.
 pub fun exn/try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a
   with final ctl throw-exn(exn) hndl(exn)
   action()
 
 // _Deprecated_; use `try` instead. Catch an exception raised by `throw` and handle it.
-// Use `on-exn` or `on-exit` when appropiate.
+// Use `on-exn` or `on-exit` when appropriate.
 pub fun catch( action : () -> <exn|e> a, hndl: exception -> e a) : e a
   try(action,hndl)
 

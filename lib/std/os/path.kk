@@ -10,7 +10,7 @@
 
 The path functions are system independent: backward slashes (`'\\'`)
 are treated as a forward slash to separate directories. Windows style
-root names like ``c:\`` or ``//server`` are also recognised.
+root names like ``c:\`` or ``//server`` are also recognized.
 
 A list of paths can be separated with either a colon (``:``) or
 semi-colon (``;``).
@@ -19,7 +19,7 @@ A `:path` is created using the `path` functions. Use `string` to convert
 back to a normalized path string. A path consists of a _root_ name
 (``/``, ``c:\``), the directory (``foo/bar``) and finally the _base_ name.
 The base name itself consists of the _stem_ and the _extension_. The
-extension is always the part that follows the last occurence of a dot (`'.'`)
+extension is always the part that follows the last occurrence of a dot (`'.'`)
 in the base name.
 
 A `:path` is always normalized. For a sequence of directories, any
