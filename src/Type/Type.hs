@@ -60,7 +60,7 @@ module Type.Type (-- * Types
                   , isTypeBool, isTypeInt, isTypeString, isTypeChar
                   , isTypeUnit
                   , isTypeLocalVar
-                  , isValueOperation
+                  , isValueOperation, makeValueOperation
 
                   -- ** Trivial conversion
                   , IsType( toType)
@@ -549,6 +549,11 @@ isValueOperation tp
       -- (_,_,TSyn syn [_,_] _) -> typeSynName syn == nameTpValueOp
       (_,_,TApp (TCon (TypeCon name _)) [_,_]) -> name == nameTpValueOp
       _ -> False
+
+makeValueOperation eff tp
+  = TApp (TCon (TypeCon nameTpValueOp kind)) [eff,tp]
+  where
+    kind = kindFun kindEffect (kindFun kindStar kindStar)
 
 orderEffect :: Tau -> Tau
 orderEffect tp

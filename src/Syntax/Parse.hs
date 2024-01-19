@@ -880,14 +880,14 @@ makeEffectDecl decl =
       (effTpDecl,wrapAction)
                 = if isInstance
                     then -- Synonym ename tpars (makeTpApp (TpCon nameTpEv rng) [makeTpApp (tpCon hndTpName) (map tpVar tpars) rng] rng) rng vis docx
-                         let evTp  = makeTpApp (TpCon nameTpEv rng) [makeTpApp (tpCon hndTpName) (map tpVar tparsNonScoped) rng] rng
+                         let evTp  = makeTpApp (TpCon nameTpEv krng) [makeTpApp (tpCon hndTpName) (map tpVar tparsNonScoped) krng] krng
                              evName  = newName "ev"
-                             evFld = ValueBinder evName evTp Nothing krng rng
-                             evCon = UserCon (toConstructorName id) [] [(Private,evFld)] Nothing krng rng Private ""
+                             evFld = ValueBinder evName evTp Nothing krng grng
+                             evCon = UserCon (toConstructorName id) [] [(Private,evFld)] Nothing krng krng Private ""
                          in (DataType ename tpars [evCon] rng vis Inductive (DataDefNormal {-DataDefValue 0 0-}) False docx
-                            ,(\action -> Lam [ValueBinder evName Nothing Nothing krng rng]
-                                                  (App (action) [(Nothing,App (Var (toConstructorName id) False rng) [(Nothing,Var evName False rng)] rng)] rng)
-                                                  rng))
+                            ,(\action -> Lam [ValueBinder evName Nothing Nothing krng krng]
+                                                  (App (action) [(Nothing,App (Var (toConstructorName id) False krng) [(Nothing,Var evName False krng)] krng)] krng)
+                                                  krng))
                     else let -- add a private constructor that refers to the handler type to get a proper recursion check
                              hndfld = ValueBinder nameNil hndTp Nothing grng grng
                              hndcon = UserCon (toConstructorName id) [hndEffTp,hndResTp] [(Private,hndfld)] Nothing grng grng Private ""

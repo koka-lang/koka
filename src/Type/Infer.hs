@@ -473,8 +473,9 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl 
 
            when (isDefFun sort) $
              case splitFunScheme resTp of
-               Just (_,_,_,_,resultTp)
-                 -> addRangeInfo (endOfRange vrng {-')'-}) (RM.Id (newName "result") (RM.NIValue "expr" resultTp "" False) [] True)
+               Just (_,_,_,effTp,resultTp)
+                 -> let tp = makeValueOperation effTp resultTp -- pretty prints nicely as `-> eff res`
+                    in addRangeInfo (endOfRange vrng {-')'-}) (RM.Id (newName "result") (RM.NIValue "expr" tp "" False) [] True)
                _ -> return ()
 
            subst (Core.Def name resTp resCore vis sort inl nameRng doc)  -- must 'subst' since the total unification can cause substitution. (see test/type/hr1a)

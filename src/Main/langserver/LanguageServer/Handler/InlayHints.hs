@@ -18,6 +18,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Lens ((^.))
 import Data.Maybe (mapMaybe)
 import Data.List(intersperse,nubBy)
+import Common.File(startsWith)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Language.LSP.Protocol.Types as J
@@ -90,7 +91,8 @@ typeHint env lexemes range rinfo
   = case rinfo of
       Id qname (NIValue _ tp _doc isAnnotated) _idocs isDef | isDef && not isAnnotated && not hasAnnot
         -> -- trace ("typeHint: " ++ show qname ++ ": " ++ show tp) $
-           let fmt = show $ text " : " <.> ppScheme env tp
+           let s   = show (ppScheme env tp)
+               fmt = " : " ++ (if s `startsWith` "->" then drop 3 s else s)  -- for `-> eff res` types
            in [newInlayHint range fmt J.InlayHintKind_Type False]
       _ -> []
   where
