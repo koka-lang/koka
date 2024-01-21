@@ -25,7 +25,7 @@ module Common.File(
                   , basename, notdir, notext, joinPath, joinPaths, extname, dirname, noexts
                   , splitPath, undelimPaths
                   , isPathSep, isPathDelimiter
-                  , findMaximalPrefix
+                  , findMaximalPrefixPath
                   , isAbsolute
                   , commonPathPrefix
                   , normalizeWith, normalize
@@ -47,7 +47,7 @@ module Common.File(
                   , relativeToPath
                   ) where
 
-import Data.List        ( intersperse, isPrefixOf )
+import Data.List        ( intersperse, isPrefixOf, maximumBy )
 import Data.Char        ( toLower, isSpace )
 import Platform.Config  ( pathSep, pathDelimiter, sourceExtension, exeExtension )
 import qualified Platform.Runtime as B ( {- copyBinaryFile, -} exCatch )
@@ -312,7 +312,7 @@ readTextFile :: FilePath -> IO (Maybe String)
 readTextFile fpath
   = B.exCatch (do content <- readFile fpath
                   return (if null content then Just content else (seq (last content) $ Just content)))
-              (\exn -> -- trace ("reading file " ++ fpath ++ " exception: " ++ exn) 
+              (\exn -> -- trace ("reading file " ++ fpath ++ " exception: " ++ exn)
                    return Nothing)
 
 writeTextFile :: FilePath -> String -> IO ()
@@ -398,11 +398,20 @@ commonPathPrefix s1 s2
 
 
 relativeToPath :: FilePath -> FilePath -> FilePath
-relativeToPath "" path = path
 relativeToPath prefix path
+  = case mbRelativeToPath prefix path of
+      Just relpath -> relpath
+      Nothing      -> path
+
+mbRelativeToPath :: FilePath -> FilePath -> Maybe FilePath
+mbRelativeToPath "" path = Just path
+mbRelativeToPath prefix path
   = let prefixes = splitPath prefix
         paths    = splitPath path
-    in if isPrefixOf prefixes paths then joinPaths (drop (length prefixes) paths) else path
+    in if isPrefixOf prefixes paths then Just (joinPaths (drop (length prefixes) paths)) else Nothing
+
+
+
 
 -- | Is a path absolute?
 isAbsolute :: FilePath -> Bool
@@ -411,6 +420,19 @@ isAbsolute fpath
       (_:':':c:_) -> isPathSep c
       ('/':_)     -> True
       _           -> False
+
+
+-- | Find a maximal prefix path given a path and list of root paths. Returns the root path and relative path.
+findMaximalPrefixPath :: [FilePath] -> FilePath -> Maybe (FilePath,FilePath)
+findMaximalPrefixPath roots p
+  = let rels = concatMap (\r -> case mbRelativeToPath r p of
+                                  Just rel -> [(r,rel)]
+                                  _        -> []) roots
+    in case rels of
+      [] -> Nothing
+      xs -> Just (maximumBy (\(root1,_) (root2,_) -> compare root1 root2) xs)
+
+{-
 
 -- | Find a maximal prefix given a string and list of prefixes. Returns the prefix and its length.
 findMaximalPrefix :: [String] -> String -> Maybe (Int,String)
@@ -427,6 +449,8 @@ findMaximal f xs
                                      Just (m,y)  | m >= n -> normalize res xs
                                      _           -> normalize (Just (n,x)) xs
                         Nothing -> normalize res xs
+
+-}
 
 ---------------------------------------------------------------
 -- file searching
@@ -453,9 +477,10 @@ searchPathsCanonical paths exts suffixes name
           ; if exist
              then do rpath <- realPath fullName
                      -- trace ("search found: " ++ fullName ++ ", in (" ++ dir ++ "," ++ fname ++ ") ,real path: " ++ rpath) $
-                     case findMaximalPrefix paths rpath of
-                        Just (n,root) -> return (Just (root,drop n rpath))
-                        Nothing       -> return (Just ("",rpath))
+                     case (findMaximalPrefixPath paths rpath) of
+                       Nothing -> -- absolute path outside the paths
+                                  return (Just ("",rpath))
+                       just    -> return just
              else search xs
           }
 
@@ -490,11 +515,10 @@ searchPathsEx path exts suffixes name
 -- if it is not relative to the paths, return dirname/notdir
 makeRelativeToPaths :: [FilePath] -> FilePath -> (FilePath,FilePath)
 makeRelativeToPaths paths fname
-  = let (root,stem) = case findMaximalPrefix paths fname of
-                        Just (n,root) -> (root,drop n fname)
-                        _             -> ("", fname)
-    in -- trace ("relative path of " ++ fname ++ " with paths " ++ show paths ++ " = " ++ show (root,stem)) $
-       (root,stem)
+  = case findMaximalPrefixPath paths fname of
+      Just (root,rpath) -> (root,rpath)
+      _                 -> (dirname fname, notdir fname)
+
 
 
 getEnvPaths :: String -> IO [FilePath]

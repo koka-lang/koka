@@ -31,7 +31,7 @@ module Compiler.Compile( -- * Compile
                        ) where
 
 import Debug.Trace            ( trace )
-import Data.Char              ( isAlphaNum, toLower, isSpace )
+import Data.Char              ( isAlphaNum, toLower, isSpace, isLower )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory, doesDirectoryExist )
 import Data.Maybe             ( catMaybes, fromJust )
@@ -354,15 +354,19 @@ compileProgramFromFile maybeContents contents term flags modules compileTarget i
        liftIO $ termPhase term ("parsing " ++ fname)
        exist <- liftIO $ doesFileExist fname
        if (exist) then return () else liftError $ errorMsg (errorFileNotFound flags fname)
-       let allowAt = stem `elem` ["/std/core/types.kk","/std/core/hnd.kk"] {- allow @ in identifiers? -}
+       let allowAt = stem `elem` ["std/core/types.kk","std/core/hnd.kk"] {- allow @ in identifiers? -}
        program <- lift $ case contents of
                           Just x -> return $ parseProgramFromString allowAt (semiInsert flags) x fname
                           _      -> parseProgramFromFile allowAt (semiInsert flags) fname
-       let isSuffix = -- asciiEncode True (noexts stem) `endsWith` asciiEncode True (show (programName program))
-                      -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
-                      show (pathToModuleName (noexts stem)) `endsWith` show (programName program)
-                      -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
-                      --  `endsWith` moduleNameToPath (programName program)
+       let stemParts  = splitPath (noexts stem)
+           mnameParts = splitPath (show (programName program))
+           isSuffix   = reverse mnameParts `isPrefixOf` reverse stemParts
+                        -- asciiEncode True (noexts stem) `endsWith` asciiEncode True (show (programName program))
+                        -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
+                        -- show (pathToModuleName (noexts stem)) `endsWith` show (programName program)
+                        -- map (\c -> if isPathSep c then '/' else c) (noexts stem)
+                        --  `endsWith` moduleNameToPath (programName program)
+
            ppcolor c doc = color (c (colors (prettyEnvFromFlags flags))) doc
        if (isExecutable compileTarget || isSuffix) then return ()
         else liftError $ errorMsg (ErrorGeneral (programNameRange program)
@@ -371,13 +375,19 @@ compileProgramFromFile maybeContents contents term flags modules compileTarget i
                                       text "is not a suffix of the file path" <+>
                                       parens (ppcolor colorSource $ text $ dquote $ stem)
                                      ))
-       let stemName = nameFromFile stem
-      --  let flags2 = flags{forceModule = fname}
+       let stemName = -- nameFromFile stem
+                      if isAbsolute stem || any (not . isValidId) stemParts
+                        then programName program  -- we may not be able to find this source from the module name alone
+                        else newModuleName (noexts stem)
+                    where
+                      isValidId :: String -> Bool
+                      isValidId ""      = False
+                      isValidId (c:cs)  = isLower c && all (\c -> isAlphaNum c || c `elem` "_-") cs
+
+       -- let flags2 = flags{forceModule = fname}
+       -- trace ("compile: (root,stem)=" ++ show (rootPath,stem) ++ ", modname:" ++ show (programName program) ++ ", stemName: " ++ show stemName) $
        compileProgram' maybeContents term flags modules compileTarget fname program{ programName = stemName } importPath
 
-nameFromFile :: FilePath -> Name
-nameFromFile fname
-  = pathToModuleName $ dropWhile isPathSep $ noexts fname
 
 data CompileTarget a
   = Object
@@ -808,11 +818,13 @@ searchSource flags currentDir name
 searchSourceFile :: Flags -> FilePath -> FilePath -> IO (Maybe (FilePath,FilePath))
 searchSourceFile flags currentDir fname
   = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (currentDir:includePath flags))) $ return ()
+       -- currentDir is set when importing from a module so a module name is first resolved relative to
+       -- the current module
        extra <- if null currentDir then return []
                                    else do{ d <- realPath currentDir; return [d] }
        mbP <- searchPathsCanonical (extra ++ includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
        case mbP of
-         Just (root,stem) | root == currentDir
+         Just (root,stem) | root == currentDir  -- make a relative module now relative to the include path
            -> return $ Just (makeRelativeToPaths (includePath flags) (joinPath root stem))
          _ -> return mbP
 

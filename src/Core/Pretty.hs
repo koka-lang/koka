@@ -59,11 +59,11 @@ instance Show Pattern   where show = show . snd . prettyPattern   defaultEnv
 --------------------------------------------------------------------------}
 
 prettyCore :: Env -> Target -> [InlineDef] -> Core -> Doc
-prettyCore env0 target inlineDefs core@(Core name imports fixDefs typeDefGroups defGroups externals doc)
+prettyCore env0 target inlineDefs core@(Core modName imports fixDefs typeDefGroups defGroups externals doc)
   = prettyComment env doc $
     keyword env "module" <+>
-    (if (coreIface env) then text "interface " else empty) <.>
-    prettyModuleName env name <->
+    (if (coreIface env) then text "interface" <+> prettyModuleName env modName -- text (moduleNameToPath modName)
+                        else prettyModuleName env modName) <->
     (vcat $ concat $
       [ separator "import declarations"
       , map (prettyImport envX) (imports)
