@@ -39,8 +39,8 @@ import Compiler.Module (Loaded (..), Module (..))
 import Data.Map.Strict as M hiding (map)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
-import GHC.Generics hiding (UInt)
-import Language.LSP.Protocol.Types (UInt)
+--import GHC.Generics hiding (UInt)
+--import Language.LSP.Protocol.Types (UInt)
 import qualified Language.LSP.Protocol.Types as J
 import Lib.PPrint (Doc)
 import qualified Syntax.RangeMap as R

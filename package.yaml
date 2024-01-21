@@ -51,6 +51,8 @@ library:
   ghc-options:
     - -j8
     - -O2
+    - -threaded
+
   cpp-options:
     - -DKOKA_MAIN="koka"
     - -DKOKA_VARIANT="release"
