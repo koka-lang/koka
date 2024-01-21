@@ -35,21 +35,39 @@ inline extern unsafe-assign : forall<a> ( v : vector<a>, i : ssize_t, x : a ) ->
   js inline "(#1)[#2] = #3"
 
 inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a>
-  c  inline "kk_vector_alloc_uninit(#1,NULL,kk_context())"
+  c  inline "kk_vector_alloc(#1,kk_box_null(),kk_context())"
   cs inline "(new ##1[#1])"
   js inline "Array(#1)"
-
-inline extern lengthz( ^v : vector<a> ) : ssize_t
-  c  "kk_vector_len_borrow"
-  cs inline "((#1).Length)"
-  js inline "((#1).length)"
-
 
 // Assign to an entry in a local `:vector` variable.
 pub inline extern assign/@index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> ()
   c  "kk_ref_vector_assign_borrow"
   cs inline "(#1)[(int)#2] = #3"  // check bounds?
   js inline "(#1)[#2] = #3"       // todo: check bounds!
+
+// Length of a vector.
+inline extern lengthz( ^v : vector<a> ) : ssize_t
+  c  "kk_vector_len_borrow"
+  cs inline "((#1).Length)"
+  js inline "((#1).length)"
+
+// Create a new vector of length `n`  with initial elements `init`` .
+extern vector-alloc(n : ssize_t, init : a) : e vector<a>
+  c "kk_vector_alloc"
+  cs inline "Primitive.NewArray<##1>(#1,#2)"
+  js inline "_vector_initz(#1,#2)"
+
+// Create a new vector of length `n`  with initial elements given by a total function `f` .
+extern vector-alloc-total(n : ssize_t, f : ssize_t -> a) : vector<a>
+  c "kk_vector_init_total"
+  cs inline "Primitive.NewArray<##1>(#1,#2)"
+  js inline "_vector_initf(#1,#2)"
+
+// Create an empty vector.
+pub inline extern unit/vector : forall<a> () -> vector<a>
+  c inline "kk_vector_empty()"
+  cs inline "new ##1[0]"
+  js inline "[]"
 
 
 // Return the element at position `index`  in vector `v`.
@@ -69,12 +87,12 @@ pub fun length( ^v : vector<a> ) : int
 
 // Create a new vector of length `n`  with initial elements `default` .
 pub fun vector( ^n : int, default : a) : vector<a>
-  vector-initz(n.ssize_t, default)
+  vector-alloc(n.ssize_t, default)
 
 // Create a new vector of length `n`  with initial elements given by _total_ function `f`.
 // (can be more efficient than `vector-init`)
 pub fun vector-init-total( ^n : int, f : int -> a ) : e vector<a>
-  vector-initf( n.ssize_t, fn(i) f(i.int) )
+  vector-alloc-total( n.ssize_t, fn(i) f(i.int) )
 
 // Create a new vector of length `n`  with initial elements given by function `f` which can have a control effect.
 pub fun vector-init( ^n : int, f : int -> e a ) : e vector<a>
@@ -83,24 +101,6 @@ pub fun vector-init( ^n : int, f : int -> e a ) : e vector<a>
   forz( len ) fn(i)
     unsafe-assign(v,i,f(i.int))
   v
-
-// Create a new vector of length `n`  with initial elements `init`` .
-extern vector-initz(n : ssize_t, init : a) : e vector<a>
-  c "kk_vector_initz"
-  cs inline "Primitive.NewArray<##1>(#1,#2)"
-  js inline "_vector_initz(#1,#2)"
-
-// Create a new vector of length `n`  with initial elements given by a total function `f` .
-extern vector-initf(n : ssize_t, f : ssize_t -> a) : vector<a>
-  c "kk_vector_initf"
-  cs inline "Primitive.NewArray<##1>(#1,#2)"
-  js inline "_vector_initf(#1,#2)"
-
-// Create an empty vector.
-pub inline extern unit/vector : forall<a> () -> vector<a>
-  c inline "kk_vector_empty()"
-  cs inline "new ##1[0]"
-  js inline "[]"
 
 // Invoke a function `f` for each element in a vector `v`
 pub fun foreach( v : vector<a>, f : (a) -> e () ) : e ()
