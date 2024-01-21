@@ -1,7 +1,7 @@
 # Koka support for (Neo)Vim
 
-This directory functions as a plugin for (neo)vim, currently providing filetype detection
-and some basic syntax highlighting.
+This directory functions as a plugin for (neo)vim, currently providing filetype detection,
+some basic syntax highlighting and simple auto indentation.
 
 
 ## Installation
