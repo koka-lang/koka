@@ -32,6 +32,7 @@ module LanguageServer.Monad
   )
 where
 
+import Debug.Trace(trace)
 import GHC.Conc (atomically)
 import GHC.Base (Alternative (..))
 import Platform.Var (newVar, takeVar)
@@ -67,7 +68,7 @@ import Compiler.Module (Modules)
 import Type.Pretty (ppType, defaultEnv, Env (context, importsMap), ppScheme)
 import Kind.ImportMap (importsEmpty)
 
-import LanguageServer.Conversions (toLspUri, fromLspUri)
+import LanguageServer.Conversions ({-toLspUri,-} fromLspUri)
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
@@ -296,30 +297,32 @@ mergeModules newModules oldModules =
 
 -- Replaces the loaded state holding compiled modules
 putLoaded :: Loaded -> J.NormalizedUri -> Flags -> LSM ()
-putLoaded l f flags = do
-  fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
+putLoaded l fpathUri flags = do
+  -- fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
   time <- liftIO getCurrentTime
   modifyLSState $ \s -> s {
-    lastChangedFile = Just (f, flags, l),
+    lastChangedFile = Just (fpathUri, flags, l),
     lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s),
-    lsLoaded = M.insert (toLspUri fpath) (l, time) (lsLoaded s)
+    lsLoaded = M.insert {-(toLspUri fpath)-} fpathUri (l, time) (lsLoaded s)
     }
 
 putLoadedSuccess :: Loaded -> J.NormalizedUri -> Flags -> LSM ()
-putLoadedSuccess l f flags = do
-  fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
+putLoadedSuccess l fpathUri flags = do
+  -- fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
   time <- liftIO getCurrentTime
-  modifyLSState $ \s -> s {
-    lastChangedFile = Just (f, flags, l),
+  trace ("putLoadedSuccess: fpathUri: " ++ show fpathUri) $
+   modifyLSState $ \s -> s {
+    lastChangedFile = Just (fpathUri, flags, l),
     lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s),
-    lsLoaded = M.insert (toLspUri fpath) (l,time) (lsLoaded s),
-    lsLoadedSuccess = M.insert (toLspUri fpath) (l,time) (lsLoaded s)
+    lsLoaded = M.insert {-(toLspUri fpath)-} fpathUri (l,time) (lsLoaded s),
+    lsLoadedSuccess = M.insert {-(toLspUri fpath)-} fpathUri (l,time) (lsLoaded s)
     }
 
-removeLoaded :: Module -> LSM ()
-removeLoaded m = do
-  fpath <- liftIO $ realPath (modSourcePath m)
-  modifyLSState $ \s -> s {lsModules = filter (\m1 -> modName m1 /= modName m) (lsModules s), lsLoaded = M.delete (toLspUri fpath) (lsLoaded s)}
+removeLoaded :: J.NormalizedUri -> Module -> LSM ()
+removeLoaded fpathUri m = do
+  -- fpath <- liftIO $ realPath (modSourcePath m)
+  modifyLSState $ \s -> s {lsModules = filter (\m1 -> modName m1 /= modName m) (lsModules s),
+                           lsLoaded = M.delete fpathUri {-(toLspUri fpath)-} (lsLoaded s)}
 
 getLoadedModule :: J.NormalizedUri -> Maybe Loaded -> LSM (Maybe Module)
 getLoadedModule uri loaded = do
@@ -340,9 +343,10 @@ removeLoadedUri uri = do
 
 -- Fetches the loaded state holding compiled modules
 getLoadedLatest :: J.NormalizedUri -> LSM (Maybe Loaded)
-getLoadedLatest uri = do
-  ld <- M.lookup uri . lsLoaded <$> getLSState
-  return $ fst <$> ld
+getLoadedLatest uri
+  = trace ("getLoadedLatest: " ++ show uri) $
+    do ld <- M.lookup uri . lsLoaded <$> getLSState
+       return $ fst <$> ld
 
 -- Fetches the loaded state holding compiled modules, with a flag indicating if it is the latest version
 getLoaded :: J.NormalizedUri -> LSM (Maybe (Loaded, Bool))

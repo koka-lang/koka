@@ -291,7 +291,7 @@ compileModuleOrFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString 
 compileModuleOrFile maybeContents contents term flags modules fname force compileTarget importPath
   | any (not . validModChar) fname = compileFile maybeContents contents term flags modules compileTarget importPath fname
   | otherwise
-    = -- trace ("compileModuleOrFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $
+    = trace ("compileModuleOrFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $
       do
         let modName = pathToModuleName fname
         exist <- searchModule flags "" modName
@@ -312,7 +312,8 @@ compileModuleOrFile maybeContents contents term flags modules fname force compil
 
 compileFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> CompileTarget () -> [Name] -> FilePath -> IO (Error Loaded (Loaded, Maybe FilePath))
 compileFile maybeContents contents term flags modules compileTarget importPath fpath0
-  = runIOErr $
+  = trace ("compileFile: " ++ fpath0) $
+    runIOErr $
     do let fpath = normalize fpath0
        mbP <- liftIO $ searchSourceFile flags "" fpath
        case mbP of

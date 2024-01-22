@@ -13,6 +13,7 @@
 
 module LanguageServer.Handler.Commands (commandHandler) where
 
+import Debug.Trace(trace)
 import qualified Data.Text as T
 import Data.Aeson as Json
 import Data.Maybe (mapMaybe, fromJust, fromMaybe)
@@ -29,6 +30,7 @@ import Common.Range (rangeNull)
 import Language.LSP.Server (Handlers, LspM, notificationHandler, sendNotification, MonadLsp, getVirtualFiles, withProgress, requestHandler)
 import LanguageServer.Monad (LSM, getFlags, getTerminal, getModules, getLoaded, setProgress, updateSignatureContext)
 import LanguageServer.Handler.TextDocument (recompileFile, compileEditorExpression)
+import LanguageServer.Conversions( filePathToUri )
 import Compiler.Compile (CompileTarget(..), Terminal (..), compileExpression, Module (..))
 import Compiler.Options (Flags (outFinalPath), targets, commandLineHelp, updateFlagsFromArgs)
 import Compiler.Module (Loaded(..))
@@ -55,7 +57,8 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
         -- Recompile the file, but with executable target
         withProgress (T.pack "Compiling " <> filePath) J.Cancellable $ \report -> do
           setProgress (Just report)
-          res <- recompileFile (Executable (newName "main") ()) (J.filePathToUri $ T.unpack filePath) Nothing forceRecompilation newFlags
+          res <- trace ("koka/compile: " ++ T.unpack filePath ++ ", " ++ show (filePathToUri (T.unpack filePath))) $
+                 recompileFile (Executable (newName "main") ()) (filePathToUri (T.unpack filePath)) Nothing forceRecompilation newFlags
           term <- getTerminal
           liftIO $ termDoc term $ text "Finished generating code for main file" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing
@@ -73,7 +76,7 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
         withProgress (T.pack "Compiling " <> functionName) J.Cancellable $ \report -> do
           setProgress (Just report)
           -- compile the expression
-          res <- compileEditorExpression (J.filePathToUri $ T.unpack filePath) newFlags forceRecompilation (T.unpack filePath) (T.unpack functionName)
+          res <- compileEditorExpression (filePathToUri $ T.unpack filePath) newFlags forceRecompilation (T.unpack filePath) (T.unpack functionName)
           term <- getTerminal
           liftIO $ termDoc term $ text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) <+>  color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing

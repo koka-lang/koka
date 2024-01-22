@@ -19,20 +19,22 @@ module LanguageServer.Conversions
     toLspDiagnostics,
     toLspErrorDiagnostics,
     toLspWarningDiagnostic,
-    toLspUri,
+    -- toLspUri,
     makeDiagnostic,
+    filePathToUri,
 
     -- * Conversions from LSP types
     fromLspPos,
     fromLspRange,
     fromLspLocation,
-    fromLspUri,
+    fromLspUri
   )
 where
 
+import Debug.Trace(trace)
 import Colog.Core
 import qualified Common.Error as E
-import Common.File (normalize, realPath)
+import Common.File (normalize, realPath, startsWith)
 import Common.Range (Source (sourceName), sourceNull)
 import qualified Common.Range as R
 import Compiler.Module (Loaded (..), Module (..))
@@ -130,14 +132,33 @@ fromLspRange uri (J.Range s e) = do
 fromLspLocation :: J.Location -> IO R.Range
 fromLspLocation (J.Location uri rng) = fromLspRange (J.toNormalizedUri uri) rng
 
+{-
 toLspUri :: FilePath -> J.NormalizedUri
 toLspUri = J.toNormalizedUri . J.filePathToUri . normalize
+-}
 
 fromLspUri :: J.NormalizedUri -> IO (Maybe FilePath)
-fromLspUri uri = do
-  let uri' = (J.uriToFilePath . J.fromNormalizedUri) uri
-  case uri' of
-    Just fpath -> do
-      p <- realPath fpath
-      return $ Just p
-    Nothing -> return Nothing
+fromLspUri uri =
+  let uriText = T.unpack (J.getUri (J.fromNormalizedUri uri))
+      -- work around lsp bugs :-(  (we should report this but it seems there are multiple wrong assumptions in both normalization and in uriToFilePath)
+      -- on Windows, a file path like "\\wsl.localhost\Ubuntu\home\koka\samples\basic\fibonacci.kk"
+      -- becomes a J.Uri as           "file://wsl.localhost/Ubuntu/home/koka/samples/basic/fibonacci.kk" (note the lost \\ start)
+      -- and a J.NormalizedUri  as    "file:///wsl.localhostUbuntu/home/koka/samples/basic/fibonacci.kk" (note the lost / before Ubuntu, and added / start)
+      --
+      -- here we try to correct that for this specific case so we can at least open
+      -- files in a WSL file system on Windows
+      -- (which is important as build on wsl2 is very slow outside the wsl mounted file system)
+      mbfpath = if uriText `startsWith` "file:///wsl.localhost"
+                then Just ("//wsl.localhost/" ++ Prelude.drop (length ("file:///wsl.localhost" :: String)) uriText)
+                else J.uriToFilePath (J.fromNormalizedUri uri)
+  in case mbfpath of
+      Just fpath  -> do p <- realPath fpath
+                        -- trace ("LanguageServer.Conversions.fromLspUri: uri: " ++ uriText ++ ", realpath: " ++ p)
+                        return $ Just p
+      Nothing     -> return Nothing
+
+filePathToUri :: FilePath -> J.Uri
+filePathToUri fpath
+  = if fpath `startsWith` "\\\\wsl.localhost\\"          -- again work around bugs
+      then J.Uri (T.pack ("file://" ++ normalize (Prelude.drop 2 fpath)))
+      else J.filePathToUri fpath

@@ -53,17 +53,19 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
   -- outdated information is fine even if ranges are slightly different, we want to still be able to get hover info
   loaded <- getLoadedSuccess normUri
   pos <- liftIO $ fromLspPos normUri pos
-  let res = do -- maybe monad
-        l    <- loaded
-        let mod  = loadedModule l
-        rmap <- modRangeMap mod
-        -- Find the range info at the given position
-        {- let rm = rangeMapFindAt (modLexemes mod) pos rmap
-        (r, rinfo) <- rangeMapBestHover rm
-        -}
-        (r,rinfo) <- -- trace ("hover lookup in rangemap") $
-                     rangeMapFindAt (modLexemes mod) pos rmap
-        return (modName mod, l, r, rinfo)
+
+  let res = trace ("loaded success: " ++ show loaded ++ ", pos: " ++ show pos ++ ", uri: " ++ show normUri) $
+            do -- maybe monad
+                l    <- loaded
+                let mod  = loadedModule l
+                rmap <- modRangeMap mod
+                -- Find the range info at the given position
+                {- let rm = rangeMapFindAt (modLexemes mod) pos rmap
+                (r, rinfo) <- rangeMapBestHover rm
+                -}
+                (r,rinfo) <- trace ("hover lookup in rangemap") $
+                            rangeMapFindAt (modLexemes mod) pos rmap
+                return (modName mod, l, r, rinfo)
   case res of
     Just (mName, l, r, rinfo)
       -> -- trace ("hover found " ++ show rinfo) $

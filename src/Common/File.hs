@@ -62,7 +62,7 @@ import System.Directory ( doesFileExist, doesDirectoryExist
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath, removeFile )
 
-import Lib.Trace
+import Debug.Trace
 import Platform.Filetime
 
 startsWith, endsWith :: String -> String -> Bool
@@ -158,8 +158,10 @@ undelimPaths xs
 -- | Split a path into its directory parts
 splitPath :: FilePath -> [FilePath]
 splitPath fdir
-  = let fs = filter (not . null) $ splitOn isPathSep fdir
+  = let fs = filter (not . null) $
+             splitOn isPathSep fdir
     in case fdir of
+         '/':'/':_ -> "//":fs
          '/':_ -> "/":fs
          _ -> if (null fs) then [""] else fs
 
@@ -205,7 +207,7 @@ normalizeWith newSep path
     norm acc "" = reverse acc
     norm acc (c:cs)
       = if (isPathSep c)
-         then norm (newSep:acc) (dropWhile isPathSep cs)
+         then norm (newSep:acc) cs
          else norm (c:acc) cs
 
 
