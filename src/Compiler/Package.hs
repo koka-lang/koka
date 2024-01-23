@@ -38,7 +38,7 @@ import Lib.JSON
 
 type PackageName = String
 data Packages    = Packages { packages :: [Package],
-                              roots    :: [FilePath] } deriving Eq
+                              roots    :: [FilePath] } deriving (Eq,Show)
 
 data Package     = Package { pkgDir   :: FilePath,    -- /x/node_modules/A/lib
                              pkgQualName  :: PackageName, -- A/B/C

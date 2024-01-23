@@ -13,6 +13,8 @@ module Common.Error( Error, ErrorMessage(..), errorMsg, errorMsgPartial, ok
                    , catchError, checkError, checkPartial, setPartial, warningMsg, addWarnings, addPartialResult, ignoreWarnings
                    , ppErrorMessage, errorWarning, prettyWarnings ) where
 
+import Data.Typeable
+import Control.Exception
 import Control.Monad
 import Control.Monad.Fail
 import Control.Applicative
@@ -26,7 +28,7 @@ import Common.Message
 --------------------------------------------------------------------------}
 -- | Error monad
 data Error b a    = Error !ErrorMessage ![(Range,Doc)] (Maybe b) -- B is a partial result
-                | Ok !a ![(Range,Doc)] (Maybe b)
+                  | Ok !a ![(Range,Doc)] (Maybe b)
 
 
 -- | Error messages
@@ -38,9 +40,11 @@ data ErrorMessage = ErrorGeneral !Range !Doc
                   | ErrorWarning [(Range,Doc)] ErrorMessage   -- ^ warnings can be followed by errors
                   | ErrorIO      Doc
                   | ErrorZero
-                  deriving (Show)
+                  deriving (Show,Typeable)
 
--- | Check an 'Error' 
+instance Exception ErrorMessage
+
+-- | Check an 'Error'
 checkError :: Error b a -> Either ErrorMessage (a,[(Range,Doc)])
 checkError err
   = case err of
@@ -116,7 +120,7 @@ errorMerge err1 err2
   where
     unwarn (ErrorWarning warnings msg) = (warnings, msg)
     unwarn msg                         = ([],msg)
-       
+
 ignoreWarnings :: Error b a -> Error b a
 ignoreWarnings (Error (ErrorWarning _ err) _ m)  = Error err [] m
 ignoreWarnings (Error err _ m)                   = Error err [] m
@@ -154,7 +158,7 @@ prettyWarnings cwd endToo cscheme warnings
 
 {--------------------------------------------------------------------------
   instances
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 instance Functor (Error b) where
   fmap f e      = case e of
                     Ok x w m    -> Ok (f x) w m
@@ -162,12 +166,12 @@ instance Functor (Error b) where
 
 instance Applicative (Error b) where
   pure x = Ok x [] Nothing
-  (<*>) = ap               
+  (<*>) = ap
 
 instance Monad (Error b) where
   -- return = pure
-  e >>= f       = case e of 
-                    Ok x w m  -> addPartialResult (addWarnings w (f x)) m 
+  e >>= f       = case e of
+                    Ok x w m  -> addPartialResult (addWarnings w (f x)) m
                     Error msg w m -> Error msg w m
 
 instance MonadFail (Error b) where

@@ -29,11 +29,13 @@ module Compiler.Options( -- * Command line options
                        , conanSettingsFromFlags
                        , vcpkgFindRoot
                        , onWindows, onMacOS
+                       , flagsHash
                        ) where
 
 
 import Data.Char              ( toLower, toUpper, isAlpha, isSpace )
 import Data.List              ( intersperse, isInfixOf )
+import Data.Hashable
 import Control.Monad          ( when )
 import qualified System.Info  ( os, arch )
 import System.Environment     ( getArgs )
@@ -192,7 +194,14 @@ data Flags
          , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
          , optSpecialize    :: Bool
          , mimallocStats    :: Bool
-         } deriving Eq
+         } deriving (Eq,Show)
+
+instance Hashable Flags where
+  hashWithSalt salt flags = hashWithSalt salt (show flags)
+
+flagsHash :: Flags -> String
+flagsHash flags
+  = take 6 (showHex 6 (hash flags))
 
 flagsNull :: Flags
 flagsNull
@@ -952,6 +961,12 @@ data CC = CC{  ccName       :: String,
                ccLibFile    :: String -> FilePath,  -- make lib file name
                ccObjFile    :: String -> FilePath   -- make object file namen
             }
+
+instance Show CC where  -- for the hash
+  show cc  = "CC{" ++ concat (intersperse "," [
+                ccName cc, ccPath cc, show (ccFlags cc), show (ccFlagsBuild cc),
+                show (ccFlagsCompile cc), show (ccFlagsLink cc) --, show (ccFlagsWarn cc)
+             ]) ++ "}"
 
 instance Eq CC where
   CC{ccName = name1, ccPath = path1, ccFlags = flags1, ccFlagsBuild = flagsB1, ccFlagsCompile= flagsC1, ccFlagsLink=flagsL1} ==

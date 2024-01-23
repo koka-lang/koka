@@ -36,6 +36,7 @@ extra-deps:
 - text-rope-0.2                 # needed for lsp
 - co-log-core-0.3.2.0           # needed for lsp
 - FloatingHex-0.5               # not really needed, but nice in the language server
+- hashable-1.4.3.0
 
 rebuild-ghc-options: true
 allow-newer: true
