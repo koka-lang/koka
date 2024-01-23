@@ -63,7 +63,7 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
           liftIO $ termDoc term $ text "Finished generating code for main file" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
-          resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
+          resp $ Right $ case res of {Just exePath -> J.InL $ Json.String $ T.pack exePath; Nothing -> J.InR J.Null}
       _ -> parameterError
   else if command == "koka/compileFunction" then
     case commandParams of
@@ -78,10 +78,10 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
           -- compile the expression
           res <- compileEditorExpression (filePathToUri $ T.unpack filePath) newFlags forceRecompilation (T.unpack filePath) (T.unpack functionName)
           term <- getTerminal
-          liftIO $ termDoc term $ text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) <+>  color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
+          liftIO $ termDoc term $ text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) <+> text "in" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
-          resp $ Right $ case res of {Just filePath -> J.InL $ Json.String $ T.pack filePath; Nothing -> J.InR J.Null}
+          resp $ Right $ case res of {Just exePath -> J.InL $ Json.String $ T.pack exePath; Nothing -> J.InR J.Null}
       _ -> parameterError
   else if command == "koka/signature-help/set-context" then
     case commandParams of

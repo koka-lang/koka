@@ -310,8 +310,8 @@ putLoadedSuccess :: Loaded -> J.NormalizedUri -> Flags -> LSM ()
 putLoadedSuccess l fpathUri flags = do
   -- fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
   time <- liftIO getCurrentTime
-  trace ("putLoadedSuccess: fpathUri: " ++ show fpathUri) $
-   modifyLSState $ \s -> s {
+  -- trace ("putLoadedSuccess: fpathUri: " ++ show fpathUri) $
+  modifyLSState $ \s -> s {
     lastChangedFile = Just (fpathUri, flags, l),
     lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s),
     lsLoaded = M.insert {-(toLspUri fpath)-} fpathUri (l,time) (lsLoaded s),
@@ -344,7 +344,7 @@ removeLoadedUri uri = do
 -- Fetches the loaded state holding compiled modules
 getLoadedLatest :: J.NormalizedUri -> LSM (Maybe Loaded)
 getLoadedLatest uri
-  = trace ("getLoadedLatest: " ++ show uri) $
+  = -- trace ("getLoadedLatest: " ++ show uri) $
     do ld <- M.lookup uri . lsLoaded <$> getLSState
        return $ fst <$> ld
 

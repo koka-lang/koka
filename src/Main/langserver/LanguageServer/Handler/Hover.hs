@@ -54,7 +54,7 @@ hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
   loaded <- getLoadedSuccess normUri
   pos <- liftIO $ fromLspPos normUri pos
 
-  let res = trace ("loaded success: " ++ show loaded ++ ", pos: " ++ show pos ++ ", uri: " ++ show normUri) $
+  let res = -- trace ("loaded success: " ++ show loaded ++ ", pos: " ++ show pos ++ ", uri: " ++ show normUri) $
             do -- maybe monad
                 l    <- loaded
                 let mod  = loadedModule l

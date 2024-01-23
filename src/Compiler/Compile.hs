@@ -312,7 +312,7 @@ compileModuleOrFile maybeContents contents term flags modules fname force compil
 
 compileFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> CompileTarget () -> [Name] -> FilePath -> IO (Error Loaded (Loaded, Maybe FilePath))
 compileFile maybeContents contents term flags modules compileTarget importPath fpath0
-  = trace ("compileFile: " ++ fpath0) $
+  = -- trace ("compileFile: " ++ fpath0) $
     runIOErr $
     do let fpath = normalize fpath0
        mbP <- liftIO $ searchSourceFile flags "" fpath

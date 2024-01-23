@@ -158,12 +158,13 @@ undelimPaths xs
 -- | Split a path into its directory parts
 splitPath :: FilePath -> [FilePath]
 splitPath fdir
-  = let fs = filter (not . null) $
-             splitOn isPathSep fdir
-    in case fdir of
-         '/':'/':_ -> "//":fs
-         '/':_ -> "/":fs
-         _ -> if (null fs) then [""] else fs
+  = case normalize fdir of
+      "" -> [""]
+      '/':'/':fs -> "/":split fs
+      '/':fs -> "/":split fs
+      fs -> split fs
+  where
+    split f = splitOn isPathSep f
 
 
 joinPath :: FilePath -> FilePath -> FilePath
@@ -174,18 +175,18 @@ joinPath p1 p2
 joinPaths :: [FilePath] -> FilePath
 joinPaths dirs
   = concat
-  $ filterPathSepDup
+  -- $ filterPathSepDup
   $ intersperse ['/']
-  $ normalize
+  $ resolveDot
   $ filter (not . null)
   $ concatMap splitPath dirs
   where
-    normalize []            = []
-    normalize (p:".":ps)    = normalize (p:ps)
-    normalize (p:"..":ps)   | p == "."  = normalize ("..":ps)
-                            | p == ".." = p : normalize ("..":ps)
-                            | otherwise = normalize ps
-    normalize (p:ps)        = p : normalize ps
+    resolveDot []            = []
+    resolveDot (p:".":ps)    = resolveDot (p:ps)
+    resolveDot (p:"..":ps)   | p == "."  = resolveDot ("..":ps)
+                            | p == ".." = p : resolveDot ("..":ps)
+                            | otherwise = resolveDot ps
+    resolveDot (p:ps)        = p : resolveDot ps
 
 
     filterPathSepDup (p:q:rest)  | endsWith p "/" && q == "/"  = filterPathSepDup (p : rest)
@@ -211,7 +212,7 @@ normalizeWith newSep path
          else norm (c:acc) cs
 
 
--- | Is this a file separator.
+-- | Is this a file separator?
 isPathSep :: Char -> Bool
 isPathSep c
   = (c == '/' || c == '\\')
@@ -420,7 +421,7 @@ isAbsolute :: FilePath -> Bool
 isAbsolute fpath
   = case fpath of
       (_:':':c:_) -> isPathSep c
-      ('/':_)     -> True
+      (c:_)       -> isPathSep c
       _           -> False
 
 

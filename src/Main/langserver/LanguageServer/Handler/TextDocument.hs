@@ -21,6 +21,8 @@ module LanguageServer.Handler.TextDocument
   )
 where
 
+
+import Debug.Trace (trace)
 import GHC.IO (unsafePerformIO)
 import Control.Exception (try)
 import qualified Control.Exception as Exc
@@ -44,17 +46,16 @@ import Lib.PPrint (text, (<->), (<+>), color, Color (..))
 import Common.Range (rangeNull)
 import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
 import Common.Name (newName)
-import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime)
+import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime, isAbsolute, dirname)
 import Common.ColorScheme(ColorScheme(..))
 import Common.Error (Error, checkPartial, ErrorMessage (ErrorIO))
 import Core.Core (Visibility(Private))
-import Compiler.Options (Flags, colorSchemeFromFlags)
+import Compiler.Options (Flags, colorSchemeFromFlags, includePath)
 import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
 import Compiler.Module (Module(..), initialLoaded)
 import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
 import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded, putLoadedSuccess, getLoadedLatest)
 
-import Debug.Trace (trace)
 
 import Syntax.Syntax ( programNull, programAddImports, Import(..) )
 -- Compile the file on opening
@@ -151,12 +152,16 @@ compileEditorExpression uri flags force filePath functionName = do
       vfs <- documentInfos <$> getLSState
       modules <- getLastChangedFileLoaded (normUri, flags)
       -- Set up the imports for the expression (core and the module)
-      let imports = [Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private, Import (modName mod) (modName mod) rangeNull rangeNull rangeNull Private]
+      let imports = [-- Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private,
+                     Import (modName mod) (modName mod) rangeNull rangeNull rangeNull Private]
           program = programAddImports (programNull nameInteractiveModule) imports
+          flagsEx = if (isAbsolute filePath)
+                      then flags{ includePath = includePath flags ++ [dirname filePath]} -- add include so it can be found by its basename
+                      else flags
       term <- getTerminal
       -- reusing interpreter compilation entry point
-      let resultIO = compileExpression (maybeContents vfs) term flags (fromMaybe initialLoaded modules) (Executable nameExpr ()) program 0 (functionName ++ "()")
-      processCompilationResult normUri filePath flags False resultIO
+      let resultIO = compileExpression (maybeContents vfs) term flagsEx (fromMaybe initialLoaded modules) (Executable nameExpr ()) program 0 (functionName ++ "()")
+      processCompilationResult normUri filePath flagsEx False resultIO
     Nothing -> do
       sendNotification J.SMethod_WindowShowMessage $ J.ShowMessageParams J.MessageType_Error $ "Wait for initial type checking / compilation to finish prior to running a function " <> T.pack filePath
       return Nothing -- TODO: better error message
@@ -177,7 +182,7 @@ recompileFile compileTarget uri version force flags = do
       term <- getTerminal
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
       let resultIO = do res <- compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] path
-                        liftIO $ trace ("koka/recompile: " ++ path ++ ", uri: " ++ show uri ++ ", normUri: " ++ show normUri) $
+                        liftIO $ -- trace ("koka/recompile: " ++ path ++ ", uri: " ++ show uri ++ ", normUri: " ++ show normUri) $
                                  termPhaseDoc term (color (colorInterpreter (colorSchemeFromFlags flags)) (text "done"))
                         return res
       processCompilationResult normUri path flags True resultIO
@@ -215,17 +220,17 @@ processCompilationResult normUri filePath flags update doIO = do
           when update $ putLoadedSuccess l normUri flags-- update the loaded state for this file
           -- liftIO $ termDoc term $ color Green $ text "success "
           return outFile -- return the executable file path
-        Left (e, m) -> do
+        Left (err, mbMod) -> do
           -- Compilation failed
-          case m of
+          case mbMod of
             Nothing ->
-              trace ("Error when compiling, no cached modules " ++ show e) $
+              trace ("Error when compiling, no cached modules " ++ show err) $
               return ()
             Just l -> do
               trace ("Error when compiling have cached" ++ show (map modSourcePath $ loadedModules l)) $ return ()
               when update $ putLoaded l normUri flags
               removeLoaded normUri (loadedModule l)
-          liftIO $ termError term e
+          liftIO $ termError term err
           return Nothing
       -- Emit the diagnostics (errors and warnings)
       let diagSrc = T.pack "koka"
