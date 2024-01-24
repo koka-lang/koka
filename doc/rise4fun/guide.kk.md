@@ -687,8 +687,8 @@ function copy( p, age = p.age, name = p.name,
 }
 ```
 
-When arguments follow a data value, as in ``p( age = age + 1)``, it is desugared to call this
-copy function, as in `p.copy( age = p.age+1 )`. Again, there are no special
+When arguments follow a data value, as in ``p( age = p.age + 1)``, it is desugared to call this
+copy function, as in `p.copy( age = p.age + 1 )`. Again, there are no special
 rules for record updates and everything is just function calls with optional
 and named parameters.
 
