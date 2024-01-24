@@ -254,13 +254,13 @@ makeDropSpecial y xUnique xShared xDecRef
   Top-level structure
 --------------------------------------------------------------------------}
 
-data Core = Core{ coreProgName :: Name
-                , coreProgImports :: Imports
-                , coreProgFixDefs :: FixDefs
-                , coreProgTypeDefs :: TypeDefGroups
-                , coreProgDefs :: DefGroups
-                , coreProgExternals :: Externals
-                , coreProgDoc :: String
+data Core = Core{ coreProgName :: !Name
+                , coreProgImports :: !Imports
+                , coreProgFixDefs :: !FixDefs
+                , coreProgTypeDefs :: !TypeDefGroups
+                , coreProgDefs :: !DefGroups
+                , coreProgExternals :: !Externals
+                , coreProgDoc :: !String
                 }
 
 
@@ -268,7 +268,7 @@ type FixDefs
   = [FixDef]
 
 data FixDef
-  = FixDef Name Fixity
+  = FixDef !Name !Fixity
 
 
 coreName :: Core -> Name
@@ -281,10 +281,10 @@ coreName (Core name _ _ _ _ _ _) = name
 -- | Core imports
 type Imports = [Import]
 
-data Import  = Import{ importName :: Name
-                     , importPackage :: String
-                     , importVis  :: Visibility
-                     , importModDoc :: String
+data Import  = Import{ importName :: !Name
+                     , importPackage :: !String
+                     , importVis  :: !Visibility
+                     , importModDoc :: !String
                      }
 
 {--------------------------------------------------------------------------
@@ -293,17 +293,17 @@ data Import  = Import{ importName :: Name
 
 type Externals = [External]
 
-data External = External{ externalName :: Name
-                        , externalType :: Scheme
-                        , externalParams :: [ParamInfo]
-                        , externalFormat :: [(Target,String)]
-                        , externalVis'  :: Visibility
-                        , externalFip   :: Fip
-                        , externalRange :: Range
-                        , externalDoc   :: String
+data External = External{ externalName :: !Name
+                        , externalType :: !Scheme
+                        , externalParams :: ![ParamInfo]
+                        , externalFormat :: ![(Target,String)]
+                        , externalVis'  :: !Visibility
+                        , externalFip   :: !Fip
+                        , externalRange :: !Range
+                        , externalDoc   :: !String
                         }
-              | ExternalImport { externalImport :: [(Target,[(String,String)])]
-                               , externalRange :: Range }
+              | ExternalImport { externalImport :: ![(Target,[(String,String)])]
+                               , externalRange :: !Range }
 
 externalVis :: External -> Visibility
 externalVis (External{ externalVis' = vis }) = vis
@@ -351,8 +351,8 @@ type TypeDefs = [TypeDef]
 
 -- | A type definition
 data TypeDef =
-    Synonym{ typeDefSynInfo :: SynInfo }             -- ^ name, synonym info, and the visibility
-  | Data{ typeDefDataInfo :: DataInfo, typeDefIsExtend :: Bool }  -- ^ name, info, visibility, and the visibilities of the constructors, the isExtend is true if this is an extension of the datatype.
+    Synonym{ typeDefSynInfo :: !SynInfo }             -- ^ name, synonym info, and the visibility
+  | Data{ typeDefDataInfo :: !DataInfo, typeDefIsExtend :: !Bool }  -- ^ name, info, visibility, and the visibilities of the constructors, the isExtend is true if this is an extension of the datatype.
 
 typeDefName (Synonym info) = synInfoName info
 typeDefName (Data info _)  = dataInfoName info
@@ -379,23 +379,23 @@ data DataRepr = -- value types
               | DataStructAsMaybe   -- one constructor with one field, and one singleton (allows optimized boxed representation that avoids allocation)
               | DataStruct          -- compatible constructors (all raw or regular types) and possibly singletons (need tag)
               -- non-value types
-              | DataSingle{ hasSingletons :: Bool } -- only one constructor (no tag needed), hasSingletons true if it is a singleton as well
+              | DataSingle{ hasSingletons :: !Bool } -- only one constructor (no tag needed), hasSingletons true if it is a singleton as well
               | DataAsMaybe         -- one constructor with one (non-recursive) field, and one singleton
               | DataAsList          -- one constructor with fields, and one singleton (don't need a tag, for example can distinguish pointer vs enum)
               | DataSingleNormal    -- one constructor with fields, and multiple singletons (distinguish one pointer vs enums)
-              | DataNormal{ hasSingletons :: Bool }
+              | DataNormal{ hasSingletons :: !Bool }
               | DataOpen
               deriving (Eq,Ord,Show)
 
-data ConRepr  = ConEnum{   conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- part of enumeration (none has fields)
-              | ConIso{    conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- one constructor with one field
-              | ConSingleton{conTypeName::Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- constructor without fields (and not part of an enum)
-              | ConSingle{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conCtxPath :: CtxPath, conTag :: Int }    -- there is only one constructor and it is not iso or singleton (and this is it)
-              | ConAsJust{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conAsNothing :: Name, conTag :: Int } -- constructor is the just node of a maybe-like datatype  (only use for DataAsMaybe, not for DataStructAsMaybe)
-              | ConStruct{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conTag :: Int }      -- constructor as value type
-              | ConAsCons{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conAsNil :: Name, conCtxPath :: CtxPath, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
-              | ConOpen  { conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conCtxPath :: CtxPath }                     -- constructor of open data type
-              | ConNormal{ conTypeName :: Name, conDataRepr :: DataRepr, conValRepr :: ValueRepr, conCtxPath :: CtxPath, conTag :: Int }      -- a regular constructor
+data ConRepr  = ConEnum{   conTypeName :: !Name, conDataRepr :: !DataRepr, conValRepr :: !ValueRepr, conTag :: !Int }      -- part of enumeration (none has fields)
+              | ConIso{    conTypeName :: !Name, conDataRepr :: !DataRepr, conValRepr :: !ValueRepr, conTag :: !Int }      -- one constructor with one field
+              | ConSingleton{conTypeName :: !Name, conDataRepr :: !DataRepr, conValRepr :: !ValueRepr, conTag :: !Int }      -- constructor without fields (and not part of an enum)
+              | ConSingle{ conTypeName :: !Name, conDataRepr :: !DataRepr, conValRepr :: !ValueRepr, conCtxPath :: !CtxPath, conTag :: !Int }    -- there is only one constructor and it is not iso or singleton (and this is it)
+              | ConAsJust{ conTypeName :: !Name, conDataRepr :: !DataRepr, conValRepr :: !ValueRepr, conAsNothing :: !Name, conTag :: !Int } -- constructor is the just node of a maybe-like datatype  (only use for DataAsMaybe, not for DataStructAsMaybe)
+              | ConStruct{ conTypeName :: !Name, conDataRepr :: !DataRepr, conValRepr :: !ValueRepr, conTag :: !Int }      -- constructor as value type
+              | ConAsCons{ conTypeName :: !Name, conDataRepr :: !DataRepr, conValRepr :: !ValueRepr, conAsNil :: !Name, conCtxPath :: !CtxPath, conTag :: !Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
+              | ConOpen  { conTypeName :: !Name, conDataRepr :: !DataRepr, conValRepr :: !ValueRepr, conCtxPath :: !CtxPath }                     -- constructor of open data type
+              | ConNormal{ conTypeName :: !Name, conDataRepr :: !DataRepr, conValRepr :: !ValueRepr, conCtxPath :: !CtxPath, conTag :: !Int }      -- a regular constructor
               deriving (Eq,Ord,Show)
 
 data CtxPath = CtxNone | CtxField TName
@@ -558,8 +558,8 @@ getDataReprEx getIsValue info
 type DefGroups = [DefGroup]
 
 data DefGroup =
-    DefRec Defs
-  | DefNonRec Def
+    DefRec !Defs
+  | DefNonRec !Def
 
 type Defs = [Def]
 
@@ -580,24 +580,24 @@ mapMDefGroup f (DefNonRec def) = DefNonRec <$> f def
 mapMDefGroup f (DefRec defs) = DefRec <$> mapM f defs
 
 -- | A value definition
-data Def = Def{ defName  :: Name
-              , defType  :: Scheme
-              , defExpr  :: Expr
-              , defVis   :: Visibility     -- Private, Public
-              , defSort  :: DefSort        -- DefFun, DefVal, DefVar
-              , defInline:: DefInline      -- InlineAuto, InlineAlways, InlineNever
-              , defNameRange :: Range
-              , defDoc :: String
+data Def = Def{ defName  :: !Name
+              , defType  :: !Scheme
+              , defExpr  :: !Expr
+              , defVis   :: !Visibility     -- Private, Public
+              , defSort  :: !DefSort        -- DefFun, DefVal, DefVar
+              , defInline:: !DefInline      -- InlineAuto, InlineAlways, InlineNever
+              , defNameRange :: !Range
+              , defDoc :: !String
               }
 
 data InlineDef = InlineDef{
-  inlineName :: Name,
-  inlineExpr :: Expr,
-  inlineRec  :: Bool,
-  inlineKind :: DefInline,
-  inlineCost :: Int,
-  inlineSort :: DefSort,                 -- for borrow info
-  inlineParamSpecialize :: [Bool]
+  inlineName :: !Name,
+  inlineExpr :: !Expr,
+  inlineRec  :: !Bool,
+  inlineKind :: !DefInline,
+  inlineCost :: !Int,
+  inlineSort :: !DefSort,                 -- for borrow info
+  inlineParamSpecialize :: ![Bool]
 }
 
 defIsVal :: Def -> Bool
@@ -682,61 +682,61 @@ liftError err
 
 data Expr =
   -- Core lambda calculus
-    Lam [TName] Effect Expr
-  | Var{ varName :: TName, varInfo :: VarInfo }  -- ^ typed name and possible typeArity/parameter arity tuple for top-level functions
-  | App Expr [Expr]                              -- ^ always fully applied!
-  | TypeLam [TypeVar] Expr                       -- ^ Type (universal) abstraction/application
-  | TypeApp Expr [Type]
+    Lam ![TName] !Effect !Expr
+  | Var{ varName :: !TName, varInfo :: !VarInfo }  -- ^ typed name and possible typeArity/parameter arity tuple for top-level functions
+  | App !Expr ![Expr]                              -- ^ always fully applied!
+  | TypeLam ![TypeVar] !Expr                       -- ^ Type (universal) abstraction/application
+  | TypeApp !Expr ![Type]
   -- Literals, constants and labels
-  | Con{ conName :: TName, conRepr ::  ConRepr  }          -- ^ typed name and its representation
-  | Lit Lit
+  | Con{ conName :: !TName, conRepr ::  !ConRepr  }          -- ^ typed name and its representation
+  | Lit !Lit
   -- Let
-  | Let DefGroups Expr
+  | Let !DefGroups !Expr
   -- Case expressions
-  | Case{ caseExprs :: [Expr], caseBranches :: [Branch] }
+  | Case{ caseExprs :: ![Expr], caseBranches :: ![Branch] }
 
 
-data Branch = Branch { branchPatterns :: [Pattern]  -- length = length exprs in the match
-                     , branchGuards   :: [Guard]    -- any number (>= 1) of guarded expressions
+data Branch = Branch { branchPatterns :: ![Pattern]  -- length = length exprs in the match
+                     , branchGuards   :: ![Guard]    -- any number (>= 1) of guarded expressions
                      }
 
-data Guard  = Guard { guardTest :: Expr  -- boolean
-                    , guardExpr :: Expr  -- body of the branch
+data Guard  = Guard { guardTest :: !Expr  -- boolean
+                    , guardExpr :: !Expr  -- body of the branch
                     }
 
 data Pattern
-  = PatCon{ patConName :: TName,        -- ^ names the constructor with full signature.
-            patConPatterns:: [Pattern], -- ^ sub-patterns. fully materialized to match arity.
-            patConRepr :: ConRepr,      -- ^ representation of ctor in backend.
-            patTypeArgs :: [Type],      -- ^ zipped with patConPatterns
-            patExists :: [TypeVar],     -- ^ closed under existentials here
-            patTypeRes :: Type,         -- ^ result type
-            patConInfo :: ConInfo,      -- ^ other constructor info
-            patConSkip :: Bool         -- ^ skip testing for this constructor (as it should match already)
+  = PatCon{ patConName :: !TName,        -- ^ names the constructor with full signature.
+            patConPatterns:: ![Pattern], -- ^ sub-patterns. fully materialized to match arity.
+            patConRepr :: !ConRepr,      -- ^ representation of ctor in backend.
+            patTypeArgs :: ![Type],      -- ^ zipped with patConPatterns
+            patExists :: ![TypeVar],     -- ^ closed under existentials here
+            patTypeRes :: !Type,         -- ^ result type
+            patConInfo :: !ConInfo,      -- ^ other constructor info
+            patConSkip :: !Bool         -- ^ skip testing for this constructor (as it should match already)
           }
-  | PatVar{ patName :: TName,           -- ^ name/type of variable
-            patPattern :: Pattern       -- ^ named sub-pattern
+  | PatVar{ patName :: !TName,           -- ^ name/type of variable
+            patPattern :: !Pattern       -- ^ named sub-pattern
           }
-  | PatLit{ patLit :: Lit }
+  | PatLit{ patLit :: !Lit }
   | PatWild
 
 data Lit =
-    LitInt    Integer
-  | LitFloat  Double
-  | LitChar   Char
-  | LitString String
+    LitInt    !Integer
+  | LitFloat  !Double
+  | LitChar   !Char
+  | LitString !String
   deriving (Eq)
 
 data VarInfo
   = InfoNone
-  | InfoArity Int Int               -- #Type parameters, #parameters
-  | InfoExternal [(Target,String)]  -- inline body
-  | InfoReuse Pattern
-  | InfoConField TName ConRepr Name  -- constructor name, repr, field name (inserted by reuse specialization)
+  | InfoArity !Int !Int               -- #Type parameters, #parameters
+  | InfoExternal ![(Target,String)]  -- inline body
+  | InfoReuse !Pattern
+  | InfoConField !TName !ConRepr !Name  -- constructor name, repr, field name (inserted by reuse specialization)
 
 data TName = TName
-  { getName :: Name
-  , tnameType :: Type
+  { getName :: !Name
+  , tnameType :: !Type
   }
 
 showTName (TName name tp)

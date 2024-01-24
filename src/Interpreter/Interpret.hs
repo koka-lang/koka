@@ -262,7 +262,7 @@ loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO ()
 loadModules term st files force
   = do mbMods <- C.runCompileIO term (flags st) C.noVFS $
                  do roots <- mapM C.moduleFromSource files
-                    C.resolveDependencies roots
+                    C.modulesResolveDependencies roots
        case mbMods of
          Nothing -> return ()
          Just mods -> return ()

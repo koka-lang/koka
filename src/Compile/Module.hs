@@ -27,6 +27,19 @@ import Type.Assumption        ( Gamma )
 import qualified Core.Core as Core
 
 
+import Static.FixityResolve   ( Fixities, fixitiesEmpty, fixitiesNew, fixitiesCompose )
+import Kind.ImportMap
+import Kind.Synonym           ( Synonyms, synonymsEmpty, synonymsCompose, extractSynonyms )
+import Kind.Newtypes          ( Newtypes, newtypesEmpty, newtypesCompose, extractNewtypes )
+import Kind.Constructors      ( Constructors, constructorsEmpty, constructorsCompose, extractConstructors )
+import Kind.Assumption        ( KGamma, kgammaInit, extractKGamma, kgammaUnion )
+
+import Type.Assumption        ( Gamma, gammaInit, gammaUnion, extractGamma, gammaNames, gammaPublicNames)
+import Type.Type              ( DataInfo )
+import Core.Inlines           ( Inlines, inlinesNew, inlinesEmpty, inlinesExtends )
+import Core.Borrowed          ( Borrowed, borrowedEmpty, extractBorrowed )
+
+
 {--------------------------------------------------------------------------
   Compilation
 --------------------------------------------------------------------------}
@@ -67,6 +80,7 @@ data Module  = Module{ -- initial
 
                        -- optimize & interface
                      , modCore        :: !(Maybe Core.Core)
+                     , modDefinitions :: !(Maybe Definitions)
                      , modInlines     :: -- from a core file, we return a function that given the gamma parses the inlines
                                          !(Either (Gamma -> Error () [Core.InlineDef]) ([Core.InlineDef]))
 
@@ -91,7 +105,7 @@ moduleNull modName
             -- parse
             Nothing
             -- type check
-            Nothing
+            Nothing Nothing
             -- optimize
             Nothing (Right [])
             -- codegen
@@ -103,25 +117,6 @@ moduleCreateInitial modName sourcePath ifacePath libIfacePath
                           modIfacePath = ifacePath,
                           modLibIfacePath = libIfacePath,
                           modRange = makeSourceRange (if null sourcePath then ifacePath else sourcePath) 1 1 1 1 }
-
-{-
-modPackageName :: Module -> PackageName
-modPackageName mod
-  = last (splitPath (modPackageQName mod))
-
-modPackagePath :: Module -> PackageName
-modPackagePath mod
-  = joinPkg (modPackageName mod) (modPackageLocal mod)
-
-modPackageQPath :: Module -> PackageName
-modPackageQPath mod
-  = joinPkg (modPackageQName mod) (modPackageLocal mod)
--}
---modLexemes :: Module -> [Lexeme]
---modLexemes mod = case modProgram mod of
---                   Just program -> programLexemes program
---                   _            -> []
-
 
 
 addOrReplaceModule :: Module -> Modules -> Modules
@@ -139,3 +134,48 @@ removeModule name modules
 -- extractFixities :: Core.Core -> Fixities
 -- extractFixities core
 --   = fixitiesNew [(name,fix) | Core.FixDef name fix <- Core.coreProgFixDefs core]
+
+
+data Definitions  = Definitions {
+                        defsGamma       :: !Gamma
+                      , defsKGamma      :: !KGamma
+                      , defsSynonyms    :: !Synonyms
+                      , defsNewtypes    :: !Newtypes
+                      , defsConstructors:: !Constructors
+                      , defsFixities    :: !Fixities
+                      , defsBorrowed    :: !Borrowed
+                    }
+
+definitionsNull :: Definitions
+definitionsNull = Definitions gammaInit
+                              kgammaInit
+                              synonymsEmpty
+                              newtypesEmpty
+                              constructorsEmpty
+                              fixitiesEmpty
+                              borrowedEmpty
+
+
+defsNames :: Definitions -> [Name]
+defsNames defs
+  = gammaNames (defsGamma defs)
+
+defsMatchNames :: Definitions -> [String]
+defsMatchNames defs
+  = map (showPlain . unqualify) $ gammaPublicNames (defsGamma defs)
+
+defsFromCore :: Core.Core -> Definitions
+defsFromCore core
+  = Definitions (extractGamma Core.dataInfoIsValue False core)
+                (extractKGamma core)
+                (extractSynonyms core)
+                (extractNewtypes core)
+                (extractConstructors core)
+                (extractFixities core)
+                (extractBorrowed core)
+  where
+    extractFixities :: Core.Core -> Fixities
+    extractFixities core
+      = fixitiesNew [(name,fix) | Core.FixDef name fix <- Core.coreProgFixDefs core]
+
+

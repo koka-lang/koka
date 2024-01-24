@@ -19,6 +19,7 @@ module Core.Borrowed( -- Borrowed parameter information
                     , extractBorrowDefs
                     , extractBorrowDef
                     , extractBorrowExternals
+                    , extractBorrowed
                     ) where
 
 import Lib.Trace
@@ -71,13 +72,17 @@ borrowedLookup name (Borrowed borrowed)
   = M.lookup name borrowed
 
 borrowedExtendICore :: Core -> Borrowed -> Borrowed
-borrowedExtendICore icore borrowed0 = 
+borrowedExtendICore icore borrowed0 =
   borrowedExtends (extractBorrowDefs (coreProgDefs icore)) $
         borrowedExtends (extractBorrowExternals (coreProgExternals icore)) borrowed0
 
 {--------------------------------------------------------------------------
   Get borrow information from Core
 --------------------------------------------------------------------------}
+extractBorrowed :: Core -> Borrowed
+extractBorrowed core
+  = borrowedExtends (extractBorrowDefs (coreProgDefs core) ++ extractBorrowExternals (coreProgExternals core)) borrowedEmpty
+
 extractBorrowDefs ::  DefGroups -> [BorrowDef]
 extractBorrowDefs dgs
   = concatMap extractDefGroup dgs

@@ -24,16 +24,16 @@ import Syntax.Lexeme
 
 -- | A program
 data Program t k
-  = Program{ programSource :: Source
-           , programLexemes :: [Lexeme]
-           , programName   :: Name
-           , programNameRange :: Range
-           , programTypeDefs :: [TypeDefGroup t k]
-           , programDefs      :: (DefGroups t)
-           , programImports  :: Imports
-           , programExternals :: Externals
-           , programFixDefs :: FixDefs
-           , programDoc :: String
+  = Program{ programSource :: !Source
+           , programLexemes :: ![Lexeme]
+           , programName   :: !Name
+           , programNameRange :: !Range
+           , programTypeDefs :: ![TypeDefGroup t k]
+           , programDefs      :: !(DefGroups t)
+           , programImports  :: !Imports
+           , programExternals :: !Externals
+           , programFixDefs :: !FixDefs
+           , programDoc :: !String
            }
   deriving (Show)
 
@@ -62,36 +62,36 @@ type Externals
   = [External]
 
 data External
-  = External{ extName :: Name
-            , extType :: UserType
-            , extParams :: [ParamInfo]
-            , extNameRange :: Range
-            , extRange :: Range
-            , extInline :: [(Target,ExternalCall)]  -- map: target inline
-            , extVis  :: Visibility
-            , extFip  :: Fip
-            , extDoc :: String
+  = External{ extName :: !Name
+            , extType :: !UserType
+            , extParams :: ![ParamInfo]
+            , extNameRange :: !Range
+            , extRange :: !Range
+            , extInline :: ![(Target,ExternalCall)]  -- map: target inline
+            , extVis  :: !Visibility
+            , extFip  :: !Fip
+            , extDoc :: !String
             }
-  | ExternalImport{ extImport :: [(Target,[(String,String)])]
-                  , extRange :: Range }
+  | ExternalImport{ extImport :: ![(Target,[(String,String)])]
+                  , extRange :: !Range }
   deriving (Show)
 
 
 
 
 data ExternalCall
-  = ExternalInline String  -- inline everywhere
-  | ExternalCall String    -- create a function call
+  = ExternalInline !String  -- inline everywhere
+  | ExternalCall !String    -- create a function call
   deriving (Show)
 
 type FixDefs
   = [FixDef]
 
 data FixDef
-  = FixDef{ fixName   :: Name
-          , fixFixity :: Fixity
-          , fixRange  :: Range
-          , fixVis    :: Visibility
+  = FixDef{ fixName   :: !Name
+          , fixFixity :: !Fixity
+          , fixRange  :: !Range
+          , fixVis    :: !Visibility
           }
   deriving (Show)
 
@@ -102,12 +102,12 @@ type Imports  = [Import]
 
 -- | Import declaration
 data Import
-  = Import{ importName ::  Name    -- ^ module name
-          , importFullName :: Name     -- ^ fully qualified module name
-          , importNameRange :: Range
-          , importFullNameRange :: Range
-          , importRange :: Range   -- ^ range of the full import declaration
-          , importVis   :: Visibility  -- ^ visibility of the module
+  = Import{ importName ::  !Name    -- ^ module name
+          , importFullName :: !Name     -- ^ fully qualified module name
+          , importNameRange :: !Range
+          , importFullNameRange :: !Range
+          , importRange :: !Range   -- ^ range of the full import declaration
+          , importVis   :: !Visibility  -- ^ visibility of the module
           }
     deriving (Show)
 
@@ -127,43 +127,43 @@ data TypeDefGroup t k
 
 -- | type definitions.
 data TypeDef t u k
-  = Synonym { typeDefBinder :: (TypeBinder k)
-            , typeDefParams :: [TypeBinder k]
-            , typeDefSynonym :: t
-            , typeDefRange :: Range
-            , typeDefVis :: Visibility
-            , typeDefDoc :: String
+  = Synonym { typeDefBinder :: !(TypeBinder k)
+            , typeDefParams :: ![TypeBinder k]
+            , typeDefSynonym :: !t
+            , typeDefRange :: !Range
+            , typeDefVis :: !Visibility
+            , typeDefDoc :: !String
             }
-  | DataType{ typeDefBinder :: (TypeBinder k)
-            , typeDefParams :: [TypeBinder k]
-            , typeDefConstrs :: [UserCon t u k]
-            , typeDefRange :: Range
-            , typeDefVis :: Visibility
-            , typeDefSort :: DataKind
-            , typeDefDef  :: DataDef
-            , typeDefIsExtend :: Bool -- ^ True if this is an extension; the binder contains a qualified id (and is not a declaration)
-            , typeDefDoc  :: String
+  | DataType{ typeDefBinder :: !(TypeBinder k)
+            , typeDefParams :: ![TypeBinder k]
+            , typeDefConstrs :: ![UserCon t u k]
+            , typeDefRange :: !Range
+            , typeDefVis :: !Visibility
+            , typeDefSort :: !DataKind
+            , typeDefDef  :: !DataDef
+            , typeDefIsExtend :: !Bool -- ^ True if this is an extension; the binder contains a qualified id (and is not a declaration)
+            , typeDefDoc  :: !String
             }
   deriving (Show)
 
 data TypeBinder k
-  = TypeBinder{ tbinderName :: Name -- ^ name
-              , tbinderKind :: k  -- ^ kind
-              , tbinderNameRange :: Range -- ^ name range
-              , tbinderRange :: Range -- ^ total range
+  = TypeBinder{ tbinderName :: !Name -- ^ name
+              , tbinderKind :: !k  -- ^ kind
+              , tbinderNameRange :: !Range -- ^ name range
+              , tbinderRange :: !Range -- ^ total range
               }
   deriving (Show)
 
 -- | Constructor: name, existentials, type parameters, name range, total range, and visibility
 data UserCon t u k
-  = UserCon { userconName :: Name
-            , userconExists :: [TypeBinder k] -- ^ existentials
-            , userconParams :: [(Visibility,ValueBinder t (Maybe (Expr u)))]            -- ^ parameters
-            , userconResult :: Maybe t -- ^ used internally for limited GADT's (for now)
-            , userconNameRange :: Range       --  ^ name range
-            , userconRange :: Range           --  ^ total range
-            , userconVis :: Visibility     -- ^  visibility
-            , userconDoc :: String
+  = UserCon { userconName :: !Name
+            , userconExists :: ![TypeBinder k] -- ^ existentials
+            , userconParams :: ![(Visibility,ValueBinder t (Maybe (Expr u)))]            -- ^ parameters
+            , userconResult :: !(Maybe t) -- ^ used internally for limited GADT's (for now)
+            , userconNameRange :: !Range       --  ^ name range
+            , userconRange :: !Range           --  ^ total range
+            , userconVis :: !Visibility     -- ^  visibility
+            , userconDoc :: !String
             }
   deriving (Show)
 
@@ -184,25 +184,25 @@ type Defs t
   = [Def t]
 
 data ValueBinder t e
-  = ValueBinder{ binderName :: Name    -- ^ name
-               , binderType :: t       -- ^ Type. Always present for constructors.
-               , binderExpr  :: e      -- ^ Expression: always present for definitions as 'Expr t'
+  = ValueBinder{ binderName :: !Name    -- ^ name
+               , binderType :: !t       -- ^ Type. Always present for constructors.
+               , binderExpr  :: !e      -- ^ Expression: always present for definitions as 'Expr t'
                                        -- functions and constructor parameters use 'Maybe (Expr t)' for default values.
                                        -- Pattern bindings ('PatVar') use unit '()'.
-               , binderNameRange :: Range  -- ^ name range
-               , binderRange :: Range      -- ^ full range
+               , binderNameRange :: !Range  -- ^ name range
+               , binderRange :: !Range      -- ^ full range
                }
   deriving (Show)
 
 
 --  | A value or function definition
 data Def t
-  = Def{ defBinder :: ValueBinder () (Expr t)  -- a type on the definition goes into an outer Ann node on the expression
-       , defRange  :: Range
-       , defVis    :: Visibility
-       , defSort   :: DefSort
-       , defInline :: DefInline
-       , defDoc    :: String
+  = Def{ defBinder :: !(ValueBinder () (Expr t))  -- a type on the definition goes into an outer Ann node on the expression
+       , defRange  :: !Range
+       , defVis    :: !Visibility
+       , defSort   :: !DefSort
+       , defInline :: !DefInline
+       , defDoc    :: !String
        }
   deriving (Show)
 
@@ -230,18 +230,18 @@ data Expr t
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Name String Range  --  name and string are used for the range map
   | Inject t (Expr t) Bool {-behind?-} Range
-  | Handler{ hndlrSort         :: HandlerSort,
-             hndlrScope        :: HandlerScope,
-             hndlrOverride     :: HandlerOverride,
-             hndlrAllowMask    :: Maybe Bool,
-             hndlrEffect       :: (Maybe t),
-             hndlrLocalPars    :: [ValueBinder (Maybe t) ()],
-             hndlrInitially    :: (Maybe (Expr t)),
-             hndlrReturn       :: (Maybe (Expr t)),
-             hndlrFinally      :: (Maybe (Expr t)),
-             hndlrBranches     :: [HandlerBranch t],
-             hndlrDeclRange    :: Range,
-             hndlrRange        :: Range
+  | Handler{ hndlrSort         :: !HandlerSort,
+             hndlrScope        :: !HandlerScope,
+             hndlrOverride     :: !HandlerOverride,
+             hndlrAllowMask    :: !(Maybe Bool),
+             hndlrEffect       :: !(Maybe t),
+             hndlrLocalPars    :: ![ValueBinder (Maybe t) ()],
+             hndlrInitially    :: !(Maybe (Expr t)),
+             hndlrReturn       :: !(Maybe (Expr t)),
+             hndlrFinally      :: !(Maybe (Expr t)),
+             hndlrBranches     :: ![HandlerBranch t],
+             hndlrDeclRange    :: !Range,
+             hndlrRange        :: !Range
             }
   deriving (Show)
 
@@ -254,39 +254,39 @@ data HandlerScope
   deriving (Eq, Show)
 
 data HandlerBranch t
-  = HandlerBranch{ hbranchName :: Name
-                 , hbranchPars :: [ValueBinder (Maybe t) ()]
-                 , hbranchExpr :: Expr t
-                 , hbranchSort :: OperationSort
-                 , hbranchNameRange :: Range
-                 , hbranchPatRange  :: Range
+  = HandlerBranch{ hbranchName :: !Name
+                 , hbranchPars :: ![ValueBinder (Maybe t) ()]
+                 , hbranchExpr :: !(Expr t)
+                 , hbranchSort :: !OperationSort
+                 , hbranchNameRange :: !Range
+                 , hbranchPatRange  :: !Range
                  }
   deriving (Show)
 
 data Branch t
-  = Branch{ branchPattern :: (Pattern t), branchGuards :: [Guard t] }
+  = Branch{ branchPattern :: !(Pattern t), branchGuards :: ![Guard t] }
   deriving (Show)
 
 data Guard t
-  = Guard { guardTest :: (Expr t), guardExpr :: (Expr t) }
+  = Guard { guardTest :: !(Expr t), guardExpr :: !(Expr t) }
   deriving (Show)
 
 -- | Patterns
 data Pattern t
-  = PatWild   Range
-  | PatVar    (ValueBinder (Maybe t) (Pattern t)) -- the binderExpr is a potential other pattern (used for "as x" bindings)
-  | PatAnn    (Pattern t) t Range
-  | PatCon    Name    [(Maybe (Name,Range), Pattern t)] Range Range  -- name range and full range
-  | PatParens (Pattern t) Range
-  | PatLit    Lit
+  = PatWild   !Range
+  | PatVar    !(ValueBinder (Maybe t) (Pattern t)) -- the binderExpr is a potential other pattern (used for "as x" bindings)
+  | PatAnn    !(Pattern t) !t !Range
+  | PatCon    !Name    ![(Maybe (Name,Range), Pattern t)] !Range !Range  -- name range and full range
+  | PatParens !(Pattern t) !Range
+  | PatLit    !Lit
   deriving (Show)
 
 -- | Literals
 data Lit
-  = LitInt      Integer   Range
-  | LitFloat    Double  Range
-  | LitChar     Char     Range
-  | LitString   String Range
+  = LitInt      !Integer   !Range
+  | LitFloat    !Double  !Range
+  | LitChar     !Char     !Range
+  | LitString   !String !Range
   deriving (Show)
 
 litRange :: Lit -> Range
@@ -315,14 +315,14 @@ data UserQuantifier  = QSome | QForall | QExists
 
 -- (Higher ranked) types
 data KUserType k
-  = TpQuan     UserQuantifier (TypeBinder k) (KUserType k) Range
-  | TpQual     [KUserType k] (KUserType k)
-  | TpFun      [(Name,KUserType k)] (KUserType k) (KUserType k) Range
-  | TpApp      (KUserType k)  [KUserType k] Range
-  | TpVar      Name                  Range
-  | TpCon      Name                  Range
-  | TpParens   (KUserType k)         Range
-  | TpAnn      (KUserType k)  k
+  = TpQuan     !UserQuantifier !(TypeBinder k) !(KUserType k) !Range
+  | TpQual     ![KUserType k] !(KUserType k)
+  | TpFun      ![(Name,KUserType k)] !(KUserType k) !(KUserType k) !Range
+  | TpApp      !(KUserType k)  ![KUserType k] !Range
+  | TpVar      !Name                  !Range
+  | TpCon      !Name                  !Range
+  | TpParens   !(KUserType k)         !Range
+  | TpAnn      !(KUserType k)  !k
   deriving (Show)
 
 type UserType
@@ -331,9 +331,9 @@ type UserType
 
 -- | A kind
 data UserKind
-  = KindCon    Name Range
-  | KindArrow  UserKind UserKind
-  | KindParens UserKind Range
+  = KindCon    !Name !Range
+  | KindArrow  !UserKind !UserKind
+  | KindParens !UserKind !Range
   | KindNone  -- flags that there is no explicit kind annotation
   deriving (Show)
 

@@ -275,7 +275,9 @@ defDecl env
                     DefFun _ fip -> DefFun pinfos fip
                     _            -> sort0
        -- trace ("parse def: " ++ show name ++ ": " ++ show tp) $ return ()
-       return (Def (qualify (modName env) name) tp (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file"))
+       return (Def (qualify (modName env) name) tp
+                    -- (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file"))
+                    exprUnit
                    vis sort inl range doc)
 
 pdefSort

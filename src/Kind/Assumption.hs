@@ -55,7 +55,7 @@ kgammaIsEmpty (KGamma qm)
 {--------------------------------------------------------------------------
   KGamma
 --------------------------------------------------------------------------}
-data TypeNameInfo = TypeNameInfo{ tninfoKind :: Kind, tninfoDoc :: String }
+data TypeNameInfo = TypeNameInfo{ tninfoKind :: !Kind, tninfoDoc :: !String }
 
 
 -- | Environment mapping types to kind schemes

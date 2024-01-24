@@ -86,24 +86,24 @@ import Kind.Kind
   Types
 --------------------------------------------------------------------------}
 -- | Types
-data Type   = TForall  [TypeVar] [Pred] Rho  -- ^ forall a b c. phi, psi => rho
+data Type   = TForall  ![TypeVar] ![Pred] !Rho  -- ^ forall a b c. phi, psi => rho
                                              -- there is at least one variable
                                              -- every variable occurs at least once in rho
                                              -- variables and predicates are canonically ordered
                                              -- each predicate refers to at least one of the variables
                                              -- rho has kind *
-            | TFun     [(Name,Type)] Effect Type    -- ^ (x:a, y:b, z:c) -> m d
-            | TCon     TypeCon               -- ^ type constant (primitive, label, or newtype; not -> or =>)
-            | TVar     TypeVar               -- ^ type variable (cannot instantiate to -> or =>)
-            | TApp     Type [Type]           -- ^ application of datatypes
-            | TSyn     TypeSyn [Type] Type   -- ^ type synonym indirection
+            | TFun     ![(Name,Type)] !Effect !Type    -- ^ (x:a, y:b, z:c) -> m d
+            | TCon     !TypeCon               -- ^ type constant (primitive, label, or newtype; not -> or =>)
+            | TVar     !TypeVar               -- ^ type variable (cannot instantiate to -> or =>)
+            | TApp     !Type ![Type]           -- ^ application of datatypes
+            | TSyn     !TypeSyn ![Type] !Type   -- ^ type synonym indirection
                                              -- first [Type] list is the actual arguments
                                              -- final Type is the "real" type (expanded) (always has kind *)
             deriving (Show)
 
 data Pred
-  = PredSub Type Type
-  | PredIFace Name [Type]
+  = PredSub !Type !Type
+  | PredIFace !Name ![Type]
   deriving (Show)
 
 -- | Various synonyms of types
@@ -118,9 +118,9 @@ type InferType = Type
 
 -- | Type variables are variables in a type and contain an identifier and
 -- kind. One can ask for the free type variables in a type, and substitute them with 'Tau' types.
-data TypeVar = TypeVar{ typevarId :: Id
-                      , typevarKind :: Kind
-                      , typevarFlavour :: Flavour
+data TypeVar = TypeVar{ typevarId :: !Id
+                      , typevarKind :: !Kind
+                      , typevarFlavour :: !Flavour
                       }
                       deriving (Show)
 
@@ -130,16 +130,16 @@ data Flavour = Meta | Skolem | Bound
              deriving (Eq, Ord, Show)
 
 -- | Type constants have a name and a kind
-data TypeCon = TypeCon{ typeconName :: Name
-                      , typeconKind :: Kind
+data TypeCon = TypeCon{ typeconName :: !Name
+                      , typeconKind :: !Kind
                       }
                       deriving (Show)
 
 -- | Type synonyms have an identifier, kind, and rank (= partial ordering among type synonyms)
-data TypeSyn = TypeSyn{ typesynName ::  Name
-                      , typesynKind :: Kind
-                      , typesynRank :: SynonymRank
-                      , typesynInfo :: Maybe SynInfo
+data TypeSyn = TypeSyn{ typesynName :: !Name
+                      , typesynKind :: !Kind
+                      , typesynRank :: !SynonymRank
+                      , typesynInfo :: !(Maybe SynInfo)
                       }
                       deriving (Show)
 
@@ -169,15 +169,15 @@ maxSynonymRank tp
 --------------------------------------------------------------------------}
 
 -- | Data type information: name, kind, type arguments, and constructors
-data DataInfo = DataInfo{ dataInfoSort    :: DataKind
-                        , dataInfoName    :: Name
-                        , dataInfoKind    :: Kind
-                        , dataInfoParams  :: [TypeVar] {- ^ arguments -}
-                        , dataInfoConstrs :: [ConInfo]
-                        , dataInfoRange   :: Range
-                        , dataInfoDef     :: DataDef  -- value(raw,scan), normal, rec, open
-                        , dataInfoVis     :: Visibility
-                        , dataInfoDoc     :: String
+data DataInfo = DataInfo{ dataInfoSort    :: !DataKind
+                        , dataInfoName    :: !Name
+                        , dataInfoKind    :: !Kind
+                        , dataInfoParams  :: ![TypeVar] {- ^ arguments -}
+                        , dataInfoConstrs :: ![ConInfo]
+                        , dataInfoRange   :: !Range
+                        , dataInfoDef     :: !DataDef  -- value(raw,scan), normal, rec, open
+                        , dataInfoVis     :: !Visibility
+                        , dataInfoDoc     :: !String
                         }
 
 dataInfoIsRec info
@@ -191,22 +191,22 @@ dataInfoIsLiteral info
     in (name == nameTpInt || name == nameTpChar || name == nameTpString || name == nameTpFloat)
 
 -- | Constructor information: constructor name, name of the newtype, field types, and the full type of the constructor
-data ConInfo = ConInfo{ conInfoName :: Name
-                      , conInfoTypeName :: Name
+data ConInfo = ConInfo{ conInfoName :: !Name
+                      , conInfoTypeName :: !Name
                       -- , conInfoTypeSort :: Name
-                      , conInfoForalls:: [TypeVar] {- ^ quantifiers -}
-                      , conInfoExists :: [TypeVar] {- ^ existentials -}
-                      , conInfoParams :: [(Name,Type)] {- ^ field types -}
-                      , conInfoType   :: Scheme
-                      , conInfoTypeSort :: DataKind  -- ^ inductive, coinductive, retractive
-                      , conInfoRange :: Range
-                      , conInfoParamRanges :: [Range]
-                      , conInfoParamVis    :: [Visibility]
-                      , conInfoSingleton :: Bool -- ^ is this the only constructor of this type?
-                      , conInfoOrderedParams :: [(Name,Type)] -- ^ fields ordered by size
-                      , conInfoValueRepr :: ValueRepr
-                      , conInfoVis :: Visibility
-                      , conInfoDoc :: String
+                      , conInfoForalls:: ![TypeVar] {- ^ quantifiers -}
+                      , conInfoExists :: ![TypeVar] {- ^ existentials -}
+                      , conInfoParams :: ![(Name,Type)] {- ^ field types -}
+                      , conInfoType   :: !Scheme
+                      , conInfoTypeSort :: !DataKind  -- ^ inductive, coinductive, retractive
+                      , conInfoRange :: !Range
+                      , conInfoParamRanges :: ![Range]
+                      , conInfoParamVis    :: ![Visibility]
+                      , conInfoSingleton :: !Bool -- ^ is this the only constructor of this type?
+                      , conInfoOrderedParams :: ![(Name,Type)] -- ^ fields ordered by size
+                      , conInfoValueRepr :: !ValueRepr
+                      , conInfoVis :: !Visibility
+                      , conInfoDoc :: !String
                       }
 
 instance Show ConInfo where

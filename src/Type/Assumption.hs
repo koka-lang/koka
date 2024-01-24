@@ -64,11 +64,11 @@ import Lib.Trace
 import Syntax.Syntax (TypeDef(typeDefDoc))
 
 data NameInfo
-  = InfoVal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoRange :: Range, infoIsVar :: Bool, infoDoc::String }
-  | InfoFun{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoArity :: (Int,Int), infoFip :: Fip, infoRange :: Range, infoDoc::String }
-  | InfoCon{ infoVis :: Visibility, infoType :: Scheme, infoRepr  :: Core.ConRepr, infoCon :: ConInfo, infoRange :: Range, infoDoc::String }
-  | InfoExternal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoFormat :: [(Target,String)], infoFip :: Fip, infoRange :: Range, infoDoc :: String}
-  | InfoImport{ infoVis :: Visibility, infoType :: Scheme, infoAlias :: Name, infoFullName :: Name, infoRange :: Range}
+  = InfoVal{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoRange :: !Range, infoIsVar :: !Bool, infoDoc :: !String }
+  | InfoFun{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoArity :: !(Int,Int), infoFip :: !Fip, infoRange :: !Range, infoDoc :: !String }
+  | InfoCon{ infoVis :: !Visibility, infoType :: !Scheme, infoRepr  :: !Core.ConRepr, infoCon :: !ConInfo, infoRange :: !Range, infoDoc :: !String }
+  | InfoExternal{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoFormat :: ![(Target,String)], infoFip :: !Fip, infoRange :: !Range, infoDoc :: !String}
+  | InfoImport{ infoVis :: !Visibility, infoType :: !Scheme, infoAlias :: !Name, infoFullName :: !Name, infoRange :: !Range}
   deriving (Show)
 
 infoSort :: NameInfo -> String

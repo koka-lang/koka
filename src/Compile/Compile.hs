@@ -1,7 +1,7 @@
 module Compile.Compile( Compile
                       , VFS(..), noVFS
                       , runCompileIO
-                      , resolveDependencies
+                      , modulesResolveDependencies
                       , moduleFromSource
                       ) where
 
@@ -43,19 +43,19 @@ import Compile.Module
 ---------------------------------------------------------------}
 
 -- given a root set of modules, load- or parse all required modules
-resolveDependencies :: [Module] -> Compile [Module]
-resolveDependencies modules
+modulesResolveDependencies :: [Module] -> Compile [Module]
+modulesResolveDependencies modules
   = do ordered <- phaseTimed "resolve" (list (map (pretty . modName) modules)) $
-                  resolveDeps modules
+                  modulesResolveDeps modules
        mapM moduleFlushErrors ordered
 
-resolveDeps modules
+modulesResolveDeps modules
   = do pmodules   <- mapConcurrent ensureLoaded modules           -- we can concurrently load/parse modules
        newimports <- nubBy (\m1 m2 -> modName m1 == modName m2) <$> concat <$> mapM (addImports pmodules) pmodules
        if (null newimports)
          then toBuildOrder pmodules
          else do phase "resolve" (list (map (pretty . modName) newimports))
-                 resolveDeps (newimports ++ pmodules)
+                 modulesResolveDeps (newimports ++ pmodules)
   where
     addImports pmodules mod
       = concat <$> mapM addImport (modImports mod)
