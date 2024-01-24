@@ -48,6 +48,9 @@ import Compiler.Compile
 import Compiler.Module
 import Interpreter.Command
 
+import qualified Compile.Module  as M
+import qualified Compile.Compile as C
+
 {---------------------------------------------------------------
   interpreter state
 ---------------------------------------------------------------}
@@ -64,6 +67,7 @@ data State = State{  printer    :: ColorPrinter
                    , errorRange    :: Maybe Range       -- last error location
                    , lastLoad      :: [FilePath]        -- last load command
                    , loadedPrelude :: Loaded            -- load state after loading the prelude
+                   , modules       :: [M.Module]
                    }
 
 
@@ -73,7 +77,7 @@ data State = State{  printer    :: ColorPrinter
 interpret ::  ColorPrinter -> Flags -> Flags -> [FilePath] -> IO ()
 interpret printer flags0 flagspre files
   = withReadLine (buildDir flags0) $
-    do{ let st0 = (State printer flags0 flagspre False initialLoaded initialLoaded [] (programNull nameInteractiveModule) Nothing [] initialLoaded)
+    do{ let st0 = (State printer flags0 flagspre False initialLoaded initialLoaded [] (programNull nameInteractiveModule) Nothing [] initialLoaded [])
       ; messageHeader st0
       ; let st2 = st0
       -- ; st2 <- findBackend st0
@@ -176,6 +180,7 @@ command st cmd
 
   Load fnames force
               -> do{ let st' = st{ lastLoad = fnames }
+                   ; loadModules term st' fnames force
                    ; loadFiles term st' (reset True st') fnames force
                    }
 
@@ -253,6 +258,14 @@ command st cmd
         }
 
 
+loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO ()
+loadModules term st files force
+  = do mbMods <- C.runCompileIO term (flags st) C.noVFS $
+                 do roots <- mapM C.moduleFromSource files
+                    C.resolveDependencies roots
+       case mbMods of
+         Nothing -> return ()
+         Just mods -> return ()
 
 {--------------------------------------------------------------------------
   File loading

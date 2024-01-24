@@ -30,6 +30,7 @@ module Compiler.Options( -- * Command line options
                        , vcpkgFindRoot
                        , onWindows, onMacOS
                        , flagsHash
+                       , Terminal(..)
                        ) where
 
 
@@ -49,6 +50,8 @@ import Common.ColorScheme
 import Common.File
 import Common.Name
 import Common.Syntax
+import Common.Error( ErrorMessage )
+import Type.Type( Scheme )
 import Compiler.Package
 import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
@@ -80,6 +83,15 @@ prettyIncludePath flags
         path    = includePath flags
     in align (if null path then color (colorSource cscheme) (text "<empty>")
                else cat (punctuate comma (map (\p -> color (colorSource cscheme) (text p)) path)))
+
+
+data Terminal = Terminal{ termError :: ErrorMessage -> IO ()
+                        , termPhase :: String -> IO ()
+                        , termPhaseDoc :: Doc -> IO ()
+                        , termType  :: Scheme -> IO ()
+                        , termDoc   :: Doc -> IO ()
+                        }
+
 
 {--------------------------------------------------------------------------
   Options

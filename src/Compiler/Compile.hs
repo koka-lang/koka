@@ -87,7 +87,8 @@ import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
                                 prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags,
                                 fullBuildDir, outName, buildVariant, osName, targetExeExtension,
-                                conanSettingsFromFlags, vcpkgFindRoot, onWindows, onMacOS, Mode (ModeLanguageServer))
+                                conanSettingsFromFlags, vcpkgFindRoot, onWindows, onMacOS, Mode (ModeLanguageServer),
+                                Terminal(..))
 
 import Compiler.Module
 
@@ -118,13 +119,6 @@ import Core.Core (Core(coreProgImports))
 {--------------------------------------------------------------------------
   Compilation
 --------------------------------------------------------------------------}
-
-data Terminal = Terminal{ termError :: ErrorMessage -> IO ()
-                        , termPhase :: String -> IO ()
-                        , termPhaseDoc :: Doc -> IO ()
-                        , termType  :: Scheme -> IO ()
-                        , termDoc   :: Doc -> IO ()
-                        }
 
 
 data IOErr b a = IOErr (IO (Error b a))
