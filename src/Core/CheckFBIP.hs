@@ -58,7 +58,7 @@ checkFBIP penv platform newtypes borrowed gamma
   = do uniq      <- unique
        defGroups <- getCoreDefs
        let (_,warns) = runChk penv uniq platform newtypes borrowed gamma (chkDefGroups defGroups)
-       mapM_ (\warn -> liftError (warningMsg warn)) warns
+       liftError (warningMsgs [warningMessageKind ErrStatic range doc | (range,doc) <- warns])
 
 
 {--------------------------------------------------------------------------

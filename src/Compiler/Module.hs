@@ -154,7 +154,7 @@ loadedImportModule isValue (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 u
   = let core = modCore mod
         (imps2,errs)
           = case importsExtend impName (modName mod) imps1 of
-              Nothing   -> (imps1,[ErrorGeneral range (text "Module" <+> pretty impName <+> text "is already imported")])
+              Nothing   -> (imps1,[errorMessageKind ErrGeneral range (text "Module" <+> pretty impName <+> text "is already imported")])
               Just imps -> (imps,[])
         loaded
           = Loaded (gammaUnion gamma1 (extractGamma isValue False core))

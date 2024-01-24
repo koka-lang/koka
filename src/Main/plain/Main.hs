@@ -76,8 +76,8 @@ mainMode flags flags0 mode p
      ModeVersion
       -> withNoColorPrinter (\monop -> showVersion flags monop)
      ModeCompiler files
-      -> do 
-        errFiles <- foldM (\errfiles file -> 
+      -> do
+        errFiles <- foldM (\errfiles file ->
             do
               res <- compile p flags file
               if res then return errfiles
@@ -101,16 +101,15 @@ compile p flags fname
        err <- compileFile (const Nothing) Nothing (term cwd) flags []
                 (if (not (evaluate flags)) then (if library flags then Library else exec) else exec) [] fname
        case checkError err of
-         Left msg
-           -> do putPrettyLn p (ppErrorMessage cwd (showSpan flags) cscheme msg)
+         Left (Errors errs)
+           -> do mapM_ (\err -> putPrettyLn p (ppErrorMessage cwd (showSpan flags) cscheme err)) errs
                  -- exitFailure  -- don't fail for tests
                  return False
          Right ((Loaded gamma kgamma synonyms newtypes constructors _ imports _
                 (Module modName _ _ _ _ _ rawProgram core _ _ _ modTime) _ _ _
-                , _), warnings)
+                , _), Errors warnings)
            -> do when (not (null warnings))
-                   (let msg = ErrorWarning warnings ErrorZero
-                    in putPrettyLn p (ppErrorMessage cwd (showSpan flags) cscheme msg))
+                   (mapM_ (\err -> putPrettyLn p (ppErrorMessage cwd (showSpan flags) cscheme err)) warnings)
                  when (showKindSigs flags) $ do
                        putPrettyLn p (pretty (kgammaFilter modName kgamma))
                        let localSyns = synonymsFilter modName synonyms

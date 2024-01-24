@@ -11,7 +11,7 @@
 -----------------------------------------------------------------------------
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 module Common.Name
-          ( Name, Names     -- instance Eq Ord Show
+          ( Name, Names, ModuleName     -- instance Eq Ord Show
           -- , showName        -- show with quotes
           , showPlain
           , showTupled, readTupled -- show and read back reliably
@@ -106,6 +106,8 @@ data Name  = Name
              , nameStem       :: !String        -- the stem (`show`)
              , hashStem       :: !Int
              }
+
+type ModuleName = Name
 
 joinWith sep m n  = (if null m then n else if null n then m else m ++ sep ++ n)
 join m n          = joinWith "/" m n

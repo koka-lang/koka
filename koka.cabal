@@ -145,6 +145,7 @@ library
   build-depends:
       FloatingHex >=0.5
     , array
+    , async
     , base >=4.9
     , bytestring
     , containers
@@ -219,6 +220,7 @@ executable koka-plain
   build-depends:
       FloatingHex >=0.5
     , array
+    , async
     , base >=4.9
     , bytestring
     , containers
@@ -244,6 +246,7 @@ test-suite koka-test
   build-depends:
       FloatingHex >=0.5
     , array
+    , async
     , base >=4.9
     , bytestring
     , containers

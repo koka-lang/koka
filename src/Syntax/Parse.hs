@@ -87,7 +87,8 @@ optional p  = do { p; return True } <|> return False
 parseProgramFromFile :: Bool -> Bool -> FilePath -> IO (Error a UserProgram)
 parseProgramFromFile allowAt semiInsert fname
   = do input <- readInput fname
-       let result = parseProgramFromString allowAt semiInsert input fname
+       return (parseProgramFromString allowAt semiInsert input fname)
+{-
        case checkError result of
           Right (a, warnings) -> do logSyntaxWarnings warnings
                                     return result
@@ -96,11 +97,12 @@ parseProgramFromFile allowAt semiInsert fname
 logSyntaxWarnings :: [(Range, Doc)] -> IO ()
 logSyntaxWarnings warnings
   = putPretty (prettyWarnings "" True defaultColorScheme warnings)
+-}
 
 parseProgramFromString :: Bool -> Bool -> BString -> FilePath -> Error a UserProgram
 parseProgramFromString allowAt semiInsert input fname
   = do ((prog,lexemes), syntaxWarnings) <- lexParse allowAt semiInsert id program fname 1 input
-       addWarnings (map (\(s, r) -> (r, text s)) syntaxWarnings) $ return prog{ programLexemes = lexemes }
+       addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) syntaxWarnings) $ return prog{ programLexemes = lexemes }
 
 parseValueDef :: Bool -> FilePath -> Int -> String -> Error () UserDef
 parseValueDef semiInsert sourceName line input
@@ -158,7 +160,7 @@ parseLexemes p source@(Source sourceName _) lexemes
 
 makeParseError :: (ParseError -> Range) -> ParseError -> Error b a
 makeParseError toRange perr
-  = errorMsg (ErrorParse (toRange perr) errorDoc)
+  = errorMsg (errorMessageKind ErrParse (toRange perr) errorDoc)
   where
     errorDoc
       = PP.string ("invalid syntax" ++ (drop 1 $ dropWhile (/=':') $ show perr))

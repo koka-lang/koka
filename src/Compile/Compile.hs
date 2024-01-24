@@ -1,22 +1,86 @@
 module Compile.Compile() where
 
 import Data.Char
+import Data.List
+import Data.Either
 import Control.Exception
 import Control.Applicative
 import Control.Monad          ( ap, when )
 import qualified Control.Monad.Fail as F
+import Control.Concurrent.Async (mapConcurrently)
 import System.Directory ( doesFileExist )
+
+import Lib.Scc( scc )
 import Lib.PPrint
 import Platform.Config        ( version, exeExtension, dllExtension, libPrefix, libExtension, pathSep, sourceExtension )
 import Common.Error
 import Common.File
 import Common.ColorScheme
 import Common.Range
+import Common.NamePrim        (isPrimitiveModule)
+import Syntax.Syntax
+import Syntax.Parse           (parseProgramFromFile)
 import Type.Type
 import Compiler.Options
 import Compile.Module
 
+{---------------------------------------------------------------
+  Given a set of modules,
+  return all required modules in build order
+---------------------------------------------------------------}
 
+resolveDependencies :: [Module] -> Compile [Module]
+resolveDependencies modules
+  = do pmodules   <- mapConcurrent ensureParsed modules
+       newimports <- concat <$> mapM (addImports pmodules) pmodules
+       if (null newimports)
+         then toBuildOrder pmodules
+         else resolveDependencies (newimports ++ pmodules)
+  where
+    addImports pmodules mod
+      = concat <$> mapM addImport (modImports mod)
+      where
+        addImport :: ModuleName -> Compile [Module]
+        addImport impName = if any (\m -> modName m == impName) pmodules
+                             then return []
+                             else do let relativeDir = dirname (modSourcePath mod)
+                                     m <- moduleFromModuleName relativeDir impName  -- todo: set error, prevent parsing?
+                                     return [m]
+
+toBuildOrder :: [Module] -> Compile [Module]
+toBuildOrder modules
+  = -- todo: might be faster to check if the modules are already in build order before doing a full `scc` ?
+    let deps    = [(modName mod, modImports mod) | mod <- modules]
+        ordered = scc deps
+        ungroup [mname]  | Just mod <- find (\m -> modName m == mname) modules  = return [mod]
+        ungroup grp      = do throwError (errorMessageKind ErrBuild rangeNull (text ("recursive imports: " ++ show grp))) -- todo: nice error
+                              return []
+    in concat <$> mapM ungroup ordered
+
+
+{---------------------------------------------------------------
+  Parse modules
+---------------------------------------------------------------}
+
+ensureParsed :: Module -> Compile Module
+ensureParsed mod
+  = if modPhase mod >= ModParsed
+      then return mod
+      else do res <- checked (moduleParse mod)
+              case res of
+                Right mod' -> return mod'
+                Left errs  -> return mod{ modErrors = mergeErrors errs (modErrors mod) }
+
+moduleParse :: Module -> Compile Module
+moduleParse mod
+  = do flags <- getFlags
+       let allowAt = isPrimitiveModule (modName mod)
+       prog <- liftIOError $ parseProgramFromFile allowAt (semiInsert flags) (modSourcePath mod)
+       return mod{ modPhase = ModParsed
+                 , modLexemes = programLexemes prog
+                 , modProgram = Just prog
+                 , modImports = nub (map importFullName (programImports prog))
+                 }
 
 {---------------------------------------------------------------
   Create initial empty modules
@@ -35,7 +99,7 @@ moduleFromSource fpath0
                                             then case reverse stemParts of
                                                     (base:_)  | isValidId base
                                                       -> return (newModuleName base)  -- module may not be found if imported
-                                                    _ -> throwError (ErrorIO (text ("file path cannot be mapped to a valid module name: " ++ sourcePath)))
+                                                    _ -> throwError (errorMessageKind ErrBuild rangeNull (text ("file path cannot be mapped to a valid module name: " ++ sourcePath)))
                                             else return (newModuleName (noexts stem))
                                 ifacePath <- outputName (moduleNameToPath modName ++ ifaceExtension)
                                 return $ moduleCreateEmpty modName sourcePath ifacePath
@@ -55,7 +119,8 @@ moduleFromModuleName relativeDir modName
          Nothing
             -> do ifaceExist <- liftIO $ doesFileExist ifacePath
                   if ifaceExist
-                    then do warningMessage (\cs -> text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module")
+                    then do cs <- getColorScheme
+                            addWarningMessage (warningMessageKind ErrBuild rangeNull (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
                             return $ moduleCreateEmpty modName "" ifacePath
                     else throwModuleNotFound rangeNull modName
 
@@ -83,12 +148,12 @@ searchSourceFile currentDir fname
 throwModuleNotFound :: Range -> Name -> Compile a
 throwModuleNotFound range name
   = do flags <- getFlags
-       throw (ErrorGeneral range (errorNotFound flags colorModule "module" (pretty name)))
+       throwError (errorMessageKind ErrBuild range (errorNotFound flags colorModule "module" (pretty name)))
 
 throwFileNotFound :: FilePath -> Compile a
 throwFileNotFound name
   = do flags <- getFlags
-       throw (ErrorIO $ text "error:" <+> errorNotFound flags colorSource "" (text name))
+       throwError (errorMessageKind ErrBuild rangeNull (errorNotFound flags colorSource "" (text name)))
 
 errorNotFound flags clr kind namedoc
   = text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc <->
@@ -131,15 +196,44 @@ data Env = Env { envTerminal :: Terminal, envFlags :: Flags }
 
 
 runCompile :: Terminal -> Flags -> Compile a -> IO (Maybe a)
-runCompile term flags (Compile ie)
-  = catch (do x <- ie (Env term flags)
-              return (Just x))
-          (\err ->
-           do termError term err
-              return Nothing)
+runCompile term flags cmp
+  = do res <- runCompileEnv (Env term flags) cmp
+       case res of
+         Right x  -> return (Just x)
+         Left err -> do mapM_ (termError term) (errors err)
+                        return Nothing
+
+
+runCompileEnv :: Env -> Compile a -> IO (Either Errors a)
+runCompileEnv env (Compile cmp)
+  = catch (do x <- cmp env
+              return (Right x))
+          (\errs -> return (Left errs))
+
 
 liftIO :: IO a -> Compile a
 liftIO io = Compile (\env -> io)
+
+liftIOError :: IO (Error () a) -> Compile a
+liftIOError io
+  = do res <- liftIO io
+       case checkError res of
+         Left errs          -> throw errs
+         Right (x,Errors warnings) -> do mapM_ addWarningMessage warnings
+                                         return x
+
+
+mapConcurrent :: (a -> Compile b) -> [a] -> Compile [b]
+mapConcurrent f xs
+  = do env <- getEnv
+       ys  <- liftIO $ mapConcurrently (\x -> runCompileEnv env (f x)) xs
+       let errs = lefts ys
+       if null errs
+         then return (rights ys)
+         else throw (foldr mergeErrors errorsNil errs)
+
+
+
 
 instance Functor Compile where
   fmap f (Compile ie)  = Compile (\env -> fmap f (ie env))
@@ -156,11 +250,21 @@ instance Monad Compile where
                             Compile ie' -> ie' env)
 
 instance F.MonadFail Compile where
-  fail msg = throw (ErrorIO (text msg))
+  fail msg = throwError (errorMessageKind ErrGeneral rangeNull (text msg))
+
+checked :: Compile a -> Compile (Either Errors a)
+checked (Compile cmp)
+  = Compile (\env -> catch (do x <- cmp env
+                               return (Right x))
+                           (\errs -> return (Left errs)))
 
 throwError :: ErrorMessage -> Compile a
 throwError msg
-  = liftIO $ throw msg
+  = liftIO $ throw (errorsSingle msg)
+
+getEnv :: Compile Env
+getEnv
+  = Compile (\env -> return env)
 
 getFlags :: Compile Flags
 getFlags
@@ -177,9 +281,9 @@ getColorScheme
 
 
 
-warningMessage :: (ColorScheme -> Doc) -> Compile ()
-warningMessage doc
+addWarningMessage :: ErrorMessage -> Compile ()
+addWarningMessage warn
   = do term    <- getTerminal
        cscheme <- getColorScheme
-       liftIO $ termDoc term $ color (colorWarning (cscheme)) $ (text "warning:" <+> doc cscheme)
+       liftIO $ termDoc term $ ppErrorMessage "" True cscheme warn
 

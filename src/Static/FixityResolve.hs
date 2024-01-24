@@ -167,7 +167,7 @@ data Res a  = Res !a ![(Range,Doc)]
 runFixM :: Fixities -> FixM a -> Error b a
 runFixM fixities (FixM f)
   = case f fixities of
-      Res x errors -> if null errors then return x else errorMsg (ErrorStatic errors)
+      Res x errors -> if null errors then return x else errorMsgs [errorMessageKind ErrStatic rng doc | (rng,doc) <- errors]
 
 instance Functor FixM where
   fmap  = liftM

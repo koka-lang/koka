@@ -48,7 +48,7 @@ import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
 import Common.Name (newName)
 import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime, isAbsolute, dirname)
 import Common.ColorScheme(ColorScheme(..))
-import Common.Error (Error, checkPartial, ErrorMessage (ErrorIO))
+import Common.Error
 import Core.Core (Visibility(Private))
 import Compiler.Options (Flags, colorSchemeFromFlags, includePath)
 import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
@@ -201,7 +201,7 @@ processCompilationResult normUri filePath flags update doIO = do
   case result of
     Left e -> do
       -- Compilation threw an exception, put it in the log, as well as a notification
-      liftIO $ termError term $ ErrorIO $ text ("When compiling file " ++ filePath) <-> text "\tcompiler threw exception:" <+> text (show e)
+      liftIO $ termError term $ errorMessageKind ErrBuild rangeNull $ text ("When compiling file " ++ filePath) <-> text "\tcompiler threw exception:" <+> text (show e)
       sendNotification J.SMethod_WindowShowMessage $ J.ShowMessageParams J.MessageType_Error $ "When compiling file " <> T.pack filePath <> T.pack (" compiler threw exception " ++ show e)
       let diagSrc = T.pack "koka"
           maxDiags = 100
@@ -220,17 +220,17 @@ processCompilationResult normUri filePath flags update doIO = do
           when update $ putLoadedSuccess l normUri flags-- update the loaded state for this file
           -- liftIO $ termDoc term $ color Green $ text "success "
           return outFile -- return the executable file path
-        Left (err, mbMod) -> do
+        Left (Errors errs, mbMod) -> do
           -- Compilation failed
           case mbMod of
             Nothing ->
-              trace ("Error when compiling, no cached modules " ++ show err) $
+              trace ("Error when compiling, no cached modules " ++ show errs) $
               return ()
             Just l -> do
               trace ("Error when compiling have cached" ++ show (map modSourcePath $ loadedModules l)) $ return ()
               when update $ putLoaded l normUri flags
               removeLoaded normUri (loadedModule l)
-          liftIO $ termError term err
+          liftIO $ mapM_ (termError term) errs
           return Nothing
       -- Emit the diagnostics (errors and warnings)
       let diagSrc = T.pack "koka"

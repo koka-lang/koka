@@ -24,14 +24,14 @@ import Data.List( transpose )
 import Lib.PPrint
 
 import Kind.Kind
-import Type.Type
+import Type.Type hiding (ModuleName)
 import Type.TypeVar
 import Type.Kind( getKind )
 import Type.Assumption( getArity )
 import Type.Pretty( niceType )
 
 import Common.Syntax( Target(..), BuildType(..) )
-import Common.Name
+import Common.Name hiding (ModuleName)
 import Common.NamePrim
 import Common.Failure
 import Common.Unique

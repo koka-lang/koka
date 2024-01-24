@@ -104,8 +104,8 @@ inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
           cons1     = constructorsFromList conInfos
           gamma1    = constructorGamma isValue dataInfos
           errs4     = constructorCheckDuplicates colors conInfos
-          errs      = errs1 ++ errs2 ++ errs3 ++ errs4
-          warns     = warns1 ++ warns2 ++ warns3
+          warns     = [warningMessageKind ErrKind rng doc | (rng,doc) <- warns1 ++ warns2 ++ warns3]
+          errs      = [errorMessageKind ErrKind rng doc  | (rng,doc) <- errs1 ++ errs2 ++ errs3 ++ errs4]
           dgroups   = concatMap (synTypeDefGroup modName) cgroups
       setUnique unique3
       Core.liftError  (addWarnings warns $
@@ -121,7 +121,7 @@ inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
                                       ,Core.Core modName [] [] cgroups [] externals1 doc
                                       ,rm4
                                       )
-                          else errorMsg (ErrorKind errs))
+                          else errorMsgs errs)
 
 unzipEither :: [Either a b] -> ([a],[b])
 unzipEither xs

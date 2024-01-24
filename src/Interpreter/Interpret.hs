@@ -88,7 +88,7 @@ interpret printer flags0 flagspre files
 
       ; err <- loadFilesErr (terminal st2) st2{ flags = flags0{ showCore = False }} [(show (nameSystemCore))] False -- map (\c -> if c == '.' then fileSep else c)
                   `catchIO` (\msg -> do messageError st2 msg;
-                                        return (errorMsg (ErrorGeneral rangeNull (text msg))))
+                                        return (errorMsg (errorMessageKind ErrBuild rangeNull (text msg))))
       ; case checkError err of
           Left msg    -> do messageInfoLn st2 ("unable to load the " ++ show nameSystemCore ++ " module; standard functions are not available")
                             messageEvaluation st2
@@ -193,7 +193,7 @@ command st cmd
   Edit fname  -> do{ mbpath <- searchSource (flags st) "" (newName fname) -- searchPath (includePath (flags st)) sourceExtension fname
                    ; case mbpath of
                       Nothing
-                        -> do messageErrorMsgLnLn st (errorFileNotFound (flags st) fname)
+                        -> do messageErrorMsgLnLn st [errorFileNotFound (flags st) fname]
                               interpreter st
                       Just (root,fname,_)
                         -> do runEditor st (joinPath root fname)
@@ -294,15 +294,14 @@ loadFilesErr term startSt fileNames force
                              -}
                              compileModuleOrFile (const Nothing) Nothing term (flags st) [] {- (loadedModules (loaded0 st)) -} fname force Object []
                    ; case checkError err of
-                       Left msg
-                          -> do messageErrorMsgLnLn st msg
-                                return (errorMsg msg)
-                       Right ((ld, _), warnings)
+                       Left (Errors errs)
+                          -> do messageErrorMsgLnLn st errs
+                                return (errorMsgs errs)
+                       Right ((ld, _), Errors warnings)
                           -> do{ -- let warnings = modWarnings (loadedModule ld)
                                ; err <- if not (null warnings)
-                                         then do let msg = ErrorWarning warnings ErrorZero
-                                                 messageErrorMsgLn st msg
-                                                 return (Just (getRange msg))
+                                         then do messageErrorMsgLn st warnings
+                                                 return (Just (getRange warnings))
                                          else do return (errorRange st)
                                ; let newst = st{ loaded        = ld
                                                , loaded0       = ld
@@ -338,7 +337,7 @@ findPath cscheme path ext name
 
 errorFileNotFound :: Flags -> FilePath -> ErrorMessage
 errorFileNotFound flags name
-  = ErrorIO (docNotFound (colorSchemeFromFlags flags) (includePath flags) name)
+  = errorMessageKind ErrBuild rangeNull (docNotFound (colorSchemeFromFlags flags) (includePath flags) name)
 
 docNotFound cscheme path name
   = text "could not find:" <+> ppPath name <->
@@ -363,19 +362,19 @@ checkInfer3 st line = checkInferWith st line (\(a,b,c) -> c)
 checkInferWith ::  State -> String -> (a -> Loaded) -> Bool -> Error b a -> (a -> IO ()) -> IO ()
 checkInferWith st line  getLoaded showMarker err f
   = case checkError err of
-      Left msg  -> do when showMarker (maybeMessageMarker st (getRange msg))
-                      messageErrorMsgLn st msg
+      Left (Errors errs)
+                -> do when showMarker (maybeMessageMarker st (getRange errs))
+                      messageErrorMsgLn st errs
                       if (line=="exit" || line == "quit")
                         then messageInfoLnLn st ("hint: use ':q' to quit the interpreter, use ':?' for help.")
                         else messageInfoLn st ""
-                      interpreterEx st{ errorRange = Just (getRange msg) }
-      Right (x,ws)
+                      interpreterEx st{ errorRange = Just (getRange errs) }
+      Right (x,Errors ws)
                 -> do let ld = getLoaded x
                           warnings = ws -- modWarnings (loadedModule ld)
                       when (not (null warnings))
-                        (do let msg = ErrorWarning warnings ErrorZero
-                            when showMarker (maybeMessageMarker st (getRange msg))
-                            messageErrorMsgLnLn st msg)
+                        (do when showMarker (maybeMessageMarker st (getRange ws))
+                            messageErrorMsgLnLn st ws)
                       f x
 
 maybeMessageMarker ::  State -> Range -> IO ()
@@ -584,22 +583,22 @@ remark st s
 
 terminal :: State -> Terminal
 terminal st
-  = Terminal (messageErrorMsgLn st)
+  = Terminal (\err -> messageErrorMsgLn st [err])
              (if (verbose (flags st) > 1)
                then (\s -> withColor (printer st) (colorSource (colorSchemeFromFlags (flags st))) (message st (s ++ "\n"))) else (\_ -> return ()))
              (messagePrettyLn st)  -- (\_ -> return ()) --
              (messageScheme st)
              (messagePrettyLn st)
 
-messageErrorMsgLn :: State -> ErrorMessage -> IO ()
-messageErrorMsgLn st err
+messageErrorMsgLn :: State -> [ErrorMessage] -> IO ()
+messageErrorMsgLn st errs
   = do cwd <- getCwd
-       messagePrettyLn st (ppErrorMessage cwd (showSpan (flags st)) (colorSchemeFromFlags (flags st)) err)
+       messagePrettyLn st (vcat (map (ppErrorMessage cwd (showSpan (flags st)) (colorSchemeFromFlags (flags st))) errs))
 
-messageErrorMsgLnLn :: State -> ErrorMessage -> IO ()
-messageErrorMsgLnLn st err
+messageErrorMsgLnLn :: State -> [ErrorMessage] -> IO ()
+messageErrorMsgLnLn st errs
   = do cwd <- getCwd
-       messagePrettyLnLn st (ppErrorMessage cwd (showSpan (flags st)) (colorSchemeFromFlags (flags st)) err)
+       messagePrettyLnLn st (vcat (map (ppErrorMessage cwd (showSpan (flags st)) (colorSchemeFromFlags (flags st))) errs))
 
 messageError ::  State -> String -> IO ()
 messageError st msg

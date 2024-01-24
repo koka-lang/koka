@@ -15,8 +15,8 @@ module Compile.Module( Module(..), Modules, ModulePhase(..), moduleNull, moduleC
 import Lib.Trace
 import Lib.PPrint
 import Data.Char              ( isAlphaNum )
-import Common.Range           ( Range )
-import Common.Name            ( Name, newName, unqualify, isHiddenName, showPlain)
+import Common.Range           ( Range, rangeNull, makeSourceRange )
+import Common.Name            ( Name, ModuleName, newName, unqualify, isHiddenName, showPlain)
 import Common.Error
 import Common.File            ( FileTime, fileTime0, maxFileTimes, splitPath )
 
@@ -34,35 +34,39 @@ type Modules = [Module]
 
 data ModulePhase
   = ModEmpty
-  | ModLexed
+  -- | ModLexed  -- todo: we can increase parallelism by having the lexer as a phase (so we know the imports/dependencies more early)
   | ModParsed
   | ModTyped
   | ModOptimized
   | ModCompiled
+  deriving (Eq,Ord,Show)
 
 data Module  = Module{ -- initial
-                       modPhase       :: ModulePhase
-                     , modName        :: Name
-                     , modIfacePath   :: FilePath
-                     , modSourcePath  :: FilePath          -- can be empty
+                       modPhase       :: !ModulePhase
+                     , modName        :: !Name
+                     , modIfacePath   :: !FilePath
+                     , modSourcePath  :: !FilePath          -- can be empty
+                     , modRange       :: !Range
+                     , modErrors      :: !Errors      --
                        -- lexing
-                     , modSourceTime  :: FileTime
-                     , modLexemes     :: [Lexeme]
+                     , modSourceTime  :: !FileTime
+                     , modLexemes     :: ![Lexeme]
+                     , modImports     :: ![ModuleName]
                        -- parsing
-                     , modProgram     :: Maybe (Program UserType UserKind)
+                     , modProgram     :: !(Maybe (Program UserType UserKind))
                        -- type check
-                     , modRangeMap    :: Maybe RangeMap
-                     , modInitialCore :: Core.Core
+                     , modRangeMap    :: !(Maybe RangeMap)
+                     , modInitialCore :: !Core.Core
                        -- optimize & interface
-                     , modIfaceTime   :: FileTime
-                     , modCore        :: Core.Core
-                     , modInlines     :: Either (Gamma -> Error () [Core.InlineDef]) ([Core.InlineDef])
+                     , modIfaceTime   :: !FileTime
+                     , modCore        :: !Core.Core
+                     , modInlines     :: !(Either (Gamma -> Error () [Core.InlineDef]) ([Core.InlineDef]))
                        -- codegen
-                     , modExeTime     :: FileTime
+                     , modExeTime     :: !FileTime
 
                        -- unused
-                     , modCompiled    :: Bool
-                     , modTime        :: FileTime
+                     , modCompiled    :: !Bool
+                     , modTime        :: !FileTime
                      --, modPackageQName:: FilePath          -- A/B/C
                      --, modPackageLocal:: FilePath          -- lib
                      }
@@ -70,8 +74,8 @@ data Module  = Module{ -- initial
 
 moduleNull :: Name -> Module
 moduleNull modName
-  = Module  ModEmpty modName "" ""
-            fileTime0 []
+  = Module  ModEmpty modName "" "" rangeNull errorsNil
+            fileTime0 [] []
             Nothing
             Nothing    (Core.coreNull modName)
             fileTime0  (Core.coreNull modName)  (Left (\g -> return []))
@@ -80,7 +84,8 @@ moduleNull modName
 
 moduleCreateEmpty :: Name -> FilePath -> FilePath -> Module
 moduleCreateEmpty modName sourcePath ifacePath
-  = (moduleNull modName){ modSourcePath = sourcePath, modIfacePath = ifacePath }
+  = (moduleNull modName){ modSourcePath = sourcePath, modIfacePath = ifacePath,
+                          modRange = makeSourceRange (if null sourcePath then ifacePath else sourcePath) 1 1 1 1 }
 
 {-
 modPackageName :: Module -> PackageName

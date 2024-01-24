@@ -73,11 +73,22 @@ toLspLocationLink src r =
 toLspDiagnostics :: J.NormalizedUri -> T.Text -> E.Error b a -> M.Map J.NormalizedUri [J.Diagnostic]
 toLspDiagnostics uri src err =
   case E.checkError err of
-    Right (_, ws) -> M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [toLspWarningDiagnostic src r doc])) ws
-    Left e -> toLspErrorDiagnostics uri src e
+    Right (_, E.Errors ws) -> M.unions (map (toLspErrorDiagnostics uri src) ws)
+        -- M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [toLspWarningDiagnostic src r doc])) ws
+    Left (E.Errors errs) -> M.unions (map (toLspErrorDiagnostics uri src) errs)
 
 toLspErrorDiagnostics :: J.NormalizedUri -> T.Text -> E.ErrorMessage -> M.Map J.NormalizedUri [J.Diagnostic]
 toLspErrorDiagnostics uri src e =
+  M.singleton (uriFromRange (E.errRange e) uri)
+    [makeDiagnostic (toSeverity (E.errSeverity e)) src (E.errRange e) (E.errMessage e)]
+  where
+    toSeverity sev
+      = case sev of
+          E.SevError   -> J.DiagnosticSeverity_Error
+          E.SevWarning -> J.DiagnosticSeverity_Warning
+          _            -> J.DiagnosticSeverity_Information
+
+  {-
   case e of
     E.ErrorGeneral r doc -> M.singleton (uriFromRange r uri) [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
     E.ErrorParse r doc -> M.singleton (uriFromRange r uri) [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
@@ -89,6 +100,7 @@ toLspErrorDiagnostics uri src e =
     E.ErrorZero -> M.empty
   where
     mapRangeDocs rds = M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [makeDiagnostic J.DiagnosticSeverity_Error src r doc])) rds
+  -}
 
 uriFromRange :: R.Range -> J.NormalizedUri -> J.NormalizedUri
 uriFromRange r uri =

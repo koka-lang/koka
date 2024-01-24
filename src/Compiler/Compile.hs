@@ -156,10 +156,10 @@ instance Monad (IOErr b) where
   -- return = pure
   (IOErr ie) >>= f  = IOErr (do err <- ie
                                 case checkPartial err of
-                                   Right (x,w,b) -> case f x of
-                                                   IOErr ie' -> do err <- ie'
-                                                                   return (addPartialResult (addWarnings w err) b)
-                                   Left (msg, b)  -> return (errorMsgPartial msg b))
+                                   Right (x,Errors ws,b) -> case f x of
+                                                              IOErr ie' -> do err <- ie'
+                                                                              return (addPartialResult (addWarnings ws err) b)
+                                   Left (Errors msgs, b)  -> return (errorMsgsPartial msgs b))
 
 instance F.MonadFail (IOErr b) where
   fail = liftError . fail
@@ -169,8 +169,8 @@ bindIO :: IO (Error b a) -> (a -> IO (Error b c)) -> IO (Error b c)
 bindIO io f
   = do err <- io
        case checkPartial err of
-         Left (msg, b) -> return (errorMsgPartial msg b)
-         Right (x,w,b)  -> fmap (flip addPartialResult b . addWarnings w) (f x)
+         Left (Errors errs, b) -> return (errorMsgsPartial errs b)
+         Right (x,Errors ws,b)  -> fmap (flip addPartialResult b . addWarnings ws) (f x)
 
 gammaFind name g
   = case (gammaLookupQ name g) of
@@ -202,7 +202,7 @@ compileExpression maybeContents term flags loaded compileTarget program line inp
                    Just (_,_,tres)  | isTypeUnit tres
                       -> compileProgram' maybeContents term flags (loadedModules ld) compileTarget  "<interactive>" programDef []
                    Just (_,_,tres)  | isFun tres
-                      -> liftErrorPartial loaded $ errorMsg (ErrorGeneral rangeNull (text "function values cannot be shown (maybe add parenthesis, e.g. foo() ?)"))
+                      -> liftErrorPartial loaded $ errorMsg (errorBuild rangeNull (text "function values cannot be shown (maybe add parenthesis, e.g. foo() ?)"))
                    -- check if there is a show function, or use generic print if not.
                    Just (_,_,tres)
                       -> {- do -- ld <- compileProgram' term flags (loadedModules ld0) Nothing "<interactive>" programDef
@@ -237,11 +237,11 @@ compileExpression maybeContents term flags loaded compileTarget program line inp
 
 errorModuleNotFound :: Flags -> Range -> Name -> ErrorMessage
 errorModuleNotFound flags range name
-  = ErrorGeneral range $ errorNotFound flags colorModule "module" (pretty name)
+  = errorBuild range (errorNotFound flags colorModule "module" (pretty name))
 
 errorFileNotFound :: Flags -> FilePath -> ErrorMessage
 errorFileNotFound flags name
-  = ErrorIO $ text "error:" <+> errorNotFound flags colorSource "" (text name)
+  = errorBuild rangeNull (errorNotFound flags colorSource "" (text name))
 
 errorNotFound flags clr kind namedoc
   = text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc <->
@@ -291,7 +291,7 @@ compileModuleOrFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString 
 compileModuleOrFile maybeContents contents term flags modules fname force compileTarget importPath
   | any (not . validModChar) fname = compileFile maybeContents contents term flags modules compileTarget importPath fname
   | otherwise
-    = trace ("compileModuleOrFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $
+    = -- trace ("compileModuleOrFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $
       do
         let modName = pathToModuleName fname
         exist <- searchModule flags "" modName
@@ -370,7 +370,7 @@ compileProgramFromFile maybeContents contents term flags modules compileTarget i
 
            ppcolor c doc = color (c (colors (prettyEnvFromFlags flags))) doc
        if (isExecutable compileTarget || isSuffix) then return ()
-        else liftError $ errorMsg (ErrorGeneral (programNameRange program)
+        else liftError $ errorMsg (errorBuild (programNameRange program)
                                      (text "module name" <+>
                                       ppcolor colorModule (pretty (programName program)) <+>
                                       text "is not a suffix of the file path" <+>
@@ -483,7 +483,7 @@ wrapMain  term flags loaded0 loaded1 compileTarget program coreImports = do
         Executable entryName _
           -> let mainName = if (isQualified entryName) then entryName else qualify (getName program) (entryName) in
             case gammaLookupQ mainName (loadedGamma loaded0) of
-                []   -> errorMsg (ErrorGeneral rangeNull (text "there is no 'main' function defined" <-> text "hint: use the '-l' flag to generate a library?"))
+                []   -> errorMsg (errorBuild rangeNull (text "there is no 'main' function defined" <-> text "hint: use the '-l' flag to generate a library?"))
                 infos-> let mainType = TFun [] (TCon (TypeCon nameTpIO kindEffect)) typeUnit  -- just for display, so IO can be TCon
                             isMainType tp = case expandSyn tp of
                                               TFun [] eff resTp  -> True -- resTp == typeUnit
@@ -501,13 +501,16 @@ wrapMain  term flags loaded0 loaded1 compileTarget program coreImports = do
                                       in do (loaded3,_) <- ignoreWarnings $ typeCheck loaded1 flags 0 coreImports program2
                                             return (Executable mainName2 tp, loaded3) -- TODO: refine the type of main2
                           [info]
-                            -> errorMsg (ErrorGeneral (infoRange info) (text "'main' must be declared as a function (fun)"))
-                          [] -> errorMsg (ErrorGeneral rangeNull (text "the type of 'main' must be a function without arguments" <->
+                            -> errorMsg (errorBuild (infoRange info) (text "'main' must be declared as a function (fun)"))
+                          [] -> errorMsg (errorBuild rangeNull (text "the type of 'main' must be a function without arguments" <->
                                                                                 table [(text "expected type", ppType (prettyEnvFromFlags flags) mainType)
                                                                                       ,(text "inferred type", ppType (prettyEnvFromFlags flags) (head (map infoType infos)))]))
-                          _  -> errorMsg (ErrorGeneral rangeNull (text "found multiple definitions for the 'main' function"))
+                          _  -> errorMsg (errorBuild rangeNull (text "found multiple definitions for the 'main' function"))
         Object -> return (Object,loaded0)
         Library -> return (Library,loaded0)
+
+errorBuild range doc
+  = errorMessageKind ErrBuild range doc
 
 checkUnhandledEffects :: Flags -> Loaded -> Name -> Range -> Type -> Error Loaded (Maybe (UserExpr -> UserExpr))
 checkUnhandledEffects flags loaded name range tp
@@ -539,7 +542,7 @@ checkUnhandledEffects flags loaded name range tp
                                                  else combine eff (Just (g mf)) ls
                                         infos
                                           -> -- trace ("not found: " ++ show (loadedGamma loaded)) $
-                                             do errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->
+                                             do errorMsg (errorMessageKind ErrBuild range (text "there are unhandled effects for the main expression" <-->
                                                            text " inferred effect :" <+> ppType (prettyEnvFromFlags flags) eff <-->
                                                            text " unhandled effect:" <+> ppType (prettyEnvFromFlags flags) l <-->
                                                            text " hint            : wrap the main function in a handler"))
@@ -598,9 +601,9 @@ resolveImportModules maybeContents mname term flags currentDir resolved importPa
   = return ([],resolved)
 resolveImportModules maybeContents mname term flags currentDir resolved0 importPath (imp:imps)
   = if impName imp `elem` importPath then do
-        liftError $ errorMsg $ ErrorStatic [(getRange imp,
-          text "cyclic module dependency detected when importing:" <+> ppName (prettyEnvFromFlags flags) (impName imp) <->
-          text "imports:" <+> align (vcat (reverse (map (ppName (prettyEnvFromFlags flags)) importPath))))]
+        liftError $ errorMsg $ errorMessageKind ErrBuild (getRange imp)
+          (text "cyclic module dependency detected when importing:" <+> ppName (prettyEnvFromFlags flags) (impName imp) <->
+           text "imports:" <+> align (vcat (reverse (map (ppName (prettyEnvFromFlags flags)) importPath))))
         return ([],resolved0)
       else
     do -- trace ("\t" ++ show mname ++ ": resolving imported modules: " ++ show (impName imp) ++ ", resolved: " ++ show (map (show . modName) resolved0) ++ ", path:" ++ show importPath) $ return ()
@@ -1883,7 +1886,8 @@ ifaceExtension
 
 compilerCatch comp term defValue io
   = io `catchSystem` \msg ->
-    do (termError term) (ErrorIO (hang 2 $ text ("failure during " ++ comp ++ ":")
+    do (termError term) (errorMessageKind ErrBuild rangeNull
+                           (hang 2 $ text ("failure during " ++ comp ++ ":")
                                            <-> string msg)) -- (fillSep $ map string $ words msg)))
        return defValue
 
