@@ -6,6 +6,7 @@ module Compile.Compile( Compile
                       ) where
 
 import Data.Char
+import Data.Maybe
 import Data.List
 import Data.Either
 import Data.IORef
@@ -21,8 +22,10 @@ import System.Directory ( doesFileExist )
 import Lib.Scc( scc )
 import Lib.PPrint
 import Platform.Config        ( version, exeExtension, dllExtension, libPrefix, libExtension, pathSep, sourceExtension )
+import Common.Syntax          ( Target(..))
 import Common.Error
-import Common.File
+import Common.File   hiding (getFileTime)
+import qualified Common.File as F
 import Common.ColorScheme
 import Common.Range
 import Common.NamePrim        (isPrimitiveModule)
@@ -39,14 +42,20 @@ import Compile.Module
   return all required modules in build order
 ---------------------------------------------------------------}
 
+-- given a root set of modules, load- or parse all required modules
 resolveDependencies :: [Module] -> Compile [Module]
 resolveDependencies modules
-  = do phase "resolve" (list (map (pretty . modName) modules))
-       pmodules   <- mapConcurrent ensureParsed modules
+  = do ordered <- phaseTimed "resolve" (list (map (pretty . modName) modules)) $
+                  resolveDeps modules
+       mapM moduleFlushErrors ordered
+
+resolveDeps modules
+  = do pmodules   <- mapConcurrent ensureLoaded modules           -- we can concurrently load/parse modules
        newimports <- nubBy (\m1 m2 -> modName m1 == modName m2) <$> concat <$> mapM (addImports pmodules) pmodules
        if (null newimports)
          then toBuildOrder pmodules
-         else resolveDependencies (newimports ++ pmodules)
+         else do phase "resolve" (list (map (pretty . modName) newimports))
+                 resolveDeps (newimports ++ pmodules)
   where
     addImports pmodules mod
       = concat <$> mapM addImport (modImports mod)
@@ -58,6 +67,7 @@ resolveDependencies modules
                                      m <- moduleFromModuleName relativeDir impName  -- todo: set error, prevent parsing?
                                      return [m]
 
+-- order the loaded modules in build order (by using scc)
 toBuildOrder :: [Module] -> Compile [Module]
 toBuildOrder modules
   = -- todo: might be faster to check if the modules are already in build order before doing a full `scc` ?
@@ -70,18 +80,26 @@ toBuildOrder modules
           concat <$> mapM ungroup ordered
 
 
+moduleFlushErrors :: Module -> Compile Module
+moduleFlushErrors mod
+  = do addErrors (modErrors mod)
+       return mod{ modErrors = errorsNil }
+
 {---------------------------------------------------------------
-  Parse modules
+  Parse modules from source, or load from an interface file
+  After this, `modImports` should be valid
 ---------------------------------------------------------------}
 
-ensureParsed :: Module -> Compile Module
-ensureParsed mod
-  = if modPhase mod >= ModParsed
+ensureLoaded :: Module -> Compile Module
+ensureLoaded mod
+  = if modPhase mod >= ModLoaded
       then return mod
-      else do (mod',errs) <- checkedDefault mod $
-                             if modSourceTime mod > modIfaceTime mod
-                               then moduleParse mod
-                               else moduleLoadIface mod
+      else do (mod',errs) <- checkedDefault mod $ -- on error, return the original module
+                             if not (null (modLibIfacePath mod)) && modLibIfaceTime mod > modIfaceTime mod
+                               then moduleLoadLibIface mod
+                               else if modSourceTime mod > modIfaceTime mod
+                                 then moduleParse mod
+                                 else moduleLoadIface mod
               return mod'{ modErrors = mergeErrors errs (modErrors mod') }
 
 moduleParse :: Module -> Compile Module
@@ -99,17 +117,63 @@ moduleParse mod
 moduleLoadIface :: Module -> Compile Module
 moduleLoadIface mod
   = do phaseVerbose "loading" (text (modIfacePath mod))
-       (core,inlines) <- liftIOError $ parseCore (modIfacePath mod) (modSourcePath mod)
-       -- todo: copy iface to output dir
+       (core,parseInlines) <- liftIOError $ parseCore (modIfacePath mod) (modSourcePath mod)
        return mod{ modPhase   = ModCompiled
                  , modImports = map Core.importName (Core.coreProgImports core)
-                 , modCore    = core
-                 , modInlines = Left inlines
+                 , modCore    = Just core
+                 , modInlines = Left parseInlines
                  }
+
+moduleLoadLibIface :: Module -> Compile Module
+moduleLoadLibIface mod
+  = do phaseVerbose "loading" (text (modLibIfacePath mod))
+       (core,parseInlines) <- liftIOError $ parseCore (modLibIfacePath mod) (modSourcePath mod)
+       flags <- getFlags
+       liftIO $ copyLibIfaceToOutput flags (modLibIfacePath mod) (modIfacePath mod) core
+       return mod{ modPhase   = ModCompiled
+                 , modImports = map Core.importName (Core.coreProgImports core)
+                 , modCore    = Just core
+                 , modInlines = Left parseInlines
+                 }
+
+copyLibIfaceToOutput :: Flags -> FilePath -> FilePath -> Core.Core -> IO ()
+copyLibIfaceToOutput flags libIfacePath ifacePath core  {- core is needed to know imported clibs etc. -}
+  = do let withext fname ext = notext fname ++ ext
+           force = rebuild flags
+       copyTextIfNewer force libIfacePath ifacePath
+       case target flags of
+        CS    -> do copyBinaryIfNewer force (withext libIfacePath dllExtension) (withext ifacePath dllExtension)
+        JS _  -> do copyTextIfNewer force (withext libIfacePath ".mjs") (withext ifacePath ".mjs")
+        C _   -> do copyTextIfNewer force (withext libIfacePath ".c") (withext ifacePath ".c")
+                    copyTextIfNewer force (withext libIfacePath ".h") (withext ifacePath ".h")
+                    let cc = ccomp flags
+                    copyBinaryIfNewer force (ccObjFile cc (notext libIfacePath)) (ccObjFile cc (notext ifacePath))
+                    mapM_ (\clib -> do let libFile = ccLibFile cc clib
+                                       -- todo: only copy if it exists?
+                                       copyBinaryIfNewer force (joinPath (dirname libIfacePath) libFile)
+                                                               (joinPath (dirname ifacePath) libFile)
+                          ) (clibsFromCore flags core)
+
+
+clibsFromCore flags core
+  = externalImportKeyFromCore (target flags) (buildType flags) core "library"
+
+csyslibsFromCore flags core
+  = externalImportKeyFromCore (target flags) (buildType flags) core "syslib"
+
+
+externalImportKeyFromCore :: Target -> BuildType -> Core.Core -> String -> [String]
+externalImportKeyFromCore target buildType core key
+  = catMaybes [Core.eimportLookup buildType key keyvals  | keyvals <- externalImportsFromCore target core]
+
+externalImportsFromCore :: Target -> Core.Core -> [[(String,String)]]
+externalImportsFromCore target core
+  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (target,keyvals) <- imports]
+
 
 {---------------------------------------------------------------
   Create initial empty modules
-  from a source path or module name (import)
+  from a source path (from IDE) or module name (from an import)
 ---------------------------------------------------------------}
 
 moduleFromSource :: FilePath -> Compile Module
@@ -127,7 +191,7 @@ moduleFromSource fpath0
                                                     _ -> throwError (errorMessageKind ErrBuild rangeNull (text ("file path cannot be mapped to a valid module name: " ++ sourcePath)))
                                             else return (newModuleName (noexts stem))
                                 ifacePath <- outputName (moduleNameToPath modName ++ ifaceExtension)
-                                moduleValidate $ moduleCreateEmpty modName sourcePath ifacePath
+                                moduleValidate $ moduleCreateInitial modName sourcePath ifacePath ""
   where
     isValidId :: String -> Bool  -- todo: make it better
     isValidId ""      = False
@@ -138,31 +202,48 @@ moduleFromModuleName :: FilePath -> Name -> Compile Module
 moduleFromModuleName relativeDir modName
   = do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)
        ifacePath    <- outputName (moduleNameToPath modName ++ ifaceExtension)
+       libIfacePath <- searchLibIfaceFile (moduleNameToPath modName ++ ifaceExtension)
        case mbSourceName of
          Just (root,stem)
-            -> return $ moduleCreateEmpty modName (joinPath root stem) ifacePath
+            -> moduleValidate $ moduleCreateInitial modName (joinPath root stem) ifacePath libIfacePath
          Nothing
-            -> do ifaceExist <- liftIO $ doesFileExist ifacePath
+            -> do ifaceExist <- liftIO $ doesFileExistAndNotEmpty ifacePath
                   if ifaceExist
                     then do cs <- getColorScheme
                             addWarningMessage (warningMessageKind ErrBuild rangeNull (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
-                            moduleValidate $ moduleCreateEmpty modName "" ifacePath
+                            moduleValidate $ moduleCreateInitial modName "" ifacePath libIfacePath
                     else throwModuleNotFound rangeNull modName
 
-
+-- Find a source file and resolve it
+-- with a `(root,stem)` where `stem` is the minimal module path relative to the include roots.
+-- The root is either in the include paths or the full directory for absolute paths.
+-- (and absolute file paths outside the include roots always have a single module name corresponding to the file)
+-- relativeDir is set when importing from a module so a module name is first resolved relative to the current module
 searchSourceFile :: FilePath -> FilePath -> Compile (Maybe (FilePath,FilePath))
-searchSourceFile currentDir fname
-  = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (currentDir:includePath flags))) $ return ()
-       -- currentDir is set when importing from a module so a module name is first resolved relative to the current module
+searchSourceFile relativeDir fname
+  = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (relativeDir:includePath flags))) $ return ()
        flags <- getFlags
-       extra <- if null currentDir then return []
-                                   else do{ d <- liftIO $ realPath currentDir; return [d] }
+       extra <- if null relativeDir then return []
+                                   else do{ d <- liftIO $ realPath relativeDir; return [d] }
        mbP <- liftIO $ searchPathsCanonical (extra ++ includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
        case mbP of
-         Just (root,stem) | root == currentDir  -- make a relative module now relative to the include path
+         Just (root,stem) | root == relativeDir  -- make a relative module now relative to the include path
            -> return $ Just (makeRelativeToPaths (includePath flags) (joinPath root stem))
          _ -> return mbP
 
+-- find a pre-compiled libary interface
+-- in the future we can support packages as well
+searchLibIfaceFile :: FilePath -> Compile FilePath  -- can be empty
+searchLibIfaceFile fname
+  = do flags <- getFlags
+       let libIfacePath = joinPaths [localLibDir flags, buildVariant flags, fname]
+       exist <- liftIO $ doesFileExist libIfacePath
+       return (if exist then libIfacePath else "")
+
+
+{---------------------------------------------------------------
+  Validate if modules are still valid
+---------------------------------------------------------------}
 
 revalidate :: [Module] -> Compile [Module]
 revalidate modules
@@ -170,14 +251,18 @@ revalidate modules
 
 moduleValidate :: Module -> Compile Module
 moduleValidate mod
-  = do mod1 <- if null (modSourcePath mod) then return mod
-                 else do ft <- getCurrentFileTime (modSourcePath mod)
-                         return mod{ modSourceTime = ft }
-       mod2 <- do ft <- getCurrentFileTime (modIfacePath mod)
-                  return mod1{ modIfaceTime = ft }
-       if (modSourceTime mod > modIfaceTime mod)
-         then return mod2{ modPhase = ModEmpty, modErrors = errorsNil }
-         else return mod2
+  = do ftSource   <- getFileTime (modSourcePath mod)
+       ftIface    <- getFileTime (modIfacePath mod)
+       ftLibIface <- getFileTime (modLibIfacePath mod)
+       let mod' = mod{ modSourceTime = ftSource
+                     , modIfaceTime  = ftIface
+                     , modLibIfaceTime = ftLibIface
+                     }
+       -- phaseVerbose "trace" (pretty (modName mod) <.> text (": times: " ++ show (ftSource,ftIface)))
+       if (modSourceTime mod' > modIfaceTime mod' || modLibIfaceTime mod' > modIfaceTime mod')
+         then return mod'{ modPhase = ModInit, modErrors = errorsNil }
+         else return mod'
+
 
 
 {---------------------------------------------------------------
@@ -208,7 +293,7 @@ nameToPath name
 outputName :: FilePath -> Compile FilePath
 outputName fpath
   = do flags <- getFlags
-       return (outName flags fpath)
+       return $ joinPath (fullBuildDir flags ++ "-" ++ flagsHash flags) fpath
 
 ifaceExtension :: FilePath
 ifaceExtension
@@ -264,7 +349,7 @@ forkTerminal term
       = do mbf <- readChan ch
            case mbf of
              Nothing -> return ()
-             Just f  -> do f
+             Just io -> do io
                            handleOutput ch
 
 
@@ -376,6 +461,16 @@ addErrorMessages :: [ErrorMessage] -> Compile ()
 addErrorMessages errs
   = addErrors (Errors errs)
 
+phaseTimed :: String -> Doc -> Compile a -> Compile a
+phaseTimed p doc action
+  = do t0 <- liftIO $ getCurrentTime
+       phaseVerbose p doc
+       x  <- action
+       t1 <- liftIO $ getCurrentTime
+       phaseVerbose p (doc <.> text ": elapsed:" <+> text (showTimeDiff t1 t0))
+       return x
+
+
 phaseVerbose :: String -> Doc -> Compile ()
 phaseVerbose p doc
   = do term <- getTerminal
@@ -391,17 +486,18 @@ phase p doc
 sfill n s = s ++ replicate (n - length s) ' '
 
 
-getCurrentFileTime :: FilePath -> Compile FileTime
-getCurrentFileTime fpath0
+getFileTime :: FilePath -> Compile FileTime
+getFileTime "" = return fileTime0
+getFileTime fpath0
   = do env <- getEnv
        let fpath = normalize fpath0
        case vfsFind (envVFS env) fpath of
          Just (_, t) -> return t
-         Nothing     -> liftIO $ getFileTimeOrCurrent fpath
+         Nothing     -> liftIO $ F.getFileTime fpath
 
-maybeGetCurrentFileTime :: FilePath -> Compile (Maybe FileTime)
-maybeGetCurrentFileTime fpath
-  = do ft <- getCurrentFileTime fpath
+maybeGetFileTime :: FilePath -> Compile (Maybe FileTime)
+maybeGetFileTime fpath
+  = do ft <- getFileTime fpath
        return (if ft == fileTime0 then Nothing else Just ft)
 
 

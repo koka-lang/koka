@@ -33,7 +33,7 @@ module Common.File(
                   , ensureExt
 
                   -- * Files
-                  , FileTime, fileTime0, maxFileTime, maxFileTimes
+                  , FileTime, fileTime0, maxFileTime, maxFileTimes, showTimeDiff
                   , fileTimeCompare, getFileTime
                   , getFileTimeOrCurrent, getCurrentTime
                   , readTextFile, writeTextFile

@@ -15,7 +15,7 @@ import System.Exit            ( exitFailure )
 import Control.Monad          ( when, foldM )
 
 import Platform.Config
-import Lib.PPrint             ( Pretty(pretty), writePrettyLn, text )
+import Lib.PPrint             ( Pretty(pretty), writePrettyLn, text,color, (<.>), linebreak )
 import Lib.Printer
 import Common.ColorScheme
 import Common.Failure         ( catchIO )
@@ -128,8 +128,8 @@ compile p flags fname
   where
     term cwd
       = Terminal (putErrorMessage p cwd (showSpan flags) cscheme)
-                (if (verbose flags > 1) then (\msg -> withColor p (colorSource cscheme) (writeLn p msg))
-                                         else (\_ -> return ()))
+                (if (verbose flags > 1) then (\msg -> writePrettyLn p (color (colorSource cscheme) (text msg)))
+                                        else (\_ -> return ()))
                  (if (verbose flags > 0) then writePrettyLn p else (\_ -> return ()))
                  (putScheme p (prettyEnv flags nameNil importsEmpty))
                  (writePrettyLn p)
@@ -154,5 +154,4 @@ putPhase p cscheme msg
   = withColor p (colorInterpreter cscheme) (writeLn p msg)
 
 putPrettyLn p doc
-  = do writePrettyLn p doc
-       writeLn p ""
+  = writePrettyLn p (doc <.> linebreak)

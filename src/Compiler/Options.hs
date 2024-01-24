@@ -213,7 +213,7 @@ instance Hashable Flags where
 
 flagsHash :: Flags -> String
 flagsHash flags
-  = take 6 (showHex 6 (hash flags))
+  = take 6 (showHex 6 (abs (hash flags)))
 
 flagsNull :: Flags
 flagsNull
@@ -1039,8 +1039,8 @@ buildVariant flags
                         _      | platformHasCompressedFields (platform flags)
                                -> "-" ++ cpuArch ++ "c"
                                | otherwise -> "")
-                 JS _  -> "-js"
-                 _     -> "-" ++ show (target flags)
+                 JS _  -> "js"
+                 _     -> show (target flags)
     in pre ++ "-" ++ show (buildType flags)
 
 

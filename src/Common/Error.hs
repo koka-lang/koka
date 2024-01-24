@@ -132,7 +132,7 @@ ppErrorSeverity cscheme ekind sev
 
 ppErrorMessage :: FilePath -> Bool -> ColorScheme -> ErrorMessage -> Doc
 ppErrorMessage cwd endToo {-show end of range as well?-} cscheme (ErrorMsg range doc esev ekind)
-  = hang 2 $ ppRange cwd endToo cscheme range <.> ppErrorSeverity cscheme ekind esev <+> doc
+  = hang 2 $ ppRange cwd endToo cscheme range <.> colon <+> ppErrorSeverity cscheme ekind esev <+> doc
 
 ppErrors :: FilePath -> Bool -> ColorScheme -> Errors -> Doc
 ppErrors cwd endToo cscheme (Errors errs)

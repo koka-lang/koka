@@ -9,7 +9,7 @@
     Main module.
 -}
 -----------------------------------------------------------------------------
-module Compile.Module( Module(..), Modules, ModulePhase(..), moduleNull, moduleCreateEmpty
+module Compile.Module( Module(..), Modules, ModulePhase(..), moduleNull, moduleCreateInitial
                       ) where
 
 import Lib.Trace
@@ -33,40 +33,50 @@ import qualified Core.Core as Core
 type Modules = [Module]
 
 data ModulePhase
-  = ModEmpty
-  -- | ModLexed  -- todo: we can increase parallelism by having the lexer as a phase (so we know the imports/dependencies more early)
-  | ModParsed
-  | ModTyped
-  | ModOptimized
-  | ModCompiled
+  = ModInit
+  | ModLoaded         -- imports are known
+  | ModParsed         -- lexemes, program is known
+  | ModTyped          -- rangemap, gamma, inlines
+  | ModOptimized      -- optimized core
+  | ModCompiled       -- compiled
   deriving (Eq,Ord,Show)
 
 data Module  = Module{ -- initial
                        modPhase       :: !ModulePhase
                      , modName        :: !Name
-                     , modIfacePath   :: !FilePath
-                     , modSourcePath  :: !FilePath          -- can be empty
-                     , modRange       :: !Range
-                     , modErrors      :: !Errors      --
-                       -- lexing
+                     , modRange       :: !Range             -- (1,1) in the source (or pre-compiled iface)
+                     , modErrors      :: !Errors            -- collected errors
+
+                     , modIfacePath   :: !FilePath          -- output interface (.kki)
+                     , modIfaceTime   :: !FileTime
+                     , modLibIfacePath:: !FilePath          -- precompiled interface (for example for the std libs in <prefix>/lib)
+                     , modLibIfaceTime:: !FileTime
+                     , modSourcePath  :: !FilePath          -- can be empty for pre-compiled sources
                      , modSourceTime  :: !FileTime
+
+                       -- lexing
                      , modLexemes     :: ![Lexeme]
-                     , modImports     :: ![ModuleName]
+                     , modImports     :: ![ModuleName]      -- initial dependencies from import statements
+
                        -- parsing
                      , modProgram     :: !(Maybe (Program UserType UserKind))
+
                        -- type check
                      , modRangeMap    :: !(Maybe RangeMap)
-                     , modInitialCore :: !Core.Core
+                     -- , modInitialCore :: !Core.Core
+
                        -- optimize & interface
-                     , modIfaceTime   :: !FileTime
-                     , modCore        :: !Core.Core
-                     , modInlines     :: !(Either (Gamma -> Error () [Core.InlineDef]) ([Core.InlineDef]))
+                     , modCore        :: !(Maybe Core.Core)
+                     , modInlines     :: -- from a core file, we return a function that given the gamma parses the inlines
+                                         !(Either (Gamma -> Error () [Core.InlineDef]) ([Core.InlineDef]))
+
                        -- codegen
+                     , modExePath     :: !FilePath
                      , modExeTime     :: !FileTime
 
                        -- unused
-                     , modCompiled    :: !Bool
-                     , modTime        :: !FileTime
+                    --  , modCompiled    :: !Bool
+                    --  , modTime        :: !FileTime
                      --, modPackageQName:: FilePath          -- A/B/C
                      --, modPackageLocal:: FilePath          -- lib
                      }
@@ -74,17 +84,24 @@ data Module  = Module{ -- initial
 
 moduleNull :: Name -> Module
 moduleNull modName
-  = Module  ModEmpty modName "" "" rangeNull errorsNil
-            fileTime0 [] []
+  = Module  ModInit modName rangeNull errorsNil
+            "" fileTime0 "" fileTime0 "" fileTime0
+            -- lex
+            [] []
+            -- parse
             Nothing
-            Nothing    (Core.coreNull modName)
-            fileTime0  (Core.coreNull modName)  (Left (\g -> return []))
-            fileTime0
-            False fileTime0
+            -- type check
+            Nothing
+            -- optimize
+            Nothing (Right [])
+            -- codegen
+            "" fileTime0
 
-moduleCreateEmpty :: Name -> FilePath -> FilePath -> Module
-moduleCreateEmpty modName sourcePath ifacePath
-  = (moduleNull modName){ modSourcePath = sourcePath, modIfacePath = ifacePath,
+moduleCreateInitial :: Name -> FilePath -> FilePath -> FilePath -> Module
+moduleCreateInitial modName sourcePath ifacePath libIfacePath
+  = (moduleNull modName){ modSourcePath = sourcePath,
+                          modIfacePath = ifacePath,
+                          modLibIfacePath = libIfacePath,
                           modRange = makeSourceRange (if null sourcePath then ifacePath else sourcePath) 1 1 1 1 }
 
 {-
