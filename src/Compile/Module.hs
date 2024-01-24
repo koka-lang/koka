@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2012-2021, Microsoft Research, Daan Leijen.
+-- Copyright 2012-2024, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -10,10 +10,12 @@
 -}
 -----------------------------------------------------------------------------
 module Compile.Module( Module(..), Modules, ModulePhase(..), moduleNull, moduleCreateInitial
-                      ) where
+                     , Definitions(..), defsNull, defsCompose, defsFromCore
+                     ) where
 
 import Lib.Trace
 import Lib.PPrint
+import Data.List              ( foldl' )
 import Data.Char              ( isAlphaNum )
 import Common.Range           ( Range, rangeNull, makeSourceRange )
 import Common.Name            ( Name, ModuleName, newName, unqualify, isHiddenName, showPlain)
@@ -37,7 +39,7 @@ import Kind.Assumption        ( KGamma, kgammaInit, extractKGamma, kgammaUnion )
 import Type.Assumption        ( Gamma, gammaInit, gammaUnion, extractGamma, gammaNames, gammaPublicNames)
 import Type.Type              ( DataInfo )
 import Core.Inlines           ( Inlines, inlinesNew, inlinesEmpty, inlinesExtends )
-import Core.Borrowed          ( Borrowed, borrowedEmpty, extractBorrowed )
+import Core.Borrowed          ( Borrowed, borrowedEmpty, extractBorrowed, borrowedCompose )
 
 
 {--------------------------------------------------------------------------
@@ -146,14 +148,14 @@ data Definitions  = Definitions {
                       , defsBorrowed    :: !Borrowed
                     }
 
-definitionsNull :: Definitions
-definitionsNull = Definitions gammaInit
-                              kgammaInit
-                              synonymsEmpty
-                              newtypesEmpty
-                              constructorsEmpty
-                              fixitiesEmpty
-                              borrowedEmpty
+defsNull :: Definitions
+defsNull = Definitions gammaInit
+                      kgammaInit
+                      synonymsEmpty
+                      newtypesEmpty
+                      constructorsEmpty
+                      fixitiesEmpty
+                      borrowedEmpty
 
 
 defsNames :: Definitions -> [Name]
@@ -179,3 +181,15 @@ defsFromCore core
       = fixitiesNew [(name,fix) | Core.FixDef name fix <- Core.coreProgFixDefs core]
 
 
+defsMerge :: [Definitions] -> Definitions
+defsMerge defs  = foldl' defsCompose defsNull defs
+
+defsCompose :: Definitions -> Definitions -> Definitions
+defsCompose defs1 defs2
+  = Definitions (gammaUnion (defsGamma defs1) (defsGamma defs2))
+                (kgammaUnion (defsKGamma defs1) (defsKGamma defs2))
+                (synonymsCompose (defsSynonyms defs1) (defsSynonyms defs2))
+                (newtypesCompose (defsNewtypes defs1) (defsNewtypes defs2))
+                (constructorsCompose (defsConstructors defs1) (defsConstructors defs2))
+                (fixitiesCompose (defsFixities defs1) (defsFixities defs2))
+                (borrowedCompose (defsBorrowed defs1) (defsBorrowed defs2))

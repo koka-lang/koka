@@ -25,7 +25,7 @@ module Common.QNameMap
 
 import Prelude hiding (lookup)
 import qualified Prelude
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import Common.Name
 import Common.Failure
 
