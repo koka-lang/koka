@@ -10,7 +10,7 @@
 -}
 -----------------------------------------------------------------------------
 module Compile.Module( Module(..), Modules, ModulePhase(..), moduleNull, moduleCreateInitial
-                     , Definitions(..), defsNull, defsCompose, defsFromCore
+                     , Definitions(..), defsNull, defsCompose, defsFromCore, defsFromModules
                      ) where
 
 import Lib.Trace
@@ -78,11 +78,12 @@ data Module  = Module{ -- initial
 
                        -- type check
                      , modRangeMap    :: !(Maybe RangeMap)
-                     -- , modInitialCore :: !Core.Core
-
-                       -- optimize & interface
                      , modCore        :: !(Maybe Core.Core)
                      , modDefinitions :: !(Maybe Definitions)
+
+                     -- , modInitialCore :: !Core.Core
+
+                     -- optimize & interface
                      , modInlines     :: -- from a core file, we return a function that given the gamma parses the inlines
                                          !(Either (Gamma -> Error () [Core.InlineDef]) ([Core.InlineDef]))
 
@@ -180,6 +181,14 @@ defsFromCore core
     extractFixities core
       = fixitiesNew [(name,fix) | Core.FixDef name fix <- Core.coreProgFixDefs core]
 
+
+defsFromModules :: [Module] -> Definitions
+defsFromModules mods
+  = defsMerge $ map (\mod -> case modDefinitions mod of
+                               Just defs -> defs  -- cached
+                               _ -> case modCore mod of
+                                      Just core -> defsFromCore core
+                                      Nothing   -> defsNull) mods
 
 defsMerge :: [Definitions] -> Definitions
 defsMerge defs  = foldl' defsCompose defsNull defs

@@ -1,7 +1,15 @@
+-----------------------------------------------------------------------------
+-- Copyright 2012-2024, Microsoft Research, Daan Leijen.
+--
+-- This is free software; you can redistribute it and/or modify it under the
+-- terms of the Apache License, Version 2.0. A copy of the License can be
+-- found in the LICENSE file at the root of this distribution.
+-----------------------------------------------------------------------------
 module Compile.Build( Build
                       , VFS(..), noVFS
                       , runBuildIO
                       , modulesResolveDependencies
+                      , modulesTypeCheck
                       , moduleFromSource
                       ) where
 
@@ -26,6 +34,7 @@ import Common.Syntax          ( Target(..))
 import Common.Error
 import Common.File   hiding (getFileTime)
 import qualified Common.File as F
+import qualified Common.NameMap as M
 import Common.ColorScheme
 import Common.Range
 import Common.NamePrim        (isPrimitiveModule)
@@ -39,6 +48,58 @@ import Compile.Module
 import Compile.Compile        ( typeCheck )
 
 {---------------------------------------------------------------
+  Given a set of modules that are in build order,
+  type check them all
+---------------------------------------------------------------}
+
+type ModuleMap = M.NameMap (MVar Module)
+
+modmapPut :: ModuleMap -> Module -> Build ()
+modmapPut modmap mod
+  = liftIO $ putMVar ((M.!) modmap (modName mod)) mod
+
+modmapRead :: ModuleMap -> ModuleName -> Build Module
+modmapRead modmap modname
+  = liftIO $ readMVar ((M.!) modmap modname)
+
+
+modulesTypeCheck :: [Module] -> Build [Module]
+modulesTypeCheck modules
+  = phaseTimed "type checking" (list (map (pretty . modName) modules)) $
+    do tcheckedMap <- M.fromList <$> mapM (\mod -> do v <- liftIO $ newEmptyMVar
+                                                      return (modName mod, v)) modules
+       tchecked <- mapConcurrent (moduleTypeCheck tcheckedMap) modules
+       mapM moduleFlushErrors tchecked
+
+moduleTypeCheck :: ModuleMap -> Module -> Build Module
+moduleTypeCheck tcheckedMap mod
+  = onBuildException (modmapPut tcheckedMap mod) $ -- ensure the mvar is always set so progress is made
+    if (modPhase mod < ModParsed || modPhase mod >= ModTyped)
+      then done mod
+      else do -- wait for direct imports to be type checked
+              imports <- mapM (modmapRead tcheckedMap) (modImports mod)
+              if any (\m -> modPhase m < ModTyped) imports
+                then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
+                else -- type check
+                     do phaseVerbose "type check" (pretty (modName mod))
+                        flags <- getFlags
+                        let defs = defsFromModules imports
+                        (core,mbRangeMap) <- liftError $ typeCheck flags defs (fromJust (modProgram mod))
+                        let mod' = mod{ modPhase = ModTyped
+                                      , modCore = Just core
+                                      , modRangeMap = mbRangeMap
+                                      , modDefinitions = Just (defsFromCore core)
+                                      }
+                        done mod'
+
+  where
+    done mod' = do modmapPut tcheckedMap mod'
+                   return mod'
+
+
+
+
+{---------------------------------------------------------------
   Given a set of modules,
   return all required modules in build order
 ---------------------------------------------------------------}
@@ -46,7 +107,7 @@ import Compile.Compile        ( typeCheck )
 -- given a root set of modules, load- or parse all required modules
 modulesResolveDependencies :: [Module] -> Build [Module]
 modulesResolveDependencies modules
-  = do ordered <- phaseTimed "resolve" (list (map (pretty . modName) modules)) $
+  = do ordered <- phaseTimed "resolving" (list (map (pretty . modName) modules)) $
                   modulesResolveDeps modules
        mapM moduleFlushErrors ordered
 
@@ -391,11 +452,14 @@ liftIO io = Build (\env -> io)
 liftIOError :: IO (Error () a) -> Build a
 liftIOError io
   = do res <- liftIO io
-       case checkError res of
-         Left errs -> throw errs
-         Right (x,warns)
-          -> do addErrors warns
-                return x
+       liftError res
+
+liftError :: Error () a -> Build a
+liftError res
+  = case checkError res of
+      Left errs       -> throw errs
+      Right (x,warns) -> do addErrors warns
+                            return x
 
 mapConcurrent :: (a -> Build b) -> [a] -> Build [b]
 mapConcurrent f xs
@@ -425,6 +489,13 @@ instance Monad Build where
 instance F.MonadFail Build where
   fail msg = throwError (errorMessageKind ErrGeneral rangeNull (text msg))
 
+onBuildException :: Build () -> Build a -> Build a
+onBuildException (Build onExn) (Build b)
+  = Build (\env -> (b env) `onException` (onExn env))
+
+buildFinally :: Build a -> Build () -> Build a
+buildFinally (Build b) (Build fin)
+  = Build (\env -> finally (b env) (fin env))
 
 throwError :: ErrorMessage -> Build a
 throwError msg
@@ -468,10 +539,8 @@ phaseTimed :: String -> Doc -> Build a -> Build a
 phaseTimed p doc action
   = do t0 <- liftIO $ getCurrentTime
        phaseVerbose p doc
-       x  <- action
-       t1 <- liftIO $ getCurrentTime
-       phaseVerbose p (doc <.> text ": elapsed:" <+> text (showTimeDiff t1 t0))
-       return x
+       buildFinally action $ do t1 <- liftIO $ getCurrentTime
+                                phaseVerbose p (text "elapsed:" <+> text (showTimeDiff t1 t0))
 
 
 phaseVerbose :: String -> Doc -> Build ()

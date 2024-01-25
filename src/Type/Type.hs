@@ -269,7 +269,7 @@ isSkolem tv = typevarFlavour tv == Skolem
 
 predType :: Pred -> Type
 predType (PredSub t1 t2)      = typeFun [(newName "sub",t1)] typeTotal t2
-predType (PredIFace name tps) = todo "Type.Operations.predType.PredIFace"
+predType (PredIFace name tps) = typeUnit --todo "Type.Operations.predType.PredIFace"
 
 
 {--------------------------------------------------------------------------

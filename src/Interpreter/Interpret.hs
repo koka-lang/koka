@@ -262,7 +262,8 @@ loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO ()
 loadModules term st files force
   = do mbMods <- B.runBuildIO term (flags st) B.noVFS $
                  do roots <- mapM B.moduleFromSource files
-                    B.modulesResolveDependencies roots
+                    ordered <- B.modulesResolveDependencies roots
+                    B.modulesTypeCheck ordered
        case mbMods of
          Nothing -> return ()
          Just mods -> return ()
