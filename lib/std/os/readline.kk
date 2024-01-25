@@ -17,7 +17,7 @@ extern import
 
 
 // Read a line of input synchronously from stdin (using UTF8 encoding).
-// Read chararacters until either a newline is encountered (not included in the result),
+// Read characters until either a newline is encountered (not included in the result),
 // or 1023 characters have been read.
 pub fun readline() : <console,exn> string
   match readline-err() 

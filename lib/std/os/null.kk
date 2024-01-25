@@ -5,7 +5,7 @@ module std/os/null
 pub type null<a>
 
 // Unsafe: transform any type to a `null` type; used internally by the compiler.
-pub extern "@null-any"(x : a) : null<a>
+pub extern @null-any(x : a) : null<a>
   c  inline "(kk_box_is_null(#1) ? kk_datatype_null() : kk_datatype_unbox(#1))"
   cs inline "#1"
   js inline "(#1==null ? null : #1)"  // undefined -> null
