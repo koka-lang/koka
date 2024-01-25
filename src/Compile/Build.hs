@@ -1,6 +1,6 @@
-module Compile.Compile( Compile
+module Compile.Build( Build
                       , VFS(..), noVFS
-                      , runCompileIO
+                      , runBuildIO
                       , modulesResolveDependencies
                       , moduleFromSource
                       ) where
@@ -43,7 +43,7 @@ import Compile.Module
 ---------------------------------------------------------------}
 
 -- given a root set of modules, load- or parse all required modules
-modulesResolveDependencies :: [Module] -> Compile [Module]
+modulesResolveDependencies :: [Module] -> Build [Module]
 modulesResolveDependencies modules
   = do ordered <- phaseTimed "resolve" (list (map (pretty . modName) modules)) $
                   modulesResolveDeps modules
@@ -60,7 +60,7 @@ modulesResolveDeps modules
     addImports pmodules mod
       = concat <$> mapM addImport (modImports mod)
       where
-        addImport :: ModuleName -> Compile [Module]
+        addImport :: ModuleName -> Build [Module]
         addImport impName = if any (\m -> modName m == impName) pmodules
                              then return []
                              else do let relativeDir = dirname (modSourcePath mod)
@@ -68,7 +68,7 @@ modulesResolveDeps modules
                                      return [m]
 
 -- order the loaded modules in build order (by using scc)
-toBuildOrder :: [Module] -> Compile [Module]
+toBuildOrder :: [Module] -> Build [Module]
 toBuildOrder modules
   = -- todo: might be faster to check if the modules are already in build order before doing a full `scc` ?
     let deps    = [(modName mod, modImports mod) | mod <- modules]
@@ -80,7 +80,7 @@ toBuildOrder modules
           concat <$> mapM ungroup ordered
 
 
-moduleFlushErrors :: Module -> Compile Module
+moduleFlushErrors :: Module -> Build Module
 moduleFlushErrors mod
   = do addErrors (modErrors mod)
        return mod{ modErrors = errorsNil }
@@ -90,7 +90,7 @@ moduleFlushErrors mod
   After this, `modImports` should be valid
 ---------------------------------------------------------------}
 
-ensureLoaded :: Module -> Compile Module
+ensureLoaded :: Module -> Build Module
 ensureLoaded mod
   = if modPhase mod >= ModLoaded
       then return mod
@@ -102,7 +102,7 @@ ensureLoaded mod
                                  else moduleLoadIface mod
               return mod'{ modErrors = mergeErrors errs (modErrors mod') }
 
-moduleParse :: Module -> Compile Module
+moduleParse :: Module -> Build Module
 moduleParse mod
   = do phaseVerbose "parsing" (text (modSourcePath mod))
        flags <- getFlags
@@ -114,17 +114,18 @@ moduleParse mod
                  , modImports = nub (map importFullName (programImports prog))
                  }
 
-moduleLoadIface :: Module -> Compile Module
+moduleLoadIface :: Module -> Build Module
 moduleLoadIface mod
   = do phaseVerbose "loading" (text (modIfacePath mod))
        (core,parseInlines) <- liftIOError $ parseCore (modIfacePath mod) (modSourcePath mod)
        return mod{ modPhase   = ModCompiled
                  , modImports = map Core.importName (Core.coreProgImports core)
                  , modCore    = Just core
+                 , modDefinitions = Just (defsFromCore core)
                  , modInlines = Left parseInlines
                  }
 
-moduleLoadLibIface :: Module -> Compile Module
+moduleLoadLibIface :: Module -> Build Module
 moduleLoadLibIface mod
   = do phaseVerbose "loading" (text (modLibIfacePath mod))
        (core,parseInlines) <- liftIOError $ parseCore (modLibIfacePath mod) (modSourcePath mod)
@@ -133,6 +134,7 @@ moduleLoadLibIface mod
        return mod{ modPhase   = ModCompiled
                  , modImports = map Core.importName (Core.coreProgImports core)
                  , modCore    = Just core
+                 , modDefinitions = Just (defsFromCore core)
                  , modInlines = Left parseInlines
                  }
 
@@ -176,7 +178,7 @@ externalImportsFromCore target core
   from a source path (from IDE) or module name (from an import)
 ---------------------------------------------------------------}
 
-moduleFromSource :: FilePath -> Compile Module
+moduleFromSource :: FilePath -> Build Module
 moduleFromSource fpath0
   = do let fpath = normalize fpath0
        mbpath <- searchSourceFile "" fpath
@@ -198,7 +200,7 @@ moduleFromSource fpath0
     isValidId (c:cs)  = isLower c && all (\c -> isAlphaNum c || c `elem` "_-") cs
 
 
-moduleFromModuleName :: FilePath -> Name -> Compile Module
+moduleFromModuleName :: FilePath -> Name -> Build Module
 moduleFromModuleName relativeDir modName
   = do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)
        ifacePath    <- outputName (moduleNameToPath modName ++ ifaceExtension)
@@ -219,7 +221,7 @@ moduleFromModuleName relativeDir modName
 -- The root is either in the include paths or the full directory for absolute paths.
 -- (and absolute file paths outside the include roots always have a single module name corresponding to the file)
 -- relativeDir is set when importing from a module so a module name is first resolved relative to the current module
-searchSourceFile :: FilePath -> FilePath -> Compile (Maybe (FilePath,FilePath))
+searchSourceFile :: FilePath -> FilePath -> Build (Maybe (FilePath,FilePath))
 searchSourceFile relativeDir fname
   = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (relativeDir:includePath flags))) $ return ()
        flags <- getFlags
@@ -233,7 +235,7 @@ searchSourceFile relativeDir fname
 
 -- find a pre-compiled libary interface
 -- in the future we can support packages as well
-searchLibIfaceFile :: FilePath -> Compile FilePath  -- can be empty
+searchLibIfaceFile :: FilePath -> Build FilePath  -- can be empty
 searchLibIfaceFile fname
   = do flags <- getFlags
        let libIfacePath = joinPaths [localLibDir flags, buildVariant flags, fname]
@@ -245,11 +247,11 @@ searchLibIfaceFile fname
   Validate if modules are still valid
 ---------------------------------------------------------------}
 
-revalidate :: [Module] -> Compile [Module]
+revalidate :: [Module] -> Build [Module]
 revalidate modules
   = mapM moduleValidate modules
 
-moduleValidate :: Module -> Compile Module
+moduleValidate :: Module -> Build Module
 moduleValidate mod
   = do ftSource   <- getFileTime (modSourcePath mod)
        ftIface    <- getFileTime (modIfacePath mod)
@@ -269,12 +271,12 @@ moduleValidate mod
   Helpers
 ---------------------------------------------------------------}
 
-throwModuleNotFound :: Range -> Name -> Compile a
+throwModuleNotFound :: Range -> Name -> Build a
 throwModuleNotFound range name
   = do flags <- getFlags
        throwError (errorMessageKind ErrBuild range (errorNotFound flags colorModule "module" (pretty name)))
 
-throwFileNotFound :: FilePath -> Compile a
+throwFileNotFound :: FilePath -> Build a
 throwFileNotFound name
   = do flags <- getFlags
        throwError (errorMessageKind ErrBuild rangeNull (errorNotFound flags colorSource "" (text name)))
@@ -290,7 +292,7 @@ nameToPath :: Name -> FilePath
 nameToPath name
   = show name
 
-outputName :: FilePath -> Compile FilePath
+outputName :: FilePath -> Build FilePath
 outputName fpath
   = do flags <- getFlags
        return $ joinPath (fullBuildDir flags ++ "-" ++ flagsHash flags) fpath
@@ -308,7 +310,7 @@ ifaceExtension
 ---------------------------------------------------------------}
 data VFS = VFS { vfsFind :: FilePath -> Maybe (BString,FileTime) }
 
-data Compile a = Compile (Env -> IO a)
+data Build a = Build (Env -> IO a)
 
 data Env = Env { envTerminal :: Terminal, envFlags :: Flags, envErrors :: IORef Errors, envVFS :: VFS }
 
@@ -316,20 +318,20 @@ noVFS :: VFS
 noVFS = VFS (\fpath -> Nothing)
 
 
-runCompileIO :: Terminal -> Flags -> VFS -> Compile a -> IO (Maybe a)
-runCompileIO term flags vfs cmp
-  = do res <- runCompile term flags vfs cmp
+runBuildIO :: Terminal -> Flags -> VFS -> Build a -> IO (Maybe a)
+runBuildIO term flags vfs cmp
+  = do res <- runBuild term flags vfs cmp
        case res of
          Right (x,errs) -> do mapM_ (termError term) (errors errs)
                               return (Just x)
          Left errs      -> do mapM_ (termError term) (errors errs)
                               return Nothing
 
-runCompile :: Terminal -> Flags -> VFS -> Compile a -> IO (Either Errors (a,Errors))
-runCompile term flags vfs cmp
+runBuild :: Terminal -> Flags -> VFS -> Build a -> IO (Either Errors (a,Errors))
+runBuild term flags vfs cmp
   = do errs <- newIORef errorsNil
        (termProxy,stop) <- forkTerminal term
-       finally (runCompileEnv (Env termProxy flags errs vfs) cmp) (stop)
+       finally (runBuildEnv (Env termProxy flags errs vfs) cmp) (stop)
 
 
 -- Fork off a thread to handle output from other threads so it is properly interleaved
@@ -354,14 +356,14 @@ forkTerminal term
 
 
 
-runCompileEnv :: Env -> Compile a -> IO (Either Errors (a,Errors))
-runCompileEnv env action
+runBuildEnv :: Env -> Build a -> IO (Either Errors (a,Errors))
+runBuildEnv env action
   = case checked action of
-      Compile cmp -> cmp env
+      Build cmp -> cmp env
 
-checked :: Compile a -> Compile (Either Errors (a,Errors))
-checked (Compile cmp)
-  = Compile (\env -> do res <- do{ x <- cmp env; return (Right x) }
+checked :: Build a -> Build (Either Errors (a,Errors))
+checked (Build cmp)
+  = Build   (\env -> do res <- do{ x <- cmp env; return (Right x) }
                                `catch` (\errs -> return (Left errs))
                                `catchIO` (\exn -> return $ Left $ errorsSingle $ errorMessageKind ErrBuild rangeNull (text (show exn)))
                         errsw <- readIORef (envErrors env)
@@ -371,7 +373,7 @@ checked (Compile cmp)
                           Left errs  -> return (Left (mergeErrors errsw errs))
             )
 
-checkedDefault :: a -> Compile a -> Compile (a,Errors)
+checkedDefault :: a -> Build a -> Build (a,Errors)
 checkedDefault def action
   = do res <- checked action
        case res of
@@ -382,10 +384,10 @@ catchIO :: IO a -> (IOException -> IO a) -> IO a
 catchIO io f
   = io `catch` f
 
-liftIO :: IO a -> Compile a
-liftIO io = Compile (\env -> io)
+liftIO :: IO a -> Build a
+liftIO io = Build (\env -> io)
 
-liftIOError :: IO (Error () a) -> Compile a
+liftIOError :: IO (Error () a) -> Build a
 liftIOError io
   = do res <- liftIO io
        case checkError res of
@@ -394,10 +396,10 @@ liftIOError io
           -> do addErrors warns
                 return x
 
-mapConcurrent :: (a -> Compile b) -> [a] -> Compile [b]
+mapConcurrent :: (a -> Build b) -> [a] -> Build [b]
 mapConcurrent f xs
   = do env <- getEnv
-       ys  <- liftIO $ mapConcurrently (\x -> runCompileEnv env (f x)) xs
+       ys  <- liftIO $ mapConcurrently (\x -> runBuildEnv env (f x)) xs
        let errs = lefts ys
        if null errs
          then do let (zs,warns) = unzip (rights ys)
@@ -405,63 +407,63 @@ mapConcurrent f xs
                  return zs
          else throw (foldr mergeErrors errorsNil errs)
 
-instance Functor Compile where
-  fmap f (Compile ie)  = Compile (\env -> fmap f (ie env))
+instance Functor Build where
+  fmap f (Build ie)  = Build (\env -> fmap f (ie env))
 
-instance Applicative Compile where
-  pure x = Compile (\env -> return x)
+instance Applicative Build where
+  pure x = Build (\env -> return x)
   (<*>)  = ap
 
-instance Monad Compile where
+instance Monad Build where
   -- return = pure
-  (Compile ie) >>= f
-    = Compile (\env -> do x <- ie env
-                          case (f x) of
-                            Compile ie' -> ie' env)
+  (Build ie) >>= f
+    = Build (\env -> do x <- ie env
+                        case (f x) of
+                          Build ie' -> ie' env)
 
-instance F.MonadFail Compile where
+instance F.MonadFail Build where
   fail msg = throwError (errorMessageKind ErrGeneral rangeNull (text msg))
 
 
-throwError :: ErrorMessage -> Compile a
+throwError :: ErrorMessage -> Build a
 throwError msg
   = liftIO $ throw (errorsSingle msg)
 
-getEnv :: Compile Env
+getEnv :: Build Env
 getEnv
-  = Compile (\env -> return env)
+  = Build (\env -> return env)
 
-getFlags :: Compile Flags
+getFlags :: Build Flags
 getFlags
-  = Compile (\env -> return (envFlags env))
+  = Build (\env -> return (envFlags env))
 
-getTerminal :: Compile Terminal
+getTerminal :: Build Terminal
 getTerminal
-  = Compile (\env -> return (envTerminal env))
+  = Build (\env -> return (envTerminal env))
 
-getColorScheme :: Compile ColorScheme
+getColorScheme :: Build ColorScheme
 getColorScheme
   = do flags <- getFlags
        return (colorSchemeFromFlags flags)
 
-addErrors :: Errors -> Compile ()
+addErrors :: Errors -> Build ()
 addErrors errs0
   = do env <- getEnv
        liftIO $ modifyIORef (envErrors env) (\errs1 -> mergeErrors errs0 errs1)
 
-addWarningMessage :: ErrorMessage -> Compile ()
+addWarningMessage :: ErrorMessage -> Build ()
 addWarningMessage warn
   = addErrors (errorsSingle warn)
 
-addErrorMessage :: ErrorMessage -> Compile ()
+addErrorMessage :: ErrorMessage -> Build ()
 addErrorMessage err
   = addErrors (errorsSingle err)
 
-addErrorMessages :: [ErrorMessage] -> Compile ()
+addErrorMessages :: [ErrorMessage] -> Build ()
 addErrorMessages errs
   = addErrors (Errors errs)
 
-phaseTimed :: String -> Doc -> Compile a -> Compile a
+phaseTimed :: String -> Doc -> Build a -> Build a
 phaseTimed p doc action
   = do t0 <- liftIO $ getCurrentTime
        phaseVerbose p doc
@@ -471,13 +473,13 @@ phaseTimed p doc action
        return x
 
 
-phaseVerbose :: String -> Doc -> Compile ()
+phaseVerbose :: String -> Doc -> Build ()
 phaseVerbose p doc
   = do term <- getTerminal
        cscheme <- getColorScheme
        liftIO $ termPhaseDoc term (color (colorInterpreter cscheme) (text (sfill 8 p ++ ":")) <+> (color (colorSource cscheme) doc))
 
-phase :: String -> Doc -> Compile ()
+phase :: String -> Doc -> Build ()
 phase p doc
   = do term <- getTerminal
        cscheme <- getColorScheme
@@ -486,7 +488,7 @@ phase p doc
 sfill n s = s ++ replicate (n - length s) ' '
 
 
-getFileTime :: FilePath -> Compile FileTime
+getFileTime :: FilePath -> Build FileTime
 getFileTime "" = return fileTime0
 getFileTime fpath0
   = do env <- getEnv
@@ -495,13 +497,13 @@ getFileTime fpath0
          Just (_, t) -> return t
          Nothing     -> liftIO $ F.getFileTime fpath
 
-maybeGetFileTime :: FilePath -> Compile (Maybe FileTime)
+maybeGetFileTime :: FilePath -> Build (Maybe FileTime)
 maybeGetFileTime fpath
   = do ft <- getFileTime fpath
        return (if ft == fileTime0 then Nothing else Just ft)
 
 
-getFileContents :: FilePath -> Compile BString
+getFileContents :: FilePath -> Build BString
 getFileContents fpath0
   = do env <- getEnv
        let fpath = normalize fpath0

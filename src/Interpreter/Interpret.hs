@@ -49,7 +49,7 @@ import Compiler.Module
 import Interpreter.Command
 
 import qualified Compile.Module  as M
-import qualified Compile.Compile as C
+import qualified Compile.Build   as B
 
 {---------------------------------------------------------------
   interpreter state
@@ -260,9 +260,9 @@ command st cmd
 
 loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO ()
 loadModules term st files force
-  = do mbMods <- C.runCompileIO term (flags st) C.noVFS $
-                 do roots <- mapM C.moduleFromSource files
-                    C.modulesResolveDependencies roots
+  = do mbMods <- B.runBuildIO term (flags st) B.noVFS $
+                 do roots <- mapM B.moduleFromSource files
+                    B.modulesResolveDependencies roots
        case mbMods of
          Nothing -> return ()
          Just mods -> return ()

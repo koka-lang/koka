@@ -48,7 +48,7 @@ library
       Common.ResumeKind
       Common.Syntax
       Common.Unique
-      Compile.Compile
+      Compile.Build
       Compile.Module
       Compiler.Compile
       Compiler.Module
