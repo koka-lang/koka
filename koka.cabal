@@ -49,6 +49,7 @@ library
       Common.Syntax
       Common.Unique
       Compile.Build
+      Compile.Compile
       Compile.Module
       Compiler.Compile
       Compiler.Module

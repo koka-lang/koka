@@ -36,6 +36,7 @@ import qualified Core.Core as Core
 import Core.Parse
 import Compiler.Options
 import Compile.Module
+import Compile.Compile        ( typeCheck )
 
 {---------------------------------------------------------------
   Given a set of modules,
