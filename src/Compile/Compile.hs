@@ -43,12 +43,11 @@ import Compiler.Options
 import Compile.Module( Definitions(..) )
 
 
-typeCheck :: Flags -> Definitions -> UserProgram -> Error () (Core.Core,Maybe RangeMap)
-typeCheck flags defs program0
+typeCheck :: Flags -> Definitions -> [Core.Import] -> UserProgram -> Error () (Core.Core,Maybe RangeMap)
+typeCheck flags defs coreImports program0
   = Core.runCorePhase 0 {-unique-} $
      do -- import map
-        let importMap   = importMapFromProgram program0
-            coreImports = coreImportsFromProgram program0
+        let importMap   = importMapFromCoreImports (programImports program0) coreImports
             programName = getName program0
 
         -- binding groups and fixities
@@ -143,11 +142,18 @@ coreImportsFromProgram :: UserProgram -> [Core.Import]
 coreImportsFromProgram program
   = [Core.Import (importFullName imp) "" (importVis imp) "" {- todo: doc -}  | imp <- programImports program]
 
-importMapFromProgram :: UserProgram -> ImportMap
-importMapFromProgram program
-  = foldl' extend importsEmpty (programImports program)
+
+-- import map needs the program imports for aliases.
+importMapFromCoreImports :: [Import] -> [Core.Import] -> ImportMap
+importMapFromCoreImports progImports cimports
+  = foldl' extend importsEmpty (map Core.importName cimports)
   where
-    extend importMap imp
-      = case importsExtend (importName imp) (importFullName imp) importMap of
-          Nothing -> importMap
+    extend importMap modname
+      = case importsExtend (getAlias modname) modname importMap of
+          Nothing         -> importMap
           Just importMap' -> importMap'
+
+    getAlias modname
+      = case find (\imp -> importFullName imp == modname) progImports of
+          Just imp -> importName imp
+          Nothing  -> modname

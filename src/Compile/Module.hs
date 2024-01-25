@@ -71,7 +71,7 @@ data Module  = Module{ -- initial
 
                        -- lexing
                      , modLexemes     :: ![Lexeme]
-                     , modImports     :: ![ModuleName]      -- initial dependencies from import statements
+                     , modImports     :: ![ModuleName]      -- initial dependencies from import statements in the program
 
                        -- parsing
                      , modProgram     :: !(Maybe (Program UserType UserKind))
@@ -80,6 +80,7 @@ data Module  = Module{ -- initial
                      , modRangeMap    :: !(Maybe RangeMap)
                      , modCore        :: !(Maybe Core.Core)
                      , modDefinitions :: !(Maybe Definitions)
+                     , modCoreImports :: [Core.Import]       -- full set of imports (including public imports from imports)
 
                      -- , modInitialCore :: !Core.Core
 
@@ -108,9 +109,9 @@ moduleNull modName
             -- parse
             Nothing
             -- type check
-            Nothing Nothing
+            Nothing Nothing Nothing []
             -- optimize
-            Nothing (Right [])
+            (Right [])
             -- codegen
             "" fileTime0
 

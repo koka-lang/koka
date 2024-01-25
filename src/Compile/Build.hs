@@ -30,7 +30,7 @@ import System.Directory ( doesFileExist )
 import Lib.Scc( scc )
 import Lib.PPrint
 import Platform.Config        ( version, exeExtension, dllExtension, libPrefix, libExtension, pathSep, sourceExtension )
-import Common.Syntax          ( Target(..))
+import Common.Syntax          ( Target(..), isPublic, Visibility(..))
 import Common.Error
 import Common.File   hiding (getFileTime)
 import qualified Common.File as F
@@ -77,24 +77,54 @@ moduleTypeCheck tcheckedMap mod
     if (modPhase mod < ModParsed || modPhase mod >= ModTyped)
       then done mod
       else do -- wait for direct imports to be type checked
-              imports <- mapM (modmapRead tcheckedMap) (modImports mod)
+              imports <- moduleGetAllImports tcheckedMap [] (modImports mod)
               if any (\m -> modPhase m < ModTyped) imports
                 then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
                 else -- type check
-                     do phaseVerbose "type check" (pretty (modName mod))
+                     do phaseVerbose "type check" $ pretty (modName mod) <.> text ": imported:" <+> list (map (pretty . modName) imports)
                         flags <- getFlags
                         let defs = defsFromModules imports
-                        (core,mbRangeMap) <- liftError $ typeCheck flags defs (fromJust (modProgram mod))
+                            program = fromJust (modProgram mod)
+                            cimports = coreImportsFromModules (programImports program) imports
+                        (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
                         let mod' = mod{ modPhase = ModTyped
                                       , modCore = Just core
+                                      , modCoreImports = cimports
                                       , modRangeMap = mbRangeMap
                                       , modDefinitions = Just (defsFromCore core)
                                       }
+                        phaseVerbose "checked" (pretty (modName mod))
                         done mod'
 
   where
     done mod' = do modmapPut tcheckedMap mod'
                    return mod'
+
+
+-- Recursively load public imports from imported modules
+moduleGetAllImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
+moduleGetAllImports tcheckedMap alreadyDone0 importNames
+  = do -- wait for imported modules to be type checked
+       imports <- mapM (modmapRead tcheckedMap) importNames
+       let alreadyDone = alreadyDone0 ++ importNames
+           extras = nub $ [Core.importName imp | mod <- imports, imp <- modCoreImports mod,
+                                                  isPublic (Core.importVis imp),
+                                                  not (Core.importName imp `elem` alreadyDone)]
+       if null extras
+         then return imports
+         else do extraImports <- moduleGetAllImports tcheckedMap alreadyDone extras
+                 return (extraImports ++ imports)
+
+-- Return core imports for a list of imported modules; needs the program imports as well to determine visibility
+coreImportsFromModules :: [Import] -> [Module] -> [Core.Import]
+coreImportsFromModules progImports modules
+  = [Core.Import (modName mod) "" (getVisibility (modName mod)) (fromMaybe "" (fmap Core.coreProgDoc (modCore mod)))
+    | mod <- modules ]
+  where
+    getVisibility modname
+      = case find (\imp -> importFullName imp == modname) progImports of
+          Just imp -> importVis imp  -- todo: get max?
+          _        -> Private
 
 
 
@@ -379,14 +409,16 @@ data Env = Env { envTerminal :: Terminal, envFlags :: Flags, envErrors :: IORef 
 noVFS :: VFS
 noVFS = VFS (\fpath -> Nothing)
 
+maxErrors :: Int
+maxErrors = 25
 
 runBuildIO :: Terminal -> Flags -> VFS -> Build a -> IO (Maybe a)
 runBuildIO term flags vfs cmp
   = do res <- runBuild term flags vfs cmp
        case res of
-         Right (x,errs) -> do mapM_ (termError term) (errors errs)
+         Right (x,errs) -> do mapM_ (termError term) (take maxErrors (errors errs))
                               return (Just x)
-         Left errs      -> do mapM_ (termError term) (errors errs)
+         Left errs      -> do mapM_ (termError term) (take maxErrors (errors errs))
                               return Nothing
 
 runBuild :: Terminal -> Flags -> VFS -> Build a -> IO (Either Errors (a,Errors))
