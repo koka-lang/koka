@@ -161,10 +161,14 @@ splitPath fdir
   = case normalize fdir of
       "" -> [""]
       '/':'/':fs -> "/":split fs
-      '/':fs -> "/":split fs
+      '/':fs -> "":split fs
       fs -> split fs
   where
     split f = splitOn isPathSep f
+
+onWindows :: Bool
+onWindows
+  = (exeExtension == ".exe")
 
 
 joinPath :: FilePath -> FilePath -> FilePath
@@ -178,7 +182,6 @@ joinPaths dirs
   -- $ filterPathSepDup
   $ intersperse ['/']
   $ resolveDot
-  $ filter (not . null)
   $ concatMap splitPath dirs
   where
     resolveDot []            = []
