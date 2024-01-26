@@ -142,8 +142,22 @@ importDecl
                              (_,doc) <- dockeyword "import"
                              return (vis,doc)
        (asname,name,_,_) <- importAlias
+       prov <- pimportProvenance
        pkg <- (do{ keyword "="; (s,_) <- stringLit; return s } <|> return "")
-       return (Import name pkg vis doc, (asname, name))
+       return (Import name pkg prov vis doc, (asname, name))
+
+pimportProvenance :: LexParser ImportProvenance
+pimportProvenance
+  = do keyword "pub"
+       return ImportPub
+  <|>
+    do specialId "syns"
+       return ImportSynonyms
+  <|>
+    do specialId "compiler"
+       return ImportCompiler
+  <|>
+    return ImportUser
 
 fixDecl :: LexParser [FixDef]
 fixDecl

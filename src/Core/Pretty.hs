@@ -119,9 +119,17 @@ prettyImport env imp
     keyword env "import"
       <+> prettyModuleName env (importsAlias (importName imp) (importsMap env)) <+> text "="
       <+> prettyModuleName env (importName imp)
+      <.> ppImportProvenance env (importProvenance imp)
       <+> text "=" <+> prettyLit env (LitString (importPackage imp))
       <.> semi
 
+ppImportProvenance :: Env -> ImportProvenance -> Doc
+ppImportProvenance env prov
+  = case prov of
+      ImportUser     -> empty
+      ImportPub      -> keyword env " pub"
+      ImportSynonyms -> keyword env " syns"
+      ImportCompiler -> keyword env " compiler"
 
 prettyExternalImport env target (ExternalImport imports _)
   = -- prettyComment env (importModDoc imp) $
@@ -540,7 +548,7 @@ extractImportsFromSynonyms :: [Import] -> [SynInfo] -> [Import]
 extractImportsFromSynonyms imps syns
   = let quals = filter (\nm -> not (S.member nm impNames)) $
                 concatMap extractSyn syns
-        extraImports = map (\nm -> Import nm "" Private "") quals -- TODO: import path ?
+        extraImports = map (\nm -> Import nm "" ImportSynonyms Private "") quals -- TODO: import path ?
     in extraImports
   where
     impNames        = S.fromList (map importName imps)

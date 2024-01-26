@@ -52,7 +52,7 @@ data ModulePhase
   | ModLoaded         -- imports are known
   | ModParsed         -- lexemes, program is known
   | ModTyped          -- rangemap, gamma, inlines
-  | ModOptimized      -- optimized core
+  | ModCoreCompiled   -- compiled and optimized core
   | ModCompiled       -- compiled
   deriving (Eq,Ord,Show)
 
@@ -80,13 +80,14 @@ data Module  = Module{ -- initial
                      , modRangeMap    :: !(Maybe RangeMap)
                      , modCore        :: !(Maybe Core.Core)
                      , modDefinitions :: !(Maybe Definitions)
-                     , modCoreImports :: [Core.Import]       -- full set of imports (including public imports from imports)
+                     , modCoreImports :: [Core.Import]       -- full set of imports (including public imports from imports (but not compiler imports))
 
-                     -- , modInitialCore :: !Core.Core
+                     -- interface loaded
+                     , modIfaceInlines :: !(Maybe (Gamma -> Error () [Core.InlineDef])) -- from a core file, we return a function that given the gamma parses the inlines
 
-                     -- optimize & interface
-                     , modInlines     :: -- from a core file, we return a function that given the gamma parses the inlines
-                                         !(Either (Gamma -> Error () [Core.InlineDef]) ([Core.InlineDef]))
+                     -- core compiled
+                     , modFinalCore    :: !(Maybe Core.Core)
+                     , modInlines      :: ![Core.InlineDef]
 
                        -- codegen
                      , modExePath     :: !FilePath
@@ -110,8 +111,10 @@ moduleNull modName
             Nothing
             -- type check
             Nothing Nothing Nothing []
-            -- optimize
-            (Right [])
+            -- interface loaded
+            Nothing
+            -- core compiled
+            Nothing []
             -- codegen
             "" fileTime0
 

@@ -77,7 +77,7 @@ moduleTypeCheck tcheckedMap mod
     if (modPhase mod < ModParsed || modPhase mod >= ModTyped)
       then done mod
       else do -- wait for direct imports to be type checked
-              imports <- moduleGetAllImports tcheckedMap [] (modImports mod)
+              imports <- moduleGetPubImports tcheckedMap [] (modImports mod)
               if any (\m -> modPhase m < ModTyped) imports
                 then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
                 else -- type check
@@ -85,7 +85,7 @@ moduleTypeCheck tcheckedMap mod
                         flags <- getFlags
                         let defs = defsFromModules imports
                             program = fromJust (modProgram mod)
-                            cimports = coreImportsFromModules (programImports program) imports
+                            cimports = coreImportsFromModules (modImports mod) (programImports program) imports
                         (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
                         let mod' = mod{ modPhase = ModTyped
                                       , modCore = Just core
@@ -102,23 +102,28 @@ moduleTypeCheck tcheckedMap mod
 
 
 -- Recursively load public imports from imported modules
-moduleGetAllImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
-moduleGetAllImports tcheckedMap alreadyDone0 importNames
+moduleGetPubImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
+moduleGetPubImports tcheckedMap alreadyDone0 importNames
   = do -- wait for imported modules to be type checked
        imports <- mapM (modmapRead tcheckedMap) importNames
        let alreadyDone = alreadyDone0 ++ importNames
            extras = nub $ [Core.importName imp | mod <- imports, imp <- modCoreImports mod,
-                                                  isPublic (Core.importVis imp),
+                                                  isPublic (Core.importVis imp),  -- never ImportCompiler
                                                   not (Core.importName imp `elem` alreadyDone)]
        if null extras
          then return imports
-         else do extraImports <- moduleGetAllImports tcheckedMap alreadyDone extras
+         else do extraImports <- moduleGetPubImports tcheckedMap alreadyDone extras
                  return (extraImports ++ imports)
 
--- Return core imports for a list of imported modules; needs the program imports as well to determine visibility
-coreImportsFromModules :: [Import] -> [Module] -> [Core.Import]
-coreImportsFromModules progImports modules
-  = [Core.Import (modName mod) "" (getVisibility (modName mod)) (fromMaybe "" (fmap Core.coreProgDoc (modCore mod)))
+-- Return all (user and pub) core imports for a list of user imported modules;
+-- - needs the original imports as well to determine provenance
+-- - needs the program imports as well to determine visibility
+coreImportsFromModules :: [ModuleName] -> [Import] -> [Module] -> [Core.Import]
+coreImportsFromModules userImports progImports modules
+  = [Core.Import (modName mod) ""
+      (getProvenance (modName mod))
+      (getVisibility (modName mod))
+      (fromMaybe "" (fmap Core.coreProgDoc (modCore mod)))
     | mod <- modules ]
   where
     getVisibility modname
@@ -126,6 +131,8 @@ coreImportsFromModules progImports modules
           Just imp -> importVis imp  -- todo: get max?
           _        -> Private
 
+    getProvenance modname
+      = if modname `elem` userImports then Core.ImportUser else Core.ImportPub
 
 
 
@@ -202,7 +209,7 @@ moduleParse mod
        prog <- liftIOError $ parseProgramFromFile allowAt (semiInsert flags) (modSourcePath mod)
        return mod{ modPhase = ModParsed
                  , modLexemes = programLexemes prog
-                 , modProgram = Just prog
+                 , modProgram = Just $! prog
                  , modImports = nub (map importFullName (programImports prog))
                  }
 
@@ -211,10 +218,10 @@ moduleLoadIface mod
   = do phase "loading" (text (modIfacePath mod))
        (core,parseInlines) <- liftIOError $ parseCore (modIfacePath mod) (modSourcePath mod)
        return mod{ modPhase   = ModCompiled
-                 , modImports = map Core.importName (Core.coreProgImports core)
-                 , modCore    = Just core
-                 , modDefinitions = Just (defsFromCore core)
-                 , modInlines = Left parseInlines
+                 , modImports = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
+                 , modCore    = Just $! core
+                 , modDefinitions = Just $! (defsFromCore core)
+                 , modIfaceInlines = Just $! parseInlines
                  }
 
 moduleLoadLibIface :: Module -> Build Module
@@ -224,10 +231,10 @@ moduleLoadLibIface mod
        flags <- getFlags
        liftIO $ copyLibIfaceToOutput flags (modLibIfacePath mod) (modIfacePath mod) core
        return mod{ modPhase   = ModCompiled
-                 , modImports = map Core.importName (Core.coreProgImports core)
-                 , modCore    = Just core
-                 , modDefinitions = Just (defsFromCore core)
-                 , modInlines = Left parseInlines
+                 , modImports = map Core.importName  (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
+                 , modCore    = Just $! core
+                 , modDefinitions = Just $! (defsFromCore core)
+                 , modIfaceInlines = Just $! parseInlines
                  }
 
 copyLibIfaceToOutput :: Flags -> FilePath -> FilePath -> Core.Core -> IO ()
@@ -317,13 +324,7 @@ searchSourceFile :: FilePath -> FilePath -> Build (Maybe (FilePath,FilePath))
 searchSourceFile relativeDir fname
   = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (relativeDir:includePath flags))) $ return ()
        flags <- getFlags
-       extra <- if null relativeDir then return []
-                                   else do{ d <- liftIO $ realPath relativeDir; return [d] }
-       mbP <- liftIO $ searchPathsCanonical (extra ++ includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
-       case mbP of
-         Just (root,stem) | root == relativeDir  -- make a relative module now relative to the include path
-           -> return $ Just (makeRelativeToPaths (includePath flags) (joinPath root stem))
-         _ -> return mbP
+       liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
 
 -- find a pre-compiled libary interface
 -- in the future we can support packages as well
@@ -354,7 +355,12 @@ moduleValidate mod
                      }
        -- phaseVerbose "trace" (pretty (modName mod) <.> text (": times: " ++ show (ftSource,ftIface)))
        if (modSourceTime mod' > modIfaceTime mod' || modLibIfaceTime mod' > modIfaceTime mod')
-         then return mod'{ modPhase = ModInit, modErrors = errorsNil }
+         then return mod'{ modPhase = ModInit, modErrors = errorsNil,
+                           -- reset fields that are not used by an IDE to reduce memory pressure
+                           -- leave lexemes and definitions
+                           modIfaceInlines = Nothing, modFinalCore = Nothing, modInlines = [],
+                           modCore = Nothing, modProgram = Nothing
+                         }
          else return mod'
 
 

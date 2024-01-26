@@ -11,7 +11,7 @@
 
 module Core.Core ( -- Data structures
                      Core(..)
-                   , Imports, Import(..)
+                   , Imports, Import(..), ImportProvenance(..), isCompilerImport
                    , Externals, External(..), externalVis
                    , FixDefs, FixDef(..)
                    , TypeDefGroups, TypeDefGroup(..), TypeDefs, TypeDef(..)
@@ -283,9 +283,19 @@ type Imports = [Import]
 
 data Import  = Import{ importName :: !Name
                      , importPackage :: !String
+                     , importProvenance :: ImportProvenance
                      , importVis  :: !Visibility
                      , importModDoc :: !String
                      }
+
+data ImportProvenance = ImportUser     -- user wrote import
+                      | ImportPub      -- imported due to `pub import` in a user imported module
+                      | ImportSynonyms -- (user hidder) imports needed to check synonyms
+                      | ImportCompiler -- (user hidden) imports needed to check inlined definitions
+                      deriving (Eq,Ord,Show)
+
+isCompilerImport :: Import -> Bool
+isCompilerImport imp = (importProvenance imp >= ImportCompiler)
 
 {--------------------------------------------------------------------------
   Externals

@@ -426,7 +426,8 @@ compileProgram' maybeContents term flags modules compileTarget fname program imp
                                           []      -> Private -- failure $ "Compiler.Compile.compileProgram': cannot find import: " ++ show (modName mod) ++ " in " ++ show (map (show . importName) (programImports program))
                                           (imp:_) -> importVis imp -- TODO: get max
                               in if (modName mod == name) then []
-                                  else [Core.Import (modName mod) (modPackagePath mod) vis (Core.coreProgDoc (modCore mod))]
+                                  else [Core.Import (modName mod) (modPackagePath mod) Core.ImportUser {- todo: use proper provenance -}
+                                                     vis (Core.coreProgDoc (modCore mod))]
 
        (loaded2a, coreDoc) <- liftErrorPartial loaded1 $ typeCheck loaded1 flags 0 coreImports program
        when (showCore flags) $
@@ -1219,7 +1220,7 @@ codeGenJS term flags modules compileTarget outBase core
        let mbEntry = case compileTarget of
                        Executable name tp -> Just (name,isAsyncFunction tp)
                        _                  -> Nothing
-           extractImport mod = Core.Import (modName mod) (modPackageQName mod) Public ""
+           extractImport mod = Core.Import (modName mod) (modPackageQName mod) Core.ImportUser Public ""
        let js    = javascriptFromCore (buildType flags) mbEntry (map extractImport modules) core
        termPhase term ( "generate javascript: " ++ outjs )
        writeDocW 80 outjs js
