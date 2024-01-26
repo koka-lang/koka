@@ -1,0 +1,51 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="initial-scale=1.0" />
+
+<style type="text/css">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>
+<link rel="stylesheet" type="text/css" href="styles/koka.css" />
+
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Nunito:400,400italic,700,700italic" />
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic" />
+
+<title>std/core/delayed documentation</title>
+</head>
+
+<body class="koka doc body madoko">
+<h1><a class="link" href="https://koka-lang.github.io/koka/doc/std_core_delayed-source.html"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>delayed</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
+<div class="toc code"><ul class="toc"><li><a class="link" href="#type_space_delayed"><span class="kw">type</span>&nbsp;<span class="tp">delayed</span></a>
+</li><li class="nested"><a class="link" href="#delay"><span class="kw">fun</span>&nbsp;delay</a></li><li class="nested"><a class="link" href="#force"><span class="kw">fun</span>&nbsp;force</a></li><li>&nbsp;</li><li><a class="link" href="#once"><span class="kw">fun</span>&nbsp;once</a></li></ul></div>
+<div class="doc koka comment">
+<h1 class="synopsis">Delayed computations.
+</h1>
+
+
+
+<p class="p noindent">.
+</p></div>
+<div class="decl" id="type_space_delayed"><div class="header code"><span class="def"><span class="kw">type</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_delayed-source.html#type_space_delayed"><span class="tp">delayed</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>delayed<span class="fslash last">/</span></span>delayed: <span class="tp sp">(</span><span class="co">E</span>, <span class="co">V</span>) <span class="kw op">-></span> <span class="co">V</span></span></a></span></span><span class="tp">&lt;<span class="tp tv">e</span>,<span class="tp tv">a</span>&gt;</span></div><div class="doc koka comment">
+
+<p class="p noindent">Delayed (or <em class="em-low1">lazy</em>) values are computed (with effect <code class="koka"><span class="tp tv">e</span></code>) only the first time
+<code class="koka"><a class="pp" href="#force">force<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>delayed<span class="fslash last">/</span></span>force: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">delayed</span> <span class="tp kw op">:</span> <span class="tp">delayed</span><span class="tp sp">&#60;</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">a</span></span></a></code> is called and cached afterwards.
+</p></div><div class="nested"><div class="decl" id="delay"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_delayed-source.html#delay">delay</a></span>( <span class="tp tpp">action</span> <span class="tp sp">:</span>&nbsp;<span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp tv">e</span> <span class="tp tv">a</span> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="#type_space_delayed"><span class="tp">delayed</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>delayed<span class="fslash last">/</span></span>delayed: <span class="tp sp">(</span><span class="co">E</span>, <span class="co">V</span>) <span class="kw op">-></span> <span class="co">V</span></span></a><span class="tp sp">&lt;</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">a</span><span class="tp sp">&gt;</span></div><div class="doc koka comment">
+
+<p class="p noindent">Create a new <code class="koka"><a class="pp" href="#type_space_delayed"><span class="tp">delayed</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>delayed<span class="fslash last">/</span></span>delayed: <span class="tp sp">(</span><span class="co">E</span>, <span class="co">V</span>) <span class="kw op">-&gt;</span> <span class="co">V</span></span></a></code> value.
+</p></div></div><div class="decl" id="force"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_delayed-source.html#force">force</a></span>( <span class="tp tpp">delayed</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="#type_space_delayed"><span class="tp">delayed</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>delayed<span class="fslash last">/</span></span>delayed: <span class="tp sp">(</span><span class="co">E</span>, <span class="co">V</span>) <span class="kw op">-></span> <span class="co">V</span></span></a><span class="tp sp">&lt;</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">a</span><span class="tp sp">&gt;</span> ) <span class="tp sp">:</span>&nbsp;<span class="tp tv">e</span> <span class="tp tv">a</span></div><div class="doc koka comment">
+
+<p class="p noindent">Force a delayed value; the value is computed only on the first
+call to <code class="koka"><a class="pp" href="#force">force<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>delayed<span class="fslash last">/</span></span>force: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">delayed</span> <span class="tp kw op">:</span> <span class="tp">delayed</span><span class="tp sp">&#60;</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">a</span></span></a></code> and cached afterwards.
+</p></div></div></div></div>
+<div class="decl" id="once"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_delayed-source.html#once">once</a></span>( <span class="tp tpp">calc</span> <span class="tp sp">:</span>&nbsp;<span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp tv">a</span> ) <span class="tp sp">:</span>&nbsp;<span class="tp sp">(</span><span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp tv">a</span><span class="tp sp">)</span></div><div class="doc koka comment">
+
+<p class="p noindent">Given a total function to calculate a value <code class="koka"><span class="tp tv">a</span></code>, return
+a total function that only calculates the value once and then
+returns the cached result.
+</p></div></div>
+<div class="decl" id="-private-imports"><div class="header code"><span class="def"><span class="kw">private import</span>&nbsp;<span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#_null_"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types</span></span></a></span>, <span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_hnd.html#_null_"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd</span></span></a></span></span></div></div>
+</body>
+</html>
+
+<span data-line=""></span>

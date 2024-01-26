@@ -15,12 +15,8 @@
 </head>
 
 <body class="koka doc body madoko">
-<h1 class="mo">std<span class="fslash">/</span>time<a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
+<h1><a class="link" href="https://koka-lang.github.io/koka/doc/std_time-source.html"><span class="mo">std<span class="fslash">/</span>time</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
 <table class="index"><tr><td class="code"><span class="nested0">std</span></td></tr>
-<tr><td class="code"><span class="nested1"><a class="link" href="https://koka-lang.github.io/koka/doc/std_core.html"><span class="mo">core</span></a></span></td><td><div class="doc koka comment">
-
-<p class="p noindent">Core functions.
-</p></div></td></tr>
 <tr><td class="code"><span class="nested1">time</span></td></tr>
 <tr><td class="code"><span class="nested2"><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_calendar.html"><span class="mo">calendar</span></a></span></td><td><div class="doc koka comment">
 
@@ -71,11 +67,11 @@
 <p class="p noindent">UTC time scales and leap second support.
 </p></div></td></tr>
 </table>
-<h2>Description</h2>
 <div class="doc koka comment">
+<h1 class="synopsis">Date and time functionality.</h1>
 
-<p class="p noindent"> Date and time functionality.
-</p><h2 id="sec-dates-and-time" class="h1" data-heading-depth="1" style="display:block"><span class="heading-before"><span class="heading-label">1</span>.&#8194;</span>Dates and time</h2>
+
+<h2 id="sec-dates-and-time" class="h1" data-heading-depth="1" style="display:block"><span class="heading-before"><span class="heading-label">1</span>.&#8194;</span>Dates and time</h2>
 <p class="p noindent">This is an extensive library for managing time.
 By using careful defaults the library offers an easy to use interface for the
 common use cases, but uses accurate and precise time representations and algorithms.
@@ -277,16 +273,18 @@ internal representation).
 </p>
 <ul class="ul list-dash compact">
 <li class="li ul-li list-dash-li compact-li"><code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_utc.html#ts_ti_sls">ts<span class="dash">-</span>ti<span class="dash">-</span>sls<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>utc<span class="fslash last">/</span></span>ts<span class="dash">-</span>ti<span class="dash">-</span>sls: <span class="tp">timescale</span></span></a></code> smooths leap seconds over the last 1000s of a day with a leap
-seccond so they never appear in any displayed time or timestamp.
+second so they never appear in any displayed time or timestamp.
 </li>
 <li class="li ul-li list-dash-li compact-li"><code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_utc.html#ts_utc_create">ts<span class="dash">-</span>utc<span class="dash">-</span>create<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>utc<span class="fslash last">/</span></span>ts<span class="dash">-</span>utc<span class="dash">-</span>create: <span class="tp sp">(</span><span class="tp tpp">leaps</span> <span class="tp kw op">:</span> <span class="tp">leaps<span class="dash">-</span>table</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">timescale</span></span></a></code>/<code class="koka">cal<span class="dash">-</span>utc<span class="dash">-</span>load</code> creates a proper UTC timescale from a leap
 second table. This ensures future leap seconds are fully accounted for and
 that duration calculations work properly up to 6 months into the future.
-</li></ul>
+~begin htmlraw
+</div>
+<div class="decl" id="-private-imports"><div class="header code"><span class="def"><span class="kw">private import</span>&nbsp;<span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#_null_"><span class="mo">std<span class="fslash">/</span>core</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core</span></span></a></span></span></div></div>
 
-<p class="p noindent">.
-</p></div>
 </body>
 </html>
+</li></ul>
 
-<span data-line=""></span>
+<p class="p noindent">~end htmlraw
+</p><span data-line=""></span>
