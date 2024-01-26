@@ -290,7 +290,7 @@ data Import  = Import{ importName :: !Name
 
 data ImportProvenance = ImportUser     -- user wrote import
                       | ImportPub      -- imported due to `pub import` in a user imported module
-                      | ImportSynonyms -- (user hidder) imports needed to check synonyms
+                      | ImportTypes    -- (user hidder) imports needed to check type signatures
                       | ImportCompiler -- (user hidden) imports needed to check inlined definitions
                       deriving (Eq,Ord,Show)
 

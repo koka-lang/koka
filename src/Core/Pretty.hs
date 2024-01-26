@@ -105,8 +105,10 @@ prettyCore env0 target inlineDefs core@(Core modName imports fixDefs typeDefGrou
     env  = env1{ expandSynonyms = False }
     envX = env1{ showKinds = True, expandSynonyms = True }
 
-    importedSyns = extractImportedSynonyms core
-    extraImports = extractImportsFromSynonyms imports importedSyns
+    signatures   = extractSignatures core
+    importedSyns = extractImportedSynonyms (coreProgName core) signatures
+    -- extraImports = extractImportsFromSynonyms imports importedSyns
+    extraImports = extractImportFromSignatures signatures
 
     env1         = env0{ importsMap =  extendImportMap extraImports (importsMap env0),
                          coreShowTypes = (coreShowTypes env0 || coreIface env0),
@@ -128,8 +130,8 @@ ppImportProvenance env prov
   = case prov of
       ImportUser     -> empty
       ImportPub      -> keyword env " pub"
-      ImportSynonyms -> keyword env " syns"
-      ImportCompiler -> keyword env " compiler"
+      ImportTypes    -> keyword env " type"
+      ImportCompiler -> keyword env " inline"
 
 prettyExternalImport env target (ExternalImport imports _)
   = -- prettyComment env (importModDoc imp) $
@@ -539,6 +541,19 @@ extendImportMap imports impMap
          Just newMap -> newMap
          Nothing     -> impMap -- already imported ?
 
+type Signatures = [Type]
+
+extractImportFromSignatures :: Signatures -> [Import]
+extractImportFromSignatures sigs
+  = let importNames = extractDepsFromSignatures sigs
+    in [Import name "" ImportTypes Private "" | name <- importNames]
+
+extractDepsFromSignatures :: Signatures -> [ModuleName]
+extractDepsFromSignatures sigs
+  = let sigmods = S.map (qualifier . typeconName) (ftc sigs)
+    in S.toList sigmods
+
+{-
 -- extract all qualifiers in synonyms: it can be the case that a type synonym
 -- refers to a type defined in a non-imported module and we need to add it to the
 -- imports of the .kki file. (no need to add it to the generated code since
@@ -548,7 +563,7 @@ extractImportsFromSynonyms :: [Import] -> [SynInfo] -> [Import]
 extractImportsFromSynonyms imps syns
   = let quals = filter (\nm -> not (S.member nm impNames)) $
                 concatMap extractSyn syns
-        extraImports = map (\nm -> Import nm "" ImportSynonyms Private "") quals -- TODO: import path ?
+        extraImports = map (\nm -> Import nm "" ImportTypes Private "") quals -- TODO: import path ?
     in extraImports
   where
     impNames        = S.fromList (map importName imps)
@@ -564,14 +579,14 @@ extractImportsFromSynonyms imps syns
           TVar _             -> []
     extractTypes tps
       = concatMap extractType tps
-
+-}
 
 -- extract from type signatures the synonyms so we can compress .kki files
 -- by locally defining imported synonyms
-extractImportedSynonyms :: Core -> [SynInfo]
-extractImportedSynonyms core
-  = let syns = filter (\info -> coreProgName core /= qualifier (synInfoName info)) $
-               synonymsToList $ extractSynonyms (extractSignatures core)
+extractImportedSynonyms :: ModuleName -> Signatures -> [SynInfo]
+extractImportedSynonyms progName sigs
+  = let syns = filter (\info -> progName /= qualifier (synInfoName info)) $
+               synonymsToList $ extractSynonyms sigs
     in -- trace ("extracted synonyms: " ++ show (map (show . synInfoName) syns)) $
        syns
   where
@@ -592,7 +607,6 @@ extractImportedSynonyms core
 
 
 
-
 instance HasTypeVar DefGroup where
   sub `substitute` defGroup
     = case defGroup of
@@ -609,6 +623,11 @@ instance HasTypeVar DefGroup where
         DefRec defs   -> btv defs
         DefNonRec def -> btv def
 
+  ftc defGroup
+    = case defGroup of
+        DefRec defs   -> ftc defs
+        DefNonRec def -> ftc def
+
 
 instance HasTypeVar Def where
   sub `substitute` (Def name scheme expr vis isVal inl nameRng doc)
@@ -619,6 +638,9 @@ instance HasTypeVar Def where
 
   btv (Def name scheme expr vis isVal inl nameRng doc)
     = btv scheme `tvsUnion` btv expr
+
+  ftc (Def name scheme expr vis isVal inl nameRng doc)
+    = tcsUnion (ftc scheme) (ftc expr)
 
 instance HasTypeVar Expr where
   sub `substitute` expr
@@ -660,6 +682,18 @@ instance HasTypeVar Expr where
         Let defGroups expr -> btv defGroups `tvsUnion` btv expr
         Case exprs branches -> btv exprs `tvsUnion` btv branches
 
+  ftc expr
+    = let tcs = case expr of
+                  Lam tname eff expr -> tcsUnions [ftc tname, ftc eff, ftc expr]
+                  Var tname info     -> ftc tname
+                  App a b            -> ftc a `tcsUnion` ftc b
+                  TypeLam tvs expr   -> ftc expr
+                  TypeApp expr tp    -> ftc expr `tcsUnion` ftc tp
+                  Con tname repr     -> ftc tname
+                  Lit lit            -> tcsEmpty
+                  Let defGroups expr -> ftc defGroups `tcsUnion` ftc expr
+                  Case exprs branches -> ftc exprs `tcsUnion` ftc branches
+      in tcs
 
 instance HasTypeVar Branch where
   sub `substitute` (Branch patterns guards)
@@ -672,6 +706,8 @@ instance HasTypeVar Branch where
   btv (Branch patterns guards)
     = btv patterns `tvsUnion` btv guards
 
+  ftc (Branch patterns guards)
+    = tcsUnion (ftc patterns) (ftc guards)
 
 instance HasTypeVar Guard where
   sub `substitute` (Guard test expr)
@@ -682,6 +718,9 @@ instance HasTypeVar Guard where
          tvs
   btv (Guard test expr)
     = btv test `tvsUnion` btv expr
+
+  ftc (Guard test expr)
+    = ftc test `tcsUnion` ftc expr
 
 instance HasTypeVar Pattern where
   sub `substitute` pat
@@ -710,6 +749,14 @@ instance HasTypeVar Pattern where
         PatWild                 -> tvsEmpty
         PatLit lit              -> tvsEmpty
 
+  ftc pat
+    = let tcs = case pat of
+                  PatVar tname pat    -> tcsUnion (ftc tname) (ftc pat)
+                  PatCon tname args _ targs exists tres _ _ -> tcsUnions [ftc tname,ftc args,ftc targs,ftc tres]
+                  PatWild             -> tcsEmpty
+                  PatLit lit          -> tcsEmpty
+      in -- trace ("ftc :" ++ show (tvsList (tvs)) ++ ", in pattern: " ++ show pat) $
+         tcs
 
 instance HasTypeVar TName where
   sub `substitute` (TName name tp)
@@ -718,3 +765,5 @@ instance HasTypeVar TName where
     = ftv tp
   btv (TName name tp)
     = btv tp
+  ftc (TName name tp)
+    = ftc tp

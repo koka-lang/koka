@@ -444,6 +444,9 @@ instance HasTypeVar RangeMap where
   btv (RM rm)
     = btv (map snd rm)
 
+  ftc (RM rm)
+    = ftc (map snd rm)
+
 instance HasTypeVar RangeInfo where
   sub `substitute` (Id nm info docs isdef)  = Id nm (sub `substitute` info) docs isdef
   sub `substitute` ri                       = ri
@@ -453,6 +456,9 @@ instance HasTypeVar RangeInfo where
 
   btv (Id nm info _ _)    = btv info
   btv ri                  = tvsEmpty
+
+  ftc (Id nm info _ _)    = ftc info
+  ftc ri                  = tcsEmpty
 
 instance HasTypeVar NameInfo where
   sub `substitute` ni
@@ -472,3 +478,9 @@ instance HasTypeVar NameInfo where
         NIValue _ tp _ _  -> btv tp
         NICon tp _        -> btv tp
         _                 -> tvsEmpty
+
+  ftc ni
+    = case ni of
+        NIValue _ tp _ _ -> ftc tp
+        NICon tp _       -> ftc tp
+        _                -> tcsEmpty

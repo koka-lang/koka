@@ -465,6 +465,9 @@ instance HasTypeVar Gamma where
   btv gamma
     = btv (gammaSchemes gamma)
 
+  ftc gamma
+    = ftc (gammaSchemes gamma)
+
 instance HasTypeVar NameInfo where
   sub `substitute` info
     = info{ infoType = sub `substitute` (infoType info) }
@@ -474,3 +477,6 @@ instance HasTypeVar NameInfo where
 
   btv info
     = btv (infoType info)
+
+  ftc info
+    = ftc (infoType info)

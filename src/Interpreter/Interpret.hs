@@ -180,8 +180,8 @@ command st cmd
 
   Load fnames force
               -> do{ let st' = st{ lastLoad = fnames }
-                   ; loadModules term st' fnames force
-                   ; loadFiles term st' (reset True st') fnames force
+                   ; st'' <- loadModules term st' fnames force
+                   ; loadFiles term st'' (reset True st'') fnames force
                    }
 
   Reload      -> do{ loadFiles term st (reset True st) (lastLoad st) True {- (map (modPath . loadedModule) (tail (loadedModules st))) -} }
@@ -258,15 +258,14 @@ command st cmd
         }
 
 
-loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO ()
+loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO State
 loadModules term st files force
   = do mbMods <- B.runBuildIO term (flags st) B.noVFS $
-                 do roots <- mapM B.moduleFromSource files
-                    ordered <- B.modulesResolveDependencies roots
-                    B.modulesCompile ordered
+                 do roots <- M.mergeModules (modules st) <$> mapM B.moduleFromSource files
+                    B.modulesCompile roots
        case mbMods of
-         Nothing -> return ()
-         Just mods -> return ()
+         Nothing -> return st
+         Just mods -> return st{ modules = mods }
 
 {--------------------------------------------------------------------------
   File loading

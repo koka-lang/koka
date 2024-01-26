@@ -18,7 +18,7 @@ module Common.Error( -- error messages
                    , Error, ok
                    , warningMsg, errorMsg, warningMsgs, errorMsgs
                    , errorMsgPartial, errorMsgsPartial, addErrorMsg
-                   , catchError, checkError, checkPartial, setPartial
+                   , handleError, checkError, checkPartial, setPartial
                    , addWarnings, addPartialResult
                    , ignoreWarnings
                   ) where
@@ -53,7 +53,7 @@ data ErrorMessage = ErrorMsg{ errRange   :: !Range
 data ErrorSeverity= SevInfo | SevWarning | SevError
                   deriving (Eq,Ord,Typeable)
 
-data ErrorKind    = ErrGeneral | ErrParse | ErrStatic | ErrKind | ErrType | ErrBuild
+data ErrorKind    = ErrGeneral | ErrParse | ErrStatic | ErrKind | ErrType | ErrBuild | ErrInternal
                   deriving (Eq, Typeable)
 
 instance Exception ErrorMessage
@@ -127,6 +127,7 @@ ppErrorSeverity cscheme ekind sev
                     ErrKind    -> "kind "
                     ErrType    -> "type "
                     ErrBuild   -> "build "
+                    ErrInternal-> "internal "
                     _          -> ""
 
 
@@ -175,8 +176,8 @@ setPartial c err
       Error msg m -> Error msg c
       Ok x w m    -> Ok x w c
 
-catchError :: Error b a -> (Errors -> Error b a) -> Error b a
-catchError err handle
+handleError :: Error b a -> (Errors -> Error b a) -> Error b a
+handleError err handle
   = case err of
       Error errs m -> addPartialResult (handle errs) m
       Ok x w m     -> Ok x w m

@@ -49,7 +49,7 @@ import Kind.Newtypes( Newtypes )
 import Kind.ImportMap
 import Kind.Infer( inferKinds )
 import Type.Pretty
-import Type.Assumption( Gamma, extractGamma, extractGammaImports, gammaUnions )
+import Type.Assumption( Gamma, extractGamma, extractGammaImports, gammaUnions, showHidden )
 import Type.Infer( inferTypes )
 import qualified Core.Core as Core
 import Compiler.Options
@@ -108,6 +108,9 @@ typeCheck flags defs coreImports program0
               progDefs
 
         Core.setCoreDefs coreDefs
+
+        -- when (show programName == "std/text/parse") $
+        --   trace ("type check " ++ show programName ++ ", gamma: " ++ showHidden gamma) $ return ()
 
         -- check generated core
         let checkCoreDefs title = when (coreCheck flags) $ Core.Check.checkCore False False penv gamma
@@ -180,6 +183,9 @@ compileCore flags newtypes gamma inlines coreProgram
             penv     = prettyEnvFromFlags flags
             checkCoreDefs title = when (coreCheck flags) $ Core.Check.checkCore False False penv gamma
 
+        -- when (show progName == "std/text/parse") $
+        --  trace ("compile " ++ show progName ++ ", gamma: " ++ showHidden gamma) $ return ()
+
         -- define simplify
         let ndebug           = optimize flags > 0
             simplifyX dupMax = simplifyDefs penv False {-unsafe-} ndebug (simplify flags) dupMax
@@ -227,7 +233,7 @@ compileCore flags newtypes gamma inlines coreProgram
 
         -- transform effects to explicit monadic binding (and resolve .open calls)
         when (enableMon flags && not (isPrimitiveModule progName)) $
-            -- trace "monadic transform" $
+          trace (show progName ++ ": monadic transform") $
             do Core.Monadic.monTransform penv
                openResolve penv gamma           -- must be after monTransform
         checkCoreDefs "monadic transform"

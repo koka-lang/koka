@@ -12,6 +12,7 @@
 module Compile.Module( Module(..), Modules, ModulePhase(..), moduleNull, moduleCreateInitial
                      , Definitions(..), defsNull, defsCompose, defsFromCore, defsFromModules
                      , inlinesFromModules
+                     , mergeModules
                      ) where
 
 import Lib.Trace
@@ -121,6 +122,17 @@ moduleCreateInitial modName sourcePath ifacePath libIfacePath
                           modLibIfacePath = libIfacePath,
                           modRange = makeSourceRange (if null sourcePath then ifacePath else sourcePath) 1 1 1 1 }
 
+
+mergeModules :: [Module] -> [Module] -> [Module]
+mergeModules mods1 mods2
+  = foldl' mergeModule mods1 mods2
+
+mergeModule :: [Module] -> Module -> [Module]
+mergeModule [] mod  = [mod]
+mergeModule (m:ms) mod
+  = if modName m /= modName mod
+     then m : mergeModule ms mod
+     else (if (modPhase m > modPhase mod) then m else mod) : ms
 
 addOrReplaceModule :: Module -> Modules -> Modules
 addOrReplaceModule mod []

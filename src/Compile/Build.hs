@@ -50,11 +50,13 @@ import Compile.Module
 import Compile.Compile        ( typeCheck, compileCore )
 
 modulesCompile :: [Module] -> Build [Module]
-modulesCompile modules
+modulesCompile roots
   = phaseTimed "compiling" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
-    do tcheckedMap <- modmapCreate modules
+    do rootsv      <- modulesValidate roots
+       modules     <- modulesResolveDependencies roots
+       tcheckedMap <- modmapCreate modules
        compiledMap <- modmapCreate modules
-       compiled <- mapConcurrent (moduleCoreCompile tcheckedMap compiledMap) modules
+       compiled    <- mapConcurrent (moduleCoreCompile tcheckedMap compiledMap) modules
        mapM moduleFlushErrors compiled
 
 
@@ -65,19 +67,20 @@ modulesCompile modules
 moduleCoreCompile :: ModuleMap -> ModuleMap -> Module -> Build Module
 moduleCoreCompile tcheckedMap compiledMap mod0
   = onBuildException (done mod0) $ -- ensure the mvar is always set so progress is made
+    withModule (modName mod0) $
     do mod <- moduleTypeCheck tcheckedMap mod0
        if (modPhase mod < ModTyped || modPhase mod >= ModCoreCompiled)
          then done mod
-         else do -- wait for direct imports to be compiled
-                 let directImportNames = map Core.importName (modCoreImports mod)
-                 -- phase "compile imports" $ pretty (modName mod) <.> colon <+> list (map pretty directImportNames)
-                 imports <- moduleGetCompiledImports compiledMap [] directImportNames
+         else do -- wait for direct (user+pub) imports to be compiled
+                 let pubImportNames = map Core.importName (modCoreImports mod)
+                 -- phase "compile imports" $ pretty (modName mod) <.> colon <+> list (map pretty pubImportNames)
+                 imports <- moduleGetCompiledImports compiledMap [] pubImportNames
                  if any (\m -> modPhase m < ModCoreCompiled) imports
                    then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
                    else -- core compile
                         do  phase "compile" $ pretty (modName mod) <.> text ": imported:" <+> list (map (pretty . modName) imports)
                             flags <- getFlags
-                            let defs    = defsFromModules imports  -- todo: optimize by reusing the defs from the type check
+                            let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check
                                 inlines = inlinesFromModules imports
                             (core,inlineDefs) <- liftError $ compileCore flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
                             let mod' = mod{ modPhase = ModCoreCompiled
@@ -100,13 +103,11 @@ moduleGetCompiledImports compiledMap alreadyDone0 importNames
        imports <- mapM (modmapRead compiledMap) importNames
        let alreadyDone = alreadyDone0 ++ importNames
            extras = nub $ [Core.importName imp | mod <- imports, hasInlines (modInlines mod),
-                                                  -- consider all imports needed to check its inline definitions
+                                                  -- consider all of its imports to ensure we can check its inline definitions
                                                   imp <- modCoreImports mod,
                                                   not (Core.importName imp `elem` alreadyDone)]
-       if null extras
-         then return imports
-         else do extraImports <- moduleGetCompiledImports compiledMap alreadyDone extras
-                 return (extraImports ++ imports)
+       extraImports <- mapM (modmapRead compiledMap) extras
+       return (extraImports ++ imports)
   where
     hasInlines (Right []) = False
     hasInlines _          = True
@@ -143,6 +144,7 @@ modulesTypeCheck modules
 moduleTypeCheck :: ModuleMap -> Module -> Build Module
 moduleTypeCheck tcheckedMap mod
   = onBuildException (modmapPut tcheckedMap mod) $ -- ensure the mvar is always set so progress is made
+    withModule (modName mod) $
     if (modPhase mod < ModParsed || modPhase mod >= ModTyped)
       then done mod
       else do -- wait for direct imports to be type checked
@@ -413,21 +415,23 @@ searchLibIfaceFile fname
   Validate if modules are still valid
 ---------------------------------------------------------------}
 
-revalidate :: [Module] -> Build [Module]
-revalidate modules
+modulesValidate :: [Module] -> Build [Module]
+modulesValidate modules
   = mapM moduleValidate modules
 
 moduleValidate :: Module -> Build Module
 moduleValidate mod
-  = do ftSource   <- getFileTime (modSourcePath mod)
+  = do flags <- getFlags
+       ftSource   <- getFileTime (modSourcePath mod)
        ftIface    <- getFileTime (modIfacePath mod)
        ftLibIface <- getFileTime (modLibIfacePath mod)
+       let stale = (ftSource > modSourceTime mod || ftIface > modIfaceTime mod || ftLibIface > modLibIfaceTime mod)
        let mod' = mod{ modSourceTime = ftSource
                      , modIfaceTime  = ftIface
                      , modLibIfaceTime = ftLibIface
                      }
        -- phaseVerbose "trace" (pretty (modName mod) <.> text (": times: " ++ show (ftSource,ftIface)))
-       if (modSourceTime mod' > modIfaceTime mod' || modLibIfaceTime mod' > modIfaceTime mod')
+       if (stale || rebuild flags || forceModule flags == modSourcePath mod)
          then return mod'{ modPhase = ModInit, modErrors = errorsNil,
                            -- reset fields that are not used by an IDE to reduce memory pressure
                            -- leave lexemes and definitions
@@ -483,7 +487,11 @@ data VFS = VFS { vfsFind :: FilePath -> Maybe (BString,FileTime) }
 
 data Build a = Build (Env -> IO a)
 
-data Env = Env { envTerminal :: Terminal, envFlags :: Flags, envErrors :: IORef Errors, envVFS :: VFS }
+data Env = Env { envTerminal :: Terminal,
+                 envFlags    :: Flags,
+                 envErrors   :: IORef Errors,
+                 envRange    :: IORef Range,
+                 envVFS      :: VFS }
 
 noVFS :: VFS
 noVFS = VFS (\fpath -> Nothing)
@@ -503,8 +511,9 @@ runBuildIO term flags vfs cmp
 runBuild :: Terminal -> Flags -> VFS -> Build a -> IO (Either Errors (a,Errors))
 runBuild term flags vfs cmp
   = do errs <- newIORef errorsNil
+       rng  <- newIORef rangeNull
        (termProxy,stop) <- forkTerminal term
-       finally (runBuildEnv (Env termProxy flags errs vfs) cmp) (stop)
+       finally (runBuildEnv (Env termProxy flags errs rng vfs) cmp) (stop)
 
 
 -- Fork off a thread to handle output from other threads so it is properly interleaved
@@ -534,17 +543,23 @@ runBuildEnv env action
   = case checked action of
       Build cmp -> cmp env
 
+
 checked :: Build a -> Build (Either Errors (a,Errors))
 checked (Build cmp)
   = Build   (\env -> do res <- do{ x <- cmp env; return (Right x) }
                                `catch` (\errs -> return (Left errs))
-                               `catchIO` (\exn -> return $ Left $ errorsSingle $ errorMessageKind ErrBuild rangeNull (text (show exn)))
+                               `catchError` (\err -> makeErr env ErrInternal (show err))
+                               `catchIO` (\exn -> makeErr env ErrBuild (show exn))
                         errsw <- readIORef (envErrors env)
                         writeIORef (envErrors env) errorsNil
                         case res of
                           Right x    -> return (Right (x,errsw))
                           Left errs  -> return (Left (mergeErrors errsw errs))
             )
+  where
+    makeErr env errKind msg
+      = do rng <- readIORef (envRange env)
+           return (Left (errorsSingle (errorMessageKind errKind rng (text msg))))
 
 checkedDefault :: a -> Build a -> Build (a,Errors)
 checkedDefault def action
@@ -552,6 +567,12 @@ checkedDefault def action
        case res of
          Left errs      -> return (def,errs)
          Right (x,errs) -> return (x,errs)
+
+
+catchError :: IO a -> (ErrorCall -> IO a) -> IO a
+catchError io f
+  = io `catch` f
+
 
 catchIO :: IO a -> (IOException -> IO a) -> IO a
 catchIO io f
@@ -691,3 +712,17 @@ getFileContents fpath0
        case vfsFind (envVFS env) fpath of
          Just (content, _) -> return content
          Nothing           -> liftIO $ readInput fpath
+
+getCurrentRange :: Build Range
+getCurrentRange
+  = do env <- getEnv
+       liftIO $ readIORef (envRange env)
+
+withModule :: ModuleName -> Build a -> Build a
+withModule mname action
+  = do env <- getEnv
+       old <- liftIO $ readIORef (envRange env)
+       liftIO $ writeIORef (envRange env) (makeSourceRange (show mname) 1 1 1 1)
+       x <- action -- do not use finally so the error uses the range when it was thrown
+       liftIO $ writeIORef (envRange env) old
+       return x

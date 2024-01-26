@@ -152,10 +152,10 @@ pimportProvenance
   = do keyword "pub"
        return ImportPub
   <|>
-    do specialId "syns"
-       return ImportSynonyms
+    do keyword "type"
+       return ImportTypes
   <|>
-    do specialId "compiler"
+    do specialId "inline"
        return ImportCompiler
   <|>
     return ImportUser
