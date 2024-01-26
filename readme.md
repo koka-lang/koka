@@ -8,9 +8,9 @@
 
 # Koka: a Functional Language with Effects
 
-_Koka v2 is a research language that currently under heavy development with the new C backend_
+_Koka v3 is a research language that is currently under development and not quite ready for production use_. 
 
-_Latest release_: v3.0.1, 2024-01-13 ([Install]).
+_Latest release_: v3.0.4, 2024-01-25 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -83,6 +83,8 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
+* `v3.0.4`, 2024-01-25: fix bug in infinite expansion with implicits. Split `std/core` in multiple modules,
+  improved hover and inlay information in vs code, various small bug fixes.
 * `v3.0.1`, 2024-01-13: small bug fixes in expression evaluation, and fixes a locale error on macOS.
 * `v3.0.0`, 2024-01-13: improved vs code language support with inlay-hints. New locally qualified names,
   and initial support for implicit parameters. Samples can be found in `samples/syntax`. Various
