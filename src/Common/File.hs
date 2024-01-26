@@ -160,8 +160,8 @@ splitPath :: FilePath -> [FilePath]
 splitPath fdir
   = case normalize fdir of
       "" -> [""]
-      '/':'/':fs -> "/":split fs
-      '/':fs -> "":split fs
+      '/':'/':fs -> "//":split fs
+      '/':fs -> "/":split fs
       fs -> split fs
   where
     split f = splitOn isPathSep f
@@ -179,10 +179,11 @@ joinPath p1 p2
 joinPaths :: [FilePath] -> FilePath
 joinPaths dirs
   = concat
-  -- $ filterPathSepDup
+  $ filterPathSepDup
   $ intersperse ['/']
   $ resolveDot
-  $ concatMap splitPath dirs
+  $ concatMap splitPath
+  $ filter (not . null) dirs
   where
     resolveDot []            = []
     resolveDot (p:".":ps)    = resolveDot (p:ps)
@@ -502,7 +503,8 @@ searchPathsCanonical relativeDir paths exts suffixes name
 
 searchPathsEx :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
 searchPathsEx path exts suffixes name
-  = search (concatMap (\dir -> map (\n -> (dir,n)) nameext) ("":path))
+  = -- trace ("search " ++ name ++ " in " ++ show path) $
+    search (concatMap (\dir -> map (\n -> (dir,n)) nameext) ("":path))
   where
     search [] = return Nothing  -- notfound envname nameext path
     search ((dir,fname):xs)
