@@ -817,22 +817,16 @@ searchSource flags currentDir name
         _ -> return Nothing
 
 searchSourceFile :: Flags -> FilePath -> FilePath -> IO (Maybe (FilePath,FilePath))
-searchSourceFile flags currentDir fname
+searchSourceFile flags relativeDir fname
   = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (currentDir:includePath flags))) $ return ()
-       -- currentDir is set when importing from a module so a module name is first resolved relative to
+       -- relativeDir is set when importing from a module so a module name is first resolved relative to
        -- the current module
-       extra <- if null currentDir then return []
-                                   else do{ d <- realPath currentDir; return [d] }
-       mbP <- searchPathsCanonical (extra ++ includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
-       case mbP of
-         Just (root,stem) | root == currentDir  -- make a relative module now relative to the include path
-           -> return $ Just (makeRelativeToPaths (includePath flags) (joinPath root stem))
-         _ -> return mbP
+       searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
 
 searchIncludeIface :: Flags -> FilePath -> Name -> IO (Maybe FilePath)
-searchIncludeIface flags currentDir name
+searchIncludeIface flags relativeDir name
   = do -- trace ("search include iface: " ++ showModName name ++ " from " ++ currentDir) $ return ()
-       mbP <- searchPathsCanonical (currentDir : includePath flags) [] [] (showModName name ++ ifaceExtension)
+       mbP <- searchPathsCanonical relativeDir  (includePath flags) [] [] (showModName name ++ ifaceExtension)
        case mbP of
          Just (root,stem)
            -> return $ Just (joinPath root stem)
