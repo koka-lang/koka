@@ -1,6 +1,10 @@
 ~ begin news
 News:
 
+* 2024-01-25: Koka v3.0.4 released with improved VS Code hover and inlay information.
+  Splits `std/core` in multiple modules, fixes bug in infinite expansion for implicits
+  and various other small improvements.
+
 * 2024-01-13: Koka v3.0.1 released with improved VS Code integration and inlay hints. Initial support for
   locally qualified names and implicit parameters (see the `samples/syntax`). Various small bug fixes.
 

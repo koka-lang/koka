@@ -769,8 +769,8 @@ fun copy( p, age = p.age, name = p.name, realname = p.realname )
   Person(age, name, realname)
 ```
 
-When arguments follow a data value, as in ``p( age = age + 1)``, it is expanded to call this
-copy function, as in `p.copy( age = p.age+1 )`. In adherence with the _min-gen_ principle,
+When arguments follow a data value, as in ``p( age = p.age + 1)``, it is expanded to call this
+copy function, as in `p.copy( age = p.age + 1 )`. In adherence with the _min-gen_ principle,
 there are no special rules for record updates but using plain function calls with optional
 and named parameters.
 

@@ -232,7 +232,7 @@ fun bundle-source( version : string )
 
 fun koka-exe-path(exe-opt : string, sysghc : bool) : io (path,string)
   val exe      = if !exe-opt.is-empty then exe-opt
-                 elif get-env("STACK_EXE").default("").is-empty then "cabal"
+                 elif get-env-value("STACK_EXE").default("").is-empty then "cabal"
                  else "stack"
   val koka-run = if exe == "stack" then "stack exec koka " ++ (if sysghc then "--system-ghc --skip-ghc-check " else "") ++ "--"
                  elif exe == "cabal" then "cabal new-run koka --"

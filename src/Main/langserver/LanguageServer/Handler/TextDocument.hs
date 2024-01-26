@@ -46,7 +46,7 @@ import Lib.PPrint (text, (<->), (<+>), color, Color (..))
 import Common.Range (rangeNull)
 import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
 import Common.Name (newName)
-import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime, isAbsolute, dirname)
+import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime, isAbsolute, dirname, findMaximalPrefixPath)
 import Common.ColorScheme(ColorScheme(..))
 import Common.Error
 import Core.Core (Visibility(Private))
@@ -156,7 +156,9 @@ compileEditorExpression uri flags force filePath functionName = do
                      Import (modName mod) (modName mod) rangeNull rangeNull rangeNull Private]
           program = programAddImports (programNull nameInteractiveModule) imports
           flagsEx = if (isAbsolute filePath)
-                      then flags{ includePath = includePath flags ++ [dirname filePath]} -- add include so it can be found by its basename
+                      then case findMaximalPrefixPath (includePath flags) filePath of
+                             Nothing -> flags{ includePath = includePath flags ++ [dirname filePath]} -- add include so it can be found by its basename
+                             Just _  -> flags
                       else flags
       term <- getTerminal
       -- reusing interpreter compilation entry point

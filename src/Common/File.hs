@@ -160,11 +160,15 @@ splitPath :: FilePath -> [FilePath]
 splitPath fdir
   = case normalize fdir of
       "" -> [""]
-      '/':'/':fs -> "/":split fs
+      '/':'/':fs -> "//":split fs
       '/':fs -> "/":split fs
       fs -> split fs
   where
     split f = splitOn isPathSep f
+
+onWindows :: Bool
+onWindows
+  = (exeExtension == ".exe")
 
 
 joinPath :: FilePath -> FilePath -> FilePath
@@ -175,11 +179,11 @@ joinPath p1 p2
 joinPaths :: [FilePath] -> FilePath
 joinPaths dirs
   = concat
-  -- $ filterPathSepDup
+  $ filterPathSepDup
   $ intersperse ['/']
   $ resolveDot
-  $ filter (not . null)
-  $ concatMap splitPath dirs
+  $ concatMap splitPath
+  $ filter (not . null) dirs
   where
     resolveDot []            = []
     resolveDot (p:".":ps)    = resolveDot (p:ps)
@@ -467,10 +471,13 @@ searchPathsSuffixes :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe
 searchPathsSuffixes paths exts suffixes name
   = fmap (fmap (\(root,name) -> joinPath root name)) (searchPathsEx paths (filter (not.null) exts) suffixes name)
 
-searchPathsCanonical :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
-searchPathsCanonical paths exts suffixes name
-  = search (concatMap (\dir -> map (\n -> (dir,n)) nameext)
-              (if isAbsolute name then [""] else paths))
+searchPathsCanonical :: FilePath -> [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
+searchPathsCanonical relativeDir paths exts suffixes name
+  = do searchPaths <- if isAbsolute name then return [""]
+                        else if (null relativeDir) then return paths
+                        else do relDir <- realPath relativeDir
+                                return (relDir : paths)
+       search (concatMap (\dir -> map (\n -> (dir,n)) nameext) searchPaths)
   where
     search [] = return Nothing  -- notfound envname nameext path
     search ((dir,fname):xs)
@@ -480,7 +487,7 @@ searchPathsCanonical paths exts suffixes name
           ; if exist
              then do rpath <- realPath fullName
                      -- trace ("search found: " ++ fullName ++ ", in (" ++ dir ++ "," ++ fname ++ ") ,real path: " ++ rpath) $
-                     case (findMaximalPrefixPath paths rpath) of
+                     case (findMaximalPrefixPath paths rpath) of  -- not the relativeDir!
                        Nothing -> -- absolute path outside the paths
                                   return (Just ("",rpath))
                        just    -> return just
@@ -496,7 +503,8 @@ searchPathsCanonical paths exts suffixes name
 
 searchPathsEx :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
 searchPathsEx path exts suffixes name
-  = search (concatMap (\dir -> map (\n -> (dir,n)) nameext) ("":path))
+  = -- trace ("search " ++ name ++ " in " ++ show path) $
+    search (concatMap (\dir -> map (\n -> (dir,n)) nameext) ("":path))
   where
     search [] = return Nothing  -- notfound envname nameext path
     search ((dir,fname):xs)

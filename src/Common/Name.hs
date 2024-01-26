@@ -220,7 +220,7 @@ showName explicitLocalQualifier (Name m _ l _ n _)
 
 showFullyExplicit (Name m _ l _ n _)
    = let ln = join l (wrapId n)
-     in if null m then if null l then ln else "#" ++ ln
+     in if null m then "#" ++ ln
                   else if null ln then m
                                   else m ++ "/#" ++ ln
 
