@@ -53,8 +53,9 @@ parseCore fname sourceName
 
 
 parseInlines :: Core -> Source -> Env -> [Lexeme] -> ParseInlines
-parseInlines prog source env inlines gamma
-  = ignoreSyntaxWarnings $ parseLexemes (pInlines env{ gamma = gamma }) source inlines
+parseInlines prog source env [] = Nothing
+parseInlines prog source env inlines
+  = Just (\gamma -> ignoreSyntaxWarnings $ parseLexemes (pInlines env{ gamma = gamma }) source inlines)
 
 pInlines :: Env -> LexParser [InlineDef]
 pInlines env
@@ -67,7 +68,7 @@ program srcName source
   = do many semiColon
        (prog,env,inlines) <- pmodule srcName
        eof
-       return (prog, if null inlines then Nothing else Just (parseInlines prog source env inlines))
+       return (prog, parseInlines prog source env inlines)
 
 
 pmodule :: FilePath -> LexParser (Core,Env,[Lexeme])

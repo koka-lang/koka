@@ -746,7 +746,9 @@ resolveModule maybeContents term flags currentDir modules importPath mimp
                           outIFace <- liftIO $ copyIFaceToOutputDir term flags iface core
                           let mod = Module (Core.coreName core) outIFace (joinPath root stem) pkgQname pkgLocal []
                                               Nothing -- (error ("getting program from core interface: " ++ iface))
-                                                core (Left parseInlines) True Nothing ftime
+                                                core (case parseInlines of
+                                                        Nothing -> Right []
+                                                        Just f  -> Left f) True Nothing ftime
                           return mod
              loadFromModule (modPath mod){-iface-} root stem mod
 

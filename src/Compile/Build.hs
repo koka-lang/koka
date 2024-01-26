@@ -59,6 +59,7 @@ moduleCoreCompile tcheckedMap compiledMap mod0
          then done mod
          else do -- wait for direct imports to be compiled
                  imports <- moduleGetCompiledImports compiledMap [] (map Core.importName (modCoreImports mod))
+                 done mod
 
   where
     done mod' = do modmapPut compiledMap mod'
@@ -71,7 +72,7 @@ moduleGetCompiledImports compiledMap alreadyDone0 importNames
   = do -- wait for imported modules to be compiled
        imports <- mapM (modmapRead compiledMap) importNames
        let alreadyDone = alreadyDone0 ++ importNames
-           extras = nub $ [Core.importName imp | mod <- imports, not (null (modInlines)),
+           extras = nub $ [Core.importName imp | mod <- imports, hasInlines (modInlines mod),
                                                   -- consider all imports needed to check its inline definitions
                                                   imp <- modCoreImports mod,
                                                   not (Core.importName imp `elem` alreadyDone)]
@@ -79,6 +80,10 @@ moduleGetCompiledImports compiledMap alreadyDone0 importNames
          then return imports
          else do extraImports <- moduleGetCompiledImports compiledMap alreadyDone extras
                  return (extraImports ++ imports)
+  where
+    hasInlines (Right []) = False
+    hasInlines _          = True
+
 
 {---------------------------------------------------------------
   Given a set of modules that are in build order,
@@ -109,7 +114,7 @@ moduleTypeCheck tcheckedMap mod
     if (modPhase mod < ModParsed || modPhase mod >= ModTyped)
       then done mod
       else do -- wait for direct imports to be type checked
-              imports <- moduleGetCompiledImports compiledMap [] (modImports mod)
+              imports <- moduleGetCompiledImports tcheckedMap [] (modImports mod)
               if any (\m -> modPhase m < ModTyped) imports
                 then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
                 else -- type check
@@ -253,7 +258,9 @@ moduleLoadIface mod
                  , modImports = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
                  , modCore    = Just $! core
                  , modDefinitions = Just $! (defsFromCore core)
-                 , modIfaceInlines = Just $! parseInlines
+                 , modInlines = case parseInlines of
+                                  Nothing -> Right []
+                                  Just f  -> Left f
                  }
 
 moduleLoadLibIface :: Module -> Build Module
@@ -266,7 +273,9 @@ moduleLoadLibIface mod
                  , modImports = map Core.importName  (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
                  , modCore    = Just $! core
                  , modDefinitions = Just $! (defsFromCore core)
-                 , modIfaceInlines = Just $! parseInlines
+                 , modInlines = case parseInlines of
+                                  Nothing -> Right []
+                                  Just f  -> Left f
                  }
 
 copyLibIfaceToOutput :: Flags -> FilePath -> FilePath -> Core.Core -> IO ()
@@ -390,7 +399,7 @@ moduleValidate mod
          then return mod'{ modPhase = ModInit, modErrors = errorsNil,
                            -- reset fields that are not used by an IDE to reduce memory pressure
                            -- leave lexemes and definitions
-                           modIfaceInlines = Nothing, modFinalCore = Nothing, modInlines = [],
+                           modFinalCore = Nothing, modInlines = Right [],
                            modCore = Nothing, modProgram = Nothing
                          }
          else return mod'
