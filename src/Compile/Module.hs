@@ -69,7 +69,9 @@ data Module  = Module{ -- initial
                      , modLibIfacePath:: !FilePath          -- precompiled interface (for example for the std libs in <prefix>/lib)
                      , modLibIfaceTime:: !FileTime
                      , modSourcePath  :: !FilePath          -- can be empty for pre-compiled sources
+                     , modSourceRelativePath :: !FilePath   -- for messages display a shorter path if possible
                      , modSourceTime  :: !FileTime
+
 
                        -- lexing
                      , modLexemes     :: ![Lexeme]
@@ -103,7 +105,7 @@ data Module  = Module{ -- initial
 moduleNull :: Name -> Module
 moduleNull modName
   = Module  ModInit modName rangeNull errorsNil
-            "" fileTime0 "" fileTime0 "" fileTime0
+            "" fileTime0 "" fileTime0 "" "" fileTime0
             -- lex
             [] []
             -- parse
@@ -118,6 +120,7 @@ moduleNull modName
 moduleCreateInitial :: Name -> FilePath -> FilePath -> FilePath -> Module
 moduleCreateInitial modName sourcePath ifacePath libIfacePath
   = (moduleNull modName){ modSourcePath = sourcePath,
+                          modSourceRelativePath = sourcePath,
                           modIfacePath = ifacePath,
                           modLibIfacePath = libIfacePath,
                           modRange = makeSourceRange (if null sourcePath then ifacePath else sourcePath) 1 1 1 1 }

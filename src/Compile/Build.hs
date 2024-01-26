@@ -53,7 +53,7 @@ modulesCompile :: [Module] -> Build [Module]
 modulesCompile roots
   = phaseTimed "compiling" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
     do rootsv      <- modulesValidate roots
-       modules     <- modulesResolveDependencies roots
+       modules     <- modulesResolveDependencies rootsv
        tcheckedMap <- modmapCreate modules
        compiledMap <- modmapCreate modules
        compiled    <- mapConcurrent (moduleCoreCompile tcheckedMap compiledMap) modules
@@ -74,20 +74,20 @@ moduleCoreCompile tcheckedMap compiledMap mod0
          else do -- wait for direct (user+pub) imports to be compiled
                  let pubImportNames = map Core.importName (modCoreImports mod)
                  -- phase "compile imports" $ pretty (modName mod) <.> colon <+> list (map pretty pubImportNames)
-                 imports <- moduleGetCompiledImports compiledMap [] pubImportNames
+                 imports <- moduleGetCompilerImports compiledMap [] pubImportNames
                  if any (\m -> modPhase m < ModCoreCompiled) imports
                    then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
                    else -- core compile
-                        do  phase "compile" $ pretty (modName mod) <.> text ": imported:" <+> list (map (pretty . modName) imports)
+                        do  phase "compile" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
                             flags <- getFlags
-                            let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check
+                            let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check?
                                 inlines = inlinesFromModules imports
                             (core,inlineDefs) <- liftError $ compileCore flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
                             let mod' = mod{ modPhase = ModCoreCompiled
                                           , modFinalCore = Just core
                                           , modInlines = Right inlineDefs
                                           }
-                            phaseVerbose "compiled" (pretty (modName mod))
+                            -- phaseVerbose "compiled" (pretty (modName mod))
                             done mod'
 
   where
@@ -97,8 +97,8 @@ moduleCoreCompile tcheckedMap compiledMap mod0
 
 
 -- Import also modules required for checking inlined definitions from direct imports.
-moduleGetCompiledImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
-moduleGetCompiledImports compiledMap alreadyDone0 importNames
+moduleGetCompilerImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
+moduleGetCompilerImports compiledMap alreadyDone0 importNames
   = do -- wait for imported modules to be compiled
        imports <- mapM (modmapRead compiledMap) importNames
        let alreadyDone = alreadyDone0 ++ importNames
@@ -156,7 +156,7 @@ moduleTypeCheck tcheckedMap mod
                         let defs = defsFromModules imports
                             program = fromJust (modProgram mod)
                             cimports = coreImportsFromModules (modImports mod) (programImports program) imports
-                        phase "checking" $ pretty (modName mod) <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
+                        phase "check" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
                         (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
                         let mod' = mod{ modPhase = ModTyped
                                       , modCore = Just core
@@ -274,7 +274,7 @@ ensureLoaded mod
 
 moduleParse :: Module -> Build Module
 moduleParse mod
-  = do phase "parsing" (text (modSourcePath mod))
+  = do phase "parsing" (text (modSourceRelativePath mod))
        flags <- getFlags
        let allowAt = isPrimitiveModule (modName mod)
        prog <- liftIOError $ parseProgramFromFile allowAt (semiInsert flags) (modSourcePath mod)
@@ -367,7 +367,7 @@ moduleFromSource fpath0
                                                     _ -> throwError (errorMessageKind ErrBuild rangeNull (text ("file path cannot be mapped to a valid module name: " ++ sourcePath)))
                                             else return (newModuleName (noexts stem))
                                 ifacePath <- outputName (moduleNameToPath modName ++ ifaceExtension)
-                                moduleValidate $ moduleCreateInitial modName sourcePath ifacePath ""
+                                moduleValidate $ (moduleCreateInitial modName sourcePath ifacePath ""){ modSourceRelativePath = stem }
   where
     isValidId :: String -> Bool  -- todo: make it better
     isValidId ""      = False
@@ -381,7 +381,7 @@ moduleFromModuleName relativeDir modName
        libIfacePath <- searchLibIfaceFile (moduleNameToPath modName ++ ifaceExtension)
        case mbSourceName of
          Just (root,stem)
-            -> moduleValidate $ moduleCreateInitial modName (joinPath root stem) ifacePath libIfacePath
+            -> moduleValidate $ (moduleCreateInitial modName (joinPath root stem) ifacePath libIfacePath){ modSourceRelativePath = stem }
          Nothing
             -> do ifaceExist <- liftIO $ doesFileExistAndNotEmpty ifacePath
                   if ifaceExist

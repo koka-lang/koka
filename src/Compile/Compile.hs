@@ -21,11 +21,13 @@ import Common.Unique
 import Common.Name
 import Common.NamePrim( isPrimitiveModule, isPrimitiveName, nameCoreHnd )
 import Common.Syntax
+import qualified Common.NameSet as S
 import Syntax.RangeMap
 import Syntax.Syntax
 import Static.FixityResolve( fixitiesCompose, fixitiesNew, fixityResolve )
 import Static.BindingGroups( bindingGroups )
 import Core.Pretty( prettyDef )
+import Core.CoreVar( extractDepsFromInlineDefs, extractDepsFromSignatures )
 
 import Core.Check( checkCore )
 import Core.CheckFBIP( checkFBIP )
@@ -140,14 +142,20 @@ typeCheck flags defs coreImports program0
         coreDefsFinal <- Core.getCoreDefs
         uniqueFinal   <- unique
         -- traceM ("final: " ++ show uniqueFinal)
-        let coreFinal
-              = uniquefy $
-                coreProgram { Core.coreProgImports = coreImports
-                            , Core.coreProgDefs    = coreDefsFinal
-                            , Core.coreProgFixDefs = coreFixities
-                            }
 
-            mbRangeMap = fmap rangeMapSort mbRangeMap1
+        let mbRangeMap       = fmap rangeMapSort mbRangeMap1
+            coreUnique       = uniquefy $ coreProgram {
+                                 Core.coreProgImports = coreImports,
+                                 Core.coreProgDefs    = coreDefsFinal,
+                                 Core.coreProgFixDefs = coreFixities
+                               }
+
+            -- add extra imports needed to resolve types in this module
+            typeDeps         = extractDepsFromSignatures coreUnique
+            currentImports   = S.fromList (map Core.importName (Core.coreProgImports coreProgram))
+            typeImports      = [Core.Import name "" Core.ImportTypes Private "" | name <- typeDeps, not (S.member name currentImports)]
+            coreFinal        = coreUnique{ Core.coreProgImports = Core.coreProgImports coreUnique ++ typeImports }
+
         return (coreFinal,mbRangeMap)
 
 
@@ -233,9 +241,9 @@ compileCore flags newtypes gamma inlines coreProgram
 
         -- transform effects to explicit monadic binding (and resolve .open calls)
         when (enableMon flags && not (isPrimitiveModule progName)) $
-          trace (show progName ++ ": monadic transform") $
-            do Core.Monadic.monTransform penv
-               openResolve penv gamma           -- must be after monTransform
+          -- trace (show progName ++ ": monadic transform") $
+          do Core.Monadic.monTransform penv
+             openResolve penv gamma           -- must be after monTransform
         checkCoreDefs "monadic transform"
 
         -- simplify open applications (needed before inlining open defs)
@@ -267,7 +275,17 @@ compileCore flags newtypes gamma inlines coreProgram
         let localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsInlined
             -- give priority to specializeDefs, since inlining can prevent specialize opportunities
             allInlineDefs    = specializeDefs ++ localInlineDefs
-            coreFinal        = uniquefy $ coreProgram { Core.coreProgDefs    = coreDefsFinal }
+
+            -- add extra required imports for inlined definitions
+            inlineDeps       = extractDepsFromInlineDefs allInlineDefs
+            currentImports   = map Core.importName (Core.coreProgImports coreProgram)
+            inlineImports    = [Core.Import name "" Core.ImportCompiler Private "" | name <- inlineDeps, not (name `elem` currentImports)]
+
+            coreFinal        = (if (null inlineImports) then id else trace (show progName ++ ": extra inline imports: " ++ show (map Core.importName inlineImports))) $
+                               uniquefy $ coreProgram {
+                                 Core.coreProgDefs = coreDefsFinal,
+                                 Core.coreProgImports = Core.coreProgImports coreProgram ++ inlineImports
+                               }
 
         return (coreFinal, allInlineDefs)
 

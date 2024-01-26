@@ -11,6 +11,7 @@ module Core.CoreVar ( HasExprVar, (|~>)
                     , isTopLevel
                     , freeLocals
                     , extractDepsFromInlineDefs
+                    , extractDepsFromSignatures
                     ) where
 
 
@@ -45,6 +46,10 @@ extractDepsFromExpr expr
         tconmods = S.map (qualifier . typeconName) (ftc expr)
     in S.union varmods tconmods
 
+
+extractDepsFromSignatures :: Core -> [ModuleName]
+extractDepsFromSignatures core
+  = S.toList (S.map (qualifier . typeconName) (ftc (extractSignatures core)))
 
 {--------------------------------------------------------------------------
   Locals
