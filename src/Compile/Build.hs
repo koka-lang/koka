@@ -48,6 +48,39 @@ import Compile.Module
 import Compile.Compile        ( typeCheck )
 
 {---------------------------------------------------------------
+  Compile a set of modules
+---------------------------------------------------------------}
+
+moduleCoreCompile :: ModuleMap -> ModuleMap -> Module -> Build Module
+moduleCoreCompile tcheckedMap compiledMap mod0
+  = onBuildException (modmapPut compiledMap mod0) $ -- ensure the mvar is always set so progress is made
+    do mod <- moduleTypeCheck tcheckedMap mod0
+       if (modPhase mod < ModParsed || modPhase mod >= ModCoreCompiled)
+         then done mod
+         else do -- wait for direct imports to be compiled
+                 imports <- moduleGetCompiledImports compiledMap [] (map Core.importName (modCoreImports mod))
+
+  where
+    done mod' = do modmapPut compiledMap mod'
+                   return mod'
+
+
+-- Import also modules required for checking inlined definitions from direct imports.
+moduleGetCompiledImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
+moduleGetCompiledImports compiledMap alreadyDone0 importNames
+  = do -- wait for imported modules to be compiled
+       imports <- mapM (modmapRead compiledMap) importNames
+       let alreadyDone = alreadyDone0 ++ importNames
+           extras = nub $ [Core.importName imp | mod <- imports, not (null (modInlines)),
+                                                  -- consider all imports needed to check its inline definitions
+                                                  imp <- modCoreImports mod,
+                                                  not (Core.importName imp `elem` alreadyDone)]
+       if null extras
+         then return imports
+         else do extraImports <- moduleGetCompiledImports compiledMap alreadyDone extras
+                 return (extraImports ++ imports)
+
+{---------------------------------------------------------------
   Given a set of modules that are in build order,
   type check them all
 ---------------------------------------------------------------}
@@ -61,7 +94,6 @@ modmapPut modmap mod
 modmapRead :: ModuleMap -> ModuleName -> Build Module
 modmapRead modmap modname
   = liftIO $ readMVar ((M.!) modmap modname)
-
 
 modulesTypeCheck :: [Module] -> Build [Module]
 modulesTypeCheck modules
@@ -77,7 +109,7 @@ moduleTypeCheck tcheckedMap mod
     if (modPhase mod < ModParsed || modPhase mod >= ModTyped)
       then done mod
       else do -- wait for direct imports to be type checked
-              imports <- moduleGetPubImports tcheckedMap [] (modImports mod)
+              imports <- moduleGetCompiledImports compiledMap [] (modImports mod)
               if any (\m -> modPhase m < ModTyped) imports
                 then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
                 else -- type check

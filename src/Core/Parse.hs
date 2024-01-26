@@ -41,7 +41,7 @@ import Lib.Trace
 {--------------------------------------------------------------------------
   Parse core interface files
 --------------------------------------------------------------------------}
-type ParseInlines = Gamma -> Error () [InlineDef]
+type ParseInlines = Maybe (Gamma -> Error () [InlineDef])
 
 parseCore :: FilePath -> FilePath -> IO (Error b (Core, ParseInlines))
 parseCore fname sourceName
@@ -67,7 +67,7 @@ program srcName source
   = do many semiColon
        (prog,env,inlines) <- pmodule srcName
        eof
-       return (prog, parseInlines prog source env inlines)
+       return (prog, if null inlines then Nothing else Just (parseInlines prog source env inlines))
 
 
 pmodule :: FilePath -> LexParser (Core,Env,[Lexeme])

@@ -82,12 +82,9 @@ data Module  = Module{ -- initial
                      , modDefinitions :: !(Maybe Definitions)
                      , modCoreImports :: [Core.Import]       -- full set of imports (including public imports from imports (but not compiler imports))
 
-                     -- interface loaded
-                     , modIfaceInlines :: !(Maybe (Gamma -> Error () [Core.InlineDef])) -- from a core file, we return a function that given the gamma parses the inlines
-
                      -- core compiled
                      , modFinalCore    :: !(Maybe Core.Core)
-                     , modInlines      :: ![Core.InlineDef]
+                     , modInlines      :: !(Either (Gamma -> Error () [Core.InlineDef]) [Core.InlineDef]) -- from a core file, we return a function that given the gamma parses the inlines
 
                        -- codegen
                      , modExePath     :: !FilePath
@@ -111,10 +108,8 @@ moduleNull modName
             Nothing
             -- type check
             Nothing Nothing Nothing []
-            -- interface loaded
-            Nothing
             -- core compiled
-            Nothing []
+            Nothing (Right [])
             -- codegen
             "" fileTime0
 
