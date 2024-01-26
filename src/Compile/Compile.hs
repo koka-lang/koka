@@ -189,13 +189,13 @@ compileCore flags newtypes gamma inlines coreProgram
         -- unroll recursive definitions (before inline so generated wrappers can be inlined)
         when (optUnroll flags > 0) $
           do unrollDefs penv (optUnroll flags)
-              -- traceDefGroups flags "unrolled"
+        -- traceDefGroups flags "unrolled"
 
         -- inline: inline local definitions more aggressively (2x)
         when (optInlineMax flags > 0) $
-          do let inlines = if isPrimitiveModule progName then inlines
+          do let inlinesX = if isPrimitiveModule progName then inlines
                             else inlinesFilter (\name -> nameModule nameCoreHnd /= nameModule name) inlines
-             inlineDefs penv (2*(optInlineMax flags)) inlines
+             inlineDefs penv (2*(optInlineMax flags)) inlinesX
               -- checkCoreDefs "inlined"
 
         simplifyDupN

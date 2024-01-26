@@ -11,6 +11,7 @@
 -----------------------------------------------------------------------------
 module Compile.Module( Module(..), Modules, ModulePhase(..), moduleNull, moduleCreateInitial
                      , Definitions(..), defsNull, defsCompose, defsFromCore, defsFromModules
+                     , inlinesFromModules
                      ) where
 
 import Lib.Trace
@@ -201,3 +202,13 @@ defsCompose defs1 defs2
                 (constructorsCompose (defsConstructors defs1) (defsConstructors defs2))
                 (fixitiesCompose (defsFixities defs1) (defsFixities defs2))
                 (borrowedCompose (defsBorrowed defs1) (defsBorrowed defs2))
+
+
+inlinesFromModules :: [Module] -> Inlines
+inlinesFromModules modules
+  = inlinesExtends (concatMap inlineDefsFromModule modules) inlinesEmpty
+  where
+    inlineDefsFromModule mod
+      = case modInlines mod of
+          Right idefs -> idefs
+          _           -> []      -- todo: interface files should go from typed to compiled after we resolve these

@@ -9,10 +9,12 @@ module Compile.Build( Build
                       , VFS(..), noVFS
                       , runBuildIO
                       , modulesResolveDependencies
+                      , modulesCompile
                       , modulesTypeCheck
                       , moduleFromSource
                       ) where
 
+import Debug.Trace
 import Data.Char
 import Data.Maybe
 import Data.List
@@ -45,7 +47,16 @@ import qualified Core.Core as Core
 import Core.Parse
 import Compiler.Options
 import Compile.Module
-import Compile.Compile        ( typeCheck )
+import Compile.Compile        ( typeCheck, compileCore )
+
+modulesCompile :: [Module] -> Build [Module]
+modulesCompile modules
+  = phaseTimed "compiling" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
+    do tcheckedMap <- modmapCreate modules
+       compiledMap <- modmapCreate modules
+       compiled <- mapConcurrent (moduleCoreCompile tcheckedMap compiledMap) modules
+       mapM moduleFlushErrors compiled
+
 
 {---------------------------------------------------------------
   Compile a set of modules
@@ -53,17 +64,33 @@ import Compile.Compile        ( typeCheck )
 
 moduleCoreCompile :: ModuleMap -> ModuleMap -> Module -> Build Module
 moduleCoreCompile tcheckedMap compiledMap mod0
-  = onBuildException (modmapPut compiledMap mod0) $ -- ensure the mvar is always set so progress is made
+  = onBuildException (done mod0) $ -- ensure the mvar is always set so progress is made
     do mod <- moduleTypeCheck tcheckedMap mod0
-       if (modPhase mod < ModParsed || modPhase mod >= ModCoreCompiled)
+       if (modPhase mod < ModTyped || modPhase mod >= ModCoreCompiled)
          then done mod
          else do -- wait for direct imports to be compiled
-                 imports <- moduleGetCompiledImports compiledMap [] (map Core.importName (modCoreImports mod))
-                 done mod
+                 let directImportNames = map Core.importName (modCoreImports mod)
+                 -- phase "compile imports" $ pretty (modName mod) <.> colon <+> list (map pretty directImportNames)
+                 imports <- moduleGetCompiledImports compiledMap [] directImportNames
+                 if any (\m -> modPhase m < ModCoreCompiled) imports
+                   then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
+                   else -- core compile
+                        do  phase "compile" $ pretty (modName mod) <.> text ": imported:" <+> list (map (pretty . modName) imports)
+                            flags <- getFlags
+                            let defs    = defsFromModules imports  -- todo: optimize by reusing the defs from the type check
+                                inlines = inlinesFromModules imports
+                            (core,inlineDefs) <- liftError $ compileCore flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
+                            let mod' = mod{ modPhase = ModCoreCompiled
+                                          , modFinalCore = Just core
+                                          , modInlines = Right inlineDefs
+                                          }
+                            phaseVerbose "compiled" (pretty (modName mod))
+                            done mod'
 
   where
     done mod' = do modmapPut compiledMap mod'
                    return mod'
+
 
 
 -- Import also modules required for checking inlined definitions from direct imports.
@@ -100,6 +127,11 @@ modmapRead :: ModuleMap -> ModuleName -> Build Module
 modmapRead modmap modname
   = liftIO $ readMVar ((M.!) modmap modname)
 
+modmapCreate :: [Module] -> Build ModuleMap
+modmapCreate modules
+   = M.fromList <$> mapM (\mod -> do v <- liftIO $ newEmptyMVar
+                                     return (modName mod, v)) modules
+
 modulesTypeCheck :: [Module] -> Build [Module]
 modulesTypeCheck modules
   = phaseTimed "type checking" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
@@ -114,15 +146,15 @@ moduleTypeCheck tcheckedMap mod
     if (modPhase mod < ModParsed || modPhase mod >= ModTyped)
       then done mod
       else do -- wait for direct imports to be type checked
-              imports <- moduleGetCompiledImports tcheckedMap [] (modImports mod)
+              imports <- moduleGetPubImports tcheckedMap [] (modImports mod)
               if any (\m -> modPhase m < ModTyped) imports
                 then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
                 else -- type check
-                     do phase "checking" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
-                        flags <- getFlags
+                     do flags <- getFlags
                         let defs = defsFromModules imports
                             program = fromJust (modProgram mod)
                             cimports = coreImportsFromModules (modImports mod) (programImports program) imports
+                        phase "checking" $ pretty (modName mod) <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
                         (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
                         let mod' = mod{ modPhase = ModTyped
                                       , modCore = Just core
@@ -568,7 +600,7 @@ instance Monad Build where
 instance F.MonadFail Build where
   fail msg = throwError (errorMessageKind ErrGeneral rangeNull (text msg))
 
-onBuildException :: Build () -> Build a -> Build a
+onBuildException :: Build b -> Build a -> Build a
 onBuildException (Build onExn) (Build b)
   = Build (\env -> (b env) `onException` (onExn env))
 

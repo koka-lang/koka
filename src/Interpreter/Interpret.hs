@@ -263,7 +263,7 @@ loadModules term st files force
   = do mbMods <- B.runBuildIO term (flags st) B.noVFS $
                  do roots <- mapM B.moduleFromSource files
                     ordered <- B.modulesResolveDependencies roots
-                    B.modulesTypeCheck ordered
+                    B.modulesCompile ordered
        case mbMods of
          Nothing -> return ()
          Just mods -> return ()
