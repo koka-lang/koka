@@ -65,7 +65,7 @@ modmapRead modmap modname
 
 modulesTypeCheck :: [Module] -> Build [Module]
 modulesTypeCheck modules
-  = phaseTimed "type checking" (list (map (pretty . modName) modules)) $
+  = phaseTimed "type checking" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
     do tcheckedMap <- M.fromList <$> mapM (\mod -> do v <- liftIO $ newEmptyMVar
                                                       return (modName mod, v)) modules
        tchecked <- mapConcurrent (moduleTypeCheck tcheckedMap) modules
@@ -81,7 +81,7 @@ moduleTypeCheck tcheckedMap mod
               if any (\m -> modPhase m < ModTyped) imports
                 then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
                 else -- type check
-                     do phaseVerbose "type check" $ pretty (modName mod) <.> text ": imported:" <+> list (map (pretty . modName) imports)
+                     do phase "checking" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
                         flags <- getFlags
                         let defs = defsFromModules imports
                             program = fromJust (modProgram mod)
@@ -93,7 +93,7 @@ moduleTypeCheck tcheckedMap mod
                                       , modRangeMap = mbRangeMap
                                       , modDefinitions = Just (defsFromCore core)
                                       }
-                        phaseVerbose "checked" (pretty (modName mod))
+                        -- phaseVerbose "checked" (pretty (modName mod))
                         done mod'
 
   where
@@ -146,7 +146,7 @@ modulesResolveDeps modules
        newimports <- nubBy (\m1 m2 -> modName m1 == modName m2) <$> concat <$> mapM (addImports pmodules) pmodules
        if (null newimports)
          then toBuildOrder pmodules
-         else do phase "resolve" (list (map (pretty . modName) newimports))
+         else do phaseVerbose "resolve" (list (map (pretty . modName) newimports))
                  modulesResolveDeps (newimports ++ pmodules)
   where
     addImports pmodules mod
@@ -196,7 +196,7 @@ ensureLoaded mod
 
 moduleParse :: Module -> Build Module
 moduleParse mod
-  = do phaseVerbose "parsing" (text (modSourcePath mod))
+  = do phase "parsing" (text (modSourcePath mod))
        flags <- getFlags
        let allowAt = isPrimitiveModule (modName mod)
        prog <- liftIOError $ parseProgramFromFile allowAt (semiInsert flags) (modSourcePath mod)
@@ -208,7 +208,7 @@ moduleParse mod
 
 moduleLoadIface :: Module -> Build Module
 moduleLoadIface mod
-  = do phaseVerbose "loading" (text (modIfacePath mod))
+  = do phase "loading" (text (modIfacePath mod))
        (core,parseInlines) <- liftIOError $ parseCore (modIfacePath mod) (modSourcePath mod)
        return mod{ modPhase   = ModCompiled
                  , modImports = map Core.importName (Core.coreProgImports core)
