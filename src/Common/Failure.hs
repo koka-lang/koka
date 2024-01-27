@@ -21,7 +21,7 @@ import Debug.Trace( trace, traceStack )
 import Platform.Config( compilerBuildVariant )
 import GHC.Stack( HasCallStack )
 
-assertion :: String -> Bool -> a -> a
+assertion :: HasCallStack => String -> Bool -> a -> a
 assertion msg test x
   = if test
      then x
@@ -31,11 +31,11 @@ failure :: HasCallStack => String -> a
 failure msg
   = raise msg
 
-todo :: String -> a
+todo :: HasCallStack => String -> a
 todo msg
   = failure ("todo: " ++ msg)
 
-matchFailure :: String -> a
+matchFailure :: HasCallStack => String -> a
 matchFailure msg
   = failure ("unmatched pattern: " ++ msg)
 
@@ -45,11 +45,11 @@ raise msg
      then traceStack msg (error msg)
      else (error msg)
 
-raiseIO :: String -> IO a
+raiseIO :: HasCallStack => String -> IO a
 raiseIO msg
   = ioError (userError msg)
 
-catchIO :: IO a -> (String -> IO a) -> IO a
+catchIO :: HasCallStack => IO a -> (String -> IO a) -> IO a
 catchIO io handler
   = exCatch io handler
   where

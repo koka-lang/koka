@@ -153,7 +153,7 @@ typeCheck flags defs coreImports program0
             -- add extra imports needed to resolve types in this module
             typeDeps         = extractDepsFromSignatures coreUnique
             currentImports   = S.fromList (map Core.importName coreImports)
-            typeImports      = [Core.Import name "" Core.ImportTypes Private "" | name <- typeDeps, not (S.member name currentImports)]
+            typeImports      = [Core.Import name "" Core.ImportTypes Private "" | name <- typeDeps, not (S.member name currentImports) && not (name == programName)]
             coreFinal        = coreUnique{ Core.coreProgImports = Core.coreProgImports coreUnique ++ typeImports }
 
         return (coreFinal,mbRangeMap)
@@ -279,7 +279,7 @@ compileCore flags newtypes gamma inlines coreProgram
             -- add extra required imports for inlined definitions
             inlineDeps       = extractDepsFromInlineDefs allInlineDefs
             currentImports   = map Core.importName (Core.coreProgImports coreProgram)
-            inlineImports    = [Core.Import name "" Core.ImportCompiler Private "" | name <- inlineDeps, not (name `elem` currentImports)]
+            inlineImports    = [Core.Import name "" Core.ImportCompiler Private "" | name <- inlineDeps, not (name `elem` currentImports) && not (name == progName)]
 
             coreFinal        = (if (null inlineImports) then id else trace (show progName ++ ": extra inline imports: " ++ show (map Core.importName inlineImports))) $
                                uniquefy $ coreProgram {

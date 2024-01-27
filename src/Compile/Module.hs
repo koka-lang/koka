@@ -140,7 +140,6 @@ mergeModule (m:ms) mod
      then m : mergeModule ms mod
      else (if (modPhase m > modPhase mod) then m else mod) : ms
 
-
 modCoreImports :: Module -> [Core.Import]
 modCoreImports mod
   = case modCore mod of

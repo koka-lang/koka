@@ -227,8 +227,11 @@ moduleTypeCheck tcheckedMap mod
                             cimports = coreImportsFromModules (modDeps mod) (programImports program) imports
                         phase "check" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
                         (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
+                        -- let diff = [name | name <- map Core.importName (Core.coreProgImports core), not (name `elem` map Core.importName cimports)]
+                        -- when (not (null diff)) $
+                        --   phaseVerbose 1 "checked" $ pretty (modName mod) <.> text ": EXTRA imported:" <+> list (map pretty diff)
                         let mod' = mod{ modPhase = ModTyped
-                                      , modCore = Just core
+                                      , modCore = Just $! core
                                       , modRangeMap = mbRangeMap
                                       , modDefinitions = Just $! (defsFromCore core)
                                       }
@@ -344,7 +347,7 @@ moduleLoad mod
 
 moduleParse :: Module -> Build Module
 moduleParse mod
-  = do phase "parse" (text (modSourceRelativePath mod))
+  = do phase "parse" (text (modSourcePath mod))
        flags <- getFlags
        let allowAt = isPrimitiveModule (modName mod)
        prog <- liftIOError $ parseProgramFromFile allowAt (semiInsert flags) (modSourcePath mod)
@@ -372,7 +375,7 @@ moduleLoadLibIface mod
 modFromIface :: Core.Core -> Maybe (Gamma -> Error () [Core.InlineDef]) -> Module -> Module
 modFromIface core parseInlines mod
   =  mod{ modPhase       = ModCompiled
-        , modDeps     = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
+        , modDeps        = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
         , modCore        = Just $! core
         , modDefinitions = Just $! (defsFromCore core)
         , modInlines     = case parseInlines of
