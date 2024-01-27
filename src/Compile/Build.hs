@@ -43,6 +43,7 @@ import Common.NamePrim        (isPrimitiveModule)
 import Syntax.Syntax
 import Syntax.Parse           (parseProgramFromFile)
 import Type.Type
+import Type.Assumption        ( Gamma )
 import qualified Core.Core as Core
 import Core.Parse
 import Compiler.Options
@@ -62,7 +63,40 @@ modulesCompile roots
        mapM moduleFlushErrors compiled
 
 {---------------------------------------------------------------
-  Compile a set of modules
+  Module map
+  We build concurrently using `mapConcurrentModules`
+
+  Each module has 4 phases that can be done concurrently with others. The 3 module maps
+  (tcheckedMap, compiledMap, and codegenMap) synchronize theses phases through mvar's.
+
+  - resolve: load/parse each module
+             this can be completely concurrent, but each load leads to more imports todo
+  - type check  : as soon as the imports are type checked, a module can be checked as well.
+  - core compile: as soon as the imports are compiled, the module can be compiled (due to inline dependencies)
+  - codegen     : as soon as the imports are codegen'd, the module can be codegen'd (due to header files, libs, etc)
+---------------------------------------------------------------}
+
+type ModuleMap = M.NameMap (MVar Module)
+
+-- signal a module is done
+modmapPut :: ModuleMap -> Module -> Build ()
+modmapPut modmap mod
+  = liftIO $ putMVar ((M.!) modmap (modName mod)) mod
+
+-- blocks until a `modmapPut` happens
+modmapRead :: ModuleMap -> ModuleName -> Build Module
+modmapRead modmap modname
+  = liftIO $ readMVar ((M.!) modmap modname)
+
+-- create an initial module map
+modmapCreate :: [Module] -> Build ModuleMap
+modmapCreate modules
+   = M.fromList <$> mapM (\mod -> do v <- liftIO $ newEmptyMVar
+                                     return (modName mod, v)) modules
+
+
+{---------------------------------------------------------------
+  Compile a module (type check, core compile, and codegen)
 ---------------------------------------------------------------}
 
 moduleCompile :: ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build Module
@@ -93,13 +127,11 @@ moduleCompile tcheckedMap compiledMap codegenMap mod0
                                         Nothing {-mbentry-} imports mod
             let mod' = mod{ modPhase = ModCompiled
                           }
-            phaseVerbose "codegen done" (pretty (modName mod))
+            phaseVerbose 2 "codegen done" (pretty (modName mod))
             done mod'
 
-
-
 {---------------------------------------------------------------
-  Core Compile a set of modules
+  Core Compile a module
 ---------------------------------------------------------------}
 
 moduleCoreCompile :: ModuleMap -> ModuleMap -> Module -> Build Module
@@ -124,7 +156,7 @@ moduleCoreCompile tcheckedMap compiledMap mod0
                                           , modFinalCore = Just core
                                           , modInlines = Right inlineDefs
                                           }
-                            phaseVerbose "compile done" (pretty (modName mod))
+                            phaseVerbose 2 "compile done" (pretty (modName mod))
                             done mod'
 
   where
@@ -151,24 +183,8 @@ moduleGetCompilerImports modmap alreadyDone0 importNames
 
 
 {---------------------------------------------------------------
-  Given a set of modules that are in build order,
-  type check them all
+  Type check a module
 ---------------------------------------------------------------}
-
-type ModuleMap = M.NameMap (MVar Module)
-
-modmapPut :: ModuleMap -> Module -> Build ()
-modmapPut modmap mod
-  = liftIO $ putMVar ((M.!) modmap (modName mod)) mod
-
-modmapRead :: ModuleMap -> ModuleName -> Build Module
-modmapRead modmap modname
-  = liftIO $ readMVar ((M.!) modmap modname)
-
-modmapCreate :: [Module] -> Build ModuleMap
-modmapCreate modules
-   = M.fromList <$> mapM (\mod -> do v <- liftIO $ newEmptyMVar
-                                     return (modName mod, v)) modules
 
 modulesTypeCheck :: [Module] -> Build [Module]
 modulesTypeCheck modules
@@ -192,7 +208,7 @@ moduleTypeCheck tcheckedMap mod
                         let defs = defsFromModules imports
                             program = fromJust (modProgram mod)
                             cimports = coreImportsFromModules (modImports mod) (programImports program) imports
-                        phase "check" $ pretty (modName mod) <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
+                        phase "check" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
                         (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
                         let mod' = mod{ modPhase = ModTyped
                                       , modCore = Just core
@@ -200,7 +216,7 @@ moduleTypeCheck tcheckedMap mod
                                       , modRangeMap = mbRangeMap
                                       , modDefinitions = Just (defsFromCore core)
                                       }
-                        phaseVerbose "check done" (pretty (modName mod))
+                        phaseVerbose 2 "check done" (pretty (modName mod))
                         done mod'
 
   where
@@ -215,7 +231,8 @@ moduleGetPubImports tcheckedMap alreadyDone0 importNames
        imports <- mapM (modmapRead tcheckedMap) importNames
        let alreadyDone = alreadyDone0 ++ importNames
            extras = nub $ [Core.importName imp | mod <- imports, imp <- modCoreImports mod,
-                                                  isPublic (Core.importVis imp),  -- never ImportCompiler
+                                                  isPublic (Core.importVis imp),
+                                                  not (Core.isCompilerImport imp),
                                                   not (Core.importName imp `elem` alreadyDone)]
        if null extras
          then return imports
@@ -260,7 +277,7 @@ modulesResolveDeps modules
        newimports <- nubBy (\m1 m2 -> modName m1 == modName m2) <$> concat <$> mapM (addImports pmodules) pmodules
        if (null newimports)
          then toBuildOrder pmodules
-         else do phaseVerbose "resolve" (list (map (pretty . modName) newimports))
+         else do phaseVerbose 2 "resolve" (list (map (pretty . modName) newimports))
                  modulesResolveDeps (newimports ++ pmodules)
   where
     addImports pmodules mod
@@ -290,6 +307,7 @@ moduleFlushErrors :: Module -> Build Module
 moduleFlushErrors mod
   = do addErrors (modErrors mod)
        return mod{ modErrors = errorsNil }
+
 
 {---------------------------------------------------------------
   Parse modules from source, or load from an interface file
@@ -322,31 +340,31 @@ moduleParse mod
 
 moduleLoadIface :: Module -> Build Module
 moduleLoadIface mod
-  = do phase "load" (text (modIfacePath mod))
+  = do phase "load" (pretty (modName mod))
        (core,parseInlines) <- liftIOError $ parseCore (modIfacePath mod) (modSourcePath mod)
-       return mod{ modPhase   = ModCompiled
-                 , modImports = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
-                 , modCore    = Just $! core
-                 , modDefinitions = Just $! (defsFromCore core)
-                 , modInlines = case parseInlines of
-                                  Nothing -> Right []
-                                  Just f  -> Left f
-                 }
+       return (modFromIface core parseInlines mod)
 
 moduleLoadLibIface :: Module -> Build Module
 moduleLoadLibIface mod
-  = do phaseVerbose "load" (text (modLibIfacePath mod))
+  = do cscheme <- getColorScheme
+       phase "load" (pretty (modName mod) <+> color (colorInterpreter cscheme) (text "from") <+> text (modLibIfacePath mod))
        (core,parseInlines) <- liftIOError $ parseCore (modLibIfacePath mod) (modSourcePath mod)
        flags <- getFlags
        liftIO $ copyLibIfaceToOutput flags (modLibIfacePath mod) (modIfacePath mod) core
-       return mod{ modPhase   = ModCompiled
-                 , modImports = map Core.importName  (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
-                 , modCore    = Just $! core
-                 , modDefinitions = Just $! (defsFromCore core)
-                 , modInlines = case parseInlines of
-                                  Nothing -> Right []
-                                  Just f  -> Left f
-                 }
+       return (modFromIface core parseInlines mod)
+
+modFromIface :: Core.Core -> Maybe (Gamma -> Error () [Core.InlineDef]) -> Module -> Module
+modFromIface core parseInlines mod
+  =  mod{ modPhase       = ModCompiled
+        , modImports     = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
+        , modCore        = Just $! core
+        , modDefinitions = Just $! (defsFromCore core)
+        , modCoreImports = Core.coreProgImports core
+        , modFinalCore   = Just $! core
+        , modInlines     = case parseInlines of
+                             Nothing -> Right []
+                             Just f  -> Left f
+        }
 
 copyLibIfaceToOutput :: Flags -> FilePath -> FilePath -> Core.Core -> IO ()
 copyLibIfaceToOutput flags libIfacePath ifacePath core  {- core is needed to know imported clibs etc. -}
@@ -555,15 +573,18 @@ runBuild :: Terminal -> Flags -> VFS -> Build a -> IO (Either Errors (a,Errors))
 runBuild term flags vfs cmp
   = do errs <- newIORef errorsNil
        rng  <- newIORef rangeNull
-       (termProxy,stop) <- forkTerminal term
-       finally (runBuildEnv (Env termProxy flags errs rng vfs) cmp) (stop)
+       termProxyDone <- newEmptyMVar
+       (termProxy,stop) <- forkTerminal term termProxyDone
+       finally (runBuildEnv (Env termProxy flags errs rng vfs) cmp)
+               (do stop
+                   readMVar termProxyDone)
 
 
 -- Fork off a thread to handle output from other threads so it is properly interleaved
-forkTerminal :: Terminal -> IO (Terminal, IO ())
-forkTerminal term
+forkTerminal :: Terminal -> MVar () -> IO (Terminal, IO ())
+forkTerminal term termProxyDone
   = do ch <- newChan
-       forkIO (handleOutput ch)
+       forkIO (handleOutput ch `finally` putMVar termProxyDone ())
        let termProxy = Terminal (writeChan ch . Just . termError term)
                                 (writeChan ch . Just . termPhase term)
                                 (writeChan ch . Just . termPhaseDoc term)
@@ -575,9 +596,10 @@ forkTerminal term
     handleOutput ch
       = do mbf <- readChan ch
            case mbf of
-             Nothing -> return ()
+             Nothing -> do return ()
              Just io -> do io
                            handleOutput ch
+
 
 
 
@@ -720,15 +742,15 @@ addErrorMessages errs
 phaseTimed :: String -> Doc -> Build a -> Build a
 phaseTimed p doc action
   = do t0 <- liftIO $ getCurrentTime
-       phaseVerbose p doc
+       phaseVerbose 1 p doc
        buildFinally action $ do t1 <- liftIO $ getCurrentTime
-                                phaseVerbose p (text "elapsed:" <+> text (showTimeDiff t1 t0) <.> linebreak)
+                                phaseVerbose 1 p (text "elapsed:" <+> text (showTimeDiff t1 t0) <.> linebreak)
 
 
-phaseVerbose :: String -> Doc -> Build ()
-phaseVerbose p doc
+phaseVerbose :: Int -> String -> Doc -> Build ()
+phaseVerbose vlevel p doc
   = do flags <- getFlags
-       when (verbose flags > 0) $
+       when (verbose flags >= vlevel) $
          do term <- getTerminal
             cscheme <- getColorScheme
             liftIO $ termPhaseDoc term (color (colorInterpreter cscheme) (text (sfill 8 p ++ ":")) <+> (color (colorSource cscheme) doc))
