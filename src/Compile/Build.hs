@@ -56,7 +56,7 @@ modulesCompile roots
        modules     <- modulesResolveDependencies rootsv
        tcheckedMap <- modmapCreate modules
        compiledMap <- modmapCreate modules
-       compiled    <- mapConcurrent (moduleCoreCompile tcheckedMap compiledMap) modules
+       compiled    <- mapConcurrentModules (moduleCoreCompile tcheckedMap compiledMap) modules
        mapM moduleFlushErrors compiled
 
 
@@ -67,7 +67,6 @@ modulesCompile roots
 moduleCoreCompile :: ModuleMap -> ModuleMap -> Module -> Build Module
 moduleCoreCompile tcheckedMap compiledMap mod0
   = onBuildException (done mod0) $ -- ensure the mvar is always set so progress is made
-    withModule (modName mod0) $
     do mod <- moduleTypeCheck tcheckedMap mod0
        if (modPhase mod < ModTyped || modPhase mod >= ModCoreCompiled)
          then done mod
@@ -144,7 +143,6 @@ modulesTypeCheck modules
 moduleTypeCheck :: ModuleMap -> Module -> Build Module
 moduleTypeCheck tcheckedMap mod
   = onBuildException (modmapPut tcheckedMap mod) $ -- ensure the mvar is always set so progress is made
-    withModule (modName mod) $
     if (modPhase mod < ModParsed || modPhase mod >= ModTyped)
       then done mod
       else do -- wait for direct imports to be type checked
@@ -220,7 +218,7 @@ modulesResolveDependencies modules
        mapM moduleFlushErrors ordered
 
 modulesResolveDeps modules
-  = do pmodules   <- mapConcurrent ensureLoaded modules           -- we can concurrently load/parse modules
+  = do pmodules   <- mapConcurrentModules moduleLoad modules           -- we can concurrently load/parse modules
        newimports <- nubBy (\m1 m2 -> modName m1 == modName m2) <$> concat <$> mapM (addImports pmodules) pmodules
        if (null newimports)
          then toBuildOrder pmodules
@@ -260,8 +258,8 @@ moduleFlushErrors mod
   After this, `modImports` should be valid
 ---------------------------------------------------------------}
 
-ensureLoaded :: Module -> Build Module
-ensureLoaded mod
+moduleLoad :: Module -> Build Module
+moduleLoad mod
   = if modPhase mod >= ModLoaded
       then return mod
       else do (mod',errs) <- checkedDefault mod $ -- on error, return the original module
@@ -593,6 +591,7 @@ liftError res
       Right (x,warns) -> do addErrors warns
                             return x
 
+-- map concurrently and merge (and rethrow) all errors
 mapConcurrent :: (a -> Build b) -> [a] -> Build [b]
 mapConcurrent f xs
   = do env <- getEnv
@@ -603,6 +602,12 @@ mapConcurrent f xs
                  mapM_ addErrors warns
                  return zs
          else throw (foldr mergeErrors errorsNil errs)
+
+-- map concurrently and keep errors in the processed module
+mapConcurrentModules :: (Module -> Build Module) -> [Module] -> Build [Module]
+mapConcurrentModules f modules
+  = mapConcurrent (\mod -> withCheckedModule mod (f mod)) modules
+
 
 instance Functor Build where
   fmap f (Build ie)  = Build (\env -> fmap f (ie env))
@@ -718,11 +723,21 @@ getCurrentRange
   = do env <- getEnv
        liftIO $ readIORef (envRange env)
 
-withModule :: ModuleName -> Build a -> Build a
-withModule mname action
+-- attribute exceptions to a certain module
+withModuleName :: ModuleName -> Build a -> Build a
+withModuleName mname action
   = do env <- getEnv
        old <- liftIO $ readIORef (envRange env)
        liftIO $ writeIORef (envRange env) (makeSourceRange (show mname) 1 1 1 1)
-       x <- action -- do not use finally so the error uses the range when it was thrown
-       liftIO $ writeIORef (envRange env) old
+       x   <- action
+       liftIO $ writeIORef (envRange env) old  -- do not use finally so any errors use the range as it was thrown
        return x
+
+-- catch all errors and keep to them to the module
+withCheckedModule :: Module -> Build Module -> Build Module
+withCheckedModule mod action
+  = withModuleName (modName mod) $
+    do res <- checked action
+       case res of
+         Left errs          -> return mod{ modErrors = mergeErrors errs (modErrors mod) }
+         Right (mod',warns) -> return mod'{ modErrors = mergeErrors warns (modErrors mod') }
