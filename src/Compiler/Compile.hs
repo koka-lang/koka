@@ -38,6 +38,7 @@ import Data.Maybe             ( catMaybes, fromJust )
 import Data.List              ( isPrefixOf, intersperse, intercalate )
 import qualified Data.Set as S
 import Control.Applicative
+import Control.Exception( finally )
 import Control.Monad          ( ap, when )
 import qualified Control.Monad.Fail as F
 import Common.Failure
@@ -281,25 +282,35 @@ compileTypeDef term flags loaded program line input
   These are meant to be called from the interpreter/main compiler
 ---------------------------------------------------------------}
 
+phaseTimed :: Terminal -> Flags -> String -> Doc -> IO a -> IO a
+phaseTimed term flags p doc action
+  = do t0 <- getCurrentTime
+       phaseVerbose term flags p doc
+       action `finally` do t1 <- getCurrentTime
+                           phaseVerbose term flags p (text "elapsed:" <+> text (showTimeDiff t1 t0))
+
+phaseVerbose :: Terminal -> Flags -> String -> Doc -> IO ()
+phaseVerbose term flags p doc
+  = termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text (p ++ ":")) <+> (color (colorSource (colorScheme flags)) doc))
+
 compileModuleOrFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> String -> Bool -> CompileTarget () -> [Name] -> IO (Error Loaded (Loaded, Maybe FilePath))
 compileModuleOrFile maybeContents contents term flags modules fname force compileTarget importPath
-  | any (not . validModChar) fname = compileFile maybeContents contents term flags modules compileTarget importPath fname
-  | otherwise
-    = -- trace ("compileModuleOrFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $
-      do
-        let modName = pathToModuleName fname
-        exist <- searchModule flags "" modName
-        case (exist) of
-          Just (fpath) -> compileModule term (if force then flags{ forceModule = fpath } else flags)
-                                      modules modName compileTarget importPath
-          _       -> do
-            fexist <- searchSourceFile flags "" fname
-            runIOErr $
-              case (fexist) of
-                Just (root,stem)
-                  -> compileProgramFromFile maybeContents contents term flags modules Object importPath root stem
-                Nothing
-                  -> liftError $ errorMsg $ errorFileNotFound flags fname
+  = phaseTimed term flags "compiling" (list (map (pretty . modName) modules)) $
+    if any (not . validModChar) fname
+      then compileFile maybeContents contents term flags modules compileTarget importPath fname
+      else do let modName = pathToModuleName fname
+              exist <- searchModule flags "" modName
+              case (exist) of
+                Just (fpath) -> compileModule term (if force then flags{ forceModule = fpath } else flags)
+                                            modules modName compileTarget importPath
+                _       -> do
+                  fexist <- searchSourceFile flags "" fname
+                  runIOErr $
+                    case (fexist) of
+                      Just (root,stem)
+                        -> compileProgramFromFile maybeContents contents term flags modules Object importPath root stem
+                      Nothing
+                        -> liftError $ errorMsg $ errorFileNotFound flags fname
   where
     validModChar c
       = isAlphaNum c || c `elem` "/_"

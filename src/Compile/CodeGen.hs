@@ -606,10 +606,10 @@ externalImportsFromCore :: Target -> Core.Core -> [[(String,String)]]
 externalImportsFromCore target core
   = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (target,keyvals) <- imports]
 
+
 {---------------------------------------------------------------
   kklib
 ---------------------------------------------------------------}
-
 
 kklibBuild :: Terminal -> Flags -> CC -> FilePath -> String -> FilePath -> IO FilePath
 kklibBuild term flags cc outDir name {-kklib-} objFile {-libkklib.o-}

@@ -48,6 +48,7 @@ import Core.Parse
 import Compiler.Options
 import Compile.Module
 import Compile.Compile        ( typeCheck, compileCore )
+import Compile.CodeGen        ( codeGen )
 
 modulesCompile :: [Module] -> Build [Module]
 modulesCompile roots
@@ -56,12 +57,49 @@ modulesCompile roots
        modules     <- modulesResolveDependencies rootsv
        tcheckedMap <- modmapCreate modules
        compiledMap <- modmapCreate modules
-       compiled    <- mapConcurrentModules (moduleCoreCompile tcheckedMap compiledMap) modules
+       codegenMap  <- modmapCreate modules
+       compiled    <- mapConcurrentModules (moduleCompile tcheckedMap compiledMap codegenMap) modules
        mapM moduleFlushErrors compiled
-
 
 {---------------------------------------------------------------
   Compile a set of modules
+---------------------------------------------------------------}
+
+moduleCompile :: ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build Module
+moduleCompile tcheckedMap compiledMap codegenMap mod0
+  = onBuildException (done mod0) $ -- ensure the mvar is always set so progress is made
+    do mod <- moduleCoreCompile tcheckedMap compiledMap mod0
+       if (modPhase mod < ModTyped || modPhase mod >= ModCompiled)
+         then done mod
+         else do -- wait for direct (user+pub) imports to be fully compiled
+                 let pubImportNames = map Core.importName (modCoreImports mod)
+                 imports <- moduleGetCompilerImports codegenMap [] pubImportNames
+                 if any (\m -> modPhase m < ModCompiled) imports
+                   then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
+                   else codegen imports mod
+
+  where
+    done mod' = do modmapPut codegenMap mod'
+                   return mod'
+
+    codegen :: [Module] -> Module -> Build Module
+    codegen imports mod
+      =  do phase "codegen" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
+            flags <- getFlags
+            term  <- getTerminal
+            let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the compile?
+                inlines = inlinesFromModules imports
+            mbEntry <- liftIO $ codeGen term flags (defsNewtypes defs) (defsBorrowed defs) (defsKGamma defs) (defsGamma defs)
+                                        Nothing {-mbentry-} imports mod
+            let mod' = mod{ modPhase = ModCompiled
+                          }
+            phaseVerbose "codegen done" (pretty (modName mod))
+            done mod'
+
+
+
+{---------------------------------------------------------------
+  Core Compile a set of modules
 ---------------------------------------------------------------}
 
 moduleCoreCompile :: ModuleMap -> ModuleMap -> Module -> Build Module
@@ -86,7 +124,7 @@ moduleCoreCompile tcheckedMap compiledMap mod0
                                           , modFinalCore = Just core
                                           , modInlines = Right inlineDefs
                                           }
-                            -- phaseVerbose "compiled" (pretty (modName mod))
+                            phaseVerbose "compile done" (pretty (modName mod))
                             done mod'
 
   where
@@ -97,15 +135,15 @@ moduleCoreCompile tcheckedMap compiledMap mod0
 
 -- Import also modules required for checking inlined definitions from direct imports.
 moduleGetCompilerImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
-moduleGetCompilerImports compiledMap alreadyDone0 importNames
+moduleGetCompilerImports modmap alreadyDone0 importNames
   = do -- wait for imported modules to be compiled
-       imports <- mapM (modmapRead compiledMap) importNames
+       imports <- mapM (modmapRead modmap) importNames
        let alreadyDone = alreadyDone0 ++ importNames
            extras = nub $ [Core.importName imp | mod <- imports, hasInlines (modInlines mod),
                                                   -- consider all of its imports to ensure we can check its inline definitions
                                                   imp <- modCoreImports mod,
                                                   not (Core.importName imp `elem` alreadyDone)]
-       extraImports <- mapM (modmapRead compiledMap) extras
+       extraImports <- mapM (modmapRead modmap) extras
        return (extraImports ++ imports)
   where
     hasInlines (Right []) = False
@@ -154,7 +192,7 @@ moduleTypeCheck tcheckedMap mod
                         let defs = defsFromModules imports
                             program = fromJust (modProgram mod)
                             cimports = coreImportsFromModules (modImports mod) (programImports program) imports
-                        phase "check" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
+                        phase "check" $ pretty (modName mod) <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
                         (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
                         let mod' = mod{ modPhase = ModTyped
                                       , modCore = Just core
@@ -162,7 +200,7 @@ moduleTypeCheck tcheckedMap mod
                                       , modRangeMap = mbRangeMap
                                       , modDefinitions = Just (defsFromCore core)
                                       }
-                        -- phaseVerbose "checked" (pretty (modName mod))
+                        phaseVerbose "check done" (pretty (modName mod))
                         done mod'
 
   where
@@ -213,7 +251,7 @@ coreImportsFromModules userImports progImports modules
 -- given a root set of modules, load- or parse all required modules
 modulesResolveDependencies :: [Module] -> Build [Module]
 modulesResolveDependencies modules
-  = do ordered <- phaseTimed "resolving" (list (map (pretty . modName) modules)) $
+  = do ordered <- -- phaseTimed "resolving" (list (map (pretty . modName) modules)) $
                   modulesResolveDeps modules
        mapM moduleFlushErrors ordered
 
@@ -244,7 +282,7 @@ toBuildOrder modules
         ungroup [mname]  | Just mod <- find (\m -> modName m == mname) modules  = return [mod]
         ungroup grp      = do throwError (errorMessageKind ErrBuild rangeNull (text ("recursive imports: " ++ show grp))) -- todo: nice error
                               return []
-    in do phaseVerbose "build order" (list (map (\grp -> hsep (map (pretty) grp)) ordered))
+    in do -- phaseVerbose "build order" (list (map (\grp -> hsep (map (pretty) grp)) ordered))
           concat <$> mapM ungroup ordered
 
 
@@ -265,26 +303,26 @@ moduleLoad mod
       else do (mod',errs) <- checkedDefault mod $ -- on error, return the original module
                              if not (null (modLibIfacePath mod)) && modLibIfaceTime mod > modIfaceTime mod
                                then moduleLoadLibIface mod
-                               else if modSourceTime mod > modIfaceTime mod
+                               else if (modSourceTime mod > modIfaceTime mod)
                                  then moduleParse mod
                                  else moduleLoadIface mod
               return mod'{ modErrors = mergeErrors errs (modErrors mod') }
 
 moduleParse :: Module -> Build Module
 moduleParse mod
-  = do phase "parsing" (text (modSourceRelativePath mod))
+  = do phase "parse" (text (modSourceRelativePath mod))
        flags <- getFlags
        let allowAt = isPrimitiveModule (modName mod)
        prog <- liftIOError $ parseProgramFromFile allowAt (semiInsert flags) (modSourcePath mod)
        return mod{ modPhase = ModParsed
                  , modLexemes = programLexemes prog
-                 , modProgram = Just $! prog
+                 , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
                  , modImports = nub (map importFullName (programImports prog))
                  }
 
 moduleLoadIface :: Module -> Build Module
 moduleLoadIface mod
-  = do phase "loading" (text (modIfacePath mod))
+  = do phase "load" (text (modIfacePath mod))
        (core,parseInlines) <- liftIOError $ parseCore (modIfacePath mod) (modSourcePath mod)
        return mod{ modPhase   = ModCompiled
                  , modImports = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
@@ -297,7 +335,7 @@ moduleLoadIface mod
 
 moduleLoadLibIface :: Module -> Build Module
 moduleLoadLibIface mod
-  = do phaseVerbose "loading" (text (modLibIfacePath mod))
+  = do phaseVerbose "load" (text (modLibIfacePath mod))
        (core,parseInlines) <- liftIOError $ parseCore (modLibIfacePath mod) (modSourcePath mod)
        flags <- getFlags
        liftIO $ copyLibIfaceToOutput flags (modLibIfacePath mod) (modIfacePath mod) core
@@ -419,17 +457,24 @@ modulesValidate modules
 
 moduleValidate :: Module -> Build Module
 moduleValidate mod
-  = do flags <- getFlags
-       ftSource   <- getFileTime (modSourcePath mod)
-       ftIface    <- getFileTime (modIfacePath mod)
-       ftLibIface <- getFileTime (modLibIfacePath mod)
-       let stale = (ftSource > modSourceTime mod || ftIface > modIfaceTime mod || ftLibIface > modLibIfaceTime mod)
-       let mod' = mod{ modSourceTime = ftSource
-                     , modIfaceTime  = ftIface
-                     , modLibIfaceTime = ftLibIface
-                     }
+  = do flags    <- getFlags
+       ftSource <- getFileTime (modSourcePath mod)
+       (stale,mod') <- if (rebuild flags || forceModule flags == modSourcePath mod || forceModule flags == moduleNameToPath (modName mod))
+                         then return (True,  mod{ modSourceTime = ftSource
+                                                , modIfaceTime = fileTime0
+                                                , modLibIfaceTime = fileTime0
+                                                })
+                         else  do ftIface    <- getFileTime (modIfacePath mod)
+                                  ftLibIface <- getFileTime (modLibIfacePath mod)
+                                  let stale = (ftSource > modSourceTime mod ||
+                                               ftIface > modIfaceTime mod ||
+                                               ftLibIface > modLibIfaceTime mod)
+                                  return (stale, mod{ modSourceTime = ftSource
+                                                    , modIfaceTime  = ftIface
+                                                    , modLibIfaceTime = ftLibIface
+                                                    })
        -- phaseVerbose "trace" (pretty (modName mod) <.> text (": times: " ++ show (ftSource,ftIface)))
-       if (stale || rebuild flags || forceModule flags == modSourcePath mod)
+       if stale
          then return mod'{ modPhase = ModInit, modErrors = errorsNil,
                            -- reset fields that are not used by an IDE to reduce memory pressure
                            -- leave lexemes and definitions
@@ -677,14 +722,16 @@ phaseTimed p doc action
   = do t0 <- liftIO $ getCurrentTime
        phaseVerbose p doc
        buildFinally action $ do t1 <- liftIO $ getCurrentTime
-                                phaseVerbose p (text "elapsed:" <+> text (showTimeDiff t1 t0))
+                                phaseVerbose p (text "elapsed:" <+> text (showTimeDiff t1 t0) <.> linebreak)
 
 
 phaseVerbose :: String -> Doc -> Build ()
 phaseVerbose p doc
-  = do term <- getTerminal
-       cscheme <- getColorScheme
-       liftIO $ termPhaseDoc term (color (colorInterpreter cscheme) (text (sfill 8 p ++ ":")) <+> (color (colorSource cscheme) doc))
+  = do flags <- getFlags
+       when (verbose flags > 0) $
+         do term <- getTerminal
+            cscheme <- getColorScheme
+            liftIO $ termPhaseDoc term (color (colorInterpreter cscheme) (text (sfill 8 p ++ ":")) <+> (color (colorSource cscheme) doc))
 
 phase :: String -> Doc -> Build ()
 phase p doc
