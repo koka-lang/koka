@@ -27,7 +27,7 @@ import Lib.Printer
 import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
 import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep, startsWith, getCwd )
-import Common.Name            ( Name, unqualify, qualify, newName )
+import Common.Name            ( Name, unqualify, qualify, newName, newQualified )
 import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore )
 import Common.Range
 import Common.Error
@@ -262,7 +262,7 @@ loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO State
 loadModules term st files force
   = do mbMods <- B.runBuildIO term (flags st) B.noVFS $
                  do roots <- M.mergeModules (modules st) <$> mapM B.moduleFromSource files
-                    B.modulesCompile roots
+                    B.modulesCompile [newQualified "samples/basic/caesar" "main"] roots
        case mbMods of
          Nothing -> return st
          Just mods -> return st{ modules = mods }

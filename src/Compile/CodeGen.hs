@@ -62,7 +62,7 @@ noLink = return LinkDone
 codeGen :: Terminal -> Flags -> Newtypes -> Borrowed -> KGamma -> Gamma ->
              Maybe (Name,Type) -> [Module] -> Module -> IO Link
 codeGen term flags newtypes borrowed kgamma gamma entry imported mod
-  = compilerCatch "code generation" term noLink $
+  = -- compilerCatch ("code generation in " ++ show (modName mod)) term noLink $
     do let program    = fromJust (modProgram mod)
            core       = fromJust (modCore mod)
 
@@ -113,6 +113,7 @@ codeGen term flags newtypes borrowed kgamma gamma entry imported mod
 
        -- return the link as an action to increase concurrency
        return $
+         -- compilerCatch ("linking in " ++ show (modName mod)) term LinkDone $
          do mbRun <- link
             -- write interface file last so on any error it will not be written
             writeDocW 10000 (modIfacePath mod) ifaceDoc
@@ -128,7 +129,7 @@ codeGen term flags newtypes borrowed kgamma gamma entry imported mod
                                         copyBinaryFile out targetOut
                                         return finalOut
                                 else return out
-                      termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+                      termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created :") <+>
                           color (colorSource (colorScheme flags)) (text (normalizeWith pathSep exe))
               _ -> return ()
             return (mbRun)
@@ -300,7 +301,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags entry imported outBase
       -- todo: split function
       return $
         do -- compile
-           termPhaseDoc term ( text ("compile c: " ++ outBase) )
+           -- termPhaseDoc term ( text ("compile c: " ++ outBase) )
            ccompile term flags cc outBase extraIncDirs [outC]
 
            -- compile and link?
@@ -361,8 +362,8 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags entry imported outBase
                                 ++ map (ccAddSysLib cc) syslibs
 
 
-                  termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
-                                    color (colorSource (colorScheme flags)) (text mainName))
+                  -- termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
+                  --                   color (colorSource (colorScheme flags)) (text mainName))
                   runCommand term flags clink
 
                   let mainTarget = mainExe ++ targetExeExtension (target flags)
@@ -650,7 +651,7 @@ kklibBuild term flags cc outDir name {-kklib-} objFile {-libkklib.o-}
                 copyBinaryFile binObjPath objPath
            else -- todo: check for installed binaries for the library
                 -- compile kklib from sources
-                do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("compile:")) <+>
+                do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("compile :")) <+>
                                    color (colorSource (colorScheme flags)) (text name) <+>
                                     color (colorInterpreter (colorScheme flags)) (text "from:") <+>
                                      color (colorSource (colorScheme flags)) (text srcLibDir)
