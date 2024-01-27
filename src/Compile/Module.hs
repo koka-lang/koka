@@ -9,10 +9,15 @@
     Main module.
 -}
 -----------------------------------------------------------------------------
-module Compile.Module( Module(..), Modules, ModulePhase(..), moduleNull, moduleCreateInitial
-                     , Definitions(..), defsNull, defsCompose, defsFromCore, defsFromModules
-                     , inlinesFromModules
-                     , mergeModules
+module Compile.Module( Module(..), ModulePhase(..)
+                     , moduleNull, moduleCreateInitial
+                     , modCoreImports
+
+                     , Definitions(..), defsNull
+                     , defsCompose, defsFromCore, defsFromModules
+
+                     , Modules
+                     , inlinesFromModules, mergeModules
                      ) where
 
 import Lib.Trace
@@ -51,11 +56,12 @@ type Modules = [Module]
 
 data ModulePhase
   = ModInit
-  | ModLoaded         -- imports are known
-  | ModParsed         -- lexemes, program is known
-  | ModTyped          -- rangemap, gamma, inlines
-  | ModCoreCompiled   -- compiled and optimized core
-  | ModCompiled       -- compiled
+  | ModLoaded         -- modLexemes, modDeps    (currently unused and always part of ModParsed)
+  | ModParsed         -- modDeps, modProgram
+  | ModTyped          -- modCore, modRangeMap, modDefines
+  | ModCoreCompiled   -- compiled and optimized core, modCore is updated, modInlines
+  | ModLibIfaceLoaded -- a (library) interface is loaded but it's kki and libs are not yet copied to the output directory
+  | ModCompiled       -- kki and object files are generated
   deriving (Eq,Ord,Show)
 
 data Module  = Module{ -- initial
@@ -72,22 +78,19 @@ data Module  = Module{ -- initial
                      , modSourceRelativePath :: !FilePath   -- for messages display a shorter path if possible
                      , modSourceTime  :: !FileTime
 
-
                        -- lexing
                      , modLexemes     :: ![Lexeme]
-                     , modImports     :: ![ModuleName]      -- initial dependencies from import statements in the program
+                     , modDeps     :: ![ModuleName]      -- initial dependencies from import statements in the program
 
                        -- parsing
                      , modProgram     :: !(Maybe (Program UserType UserKind))
 
-                       -- type check
+                       -- type check; modCore is initial core that is not yet core-compiled
                      , modRangeMap    :: !(Maybe RangeMap)
                      , modCore        :: !(Maybe Core.Core)
                      , modDefinitions :: !(Maybe Definitions)
-                     , modCoreImports :: [Core.Import]       -- full set of imports (including public imports from imports (but not compiler imports))
 
-                     -- core compiled
-                     , modFinalCore    :: !(Maybe Core.Core)
+                     -- core compiled; updates `modCore` to final core
                      , modInlines      :: !(Either (Gamma -> Error () [Core.InlineDef]) [Core.InlineDef]) -- from a core file, we return a function that given the gamma parses the inlines
 
                        -- codegen
@@ -111,9 +114,9 @@ moduleNull modName
             -- parse
             Nothing
             -- type check
-            Nothing Nothing Nothing []
+            Nothing Nothing Nothing
             -- core compiled
-            Nothing (Right [])
+            (Right [])
             -- codegen
             "" fileTime0
 
@@ -137,21 +140,12 @@ mergeModule (m:ms) mod
      then m : mergeModule ms mod
      else (if (modPhase m > modPhase mod) then m else mod) : ms
 
-addOrReplaceModule :: Module -> Modules -> Modules
-addOrReplaceModule mod []
-  = [mod]
-addOrReplaceModule mod (m:ms)
-  = if modIfacePath mod == modIfacePath m
-     then mod:ms
-     else m : addOrReplaceModule mod ms
 
-removeModule :: Name -> Modules -> Modules
-removeModule name modules
-  = filter (\m -> modName m /= name) modules
-
--- extractFixities :: Core.Core -> Fixities
--- extractFixities core
---   = fixitiesNew [(name,fix) | Core.FixDef name fix <- Core.coreProgFixDefs core]
+modCoreImports :: Module -> [Core.Import]
+modCoreImports mod
+  = case modCore mod of
+      Nothing   -> []
+      Just core -> Core.coreProgImports core
 
 
 data Definitions  = Definitions {

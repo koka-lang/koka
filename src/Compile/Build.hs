@@ -51,6 +51,10 @@ import Compile.Module
 import Compile.Compile        ( typeCheck, compileCore )
 import Compile.CodeGen        ( codeGen )
 
+{---------------------------------------------------------------
+  Concurrently compile a list of root modules.
+  Returns all required modules as compiled in build order
+---------------------------------------------------------------}
 modulesCompile :: [Module] -> Build [Module]
 modulesCompile roots
   = phaseTimed "compiling" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
@@ -66,24 +70,37 @@ modulesCompile roots
   Module map
   We build concurrently using `mapConcurrentModules`
 
-  Each module has 4 phases that can be done concurrently with others. The 3 module maps
-  (tcheckedMap, compiledMap, and codegenMap) synchronize theses phases through mvar's.
+  Each module has 4 compilation phases that can be done concurrently with others. The 3 module maps
+  (tcheckedMap, compiledMap, and codegenMap) synchronize between these phases through mvar's.
 
-  - resolve: load/parse each module
-             this can be completely concurrent, but each load leads to more imports todo
-  - type check  : as soon as the imports are type checked, a module can be checked as well.
-  - core compile: as soon as the imports are compiled, the module can be compiled (due to inline dependencies)
-  - codegen     : as soon as the imports are codegen'd, the module can be codegen'd (due to header files, libs, etc)
+  - resolve     : Parse each module, or load it from a previously compiled interface file.
+                  This can be completely concurrent, but each load leads to more imports that are resolved
+                  concurrently in a fixpoint.
+                  This produces the user program (`modProgram`), the lexemes (`modLexemes`) and
+                  a rangemap (`modRangeMap`).
+
+  - type check  : As soon as the user+pub imports are type checked, a module can be checked as well.
+                  This produces the initial core (`modCore`) and the "definitions" (`modDefinitions`)
+                  that contain the gamma, kind gamma, etc, and the user+pub imports (`modCoreImports`).
+
+  - core compile: As soon as the user+pub imports, and the imports due to inline definitions are compiled,
+                  the core of can be compiled and optimized as well (and use exported inline definitions)
+                  This gives final core (`modFinalCore`) and exported inline definitions (`modInlines`).
+
+  - codegen     : As soon as all imports are codegen'd,
+                  the compiled core can be backend compiled (as it depends on the other's header files, libs, etc).
+                  This produces an interface file (.kki) and compiled backend object files.
 ---------------------------------------------------------------}
 
 type ModuleMap = M.NameMap (MVar Module)
 
--- signal a module is done
+-- signal a module is done with a compilation phase and unblock all pending reads.
 modmapPut :: ModuleMap -> Module -> Build ()
 modmapPut modmap mod
   = liftIO $ putMVar ((M.!) modmap (modName mod)) mod
 
--- blocks until a `modmapPut` happens
+-- blocks until a `modmapPut` happens (at which point it returns the module definition at that phase).
+-- (all further reads are non-blocking)
 modmapRead :: ModuleMap -> ModuleName -> Build Module
 modmapRead modmap modname
   = liftIO $ readMVar ((M.!) modmap modname)
@@ -105,7 +122,7 @@ moduleCompile tcheckedMap compiledMap codegenMap mod0
     do mod <- moduleCoreCompile tcheckedMap compiledMap mod0
        if (modPhase mod < ModTyped || modPhase mod >= ModCompiled)
          then done mod
-         else do -- wait for direct (user+pub) imports to be fully compiled
+         else do -- wait for all required imports to be fully compiled
                  let pubImportNames = map Core.importName (modCoreImports mod)
                  imports <- moduleGetCompilerImports codegenMap [] pubImportNames
                  if any (\m -> modPhase m < ModCompiled) imports
@@ -152,9 +169,9 @@ moduleCoreCompile tcheckedMap compiledMap mod0
                             let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check?
                                 inlines = inlinesFromModules imports
                             (core,inlineDefs) <- liftError $ compileCore flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
-                            let mod' = mod{ modPhase = ModCoreCompiled
-                                          , modFinalCore = Just core
-                                          , modInlines = Right inlineDefs
+                            let mod' = mod{ modPhase   = ModCoreCompiled
+                                          , modCore    = Just $! core
+                                          , modInlines = Right $! inlineDefs
                                           }
                             phaseVerbose 2 "compile done" (pretty (modName mod))
                             done mod'
@@ -200,21 +217,20 @@ moduleTypeCheck tcheckedMap mod
     if (modPhase mod < ModParsed || modPhase mod >= ModTyped)
       then done mod
       else do -- wait for direct imports to be type checked
-              imports <- moduleGetPubImports tcheckedMap [] (modImports mod)
+              imports <- moduleGetPubImports tcheckedMap [] (modDeps mod)
               if any (\m -> modPhase m < ModTyped) imports
                 then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
                 else -- type check
                      do flags <- getFlags
                         let defs = defsFromModules imports
                             program = fromJust (modProgram mod)
-                            cimports = coreImportsFromModules (modImports mod) (programImports program) imports
+                            cimports = coreImportsFromModules (modDeps mod) (programImports program) imports
                         phase "check" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
                         (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
                         let mod' = mod{ modPhase = ModTyped
                                       , modCore = Just core
-                                      , modCoreImports = cimports
                                       , modRangeMap = mbRangeMap
-                                      , modDefinitions = Just (defsFromCore core)
+                                      , modDefinitions = Just $! (defsFromCore core)
                                       }
                         phaseVerbose 2 "check done" (pretty (modName mod))
                         done mod'
@@ -281,7 +297,7 @@ modulesResolveDeps modules
                  modulesResolveDeps (newimports ++ pmodules)
   where
     addImports pmodules mod
-      = concat <$> mapM addImport (modImports mod)
+      = concat <$> mapM addImport (modDeps mod)
       where
         addImport :: ModuleName -> Build [Module]
         addImport impName = if any (\m -> modName m == impName) pmodules
@@ -294,7 +310,7 @@ modulesResolveDeps modules
 toBuildOrder :: [Module] -> Build [Module]
 toBuildOrder modules
   = -- todo: might be faster to check if the modules are already in build order before doing a full `scc` ?
-    let deps    = [(modName mod, modImports mod) | mod <- modules]
+    let deps    = [(modName mod, modDeps mod) | mod <- modules]
         ordered = scc deps
         ungroup [mname]  | Just mod <- find (\m -> modName m == mname) modules  = return [mod]
         ungroup grp      = do throwError (errorMessageKind ErrBuild rangeNull (text ("recursive imports: " ++ show grp))) -- todo: nice error
@@ -311,7 +327,7 @@ moduleFlushErrors mod
 
 {---------------------------------------------------------------
   Parse modules from source, or load from an interface file
-  After this, `modImports` should be valid
+  After this, `modDeps` should be valid
 ---------------------------------------------------------------}
 
 moduleLoad :: Module -> Build Module
@@ -335,7 +351,7 @@ moduleParse mod
        return mod{ modPhase = ModParsed
                  , modLexemes = programLexemes prog
                  , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
-                 , modImports = nub (map importFullName (programImports prog))
+                 , modDeps = nub (map importFullName (programImports prog))
                  }
 
 moduleLoadIface :: Module -> Build Module
@@ -356,11 +372,9 @@ moduleLoadLibIface mod
 modFromIface :: Core.Core -> Maybe (Gamma -> Error () [Core.InlineDef]) -> Module -> Module
 modFromIface core parseInlines mod
   =  mod{ modPhase       = ModCompiled
-        , modImports     = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
+        , modDeps     = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
         , modCore        = Just $! core
         , modDefinitions = Just $! (defsFromCore core)
-        , modCoreImports = Core.coreProgImports core
-        , modFinalCore   = Just $! core
         , modInlines     = case parseInlines of
                              Nothing -> Right []
                              Just f  -> Left f
@@ -495,9 +509,10 @@ moduleValidate mod
        if stale
          then return mod'{ modPhase = ModInit, modErrors = errorsNil,
                            -- reset fields that are not used by an IDE to reduce memory pressure
-                           -- leave lexemes and definitions
-                           modFinalCore = Nothing, modInlines = Right [],
-                           modCore = Nothing, modProgram = Nothing
+                           -- leave lexemes, rangeMap, and definitions.
+                           modProgram = Nothing,
+                           modCore = Nothing,
+                           modInlines = Right []
                          }
          else return mod'
 
@@ -562,7 +577,7 @@ maxErrors = 25
 
 runBuildIO :: Terminal -> Flags -> VFS -> Build a -> IO (Maybe a)
 runBuildIO term flags vfs cmp
-  = do res <- runBuild term flags vfs cmp
+  = do res <- runBuild term flags{rebuild=True} vfs cmp
        case res of
          Right (x,errs) -> do mapM_ (termError term) (take maxErrors (errors errs))
                               return (Just x)
