@@ -48,8 +48,9 @@ import qualified Core.Core as Core
 import Core.Parse
 import Compiler.Options
 import Compile.Module
-import Compile.Compile        ( typeCheck, compileCore )
-import Compile.CodeGen        ( codeGen )
+import Compile.TypeCheck      ( typeCheck )
+import Compile.Optimize       ( coreOptimize )
+import Compile.CodeGen        ( codeGen, Link, LinkResult(..), noLink )
 
 {---------------------------------------------------------------
   Concurrently compile a list of root modules.
@@ -63,7 +64,8 @@ modulesCompile roots
        tcheckedMap <- modmapCreate modules
        compiledMap <- modmapCreate modules
        codegenMap  <- modmapCreate modules
-       compiled    <- mapConcurrentModules (moduleCompile tcheckedMap compiledMap codegenMap) modules
+       linkedMap   <- modmapCreate modules
+       compiled    <- mapConcurrentModules (moduleCompile tcheckedMap compiledMap codegenMap linkedMap) modules
        mapM moduleFlushErrors compiled
 
 {---------------------------------------------------------------
@@ -112,64 +114,92 @@ modmapCreate modules
                                      return (modName mod, v)) modules
 
 
+
 {---------------------------------------------------------------
-  Compile a module (type check, core compile, and codegen)
+  Compile a module (type check, core compile, codegen, and link)
 ---------------------------------------------------------------}
 
-moduleCompile :: ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build Module
-moduleCompile tcheckedMap compiledMap codegenMap mod0
+moduleCompile :: ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build Module
+moduleCompile tcheckedMap compiledMap codegenMap linkedMap mod0
   = onBuildException (done mod0) $ -- ensure the mvar is always set so progress is made
-    do mod <- moduleCoreCompile tcheckedMap compiledMap mod0
-       if (modPhase mod < ModTyped || modPhase mod >= ModCompiled)
+    do (link,mod) <- moduleCodeGen tcheckedMap compiledMap codegenMap mod0
+       if (modPhase mod < ModTyped || modPhase mod >= ModLinked)
          then done mod
+         else do -- wait for all required imports to be linked (todo: only needed for the final exe?)
+                 let pubImportNames = [] -- map Core.importName (modCoreImports mod)
+                 imports <- moduleGetCompilerImports linkedMap [] pubImportNames
+                 if any (\m -> modPhase m < ModLinked) imports
+                   then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
+                   else do mbEntry <- liftIO $ link   -- link it!
+                           let mod' = mod{ modPhase = ModLinked }
+                           done mod'
+
+  where
+    done mod' = do modmapPut linkedMap mod'
+                   return mod'
+
+
+{---------------------------------------------------------------
+  Code generation (.c,.js)
+---------------------------------------------------------------}
+
+moduleCodeGen :: ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build (Link, Module)
+moduleCodeGen tcheckedMap compiledMap codegenMap mod0
+  = onBuildException (done noLink mod0) $ -- ensure the mvar is always set so progress is made
+    do mod <- moduleOptimize tcheckedMap compiledMap mod0
+       if (modPhase mod < ModTyped || modPhase mod >= ModCodeGen)
+         then done noLink mod
          else do -- wait for all required imports to be fully compiled
                  let pubImportNames = map Core.importName (modCoreImports mod)
                  imports <- moduleGetCompilerImports codegenMap [] pubImportNames
-                 if any (\m -> modPhase m < ModCompiled) imports
-                   then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
+                 if any (\m -> modPhase m < ModCodeGen) imports
+                   then done noLink mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
                    else codegen imports mod
 
   where
-    done mod' = do modmapPut codegenMap mod'
-                   return mod'
+    done link mod' = do modmapPut codegenMap mod'
+                        return (link,mod')
 
-    codegen :: [Module] -> Module -> Build Module
+    codegen :: [Module] -> Module -> Build (Link,Module)
     codegen imports mod
       =  do phase "codegen" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
             flags <- getFlags
             term  <- getTerminal
             let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the compile?
                 inlines = inlinesFromModules imports
-            mbEntry <- liftIO $ codeGen term flags (defsNewtypes defs) (defsBorrowed defs) (defsKGamma defs) (defsGamma defs)
-                                        Nothing {-mbentry-} imports mod
-            let mod' = mod{ modPhase = ModCompiled
-                          }
+            link <- liftIO $ codeGen term flags (defsNewtypes defs) (defsBorrowed defs) (defsKGamma defs) (defsGamma defs)
+                              Nothing {-mbentry-} imports mod
+            let mod' = mod{ modPhase = ModCodeGen }
             phaseVerbose 2 "codegen done" (pretty (modName mod))
-            done mod'
+            done link mod'
+            -- and now link it
+
 
 {---------------------------------------------------------------
-  Core Compile a module
+  Core optimize a module
+  (not just optimization, some transformations are essential
+  like perceus ref counting etc.)
 ---------------------------------------------------------------}
 
-moduleCoreCompile :: ModuleMap -> ModuleMap -> Module -> Build Module
-moduleCoreCompile tcheckedMap compiledMap mod0
+moduleOptimize :: ModuleMap -> ModuleMap -> Module -> Build Module
+moduleOptimize tcheckedMap compiledMap mod0
   = onBuildException (done mod0) $ -- ensure the mvar is always set so progress is made
     do mod <- moduleTypeCheck tcheckedMap mod0
-       if (modPhase mod < ModTyped || modPhase mod >= ModCoreCompiled)
+       if (modPhase mod < ModTyped || modPhase mod >= ModOptimized)
          then done mod
          else do -- wait for direct (user+pub) imports to be compiled
                  let pubImportNames = map Core.importName (modCoreImports mod)
                  -- phase "compile imports" $ pretty (modName mod) <.> colon <+> list (map pretty pubImportNames)
                  imports <- moduleGetCompilerImports compiledMap [] pubImportNames
-                 if any (\m -> modPhase m < ModCoreCompiled) imports
+                 if any (\m -> modPhase m < ModOptimized) imports
                    then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
                    else -- core compile
                         do  phase "compile" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
                             flags <- getFlags
                             let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check?
                                 inlines = inlinesFromModules imports
-                            (core,inlineDefs) <- liftError $ compileCore flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
-                            let mod' = mod{ modPhase   = ModCoreCompiled
+                            (core,inlineDefs) <- liftError $ coreOptimize flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
+                            let mod' = mod{ modPhase   = ModOptimized
                                           , modCore    = Just $! core
                                           , modInlines = Right $! inlineDefs
                                           }
@@ -374,7 +404,7 @@ moduleLoadLibIface mod
 
 modFromIface :: Core.Core -> Maybe (Gamma -> Error () [Core.InlineDef]) -> Module -> Module
 modFromIface core parseInlines mod
-  =  mod{ modPhase       = ModCompiled
+  =  mod{ modPhase       = ModLinked
         , modDeps        = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
         , modCore        = Just $! core
         , modDefinitions = Just $! (defsFromCore core)

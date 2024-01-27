@@ -5,7 +5,7 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
-module Compile.CodeGen ( codeGen ) where
+module Compile.CodeGen ( codeGen, Link, LinkResult(..), noLink ) where
 
 import Data.Char
 import Data.Maybe
@@ -44,18 +44,25 @@ import Backend.C.FromCore         ( cFromCore )
 
 import Compiler.Options
 import Compile.Module( Definitions(..), Module(..), modCoreImports )
-import Compile.Compile( importMapFromCoreImports )    -- todo: break this dependency?
+import Compile.TypeCheck( importMapFromCoreImports )    -- todo: break this dependency?
 
 
+data LinkResult = LinkDone
+                | LinkExe{ linkExePath :: FilePath, linkRun :: IO () }
+
+type Link       = IO LinkResult
+
+noLink :: Link
+noLink = return LinkDone
 
 {---------------------------------------------------------------
   Code generation
 ---------------------------------------------------------------}
 
 codeGen :: Terminal -> Flags -> Newtypes -> Borrowed -> KGamma -> Gamma ->
-             Maybe (Name,Type) -> [Module] -> Module -> IO (Maybe (FilePath, IO()))
+             Maybe (Name,Type) -> [Module] -> Module -> IO Link
 codeGen term flags newtypes borrowed kgamma gamma entry imported mod
-  = compilerCatch "code generation" term (Nothing) $
+  = compilerCatch "code generation" term noLink $
     do let program    = fromJust (modProgram mod)
            core       = fromJust (modCore mod)
 
@@ -102,29 +109,31 @@ codeGen term flags newtypes borrowed kgamma gamma entry imported mod
                   genDoc cenv kgamma gamma core printer
 
        -- generate actual code
-       mbRun <- backend term flags entry imported outBase core
+       link <- backend term flags entry imported outBase core
 
-       -- write interface file last so on any error it will not be written
-       writeDocW 10000 (modIfacePath mod) ifaceDoc
+       -- return the link as an action to increase concurrency
+       return $
+         do mbRun <- link
+            -- write interface file last so on any error it will not be written
+            writeDocW 10000 (modIfacePath mod) ifaceDoc
 
-       -- copy final exe if -o is given
-       case mbRun of
-         Just (out,_)
-           -> do let finalOut = outFinalPath flags
-                 exe <- if (not (null finalOut))
-                          then do let targetOut = ensureExt finalOut (targetExeExtension (target flags))
-                                  when (osName == "macos") $
-                                    removeFileIfExists targetOut  -- needed on macOS due to code signing issues (see https://developer.apple.com/forums/thread/669145)
-                                  copyBinaryFile out targetOut
-                                  return finalOut
-                          else return out
-                 termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
-                    color (colorSource (colorScheme flags)) (text (normalizeWith pathSep exe))
-         _ -> return ()
-
-       return (mbRun)
+            -- copy final exe if -o is given
+            case mbRun of
+              LinkExe out _
+                -> do let finalOut = outFinalPath flags
+                      exe <- if (not (null finalOut))
+                                then do let targetOut = ensureExt finalOut (targetExeExtension (target flags))
+                                        when (osName == "macos") $
+                                          removeFileIfExists targetOut  -- needed on macOS due to code signing issues (see https://developer.apple.com/forums/thread/669145)
+                                        copyBinaryFile out targetOut
+                                        return finalOut
+                                else return out
+                      termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+                          color (colorSource (colorScheme flags)) (text (normalizeWith pathSep exe))
+              _ -> return ()
+            return (mbRun)
   where
-    backend :: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO (Maybe (FilePath, IO()))
+    backend :: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
     backend  = case target flags of
                  CS   -> codeGenCS
                  JS _ -> codeGenJS
@@ -142,9 +151,9 @@ codeGen term flags newtypes borrowed kgamma gamma entry imported mod
 ---------------------------------------------------------------}
 
 -- Generate C# through CS files without generating dll's
-codeGenCS :: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO (Maybe (FilePath, IO()))
+codeGenCS :: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
 codeGenCS term flags entry modules outBase core
-  = compilerCatch "csharp compilation" term Nothing $
+  = compilerCatch "csharp compilation" term noLink $
     do let (mbEntry,isAsync) = case entry of
                                  Just (name,tp) -> (Just (name,tp), isAsyncFunction tp)
                                  _ -> (Nothing, False)
@@ -158,7 +167,7 @@ codeGenCS term flags entry modules outBase core
        when (showAsmCS flags) (termDoc term cs)
 
        case mbEntry of
-         Nothing -> return Nothing
+         Nothing -> return noLink
          Just entry ->
           do let linkFlags  = "-r:System.Numerics.dll " -- ++ (if isAsync then "-r:" ++ outName "std_async.dll ")
                  sources    = concat [dquote (outName (moduleNameToPath (Core.importName imp)) ++ ".cs") ++ " " | imp <- Core.coreProgImports core]
@@ -169,12 +178,12 @@ codeGenCS term flags entry modules outBase core
              let cmd = (csc flags ++ " " ++ targetFlags ++ debugFlags ++ " -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ sources)
              runSystemEcho term flags cmd
              -- run the program
-             return (Just (targetExe, runSystemEcho term flags targetName))
+             return (return (LinkExe targetExe (runSystemEcho term flags targetName)))
 
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
-codeGenCSDll:: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO (Maybe (IO()))
+codeGenCSDll:: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
 codeGenCSDll term flags entry modules outBase core
-  = compilerCatch "csharp compilation" term Nothing $
+  = compilerCatch "csharp compilation" term noLink $
     do let (mbEntry,isAsync) = case entry of
                                  Just (name,tp) -> (Just (name,tp), isAsyncFunction tp)
                                  _ -> (Nothing, False)
@@ -201,14 +210,15 @@ codeGenCSDll term flags entry modules outBase core
        -- trace cmd $ return ()
        runSystemEcho term flags cmd
        -- run the program
-       return (Just (runSystemEcho term flags targetName))
+       return (return (LinkExe targetName (runSystemEcho term flags targetName)))
 
 
 {---------------------------------------------------------------
   Javascript
 ---------------------------------------------------------------}
 
-codeGenJS :: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO (Maybe (FilePath, IO ()))
+codeGenJS :: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core
+              -> IO Link
 codeGenJS term flags entry imported outBase core
   = do let outjs         = outBase ++ ".mjs"
            outName fname = joinPath (dirname outBase) fname
@@ -222,7 +232,7 @@ codeGenJS term flags entry imported outBase core
        when (showAsmJS flags) (termDoc term js)
 
        case mbEntry of
-        Nothing -> return Nothing
+        Nothing -> return noLink
         Just (name) ->
          do -- always generate an index.html file
             let outHtml = outName ((if (null (outBaseName flags)) then "index" else (outBaseName flags)) ++ ".html")
@@ -241,10 +251,10 @@ codeGenJS term flags entry imported outBase core
             writeDoc outHtml contentHtml
             case target flags of
               JS JsWeb ->
-               do return (Just (outHtml, runSystemEcho term flags (dquote outHtml ++ " &")))
+               do return (return (LinkExe outHtml (runSystemEcho term flags (dquote outHtml ++ " &"))))
               _ ->
                do let stksize = if (stackSize flags == 0) then 100000 else (stackSize flags `div` 1024)
-                  return (Just (outjs, runCommand term flags [node flags,"--stack-size=" ++ show stksize,outjs]))
+                  return (return (LinkExe outjs (runCommand term flags [node flags,"--stack-size=" ++ show stksize,outjs])))
 
 
 
@@ -252,7 +262,8 @@ codeGenJS term flags entry imported outBase core
   C backend
 ---------------------------------------------------------------}
 
-codeGenC :: FilePath -> Newtypes -> Borrowed -> Int -> Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO (Maybe (FilePath,IO ()))
+codeGenC :: FilePath -> Newtypes -> Borrowed -> Int -> Terminal -> Flags -> Maybe (Name,Type)
+              -> [Module] -> FilePath -> Core.Core -> IO Link
 codeGenC sourceFile newtypes borrowed0 unique0 term flags entry imported outBase core0
  = -- compilerCatch "c compilation" term Nothing $
    do let outC = outBase ++ ".c"
@@ -285,89 +296,94 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags entry imported outBase
           clibs    = clibsFromCore flags bcore
       extraIncDirs <- concat <$> mapM (copyCLibrary term flags cc (dirname outBase)) eimports
 
-      -- compile
-      ccompile term flags cc outBase extraIncDirs [outC]
+      -- return the C compile and link separately to increase concurrency
+      -- todo: split function
+      return $
+        do -- compile
+           termPhaseDoc term ( text ("compile c: " ++ outBase) )
+           ccompile term flags cc outBase extraIncDirs [outC]
 
-      -- compile and link?
-      case mbMainDoc of   -- like mbEntry
-       Nothing -> return Nothing
-       Just mainDoc ->
-         do -- compile main C entry point (`main`)
-            let outMainBase = outBase ++ "__main"
-                outMainC    = outMainBase ++ ".c"
-                mainObj     = ccObjFile cc outMainBase
-            writeDocW 120 outMainC (mainDoc <.> linebreak)
-            ccompile term flags cc outMainBase  extraIncDirs [outMainC]
+           -- compile and link?
+           case mbMainDoc of   -- like mbEntry
+            Nothing -> return LinkDone
+            Just mainDoc ->
+              do -- compile main C entry point (`main`)
+                  let outMainBase = outBase ++ "__main"
+                      outMainC    = outMainBase ++ ".c"
+                      mainObj     = ccObjFile cc outMainBase
+                  writeDocW 120 outMainC (mainDoc <.> linebreak)
+                  ccompile term flags cc outMainBase  extraIncDirs [outMainC]
 
-            let mainModName= moduleNameToPath (Core.coreProgName core0)
-                mainName   = if null (outBaseName flags) then mainModName else outBaseName flags
-                mainExe    = outName mainName
-
-
-            -- build kklib for the specified build variant
-            -- cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") cmakeGeneratorFlag
-            kklibObj <- kklibBuild term flags cc (dirname outBase) "kklib" (ccObjFile cc "kklib")
-
-            let objs   = [kklibObj] ++
-                         [outName (ccObjFile cc (moduleNameToPath mname))
-                            | mname <- map modName imported ++ [Core.coreProgName core0]] ++
-                         [mainObj]
-                syslibs= concat [csyslibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
-                         ++ ccompLinkSysLibs flags
-                         ++ (if onWindows && not (isTargetWasm (target flags))
-                              then ["bcrypt","psapi","advapi32"]
-                              else ["m","pthread"])
-                libs   = -- ["kklib"] -- [normalizeWith '/' (outName (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
-                         -- ++
-                         clibs
-                         ++
-                         concat [clibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
-
-                libpaths = map (\lib -> outName (ccLibFile cc lib)) libs
-
-                stksize = if (stackSize flags == 0 && (onWindows || isTargetWasm (target flags)))
-                            then 8*1024*1024    -- default to 8Mb on windows and wasi
-                            else stackSize flags
-                hpsize  = if (heapSize flags == 0 && isTargetWasm (target flags))
-                            then 1024*1024*1024 -- default to 1Gb on wasi
-                            else heapSize flags
-
-                clink  = concat $
-                         [ [ccPath cc]
-                         , ccFlags cc
-                         , ccFlagsBuildFromFlags cc flags
-                         , ccTargetExe cc mainExe
-                         ]
-                         ++ [objs]
-                         ++ [ccFlagsLink cc]  -- must be last due to msvc
-                         ++ [ccFlagStack cc stksize,ccFlagHeap cc hpsize]
-                         -- ++ [ccAddLibraryDir cc (fullBuildDir flags)]
-                         ++ map (ccAddLib cc) libpaths  -- libs
-                         ++ map (ccAddSysLib cc) syslibs
+                  let mainModName= moduleNameToPath (Core.coreProgName core0)
+                      mainName   = if null (outBaseName flags) then mainModName else outBaseName flags
+                      mainExe    = outName mainName
 
 
-            termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
-                               color (colorSource (colorScheme flags)) (text mainName))
-            runCommand term flags clink
+                  -- build kklib for the specified build variant
+                  -- cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") cmakeGeneratorFlag
+                  kklibObj <- kklibBuild term flags cc (dirname outBase) "kklib" (ccObjFile cc "kklib")
 
-            let mainTarget = mainExe ++ targetExeExtension (target flags)
-            when (not (null (outFinalPath flags))) $
-              termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
-                                    color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
-            let cmdflags = if (showElapsed flags) then " --kktime" else ""
+                  let objs   = [kklibObj] ++
+                                [outName (ccObjFile cc (moduleNameToPath mname))
+                                    | mname <- map modName imported ++ [Core.coreProgName core0]] ++
+                                [mainObj]
+                      syslibs= concat [csyslibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
+                                ++ ccompLinkSysLibs flags
+                                ++ (if onWindows && not (isTargetWasm (target flags))
+                                      then ["bcrypt","psapi","advapi32"]
+                                      else ["m","pthread"])
+                      libs   = -- ["kklib"] -- [normalizeWith '/' (outName (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
+                                -- ++
+                                clibs
+                                ++
+                                concat [clibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
 
-            case target flags of
-              C Wasm
-                -> do return (Just (mainTarget,
-                               runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ " -- " ++ cmdflags ++ " " ++ execOpts flags)))
-              C WasmWeb
-                -> do return (Just (mainTarget, runSystemEcho term flags (dquote mainTarget ++ " &")))
-              C WasmJs
-                -> do let nodeStack = if (stksize == 0) then 100000 else (stksize `div` 1024)
-                      return (Just (mainTarget,
-                               runCommand term flags [node flags,"--stack-size=" ++ show nodeStack,mainTarget]))
-              _ -> do return (Just (mainTarget,
-                               runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
+                      libpaths = map (\lib -> outName (ccLibFile cc lib)) libs
+
+                      stksize = if (stackSize flags == 0 && (onWindows || isTargetWasm (target flags)))
+                                  then 8*1024*1024    -- default to 8Mb on windows and wasi
+                                  else stackSize flags
+                      hpsize  = if (heapSize flags == 0 && isTargetWasm (target flags))
+                                  then 1024*1024*1024 -- default to 1Gb on wasi
+                                  else heapSize flags
+
+                      clink  = concat $
+                                [ [ccPath cc]
+                                , ccFlags cc
+                                , ccFlagsBuildFromFlags cc flags
+                                , ccTargetExe cc mainExe
+                                ]
+                                ++ [objs]
+                                ++ [ccFlagsLink cc]  -- must be last due to msvc
+                                ++ [ccFlagStack cc stksize,ccFlagHeap cc hpsize]
+                                -- ++ [ccAddLibraryDir cc (fullBuildDir flags)]
+                                ++ map (ccAddLib cc) libpaths  -- libs
+                                ++ map (ccAddSysLib cc) syslibs
+
+
+                  termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
+                                    color (colorSource (colorScheme flags)) (text mainName))
+                  runCommand term flags clink
+
+                  let mainTarget = mainExe ++ targetExeExtension (target flags)
+                  when (not (null (outFinalPath flags))) $
+                    termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+                                          color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
+                  let cmdflags = if (showElapsed flags) then " --kktime" else ""
+
+                  case target flags of
+                    C Wasm
+                      -> do return (LinkExe mainTarget
+                                    (runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ " -- " ++ cmdflags ++ " " ++ execOpts flags)))
+                    C WasmWeb
+                      -> do return (LinkExe mainTarget
+                                    (runSystemEcho term flags (dquote mainTarget ++ " &")))
+                    C WasmJs
+                      -> do let nodeStack = if (stksize == 0) then 100000 else (stksize `div` 1024)
+                            return (LinkExe mainTarget
+                                    (runCommand term flags [node flags,"--stack-size=" ++ show nodeStack,mainTarget]))
+                    _ -> do return (LinkExe mainTarget
+                                    (runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 
 
 ccompile :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> [FilePath] -> IO ()

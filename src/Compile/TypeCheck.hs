@@ -5,7 +5,7 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
-module Compile.Compile( typeCheck, compileCore, importMapFromCoreImports ) where
+module Compile.TypeCheck( typeCheck, importMapFromCoreImports ) where
 
 import Debug.Trace
 import Data.Char
@@ -27,7 +27,7 @@ import Syntax.Syntax
 import Static.FixityResolve( fixitiesCompose, fixitiesNew, fixityResolve )
 import Static.BindingGroups( bindingGroups )
 import Core.Pretty( prettyDef )
-import Core.CoreVar( extractDepsFromInlineDefs, extractDepsFromSignatures )
+import Core.CoreVar( extractDepsFromSignatures )
 
 import Core.Check( checkCore )
 import Core.CheckFBIP( checkFBIP )
@@ -36,15 +36,6 @@ import Core.FunLift( liftFunctions )
 import Core.UnReturn( unreturn )
 import Core.Borrowed
 import Core.Uniquefy( uniquefy )
-
-import Core.Inline( inlineDefs  )
-import Core.Inlines( Inlines, inlinesFilter, inlinesExtends, extractInlineDefs)
-import Core.Monadic( monTransform )
-import Core.MonadicLift( monadicLift )
-import Core.Specialize( specialize, extractSpecializeDefs )
-import Core.CTail( ctailOptimize )
-import Core.OpenResolve( openResolve )
-import Core.Unroll( unrollDefs )
 
 import Kind.Assumption( extractKGamma )
 import Kind.Newtypes( Newtypes )
@@ -67,7 +58,7 @@ typeCheck flags defs coreImports program0
   = Core.runCorePhase 0 {-unique-} $
      do -- import map
         let importMap   = importMapFromCoreImports (programImports program0) coreImports
-            programName = getName program0
+            progName    = getName program0
             penv        = prettyEnvFromFlags flags
 
         -- binding groups and fixities
@@ -93,7 +84,7 @@ typeCheck flags defs coreImports program0
         -- initial gamma
         let  gamma0  = gammaUnions [defsGamma defs
                                   ,extractGamma Core.dataInfoIsValue True coreProgram
-                                  ,extractGammaImports (importsList importMap) programName
+                                  ,extractGammaImports (importsList importMap) progName
                                   ]
 
         -- Type inference
@@ -106,13 +97,13 @@ typeCheck flags defs coreImports program0
               constructors
               importMap
               gamma0
-              programName
+              progName
               progDefs
 
         Core.setCoreDefs coreDefs
 
-        -- when (show programName == "std/text/parse") $
-        --   trace ("type check " ++ show programName ++ ", gamma: " ++ showHidden gamma) $ return ()
+        -- when (show progName == "std/text/parse") $
+        --   trace ("type check " ++ show progName ++ ", gamma: " ++ showHidden gamma) $ return ()
 
         -- check generated core
         let checkCoreDefs title = when (coreCheck flags) $ Core.Check.checkCore False False penv gamma
@@ -153,7 +144,7 @@ typeCheck flags defs coreImports program0
             -- add extra imports needed to resolve types in this module
             typeDeps         = extractDepsFromSignatures coreUnique
             currentImports   = S.fromList (map Core.importName coreImports)
-            typeImports      = [Core.Import name "" Core.ImportTypes Private "" | name <- typeDeps, not (S.member name currentImports) && not (name == programName)]
+            typeImports      = [Core.Import name "" Core.ImportTypes Private "" | name <- typeDeps, not (S.member name currentImports) && not (name == progName)]
             coreFinal        = coreUnique{ Core.coreProgImports = Core.coreProgImports coreUnique ++ typeImports }
 
         return (coreFinal,mbRangeMap)
@@ -175,119 +166,6 @@ importMapFromCoreImports progImports cimports
       = case find (\imp -> importFullName imp == modname) progImports of
           Just imp -> importName imp
           Nothing  -> modname
-
-
-{---------------------------------------------------------------
-  compile core:
-  these may need a richer gamma with
-  hidden imports to check the inlined definitions.
----------------------------------------------------------------}
-
-compileCore :: Flags -> Newtypes -> Gamma -> Inlines -> Core.Core -> Error () (Core.Core,[Core.InlineDef])
-compileCore flags newtypes gamma inlines coreProgram
-  = Core.runCorePhase 10000 {-unique-} $
-     do Core.setCoreDefs (Core.coreProgDefs coreProgram)
-        let progName = Core.coreProgName coreProgram
-            penv     = prettyEnvFromFlags flags
-            checkCoreDefs title = when (coreCheck flags) $ Core.Check.checkCore False False penv gamma
-
-        -- when (show progName == "std/text/parse") $
-        --  trace ("compile " ++ show progName ++ ", gamma: " ++ showHidden gamma) $ return ()
-
-        -- define simplify
-        let ndebug           = optimize flags > 0
-            simplifyX dupMax = simplifyDefs penv False {-unsafe-} ndebug (simplify flags) dupMax
-            simplifyDupN     = when (simplify flags >= 0) $ simplifyX (simplifyMaxDup flags)
-            simplifyNoDup    = simplifyX 0
-
-        -- unroll recursive definitions (before inline so generated wrappers can be inlined)
-        when (optUnroll flags > 0) $
-          do unrollDefs penv (optUnroll flags)
-        -- traceDefGroups flags "unrolled"
-
-        -- inline: inline local definitions more aggressively (2x)
-        when (optInlineMax flags > 0) $
-          do let inlinesX = if isPrimitiveModule progName then inlines
-                            else inlinesFilter (\name -> nameModule nameCoreHnd /= nameModule name) inlines
-             inlineDefs penv (2*(optInlineMax flags)) inlinesX
-              -- checkCoreDefs "inlined"
-
-        simplifyDupN
-        -- traceDefGroups flags "inlined"
-
-        -- specialize
-        specializeDefs <- if isPrimitiveModule progName then return []
-                            else Core.withCoreDefs (\defs -> extractSpecializeDefs inlines defs)
-        -- traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
-
-        when (optSpecialize flags && not (isPrimitiveModule progName)) $
-          do specialize (inlinesExtends specializeDefs inlines) penv
-             -- traceDefGroups flags "specialized"
-             simplifyDupN
-             -- lifting remaining recursive functions to top level (must be after specialize as that can generate local recursive definitions)
-             liftFunctions penv
-
-        -- simplify once more
-        simplifyDupN
-        coreDefsInlined <- Core.getCoreDefs
-        -- traceDefGroups flags "simplified"
-
-        ------------------------------
-        -- backend optimizations
-
-        -- tail-call-modulo-cons optimization
-        when (optctail flags) $
-          ctailOptimize penv newtypes gamma (optctailCtxPath flags)
-
-        -- transform effects to explicit monadic binding (and resolve .open calls)
-        when (enableMon flags && not (isPrimitiveModule progName)) $
-          -- trace (show progName ++ ": monadic transform") $
-          do Core.Monadic.monTransform penv
-             openResolve penv gamma           -- must be after monTransform
-        checkCoreDefs "monadic transform"
-
-        -- simplify open applications (needed before inlining open defs)
-        simplifyNoDup
-        -- traceDefGroups flags "open resolved"
-
-        -- monadic lifting to create fast inlined paths
-        monadicLift penv
-        checkCoreDefs "monadic lifting"
-        -- traceDefGroups flags "monadic lift"
-
-        -- now inline primitive definitions (like yield-bind)
-        let inlinesX = inlinesFilter isPrimitiveName inlines
-        -- trace ("inlines2: " ++ show (map Core.inlineName (inlinesToList inlinesX))) $
-        inlineDefs penv (2*optInlineMax flags) inlinesX -- (loadedInlines loaded)
-
-        -- remove remaining open calls; this may change effect types
-        simplifyDefs penv True {-unsafe-} ndebug (simplify flags) 0 -- remove remaining .open
-
-        -- final simplification
-        simplifyDupN
-        checkCoreDefs "final"
-        -- traceDefGroups "simplify final"
-
-        -- Assemble core program and return
-        coreDefsFinal <- Core.getCoreDefs
-        uniqueFinal   <- unique
-
-        let localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsInlined
-            -- give priority to specializeDefs, since inlining can prevent specialize opportunities
-            allInlineDefs    = specializeDefs ++ localInlineDefs
-
-            -- add extra required imports for inlined definitions
-            inlineDeps       = extractDepsFromInlineDefs allInlineDefs
-            currentImports   = map Core.importName (Core.coreProgImports coreProgram)
-            inlineImports    = [Core.Import name "" Core.ImportCompiler Private "" | name <- inlineDeps, not (name `elem` currentImports) && not (name == progName)]
-
-            coreFinal        = (if (null inlineImports) then id else trace (show progName ++ ": extra inline imports: " ++ show (map Core.importName inlineImports))) $
-                               uniquefy $ coreProgram {
-                                 Core.coreProgDefs = coreDefsFinal,
-                                 Core.coreProgImports = Core.coreProgImports coreProgram ++ inlineImports
-                               }
-
-        return (coreFinal, allInlineDefs)
 
 
 

@@ -59,9 +59,10 @@ data ModulePhase
   | ModLoaded         -- modLexemes, modDeps    (currently unused and always part of ModParsed)
   | ModParsed         -- modDeps, modProgram
   | ModTyped          -- modCore, modRangeMap, modDefines
-  | ModCoreCompiled   -- compiled and optimized core, modCore is updated, modInlines
+  | ModOptimized      -- compiled and optimized core, modCore is updated, modInlines
+  | ModCodeGen        -- compiled to backend code (.c,.js files)
   | ModLibIfaceLoaded -- a (library) interface is loaded but it's kki and libs are not yet copied to the output directory
-  | ModCompiled       -- kki and object files are generated
+  | ModLinked         -- kki and object files are generated (and exe linked for a main module)
   deriving (Eq,Ord,Show)
 
 data Module  = Module{ -- initial
@@ -90,7 +91,7 @@ data Module  = Module{ -- initial
                      , modCore        :: !(Maybe Core.Core)
                      , modDefinitions :: !(Maybe Definitions)
 
-                     -- core compiled; updates `modCore` to final core
+                     -- core optimized; updates `modCore` to final core
                      , modInlines      :: !(Either (Gamma -> Error () [Core.InlineDef]) [Core.InlineDef]) -- from a core file, we return a function that given the gamma parses the inlines
 
                        -- codegen

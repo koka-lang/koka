@@ -50,8 +50,9 @@ library
       Common.Unique
       Compile.Build
       Compile.CodeGen
-      Compile.Compile
       Compile.Module
+      Compile.Optimize
+      Compile.TypeCheck
       Compiler.Compile
       Compiler.Module
       Compiler.Options
