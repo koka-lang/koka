@@ -53,6 +53,7 @@ import Compile.TypeCheck      ( typeCheck )
 import Compile.Optimize       ( coreOptimize )
 import Compile.CodeGen        ( codeGen, Link, LinkResult(..), noLink )
 
+
 {---------------------------------------------------------------
   Concurrently compile a list of root modules.
   Returns all required modules as compiled in build order
@@ -70,6 +71,7 @@ modulesCompile mainEntries roots
                        (moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap)
                        modules
        mapM moduleFlushErrors compiled
+
 
 {---------------------------------------------------------------
   Module map
@@ -155,9 +157,8 @@ moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap
                 (moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap)
     $ \done (full,link,mod) ->
      do -- wait for all required imports to be codegen'd
-        -- However, for a final exe we need to wait for the imports to be _linked_
-        let pubImportNames = map Core.importName (modCoreImports mod)
-        imports <- moduleGetFullImports (if full then linkedMap else codegenMap) [] pubImportNames
+        -- However, for a final exe we need to wait for the imports to be _linked_ as well.
+        imports <- moduleGetFullImports (if full then linkedMap else codegenMap) [] (modImportNames mod)
         if any (\m -> modPhase m < PhaseCodeGen) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
           else do phase "link" $ pretty (modName mod)
@@ -175,8 +176,7 @@ moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
   = moduleGuard PhaseOptimized PhaseCodeGen codegenMap (\mod -> mod) (\mod -> (False,noLink,mod))
                 (moduleOptimize tcheckedMap optimizedMap) $ \done mod ->
     do -- wait for all required imports to be optimized (no need to wait for codegen!)
-       let pubImportNames = map Core.importName (modCoreImports mod)
-       imports <- moduleGetFullImports optimizedMap [] pubImportNames
+       imports <- moduleGetFullImports optimizedMap [] (modImportNames mod)
        if any (\m -> modPhase m < PhaseOptimized) imports
          then done mod
          else do  phase "codegen" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
@@ -208,6 +208,7 @@ getMainEntry gamma mainEntries mod
                     _      -> do addErrorMessageKind ErrBuild (text "ambiguous main function:" <+> pretty main)
                                  return Nothing
 
+
 {---------------------------------------------------------------
   Core optimize a module
   (not just optimization, some transformations are essential
@@ -218,8 +219,7 @@ moduleOptimize :: ModuleMap -> ModuleMap -> Module -> Build Module
 moduleOptimize tcheckedMap optimizedMap
   = moduleGuard PhaseTyped PhaseOptimized optimizedMap id id (moduleTypeCheck tcheckedMap) $ \done mod ->
      do -- wait for direct (user+pub) imports to be compiled
-        let pubImportNames = map Core.importName (modCoreImports mod)
-        imports <- moduleGetFullImports optimizedMap [] pubImportNames
+        imports <- moduleGetFullImports optimizedMap [] (modImportNames mod)
         if any (\m -> modPhase m < PhaseOptimized) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
           else -- core compile

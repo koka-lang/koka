@@ -25,17 +25,6 @@ import qualified Common.NameSet as S
 import Core.Pretty( prettyDef )
 import Core.Check( checkCore )
 
-{-
-import Syntax.RangeMap
-import Syntax.Syntax
-import Static.FixityResolve( fixitiesCompose, fixitiesNew, fixityResolve )
-import Static.BindingGroups( bindingGroups )
-
-import Core.CheckFBIP( checkFBIP )
-import Core.UnReturn( unreturn )
-import Core.Borrowed
--}
-
 import Core.CoreVar( extractDepsFromInlineDefs )
 import Core.Simplify( simplifyDefs )
 import Core.Uniquefy( uniquefy )
@@ -49,9 +38,6 @@ import Core.CTail( ctailOptimize )
 import Core.OpenResolve( openResolve )
 import Core.Unroll( unrollDefs )
 
--- import Kind.Assumption( extractKGamma )
--- import Kind.Newtypes( Newtypes )
--- import Kind.ImportMap
 import Type.Pretty
 import Kind.Newtypes( Newtypes )
 import Type.Assumption( Gamma )

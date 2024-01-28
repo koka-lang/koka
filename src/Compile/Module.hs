@@ -11,7 +11,7 @@
 -----------------------------------------------------------------------------
 module Compile.Module( Module(..), ModulePhase(..)
                      , moduleNull, moduleCreateInitial
-                     , modCoreImports
+                     , modCoreImports, modImportNames
 
                      , Definitions(..), defsNull
                      , defsCompose, defsFromCore, defsFromModules
@@ -146,6 +146,12 @@ modCoreImports mod
   = case modCore mod of
       Nothing   -> []
       Just core -> Core.coreProgImports core
+
+
+modImportNames :: Module -> [ModuleName]
+modImportNames mod
+  = map Core.importName (modCoreImports mod)
+
 
 
 data Definitions  = Definitions {
