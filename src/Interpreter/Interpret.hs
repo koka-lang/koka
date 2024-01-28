@@ -262,7 +262,8 @@ loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO State
 loadModules term st files force
   = do mbMods <- B.runBuildIO term (flags st) B.noVFS $
                  do roots <- M.mergeModules (modules st) <$> mapM B.moduleFromSource files
-                    B.modulesCompile [newQualified "samples/basic/caesar" "main"] roots
+                    B.modulesCompile [] -- [newQualified "samples/basic/caesar" "main"]
+                                     roots
        case mbMods of
          Nothing -> return st
          Just mods -> return st{ modules = mods }

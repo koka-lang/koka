@@ -59,9 +59,9 @@ noLink = return LinkDone
   Code generation
 ---------------------------------------------------------------}
 
-codeGen :: Terminal -> Flags -> Newtypes -> Borrowed -> KGamma -> Gamma ->
+codeGen :: Terminal -> Flags -> (IO () -> IO ()) -> Newtypes -> Borrowed -> KGamma -> Gamma ->
              Maybe (Name,Type) -> [Module] -> Module -> IO Link
-codeGen term flags newtypes borrowed kgamma gamma entry imported mod
+codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
   = -- compilerCatch ("code generation in " ++ show (modName mod)) term noLink $
     do let program    = fromJust (modProgram mod)
            core       = fromJust (modCore mod)
@@ -78,7 +78,9 @@ codeGen term flags newtypes borrowed kgamma gamma entry imported mod
                          <-> Lib.PPrint.empty
 
        -- create output directory if it does not exist
-       createDirectoryIfMissing True (dirname (modIfacePath mod))
+       direxist <- doesDirectoryExist (dirname (modIfacePath mod))
+       when (not direxist) $
+         sequential (createDirectoryIfMissing True (dirname (modIfacePath mod)))
 
        -- remove existing kki file in case of errors
        removeFileIfExists (modIfacePath mod)
@@ -109,7 +111,7 @@ codeGen term flags newtypes borrowed kgamma gamma entry imported mod
                   genDoc cenv kgamma gamma core printer
 
        -- generate actual code
-       link <- backend term flags entry imported outBase core
+       link <- backend term flags sequential entry imported outBase core
 
        -- return the link as an action to increase concurrency
        return $
@@ -134,7 +136,7 @@ codeGen term flags newtypes borrowed kgamma gamma entry imported mod
               _ -> return ()
             return (mbRun)
   where
-    backend :: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
+    backend :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
     backend  = case target flags of
                  CS   -> codeGenCS
                  JS _ -> codeGenJS
@@ -152,8 +154,8 @@ codeGen term flags newtypes borrowed kgamma gamma entry imported mod
 ---------------------------------------------------------------}
 
 -- Generate C# through CS files without generating dll's
-codeGenCS :: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
-codeGenCS term flags entry modules outBase core
+codeGenCS :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
+codeGenCS term flags sequential entry modules outBase core
   = compilerCatch "csharp compilation" term noLink $
     do let (mbEntry,isAsync) = case entry of
                                  Just (name,tp) -> (Just (name,tp), isAsyncFunction tp)
@@ -182,8 +184,8 @@ codeGenCS term flags entry modules outBase core
              return (return (LinkExe targetExe (runSystemEcho term flags targetName)))
 
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
-codeGenCSDll:: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
-codeGenCSDll term flags entry modules outBase core
+codeGenCSDll:: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
+codeGenCSDll term flags sequential entry modules outBase core
   = compilerCatch "csharp compilation" term noLink $
     do let (mbEntry,isAsync) = case entry of
                                  Just (name,tp) -> (Just (name,tp), isAsyncFunction tp)
@@ -218,9 +220,9 @@ codeGenCSDll term flags entry modules outBase core
   Javascript
 ---------------------------------------------------------------}
 
-codeGenJS :: Terminal -> Flags -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core
+codeGenJS :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core
               -> IO Link
-codeGenJS term flags entry imported outBase core
+codeGenJS term flags sequential entry imported outBase core
   = do let outjs         = outBase ++ ".mjs"
            outName fname = joinPath (dirname outBase) fname
            extractImport m = Core.Import (modName m) "" {- (modPackageQName m) -} Core.ImportUser Public ""
@@ -263,9 +265,10 @@ codeGenJS term flags entry imported outBase core
   C backend
 ---------------------------------------------------------------}
 
-codeGenC :: FilePath -> Newtypes -> Borrowed -> Int -> Terminal -> Flags -> Maybe (Name,Type)
+codeGenC :: FilePath -> Newtypes -> Borrowed -> Int
+             -> Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type)
               -> [Module] -> FilePath -> Core.Core -> IO Link
-codeGenC sourceFile newtypes borrowed0 unique0 term flags entry imported outBase core0
+codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry imported outBase core0
  = -- compilerCatch "c compilation" term Nothing $
    do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
@@ -295,7 +298,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags entry imported outBase
       let cc       = ccomp flags
           eimports = externalImportsFromCore (target flags) bcore
           clibs    = clibsFromCore flags bcore
-      extraIncDirs <- concat <$> mapM (copyCLibrary term flags cc (dirname outBase)) eimports
+      extraIncDirs <- concat <$> mapM (copyCLibrary term flags sequential cc (dirname outBase)) eimports
 
       -- return the C compile and link separately to increase concurrency
       -- todo: split function
@@ -322,7 +325,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags entry imported outBase
 
                   -- build kklib for the specified build variant
                   -- cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") cmakeGeneratorFlag
-                  kklibObj <- kklibBuild term flags cc (dirname outBase) "kklib" (ccObjFile cc "kklib")
+                  kklibObj <- kklibBuild term flags sequential cc (dirname outBase) "kklib" (ccObjFile cc "kklib")
 
                   let objs   = [kklibObj] ++
                                 [outName (ccObjFile cc (moduleNameToPath mname))
@@ -415,19 +418,19 @@ ccompile term flags cc ctargetObj extraIncDirs csources
 
 -- copy static C library to the output directory (so we can link and/or bundle) and
 -- return needed include paths for imported C code
-copyCLibrary :: Terminal -> Flags -> CC -> FilePath -> [(String,String)] -> IO [FilePath] {-include paths-}
-copyCLibrary term flags cc outDir eimport
+copyCLibrary :: Terminal -> Flags -> (IO () -> IO ()) -> CC -> FilePath -> [(String,String)] -> IO [FilePath] {-include paths-}
+copyCLibrary term flags sequential cc outDir eimport
   = case Core.eimportLookup (buildType flags) "library" eimport of
       Nothing -> return []
       Just clib
         -> do mb  <- do mbSearch <- search [] [ searchCLibrary flags cc clib (ccompLibDirs flags)
                                               , case lookup "vcpkg" eimport of
                                                   Just pkg
-                                                    -> vcpkgCLibrary term flags cc eimport clib pkg
+                                                    -> vcpkgCLibrary term flags sequential cc eimport clib pkg
                                                   _ -> return (Left [])
                                               , case lookup "conan" eimport of
                                                   Just pkg | not (null (conan flags))
-                                                    -> conanCLibrary term flags cc eimport clib pkg
+                                                    -> conanCLibrary term flags sequential cc eimport clib pkg
                                                   _ -> return (Left [])
                                               ]
                         case mbSearch of
@@ -439,7 +442,7 @@ copyCLibrary term flags cc outDir eimport
                   -> do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
                           color (colorSource (colorScheme flags)) (text libPath))
                         -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
-                        copyBinaryIfNewer (rebuild flags) libPath (joinPath outDir (ccLibFile cc clib))
+                        sequential $ copyBinaryIfNewer (rebuild flags) libPath (joinPath outDir (ccLibFile cc clib))
                         return includes
                 Nothing
                   -> -- TODO: suggest conan and/or vcpkg install?
@@ -479,8 +482,8 @@ searchCLibrary flags cc clib searchPaths
   Packages: Conan and VCPkg
 ---------------------------------------------------------------}
 
-conanCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> String -> IO (Either [Doc] (FilePath,[FilePath]))
-conanCLibrary term flags cc eimport clib pkg
+conanCLibrary :: Terminal -> Flags -> (IO () -> IO ()) -> CC -> [(String,String)] -> FilePath -> String -> IO (Either [Doc] (FilePath,[FilePath]))
+conanCLibrary term flags sequential cc eimport clib pkg
   = do mbConanCmd <- searchProgram (conan flags)
        case mbConanCmd of
          Nothing
@@ -558,13 +561,14 @@ conanCLibrary term flags cc eimport clib pkg
                     <-> text "         >" <+> clrSource (text (unwords installCmd))
                     <-> text "         to install the required C library and header files")
              else do let profileCmd = [conanCmd, "profile", "detect"] -- ensure default profile exists
-                     runCommandReadAll term flags conanEnv profileCmd `catchIO` (\msg -> return ("",""))
+                     sequential $ do runCommandReadAll term flags conanEnv profileCmd `catchIO` (\msg -> return ("",""))
+                                     return ()
                      termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: conan package:") <+> clrSource (text pkg))
-                     runCommandEnv term flags conanEnv installCmd
+                     sequential $ runCommandEnv term flags conanEnv installCmd
 
 
-vcpkgCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> String -> IO (Either [Doc] (FilePath,[FilePath]))
-vcpkgCLibrary term flags cc eimport clib pkg
+vcpkgCLibrary :: Terminal -> Flags -> (IO () -> IO ()) -> CC -> [(String,String)] -> FilePath -> String -> IO (Either [Doc] (FilePath,[FilePath]))
+vcpkgCLibrary term flags sequential cc eimport clib pkg
   = do (root,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
        exist <- doesFileExist vcpkg
        if (not exist)
@@ -608,7 +612,7 @@ vcpkgCLibrary term flags cc eimport clib pkg
                                               <-> text "         to install the required C library and header files")
                       return (Left [])
               else do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: vcpkg package:") <+> clrSource (text pkg))
-                      runCommand term flags installCmd
+                      sequential $ runCommand term flags installCmd
                       searchCLibrary flags cc clib [libDir] -- try to find again after install
 
 clibsFromCore flags core    = externalImportKeyFromCore (target flags) (buildType flags) core "library"
@@ -628,8 +632,8 @@ externalImportsFromCore target core
   kklib
 ---------------------------------------------------------------}
 
-kklibBuild :: Terminal -> Flags -> CC -> FilePath -> String -> FilePath -> IO FilePath
-kklibBuild term flags cc outDir name {-kklib-} objFile {-libkklib.o-}
+kklibBuild :: Terminal -> Flags -> (IO () -> IO ()) -> CC -> FilePath -> String -> FilePath -> IO FilePath
+kklibBuild term flags sequential cc outDir name {-kklib-} objFile {-libkklib.o-}
   = do let objPath = joinPath outDir objFile  {-out/v2.x.x/clang-debug/libkklib.o-}
        exist <- doesFileExist objPath
        let binObjPath = joinPath (localLibDir flags) (buildVariant flags ++ "/" ++ objFile)
@@ -648,7 +652,7 @@ kklibBuild term flags cc outDir name {-kklib-} objFile {-libkklib.o-}
         then return ()
          else if (binNewer)
            then -- use pre-compiled installed binary
-                copyBinaryFile binObjPath objPath
+                sequential $ copyBinaryFile binObjPath objPath
            else -- todo: check for installed binaries for the library
                 -- compile kklib from sources
                 do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("compile :")) <+>
@@ -660,7 +664,7 @@ kklibBuild term flags cc outDir name {-kklib-} objFile {-libkklib.o-}
                        flags1 = flags0{ ccompDefs = ccompDefs flags ++
                                                     [("KK_COMP_VERSION","\"" ++ version ++ "\""),
                                                      ("KK_CC_NAME", "\"" ++ ccName cc ++ "\"")] }
-                   ccompile term flags1 cc objPath [] [joinPath srcLibDir "src/all.c"]
+                   sequential $ ccompile term flags1 cc objPath [] [joinPath srcLibDir "src/all.c"]
        return objPath
 
 

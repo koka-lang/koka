@@ -55,14 +55,14 @@ import Core.Borrowed          ( Borrowed, borrowedEmpty, extractBorrowed, borrow
 type Modules = [Module]
 
 data ModulePhase
-  = ModInit
-  | ModLoaded         -- modLexemes, modDeps    (currently unused and always part of ModParsed)
-  | ModParsed         -- modDeps, modProgram
-  | ModTyped          -- modCore, modRangeMap, modDefines
-  | ModOptimized      -- compiled and optimized core, modCore is updated, modInlines
-  | ModCodeGen        -- compiled to backend code (.c,.js files)
-  | ModLibIfaceLoaded -- a (library) interface is loaded but it's kki and libs are not yet copied to the output directory
-  | ModLinked         -- kki and object files are generated (and exe linked for a main module)
+  = PhaseInit
+  | PhaseLoaded         -- modLexemes, modDeps    (currently unused and always part of PhaseParsed)
+  | PhaseParsed         -- modDeps, modProgram
+  | PhaseTyped          -- modCore, modRangeMap, modDefines
+  | PhaseOptimized      -- compiled and optimized core, modCore is updated, modInlines
+  | PhaseCodeGen        -- compiled to backend code (.c,.js files)
+  | PhaseLibIfaceLoaded -- a (library) interface is loaded but it's kki and libs are not yet copied to the output directory
+  | PhaseLinked         -- kki and object files are generated (and exe linked for a main module)
   deriving (Eq,Ord,Show)
 
 data Module  = Module{ -- initial
@@ -81,7 +81,7 @@ data Module  = Module{ -- initial
 
                        -- lexing
                      , modLexemes     :: ![Lexeme]
-                     , modDeps     :: ![ModuleName]      -- initial dependencies from import statements in the program
+                     , modDeps        :: ![ModuleName]      -- initial dependencies from import statements in the program
 
                        -- parsing
                      , modProgram     :: !(Maybe (Program UserType UserKind))
@@ -92,7 +92,7 @@ data Module  = Module{ -- initial
                      , modDefinitions :: !(Maybe Definitions)
 
                      -- core optimized; updates `modCore` to final core
-                     , modInlines      :: !(Either (Gamma -> Error () [Core.InlineDef]) [Core.InlineDef]) -- from a core file, we return a function that given the gamma parses the inlines
+                     , modInlines     :: !(Either (Gamma -> Error () [Core.InlineDef]) [Core.InlineDef]) -- from a core file, we return a function that given the gamma parses the inlines
 
                        -- codegen
                      , modExePath     :: !FilePath
@@ -108,7 +108,7 @@ data Module  = Module{ -- initial
 
 moduleNull :: Name -> Module
 moduleNull modName
-  = Module  ModInit modName rangeNull errorsNil
+  = Module  PhaseInit modName rangeNull errorsNil
             "" fileTime0 "" fileTime0 "" "" fileTime0
             -- lex
             [] []

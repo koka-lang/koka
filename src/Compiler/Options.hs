@@ -206,6 +206,7 @@ data Flags
          , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
          , optSpecialize    :: Bool
          , mimallocStats    :: Bool
+         , maxConcurrency   :: Int
          } deriving (Eq,Show)
 
 instance Hashable Flags where
@@ -348,6 +349,7 @@ flagsNull
           False -- use stdalloc
           True  -- use specialization (only used if optimization level >= 1)
           False -- use mimalloc stats
+          16    -- max concurrency
 
 isHelp Help = True
 isHelp _    = False
@@ -380,6 +382,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["language-server"] (NoArg LanguageServer)          "language server mode"
  , flag   ['e'] ["execute"]         (\b f -> f{evaluate= b})        "compile and execute"
  , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute (default)"
+ , numOption 16 "n" ['j'] ["jobs"]  (\i f -> f{maxConcurrency=max i 1})  "maximum concurrency (16)"
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to module search path (empty resets)"
  , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write final executable to <file> (without extension)"
  , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 1=space, 2=full, 3=aggressive)"

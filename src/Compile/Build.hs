@@ -24,6 +24,7 @@ import Control.Exception
 import Control.Applicative
 import Control.Monad          ( ap, when )
 import qualified Control.Monad.Fail as F
+import Control.Concurrent.QSem
 import Control.Concurrent.Async (mapConcurrently)
 import Control.Concurrent.Chan
 import Control.Concurrent
@@ -58,11 +59,11 @@ import Compile.CodeGen        ( codeGen, Link, LinkResult(..), noLink )
 ---------------------------------------------------------------}
 modulesCompile :: [Name] -> [Module] -> Build [Module]
 modulesCompile mainEntries roots
-  = phaseTimed "compiling" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
+  = phaseTimed "build" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
     do rootsv      <- modulesValidate roots
        modules     <- modulesResolveDependencies rootsv
        tcheckedMap <- modmapCreate modules
-       optimizedMap <- modmapCreate modules
+       optimizedMap<- modmapCreate modules
        codegenMap  <- modmapCreate modules
        linkedMap   <- modmapCreate modules
        compiled    <- mapConcurrentModules
@@ -107,7 +108,13 @@ modmapPut :: ModuleMap -> Module -> Build ()
 modmapPut modmap mod
   = liftIO $ putMVar ((M.!) modmap (modName mod)) mod
 
--- blocks until a `modmapPut` happens (at which point it returns the module definition at that phase).
+-- signal a module is done with a compilation phase and unblock all pending reads.
+-- only the first call succeeds but subsequent ones will not block (useful for exception handling)
+modmapTryPut :: ModuleMap -> Module -> Build Bool
+modmapTryPut modmap mod
+  = liftIO $ tryPutMVar ((M.!) modmap (modName mod)) mod
+
+-- blocks until a `modmapTryPut` happens (at which point it returns the module definition at that phase).
 -- (all further reads are non-blocking)
 modmapRead :: ModuleMap -> ModuleName -> Build Module
 modmapRead modmap modname
@@ -120,31 +127,43 @@ modmapCreate modules
                                      return (modName mod, v)) modules
 
 
+-- ensure a phase always sets its mvar to guarantee progress
+moduleGuard :: ModulePhase -> ModulePhase -> ModuleMap -> (a -> Module) -> (Module -> b)
+                -> (Module -> Build a) -> ((Module -> Build b) -> a -> Build b) -> (Module -> Build b)
+moduleGuard expectPhase targetPhase modmap fromRes toRes initial action mod0
+  = do res <- onBuildException (edone mod0) (initial mod0)
+       let mod = fromRes res
+       buildFinally (edone mod) $
+        if (modPhase mod < expectPhase || modPhase mod >= targetPhase)
+          then done mod
+          else action done res
+  where
+    edone mod = do modmapTryPut modmap mod
+                   return ()
+
+    done mod  = do modmapPut modmap mod
+                   return (toRes mod)
+
 
 {---------------------------------------------------------------
   Compile a module (type check, core compile, codegen, and link)
 ---------------------------------------------------------------}
 
 moduleCompile :: [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build Module
-moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap mod0
-  = onBuildException (done mod0) $ -- ensure the mvar is always set so progress is made
-    do (full,link,mod) <- moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap mod0
-       if (modPhase mod < ModTyped || modPhase mod >= ModLinked)
-         then done mod
-         else do -- wait for all required imports to be codegen'd
-                 -- However, for a final exe we need to wait for the imports to be _linked_
-                 let pubImportNames = map Core.importName (modCoreImports mod)
-                 imports <- moduleGetCompilerImports (if full then linkedMap else codegenMap) [] pubImportNames
-                 if any (\m -> modPhase m < ModCodeGen) imports
-                   then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
-                   else do phase "link" $ pretty (modName mod)
-                           mbEntry <- liftIO $ link   -- link it!
-                           let mod' = mod{ modPhase = ModLinked }
-                           done mod'
-
-  where
-    done mod' = do modmapPut linkedMap mod'
-                   return mod'
+moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap
+  = moduleGuard PhaseCodeGen PhaseLinked linkedMap (\(_,_,mod) -> mod) id
+                (moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap)
+    $ \done (full,link,mod) ->
+     do -- wait for all required imports to be codegen'd
+        -- However, for a final exe we need to wait for the imports to be _linked_
+        let pubImportNames = map Core.importName (modCoreImports mod)
+        imports <- moduleGetCompilerImports (if full then linkedMap else codegenMap) [] pubImportNames
+        if any (\m -> modPhase m < PhaseCodeGen) imports
+          then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
+          else do phase "link" $ pretty (modName mod)
+                  mbEntry <- pooledIO $ link   -- link it!
+                  let mod' = mod{ modPhase = PhaseLinked }
+                  done mod'
 
 
 {---------------------------------------------------------------
@@ -152,36 +171,28 @@ moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap mod0
 ---------------------------------------------------------------}
 
 moduleCodeGen :: [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build (Bool, Link, Module)
-moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap mod0
-  = onBuildException (done False noLink mod0) $ -- ensure the mvar is always set so progress is made
-    do mod <- moduleOptimize tcheckedMap optimizedMap mod0
-       if (modPhase mod < ModTyped || modPhase mod >= ModCodeGen)
-         then done False noLink mod
-         else do -- wait for all required imports to be optimized (no need to wait for codegen!)
-                 let pubImportNames = map Core.importName (modCoreImports mod)
-                 imports <- moduleGetCompilerImports optimizedMap [] pubImportNames
-                 if any (\m -> modPhase m < ModOptimized) imports
-                   then done False noLink mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
-                   else codegen imports mod
-
-  where
-    done exe link mod' = do modmapPut codegenMap mod'
-                            return (exe,link,mod')
-
-    codegen :: [Module] -> Module -> Build (Bool,Link,Module)
-    codegen imports mod
-      =  do phase "codegen" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
-            flags <- getFlags
-            term  <- getTerminal
-            let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the compile?
-                inlines = inlinesFromModules imports
-            mbEntry <- getMainEntry (defsGamma defs) mainEntries mod
-            link <- liftIO $ codeGen term flags (defsNewtypes defs) (defsBorrowed defs) (defsKGamma defs) (defsGamma defs)
-                              mbEntry imports mod
-            let mod' = mod{ modPhase = ModCodeGen }
-            phaseVerbose 2 "codegen done" (pretty (modName mod))
-            done (isJust mbEntry) link mod'
-            -- and now link it
+moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
+  = moduleGuard PhaseOptimized PhaseCodeGen codegenMap (\mod -> mod) (\mod -> (False,noLink,mod))
+                (moduleOptimize tcheckedMap optimizedMap) $ \done mod ->
+    do -- wait for all required imports to be optimized (no need to wait for codegen!)
+       let pubImportNames = map Core.importName (modCoreImports mod)
+       imports <- moduleGetCompilerImports optimizedMap [] pubImportNames
+       if any (\m -> modPhase m < PhaseOptimized) imports
+         then done mod
+         else do  phase "codegen" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
+                  flags <- getFlags
+                  term  <- getTerminal
+                  let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the compile?
+                      inlines = inlinesFromModules imports
+                  mbEntry <- getMainEntry (defsGamma defs) mainEntries mod
+                  seqIO   <- sequentialIO
+                  link    <- pooledIO $ codeGen term flags seqIO
+                                                (defsNewtypes defs) (defsBorrowed defs) (defsKGamma defs) (defsGamma defs)
+                                                mbEntry imports mod
+                  let mod' = mod{ modPhase = PhaseCodeGen }
+                  phaseVerbose 2 "codegen done" (pretty (modName mod))
+                  done mod'
+                  return (isJust mbEntry,link,mod')
 
 
 getMainEntry :: Gamma -> [Name] -> Module -> Build (Maybe (Name,Type))
@@ -204,34 +215,26 @@ getMainEntry gamma mainEntries mod
 ---------------------------------------------------------------}
 
 moduleOptimize :: ModuleMap -> ModuleMap -> Module -> Build Module
-moduleOptimize tcheckedMap optimizedMap mod0
-  = onBuildException (done mod0) $ -- ensure the mvar is always set so progress is made
-    do mod <- moduleTypeCheck tcheckedMap mod0
-       if (modPhase mod < ModTyped || modPhase mod >= ModOptimized)
-         then done mod
-         else do -- wait for direct (user+pub) imports to be compiled
-                 let pubImportNames = map Core.importName (modCoreImports mod)
-                 -- phase "compile imports" $ pretty (modName mod) <.> colon <+> list (map pretty pubImportNames)
-                 imports <- moduleGetCompilerImports optimizedMap [] pubImportNames
-                 if any (\m -> modPhase m < ModOptimized) imports
-                   then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
-                   else -- core compile
-                        do  phase "optimize" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
-                            flags <- getFlags
-                            let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check?
-                                inlines = inlinesFromModules imports
-                            (core,inlineDefs) <- liftError $ coreOptimize flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
-                            let mod' = mod{ modPhase   = ModOptimized
-                                          , modCore    = Just $! core
-                                          , modInlines = Right $! inlineDefs
-                                          }
-                            phaseVerbose 2 "optimize done" (pretty (modName mod))
-                            done mod'
-
-  where
-    done mod' = do modmapPut optimizedMap mod'
-                   return mod'
-
+moduleOptimize tcheckedMap optimizedMap
+  = moduleGuard PhaseTyped PhaseOptimized optimizedMap id id (moduleTypeCheck tcheckedMap) $ \done mod ->
+     do -- wait for direct (user+pub) imports to be compiled
+        let pubImportNames = map Core.importName (modCoreImports mod)
+        -- phase "compile imports" $ pretty (modName mod) <.> colon <+> list (map pretty pubImportNames)
+        imports <- moduleGetCompilerImports optimizedMap [] pubImportNames
+        if any (\m -> modPhase m < PhaseOptimized) imports
+          then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
+          else -- core compile
+              do  phase "optimize" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
+                  flags <- getFlags
+                  let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check?
+                      inlines = inlinesFromModules imports
+                  (core,inlineDefs) <- liftError $ coreOptimize flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
+                  let mod' = mod{ modPhase   = PhaseOptimized
+                                , modCore    = Just $! core
+                                , modInlines = Right $! inlineDefs
+                                }
+                  phaseVerbose 2 "optimize done" (pretty (modName mod))
+                  done mod'
 
 
 -- Import also modules required for checking inlined definitions from direct imports.
@@ -257,42 +260,36 @@ moduleGetCompilerImports modmap alreadyDone0 importNames
 
 modulesTypeCheck :: [Module] -> Build [Module]
 modulesTypeCheck modules
-  = phaseTimed "type checking" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
+  = phaseTimed "type check" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
     do tcheckedMap <- M.fromList <$> mapM (\mod -> do v <- liftIO $ newEmptyMVar
                                                       return (modName mod, v)) modules
        tchecked <- mapConcurrent (moduleTypeCheck tcheckedMap) modules
        mapM moduleFlushErrors tchecked
 
 moduleTypeCheck :: ModuleMap -> Module -> Build Module
-moduleTypeCheck tcheckedMap mod
-  = onBuildException (modmapPut tcheckedMap mod) $ -- ensure the mvar is always set so progress is made
-    if (modPhase mod < ModParsed || modPhase mod >= ModTyped)
-      then done mod
-      else do -- wait for direct imports to be type checked
-              imports <- moduleGetPubImports tcheckedMap [] (modDeps mod)
-              if any (\m -> modPhase m < ModTyped) imports
-                then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
-                else -- type check
-                     do flags <- getFlags
-                        let defs = defsFromModules imports
-                            program = fromJust (modProgram mod)
-                            cimports = coreImportsFromModules (modDeps mod) (programImports program) imports
-                        phase "check" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
-                        (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
-                        -- let diff = [name | name <- map Core.importName (Core.coreProgImports core), not (name `elem` map Core.importName cimports)]
-                        -- when (not (null diff)) $
-                        --   phaseVerbose 1 "checked" $ pretty (modName mod) <.> text ": EXTRA imported:" <+> list (map pretty diff)
-                        let mod' = mod{ modPhase = ModTyped
-                                      , modCore = Just $! core
-                                      , modRangeMap = mbRangeMap
-                                      , modDefinitions = Just $! (defsFromCore core)
-                                      }
-                        phaseVerbose 2 "check done" (pretty (modName mod))
-                        done mod'
-
-  where
-    done mod' = do modmapPut tcheckedMap mod'
-                   return mod'
+moduleTypeCheck tcheckedMap
+  = moduleGuard PhaseParsed PhaseTyped tcheckedMap id id return $ \done mod ->
+     do -- wait for direct imports to be type checked
+        imports <- moduleGetPubImports tcheckedMap [] (modDeps mod)
+        if any (\m -> modPhase m < PhaseTyped) imports
+          then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
+          else -- type check
+               do flags <- getFlags
+                  let defs = defsFromModules imports
+                      program = fromJust (modProgram mod)
+                      cimports = coreImportsFromModules (modDeps mod) (programImports program) imports
+                  phase "check" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
+                  (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
+                  -- let diff = [name | name <- map Core.importName (Core.coreProgImports core), not (name `elem` map Core.importName cimports)]
+                  -- when (not (null diff)) $
+                  --   phaseVerbose 1 "checked" $ pretty (modName mod) <.> text ": EXTRA imported:" <+> list (map pretty diff)
+                  let mod' = mod{ modPhase = PhaseTyped
+                                , modCore = Just $! core
+                                , modRangeMap = mbRangeMap
+                                , modDefinitions = Just $! (defsFromCore core)
+                                }
+                  phaseVerbose 2 "check done" (pretty (modName mod))
+                  done mod'
 
 
 -- Recursively load public imports from imported modules
@@ -387,7 +384,7 @@ moduleFlushErrors mod
 
 moduleLoad :: Module -> Build Module
 moduleLoad mod
-  = if modPhase mod >= ModLoaded
+  = if modPhase mod >= PhaseLoaded
       then return mod
       else do (mod',errs) <- checkedDefault mod $ -- on error, return the original module
                              if not (null (modLibIfacePath mod)) && modLibIfaceTime mod > modIfaceTime mod
@@ -403,7 +400,7 @@ moduleParse mod
        flags <- getFlags
        let allowAt = isPrimitiveModule (modName mod)
        prog <- liftIOError $ parseProgramFromFile allowAt (semiInsert flags) (modSourcePath mod)
-       return mod{ modPhase = ModParsed
+       return mod{ modPhase = PhaseParsed
                  , modLexemes = programLexemes prog
                  , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
                  , modDeps = nub (map importFullName (programImports prog))
@@ -421,12 +418,12 @@ moduleLoadLibIface mod
        phase "load" (pretty (modName mod) <+> color (colorInterpreter cscheme) (text "from:") <+> text (modLibIfacePath mod))
        (core,parseInlines) <- liftIOError $ parseCore (modLibIfacePath mod) (modSourcePath mod)
        flags <- getFlags
-       liftIO $ copyLibIfaceToOutput flags (modLibIfacePath mod) (modIfacePath mod) core
+       pooledIO $ copyLibIfaceToOutput flags (modLibIfacePath mod) (modIfacePath mod) core
        return (modFromIface core parseInlines mod)
 
 modFromIface :: Core.Core -> Maybe (Gamma -> Error () [Core.InlineDef]) -> Module -> Module
 modFromIface core parseInlines mod
-  =  mod{ modPhase       = ModLinked
+  =  mod{ modPhase       = PhaseLinked
         , modDeps        = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
         , modCore        = Just $! core
         , modDefinitions = Just $! (defsFromCore core)
@@ -562,7 +559,7 @@ moduleValidate mod
                                                     })
        -- phaseVerbose "trace" (pretty (modName mod) <.> text (": times: " ++ show (ftSource,ftIface)))
        if stale
-         then return mod'{ modPhase = ModInit, modErrors = errorsNil,
+         then return mod'{ modPhase = PhaseInit, modErrors = errorsNil,
                            -- reset fields that are not used by an IDE to reduce memory pressure
                            -- leave lexemes, rangeMap, and definitions.
                            modProgram = Nothing,
@@ -622,6 +619,8 @@ data Env = Env { envTerminal :: Terminal,
                  envFlags    :: Flags,
                  envErrors   :: IORef Errors,
                  envRange    :: IORef Range,
+                 envSemPooled     :: QSem, -- limit I/O concurrency
+                 envSemSequential :: QSem, -- limit some I/O to be atomic
                  envVFS      :: VFS }
 
 noVFS :: VFS
@@ -632,7 +631,7 @@ maxErrors = 25
 
 runBuildIO :: Terminal -> Flags -> VFS -> Build a -> IO (Maybe a)
 runBuildIO term flags vfs cmp
-  = do res <- runBuild term flags{rebuild=True} vfs cmp
+  = do res <- runBuild term flags vfs cmp
        case res of
          Right (x,errs) -> do mapM_ (termError term) (take maxErrors (errors errs))
                               return (Just x)
@@ -643,9 +642,11 @@ runBuild :: Terminal -> Flags -> VFS -> Build a -> IO (Either Errors (a,Errors))
 runBuild term flags vfs cmp
   = do errs <- newIORef errorsNil
        rng  <- newIORef rangeNull
+       semPooled     <- newQSem (min 64 (max 1 (maxConcurrency flags)))
+       semSequential <- newQSem 1
        termProxyDone <- newEmptyMVar
        (termProxy,stop) <- forkTerminal term termProxyDone
-       finally (runBuildEnv (Env termProxy flags errs rng vfs) cmp)
+       finally (runBuildEnv (Env termProxy flags errs rng semPooled semSequential vfs) cmp)
                (do stop
                    readMVar termProxyDone)
 
@@ -732,13 +733,33 @@ liftError res
 mapConcurrent :: (a -> Build b) -> [a] -> Build [b]
 mapConcurrent f xs
   = do env <- getEnv
-       ys  <- liftIO $ mapConcurrently (\x -> runBuildEnv env (f x)) xs
+       flags <- getFlags
+       ys  <- if (maxConcurrency flags <= 1)
+                then liftIO $ mapM (\x -> runBuildEnv env (f x)) xs
+                else liftIO $ mapConcurrently (\x -> runBuildEnv env (f x)) xs
        let errs = lefts ys
        if null errs
          then do let (zs,warns) = unzip (rights ys)
                  mapM_ addErrors warns
                  return zs
          else throw (foldr mergeErrors errorsNil errs)
+
+-- pooled is used for I/O operations that need to be limited in total concurrency
+pooledIO :: IO a -> Build a
+pooledIO io
+  = do env <- getEnv
+       liftIO $ withSem (envSemPooled env) io
+
+sequentialIO :: Build (IO a -> IO a)
+sequentialIO
+  = do env <- getEnv
+       return (withSem (envSemSequential env))
+
+withSem :: QSem -> IO a -> IO a
+withSem sem io
+  = do waitQSem sem
+       io `finally` signalQSem sem
+
 
 -- map concurrently and keep errors in the processed module
 mapConcurrentModules :: (Module -> Build Module) -> [Module] -> Build [Module]
@@ -767,8 +788,8 @@ onBuildException :: Build b -> Build a -> Build a
 onBuildException (Build onExn) (Build b)
   = Build (\env -> (b env) `onException` (onExn env))
 
-buildFinally :: Build a -> Build () -> Build a
-buildFinally (Build b) (Build fin)
+buildFinally :: Build b -> Build a -> Build a
+buildFinally (Build fin) (Build b)
   = Build (\env -> finally (b env) (fin env))
 
 throwError :: ErrorMessage -> Build a
@@ -817,9 +838,10 @@ addErrorMessageKind ekind doc
 phaseTimed :: String -> Doc -> Build a -> Build a
 phaseTimed p doc action
   = do t0 <- liftIO $ getCurrentTime
-       phaseVerbose 1 p doc
-       buildFinally action $ do t1 <- liftIO $ getCurrentTime
-                                phaseVerbose 1 p (text "elapsed:" <+> text (showTimeDiff t1 t0) <.> linebreak)
+       phaseVerbose 1 (p ++ " start") doc
+       buildFinally (do t1 <- liftIO $ getCurrentTime
+                        phaseVerbose 1 (p ++ " elapsed") (text (showTimeDiff t1 t0) <.> linebreak))
+                    action
 
 
 phaseVerbose :: Int -> String -> Doc -> Build ()
