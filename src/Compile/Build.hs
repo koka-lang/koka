@@ -157,7 +157,7 @@ moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap
      do -- wait for all required imports to be codegen'd
         -- However, for a final exe we need to wait for the imports to be _linked_
         let pubImportNames = map Core.importName (modCoreImports mod)
-        imports <- moduleGetCompilerImports (if full then linkedMap else codegenMap) [] pubImportNames
+        imports <- moduleGetFullImports (if full then linkedMap else codegenMap) [] pubImportNames
         if any (\m -> modPhase m < PhaseCodeGen) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
           else do phase "link" $ pretty (modName mod)
@@ -176,7 +176,7 @@ moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
                 (moduleOptimize tcheckedMap optimizedMap) $ \done mod ->
     do -- wait for all required imports to be optimized (no need to wait for codegen!)
        let pubImportNames = map Core.importName (modCoreImports mod)
-       imports <- moduleGetCompilerImports optimizedMap [] pubImportNames
+       imports <- moduleGetFullImports optimizedMap [] pubImportNames
        if any (\m -> modPhase m < PhaseOptimized) imports
          then done mod
          else do  phase "codegen" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
@@ -219,8 +219,7 @@ moduleOptimize tcheckedMap optimizedMap
   = moduleGuard PhaseTyped PhaseOptimized optimizedMap id id (moduleTypeCheck tcheckedMap) $ \done mod ->
      do -- wait for direct (user+pub) imports to be compiled
         let pubImportNames = map Core.importName (modCoreImports mod)
-        -- phase "compile imports" $ pretty (modName mod) <.> colon <+> list (map pretty pubImportNames)
-        imports <- moduleGetCompilerImports optimizedMap [] pubImportNames
+        imports <- moduleGetFullImports optimizedMap [] pubImportNames
         if any (\m -> modPhase m < PhaseOptimized) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
           else -- core compile
@@ -238,13 +237,13 @@ moduleOptimize tcheckedMap optimizedMap
 
 
 -- Import also modules required for checking inlined definitions from direct imports.
-moduleGetCompilerImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
-moduleGetCompilerImports modmap alreadyDone0 importNames
+moduleGetFullImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
+moduleGetFullImports modmap alreadyDone0 importNames
   = do -- wait for imported modules to be compiled
        imports <- mapM (modmapRead modmap) importNames
        let alreadyDone = alreadyDone0 ++ importNames
            extras = nub $ [Core.importName imp | mod <- imports, hasInlines (modInlines mod),
-                                                  -- consider all of its imports to ensure we can check its inline definitions
+                                                  -- consider all of its imports too to ensure we can check its inline definitions
                                                   imp <- modCoreImports mod,
                                                   not (Core.importName imp `elem` alreadyDone)]
        extraImports <- mapM (modmapRead modmap) extras
@@ -292,7 +291,7 @@ moduleTypeCheck tcheckedMap
                   done mod'
 
 
--- Recursively load public imports from imported modules
+-- Recursively load public imports from imported modules in a fixpoint
 moduleGetPubImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
 moduleGetPubImports tcheckedMap alreadyDone0 importNames
   = do -- wait for imported modules to be type checked
@@ -308,8 +307,8 @@ moduleGetPubImports tcheckedMap alreadyDone0 importNames
                  return (extraImports ++ imports)
 
 -- Return all (user and pub) core imports for a list of user imported modules;
--- - needs the original imports as well to determine provenance
--- - needs the program imports as well to determine visibility
+-- - needs the original user imports as well to determine provenance
+-- - needs the user program imports as well to determine visibility
 coreImportsFromModules :: [ModuleName] -> [Import] -> [Module] -> [Core.Import]
 coreImportsFromModules userImports progImports modules
   = [Core.Import (modName mod) ""
