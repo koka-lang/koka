@@ -46,6 +46,7 @@ module Common.File(
                   , makeRelativeToPaths
                   , getCwd
                   , relativeToPath
+                  , seqList
                   ) where
 
 import Data.List        ( intersperse, isPrefixOf, maximumBy )
@@ -65,6 +66,10 @@ import System.Directory ( doesFileExist, doesDirectoryExist
 
 import Debug.Trace
 import Platform.Filetime
+
+seqList :: [a] -> b -> b
+seqList [] b     = b
+seqList (x:xs) b = seq x (seqList xs b)
 
 startsWith, endsWith :: String -> String -> Bool
 startsWith s  [] = True

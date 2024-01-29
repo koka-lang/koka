@@ -7,15 +7,20 @@
 -----------------------------------------------------------------------------
 module Compile.BuildContext ( BuildContext
                             , buildcEmpty
+
                             , buildcFullBuild
                             , buildcValidate, buildcTypeCheck, buildcBuild
-                            , buildcLoadFiles
-                            , buildcImportModules
+
+                            , buildcAddRootSources
+                            , buildcAddRootModules
+                            , buildcClearRoots, buildcRemoveRootModule, buildcRemoveRootSource
+                            , buildcFindModuleName
 
                             , runBuildIO
                             ) where
 
 
+import Data.List
 import qualified Data.Map.Strict as M
 import Common.Name
 import Common.Range
@@ -25,31 +30,65 @@ import Compile.Module
 import Compile.Build
 
 data BuildContext = BuildContext {
-                      buildcModules :: [Module],
-                      buildcFS      :: M.Map FilePath (BString,FileTime)
+                      buildcRoots   :: ![ModuleName],
+                      buildcModules :: ![Module],
+                      buildcFileSys :: !(M.Map FilePath (BString,FileTime))
                     }
 
 buildcEmpty :: BuildContext
-buildcEmpty = BuildContext [] M.empty
+buildcEmpty = BuildContext [] [] M.empty
 
 buildcVFS :: BuildContext -> VFS
-buildcVFS buildc = let fs = buildcFS buildc
+buildcVFS buildc = let fs = buildcFileSys buildc
                    in seq fs $ VFS (\fpath -> M.lookup fpath fs)
 
-buildcLoadFiles :: Bool -> [FilePath] -> BuildContext -> Build BuildContext
-buildcLoadFiles force fpaths buildc
-  = do mods <- mapM (moduleFromSource (buildcVFS buildc) force) fpaths
-       return buildc{ buildcModules = mergeModules mods (buildcModules buildc) }
+buildcAddRootSources :: [FilePath] -> BuildContext -> Build (BuildContext,[ModuleName])
+buildcAddRootSources fpaths buildc
+  = do mods <- mapM (moduleFromSource (buildcVFS buildc)) fpaths
+       let rootNames = map modName mods
+           roots   = nub (map modName mods ++ buildcRoots buildc)
+           modules = mergeModules mods (buildcModules buildc)
+       seqList roots $ seqList modules $
+        return (buildc{ buildcRoots = roots, buildcModules = modules }, rootNames)
 
-buildcImportModules :: [ModuleName] -> BuildContext -> Build BuildContext
-buildcImportModules moduleNames buildc
-  = do mods <- mapM (moduleFromModuleName (buildcVFS buildc) False "" {-relative dir-}) moduleNames
-       return buildc{ buildcModules = mergeModules mods (buildcModules buildc) }
+buildcAddRootModules :: [ModuleName] -> BuildContext -> Build BuildContext
+buildcAddRootModules moduleNames buildc
+  = do mods <- mapM (moduleFromModuleName (buildcVFS buildc) "" {-relative dir-}) moduleNames
+       let roots   = nub (map modName mods ++ buildcRoots buildc)
+           modules = mergeModules mods (buildcModules buildc)
+       seqList roots $ seqList modules $
+        return buildc{ buildcRoots = roots, buildcModules = modules }
+
+buildcClearRoots :: BuildContext -> BuildContext
+buildcClearRoots buildc
+  = buildc{ buildcRoots = [] }
+
+buildcRemoveRootModule :: ModuleName -> BuildContext -> BuildContext
+buildcRemoveRootModule mname buildc
+  = buildc{ buildcRoots = filter (/=mname) (buildcRoots buildc) }
+
+buildcFindModuleName :: FilePath -> BuildContext -> Maybe ModuleName
+buildcFindModuleName fpath0 buildc
+  = let fpath = normalize fpath0
+    in modName <$> find (\m -> modSourcePath m == fpath || modSourceRelativePath m == fpath) (buildcModules buildc)
+
+buildcRemoveRootSource :: FilePath -> BuildContext -> BuildContext
+buildcRemoveRootSource fpath buildc
+  = case buildcFindModuleName fpath buildc of
+      Just mname -> buildcRemoveRootModule mname buildc
+      _          -> buildc
+
+
 
 buildcValidate :: Bool -> [ModuleName] -> BuildContext -> Build BuildContext
 buildcValidate rebuild forced buildc
-  = do mods <- modulesReValidate (buildcVFS buildc) rebuild forced (buildcModules buildc)
+  = do let (roots,imports) = buildcSplitRoots buildc
+       mods <- modulesReValidate (buildcVFS buildc) rebuild forced imports roots
        return buildc{ buildcModules = mods }
+
+buildcSplitRoots :: BuildContext -> ([Module],[Module])
+buildcSplitRoots buildc
+  = partition (\m -> modName m `elem` buildcRoots buildc) (buildcModules buildc)
 
 buildcTypeCheck :: BuildContext -> Build BuildContext
 buildcTypeCheck buildc
@@ -61,9 +100,10 @@ buildcBuild mainEntries buildc
   = do mods <- modulesBuild mainEntries (buildcModules buildc)
        return (buildc{ buildcModules = mods})
 
-buildcFullBuild :: Bool -> [Name] -> BuildContext -> Build BuildContext
-buildcFullBuild rebuild mainEntries buildc
-  = do mods <- modulesFullBuild (buildcVFS buildc) rebuild mainEntries (buildcModules buildc)
+buildcFullBuild :: Bool -> [ModuleName] -> [Name] -> BuildContext -> Build BuildContext
+buildcFullBuild rebuild forced mainEntries buildc
+  = do let (roots,imports) = buildcSplitRoots buildc
+       mods <- modulesFullBuild (buildcVFS buildc) rebuild forced mainEntries imports roots
        return (buildc{ buildcModules = mods})
 
 {-

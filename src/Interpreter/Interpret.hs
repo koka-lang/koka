@@ -262,8 +262,8 @@ command st cmd
 loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO State
 loadModules term st files force
   = do mbBuildc <- B.runBuildIO term (flags st) $
-                   do buildc1 <- B.buildcLoadFiles False files (buildContext st)
-                      B.buildcFullBuild (rebuild (flags st))
+                   do (buildc1,rootNames) <- B.buildcAddRootSources files (B.buildcClearRoots (buildContext st))
+                      B.buildcFullBuild (rebuild (flags st)) (if force then rootNames else [])
                                         [] -- [newQualified "samples/basic/caesar" "main"]
                                         buildc1
 
