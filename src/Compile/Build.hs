@@ -16,6 +16,8 @@ module Compile.Build( Build
                       , modulesResolveDependencies
                       , modulesReValidate
                       , moduleFromSource, moduleFromModuleName
+
+                      , liftIO
                       ) where
 
 import Debug.Trace
@@ -184,16 +186,19 @@ moduleCompile :: [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> M
 moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap
   = moduleGuard PhaseCodeGen PhaseLinked linkedMap (\(_,_,mod) -> mod) id
                 (moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap)
-    $ \done (full,link,mod) ->
+    $ \done (fullLink,link,mod) ->
      do -- wait for all required imports to be codegen'd
         -- However, for a final exe we need to wait for the imports to be _linked_ as well.
-        imports <- moduleGetFullImports (if full then linkedMap else codegenMap) [] (modImportNames mod)
+        imports <- moduleGetFullImports fullLink (if fullLink then linkedMap else codegenMap) [] (modImportNames mod)
         if any (\m -> modPhase m < PhaseCodeGen) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
           else do phase "link" $ pretty (modName mod)
                   mbEntry <- pooledIO $ link   -- link it!
-                  let mod' = mod{ modPhase = PhaseLinked }
+                  let mod' = mod{ modPhase = PhaseLinked, modEntry = case mbEntry of
+                                                                       LinkDone -> Nothing
+                                                                       LinkExe exe run -> Just (exe,run) }
                   done mod'
+
 
 
 {---------------------------------------------------------------
@@ -205,7 +210,7 @@ moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
   = moduleGuard PhaseOptimized PhaseCodeGen codegenMap (\mod -> mod) (\mod -> (False,noLink,mod))
                 (moduleOptimize tcheckedMap optimizedMap) $ \done mod ->
     do -- wait for all required imports to be optimized (no need to wait for codegen!)
-       imports <- moduleGetFullImports optimizedMap [] (modImportNames mod)
+       imports <- moduleGetFullImports False optimizedMap [] (modImportNames mod)
        if any (\m -> modPhase m < PhaseOptimized) imports
          then done mod
          else do  phase "codegen" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
@@ -213,7 +218,7 @@ moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
                   term  <- getTerminal
                   let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the compile?
                       inlines = inlinesFromModules imports
-                  mbEntry <- getMainEntry (defsGamma defs) mainEntries mod
+                  mbEntry <- getMainEntry (defsGamma defs) mainEntries optimizedMap mod
                   seqIO   <- sequentialIO
                   link    <- pooledIO $ codeGen term flags seqIO
                                                 (defsNewtypes defs) (defsBorrowed defs) (defsKGamma defs) (defsGamma defs)
@@ -224,12 +229,14 @@ moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
                   return (isJust mbEntry,link,mod')
 
 
-getMainEntry :: Gamma -> [Name] -> Module -> Build (Maybe (Name,Type))
-getMainEntry gamma mainEntries mod
+getMainEntry :: Gamma -> [Name] -> ModuleMap -> Module -> Build (Maybe (Name,Type,[Module]))
+getMainEntry gamma mainEntries modmap mod
   = case find (\name -> qualifier name == modName mod) mainEntries of
       Nothing   -> return Nothing
       Just main -> case gammaLookupQ main gamma of
-                    [InfoFun{infoType=tp}] -> return $ Just (main,tp)
+                    [InfoFun{infoType=tp}]
+                           -> do fullImports <- moduleGetFullImports True modmap [] (modImportNames mod)
+                                 return $ Just (main,tp,fullImports)
                     []     -> do addErrorMessageKind ErrBuild (text "unable to find main function:" <+> pretty main)
                                  return Nothing
                     [info] -> do addErrorMessageKind ErrBuild (text "main function " <+> pretty main <+> text "must be a function")
@@ -248,7 +255,7 @@ moduleOptimize :: ModuleMap -> ModuleMap -> Module -> Build Module
 moduleOptimize tcheckedMap optimizedMap
   = moduleGuard PhaseTyped PhaseOptimized optimizedMap id id (moduleTypeCheck tcheckedMap) $ \done mod ->
      do -- wait for direct (user+pub) imports to be compiled
-        imports <- moduleGetFullImports optimizedMap [] (modImportNames mod)
+        imports <- moduleGetFullImports False optimizedMap [] (modImportNames mod)
         if any (\m -> modPhase m < PhaseOptimized) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
           else -- core compile
@@ -266,8 +273,8 @@ moduleOptimize tcheckedMap optimizedMap
 
 
 -- Import also modules required for checking inlined definitions from direct imports.
-moduleGetFullImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
-moduleGetFullImports modmap alreadyDone0 importNames
+moduleGetFullImports :: Bool -> ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
+moduleGetFullImports recurse modmap alreadyDone0 importNames
   = do -- wait for imported modules to be compiled
        imports <- mapM (modmapRead modmap) importNames
        let alreadyDone = alreadyDone0 ++ importNames
@@ -275,7 +282,9 @@ moduleGetFullImports modmap alreadyDone0 importNames
                                                   -- consider all of its imports too to ensure we can check its inline definitions
                                                   imp <- modCoreImports mod,
                                                   not (Core.importName imp `elem` alreadyDone)]
-       extraImports <- mapM (modmapRead modmap) extras
+       extraImports <- if recurse && not (null extras)
+                        then do moduleGetFullImports recurse modmap alreadyDone extras
+                        else do mapM (modmapRead modmap) extras
        return (extraImports ++ imports)
   where
     hasInlines (Right []) = False
@@ -397,7 +406,7 @@ toBuildOrder modules
         ungroup [mname]  | Just mod <- find (\m -> modName m == mname) modules  = return [mod]
         ungroup grp      = do throwError (errorMessageKind ErrBuild rangeNull (text ("recursive imports: " ++ show grp))) -- todo: nice error
                               return []
-    in do -- phaseVerbose "build order" (list (map (\grp -> hsep (map (pretty) grp)) ordered))
+    in do phaseVerbose 2 "build order" (list (map (\grp -> hsep (map (pretty) grp)) ordered))
           concat <$> mapM ungroup ordered
 
 

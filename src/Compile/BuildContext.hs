@@ -11,8 +11,11 @@ module Compile.BuildContext ( BuildContext
                             , buildcFullBuild
                             , buildcValidate, buildcTypeCheck, buildcBuild
 
+                            , buildcExpr
+
                             , buildcAddRootSources
                             , buildcAddRootModules
+                            , buildcRoots
                             , buildcClearRoots, buildcRemoveRootModule, buildcRemoveRootSource
                             , buildcFindModuleName
 
@@ -22,9 +25,12 @@ module Compile.BuildContext ( BuildContext
 
 import Data.List
 import qualified Data.Map.Strict as M
+import Platform.Config
 import Common.Name
+import Common.NamePrim (nameSystemCore)
 import Common.Range
 import Common.File
+import Common.Failure
 import Compiler.Options
 import Compile.Module
 import Compile.Build
@@ -62,6 +68,7 @@ buildcAddRootModules moduleNames buildc
 buildcClearRoots :: BuildContext -> BuildContext
 buildcClearRoots buildc
   = buildc{ buildcRoots = [] }
+
 
 buildcRemoveRootModule :: ModuleName -> BuildContext -> BuildContext
 buildcRemoveRootModule mname buildc
@@ -106,35 +113,51 @@ buildcFullBuild rebuild forced mainEntries buildc
        mods <- modulesFullBuild (buildcVFS buildc) rebuild forced mainEntries imports roots
        return (buildc{ buildcModules = mods})
 
-{-
+
 buildcExpr :: [ModuleName] -> String -> BuildContext -> Build BuildContext
 buildcExpr importNames expr buildc
-  = do buildc1 <- buildcImportModules importedModules buildc
-       let sourcePath = (case [modSourcePath mod | mname <- importNames ++ [nameSystemCore], mod <- buildcFindModule mname buildc1] of
+  = do let sourcePath = (case [modSourcePath mod | mname <- importNames ++ [nameSystemCore], let mod = buildcFindModule mname buildc] of
                            (fpath:_) -> noexts fpath
-                           _         -> "") ++ "@main" ++ sourceExtension
-           content    = "pub fun expr()\n  " ++ expr ++ "\n\npub fun main() : io ()\n  expr().println\n"
-       withVirtualModule sourcePath content buildc1 $ \mainModName buildc2 ->
-         do let mainEntry = qualify mainModName (newName "main")
-            buildc3 <- buildcFullBuild [mainEntry] buildc2
+                           _         -> "") ++ "-main" ++ sourceExtension
+           importDecls = map (\mname -> "import " ++ show mname) importNames
+           content     = stringToBString $ unlines $ importDecls ++ [
+                           "pub fun expr()",
+                           "  " ++ expr,
+                           "",
+                           "pub fun xmain() : io ()",
+                           "  expr().println"
+                         ]
+       withVirtualModule sourcePath content buildc $ \mainModName buildc2 ->
+         do let mainEntry = qualify mainModName (newName "xmain")
+            buildc3 <- buildcFullBuild False [] [mainEntry] buildc2
             let mainMod = buildcFindModule mainModName buildc3
             case modEntry mainMod of
               Just (exePath,execute)
                 -> liftIO $ execute
               _ -> return ()
+            return buildc3
 
+withVirtualModule :: FilePath -> BString -> BuildContext -> (ModuleName -> BuildContext -> Build a) -> Build a
+withVirtualModule fpath0 content buildc action
+  = do let fpath = normalize fpath0
+       buildc1 <- buildcSetVirtualFile fpath content buildc
+       (buildc2,[modName]) <- buildcAddRootSources [fpath] buildc1
+       action modName buildc2
 
-buildcAddVirtualFile :: FilePath -> String -> BuildContext -> Build BuildContext
-buildcAddVirtualFile fpath content buildc
-  = do
+buildcSetVirtualFile :: FilePath -> BString -> BuildContext -> Build BuildContext
+buildcSetVirtualFile fpath0 content buildc
+  = do let fpath = normalize fpath0
+       ftime <- liftIO $ getCurrentTime
+       return buildc{ buildcFileSys = M.insert fpath (content,ftime) (buildcFileSys buildc) }
 
+buildcDeleteVirtualFile :: FilePath -> BuildContext -> Build BuildContext
+buildcDeleteVirtualFile fpath0 buildc
+  = do let fpath = normalize fpath0
+       return buildc{ buildcFileSys = M.delete fpath (buildcFileSys buildc) }
 
-buildcFindModule :: HasCallStack => ModuleName -> BuildContext -> Build BuildContext
+buildcFindModule :: HasCallStack => ModuleName -> BuildContext -> Module
 buildcFindModule modname buildc
   = case find (\mod -> modName mod == modname) (buildcModules buildc) of
       Just mod -> mod
       _        -> failure ("Compile.BuildIde.btxFindModule: cannot find " ++ show modname ++ " in " ++ show (map modName (buildcModules buildc)))
 
-
-
--}

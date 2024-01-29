@@ -95,8 +95,7 @@ data Module  = Module{ -- initial
                      , modInlines     :: !(Either (Gamma -> Error () [Core.InlineDef]) [Core.InlineDef]) -- from a core file, we return a function that given the gamma parses the inlines
 
                        -- codegen
-                     , modExePath     :: !FilePath
-                     , modExeTime     :: !FileTime
+                     , modEntry       :: !(Maybe (FilePath,IO()))
 
                        -- unused
                     --  , modCompiled    :: !Bool
@@ -119,7 +118,7 @@ moduleNull modName
             -- core compiled
             (Right [])
             -- codegen
-            "" fileTime0
+            Nothing
 
 moduleCreateInitial :: Name -> FilePath -> FilePath -> FilePath -> Module
 moduleCreateInitial modName sourcePath ifacePath libIfacePath

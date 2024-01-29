@@ -131,13 +131,14 @@ command ::  State -> Command -> IO ()
 command st cmd
   = let term = terminal st
     in do{ case cmd of
-  Eval line   -> do{ err <- compileExpression (const Nothing) term (flags st) (loaded st) (Executable nameExpr ()) (program st) bigLine line
-                   ; checkInferWith st line fst True err $ \(ld, _) ->
-                     do if (not (evaluate (flags st)))
+  Eval line   -> do{ st1 <- buildExpr term st line
+                   ; err <- compileExpression (const Nothing) term (flags st1) (loaded st1) (Executable nameExpr ()) (program st1) bigLine line
+                   ; checkInferWith st1 line fst True err $ \(ld, _) ->
+                     do if (not (evaluate (flags st1)))
                          then let tp = infoType $ gammaFind (qualify nameInteractiveModule nameExpr) (loadedGamma ld)
-                              in messageSchemeEffect st tp
-                         else messageLn st ""
-                        interpreter st{ loaded = ld } -- (loaded st){ loadedModules  = loadedModules ld }}
+                              in messageSchemeEffect st1 tp
+                         else messageLn st1 ""
+                        interpreter st1{ loaded = ld } -- (loaded st){ loadedModules  = loadedModules ld }}
                    }
 
   Define line -> do err <- compileValueDef term (flags st) (loaded st) (program st) (lineNo st) line
@@ -267,6 +268,14 @@ loadModules term st files force
                                         [] -- [newQualified "samples/basic/caesar" "main"]
                                         buildc1
 
+       case mbBuildc of
+         Nothing     -> return st
+         Just buildc -> return st{ buildContext = buildc }
+
+buildExpr :: Terminal -> State -> String -> IO State
+buildExpr term st expr
+  = do mbBuildc <- B.runBuildIO term (flags st) $
+                   do B.buildcExpr (B.buildcRoots (buildContext st)) expr (buildContext st)
        case mbBuildc of
          Nothing     -> return st
          Just buildc -> return st{ buildContext = buildc }

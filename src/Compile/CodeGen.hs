@@ -60,7 +60,7 @@ noLink = return LinkDone
 ---------------------------------------------------------------}
 
 codeGen :: Terminal -> Flags -> (IO () -> IO ()) -> Newtypes -> Borrowed -> KGamma -> Gamma ->
-             Maybe (Name,Type) -> [Module] -> Module -> IO Link
+             Maybe (Name,Type,[Module]) -> [Module] -> Module -> IO Link
 codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
   = -- compilerCatch ("code generation in " ++ show (modName mod)) term noLink $
     do let program    = fromJust (modProgram mod)
@@ -136,7 +136,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
               _ -> return ()
             return (mbRun)
   where
-    backend :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
+    backend :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type,[Module]) -> [Module] -> FilePath -> Core.Core -> IO Link
     backend  = case target flags of
                  CS   -> codeGenCS
                  JS _ -> codeGenJS
@@ -154,11 +154,11 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
 ---------------------------------------------------------------}
 
 -- Generate C# through CS files without generating dll's
-codeGenCS :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
+codeGenCS :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type,[Module]) -> [Module] -> FilePath -> Core.Core -> IO Link
 codeGenCS term flags sequential entry modules outBase core
   = compilerCatch "csharp compilation" term noLink $
     do let (mbEntry,isAsync) = case entry of
-                                 Just (name,tp) -> (Just (name,tp), isAsyncFunction tp)
+                                 Just (name,tp,_) -> (Just (name,tp), isAsyncFunction tp)
                                  _ -> (Nothing, False)
            cs  = csharpFromCore (buildType flags) (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
@@ -171,7 +171,7 @@ codeGenCS term flags sequential entry modules outBase core
 
        case mbEntry of
          Nothing -> return noLink
-         Just entry ->
+         Just _  ->
           do let linkFlags  = "-r:System.Numerics.dll " -- ++ (if isAsync then "-r:" ++ outName "std_async.dll ")
                  sources    = concat [dquote (outName (moduleNameToPath (Core.importName imp)) ++ ".cs") ++ " " | imp <- Core.coreProgImports core]
                  targetExe  = (if null (outBaseName flags) then outBase else outName (outBaseName flags)) ++ exeExtension
@@ -184,11 +184,11 @@ codeGenCS term flags sequential entry modules outBase core
              return (return (LinkExe targetExe (runSystemEcho term flags targetName)))
 
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
-codeGenCSDll:: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core -> IO Link
+codeGenCSDll:: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type,[Module]) -> [Module] -> FilePath -> Core.Core -> IO Link
 codeGenCSDll term flags sequential entry modules outBase core
   = compilerCatch "csharp compilation" term noLink $
     do let (mbEntry,isAsync) = case entry of
-                                 Just (name,tp) -> (Just (name,tp), isAsyncFunction tp)
+                                 Just (name,tp,_) -> (Just (name,tp), isAsyncFunction tp)
                                  _ -> (Nothing, False)
            cs  = csharpFromCore (buildType flags) (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
@@ -220,7 +220,7 @@ codeGenCSDll term flags sequential entry modules outBase core
   Javascript
 ---------------------------------------------------------------}
 
-codeGenJS :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> [Module] -> FilePath -> Core.Core
+codeGenJS :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type,[Module]) -> [Module] -> FilePath -> Core.Core
               -> IO Link
 codeGenJS term flags sequential entry imported outBase core
   = do let outjs         = outBase ++ ".mjs"
@@ -228,15 +228,15 @@ codeGenJS term flags sequential entry imported outBase core
            extractImport m = Core.Import (modName m) "" {- (modPackageQName m) -} Core.ImportUser Public ""
            js = javascriptFromCore (buildType flags) mbEntry (map extractImport imported) core
            mbEntry = case entry of
-                       Just (name,tp) -> Just (name,isAsyncFunction tp)
-                       _              -> Nothing
+                       Just (name,tp,_) -> Just (name,isAsyncFunction tp)
+                       _                -> Nothing
        termPhase term ( "generate javascript: " ++ outjs )
        writeDocW 80 outjs js
        when (showAsmJS flags) (termDoc term js)
 
        case mbEntry of
         Nothing -> return noLink
-        Just (name) ->
+        Just  _ ->
          do -- always generate an index.html file
             let outHtml = outName ((if (null (outBaseName flags)) then "index" else (outBaseName flags)) ++ ".html")
                 contentHtml = text $ unlines $ [
@@ -266,7 +266,7 @@ codeGenJS term flags sequential entry imported outBase core
 ---------------------------------------------------------------}
 
 codeGenC :: FilePath -> Newtypes -> Borrowed -> Int
-             -> Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type)
+             -> Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type,[Module])
               -> [Module] -> FilePath -> Core.Core -> IO Link
 codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry imported outBase core0
  = do let outC = outBase ++ ".c"
@@ -274,8 +274,8 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry impor
           sourceDir     = dirname sourceFile
           progName      = Core.coreProgName core0
           mbEntry       = case entry of
-                            Just (name,tp) -> Just (name,isAsyncFunction tp)
-                            _              -> Nothing
+                            Just (name,tp,fullImports) -> Just (name,isAsyncFunction tp)
+                            _                          -> Nothing
       -- generate C
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
           ctarget = case target flags of
@@ -304,17 +304,18 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry impor
       -- return the C compilation and link as a separate IO action to increase concurrency
       return $ do -- compile the generated C
                   ccompile term flags cc outBase extraIncDirs [outC]
-                  case mbMainDoc of
+                  case entry of
                     Nothing      -> return LinkDone
-                    Just mainDoc -> do  -- output and compile a main C entry point (`main`)
-                                        let outMainBase = outBase ++ "__main"
-                                            outMainC    = outMainBase ++ ".c"
-                                            mainObj     = ccObjFile cc outMainBase
-                                        writeDocW 120 outMainC (mainDoc <.> linebreak)
-                                        ccompile term flags cc outMainBase  extraIncDirs [outMainC]
-                                        -- and do a full link of all obj's and clibs
-                                        codeGenLinkC term flags sequential cc progName imported
-                                                     outBase clibs mainObj
+                    Just (_,_,fullImports)
+                      -> do  -- output and compile a main C entry point (`main`)
+                            let outMainBase = outBase ++ "__main"
+                                outMainC    = outMainBase ++ ".c"
+                                mainObj     = ccObjFile cc outMainBase
+                            writeDocW 120 outMainC (fromJust mbMainDoc <.> linebreak)
+                            ccompile term flags cc outMainBase  extraIncDirs [outMainC]
+                            -- and do a full link of all obj's and clibs
+                            codeGenLinkC term flags sequential cc progName fullImports {-link all objs, not just direct imports -} {-imported-}
+                                          outBase clibs mainObj
 
 
 -- link obj's and create an executable
