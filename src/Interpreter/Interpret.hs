@@ -48,8 +48,7 @@ import Compiler.Compile
 import Compiler.Module
 import Interpreter.Command
 
-import qualified Compile.Module  as M
-import qualified Compile.Build   as B
+import qualified Compile.BuildContext   as B
 
 {---------------------------------------------------------------
   interpreter state
@@ -67,7 +66,7 @@ data State = State{  printer    :: ColorPrinter
                    , errorRange    :: Maybe Range       -- last error location
                    , lastLoad      :: [FilePath]        -- last load command
                    , loadedPrelude :: Loaded            -- load state after loading the prelude
-                   , modules       :: [M.Module]
+                   , buildContext  :: B.BuildContext
                    }
 
 
@@ -77,7 +76,9 @@ data State = State{  printer    :: ColorPrinter
 interpret ::  ColorPrinter -> Flags -> Flags -> [FilePath] -> IO ()
 interpret printer flags0 flagspre files
   = withReadLine (buildDir flags0) $
-    do{ let st0 = (State printer flags0 flagspre False initialLoaded initialLoaded [] (programNull nameInteractiveModule) Nothing [] initialLoaded [])
+    do{ let st0 = (State printer flags0 flagspre False initialLoaded initialLoaded []
+                        (programNull nameInteractiveModule) Nothing [] initialLoaded
+                        B.buildcEmpty )
       ; messageHeader st0
       ; let st2 = st0
       -- ; st2 <- findBackend st0
@@ -260,13 +261,15 @@ command st cmd
 
 loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO State
 loadModules term st files force
-  = do mbMods <- B.runBuildIO term (flags st) B.noVFS $
-                 do roots <- M.mergeModules (modules st) <$> mapM B.moduleFromSource files
-                    B.modulesCompile [] -- [newQualified "samples/basic/caesar" "main"]
-                                     roots
-       case mbMods of
-         Nothing -> return st
-         Just mods -> return st{ modules = mods }
+  = do mbBuildc <- B.runBuildIO term (flags st) $
+                   do buildc1 <- B.buildcLoadFiles False files (buildContext st)
+                      B.buildcFullBuild (rebuild (flags st))
+                                        [] -- [newQualified "samples/basic/caesar" "main"]
+                                        buildc1
+
+       case mbBuildc of
+         Nothing     -> return st
+         Just buildc -> return st{ buildContext = buildc }
 
 {--------------------------------------------------------------------------
   File loading

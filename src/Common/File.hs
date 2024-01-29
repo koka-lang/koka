@@ -13,6 +13,7 @@ module Common.File(
                   -- * System
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsSuffixes, searchPathsEx, searchPathsCanonical
+                  , getMaximalPrefixPath
                   , searchProgram
                   , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
                   , getProgramPath
@@ -439,6 +440,13 @@ findMaximalPrefixPath roots p
       [] -> Nothing
       xs -> Just (maximumBy (\(root1,_) (root2,_) -> compare root1 root2) xs)
 
+-- | Get the maximal relative path
+getMaximalPrefixPath :: [FilePath] -> FilePath -> (FilePath,FilePath)
+getMaximalPrefixPath roots p
+  = case findMaximalPrefixPath roots p of
+      Nothing   -> ("",p)
+      Just just -> just
+
 {-
 
 -- | Find a maximal prefix given a string and list of prefixes. Returns the prefix and its length.
@@ -487,10 +495,7 @@ searchPathsCanonical relativeDir paths exts suffixes name
           ; if exist
              then do rpath <- realPath fullName
                      -- trace ("search found: " ++ fullName ++ ", in (" ++ dir ++ "," ++ fname ++ ") ,real path: " ++ rpath) $
-                     case (findMaximalPrefixPath paths rpath) of  -- not the relativeDir!
-                       Nothing -> -- absolute path outside the paths
-                                  return (Just ("",rpath))
-                       just    -> return just
+                     return $ Just $! getMaximalPrefixPath paths rpath   -- not to the relativeDir!
              else search xs
           }
 

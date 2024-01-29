@@ -25,7 +25,7 @@ module Common.Range
           , endOfRange, rangeJustBefore, rangeJustAfter
           , showRange, showCompactRange
           , BString, bstringToString, bstringToText, stringToBString
-          , bstringEmpty
+          , bstringEmpty, bstringIsEmpty
           , readInput
           , extractLiterate
           , rawSourceFromRange
@@ -47,6 +47,8 @@ import qualified Data.Text.Encoding as T (decodeUtf8, encodeUtf8) -- ,decodeUtf8
   BStrings
 --------------------------------------------------------------------------}
 type BString = B.ByteString
+
+bstringIsEmpty b = B.null b
 
 bstringEmpty = B.empty
 

@@ -8,10 +8,14 @@
 module Compile.Build( Build
                       , VFS(..), noVFS
                       , runBuildIO
-                      , modulesResolveDependencies
-                      , modulesCompile
+
+                      , modulesFullBuild
+                      , modulesBuild
                       , modulesTypeCheck
-                      , moduleFromSource
+
+                      , modulesResolveDependencies
+                      , modulesReValidate
+                      , moduleFromSource, moduleFromModuleName
                       ) where
 
 import Debug.Trace
@@ -42,7 +46,7 @@ import Common.ColorScheme
 import Common.Range
 import Common.NamePrim        (isPrimitiveModule)
 import Syntax.Syntax
-import Syntax.Parse           (parseProgramFromFile)
+import Syntax.Parse           (parseProgramFromString)
 import Type.Type
 import Type.Assumption        ( Gamma, gammaLookupQ, NameInfo(..) )
 import qualified Core.Core as Core
@@ -58,11 +62,11 @@ import Compile.CodeGen        ( codeGen, Link, LinkResult(..), noLink )
   Concurrently compile a list of root modules.
   Returns all required modules as compiled in build order
 ---------------------------------------------------------------}
-modulesCompile :: [Name] -> [Module] -> Build [Module]
-modulesCompile mainEntries roots
+modulesFullBuild :: VFS -> Bool -> [Name] -> [Module] -> Build [Module]
+modulesFullBuild vfs rebuild mainEntries roots
   = phaseTimed "build" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
-    do rootsv      <- modulesValidate roots
-       modules     <- modulesResolveDependencies rootsv
+    do rootsv      <- modulesValidate vfs rebuild [] roots
+       modules     <- modulesResolveDependencies vfs rebuild [] rootsv
        tcheckedMap <- modmapCreate modules
        optimizedMap<- modmapCreate modules
        codegenMap  <- modmapCreate modules
@@ -70,8 +74,38 @@ modulesCompile mainEntries roots
        compiled    <- mapConcurrentModules
                        (moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap)
                        modules
-       mapM moduleFlushErrors compiled
+       modulesFlushErrors compiled
 
+modulesFlushErrors :: [Module] -> Build [Module]
+modulesFlushErrors modules
+  = mapM moduleFlushErrors modules
+
+
+modulesBuild :: [Name] -> [Module] -> Build [Module]
+modulesBuild mainEntries modules
+  = phaseTimed "build" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
+    do tcheckedMap <- modmapCreate modules
+       optimizedMap<- modmapCreate modules
+       codegenMap  <- modmapCreate modules
+       linkedMap   <- modmapCreate modules
+       compiled    <- mapConcurrentModules
+                       (moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap)
+                       modules
+       return compiled
+
+modulesTypeCheck :: [Module] -> Build [Module]
+modulesTypeCheck modules
+  = phaseTimed "check" Lib.PPrint.empty $
+    do tcheckedMap <- modmapCreate modules
+       tchecked    <- mapConcurrentModules (moduleTypeCheck tcheckedMap) modules
+       return tchecked
+
+modulesReValidate :: VFS -> Bool -> [ModuleName] -> [Module] -> Build [Module]
+modulesReValidate vfs rebuild forced roots
+  = phaseTimed "validate" Lib.PPrint.empty $
+    do rootsv    <- modulesValidate vfs rebuild forced roots
+       resolved  <- modulesResolveDependencies vfs rebuild forced rootsv
+       return resolved
 
 {---------------------------------------------------------------
   Module map
@@ -90,9 +124,11 @@ modulesCompile mainEntries roots
                   This produces the initial core (`modCore`) and the "definitions" (`modDefinitions`)
                   that contain the gamma, kind gamma, etc.
 
-  - optimize    : As soon as the user+pub imports, and the imports due to inline definitions are compiled,
-                  the initial core be compiled and optimized as well (and use exported inline definitions)
+  - optimize    : As soon as the user+pub imports, and the imports due to inline definitions are optimized,
+                  the initial core be optimized as well (and use exported inline definitions)
                   This gives final core (updated `modCore`) and exported inline definitions (`modInlines`).
+                  Note: optimization cannot be skipped as it also includes essential transformations
+                  (like monadic lifting for effectful code).
 
   - codegen     : As soon as all imports are optimized, (no need to wait for the imports to be codegen'd!)
                   the optimized core can be translated to the backend (.c, .js, etc)
@@ -257,14 +293,6 @@ moduleGetFullImports modmap alreadyDone0 importNames
   Type check a module
 ---------------------------------------------------------------}
 
-modulesTypeCheck :: [Module] -> Build [Module]
-modulesTypeCheck modules
-  = phaseTimed "type check" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
-    do tcheckedMap <- M.fromList <$> mapM (\mod -> do v <- liftIO $ newEmptyMVar
-                                                      return (modName mod, v)) modules
-       tchecked <- mapConcurrent (moduleTypeCheck tcheckedMap) modules
-       mapM moduleFlushErrors tchecked
-
 moduleTypeCheck :: ModuleMap -> Module -> Build Module
 moduleTypeCheck tcheckedMap
   = moduleGuard PhaseParsed PhaseTyped tcheckedMap id id return $ \done mod ->
@@ -333,19 +361,20 @@ coreImportsFromModules userImports progImports modules
 ---------------------------------------------------------------}
 
 -- given a root set of modules, load- or parse all required modules
-modulesResolveDependencies :: [Module] -> Build [Module]
-modulesResolveDependencies modules
+modulesResolveDependencies :: VFS -> Bool -> [ModuleName] -> [Module] -> Build [Module]
+modulesResolveDependencies vfs rebuild forced modules
   = do ordered <- -- phaseTimed "resolving" (list (map (pretty . modName) modules)) $
-                  modulesResolveDeps modules
-       mapM moduleFlushErrors ordered
+                  modulesResolveDeps vfs rebuild forced  modules
+       return ordered
 
-modulesResolveDeps modules
-  = do pmodules   <- mapConcurrentModules moduleLoad modules           -- we can concurrently load/parse modules
+modulesResolveDeps :: VFS -> Bool -> [ModuleName] -> [Module] -> Build [Module]
+modulesResolveDeps vfs rebuild forced modules
+  = do pmodules   <- mapConcurrentModules (moduleLoad vfs) modules           -- we can concurrently load/parse modules
        newimports <- nubBy (\m1 m2 -> modName m1 == modName m2) <$> concat <$> mapM (addImports pmodules) pmodules
        if (null newimports)
          then toBuildOrder pmodules
          else do phaseVerbose 2 "resolve" (list (map (pretty . modName) newimports))
-                 modulesResolveDeps (newimports ++ pmodules)
+                 modulesResolveDeps vfs rebuild forced (newimports ++ pmodules)  -- keep resolving until all have been loaded
   where
     addImports pmodules mod
       = concat <$> mapM addImport (modDeps mod)
@@ -354,7 +383,8 @@ modulesResolveDeps modules
         addImport impName = if any (\m -> modName m == impName) pmodules
                              then return []
                              else do let relativeDir = dirname (modSourcePath mod)
-                                     m <- moduleFromModuleName relativeDir impName  -- todo: set error, prevent parsing?
+                                         force       = (rebuild || impName `elem` forced)
+                                     m <- moduleFromModuleName vfs force relativeDir impName  -- todo: set error, prevent parsing?
                                      return [m]
 
 -- order the loaded modules in build order (by using scc)
@@ -381,24 +411,25 @@ moduleFlushErrors mod
   After this, `modDeps` should be valid
 ---------------------------------------------------------------}
 
-moduleLoad :: Module -> Build Module
-moduleLoad mod
+moduleLoad :: VFS -> Module -> Build Module
+moduleLoad vfs mod
   = if modPhase mod >= PhaseLoaded
       then return mod
       else do (mod',errs) <- checkedDefault mod $ -- on error, return the original module
                              if not (null (modLibIfacePath mod)) && modLibIfaceTime mod > modIfaceTime mod
                                then moduleLoadLibIface mod
                                else if (modSourceTime mod > modIfaceTime mod)
-                                 then moduleParse mod
+                                 then moduleParse vfs mod
                                  else moduleLoadIface mod
               return mod'{ modErrors = mergeErrors errs (modErrors mod') }
 
-moduleParse :: Module -> Build Module
-moduleParse mod
+moduleParse :: VFS -> Module -> Build Module
+moduleParse vfs mod
   = do phase "parse" (text (modSourcePath mod))
        flags <- getFlags
        let allowAt = isPrimitiveModule (modName mod)
-       prog <- liftIOError $ parseProgramFromFile allowAt (semiInsert flags) (modSourcePath mod)
+       input <- getFileContents vfs (modSourcePath mod)
+       prog  <- liftError $ parseProgramFromString allowAt (semiInsert flags) input (modSourcePath mod)
        return mod{ modPhase = PhaseParsed
                  , modLexemes = programLexemes prog
                  , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
@@ -471,10 +502,10 @@ externalImportsFromCore target core
   from a source path (from IDE) or module name (from an import)
 ---------------------------------------------------------------}
 
-moduleFromSource :: FilePath -> Build Module
-moduleFromSource fpath0
+moduleFromSource :: VFS -> Bool -> FilePath -> Build Module
+moduleFromSource vfs force fpath0
   = do let fpath = normalize fpath0
-       mbpath <- searchSourceFile "" fpath
+       mbpath <- searchSourceFile vfs "" fpath
        case mbpath of
          Nothing          -> throwFileNotFound fpath
          Just (root,stem) -> do let stemParts  = splitPath (noexts stem)
@@ -486,27 +517,27 @@ moduleFromSource fpath0
                                                     _ -> throwError (errorMessageKind ErrBuild rangeNull (text ("file path cannot be mapped to a valid module name: " ++ sourcePath)))
                                             else return (newModuleName (noexts stem))
                                 ifacePath <- outputName (moduleNameToPath modName ++ ifaceExtension)
-                                moduleValidate $ (moduleCreateInitial modName sourcePath ifacePath ""){ modSourceRelativePath = stem }
+                                moduleValidate vfs force $ (moduleCreateInitial modName sourcePath ifacePath ""){ modSourceRelativePath = stem }
   where
     isValidId :: String -> Bool  -- todo: make it better
     isValidId ""      = False
     isValidId (c:cs)  = isLower c && all (\c -> isAlphaNum c || c `elem` "_-") cs
 
 
-moduleFromModuleName :: FilePath -> Name -> Build Module
-moduleFromModuleName relativeDir modName
-  = do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)
+moduleFromModuleName :: VFS -> Bool -> FilePath -> Name -> Build Module
+moduleFromModuleName vfs force relativeDir modName
+  = do mbSourceName <- searchSourceFile vfs relativeDir (nameToPath modName ++ sourceExtension)
        ifacePath    <- outputName (moduleNameToPath modName ++ ifaceExtension)
-       libIfacePath <- searchLibIfaceFile (moduleNameToPath modName ++ ifaceExtension)
+       libIfacePath <- searchLibIfaceFile vfs (moduleNameToPath modName ++ ifaceExtension)
        case mbSourceName of
          Just (root,stem)
-            -> moduleValidate $ (moduleCreateInitial modName (joinPath root stem) ifacePath libIfacePath){ modSourceRelativePath = stem }
+            -> moduleValidate vfs force $ (moduleCreateInitial modName (joinPath root stem) ifacePath libIfacePath){ modSourceRelativePath = stem }
          Nothing
-            -> do ifaceExist <- liftIO $ doesFileExistAndNotEmpty ifacePath
+            -> do ifaceExist <- buildDoesFileExistAndNotEmpty vfs ifacePath
                   if ifaceExist
                     then do cs <- getColorScheme
                             addWarningMessage (warningMessageKind ErrBuild rangeNull (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
-                            moduleValidate $ moduleCreateInitial modName "" ifacePath libIfacePath
+                            moduleValidate vfs force $ moduleCreateInitial modName "" ifacePath libIfacePath
                     else throwModuleNotFound rangeNull modName
 
 -- Find a source file and resolve it
@@ -514,19 +545,21 @@ moduleFromModuleName relativeDir modName
 -- The root is either in the include paths or the full directory for absolute paths.
 -- (and absolute file paths outside the include roots always have a single module name corresponding to the file)
 -- relativeDir is set when importing from a module so a module name is first resolved relative to the current module
-searchSourceFile :: FilePath -> FilePath -> Build (Maybe (FilePath,FilePath))
-searchSourceFile relativeDir fname
+searchSourceFile :: VFS -> FilePath -> FilePath -> Build (Maybe (FilePath,FilePath))
+searchSourceFile vfs relativeDir fname
   = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (relativeDir:includePath flags))) $ return ()
        flags <- getFlags
-       liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
+       case vfsFind vfs fname of  -- must match exactly; we may improve this later on and search relative files as well?
+         Just _ -> return $! Just $! (getMaximalPrefixPath (includePath flags) fname)
+         _      -> liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
 
 -- find a pre-compiled libary interface
 -- in the future we can support packages as well
-searchLibIfaceFile :: FilePath -> Build FilePath  -- can be empty
-searchLibIfaceFile fname
+searchLibIfaceFile :: VFS -> FilePath -> Build FilePath  -- can be empty
+searchLibIfaceFile vfs fname
   = do flags <- getFlags
        let libIfacePath = joinPaths [localLibDir flags, buildVariant flags, fname]
-       exist <- liftIO $ doesFileExist libIfacePath
+       exist <- buildDoesFileExist vfs libIfacePath
        return (if exist then libIfacePath else "")
 
 
@@ -534,21 +567,20 @@ searchLibIfaceFile fname
   Validate if modules are still valid
 ---------------------------------------------------------------}
 
-modulesValidate :: [Module] -> Build [Module]
-modulesValidate modules
-  = mapM moduleValidate modules
+modulesValidate :: VFS -> Bool -> [ModuleName] -> [Module] -> Build [Module]
+modulesValidate vfs rebuild forced modules
+  = mapM (\mod -> moduleValidate vfs (rebuild || modName mod `elem` forced) mod) modules
 
-moduleValidate :: Module -> Build Module
-moduleValidate mod
-  = do flags    <- getFlags
-       ftSource <- getFileTime (modSourcePath mod)
-       (stale,mod') <- if (rebuild flags || forceModule flags == modSourcePath mod || forceModule flags == moduleNameToPath (modName mod))
+moduleValidate :: VFS -> Bool -> Module -> Build Module
+moduleValidate vfs force mod
+  = do ftSource <- getFileTime vfs (modSourcePath mod)
+       (stale,mod') <- if force
                          then return (True,  mod{ modSourceTime = ftSource
                                                 , modIfaceTime = fileTime0
                                                 , modLibIfaceTime = fileTime0
                                                 })
-                         else  do ftIface    <- getFileTime (modIfacePath mod)
-                                  ftLibIface <- getFileTime (modLibIfacePath mod)
+                         else  do ftIface    <- getFileTime vfs (modIfacePath mod)
+                                  ftLibIface <- getFileTime vfs (modLibIfacePath mod)
                                   let stale = (ftSource > modSourceTime mod ||
                                                ftIface > modIfaceTime mod ||
                                                ftLibIface > modLibIfaceTime mod)
@@ -556,7 +588,7 @@ moduleValidate mod
                                                     , modIfaceTime  = ftIface
                                                     , modLibIfaceTime = ftLibIface
                                                     })
-       -- phaseVerbose "trace" (pretty (modName mod) <.> text (": times: " ++ show (ftSource,ftIface)))
+       phaseVerbose 2 "validate" (pretty (modName mod') <.> text (": times: " ++ show (force,stale,ftSource,modIfaceTime mod')))
        if stale
          then return mod'{ modPhase = PhaseInit, modErrors = errorsNil,
                            -- reset fields that are not used by an IDE to reduce memory pressure
@@ -618,34 +650,32 @@ data Env = Env { envTerminal :: Terminal,
                  envFlags    :: Flags,
                  envErrors   :: IORef Errors,
                  envRange    :: IORef Range,
-                 envSemPooled     :: QSem, -- limit I/O concurrency
-                 envSemSequential :: QSem, -- limit some I/O to be atomic
-                 envVFS      :: VFS }
+                 envSemPooled     :: QSem,    -- limit I/O concurrency
+                 envSemSequential :: QSem     -- limit some I/O to be atomic
+               }
 
 noVFS :: VFS
 noVFS = VFS (\fpath -> Nothing)
 
-maxErrors :: Int
-maxErrors = 25
 
-runBuildIO :: Terminal -> Flags -> VFS -> Build a -> IO (Maybe a)
-runBuildIO term flags vfs cmp
-  = do res <- runBuild term flags vfs cmp
+runBuildIO :: Terminal -> Flags -> Build a -> IO (Maybe a)
+runBuildIO term flags cmp
+  = do res <- runBuild term flags cmp
        case res of
-         Right (x,errs) -> do mapM_ (termError term) (take maxErrors (errors errs))
+         Right (x,errs) -> do mapM_ (termError term) (take (maxErrors flags) (errors errs))
                               return (Just x)
-         Left errs      -> do mapM_ (termError term) (take maxErrors (errors errs))
+         Left errs      -> do mapM_ (termError term) (take (maxErrors flags) (errors errs))
                               return Nothing
 
-runBuild :: Terminal -> Flags -> VFS -> Build a -> IO (Either Errors (a,Errors))
-runBuild term flags vfs cmp
+runBuild :: Terminal -> Flags -> Build a -> IO (Either Errors (a,Errors))
+runBuild term flags cmp
   = do errs <- newIORef errorsNil
        rng  <- newIORef rangeNull
        semPooled     <- newQSem (min 64 (max 1 (maxConcurrency flags)))
        semSequential <- newQSem 1
        termProxyDone <- newEmptyMVar
        (termProxy,stop) <- forkTerminal term termProxyDone
-       finally (runBuildEnv (Env termProxy flags errs rng semPooled semSequential vfs) cmp)
+       finally (runBuildEnv (Env termProxy flags errs rng semPooled semSequential) cmp)
                (do stop
                    readMVar termProxyDone)
 
@@ -770,7 +800,7 @@ instance Functor Build where
   fmap f (Build ie)  = Build (\env -> fmap f (ie env))
 
 instance Applicative Build where
-  pure x = Build (\env -> return x)
+  pure x = seq x (Build (\env -> return x))
   (<*>)  = ap
 
 instance Monad Build where
@@ -795,6 +825,11 @@ throwError :: ErrorMessage -> Build a
 throwError msg
   = liftIO $ throw (errorsSingle msg)
 
+throwErrorKind :: ErrorKind -> Doc -> Build a
+throwErrorKind ekind doc
+  = do rng <- getCurrentRange
+       throwError (errorMessageKind ekind rng doc)
+
 getEnv :: Build Env
 getEnv
   = Build (\env -> return env)
@@ -811,6 +846,12 @@ getColorScheme :: Build ColorScheme
 getColorScheme
   = do flags <- getFlags
        return (colorSchemeFromFlags flags)
+
+hasBuildError :: Build Bool
+hasBuildError
+  = do env  <- getEnv
+       errs <- liftIO $ readIORef (envErrors env)
+       return $! any (\err -> errSeverity err >= SevError) (errors errs)
 
 addErrors :: Errors -> Build ()
 addErrors errs0
@@ -859,27 +900,36 @@ phase p doc
 
 sfill n s = s ++ replicate (n - length s) ' '
 
+buildDoesFileExist :: VFS -> FilePath -> Build Bool
+buildDoesFileExist vfs fpath
+  = case vfsFind vfs fpath of
+      Just _ -> return True
+      _      -> liftIO $ doesFileExist fpath
 
-getFileTime :: FilePath -> Build FileTime
-getFileTime "" = return fileTime0
-getFileTime fpath0
-  = do env <- getEnv
-       let fpath = normalize fpath0
-       case vfsFind (envVFS env) fpath of
+buildDoesFileExistAndNotEmpty :: VFS -> FilePath -> Build Bool
+buildDoesFileExistAndNotEmpty vfs fpath
+  = case vfsFind vfs fpath of
+      Just (content,_) -> return $! not (bstringIsEmpty content)
+      _                -> liftIO $ doesFileExistAndNotEmpty fpath
+
+getFileTime :: VFS -> FilePath -> Build FileTime
+getFileTime vfs "" = return fileTime0
+getFileTime vfs fpath0
+  = do let fpath = normalize fpath0
+       case vfsFind vfs fpath of
          Just (_, t) -> return t
          Nothing     -> liftIO $ F.getFileTime fpath
 
-maybeGetFileTime :: FilePath -> Build (Maybe FileTime)
-maybeGetFileTime fpath
-  = do ft <- getFileTime fpath
+maybeGetFileTime :: VFS -> FilePath -> Build (Maybe FileTime)
+maybeGetFileTime vfs fpath
+  = do ft <- getFileTime vfs fpath
        return (if ft == fileTime0 then Nothing else Just ft)
 
-
-getFileContents :: FilePath -> Build BString
-getFileContents fpath0
+getFileContents :: VFS -> FilePath -> Build BString
+getFileContents vfs fpath0
   = do env <- getEnv
        let fpath = normalize fpath0
-       case vfsFind (envVFS env) fpath of
+       case vfsFind vfs fpath of
          Just (content, _) -> return content
          Nothing           -> liftIO $ readInput fpath
 

@@ -207,6 +207,7 @@ data Flags
          , optSpecialize    :: Bool
          , mimallocStats    :: Bool
          , maxConcurrency   :: Int
+         , maxErrors        :: Int
          } deriving (Eq,Show)
 
 instance Hashable Flags where
@@ -350,6 +351,7 @@ flagsNull
           True  -- use specialization (only used if optimization level >= 1)
           False -- use mimalloc stats
           16    -- max concurrency
+          25    -- max errors
 
 isHelp Help = True
 isHelp _    = False
