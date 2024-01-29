@@ -1113,7 +1113,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect docEffectDecl
 
            makeClauseFieldName :: OperationSort -> Name -> Name
            makeClauseFieldName opSort name
-             = prepend (show opSort ++ "-") (if (isValueOperationName name) then fromValueOperationsName name else name)
+             = prepend (opSortString opSort ++ "-") (if (isValueOperationName name) then fromValueOperationsName name else name)
 
            clauseId    = makeClauseFieldName opSort id
            (clauseName,clauseParsTp)

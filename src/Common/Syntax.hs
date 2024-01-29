@@ -26,7 +26,7 @@ module Common.Syntax( Visibility(..)
                     , valueReprRaw, valueReprSize, valueReprScan, valueReprSizeScan
                     , HandlerSort(..)
                     , isHandlerInstance, isHandlerNormal
-                    , OperationSort(..), readOperationSort
+                    , OperationSort(..), readOperationSort, opSortString
                     , Platform(..), platform32, platform64, platformCS, platformJS, platform64c
                     , platformHasCompressedFields
                     , alignedSum, alignedAdd, alignUp
@@ -159,6 +159,17 @@ instance Show OperationSort where
                   OpControlRaw -> "raw ctl"
                   OpControlErr -> ""
 
+-- Cannot have `-` or ` ` in the name
+opSortString :: OperationSort -> String
+opSortString opsort 
+  = case opsort of
+      OpVal -> "val"
+      OpFun -> "fun"
+      OpExcept -> "brk"
+      OpControl -> "ctl"
+      OpControlRaw -> "rawctl" 
+      OpControlErr -> ""
+
 readOperationSort :: String -> Maybe OperationSort
 readOperationSort s
   = case s of
@@ -166,6 +177,7 @@ readOperationSort s
       "fun" -> Just OpFun
       "brk" -> Just OpExcept
       "ctl"    -> Just OpControl
+      "rawctl" -> Just OpControlRaw
       -- legacy
       "rawctl" -> Just OpControlRaw
       "except" -> Just OpExcept
