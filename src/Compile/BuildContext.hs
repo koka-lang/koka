@@ -116,19 +116,25 @@ buildcFullBuild rebuild forced mainEntries buildc
 
 buildcExpr :: [ModuleName] -> String -> BuildContext -> Build BuildContext
 buildcExpr importNames expr buildc
-  = do let sourcePath = (case [modSourcePath mod | mname <- importNames ++ [nameSystemCore], let mod = buildcFindModule mname buildc] of
-                           (fpath:_) -> noexts fpath
-                           _         -> "") ++ "-main" ++ sourceExtension
+  = do let sourcePath = joinPath
+                           (case [modSourcePath mod | mname <- importNames,
+                                                   mod <- case find (\mod -> modName mod == mname) (buildcModules buildc) of
+                                                            Just m  -> [m]
+                                                            Nothing -> []] of
+                              (fpath:_) -> noexts fpath
+                              _         -> "")
+                           ("@main" ++ sourceExtension)
            importDecls = map (\mname -> "import " ++ show mname) importNames
            content     = stringToBString $ unlines $ importDecls ++ [
-                           "pub fun expr()",
+                           "pub fun @expr()",
+                           "#line " ++ show bigLine,
                            "  " ++ expr,
                            "",
-                           "pub fun xmain() : io ()",
-                           "  expr().println"
+                           "pub fun @main() : io ()",
+                           "  @expr().println"
                          ]
        withVirtualModule sourcePath content buildc $ \mainModName buildc2 ->
-         do let mainEntry = qualify mainModName (newName "xmain")
+         do let mainEntry = qualify mainModName (newName "@main")
             buildc3 <- buildcFullBuild False [] [mainEntry] buildc2
             let mainMod = buildcFindModule mainModName buildc3
             case modEntry mainMod of

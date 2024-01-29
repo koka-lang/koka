@@ -438,7 +438,7 @@ moduleParse :: VFS -> Module -> Build Module
 moduleParse vfs mod
   = do phase "parse" (text (modSourcePath mod))
        flags <- getFlags
-       let allowAt = isPrimitiveModule (modName mod)
+       let allowAt = isPrimitiveModule (modName mod) || modSourcePath mod `endsWith` "/@main.kk"
        input <- getFileContents vfs (modSourcePath mod)
        prog  <- liftError $ parseProgramFromString allowAt (semiInsert flags) input (modSourcePath mod)
        return mod{ modPhase = PhaseParsed
@@ -532,7 +532,7 @@ moduleFromSource vfs fpath0
   where
     isValidId :: String -> Bool  -- todo: make it better
     isValidId ""      = False
-    isValidId (c:cs)  = isLower c && all (\c -> isAlphaNum c || c `elem` "_-") cs
+    isValidId (c:cs)  = (isLower c || c=='@') && all (\c -> isAlphaNum c || c `elem` "_-@") cs
 
 
 moduleFromModuleName :: VFS -> FilePath -> Name -> Build Module
