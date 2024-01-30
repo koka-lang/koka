@@ -1294,7 +1294,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
           ctarget = case target flags of
                       C ctarget -> ctarget
                       _         -> CDefault
-          (cdoc,hdoc,mbMainDoc,bcore) = cFromCore ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
+          (cdoc,hdoc,mbMainDoc,bcore) = cFromCore True ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
                                           newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                           (parcBorrowInference flags) (optEagerPatBind flags) (stackSize flags) mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] bcore

@@ -281,7 +281,8 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry impor
           ctarget = case target flags of
                       C ctarget -> ctarget
                       _         -> CDefault
-          (cdoc,hdoc,mbMainDoc,bcore) = cFromCore ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
+          (cdoc,hdoc,_,bcore) = cFromCore False
+                                          ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
                                           newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                           (parcBorrowInference flags) (optEagerPatBind flags) (stackSize flags) mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] bcore
@@ -307,21 +308,23 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry impor
                   case entry of
                     Nothing      -> return LinkDone
                     Just (_,_,fullImports)
-                      -> do  -- output and compile a main C entry point (`main`)
+                      -> do {-
+                            -- output and compile a main C entry point (`main`)
                             let outMainBase = outBase ++ "__main"
                                 outMainC    = outMainBase ++ ".c"
                                 mainObj     = ccObjFile cc outMainBase
                             writeDocW 120 outMainC (fromJust mbMainDoc <.> linebreak)
                             ccompile term flags cc outMainBase  extraIncDirs [outMainC]
+                            -}
                             -- and do a full link of all obj's and clibs
                             codeGenLinkC term flags sequential cc progName fullImports {-link all objs, not just direct imports -} {-imported-}
-                                          outBase clibs mainObj
+                                          outBase clibs
 
 
 -- link obj's and create an executable
 codeGenLinkC :: Terminal -> Flags -> (IO () -> IO ()) -> CC -> ModuleName -> [Module]
-                  -> FilePath -> [FilePath] -> FilePath -> IO LinkResult
-codeGenLinkC term flags sequential cc progName imported outBase clibs mainObj
+                  -> FilePath -> [FilePath] -> IO LinkResult
+codeGenLinkC term flags sequential cc progName imported outBase clibs
   = do  -- names
         let outName fname = joinPath (dirname outBase) fname
             mainModName = moduleNameToPath progName
@@ -334,8 +337,8 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs mainObj
         -- set up linker command line
         let objs   = [kklibObj] ++
                       [outName (ccObjFile cc (moduleNameToPath mname))
-                          | mname <- map modName imported ++ [progName]] ++
-                      [mainObj]
+                          | mname <- map modName imported ++ [progName]]
+                      -- ++ [mainObj]
             syslibs= concat [csyslibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
                       ++ ccompLinkSysLibs flags
                       ++ (if onWindows && not (isTargetWasm (target flags))

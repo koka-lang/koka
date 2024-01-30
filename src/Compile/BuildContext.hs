@@ -23,14 +23,21 @@ module Compile.BuildContext ( BuildContext
                             ) where
 
 
+import Debug.Trace
 import Data.List
 import qualified Data.Map.Strict as M
 import Platform.Config
+import Lib.PPrint
 import Common.Name
-import Common.NamePrim (nameSystemCore)
+import Common.NamePrim (nameSystemCore, nameTpNamed, nameTpAsync, isSystemCoreName)
 import Common.Range
 import Common.File
+import Common.Error
 import Common.Failure
+import Type.Type
+import qualified Type.Pretty as TP
+import Type.Kind       (extractHandledEffect, getHandledEffectX )
+import Type.Assumption
 import Compiler.Options
 import Compile.Module
 import Compile.Build
@@ -109,39 +116,106 @@ buildcBuild mainEntries buildc
 
 buildcFullBuild :: Bool -> [ModuleName] -> [Name] -> BuildContext -> Build BuildContext
 buildcFullBuild rebuild forced mainEntries buildc
-  = do let (roots,imports) = buildcSplitRoots buildc
+  = phaseTimed "build" (\penv -> empty) $
+    do let (roots,imports) = buildcSplitRoots buildc
        mods <- modulesFullBuild (buildcVFS buildc) rebuild forced mainEntries imports roots
        return (buildc{ buildcModules = mods})
 
 
 buildcExpr :: [ModuleName] -> String -> BuildContext -> Build BuildContext
 buildcExpr importNames expr buildc
-  = do let sourcePath = joinPath
-                           (case [modSourcePath mod | mname <- importNames,
+  = do (buildc1,mbEntry) <- buildcCompileExpr importNames expr buildc
+       case mbEntry of
+          Just (exe,run)
+            -> do phase "run" (\penv -> linebreak)
+                  liftIO $ run
+          _ -> return ()
+       return buildc1
+
+
+buildcCompileExpr :: [ModuleName] -> String -> BuildContext -> Build (BuildContext,Maybe (FilePath,IO ()))
+buildcCompileExpr importNames expr buildc
+  = phaseTimed "build" (\penv -> empty) $
+    do let sourcePath = joinPaths [
+                          virtualMount,
+                          case [modSourceRelativePath mod | mname <- importNames,
                                                    mod <- case find (\mod -> modName mod == mname) (buildcModules buildc) of
                                                             Just m  -> [m]
                                                             Nothing -> []] of
                               (fpath:_) -> noexts fpath
-                              _         -> "")
-                           ("@main" ++ sourceExtension)
+                              _         -> "",
+                          "@main" ++ sourceExtension]
            importDecls = map (\mname -> "import " ++ show mname) importNames
-           content     = stringToBString $ unlines $ importDecls ++ [
+           content     = unlines $ importDecls ++ [
                            "pub fun @expr()",
-                           "#line " ++ show bigLine,
-                           "  " ++ expr,
-                           "",
-                           "pub fun @main() : io ()",
-                           "  @expr().println"
+                           "#line 1",
+                           "  " ++ expr
                          ]
-       withVirtualModule sourcePath content buildc $ \mainModName buildc2 ->
-         do let mainEntry = qualify mainModName (newName "@main")
-            buildc3 <- buildcFullBuild False [] [mainEntry] buildc2
-            let mainMod = buildcFindModule mainModName buildc3
-            case modEntry mainMod of
-              Just (exePath,execute)
-                -> liftIO $ execute
-              _ -> return ()
-            return buildc3
+
+       withVirtualModule sourcePath (stringToBString content) buildc $ \mainModName buildc1 ->
+         do let exprName = qualify mainModName (newName "@expr")
+            buildc2 <- buildcValidate False [] buildc1
+            buildc3 <- buildcTypeCheck buildc2
+            mainBody <- completeMain True exprName buildc3
+            let mainName = qualify mainModName (newName "@main")
+                mainDef  = unlines ["pub fun @main() : io ()",
+                                    "  " ++ mainBody]
+            buildc4 <- buildcSetVirtualFile sourcePath (stringToBString (content ++ "\n" ++ mainDef)) buildc3
+            buildc4a <- buildcValidate False [] buildc4
+            buildc5 <- buildcBuild [mainName] buildc4a
+            buildc6 <- buildcDeleteVirtualFile sourcePath buildc5
+            let buildc7 = buildcRemoveRootSource sourcePath buildc6
+                mainMod = buildcFindModule mainModName buildc7
+                entry   = modEntry mainMod
+            return $ seq entry (buildc7,entry)
+
+
+completeMain :: Bool -> Name -> BuildContext -> Build String
+completeMain addShow exprName buildc
+  = case buildcLookupInfo buildc exprName of
+      [InfoFun{infoType=tp,infoRange=r}]
+        -> do case expandSyn tp of
+                TFun _ eff resTp
+                  -> let (ls,_) = extractHandledEffect eff
+                     in do body0 <- callExpr resTp
+                           body1 <- combine r eff ls body0
+                           return body1
+                _ -> callExpr typeUnit
+      _ -> callExpr typeUnit
+  where
+    callExpr tp
+      = if isTypeUnit tp || not addShow
+          then return (show exprName ++ "()")
+          else return (show exprName ++ "().println")
+
+    exclude = [nameTpNamed] -- nameTpCps,nameTpAsync
+
+    combine :: Range -> Effect -> [Effect] -> String -> Build String
+    combine range eff [] body     = return body
+    combine range eff (l:ls) body
+      = case getHandledEffectX exclude l of
+          Nothing -> combine range eff ls body
+          Just (_,effName)
+            -> let defaultHandlerName
+                      = makeHiddenName "default" (if isSystemCoreName effName
+                                                    then qualify nameSystemCore (unqualify effName) -- std/core/* defaults must be in std/core
+                                                    else effName) -- and all others in the same module as the effect
+              in case buildcLookupInfo buildc defaultHandlerName of
+                    [fun@InfoFun{}]
+                      -> do phaseVerbose 2 "main" $ \penv -> text "add default effect for" <+> TP.ppName penv effName
+                            let handle b = show defaultHandlerName ++ "(fn() " ++ b ++ ")"
+                            if (effName == nameTpAsync)  -- always put async as the most outer effect
+                              then do body' <- combine range eff ls body
+                                      return (handle body')
+                              else combine range eff ls (handle body)
+                    infos
+                      -> do throwError (\penv -> errorMessageKind ErrBuild range
+                                           (text "there are unhandled effects for the main expression" <-->
+                                            text " inferred effect :" <+> TP.ppType penv eff <-->
+                                            text " unhandled effect:" <+> TP.ppType penv l <-->
+                                            text " hint            : wrap the main function in a handler"))
+                            combine range eff ls body
+
 
 withVirtualModule :: FilePath -> BString -> BuildContext -> (ModuleName -> BuildContext -> Build a) -> Build a
 withVirtualModule fpath0 content buildc action
@@ -167,3 +241,9 @@ buildcFindModule modname buildc
       Just mod -> mod
       _        -> failure ("Compile.BuildIde.btxFindModule: cannot find " ++ show modname ++ " in " ++ show (map modName (buildcModules buildc)))
 
+
+buildcLookupInfo :: BuildContext -> Name -> [NameInfo]
+buildcLookupInfo buildc name
+  = case find (\mod -> modName mod == qualifier name) (buildcModules buildc) of
+      Just mod -> gammaLookupQ name (defsGamma (defsFromModules [mod]))
+      _        -> []

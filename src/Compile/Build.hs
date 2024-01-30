@@ -17,7 +17,11 @@ module Compile.Build( Build
                       , modulesReValidate
                       , moduleFromSource, moduleFromModuleName
 
+                      , phase, phaseVerbose, phaseTimed
+                      , throwError, throwErrorKind, getTerminal
                       , liftIO
+
+                      , virtualMount
                       ) where
 
 import Debug.Trace
@@ -50,6 +54,7 @@ import Common.NamePrim        (isPrimitiveModule)
 import Syntax.Syntax
 import Syntax.Parse           (parseProgramFromString)
 import Type.Type
+import qualified Type.Pretty as TP
 import Type.Assumption        ( Gamma, gammaLookupQ, NameInfo(..) )
 import qualified Core.Core as Core
 import Core.Parse
@@ -76,7 +81,7 @@ modulesFlushErrors modules
 
 modulesBuild :: [Name] -> [Module] -> Build [Module]
 modulesBuild mainEntries modules
-  = phaseTimed "build" Lib.PPrint.empty $ -- (list (map (pretty . modName) modules))
+  = -- phaseTimed "build" (\_ -> Lib.PPrint.empty) $ -- (list (map (pretty . modName) modules))
     do tcheckedMap <- modmapCreate modules
        optimizedMap<- modmapCreate modules
        codegenMap  <- modmapCreate modules
@@ -88,14 +93,14 @@ modulesBuild mainEntries modules
 
 modulesTypeCheck :: [Module] -> Build [Module]
 modulesTypeCheck modules
-  = phaseTimed "check" Lib.PPrint.empty $
+  = -- phaseTimed "check" (const Lib.PPrint.empty) $
     do tcheckedMap <- modmapCreate modules
        tchecked    <- mapConcurrentModules (moduleTypeCheck tcheckedMap) modules
        modulesFlushErrors tchecked
 
 modulesReValidate :: VFS -> Bool -> [ModuleName] -> [Module] -> [Module] -> Build [Module]
 modulesReValidate vfs rebuild forced cachedImports roots
-  = phaseTimed "resolve" Lib.PPrint.empty $
+  = --phaseTimed "resolve" (const Lib.PPrint.empty) $
     let rootNames = map modName roots in seqList rootNames $
     do rootsv   <- modulesValidate vfs roots
        resolved <- modulesResolveDependencies vfs rebuild forced cachedImports rootsv
@@ -192,7 +197,7 @@ moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap
         imports <- moduleGetFullImports fullLink (if fullLink then linkedMap else codegenMap) [] (modImportNames mod)
         if any (\m -> modPhase m < PhaseCodeGen) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
-          else do phase "link" $ pretty (modName mod)
+          else do phase "link" $ \penv -> TP.ppName penv (modName mod)
                   mbEntry <- pooledIO $ link   -- link it!
                   let mod' = mod{ modPhase = PhaseLinked, modEntry = case mbEntry of
                                                                        LinkDone -> Nothing
@@ -213,7 +218,7 @@ moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
        imports <- moduleGetFullImports False optimizedMap [] (modImportNames mod)
        if any (\m -> modPhase m < PhaseOptimized) imports
          then done mod
-         else do  phase "codegen" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
+         else do  phase "codegen" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
                   flags <- getFlags
                   term  <- getTerminal
                   let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the compile?
@@ -224,7 +229,7 @@ moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
                                                 (defsNewtypes defs) (defsBorrowed defs) (defsKGamma defs) (defsGamma defs)
                                                 mbEntry imports mod
                   let mod' = mod{ modPhase = PhaseCodeGen }
-                  phaseVerbose 2 "codegen done" (pretty (modName mod))
+                  phaseVerbose 2 "codegen done" $ \penv -> TP.ppName penv (modName mod)
                   done mod'
                   return (isJust mbEntry,link,mod')
 
@@ -233,15 +238,16 @@ getMainEntry :: Gamma -> [Name] -> ModuleMap -> Module -> Build (Maybe (Name,Typ
 getMainEntry gamma mainEntries modmap mod
   = case find (\name -> qualifier name == modName mod) mainEntries of
       Nothing   -> return Nothing
-      Just main -> case gammaLookupQ main gamma of
+      Just main -> -- trace ("getMainEntry: " ++ show mainEntries ++ " in " ++ show (modName mod)) $
+                   case gammaLookupQ main gamma of
                     [InfoFun{infoType=tp}]
                            -> do fullImports <- moduleGetFullImports True modmap [] (modImportNames mod)
                                  return $ Just (main,tp,fullImports)
-                    []     -> do addErrorMessageKind ErrBuild (text "unable to find main function:" <+> pretty main)
+                    []     -> do addErrorMessageKind ErrBuild (\penv -> text "unable to find main function:" <+> TP.ppName penv main)
                                  return Nothing
-                    [info] -> do addErrorMessageKind ErrBuild (text "main function " <+> pretty main <+> text "must be a function")
+                    [info] -> do addErrorMessageKind ErrBuild (\penv -> text "main function" <+> TP.ppName penv (infoCName info) <+> text "must be a function")
                                  return Nothing
-                    _      -> do addErrorMessageKind ErrBuild (text "ambiguous main function:" <+> pretty main)
+                    _      -> do addErrorMessageKind ErrBuild (\penv -> text "ambiguous main function:" <+> TP.ppName penv main)
                                  return Nothing
 
 
@@ -259,7 +265,7 @@ moduleOptimize tcheckedMap optimizedMap
         if any (\m -> modPhase m < PhaseOptimized) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
           else -- core compile
-              do  phase "optimize" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
+              do  phase "optimize" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
                   flags <- getFlags
                   let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check?
                       inlines = inlinesFromModules imports
@@ -268,7 +274,7 @@ moduleOptimize tcheckedMap optimizedMap
                                 , modCore    = Just $! core
                                 , modInlines = Right $! inlineDefs
                                 }
-                  phaseVerbose 2 "optimize done" (pretty (modName mod))
+                  phaseVerbose 2 "optimize done" $ \penv -> TP.ppName penv (modName mod)
                   done mod'
 
 
@@ -307,7 +313,7 @@ moduleTypeCheck tcheckedMap
                   let defs = defsFromModules imports
                       program = fromJust (modProgram mod)
                       cimports = coreImportsFromModules (modDeps mod) (programImports program) imports
-                  phase "check" $ pretty (modName mod) -- <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
+                  phase "check" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
                   (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
                   -- let diff = [name | name <- map Core.importName (Core.coreProgImports core), not (name `elem` map Core.importName cimports)]
                   -- when (not (null diff)) $
@@ -317,7 +323,7 @@ moduleTypeCheck tcheckedMap
                                 , modRangeMap = mbRangeMap
                                 , modDefinitions = Just $! (defsFromCore core)
                                 }
-                  phaseVerbose 2 "check done" (pretty (modName mod))
+                  phaseVerbose 2 "check done" $ \penv -> TP.ppName penv (modName mod)
                   done mod'
 
 
@@ -380,7 +386,7 @@ modulesResolveDeps vfs rebuild forced cached roots acc
                      mapM (addImports loaded) lroots
        if (null newimports)
          then toBuildOrder loaded
-         else do phaseVerbose 2 "resolve" (list (map (pretty . modName) newimports))
+         else do phaseVerbose 2 "resolve" $ \penv -> list (map (TP.ppName penv . modName) newimports)
                  modulesResolveDeps vfs rebuild forced cached newimports loaded  -- keep resolving until all have been loaded
   where
     addImports loaded mod
@@ -404,9 +410,9 @@ toBuildOrder modules
     let deps    = [(modName mod, modDeps mod) | mod <- modules]
         ordered = scc deps
         ungroup [mname]  | Just mod <- find (\m -> modName m == mname) modules  = return [mod]
-        ungroup grp      = do throwError (errorMessageKind ErrBuild rangeNull (text ("recursive imports: " ++ show grp))) -- todo: nice error
+        ungroup grp      = do throwErrorKind ErrBuild (\penv -> text "recursive imports:" <+> list (map (TP.ppName penv) grp))
                               return []
-    in do phaseVerbose 2 "build order" (list (map (\grp -> hsep (map (pretty) grp)) ordered))
+    in do phaseVerbose 2 "build order" $ \penv -> list (map (\grp -> hsep (map (TP.ppName penv) grp)) ordered)
           concat <$> mapM ungroup ordered
 
 
@@ -436,9 +442,9 @@ moduleLoad vfs rebuild forced mod
 
 moduleParse :: VFS -> Module -> Build Module
 moduleParse vfs mod
-  = do phase "parse" (text (modSourcePath mod))
+  = do phase "parse" $ \penv -> text (modSourcePath mod)
        flags <- getFlags
-       let allowAt = isPrimitiveModule (modName mod) || modSourcePath mod `endsWith` "/@main.kk"
+       let allowAt = True -- isPrimitiveModule (modName mod) || modSourcePath mod `endsWith` "/@main.kk"
        input <- getFileContents vfs (modSourcePath mod)
        prog  <- liftError $ parseProgramFromString allowAt (semiInsert flags) input (modSourcePath mod)
        return mod{ modPhase = PhaseParsed
@@ -449,14 +455,14 @@ moduleParse vfs mod
 
 moduleLoadIface :: Module -> Build Module
 moduleLoadIface mod
-  = do phase "load" (pretty (modName mod))
+  = do phase "load" $ \penv -> TP.ppName penv (modName mod)
        (core,parseInlines) <- liftIOError $ parseCore (modIfacePath mod) (modSourcePath mod)
        return (modFromIface core parseInlines mod)
 
 moduleLoadLibIface :: Module -> Build Module
 moduleLoadLibIface mod
   = do cscheme <- getColorScheme
-       phase "load" (pretty (modName mod) <+> color (colorInterpreter cscheme) (text "from:") <+> text (modLibIfacePath mod))
+       phase "load" $ \penv -> TP.ppName penv (modName mod) <+> color (colorInterpreter cscheme) (text "from:") <+> text (modLibIfacePath mod)
        (core,parseInlines) <- liftIOError $ parseCore (modLibIfacePath mod) (modSourcePath mod)
        flags <- getFlags
        pooledIO $ copyLibIfaceToOutput flags (modLibIfacePath mod) (modIfacePath mod) core
@@ -525,7 +531,7 @@ moduleFromSource vfs fpath0
                                             then case reverse stemParts of
                                                     (base:_)  | isValidId base
                                                       -> return (newModuleName base)  -- module may not be found if imported
-                                                    _ -> throwError (errorMessageKind ErrBuild rangeNull (text ("file path cannot be mapped to a valid module name: " ++ sourcePath)))
+                                                    _ -> throwErrorKind ErrBuild (\penv -> text ("file path cannot be mapped to a valid module name: " ++ sourcePath))
                                             else return (newModuleName (noexts stem))
                                 ifacePath <- outputName (moduleNameToPath modName ++ ifaceExtension)
                                 moduleValidate vfs $ (moduleCreateInitial modName sourcePath ifacePath ""){ modSourceRelativePath = stem }
@@ -561,8 +567,15 @@ searchSourceFile vfs relativeDir fname
   = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (relativeDir:includePath flags))) $ return ()
        flags <- getFlags
        case vfsFind vfs fname of  -- must match exactly; we may improve this later on and search relative files as well?
-         Just _ -> return $! Just $! (getMaximalPrefixPath (includePath flags) fname)
+         Just _ -> return $! Just $! (getMaximalPrefixPath (virtualMount : includePath flags) fname)
          _      -> liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
+
+virtualStrip path
+  = if path `startsWith` (virtualMount ++ "/") then drop (length virtualMount + 1) path else path
+
+virtualMount
+  = "//virtual"
+
 
 -- find a pre-compiled libary interface
 -- in the future we can support packages as well
@@ -614,12 +627,12 @@ moduleValidate vfs mod
 throwModuleNotFound :: Range -> Name -> Build a
 throwModuleNotFound range name
   = do flags <- getFlags
-       throwError (errorMessageKind ErrBuild range (errorNotFound flags colorModule "module" (pretty name)))
+       throwError (\penv -> errorMessageKind ErrBuild range (errorNotFound flags colorModule "module" (pretty name)))
 
 throwFileNotFound :: FilePath -> Build a
 throwFileNotFound name
   = do flags <- getFlags
-       throwError (errorMessageKind ErrBuild rangeNull (errorNotFound flags colorSource "" (text name)))
+       throwError (\penv -> errorMessageKind ErrBuild rangeNull (errorNotFound flags colorSource "" (text name)))
 
 errorNotFound flags clr kind namedoc
   = text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc <->
@@ -654,6 +667,7 @@ data Build a = Build (Env -> IO a)
 
 data Env = Env { envTerminal :: Terminal,
                  envFlags    :: Flags,
+                 envModName  :: ModuleName,    -- for better error reporting
                  envErrors   :: IORef Errors,
                  envRange    :: IORef Range,
                  envSemPooled     :: QSem,    -- limit I/O concurrency
@@ -681,7 +695,7 @@ runBuild term flags cmp
        semSequential <- newQSem 1
        termProxyDone <- newEmptyMVar
        (termProxy,stop) <- forkTerminal term termProxyDone
-       finally (runBuildEnv (Env termProxy flags errs rng semPooled semSequential) cmp)
+       finally (runBuildEnv (Env termProxy flags nameNil errs rng semPooled semSequential) cmp)
                (do stop
                    readMVar termProxyDone)
 
@@ -817,7 +831,7 @@ instance Monad Build where
                           Build ie' -> ie' env)
 
 instance F.MonadFail Build where
-  fail msg = throwError (errorMessageKind ErrGeneral rangeNull (text msg))
+  fail msg = throwError (\penv -> errorMessageKind ErrGeneral rangeNull (text msg))
 
 onBuildException :: Build b -> Build a -> Build a
 onBuildException (Build onExn) (Build b)
@@ -827,18 +841,23 @@ buildFinally :: Build b -> Build a -> Build a
 buildFinally (Build fin) (Build b)
   = Build (\env -> finally (b env) (fin env))
 
-throwError :: ErrorMessage -> Build a
+throwError :: (TP.Env -> ErrorMessage) -> Build a
 throwError msg
-  = liftIO $ throw (errorsSingle msg)
+  = do penv <- getPrettyEnv
+       liftIO $ throw (errorsSingle (msg penv))
 
-throwErrorKind :: ErrorKind -> Doc -> Build a
+throwErrorKind :: ErrorKind -> (TP.Env -> Doc) -> Build a
 throwErrorKind ekind doc
   = do rng <- getCurrentRange
-       throwError (errorMessageKind ekind rng doc)
+       throwError (\penv -> errorMessageKind ekind rng (doc penv))
 
 getEnv :: Build Env
 getEnv
   = Build (\env -> return env)
+
+withEnv :: (Env -> Env) -> Build a -> Build a
+withEnv modify (Build action)
+  = Build (\env -> action (modify env))
 
 getFlags :: Build Flags
 getFlags
@@ -852,6 +871,12 @@ getColorScheme :: Build ColorScheme
 getColorScheme
   = do flags <- getFlags
        return (colorSchemeFromFlags flags)
+
+getPrettyEnv :: Build TP.Env
+getPrettyEnv
+  = do flags <- getFlags
+       env   <- getEnv
+       return ((prettyEnvFromFlags flags){ TP.context = envModName env })
 
 hasBuildError :: Build Bool
 hasBuildError
@@ -876,33 +901,34 @@ addErrorMessages :: [ErrorMessage] -> Build ()
 addErrorMessages errs
   = addErrors (Errors errs)
 
-addErrorMessageKind :: ErrorKind -> Doc -> Build ()
+addErrorMessageKind :: ErrorKind -> (TP.Env -> Doc) -> Build ()
 addErrorMessageKind ekind doc
   = do rng <- getCurrentRange
-       addErrorMessage (errorMessageKind ekind rng doc)
+       penv <- getPrettyEnv
+       addErrorMessage (errorMessageKind ekind rng (doc penv))
 
-phaseTimed :: String -> Doc -> Build a -> Build a
+phaseTimed :: String -> (TP.Env -> Doc) -> Build a -> Build a
 phaseTimed p doc action
   = do t0 <- liftIO $ getCurrentTime
        phaseVerbose 1 (p ++ " start") doc
        buildFinally (do t1 <- liftIO $ getCurrentTime
-                        phaseVerbose 1 (p ++ " elapsed") (text (showTimeDiff t1 t0) <.> linebreak))
+                        phaseVerbose 1 (p ++ " elapsed") (\penv -> text (showTimeDiff t1 t0)))
                     action
 
 
-phaseVerbose :: Int -> String -> Doc -> Build ()
+phaseVerbose :: Int -> String -> (TP.Env -> Doc) -> Build ()
 phaseVerbose vlevel p doc
   = do flags <- getFlags
        when (verbose flags >= vlevel) $
-         do term <- getTerminal
-            cscheme <- getColorScheme
-            liftIO $ termPhaseDoc term (color (colorInterpreter cscheme) (text (sfill 8 p ++ ":")) <+> (color (colorSource cscheme) doc))
+         phase p doc
 
-phase :: String -> Doc -> Build ()
+phase :: String -> (TP.Env -> Doc) -> Build ()
 phase p doc
-  = do term <- getTerminal
-       cscheme <- getColorScheme
-       liftIO $ termPhaseDoc term (color (colorInterpreter cscheme) (text (sfill 8 p ++ ":")) <+> (color (colorSource cscheme) doc))
+  = do term    <- getTerminal
+       penv    <- getPrettyEnv
+       let cscheme = TP.colors penv
+       liftIO $ termPhaseDoc term (color (colorInterpreter cscheme) (text (sfill 8 p ++ ":")) <+>
+                                   (color (colorSource cscheme) (doc penv)))
 
 sfill n s = s ++ replicate (n - length s) ' '
 
@@ -950,7 +976,7 @@ withModuleName mname action
   = do env <- getEnv
        old <- liftIO $ readIORef (envRange env)
        liftIO $ writeIORef (envRange env) (makeSourceRange (show mname) 1 1 1 1)
-       x   <- action
+       x   <- withEnv (\env -> env{ envModName = mname }) action
        liftIO $ writeIORef (envRange env) old  -- do not use finally so any errors use the range as it was thrown
        return x
 
@@ -962,3 +988,4 @@ withCheckedModule mod action
        case res of
          Left errs          -> return mod{ modErrors = mergeErrors errs (modErrors mod) }
          Right (mod',warns) -> return mod'{ modErrors = mergeErrors warns (modErrors mod') }
+

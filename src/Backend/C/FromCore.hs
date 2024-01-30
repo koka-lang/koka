@@ -67,10 +67,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Maybe Doc,Core)
-cFromCore ctarget buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference eagerPatBind stackSize mbMain core
+cFromCore :: Bool -> CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Maybe Doc,Core)
+cFromCore separateMain ctarget buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference eagerPatBind stackSize mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform eagerPatBind)
-           (genModule ctarget buildType sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core) of
+           (genModule separateMain ctarget buildType sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core) of
       ((bcore,mainDoc),cdoc,hdoc) -> (cdoc,hdoc,mainDoc,bcore)
   where
     moduleName = coreProgName core
@@ -82,8 +82,8 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
-genModule :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> Asm (Core,Maybe Doc)
-genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core0
+genModule :: Bool -> CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> Asm (Core,Maybe Doc)
+genModule separateMain ctarget buildType sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
                                let borrowed = borrowedExtendICore bcore borrowed0
                                pcore <- parcCore penv platform newtypes borrowed enableSpecialize bcore -- precise automatic reference counting
@@ -127,8 +127,6 @@ genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReu
         emitToH (linebreak <.> text "// value declarations")
         genTopGroups (coreProgDefs core)
 
-        let mainDoc = genMain [headComment,currentModuleInclude] (coreProgName core) platform stackSize mbMain
-
         emitToDone $ vcat [text "static bool _kk_done = false;"
                           ,text "if (_kk_done) return;"
                           ,text "_kk_done = true;"
@@ -147,11 +145,17 @@ genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReu
                   <-> doneSignature
                   <.> block done
 
+        let mainDoc = genMain (if separateMain then [headComment,currentModuleInclude] else [])
+                              (coreProgName core) platform stackSize mbMain
+        case mainDoc of
+          Just doc | not separateMain -> emitToC doc
+          _        -> return ()
+
         emitToH $ vcat $  [ linebreak <.> initSignature <.> semi <.> linebreak
                           , linebreak <.> doneSignature <.> semi <.> linebreak]
                           ++ externalEndIncludesH
                           ++ [text "#endif // header"]
-        return (core, mainDoc) -- box/unboxed core
+        return (core, if separateMain then mainDoc else Nothing) -- box/unboxed core
   where
     modName         = ppModName (coreProgName core0)
 
