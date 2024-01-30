@@ -87,11 +87,11 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
 
        -- core
        when (genCore flags)  $
-         do termPhase term "generate core"
+         do termTrace term "generate core"
             let outCore  = outBase ++ ".kkc"
             writeDocW 10000 outCore coreDoc  -- just for debugging
        when (showFinalCore flags && not (isTargetC (target flags))) $
-         do termDoc term coreDoc
+         do termInfo term coreDoc
 
        -- write documentation
        let fullHtml = outHtml flags > 1
@@ -99,14 +99,14 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
            source   = maybe sourceNull programSource (modProgram mod)
            cenv     = penv{ colorizing=True }
        if (isLiteralDoc (sourceName source)) -- .kk.md
-        then do termPhase term "write html document"
+        then do termTrace term "write html document"
                 withNewFilePrinter (outBase ++ ".md") $ \printer ->
                  colorize (modRangeMap mod) cenv kgamma gamma fullHtml (sourceName source) 1 (sourceBString source) printer
         else when (outHtml flags > 0) $
-              do termPhase term "write html source"
+              do termTrace term "write html source"
                  withNewFilePrinter outHtmlFile $ \printer ->
                   colorize (modRangeMap mod) cenv kgamma gamma fullHtml (sourceName source) 1 (sourceBString source) printer
-                 termPhase term "write html documentation"
+                 termTrace term "write html documentation"
                  withNewFilePrinter (outBase ++ ".xmp.html") $ \printer ->
                   genDoc cenv kgamma gamma core printer
 
@@ -131,7 +131,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
                                         copyBinaryFile out targetOut
                                         return finalOut
                                 else return out
-                      termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created :") <+>
+                      termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created :") <+>
                           color (colorSource (colorScheme flags)) (text (normalizeWith pathSep exe))
               _ -> return ()
             return (mbRun)
@@ -165,9 +165,9 @@ codeGenCS term flags sequential entry modules outBase core
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [fullBuildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
            outName fname = joinPath (dirname outBase) fname
 
-       termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
+       termTrace term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
        writeDoc outcs cs
-       when (showAsmCS flags) (termDoc term cs)
+       when (showAsmCS flags) (termInfo term cs)
 
        case mbEntry of
          Nothing -> return noLink
@@ -195,9 +195,9 @@ codeGenCSDll term flags sequential entry modules outBase core
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [fullBuildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
            outName fname = joinPath (dirname outBase) fname
 
-       termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
+       termTrace term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
        writeDoc outcs cs
-       when (showAsmCS flags) (termDoc term cs)
+       when (showAsmCS flags) (termInfo term cs)
 
        let linkFlags  = concat ["-r:" ++ outName (moduleNameToPath (Core.importName imp)) ++ dllExtension ++ " "
                                     | imp <- Core.coreProgImports core] -- TODO: link to correct package!
@@ -230,9 +230,9 @@ codeGenJS term flags sequential entry imported outBase core
            mbEntry = case entry of
                        Just (name,tp,_) -> Just (name,isAsyncFunction tp)
                        _                -> Nothing
-       termPhase term ( "generate javascript: " ++ outjs )
+       termTrace term ( "generate javascript: " ++ outjs )
        writeDocW 80 outjs js
-       when (showAsmJS flags) (termDoc term js)
+       when (showAsmJS flags) (termInfo term js)
 
        case mbEntry of
         Nothing -> return noLink
@@ -250,7 +250,7 @@ codeGenJS term flags sequential entry imported outBase core
                                 "  </body>",
                                 "</html>"
                               ]
-            termPhase term ("generate index html: " ++ outHtml)
+            termTrace term ("generate index html: " ++ outHtml)
             writeDoc outHtml contentHtml
             case target flags of
               JS JsWeb ->
@@ -289,12 +289,12 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry impor
 
       -- writeDocW 120 (outBase ++ ".c.kkc") bcoreDoc
       when (showFinalCore flags) $
-        do termDoc term bcoreDoc
+        do termInfo term bcoreDoc
 
-      termPhase term ( "generate c: " ++ outBase )
+      termTrace term ( "generate c: " ++ outBase )
       writeDocW 120 outC (cdoc <.> linebreak)
       writeDocW 120 outH (hdoc <.> linebreak)
-      when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
+      when (showAsmC flags) (termInfo term (hdoc <//> cdoc))
 
       -- copy libraries
       let cc       = ccomp flags
@@ -374,14 +374,14 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs
 
 
         -- link
-        -- termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
+        -- termPhase term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
         --                   color (colorSource (colorScheme flags)) (text mainName))
         runCommand term flags clink
 
         -- return command line to execute
         let mainTarget = mainExe ++ targetExeExtension (target flags)
-        when (not (null (outFinalPath flags))) $
-          termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+        when (not (null (outFinalPath flags)) && verbose flags > 1) $
+          termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
                                 color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
         let cmdflags = if (showElapsed flags) then " --kktime" else ""
 
@@ -450,7 +450,7 @@ copyCLibrary term flags sequential cc outDir eimport
                                           return Nothing
               case mb of
                 Just (libPath,includes)
-                  -> do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
+                  -> do termPhase term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
                           color (colorSource (colorScheme flags)) (text libPath))
                         -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
                         sequential $ copyBinaryIfNewer (rebuild flags) libPath (joinPath outDir (ccLibFile cc clib))
@@ -514,7 +514,7 @@ conanCLibrary term flags sequential cc eimport clib pkg
                             text "unable to resolve conan package:" <+> clrSource (text pkg)
                           return (Left [])
                   Just (pkgName,pkgDir)
-                    -> do termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) $
+                    -> do termPhase term $ color (colorInterpreter (colorScheme flags)) $
                             text "package: conan" <+> clrSource (text pkgName) -- <.> colon <+> clrSource (text pkgDir)
                           let libDir = pkgDir ++ "/lib"
                           searchCLibrary flags cc clib [libDir]
@@ -543,19 +543,19 @@ conanCLibrary term flags sequential cc eimport clib pkg
       = do -- find out latest installed version
            let infoCmd = [conanCmd, "list", "-c", pkg]
            out <- runCommandRead term flags conanEnv infoCmd `catchIO` (\msg -> return "")
-           -- termPhase term out
+           -- termTrace term out
            let cachepkg = dropWhile isSpace $ concat $ take 1 $ dropWhile (all isSpace) $ reverse (lines out)
            if (not (cachepkg `startsWith` pkgBase))
              then return Nothing
              else -- and get the binary package location
                   do let queryCmd = [conanCmd, "install", "--requires", cachepkg] ++ settings
                      (_,out) <- runCommandReadAll term flags conanEnv queryCmd `catchIO` (\msg -> return ("",""))
-                     -- termPhase term out
+                     -- termTrace term out
                      let prefix = cachepkg ++ ": Appending PATH environment variable: "
                          ppaths = [reverse $ drop 4 {- /bin -} $ reverse $
                                     drop (length prefix) line | line <- lines out, line `startsWith` prefix]
-                     termPhase term (show (lines out))
-                     termPhase term (unlines ppaths)
+                     termTrace term (show (lines out))
+                     termTrace term (unlines ppaths)
                      case ppaths of
                        [ppath] -> do exist <- doesDirectoryExist ppath
                                      return (if exist then Just (cachepkg,ppath) else Nothing)
@@ -574,7 +574,7 @@ conanCLibrary term flags sequential cc eimport clib pkg
              else do let profileCmd = [conanCmd, "profile", "detect"] -- ensure default profile exists
                      sequential $ do runCommandReadAll term flags conanEnv profileCmd `catchIO` (\msg -> return ("",""))
                                      return ()
-                     termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: conan package:") <+> clrSource (text pkg))
+                     termPhase term (color (colorInterpreter (colorScheme flags)) (text "install: conan package:") <+> clrSource (text pkg))
                      sequential $ runCommandEnv term flags conanEnv installCmd
 
 
@@ -595,7 +595,7 @@ vcpkgCLibrary term flags sequential cc eimport clib pkg
                   ]
          else do let libDir = root ++ "/installed/" ++ (vcpkgTriplet flags)
                                 ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
-                 termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) $
+                 termPhase term $ color (colorInterpreter (colorScheme flags)) $
                     text "package: vcpkg" <+> clrSource (text pkg)
                  mbInstalled <- searchCLibrary flags cc clib [libDir]
                  case mbInstalled of
@@ -622,7 +622,7 @@ vcpkgCLibrary term flags sequential cc eimport clib pkg
                                               <-> text "         >" <+> clrSource (text (unwords installCmd))
                                               <-> text "         to install the required C library and header files")
                       return (Left [])
-              else do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: vcpkg package:") <+> clrSource (text pkg))
+              else do termPhase term (color (colorInterpreter (colorScheme flags)) (text "install: vcpkg package:") <+> clrSource (text pkg))
                       sequential $ runCommand term flags installCmd
                       searchCLibrary flags cc clib [libDir] -- try to find again after install
 
@@ -666,7 +666,7 @@ kklibBuild term flags sequential cc outDir name {-kklib-} objFile {-libkklib.o-}
                 sequential $ copyBinaryFile binObjPath objPath
            else -- todo: check for installed binaries for the library
                 -- compile kklib from sources
-                do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("compile :")) <+>
+                do termInfo term $ color (colorInterpreter (colorScheme flags)) (text ("compile :")) <+>
                                    color (colorSource (colorScheme flags)) (text name) <+>
                                     color (colorInterpreter (colorScheme flags)) (text "from:") <+>
                                      color (colorSource (colorScheme flags)) (text srcLibDir)
@@ -684,12 +684,12 @@ kklibBuild term flags sequential cc outDir name {-kklib-} objFile {-libkklib.o-}
 ---------------------------------------------------------------}
 
 termWarning term flags doc
-  = termDoc term $ color (colorWarning (colorSchemeFromFlags flags)) (text "warning:" <+> doc)
+  = termInfo term $ color (colorWarning (colorSchemeFromFlags flags)) (text "warning:" <+> doc)
 
 runSystemEcho :: Terminal -> Flags -> String -> IO ()
 runSystemEcho term flags cmd
   = do when (verbose flags >= 2) $
-         termPhase term ("shell> " ++ cmd)
+         termTrace term ("shell> " ++ cmd)
        runSystem cmd
 
 runCommand :: Terminal -> Flags -> [String] -> IO ()
@@ -698,7 +698,7 @@ runCommand term flags cargs@(cmd:args)
        if (osName == "windows" && cmd `endsWith` "emcc") -- hack to run emcc correctly on windows (due to Python?)
          then runSystemEcho term flags command
          else  do when (verbose flags >= 2) $
-                    termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+                    termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
                   runCmd cmd (filter (not . null) args)
                     `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
@@ -711,7 +711,7 @@ runCommandReadAll :: Terminal -> Flags -> [(String,String)] -> [String] -> IO (S
 runCommandReadAll term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
        when (verbose flags >= 2) $
-         termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+         termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
        runCmdRead env cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
@@ -719,7 +719,7 @@ runCommandEnv :: Terminal -> Flags -> [(String,String)] -> [String] -> IO ()
 runCommandEnv term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
        when (verbose flags >= 2) $
-         termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+         termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
        runCmdEnv env  cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 

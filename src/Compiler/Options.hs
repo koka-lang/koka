@@ -85,11 +85,11 @@ prettyIncludePath flags
                else cat (punctuate comma (map (\p -> color (colorSource cscheme) (text p)) path)))
 
 
-data Terminal = Terminal{ termError :: ErrorMessage -> IO ()
-                        , termPhase :: String -> IO ()
-                        , termPhaseDoc :: Doc -> IO ()
-                        , termType  :: Scheme -> IO ()
-                        , termDoc   :: Doc -> IO ()
+data Terminal = Terminal{ termError  :: ErrorMessage -> IO ()
+                        , termTrace  :: String -> IO ()
+                        , termPhase  :: Doc -> IO ()
+                        , termType   :: Scheme -> IO ()
+                        , termInfo   :: Doc -> IO ()
                         }
 
 

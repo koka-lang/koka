@@ -291,7 +291,7 @@ phaseTimed term flags p doc action
 
 phaseVerbose :: Terminal -> Flags -> String -> Doc -> IO ()
 phaseVerbose term flags p doc
-  = termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text (p ++ ":")) <+> (color (colorSource (colorScheme flags)) doc))
+  = termPhase term (color (colorInterpreter (colorScheme flags)) (text (p ++ ":")) <+> (color (colorSource (colorScheme flags)) doc))
 
 compileModuleOrFile :: (FilePath -> Maybe (BString, FileTime)) -> Maybe BString -> Terminal -> Flags -> Modules -> String -> Bool -> CompileTarget () -> [Name] -> IO (Error Loaded (Loaded, Maybe FilePath))
 compileModuleOrFile maybeContents contents term flags modules fname force compileTarget importPath
@@ -355,9 +355,9 @@ compileProgramFromFile maybeContents contents term flags modules compileTarget i
   = do let fname = normalize (joinPath rootPath stem)
        -- trace ("compileProgramFromFile: " ++ show (rootPath,stem) ++ ", import path: " ++ show importPath ++ ", modules: " ++ show (map modName modules)) $ return ()
        cwd <- liftIO getCwd
-       liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+>
+       liftIO $ termPhase term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+>
                   color (colorSource (colorScheme flags)) (text (relativeToPath cwd fname)))
-       liftIO $ termPhase term ("parsing " ++ fname)
+       liftIO $ termTrace term ("parsing " ++ fname)
        exist <- liftIO $ doesFileExist fname
        if (exist) then return () else liftError $ errorMsg (errorFileNotFound flags fname)
        let allowAt = stem `elem` ["std/core/types.kk","std/core/hnd.kk"] {- allow @ in identifiers? -}
@@ -405,7 +405,7 @@ isExecutable _ = False
 
 compileProgram' :: (FilePath -> Maybe (BString, FileTime)) -> Terminal -> Flags -> Modules -> CompileTarget () -> FilePath -> UserProgram -> [Name] -> IOErr Loaded (Loaded, Maybe FilePath)
 compileProgram' maybeContents term flags modules compileTarget fname program importPath
-  = do liftIO $ termPhase term ("compile program' " ++ show (getName program))
+  = do liftIO $ termTrace term ("compile program' " ++ show (getName program))
        let name   = getName program
            outIFace = outName flags (showModName name) ++ ifaceExtension
        ftime <- liftIO (getCurrentFileTime fname maybeContents)
@@ -421,7 +421,7 @@ compileProgram' maybeContents term flags modules compileTarget fname program imp
                                   , loadedModules = allmods
                                   }
        -- trace ("compile file: " ++ show fname ++ "\n time: "  ++ show ftime ++ "\n latest: " ++ show (loadedLatest loaded)) $ return ()
-       liftIO $ termPhase term ("resolve imports " ++ show (getName program))
+       liftIO $ termTrace term ("resolve imports " ++ show (getName program))
        loaded1 <- resolveImports maybeContents (getName program) term flags (dirname fname) loaded importPath (map ImpProgram (programImports program))
        -- trace (" loaded modules: " ++ show (map modName (loadedModules loaded1))) $ return ()
        --trace ("------\nloaded1:\n" ++ show (loadedNewtypes loaded1) ++ "\n----") $ return ()
@@ -429,7 +429,7 @@ compileProgram' maybeContents term flags modules compileTarget fname program imp
        -- trace ("imports: " ++ show (importsList (loadedImportMap loaded1))) $ return ()
 
        if (name /= nameInteractiveModule || verbose flags > 0)
-        then liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "check  :") <+>
+        then liftIO $ termPhase term (color (colorInterpreter (colorScheme flags)) (text "check  :") <+>
                                            color (colorSource (colorScheme flags)) (pretty (name)))
         else return ()
        let coreImports = concatMap toCoreImport (loadedModules loaded1) -- (programImports program)
@@ -442,7 +442,7 @@ compileProgram' maybeContents term flags modules compileTarget fname program imp
 
        (loaded2a, coreDoc) <- liftErrorPartial loaded1 $ typeCheck loaded1 flags 0 coreImports program
        when (showCore flags) $
-         liftIO (termDoc term (vcat [
+         liftIO (termInfo term (vcat [
            text "-------------------------",
            text "core",
            text "-------------------------",
@@ -464,7 +464,7 @@ compileProgram' maybeContents term flags modules compileTarget fname program imp
            loaded2 = loaded2a{ loadedModule = mod' }
 
        -- codegen
-       liftIO $ termPhase term ("codegen " ++ show (getName program))
+       liftIO $ termTrace term ("codegen " ++ show (getName program))
        (newTarget,loaded3) <- wrapMain term flags loaded2 loaded1 compileTarget program coreImports
        (loaded4, outFile) <- liftIO $ do
               (loadedNew, mbRun) <- codeGen term flags newTarget loaded3
@@ -472,18 +472,18 @@ compileProgram' maybeContents term flags modules compileTarget fname program imp
               when (evaluate flags && isExecutable newTarget) $
                 compilerCatch "program run" term () $
                   case mbRun of
-                    Just (_,run) -> do termPhase term "evaluate"
-                                       termDoc term space
+                    Just (_,run) -> do termTrace term "evaluate"
+                                       termInfo term space
                                        run
-                    _  -> termDoc term space
+                    _  -> termInfo term space
               return (loadedNew, fmap fst mbRun)
-       -- liftIO $ termDoc term (text $ show (loadedGamma loaded4))
+       -- liftIO $ termInfo term (text $ show (loadedGamma loaded4))
        --trace (" final loaded modules: " ++ show (map modName (loadedModules loaded4))) $ return ()
        return (loaded4{ loadedModules = addOrReplaceModule (loadedModule loaded4) (loadedModules loaded4) }, outFile)
 
 wrapMain :: Terminal -> Flags -> Loaded -> Loaded -> CompileTarget a -> Program UserType UserKind -> [Core.Import] -> IOErr Loaded (CompileTarget Scheme, Loaded)
 wrapMain  term flags loaded0 loaded1 compileTarget program coreImports = do
-  liftIO $ termPhase term ("wrapping main " ++ show (getName program))
+  liftIO $ termTrace term ("wrapping main " ++ show (getName program))
   liftErrorPartial loaded1 $
       case compileTarget of
         Executable entryName _
@@ -692,7 +692,7 @@ resolveModule maybeContents term flags currentDir modules importPath mimp
                 -> loadFromSource modules root stem
              (Just iface,Nothing)
                 -> do let cscheme = (colorSchemeFromFlags flags)
-                      liftIO $ termDoc term $ color (colorWarning cscheme) $
+                      liftIO $ termInfo term $ color (colorWarning cscheme) $
                          text "warning: interface" <+> color (colorModule cscheme) (pretty name) <+> text "found but no corresponding source module"
                       loadFromIface iface "" ""
              (Just iface,Just (root,stem,mname))
@@ -740,7 +740,7 @@ resolveModule maybeContents term flags currentDir modules importPath mimp
       loadFromIface iface root stem
         = -- trace ("loadFromIFace: " ++  iface ++ ": root:" ++ root ++ " stem:" ++ stem ++ "\n in modules: " ++ show (map modName modules)) $
           do let (pkgQname,pkgLocal) = packageInfoFromDir (packages flags) (dirname iface)
-                 loadMessage msg = liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text msg) <+>
+                 loadMessage msg = liftIO $ termPhase term (color (colorInterpreter (colorScheme flags)) (text msg) <+>
                                        color (colorSource (colorScheme flags))
                                          (pretty (if null pkgQname then "" else pkgQname ++ "/") <.>  pretty (name)))
              mod <- case lookupImport iface modules of
@@ -1103,10 +1103,10 @@ codeGen term flags compileTarget loaded
            coreDoc  = Core.Pretty.prettyCore env{ coreIface = False, coreShowDef = (showCore flags) } (target flags) inlineDefs (modCore mod)
                         <-> Lib.PPrint.empty
        when (genCore flags)  $
-         do termPhase term "generate core"
+         do termTrace term "generate core"
             writeDocW 10000 outCore coreDoc  -- just for debugging
        when (showFinalCore flags && not (isTargetC (target flags))) $
-         do termDoc term coreDoc
+         do termInfo term coreDoc
 
        -- write documentation
        let fullHtml = outHtml flags > 1
@@ -1114,14 +1114,14 @@ codeGen term flags compileTarget loaded
            source   = maybe sourceNull programSource (modProgram mod)
            cenv     = env{ colorizing=True }
        if (isLiteralDoc (sourceName source)) -- .kk.md
-        then do termPhase term "write html document"
+        then do termTrace term "write html document"
                 withNewFilePrinter (outBase ++ ".md") $ \printer ->
                  colorize (modRangeMap mod) cenv (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
         else when (outHtml flags > 0) $
-              do termPhase term "write html source"
+              do termTrace term "write html source"
                  withNewFilePrinter outHtmlFile $ \printer ->
                   colorize (modRangeMap mod) cenv (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
-                 termPhase term "write html documentation"
+                 termTrace term "write html documentation"
                  withNewFilePrinter (outBase ++ ".xmp.html") $ \printer ->
                   genDoc cenv (loadedKGamma loaded) (loadedGamma loaded) (modCore mod) printer
 
@@ -1144,7 +1144,7 @@ codeGen term flags compileTarget loaded
                                   copyBinaryFile out targetOut
                                   return finalOut
                           else return out
-                 termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+                 termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
                     color (colorSource (colorScheme flags)) (text (normalizeWith pathSep exe))
          _ -> return ()
 
@@ -1177,9 +1177,9 @@ codeGenCSDll term flags modules compileTarget outBase core
            outcs       = outBase ++ ".cs"
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [fullBuildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
-       termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
+       termTrace term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
        writeDoc outcs cs
-       when (showAsmCS flags) (termDoc term cs)
+       when (showAsmCS flags) (termInfo term cs)
 
        let linkFlags  = concat ["-r:" ++ outName flags (showModName (Core.importName imp)) ++ dllExtension ++ " "
                                     | imp <- Core.coreProgImports core] -- TODO: link to correct package!
@@ -1208,9 +1208,9 @@ codeGenCS term flags modules compileTarget outBase core
            outcs       = outBase ++ ".cs"
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [fullBuildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
-       termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
+       termTrace term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
        writeDoc outcs cs
-       when (showAsmCS flags) (termDoc term cs)
+       when (showAsmCS flags) (termInfo term cs)
 
        case mbEntry of
          Nothing -> return Nothing
@@ -1235,9 +1235,9 @@ codeGenJS term flags modules compileTarget outBase core
                        _                  -> Nothing
            extractImport mod = Core.Import (modName mod) (modPackageQName mod) Core.ImportUser Public ""
        let js    = javascriptFromCore (buildType flags) mbEntry (map extractImport modules) core
-       termPhase term ( "generate javascript: " ++ outjs )
+       termTrace term ( "generate javascript: " ++ outjs )
        writeDocW 80 outjs js
-       when (showAsmJS flags) (termDoc term js)
+       when (showAsmJS flags) (termInfo term js)
 
        case mbEntry of
         Nothing -> return Nothing
@@ -1255,7 +1255,7 @@ codeGenJS term flags modules compileTarget outBase core
                                 "  </body>",
                                 "</html>"
                               ]
-            termPhase term ("generate index html: " ++ outHtml)
+            termTrace term ("generate index html: " ++ outHtml)
             writeDoc outHtml contentHtml
             -- copy amdefine
             {-
@@ -1300,12 +1300,12 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] bcore
       -- writeDocW 120 (outBase ++ ".c.kkc") bcoreDoc
       when (showFinalCore flags) $
-        do termDoc term bcoreDoc
+        do termInfo term bcoreDoc
 
-      termPhase term ( "generate c: " ++ outBase )
+      termTrace term ( "generate c: " ++ outBase )
       writeDocW 120 outC (cdoc <.> linebreak)
       writeDocW 120 outH (hdoc <.> linebreak)
-      when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
+      when (showAsmC flags) (termInfo term (hdoc <//> cdoc))
 
       -- copy libraries
       let cc       = ccomp flags
@@ -1376,13 +1376,13 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                          ++ map (ccAddSysLib cc) syslibs
 
 
-            termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
+            termPhase term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
                                color (colorSource (colorScheme flags)) (text mainName))
             runCommand term flags clink
 
             let mainTarget = mainExe ++ targetExeExtension (target flags)
             when (not (null (outFinalPath flags))) $
-              termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+              termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
                                     color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
 
@@ -1444,7 +1444,7 @@ copyCLibrary term flags cc eimport
                                           return Nothing
               case mb of
                 Just (libPath,includes)
-                  -> do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
+                  -> do termPhase term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
                           color (colorSource (colorScheme flags)) (text libPath))
                         -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
                         copyBinaryIfNewer (rebuild flags) libPath (outName flags (ccLibFile cc clib))
@@ -1503,7 +1503,7 @@ conanCLibrary term flags cc eimport clib pkg
                             text "unable to resolve conan package:" <+> clrSource (text pkg)
                           return (Left [])
                   Just (pkgName,pkgDir)
-                    -> do termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) $
+                    -> do termPhase term $ color (colorInterpreter (colorScheme flags)) $
                             text "package: conan" <+> clrSource (text pkgName) -- <.> colon <+> clrSource (text pkgDir)
                           let libDir = pkgDir ++ "/lib"
                           searchCLibrary flags cc clib [libDir]
@@ -1532,19 +1532,19 @@ conanCLibrary term flags cc eimport clib pkg
       = do -- find out latest installed version
            let infoCmd = [conanCmd, "list", "-c", pkg]
            out <- runCommandRead term flags conanEnv infoCmd `catchIO` (\msg -> return "")
-           -- termPhase term out
+           -- termTrace term out
            let cachepkg = dropWhile isSpace $ concat $ take 1 $ dropWhile (all isSpace) $ reverse (lines out)
            if (not (cachepkg `startsWith` pkgBase))
              then return Nothing
              else -- and get the binary package location
                   do let queryCmd = [conanCmd, "install", "--requires", cachepkg] ++ settings
                      (_,out) <- runCommandReadAll term flags conanEnv queryCmd `catchIO` (\msg -> return ("",""))
-                     -- termPhase term out
+                     -- termTrace term out
                      let prefix = cachepkg ++ ": Appending PATH environment variable: "
                          ppaths = [reverse $ drop 4 {- /bin -} $ reverse $
                                     drop (length prefix) line | line <- lines out, line `startsWith` prefix]
-                     termPhase term (show (lines out))
-                     termPhase term (unlines ppaths)
+                     termTrace term (show (lines out))
+                     termTrace term (unlines ppaths)
                      case ppaths of
                        [ppath] -> do exist <- doesDirectoryExist ppath
                                      return (if exist then Just (cachepkg,ppath) else Nothing)
@@ -1562,7 +1562,7 @@ conanCLibrary term flags cc eimport clib pkg
                     <-> text "         to install the required C library and header files")
              else do let profileCmd = [conanCmd, "profile", "detect"] -- ensure default profile exists
                      runCommandReadAll term flags conanEnv profileCmd `catchIO` (\msg -> return ("",""))
-                     termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: conan package:") <+> clrSource (text pkg))
+                     termPhase term (color (colorInterpreter (colorScheme flags)) (text "install: conan package:") <+> clrSource (text pkg))
                      runCommandEnv term flags conanEnv installCmd
 
 
@@ -1583,7 +1583,7 @@ vcpkgCLibrary term flags cc eimport clib pkg
                   ]
          else do let libDir = root ++ "/installed/" ++ (vcpkgTriplet flags)
                                 ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
-                 termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) $
+                 termPhase term $ color (colorInterpreter (colorScheme flags)) $
                     text "package: vcpkg" <+> clrSource (text pkg)
                  mbInstalled <- searchCLibrary flags cc clib [libDir]
                  case mbInstalled of
@@ -1610,13 +1610,13 @@ vcpkgCLibrary term flags cc eimport clib pkg
                                               <-> text "         >" <+> clrSource (text (unwords installCmd))
                                               <-> text "         to install the required C library and header files")
                       return (Left [])
-              else do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: vcpkg package:") <+> clrSource (text pkg))
+              else do termPhase term (color (colorInterpreter (colorScheme flags)) (text "install: vcpkg package:") <+> clrSource (text pkg))
                       runCommand term flags installCmd
                       searchCLibrary flags cc clib [libDir] -- try to find again after install
 
 
 termWarning term flags doc
-  = termDoc term $ color (colorWarning (colorSchemeFromFlags flags)) (text "warning:" <+> doc)
+  = termInfo term $ color (colorWarning (colorSchemeFromFlags flags)) (text "warning:" <+> doc)
 
 clibsFromCore flags core    = externalImportKeyFromCore (target flags) (buildType flags) core "library"
 csyslibsFromCore flags core = externalImportKeyFromCore (target flags) (buildType flags) core "syslib"
@@ -1653,7 +1653,7 @@ kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
                 copyBinaryFile binObjPath objPath
            else -- todo: check for installed binaries for the library
                 -- compile kklib from sources
-                do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("compile:")) <+>
+                do termInfo term $ color (colorInterpreter (colorScheme flags)) (text ("compile:")) <+>
                                    color (colorSource (colorScheme flags)) (text name) <+>
                                     color (colorInterpreter (colorScheme flags)) (text "from:") <+>
                                      color (colorSource (colorScheme flags)) (text srcLibDir)
@@ -1687,7 +1687,7 @@ cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFl
            then -- use pre-compiled installed binary
                 copyBinaryFile binLibPath libPath
            else -- todo: check for installed binaries for the library
-                do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("cmake  :")) <+>
+                do termInfo term $ color (colorInterpreter (colorScheme flags)) (text ("cmake  :")) <+>
                                    color (colorSource (colorScheme flags)) (text libName) <+>
                                     color (colorInterpreter (colorScheme flags)) (text "from:") <+>
                                      color (colorSource (colorScheme flags)) (text srcLibDir)
@@ -1726,7 +1726,7 @@ checkCMake term flags
   = do paths   <- getEnvPaths "PATH"
        mbCMake <- searchPaths paths [exeExtension] (cmake flags)
        case mbCMake of
-         Nothing -> do termDoc term (text ("error: '" ++ cmake flags ++ "' command cannot be found.") <->
+         Nothing -> do termInfo term (text ("error: '" ++ cmake flags ++ "' command cannot be found.") <->
                                      text " hint: install from <https://cmake.org/download/> or using 'sudo apt-get install cmake'")
                        return ()
          Just _  -> if (not (onWindows))
@@ -1736,14 +1736,14 @@ checkCMake term flags
                               then -- bare windows prompt: check for Ninja, and if using clang
                                    do mbNinja <- searchPaths paths [exeExtension] "ninja"
                                       case mbNinja of
-                                        Nothing -> do termDoc term (text "error: 'ninja' build system not found" <->
+                                        Nothing -> do termInfo term (text "error: 'ninja' build system not found" <->
                                                                     text " hint: run from a Visual Studio 'x64 Native Tools Command Prompt'" <->
                                                                     text "       or install 'ninja' from <https://github.com/ninja-build/ninja/releases>")
                                                       return ()
                                         Just _  -> return ()
                                                    {-do cc <- getEnvVar "CC"
                                                       if (cc=="clang")
-                                                       then do termDoc term (text "When using 'clang' you must run in a 'x64 Native Tools Command Prompt'")
+                                                       then do termInfo term (text "When using 'clang' you must run in a 'x64 Native Tools Command Prompt'")
                                                                return ()
                                                        else return ()-}
                               else -- visual studio prompt
@@ -1753,7 +1753,7 @@ checkCMake term flags
 runSystemEcho :: Terminal -> Flags -> String -> IO ()
 runSystemEcho term flags cmd
   = do when (verbose flags >= 2) $
-         termPhase term ("shell> " ++ cmd)
+         termTrace term ("shell> " ++ cmd)
        runSystem cmd
 
 runCommand :: Terminal -> Flags -> [String] -> IO ()
@@ -1762,7 +1762,7 @@ runCommand term flags cargs@(cmd:args)
        if (osName == "windows" && cmd `endsWith` "emcc") -- hack to run emcc correctly on windows (due to Python?)
          then runSystemEcho term flags command
          else  do when (verbose flags >= 2) $
-                    termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+                    termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
                   runCmd cmd (filter (not . null) args)
                     `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
@@ -1775,7 +1775,7 @@ runCommandReadAll :: Terminal -> Flags -> [(String,String)] -> [String] -> IO (S
 runCommandReadAll term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
        when (verbose flags >= 2) $
-         termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+         termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
        runCmdRead env cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
@@ -1783,7 +1783,7 @@ runCommandEnv :: Terminal -> Flags -> [(String,String)] -> [String] -> IO ()
 runCommandEnv term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
        when (verbose flags >= 2) $
-         termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+         termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
        runCmdEnv env  cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 

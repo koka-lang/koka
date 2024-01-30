@@ -185,7 +185,7 @@ recompileFile compileTarget uri version force flags = do
       -- Don't use the cached modules as regular modules (they may be out of date, so we want to resolveImports fully over again)
       let resultIO = do res <- compileFile (maybeContents newvfs) contents term flags (fromMaybe [] modules) compileTarget [] path
                         liftIO $ -- trace ("koka/recompile: " ++ path ++ ", uri: " ++ show uri ++ ", normUri: " ++ show normUri) $
-                                 termPhaseDoc term (color (colorInterpreter (colorSchemeFromFlags flags)) (text "done"))
+                                 termPhase term (color (colorInterpreter (colorSchemeFromFlags flags)) (text "done"))
                         return res
       processCompilationResult normUri path flags True resultIO
     Nothing -> return Nothing
@@ -220,7 +220,7 @@ processCompilationResult normUri filePath flags update doIO = do
         Right ((l, outFile), _, _) -> do
           -- Compilation succeeded
           when update $ putLoadedSuccess l normUri flags-- update the loaded state for this file
-          -- liftIO $ termDoc term $ color Green $ text "success "
+          -- liftIO $ termInfo term $ color Green $ text "success "
           return outFile -- return the executable file path
         Left (Errors errs, mbMod) -> do
           -- Compilation failed

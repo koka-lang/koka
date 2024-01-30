@@ -81,7 +81,7 @@ modulesFlushErrors modules
 
 modulesBuild :: [Name] -> [Module] -> Build [Module]
 modulesBuild mainEntries modules
-  = -- phaseTimed "build" (\_ -> Lib.PPrint.empty) $ -- (list (map (pretty . modName) modules))
+  = -- phaseTimed 2 "build" (\_ -> Lib.PPrint.empty) $ -- (list (map (pretty . modName) modules))
     do tcheckedMap <- modmapCreate modules
        optimizedMap<- modmapCreate modules
        codegenMap  <- modmapCreate modules
@@ -93,14 +93,14 @@ modulesBuild mainEntries modules
 
 modulesTypeCheck :: [Module] -> Build [Module]
 modulesTypeCheck modules
-  = -- phaseTimed "check" (const Lib.PPrint.empty) $
+  = -- phaseTimed 2 "check" (const Lib.PPrint.empty) $
     do tcheckedMap <- modmapCreate modules
        tchecked    <- mapConcurrentModules (moduleTypeCheck tcheckedMap) modules
        modulesFlushErrors tchecked
 
 modulesReValidate :: VFS -> Bool -> [ModuleName] -> [Module] -> [Module] -> Build [Module]
 modulesReValidate vfs rebuild forced cachedImports roots
-  = --phaseTimed "resolve" (const Lib.PPrint.empty) $
+  = --phaseTimed 2 "resolve" (const Lib.PPrint.empty) $
     let rootNames = map modName roots in seqList rootNames $
     do rootsv   <- modulesValidate vfs roots
        resolved <- modulesResolveDependencies vfs rebuild forced cachedImports rootsv
@@ -197,7 +197,7 @@ moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap
         imports <- moduleGetFullImports fullLink (if fullLink then linkedMap else codegenMap) [] (modImportNames mod)
         if any (\m -> modPhase m < PhaseCodeGen) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
-          else do phase "link" $ \penv -> TP.ppName penv (modName mod)
+          else do phaseVerbose (if fullLink then 1 else 2) (if fullLink then "linking" else "link") $ \penv -> TP.ppName penv (modName mod)
                   mbEntry <- pooledIO $ link   -- link it!
                   let mod' = mod{ modPhase = PhaseLinked, modEntry = case mbEntry of
                                                                        LinkDone -> Nothing
@@ -218,7 +218,7 @@ moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
        imports <- moduleGetFullImports False optimizedMap [] (modImportNames mod)
        if any (\m -> modPhase m < PhaseOptimized) imports
          then done mod
-         else do  phase "codegen" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
+         else do  phaseVerbose 2 "codegen" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
                   flags <- getFlags
                   term  <- getTerminal
                   let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the compile?
@@ -229,7 +229,7 @@ moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
                                                 (defsNewtypes defs) (defsBorrowed defs) (defsKGamma defs) (defsGamma defs)
                                                 mbEntry imports mod
                   let mod' = mod{ modPhase = PhaseCodeGen }
-                  phaseVerbose 2 "codegen done" $ \penv -> TP.ppName penv (modName mod)
+                  phaseVerbose 3 "codegen done" $ \penv -> TP.ppName penv (modName mod)
                   done mod'
                   return (isJust mbEntry,link,mod')
 
@@ -265,7 +265,7 @@ moduleOptimize tcheckedMap optimizedMap
         if any (\m -> modPhase m < PhaseOptimized) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
           else -- core compile
-              do  phase "optimize" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
+              do  phaseVerbose 2 "optimize" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
                   flags <- getFlags
                   let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check?
                       inlines = inlinesFromModules imports
@@ -274,7 +274,7 @@ moduleOptimize tcheckedMap optimizedMap
                                 , modCore    = Just $! core
                                 , modInlines = Right $! inlineDefs
                                 }
-                  phaseVerbose 2 "optimize done" $ \penv -> TP.ppName penv (modName mod)
+                  phaseVerbose 3 "optimize done" $ \penv -> TP.ppName penv (modName mod)
                   done mod'
 
 
@@ -323,7 +323,7 @@ moduleTypeCheck tcheckedMap
                                 , modRangeMap = mbRangeMap
                                 , modDefinitions = Just $! (defsFromCore core)
                                 }
-                  phaseVerbose 2 "check done" $ \penv -> TP.ppName penv (modName mod)
+                  phaseVerbose 3 "check done" $ \penv -> TP.ppName penv (modName mod)
                   done mod'
 
 
@@ -412,7 +412,7 @@ toBuildOrder modules
         ungroup [mname]  | Just mod <- find (\m -> modName m == mname) modules  = return [mod]
         ungroup grp      = do throwErrorKind ErrBuild (\penv -> text "recursive imports:" <+> list (map (TP.ppName penv) grp))
                               return []
-    in do phaseVerbose 2 "build order" $ \penv -> list (map (\grp -> hsep (map (TP.ppName penv) grp)) ordered)
+    in do phaseVerbose 3 "build order" $ \penv -> list (map (\grp -> hsep (map (TP.ppName penv) grp)) ordered)
           concat <$> mapM ungroup ordered
 
 
@@ -442,8 +442,10 @@ moduleLoad vfs rebuild forced mod
 
 moduleParse :: VFS -> Module -> Build Module
 moduleParse vfs mod
-  = do phase "parse" $ \penv -> text (modSourcePath mod)
-       flags <- getFlags
+  = do flags <- getFlags
+       phase "parse" $ \penv -> text (if verbose flags > 1 || isAbsolute (modSourceRelativePath mod)
+                                        then modSourcePath mod
+                                        else ".../" ++ modSourceRelativePath mod)
        let allowAt = True -- isPrimitiveModule (modName mod) || modSourcePath mod `endsWith` "/@main.kk"
        input <- getFileContents vfs (modSourcePath mod)
        prog  <- liftError $ parseProgramFromString allowAt (semiInsert flags) input (modSourcePath mod)
@@ -607,7 +609,7 @@ moduleValidate vfs mod
                       , modIfaceTime  = ftIface
                       , modLibIfaceTime = ftLibIface
                       }
-       -- phaseVerbose 2 "validate" (pretty (modName mod') <.> text (": times: " ++ show (force,stale,ftSource,modIfaceTime mod')))
+       -- phaseVerbose 3 "validate" (pretty (modName mod') <.> text (": times: " ++ show (force,stale,ftSource,modIfaceTime mod')))
        if stale
          then return mod'{ modPhase = PhaseInit, modErrors = errorsNil,
                            -- reset fields that are not used by an IDE to reduce memory pressure
@@ -706,10 +708,10 @@ forkTerminal term termProxyDone
   = do ch <- newChan
        forkIO (handleOutput ch `finally` putMVar termProxyDone ())
        let termProxy = Terminal (writeChan ch . Just . termError term)
+                                (writeChan ch . Just . termTrace term)
                                 (writeChan ch . Just . termPhase term)
-                                (writeChan ch . Just . termPhaseDoc term)
                                 (writeChan ch . Just . termType term)
-                                (writeChan ch . Just . termDoc term)
+                                (writeChan ch . Just . termInfo term)
        return (termProxy, writeChan ch Nothing)
   where
     handleOutput :: Chan (Maybe (IO ())) -> IO ()
@@ -907,28 +909,32 @@ addErrorMessageKind ekind doc
        penv <- getPrettyEnv
        addErrorMessage (errorMessageKind ekind rng (doc penv))
 
-phaseTimed :: String -> (TP.Env -> Doc) -> Build a -> Build a
-phaseTimed p doc action
+phaseTimed :: Int -> String -> (TP.Env -> Doc) -> Build a -> Build a
+phaseTimed level p doc action
   = do t0 <- liftIO $ getCurrentTime
-       phaseVerbose 1 (p ++ " start") doc
+       phaseVerbose level p doc
        buildFinally (do t1 <- liftIO $ getCurrentTime
-                        phaseVerbose 1 (p ++ " elapsed") (\penv -> text (showTimeDiff t1 t0)))
+                        phaseVerbose level p (\penv -> text (showTimeDiff t1 t0)))
                     action
 
+phase :: String -> (TP.Env -> Doc) -> Build ()
+phase p mkdoc
+  = phaseVerbose 1 p mkdoc
 
 phaseVerbose :: Int -> String -> (TP.Env -> Doc) -> Build ()
 phaseVerbose vlevel p doc
   = do flags <- getFlags
        when (verbose flags >= vlevel) $
-         phase p doc
+         phaseShow p doc
 
-phase :: String -> (TP.Env -> Doc) -> Build ()
-phase p doc
+phaseShow :: String -> (TP.Env -> Doc) -> Build ()
+phaseShow p mkdoc
   = do term    <- getTerminal
        penv    <- getPrettyEnv
        let cscheme = TP.colors penv
-       liftIO $ termPhaseDoc term (color (colorInterpreter cscheme) (text (sfill 8 p ++ ":")) <+>
-                                   (color (colorSource cscheme) (doc penv)))
+           doc = mkdoc penv
+           pre = if isEmptyDoc doc then p else (sfill 8 p ++ ":")
+       liftIO $ termPhase term (color (colorInterpreter cscheme) (text pre) <+> (color (colorSource cscheme) doc))
 
 sfill n s = s ++ replicate (n - length s) ' '
 

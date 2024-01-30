@@ -722,11 +722,11 @@ unifyError context range err xtp1 xtp2
        unifyError' (prettyEnv env){Pretty.fullNames = False} context range err tp1 tp2
 
 unifyError' env context range err tp1 tp2
-  = do termDoc <- getTermDoc "term" range
+  = do termInfo <- getTermDoc "term" range
        infError range $
         text message <->
         table ([(text "context", docFromRange (Pretty.colors env) rangeContext)
-               , termDoc
+               , termInfo
                ,(text ("inferred " ++ nameType), nice2)
                ]
                ++ nomatch
@@ -787,11 +787,11 @@ predicateError contextRange range message pred
        predicateError' (prettyEnv env) contextRange range message spred
 
 predicateError' env contextRange range message pred
-  = do termDoc <- getTermDoc "origin" range
+  = do termInfo <- getTermDoc "origin" range
        infError range $
         text message <->
         table  [(text "context", docFromRange (Pretty.colors env) contextRange)
-               , termDoc
+               , termInfo
                ,(text "constraint", nicePred)
                ]
   where
@@ -806,11 +806,11 @@ typeError contextRange range message xtp extra
        typeError' (prettyEnv env) contextRange range message tp extra
 
 typeError' env contextRange range message tp extra
-  = do termDoc <- getTermDoc "term" range
+  = do termInfo <- getTermDoc "term" range
        infError range $
         message <->
         table ([(text "context", docFromRange (Pretty.colors env) contextRange)
-              , termDoc
+              , termInfo
               ,(text "inferred type", Pretty.niceType env tp)
               ] ++ extra)
 
@@ -820,11 +820,11 @@ contextError contextRange range message extra
        contextError' (prettyEnv env) contextRange range message extra
 
 contextError' env contextRange range message extra
-  = do termDoc <- getTermDoc "term" range
+  = do termInfo <- getTermDoc "term" range
        infError range $
         message <->
         table  ([(text "context", docFromRange (Pretty.colors env) contextRange)
-                , termDoc
+                , termInfo
                 ]
                 ++ extra)
 
@@ -834,10 +834,10 @@ termError range message tp extra
        termError' (prettyEnv env) range message tp extra
 
 termError' env range message tp extra
-  = do termDoc <- getTermDoc "term" range
+  = do termInfo <- getTermDoc "term" range
        infError range $
         message <->
-        table  ([ termDoc
+        table  ([ termInfo
                 ,(text "inferred type", Pretty.niceType env tp)
                 ]
                 ++ extra)
@@ -954,9 +954,9 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                  checkCasing range name qname info
                  return (qname,infoType info,info)
         _  -> do env <- getEnv
-                 (term,termDoc) <- getTermDoc "context" rangeContext
+                 (term,termInfo) <- getTermDoc "context" rangeContext
                  infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be resolved." <->
-                                 table  [(term, termDoc),
+                                 table  [(term, termInfo),
                                          (text "inferred type", ppNameContext (prettyEnv env) ctx),
                                          (text "candidates", ppCandidates env matches),
                                          (text "hint", text "give a type annotation or qualify the name?")])
@@ -1000,9 +1000,9 @@ lookupAppName allowDisambiguate name ctx contextRange range
           Left docs
             -> if (allowDisambiguate && not (null docs))
                 then do env <- getEnv
-                        (term,termDoc) <- getTermDoc "context" contextRange
+                        (term,termInfo) <- getTermDoc "context" contextRange
                         infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be resolved" <->
-                                        table [(term, termDoc),
+                                        table [(term, termInfo),
                                                (text "inferred type", ppNameContext (prettyEnv env) ctx),
                                                (text "candidates", ppAmbDocs docs),
                                                (text "hint", text "qualify the name?")])
@@ -1019,10 +1019,10 @@ resolveImplicitName name tp contextRange range
        case res of
          Right iarg  -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv "?" name iarg
                            return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
-         Left docs   -> do (term,termDoc) <- getTermDoc "context" contextRange
+         Left docs   -> do (term,termInfo) <- getTermDoc "context" contextRange
                            infError range
                               (text "cannot resolve implicit parameter" <->
-                               table [(term, termDoc),
+                               table [(term, termInfo),
                                       (text "parameter",  text "?" <.> ppNameType penv (name,tp)),
                                       (text "candidates", ppAmbDocs docs),
                                       (text "hint", text "add a (implicit) parameter to the function signature?")])

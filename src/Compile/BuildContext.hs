@@ -116,7 +116,7 @@ buildcBuild mainEntries buildc
 
 buildcFullBuild :: Bool -> [ModuleName] -> [Name] -> BuildContext -> Build BuildContext
 buildcFullBuild rebuild forced mainEntries buildc
-  = phaseTimed "build" (\penv -> empty) $
+  = phaseTimed 2 "building" (\penv -> empty) $
     do let (roots,imports) = buildcSplitRoots buildc
        mods <- modulesFullBuild (buildcVFS buildc) rebuild forced mainEntries imports roots
        return (buildc{ buildcModules = mods})
@@ -127,7 +127,7 @@ buildcExpr importNames expr buildc
   = do (buildc1,mbEntry) <- buildcCompileExpr importNames expr buildc
        case mbEntry of
           Just (exe,run)
-            -> do phase "run" (\penv -> linebreak)
+            -> do phase "" (\penv -> empty)
                   liftIO $ run
           _ -> return ()
        return buildc1
@@ -135,7 +135,7 @@ buildcExpr importNames expr buildc
 
 buildcCompileExpr :: [ModuleName] -> String -> BuildContext -> Build (BuildContext,Maybe (FilePath,IO ()))
 buildcCompileExpr importNames expr buildc
-  = phaseTimed "build" (\penv -> empty) $
+  = phaseTimed 2 "compile" (\penv -> empty) $
     do let sourcePath = joinPaths [
                           virtualMount,
                           case [modSourceRelativePath mod | mname <- importNames,

@@ -60,7 +60,7 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
           res <- trace ("koka/compile: " ++ T.unpack filePath ++ ", " ++ show (filePathToUri (T.unpack filePath))) $
                  recompileFile (Executable (newName "main") ()) (filePathToUri (T.unpack filePath)) Nothing forceRecompilation newFlags
           term <- getTerminal
-          liftIO $ termDoc term $ text "Finished generating code for main file" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
+          liftIO $ termInfo term $ text "Finished generating code for main file" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just exePath -> J.InL $ Json.String $ T.pack exePath; Nothing -> J.InR J.Null}
@@ -78,7 +78,7 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
           -- compile the expression
           res <- compileEditorExpression (filePathToUri $ T.unpack filePath) newFlags forceRecompilation (T.unpack filePath) (T.unpack functionName)
           term <- getTerminal
-          liftIO $ termDoc term $ text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) <+> text "in" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
+          liftIO $ termInfo term $ text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) <+> text "in" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just exePath -> J.InL $ Json.String $ T.pack exePath; Nothing -> J.InR J.Null}
@@ -103,5 +103,5 @@ getNewFlags flags args = do
     Nothing -> do
       doc <- liftIO (commandLineHelp flags)
       sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid arguments " <> args
-      liftIO $ termPhaseDoc term doc
+      liftIO $ termPhase term doc
       return flags

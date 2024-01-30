@@ -90,10 +90,10 @@ configurationChangeHandler = notificationHandler J.SMethod_WorkspaceDidChangeCon
 
 -- Handles the initialized notification
 initializedHandler :: Handlers LSM
-initializedHandler = 
+initializedHandler =
   notificationHandler J.SMethod_Initialized $ \_not -> do
     term <- getTerminal
-    liftIO $ termDoc term $ color DarkGray (text "Initialized language server.")
+    liftIO $ termInfo term $ color DarkGray (text "Initialized language server.")
 
 -- Handles cancel requests
 cancelHandler :: Handlers LSM
