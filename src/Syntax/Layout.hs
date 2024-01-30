@@ -22,6 +22,7 @@ import Lib.Trace
 import Syntax.Lexeme
 import Syntax.Lexer
 import Common.Name  ( Name, nameLocal, nameStem )
+import Common.File  ( startsWith )
 
 testFile fname
   = do input <- readInput ("test/" ++ fname)
@@ -210,7 +211,7 @@ checkComments lexemes
     check prevLine commentRng (lexeme@(Lexeme rng lex) : ls)
       = lexeme :
         case lex of
-          LexComment _ -> check prevLine rng ls
+          LexComment s | not (s `startsWith` "\n#") -> check prevLine rng ls
           LexWhite _   -> check prevLine commentRng ls
           _            -> checkIndent ++
                           check (endLine rng) commentRng ls
@@ -219,6 +220,7 @@ checkComments lexemes
           = if (startLine rng > prevLine && startLine rng == endLine commentRng && endCol commentRng > 1 {- for wrap-around line columns -})
              then [Lexeme commentRng (LexError "layout: comments cannot be placed in the indentation of a line")]
              else []
+
 
 
 {----------------------------------------------------------

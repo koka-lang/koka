@@ -34,6 +34,7 @@ import Common.Range
 import Common.File
 import Common.Error
 import Common.Failure
+import Common.ColorScheme
 import Type.Type
 import qualified Type.Pretty as TP
 import Type.Kind       (extractHandledEffect, getHandledEffectX )
@@ -146,47 +147,88 @@ buildcCompileExpr importNames expr buildc
                               _         -> "",
                           "@main" ++ sourceExtension]
            importDecls = map (\mname -> "import " ++ show mname) importNames
-           content     = unlines $ importDecls ++ [
+           content     = bunlines $ importDecls ++ [
+                           "",
                            "pub fun @expr()",
                            "#line 1",
-                           "  " ++ expr
+                           " (" ++ expr ++ ").println"
                          ]
 
-       withVirtualModule sourcePath (stringToBString content) buildc $ \mainModName buildc1 ->
-         do let exprName = qualify mainModName (newName "@expr")
+       withVirtualModule sourcePath content buildc $ \mainModName buildc1 ->
+         do -- type check first
+            let exprName = qualify mainModName (newName "@expr")
             buildc2 <- buildcValidate False [] buildc1
             buildc3 <- buildcTypeCheck buildc2
-            mainBody <- completeMain True exprName buildc3
-            let mainName = qualify mainModName (newName "@main")
-                mainDef  = unlines ["pub fun @main() : io ()",
-                                    "  " ++ mainBody]
-            buildc4 <- buildcSetVirtualFile sourcePath (stringToBString (content ++ "\n" ++ mainDef)) buildc3
-            buildc4a <- buildcValidate False [] buildc4
-            buildc5 <- buildcBuild [mainName] buildc4a
-            buildc6 <- buildcDeleteVirtualFile sourcePath buildc5
-            let buildc7 = buildcRemoveRootSource sourcePath buildc6
-                mainMod = buildcFindModule mainModName buildc7
-                entry   = modEntry mainMod
-            return $ seq entry (buildc7,entry)
+            mbRng   <- hasBuildError
+            case mbRng of
+              Just rng -> do showMarker rng
+                             return (buildc3,Nothing)
+              _        -> buildcCompileMain expr importDecls sourcePath mainModName exprName buildc3
+
+buildcCompileMain :: String -> [String] -> FilePath -> Name -> Name -> BuildContext -> Build (BuildContext,Maybe (FilePath,IO ()))
+buildcCompileMain expr importDecls sourcePath mainModName exprName buildc1
+  = do  -- then compile with a main function
+        (showIt,mainBody) <- completeMain True exprName buildc1
+        let mainName = qualify mainModName (newName "@main")
+            mainDef  = bunlines $ importDecls ++ [
+                        "",
+                        "pub fun @expr() : io ()",
+                        "#line 1",
+                        "  " ++ showIt expr,
+                        "",
+                        "pub fun @main() : io ()",
+                        "  " ++ mainBody,
+                        ""
+                        ]
+        buildc2  <- buildcSetVirtualFile sourcePath mainDef buildc1
+        buildc3  <- buildcValidate False [] buildc2
+        buildc4  <- buildcBuild [mainName] buildc3
+        mbRng <- hasBuildError
+        case mbRng of
+          Just rng -> do showMarker rng
+                         return (buildc4,Nothing)
+          _        -> do -- and return the entry point
+                         let mainMod = buildcFindModule mainModName buildc4
+                             entry   = modEntry mainMod
+                         return $ seq entry (buildc4,entry)
+
+showMarker :: Range -> Build ()
+showMarker rng
+  = do let c1 = posColumn (rangeStart rng)
+           c2 = if (posLine (rangeStart rng) == posLine (rangeStart rng))
+                 then posColumn (rangeEnd rng)
+                else c1
+       cscheme <- getColorScheme
+       term    <- getTerminal
+       let doc = color (colorMarker cscheme) (text (replicate (c1 - 1) ' ' ++ replicate 1 {- (c2 - c1 + 1) -} '^'))
+       liftIO $ termInfo term doc
 
 
-completeMain :: Bool -> Name -> BuildContext -> Build String
+bunlines :: [String] -> BString
+bunlines xs = stringToBString $ unlines xs
+
+completeMain :: Bool -> Name -> BuildContext -> Build (String -> String,String)
 completeMain addShow exprName buildc
   = case buildcLookupInfo buildc exprName of
-      [InfoFun{infoType=tp,infoRange=r}]
-        -> do case expandSyn tp of
-                TFun _ eff resTp
+      [info] | isInfoValFunExt info
+        -> do case splitFunScheme (infoType info) of
+                Just (_,_,_,eff,resTp)
                   -> let (ls,_) = extractHandledEffect eff
-                     in do body0 <- callExpr resTp
-                           body1 <- combine r eff ls body0
-                           return body1
-                _ -> callExpr typeUnit
-      _ -> callExpr typeUnit
+                     in do show     <- showExpr resTp
+                           mainBody <- combine (infoRange info) eff ls callExpr
+                           return (show,mainBody)
+                _ -> return (id, callExpr)
+      _ -> return (id,callExpr)
   where
-    callExpr tp
-      = if isTypeUnit tp || not addShow
-          then return (show exprName ++ "()")
-          else return (show exprName ++ "().println")
+    callExpr
+      = show exprName ++ "()"
+
+    showExpr resTp
+      = if isTypeUnit resTp || not addShow
+          then return id
+          else case expandSyn resTp of
+                 TFun _ _ _ -> return (\expr -> "println(\"<function>\")")
+                 _          -> return (\expr -> "(" ++ expr ++ ").println")
 
     exclude = [nameTpNamed] -- nameTpCps,nameTpAsync
 
@@ -217,17 +259,20 @@ completeMain addShow exprName buildc
                             combine range eff ls body
 
 
-withVirtualModule :: FilePath -> BString -> BuildContext -> (ModuleName -> BuildContext -> Build a) -> Build a
+withVirtualModule :: FilePath -> BString -> BuildContext -> (ModuleName -> BuildContext -> Build (BuildContext,a)) -> Build (BuildContext,a)
 withVirtualModule fpath0 content buildc action
   = do let fpath = normalize fpath0
        buildc1 <- buildcSetVirtualFile fpath content buildc
        (buildc2,[modName]) <- buildcAddRootSources [fpath] buildc1
-       action modName buildc2
+       (buildc3,x) <- action modName buildc2
+       buildc4 <- buildcDeleteVirtualFile fpath buildc3
+       return (buildcRemoveRootSource fpath buildc4, x)
 
 buildcSetVirtualFile :: FilePath -> BString -> BuildContext -> Build BuildContext
 buildcSetVirtualFile fpath0 content buildc
   = do let fpath = normalize fpath0
        ftime <- liftIO $ getCurrentTime
+       phaseVerbose 2 "trace" (\penv -> text "add virtual file" <+> text fpath <+> text ", content:" <-> text (bstringToString content))
        return buildc{ buildcFileSys = M.insert fpath (content,ftime) (buildcFileSys buildc) }
 
 buildcDeleteVirtualFile :: FilePath -> BuildContext -> Build BuildContext

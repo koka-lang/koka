@@ -19,6 +19,7 @@ module Compile.Build( Build
 
                       , phase, phaseVerbose, phaseTimed
                       , throwError, throwErrorKind, getTerminal
+                      , throwOnError, hasBuildError, getColorScheme
                       , liftIO
 
                       , virtualMount
@@ -96,14 +97,14 @@ modulesBuild mainEntries modules
 
 modulesTypeCheck :: [Module] -> Build [Module]
 modulesTypeCheck modules
-  = -- phaseTimed 2 "check" (const Lib.PPrint.empty) $
+  = phaseTimed 2 "check" (const Lib.PPrint.empty) $
     do tcheckedMap <- modmapCreate modules
        tchecked    <- mapConcurrentModules (moduleTypeCheck tcheckedMap) modules
        modulesFlushErrors tchecked
 
 modulesReValidate :: VFS -> Bool -> [ModuleName] -> [Module] -> [Module] -> Build [Module]
 modulesReValidate vfs rebuild forced cachedImports roots
-  = --phaseTimed 2 "resolve" (const Lib.PPrint.empty) $
+  = phaseTimed 2 "resolve" (const Lib.PPrint.empty) $
     let rootNames = map modName roots in seqList rootNames $
     do rootsv   <- modulesValidate vfs roots
        resolved <- modulesResolveDependencies vfs rebuild forced cachedImports rootsv
@@ -202,7 +203,7 @@ moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap buildOrd
         if any (\m -> modPhase m < (if fullLink then PhaseLinked else PhaseCodeGen)) imports
           then done mod  -- dependencies had errors
           else do phaseVerbose (if fullLink then 1 else 2) (if fullLink then "linking" else "link") $
-                                \penv -> TP.ppName penv (modName mod) <+> list (map (TP.ppName penv . modName) imports)
+                                \penv -> TP.ppName penv (modName mod) -- <+> list (map (TP.ppName penv . modName) imports)
                   mbEntry <- pooledIO $ link imports  -- link it! (specifics were returned by codegen)
                   let mod' = mod{ modPhase = PhaseLinked, modEntry = case mbEntry of
                                                                        LinkDone -> Nothing
@@ -598,7 +599,7 @@ virtualStrip path
   = if path `startsWith` (virtualMount ++ "/") then drop (length virtualMount + 1) path else path
 
 virtualMount
-  = "//virtual"
+  = "/virtual"
 
 
 -- find a pre-compiled libary interface
@@ -691,9 +692,8 @@ data Build a = Build (Env -> IO a)
 
 data Env = Env { envTerminal :: Terminal,
                  envFlags    :: Flags,
-                 envModName  :: ModuleName,    -- for better error reporting
-                 envErrors   :: IORef Errors,
-                 envRange    :: IORef Range,
+                 envModName  :: ModuleName,   -- for better error reporting
+                 envErrors   :: IORef Errors, -- we use fresh IORef's if mapping concurrently
                  envSemPooled     :: QSem,    -- limit I/O concurrency
                  envSemSequential :: QSem     -- limit some I/O to be atomic
                }
@@ -714,12 +714,11 @@ runBuildIO term flags cmp
 runBuild :: Terminal -> Flags -> Build a -> IO (Either Errors (a,Errors))
 runBuild term flags cmp
   = do errs <- newIORef errorsNil
-       rng  <- newIORef rangeNull
        semPooled     <- newQSem (min 64 (max 1 (maxConcurrency flags)))
        semSequential <- newQSem 1
        termProxyDone <- newEmptyMVar
        (termProxy,stop) <- forkTerminal term termProxyDone
-       finally (runBuildEnv (Env termProxy flags nameNil errs rng semPooled semSequential) cmp)
+       finally (runBuildEnv (Env termProxy flags nameNil errs semPooled semSequential) cmp)
                (do stop
                    readMVar termProxyDone)
 
@@ -755,19 +754,21 @@ runBuildEnv env action
 
 checked :: Build a -> Build (Either Errors (a,Errors))
 checked (Build cmp)
-  = Build   (\env -> do res <- do{ x <- cmp env; return (Right x) }
-                               `catch` (\errs -> return (Left errs))
-                               `catchError` (\err -> makeErr env ErrInternal (show err))
-                               `catchIO` (\exn -> makeErr env ErrBuild (show exn))
-                        errsw <- readIORef (envErrors env)
-                        writeIORef (envErrors env) errorsNil
+  = Build   (\env0 ->do errsRef <- newIORef errorsNil
+                        let env = env0{ envErrors = errsRef }
+                        res <- do{ x <- cmp env; return (Right x) }
+                               `catch` (\errs -> return (Left errs)) -- ErrorMessage's
+                               `catchError` (\err -> makeErr env ErrInternal (show err))  -- error(...)
+                               `catchIO` (\exn -> makeErr env ErrBuild (show exn))  -- IO errors
+                        errsw <- readIORef errsRef
+                        writeIORef errsRef errorsNil
                         case res of
                           Right x    -> return (Right (x,errsw))
                           Left errs  -> return (Left (mergeErrors errsw errs))
             )
   where
     makeErr env errKind msg
-      = do rng <- readIORef (envRange env)
+      = do let rng = makeSourceRange (show (envModName env)) 1 1 1 1
            return (Left (errorsSingle (errorMessageKind errKind rng (text msg))))
 
 checkedDefault :: a -> Build a -> Build (a,Errors)
@@ -891,6 +892,11 @@ getTerminal :: Build Terminal
 getTerminal
   = Build (\env -> return (envTerminal env))
 
+getCurrentRange :: Build Range
+getCurrentRange
+  = do env <- getEnv
+       return (makeSourceRange (show (envModName env)) 1 1 1 1)
+
 getColorScheme :: Build ColorScheme
 getColorScheme
   = do flags <- getFlags
@@ -902,16 +908,23 @@ getPrettyEnv
        env   <- getEnv
        return ((prettyEnvFromFlags flags){ TP.context = envModName env })
 
-hasBuildError :: Build Bool
+hasBuildError :: Build (Maybe Range)
 hasBuildError
   = do env  <- getEnv
        errs <- liftIO $ readIORef (envErrors env)
-       return $! any (\err -> errSeverity err >= SevError) (errors errs)
+       case find (\err -> errSeverity err >= SevError) (errors errs) of
+         Just err -> return (Just (errRange err))
+         _        -> return Nothing
+
+throwOnError :: Build ()
+throwOnError
+  = do errRng <- hasBuildError
+       if isJust errRng then liftIO (throw errorsNil) else return ()
 
 addErrors :: Errors -> Build ()
 addErrors errs0
   = do env <- getEnv
-       liftIO $ modifyIORef (envErrors env) (\errs1 -> mergeErrors errs0 errs1)
+       liftIO $ modifyIORef' (envErrors env) (\errs1 -> mergeErrors errs0 errs1)
 
 addWarningMessage :: ErrorMessage -> Build ()
 addWarningMessage warn
@@ -941,7 +954,11 @@ phaseTimed level p doc action
 
 phase :: String -> (TP.Env -> Doc) -> Build ()
 phase p mkdoc
-  = phaseVerbose 1 p mkdoc
+  = do env <- getEnv
+       flags <- getFlags
+       if (show (envModName env) `endsWith` "@main" && verbose flags <= 1)
+         then return ()
+         else phaseVerbose 1 p mkdoc
 
 phaseVerbose :: Int -> String -> (TP.Env -> Doc) -> Build ()
 phaseVerbose vlevel p doc
@@ -993,20 +1010,11 @@ getFileContents vfs fpath0
          Just (content, _) -> return content
          Nothing           -> liftIO $ readInput fpath
 
-getCurrentRange :: Build Range
-getCurrentRange
-  = do env <- getEnv
-       liftIO $ readIORef (envRange env)
 
 -- attribute exceptions to a certain module
 withModuleName :: ModuleName -> Build a -> Build a
 withModuleName mname action
-  = do env <- getEnv
-       old <- liftIO $ readIORef (envRange env)
-       liftIO $ writeIORef (envRange env) (makeSourceRange (show mname) 1 1 1 1)
-       x   <- withEnv (\env -> env{ envModName = mname }) action
-       liftIO $ writeIORef (envRange env) old  -- do not use finally so any errors use the range as it was thrown
-       return x
+  = withEnv (\env -> env{ envModName = mname }) action
 
 -- catch all errors and keep to them to the module
 withCheckedModule :: Module -> Build Module -> Build Module

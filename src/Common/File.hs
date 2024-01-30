@@ -62,7 +62,7 @@ import System.Environment ( getEnvironment, getExecutablePath )
 import System.Directory ( doesFileExist, doesDirectoryExist
                         {- , copyFile, copyFileWithMetadata -}
                         , getCurrentDirectory, getDirectoryContents
-                        , createDirectoryIfMissing, canonicalizePath, removeFile )
+                        , createDirectoryIfMissing, canonicalizePath, removeFile, getFileSize )
 
 import Debug.Trace
 import Platform.Filetime
@@ -315,11 +315,17 @@ maxFileTimes times
 
 doesFileExistAndNotEmpty :: FilePath -> IO Bool
 doesFileExistAndNotEmpty fpath
+  = do exist <- doesFileExist fpath
+       if exist
+         then do fsize <- getFileSize fpath
+                 return (fsize > 0)
+         else return False
+{-
   = do mbContent <- readTextFile fpath
        case mbContent of
          Nothing      -> return False
          Just content -> return (not (null content))
-
+-}
 
 readTextFile :: FilePath -> IO (Maybe String)
 readTextFile fpath
