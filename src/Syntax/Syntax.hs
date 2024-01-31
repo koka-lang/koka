@@ -102,12 +102,13 @@ type Imports  = [Import]
 
 -- | Import declaration
 data Import
-  = Import{ importName ::  !Name    -- ^ module name
+  = Import{ importName ::  !Name        -- ^ module name
           , importFullName :: !Name     -- ^ fully qualified module name
           , importNameRange :: !Range
           , importFullNameRange :: !Range
-          , importRange :: !Range   -- ^ range of the full import declaration
+          , importRange :: !Range       -- ^ range of the full import declaration
           , importVis   :: !Visibility  -- ^ visibility of the module
+          , importOpen  :: !Bool        -- used in the IDE to make all definitions visible
           }
     deriving (Show)
 
@@ -529,7 +530,7 @@ programNull name = Program sourceNull [] name rangeNull [] [] [preludeImport] []
 -- | Import declaration for the standard prelude
 preludeImport :: Import
 preludeImport
-  = Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private
+  = Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private False
 
 makeProgram :: Name -> [TypeDef t t k] -> (Defs t) -> Program t k
 makeProgram name typedefs defs

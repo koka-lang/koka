@@ -314,7 +314,7 @@ infImports modName modRange imports
        mapM_ infImport imports
 
 infImport :: Import -> KInfer ()
-infImport (Import alias qname aliasRange nameRange range vis)
+infImport (Import alias qname aliasRange nameRange range vis isOpen)
   = do addRangeInfo nameRange  (Id qname NIModule [] True)
        addRangeInfo aliasRange (Id qname NIModule [] True)
 

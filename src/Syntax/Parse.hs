@@ -254,7 +254,7 @@ programBody vis source modName nameRange doc
     prelude imports
       = if (isSystemCoreName modName || any (\imp -> importName imp == nameSystemCore) imports)
           then imports
-          else [Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private] ++ imports
+          else [Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private False] ++ imports
 
 braced p
   = do lcurly
@@ -310,11 +310,12 @@ topdef vis
 ---------------------------------------------------------------}
 importDecl :: LexParser Import
 importDecl
-  = do (vis,vrng,rng0) <- try $ do (vis,vrng) <- visibility Private
-                                   rng0  <- keyword "import"
-                                   return (vis,vrng,rng0)
+  = do (vis,vrng,rng0,open) <- try $ do (vis,vrng) <- visibility Private
+                                        isOpen <- do{ specialId "@open"; return True } <|> return False
+                                        rng0  <- keyword "import"
+                                        return (vis,vrng,rng0,isOpen)
        (asname,name,asrng,namerng) <- importAlias
-       return (Import asname name asrng namerng (combineRanges [vrng,rng0,namerng]) vis)
+       return (Import asname name asrng namerng (combineRanges [vrng,rng0,namerng]) vis open)
 
 importAlias :: LexParser (Name,Name,Range,Range)
 importAlias

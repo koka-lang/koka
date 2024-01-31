@@ -275,7 +275,7 @@ loadModules term st files force
 buildExpr :: Terminal -> State -> String -> IO State
 buildExpr term st expr
   = do mbBuildc <- B.runBuildIO term (flags st) $
-                   do B.buildcExpr (B.buildcRoots (buildContext st)) expr (buildContext st)
+                   do B.buildcRunExpr (B.buildcRoots (buildContext st)) expr (buildContext st)
        case mbBuildc of
          Nothing     -> return st
          Just buildc -> return st{ buildContext = buildc }
@@ -311,7 +311,7 @@ loadFilesErr term startSt fileNames force
                     messageLn st ""
                     let st' = st{ program = programAddImports (program st) ({- map toImport imports ++ -} map toImport (loadedModules (loaded st))) }
                         toImport mod
-                            = Import (modName mod) (modName mod) rangeNull rangeNull rangeNull Private
+                            = Import (modName mod) (modName mod) rangeNull rangeNull rangeNull Private False
                     return (return st')
           (fname:fnames)
               -> do{ err <- {- if (False) -- any isPathSep fname)
@@ -610,7 +610,7 @@ remark st s
 terminal :: State -> Terminal
 terminal st
   = Terminal (\err -> messageErrorMsgLn st [err])
-             (if (verbose (flags st) > 1)
+             (if (verbose (flags st) > 2)
                then (\s -> withColor (printer st) (colorSource (colorSchemeFromFlags (flags st))) (message st (s ++ "\n"))) else (\_ -> return ()))
              (messagePrettyLn st)  -- (\_ -> return ()) --
              (messageScheme st)

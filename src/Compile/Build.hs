@@ -328,13 +328,16 @@ moduleTypeCheck :: ModuleMap -> Module -> Build Module
 moduleTypeCheck tcheckedMap
   = moduleGuard PhaseParsed PhaseTyped tcheckedMap id id return $ \done mod ->
      do -- wait for direct imports to be type checked
-        imports <- moduleWaitForPubImports tcheckedMap [] (modDeps mod)
+        let program  = fromJust (modProgram mod)
+            openDeps = [(isOpen,mname) | mname <- modDeps mod, let isOpen = case find (\imp -> importFullName imp == mname) (programImports program) of
+                                                                              Just imp -> importOpen imp
+                                                                              _        -> False ]
+        imports <- moduleWaitForPubImports tcheckedMap [] openDeps
         if any (\m -> modPhase m < PhaseTyped) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
           else -- type check
                do flags <- getFlags
-                  let defs = defsFromModules imports
-                      program = fromJust (modProgram mod)
+                  let defs     = defsFromModules imports
                       cimports = coreImportsFromModules (modDeps mod) (programImports program) imports
                   phase "check" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
                   (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
@@ -344,22 +347,24 @@ moduleTypeCheck tcheckedMap
                   let mod' = mod{ modPhase = PhaseTyped
                                 , modCore = Just $! core
                                 , modRangeMap = mbRangeMap
-                                , modDefinitions = Just $! (defsFromCore core)
+                                , modDefinitions = Just $! defsFromCore False core
                                 }
                   phaseVerbose 3 "check done" $ \penv -> TP.ppName penv (modName mod)
                   done mod'
 
 
 -- Recursively load public imports from imported modules in a fixpoint
-moduleWaitForPubImports :: ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
-moduleWaitForPubImports tcheckedMap alreadyDone0 importNames
+moduleWaitForPubImports :: ModuleMap -> [ModuleName] -> [(Bool,ModuleName)] -> Build [Module]
+moduleWaitForPubImports tcheckedMap alreadyDone0 importDeps
   = do -- wait for imported modules to be type checked
-       imports <- mapM (modmapRead tcheckedMap) importNames
-       let alreadyDone = alreadyDone0 ++ importNames
-           extras = nub $ [Core.importName imp | mod <- imports, imp <- modCoreImports mod,
-                                                  isPublic (Core.importVis imp),
-                                                  not (Core.isCompilerImport imp),
-                                                  not (Core.importName imp `elem` alreadyDone)]
+       let (importOpen,importNames) = unzip importDeps
+       imports0 <- mapM (modmapRead tcheckedMap) importNames
+       let imports = zipWith (\isOpen mod -> mod{ modShouldOpen = isOpen }) importOpen imports0
+           alreadyDone = alreadyDone0 ++ importNames
+           extras = nub $ [(modShouldOpen mod,Core.importName imp)
+                          | mod <- imports, imp <- modCoreImports mod,
+                            isPublic (Core.importVis imp), not (Core.isCompilerImport imp),
+                            not (Core.importName imp `elem` alreadyDone)]
        if null extras
          then return imports
          else do extraImports <- moduleWaitForPubImports tcheckedMap alreadyDone extras
@@ -498,7 +503,7 @@ modFromIface core parseInlines mod
   =  mod{ modPhase       = PhaseLinked
         , modDeps        = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
         , modCore        = Just $! core
-        , modDefinitions = Just $! (defsFromCore core)
+        , modDefinitions = Just $! defsFromCore False core
         , modInlines     = case parseInlines of
                              Nothing -> Right []
                              Just f  -> Left f
@@ -599,7 +604,7 @@ virtualStrip path
   = if path `startsWith` (virtualMount ++ "/") then drop (length virtualMount + 1) path else path
 
 virtualMount
-  = "/virtual"
+  = "/@virtual"
 
 
 -- find a pre-compiled libary interface

@@ -97,6 +97,8 @@ data Module  = Module{ -- initial
                        -- codegen
                      , modEntry       :: !(Maybe (FilePath,IO()))
 
+                       -- temporary values
+                     , modShouldOpen  :: !Bool
                        -- unused
                     --  , modCompiled    :: !Bool
                     --  , modTime        :: !FileTime
@@ -119,6 +121,8 @@ moduleNull modName
             (Right [])
             -- codegen
             Nothing
+            -- temporary
+            False
 
 moduleCreateInitial :: Name -> FilePath -> FilePath -> FilePath -> Module
 moduleCreateInitial modName sourcePath ifacePath libIfacePath
@@ -181,9 +185,9 @@ defsMatchNames :: Definitions -> [String]
 defsMatchNames defs
   = map (showPlain . unqualify) $ gammaPublicNames (defsGamma defs)
 
-defsFromCore :: Core.Core -> Definitions
-defsFromCore core
-  = Definitions (extractGamma Core.dataInfoIsValue False core)
+defsFromCore :: Bool -> Core.Core -> Definitions
+defsFromCore privateAsPublic core
+  = Definitions (extractGamma Core.dataInfoIsValue privateAsPublic core)
                 (extractKGamma core)
                 (extractSynonyms core)
                 (extractNewtypes core)
@@ -199,9 +203,9 @@ defsFromCore core
 defsFromModules :: [Module] -> Definitions
 defsFromModules mods
   = defsMerge $ map (\mod -> case modDefinitions mod of
-                               Just defs -> defs  -- cached
+                               Just defs | not (modShouldOpen mod) -> defs  -- cached
                                _ -> case modCore mod of
-                                      Just core -> defsFromCore core
+                                      Just core -> defsFromCore (modShouldOpen mod) core
                                       Nothing   -> defsNull) mods
 
 defsMerge :: [Definitions] -> Definitions

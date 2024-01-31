@@ -17,5 +17,5 @@ fun fib(n : int, x1 : int, x2 : int) : div int
 pub fun examplex()
   fibonacci(100).println
 
-pub fun example2()
+fun example2()
   fibonacci(1000).println

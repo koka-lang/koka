@@ -128,7 +128,7 @@ compile p flags fname
   where
     term cwd
       = Terminal (putErrorMessage p cwd (showSpan flags) cscheme)
-                (if (verbose flags > 1) then (\msg -> writeAtomicPrettyLn p (color (colorSource cscheme) (text msg)))
+                (if (verbose flags > 2) then (\msg -> writeAtomicPrettyLn p (color (colorSource cscheme) (text msg)))
                                         else (\_ -> return ()))
                  (if (verbose flags > 0) then writeAtomicPrettyLn p else (\_ -> return ()))
                  (putScheme p (prettyEnv flags nameNil importsEmpty))

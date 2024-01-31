@@ -153,7 +153,7 @@ compileEditorExpression uri flags force filePath functionName = do
       modules <- getLastChangedFileLoaded (normUri, flags)
       -- Set up the imports for the expression (core and the module)
       let imports = [-- Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private,
-                     Import (modName mod) (modName mod) rangeNull rangeNull rangeNull Private]
+                     Import (modName mod) (modName mod) rangeNull rangeNull rangeNull Private False]
           program = programAddImports (programNull nameInteractiveModule) imports
           flagsEx = if (isAbsolute filePath)
                       then case findMaximalPrefixPath (includePath flags) filePath of

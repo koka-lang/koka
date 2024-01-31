@@ -678,7 +678,7 @@ termWarning term flags doc
 
 runSystemEcho :: Terminal -> Flags -> String -> IO ()
 runSystemEcho term flags cmd
-  = do when (verbose flags >= 2) $
+  = do when (verbose flags >= 3) $
          termTrace term ("shell> " ++ cmd)
        runSystem cmd
 
@@ -687,7 +687,7 @@ runCommand term flags cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
        if (osName == "windows" && cmd `endsWith` "emcc") -- hack to run emcc correctly on windows (due to Python?)
          then runSystemEcho term flags command
-         else  do when (verbose flags >= 2) $
+         else  do when (verbose flags >= 3) $
                     termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
                   runCmd cmd (filter (not . null) args)
                     `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
@@ -700,7 +700,7 @@ runCommandRead term flags env cargs
 runCommandReadAll :: Terminal -> Flags -> [(String,String)] -> [String] -> IO (String,String)
 runCommandReadAll term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
-       when (verbose flags >= 2) $
+       when (verbose flags >= 3) $
          termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
        runCmdRead env cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
@@ -708,7 +708,7 @@ runCommandReadAll term flags env cargs@(cmd:args)
 runCommandEnv :: Terminal -> Flags -> [(String,String)] -> [String] -> IO ()
 runCommandEnv term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
-       when (verbose flags >= 2) $
+       when (verbose flags >= 3) $
          termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
        runCmdEnv env  cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
