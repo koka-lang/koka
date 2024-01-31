@@ -20,7 +20,7 @@ extern import
 // Exceptions
 pub effect exn
   // Throw an exception
-  ctl throw-exn( exn : exception ) : a
+  final ctl throw-exn( exn : exception ) : a
 
 // Raise a pattern match exception. This is function is used internally by the
 // compiler to generate error messages on pattern match failures.
