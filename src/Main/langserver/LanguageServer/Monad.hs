@@ -154,7 +154,6 @@ defaultLSState flags = do
                     withNewProgressPrinter msg
                     )
                   else (\_ -> return ()))
-                 (\tp -> withNewPrinter $ \p -> do putScheme p (prettyEnv flags nameNil importsEmpty) tp; return J.MessageType_Info)
                  (\msg -> withNewPrinter $ \p -> do
                     writePrettyLn p msg
                     return J.MessageType_Info

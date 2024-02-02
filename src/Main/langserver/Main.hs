@@ -131,7 +131,6 @@ compile p flags fname
                 (if (verbose flags > 2) then (\msg -> writeAtomicPrettyLn p (color (colorSource cscheme) (text msg)))
                                         else (\_ -> return ()))
                  (if (verbose flags > 0) then writeAtomicPrettyLn p else (\_ -> return ()))
-                 (putScheme p (prettyEnv flags nameNil importsEmpty))
                  (writeAtomicPrettyLn p)
 
     cscheme

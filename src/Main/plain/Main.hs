@@ -11,28 +11,34 @@
 -----------------------------------------------------------------------------
 module Main where
 
+import Debug.Trace
 import System.Exit            ( exitFailure )
+import System.IO              (hPutStrLn, stderr)
 import Control.Monad          ( when, foldM )
+import Data.List              (intersperse)
+import Data.Maybe
 
 import Platform.Config
-import Lib.PPrint             ( Pretty(pretty), writePrettyLn )
+import Lib.PPrint
 import Lib.Printer
+
 import Common.ColorScheme
 import Common.Failure         ( catchIO )
 import Common.Error
 import Common.Name
 import Common.File            ( joinPath, getCwd )
-import Compile.Options
-import Compiler.Compile       ( compileFile, CompileTarget(..), Module(..), Loaded(..), Terminal(..) )
+
 import Core.Core              ( coreProgDefs, flattenDefGroups, defType, Def(..) )
 import Interpreter.Interpret  ( interpret  )
 import Kind.ImportMap         ( importsEmpty )
 import Kind.Synonym           ( synonymsIsEmpty, ppSynonyms, synonymsFilter )
-import Kind.Assumption        ( kgammaFilter )
+import Kind.Assumption        ( kgammaFilter, ppKGamma )
 import Type.Assumption        ( ppGamma, ppGammaHidden, gammaFilter, createNameInfoX, gammaNew )
-import Type.Pretty            ( ppScheme, Env(context,importsMap) )
-import System.IO (hPutStrLn, stderr)
-import Data.List (intercalate)
+import Type.Pretty            ( ppScheme, Env(context,importsMap,colors), ppName  )
+
+import Compile.Options
+import Compile.BuildContext
+
 
 -- compiled entry
 main      = mainArgs ""
@@ -76,82 +82,63 @@ mainMode flags flags0 mode p
      ModeVersion
       -> withNoColorPrinter (\monop -> showVersion flags monop)
      ModeCompiler files
-      -> do
-        errFiles <- foldM (\errfiles file ->
-            do
-              res <- compile p flags file
-              if res then return errfiles
-              else return (file:errfiles)
-            ) [] files
-        if null errFiles then return ()
-        else do
-          hPutStrLn stderr ("Failed to compile " ++ intercalate "," files)
-          exitFailure
+      -> do ok <- compileAll p flags files
+            when (not ok) $
+              do hPutStrLn stderr ("Failed to compile " ++ concat (intersperse "," files))
+                 exitFailure
      ModeInteractive files
       -> interpret p flags flags0 files
      ModeLanguageServer files
-      -> do
-        hPutStrLn stderr "Language server mode not supported in this build of koka.\n"
-        exitFailure
+      -> do hPutStrLn stderr "Language server mode not supported in the plain build of Koka.\n"
+            exitFailure
 
-compile :: ColorPrinter -> Flags -> FilePath -> IO Bool
-compile p flags fname
-  = do let exec = Executable (newName "main") ()
-       cwd <- getCwd
-       err <- compileFile (const Nothing) Nothing (term cwd) flags []
-                (if (not (evaluate flags)) then (if library flags then Library else exec) else exec) [] fname
-       case checkError err of
-         Left (Errors errs)
-           -> do mapM_ (\err -> putPrettyLn p (ppErrorMessage cwd (showSpan flags) cscheme err)) errs
-                 -- exitFailure  -- don't fail for tests
-                 return False
-         Right ((Loaded gamma kgamma synonyms newtypes constructors _ imports _
-                (Module modName _ _ _ _ _ rawProgram core _ _ _ modTime) _ _ _
-                , _), Errors warnings)
-           -> do when (not (null warnings))
-                   (mapM_ (\err -> putPrettyLn p (ppErrorMessage cwd (showSpan flags) cscheme err)) warnings)
-                 when (showKindSigs flags) $ do
-                       putPrettyLn p (pretty (kgammaFilter modName kgamma))
-                       let localSyns = synonymsFilter modName synonyms
-                       when (not (synonymsIsEmpty localSyns))
-                        (putPrettyLn p (ppSynonyms (prettyEnv flags modName imports) localSyns))
-
-                 if showHiddenTypeSigs flags then do
-                   -- workaround since private defs aren't in gamma
-                   putPrettyLn p $ ppGammaHidden (prettyEnv flags modName imports) $ gammaFilter modName $ gammaFromDefGroups $ coreProgDefs core
-                   return True
-                 else if showTypeSigs flags then do
-                   putPrettyLn p $ ppGamma (prettyEnv flags modName imports) $ gammaFilter modName gamma
-                   return True
-                 else return True
+compileAll :: ColorPrinter -> Flags -> [FilePath] -> IO Bool
+compileAll p flags fpaths
+  = do cwd <- getCwd
+       (mbRes,_)  <- runBuildIO (term cwd) flags $
+                       do (buildc0,roots) <- buildcAddRootSources fpaths (buildcEmpty flags)
+                          let mainEntries = if library flags then []
+                                              else map (\rootName -> qualify rootName (newName "main")) roots
+                          buildc <- buildcFullBuild (rebuild flags) roots {-force roots always-} mainEntries buildc0
+                          buildcThrowOnError
+                          mapM_ (compileDone buildc) roots
+                          return ()
+       return (isJust mbRes)
   where
     term cwd
       = Terminal (putErrorMessage p cwd (showSpan flags) cscheme)
-                (if (verbose flags > 1) then (\msg -> withColor p (colorSource cscheme) (writeLn p msg))
+                 (if (verbose flags > 1) then (\msg -> withColor p (colorSource cscheme) (writeLn p msg))
                                          else (\_ -> return ()))
                  (if (verbose flags > 0) then writePrettyLn p else (\_ -> return ()))
-                 (putScheme p (prettyEnv flags nameNil importsEmpty))
                  (writePrettyLn p)
 
     cscheme
       = colorSchemeFromFlags flags
 
-    prettyEnv flags ctx imports
-      = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
+    putErrorMessage p cwd endToo cscheme err
+      = putPrettyLn p (ppErrorMessage cwd endToo cscheme err)
 
-gammaFromDefGroups groups = gammaNew $ map defToGammaEntry $ flattenDefGroups groups
-  where
-    defToGammaEntry def = (defName def, createNameInfoX (defVis def) (defName def)  (defSort def) (defNameRange def) (defType def) (defDoc def))
+    putPrettyLn p doc
+      = do writePrettyLn p doc
+           writeLn p ""
 
-putScheme p env tp
-  = putPrettyLn p (ppScheme env tp)
 
-putErrorMessage p cwd endToo cscheme err
-  = putPrettyLn p (ppErrorMessage cwd endToo cscheme err)
+compileDone :: BuildContext -> ModuleName -> Build ()
+compileDone buildc modname
+  = do  flags <- buildcFlags
+        -- show (kind) gamma ?
+        let defs = buildcGetDefinitions [modname] buildc
+        when (showKindSigs flags) $
+          do buildcTermInfo $ \penv -> ppKGamma (colors penv) modname (importsMap penv) (defsKGamma defs)
+             let syns = defsSynonyms defs
+             when (not (synonymsIsEmpty syns)) $
+               buildcTermInfo $ \penv -> ppSynonyms penv{context=modname} syns
+        when (showTypeSigs flags || showHiddenTypeSigs flags) $
+          buildcTermInfo $ \penv -> ppGamma penv{context=modname} (defsGamma defs)
+        -- run it?
+        when (evaluate flags) $
+          case buildcGetMainEntry modname buildc of
+            Just (exe,run) -> liftIO $ run
+            Nothing        -> addErrorMessageKind ErrBuild (\penv -> text "unable to find main entry point of" <+> ppName penv modname)
+        return ()
 
-putPhase p cscheme msg
-  = withColor p (colorInterpreter cscheme) (writeLn p msg)
-
-putPrettyLn p doc
-  = do writePrettyLn p doc
-       writeLn p ""

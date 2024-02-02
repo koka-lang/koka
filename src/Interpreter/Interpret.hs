@@ -514,7 +514,6 @@ terminal st
              (if (verbose (flags st) > 2)
                then (\s -> withColor (printer st) (colorSource (colorSchemeFromFlags (flags st))) (message st (s ++ "\n"))) else (\_ -> return ()))
              (messagePrettyLn st)  -- (\_ -> return ()) --
-             (messageScheme st)
              (messagePrettyLn st)
 
 messageErrorMsgLn :: State -> [ErrorMessage] -> IO ()

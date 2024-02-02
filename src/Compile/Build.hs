@@ -18,12 +18,12 @@ module Compile.Build( Build
                       , moduleFromSource, moduleFromModuleName
 
                       , phase, phaseVerbose, phaseTimed
-                      , throwError, throwErrorKind, getTerminal
-                      , throwOnError, hasBuildError, getColorScheme
+                      , throwError, throwErrorKind
+                      , throwOnError, hasBuildError
                       , liftIO
 
                       , virtualMount
-                      , getFlags
+                      , getFlags, getPrettyEnv, getTerminal, getColorScheme
                       , addErrorMessageKind
                       , searchSourceFile
                       ) where
@@ -619,7 +619,7 @@ virtualMount
 searchLibIfaceFile :: VFS -> FilePath -> Build FilePath  -- can be empty
 searchLibIfaceFile vfs fname
   = do flags <- getFlags
-       let libIfacePath = joinPaths [localLibDir flags, buildVariant flags, fname]
+       let libIfacePath = joinPaths [localLibDir flags, buildLibVariant flags, fname]  -- lib variant is without a hash
        exist <- buildDoesFileExist vfs libIfacePath
        return (if exist then libIfacePath else "")
 
@@ -752,7 +752,6 @@ forkTerminal term termProxyDone
        let termProxy = Terminal (writeChan ch . Just . termError term)
                                 (writeChan ch . Just . termTrace term)
                                 (writeChan ch . Just . termPhase term)
-                                (writeChan ch . Just . termType term)
                                 (writeChan ch . Just . termInfo term)
        return (termProxy, writeChan ch Nothing)
   where
@@ -761,7 +760,7 @@ forkTerminal term termProxyDone
       = do mbf <- readChan ch
            case mbf of
              Nothing -> do return ()
-             Just io -> do io
+             Just io -> do io `catchAny` \err -> termError term (errorMessageKind ErrGeneral rangeNull (text (show err)))
                            handleOutput ch
 
 
@@ -807,6 +806,11 @@ catchError io f
 
 catchIO :: IO a -> (IOException -> IO a) -> IO a
 catchIO io f
+  = io `catch` f
+
+
+catchAny :: IO a -> (SomeException -> IO a) -> IO a
+catchAny io f
   = io `catch` f
 
 liftIO :: IO a -> Build a

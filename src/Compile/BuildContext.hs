@@ -27,10 +27,14 @@ module Compile.BuildContext ( BuildContext
                             , buildcLookupInfo
                             , buildcOutputDir
                             , buildcSearchSourceFile
+                            , buildcGetMainEntry
+                            , buildcThrowOnError
+                            , buildcTermInfo
+                            , buildcFlags
 
-                            , runBuildIO, runBuildMaybe
+                            , runBuildIO, runBuildMaybe, addErrorMessageKind, liftIO
 
-                            , Definitions(..)
+                            , Definitions(..), Build
                             ) where
 
 
@@ -54,8 +58,8 @@ import Type.Assumption
 import Compile.Options
 import Compile.Module
 import Compile.Build
-import Text.Parsec.Error (addErrorMessage)
 import Compiler.Compile (searchSource)
+
 
 
 data BuildContext = BuildContext {
@@ -112,7 +116,7 @@ buildcRemoveRootSource fpath buildc
 
 buildcGetDefinitions :: [ModuleName] -> BuildContext -> Definitions
 buildcGetDefinitions modules0 buildc
-  = let modules = if null modules0 then buildcRoots buildc else modules
+  = let modules = if null modules0 then buildcRoots buildc else modules0
     in defsFromModules (filter (\mod -> modName mod `elem` modules) (buildcModules buildc))
 
 buildcGetMatchNames :: [ModuleName] -> BuildContext -> [String]
@@ -175,6 +179,11 @@ buildcFullBuild rebuild forced mainEntries buildc0
        mods <- modulesBuild mainEntries (buildcModules buildc)
        return (buildc{ buildcModules = mods})
 
+buildcGetMainEntry :: ModuleName -> BuildContext -> Maybe (FilePath,IO ())
+buildcGetMainEntry modname buildc
+  = case find (\mod -> modName mod == modname) (buildcModules buildc) of
+      Just mod -> modEntry mod
+      _        -> Nothing
 
 buildcRunEntry :: Name -> BuildContext -> Build BuildContext
 buildcRunEntry name buildc
@@ -369,3 +378,17 @@ buildcOutputDir
 buildcSearchSourceFile :: FilePath -> BuildContext -> Build (Maybe (FilePath,FilePath))
 buildcSearchSourceFile fpath buildc
   = searchSourceFile (buildcVFS buildc) "" fpath
+
+buildcThrowOnError :: Build ()
+buildcThrowOnError
+  = throwOnError
+
+buildcTermInfo :: (TP.Env -> Doc) -> Build ()
+buildcTermInfo mkDoc
+  = do term <- getTerminal
+       penv <- getPrettyEnv
+       liftIO $ termInfo term (mkDoc penv)
+
+buildcFlags :: Build Flags
+buildcFlags
+  = getFlags
