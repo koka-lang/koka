@@ -41,7 +41,7 @@ import Kind.ImportMap
 import Kind.Synonym           ( synonymsIsEmpty,synonymsDiff, ppSynonyms )
 import Kind.Assumption        ( kgammaFind, kgammaIsEmpty, ppKGamma )
 import Kind.Pretty            ( prettyKind )
-import Type.Type              ( Scheme )
+import Type.Type              ( Scheme, Type, typeVoid )
 import Type.Pretty            ( ppScheme, ppSchemeEffect, Env(context,importsMap))
 import Type.Assumption        ( gammaIsEmpty, ppGamma, infoType, gammaFilter )
 
@@ -49,11 +49,6 @@ import Compiler.Options
 import Compiler.Compile
 import Compiler.Module
 import Interpreter.Command
-    ( Command(Error, Eval, Load, Reload, Edit, Shell, ChangeDir,
-              Options, Show, Quit, None),
-      ShowCommand(..),
-      commandHelp,
-      readCommand )
 
 import qualified Compile.BuildContext   as B
 import Compile.BuildContext (buildcRunExpr)
@@ -133,6 +128,11 @@ command st cmd
                     interpreterEx st'
 
 
+  TypeOf line -> do (mbType,st') <- buildTypeExpr term st line
+                    case mbType of
+                      Just tp -> messageSchemeEffect st' tp
+                      _       -> return ()
+                    interpreterEx st'
 
 {-
   Define line -> do err <- compileValueDef term (flags st) (loaded st) (program st) (lineNo st) line
@@ -275,6 +275,19 @@ buildRunExpr term st expr
        case mbBuildc of
          Nothing     -> return st{ errorRange = erng <|> errorRange st }
          Just buildc -> return st{ buildContext = buildc, errorRange = erng <|> errorRange st  }
+
+
+buildTypeExpr :: Terminal -> State -> String -> IO (Maybe Type,State)
+buildTypeExpr term st expr
+  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $
+                          do B.buildcCompileExpr False True [] expr (buildContext st)
+       case mbBuildc of
+         Nothing     -> return (Nothing, st{ errorRange = erng <|> errorRange st })
+         Just (buildc,mbEntry) -> let st' = st{ buildContext = buildc, errorRange = erng <|> errorRange st }
+                                  in case mbEntry of
+                                      Just (tp,_) -> return (Just tp,st')
+                                      Nothing     -> return (Nothing,st')
+
 
 
 findPath :: ColorScheme -> [FilePath] -> String -> String -> IO FilePath

@@ -24,6 +24,7 @@ module Compile.Build( Build
 
                       , virtualMount
                       , getFlags
+                      , addErrorMessageKind
                       ) where
 
 import Debug.Trace

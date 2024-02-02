@@ -50,6 +50,8 @@ import Type.Assumption
 import Compiler.Options
 import Compile.Module
 import Compile.Build
+import Text.Parsec.Error (addErrorMessage)
+
 
 data BuildContext = BuildContext {
                       buildcRoots   :: ![ModuleName],
@@ -119,7 +121,7 @@ buildcFreshFromRoots buildc
   = do let (roots,imports) = buildcSplitRoots buildc
            rootSources = map modSourcePath roots
        flags <- getFlags
-       (buildc1,_) <- buildcAddRootSources rootSources (buildcEmpty flags)
+       (buildc1,_) <- buildcAddRootSources rootSources (buildc{ buildcRoots = [], buildcModules=[], buildcHash = flagsHash flags })
        let (roots1,_) = buildcSplitRoots buildc1
        mods  <- modulesReValidate (buildcVFS buildc) False [] [] roots1
        return buildc1{ buildcModules = mods }
@@ -175,23 +177,22 @@ buildcRunEntry name buildc
 
 buildcRunExpr :: [ModuleName] -> String -> BuildContext -> Build BuildContext
 buildcRunExpr importNames expr buildc
-  = do (buildc1,mbEntry) <- buildcCompileExpr True importNames expr buildc
-       case mbEntry of
-          Just (exe,run)
+  = do (buildc1,mbTpEntry) <- buildcCompileExpr True False importNames expr buildc
+       case mbTpEntry of
+          Just(_,Just (_,run))
             -> do phase "" (\penv -> empty)
                   liftIO $ run
           _ -> return ()
        return buildc1
 
-buildcCompileEntry :: Name -> BuildContext -> Build (BuildContext,Maybe (FilePath,IO ()))
-buildcCompileEntry name buildc
-  = buildcCompileExpr False [qualifier name] (show name ++ "()") buildc
+buildcCompileEntry :: Bool -> Name -> BuildContext -> Build (BuildContext,Maybe (Type, Maybe (FilePath,IO ())))
+buildcCompileEntry typeCheckOnly name buildc
+  = buildcCompileExpr False typeCheckOnly [qualifier name] (show name ++ "()") buildc
 
-buildcCompileExpr :: Bool -> [ModuleName] -> String -> BuildContext -> Build (BuildContext,Maybe (FilePath,IO ()))
-buildcCompileExpr addShow importNames0 expr buildc0
+buildcCompileExpr :: Bool -> Bool -> [ModuleName] -> String -> BuildContext -> Build (BuildContext, Maybe (Type, Maybe (FilePath,IO ())))
+buildcCompileExpr addShow typeCheckOnly importNames0 expr buildc
   = phaseTimed 2 "compile" (\penv -> empty) $
-    do buildc <- buildcValidate False [] buildc0
-       let importNames = if null importNames0 then buildcRoots buildc else importNames
+    do let importNames = if null importNames0 then buildcRoots buildc else importNames
            sourcePath = joinPaths [
                           virtualMount,
                           case [modSourceRelativePath mod | mname <- importNames,
@@ -211,18 +212,23 @@ buildcCompileExpr addShow importNames0 expr buildc0
        withVirtualModule sourcePath content buildc $ \mainModName buildc1 ->
          do -- type check first
             let exprName = qualify mainModName (newName "@expr")
-            -- buildc2 <- buildcValidate False [] buildc1
-            buildc3 <- buildcTypeCheck buildc1
+            buildc2 <- buildcValidate False [] buildc1
+            buildc3 <- buildcTypeCheck buildc2
             mbRng   <- hasBuildError
             case mbRng of
-              Just rng -> do when addShow $ showMarker rng
+              Just rng -> do when (addShow || typeCheckOnly) $ showMarker rng
                              return (buildc3,Nothing)
-              _        -> buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName buildc3
+              Nothing  -> case buildcLookupTypeOf exprName buildc3 of
+                            Nothing -> do addErrorMessageKind ErrBuild (\penv -> text "unable to resolve the type of the expression" <+> parens (TP.ppName penv exprName))
+                                          return (buildc3, Nothing)
+                            Just tp -> if typeCheckOnly
+                                        then return (buildc3,Just (tp,Nothing))
+                                        else buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName tp buildc3
 
-buildcCompileMainBody :: Bool -> String -> [String] -> FilePath -> Name -> Name -> BuildContext -> Build (BuildContext,Maybe (FilePath,IO ()))
-buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName buildc1
+buildcCompileMainBody :: Bool -> String -> [String] -> FilePath -> Name -> Name -> Type -> BuildContext -> Build (BuildContext,Maybe (Type, Maybe (FilePath,IO ())))
+buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName tp buildc1
   = do  -- then compile with a main function
-        (showIt,mainBody) <- completeMain True exprName buildc1
+        (tp,showIt,mainBody) <- completeMain True exprName tp buildc1
         let mainName = qualify mainModName (newName "@main")
             mainDef  = bunlines $ importDecls ++ [
                         "pub fun @expr() : _ ()",
@@ -243,7 +249,7 @@ buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName b
           _        -> do -- and return the entry point
                          let mainMod = buildcFindModule mainModName buildc4
                              entry   = modEntry mainMod
-                         return $ seq entry (buildc4,entry)
+                         return $ seq entry (buildc4,Just(tp,entry))
 
 showMarker :: Range -> Build ()
 showMarker rng
@@ -260,18 +266,15 @@ showMarker rng
 bunlines :: [String] -> BString
 bunlines xs = stringToBString $ unlines xs
 
-completeMain :: Bool -> Name -> BuildContext -> Build (String -> String,String)
-completeMain addShow exprName buildc
-  = case buildcLookupInfo buildc exprName of
-      [info] | isInfoValFunExt info
-        -> do case splitFunScheme (infoType info) of
-                Just (_,_,_,eff,resTp)
-                  -> let (ls,_) = extractHandledEffect eff
-                     in do print    <- printExpr resTp
-                           mainBody <- addDefaultHandlers (infoRange info) eff ls callExpr
-                           return (print,mainBody)
-                _ -> return (id, callExpr)
-      _ -> return (id,callExpr)
+completeMain :: Bool -> Name -> Type -> BuildContext -> Build (Type,String -> String,String)
+completeMain addShow exprName tp buildc
+  = case splitFunScheme tp of
+      Just (_,_,_,eff,resTp)
+        -> let (ls,_) = extractHandledEffect eff
+           in do print    <- printExpr resTp
+                 mainBody <- addDefaultHandlers rangeNull eff ls callExpr
+                 return (resTp,print,mainBody)
+      _ -> return (tp, id, callExpr) -- todo: given an error?
   where
     callExpr
       = show exprName ++ "()"
@@ -295,7 +298,7 @@ completeMain addShow exprName buildc
                       = makeHiddenName "default" (if isSystemCoreName effName
                                                     then qualify nameSystemCore (unqualify effName) -- std/core/* defaults must be in std/core
                                                     else effName) -- and all others in the same module as the effect
-              in case buildcLookupInfo buildc defaultHandlerName of
+              in case buildcLookupInfo defaultHandlerName buildc of
                     [fun@InfoFun{}]
                       -> do phaseVerbose 2 "main" $ \penv -> text "add default effect for" <+> TP.ppName penv effName
                             let handle b = show defaultHandlerName ++ "(fn() " ++ b ++ ")"
@@ -340,8 +343,15 @@ buildcFindModule modname buildc
       _        -> failure ("Compile.BuildIde.btxFindModule: cannot find " ++ show modname ++ " in " ++ show (map modName (buildcModules buildc)))
 
 
-buildcLookupInfo :: BuildContext -> Name -> [NameInfo]
-buildcLookupInfo buildc name
+buildcLookupInfo :: Name -> BuildContext -> [NameInfo]
+buildcLookupInfo name buildc
   = case find (\mod -> modName mod == qualifier name) (buildcModules buildc) of
-      Just mod -> gammaLookupQ name (defsGamma (defsFromModules [mod]))
+      Just mod -> -- trace ("lookup " ++ show name ++ " in " ++ show (modName mod) ++ "\n" ++ showHidden (defsGamma (defsFromModules [mod]))) $
+                  map snd (gammaLookup name (defsGamma (defsFromModules [mod])))
       _        -> []
+
+buildcLookupTypeOf :: Name -> BuildContext -> Maybe Type
+buildcLookupTypeOf name buildc
+  = case buildcLookupInfo name buildc of
+      [info] | isInfoValFunExt info -> Just (infoType info)
+      _      -> Nothing
