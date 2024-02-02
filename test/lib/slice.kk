@@ -70,6 +70,9 @@ fun test-equality()
   println(v1.slice.advance(1) == v1.slice.advance(1))
   println(v1.slice.advance(1) != v1.slice.extend(-1))
   println(v1.slice.advance(2) != v1.slice.advance(1))
+  // Expected false
+  println(v1.slice.advance(1) == v1.slice.advance(2))
+  println(v1.slice.advance(1) != v1.slice.advance(1))
 
 
 fun main()
