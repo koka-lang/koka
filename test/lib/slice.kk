@@ -63,9 +63,19 @@ fun test-take()
   println("Hello".slice.take(-3).string == "Hello")
   println("Hello ☺ World".slice.take(7).string == "Hello ☺")
 
+fun test-equality()
+  val v1 = "Hello"
+  println("Hello".slice.advance(1) == "ello".slice)
+  println("Hello".slice.extend(-3) == "He".slice)
+  println(v1.slice.advance(1) == v1.slice.advance(1))
+  println(v1.slice.advance(1) != v1.slice.extend(-1))
+  println(v1.slice.advance(2) != v1.slice.advance(1))
+
+
 fun main()
   test-advance()
   test-first()
   test-subslice()
   test-drop()
   test-take()
+  test-equality()
