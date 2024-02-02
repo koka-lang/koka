@@ -101,6 +101,7 @@ library
       Lib.Printer
       Lib.Scc
       Lib.Trace
+      Main.Run
       Static.BindingGroups
       Static.FixityResolve
       Syntax.Colorize
