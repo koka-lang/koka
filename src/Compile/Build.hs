@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------
 module Compile.Build( Build
                       , VFS(..), noVFS
-                      , runBuildIO
+                      , runBuildIO, runBuildMaybe
 
                       , modulesFullBuild
                       , modulesBuild
@@ -25,6 +25,7 @@ module Compile.Build( Build
                       , virtualMount
                       , getFlags
                       , addErrorMessageKind
+                      , searchSourceFile
                       ) where
 
 import Debug.Trace
@@ -62,7 +63,7 @@ import qualified Type.Pretty as TP
 import Type.Assumption        ( Gamma, gammaLookupQ, NameInfo(..) )
 import qualified Core.Core as Core
 import Core.Parse
-import Compiler.Options
+import Compile.Options
 import Compile.Module
 import Compile.TypeCheck      ( typeCheck )
 import Compile.Optimize       ( coreOptimize )
@@ -684,7 +685,7 @@ nameToPath name
 outputName :: FilePath -> Build FilePath
 outputName fpath
   = do flags <- getFlags
-       return $ joinPath (fullBuildDir flags ++ "-" ++ flagsHash flags) fpath
+       return $ outName flags fpath
 
 ifaceExtension :: FilePath
 ifaceExtension
@@ -712,6 +713,12 @@ data Env = Env { envTerminal :: Terminal,
 noVFS :: VFS
 noVFS = VFS (\fpath -> Nothing)
 
+runBuildMaybe :: Terminal -> Flags -> Build (Maybe a) -> IO (Maybe a)
+runBuildMaybe term flags action
+  = do (mbRes,_) <- runBuildIO term flags action
+       case mbRes of
+         Just res -> return res
+         Nothing  -> return Nothing
 
 runBuildIO :: Terminal -> Flags -> Build a -> IO (Maybe a,Maybe Range)
 runBuildIO term flags cmp

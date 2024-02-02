@@ -50,7 +50,7 @@ import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime,
 import Common.ColorScheme(ColorScheme(..))
 import Common.Error
 import Core.Core (Visibility(Private))
-import Compiler.Options (Flags, colorSchemeFromFlags, includePath)
+import Compile.Options (Flags, colorSchemeFromFlags, includePath)
 import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
 import Compiler.Module (Module(..), initialLoaded)
 import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)

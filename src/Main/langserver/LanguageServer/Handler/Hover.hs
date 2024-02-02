@@ -30,7 +30,7 @@ import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray
 import Kind.Kind(isKindEffect,isKindHandled,isKindHandled1,isKindLabel)
 import Lib.PPrint
 import Compiler.Module (loadedModule, modRangeMap, modLexemes, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
-import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
+import Compile.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
 import Compiler.Compile (modName)
 import Kind.Pretty (prettyKind)
 import Kind.ImportMap (importsEmpty, ImportMap)

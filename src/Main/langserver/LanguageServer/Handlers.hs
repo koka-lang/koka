@@ -42,7 +42,7 @@ import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.Protocol.Types (DidChangeTextDocumentParams(..), VersionedTextDocumentIdentifier (..))
 import Language.LSP.Server (Handlers, notificationHandler, sendNotification, Handler, mapHandlers, MonadLsp (..))
 
-import Compiler.Options (Flags)
+import Compile.Options (Flags)
 import Lib.PPrint (Doc, text, color)
 import Common.ColorScheme (Color (..))
 import LanguageServer.Handler.Completion (completionHandler)

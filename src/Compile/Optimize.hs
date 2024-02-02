@@ -42,7 +42,7 @@ import Type.Pretty
 import Kind.Newtypes( Newtypes )
 import Type.Assumption( Gamma )
 import qualified Core.Core as Core
-import Compiler.Options
+import Compile.Options
 import Compile.Module( Definitions(..) )
 
 {---------------------------------------------------------------

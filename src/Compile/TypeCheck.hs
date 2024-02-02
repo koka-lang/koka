@@ -45,7 +45,7 @@ import Type.Pretty
 import Type.Assumption( Gamma, extractGamma, extractGammaImports, gammaUnions, showHidden )
 import Type.Infer( inferTypes )
 import qualified Core.Core as Core
-import Compiler.Options
+import Compile.Options
 import Compile.Module( Definitions(..) )
 
 

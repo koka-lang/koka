@@ -33,7 +33,7 @@ import Language.LSP.VFS (virtualFileText)
 import Lib.PPrint (Pretty(..), Doc, (<.>), (<+>), text)
 import Kind.Constructors (ConInfo(..))
 import Type.Pretty (Env(..), ppScheme, ppName)
-import Compiler.Options (prettyEnvFromFlags, colorSchemeFromFlags)
+import Compile.Options (prettyEnvFromFlags, colorSchemeFromFlags)
 import Common.ColorScheme (ColorScheme)
 import LanguageServer.Handler.Pretty (ppComment, asKokaCode)
 
@@ -52,7 +52,7 @@ signatureHelpHandler = requestHandler J.SMethod_TextDocumentSignatureHelp $ \req
   -- Get additional signature context given by the client (from completions)
   sig <- getSignatureContext
   -- Get the last successful typechecked version (so we can get gamma), it might be out of date a bit
-  loaded <- getLoadedSuccess uri 
+  loaded <- getLoadedSuccess uri
   pos <- liftIO $ fromLspPos uri pos
   vfile <- getVirtualFile uri
   filePath <- fromMaybe "" <$> liftIO (fromLspUri uri)
@@ -93,7 +93,7 @@ signatureHelpHandler = requestHandler J.SMethod_TextDocumentSignatureHelp $ \req
         let gamma = loadedGamma l
         let results = gammaLookup id gamma
         let completionName = sigFunctionName <$> sig
-        sigInfos <- liftIO $ mapM (getSignatureInformation print env colors) results 
+        sigInfos <- liftIO $ mapM (getSignatureInformation print env colors) results
         let sigInfo = concat sigInfos
         let mbIndex = findIndex (\(n, si) -> Just n == completionName) sigInfo
         -- trace ("Signature help for " ++ show completionName) $ return ()
@@ -116,7 +116,7 @@ getSignatureInformation print env colors (n, ninfo) = do
       do
         markdown <- print $ toMarkdown infoCName infoType infoDoc
         return [(n, J.SignatureInformation (T.pack $ show $ pretty infoCName) (Just $ J.InR (J.mkMarkdown markdown)) Nothing Nothing)]
-    InfoCon{ infoVis, infoType , infoRepr  , infoCon , infoRange, infoDoc } -> 
+    InfoCon{ infoVis, infoType , infoRepr  , infoCon , infoRange, infoDoc } ->
       do
         markdown <- print $ toMarkdown (conInfoName infoCon) infoType infoDoc
         return [(n, J.SignatureInformation (T.pack $ show $ pretty $ conInfoName infoCon) (Just $ J.InR (J.mkMarkdown markdown)) Nothing Nothing)]

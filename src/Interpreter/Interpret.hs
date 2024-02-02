@@ -45,13 +45,10 @@ import Type.Type              ( Scheme, Type, typeVoid )
 import Type.Pretty            ( ppScheme, ppSchemeEffect, Env(context,importsMap))
 import Type.Assumption        ( gammaIsEmpty, ppGamma, infoType, gammaFilter )
 
-import Compiler.Options
-import Compiler.Compile
-import Compiler.Module
+import Compile.Options
 import Interpreter.Command
-
 import qualified Compile.BuildContext   as B
-import Compile.BuildContext (buildcRunExpr)
+
 
 {---------------------------------------------------------------
   interpreter state
@@ -183,12 +180,12 @@ command st cmd
                               -- command st Reload
                               interpreter st
                    }
-  Edit fname  -> do{ mbpath <- searchSource (flags st) "" (newName fname) -- searchPath (includePath (flags st)) sourceExtension fname
+  Edit fname  -> do{ mbpath <- B.runBuildMaybe (terminal st) (flags st) $ B.buildcSearchSourceFile fname (buildContext st)
                    ; case mbpath of
                       Nothing
                         -> do messageErrorMsgLnLn st [errorFileNotFound (flags st) fname]
                               interpreter st
-                      Just (root,fname,_)
+                      Just (root,fname)
                         -> do runEditor st (joinPath root fname)
                               -- command st Reload
                               interpreter st
@@ -314,31 +311,6 @@ docNotFound cscheme path name
 {--------------------------------------------------------------------------
   Helpers
 --------------------------------------------------------------------------}
-checkInfer ::  State -> Bool -> Error b Loaded -> (Loaded -> IO ()) -> IO ()
-checkInfer st = checkInferWith st "" id
-checkInfer2Snd st = checkInferWith st "" snd
-checkInfer2Fst st = checkInferWith st "" fst
-
-checkInfer3 ::  State -> String -> Bool -> Error b (a,b,Loaded) -> ((a,b,Loaded) -> IO ()) -> IO ()
-checkInfer3 st line = checkInferWith st line (\(a,b,c) -> c)
-
-checkInferWith ::  State -> String -> (a -> Loaded) -> Bool -> Error b a -> (a -> IO ()) -> IO ()
-checkInferWith st line  getLoaded showMarker err f
-  = case checkError err of
-      Left (Errors errs)
-                -> do when showMarker (maybeMessageMarker st (getRange errs))
-                      messageErrorMsgLn st errs
-                      if (line=="exit" || line == "quit")
-                        then messageInfoLnLn st ("hint: use ':q' to quit the interpreter, use ':?' for help.")
-                        else messageInfoLn st ""
-                      interpreterEx st{ errorRange = Just (getRange errs) }
-      Right (x,Errors ws)
-                -> do let ld = getLoaded x
-                          warnings = ws -- modWarnings (loadedModule ld)
-                      when (not (null warnings))
-                        (do when showMarker (maybeMessageMarker st (getRange ws))
-                            messageErrorMsgLnLn st ws)
-                      f x
 
 maybeMessageMarker ::  State -> Range -> IO ()
 maybeMessageMarker st rng

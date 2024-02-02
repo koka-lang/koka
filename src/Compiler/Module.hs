@@ -49,7 +49,7 @@ import Syntax.RangeMap
 import Compiler.Package       ( PackageName, joinPkg )
 import qualified Core.Core as Core
 import Data.Maybe (fromJust)
-import Compiler.Options (Flags)
+import Compile.Options (Flags)
 
 {--------------------------------------------------------------------------
   Compilation

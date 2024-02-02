@@ -22,7 +22,7 @@ import Common.Failure         ( catchIO )
 import Common.Error
 import Common.Name
 import Common.File            ( joinPath, getCwd )
-import Compiler.Options
+import Compile.Options
 import Compiler.Compile       ( compileFile, CompileTarget(..), Module(..), Loaded(..), Terminal(..) )
 import Core.Core              ( coreProgDefs, flattenDefGroups, defType, Def(..) )
 import Interpreter.Interpret  ( interpret  )

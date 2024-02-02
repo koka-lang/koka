@@ -23,8 +23,12 @@ module Compile.BuildContext ( BuildContext
                             , buildcFindModuleName
                             , buildcGetDefinitions
                             , buildcGetMatchNames
+                            , buildcLookupTypeOf
+                            , buildcLookupInfo
+                            , buildcOutputDir
+                            , buildcSearchSourceFile
 
-                            , runBuildIO
+                            , runBuildIO, runBuildMaybe
 
                             , Definitions(..)
                             ) where
@@ -47,10 +51,11 @@ import Type.Type
 import qualified Type.Pretty as TP
 import Type.Kind       (extractHandledEffect, getHandledEffectX )
 import Type.Assumption
-import Compiler.Options
+import Compile.Options
 import Compile.Module
 import Compile.Build
 import Text.Parsec.Error (addErrorMessage)
+import Compiler.Compile (searchSource)
 
 
 data BuildContext = BuildContext {
@@ -355,3 +360,12 @@ buildcLookupTypeOf name buildc
   = case buildcLookupInfo name buildc of
       [info] | isInfoValFunExt info -> Just (infoType info)
       _      -> Nothing
+
+buildcOutputDir :: Build FilePath
+buildcOutputDir
+  = do flags <- getFlags
+       return (outName flags "")
+
+buildcSearchSourceFile :: FilePath -> BuildContext -> Build (Maybe (FilePath,FilePath))
+buildcSearchSourceFile fpath buildc
+  = searchSourceFile (buildcVFS buildc) "" fpath

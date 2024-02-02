@@ -42,7 +42,7 @@ import Backend.CSharp.FromCore    ( csharpFromCore )
 import Backend.JavaScript.FromCore( javascriptFromCore )
 import Backend.C.FromCore         ( cFromCore )
 
-import Compiler.Options
+import Compile.Options
 import Compile.Module( Definitions(..), Module(..), modCoreImports )
 import Compile.TypeCheck( importMapFromCoreImports )    -- todo: break this dependency?
 

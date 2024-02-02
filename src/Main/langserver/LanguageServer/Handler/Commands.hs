@@ -32,7 +32,7 @@ import LanguageServer.Monad (LSM, getFlags, getTerminal, getModules, getLoaded, 
 import LanguageServer.Handler.TextDocument (recompileFile, compileEditorExpression)
 import LanguageServer.Conversions( filePathToUri )
 import Compiler.Compile (CompileTarget(..), Terminal (..), compileExpression, Module (..))
-import Compiler.Options (Flags (outFinalPath), targets, commandLineHelp, updateFlagsFromArgs)
+import Compile.Options (Flags (outFinalPath), targets, commandLineHelp, updateFlagsFromArgs)
 import Compiler.Module (Loaded(..))
 import Core.Core (Visibility(Private))
 import Syntax.Syntax (programAddImports, programNull, Import (..))
