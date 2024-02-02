@@ -131,7 +131,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
                                         copyBinaryFile out targetOut
                                         return finalOut
                                 else return out
-                      termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created :") <+>
+                      termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
                           color (colorSource (colorScheme flags)) (text (normalizeWith pathSep exe))
               _ -> return ()
             return (mbRun)
@@ -302,7 +302,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry outBa
           clibs    = clibsFromCore flags bcore
       extraIncDirs <- concat <$> mapM (copyCLibrary term flags sequential cc (dirname outBase)) eimports
 
-      -- return the C compilation and link as a separate IO action to increase concurrency
+      -- return the C compilation and final link as a separate IO action to increase concurrency
       return $ \fullImports ->
                do -- compile the generated C
                   ccompile term flags cc outBase extraIncDirs [outC]

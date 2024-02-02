@@ -206,7 +206,7 @@ buildcCompileEntry typeCheckOnly name buildc
 buildcCompileExpr :: Bool -> Bool -> [ModuleName] -> String -> BuildContext -> Build (BuildContext, Maybe (Type, Maybe (FilePath,IO ())))
 buildcCompileExpr addShow typeCheckOnly importNames0 expr buildc
   = phaseTimed 2 "compile" (\penv -> empty) $
-    do let importNames = if null importNames0 then buildcRoots buildc else importNames
+    do let importNames = if null importNames0 then buildcRoots buildc else importNames0
            sourcePath = joinPaths [
                           virtualMount,
                           case [modSourceRelativePath mod | mname <- importNames,

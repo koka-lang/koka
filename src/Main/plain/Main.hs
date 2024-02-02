@@ -96,12 +96,17 @@ compileAll :: ColorPrinter -> Flags -> [FilePath] -> IO Bool
 compileAll p flags fpaths
   = do cwd <- getCwd
        (mbRes,_)  <- runBuildIO (term cwd) flags $
-                       do (buildc0,roots) <- buildcAddRootSources fpaths (buildcEmpty flags)
-                          let mainEntries = if library flags then []
-                                              else map (\rootName -> qualify rootName (newName "main")) roots
-                          buildc <- buildcFullBuild (rebuild flags) roots {-force roots always-} mainEntries buildc0
+                       do -- build
+                          (buildc0,roots) <- buildcAddRootSources fpaths (buildcEmpty flags)
+                          buildc <- buildcFullBuild (rebuild flags) roots {-force roots always-} [] buildc0
                           buildcThrowOnError
-                          mapM_ (compileDone buildc) roots
+                          -- compile & run entry points
+                          let mainEntries = if library flags then [] else map (\rootName -> qualify rootName (newName "main")) roots
+                          runs <- mapM (compileEntry buildc) mainEntries
+                          when (evaluate flags) $
+                            mapM_ liftIO runs
+                          -- show info
+                          mapM_ (compileShowInfo buildc) roots
                           return ()
        return (isJust mbRes)
   where
@@ -116,15 +121,19 @@ compileAll p flags fpaths
       = colorSchemeFromFlags flags
 
     putErrorMessage p cwd endToo cscheme err
-      = putPrettyLn p (ppErrorMessage cwd endToo cscheme err)
-
-    putPrettyLn p doc
-      = do writePrettyLn p doc
+      = do writePrettyLn p (ppErrorMessage cwd endToo cscheme err)
            writeLn p ""
 
+compileEntry :: BuildContext -> Name -> Build (IO ())
+compileEntry buildc entry
+  = do (_,mbTpEntry) <- buildcCompileEntry False entry buildc
+       case mbTpEntry of
+         Just(_,Just(_,run)) -> return run
+         _                   -> do addErrorMessageKind ErrBuild (\penv -> text "unable to find main entry point" <+> ppName penv entry)
+                                   return (return ())
 
-compileDone :: BuildContext -> ModuleName -> Build ()
-compileDone buildc modname
+compileShowInfo :: BuildContext -> ModuleName -> Build ()
+compileShowInfo buildc modname
   = do  flags <- buildcFlags
         -- show (kind) gamma ?
         let defs = buildcGetDefinitions [modname] buildc
@@ -135,10 +144,5 @@ compileDone buildc modname
                buildcTermInfo $ \penv -> ppSynonyms penv{context=modname} syns
         when (showTypeSigs flags || showHiddenTypeSigs flags) $
           buildcTermInfo $ \penv -> ppGamma penv{context=modname} (defsGamma defs)
-        -- run it?
-        when (evaluate flags) $
-          case buildcGetMainEntry modname buildc of
-            Just (exe,run) -> liftIO $ run
-            Nothing        -> addErrorMessageKind ErrBuild (\penv -> text "unable to find main entry point of" <+> ppName penv modname)
-        return ()
+
 
