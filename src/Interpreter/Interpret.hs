@@ -18,6 +18,7 @@ import System.Directory            ( getCurrentDirectory, setCurrentDirectory )
 import Data.List                   ( isPrefixOf )
 import Data.Char                   ( isSpace, toLower )
 import Control.Monad
+import Control.Applicative
 
 import Platform.Config hiding (programName)
 import qualified Platform.Config as Config
@@ -83,12 +84,12 @@ interpret printer flags0 flagspre files
       ; messageHeader st0
       ; let st2 = st0
 
-      ; mbSt <- loadModulesEx (terminal st2) st2{ flags = flags0{ showCore = False }} [show (nameSystemCore)] False
+      ; (mbSt,erng) <- loadModulesEx (terminal st2) st2{ flags = flags0{ showCore = False }} [show (nameSystemCore)] False
       ; case mbSt of
           Nothing     -> do messageInfoLn st2 ("unable to load the " ++ show nameSystemCore ++ " module; standard functions are not available")
                             messageEvaluation st2
                             interpreterEx st2{ flags      = (flags st2){ evaluate = False }
-                                             , errorRange = Nothing {- todo... -} }
+                                             , errorRange = erng }
           Just coreSt -> if (null files)
                              then interpreterEx coreSt{ lastLoad = [show nameSystemCore] }
                              else command coreSt (Load files False)
@@ -121,15 +122,15 @@ command st cmd
   = let term = terminal st
     in do{ case cmd of
   Eval line   -> do st' <- buildRunExpr term st line
-                    interpreter st'
+                    interpreterEx st'
 
   Load fnames force
               -> do let st' = st{ lastLoad = fnames }
                     st'' <- loadModules term st' fnames force
-                    interpreter st''
+                    interpreterEx st''
 
   Reload      -> do st' <- loadModules term st (lastLoad st) True
-                    interpreter st'
+                    interpreterEx st'
 
 
 
@@ -211,7 +212,7 @@ command st cmd
                           = do if (null files)
                                  then messageLn st ""
                                  else messageError st "(ignoring file arguments)"
-                               mbBuildc <- B.runBuildIO (terminal st) newFlags (B.buildcValidate False [] (buildContext st))
+                               (mbBuildc,_) <- B.runBuildIO (terminal st) newFlags (B.buildcValidate False [] (buildContext st))
                                interpreter (st{ flags = newFlags, flags0 = newFlags0, buildContext = maybe (buildContext st) id mbBuildc })
                    ; case mode of
                        ModeHelp     -> do doc <- commandLineHelp (flags st)
@@ -249,30 +250,31 @@ command st cmd
 -- todo: set error range
 loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO State
 loadModules term st files force
-  = do mbSt <- loadModulesEx term st files force
-       case mbSt of
-         Just st' -> return st'
-         Nothing  -> return st
+  = do (mbSt,erng) <- loadModulesEx term st files force
+       let st' = case mbSt of
+                  Just st' -> st'
+                  Nothing  -> st
+       return (st'{ errorRange = erng <|> errorRange st'})
 
-loadModulesEx :: Terminal -> State -> [FilePath] -> Bool -> IO (Maybe State)
+loadModulesEx :: Terminal -> State -> [FilePath] -> Bool -> IO (Maybe State,Maybe Range)
 loadModulesEx term st files force
-  = do mbBuildc <- B.runBuildIO term (flags st) $
-                   do (buildc1,rootNames) <- B.buildcAddRootSources files (B.buildcClearRoots (buildContext st))
-                      B.buildcFullBuild (rebuild (flags st)) (if force then rootNames else [])
-                                        [] -- [newQualified "samples/basic/caesar" "main"]
-                                        buildc1
+  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $
+                          do (buildc1,rootNames) <- B.buildcAddRootSources files (B.buildcClearRoots (buildContext st))
+                             B.buildcFullBuild (rebuild (flags st)) (if force then rootNames else [])
+                                                [] -- [newQualified "samples/basic/caesar" "main"]
+                                                buildc1
 
        case mbBuildc of
-         Nothing     -> return Nothing
-         Just buildc -> return (Just st{ buildContext = buildc })
+         Nothing     -> return (Nothing,erng)
+         Just buildc -> return (Just st{ buildContext = buildc }, erng)
 
 buildRunExpr :: Terminal -> State -> String -> IO State
 buildRunExpr term st expr
-  = do mbBuildc <- B.runBuildIO term (flags st) $
-                   do B.buildcRunExpr [] expr (buildContext st)
+  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $
+                          do B.buildcRunExpr [] expr (buildContext st)
        case mbBuildc of
-         Nothing     -> return st
-         Just buildc -> return st{ buildContext = buildc }
+         Nothing     -> return st{ errorRange = erng <|> errorRange st }
+         Just buildc -> return st{ buildContext = buildc, errorRange = erng <|> errorRange st  }
 
 
 findPath :: ColorScheme -> [FilePath] -> String -> String -> IO FilePath
@@ -454,7 +456,7 @@ interactiveSource str
 runEditor ::  State -> FilePath -> IO ()
 runEditor st fpath
   = let (line,col) = case errorRange st of
-                       Just rng  | sourceName (rangeSource rng) == fpath
+                       Just rng | sourceName (rangeSource rng) == fpath
                          -> let pos = rangeStart rng in (posLine pos, posColumn pos)
                        _ -> (1,1)
     in runEditorAt st fpath line col
@@ -464,7 +466,8 @@ runEditorAt st fpath line col
   = let command  = replace line col (editor (flags st)) fpath
     in if null (editor (flags st))
         then raiseIO ("no editor specified. (use the \"koka_editor\" environment variable?)")
-        else runSystem command
+        else do -- messageInfoLn st ("command: " ++ command)
+                runSystem command
 
 replace :: Int -> Int -> FilePath -> String -> String
 replace line col s fpath

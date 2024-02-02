@@ -712,14 +712,17 @@ noVFS :: VFS
 noVFS = VFS (\fpath -> Nothing)
 
 
-runBuildIO :: Terminal -> Flags -> Build a -> IO (Maybe a)
+runBuildIO :: Terminal -> Flags -> Build a -> IO (Maybe a,Maybe Range)
 runBuildIO term flags cmp
   = do res <- runBuild term flags cmp
+       let getErrRange errs  = case reverse (errors errs) of
+                                 (err:_) -> Just (getRange err)
+                                 _       -> Nothing
        case res of
          Right (x,errs) -> do mapM_ (termError term) (take (maxErrors flags) (errors errs))
-                              return (Just x)
+                              return (Just x, getErrRange errs)
          Left errs      -> do mapM_ (termError term) (take (maxErrors flags) (errors errs))
-                              return Nothing
+                              return (Nothing, getErrRange errs)
 
 runBuild :: Terminal -> Flags -> Build a -> IO (Either Errors (a,Errors))
 runBuild term flags cmp
