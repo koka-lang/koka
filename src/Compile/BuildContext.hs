@@ -9,7 +9,8 @@ module Compile.BuildContext ( BuildContext
                             , buildcEmpty
 
                             , buildcFullBuild
-                            , buildcValidate, buildcTypeCheck, buildcBuild
+                            , buildcValidate
+                            , buildcTypeCheck, buildcBuild
 
                             , buildcRunExpr, buildcRunEntry
                             , buildcCompileExpr, buildcCompileEntry
@@ -18,9 +19,14 @@ module Compile.BuildContext ( BuildContext
                             , buildcAddRootModules
                             , buildcRoots
                             , buildcClearRoots, buildcRemoveRootModule, buildcRemoveRootSource
+
                             , buildcFindModuleName
+                            , buildcGetDefinitions
+                            , buildcGetMatchNames
 
                             , runBuildIO
+
+                            , Definitions(..)
                             ) where
 
 
@@ -48,11 +54,13 @@ import Compile.Build
 data BuildContext = BuildContext {
                       buildcRoots   :: ![ModuleName],
                       buildcModules :: ![Module],
-                      buildcFileSys :: !(M.Map FilePath (BString,FileTime))
+                      buildcFileSys :: !(M.Map FilePath (BString,FileTime)),
+                      buildcHash    :: !String
                     }
 
-buildcEmpty :: BuildContext
-buildcEmpty = BuildContext [] [] M.empty
+buildcEmpty :: Flags -> BuildContext
+buildcEmpty flags
+  = BuildContext [] [] M.empty $! flagsHash flags
 
 buildcVFS :: BuildContext -> VFS
 buildcVFS buildc = let fs = buildcFileSys buildc
@@ -95,33 +103,69 @@ buildcRemoveRootSource fpath buildc
       Just mname -> buildcRemoveRootModule mname buildc
       _          -> buildc
 
+buildcGetDefinitions :: [ModuleName] -> BuildContext -> Definitions
+buildcGetDefinitions modules0 buildc
+  = let modules = if null modules0 then buildcRoots buildc else modules
+    in defsFromModules (filter (\mod -> modName mod `elem` modules) (buildcModules buildc))
 
+buildcGetMatchNames :: [ModuleName] -> BuildContext -> [String]
+buildcGetMatchNames modules buildc
+  = let defs = buildcGetDefinitions modules buildc
+    in map (showPlain . unqualify) $ gammaPublicNames (defsGamma defs)
+
+
+buildcFreshFromRoots :: BuildContext -> Build BuildContext
+buildcFreshFromRoots buildc
+  = do let (roots,imports) = buildcSplitRoots buildc
+           rootSources = map modSourcePath roots
+       flags <- getFlags
+       (buildc1,_) <- buildcAddRootSources rootSources (buildcEmpty flags)
+       let (roots1,_) = buildcSplitRoots buildc1
+       mods  <- modulesReValidate (buildcVFS buildc) False [] [] roots1
+       return buildc1{ buildcModules = mods }
+
+buildcValidateFlags :: BuildContext -> Build BuildContext
+buildcValidateFlags buildc
+  = do flags <- getFlags
+       let hash = flagsHash flags
+       if (hash == buildcHash buildc)
+        then return buildc
+        else buildcFreshFromRoots buildc
 
 buildcValidate :: Bool -> [ModuleName] -> BuildContext -> Build BuildContext
 buildcValidate rebuild forced buildc
-  = do let (roots,imports) = buildcSplitRoots buildc
-       mods <- modulesReValidate (buildcVFS buildc) rebuild forced imports roots
-       return buildc{ buildcModules = mods }
+  = do flags <- getFlags
+       let hash = flagsHash flags
+       if (hash /= buildcHash buildc)
+         then buildcFreshFromRoots buildc
+         else do let (roots,imports) = buildcSplitRoots buildc
+                 mods <- modulesReValidate (buildcVFS buildc) rebuild forced imports roots
+                 return buildc{ buildcModules = mods }
 
 buildcSplitRoots :: BuildContext -> ([Module],[Module])
 buildcSplitRoots buildc
   = partition (\m -> modName m `elem` buildcRoots buildc) (buildcModules buildc)
 
+
+
+
 buildcTypeCheck :: BuildContext -> Build BuildContext
-buildcTypeCheck buildc
-  = do mods <- modulesTypeCheck (buildcModules buildc)
+buildcTypeCheck buildc0
+  = do buildc <- buildcValidateFlags buildc0
+       mods   <- modulesTypeCheck (buildcModules buildc)
        return buildc{ buildcModules = mods }
 
 buildcBuild :: [Name] -> BuildContext -> Build BuildContext
-buildcBuild mainEntries buildc
-  = do mods <- modulesBuild mainEntries (buildcModules buildc)
+buildcBuild mainEntries buildc0
+  = do buildc <- buildcValidateFlags buildc0
+       mods   <- modulesBuild mainEntries (buildcModules buildc)
        return (buildc{ buildcModules = mods})
 
 buildcFullBuild :: Bool -> [ModuleName] -> [Name] -> BuildContext -> Build BuildContext
-buildcFullBuild rebuild forced mainEntries buildc
+buildcFullBuild rebuild forced mainEntries buildc0
   = phaseTimed 2 "building" (\penv -> empty) $
-    do let (roots,imports) = buildcSplitRoots buildc
-       mods <- modulesFullBuild (buildcVFS buildc) rebuild forced mainEntries imports roots
+    do buildc <- buildcValidate rebuild forced buildc0
+       mods <- modulesBuild mainEntries (buildcModules buildc)
        return (buildc{ buildcModules = mods})
 
 
@@ -144,9 +188,11 @@ buildcCompileEntry name buildc
   = buildcCompileExpr False [qualifier name] (show name ++ "()") buildc
 
 buildcCompileExpr :: Bool -> [ModuleName] -> String -> BuildContext -> Build (BuildContext,Maybe (FilePath,IO ()))
-buildcCompileExpr addShow importNames expr buildc
+buildcCompileExpr addShow importNames0 expr buildc0
   = phaseTimed 2 "compile" (\penv -> empty) $
-    do let sourcePath = joinPaths [
+    do buildc <- buildcValidate False [] buildc0
+       let importNames = if null importNames0 then buildcRoots buildc else importNames
+           sourcePath = joinPaths [
                           virtualMount,
                           case [modSourceRelativePath mod | mname <- importNames,
                                                    mod <- case find (\mod -> modName mod == mname) (buildcModules buildc) of
@@ -165,8 +211,8 @@ buildcCompileExpr addShow importNames expr buildc
        withVirtualModule sourcePath content buildc $ \mainModName buildc1 ->
          do -- type check first
             let exprName = qualify mainModName (newName "@expr")
-            buildc2 <- buildcValidate False [] buildc1
-            buildc3 <- buildcTypeCheck buildc2
+            -- buildc2 <- buildcValidate False [] buildc1
+            buildc3 <- buildcTypeCheck buildc1
             mbRng   <- hasBuildError
             case mbRng of
               Just rng -> do when addShow $ showMarker rng

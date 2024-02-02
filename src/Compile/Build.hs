@@ -23,6 +23,7 @@ module Compile.Build( Build
                       , liftIO
 
                       , virtualMount
+                      , getFlags
                       ) where
 
 import Debug.Trace
