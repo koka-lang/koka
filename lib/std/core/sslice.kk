@@ -42,14 +42,11 @@ pub fun @new-sslice( str :string, start: int, len : int )
 pub inline fun (==)(l1: sslice, l2: sslice ): bool
   match (l1, l2)
     (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
-      if identical(s1, s2) then i1 == i2 && f1 == f2
+      if identical(s1, s2) then (i1 == i2 && f1 == f2) || l1.string == l2.string
       else l1.string == l2.string
 
 pub inline fun (!=)(l1: sslice, l2: sslice ): bool
-  match (l1, l2)
-    (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
-      if identical(s1, s2) then i1 != i2 || f1 != f2
-      else l1.string != l2.string
+  !(l1 == l2)
 
 // O(n). Return the number of characters in a string slice
 pub extern count( slice : sslice ) : int

@@ -64,15 +64,18 @@ fun test-take()
   println("Hello ☺ World".slice.take(7).string == "Hello ☺")
 
 fun test-equality()
-  val v1 = "Hello"
+  val v1 = "Hello".slice
+  val v2 = "abcabc".slice
   println("Hello".slice.advance(1) == "ello".slice)
   println("Hello".slice.extend(-3) == "He".slice)
-  println(v1.slice.advance(1) == v1.slice.advance(1))
-  println(v1.slice.advance(1) != v1.slice.extend(-1))
-  println(v1.slice.advance(2) != v1.slice.advance(1))
+  println(v1.advance(1) == v1.advance(1))
+  println(v1.advance(1) != v1.extend(-1))
+  println(v1.advance(2) != v1.advance(1))
+  println(v2.advance(3) == v2.extend(-3)) // Different locations in the string but have same content
   // Expected false
-  println(v1.slice.advance(1) == v1.slice.advance(2))
-  println(v1.slice.advance(1) != v1.slice.advance(1))
+  println(v1.advance(1) == v1.advance(2))
+  println(v1.advance(1) != v1.advance(1))
+  println(v2.advance(3) != v2.extend(-3)) // Different locations in the string but have same content
 
 
 fun main()
