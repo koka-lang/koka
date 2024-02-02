@@ -199,12 +199,16 @@ moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap buildOrd
     $ \done (fullLink,link,mod) ->
      do -- wait for all required imports to be codegen'd
         -- However, for a final exe we need to wait for the imports to be _linked_ as well (so we use linkedMap instead of codegenMap).
-        imports0 <- moduleWaitForImports fullLink (if fullLink then linkedMap else codegenMap) [] (modImportNames mod)
+        imports0 <- moduleWaitForImports {-fullLink-} True -- with parallel builds in optimized mode we sometimes get permission errors
+                                                           -- during C compilation; it seems sometime header file writes are delayed causing
+                                                           -- concurrent read errors from a C compile. A fix is to wait for all required
+                                                           -- modules recursively to be linked/codegen'd
+                                         (if fullLink then linkedMap else codegenMap) [] (modImportNames mod)
         let imports = orderByBuildOrder buildOrder imports0  -- we order for a full link to link object files correctly
         if any (\m -> modPhase m < (if fullLink then PhaseLinked else PhaseCodeGen)) imports
           then done mod  -- dependencies had errors
           else do phaseVerbose (if fullLink then 1 else 2) (if fullLink then "linking" else "link") $
-                                \penv -> TP.ppName penv (modName mod) -- <+> list (map (TP.ppName penv . modName) imports)
+                                \penv -> TP.ppName penv (modName mod) -- <+> text ", imports:" <+> list (map (TP.ppName penv . modName) imports)
                   mbEntry <- pooledIO $ link imports  -- link it! (specifics were returned by codegen)
                   let mod' = mod{ modPhase = PhaseLinked, modEntry = case mbEntry of
                                                                        LinkDone -> Nothing

@@ -290,9 +290,10 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry outBa
       when (showFinalCore flags) $
         do termInfo term bcoreDoc
 
-      termTrace term ( "generate c: " ++ outBase )
+      -- termTrace term ( "generate c: " ++ outBase )
       writeDocW 120 outC (cdoc <.> linebreak)
       writeDocW 120 outH (hdoc <.> linebreak)
+      termTrace term ( "generated c: " ++ outBase )
       when (showAsmC flags) (termInfo term (hdoc <//> cdoc))
 
       -- copy libraries

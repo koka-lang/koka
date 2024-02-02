@@ -639,6 +639,7 @@ writeDocW width fpath doc
   = do h <- openFile fpath WriteMode
        hPutDocW width h doc `finally` hClose h
 
+
 -----------------------------------------------------------
 -- insert spaces
 -- "indentation" used to insert tabs but tabs seem to cause
