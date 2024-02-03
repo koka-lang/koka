@@ -72,10 +72,14 @@ fun test-equality()
   println(v1.advance(1) != v1.extend(-1))
   println(v1.advance(2) != v1.advance(1))
   println(v2.advance(3) == v2.extend(-3)) // Different locations in the string but have same content
+  println("Hello".slice === v1)
+  println("Hello".slice.advance(1) === v1.advance(1))
+  println("Hello".slice.advance(1) !== "ello".slice)
   // Expected false
   println(v1.advance(1) == v1.advance(2))
   println(v1.advance(1) != v1.advance(1))
   println(v2.advance(3) != v2.extend(-3)) // Different locations in the string but have same content
+  println("Hello".slice !== v1)
 
 
 fun main()

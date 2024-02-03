@@ -38,15 +38,32 @@ abstract value struct sslice( str : string, start : int, len : int )
 pub fun @new-sslice( str :string, start: int, len : int )
   Sslice(str,start,len)
 
-
+// Equality based on contents of the slice 
+// O(`n`+`m`) where `n` and `m` are the lengths of the two strings
 pub inline fun (==)(l1: sslice, l2: sslice ): bool
   match (l1, l2)
     (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
       if identical(s1, s2) then (i1 == i2 && f1 == f2) || l1.string == l2.string
       else l1.string == l2.string
 
+// Inequality based on contents of the slice
+// O(`n`+`m`) where `n` and `m` are the lengths of the two strings
 pub inline fun (!=)(l1: sslice, l2: sslice ): bool
   !(l1 == l2)
+
+// Equality of slices same offset and length on the same string 
+// The strings do not have to be referentially identical though
+pub inline fun (===)(l1: sslice, l2: sslice ): bool
+  match (l1, l2)
+    (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
+      i2 == i2 && f1 == f2 && s1 == s2
+
+// Inequality of slices same offset and length on the same string 
+// The strings do not have to be referentially identical though
+pub inline fun (!==)(l1: sslice, l2: sslice ): bool
+  match (l1, l2)
+    (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
+      i2 != i2 || f1 != f2 || s1 != s2
 
 // O(n). Return the number of characters in a string slice
 pub extern count( slice : sslice ) : int
