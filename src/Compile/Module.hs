@@ -41,12 +41,13 @@ import Kind.ImportMap
 import Kind.Synonym           ( Synonyms, synonymsEmpty, synonymsCompose, extractSynonyms )
 import Kind.Newtypes          ( Newtypes, newtypesEmpty, newtypesCompose, extractNewtypes )
 import Kind.Constructors      ( Constructors, constructorsEmpty, constructorsCompose, extractConstructors )
-import Kind.Assumption        ( KGamma, kgammaInit, extractKGamma, kgammaUnion )
+import Kind.Assumption        ( KGamma, kgammaInit, extractKGamma, kgammaUnion, kgammaUnionLeftBias )
 
 import Type.Assumption        ( Gamma, gammaInit, gammaUnion, extractGamma, gammaNames, gammaPublicNames)
 import Type.Type              ( DataInfo )
 import Core.Inlines           ( Inlines, inlinesNew, inlinesEmpty, inlinesExtends )
 import Core.Borrowed          ( Borrowed, borrowedEmpty, extractBorrowed, borrowedCompose )
+import Common.Failure (HasCallStack)
 
 
 {--------------------------------------------------------------------------
@@ -200,7 +201,7 @@ defsFromCore privateAsPublic core
       = fixitiesNew [(name,fix) | Core.FixDef name fix <- Core.coreProgFixDefs core]
 
 
-defsFromModules :: [Module] -> Definitions
+defsFromModules :: HasCallStack => [Module] -> Definitions
 defsFromModules mods
   = defsMerge $ map (\mod -> case modDefinitions mod of
                                Just defs | not (modShouldOpen mod) -> defs  -- cached
@@ -208,13 +209,13 @@ defsFromModules mods
                                       Just core -> defsFromCore (modShouldOpen mod) core
                                       Nothing   -> defsNull) mods
 
-defsMerge :: [Definitions] -> Definitions
+defsMerge :: HasCallStack => [Definitions] -> Definitions
 defsMerge defs  = foldl' defsCompose defsNull defs
 
-defsCompose :: Definitions -> Definitions -> Definitions
+defsCompose :: HasCallStack => Definitions -> Definitions -> Definitions
 defsCompose defs1 defs2
   = Definitions (gammaUnion (defsGamma defs1) (defsGamma defs2))
-                (kgammaUnion (defsKGamma defs1) (defsKGamma defs2))
+                (kgammaUnionLeftBias(defsKGamma defs1) (defsKGamma defs2))
                 (synonymsCompose (defsSynonyms defs1) (defsSynonyms defs2))
                 (newtypesCompose (defsNewtypes defs1) (defsNewtypes defs2))
                 (constructorsCompose (defsConstructors defs1) (defsConstructors defs2))

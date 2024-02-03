@@ -33,7 +33,7 @@ type Parser a = Parsec String () a
 -- | A commmand line command.
 data Command  = Quit
               | Error    String
-              | Load     [FilePath] Bool
+              | Load     [FilePath] Bool {- force full rebuild? -}
               | Reload
               | Eval     String
               | TypeOf   String
@@ -138,6 +138,7 @@ commandHelp colors
     ,empty
     -}
     ,cmd ":l[oad]"  "{modulename}"  "load module(s)"
+    ,cmd ":f[load]" "{modulename}"  "force load module(s) rebuilding everything"
     ,cmd ":r[eload]" ""             "reload the current module(s)"
 --    ,cmd ":f[ind]" "<identifier>"   "edit file containing the identifier"
     ,cmd ":e[dit]" "[filename]"     "edit file (and jump to error location)"

@@ -14,9 +14,9 @@ module Main.Run( runPlain, runWithLS, runWith ) where
 
 import Debug.Trace
 import System.Exit            ( exitFailure )
-import System.IO              (hPutStrLn, stderr)
+import System.IO              ( hPutStrLn, stderr)
 import Control.Monad          ( when, foldM )
-import Data.List              (intersperse)
+import Data.List              ( intersperse)
 import Data.Maybe
 
 import Platform.Config
@@ -101,7 +101,7 @@ compileAll p flags fpaths
        (mbRes,_)  <- runBuildIO (term cwd) flags $
                        do -- build
                           (buildc0,roots) <- buildcAddRootSources fpaths (buildcEmpty flags)
-                          buildc <- buildcFullBuild (rebuild flags) roots {-force roots always-} [] buildc0
+                          buildc <- buildcBuildEx (rebuild flags) roots {-force roots always-} [] buildc0
                           buildcThrowOnError
                           -- compile & run entry points
                           let mainEntries = if library flags then [] else map (\rootName -> qualify rootName (newName "main")) roots

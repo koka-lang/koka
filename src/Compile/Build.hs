@@ -50,7 +50,7 @@ import Lib.PPrint
 import Platform.Config        ( version, exeExtension, dllExtension, libPrefix, libExtension, pathSep, sourceExtension )
 import Common.Syntax          ( Target(..), isPublic, Visibility(..))
 import Common.Error
-import Common.Failure         ( assertion )
+import Common.Failure         ( assertion, HasCallStack )
 import Common.File   hiding (getFileTime)
 import qualified Common.File as F
 import qualified Common.NameMap as M
@@ -73,18 +73,20 @@ import Compile.CodeGen        ( codeGen, Link, LinkResult(..), noLink )
 
 {---------------------------------------------------------------
   Concurrently compile a list of root modules.
-  Returns all required modules as compiled in build order
+  All phases are cached and rebuilds from previous modules should
+  be efficient.
 ---------------------------------------------------------------}
+
+-- Builds given a list of root modules (and possibly dependencies)
+-- Returns all required modules as compiled in build order.
+-- Internally composed of `modulesReValidate` and `modulesBuild`.
 modulesFullBuild :: Bool -> [ModuleName] -> [Name] -> [Module] -> [Module] -> Build [Module]
 modulesFullBuild rebuild forced mainEntries cachedImports roots
   = do modules <- modulesReValidate rebuild forced cachedImports roots
        modulesBuild mainEntries modules
 
-modulesFlushErrors :: [Module] -> Build [Module]
-modulesFlushErrors modules
-  = mapM moduleFlushErrors modules
 
-
+-- Given a complete list of modules in build order (and main entry points), build them all.
 modulesBuild :: [Name] -> [Module] -> Build [Module]
 modulesBuild mainEntries modules
   = -- phaseTimed 2 "build" (\_ -> Lib.PPrint.empty) $ -- (list (map (pretty . modName) modules))
@@ -99,6 +101,7 @@ modulesBuild mainEntries modules
                        modules
        modulesFlushErrors compiled
 
+-- Given a complete list of modules in build order, type check them all.
 modulesTypeCheck :: [Module] -> Build [Module]
 modulesTypeCheck modules
   = phaseTimed 2 "check" (const Lib.PPrint.empty) $
@@ -106,6 +109,12 @@ modulesTypeCheck modules
        tchecked    <- mapConcurrentModules (moduleTypeCheck tcheckedMap) modules
        modulesFlushErrors tchecked
 
+-- Given a list of cached modules (`cachedImports`), and a set of root modules (`roots`), return a list of
+-- required modules to build the roots in build order, and validated against the
+-- file system (so updated sources get rebuild).
+-- Can force to rebuild everything (`rebuild`), or give list of specicfic modules that need to be rebuild (`forced`).
+--
+-- after revalidate, typecheck and build are valid operations.
 modulesReValidate :: Bool -> [ModuleName] -> [Module] -> [Module] -> Build [Module]
 modulesReValidate rebuild forced cachedImports roots
   = phaseTimed 2 "resolve" (const Lib.PPrint.empty) $
@@ -194,7 +203,7 @@ moduleGuard expectPhase targetPhase modmap fromRes toRes initial action mod0
   Compile a module (type check, core compile, codegen, and link)
 ---------------------------------------------------------------}
 
-moduleCompile :: [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> [ModuleName] -> Module -> Build Module
+moduleCompile :: HasCallStack => [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> [ModuleName] -> Module -> Build Module
 moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap buildOrder
   = moduleGuard PhaseCodeGen PhaseLinked linkedMap (\(_,_,mod) -> mod) id
                 (moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap)
@@ -218,10 +227,13 @@ moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap buildOrd
                   done mod'
 
 
-orderByBuildOrder :: [ModuleName] -> [Module] -> [Module]
+orderByBuildOrder :: HasCallStack => [ModuleName] -> [Module] -> [Module]
 orderByBuildOrder buildOrder mods
-  = let ordered = catMaybes (map (\mname -> find (\m -> modName m == mname) mods) buildOrder)
-    in assertion "Compile.Build.orderByBuildOrder: wrong modules?" (length ordered == length mods)  $
+  = let ordered = -- nubBy (\m1 m2 -> modName m1 == modName m2) $
+                  catMaybes (map (\mname -> find (\m -> modName m == mname) mods) buildOrder)
+    in -- note: can happen with explicit duplicate imports, like `std/core/types` and `std/core` -- see `std/toc.kk`.
+       -- should we fix this?
+       -- assertion "Compile.Build.orderByBuildOrder: wrong modules?" (length ordered == length mods)  $
        ordered
 
 {---------------------------------------------------------------
@@ -344,9 +356,9 @@ moduleTypeCheck tcheckedMap
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
           else -- type check
                do flags <- getFlags
+                  phase "check" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imports:" <+> list (map (pretty . modName) imports)
                   let defs     = defsFromModules imports
                       cimports = coreImportsFromModules (modDeps mod) (programImports program) imports
-                  phase "check" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . Core.importName) cimports)
                   (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
                   -- let diff = [name | name <- map Core.importName (Core.coreProgImports core), not (name `elem` map Core.importName cimports)]
                   -- when (not (null diff)) $
@@ -421,7 +433,7 @@ modulesResolveDeps rebuild forced cached roots acc
                      mapM (addImports loaded) lroots
        if (null newimports)
          then toBuildOrder loaded
-         else do phaseVerbose 2 "resolve" $ \penv -> list (map (TP.ppName penv . modName) newimports)
+         else do -- phaseVerbose 2 "resolve" $ \penv -> list (map (TP.ppName penv . modName) newimports)
                  modulesResolveDeps rebuild forced cached newimports loaded  -- keep resolving until all have been loaded
   where
     addImports loaded mod
@@ -447,9 +459,16 @@ toBuildOrder modules
         ungroup [mname]  | Just mod <- find (\m -> modName m == mname) modules  = return [mod]
         ungroup grp      = do throwErrorKind ErrBuild (\penv -> text "recursive imports:" <+> list (map (TP.ppName penv) grp))
                               return []
-    in do phaseVerbose 3 "build order" $ \penv -> list (map (\grp -> hsep (map (TP.ppName penv) grp)) ordered)
+    in do phaseVerbose 2 "build order" $ \penv -> list (map (\grp -> hsep (map (TP.ppName penv) grp)) ordered)
           concat <$> mapM ungroup ordered
 
+
+-- Flush all stored errors to the build monad (and reset stored errors per module)
+-- todo: we should never store errors in modules but always directly output to the monad?
+-- maybe only store cached errors so it is cheaper to "re-typecheck" with errors.
+modulesFlushErrors :: [Module] -> Build [Module]
+modulesFlushErrors modules
+  = mapM moduleFlushErrors modules
 
 moduleFlushErrors :: Module -> Build Module
 moduleFlushErrors mod

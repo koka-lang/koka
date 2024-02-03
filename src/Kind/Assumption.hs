@@ -19,7 +19,7 @@ module Kind.Assumption (
                     , kgammaExtend
                     , kgammaLookup, kgammaLookupQ, kgammaFind
                     , kgammaList
-                    , kgammaUnion
+                    , kgammaUnion, kgammaUnionLeftBias
                     , ppKGamma
                     , kgammaFilter
                     -- * Extraction from Core
@@ -38,6 +38,7 @@ import Kind.ImportMap
 
 import Type.Type
 import qualified Core.Core as Core
+import Common.Failure (HasCallStack)
 
 {--------------------------------------------------------------------------
   Initial kind gamma
@@ -110,12 +111,17 @@ kgammaFilter modName (KGamma kgamma)
   = KGamma (filterNames (\name -> qualifier name == modName) kgamma)
 
 -- | kind gamma union; error on duplicates
-kgammaUnion :: KGamma -> KGamma -> KGamma
+kgammaUnion :: HasCallStack => KGamma -> KGamma -> KGamma
 kgammaUnion (KGamma g1) (KGamma g2)
   = KGamma (union g2 g1)
 
+-- | kind gamma union -- left-bias
+kgammaUnionLeftBias :: HasCallStack => KGamma -> KGamma -> KGamma
+kgammaUnionLeftBias (KGamma g1) (KGamma g2)
+  = KGamma (unionLeftBias g2 g1)
+
 -- | union of disjoint kind gammas
-kgammaUnions :: [KGamma] -> KGamma
+kgammaUnions :: HasCallStack => [KGamma] -> KGamma
 kgammaUnions ks
   = KGamma (unions (L.map unKGamma ks))
 

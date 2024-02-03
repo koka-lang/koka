@@ -16,7 +16,7 @@ module Common.QNameMap
           , fromList
           , lookup, lookupQ
           , insert
-          , union
+          , union, unionLeftBias
           , unions
           , toAscList
           , isEmpty
@@ -86,16 +86,20 @@ filterNames pred (QM m)
   where
     belongs xs  = [(name,x) | (name,x) <- xs, pred name]
 
-insert :: Name -> a -> QNameMap a -> QNameMap a
+insert :: HasCallStack => Name -> a -> QNameMap a -> QNameMap a
 insert name x (QM m)
   = QM (M.insertWith (safeCombine "insert")  (unqualify name) [(name,x)] m)
 
-union :: QNameMap a -> QNameMap a -> QNameMap a
+union :: HasCallStack => QNameMap a -> QNameMap a -> QNameMap a
 union (QM m1) (QM m2)
   = QM (M.unionWith (safeCombine "union") m1 m2)
 
+unionLeftBias :: HasCallStack => QNameMap a -> QNameMap a -> QNameMap a
+unionLeftBias (QM m1) (QM m2)
+  = QM (M.union m1 m2)
 
-unions :: [QNameMap a] -> QNameMap a
+
+unions :: HasCallStack => [QNameMap a] -> QNameMap a
 unions qs
   = foldl union empty qs
 
@@ -104,7 +108,7 @@ toAscList (QM m)
   = concatMap snd (M.toAscList m)
 
 
-safeCombine :: String -> [(Name,a)] -> [(Name,a)] -> [(Name,a)]
+safeCombine :: HasCallStack => String -> [(Name,a)] -> [(Name,a)] -> [(Name,a)]
 safeCombine method xs ys
   = let ynames = map fst ys
         xnames = map fst xs

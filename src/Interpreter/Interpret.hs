@@ -76,7 +76,7 @@ interpret printer flags0 flagspre files
       ; messageHeader st0
       ; let st2 = st0
 
-      ; (mbSt,erng) <- loadModulesEx (terminal st2) st2{ flags = flags0{ showCore = False }} [show (nameSystemCore)] False
+      ; (mbSt,erng) <- loadModulesEx (terminal st2) st2{ flags = flags0{ showCore = False }} [show (nameSystemCore)] False False
       ; case mbSt of
           Nothing     -> do messageInfoLn st2 ("unable to load the " ++ show nameSystemCore ++ " module; standard functions are not available")
                             messageEvaluation st2
@@ -116,12 +116,12 @@ command st cmd
   Eval line   -> do st' <- buildRunExpr term st line
                     interpreterEx st'
 
-  Load fnames force
+  Load fnames forceAll
               -> do let st' = st{ lastLoad = fnames }
-                    st'' <- loadModules term st' fnames force
+                    st'' <- loadModules term st' fnames forceAll True
                     interpreterEx st''
 
-  Reload      -> do st' <- loadModules term st (lastLoad st) True
+  Reload      -> do st' <- loadModules term st (lastLoad st) False True
                     interpreterEx st'
 
 
@@ -245,19 +245,20 @@ command st cmd
 
 
 -- todo: set error range
-loadModules :: Terminal -> State -> [FilePath] -> Bool -> IO State
-loadModules term st files force
-  = do (mbSt,erng) <- loadModulesEx term st files force
+loadModules :: Terminal -> State -> [FilePath] -> Bool -> Bool -> IO State
+loadModules term st files forceAll forceRoots
+  = do (mbSt,erng) <- loadModulesEx term st files forceAll forceRoots
        let st' = case mbSt of
                   Just st' -> st'
                   Nothing  -> st
        return (st'{ errorRange = erng <|> errorRange st'})
 
-loadModulesEx :: Terminal -> State -> [FilePath] -> Bool -> IO (Maybe State,Maybe Range)
-loadModulesEx term st files force
+loadModulesEx :: Terminal -> State -> [FilePath] -> Bool -> Bool -> IO (Maybe State,Maybe Range)
+loadModulesEx term st files forceAll forceRoots
   = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $
                           do (buildc1,rootNames) <- B.buildcAddRootSources files (B.buildcClearRoots (buildContext st))
-                             B.buildcFullBuild (rebuild (flags st)) (if force then rootNames else [])
+                             B.buildcBuildEx (forceAll || rebuild (flags st))
+                                             (if forceRoots then rootNames else [])
                                                 [] -- [newQualified "samples/basic/caesar" "main"]
                                                 buildc1
 
