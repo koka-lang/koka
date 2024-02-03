@@ -51,10 +51,13 @@ import Common.ColorScheme(ColorScheme(..))
 import Common.Error
 import Core.Core (Visibility(Private))
 import Compile.Options (Flags, colorSchemeFromFlags, includePath)
+import Compile.BuildContext
+import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
+import LanguageServer.Monad
+
+
 import Compiler.Compile (Terminal (..), compileModuleOrFile, Loaded (..), CompileTarget (..), compileFile, codeGen, compileExpression)
 import Compiler.Module (Module(..), initialLoaded)
-import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
-import LanguageServer.Monad (LSM, getLoaded, putLoaded, getTerminal, getFlags, LSState (documentInfos), getLSState, modifyLSState, removeLoaded, getModules, putDiagnostics, getDiagnostics, clearDiagnostics, removeLoadedUri, getLastChangedFileLoaded, putLoadedSuccess, getLoadedLatest)
 
 
 import Syntax.Syntax ( programNull, programAddImports, Import(..) )
@@ -92,13 +95,6 @@ didCloseHandler = notificationHandler J.SMethod_TextDocumentDidClose $ \msg -> d
   -- Don't remove diagnostics so the file stays red in the editor, and problems are shown, but do remove the compilation state
   return ()
 
--- Retreives a file from the virtual file system, returning the contents and the last modified time
-maybeContents :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> FilePath -> Maybe (ByteString, FileTime)
-maybeContents vfs path = do
-  -- trace ("Maybe contents " ++ show uri ++ " " ++ show (M.keys vfs)) $ return ()
-  let uri = J.toNormalizedUri $ J.filePathToUri path
-  (text, ftime, vers) <- M.lookup uri vfs
-  return (text, ftime)
 
 -- Creates a diff of the virtual file system including keeping track of version numbers and last modified times
 -- Modified times are not present in the LSP libraris's virtual file system, so we do it ourselves
@@ -254,3 +250,38 @@ processCompilationResult normUri filePath flags update doIO = do
           flushDiagnosticsBySource maxDiags (Just diagSrc)
           mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
       return outFile
+
+
+liftBuildDiag :: Build a -> LSM (Maybe a)
+liftBuildDiag build
+  = do res <- liftBuild build
+       case res of
+         Right (x,errs) -> do diagnoseErrors (errors errs)
+                              return (Just x)
+         Left errs      -> do diagnoseErrors (errors errs)
+                              return Nothing
+diagnoseErrors :: [ErrorMessage] -> LSM ()
+diagnoseErrors errs
+  = return ()
+{-
+  = do let diagSrc = T.pack "koka"
+           diags   = toLspDiagnostics normUri diagSrc res
+          maxDiags = 100
+          -- Union with the current file mapped to an empty list, since we want to clear diagnostics for this file when it is an error in another file
+          diags' = M.union diags (M.fromList [(normUri, [])])
+      -- Clear diagnostics for this file if there are no errors / warnings
+      if null diags then clearDiagnostics normUri else putDiagnostics diags'
+
+      -- Get all the diagnostics for all files (language server doesn't support updating diagnostics for a single file)
+      diags <- getDiagnostics
+      -- Partition them by source (koka, koka-lints, etc.) -- we should only have koka (compiler diagnostics) for now
+      let diagsBySrc = M.map partitionBySource diags
+      if null diags
+        -- If there are no diagnostics clear all koka diagnostics
+        then flushDiagnosticsBySource maxDiags (Just diagSrc)
+        -- Otherwise report all diagnostics
+        else do
+          flushDiagnosticsBySource maxDiags (Just diagSrc)
+          mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
+      return outFile
+-}

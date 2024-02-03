@@ -32,9 +32,11 @@ module Compile.BuildContext ( BuildContext
                             , buildcTermInfo
                             , buildcFlags
 
-                            , runBuildIO, runBuildMaybe, addErrorMessageKind, liftIO
+                            , runBuildIO, runBuildMaybe, runBuild, addErrorMessageKind
+                            , buildLiftIO
 
                             , Definitions(..), Build
+                            , VFS(..), withVFS, noVFS
                             ) where
 
 
@@ -79,7 +81,7 @@ buildcVFS buildc = let fs = buildcFileSys buildc
 
 buildcAddRootSources :: [FilePath] -> BuildContext -> Build (BuildContext,[ModuleName])
 buildcAddRootSources fpaths buildc
-  = do mods <- mapM (moduleFromSource (buildcVFS buildc)) fpaths
+  = do mods <- mapM moduleFromSource fpaths
        let rootNames = map modName mods
            roots   = nub (map modName mods ++ buildcRoots buildc)
            modules = mergeModules mods (buildcModules buildc)
@@ -88,7 +90,7 @@ buildcAddRootSources fpaths buildc
 
 buildcAddRootModules :: [ModuleName] -> BuildContext -> Build BuildContext
 buildcAddRootModules moduleNames buildc
-  = do mods <- mapM (moduleFromModuleName (buildcVFS buildc) "" {-relative dir-}) moduleNames
+  = do mods <- mapM (moduleFromModuleName "" {-relative dir-}) moduleNames
        let roots   = nub (map modName mods ++ buildcRoots buildc)
            modules = mergeModules mods (buildcModules buildc)
        seqList roots $ seqList modules $
@@ -132,7 +134,7 @@ buildcFreshFromRoots buildc
        flags <- getFlags
        (buildc1,_) <- buildcAddRootSources rootSources (buildc{ buildcRoots = [], buildcModules=[], buildcHash = flagsHash flags })
        let (roots1,_) = buildcSplitRoots buildc1
-       mods  <- modulesReValidate (buildcVFS buildc) False [] [] roots1
+       mods  <- modulesReValidate False [] [] roots1
        return buildc1{ buildcModules = mods }
 
 buildcValidateFlags :: BuildContext -> Build BuildContext
@@ -150,7 +152,7 @@ buildcValidate rebuild forced buildc
        if (hash /= buildcHash buildc)
          then buildcFreshFromRoots buildc
          else do let (roots,imports) = buildcSplitRoots buildc
-                 mods <- modulesReValidate (buildcVFS buildc) rebuild forced imports roots
+                 mods <- modulesReValidate rebuild forced imports roots
                  return buildc{ buildcModules = mods }
 
 buildcSplitRoots :: BuildContext -> ([Module],[Module])
@@ -253,17 +255,17 @@ buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName t
                         "  " ++ mainBody,
                         ""
                         ]
-        buildc2 <- buildcSetVirtualFile sourcePath mainDef buildc1
-        buildc3 <- buildcValidate False [] buildc2
-        buildc4 <- buildcBuild [mainName] buildc3
-        mbRng <- hasBuildError
-        case mbRng of
-          Just rng -> do when addShow $ showMarker rng
-                         return (buildc4,Nothing)
-          _        -> do -- and return the entry point
-                         let mainMod = buildcFindModule mainModName buildc4
-                             entry   = modEntry mainMod
-                         return $ seq entry (buildc4,Just(tp,entry))
+        withVirtualFile sourcePath mainDef $ \_ ->
+           do buildc2 <- buildcValidate False [] buildc1
+              buildc3 <- buildcBuild [mainName] buildc2
+              mbRng <- hasBuildError
+              case mbRng of
+                Just rng -> do when addShow $ showMarker rng
+                               return (buildc3,Nothing)
+                _        -> do -- and return the entry point
+                               let mainMod = buildcFindModule mainModName buildc3
+                                   entry   = modEntry mainMod
+                               return $ seq entry (buildc3,Just(tp,entry))
 
 showMarker :: Range -> Build ()
 showMarker rng
@@ -331,24 +333,20 @@ completeMain addShow exprName tp buildc
 
 withVirtualModule :: FilePath -> BString -> BuildContext -> (ModuleName -> BuildContext -> Build (BuildContext,a)) -> Build (BuildContext,a)
 withVirtualModule fpath0 content buildc action
-  = do let fpath = normalize fpath0
-       buildc1 <- buildcSetVirtualFile fpath content buildc
-       (buildc2,[modName]) <- buildcAddRootSources [fpath] buildc1
-       (buildc3,x) <- action modName buildc2
-       buildc4 <- buildcDeleteVirtualFile fpath buildc3
-       return (buildcRemoveRootSource fpath buildc4, x)
+  = withVirtualFile fpath0 content $ \fpath ->
+    do (buildc1,[modName]) <- buildcAddRootSources [fpath] buildc
+       (buildc2,x) <- action modName buildc1
+       return (buildcRemoveRootSource fpath buildc2, x)
 
-buildcSetVirtualFile :: FilePath -> BString -> BuildContext -> Build BuildContext
-buildcSetVirtualFile fpath0 content buildc
-  = do let fpath = normalize fpath0
-       ftime <- liftIO $ getCurrentTime
+
+withVirtualFile :: FilePath -> BString -> (FilePath -> Build a) -> Build a
+withVirtualFile fpath0 content action
+  = do ftime <- liftIO $ getCurrentTime
+       let fpath = normalize fpath0
+           vfs   = VFS (\fname -> if fname == fpath then Just (content,ftime) else Nothing)
        phaseVerbose 2 "trace" (\penv -> text "add virtual file" <+> text fpath <+> text ", content:" <-> text (bstringToString content))
-       return buildc{ buildcFileSys = M.insert fpath (content,ftime) (buildcFileSys buildc) }
+       withVFS vfs $ action fpath
 
-buildcDeleteVirtualFile :: FilePath -> BuildContext -> Build BuildContext
-buildcDeleteVirtualFile fpath0 buildc
-  = do let fpath = normalize fpath0
-       return buildc{ buildcFileSys = M.delete fpath (buildcFileSys buildc) }
 
 buildcFindModule :: HasCallStack => ModuleName -> BuildContext -> Module
 buildcFindModule modname buildc
@@ -377,7 +375,7 @@ buildcOutputDir
 
 buildcSearchSourceFile :: FilePath -> BuildContext -> Build (Maybe (FilePath,FilePath))
 buildcSearchSourceFile fpath buildc
-  = searchSourceFile (buildcVFS buildc) "" fpath
+  = searchSourceFile "" fpath
 
 buildcThrowOnError :: Build ()
 buildcThrowOnError
@@ -392,3 +390,7 @@ buildcTermInfo mkDoc
 buildcFlags :: Build Flags
 buildcFlags
   = getFlags
+
+buildLiftIO :: IO a -> Build a
+buildLiftIO
+  = liftIO

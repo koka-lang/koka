@@ -107,7 +107,7 @@ compileAll p flags fpaths
                           let mainEntries = if library flags then [] else map (\rootName -> qualify rootName (newName "main")) roots
                           runs <- mapM (compileEntry buildc) mainEntries
                           when (evaluate flags) $
-                            mapM_ liftIO runs
+                            mapM_ buildLiftIO runs
                           -- show info
                           mapM_ (compileShowInfo buildc) roots
                           return ()

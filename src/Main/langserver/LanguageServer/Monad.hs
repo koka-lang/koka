@@ -28,7 +28,8 @@ module LanguageServer.Monad
     getInlayHintOptions,
     getDiagnostics,putDiagnostics,clearDiagnostics,
     runLSM,
-    getProgress,setProgress
+    getProgress,setProgress, maybeContents,
+    liftBuild
   )
 where
 
@@ -59,22 +60,28 @@ import qualified Language.LSP.Server as J
 import Common.ColorScheme ( colorSource, ColorScheme, darkColorScheme, lightColorScheme )
 import Common.Name (nameNil, Name, readQualifiedName)
 import Common.File ( realPath, normalize, getCwd, realPath, normalize, getCurrentTime )
-import Common.Error (ppErrorMessage)
+import Common.Error
 import Lib.PPrint (Pretty(..), asString, writePrettyLn,  Doc, writePretty, writePrettyW, (<->), text)
 import Lib.Printer (withColorPrinter, withColor, writeLn, ansiDefault, AnsiStringPrinter (AnsiString), Color (Red), ColorPrinter (PAnsiString, PHtmlText), withHtmlTextPrinter, HtmlTextPrinter (..))
-import Compiler.Compile (Terminal (..), Loaded (..), Module (..))
-import Compile.Options (Flags (..), prettyEnvFromFlags, verbose)
-import Compiler.Module (Modules)
 import Type.Pretty (ppType, defaultEnv, Env (context, importsMap), ppScheme)
 import Kind.ImportMap (importsEmpty)
-
+import Compile.Options (Flags (..), prettyEnvFromFlags, verbose)
+import Compile.BuildContext
 import LanguageServer.Conversions ({-toLspUri,-} fromLspUri)
+
+import Data.Map.Strict(Map)
+import Data.ByteString (ByteString)
+import Compiler.Compile (Terminal (..), Loaded (..), Module (..))
+import Compiler.Module (Modules)
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
+  buildContext :: BuildContext,
+
   lsModules :: ![Module],
   lsLoaded :: !(M.Map J.NormalizedUri (Loaded, FileTime)),
   lsLoadedSuccess :: !(M.Map J.NormalizedUri (Loaded, FileTime)),
+
   messages :: !(TChan (String, J.MessageType)),
   progress :: !(TChan String),
   flags:: !Flags,
@@ -160,6 +167,7 @@ defaultLSState flags = do
                 )
   return LSState {
     lsLoaded = M.empty, lsLoadedSuccess = M.empty, lsModules=[],
+    buildContext = buildcEmpty flags,
     messages = msgChan, progress=progressChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests,
     config = Config{colors=Colors{mode="dark"}, inlayHintOpts=InlayHintOptions{showImplicitArguments=True, showInferredTypes=True, showFullQualifiers=True}},
     terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags,
@@ -362,3 +370,16 @@ getLoadedSuccess uri = do
   lastSuccess <- M.lookup uri . lsLoadedSuccess <$> getLSState
   return $ fst <$> lastSuccess
 
+-- Retreives a file from the virtual file system, returning the contents and the last modified time
+maybeContents :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> FilePath -> Maybe (ByteString, FileTime)
+maybeContents vfs path = do
+  -- trace ("Maybe contents " ++ show uri ++ " " ++ show (M.keys vfs)) $ return ()
+  let uri = J.toNormalizedUri $ J.filePathToUri path
+  (text, ftime, vers) <- M.lookup uri vfs
+  return (text, ftime)
+
+liftBuild :: Build a -> LSM (Either Errors (a,Errors))
+liftBuild build
+  = do ls <- getLSState
+       let vfs = VFS (\fpath -> maybeContents (documentInfos ls) fpath)
+       liftIO $ runBuild (terminal ls) (flags ls) $ withVFS vfs build
