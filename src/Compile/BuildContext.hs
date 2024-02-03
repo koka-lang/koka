@@ -19,6 +19,7 @@ module Compile.BuildContext ( BuildContext
                             , buildcAddRootModules
                             , buildcRoots
                             , buildcClearRoots, buildcRemoveRootModule, buildcRemoveRootSource
+                            , buildcFocus
 
                             , buildcLookupModuleName
                             , buildcGetDefinitions
@@ -61,6 +62,7 @@ import Compile.Options
 import Compile.Module
 import Compile.Build
 import Compiler.Compile (searchSource)
+
 
 
 -- An abstract build context contains all information to build
@@ -134,6 +136,25 @@ buildcGetMatchNames :: [ModuleName] -> BuildContext -> [String]
 buildcGetMatchNames modules buildc
   = let defs = buildcGetDefinitions modules buildc
     in map (showPlain . unqualify) $ gammaPublicNames (defsGamma defs)
+
+
+-- Focus a build action on a restricted context with the given focus roots.
+-- This builds only modules needed for the restricted roots, but keeps all cached modules and original roots.
+-- Returns also a list of all touched modules in the restricted build (for diagnostics)
+buildcFocus :: [ModuleName] -> BuildContext -> (BuildContext -> Build (BuildContext, a)) -> Build (BuildContext, a, [ModuleName])
+buildcFocus focusRoots buildc0 action
+  = do buildcFull <- buildcAddRootModules focusRoots buildc0
+       let roots   = buildcRoots buildcFull
+           cached  = buildcModules buildcFull
+           buildcF = buildcFull{ buildcRoots = focusRoots }
+       buildcFocus <- buildcValidate False [] buildcF
+       (buildcRes,x) <- action buildcFocus
+       let touched = map modName (buildcModules buildcRes)
+           mmods   = mergeModules (buildcModules buildcRes) cached
+       seqList touched $ seqList mmods $
+         do let buildcFullRes = buildcRes{ buildcRoots = roots, buildcModules = mmods }
+            return (buildcFullRes, x, touched)
+
 
 -- Reset a build context from the roots (for example, when the flags have changed)
 buildcFreshFromRoots :: BuildContext -> Build BuildContext
