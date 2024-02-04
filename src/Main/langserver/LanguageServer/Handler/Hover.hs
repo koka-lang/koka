@@ -62,19 +62,10 @@ hoverHandler
               do penv     <- getPrettyEnvFor modname
                  let doc = formatRangeInfoHover penv rngInfo
                  markdown <- prettyMarkdown doc
-                 let md = J.mkMarkdown markdown
-                     hc = J.InL md
-                     rsp = J.Hover hc $ Just $ toLspRange rng
+                 let rsp = J.Hover (J.InL (J.mkMarkdown markdown)) (Just (toLspRange rng))
                  -- trace ("hover markdown:\n" ++ show markdown) $
                  responder $ Right $ J.InL rsp
 
-
--- Get best rangemap info for a given position
-rangeMapBestHover rm =
-  case rm of
-    [] -> Nothing
-    [r] -> Just r
-    r:rst -> Just r
 
 -- Pretty-prints type/kind information to a hover tooltip given a type pretty environment, color scheme
 formatRangeInfoHover :: Env -> RangeInfo -> Doc
