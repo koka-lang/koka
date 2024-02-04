@@ -68,6 +68,7 @@ import Compile.Options
 import Compile.Module
 import Compile.Build
 import Compiler.Compile (searchSource)
+import Data.Maybe (isJust)
 
 
 
@@ -293,16 +294,40 @@ buildcCompileExpr addShow typeCheckOnly importNames0 expr buildc
          do -- type check first
             let exprName = qualify mainModName (newName "@expr")
             buildc2 <- buildcTypeCheck buildc1
-            mbRng   <- hasBuildError
-            case mbRng of
-              Just rng -> do when (addShow || typeCheckOnly) $ showMarker rng
-                             return (buildc2,Nothing)
-              Nothing  -> case buildcLookupTypeOf exprName buildc2 of
-                            Nothing -> do addErrorMessageKind ErrBuild (\penv -> text "unable to resolve the type of the expression" <+> parens (TP.ppName penv exprName))
-                                          return (buildc2, Nothing)
-                            Just tp -> if typeCheckOnly
-                                        then return (buildc2,Just (tp,Nothing))
-                                        else buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName tp buildc2
+            hasErr  <- buildcHasError buildc2
+            if hasErr
+              then return (buildc2,Nothing)
+              else case buildcLookupTypeOf exprName buildc2 of
+                      Nothing -> do addErrorMessageKind ErrBuild (\penv -> text "unable to resolve the type of the expression" <+> parens (TP.ppName penv exprName))
+                                    return (buildc2, Nothing)
+                      Just tp -> if typeCheckOnly
+                                  then return (buildc2,Just (tp,Nothing))
+                                  else buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName tp buildc2
+
+buildcGetErrorRangeOf :: BuildContext -> Maybe Range
+buildcGetErrorRangeOf buildc
+  = let errs = foldr (\m es -> mergeErrors (modErrors m) es) errorsNil (buildcModules buildc)
+    in case find (\err -> errSeverity err >= SevError) (errors errs) of
+         Just err -> Just (errRange err)
+         Nothing  -> Nothing
+
+buildcGetErrorRange :: BuildContext -> Build (Maybe Range)
+buildcGetErrorRange buildc
+  = do mbRng <- hasBuildError
+       case mbRng of
+         Just rng -> return (Just rng)
+         Nothing  -> return $! buildcGetErrorRangeOf buildc
+
+buildcHasError :: BuildContext -> Build Bool
+buildcHasError buildc
+  = do mbRng <- buildcGetErrorRange buildc
+       return (isJust mbRng)
+
+buildcThrowOnError :: BuildContext -> Build ()
+buildcThrowOnError buildc
+  = do err <- buildcHasError buildc
+       when err $ do buildcFlushErrors buildc
+                     throwNil
 
 buildcCompileMainBody :: Bool -> String -> [String] -> FilePath -> Name -> Name -> Type -> BuildContext -> Build (BuildContext,Maybe (Type, Maybe (FilePath,IO ())))
 buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName tp buildc1
@@ -320,26 +345,13 @@ buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName t
                         ]
         withVirtualFile sourcePath mainDef $ \_ ->
            do buildc2 <- buildcBuild [mainName] buildc1
-              mbRng   <- hasBuildError
-              case mbRng of
-                Just rng -> do when addShow $ showMarker rng
-                               return (buildc2,Nothing)
-                _        -> do -- and return the entry point
-                               let mainMod = buildcFindModule mainModName buildc2
-                                   entry   = modEntry mainMod
-                               return $ seq entry (buildc2,Just(tp,entry))
-
--- Show a marker in the interpreter
-showMarker :: Range -> Build ()
-showMarker rng
-  = do let c1 = posColumn (rangeStart rng)
-           c2 = if (posLine (rangeStart rng) == posLine (rangeStart rng))
-                 then posColumn (rangeEnd rng)
-                else c1
-       cscheme <- getColorScheme
-       term    <- getTerminal
-       let doc = color (colorMarker cscheme) (text (replicate (c1 - 1) ' ' ++ replicate 1 {- (c2 - c1 + 1) -} '^'))
-       liftIO $ termInfo term doc
+              hasErr  <- buildcHasError buildc2
+              if hasErr
+                then return (buildc2,Nothing)
+                else do -- and return the entry point
+                        let mainMod = buildcFindModule mainModName buildc2
+                            entry   = modEntry mainMod
+                        return $ seq entry (buildc2,Just(tp,entry))
 
 
 bunlines :: [String] -> BString
@@ -452,10 +464,12 @@ buildcSearchSourceFile :: FilePath -> BuildContext -> Build (Maybe (FilePath,Fil
 buildcSearchSourceFile fpath buildc
   = searchSourceFile "" fpath
 
+{-
 -- Throw if any error with severity `SevError` or higher has happened
 buildcThrowOnError :: Build ()
 buildcThrowOnError
   = throwOnError
+-}
 
 -- Send a message to the terminal
 buildcTermInfo :: (TP.Env -> Doc) -> Build ()

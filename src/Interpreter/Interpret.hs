@@ -209,7 +209,7 @@ command st cmd
                           = do if (null files)
                                  then messageLn st ""
                                  else messageError st "(ignoring file arguments)"
-                               (mbBuildc,_) <- B.runBuildIO (terminal st) newFlags (B.buildcValidate False [] (buildContext st))
+                               (mbBuildc,_) <- B.runBuildIO (terminal st) newFlags False (B.buildcValidate False [] (buildContext st))
                                interpreter (st{ flags = newFlags, flags0 = newFlags0, buildContext = maybe (buildContext st) id mbBuildc })
                    ; case mode of
                        ModeHelp     -> do doc <- commandLineHelp (flags st)
@@ -255,20 +255,19 @@ loadModules term st files forceAll forceRoots
 
 loadModulesEx :: Terminal -> State -> [FilePath] -> Bool -> Bool -> IO (Maybe State,Maybe Range)
 loadModulesEx term st files forceAll forceRoots
-  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $ B.buildcLiftErrors id $
+  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) True $ B.buildcLiftErrors id $
                           do (buildc1,rootNames) <- B.buildcAddRootSources files (B.buildcClearRoots (buildContext st))
                              B.buildcBuildEx (forceAll || rebuild (flags st))
                                              (if forceRoots then rootNames else [])
                                                 [] -- [newQualified "samples/basic/caesar" "main"]
                                                 buildc1
-
        case mbBuildc of
          Nothing     -> return (Nothing,erng)
          Just buildc -> return (Just st{ buildContext = buildc }, erng)
 
 buildRunExpr :: Terminal -> State -> String -> IO State
 buildRunExpr term st expr
-  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $ B.buildcLiftErrors id $
+  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) True $ B.buildcLiftErrors id $
                           do B.buildcRunExpr [] expr (buildContext st)
        case mbBuildc of
          Nothing     -> return st{ errorRange = erng <|> errorRange st }
@@ -277,7 +276,7 @@ buildRunExpr term st expr
 
 buildTypeExpr :: Terminal -> State -> String -> IO (Maybe Type,State)
 buildTypeExpr term st expr
-  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $ B.buildcLiftErrors fst $
+  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) True $ B.buildcLiftErrors fst $
                           do B.buildcCompileExpr False True [] expr (buildContext st)
        case mbBuildc of
          Nothing     -> return (Nothing, st{ errorRange = erng <|> errorRange st })
@@ -286,14 +285,6 @@ buildTypeExpr term st expr
                                       Just (tp,_) -> return (Just tp,st')
                                       Nothing     -> return (Nothing,st')
 
-
-
-findPath :: ColorScheme -> [FilePath] -> String -> String -> IO FilePath
-findPath cscheme path ext name
-  = do mbfpath <- searchPaths path [ext] name
-       case mbfpath of
-         Just fpath -> return fpath
-         Nothing    -> raiseIO (show (docNotFound cscheme path name))
 
 
 errorFileNotFound :: Flags -> FilePath -> ErrorMessage

@@ -19,7 +19,7 @@ module Compile.Build( Build
 
                       , phase, phaseVerbose, phaseTimed
                       , throwError, throwErrorKind
-                      , throwOnError, hasBuildError
+                      , throwOnError, hasBuildError, throwNil
                       , modulesFlushErrors
                       , liftIO
 
@@ -193,7 +193,7 @@ moduleGuard expectPhase targetPhase modmap fromRes toRes initial action mod0
           then done mod
           else action done res
   where
-    edone mod = do modmapTryPut modmap mod
+    edone mod = do modmapTryPut modmap mod  -- fails if it was already set
                    return ()
 
     done mod  = do modmapPut modmap mod
@@ -750,22 +750,39 @@ data Env = Env { envTerminal :: Terminal,
 
 runBuildMaybe :: Terminal -> Flags -> Build (Maybe a) -> IO (Maybe a)
 runBuildMaybe term flags action
-  = do (mbRes,_) <- runBuildIO term flags action
+  = do (mbRes,_) <- runBuildIO term flags False action
        case mbRes of
          Just res -> return res
          Nothing  -> return Nothing
 
-runBuildIO :: Terminal -> Flags -> Build a -> IO (Maybe a,Maybe Range)
-runBuildIO term flags build
+runBuildIO :: Terminal -> Flags -> Bool -> Build a -> IO (Maybe a,Maybe Range)
+runBuildIO term flags showM build
   = do res <- runBuild term flags build
        let getErrRange errs  = case reverse (errors errs) of
                                  (err:_) -> Just (getRange err)
                                  _       -> Nothing
        case res of
-         Right (x,errs) -> do mapM_ (termError term) (take (maxErrors flags) (errors errs))
+         Right (x,errs) -> do let erng = getErrRange errs
+                              when showM $ showMarker term flags erng
+                              mapM_ (termError term) (take (maxErrors flags) (errors errs))
                               return (Just x, getErrRange errs)
-         Left errs      -> do mapM_ (termError term) (take (maxErrors flags) (errors errs))
+         Left errs      -> do let erng = getErrRange errs
+                              when showM $ showMarker term flags erng
+                              mapM_ (termError term) (take (maxErrors flags) (errors errs))
                               return (Nothing, getErrRange errs)
+  where
+    -- Show a marker in the interpreter
+    showMarker :: Terminal -> Flags -> Maybe Range -> IO ()
+    showMarker term flags Nothing = return ()
+    showMarker term flags (Just rng)
+      = do let c1 = posColumn (rangeStart rng)
+               c2 = if (posLine (rangeStart rng) == posLine (rangeStart rng))
+                     then posColumn (rangeEnd rng)
+                     else c1
+           let cscheme = colorSchemeFromFlags flags
+           let doc     = color (colorMarker cscheme) (text (replicate (c1 - 1) ' ' ++ replicate 1 {- (c2 - c1 + 1) -} '^'))
+           termInfo term doc
+
 
 runBuild :: Terminal -> Flags -> Build a -> IO (Either Errors (a,Errors))
 runBuild term flags cmp
@@ -988,7 +1005,12 @@ hasBuildError
 throwOnError :: Build ()
 throwOnError
   = do errRng <- hasBuildError
-       if isJust errRng then liftIO (throw errorsNil) else return ()
+       if isJust errRng then throwNil else return ()
+
+throwNil :: Build ()
+throwNil
+  = liftIO (throw errorsNil)
+
 
 addErrors :: Errors -> Build ()
 addErrors errs0

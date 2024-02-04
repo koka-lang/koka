@@ -105,12 +105,11 @@ compileAll :: ColorPrinter -> Flags -> [FilePath] -> IO Bool
 compileAll p flags fpaths
   = do cwd <- getCwd
        (mbRes,_)  <- -- run the build monad with a terminal and flags
-                     runBuildIO (term cwd) flags $
+                     runBuildIO (term cwd) flags False $
                        do -- build
                           (buildc0,roots) <- buildcAddRootSources fpaths (buildcEmpty flags)
                           buildc          <- buildcBuildEx (rebuild flags) roots {-force roots always-} [] buildc0
-                          buildcFlushErrors buildc
-                          buildcThrowOnError
+                          buildcThrowOnError buildc
                           -- compile & run entry points
                           let mainEntries = if library flags then [] else map (\rootName -> qualify rootName (newName "main")) roots
                           runs <- mapM (compileEntry buildc) mainEntries
@@ -140,7 +139,7 @@ compileAll p flags fpaths
 compileEntry :: BuildContext -> Name -> Build (IO ())
 compileEntry buildc entry
   = do (buildc',mbTpEntry) <- buildcCompileEntry False entry buildc
-       buildcFlushErrors buildc'
+       buildcThrowOnError buildc'
        case mbTpEntry of
          Just(_,Just(_,run)) -> return run
          _                   -> do addErrorMessageKind ErrBuild (\penv -> text "unable to find main entry point" <+> ppName penv entry)
