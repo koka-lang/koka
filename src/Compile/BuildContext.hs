@@ -25,6 +25,9 @@ module Compile.BuildContext ( BuildContext
                             , buildcLookupModuleName
                             , buildcGetDefinitions
                             , buildcGetMatchNames
+                            , buildcGetRangeMap
+                            , buildcPrettyEnvFor
+
                             , buildcLookupTypeOf
                             , buildcLookupInfo
                             , buildcOutputDir
@@ -55,6 +58,8 @@ import Common.File
 import Common.Error
 import Common.Failure
 import Common.ColorScheme
+import Syntax.RangeMap( RangeMap )
+import Syntax.Lexeme( Lexeme )
 import Type.Type
 import qualified Type.Pretty as TP
 import Type.Kind       (extractHandledEffect, getHandledEffectX )
@@ -129,6 +134,17 @@ buildcGetDefinitions :: [ModuleName] -> BuildContext -> Definitions
 buildcGetDefinitions modules0 buildc
   = let modules = if null modules0 then buildcRoots buildc else modules0
     in defsFromModules (filter (\mod -> modName mod `elem` modules) (buildcModules buildc))
+
+-- Return a range map and lexemes for a given module
+buildcGetRangeMap :: ModuleName -> BuildContext -> Maybe (RangeMap,[Lexeme])
+buildcGetRangeMap modname buildc
+  = do mod  <- buildcLookupModule modname buildc
+       rmap <- modRangeMap mod
+       return (rmap,modLexemes mod)
+
+buildcPrettyEnvFor :: TP.Env -> ModuleName -> BuildContext -> TP.Env
+buildcPrettyEnvFor penv modname buildc
+  = penv{ TP.context =  modname }
 
 
 -- After a type check, return all visible values for a set of modules.
@@ -403,6 +419,11 @@ buildcFindModule modname buildc
   = case find (\mod -> modName mod == modname) (buildcModules buildc) of
       Just mod -> mod
       _        -> failure ("Compile.BuildIde.btxFindModule: cannot find " ++ show modname ++ " in " ++ show (map modName (buildcModules buildc)))
+
+-- Return a module by name
+buildcLookupModule :: HasCallStack => ModuleName -> BuildContext -> Maybe Module
+buildcLookupModule modname buildc
+  = find (\mod -> modName mod == modname) (buildcModules buildc)
 
 -- Lookup `NameInfo` in a build context from a fully qualified name
 buildcLookupInfo :: Name -> BuildContext -> [NameInfo]

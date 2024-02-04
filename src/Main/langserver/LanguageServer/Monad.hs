@@ -29,7 +29,9 @@ module LanguageServer.Monad
     getDiagnostics,putDiagnostics,clearDiagnostics,
     runLSM,
     getProgress,setProgress, maybeContents,
-    liftBuild
+    liftBuild,
+
+    lookupModuleName, lookupRangeMap, getPrettyEnv, getPrettyEnvFor, prettyMarkdown
   )
 where
 
@@ -58,12 +60,14 @@ import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Server as J
 
 import Common.ColorScheme ( colorSource, ColorScheme, darkColorScheme, lightColorScheme )
-import Common.Name (nameNil, Name, readQualifiedName)
+import Common.Name (nameNil, Name, readQualifiedName, ModuleName)
 import Common.File ( realPath, normalize, getCwd, realPath, normalize, getCurrentTime )
 import Common.Error
-import Lib.PPrint (Pretty(..), asString, writePrettyLn,  Doc, writePretty, writePrettyW, (<->), text)
-import Lib.Printer (withColorPrinter, withColor, writeLn, ansiDefault, AnsiStringPrinter (AnsiString), Color (Red), ColorPrinter (PAnsiString, PHtmlText), withHtmlTextPrinter, HtmlTextPrinter (..))
-import Type.Pretty (ppType, defaultEnv, Env (context, importsMap), ppScheme)
+import Lib.PPrint hiding (empty)
+import Lib.Printer
+import qualified Type.Pretty as TP
+import Syntax.RangeMap( RangeMap )
+import Syntax.Lexeme( Lexeme )
 import Kind.ImportMap (importsEmpty)
 import Compile.Options (Flags (..), prettyEnvFromFlags, verbose)
 import Compile.BuildContext
@@ -150,7 +154,7 @@ defaultLSState flags = do
         atomically $ writeTChan progressChan (show doc)
   cwd <- getCwd
   let cscheme = colorScheme flags
-      prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
+      prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ TP.context = ctx, TP.importsMap = imports }
       term = Terminal (\err -> withNewPrinter $ \p -> do putErrorMessage p cwd (showSpan flags) cscheme err; return J.MessageType_Error)
                 (if verbose flags > 1 then (\msg -> withNewPrinter $ \p -> do withColor p (colorSource cscheme) (writeLn p msg); return J.MessageType_Info)
                                          else (\_ -> return ()))
@@ -187,7 +191,7 @@ htmlTextColorPrinter doc
     takeVar stringVar
 
 putScheme p env tp
-  = writePrettyLn p (ppScheme env tp)
+  = writePrettyLn p (TP.ppScheme env tp)
 
 putErrorMessage p cwd endToo cscheme err
   = writePrettyLn p (ppErrorMessage cwd endToo cscheme err)
@@ -378,6 +382,12 @@ maybeContents vfs path = do
   (text, ftime, vers) <- M.lookup uri vfs
   return (text, ftime)
 
+
+getBuildContext :: LSM BuildContext
+getBuildContext
+  = do ls <- getLSState
+       return (buildContext ls)
+
 -- Run a build monad with current terminal, flags, and virtual file system
 liftBuild :: (BuildContext -> Build (BuildContext,a)) -> LSM (Either Errors (a,Errors))
 liftBuild action
@@ -389,3 +399,36 @@ liftBuild action
          Right ((buildc,x),errs) -> do modifyLSState (\ls -> ls{ buildContext = buildc })
                                        return (Right (x,errs))
 
+-- Module name from URI
+lookupModuleName :: J.NormalizedUri -> LSM (Maybe (FilePath,ModuleName))
+lookupModuleName uri
+  = do buildc <- getBuildContext
+       mbfpath  <- liftIO $ fromLspUri uri
+       return $ do fpath   <- mbfpath -- maybe monad
+                   modname <- buildcLookupModuleName fpath buildc
+                   return (fpath,modname)
+
+-- RangeMap from module name
+lookupRangeMap :: ModuleName -> LSM (Maybe (RangeMap,[Lexeme]))
+lookupRangeMap mname
+  = do buildc <- getBuildContext
+       return (buildcGetRangeMap mname buildc)
+
+-- Pretty environment
+getPrettyEnv :: LSM TP.Env
+getPrettyEnv
+  = do flags <- getFlags
+       return (prettyEnvFromFlags flags)
+
+-- Pretty environment
+getPrettyEnvFor :: ModuleName -> LSM TP.Env
+getPrettyEnvFor modname
+  = do flags <- getFlags
+       return (prettyEnvFromFlags flags){ TP.context = modname }
+
+
+-- Format as markdown
+prettyMarkdown :: Doc -> LSM T.Text
+prettyMarkdown doc
+  = do htmlPrinter <- getHtmlPrinter
+       liftIO (htmlPrinter doc)
