@@ -359,17 +359,17 @@ moduleTypeCheck tcheckedMap
                   phase "check" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imports:" <+> list (map (pretty . modName) imports)
                   let defs     = defsFromModules imports
                       cimports = coreImportsFromModules (modDeps mod) (programImports program) imports
-                  (core,mbRangeMap) <- liftError $ typeCheck flags defs cimports program
-                  -- let diff = [name | name <- map Core.importName (Core.coreProgImports core), not (name `elem` map Core.importName cimports)]
-                  -- when (not (null diff)) $
-                  --   phaseVerbose 1 "checked" $ pretty (modName mod) <.> text ": EXTRA imported:" <+> list (map pretty diff)
-                  let mod' = mod{ modPhase = PhaseTyped
-                                , modCore = Just $! core
-                                , modRangeMap = mbRangeMap
-                                , modDefinitions = Just $! defsFromCore False core
-                                }
-                  phaseVerbose 3 "check done" $ \penv -> TP.ppName penv (modName mod)
-                  done mod'
+                  case checkError (typeCheck flags defs cimports program) of
+                    Left errs
+                      -> done mod{ modPhase = PhaseTypedError, modErrors = mergeErrors errs (modErrors mod) }
+                    Right ((core,mbRangeMap),warns)
+                      -> do let mod' = mod{ modPhase = PhaseTyped
+                                          , modCore = Just $! core
+                                          , modRangeMap = mbRangeMap
+                                          , modDefinitions = Just $! defsFromCore False core
+                                          }
+                            phaseVerbose 3 "check done" $ \penv -> TP.ppName penv (modName mod)
+                            done mod'
 
 
 -- Recursively load public imports from imported modules in a fixpoint
@@ -464,8 +464,6 @@ toBuildOrder modules
 
 
 -- Flush all stored errors to the build monad (and reset stored errors per module)
--- todo: we should never store errors in modules but always directly output to the monad?
--- maybe only store cached errors so it is cheaper to "re-typecheck" with errors.
 modulesFlushErrors :: [Module] -> Build [Module]
 modulesFlushErrors modules
   = mapM moduleFlushErrors modules
@@ -473,7 +471,7 @@ modulesFlushErrors modules
 moduleFlushErrors :: Module -> Build Module
 moduleFlushErrors mod
   = do addErrors (modErrors mod)
-       return mod{ modErrors = errorsNil }
+       return mod -- keep errors for the IDE diagnostict  -- mod{ modErrors = errorsNil }
 
 
 {---------------------------------------------------------------
@@ -502,12 +500,18 @@ moduleParse mod
                                         else ".../" ++ modSourceRelativePath mod)
        let allowAt = True -- isPrimitiveModule (modName mod) || modSourcePath mod `endsWith` "/@main.kk"
        input <- getFileContents (modSourcePath mod)
-       prog  <- liftError $ parseProgramFromString allowAt (semiInsert flags) input (modSourcePath mod)
-       return mod{ modPhase = PhaseParsed
-                 , modLexemes = programLexemes prog
-                 , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
-                 , modDeps = nub (map importFullName (programImports prog))
-                 }
+       case checkError (parseProgramFromString allowAt (semiInsert flags) input (modSourcePath mod)) of
+         Left errs
+            -> return mod{ modPhase = PhaseParsedError
+                         , modErrors = mergeErrors errs (modErrors mod)
+                         }
+         Right (prog,warns)
+            -> return mod{ modPhase = PhaseParsed
+                         , modErrors = mergeErrors warns (modErrors mod)
+                         , modLexemes = programLexemes prog
+                         , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
+                         , modDeps = nub (map importFullName (programImports prog))
+                         }
 
 moduleLoadIface :: Module -> Build Module
 moduleLoadIface mod
@@ -670,7 +674,7 @@ moduleValidate mod
                            -- reset fields that are not used by an IDE to reduce memory pressure
                            -- leave lexemes, rangeMap, and definitions.
                            modProgram = Nothing,
-                           modCore = Nothing,
+                           modCore    = Nothing,
                            modInlines = Right []
                          }
          else return mod'

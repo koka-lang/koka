@@ -58,11 +58,14 @@ type Modules = [Module]
 data ModulePhase
   = PhaseInit
   | PhaseLoaded         -- modLexemes, modDeps    (currently unused and always part of PhaseParsed)
+  | PhaseParsedError
   | PhaseParsed         -- modDeps, modProgram
+  | PhaseTypedError
   | PhaseTyped          -- modCore, modRangeMap, modDefines
   | PhaseOptimized      -- compiled and optimized core, modCore is updated, modInlines
   | PhaseCodeGen        -- compiled to backend code (.c,.js files)
   | PhaseLibIfaceLoaded -- a (library) interface is loaded but it's kki and libs are not yet copied to the output directory
+  | PhaseLinkedError
   | PhaseLinked         -- kki and object files are generated (and exe linked for a main module)
   deriving (Eq,Ord,Show)
 
@@ -70,7 +73,7 @@ data Module  = Module{ -- initial
                        modPhase       :: !ModulePhase
                      , modName        :: !Name
                      , modRange       :: !Range             -- (1,1) in the source (or pre-compiled iface)
-                     , modErrors      :: !Errors            -- collected errors
+                     , modErrors      :: !Errors            -- collected errors; set for Phase<xxx>Error phases
 
                      , modIfacePath   :: !FilePath          -- output interface (.kki)
                      , modIfaceTime   :: !FileTime

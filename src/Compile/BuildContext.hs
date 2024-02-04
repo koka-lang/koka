@@ -154,7 +154,7 @@ buildcFocus focusRoots buildc0 action
        let mmods = mergeModules (buildcModules buildcRes) cached
        seqList mmods $
          do let buildcFullRes = buildcRes{ buildcRoots = roots, buildcModules = mmods }
-            return (buildcFullRes, x)
+            seq buildcFullRes $ return (buildcFullRes, x)
 
 
 -- Reset a build context from the roots (for example, when the flags have changed)
