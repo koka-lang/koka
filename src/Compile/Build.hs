@@ -20,6 +20,7 @@ module Compile.Build( Build
                       , phase, phaseVerbose, phaseTimed
                       , throwError, throwErrorKind
                       , throwOnError, hasBuildError
+                      , modulesFlushErrors
                       , liftIO
 
                       , virtualMount
@@ -99,7 +100,7 @@ modulesBuild mainEntries modules
                       mapConcurrentModules
                        (moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap buildOrder)
                        modules
-       modulesFlushErrors compiled
+       return compiled -- modulesFlushErrors compiled
 
 -- Given a complete list of modules in build order, type check them all.
 modulesTypeCheck :: [Module] -> Build [Module]
@@ -107,7 +108,7 @@ modulesTypeCheck modules
   = phaseTimed 2 "check" (const Lib.PPrint.empty) $
     do tcheckedMap <- modmapCreate modules
        tchecked    <- mapConcurrentModules (moduleTypeCheck tcheckedMap) modules
-       modulesFlushErrors tchecked
+       return tchecked -- modulesFlushErrors tchecked
 
 -- Given a list of cached modules (`cachedImports`), and a set of root modules (`roots`), return a list of
 -- required modules to build the roots in build order, and validated against the
@@ -120,7 +121,7 @@ modulesReValidate rebuild forced cachedImports roots
   = phaseTimed 2 "resolve" (const Lib.PPrint.empty) $
     do rootsv   <- modulesValidate roots
        resolved <- modulesResolveDependencies rebuild forced cachedImports rootsv
-       modulesFlushErrors resolved
+       return resolved -- modulesFlushErrors resolved
 
 
 {---------------------------------------------------------------
@@ -470,7 +471,8 @@ modulesFlushErrors modules
 
 moduleFlushErrors :: Module -> Build Module
 moduleFlushErrors mod
-  = do addErrors (modErrors mod)
+  = -- trace ("flush errors: " ++ show (modPhase mod, modName mod) ++ ", " ++ show (modErrors mod)) $
+    do addErrors (modErrors mod)
        return mod -- keep errors for the IDE diagnostict  -- mod{ modErrors = errorsNil }
 
 
@@ -507,7 +509,7 @@ moduleParse mod
                          }
          Right (prog,warns)
             -> return mod{ modPhase = PhaseParsed
-                         , modErrors = warns -- mergeErrors warns (modErrors mod)
+                         , modErrors = mergeErrors warns (modErrors mod)
                          , modLexemes = programLexemes prog
                          , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
                          , modDeps = nub (map importFullName (programImports prog))
@@ -754,8 +756,8 @@ runBuildMaybe term flags action
          Nothing  -> return Nothing
 
 runBuildIO :: Terminal -> Flags -> Build a -> IO (Maybe a,Maybe Range)
-runBuildIO term flags cmp
-  = do res <- runBuild term flags cmp
+runBuildIO term flags build
+  = do res <- runBuild term flags build
        let getErrRange errs  = case reverse (errors errs) of
                                  (err:_) -> Just (getRange err)
                                  _       -> Nothing

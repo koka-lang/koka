@@ -255,7 +255,7 @@ loadModules term st files forceAll forceRoots
 
 loadModulesEx :: Terminal -> State -> [FilePath] -> Bool -> Bool -> IO (Maybe State,Maybe Range)
 loadModulesEx term st files forceAll forceRoots
-  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $
+  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $ B.buildcLiftErrors id $
                           do (buildc1,rootNames) <- B.buildcAddRootSources files (B.buildcClearRoots (buildContext st))
                              B.buildcBuildEx (forceAll || rebuild (flags st))
                                              (if forceRoots then rootNames else [])
@@ -268,7 +268,7 @@ loadModulesEx term st files forceAll forceRoots
 
 buildRunExpr :: Terminal -> State -> String -> IO State
 buildRunExpr term st expr
-  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $
+  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $ B.buildcLiftErrors id $
                           do B.buildcRunExpr [] expr (buildContext st)
        case mbBuildc of
          Nothing     -> return st{ errorRange = erng <|> errorRange st }
@@ -277,7 +277,7 @@ buildRunExpr term st expr
 
 buildTypeExpr :: Terminal -> State -> String -> IO (Maybe Type,State)
 buildTypeExpr term st expr
-  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $
+  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) $ B.buildcLiftErrors fst $
                           do B.buildcCompileExpr False True [] expr (buildContext st)
        case mbBuildc of
          Nothing     -> return (Nothing, st{ errorRange = erng <|> errorRange st })

@@ -210,6 +210,7 @@ rebuildFile mbRun uri fpath
     = do updateVFS
          mbRes <- -- run build with diagnostics
                   liftBuildDiag uri $ \buildc0 ->
+                  buildcLiftErrors fst $
                   do (buildc1,[focus]) <- buildcAddRootSources [fpath] buildc0
                      -- focus only the required file avoiding rebuilding non-dependencies
                      buildcFocus [focus] buildc1 $ \focusMods buildcF ->
@@ -221,7 +222,6 @@ rebuildFile mbRun uri fpath
                                            case res of
                                               Just (tp, Just (exe,run)) -> return (bc,Just exe)
                                               _                         -> return (bc,Nothing)
-
          case mbRes of
            Just mbPath -> return mbPath
            Nothing     -> return Nothing
@@ -305,7 +305,8 @@ liftBuildDiag defaultUri build
 -- A build retains all errors over all loaded modules, so we can always publish all
 diagnoseErrors :: J.NormalizedUri -> [ErrorMessage] -> LSM ()
 diagnoseErrors defaultUri errs
-  = do let diagSource = T.pack "koka"
+  = trace ("errors: " ++ show errs) $
+    do let diagSource = T.pack "koka"
            maxDiags   = 100
            diagss     = M.toList $ M.map partitionBySource $ M.fromListWith (++) $  -- group all errors per file uri
                         map (errorMessageToDiagnostic diagSource defaultUri) errs

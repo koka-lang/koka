@@ -109,6 +109,7 @@ compileAll p flags fpaths
                        do -- build
                           (buildc0,roots) <- buildcAddRootSources fpaths (buildcEmpty flags)
                           buildc          <- buildcBuildEx (rebuild flags) roots {-force roots always-} [] buildc0
+                          buildcFlushErrors buildc
                           buildcThrowOnError
                           -- compile & run entry points
                           let mainEntries = if library flags then [] else map (\rootName -> qualify rootName (newName "main")) roots
@@ -138,7 +139,8 @@ compileAll p flags fpaths
 -- Compile and link and entry point and return an IO action to run it.
 compileEntry :: BuildContext -> Name -> Build (IO ())
 compileEntry buildc entry
-  = do (_,mbTpEntry) <- buildcCompileEntry False entry buildc
+  = do (buildc',mbTpEntry) <- buildcCompileEntry False entry buildc
+       buildcFlushErrors buildc'
        case mbTpEntry of
          Just(_,Just(_,run)) -> return run
          _                   -> do addErrorMessageKind ErrBuild (\penv -> text "unable to find main entry point" <+> ppName penv entry)

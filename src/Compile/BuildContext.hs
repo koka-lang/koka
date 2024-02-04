@@ -20,6 +20,7 @@ module Compile.BuildContext ( BuildContext
                             , buildcRoots
                             , buildcClearRoots, buildcRemoveRootModule, buildcRemoveRootSource
                             , buildcFocus
+                            , buildcFlushErrors, buildcLiftErrors
 
                             , buildcLookupModuleName
                             , buildcGetDefinitions
@@ -151,7 +152,7 @@ buildcFocus focusRoots buildc0 action
        buildcFocus <- buildcValidate False [] buildcF
        let touched = map modName (buildcModules buildcFocus)
        (buildcRes,x) <- seqList touched $ action touched buildcFocus
-       let mmods = mergeModules (buildcModules buildcRes) cached
+       let mmods = mergeModulesLeftBias (buildcModules buildcRes) cached
        seqList mmods $
          do let buildcFullRes = buildcRes{ buildcRoots = roots, buildcModules = mmods }
             seq buildcFullRes $ return (buildcFullRes, x)
@@ -451,3 +452,16 @@ buildcFlags
 buildLiftIO :: IO a -> Build a
 buildLiftIO
   = liftIO
+
+-- Get all errors from the modules
+buildcFlushErrors :: BuildContext -> Build ()
+buildcFlushErrors buildc
+  = do modulesFlushErrors (buildcModules buildc)
+       return ()
+
+-- Get all errors from the modules
+buildcLiftErrors:: (a -> BuildContext) -> Build a -> Build a
+buildcLiftErrors f build
+  = do res <- build
+       buildcFlushErrors (f res)
+       return res

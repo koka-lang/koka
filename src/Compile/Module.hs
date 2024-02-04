@@ -17,7 +17,7 @@ module Compile.Module( Module(..), ModulePhase(..)
                      , defsCompose, defsFromCore, defsFromModules
 
                      , Modules
-                     , inlinesFromModules, mergeModules
+                     , inlinesFromModules, mergeModules, mergeModulesLeftBias
                      ) where
 
 import Lib.Trace
@@ -139,14 +139,23 @@ moduleCreateInitial modName sourcePath ifacePath libIfacePath
 
 mergeModules :: [Module] -> [Module] -> [Module]
 mergeModules mods1 mods2
-  = foldl' mergeModule mods1 mods2
+  = mergeModulesWith (\m1 m2 -> if modPhase m1 >= modPhase m2 then m1 else m2) mods1 mods2
 
-mergeModule :: [Module] -> Module -> [Module]
-mergeModule [] mod  = [mod]
-mergeModule (m:ms) mod
+mergeModulesLeftBias :: [Module] -> [Module] -> [Module]
+mergeModulesLeftBias mods1 mods2
+  = mergeModulesWith (\m1 m2 -> m1) mods1 mods2
+
+mergeModulesWith :: (Module -> Module -> Module) -> [Module] -> [Module] -> [Module]
+mergeModulesWith combine mods1 mods2
+  = foldl' (mergeModuleWith combine) mods1 mods2
+
+mergeModuleWith :: (Module -> Module -> Module) -> [Module] -> Module -> [Module]
+mergeModuleWith combine [] mod  = [mod]
+mergeModuleWith combine (m:ms) mod
   = if modName m /= modName mod
-     then m : mergeModule ms mod
-     else (if (modPhase m > modPhase mod) then m else mod) : ms
+     then m : mergeModuleWith combine ms mod
+     else combine m mod : ms
+
 
 modCoreImports :: Module -> [Core.Import]
 modCoreImports mod
