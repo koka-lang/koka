@@ -378,6 +378,7 @@ maybeContents vfs path = do
   (text, ftime, vers) <- M.lookup uri vfs
   return (text, ftime)
 
+-- Run a build monad with current terminal, flags, and virtual file system
 liftBuild :: Build a -> LSM (Either Errors (a,Errors))
 liftBuild build
   = do ls <- getLSState

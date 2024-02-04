@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------------
--- Copyright 2012-2021, Microsoft Research, Daan Leijen.
+-- Copyright 2012-2024, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -41,6 +41,7 @@ import Compile.Options
 import Compile.BuildContext
 import qualified Platform.GetOptions
 
+-- Main entry point for the command line compiler
 runPlain :: IO ()
 runPlain
   = runWith ""
@@ -49,7 +50,7 @@ runWith :: String -> IO ()
 runWith args
   = runWithLSArgs plainLS ""
 
-
+-- Main entry point for the language server enabled compiler
 runWithLS :: (ColorPrinter -> Flags -> [FilePath] -> IO ()) -> IO ()
 runWithLS ls
   = runWithLSArgs ls ""
@@ -59,6 +60,8 @@ plainLS p flags files
   = do hPutStrLn stderr "The plain build of Koka cannot run as a language server"
        exitFailure
 
+
+-- Parse the arguments given a potential language server
 runWithLSArgs :: (ColorPrinter -> Flags -> [FilePath] -> IO ()) -> String -> IO ()
 runWithLSArgs runLanguageServer args
   = do (flags,flags0,mode) <- getOptions args
@@ -78,6 +81,7 @@ runWithLSArgs runLanguageServer args
   where
     isPrefix s t  = (s == take (length s) t)
 
+-- The main mode determines what the compiler should be doing
 mainMode :: (ColorPrinter -> Flags -> [FilePath] -> IO ()) -> Flags -> Flags -> Mode -> ColorPrinter -> IO ()
 mainMode runLanguageServer flags flags0 mode p
   = case mode of
@@ -95,24 +99,27 @@ mainMode runLanguageServer flags flags0 mode p
      ModeLanguageServer files
       -> runLanguageServer p flags files
 
+
+-- Compile (and/or link and/or evaluate) argument files
 compileAll :: ColorPrinter -> Flags -> [FilePath] -> IO Bool
 compileAll p flags fpaths
   = do cwd <- getCwd
-       (mbRes,_)  <- runBuildIO (term cwd) flags $
+       (mbRes,_)  <- -- run the build monad with a terminal and flags
+                     runBuildIO (term cwd) flags $
                        do -- build
                           (buildc0,roots) <- buildcAddRootSources fpaths (buildcEmpty flags)
-                          buildc <- buildcBuildEx (rebuild flags) roots {-force roots always-} [] buildc0
+                          buildc          <- buildcBuildEx (rebuild flags) roots {-force roots always-} [] buildc0
                           buildcThrowOnError
                           -- compile & run entry points
                           let mainEntries = if library flags then [] else map (\rootName -> qualify rootName (newName "main")) roots
                           runs <- mapM (compileEntry buildc) mainEntries
-                          when (evaluate flags) $
-                            mapM_ buildLiftIO runs
+                          when (evaluate flags) $ mapM_ buildLiftIO runs
                           -- show info
                           mapM_ (compileShowInfo buildc) roots
                           return ()
        return (isJust mbRes)
   where
+    -- all output should go via the terminal
     term cwd
       = Terminal (putErrorMessage p cwd (showSpan flags) cscheme)
                  (if (verbose flags > 1) then (\msg -> withColor p (colorSource cscheme) (writeLn p msg))
@@ -127,6 +134,8 @@ compileAll p flags fpaths
       = do writePrettyLn p (ppErrorMessage cwd endToo cscheme err)
            writeLn p ""
 
+
+-- Compile and link and entry point and return an IO action to run it.
 compileEntry :: BuildContext -> Name -> Build (IO ())
 compileEntry buildc entry
   = do (_,mbTpEntry) <- buildcCompileEntry False entry buildc
@@ -135,6 +144,8 @@ compileEntry buildc entry
          _                   -> do addErrorMessageKind ErrBuild (\penv -> text "unable to find main entry point" <+> ppName penv entry)
                                    return (return ())
 
+
+-- Show type and kind information for a given module
 compileShowInfo :: BuildContext -> ModuleName -> Build ()
 compileShowInfo buildc modname
   = do  flags <- buildcFlags

@@ -45,13 +45,15 @@ import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, vi
 import Lib.PPrint (text, (<->), (<+>), color, Color (..))
 import Common.Range (rangeNull)
 import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
-import Common.Name (newName)
+import Common.Name (newName, ModuleName)
 import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime, isAbsolute, dirname, findMaximalPrefixPath)
 import Common.ColorScheme(ColorScheme(..))
 import Common.Error
 import Core.Core (Visibility(Private))
+
 import Compile.Options (Flags, colorSchemeFromFlags, includePath)
 import Compile.BuildContext
+
 import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
 import LanguageServer.Monad
 
@@ -251,17 +253,18 @@ processCompilationResult normUri filePath flags update doIO = do
           mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
       return outFile
 
-
-liftBuildDiag :: Build a -> LSM (Maybe a)
-liftBuildDiag build
+-- Run a build monad and emit diagnostics if needed.
+liftBuildDiag :: FilePath ->  Build (a, [FilePath]) -> LSM (Maybe a)
+liftBuildDiag fpath build
   = do res <- liftBuild build
        case res of
-         Right (x,errs) -> do diagnoseErrors (errors errs)
-                              return (Just x)
-         Left errs      -> do diagnoseErrors (errors errs)
-                              return Nothing
-diagnoseErrors :: [ErrorMessage] -> LSM ()
-diagnoseErrors errs
+         Right ((x,mods),errs) -> do diagnoseErrors (errors errs) mods
+                                     return (Just x)
+         Left errs             -> do diagnoseErrors (errors errs) [fpath]
+                                     return Nothing
+
+diagnoseErrors :: [ErrorMessage] -> [FilePath] -> LSM ()
+diagnoseErrors errs touched
   = return ()
 {-
   = do let diagSrc = T.pack "koka"

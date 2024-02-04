@@ -138,22 +138,23 @@ buildcGetMatchNames modules buildc
     in map (showPlain . unqualify) $ gammaPublicNames (defsGamma defs)
 
 
+
 -- Focus a build action on a restricted context with the given focus roots.
 -- This builds only modules needed for the restricted roots, but keeps all cached modules and original roots.
--- Returns also a list of all touched modules in the restricted build (for diagnostics)
-buildcFocus :: [ModuleName] -> BuildContext -> (BuildContext -> Build (BuildContext, a)) -> Build (BuildContext, a, [ModuleName])
+-- Passes also a list of all required modules in the restricted build (for diagnostics)
+buildcFocus :: [ModuleName] -> BuildContext -> ([ModuleName] -> BuildContext -> Build (BuildContext, a)) -> Build (BuildContext, a)
 buildcFocus focusRoots buildc0 action
   = do buildcFull <- buildcAddRootModules focusRoots buildc0
        let roots   = buildcRoots buildcFull
            cached  = buildcModules buildcFull
            buildcF = buildcFull{ buildcRoots = focusRoots }
        buildcFocus <- buildcValidate False [] buildcF
-       (buildcRes,x) <- action buildcFocus
-       let touched = map modName (buildcModules buildcRes)
-           mmods   = mergeModules (buildcModules buildcRes) cached
-       seqList touched $ seqList mmods $
+       let touched = map modName (buildcModules buildcFocus)
+       (buildcRes,x) <- seqList touched $ action touched buildcFocus
+       let mmods = mergeModules (buildcModules buildcRes) cached
+       seqList mmods $
          do let buildcFullRes = buildcRes{ buildcRoots = roots, buildcModules = mmods }
-            return (buildcFullRes, x, touched)
+            return (buildcFullRes, x)
 
 
 -- Reset a build context from the roots (for example, when the flags have changed)
