@@ -36,68 +36,67 @@ import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.VFS (VirtualFile (VirtualFile), virtualFileText)
 import Common.Name
-    ( Name(..),
+    ( Name(..), ModuleName,
       isHiddenName,
       nameIsNil,
       showPlain,
       nameNil,
       qualify,
       newName )
-import Common.Range (makePos, posNull, Range(..), rangeEnd, rangeStart, rangeNull, Source (..), extractLiterate, Pos(..), rangeLength, makeRange, extendRange)
-import Lib.PPrint (Pretty (..), Doc)
-import Kind.Constructors (ConInfo (..), Constructors, constructorsList)
-import Kind.Synonym (SynInfo (..), Synonyms, synonymsToList)
-import Type.Assumption
-import Type.InferMonad (subst, instantiate)
-import Type.TypeVar (tvsEmpty)
-import Type.Type (Type(..), splitFunType, splitFunScheme, typeString, typeInt, typeFloat, typeChar, typeList, TypeVar (..), Flavour (..))
-import Type.Unify (runUnify, unify, runUnifyEx, matchArguments)
-import Compiler.Compile (Module (..))
-import Compiler.Module ( Loaded(..), modLexemes )
-import Syntax.Lexer (reservedNames, lexing, Lexeme (..), Lex (..))
-import Syntax.Lexeme
-import Syntax.RangeMap (rangeMapFind, rangeInfoType, RangeInfo, getFunctionNameReverse, previousLexemesReversed, dropAutoGenClosing, FnSyntax(..))
-import Syntax.Parse (parseProgramFromFile, parseProgramFromString)
-import Syntax.Layout (layout)
-import Language.LSP.Protocol.Types (InsertTextFormat(InsertTextFormat_Snippet))
-import LanguageServer.Conversions (fromLspPos, fromLspUri, toLspPos, toLspRange)
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, SignatureContext(..), getLoadedSuccess)
-import LanguageServer.Handler.Hover (formatRangeInfoHover)
+
+import Debug.Trace(trace)
 import qualified Data.Text.Encoding as T
+import Data.Aeson (fromJSON, ToJSON (toJSON))
+import Lib.PPrint (Pretty (..), Doc)
 import Common.File (isLiteralDoc)
-import Lib.Trace (trace)
+import Common.NamePrim (nameSystemCore)
+import Common.Range
 import Kind.Newtypes (Newtypes, DataInfo (..), newtypesTypeDefs)
 import Kind.Kind (kindStar)
-import Common.NamePrim (nameSystemCore)
-import Data.Aeson (fromJSON, ToJSON (toJSON))
+import Kind.Constructors (ConInfo (..), Constructors, constructorsList)
+import Kind.Synonym      (SynInfo (..), Synonyms, synonymsToList)
+import Type.Assumption   (Gamma, NameInfo(..), gammaList )
+import Type.TypeVar (tvsEmpty)
+import Type.Type
+import Type.Unify (runUnify, unify, runUnifyEx, matchArguments)
+
+import Syntax.Lexer (reservedNames, lexing, Lexeme (..), Lex (..))
+import Syntax.Lexeme
+import Syntax.RangeMap hiding (NameInfo)
+import Syntax.Layout (layout)
+
+import Language.LSP.Protocol.Types (InsertTextFormat(InsertTextFormat_Snippet))
+import LanguageServer.Conversions (fromLspPos, fromLspUri, toLspPos, toLspRange)
+import LanguageServer.Handler.Hover (formatRangeInfoHover)
+
+import Compile.BuildContext
+import LanguageServer.Monad
 
 -- Gets tab completion results for a document location
 -- This is a pretty complicated handler because it has to do a lot of work
 completionHandler :: Handlers LSM
-completionHandler = requestHandler J.SMethod_TextDocumentCompletion $ \req responder -> do
-  let J.CompletionParams doc pos _ _ context = req ^. J.params
-      uri = doc ^. J.uri
-      normUri = J.toNormalizedUri uri
-  loaded <- getLoadedSuccess normUri -- We want gamma and things, so we want the last successful version
-  vfile <- getVirtualFile normUri
-  let maybeRes = do -- maybeMonad
-        l <- loaded
-        let lm = loadedModule l
-        vf <- vfile
-        return (l, lm, vf)
-  items <- case maybeRes of
-    Just (l, lm, vf) -> do
-      completionInfo <- liftIO $ getCompletionInfo pos vf lm normUri
-      -- trace ("Completion info: " ++ show completionInfo) $ return ()
-      case completionInfo of
-        Just info ->
-          let completions = findCompletions l lm info
-          in-- trace (show completions) $P
-            return completions
-        _ -> -- trace ("No completion infos for position ")
-          return []
-    _ -> return []
-  responder $ Right $ J.InR $ J.InL $ J.CompletionList False Nothing items
+completionHandler
+  = requestHandler J.SMethod_TextDocumentCompletion $ \req responder ->
+    do  let J.CompletionParams doc pos _ _ context = req ^. J.params
+            uri = J.toNormalizedUri (doc ^. J.uri)
+
+            done :: LSM ()
+            done = responder $ Right $ J.InR $ J.InR J.Null
+
+            liftMaybe :: LSM (Maybe a) -> (a -> LSM ()) -> LSM ()
+            liftMaybe action next = do res <- action
+                                       case res of
+                                          Nothing -> done
+                                          Just x  -> next x
+
+        liftMaybe (getVirtualFile uri) $ \vfile ->
+          liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
+            liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
+              liftMaybe (liftIO $ getCompletionInfo pos vfile rmap uri) $ \completionInfo ->
+                do defs <- lookupFullDefinitions [modname]
+                   let completions = findCompletions defs modname completionInfo
+                       completionList = J.CompletionList False Nothing completions
+                   responder $ Right $ J.InR $ J.InL $ completionList
 
 -- | Describes the information gained from lexing needed to suggest completions
 data CompletionInfo = CompletionInfo
@@ -120,8 +119,8 @@ isTypeCompletion CompletionKindType = True
 isTypeCompletion CompletionKindTypeOrEffect = True
 isTypeCompletion _ = False
 
-getCompletionInfo :: MonadIO m => J.Position -> VirtualFile -> Module -> J.NormalizedUri -> m (Maybe CompletionInfo)
-getCompletionInfo pos vf mod uri = do
+getCompletionInfo :: MonadIO m => J.Position -> VirtualFile -> RangeMap -> J.NormalizedUri -> m (Maybe CompletionInfo)
+getCompletionInfo pos vf rmap uri = do
   let text = T.encodeUtf8 $ virtualFileText vf
   filePath <- fromMaybe "" <$> liftIO (fromLspUri uri)
   pos' <- liftIO $ fromLspPos uri pos
@@ -144,7 +143,7 @@ getCompletionInfo pos vf mod uri = do
   return $! case fncontext of
     -- Names followed by . (use the type of the name as a filter)
     FnIncomplete (FnValue (Lexeme rng (LexId nm))) -> completeFunction line nameNil endRng rng False
-    FnChained (Lexeme rng0 (LexId partial)) (FnValue (Lexeme rng2 (LexId nm))) -> completeFunction line partial rng0 rng2 False 
+    FnChained (Lexeme rng0 (LexId partial)) (FnValue (Lexeme rng2 (LexId nm))) -> completeFunction line partial rng0 rng2 False
     FnIncomplete (FnChained (Lexeme rng (LexId nm)) _) -> completeFunction line nameNil endRng rng True
     FnChained (Lexeme rng0 (LexId partial)) (FnChained (Lexeme rng2 (LexId nm)) _) -> completeFunction line partial rng0 rng2 True
     FnIncomplete (FnValue (Lexeme rng (LexString _))) -> completeString line nameNil endRng
@@ -159,8 +158,8 @@ getCompletionInfo pos vf mod uri = do
     FnChained (Lexeme rng0 (LexId partial)) (FnValue (Lexeme rng2 (LexSpecial "]"))) -> completeList line partial rng0
     FnValue (Lexeme rng (LexId partial)) -> completeIdentifier line partial rng
     FnChained (Lexeme rng (LexId partial)) _ -> completeIdentifier line partial rng
-    _ -> 
-      case tpcontext of  
+    _ ->
+      case tpcontext of
         -- closing paren followed by : (type or effect)
         (Lexeme rng1 (LexKeyword ":" _)):(Lexeme rng2 (LexSpecial ")")):_ -> completeTypeOrEffect line nameNil endRng
         (Lexeme rng0 (LexId partial)):(Lexeme rng1 (LexKeyword ":" _)):(Lexeme rng2 (LexSpecial ")")):_ -> completeTypeOrEffect line partial rng0
@@ -189,7 +188,7 @@ getCompletionInfo pos vf mod uri = do
           tvar  = TVar tyvar in
       return (CompletionInfo line pos partial rng (Just (TForall [tyvar] [] (TApp typeList [tvar]))) CompletionKindFunction)
     completeFunction line partial rnginsert rng resultOfFunction =
-      let rm = rangeMapFind rng (fromJust $ modRangeMap mod)
+      let rm = rangeMapFind rng rmap
       in completeRangeInfo line partial rm rnginsert resultOfFunction
     completeType line partial rng =
       return (CompletionInfo line pos partial rng Nothing CompletionKindType)
@@ -218,15 +217,14 @@ getCompletionInfo pos vf mod uri = do
 filterInfix :: (Name,CompletionInfo) -> Bool
 filterInfix (n, cinfo) = (showPlain (searchTerm cinfo) `isInfixOf` showPlain n) && (nameIsNil n || not (isHiddenName n) || "@Hnd-" `isInfixOf` showPlain n)
 
-findCompletions :: Loaded -> Module -> CompletionInfo -> [J.CompletionItem]
-findCompletions loaded mod cinfo@CompletionInfo{completionKind = kind} = result
+findCompletions ::  Definitions -> ModuleName -> CompletionInfo -> [J.CompletionItem]
+findCompletions defs curModName cinfo@CompletionInfo{completionKind = kind} = result
   where
-    curModName = modName mod
     search = searchTerm cinfo
-    gamma = loadedGamma loaded
-    constrs = loadedConstructors loaded
-    syns = loadedSynonyms loaded
-    datatps = loadedNewtypes loaded
+    gamma = defsGamma defs
+    constrs = defsConstructors defs
+    syns = defsSynonyms defs
+    datatps = defsNewtypes defs
     completions =
       if kind == CompletionKindValue then valueCompletions curModName gamma cinfo else
         valueCompletions curModName gamma cinfo
@@ -243,7 +241,7 @@ typeUnifies t1 t2 name =
     Just t2 ->
       let (res, _, _) = (runUnifyEx 0 $ matchArguments True rangeNull tvsEmpty t1 [t2] [] Nothing)
           typeMatches = isRight res in
-        -- if name == qualify nameSystemCore (newName "join") then trace ("t1: " ++ show t1 ++ " t2: " ++ show t2 ++ " " ++ show typeMatches) typeMatches 
+        -- if name == qualify nameSystemCore (newName "join") then trace ("t1: " ++ show t1 ++ " t2: " ++ show t2 ++ " " ++ show typeMatches) typeMatches
         -- else
           typeMatches
 
