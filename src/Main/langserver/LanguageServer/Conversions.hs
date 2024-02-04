@@ -22,6 +22,7 @@ module LanguageServer.Conversions
     -- toLspUri,
     makeDiagnostic,
     filePathToUri,
+    errorMessageToDiagnostic,
 
     -- * Conversions from LSP types
     fromLspPos,
@@ -35,7 +36,7 @@ import Debug.Trace(trace)
 import Colog.Core
 import qualified Common.Error as E
 import Common.File (normalize, realPath, startsWith)
-import Common.Range (Source (sourceName), sourceNull)
+import Common.Range (Source (sourceName), sourceNull, rangeSource)
 import qualified Common.Range as R
 import Compiler.Module (Loaded (..), Module (..))
 import Data.Map.Strict as M hiding (map)
@@ -76,6 +77,18 @@ toLspDiagnostics uri src err =
     Right (_, E.Errors ws) -> M.unions (map (toLspErrorDiagnostics uri src) ws)
         -- M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [toLspWarningDiagnostic src r doc])) ws
     Left (E.Errors errs) -> M.unions (map (toLspErrorDiagnostics uri src) errs)
+
+
+errorMessageToDiagnostic :: T.Text -> J.NormalizedUri -> E.ErrorMessage -> (J.NormalizedUri, [J.Diagnostic])
+errorMessageToDiagnostic errSource defaultUri e
+  = (uriFromRange (E.errRange e) defaultUri,
+     [makeDiagnostic (toSeverity (E.errSeverity e)) errSource (E.errRange e) (E.errMessage e)] )
+  where
+    toSeverity sev
+          = case sev of
+              E.SevError   -> J.DiagnosticSeverity_Error
+              E.SevWarning -> J.DiagnosticSeverity_Warning
+              _            -> J.DiagnosticSeverity_Information
 
 toLspErrorDiagnostics :: J.NormalizedUri -> T.Text -> E.ErrorMessage -> M.Map J.NormalizedUri [J.Diagnostic]
 toLspErrorDiagnostics uri src e =

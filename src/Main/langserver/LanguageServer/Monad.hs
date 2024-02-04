@@ -379,8 +379,13 @@ maybeContents vfs path = do
   return (text, ftime)
 
 -- Run a build monad with current terminal, flags, and virtual file system
-liftBuild :: Build a -> LSM (Either Errors (a,Errors))
-liftBuild build
+liftBuild :: (BuildContext -> Build (BuildContext,a)) -> LSM (Either Errors (a,Errors))
+liftBuild action
   = do ls <- getLSState
        let vfs = VFS (\fpath -> maybeContents (documentInfos ls) fpath)
-       liftIO $ runBuild (terminal ls) (flags ls) $ withVFS vfs build
+       res <- liftIO $ runBuild (terminal ls) (flags ls) $ withVFS vfs $ action (buildContext ls)
+       case res of
+         Left errs               -> return (Left errs)
+         Right ((buildc,x),errs) -> do modifyLSState (\ls -> ls{ buildContext = buildc })
+                                       return (Right (x,errs))
+

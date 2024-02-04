@@ -29,7 +29,7 @@ import Common.NamePrim (nameInteractiveModule)
 import Common.Range (rangeNull)
 import Language.LSP.Server (Handlers, LspM, notificationHandler, sendNotification, MonadLsp, getVirtualFiles, withProgress, requestHandler)
 import LanguageServer.Monad (LSM, getFlags, getTerminal, getModules, getLoaded, setProgress, updateSignatureContext)
-import LanguageServer.Handler.TextDocument (recompileFile, compileEditorExpression)
+import LanguageServer.Handler.TextDocument (rebuildUri)
 import LanguageServer.Conversions( filePathToUri )
 import Compiler.Compile (CompileTarget(..), Terminal (..), compileExpression, Module (..))
 import Compile.Options (Flags (outFinalPath), targets, commandLineHelp, updateFlagsFromArgs)
@@ -58,8 +58,10 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
         withProgress (T.pack "Compiling " <> filePath) J.Cancellable $ \report -> do
           setProgress (Just report)
           res <- trace ("koka/compile: " ++ T.unpack filePath ++ ", " ++ show (filePathToUri (T.unpack filePath))) $
-                 recompileFile (Executable (newName "main") ()) (filePathToUri (T.unpack filePath)) Nothing forceRecompilation newFlags
-          term <- getTerminal
+                 -- recompileFile (Executable (newName "main") ()) (filePathToUri (T.unpack filePath)) Nothing forceRecompilation newFlags
+                 -- TODO: handle new flags!
+                 rebuildUri (Just (newName "main")) (J.toNormalizedUri (filePathToUri (T.unpack filePath)))
+          term <- trace ("koka/compile: result: " ++ show res) $ getTerminal
           liftIO $ termInfo term $ text "Finished generating code for main file" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
@@ -76,7 +78,9 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
         withProgress (T.pack "Compiling " <> functionName) J.Cancellable $ \report -> do
           setProgress (Just report)
           -- compile the expression
-          res <- compileEditorExpression (filePathToUri $ T.unpack filePath) newFlags forceRecompilation (T.unpack filePath) (T.unpack functionName)
+          res <- -- compileEditorExpression (filePathToUri $ T.unpack filePath) newFlags forceRecompilation (T.unpack filePath) (T.unpack functionName)
+                 -- TODO: handle new flags!
+                 rebuildUri (Just (newName (T.unpack functionName))) (J.toNormalizedUri (filePathToUri (T.unpack filePath)))
           term <- getTerminal
           liftIO $ termInfo term $ text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) <+> text "in" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing

@@ -507,7 +507,7 @@ moduleParse mod
                          }
          Right (prog,warns)
             -> return mod{ modPhase = PhaseParsed
-                         , modErrors = mergeErrors warns (modErrors mod)
+                         , modErrors = warns -- mergeErrors warns (modErrors mod)
                          , modLexemes = programLexemes prog
                          , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
                          , modDeps = nub (map importFullName (programImports prog))

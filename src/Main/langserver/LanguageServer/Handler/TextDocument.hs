@@ -16,8 +16,7 @@ module LanguageServer.Handler.TextDocument
     didChangeHandler,
     didSaveHandler,
     didCloseHandler,
-    recompileFile,
-    compileEditorExpression
+    rebuildUri
   )
 where
 
@@ -43,9 +42,10 @@ import Language.LSP.Diagnostics (partitionBySource)
 import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler)
 import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
 import Lib.PPrint (text, (<->), (<+>), color, Color (..))
+
 import Common.Range (rangeNull)
 import Common.NamePrim (nameInteractiveModule, nameExpr, nameSystemCore)
-import Common.Name (newName, ModuleName)
+import Common.Name (newName, ModuleName, Name, isQualified, qualify)
 import Common.File (getFileTime, FileTime, getFileTimeOrCurrent, getCurrentTime, isAbsolute, dirname, findMaximalPrefixPath)
 import Common.ColorScheme(ColorScheme(..))
 import Common.Error
@@ -54,7 +54,7 @@ import Core.Core (Visibility(Private))
 import Compile.Options (Flags, colorSchemeFromFlags, includePath)
 import Compile.BuildContext
 
-import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri)
+import LanguageServer.Conversions (toLspDiagnostics, makeDiagnostic, fromLspUri, errorMessageToDiagnostic)
 import LanguageServer.Monad
 
 
@@ -69,7 +69,8 @@ didOpenHandler = notificationHandler J.SMethod_TextDocumentDidOpen $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
   let version = msg ^. J.params . J.textDocument . J.version
   flags <- getFlags
-  _ <- recompileFile Object uri (Just version) False flags
+  -- _ <- recompileFile Object uri (Just version) False flags
+  rebuildUri Nothing (J.toNormalizedUri uri)
   return ()
 
 -- Recompile the file on changes
@@ -78,7 +79,8 @@ didChangeHandler = notificationHandler J.SMethod_TextDocumentDidChange $ \msg ->
   let uri = msg ^. J.params . J.textDocument . J.uri
   let version = msg ^. J.params . J.textDocument . J.version
   flags <- getFlags
-  _ <- recompileFile Object uri (Just version) False flags
+  -- _ <- recompileFile Object uri (Just version) False flags
+  rebuildUri Nothing (J.toNormalizedUri uri)
   return ()
 
 -- Saving a file just recompiles it
@@ -86,7 +88,8 @@ didSaveHandler :: Handlers LSM
 didSaveHandler = notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
   flags <- getFlags
-  _ <- recompileFile Object uri Nothing False flags
+  -- _ <- recompileFile Object uri Nothing False flags
+  rebuildUri Nothing (J.toNormalizedUri uri)
   return ()
 
 -- Closing the file
@@ -95,6 +98,7 @@ didCloseHandler = notificationHandler J.SMethod_TextDocumentDidClose $ \msg -> d
   let uri = msg ^. J.params . J.textDocument . J.uri
   removeLoadedUri (J.toNormalizedUri uri)
   -- Don't remove diagnostics so the file stays red in the editor, and problems are shown, but do remove the compilation state
+  -- note: don't remove from the roots in the build context
   return ()
 
 
@@ -139,6 +143,7 @@ updateVFS = do
   modifyLSState (\old -> old{documentInfos = newvfs})
   return newvfs
 
+{-
 -- Compiles a single expression (calling a top level function with no arguments) - such as a test method
 compileEditorExpression :: J.Uri -> Flags -> Bool -> String -> String -> LSM (Maybe FilePath)
 compileEditorExpression uri flags force filePath functionName = do
@@ -167,6 +172,7 @@ compileEditorExpression uri flags force filePath functionName = do
       return Nothing -- TODO: better error message
   where normUri = J.toNormalizedUri uri
 
+
 -- Recompiles the given file, stores the compilation result in
 -- LSM's state and emits diagnostics
 recompileFile :: CompileTarget () -> J.Uri -> Maybe J.Int32 -> Bool -> Flags -> LSM (Maybe FilePath)
@@ -189,6 +195,37 @@ recompileFile compileTarget uri version force flags = do
     Nothing -> return Nothing
   where
     normUri = J.toNormalizedUri uri
+-}
+
+
+rebuildUri :: Maybe Name -> J.NormalizedUri -> LSM (Maybe FilePath)
+rebuildUri mbRun uri
+  = do mbfpath <- liftIO $ fromLspUri uri
+       case mbfpath of
+         Nothing    -> return Nothing
+         Just fpath -> rebuildFile mbRun uri fpath
+
+rebuildFile :: Maybe Name -> J.NormalizedUri -> FilePath -> LSM (Maybe FilePath)
+rebuildFile mbRun uri fpath
+    = do updateVFS
+         mbRes <- -- run build with diagnostics
+                  liftBuildDiag uri $ \buildc0 ->
+                  do (buildc1,[focus]) <- buildcAddRootSources [fpath] buildc0
+                     -- focus only the required file avoiding rebuilding non-dependencies
+                     buildcFocus [focus] buildc1 $ \focusMods buildcF ->
+                        case mbRun of
+                          Nothing    -> do bc <- buildcTypeCheck buildcF
+                                           return (bc,Nothing)
+                          Just entry -> do let qentry = if isQualified entry then entry else qualify focus entry
+                                           (bc,res) <- buildcCompileEntry False qentry buildcF
+                                           case res of
+                                              Just (tp, Just (exe,run)) -> return (bc,Just exe)
+                                              _                         -> return (bc,Nothing)
+
+         case mbRes of
+           Just mbPath -> return mbPath
+           Nothing     -> return Nothing
+
 
 -- Processes the result of a compilation, updating the loaded state and emitting diagnostics
 -- Returns the executable file path if compilation succeeded
@@ -253,38 +290,24 @@ processCompilationResult normUri filePath flags update doIO = do
           mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
       return outFile
 
+
+
 -- Run a build monad and emit diagnostics if needed.
-liftBuildDiag :: FilePath ->  Build (a, [FilePath]) -> LSM (Maybe a)
-liftBuildDiag fpath build
+liftBuildDiag :: J.NormalizedUri -> (BuildContext -> Build (BuildContext,a)) -> LSM (Maybe a)
+liftBuildDiag defaultUri build
   = do res <- liftBuild build
        case res of
-         Right ((x,mods),errs) -> do diagnoseErrors (errors errs) mods
-                                     return (Just x)
-         Left errs             -> do diagnoseErrors (errors errs) [fpath]
-                                     return Nothing
+         Right (x,errs) -> do diagnoseErrors defaultUri (errors errs)
+                              return (Just x)
+         Left errs      -> do diagnoseErrors defaultUri (errors errs)
+                              return Nothing
 
-diagnoseErrors :: [ErrorMessage] -> [FilePath] -> LSM ()
-diagnoseErrors errs touched
-  = return ()
-{-
-  = do let diagSrc = T.pack "koka"
-           diags   = toLspDiagnostics normUri diagSrc res
-          maxDiags = 100
-          -- Union with the current file mapped to an empty list, since we want to clear diagnostics for this file when it is an error in another file
-          diags' = M.union diags (M.fromList [(normUri, [])])
-      -- Clear diagnostics for this file if there are no errors / warnings
-      if null diags then clearDiagnostics normUri else putDiagnostics diags'
-
-      -- Get all the diagnostics for all files (language server doesn't support updating diagnostics for a single file)
-      diags <- getDiagnostics
-      -- Partition them by source (koka, koka-lints, etc.) -- we should only have koka (compiler diagnostics) for now
-      let diagsBySrc = M.map partitionBySource diags
-      if null diags
-        -- If there are no diagnostics clear all koka diagnostics
-        then flushDiagnosticsBySource maxDiags (Just diagSrc)
-        -- Otherwise report all diagnostics
-        else do
-          flushDiagnosticsBySource maxDiags (Just diagSrc)
-          mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) (M.toList diagsBySrc)
-      return outFile
--}
+-- A build retains all errors over all loaded modules, so we can always publish all
+diagnoseErrors :: J.NormalizedUri -> [ErrorMessage] -> LSM ()
+diagnoseErrors defaultUri errs
+  = do let diagSource = T.pack "koka"
+           maxDiags   = 100
+           diagss     = M.toList $ M.map partitionBySource $ M.fromListWith (++) $  -- group all errors per file uri
+                        map (errorMessageToDiagnostic diagSource defaultUri) errs
+       flushDiagnosticsBySource maxDiags (Just diagSource)
+       mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) diagss
