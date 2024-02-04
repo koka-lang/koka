@@ -24,56 +24,51 @@ import qualified Data.Text as T
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Protocol.Lens as J
+
 import Lib.PPrint
 import Common.Name
 import Common.Range
-import Type.Pretty (ppType, Env (..), defaultEnv, ppScheme)
-import Kind.ImportMap (ImportMap)
-import Compiler.Compile (Module(..), Loaded (..))
-import Compiler.Module (modLexemes)
-import Compile.Options (prettyEnvFromFlags, Flags)
-import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindIn, lexemesFromPos)
-import Syntax.Lexeme (Lexeme (..), Lex (..))
+import Type.Pretty         (ppType, Env (..), defaultEnv, ppScheme)
+import Compile.Options     (prettyEnvFromFlags, Flags)
+import Syntax.RangeMap     (NameInfo (..), RangeInfo (..), rangeMapFindIn, lexemesFromPos)
+import Syntax.Lexeme       (Lexeme (..), Lex (..))
 import Language.LSP.Server (Handlers, sendNotification, requestHandler)
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getFlags, getInlayHintOptions, InlayHintOptions (..), getLoadedLatest)
-import LanguageServer.Conversions (fromLspPos, toLspRange, toLspPos, fromLspRange)
+
+import LanguageServer.Monad
+import LanguageServer.Conversions
 import LanguageServer.Handler.Hover (formatRangeInfoHover)
 
-
--- The LSP handler that provides inlay hints (inline type annotations etc)
 inlayHintsHandler :: Handlers LSM
-inlayHintsHandler = requestHandler J.SMethod_TextDocumentInlayHint $ \req responder -> do
-  let J.InlayHintParams prog doc rng = req ^. J.params
-      uri = doc ^. J.uri
-      normUri = J.toNormalizedUri uri
-  options <- getInlayHintOptions
-  newRng <- liftIO $ fromLspRange normUri rng
-  loaded <- getLoadedLatest normUri -- don't trust outdated versions
-  flags <- getFlags
-  let rsp = do -- maybe monad
-        l <- loaded
-        let lm = loadedModule l
-        rmap <- modRangeMap lm
-        -- trace (show $ rangeMapFindIn True newRng rmap) $ return ()
-        let env = (prettyEnvFromFlags flags){
-                      context = modName lm,
-                      importsMap = loadedImportMap l,
-                      showFlavours=False
-                      -- fullNames=showFullQualifiers options
-                   }
-        let hints = concatMap (createInlayHints options env lm) $ rangeMapFindIn True {-for inlay hints-} newRng rmap
-        let hintsDistinct = nubBy (\h1 h2 -> h1 ^. J.position == h2 ^. J.position) hints
-        return hintsDistinct
-  case rsp of
-    Nothing  -> responder $ Right $ J.InR J.Null
-    Just rsp -> responder $ Right $ J.InL rsp
+inlayHintsHandler
+  = requestHandler J.SMethod_TextDocumentInlayHint $ \req responder ->
+    do  let J.InlayHintParams prog doc rng0 = req ^. J.params
+            uri  = J.toNormalizedUri (doc ^. J.uri)
 
+            done :: LSM ()
+            done = responder $ Right $ J.InR J.Null
+
+            liftMaybe :: LSM (Maybe a) -> (a -> LSM ()) -> LSM ()
+            liftMaybe action next = do res <- action
+                                       case res of
+                                         Nothing -> done
+                                         Just x  -> next x
+
+        options <- getInlayHintOptions
+        rng <- liftIO $ fromLspRange uri rng0
+
+        liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
+          liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
+            do penv <- getPrettyEnvFor modname
+               let hints = concatMap (createInlayHints options penv{showFlavours=False} modname lexemes) $
+                           rangeMapFindIn True {-for inlay hints-} rng rmap
+                   hintsDistinct = nubBy (\h1 h2 -> h1 ^. J.position == h2 ^. J.position) hints
+               responder $ Right $ J.InL hintsDistinct
 
 -- | Create inlay hints at some token
-createInlayHints :: InlayHintOptions -> Env -> Module -> (Range, RangeInfo) -> [J.InlayHint]
-createInlayHints opts env mod (rng, rinfo)
+createInlayHints :: InlayHintOptions -> Env -> ModuleName -> [Lexeme] -> (Range, RangeInfo) -> [J.InlayHint]
+createInlayHints opts env modname modlexemes (rng, rinfo)
   = concat [
-      guard showFullQualifiers    $ qualifierHint env (modName mod) lexemes rng rinfo,
+      guard showFullQualifiers    $ qualifierHint env modname lexemes rng rinfo,
       guard showInferredTypes     $ typeHint env lexemes rng rinfo,
       guard showImplicitArguments $ implicitsHint env lexemes rng rinfo
     ]
@@ -82,7 +77,7 @@ createInlayHints opts env mod (rng, rinfo)
       = if flag opts then action else []
 
     lexemes
-      = lexemesFromPos (rangeEnd rng) (modLexemes mod)
+      = lexemesFromPos (rangeEnd rng) modlexemes
 
 
 -- | Show type hint
