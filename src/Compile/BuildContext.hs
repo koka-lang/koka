@@ -23,7 +23,7 @@ module Compile.BuildContext ( BuildContext
                             , buildcFlushErrors, buildcLiftErrors
 
                             , buildcLookupModuleName
-                            , buildcGetDefinitions
+                            , buildcGetDefinitions, buildcGetFullDefinitions
                             , buildcGetMatchNames
                             , buildcGetRangeMap
                             , buildcPrettyEnvFor
@@ -69,6 +69,7 @@ import Compile.Module
 import Compile.Build
 import Compiler.Compile (searchSource)
 import Data.Maybe (isJust)
+import qualified Core.Core as Core
 
 
 
@@ -129,12 +130,27 @@ buildcRemoveRootSource fpath buildc
       Just mname -> buildcRemoveRootModule mname buildc
       _          -> buildc
 
--- After a type check, the definitions (gamma, kgamma etc.) can be returned
--- for a given set of modules.
+-- After a type check, the definitions (gamma, kgamma etc.) as defined an a set of modules can be returned.
 buildcGetDefinitions :: [ModuleName] -> BuildContext -> Definitions
 buildcGetDefinitions modules0 buildc
   = let modules = if null modules0 then buildcRoots buildc else modules0
     in defsFromModules (filter (\mod -> modName mod `elem` modules) (buildcModules buildc))
+
+-- After a type check, return all visible definitions in the given modules (includes imports)
+buildcGetFullDefinitions :: [ModuleName] -> BuildContext -> Definitions
+buildcGetFullDefinitions modules0 buildc
+  = let topNames   = if null modules0 then buildcRoots buildc else modules0
+        topModules = filter (\mod -> modName mod `elem` topNames) (buildcModules buildc)
+        allNames   = nub (concat (map modGetImportNames topModules) ++ topNames)
+        allModules = filter (\mod -> modName mod `elem` allNames) (buildcModules buildc)
+    in defsFromModules allModules
+  where
+    modGetImportNames :: Module -> [ModuleName]
+    modGetImportNames mod
+      = case modCore mod of
+          Just core -> map Core.importName (Core.coreProgImports core)
+          Nothing   -> modDeps mod
+
 
 -- Return a range map and lexemes for a given module
 buildcGetRangeMap :: ModuleName -> BuildContext -> Maybe (RangeMap,[Lexeme])
@@ -217,9 +233,9 @@ buildcSplitRoots buildc
 
 
 -- Type check the current build context (also validates and resolves)
-buildcTypeCheck :: BuildContext -> Build BuildContext
-buildcTypeCheck buildc0
-  = do buildc <- buildcValidate False [] buildc0
+buildcTypeCheck :: [ModuleName] -> BuildContext -> Build BuildContext
+buildcTypeCheck force buildc0
+  = do buildc <- buildcValidate False force buildc0
        mods   <- modulesTypeCheck (buildcModules buildc)
        return buildc{ buildcModules = mods }
 
@@ -293,7 +309,7 @@ buildcCompileExpr addShow typeCheckOnly importNames0 expr buildc
        withVirtualModule sourcePath content buildc $ \mainModName buildc1 ->
          do -- type check first
             let exprName = qualify mainModName (newName "@expr")
-            buildc2 <- buildcTypeCheck buildc1
+            buildc2 <- buildcTypeCheck [] buildc1
             hasErr  <- buildcHasError buildc2
             if hasErr
               then return (buildc2,Nothing)

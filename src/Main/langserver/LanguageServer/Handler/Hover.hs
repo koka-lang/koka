@@ -49,16 +49,19 @@ hoverHandler
             done = responder $ Right $ J.InR J.Null
 
             liftMaybe :: LSM (Maybe a) -> (a -> LSM ()) -> LSM ()
-            liftMaybe action next
-              = do res <- action
-                   case res of
-                     Nothing -> done
-                     Just x  -> next x
+            liftMaybe action next = do res <- action
+                                       case res of
+                                         Nothing -> done
+                                         Just x  -> next x
 
         pos <- liftIO $ fromLspPos uri pos0
+        -- trace ("hover: lookup: " ++ show uri) $
         liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
-          liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
-            liftMaybe (return (rangeMapFindAt lexemes pos rmap)) $ \(rng,rngInfo) ->
+          -- trace ("hover: found: " ++ show modname) $
+           liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
+            -- trace ("hover: found rangemap: " ) $
+             liftMaybe (return (rangeMapFindAt lexemes pos rmap)) $ \(rng,rngInfo) ->
+              -- trace ("hover: found rng info: " ++ show rngInfo) $
               do penv     <- getPrettyEnvFor modname
                  let doc = formatRangeInfoHover penv rngInfo
                  markdown <- prettyMarkdown doc

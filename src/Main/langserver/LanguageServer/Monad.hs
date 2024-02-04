@@ -32,6 +32,7 @@ module LanguageServer.Monad
 
     liftBuild, liftBuildWith,
     lookupModuleName, lookupRangeMap,
+    lookupDefinitions, lookupFullDefinitions, Definitions(..),
     getPrettyEnv, getPrettyEnvFor, prettyMarkdown,
     emitInfo, emitNotification
   )
@@ -459,3 +460,15 @@ emitNotification mkDoc
   = do penv     <- getPrettyEnv
        markdown <- prettyMarkdown (mkDoc penv)
        sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error markdown
+
+-- Return definitions (gamma etc) for a set of modules
+lookupDefinitions :: [ModuleName] -> LSM Definitions
+lookupDefinitions modnames
+  = do buildc <- getBuildContext
+       return (buildcGetDefinitions modnames buildc)
+
+-- Return definitions (gamma etc) for a set of modules including the imports.
+lookupFullDefinitions :: [ModuleName] -> LSM Definitions
+lookupFullDefinitions modnames
+  = do buildc <- getBuildContext
+       return (buildcGetFullDefinitions modnames buildc)

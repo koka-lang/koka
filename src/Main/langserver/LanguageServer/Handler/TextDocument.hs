@@ -143,7 +143,8 @@ rebuildUri mbFlags mbRun uri
 
 rebuildFile :: (Maybe Flags) -> Maybe Name -> J.NormalizedUri -> FilePath -> LSM (Maybe FilePath)
 rebuildFile mbFlags mbRun uri fpath
-    = do updateVFS
+    = trace ("koka: rebuild file: " ++ fpath) $
+      do updateVFS
          mbRes <- -- run build with diagnostics
                   liftBuildDiag mbFlags uri $ \buildc0 ->
                   -- get all errors from the returned build context
@@ -153,7 +154,8 @@ rebuildFile mbFlags mbRun uri fpath
                      buildcFocus [focus] buildc1 $ \focusMods buildcF ->
                         case mbRun of
                           -- just type check
-                          Nothing    -> do bc <- buildcTypeCheck buildcF
+                          Nothing    -> trace ("koka: rebuild: type check " ++ show focus) $
+                                        do bc <- buildcTypeCheck [focus] buildcF -- always force so we build rangemaps etc.
                                            return (bc,Nothing)
                           -- full build and return the executable
                           Just entry -> do let qentry = if isQualified entry then entry else qualify focus entry

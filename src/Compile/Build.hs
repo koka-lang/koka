@@ -362,7 +362,11 @@ moduleTypeCheck tcheckedMap
                       cimports = coreImportsFromModules (modDeps mod) (programImports program) imports
                   case checkError (typeCheck flags defs cimports program) of
                     Left errs
-                      -> done mod{ modPhase = PhaseTypedError, modErrors = mergeErrors errs (modErrors mod) }
+                      -> done mod{ modPhase = PhaseTypedError
+                                 , modErrors = if modPhase mod < PhaseTypedError
+                                                 then mergeErrors errs (modErrors mod)
+                                                 else errs
+                                 }
                     Right ((core,mbRangeMap),warns)
                       -> do let mod' = mod{ modPhase = PhaseTyped
                                           , modCore = Just $! core
@@ -505,7 +509,9 @@ moduleParse mod
        case checkError (parseProgramFromString allowAt (semiInsert flags) input (modSourcePath mod)) of
          Left errs
             -> return mod{ modPhase = PhaseParsedError
-                         , modErrors = mergeErrors errs (modErrors mod)
+                         , modErrors = if modPhase mod < PhaseParsedError
+                                         then mergeErrors errs (modErrors mod)
+                                         else errs
                          }
          Right (prog,warns)
             -> return mod{ modPhase = PhaseParsed
@@ -676,7 +682,7 @@ moduleValidate mod
                            -- reset fields that are not used by an IDE to reduce memory pressure
                            -- leave lexemes, rangeMap, and definitions.
                            modProgram = Nothing,
-                           modCore    = Nothing,
+                           -- modCore    = Nothing -- we need it for the imports to allow jump to definition; can we improve a bit?
                            modInlines = Right []
                          }
          else return mod'
