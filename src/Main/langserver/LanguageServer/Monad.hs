@@ -29,15 +29,17 @@ module LanguageServer.Monad
     getDiagnostics,putDiagnostics,clearDiagnostics,
     runLSM,
     getProgress,setProgress, maybeContents,
-    liftBuild,
 
-    lookupModuleName, lookupRangeMap, getPrettyEnv, getPrettyEnvFor, prettyMarkdown
+    liftBuild, liftBuildWith,
+    lookupModuleName, lookupRangeMap,
+    getPrettyEnv, getPrettyEnvFor, prettyMarkdown,
+    emitInfo, emitNotification
   )
 where
 
 import Debug.Trace(trace)
 import GHC.Conc (atomically)
-import GHC.Base (Alternative (..))
+import GHC.Base (Alternative (..), when)
 import Platform.Var (newVar, takeVar)
 import Platform.Filetime (FileTime)
 import Control.Concurrent.MVar (MVar, modifyMVar, newMVar, readMVar)
@@ -51,7 +53,7 @@ import qualified Data.Aeson as A
 import qualified Data.ByteString as D
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe, isJust, isNothing)
 import Data.List (find)
 import Data.Aeson.Types
 import Language.LSP.Server (LanguageContextEnv, LspT, runLspT, sendNotification, Handlers)
@@ -383,21 +385,32 @@ maybeContents vfs path = do
   return (text, ftime)
 
 
-getBuildContext :: LSM BuildContext
-getBuildContext
+-- Run a build with optionally temporarily changed flags (this restores the original build context afterwards)
+-- (when a build context is validated, it checks itself against the current flags and rebuilds accordingly)
+liftBuildWith :: Maybe Flags -> (BuildContext -> Build (BuildContext,a)) -> LSM (Either Errors (a,Errors))
+liftBuildWith mbFlags action
   = do ls <- getLSState
-       return (buildContext ls)
+       let vfs  = VFS (\fpath -> maybeContents (documentInfos ls) fpath)
+           flgs = case mbFlags of
+                    Nothing    -> flags ls
+                    Just flags -> flags
+       res <- liftIO $ runBuild (terminal ls) flgs $ withVFS vfs $ action (buildContext ls)
+       case res of
+         Left errs               -> return (Left errs)
+         Right ((buildc,x),errs) -> do when (isNothing mbFlags) $
+                                          modifyLSState (\ls -> ls{ buildContext = buildc })
+                                       return (Right (x,errs))
+
 
 -- Run a build monad with current terminal, flags, and virtual file system
 liftBuild :: (BuildContext -> Build (BuildContext,a)) -> LSM (Either Errors (a,Errors))
 liftBuild action
+  = liftBuildWith Nothing action
+
+getBuildContext :: LSM BuildContext
+getBuildContext
   = do ls <- getLSState
-       let vfs = VFS (\fpath -> maybeContents (documentInfos ls) fpath)
-       res <- liftIO $ runBuild (terminal ls) (flags ls) $ withVFS vfs $ action (buildContext ls)
-       case res of
-         Left errs               -> return (Left errs)
-         Right ((buildc,x),errs) -> do modifyLSState (\ls -> ls{ buildContext = buildc })
-                                       return (Right (x,errs))
+       return (buildContext ls)
 
 -- Module name from URI
 lookupModuleName :: J.NormalizedUri -> LSM (Maybe (FilePath,ModuleName))
@@ -432,3 +445,17 @@ prettyMarkdown :: Doc -> LSM T.Text
 prettyMarkdown doc
   = do htmlPrinter <- getHtmlPrinter
        liftIO (htmlPrinter doc)
+
+-- Sent text to the terminal info.
+emitInfo :: (TP.Env -> Doc) -> LSM ()
+emitInfo mkDoc
+  = do penv <- getPrettyEnv
+       term <- getTerminal
+       liftIO $ termInfo term (mkDoc penv)
+
+-- Emit an error notification
+emitNotification :: (TP.Env -> Doc) -> LSM ()
+emitNotification mkDoc
+  = do penv     <- getPrettyEnv
+       markdown <- prettyMarkdown (mkDoc penv)
+       sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error markdown

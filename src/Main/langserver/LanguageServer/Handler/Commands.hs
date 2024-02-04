@@ -53,14 +53,11 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
       Just [Json.String filePath, Json.String additionalArgs] -> do
         -- Update the flags with the specified arguments
         newFlags <- getNewFlags flags additionalArgs
-        let forceRecompilation = flags /= newFlags
         -- Recompile the file, but with executable target
         withProgress (T.pack "Compiling " <> filePath) J.Cancellable $ \report -> do
           setProgress (Just report)
-          res <- trace ("koka/compile: " ++ T.unpack filePath ++ ", " ++ show (filePathToUri (T.unpack filePath))) $
-                 -- recompileFile (Executable (newName "main") ()) (filePathToUri (T.unpack filePath)) Nothing forceRecompilation newFlags
-                 -- TODO: handle new flags!
-                 rebuildUri (Just (newName "main")) (J.toNormalizedUri (filePathToUri (T.unpack filePath)))
+          res <- -- trace ("koka/compile: " ++ T.unpack filePath ++ ", " ++ show (filePathToUri (T.unpack filePath))) $
+                 rebuildUri (Just newFlags) (Just (newName "main")) (J.toNormalizedUri (filePathToUri (T.unpack filePath)))
           term <- trace ("koka/compile: result: " ++ show res) $ getTerminal
           liftIO $ termInfo term $ text "Finished generating code for main file" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing
@@ -73,14 +70,11 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
       Just [Json.String filePath, Json.String functionName, Json.String additionalArgs] -> do
         -- Update the flags with the specified arguments
         newFlags <- getNewFlags flags additionalArgs
-        let forceRecompilation = flags /= newFlags
         -- Compile the expression, but with the interpret target
         withProgress (T.pack "Compiling " <> functionName) J.Cancellable $ \report -> do
           setProgress (Just report)
           -- compile the expression
-          res <- -- compileEditorExpression (filePathToUri $ T.unpack filePath) newFlags forceRecompilation (T.unpack filePath) (T.unpack functionName)
-                 -- TODO: handle new flags!
-                 rebuildUri (Just (newName (T.unpack functionName))) (J.toNormalizedUri (filePathToUri (T.unpack filePath)))
+          res <- rebuildUri (Just newFlags) (Just (newName (T.unpack functionName))) (J.toNormalizedUri (filePathToUri (T.unpack filePath)))
           term <- getTerminal
           liftIO $ termInfo term $ text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) <+> text "in" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing
