@@ -87,7 +87,7 @@ data BuildContext = BuildContext {
 -- An empty build context
 buildcEmpty :: Flags -> BuildContext
 buildcEmpty flags
-  = BuildContext [] [] $! flagsHash flags
+  = BuildContext [] [] (flagsHash flags)
 
 
 -- Add roots to a build context
@@ -97,8 +97,9 @@ buildcAddRootSources fpaths buildc
        let rootNames = map modName mods
            roots   = nub (map modName mods ++ buildcRoots buildc)
            modules = mergeModules mods (buildcModules buildc)
-       seqList roots $ seqList modules $
-        return (buildc{ buildcRoots = roots, buildcModules = modules }, rootNames)
+           buildc' = buildc{ buildcRoots = seqqList roots, buildcModules = seqqList modules }
+       seqList rootNames $ seq buildc' $
+        return (buildc', rootNames)
 
 -- Add root modules (by module name) to a build context
 buildcAddRootModules :: [ModuleName] -> BuildContext -> Build BuildContext
@@ -106,8 +107,7 @@ buildcAddRootModules moduleNames buildc
   = do mods <- mapM (moduleFromModuleName "" {-relative dir-}) moduleNames
        let roots   = nub (map modName mods ++ buildcRoots buildc)
            modules = mergeModules mods (buildcModules buildc)
-       seqList roots $ seqList modules $
-        return buildc{ buildcRoots = roots, buildcModules = modules }
+       return $! buildc{ buildcRoots = seqqList roots, buildcModules = seqqList modules }
 
 -- Clear the roots
 buildcClearRoots :: BuildContext -> BuildContext
@@ -117,13 +117,14 @@ buildcClearRoots buildc
 -- Remove a root module
 buildcRemoveRootModule :: ModuleName -> BuildContext -> BuildContext
 buildcRemoveRootModule mname buildc
-  = buildc{ buildcRoots = filter (/=mname) (buildcRoots buildc) }
+  = buildc{ buildcRoots = seqqList $ filter (/=mname) (buildcRoots buildc) }
 
 -- Lookup the module name for a module source previously added.
 buildcLookupModuleName :: FilePath -> BuildContext -> Maybe ModuleName
 buildcLookupModuleName fpath0 buildc
   = let fpath = normalize fpath0
-    in modName <$> find (\m -> modSourcePath m == fpath || modSourceRelativePath m == fpath) (buildcModules buildc)
+        mbRes = modName <$> find (\m -> modSourcePath m == fpath || modSourceRelativePath m == fpath) (buildcModules buildc)
+    in seqMaybe mbRes mbRes
 
 -- Remove a root by file name
 buildcRemoveRootSource :: FilePath -> BuildContext -> BuildContext
@@ -136,7 +137,8 @@ buildcRemoveRootSource fpath buildc
 buildcGetDefinitions :: [ModuleName] -> BuildContext -> Definitions
 buildcGetDefinitions modules0 buildc
   = let modules = if null modules0 then buildcRoots buildc else modules0
-    in defsFromModules (filter (\mod -> modName mod `elem` modules) (buildcModules buildc))
+        defs = defsFromModules (filter (\mod -> modName mod `elem` modules) (buildcModules buildc))
+    in seq defs defs
 
 -- After a type check, return all visible definitions in the given modules (includes imports)
 buildcGetFullDefinitions :: [ModuleName] -> BuildContext -> Definitions
@@ -145,7 +147,8 @@ buildcGetFullDefinitions modules0 buildc
         topModules = filter (\mod -> modName mod `elem` topNames) (buildcModules buildc)
         allNames   = nub (concat (map modGetImportNames topModules) ++ topNames)
         allModules = filter (\mod -> modName mod `elem` allNames) (buildcModules buildc)
-    in defsFromModules allModules
+        defs = defsFromModules allModules
+    in seq defs defs
   where
     modGetImportNames :: Module -> [ModuleName]
     modGetImportNames mod
@@ -157,9 +160,12 @@ buildcGetFullDefinitions modules0 buildc
 -- Return a range map and lexemes for a given module
 buildcGetRangeMap :: ModuleName -> BuildContext -> Maybe (RangeMap,[Lexeme])
 buildcGetRangeMap modname buildc
-  = do mod  <- buildcLookupModule modname buildc
+  = seqqMaybe $
+    do mod  <- buildcLookupModule modname buildc
        rmap <- modRangeMap mod
-       return (rmap,modLexemes mod)
+       let lexs = modLexemes mod
+       seqList lexs $ seq rmap $
+         return (rmap,lexs)
 
 -- Return a range map and lexemes for a given module
 buildcLookupProgram :: ModuleName -> BuildContext -> Maybe UserProgram
@@ -178,13 +184,14 @@ buildcPrettyEnvFor penv modname buildc
 buildcGetMatchNames :: [ModuleName] -> BuildContext -> [String]
 buildcGetMatchNames modules buildc
   = let defs = buildcGetDefinitions modules buildc
-    in map (showPlain . unqualify) $ gammaPublicNames (defsGamma defs)
+    in seqqList $! map (showPlain . unqualify) $ gammaPublicNames (defsGamma defs)
 
 -- Return all module names with their associated source.
 buildcModulePaths :: BuildContext -> [(ModuleName,FilePath)]
 buildcModulePaths buildc
-  = [(modName mod, if not (null (modSourcePath mod)) then modSourcePath mod else modLibIfacePath mod)
-    | mod <- buildcModules buildc]
+  = seqqList $ map seqqTuple2 $
+    [(modName mod, if not (null (modSourcePath mod)) then modSourcePath mod else modLibIfacePath mod)
+     | mod <- buildcModules buildc]
 
 
 -- Focus a build action on a restricted context with the given focus roots.
@@ -200,9 +207,9 @@ buildcFocus focusRoots buildc0 action
        let touched = map modName (buildcModules buildcFocus)
        (buildcRes,x) <- seqList touched $ action touched buildcFocus
        let mmods = mergeModulesLeftBias (buildcModules buildcRes) cached
-       seqList mmods $
-         do let buildcFullRes = buildcRes{ buildcRoots = roots, buildcModules = mmods }
-            seq buildcFullRes $ return (buildcFullRes, x)
+           buildcFullRes = buildcRes{ buildcRoots = seqqList $ roots, buildcModules = seqqList $ mmods }
+       seq buildcFullRes $ seq x $
+         return (buildcFullRes, x)
 
 
 -- Reset a build context from the roots (for example, when the flags have changed)
@@ -214,7 +221,7 @@ buildcFreshFromRoots buildc
        (buildc1,_) <- buildcAddRootSources rootSources (buildc{ buildcRoots = [], buildcModules=[], buildcHash = flagsHash flags })
        let (roots1,_) = buildcSplitRoots buildc1
        mods  <- modulesReValidate False [] [] roots1
-       return buildc1{ buildcModules = mods }
+       return $! buildc1{ buildcModules = seqqList mods }
 
 -- Check if the flags are still valid for this context
 buildcValidateFlags :: BuildContext -> Build BuildContext
@@ -238,12 +245,13 @@ buildcValidate rebuild forced buildc
          then buildcFreshFromRoots buildc
          else do let (roots,imports) = buildcSplitRoots buildc
                  mods <- modulesReValidate rebuild forced imports roots
-                 return buildc{ buildcModules = mods }
+                 return $! buildc{ buildcModules = seqqList mods }
 
 -- Return the root modules and their (currently cached) dependencies.
 buildcSplitRoots :: BuildContext -> ([Module],[Module])
 buildcSplitRoots buildc
-  = partition (\m -> modName m `elem` buildcRoots buildc) (buildcModules buildc)
+  = let (xs,ys) = partition (\m -> modName m `elem` buildcRoots buildc) (buildcModules buildc)
+    in seqList xs $ seqList ys $ (xs,ys)
 
 
 -- Type check the current build context (also validates and resolves)
@@ -251,7 +259,7 @@ buildcTypeCheck :: [ModuleName] -> BuildContext -> Build BuildContext
 buildcTypeCheck force buildc0
   = do buildc <- buildcValidate False force buildc0
        mods   <- modulesTypeCheck (buildcModules buildc)
-       return buildc{ buildcModules = mods }
+       return $! buildc{ buildcModules = seqqList $ mods }
 
 -- Build the current build context under a given set of main entry points. (also validates)
 buildcBuild :: [Name] -> BuildContext -> Build BuildContext
@@ -265,7 +273,7 @@ buildcBuildEx rebuild forced mainEntries buildc0
   = phaseTimed 2 "building" (\penv -> empty) $
     do buildc <- buildcValidate rebuild forced buildc0
        mods <- modulesBuild mainEntries (buildcModules buildc)
-       return (buildc{ buildcModules = mods})
+       return $! buildc{ buildcModules = seqqList mods}
 
 -- After a build with given main entry points, return a compiled entry
 -- point for a given module as the executable path, and an `IO` action
@@ -324,7 +332,7 @@ buildcCompileExpr addShow typeCheckOnly importNames0 expr buildc
          do -- type check first
             let exprName = qualify mainModName (newName "@expr")
             buildc2 <- buildcTypeCheck [] buildc1
-            hasErr  <- buildcHasError buildc2
+            hasErr  <- seq buildc2 $ buildcHasError buildc2
             if hasErr
               then return (buildc2,Nothing)
               else case buildcLookupTypeOf exprName buildc2 of
@@ -346,12 +354,12 @@ buildcGetErrorRange buildc
   = do mbRng <- hasBuildError
        case mbRng of
          Just rng -> return (Just rng)
-         Nothing  -> return $! buildcGetErrorRangeOf buildc
+         Nothing  -> return $! seqqMaybe $ buildcGetErrorRangeOf buildc
 
 buildcHasError :: BuildContext -> Build Bool
 buildcHasError buildc
   = do mbRng <- buildcGetErrorRange buildc
-       return (isJust mbRng)
+       return $! (isJust mbRng)
 
 buildcThrowOnError :: BuildContext -> Build ()
 buildcThrowOnError buildc
@@ -381,7 +389,7 @@ buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName t
                 else do -- and return the entry point
                         let mainMod = buildcFindModule mainModName buildc2
                             entry   = modEntry mainMod
-                        return $ seq entry (buildc2,Just(tp,entry))
+                        return $! seq entry $ seq buildc2 $ (buildc2,Just(tp,entry))
 
 
 bunlines :: [String] -> BString
@@ -444,7 +452,8 @@ withVirtualModule fpath0 content buildc action
   = withVirtualFile fpath0 content $ \fpath ->
     do (buildc1,[modName]) <- buildcAddRootSources [fpath] buildc
        (buildc2,x) <- action modName buildc1
-       return (buildcRemoveRootSource fpath buildc2, x)
+       let buildc3 = buildcRemoveRootSource fpath buildc2
+       return $! seq buildc3 $ (buildc3, x)
 
 -- Run a build action with a virtual file.
 withVirtualFile :: FilePath -> BString -> (FilePath -> Build a) -> Build a
@@ -465,28 +474,28 @@ buildcFindModule modname buildc
 -- Return a module by name
 buildcLookupModule :: HasCallStack => ModuleName -> BuildContext -> Maybe Module
 buildcLookupModule modname buildc
-  = find (\mod -> modName mod == modname) (buildcModules buildc)
+  = seqqMaybe $ find (\mod -> modName mod == modname) (buildcModules buildc)
 
 -- Lookup `NameInfo` in a build context from a fully qualified name
 buildcLookupInfo :: Name -> BuildContext -> [NameInfo]
 buildcLookupInfo name buildc
   = case find (\mod -> modName mod == qualifier name) (buildcModules buildc) of
       Just mod -> -- trace ("lookup " ++ show name ++ " in " ++ show (modName mod) ++ "\n" ++ showHidden (defsGamma (defsFromModules [mod]))) $
-                  map snd (gammaLookup name (defsGamma (defsFromModules [mod])))
+                  seqqList $ map snd (gammaLookup name (defsGamma (defsFromModules [mod])))
       _        -> []
 
 -- Lookup the type of a fully qualified name
 buildcLookupTypeOf :: Name -> BuildContext -> Maybe Type
 buildcLookupTypeOf name buildc
   = case buildcLookupInfo name buildc of
-      [info] | isInfoValFunExt info -> Just (infoType info)
+      [info] | isInfoValFunExt info -> Just $! (infoType info)
       _      -> Nothing
 
 -- Return the current output directory
 buildcOutputDir :: Build FilePath
 buildcOutputDir
   = do flags <- getFlags
-       return (outName flags "")
+       return $! outName flags ""
 
 -- Search for a search file according to the include paths and virtual files.
 -- Returns the root of the path and the maximal stem according to the include path.

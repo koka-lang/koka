@@ -27,7 +27,7 @@ import Data.Char              ( isAlphaNum )
 import Common.Range           ( Range, rangeNull, makeSourceRange )
 import Common.Name            ( Name, ModuleName, newName, unqualify, isHiddenName, showPlain)
 import Common.Error
-import Common.File            ( FileTime, fileTime0, maxFileTimes, splitPath )
+import Common.File
 
 import Syntax.Syntax
 import Syntax.Lexeme
@@ -139,15 +139,16 @@ moduleCreateInitial modName sourcePath ifacePath libIfacePath
 
 mergeModules :: [Module] -> [Module] -> [Module]
 mergeModules mods1 mods2
-  = mergeModulesWith (\m1 m2 -> if modPhase m1 >= modPhase m2 then m1 else m2) mods1 mods2
+  = seqqList $ mergeModulesWith (\m1 m2 -> if modPhase m1 >= modPhase m2 then m1 else m2) mods1 mods2
 
 mergeModulesLeftBias :: [Module] -> [Module] -> [Module]
 mergeModulesLeftBias mods1 mods2
-  = mergeModulesWith (\m1 m2 -> m1) mods1 mods2
+  = seqqList $ mergeModulesWith (\m1 m2 -> m1) mods1 mods2
+
 
 mergeModulesWith :: (Module -> Module -> Module) -> [Module] -> [Module] -> [Module]
 mergeModulesWith combine mods1 mods2
-  = foldl' (mergeModuleWith combine) mods1 mods2
+  = seqqList $ foldl' (mergeModuleWith combine) mods1 mods2
 
 mergeModuleWith :: (Module -> Module -> Module) -> [Module] -> Module -> [Module]
 mergeModuleWith combine [] mod  = [mod]
@@ -161,12 +162,12 @@ modCoreImports :: Module -> [Core.Import]
 modCoreImports mod
   = case modCore mod of
       Nothing   -> []
-      Just core -> Core.coreProgImports core
+      Just core -> seqqList $! Core.coreProgImports core
 
 
 modImportNames :: Module -> [ModuleName]
 modImportNames mod
-  = map Core.importName (modCoreImports mod)
+  = seqqList $! map Core.importName (modCoreImports mod)
 
 
 
@@ -196,7 +197,8 @@ defsNames defs
 
 defsMatchNames :: Definitions -> [String]
 defsMatchNames defs
-  = map (showPlain . unqualify) $ gammaPublicNames (defsGamma defs)
+  = seqqList $ map (showPlain . unqualify) $ gammaPublicNames (defsGamma defs)
+
 
 defsFromCore :: Bool -> Core.Core -> Definitions
 defsFromCore privateAsPublic core
@@ -215,14 +217,17 @@ defsFromCore privateAsPublic core
 
 defsFromModules :: HasCallStack => [Module] -> Definitions
 defsFromModules mods
-  = defsMerge $ map (\mod -> case modDefinitions mod of
+  = let defs = defsMerge $ map (\mod -> case modDefinitions mod of
                                Just defs | not (modShouldOpen mod) -> defs  -- cached
                                _ -> case modCore mod of
                                       Just core -> defsFromCore (modShouldOpen mod) core
                                       Nothing   -> defsNull) mods
+    in seq defs defs
 
 defsMerge :: HasCallStack => [Definitions] -> Definitions
-defsMerge defs  = foldl' defsCompose defsNull defs
+defsMerge defss
+  = let defs = foldl' defsCompose defsNull defss
+    in seq defs defs
 
 defsCompose :: HasCallStack => Definitions -> Definitions -> Definitions
 defsCompose defs1 defs2

@@ -39,8 +39,9 @@ in practice:
 
 * You cannot reliably tell how many SI seconds in the future a certain
   UTC time occurs (since there may be leap seconds inserted in the future).
-  If you need to store a future date, say ``2020-01-01T12:00:00Z``, then
-  store it as an ISO calendar date (`:std/time/time/time`), not as a time stamp.
+  If you need to store a future date, then
+  store it as an ISO calendar date, like ``2020-01-01T12:00:00Z``,
+  not as a time stamp.
 
 * Do not use Unix time stamps as those may be ambiguous (see `unix-instant`);
   this library

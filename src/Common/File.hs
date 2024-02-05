@@ -46,7 +46,8 @@ module Common.File(
                   , makeRelativeToPaths
                   , getCwd
                   , relativeToPath
-                  , seqList
+                  , seqList, seqMaybe, seqEither, seqTuple2
+                  , seqqList, seqqMaybe, seqqEither, seqqTuple2
                   ) where
 
 import Data.List        ( intersperse, isPrefixOf, maximumBy )
@@ -70,6 +71,31 @@ import Platform.Filetime
 seqList :: [a] -> b -> b
 seqList [] b     = b
 seqList (x:xs) b = seq x (seqList xs b)
+
+seqMaybe :: Maybe a -> b -> b
+seqMaybe Nothing  b = b
+seqMaybe (Just x) b = seq x b
+
+seqEither :: Either a b -> c -> c
+seqEither (Left x) z  = seq x z
+seqEither (Right y) z = seq y z
+
+seqTuple2 :: (a,b) -> c -> c
+seqTuple2 (x,y) z  = seq x (seq y z)
+
+-- use seqqXXX when assigning to a field that is already strict
+seqqList :: [a] -> [a]
+seqqList xs  = seqList xs xs
+
+seqqMaybe :: Maybe a -> Maybe a
+seqqMaybe x  = seqMaybe x x
+
+seqqEither :: Either a b -> Either a b
+seqqEither x  = seqEither x x
+
+seqqTuple2 :: (a,b) -> (a,b)
+seqqTuple2 x  = seqTuple2 x x
+
 
 startsWith, endsWith :: String -> String -> Bool
 startsWith s  [] = True
