@@ -22,6 +22,8 @@ import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.Server (Handlers, requestHandler)
+
+import Common.Name
 import Common.Range as R
 import Kind.Constructors (conInfoRange, constructorsLookup)
 import Kind.Newtypes (dataInfoRange, newtypesLookupAny)
@@ -53,11 +55,12 @@ definitionHandler
           liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
             liftMaybe (return (rangeMapFindAt lexemes pos rmap)) $ \(rng,rngInfo) ->
               do defs <- lookupFullDefinitions [modname]
-                 let defLinks = findDefLinks defs rngInfo
+                 mods <- lookupModulePaths
+                 let defLinks = findDefLinks defs mods rngInfo
                  responder $ Right $ J.InR $ J.InL defLinks
 
-findDefLinks :: Definitions -> RangeInfo -> [J.DefinitionLink]
-findDefLinks defs rngInfo
+findDefLinks :: Definitions -> [(ModuleName,FilePath)] -> RangeInfo -> [J.DefinitionLink]
+findDefLinks defs mods rngInfo
   = case rngInfo of
       Id qname idInfo docs _
         -> -- trace ("find definition of id: " ++ show qname) $
@@ -69,11 +72,7 @@ findDefLinks defs rngInfo
                                         ++
                                          (map dataInfoRange $ maybeToList $ newtypesLookupAny qname (defsNewtypes defs))
                           NITypeVar _ -> []
-                          NIModule    -> [] -- TODO
-                                         {-
-                                         [R.makeSourceRange (modSourcePath mod) 1 1 1 1
-                                           | mod <- loadedModules loaded, modName mod == qname]
-                                         -}
+                          NIModule    -> [R.makeSourceRange fpath 1 1 1 1 | (modname,fpath) <- mods, modname == qname]
                           NIKind      -> []
           in map (J.DefinitionLink . toLspLocationLink rngInfo) ranges
       _ -> []

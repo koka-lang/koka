@@ -16,11 +16,13 @@ module LanguageServer.Handler.Hover (hoverHandler, formatRangeInfoHover) where
 
 import Debug.Trace (trace)
 import Data.Char(isSpace)
+import Data.List(find)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text as T
 
 import Lib.PPrint
+import Common.Name
 import Common.Range as R
 import Kind.Kind(isKindEffect,isKindHandled,isKindHandled1,isKindLabel)
 import Kind.Pretty (prettyKind)
@@ -62,8 +64,9 @@ hoverHandler
             -- trace ("hover: found rangemap: " ) $
              liftMaybe (return (rangeMapFindAt lexemes pos rmap)) $ \(rng,rngInfo) ->
               -- trace ("hover: found rng info: " ++ show rngInfo) $
-              do penv     <- getPrettyEnvFor modname
-                 let doc = formatRangeInfoHover penv rngInfo
+              do penv <- getPrettyEnvFor modname
+                 mods <- lookupModulePaths
+                 let doc = formatRangeInfoHover penv mods rngInfo
                  markdown <- prettyMarkdown doc
                  let rsp = J.Hover (J.InL (J.mkMarkdown markdown)) (Just (toLspRange rng))
                  -- trace ("hover markdown:\n" ++ show markdown) $
@@ -71,8 +74,8 @@ hoverHandler
 
 
 -- Pretty-prints type/kind information to a hover tooltip given a type pretty environment, color scheme
-formatRangeInfoHover :: Env -> RangeInfo -> Doc
-formatRangeInfoHover env rinfo
+formatRangeInfoHover :: Env -> [(ModuleName,FilePath)] -> RangeInfo -> Doc
+formatRangeInfoHover env mods rinfo
   = let kw s = keyword env s
     in case rinfo of
       Decl s name mname mbType -> asKokaCode (kw s <+> pretty name <.>
@@ -96,12 +99,11 @@ formatRangeInfoHover env rinfo
                                                     else kw "type")
                                                 <+> namedoc <+> text "::" <+> prettyKind (colors env) k
                           NITypeVar k       -> kw "type" <+> namedoc <+> text "::" <+> prettyKind (colors env) k
-                          NIModule -> kw "module" <+> namedoc
-                                      {-
-                                      (case filter (\mod -> modName mod == qname) (loadedModules loaded) of
-                                            [mod] | not (null (modSourcePath mod)) -> text (" (at \"" ++ modSourcePath mod ++ "\")")
-                                            _     -> empty
-                                        )-}
+                          NIModule -> kw "module" <+> namedoc <.>
+                                      (case find (\(modname,fpath) -> modname == qname) mods of
+                                            Just (modname,fpath) -> text (" (at \"" ++ fpath ++ "\")")
+                                            Nothing -> empty
+                                        )
                           NIKind -> kw "kind" <+> namedoc
             comment = case info of
                         NIValue _ tp doc _ -> ppComment doc

@@ -26,6 +26,7 @@ module Compile.BuildContext ( BuildContext
                             , buildcGetDefinitions, buildcGetFullDefinitions
                             , buildcGetMatchNames
                             , buildcGetRangeMap
+                            , buildcModulePaths
                             , buildcPrettyEnvFor
 
                             , buildcLookupTypeOf
@@ -179,6 +180,11 @@ buildcGetMatchNames modules buildc
   = let defs = buildcGetDefinitions modules buildc
     in map (showPlain . unqualify) $ gammaPublicNames (defsGamma defs)
 
+-- Return all module names with their associated source.
+buildcModulePaths :: BuildContext -> [(ModuleName,FilePath)]
+buildcModulePaths buildc
+  = [(modName mod, if not (null (modSourcePath mod)) then modSourcePath mod else modLibIfacePath mod)
+    | mod <- buildcModules buildc]
 
 
 -- Focus a build action on a restricted context with the given focus roots.
