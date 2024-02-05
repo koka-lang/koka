@@ -31,7 +31,7 @@ module LanguageServer.Monad
     getProgress,setProgress, maybeContents,
 
     liftBuild, liftBuildWith,
-    lookupModuleName, lookupRangeMap,
+    lookupModuleName, lookupRangeMap, lookupProgram,
     lookupDefinitions, lookupFullDefinitions, Definitions(..),
     getPrettyEnv, getPrettyEnvFor, prettyMarkdown,
     emitInfo, emitNotification
@@ -69,6 +69,7 @@ import Common.Error
 import Lib.PPrint hiding (empty)
 import Lib.Printer
 import qualified Type.Pretty as TP
+import Syntax.Syntax( UserProgram )
 import Syntax.RangeMap( RangeMap )
 import Syntax.Lexeme( Lexeme )
 import Kind.ImportMap (importsEmpty)
@@ -427,6 +428,13 @@ lookupRangeMap :: ModuleName -> LSM (Maybe (RangeMap,[Lexeme]))
 lookupRangeMap mname
   = do buildc <- getBuildContext
        return (buildcGetRangeMap mname buildc)
+
+-- Program from module name
+lookupProgram :: ModuleName -> LSM (Maybe UserProgram)
+lookupProgram mname
+  = do buildc <- getBuildContext
+       return (buildcLookupProgram mname buildc)
+
 
 -- Pretty environment
 getPrettyEnv :: LSM TP.Env

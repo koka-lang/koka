@@ -30,6 +30,7 @@ module Compile.BuildContext ( BuildContext
 
                             , buildcLookupTypeOf
                             , buildcLookupInfo
+                            , buildcLookupProgram
                             , buildcOutputDir
                             , buildcSearchSourceFile
                             , buildcGetMainEntry
@@ -60,6 +61,7 @@ import Common.Failure
 import Common.ColorScheme
 import Syntax.RangeMap( RangeMap )
 import Syntax.Lexeme( Lexeme )
+import Syntax.Syntax( UserProgram )
 import Type.Type
 import qualified Type.Pretty as TP
 import Type.Kind       (extractHandledEffect, getHandledEffectX )
@@ -67,7 +69,6 @@ import Type.Assumption
 import Compile.Options
 import Compile.Module
 import Compile.Build
-import Compiler.Compile (searchSource)
 import Data.Maybe (isJust)
 import qualified Core.Core as Core
 
@@ -158,6 +159,13 @@ buildcGetRangeMap modname buildc
   = do mod  <- buildcLookupModule modname buildc
        rmap <- modRangeMap mod
        return (rmap,modLexemes mod)
+
+-- Return a range map and lexemes for a given module
+buildcLookupProgram :: ModuleName -> BuildContext -> Maybe UserProgram
+buildcLookupProgram modname buildc
+  = do mod  <- buildcLookupModule modname buildc
+       modProgram mod
+
 
 buildcPrettyEnvFor :: TP.Env -> ModuleName -> BuildContext -> TP.Env
 buildcPrettyEnvFor penv modname buildc
