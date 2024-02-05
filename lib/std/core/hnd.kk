@@ -24,6 +24,15 @@
   thus we need to do this by hand in this module which allows us to implement
   most primitives directly in Koka keeping the external C/JavaScript/etc primitives
   to a minimum.
+
+  An effect _row_ has kind `::E`, while an atomic effect kind is `::X`.
+  (We will see that `::X` is equal to the kind `::(E,V) -> V` )
+  We use the term "answer" context to talk about the result type `:a` and effect type `:e` of
+  (the context of) the handler in the stack. The `:e` does not include the effect `::X` of the handler.
+
+  - `:marker<e,a>` : a unique integer corresponding to an answer context `:<e,a>`. This functions
+    as a dependent type: when the integer matches at runtime, that will be the type of the answer context.
+  -
 */
 module std/core/hnd
 

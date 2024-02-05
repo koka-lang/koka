@@ -60,7 +60,7 @@ didOpenHandler = notificationHandler J.SMethod_TextDocumentDidOpen $ \msg -> do
   let version = msg ^. J.params . J.textDocument . J.version
   flags <- getFlags
   -- _ <- recompileFile Object uri (Just version) False flags
-  rebuildUri Nothing Nothing (J.toNormalizedUri uri)
+  rebuildUri Nothing Nothing True {-force-} (J.toNormalizedUri uri)
   return ()
 
 -- Recompile the file on changes
@@ -70,7 +70,7 @@ didChangeHandler = notificationHandler J.SMethod_TextDocumentDidChange $ \msg ->
   let version = msg ^. J.params . J.textDocument . J.version
   flags <- getFlags
   -- _ <- recompileFile Object uri (Just version) False flags
-  rebuildUri Nothing Nothing (J.toNormalizedUri uri)
+  rebuildUri Nothing Nothing False (J.toNormalizedUri uri)
   return ()
 
 -- Saving a file just recompiles it
@@ -79,7 +79,7 @@ didSaveHandler = notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
   flags <- getFlags
   -- _ <- recompileFile Object uri Nothing False flags
-  rebuildUri Nothing Nothing (J.toNormalizedUri uri)
+  rebuildUri Nothing Nothing True {-force-}  (J.toNormalizedUri uri)
   return ()
 
 -- Closing the file
@@ -89,6 +89,7 @@ didCloseHandler = notificationHandler J.SMethod_TextDocumentDidClose $ \msg -> d
   -- removeLoadedUri (J.toNormalizedUri uri)
   -- Don't remove diagnostics so the file stays red in the editor, and problems are shown, but do remove the compilation state
   -- note: don't remove from the roots in the build context
+  -- TODO: maybe only keep the diagnostics? May not be worth the trouble?
   return ()
 
 
@@ -134,15 +135,15 @@ updateVFS = do
   return newvfs
 
 
-rebuildUri :: Maybe Flags -> Maybe Name -> J.NormalizedUri -> LSM (Maybe FilePath)
-rebuildUri mbFlags mbRun uri
+rebuildUri :: Maybe Flags -> Maybe Name -> Bool -> J.NormalizedUri -> LSM (Maybe FilePath)
+rebuildUri mbFlags mbRun force uri
   = do mbfpath <- liftIO $ fromLspUri uri
        case mbfpath of
          Nothing    -> return Nothing
-         Just fpath -> rebuildFile mbFlags mbRun uri fpath
+         Just fpath -> rebuildFile mbFlags mbRun force uri fpath
 
-rebuildFile :: (Maybe Flags) -> Maybe Name -> J.NormalizedUri -> FilePath -> LSM (Maybe FilePath)
-rebuildFile mbFlags mbRun uri fpath
+rebuildFile :: (Maybe Flags) -> Maybe Name -> Bool -> J.NormalizedUri -> FilePath -> LSM (Maybe FilePath)
+rebuildFile mbFlags mbRun force uri fpath
     = trace ("koka: rebuild file: " ++ fpath) $
       do updateVFS
          mbRes <- -- run build with diagnostics
@@ -155,7 +156,7 @@ rebuildFile mbFlags mbRun uri fpath
                         case mbRun of
                           -- just type check
                           Nothing    -> trace ("koka: rebuild: type check " ++ show focus) $
-                                        do bc <- buildcTypeCheck [focus] buildcF -- always force so we build rangemaps etc.
+                                        do bc <- buildcTypeCheck (if force then [focus] else []) buildcF  -- only force on "open" to build range maps etc.
                                            return (bc,Nothing)
                           -- full build and return the executable
                           Just entry -> do let qentry = if isQualified entry then entry else qualify focus entry
