@@ -18,7 +18,7 @@
 
 module LanguageServer.Handlers (ReactorInput(..), lspHandlers) where
 
-import Prelude hiding (id)
+
 import GHC.Conc (atomically)
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent.STM.TChan ( writeTChan )
@@ -35,16 +35,19 @@ import Control.Monad (when, unless)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Text as T
+
 import Language.LSP.Protocol.Lens hiding (color, text, retry)
+import qualified Language.LSP.Protocol.Lens as L
 import Language.LSP.Protocol.Message (TRequestMessage(..), TNotificationMessage(..), Method, MessageDirection(..), MessageKind(..), SMethod (..), SomeLspId (SomeLspId), LspId (..), NotificationMessage (..), ResponseError (..))
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.Protocol.Types (DidChangeTextDocumentParams(..), VersionedTextDocumentIdentifier (..))
 import Language.LSP.Server (Handlers, notificationHandler, sendNotification, Handler, mapHandlers, MonadLsp (..))
 
-import Compile.Options (Flags)
+import Compile.Options (Flags,Terminal(..))
 import Lib.PPrint (Doc, text, color)
 import Common.ColorScheme (Color (..))
+
 import LanguageServer.Handler.Completion (completionHandler)
 import LanguageServer.Handler.Definition (definitionHandler)
 import LanguageServer.Handler.DocumentSymbol (documentSymbolHandler)
@@ -53,11 +56,8 @@ import LanguageServer.Handler.InlayHints (inlayHintsHandler)
 import LanguageServer.Handler.Commands (commandHandler)
 import LanguageServer.Handler.Folding (foldingHandler)
 import LanguageServer.Handler.TextDocument (didChangeHandler, didCloseHandler, didOpenHandler, didSaveHandler)
-import LanguageServer.Monad (LSM, runLSM, LSState (..), updateConfig, getTerminal)
-
-import qualified Debug.Trace as Debug
-import Compiler.Compile (Terminal(..))
 import LanguageServer.Handler.SignatureHelp (signatureHelpHandler)
+import LanguageServer.Monad
 
 newtype ReactorInput = ReactorAction (IO ())
 
@@ -100,7 +100,7 @@ cancelHandler :: Handlers LSM
 cancelHandler =
   notificationHandler SMethod_CancelRequest $ \msg ->
     do
-      let id_ = msg ^. params ^. id
+      let id_ = msg ^. params ^. L.id
       state <- lift ask
       stateV <- liftIO $ readMVar state
       -- Add the request id to the cancelled requests set

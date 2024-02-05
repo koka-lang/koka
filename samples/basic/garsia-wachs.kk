@@ -101,7 +101,7 @@ fun build( depth : int, xs : list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,li
       (Node(l.fst,r.fst), r.snd)
 
 
-pub fun example()
+fun example()
   val wlist = Cons1(("a",3), [("b",2),("c",1),("d",4),("e",5)])
   val tree  = wlist.garsia-wachs()
   tree.show()

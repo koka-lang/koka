@@ -86,7 +86,7 @@ didSaveHandler = notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
 didCloseHandler :: Handlers LSM
 didCloseHandler = notificationHandler J.SMethod_TextDocumentDidClose $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
-  removeLoadedUri (J.toNormalizedUri uri)
+  -- removeLoadedUri (J.toNormalizedUri uri)
   -- Don't remove diagnostics so the file stays red in the editor, and problems are shown, but do remove the compilation state
   -- note: don't remove from the roots in the build context
   return ()

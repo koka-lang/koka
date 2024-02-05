@@ -52,7 +52,7 @@ import Common.Name
 import Common.Syntax
 import Common.Error( ErrorMessage )
 import Type.Type( Scheme )
-import Compiler.Package
+import Compile.Package
 import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
   Convert flags to pretty environment

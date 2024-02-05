@@ -54,10 +54,8 @@ library
       Compile.Module
       Compile.Optimize
       Compile.Options
+      Compile.Package
       Compile.TypeCheck
-      Compiler.Compile
-      Compiler.Module
-      Compiler.Package
       Core.AnalysisCCtx
       Core.AnalysisMatch
       Core.AnalysisResume

@@ -34,19 +34,17 @@ where
 
 import Debug.Trace(trace)
 import Colog.Core
+import Data.Map.Strict as M hiding (map)
+import Data.Maybe (fromMaybe)
+import qualified Data.Text as T
+import qualified Language.LSP.Protocol.Types as J
+
+import Lib.PPrint (Doc)
 import qualified Common.Error as E
 import Common.File (normalize, realPath, startsWith)
 import Common.Range (Source (sourceName), sourceNull, rangeSource)
 import qualified Common.Range as R
-import Compiler.Module (Loaded (..), Module (..))
-import Data.Map.Strict as M hiding (map)
-import Data.Maybe (fromMaybe)
-import qualified Data.Text as T
---import GHC.Generics hiding (UInt)
---import Language.LSP.Protocol.Types (UInt)
-import qualified Language.LSP.Protocol.Types as J
-import Lib.PPrint (Doc)
-import qualified Syntax.RangeMap as R
+import Syntax.RangeMap (RangeInfo)
 
 toLspPos :: R.Pos -> J.Position
 toLspPos p =
@@ -65,7 +63,7 @@ toLspLocation r =
   where
     uri = J.filePathToUri $ R.sourceName $ R.rangeSource r
 
-toLspLocationLink :: R.RangeInfo -> R.Range -> J.LocationLink
+toLspLocationLink :: RangeInfo -> R.Range -> J.LocationLink
 toLspLocationLink src r =
   J.LocationLink Nothing uri (toLspRange r) (toLspRange r)
   where
@@ -100,20 +98,6 @@ toLspErrorDiagnostics uri src e =
           E.SevError   -> J.DiagnosticSeverity_Error
           E.SevWarning -> J.DiagnosticSeverity_Warning
           _            -> J.DiagnosticSeverity_Information
-
-  {-
-  case e of
-    E.ErrorGeneral r doc -> M.singleton (uriFromRange r uri) [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
-    E.ErrorParse r doc -> M.singleton (uriFromRange r uri) [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
-    E.ErrorStatic rds -> mapRangeDocs rds
-    E.ErrorKind rds -> mapRangeDocs rds
-    E.ErrorType rds -> mapRangeDocs rds
-    E.ErrorWarning rds e' -> M.unionWith (++) (mapRangeDocs rds) (toLspErrorDiagnostics uri src e')
-    E.ErrorIO doc -> M.singleton uri [makeDiagnostic J.DiagnosticSeverity_Error src R.rangeNull doc]
-    E.ErrorZero -> M.empty
-  where
-    mapRangeDocs rds = M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [makeDiagnostic J.DiagnosticSeverity_Error src r doc])) rds
-  -}
 
 uriFromRange :: R.Range -> J.NormalizedUri -> J.NormalizedUri
 uriFromRange r uri =
