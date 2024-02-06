@@ -43,12 +43,13 @@ import Kind.Assumption        ( kgammaFind, kgammaIsEmpty, ppKGamma )
 import Kind.Pretty            ( prettyKind )
 import Type.Type              ( Scheme, Type, typeVoid )
 import Type.Pretty            ( ppScheme, ppSchemeEffect, Env(context,importsMap))
-import Type.Assumption        ( gammaIsEmpty, ppGamma, infoType, gammaFilter )
+import Type.Assumption        ( gammaIsEmpty, ppGamma, ppGammaHidden, infoType, gammaFilter )
 
 import Compile.Options
 import Interpreter.Command
 import qualified Compile.BuildContext   as B
 import Compile.BuildContext (buildcEmpty)
+
 
 
 {---------------------------------------------------------------
@@ -63,6 +64,7 @@ data State = State{  printer    :: !ColorPrinter
                    , defines       :: ![(Name,[String])] -- interactive definitions
                    , errorRange    :: !(Maybe Range)       -- last error location
                    , lastLoad      :: ![FilePath]        -- last load command
+                   , moduleName    :: ModuleName
                    }
 
 
@@ -72,7 +74,7 @@ data State = State{  printer    :: !ColorPrinter
 interpret ::  ColorPrinter -> Flags -> Flags -> [FilePath] -> IO ()
 interpret printer flags0 flagspre files
   = withReadLine (buildDir flags0) $
-    do{ let st0 = (State printer flags0 flagspre False [] Nothing [] )
+    do{ let st0 = (State printer flags0 flagspre False [] Nothing [] nameNil)
       ; messageHeader st0
       ; let coreSt = st0
       ; (buildc,erng) <- loadModules coreSt{flags = flags0{showCore=False}} (buildcEmpty flags0) [show (nameSystemCore)] False False
@@ -113,7 +115,7 @@ interpreterEx initCmd st buildc
 command ::  State -> B.BuildContext -> Command -> IO (Maybe (State,B.BuildContext))
 command st buildc cmd
   = let next s b = return (Just (s,b))
-        nextClear s b = next s{errorRange = Nothing} b
+        nextClear s b = next s{errorRange = Nothing, moduleName = nameNil} b
     in case cmd of
   Eval line   -> do (st1,buildc1) <- buildRunExpr st buildc line
                     next st1 buildc1
@@ -121,10 +123,10 @@ command st buildc cmd
   Load fnames forceAll
               -> do let st1 = st{ lastLoad = fnames }
                     (buildc1,erng) <- loadModules st1 buildc fnames forceAll True
-                    next st1{errorRange = erng} buildc1
+                    next st1{errorRange = erng, moduleName = mainModuleName buildc1} buildc1
 
   Reload      -> do (buildc1,erng) <- loadModules st buildc (lastLoad st) False True
-                    next st{errorRange = erng} buildc1
+                    next st{errorRange = erng, moduleName = mainModuleName buildc1} buildc1
 
 
   TypeOf line -> do (mbType,st1,buildc1) <- buildTypeExpr st buildc line
@@ -355,7 +357,7 @@ isSourceNull source
 ---------------------------------------------------------------}
 
 prettyEnv st
-  = (prettyEnvFromFlags (flags st)) -- { context = loadedName (loaded st), importsMap = loadedImportMap (loaded st) }
+  = (prettyEnvFromFlags (flags st)){context = moduleName st} -- { context = loadedName (loaded st), importsMap = loadedImportMap (loaded st) }
 
 
 mainModuleName :: B.BuildContext -> ModuleName
@@ -377,17 +379,18 @@ showCommand st buildc cmd
       ShowVersion      -> do showVersion (flags st) (printer st)
                              messageLn st ""
 
-      ShowKindSigs     -> let kgamma = B.defsKGamma (B.buildcGetDefinitions [] buildc)
+      ShowKindSigs     -> let kgamma = B.defsKGamma (B.buildcGetDefinitions True [] buildc)
                           in if (kgammaIsEmpty kgamma)
                            then remark st "no kinds to show"
                            else messagePrettyLnLn st (ppKGamma colors (mainModuleName buildc) (getImportMap st) kgamma)
 
-      ShowTypeSigs     -> let gamma = B.defsGamma (B.buildcGetDefinitions [] buildc)
+      ShowTypeSigs     -> let gamma = B.defsGamma (B.buildcGetDefinitions True [] buildc)
                           in if (gammaIsEmpty gamma)
                            then remark st "no types to show"
-                           else messagePrettyLnLn st (ppGamma (prettyEnv st) gamma)
+                           else messagePrettyLnLn st $
+                                (if showHiddenTypeSigs (flags st) then ppGammaHidden else ppGamma) (prettyEnv st) gamma
 
-      ShowSynonyms     -> let syns = B.defsSynonyms (B.buildcGetDefinitions [] buildc)
+      ShowSynonyms     -> let syns = B.defsSynonyms (B.buildcGetDefinitions True [] buildc)
                           in if (synonymsIsEmpty syns)
                            then remark st "no synonyms to show"
                            else messagePrettyLnLn st

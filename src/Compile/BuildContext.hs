@@ -139,10 +139,10 @@ buildcRemoveRootSource fpath buildc
       _          -> buildc
 
 -- After a type check, the definitions (gamma, kgamma etc.) as defined an a set of modules can be returned.
-buildcGetDefinitions :: [ModuleName] -> BuildContext -> Definitions
-buildcGetDefinitions modules0 buildc
+buildcGetDefinitions :: Bool -> [ModuleName] -> BuildContext -> Definitions
+buildcGetDefinitions privateToo modules0 buildc
   = let modules = if null modules0 then buildcRoots buildc else modules0
-        defs = defsFromModules (filter (\mod -> modName mod `elem` modules) (buildcModules buildc))
+        defs = defsFromModules privateToo (filter (\mod -> modName mod `elem` modules) (buildcModules buildc))
     in seq defs defs
 
 -- After a type check, return all visible definitions in the given modules (includes imports)
@@ -152,7 +152,7 @@ buildcGetVisibleDefinitions modules0 buildc
         topModules = filter (\mod -> modName mod `elem` topNames) (buildcModules buildc)
         allNames   = nub (concat (map modGetImportNames topModules) ++ topNames)
         allModules = filter (\mod -> modName mod `elem` allNames) (buildcModules buildc)
-        defs = defsFromModules allModules
+        defs = defsFromModules False allModules
     in seq defs defs
   where
     modGetImportNames :: Module -> [ModuleName]
@@ -506,7 +506,7 @@ buildcLookupInfo :: Name -> BuildContext -> [NameInfo]
 buildcLookupInfo name buildc
   = case find (\mod -> modName mod == qualifier name) (buildcModules buildc) of
       Just mod -> -- trace ("lookup " ++ show name ++ " in " ++ show (modName mod) ++ "\n" ++ showHidden (defsGamma (defsFromModules [mod]))) $
-                  seqqList $ map snd (gammaLookup name (defsGamma (defsFromModules [mod])))
+                  seqqList $ map snd (gammaLookup name (defsGamma (defsFromModules False {-or allow private too?-} [mod])))
       _        -> []
 
 -- Lookup the type of a fully qualified name

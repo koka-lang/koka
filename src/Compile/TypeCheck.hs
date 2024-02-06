@@ -46,7 +46,7 @@ import Type.Assumption( Gamma, extractGamma, extractGammaImports, gammaUnions, s
 import Type.Infer( inferTypes )
 import qualified Core.Core as Core
 import Compile.Options
-import Compile.Module( Definitions(..) )
+import Compile.Module( Definitions(..), Module (modName) )
 
 
 {---------------------------------------------------------------
@@ -59,7 +59,7 @@ typeCheck flags defs coreImports program0
      do -- import map
         let importMap   = importMapFromCoreImports (programImports program0) coreImports
             progName    = getName program0
-            penv        = prettyEnvFromFlags flags
+            penv        = (prettyEnvFromFlags flags){ context = progName }
 
         -- binding groups and fixities
         let fixities     = fixitiesNew [(name,fix) | FixDef name fix rng vis <- programFixDefs program0]

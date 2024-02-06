@@ -374,7 +374,7 @@ emitNotification mkDoc
 lookupDefinitions :: [ModuleName] -> LSM Definitions
 lookupDefinitions modnames
   = do buildc <- getBuildContext
-       return (buildcGetDefinitions modnames buildc)
+       return (buildcGetDefinitions True modnames buildc)
 
 -- Return definitions (gamma etc) for a set of modules including the imports.
 lookupVisibleDefinitions :: [ModuleName] -> LSM Definitions

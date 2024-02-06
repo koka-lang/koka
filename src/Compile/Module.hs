@@ -64,6 +64,7 @@ data ModulePhase
   | PhaseParsed         -- modProgram
   | PhaseTypedError
   | PhaseTyped          -- modCore, modRangeMap, modDefines
+  | PhaseIfaceLoaded    -- interface is loaded, but the inline definitions are not yet parsed
   | PhaseOptimized      -- compiled and optimized core, modCore is updated, modInlines
   | PhaseCodeGen        -- compiled to backend code (.c,.js files)
   | PhaseLibIfaceLoaded -- a (library) interface is loaded but it's kki and libs are not yet copied to the output directory
@@ -217,12 +218,12 @@ defsFromCore privateAsPublic core
       = fixitiesNew [(name,fix) | Core.FixDef name fix <- Core.coreProgFixDefs core]
 
 
-defsFromModules :: HasCallStack => [Module] -> Definitions
-defsFromModules mods
+defsFromModules :: HasCallStack => Bool -> [Module] -> Definitions
+defsFromModules privateAsPublic mods
   = let defs = defsMerge $ map (\mod -> case modDefinitions mod of
-                               Just defs | not (modShouldOpen mod) -> defs  -- cached
+                               Just defs | not (privateAsPublic || modShouldOpen mod) -> defs  -- cached
                                _ -> case modCore mod of
-                                      Just core -> defsFromCore (modShouldOpen mod) core
+                                      Just core -> defsFromCore (privateAsPublic || modShouldOpen mod) core
                                       Nothing   -> defsNull) mods
     in seq defs defs
 

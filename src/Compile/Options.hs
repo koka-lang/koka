@@ -207,6 +207,7 @@ data Flags
          , mimallocStats    :: !Bool
          , maxConcurrency   :: !Int
          , maxErrors        :: !Int
+         , useBuildDirHash  :: !Bool
          } deriving (Eq,Show)
 
 instance Hashable Flags where
@@ -352,6 +353,7 @@ flagsNull
           False -- use mimalloc stats
           16    -- max concurrency
           25    -- max errors
+          True  -- use variant hash
 
 isHelp Help = True
 isHelp _    = False
@@ -386,8 +388,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute (default)"
  , numOption 16 "n" ['j'] ["jobs"]  (\i f -> f{maxConcurrency=max i 1})  "maximum concurrency (16)"
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to module search path (empty resets)"
- , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write final executable to <file> (without extension)"
- , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 1=space, 2=full, 3=aggressive)"
+ , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write executable to <file> (without extension)"
+ , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default,1=space,2=full,3=aggressive)"
  , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
@@ -399,7 +401,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["buildtag"]        (ReqArg buildTagFlag "tag")     "set build variant tag (e.g. 'bundle' or 'dev')"
  , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     ("build under <dir> ('" ++ kkbuild ++ "' by default)")
  , option []    ["buildname"]       (ReqArg outBaseNameFlag "name") "base name of the final output"
- , option []    ["outputdir"]       (ReqArg outBuildDirFlag "dir")  "write intermediate files in <dir>.\ndefaults to: <builddir>/<ver>-<buildtag>/<cc>-<variant>"
+ , option []    ["outputdir"]       (ReqArg outBuildDirFlag "dir")  "write intermediate files in <dir>, defaults to:\n<builddir>/<ver>-<buildtag>/<cc>-<variant>-<hash>"
 
  , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (= <prefix>/lib/koka/<ver>)"
  , option []    ["sharedir"]        (ReqArg shareDirFlag "dir")     "source library <dir> (= <prefix>/share/koka/<ver>)"
@@ -464,6 +466,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
  , hide $ fflag       ["eagerpatbind"] (\b f -> f{optEagerPatBind=b}) "load pattern fields as early as possible"
  , hide $ numOption (-1) "port" [] ["lsport"]    (\i f -> f{languageServerPort=i}) "language Server port"
+ , hide $ flag []     ["buildhash"]   (\b f -> f{useBuildDirHash=b})   "use hash in build directory name"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
@@ -678,6 +681,7 @@ environment
     , ("koka_lib_dir", "dir",     opt "libdir",     "Set the koka compiled library directory (= '<prefix>/lib/koka/<ver>')")
     , ("koka_share_dir", "dir",   opt "sharedir",   "Set the koka library sources directory (= '<prefix>/share/koka/<ver>')")
     , ("koka_build_dir", "dir",   opt "builddir",   ("Set the default koka build directory (= '" ++ kkbuild ++ "')"))
+    , ("VCPKG_ROOT" ,    "dir",   opt "vcpkgdir",   "Root directory of the vcpkg installation (= '~/vcpkg')")
     ]
   where
     flagsEnv s      = [s]
@@ -1072,7 +1076,8 @@ buildVersionTag flags
 
 buildVariant :: Flags -> String   -- for example: clang-debug-4ead5f
 buildVariant flags
-  = buildLibVariant flags ++ "-" ++ flagsHash flags
+  = buildLibVariant flags ++
+    (if useBuildDirHash flags then "-" ++ flagsHash flags else "")
 
 buildLibVariant :: Flags -> String   -- for example: clang-debug, js-release
 buildLibVariant flags

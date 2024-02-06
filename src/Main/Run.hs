@@ -104,7 +104,7 @@ mainMode runLanguageServer flags flags0 mode p
 compileAll :: ColorPrinter -> Flags -> [FilePath] -> IO Bool
 compileAll p flags fpaths
   = do cwd <- getCwd
-       (mbRes,_)  <- -- run the build monad with a terminal and flags
+       (mbRuns,_) <- -- run the build monad with a terminal and flags
                      runBuildIO (term cwd) flags False $
                        do -- build
                           (buildc0,roots) <- buildcAddRootSources fpaths (buildcEmpty flags)
@@ -113,11 +113,15 @@ compileAll p flags fpaths
                           -- compile & run entry points
                           let mainEntries = if library flags then [] else map (\rootName -> qualify rootName (newName "main")) roots
                           runs <- mapM (compileEntry buildc) mainEntries
-                          when (evaluate flags) $ mapM_ buildLiftIO runs
+                          -- when (evaluate flags) $ mapM_ buildLiftIO runs
                           -- show info
                           mapM_ (compileShowInfo buildc) roots
-                          return ()
-       return (isJust mbRes)
+                          buildcFlushErrors buildc -- for warnings
+                          return runs
+       case mbRuns of
+         Just runs -> do when (evaluate flags) $ sequence_ runs
+                         return True
+         Nothing   -> return False
   where
     -- all output should go via the terminal
     term cwd
@@ -151,13 +155,13 @@ compileShowInfo :: BuildContext -> ModuleName -> Build ()
 compileShowInfo buildc modname
   = do  flags <- buildcFlags
         -- show (kind) gamma ?
-        let defs = buildcGetDefinitions [modname] buildc
+        let defs = buildcGetDefinitions (showHiddenTypeSigs flags) [modname] buildc
         when (showKindSigs flags) $
-          do buildcTermInfo $ \penv -> ppKGamma (colors penv) modname (importsMap penv) (defsKGamma defs)
+          do buildcTermInfo $ \penv -> space <-> ppKGamma (colors penv) modname (importsMap penv) (defsKGamma defs)
              let syns = defsSynonyms defs
              when (not (synonymsIsEmpty syns)) $
-               buildcTermInfo $ \penv -> ppSynonyms penv{context=modname} syns
+               buildcTermInfo $ \penv -> space <-> ppSynonyms penv{context=modname} syns
         when (showTypeSigs flags || showHiddenTypeSigs flags) $
-          buildcTermInfo $ \penv -> ppGamma penv{context=modname} (defsGamma defs)
+          buildcTermInfo $ \penv -> space <-> (if showHiddenTypeSigs flags then ppGammaHidden else ppGamma) penv{context=modname} (defsGamma defs)
 
 

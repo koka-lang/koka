@@ -266,7 +266,7 @@ moduleCodeGen mainEntries parsedMap tcheckedMap optimizedMap codegenMap
          else do  phaseVerbose 2 "codegen" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
                   flags <- getFlags
                   term  <- getTerminal
-                  let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the compile?
+                  let defs    = defsFromModules True (mod:imports)  -- todo: optimize by reusing the defs from the compile?
                       inlines = inlinesFromModules imports
                   mbEntry <- getMainEntry (defsGamma defs) mainEntries mod
                   seqIO   <- sequentialIO
@@ -324,10 +324,29 @@ moduleOptimize parsedMap tcheckedMap optimizedMap
         imports <- moduleWaitForInlineImports optimizedMap (modImportNames mod)
         if any (\m -> modPhase m < PhaseOptimized) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
-          else -- core compile
+          else if modPhase mod == PhaseIfaceLoaded
+            then -- an interface has inline definitions that we can now parse
+              do  phaseVerbose 3 "inlines" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
+                  case modInlines mod of
+                    Right _ -> -- already done
+                               done mod{ modPhase = PhaseLinked }
+                    Left parse
+                      -> do let defs = defsFromModules True (mod:imports)  -- todo: optimize by reusing the defs from the type check?
+                            case checkError (parse (defsGamma defs)) of
+                              Left errs
+                                -> done mod{ modPhase = PhaseLinked
+                                           , modErrors = mergeErrors errs (modErrors mod)
+                                           , modInlines = Right []
+                                           }
+                              Right (inlines,warns)
+                                -> done mod{ modPhase = PhaseLinked
+                                           , modErrors = mergeErrors warns (modErrors mod)
+                                           , modInlines = Right inlines
+                                           }
+            else -- core compile
               do  phaseVerbose 2 "optimize" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
                   flags <- getFlags
-                  let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check?
+                  let defs    = defsFromModules True (mod:imports)  -- todo: optimize by reusing the defs from the type check?
                       inlines = inlinesFromModules imports
                   (core,inlineDefs) <- liftError $ coreOptimize flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
                   let mod' = mod{ modPhase   = PhaseOptimized
@@ -369,7 +388,7 @@ moduleTypeCheck parsedMap tcheckedMap
           else -- type check
                do flags <- getFlags
                   phase "check" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imports:" <+> list (map (pretty . modName) imports)
-                  let defs     = defsFromModules imports
+                  let defs     = defsFromModules True imports
                       cimports = coreImportsFromModules (modDeps mod) imports
                       program  = fromJust (modProgram mod)
                   case checkError (typeCheck flags defs cimports program) of
@@ -382,6 +401,7 @@ moduleTypeCheck parsedMap tcheckedMap
                     Right ((core,mbRangeMap),warns)
                       -> do let mod' = mod{ modPhase       = PhaseTyped
                                           , modCore        = Just $! core
+                                          , modErrors      = mergeErrors warns (modErrors mod)
                                           , modRangeMap    = seqqMaybe mbRangeMap
                                           , modDefinitions = Just $! defsFromCore False core
                                           }
@@ -583,7 +603,9 @@ moduleLoadLibIface mod
 
 modFromIface :: Core.Core -> Maybe (Gamma -> Error () [Core.InlineDef]) -> Module -> Module
 modFromIface core parseInlines mod
-  =  mod{ modPhase       = PhaseLinked
+  =  mod{ modPhase       = case parseInlines of
+                             Nothing -> PhaseLinked
+                             Just f  -> PhaseIfaceLoaded
         , modDeps        = seqqList $ [LexImport (Core.importName imp) nameNil (Core.importVis imp) False {- @open -}
                                        | imp <- Core.coreProgImports core, not (Core.isCompilerImport imp) ]
         , modCore        = Just $! core
