@@ -99,7 +99,7 @@ createSignatureHelp pos sig modname vf filePath
           -- Select the right index if the id == the sigContextId, default index to 0 or null
           -- TODO: Check if the pos is on a place with that name anyways
           penv <- getPrettyEnvFor modname
-          defs <- lookupFullDefinitions [modname]
+          defs <- lookupVisibleDefinitions [modname]
           let gamma   = defsGamma defs
           let results = gammaLookup name gamma
           let completionName = sigFunctionName <$> sig

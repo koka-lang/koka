@@ -98,7 +98,6 @@
     Clause1( fn(m,ev,x) under1(ev,op,x) )
     ```
     where `under1` uses the evidence vector (`hevv`) stored in the evidence `ev` to execute `op(x)` under.
-
 */
 module std/core/hnd
 

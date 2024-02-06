@@ -6,7 +6,8 @@
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
-    Main module.
+    Modules
+    (should be abstract and hidden -- use BuildContext if possible)
 -}
 -----------------------------------------------------------------------------
 module Compile.Module( Module(..), ModulePhase(..)
@@ -85,7 +86,7 @@ data Module  = Module{ -- initial
 
                        -- lexing
                      , modLexemes     :: ![Lexeme]
-                     , modDeps        :: ![ModuleName]      -- initial dependencies from import statements in the program
+                     , modDeps        :: ![LexImport]       -- initial dependencies from import statements in the program
 
                        -- parsing
                      , modProgram     :: !(Maybe (Program UserType UserKind))

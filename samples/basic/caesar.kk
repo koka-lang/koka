@@ -59,6 +59,7 @@ fun uncaesar( s : string ) : string
   s.encode( ~shift )                      // decoding is encoding with a negated shift
 
 
+// test an example
 fun example-uncaesar()
   println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
 

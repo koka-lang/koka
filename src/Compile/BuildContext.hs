@@ -23,7 +23,7 @@ module Compile.BuildContext ( BuildContext
                             , buildcFlushErrors, buildcLiftErrors
 
                             , buildcLookupModuleName
-                            , buildcGetDefinitions, buildcGetFullDefinitions
+                            , buildcGetDefinitions, buildcGetVisibleDefinitions
                             , buildcGetMatchNames
                             , buildcGetRangeMap
                             , buildcModulePaths
@@ -60,8 +60,9 @@ import Common.File
 import Common.Error
 import Common.Failure
 import Common.ColorScheme
+import Common.Syntax( isPublic )
 import Syntax.RangeMap( RangeMap )
-import Syntax.Lexeme( Lexeme )
+import Syntax.Lexeme( Lexeme, LexImport(..), lexImportNub )
 import Syntax.Syntax( UserProgram )
 import Type.Type
 import qualified Type.Pretty as TP
@@ -72,6 +73,7 @@ import Compile.Module
 import Compile.Build
 import Data.Maybe (isJust)
 import qualified Core.Core as Core
+import Core.Core (isCompilerImport)
 
 
 
@@ -143,8 +145,8 @@ buildcGetDefinitions modules0 buildc
     in seq defs defs
 
 -- After a type check, return all visible definitions in the given modules (includes imports)
-buildcGetFullDefinitions :: [ModuleName] -> BuildContext -> Definitions
-buildcGetFullDefinitions modules0 buildc
+buildcGetVisibleDefinitions :: [ModuleName] -> BuildContext -> Definitions
+buildcGetVisibleDefinitions modules0 buildc
   = let topNames   = if null modules0 then buildcRoots buildc else modules0
         topModules = filter (\mod -> modName mod `elem` topNames) (buildcModules buildc)
         allNames   = nub (concat (map modGetImportNames topModules) ++ topNames)
@@ -155,8 +157,20 @@ buildcGetFullDefinitions modules0 buildc
     modGetImportNames :: Module -> [ModuleName]
     modGetImportNames mod
       = case modCore mod of
-          Just core -> map Core.importName (Core.coreProgImports core)
-          Nothing   -> modDeps mod
+          Just core -> [Core.importName imp | imp <- Core.coreProgImports core, not (isCompilerImport imp) ] -- core imports include all already
+          Nothing   -> getPublicImportNames [] (map lexImportName (modDeps mod)) -- but otherwise we need to look into all dependencies for pub imports and include those too
+
+    getPublicImportNames :: [ModuleName] -> [ModuleName] -> [ModuleName]
+    getPublicImportNames alreadyDone0 imports
+      = let mods        = filter (\mod -> modName mod `elem` imports) (buildcModules buildc)
+            alreadyDone = alreadyDone0 ++ imports
+            pubs        = nub $ [lexImportName imp | mod <- mods, imp <- modDeps mod,
+                                                      isPublic (lexImportVis imp),
+                                                      not (lexImportName imp `elem` alreadyDone) ]
+        in if null pubs
+             then alreadyDone
+             else getPublicImportNames alreadyDone pubs
+
 
 
 -- Return a range map and lexemes for a given module
@@ -185,7 +199,7 @@ buildcPrettyEnvFor penv modname buildc
 -- Used for completion in the interpreter for example
 buildcGetMatchNames :: [ModuleName] -> BuildContext -> [String]
 buildcGetMatchNames modules buildc
-  = let defs = buildcGetFullDefinitions modules buildc
+  = let defs = buildcGetVisibleDefinitions modules buildc
     in seqqList $! map (showPlain . unqualify) $ gammaNames (defsGamma defs)  -- todo: too much as it includes private definitions of the imports??
 
 -- Return all module names with their associated source.

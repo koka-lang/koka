@@ -27,7 +27,7 @@ module LanguageServer.Monad
 
     liftBuild, liftBuildWith,
     lookupModuleName, lookupRangeMap, lookupProgram,
-    lookupDefinitions, lookupFullDefinitions, Definitions(..),
+    lookupDefinitions, lookupVisibleDefinitions, Definitions(..),
     lookupModulePaths,
     getPrettyEnv, getPrettyEnvFor, prettyMarkdown,
     emitInfo, emitNotification
@@ -370,10 +370,10 @@ lookupDefinitions modnames
        return (buildcGetDefinitions modnames buildc)
 
 -- Return definitions (gamma etc) for a set of modules including the imports.
-lookupFullDefinitions :: [ModuleName] -> LSM Definitions
-lookupFullDefinitions modnames
+lookupVisibleDefinitions :: [ModuleName] -> LSM Definitions
+lookupVisibleDefinitions modnames
   = do buildc <- getBuildContext
-       return (buildcGetFullDefinitions modnames buildc)
+       return (buildcGetVisibleDefinitions modnames buildc)
 
 -- Return all loaded module names and associated file paths.
 lookupModulePaths :: LSM [(ModuleName,FilePath)]

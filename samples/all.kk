@@ -55,5 +55,3 @@ pub fun main()
   run("scoped",scoped/main)
   run("ambient",ambient/main)
   run("unix",unix/main)
-
-

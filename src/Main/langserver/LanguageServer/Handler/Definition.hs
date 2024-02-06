@@ -54,7 +54,7 @@ definitionHandler
         liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
           liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
             liftMaybe (return (rangeMapFindAt lexemes pos rmap)) $ \(rng,rngInfo) ->
-              do defs <- lookupFullDefinitions [modname]
+              do defs <- lookupVisibleDefinitions [modname]
                  mods <- lookupModulePaths
                  let defLinks = findDefLinks defs mods rngInfo
                  responder $ Right $ J.InR $ J.InL defLinks

@@ -58,6 +58,7 @@ import qualified Common.NameMap as M
 import Common.ColorScheme
 import Common.Range
 import Common.NamePrim        (isPrimitiveModule)
+import Syntax.Lexeme          (LexImport(..), lexImportNub)
 import Syntax.Syntax
 import Syntax.Parse           (parseProgramFromString)
 import Type.Type
@@ -359,9 +360,10 @@ moduleTypeCheck tcheckedMap
   = moduleGuard PhaseParsed PhaseTyped tcheckedMap id id return $ \done mod ->
      do -- wait for direct imports to be type checked
         let program  = fromJust (modProgram mod)
-            openDeps = [(isOpen,mname) | mname <- modDeps mod, let isOpen = case find (\imp -> importFullName imp == mname) (programImports program) of
-                                                                              Just imp -> importOpen imp
-                                                                              _        -> False ]
+            openDeps = [(isOpen,mname) | imp <- modDeps mod, let mname = lexImportName imp,
+                                         let isOpen = case find (\imp -> importFullName imp == mname) (programImports program) of
+                                                        Just imp -> importOpen imp
+                                                        _        -> False ]
         imports <- moduleWaitForPubImports tcheckedMap [] openDeps
         if any (\m -> modPhase m < PhaseTyped) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
@@ -369,7 +371,7 @@ moduleTypeCheck tcheckedMap
                do flags <- getFlags
                   phase "check" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imports:" <+> list (map (pretty . modName) imports)
                   let defs     = defsFromModules imports
-                      cimports = coreImportsFromModules (modDeps mod) (programImports program) imports
+                      cimports = coreImportsFromModules (modDeps mod) imports
                   case checkError (typeCheck flags defs cimports program) of
                     Left errs
                       -> done mod{ modPhase  = PhaseTypedError
@@ -404,11 +406,10 @@ moduleWaitForPubImports tcheckedMap alreadyDone0 importDeps
          else do extraImports <- moduleWaitForPubImports tcheckedMap alreadyDone extras
                  return (extraImports ++ imports)
 
--- Return all (user and pub) core imports for a list of user imported modules;
--- - needs the original user imports as well to determine provenance
--- - needs the user program imports as well to determine visibility
-coreImportsFromModules :: [ModuleName] -> [Import] -> [Module] -> [Core.Import]
-coreImportsFromModules userImports progImports modules
+-- Return all (user and pub) core imports for a list of user imported modules.
+-- (needs the original lexical user imports as well to determine provenance and visibility)
+coreImportsFromModules :: [LexImport] -> [Module] -> [Core.Import]
+coreImportsFromModules lexImports modules
   = [Core.Import (modName mod) ""
       (getProvenance (modName mod))
       (getVisibility (modName mod))
@@ -418,12 +419,14 @@ coreImportsFromModules userImports progImports modules
     | mod <- modules ]
   where
     getVisibility modname
-      = case find (\imp -> importFullName imp == modname) progImports of
-          Just imp -> importVis imp  -- todo: get max?
+      = case find (\imp -> lexImportName imp == modname) lexImports of
+          Just imp -> lexImportVis imp
           _        -> Private
 
     getProvenance modname
-      = if modname `elem` userImports then Core.ImportUser else Core.ImportPub
+      = case find (\imp -> lexImportName imp == modname) lexImports of
+          Just imp -> Core.ImportUser
+          _        -> Core.ImportPub
 
 
 
@@ -454,7 +457,7 @@ modulesResolveDeps rebuild forced cached roots acc
                  modulesResolveDeps rebuild forced cached newimports loaded  -- keep resolving until all have been loaded
   where
     addImports loaded mod
-      = catMaybes <$> mapM addImport (modDeps mod)
+      = catMaybes <$> mapM (addImport . lexImportName) (modDeps mod)
       where
         addImport :: ModuleName -> Build (Maybe Module)
         addImport impName
@@ -471,7 +474,7 @@ modulesResolveDeps rebuild forced cached roots acc
 toBuildOrder :: [Module] -> Build [Module]
 toBuildOrder modules
   = -- todo: might be faster to check if the modules are already in build order before doing a full `scc` ?
-    let deps    = [(modName mod, modDeps mod) | mod <- modules]
+    let deps    = [(modName mod, map lexImportName (modDeps mod)) | mod <- modules]
         ordered = scc deps
         ungroup [mname]  | Just mod <- find (\m -> modName m == mname) modules  = return [mod]
         ungroup grp      = do throwErrorKind ErrBuild (\penv -> text "recursive imports:" <+> list (map (TP.ppName penv) grp))
@@ -530,7 +533,8 @@ moduleParse mod
                          , modErrors  = mergeErrors warns (modErrors mod)
                          , modLexemes = programLexemes prog
                          , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
-                         , modDeps    = seqqList $ nub (map importFullName (programImports prog))
+                         , modDeps    = seqqList $ lexImportNub $
+                                        [LexImport (importFullName imp) (importName imp) (importVis imp) | imp <- programImports prog]
                          }
 
 moduleLoadIface :: Module -> Build Module
@@ -551,7 +555,8 @@ moduleLoadLibIface mod
 modFromIface :: Core.Core -> Maybe (Gamma -> Error () [Core.InlineDef]) -> Module -> Module
 modFromIface core parseInlines mod
   =  mod{ modPhase       = PhaseLinked
-        , modDeps        = seqqList $ map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
+        , modDeps        = seqqList $ [LexImport (Core.importName imp) nameNil (Core.importVis imp)
+                                       | imp <- Core.coreProgImports core, not (Core.isCompilerImport imp) ]
         , modCore        = Just $! core
         , modDefinitions = Just $! defsFromCore False core
         , modInlines     = case parseInlines of
@@ -694,7 +699,7 @@ moduleValidate mod
                            -- reset fields that are not used by an IDE to reduce memory pressure
                            -- leave lexemes, rangeMap, and definitions.
                            modProgram = Nothing,
-                           -- modCore    = Nothing, -- we need it for the imports to allow jump to definition; can we improve a bit?
+                           modCore    = Nothing,
                            modInlines = Right [],
                            modEntry   = Nothing
                          }

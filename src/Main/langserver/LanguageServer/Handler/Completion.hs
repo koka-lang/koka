@@ -93,7 +93,7 @@ completionHandler
           liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
             liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
               liftMaybe (liftIO $ getCompletionInfo pos vfile rmap uri) $ \completionInfo ->
-                do defs <- lookupFullDefinitions [modname]
+                do defs <- lookupVisibleDefinitions [modname]
                    let completions = findCompletions defs modname completionInfo
                        completionList = J.CompletionList False Nothing completions
                    responder $ Right $ J.InR $ J.InL $ completionList
