@@ -59,8 +59,7 @@ didOpenHandler = notificationHandler J.SMethod_TextDocumentDidOpen $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
   let version = msg ^. J.params . J.textDocument . J.version
   flags <- getFlags
-  -- _ <- recompileFile Object uri (Just version) False flags
-  rebuildUri Nothing Nothing True {-force-} (J.toNormalizedUri uri)
+  rebuildUri Nothing Nothing (J.toNormalizedUri uri)
   return ()
 
 -- Recompile the file on changes
@@ -69,8 +68,7 @@ didChangeHandler = notificationHandler J.SMethod_TextDocumentDidChange $ \msg ->
   let uri = msg ^. J.params . J.textDocument . J.uri
   let version = msg ^. J.params . J.textDocument . J.version
   flags <- getFlags
-  -- _ <- recompileFile Object uri (Just version) False flags
-  rebuildUri Nothing Nothing False (J.toNormalizedUri uri)
+  rebuildUri Nothing Nothing (J.toNormalizedUri uri)
   return ()
 
 -- Saving a file just recompiles it
@@ -78,8 +76,7 @@ didSaveHandler :: Handlers LSM
 didSaveHandler = notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
   flags <- getFlags
-  -- _ <- recompileFile Object uri Nothing False flags
-  rebuildUri Nothing Nothing True {-force-}  (J.toNormalizedUri uri)
+  rebuildUri Nothing Nothing (J.toNormalizedUri uri)
   return ()
 
 -- Closing the file
@@ -135,15 +132,15 @@ updateVFS = do
   return newvfs
 
 
-rebuildUri :: Maybe Flags -> Maybe Name -> Bool -> J.NormalizedUri -> LSM (Maybe FilePath)
-rebuildUri mbFlags mbRun force uri
+rebuildUri :: Maybe Flags -> Maybe Name -> J.NormalizedUri -> LSM (Maybe FilePath)
+rebuildUri mbFlags mbRun uri
   = do mbfpath <- liftIO $ fromLspUri uri
        case mbfpath of
          Nothing    -> return Nothing
-         Just fpath -> rebuildFile mbFlags mbRun force uri fpath
+         Just fpath -> rebuildFile mbFlags mbRun uri fpath
 
-rebuildFile :: (Maybe Flags) -> Maybe Name -> Bool -> J.NormalizedUri -> FilePath -> LSM (Maybe FilePath)
-rebuildFile mbFlags mbRun force uri fpath
+rebuildFile :: Maybe Flags -> Maybe Name -> J.NormalizedUri -> FilePath -> LSM (Maybe FilePath)
+rebuildFile mbFlags mbRun uri fpath
     = trace ("koka: rebuild file: " ++ fpath) $
       do updateVFS
          mbRes <- -- run build with diagnostics
@@ -155,8 +152,9 @@ rebuildFile mbFlags mbRun force uri fpath
                      buildcFocus [focus] buildc1 $ \focusMods buildcF ->
                         case mbRun of
                           -- just type check
-                          Nothing    -> trace ("koka: rebuild: type check " ++ show focus) $
-                                        do bc <- buildcTypeCheck (if force then [focus] else []) buildcF  -- only force on "open" to build range maps etc.
+                          Nothing    -> -- trace ("koka: rebuild: type check " ++ show focus) $
+                                        do bc <- buildcTypeCheck [focus] buildcF  -- only force on "open" to build range maps etc.
+                                                 -- buildcBuildEx False [focus] [] buildcF
                                            return (bc,Nothing)
                           -- full build and return the executable
                           Just entry -> do let qentry = if isQualified entry then entry else qualify focus entry
@@ -182,7 +180,7 @@ liftBuildDiag mbflags defaultUri build
 -- A build retains all errors over all loaded modules, so we can always publish all
 diagnoseErrors :: J.NormalizedUri -> [ErrorMessage] -> LSM ()
 diagnoseErrors defaultUri errs
-  = trace ("errors: " ++ show errs) $
+  = -- trace ("errors: " ++ show errs) $
     do let diagSource = T.pack "koka"
            maxDiags   = 100
            diagss     = M.toList $ M.map partitionBySource $ M.fromListWith (++) $  -- group all errors per file uri

@@ -283,7 +283,7 @@ type Imports = [Import]
 
 data Import  = Import{ importName :: !Name
                      , importPackage :: !String
-                     , importProvenance :: ImportProvenance
+                     , importProvenance :: !ImportProvenance
                      , importVis  :: !Visibility
                      , importModDoc :: !String
                      }

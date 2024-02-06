@@ -2,6 +2,7 @@
 //
 // This is inspired by an example in Graham Hutton's most excellent "Programming in Haskell" book.
 // (at <https://www.cs.nott.ac.uk/~pszgmh/pih.html>)
+
 module caesar
 
 import std/num/float64
@@ -60,7 +61,6 @@ fun uncaesar( s : string ) : string
 
 fun example-uncaesar()
   println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
-
 
 pub fun main()
   val s = "Koka is a well-typed language"

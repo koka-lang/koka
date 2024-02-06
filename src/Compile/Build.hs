@@ -100,7 +100,7 @@ modulesBuild mainEntries modules
                       mapConcurrentModules
                        (moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap buildOrder)
                        modules
-       mapM_ modmapClear [tcheckedMap,optimizedMap,codegenMap,linkedMap]
+       -- mapM_ modmapClear [tcheckedMap,optimizedMap,codegenMap,linkedMap]
        return compiled -- modulesFlushErrors compiled
 
 -- Given a complete list of modules in build order, type check them all.
@@ -109,6 +109,7 @@ modulesTypeCheck modules
   = phaseTimed 2 "check" (const Lib.PPrint.empty) $
     do tcheckedMap <- modmapCreate modules
        tchecked    <- mapConcurrentModules (moduleTypeCheck tcheckedMap) modules
+       -- modmapClear tcheckedMap
        return tchecked -- modulesFlushErrors tchecked
 
 -- Given a list of cached modules (`cachedImports`), and a set of root modules (`roots`), return a list of
@@ -371,18 +372,18 @@ moduleTypeCheck tcheckedMap
                       cimports = coreImportsFromModules (modDeps mod) (programImports program) imports
                   case checkError (typeCheck flags defs cimports program) of
                     Left errs
-                      -> done mod{ modPhase = PhaseTypedError
+                      -> done mod{ modPhase  = PhaseTypedError
                                  , modErrors = if modPhase mod < PhaseTypedError
                                                  then mergeErrors errs (modErrors mod)
                                                  else errs
                                  }
                     Right ((core,mbRangeMap),warns)
-                      -> do let mod' = mod{ modPhase = PhaseTyped
-                                          , modCore = Just $! core
-                                          , modRangeMap = seqqMaybe mbRangeMap
+                      -> do let mod' = mod{ modPhase       = PhaseTyped
+                                          , modCore        = Just $! core
+                                          , modRangeMap    = seqqMaybe mbRangeMap
                                           , modDefinitions = Just $! defsFromCore False core
                                           }
-                            phaseVerbose 3 "check done" $ \penv -> TP.ppName penv (modName mod)
+                            phaseVerbose 3 "check done" $ \penv -> TP.ppName penv (modName mod')
                             done mod'
 
 
@@ -411,7 +412,9 @@ coreImportsFromModules userImports progImports modules
   = [Core.Import (modName mod) ""
       (getProvenance (modName mod))
       (getVisibility (modName mod))
-      (fromMaybe "" (fmap Core.coreProgDoc (modCore mod)))
+      (case modCore mod of                   -- careful: need to be strict enough or we hang on to the entire "modCore mod" !
+        Just core -> Core.coreProgDoc core
+        Nothing -> "")
     | mod <- modules ]
   where
     getVisibility modname
@@ -523,11 +526,11 @@ moduleParse mod
                                          else errs
                          }
          Right (prog,warns)
-            -> return mod{ modPhase = PhaseParsed
-                         , modErrors = mergeErrors warns (modErrors mod)
+            -> return mod{ modPhase   = PhaseParsed
+                         , modErrors  = mergeErrors warns (modErrors mod)
                          , modLexemes = programLexemes prog
                          , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
-                         , modDeps = nub (map importFullName (programImports prog))
+                         , modDeps    = seqqList $ nub (map importFullName (programImports prog))
                          }
 
 moduleLoadIface :: Module -> Build Module
@@ -548,7 +551,7 @@ moduleLoadLibIface mod
 modFromIface :: Core.Core -> Maybe (Gamma -> Error () [Core.InlineDef]) -> Module -> Module
 modFromIface core parseInlines mod
   =  mod{ modPhase       = PhaseLinked
-        , modDeps        = map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
+        , modDeps        = seqqList $ map Core.importName (filter (not . Core.isCompilerImport) (Core.coreProgImports core))
         , modCore        = Just $! core
         , modDefinitions = Just $! defsFromCore False core
         , modInlines     = case parseInlines of
@@ -691,8 +694,9 @@ moduleValidate mod
                            -- reset fields that are not used by an IDE to reduce memory pressure
                            -- leave lexemes, rangeMap, and definitions.
                            modProgram = Nothing,
-                           -- modCore    = Nothing -- we need it for the imports to allow jump to definition; can we improve a bit?
-                           modInlines = Right []
+                           -- modCore    = Nothing, -- we need it for the imports to allow jump to definition; can we improve a bit?
+                           modInlines = Right [],
+                           modEntry   = Nothing
                          }
          else return mod'
 

@@ -39,7 +39,7 @@ import GHC.Conc (atomically)
 import GHC.Base (Alternative (..), when)
 import Platform.Var (newVar, takeVar)
 import Platform.Filetime (FileTime)
-import Control.Concurrent.MVar (MVar, modifyMVar, newMVar, readMVar)
+import Control.Concurrent.MVar (MVar, modifyMVar_, newMVar, readMVar)
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Trans (lift, liftIO)
 import Control.Concurrent.Chan (readChan)
@@ -125,9 +125,9 @@ getLSState = do
 
 -- Updates the language server's state inside the LSM monad
 modifyLSState :: (LSState -> LSState) -> LSM ()
-modifyLSState m = do
+modifyLSState f = do
   stVar <- lift ask
-  liftIO $ modifyMVar stVar $ \s -> return (m s, ())
+  liftIO $ modifyMVar_ stVar (return . f)
 
 defaultLSState :: Flags -> IO LSState
 defaultLSState flags = do
@@ -290,7 +290,7 @@ liftBuildWith mbFlags action
            flgs = case mbFlags of
                     Nothing    -> flags ls
                     Just flags -> flags
-       res <- liftIO $ runBuild (terminal ls) flgs $ withVFS vfs $ action (buildContext ls)
+       res <- seq flgs $ seq VFS $ liftIO $ runBuild (terminal ls) flgs $ withVFS vfs $ action (buildContext ls)
        case res of
          Left errs               -> return (Left errs)
          Right ((buildc,x),errs) -> do when (isNothing mbFlags) $
