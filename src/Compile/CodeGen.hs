@@ -131,7 +131,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
                                         copyBinaryFile out targetOut
                                         return finalOut
                                 else return out
-                      termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+                      termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created :") <+>
                           color (colorSource (colorScheme flags)) (text (normalizeWith pathSep exe))
               _ -> return ()
             return (mbRun)
@@ -372,7 +372,7 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs
         -- return command line to execute
         let mainTarget = mainExe ++ targetExeExtension (target flags)
         when (not (null (outFinalPath flags)) && verbose flags > 1) $
-          termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+          termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created :") <+>
                                 color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
         let cmdflags = if (showElapsed flags) then " --kktime" else ""
 
@@ -441,7 +441,7 @@ copyCLibrary term flags sequential cc outDir eimport
                                           return Nothing
               case mb of
                 Just (libPath,includes)
-                  -> do termPhase term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
+                  -> do termPhase term (color (colorInterpreter (colorScheme flags)) (text "library :") <+>
                           color (colorSource (colorScheme flags)) (text libPath))
                         -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
                         sequential $ copyBinaryIfNewer (rebuild flags) libPath (joinPath outDir (ccLibFile cc clib))
@@ -506,7 +506,7 @@ conanCLibrary term flags sequential cc eimport clib pkg
                           return (Left [])
                   Just (pkgName,pkgDir)
                     -> do termPhase term $ color (colorInterpreter (colorScheme flags)) $
-                            text "package: conan" <+> clrSource (text pkgName) -- <.> colon <+> clrSource (text pkgDir)
+                            text "package : conan" <+> clrSource (text pkgName) -- <.> colon <+> clrSource (text pkgDir)
                           let libDir = pkgDir ++ "/lib"
                           searchCLibrary flags cc clib [libDir]
 
@@ -587,7 +587,7 @@ vcpkgCLibrary term flags sequential cc eimport clib pkg
          else do let libDir = root ++ "/installed/" ++ (vcpkgTriplet flags)
                                 ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
                  termPhase term $ color (colorInterpreter (colorScheme flags)) $
-                    text "package: vcpkg" <+> clrSource (text pkg)
+                    text "package : vcpkg" <+> clrSource (text pkg)
                  mbInstalled <- searchCLibrary flags cc clib [libDir]
                  case mbInstalled of
                    Right _ -> return mbInstalled

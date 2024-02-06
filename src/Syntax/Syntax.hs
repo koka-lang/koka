@@ -25,7 +25,6 @@ import Syntax.Lexeme
 -- | A program
 data Program t k
   = Program{ programSource :: !Source
-           , programLexemes :: ![Lexeme]
            , programName   :: !Name
            , programNameRange :: !Range
            , programTypeDefs :: ![TypeDefGroup t k]
@@ -447,8 +446,8 @@ class HasName a where
   getName x        = fst (getRName x)
 
 instance HasName (Program t k) where
-  getName (Program _ _ name _ _ _ _ _ _ _) = name
-  getNameRange (Program _ _ _ range _ _ _ _ _ _) = range
+  getName (Program _ name _ _ _ _ _ _ _) = name
+  getNameRange (Program _ _ range _ _ _ _ _ _) = range
 
 instance HasName (TypeBinder k) where
   getName (TypeBinder name kind nameRange range) = name
@@ -525,7 +524,7 @@ typeDefNameRange typeDef
 
 
 programNull :: Name -> Program t k
-programNull name = Program sourceNull [] name rangeNull [] [] [preludeImport] [] [] ""
+programNull name = Program sourceNull name rangeNull [] [] [preludeImport] [] [] ""
 
 -- | Import declaration for the standard prelude
 preludeImport :: Import
@@ -534,15 +533,15 @@ preludeImport
 
 makeProgram :: Name -> [TypeDef t t k] -> (Defs t) -> Program t k
 makeProgram name typedefs defs
-  = Program sourceNull [] name rangeNull [TypeDefRec typedefs] [DefRec defs] [] [] [] ""
+  = Program sourceNull name rangeNull [TypeDefRec typedefs] [DefRec defs] [] [] [] ""
 
 programAddImports :: Program t k -> [Import] -> Program t k
 programAddImports program imports
   = program{ programImports = (programImports program) ++ imports }
 
 programAddDefs :: Program t k -> [TypeDef t t k] -> (Defs t) -> Program t k
-programAddDefs (Program source lexemes modName nameRange tdefs defs imports externals fixDefs doc) ts1 ds1
-  = Program source lexemes modName nameRange
+programAddDefs (Program source modName nameRange tdefs defs imports externals fixDefs doc) ts1 ds1
+  = Program source modName nameRange
     (case tdefs of
        []                -> [TypeDefRec (ts1)]
        [TypeDefRec ts]   -> [TypeDefRec (removeTDefs ts ts1 ++ ts1)]
@@ -574,8 +573,8 @@ programRemoveAllDefs program
   = program{ programDefs = [] }
 
 programRemoveDef :: Name -> Program t k -> Program t k
-programRemoveDef name (Program source lexemes modName nameRange tdefs defs imports ext fixDefs doc)
-  = Program source lexemes modName nameRange (map filterTDef tdefs) (map filterDef defs) imports ext fixDefs doc
+programRemoveDef name (Program source modName nameRange tdefs defs imports ext fixDefs doc)
+  = Program source modName nameRange (map filterTDef tdefs) (map filterDef defs) imports ext fixDefs doc
   where
     filterTDef  (TypeDefRec ts)    = TypeDefRec (filter (neqName . typeDefName) ts)
     filterTDef  (TypeDefNonRec t)  = if (neqName (typeDefName t)) then TypeDefNonRec t else TypeDefRec []
@@ -589,7 +588,7 @@ programRemoveDef name (Program source lexemes modName nameRange tdefs defs impor
 
 
 programFind :: Ranged t => Name -> Program t k -> Maybe Range
-programFind name (Program source lexemes modName nameRange tdefs defs imports ext fixDefs doc)
+programFind name (Program source modName nameRange tdefs defs imports ext fixDefs doc)
   = lookup name (concatMap trange tdefs ++ concatMap drange defs)
   where
     trange (TypeDefRec ts)    = [(typeDefName t, getRange t) | t <- ts]

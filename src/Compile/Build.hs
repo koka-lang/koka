@@ -60,7 +60,8 @@ import Common.Range
 import Common.NamePrim        (isPrimitiveModule)
 import Syntax.Lexeme          (LexImport(..), lexImportNub)
 import Syntax.Syntax
-import Syntax.Parse           (parseProgramFromString)
+import Syntax.Layout          (lexSource)
+import Syntax.Parse           (parseProgramFromLexemes, parseDependencies)
 import Type.Type
 import qualified Type.Pretty as TP
 import Type.Assumption        ( Gamma, gammaLookupQ, NameInfo(..) )
@@ -92,14 +93,15 @@ modulesFullBuild rebuild forced mainEntries cachedImports roots
 modulesBuild :: [Name] -> [Module] -> Build [Module]
 modulesBuild mainEntries modules
   = -- phaseTimed 2 "build" (\_ -> Lib.PPrint.empty) $ -- (list (map (pretty . modName) modules))
-    do tcheckedMap <- modmapCreate modules
+    do parsedMap   <- modmapCreate modules
+       tcheckedMap <- modmapCreate modules
        optimizedMap<- modmapCreate modules
        codegenMap  <- modmapCreate modules
        linkedMap   <- modmapCreate modules
        let buildOrder = map modName modules
        compiled    <- seqList buildOrder $
                       mapConcurrentModules
-                       (moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap buildOrder)
+                       (moduleCompile mainEntries parsedMap tcheckedMap optimizedMap codegenMap linkedMap buildOrder)
                        modules
        -- mapM_ modmapClear [tcheckedMap,optimizedMap,codegenMap,linkedMap]
        return compiled -- modulesFlushErrors compiled
@@ -107,9 +109,10 @@ modulesBuild mainEntries modules
 -- Given a complete list of modules in build order, type check them all.
 modulesTypeCheck :: [Module] -> Build [Module]
 modulesTypeCheck modules
-  = phaseTimed 2 "check" (const Lib.PPrint.empty) $
-    do tcheckedMap <- modmapCreate modules
-       tchecked    <- mapConcurrentModules (moduleTypeCheck tcheckedMap) modules
+  = phaseTimed 3 "checking" (const Lib.PPrint.empty) $
+    do parsedMap   <- modmapCreate modules
+       tcheckedMap <- modmapCreate modules
+       tchecked    <- mapConcurrentModules (moduleTypeCheck parsedMap tcheckedMap) modules
        -- modmapClear tcheckedMap
        return tchecked -- modulesFlushErrors tchecked
 
@@ -121,7 +124,7 @@ modulesTypeCheck modules
 -- after revalidate, typecheck and build are valid operations.
 modulesReValidate :: Bool -> [ModuleName] -> [Module] -> [Module] -> Build [Module]
 modulesReValidate rebuild forced cachedImports roots
-  = phaseTimed 2 "resolve" (const Lib.PPrint.empty) $
+  = phaseTimed 4 "resolving" (const Lib.PPrint.empty) $
     do rootsv   <- modulesValidate roots
        resolved <- modulesResolveDependencies rebuild forced cachedImports rootsv
        return resolved -- modulesFlushErrors resolved
@@ -215,10 +218,10 @@ moduleZero = moduleNull nameNil
   Compile a module (type check, core compile, codegen, and link)
 ---------------------------------------------------------------}
 
-moduleCompile :: HasCallStack => [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> [ModuleName] -> Module -> Build Module
-moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap buildOrder
+moduleCompile :: HasCallStack => [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> [ModuleName] -> Module -> Build Module
+moduleCompile mainEntries parsedMap tcheckedMap optimizedMap codegenMap linkedMap buildOrder
   = moduleGuard PhaseCodeGen PhaseLinked linkedMap (\(_,_,mod) -> mod) id
-                (moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap)
+                (moduleCodeGen mainEntries parsedMap tcheckedMap optimizedMap codegenMap)
     $ \done (fullLink,link,mod) ->
      do -- wait for all required imports to be codegen'd
         -- However, for a final exe we need to wait for the imports to be _linked_ as well (so we use linkedMap instead of codegenMap).
@@ -252,10 +255,10 @@ orderByBuildOrder buildOrder mods
   Code generation (.c,.js)
 ---------------------------------------------------------------}
 
-moduleCodeGen :: [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build (Bool, Link, Module)
-moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
+moduleCodeGen :: [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build (Bool, Link, Module)
+moduleCodeGen mainEntries parsedMap tcheckedMap optimizedMap codegenMap
   = moduleGuard PhaseOptimized PhaseCodeGen codegenMap (\mod -> mod) (\mod -> (False,noLink,mod))
-                (moduleOptimize tcheckedMap optimizedMap) $ \done mod ->
+                (moduleOptimize parsedMap tcheckedMap optimizedMap) $ \done mod ->
     do -- wait for all required imports to be optimized (no need to wait for codegen!)
        imports <- moduleWaitForImports False optimizedMap [] (modImportNames mod)
        if any (\m -> modPhase m < PhaseOptimized) imports
@@ -314,9 +317,9 @@ moduleWaitForImports recurse modmap alreadyDone0 importNames
   like perceus ref counting etc.)
 ---------------------------------------------------------------}
 
-moduleOptimize :: ModuleMap -> ModuleMap -> Module -> Build Module
-moduleOptimize tcheckedMap optimizedMap
-  = moduleGuard PhaseTyped PhaseOptimized optimizedMap id id (moduleTypeCheck tcheckedMap) $ \done mod ->
+moduleOptimize :: ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build Module
+moduleOptimize parsedMap tcheckedMap optimizedMap
+  = moduleGuard PhaseTyped PhaseOptimized optimizedMap id id (moduleTypeCheck parsedMap tcheckedMap) $ \done mod ->
      do -- wait for imports to be optimized (and include imports needed for inline definitions)
         imports <- moduleWaitForInlineImports optimizedMap (modImportNames mod)
         if any (\m -> modPhase m < PhaseOptimized) imports
@@ -355,9 +358,9 @@ moduleWaitForInlineImports modmap importNames
   Type check a module
 ---------------------------------------------------------------}
 
-moduleTypeCheck :: ModuleMap -> Module -> Build Module
-moduleTypeCheck tcheckedMap
-  = moduleGuard PhaseParsed PhaseTyped tcheckedMap id id return $ \done mod ->
+moduleTypeCheck :: ModuleMap -> ModuleMap -> Module -> Build Module
+moduleTypeCheck parsedMap tcheckedMap
+  = moduleGuard PhaseParsed PhaseTyped tcheckedMap id id (moduleParse parsedMap) $ \done mod ->
      do -- wait for direct imports to be type checked
         let openDeps = [(lexImportIsOpen imp,lexImportName imp) | imp <- modDeps mod]
         imports <- moduleWaitForPubImports tcheckedMap [] openDeps
@@ -428,6 +431,32 @@ coreImportsFromModules lexImports modules
 
 
 {---------------------------------------------------------------
+  Parse a module
+---------------------------------------------------------------}
+
+moduleParse :: ModuleMap -> Module -> Build Module
+moduleParse tparsedMap
+  = moduleGuard PhaseLexed PhaseParsed tparsedMap id id return $ \done mod ->
+    do  flags <- getFlags
+        phase "parse" $ \penv -> text (if verbose flags > 1 || isAbsolute (modSourceRelativePath mod)
+                                        then modSourcePath mod
+                                        else ".../" ++ modSourceRelativePath mod)
+        case checkError (parseProgramFromLexemes (modSource mod) (modLexemes mod)) of
+          Left errs
+            -> done mod{ modPhase  = PhaseParsedError
+                       , modErrors = if modPhase mod < PhaseParsedError
+                                      then mergeErrors errs (modErrors mod)
+                                      else errs
+                       }
+          Right (prog,warns)
+            -> done mod{ modPhase   = PhaseParsed
+                       , modErrors  = mergeErrors warns (modErrors mod)
+                       , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
+                       }
+
+
+
+{---------------------------------------------------------------
   Given a set of modules,
   return all required modules in build order
 ---------------------------------------------------------------}
@@ -476,7 +505,7 @@ toBuildOrder modules
         ungroup [mname]  | Just mod <- find (\m -> modName m == mname) modules  = return [mod]
         ungroup grp      = do throwErrorKind ErrBuild (\penv -> text "recursive imports:" <+> list (map (TP.ppName penv) grp))
                               return []
-    in do phaseVerbose 2 "build order" $ \penv -> list (map (\grp -> hsep (map (TP.ppName penv) grp)) ordered)
+    in do phaseVerbose 3 "build order" $ \penv -> list (map (\grp -> hsep (map (TP.ppName penv) grp)) ordered)
           concat <$> mapM ungroup ordered
 
 
@@ -500,40 +529,42 @@ moduleFlushErrors mod
 moduleLoad :: Bool -> [ModuleName] -> Module -> Build Module
 moduleLoad rebuild forced mod
   = let force = (rebuild || modName mod `elem` forced) in
-    if (modPhase mod >= PhaseLoaded) && not force
+    if (modPhase mod >= PhaseLexed) && not force
       then return mod
       else do (mod',errs) <- checkedDefault mod $ -- on error, return the original module
                              if not (null (modLibIfacePath mod)) && (modIfaceTime mod < modLibIfaceTime mod) && not force
                                then moduleLoadLibIface mod
                                else if (modSourceTime mod < modIfaceTime mod) && not force
                                  then moduleLoadIface mod
-                                 else moduleParse mod
+                                 else moduleLex mod
               return mod'{ modErrors = mergeErrors errs (modErrors mod') }
 
-moduleParse :: Module -> Build Module
-moduleParse mod
+
+
+
+moduleLex :: Module -> Build Module
+moduleLex mod
   = do flags <- getFlags
-       phase "parse" $ \penv -> text (if verbose flags > 1 || isAbsolute (modSourceRelativePath mod)
-                                        then modSourcePath mod
-                                        else ".../" ++ modSourceRelativePath mod)
+       phaseVerbose 2 "scan" $ \penv -> text (if verbose flags > 1 || isAbsolute (modSourceRelativePath mod)
+                                                  then modSourcePath mod
+                                                  else ".../" ++ modSourceRelativePath mod)
        let allowAt = True -- isPrimitiveModule (modName mod) || modSourcePath mod `endsWith` "/@main.kk"
        input <- getFileContents (modSourcePath mod)
-       case checkError (parseProgramFromString allowAt (semiInsert flags) input (modSourcePath mod)) of
+       let source  = Source (modSourcePath mod) input
+           lexemes = lexSource allowAt (semiInsert flags) id 1 source
+       case checkError (parseDependencies source lexemes) of
          Left errs
-            -> return mod{ modPhase = PhaseParsedError
-                         , modErrors = if modPhase mod < PhaseParsedError
-                                         then mergeErrors errs (modErrors mod)
-                                         else errs
+            -> return mod{ modPhase  = PhaseInit
+                         , modErrors = errs
                          }
-         Right (prog,warns)
-            -> return mod{ modPhase   = PhaseParsed
+         Right (imports,warns)
+            -> return mod{ modPhase   = PhaseLexed
                          , modErrors  = mergeErrors warns (modErrors mod)
-                         , modLexemes = programLexemes prog
-                         , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
+                         , modLexemes = lexemes
                          , modDeps    = seqqList $ lexImportNub $
-                                        [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp)
-                                         | imp <- programImports prog]
+                                        [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) | imp <- imports]
                          }
+
 
 moduleLoadIface :: Module -> Build Module
 moduleLoadIface mod
@@ -1077,18 +1108,21 @@ phaseVerbose :: Int -> String -> (TP.Env -> Doc) -> Build ()
 phaseVerbose vlevel p doc
   = do flags <- getFlags
        when (verbose flags >= vlevel) $
-         phaseShow p doc
+         phaseShow (verbose flags) p doc
 
-phaseShow :: String -> (TP.Env -> Doc) -> Build ()
-phaseShow p mkdoc
+phaseShow :: Int -> String -> (TP.Env -> Doc) -> Build ()
+phaseShow v p mkdoc
   = do term    <- getTerminal
        penv    <- getPrettyEnv
+       tid     <- liftIO $ myThreadId
        let cscheme = TP.colors penv
            doc = mkdoc penv
-           pre = if isEmptyDoc doc then p else (sfill 8 p ++ ":")
+           pre = (if isEmptyDoc doc then p else (sfill 8 p ++ ":"))
+                 ++ (if v >= 4 then " (thread " ++ showThreadId tid ++ ") " else "")
        liftIO $ termPhase term (color (colorInterpreter cscheme) (text pre) <+> (color (colorSource cscheme) doc))
-
-sfill n s = s ++ replicate (n - length s) ' '
+  where
+    showThreadId tid = takeWhile isDigit $ dropWhile (not . isDigit) $ show tid
+    sfill n s = s ++ replicate (n - length s) ' '
 
 buildDoesFileExist :: FilePath -> Build Bool
 buildDoesFileExist fpath

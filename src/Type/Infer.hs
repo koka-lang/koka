@@ -456,7 +456,7 @@ inferRecDef topLevel infgamma def
 inferDef :: Expect -> Def Type -> Inf Core.Def
 inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl doc)
  =do penv <- getPrettyEnv
-     if (verbose penv >= 3)
+     if (verbose penv >= 4)
       then Lib.Trace.trace ("infer: " ++ show sort ++ " " ++ show name) $ return ()
       else return ()
      withDefName name $ disallowHole $
@@ -468,7 +468,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl 
            (resTp,resCore) <- maybeGeneralize rng nameRng eff expect tp coreExpr -- may not have been generalized due to annotation
            -- traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env resTp
            inferUnify (checkValue rng) nameRng typeTotal eff
-           when (verbose penv >= 3) $
+           when (verbose penv >= 4) $
             Lib.Trace.trace (show (text " inferred" <+> pretty name <.> text ":" <+> niceType penv tp)) $ return ()
 
            when (isDefFun sort) $

@@ -92,7 +92,7 @@ inferKinds
            , Maybe RangeMap
            )
 inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
-            (Program source lexemes modName nameRange tdgroups defs importdefs externals fixdefs doc)
+            (Program source modName nameRange tdgroups defs importdefs externals fixdefs doc)
   =do unique0 <- unique
       let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors platform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
           (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors platform rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)

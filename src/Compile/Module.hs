@@ -7,7 +7,8 @@
 -----------------------------------------------------------------------------
 {-
     Modules
-    (should be abstract and hidden -- use BuildContext if possible)
+    Should be abstract and hidden and only used by `Build` and `BuildContext`.
+    other libraries should use BuildContext if possible.
 -}
 -----------------------------------------------------------------------------
 module Compile.Module( Module(..), ModulePhase(..)
@@ -25,7 +26,7 @@ import Lib.Trace
 import Lib.PPrint
 import Data.List              ( foldl' )
 import Data.Char              ( isAlphaNum )
-import Common.Range           ( Range, rangeNull, makeSourceRange )
+import Common.Range           ( Range, rangeNull, makeSourceRange, Source, sourceNull )
 import Common.Name            ( Name, ModuleName, newName, unqualify, isHiddenName, showPlain)
 import Common.Error
 import Common.File
@@ -58,9 +59,9 @@ type Modules = [Module]
 
 data ModulePhase
   = PhaseInit
-  | PhaseLoaded         -- modLexemes, modDeps    (currently unused and always part of PhaseParsed)
+  | PhaseLexed          -- modLexemes, modDeps (always succeeds with possible error lexemes)
   | PhaseParsedError
-  | PhaseParsed         -- modDeps, modProgram
+  | PhaseParsed         -- modProgram
   | PhaseTypedError
   | PhaseTyped          -- modCore, modRangeMap, modDefines
   | PhaseOptimized      -- compiled and optimized core, modCore is updated, modInlines
@@ -85,6 +86,7 @@ data Module  = Module{ -- initial
                      , modSourceTime  :: !FileTime
 
                        -- lexing
+                     , modSource      :: !Source
                      , modLexemes     :: ![Lexeme]
                      , modDeps        :: ![LexImport]       -- initial dependencies from import statements in the program
 
@@ -97,18 +99,17 @@ data Module  = Module{ -- initial
                      , modDefinitions :: !(Maybe Definitions)
 
                      -- core optimized; updates `modCore` to final core
-                     , modInlines     :: !(Either (Gamma -> Error () [Core.InlineDef]) [Core.InlineDef]) -- from a core file, we return a function that given the gamma parses the inlines
+                     -- from parsing, `modInlines` contains Right inline definitions,
+                     -- from an interface file, `modInlines` is a Left function that given a gamma parses the inline definitions
+                     , modInlines     :: !(Either (Gamma -> Error () [Core.InlineDef]) [Core.InlineDef])
 
-                       -- codegen
+                     -- codegen
+                     -- entry is set if compiled with a main entry; contains the executable path and
+                     -- an IO function that runs it using a correct command line
                      , modEntry       :: !(Maybe (FilePath,IO()))
 
-                       -- temporary values
+                     -- temporary values
                      , modShouldOpen  :: !Bool
-                       -- unused
-                    --  , modCompiled    :: !Bool
-                    --  , modTime        :: !FileTime
-                     --, modPackageQName:: FilePath          -- A/B/C
-                     --, modPackageLocal:: FilePath          -- lib
                      }
 
 
@@ -117,7 +118,7 @@ moduleNull modName
   = Module  PhaseInit modName rangeNull errorsNil
             "" fileTime0 "" fileTime0 "" "" fileTime0
             -- lex
-            [] []
+            sourceNull [] []
             -- parse
             Nothing
             -- type check

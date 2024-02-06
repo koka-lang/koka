@@ -288,7 +288,7 @@ buildcBuildEx :: Bool -> [ModuleName] -> [Name] -> BuildContext -> Build BuildCo
 buildcBuildEx rebuild forced mainEntries buildc0
   = phaseTimed 2 "building" (\penv -> empty) $
     do buildc <- buildcValidate rebuild forced buildc0
-       mods <- modulesBuild mainEntries (buildcModules buildc)
+       mods   <- modulesBuild mainEntries (buildcModules buildc)
        return $! buildc{ buildcModules = seqqList mods}
 
 -- After a build with given main entry points, return a compiled entry
@@ -477,7 +477,7 @@ withVirtualFile fpath0 content action
   = do ftime <- liftIO $ getCurrentTime
        let fpath = normalize fpath0
            vfs   = VFS (\fname -> if fname == fpath then Just (content,ftime) else Nothing)
-       phaseVerbose 2 "trace" (\penv -> text "add virtual file" <+> text fpath <+> text ", content:" <-> text (bstringToString content))
+       phaseVerbose 4 "trace" (\penv -> text "add virtual file" <+> text fpath <+> text ", content:" <-> text (bstringToString content))
        withVFS vfs $ action fpath
 
 -- Return a module by name

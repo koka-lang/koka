@@ -38,7 +38,7 @@ import Core.CTail( ctailOptimize )
 import Core.OpenResolve( openResolve )
 import Core.Unroll( unrollDefs )
 
-import Type.Pretty
+import qualified Type.Pretty as TP
 import Kind.Newtypes( Newtypes )
 import Type.Assumption( Gamma )
 import qualified Core.Core as Core
@@ -149,7 +149,7 @@ coreOptimize flags newtypes gamma inlines coreProgram
             currentImports   = map Core.importName (Core.coreProgImports coreProgram)
             inlineImports    = [Core.Import name "" Core.ImportCompiler Private "" | name <- inlineDeps, not (name `elem` currentImports) && not (name == progName)]
 
-            coreFinal        = (if (null inlineImports) then id else trace (show progName ++ ": extra inline imports: " ++ show (map Core.importName inlineImports))) $
+            coreFinal        = (if (null inlineImports || verbose flags <= 2) then id else trace (show progName ++ ": extra inline imports: " ++ show (map Core.importName inlineImports))) $
                                uniquefy $ coreProgram {
                                  Core.coreProgDefs = coreDefsFinal,
                                  Core.coreProgImports = Core.coreProgImports coreProgram ++ inlineImports
@@ -165,6 +165,6 @@ traceDefGroups flags title
        trace (unlines (["","/* -----------------", title, "--------------- */"] ++
                 map showDef (Core.flattenDefGroups dgs))) $ return ()
   where
-    showDef def = show (Core.Pretty.prettyDef (penv{coreShowDef=True}) def)
+    showDef def = show (Core.Pretty.prettyDef (penv{TP.coreShowDef=True}) def)
     penv = prettyEnvFromFlags flags
 
