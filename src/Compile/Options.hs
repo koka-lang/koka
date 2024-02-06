@@ -674,7 +674,8 @@ targets =
      ("wasm64", \f -> f{ target=C Wasm, platform=platform64 }),
      ("wasmjs", \f -> f{ target=C WasmJs, platform=platform32 }),
      ("wasmweb",\f -> f{ target=C WasmWeb, platform=platform32 }),
-     ("cs",     \f -> f{ target=CS, platform=platformCS })
+     ("cs",     \f -> f{ target=CS, platform=platformCS }),
+     ("vm",     \f -> f{ target=VM, platform=platform64 })
     ]
 
 -- | Environment table

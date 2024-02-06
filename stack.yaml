@@ -13,6 +13,7 @@
 #   $ cabal new-run koka
 # See also <https://github.com/koka-lang/koka#build-notes>.
 
+arch: aarch64
 
 resolver: lts-22.11            # ghc 9.6.4 -- on windows set the codepage to utf-8: `chcp 65001`
 # resolver: lts-21.24           # ghc 9.4.8
