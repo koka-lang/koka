@@ -169,10 +169,12 @@ showLex lex
 
 data LexImport = LexImport{ lexImportName  :: !ModuleName
                           , lexImportAlias :: !ModuleName
-                          , lexImportVis   :: !Visibility }
+                          , lexImportVis   :: !Visibility
+                          , lexImportIsOpen :: !Bool }
 
 instance Show LexImport where
   show li = (if isPublic (lexImportVis li) then "pub " else "") ++
+            (if lexImportIsOpen li then "@open " else "") ++
             (if nameIsNil (lexImportAlias li) then "" else show (lexImportAlias li) ++ " = ") ++
             show (lexImportName li)
 
@@ -185,6 +187,8 @@ lexImportNub [] = []
 lexImportNub (li:lis)
   = case find (li==) lis of
       Just li' -> li{ lexImportVis = if isPublic (lexImportVis li) || isPublic (lexImportVis li') then Public else Private
-                    , lexImportAlias = if nameIsNil (lexImportAlias li) then lexImportAlias li' else lexImportAlias li }
+                    , lexImportAlias = if nameIsNil (lexImportAlias li) then lexImportAlias li' else lexImportAlias li
+                    , lexImportIsOpen = (lexImportIsOpen li || lexImportIsOpen li')
+                    }
                   : lexImportNub (delete li lis)
       Nothing  -> li : lexImportNub lis

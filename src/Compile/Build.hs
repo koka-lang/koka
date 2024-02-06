@@ -359,11 +359,7 @@ moduleTypeCheck :: ModuleMap -> Module -> Build Module
 moduleTypeCheck tcheckedMap
   = moduleGuard PhaseParsed PhaseTyped tcheckedMap id id return $ \done mod ->
      do -- wait for direct imports to be type checked
-        let program  = fromJust (modProgram mod)
-            openDeps = [(isOpen,mname) | imp <- modDeps mod, let mname = lexImportName imp,
-                                         let isOpen = case find (\imp -> importFullName imp == mname) (programImports program) of
-                                                        Just imp -> importOpen imp
-                                                        _        -> False ]
+        let openDeps = [(lexImportIsOpen imp,lexImportName imp) | imp <- modDeps mod]
         imports <- moduleWaitForPubImports tcheckedMap [] openDeps
         if any (\m -> modPhase m < PhaseTyped) imports
           then done mod  -- dependencies had errors (todo: we could keep going if the import has (previously computed) core?)
@@ -372,6 +368,7 @@ moduleTypeCheck tcheckedMap
                   phase "check" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imports:" <+> list (map (pretty . modName) imports)
                   let defs     = defsFromModules imports
                       cimports = coreImportsFromModules (modDeps mod) imports
+                      program  = fromJust (modProgram mod)
                   case checkError (typeCheck flags defs cimports program) of
                     Left errs
                       -> done mod{ modPhase  = PhaseTypedError
@@ -534,7 +531,8 @@ moduleParse mod
                          , modLexemes = programLexemes prog
                          , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
                          , modDeps    = seqqList $ lexImportNub $
-                                        [LexImport (importFullName imp) (importName imp) (importVis imp) | imp <- programImports prog]
+                                        [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp)
+                                         | imp <- programImports prog]
                          }
 
 moduleLoadIface :: Module -> Build Module
@@ -555,7 +553,7 @@ moduleLoadLibIface mod
 modFromIface :: Core.Core -> Maybe (Gamma -> Error () [Core.InlineDef]) -> Module -> Module
 modFromIface core parseInlines mod
   =  mod{ modPhase       = PhaseLinked
-        , modDeps        = seqqList $ [LexImport (Core.importName imp) nameNil (Core.importVis imp)
+        , modDeps        = seqqList $ [LexImport (Core.importName imp) nameNil (Core.importVis imp) False {- @open -}
                                        | imp <- Core.coreProgImports core, not (Core.isCompilerImport imp) ]
         , modCore        = Just $! core
         , modDefinitions = Just $! defsFromCore False core
