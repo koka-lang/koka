@@ -100,6 +100,7 @@ modulesBuild mainEntries modules
                       mapConcurrentModules
                        (moduleCompile mainEntries tcheckedMap optimizedMap codegenMap linkedMap buildOrder)
                        modules
+       mapM_ modmapClear [tcheckedMap,optimizedMap,codegenMap,linkedMap]
        return compiled -- modulesFlushErrors compiled
 
 -- Given a complete list of modules in build order, type check them all.
@@ -161,13 +162,13 @@ type ModuleMap = M.NameMap (MVar Module)
 -- signal a module is done with a compilation phase and unblock all pending reads.
 modmapPut :: ModuleMap -> Module -> Build ()
 modmapPut modmap mod
-  = liftIO $ putMVar ((M.!) modmap (modName mod)) mod
+  = seq mod $ liftIO $ putMVar ((M.!) modmap (modName mod)) mod
 
 -- signal a module is done with a compilation phase and unblock all pending reads.
 -- only the first call succeeds but subsequent ones will not block (useful for exception handling)
 modmapTryPut :: ModuleMap -> Module -> Build Bool
 modmapTryPut modmap mod
-  = liftIO $ tryPutMVar ((M.!) modmap (modName mod)) mod
+  = seq mod $ liftIO $ tryPutMVar ((M.!) modmap (modName mod)) mod
 
 -- blocks until a `modmapTryPut` happens (at which point it returns the module definition at that phase).
 -- (all further reads are non-blocking)
@@ -188,17 +189,25 @@ moduleGuard :: ModulePhase -> ModulePhase -> ModuleMap -> (a -> Module) -> (Modu
 moduleGuard expectPhase targetPhase modmap fromRes toRes initial action mod0
   = do res <- onBuildException (edone mod0) (initial mod0)
        let mod = fromRes res
-       buildFinally (edone mod) $
+       seq mod $ buildFinally (edone mod) $
         if (modPhase mod < expectPhase || modPhase mod >= targetPhase)
           then done mod
           else action done res
   where
-    edone mod = do modmapTryPut modmap mod  -- fails if it was already set
+    edone mod = seq mod $
+                do modmapTryPut modmap mod  -- fails if it was already set
                    return ()
 
-    done mod  = do modmapPut modmap mod
-                   return (toRes mod)
+    done mod  = seq mod $
+                do modmapPut modmap mod
+                   return $! (toRes mod)
 
+
+modmapClear :: ModuleMap -> Build ()
+modmapClear modmap
+  = liftIO $ mapM_ (\(_,mvar) -> tryPutMVar mvar moduleZero) (M.toList modmap)
+
+moduleZero = moduleNull nameNil
 
 {---------------------------------------------------------------
   Compile a module (type check, core compile, codegen, and link)
@@ -235,7 +244,7 @@ orderByBuildOrder buildOrder mods
     in -- note: can happen with explicit duplicate imports, like `std/core/types` and `std/core` -- see `std/toc.kk`.
        -- should we fix this?
        -- assertion "Compile.Build.orderByBuildOrder: wrong modules?" (length ordered == length mods)  $
-       ordered
+       seqqList $ ordered
 
 {---------------------------------------------------------------
   Code generation (.c,.js)
@@ -262,7 +271,7 @@ moduleCodeGen mainEntries tcheckedMap optimizedMap codegenMap
                   let mod' = mod{ modPhase = PhaseCodeGen }
                   phaseVerbose 3 "codegen done" $ \penv -> TP.ppName penv (modName mod)
                   done mod'
-                  return (isJust mbEntry,link,mod')
+                  return $! seq mod' $ seqMaybe mbEntry $ (isJust mbEntry,link,mod')
 
 
 getMainEntry :: Gamma -> [Name] -> Module -> Build (Maybe (Name,Type))
@@ -318,7 +327,7 @@ moduleOptimize tcheckedMap optimizedMap
                   (core,inlineDefs) <- liftError $ coreOptimize flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
                   let mod' = mod{ modPhase   = PhaseOptimized
                                 , modCore    = Just $! core
-                                , modInlines = Right $! inlineDefs
+                                , modInlines = Right $! seqqList $ inlineDefs
                                 }
                   phaseVerbose 3 "optimize done" $ \penv -> TP.ppName penv (modName mod)
                   done mod'
@@ -334,7 +343,7 @@ moduleWaitForInlineImports modmap importNames
                                                   imp <- modCoreImports mod,
                                                   not (Core.importName imp `elem` importNames)]
        extraImports <- mapM (modmapRead modmap) extras
-       return (extraImports ++ imports)
+       return $! seqqList $ (extraImports ++ imports)
   where
     hasInlines (Right []) = False
     hasInlines _          = True
@@ -370,7 +379,7 @@ moduleTypeCheck tcheckedMap
                     Right ((core,mbRangeMap),warns)
                       -> do let mod' = mod{ modPhase = PhaseTyped
                                           , modCore = Just $! core
-                                          , modRangeMap = mbRangeMap
+                                          , modRangeMap = seqqMaybe mbRangeMap
                                           , modDefinitions = Just $! defsFromCore False core
                                           }
                             phaseVerbose 3 "check done" $ \penv -> TP.ppName penv (modName mod)

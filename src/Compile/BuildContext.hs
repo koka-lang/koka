@@ -84,10 +84,12 @@ data BuildContext = BuildContext {
                       buildcHash    :: !String
                     }
 
+
 -- An empty build context
 buildcEmpty :: Flags -> BuildContext
 buildcEmpty flags
-  = BuildContext [] [] (flagsHash flags)
+  = let h = flagsHash flags
+    in seqString h $ BuildContext [] [] h
 
 
 -- Add roots to a build context
@@ -183,8 +185,8 @@ buildcPrettyEnvFor penv modname buildc
 -- Used for completion in the interpreter for example
 buildcGetMatchNames :: [ModuleName] -> BuildContext -> [String]
 buildcGetMatchNames modules buildc
-  = let defs = buildcGetDefinitions modules buildc
-    in seqqList $! map (showPlain . unqualify) $ gammaPublicNames (defsGamma defs)
+  = let defs = buildcGetFullDefinitions modules buildc
+    in seqqList $! map (showPlain . unqualify) $ gammaNames (defsGamma defs)  -- todo: too much as it includes private definitions of the imports??
 
 -- Return all module names with their associated source.
 buildcModulePaths :: BuildContext -> [(ModuleName,FilePath)]

@@ -479,10 +479,10 @@ externalImport rng1
       = do pos <- getPosition
            let mbContent  = unsafePerformIO $ exCatch (do -- putStrLn ("reading: " ++ fpath);
                                                           content <- readFile fpath
-                                                          return (seq (last content) $ Just content)
+                                                          seqString content $ return (Just content)
                                                       ) (\exn -> return Nothing)
            case mbContent of
-             Just content -> seq content $ return (Just content)
+             Just content -> return (Just content)
              Nothing      -> return Nothing
 
 

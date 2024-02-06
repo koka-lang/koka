@@ -27,7 +27,7 @@ import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep, startsWith, getCwd )
+import Common.File
 import Common.Name            ( Name, ModuleName, unqualify, qualify, newName, newQualified, nameNil )
 import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore )
 import Common.Range
@@ -48,6 +48,7 @@ import Type.Assumption        ( gammaIsEmpty, ppGamma, infoType, gammaFilter )
 import Compile.Options
 import Interpreter.Command
 import qualified Compile.BuildContext   as B
+import Compile.BuildContext (buildcEmpty)
 
 
 {---------------------------------------------------------------
@@ -62,7 +63,6 @@ data State = State{  printer    :: !ColorPrinter
                    , defines       :: ![(Name,[String])] -- interactive definitions
                    , errorRange    :: !(Maybe Range)       -- last error location
                    , lastLoad      :: ![FilePath]        -- last load command
-                   , buildContext  :: !B.BuildContext
                    }
 
 
@@ -72,20 +72,17 @@ data State = State{  printer    :: !ColorPrinter
 interpret ::  ColorPrinter -> Flags -> Flags -> [FilePath] -> IO ()
 interpret printer flags0 flagspre files
   = withReadLine (buildDir flags0) $
-    do{ let st0 = (State printer flags0 flagspre False [] Nothing [] (B.buildcEmpty flags0))
+    do{ let st0 = (State printer flags0 flagspre False [] Nothing [] )
       ; messageHeader st0
-      ; let st2 = st0
-
-      ; (mbSt,erng) <- loadModulesEx (terminal st2) st2{ flags = flags0{ showCore = False }} [show (nameSystemCore)] False False
-      ; case mbSt of
-          Nothing     -> do messageInfoLn st2 ("unable to load the " ++ show nameSystemCore ++ " module; standard functions are not available")
-                            messageEvaluation st2
-                            interpreterEx st2{ flags      = (flags st2){ evaluate = False }
-                                             , errorRange = erng }
-          Just coreSt -> if (null files)
-                             then interpreterEx coreSt{ lastLoad = [show nameSystemCore] }
-                             else command coreSt (Load files False)
-
+      ; let coreSt = st0
+      ; (buildc,erng) <- loadModules coreSt{flags = flags0{showCore=False}} (buildcEmpty flags0) [show (nameSystemCore)] False False
+      ; case erng of
+          Nothing -> interpreterEx (if null files then Nothing else Just (Load files False))
+                                   coreSt{ lastLoad = [show nameSystemCore] } buildc
+          Just _  -> do messageInfoLn coreSt ("unable to load the " ++ show nameSystemCore ++ " module; standard functions are not available")
+                        messageEvaluation coreSt
+                        interpreterEx Nothing coreSt{ flags      = (flags coreSt){ evaluate = False }
+                                                    , errorRange = erng } buildc
       }
 
 messageEvaluation st
@@ -94,42 +91,47 @@ messageEvaluation st
 {---------------------------------------------------------------
   Interpreter loop
 ---------------------------------------------------------------}
-interpreter ::  State -> IO ()
-interpreter st
-  = interpreterEx st{ errorRange = Nothing }
 
-interpreterEx ::  State -> IO ()
-interpreterEx st
-  = do flush (printer st)
-       cmd <- getCommand st
-       -- ; messageLn ""
-       command st cmd
+interpreterEx :: Maybe Command -> State -> B.BuildContext -> IO ()
+interpreterEx initCmd st buildc
+  = seq st $ seq buildc $
+    do flush (printer st)
+       cmd    <- case initCmd of
+                   Just cmd -> return cmd
+                   _        -> getCommand st buildc
+       mbNext <- command st buildc cmd `catchIO` \msg ->
+                 do messageError st msg
+                    return (Just (st,buildc))
+       case mbNext of
+         Just (st',buildc') -> interpreterEx Nothing st' buildc'
+         _                  -> return ()
 
 
 {---------------------------------------------------------------
   Interprete a command
 ---------------------------------------------------------------}
-command ::  State -> Command -> IO ()
-command st cmd
-  = let term = terminal st
-    in do{ case cmd of
-  Eval line   -> do st' <- buildRunExpr term st line
-                    interpreterEx st'
+command ::  State -> B.BuildContext -> Command -> IO (Maybe (State,B.BuildContext))
+command st buildc cmd
+  = let next s b = return (Just (s,b))
+        nextClear s b = next s{errorRange = Nothing} b
+    in case cmd of
+  Eval line   -> do (st1,buildc1) <- buildRunExpr st buildc line
+                    next st1 buildc1
 
   Load fnames forceAll
-              -> do let st' = st{ lastLoad = fnames }
-                    st'' <- loadModules term st' fnames forceAll True
-                    interpreterEx st''
+              -> do let st1 = st{ lastLoad = fnames }
+                    (buildc1,erng) <- loadModules st1 buildc fnames forceAll True
+                    next st1{errorRange = erng} buildc1
 
-  Reload      -> do st' <- loadModules term st (lastLoad st) False True
-                    interpreterEx st'
+  Reload      -> do (buildc1,erng) <- loadModules st buildc (lastLoad st) False True
+                    next st{errorRange = erng} buildc1
 
 
-  TypeOf line -> do (mbType,st') <- buildTypeExpr term st line
+  TypeOf line -> do (mbType,st1,buildc1) <- buildTypeExpr st buildc line
                     case mbType of
-                      Just tp -> messageSchemeEffect st' tp
+                      Just tp -> messageSchemeEffect st tp
                       _       -> return ()
-                    interpreterEx st'
+                    next st1 buildc1
 
 {-
   Define line -> do err <- compileValueDef term (flags st) (loaded st) (program st) (lineNo st) line
@@ -175,25 +177,25 @@ command st cmd
   Edit []     -> do{ let fpath = lastFilePath st
                    ; if (null fpath)
                       then do remark st "nothing to edit"
-                              interpreterEx st
+                              next st buildc
                       else do runEditor st fpath
                               -- command st Reload
-                              interpreter st
+                              nextClear st buildc
                    }
-  Edit fname  -> do{ mbpath <- B.runBuildMaybe (terminal st) (flags st) $ B.buildcSearchSourceFile fname (buildContext st)
+  Edit fname  -> do{ mbpath <- B.runBuildMaybe (terminal st) (flags st) $ B.buildcSearchSourceFile fname buildc
                    ; case mbpath of
                       Nothing
                         -> do messageErrorMsgLnLn st [errorFileNotFound (flags st) fname]
-                              interpreter st
+                              nextClear st buildc
                       Just (root,fname)
                         -> do runEditor st (joinPath root fname)
                               -- command st Reload
-                              interpreter st
+                              nextClear st buildc
                    }
 
   Shell cmd   -> do{ runSystem cmd
                    ; messageLn st ""
-                   ; interpreterEx st
+                   ; next st buildc
                    }
 
   ChangeDir d -> do{ if (null d)
@@ -201,7 +203,7 @@ command st cmd
                              ; messageInfoLnLn st fpath
                              }
                       else setCurrentDirectory d
-                   ; interpreterEx st
+                   ; next st buildc
                    }
 
   Options opts-> do{ (newFlags,newFlags0,mode) <- processOptions (flags0 st) (words opts)
@@ -209,15 +211,15 @@ command st cmd
                           = do if (null files)
                                  then messageLn st ""
                                  else messageError st "(ignoring file arguments)"
-                               (mbBuildc,_) <- B.runBuildIO (terminal st) newFlags False (B.buildcValidate False [] (buildContext st))
-                               interpreter (st{ flags = newFlags, flags0 = newFlags0, buildContext = maybe (buildContext st) id mbBuildc })
+                               (mbBuildc,_) <- B.runBuildIO (terminal st) newFlags False (B.buildcValidate False [] buildc)
+                               nextClear (st{ flags = newFlags, flags0 = newFlags0 }) (maybe buildc id mbBuildc)
                    ; case mode of
                        ModeHelp     -> do doc <- commandLineHelp (flags st)
                                           messagePrettyLn st doc
-                                          interpreterEx st
+                                          next st buildc
                        ModeVersion  -> do showVersion (flags st) (printer st)
                                           messageLn st ""
-                                          interpreter st
+                                          nextClear st buildc
                        ModeCompiler files     -> setFlags files
                        ModeInteractive files  -> setFlags files
                        -- ModeDoc files          -> setFlags files
@@ -226,64 +228,60 @@ command st cmd
   Error err   -> do{ messageInfoLn st err
                    ; messageInfoLn st "invalid command."
                    ; messageInfoLnLn st "(type \":?\" for help on commands)"
-                   ; interpreterEx st
+                   ; next st buildc
                    }
 
-  Show showcmd-> do{ showCommand st showcmd
-                   ; interpreterEx st
+  Show showcmd-> do{ showCommand st buildc showcmd
+                   ; next st buildc
                    }
 
   Quit        -> do{ putQuote st
+                   ; return Nothing
                    }
 
-  None        -> do{ interpreterEx st }
-      }
-   `catchIO` \msg ->
-      do{ messageError st msg
-        ; interpreter st
-        }
+  None        -> do{ next st buildc}
 
 
 -- todo: set error range
-loadModules :: Terminal -> State -> [FilePath] -> Bool -> Bool -> IO State
-loadModules term st files forceAll forceRoots
-  = do (mbSt,erng) <- loadModulesEx term st files forceAll forceRoots
-       let st' = case mbSt of
-                  Just st' -> st'
-                  Nothing  -> st
-       return (st'{ errorRange = erng <|> errorRange st'})
+loadModules :: State -> B.BuildContext -> [FilePath] -> Bool -> Bool -> IO (B.BuildContext, Maybe Range)
+loadModules st1 buildc1 files forceAll forceRoots
+  = do let fl  = flags st1
+           term = terminal st1
+       (mbbuildc,erng) <- loadModulesEx term fl buildc1 files forceAll forceRoots
+       case mbbuildc of
+        Nothing -> return (buildc1,erng)
+        Just bc -> return (bc,erng)
 
-loadModulesEx :: Terminal -> State -> [FilePath] -> Bool -> Bool -> IO (Maybe State,Maybe Range)
-loadModulesEx term st files forceAll forceRoots
-  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) True $ B.buildcLiftErrors id $
-                          do (buildc1,rootNames) <- B.buildcAddRootSources files (B.buildcClearRoots (buildContext st))
-                             B.buildcBuildEx (forceAll || rebuild (flags st))
+
+loadModulesEx :: Terminal -> Flags -> B.BuildContext -> [FilePath] -> Bool -> Bool -> IO (Maybe B.BuildContext,Maybe Range)
+loadModulesEx term fl buildc0 files forceAll forceRoots
+  = do (mbBuildc,erng) <- B.runBuildIO term fl True $ B.buildcLiftErrors id $
+                          do (buildc1,rootNames) <- B.buildcAddRootSources files (B.buildcClearRoots buildc0)
+                             B.buildcBuildEx (forceAll || rebuild fl)
                                              (if forceRoots then rootNames else [])
                                                 [] -- [newQualified "samples/basic/caesar" "main"]
                                                 buildc1
-       case mbBuildc of
-         Nothing     -> return (Nothing,erng)
-         Just buildc -> return (Just st{ buildContext = buildc }, erng)
+       return (mbBuildc,erng)
 
-buildRunExpr :: Terminal -> State -> String -> IO State
-buildRunExpr term st expr
-  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) True $ B.buildcLiftErrors id $
-                          do B.buildcRunExpr [] expr (buildContext st)
+buildRunExpr :: State -> B.BuildContext -> String -> IO (State,B.BuildContext)
+buildRunExpr st buildc expr
+  = do (mbBuildc,erng) <- B.runBuildIO (terminal st) (flags st) True $ B.buildcLiftErrors id $
+                          do B.buildcRunExpr [] expr buildc
        case mbBuildc of
-         Nothing     -> return st{ errorRange = erng <|> errorRange st }
-         Just buildc -> return st{ buildContext = buildc, errorRange = erng <|> errorRange st  }
+         Nothing -> return (st{ errorRange = erng }, buildc)
+         Just bc -> return (st{ errorRange = erng }, bc)
 
 
-buildTypeExpr :: Terminal -> State -> String -> IO (Maybe Type,State)
-buildTypeExpr term st expr
-  = do (mbBuildc,erng) <- B.runBuildIO term (flags st) True $ B.buildcLiftErrors fst $
-                          do B.buildcCompileExpr False True [] expr (buildContext st)
+buildTypeExpr :: State -> B.BuildContext -> String -> IO (Maybe Type,State,B.BuildContext)
+buildTypeExpr st buildc expr
+  = do (mbBuildc,erng) <- B.runBuildIO (terminal st) (flags st) True $ B.buildcLiftErrors fst $
+                          do B.buildcCompileExpr False True [] expr buildc
        case mbBuildc of
-         Nothing     -> return (Nothing, st{ errorRange = erng <|> errorRange st })
-         Just (buildc,mbEntry) -> let st' = st{ buildContext = buildc, errorRange = erng <|> errorRange st }
-                                  in case mbEntry of
-                                      Just (tp,_) -> return (Just tp,st')
-                                      Nothing     -> return (Nothing,st')
+         Nothing           -> return (Nothing, st{ errorRange = erng }, buildc)
+         Just (bc,mbEntry) -> let st' = st{ errorRange = erng }
+                              in case mbEntry of
+                                  Just (tp,_) -> return (Just tp,st',bc)
+                                  Nothing     -> return (Nothing,st',bc)
 
 
 
@@ -360,9 +358,9 @@ prettyEnv st
   = (prettyEnvFromFlags (flags st)) -- { context = loadedName (loaded st), importsMap = loadedImportMap (loaded st) }
 
 
-mainModuleName :: State -> ModuleName
-mainModuleName st
-  = case B.buildcRoots (buildContext st) of
+mainModuleName :: B.BuildContext -> ModuleName
+mainModuleName buildc
+  = case B.buildcRoots buildc of
       (mname:_) -> mname
       _         -> nameNil
 
@@ -370,8 +368,8 @@ getImportMap :: State -> ImportMap
 getImportMap st
   = []
 
-showCommand ::  State -> ShowCommand -> IO ()
-showCommand st cmd
+showCommand ::  State -> B.BuildContext -> ShowCommand -> IO ()
+showCommand st buildc cmd
   = case cmd of
       ShowHelp         -> do messagePrettyLn st (commandHelp (colorSchemeFromFlags (flags st)))
                              showEnv (flags st) (printer st)
@@ -379,17 +377,17 @@ showCommand st cmd
       ShowVersion      -> do showVersion (flags st) (printer st)
                              messageLn st ""
 
-      ShowKindSigs     -> let kgamma = B.defsKGamma (B.buildcGetDefinitions [] (buildContext st))
+      ShowKindSigs     -> let kgamma = B.defsKGamma (B.buildcGetDefinitions [] buildc)
                           in if (kgammaIsEmpty kgamma)
                            then remark st "no kinds to show"
-                           else messagePrettyLnLn st (ppKGamma colors (mainModuleName st) (getImportMap st) kgamma)
+                           else messagePrettyLnLn st (ppKGamma colors (mainModuleName buildc) (getImportMap st) kgamma)
 
-      ShowTypeSigs     -> let gamma = B.defsGamma (B.buildcGetDefinitions [] (buildContext st))
+      ShowTypeSigs     -> let gamma = B.defsGamma (B.buildcGetDefinitions [] buildc)
                           in if (gammaIsEmpty gamma)
                            then remark st "no types to show"
                            else messagePrettyLnLn st (ppGamma (prettyEnv st) gamma)
 
-      ShowSynonyms     -> let syns = B.defsSynonyms (B.buildcGetDefinitions [] (buildContext st))
+      ShowSynonyms     -> let syns = B.defsSynonyms (B.buildcGetDefinitions [] buildc)
                           in if (synonymsIsEmpty syns)
                            then remark st "no synonyms to show"
                            else messagePrettyLnLn st
@@ -431,11 +429,11 @@ interactiveSource str
   Run an editor
 --------------------------------------------------------------------------}
 runEditor ::  State -> FilePath -> IO ()
-runEditor st fpath
-  = let (line,col) = case errorRange st of
-                       Just rng | sourceName (rangeSource rng) == fpath
-                         -> let pos = rangeStart rng in (posLine pos, posColumn pos)
-                       _ -> (1,1)
+runEditor st fpath0
+  = let (line,col,fpath) = case errorRange st of
+                            Just rng -- | sourceName (rangeSource rng) == fpath
+                              -> let pos = rangeStart rng in (posLine pos, posColumn pos, sourceName (rangeSource rng))
+                            _ -> (1,1,fpath0)
     in runEditorAt st fpath line col
 
 runEditorAt ::  State -> FilePath -> Int -> Int -> IO ()
@@ -464,10 +462,12 @@ replace line col s fpath
 {--------------------------------------------------------------------------
   Messages
 --------------------------------------------------------------------------}
-getCommand :: State -> IO Command
-getCommand st
+getCommand :: State -> B.BuildContext -> IO Command
+getCommand st buildc
   = do messageLn st ""
        let cscheme = colorSchemeFromFlags (flags st)
+           matches = B.buildcGetMatchNames [] buildc
+           incPath = includePath (flags st)
            ansiPrompt = if isConsolePrinter (printer st) -- || osName == "macos"
                           then ""
                           else if isAnsiPrinter (printer st)
@@ -477,9 +477,8 @@ getCommand st
                                     -- ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st))) "> "
                                     -- "> "
                             else "> "
-
-       mbInput <- readLineEx cscheme (includePath (flags st)) (B.buildcGetMatchNames [] (buildContext st))
-                                     (optionCompletions) ansiPrompt (prompt st)
+       mbInput <- seqList matches -- $ trace ("matches: " ++ show matches) $
+                  readLineEx cscheme (includePath (flags st)) matches optionCompletions ansiPrompt (prompt st)
        let input = maybe ":quit" id mbInput
        -- messageInfoLn st ("cmd: " ++ show input)
        let cmd   = readCommand input

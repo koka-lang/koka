@@ -22,7 +22,7 @@ import Lib.Trace
 import Syntax.Lexeme
 import Syntax.Lexer
 import Common.Name  ( Name, nameLocal, nameStem )
-import Common.File  ( startsWith )
+import Common.File  ( startsWith, seqList )
 
 testFile fname
   = do input <- readInput ("test/" ++ fname)
@@ -50,7 +50,7 @@ layout allowAt semiInsert lexemes
               semi checkComments $
               lexemes
     in -- trace (unlines (map show ls)) $   -- see all lexemes
-       if null ls then [] else seq (last ls) ls
+       seqList ls ls
 
 isLexError (Lexeme _ (LexError {})) = True
 isLexError _ = False

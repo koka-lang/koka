@@ -446,7 +446,7 @@ token :: (BString -> Lex) -> Action
 token lex = \bs st0 st1 -> (Just (lex bs), st1)
 
 string :: (String -> Lex) -> Action
-string lex = token (lex . bstringToString)
+string lex = token (\bs -> let s = bstringToString bs in seq s (lex s))
 
 keyword :: Action
 keyword = string (\s -> LexKeyword s "")

@@ -54,7 +54,9 @@ bstringEmpty = B.empty
 
 bstringToText bstr = T.pack (BC.unpack bstr) -- utfDecode bstr -- T.decodeUtf8With E.lenientDecode bstr
 
-bstringToString bstr = T.unpack (T.decodeUtf8 bstr) -- (bstringToText bstr)
+bstringToString bstr
+  = let s = T.unpack (T.decodeUtf8 bstr) -- (bstringToText bstr)
+    in if null s then s else seq (last s) s
 
 stringToBString str = T.encodeUtf8 (T.pack str)
 

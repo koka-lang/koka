@@ -30,19 +30,19 @@ type Parser a = Parsec String () a
 --------------------------------------------------------------------------}
 -- | A commmand line command.
 data Command  = Quit
-              | Error    String
-              | Load     [FilePath] Bool {- force full rebuild? -}
+              | Error    !String
+              | Load     ![FilePath] !Bool {- force full rebuild? -}
               | Reload
-              | Eval     String
-              | TypeOf   String
-              | KindOf   String
-              | Define   String
-              | TypeDef  String
-              | Options  String
-              | Edit     FilePath
-              | Shell    String
-              | ChangeDir FilePath
-              | Show     ShowCommand
+              | Eval     !String
+              | TypeOf   !String
+              | KindOf   !String
+              | Define   !String
+              | TypeDef  !String
+              | Options  !String
+              | Edit     !FilePath
+              | Shell    !String
+              | ChangeDir !FilePath
+              | Show     !ShowCommand
               | None
               deriving (Show)
 

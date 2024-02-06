@@ -85,10 +85,10 @@ prettyIncludePath flags
                else cat (punctuate comma (map (\p -> color (colorSource cscheme) (text p)) path)))
 
 
-data Terminal = Terminal{ termError  :: ErrorMessage -> IO ()
-                        , termTrace  :: String -> IO ()
-                        , termPhase  :: Doc -> IO ()
-                        , termInfo   :: Doc -> IO ()
+data Terminal = Terminal{ termError  :: !(ErrorMessage -> IO ())
+                        , termTrace  :: !(String -> IO ())
+                        , termPhase  :: !(Doc -> IO ())
+                        , termInfo   :: !(Doc -> IO ())
                         }
 
 
@@ -114,99 +114,99 @@ showTypeSigs :: Flags -> Bool
 showTypeSigs flags = showHiddenTypeSigs flags || _showTypeSigs flags
 
 data Flags
-  = Flags{ warnShadow       :: Bool
-         , showKinds        :: Bool
-         , showKindSigs     :: Bool
-         , showSynonyms     :: Bool
-         , showCore         :: Bool
-         , showFinalCore    :: Bool
-         , showCoreTypes    :: Bool
-         , showAsmCS        :: Bool
-         , showAsmJS        :: Bool
-         , showAsmC         :: Bool
-         , _showTypeSigs     :: Bool
-         , showHiddenTypeSigs     :: Bool
-         , showElapsed      :: Bool
-         , evaluate         :: Bool
-         , execOpts         :: String
-         , library          :: Bool
-         , target           :: Target
-         , targetOS         :: String
-         , targetArch       :: String
-         , platform         :: Platform
-         , stackSize        :: Int
-         , heapSize         :: Int
-         , simplify         :: Int
-         , simplifyMaxDup   :: Int
-         , colorScheme      :: ColorScheme
-         , buildDir         :: FilePath      -- kkbuild
-         , buildTag         :: String
-         , outBuildDir      :: FilePath      -- actual build output: <builddir>/<version>-<buildtag>/<ccomp>-<variant>
-         , outBaseName      :: String
-         , outFinalPath     :: FilePath
-         , includePath      :: [FilePath]    -- .kk/.kki files
-         , csc              :: FileName
-         , node             :: FileName
-         , wasmrun          :: FileName
-         , cmake            :: FileName
-         , cmakeArgs        :: String
-         , ccompPath        :: FilePath
-         , ccompCompileArgs :: Args
-         , ccompIncludeDirs :: [FilePath]
-         , ccompDefs        :: [(String,String)]
-         , ccompLinkArgs    :: Args
-         , ccompLinkSysLibs :: [String]      -- just core lib name
-         , ccompLinkLibs    :: [FilePath]    -- full path to library
-         , ccomp            :: CC
-         , ccompLibDirs     :: [FilePath]    -- .a/.lib dirs
-         , autoInstallLibs  :: Bool
-         , vcpkgRoot        :: FilePath
-         , vcpkgTriplet     :: String
+  = Flags{ warnShadow       :: !Bool
+         , showKinds        :: !Bool
+         , showKindSigs     :: !Bool
+         , showSynonyms     :: !Bool
+         , showCore         :: !Bool
+         , showFinalCore    :: !Bool
+         , showCoreTypes    :: !Bool
+         , showAsmCS        :: !Bool
+         , showAsmJS        :: !Bool
+         , showAsmC         :: !Bool
+         , _showTypeSigs     :: !Bool
+         , showHiddenTypeSigs     :: !Bool
+         , showElapsed      :: !Bool
+         , evaluate         :: !Bool
+         , execOpts         :: !String
+         , library          :: !Bool
+         , target           :: !Target
+         , targetOS         :: !String
+         , targetArch       :: !String
+         , platform         :: !Platform
+         , stackSize        :: !Int
+         , heapSize         :: !Int
+         , simplify         :: !Int
+         , simplifyMaxDup   :: !Int
+         , colorScheme      :: !ColorScheme
+         , buildDir         :: !FilePath      -- kkbuild
+         , buildTag         :: !String
+         , outBuildDir      :: !FilePath      -- actual build output: <builddir>/<version>-<buildtag>/<ccomp>-<variant>
+         , outBaseName      :: !String
+         , outFinalPath     :: !FilePath
+         , includePath      :: ![FilePath]    -- .kk/.kki files
+         , csc              :: !FileName
+         , node             :: !FileName
+         , wasmrun          :: !FileName
+         , cmake            :: !FileName
+         , cmakeArgs        :: !String
+         , ccompPath        :: !FilePath
+         , ccompCompileArgs :: !Args
+         , ccompIncludeDirs :: ![FilePath]
+         , ccompDefs        :: ![(String,String)]
+         , ccompLinkArgs    :: !Args
+         , ccompLinkSysLibs :: ![String]      -- just core lib name
+         , ccompLinkLibs    :: ![FilePath]    -- full path to library
+         , ccomp            :: !CC
+         , ccompLibDirs     :: ![FilePath]    -- .a/.lib dirs
+         , autoInstallLibs  :: !Bool
+         , vcpkgRoot        :: !FilePath
+         , vcpkgTriplet     :: !String
          {-
-         , vcpkg            :: FilePath
-         , vcpkgLibDir      :: FilePath
-         , vcpkgIncludeDir  :: FilePath
+         , vcpkg            :: !FilePath
+         , vcpkgLibDir      :: !FilePath
+         , vcpkgIncludeDir  :: !FilePath
          -}
-         , conan            :: FilePath
-         , editor           :: String
-         , redirectOutput   :: FileName
-         , outHtml          :: Int
-         , htmlBases        :: [(String,String)]
-         , htmlCss          :: String
-         , htmlJs           :: String
-         , verbose          :: Int
-         , showSpan         :: Bool
-         , console          :: String
-         , rebuild          :: Bool
-         , genCore          :: Bool
-         , coreCheck        :: Bool
-         , enableMon        :: Bool
-         , semiInsert       :: Bool
-         , genRangeMap      :: Bool
-         , languageServerPort :: Int
-         , localBinDir      :: FilePath  -- directory of koka executable
-         , localDir         :: FilePath  -- install prefix: /usr/local
-         , localLibDir      :: FilePath  -- precompiled object files: <prefix>/lib/koka/v2.x.x  /<cc>-<config>/libkklib.a, /<cc>-<config>/std_core.kki, ...
-         , localShareDir    :: FilePath  -- sources: <prefix>/share/koka/v2.x.x  /lib/std, /lib/samples, /kklib
-         , packages         :: Packages
-         , forceModule      :: FilePath
-         , debug            :: Bool      -- emit debug info
-         , optimize         :: Int       -- optimization level; 0 or less is off
-         , optInlineMax     :: Int
-         , optctail         :: Bool
-         , optctailCtxPath  :: Bool
-         , optUnroll        :: Int
-         , optEagerPatBind  :: Bool      -- bind pattern fields as early as possible?
-         , parcReuse        :: Bool
-         , parcSpecialize   :: Bool
-         , parcReuseSpec    :: Bool
-         , parcBorrowInference    :: Bool
-         , asan             :: Bool
-         , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
-         , optSpecialize    :: Bool
-         , mimallocStats    :: Bool
-         , maxConcurrency   :: Int
-         , maxErrors        :: Int
+         , conan            :: !FilePath
+         , editor           :: !String
+         , redirectOutput   :: !FileName
+         , outHtml          :: !Int
+         , htmlBases        :: ![(String,String)]
+         , htmlCss          :: !String
+         , htmlJs           :: !String
+         , verbose          :: !Int
+         , showSpan         :: !Bool
+         , console          :: !String
+         , rebuild          :: !Bool
+         , genCore          :: !Bool
+         , coreCheck        :: !Bool
+         , enableMon        :: !Bool
+         , semiInsert       :: !Bool
+         , genRangeMap      :: !Bool
+         , languageServerPort :: !Int
+         , localBinDir      :: !FilePath  -- directory of koka executable
+         , localDir         :: !FilePath  -- install prefix: /usr/local
+         , localLibDir      :: !FilePath  -- precompiled object files: <prefix>/lib/koka/v2.x.x  /<cc>-<config>/libkklib.a, /<cc>-<config>/std_core.kki, ...
+         , localShareDir    :: !FilePath  -- sources: <prefix>/share/koka/v2.x.x  /lib/std, /lib/samples, /kklib
+         , packages         :: !Packages
+         , forceModule      :: !FilePath
+         , debug            :: !Bool      -- emit debug info
+         , optimize         :: !Int       -- optimization level; 0 or less is off
+         , optInlineMax     :: !Int
+         , optctail         :: !Bool
+         , optctailCtxPath  :: !Bool
+         , optUnroll        :: !Int
+         , optEagerPatBind  :: !Bool      -- bind pattern fields as early as possible?
+         , parcReuse        :: !Bool
+         , parcSpecialize   :: !Bool
+         , parcReuseSpec    :: !Bool
+         , parcBorrowInference    :: !Bool
+         , asan             :: !Bool
+         , useStdAlloc      :: !Bool -- don't use mimalloc for better asan and valgrind support
+         , optSpecialize    :: !Bool
+         , mimallocStats    :: !Bool
+         , maxConcurrency   :: !Int
+         , maxErrors        :: !Int
          } deriving (Eq,Show)
 
 instance Hashable Flags where
@@ -251,7 +251,8 @@ instance Hashable Flags where
 
 flagsHash :: Flags -> String
 flagsHash flags
-  = map toLower (take 6 (showHex 6 (abs (hash flags))))
+  = let s = map toLower (take 6 (showHex 6 (abs (hash flags))))
+    in seq (length s) s
 
 flagsNull :: Flags
 flagsNull

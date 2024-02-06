@@ -127,33 +127,33 @@ instance Pretty TypeSyn where
 type TvScheme = M.Map TypeVar (Prec -> Doc)
 
 -- | Pretty print environment for types.
-data Env     = Env{ showKinds      :: Bool
-                  , showIds        :: Bool -- show id numbers
-                  , showFlavours :: Bool
-                  , expandSynonyms :: Bool
-                  , colors  :: ColorScheme
-                  , nice    :: Nice
-                  , prec    :: Prec
-                  , ranked  :: TvScheme
-                  , context :: Name  -- ^ module in which we pretty print
-                  , importsMap :: ImportMap -- ^ import aliases
-                  , fullNames :: Bool
+data Env     = Env{ showKinds      :: !Bool
+                  , showIds        :: !Bool -- show id numbers
+                  , showFlavours :: !Bool
+                  , expandSynonyms :: !Bool
+                  , colors  :: !ColorScheme
+                  , nice    :: !Nice
+                  , prec    :: !Prec
+                  , ranked  :: !TvScheme
+                  , context :: !Name  -- ^ module in which we pretty print
+                  , importsMap :: !ImportMap -- ^ import aliases
+                  , fullNames :: !Bool
 
                   -- should not really belong here. Contains link bases for documentation generation (see Syntax.Colorize)
-                  , colorizing:: Bool
-                  , htmlBases :: [(String,String)]
-                  , htmlCss   :: String
-                  , htmlJs    :: String
+                  , colorizing:: !Bool
+                  , htmlBases :: ![(String,String)]
+                  , htmlCss   :: !String
+                  , htmlJs    :: !String
 
                   -- should not be here either: Signifies whether we output core for an interface or not
-                  , coreIface :: Bool
-                  , coreShowTypes :: Bool  -- show types in core output
-                  -- , coreInlineMax :: Int   -- max size for exported inline definition
-                  , coreShowVis   :: Bool -- show visibility?
-                  , coreShowDef   :: Bool -- show definition body
+                  , coreIface :: !Bool
+                  , coreShowTypes :: !Bool  -- show types in core output
+                  -- , coreInlineMax :: !Int   -- max size for exported inline definition
+                  , coreShowVis   :: !Bool -- show visibility?
+                  , coreShowDef   :: !Bool -- show definition body
 
                   -- should not be here either: was the verbose flag set?
-                  , verbose   :: Int
+                  , verbose   :: !Int
                   }
 
 

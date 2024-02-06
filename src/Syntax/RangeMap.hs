@@ -29,6 +29,7 @@ import Data.Char    ( isSpace )
 import Common.Failure
 import Data.List    (sortBy, groupBy, minimumBy, foldl')
 import Lib.PPrint
+import Common.File
 import Common.Range
 import Common.Name
 import Common.NamePrim (nameUnit, nameListNil, isNameTuple)
@@ -40,7 +41,7 @@ import Type.Pretty()
 import Data.Maybe (fromMaybe)
 import Syntax.Lexeme
 
-newtype RangeMap = RM [(Range,RangeInfo)]
+data RangeMap = RM ![(Range,RangeInfo)]
   deriving Show
 
 mangleConName :: Name -> Name
@@ -65,18 +66,18 @@ mangle name tp
              else c : compress cc
 
 data RangeInfo
-  = Decl String Name Name (Maybe Type)   -- alias, type, cotype, rectype, fun, val
-  | Block String                -- type, kind, pattern
-  | Error Doc
-  | Warning Doc
-  | Id Name NameInfo [Doc] Bool           -- qualified name, info, extra doc (from implicits), is this the definition?
+  = Decl !String !Name !Name !(Maybe Type)   -- alias, type, cotype, rectype, fun, val
+  | Block !String                -- type, kind, pattern
+  | Error !Doc
+  | Warning !Doc
+  | Id !Name !NameInfo ![Doc] !Bool           -- qualified name, info, extra doc (from implicits), is this the definition?
   | Implicits (Bool {-shorten?-} -> Doc)  -- inferred implicit arguments and (implicit) resume arguments
 
 data NameInfo
-  = NIValue   { niSort :: String, niType:: Type, niComment :: String, niIsAnnotated :: Bool }  -- sort is fun, val, etc.
-  | NICon     { niType :: Type, niComment :: String }
-  | NITypeCon { niKind :: Kind, niComment :: String }
-  | NITypeVar { niKind :: Kind }
+  = NIValue   { niSort :: !String, niType:: !Type, niComment :: !String, niIsAnnotated :: !Bool }  -- sort is fun, val, etc.
+  | NICon     { niType :: !Type, niComment :: !String }
+  | NITypeCon { niKind :: !Kind, niComment :: !String }
+  | NITypeVar { niKind :: !Kind }
   | NIModule
   | NIKind
 
@@ -153,11 +154,13 @@ cut r
 rangeMapInsert :: Range -> RangeInfo -> RangeMap -> RangeMap
 rangeMapInsert r info (RM rm)
   = -- trace ("rangemap insert: " ++ show r ++ ": " ++ show info) $
+    RM $! seq info $
     if (rangeIsNull r || rangeIsHidden r || isHidden info)
-     then RM rm
-    else if beginEndToken info
-     then RM ((r,info):(makeRange (rangeEnd r) (rangeEnd r),info):rm)
-     else RM ((r,info):rm)
+      then rm
+      else if beginEndToken info
+        then let r' = makeRange (rangeEnd r) (rangeEnd r)
+             in seq r' $ ((r,info):(r',info):rm)
+        else ((r,info):rm)
   where
     beginEndToken info
       = case info of
@@ -166,11 +169,11 @@ rangeMapInsert r info (RM rm)
 
 rangeMapAppend :: RangeMap -> RangeMap -> RangeMap
 rangeMapAppend (RM rm1) (RM rm2)
-  = RM (rm1 ++ rm2)
+  = RM $! seqqList (rm1 ++ rm2)
 
 rangeMapSort :: RangeMap -> RangeMap
 rangeMapSort (RM rm)
-  = RM (sortBy (\(r1,_) (r2,_) -> compare r1 r2) rm)
+  = RM $! seqqList (sortBy (\(r1,_) (r2,_) -> compare r1 r2) rm)
 
 -- | select the best matching range infos from a selection
 prioritize :: [(Range,RangeInfo)] -> [(Range,RangeInfo)]
@@ -179,7 +182,8 @@ prioritize rinfos
                 concatMap (\(_,rinfo) -> case rinfo of
                                             Implicits fdoc -> [fdoc False {-do not shorten for hover info-}]
                                             _              -> []) rinfos
-    in map (mergeDocs idocs) $
+    in seqqList $
+       map (mergeDocs idocs) $
         map last $
         groupBy eq $
         sortBy cmp $
@@ -198,7 +202,7 @@ prioritize rinfos
 
 mergeImplicits :: Bool -> [(Range,RangeInfo)] -> [(Range,RangeInfo)]
 mergeImplicits forInlay rinfos
-  = merge rinfos
+  = seqqList $ merge rinfos
   where
     idocs = concatMap (\(rng,rinfo) -> case rinfo of
                                         Implicits fdoc -> [(rng,fdoc forInlay)]

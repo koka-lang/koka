@@ -355,7 +355,7 @@ lookupTarget target imports
 
 type TypeDefGroups = [TypeDefGroup]
 
-data TypeDefGroup = TypeDefGroup TypeDefs
+data TypeDefGroup = TypeDefGroup !TypeDefs
 
 type TypeDefs = [TypeDef]
 

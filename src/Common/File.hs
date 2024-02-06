@@ -46,8 +46,8 @@ module Common.File(
                   , makeRelativeToPaths
                   , getCwd
                   , relativeToPath
-                  , seqList, seqMaybe, seqEither, seqTuple2
-                  , seqqList, seqqMaybe, seqqEither, seqqTuple2
+                  , seqList, seqMaybe, seqEither, seqTuple2, seqString
+                  , seqqList, seqqMaybe, seqqEither, seqqTuple2, seqqString
                   ) where
 
 import Data.List        ( intersperse, isPrefixOf, maximumBy )
@@ -83,6 +83,9 @@ seqEither (Right y) z = seq y z
 seqTuple2 :: (a,b) -> c -> c
 seqTuple2 (x,y) z  = seq x (seq y z)
 
+seqString :: String -> a -> a
+seqString s z = if null s then z else seq (last s) z
+
 -- use seqqXXX when assigning to a field that is already strict
 seqqList :: [a] -> [a]
 seqqList xs  = seqList xs xs
@@ -96,6 +99,8 @@ seqqEither x  = seqEither x x
 seqqTuple2 :: (a,b) -> (a,b)
 seqqTuple2 x  = seqTuple2 x x
 
+seqqString :: String -> String
+seqqString s = seqString s s
 
 startsWith, endsWith :: String -> String -> Bool
 startsWith s  [] = True
