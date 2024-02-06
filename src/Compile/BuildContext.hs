@@ -25,6 +25,7 @@ module Compile.BuildContext ( BuildContext
                             , buildcLookupModuleName
                             , buildcGetDefinitions, buildcGetVisibleDefinitions
                             , buildcGetMatchNames
+                            , buildcGetLexemes
                             , buildcGetRangeMap
                             , buildcModulePaths
                             , buildcPrettyEnvFor
@@ -171,6 +172,14 @@ buildcGetVisibleDefinitions modules0 buildc
              then alreadyDone
              else getPublicImportNames alreadyDone pubs
 
+
+-- Return the lexemes for a given module.
+-- These are available even if the source cannot be parsed.
+buildcGetLexemes :: ModuleName -> BuildContext -> Maybe [Lexeme]
+buildcGetLexemes modname buildc
+  = seqqMaybe $
+    do mod  <- buildcLookupModule modname buildc
+       return (modLexemes mod)
 
 
 -- Return a range map and lexemes for a given module

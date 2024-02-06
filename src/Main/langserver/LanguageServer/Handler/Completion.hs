@@ -60,10 +60,9 @@ import Type.TypeVar (tvsEmpty)
 import Type.Type
 import Type.Unify (runUnify, unify, runUnifyEx, matchArguments)
 
-import Syntax.Lexer (reservedNames, lexing, Lexeme (..), Lex (..))
+import Syntax.Lexer (reservedNames)
 import Syntax.Lexeme
 import Syntax.RangeMap hiding (NameInfo)
-import Syntax.Layout (layout)
 
 import Language.LSP.Protocol.Types (InsertTextFormat(InsertTextFormat_Snippet))
 import LanguageServer.Conversions (fromLspPos, fromLspUri, toLspPos, toLspRange)
@@ -92,7 +91,7 @@ completionHandler
         liftMaybe (getVirtualFile uri) $ \vfile ->
           liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
             liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
-              liftMaybe (liftIO $ getCompletionInfo pos vfile rmap uri) $ \completionInfo ->
+              liftMaybe (liftIO $ getCompletionInfo pos vfile rmap uri lexemes) $ \completionInfo ->
                 do defs <- lookupVisibleDefinitions [modname]
                    let completions = findCompletions defs modname completionInfo
                        completionList = J.CompletionList False Nothing completions
@@ -119,16 +118,12 @@ isTypeCompletion CompletionKindType = True
 isTypeCompletion CompletionKindTypeOrEffect = True
 isTypeCompletion _ = False
 
-getCompletionInfo :: MonadIO m => J.Position -> VirtualFile -> RangeMap -> J.NormalizedUri -> m (Maybe CompletionInfo)
-getCompletionInfo pos vf rmap uri = do
+getCompletionInfo :: MonadIO m => J.Position -> VirtualFile -> RangeMap -> J.NormalizedUri -> [Lexeme] -> m (Maybe CompletionInfo)
+getCompletionInfo pos vf rmap uri lexemes = do
   let text = T.encodeUtf8 $ virtualFileText vf
   filePath <- fromMaybe "" <$> liftIO (fromLspUri uri)
   pos' <- liftIO $ fromLspPos uri pos
-  let source = Source filePath text
-      input  = if isLiteralDoc filePath then extractLiterate text else text
-      xs = lexing source 1 input
-      lexemes = layout False {-no at-} True {-semi insert-} xs
-      !prior = previousLexemesReversed lexemes pos'
+  let !prior = previousLexemesReversed lexemes pos'
       fncontext = getFunctionNameReverse prior
       tpcontext = dropAutoGenClosing prior -- TODO: Test this out, should it be opening?
       lines = T.lines (virtualFileText vf)

@@ -2,7 +2,6 @@
 //
 // This is inspired by an example in Graham Hutton's most excellent "Programming in Haskell" book.
 // (at <https://www.cs.nott.ac.uk/~pszgmh/pih.html>)
-
 module caesar
 
 import std/num/float64
@@ -68,3 +67,5 @@ pub fun main()
   println( "plain  : " ++ s)
   println( "encoded: " ++ s.caesar)
   println( "cracked: " ++ s.caesar.uncaesar)
+
+

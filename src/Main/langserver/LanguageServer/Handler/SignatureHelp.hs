@@ -21,12 +21,9 @@ import Language.LSP.Server (Handlers, requestHandler, sendNotification, getVirtu
 
 import Lib.PPrint
 import Common.Name ( Name, readQualifiedName, nameNil )
-import Common.Range (Source(..))
 import Common.File (isLiteralDoc)
-import Syntax.Lexeme (Lexeme(..))
-import Syntax.Lexer (Lex(..), extractLiterate, lexing)
+import Syntax.Lexeme (Lexeme(..), Lex(..))
 import Syntax.RangeMap hiding (NameInfo)
-import Syntax.Layout (layout)
 import Kind.Constructors (ConInfo(..))
 import Type.Assumption (gammaLookup, NameInfo(..))
 import Type.Pretty (Env(..), ppScheme, ppName)
@@ -60,8 +57,9 @@ signatureHelpHandler
 
        liftMaybe (getVirtualFile uri) $ \vf ->
         liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
-         liftMaybe (createSignatureHelp pos sig modname vf filePath) $ \sighelp ->
-            do responder $ Right $ J.InL $ sighelp
+          liftMaybe (lookupLexemes modname) $ \lexemes ->
+            liftMaybe (createSignatureHelp pos sig modname vf filePath lexemes) $ \sighelp ->
+              do responder $ Right $ J.InL $ sighelp
 
 -- _ ->
 --        -- trace ("No loaded module for " ++ show uri) $ do
@@ -75,14 +73,10 @@ firstId chain =
     _ -> Nothing
 
 
-createSignatureHelp pos sig modname vf filePath
+createSignatureHelp pos sig modname vf filePath lexemes
   = do  let text = T.encodeUtf8 $ virtualFileText vf
 
-        let source = Source filePath text
-            input  = if isLiteralDoc filePath then extractLiterate text else text
-            xs = lexing source 1 input
-            lexemes = layout False {-no at-} True {-semi insert-} xs
-            prevLexes = previousLexemesReversed lexemes pos
+        let prevLexes = previousLexemesReversed lexemes pos
         let fncontext = getFunctionNameReverse prevLexes
             incompleteContext = getFunctionIncompleteReverse prevLexes
 

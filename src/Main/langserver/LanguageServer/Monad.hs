@@ -26,7 +26,7 @@ module LanguageServer.Monad
     getProgress,setProgress, maybeContents,
 
     liftBuild, liftBuildWith,
-    lookupModuleName, lookupRangeMap, lookupProgram,
+    lookupModuleName, lookupRangeMap, lookupProgram, lookupLexemes,
     lookupDefinitions, lookupVisibleDefinitions, Definitions(..),
     lookupModulePaths,
     getPrettyEnv, getPrettyEnvFor, prettyMarkdown,
@@ -316,6 +316,13 @@ lookupModuleName uri
        return $ do fpath   <- mbfpath -- maybe monad
                    modname <- buildcLookupModuleName fpath buildc
                    return (fpath,modname)
+
+-- Lexemes from module name
+-- available even if the source cannot be parsed
+lookupLexemes :: ModuleName -> LSM (Maybe [Lexeme])
+lookupLexemes mname
+  = do buildc <- getBuildContext
+       return (buildcGetLexemes mname buildc)
 
 -- RangeMap from module name
 lookupRangeMap :: ModuleName -> LSM (Maybe (RangeMap,[Lexeme]))
