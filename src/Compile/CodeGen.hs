@@ -48,7 +48,7 @@ import Compile.TypeCheck( importMapFromCoreImports )    -- todo: break this depe
 
 
 data LinkResult = LinkDone
-                | LinkExe{ linkExePath :: FilePath, linkRun :: IO () }
+                | LinkExe{ linkExePath :: !FilePath, linkRun :: !(IO ()) }
 
 type Link       = [Module] -> IO LinkResult
 
@@ -378,8 +378,8 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs
 
         case target flags of
           C Wasm
-            -> do return (LinkExe mainTarget
-                          (runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ " -- " ++ cmdflags ++ " " ++ execOpts flags)))
+            -> do let cmd = wasmrun flags ++ " " ++ dquote mainTarget ++ " -- " ++ cmdflags ++ " " ++ execOpts flags
+                  seqString cmd $ return (LinkExe mainTarget (runSystemEcho term flags cmd))
           C WasmWeb
             -> do return (LinkExe mainTarget
                           (runSystemEcho term flags (dquote mainTarget ++ " &")))
@@ -387,8 +387,8 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs
             -> do let nodeStack = if (stksize == 0) then 100000 else (stksize `div` 1024)
                   return (LinkExe mainTarget
                           (runCommand term flags [node flags,"--stack-size=" ++ show nodeStack,mainTarget]))
-          _ -> do return (LinkExe mainTarget
-                          (runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
+          _ -> do let cmd = dquote mainExe ++ cmdflags ++ " " ++ execOpts flags
+                  seqString cmd $ return (LinkExe mainTarget (runSystemEcho term flags cmd)) -- use shell for proper rss accounting
 
 
 -- Run the C compiler

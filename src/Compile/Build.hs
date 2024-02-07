@@ -72,6 +72,7 @@ import Compile.Module
 import Compile.TypeCheck      ( typeCheck )
 import Compile.Optimize       ( coreOptimize )
 import Compile.CodeGen        ( codeGen, Link, LinkResult(..), noLink )
+import Core.Core (Core(coreProgDefs))
 
 
 {---------------------------------------------------------------
@@ -239,9 +240,12 @@ moduleCompile mainEntries parsedMap tcheckedMap optimizedMap codegenMap linkedMa
                   ftIface <- getFileTime (modIfacePath mod)
                   let mod' = mod{ modPhase = PhaseLinked
                                 , modIfaceTime = ftIface
+                                , modCore  = case modCore mod of
+                                               Just core -> Just $! coreReset core  -- no need anymore for the definitions
+                                               Nothing   -> Nothing
                                 , modEntry = case mbEntry of
                                               LinkDone -> Nothing
-                                              LinkExe exe run -> Just (exe,run) }
+                                              LinkExe exe run -> Just $! seqqTuple2 $ (exe,run) }
                   done mod'
 
 
@@ -504,13 +508,18 @@ modulesResolveDependencies rebuild forced cached roots
 
 modulesResolveDeps :: Bool -> [ModuleName] -> [Module] -> [Module] -> [Module] -> Build [Module]
 modulesResolveDeps rebuild forced cached roots acc
-  = do lroots     <- mapConcurrentModules (moduleLoad rebuild forced) roots    -- we can concurrently load/parse modules
+  = do lroots     <- mapConcurrentModules (moduleLoad rebuild forced) roots    -- we can concurrently load (and lex) modules
        let loaded = lroots ++ acc
        newimports <- nubBy (\m1 m2 -> modName m1 == modName m2) <$> concat <$>
                      mapM (addImports loaded) lroots
        if (null newimports)
-         then do ordered <- toBuildOrder loaded
-                 validateDependencies ordered
+         then do ordered <- toBuildOrder loaded    -- all modules in build order
+                 validateDependencies ordered      -- now bottom-up reload also modules whose dependencies have updated
+                                                   -- so, we have have optimistically loaded an (previously compiled) interface
+                                                   -- for its dependencies, but then discover one of its dependencies has changed,
+                                                   -- in which case we need to load from source anyways. (This is still good as any
+                                                   -- definitions from the interface etc. will stay even if there are compilation
+                                                   -- errors which helps for the IDE.)
          else do -- phaseVerbose 2 "resolve" $ \penv -> list (map (TP.ppName penv . modName) newimports)
                  modulesResolveDeps rebuild forced cached newimports loaded  -- keep resolving until all have been loaded
   where
@@ -519,11 +528,10 @@ modulesResolveDeps rebuild forced cached roots acc
       where
         addImport :: ModuleName -> Build (Maybe Module)
         addImport impName
-          = if any (\m -> modName m == impName) loaded
+          = if any (\m -> modName m == impName) loaded  -- already done?
               then return Nothing
-              else case find (\m -> modName m == impName) cached of
-                     Just mod  -> do -- m <- moduleValidate vfs mod
-                                     return (Just mod)
+              else case find (\m -> modName m == impName) cached of   -- do we already have this module cached?
+                     Just mod  -> do return (Just mod)
                      _         -> do let relativeDir = dirname (modSourcePath mod)
                                      m <- moduleFromModuleName relativeDir impName
                                      return (Just m)
@@ -796,12 +804,25 @@ moduleReset :: Module -> Module
 moduleReset mod
   = mod{ modPhase = PhaseInit, modErrors = errorsNil,
         -- reset fields that are not used by an IDE to reduce memory pressure
-        -- leave lexemes, rangeMap, and definitions.
+        -- leave lexemes, rangeMap, and definitions. todo: maybe don't cache definitions at all?
         modProgram = Nothing,
-        modCore    = Nothing,
+        modCore    = case modCore mod of
+                       Just core -> Just $! coreReset core
+                       Nothing   -> Nothing,
         modInlines = Right [],
         modEntry   = Nothing
       }
+
+coreReset :: Core -> Core
+coreReset core
+  = core{ coreProgDefs = seqqList [defGroupReset dg  | dg <- coreProgDefs core] }
+  where
+    defGroupReset dg
+      = case dg of
+          Core.DefRec defs    -> Core.DefRec (seqqList (map defReset defs))
+          Core.DefNonRec def  -> Core.DefNonRec (defReset def)
+    defReset def
+      = def{ Core.defExpr = Core.exprUnit }
 
 
 {---------------------------------------------------------------
