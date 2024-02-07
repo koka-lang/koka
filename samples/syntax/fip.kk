@@ -111,7 +111,21 @@ fip(1) fun insert-order( t : tree<a>, k : a, ^?order2 : (a,a) -> order2<a> ) : t
                     Gt2(kk,kx)  -> Bin(insert-order(l,kk),kx,r)
     Tip        -> Bin(Tip,k,Tip)
 
+// Return the height of a tree.
+fun height( t : tree<a> ) : int
+  match t
+    Tip        -> 0
+    Bin(l,_,r) -> 1 + max( l.height, r.height )
 
+// Convert a list to a tree given an ordering on the elements
+fun tree( elems : list<a>, ^?order2 : (a,a) -> order2<a> ) : tree<a>
+  elems.foldl(Tip) fn(t,i)
+    insert-order(t,i)
+
+fun example-order()
+  [[2,3,1].tree.height,
+   ['a','b','c'].tree.height,
+   [2,3,1].tree(?order2=fn(x,y) Eq2(x)).height].println
 
 // Todo.. more examples with zippers:
 // - Tree mapping
