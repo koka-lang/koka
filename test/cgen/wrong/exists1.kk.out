@@ -1,4 +1,4 @@
-test/cgen/wrong/exists1@kk(18,27): error: True does not match the argument types
+test/cgen/wrong/exists1@kk(18,27): type error: True does not match the argument types
  context : True
  term : True
  inferred type: bool

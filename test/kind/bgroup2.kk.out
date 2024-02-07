@@ -1,8 +1,9 @@
-kind/bgroup2/age: V
-kind/bgroup2/int: V
-kind/bgroup2/tt: V -> V
-kind/bgroup2/uu1: V -> V
-kind/bgroup2/uu2: (V, V) -> V
+age : V
+int : V
+tt : V -> V
+uu1 : V -> V
+uu2 : (V, V) -> V
+ 
 pub alias age = int = 1
 pub alias uu1<a> :: V -> V = tt<age> = 2
 pub alias uu2<a,b> :: (V, V) -> V = tt<b> = 1

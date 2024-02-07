@@ -1,4 +1,4 @@
-test/kind/wrong/type2.kk(2,15): error: Invalid type
+test/kind/wrong/type2@kk(2,15): kind error: Invalid type
  type context : int<int>
  type : int
  inferred kind: V

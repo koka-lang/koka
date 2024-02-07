@@ -1,1 +1,3 @@
-test/static/wrong/case5a.kk(5,15): error: type aInt should be cased as aint
+test/static/wrong/case5a@kk(5,15): kind error: type aInt should be cased as aint
+test/static/wrong/case5a@kk(5,15): kind error: Type modA/static/aint is not defined
+ hint: bind the variable using forall<modA/static/aint> ?

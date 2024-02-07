@@ -1,4 +1,4 @@
-test/type/wrong/st1@kk(1, 9): error: effects do not match
+test/type/wrong/st1@kk(1, 9): type error: effects do not match
  context : ref([])
  term : ref
  inferred effect: <alloc<_h>|_e>

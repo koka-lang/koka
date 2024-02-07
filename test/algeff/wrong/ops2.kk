@@ -1,9 +1,9 @@
 // ----------------------------------------------------------------------------
 // Program
 // ----------------------------------------------------------------------------
- 
+
 fun xor() : amb bool {
-  val p = flip() 
+  val p = flip()
   val q = flip()
   (p||q) && not(p&&q)
 }
@@ -13,20 +13,20 @@ fun xors() : amb string {
 }
 
 fun foo() : <amb,state> bool {
-  val p = flip() 
+  val p = flip()
   val i = get()
   set(i+1)
   if (i>=0 && p) then xor() else False
-}         
+}
 
 fun foos() : <amb,state> string {
   show(foo())
-}    
- 
+}
+
 effect amb {
   fun flip() : bool
 }
- 
+
 effect state {
   fun get() : int
   fun set(i : int) : ()
@@ -49,3 +49,6 @@ fun state_handle(init,action) {
     fun set(j)   -> i := j
   }
 }
+
+fun main()
+  println("42")

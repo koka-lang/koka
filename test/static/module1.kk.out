@@ -1,2 +1,3 @@
-static/module1/ok: V
+ok : V
+ 
 pub alias ok = static/modA/aint = 2

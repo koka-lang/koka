@@ -1,4 +1,4 @@
-test/type/wrong/hr2@kk(6, 8): error: type is not polymorphic enough
+test/type/wrong/hr2@kk(6, 8): type error: type is not polymorphic enough
  context : auto(f)
  term : f
  inferred type : ($a) -> _e $a

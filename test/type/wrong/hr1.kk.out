@@ -1,4 +1,4 @@
-test/type/wrong/hr1@kk(7,10): error: abstract type(s) escape(s) into the context
+test/type/wrong/hr1@kk(7,10): type error: abstract type(s) escape(s) into the context
  term : fn(){ !r }
  inferred type: () -> <st<$h>,exn> int
  hint : give a higher-rank type annotation to a function parameter?

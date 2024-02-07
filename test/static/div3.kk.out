@@ -1,4 +1,5 @@
-static/div3/ord: V
+ord : V
+ 
 static/div3/Lim: (lim : (int) -> ord) -> ord
 static/div3/Succ: (pred : ord) -> ord
 static/div3/Zero: ord

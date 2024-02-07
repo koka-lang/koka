@@ -1,6 +1,7 @@
-kind/type9/choose: V
-kind/type9/id: V
-kind/type9/tt: V
+choose : V
+id : V
+tt : V
+ 
 pub alias choose = (id) -> id = 2
 // test name clash on type synonyms
 pub alias id = forall<a> (a) -> a = 1

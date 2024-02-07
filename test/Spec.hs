@@ -21,7 +21,7 @@ commonFlags = ["-c", "-v0", "--console=raw",
                -- "--cc=clang",
                -- "--checkcore",
                "-itest",   -- "-ilib",
-               "--buildtag=test"]
+               "--buildtag=test", "--no-buildhash"]
 
 data Mode = Test | New | Update
   deriving (Eq, Ord, Show)

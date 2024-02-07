@@ -1,5 +1,6 @@
-kind/type5/app: (V -> V, V) -> V
-kind/type5/id: V -> V
-kind/type5/int: V
-kind/type5/ok: V
+app : (V -> V, V) -> V
+id : V -> V
+int : V
+ok : V
+ 
 pub alias ok = app<id,int> = 1

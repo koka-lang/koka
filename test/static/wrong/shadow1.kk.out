@@ -1,1 +1,1 @@
-test/static/wrong/shadow1.kk(1,16): error: Type a is already defined
+test/static/wrong/shadow1@kk(1,16): kind error: Type a is already defined

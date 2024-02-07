@@ -1,1 +1,1 @@
-"-e --showhiddentypesigs --fno-trmc -O1"
+"-e --showhiddentypesigs --fno-trmc -O1 --core"

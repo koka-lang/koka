@@ -1,4 +1,4 @@
-test/algeff/wrong/scoped1@kk(62, 7): error: type is not polymorphic enough
+test/algeff/wrong/scoped1@kk(62, 7): type error: type is not polymorphic enough
  context : handler {
  @@@
  }

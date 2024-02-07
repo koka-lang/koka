@@ -1,4 +1,4 @@
-test/type/wrong/hr6@kk(9,15): error: types do not match
+test/type/wrong/hr6@kk(9,15): type error: types do not match
  context : g(f)
  term : f
  inferred type: (x : (int) -> int) -> _e int

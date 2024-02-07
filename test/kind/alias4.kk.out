@@ -1,6 +1,7 @@
-kind/alias4/aint: V
-kind/alias4/ok1: V
-kind/alias4/ok2: V
+aint : V
+ok1 : V
+ok2 : V
+ 
 pub alias aint = static/modA/aint = 2
 pub alias ok1 = aint = 3
 pub alias ok2 = static/modA/aint = 2

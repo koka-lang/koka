@@ -1,4 +1,4 @@
-test/cgen/wrong/exists1a@kk(18,19): error: abstract types do not match
+test/cgen/wrong/exists1a@kk(18,19): type error: abstract types do not match
  context : x@eval
  term : x
  inferred type: expr<$b>

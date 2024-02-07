@@ -1,3 +1,15 @@
-test/algeff/wrong/ops2@kk(38, 3): warning: operation flip is declared as 'fun' but handled here using 'ctl'
-(1, 0): error: there is no 'main' function defined
- hint: use the '-l' flag to generate a library?
+42
+ 
+algeff/wrong/ops2/Amb: forall<e,a> (@hnd-amb<e,a>) -> amb
+algeff/wrong/ops2/State: forall<e,a> (@hnd-state<e,a>) -> state
+algeff/wrong/ops2/amb_handle: forall<a,e> () -> ((() -> <amb|e> a) -> e list<a>)
+algeff/wrong/ops2/flip: () -> amb bool
+algeff/wrong/ops2/foo: () -> <amb,state> bool
+algeff/wrong/ops2/foos: () -> <amb,state> string
+algeff/wrong/ops2/get: () -> state int
+algeff/wrong/ops2/main: () -> console ()
+algeff/wrong/ops2/set: (i : int) -> state ()
+algeff/wrong/ops2/state_handle: forall<a,e> (init : int, action : () -> <state|e> a) -> e a
+algeff/wrong/ops2/xor: () -> amb bool
+algeff/wrong/ops2/xors: () -> amb string
+test/algeff/wrong/ops2@kk(38, 3): type warning: operation flip is declared as 'fun' but handled here using 'ctl'

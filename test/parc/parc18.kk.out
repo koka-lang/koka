@@ -1,5 +1,22 @@
 module parc/parc18
-import std/core/types = std/core/types = "";
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
 import std/core = std/core = "";
 pub fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  = fn(xs: list<0>, ys: list<0>){
@@ -24,7 +41,7 @@ pub fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  = std/core/types/@dec-ref(ys);
  std/core/types/Unit;
  });
- val @ru-x153 : @reuse
+ val @ru-x1 : @reuse
  = std/core/types/@no-reuse();
  val _ : ()
  = (match ((std/core/types/@is-unique(xs))) {
@@ -35,7 +52,7 @@ pub fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  val _ : ()
  = std/core/types/@drop(@pat@xxx);
  std/core/types/Unit;
- std/core/types/@assign-reuse(@ru-x153, (std/core/types/@reuse(xs)));
+ std/core/types/@assign-reuse(@ru-x1, (std/core/types/@reuse(xs)));
  _
  -> val _ : ()
  = std/core/types/Unit;
@@ -43,7 +60,7 @@ pub fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  = std/core/types/@dec-ref(xs);
  std/core/types/Unit;
  });
- std/core/types/@alloc-at(@ru-x153, (std/core/types/Cons(z@xxx, std/core/types/Nil)));
+ std/core/types/@alloc-at(@ru-x1, (std/core/types/Cons(z@xxx, std/core/types/Nil)));
  (@skip std/core/types/Nil() : (list<a>) )
  -> xs;
  });
@@ -51,6 +68,6 @@ pub fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  -> ys;
  };
  };
-test/parc/parc18@kk(4,23): warning: z shadows an earlier local definition or parameter
-test/parc/parc18@kk(3, 5): warning: pattern variable z is unused (or a wrongly spelled constructor?)
+test/parc/parc18@kk(4,23): type warning: z shadows an earlier local definition or parameter
+test/parc/parc18@kk(3, 5): type warning: pattern variable z is unused (or a wrongly spelled constructor?)
  hint: prepend an underscore to make it a wildcard pattern
