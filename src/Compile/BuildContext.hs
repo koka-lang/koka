@@ -50,6 +50,7 @@ module Compile.BuildContext ( BuildContext
 
 import Debug.Trace
 import Data.List
+import Data.Maybe
 import Control.Monad( when )
 import qualified Data.Map.Strict as M
 import Platform.Config
@@ -224,7 +225,8 @@ buildcModulePaths buildc
 -- Passes also a list of all required modules in the restricted build (for diagnostics)
 buildcFocus :: [ModuleName] -> BuildContext -> ([ModuleName] -> BuildContext -> Build (BuildContext, a)) -> Build (BuildContext, a)
 buildcFocus focusRoots buildc0 action
-  = do buildcFull <- buildcAddRootModules focusRoots buildc0
+  = do let newRoots = filter (\froot -> isNothing (buildcLookupModule froot buildc0)) focusRoots
+       buildcFull <- buildcAddRootModules newRoots buildc0
        let roots   = buildcRoots buildcFull
            cached  = buildcModules buildcFull
            buildcF = buildcFull{ buildcRoots = focusRoots }
@@ -337,7 +339,7 @@ buildcCompileExpr :: Bool -> Bool -> [ModuleName] -> String -> BuildContext -> B
 buildcCompileExpr addShow typeCheckOnly importNames0 expr buildc
   = phaseTimed 2 "compile" (\penv -> empty) $
     do let importNames = if null importNames0 then buildcRoots buildc else importNames0
-           sourcePath = joinPaths [
+           sourcePath = normalize $ normalize $ joinPaths [
                           virtualMount,
                           case [modSourceRelativePath mod | mname <- importNames,
                                                    mod <- case find (\mod -> modName mod == mname) (buildcModules buildc) of

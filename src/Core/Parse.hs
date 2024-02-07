@@ -13,7 +13,7 @@ module Core.Parse( parseCore ) where
 import Text.Parsec hiding (space,tab,lower,upper,alphaNum)
 import Text.Parsec.Prim( getInput, setInput )
 
-import Common.Failure( failure, assertion )
+import Common.Failure( failure, assertion, HasCallStack )
 import Common.Id
 import Common.NamePrim
 import Common.Name
@@ -43,7 +43,7 @@ import Lib.Trace
 --------------------------------------------------------------------------}
 type ParseInlines = Maybe (Gamma -> Error () [InlineDef])
 
-parseCore :: FilePath -> FilePath -> IO (Error b (Core, ParseInlines))
+parseCore :: HasCallStack => FilePath -> FilePath -> IO (Error b (Core, ParseInlines))
 parseCore fname sourceName
   = do input <- readInput fname
        return $

@@ -25,7 +25,7 @@ import qualified Platform.Config as Config
 import Platform.ReadLine      ( withReadLine, readLineEx, addHistory )
 import Lib.PPrint
 import Lib.Printer
-import Common.Failure         ( raiseIO, catchIO )
+import Common.Failure         ( raiseIO, catchIO, HasCallStack )
 import Common.ColorScheme
 import Common.File
 import Common.Name            ( Name, ModuleName, unqualify, qualify, newName, newQualified, nameNil )
@@ -340,6 +340,7 @@ lastFilePath st
        (fname:_) -> fname
        _         -> ""
 
+lastSourceFull :: HasCallStack => State -> IO Source
 lastSourceFull st
   = let fpath = lastFilePath st
     in if (null fpath)

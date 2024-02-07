@@ -35,7 +35,7 @@ module Common.Range
 -- import Lib.Trace
 import Lib.PPrint( Pretty(pretty), text )
 import Common.File(relativeToPath)
-import Common.Failure( assertion )
+import Common.Failure( assertion, catchIO, HasCallStack )
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text as T (Text, pack, unpack)
@@ -60,9 +60,9 @@ bstringToString bstr
 
 stringToBString str = T.encodeUtf8 (T.pack str)
 
-readInput :: FilePath -> IO BString
+readInput :: HasCallStack => FilePath -> IO BString
 readInput fname
-  = do input <- B.readFile fname
+  = do input <- B.readFile fname `catchIO` (\err -> error ("unable to read " ++ fname))
        -- input <- withBinaryFile fname ReadMode $ \h -> B.hGetContents h
        -- trace ("input bytes: " ++ show (map (\c -> showHex (fromEnum c) "") (take 400 (BC.unpack input)))) $
        case BC.unpack $ B.take 3 input of

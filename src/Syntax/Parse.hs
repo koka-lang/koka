@@ -55,7 +55,7 @@ import Common.File
 import Platform.Config
 import Platform.Runtime( unsafePerformIO, exCatch )
 import Common.Error
-import Common.Failure (failure)
+import Common.Failure (failure, HasCallStack)
 import Common.Syntax
 import Common.ResumeKind
 
@@ -87,7 +87,7 @@ optional p  = do { p; return True } <|> return False
 -----------------------------------------------------------
 -- Parse varieties
 -----------------------------------------------------------
-parseProgramFromFile :: Bool -> Bool -> FilePath -> IO (Error a UserProgram)
+parseProgramFromFile :: HasCallStack => Bool -> Bool -> FilePath -> IO (Error a UserProgram)
 parseProgramFromFile allowAt semiInsert fname
   = do input <- readInput fname
        return (parseProgramFromString allowAt semiInsert input fname)

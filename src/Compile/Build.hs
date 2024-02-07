@@ -570,7 +570,7 @@ moduleLoad rebuild forced mod
 
 
 
-moduleLex :: Module -> Build Module
+moduleLex :: HasCallStack => Module -> Build Module
 moduleLex mod
   = do flags <- getFlags
        phaseVerbose 2 "scan" $ \penv -> text (if verbose flags > 1 || isAbsolute (modSourceRelativePath mod)
@@ -670,7 +670,8 @@ moduleFromSource fpath0
        case mbpath of
          Nothing          -> throwFileNotFound fpath
          Just (root,stem) -> do let stemParts  = splitPath (noexts stem)
-                                    sourcePath = joinPath root stem
+                                    sourcePath = if null root then stem   -- on wsl2: ("","/@virtual///wsl.localhost/...")
+                                                              else joinPath root stem
                                 modName <- if isAbsolute stem || any (not . isValidId) stemParts
                                             then case reverse stemParts of
                                                     (base:_)  | isValidId base
@@ -678,6 +679,7 @@ moduleFromSource fpath0
                                                     _ -> throwErrorKind ErrBuild (\penv -> text ("file path cannot be mapped to a valid module name: " ++ sourcePath))
                                             else return (newModuleName (noexts stem))
                                 ifacePath <- outputName (moduleNameToPath modName ++ ifaceExtension)
+                                -- trace ("moduleFromSource: " ++ show (root,stem,sourcePath,ifacePath)) $
                                 moduleValidate $ (moduleCreateInitial modName sourcePath ifacePath ""){ modSourceRelativePath = stem }
   where
     isValidId :: String -> Bool  -- todo: make it better
@@ -687,7 +689,8 @@ moduleFromSource fpath0
 
 moduleFromModuleName :: FilePath -> Name -> Build Module
 moduleFromModuleName relativeDir modName
-  = do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)
+  = -- trace ("moduleFromModuleName: " ++ show modName ++ ", relative dir: " ++ relativeDir) $
+    do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)
        ifacePath    <- outputName (moduleNameToPath modName ++ ifaceExtension)
        libIfacePath <- searchLibIfaceFile (moduleNameToPath modName ++ ifaceExtension)
        case mbSourceName of
@@ -712,8 +715,15 @@ searchSourceFile relativeDir fname
        flags <- getFlags
        mb <- lookupVFS fname
        case mb of  -- must match exactly; we may improve this later on and search relative files as well?
-         Just _ -> return $! Just $! (getMaximalPrefixPath (virtualMount : includePath flags) fname)
-         _      -> liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
+         Just _ -> if fname `startsWith` (virtualMount ++ "/")
+                     then let (root,stem) = getMaximalPrefixPath (virtualMount : includePath flags) fname
+                          in -- trace ("search source found: " ++ show (root,stem,fname)) $
+                             if root == virtualMount
+                               then return $! Just $! ("",fname)     -- maintain wsl2 paths: ("","/@virtual///wsl.localhost/...")
+                               else return $! Just $! (root,stem)
+                     else return $! Just $! (getMaximalPrefixPath (includePath flags) fname)
+         _      -> -- trace ("searchSourceFile: relativeDir: " ++ relativeDir) $
+                   liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
 
 virtualStrip path
   = if path `startsWith` (virtualMount ++ "/") then drop (length virtualMount + 1) path else path
@@ -1181,7 +1191,7 @@ maybeGetFileTime fpath
   = do ft <- getFileTime fpath
        return (if ft == fileTime0 then Nothing else Just ft)
 
-getFileContents :: FilePath -> Build BString
+getFileContents :: HasCallStack => FilePath -> Build BString
 getFileContents fpath
   = do mb <- lookupVFS fpath
        case mb of
