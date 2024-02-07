@@ -139,10 +139,10 @@ buildcRemoveRootSource fpath buildc
       _          -> buildc
 
 -- After a type check, the definitions (gamma, kgamma etc.) as defined an a set of modules can be returned.
-buildcGetDefinitions :: Bool -> [ModuleName] -> BuildContext -> Definitions
-buildcGetDefinitions privateToo modules0 buildc
+buildcGetDefinitions :: [ModuleName] -> BuildContext -> Definitions
+buildcGetDefinitions modules0 buildc
   = let modules = if null modules0 then buildcRoots buildc else modules0
-        defs = defsFromModules privateToo (filter (\mod -> modName mod `elem` modules) (buildcModules buildc))
+        defs = defsFromModules (filter (\mod -> modName mod `elem` modules) (buildcModules buildc))
     in seq defs defs
 
 -- After a type check, return all visible definitions in the given modules (includes imports)
@@ -152,7 +152,7 @@ buildcGetVisibleDefinitions modules0 buildc
         topModules = filter (\mod -> modName mod `elem` topNames) (buildcModules buildc)
         allNames   = nub (concat (map modGetImportNames topModules) ++ topNames)
         allModules = filter (\mod -> modName mod `elem` allNames) (buildcModules buildc)
-        defs = defsFromModules False allModules
+        defs = defsFromModules allModules
     in seq defs defs
   where
     modGetImportNames :: Module -> [ModuleName]
@@ -395,19 +395,19 @@ buildcThrowOnError buildc
 buildcCompileMainBody :: Bool -> String -> [String] -> FilePath -> Name -> Name -> Type -> BuildContext -> Build (BuildContext,Maybe (Type, Maybe (FilePath,IO ())))
 buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName tp buildc1
   = do  -- then compile with a main function
-        (tp,showIt,mainBody) <- completeMain True exprName tp buildc1
+        (tp,showIt,mainBody,extraImports) <- completeMain True exprName tp buildc1
         let mainName = qualify mainModName (newName "@main")
-            mainDef  = bunlines $ importDecls ++ [
+            mainDef  = bunlines $ importDecls ++ extraImports ++ [
                         "pub fun @expr() : _ ()",
                         "#line 1",
                         "  " ++ showIt expr,
                         "",
-                        "pub fun @main() : io ()",
+                        "pub fun @main() : io-noexn ()",
                         "  " ++ mainBody,
                         ""
                         ]
         withVirtualFile sourcePath mainDef $ \_ ->
-           do buildc2 <- buildcBuild [mainName] buildc1
+           do buildc2 <- buildcBuildEx False [mainModName] [mainName] buildc1
               hasErr  <- buildcHasError buildc2
               if hasErr
                 then return (buildc2,Nothing)
@@ -422,15 +422,15 @@ bunlines xs = stringToBString $ unlines xs
 
 -- complete a main function by adding a show function (if `addShow` is `True`), and
 -- adding any required rdefault effect handlers (for async, utc etc.)
-completeMain :: Bool -> Name -> Type -> BuildContext -> Build (Type,String -> String,String)
+completeMain :: Bool -> Name -> Type -> BuildContext -> Build (Type,String -> String,String,[String])
 completeMain addShow exprName tp buildc
   = case splitFunScheme tp of
       Just (_,_,_,eff,resTp)
         -> let (ls,_) = extractHandledEffect eff
            in do print    <- printExpr resTp
-                 mainBody <- addDefaultHandlers rangeNull eff ls callExpr
-                 return (resTp,print,mainBody)
-      _ -> return (tp, id, callExpr) -- todo: given an error?
+                 (mainBody,extraImports) <- addDefaultHandlers rangeNull eff ls [] callExpr
+                 return (resTp,print,mainBody,extraImports)
+      _ -> return (tp, id, callExpr, []) -- todo: given an error?
   where
     callExpr
       = show exprName ++ "()"
@@ -444,11 +444,11 @@ completeMain addShow exprName tp buildc
 
     exclude = [nameTpNamed] -- nameTpCps,nameTpAsync
 
-    addDefaultHandlers :: Range -> Effect -> [Effect] -> String -> Build String
-    addDefaultHandlers range eff [] body     = return body
-    addDefaultHandlers range eff (l:ls) body
+    addDefaultHandlers :: Range -> Effect -> [Effect] -> [String] -> String -> Build (String,[String])
+    addDefaultHandlers range eff [] imports body     = return (body,imports)
+    addDefaultHandlers range eff (l:ls) imports body
       = case getHandledEffectX exclude l of
-          Nothing -> addDefaultHandlers range eff ls body
+          Nothing -> addDefaultHandlers range eff ls imports body
           Just (_,effName)
             -> let defaultHandlerName
                       = makeHiddenName "default" (if isSystemCoreName effName
@@ -458,17 +458,18 @@ completeMain addShow exprName tp buildc
                     [fun@InfoFun{}]
                       -> do phaseVerbose 2 "main" $ \penv -> text "add default effect for" <+> TP.ppName penv effName
                             let handle b = show defaultHandlerName ++ "(fn() " ++ b ++ ")"
+                                imp      = ["import " ++ show (qualifier defaultHandlerName)]
                             if (effName == nameTpAsync)  -- always put async as the most outer effect
-                              then do body' <- addDefaultHandlers range eff ls body
-                                      return (handle body')
-                              else addDefaultHandlers range eff ls (handle body)
+                              then do (body',imports') <- addDefaultHandlers range eff ls imports body
+                                      return (handle body', imports' ++ imp)
+                              else addDefaultHandlers range eff ls (imports ++ imp) (handle body)
                     infos
                       -> do throwError (\penv -> errorMessageKind ErrBuild range
                                            (text "there are unhandled effects for the main expression" <-->
                                             text " inferred effect :" <+> TP.ppType penv eff <-->
                                             text " unhandled effect:" <+> TP.ppType penv l <-->
                                             text " hint            : wrap the main function in a handler"))
-                            addDefaultHandlers range eff ls body
+                            addDefaultHandlers range eff ls imports body
 
 
 -- Run a build action with a virtual module that is added to the roots.
@@ -506,7 +507,7 @@ buildcLookupInfo :: Name -> BuildContext -> [NameInfo]
 buildcLookupInfo name buildc
   = case find (\mod -> modName mod == qualifier name) (buildcModules buildc) of
       Just mod -> -- trace ("lookup " ++ show name ++ " in " ++ show (modName mod) ++ "\n" ++ showHidden (defsGamma (defsFromModules [mod]))) $
-                  seqqList $ map snd (gammaLookup name (defsGamma (defsFromModules False {-or allow private too?-} [mod])))
+                  seqqList $ map snd (gammaLookup name (defsGamma (defsFromModules [mod])))
       _        -> []
 
 -- Lookup the type of a fully qualified name
