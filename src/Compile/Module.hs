@@ -218,12 +218,12 @@ defsFromCore privateAsPublic core
       = fixitiesNew [(name,fix) | Core.FixDef name fix <- Core.coreProgFixDefs core]
 
 
-defsFromModules :: HasCallStack => Bool -> [Module] -> Definitions
-defsFromModules privateAsPublic mods
-  = let defs = defsMerge $ map (\mod -> case modDefinitions mod of
-                               Just defs | not (privateAsPublic || modShouldOpen mod) -> defs  -- cached
-                               _ -> case modCore mod of
-                                      Just core -> defsFromCore (privateAsPublic || modShouldOpen mod) core
+defsFromModules :: HasCallStack => [Module] -> Definitions
+defsFromModules mods
+  = let defs = defsMerge $ map (\mod -> {- case modDefinitions mod of
+                               Just defs | not (modShouldOpen mod) -> defs  -- cached
+                               _ -> -} case modCore mod of
+                                      Just core -> defsFromCore (modShouldOpen mod) core
                                       Nothing   -> defsNull) mods
     in seq defs defs
 

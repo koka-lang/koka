@@ -266,7 +266,7 @@ moduleCodeGen mainEntries parsedMap tcheckedMap optimizedMap codegenMap
          else do  phaseVerbose 2 "codegen" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
                   flags <- getFlags
                   term  <- getTerminal
-                  let defs    = defsFromModules True (mod:imports)  -- todo: optimize by reusing the defs from the compile?
+                  let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the compile?
                       inlines = inlinesFromModules imports
                   mbEntry <- getMainEntry (defsGamma defs) mainEntries mod
                   seqIO   <- sequentialIO
@@ -331,7 +331,7 @@ moduleOptimize parsedMap tcheckedMap optimizedMap
                     Right _ -> -- already done
                                done mod{ modPhase = PhaseLinked }
                     Left parse
-                      -> do let defs = defsFromModules True (mod:imports)  -- todo: optimize by reusing the defs from the type check?
+                      -> do let defs = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check?
                             case checkError (parse (defsGamma defs)) of
                               Left errs
                                 -> done mod{ modPhase = PhaseLinked
@@ -346,11 +346,14 @@ moduleOptimize parsedMap tcheckedMap optimizedMap
             else -- core compile
               do  phaseVerbose 2 "optimize" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imported:" <+> list (map (pretty . modName) imports)
                   flags <- getFlags
-                  let defs    = defsFromModules True (mod:imports)  -- todo: optimize by reusing the defs from the type check?
+                  let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check?
                       inlines = inlinesFromModules imports
                   (core,inlineDefs) <- liftError $ coreOptimize flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
                   let mod' = mod{ modPhase   = PhaseOptimized
                                 , modCore    = Just $! core
+                                , modDefinitions = if showHiddenTypeSigs flags
+                                                     then Just $! defsFromCore False core -- update defs so we can see generated ones as well
+                                                     else modDefinitions mod
                                 , modInlines = Right $! seqqList $ inlineDefs
                                 }
                   phaseVerbose 3 "optimize done" $ \penv -> TP.ppName penv (modName mod)
@@ -388,7 +391,7 @@ moduleTypeCheck parsedMap tcheckedMap
           else -- type check
                do flags <- getFlags
                   phase "check" $ \penv -> TP.ppName penv (modName mod) -- <.> text ": imports:" <+> list (map (pretty . modName) imports)
-                  let defs     = defsFromModules True imports
+                  let defs     = defsFromModules imports
                       cimports = coreImportsFromModules (modDeps mod) imports
                       program  = fromJust (modProgram mod)
                   case checkError (typeCheck flags defs cimports program) of
@@ -469,11 +472,16 @@ moduleParse tparsedMap
                                       else errs
                        }
           Right (prog,warns)
-            -> done mod{ modPhase   = PhaseParsed
-                       , modErrors  = mergeErrors warns (modErrors mod)
-                       , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
-                       }
-
+            -> do penv <- getPrettyEnv
+                  let err = if not (reverse (show (programName prog)) `isPrefixOf` reverse (show (modName mod)))
+                             then errorsSingle $ errorMessageKind ErrStatic (programNameRange prog) $
+                                                 text "the module name" <+> TP.ppName penv (programName prog) <+>
+                                                 text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod)
+                             else errorsNil
+                  done mod{ modPhase   = PhaseParsed
+                          , modErrors  = mergeErrors warns (mergeErrors err (modErrors mod))
+                          , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
+                          }
 
 
 {---------------------------------------------------------------

@@ -379,18 +379,18 @@ showCommand st buildc cmd
       ShowVersion      -> do showVersion (flags st) (printer st)
                              messageLn st ""
 
-      ShowKindSigs     -> let kgamma = B.defsKGamma (B.buildcGetDefinitions True [] buildc)
+      ShowKindSigs     -> let kgamma = B.defsKGamma (B.buildcGetDefinitions [] buildc)
                           in if (kgammaIsEmpty kgamma)
                            then remark st "no kinds to show"
                            else messagePrettyLnLn st (ppKGamma colors (mainModuleName buildc) (getImportMap st) kgamma)
 
-      ShowTypeSigs     -> let gamma = B.defsGamma (B.buildcGetDefinitions True [] buildc)
+      ShowTypeSigs     -> let gamma = B.defsGamma (B.buildcGetDefinitions [] buildc)
                           in if (gammaIsEmpty gamma)
                            then remark st "no types to show"
                            else messagePrettyLnLn st $
                                 (if showHiddenTypeSigs (flags st) then ppGammaHidden else ppGamma) (prettyEnv st) gamma
 
-      ShowSynonyms     -> let syns = B.defsSynonyms (B.buildcGetDefinitions True [] buildc)
+      ShowSynonyms     -> let syns = B.defsSynonyms (B.buildcGetDefinitions [] buildc)
                           in if (synonymsIsEmpty syns)
                            then remark st "no synonyms to show"
                            else messagePrettyLnLn st

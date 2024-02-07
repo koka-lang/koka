@@ -26,6 +26,7 @@ module Kind.Assumption (
                     , extractKGamma
                     ) where
 
+import Debug.Trace
 import qualified Data.List as L
 import Prelude        hiding (filter,lookup,map)
 import Lib.PPrint     hiding (empty)

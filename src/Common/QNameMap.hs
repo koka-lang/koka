@@ -96,7 +96,7 @@ union (QM m1) (QM m2)
 
 unionLeftBias :: HasCallStack => QNameMap a -> QNameMap a -> QNameMap a
 unionLeftBias (QM m1) (QM m2)
-  = QM (M.union m1 m2)
+  = QM (M.unionWith (++) m1 m2)
 
 
 unions :: HasCallStack => [QNameMap a] -> QNameMap a

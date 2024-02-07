@@ -155,7 +155,7 @@ compileShowInfo :: BuildContext -> ModuleName -> Build ()
 compileShowInfo buildc modname
   = do  flags <- buildcFlags
         -- show (kind) gamma ?
-        let defs = buildcGetDefinitions (showHiddenTypeSigs flags) [modname] buildc
+        let defs = buildcGetDefinitions [modname] buildc
         when (showKindSigs flags) $
           do buildcTermInfo $ \penv -> space <-> ppKGamma (colors penv) modname (importsMap penv) (defsKGamma defs)
              let syns = defsSynonyms defs
