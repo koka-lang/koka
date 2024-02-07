@@ -647,6 +647,7 @@ modFromIface core parseInlines mod
   =  mod{ modPhase       = case parseInlines of
                              Nothing -> PhaseLinked
                              Just f  -> PhaseIfaceLoaded
+        , modErrors      = errorsNil
         , modDeps        = seqqList $ [LexImport (Core.importName imp) nameNil (Core.importVis imp) False {- @open -}
                                        | imp <- Core.coreProgImports core, not (Core.isCompilerImport imp) ]
         , modCore        = Just $! core
