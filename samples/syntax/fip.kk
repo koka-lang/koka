@@ -95,6 +95,15 @@ fun insert-poly( t : tree<a>, k : a, ^?cmp : (a,a) -> order ) : tree<a>
     Tip        -> Bin(Tip,k,Tip)
 
 
+fun insert-poly-swap( t : tree<a>, k : a, ^?order2 : (a,a) -> (a,a,order) ) : tree<a>
+  match t
+    Bin(l,x,r) -> if (x==k) then Bin(l,k,r)
+                  elif (x < k) then Bin(l,x,insert-poly(r,k))
+                  else Bin(insert-poly(l,k),x,r)
+    Tip        -> Bin(Tip,k,Tip)
+
+
+
 // Todo.. more examples with zippers:
 // - Tree mapping
 // - Morris traversal

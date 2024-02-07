@@ -68,7 +68,8 @@ didChangeHandler = notificationHandler J.SMethod_TextDocumentDidChange $ \msg ->
   let uri = msg ^. J.params . J.textDocument . J.uri
   let version = msg ^. J.params . J.textDocument . J.version
   flags <- getFlags
-  rebuildUri Nothing Nothing (J.toNormalizedUri uri)
+  trace ("koka: on change: " ++ show uri) $
+    rebuildUri Nothing Nothing (J.toNormalizedUri uri)
   return ()
 
 -- Saving a file just recompiles it
@@ -141,7 +142,7 @@ rebuildUri mbFlags mbRun uri
 
 rebuildFile :: Maybe Flags -> Maybe Name -> J.NormalizedUri -> FilePath -> LSM (Maybe FilePath)
 rebuildFile mbFlags mbRun uri fpath
-    = trace ("koka: rebuild file: " ++ fpath) $
+    = trace ("\nkoka: rebuild file: " ++ fpath) $
       do updateVFS
          mbRes <- -- run build with diagnostics
                   liftBuildDiag mbFlags uri $ \buildc0 ->

@@ -620,7 +620,7 @@ moduleLex mod
                          }
          Right (imports,warns)
             -> return mod{ modPhase   = PhaseLexed
-                         , modErrors  = mergeErrors warns (modErrors mod)
+                         , modErrors  = warns -- mergeErrors warns (modErrors mod)
                          , modLexemes = lexemes
                          , modDeps    = seqqList $ lexImportNub $
                                         [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) | imp <- imports]
