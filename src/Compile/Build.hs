@@ -38,7 +38,7 @@ import Data.Either
 import Data.IORef
 import Control.Exception
 import Control.Applicative
-import Control.Monad          ( ap, when )
+import Control.Monad          ( ap, when, foldM )
 import qualified Control.Monad.Fail as F
 import Control.Concurrent.QSem
 import Control.Concurrent.Async (mapConcurrently)
@@ -125,8 +125,8 @@ modulesTypeCheck modules
 modulesReValidate :: Bool -> [ModuleName] -> [Module] -> [Module] -> Build [Module]
 modulesReValidate rebuild forced cachedImports roots
   = phaseTimed 4 "resolving" (const Lib.PPrint.empty) $
-    do rootsv   <- modulesValidate roots
-       resolved <- modulesResolveDependencies rebuild forced cachedImports rootsv
+    do -- rootsv    <- modulesValidate roots
+       resolved  <- modulesResolveDependencies rebuild forced cachedImports roots
        return resolved -- modulesFlushErrors resolved
 
 
@@ -236,9 +236,12 @@ moduleCompile mainEntries parsedMap tcheckedMap optimizedMap codegenMap linkedMa
           else do phaseVerbose (if fullLink then 1 else 2) (if fullLink then "linking" else "link") $
                                 \penv -> TP.ppName penv (modName mod) -- <+> text ", imports:" <+> list (map (TP.ppName penv . modName) imports)
                   mbEntry <- pooledIO $ link imports  -- link it! (specifics were returned by codegen)
-                  let mod' = mod{ modPhase = PhaseLinked, modEntry = case mbEntry of
-                                                                       LinkDone -> Nothing
-                                                                       LinkExe exe run -> Just (exe,run) }
+                  ftIface <- getFileTime (modIfacePath mod)
+                  let mod' = mod{ modPhase = PhaseLinked
+                                , modIfaceTime = ftIface
+                                , modEntry = case mbEntry of
+                                              LinkDone -> Nothing
+                                              LinkExe exe run -> Just (exe,run) }
                   done mod'
 
 
@@ -506,7 +509,8 @@ modulesResolveDeps rebuild forced cached roots acc
        newimports <- nubBy (\m1 m2 -> modName m1 == modName m2) <$> concat <$>
                      mapM (addImports loaded) lroots
        if (null newimports)
-         then toBuildOrder loaded
+         then do ordered <- toBuildOrder loaded
+                 validateDependencies ordered
          else do -- phaseVerbose 2 "resolve" $ \penv -> list (map (TP.ppName penv . modName) newimports)
                  modulesResolveDeps rebuild forced cached newimports loaded  -- keep resolving until all have been loaded
   where
@@ -536,6 +540,26 @@ toBuildOrder modules
     in do phaseVerbose 3 "build order" $ \penv -> list (map (\grp -> hsep (map (TP.ppName penv) grp)) ordered)
           concat <$> mapM ungroup ordered
 
+-- validate that depedencies of a module are not out-of-date
+-- modules must be in build order
+validateDependencies :: [Module] -> Build [Module]
+validateDependencies modules
+  = do mods <- foldM validateDependency [] modules
+       return (reverse mods)
+  where
+    validateDependency :: [Module] -> Module -> Build [Module]
+    validateDependency visited mod
+      = if (modPhase mod < PhaseLexed || null (modDeps mod))
+          then return (mod:visited)
+          else let imports = map lexImportName (modDeps mod)
+                   phases  = map (\iname -> case find (\m -> modName m == iname) visited of
+                                              Just m -> modPhase m
+                                              _      -> PhaseInit) imports
+               in if (minimum phases < modPhase mod)
+                    then -- trace ("invalidated: " ++ show (modName mod)) $
+                         do mod' <- moduleLoad True [] mod
+                            return (mod' : visited)
+                    else return (mod : visited)
 
 -- Flush all stored errors to the build monad (and reset stored errors per module)
 modulesFlushErrors :: [Module] -> Build [Module]
@@ -555,17 +579,18 @@ moduleFlushErrors mod
 ---------------------------------------------------------------}
 
 moduleLoad :: Bool -> [ModuleName] -> Module -> Build Module
-moduleLoad rebuild forced mod
-  = let force = (rebuild || modName mod `elem` forced) in
-    if (modPhase mod >= PhaseLexed) && not force
-      then return mod
-      else do (mod',errs) <- checkedDefault mod $ -- on error, return the original module
-                             if not (null (modLibIfacePath mod)) && (modIfaceTime mod < modLibIfaceTime mod) && not force
-                               then moduleLoadLibIface mod
-                               else if (modSourceTime mod < modIfaceTime mod) && not force
-                                 then moduleLoadIface mod
-                                 else moduleLex mod
-              return mod'{ modErrors = mergeErrors errs (modErrors mod') }
+moduleLoad rebuild forced mod0
+  = do mod <- moduleValidate mod0  -- check file times
+       let force = (rebuild || modName mod0 `elem` forced)
+       if (modPhase mod >= PhaseLexed) && not force
+          then return mod
+          else do (mod',errs) <- checkedDefault mod $ -- on error, return the original module
+                                 if not (null (modLibIfacePath mod)) && (modIfaceTime mod < modLibIfaceTime mod) && not force
+                                   then moduleLoadLibIface mod
+                                   else if (modSourceTime mod < modIfaceTime mod) && not force
+                                     then moduleLoadIface mod
+                                     else moduleLex mod
+                  return mod'{ modErrors = mergeErrors errs (modErrors mod') }
 
 
 
@@ -715,13 +740,12 @@ searchSourceFile relativeDir fname
        flags <- getFlags
        mb <- lookupVFS fname
        case mb of  -- must match exactly; we may improve this later on and search relative files as well?
-         Just _ -> if fname `startsWith` (virtualMount ++ "/")
+         Just _ -> if fname `startsWith` (virtualMount ++ "///") -- just for wsl paths :-( TODO: fix this in general
                      then let (root,stem) = getMaximalPrefixPath (virtualMount : includePath flags) fname
-                          in -- trace ("search source found: " ++ show (root,stem,fname)) $
-                             if root == virtualMount
-                               then return $! Just $! ("",fname)     -- maintain wsl2 paths: ("","/@virtual///wsl.localhost/...")
-                               else return $! Just $! (root,stem)
-                     else return $! Just $! (getMaximalPrefixPath (includePath flags) fname)
+                          in return $! Just $! if root == virtualMount
+                               then ("",fname)     -- maintain wsl2 paths: ("","/@virtual///wsl.localhost/...")
+                               else (root,stem)
+                     else return $! Just $! (getMaximalPrefixPath (virtualMount : includePath flags) fname)
          _      -> -- trace ("searchSourceFile: relativeDir: " ++ relativeDir) $
                    liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
 
@@ -745,10 +769,11 @@ searchLibIfaceFile fname
 {---------------------------------------------------------------
   Validate if modules are still valid
 ---------------------------------------------------------------}
-
+{-
 modulesValidate :: [Module] -> Build [Module]
 modulesValidate modules
   = mapM moduleValidate modules
+-}
 
 moduleValidate :: Module -> Build Module
 moduleValidate mod
@@ -762,18 +787,21 @@ moduleValidate mod
                       , modIfaceTime  = ftIface
                       , modLibIfaceTime = ftLibIface
                       }
-       -- phaseVerbose 3 "validate" (pretty (modName mod') <.> text (": times: " ++ show (force,stale,ftSource,modIfaceTime mod')))
+       -- phaseVerbose 3 "validate" (\penv -> TP.ppName penv (modName mod') <.> text (": times: " ++ show (stale,ftSource,modSourceTime mod)))
        if stale
-         then return mod'{ modPhase = PhaseInit, modErrors = errorsNil,
-                           -- reset fields that are not used by an IDE to reduce memory pressure
-                           -- leave lexemes, rangeMap, and definitions.
-                           modProgram = Nothing,
-                           modCore    = Nothing,
-                           modInlines = Right [],
-                           modEntry   = Nothing
-                         }
+         then return $ moduleReset mod'
          else return mod'
 
+moduleReset :: Module -> Module
+moduleReset mod
+  = mod{ modPhase = PhaseInit, modErrors = errorsNil,
+        -- reset fields that are not used by an IDE to reduce memory pressure
+        -- leave lexemes, rangeMap, and definitions.
+        modProgram = Nothing,
+        modCore    = Nothing,
+        modInlines = Right [],
+        modEntry   = Nothing
+      }
 
 
 {---------------------------------------------------------------

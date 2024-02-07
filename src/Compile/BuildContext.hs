@@ -339,12 +339,12 @@ buildcCompileExpr :: Bool -> Bool -> [ModuleName] -> String -> BuildContext -> B
 buildcCompileExpr addShow typeCheckOnly importNames0 expr buildc
   = phaseTimed 2 "compile" (\penv -> empty) $
     do let importNames = if null importNames0 then buildcRoots buildc else importNames0
-           sourcePath = normalize $ normalize $ joinPaths [
+           sourcePath = joinPaths [
                           virtualMount,
                           case [modSourceRelativePath mod | mname <- importNames,
-                                                   mod <- case find (\mod -> modName mod == mname) (buildcModules buildc) of
-                                                            Just m  -> [m]
-                                                            Nothing -> []] of
+                                                            mod <- case find (\mod -> modName mod == mname) (buildcModules buildc) of
+                                                                      Just m  -> [m]
+                                                                      Nothing -> []] of
                               (fpath:_) -> noexts fpath
                               _         -> "",
                           "@main" ++ sourceExtension]
@@ -356,6 +356,7 @@ buildcCompileExpr addShow typeCheckOnly importNames0 expr buildc
                          ]
 
        withVirtualModule sourcePath content buildc $ \mainModName buildc1 ->
+         -- trace ("virtual main: " ++ sourcePath ++ ", name: " ++ show mainModName) $
          do -- type check first
             let exprName = qualify mainModName (newName "@expr")
             buildc2 <- buildcTypeCheck [] buildc1

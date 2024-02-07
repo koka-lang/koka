@@ -328,15 +328,15 @@ function createCommands(
       if (document?.languageId == 'koka') {
         args.push(document.uri.fsPath)
       }
-      return {options: 
-              { name: 'Koka interpreter', 
-                shellPath: kokaConfig.compilerPath, 
+      return {options:
+              { name: 'Koka interpreter',
+                shellPath: kokaConfig.compilerPath,
                 cwd: kokaConfig.cwd,
                 shellArgs: args
               }};
     }
   });
-  
+
   // Doesn't seem to work. It gets called on a configuration change, but the language server doesn't report differently,
   //   so the config seems stale still
   // context.subscriptions.push(
