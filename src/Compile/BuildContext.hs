@@ -102,7 +102,7 @@ buildcAddRootSources fpaths buildc
   = do mods <- mapM moduleFromSource fpaths
        let rootNames = map modName mods
            roots   = nub (map modName mods ++ buildcRoots buildc)
-           modules = mergeModules mods (buildcModules buildc)
+           modules = mergeModulesLeftBias (buildcModules buildc) mods
            buildc' = buildc{ buildcRoots = seqqList roots, buildcModules = seqqList modules }
        seqList rootNames $ seq buildc' $
         return (buildc', rootNames)
@@ -112,7 +112,7 @@ buildcAddRootModules :: [ModuleName] -> BuildContext -> Build BuildContext
 buildcAddRootModules moduleNames buildc
   = do mods <- mapM (moduleFromModuleName "" {-relative dir-}) moduleNames
        let roots   = nub (map modName mods ++ buildcRoots buildc)
-           modules = mergeModules mods (buildcModules buildc)
+           modules = mergeModulesLeftBias (buildcModules buildc) mods
        return $! buildc{ buildcRoots = seqqList roots, buildcModules = seqqList modules }
 
 -- Clear the roots

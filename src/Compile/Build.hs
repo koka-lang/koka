@@ -404,9 +404,7 @@ moduleTypeCheck parsedMap tcheckedMap
                   case checkError (typeCheck flags defs cimports program) of
                     Left errs
                       -> done mod{ modPhase  = PhaseTypedError
-                                 , modErrors = if modPhase mod < PhaseTypedError
-                                                 then mergeErrors errs (modErrors mod)
-                                                 else errs
+                                 , modErrors = mergeErrors errs (modErrors mod)
                                  }
                     Right ((core,mbRangeMap),warns)
                       -> do let mod' = mod{ modPhase       = PhaseTyped
@@ -474,9 +472,7 @@ moduleParse tparsedMap
         case checkError (parseProgramFromLexemes (modSource mod) (modLexemes mod)) of
           Left errs
             -> done mod{ modPhase  = PhaseParsedError
-                       , modErrors = if modPhase mod < PhaseParsedError
-                                      then mergeErrors errs (modErrors mod)
-                                      else errs
+                       , modErrors = mergeErrors errs (modErrors mod)
                        }
           Right (prog,warns)
             -> do penv <- getPrettyEnv
@@ -486,7 +482,7 @@ moduleParse tparsedMap
                                                  text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod)
                              else errorsNil
                   done mod{ modPhase   = PhaseParsed
-                          , modErrors  = mergeErrors warns (mergeErrors err (modErrors mod))
+                          , modErrors  = mergeErrors warns (modErrors mod)
                           , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
                           }
 
@@ -592,7 +588,8 @@ moduleLoad rebuild forced mod0
        let force = (rebuild || modName mod0 `elem` forced)
        if (modPhase mod >= PhaseLexed) && not force
           then return mod
-          else do (mod',errs) <- checkedDefault mod $ -- on error, return the original module
+          else -- trace ("reloading " ++ show (modName mod) ++ ", forced: " ++ show forced) $
+               do (mod',errs) <- checkedDefault mod $ -- on error, return the original module
                                  if not (null (modLibIfacePath mod)) && (modIfaceTime mod < modLibIfaceTime mod) && not force
                                    then moduleLoadLibIface mod
                                    else if (modSourceTime mod < modIfaceTime mod) && not force
@@ -620,7 +617,7 @@ moduleLex mod
                          }
          Right (imports,warns)
             -> return mod{ modPhase   = PhaseLexed
-                         , modErrors  = warns -- mergeErrors warns (modErrors mod)
+                         , modErrors  = warns
                          , modLexemes = lexemes
                          , modDeps    = seqqList $ lexImportNub $
                                         [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) | imp <- imports]
@@ -803,15 +800,16 @@ moduleValidate mod
 
 moduleReset :: Module -> Module
 moduleReset mod
-  = mod{ modPhase = PhaseInit, modErrors = errorsNil,
-        -- reset fields that are not used by an IDE to reduce memory pressure
-        -- leave lexemes, rangeMap, and definitions. todo: maybe don't cache definitions at all?
-        modProgram = Nothing,
-        modCore    = case modCore mod of
-                       Just core -> Just $! coreReset core
-                       Nothing   -> Nothing,
-        modInlines = Right [],
-        modEntry   = Nothing
+  = mod{ modPhase = PhaseInit,
+         modErrors = errorsNil,
+         -- reset fields that are not used by an IDE to reduce memory pressure
+         -- leave lexemes, rangeMap, and definitions. todo: maybe don't cache definitions at all?
+         modProgram = Nothing,
+         modCore    = case modCore mod of
+                        Just core -> Just $! coreReset core
+                        Nothing   -> Nothing,
+         modInlines = Right [],
+         modEntry   = Nothing
       }
 
 coreReset :: Core -> Core

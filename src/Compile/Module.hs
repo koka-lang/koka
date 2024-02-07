@@ -19,7 +19,8 @@ module Compile.Module( Module(..), ModulePhase(..)
                      , defsCompose, defsFromCore, defsFromModules
 
                      , Modules
-                     , inlinesFromModules, mergeModules, mergeModulesLeftBias
+                     , inlinesFromModules -- , mergeModules
+                     , mergeModulesLeftBias
                      ) where
 
 import Lib.Trace
@@ -139,10 +140,11 @@ moduleCreateInitial modName sourcePath ifacePath libIfacePath
                           modLibIfacePath = libIfacePath,
                           modRange = makeSourceRange (if null sourcePath then ifacePath else sourcePath) 1 1 1 1 }
 
-
+{-
 mergeModules :: [Module] -> [Module] -> [Module]
 mergeModules mods1 mods2
   = seqqList $ mergeModulesWith (\m1 m2 -> if modPhase m1 >= modPhase m2 then m1 else m2) mods1 mods2
+-}
 
 mergeModulesLeftBias :: [Module] -> [Module] -> [Module]
 mergeModulesLeftBias mods1 mods2
