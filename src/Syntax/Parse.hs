@@ -156,7 +156,7 @@ lexParse allowAt semiInsert preprocess p sourceName line rawinput
 
 parseProgramFromLexemes :: Source -> [Lexeme] -> Error () UserProgram
 parseProgramFromLexemes source lexemes
-  = do (prog, syntaxWarnings) <- parseLexemes (pmodule source) source lexemes
+  = do (prog, syntaxWarnings) <- parseLexemes (program source) source lexemes
        addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) syntaxWarnings) $
          return prog
 
