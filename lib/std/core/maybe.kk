@@ -64,12 +64,15 @@ pub fun cmp( mb1 : maybe<a>, mb2 : maybe<a>, ?cmp : (a,a) -> order ) : order
 
 
 // Order two `:maybe` values in ascending order
-pub fip fun order2( mb1 : maybe<a>, mb2 : maybe<a>, ^?order2 : (a,a) -> (a,a) ) : (maybe<a>,maybe<a>)
+pub fip fun order2( mb1 : maybe<a>, mb2 : maybe<a>, ^?order2 : (a,a) -> order2<a> ) : order2<maybe<a>>
   match mb1
     Just(x)  -> match mb2
-                  Just(y) -> val (l,g) = order2(x,y) in (Just(l),Just(g))
-                  Nothing -> (Nothing,Just(x))
-    Nothing  -> (Nothing,mb2)
+                  Just(y) -> match order2(x,y)
+                               Eq2(z)   -> Eq2(Just(z))
+                               Lt2(l,g) -> Lt2(Just(l),Just(g))
+                               Gt2(l,g) -> Gt2(Just(l),Just(g))
+                  Nothing -> Gt2(Nothing,Just(x))
+    Nothing  -> Lt2(Nothing,mb2)
 
 
 

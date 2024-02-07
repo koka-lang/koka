@@ -210,6 +210,18 @@ pub type order
   // greater-than
   Gt
 
+// Represent two elements in ascending order. This is used to
+// allow comparison on elements to be used linearly for `fip` functions.
+// See also `module std/core/order`
+pub value type order2<a>
+  // The elements compared lower-than, with `lt < gt`.
+  Lt2( lt: a, gt : a )
+  // The elements compared equal (with value `eq`).
+  Eq2( eq: a )
+  // The elements compared greater-than, with `lt < gt`.
+  Gt2( lt: a, gt : a )
+
+
 // The type of lists, which can be either empty (`Nil`) or an element followed
 // by a list (`Cons`).
 // See `module std/core/list` for operations on lists.

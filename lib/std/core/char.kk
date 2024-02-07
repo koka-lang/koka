@@ -53,8 +53,8 @@ pub fip fun cmp( x : char, y : char ) : order
   else Eq
 
 // Order two characters in ascending order.
-pub fip fun order2( x : char, y : char ) : (char,char)
-  if x <= y then (x,y) else (y,x)
+pub fip fun order2( x : char, y : char ) : order2<char>
+  if (x==y) then Eq2(x) elif (x < y) then Lt2(x,y) else Gt2(y,x)
 
 // Convert a character to its unicode code point
 pub inline fip extern int : (char) -> int

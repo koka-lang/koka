@@ -94,14 +94,10 @@ fun insert-poly( t : tree<a>, k : a, ^?cmp : (a,a) -> order ) : tree<a>
                   else Bin(insert-poly(l,k),x,r)
     Tip        -> Bin(Tip,k,Tip)
 
-// We can get around the previous restriction by defining
-// a new ordering type that keeps two elements in increasing order:
-value type order2<a>
-  Lt2( lt: a, gt : a )
-  Eq2( eq: a )
-  Gt2( lt: a, gt : a )
-
-// Instead of a bare comparison, we now use an `order2` function that returns
+// We can get around the previous restriction by using the `:order2<a>`
+// (value) type which contains not only the `:order`, but also the elements
+// themselves in ascending order.
+// Instead of a bare comparison, we use an `order2` function that returns
 // such an ordered pair -- this way we can keep using the elements `k` and `x` in
 // a linear way while being polymorphic over the elements.
 // A subtle point here is that `order2` is passed borrowed and as such can itself
