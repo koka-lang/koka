@@ -47,7 +47,7 @@ import Lib.PPrint (text, (<->), (<+>), color, Color (..))
 import Common.Name (newName, ModuleName, Name, isQualified, qualify)
 import Common.File (FileTime, getCurrentTime, getFileTimeOrCurrent)
 import Common.Error
-import Compile.Options( Flags )
+import Compile.Options( Flags (maxErrors) )
 import Compile.BuildContext
 import LanguageServer.Conversions
 import LanguageServer.Monad
@@ -171,7 +171,9 @@ rebuildFile mbFlags mbRun uri fpath
 -- Run a build monad and emit diagnostics if needed.
 liftBuildDiag :: Maybe Flags -> J.NormalizedUri -> (BuildContext -> Build (BuildContext,a)) -> LSM (Maybe a)
 liftBuildDiag mbflags defaultUri build
-  = do res <- liftBuildWith mbflags build
+  = do flags <- getFlags
+       flushDiagnosticsBySource (maxErrors flags) diagSourceKoka
+       res <- liftBuildWith mbflags build
        case res of
          Right (x,errs) -> do diagnoseErrors defaultUri (errors errs)
                               return (Just x)
@@ -181,10 +183,17 @@ liftBuildDiag mbflags defaultUri build
 -- A build retains all errors over all loaded modules, so we can always publish all
 diagnoseErrors :: J.NormalizedUri -> [ErrorMessage] -> LSM ()
 diagnoseErrors defaultUri errs
-  = -- trace ("errors: " ++ show errs) $
-    do let diagSource = T.pack "koka"
-           maxDiags   = 100
+  = -- trace ("koka: diagnose errors: " ++ show errs) $
+    do flags <- getFlags
+       let diagSource = diagSourceKoka
+           maxDiags   = maxErrors flags
            diagss     = M.toList $ M.map partitionBySource $ M.fromListWith (++) $  -- group all errors per file uri
                         map (errorMessageToDiagnostic diagSource defaultUri) errs
-       flushDiagnosticsBySource maxDiags (Just diagSource)
-       mapM_ (\(uri, diags) -> publishDiagnostics maxDiags uri Nothing diags) diagss
+       -- flushDiagnosticsBySource maxDiags diagSource
+       mapM_ (\(uri, diags) -> if null diags then return ()
+                                else do mversion <- getVirtualFileVersion uri
+                                        publishDiagnostics maxDiags uri mversion diags) diagss
+
+diagSourceKoka :: Maybe T.Text
+diagSourceKoka
+  = Just (T.pack "koka")

@@ -13,6 +13,7 @@
 //
 // Prerequisites:
 //   `syntax/basic`
+//   `syntax/implicits`
 module syntax/fip
 
 // We can use the `fip` keyword to ensure that,
@@ -126,6 +127,7 @@ fun example-order()
   [[2,3,1].tree.height,
    ['a','b','c'].tree.height,
    [2,3,1].tree(?order2=fn(x,y) Eq2(x)).height].println
+
 
 // Todo.. more examples with zippers:
 // - Tree mapping

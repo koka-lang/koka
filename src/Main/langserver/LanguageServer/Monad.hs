@@ -30,7 +30,8 @@ module LanguageServer.Monad
     lookupDefinitions, lookupVisibleDefinitions, Definitions(..),
     lookupModulePaths,
     getPrettyEnv, getPrettyEnvFor, prettyMarkdown,
-    emitInfo, emitNotification
+    emitInfo, emitNotification, getVirtualFileVersion
+
   )
 where
 
@@ -76,6 +77,7 @@ import LanguageServer.Conversions ({-toLspUri,-} fromLspUri)
 
 import Data.Map.Strict(Map)
 import Data.ByteString (ByteString)
+import GHC.IO.Encoding (BufferCodec(getState))
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
@@ -252,6 +254,13 @@ getSignatureContext = signatureContext <$> getLSState
 
 getInlayHintOptions :: LSM InlayHintOptions
 getInlayHintOptions = inlayHintOpts . config <$> getLSState
+
+getVirtualFileVersion :: J.NormalizedUri -> LSM (Maybe J.Int32)
+getVirtualFileVersion uri
+  = do ls <- getLSState
+       case M.lookup uri (documentInfos ls) of
+         Just (_,_,ver) -> return (Just ver)
+         _              -> return Nothing
 
 
 -- Fetches the terminal used for printing messages

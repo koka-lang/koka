@@ -69,7 +69,7 @@ toLspLocationLink src r =
   where
     uri = J.filePathToUri $ R.sourceName $ R.rangeSource r
 
-toLspDiagnostics :: J.NormalizedUri -> T.Text -> E.Error b a -> M.Map J.NormalizedUri [J.Diagnostic]
+toLspDiagnostics :: J.NormalizedUri -> Maybe T.Text -> E.Error b a -> M.Map J.NormalizedUri [J.Diagnostic]
 toLspDiagnostics uri src err =
   case E.checkError err of
     Right (_, E.Errors ws) -> M.unions (map (toLspErrorDiagnostics uri src) ws)
@@ -77,7 +77,7 @@ toLspDiagnostics uri src err =
     Left (E.Errors errs) -> M.unions (map (toLspErrorDiagnostics uri src) errs)
 
 
-errorMessageToDiagnostic :: T.Text -> J.NormalizedUri -> E.ErrorMessage -> (J.NormalizedUri, [J.Diagnostic])
+errorMessageToDiagnostic :: Maybe T.Text -> J.NormalizedUri -> E.ErrorMessage -> (J.NormalizedUri, [J.Diagnostic])
 errorMessageToDiagnostic errSource defaultUri e
   = (uriFromRange (E.errRange e) defaultUri,
      [makeDiagnostic (toSeverity (E.errSeverity e)) errSource (E.errRange e) (E.errMessage e)] )
@@ -88,7 +88,7 @@ errorMessageToDiagnostic errSource defaultUri e
               E.SevWarning -> J.DiagnosticSeverity_Warning
               _            -> J.DiagnosticSeverity_Information
 
-toLspErrorDiagnostics :: J.NormalizedUri -> T.Text -> E.ErrorMessage -> M.Map J.NormalizedUri [J.Diagnostic]
+toLspErrorDiagnostics :: J.NormalizedUri -> Maybe T.Text -> E.ErrorMessage -> M.Map J.NormalizedUri [J.Diagnostic]
 toLspErrorDiagnostics uri src e =
   M.singleton (uriFromRange (E.errRange e) uri)
     [makeDiagnostic (toSeverity (E.errSeverity e)) src (E.errRange e) (E.errMessage e)]
@@ -103,16 +103,15 @@ uriFromRange :: R.Range -> J.NormalizedUri -> J.NormalizedUri
 uriFromRange r uri =
   if R.rangeSource r == sourceNull then uri else J.toNormalizedUri $ J.filePathToUri $ sourceName (R.rangeSource r)
 
-toLspWarningDiagnostic :: T.Text -> R.Range -> Doc -> J.Diagnostic
-toLspWarningDiagnostic =
-  makeDiagnostic J.DiagnosticSeverity_Warning
+toLspWarningDiagnostic :: Maybe T.Text -> R.Range -> Doc -> J.Diagnostic
+toLspWarningDiagnostic diagsrc range doc
+  = makeDiagnostic J.DiagnosticSeverity_Warning diagsrc range doc
 
-makeDiagnostic :: J.DiagnosticSeverity -> T.Text -> R.Range -> Doc -> J.Diagnostic
-makeDiagnostic s src r doc =
-  J.Diagnostic range severity code codeDescription source message tags related dataX
+makeDiagnostic :: J.DiagnosticSeverity -> Maybe T.Text -> R.Range -> Doc -> J.Diagnostic
+makeDiagnostic s diagsrc r doc =
+  J.Diagnostic range severity code codeDescription diagsrc message tags related dataX
   where
     range = toLspRange r
-    source = Just src
     severity = Just s
     code = Nothing
     codeDescription = Nothing
