@@ -109,6 +109,8 @@ testSanitize kokaDir
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
   -- using @ for hidden names now
   . sub "\\." "@"
+  -- standard qualifiers
+  . sub "(console|exn|hnd|sslice|string|list)/" ""
  . if null kokaDir then id else replace xkokaDir "..."
   where
     xkokaDir = case map (\c -> if c == '\\' then '/' else c) kokaDir of
