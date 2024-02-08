@@ -31,7 +31,7 @@ pub val file/kk-line : string = ""
 pub val file/kk-file : string = ""
 
 pub fun file/kk-file-line( ?kk-file, ?kk-line )
-  ?kk-file ++ "(line " ++ ?kk-line ++ ")"
+  ?kk-file ++ "(" ++ ?kk-line ++ ")"
 
 // ----------------------------------------------------------------------------
 // Trace, assert, todo

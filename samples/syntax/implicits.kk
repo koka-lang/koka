@@ -14,8 +14,8 @@ module syntax/implicits
 
 import std/num/float64
 
-// Suppose we have some equality definitions
-// (using local qualifiers) to disambiguate them
+// Suppose we have some top-level equality definitions
+// where we use local qualification to disambiguate them
 
 fun int/eq( x : int, y : int ) : bool
   (x == y)
@@ -35,14 +35,14 @@ fun list-eq-explicit( xs : list<a>, ys : list<a>, eq : (a,a) -> bool ) : bool
     Nil -> ys.is-nil
 
 
-pub fun example1()
+fun example1()
   list-eq-explicit([1,2],[1,2],eq)  // Koka disambiguates `eq` to `int/eq` (since we use `:int`` lists)
 
 // It can be cumbersome to always pass in the explicit `eq` function.
 // We can instead make it an _implicit_ parameter, written as `?eq`.
 // Such parameter is automatically resolved by the compiler
 // to _any `eq` function at the call site_.
-// (where the argument types may be instantiated enough to disambiguate)
+// (where the argument types may need to be instantiated enough to disambiguate)
 //
 // In other words, any call
 //  `list-eq-explicit(_,_)`
@@ -60,29 +60,29 @@ fun list-eq( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
     Nil -> ys.is-nil
 
 // In this example, the implicit `?eq` parameter is resolved to `int/eq`.
-pub fun example2()
+fun example2()
   list-eq( [1,2], [1,2] )
 
 // Sometimes, the implicit parameter can still not be disambiguated.
 // In that case we can either use a local definition or an implicit parameter again.
-// (ironically, implicit parameters themselves must be declared explicitly :-))
+// (ironically, the implicit parameters themselves must be declared explicitly :-))
 fun eq-refl(xx, ?eq)
   list-eq(xx,xx)
 
 // Or we can provide the implicit argument explicitly.
 // (this would be like a named instance with type classes)
-pub fun example3()
+fun example3()
   list-eq( [], [], ?eq = int/eq )
 
 // or sneakily
-pub fun example3a()
+fun example3a()
   list-eq( [1,2], [1,2], ?eq = fn(x,y) !int/eq(x,y) )
 
 
 // The `?eq` notation is actually a shorthand for a locally qualified name `@implicit/eq`.
 // When resolving an implicit parameter `?eq`, the compiler looks for the plain name `eq` though.
-// This means that we can still refer to `eq` definitions at the global scope.
-// For example, we can write list equality as:
+// This means that we can still refer to `eq` definitions at the top-level scope.
+// For example, we can write list equality also as:
 fun list/eq( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
   match xs
     Cons(x,xx) -> match ys
@@ -94,16 +94,16 @@ fun list/eq( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
 // the second `eq(xx,yy)` resolves to `list/eq(xx,yy)`, bypassing
 // the local `?eq` parameter (as its fully qualified name is `?eq` (==`@implicit/eq`)).
 // The implicit parameter to `list/eq` is resolved to the local parameter `?eq` again.
-// (these are just the regular rules for disambiguating qualified names based on types -- not specific to implicits)
-pub fun example4()
+// (these are just the regular rules for disambiguating qualified names based on types -- nothing specific to implicits)
+fun example4()
   eq([1,2],[1,2])
 
 
 // Implicit parameters are resolved recursively.
 // Below, the implicit `?eq` is resolved first to `list/eq`, and
-// then the implicit `?eq` of `list/eq` is resolved to `int/eq`.
+// then the implicit `?eq` of `list/eq` is resolved further to `int/eq`.
 // (again, in VS Code press `ctrl+alt` to see the inlay hints)
-pub fun example5()
+fun example5()
   eq( [[1,2],[]], [[1,2],[]] )
 
 
@@ -121,7 +121,7 @@ fun string/compare( x : string, y : string ) : order
 
 // In the following example, the implicit `?eq` parameter is first
 // resolved to `compare/eq`, and then recursively `?compare` to `string/compare`.
-pub fun example6()
+fun example6()
   eq( ["hi"], ["there"] )
 
 
@@ -131,7 +131,7 @@ fun int/compare( x : int, y : int ) : order
 
 // We can now choose to resolve `?eq` either as `int/eq`, or `compare/eq(_,_,?compare=?int/compare)`
 // The compiler disambiguates always using the _shortest chain_ (i.e. `int/eq`)
-pub fun example7()
+fun example7()
   eq([1,2],[1,2])       // ?eq=int/eq
 
 // However, any conversion chain ending in (the most) local parameters still takes precedence.
@@ -140,9 +140,10 @@ fun test1(?compare)
   eq([1,2],[1,2])       // ?eq=compare/eq(_,_,?compare=?compare)
 
 
-// Sometimes we need multiple implicit parameters resolving to same name.
+// Sometimes we need multiple implicit parameters resolving to the same name.
 // In that case we can further qualify the local names. This way each local parameter
 // has a unique qualified name, but each one is resolved using the plain `eq` name at the call-site.
+// (again, these are the normal disambiguation rules for qualified names, not specific for implicits)
 fun tuple/eq( (x1,y1) : (a,b), (x2,y2) : (a,b), ?a/eq : (a,a) -> bool, ?b/eq : (b,b) -> bool ) : bool
   eq(x1,x2) && eq(y1,y2)
 
@@ -151,7 +152,7 @@ fun tuple/eq2( (x1,y1), (x2,y2), ?a/eq, ?b/eq ) : bool
   a/eq(x1,x2) && b/eq(y1,y2)
 
 // As we can see, implicit parameters can really help reduce boilerplate!
-pub fun example8()
+fun example8()
   eq(([1],"a"),([1],"a"))   // `?a/eq=list/eq(_,_,int/eq),?b/eq=compare/eq(_,_,string/compare)`
 
 
