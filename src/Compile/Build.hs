@@ -482,7 +482,7 @@ moduleParse tparsedMap
                                                  text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod)
                              else errorsNil
                   done mod{ modPhase   = PhaseParsed
-                          , modErrors  = mergeErrors warns (modErrors mod)
+                          , modErrors  = mergeErrors warns (mergeErrors err (modErrors mod))
                           , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
                           }
 
