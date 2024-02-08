@@ -14,92 +14,69 @@
 
 module LanguageServer.Handler.Hover (hoverHandler, formatRangeInfoHover) where
 
+import Debug.Trace (trace)
 import Data.Char(isSpace)
+import Data.List(find)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
-import Data.Foldable(maximumBy)
 import qualified Data.Text as T
+
+import Lib.PPrint
+import Common.Name
+import Common.Range as R
+import Kind.Kind(isKindEffect,isKindHandled,isKindHandled1,isKindLabel)
+import Kind.Pretty (prettyKind)
+import Type.Pretty (ppScheme, defaultEnv, Env(..), ppName, keyword)
+import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindAt)
+import Syntax.Colorize( removeComment )
+
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.Server (Handlers, sendNotification, requestHandler)
-
-import Common.Range as R
-import Common.Name (nameNil)
-import Common.ColorScheme (ColorScheme (colorNameQual, colorSource), Color (Gray))
-import Kind.Kind(isKindEffect,isKindHandled,isKindHandled1,isKindLabel)
-import Lib.PPrint
-import Compiler.Module (loadedModule, modRangeMap, modLexemes, Loaded (loadedModules, loadedImportMap), Module (modPath, modSourcePath))
-import Compiler.Options (Flags, colorSchemeFromFlags, prettyEnvFromFlags)
-import Compiler.Compile (modName)
-import Kind.Pretty (prettyKind)
-import Kind.ImportMap (importsEmpty, ImportMap)
-import Type.Pretty (ppScheme, defaultEnv, Env(..), ppName, keyword)
-import Type.Type (Name)
-import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindAt)
-import Syntax.Colorize( removeComment )
 import LanguageServer.Conversions (fromLspPos, toLspRange)
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getHtmlPrinter, getFlags, getLoadedSuccess)
-import Debug.Trace (trace)
 import LanguageServer.Handler.Pretty (ppComment, asKokaCode)
+import LanguageServer.Monad
+
 
 
 -- Handles hover requests
 hoverHandler :: Handlers LSM
-hoverHandler = requestHandler J.SMethod_TextDocumentHover $ \req responder -> do
-  let J.HoverParams doc pos _ = req ^. J.params
-      uri = doc ^. J.uri
-      normUri = J.toNormalizedUri uri
-  -- outdated information is fine even if ranges are slightly different, we want to still be able to get hover info
-  loaded <- getLoadedSuccess normUri
-  pos <- liftIO $ fromLspPos normUri pos
+hoverHandler
+  = requestHandler J.SMethod_TextDocumentHover $ \req responder ->
+    do  let J.HoverParams doc pos0 _ = req ^. J.params
+            uri  = J.toNormalizedUri (doc ^. J.uri)
 
-  let res = -- trace ("loaded success: " ++ show loaded ++ ", pos: " ++ show pos ++ ", uri: " ++ show normUri) $
-            do -- maybe monad
-                l    <- loaded
-                let mod  = loadedModule l
-                rmap <- modRangeMap mod
-                -- Find the range info at the given position
-                {- let rm = rangeMapFindAt (modLexemes mod) pos rmap
-                (r, rinfo) <- rangeMapBestHover rm
-                -}
-                (r,rinfo) <- trace ("hover lookup in rangemap") $
-                            rangeMapFindAt (modLexemes mod) pos rmap
-                return (modName mod, l, r, rinfo)
-  case res of
-    Just (mName, l, r, rinfo)
-      -> -- trace ("hover found " ++ show rinfo) $
-         do -- Get the html-printer and flags
-            print <- getHtmlPrinter
-            flags <- getFlags
-            let env = (prettyEnvFromFlags flags){ context = mName, importsMap = loadedImportMap l }
-                colors = colorSchemeFromFlags flags
-            markdown <- liftIO $ print $ -- makeMarkdown $ -- makeMarkdown $
-                        let doc = formatRangeInfoHover l env colors rinfo
-                        in --trace ("formatted hover:\n" ++ show doc) $
-                           doc
-            let md = J.mkMarkdown markdown
-                hc = J.InL md
-                rsp = J.Hover hc $ Just $ toLspRange r
-            -- trace ("hover markdown:\n" ++ show markdown) $
-            responder $ Right $ J.InL rsp
-    Nothing
-      -> -- trace "no hover info" $
-         responder $ Right $ J.InR J.Null
+            done :: LSM ()
+            done = responder $ Right $ J.InR J.Null
 
+            liftMaybe :: LSM (Maybe a) -> (a -> LSM ()) -> LSM ()
+            liftMaybe action next = do res <- action
+                                       case res of
+                                         Nothing -> done
+                                         Just x  -> next x
 
+        pos <- liftIO $ fromLspPos uri pos0
+        -- trace ("hover: lookup: " ++ show uri) $
+        liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
+          -- trace ("hover: found: " ++ show modname) $
+           liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
+            -- trace ("hover: found rangemap: " ) $
+             liftMaybe (return (rangeMapFindAt lexemes pos rmap)) $ \(rng,rngInfo) ->
+              -- trace ("hover: found rng info: " ++ show rngInfo) $
+              do penv <- getPrettyEnvFor modname
+                 mods <- lookupModulePaths
+                 let doc = formatRangeInfoHover penv mods rngInfo
+                 markdown <- prettyMarkdown doc
+                 let rsp = J.Hover (J.InL (J.mkMarkdown markdown)) (Just (toLspRange rng))
+                 -- trace ("hover markdown:\n" ++ show markdown) $
+                 responder $ Right $ J.InL rsp
 
--- Get best rangemap info for a given position
-rangeMapBestHover rm =
-  case rm of
-    [] -> Nothing
-    [r] -> Just r
-    r:rst -> Just r
 
 -- Pretty-prints type/kind information to a hover tooltip given a type pretty environment, color scheme
-formatRangeInfoHover :: Loaded -> Env -> ColorScheme -> RangeInfo -> Doc
-formatRangeInfoHover loaded env colors rinfo
-  = let kw s      = keyword env s
+formatRangeInfoHover :: Env -> [(ModuleName,FilePath)] -> RangeInfo -> Doc
+formatRangeInfoHover env mods rinfo
+  = let kw s = keyword env s
     in case rinfo of
       Decl s name mname mbType -> asKokaCode (kw s <+> pretty name <.>
                                               case mbType of
@@ -120,12 +97,12 @@ formatRangeInfoHover loaded env colors rinfo
                                                   else if isKindHandled1 k
                                                     then kw "linear effect"
                                                     else kw "type")
-                                                <+> namedoc <+> text "::" <+> prettyKind colors k
-                          NITypeVar k       -> kw "type" <+> namedoc <+> text "::" <+> prettyKind colors k
+                                                <+> namedoc <+> text "::" <+> prettyKind (colors env) k
+                          NITypeVar k       -> kw "type" <+> namedoc <+> text "::" <+> prettyKind (colors env) k
                           NIModule -> kw "module" <+> namedoc <.>
-                                      (case filter (\mod -> modName mod == qname) (loadedModules loaded) of
-                                            [mod] | not (null (modSourcePath mod)) -> text (" (at \"" ++ modSourcePath mod ++ "\")")
-                                            _     -> empty
+                                      (case find (\(modname,fpath) -> modname == qname) mods of
+                                            Just (modname,fpath) -> text (" (at \"" ++ fpath ++ "\")")
+                                            Nothing -> empty
                                         )
                           NIKind -> kw "kind" <+> namedoc
             comment = case info of

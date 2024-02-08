@@ -10,6 +10,8 @@ module Core.CoreVar ( HasExprVar, (|~>)
                     , HasExpVar, fv, bv
                     , isTopLevel
                     , freeLocals
+                    , extractDepsFromInlineDefs
+                    , extractDepsFromSignatures
                     ) where
 
 
@@ -26,6 +28,32 @@ import Type.TypeVar
 import Core.Core
 import Core.Pretty
 
+
+{--------------------------------------------------------------------------
+  For compiler imports:
+  - extract synonyms
+  - extract all used modules from inlines
+--------------------------------------------------------------------------}
+
+extractDepsFromInlineDefs :: [InlineDef] -> [ModuleName]
+extractDepsFromInlineDefs inlineDefs
+  = S.toList (S.unions (map (extractDepsFromExpr . inlineExpr) inlineDefs))
+
+
+extractDepsFromExpr :: Expr -> S.Set ModuleName
+extractDepsFromExpr expr
+  = let varmods  = S.map (qualifier . getName) (fv expr)
+        tconmods = S.map (qualifier . typeconName) (ftc expr)
+    in S.union varmods tconmods
+
+
+extractDepsFromSignatures :: Core -> [ModuleName]
+extractDepsFromSignatures core
+  = S.toList (S.map (qualifier . typeconName) (ftc (extractSignatures core)))
+
+{--------------------------------------------------------------------------
+  Locals
+--------------------------------------------------------------------------}
 
 isTopLevel :: Def -> Bool
 isTopLevel (Def name tp expr vis isVal inl nameRng doc)
@@ -92,7 +120,7 @@ instance HasExpVar Expr where
   fv (Let dfgrps expr)    = fvDefGroups dfgrps expr
   fv (Case exprs bs)      = fv exprs `S.union` fv bs
 
-  bv exp                  = failure "Backend.CSharp.FromCore.bv on expr"
+  bv exp                  = failure "Core.CoreVar.bv on expr"
 
 instance HasExpVar Branch where
   fv (Branch patterns guards) = fv guards `S.difference` bv patterns

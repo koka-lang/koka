@@ -14,6 +14,7 @@ cgen/specialize/tree-list/@mlift-xxx: forall<a,e> (tree<a>, list<tree<a>>) -> <d
 cgen/specialize/tree-list/@mlift-xxx: forall<a,b,e> (list<tree<a>>, f : (a) -> <div|e> b, tree<b>) -> <div|e> list<tree<b>>
 cgen/specialize/tree-list/@mlift-xxx: forall<a,e> (a, list<tree<a>>) -> <div|e> tree<a>
 cgen/specialize/tree-list/@mlift-xxx: forall<a,b,e> (children : list<tree<a>>, f : (a) -> <div|e> b, b) -> <div|e> tree<b>
+cgen/specialize/tree-list/Node: forall<a> (data : a, children : list<tree<a>>) -> tree<a>
 cgen/specialize/tree-list/main: () -> <console,div> ()
 cgen/specialize/tree-list/mapT: forall<a,b,e> (tree<a>, f : (a) -> <div|e> b) -> <div|e> tree<b>
 cgen/specialize/tree-list/show: (tree<int>) -> div string

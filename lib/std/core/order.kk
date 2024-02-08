@@ -36,3 +36,16 @@ pub fip fun (>)( x : order, y : order ) : bool
 pub fip fun (<)( x : order, y : order ) : bool
   x.int < y.int
 
+// Convert an `:order2` to an `:int` (`-1`, `0`, or `1`)
+pub fip fun order2/int( x : order2<a> ) : int
+  match x
+    Lt2 -> -1
+    Eq2 -> 0
+    Gt2 -> 1
+
+// Given a comparison function, we can order 2 elements.
+pub fun order2( x : a, y : a, ^cmp : (a,a) -> order ) : order2<a>
+  match cmp(x,y)
+    Eq -> Eq2(x)
+    Lt -> Lt2(x,y)
+    Gt -> Gt2(y,x)

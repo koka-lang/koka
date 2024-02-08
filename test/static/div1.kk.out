@@ -1,4 +1,5 @@
-static/div1/nat: V
+nat : V
+ 
 static/div1/Succ: (nat) -> nat
 static/div1/Zero: nat
 static/div1/h: (x : nat, y : nat) -> nat

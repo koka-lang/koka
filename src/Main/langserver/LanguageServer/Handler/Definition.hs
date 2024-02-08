@@ -13,87 +13,67 @@
 
 module LanguageServer.Handler.Definition (definitionHandler) where
 
+import Debug.Trace(trace)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
+import Data.Maybe
 import qualified Data.Map as M
-import Data.Foldable(maximumBy)
-import Data.Maybe (maybeToList)
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.Server (Handlers, requestHandler)
+
+import Common.Name
 import Common.Range as R
 import Kind.Constructors (conInfoRange, constructorsLookup)
 import Kind.Newtypes (dataInfoRange, newtypesLookupAny)
 import Kind.Synonym (synInfoRange, synonymsLookup)
 import Type.Assumption (gammaLookupCanonical, gammaLookupQ, infoRange)
 import Syntax.RangeMap (RangeInfo (..), rangeMapFindAt, NameInfo (..))
-import Compiler.Module (Loaded (..), loadedModule, modRangeMap, modName, modSourcePath, modLexemes)
-import LanguageServer.Conversions (fromLspPos, toLspLocation, toLspLocationLink)
-import LanguageServer.Monad (LSM, getLoaded, getLoadedModule, getLoadedLatest, getLoadedSuccess)
-import Debug.Trace(trace)
+
+import LanguageServer.Conversions
+import LanguageServer.Monad
 
 -- Finds the definitions of the element under the cursor.
 definitionHandler :: Handlers LSM
-definitionHandler = requestHandler J.SMethod_TextDocumentDefinition $ \req responder -> do
-  let J.DefinitionParams doc pos _ _ = req ^. J.params
-      uri = doc ^. J.uri
-      normUri = J.toNormalizedUri uri
-  mbLoaded <- getLoadedSuccess normUri -- Don't care about outdated information
-  pos <- liftIO $ fromLspPos normUri pos
-  let defs = concat $ maybeToList $ do -- maybe monad
-        l    <- mbLoaded
-        let mod  = loadedModule l
-        rmap <- modRangeMap $ loadedModule l
-        (r,info) <- rangeMapFindAt (modLexemes mod) pos rmap
-        {-case rangeMapBestDefinition rm of
-          Just (r, rinfo) -> findDefinitions l rinfo
-          Nothing -> []-}
-        return (findDefinitions l info)
-  responder $ Right $ J.InR $ J.InL defs
+definitionHandler
+  = requestHandler J.SMethod_TextDocumentDefinition $ \req responder ->
+    do  let J.DefinitionParams doc pos0 _ _ = req ^. J.params
+            uri  = J.toNormalizedUri (doc ^. J.uri)
 
--- Get best rangemap info for a given position
-rangeMapBestDefinition rm =
-  case rm of
-    [] -> Nothing
-    [r] -> Just r
-    xs -> Just $ maximumBy (\a b -> compare (rangeInfoPriority a) (rangeInfoPriority b)) xs
+            done :: LSM ()
+            done = responder $ Right $ J.InR $ J.InR J.Null
 
-rangeInfoPriority :: (Range,RangeInfo) -> Int
-rangeInfoPriority (r,ri) =
-  case ri of
-    Block _ -> -1
-    Id _ (NICon{}) _ True -> 3
-    Id _ _ _ True -> 2
-    Id _ _ _ _ -> 0
-    Decl "con" _ _ _ -> 3 -- Constructors are more important than other decls (such as automatically generated ones)
-    Decl _ _ _ _     -> 1
-    Warning _ -> 4
-    Error _ -> 5
-    Implicits _ -> -1 -- Use the id
+            liftMaybe :: LSM (Maybe a) -> (a -> LSM ()) -> LSM ()
+            liftMaybe action next = do res <- action
+                                       case res of
+                                         Nothing -> done
+                                         Just x  -> next x
 
--- Finds the definition locations of the element
--- represented by the given range info.
-findDefinitions :: Loaded -> RangeInfo -> [J.DefinitionLink]
-findDefinitions loaded rinfo
-  = case rinfo of
+        pos <- liftIO $ fromLspPos uri pos0
+        liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
+          liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
+            liftMaybe (return (rangeMapFindAt lexemes pos rmap)) $ \(rng,rngInfo) ->
+              do defs <- lookupVisibleDefinitions [modname]
+                 mods <- lookupModulePaths
+                 let defLinks = findDefLinks defs mods rngInfo
+                 responder $ Right $ J.InR $ J.InL defLinks
+
+findDefLinks :: Definitions -> [(ModuleName,FilePath)] -> RangeInfo -> [J.DefinitionLink]
+findDefLinks defs mods rngInfo
+  = case rngInfo of
       Id qname idInfo docs _
         -> -- trace ("find definition of id: " ++ show qname) $
            let ranges = case idInfo of
-                          NIValue{}   -> map infoRange $ gammaLookupQ qname gamma
+                          NIValue{}   -> map infoRange $ gammaLookupQ qname (defsGamma defs)
                           NICon{}     -> -- trace ("lookup con: " ++ show qname) $
-                                         map infoRange $ gammaLookupQ qname gamma
-                          NITypeCon{} -> (map synInfoRange $ maybeToList $ synonymsLookup qname synonyms)
+                                         map infoRange $ gammaLookupQ qname (defsGamma defs)
+                          NITypeCon{} -> (map synInfoRange $ maybeToList $ synonymsLookup qname (defsSynonyms defs))
                                         ++
-                                        (map dataInfoRange $ maybeToList $ newtypesLookupAny qname newtypes)
+                                         (map dataInfoRange $ maybeToList $ newtypesLookupAny qname (defsNewtypes defs))
                           NITypeVar _ -> []
-                          NIModule    -> -- trace ("module definition: " ++ show qname) $
-                                         [R.makeSourceRange (modSourcePath mod) 1 1 1 1 | mod <- loadedModules loaded, modName mod == qname]
+                          NIModule    -> [R.makeSourceRange fpath 1 1 1 1 | (modname,fpath) <- mods, modname == qname]
                           NIKind      -> []
-          in map (J.DefinitionLink . toLspLocationLink rinfo) ranges
+          in map (J.DefinitionLink . toLspLocationLink rngInfo) ranges
       _ -> []
-    where
-      gamma = loadedGamma loaded
-      constrs = loadedConstructors loaded
-      synonyms = loadedSynonyms loaded
-      newtypes = loadedNewtypes loaded
+

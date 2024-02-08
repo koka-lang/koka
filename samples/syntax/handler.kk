@@ -23,7 +23,7 @@ fun foo(pred) : example int
 // of operation clauses and returns a handler function
 // that function takes a unit-function `action`
 // that is run under the handler.
-pub fun example1() : console int
+fun example1() : console int
   val h = handler
             ctl raise(msg) { println(msg); 42 }
   h(fn() foo(True))
@@ -31,14 +31,14 @@ pub fun example1() : console int
 
 // The `with` statement (see `syntax/with`) can help to
 // specify the previous handler more concisely as:
-pub fun example2() : console int
+fun example2() : console int
   with handler
     ctl raise(msg) { println(msg); 42 }
   foo(True)
 
 
 // If there is only one operation, we can shorten this further as:
-pub fun example3() : console int
+fun example3() : console int
   with ctl raise(msg){ println(msg); 42 }
   raise("error")
 
@@ -63,7 +63,7 @@ pub fun example3() : console int
 //   as `fun` operations.
 
 // Mark `:raise` as `final` since it never resumes to the call-site
-pub fun example4() : console int
+fun example4() : console int
   with final ctl raise(msg) { println(msg); 42 }
   raise("error")
 

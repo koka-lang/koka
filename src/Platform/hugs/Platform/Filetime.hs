@@ -11,11 +11,11 @@
 -----------------------------------------------------------------------------
 module Platform.Filetime( FileTime
                        , getCurrentTime
-                       , getFileTime                
+                       , getFileTime
                        , getFileTimeOrCurrent
                        , fileTime0
                        ) where
-              
+
 import System.Directory( getModificationTime )
 import qualified System.Time as T
 import Platform.Runtime( exCatch )
@@ -34,12 +34,12 @@ fileTime0
 -- | Returns the file modification time or 0 if it does not exist.
 getFileTime :: FilePath -> IO FileTime
 getFileTime fname
-  = do getModificationTime fname 
+  = do getModificationTime fname
     `exCatch` \_ -> do -- putStrLn $ "filetime: 0 for : " ++ fname
                        return fileTime0
 
 -- | returns the file modification time or the current time if it does not exist.
 getFileTimeOrCurrent :: FilePath -> IO FileTime
 getFileTimeOrCurrent fname
-  = do getModificationTime fname 
+  = do getModificationTime fname
     `exCatch` \_ -> getCurrentTime

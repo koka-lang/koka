@@ -165,3 +165,6 @@ instance HasTypeVar InfGamma where
 
   btv infgamma
     = btv (map snd (infgammaList infgamma))
+
+  ftc infgamma
+    = ftc (map snd (infgammaList infgamma))

@@ -17,33 +17,32 @@ import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Protocol.Lens as J
 import Language.LSP.Protocol.Types (FoldingRangeKind(FoldingRangeKind_Region))
 import Language.LSP.Server (Handlers, requestHandler)
-import Common.Name (nameNil, Name, nameLocal )
+
 import qualified Common.Range            as R
+import Common.Name (nameNil, Name, nameLocal )
 import Common.Range (Pos(..), Ranged (getRange))
 import Common.Syntax
-import Compiler.Module (loadedModule, Loaded, Module)
-import Compiler.Compile (modName, Module (modProgram))
 import Syntax.Syntax
 import Type.Pretty (ppName)
 import LanguageServer.Conversions (fromLspPos, toLspRange)
-import LanguageServer.Monad (LSM, getLoaded, getLoadedLatest)
+import LanguageServer.Monad
 
 -- Handles hover requests
 foldingHandler :: Handlers LSM
-foldingHandler = requestHandler J.SMethod_TextDocumentFoldingRange $ \req responder -> do
-  let J.FoldingRangeParams _ _ doc = req ^. J.params
-      uri = doc ^. J.uri
-      normUri = J.toNormalizedUri uri
-  loaded <- getLoadedLatest normUri
-  let foldings = findFoldingRanges =<< maybeToList loaded
-  responder $ Right $ J.InL foldings
-
-
--- Traverses the syntax tree to find document foldings
-findFoldingRanges :: Loaded -> [J.FoldingRange]
-findFoldingRanges loaded = do
-  prog <- maybeToList $ modProgram $ loadedModule loaded
-  foldings prog
+foldingHandler
+  = requestHandler J.SMethod_TextDocumentFoldingRange $ \req responder ->
+    do let J.FoldingRangeParams _ _ doc = req ^. J.params
+           uri = J.toNormalizedUri (doc ^. J.uri)
+           done = responder $ Right $ J.InR J.Null
+           liftMaybe :: LSM (Maybe a) -> (a -> LSM ()) -> LSM ()
+           liftMaybe action next = do res <- action
+                                      case res of
+                                         Nothing -> done
+                                         Just x  -> next x
+       liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
+         liftMaybe (lookupProgram modname) $ \program ->
+            do let fs = foldings program
+               responder $ Right $ J.InL fs
 
 
 class HasFoldingRanges a where

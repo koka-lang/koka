@@ -22,14 +22,13 @@ import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.Server               ( Handlers, requestHandler )
+
 import qualified Common.Range            as R
 import Common.Syntax                     ( DefSort (..), Visibility )
 import Common.Name                       ( Name (..), isHiddenName, nameLocal )
-
-import Compiler.Module                   ( modProgram, loadedModule, Loaded (..) )
 import Syntax.Syntax
 import LanguageServer.Conversions        ( toLspRange )
-import LanguageServer.Monad              ( LSM, getLoaded, getLoadedLatest, getLoadedSuccess )
+import LanguageServer.Monad
 
 -- The LSP handler that provides the symbol tree of a document
 -- Symbols include
@@ -42,19 +41,20 @@ import LanguageServer.Monad              ( LSM, getLoaded, getLoadedLatest, getL
 -- Struct (types with one constructor) / Constructor (constructor) / Field (fields) / TypeParameter (type parameters)
 -- Constant / Function / Variable / Number / String
 documentSymbolHandler :: Handlers LSM
-documentSymbolHandler = requestHandler J.SMethod_TextDocumentDocumentSymbol $ \req responder -> do
-  let J.DocumentSymbolParams _ _ doc = req ^. J.params
-      uri = doc ^. J.uri
-      normUri = J.toNormalizedUri uri
-  loaded <- getLoadedSuccess normUri -- Don't care about outdated information
-  let symbols = findDocumentSymbols =<< maybeToList loaded
-  responder $ Right $ J.InR $ J.InL symbols
-
--- Traverses the syntax tree to find document symbols
-findDocumentSymbols :: Loaded -> [J.DocumentSymbol]
-findDocumentSymbols loaded = do
-  prog <- maybeToList $ modProgram $ loadedModule loaded
-  symbols prog
+documentSymbolHandler
+  = requestHandler J.SMethod_TextDocumentDocumentSymbol $ \req responder ->
+    do  let J.DocumentSymbolParams _ _ doc = req ^. J.params
+            uri = J.toNormalizedUri (doc ^. J.uri)
+            done = responder $ Right $ J.InR $ J.InR J.Null
+            liftMaybe :: LSM (Maybe a) -> (a -> LSM ()) -> LSM ()
+            liftMaybe action next = do res <- action
+                                       case res of
+                                         Nothing -> done
+                                         Just x  -> next x
+        liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
+         liftMaybe (lookupProgram modname) $ \program ->
+            do let syms= symbols program
+               responder $ Right $ J.InR $ J.InL syms
 
 class HasSymbols a where
   symbols :: a -> [J.DocumentSymbol]

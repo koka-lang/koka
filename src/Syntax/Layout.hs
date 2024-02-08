@@ -9,7 +9,7 @@
     Add braces and semicolons based on layout.
 -}
 -----------------------------------------------------------------------------
-module Syntax.Layout( layout, testFile, combineLineComments ) where
+module Syntax.Layout( layout, testFile, combineLineComments, lexSource ) where
 
 import Data.Char(isSpace)
 import Data.List(partition)
@@ -22,6 +22,7 @@ import Lib.Trace
 import Syntax.Lexeme
 import Syntax.Lexer
 import Common.Name  ( Name, nameLocal, nameStem )
+import Common.File  ( startsWith, seqList, isLiteralDoc )
 
 testFile fname
   = do input <- readInput ("test/" ++ fname)
@@ -34,6 +35,14 @@ testEx fname input
   = let source = Source fname input
         xs = lexing source 1 input
     in putStrLn (unlines (map show (layout True True xs)))
+
+-- Lex a source
+lexSource :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> Int -> Source -> [Lexeme]
+lexSource allowAt semiInsert preprocess line source
+  = let rawinput = sourceBString source
+        input    = if isLiteralDoc (sourceName source) then extractLiterate rawinput else rawinput
+        lexemes  = preprocess $ layout allowAt semiInsert $ lexing source line input
+    in seq lexemes lexemes
 
 -- | @layout allowAtIds semiInsert lexs@ does layout processing on a list of lexemes @lexs@.
 layout :: Bool -> Bool -> [Lexeme] -> [Lexeme]
@@ -49,7 +58,7 @@ layout allowAt semiInsert lexemes
               semi checkComments $
               lexemes
     in -- trace (unlines (map show ls)) $   -- see all lexemes
-       if null ls then [] else seq (last ls) ls
+       seqList ls ls
 
 isLexError (Lexeme _ (LexError {})) = True
 isLexError _ = False
@@ -210,7 +219,7 @@ checkComments lexemes
     check prevLine commentRng (lexeme@(Lexeme rng lex) : ls)
       = lexeme :
         case lex of
-          LexComment _ -> check prevLine rng ls
+          LexComment s | not (s `startsWith` "\n#") -> check prevLine rng ls
           LexWhite _   -> check prevLine commentRng ls
           _            -> checkIndent ++
                           check (endLine rng) commentRng ls
@@ -219,6 +228,7 @@ checkComments lexemes
           = if (startLine rng > prevLine && startLine rng == endLine commentRng && endCol commentRng > 1 {- for wrap-around line columns -})
              then [Lexeme commentRng (LexError "layout: comments cannot be placed in the indentation of a line")]
              else []
+
 
 
 {----------------------------------------------------------

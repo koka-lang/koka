@@ -1,3 +1,4 @@
-static/modB/bint: V
-static/modB/int: V
+bint : V
+int : V
+ 
 pub alias bint = int = 1

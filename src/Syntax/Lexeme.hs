@@ -15,18 +15,21 @@ module Syntax.Lexeme
              , sameLexeme, sameLex
              , lexemeIsWhite, lexIsWhite
              , isTypeVar
+             , LexImport(..) -- Show, Eq
+             , lexImportNub
              ) where
 
 import Data.Char(isLower,isDigit,toUpper)
-import Common.Name  ( Name, nameLocal )
+import Data.List(find,delete)
+import Common.Name  ( Name, ModuleName, nameLocal, nameIsNil )
 import Common.Range
+import Common.Syntax( Visibility(..), isPublic )
 
 isTypeVar :: Name -> Bool
 isTypeVar name
   = case nameLocal name of
       (c:cs) -> (isLower c && all isDigit cs)
       _      -> False
-
 
 -----------------------------------------------------------
 -- Lexer tokens
@@ -52,7 +55,7 @@ data Lex    = LexInt     !Integer !String {- original number, used for documenta
             | LexWhite    !String
 
             -- special for highlighting
-            | LexModule   !Name !Name   -- ^ alias full-import
+            | LexModule   !ModuleName !ModuleName   -- ^ alias full-import
             | LexTypedId  !Name !String
 
             | LexInsLCurly  -- ^ inserted '{'
@@ -157,3 +160,35 @@ showLex lex
       LexTypedId id tp -> "typedid " ++ show id ++ ":" ++ tp
   where
     showSpaces = map (\c -> if (c==' ') then '_' else c)
+
+
+
+-----------------------------------------------------------
+-- Lexical imports
+-----------------------------------------------------------
+
+data LexImport = LexImport{ lexImportName  :: !ModuleName
+                          , lexImportAlias :: !ModuleName
+                          , lexImportVis   :: !Visibility
+                          , lexImportIsOpen :: !Bool }
+
+instance Show LexImport where
+  show li = (if isPublic (lexImportVis li) then "pub " else "") ++
+            (if lexImportIsOpen li then "@open " else "") ++
+            (if nameIsNil (lexImportAlias li) then "" else show (lexImportAlias li) ++ " = ") ++
+            show (lexImportName li)
+
+instance Eq LexImport where
+  li1 == li2  = lexImportName li1 == lexImportName li2  -- consider equal import names
+
+-- remove duplicates
+lexImportNub :: [LexImport] -> [LexImport]
+lexImportNub [] = []
+lexImportNub (li:lis)
+  = case find (li==) lis of
+      Just li' -> li{ lexImportVis = if isPublic (lexImportVis li) || isPublic (lexImportVis li') then Public else Private
+                    , lexImportAlias = if nameIsNil (lexImportAlias li) then lexImportAlias li' else lexImportAlias li
+                    , lexImportIsOpen = (lexImportIsOpen li || lexImportIsOpen li')
+                    }
+                  : lexImportNub (delete li lis)
+      Nothing  -> li : lexImportNub lis

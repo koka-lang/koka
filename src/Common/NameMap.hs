@@ -10,11 +10,11 @@
 -}
 -----------------------------------------------------------------------------
 module Common.NameMap
-          ( NameMap, module Data.Map
+          ( NameMap, module Data.Map.Strict
           , find
           ) where
 
-import Data.Map
+import Data.Map.Strict
 import Common.Name
 import Common.Failure
 
@@ -26,6 +26,6 @@ type NameMap a = Map Name a
 
 find :: Name -> NameMap a -> a
 find name nameMap
-  = case Data.Map.lookup name nameMap of
+  = case Data.Map.Strict.lookup name nameMap of
       Just x -> x
       Nothing -> failure ("Common.NameMap.find: could not find: " ++ show name)

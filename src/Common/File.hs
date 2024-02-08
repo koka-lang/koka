@@ -13,6 +13,7 @@ module Common.File(
                   -- * System
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsSuffixes, searchPathsEx, searchPathsCanonical
+                  , getMaximalPrefixPath
                   , searchProgram
                   , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
                   , getProgramPath
@@ -33,7 +34,7 @@ module Common.File(
                   , ensureExt
 
                   -- * Files
-                  , FileTime, fileTime0, maxFileTime, maxFileTimes
+                  , FileTime, fileTime0, maxFileTime, maxFileTimes, showTimeDiff
                   , fileTimeCompare, getFileTime
                   , getFileTimeOrCurrent, getCurrentTime
                   , readTextFile, writeTextFile
@@ -45,6 +46,8 @@ module Common.File(
                   , makeRelativeToPaths
                   , getCwd
                   , relativeToPath
+                  , seqList, seqMaybe, seqEither, seqTuple2, seqString
+                  , seqqList, seqqMaybe, seqqEither, seqqTuple2, seqqString
                   ) where
 
 import Data.List        ( intersperse, isPrefixOf, maximumBy )
@@ -60,10 +63,44 @@ import System.Environment ( getEnvironment, getExecutablePath )
 import System.Directory ( doesFileExist, doesDirectoryExist
                         {- , copyFile, copyFileWithMetadata -}
                         , getCurrentDirectory, getDirectoryContents
-                        , createDirectoryIfMissing, canonicalizePath, removeFile )
+                        , createDirectoryIfMissing, canonicalizePath, removeFile, getFileSize )
 
 import Debug.Trace
 import Platform.Filetime
+
+seqList :: [a] -> b -> b
+seqList [] b     = b
+seqList (x:xs) b = seq x (seqList xs b)
+
+seqMaybe :: Maybe a -> b -> b
+seqMaybe Nothing  b = b
+seqMaybe (Just x) b = seq x b
+
+seqEither :: Either a b -> c -> c
+seqEither (Left x) z  = seq x z
+seqEither (Right y) z = seq y z
+
+seqTuple2 :: (a,b) -> c -> c
+seqTuple2 (x,y) z  = seq x (seq y z)
+
+seqString :: String -> a -> a
+seqString s z = if null s then z else seq (last s) z
+
+-- use seqqXXX when assigning to a field that is already strict
+seqqList :: [a] -> [a]
+seqqList xs  = seqList xs xs
+
+seqqMaybe :: Maybe a -> Maybe a
+seqqMaybe x  = seqMaybe x x
+
+seqqEither :: Either a b -> Either a b
+seqqEither x  = seqEither x x
+
+seqqTuple2 :: (a,b) -> (a,b)
+seqqTuple2 x  = seqTuple2 x x
+
+seqqString :: String -> String
+seqqString s = seqString s s
 
 startsWith, endsWith :: String -> String -> Bool
 startsWith s  [] = True
@@ -309,11 +346,17 @@ maxFileTimes times
 
 doesFileExistAndNotEmpty :: FilePath -> IO Bool
 doesFileExistAndNotEmpty fpath
+  = do exist <- doesFileExist fpath
+       if exist
+         then do fsize <- getFileSize fpath
+                 return (fsize > 0)
+         else return False
+{-
   = do mbContent <- readTextFile fpath
        case mbContent of
          Nothing      -> return False
          Just content -> return (not (null content))
-
+-}
 
 readTextFile :: FilePath -> IO (Maybe String)
 readTextFile fpath
@@ -439,6 +482,13 @@ findMaximalPrefixPath roots p
       [] -> Nothing
       xs -> Just (maximumBy (\(root1,_) (root2,_) -> compare root1 root2) xs)
 
+-- | Get the maximal relative path
+getMaximalPrefixPath :: [FilePath] -> FilePath -> (FilePath,FilePath)
+getMaximalPrefixPath roots p
+  = case findMaximalPrefixPath roots p of
+      Nothing   -> ("",p)
+      Just just -> just
+
 {-
 
 -- | Find a maximal prefix given a string and list of prefixes. Returns the prefix and its length.
@@ -487,10 +537,7 @@ searchPathsCanonical relativeDir paths exts suffixes name
           ; if exist
              then do rpath <- realPath fullName
                      -- trace ("search found: " ++ fullName ++ ", in (" ++ dir ++ "," ++ fname ++ ") ,real path: " ++ rpath) $
-                     case (findMaximalPrefixPath paths rpath) of  -- not the relativeDir!
-                       Nothing -> -- absolute path outside the paths
-                                  return (Just ("",rpath))
-                       just    -> return just
+                     return $ Just $! getMaximalPrefixPath paths rpath   -- not to the relativeDir!
              else search xs
           }
 

@@ -37,7 +37,7 @@ import Network.Simple.TCP ( connect )
 import Network.Socket ( socketToHandle )
 import LanguageServer.Handlers ( lspHandlers, ReactorInput(..) )
 import LanguageServer.Monad (newLSStateVar, runLSM, LSM, getLSState, LSState (messages, progress), getProgress, updateSignatureContext, SignatureContext(..))
-import Compiler.Options (Flags (languageServerPort))
+import Compile.Options (Flags (languageServerPort))
 import Debug.Trace (trace)
 
 runLanguageServer :: Flags -> [FilePath] -> IO ()

@@ -1,4 +1,4 @@
-test/type/wrong/hr4@kk(1,11): error: unannotated parameters cannot be polymorphic
+test/type/wrong/hr4@kk(1,11): type error: unannotated parameters cannot be polymorphic
  context : fun wrong(x) {
  (x : list<forall<a> a -> a>)
  }

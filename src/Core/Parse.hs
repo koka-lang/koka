@@ -13,7 +13,7 @@ module Core.Parse( parseCore ) where
 import Text.Parsec hiding (space,tab,lower,upper,alphaNum)
 import Text.Parsec.Prim( getInput, setInput )
 
-import Common.Failure( failure, assertion )
+import Common.Failure( failure, assertion, HasCallStack )
 import Common.Id
 import Common.NamePrim
 import Common.Name
@@ -41,9 +41,9 @@ import Lib.Trace
 {--------------------------------------------------------------------------
   Parse core interface files
 --------------------------------------------------------------------------}
-type ParseInlines = Gamma -> Error () [InlineDef]
+type ParseInlines = Maybe (Gamma -> Error () [InlineDef])
 
-parseCore :: FilePath -> FilePath -> IO (Error b (Core, ParseInlines))
+parseCore :: HasCallStack => FilePath -> FilePath -> IO (Error b (Core, ParseInlines))
 parseCore fname sourceName
   = do input <- readInput fname
        return $
@@ -53,8 +53,9 @@ parseCore fname sourceName
 
 
 parseInlines :: Core -> Source -> Env -> [Lexeme] -> ParseInlines
-parseInlines prog source env inlines gamma
-  = ignoreSyntaxWarnings $ parseLexemes (pInlines env{ gamma = gamma }) source inlines
+parseInlines prog source env [] = Nothing
+parseInlines prog source env inlines
+  = Just (\gamma -> ignoreSyntaxWarnings $ parseLexemes (pInlines env{ gamma = gamma }) source inlines)
 
 pInlines :: Env -> LexParser [InlineDef]
 pInlines env
@@ -142,8 +143,22 @@ importDecl
                              (_,doc) <- dockeyword "import"
                              return (vis,doc)
        (asname,name,_,_) <- importAlias
+       prov <- pimportProvenance
        pkg <- (do{ keyword "="; (s,_) <- stringLit; return s } <|> return "")
-       return (Import name pkg vis doc, (asname, name))
+       return (Import name pkg prov vis doc, (asname, name))
+
+pimportProvenance :: LexParser ImportProvenance
+pimportProvenance
+  = do keyword "pub"
+       return ImportPub
+  <|>
+    do keyword "type"
+       return ImportTypes
+  <|>
+    do specialId "inline"
+       return ImportCompiler
+  <|>
+    return ImportUser
 
 fixDecl :: LexParser [FixDef]
 fixDecl
@@ -275,7 +290,9 @@ defDecl env
                     DefFun _ fip -> DefFun pinfos fip
                     _            -> sort0
        -- trace ("parse def: " ++ show name ++ ": " ++ show tp) $ return ()
-       return (Def (qualify (modName env) name) tp (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file"))
+       return (Def (qualify (modName env) name) tp
+                    -- (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file"))
+                    exprUnit
                    vis sort inl range doc)
 
 pdefSort

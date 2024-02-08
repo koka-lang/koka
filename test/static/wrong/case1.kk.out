@@ -1,1 +1,1 @@
-test/static/wrong/case1.kk(2,13): error: type fOO should be cased as foo
+test/static/wrong/case1@kk(2,13): kind error: type fOO should be cased as foo

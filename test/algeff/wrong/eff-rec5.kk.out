@@ -1,3 +1,6 @@
-test/algeff/wrong/eff-rec5@kk(6, 1): error: Type hide is declared as being
+test/algeff/wrong/eff-rec5@kk(6, 1): kind error: Type hide is declared as being
+ (co)inductive but it occurs recursively in a negative position@
+ hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences
+test/algeff/wrong/eff-rec5@kk(34, 1): kind error: Type xhide is declared as being
  (co)inductive but it occurs recursively in a negative position@
  hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences

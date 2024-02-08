@@ -37,8 +37,8 @@ pub inline fip fun cmp(^x : int, ^y : int) : order
   // js "$std_core_types._int_compare"
 
 // Order two integers in ascending order.
-pub inline fip fun order2(x : int, y : int) : (int,int)
-  if (x<=y) then (x,y) else (y,x)
+pub inline fip fun order2(x : int, y : int) : order2<int>
+  if (x==y) then Eq2(x) elif (x < y) then Lt2(x,y) else Gt2(y,x)
 
 // Are two integers equal?
 pub inline fip extern (==)(^x : int, ^y : int) : bool

@@ -1,2 +1,2 @@
-test/type/wrong/overlap1@kk(3, 5): error: definition f is already defined in this module, at (2, 5)
+test/type/wrong/overlap1@kk(3, 5): type error: definition f is already defined in this module, at (2, 5)
  hint: use a local qualifier?

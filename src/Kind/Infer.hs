@@ -92,7 +92,7 @@ inferKinds
            , Maybe RangeMap
            )
 inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
-            (Program source lexemes modName nameRange tdgroups defs importdefs externals fixdefs doc)
+            (Program source modName nameRange tdgroups defs importdefs externals fixdefs doc)
   =do unique0 <- unique
       let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors platform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
           (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors platform rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
@@ -104,8 +104,8 @@ inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
           cons1     = constructorsFromList conInfos
           gamma1    = constructorGamma isValue dataInfos
           errs4     = constructorCheckDuplicates colors conInfos
-          errs      = errs1 ++ errs2 ++ errs3 ++ errs4
-          warns     = warns1 ++ warns2 ++ warns3
+          warns     = [warningMessageKind ErrKind rng doc | (rng,doc) <- warns1 ++ warns2 ++ warns3]
+          errs      = [errorMessageKind ErrKind rng doc  | (rng,doc) <- errs1 ++ errs2 ++ errs3 ++ errs4]
           dgroups   = concatMap (synTypeDefGroup modName) cgroups
       setUnique unique3
       Core.liftError  (addWarnings warns $
@@ -121,7 +121,7 @@ inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
                                       ,Core.Core modName [] [] cgroups [] externals1 doc
                                       ,rm4
                                       )
-                          else errorMsg (ErrorKind errs))
+                          else errorMsgs errs)
 
 unzipEither :: [Either a b] -> ([a],[b])
 unzipEither xs
@@ -314,7 +314,7 @@ infImports modName modRange imports
        mapM_ infImport imports
 
 infImport :: Import -> KInfer ()
-infImport (Import alias qname aliasRange nameRange range vis)
+infImport (Import alias qname aliasRange nameRange range vis isOpen)
   = do addRangeInfo nameRange  (Id qname NIModule [] True)
        addRangeInfo aliasRange (Id qname NIModule [] True)
 

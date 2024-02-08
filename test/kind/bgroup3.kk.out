@@ -1,8 +1,9 @@
-kind/bgroup3/aa: V
-kind/bgroup3/bb: V
-kind/bgroup3/cc: V
-kind/bgroup3/int: V
-kind/bgroup3/xx: V
+aa : V
+bb : V
+cc : V
+int : V
+xx : V
+ 
 pub alias aa = int = 1
 pub alias bb = cc = 3
 pub alias cc = aa = 2

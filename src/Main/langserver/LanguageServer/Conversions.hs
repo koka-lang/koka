@@ -22,6 +22,7 @@ module LanguageServer.Conversions
     -- toLspUri,
     makeDiagnostic,
     filePathToUri,
+    errorMessageToDiagnostic,
 
     -- * Conversions from LSP types
     fromLspPos,
@@ -33,19 +34,17 @@ where
 
 import Debug.Trace(trace)
 import Colog.Core
-import qualified Common.Error as E
-import Common.File (normalize, realPath, startsWith)
-import Common.Range (Source (sourceName), sourceNull)
-import qualified Common.Range as R
-import Compiler.Module (Loaded (..), Module (..))
 import Data.Map.Strict as M hiding (map)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
---import GHC.Generics hiding (UInt)
---import Language.LSP.Protocol.Types (UInt)
 import qualified Language.LSP.Protocol.Types as J
+
 import Lib.PPrint (Doc)
-import qualified Syntax.RangeMap as R
+import qualified Common.Error as E
+import Common.File (normalize, realPath, startsWith)
+import Common.Range (Source (sourceName), sourceNull, rangeSource)
+import qualified Common.Range as R
+import Syntax.RangeMap (RangeInfo)
 
 toLspPos :: R.Pos -> J.Position
 toLspPos p =
@@ -64,46 +63,55 @@ toLspLocation r =
   where
     uri = J.filePathToUri $ R.sourceName $ R.rangeSource r
 
-toLspLocationLink :: R.RangeInfo -> R.Range -> J.LocationLink
+toLspLocationLink :: RangeInfo -> R.Range -> J.LocationLink
 toLspLocationLink src r =
   J.LocationLink Nothing uri (toLspRange r) (toLspRange r)
   where
     uri = J.filePathToUri $ R.sourceName $ R.rangeSource r
 
-toLspDiagnostics :: J.NormalizedUri -> T.Text -> E.Error b a -> M.Map J.NormalizedUri [J.Diagnostic]
+toLspDiagnostics :: J.NormalizedUri -> Maybe T.Text -> E.Error b a -> M.Map J.NormalizedUri [J.Diagnostic]
 toLspDiagnostics uri src err =
   case E.checkError err of
-    Right (_, ws) -> M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [toLspWarningDiagnostic src r doc])) ws
-    Left e -> toLspErrorDiagnostics uri src e
+    Right (_, E.Errors ws) -> M.unions (map (toLspErrorDiagnostics uri src) ws)
+        -- M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [toLspWarningDiagnostic src r doc])) ws
+    Left (E.Errors errs) -> M.unions (map (toLspErrorDiagnostics uri src) errs)
 
-toLspErrorDiagnostics :: J.NormalizedUri -> T.Text -> E.ErrorMessage -> M.Map J.NormalizedUri [J.Diagnostic]
-toLspErrorDiagnostics uri src e =
-  case e of
-    E.ErrorGeneral r doc -> M.singleton (uriFromRange r uri) [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
-    E.ErrorParse r doc -> M.singleton (uriFromRange r uri) [makeDiagnostic J.DiagnosticSeverity_Error src r doc]
-    E.ErrorStatic rds -> mapRangeDocs rds
-    E.ErrorKind rds -> mapRangeDocs rds
-    E.ErrorType rds -> mapRangeDocs rds
-    E.ErrorWarning rds e' -> M.unionWith (++) (mapRangeDocs rds) (toLspErrorDiagnostics uri src e')
-    E.ErrorIO doc -> M.singleton uri [makeDiagnostic J.DiagnosticSeverity_Error src R.rangeNull doc]
-    E.ErrorZero -> M.empty
+
+errorMessageToDiagnostic :: Maybe T.Text -> J.NormalizedUri -> E.ErrorMessage -> (J.NormalizedUri, [J.Diagnostic])
+errorMessageToDiagnostic errSource defaultUri e
+  = (uriFromRange (E.errRange e) defaultUri,
+     [makeDiagnostic (toSeverity (E.errSeverity e)) errSource (E.errRange e) (E.errMessage e)] )
   where
-    mapRangeDocs rds = M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [makeDiagnostic J.DiagnosticSeverity_Error src r doc])) rds
+    toSeverity sev
+          = case sev of
+              E.SevError   -> J.DiagnosticSeverity_Error
+              E.SevWarning -> J.DiagnosticSeverity_Warning
+              _            -> J.DiagnosticSeverity_Information
+
+toLspErrorDiagnostics :: J.NormalizedUri -> Maybe T.Text -> E.ErrorMessage -> M.Map J.NormalizedUri [J.Diagnostic]
+toLspErrorDiagnostics uri src e =
+  M.singleton (uriFromRange (E.errRange e) uri)
+    [makeDiagnostic (toSeverity (E.errSeverity e)) src (E.errRange e) (E.errMessage e)]
+  where
+    toSeverity sev
+      = case sev of
+          E.SevError   -> J.DiagnosticSeverity_Error
+          E.SevWarning -> J.DiagnosticSeverity_Warning
+          _            -> J.DiagnosticSeverity_Information
 
 uriFromRange :: R.Range -> J.NormalizedUri -> J.NormalizedUri
 uriFromRange r uri =
   if R.rangeSource r == sourceNull then uri else J.toNormalizedUri $ J.filePathToUri $ sourceName (R.rangeSource r)
 
-toLspWarningDiagnostic :: T.Text -> R.Range -> Doc -> J.Diagnostic
-toLspWarningDiagnostic =
-  makeDiagnostic J.DiagnosticSeverity_Warning
+toLspWarningDiagnostic :: Maybe T.Text -> R.Range -> Doc -> J.Diagnostic
+toLspWarningDiagnostic diagsrc range doc
+  = makeDiagnostic J.DiagnosticSeverity_Warning diagsrc range doc
 
-makeDiagnostic :: J.DiagnosticSeverity -> T.Text -> R.Range -> Doc -> J.Diagnostic
-makeDiagnostic s src r doc =
-  J.Diagnostic range severity code codeDescription source message tags related dataX
+makeDiagnostic :: J.DiagnosticSeverity -> Maybe T.Text -> R.Range -> Doc -> J.Diagnostic
+makeDiagnostic s diagsrc r doc =
+  J.Diagnostic range severity code codeDescription diagsrc message tags related dataX
   where
     range = toLspRange r
-    source = Just src
     severity = Just s
     code = Nothing
     codeDescription = Nothing

@@ -49,7 +49,7 @@ checkCore liberalEffects allowPartialApps prettyEnv gamma
        case checkDefGroups defGroups (return ()) of
           Check c -> case c uniq (CEnv liberalEffects allowPartialApps gamma prettyEnv []) of
                       Ok x _  -> return x
-                      Err doc -> liftError (warningMsg (rangeNull, doc))
+                      Err doc -> liftError (warningMsg (warningMessageKind ErrStatic rangeNull doc))
 
 
 

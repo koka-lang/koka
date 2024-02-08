@@ -10,7 +10,7 @@
 -----------------------------------------------------------------------------
 
 module Type.TypeVar(-- * Type substitutable entities
-                      HasTypeVar( substitute, ftv, btv )
+                      HasTypeVar( substitute, ftv, btv, ftc )
                     , (|->)
                     , alltv, fuv, fbv, fsv
                     -- * Ordered free type variables
@@ -36,6 +36,9 @@ module Type.TypeVar(-- * Type substitutable entities
 
                     -- Equal types
                     , matchType
+
+                    -- Type constructors
+                    , TypeCons, tcsEmpty, tcsUnion, tcsUnions
                     ) where
 
 import Data.List(nub,partition)
@@ -211,6 +214,9 @@ instance HasTypeVar Sub where
   btv sub
     = tvsEmpty
 
+  ftc (Sub sub)
+    = ftc (M.elems sub)
+
 
 instance HasTypeVar a => HasTypeVar (Maybe a) where
   sub `substitute` mb  = case mb of
@@ -222,6 +228,9 @@ instance HasTypeVar a => HasTypeVar (Maybe a) where
   btv mb      = case mb of
                   Just x -> btv x
                   Nothing -> tvsEmpty
+  ftc mb      = case mb of
+                  Just x -> ftc x
+                  Nothing -> S.empty
 
 instance (HasTypeVar a, HasTypeVar b) => HasTypeVar (Either a b) where
   sub `substitute` lr  = case lr of
@@ -233,6 +242,9 @@ instance (HasTypeVar a, HasTypeVar b) => HasTypeVar (Either a b) where
   btv lr      = case lr of
                   Right x -> btv x
                   Left y  -> btv y
+  ftc lr      = case lr of
+                  Right x -> ftc x
+                  Left y  -> ftc y
 
 {--------------------------------------------------------------------------
   Type variables
@@ -330,6 +342,18 @@ oftv x = let vs      = nub (odftv x)
         isSpecialKind kind
           = (kind == kindEffect || kind==kindHeap || kind==kindLabel || kind==kindFun kindLabel kindEffect)
 
+type TypeCons = S.Set TypeCon
+
+tcsEmpty :: TypeCons
+tcsEmpty  = S.empty
+tcsSingleton :: TypeCon -> TypeCons
+tcsSingleton = S.singleton
+tcsUnion :: TypeCons -> TypeCons -> TypeCons
+tcsUnion  = S.union
+tcsUnions :: [TypeCons] -> TypeCons
+tcsUnions = S.unions
+
+
 -- | Entitities that contain type variables.
 class HasTypeVar a where
   -- | Substitute type variables by 'Tau' types
@@ -338,6 +362,8 @@ class HasTypeVar a where
   ftv   :: a -> Tvs
   -- | Return bound type variables
   btv   :: a -> Tvs
+  -- | Return used type constructors
+  ftc   :: a -> TypeCons
 
 -- | Entities that contain type variables that can be put in a particular order
 class HasOrderedTypeVar a where
@@ -351,6 +377,8 @@ instance (HasTypeVar a,HasTypeVar b,HasTypeVar c,HasTypeVar d,HasTypeVar e) => H
     = tvsUnions [ftv a, ftv b, ftv c, ftv d, ftv e]
   btv (a,b,c,d,e)
     = tvsUnions [btv a, btv b, btv c, btv d, btv e]
+  ftc (a,b,c,d,e)
+    = S.unions [ftc a, ftc b, ftc c, ftc d, ftc e]
 
 
 instance (HasTypeVar a,HasTypeVar b) => HasTypeVar (a,b) where
@@ -360,6 +388,9 @@ instance (HasTypeVar a,HasTypeVar b) => HasTypeVar (a,b) where
     = tvsUnion (ftv x) (ftv y)
   btv (x,y)
     = tvsUnion (btv x) (btv y)
+  ftc (x,y)
+    = S.union (ftc x) (ftc y)
+
 
 instance (HasOrderedTypeVar a,HasOrderedTypeVar b) => HasOrderedTypeVar (a,b) where
   odftv (x,y)
@@ -372,11 +403,14 @@ instance HasTypeVar a => HasTypeVar [a] where
     = tvsUnions (map ftv xs)
   btv xs
     = tvsUnions (map btv xs)
+  ftc xs
+    = S.unions (map ftc xs)
 
 instance HasTypeVar Range where
   sub `substitute` r   = r
   ftv r       = tvsEmpty
   btv r       = tvsEmpty
+  ftc r       = S.empty
 
 instance HasOrderedTypeVar a => HasOrderedTypeVar [a] where
   odftv xs
@@ -410,10 +444,21 @@ instance HasTypeVar Type where
         TApp tp arg             -> tvsUnion (btv tp) (btv arg)
         _                       -> tvsEmpty
 
+  ftc tp
+    = case tp of
+        TForall vars preds tp   -> S.union (ftc preds) (ftc tp)
+        TFun args effect result -> S.unions (ftc effect : ftc result : map (ftc . snd) args)
+        TCon tcon               -> S.singleton tcon
+        TVar tvar               -> S.empty
+        TApp tp arg             -> S.union (ftc tp) (ftc arg)
+        TSyn syn xs tp          -> S.union (ftc xs) (ftc tp)
+
+
 instance HasTypeVar Name where
   sub `substitute` name = name
   ftv name              = tvsEmpty
   btv name              = tvsEmpty
+  ftc name              = S.empty
 
 instance HasOrderedTypeVar Type where
   odftv tp
@@ -439,6 +484,11 @@ instance HasTypeVar Pred where
 
   btv pred
     = tvsEmpty
+
+  ftc pred
+    = case pred of
+        PredSub sub super      -> S.union (ftc sub) (ftc super)
+        PredIFace name args    -> ftc args
 
 instance HasOrderedTypeVar Pred where
   odftv pred

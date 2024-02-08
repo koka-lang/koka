@@ -25,8 +25,8 @@ import Lib.Trace (trace)
 ---------------------------------------------------------------------------
 
 bindingGroups :: UserProgram -> UserProgram
-bindingGroups (Program source lexemes modName nameRange typeDefs defs imports externals fixDefs doc)
-  = Program source lexemes modName nameRange
+bindingGroups (Program source modName nameRange typeDefs defs imports externals fixDefs doc)
+  = Program source modName nameRange
       (bindingsTypeDefs modName typeDefs)
       (bindings ({-toShortModuleName-} modName) defs) imports externals fixDefs doc
 

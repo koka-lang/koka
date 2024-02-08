@@ -24,20 +24,20 @@ import qualified Language.LSP.Server as J
 import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
+import Language.LSP.Server (Handlers, LspM, notificationHandler, sendNotification, MonadLsp, getVirtualFiles, withProgress, requestHandler)
+
+import Lib.PPrint
 import Common.Name (newName)
 import Common.NamePrim (nameInteractiveModule)
 import Common.Range (rangeNull)
-import Language.LSP.Server (Handlers, LspM, notificationHandler, sendNotification, MonadLsp, getVirtualFiles, withProgress, requestHandler)
-import LanguageServer.Monad (LSM, getFlags, getTerminal, getModules, getLoaded, setProgress, updateSignatureContext)
-import LanguageServer.Handler.TextDocument (recompileFile, compileEditorExpression)
+
+import LanguageServer.Monad
 import LanguageServer.Conversions( filePathToUri )
-import Compiler.Compile (CompileTarget(..), Terminal (..), compileExpression, Module (..))
-import Compiler.Options (Flags (outFinalPath), targets, commandLineHelp, updateFlagsFromArgs)
-import Compiler.Module (Loaded(..))
-import Core.Core (Visibility(Private))
-import Syntax.Syntax (programAddImports, programNull, Import (..))
-import Lib.PPrint ((<+>), text, Color (..), color, (<-->))
-import qualified Data.Aeson as A
+import LanguageServer.Handler.TextDocument (rebuildUri)
+
+import Compile.Options (Flags (outFinalPath), targets, commandLineHelp, updateFlagsFromArgs)
+
+
 
 -- Handles custom commands that we support clients to call
 commandHandler :: Handlers LSM
@@ -53,14 +53,12 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
       Just [Json.String filePath, Json.String additionalArgs] -> do
         -- Update the flags with the specified arguments
         newFlags <- getNewFlags flags additionalArgs
-        let forceRecompilation = flags /= newFlags
         -- Recompile the file, but with executable target
         withProgress (T.pack "Compiling " <> filePath) J.Cancellable $ \report -> do
           setProgress (Just report)
-          res <- trace ("koka/compile: " ++ T.unpack filePath ++ ", " ++ show (filePathToUri (T.unpack filePath))) $
-                 recompileFile (Executable (newName "main") ()) (filePathToUri (T.unpack filePath)) Nothing forceRecompilation newFlags
-          term <- getTerminal
-          liftIO $ termDoc term $ text "Finished generating code for main file" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
+          res <- -- trace ("koka/compile: " ++ T.unpack filePath ++ ", " ++ show (filePathToUri (T.unpack filePath))) $
+                 rebuildUri (Just newFlags) (Just (newName "main")) (J.toNormalizedUri (filePathToUri (T.unpack filePath)))
+          emitInfo $ \penv -> text "Finished generating code for main file" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just exePath -> J.InL $ Json.String $ T.pack exePath; Nothing -> J.InR J.Null}
@@ -71,14 +69,13 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
       Just [Json.String filePath, Json.String functionName, Json.String additionalArgs] -> do
         -- Update the flags with the specified arguments
         newFlags <- getNewFlags flags additionalArgs
-        let forceRecompilation = flags /= newFlags
         -- Compile the expression, but with the interpret target
         withProgress (T.pack "Compiling " <> functionName) J.Cancellable $ \report -> do
           setProgress (Just report)
           -- compile the expression
-          res <- compileEditorExpression (filePathToUri $ T.unpack filePath) newFlags forceRecompilation (T.unpack filePath) (T.unpack functionName)
-          term <- getTerminal
-          liftIO $ termDoc term $ text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) <+> text "in" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
+          res <- rebuildUri (Just newFlags) (Just (newName (T.unpack functionName)))
+                            (J.toNormalizedUri (filePathToUri (T.unpack filePath)))
+          emitInfo $ \penv -> text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) <+> text "in" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just exePath -> J.InL $ Json.String $ T.pack exePath; Nothing -> J.InR J.Null}
@@ -87,7 +84,7 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
     case commandParams of
       Just [a@(Json.Object _)] ->
         case fromJSON a of
-          A.Success context -> updateSignatureContext context
+          Json.Success context -> updateSignatureContext context
           _ -> parameterError
       Nothing -> parameterError
   else
@@ -102,6 +99,6 @@ getNewFlags flags args = do
     Just flags' -> return flags'
     Nothing -> do
       doc <- liftIO (commandLineHelp flags)
-      sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack "Invalid arguments " <> args
-      liftIO $ termPhaseDoc term doc
+      emitNotification $  \penv -> text "Invalid arguments:" <+> text (T.unpack args)
+      emitInfo $ \penv -> doc
       return flags

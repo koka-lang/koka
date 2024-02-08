@@ -17,6 +17,7 @@ module Platform.Filetime( FileTime
                        , setFileTime
                        , fileTime0
                        , fileTimeToPicoseconds
+                       , showTimeDiff
                        ) where
 
 import System.Directory( getModificationTime, setModificationTime )
@@ -35,6 +36,10 @@ getCurrentTime
 fileTime0 :: FileTime
 fileTime0
   = T.UTCTime (T.ModifiedJulianDay 0) (T.secondsToDiffTime 0)
+
+showTimeDiff :: FileTime -> FileTime -> String
+showTimeDiff t1 t0
+  = show (T.diffUTCTime t1 t0)
 
 fileTimeToPicoseconds :: FileTime -> Integer
 fileTimeToPicoseconds t

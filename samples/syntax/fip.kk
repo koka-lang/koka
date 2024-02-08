@@ -13,6 +13,7 @@
 //
 // Prerequisites:
 //   `syntax/basic`
+//   `syntax/implicits`
 module syntax/fip
 
 // We can use the `fip` keyword to ensure that,
@@ -93,6 +94,40 @@ fun insert-poly( t : tree<a>, k : a, ^?cmp : (a,a) -> order ) : tree<a>
                   elif (x < k) then Bin(l,x,insert-poly(r,k))
                   else Bin(insert-poly(l,k),x,r)
     Tip        -> Bin(Tip,k,Tip)
+
+// We can get around the previous restriction by using the `:order2<a>`
+// (value) type which contains not only the `:order`, but also the elements
+// themselves in ascending order.
+// Instead of a bare comparison, we use an `order2` function that returns
+// such an ordered pair -- this way we can keep using the elements `k` and `x` in
+// a linear way while being polymorphic over the elements.
+// A subtle point here is that `order2` is passed borrowed and as such can itself
+// allocate/deallocate; the `fip` annotation only checks if a function is intrinsically
+// fully in-place -- modulo the borrowed function parameters. (Consider the `map` function for example).
+fip(1) fun insert-order( t : tree<a>, k : a, ^?order2 : (a,a) -> order2<a> ) : tree<a>
+  match t
+    Bin(l,x,r) -> match order2(x,k)
+                    Eq2(kx)     -> Bin(l,kx,r)
+                    Lt2(kx,kk)  -> Bin(l,kx,insert-order(r,kk))
+                    Gt2(kk,kx)  -> Bin(insert-order(l,kk),kx,r)
+    Tip        -> Bin(Tip,k,Tip)
+
+// Return the height of a tree.
+fun height( t : tree<a> ) : int
+  match t
+    Tip        -> 0
+    Bin(l,_,r) -> 1 + max( l.height, r.height )
+
+// Convert a list to a tree given an ordering on the elements
+fun tree( elems : list<a>, ^?order2 : (a,a) -> order2<a> ) : tree<a>
+  elems.foldl(Tip) fn(t,i)
+    insert-order(t,i)
+
+
+fun example-order()
+  [[2,3,1].tree.height,
+   ['a','b','c'].tree.height,
+   [2,3,1].tree(?order2=fn(x,y) Eq2(x)).height].println
 
 
 // Todo.. more examples with zippers:

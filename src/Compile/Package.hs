@@ -6,10 +6,11 @@
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
-    Integrate NPM style packages
+    Integrate NPM style packages.
+    This is currently unused but we plan to integrate packages soon again
 -}
 -----------------------------------------------------------------------------
-module Compiler.Package( Packages, PackageName
+module Compile.Package( Packages, PackageName
                        , searchPackages
                        , discoverPackages
                        , packageInfoFromDir
@@ -38,7 +39,7 @@ import Lib.JSON
 
 type PackageName = String
 data Packages    = Packages { packages :: [Package],
-                              roots    :: [FilePath] } deriving Eq
+                              roots    :: [FilePath] } deriving (Eq,Show)
 
 data Package     = Package { pkgDir   :: FilePath,    -- /x/node_modules/A/lib
                              pkgQualName  :: PackageName, -- A/B/C

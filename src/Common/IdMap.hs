@@ -10,10 +10,10 @@
 -}
 -----------------------------------------------------------------------------
 module Common.IdMap
-          ( IdMap, module Data.IntMap
+          ( IdMap, module Data.IntMap.Strict
           ) where
 
-import Data.IntMap
+import Data.IntMap.Strict
 
 ----------------------------------------------------------------
 -- Types

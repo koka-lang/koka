@@ -28,7 +28,7 @@ import Lib.PPrint
 import Common.Name
 import Common.NamePrim( isNameTpTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty,
                         nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore, nameCoreTypes, nameTpUnit,
-                        isSystemCoreName, nameTpValueOp )
+                        isSystemCoreName, shortenSystemCoreName, nameTpValueOp )
 import Common.ColorScheme
 import Common.IdNice
 import Common.Syntax
@@ -127,33 +127,33 @@ instance Pretty TypeSyn where
 type TvScheme = M.Map TypeVar (Prec -> Doc)
 
 -- | Pretty print environment for types.
-data Env     = Env{ showKinds      :: Bool
-                  , showIds        :: Bool -- show id numbers
-                  , showFlavours :: Bool
-                  , expandSynonyms :: Bool
-                  , colors  :: ColorScheme
-                  , nice    :: Nice
-                  , prec    :: Prec
-                  , ranked  :: TvScheme
-                  , context :: Name  -- ^ module in which we pretty print
-                  , importsMap :: ImportMap -- ^ import aliases
-                  , fullNames :: Bool
+data Env     = Env{ showKinds      :: !Bool
+                  , showIds        :: !Bool -- show id numbers
+                  , showFlavours :: !Bool
+                  , expandSynonyms :: !Bool
+                  , colors  :: !ColorScheme
+                  , nice    :: !Nice
+                  , prec    :: !Prec
+                  , ranked  :: !TvScheme
+                  , context :: !Name  -- ^ module in which we pretty print
+                  , importsMap :: !ImportMap -- ^ import aliases
+                  , fullNames :: !Bool
 
                   -- should not really belong here. Contains link bases for documentation generation (see Syntax.Colorize)
-                  , colorizing:: Bool
-                  , htmlBases :: [(String,String)]
-                  , htmlCss   :: String
-                  , htmlJs    :: String
+                  , colorizing:: !Bool
+                  , htmlBases :: ![(String,String)]
+                  , htmlCss   :: !String
+                  , htmlJs    :: !String
 
                   -- should not be here either: Signifies whether we output core for an interface or not
-                  , coreIface :: Bool
-                  , coreShowTypes :: Bool  -- show types in core output
-                  -- , coreInlineMax :: Int   -- max size for exported inline definition
-                  , coreShowVis   :: Bool -- show visibility?
-                  , coreShowDef   :: Bool -- show definition body
+                  , coreIface :: !Bool
+                  , coreShowTypes :: !Bool  -- show types in core output
+                  -- , coreInlineMax :: !Int   -- max size for exported inline definition
+                  , coreShowVis   :: !Bool -- show visibility?
+                  , coreShowDef   :: !Bool -- show definition body
 
                   -- should not be here either: was the verbose flag set?
-                  , verbose   :: Int
+                  , verbose   :: !Int
                   }
 
 
@@ -434,22 +434,19 @@ ppTypeName :: Env -> Name -> Doc
 ppTypeName env name
   = color (colorType (colors env)) $ ppNamePlain env name
 
+ppNamePlain :: Env -> Name -> Doc
 ppNamePlain env name | isImplicitParamName name
   = text "?" <.> ppNamePlain env (fromImplicitParamName name)
 
 ppNamePlain env name
-  = if (fullNames env)
-     then prettyName (colors env) name
-     else if (not (isModuleName name) &&
-              (context env == qualifier name ||
-               (-- (qualifier name == nameSystemCore || qualifier name == nameCoreTypes)
-                isSystemCoreName name && not (coreIface env)))
-             )
-           then prettyName (colors env) (unqualify name)
-           else -- if coreIface env
-                -- then pretty name
-                -- else
-                prettyName (colors env) (importsAlias name (importsMap env))
+  = prettyName (colors env) $
+    if (fullNames env || isModuleName name)
+     then name
+     else if (context env == qualifier name)
+            then unqualify name
+            else if (isSystemCoreName name && not (coreIface env))
+                   then shortenSystemCoreName name
+                   else importsAlias name (importsMap env)
 
 ---------------------------------------------------------------------------
 -- Predicates

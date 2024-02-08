@@ -41,7 +41,7 @@ import Data.List(intersperse)
 data JsTarget = JsDefault | JsNode | JsWeb                 deriving (Eq,Ord)
 data CTarget  = CDefault | LibC | Wasm | WasmJs | WasmWeb deriving (Eq,Ord)
 
-data Target = CS | JS JsTarget| C CTarget | Default deriving (Eq,Ord)
+data Target = CS | JS !JsTarget| C !CTarget | Default deriving (Eq,Ord)
 
 isTargetC (C _) = True
 isTargetC _     = False
@@ -71,10 +71,10 @@ instance Show Target where
                C  _      -> "c"
                Default   -> ""
 
-data Platform = Platform{ sizePtr   :: Int -- sizeof(intptr_t)
-                        , sizeSize  :: Int -- sizeof(size_t)
-                        , sizeField :: Int -- sizeof(kk_field_t), usually intptr_t but may be smaller for compression
-                        , sizeHeader:: Int -- used for correct alignment calculation
+data Platform = Platform{ sizePtr   :: !Int -- sizeof(intptr_t)
+                        , sizeSize  :: !Int -- sizeof(size_t)
+                        , sizeField :: !Int -- sizeof(kk_field_t), usually intptr_t but may be smaller for compression
+                        , sizeHeader:: !Int -- used for correct alignment calculation
                         } deriving Eq
 
 platform32, platform64, platform64c, platformJS, platformCS :: Platform
@@ -281,8 +281,8 @@ valueReprScan n = ValueRepr 0 n 0
 --------------------------------------------------------------------------}
 
 data DefSort
-  = DefFun { defFunParamInfos :: [ParamInfo],
-             defFunFip        :: Fip }
+  = DefFun { defFunParamInfos :: ![ParamInfo],
+             defFunFip        :: !Fip }
   | DefVal
   | DefVar
   deriving Eq
@@ -331,7 +331,7 @@ instance Show DefInline where
 --------------------------------------------------------------------------}
 
 -- | Operator fixity
-data Fixity = FixInfix  Int Assoc -- ^ precedence and associativity
+data Fixity = FixInfix  !Int !Assoc -- ^ precedence and associativity
             | FixPrefix
             | FixPostfix
             deriving (Eq,Show)
@@ -346,12 +346,12 @@ data Assoc  = AssocNone
 {--------------------------------------------------------------------------
   Fip
 --------------------------------------------------------------------------}
-data Fip = Fip   { fipAlloc_ :: FipAlloc }
-         | Fbip  { fipAlloc_ :: FipAlloc, fipTail :: Bool }
-         | NoFip { fipTail :: Bool }
+data Fip = Fip   { fipAlloc_ :: !FipAlloc }
+         | Fbip  { fipAlloc_ :: !FipAlloc, fipTail :: !Bool }
+         | NoFip { fipTail :: !Bool }
          deriving (Eq,Ord)
 
-data FipAlloc = AllocAtMost Int | AllocFinitely | AllocUnlimited
+data FipAlloc = AllocAtMost !Int | AllocFinitely | AllocUnlimited
          deriving (Eq)
 
 instance Ord FipAlloc where

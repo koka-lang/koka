@@ -15,6 +15,9 @@ module Syntax.Parse( parseProgramFromFile, parseProgramFromString
                    , parseExpression
                    , parseType
 
+                   , parseDependencies
+                   , parseProgramFromLexemes
+
                    -- used by the core parser
                    , lexParse, parseLex, LexParser, parseLexemes, parseInline, ignoreSyntaxWarnings
 
@@ -52,14 +55,14 @@ import Common.File
 import Platform.Config
 import Platform.Runtime( unsafePerformIO, exCatch )
 import Common.Error
-import Common.Failure (failure)
+import Common.Failure (failure, HasCallStack)
 import Common.Syntax
 import Common.ResumeKind
 
 import Syntax.Syntax
 import Syntax.Lexeme
 import Syntax.Lexer   ( lexing )
-import Syntax.Layout  ( layout )
+import Syntax.Layout  ( layout, lexSource )
 import Syntax.Promote ( promote, promoteType, quantify, promoteFree )
 import Common.ColorScheme (defaultColorScheme)
 
@@ -84,10 +87,11 @@ optional p  = do { p; return True } <|> return False
 -----------------------------------------------------------
 -- Parse varieties
 -----------------------------------------------------------
-parseProgramFromFile :: Bool -> Bool -> FilePath -> IO (Error a UserProgram)
+parseProgramFromFile :: HasCallStack => Bool -> Bool -> FilePath -> IO (Error a UserProgram)
 parseProgramFromFile allowAt semiInsert fname
   = do input <- readInput fname
-       let result = parseProgramFromString allowAt semiInsert input fname
+       return (parseProgramFromString allowAt semiInsert input fname)
+{-
        case checkError result of
           Right (a, warnings) -> do logSyntaxWarnings warnings
                                     return result
@@ -96,11 +100,13 @@ parseProgramFromFile allowAt semiInsert fname
 logSyntaxWarnings :: [(Range, Doc)] -> IO ()
 logSyntaxWarnings warnings
   = putPretty (prettyWarnings "" True defaultColorScheme warnings)
+-}
 
 parseProgramFromString :: Bool -> Bool -> BString -> FilePath -> Error a UserProgram
 parseProgramFromString allowAt semiInsert input fname
   = do ((prog,lexemes), syntaxWarnings) <- lexParse allowAt semiInsert id program fname 1 input
-       addWarnings (map (\(s, r) -> (r, text s)) syntaxWarnings) $ return prog{ programLexemes = lexemes }
+       addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) syntaxWarnings) $
+        return prog
 
 parseValueDef :: Bool -> FilePath -> Int -> String -> Error () UserDef
 parseValueDef semiInsert sourceName line input
@@ -141,13 +147,28 @@ runStateParser p sourceName lex =
 lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error b ((a,[Lexeme]), [(String, Range)])
 lexParse allowAt semiInsert preprocess p sourceName line rawinput
   = let source = Source sourceName rawinput
-        input  = if (isLiteralDoc sourceName) then extractLiterate rawinput else rawinput
-        xs = lexing source line input
-        lexemes = preprocess $ layout allowAt semiInsert xs
+        lexemes = lexSource allowAt semiInsert preprocess line source
     in  -- trace  (unlines (map show lexemes)) $
         case (runStateParser (p source) sourceName lexemes) of
-          Left err -> makeParseError (errorRangeLexeme xs source) err
+          Left err     -> makeParseError (errorRangeLexeme lexemes {-used to be raw lexemes-} source) err
           Right (x,s)  -> return ((x,lexemes),s)
+
+
+parseProgramFromLexemes :: Source -> [Lexeme] -> Error () UserProgram
+parseProgramFromLexemes source lexemes
+  = do (prog, syntaxWarnings) <- parseLexemes (program source) source lexemes
+       addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) syntaxWarnings) $
+         return prog
+
+
+parseDependencies :: Source -> [Lexeme] -> Error () [Import]
+parseDependencies source lexemes
+  = case (runStateParser (pmoduleDeps source) (sourceName source) lexemes) of
+      Left err         -> -- trace "failed to parse imports" $
+                          makeParseError (errorRangeLexeme lexemes source) err
+      Right (x,warns)  -> -- addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) warns) $
+                          -- trace ("dependencies: " ++ show x) $
+                          return x
 
 parseLexemes :: LexParser a -> Source -> [Lexeme] -> Error () (a, [(String, Range)])
 parseLexemes p source@(Source sourceName _) lexemes
@@ -158,7 +179,7 @@ parseLexemes p source@(Source sourceName _) lexemes
 
 makeParseError :: (ParseError -> Range) -> ParseError -> Error b a
 makeParseError toRange perr
-  = errorMsg (ErrorParse (toRange perr) errorDoc)
+  = errorMsg (errorMessageKind ErrParse (toRange perr) errorDoc)
   where
     errorDoc
       = PP.string ("invalid syntax" ++ (drop 1 $ dropWhile (/=':') $ show perr))
@@ -226,16 +247,48 @@ program source
 
 pmodule :: Source -> LexParser UserProgram
 pmodule source
-  = do (vis,rng,doc) <- try $ do (vis,_) <- visibility Private
-                                 -- if (vis == Public) then pwarningMessage "using 'public module' is deprecated" else return ()
-                                 (rng,doc) <- dockeyword "module"
-                                 return (vis,rng,doc)
-       -- (rng,doc) <- dockeyword "module"
-       (name,rng) <- modulepath
-       programBody vis source name rng doc
-  <|>
-    programBody Public source (pathToModuleName (noexts (basename (sourceName source)))) (rangeNull) ""
+  = do (vis,doc,name,nameRng) <- pmoduleDecl (sourceName source)
+       programBody vis source name nameRng doc
 
+pmoduleDecl :: FilePath -> LexParser (Visibility,String,ModuleName,Range)
+pmoduleDecl fpath
+  = do (_,doc) <- dockeyword "module"
+       (name,rng) <- modulepath
+       return (Private,doc,name,rng)
+  <|>
+    let mname = pathToModuleName (noexts (basename fpath))
+    in seq mname $ return (Public, "", mname, rangeNull)
+
+
+-----------------------------------------------------------
+-- Lex imports only; this is more lenient
+-----------------------------------------------------------
+
+pmoduleDeps :: Source -> LexParser [Import]
+pmoduleDeps source
+  = do many semiColon
+       (vis,doc,modname,nameRng) <- pmoduleDecl (sourceName source)
+       imports <- pimportDecls
+       return (includeStdCore modname imports)
+       -- no eof.. try to parse as far as possible
+
+pimportDecls :: LexParser [Import]
+pimportDecls
+  = -- no braced as we only scan the start
+    do many semiColon
+       optional (do{ lcurly; return () } <|> do{ parseLex LexInsLCurly; return () })
+       many semiColon
+       semis0 importDecl
+
+semis0 :: LexParser a -> LexParser [a]
+semis0 p
+  = sepEndBy p (many semiColon)  -- lenient: allow semiColon separator or not
+
+
+
+-----------------------------------------------------------
+-- Program body
+-----------------------------------------------------------
 programBody :: Visibility -> Source -> Name -> Range -> String -> LexParser UserProgram
 programBody vis source modName nameRange doc
   = do many semiColon
@@ -246,13 +299,14 @@ programBody vis source modName nameRange doc
                         return (imps,fixs,tdefs))
        many semiColon
        let (defs,typeDefs,externals) = splitTopDefs (concat topDefss)
-       return (Program source [] modName nameRange [TypeDefRec typeDefs] [DefRec defs]
-                 (prelude imports) externals (concat fixDefss) doc)
-  where
-    prelude imports
-      = if (isSystemCoreName modName || any (\imp -> importName imp == nameSystemCore) imports)
-          then imports
-          else [Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private] ++ imports
+       return (Program source modName nameRange [TypeDefRec typeDefs] [DefRec defs]
+                 (includeStdCore modName imports) externals (concat fixDefss) doc)
+
+includeStdCore :: Name -> [Import] -> [Import]
+includeStdCore modname imports
+  = if (isSystemCoreName modname || any (\imp -> importName imp == nameSystemCore) imports)
+      then imports
+      else [Import nameSystemCore nameSystemCore rangeNull rangeNull rangeNull Private False] ++ imports
 
 braced p
   = do lcurly
@@ -308,11 +362,12 @@ topdef vis
 ---------------------------------------------------------------}
 importDecl :: LexParser Import
 importDecl
-  = do (vis,vrng,rng0) <- try $ do (vis,vrng) <- visibility Private
-                                   rng0  <- keyword "import"
-                                   return (vis,vrng,rng0)
+  = do (vis,vrng,rng0,open) <- try $ do (vis,vrng) <- visibility Private
+                                        isOpen <- do{ specialId "@open"; return True } <|> return False
+                                        rng0  <- keyword "import"
+                                        return (vis,vrng,rng0,isOpen)
        (asname,name,asrng,namerng) <- importAlias
-       return (Import asname name asrng namerng (combineRanges [vrng,rng0,namerng]) vis)
+       return (Import asname name asrng namerng (combineRanges [vrng,rng0,namerng]) vis open)
 
 importAlias :: LexParser (Name,Name,Range,Range)
 importAlias
@@ -476,10 +531,10 @@ externalImport rng1
       = do pos <- getPosition
            let mbContent  = unsafePerformIO $ exCatch (do -- putStrLn ("reading: " ++ fpath);
                                                           content <- readFile fpath
-                                                          return (seq (last content) $ Just content)
+                                                          seqString content $ return (Just content)
                                                       ) (\exn -> return Nothing)
            case mbContent of
-             Just content -> seq content $ return (Just content)
+             Just content -> return (Just content)
              Nothing      -> return Nothing
 
 

@@ -54,6 +54,8 @@ instance HasTypeVar Evidence where
     = ftv (evPred ev)
   btv ev
     = btv (evPred ev)
+  ftc ev
+    = ftc (evPred ev)
 
 instance Show Evidence where
   show ev = show (evPred ev)

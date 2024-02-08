@@ -1,4 +1,5 @@
-static/div2-ack/nat: V
+nat : V
+ 
 static/div2-ack/Succ: (succ : nat) -> nat
 static/div2-ack/Zero: nat
 static/div2-ack/ack: (x : nat, y : nat) -> nat

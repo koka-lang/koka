@@ -1,2 +1,2 @@
-kind/type1/unit: V
-kind/type1/void: V
+unit : V
+void : V

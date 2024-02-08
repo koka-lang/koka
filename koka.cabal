@@ -48,10 +48,14 @@ library
       Common.ResumeKind
       Common.Syntax
       Common.Unique
-      Compiler.Compile
-      Compiler.Module
-      Compiler.Options
-      Compiler.Package
+      Compile.Build
+      Compile.BuildContext
+      Compile.CodeGen
+      Compile.Module
+      Compile.Optimize
+      Compile.Options
+      Compile.Package
+      Compile.TypeCheck
       Core.AnalysisCCtx
       Core.AnalysisMatch
       Core.AnalysisResume
@@ -95,6 +99,7 @@ library
       Lib.Printer
       Lib.Scc
       Lib.Trace
+      Main.Run
       Static.BindingGroups
       Static.FixityResolve
       Syntax.Colorize
@@ -143,10 +148,12 @@ library
   build-depends:
       FloatingHex >=0.5
     , array
+    , async
     , base >=4.9
     , bytestring
     , containers
     , directory
+    , hashable >=1.4
     , isocline >=1.0.6
     , mtl
     , parsec
@@ -190,6 +197,7 @@ executable koka
     , co-log-core
     , containers
     , directory
+    , hashable >=1.4
     , isocline >=1.0.6
     , koka
     , lens
@@ -215,10 +223,12 @@ executable koka-plain
   build-depends:
       FloatingHex >=0.5
     , array
+    , async
     , base >=4.9
     , bytestring
     , containers
     , directory
+    , hashable >=1.4
     , isocline >=1.0.6
     , koka
     , mtl
@@ -239,12 +249,14 @@ test-suite koka-test
   build-depends:
       FloatingHex >=0.5
     , array
+    , async
     , base >=4.9
     , bytestring
     , containers
     , directory
     , extra
     , filepath
+    , hashable >=1.4
     , hspec
     , hspec-core
     , isocline >=1.0.6

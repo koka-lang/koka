@@ -1,6 +1,6 @@
-test/static/wrong/shadow4@kk(2,18): warning: x shadows an earlier local definition or parameter
-test/static/wrong/shadow4@kk(2,29): error: True does not match the argument types
+test/static/wrong/shadow4@kk(2,29): type error: True does not match the argument types
  context : True
  term : True
  inferred type: bool
  expected type: int
+test/static/wrong/shadow4@kk(2,18): type warning: x shadows an earlier local definition or parameter

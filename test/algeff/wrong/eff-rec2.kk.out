@@ -1,4 +1,4 @@
-test/algeff/wrong/eff-rec2@kk(39,32): error: effects do not match
+test/algeff/wrong/eff-rec2@kk(39,32): type error: effects do not match
  context : fun main() : <exn,console> int {
  @@@
  }

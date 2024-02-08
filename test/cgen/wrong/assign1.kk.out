@@ -1,4 +1,4 @@
-test/cgen/wrong/assign1@kk(6, 5): error: identifier count cannot be resolved@
+test/cgen/wrong/assign1@kk(6, 5): type error: identifier count cannot be resolved@
  context : count
  inferred type: _
  candidates : counter/count : forall<h> (counter : counter<h>) -> ref<h,int>

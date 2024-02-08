@@ -18,26 +18,29 @@ module LanguageServer.Monad
     defaultLSState,
     newLSStateVar,
     LSM,
-    getLastChangedFileLoaded,
     getTerminal,getFlags,getColorScheme,getHtmlPrinter,
     getLSState,modifyLSState,
-    getLoaded,putLoaded,putLoadedSuccess,removeLoaded,removeLoadedUri,
-    getLoadedModule,getLoadedSuccess,getLoadedLatest,
-    getModules,
     updateConfig,
     getInlayHintOptions,
-    getDiagnostics,putDiagnostics,clearDiagnostics,
     runLSM,
-    getProgress,setProgress
+    getProgress,setProgress, maybeContents,
+
+    liftBuild, liftBuildWith,
+    lookupModuleName, lookupRangeMap, lookupProgram, lookupLexemes,
+    lookupDefinitions, lookupVisibleDefinitions, Definitions(..),
+    lookupModulePaths,
+    getPrettyEnv, getPrettyEnvFor, prettyMarkdown,
+    emitInfo, emitNotification, getVirtualFileVersion
+
   )
 where
 
 import Debug.Trace(trace)
 import GHC.Conc (atomically)
-import GHC.Base (Alternative (..))
+import GHC.Base (Alternative (..), when)
 import Platform.Var (newVar, takeVar)
 import Platform.Filetime (FileTime)
-import Control.Concurrent.MVar (MVar, modifyMVar, newMVar, readMVar)
+import Control.Concurrent.MVar (MVar, modifyMVar_, newMVar, readMVar)
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Trans (lift, liftIO)
 import Control.Concurrent.Chan (readChan)
@@ -48,7 +51,7 @@ import qualified Data.Aeson as A
 import qualified Data.ByteString as D
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe, isJust, isNothing)
 import Data.List (find)
 import Data.Aeson.Types
 import Language.LSP.Server (LanguageContextEnv, LspT, runLspT, sendNotification, Handlers)
@@ -56,44 +59,47 @@ import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Server as J
 
+import Lib.PPrint hiding (empty)
+import Lib.Printer
 import Common.ColorScheme ( colorSource, ColorScheme, darkColorScheme, lightColorScheme )
-import Common.Name (nameNil, Name, readQualifiedName)
+import Common.Name (nameNil, Name, readQualifiedName, ModuleName)
 import Common.File ( realPath, normalize, getCwd, realPath, normalize, getCurrentTime )
-import Common.Error (ppErrorMessage)
-import Lib.PPrint (Pretty(..), asString, writePrettyLn,  Doc, writePretty, writePrettyW, (<->), text)
-import Lib.Printer (withColorPrinter, withColor, writeLn, ansiDefault, AnsiStringPrinter (AnsiString), Color (Red), ColorPrinter (PAnsiString, PHtmlText), withHtmlTextPrinter, HtmlTextPrinter (..))
-import Compiler.Compile (Terminal (..), Loaded (..), Module (..))
-import Compiler.Options (Flags (..), prettyEnvFromFlags, verbose)
-import Compiler.Module (Modules)
-import Type.Pretty (ppType, defaultEnv, Env (context, importsMap), ppScheme)
-import Kind.ImportMap (importsEmpty)
+import Common.Error
 
+import Syntax.Syntax( UserProgram )
+import Syntax.RangeMap( RangeMap )
+import Syntax.Lexeme( Lexeme )
+import Kind.ImportMap (importsEmpty)
+import qualified Type.Pretty as TP
+import Compile.Options (Flags (..), prettyEnvFromFlags, verbose, Terminal(..))
+import Compile.BuildContext
 import LanguageServer.Conversions ({-toLspUri,-} fromLspUri)
+
+import Data.Map.Strict(Map)
+import Data.ByteString (ByteString)
+import GHC.IO.Encoding (BufferCodec(getState))
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
-  lsModules :: ![Module],
-  lsLoaded :: !(M.Map J.NormalizedUri (Loaded, FileTime)),
-  lsLoadedSuccess :: !(M.Map J.NormalizedUri (Loaded, FileTime)),
-  messages :: !(TChan (String, J.MessageType)),
-  progress :: !(TChan String),
-  flags:: !Flags,
-  terminal:: !Terminal,
-  progressReport :: !(Maybe (J.ProgressAmount -> LSM ())),
-  htmlPrinter :: Doc -> IO T.Text,
-  pendingRequests :: !(TVar (Set.Set J.SomeLspId)),
+  buildContext      :: !BuildContext,
+
+  messages          :: !(TChan (String, J.MessageType)),
+  progress          :: !(TChan String),
+  flags             :: !Flags,
+  terminal          :: !Terminal,
+  progressReport    :: !(Maybe (J.ProgressAmount -> LSM ())),
+  htmlPrinter       :: !(Doc -> IO T.Text),
+
+  pendingRequests   :: !(TVar (Set.Set J.SomeLspId)),
   cancelledRequests :: !(TVar (Set.Set J.SomeLspId)),
-  documentVersions :: !(TVar (M.Map J.NormalizedUri J.Int32)),
-  documentInfos :: !(M.Map J.NormalizedUri (D.ByteString, FileTime, J.Int32)),
-  -- If the file was changed last, we can reuse modules, since no dependencies have changed
-  lastChangedFile :: Maybe (J.NormalizedUri, Flags, Loaded),
-  diagnostics :: !(M.Map J.NormalizedUri [J.Diagnostic]),
-  signatureContext :: !(Maybe SignatureContext),
-  config :: Config
+  documentVersions  :: !(TVar (M.Map J.NormalizedUri J.Int32)),
+  documentInfos     :: !(M.Map J.NormalizedUri (D.ByteString, FileTime, J.Int32)),
+  signatureContext  :: !(Maybe SignatureContext),
+  config            :: !Config
 }
 
 data SignatureContext = SignatureContext {
-  sigFunctionName:: Name
+  sigFunctionName :: !Name
 }
 
 instance FromJSON SignatureContext where
@@ -121,9 +127,9 @@ getLSState = do
 
 -- Updates the language server's state inside the LSM monad
 modifyLSState :: (LSState -> LSState) -> LSM ()
-modifyLSState m = do
+modifyLSState f = do
   stVar <- lift ask
-  liftIO $ modifyMVar stVar $ \s -> return (m s, ())
+  liftIO $ modifyMVar_ stVar (return . f)
 
 defaultLSState :: Flags -> IO LSState
 defaultLSState flags = do
@@ -143,7 +149,7 @@ defaultLSState flags = do
         atomically $ writeTChan progressChan (show doc)
   cwd <- getCwd
   let cscheme = colorScheme flags
-      prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
+      prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ TP.context = ctx, TP.importsMap = imports }
       term = Terminal (\err -> withNewPrinter $ \p -> do putErrorMessage p cwd (showSpan flags) cscheme err; return J.MessageType_Error)
                 (if verbose flags > 1 then (\msg -> withNewPrinter $ \p -> do withColor p (colorSource cscheme) (writeLn p msg); return J.MessageType_Info)
                                          else (\_ -> return ()))
@@ -154,20 +160,25 @@ defaultLSState flags = do
                     withNewProgressPrinter msg
                     )
                   else (\_ -> return ()))
-                 (\tp -> withNewPrinter $ \p -> do putScheme p (prettyEnv flags nameNil importsEmpty) tp; return J.MessageType_Info)
                  (\msg -> withNewPrinter $ \p -> do
                     writePrettyLn p msg
                     return J.MessageType_Info
                 )
   return LSState {
-    lsLoaded = M.empty, lsLoadedSuccess = M.empty, lsModules=[],
+    buildContext = buildcEmpty flags,
     messages = msgChan, progress=progressChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests,
-    config = Config{colors=Colors{mode="dark"}, inlayHintOpts=InlayHintOptions{showImplicitArguments=True, showInferredTypes=True, showFullQualifiers=True}},
     terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags,
-    lastChangedFile = Nothing, progressReport = Nothing,
     documentInfos = M.empty, documentVersions = fileVersions,
-    signatureContext = Nothing,
-    diagnostics = M.empty}
+    signatureContext = Nothing, progressReport = Nothing,
+    config = Config{
+        colors=Colors{mode="dark"},
+        inlayHintOpts=InlayHintOptions{
+                         showImplicitArguments=True,
+                         showInferredTypes=True,
+                         showFullQualifiers=True
+        }
+    }
+  }
 
 -- Prints a message to html spans
 htmlTextColorPrinter :: Doc -> IO T.Text
@@ -180,7 +191,7 @@ htmlTextColorPrinter doc
     takeVar stringVar
 
 putScheme p env tp
-  = writePrettyLn p (ppScheme env tp)
+  = writePrettyLn p (TP.ppScheme env tp)
 
 putErrorMessage p cwd endToo cscheme err
   = writePrettyLn p (ppErrorMessage cwd endToo cscheme err)
@@ -244,16 +255,13 @@ getSignatureContext = signatureContext <$> getLSState
 getInlayHintOptions :: LSM InlayHintOptions
 getInlayHintOptions = inlayHintOpts . config <$> getLSState
 
-getLastChangedFileLoaded :: (J.NormalizedUri, Flags) -> LSM (Maybe Loaded)
-getLastChangedFileLoaded (path, flags) = do
-  st <- lastChangedFile<$> getLSState
-  case st of
-    Nothing -> return Nothing
-    Just (path', flags', loaded) -> do
-      if path == path' && flags == flags' then
-        return $ Just loaded
-      else
-        return Nothing
+getVirtualFileVersion :: J.NormalizedUri -> LSM (Maybe J.Int32)
+getVirtualFileVersion uri
+  = do ls <- getLSState
+       case M.lookup uri (documentInfos ls) of
+         Just (_,_,ver) -> return (Just ver)
+         _              -> return Nothing
+
 
 -- Fetches the terminal used for printing messages
 getTerminal :: LSM Terminal
@@ -272,94 +280,119 @@ getColorScheme :: LSM ColorScheme
 getColorScheme = colorScheme <$> getFlags
 
 
--- Diagnostics
-getDiagnostics :: LSM (M.Map J.NormalizedUri [J.Diagnostic])
-getDiagnostics = diagnostics <$> getLSState
 
--- Clear diagnostics for a file
-clearDiagnostics :: J.NormalizedUri -> LSM ()
-clearDiagnostics uri = modifyLSState $ \s -> s {diagnostics = M.delete uri (diagnostics s)}
-
-putDiagnostics :: M.Map J.NormalizedUri [J.Diagnostic] -> LSM ()
-putDiagnostics diags = -- Left biased union prefers more recent diagnostics
-  modifyLSState $ \s -> s {diagnostics = M.union diags (diagnostics s)}
+-- Retreives a file from the virtual file system, returning the contents and the last modified time
+maybeContents :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> FilePath -> Maybe (ByteString, FileTime)
+maybeContents vfs path = do
+  -- trace ("Maybe contents " ++ show uri ++ " " ++ show (M.keys vfs)) $ return ()
+  let uri = J.toNormalizedUri $ J.filePathToUri path
+  (text, ftime, vers) <- M.lookup uri vfs
+  return (text, ftime)
 
 
--- Fetches all the most recent succesfully compiled modules (for incremental compilation)
-getModules :: LSM Modules
-getModules = lsModules <$> getLSState
+-- Run a build with optionally temporarily changed flags (this restores the original build context afterwards)
+-- (when a build context is validated, it checks itself against the current flags and rebuilds accordingly)
+liftBuildWith :: Maybe Flags -> (BuildContext -> Build (BuildContext,a)) -> LSM (Either Errors (a,Errors))
+liftBuildWith mbFlags action
+  = do ls <- getLSState
+       let vfs  = VFS (\fpath -> maybeContents (documentInfos ls) fpath)
+           flgs = case mbFlags of
+                    Nothing    -> flags ls
+                    Just flags -> flags
+       res <- seq flgs $ seq VFS $ liftIO $ runBuild (terminal ls) flgs $ withVFS vfs $ action (buildContext ls)
+       case res of
+         Left errs               -> return (Left errs)
+         Right ((buildc,x),errs) -> do when (isNothing mbFlags) $
+                                          modifyLSState (\ls -> ls{ buildContext = buildc })
+                                       return (Right (x,errs))
 
-mergeModules :: Modules -> Modules -> Modules
-mergeModules newModules oldModules =
-  let nModValid = filter modCompiled newModules -- only add modules that sucessfully compiled
-      newModNames = map modName nModValid
-  in nModValid ++ filter (\m -> modName m `notElem` newModNames) oldModules
 
--- Replaces the loaded state holding compiled modules
-putLoaded :: Loaded -> J.NormalizedUri -> Flags -> LSM ()
-putLoaded l fpathUri flags = do
-  -- fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
-  time <- liftIO getCurrentTime
-  modifyLSState $ \s -> s {
-    lastChangedFile = Just (fpathUri, flags, l),
-    lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s),
-    lsLoaded = M.insert {-(toLspUri fpath)-} fpathUri (l, time) (lsLoaded s)
-    }
+-- Run a build monad with current terminal, flags, and virtual file system
+liftBuild :: (BuildContext -> Build (BuildContext,a)) -> LSM (Either Errors (a,Errors))
+liftBuild action
+  = liftBuildWith Nothing action
 
-putLoadedSuccess :: Loaded -> J.NormalizedUri -> Flags -> LSM ()
-putLoadedSuccess l fpathUri flags = do
-  -- fpath <- liftIO $ realPath (modSourcePath $ loadedModule l)
-  time <- liftIO getCurrentTime
-  -- trace ("putLoadedSuccess: fpathUri: " ++ show fpathUri) $
-  modifyLSState $ \s -> s {
-    lastChangedFile = Just (fpathUri, flags, l),
-    lsModules = mergeModules (loadedModule l:loadedModules l) (lsModules s),
-    lsLoaded = M.insert {-(toLspUri fpath)-} fpathUri (l,time) (lsLoaded s),
-    lsLoadedSuccess = M.insert {-(toLspUri fpath)-} fpathUri (l,time) (lsLoaded s)
-    }
+getBuildContext :: LSM BuildContext
+getBuildContext
+  = do ls <- getLSState
+       return (buildContext ls)
 
-removeLoaded :: J.NormalizedUri -> Module -> LSM ()
-removeLoaded fpathUri m = do
-  -- fpath <- liftIO $ realPath (modSourcePath m)
-  modifyLSState $ \s -> s {lsModules = filter (\m1 -> modName m1 /= modName m) (lsModules s),
-                           lsLoaded = M.delete fpathUri {-(toLspUri fpath)-} (lsLoaded s)}
+-- Module name from URI
+lookupModuleName :: J.NormalizedUri -> LSM (Maybe (FilePath,ModuleName))
+lookupModuleName uri
+  = do buildc <- getBuildContext
+       mbfpath  <- liftIO $ fromLspUri uri
+       return $ do fpath   <- mbfpath -- maybe monad
+                   modname <- buildcLookupModuleName fpath buildc
+                   return (fpath,modname)
 
-getLoadedModule :: J.NormalizedUri -> Maybe Loaded -> LSM (Maybe Module)
-getLoadedModule uri loaded = do
-  liftIO $ loadedModuleFromUri loaded uri
+-- Lexemes from module name
+-- available even if the source cannot be parsed
+lookupLexemes :: ModuleName -> LSM (Maybe [Lexeme])
+lookupLexemes mname
+  = do buildc <- getBuildContext
+       return (buildcGetLexemes mname buildc)
 
-loadedModuleFromUri :: Maybe Loaded -> J.NormalizedUri -> IO (Maybe Module)
-loadedModuleFromUri ml uri = do
-  fpath <- liftIO $ fromLspUri uri
-  return $ do
-    l <- ml
-    fpath <- fpath
-    find (\m -> fpath == modSourcePath m) $ loadedModules l
+-- RangeMap from module name
+lookupRangeMap :: ModuleName -> LSM (Maybe (RangeMap,[Lexeme]))
+lookupRangeMap mname
+  = do buildc <- getBuildContext
+       return (buildcGetRangeMap mname buildc)
 
--- Removes a loaded module from the loaded state holding compiled modules
-removeLoadedUri :: J.NormalizedUri -> LSM ()
-removeLoadedUri uri = do
-  modifyLSState (\st -> st {lsLoaded = M.delete uri (lsLoaded st)})
+-- Program from module name
+lookupProgram :: ModuleName -> LSM (Maybe UserProgram)
+lookupProgram mname
+  = do buildc <- getBuildContext
+       return (buildcLookupProgram mname buildc)
 
--- Fetches the loaded state holding compiled modules
-getLoadedLatest :: J.NormalizedUri -> LSM (Maybe Loaded)
-getLoadedLatest uri
-  = -- trace ("getLoadedLatest: " ++ show uri) $
-    do ld <- M.lookup uri . lsLoaded <$> getLSState
-       return $ fst <$> ld
 
--- Fetches the loaded state holding compiled modules, with a flag indicating if it is the latest version
-getLoaded :: J.NormalizedUri -> LSM (Maybe (Loaded, Bool))
-getLoaded uri = do
-  lastSuccess <- M.lookup uri . lsLoadedSuccess <$> getLSState
-  success <- M.lookup uri . lsLoaded <$> getLSState
-  case (lastSuccess, success) of
-    (Just (l1, t1), Just (l2, t2)) -> return $ Just (l1, t1 == t2)
-    _ -> return Nothing
+-- Pretty environment
+getPrettyEnv :: LSM TP.Env
+getPrettyEnv
+  = do flags <- getFlags
+       return (prettyEnvFromFlags flags)
 
--- Fetches the last successful loaded state
-getLoadedSuccess :: J.NormalizedUri -> LSM (Maybe Loaded)
-getLoadedSuccess uri = do
-  lastSuccess <- M.lookup uri . lsLoadedSuccess <$> getLSState
-  return $ fst <$> lastSuccess
+-- Pretty environment
+getPrettyEnvFor :: ModuleName -> LSM TP.Env
+getPrettyEnvFor modname
+  = do flags <- getFlags
+       return (prettyEnvFromFlags flags){ TP.context = modname }
 
+
+-- Format as markdown
+prettyMarkdown :: Doc -> LSM T.Text
+prettyMarkdown doc
+  = do htmlPrinter <- getHtmlPrinter
+       liftIO (htmlPrinter doc)
+
+-- Sent text to the terminal info.
+emitInfo :: (TP.Env -> Doc) -> LSM ()
+emitInfo mkDoc
+  = do penv <- getPrettyEnv
+       term <- getTerminal
+       liftIO $ termInfo term (mkDoc penv)
+
+-- Emit an error notification
+emitNotification :: (TP.Env -> Doc) -> LSM ()
+emitNotification mkDoc
+  = do penv     <- getPrettyEnv
+       markdown <- prettyMarkdown (mkDoc penv)
+       sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error markdown
+
+-- Return definitions (gamma etc) for a set of modules
+lookupDefinitions :: [ModuleName] -> LSM Definitions
+lookupDefinitions modnames
+  = do buildc <- getBuildContext
+       return (buildcGetDefinitions modnames buildc)
+
+-- Return definitions (gamma etc) for a set of modules including the imports.
+lookupVisibleDefinitions :: [ModuleName] -> LSM Definitions
+lookupVisibleDefinitions modnames
+  = do buildc <- getBuildContext
+       return (buildcGetVisibleDefinitions modnames buildc)
+
+-- Return all loaded module names and associated file paths.
+lookupModulePaths :: LSM [(ModuleName,FilePath)]
+lookupModulePaths
+  = do buildc <- getBuildContext
+       return (buildcModulePaths buildc)

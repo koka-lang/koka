@@ -5,17 +5,17 @@ module syntax/basic
 
 // Named function declarations use `fun`
 // while anonymous function expressions use `fn`
-pub fun example1() {
+fun example1() {
   map( list(1,5), fn(i){ println(i) } )
 }
 
 // Indented blocks get automatic curly braces (if not braced explicitly)
 // We can write the previous example with just indentation:
-pub fun example1a()
+fun example1a()
   map( list(1,5), fn(i){ println(i) } )
 
 // If the body of an anonymous function is an expression, we do not need curly braces:
-pub fun example1b()
+fun example1b()
   map( list(1,5), fn(i) println(i) )
 
 
@@ -26,20 +26,20 @@ pub fun example1b()
 // e.f(e1,...,eN)  ~>  f(e,e1,...,eN)
 // ```
 // This is also called _dot chaining_.
-pub fun example2()
+fun example2()
   list(1,5).map( fn(i) println(i) )
 
 
 // Trailing `fn` anonymous function arguments can be put outside the parenthesis following the call:
 // `f(e1,...,eN) fn(x){ ... }  ~>  f(e1,...,eN, fn(x){ ... })`
 // This is also called _trailing lambdas_ (and Koka was the first language to have this as far as we know)
-pub fun example3()
+fun example3()
   list(1,5).map fn(i){
     println(i)
   }
 
 // Of course, the indentation rule allows us to elide the braces here as well:
-pub fun example3a()
+fun example3a()
   list(1,5).map fn(i)
     println(i)
 
@@ -53,19 +53,19 @@ fun twice(f)
   f()
   f()
 
-pub fun example4()
+fun example4()
   twice{ println("hi") }    // == `twice( fn(){ println("hi" ) } )`
 
 
 // Or with indentation:
-pub fun example4a()
+fun example4a()
   twice
     println("hi")
 
 
 // This syntax enable many control-flow operations to be defined as functions,
 // like `while`:
-pub fun example5()
+fun example5()
   var i := 0
   while{ i < 10 }
     i := i + 1
@@ -92,14 +92,14 @@ pub fun main()
 
 // The body of a function `fun` or `fn` does not have to braced
 // but can directly be an expression.
-pub fun increment(xs)  xs.map(fn(x) x + 1).filter(fn(x) x > 2)
+fun increment(xs)  xs.map(fn(x) x + 1).filter(fn(x) x > 2)
 
 // which is equivalent to:
-pub fun increment2(xs) {
+fun increment2(xs) {
   xs.map(fn(x){ x + 1 }).filter(fn(x){ x > 2 })
 }
 
 // `trace-info` also traces the current file and line number.
-pub fun example-trace(): ()
+fun example-trace(): ()
   trace-info("example trace")
   trace("module: " ++ kk-module)

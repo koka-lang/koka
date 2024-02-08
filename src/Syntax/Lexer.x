@@ -226,7 +226,7 @@ program :-
 
 <linedir> @utf8unsafe     { string $ unsafeChar "line directive" }
 <linedir> @linechar       { more id }
-<linedir> @newline        { pop $ \_ -> withmore (string $ LexComment . filter (/='\r')) }
+<linedir> @newline        { pop $ \_ -> withmore (checkLineDir $ LexComment . filter (/='\r')) }
 <linedir> .               { string $ \s -> LexError ("illegal character in line directive: " ++ show s) }
 
 {
@@ -446,7 +446,7 @@ token :: (BString -> Lex) -> Action
 token lex = \bs st0 st1 -> (Just (lex bs), st1)
 
 string :: (String -> Lex) -> Action
-string lex = token (lex . bstringToString)
+string lex = token (\bs -> let s = bstringToString bs in seq s (lex s))
 
 keyword :: Action
 keyword = string (\s -> LexKeyword s "")
@@ -495,6 +495,23 @@ withRawDelim f
 
 constant x
   = token (\_ -> x)
+
+checkLineDir :: (String -> Lex) -> Action
+checkLineDir f
+  = \bs st0 st1 -> let (mbToken,st2) = (string f) bs st0 st1
+                   in case mbToken of
+                        Just (LexComment s) | s `startsWith` "\n#line "
+                          -> (mbToken,adjustLine (dropWhile isSpace (drop 6 s)) st2)
+                        _ -> (mbToken,st2)
+
+adjustLine :: String -> State -> State
+adjustLine s st
+  = case (reads :: ReadS (Int,Int)) s of
+      [((line,col),rest)] -> st{ pos = (pos st){ posLine = line, posColumn = col } }
+      _ -> case (reads :: ReadS Int) s of
+             [(line,rest)] -> st{ pos = (pos st){ posLine = line } }
+             _             -> st
+
 
 ------------------------------------------------------------------------------
 -- Set up the Alex lexer framework

@@ -34,8 +34,8 @@ import Common.NamePrim
 --------------------------------------------------------------------------}
 -- | Kinds
 data Kind
-  = KCon     KindCon        -- ^ Kind constants: "*","->","!","H","P"
-  | KApp     Kind Kind      -- ^ Application (only allowed for functions as yet)
+  = KCon     !KindCon        -- ^ Kind constants: "*","->","!","H","P"
+  | KApp     !Kind !Kind      -- ^ Application (only allowed for functions as yet)
   deriving (Eq,Ord, Show)
 
 -- | Kind constant
@@ -56,7 +56,7 @@ hasKindStarResult kind
 hasKindLabelResult :: Kind -> Bool
 hasKindLabelResult kind
   = isKindAnyLabel (snd (extractKindFun kind))
-  
+
 
 {--------------------------------------------------------------------------
   Standard kinds
@@ -100,9 +100,9 @@ kindHeap
   = KCon nameKindHeap
 
 kindLocal :: Kind
-kindLocal 
+kindLocal
   = kindFun kindHeap kindLabel
-  
+
 kindHandled :: Kind
 kindHandled
   = KCon nameKindHandled
@@ -165,7 +165,7 @@ isKindHeap k
   = k == kindHeap
 
 isKindAnyLabel :: Kind -> Bool
-isKindAnyLabel k 
+isKindAnyLabel k
   = isKindHandled k || isKindHandled1 k || isKindLabel k
 
 -- | Standard kind constants with their kind.

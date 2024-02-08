@@ -641,6 +641,12 @@ pub fun cmp( x : float64, y : float64 ) : order
   val iy = by.sar(63).shr(1).xor(by)
   cmp(ix,iy)
 
+// Order two float elements.
+pub fun order2( x : float64, y : float64 ) : order2<float64>
+  match cmp(x,y)
+    Eq -> Eq2(x)
+    Lt -> Lt2(x,y)
+    Gt -> Gt2(y,x)
 
 // The midpoint is the average of `x` and `y`.
 // Avoids overflow on large numbers.

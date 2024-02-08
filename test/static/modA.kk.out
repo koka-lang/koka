@@ -1,3 +1,4 @@
-static/modA/aint: V
-static/modA/int: V
+aint : V
+int : V
+ 
 pub alias aint = int = 1

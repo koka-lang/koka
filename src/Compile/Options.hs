@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2012-2021, Microsoft Research, Daan Leijen.
+-- Copyright 2012-2024, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -9,7 +9,7 @@
     Main module.
 -}
 -----------------------------------------------------------------------------
-module Compiler.Options( -- * Command line options
+module Compile.Options( -- * Command line options
                          getOptions, processOptions, Mode(..), Flags(..), showTypeSigs
                        -- * Show standard messages
                        , showHelp, showEnv, showVersion, commandLineHelp, showIncludeInfo
@@ -21,7 +21,7 @@ module Compiler.Options( -- * Command line options
                        , updateFlagsFromArgs
                        , CC(..), BuildType(..), ccFlagsBuildFromFlags
                        , buildType, unquote
-                       , outName, fullBuildDir, buildVariant
+                       , outName, fullBuildDir, buildVariant, buildLibVariant
                        , cpuArch, osName
                        , optionCompletions
                        , targetExeExtension
@@ -29,11 +29,14 @@ module Compiler.Options( -- * Command line options
                        , conanSettingsFromFlags
                        , vcpkgFindRoot
                        , onWindows, onMacOS
+                       , flagsHash
+                       , Terminal(..)
                        ) where
 
 
 import Data.Char              ( toLower, toUpper, isAlpha, isSpace )
 import Data.List              ( intersperse, isInfixOf )
+import Data.Hashable
 import Control.Monad          ( when )
 import qualified System.Info  ( os, arch )
 import System.Environment     ( getArgs )
@@ -47,7 +50,9 @@ import Common.ColorScheme
 import Common.File
 import Common.Name
 import Common.Syntax
-import Compiler.Package
+import Common.Error( ErrorMessage )
+import Type.Type( Scheme )
+import Compile.Package
 import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
   Convert flags to pretty environment
@@ -79,6 +84,14 @@ prettyIncludePath flags
     in align (if null path then color (colorSource cscheme) (text "<empty>")
                else cat (punctuate comma (map (\p -> color (colorSource cscheme) (text p)) path)))
 
+
+data Terminal = Terminal{ termError  :: !(ErrorMessage -> IO ())
+                        , termTrace  :: !(String -> IO ())
+                        , termPhase  :: !(Doc -> IO ())
+                        , termInfo   :: !(Doc -> IO ())
+                        }
+
+
 {--------------------------------------------------------------------------
   Options
 --------------------------------------------------------------------------}
@@ -101,98 +114,146 @@ showTypeSigs :: Flags -> Bool
 showTypeSigs flags = showHiddenTypeSigs flags || _showTypeSigs flags
 
 data Flags
-  = Flags{ warnShadow       :: Bool
-         , showKinds        :: Bool
-         , showKindSigs     :: Bool
-         , showSynonyms     :: Bool
-         , showCore         :: Bool
-         , showFinalCore    :: Bool
-         , showCoreTypes    :: Bool
-         , showAsmCS        :: Bool
-         , showAsmJS        :: Bool
-         , showAsmC         :: Bool
-         , _showTypeSigs     :: Bool
-         , showHiddenTypeSigs     :: Bool
-         , showElapsed      :: Bool
-         , evaluate         :: Bool
-         , execOpts         :: String
-         , library          :: Bool
-         , target           :: Target
-         , targetOS         :: String
-         , targetArch       :: String
-         , platform         :: Platform
-         , stackSize        :: Int
-         , heapSize         :: Int
-         , simplify         :: Int
-         , simplifyMaxDup   :: Int
-         , colorScheme      :: ColorScheme
-         , buildDir         :: FilePath      -- kkbuild
-         , buildTag         :: String
-         , outBuildDir      :: FilePath      -- actual build output: <builddir>/<version>-<buildtag>/<ccomp>-<variant>
-         , outBaseName      :: String
-         , outFinalPath     :: FilePath
-         , includePath      :: [FilePath]    -- .kk/.kki files
-         , csc              :: FileName
-         , node             :: FileName
-         , wasmrun          :: FileName
-         , cmake            :: FileName
-         , cmakeArgs        :: String
-         , ccompPath        :: FilePath
-         , ccompCompileArgs :: Args
-         , ccompIncludeDirs :: [FilePath]
-         , ccompDefs        :: [(String,String)]
-         , ccompLinkArgs    :: Args
-         , ccompLinkSysLibs :: [String]      -- just core lib name
-         , ccompLinkLibs    :: [FilePath]    -- full path to library
-         , ccomp            :: CC
-         , ccompLibDirs     :: [FilePath]    -- .a/.lib dirs
-         , autoInstallLibs  :: Bool
-         , vcpkgRoot        :: FilePath
-         , vcpkgTriplet     :: String
+  = Flags{ warnShadow       :: !Bool
+         , showKinds        :: !Bool
+         , showKindSigs     :: !Bool
+         , showSynonyms     :: !Bool
+         , showCore         :: !Bool
+         , showFinalCore    :: !Bool
+         , showCoreTypes    :: !Bool
+         , showAsmCS        :: !Bool
+         , showAsmJS        :: !Bool
+         , showAsmC         :: !Bool
+         , _showTypeSigs     :: !Bool
+         , showHiddenTypeSigs     :: !Bool
+         , showElapsed      :: !Bool
+         , evaluate         :: !Bool
+         , execOpts         :: !String
+         , library          :: !Bool
+         , target           :: !Target
+         , targetOS         :: !String
+         , targetArch       :: !String
+         , platform         :: !Platform
+         , stackSize        :: !Int
+         , heapSize         :: !Int
+         , simplify         :: !Int
+         , simplifyMaxDup   :: !Int
+         , colorScheme      :: !ColorScheme
+         , buildDir         :: !FilePath      -- kkbuild
+         , buildTag         :: !String
+         , outBuildDir      :: !FilePath      -- actual build output: <builddir>/<version>-<buildtag>/<ccomp>-<variant>
+         , outBaseName      :: !String
+         , outFinalPath     :: !FilePath
+         , includePath      :: ![FilePath]    -- .kk/.kki files
+         , csc              :: !FileName
+         , node             :: !FileName
+         , wasmrun          :: !FileName
+         , cmake            :: !FileName
+         , cmakeArgs        :: !String
+         , ccompPath        :: !FilePath
+         , ccompCompileArgs :: !Args
+         , ccompIncludeDirs :: ![FilePath]
+         , ccompDefs        :: ![(String,String)]
+         , ccompLinkArgs    :: !Args
+         , ccompLinkSysLibs :: ![String]      -- just core lib name
+         , ccompLinkLibs    :: ![FilePath]    -- full path to library
+         , ccomp            :: !CC
+         , ccompLibDirs     :: ![FilePath]    -- .a/.lib dirs
+         , autoInstallLibs  :: !Bool
+         , vcpkgRoot        :: !FilePath
+         , vcpkgTriplet     :: !String
          {-
-         , vcpkg            :: FilePath
-         , vcpkgLibDir      :: FilePath
-         , vcpkgIncludeDir  :: FilePath
+         , vcpkg            :: !FilePath
+         , vcpkgLibDir      :: !FilePath
+         , vcpkgIncludeDir  :: !FilePath
          -}
-         , conan            :: FilePath
-         , editor           :: String
-         , redirectOutput   :: FileName
-         , outHtml          :: Int
-         , htmlBases        :: [(String,String)]
-         , htmlCss          :: String
-         , htmlJs           :: String
-         , verbose          :: Int
-         , showSpan         :: Bool
-         , console          :: String
-         , rebuild          :: Bool
-         , genCore          :: Bool
-         , coreCheck        :: Bool
-         , enableMon        :: Bool
-         , semiInsert       :: Bool
-         , genRangeMap      :: Bool
-         , languageServerPort :: Int
-         , localBinDir      :: FilePath  -- directory of koka executable
-         , localDir         :: FilePath  -- install prefix: /usr/local
-         , localLibDir      :: FilePath  -- precompiled object files: <prefix>/lib/koka/v2.x.x  /<cc>-<config>/libkklib.a, /<cc>-<config>/std_core.kki, ...
-         , localShareDir    :: FilePath  -- sources: <prefix>/share/koka/v2.x.x  /lib/std, /lib/samples, /kklib
-         , packages         :: Packages
-         , forceModule      :: FilePath
-         , debug            :: Bool      -- emit debug info
-         , optimize         :: Int       -- optimization level; 0 or less is off
-         , optInlineMax     :: Int
-         , optctail         :: Bool
-         , optctailCtxPath  :: Bool
-         , optUnroll        :: Int
-         , optEagerPatBind  :: Bool      -- bind pattern fields as early as possible?
-         , parcReuse        :: Bool
-         , parcSpecialize   :: Bool
-         , parcReuseSpec    :: Bool
-         , parcBorrowInference    :: Bool
-         , asan             :: Bool
-         , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
-         , optSpecialize    :: Bool
-         , mimallocStats    :: Bool
-         } deriving Eq
+         , conan            :: !FilePath
+         , editor           :: !String
+         , redirectOutput   :: !FileName
+         , outHtml          :: !Int
+         , htmlBases        :: ![(String,String)]
+         , htmlCss          :: !String
+         , htmlJs           :: !String
+         , verbose          :: !Int
+         , showSpan         :: !Bool
+         , console          :: !String
+         , rebuild          :: !Bool
+         , genCore          :: !Bool
+         , coreCheck        :: !Bool
+         , enableMon        :: !Bool
+         , semiInsert       :: !Bool
+         , genRangeMap      :: !Bool
+         , languageServerPort :: !Int
+         , localBinDir      :: !FilePath  -- directory of koka executable
+         , localDir         :: !FilePath  -- install prefix: /usr/local
+         , localLibDir      :: !FilePath  -- precompiled object files: <prefix>/lib/koka/v2.x.x  /<cc>-<config>/libkklib.a, /<cc>-<config>/std_core.kki, ...
+         , localShareDir    :: !FilePath  -- sources: <prefix>/share/koka/v2.x.x  /lib/std, /lib/samples, /kklib
+         , packages         :: !Packages
+         , forceModule      :: !FilePath
+         , debug            :: !Bool      -- emit debug info
+         , optimize         :: !Int       -- optimization level; 0 or less is off
+         , optInlineMax     :: !Int
+         , optctail         :: !Bool
+         , optctailCtxPath  :: !Bool
+         , optUnroll        :: !Int
+         , optEagerPatBind  :: !Bool      -- bind pattern fields as early as possible?
+         , parcReuse        :: !Bool
+         , parcSpecialize   :: !Bool
+         , parcReuseSpec    :: !Bool
+         , parcBorrowInference    :: !Bool
+         , asan             :: !Bool
+         , useStdAlloc      :: !Bool -- don't use mimalloc for better asan and valgrind support
+         , optSpecialize    :: !Bool
+         , mimallocStats    :: !Bool
+         , maxConcurrency   :: !Int
+         , maxErrors        :: !Int
+         , useBuildDirHash  :: !Bool
+         } deriving (Eq,Show)
+
+instance Hashable Flags where
+  hashWithSalt salt flags = hashWithSalt salt [
+    show $ target flags,
+    targetOS flags,
+    targetArch flags,
+    show $ platform flags,
+    -- show $ stackSize flags,
+    -- show $ heapSize flags,
+    show $ simplify flags,
+    show $ simplifyMaxDup flags,
+    concat $ includePath flags,
+    csc flags,
+    ccompPath flags,
+    concat $ ccompCompileArgs flags,
+    concat $ ccompIncludeDirs flags,
+    concat $ map show $ ccompDefs flags,
+    concat $ ccompLinkArgs flags,
+    concat $ ccompLinkSysLibs flags,
+    concat $ ccompLinkLibs flags,
+    show $ ccomp flags,
+    concat $ ccompLibDirs flags,
+    localBinDir flags,
+    localLibDir flags,
+    localShareDir flags,
+    show $ debug flags,
+    show $ optimize flags,
+    show $ optInlineMax flags,
+    show $ optctail flags,
+    show $ optctailCtxPath flags,
+    show $ optUnroll flags,
+    show $ optEagerPatBind flags,
+    show $ parcReuse flags,
+    show $ parcSpecialize flags,
+    show $ parcReuseSpec flags,
+    show $ parcBorrowInference flags,
+    show $ asan flags,
+    show $ useStdAlloc flags,
+    show $ optSpecialize flags
+   ]
+
+flagsHash :: Flags -> String
+flagsHash flags
+  = let s = map toLower (take 6 (showHex 6 (abs (hash flags))))
+    in seq (length s) s
 
 flagsNull :: Flags
 flagsNull
@@ -290,6 +351,9 @@ flagsNull
           False -- use stdalloc
           True  -- use specialization (only used if optimization level >= 1)
           False -- use mimalloc stats
+          16    -- max concurrency
+          25    -- max errors
+          True  -- use variant hash
 
 isHelp Help = True
 isHelp _    = False
@@ -322,9 +386,10 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["language-server"] (NoArg LanguageServer)          "language server mode"
  , flag   ['e'] ["execute"]         (\b f -> f{evaluate= b})        "compile and execute"
  , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute (default)"
+ , numOption 16 "n" ['j'] ["jobs"]  (\i f -> f{maxConcurrency=max i 1})  "maximum concurrency (16)"
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to module search path (empty resets)"
- , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write final executable to <file> (without extension)"
- , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 1=space, 2=full, 3=aggressive)"
+ , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write executable to <file> (without extension)"
+ , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default,1=space,2=full,3=aggressive)"
  , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
@@ -336,7 +401,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["buildtag"]        (ReqArg buildTagFlag "tag")     "set build variant tag (e.g. 'bundle' or 'dev')"
  , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     ("build under <dir> ('" ++ kkbuild ++ "' by default)")
  , option []    ["buildname"]       (ReqArg outBaseNameFlag "name") "base name of the final output"
- , option []    ["outputdir"]       (ReqArg outBuildDirFlag "dir")  "write intermediate files in <dir>.\ndefaults to: <builddir>/<ver>-<buildtag>/<cc>-<variant>"
+ , option []    ["outputdir"]       (ReqArg outBuildDirFlag "dir")  "write intermediate files in <dir>, defaults to:\n<builddir>/<ver>-<buildtag>/<cc>-<variant>-<hash>"
 
  , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (= <prefix>/lib/koka/<ver>)"
  , option []    ["sharedir"]        (ReqArg shareDirFlag "dir")     "source library <dir> (= <prefix>/share/koka/<ver>)"
@@ -401,6 +466,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
  , hide $ fflag       ["eagerpatbind"] (\b f -> f{optEagerPatBind=b}) "load pattern fields as early as possible"
  , hide $ numOption (-1) "port" [] ["lsport"]    (\i f -> f{languageServerPort=i}) "language Server port"
+ , hide $ flag []     ["buildhash"]   (\b f -> f{useBuildDirHash=b})   "use hash in build directory name"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
@@ -615,6 +681,7 @@ environment
     , ("koka_lib_dir", "dir",     opt "libdir",     "Set the koka compiled library directory (= '<prefix>/lib/koka/<ver>')")
     , ("koka_share_dir", "dir",   opt "sharedir",   "Set the koka library sources directory (= '<prefix>/share/koka/<ver>')")
     , ("koka_build_dir", "dir",   opt "builddir",   ("Set the default koka build directory (= '" ++ kkbuild ++ "')"))
+    , ("VCPKG_ROOT" ,    "dir",   opt "vcpkgdir",   "Root directory of the vcpkg installation (= '~/vcpkg')")
     ]
   where
     flagsEnv s      = [s]
@@ -953,6 +1020,12 @@ data CC = CC{  ccName       :: String,
                ccObjFile    :: String -> FilePath   -- make object file namen
             }
 
+instance Show CC where  -- for the hash
+  show cc  = "CC{" ++ concat (intersperse "," [
+                ccName cc, ccPath cc, show (ccFlags cc), show (ccFlagsBuild cc),
+                show (ccFlagsCompile cc), show (ccFlagsLink cc) --, show (ccFlagsWarn cc)
+             ]) ++ "}"
+
 instance Eq CC where
   CC{ccName = name1, ccPath = path1, ccFlags = flags1, ccFlagsBuild = flagsB1, ccFlagsCompile= flagsC1, ccFlagsLink=flagsL1} ==
     CC{ccName = name2, ccPath = path2, ccFlags = flags2, ccFlagsBuild = flagsB2, ccFlagsCompile= flagsC2, ccFlagsLink=flagsL2}
@@ -1000,8 +1073,14 @@ buildVersionTag :: Flags -> String
 buildVersionTag flags
   = "v" ++ version ++ (if (null (buildTag flags)) then "" else "-" ++ buildTag flags)
 
-buildVariant :: Flags -> String   -- for example: clang-debug, js-release
+
+buildVariant :: Flags -> String   -- for example: clang-debug-4ead5f
 buildVariant flags
+  = buildLibVariant flags ++
+    (if useBuildDirHash flags then "-" ++ flagsHash flags else "")
+
+buildLibVariant :: Flags -> String   -- for example: clang-debug, js-release
+buildLibVariant flags
   = let pre  = case target flags of
                  C ctarget
                    -> ccName (ccomp flags) ++
@@ -1012,8 +1091,8 @@ buildVariant flags
                         _      | platformHasCompressedFields (platform flags)
                                -> "-" ++ cpuArch ++ "c"
                                | otherwise -> "")
-                 JS _  -> "-js"
-                 _     -> "-" ++ show (target flags)
+                 JS _  -> "js"
+                 _     -> show (target flags)
     in pre ++ "-" ++ show (buildType flags)
 
 
@@ -1368,7 +1447,7 @@ versionMessage flags
   <-> text "cc     :" <+> text (ccPath (ccomp flags))
   <->
   (color Gray $ vcat $ map text
-  [ "Copyright 2012-2021, Microsoft Research, Daan Leijen."
+  [ "Copyright 2019-2024, Microsoft Research, Daan Leijen, and others."
   , "This program is free software; see the source for copying conditions."
   , "This program is distributed in the hope that it will be useful,"
   , "but without any warranty; without even the implied warranty"

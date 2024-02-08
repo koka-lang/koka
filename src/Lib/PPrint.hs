@@ -58,6 +58,7 @@ module Lib.PPrint
         , writeDoc, writeDocW
         , writePrettyW
         , isEmptyDoc
+        , writeAtomicPrettyLn
 
         , dstartsWith
         , dendsWith
@@ -602,6 +603,11 @@ writePrettyW :: Printer p => p -> Int -> Doc -> IO ()
 writePrettyW p w doc
   = displayP p w (renderPretty 0.8 w doc)
 
+writeAtomicPrettyLn :: Printer p => p -> Doc -> IO ()
+writeAtomicPrettyLn p doc
+  = writeLn p (displayS (renderPretty 0.8 defaultWidth doc) "")
+
+
 -----------------------------------------------------------
 -- default pretty printers: show, putDoc and hPutDoc
 -----------------------------------------------------------
@@ -632,6 +638,7 @@ writeDocW :: Int -> FilePath -> Doc -> IO ()
 writeDocW width fpath doc
   = do h <- openFile fpath WriteMode
        hPutDocW width h doc `finally` hClose h
+
 
 -----------------------------------------------------------
 -- insert spaces

@@ -1,7 +1,8 @@
-kind/alias3/ap: (V -> V, V) -> V
-kind/alias3/foo: V
-kind/alias3/id: V -> V
-kind/alias3/ok: V
+ap : (V -> V, V) -> V
+foo : V
+id : V -> V
+ok : V
+ 
 pub alias ap<a,b> :: (V -> V, V) -> V = a<b> = 1
 pub alias id<a> :: V -> V = a = 1
 pub alias ok = ap<id,foo> = 2

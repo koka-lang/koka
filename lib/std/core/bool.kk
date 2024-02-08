@@ -42,8 +42,9 @@ pub fip fun cmp( x : bool, y : bool) : order
   else Eq
 
 // Order two booleans in ascending order.
-pub fip fun order2( x : bool, y : bool ) : (bool,bool)
-  if x <= y then (x,y) else (y,x)
+pub fip fun order2( x : bool, y : bool ) : order2<bool>
+  if (x==y) then Eq2(x) elif (x < y) then Lt2(x,y) else Gt2(y,x)
+
 
 // Convert a `:bool` to a string
 pub fun show( b : bool ) : string
