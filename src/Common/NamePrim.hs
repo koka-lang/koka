@@ -15,7 +15,7 @@ module Common.NamePrim
             nameExpr, nameMain, nameType
           , nameInteractiveModule
           , nameSystemCore, nameCoreTypes
-          , isSystemCoreName
+          , isSystemCoreName, shortenSystemCoreName
           , isPrimitiveModule -- no monadic lifting
           , nameCoreHnd
           , isPrimitiveName
@@ -512,6 +512,13 @@ nameCoreDebug   = newModuleName "std/core/debug"
 isSystemCoreName name
   = let m = nameModule name
     in  (m == "std/core" || m `startsWith` "std/core/")
+
+shortenSystemCoreName name
+  = let m = nameModule name
+    in if (m == "std/core" || m == "std/core/types") then unqualify name
+       else if (m `startsWith` "std/core/")
+              then qualify (newModuleName (drop 9 m)) (unqualify name)
+              else name
 
 isPrimitiveName name
   = isPrimitiveModule (qualifier name)

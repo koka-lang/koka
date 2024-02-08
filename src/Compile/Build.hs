@@ -673,9 +673,11 @@ copyLibIfaceToOutput flags libIfacePath ifacePath core  {- core is needed to kno
                           ) (clibsFromCore flags core)
 
 
+clibsFromCore :: Flags -> Core -> [String]
 clibsFromCore flags core
   = externalImportKeyFromCore (target flags) (buildType flags) core "library"
 
+csyslibsFromCore :: Flags -> Core -> [String]
 csyslibsFromCore flags core
   = externalImportKeyFromCore (target flags) (buildType flags) core "syslib"
 
