@@ -123,6 +123,7 @@ fun tree( elems : list<a>, ^?order2 : (a,a) -> order2<a> ) : tree<a>
   elems.foldl(Tip) fn(t,i)
     insert-order(t,i)
 
+
 fun example-order()
   [[2,3,1].tree.height,
    ['a','b','c'].tree.height,
