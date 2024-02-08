@@ -635,9 +635,10 @@ moduleLoadLibIface mod
   = do cscheme <- getColorScheme
        phase "load" $ \penv -> TP.ppName penv (modName mod) <+> color (colorInterpreter cscheme) (text "from:") <+> text (modLibIfacePath mod)
        (core,parseInlines) <- liftIOError $ parseCore (modLibIfacePath mod) (modSourcePath mod)
-       flags <- getFlags
+       flags   <- getFlags
        pooledIO $ copyLibIfaceToOutput flags (modLibIfacePath mod) (modIfacePath mod) core
-       return (modFromIface core parseInlines mod)
+       ftIface <- getFileTime (modIfacePath mod) -- update interface time or we load from that next time around
+       return (modFromIface core parseInlines mod){ modLibIfaceTime = ftIface }
 
 modFromIface :: Core.Core -> Maybe (Gamma -> Error () [Core.InlineDef]) -> Module -> Module
 modFromIface core parseInlines mod
