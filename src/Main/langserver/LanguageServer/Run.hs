@@ -14,12 +14,12 @@
 {-# LANGUAGE DataKinds #-}
 module LanguageServer.Run (runLanguageServer) where
 
-import System.Exit            ( exitFailure )
+import System.Exit            ( exitFailure, die )
 import GHC.IO.IOMode (IOMode(ReadWriteMode))
 import GHC.Conc (atomically)
 import GHC.IO.Handle (BufferMode(NoBuffering), hSetBuffering)
 import GHC.IO.StdHandles (stdin, stdout, stderr)
-import Control.Monad (void, forever, when)
+import Control.Monad (void, forever, when, guard)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.STM ( atomically )
 import Control.Concurrent.STM.TChan ( newTChan, readTChan, TChan )
@@ -39,6 +39,9 @@ import LanguageServer.Handlers ( lspHandlers, ReactorInput(..) )
 import LanguageServer.Monad (newLSStateVar, runLSM, LSM, getLSState, LSState (messages, progress), getProgress, updateSignatureContext, SignatureContext(..))
 import Compile.Options (Flags (languageServerPort, languageServerStdio))
 import Debug.Trace (trace)
+import Control.Exception.Base (throw)
+import Control.Exception (catchJust)
+import System.IO.Error (isDoesNotExistError)
 
 runLanguageServer :: Flags -> [FilePath] -> IO ()
 runLanguageServer flags files = do
@@ -52,10 +55,12 @@ runLanguageServer flags files = do
     hSetBuffering stdin NoBuffering
     runLanguageServerWithHandles stdin stdout
     -- Connect to localhost on the port given by the client
-  else connect "127.0.0.1" (show $ languageServerPort flags) (\(socket, _) -> do
-      -- Create a handle to the client from the socket
-      handle <- socketToHandle socket ReadWriteMode
-      runLanguageServerWithHandles handle handle)
+  else catchJust (guard . isDoesNotExistError)
+         (connect "127.0.0.1" (show $ languageServerPort flags) (\(socket, _) -> do
+            -- Create a handle to the client from the socket
+            handle <- socketToHandle socket ReadWriteMode
+            runLanguageServerWithHandles handle handle))
+         (\_ -> die $ "nothing was listening on port " ++ show (languageServerPort flags))
   where
     useStdio = languageServerStdio flags
     runLanguageServerWithHandles inHandle outHandle = do
