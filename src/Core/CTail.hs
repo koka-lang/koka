@@ -45,7 +45,7 @@ import Core.Pretty
 --------------------------------------------------------------------------
 ctailOptimize :: Pretty.Env -> Newtypes -> Gamma -> Bool -> CorePhase b ()
 ctailOptimize penv newtypes gamma useContextPath
-  = liftCorePhaseUniq $ \uniq defs -> 
+  = liftCorePhaseUniq $ \uniq defs ->
     runUnique uniq (uctailOptimize penv newtypes gamma useContextPath defs)
 
 uctailOptimize :: Pretty.Env -> Newtypes -> Gamma -> Bool -> DefGroups -> Unique DefGroups
@@ -70,14 +70,14 @@ ctailDefGroup topLevel dg
       _ -> return [dg]
   where
     log
-      | DefRec [def] <- dg  = "ctailDefGroup: " ++ show (defName def) ++ " " ++ (if (hasCTailCall (defTName def) True (defExpr def)) then "IS " else "is NOT ") ++ "eligible for ctail" 
+      | DefRec [def] <- dg  = "ctailDefGroup: " ++ show (defName def) ++ " " ++ (if (hasCTailCall (defTName def) True (defExpr def)) then "IS " else "is NOT ") ++ "eligible for ctail"
       | DefRec defs <- dg   = "ctailDefGroup: found larger DefRec with names: " ++ unwords [show (defName def) | def <- defs ]
       | DefNonRec def <- dg = "ctailDefGroup: found DefNonRec with name: " ++ show (defName def)
 
 
 {-
-we generate 
-- if the runtime can copy contexts (setContextPath) 
+we generate
+- if the runtime can copy contexts (setContextPath)
   we always generate a single definition which is optimized a bit if the effect is affine for sure (alwaysAffine)
 - otherwise, a single definition of the effect is affine for sure (alwaysAffine)
 - or two definitions for multiple resumptions (isMulti)
@@ -216,14 +216,14 @@ hasCTailCallArg defName (rarg:rargs)
   = case rarg of
       App (TypeApp (Var name _) targs) args   | defName == name -> True
       App (Var name _) args                   | defName == name -> True
-      App f@(TypeApp (Con{}) _) fargs  
+      App f@(TypeApp (Con{}) _) fargs
          | tnamesMember defName (fv fargs) && hasCTailCallArg defName (reverse fargs) -- && all isTotal rargs
         -> True
-      App f@(Con{}) fargs              
+      App f@(Con{}) fargs
         | tnamesMember defName (fv fargs) && hasCTailCallArg defName (reverse fargs) -- && all isTotal rargs
         -> True
       -- todo: emit warning that TRMC does not apply?
-      -- _ | not (isTotal rarg) -> trace ("non-total argument: " ++ show rarg) $ False  
+      -- _ | not (isTotal rarg) -> trace ("non-total argument: " ++ show rarg) $ False
       _ -> (isTotal rarg && hasCTailCallArg defName rargs)
 
 
@@ -356,7 +356,7 @@ ctailTryArg useCtxPath dname cname mbC mkApp field (rarg:rargs)
                              else return Nothing
   where
     -- create a tail call
-    mkAppNew 
+    mkAppNew
       = \args ->  do cpath <- getCtxPath useCtxPath cname field
                      mkApp cpath (reverse rargs ++ args)
                      {-
@@ -367,7 +367,7 @@ ctailTryArg useCtxPath dname cname mbC mkApp field (rarg:rargs)
                               let cexprdef = DefNonRec (makeTDef y cexpr)
                               let setdef   = DefNonRec (makeTDef x (setfld y))
                               return (defs ++ [cexprdef,setdef], (Var x InfoNone)) -}
-                     
+
 
     -- create the constructor context (ending in a hole)
     mkAppNested :: TName -> Expr -> (CtxPath -> [Expr] -> CTail ([DefGroup],Expr))
@@ -395,8 +395,8 @@ getCtxPath useContextPath cname fieldIdx
        case fieldInfo of
          Left msg -> failure msg -- todo: allow this? see test/cgen/ctail7
          Right (_,fieldName) -> return (CtxField fieldName)
-          
-  
+
+
 
 --------------------------------------------------------------------------
 -- Found a tail call inside a constructor application
@@ -429,7 +429,7 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
                                   consName    <- uniqueTName (typeOf cons)
                                   alwaysAffine <- getIsAlwaysAffine
                                   let comp = makeCCtxExtend slot consName (maybe consName id mbC) cname (getName fieldName) resTp alwaysAffine
-                                      ctailCall   = mkTailApp ctailVar comp 
+                                      ctailCall   = mkTailApp ctailVar comp
                                   return $ (defs ++ [DefNonRec (makeTDef consName cons)]
                                             ,ctailCall)
 
@@ -450,7 +450,7 @@ makeHole tp
 -- Initial empty context (@ctx hole)
 makeCCtxEmpty :: Type -> Expr
 makeCCtxEmpty tp
-  = App (TypeApp (Var (TName nameCCtxEmpty funType) 
+  = App (TypeApp (Var (TName nameCCtxEmpty funType)
                         -- (InfoArity 1 0)
                         (InfoExternal [(C CDefault,"kk_cctx_empty(kk_context())"),(JS JsDefault,"$std_core_types._cctx_empty()")])
                       ) [tp]) []
@@ -474,14 +474,14 @@ makeFieldAddrOf objName conName fieldName tp
 makeCCtxExtend :: TName -> TName -> TName -> TName -> Name -> Type -> Bool -> Expr
 makeCCtxExtend slot resName objName conName fieldName tp alwaysAffine
   = let fieldOf = makeFieldAddrOf objName conName fieldName tp
-    in  App (TypeApp (Var (TName nameCCtxExtend funType) 
-                -- (InfoArity 1 3) 
-                (InfoExternal [(C CDefault,"kk_cctx_extend(#1,#2,#3," ++ affine ++ ",kk_context())"),
+    in  App (TypeApp (Var (TName nameCCtxExtend funType)
+                -- (InfoArity 1 3)
+                (InfoExternal [(C CDefault,"kk_cctx_extend" ++ (if alwaysAffine then "_linear" else "")
+                                            ++ "(#1,#2,#3,kk_context())"),
                                (JS JsDefault,"$std_core_types._cctx_extend(#1,#2,#3)")])
             ) [tp])
             [Var slot InfoNone, Var resName InfoNone, fieldOf]
   where
-    affine = if alwaysAffine then "true" else "false"
     funType = TForall [a] [] (TFun [(nameNil,typeCCtx (TVar a)),
                                     (nameNil,TVar a),
                                     (nameNil,TApp typeFieldAddr [TVar a])] typeTotal (typeCCtx (TVar a)))
@@ -494,14 +494,14 @@ makeCCtxApply :: Bool {-isMulti-} -> Bool {-isAlwaysAffine-} -> TName -> Expr ->
 makeCCtxApply True _ slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
   = App (Var slot InfoNone) [expr]
 makeCCtxApply False alwaysAffine slot expr  -- slot is a `ctail<a>`
-  = App (TypeApp (Var (TName nameCCtxApply funType) 
+  = App (TypeApp (Var (TName nameCCtxApply funType)
                         -- (InfoArity 1 2)
-                        (InfoExternal [(C CDefault,"kk_cctx_apply(#1,#2," ++ affine ++ ",kk_context())"),
+                        (InfoExternal [(C CDefault,"kk_cctx_apply" ++ (if alwaysAffine then "_linear" else "")
+                                                    ++ "(#1,#2,kk_context())"),
                                        (JS JsDefault,"$std_core_types._cctx_apply(#1,#2)")])
                       ) [tp])
         [Var slot InfoNone, expr]
   where
-    affine = if alwaysAffine then "true" else "false"
     tp = case typeOf slot of
            TApp _ [t] -> t
            TSyn _ [t] _ -> t
@@ -601,17 +601,17 @@ getIsMulti
 
 getUseContextPath :: CTail Bool
 getUseContextPath
-  = useContextPath <$> getEnv  
+  = useContextPath <$> getEnv
 
 getIsAlwaysAffine :: CTail Bool
 getIsAlwaysAffine
-  = alwaysAffine <$> getEnv  
+  = alwaysAffine <$> getEnv
 
 getFieldName :: TName -> Int -> CTail (Either String (Expr,TName))
 getFieldName cname field
   = do env <- getEnv
        case newtypesLookupAny (getDataTypeName cname) (newtypes env) of
-         Just dataInfo -> 
+         Just dataInfo ->
            do let (dataRepr,_) = getDataRepr dataInfo
               if (dataReprIsValue dataRepr)
                 then return (Left ("cannot optimize modulo-cons tail-call through a value type (" ++ show (getName cname) ++ ")"))

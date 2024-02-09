@@ -30,15 +30,15 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   }
   else {
     kk_block_drop_free_recx(b, ctx); // free recursively
-    // TODO: for performance unroll one iteration for scan_fsize == 1 
-    // and scan_fsize == 2 with the first field an non-ptr ?    
+    // TODO: for performance unroll one iteration for scan_fsize == 1
+    // and scan_fsize == 2 with the first field an non-ptr ?
   }
 }
 
 
 
 /*--------------------------------------------------------------------------------------
-  Checked reference counts. 
+  Checked reference counts.
 
   positive:
     0               : unique reference
@@ -51,8 +51,8 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
     INT32_MIN+0x20000001 to -2                    : thread-shared reference counts with atomic increment/decrement. (~1.6e9 counts)
     -1                                            : thread-shared reference count that is unique now (RC_SHARED_UNIQUE)
 
-  
-  0 <= refcount <= MAX_INT32 
+
+  0 <= refcount <= MAX_INT32
     regular reference counts where use 0 for a unique reference. So a reference count of 10 means there
     are 11 reference (from the current thread only).
     If it is dup'd beyond MAX_INT32 it'll overflow automatically into the sticky range (as a negative value)
@@ -198,7 +198,7 @@ kk_decl_noinline void kk_block_check_decref(kk_block_t* b, kk_refcount_t rc0, kk
 
 
 /*--------------------------------------------------------------------------------------
-  Decrementing reference counts without free-ing  
+  Decrementing reference counts without free-ing
 --------------------------------------------------------------------------------------*/
 
 // Decrement a shared refcount without freeing the block yet. Returns true if there are no more references.
@@ -231,43 +231,43 @@ static bool kk_block_decref_no_free(kk_block_t* b) {
 
 //-----------------------------------------------------------------------------------------
 // Drop a block and its children without using further stack space.
-// 
+//
 // The stack-less algorithm without delay list was initially created by Anton Lorenzen.
-// It maintains a parent stack in the first field of visited objects, with the 
+// It maintains a parent stack in the first field of visited objects, with the
 // next field to process as an 8-bit value in the `_field_idx` (also used by marking)
 // (and it is faster than a recursive version so we only have a stackless free)
 //-----------------------------------------------------------------------------------------
 
-// Check if a field `i` in a block `b` should be freed, i.e. it is heap allocated with a refcount of 0. 
-// Optimizes by already freeing leaf blocks that are heap allocated but have no scan fields. 
+// Check if a field `i` in a block `b` should be freed, i.e. it is heap allocated with a refcount of 0.
+// Optimizes by already freeing leaf blocks that are heap allocated but have no scan fields.
 
-static inline kk_block_t* kk_block_field_should_free(kk_block_t* b, kk_ssize_t field, kk_context_t* ctx) { 
-  kk_box_t v = kk_block_field(b, field); 
+static inline kk_block_t* kk_block_field_should_free(kk_block_t* b, kk_ssize_t field, kk_context_t* ctx) {
+  kk_box_t v = kk_block_field(b, field);
   if (kk_box_is_non_null_ptr(v)) {
-    kk_block_t* child = kk_ptr_unbox(v,ctx); 
+    kk_block_t* child = kk_ptr_unbox(v,ctx);
     kk_assert_internal(kk_block_is_valid(child));
     if (kk_block_decref_no_free(child)) {
-      uint8_t v_scan_fsize = child->header.scan_fsize; 
-      if (v_scan_fsize == 0) { // free leaf nodes directly and pretend it was not a ptr field 
+      uint8_t v_scan_fsize = child->header.scan_fsize;
+      if (v_scan_fsize == 0) { // free leaf nodes directly and pretend it was not a ptr field
         if kk_unlikely(kk_tag_is_raw(kk_block_tag(child))) { kk_block_free_raw(child,ctx); }  // potentially call custom `free` function on the data
-        kk_block_free(child,ctx); 
-      } 
-      else { 
-        return child; 
+        kk_block_free(child,ctx);
+      }
+      else {
+        return child;
       }
     }
   }
-  return NULL; 
+  return NULL;
 }
 
 
-// Drop a large block (e.g. kk_vector_t) recursively. This is only used 
+// Drop a large block (e.g. kk_vector_t) recursively. This is only used
 // for vectors with > 255 (KK_SCAN_FSIZE_MAX) elements.
 // We just iterate through the elements which is efficient but we use the stack
-// for each recursion over these vectors; the idea is that vectors will not be 
-// deeply nested. (We could improve this by only recursing for vectors with more than 2^32 elements 
+// for each recursion over these vectors; the idea is that vectors will not be
+// deeply nested. (We could improve this by only recursing for vectors with more than 2^32 elements
 // (which fits in a refcount)).
-static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_context_t* ctx) 
+static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_context_t* ctx)
 {
   kk_assert_internal(b->header.scan_fsize == KK_SCAN_FSIZE_MAX);
   kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
@@ -275,7 +275,7 @@ static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_cont
     kk_block_t* child = kk_block_field_should_free(b, i, ctx);
     if (child != NULL) {
       // free field recursively
-      kk_block_drop_free_recx(child, ctx);        
+      kk_block_drop_free_recx(child, ctx);
     }
   }
   // and free the vector itself
@@ -283,7 +283,7 @@ static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_cont
 }
 
 // Recursively free a block and drop its children without using stack space
-static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t* ctx) 
+static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t* ctx)
 {
   kk_assert_internal(b->header.scan_fsize > 0);
   kk_block_t* parent = NULL;
@@ -351,7 +351,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
       kk_block_free(b,ctx);
       // goto move_up; // fallthrough
     }
-    
+
   // ------- move up along the parent chain ------------
   // move_up:
     if (parent != NULL) {
@@ -368,7 +368,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
 
 #if 0
 // Recursively free a block and drop its children without using stack space
-static kk_decl_noinline void kk_block_drop_free_rec_old(kk_block_t* b, kk_context_t* ctx) 
+static kk_decl_noinline void kk_block_drop_free_rec_old(kk_block_t* b, kk_context_t* ctx)
 {
   kk_assert_internal(b->header.scan_fsize > 0);
   kk_block_t* parent = NULL;
@@ -454,7 +454,7 @@ static kk_decl_noinline void kk_block_drop_free_rec_old(kk_block_t* b, kk_contex
         }
         // and continue with the child
         b = child;
-        goto movedown;        
+        goto movedown;
       }
     } while (i < scan_fsize);
     // done: free the block and move up further
@@ -498,15 +498,15 @@ static inline kk_block_t* kk_block_field_should_mark(kk_block_t* b, kk_ssize_t f
   }
   return NULL;
 }
-  
+
 // Recurse up to `depth` while marking objects
-static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ssize_t depth, kk_context_t* ctx) 
+static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ssize_t depth, kk_context_t* ctx)
 {
   while(true) {
     if (kk_block_is_thread_shared(b)) {
       return;
-    } 
-    
+    }
+
     kk_ssize_t scan_fsize = b->header.scan_fsize;
     kk_assert_internal(scan_fsize > 0);
     if (scan_fsize == 1) {
@@ -535,8 +535,8 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ss
       if (depth < MAX_RECURSE_DEPTH) {
         kk_block_make_shared(b);
         kk_ssize_t i = 0;
-        if kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX) { 
-          scan_fsize = (kk_ssize_t)kk_intf_unbox(kk_block_field(b, 0)); 
+        if kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX) {
+          scan_fsize = (kk_ssize_t)kk_intf_unbox(kk_block_field(b, 0));
           i++;  // skip scan field
         }
         // mark fields up to the last one
@@ -544,14 +544,14 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ss
           kk_block_t* child = kk_block_field_should_mark(b, i, ctx);
           if (child != NULL) {
             kk_block_mark_shared_rec(child, depth+1, ctx); // recurse with increased depth
-          }          
+          }
         }
         // and recurse into the last one
         kk_block_t* child = kk_block_field_should_mark(b, i, ctx);
         if (child != NULL) {
           b = child;
           scan_fsize = b->header.scan_fsize;
-          continue; // tailcall          
+          continue; // tailcall
         }
         return;
       }
@@ -581,7 +581,7 @@ static kk_decl_noinline void kk_block_mark_shared_recx_large(kk_block_t* b, kk_c
 // Unfortunately, we cannot use the _field_idx as the index for marking
 // as we also use it for tail recursion context paths. Such TRMC structure may
 // be captured under a lambda (by yielding for example) and that might become
-// thread shared and we cannot overwrite such indices. 
+// thread shared and we cannot overwrite such indices.
 // (This is unlike freeing where we can use it as we are freeing it anyways)
 // So, we steal 8 bits of an unshared reference count. If the reference count
 // is too large we just set it to RC_STUCK when it gets marked.
@@ -589,11 +589,11 @@ static kk_decl_noinline void kk_block_mark_shared_recx_large(kk_block_t* b, kk_c
 
 static void kk_block_mark_idx_prepare(kk_block_t* b) {
   kk_refcount_t rc = kk_block_refcount(b);
-  kk_assert_internal(!kk_refcount_is_thread_shared(rc)); 
+  kk_assert_internal(!kk_refcount_is_thread_shared(rc));
   if (rc > KK_RC_MARK_MAX) { rc = KK_RC_MARK_MAX; }   // if rc is too large, cap it
   rc = kk_shl32(rc,8);                                // make room for 8-bit mark index
   kk_assert_internal(rc>=0);
-  kk_assert_internal((rc & 0xFF) == 0);  
+  kk_assert_internal((rc & 0xFF) == 0);
   kk_block_refcount_set(b, rc);
 }
 
@@ -619,7 +619,7 @@ static uint8_t kk_block_mark_idx(kk_block_t* b) {
 }
 
 // Stackless marking by using pointer reversal
-static kk_decl_noinline void kk_block_mark_shared_recx(kk_block_t* b, kk_context_t* ctx) 
+static kk_decl_noinline void kk_block_mark_shared_recx(kk_block_t* b, kk_context_t* ctx)
 {
   fprintf(stderr, "mark shared recx\n");
   kk_block_t* parent = NULL;
@@ -665,14 +665,14 @@ markfields:
     // move up
     i = kk_block_mark_idx(parent);
     scan_fsize = parent->header.scan_fsize;
-    kk_assert_internal(i > 0 && i <= scan_fsize);    
+    kk_assert_internal(i > 0 && i <= scan_fsize);
     kk_block_t* pparent = kk_box_to_potential_null_ptr( kk_block_field(parent, i-1), ctx );  // low-level unbox on parent
     kk_block_field_set(parent, i-1, kk_ptr_box(b,ctx));                           // restore original pointer
     b = parent;
     parent = pparent;
     kk_assert_internal(!kk_block_is_thread_shared(b));
     // mark the rest of the fields starting at `i` upto `scan_fsize`
-    goto markfields;    
+    goto markfields;
   }
 
   // done
@@ -729,10 +729,10 @@ kk_decl_export kk_decl_noinline kk_box_t kk_cctx_copy(kk_box_t res, kk_box_t* ho
     const kk_ssize_t field = kk_block_field_idx(b) - 1;
     kk_assert_internal(field >= 0);
     kk_block_t* c = kk_block_alloc_copy(b,ctx);
-    if (next == NULL) { 
+    if (next == NULL) {
       cres = kk_ptr_box(c, ctx);
     }
-    else { 
+    else {
       kk_box_drop(*next,ctx);
       *next = kk_ptr_box(c, ctx);
     }
@@ -751,6 +751,19 @@ kk_decl_export kk_decl_noinline kk_box_t kk_cctx_copy_apply(kk_box_t res, kk_box
   kk_assert_internal(choleptr != NULL);
   *choleptr = child;
   return cres;
+}
+
+#else
+
+kk_decl_export kk_decl_noinline kk_box_t kk_cctx_copy(kk_box_t res, kk_box_t* holeptr, kk_box_t** newholeptr, kk_context_t * ctx) {
+  kk_assert_internal(false);
+  *newholeptr = holeptr;
+  return res;
+}
+
+kk_decl_export kk_decl_noinline kk_box_t kk_cctx_copy_apply(kk_box_t res, kk_box_t* holeptr, kk_box_t child, kk_context_t* ctx) {
+  kk_assert_internal(false);
+  return res;
 }
 
 #endif
