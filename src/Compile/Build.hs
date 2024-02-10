@@ -100,6 +100,7 @@ modulesBuild mainEntries modules
        codegenMap  <- modmapCreate modules
        linkedMap   <- modmapCreate modules
        let buildOrder = map modName modules
+       addWork ((length modules) * 5) -- 5 phases
        compiled    <- seqList buildOrder $
                       mapConcurrentModules
                        (moduleCompile mainEntries parsedMap tcheckedMap optimizedMap codegenMap linkedMap buildOrder)
@@ -113,6 +114,7 @@ modulesTypeCheck modules
   = phaseTimed 3 "checking" (const Lib.PPrint.empty) $
     do parsedMap   <- modmapCreate modules
        tcheckedMap <- modmapCreate modules
+       addWork ((length modules) * 2) -- 2 phases
        tchecked    <- mapConcurrentModules (moduleTypeCheck parsedMap tcheckedMap) modules
        -- modmapClear tcheckedMap
        return tchecked -- modulesFlushErrors tchecked
@@ -197,8 +199,13 @@ moduleGuard expectPhase targetPhase modmap fromRes toRes initial action mod0
        let mod = fromRes res
        seq mod $ buildFinally (edone mod) $
         if (modPhase mod < expectPhase || modPhase mod >= targetPhase)
-          then done mod
-          else action done res
+          then do
+            addWorkDone (modPhase mod)
+            done mod
+          else do
+            res' <- action done res
+            addWorkDone targetPhase
+            return res'
   where
     edone mod = seq mod $
                 do modmapTryPut modmap mod  -- fails if it was already set
@@ -887,10 +894,35 @@ data Env = Env { envTerminal :: Terminal,
                  envVFS      :: VFS,
                  envModName  :: ModuleName,   -- for better error reporting
                  envErrors   :: IORef Errors, -- we use fresh IORef's if mapping concurrently
+                 envWork     :: IORef Int,    -- Keep track of work to do (each phase of each module counts as one unit of work)
+                 envWorkDone :: IORef Int,    -- Keep track of module phases completed
+                 envLatestPhase   :: IORef ModulePhase,    -- Latest Module Phase
                  envSemPooled     :: QSem,    -- limit I/O concurrency
                  envSemSequential :: QSem     -- limit some I/O to be atomic
                }
 
+addWork :: Int -> Build ()
+addWork add = do
+  env <- getEnv
+  liftIO $ atomicModifyIORef' (envWork env) (\i -> (i + add, ()))
+
+-- Finishes one unit of work and reports it via the termProgress printer
+addWorkDone :: ModulePhase -> Build ()
+addWorkDone phase = do
+  env <- getEnv
+  liftIO $ atomicModifyIORef' (envWorkDone env) (\i -> (i + 1, ()))
+  latestPhase <- liftIO $ atomicModifyIORef' (envLatestPhase env) 
+    (\p -> (if fromEnum phase > fromEnum p && not (isErrorPhase p) then (phase, phase) else (p, p)))
+  progress <- getWorkProgress
+  liftIO $ termProgress (envTerminal env) (progress, Just (text (phaseProgress latestPhase)))
+
+-- Gets the work done as a percentage
+getWorkProgress :: Build Double
+getWorkProgress = do
+  env <- getEnv
+  work <- liftIO $ readIORef (envWork env)
+  workDone <- liftIO $ readIORef (envWorkDone env)
+  return ((fromIntegral workDone) / (fromIntegral work))
 
 runBuildMaybe :: Terminal -> Flags -> Build (Maybe a) -> IO (Maybe a)
 runBuildMaybe term flags action
@@ -935,7 +967,10 @@ runBuild term flags cmp
        semSequential <- newQSem 1
        termProxyDone <- newEmptyMVar
        (termProxy,stop) <- forkTerminal term termProxyDone
-       finally (runBuildEnv (Env termProxy flags noVFS nameNil errs semPooled semSequential) cmp)
+       work          <- newIORef 0
+       workDone      <- newIORef 0
+       latestPhase   <- newIORef PhaseInit
+       finally (runBuildEnv (Env termProxy flags noVFS nameNil errs work workDone latestPhase semPooled semSequential) cmp)
                (do stop
                    readMVar termProxyDone)
 
@@ -947,6 +982,7 @@ forkTerminal term termProxyDone
        forkIO (handleOutput ch `finally` putMVar termProxyDone ())
        let termProxy = Terminal (writeChan ch . Just . termError term)
                                 (writeChan ch . Just . termTrace term)
+                                (writeChan ch . Just . termProgress term)
                                 (writeChan ch . Just . termPhase term)
                                 (writeChan ch . Just . termInfo term)
        return (termProxy, writeChan ch Nothing)

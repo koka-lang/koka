@@ -21,6 +21,7 @@ module Compile.Module( Module(..), ModulePhase(..)
                      , Modules
                      , inlinesFromModules -- , mergeModules
                      , mergeModulesLeftBias
+                     , phaseProgress, isErrorPhase
                      ) where
 
 import Lib.Trace
@@ -71,7 +72,7 @@ data ModulePhase
   | PhaseLibIfaceLoaded -- a (library) interface is loaded but it's kki and libs are not yet copied to the output directory
   | PhaseLinkedError
   | PhaseLinked         -- kki and object files are generated (and exe linked for a main module)
-  deriving (Eq,Ord,Show)
+  deriving (Eq,Ord,Show,Enum)
 
 data Module  = Module{ -- initial
                        modPhase       :: !ModulePhase
@@ -253,3 +254,27 @@ inlinesFromModules modules
       = case modInlines mod of
           Right idefs -> idefs
           _           -> []      -- todo: interface files should go from typed to compiled after we resolve these
+
+phaseProgress :: ModulePhase -> String
+phaseProgress latest =
+  case latest of
+    PhaseInit -> "Determining Dependencies..."
+    PhaseLexed -> "Lexing..."
+    PhaseParsedError -> "Encountered ParseError"
+    PhaseParsed -> "Parsing..."      
+    PhaseTypedError -> "Encountered TypeError"
+    PhaseTyped -> "Type Checking..."
+    PhaseIfaceLoaded -> "Loading Interface Files..."
+    PhaseOptimized -> "Optimizing..."
+    PhaseCodeGen -> "Code Gen..."
+    PhaseLibIfaceLoaded -> "Copying Libraries to Output..."
+    PhaseLinkedError -> "Encountered Link error"
+    PhaseLinked -> "Linking..."
+
+isErrorPhase :: ModulePhase -> Bool
+isErrorPhase phase =
+  case phase of
+    PhaseParsedError -> True
+    PhaseTypedError -> True
+    PhaseLinkedError -> True
+    _ -> False

@@ -121,17 +121,17 @@ messageHandler msgs env state = do
     runLSM (sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams msgType $ T.pack msg) state env
 
 -- Handles messages to send to the client, just spins and sends
-progressHandler :: TChan String -> LanguageContextEnv () -> MVar LSState -> IO ()
+progressHandler :: TChan (Double,String) -> LanguageContextEnv () -> MVar LSState -> IO ()
 progressHandler msgs env state = do
   forever $ do
-    msg <- atomically $ readTChan msgs
+    (pct, msg) <- atomically $ readTChan msgs
     runLSM (do
-        -- trace ("Progress: " <> msg) $ return ()
+        -- trace ("Progress: " <> show pct <> "%") $ return ()
         report <- getProgress
         case report of
           Just report -> do
-            -- trace ("Progress: " <> msg) $ return ()
-            report (J.ProgressAmount (Just 1) (Just $ T.pack msg))
+            -- trace ("Progress Reporting: " <> show pct <> "% " <> show (round amt)) $ return ()
+            report (J.ProgressAmount (Just (round pct)) (Just $ T.pack msg))
           Nothing -> return ()
       ) state env
 

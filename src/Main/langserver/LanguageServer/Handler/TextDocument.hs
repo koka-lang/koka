@@ -39,7 +39,7 @@ import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.Diagnostics (partitionBySource)
-import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler)
+import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler, withProgress, ProgressCancellable (..))
 import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
 import Lib.PPrint (text, (<->), (<+>), color, Color (..))
 
@@ -51,14 +51,13 @@ import Compile.Options( Flags (maxErrors) )
 import Compile.BuildContext
 import LanguageServer.Conversions
 import LanguageServer.Monad
+import qualified Language.LSP.Server as J
 
 
 -- Compile the file on opening
 didOpenHandler :: Handlers LSM
 didOpenHandler = notificationHandler J.SMethod_TextDocumentDidOpen $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
-  let version = msg ^. J.params . J.textDocument . J.version
-  flags <- getFlags
   rebuildUri Nothing Nothing (J.toNormalizedUri uri)
   return ()
 
@@ -66,17 +65,13 @@ didOpenHandler = notificationHandler J.SMethod_TextDocumentDidOpen $ \msg -> do
 didChangeHandler :: Handlers LSM
 didChangeHandler = notificationHandler J.SMethod_TextDocumentDidChange $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
-  let version = msg ^. J.params . J.textDocument . J.version
-  flags <- getFlags
-  trace ("koka: on change: " ++ show uri) $
-    rebuildUri Nothing Nothing (J.toNormalizedUri uri)
+  rebuildUri Nothing Nothing (J.toNormalizedUri uri)
   return ()
 
 -- Saving a file just recompiles it
 didSaveHandler :: Handlers LSM
 didSaveHandler = notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
   let uri = msg ^. J.params . J.textDocument . J.uri
-  flags <- getFlags
   rebuildUri Nothing Nothing (J.toNormalizedUri uri)
   return ()
 
@@ -142,30 +137,34 @@ rebuildUri mbFlags mbRun uri
 
 rebuildFile :: Maybe Flags -> Maybe Name -> J.NormalizedUri -> FilePath -> LSM (Maybe FilePath)
 rebuildFile mbFlags mbRun uri fpath
-    = trace ("\nkoka: rebuild file: " ++ fpath) $
+    = -- trace ("\nkoka: rebuild file: " ++ fpath) $
       do updateVFS
-         mbRes <- -- run build with diagnostics
-                  liftBuildDiag mbFlags uri $ \buildc0 ->
-                  -- get all errors from the returned build context
-                  buildcLiftErrors fst $
-                  -- we build with a focus so we only build what is needed for file, avoiding rebuilding non-dependencies
-                  do (buildc1,[focus]) <- buildcAddRootSources [fpath] buildc0
-                     buildcFocus [focus] buildc1 $ \focusMods buildcF ->
-                        case mbRun of
-                          -- just type check
-                          Nothing    -> -- trace ("koka: rebuild: type check " ++ show focus) $
-                                        do bc <- buildcTypeCheck [focus] buildcF  -- only force on "open" to build range maps etc.
-                                                 -- buildcBuildEx False [focus] [] buildcF
-                                           return (bc,Nothing)
-                          -- full build and return the executable
-                          Just entry -> do let qentry = if isQualified entry then entry else qualify focus entry
-                                           (bc,res) <- buildcCompileEntry False qentry buildcF
-                                           case res of
-                                              Just (tp, Just (exe,run)) -> return (bc,Just exe)
-                                              _                         -> return (bc,Nothing)
-         case mbRes of
-           Just mbPath -> return mbPath
-           Nothing     -> return Nothing
+         withProgress (T.pack $ "Koka: " ++ fpath) J.NotCancellable $ \report -> do
+            setProgress (Just report)
+            mbRes <- -- run build with diagnostics
+                     liftBuildDiag mbFlags uri $ \buildc0 ->
+                     -- get all errors from the returned build context
+                     buildcLiftErrors fst $
+                     -- we build with a focus so we only build what is needed for file, avoiding rebuilding non-dependencies
+                     do (buildc1,[focus]) <- buildcAddRootSources [fpath] buildc0
+                        buildcFocus [focus] buildc1 $ \focusMods buildcF ->
+                            case mbRun of
+                              -- just type check
+                              Nothing    -> -- trace ("koka: rebuild: type check " ++ show focus) $
+                                            do bc <- buildcTypeCheck [focus] buildcF  -- only force on "open" to build range maps etc.
+                                                    -- buildcBuildEx False [focus] [] buildcF
+                                               return (bc,Nothing)
+                              -- full build and return the executable
+                              Just entry -> do let qentry = if isQualified entry then entry else qualify focus entry
+                                               (bc,res) <- buildcCompileEntry False qentry buildcF
+                                               case res of
+                                                  Just (tp, Just (exe,run)) -> return (bc,Just exe)
+                                                  _                         -> return (bc,Nothing)
+            setProgress Nothing
+            case mbRes of
+              Just mbPath -> return mbPath
+              Nothing     -> return Nothing
+            
 
 
 -- Run a build monad and emit diagnostics if needed.

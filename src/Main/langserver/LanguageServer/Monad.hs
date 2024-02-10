@@ -60,6 +60,7 @@ import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Server as J
 
 import Lib.PPrint hiding (empty)
+import qualified Lib.PPrint as PP
 import Lib.Printer
 import Common.ColorScheme ( colorSource, ColorScheme, darkColorScheme, lightColorScheme )
 import Common.Name (nameNil, Name, readQualifiedName, ModuleName)
@@ -78,13 +79,14 @@ import LanguageServer.Conversions ({-toLspUri,-} fromLspUri)
 import Data.Map.Strict(Map)
 import Data.ByteString (ByteString)
 import GHC.IO.Encoding (BufferCodec(getState))
+import Numeric
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState {
   buildContext      :: !BuildContext,
 
   messages          :: !(TChan (String, J.MessageType)),
-  progress          :: !(TChan String),
+  progress          :: !(TChan (Double, String)),
   flags             :: !Flags,
   terminal          :: !Terminal,
   progressReport    :: !(Maybe (J.ProgressAmount -> LSM ())),
@@ -134,7 +136,7 @@ modifyLSState f = do
 defaultLSState :: Flags -> IO LSState
 defaultLSState flags = do
   msgChan <- atomically newTChan :: IO (TChan (String, J.MessageType))
-  progressChan <- atomically newTChan :: IO (TChan String)
+  progressChan <- atomically newTChan :: IO (TChan (Double, String))
   pendingRequests <- newTVarIO Set.empty
   cancelledRequests <- newTVarIO Set.empty
   fileVersions <- newTVarIO M.empty
@@ -145,19 +147,25 @@ defaultLSState flags = do
         tp <- (f . PAnsiString) p
         ansiString <- takeVar stringVar
         atomically $ writeTChan msgChan (ansiString, tp)
-  let withNewProgressPrinter doc = do
-        atomically $ writeTChan progressChan (show doc)
+  let withNewProgressPrinter percent mbdoc = do
+        let perc = 100 * percent
+        atomically $ writeTChan progressChan 
+          (perc, 
+            case mbdoc of 
+              Just doc -> show $ doc <+> text ((showFFloat (Just 2) perc) "") <.> text "% done";
+              Nothing -> show $ text ((showFFloat (Just 2) perc) "") <.> text "% done"
+            )
   cwd <- getCwd
   let cscheme = colorScheme flags
       prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ TP.context = ctx, TP.importsMap = imports }
       term = Terminal (\err -> withNewPrinter $ \p -> do putErrorMessage p cwd (showSpan flags) cscheme err; return J.MessageType_Error)
                 (if verbose flags > 1 then (\msg -> withNewPrinter $ \p -> do withColor p (colorSource cscheme) (writeLn p msg); return J.MessageType_Info)
                                          else (\_ -> return ()))
-                 (if verbose flags > 0 then (\msg -> do
-                    _ <- withNewPrinter $ \p -> do
+                 (\(percent, mbdoc) -> withNewProgressPrinter percent mbdoc)
+                 (if verbose flags > 0 then (\msg ->
+                    withNewPrinter $ \p -> do
                       writePrettyLn p msg
                       return J.MessageType_Info
-                    withNewProgressPrinter msg
                     )
                   else (\_ -> return ()))
                  (\msg -> withNewPrinter $ \p -> do

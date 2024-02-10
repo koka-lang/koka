@@ -508,6 +508,7 @@ terminal st
   = Terminal (\err -> messageErrorMsgLn st [err])
              (if (verbose (flags st) > 2)
                then (\s -> withColor (printer st) (colorSource (colorSchemeFromFlags (flags st))) (message st (s ++ "\n"))) else (\_ -> return ()))
+             (\_ -> return ())
              (messagePrettyLn st)  -- (\_ -> return ()) --
              (messagePrettyLn st)
 

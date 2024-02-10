@@ -128,6 +128,7 @@ compileAll p flags fpaths
       = Terminal (putErrorMessage p cwd (showSpan flags) cscheme)
                  (if (verbose flags > 1) then (\msg -> withColor p (colorSource cscheme) (writeLn p msg))
                                          else (\_ -> return ()))
+                 (\_ -> return ())
                  (if (verbose flags > 0) then writePrettyLn p else (\_ -> return ()))
                  (writePrettyLn p)
 
