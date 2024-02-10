@@ -14,12 +14,12 @@
 {-# LANGUAGE DataKinds #-}
 module LanguageServer.Run (runLanguageServer) where
 
-import System.Exit            ( exitFailure )
+import System.Exit            ( exitFailure, die )
 import GHC.IO.IOMode (IOMode(ReadWriteMode))
 import GHC.Conc (atomically)
 import GHC.IO.Handle (BufferMode(NoBuffering), hSetBuffering)
-import GHC.IO.StdHandles (stdout, stderr)
-import Control.Monad (void, forever)
+import GHC.IO.StdHandles (stdin, stdout, stderr)
+import Control.Monad (void, forever, when, guard)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.STM ( atomically )
 import Control.Concurrent.STM.TChan ( newTChan, readTChan, TChan )
@@ -37,61 +37,69 @@ import Network.Simple.TCP ( connect )
 import Network.Socket ( socketToHandle )
 import LanguageServer.Handlers ( lspHandlers, ReactorInput(..) )
 import LanguageServer.Monad (newLSStateVar, runLSM, LSM, getLSState, LSState (messages, progress), getProgress, updateSignatureContext, SignatureContext(..))
-import Compile.Options (Flags (languageServerPort))
+import Compile.Options (Flags (languageServerPort, languageServerStdio))
 import Debug.Trace (trace)
+import Control.Exception.Base (throw)
+import Control.Exception (catchJust)
+import System.IO.Error (isDoesNotExistError)
 
 runLanguageServer :: Flags -> [FilePath] -> IO ()
 runLanguageServer flags files = do
-  if languageServerPort flags == -1 then do
-    putStr "No port specified for language server\n. Use --lsport=<port> to specify a port."
+  when (not useStdio && languageServerPort flags == -1) $ do
+    putStrLn "No port specified for language server.\nUse --lsport=<port> to specify a port or --lsstdio to use stdio."
     exitFailure
-  else return ()
   -- Have to set line buffering, otherwise the client doesn't receive data until buffers fill up
   hSetBuffering stdout NoBuffering
   hSetBuffering stderr NoBuffering
-  -- Connect to localhost on the port given by the client
-  connect "127.0.0.1" (show $ languageServerPort flags) (\(socket, _) -> do
-    -- Create a handle to the client from the socket
-    handle <- socketToHandle socket ReadWriteMode
-    -- Create a new language server state
-    state <- newLSStateVar flags
-    -- Get the message channel
-    messageChan <- liftIO $ messages <$> readMVar state
-    progressChan <- liftIO $ progress <$> readMVar state
-    -- Create a new channel for the reactor to receive messages on
-    rin <- atomically newTChan :: IO (TChan ReactorInput)
-    void $
-      runServerWithHandles
-        ioLogger
-        lspLogger
-        handle
-        handle
-        $
-        ServerDefinition
-          { parseConfig = const $ const $ Right (),
-            onConfigChange = const $ pure (),
-            defaultConfig = (),
-            configSection = T.pack "koka",
-            -- Two threads, the request thread and the message thread (so we can send messages to the client, while the compilation is happening)
-            doInitialize = \env _ -> forkIO (reactor rin) >> forkIO (messageHandler messageChan env state) >> forkIO (progressHandler progressChan env state) >> pure (Right env),
-            staticHandlers = \_caps -> lspHandlers rin,
-            interpretHandler = \env -> Iso (\lsm -> runLSM lsm state env) liftIO,
-            options =
-              defaultOptions
-                { optTextDocumentSync = Just syncOptions,
-                  optExecuteCommandCommands = Just [T.pack "koka/compile", T.pack "koka/compileFunction", T.pack "koka/signature-help/set-context"],
-                  optCompletionTriggerCharacters = Just ['.', ':', '/', ' '],
-                  optSignatureHelpTriggerCharacters = Just ['(', ',', ' ']
-                -- TODO: ? https://www.stackage.org/haddock/lts-18.21/lsp-1.2.0.0/src/Language.LSP.Server.Core.html#Options
-                }
-          })
+  if useStdio then do
+    hSetBuffering stdin NoBuffering
+    runLanguageServerWithHandles stdin stdout
+    -- Connect to localhost on the port given by the client
+  else catchJust (guard . isDoesNotExistError)
+         (connect "127.0.0.1" (show $ languageServerPort flags) (\(socket, _) -> do
+            -- Create a handle to the client from the socket
+            handle <- socketToHandle socket ReadWriteMode
+            runLanguageServerWithHandles handle handle))
+         (\_ -> die $ "nothing was listening on port " ++ show (languageServerPort flags))
   where
-    -- io logger, prints all log level messages to stdout
+    useStdio = languageServerStdio flags
+    runLanguageServerWithHandles inHandle outHandle = do
+      -- Create a new language server state
+      state <- newLSStateVar flags
+      -- Get the message channel
+      messageChan <- liftIO $ messages <$> readMVar state
+      progressChan <- liftIO $ progress <$> readMVar state
+      -- Create a new channel for the reactor to receive messages on
+      rin <- atomically newTChan :: IO (TChan ReactorInput)
+      void $
+        runServerWithHandles
+          ioLogger
+          lspLogger
+          inHandle
+          outHandle
+          $
+          ServerDefinition
+            { parseConfig = const $ const $ Right (),
+              onConfigChange = const $ pure (),
+              defaultConfig = (),
+              configSection = T.pack "koka",
+              -- Two threads, the request thread and the message thread (so we can send messages to the client, while the compilation is happening)
+              doInitialize = \env _ -> forkIO (reactor rin) >> forkIO (messageHandler messageChan env state) >> forkIO (progressHandler progressChan env state) >> pure (Right env),
+              staticHandlers = \_caps -> lspHandlers rin,
+              interpretHandler = \env -> Iso (\lsm -> runLSM lsm state env) liftIO,
+              options =
+                defaultOptions
+                  { optTextDocumentSync = Just syncOptions,
+                    optExecuteCommandCommands = Just [T.pack "koka/compile", T.pack "koka/compileFunction", T.pack "koka/signature-help/set-context"],
+                    optCompletionTriggerCharacters = Just ['.', ':', '/', ' '],
+                    optSignatureHelpTriggerCharacters = Just ['(', ',', ' ']
+                  -- TODO: ? https://www.stackage.org/haddock/lts-18.21/lsp-1.2.0.0/src/Language.LSP.Server.Core.html#Options
+                  }
+            }
+    -- io logger, prints all log level messages to stdout or stderr
     ioLogger :: LogAction IO (WithSeverity LspServerLog)
-    ioLogger = L.cmap show L.logStringStdout
-    stderrLogger :: LogAction IO (WithSeverity T.Text)
-    stderrLogger = L.cmap show L.logStringStderr
-    -- lsp logger, prints all messages to stdout and to the client
+    ioLogger = L.cmap show (if useStdio then L.logStringStderr else L.logStringStdout)
+    -- lsp logger, prints all messages to stdout or stderr and to the client
     lspLogger :: LogAction (LspM config) (WithSeverity LspServerLog)
     lspLogger =
       let clientLogger = L.cmap (fmap (T.pack . show)) defaultClientLogger
