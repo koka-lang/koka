@@ -13,10 +13,18 @@ generating direct C code without needing a runtime system. To learn more:
 
 ### v3.0.5
 
+- Language Server now supports the stdio protocol via the `--language-server --lsstdio` combination of flags.
+
+- VSCode's language server switched to the stdio protocol.
+
+- The build system parallelizes building the module graph in many phases including `Lexing` / `Parsing` / `TypeCheck` / `Generating` / `Linking`.
+
 ### v3.0.4, 2024-01-25
 
 - Improved VS Code integration with better hover and inlay information. 
+
 - Revised `std/core` which is now split in separate modules.
+
 - Fixed infinite expansion bug in the implicit parameter resolver, and various other small bug fixes.
 
 ### v3.0.1, 2024-01-13:

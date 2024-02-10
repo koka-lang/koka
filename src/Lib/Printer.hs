@@ -112,27 +112,27 @@ sanitizeT s
 
 
 -- | Monochrome console
-newtype MonoPrinter  = MonoPrinter ()
+newtype MonoPrinter  = MonoPrinter Handle {- stdout / stderr -}
 
 -- | Use a black and white printer that ignores colors.
-withMonoPrinter :: (MonoPrinter -> IO a) -> IO a
-withMonoPrinter f
-  = f (MonoPrinter ())
+withMonoPrinter :: Handle -> (MonoPrinter -> IO a) -> IO a
+withMonoPrinter h f
+  = f (MonoPrinter h)
 
 instance Printer MonoPrinter where
-  write p s             = putStr $ sanitize s
-  writeText p s         = T.putStr $ sanitizeT s
-  writeLn p s           = putStrLn $ sanitize s
-  writeTextLn p s       = T.putStrLn $ sanitizeT s
-  flush p               = hFlush stdout
-  withColor p c io      = io
-  withBackColor p c io  = io
-  withReverse p r io    = io
-  withUnderline p u io  = io
-  setColor p c          = return ()
-  setBackColor p c      = return ()
-  setReverse p r        = return ()
-  setUnderline p u      = return ()
+  write (MonoPrinter h) s       = hPutStr h $ sanitize s
+  writeText (MonoPrinter h) s   = T.hPutStr h $ sanitizeT s
+  writeLn (MonoPrinter h) s     = hPutStrLn h $ sanitize s
+  writeTextLn (MonoPrinter h) s = T.hPutStrLn h $ sanitizeT s
+  flush (MonoPrinter h)         = hFlush h
+  withColor p c io              = io
+  withBackColor p c io          = io
+  withReverse p r io            = io
+  withUnderline p u io          = io
+  setColor p c                  = return ()
+  setBackColor p c              = return ()
+  setReverse p r                = return ()
+  setUnderline p u              = return ()
 
 
 {--------------------------------------------------------------------------
@@ -376,9 +376,9 @@ withHtmlColorPrinter f
 
 -- | Disable the color output of a color printer.
 -- This can be useful if one wants to avoid overloading.
-withNoColorPrinter :: (ColorPrinter -> IO b) -> IO b
-withNoColorPrinter f
-  = withMonoPrinter (\p -> f (PMono p))
+withNoColorPrinter :: Handle -> (ColorPrinter -> IO b) -> IO b
+withNoColorPrinter h f
+  = withMonoPrinter h (\p -> f (PMono p))
 
 -- | Disable the color output of a color printer.
 -- This can be useful if one wants to avoid overloading.

@@ -45,7 +45,8 @@ ctrace :: Color -> String -> a -> a
 ctrace clr msg x
   = seq (unsafePerformIO $ 
          -- withColorPrinter $ 
-         withNoColorPrinter $
-         \p -> withColor p clr (writeLn p msg)
+         -- Language server needs to not print to stdout since stdout is involved in the jsonrpc protocol
+         withNoColorPrinter stderr $ 
+           \p -> withColor p clr (writeLn p msg)
          -- hPutStrLn stderr msg
         ) x

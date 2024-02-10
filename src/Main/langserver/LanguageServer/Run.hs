@@ -19,6 +19,7 @@ import GHC.IO.IOMode (IOMode(ReadWriteMode))
 import GHC.Conc (atomically)
 import GHC.IO.Handle (BufferMode(NoBuffering), hSetBuffering)
 import GHC.IO.StdHandles (stdin, stdout, stderr)
+import System.IO (hPutStrLn)
 import Control.Monad (void, forever, when, guard)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.STM ( atomically )
@@ -46,7 +47,7 @@ import System.IO.Error (isDoesNotExistError)
 runLanguageServer :: Flags -> [FilePath] -> IO ()
 runLanguageServer flags files = do
   when (not useStdio && languageServerPort flags == -1) $ do
-    putStrLn "No port specified for language server.\nUse --lsport=<port> to specify a port or --lsstdio to use stdio."
+    hPutStrLn stderr "No port specified for language server.\nUse --lsport=<port> to specify a port or --lsstdio to use stdio."
     exitFailure
   -- Have to set line buffering, otherwise the client doesn't receive data until buffers fill up
   hSetBuffering stdout NoBuffering
@@ -125,11 +126,11 @@ progressHandler msgs env state = do
   forever $ do
     msg <- atomically $ readTChan msgs
     runLSM (do
-        trace ("Progress: " <> msg) $ return ()
+        -- trace ("Progress: " <> msg) $ return ()
         report <- getProgress
         case report of
           Just report -> do
-            trace ("Progress: " <> msg) $ return ()
+            -- trace ("Progress: " <> msg) $ return ()
             report (J.ProgressAmount (Just 1) (Just $ T.pack msg))
           Nothing -> return ()
       ) state env

@@ -14,7 +14,7 @@ module Main.Run( runPlain, runWithLS, runWith ) where
 
 import Debug.Trace
 import System.Exit            ( exitFailure )
-import System.IO              ( hPutStrLn, stderr)
+import System.IO              ( hPutStrLn, stdout, stderr)
 import Control.Monad          ( when, foldM )
 import Data.List              ( intersperse)
 import Data.Maybe
@@ -35,7 +35,7 @@ import Kind.ImportMap         ( importsEmpty )
 import Kind.Synonym           ( synonymsIsEmpty, ppSynonyms, synonymsFilter )
 import Kind.Assumption        ( kgammaFilter, ppKGamma )
 import Type.Assumption        ( ppGamma, ppGammaHidden, gammaFilter, createNameInfoX, gammaNew )
-import Type.Pretty            ( ppScheme, Env(context,importsMap,colors), ppName  )
+import Type.Pretty            ( ppScheme, Env(context,importsMap,colors), ppName)
 
 import Compile.Options
 import Compile.BuildContext
@@ -71,12 +71,12 @@ runWithLSArgs runLanguageServer args
                     then withHtmlColorPrinter
                    else if (console flags == "ansi")
                     then withColorPrinter
-                    else withNoColorPrinter
+                    else withNoColorPrinter (if (languageServerStdio flags) then stderr else stdout)
        with (mainMode runLanguageServer flags flags0 mode)
     `catchIO` \err ->
     do if ("ExitFailure" `isPrefix` err)
         then return ()
-        else putStr err
+        else hPutStrLn stderr err
        exitFailure
   where
     isPrefix s t  = (s == take (length s) t)
@@ -88,7 +88,7 @@ mainMode runLanguageServer flags flags0 mode p
      ModeHelp
       -> showHelp flags p
      ModeVersion
-      -> withNoColorPrinter (\monop -> showVersion flags monop)
+      -> withNoColorPrinter stdout (\monop -> showVersion flags monop)
      ModeCompiler files
       -> do ok <- compileAll p flags files
             when (not ok) $
