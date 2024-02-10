@@ -149,12 +149,12 @@ defaultLSState flags = do
         atomically $ writeTChan msgChan (ansiString, tp)
   let withNewProgressPrinter percent mbdoc = do
         let perc = 100 * percent
-        atomically $ writeTChan progressChan 
-          (perc, 
-            case mbdoc of 
-              Just doc -> show $ doc <+> text ((showFFloat (Just 2) perc) "") <.> text "% done";
-              Nothing -> show $ text ((showFFloat (Just 2) perc) "") <.> text "% done"
-            )
+        atomically $ writeTChan progressChan
+          (perc, show (fill 7 (text ((showFFloat (Just 2) perc) "%")) <.>
+                       case mbdoc of
+                         Just doc -> space <+> doc
+                         Nothing  -> space)
+          )
   cwd <- getCwd
   let cscheme = colorScheme flags
       prettyEnv flags ctx imports = (prettyEnvFromFlags flags){ TP.context = ctx, TP.importsMap = imports }

@@ -51,7 +51,7 @@ import Lib.PPrint
 import Platform.Config        ( version, exeExtension, dllExtension, libPrefix, libExtension, pathSep, sourceExtension )
 import Common.Syntax          ( Target(..), isPublic, Visibility(..))
 import Common.Error
-import Common.Failure         ( assertion, HasCallStack )
+import Common.Failure         ( assertion, HasCallStack, failure )
 import Common.File   hiding (getFileTime)
 import qualified Common.File as F
 import qualified Common.NameMap as M
@@ -73,6 +73,7 @@ import Compile.TypeCheck      ( typeCheck )
 import Compile.Optimize       ( coreOptimize )
 import Compile.CodeGen        ( codeGen, Link, LinkResult(..), noLink )
 import Core.Core (Core(coreProgDefs))
+import GHC.IORef (atomicSwapIORef)
 
 
 {---------------------------------------------------------------
@@ -100,8 +101,8 @@ modulesBuild mainEntries modules
        codegenMap  <- modmapCreate modules
        linkedMap   <- modmapCreate modules
        let buildOrder = map modName modules
-       addWork ((length modules) * 5) -- 5 phases
        compiled    <- seqList buildOrder $
+                      withTotalWork (workNeeded PhaseLinked modules) $
                       mapConcurrentModules
                        (moduleCompile mainEntries parsedMap tcheckedMap optimizedMap codegenMap linkedMap buildOrder)
                        modules
@@ -114,10 +115,11 @@ modulesTypeCheck modules
   = phaseTimed 3 "checking" (const Lib.PPrint.empty) $
     do parsedMap   <- modmapCreate modules
        tcheckedMap <- modmapCreate modules
-       addWork ((length modules) * 2) -- 2 phases
-       tchecked    <- mapConcurrentModules (moduleTypeCheck parsedMap tcheckedMap) modules
+       tchecked    <- withTotalWork (workNeeded PhaseTyped modules) $
+                      mapConcurrentModules (moduleTypeCheck parsedMap tcheckedMap) modules
        -- modmapClear tcheckedMap
        return tchecked -- modulesFlushErrors tchecked
+
 
 -- Given a list of cached modules (`cachedImports`), and a set of root modules (`roots`), return a list of
 -- required modules to build the roots in build order, and validated against the
@@ -131,6 +133,35 @@ modulesReValidate rebuild forced cachedImports roots
     do -- rootsv    <- modulesValidate roots
        resolved  <- modulesResolveDependencies rebuild forced cachedImports roots
        return resolved -- modulesFlushErrors resolved
+
+
+-- work units needed to complete a compilation
+workNeeded :: ModulePhase -> [Module] -> Int
+workNeeded maxPhase modules
+  = phaseTotalWork maxPhase * length modules
+
+-- total work units to reach a target phase
+phaseTotalWork :: ModulePhase -> Int
+phaseTotalWork maxPhase
+  = case dropWhile (\(phase,_) -> maxPhase > phase) workAmounts of
+      ((phase,n):_) -> n
+      _             -> failure "Compile.Build.phaseWork: invalid max phase"
+  where
+    workAmounts
+      = accumulate 0 [PhaseParsed,PhaseTyped,PhaseOptimized,PhaseCodeGen,PhaseLinked]
+
+    accumulate n [] = []
+    accumulate n (phase:phases)
+      = let m = n + phaseWorkUnit phase
+        in (phase,m) : accumulate m phases
+
+-- work for a single step to a target phase
+phaseWorkUnit :: ModulePhase -> Int
+phaseWorkUnit phase
+  = case phase of
+      PhaseTyped          -> 2
+      PhaseLinked         -> 3
+      _                   -> 1
 
 
 {---------------------------------------------------------------
@@ -199,16 +230,12 @@ moduleGuard expectPhase targetPhase modmap fromRes toRes initial action mod0
        let mod = fromRes res
        seq mod $ buildFinally (edone mod) $
         if (modPhase mod < expectPhase || modPhase mod >= targetPhase)
-          then do
-            addWorkDone (modPhase mod)
-            done mod
-          else do
-            res' <- action done res
-            addWorkDone targetPhase
-            return res'
+          then done mod
+          else action done res
   where
     edone mod = seq mod $
-                do modmapTryPut modmap mod  -- fails if it was already set
+                do phaseCompleted targetPhase
+                   modmapTryPut modmap mod  -- fails if it was already set
                    return ()
 
     done mod  = seq mod $
@@ -889,40 +916,42 @@ composeVFS (VFS find1) (VFS find2)
 
 data Build a = Build (Env -> IO a)
 
-data Env = Env { envTerminal :: Terminal,
-                 envFlags    :: Flags,
-                 envVFS      :: VFS,
-                 envModName  :: ModuleName,   -- for better error reporting
-                 envErrors   :: IORef Errors, -- we use fresh IORef's if mapping concurrently
-                 envWork     :: IORef Int,    -- Keep track of work to do (each phase of each module counts as one unit of work)
-                 envWorkDone :: IORef Int,    -- Keep track of module phases completed
-                 envLatestPhase   :: IORef ModulePhase,    -- Latest Module Phase
-                 envSemPooled     :: QSem,    -- limit I/O concurrency
-                 envSemSequential :: QSem     -- limit some I/O to be atomic
+data Env = Env { envTerminal :: !Terminal,
+                 envFlags    :: !Flags,
+                 envVFS      :: !VFS,
+                 envModName  :: !ModuleName,     -- for better error reporting
+                 envErrors   :: !(IORef Errors), -- we use fresh IORef's if mapping concurrently
+                 envWork     :: !Int,            -- total amount of work units to do (usually a phase is 1 unit)
+                 envWorkDone :: !(IORef Int),    -- current total of work completed
+                 envSemPooled     :: !QSem,      -- limit I/O concurrency
+                 envSemSequential :: !QSem       -- limit some I/O to be atomic
                }
 
-addWork :: Int -> Build ()
-addWork add = do
-  env <- getEnv
-  liftIO $ atomicModifyIORef' (envWork env) (\i -> (i + add, ()))
+-- Execute an action assuming a certain amount of work to be done
+withTotalWork :: Int -> Build a -> Build a
+withTotalWork total build
+  = seq total $ withEnv (\env -> env{ envWork = total }) $
+    do env <- getEnv
+       old <- liftIO $ atomicSwapIORef (envWorkDone env) 0
+       x   <- build
+       liftIO $ atomicModifyIORef' (envWorkDone env) (\i -> (i + old,()))
+       return x
 
--- Finishes one unit of work and reports it via the termProgress printer
-addWorkDone :: ModulePhase -> Build ()
-addWorkDone phase = do
+-- Finishes a target phase unit of work and reports it via the termProgress printer
+phaseCompleted :: ModulePhase -> Build ()
+phaseCompleted targetPhase = do
   env <- getEnv
-  liftIO $ atomicModifyIORef' (envWorkDone env) (\i -> (i + 1, ()))
-  latestPhase <- liftIO $ atomicModifyIORef' (envLatestPhase env) 
-    (\p -> (if fromEnum phase > fromEnum p && not (isErrorPhase p) then (phase, phase) else (p, p)))
+  liftIO $ atomicModifyIORef' (envWorkDone env) (\i -> (i + phaseWorkUnit targetPhase, ()))
   progress <- getWorkProgress
-  liftIO $ termProgress (envTerminal env) (progress, Just (text (phaseProgress latestPhase)))
+  liftIO $ termProgress (envTerminal env) (progress, Just (text (phaseProgress targetPhase)))
 
 -- Gets the work done as a percentage
 getWorkProgress :: Build Double
 getWorkProgress = do
   env <- getEnv
-  work <- liftIO $ readIORef (envWork env)
   workDone <- liftIO $ readIORef (envWorkDone env)
-  return ((fromIntegral workDone) / (fromIntegral work))
+  return ((fromIntegral workDone) / (fromIntegral (envWork env)))
+
 
 runBuildMaybe :: Terminal -> Flags -> Build (Maybe a) -> IO (Maybe a)
 runBuildMaybe term flags action
@@ -967,10 +996,8 @@ runBuild term flags cmp
        semSequential <- newQSem 1
        termProxyDone <- newEmptyMVar
        (termProxy,stop) <- forkTerminal term termProxyDone
-       work          <- newIORef 0
        workDone      <- newIORef 0
-       latestPhase   <- newIORef PhaseInit
-       finally (runBuildEnv (Env termProxy flags noVFS nameNil errs work workDone latestPhase semPooled semSequential) cmp)
+       finally (runBuildEnv (Env termProxy flags noVFS nameNil errs 0 workDone semPooled semSequential) cmp)
                (do stop
                    readMVar termProxyDone)
 

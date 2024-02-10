@@ -255,21 +255,25 @@ inlinesFromModules modules
           Right idefs -> idefs
           _           -> []      -- todo: interface files should go from typed to compiled after we resolve these
 
+
+
+
+
 phaseProgress :: ModulePhase -> String
 phaseProgress latest =
   case latest of
-    PhaseInit -> "Determining Dependencies..."
-    PhaseLexed -> "Lexing..."
-    PhaseParsedError -> "Encountered ParseError"
-    PhaseParsed -> "Parsing..."      
-    PhaseTypedError -> "Encountered TypeError"
-    PhaseTyped -> "Type Checking..."
-    PhaseIfaceLoaded -> "Loading Interface Files..."
-    PhaseOptimized -> "Optimizing..."
-    PhaseCodeGen -> "Code Gen..."
-    PhaseLibIfaceLoaded -> "Copying Libraries to Output..."
-    PhaseLinkedError -> "Encountered Link error"
-    PhaseLinked -> "Linking..."
+    PhaseInit           -> "determining dependencies..."
+    PhaseLexed          -> "scanning..."
+    PhaseParsedError    -> "encountered a parse error"
+    PhaseParsed         -> "parsing..."
+    PhaseTypedError     -> "encountered a type error"
+    PhaseTyped          -> "type checking..."
+    PhaseIfaceLoaded    -> "loading interface..."
+    PhaseOptimized      -> "optimizing..."
+    PhaseCodeGen        -> "generating code..."
+    PhaseLibIfaceLoaded -> "copying libraries..."
+    PhaseLinkedError    -> "encountered a link error"
+    PhaseLinked         -> "linking..."
 
 isErrorPhase :: ModulePhase -> Bool
 isErrorPhase phase =
