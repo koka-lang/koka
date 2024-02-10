@@ -45,13 +45,15 @@ import Lib.PPrint (text, (<->), (<+>), color, Color (..))
 
 
 import Common.Name (newName, ModuleName, Name, isQualified, qualify)
-import Common.File (FileTime, getCurrentTime, getFileTimeOrCurrent)
+import Common.File (FileTime, getCurrentTime, getFileTimeOrCurrent, searchPathsCanonical)
 import Common.Error
-import Compile.Options( Flags (maxErrors) )
+import Compile.Options( Flags (maxErrors, includePath) )
 import Compile.BuildContext
 import LanguageServer.Conversions
 import LanguageServer.Monad
 import qualified Language.LSP.Server as J
+import Compile.Build (searchSourceFile)
+import Platform.Config (sourceExtension)
 
 
 -- Compile the file on opening
@@ -135,11 +137,20 @@ rebuildUri mbFlags mbRun uri
          Nothing    -> return Nothing
          Just fpath -> rebuildFile mbFlags mbRun uri fpath
 
+fileNameFromPath :: FilePath -> LSM FilePath
+fileNameFromPath fpath = do
+  flags <- getFlags
+  mbpath <- liftIO $ searchPathsCanonical "" (includePath flags) [sourceExtension,sourceExtension++".md"] [] fpath
+  case mbpath of
+    Nothing          -> return fpath
+    Just (root,stem) -> return stem
+
 rebuildFile :: Maybe Flags -> Maybe Name -> J.NormalizedUri -> FilePath -> LSM (Maybe FilePath)
 rebuildFile mbFlags mbRun uri fpath
     = -- trace ("\nkoka: rebuild file: " ++ fpath) $
       do updateVFS
-         withProgress (T.pack $ "Koka: " ++ fpath) J.NotCancellable $ \report -> do
+         fpath' <- fileNameFromPath fpath
+         withProgress (T.pack $ "Koka: " ++ fpath') J.NotCancellable $ \report -> do
             setProgress (Just report)
             mbRes <- -- run build with diagnostics
                      liftBuildDiag mbFlags uri $ \buildc0 ->

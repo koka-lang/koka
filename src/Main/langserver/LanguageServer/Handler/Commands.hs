@@ -58,7 +58,10 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
           setProgress (Just report)
           res <- -- trace ("koka/compile: " ++ T.unpack filePath ++ ", " ++ show (filePathToUri (T.unpack filePath))) $
                  rebuildUri (Just newFlags) (Just (newName "main")) (J.toNormalizedUri (filePathToUri (T.unpack filePath)))
-          emitInfo $ \penv -> text "Finished generating code for main file" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
+          emitInfo $ \penv -> case res of
+            Just file -> text "Finished generating code for main file" <+> color DarkGreen (text (T.unpack filePath)) 
+                            <--> text "Executable:" <+> color DarkGreen (text file)
+            Nothing -> color Red $ text "Compilation Failed"
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just exePath -> J.InL $ Json.String $ T.pack exePath; Nothing -> J.InR J.Null}
@@ -75,7 +78,11 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
           -- compile the expression
           res <- rebuildUri (Just newFlags) (Just (newName (T.unpack functionName)))
                             (J.toNormalizedUri (filePathToUri (T.unpack filePath)))
-          emitInfo $ \penv -> text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) <+> text "in" <+> color DarkGreen (text (T.unpack filePath)) <--> color DarkGreen (text (fromMaybe "No Compiled File" res))
+          emitInfo $ \penv -> case res of
+            Just file -> text "Finished generating code for function" <+> color DarkRed (text (T.unpack functionName)) 
+                            <+> text "in" <+> color DarkGreen (text (T.unpack filePath))
+                            <--> text "Executable:" <+> color DarkGreen (text file)
+            Nothing -> color Red $ text "Compilation Failed"
           setProgress Nothing
           -- Send the executable file location back to the client in case it wants to run it
           resp $ Right $ case res of {Just exePath -> J.InL $ Json.String $ T.pack exePath; Nothing -> J.InR J.Null}
