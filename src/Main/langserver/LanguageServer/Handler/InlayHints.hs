@@ -58,7 +58,8 @@ inlayHintsHandler
 
         liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
           liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
-            do penv <- getPrettyEnvFor modname
+            do 
+               penv <- getPrettyEnvFor modname
                let hints = concatMap (createInlayHints options penv{showFlavours=False} modname lexemes) $
                            rangeMapFindIn True {-for inlay hints-} rng rmap
                    hintsDistinct = nubBy (\h1 h2 -> h1 ^. J.position == h2 ^. J.position) hints
@@ -67,7 +68,7 @@ inlayHintsHandler
 -- | Create inlay hints at some token
 createInlayHints :: InlayHintOptions -> Env -> ModuleName -> [Lexeme] -> (Range, RangeInfo) -> [J.InlayHint]
 createInlayHints opts env modname modlexemes (rng, rinfo)
-  = concat [
+  = if null lexemes then [] else concat [
       guard showFullQualifiers    $ qualifierHint env modname lexemes rng rinfo,
       guard showInferredTypes     $ typeHint env lexemes rng rinfo,
       guard showImplicitArguments $ implicitsHint env lexemes rng rinfo
