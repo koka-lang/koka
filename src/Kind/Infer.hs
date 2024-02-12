@@ -485,24 +485,25 @@ infResolveX tp ctx rng
        skind <- subst ikind
        -- allow also effect label constructors without giving type parameters
        let (kargs,kres) = infExtractKindFun skind
-       if (not (null kargs))
-        then let vars     = [(newName ("_" ++ show i)) | (_,i) <- zip kargs [1..]]
-                 quals    = map (\(name) -> TypeBinder name KindNone rng rng) vars
-                 tpvars   = map (\(name) -> TpVar name rng) vars
-                 newtp    = foldr (\q t -> TpQuan QSome q t rng) (TpApp tp tpvars rng) quals
-             in infResolveX newtp ctx rng -- recurse..
-       -- auto upgrade bare labels of HX or HX1 to X kind labels.
-        else do effect <- case skind of
-                            KICon kind | kind == kindLabel   -> return infTp
-                            KICon kind | isKindHandled kind
-                              -> do linear <- checkLinearEffect infTp
-                                    return $ (if linear then makeHandled1 else makeHandled) infTp rng
+       if (length kargs > 2)
+         then let vars     = [(newName ("_" ++ show i)) | i <- [1..(length kargs - 2)]]
+                  quals    = map (\(name) -> TypeBinder name KindNone rng rng) vars
+                  tpvars   = map (\(name) -> TpVar name rng) vars
+                  newtp    = foldr (\q t -> TpQuan QSome q t rng) (TpApp tp tpvars rng) quals
+              in infResolveX newtp ctx rng -- recurse..
+         else -- auto upgrade bare labels of HX or HX1 to X kind labels.
+              do  effect <- case skind of
+                              KICon kind | kind == kindLabel   -> return infTp
+                              KICon kind | isKindHandled kind
+                                -> do linear <- checkLinearEffect infTp
+                                      return $ (if linear then makeHandled1 else makeHandled) infTp rng
 
-                            -- KICon kind | isKindHandled kind  -> return (makeHandled infTp rng)
-                            ---KICon kind | isKindHandled1 kind -> return (makeHandled1 infTp rng)
-                            _ -> do unify ctx rng infKindLabel skind
-                                    return infTp
-                resolveType M.empty False effect
+                              -- KICon kind | isKindHandled kind  -> return (makeHandled infTp rng)
+                              ---KICon kind | isKindHandled1 kind -> return (makeHandled1 infTp rng)
+                              _ -> do trace ("infResolveX: " ++ show tp ++ ": " ++ show skind) $
+                                        unify ctx rng infKindLabel skind
+                                      return infTp
+                  resolveType M.empty False effect
 
 
 
@@ -611,7 +612,7 @@ infExpr expr
                                    ops' <- mapM infHandlerBranch ops
                                    return (Handler hsort scoped override allowMask meff' pars' reinit' ret' final' ops' hrng rng)
       Inject tp expr b range-> do expr' <- infExpr expr
-                                  tp'   <- infResolveX tp (Check "Can only inject effect constants (of kind X)" range) range
+                                  tp'   <- infResolveX tp (Check "Can only inject effect constants (of kind X)" range) (getRange tp)
                                   -- trace ("resolve ann: " ++ show (pretty tp')) $
                                   return (Inject tp' expr' b range)
 
@@ -793,8 +794,8 @@ checkLinearEffect utp
       TpCon name rng  -> do mbInfo <- lookupDataInfo name
                             case mbInfo of
                               Just info | dataDefIsLinear (dataInfoDef info)
-                                        -> trace ("found linear effect: " ++ show name) $ return True
-                              _         -> return False
+                                 -> return True
+                              _  -> return False
       _               -> return False
 
 infParam expected context (name,tp)

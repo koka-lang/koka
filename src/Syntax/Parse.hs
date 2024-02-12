@@ -2204,9 +2204,9 @@ injectType
  = do rng1 <- keywordInject
       behind <- do { specialId "behind" <|> specialId "other"; return True } <|> return False
       langle
-      tp <- ptype
-      rangle
-      return (rng1, \exp -> Inject (promoteType tp) exp behind (combineRanged rng1 exp))
+      tp   <- ptype
+      rng2 <- rangle
+      return (rng1, \exp -> Inject (promoteType tp) exp behind (combineRanged rng1 rng2))
       {-
       tps1 <- sepBy1 ptype comma
       rng2 <- rangle

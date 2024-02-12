@@ -15,6 +15,7 @@ module Kind.InferKind ( InfKind(..)
                       , ppInfKind, niceInfKinds
                       , infExtractKindFun
                       , isInfKindScope
+                      , isInfKindHandled
 
                       , InfKGamma
 
@@ -92,7 +93,15 @@ infExtractKindFun infkind
       KICon (KApp (KApp kindArrow k1) k2)   -> inj (KICon k1) (infExtractKindFun (KICon k2))
       _  -> ([],infkind)
   where
-    inj k1 (ks,k) = (k1:ks,k1)
+    inj k1 (ks,k) = (k1:ks,k)
+
+
+isInfKindHandled :: InfKind -> Bool
+isInfKindHandled ikind
+  = case infExtractKindFun ikind of
+      ([KICon k1, KICon k2], KICon k3) -> isKindHandled (kindFun k1 (kindFun k2 k3))
+      _ -> False
+
 
 {---------------------------------------------------------------
   Substitution
