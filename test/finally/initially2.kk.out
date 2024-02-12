@@ -8,7 +8,6 @@ return, local=42
 finally, local=42
 42,42
  
-finally/initially2/Amb: forall<e,a> (.hnd-amb<e,a>) -> amb
 finally/initially2/amb: forall<a,e> (() -> <amb|e> a) -> e list<a>
 finally/initially2/bar: () -> <amb,console> int
 finally/initially2/flip: () -> amb bool

@@ -12,10 +12,7 @@ ticks: 2
 algeff/expr/either/show: (r : either<string,(int, int)>) -> string
 algeff/expr/(>>=): forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
 algeff/expr/Div: (e1 : expr, e2 : expr) -> expr
-algeff/expr/Exc: forall<e,a> (@hnd-exc<e,a>) -> exc
 algeff/expr/Int: (i : int) -> expr
-algeff/expr/Out: forall<e,a> (@hnd-out<e,a>) -> out
-algeff/expr/State: forall<e,a> (@hnd-state<e,a>) -> state
 algeff/expr/eval: (e : expr) -> stexn<int>
 algeff/expr/eval0: (e : expr) -> int
 algeff/expr/eval1: (e : expr) -> exc int

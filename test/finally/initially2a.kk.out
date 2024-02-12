@@ -7,8 +7,6 @@ action: True, 43
 finally, local=43
 uncaught exception: ouch
  
-finally/initially2a/Flip: forall<e,a> (@hnd-flip<e,a>) -> flip
-finally/initially2a/Inc: forall<e,a> (@hnd-inc<e,a>) -> inc
 finally/initially2a/amb: forall<a,e> (() -> <flip|e> a) -> e list<a>
 finally/initially2a/bar: () -> <console,exn,flip,inc> int
 finally/initially2a/flip: () -> flip bool

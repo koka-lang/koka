@@ -23,14 +23,10 @@ uncaught exception: bob cheated!
 algeff/nim/gtree/player: (gtree : gtree) -> player
 algeff/nim/gtree/show: (gt : gtree) -> div string
 algeff/nim/player/show: (p : player) -> string
-algeff/nim/playerlist/show: (ps : list<player>) -> string
+algeff/nim/playershow: (ps : list<player>) -> string
 algeff/nim/(==): (p1 : player, p2 : player) -> bool
 algeff/nim/Alice: player
 algeff/nim/Bob: player
-algeff/nim/Cheating: forall<e,a> (@hnd-cheating<e,a>) -> cheating
-algeff/nim/Choose: forall<e,a> (@hnd-choose<e,a>) -> choose
-algeff/nim/Nim: forall<e,a> (@hnd-nim<e,a>) -> nim
-algeff/nim/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>
 algeff/nim/Take: (player : player, moves : list<(int, gtree)>) -> gtree
 algeff/nim/Winner: (player : player) -> gtree
 algeff/nim/aliceTurn: (n : int) -> <div,nim> player

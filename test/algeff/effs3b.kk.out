@@ -1,6 +1,5 @@
 False,True,True,False
  
-algeff/effs3b/Amb: forall<e,a> (@hnd-amb<e,a>) -> amb
 algeff/effs3b/amb_handle: forall<a,e> () -> ((() -> <amb|e> a) -> e list<a>)
 algeff/effs3b/flip: () -> amb bool
 algeff/effs3b/main: () -> console ()

@@ -3,8 +3,6 @@ finally, local: 42
 raised: ouch
 exc finalize
  
-finally/finally2a/Exc: forall<e,a> (.hnd-exc<e,a>) -> exc
-finally/finally2a/State: forall<e,a> (.hnd-state<e,a>) -> state
 finally/finally2a/bar: () -> <console,exc,state> int
 finally/finally2a/foo: () -> <console,exc> int
 finally/finally2a/inc: () -> state int

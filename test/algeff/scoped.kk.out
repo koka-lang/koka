@@ -3,12 +3,8 @@
 [(state=1, [3]),(state=5, [2,1]),(state=5, [1,2]),(state=9, [1,1,1])]
 [[3]]
  
-algeff/scoped/intlist/show: (x : (int, list<list<int>>)) -> string
+algeff/scoped/intshow: (x : (int, list<list<int>>)) -> string
 algeff/scoped/listint/show: (xs : list<(int, list<int>)>) -> string
-algeff/scoped/Cutfail: forall<e,a> (@hnd-cutfail<e,a>) -> cutfail
-algeff/scoped/Nondet: forall<e,a> (@hnd-nondet<e,a>) -> nondet
-algeff/scoped/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>
-algeff/scoped/Symbol: forall<e,a> (@hnd-symbol<e,a>) -> symbol
 algeff/scoped/call: forall<a,e> (p : () -> <cutfail,div,nondet,nondet|e> a) -> <div,nondet|e> a
 algeff/scoped/choice: forall<a,e> (p1 : () -> <nondet|e> a, p2 : () -> <nondet|e> a) -> <nondet|e> a
 algeff/scoped/choices: forall<a,e> (() -> <nondet,nondet,state<int>|e> a) -> <nondet,state<int>|e> a

@@ -999,7 +999,7 @@ makeEffectDecl decl =
       cmpName op1 op2 = compare (getOpName op1) (getOpName op2)
       getOpName op = show (unqualify (opdeclName op))
 
-      hndCon     = UserCon (toConstructorName hndName) [] [(Public,fld) | fld <- opFields] Nothing krng grng vis ""
+      hndCon     = UserCon (toHandlerConName hndName) [] [(Private,fld) | fld <- opFields] Nothing krng grng vis ""
       hndTpDecl  = DataType hndTpName (tpars {- tparsNonScoped -} ++ [hndEffTp,hndResTp]) [hndCon] grng vis sort
                    DataDefNormal (DataEffect isInstance singleShot)
                    False docx -- ("// handlers for the " ++ docEffect)
@@ -1185,7 +1185,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect docEffectDecl
 
            makeClauseFieldName :: OperationSort -> Name -> Name
            makeClauseFieldName opSort name
-             = prepend (opSortString opSort ++ "-") (if (isValueOperationName name) then fromValueOperationsName name else name)
+             = makeHiddenName (opSortString opSort) (if (isValueOperationName name) then fromValueOperationsName name else name)
 
            clauseId    = makeClauseFieldName opSort id
            (clauseName,clauseParsTp)
@@ -1219,7 +1219,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect docEffectDecl
                           hndParam  = ValueBinder hndArg Nothing Nothing krng grng
 
                           innerBody = Case (Var hndArg False grng) [branch] grng
-                          branch    = Branch (PatCon (toConstructorName hndName) patterns grng grng)
+                          branch    = Branch (PatCon (toHandlerConName hndName) patterns grng grng)
                                              [Guard guardTrue (Var clauseId False grng)]
                           i          = opIndex
                           fieldCount = opCount

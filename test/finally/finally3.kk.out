@@ -3,7 +3,6 @@ finally, local: 43
 return, local: 43
 42
  
-finally/finally3/Inc: forall<e,a> (.hnd-inc<e,a>) -> inc
 finally/finally3/bar: () -> <console,inc> int
 finally/finally3/foo: () -> console int
 finally/finally3/inc: () -> inc int

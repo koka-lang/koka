@@ -1,7 +1,5 @@
 [(7,""),(3,"*3"),(1,"+2*3")]
  
-algeff/parser/Many: forall<e,a> (@hnd-many<e,a>) -> many
-algeff/parser/Parse: forall<e,a> (@hnd-parse<e,a>) -> parse
 algeff/parser/alpha: () -> parse int
 algeff/parser/char: (p : (char) -> bool) -> parse char
 algeff/parser/choice: forall<a,e> (p1 : () -> <many|e> a, p2 : () -> <many|e> a) -> <many|e> a

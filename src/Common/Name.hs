@@ -39,7 +39,7 @@ module Common.Name
           , toEffectTagName
           , toHandleName, isHandleName
           , toOpsConName, toOpConName, toOpTypeName
-          , toConstructorName, isConstructorName, toVarName
+          , toConstructorName, isConstructorName, toVarName, toHandlerConName
           , toOpenTagName, isOpenTagName
           , toValueOperationName, isValueOperationName, fromValueOperationsName, toBasicOperationsName
           , splitModuleName, unsplitModuleName, mergeCommonPath, splitLocalQualName
@@ -548,6 +548,9 @@ toVarName name
           (c:cs) | isUpper c -> toLower c : toLowers cs
           _      -> s
 
+toHandlerConName :: Name -> Name
+toHandlerConName name
+  = makeHiddenName "Hnd" name
 
 nameStartsWith :: Name -> String -> Bool
 nameStartsWith name pre

@@ -1,6 +1,5 @@
 positive
  
-algeff/effs4/State: forall<a,e,b> (@hnd-state<a,e,b>) -> state<a>
 algeff/effs4/get: forall<a> () -> (state<a>) a
 algeff/effs4/main: () -> console ()
 algeff/effs4/set: forall<a> (x : a) -> (state<a>) ()

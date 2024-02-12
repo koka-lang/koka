@@ -2,8 +2,6 @@ finally, local: 41
 result: 43
 exc finalize
  
-finally/finally2b/Exc: forall<e,a> (.hnd-exc<e,a>) -> exc
-finally/finally2b/State: forall<e,a> (.hnd-state<e,a>) -> state
 finally/finally2b/bar: () -> <console,exc,state> int
 finally/finally2b/foo: () -> <console,exc> int
 finally/finally2b/inc: () -> state int

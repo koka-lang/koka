@@ -107,10 +107,12 @@ testSanitize kokaDir
   . sub "(@m?)lift-[[:alnum:]@-]+" "\\1lift-xxx"                 -- @mlift-main33  ~> @mlift-xxx
   . sub "(^[[:alnum:]]+\\/.+:.*) [[:alpha:]]+[[:digit:]]+@[[:digit:]]+ :" "\\1 a00.000 :"
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
+  -- old style handlers
+  . sub "@hnd-" ""
   -- using @ for hidden names now
   . sub "\\." "@"
   -- standard qualifiers
-  . sub "(console|exn|hnd|sslice|string|list)/" ""
+  . sub "(console|hnd|sslice|string|list)/" ""
  . if null kokaDir then id else replace xkokaDir "..."
   where
     xkokaDir = case map (\c -> if c == '\\' then '/' else c) kokaDir of

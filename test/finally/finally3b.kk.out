@@ -3,8 +3,6 @@ raised: ouch
 finally, local: 43
 exc finalize
  
-finally/finally3b/Inc: forall<e,a> (.hnd-inc<e,a>) -> inc
-finally/finally3b/Raise: forall<e,a> (.hnd-raise<e,a>) -> raise
 finally/finally3b/bar: () -> <console,inc,raise> int
 finally/finally3b/foo: () -> <console,raise> int
 finally/finally3b/inc: () -> inc int

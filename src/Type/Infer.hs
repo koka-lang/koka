@@ -1055,7 +1055,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
        heff <- inferHandledEffect hrng handlerSort mbEffect branches
        let isInstance = isHandlerInstance handlerSort
            effectName = effectNameFromLabel heff
-           handlerConName = toConstructorName effectName -- (toHandlerName effectName)
+           handlerConName = toHandlerConName effectName
 
        -- traceDoc $ \penv -> text "checking handler: " <+> ppType penv heff <.> text "," <+> pretty effectName
 
@@ -1272,8 +1272,8 @@ checkCoverage rng effect handlerConName branches
 
     fieldToOpName fname
       = let (pre,post)      = span (/='-') (nameLocal fname)
-            (opSort,opName) = case (readOperationSort pre,post) of
-                                (Just opSort, _:opName) -> (opSort,opName)
+            (opSort,opName) = case (readOperationSort (drop 1 pre),post) of
+                                (Just opSort, _:opName) | take 1 pre == "@" -> (opSort,opName)
                                 _ -> failure $ "Type.Infer.checkCoverage: illegal operation field name: " ++ show fname ++ " in " ++ show handlerConName
         in (qualify modName (newQualified (nameModule fname) opName), opSort)
 

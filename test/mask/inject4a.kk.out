@@ -1,6 +1,5 @@
 42
  
-mask/inject4a/Heap: forall<a,e,b> (.hnd-heap<a,e,b>) -> heap<a>
 mask/inject4a/get: forall<a> () -> (heap<a>) a
 mask/inject4a/main: () -> <console,div> ()
 mask/inject4a/new-ref: forall<a,b,e> (init : a, action : () -> <div,heap<a>|e> b) -> <div|e> b
