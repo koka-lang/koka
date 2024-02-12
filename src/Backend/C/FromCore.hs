@@ -2625,6 +2625,7 @@ reserved
     , "uintptr_t"
     , "unsigned"
     , "uint8_t"
+    , "double"
     ]
     ++ -- C keywords
     [ "async"
