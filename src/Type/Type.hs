@@ -47,7 +47,6 @@ module Type.Type (-- * Types
                   , isOptional, makeOptionalType, unOptional
                   , typeReuse, typeLocal
 
-                  --, handledToLabel
                   , tconHandled, tconHandled1
                   -- , typeCps
                   , isEffectAsync, isAsyncFunction
@@ -79,7 +78,7 @@ import Common.NamePrim
 import Common.Range
 import Common.Id
 import Common.Failure
-import Common.Syntax( Visibility, DataKind(..), DataDef(..), ValueRepr(..), dataDefIsRec, dataDefIsOpen, valueReprSize, Platform )
+import Common.Syntax
 import Kind.Kind
 
 {--------------------------------------------------------------------------
@@ -176,9 +175,11 @@ data DataInfo = DataInfo{ dataInfoSort    :: !DataKind
                         , dataInfoConstrs :: ![ConInfo]
                         , dataInfoRange   :: !Range
                         , dataInfoDef     :: !DataDef  -- value(raw,scan), normal, rec, open, linear
+                        , dataInfoEffect  :: !DataEffect
                         , dataInfoVis     :: !Visibility
                         , dataInfoDoc     :: !String
                         }
+
 
 dataInfoIsRec info
   = dataDefIsRec (dataInfoDef info)
@@ -592,7 +593,7 @@ labelNameEx :: Tau -> (Name,Int,[Tau])
 labelNameEx tp
   = case expandSyn tp of
       TCon tc -> (typeConName tc,0,[])
-      TApp (TCon (TypeCon name _)) [htp] | (name == nameTpHandled || name == nameTpHandled1)
+      TApp (TCon (TypeCon name _)) [htp] | (name == nameTpHandled || name == nameTpHandled1 || name == nameTpNHandled || name == nameTpNHandled1)
         -> labelNameEx htp -- use the handled effect name for handled<htp> types.
       TApp (TCon tc) targs@(TVar (TypeVar id kind Skolem) : _)  | isKindScope kind
         -> (typeConName tc, idNumber id, targs)

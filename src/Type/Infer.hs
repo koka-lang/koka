@@ -34,7 +34,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameTpPartial
                       , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocalVar
                       , nameClause, nameIdentity
-                      , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
+                      , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag, nameTpEv
                       , nameInternalInt32, nameOr, nameAnd, nameEffectOpen
                       , nameCCtxCreate, nameCCtxHoleCreate, isNameTuple
                       , nameCoreFileLine, nameCoreFileFile, nameCoreFileModule
@@ -55,7 +55,7 @@ import Kind.Newtypes
 import Kind.ImportMap
 
 import Type.Type
-import Type.Kind( handledToLabel, getKind, labelIsLinear, isHandledEffect )
+import Type.Kind( getKind, labelIsLinear, isHandledEffect )
 import Type.Pretty
 import Type.Assumption
 import Type.TypeVar
@@ -1057,7 +1057,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
            effectName = effectNameFromLabel heff
            handlerConName = toConstructorName effectName -- (toHandlerName effectName)
 
-       -- traceDoc $ \penv -> text "checking handler: " <+> ppType penv heff
+       -- traceDoc $ \penv -> text "checking handler: " <+> ppType penv heff <.> text "," <+> pretty effectName
 
        -- check operations
        checkCoverage rng heff handlerConName branches
@@ -1245,8 +1245,10 @@ inferHandledEffect rng handlerSort mbeff ops
                 (rho,_,_) <- instantiateEx nameRng tp
                 case splitFunType rho of
                   Just((opname,rtp):_,_,_) | isHandlerInstance handlerSort && opname == newHiddenName "hname"
-                                -> do -- traceDoc $ \env -> text "effect instance: " <+> ppType env rtp
-                                      return rtp
+                                -> do traceDoc $ \env -> text "effect instance: " <+> ppType env rtp
+                                      case rtp of
+                                        TApp (TCon ev) [teff]  | typeConName ev == nameTpEv -> return teff
+                                        _  -> failure "Type.Infer.inferHandledEffect: illegal named effect type in operation?"
                   Just(_,eff,_) | not (isHandlerInstance handlerSort)
                                 -> case extractEffectExtend eff of
                                     (ls,_) ->

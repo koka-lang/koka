@@ -132,7 +132,7 @@ import Kind.Kind
 import Type.Type
 import Type.Pretty ()
 import Type.TypeVar
-import Type.Kind    ( getKind, getHandledEffect, HandledSort(ResumeMany), isHandledEffect, extractHandledEffect )
+import Type.Kind    ( getKind, getOperationEffect, HandledSort(ResumeMany), isHandledEffect, extractHandledEffect )
 
 import Lib.Trace
 
@@ -864,7 +864,7 @@ isMonEffect :: Effect -> Bool
 isMonEffect eff
   = let (ls,tl) = extractEffectExtend eff
     in not (isEffectEmpty tl) ||
-       any (\l -> case getHandledEffect l of
+       any (\l -> case getOperationEffect l of
                     Just (ResumeMany,_) -> True
                     _                   -> False) ls
 

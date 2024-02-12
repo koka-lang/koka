@@ -183,9 +183,9 @@ pfixity
 --------------------------------------------------------------------------}
 typeDecl :: Env -> LexParser (TypeDef,Env)
 typeDecl env
-  = do (vis,(ddef,isExtend,sort,doc))   <- try $ do vis <- vispub
-                                                    info <- typeSort
-                                                    return (vis,info)
+  = do (vis,(ddef,isExtend,dataEff,sort,doc))   <- try $ do vis <- vispub
+                                                            info <- typeSort
+                                                            return (vis,info)
        tname <- if (isExtend)
                  then do (name,_) <- qtypeid
                          return name
@@ -202,7 +202,7 @@ typeDecl env
        let cons1    = case cons of
                         [con] -> [con{ conInfoSingleton = True }]
                         _     -> cons
-           dataInfo = DataInfo sort tname kind params cons1 range ddef vis doc
+           dataInfo = DataInfo sort tname kind params cons1 range ddef dataEff vis doc
        return (Data dataInfo isExtend, env)
   <|>
     do (vis,doc) <- try $ do vis <- vispub
@@ -239,28 +239,38 @@ conDecl tname foralls sort env
        return con
 
 
-typeSort :: LexParser (DataDef, Bool, DataKind,String)
+typeSort :: LexParser (DataDef, Bool, DataEffect, DataKind,String)
 typeSort
   = do isRecursive <- do{ specialId "recursive"; return True } <|> return False
-       (ddef0,isExtend,sort) <- parseTypeMod
+       (ddef0,isExtend,sort,dataEff) <- parseTypeMod
        (_,doc) <- dockeyword "type"
        let ddef = case (isRecursive, ddef0) of
-                    (True,ddef) | dataDefIsNormalOrLinear ddef -> DataDefRec
+                    (True,ddef) | dataDefIsNormal ddef -> DataDefRec
                     _ -> ddef0
-       return (ddef,isExtend,sort,doc)
+       return (ddef,isExtend,dataEff,sort,doc)
 
-parseTypeMod :: LexParser (DataDef,Bool,DataKind)
+parseTypeMod :: LexParser (DataDef,Bool,DataKind,DataEffect)
 parseTypeMod
- =   do{ specialId "open"; return (DataDefOpen, False, Inductive) }
- <|> do{ specialId "extend"; return (DataDefOpen, True, Inductive) }
+ =   do{ specialId "open"; return (DataDefOpen, False, Inductive, DataNoEffect) }
+ <|> do{ specialId "extend"; return (DataDefOpen, True, Inductive, DataNoEffect) }
  <|> do specialId "value"
         vrepr <- parseValueRepr
-        return (DataDefValue vrepr, False, Inductive)
- <|> do{ specialId "co"; return (DataDefNormal, False, CoInductive) }
- <|> do{ specialId "rec"; return (DataDefNormal, False, Retractive) }
- <|> do{ specialId "linear"; return (DataDefLinear, False, Inductive) }
- <|> return (DataDefNormal, False, Inductive)
+        return (DataDefValue vrepr, False, Inductive, DataNoEffect)
+ <|> do dataEff <- parseDataEffect
+        (
+              do{ specialId "co"; return (DataDefNormal, False, CoInductive, dataEff) }
+          <|> do{ specialId "rec"; return (DataDefNormal, False, Retractive, dataEff) }
+          <|> return (DataDefNormal, False, Inductive, dataEff))
  <?> ""
+
+parseDataEffect :: LexParser DataEffect
+parseDataEffect
+  = do named <- do{ specialId "named"; return True } <|> return False
+       lin   <- do{ specialId "linear"; return True } <|> return False
+       keyword "effect"
+       return (DataEffect named lin)
+    <|>
+       return DataNoEffect
 
 parseValueRepr :: LexParser ValueRepr
 parseValueRepr

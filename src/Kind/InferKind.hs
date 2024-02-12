@@ -14,7 +14,7 @@ module Kind.InferKind ( InfKind(..)
                       , infKindFunN
                       , ppInfKind, niceInfKinds
                       , infExtractKindFun
-                      , isInfKindScope
+                      , isInfKindScope, isInfKindLabel
                       , isInfKindHandled
 
                       , InfKGamma
@@ -72,6 +72,11 @@ infKindFunN kinds k
 isInfKindScope infk
     = case infk of
         KICon k -> isKindScope k
+        _ -> False
+
+isInfKindLabel infk
+    = case infk of
+        KICon k -> isKindLabel k
         _ -> False
 
 

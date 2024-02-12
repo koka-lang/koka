@@ -211,7 +211,7 @@ isHandlerFree expr
   = case expr of
       TypeLam tpars body -> isHandlerFree body
       TypeApp body targs -> isHandlerFree body
-      Lam pars eff body  -> not (containsHandledEffect [] eff) && isHandlerFree body
+      Lam pars eff body  -> not (containsHandledEffect eff) && isHandlerFree body
       App f args         -> all isHandlerFree (f:args)
       Var vname (Core.InfoExternal{})
                   -> case handlerFreeFunType (typeOf vname) of
@@ -227,5 +227,5 @@ isHandlerFree expr
 handlerFreeFunType :: Type -> Maybe Bool
 handlerFreeFunType tp
   = case splitFunScheme tp of
-      Just (_,_,_,eff,_) -> Just (not (containsHandledEffect [] eff))
+      Just (_,_,_,eff,_) -> Just (not (containsHandledEffect eff))
       _ -> Nothing

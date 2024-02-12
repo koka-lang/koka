@@ -122,7 +122,8 @@ module Common.NamePrim
           , nameTpAny
           , nameTpException
           , nameTpMaybe
-          , nameTpHandled, nameTpHandled1
+          , makeTpHandled
+          , nameTpHandled, nameTpHandled1, nameTpNHandled, nameTpNHandled1
           {-
           , nameTpOperation, nameYieldOp
           , nameTpCps, nameTpYld, nameTpCont
@@ -181,6 +182,7 @@ import Data.Char (isDigit)
 import Common.Name
 import Common.Syntax
 import Common.File( startsWith )
+
 
 {--------------------------------------------------------------------------
   Special
@@ -394,8 +396,14 @@ nameEffectAppend= newName "@effect-append"  -- only used during kind inference
 nameAnd         = coreTypesName "&&"
 nameOr          = coreTypesName "||"
 
-nameTpHandled   = coreTypesName "handled"
-nameTpHandled1  = coreTypesName "handled1"
+makeTpHandled :: Bool -> Bool -> Name
+makeTpHandled named linear
+  = coreTypesName $ ((if named then "nhandled" else "handled") ++ (if linear then "1" else ""))
+
+nameTpHandled   = makeTpHandled False False
+nameTpHandled1  = makeTpHandled False True
+nameTpNHandled  = makeTpHandled True  False
+nameTpNHandled1 = makeTpHandled True  True
 
 nameIdentity    = coreTypesName "id"
 

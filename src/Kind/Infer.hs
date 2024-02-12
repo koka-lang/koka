@@ -376,7 +376,7 @@ bindTypeDef tdef -- extension
   where
     isExtend =
       case tdef of
-        (DataType newtp args constructors range vis sort ddef isExtend doc) -> isExtend
+        (DataType newtp args constructors range vis sort ddef dataEff isExtend doc) -> isExtend
         _ -> False
 
 bindTypeBinder :: TypeBinder UserKind -> KInfer (TypeBinder InfKind)
@@ -485,8 +485,8 @@ infResolveX tp ctx rng
        skind <- subst ikind
        -- allow also effect label constructors without giving type parameters
        let (kargs,kres) = infExtractKindFun skind
-       if (length kargs > 2)
-         then let vars     = [(newName ("_" ++ show i)) | i <- [1..(length kargs - 2)]]
+       if (length kargs > 2 || isInfKindLabel kres)  -- either user defined, or a primitive like `:local`
+         then let vars     = [(newName ("_" ++ show i)) | i <- [1..(length kargs - (if isInfKindLabel kres then 0 else 2))]]
                   quals    = map (\(name) -> TypeBinder name KindNone rng rng) vars
                   tpvars   = map (\(name) -> TpVar name rng) vars
                   newtp    = foldr (\q t -> TpQuan QSome q t rng) (TpApp tp tpvars rng) quals
@@ -495,13 +495,13 @@ infResolveX tp ctx rng
               do  effect <- case skind of
                               KICon kind | kind == kindLabel   -> return infTp
                               KICon kind | isKindHandled kind
-                                -> do linear <- checkLinearEffect infTp
-                                      return $ (if linear then makeHandled1 else makeHandled) infTp rng
+                                -> do wrap <- getEffectLift infTp
+                                      return $ wrap infTp rng
 
                               -- KICon kind | isKindHandled kind  -> return (makeHandled infTp rng)
                               ---KICon kind | isKindHandled1 kind -> return (makeHandled1 infTp rng)
                               _ -> do trace ("infResolveX: " ++ show tp ++ ": " ++ show skind) $
-                                        unify ctx rng infKindLabel skind
+                                       unify ctx rng infKindLabel skind
                                       return infTp
                   resolveType M.empty False effect
 
@@ -664,7 +664,7 @@ infTypeDef (tbinder, Synonym syn args tp range vis doc)
        tbinder' <- unifyBinder tbinder syn range infgamma kind
        return (Synonym tbinder' infgamma tp' range vis doc)
 
-infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort ddef isExtend doc))
+infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort ddef dataEff isExtend doc))
   = do infgamma <- mapM bindTypeBinder args
        constructors' <-  extendInfGamma infgamma (mapM infConstructor constructors)
        -- todo: unify extended datatype kind with original
@@ -673,7 +673,7 @@ infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort ddef is
        if not isExtend then return ()
         else do (qname,kind,_) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
                 unify (Check "extended type must have the same kind as the open type" (tbinderRange newtp) ) (tbinderRange newtp) (typeBinderKind tbinder') kind
-       return (DataType tbinder' infgamma constructors' range vis sort ddef isExtend doc)
+       return (DataType tbinder' infgamma constructors' range vis sort ddef dataEff isExtend doc)
 
 unifyBinder tbinder defbinder range infgamma reskind
  = do let kind = infKindFunN (map typeBinderKind infgamma) reskind
@@ -725,8 +725,8 @@ infUserType expected  context userType
               effect' <- case skind of
                           KICon kind | kind == kindLabel -> return (makeEffectExtend etp makeEffectEmpty)
                           KICon kind | isKindHandled kind
-                            -> do linear <- checkLinearEffect etp
-                                  return $ makeEffectExtend ((if linear then makeHandled1 else makeHandled) etp rng) makeEffectEmpty
+                            -> do wrap <- getEffectLift etp
+                                  return $ makeEffectExtend (wrap etp rng) makeEffectEmpty
                           {-
                           KICon kind | isKindHandled kind ->  -- TODO: check if there is an effect declaration
                                           return (makeEffectExtend (makeHandled etp rng) makeEffectEmpty)
@@ -751,8 +751,8 @@ infUserType expected  context userType
                   -> return (makeEffectAppend ltp tl')
                 KICon kind | isKindHandled kind -- TODO: check effects environment if really effect?
                   -> do unify (checkExtendLabel range) range (KICon kindHandled) skind
-                        linear <- checkLinearEffect ltp
-                        return (TpApp tp' [(if linear then makeHandled1 else makeHandled) ltp rng, tl'] rng)
+                        wrap <- getEffectLift ltp
+                        return (TpApp tp' [wrap ltp rng, tl'] rng)
                         {-
                 KICon kind | isKindHandled kind -- TODO: check effects environment if really effect?
                   -> do unify (checkExtendLabel range) range (KICon kindHandled) skind
@@ -786,17 +786,21 @@ infUserType expected  context userType
               tp' <- infUserType kind (checkAnnot range) tp
               return (TpAnn tp' kind)
 
-checkLinearEffect :: KUserType InfKind -> KInfer Bool
-checkLinearEffect utp
+getEffectLift :: KUserType InfKind -> KInfer (KUserType k -> Range -> KUserType k)
+getEffectLift utp
   = case utp of
-      TpParens tp _   -> checkLinearEffect tp
-      TpApp tp _ _    -> checkLinearEffect tp
+      TpParens tp _   -> getEffectLift tp
+      TpApp tp _ _    -> getEffectLift tp
       TpCon name rng  -> do mbInfo <- lookupDataInfo name
                             case mbInfo of
-                              Just info | dataDefIsLinear (dataInfoDef info)
-                                 -> return True
-                              _  -> return False
-      _               -> return False
+                              Just info
+                                 -> case dataInfoEffect info of
+                                      DataEffect named linear
+                                        -> return (\u r -> TpApp (TpCon (makeTpHandled named linear) rangeNull) [u] rangeNull)
+                                      DataNoEffect
+                                        -> return (\tp _ -> tp)
+                              _  -> return (\tp _ -> tp)
+      _               -> return (\tp _ -> tp)
 
 infParam expected context (name,tp)
   = do tp' <- infUserType expected context tp
@@ -842,7 +846,7 @@ resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
     kindArity (KApp (KApp kcon k1) k2)  | kcon == kindArrow = k1 : kindArity k2
     kindArity _ = []
 
-resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort ddef isExtend doc)
+resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort ddef dataEff isExtend doc)
   = do -- trace ("datatype: " ++ show(tbinderName newtp) ++ " " ++ show isExtend ++ ", doc: " ++ doc) $ return ()
        newtp' <- if isExtend
                   then do (qname,ikind,_) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
@@ -894,7 +898,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
           <- createDataDef emitError emitWarning lookupDataInfo
                 platform qname resultHasKindStar isRec sort extraFields ddef conInfos0
 
-       let dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars conInfos1 range ddef1 vis doc
+       let dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars conInfos1 range ddef1 dataEff vis doc
 
        assertion ("Kind.Infer.resolveTypeDef: assuming value struct tag but not inferred as such " ++ show (ddef,ddef1))
                  ((willNeedStructTag && Core.needsTagField (fst (Core.getDataRepr dataInfo))) || not willNeedStructTag) $ return ()
@@ -1146,8 +1150,3 @@ makeEffectExtend (label) ext
 makeEffectEmpty
   = TpCon nameEffectEmpty rangeNull
 
-makeHandled u rng
-  = TpApp (TpCon nameTpHandled rangeNull) [u] rangeNull
-
-makeHandled1 u rng
-  = TpApp (TpCon nameTpHandled1 rangeNull) [u] rangeNull

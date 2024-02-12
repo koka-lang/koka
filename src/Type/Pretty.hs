@@ -27,7 +27,7 @@ import Data.List( partition )
 import Lib.PPrint
 import Common.Name
 import Common.NamePrim( isNameTpTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty,
-                        nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore, nameCoreTypes, nameTpUnit,
+                        nameTpHandled, nameTpHandled1, nameTpNHandled, nameTpNHandled1, nameTpDelay, nameSystemCore, nameCoreTypes, nameTpUnit,
                         isSystemCoreName, shortenSystemCoreName, nameTpValueOp )
 import Common.ColorScheme
 import Common.IdNice
@@ -243,18 +243,21 @@ ppDataInfo env showBody isExtend dataInfo
 commaSep = hsep . punctuate comma
 
 
-prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name kind args cons range datadef vis doc)
+prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name kind args cons range datadef dataEff vis doc)
   = if (publicOnly && isPrivate vis) then empty else
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <.>
       let env = env0{ nice = niceTypeExtendVars (args) (nice env0) } in
       (if isExtend then keyword env "extend "
         else case datadef of
-               DataDefRec     -> text "recursive "
-               DataDefOpen    -> text "open "
-               DataDefValue v -> text ("value" ++ show v ++ " ")
-               DataDefLinear  -> text "linear"
+               DataDefRec     -> keyword env "recursive "
+               DataDefOpen    -> keyword env "open "
+               DataDefValue v -> keyword env ("value" ++ show v ++ " ")
                _ -> empty) <.>
+      (case dataEff of
+         DataNoEffect -> empty
+         DataEffect named linear -> (if named then keyword env "named " else empty) <.>
+                                    (if linear then keyword env "linear " else empty) <.> keyword env "effect ") <.>
       (case datakind of
          Inductive -> keyword env "type"
          CoInductive -> keyword env "co type"
@@ -395,8 +398,9 @@ ppType env tp
       TApp (TCon con) [arg]
                     | typeConName con == nameTpOptional && not (coreIface env)
                     -> text "?" <+> ppType env{prec=precAtom} arg
-                    | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1) && not (coreIface env)
-                    -> ppType env arg
+                    -- | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1 ||
+                    --   typeConName con == nameTpNHandled || typeConName con == nameTpNHandled1) && not (coreIface env)
+                    -- -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTpTuple (name)
                     -> parens (commaSep (map (ppType env{prec = precTop}) args))
       TApp f args   -> pparens (prec env) precApp $

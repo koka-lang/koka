@@ -47,8 +47,6 @@ createDataDef emitError emitWarning lookupDataInfo
                     -> return DataDefOpen
                   DataDefRec
                     -> return DataDefRec
-                  DataDefLinear
-                    -> return DataDefLinear
 
                   DataDefNormal | isRec
                     -> return DataDefRec

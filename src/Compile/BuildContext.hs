@@ -68,7 +68,7 @@ import Syntax.Lexeme( Lexeme, LexImport(..), lexImportNub )
 import Syntax.Syntax( UserProgram )
 import Type.Type
 import qualified Type.Pretty as TP
-import Type.Kind       (extractHandledEffect, getHandledEffectX )
+import Type.Kind       (extractHandledEffect, getOperationEffectX )
 import Type.Assumption
 import Compile.Options
 import Compile.Module
@@ -429,7 +429,7 @@ completeMain :: Bool -> Name -> Type -> BuildContext -> Build (Type,String -> St
 completeMain addShow exprName tp buildc
   = case splitFunScheme tp of
       Just (_,_,_,eff,resTp)
-        -> let (ls,_) = extractHandledEffect eff
+        -> let (ls,_) = extractHandledEffect eff  -- only effect that are in the evidence vector
            in do print    <- printExpr resTp
                  (mainBody,extraImports) <- addDefaultHandlers rangeNull eff ls [] callExpr
                  return (resTp,print,mainBody,extraImports)
@@ -450,7 +450,7 @@ completeMain addShow exprName tp buildc
     addDefaultHandlers :: Range -> Effect -> [Effect] -> [String] -> String -> Build (String,[String])
     addDefaultHandlers range eff [] imports body     = return (body,imports)
     addDefaultHandlers range eff (l:ls) imports body
-      = case getHandledEffectX exclude l of
+      = case getOperationEffectX exclude l of
           Nothing -> addDefaultHandlers range eff ls imports body
           Just (_,effName)
             -> let defaultHandlerName

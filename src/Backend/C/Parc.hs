@@ -688,7 +688,7 @@ genDupDrop isDup tname mbConRepr mbScanCount
          else let normal = (Just (dupDropFun isDup tp mbConRepr mbScanCount (Var tname InfoNone)))
               in case mbDi of
                 Just di -> case (dataInfoDef di, dataInfoConstrs di, snd (getDataRepr di)) of
-                             (ddef, [conInfo], [conRepr]) | dataDefIsNormalOrLinear ddef -- data with just one constructor
+                             (ddef, [conInfo], [conRepr]) | dataDefIsNormal ddef -- data with just one constructor
                                -> do let scan = conReprScanCount conRepr
                                      -- parcTrace $ "  add scan fields: " ++ show scan ++ ", " ++ show tname
                                      return (Just (dupDropFun isDup tp (Just (conRepr,conInfoName conInfo)) (Just scan) (Var tname InfoNone)))

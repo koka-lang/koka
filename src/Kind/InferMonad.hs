@@ -387,5 +387,5 @@ lookupDataInfo :: Name -> KInfer (Maybe DataInfo)
 lookupDataInfo name
  = do env <- getKindEnv
       case (newtypesLookupAny name (newtypesExtended env)) of
-        Nothing -> return (newtypesLookupPublic name (newtypesImported env))
+        Nothing -> return (newtypesLookupAny name (newtypesImported env))
         just    -> return just

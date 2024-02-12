@@ -152,6 +152,13 @@ pub type handled    :: HX -> X;
 // Linear effects are lifted to an atomic effect using the `:handled1` type constructor
 pub type handled1   :: HX -> X;
 
+// Named effects are lifted to an atomic effect with the `:nhandled` type constructor.
+// In contrast to `:handled` effects, these effects are not passed in the evidence vector.
+pub type nhandled    :: HX -> X;
+
+// Linear named effects are lifted to an atomic effect using the `:nhandled1` type constructor
+pub type nhandled1   :: HX -> X;
+
 
 // ----------------------------------------------------------------------------
 // Standard Data types
