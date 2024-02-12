@@ -14,7 +14,7 @@ import std/core/types
 // _Unsafe_. This function calls a function and pretends it did not have any effect at all.
 // Use with utmost care as it should not be used to dismiss user-defined effects that need
 // a handler and can cause a segfault at runtime in such cases!
-// Only use this to dismiss built-in effects like `:exn` or `:io`.
+// Only use this to dismiss built-in effects without handlers like `:div`, `:ui`, `:fsys`, `:net`, `:blocking`, `:io-total` or `:io-noexn`.
 pub fun unsafe-total( action : () -> e a ) : a
   unsafe-total-cast( action )()
 
