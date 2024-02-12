@@ -6,7 +6,7 @@ import std/time/timer
 
 alias solution = list<int>
 
-fun is-safe( queen : int, xs : solution, diag : int = 1 ) : bool {
+fun is-safe( queen : int, ^xs : solution, diag : int = 1 ) : bool {
   match(xs) {
     Cons(q,qs) -> (queen != q && queen != (q+diag) && queen != (q - diag) && queen.is-safe(qs,diag+1))
     _ -> True
@@ -36,9 +36,9 @@ fun extend(queen : int, acc : solutions, xss : solutions ) : div solutions {
 }
 
 fun find-solutions( n : int, i : int ) : div solutions {
-  if (i == 0) 
+  if (i == 0)
    then [[]]
-   else extend(n, [], find-solutions(n, i - 1))  
+   else extend(n, [], find-solutions(n, i - 1))
 }
 
 pub fun queens( n : int ) : div solutions {
@@ -56,9 +56,9 @@ effect choose {
 
 fun choose-all( action ) {
   handle(action){
-    return(x)       [x]
-    ctl fail()      []
-    raw ctl pick(n) list(1,n,fn(x){ rcontext.resume(x) }).concat
+    return(x)         [x]
+    final ctl fail()  []
+    raw ctl pick(n)   list(1,n,fn(x){ rcontext.resume(x) }).concat
   }
 }
 
@@ -94,5 +94,5 @@ fun show-solutions( xss : solutions ) : io () {
   println(xss.length.show)
   xss.foreach fn(xs) {
     println(" " ++ xs.show)
-  }  
+  }
 }
