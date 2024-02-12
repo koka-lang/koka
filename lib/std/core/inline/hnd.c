@@ -12,13 +12,13 @@ typedef datatype_t kk_std_core_hnd__ev;
 struct kk_std_core_hnd_Ev {
   kk_std_core_hnd__htag htag;
   kk_box_t hnd;
-  int32_t cfc;  // control flow context
+  kk_cfc_t cfc;  // control flow context
   kk_std_core_hnd__evv hevv;
   kk_std_core_hnd__marker marker;
 };
 */
 
-static kk_evv_vector_t kk_evv_vector_alloc(kk_ssize_t length, int32_t cfc, kk_context_t* ctx) {
+static kk_evv_vector_t kk_evv_vector_alloc(kk_ssize_t length, kk_cfc_t cfc, kk_context_t* ctx) {
   kk_assert_internal(length>=0);
   kk_evv_vector_t v = (kk_evv_vector_t)kk_block_alloc(kk_ssizeof(struct kk_evv_vector_s) + (length-1)*kk_ssizeof(void*), length + 1 /* cfc */, KK_TAG_EVV_VECTOR, ctx);
   v->cfc = kk_integer_from_int32(cfc,ctx);
@@ -83,7 +83,7 @@ kk_std_core_hnd__ev kk_evv_lookup( struct kk_std_core_hnd_Htag htag, kk_context_
   return kk_evv_at(idx,ctx);
 }
 
-static inline int32_t kk_cfc_lub(int32_t cfc1, int32_t cfc2) {
+static inline kk_cfc_t kk_cfc_lub(kk_cfc_t cfc1, kk_cfc_t cfc2) {
   if (cfc1 < 0) return cfc2;
   else if (cfc1+cfc2 == 1) return 2;
   else if (cfc1>cfc2) return cfc1;
@@ -95,7 +95,7 @@ static inline struct kk_std_core_hnd_Ev* kk_evv_as_Ev( kk_evv_t evv, kk_context_
 }
 
 
-static int32_t kk_evv_cfc_of_borrow(kk_evv_t evv, kk_context_t* ctx) {
+static kk_cfc_t kk_evv_cfc_of_borrow(kk_evv_t evv, kk_context_t* ctx) {
   if (kk_evv_is_vector(evv,ctx)) {
     kk_evv_vector_t vec = kk_evv_as_vector(evv,ctx);
     return kk_integer_clamp32_borrow(vec->cfc,ctx);
@@ -106,11 +106,11 @@ static int32_t kk_evv_cfc_of_borrow(kk_evv_t evv, kk_context_t* ctx) {
   }
 }
 
-int32_t kk_evv_cfc(kk_context_t* ctx) {
+kk_cfc_t kk_evv_cfc(kk_context_t* ctx) {
   return kk_evv_cfc_of_borrow(ctx->evv,ctx);
 }
 
-static void kk_evv_update_cfc_borrow(kk_evv_t evv, int32_t cfc, kk_context_t* ctx) {
+static void kk_evv_update_cfc_borrow(kk_evv_t evv, kk_cfc_t cfc, kk_context_t* ctx) {
   kk_assert_internal(!kk_evv_is_empty(evv,ctx)); // should never happen (as named handlers are always in some context)
   if (kk_evv_is_vector(evv,ctx)) {
     kk_evv_vector_t vec = kk_evv_as_vector(evv,ctx);
@@ -125,7 +125,7 @@ static void kk_evv_update_cfc_borrow(kk_evv_t evv, int32_t cfc, kk_context_t* ct
 kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx) {
   struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(evd,ctx);
   // update ev with parent evidence vector (either at init, or due to non-scoped resumptions)
-  int32_t marker = ev->marker;
+  kk_marker_t marker = ev->marker;
   if (marker==0) { kk_std_core_hnd__ev_drop(evd,ctx); return evvd; } // ev-none
   kk_evv_drop(ev->hevv,ctx);
   ev->hevv = kk_evv_dup(evvd,ctx);
@@ -145,7 +145,7 @@ kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx
   }
   else {
     // create evidence vector
-    const int32_t cfc = kk_cfc_lub(kk_evv_cfc_of_borrow(evvd, ctx), ev->cfc);
+    const kk_cfc_t cfc = kk_cfc_lub(kk_evv_cfc_of_borrow(evvd, ctx), ev->cfc);
     ev->cfc = cfc; // update in place
     kk_evv_vector_t vec2 = kk_evv_vector_alloc(n+1, cfc, ctx);
     kk_std_core_hnd__ev* const evv2 = kk_evv_vector_buf(vec2, NULL);
@@ -175,7 +175,7 @@ kk_evv_t kk_evv_delete(kk_evv_t evvd, kk_ssize_t index, bool behind, kk_context_
   if (behind) index++;
   kk_assert_internal(index < n);
   // todo: copy without dupping (and later dropping) when possible
-  const int32_t cfc1 = kk_evv_cfc_of_borrow(evvd,ctx);
+  const kk_cfc_t cfc1 = kk_evv_cfc_of_borrow(evvd,ctx);
   kk_evv_vector_t const vec2 = kk_evv_vector_alloc(n-1,cfc1,ctx);
   kk_std_core_hnd__ev* const evv2 = kk_evv_vector_buf(vec2,NULL);
   kk_ssize_t i;
@@ -187,7 +187,7 @@ kk_evv_t kk_evv_delete(kk_evv_t evvd, kk_ssize_t index, bool behind, kk_context_
   }
   struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(evv1[index],ctx);
   if (ev->cfc >= cfc1) {
-    int32_t cfc = kk_std_core_hnd__as_Ev(evv2[0],ctx)->cfc;
+    kk_cfc_t cfc = kk_std_core_hnd__as_Ev(evv2[0],ctx)->cfc;
     for(i = 1; i < n-1; i++) {
       cfc = kk_cfc_lub(cfc,kk_std_core_hnd__as_Ev(evv2[i],ctx)->cfc);
     }
@@ -345,7 +345,7 @@ kk_box_t kk_yield_cont( kk_function_t f, kk_context_t* ctx ) {
   return kk_box_any(ctx);
 }
 
-kk_function_t kk_yield_to( int32_t m, kk_function_t clause, kk_context_t* ctx ) {
+kk_function_t kk_yield_to( kk_marker_t m, kk_function_t clause, kk_context_t* ctx ) {
   kk_yield_t* yield = &ctx->yield;
   kk_assert_internal(!kk_yielding(ctx)); // already yielding
   ctx->yielding = KK_YIELD_NORMAL;
@@ -355,7 +355,7 @@ kk_function_t kk_yield_to( int32_t m, kk_function_t clause, kk_context_t* ctx ) 
   return kk_datatype_unbox(kk_box_any(ctx));
 }
 
-kk_box_t kk_yield_final( int32_t m, kk_function_t clause, kk_context_t* ctx ) {
+kk_box_t kk_yield_final( kk_marker_t m, kk_function_t clause, kk_context_t* ctx ) {
   kk_yield_to(m,clause,ctx);
   ctx->yielding = KK_YIELD_FINAL;
   return kk_box_any(ctx);
@@ -376,7 +376,7 @@ static kk_function_t fun_fatal_resume_final(kk_context_t* ctx) {
 }
 
 
-struct kk_std_core_hnd_yld_s kk_yield_prompt( int32_t m, kk_context_t* ctx ) {
+struct kk_std_core_hnd_yld_s kk_yield_prompt( kk_marker_t m, kk_context_t* ctx ) {
   kk_yield_t* yield = &ctx->yield;
   if (ctx->yielding == KK_YIELD_NONE) {
     return kk_std_core_hnd__new_Pure(ctx);
@@ -410,7 +410,7 @@ typedef struct yield_info_s {
   kk_function_t clause;
   kk_function_t conts[KK_YIELD_CONT_MAX];
   kk_intf_t     conts_count;
-  int32_t       marker;
+  kk_marker_t   marker;
   int8_t        yielding;
 }* yield_info_t;
 

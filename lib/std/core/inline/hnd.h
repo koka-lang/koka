@@ -118,13 +118,22 @@ static inline kk_evv_t kk_evv_swap_create1(kk_ssize_t i, kk_context_t* ctx) {
   }
 }
 
+static inline kk_evv_t kk_evv_swap_delete(kk_ssize_t i, bool behind, kk_context_t* ctx) {
+  kk_evv_t evv0 = ctx->evv;
+  ctx->evv = kk_evv_delete(kk_evv_dup(evv0,ctx), i, behind, ctx);
+  return evv0;
+}
+
+
 struct kk_std_core_hnd_Htag;
 struct kk_std_core_hnd_yld_s;
 
+typedef int32_t kk_marker_t;
+typedef int32_t kk_cfc_t;
 
 kk_std_core_hnd__ev_t kk_ev_none(kk_context_t* cxt);
 kk_std_core_hnd__ev_t kk_evv_lookup( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx );
-int32_t         kk_evv_cfc(kk_context_t* ctx);
+kk_cfc_t        kk_evv_cfc(kk_context_t* ctx);
 kk_ssize_t      kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx );
 kk_evv_t        kk_evv_create(kk_evv_t evv, kk_vector_t indices, kk_context_t* ctx);
 kk_evv_t        kk_evv_insert(kk_evv_t evv, kk_std_core_hnd__ev_t ev, kk_context_t* ctx);
@@ -132,18 +141,14 @@ kk_evv_t        kk_evv_delete(kk_evv_t evv, kk_ssize_t index, bool behind, kk_co
 kk_string_t     kk_evv_show(kk_evv_t evv, kk_context_t* ctx);
 kk_unit_t       kk_evv_guard(kk_evv_t evv, kk_context_t* ctx);
 kk_evv_t        kk_evv_swap_create( kk_vector_t indices, kk_context_t* ctx );
+
 kk_box_t        kk_fatal_resume_final(kk_context_t* ctx);
 kk_box_t        kk_yield_cont( kk_function_t next, kk_context_t* ctx );
 kk_box_t        kk_yield_extend( kk_function_t next, kk_context_t* ctx );
-kk_box_t        kk_yield_final( int32_t m, kk_function_t clause, kk_context_t* ctx );
-kk_function_t   kk_yield_to( int32_t m, kk_function_t clause, kk_context_t* ctx );
-struct kk_std_core_hnd_yld_s  kk_yield_prompt( int32_t m, kk_context_t* ctx );
+kk_box_t        kk_yield_final( kk_marker_t m, kk_function_t clause, kk_context_t* ctx );
+kk_function_t   kk_yield_to( kk_marker_t m, kk_function_t clause, kk_context_t* ctx );
+struct kk_std_core_hnd_yld_s  kk_yield_prompt( kk_marker_t m, kk_context_t* ctx );
 
 kk_datatype_t   kk_yield_capture(kk_context_t* ctx);
 kk_box_t        kk_yield_reyield(kk_datatype_t yld, kk_context_t* ctx);
 
-static inline kk_evv_t kk_evv_swap_delete(kk_ssize_t i, bool behind, kk_context_t* ctx) {
-  kk_evv_t evv0 = ctx->evv;
-  ctx->evv = kk_evv_delete(kk_evv_dup(evv0,ctx), i, behind, ctx);
-  return evv0;
-}
