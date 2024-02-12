@@ -398,9 +398,9 @@ ppType env tp
       TApp (TCon con) [arg]
                     | typeConName con == nameTpOptional && not (coreIface env)
                     -> text "?" <+> ppType env{prec=precAtom} arg
-                    -- | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1 ||
-                    --   typeConName con == nameTpNHandled || typeConName con == nameTpNHandled1) && not (coreIface env)
-                    -- -> ppType env arg
+                    | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1 ||
+                       typeConName con == nameTpNHandled || typeConName con == nameTpNHandled1) && not (coreIface env)
+                    -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTpTuple (name)
                     -> parens (commaSep (map (ppType env{prec = precTop}) args))
       TApp f args   -> pparens (prec env) precApp $

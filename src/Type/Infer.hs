@@ -1245,7 +1245,7 @@ inferHandledEffect rng handlerSort mbeff ops
                 (rho,_,_) <- instantiateEx nameRng tp
                 case splitFunType rho of
                   Just((opname,rtp):_,_,_) | isHandlerInstance handlerSort && opname == newHiddenName "hname"
-                                -> do traceDoc $ \env -> text "effect instance: " <+> ppType env rtp
+                                -> do -- traceDoc $ \env -> text "effect instance: " <+> ppType env rtp
                                       case rtp of
                                         TApp (TCon ev) [teff]  | typeConName ev == nameTpEv -> return teff
                                         _  -> failure "Type.Infer.inferHandledEffect: illegal named effect type in operation?"

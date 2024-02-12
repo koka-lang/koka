@@ -523,7 +523,7 @@ isSystemCoreName name
 
 shortenSystemCoreName name
   = let m = nameModule name
-    in if (m == "std/core" || m == "std/core/types") then unqualify name
+    in if (m == "std/core" || m == "std/core/types" || m == "std/core/exn") then unqualify name
        else if (m `startsWith` "std/core/")
               then qualify (newModuleName (drop 9 m)) (unqualify name)
               else name

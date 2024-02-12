@@ -16,12 +16,12 @@
 module heap
 
 scoped effect heap<s::S>
-  ctl new-ref(init:a) : ref<s,a>
+  ctl new-ref(init:a) : ev<ref<s,a>>
 
 
 named effect ref<s::S,a::V> in heap<s>    // named under umbrella effect `:heap`
-  fun get() : a                           // `:(ref<s,a>)   -> <heap<s>,pure> a`
-  fun set( value : a ) : ()               // `:(ref<s,a>,a) -> <heap<s>,pure> ()`
+  fun get() : a                           // `:(ev<ref<s,a>>)   -> <heap<s>,pure> a`
+  fun set( value : a ) : ()               // `:(ev<ref<s,a>>,a) -> <heap<s>,pure> ()`
 
 
 // private (named) handler instance for a reference

@@ -301,6 +301,9 @@ pub fip extern @make-ssize_t( i : int) : ssize_t
   cs "Primitive.IntToInt32"
   js "$std_core_types._int_clamp32"
 
+// Are two 32-bit integers equal?
+pub fip extern @eq-int32( i : int32, j : int32) : bool
+  inline "#1==#2"
 
 // Append two strings
 pub extern (++)(x : string, y : string) : string
