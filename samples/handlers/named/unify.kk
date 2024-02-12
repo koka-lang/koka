@@ -63,7 +63,7 @@ fun resolve-all( tp : utype<s> ) : <subst<s>,pure> ntype
 fun unify( tp1 : utype<s>, tp2 : utype<s> ) : <subst<s>,div,exn> utype<s>
   match (tp1,tp2)
     (UCon(tag1), UCon(tag2)) | tag1 == tag2 -> tp1
-    (UVar(v1), UVar(v2))     | eq/ev(v1,v2) -> tp1
+    (UVar(v1), UVar(v2))     | v1 == v2     -> tp1
     (UApp(tp11,tp12),UApp(tp21,tp22))       -> UApp( unify(tp11,tp21), unify(tp12,tp22) )
     (UVar(v1),_) -> match get(v1)
       Nothing ->

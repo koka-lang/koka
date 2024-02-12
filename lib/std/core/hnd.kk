@@ -144,10 +144,8 @@ type evv<e::E>
 
 pub alias ev-index = ssize_t
 
-pub fun ev/eq( ev1  : ev<h>, ev2 : ev<h> ) : bool
-  match ev1
-    Ev(_,Marker(m1)) -> match ev2
-                          Ev(_,Marker(m2)) -> @eq-int32(m1,m2)
+pub fun ev/(==)( Ev(_,Marker(m1))  : ev<h>, Ev(_,Marker(m2)) : ev<h> ) : bool
+  @eq-int32(m1,m2)
 
 // -------------------------------------------
 // Internal Markers

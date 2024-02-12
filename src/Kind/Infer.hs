@@ -485,7 +485,7 @@ infResolveX tp ctx rng
        skind <- subst ikind
        -- allow also effect label constructors without giving type parameters
        let (kargs,kres) = infExtractKindFun skind
-       if (length kargs > 2 || isInfKindLabel kres)  -- either user defined, or a primitive like `:local`
+       if (length kargs > 2 || (not (null kargs) && isInfKindLabel kres))  -- either user defined, or a primitive like `:local`
          then let vars     = [(newName ("_" ++ show i)) | i <- [1..(length kargs - (if isInfKindLabel kres then 0 else 2))]]
                   quals    = map (\(name) -> TypeBinder name KindNone rng rng) vars
                   tpvars   = map (\(name) -> TpVar name rng) vars

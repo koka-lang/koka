@@ -1165,8 +1165,8 @@ resolveBest allowDisambiguate depth candidates | depth > resolveMaxChainDepth
                 _           -> return amb
 
 resolveBest allowDisambiguate depth candidates
-  = do --traceDefDoc $ \penv -> text "resolveBest" <+> pretty (depth,allowDisambiguate) <+> text "candidates:" <->
-       --                                                indent 2 (vcat (map (prettyImplicitArg penv) candidates))
+  = do -- traceDefDoc $ \penv -> text "resolveBest" <+> pretty (depth,allowDisambiguate) <+> text "candidates:" <->
+       --                                               indent 2 (vcat (map (prettyImplicitArg penv) candidates))
        case findBest allowDisambiguate candidates of
         Found iarg       -> -- found a unique one, it should always be fully resolved by now
                             assertion "Type.InferMonad.resolveBest: unresolved implicit!" (isDone iarg) $
