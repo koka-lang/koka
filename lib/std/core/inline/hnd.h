@@ -14,7 +14,7 @@
 typedef kk_datatype_ptr_t kk_std_core_hnd__ev_t;
 static inline kk_std_core_hnd__ev_t kk_std_core_hnd__ev_dup(kk_std_core_hnd__ev_t _x, kk_context_t* ctx);
 
-typedef struct kk_evv_vector_s {  
+typedef struct kk_evv_vector_s {
   struct kk_block_s     _block;
   kk_integer_t          cfc;       // control flow context (0-3) as a small int
   kk_std_core_hnd__ev_t vec[1];
@@ -24,7 +24,7 @@ typedef struct kk_evv_vector_s {
 typedef kk_datatype_ptr_t kk_evv_t;   // either a kk_evv_vector_t, or a single evidence
 
 static inline kk_evv_t kk_evv_dup(kk_evv_t evv, kk_context_t* ctx) {
-  return kk_datatype_ptr_dup(evv,ctx);  
+  return kk_datatype_ptr_dup(evv,ctx);
 }
 
 static inline void kk_evv_drop(kk_evv_t evv, kk_context_t* ctx) {
@@ -36,7 +36,7 @@ static inline kk_evv_t kk_evv_empty(kk_context_t* ctx) {
 }
 
 static inline bool kk_evv_is_empty(kk_evv_t evv, kk_context_t* ctx) {  // todo: optimize
-  kk_evv_t empty = kk_evv_empty(ctx);    
+  kk_evv_t empty = kk_evv_empty(ctx);
   bool eq = kk_datatype_eq(evv,empty);
   kk_datatype_ptr_drop(empty,ctx);
   return eq;
@@ -71,7 +71,7 @@ static inline kk_std_core_hnd__ev_t kk_evv_at( kk_ssize_t i, kk_context_t* ctx )
   else {  // evv as a vector
     kk_assert_internal(i >= 0 && i < (kk_block_scan_fsize(kk_datatype_as_ptr(evv,ctx)) - 1));
     kk_evv_vector_t vec = kk_evv_as_vector(evv,ctx);
-    return kk_std_core_hnd__ev_dup(vec->vec[i],ctx); 
+    return kk_std_core_hnd__ev_dup(vec->vec[i],ctx);
   }
 }
 
@@ -107,19 +107,18 @@ static inline kk_evv_t kk_evv_swap_create0(kk_context_t* ctx) {
 }
 
 static inline kk_evv_t kk_evv_swap_create1(kk_ssize_t i, kk_context_t* ctx) {
-  kk_evv_t evv0 = ctx->evv;  
+  kk_evv_t evv0 = ctx->evv;
   if (kk_evv_is_vector(evv0,ctx)) {
-    ctx->evv = kk_evv_at(i, ctx); // cast as ev struct is not defined yet 
+    ctx->evv = kk_evv_at(i, ctx); // cast as ev struct is not defined yet
     return evv0;
   }
-  else {      
+  else {
     kk_assert_internal(i==0);
     return kk_evv_dup(evv0,ctx);  // already a single evidence
   }
 }
 
 struct kk_std_core_hnd_Htag;
-struct kk_std_core_hnd_Marker;
 struct kk_std_core_hnd_yld_s;
 
 
@@ -136,15 +135,15 @@ kk_evv_t        kk_evv_swap_create( kk_vector_t indices, kk_context_t* ctx );
 kk_box_t        kk_fatal_resume_final(kk_context_t* ctx);
 kk_box_t        kk_yield_cont( kk_function_t next, kk_context_t* ctx );
 kk_box_t        kk_yield_extend( kk_function_t next, kk_context_t* ctx );
-kk_box_t        kk_yield_final( struct kk_std_core_hnd_Marker m, kk_function_t clause, kk_context_t* ctx );
-kk_function_t   kk_yield_to( struct kk_std_core_hnd_Marker m, kk_function_t clause, kk_context_t* ctx );
-struct kk_std_core_hnd_yld_s  kk_yield_prompt( struct kk_std_core_hnd_Marker m, kk_context_t* ctx );
+kk_box_t        kk_yield_final( int32_t m, kk_function_t clause, kk_context_t* ctx );
+kk_function_t   kk_yield_to( int32_t m, kk_function_t clause, kk_context_t* ctx );
+struct kk_std_core_hnd_yld_s  kk_yield_prompt( int32_t m, kk_context_t* ctx );
 
 kk_datatype_t   kk_yield_capture(kk_context_t* ctx);
 kk_box_t        kk_yield_reyield(kk_datatype_t yld, kk_context_t* ctx);
 
 static inline kk_evv_t kk_evv_swap_delete(kk_ssize_t i, bool behind, kk_context_t* ctx) {
-  kk_evv_t evv0 = ctx->evv;  
+  kk_evv_t evv0 = ctx->evv;
   ctx->evv = kk_evv_delete(kk_evv_dup(evv0,ctx), i, behind, ctx);
   return evv0;
 }

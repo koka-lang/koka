@@ -18,9 +18,8 @@
    * `V`   value types (i.e. the star kind)
    * `E`   effect rows (`<div,exn|e>`)
    * `X`   a single effect (`div`, `exn`, `parse`, etc.), also called atomic effect
-   * `HX`  a handled effect type (i.e. a used-defined effect); use `handled` to lift it to an `X`
-   * `HX1` a linear handled effect type; use `handled1` to lift it to an `X`
    * `H`   heap types (always a phantom type without actual values)
+   * `HX`  a short-hand for user defined effect handlers of kind `(E,V) -> V`
 
 */
 module std/core/types
@@ -293,6 +292,7 @@ pub inline fip extern @make-int32( i : int) : int32
   cs "Primitive.IntToInt32"
   js "$std_core_types._int_clamp32"
 
+
 // Convert an integer to an `:ssize_t`. The number is _clamped_ to the maximal or minimum `:ssize_t`
 // value if it is outside the range of an `:ssize_t`.
 // Needed for evidence indices in `module std/core/hnd`
@@ -301,9 +301,6 @@ pub fip extern @make-ssize_t( i : int) : ssize_t
   cs "Primitive.IntToInt32"
   js "$std_core_types._int_clamp32"
 
-// Are two 32-bit integers equal?
-pub fip extern @eq-int32( i : int32, j : int32) : bool
-  inline "#1==#2"
 
 // Append two strings
 pub extern (++)(x : string, y : string) : string

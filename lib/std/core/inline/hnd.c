@@ -51,7 +51,7 @@ kk_std_core_hnd__ev kk_ev_none(kk_context_t* ctx) {
       kk_reuse_null,
       0, // cpath
       kk_std_core_hnd__new_Htag(kk_string_empty(),ctx), // tag ""
-      kk_std_core_hnd__new_Marker(0,ctx),               // marker 0
+      0,                                                // marker 0
       kk_box_null(),                                    // no handler
       -1,                                               // bot
       kk_evv_empty(ctx),
@@ -125,7 +125,7 @@ static void kk_evv_update_cfc_borrow(kk_evv_t evv, int32_t cfc, kk_context_t* ct
 kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx) {
   struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(evd,ctx);
   // update ev with parent evidence vector (either at init, or due to non-scoped resumptions)
-  int32_t marker = ev->marker.m;
+  int32_t marker = ev->marker;
   if (marker==0) { kk_std_core_hnd__ev_drop(evd,ctx); return evvd; } // ev-none
   kk_evv_drop(ev->hevv,ctx);
   ev->hevv = kk_evv_dup(evvd,ctx);
@@ -345,17 +345,17 @@ kk_box_t kk_yield_cont( kk_function_t f, kk_context_t* ctx ) {
   return kk_box_any(ctx);
 }
 
-kk_function_t kk_yield_to( struct kk_std_core_hnd_Marker m, kk_function_t clause, kk_context_t* ctx ) {
+kk_function_t kk_yield_to( int32_t m, kk_function_t clause, kk_context_t* ctx ) {
   kk_yield_t* yield = &ctx->yield;
   kk_assert_internal(!kk_yielding(ctx)); // already yielding
   ctx->yielding = KK_YIELD_NORMAL;
-  yield->marker = m.m;
+  yield->marker = m;
   yield->clause = clause;
   yield->conts_count = 0;
   return kk_datatype_unbox(kk_box_any(ctx));
 }
 
-kk_box_t kk_yield_final( struct kk_std_core_hnd_Marker m, kk_function_t clause, kk_context_t* ctx ) {
+kk_box_t kk_yield_final( int32_t m, kk_function_t clause, kk_context_t* ctx ) {
   kk_yield_to(m,clause,ctx);
   ctx->yielding = KK_YIELD_FINAL;
   return kk_box_any(ctx);
@@ -376,12 +376,12 @@ static kk_function_t fun_fatal_resume_final(kk_context_t* ctx) {
 }
 
 
-struct kk_std_core_hnd_yld_s kk_yield_prompt( struct kk_std_core_hnd_Marker m, kk_context_t* ctx ) {
+struct kk_std_core_hnd_yld_s kk_yield_prompt( int32_t m, kk_context_t* ctx ) {
   kk_yield_t* yield = &ctx->yield;
   if (ctx->yielding == KK_YIELD_NONE) {
     return kk_std_core_hnd__new_Pure(ctx);
   }
-  else if (yield->marker != m.m) {
+  else if (yield->marker != m) {
     return (ctx->yielding == KK_YIELD_FINAL ? kk_std_core_hnd__new_YieldingFinal(ctx) : kk_std_core_hnd__new_Yielding(ctx));
   }
   else {

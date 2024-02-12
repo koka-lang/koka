@@ -124,6 +124,7 @@ module Common.NamePrim
           , nameTpMaybe
           , makeTpHandled
           , nameTpHandled, nameTpHandled1, nameTpNHandled, nameTpNHandled1
+          , nameTpMarker
           {-
           , nameTpOperation, nameYieldOp
           , nameTpCps, nameTpYld, nameTpCont
@@ -309,6 +310,8 @@ nameFieldAddrOf   = cfieldName "@field-addr-of"
 {--------------------------------------------------------------------------
   std/core/hnd
 --------------------------------------------------------------------------}
+
+nameTpMarker    = coreHndName "marker"
 nameTpHTag      = coreHndName "htag"
 nameTpClause i  = coreHndName ("clause" ++ show i)
 nameTpEv        = coreHndName "ev"

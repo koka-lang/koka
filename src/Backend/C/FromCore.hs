@@ -1316,7 +1316,7 @@ cTypeCon c
          then CPrim "int8_t"
         else if (name == nameTpInt16)
          then CPrim "int16_t"
-        else if (name == nameTpInt32)
+        else if (name == nameTpInt32 || name == nameTpMarker)
          then CPrim "int32_t"
         else if (name == nameTpFloat32)
          then CPrim "float"

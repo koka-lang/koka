@@ -112,9 +112,6 @@ extern import
 // Internal types
 // -------------------------------------------
 
-// Each handler in the context has a unique marker.
-value struct marker<e::E,a>( m : int32)
-
 // The tag of a handler identifies the type at runtime (e.g. `"exn/core/std"`).
 abstract value type htag<h::(E,V)->V>
   Htag(tagname:string)
@@ -139,31 +136,35 @@ pub alias cfc = int32
 abstract type ev<h>
   con Ev<e,r>(htag:htag<h>, marker:marker<e,r>, hnd:h<e,r>, cfc:cfc, hevv:evv<e>)
 
-// Evidence vectors
+// Abstract type of Evidence vectors
 type evv<e::E>
 
 pub alias ev-index = ssize_t
 
-pub fun ev/(==)( Ev(_,Marker(m1))  : ev<h>, Ev(_,Marker(m2)) : ev<h> ) : bool
-  @eq-int32(m1,m2)
+pub fun ev/(==)( Ev(_,m1)  : ev<h>, Ev(_,m2) : ev<h> ) : bool
+  eq-marker(m1,m2)
 
 // -------------------------------------------
 // Internal Markers
 // -------------------------------------------
 
-extern fresh-marker-int() : int32
-  c  "kk_marker_unique"
+// _Internal_. The type of handler markers (usually `:int32_t`).
+// Needed for effect handlers in `module std/core/hnd`.
+value type marker<e::E,a>
+
+// Are two markers equal?
+extern eq-marker( x : marker<e1,a1>, y : marker<e2,a2> ) : bool
+  inline "#1==#2"
+
+extern fresh-marker() : marker<e,a>
+  c inline "kk_marker_unique(kk_context())"
   js inline "$marker_unique++"
 
-extern fresh-marker-named-int() : int32
+extern fresh-marker-named() : marker<e,a>
   c inline  "-kk_marker_unique(kk_context())"
   js inline "-($marker_unique++)"
 
-fun fresh-marker() : marker<e,r>
-  Marker(fresh-marker-int())
 
-fun fresh-marker-named() : marker<e,r>
-  Marker(fresh-marker-named-int())
 
 // -------------------------------------------
 // Internal Evidence vectors

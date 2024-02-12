@@ -593,7 +593,7 @@ getBoxForm' platform newtypes tp
              Just name
                | name `elem` [nameTpInt, nameTpFieldAddr] ||
                  ((name `elem` [nameTpInt8, nameTpInt16, nameTpFloat16]) && sizePtr platform > 2) ||
-                 ((name `elem` [nameTpChar, nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
+                 ((name `elem` [nameTpChar, nameTpInt32, nameTpMarker, nameTpFloat32]) && sizePtr platform > 4)
                    -> BoxIdentity
              _ -> if m < sizePtr platform   -- for example, `bool`, but not `int64`
                    then BoxIdentity

@@ -129,7 +129,7 @@ createDataDef emitError emitWarning lookupDataInfo
     maxDataDefs []
       = if not isVal
           then return DataDefNormal  -- reference type, no constructors
-          else do let size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
+          else do let size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32 || name == nameTpMarker)
                                then 4
                               else if (name == nameTpFloat || name == nameTpInt64)
                                then 8

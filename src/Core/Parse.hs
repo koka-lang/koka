@@ -265,7 +265,7 @@ parseTypeMod
 
 parseDataEffect :: LexParser DataEffect
 parseDataEffect
-  = do named <- do{ specialId "named"; return True } <|> return False
+  = do named <- do{ keyword "named"; return True } <|> return False
        lin   <- do{ specialId "linear"; return True } <|> return False
        keyword "effect"
        return (DataEffect named lin)
