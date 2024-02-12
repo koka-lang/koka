@@ -61,12 +61,12 @@ hasKindLabelResult kind
 {--------------------------------------------------------------------------
   Standard kinds
 --------------------------------------------------------------------------}
--- | Kind @*@
+-- | Kind @V@ (or "*")
 kindStar :: Kind
 kindStar
   = KCon nameKindStar
 
--- | Kind @Label@
+-- | Kind @X@, atomic effects
 kindLabel :: Kind
 kindLabel
   = KCon nameKindLabel
@@ -87,6 +87,7 @@ kindPred :: Kind
 kindPred
   = KCon nameKindPred
 
+-- Effect row E
 kindEffect :: Kind
 kindEffect
   = KCon nameKindEffect
@@ -103,14 +104,17 @@ kindLocal :: Kind
 kindLocal
   = kindFun kindHeap kindLabel
 
+-- user defined effects: (E,V) -> V
 kindHandled :: Kind
 kindHandled
-  = KCon nameKindHandled
+  = kindFun kindEffect (kindFun kindStar kindStar) -- KCon nameKindHandled
 
+-- (used defined) linear effects: (E,V) -> V
 kindHandled1 :: Kind
 kindHandled1
-  = KCon nameKindHandled1
+  = kindHandled -- KCon nameKindHandled1
 
+-- Effect extension (X,E) -> E
 kindExtend :: Kind
 kindExtend
   = kindFun kindLabel (kindFun kindEffect kindEffect)
@@ -151,18 +155,30 @@ extractKindFun k
 isKindStar, isKindLabel, isKindEffect, isKindHandled, isKindScope, isKindHeap :: Kind -> Bool
 isKindStar k
   = k == kindStar
+
 isKindEffect k
   = k == kindEffect
+
 isKindLabel k
   = k == kindLabel
-isKindHandled k
-  = k == kindHandled
-isKindHandled1 k
-  = k == kindHandled1
+
 isKindScope k
   = k == kindScope
+
 isKindHeap k
   = k == kindHeap
+
+isKindHandled1 k
+  = isKindHandled k -- k == kindHandled1
+
+isKindHandled k
+  = -- k == kindHandled
+    case extractKindFun k of
+      ([k1,k2],k3) -> isKindEffect k1 && isKindStar k2 && isKindStar k3
+      _            -> False
+
+
+
 
 isKindAnyLabel :: Kind -> Bool
 isKindAnyLabel k
@@ -178,6 +194,6 @@ builtinKinds
     ,(nameKindLabel, kindLabel)
     ,(nameKindHeap, kindHeap)
     ,(nameKindScope, kindScope)
-    ,(nameKindHandled, kindHandled)
-    ,(nameKindHandled1, kindHandled1)
+    -- ,(nameKindHandled, kindHandled)
+    -- ,(nameKindHandled1, kindHandled1)
     ]

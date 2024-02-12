@@ -250,9 +250,10 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
       let env = env0{ nice = niceTypeExtendVars (args) (nice env0) } in
       (if isExtend then keyword env "extend "
         else case datadef of
-               DataDefRec -> text "recursive "
-               DataDefOpen -> text "open "
+               DataDefRec     -> text "recursive "
+               DataDefOpen    -> text "open "
                DataDefValue v -> text ("value" ++ show v ++ " ")
+               DataDefLinear  -> text "linear"
                _ -> empty) <.>
       (case datakind of
          Inductive -> keyword env "type"

@@ -150,7 +150,7 @@ pub type global :: H
 pub type handled    :: HX -> X;
 
 // Linear effects are lifted to an atomic effect using the `:handled1` type constructor
-pub type handled1   :: HX1 -> X;
+pub type handled1   :: HX -> X;
 
 
 // ----------------------------------------------------------------------------

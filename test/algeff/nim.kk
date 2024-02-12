@@ -196,7 +196,7 @@ fun testCoin() {
 // Scoreboard
 // --------------------------------------------------------
 
-effect state<s> {
+linear effect state<s> {
   fun get() : s;
   fun put(x : s) : ()
 }

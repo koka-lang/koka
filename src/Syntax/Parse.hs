@@ -910,19 +910,27 @@ makeEffectDecl decl =
             then (take 1 tpars, drop 1 tpars)
             else ([], tpars)
 
+      -- effect eff<a,b,c>
+      -- infkind:: <_,_,_E,V> -> V
       infkind = case kind of
                  KindNone -> foldr KindArrow
-                               (KindCon (if isInstance then nameKindStar else
+                               (makeKindHandled krng)
+                               {- (KindCon (if isInstance then nameKindStar else
                                          if singleShot then nameKindHandled1
-                                                       else nameKindHandled) krng)
+                                                       else nameKindHandled) krng) -}
                                (map tbinderKind tpars)
                  _ -> kind
       ename   = TypeBinder id infkind irng rng
+      -- effTpH: eff<a,b,c>
       effTpH  = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) (map tpVar tpars) krng
-      effTp   = if (isInstance)
+      -- effTp: handled<eff<a,b,c>>
+      effTp   = TpApp (TpCon (if singleShot then nameTpHandled1 else nameTpHandled) (tbinderRange ename)) [effTpH] rng
+                {-
+                if (isInstance)
                  then effTpH
                  else TpApp (TpCon (if singleShot then nameTpHandled1 else nameTpHandled) (tbinderRange ename))
                        [effTpH] rng
+                -}
 
 
       -- declare the effect type (for resources, generate a hidden constructor to check the types)
@@ -931,7 +939,7 @@ makeEffectDecl decl =
       docOperations = "\n// Operations:\n// ```koka\n" ++ (unlines $ map ("// "++) $
                       [ show (opdeclSort op) ++ " " ++ show (toBasicOperationsName (opdeclName op)) | op <- operations ])
                       ++ "// ```\n"
-
+      {-
       (effTpDecl,wrapAction)
                 = if isInstance
                     then -- Synonym ename tpars (makeTpApp (TpCon nameTpEv rng) [makeTpApp (tpCon hndTpName) (map tpVar tpars) rng] rng) rng vis docx
@@ -947,14 +955,14 @@ makeEffectDecl decl =
                              hndfld = ValueBinder nameNil hndTp Nothing grng grng
                              hndcon = UserCon (toConstructorName id) [hndEffTp,hndResTp] [(Private,hndfld)] Nothing grng grng Private ""
                          in (DataType ename tpars [hndcon] rng vis Inductive DataDefNormal False docx, \action -> action)
-
+      -}
       -- declare the effect handler type
       kindEffect = KindCon nameKindEffect krng
       kindStar   = KindCon nameKindStar krng
-      hndName    = toHandlerName id
+      hndName    = id    -- toHandlerName id
+      hndTpName  = ename -- TypeBinder hndName KindNone krng krng
       hndEffTp   = TypeBinder (newHiddenName "e") (KindCon nameKindEffect krng) krng krng
       hndResTp   = TypeBinder (newHiddenName "r") kindStar krng krng
-      hndTpName  = TypeBinder hndName KindNone krng krng
       hndTp      = makeTpApp (tpCon hndTpName) (map tpVar (tparsNonScoped ++ [hndEffTp,hndResTp])) grng
 
       -- declare the effect tag
@@ -987,7 +995,9 @@ makeEffectDecl decl =
       getOpName op = show (unqualify (opdeclName op))
 
       hndCon     = UserCon (toConstructorName hndName) [] [(Public,fld) | fld <- opFields] Nothing krng grng vis ""
-      hndTpDecl  = DataType hndTpName (tparsNonScoped ++ [hndEffTp,hndResTp]) [hndCon] grng vis sort DataDefNormal False ("// handlers for the " ++ docEffect)
+      hndTpDecl  = DataType hndTpName (tparsNonScoped ++ [hndEffTp,hndResTp]) [hndCon] grng vis sort
+                   (if singleShot then DataDefLinear else DataDefNormal)
+                   False docx -- ("// handlers for the " ++ docEffect)
 
       -- declare the handle function
 
@@ -1022,11 +1032,11 @@ makeEffectDecl decl =
                     (Nothing, Var (newName "cfc") False krng),
                     (Nothing, Var (newName "hnd") False krng),
                     (Nothing, Var (newName "ret") False krng),
-                    (Nothing, wrapAction (Var (newName "action") False krng))]
+                    (Nothing, {-wrapAction-} (Var (newName "action") False krng))]
       handleDef  =  Def (ValueBinder handleName () handleBody (rangeHide irng) grng)
                         grng vis (defFun []) InlineNever ("// handler for the " ++ docEffect)
 
-   in [DefType effTpDecl, DefValue tagDef, DefType hndTpDecl, DefValue handleDef]
+   in [{-DefType effTpDecl,-} DefValue tagDef, DefType hndTpDecl, DefValue handleDef]
          ++ map DefValue opSelects
          ++ map DefValue opDefs
          ++ map DefValue (catMaybes opValDefs)
@@ -2691,11 +2701,15 @@ katom
        return (KindCon nameKindPred rng)
   <|>
     do rng <- specialConId "HX"
-       return (KindCon nameKindHandled rng)
-  <|>
+       return (makeKindHandled rng) -- (KindCon nameKindHandled rng)
+  {- <|>
     do rng <- specialConId "HX1"
-       return (KindCon nameKindHandled1 rng)
-  <?> "kind constant (V,E,H,S,X,HX,HX1, or P)"
+       return (makeKindHandled rng) -- (KindCon nameKindHandled1 rng)
+  -}
+  <?> "kind constant (V,E,H,S,X,HX, or P)"
+
+makeKindHandled rng
+  = KindArrow (KindCon nameKindEffect rng) (KindArrow (KindCon nameKindStar rng) (KindCon nameKindStar rng))
 
 -----------------------------------------------------------
 -- Braces and parenthesis

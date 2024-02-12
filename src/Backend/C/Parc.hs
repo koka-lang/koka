@@ -158,7 +158,7 @@ parcExpr expr
         -> do def1  <- -- check if we need to name a result in case it will be dropped
                        do mbDrop <- if (nameIsNil (defName def)) then genDrop (defTName def) else return Nothing
                           case mbDrop of
-                            Just _ -- | nameIsNil (defName def) 
+                            Just _ -- | nameIsNil (defName def)
                               -> do name <- uniqueName "res" -- name the result
                                     return def{defName = name}
                             _ -> return def
@@ -189,7 +189,7 @@ parcLam expr parsSet body
 parcBorrowApp :: TName -> [Expr] -> Expr -> Parc Expr
 parcBorrowApp tname args expr
   = do bs <- getParamInfos (getName tname)
-       if Borrow `notElem` bs 
+       if Borrow `notElem` bs
          then App expr <$> reverseMapM parcExpr args
          else do  let argsBs = zip args (bs ++ repeat Own)
                   (lets, drops, args') <- unzip3 <$> reverseMapM (uncurry parcBorrowArg) argsBs
@@ -221,8 +221,8 @@ parcBorrowArg expr parInfo
       (_, Borrow)
         -> do expr' <- parcExpr expr
               notRefCounted <- exprIsNotRefcounted expr   -- for example, small integer literals
-              if (notRefCounted) 
-                then return ([], Nothing, expr') 
+              if (notRefCounted)
+                then return ([], Nothing, expr')
                 else do argName <- uniqueName "brw"
                         let def = makeDef argName expr'
                         drop <- extendOwned (S.singleton (defTName def)) $ genDrop (defTName def)
@@ -277,7 +277,7 @@ data ShapeInfo = ShapeInfo{
 parcGuardRC :: Dups -> Drops -> Expr -> Parc Expr
 parcGuardRC dups drops body
   = do enable <- allowSpecialize
-       rcStats <- optimizeGuard enable dups drops 
+       rcStats <- optimizeGuard enable dups drops
        return $ maybeStats rcStats body
 
 
@@ -296,7 +296,7 @@ optimizeGuard False dups rdrops
 optimizeGuard True {-specialize-} dups rdrops
   = do shapes <- getShapeMap
        let mchildrenOf x = case M.lookup x shapes of
-                             Just (ShapeInfo (Just mchildren) _ _) | not (null mchildren) -> Just mchildren                            
+                             Just (ShapeInfo (Just mchildren) _ _) | not (null mchildren) -> Just mchildren
                              _    -> Nothing
        let conNameOf x  = case M.lookup x shapes of
                             Just (ShapeInfo _ (Just (_,cname)) _) -> Just cname
@@ -322,9 +322,9 @@ optimizeDupDrops mchildrenOf conNameOf dups0 drops0
 
     optimizeDisjoint :: Dups -> [TName] -> Parc [Maybe Expr]
     optimizeDisjoint dups []
-      = do foldMapM genDup dups     
+      = do foldMapM genDup dups
     -- optimizeDisjoint dups drops | S.null dups  -- todo: do not do this as it will not specialize all drops
-    --  = do foldMapM genDrop drops      
+    --  = do foldMapM genDrop drops
     optimizeDisjoint dups (y:drops)
       = do  let (yDups, dups')    = S.partition (isDescendentOf y) dups
             let (yDrops, drops')  = L.partition (isDescendentOf y) drops
@@ -363,13 +363,13 @@ specializeDrop mchildrenOf conNameOf dups v    -- dups are descendents of v
                                       else -- trace ("** no identity: " ++ showTName (v) ++ ": " ++ show (bforms,map pretty ftps)) $
                                            noSpecialize v
 
-          {- else if isBoxType tp 
+          {- else if isBoxType tp
             -- elide drop/dups on boxed types whose elements are not heap allocated
             then case S.toList (childrenOf v) of
                    [x] -> do bx <- getBoxForm (typeOf x)
-                             case bx of 
+                             case bx of
                                BoxIdentity -> do parcTrace $ "boxed value that is never heap allocated"
-                                                 return [] 
+                                                 return []
                                _ -> do parcTrace $ "boxed value with boxform: " ++ show bx
                                        noSpecialize v
                    [] -> do parcTrace $ "no specialize boxed: " ++ show v
@@ -386,8 +386,8 @@ specializeDrop mchildrenOf conNameOf dups v    -- dups are descendents of v
                           = maybeStats xs exprUnit  -- must be let to match in ParcReuse
                           -- = case catMaybes xs of
                           --    []     -> exprUnit
-                          --    exprs  -> makeStats exprs 
-                    return $ [Just (makeDropSpecial v (maybeStatsUnit xUnique) (maybeStatsUnit xShared) (maybeStatsUnit [xDecRef]))]           
+                          --    exprs  -> makeStats exprs
+                    return $ [Just (makeDropSpecial v (maybeStatsUnit xUnique) (maybeStatsUnit xShared) (maybeStatsUnit [xDecRef]))]
 
   where
     childrenOf x
@@ -399,7 +399,7 @@ specializeDrop mchildrenOf conNameOf dups v    -- dups are descendents of v
 fuseDupDrops :: (TName -> TNames) -> Dups -> Drops -> Parc (Dups, Drops)
 fuseDupDrops childrenOf dups drops
   = fuseAliases childrenOf (dups S.\\ drops) (drops S.\\ dups)
-      
+
 fuseAliases :: (TName -> TNames) -> Dups -> Drops -> Parc (Dups,Drops)
 fuseAliases childrenOf dups drops
   = do newtypes <- getNewtypes
@@ -407,11 +407,11 @@ fuseAliases childrenOf dups drops
        return $ L.foldl' (fuseAlias platform newtypes) (dups,S.empty) (S.toList drops)
   where
     fuseAlias :: Platform -> Newtypes -> (Dups,Drops) -> TName -> (Dups,Drops)
-    fuseAlias platform newtypes (dups,drops) y 
+    fuseAlias platform newtypes (dups,drops) y
       = case forwardingChild platform newtypes childrenOf dups y of
-          Just child -> assertion ("Backend.C.Parc.fuseAlias: not a member? " ++ show (child,dups)) 
+          Just child -> assertion ("Backend.C.Parc.fuseAlias: not a member? " ++ show (child,dups))
                                   (S.member child dups) $
-                        (S.delete child dups, drops)  
+                        (S.delete child dups, drops)
           Nothing    -> (dups,S.insert y drops)        -- not (S.member y dups)
 
 -- | Return a dupped name which is a child of the given name
@@ -422,7 +422,7 @@ forwardingChild platform newtypes childrenOf dups y
   = case tnamesList (childrenOf y) of
       [x] -> -- trace ("forwarding child?: " ++ show y ++ " -> " ++ show x) $
              case getValueForm' newtypes (typeOf y) of
-               Just ValueOneScan  -- for example `value type maybe<a> { Nothing; Just(val:a) }` 
+               Just ValueOneScan  -- for example `value type maybe<a> { Nothing; Just(val:a) }`
                  -> case findChild x dups of
                       Just x  -> -- trace (" is forwarding: " ++ show y ++ " -> " ++ show x) $
                                  Just x -- y as Just(x)
@@ -437,14 +437,14 @@ forwardingChild platform newtypes childrenOf dups y
                                  case getBoxForm' platform newtypes (typeOf x) of
                                    BoxIdentity
                                      -> case tnamesList (childrenOf x) of
-                                          [x'] -> findChild x' dups 
+                                          [x'] -> findChild x' dups
                                           _    -> Nothing
                                    _ -> Nothing
                Just _  -> Nothing
                Nothing | isBoxType (typeOf y)
                        -> case getBoxForm' platform newtypes (typeOf x) of
                             BoxIdentity -> --trace (" box identity: " ++ show y) $
-                                           findChild x dups  -- y as Box(x) 
+                                           findChild x dups  -- y as Box(x)
                             _ -> Nothing
                _       -> Nothing
       _ -> Nothing
@@ -573,7 +573,7 @@ useTNameBorrowed tname
 data BoxForm = BoxIdentity   -- directly in the box itself (`int` or any regular datatype)
              | BoxRaw        -- (possibly) heap allocated raw bits (`int64`)
              | BoxValue      -- (possibly) heap allocated value with scan fields (`maybe<int>`)
-             | BoxUnknown 
+             | BoxUnknown
              deriving(Eq,Ord,Enum,Show)
 
 isBoxIdentity BoxIdentity = True
@@ -596,13 +596,13 @@ getBoxForm' platform newtypes tp
                  ((name `elem` [nameTpChar, nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
                    -> BoxIdentity
              _ -> if m < sizePtr platform   -- for example, `bool`, but not `int64`
-                   then BoxIdentity 
+                   then BoxIdentity
                    else BoxRaw
       Just (DataDefValue{})
         -> BoxValue
       Just _
         -> BoxIdentity
-      Nothing 
+      Nothing
         -> BoxUnknown
 
 getBoxForm :: Type -> Parc BoxForm
@@ -680,7 +680,7 @@ genDupDrop isDup tname mbConRepr mbScanCount
   = do let tp = typeOf tname
        mbDi     <- getDataInfo tp
        borrowed <- isBorrowed tname
-       -- parcTrace $ "gen dup/drop: " ++ (if (isDup) then "dup" else "drop") ++ " " ++ show tname ++ ": " ++ 
+       -- parcTrace $ "gen dup/drop: " ++ (if (isDup) then "dup" else "drop") ++ " " ++ show tname ++ ": " ++
        --             show (mbDi,mbConRepr,mbScanCount,borrowed)
        if borrowed && not isDup
          then do -- parcTrace $ "  borrowed and drop, " ++ show tname
@@ -688,7 +688,7 @@ genDupDrop isDup tname mbConRepr mbScanCount
          else let normal = (Just (dupDropFun isDup tp mbConRepr mbScanCount (Var tname InfoNone)))
               in case mbDi of
                 Just di -> case (dataInfoDef di, dataInfoConstrs di, snd (getDataRepr di)) of
-                             (DataDefNormal, [conInfo], [conRepr])  -- data with just one constructor
+                             (ddef, [conInfo], [conRepr]) | dataDefIsNormalOrLinear ddef -- data with just one constructor
                                -> do let scan = conReprScanCount conRepr
                                      -- parcTrace $ "  add scan fields: " ++ show scan ++ ", " ++ show tname
                                      return (Just (dupDropFun isDup tp (Just (conRepr,conInfoName conInfo)) (Just scan) (Var tname InfoNone)))
@@ -706,7 +706,7 @@ genDrop name = do shape <- getShapeInfo name
 
 -- get the dup/drop function
 dupDropFun :: Bool -> Type -> Maybe (ConRepr,Name) -> Maybe Int -> Expr -> Expr
-dupDropFun False {-drop-} tp (Just (conRepr,_)) (Just scanFields) arg  
+dupDropFun False {-drop-} tp (Just (conRepr,_)) (Just scanFields) arg
    | not (conReprIsValue conRepr) && not (isConAsJust conRepr) && not (isBoxType tp) -- drop with known number of scan fields
   = App (Var (TName name coerceTp) (InfoExternal [(C CDefault, "dropn(#1,#2)")])) [arg,makeInt32 (toInteger scanFields)]
   where
@@ -723,7 +723,7 @@ dupDropFun isDup tp mbConRepr mbScanCount arg
 exprIsNotRefcounted :: Expr -> Parc Bool
 exprIsNotRefcounted expr
   = case expr of
-      Lit (LitInt i)   
+      Lit (LitInt i)
         -> return (i >= -8191 && i <= 8191)  -- 14 bits is safe on every platform
       _ -> not <$> needsDupDrop (typeOf expr)
 

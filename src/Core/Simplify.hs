@@ -623,7 +623,8 @@ extractMatchOnCon n (Branch patterns guards) = failure $ "Core.Simplify.bottomUp
 -- effectOffset (effectTypeFromHandler hndTp) effTp)
 effectLabelFromHandler :: Type -> Name
 effectLabelFromHandler tp
-  = fromHandlerName (labelName tp)
+  = -- fromHandlerName
+    (labelName tp)
 
 effectOffset :: Name -> Type -> Integer
 effectOffset l effTp

@@ -494,8 +494,12 @@ infResolveX tp ctx rng
        -- auto upgrade bare labels of HX or HX1 to X kind labels.
         else do effect <- case skind of
                             KICon kind | kind == kindLabel   -> return infTp
-                            KICon kind | isKindHandled kind  -> return (makeHandled infTp rng)
-                            KICon kind | isKindHandled1 kind -> return (makeHandled1 infTp rng)
+                            KICon kind | isKindHandled kind
+                              -> do linear <- checkLinearEffect infTp
+                                    return $ (if linear then makeHandled1 else makeHandled) infTp rng
+
+                            -- KICon kind | isKindHandled kind  -> return (makeHandled infTp rng)
+                            ---KICon kind | isKindHandled1 kind -> return (makeHandled1 infTp rng)
                             _ -> do unify ctx rng infKindLabel skind
                                     return infTp
                 resolveType M.empty False effect
@@ -719,10 +723,15 @@ infUserType expected  context userType
               skind   <- subst ekind
               effect' <- case skind of
                           KICon kind | kind == kindLabel -> return (makeEffectExtend etp makeEffectEmpty)
+                          KICon kind | isKindHandled kind
+                            -> do linear <- checkLinearEffect etp
+                                  return $ makeEffectExtend ((if linear then makeHandled1 else makeHandled) etp rng) makeEffectEmpty
+                          {-
                           KICon kind | isKindHandled kind ->  -- TODO: check if there is an effect declaration
                                           return (makeEffectExtend (makeHandled etp rng) makeEffectEmpty)
                           KICon kind | isKindHandled1 kind ->  -- TODO: check if there is an effect declaration
                                           return (makeEffectExtend (makeHandled1 etp rng) makeEffectEmpty)
+                          -}
                           _  -> do unify (checkEff range) range (KICon kindEffect) skind
                                    return etp
               tp'     <- infUserType infKindStar (checkRes range) tp
@@ -741,10 +750,16 @@ infUserType expected  context userType
                   -> return (makeEffectAppend ltp tl')
                 KICon kind | isKindHandled kind -- TODO: check effects environment if really effect?
                   -> do unify (checkExtendLabel range) range (KICon kindHandled) skind
+                        linear <- checkLinearEffect ltp
+                        return (TpApp tp' [(if linear then makeHandled1 else makeHandled) ltp rng, tl'] rng)
+                        {-
+                KICon kind | isKindHandled kind -- TODO: check effects environment if really effect?
+                  -> do unify (checkExtendLabel range) range (KICon kindHandled) skind
                         return (TpApp tp' [makeHandled ltp rng, tl'] rng)
                 KICon kind | isKindHandled1 kind -- TODO: check effects environment if really effect?
                   -> do unify (checkExtendLabel range) range (KICon kindHandled1) skind
                         return (TpApp tp' [makeHandled1 ltp rng, tl'] rng)
+                        -}
                 _ -> do unify (checkExtendLabel range) range (KICon kindLabel) skind
                         return (TpApp tp' [ltp,tl'] rng)
 
@@ -769,6 +784,18 @@ infUserType expected  context userType
               unify context range expected kind
               tp' <- infUserType kind (checkAnnot range) tp
               return (TpAnn tp' kind)
+
+checkLinearEffect :: KUserType InfKind -> KInfer Bool
+checkLinearEffect utp
+  = case utp of
+      TpParens tp _   -> checkLinearEffect tp
+      TpApp tp _ _    -> checkLinearEffect tp
+      TpCon name rng  -> do mbInfo <- lookupDataInfo name
+                            case mbInfo of
+                              Just info | dataDefIsLinear (dataInfoDef info)
+                                        -> trace ("found linear effect: " ++ show name) $ return True
+                              _         -> return False
+      _               -> return False
 
 infParam expected context (name,tp)
   = do tp' <- infUserType expected context tp
@@ -833,7 +860,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
        cs <- getColorScheme
        let qname  = getName newtp'
            fname  = unqualify qname
-           name   = if (isHandlerName fname) then fromHandlerName fname else fname
+           name   = fname -- if (isHandlerName fname) then fromHandlerName fname else fname
            nameDoc = color (colorType cs) (pretty name)
 
        consinfos <- mapM (resolveConstructor (getName newtp') sort

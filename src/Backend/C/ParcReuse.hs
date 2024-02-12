@@ -709,7 +709,7 @@ newtypesDataDefRepr :: Newtypes -> Type -> Maybe (DataDef,DataRepr)
 newtypesDataDefRepr newtypes tp
    = case extractDataDefType tp of
        Nothing   -> Just (DataDefNormal,DataNormal True)
-       Just name | name == nameTpBox -> Just (DataDefNormal,DataNormal False)
+       Just name | name == nameTpBox -> Just (DataDefNormal,DataNormal)
        Just name -> case newtypesLookupAny name newtypes of
                       Nothing -> Nothing
                       Just di -> Just (dataInfoDef di, fst (getDataRepr di))

@@ -63,7 +63,7 @@ module Common.Name
 import Debug.Trace
 import Lib.PPrint
 import Data.Char(isUpper,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
-import Common.Failure(failure,assertion)
+import Common.Failure(failure,assertion, HasCallStack)
 import Common.File( joinPaths, splitOn, endsWith, startsWith, isPathSep )
 import Common.Range( rangeStart, posLine, posColumn )
 import Data.List(intersperse,isPrefixOf)
@@ -590,7 +590,7 @@ makeHiddenName :: String -> Name -> Name
 makeHiddenName s name
   = prepend ("@" ++ s ++ "-") name
 
-unmakeHidden :: String -> Name -> Name
+unmakeHidden :: HasCallStack => String -> Name -> Name
 unmakeHidden pre name
   = nameMapStem name $ \stem ->
     if stem `startsWith` ("@" ++ pre ++ "-")
@@ -681,7 +681,7 @@ isHandlerName name
   = hiddenNameStartsWith name "hnd"
 
 -- | Create an effect type name from an operations type name.
-fromHandlerName :: Name -> Name
+fromHandlerName :: HasCallStack => Name -> Name
 fromHandlerName name
   = unmakeHidden "hnd" name
 

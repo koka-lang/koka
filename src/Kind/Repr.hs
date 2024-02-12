@@ -6,7 +6,7 @@
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
-    
+
 -}
 -----------------------------------------------------------------------------
 module Kind.Repr( orderConFields, createDataDef ) where
@@ -27,30 +27,32 @@ import Type.Type
 
 -- value types
 createDataDef :: Monad m => (Doc-> m ()) -> (Doc-> m ()) -> (Name -> m (Maybe DataInfo))
-                               -> Platform -> Name -> Bool -> Bool -> DataKind 
+                               -> Platform -> Name -> Bool -> Bool -> DataKind
                                  -> Int -> DataDef -> [ConInfo] -> m (DataDef,[ConInfo])
-createDataDef emitError emitWarning lookupDataInfo 
-               platform name resultHasKindStar isRec sort 
+createDataDef emitError emitWarning lookupDataInfo
+               platform name resultHasKindStar isRec sort
                 extraFields defaultDef conInfos0
   = do --calculate the value repr of each constructor
        conInfos <- mapM createConInfoRepr conInfos0
 
-       -- datadef 
+       -- datadef
        let maxMembers = maximum ([0] ++ map (length . conInfoParams) conInfos)
            conCount   = length conInfos
            canbeValue = resultHasKindStar && sort /= Retractive
            isEnum     = canbeValue && maxMembers == 0 && conCount >= 1
            isIso      = canbeValue && maxMembers == 1 && conCount == 1
-                                    
+
        ddef  <- case defaultDef of
                   DataDefOpen
                     -> return DataDefOpen
                   DataDefRec
                     -> return DataDefRec
-                  
+                  DataDefLinear
+                    -> return DataDefLinear
+
                   DataDefNormal | isRec
                     -> return DataDefRec
-                  DataDefNormal 
+                  DataDefNormal
                     -> do dd <- createMaxDataDef conInfos
                           case dd of
                             {- DataDefValue vr | isEnum  -- allow allocated enum types
@@ -58,10 +60,10 @@ createDataDef emitError emitWarning lookupDataInfo
                             {- DataDefValue vr | isIso   -- iso types are always value types
                               -> return dd -}
                             _ -> return DataDefNormal
-                  
+
                   DataDefAuto | isRec
                     -> return DataDefRec
-                  DataDefAuto 
+                  DataDefAuto
                     -> do dd <- createMaxDataDef conInfos
                           case dd of
                             DataDefValue vr | isEnum
@@ -76,7 +78,7 @@ createDataDef emitError emitWarning lookupDataInfo
                                                     text "or declared as a reference type to suppress this warning (e.g. 'ref type/struct')"
                                     return DataDefNormal
                             _ -> return DataDefNormal
-                  
+
                   DataDefValue{} | isRec
                     -> do emitError $ text "cannot be declared as a value type since it is recursive."
                           return DataDefNormal
@@ -90,7 +92,7 @@ createDataDef emitError emitWarning lookupDataInfo
                     -> do dd <- createMaxDataDef conInfos
                           case dd of
                             DataDefValue vr
-                              -> do let size = valueReprSize platform vr 
+                              -> do let size = valueReprSize platform vr
                                     when (size > 4*sizePtr platform) $
                                       emitWarning (text "requires" <+> pretty size <+> text "bytes which is rather large for a value type")
                                     when isEnum $
@@ -107,7 +109,7 @@ createDataDef emitError emitWarning lookupDataInfo
 
     -- createConInfoRepr :: ConInfo -> m ConInfo
     createConInfoRepr conInfo
-      = do (orderedFields,vrepr) <- orderConFields emitError (text "constructor" <+> pretty (conInfoName conInfo)) 
+      = do (orderedFields,vrepr) <- orderConFields emitError (text "constructor" <+> pretty (conInfoName conInfo))
                                                    lookupDataInfo platform extraFields (conInfoParams conInfo)
            return (conInfo{ conInfoOrderedParams = orderedFields, conInfoValueRepr = vrepr } )
 
@@ -126,8 +128,8 @@ createDataDef emitError emitWarning lookupDataInfo
 
     -- note: (m = raw, n = scan)
     -- maxDataDefs :: Monad m => [ValueRepr] -> m DataDef
-    maxDataDefs [] 
-      = if not isVal 
+    maxDataDefs []
+      = if not isVal
           then return DataDefNormal  -- reference type, no constructors
           else do let size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
                                then 4
@@ -154,9 +156,9 @@ createDataDef emitError emitWarning lookupDataInfo
            case (vr,dd) of
               (ValueRepr 0 0 _,    DataDefValue v)                  -> return (DataDefValue v)
               (v,                  DataDefValue (ValueRepr 0 0 _))  -> return (DataDefValue v)
-              (ValueRepr m1 0 a1,  DataDefValue (ValueRepr m2 0 a2)) 
+              (ValueRepr m1 0 a1,  DataDefValue (ValueRepr m2 0 a2))
                 -> return (DataDefValue (valueReprNew (max m1 m2) 0 (max a1 a2)))
-              (ValueRepr 0 n1 a1,  DataDefValue (ValueRepr 0 n2 a2)) 
+              (ValueRepr 0 n1 a1,  DataDefValue (ValueRepr 0 n2 a2))
                 -> return (DataDefValue (valueReprNew 0 (max n1 n2) (max a1 a2)))
               (ValueRepr m1 n1 a1, DataDefValue (ValueRepr m2 n2 a2))
                 -- equal scan fields
@@ -178,14 +180,14 @@ createDataDef emitError emitWarning lookupDataInfo
 
 -- order constructor fields of constructors with raw field so the regular fields come first to be scanned.
 -- return the ordered fields, and a ValueRepr (raw size part, the scan count (including tags), align, and full size)
--- The size is used for reuse and should include all needed fields including the tag field for "open" datatypes 
+-- The size is used for reuse and should include all needed fields including the tag field for "open" datatypes
 orderConFields :: Monad m => (Doc -> m ()) -> Doc -> (Name -> m (Maybe DataInfo)) -> Platform
                                -> Int -> [(Name,Type)] -> m ([(Name,Type)],ValueRepr)
 orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
   = do visit ([], [], [], extraPreScan, 0) fields
   where
     -- visit :: ([((Name,Type),ValueRepr)],[((Name,Type),ValueRepr)],[(Name,Type)],Int,Int) -> [(Name,Type)] -> m ([(Name,Type)],ValueRepr)
-    visit (rraw, rmixed, rscan, scanCount0, alignment0) []  
+    visit (rraw, rmixed, rscan, scanCount0, alignment0) []
       = do when (length rmixed > 1) $
              do emitError (nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
                              text ("hint: use 'box' on either field to make it a non-value type."))
@@ -194,9 +196,9 @@ orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
 
                 -- if there is a mixed value member (with scan fields) we may need to add padding scan fields (!)
                 -- (or otherwise the C compiler may insert uninitialized padding)
-                (padding,mixedScan)   
+                (padding,mixedScan)
                           = case rmixed of
-                              ((_,ValueRepr _ scan ralign):_) 
+                              ((_,ValueRepr _ scan ralign):_)
                                  -> let padSize    = preSize `mod` ralign
                                         padCount   = padSize `div` sizeField platform
                                     in assertion ("Kind.Infer.orderConFields: illegal alignment: " ++ show ralign) (padSize `mod` sizeField platform == 0) $
@@ -205,12 +207,12 @@ orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
                               [] -> ([],0)
 
                 -- calculate the rest now
-                scanCount = scanCount0 + mixedScan  
+                scanCount = scanCount0 + mixedScan
                 alignment = if scanCount > 0 then max alignment0 (sizeField platform) else alignment0
                 rest      = padding ++ rmixed ++ reverse rraw
                 restSizes = [valueReprSize platform vr | (_field,vr) <- rest]
                 restFields= [field | (field,_vr) <- rest]
-                size      = alignedSum preSize restSizes                            
+                size      = alignedSum preSize restSizes
                 rawSize   = size - (sizeHeader platform) - (scanCount * sizeField platform)
                 vrepr     = valueReprNew rawSize scanCount alignment
            -- (if null padding then id else trace ("constructor: " ++ show cname ++ ": " ++ show vrepr) $
@@ -238,8 +240,8 @@ orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
       | otherwise                                        = (f,vrf):insertRaw field vr rs
     insertRaw field vr []
       = [(field,vr)]
-    
-    
+
+
 
 -- | Return the DataDef for a type.
 -- This may be 'Nothing' for abstract types.
@@ -248,11 +250,11 @@ getDataDef lookupDI tp
    = case extractDataDefType tp of
        Nothing -> return $ Just DataDefNormal
        Just name | name == nameTpBox -> return $ Just DataDefNormal
-       Just name -> do mdi <- lookupDI name 
+       Just name -> do mdi <- lookupDI name
                        case mdi of
                          Nothing -> return Nothing
                          Just di -> return $ Just (dataInfoDef di)
-    where 
+    where
       extractDataDefType :: Type -> Maybe Name
       extractDataDefType tp
         = case expandSyn tp of

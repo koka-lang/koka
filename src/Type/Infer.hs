@@ -1055,7 +1055,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
        heff <- inferHandledEffect hrng handlerSort mbEffect branches
        let isInstance = isHandlerInstance handlerSort
            effectName = effectNameFromLabel heff
-           handlerConName = toConstructorName (toHandlerName effectName)
+           handlerConName = toConstructorName effectName -- (toHandlerName effectName)
 
        -- traceDoc $ \penv -> text "checking handler: " <+> ppType penv heff
 

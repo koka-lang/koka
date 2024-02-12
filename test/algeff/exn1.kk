@@ -2,7 +2,7 @@ effect amb {
   ctl flip() : bool
 }
 
-effect state<s> {
+linear effect state<s> {
   fun get()  : s
   fun set(i:s) : ()
 }
@@ -28,7 +28,7 @@ fun foo() : <amb,state<int>> bool {
 // handlers
 
 fun state_handle( init, action ) {
-  var s : int := init   
+  var s : int := init
   with {
     fun get() { s }
     fun set(i){ s := i }

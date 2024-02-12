@@ -20,7 +20,7 @@ module Common.Syntax( Visibility(..)
                     , Target(..), CTarget(..), JsTarget(..), isTargetC, isTargetJS, isTargetWasm
                     , isPublic, isPrivate
                     , DataDef(..)
-                    , dataDefIsRec, dataDefIsOpen, dataDefIsValue, dataDefSize
+                    , dataDefIsRec, dataDefIsOpen, dataDefIsValue, dataDefSize, dataDefIsLinear, dataDefIsNormalOrLinear
                     , ValueRepr(..)
                     , valueReprIsMixed, valueReprIsRaw, valueReprNew, valueReprZero
                     , valueReprRaw, valueReprSize, valueReprScan, valueReprSizeScan
@@ -161,13 +161,13 @@ instance Show OperationSort where
 
 -- Cannot have `-` or ` ` in the name
 opSortString :: OperationSort -> String
-opSortString opsort 
+opSortString opsort
   = case opsort of
       OpVal -> "val"
       OpFun -> "fun"
       OpExcept -> "brk"
       OpControl -> "ctl"
-      OpControlRaw -> "rawctl" 
+      OpControlRaw -> "rawctl"
       OpControlErr -> ""
 
 readOperationSort :: String -> Maybe OperationSort
@@ -198,6 +198,7 @@ instance Show DataKind where
 
 data DataDef = DataDefValue !ValueRepr  -- value type
              | DataDefNormal            -- reference type
+             | DataDefLinear            -- linear effects
              | DataDefRec
              | DataDefOpen
              | DataDefAuto              -- Value or Normal; determined by kind inference
@@ -207,6 +208,7 @@ instance Show DataDef where
   show dd = case dd of
               DataDefValue v   -> "val" ++ show v
               DataDefNormal    -> "normal"
+              DataDefLinear    -> "linear"
               DataDefRec       -> "rec"
               DataDefOpen      -> "open"
               DataDefAuto      -> "auto"
@@ -215,6 +217,7 @@ dataDefIsRec ddef
   = case ddef of
       DataDefValue{}   -> False
       DataDefNormal    -> False
+      DataDefLinear    -> False
       DataDefAuto      -> False
       _  -> True
 
@@ -227,6 +230,18 @@ dataDefIsValue ddef
   = case ddef of
       DataDefValue{} -> True
       _ -> False
+
+dataDefIsLinear ddef
+  = case ddef of
+      DataDefLinear -> True
+      _ -> False
+
+dataDefIsNormalOrLinear ddef
+  = case ddef of
+      DataDefNormal -> True
+      DataDefLinear -> True
+      _ -> False
+
 
 dataDefSize :: Platform -> DataDef -> Int
 dataDefSize platform ddef

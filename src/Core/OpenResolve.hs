@@ -164,7 +164,7 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                  evIndexOf l
                    = let (htagTp,hndTp)
                              = let (name,_,tpArgs) = labelNameEx l
-                                   hndCon = TCon (TypeCon (toHandlerName name)
+                                   hndCon = TCon (TypeCon name -- (toHandlerName name)
                                                           (kindFunN (map getKind tpArgs ++ [kindEffect,kindStar]) kindStar))
                                in (makeTypeApp (resolve (toEffectTagName name)) tpArgs, typeApp hndCon tpArgs)
                      in App (makeTypeApp (resolve nameEvvIndex) [effTo,hndTp]) [htagTp]
