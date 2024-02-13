@@ -41,7 +41,7 @@ module Type.TypeVar(-- * Type substitutable entities
                     , TypeCons, tcsEmpty, tcsUnion, tcsUnions
                     ) where
 
-import Data.List(nub,partition)
+import Data.List(nub,partition,foldl')
 -- import Lib.Trace
 import Common.Range
 import Common.Unique
@@ -95,21 +95,21 @@ alltv t
 --------------------------------------------------------------------------}
 
 -- | A substitution from type variables to 'Tau's.
-newtype Sub = Sub (M.Map TypeVar Tau)
+data Sub = Sub{ subMap :: !(M.Map TypeVar Tau), subTvs :: !Tvs }
 
-unSub (Sub sub)
+unSub (Sub sub _)
   = sub
 
 subCount :: Sub -> Int
-subCount (Sub sub)
+subCount (Sub sub _)
   = M.size sub
 
 subNull :: Sub
 subNull
-  = Sub M.empty
+  = Sub M.empty tvsEmpty
 
 subIsNull :: Sub -> Bool
-subIsNull (Sub sub)
+subIsNull (Sub sub _)
   = M.null sub
 
 subNew :: HasCallStack => [(TypeVar, Tau)] -> Sub
@@ -119,23 +119,23 @@ subNew sub
     let s = assertion ("Type.TypeVar.subNew.KindMismatch: length " ++ show (length sub) ++ ": "
                         ++ unlines (map (\(x,t) -> "(" ++ showTypeVar x ++ " |-> " ++ showTp t ++ ")") sub))
                       (all (\(x, t) -> getKind x == getKind t) sub) $
-            Sub (M.fromList sub)
+            Sub (M.fromList sub) (ftv (map snd sub))
     in seq s s
 
 subDom :: Sub -> Tvs
-subDom (Sub sub)
+subDom (Sub sub _)
   = tvsNew (M.keys sub)
 
 subRange :: Sub -> [Tau]
-subRange (Sub sub)
+subRange (Sub sub _)
   = M.elems sub
 
 subList :: Sub -> [(TypeVar,Tau)]
-subList (Sub sub)
+subList (Sub sub _)
   = M.toList sub
 
 subCommon :: Sub -> Sub -> [(TypeVar,(Tau,Tau))]
-subCommon (Sub sub1) (Sub sub2)
+subCommon (Sub sub1 _) (Sub sub2 _)
   = M.toList (M.intersectionWith (,) sub1 sub2)
 
 subSingle :: HasCallStack => TypeVar -> Tau -> Sub
@@ -150,15 +150,15 @@ subSingle tvar tau
                (not (tvsMember tvar (ftv tau))) $
     -- assertion ("Type.TypeVar.subSingle: not a tau") (isTau tau) $
     assertion "Type.TypeVar.subSingle.KindMismatch" (getKind tvar == getKind tau) $
-    Sub (M.singleton tvar tau)
+    Sub (M.singleton tvar tau) (ftv tau)
 
 subLookup :: TypeVar -> Sub -> Maybe Tau
-subLookup tvar (Sub sub)
+subLookup tvar (Sub sub _)
   = M.lookup tvar sub
 
 subRemove :: [TypeVar] -> Sub -> Sub
-subRemove tvars (Sub sub)
-  = Sub (foldr M.delete sub tvars)
+subRemove tvars (Sub sub tvs)
+  = Sub (foldr M.delete sub tvars) tvs
 
 subFind :: HasCallStack => TypeVar -> Sub -> Tau
 subFind tvar sub
@@ -180,24 +180,24 @@ sub1 @@ sub2
   = subCompose sub1 sub2
 
 subCompose :: Sub -> Sub -> Sub
-subCompose sub1 sub2
-  = Sub (M.union (unSub sub1) (unSub (sub1 |-> sub2)))    --ASSUME: left biased union
+subCompose sub1@(Sub _ tvs1) sub2@(Sub _ tvs2)
+  = Sub (M.union (unSub sub1) (unSub (sub1 |-> sub2))) (tvsUnion tvs1 tvs2)   --ASSUME: left biased union
 
 subExtend :: TypeVar -> Tau -> Sub -> Sub
-subExtend tvar tau sub@(Sub s)
+subExtend tvar tau sub
   = subSingle tvar tau @@ sub
 
 -- | Insert a new substitution. (Note: breaks abstraction barrier).
 subInsert :: TypeVar -> Tau -> Sub -> Sub
-subInsert tvar tau (Sub s)
+subInsert tvar tau (Sub s tvs)
   = assertion ("Type.TypeVar.subSingle: recursive type: " ++ showTVar tvar)
               (not (tvsMember tvar (ftv tau))) $
     assertion ("Type.TypeVar.subSingle: not a tau") (isTau tau) $
-    Sub (M.insert tvar tau s)
+    Sub (M.insert tvar tau s) (tvsUnion tvs (ftv tau))
 
 subInserts :: [(TypeVar,Tau)] -> Sub -> Sub
-subInserts assoc (Sub sub)
-  = Sub (M.union (M.fromList assoc) sub)  --ASSUME: left-biased union
+subInserts assoc (Sub sub tvs)
+  = Sub (M.union (M.fromList assoc) sub) (tvsUnion tvs (ftv (map snd assoc)))  --ASSUME: left-biased union
 
 (|->) :: (HasCallStack, HasTypeVar a) => Sub -> a -> a
 sub |-> x
@@ -206,16 +206,16 @@ sub |-> x
 
 
 instance HasTypeVar Sub where
-  sub `substitute` (Sub s)
-    = Sub (M.map (\k -> sub `substitute` k) s)
+  sub@(Sub _ tvs1) `substitute` (Sub s tvs2)
+    = Sub (M.map (\k -> sub `substitute` k) s) (tvsUnion tvs1 tvs2)
 
-  ftv (Sub sub)
+  ftv (Sub sub _)
     = tvsUnion (tvsNew (M.keys sub)) (ftv (M.elems sub))
 
   btv sub
     = tvsEmpty
 
-  ftc (Sub sub)
+  ftc (Sub sub _)
     = ftc (M.elems sub)
 
 
@@ -251,7 +251,7 @@ instance (HasTypeVar a, HasTypeVar b) => HasTypeVar (Either a b) where
   Type variables
 --------------------------------------------------------------------------}
 -- | A set of type variables
-newtype Tvs = Tvs (S.Set TypeVar)
+data Tvs = Tvs !(S.Set TypeVar)
 
 tvsEmpty :: Tvs
 tvsEmpty
@@ -324,6 +324,20 @@ tvsDisjoint tvs1 tvs2
 tvsIsSubsetOf :: Tvs -> Tvs -> Bool
 tvsIsSubsetOf tvs1 tvs2
   = tvsIsEmpty (tvsFilter (\tvar -> tvsMember tvar tvs2) tvs1)
+
+
+
+assocMax :: [(TypeVar,Tau)] -> Int
+assocMax assoc
+  = foldl' (\n (tv,t) -> max (tvsMax (ftv t)) (max (typevarId tv) n)) 0 assoc
+
+tvarsMax :: [TypeVar] -> Int
+tvarsMax tvars
+  = foldl' (\n tv -> max (typevarId tv) n) 0 tvars
+
+tvsMax :: Tvs -> Int
+tvsMax (Tvs tvs)
+  = S.foldl' (\n tv -> max (typevarId tv) n) 0 tvs
 
 {--------------------------------------------------------------------------
   Entities with type variables
@@ -421,17 +435,18 @@ instance HasTypeVar Type where
   sub `substitute` tp
     = case tp of
         TForall vars preds tp   -> let sub' = subRemove vars sub
-                                       sfree = ftv sub'
-                                   in if tvsDisjoint (tvsNew vars) sfree
+                                   in if all (\tv -> not (tvsMember tv (subTvs sub'))) vars
                                         then let preds' = sub' |-> preds
-                                             in seqList preds' $ TForall vars preds' $! (sub' |-> tp)
-                                        else let uniq = (maximum $ map typeVarId $ tvsList $ sfree) + 2
+                                             in seqList preds' $ TForall vars preds' (sub' |-> tp)
+                                        else
+                                             let uniq    = max (tvsMax (subTvs sub')) (tvsMax (ftv tp)) + 1
                                                  tvsub   = [(tv,tv{ typevarId = typevarId tv + uniq })  | tv <- vars]
                                                  sksub   = subNew [(tv,TVar tvnew) | (tv,tvnew) <- tvsub]
                                                  preds'  = (sub' |-> (sksub |-> preds))
                                                  newvars = map snd tvsub
                                              in seqList newvars $ seqList preds' $
                                                 TForall newvars preds' $! (sub' |-> (sksub |-> tp))
+
         TFun args effect result -> let args' = (map (\(name,tp) -> let tp' = sub `substitute` tp in seq tp' (name,tp')) args)
                                    in seqList args' $ TFun args' (sub `substitute` effect) (sub `substitute` result)
         TCon tcon               -> TCon tcon
