@@ -745,11 +745,11 @@ typeDivergent
 
 single :: Name -> Effect
 single name
-  = effectExtend (TCon (TypeCon name kindEffect)) effectEmpty
+  = effectExtend (TCon (TypeCon name kindLabel)) effectEmpty
 
 typeTotal :: Tau
 typeTotal
-  = TCon tconTotal
+  = effectEmpty -- TCon tconTotal
 
 tconTotal :: TypeCon
 tconTotal
