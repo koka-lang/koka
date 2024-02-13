@@ -1304,3 +1304,67 @@ tagField  = text "_tag"
 
 constdecl :: Doc
 constdecl = text "const"
+
+quoted :: Doc -> Doc
+quoted d = text $ show $ asString d
+
+str :: String -> Doc
+str s = text $ show $ s
+
+obj :: [Doc] -> Doc
+obj = encloseSep lbrace rbrace comma
+
+(.=) :: String -> Doc -> Doc
+(.=) k v = text (show k ++ ":") <+> v
+
+--------------------------------------------------------------------------------
+-- Smart-constructors for instructions
+--------------------------------------------------------------------------------
+app :: Doc -> [Doc] -> Doc
+app fn args = obj [ "op" .= text "\"App\""
+                  , "fn" .= fn
+                  , "args" .= list args
+                  ]
+
+primitive :: [Doc] -> String -> [Doc] -> Doc -> Doc
+primitive outs name ins body = obj
+  [ "op" .= str "Primitive"
+  , "name" .= str name
+  , "args" .= list ins
+  , "returns" .= list outs
+  , "rest" .= body
+  ]
+
+-- | Simplified primitive smart-constructor (works almost like function application)
+appPrim :: String -- ^ name
+        -> [Doc]  -- ^ args
+        -> Doc    -- ^ return type
+        -> Doc
+appPrim name args tp = primitive [var (str "primitive_result") tp] name args (var (str "primitive_result") tp)
+
+-- | Pseudo-instruction for not-yet supported parts
+notImplemented :: Doc -> Doc
+notImplemented doc = appPrim ("Not implemented: " ++ show (asString doc)) [] (tpe "Unit")
+
+-- TODO other instructions
+
+var :: Doc -> Doc -> Doc
+var x t = obj [ "id" .= x, "type" .= t ]
+
+---- Types
+tFn :: String -> [Doc] -> Doc -> Doc
+tFn pur ps r = obj [ "op" .= text (show "Function")
+                   , "params" .= list ps
+                   , "return" .= r
+                   , "purity" .= text (show pur)
+                   ]
+
+-- | Simple named type
+tpe :: String -> Doc
+tpe name = obj [ "op" .= text (show name) ]
+
+---- Other forms
+
+-- | Definitions
+def :: Doc -> Doc -> Doc
+def n v = obj [ "name" .= n, "value" .= v ]
