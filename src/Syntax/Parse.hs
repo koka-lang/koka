@@ -999,7 +999,10 @@ makeEffectDecl decl =
       cmpName op1 op2 = compare (getOpName op1) (getOpName op2)
       getOpName op = show (unqualify (opdeclName op))
 
-      hndCon     = UserCon (toHandlerConName hndName) [] [(Private,fld) | fld <- opFields] Nothing krng grng vis ""
+      hndFieldCfc= ValueBinder (newHiddenName "cfc")  (TpCon nameTpInt krng) Nothing krng krng -- first field is the control-flow-context for the handler
+      hndFields  = [hndFieldCfc] ++ opFields
+
+      hndCon     = UserCon (toHandlerConName hndName) [] [(Private,fld) | fld <- hndFields] Nothing krng grng vis ""
       hndTpDecl  = DataType hndTpName (tpars {- tparsNonScoped -} ++ [hndEffTp,hndResTp]) [hndCon] grng vis sort
                    DataDefNormal (DataEffect isInstance singleShot)
                    False docx -- ("// handlers for the " ++ docEffect)
@@ -1018,7 +1021,7 @@ makeEffectDecl decl =
       actionTp   = makeTpFun actionArgTp handleEff (tpVar handleRetTp) grng
       handleTp   = quantify QForall (scopedTpVars ++ [handleRetTp,hndEffTp,hndResTp]) $
                    makeTpFun [
-                    (newName "cfc", TpCon nameTpInt32 krng),
+                    -- (newName "cfc", TpCon nameTpInt32 krng),
                     (newName "hnd", TpApp (TpCon hndName grng) (map tpVar (scopedTpVars ++ [hndEffTp,hndResTp])) grng),
                     (newName "ret", makeTpFun [(newName "res",tpVar handleRetTp)] (tpVar hndEffTp) (tpVar hndResTp) grng),
                     (newName "action",
@@ -1032,12 +1035,12 @@ makeEffectDecl decl =
                     else []
       handleBody = Ann (Lam params handleInner grng) handleTp grng
       handleInner= App (Var (if isInstance then nameNamedHandle else nameHandle) False grng) arguments grng
-      params     = [ValueBinder (newName "cfc") Nothing Nothing krng grng,
+      params     = [-- ValueBinder (newName "cfc") Nothing Nothing krng grng,
                     ValueBinder (newName "hnd") Nothing Nothing krng grng,
                     ValueBinder (newName "ret") Nothing Nothing krng grng,
                     ValueBinder (newName "action") Nothing Nothing krng grng]
       arguments  = [(Nothing, Var tagName False krng),
-                    (Nothing, Var (newName "cfc") False krng),
+                    -- (Nothing, Var (newName "cfc") False krng),
                     (Nothing, Var (newName "hnd") False krng),
                     (Nothing, Var (newName "ret") False krng),
                     (Nothing, {-wrapAction-} (Var (newName "action") False krng))]
@@ -1222,10 +1225,10 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect docEffectDecl
                           branch    = Branch (PatCon (toHandlerConName hndName) patterns grng grng)
                                              [Guard guardTrue (Var clauseId False grng)]
                           i          = opIndex
-                          fieldCount = opCount
-                          patterns  = [(Nothing,PatWild grng) | _ <- [0..i-1]]
+                          fieldCount = opCount + 1 -- for the cfc field
+                          patterns  = [(Nothing,PatWild grng) | _ <- [0..i]]  -- up to i due to cfc field
                                       ++ [(Nothing,PatVar (ValueBinder clauseId Nothing (PatWild grng) grng grng))]
-                                      ++ [(Nothing,PatWild grng) | _ <- [i+1..fieldCount-1]]
+                                      ++ [(Nothing,PatWild grng) | _ <- [i+2..fieldCount-1]]
                       in def
 
            docDef = (if null doc then "" else doc ++ "\n") ++

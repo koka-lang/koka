@@ -16,7 +16,6 @@ static inline kk_std_core_hnd__ev_t kk_std_core_hnd__ev_dup(kk_std_core_hnd__ev_
 
 typedef struct kk_evv_vector_s {
   struct kk_block_s     _block;
-  kk_integer_t          cfc;       // control flow context (0-3) as a small int
   kk_std_core_hnd__ev_t vec[1];
 } *kk_evv_vector_t;
 
@@ -69,7 +68,7 @@ static inline kk_std_core_hnd__ev_t kk_evv_at( kk_ssize_t i, kk_context_t* ctx )
     return kk_evv_as_ev(kk_evv_dup(evv,ctx),ctx);
   }
   else {  // evv as a vector
-    kk_assert_internal(i >= 0 && i < (kk_block_scan_fsize(kk_datatype_as_ptr(evv,ctx)) - 1));
+    kk_assert_internal(i >= 0 && i < (kk_block_scan_fsize(kk_datatype_as_ptr(evv,ctx))));
     kk_evv_vector_t vec = kk_evv_as_vector(evv,ctx);
     return kk_std_core_hnd__ev_dup(vec->vec[i],ctx);
   }
@@ -119,11 +118,10 @@ static inline kk_evv_t kk_evv_swap_create1(kk_ssize_t i, kk_context_t* ctx) {
 }
 
 struct kk_std_core_hnd_Htag;
-typedef int32_t kk_cfc_t;
 
 kk_std_core_hnd__ev_t kk_ev_none(kk_context_t* cxt);
 kk_std_core_hnd__ev_t kk_evv_lookup( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx );
-kk_cfc_t        kk_evv_cfc(kk_context_t* ctx);
+bool            kk_evv_is_affine(kk_context_t* ctx);
 kk_ssize_t      kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx );
 kk_evv_t        kk_evv_create(kk_evv_t evv, kk_vector_t indices, kk_context_t* ctx);
 kk_evv_t        kk_evv_insert(kk_evv_t evv, kk_std_core_hnd__ev_t ev, kk_context_t* ctx);

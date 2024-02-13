@@ -174,26 +174,26 @@ static void kklib_init(void) {
   if (process_initialized) return;
   process_initialized = true;
   // for Koka, we need to be fully deterministic and careful when using C functionality that depends on global variables
-  setlocale(LC_ALL, "C.utf8"); 
+  setlocale(LC_ALL, "C.utf8");
 #if defined(WIN32) && (defined(_CONSOLE) || defined(__MINGW32__))
   SetConsoleOutputCP(65001);   // set the console to utf-8 instead of OEM page
 #endif
   kk_cpu_init();
-  atexit(&kklib_done);  
+  atexit(&kklib_done);
 
   #if KK_USE_MEM_ARENA
     #if (KK_INTB_SIZE==4)
     const kk_ssize_t heap_size = kk_shlp(KK_IZ(1), KK_INTB_BITS + KK_BOX_PTR_SHIFT);  // 16GiB
     #elif KK_CHERI && (KK_INTB_SIZE==8)
     const kk_ssize_t heap_size = 128 * KK_GiB;  // todo: parameterize?
-    #else 
+    #else
     #error "define heap initialization for compressed pointers on this platform"
     #endif
     int err = mi_reserve_os_memory_ex(heap_size, false /* commit */, true /* allow large */, true /*exclusive*/, &arena);
     if (err != 0) {
       kk_fatal_error(err, "unable to reserve the initial heap of %zi bytes", heap_size);
     }
-    arena_start = mi_arena_area(arena, &arena_size);    
+    arena_start = mi_arena_area(arena, &arena_size);
   #endif
 }
 
@@ -209,7 +209,7 @@ bool kk_has_bmi1 = false;
 bool kk_has_bmi2 = false;
 bool kk_has_clmul = false;
 
-#if defined(__GNUC__) 
+#if defined(__GNUC__)
 #include <cpuid.h>
 
 static inline bool kk_cpuid(uint32_t* regs4, uint32_t level) {
@@ -234,7 +234,7 @@ static inline int kk_cpuid(uint32_t* regs4, uint32_t level) {
 
 #endif
 
-static void kk_cpu_init(void) 
+static void kk_cpu_init(void)
 {
   //todo: do we need to set the IEEE floating point flags?
   //fexcept_t fexn;
@@ -266,24 +266,24 @@ static void kk_cpu_init(void)
 // The thread local context; usually passed explicitly for efficiency.
 static kk_decl_thread kk_context_t* context;
 
-static struct { kk_block_t _block; kk_integer_t cfc; } kk_evv_empty_static = {
-  { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { ((~KK_UB(0))^0x02) /*==-1 smallint*/}
+static struct { kk_block_t _block; /* kk_integer_t cfc; */ } kk_evv_empty_static = {
+  { KK_HEADER_STATIC(0,KK_TAG_EVV_VECTOR) }  // , { ((~KK_UB(0))^0x02) /*==-1 smallint*/}
 };
 
 struct kk_evv_s {
   kk_block_t _block;
-  kk_integer_t cfc;
+  // kk_integer_t cfc;
 };
 
 kk_datatype_ptr_t kk_evv_empty_singleton(kk_context_t* ctx) {
   static struct kk_evv_s* evv = NULL;
   if (evv == NULL) {
-    evv = kk_block_alloc_as(struct kk_evv_s, 1, KK_TAG_EVV_VECTOR, ctx);
-    evv->cfc = kk_integer_from_small(-1);
+    evv = kk_block_alloc_as(struct kk_evv_s, 0, KK_TAG_EVV_VECTOR, ctx);
+    // evv->cfc = kk_integer_from_small(-1);
   }
   kk_base_type_dup_as(struct kk_evv_s*, evv);
   return kk_datatype_from_base(evv, ctx);
-} 
+}
 
 
 // Get the thread local context (also initializes on demand)
@@ -314,7 +314,7 @@ kk_context_t* kk_get_context(void) {
   ctx->thread_id = (size_t)(&context);
   ctx->unique = kk_integer_one;
   context = ctx;
-  struct kk_box_any_s* boxany = kk_block_alloc_as(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);  
+  struct kk_box_any_s* boxany = kk_block_alloc_as(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);
   boxany->_unused = kk_integer_zero;
   ctx->kk_box_any = kk_datatype_from_base(boxany, ctx);
   ctx->evv = kk_evv_empty_singleton(ctx);
@@ -379,9 +379,9 @@ kk_decl_export void  kk_main_end(kk_context_t* ctx) {
     size_t page_reclaim;
     size_t peak_commit;
     kk_process_info(&user_time, &sys_time, &peak_rss, &page_faults, &page_reclaim, &peak_commit);
-    kk_info_message("elapsed: %" PRId64 ".%03lds, user: %ld.%03lds, sys : %ld.%03lds, rss : %lu%s\n", 
-                    wall_time.seconds, (long)(wall_time.attoseconds / (KK_I64(1000000) * KK_I64(1000000000))), 
-                    user_time/1000, user_time%1000, sys_time/1000, sys_time%1000, 
+    kk_info_message("elapsed: %" PRId64 ".%03lds, user: %ld.%03lds, sys : %ld.%03lds, rss : %lu%s\n",
+                    wall_time.seconds, (long)(wall_time.attoseconds / (KK_I64(1000000) * KK_I64(1000000000))),
+                    user_time/1000, user_time%1000, sys_time/1000, sys_time%1000,
                     (peak_rss > 10*1024*1024 ? peak_rss/(1024*1024) : peak_rss/1024),
                     (peak_rss > 10*1024*1024 ? "mb" : "kb") );
   }

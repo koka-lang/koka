@@ -28,7 +28,8 @@ import Common.Name
 import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy, nameTpDelay
                       , nameReturn, nameRef, nameByref, nameDeref, nameAssign
                       , nameRefSet, nameTpUnit, nameTuple
-                      , namePatternMatchError, nameSystemCore, nameTpHandled, nameTpHandled1
+                      , namePatternMatchError, nameSystemCore
+                      , nameTpHandled, nameTpHandled1, nameTpNHandled1, nameTpNHandled
                       , nameToAny, nameFalse, nameTrue
                       , nameCons, nameListNil, nameVector
                       , nameTpPartial
@@ -1127,8 +1128,8 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
 
        let grng = rangeNull
        let handlerCon = let hcon = Var handlerConName False hrng
-                        in if null clauses then hcon else App hcon clauses rng
-           handlerCfc = (\i -> App (Var nameInternalInt32 False grng) [(Nothing,Lit (LitInt i grng))] grng) $
+                        in App hcon ([(Nothing,Lit (LitInt handlerCfc grng))] ++ clauses) rng
+           handlerCfc = -- (\i -> App (Var nameInternalInt32 False grng) [(Nothing,Lit (LitInt i grng))] grng) $
                         if (null branches) then 1 --linear
                                            else foldr1 cfcLub (map hbranchCfc branches)
                       where
@@ -1146,7 +1147,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                                      in Lam [ValueBinder argName Nothing Nothing rng rng] (Var argName False rng) hrng -- don't pass `id` as it needs to be opened
                           Just expr -> expr
            handleExpr action = App (Var handleName False rng)
-                                [(Nothing,handlerCfc),(Nothing,handlerCon),(Nothing,handleRet),(Nothing,action)] hrng
+                                [{-(Nothing,handlerCfc),-}(Nothing,handlerCon),(Nothing,handleRet),(Nothing,action)] hrng
 
 
 
@@ -1157,7 +1158,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
        (_,handleTp,_)  <- resolveFunName handleName CtxNone rng rng
        (handleRho,_,_) <- instantiateEx rng handleTp
        let actionTp = case splitFunType handleRho of
-                        Just ([_,_,_,actionTp],effTp,resTp) -> snd actionTp
+                        Just ([_,_,actionTp],effTp,resTp) -> snd actionTp
                         _ -> failure ("Type.Infer: unexpected handler type: " ++ show (ppType penv handleRho))
        -- traceDoc $ \penv -> text " action type is" <+> ppType penv actionTp
        let handlerExpr = Parens (Lam [ValueBinder actionName (Just actionTp) Nothing rng rng]
@@ -1265,7 +1266,7 @@ inferHandledEffect rng handlerSort mbeff ops
 checkCoverage :: Range -> Effect -> Name -> [HandlerBranch Type] -> Inf ()
 checkCoverage rng effect handlerConName branches
   = do (_,gconTp,conRepr,conInfo) <- resolveConName handlerConName Nothing rng
-       let opNames = map (fieldToOpName . fst)  (conInfoParams conInfo)
+       let opNames = map (fieldToOpName . fst) (drop 1 {-cfc-} (conInfoParams conInfo))
            branchNames = map branchToOpName branches
        checkCoverageOf rng (map fst opNames) opNames branchNames
        return ()
@@ -1320,7 +1321,8 @@ effectNameCore effect range
   = case expandSyn effect of
       -- handled effects (from an `effect` declaration)
       TApp (TCon tc) [hx]
-        | (typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1)
+        | (typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1 ||
+           typeConName tc == nameTpNHandled || typeConName tc == nameTpNHandled1)
         -> do let effName = effectNameFromLabel hx
               (effectNameVar,_,effectNameInfo) <- resolveName (toEffectTagName effName) Nothing range
               let effectNameCore = coreExprFromNameInfo effectNameVar effectNameInfo
