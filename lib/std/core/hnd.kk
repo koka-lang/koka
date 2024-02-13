@@ -126,15 +126,6 @@ pub fun @new-htag( tag : string ) : htag<h>
 pub fun htag/show( Htag(tag) : htag<h> ) : string
   tag
 
-// control flow context:
-//                 -1: none: bottom
-//                   /          \
-// 0: except: never resumes   1: linear: resumes exactly once
-//                   \          /
-//           2: affine: resumes never or once
-//                        |
-//     3: multi: resumes never, once, or multiple times
-// pub alias cfc = int32
 
 // Effect handler evidence of a handler `:h` in the context.
 abstract type ev<h>
@@ -174,80 +165,109 @@ extern fresh-marker-named() : marker<e,a>
 
 // -------------------------------------------
 // Internal Evidence vectors
+// The datatype is `:evv<e>` is internal for performance
+// reasons and since different backends may have different
+// requirements.
 // -------------------------------------------
 
-inline extern evv-total() : evv<<>>
-  c  "kk_evv_total"
-  js inline "[]"
+// Insert new evidence into the given evidence vector.
+extern evv-insert( evv : evv<e1>, ev : ev<h> ) : e1 evv<e2>
+  c  "kk_evv_insert"
+  js "_evv_insert"
 
-
-// Return the evidence as index `i`.
-// The compiler optimizes `@evv-lookup` to a static index when apparent from the effect type.
-pub inline extern @evv-at<e,h> ( i : ev-index ) : ev<h>  // pretend total; don't simplify
-  c  "kk_evv_at"
-  js "$std_core_hnd._evv_at"
-
-// (dynamically) find evidence insertion/deletion index in the evidence vector
-pub extern @evv-index<e::E,h>( htag : htag<h> ) : e ev-index
-  c  "kk_evv_index"
-  js "__evv_index"
-
-pub inline extern @evv-select( i : ev-index, htag : htag<h> ) : ev<h>
-  c  inline "(#1 >= 0 ? kk_evv_at(#1,kk_context()) : kk_evv_lookup(#2,kk_context()))"
-  js inline "(#1 >= 0 ? $std_core_hnd._evv_at(#1) : __evv_lookup(#2))"
-
+// show evidence for debug purposes
 extern evv-show( evv : evv<e> ) : string
   c  "kk_evv_show"
   js "_evv_show"
 
+// Is an evidence vector unchanged? (i.e. as pointer equality).
+// This is used to avoid copying in common cases.
 extern evv-eq(evv0 : evv<e>, evv1 : evv<e> ) : bool
   c  "kk_evv_eq"
   js inline "(#1) === (#2)"
 
 
+// -------------------------------------------
+// Operations on the "current" evidence vector
+// -------------------------------------------
+
+// Return the evidence at index `i` in the current evidence vector.
+pub inline extern @evv-at<e,h> ( i : ev-index ) : ev<h>  // pretend total; don't simplify
+  c  "kk_evv_at"
+  js "$std_core_hnd._evv_at"
+
+// (dynamically) find evidence insertion/deletion index in the evidence vector
+// The compiler optimizes `@evv-index` to a static index when apparent from the effect type.
+pub extern @evv-index<e::E,h>( htag : htag<h> ) : e ev-index
+  c  "kk_evv_index"
+  js "__evv_index"
+
+// Get the current evidence vector.
 extern evv-get() : e evv<e>
   c  "kk_evv_get"
   js "$std_core_hnd._evv_get"
 
+// Set the current evidence vector.
 inline extern evv-set<e1,e>( w : evv<e1> ) : e ()
   c  "kk_evv_set"
   js "$std_core_hnd._evv_set"
 
-inline extern evv-swap<e1,e2>( w : evv<e1> ) : e evv<e2>
-  c  "kk_evv_swap"
-  js "$std_core_hnd._evv_swap"
-
-extern evv-insert( evv : evv<e1>, ev : ev<h> ) : e1 evv<e2>
-  c  "kk_evv_insert"
-  js "_evv_insert"
-
-extern evv-swap-delete( i : ev-index, behind : bool ) : e1 evv<e>
-  c  "kk_evv_swap_delete"
-  js "_evv_swap_delete"
-
-inline extern evv-swap-create0() : e evv<e>  //not quite the right effect type but avoids unbound effect types
-  c  "kk_evv_swap_create0"
-  js "$std_core_hnd._evv_swap_create0"
-
-inline extern evv-swap-create1( i : ev-index ) : e evv<e>  //not quite the right effect type but avoids unbound effect types
-  c  "kk_evv_swap_create1"
-  js "$std_core_hnd._evv_swap_create1"
-
-extern evv-swap-create( indices : vector<ev-index> ) : e evv<e>  //not quite the right effect type but avoids unbound effect types
-  c  "kk_evv_swap_create"
-  js "_evv_swap_create"
-
-inline extern ev-none<e,h>() : e ev<h>
-  c  "kk_ev_none"
-  js "ev_none"
-
+// Does the current evidence vector consist solely of affine handlers?
+// This is called in backends that do not have context paths (like javascript)
+// to optimize TRMC (where we can use faster update-in-place TRMC if we know the
+// operations are all affine). As such, it is always safe to return `false`.
+//
+// control flow context:
+//                 -1: none: bottom
+//                   /          \
+// 0: except: never resumes   1: linear: resumes exactly once
+//                   \          /
+//           2: affine: resumes never or once
+//                        |
+//     3: multi: resumes never, once, or multiple times
+//
 pub extern @evv-is-affine() : bool
   c  inline "kk_evv_is_affine(kk_context())"
   js inline "$std_core_hnd._evv_is_affine_()"
 
 
+// -----------------------------------------------------------------------------------
+// Various swap variants.
+// These are here just for improved performance (by avoiding dup/drop for example)
+// -----------------------------------------------------------------------------------
+
+// Swap the current evidence vector with `w`
+inline extern evv-swap<e1,e2>( w : evv<e1> ) : e evv<e2>
+  c  "kk_evv_swap"
+  js "$std_core_hnd._evv_swap"
+
+// Remove evidence at index `i` of the current evidence vector, and return the old one.
+extern evv-swap-delete( i : ev-index, behind : bool ) : e1 evv<e>
+  c  "kk_evv_swap_delete"
+  js "_evv_swap_delete"
+
+// Swap the current evidence vector with an empty vector.
+// (this is used in open calls to switch to a total context)
+inline extern evv-swap-create0() : e evv<e>  //not quite the right effect type but avoids unbound effect types
+  c  "kk_evv_swap_create0"
+  js "$std_core_hnd._evv_swap_create0"
+
+// Swap the current evidence vector with a singleton vector (with the evidence at current index `i`).
+// (this is common in open calls to switch to a singleton effect context when calling operations)
+inline extern evv-swap-create1( i : ev-index ) : e evv<e>  //not quite the right effect type but avoids unbound effect types
+  c  "kk_evv_swap_create1"
+  js "$std_core_hnd._evv_swap_create1"
+
+// Swap the current evidence vector with a new vector consisting of evidence
+// at indices `indices` in the current vector.
+extern evv-swap-create( indices : vector<ev-index> ) : e evv<e>  //not quite the right effect type but avoids unbound effect types
+  c  "kk_evv_swap_create"
+  js "_evv_swap_create"
+
+
+
 // -------------------------------------------
-// Internal Yielding
+// Internal multi-prompt delimited control
 // -------------------------------------------
 
 pub inline extern yielding() : bool
