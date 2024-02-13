@@ -15,9 +15,11 @@ generating direct C code without needing a runtime system. To learn more:
 
 - Language Server now supports the stdio protocol via the `--language-server --lsstdio` combination of flags.
 
-- VSCode's language server switched to the stdio protocol.
+- Building is now concurrent with reduced build times.
 
-- The build system parallelizes building the module graph in many phases including `Lexing` / `Parsing` / `TypeCheck` / `Generating` / `Linking`.
+- Internal redesign of (named) effect generation to match the formal systems more closely. 
+
+- Numerous improvements and bug fixes.
 
 ### v3.0.4, 2024-01-25
 

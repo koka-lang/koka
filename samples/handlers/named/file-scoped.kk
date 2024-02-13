@@ -32,17 +32,16 @@ pub fun main()
   with f1 <- file("package.yaml")
   with f2 <- file("stack.yaml")
   read-both(f1,f2)
-  //println( f1.read-line() ++ "\n" ++ f2.read-line() )
-  //println( f2.read-line() ++ "\n" ++ f1.read-line() )
+  // println( f1.read-line() ++ "\n" ++ f2.read-line() )
   //wrong-escape2()()
 
-/*
-fun wrong-escape2()
-  with f <- file("stack.yaml")
-  fn() f.read-line()
-*/
-/*
-fun wrong-escape1()
-  with f = file("stack.yaml")
-  f
-*/
+
+// fun wrong-escape2()
+//   with f <- file("stack.yaml")
+//   fn() f.read-line()
+
+
+// fun wrong-escape1()
+//   with f = file("stack.yaml")
+//   f
+

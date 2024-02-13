@@ -15,27 +15,26 @@ named effect file
 
 
 // a (named) handler instance for files
-fun file(fname,action) 
+fun file(fname,action)
   var content := read-text-file(fname.path).lines
-  with f <- named handler 
-    fun read-line() 
-      match content  
-        Nil -> "" 
+  with f <- named handler
+    fun read-line()
+      match content
+        Nil -> ""
         Cons(x,xx) -> { content := xx; x }
   action(f)
 
 
-pub fun main() 
+pub fun main()
   with f1 <- file("package.yaml")
   with f2 <- file("stack.yaml")
   println( f1.read-line() ++ "\n" ++ f2.read-line() )
 
-/*
-fun wrong-escape1() 
+
+fun wrong-escape1()
   with f <- file("stack.yaml")
   f
 
-pub fun example() 
+pub fun example-wrong()
   val f = wrong-escape1()
   f.read-line.println
-*/
