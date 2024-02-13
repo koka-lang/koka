@@ -242,6 +242,7 @@ inline extern evv-swap<e1,e2>( w : evv<e1> ) : e evv<e2>
   js "$std_core_hnd._evv_swap"
 
 // Remove evidence at index `i` of the current evidence vector, and return the old one.
+// (used by `mask`)
 extern evv-swap-delete( i : ev-index, behind : bool ) : e1 evv<e>
   c  "kk_evv_swap_delete"
   js "_evv_swap_delete"

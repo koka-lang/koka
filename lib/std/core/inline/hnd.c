@@ -19,12 +19,14 @@ struct kk_std_core_hnd_Ev {
 */
 
 
-typedef int32_t kk_cfc_t;
+// Note. We no longer support cfc for `evv_is_affine` in the C backend since we always use context paths now.
+//
+// typedef int32_t kk_cfc_t;
 
-static kk_cfc_t kk_handler_cfc_borrow( kk_box_t h, kk_context_t* ctx ) {
-  kk_box_t b = kk_block_field(kk_ptr_unbox(h,ctx),0);  // first field of the handler is the cfc
-  return kk_integer_clamp32_borrow(kk_integer_unbox(b,ctx),ctx);
-}
+// static kk_cfc_t kk_handler_cfc_borrow( kk_box_t h, kk_context_t* ctx ) {
+//   kk_box_t b = kk_block_field(kk_ptr_unbox(h,ctx),0);  // first field of the handler is the cfc
+//   return kk_integer_clamp32_borrow(kk_integer_unbox(b,ctx),ctx);
+// }
 
 
 static kk_evv_vector_t kk_evv_vector_alloc(kk_ssize_t length, kk_context_t* ctx) {
@@ -87,38 +89,39 @@ kk_ssize_t kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx ) {
 }
 
 
-static inline kk_cfc_t kk_cfc_lub(kk_cfc_t cfc1, kk_cfc_t cfc2) {
-  if (cfc1 < 0) return cfc2;
-  else if (cfc1+cfc2 == 1) return 2;
-  else if (cfc1>cfc2) return cfc1;
-  else return cfc2;
-}
+// static inline kk_cfc_t kk_cfc_lub(kk_cfc_t cfc1, kk_cfc_t cfc2) {
+//   if (cfc1 < 0) return cfc2;
+//   else if (cfc1+cfc2 == 1) return 2;
+//   else if (cfc1>cfc2) return cfc1;
+//   else return cfc2;
+// }
 
 static inline struct kk_std_core_hnd_Ev* kk_evv_as_Ev( kk_evv_t evv, kk_context_t* ctx ) {
   return kk_std_core_hnd__as_Ev(kk_evv_as_ev(evv,ctx),ctx);
 }
 
 
-static kk_cfc_t kk_evv_cfc_of_borrow(kk_evv_t evv, kk_context_t* ctx) {
-  if (kk_evv_is_vector(evv,ctx)) {
-    kk_cfc_t cfc = -1;
-    kk_ssize_t len;
-    kk_std_core_hnd__ev single;
-    kk_std_core_hnd__ev* vec = kk_evv_as_vec(ctx->evv,&len,&single,ctx);
-    for(kk_ssize_t i = 0; i < len; i++) {
-      struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(vec[i],ctx);
-      cfc = kk_cfc_lub(cfc, kk_handler_cfc_borrow(ev->hnd,ctx));
-    }
-    return cfc;
-  }
-  else {
-    struct kk_std_core_hnd_Ev* ev = kk_evv_as_Ev(evv,ctx);
-    return kk_handler_cfc_borrow(ev->hnd,ctx);
-  }
-}
+// static kk_cfc_t kk_evv_cfc_of_borrow(kk_evv_t evv, kk_context_t* ctx) {
+//   if (kk_evv_is_vector(evv,ctx)) {
+//     kk_cfc_t cfc = -1;
+//     kk_ssize_t len;
+//     kk_std_core_hnd__ev single;
+//     kk_std_core_hnd__ev* vec = kk_evv_as_vec(ctx->evv,&len,&single,ctx);
+//     for(kk_ssize_t i = 0; i < len; i++) {
+//       struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(vec[i],ctx);
+//       cfc = kk_cfc_lub(cfc, kk_handler_cfc_borrow(ev->hnd,ctx));
+//     }
+//     return cfc;
+//   }
+//   else {
+//     struct kk_std_core_hnd_Ev* ev = kk_evv_as_Ev(evv,ctx);
+//     return kk_handler_cfc_borrow(ev->hnd,ctx);
+//   }
+// }
 
 bool kk_evv_is_affine(kk_context_t* ctx) {
-  return (kk_evv_cfc_of_borrow(ctx->evv,ctx) <= 2);
+  return false;
+  // return (kk_evv_cfc_of_borrow(ctx->evv,ctx) <= 2);
 }
 
 
