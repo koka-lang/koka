@@ -14,7 +14,7 @@ Unroll one level of (some) recursive functions:
       Cons(x,xx) -> Cons(f(x),xx.map(f))
       Nil        -> Nil
 
-maps to: 
+maps to:
 
   fun mapx( xs : list<a>, f : a -> e b ) : e list<b>
     match xs
@@ -62,7 +62,7 @@ trace s x =
 
 
 unrollDefs :: Pretty.Env -> Int -> CorePhase b ()
-unrollDefs penv unrollMax 
+unrollDefs penv unrollMax
   = liftCorePhaseUniq $ \uniq defs ->
     runUnroll penv unrollMax uniq $
     do --traceDoc $ \penv -> text "Core.Unrolline.inlineDefs:" <+> ppUnrollines penv inlines
@@ -78,7 +78,7 @@ unrollDefGroups dgs
        return (concat xss)
 
 unrollDefGroup :: DefGroup -> Unroll DefGroups
-unrollDefGroup (DefRec [def]) 
+unrollDefGroup (DefRec [def])
   = unrollRecDef def
 
 unrollDefGroup dg
@@ -89,9 +89,9 @@ unrollRecDef def
   = withCurrentDef def $
     do -- traceDoc $ \penv -> text "enter def"
        dgs <- case defExpr def of
-                Lam pars eff body 
+                Lam pars eff body
                   -> unrollBody def [] pars eff body
-                TypeLam tpars (Lam pars eff body) 
+                TypeLam tpars (Lam pars eff body)
                   -> unrollBody def tpars pars eff body
                 _ -> return []
        return (if null dgs then [DefRec [def]] else dgs)
@@ -114,7 +114,7 @@ unrollBody def tpars pars eff body
                          mkFun b = (if null tpars then id else TypeLam tpars) (Lam pars eff b)
                          ddef = def{ defExpr = mkFun (Case exprs (nonrecbs ++ [wild])), defInline = InlineAlways,
                                      defDoc = "// unrolling of singleton matches of " ++ show (getName rname) ++ "\n" }
-                     verboseDoc $ \penv -> text ("unroll " ++ show (defName ddef) ++ "  (to " ++ show (defName rdef) ++ ")")
+                     -- verboseDoc $ \penv -> text ("unroll " ++ show (defName ddef) ++ "  (to " ++ show (defName rdef) ++ ")")
                      return [DefRec [rdef], DefNonRec ddef]
              _ -> do -- unrollTrace "no unroll"
                      return []
@@ -130,9 +130,9 @@ extractNonRecBranches defname recs []
 -- stop also when we cannot push down patterns of recursive branches any further
 extractNonRecBranches defname recs (b@(Branch pats guards) : bs)  | any (matchCanOverlap b) recs
   = ([],recs ++ [b] ++ bs)
--- otherwise  
+-- otherwise
 extractNonRecBranches defname recs (b@(Branch pats guards) : bs)
-  = if not (all singletonPat pats) ||       -- we only want cheap matches in the unrolling    
+  = if not (all singletonPat pats) ||       -- we only want cheap matches in the unrolling
        tnamesMember defname (fv guards)     -- and they should be non-recursive
       then -- assume it contains a recursive call
            -- push down as long the other patterns don't match to maximize non-recursive matches
@@ -156,15 +156,15 @@ singletonPat pat
 matchCanOverlap (Branch pats1 _) (Branch pats2 _)
   = any patCanOverlap (zip pats1 pats2)
   where
-    patCanOverlap pp 
+    patCanOverlap pp
       = case pp of
           (PatWild, _) -> True
           (_, PatWild) -> True
           (PatVar _ p1,p2) -> patCanOverlap (p1,p2)
           (p1,PatVar _ p2) -> patCanOverlap (p1,p2)
-          (PatLit lit1,PatLit lit2) 
+          (PatLit lit1,PatLit lit2)
             -> lit1 == lit2
-          (PatCon{patConName=name1}, PatCon{patConName=name2}) 
+          (PatCon{patConName=name1}, PatCon{patConName=name2})
             -> name1 == name2  -- TODO: make more precise?
           _ -> True
 
@@ -172,11 +172,11 @@ dontSkip :: Branch -> Branch
 dontSkip (Branch pats guards)
   = Branch (map noskip pats) guards
   where
-    noskip pat 
+    noskip pat
       = case pat of
           PatVar name p             -> PatVar name (noskip p)
           PatCon{patConPatterns=ps} -> pat{ patConSkip = False, patConPatterns = map noskip ps }
-          _                         -> pat 
+          _                         -> pat
 
 {--------------------------------------------------------------------------
   Unroll monad

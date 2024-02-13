@@ -141,6 +141,7 @@ pub alias ev-index = ssize_t
 pub fun ev/(==)( Ev(_,m1)  : ev<h>, Ev(_,m2) : ev<h> ) : bool
   eq-marker(m1,m2)
 
+
 // -------------------------------------------
 // Internal Markers
 // -------------------------------------------
@@ -424,12 +425,7 @@ pub noinline fun @named-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action :
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
   prompt(w0,w0,ev,m,ret,cast-ev1(action)(ev))
-  // val w0 = evv-get()
-  // val m  = fresh-marker()
-  // val ev = Ev(tag,m,h,cfc,w0)
-  // val w1 = evv-insert(w0,ev)
-  // evv-set(w1)
-  // prompt(w0,w1,ev,m,ret,cast-ev1(action)(ev))
+
 
 // -------------------------------------------
 // mask

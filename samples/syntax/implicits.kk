@@ -155,5 +155,7 @@ fun tuple/eq2( (x1,y1), (x2,y2), ?a/eq, ?b/eq ) : bool
 fun example8()
   eq(([1],"a"),([1],"a"))   // `?a/eq=list/eq(_,_,int/eq),?b/eq=compare/eq(_,_,string/compare)`
 
+pub fun main()
+  example8().println
 
 // see `test/overload` for further examples.

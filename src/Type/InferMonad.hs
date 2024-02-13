@@ -319,7 +319,7 @@ isolate rng free ps eff
                     then do -- yeah, we can isolate, and discharge the polyPs hdiv predicates
                             tv <- freshTVar kindEffect Meta
                             if isLocal
-                             then do trace ("isolate local") $ return ()
+                             then do -- trace ("isolate local") $ return ()
                                      nofailUnify $ unify (effectExtend lab tv) eff
                              else do mbSyn <- lookupSynonym nameTpST
                                      let (Just syn) = mbSyn

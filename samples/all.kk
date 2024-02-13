@@ -29,13 +29,14 @@ import handlers/scoped
 import handlers/unix
 
 import handlers/named/ask
+import handlers/named/ask-poly
 import handlers/named/file
 import handlers/named/file-scoped
 import handlers/named/heap
 import handlers/named/unify
 
 fun run( name : string, action : () -> <console|e> a ) : <console|e> ()
-  println("run " ++ name ++ "\n---------------")
+  println("run " ++ name ++ "\n--------------------------")
   action()
   println("")
 
@@ -43,15 +44,20 @@ pub fun main()
   run("caesar",caesar/main)
   run("fibonacci",fibonacci/main)
   run("garsia-wachs",garsia-wachs/main)
-  run("rbtree",rbtree/main)
   run("contexts",contexts/main)
   run("fip",fip/main)
+  run("implicits",implicits/main)
 
   run("unify",unify/main)
   run("heap",heap/main)
+  run("ask-poly",ask-poly/main)
 
   run("nim",nim/main)
   run("parser",parser/main)
   run("scoped",scoped/main)
   run("ambient",ambient/main)
   run("unix",unix/main)
+
+  // last as it takes a bit longer
+  run("rbtree (this can take a bit longer..)",rbtree/main)
+
