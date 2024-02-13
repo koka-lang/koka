@@ -849,7 +849,7 @@ termError' env range message tp extra
 ----------------------------------------------------------------
 
 -- | Lookup a name with a certain type and return the fully qualified name and its type
-resolveName :: Name -> Maybe (Type,Range) -> Range -> Inf (Name,Type,NameInfo)
+resolveName :: HasCallStack =>  Name -> Maybe (Type,Range) -> Range -> Inf (Name,Type,NameInfo)
 resolveName name mbType range
   = case mbType of
       Just (tp,ctxRange) -> resolveNameEx infoFilter (Just infoFilterAmb) name (CtxType tp) ctxRange range
@@ -861,7 +861,7 @@ resolveName name mbType range
 -- | Lookup a name with a certain type and return the fully qualified name and its type
 -- because of local variables and references a typed lookup may fail as we need to
 -- dereference first. So we do a typed lookup first and fall back to untyped lookup
-resolveRhsName :: Name -> (Type,Range) -> Range -> Inf (Name,Type,NameInfo)
+resolveRhsName :: HasCallStack => Name -> (Type,Range) -> Range -> Inf (Name,Type,NameInfo)
 resolveRhsName name (tp,ctxRange) range
   = do -- traceDefDoc $ \penv -> text "resolveRhsName:" <+> text (show name)
        candidates <- lookupNameCtx isInfoValFunExt name (CtxType tp) range
@@ -1374,7 +1374,7 @@ toImplicitArgExpr xrange (ImplicitArg iname info itp iargs)
 -- Lookup names
 ----------------------------------------------------------------
 
-lookupFunName :: Name -> Maybe (Type,Range) -> Range -> Inf (Maybe (Name,Type,NameInfo))
+lookupFunName :: HasCallStack => Name -> Maybe (Type,Range) -> Range -> Inf (Maybe (Name,Type,NameInfo))
 lookupFunName name mbType range
   = do matches <- lookupNameCtx isInfoFun name (maybeRToContext mbType) range
        case matches of
@@ -1386,7 +1386,7 @@ lookupFunName name mbType range
   where
     hintQualify = "qualify the name to disambiguate it?"
 
-lookupNameCtx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
+lookupNameCtx :: HasCallStack => (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
 lookupNameCtx infoFilter name ctx range
   = do candidates <- lookupNames infoFilter name ctx range
        -- traceDefDoc $ \penv -> text " lookupNameCtx:" <+> ppNameCtx penv (name,ctx) <+> colon
@@ -1396,7 +1396,7 @@ lookupNameCtx infoFilter name ctx range
 
 -- lookup names in the local and global scope that match the given name context
 -- Returns also an instantiated rho required to match the name context
-lookupNames :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo,Rho)]
+lookupNames :: HasCallStack => (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo,Rho)]
 lookupNames infoFilter name ctx range
   = do -- traceDefDoc $ \penv -> text " lookupNames:" <+> text (show name) <+> colon <+> ppNameContext penv ctx
        matches <- do lres <- lookupLocalName infoFilter name
@@ -1422,12 +1422,12 @@ lookupGlobalName infoFilter name
        return (filter (infoFilter . snd) (gammaLookup name (gamma env)))
 
 
-filterMatchNameContext :: Range -> NameContext -> [(Name,NameInfo)] -> Inf [(Name,NameInfo)]
+filterMatchNameContext :: HasCallStack => Range -> NameContext -> [(Name,NameInfo)] -> Inf [(Name,NameInfo)]
 filterMatchNameContext range ctx candidates
   = do xs <- filterMatchNameContextEx range ctx candidates
        return [(name,info) | (name,info,_) <- xs]
 
-filterMatchNameContextEx :: Range -> NameContext -> [(Name,NameInfo)] -> Inf [(Name,NameInfo,Rho)]
+filterMatchNameContextEx :: HasCallStack => Range -> NameContext -> [(Name,NameInfo)] -> Inf [(Name,NameInfo,Rho)]
 filterMatchNameContextEx range ctx candidates
   = case ctx of
       CtxNone         -> return [(name,info,infoType info) | (name,info) <- candidates]
@@ -1440,10 +1440,11 @@ filterMatchNameContextEx range ctx candidates
                       -> do mss <- mapM (matchArgs partial fixed named mbResTp) candidates
                             return (concat mss)
   where
-    matchType :: Type -> (Name,NameInfo) -> Inf [(Name,NameInfo,Rho)]
+    matchType :: HasCallStack => Type -> (Name,NameInfo) -> Inf [(Name,NameInfo,Rho)]
     matchType expect (name,info)
       = do free <- freeInGamma
-           res <- runUnify (subsume range free expect (infoType info))
+           res <- do -- traceDefDoc $ \penv0 -> let penv = penv0{Pretty.showIds=True} in text "matchType:" <+> Pretty.ppName penv name <.> text "," <+> Pretty.ppType penv expect <+> text "~" <+> Pretty.ppType penv (infoType info)
+                     runUnify (subsume range free expect (infoType info))
            case res of
              (Right (_,rho,_,_),_)  -> return [(name,info,rho)]
              (Left _,_)             -> return []

@@ -191,7 +191,7 @@ pureMatchShape tp1 tp2
 -- applied to the expression of type @t2@. Also returns a new type for the
 -- expected type @tp1@ where 'some' types have been properly substituted (and
 -- may be quantified).
-subsume :: Range -> Tvs -> Type -> Type -> Unify (Type,Rho,[Evidence], Core.Expr -> Core.Expr)
+subsume :: HasCallStack => Range -> Tvs -> Type -> Type -> Unify (Type,Rho,[Evidence], Core.Expr -> Core.Expr)
 subsume range free tp1 tp2
   = -- trace (" subsume: " ++ show (tp1,tp2) ++ ", free: " ++ show (tvsList free)) $
     do -- skolemize,instantiate and unify
@@ -244,7 +244,7 @@ entails skolems known (ev:evs)
   Unification
 --------------------------------------------------------------------------}
 -- | Unify two types.
-unify :: Type -> Type -> Unify ()
+unify :: HasCallStack => Type -> Type -> Unify ()
 
 -- effects
 unify t1@(TApp (TCon tc1) _) t2@(TApp (TCon tc2) _)  | tc2 == tconEffectExtend && tc1 == tconEffectExtend

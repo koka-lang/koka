@@ -21,7 +21,7 @@ module Type.Operations( instantiate
 
 import Common.Range
 import Common.Unique
-
+import Common.Failure
 import Kind.Kind
 import Type.Type
 import Type.TypeVar
@@ -61,14 +61,14 @@ instance Show Evidence where
   show ev = show (evPred ev)
 
 -- | Instantiate a type
-instantiate :: HasUnique m => Range -> Type -> m Rho
+instantiate :: (HasCallStack,HasUnique m) => Range -> Type -> m Rho
 instantiate range tp
   = do (ids,preds,rho,coref) <- instantiateNoEx range tp
        return rho
 
 -- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence,
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
-instantiateEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
+instantiateEx :: (HasCallStack,HasUnique m) => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 instantiateEx rng tp
   = do (ids,preds,rho,coref) <- instantiateExFl Meta rng tp
        (erho,coreg) <- extend rho
@@ -76,7 +76,7 @@ instantiateEx rng tp
 
 -- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence,
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
-instantiateNoEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
+instantiateNoEx :: (HasCallStack,HasUnique m) => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 instantiateNoEx rng tp
   = do (ids,preds,rho,coref) <- instantiateExFl Meta rng tp
        return (ids,preds,rho,coref)
@@ -85,7 +85,7 @@ instantiateNoEx rng tp
 -- This is necessary to do on instantiation since we simplify such effect variables
 -- away during generalization. Effectively, the set of accepted programs does not
 -- change but the types look simpler to the user.
-extend :: HasUnique m => Rho -> m (Rho, Core.Expr -> Core.Expr)
+extend :: (HasCallStack,HasUnique m) => Rho -> m (Rho, Core.Expr -> Core.Expr)
 extend tp
   = case expandSyn tp of
       TFun args eff res
@@ -101,19 +101,19 @@ extend tp
 
 
 -- | Skolemize a type
-skolemize :: HasUnique m => Range -> Type -> m Rho
+skolemize :: (HasCallStack,HasUnique m) => Range -> Type -> m Rho
 skolemize range tp
   = do (ids,preds,rho,coref) <- skolemizeEx range tp
        return rho
 
 -- | Skolemize a type and return the instantiated quantifiers, name/predicate pairs for evidence,
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
-skolemizeEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
+skolemizeEx :: (HasCallStack,HasUnique m) => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 skolemizeEx = instantiateExFl Skolem
 
 
 -- | General instantiation for skolemize and instantiate
-instantiateExFl :: HasUnique m => Flavour -> Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
+instantiateExFl :: (HasCallStack,HasUnique m) => Flavour -> Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 instantiateExFl flavour range tp
   = case splitPredType tp of
       ([],[],rho) -> return ([],[],rho,id)

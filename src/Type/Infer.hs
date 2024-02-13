@@ -1509,7 +1509,7 @@ getRangeArg (ArgImplicit _ rng _) = rng
   infer variables
 --------------------------------------------------------------------------}
 
-inferVar :: Maybe (Type,Range) -> Expect -> Name -> Range -> Bool -> Inf (Type,Effect,Core.Expr)
+inferVar :: HasCallStack => Maybe (Type,Range) -> Expect -> Name -> Range -> Bool -> Inf (Type,Effect,Core.Expr)
 
 -- constructor
 inferVar propagated expect name rng isRhs  | isConstructorName name
@@ -1542,7 +1542,8 @@ inferVar propagated expect name rng isRhs
     -- we cannot directly "resolveName" with a propagated type
     -- as sometimes the types do not match and need to coerce due to local variables or references on the right-hand-side
     do vinfo <- case propagated of
-                  Just prop | isRhs -> resolveRhsName name prop rng
+                  Just prop | isRhs -> do -- traceDefDoc $ \penv -> text "inferVar" <+> ppParam penv (name,fst prop)
+                                          resolveRhsName name prop rng
                   _                 -> resolveName name propagated rng
        inferVarName propagated expect name rng isRhs vinfo
 

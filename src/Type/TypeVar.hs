@@ -45,9 +45,10 @@ import Data.List(nub,partition)
 -- import Lib.Trace
 import Common.Range
 import Common.Unique
+import Common.File( seqList )
 import qualified Data.Map as M
 import qualified Data.Set as S
-import Common.Failure ( assertion )
+import Common.Failure ( assertion, HasCallStack )
 import Kind.Pretty    ( ) -- instances
 import Type.Type
 import Type.Kind
@@ -111,7 +112,7 @@ subIsNull :: Sub -> Bool
 subIsNull (Sub sub)
   = M.null sub
 
-subNew :: [(TypeVar, Tau)] -> Sub
+subNew :: HasCallStack => [(TypeVar, Tau)] -> Sub
 subNew sub
   = -- assertion "Type.TypeVar.subNew" (all (\tv -> length (filter (==tv) tvs) == 1) tvs) $
     -- assertion "Type.TypeVar.subNew.Tau" (all isTau taus) $
@@ -137,7 +138,7 @@ subCommon :: Sub -> Sub -> [(TypeVar,(Tau,Tau))]
 subCommon (Sub sub1) (Sub sub2)
   = M.toList (M.intersectionWith (,) sub1 sub2)
 
-subSingle :: TypeVar -> Tau -> Sub
+subSingle :: HasCallStack => TypeVar -> Tau -> Sub
 subSingle tvar tau
   = -- Top assertion is invalid; it can happen (and happens) in the CoreF typechecker when
     -- typechecking (forall a. f a) with f :: forall b. b -> b, that a bound variable (b) with
@@ -159,7 +160,7 @@ subRemove :: [TypeVar] -> Sub -> Sub
 subRemove tvars (Sub sub)
   = Sub (foldr M.delete sub tvars)
 
-subFind :: TypeVar -> Sub -> Tau
+subFind :: HasCallStack => TypeVar -> Sub -> Tau
 subFind tvar sub
   = case subLookup tvar sub of
       Nothing   -> TVar tvar
@@ -198,7 +199,7 @@ subInserts :: [(TypeVar,Tau)] -> Sub -> Sub
 subInserts assoc (Sub sub)
   = Sub (M.union (M.fromList assoc) sub)  --ASSUME: left-biased union
 
-(|->) :: HasTypeVar a => Sub -> a -> a
+(|->) :: (HasCallStack, HasTypeVar a) => Sub -> a -> a
 sub |-> x
   = if subIsNull sub then x else
      (sub `substitute` x)
@@ -357,7 +358,7 @@ tcsUnions = S.unions
 -- | Entitities that contain type variables.
 class HasTypeVar a where
   -- | Substitute type variables by 'Tau' types
-  substitute :: Sub -> a -> a
+  substitute :: HasCallStack => Sub -> a -> a
   -- | Return free type variables
   ftv   :: a -> Tvs
   -- | Return bound type variables
@@ -420,12 +421,23 @@ instance HasTypeVar Type where
   sub `substitute` tp
     = case tp of
         TForall vars preds tp   -> let sub' = subRemove vars sub
-                                   in TForall vars (sub' |-> preds) (sub' |-> tp)
-        TFun args effect result -> TFun (map (\(name,tp) -> (name,sub `substitute` tp)) args) (sub `substitute` effect) (sub `substitute` result)
+                                       sfree = ftv sub'
+                                   in if tvsDisjoint (tvsNew vars) sfree
+                                        then let preds' = sub' |-> preds
+                                             in seqList preds' $ TForall vars preds' $! (sub' |-> tp)
+                                        else let uniq = (maximum $ map typeVarId $ tvsList $ sfree) + 2
+                                                 tvsub   = [(tv,tv{ typevarId = typevarId tv + uniq })  | tv <- vars]
+                                                 sksub   = subNew [(tv,TVar tvnew) | (tv,tvnew) <- tvsub]
+                                                 preds'  = (sub' |-> (sksub |-> preds))
+                                                 newvars = map snd tvsub
+                                             in seqList newvars $ seqList preds' $
+                                                TForall newvars preds' $! (sub' |-> (sksub |-> tp))
+        TFun args effect result -> let args' = (map (\(name,tp) -> let tp' = sub `substitute` tp in seq tp' (name,tp')) args)
+                                   in seqList args' $ TFun args' (sub `substitute` effect) (sub `substitute` result)
         TCon tcon               -> TCon tcon
         TVar tvar               -> subFind tvar sub
         TApp tp arg             -> TApp (sub `substitute` tp) (sub `substitute` arg)
-        TSyn syn xs tp          -> TSyn syn (sub `substitute` xs) (sub `substitute` tp)
+        TSyn syn xs tp          -> let xs' = sub `substitute` xs in seqList xs' $ TSyn syn xs' (sub `substitute` tp)
 
   ftv tp
     = case tp of
