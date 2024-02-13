@@ -122,10 +122,10 @@ command st buildc cmd
 
   Load fnames forceAll
               -> do let st1 = st{ lastLoad = fnames }
-                    (buildc1,erng) <- loadModules st1 buildc fnames forceAll True
+                    (buildc1,erng) <- loadModules st1 buildc fnames forceAll {- :f -} True {-force roots-}
                     next st1{errorRange = erng, moduleName = mainModuleName buildc1} buildc1
 
-  Reload      -> do (buildc1,erng) <- loadModules st buildc (lastLoad st) False True
+  Reload      -> do (buildc1,erng) <- loadModules st buildc (lastLoad st) False True {-force roots-}
                     next st{errorRange = erng, moduleName = mainModuleName buildc1} buildc1
 
 

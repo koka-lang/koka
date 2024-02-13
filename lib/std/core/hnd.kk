@@ -543,7 +543,7 @@ inline extern cast-clause2( f : (marker<e1,r>,ev<h>,a1,a2) -> e1 b) : e ((marker
   inline "#1"
 
 
-pub inline fun @perform1<a,b,h::(E,V)->V>( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b
+pub inline fun @perform1<a,b,h>( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b
   match ev
     Ev(_tag,m,h,_c,_w) -> match h.op
       Clause1(f) -> cast-clause1(f)(m,ev,x)

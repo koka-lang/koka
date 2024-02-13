@@ -1269,7 +1269,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect docEffectDecl
 
                         lparams   = [par{ binderType = Nothing} | par <- params]
                         tplparams = [(binderName par, binderType par) | par <- params]
-                        tpFull    = quantify QForall (foralls ++ exists ++ hndTpVars) (TpFun tplparams teff tres grng)
+                        tpFull    = quantify QForall (foralls ++ exists) (TpFun tplparams teff tres grng)
 
                         makeOptional tp = TpApp (TpCon nameTpOptional (getRange tp)) [tp] (getRange tp)
                         isJust (Just{}) = True

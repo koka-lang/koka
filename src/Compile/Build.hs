@@ -578,7 +578,7 @@ toBuildOrder modules
     in do phaseVerbose 3 "build order" $ \penv -> list (map (\grp -> hsep (map (TP.ppName penv) grp)) ordered)
           concat <$> mapM ungroup ordered
 
--- validate that depedencies of a module are not out-of-date
+-- validate that dependencies of a module are not out-of-date
 -- modules must be in build order
 validateDependencies :: [Module] -> Build [Module]
 validateDependencies modules
@@ -619,7 +619,7 @@ moduleFlushErrors mod
 moduleLoad :: Bool -> [ModuleName] -> Module -> Build Module
 moduleLoad rebuild forced mod0
   = do mod <- moduleValidate mod0  -- check file times
-       let force = (rebuild || modName mod0 `elem` forced)
+       let force = (rebuild || modName mod `elem` forced || isErrorPhase (modPhase mod))
        if (modPhase mod >= PhaseLexed) && not force
           then return mod
           else -- trace ("reloading " ++ show (modName mod) ++ ", forced: " ++ show forced) $
@@ -830,7 +830,7 @@ moduleValidate mod
                       , modIfaceTime  = ftIface
                       , modLibIfaceTime = ftLibIface
                       }
-       -- phaseVerbose 3 "validate" (\penv -> TP.ppName penv (modName mod') <.> text (": times: " ++ show (stale,ftSource,modSourceTime mod)))
+       phaseVerbose 3 "validate" (\penv -> TP.ppName penv (modName mod') <.> text (": times: " ++ show (stale,ftSource,modSourceTime mod)))
        if stale
          then return $ moduleReset mod'
          else return mod'
