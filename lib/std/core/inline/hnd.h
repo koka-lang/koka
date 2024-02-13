@@ -120,7 +120,6 @@ static inline kk_evv_t kk_evv_swap_create1(kk_ssize_t i, kk_context_t* ctx) {
 struct kk_std_core_hnd_Htag;
 
 kk_std_core_hnd__ev_t kk_ev_none(kk_context_t* cxt);
-kk_std_core_hnd__ev_t kk_evv_lookup( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx );
 bool            kk_evv_is_affine(kk_context_t* ctx);
 kk_ssize_t      kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx );
 kk_evv_t        kk_evv_create(kk_evv_t evv, kk_vector_t indices, kk_context_t* ctx);

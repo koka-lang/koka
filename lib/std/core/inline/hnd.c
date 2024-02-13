@@ -86,11 +86,6 @@ kk_ssize_t kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx ) {
   return len;
 }
 
-kk_std_core_hnd__ev kk_evv_lookup( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx ) {
-  // todo: drop htag
-  kk_ssize_t idx = kk_evv_index(htag,ctx);
-  return kk_evv_at(idx,ctx);
-}
 
 static inline kk_cfc_t kk_cfc_lub(kk_cfc_t cfc1, kk_cfc_t cfc2) {
   if (cfc1 < 0) return cfc2;

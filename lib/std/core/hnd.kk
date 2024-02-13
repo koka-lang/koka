@@ -181,6 +181,8 @@ inline extern evv-total() : evv<<>>
   js inline "[]"
 
 
+// Return the evidence as index `i`.
+// The compiler optimizes `@evv-lookup` to a static index when apparent from the effect type.
 pub inline extern @evv-at<e,h> ( i : ev-index ) : ev<h>  // pretend total; don't simplify
   c  "kk_evv_at"
   js "$std_core_hnd._evv_at"
@@ -189,11 +191,6 @@ pub inline extern @evv-at<e,h> ( i : ev-index ) : ev<h>  // pretend total; don't
 pub extern @evv-index<e::E,h>( htag : htag<h> ) : e ev-index
   c  "kk_evv_index"
   js "__evv_index"
-
-
-pub extern @evv-lookup( htag : htag<h> ) : ev<h>
-  c  "kk_evv_lookup"
-  js "__evv_lookup"
 
 pub inline extern @evv-select( i : ev-index, htag : htag<h> ) : ev<h>
   c  inline "(#1 >= 0 ? kk_evv_at(#1,kk_context()) : kk_evv_lookup(#2,kk_context()))"
