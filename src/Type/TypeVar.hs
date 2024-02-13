@@ -119,7 +119,8 @@ subNew sub
     let s = assertion ("Type.TypeVar.subNew.KindMismatch: length " ++ show (length sub) ++ ": "
                         ++ unlines (map (\(x,t) -> "(" ++ showTypeVar x ++ " |-> " ++ showTp t ++ ")") sub))
                       (all (\(x, t) -> getKind x == getKind t) sub) $
-            Sub (M.fromList sub) (ftv (map snd sub))
+            Sub (M.fromList sub)
+                (tvsUnion (tvsNew (map fst sub)) (ftv (map snd sub)))
     in seq s s
 
 subDom :: Sub -> Tvs
@@ -150,7 +151,7 @@ subSingle tvar tau
                (not (tvsMember tvar (ftv tau))) $
     -- assertion ("Type.TypeVar.subSingle: not a tau") (isTau tau) $
     assertion "Type.TypeVar.subSingle.KindMismatch" (getKind tvar == getKind tau) $
-    Sub (M.singleton tvar tau) (ftv tau)
+    Sub (M.singleton tvar tau) (tvsInsert tvar (ftv tau))
 
 subLookup :: TypeVar -> Sub -> Maybe Tau
 subLookup tvar (Sub sub _)
@@ -181,7 +182,8 @@ sub1 @@ sub2
 
 subCompose :: Sub -> Sub -> Sub
 subCompose sub1@(Sub _ tvs1) sub2@(Sub _ tvs2)
-  = Sub (M.union (unSub sub1) (unSub (sub1 |-> sub2))) (tvsUnion tvs1 tvs2)   --ASSUME: left biased union
+  = Sub (M.union (unSub sub1) (unSub (sub1 |-> sub2)))    --ASSUME: left biased union
+        (tvsUnion tvs1 tvs2)
 
 subExtend :: TypeVar -> Tau -> Sub -> Sub
 subExtend tvar tau sub
@@ -193,11 +195,12 @@ subInsert tvar tau (Sub s tvs)
   = assertion ("Type.TypeVar.subSingle: recursive type: " ++ showTVar tvar)
               (not (tvsMember tvar (ftv tau))) $
     assertion ("Type.TypeVar.subSingle: not a tau") (isTau tau) $
-    Sub (M.insert tvar tau s) (tvsUnion tvs (ftv tau))
+    Sub (M.insert tvar tau s) (tvsUnion tvs (tvsInsert tvar (ftv tau)))
 
 subInserts :: [(TypeVar,Tau)] -> Sub -> Sub
 subInserts assoc (Sub sub tvs)
-  = Sub (M.union (M.fromList assoc) sub) (tvsUnion tvs (ftv (map snd assoc)))  --ASSUME: left-biased union
+  = Sub (M.union (M.fromList assoc) sub) --ASSUME: left-biased union
+        (tvsUnions [tvs, tvsNew (map fst assoc), ftv (map snd assoc)])
 
 (|->) :: (HasCallStack, HasTypeVar a) => Sub -> a -> a
 sub |-> x

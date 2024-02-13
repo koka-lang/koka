@@ -1838,7 +1838,7 @@ getSub
   = do st <- getSt
        return (sub st)
 
-subst :: HasTypeVar a => a -> Inf a
+subst :: (HasCallStack,HasTypeVar a) => a -> Inf a
 subst x
   = do sub <- getSub
        return (sub |-> x)

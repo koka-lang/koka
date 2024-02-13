@@ -1,4 +1,3 @@
-
 fun f(a: int, Cons(x, _xs), v as Just(Cons(_, Cons(y, _))) : maybe<list<int>>) : exn int {
     val _ = v
     a + x + y
