@@ -14,7 +14,23 @@ import std/core/types
 // _Unsafe_. This function calls a function and pretends it did not have any effect at all.
 // Use with utmost care as it should not be used to dismiss user-defined effects that need
 // a handler and can cause a segfault at runtime in such cases!
-// Only use this to dismiss built-in effects like `:exn` or `:io`.
+// 
+// You can use `unsafe-total` to dismiss built-in effects without handlers which include:
+//  behavioral: `:div`, `:ndet`
+//  state: `:alloc`, `:read`, `:write`, `:st`
+//  external: `:ui`, `:fsys`, `:net`, `:blocking`
+//  combinations: `:io-total` and `:io-noexn`
+// Do not dismiss `:io`, which includes handlers for `:exn`!
+// 
+// Most valid use cases of `unsafe-total` include creation and accessing global `refs`.
+// 
+// However, if initialization of a global could take awhile, or requires user defined effects
+// consider lazily initializing and caching it using the following pattern. 
+// ```koka
+// val global-var = delay({initialize()})`
+// fun get-global()
+//   global-var.force
+// ```
 pub fun unsafe-total( action : () -> e a ) : a
   unsafe-total-cast( action )()
 
