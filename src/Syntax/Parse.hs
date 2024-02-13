@@ -567,6 +567,9 @@ externalTarget
     do specialId "cs"
        return CS
   <|>
+    do specialId "vm"
+       return VM
+  <|>
     do specialId "js"
        return (JS JsDefault)
   <|>

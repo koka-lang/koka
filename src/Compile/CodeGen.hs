@@ -269,21 +269,22 @@ codeGenJS term flags sequential entry outBase core
  
 codeGenVM :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> FilePath -> Core.Core -> IO Link
 codeGenVM term flags sequential entry outBase core
-  = do let outjs         = outBase ++ ".mcore.json"
-           outName fname = joinPath (dirname outBase) fname
-           -- extractImport m = Core.Import (modName m) "" {- (modPackageQName m) -} Core.ImportUser Public ""
-           js = vmFromCore (buildType flags) mbEntry (Core.coreProgImports core) core
+  = do let outmcore = outBase ++ ".mcore.json"
+       let outrpy = outBase ++ ".rpyeffect"    
+           vm = vmFromCore (buildType flags) mbEntry (Core.coreProgImports core) core
            mbEntry = case entry of
                        Just (name,tp) -> Just (name,isAsyncFunction tp)
                        _              -> Nothing
-       termTrace term ( "generate vm: " ++ outjs )
-       writeDocW 80 outjs js
-       when (showAsmJS flags) (termInfo term js)
+       termTrace term ( "generate vm: " ++ outmcore )
+       writeDocW 80 outmcore vm
+       when (showAsmVM flags) (termInfo term vm)
+
+       runCommand term flags [rpyeffectAsm flags, "--from", "mcore-json", outmcore, outrpy]
 
        case mbEntry of
         Nothing -> return noLink
         Just  _ ->
-         return (\_ -> return (LinkExe outjs (runCommand term flags ["???",outjs])))
+         return (\_ -> return (LinkExe outmcore (runCommand term flags [rpyeffectJit flags,outrpy])))
 
 {---------------------------------------------------------------
   C backend

@@ -434,6 +434,7 @@ formatCall tp (target,ExternalInline inline) = (target,inline)
 formatCall tp (target,ExternalCall fname)
   = case target of
       CS      -> (target,formatCS)
+      VM      -> (target,formatVM)
       JS _    -> (target,formatJS)
       C _     -> (target,formatC)
       Default -> (target,formatJS)
@@ -454,6 +455,9 @@ formatCall tp (target,ExternalCall fname)
 
     formatJS
       = fname ++ arguments
+
+    formatVM
+      = fname ++ arguments -- TODO
 
     formatCS
       = fname ++ typeArguments ++ arguments

@@ -125,6 +125,7 @@ data Flags
          , showCoreTypes    :: !Bool
          , showAsmCS        :: !Bool
          , showAsmJS        :: !Bool
+         , showAsmVM        :: !Bool
          , showAsmC         :: !Bool
          , _showTypeSigs     :: !Bool
          , showHiddenTypeSigs     :: !Bool
@@ -150,6 +151,8 @@ data Flags
          , csc              :: !FileName
          , node             :: !FileName
          , wasmrun          :: !FileName
+         , rpyeffectAsm     :: !FileName
+         , rpyeffectJit     :: !FileName
          , cmake            :: !FileName
          , cmakeArgs        :: !String
          , ccompPath        :: !FilePath
@@ -268,6 +271,7 @@ flagsNull
           False -- show asm
           False
           False
+          False
           False -- typesigs
           False -- hiddentypesigs
           False -- show elapsed time
@@ -292,6 +296,8 @@ flagsNull
           "csc"
           "node"
           "wasmtime"
+          "rpyeffect-asm" -- TODO hardcoded for now (for testing)
+          "rpyeffect-jit" -- TODO hardcoded for now (for testing)
           "cmake"
           ""       -- cmake args
 
@@ -424,6 +430,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["wasmrun"]         (ReqArg wasmrunFlag "cmd")      "use <cmd> to execute wasm"
+ , option []    ["rpyeffect-asm"]   (ReqArg rpyeffectAsmFlag "cmd") "use <cmd> to compile rpyeffect-asm mcore to rpyeffect"
+ , option []    ["rpyeffect-jit"]   (ReqArg rpyeffectJitFlag "cmd") "use <cmd> to run rpyeffect code"
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["stack"]           (ReqArg stackFlag "size")       "set stack size (0 for platform default)"
  , option []    ["heap"]            (ReqArg heapFlag "size")        "set reserved heap size (0 for platform default)"
@@ -450,6 +458,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showcoretypes"]  (\b f -> f{showCoreTypes=b})     "show full types in core"
  , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})         "show generated c#"
  , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
+ , flag   []    ["showjs"]         (\b f -> f{showAsmVM=b})         "show generated rpyeffect-asm mcore"
  , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
  , flag   []    ["core"]           (\b f -> f{genCore=b})           "generate a core file"
  , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
@@ -611,6 +620,12 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   wasmrunFlag s
     = Flag (\f -> f{ wasmrun = s })
+
+  rpyeffectAsmFlag s
+    = Flag (\f -> f{ rpyeffectAsm = s })
+
+  rpyeffectJitFlag s
+    = Flag (\f -> f{ rpyeffectJit = s })
 
   editorFlag s
     = Flag (\f -> f{ editor = s })
