@@ -156,7 +156,7 @@ pub fun range/for-while( start: int, end : int, action : (int) -> e maybe<a> ) :
 
 // Fold over the integers between [`start`,`end`] (including `end`).
 pub fun range/fold( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
-  if start >= end then init else
+  if start > end then init else
     val x = f(start,init)
     fold(pretend-decreasing(start.inc), end, x, f)
 
@@ -164,9 +164,9 @@ pub fun range/fold( start : int, end : int, init : a, f : (int,a) -> e a ) : e a
 pub fun fold( upto : int, init : a, f : (int,a) -> e a ) : e a
   fold( 0, upto.dec, init, f )
 
-// Fold over the integers between [`start``,`end`] (including `end`) or until `f` returns `Nothing`
+// Fold over the integers between [`start`,`end`] (including `end`) or until `f` returns `Nothing`
 pub fun range/fold-while( start : int, end : int, init : a, f : (int,a) -> e maybe<a> ) : e a
-  if start >= end then init else
+  if start > end then init else
     match f(start,init)
       Just(x) -> fold-while(pretend-decreasing(start.inc), end, x, f)
       Nothing -> init
