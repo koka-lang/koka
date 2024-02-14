@@ -12,7 +12,7 @@
 // For more details, see:
 //
 // >   "What About the Integer Numbers?
-// >   "Fast Arithmetic with Tagged Integers – A Plea for Hardware Support"
+// >   "Fast Arithmetic with Tagged Integers -- A Plea for Hardware Support"
 // >   Daan Leijen, Technical report MSR-TR-2022-17, 2022-07-11, v1.0. Presented at the ML workshop 2022."
 // >   <https://www.microsoft.com/en-us/research/uploads/prod/2022/07/int.pdf>
 //

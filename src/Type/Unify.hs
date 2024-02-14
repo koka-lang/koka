@@ -460,7 +460,7 @@ unifyEffectVar tv1 tp2
          TVar tv2 | tv1 == tv2  -- e ~ <div,exn|e>  ~> e := <div,exn|e'>
            -> -- trace ("unifyEffectVar: " ++ show tv1 ++ ":=" ++ show tp2 ++ " is infinite") $
                  unifyError Infinite
-         _ -> do tv <- freshTVar kindEffect Meta
+         _ -> do -- tv <- freshTVar kindEffect Meta
                  unifyTVar tv1 (effectExtends ls2 tl2)
 
 

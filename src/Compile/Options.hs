@@ -405,6 +405,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["buildtag"]        (ReqArg buildTagFlag "tag")     "set build variant tag (e.g. 'bundle' or 'dev')"
  , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     ("build under <dir> ('" ++ kkbuild ++ "' by default)")
  , option []    ["buildname"]       (ReqArg outBaseNameFlag "name") "base name of the final output"
+ , flag   []    ["buildhash"]       (\b f -> f{useBuildDirHash=b})  "use hash in build directory name"
  , option []    ["outputdir"]       (ReqArg outBuildDirFlag "dir")  "write intermediate files in <dir>, defaults to:\n<builddir>/<ver>-<buildtag>/<cc>-<variant>-<hash>"
 
  , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (= <prefix>/lib/koka/<ver>)"
@@ -429,6 +430,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
  , configstr [] ["console"]  ["ansi","html","raw"] "fmt" (\s f -> f{ console = s }) "console output format: <ansi|html|raw>"
+ , numOption (-1) "port" []  ["lsport"] (\i f -> f{languageServerPort=i})  "language server localhost port"
+ , flag []      ["lsstdio"]             (\b f -> f{languageServerStdio=b}) "use language Server over stdio"
+
 
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
  , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")  "set link prefixes for documentation"
@@ -469,9 +473,6 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})    "enable inline specialization"
  , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
  , hide $ fflag       ["eagerpatbind"] (\b f -> f{optEagerPatBind=b}) "load pattern fields as early as possible"
- , hide $ numOption (-1) "port" [] ["lsport"]    (\i f -> f{languageServerPort=i}) "language Server port"
- , hide $ flag []     ["lsstdio"]     (\b f -> f{languageServerStdio=b}) "language Server stdio"
- , hide $ flag []     ["buildhash"]   (\b f -> f{useBuildDirHash=b})   "use hash in build directory name"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"

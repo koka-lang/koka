@@ -10,7 +10,7 @@
 
 _Koka v3 is a research language that is currently under development and not quite ready for production use_. 
 
-_Latest release_: v3.0.4, 2024-01-25 ([Install]).
+_Latest release_: v3.1.0, 2024-02-14 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -83,6 +83,9 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
+* `v3.1.0`, 2024-02-16: New concurrent build system and improved module dependency tracking -- much faster builds.  Language Server now supports the stdio protocol via the `--language-server --lsstdio` combination of flags
+Clean up evidence vector api, remove cfc support in the C backend. Internal 
+redesign of (named) effect generation to match the formal systems more closely.
 * `v3.0.4`, 2024-01-25: fix bug in infinite expansion with implicits. Split `std/core` in multiple modules,
   improved hover and inlay information in vs code, various small bug fixes.
 * `v3.0.1`, 2024-01-13: small bug fixes in expression evaluation, and fixes a locale error on macOS.

@@ -442,7 +442,7 @@ instance HasTypeVar Type where
                                         then let preds' = sub' |-> preds
                                              in seqList preds' $ TForall vars preds' (sub' |-> tp)
                                         else
-                                             let uniq    = max (tvsMax (subTvs sub')) (tvsMax (ftv tp)) + 1
+                                             let uniq    = max (tvsMax (subTvs sub')) (tvsMax (ftv tp)) + 1000
                                                  tvsub   = [(tv,tv{ typevarId = typevarId tv + uniq })  | tv <- vars]
                                                  sksub   = subNew [(tv,TVar tvnew) | (tv,tvnew) <- tvsub]
                                                  preds'  = (sub' |-> (sksub |-> preds))

@@ -6,20 +6,19 @@ Koka is a strongly typed functional-style language with effect types and handler
 generating direct C code without needing a runtime system. To learn more:
 
 * Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
-* Browse the [library documentation][libraries].
 * View the Koka __Samples__ in VS Code by opening the command panel (`Ctrl/Cmd+Shift+P`),
   and running the `Koka: Open samples` command.  
   (when you start typing the command will surface to the top).
 
-### v3.0.5
+### v3.1.0, 2024-02-14
 
 - Language Server now supports the stdio protocol via the `--language-server --lsstdio` combination of flags.
 
-- Building is now concurrent with reduced build times.
+- Building is now highly concurrent with much faster build times.
 
-- Internal redesign of (named) effect generation to match the formal systems more closely. 
+- Internal redesign of (named) effect generation to match the formal systems more closely. See `samples/handlers/named` for examples. 
 
-- Numerous improvements and bug fixes.
+- Clarified evidence vector API, and various other improvements and bug fixes.
 
 ### v3.0.4, 2024-01-25
 
