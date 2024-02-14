@@ -23,9 +23,9 @@ fun tmap-std( xs : tree<a>, f : a -> e b ) : e tree<b>
     Bin(l,x,r) -> Bin(l.tmap-std(f),f(x),r.tmap-std(f))
     Leaf       -> Leaf
 
-fun test(n : int32) 
+fun test(n : int32)
   val xs = tree32(1.int32,n)
-  val x = fold-int32(0.int32, (100_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
+  val x = fold-int32( (100_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
             acc + xs.tmap-std(fn(x) x.inc).tsum32
   println("total: " ++ x.show)
 

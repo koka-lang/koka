@@ -10,7 +10,7 @@ type color
 type tree
   Node(color : color, lchild : tree, key : int32, value : bool, rchild : tree)
   Leaf()
-  
+
 
 fun is-red(^t : tree) : bool
   match t
@@ -27,7 +27,7 @@ fun balance-left(l :tree, k : int32, v : bool, r : tree) : tree
     Node(_, lx, kx, vx, rx)
       -> Node(Black, Node(Red, lx, kx, vx, rx), k, v, r)
     Leaf -> Leaf
-    
+
 
 fun balance-right(l : tree, k : int32, v : bool, r : tree) : tree
   match r
@@ -38,7 +38,7 @@ fun balance-right(l : tree, k : int32, v : bool, r : tree) : tree
     Node(_, lx, kx, vx, rx)
       -> Node(Black, l, k, v, Node(Red, lx, kx, vx, rx))
     Leaf -> Leaf
-    
+
 
 fun ins(t : tree, k : int32, v : bool) : tree
   match t
@@ -80,8 +80,8 @@ pub fun make-tree(n : int32) : div tree
   make-tree-aux(n, Leaf)
 
 
-fun test(n : int32) 
-  val x = fold-int32(0.int32, (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
+fun test(n : int32)
+  val x = fold-int32( (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
             val t = make-tree(n)
             acc + t.fold(zero) fn(k,v,r:int32){ if v then r.inc else r }
   println("total: " ++ x.show)

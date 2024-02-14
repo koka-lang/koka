@@ -497,32 +497,46 @@ pub fip fun divmod(x:int32,y:int32) : (int32,int32)
   else (q.inc,r - y)
 
 
-pub fip fun fold-int32( start : int32, end : int32, init : a, ^f : (int32,a) -> e a ) : e a
-  if (start >= end) then init else
+// Fold over the range `[start,end]` (including `end`).
+pub fip fun range/fold-int32( start : int32, end : int32, init : a, ^f : (int32,a) -> e a ) : e a
+  if (start > end) then init else
     val x = f(start,init)
-    fold-int32(pretend-decreasing(start.inc), end, x, f)
+    range/fold-int32(pretend-decreasing(start.inc), end, x, f)
 
-pub fun fold-while-int32( start : int32, end : int32, init : a, f : (int32,a) -> e maybe<a> ) : e a
-  if (start >= end) then init else
+// Fold over the 32-bit integers `0` to `n-1`.
+pub fip fun fold-int32( n : int32, init : a, ^f : (int32,a) -> e a ) : e a
+  range/fold-int32(zero, n.dec, init, f)
+
+
+// Iterate over the range `[start,end]` (including `end`).
+pub fun range/fold-while-int32( start : int32, end : int32, init : a, f : (int32,a) -> e maybe<a> ) : e a
+  if (start > end) then init else
     match f(start,init)
-      Just(x) -> fold-while-int32(pretend-decreasing(start.inc), end, x, f)
+      Just(x) -> range/fold-while-int32(pretend-decreasing(start.inc), end, x, f)
       Nothing -> init
+
+// Iterate over the 32-bit integers `0` to `n-1`.
+pub fun fold-while-int32( n : int32, init : a, f : (int32,a) -> e maybe<a> ) : e a
+  range/fold-while-int32(zero, n.dec, init, f)
 
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
-pub fun for32( start: int32, end : int32, action : (int32) -> e () ) : e ()
+pub fun range/for32( start: int32, end : int32, action : (int32) -> e () ) : e ()
   fun rep( i : int32 )
     if i <= end then
       action(i)
       rep(pretend-decreasing(i.inc))
   rep(start)
 
+pub fun for32( n : int32, action : (int32) -> e () ) : e ()
+  range/for32(zero,n.dec,action)
+
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
 // If `action` returns `Just`, the iteration is stopped and the result returned
-pub fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<a> ) : e maybe<a>
+pub fun range/for-while32( start: int32, end : int32, action : (int32) -> e maybe<a> ) : e maybe<a>
   fun rep( i : int32 )
     if i <= end then
       match action(i)
@@ -531,6 +545,11 @@ pub fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<a> )
     else Nothing
   rep(start)
 
+pub fun for-while32( n: int32, action : (int32) -> e maybe<a> ) : e maybe<a>
+  range/for-while32(zero,n.dec,action)
+
+
+// Create a list with 32-bit integer elements from `lo` to `hi` (including `hi`).
 pub fun list32( lo: int32, hi: int32 ) : total list<int32>
   if lo <= hi
     then Cons( lo, list32( pretend-decreasing(lo.inc), hi ) )

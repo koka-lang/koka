@@ -46,9 +46,9 @@ fun rand-list(n : int32, seed : int32) : <div> list<int32>
   if n >= 0.int32 then Cons(next, rand-list(n - 1.int32, next))
   else Nil
 
-fun test(n : int32) 
+fun test(n : int32)
   val xs = rand-list(n, 13.int32)
-  val x = fold-int32(0.int32, (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
+  val x = fold-int32( (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
             val ys = merge-all(sequences(xs))
             acc + ys.last(0.int32)
   println("total: " ++ x.show)

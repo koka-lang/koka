@@ -18,7 +18,7 @@ type tuple<a>
   Triple(a : a, b : a, c : a)
 
 type seq<a>
-  Empty 
+  Empty
   Unit(a : a, b : pad, c : pad)
   More0(l : a, s : seq<tuple<a>>, r : afew<a>)
   More(l : tuple<a>, s : seq<tuple<a>>, r : afew<a>)
@@ -27,15 +27,15 @@ type buffer
   BNil
   BCons(next : buffer, b : pad, c : pad)
 
-value type bseq<a> 
+value type bseq<a>
   BSeq(s : seq<a>, q : buffer)
 
 // Isomorphic to (,,,) but unboxed
-value type tuple4<a,b,c,d> 
-  Tuple4(fst:a,snd:b,thd:c,field4:d) 
+value type tuple4<a,b,c,d>
+  Tuple4(fst:a,snd:b,thd:c,field4:d)
 
 fun bhead(^bs : bseq<a>) : exn a
-  match bs 
+  match bs
     BSeq(s, _) -> head(s)
 
 fun head(^s : seq<a>) : exn a
@@ -200,7 +200,7 @@ fip fun afew-to-list(u : afew<a>, b : buffer) : exn (list3<a>, buffer)
         BCons(b', _, _) -> (Cons3(x, Cons3(y, Nil3, Pad), Pad), b')
     Three(x,y,z) ->
       match b
-        BCons(BCons(b', _, _), _, _) -> 
+        BCons(BCons(b', _, _), _, _) ->
           (Cons3(x, Cons3(y, Cons3(z, Nil3, Pad), Pad), Pad), b')
 
 fip fun tuple-to-list(u : tuple<a>, b : buffer) : exn (list3<a>, buffer)
@@ -210,7 +210,7 @@ fip fun tuple-to-list(u : tuple<a>, b : buffer) : exn (list3<a>, buffer)
         BCons(b', _, _) -> (Cons3(x, Cons3(y, Nil3, Pad), Pad), b')
     Triple(x,y,z) ->
       match b
-        BCons(BCons(b', _, _), _, _) -> 
+        BCons(BCons(b', _, _), _, _) ->
           (Cons3(x, Cons3(y, Cons3(z, Nil3, Pad), Pad), Pad), b')
 
 fip fun to-tuples(xs : list3<a>, b : buffer) : (list3<tuple<a>>, buffer)
@@ -273,7 +273,7 @@ fun build(n : int32, s : bseq<int32>) : <div,exn> bseq<int32>
   if n <= 0.int32 then s else build(n - 1.int32, bsnoc(s, Reuse3(Pad,Pad,Pad), n))
 
 fun test(n : int32)
-  val x = fold-int32(0.int32, (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
+  val x = fold-int32( (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
             val s = build(n, BSeq(Empty, BNil))
             acc + bhead(iterate(s, n * 3.int32))
   println("total: " ++ x.show)

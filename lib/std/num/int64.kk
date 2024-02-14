@@ -507,15 +507,19 @@ pub fip fun divmod( x :int64, y :int64 ) : (int64,int64)
   else (q.inc, r - y)
 
 
-pub fun fold-int64( start : int64, end : int64, init : a, f : (int64,a) -> e a ) : e a
-  if start >= end then init else
+pub fun range/fold-int64( start : int64, end : int64, init : a, f : (int64,a) -> e a ) : e a
+  if start > end then init else
     val x = f(start,init)
-    fold-int64(pretend-decreasing(start.inc), end, x, f)
+    range/fold-int64(pretend-decreasing(start.inc), end, x, f)
+
+pub fun fold-int64( n : int64, init : a, f : (int64,a) -> e a ) : e a
+  range/fold-int64(zero,n.dec,init,f)
+
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
 // If `action` returns `Just`, the iteration is stopped and the result returned
-pub fun for-while64( start: int64, end : int64, ^action : (int64) -> e maybe<a> ) : e maybe<a>
+pub fun range/for-while64( start: int64, end : int64, ^action : (int64) -> e maybe<a> ) : e maybe<a>
   fun rep( i : int64 )
     if i <= end then
       match action(i)
@@ -523,6 +527,10 @@ pub fun for-while64( start: int64, end : int64, ^action : (int64) -> e maybe<a> 
         Just(x) -> Just(x)
     else Nothing
   rep(start)
+
+pub fun for-while64( n : int64, ^action : (int64) -> e maybe<a> ) : e maybe<a>
+  range/for-while64(zero,n.dec,action)
+
 
 pub fun list64( lo: int64, hi: int64 ) : total list<int64>
   if lo <= hi

@@ -28,7 +28,7 @@ fip fun rebuild(z : accum, t : tree) : tree
 
 fip fun balance( z : accum, t : balance-node ) : tree
   match t
-    Balance(_,l,k,v,r) -> 
+    Balance(_,l,k,v,r) ->
       match z
         NodeR(Black, l1, k1, v1, z1) -> rebuild( z1, Node( Black, l1, k1, v1, Node(Red,l,k,v,r) ) )
         NodeL(Black, z1, k1, v1, r1) -> rebuild( z1, Node( Black, Node(Red,l,k,v,r), k1, v1, r1 ) )
@@ -38,7 +38,7 @@ fip fun balance( z : accum, t : balance-node ) : tree
           Done -> Node(Black, l1, k1, v1, Node(Red,l,k,v,r))
         NodeL(Red, z1, k1, v1, r1) -> match z1
           NodeR(_,l2,k2,v2,z2) -> balance( z2, Balance(Black, Node(Black,l2,k2,v2,l), k, v, Node(Black,r,k1,v1,r1)) )
-          NodeL(_,z2,k2,v2,r2) -> balance( z2, Balance(Black, Node(Black,l,k,v,r), k1, v1, Node(Black,r1,k2,v2,r2)) )              
+          NodeL(_,z2,k2,v2,r2) -> balance( z2, Balance(Black, Node(Black,l,k,v,r), k1, v1, Node(Black,r1,k2,v2,r2)) )
           Done -> Node(Black, Node(Red,l,k,v,r), k1, v1, r1)
         Done -> Node(Black,l,k,v,r)
 
@@ -68,8 +68,8 @@ pub fun make-tree(n : int32) : pure tree
   make-tree-aux(n, Leaf)
 
 
-fun test(n : int32) 
-  val x = fold-int32(0.int32, (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
+fun test(n : int32)
+  val x = fold-int32( (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
             val t = make-tree(n)
             acc + t.fold(zero) fn(k,v,r:int32){ if v then r.inc else r }
   println("total: " ++ x.show)

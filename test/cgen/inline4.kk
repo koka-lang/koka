@@ -28,9 +28,9 @@ fun tmap-cps( xs : tree<a>, f : a -> e b, k : tree<b> -> e tree<b> ) : e tree<b>
       r.tmap-cps(f, fn(r') Bin(l', y, r'))}))
     Leaf       -> k(Leaf)
 
-fun test(n : int32) 
+fun test(n : int32)
   val xs = tree32(1.int32,n)
-  val x = fold-int32(0.int32, (100_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
+  val x = fold-int32( (100_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
             acc + xs.tmap-cps(fn(x) x.inc, id).tsum32
   println("total: " ++ x.show)
 

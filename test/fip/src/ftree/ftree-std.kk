@@ -102,7 +102,7 @@ fun build(n : int32, s : seq<int32>) : <div> seq<int32>
   if n <= 0.int32 then s else build(n - 1.int32, snoc(s, n))
 
 fun test(n : int32)
-  val x = fold-int32(0.int32, (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
+  val x = fold-int32( (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
             val s = build(n, Empty)
             acc + head(iterate(s, n * 3.int32))
   println("total: " ++ x.show)

@@ -54,7 +54,7 @@ pub fun sfc-step( sfc : sfc ) : sfc-result
 
 pub fun sfc-init32( seed1 : int32, seed2 : int32 ) : sfc
   val sfc0 = Sfc(0.int32, seed1, seed2, 1.int32)
-  fold-int32( 0.int32, 12.int32, sfc0, fn(_,s){ sfc-step(s).rstate } )  // step 12 times
+  fold-int32( 12.int32, sfc0, fn(_,s){ sfc-step(s).rstate } )  // step 12 times
 
 
 pub fun sfc-init( seed : int ) : sfc

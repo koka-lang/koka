@@ -36,7 +36,7 @@ fip fun balance( z : accum, l : tree, k : int32, v : bool, r : tree, u : balance
       Done -> Node(Black, l1, k1, v1, Node(Red,l,k,v,r))
     NodeL(Red, z1, k1, v1, r1) -> match z1
       NodeR(_,l2,k2,v2,z2) -> balance( z2, Node(Black,l2,k2,v2,l), k, v, Node(Black,r,k1,v1,r1), u )
-      NodeL(_,z2,k2,v2,r2) -> balance( z2, Node(Black,l,k,v,r), k1, v1, Node(Black,r1,k2,v2,r2), u )              
+      NodeL(_,z2,k2,v2,r2) -> balance( z2, Node(Black,l,k,v,r), k1, v1, Node(Black,r1,k2,v2,r2), u )
       Done -> Node(Black, Node(Red,l,k,v,r), k1, v1, r1)
     Done -> Node(Black,l,k,v,r)
 
@@ -66,8 +66,8 @@ pub fun make-tree(n : int32) : pure tree
   make-tree-aux(n, Leaf)
 
 
-fun test(n : int32) 
-  val x = fold-int32(0.int32, (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
+fun test(n : int32)
+  val x = fold-int32( (10_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
             val t = make-tree(n)
             acc + t.fold(zero) fn(k,v,r:int32){ if v then r.inc else r }
   println("total: " ++ x.show)

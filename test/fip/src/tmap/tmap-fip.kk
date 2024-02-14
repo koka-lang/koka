@@ -10,7 +10,7 @@ fun tree32(lo : int32, hi : int32)
   else
     val mi = lo + (hi - lo) / 2.int32
     Bin(tree32(lo, mi - 1.int32), mi, tree32(mi + 1.int32, hi))
- 
+
 fun tsum32_go(t, acc : int32)
   match t
     Leaf -> acc
@@ -37,7 +37,7 @@ fun tmap-app( k0 : accum<a,b>, ^f : a -> e b, t : tree<b> ) : e tree<b>
 
 fun test(n : int32)
   val xs = tree32(1.int32,n)
-  val x = fold-int32(0.int32, (100_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
+  val x = fold-int32( (100_000_000.int32)/(max(n,1.int32)), 0.int32) fn(i,acc)
             acc + xs.tmap-acc(fn(x) x.inc, Hole).tsum32
   println("total: " ++ x.show)
 
