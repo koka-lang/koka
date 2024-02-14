@@ -292,7 +292,7 @@ unify (TApp t1 ts1) (TApp u1 us2)   -- | length ts1 != length us2
                 unifies (drop (len1 - len2) ts1) us2
 
 -- functions
-unify (TFun args1 eff1 res1) (TFun args2 eff2 res2) | length args1 == length args2
+unify f1@(TFun args1 eff1 res1) f2@(TFun args2 eff2 res2) | length args1 == length args2
   = do unifies (res1:map snd args1) (res2:map snd args2)
        withError (effErr) (unify eff1 eff2)
   where
@@ -493,7 +493,8 @@ unifyLabels ls1 ls2 closed1 closed2
                            else do (ds1,ds2) <- unifyLabels ls2 ll2 closed1 closed2
                                    return (l2:ds1,ds2)
                     _ ->
-                         do unify l1 l2  -- for heap effects and kind checks
+                         do -- trace ("unify labels: " ++ show (pretty l1, pretty l2)) $
+                            unify l1 l2  -- for heap effects and kind checks
                             ll1' <- subst ll1
                             ll2' <- subst ll2
                             unifyLabels ll1' ll2' closed1 closed2

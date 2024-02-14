@@ -613,7 +613,7 @@ infExpr expr
                                    return (Handler hsort scoped override allowMask meff' pars' reinit' ret' final' ops' hrng rng)
       Inject tp expr b range-> do expr' <- infExpr expr
                                   tp'   <- infResolveX tp (Check "Can only inject effect constants (of kind X)" range) (getRange tp)
-                                  -- trace ("resolve ann: " ++ show (pretty tp')) $
+                                  -- trace ("resolved inject: " ++ show (pretty tp')) $
                                   return (Inject tp' expr' b range)
 
 infExprMaybe mbExpr
@@ -789,6 +789,8 @@ infUserType expected  context userType
 getEffectLift :: KUserType InfKind -> KInfer (KUserType k -> Range -> KUserType k)
 getEffectLift utp
   = case utp of
+      TpQuan quant tname tp rng
+                      -> getEffectLift tp
       TpParens tp _   -> getEffectLift tp
       TpApp tp _ _    -> getEffectLift tp
       TpCon name rng  -> do mbInfo <- lookupDataInfo name
@@ -798,9 +800,12 @@ getEffectLift utp
                                       DataEffect named linear
                                         -> return (\u r -> TpApp (TpCon (makeTpHandled named linear) rangeNull) [u] rangeNull)
                                       DataNoEffect
-                                        -> return (\tp _ -> tp)
-                              _  -> return (\tp _ -> tp)
-      _               -> return (\tp _ -> tp)
+                                        -> --trace ("getEffectLift: no effect: " ++ show utp) $
+                                           return (\tp _ -> tp)
+                              _  -> --trace ("getEffectLift: no data info: " ++ show utp) $
+                                    return (\tp _ -> tp)
+      _               -> --trace ("getEffectLift: strange type " ++ show utp) $
+                         return (\tp _ -> tp)
 
 infParam expected context (name,tp)
   = do tp' <- infUserType expected context tp

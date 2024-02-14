@@ -650,40 +650,40 @@ effectEmpty :: Tau
 effectEmpty
   = TCon (TypeCon nameEffectEmpty kindEffect)
 
-isEffectEmpty :: Tau -> Bool
+isEffectEmpty :: HasCallStack => Tau -> Bool
 isEffectEmpty tp
   = case expandSyn tp of
       TCon tc -> typeConName tc == nameEffectEmpty
       _       -> False
 
 
-effectExtendNoDup :: Tau -> Tau -> Tau
+effectExtendNoDup :: HasCallStack => Tau -> Tau -> Tau
 effectExtendNoDup label eff
   = let (ls,_) = extractEffectExtend label
     in if null ls
         then let (els,_) = extractEffectExtend eff
              in if (label `elem` els)
                  then eff
-                 else TApp (TCon tconEffectExtend) [label,eff]
+                 else appEffectExtend label eff
         else effectExtendNoDups ls eff
 
-effectExtendNoDups :: [Tau] -> Tau -> Tau
+effectExtendNoDups :: HasCallStack => [Tau] -> Tau -> Tau
 effectExtendNoDups labels eff
   = foldr effectExtendNoDup eff labels
 
 
-effectExtend :: Tau -> Tau -> Tau
+effectExtend :: HasCallStack => Tau -> Tau -> Tau
 effectExtend label eff
   = let (ls,tl) = extractEffectExtend label
     in if null ls
-        then TApp (TCon tconEffectExtend) [label,eff]
+        then appEffectExtend label eff
         else effectExtends ls eff
 
 tconEffectExtend :: TypeCon
 tconEffectExtend
   = TypeCon nameEffectExtend (kindFun kindLabel (kindFun kindEffect kindEffect))
 
-effectExtends :: [Tau] -> Tau -> Tau
+effectExtends :: HasCallStack => [Tau] -> Tau -> Tau
 -- prevent over expansion of type syonyms here  (see also: Core.Parse.teffect)
 effectExtends [lab@(TSyn (TypeSyn _ kind _ _) _ _)] eff  | isEffectEmpty eff && kind == kindEffect
   = lab
@@ -698,7 +698,7 @@ isEffectFixed :: Tau -> Bool
 isEffectFixed tp
   = isEffectEmpty (snd (extractEffectExtend tp))
 
-extractEffectExtend :: Tau -> ([Tau],Tau)
+extractEffectExtend :: HasCallStack => Tau -> ([Tau],Tau)
 extractEffectExtend t
   = case expandSyn t of
       TApp (TCon tc) [l,e]  | typeConName tc == nameEffectExtend
@@ -726,7 +726,7 @@ shallowExtractEffectExtend t
              (ls,tl) -> (l:ls, tl)
       _ -> ([],t)
 
-shallowEffectExtend :: Tau -> Tau -> Tau
+shallowEffectExtend :: HasCallStack => Tau -> Tau -> Tau
 shallowEffectExtend label eff
   -- We do not expand type synonyms in the label here by using the 'shallow' version of extract
   -- this means that type synonyms of kind E (ie. a fixed effect row) could stay around in
@@ -735,8 +735,34 @@ shallowEffectExtend label eff
   -- careful to expand such synonyms
   = let (ls,tl) = shallowExtractEffectExtend label
     in if null ls
-        then TApp (TCon tconEffectExtend) [label,eff]
+        then appEffectExtend label eff
         else effectExtends ls eff
+
+
+appEffectExtend :: HasCallStack => Type -> Effect -> Effect
+appEffectExtend label eff
+  = assertion ("label has not kind X: " ++ show (label,eff)) (hasKindLabel label)
+    TApp (TCon tconEffectExtend) [label,eff]
+
+  where
+    hasKindLabel l
+      = let k = kindOf (expandSyn l)
+        in (k == kindLabel || k == kindEffect)
+
+kindOf :: HasCallStack => Tau -> Kind
+kindOf tau
+  = case tau of
+      TForall _ _ tp -> kindOf tp
+      TFun _ _ _     -> kindStar
+      TVar v         -> typevarKind v
+      TCon c         -> typeconKind c
+      TSyn syn xs tp -> typesynKind syn
+      TApp tp args   -> kindApply args (kindOf tp)
+  where
+    kindApply [] k   = k
+    kindApply (_:rest) (KApp (KApp arr k1) k2)  = kindApply rest k2
+    kindApply args  k  = failure ("Type.Type.kindOf: illegal kind in application? " ++ show (k) ++ " to " ++ show args
+                              ++ "\n  " ++ show tau)
 
 
 typeDivergent :: Tau

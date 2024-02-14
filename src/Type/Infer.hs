@@ -998,6 +998,7 @@ inferExpr propagated expect (Inject label expr behind rng)
        inferUnify (checkInject rng) rng (tfun res) exprTp
        resTp <- subst res
 
+       -- traceDoc $ \penv -> text "infer inject :" <+> ppType penv label
        (mbHandled,effName) <- effectNameCore label rng
        effTo <- subst $ effectExtend label eff
 
@@ -1060,7 +1061,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
            effectName = effectNameFromLabel heff
            handlerConName = toHandlerConName effectName
 
-       -- traceDoc $ \penv -> text "checking handler: " <+> ppType penv heff <.> text "," <+> pretty effectName
+       -- traceDoc $ \penv -> text "checking handler: " <+> ppType penv heff <.> text ", effect name:" <+> ppName penv effectName
 
        -- check operations
        checkCoverage rng heff handlerConName branches
@@ -1160,13 +1161,14 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
        let actionTp = case splitFunType handleRho of
                         Just ([_,_,actionTp],effTp,resTp) -> snd actionTp
                         _ -> failure ("Type.Infer: unexpected handler type: " ++ show (ppType penv handleRho))
-       -- traceDoc $ \penv -> text " action type is" <+> ppType penv actionTp
+       -- traceDoc $ \penv -> text " the handler action type: " <+> ppType penv actionTp <.> text ", prop: " <+> ppProp penv propagated
        let handlerExpr = Parens (Lam [ValueBinder actionName (Just actionTp) Nothing rng rng]
                                      (handleExpr (Var actionName False rng)) hrng) (newName "handler") "expr" rng
 
        -- and check the handle expression
        hres@(xhtp,_,_) <- inferExpr propagated expect handlerExpr
        htp <- subst xhtp
+       -- traceDoc $ \penv -> text " the handler expr type: " <+> ppType penv htp <+> text ", prop: " <+> ppProp penv propagated
 
        -- extract handler effect
        let (actionTp1,heffect) = case splitFunScheme(htp) of
@@ -1335,7 +1337,8 @@ effectNameFromLabel :: Effect -> Name
 effectNameFromLabel effect
   = case expandSyn effect of
       TApp (TCon tc) [hx]
-        | (typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1) -> effectNameFromLabel hx
+        | (typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1 ||
+           typeConName tc == nameTpNHandled || typeConName tc == nameTpNHandled1) -> effectNameFromLabel hx
       TCon tc -> typeConName tc
       TSyn syn _ _ -> typeSynName syn
       TApp (TCon tc) targs -> typeConName tc
