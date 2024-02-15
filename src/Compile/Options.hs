@@ -296,8 +296,8 @@ flagsNull
           "csc"
           "node"
           "wasmtime"
-          "rpyeffect-asm" -- TODO hardcoded for now (for testing)
-          "rpyeffect-jit" -- TODO hardcoded for now (for testing)
+          "../rpyeffect-asm/target/universal/stage/bin/rpyeffectasm" -- TODO hardcoded for now (for testing)
+          "../rpyeffect-jit/out/bin/arm64-Darwin/rpyeffect-jit" -- TODO hardcoded for now (for testing)
           "cmake"
           ""       -- cmake args
 
@@ -458,7 +458,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showcoretypes"]  (\b f -> f{showCoreTypes=b})     "show full types in core"
  , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})         "show generated c#"
  , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
- , flag   []    ["showjs"]         (\b f -> f{showAsmVM=b})         "show generated rpyeffect-asm mcore"
+ , flag   []    ["showvm"]         (\b f -> f{showAsmVM=b})         "show generated rpyeffect-asm mcore"
  , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
  , flag   []    ["core"]           (\b f -> f{genCore=b})           "generate a core file"
  , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"

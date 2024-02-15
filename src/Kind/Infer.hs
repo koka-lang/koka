@@ -457,7 +457,7 @@ formatCall tp (target,ExternalCall fname)
       = fname ++ arguments
 
     formatVM
-      = fname ++ arguments -- TODO
+      = fname
 
     formatCS
       = fname ++ typeArguments ++ arguments
