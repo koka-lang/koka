@@ -687,7 +687,7 @@ environment
     , ("koka_lib_dir", "dir",     opt "libdir",     "Set the koka compiled library directory (= '<prefix>/lib/koka/<ver>')")
     , ("koka_share_dir", "dir",   opt "sharedir",   "Set the koka library sources directory (= '<prefix>/share/koka/<ver>')")
     , ("koka_build_dir", "dir",   opt "builddir",   ("Set the default koka build directory (= '" ++ kkbuild ++ "')"))
-    , ("VCPKG_ROOT" ,    "dir",   opt "vcpkgdir",   "Root directory of the vcpkg installation (= '~/vcpkg')")
+    , ("VCPKG_ROOT" ,    "dir",   opt "vcpkg",      "Root directory of the vcpkg installation (= '~/vcpkg')")
     ]
   where
     flagsEnv s      = [s]
