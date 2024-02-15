@@ -1061,6 +1061,7 @@ targetExeExtension target
       C _      -> exeExtension
       JS JsWeb -> ".html"
       JS _     -> ".mjs"
+      VM       -> ".rpyeffect"
       _        -> exeExtension
 
 targetObjExtension target
@@ -1070,6 +1071,7 @@ targetObjExtension target
       C WasmWeb-> ".o"
       C _      -> objExtension
       JS _     -> ".mjs"
+      VM       -> ".rpyeffect"
       _        -> objExtension
 
 targetLibFile target fname
@@ -1079,6 +1081,7 @@ targetLibFile target fname
       C WasmWeb-> "lib" ++ fname ++ ".a"
       C _      -> libPrefix ++ fname ++ libExtension
       JS _     -> fname ++ ".mjs" -- ?
+      VM       -> fname ++ ".rpyeffect"
       _        -> libPrefix ++ fname ++ libExtension
 
 outName :: Flags -> FilePath -> FilePath
