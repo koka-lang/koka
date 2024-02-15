@@ -11,6 +11,7 @@ module std/core/sslice
 
 import std/core/types
 import std/core/undiv
+import std/core/unsafe // unsafe-ptr-eq
 import std/core/hnd
 import std/core/int
 import std/core/string
@@ -38,32 +39,30 @@ abstract value struct sslice( str : string, start : int, len : int )
 pub fun @new-sslice( str :string, start: int, len : int )
   Sslice(str,start,len)
 
-// Equality based on contents of the slice 
+// Equality based on contents of the slice
 // O(`n`+`m`) where `n` and `m` are the lengths of the two strings
-pub inline fun (==)(l1: sslice, l2: sslice ): bool
-  match (l1, l2)
-    (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
-      if identical(s1, s2) then (i1 == i2 && f1 == f2) || l1.string == l2.string
-      else l1.string == l2.string
+pub fun (==)(slice1: sslice, slice2: sslice ): bool
+  match (slice1, slice2)
+    (Sslice(s1, start1, len1), Sslice(s2, start2, len2)) ->
+      if unsafe-ptr-eq(s1,s2) && start1==start2 && len1==len2
+        then True // fast path
+        else slice1.string == slice2.string
 
 // Inequality based on contents of the slice
 // O(`n`+`m`) where `n` and `m` are the lengths of the two strings
-pub inline fun (!=)(l1: sslice, l2: sslice ): bool
-  !(l1 == l2)
+pub fun (!=)(slice1: sslice, slice2: sslice ): bool
+  !(slice1 == slice2)
 
-// Equality of slices same offset and length on the same string 
-// The strings do not have to be referentially identical though
-pub inline fun (===)(l1: sslice, l2: sslice ): bool
-  match (l1, l2)
-    (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
-      i2 == i2 && f1 == f2 && s1 == s2
+// Equality of slices at the same offset and length on an equal string
+// (The strings do not have to be referentially identical though)
+pub fun (===)(slice1: sslice, slice2: sslice ): bool
+  match (slice1, slice2)
+    (Sslice(s1, start1, len1), Sslice(s2, start2, len2)) -> (start1==start2 && len1==len2 && s1==s2)
 
-// Inequality of slices same offset and length on the same string 
-// The strings do not have to be referentially identical though
-pub inline fun (!==)(l1: sslice, l2: sslice ): bool
-  match (l1, l2)
-    (Sslice(s1, i1, f1), Sslice(s2, i2, f2)) ->
-      i2 != i2 || f1 != f2 || s1 != s2
+// Inequality of slices at the same offset and length on the same string.
+// (The strings do not have to be referentially identical though)
+pub fun (!==)(slice1: sslice, slice2: sslice ): bool
+  !(slice1===slice2)
 
 // O(n). Return the number of characters in a string slice
 pub extern count( slice : sslice ) : int
