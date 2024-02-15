@@ -322,7 +322,7 @@ fun build-libraries(cc : string, usecl : bool, variant : variant, version : stri
   if !install && usecl then
     // also generate cl binaries on windows
     val cloutputdir = get-output-dir("cl", variant, version)
-    val clcmd  = [koka-run, "--cc=cl", "--outputdir=" ++ cloutputdir.show, extra, prog].join(" ")
+    val clcmd  = [koka-run, "--cc=cl", "-j1", "--outputdir=" ++ cloutputdir.show, extra, prog].join(" ")
     println("> "  ++ clcmd)
     run-system( clcmd )
     ()
