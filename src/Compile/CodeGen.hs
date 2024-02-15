@@ -46,6 +46,7 @@ import Backend.C.FromCore         ( cFromCore )
 import Compile.Options
 import Compile.Module( Definitions(..), Module(..), modCoreImports )
 import Compile.TypeCheck( importMapFromCoreImports )    -- todo: break this dependency?
+import Type.InferMonad (traceDefDoc)
 
 
 data LinkResult = LinkDone
@@ -97,7 +98,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
        -- write documentation
        let fullHtml = outHtml flags > 1
            outHtmlFile  = outBase ++ "-source.html"
-           source   = maybe sourceNull programSource (modProgram mod)
+           source   = modSource mod -- maybe sourceNull programSource (modProgram mod)
            cenv     = penv{ colorizing=True }
        if (isLiteralDoc (sourceName source)) -- .kk.md
         then do termTrace term "write html document"

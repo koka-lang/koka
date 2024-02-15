@@ -648,10 +648,12 @@ moduleLex mod
          Left errs
             -> return mod{ modPhase  = PhaseInit
                          , modErrors = errs
+                         , modSource = source
                          }
          Right (imports,warns)
             -> return mod{ modPhase   = PhaseLexed
                          , modErrors  = warns
+                         , modSource  = source
                          , modLexemes = lexemes
                          , modDeps    = seqqList $ lexImportNub $
                                         [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) | imp <- imports]
@@ -680,6 +682,7 @@ modFromIface core parseInlines mod
                              Nothing -> PhaseLinked
                              Just f  -> PhaseIfaceLoaded
         , modErrors      = errorsNil
+        , modSource      = sourceNull
         , modDeps        = seqqList $ [LexImport (Core.importName imp) nameNil (Core.importVis imp) False {- @open -}
                                        | imp <- Core.coreProgImports core, not (Core.isCompilerImport imp) ]
         , modCore        = Just $! core
@@ -841,6 +844,7 @@ moduleReset mod
          modErrors = errorsNil,
          -- reset fields that are not used by an IDE to reduce memory pressure
          -- leave lexemes, rangeMap, and definitions. todo: maybe don't cache definitions at all?
+         modSource = sourceNull,
          modProgram = Nothing,
          modCore    = case modCore mod of
                         Just core -> Just $! coreReset core
