@@ -16,20 +16,21 @@ import std/core/types
 // a handler and can cause a segfault at runtime in such cases!
 //
 // You can use `unsafe-total` to dismiss built-in effects without handlers which include:
-//  behavioral: `:div`, `:ndet`
-//  state: `:alloc`, `:read`, `:write`, `:st`
-//  external: `:ui`, `:fsys`, `:net`, `:blocking`
-//  combinations: `:io-total` and `:io-noexn`
-// Do not dismiss `:io`, which includes handlers for `:exn`!
 //
-// Most valid use cases of `unsafe-total` include creation and accessing global `refs`.
+// - behavioral: `:div` (non-termination/divergence), `:ndet` (non-determinism)
+// - state: `:alloc`, `:read`, `:write`, `:st`
+// - external: `:ui`, `:fsys`, `:net`, `:blocking`
+// - combinations: `:io-total` and `:io-noexn`
 //
-// However, if initialization of a global could take awhile, or requires user defined effects
-// consider lazily initializing and caching it using the following pattern.
-// ```koka
-// val global-var = delay({initialize()})`
-// fun get-global()
-//   global-var.force
+// Do _not_ dismiss `:io` since it has the `:exn` effect that should be handled (and an evidence
+// vector should be passed in).
+//
+// Try to avoid using `unsafe-total` to initialize global values that have a side-effect, but
+// use `std/core/delayed/delay` instead:
+// ```
+// val myglobal = delay( fn() initialize() )
+// fun get-global() : e int
+//   myglobal.force
 // ```
 pub fun unsafe-total( action : () -> e a ) : a
   unsafe-total-cast( action )()
