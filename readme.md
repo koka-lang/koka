@@ -83,7 +83,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
-* `v3.1.0`, 2024-02-16: New concurrent build system and improved module dependency tracking -- much faster builds.  Language Server now supports the stdio protocol via the `--language-server --lsstdio` combination of flags
+* `v3.1.0`, 2024-02-14: New concurrent build system and improved module dependency tracking -- much faster builds.  Language Server now supports the stdio protocol via the `--language-server --lsstdio` combination of flags
 Clean up evidence vector api, remove cfc support in the C backend. Internal 
 redesign of (named) effect generation to match the formal systems more closely.
 * `v3.0.4`, 2024-01-25: fix bug in infinite expansion with implicits. Split `std/core` in multiple modules,
