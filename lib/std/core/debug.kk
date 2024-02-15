@@ -13,6 +13,7 @@ import std/core/types
 import std/core/unsafe
 import std/core/hnd
 import std/core/string
+import std/core/console
 
 extern import
   c file "inline/debug.c"
@@ -40,12 +41,12 @@ pub fun file/kk-file-line( ?kk-file, ?kk-line )
 extern xtrace : ( message : string ) -> ()
   c  "kk_trace"
   cs "Primitive.Trace"
-  js "_trace"
+  js "$std_core_console._trace"
 
 extern xtrace-any : forall<a> ( message: string, x : a ) -> ()
   c  "kk_trace_any"
   cs "Primitive.TraceAny"
-  js "_trace_any"
+  js "$std_core_console._trace_any"
 
 val trace-enabled : ref<global,bool> = unsafe-total{ ref(True) }
 
