@@ -33,7 +33,7 @@ module Compile.Options( -- * Command line options
                        , Terminal(..)
                        ) where
 
-
+import Debug.Trace
 import Data.Char              ( toLower, toUpper, isAlpha, isSpace )
 import Data.List              ( intersperse, isInfixOf )
 import Data.Hashable
@@ -687,7 +687,6 @@ environment
     , ("koka_lib_dir", "dir",     opt "libdir",     "Set the koka compiled library directory (= '<prefix>/lib/koka/<ver>')")
     , ("koka_share_dir", "dir",   opt "sharedir",   "Set the koka library sources directory (= '<prefix>/share/koka/<ver>')")
     , ("koka_build_dir", "dir",   opt "builddir",   ("Set the default koka build directory (= '" ++ kkbuild ++ "')"))
-    , ("VCPKG_ROOT" ,    "dir",   opt "vcpkg",      "Root directory of the vcpkg installation (= '~/vcpkg')")
     ]
   where
     flagsEnv s      = [s]
@@ -947,6 +946,7 @@ vcpkgFindRoot :: FilePath -> IO (FilePath,FilePath)
 vcpkgFindRoot root
   = if (null root)
       then do eroot <- getEnvVar "VCPKG_ROOT"
+              -- trace ("found eroot,root: " ++ show (eroot,root)) $
               if (not (null eroot))
                 then return (eroot, joinPath eroot vcpkgExe)
                 else do homeDir <- getHomeDirectory

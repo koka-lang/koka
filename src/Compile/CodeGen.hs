@@ -7,6 +7,7 @@
 -----------------------------------------------------------------------------
 module Compile.CodeGen ( codeGen, Link, LinkResult(..), noLink ) where
 
+import Debug.Trace
 import Data.Char
 import Data.Maybe
 import Data.List
