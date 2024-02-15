@@ -96,9 +96,9 @@ kk_ssize_t kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx ) {
 //   else return cfc2;
 // }
 
-static inline struct kk_std_core_hnd_Ev* kk_evv_as_Ev( kk_evv_t evv, kk_context_t* ctx ) {
-  return kk_std_core_hnd__as_Ev(kk_evv_as_ev(evv,ctx),ctx);
-}
+// static inline struct kk_std_core_hnd_Ev* kk_evv_as_Ev( kk_evv_t evv, kk_context_t* ctx ) {
+//   return kk_std_core_hnd__as_Ev(kk_evv_as_ev(evv,ctx),ctx);
+// }
 
 
 // static kk_cfc_t kk_evv_cfc_of_borrow(kk_evv_t evv, kk_context_t* ctx) {

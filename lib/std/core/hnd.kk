@@ -7,7 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 /* Internal effect handler primitives.
-
+ 
   Internal primitives to implement evidence based algebraic
   effect handlers. These are emitted by the compiler during evidence
   translation and this module is always implicitly imported.
