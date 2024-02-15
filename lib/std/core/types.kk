@@ -252,6 +252,11 @@ pub fun hbox( x : a ) : hbox<a>
   Hbox(x)
 */
 
+pub inline extern identical(x: a, y: a): bool
+  c  inline "kk_box_eq(#1,#2)"
+  cs inline "Object.ReferenceEquals(#1,#2)"
+  js inline "Object.is(#1,#2)"
+
 // Prevent inlining an expression by passing it to `keep` (which is a non-inlineable identity function)
 pub noinline fip fun keep( x : a ) : a
   x
