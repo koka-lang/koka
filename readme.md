@@ -104,35 +104,6 @@ redesign of (named) effect generation to match the formal systems more closely.
   improve grammar (`pub` (instead of `public`, remove private (as it is always default)),
   `final ctl` (instead of `brk`), underscores in number literals, etc),
   rename `double` to `float64`, various bug fixes.
-* `v2.3.8`, 2021-12-27: improved `int` performance, various bug fixes, update wasm backend,
-  initial conan support, fix js backend.
-* `v2.3.6`, 2021-11-26: fix specialization bug, add `std/os/readline` module.
-* `v2.3.4`, 2021-11-26: `maybe`-like types are already value types, but now also no longer need heap allocation
-  if not nested (and `[Just(1)]` uses the same heap space as `[1]`),
-  improved atomic refcounting (by Anton Lorenzen), improved specialization (by Steven Fontanella),
-  various small fixes, fix build on freeBSD.
-* `v2.3.2`, 2021-10-15: initial wasm support (use `--target=wasm`, and install [emscripten] and [wasmtime]),
-  improved reuse specialization (by Anton Lorenzen),
-  fix default color scheme for non-dark shells (#190), stack-less free and marking, add `--stack` option,
-  [musl] support (use `--cc=musl-gcc`), fix `vcpkg` support on macOS with homebrew installed vcpkg, various bug fixes.
-* `v2.3.1`, 2021-09-29: improved TRMC optimizations, and improved reuse
-  (the [rbtree](test/bench/koka/rbtree.kk) benchmark is faster as C++ now).
-  Improved effect operation speed. Allow elision of `->` in anonymous
-  function expressions (e.g. `xs.map( fn(x) x + 1 )`) and operation clauses. Allow `ctl` for `control`.
-  New default output directory as `.koka` and improved command line options to be more in line with
-  other compilers (with `-o` specifying the final output, and `-e` to execute the program).
-* `v2.3.0`, 2021-09-20: many changes: new layout rule to [elide braces][nobrace] and no more need to
-  parenthesize `if` and `match` conditions (see the [`samples/basic/rbtree`](samples/basic/rbtree.kk) for
-  an example of this), updated the JavaScript backend (`--target=js`) to use standard ES6 modules and using the new [`BigInt`][bigint] for arbitrary precision integers, improved runtime layout with support for 128-bit arm CHERI,
-  add the `std/num/int64` module and `int64` primitive type, add the [binarytrees](test/bench/koka/binarytrees.kk)
-  benchmark, initial support for parallel tasks (in `std/os/task`), improved simplification and inlining giving
-  much improved effect operations, updated isocline for the interactive environment.
-* `v2.2.1`, 2021-09-05: improved optimization, initial parallel tasks, binary-trees benchmark,
-  still slightly slower effect handling, upgrade isocline, fix minor bugs.
-* `v2.2.0`, 2021-08-26: improved case-of-known simpification (by Rakshika B), improve cross-module specialization
-  (by Steven Fontanella), initial borrowing annotations and improved reuse analysis (by Anton Lorenzen),
-  improved line editing in the interactive environment, improved inlining. Note: due to the new inline phases,
-  effect handling may currently be a tad slower in this release but will be improved for the next release.
 * [Older release notes](#older-release-notes).
 
 <!--
@@ -486,7 +457,35 @@ build the VS Code language server.
 
 # Older Release Notes
 
-
+* `v2.3.8`, 2021-12-27: improved `int` performance, various bug fixes, update wasm backend,
+  initial conan support, fix js backend.
+* `v2.3.6`, 2021-11-26: fix specialization bug, add `std/os/readline` module.
+* `v2.3.4`, 2021-11-26: `maybe`-like types are already value types, but now also no longer need heap allocation
+  if not nested (and `[Just(1)]` uses the same heap space as `[1]`),
+  improved atomic refcounting (by Anton Lorenzen), improved specialization (by Steven Fontanella),
+  various small fixes, fix build on freeBSD.
+* `v2.3.2`, 2021-10-15: initial wasm support (use `--target=wasm`, and install [emscripten] and [wasmtime]),
+  improved reuse specialization (by Anton Lorenzen),
+  fix default color scheme for non-dark shells (#190), stack-less free and marking, add `--stack` option,
+  [musl] support (use `--cc=musl-gcc`), fix `vcpkg` support on macOS with homebrew installed vcpkg, various bug fixes.
+* `v2.3.1`, 2021-09-29: improved TRMC optimizations, and improved reuse
+  (the [rbtree](test/bench/koka/rbtree.kk) benchmark is faster as C++ now).
+  Improved effect operation speed. Allow elision of `->` in anonymous
+  function expressions (e.g. `xs.map( fn(x) x + 1 )`) and operation clauses. Allow `ctl` for `control`.
+  New default output directory as `.koka` and improved command line options to be more in line with
+  other compilers (with `-o` specifying the final output, and `-e` to execute the program).
+* `v2.3.0`, 2021-09-20: many changes: new layout rule to [elide braces][nobrace] and no more need to
+  parenthesize `if` and `match` conditions (see the [`samples/basic/rbtree`](samples/basic/rbtree.kk) for
+  an example of this), updated the JavaScript backend (`--target=js`) to use standard ES6 modules and using the new [`BigInt`][bigint] for arbitrary precision integers, improved runtime layout with support for 128-bit arm CHERI,
+  add the `std/num/int64` module and `int64` primitive type, add the [binarytrees](test/bench/koka/binarytrees.kk)
+  benchmark, initial support for parallel tasks (in `std/os/task`), improved simplification and inlining giving
+  much improved effect operations, updated isocline for the interactive environment.
+* `v2.2.1`, 2021-09-05: improved optimization, initial parallel tasks, binary-trees benchmark,
+  still slightly slower effect handling, upgrade isocline, fix minor bugs.
+* `v2.2.0`, 2021-08-26: improved case-of-known simpification (by Rakshika B), improve cross-module specialization
+  (by Steven Fontanella), initial borrowing annotations and improved reuse analysis (by Anton Lorenzen),
+  improved line editing in the interactive environment, improved inlining. Note: due to the new inline phases,
+  effect handling may currently be a tad slower in this release but will be improved for the next release.  
 * `v2.1.9`, 2021-06-23: initial support for cross-module specialization (by Steven Fontanella).
 * `v2.1.8`, 2021-06-17: initial support for macOS M1 and Linux arm64, improved readline, minor fixes.
 * `v2.1.6`, 2021-06-10: initial support for shallow resumptions, fix space leak with vectors, allow `gcc` with `--fasan`,

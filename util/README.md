@@ -6,7 +6,7 @@
 - `link-`[`min`,`test`,`std`]: wrapper module to build and link most standard libraries for an install bundle.
 - `grammar.kk`: build and test the yacc & flex grammar.
 - `packaging`: build packages for various Linux distributions.
-
+- `docs.kk`: generate documentation
 
 # Releasing
 
@@ -23,9 +23,8 @@ Bump the Koka version in files:
 - `whatsnew.md`
 - `util/install.sh`
 - `util/install.bat`
-- `util/Dockerfile`
 - `util/minbuild.sh`
-- `support/vscode/koka.language-koka/src/workspace.ts`
+- `util/Dockerfile`
 - `support/vscode/koka.language-koka/package.json`
 
 Check if the `whatsnew.md` is up-to-date as it is shown
@@ -65,7 +64,8 @@ $ cd ../../..
 $ stack exec koka -- -e util/bundle.kk
 ```
 
-On Windows, do this in an Visual Studio x64 command line tools console, or release without `cl` compiled files (using just `clang-cl`):
+On Windows, do this in an Visual Studio x64 command line tools console, or release without `cl` compiled files (using just `clang-cl`)
+(on Windows you may need to set `VCPKG_ROOT` to point to the vcpkg installation directory):
 
 ```
 $ stack exec koka -- -e util/bundle.kk -- --nocl
@@ -86,6 +86,7 @@ $ util/install.bat ./bundle/v<version>/koka-v<version>-<os>-<arch>.tar.gz
 ## Publish
 
 Copy the bundles from `bundle/v<version>/koka-v<version>-<os>-<arch>.tar.gz` and upload them.
+Also upload `util/install.bat` and `util/install.sh`.
 
 Test installing those, and uninstall again.
 
