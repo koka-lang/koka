@@ -150,7 +150,7 @@ rebuildFile mbFlags mbRun uri fpath
     = -- trace ("\nkoka: rebuild file: " ++ fpath) $
       do updateVFS
          fpath' <- fileNameFromPath fpath
-         withProgress (T.pack $ "Koka: " ++ fpath') J.NotCancellable $ \report -> do
+         withProgress (T.pack $ "Koka: " ++ fpath') Nothing J.NotCancellable $ \report -> do
             setProgress (Just report)
             mbRes <- -- run build with diagnostics
                      liftBuildDiag mbFlags uri $ \buildc0 ->
