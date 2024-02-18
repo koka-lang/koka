@@ -476,11 +476,10 @@ makeHandlerCompletionItem curModName conInfo d r line =
 
 handlerArgs :: T.Text -> Type -> [Type]
 handlerArgs name tp =
-  case tp of
-    TApp _ args ->
-      -- trace ("Hey these are the args" ++ show args) $
+  case splitPredType tp of
+    (_,_,TApp _ args) ->
       if T.isPrefixOf "val" name then take (length args - 3) args else take (length args - 4) args
-    TForall _ _ t -> handlerArgs name t
+    _ -> []
 
 
 makeSimpleCompletionItem :: Name -> String -> J.CompletionItemKind -> J.CompletionItem
