@@ -54,7 +54,7 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
         -- Update the flags with the specified arguments
         newFlags <- getNewFlags flags additionalArgs
         -- Recompile the file, but with executable target
-        withProgress (T.pack "Compiling " <> filePath) J.Cancellable $ \report -> do
+        withProgress (T.pack "Compiling " <> filePath) Nothing J.Cancellable $ \report -> do
           setProgress (Just report)
           res <- -- trace ("koka/compile: " ++ T.unpack filePath ++ ", " ++ show (filePathToUri (T.unpack filePath))) $
                  rebuildUri (Just newFlags) (Just (newName "main")) (J.toNormalizedUri (filePathToUri (T.unpack filePath)))
@@ -73,7 +73,7 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
         -- Update the flags with the specified arguments
         newFlags <- getNewFlags flags additionalArgs
         -- Compile the expression, but with the interpret target
-        withProgress (T.pack "Compiling " <> functionName) J.Cancellable $ \report -> do
+        withProgress (T.pack "Compiling " <> functionName) Nothing J.Cancellable $ \report -> do
           setProgress (Just report)
           -- compile the expression
           res <- rebuildUri (Just newFlags) (Just (newName (T.unpack functionName)))
