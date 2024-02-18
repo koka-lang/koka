@@ -16,6 +16,8 @@
 //   `syntax/implicits`
 module syntax/fip
 
+import std/core/undiv
+
 // We can use the `fip` keyword to ensure that,
 // _if the (non-borrowed) parameters are unique at runtime_,
 // the function does not allocate or deallocate memory, and uses constant stack space.
@@ -118,6 +120,13 @@ fun height( t : tree<a> ) : int
     Tip        -> 0
     Bin(l,_,r) -> 1 + max( l.height, r.height )
 
+// Return the sum of a tree
+fun sum( t : tree<int> ) : int
+  match t
+    Tip        -> 0
+    Bin(l,x,r) -> x + l.sum + r.sum
+
+
 // Convert a list to a tree given an ordering on the elements
 fun tree( elems : list<a>, ^?order2 : (a,a) -> order2<a> ) : tree<a>
   elems.foldl(Tip) fn(t,i)
@@ -130,11 +139,46 @@ fun example-order()
    [2,3,1].tree(?order2=fn(x,y) Eq2(x)).height].println
 
 
+// To map in-place over a tree in constant stack space we use a zipper.
+// In this case a zipper from `:tree<a>` to `:tree<b>`.
+// Each `Bin`, `BinR`, and `BinL` match in size so we can reuse
+// them in-place when traversing a tree.
+type zipper<a,b>
+  BinL( up : zipper<a,b>, x : a, right : tree<a> )
+  BinR( left : tree<b>, x : b, up : zipper<a,b>  )
+  Done
+
+// Map a function `f` over all element of a tree.
+fip fun tmap( t : tree<a>, ^f : a -> <div|e> b ) : <div|e> tree<b>
+  tmap-down(t, f, Done)
+
+// Unfortunately, due to the mutualy recursive group, the compiler always
+// infers divergence. This might be mitigated by defining this in a single
+// recursive function with a direction parameter `Down(t : tree<a>)` and
+// `Up(t : tree<b>)`.
+
+// traverse down the left spine accumulating a left zipper
+fip fun tmap-down( t : tree<a>, ^f : a -> <div|e> b, acc : zipper<a,b> ) : <div|e> tree<b>
+  match t
+    Bin(l,x,r) -> tmap-down( l, f, BinL( acc, x, r ) )
+    Tip        -> tmap-up( Tip, f, acc )
+
+// and traverse back up visiting all the right nodes recursively
+fip fun tmap-up( t : tree<b>, ^f : a -> <div|e> b, acc : zipper<a,b> ) : <div|e> tree<b>
+  match acc
+    BinL( up, x, r )  -> tmap-down( r, f, BinR( t, f(x), up ) )  // we still need to do the right child
+    BinR( l, fx, up)  -> tmap-up( Bin(l, fx, t), f, up )         // both children are done
+    Done              -> t
+
+fun example-tmap()
+  list(1,10).tree.tmap(inc).sum  // = 65
+
+
 // Todo.. more examples with zippers:
-// - Tree mapping
 // - Morris traversal
 // - Splay tree restructuring
 
 
 pub fun main()
-  example-persistent().println()
+  example-persistent().println
+  example-tmap().println
