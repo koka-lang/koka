@@ -11,14 +11,15 @@
 ---------------------------------------------------------------------------*/
 
 // Define __builtin suffixes for gcc/clang
-#if (LONG_MAX == INT32_MAX) 
+// Note: gcc has `__has_builtin` since version 10 so in some cases we also test for __GNUC__>=7 (Ubuntu 18)
+#if (LONG_MAX == INT32_MAX)
 #define __builtin32(name)       __builtin_##name##l
 #define __has_builtin32(name)   __has_builtin(__builtin_##name##l)
 #else
 #define __builtin32(name)       __builtin_##name
 #define __has_builtin32(name)   __has_builtin(__builtin_##name)
 #endif
-#if (LONG_MAX == INT64_MAX) 
+#if (LONG_MAX == INT64_MAX)
 #define __builtin64(name)       __builtin_##name##l
 #define __has_builtin64(name)   __has_builtin(__builtin_##name##l)
 #else
@@ -36,9 +37,9 @@
 /* -----------------------------------------------------------
   Rotations
 ----------------------------------------------------------- */
-#if __has_builtin(__builtin_rotateleft64) 
+#if __has_builtin(__builtin_rotateleft64)
 static inline uint16_t kk_bits_rotl16(uint16_t x, int shift) {
-  return __builtin_rotateleft16(x, (unsigned)shift & 15);  
+  return __builtin_rotateleft16(x, (unsigned)shift & 15);
 }
 static inline uint16_t kk_bits_rotr16(uint16_t x, int shift) {
   return __builtin_rotateright16(x, (unsigned)shift & 15);
@@ -77,7 +78,7 @@ static inline uint64_t kk_bits_rotr64(uint64_t x, int shift) {
 }
 #else
 // most compilers translate these expressions to a direct rotation instruction
-// The term `((-mshift)&(N-1)` is written this way instead of `N - mshift` to 
+// The term `((-mshift)&(N-1)` is written this way instead of `N - mshift` to
 // avoid UB when `mshift==0`. See <https://blog.regehr.org/archives/1063>
 #define _kk_return_rotate_left(N)  \
   const unsigned int mshift = (unsigned int)(shift) & ((N)-1); \
@@ -121,17 +122,17 @@ static inline kk_uintx_t kk_bits_rotr(kk_uintx_t x, int shift) {
   `ctz` count trailing zero bits  (32/64 for zero)
 ----------------------------------------------------------- */
 
-#if __has_builtin32(clz)
+#if __has_builtin32(clz) || __GNUC__ >= 7
 static inline int kk_bits_clz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(clz)(x));
 }
 static inline int kk_bits_ctz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(ctz)(x));
 }
-#if __has_builtin64(clz)
+#if __has_builtin64(clz) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
 #define KK_BITS_HAS_CLZ64
 static inline int kk_bits_clz64(uint64_t x) {
-  return (x == 0 ? 64 : __builtin64(clz)(x));  
+  return (x == 0 ? 64 : __builtin64(clz)(x));
 }
 static inline int kk_bits_ctz64(uint64_t x) {
   return (x==0 ? 64 : __builtin64(ctz)(x));
@@ -161,7 +162,7 @@ static inline int kk_bits_ctz64(uint64_t x) {
 #endif
 
 #else
-
+#error "generiz ctz"
 #define KK_BITS_USE_GENERIC_CTZ_CLZ  1
 kk_decl_export int kk_bits_ctz32(uint32_t x);
 kk_decl_export int kk_bits_clz32(uint32_t x);
@@ -248,7 +249,7 @@ static inline kk_uintx_t kk_bits_clear_lsb(kk_uintx_t x) {
 
 
 /* -----------------------------------------------------------
- keep (only) least-significant bit 
+ keep (only) least-significant bit
 ----------------------------------------------------------- */
 
 #define _kk_bits_only_keep_lsb(x)  ((x) & (~(x)+1))
@@ -353,11 +354,11 @@ static inline uint8_t kk_bits_byte_sum(kk_uintx_t x) {
   see <https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel>
 ------------------------------------------------------------------ */
 
-#if __has_builtin32(popcount)
+#if __has_builtin32(popcount) || __GNUC__ >= 7
 static inline int kk_bits_popcount32(uint32_t x) {
   return __builtin32(popcount)(x);
 }
-#if __has_builtin64(popcount)
+#if __has_builtin64(popcount) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
 static inline int kk_bits_popcount64(uint64_t x) {
   return __builtin64(popcount)(x);
 }
@@ -460,7 +461,7 @@ static inline bool kk_bits_parity(kk_uintx_t x) {
   swap bytes
 ------------------------------------------------------------------ */
 
-#if __has_builtin(__builtin_bswap32)
+#if __has_builtin(__builtin_bswap32) || __GNUC__ >= 7
 static inline uint16_t kk_bits_bswap16(uint16_t x) {
   return __builtin_bswap16(x);
 }
@@ -468,7 +469,7 @@ static inline uint32_t kk_bits_bswap32(uint32_t x) {
   return __builtin_bswap32(x);
 }
 
-#if __has_builtin(__builtin_bswap64)
+#if __has_builtin(__builtin_bswap64) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
 #define KK_BITS_HAS_BSWAP64
 static inline uint64_t kk_bits_bswap64(uint64_t x) {
   return __builtin_bswap64(x);
@@ -523,7 +524,7 @@ static inline kk_uintx_t kk_bits_bswap(kk_uintx_t u) {
 #else
 #define KK_BITS_BSWAP_IF_BE(b,u) kk_bits_bswap##b(u)
 #define KK_BITS_BSWAP_IF_LE(b,u) (u)
-#endif 
+#endif
 
 static inline uint16_t kk_bits_bswap_to_le16(uint16_t u) {
   return KK_BITS_BSWAP_IF_BE(16,u);
@@ -656,7 +657,7 @@ static inline int kk_bits_digits(kk_uintx_t x) {
 ------------------------------------------------------------------ */
 
 static inline int32_t kk_bits_midpoint32( int32_t x, int32_t y ) {
-  if kk_likely(x <= y) return x + (int32_t)(((uint32_t)y - (uint32_t)x)/2);  
+  if kk_likely(x <= y) return x + (int32_t)(((uint32_t)y - (uint32_t)x)/2);
                   else return x - (int32_t)(((uint32_t)x - (uint32_t)y)/2);
 }
 
@@ -676,7 +677,7 @@ static inline uint32_t kk_bits_umidpoint32( uint32_t x, uint32_t y ) {
 
 static inline uint64_t kk_bits_umidpoint64( uint64_t x, uint64_t y ) {
   if kk_likely(x <= y) return (x + (y-x)/2);
-                  else return (x - (x-y)/2); 
+                  else return (x - (x-y)/2);
 }
 
 static inline kk_uintx_t kk_bits_umidpoint( kk_uintx_t x, kk_uintx_t y ) {
@@ -744,7 +745,7 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
   return lo;
 }
 
-#else 
+#else
 
 #define KK_USE_GENERIC_WIDE_MUL64
 kk_decl_export uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi);
@@ -800,7 +801,7 @@ static inline kk_uintx_t kk_bits_scatter(kk_uintx_t x, kk_uintx_t mask) {
 }
 
 /* ---------------------------------------------------------------
-  Bit interleaving: zip and unzip 
+  Bit interleaving: zip and unzip
 ------------------------------------------------------------------ */
 #define kk_mask_odd_bits32  (KK_U32(0x55555555))
 #define kk_mask_odd_bits64  (KK_U64(0x5555555555555555))
@@ -809,12 +810,12 @@ static inline kk_uintx_t kk_bits_scatter(kk_uintx_t x, kk_uintx_t mask) {
 
 #if KK_BITS_HAS_FAST_SCATTER_GATHER
 // interleave the hi 16-bits and the lo 16-bits of the argument `x` into a
-// single 32-bit result where hi is spread over the even bits, and lo over the odd bits. 
+// single 32-bit result where hi is spread over the even bits, and lo over the odd bits.
 static inline uint32_t kk_bits_interleave32(uint32_t x) {
   return (kk_bits_scatter32(x>>16,kk_mask_even_bits32) | kk_bits_scatter32(x&0xFFFF,kk_mask_odd_bits32));
 }
 
-// de-interleave the bits of the argument `x` where the even bits become the 
+// de-interleave the bits of the argument `x` where the even bits become the
 // hi 16-bits and the odd bits the lo 16-bits of the result
 static inline uint32_t kk_bits_deinterleave32(uint32_t x) {
   return ((kk_bits_gather32(x, kk_mask_even_bits32) << 16) | kk_bits_gather32(x, kk_mask_odd_bits32));
