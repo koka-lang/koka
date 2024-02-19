@@ -13,10 +13,8 @@ static kk_unit_t kk_uv_fs_req_cleanup(kk_std_os_file_dash_uv__uv_fs_req req, kk_
 
 static void kk_std_os_fs_unit_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
   ssize_t result = req->result;
-  kk_free(wrapper, _ctx);
   uv_fs_req_cleanup(req);
   if (result < 0) {
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(req->result, _ctx), _ctx), _ctx);
@@ -27,7 +25,7 @@ static void kk_std_os_fs_unit_cb(uv_fs_t* req) {
 
 static kk_unit_t kk_uv_fs_close(kk_std_os_file_dash_uv__uv_file file, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_fs_close(uvloop(), fs_req, (uv_file)(file.internal), kk_std_os_fs_unit_cb);
   return kk_Unit;
 }
@@ -44,10 +42,8 @@ static kk_std_core_exn__error kk_uv_fs_close_sync(kk_std_os_file_dash_uv__uv_fil
 
 static void kk_std_os_file_open_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
   ssize_t result = req->result;
-  kk_free(wrapper, _ctx);
   uv_fs_req_cleanup(req);
   if (result < 0) {
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(result, _ctx), _ctx), _ctx);
@@ -58,7 +54,7 @@ static void kk_std_os_file_open_cb(uv_fs_t* req) {
 
 static kk_unit_t kk_uv_fs_open(kk_string_t path, int32_t flags, int32_t mode, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_open(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), flags, mode, kk_std_os_file_open_cb);
   kk_string_drop(path, _ctx);
@@ -151,7 +147,7 @@ static kk_std_core_exn__error kk_uv_fs_read_sync(kk_std_os_file_dash_uv__uv_file
 
 static kk_unit_t kk_uv_fs_unlink(kk_string_t path, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_unlink(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), kk_std_os_fs_unit_cb);
   kk_string_drop(path, _ctx);
@@ -172,10 +168,8 @@ static kk_std_core_exn__error kk_uv_fs_unlink_sync(kk_string_t path, kk_context_
 
 static void kk_std_os_fs_write_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
   ssize_t result = req->result;
-  kk_free(wrapper, _ctx);
   uv_fs_req_cleanup(req);
   if (result < 0) {
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(result, _ctx), _ctx), _ctx);
@@ -186,7 +180,7 @@ static void kk_std_os_fs_write_cb(uv_fs_t* req) {
 
 static kk_unit_t kk_uv_fs_write(kk_std_os_file_dash_uv__uv_file file, kk_bytes_t bytes, int64_t offset, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_buf_t* uv_buffs = kk_bytes_to_uv_buffs(bytes, _ctx);
   uv_fs_write(uvloop(), fs_req, (uv_file)file.internal, uv_buffs, 1, offset, kk_std_os_fs_write_cb);
   kk_bytes_drop(bytes, _ctx);
@@ -209,7 +203,7 @@ static kk_std_core_exn__error kk_uv_fs_write_sync(kk_std_os_file_dash_uv__uv_fil
 
 static kk_unit_t kk_uv_fs_mkdir(kk_string_t path, int32_t mode, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_mkdir(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), mode, kk_std_os_fs_unit_cb);
   kk_string_drop(path, _ctx);
@@ -230,10 +224,8 @@ static kk_std_core_exn__error kk_uv_fs_mkdir_sync(kk_string_t path, int32_t mode
 
 static void kk_std_os_fs_mkdtemp_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
   ssize_t result = req->result;
-  kk_free(wrapper, _ctx);
   if (result < 0) {
     uv_fs_req_cleanup(req);
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(result, _ctx), _ctx), _ctx);
@@ -246,7 +238,7 @@ static void kk_std_os_fs_mkdtemp_cb(uv_fs_t* req) {
 
 static kk_unit_t kk_uv_fs_mkdtemp(kk_string_t tpl, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_mkdtemp(uvloop(), fs_req, kk_string_cbuf_borrow(tpl, &len, _ctx), kk_std_os_fs_mkdtemp_cb);
   kk_string_drop(tpl, _ctx);
@@ -268,10 +260,8 @@ static kk_std_core_exn__error kk_uv_fs_mkdtemp_sync(kk_string_t tpl, kk_context_
 
 static void kk_std_os_fs_mkstemp_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
   ssize_t result = req->result;
-  kk_free(wrapper, _ctx);
   if (result < 0) {
     uv_fs_req_cleanup(req);
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(result, _ctx), _ctx), _ctx);
@@ -287,7 +277,7 @@ static void kk_std_os_fs_mkstemp_cb(uv_fs_t* req) {
 
 static kk_unit_t kk_uv_fs_mkstemp(kk_string_t tpl, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_mkstemp(uvloop(), fs_req, kk_string_cbuf_borrow(tpl, &len, _ctx), kk_std_os_fs_mkdtemp_cb);
   kk_string_drop(tpl, _ctx);
@@ -312,7 +302,7 @@ static kk_std_core_exn__error kk_uv_fs_mkstemp_sync(kk_string_t tpl, kk_context_
 
 static kk_unit_t kk_uv_fs_rmdir(kk_string_t path, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_rmdir(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), kk_std_os_fs_unit_cb);
   kk_string_drop(path, _ctx);
@@ -333,11 +323,9 @@ static kk_std_core_exn__error kk_uv_fs_rmdir_sync(kk_string_t path, kk_context_t
 
 void kk_std_os_fs_opendir_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
   ssize_t result = req->result;
   uv_dir_t* dir = (uv_dir_t*)req->ptr;
-  kk_free(wrapper, _ctx);
   uv_fs_req_cleanup(req);
   if (result < 0) {
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(result, _ctx), _ctx), _ctx);
@@ -349,7 +337,7 @@ void kk_std_os_fs_opendir_cb(uv_fs_t* req) {
 
 static kk_unit_t kk_uv_fs_opendir(kk_string_t path, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_opendir(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), kk_std_os_fs_opendir_cb);
   kk_string_drop(path, _ctx);
@@ -372,7 +360,7 @@ static kk_std_core_exn__error kk_uv_fs_opendir_sync(kk_string_t path, kk_context
 
 static kk_unit_t kk_uv_fs_closedir(kk_std_os_file_dash_uv__uv_dir dir, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_fs_closedir(uvloop(), fs_req, (uv_dir_t*)dir.internal, kk_std_os_fs_unit_cb);
   return kk_Unit;
 }
@@ -476,10 +464,8 @@ static kk_std_core_exn__error kk_uv_fs_readdir_sync(kk_std_os_file_dash_uv__uv_d
 
 void kk_std_os_fs_scandir_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
   ssize_t result = req->result;
-  kk_free(wrapper, _ctx);
   if (result < 0){
     uv_fs_req_cleanup(req);
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(result, _ctx), _ctx), _ctx);
@@ -491,7 +477,7 @@ void kk_std_os_fs_scandir_cb(uv_fs_t* req) {
 
 static kk_unit_t kk_uv_fs_scandir(kk_string_t path, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_scandir(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), 0, kk_std_os_fs_scandir_cb);
   kk_string_drop(path, _ctx);
@@ -548,10 +534,8 @@ kk_box_t kk_uv_stat_from_uv_stat(uv_stat_t* uvstat, kk_context_t* _ctx) {
 
 static void kk_std_os_fs_stat_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
   ssize_t result = req->result;
-  kk_free(wrapper, _ctx);
   uv_fs_req_cleanup(req);
   if (result < 0) {
     kk_free(stat, _ctx);
@@ -564,7 +548,7 @@ static void kk_std_os_fs_stat_cb(uv_fs_t* req) {
 
 static kk_unit_t kk_uv_fs_stat(kk_string_t path, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_stat(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), kk_std_os_fs_stat_cb);
   kk_string_drop(path, _ctx);
@@ -586,7 +570,7 @@ static kk_std_core_exn__error kk_uv_fs_stat_sync(kk_string_t path, kk_context_t*
 
 static kk_unit_t kk_uv_fs_fstat(kk_std_os_file_dash_uv__uv_file file, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_fs_fstat(uvloop(), fs_req, (uv_file)file.internal, kk_std_os_fs_stat_cb);
   kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
@@ -606,7 +590,7 @@ static kk_std_core_exn__error kk_uv_fs_fstat_sync(kk_std_os_file_dash_uv__uv_fil
 
 static kk_unit_t kk_uv_fs_lstat(kk_string_t path, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_lstat(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), kk_std_os_fs_stat_cb);
   kk_string_drop(path, _ctx);
@@ -628,7 +612,7 @@ static kk_std_core_exn__error kk_uv_fs_lstat_sync(kk_string_t path, kk_context_t
 
 static kk_unit_t kk_uv_fs_rename(kk_string_t path, kk_string_t new_path, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   kk_ssize_t new_len;
   uv_fs_rename(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), kk_string_cbuf_borrow(new_path, &new_len, _ctx), kk_std_os_fs_unit_cb);
@@ -653,7 +637,7 @@ static kk_std_core_exn__error kk_uv_fs_rename_sync(kk_string_t path, kk_string_t
 
 static kk_unit_t kk_uv_fs_fsync(kk_std_os_file_dash_uv__uv_file file, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_fs_fsync(uvloop(), fs_req, (uv_file)file.internal, kk_std_os_fs_unit_cb);
   kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
@@ -672,7 +656,7 @@ static kk_std_core_exn__error kk_uv_fs_fsync_sync(kk_std_os_file_dash_uv__uv_fil
 
 static kk_unit_t kk_uv_fs_fdatasync(kk_std_os_file_dash_uv__uv_file file, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_fs_fdatasync(uvloop(), fs_req, (uv_file)file.internal, kk_std_os_fs_unit_cb);
   kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
@@ -691,7 +675,7 @@ static kk_std_core_exn__error kk_uv_fs_fdatasync_sync(kk_std_os_file_dash_uv__uv
 
 static kk_unit_t kk_uv_fs_ftruncate(kk_std_os_file_dash_uv__uv_file file, int64_t offset, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_fs_ftruncate(uvloop(), fs_req, (uv_file)file.internal, offset, kk_std_os_fs_unit_cb);
   kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
@@ -710,7 +694,7 @@ static kk_std_core_exn__error kk_uv_fs_ftruncate_sync(kk_std_os_file_dash_uv__uv
 
 static kk_unit_t kk_uv_fs_copyfile(kk_string_t path, kk_string_t new_path, int32_t flags, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   kk_ssize_t new_len;
   uv_fs_copyfile(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), kk_string_cbuf_borrow(new_path, &new_len, _ctx), flags, kk_std_os_fs_unit_cb);
@@ -735,10 +719,8 @@ static kk_std_core_exn__error kk_uv_fs_copyfile_sync(kk_string_t path, kk_string
 
 static void kk_std_os_fs_int_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
   ssize_t result = req->result;
-  kk_free(wrapper, _ctx);
   uv_fs_req_cleanup(req);
   if (result < 0) {
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(result, _ctx), _ctx), _ctx);
@@ -750,7 +732,7 @@ static void kk_std_os_fs_int_cb(uv_fs_t* req) {
 static kk_unit_t kk_uv_fs_sendfile(kk_std_os_file_dash_uv__uv_file out_fd, kk_std_os_file_dash_uv__uv_file in_fd, int64_t in_offset, kk_ssize_t length, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   uv_buf_t buf = uv_buf_init(NULL, 0);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_fs_sendfile(uvloop(), fs_req, (uv_file)out_fd.internal, (uv_file)in_fd.internal, in_offset, (size_t)length, kk_std_os_fs_int_cb);
   kk_std_os_file_dash_uv__uv_file_drop(out_fd, _ctx);
   kk_std_os_file_dash_uv__uv_file_drop(in_fd, _ctx);
@@ -772,7 +754,7 @@ static kk_std_core_exn__error kk_uv_fs_sendfile_sync(kk_std_os_file_dash_uv__uv_
 
 static kk_unit_t kk_uv_fs_access(kk_string_t path, int32_t mode, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_fs_access(uvloop(), fs_req, kk_string_cbuf_borrow(path, NULL, _ctx), mode, kk_std_os_fs_unit_cb);
   kk_string_drop(path, _ctx);
   return kk_Unit;
@@ -791,7 +773,7 @@ static kk_std_core_exn__error kk_uv_fs_access_sync(kk_string_t path, int32_t mod
 
 static kk_unit_t kk_uv_fs_chmod(kk_string_t path, int32_t mode, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_fs_chmod(uvloop(), fs_req, kk_string_cbuf_borrow(path, NULL, _ctx), mode, kk_std_os_fs_unit_cb);
   kk_string_drop(path, _ctx);
   return kk_Unit;
@@ -810,7 +792,7 @@ static kk_std_core_exn__error kk_uv_fs_chmod_sync(kk_string_t path, int32_t mode
 
 static kk_unit_t kk_uv_fs_fchmod(kk_std_os_file_dash_uv__uv_file file, int32_t mode, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_fs_fchmod(uvloop(), fs_req, (uv_file)file.internal, mode, kk_std_os_fs_unit_cb);
   kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
@@ -829,7 +811,7 @@ static kk_std_core_exn__error kk_uv_fs_fchmod_sync(kk_std_os_file_dash_uv__uv_fi
 
 static kk_unit_t kk_uv_fs_utime(kk_string_t path, double atime, double mtime, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_utime(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), atime, mtime, kk_std_os_fs_unit_cb);
   kk_string_drop(path, _ctx);
@@ -850,7 +832,7 @@ static kk_std_core_exn__error kk_uv_fs_utime_sync(kk_string_t path, double atime
 
 static kk_unit_t kk_uv_fs_futime(kk_std_os_file_dash_uv__uv_file file, double atime, double mtime, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_futime(uvloop(), fs_req, (uv_file)file.internal, atime, mtime, kk_std_os_fs_unit_cb);
   return kk_Unit;
@@ -869,7 +851,7 @@ static kk_std_core_exn__error kk_uv_fs_futime_sync(kk_std_os_file_dash_uv__uv_fi
 
 static kk_unit_t kk_uv_fs_lutime(kk_string_t path, double atime, double mtime, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_lutime(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), atime, mtime, kk_std_os_fs_unit_cb);
   kk_string_drop(path, _ctx);
@@ -890,7 +872,7 @@ static kk_std_core_exn__error kk_uv_fs_lutime_sync(kk_string_t path, double atim
 
 static kk_unit_t kk_uv_fs_link(kk_string_t path, kk_string_t new_path, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   kk_ssize_t new_len;
   uv_fs_link(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), kk_string_cbuf_borrow(new_path, &new_len, _ctx), kk_std_os_fs_unit_cb);
@@ -915,7 +897,7 @@ static kk_std_core_exn__error kk_uv_fs_link_sync(kk_string_t path, kk_string_t n
 
 static kk_unit_t kk_uv_fs_symlink(kk_string_t path, kk_string_t new_path, int32_t flags, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   kk_ssize_t new_len;
   uv_fs_symlink(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), kk_string_cbuf_borrow(new_path, &new_len, _ctx), flags, kk_std_os_fs_unit_cb);
@@ -940,10 +922,8 @@ static kk_std_core_exn__error kk_uv_fs_symlink_sync(kk_string_t path, kk_string_
 
 void kk_std_os_fs_string_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
   ssize_t result = req->result;
-  kk_free(wrapper, _ctx);
   uv_fs_req_cleanup(req);
   if (result < 0) {
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(result, _ctx), _ctx), _ctx);
@@ -955,7 +935,7 @@ void kk_std_os_fs_string_cb(uv_fs_t* req) {
 
 static kk_unit_t kk_uv_fs_readlink(kk_string_t path, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_readlink(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), kk_std_os_fs_string_cb);
   kk_string_drop(path, _ctx);
@@ -977,7 +957,7 @@ static kk_std_core_exn__error kk_uv_fs_readlink_sync(kk_string_t path, kk_contex
 
 static kk_unit_t kk_uv_fs_realpath(kk_string_t path, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_realpath(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), kk_std_os_fs_string_cb);
   kk_string_drop(path, _ctx);
@@ -999,7 +979,7 @@ static kk_std_core_exn__error kk_uv_fs_realpath_sync(kk_string_t path, kk_contex
 
 static kk_unit_t kk_uv_fs_chown(kk_string_t path, int32_t uid, int32_t gid, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_chown(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), uid, gid, kk_std_os_fs_unit_cb);
   kk_string_drop(path, _ctx);
@@ -1019,7 +999,7 @@ static kk_std_core_exn__error kk_uv_fs_chown_sync(kk_string_t path, int32_t uid,
 
 static kk_unit_t kk_uv_fs_fchown(kk_std_os_file_dash_uv__uv_file file, int32_t uid, int32_t gid, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   uv_fs_fchown(uvloop(), fs_req, (uv_file)file.internal, uid, gid, kk_std_os_fs_unit_cb);
   kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
@@ -1037,7 +1017,7 @@ static kk_std_core_exn__error kk_uv_fs_fchown_sync(kk_std_os_file_dash_uv__uv_fi
 
 static kk_unit_t kk_uv_fs_lchown(kk_string_t path, int32_t uid, int32_t gid, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
+  fs_req->data = kk_function_as_ptr(cb, _ctx);
   kk_ssize_t len;
   uv_fs_lchown(uvloop(), fs_req, kk_string_cbuf_borrow(path, &len, _ctx), uid, gid, kk_std_os_fs_unit_cb);
   kk_string_drop(path, _ctx);

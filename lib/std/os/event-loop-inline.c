@@ -60,15 +60,13 @@ static void kk_uv_loop_close(kk_context_t* _ctx) {
 
 static void kk_uv_handle_close_callback(uv_handle_t* handle){
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)handle->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(handle->data, _ctx);
   kk_function_call(void, (kk_function_t, kk_context_t*), callback, (callback, _ctx), _ctx);  
   kk_free(handle, _ctx);
-  kk_free(wrapper, _ctx);
 }
 
-static void kk_uv_close(kk_std_os_event_dash_loop__uv_handle handle, kk_function_t fun, kk_context_t* _ctx) {
-  kk_uv_callback_t* cb = kk_new_uv_callback(fun, (uv_handle_t*)handle.internal, _ctx);
+static void kk_uv_close(kk_std_os_event_dash_loop__uv_handle handle, kk_function_t callback, kk_context_t* _ctx) {
+  ((uv_handle_t*)handle.internal)->data = kk_function_as_ptr(callback, _ctx);
   return uv_close((uv_handle_t*)handle.internal, kk_uv_handle_close_callback);
 }
 

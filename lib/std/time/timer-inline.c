@@ -1,6 +1,5 @@
 // #include "std_time_timer.h";
 #include "std_core_types.h"
-
 /*---------------------------------------------------------------------------
   Copyright 2020-2021, Microsoft Research, Daan Leijen.
 
@@ -26,8 +25,8 @@ static double kk_timer_dresolution(kk_context_t* _ctx) {
 #if __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE void wasm_timer_callback(kk_wasm_timer_t* timer_info){
   kk_context_t* _ctx = kk_get_context();
-  kk_function_t callback = timer_info->callback;
-  kk_function_t cb = kk_function_dup(callback, _ctx);
+  kk_function_t callback = kk_function_from_ptr(timer_info->callback, _ctx);
+  kk_function_dup(callback, _ctx);
   kk_function_call(kk_unit_t, (kk_function_t, kk_context_t*), callback, (callback, _ctx), _ctx);
   if (timer_info->repeat_ms == 0) {
     kk_free(timer_info, _ctx);
@@ -35,15 +34,15 @@ EMSCRIPTEN_KEEPALIVE void wasm_timer_callback(kk_wasm_timer_t* timer_info){
 }
 
 EM_JS(int, start_timer, (int64_t timeout, int64_t repeat, kk_wasm_timer_t* timer_info), {
-  function cb() {
+  function wasm_callback() {
     _wasm_timer_callback(timer_info);
   }
   const rp = Number(repeat);
   const msx = Number(timeout);
   if (rp != 0) {
-    return setInterval(cb, rp);
+    return setInterval(wasm_callback, rp);
   } else {
-    return setTimeout(cb, msx);
+    return setTimeout(wasm_callback, msx);
   }
 });
 
@@ -68,20 +67,20 @@ kk_unit_t kk_timer_stop(kk_std_time_timer__timer timer, kk_context_t* _ctx) {
   if (timer_info->timer != 0) {
     stop_timer(timer_info->timer, timer_info->repeat_ms != 0);
   }
-  kk_function_drop(timer_info->callback, _ctx);
   kk_std_time_timer__timer_drop(timer, _ctx);
+  kk_function_drop(timer_info->callback, _ctx);
   kk_free(timer_info, _ctx);
   return kk_Unit;
 }
 
-kk_std_core_exn__error kk_timer_start(kk_std_time_timer__timer timer, int64_t timeout, int64_t repeat, kk_function_t cb, kk_context_t* _ctx) {
+kk_std_core_exn__error kk_timer_start(kk_std_time_timer__timer timer, int64_t timeout, int64_t repeat, kk_function_t callback, kk_context_t* _ctx) {
   kk_wasm_timer_t* timer_info = (kk_wasm_timer_t*)timer.internal;
-  timer_info->callback = cb;
+  timer_info->callback = callback;
   timer_info->repeat_ms = repeat;
   int ret = start_timer(timeout, repeat, timer_info);
   if (ret < 0) {
     kk_free(timer_info, _ctx);
-    kk_function_drop(cb, _ctx);
+    kk_function_drop(callback, _ctx);
     kk_define_string_literal(, err_msg, 22, "Failed to start timer", _ctx);
     return kk_std_core_exn__new_Error( kk_std_core_exn__new_Exception( err_msg, kk_std_core_exn__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(-1,_ctx), _ctx), _ctx), _ctx );
   } else {
@@ -99,30 +98,31 @@ kk_std_time_timer__timer kk_timer_init(kk_context_t* _ctx) {
 
 kk_unit_t kk_timer_stop(kk_std_time_timer__timer timer, kk_context_t* _ctx) {
   uv_timer_t* uv_timer = (uv_timer_t*)timer.internal;
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)uv_timer->data;
-  kk_function_drop(wrapper->callback, _ctx);
-  kk_free(wrapper, _ctx);
+  kk_function_t callback = kk_function_from_ptr(uv_timer->data, _ctx);
   uv_timer_stop(uv_timer);
+  kk_function_drop(callback, _ctx);
   return kk_Unit;
 }
 
-void kk_uv_timer_unit_cb(uv_timer_t* uv_timer) {
+void kk_uv_timer_unit_callback(uv_timer_t* uv_timer) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)uv_timer->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(uv_timer->data, _ctx);
   if (uv_timer_get_repeat(uv_timer) == 0) {
-    kk_free(wrapper, _ctx);
+    // Don't dup?, this is the last call to the function
+    // kk_function_dup(callback, _ctx);
+    kk_function_call(void, (kk_function_t, kk_context_t*), callback, (callback, _ctx), _ctx);
+  } else {
+    kk_function_dup(callback, _ctx);
+    kk_function_call(void, (kk_function_t, kk_context_t*), callback, (callback, _ctx), _ctx);
   }
-  kk_function_t cb = kk_function_dup(callback, _ctx);
-  kk_function_call(void, (kk_function_t, kk_context_t*), cb, (cb, _ctx), _ctx);
 }
 
-kk_std_core_exn__error kk_timer_start(kk_std_time_timer__timer timer, int64_t timeout, int64_t repeat, kk_function_t cb, kk_context_t* _ctx) {
+kk_std_core_exn__error kk_timer_start(kk_std_time_timer__timer timer, int64_t timeout, int64_t repeat, kk_function_t callback, kk_context_t* _ctx) {
   uv_handle_t* handle = (uv_handle_t*)timer.internal;
-  kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, handle, _ctx); 
-  int ret = uv_timer_start((uv_timer_t*)handle, kk_uv_timer_unit_cb, timeout, repeat);
+  handle->data = kk_function_as_ptr(callback, _ctx);
+  int ret = uv_timer_start((uv_timer_t*)handle, kk_uv_timer_unit_callback, timeout, repeat);
   if (ret < 0) {
-    kk_free(wrapper, _ctx);
+    kk_function_drop(callback, _ctx);
     return kk_async_error_from_errno(ret, _ctx);
   } else {
     return kk_std_core_exn__new_Ok(kk_unit_box(kk_Unit), _ctx);

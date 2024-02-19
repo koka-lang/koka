@@ -1,20 +1,12 @@
+#define kk_function_as_ptr(f,ctx) ((void*)kk_datatype_as_ptr(f, ctx))
+#define kk_function_from_ptr(p,ctx) (kk_datatype_from_ptr(p, ctx))
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #else
 #include <uv.h>
 
 #define uvloop() ((uv_loop_t*)(kk_context()->loop))
-
-typedef struct kk_uv_callback_s {
-  kk_function_t callback;
-} kk_uv_callback_t;
-
-static inline kk_uv_callback_t* kk_new_uv_callback(kk_function_t cb, uv_handle_t* handle, kk_context_t* ctx) {
-  kk_uv_callback_t* c = kk_malloc(sizeof(kk_uv_callback_t), ctx);
-  c->callback = cb;
-  handle->data = c;
-  return c;
-}
 
 kk_std_core_exn__error kk_async_error_from_errno( int err, kk_context_t* ctx );
 

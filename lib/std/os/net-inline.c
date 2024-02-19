@@ -54,12 +54,11 @@ static kk_std_os_net__sock_addr to_kk_sockaddr(struct sockaddr* addr, kk_context
 
 static void kk_addrinfo_cb(uv_getaddrinfo_t* req, int status, struct addrinfo* res){
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* r = (kk_uv_callback_t*)req->data;
-  kk_function_t f = r->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
 
   if (status < 0) {
     kk_info_message("Addr info callback returned error code %d %s\n", status, uv_strerror(status));
-    kk_function_call(void, (kk_function_t, kk_std_core_types__list, kk_context_t*), f, (f, kk_std_core_types__new_Nil(_ctx), _ctx), _ctx);
+    kk_function_call(void, (kk_function_t, kk_std_core_types__list, kk_context_t*), callback, (callback, kk_std_core_types__new_Nil(_ctx), _ctx), _ctx);
     uv_freeaddrinfo(res);
     return;
   }
@@ -90,15 +89,13 @@ static void kk_addrinfo_cb(uv_getaddrinfo_t* req, int status, struct addrinfo* r
     list = head;
   }
   uv_freeaddrinfo(res);
-  kk_function_call(void, (kk_function_t, kk_std_core_types__list, kk_context_t*), f, (f, list, _ctx), _ctx);
+  kk_function_call(void, (kk_function_t, kk_std_core_types__list, kk_context_t*), callback, (callback, list, _ctx), _ctx);
 }
 
 
 static void kk_get_addrinfo(kk_string_t node, kk_string_t service, kk_std_core_types__maybe hints, kk_function_t callback, kk_context_t* _ctx) {
   uv_getaddrinfo_t* req = kk_malloc(sizeof(uv_getaddrinfo_t), _ctx);
-  kk_uv_callback_t* r = kk_malloc(sizeof(kk_uv_callback_t), _ctx);
-  r->callback = callback;
-  req->data = r;
+  req->data = kk_function_as_ptr(callback, _ctx);
   const char* nodeChars = kk_string_cbuf_borrow(node, NULL, _ctx);
   const char* serviceChars = kk_string_cbuf_borrow(service, NULL, _ctx);
   int result = uv_getaddrinfo(uvloop(), req, &kk_addrinfo_cb, nodeChars, serviceChars, NULL);
@@ -181,18 +178,14 @@ static kk_std_core_exn__error kk_uv_tcp_getpeername(kk_std_os_net__uv_tcp handle
 
 static void kk_uv_tcp_connect_callback(uv_connect_t* req, int status) {
   kk_context_t* _ctx = kk_get_context();
-  kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
-  kk_function_t callback = wrapper->callback;
+  kk_function_t callback = kk_function_from_ptr(req->data, _ctx);
   kk_function_call(void, (kk_function_t, kk_std_os_event_dash_loop__uv_status_code, kk_context_t*), callback, (callback, kk_std_os_event_dash_loop_int_fs_status_code(status, _ctx), _ctx), _ctx);  
   kk_free(req, _ctx);
-  kk_free(wrapper, _ctx);
 }
 
 static kk_std_os_event_dash_loop__uv_status_code kk_uv_tcp_connect(kk_std_os_net__uv_tcp handle, kk_std_os_net__sock_addr addr, kk_function_t callback, kk_context_t* _ctx) {
   struct sockaddr* sockAddr = to_sockaddr(addr, _ctx);
   uv_connect_t* req = kk_malloc(sizeof(uv_connect_t), _ctx);
-  kk_uv_callback_t* wrapper = kk_malloc(sizeof(kk_uv_callback_t), _ctx);
-  req->data = wrapper;
-  wrapper->callback = callback;
+  req->data = kk_function_as_ptr(callback, _ctx);
   return kk_std_os_event_dash_loop_int_fs_status_code(uv_tcp_connect(req, (uv_tcp_t*)handle.internal, sockAddr, kk_uv_tcp_connect_callback), _ctx);
 }
