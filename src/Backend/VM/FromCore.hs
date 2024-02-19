@@ -81,21 +81,6 @@ genModule buildType mbMain imports core
                            )
                     , "main" .= mainEntry
                     ]
-  where
-    isTagDef (DefNonRec def) = isOpenTagName (defName def)
-    isTagDef _               = False
-
-moduleImport :: Import -> Doc
-moduleImport imp
-  = (text (if null (importPackage imp) then "." else importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp)))
-
-importExternal :: BuildType -> External -> [(Doc,Doc)]
-importExternal buildType  ext
-  = case externalImportLookup (JS JsDefault) buildType  "library" ext of
-      Just path -> [(text path, case externalImportLookup (JS JsDefault) buildType  "library-id" ext of
-                                  Just name -> text name
-                                  Nothing   -> text path)]
-      _ -> []
 
 ---------------------------------------------------------------------------------
 -- Translate types
@@ -1067,79 +1052,7 @@ ppModName name
 
 encode :: Bool -> Name -> Doc
 encode isModule name
-  = let s = show name
-    in if (isReserved s)
-         then text ('$' : s)
-         else text ( (asciiEncode isModule s))
-
-isReserved :: String -> Bool
-isReserved s
-  = if (not $ null s) && (head s == 'T') && all isDigit (tail s)
-      then True
-      else s `S.member` reserved
-
-reserved :: S.Set String
-reserved
-  = S.fromList $ -- JavaScript pseudo-keywords
-    [ "prototype"
-    , "toString"
-    , "arguments"
-    , "eval"
-    ]
-    ++ -- word literals
-    [ "null"
-    , "Infinity"
-    , "NaN"
-    ]
-    ++ -- JavaScript keywords
-    [ "async"
-    , "await"
-    , "break"
-    , "case"
-    , "catch"
-    , "continue"
-    , "const"
-    , "debugger"
-    , "default"
-    , "delete"
-    , "do"
-    , "else"
-    , "finally"
-    , "for"
-    , "function"
-    , "if"
-    , "in"
-    , "instanceof"
-    , "new"
-    , "return"
-    , "switch"
-    , "this"
-    , "throw"
-    , "try"
-    , "typeof"
-    , "var"
-    , "void"
-    , "while"
-    , "with"
-    , "yield"
-    ]
-    ++ -- reserved for future use
-    [ "class"
-    , "enum"
-    , "export"
-    , "extends"
-    , "import"
-    , "super"
-    ]
-    ++ -- special globals
-    [ "window"
-    , "document"
-    , "process"
-    , "exports"
-    , "module"
-    , "Date"
-    , "Error"
-    ]
+  = text $ asciiEncode isModule $ show name
 
 block :: Doc -> Doc
 block doc
