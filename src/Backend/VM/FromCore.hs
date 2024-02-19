@@ -61,10 +61,8 @@ vmFromCore buildType mbMain imports core
 
 genModule :: BuildType -> Maybe (Name,Bool) -> [Import] -> Core -> Asm Doc
 genModule buildType mbMain imports core
-  =  do let (tagDefs,defs) = partition isTagDef (coreProgDefs core)
-        decls0 <- genGroups True tagDefs
+  =  do decls0 <- genGroups True (coreProgDefs core)
         decls1 <- genTypeDefs (coreProgTypeDefs core)
-        decls2 <- genGroups True defs
         let -- `imports = coreProgImports core` is not enough due to inlined definitions
             (mainEntry) = case mbMain of
                           Nothing -> appPrim "is a library" [] (tpe "Unit")
@@ -79,8 +77,8 @@ genModule buildType mbMain imports core
                           ]
                     , "definitions" .=
                       list (decls0 
-                           -- ++ [def (var (str "typedefs1") (tpe "Unit")) (notImplemented decls1) ] -- TODO
-                           ++ decls2)
+                           ++ decls1
+                           )
                     , "main" .= mainEntry
                     ]
   where
@@ -141,69 +139,62 @@ genDef topLevel (Def name tp expr vis sort inl rng comm)
 -- Generate value constructors for each defined type
 ---------------------------------------------------------------------------------
 
-genTypeDefs :: TypeDefGroups -> Asm Doc
+genTypeDefs :: TypeDefGroups -> Asm [Doc]
 genTypeDefs groups
-  = do docs <- mapM (genTypeDefGroup) groups
-       return (vcat docs)
+  = concat <$> mapM (genTypeDefGroup) groups
 
-genTypeDefGroup :: TypeDefGroup -> Asm Doc
+genTypeDefGroup :: TypeDefGroup -> Asm [Doc]
 genTypeDefGroup (TypeDefGroup tds)
-  = do docs <- mapM (genTypeDef) tds
-       return (vcat docs)
+  = concat <$> mapM (genTypeDef) tds
 
-genTypeDef ::TypeDef -> Asm Doc
+genTypeDef ::TypeDef -> Asm [Doc]
 genTypeDef  (Synonym {})
-  = return empty
+  = return []
 genTypeDef (Data info isExtend)
   = do modName <- getModule
        let (dataRepr, conReprs) = getDataRepr info
-       docs <- mapM ( \(c,repr)  ->
-          do let args = map ppName (map fst (conInfoParams c))
-             name <- genName (conInfoName c)
+       mapM ( \(c,repr)  ->
+          do let args = map (\(n,t) -> var (ppName n) (transformType t)) (conInfoParams c)
+             let name = str $ show (conInfoName c)
+             let tp = transformType $ conInfoType c
              penv <- getPrettyEnv
-             let singletonValue val
-                     = constdecl <+> name <+> text "=" <+>
-                         text val <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-             decl <- if (conInfoName c == nameTrue)
-                      then return (constdecl <+> name <+> text "=" <+> text "true" <.> semi)
-                      else if (conInfoName c == nameFalse)
-                      then return (constdecl <+> name <+> text "=" <+> text "false" <.> semi)
-                      else return $ case repr of
+             let singletonValue val = def (var name (transformType (conInfoType c))) val
+             if (conInfoName c == nameTrue)
+             then return $ obj [ "op" .= str "Literal", "type" .= str "Int", "value" .= text "1" ]
+             else if (conInfoName c == nameFalse)
+             then return $ obj [ "op" .= str "Literal", "type" .= str "Int", "value" .= text "0" ]
+             else return $ case repr of
                         -- special
                         ConEnum{}
-                          -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-                        ConSingleton{} | conInfoName c == nameOptionalNone
-                          -> singletonValue "undefined"
-                        ConSingleton _ DataStructAsMaybe _ _
-                          -> singletonValue "null"
-                        ConSingleton _ DataAsMaybe _ _
-                          -> singletonValue "null"
-                        ConSingleton _ DataAsList _ _
-                          -> singletonValue "null"
+                          -> debugWrap ("enum ") $ obj ["op" .= str "Literal", "type" .= str "Int", "value" .= int (conTag repr)]
+--                         ConSingleton{} | conInfoName c == nameOptionalNone
+--                           -> singletonValue "undefined"
+--                         ConSingleton _ DataStructAsMaybe _ _
+--                           -> singletonValue "null"
+--                         ConSingleton _ DataAsMaybe _ _
+--                           -> singletonValue "null"
+--                         ConSingleton _ DataAsList _ _
+--                           -> singletonValue "null"
                         -- tagless
-                        ConIso{}     -> genConstr penv c repr name args []
-                        ConSingle{}  -> genConstr penv c repr name args []
-                        ConAsCons{}  -> genConstr penv c repr name args []
-                        ConAsJust{}  -> genConstr penv c repr name args [] -- [(tagField, getConTag modName c repr)]
+                        ConIso{}     -> genConstr penv c repr name tp args []
+                        ConSingle{}  -> genConstr penv c repr name tp args []
+                        ConAsCons{}  -> genConstr penv c repr name tp args []
+                        ConAsJust{}  -> genConstr penv c repr name tp args [] -- [(tagField, getConTag modName c repr)]
                         ConStruct{conDataRepr=DataStructAsMaybe}
-                                     -> genConstr penv c repr name args []
+                                     -> genConstr penv c repr name tp args []
                         -- normal with tag
-                        _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
-             return $ text ""
+                        _            -> genConstr penv c repr name tp args [(tagField, getConTag modName c repr)]
           ) $ zip (dataInfoConstrs $ info) conReprs
-       return $ linecomment (text "type" <+> pretty (unqualify (dataInfoName info)))
-            <-> vcat docs
-            <-> text ""
   where
-    genConstr penv c repr name args tagFields
-      = if null args
-         then debugWrap "genConstr: null fields"
-            $ constdecl <+> name <+> text "=" <+> object tagFields <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-         else debugWrap "genConstr: with fields"
-            $ text "function" <+> name <.> tupled args <+> comment (Pretty.ppType penv (conInfoType c))
-          <+> block ( text "return" <+>
-                      (if (conInfoName c == nameOptional || isConIso repr) then head args
-                        else object (tagFields ++ map (\arg -> (arg, arg))  args)) <.> semi )
+    genConstr penv c repr name tp args tagFields
+      = def (var name tp) (debugWrap "genConstr" $
+             obj [ "op" .= str "Abs", "params" .= list args
+                 , "body" .= obj [ "op" .= str "Construct"
+                                 , "type_tag" .= (str $ show $ conInfoType c)
+                                 , "tag" .= name
+                                 , "args" .= list args
+                                 ]
+                 ])
 
 getConTag modName coninfo repr
   = case repr of
@@ -246,7 +237,7 @@ tryTailCall result expr
                               )
        -> do let (ResultReturn _ params) = result
              stmts <- genOverride params args
-             return $ Just $ block $ stmts <-> tailcall
+             return $ Just $ notImplemented $ block $ stmts <-> tailcall
 
      -- Tailcall case 2
      App (TypeApp (Var n info) _) args | ( case result of
@@ -255,7 +246,7 @@ tryTailCall result expr
                                           )
        -> do let (ResultReturn _ params) = result
              stmts <- genOverride params args
-             return $ Just $ block $ stmts <-> tailcall
+             return $ Just $ notImplemented $ block $ stmts <-> tailcall
 
      _ -> return Nothing
   where
@@ -361,7 +352,7 @@ genMatch :: Result -> [Doc] -> [Branch] -> Asm Doc
 genMatch result scrutinees branches
   = fmap (debugWrap "genMatch") $ do
     case branches of
-        []  -> fail ("Backend.JavaScript.FromCore.genMatch: no branch in match statement: " ++ show(scrutinees))
+        []  -> fail ("Backend.VM.FromCore.genMatch: no branch in match statement: " ++ show(scrutinees))
         [b] -> fmap snd $ genBranch True result scrutinees b
 
        -- Special handling of return related cases - would be nice to get rid of it
@@ -374,11 +365,11 @@ genMatch result scrutinees branches
                     | getName tn == nameReturn
                    -> do (expr1) <- genExpr r1
                          (expr2) <- genExpr r2
-                         return $ text "if" <.> parens (head scrutinees) <+> block ( text "return" <+> expr1 <.> semi)
+                         return $ notImplemented $ text "if" <.> parens (head scrutinees) <+> block ( text "return" <+> expr1 <.> semi)
                                                         <-> text "else" <+> block ( text "return" <+> expr2 <.> semi)
                  _ -> do (expr1) <- genExpr r1
                          (expr2) <- genExpr e2
-                         return $
+                         return $ notImplemented $
                            (text "if" <.> parens (head scrutinees) <+> block ( text "return" <+> expr1 <.> semi))
                             <-->
                            ( getResultX result (if (isExprUnit e2) then text "" else expr2,expr2))
@@ -392,10 +383,10 @@ genMatch result scrutinees branches
                 let nameDoc = head scrutinees
                 let test    = genTest modName (nameDoc, p1)
                 if (isExprTrue e1 && isExprFalse e2)
-                  then return $ getResult result $ parens (conjunction test)
+                  then return $ notImplemented $ getResult result $ parens (conjunction test)
                   else do doc1 <- withNameSubstitutions (getSubstitutions nameDoc p1) (genInline e1)
                           doc2 <- withNameSubstitutions (getSubstitutions nameDoc p2) (genInline e2)
-                          return $ debugWrap "genMatch: conditional expression"
+                          return $ notImplemented $ debugWrap "genMatch: conditional expression"
                                  $ getResult result
                                  $ parens (conjunction test) <+> text "?" <+> doc1 <+> text ":" <+> doc2
 
@@ -403,7 +394,7 @@ genMatch result scrutinees branches
            | all (\b-> length (branchGuards   b) == 1) bs
           && all (\b->isExprTrue $ guardTest $ head $ branchGuards b) bs
           -> do xs <- mapM (withStatement . genBranch True result scrutinees) bs
-                return $  debugWrap "genMatch: guard-free case"
+                return $ notImplemented $  debugWrap "genMatch: guard-free case"
                        $  hcat  ( map (\(conds,d)-> text "if" <+> parens (conjunction conds)
                                                              <+> block d <-> text "else "
                                       ) (init xs)
@@ -420,7 +411,7 @@ genMatch result scrutinees branches
                 b  <-      (withStatement . genBranch True  result' scrutinees) (last branches)
                 let ds = map (\(cds,stmts)-> if null cds
                                                   then stmts
-                                                  else text "if" <+> parens (conjunction cds)
+                                                  else notImplemented $ text "if" <+> parens (conjunction cds)
                                                                 <+> block stmts
                              ) bs
                 let d  = snd b
@@ -463,7 +454,7 @@ genMatch result scrutinees branches
            exprSt          <- genStat result' expr
            return $ if isExprTrue t
                       then exprSt
-                      else text "if" <+> parens testE <.> block exprSt
+                      else notImplemented $ text "if" <+> parens testE <.> block exprSt
 
     -- | Generates a list of boolish expression for matching the pattern
     genTest :: Name -> (Doc, Pattern) -> [Doc]
@@ -670,7 +661,7 @@ genPure expr
      Con name repr | nameModule (getName name) == "std/core/types" && nameStem (getName name) == "Unit"
        -> return $ obj [ "op" .= str "Literal", "type" .= transformType (tnameType name) ]
      Con name repr
-       -> notImplemented <$> genTName name
+       -> return $ asVar name
      Lit l
        -> return $ ppLit l
      Lam params eff body
@@ -759,7 +750,7 @@ genExprExternal tname formats argDocs0
                                      ,text "catch(_err){ return $std_core._throw_exception(_err); }"]
                                      )))
                                    <.> text "()"
-                         in return (try)
+                         in return $ notImplemented (try)
 
 -- special case: .cctx-hole-create
 genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm (Doc)
@@ -1191,9 +1182,11 @@ debugComment s
 
 debugWrap     :: String -> Doc -> Doc
 debugWrap s d
-  = if debug
-      then debugComment ("<" ++ s ++ ">") <-> tab d <-> debugComment ("</" ++ s ++ ">")
-      else d
+  = if debug then obj [
+    "op" .= str "DebugWrap",
+    "inner" .= d,
+    "annotation" .= str s
+  ] else d
 
 tagField :: Doc
 tagField  = text "_tag"
