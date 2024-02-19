@@ -8,7 +8,7 @@
 
 
 module std/os/file-uv
-pub import std/os/uv
+pub import std/os/event-loop
 pub import std/data/bytes
 pub import std/num/int32
 pub import std/num/int64
@@ -169,55 +169,55 @@ pub val o_TMPFILE = oTMPFILE()
 extern oTMPFILE(): int32
   c inline "UV_FS_O_TEMPORARY"
 
-pub value struct uvFsReq { internal : intptr_t };
-pub value struct uvFile { internal : intptr_t };
-pub value struct uvDir { internal : intptr_t };
+pub value struct uv-fs-req { internal : intptr_t };
+pub value struct uv-file { internal : intptr_t };
+pub value struct uv-dir { internal : intptr_t };
 
-pub extern uv-fs-req(): io-noexn uvFsReq
+pub extern uv-fs-req(): io-noexn uv-fs-req
   c inline "kk_uv_fs_init(kk_context())"
 
 // Cleanup request. Must be called after a request is finished to deallocate any memory libuv might have allocated.
-pub extern req_cleanup(req: uvFsReq): io-noexn ()
+pub extern req_cleanup(req: uv-fs-req): io-noexn ()
   c "kk_uv_fs_req_cleanup" // ?? Is there a better way?
 
 // Equivalent to close(2)
-pub extern uv/close(file: uvFile, cb: (error<()>) -> io-event ()): io-event ()
+pub extern uv/close(file: uv-file, cb: (error<()>) -> io-event ()): io-event ()
   c "kk_uv_fs_close"
 
-pub extern uv/close-sync(file: uvFile): io-noexn error<()>
+pub extern uv/close-sync(file: uv-file): io-noexn error<()>
   c "kk_uv_fs_close_sync"
 
 // Equivalent to open(2).
 // WARNING: On Windows libuv uses CreateFileW and thus the file is always opened in binary mode. Because of this the O_BINARY and O_TEXT flags are not supported.
-pub extern uv/open(path: string, flags: int32, mode: int32, cb: (error<uvFile>) -> io-event ()): io-event ()
+pub extern uv/open(path: string, flags: int32, mode: int32, cb: (error<uv-file>) -> io-event ()): io-event ()
   c "kk_uv_fs_open"
 
-pub extern open-sync_(path: string, flags: int32, mode: int32): io-noexn error<uvFile>
+pub extern open-sync_(path: string, flags: int32, mode: int32): io-noexn error<uv-file>
   c "kk_uv_fs_open_sync"
 
-pub fun open-sync(path: string, flags: int32, mode: int32=0.int32): io-noexn error<uvFile>
+pub fun open-sync(path: string, flags: int32, mode: int32=0.int32): io-noexn error<uv-file>
   if mode == 0.int32 && (flags == o_TMPFILE || flags == o_CREAT) then
     Error(Exception("Cannot open with no permission flags when creating " ++ path, ExnAssert))
   else open-sync_(path, flags, mode)
 
-pub fun open(path: string, flags: int32, cb: (error<uvFile>) -> io-event (), mode: int32 = 0.int32): io-event ()
+pub fun open(path: string, flags: int32, cb: (error<uv-file>) -> io-event (), mode: int32 = 0.int32): io-event ()
   if mode == 0.int32 && (flags == o_TMPFILE || flags == o_CREAT) then
     cb(Error(Exception("Cannot open with no permission flags when creating " ++ path, ExnAssert)))
   open(path, flags, mode, cb)
 
 // Equivalent to preadv(2). If the offset argument is -1, then the current file offset is used and updated.
 // WARNING: On Windows, under non-MSVC environments (e.g. when GCC or Clang is used to build libuv), files opened using UV_FS_O_FILEMAP may cause a fatal crash if the memory mapped read operation fails.
-pub extern uv/read(file: uvFile, length: int32, offset: int32, cb: (error<(bytes, int)>) -> io-event ()): io-event ()
+pub extern uv/read(file: uv-file, length: int32, offset: int32, cb: (error<(bytes, int)>) -> io-event ()): io-event ()
   c "kk_uv_fs_read"
 
-pub fun read(file: uvFile, length: int32, cb: (error<(bytes, int)>) -> io-event ()): io-event ()
+pub fun read(file: uv-file, length: int32, cb: (error<(bytes, int)>) -> io-event ()): io-event ()
   read(file, 0.int32, length, cb)
 // TODO: Version of read that takes in bytes to reuse?
 
-pub extern uv/read-sync(file: uvFile, length: int32, offset: int32): io-noexn error<(bytes, int)>
+pub extern uv/read-sync(file: uv-file, length: int32, offset: int32): io-noexn error<(bytes, int)>
   c "kk_uv_fs_read_sync"
 
-pub fun read-sync(file: uvFile, length: int32, offset: int32 = 0.int32): io-noexn error<(bytes, int)>
+pub fun read-sync(file: uv-file, length: int32, offset: int32 = 0.int32): io-noexn error<(bytes, int)>
   uv/read-sync(file, length, offset)
 
 pub extern unlink(path: string, cb: (error<()>) -> io-event ()): io-event ()
@@ -226,10 +226,10 @@ pub extern unlink(path: string, cb: (error<()>) -> io-event ()): io-event ()
 pub extern unlink-sync(path: string): io-noexn error<()>
   c "kk_uv_fs_unlink_sync"
 
-pub extern write(file: uvFile, data: bytes, offset: int64, cb: (error<int>) -> io-event ()): io-event ()
+pub extern write(file: uv-file, data: bytes, offset: int64, cb: (error<int>) -> io-event ()): io-event ()
   c "kk_uv_fs_write"
 
-pub extern write-sync(file: uvFile, data: bytes, offset: int64): io-noexn error<int>
+pub extern write-sync(file: uv-file, data: bytes, offset: int64): io-noexn error<int>
   c "kk_uv_fs_write_sync"
 
 pub extern mkdir(path: string, mode: int32, cb: (error<()>) -> io-event ()): io-event ()
@@ -244,10 +244,10 @@ pub extern mkdtemp(path: string, cb: (error<string>) -> io-event ()): io-event (
 pub extern mkdtemp-sync(path: string): io-noexn error<string>
   c "kk_uv_fs_mkdtemp_sync"
 
-pub extern mkstemp(path: string, cb: (error<(uvFile, string)>) -> io-event ()): io-event ()
+pub extern mkstemp(path: string, cb: (error<(uv-file, string)>) -> io-event ()): io-event ()
   c "kk_uv_fs_mkstemp"
 
-pub extern mkstemp-sync(path: string): io-noexn error<(uvFile, string)>
+pub extern mkstemp-sync(path: string): io-noexn error<(uv-file, string)>
   c "kk_uv_fs_mkstemp_sync"
 
 pub extern rmdir(path: string, cb: (error<()>) -> io-event ()): io-event ()
@@ -256,31 +256,31 @@ pub extern rmdir(path: string, cb: (error<()>) -> io-event ()): io-event ()
 pub extern rmdir-sync(path: string): io-noexn error<()>
   c "kk_uv_fs_rmdir_sync"
 
-pub extern opendir(path: string, cb: (error<uvDir>) -> io-event ()): io-event ()
+pub extern opendir(path: string, cb: (error<uv-dir>) -> io-event ()): io-event ()
   c "kk_uv_fs_opendir"
 
-pub extern opendir-sync(path: string): io-noexn error<uvDir>
+pub extern opendir-sync(path: string): io-noexn error<uv-dir>
   c "kk_uv_fs_opendir_sync"
 
-pub extern closedir(dir: uvDir, cb: (error<()>) -> io-event ()): io-event ()
+pub extern closedir(dir: uv-dir, cb: (error<()>) -> io-event ()): io-event ()
   c "kk_uv_fs_closedir"
 
-pub extern closedir-sync(dir: uvDir): io-noexn error<()>
+pub extern closedir-sync(dir: uv-dir): io-noexn error<()>
   c "kk_uv_fs_closedir_sync"
 
-pub extern readdir(dir: uvDir, cb: (error<vector<dirent>>) -> io-event ()): io-event ()
+pub extern readdir(dir: uv-dir, cb: (error<vector<dirent>>) -> io-event ()): io-event ()
   c "kk_uv_fs_readdir"
 
-pub extern readdir-sync(dir: uvDir): io-noexn error<vector<dirent>>
+pub extern readdir-sync(dir: uv-dir): io-noexn error<vector<dirent>>
   c "kk_uv_fs_readdir_sync"
 
-pub extern scandir(path: string, cb: (error<uvFsReq>) -> io-event ()): io-event ()
+pub extern scandir(path: string, cb: (error<uv-fs-req>) -> io-event ()): io-event ()
   c "kk_uv_fs_scandir"
 
-pub extern scandir-sync(path: string): io-noexn error<uvFsReq>
+pub extern scandir-sync(path: string): io-noexn error<uv-fs-req>
   c "kk_uv_fs_scandir_sync"
 
-pub extern scandir-next(req: uvFsReq): io-noexn error<dirent>
+pub extern scandir-next(req: uv-fs-req): io-noexn error<dirent>
   c "kk_uv_fs_scandir_next"
 
 pub extern stat(path: string, cb: (error<fstat>) -> io-event ()): io-event ()
@@ -289,10 +289,10 @@ pub extern stat(path: string, cb: (error<fstat>) -> io-event ()): io-event ()
 pub extern stat-sync(path: string): io-noexn error<fstat>
   c "kk_uv_fs_stat_sync"
 
-pub extern fstat(path: uvFile, cb: (error<fstat>) -> io-event ()): io-event ()
+pub extern fstat(path: uv-file, cb: (error<fstat>) -> io-event ()): io-event ()
   c "kk_uv_fs_fstat"
 
-pub extern fstat-sync(path: uvFile): io-noexn error<fstat>
+pub extern fstat-sync(path: uv-file): io-noexn error<fstat>
   c "kk_uv_fs_fstat_sync"
 
 // Returns the same as stat(), except that if the path is a symbolic link, it returns information about the link itself
@@ -308,22 +308,22 @@ pub extern rename(path: string, new_path: string, cb: (error<()>) -> io-event ()
 pub extern rename-sync(path: string, new_path: string): io-noexn error<()>
   c "kk_uv_fs_rename_sync"
 
-pub extern fsync(file: uvFile, cb: (error<()>) -> io-event ()): io-event ()
+pub extern fsync(file: uv-file, cb: (error<()>) -> io-event ()): io-event ()
   c "kk_uv_fs_fsync"
 
-pub extern fsync-sync(file: uvFile): io-noexn error<()>
+pub extern fsync-sync(file: uv-file): io-noexn error<()>
   c "kk_uv_fs_fsync_sync"
 
-pub extern fdatasync(file: uvFile, cb: (error<()>) -> io-event ()): io-event ()
+pub extern fdatasync(file: uv-file, cb: (error<()>) -> io-event ()): io-event ()
   c "kk_uv_fs_fdatasync"
 
-pub extern fdatasync-sync(file: uvFile): io-noexn error<()>
+pub extern fdatasync-sync(file: uv-file): io-noexn error<()>
   c "kk_uv_fs_fdatasync_sync"
 
-pub extern ftruncate(file: uvFile, offset: int64, cb: (error<()>) -> io-event ()): io-event ()
+pub extern ftruncate(file: uv-file, offset: int64, cb: (error<()>) -> io-event ()): io-event ()
   c "kk_uv_fs_ftruncate"
 
-pub extern ftruncate-sync(file: uvFile, offset: int64): io-noexn error<()>
+pub extern ftruncate-sync(file: uv-file, offset: int64): io-noexn error<()>
   c "kk_uv_fs_ftruncate_sync"
 
 pub val uv_fs_COPYFILE_EXCL = uv_fs_COPYFILE_EXCL_()
@@ -344,10 +344,10 @@ pub extern copyfile(path: string, new_path: string, flags: int32, cb: (error<()>
 pub extern copyfile-sync(path: string, new_path: string, flags: int32): io-noexn error<()>
   c "kk_uv_fs_copyfile_sync"
 
-pub extern sendfile(out_file: uvFile, in_file: uvFile, in_offset: int64, length: ssize_t, cb: (error<int>) -> io-event ()): io-event ()
+pub extern sendfile(out_file: uv-file, in_file: uv-file, in_offset: int64, length: ssize_t, cb: (error<int>) -> io-event ()): io-event ()
   c "kk_uv_fs_sendfile"
 
-pub extern sendfile-sync(out_file: uvFile, in_file: uvFile, in_offset: int64, length: ssize_t): io-noexn error<int>
+pub extern sendfile-sync(out_file: uv-file, in_file: uv-file, in_offset: int64, length: ssize_t): io-noexn error<int>
   c "kk_uv_fs_sendfile_sync"
 
 pub extern access(path: string, mode: int32, cb: (error<()>) -> io-event ()): io-event ()
@@ -362,10 +362,10 @@ pub extern chmod(path: string, mode: int32, cb: (error<()>) -> io-event ()): io-
 pub extern chmod-sync(path: string, mode: int32): io-noexn error<()>
   c "kk_uv_fs_chmod_sync"
 
-pub extern fchmod(file: uvFile, mode: int32, cb: (error<()>) -> io-event ()): io-event ()
+pub extern fchmod(file: uv-file, mode: int32, cb: (error<()>) -> io-event ()): io-event ()
   c "kk_uv_fs_fchmod"
 
-pub extern fchmod-sync(file: uvFile, mode: int32): io-noexn error<()>
+pub extern fchmod-sync(file: uv-file, mode: int32): io-noexn error<()>
   c "kk_uv_fs_fchmod_sync"
 
 pub extern utime(path: string, atime: float64, mtime: float64, cb: (error<()>) -> io-event ()): io-event ()
@@ -374,10 +374,10 @@ pub extern utime(path: string, atime: float64, mtime: float64, cb: (error<()>) -
 pub extern utime-sync(path: string, atime: float64, mtime: float64): io-noexn error<()>
   c "kk_uv_fs_utime_sync"
 
-pub extern futime(file: uvFile, atime: float64, mtime: float64, cb: (error<()>) -> io-event ()): io-event ()
+pub extern futime(file: uv-file, atime: float64, mtime: float64, cb: (error<()>) -> io-event ()): io-event ()
   c "kk_uv_fs_futime"
 
-pub extern futime-sync(file: uvFile, atime: float64, mtime: float64): io-noexn error<()>
+pub extern futime-sync(file: uv-file, atime: float64, mtime: float64): io-noexn error<()>
   c "kk_uv_fs_futime_sync"
 
 pub extern lutime(path: string, atime: float64, mtime: float64, cb: (error<()>) -> io-event ()): io-event ()
@@ -416,10 +416,10 @@ pub extern chown(path: string, uid: int32, gid: int32, cb: (error<()>) -> io-eve
 pub extern chown-sync(path: string, uid: int32, gid: int32): io-noexn error<()>
   c "kk_uv_fs_chown_sync"
 
-pub extern fchown(file: uvFile, uid: int32, gid: int32, cb: (error<()>) -> io-event ()): io-event ()
+pub extern fchown(file: uv-file, uid: int32, gid: int32, cb: (error<()>) -> io-event ()): io-event ()
   c "kk_uv_fs_fchown"
 
-pub extern fchown-sync(file: uvFile, uid: int32, gid: int32): io-noexn error<()>
+pub extern fchown-sync(file: uv-file, uid: int32, gid: int32): io-noexn error<()>
   c "kk_uv_fs_fchown_sync"
 
 pub extern lchown(path: string, uid: int32, gid: int32, cb: (error<()>) -> io-event ()): io-event ()

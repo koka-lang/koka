@@ -1,7 +1,7 @@
 import std/os/file-uv
 
 val readCount = 1024
-fun readFileX(fd: uvFile, offset: int = 0, str: ref<global, string>)
+fun readFileX(fd: uv-file, offset: int = 0, str: ref<global, string>)
   read(fd, readCount.int32, offset.int32) fn(bytes1)
     match bytes1
       Ok((bytes, len)) ->

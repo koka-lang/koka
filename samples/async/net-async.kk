@@ -1,5 +1,5 @@
 
-pub import std/os/uv
+
 import std/os/net-async
 import std/os/net
 import std/os/stream

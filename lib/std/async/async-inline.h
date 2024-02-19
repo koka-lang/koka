@@ -20,9 +20,9 @@ static kk_box_t kk_unit_closure(kk_function_t _fself, kk_context_t* _ctx) {
 }
 
 
-kk_unit_t kk_clear_timeout(kk_box_t t, kk_context_t* _ctx) {
-  kk_std_time_timer__timer timer = kk_std_time_timer__timer_unbox(t, KK_OWNED, _ctx);
-  kk_std_os_uv_close(kk_std_os_uv__new_UvHandle(timer.internal, _ctx), kk_new_unit_closure(_ctx), _ctx);
+kk_unit_t kk_clear_timeout(kk_box_t boxed_timer, kk_context_t* _ctx) {
+  kk_std_time_timer__timer timer = kk_std_time_timer__timer_unbox(boxed_timer, KK_OWNED, _ctx);
+  kk_std_os_event_dash_loop_close(kk_std_os_event_dash_loop__new_Uv_handle(timer.internal, _ctx), kk_new_unit_closure(_ctx), _ctx);
   return kk_Unit;
 }
 

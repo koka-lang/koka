@@ -31,14 +31,16 @@ import std/num/ddouble    // for C# backend
 import std/time/duration
 import std/os/null
 import std/core/unsafe
-pub import std/os/uv
+pub import std/os/event-loop
 // We utilize some timer functions from it's header file.
 pub import std/time/timer
+pub import std/num/ddouble
+pub import std/num/float64
 
 extern import
   c file "async/async-inline.h"
-  js file "async/async-inline.js"
   cs file "async/async-inline.cs"
+  // js is just using primitives
 
 // A type alias for asynchronous operations that can raise exceptions non-deterministically.
 // This is common for almost all `:async` operations since `cancel` and `timeout` can

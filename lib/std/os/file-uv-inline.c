@@ -1,12 +1,12 @@
 
-#include "std_os_uv.h"
+#include "std_os_event_dash_loop.h"
 
-static kk_std_os_file_dash_uv__uvFsReq kk_uv_fs_init(kk_context_t* _ctx) {
+static kk_std_os_file_dash_uv__uv_fs_req kk_uv_fs_init(kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  return kk_std_os_file_dash_uv__new_UvFsReq((intptr_t)fs_req, kk_context());
+  return kk_std_os_file_dash_uv__new_Uv_fs_req((intptr_t)fs_req, kk_context());
 }
 
-static kk_unit_t kk_uv_fs_req_cleanup(kk_std_os_file_dash_uv__uvFsReq req, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_req_cleanup(kk_std_os_file_dash_uv__uv_fs_req req, kk_context_t* _ctx) {
   uv_fs_req_cleanup((uv_fs_t*)req.internal);
   return kk_Unit;
 }
@@ -25,14 +25,14 @@ static void kk_std_os_fs_unit_cb(uv_fs_t* req) {
   }
 }
 
-static kk_unit_t kk_uv_fs_close(kk_std_os_file_dash_uv__uvFile file, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_close(kk_std_os_file_dash_uv__uv_file file, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
   uv_fs_close(uvloop(), fs_req, (uv_file)(file.internal), kk_std_os_fs_unit_cb);
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_close_sync(kk_std_os_file_dash_uv__uvFile file, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_close_sync(kk_std_os_file_dash_uv__uv_file file, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   int status = uv_fs_close(uvloop(), &fs_req, (uv_file)(file.internal), NULL);
   if (status < 0) {
@@ -52,7 +52,7 @@ static void kk_std_os_file_open_cb(uv_fs_t* req) {
   if (result < 0) {
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(result, _ctx), _ctx), _ctx);
   } else {
-    kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_std_core_exn__new_Ok(kk_std_os_file_dash_uv__uvFile_box(kk_std_os_file_dash_uv__new_UvFile((intptr_t)result, _ctx), _ctx), _ctx), _ctx), _ctx);
+    kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_std_core_exn__new_Ok(kk_std_os_file_dash_uv__uv_file_box(kk_std_os_file_dash_uv__new_Uv_file((intptr_t)result, _ctx), _ctx), _ctx), _ctx), _ctx);
   }
 }
 
@@ -73,7 +73,7 @@ static kk_std_core_exn__error kk_uv_fs_open_sync(kk_string_t path, int32_t flags
   if (fd < 0) {
     return kk_async_error_from_errno(fd, _ctx);
   } else {
-    return kk_std_core_exn__new_Ok(kk_std_os_file_dash_uv__uvFile_box(kk_std_os_file_dash_uv__new_UvFile((intptr_t)fd, _ctx), _ctx), _ctx);
+    return kk_std_core_exn__new_Ok(kk_std_os_file_dash_uv__uv_file_box(kk_std_os_file_dash_uv__new_Uv_file((intptr_t)fd, _ctx), _ctx), _ctx);
   }
 }
 
@@ -119,7 +119,7 @@ static void kk_std_os_file_buff_cb(uv_fs_t* req) {
   }
 }
 
-static kk_unit_t kk_uv_fs_read(kk_std_os_file_dash_uv__uvFile file, int32_t num_bytes, int32_t offset, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_read(kk_std_os_file_dash_uv__uv_file file, int32_t num_bytes, int32_t offset, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   kk_uv_buff_callback_t* wrapper = kk_new_uv_buff_callback(cb, (uv_handle_t*)fs_req, num_bytes, _ctx);
   uv_buf_t* uv_buffs = kk_malloc(sizeof(uv_buf_t)*1, _ctx);
@@ -129,7 +129,7 @@ static kk_unit_t kk_uv_fs_read(kk_std_os_file_dash_uv__uvFile file, int32_t num_
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_read_sync(kk_std_os_file_dash_uv__uvFile file, int32_t num_bytes, int32_t offset, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_read_sync(kk_std_os_file_dash_uv__uv_file file, int32_t num_bytes, int32_t offset, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   uv_buf_t uv_buffs[1] = {0};
   uint8_t* buff = kk_malloc(num_bytes, _ctx);
@@ -184,22 +184,22 @@ static void kk_std_os_fs_write_cb(uv_fs_t* req) {
   }
 }
 
-static kk_unit_t kk_uv_fs_write(kk_std_os_file_dash_uv__uvFile file, kk_bytes_t bytes, int64_t offset, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_write(kk_std_os_file_dash_uv__uv_file file, kk_bytes_t bytes, int64_t offset, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
   uv_buf_t* uv_buffs = kk_bytes_to_uv_buffs(bytes, _ctx);
   uv_fs_write(uvloop(), fs_req, (uv_file)file.internal, uv_buffs, 1, offset, kk_std_os_fs_write_cb);
   kk_bytes_drop(bytes, _ctx);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_write_sync(kk_std_os_file_dash_uv__uvFile file, kk_bytes_t bytes, int64_t offset, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_write_sync(kk_std_os_file_dash_uv__uv_file file, kk_bytes_t bytes, int64_t offset, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   uv_buf_t* uv_buffs = kk_bytes_to_uv_buffs(bytes, _ctx);
   int64_t result = uv_fs_write(uvloop(), &fs_req, (uv_file)file.internal, uv_buffs, 1, offset, NULL);
   kk_bytes_drop(bytes, _ctx);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   if (result < 0) {
     return kk_async_error_from_errno(result, _ctx);
   } else {
@@ -278,8 +278,8 @@ static void kk_std_os_fs_mkstemp_cb(uv_fs_t* req) {
   } else {
     kk_string_t str = kk_string_alloc_raw((const char*) req->path, true, _ctx);
     uv_fs_req_cleanup(req);
-    kk_std_os_file_dash_uv__uvFile file = kk_std_os_file_dash_uv__new_UvFile((intptr_t)result, _ctx);
-    kk_std_core_types__tuple2 tuple = kk_std_core_types__new_Tuple2(kk_string_box(str), kk_std_os_file_dash_uv__uvFile_box(file, _ctx), _ctx); /*(1004, 1005)*/
+    kk_std_os_file_dash_uv__uv_file file = kk_std_os_file_dash_uv__new_Uv_file((intptr_t)result, _ctx);
+    kk_std_core_types__tuple2 tuple = kk_std_core_types__new_Tuple2(kk_string_box(str), kk_std_os_file_dash_uv__uv_file_box(file, _ctx), _ctx); /*(1004, 1005)*/
     kk_box_t tupleboxed = kk_std_core_types__tuple2_box(tuple, _ctx);
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_std_core_exn__new_Ok(tupleboxed, _ctx), _ctx), _ctx);
   }
@@ -303,8 +303,8 @@ static kk_std_core_exn__error kk_uv_fs_mkstemp_sync(kk_string_t tpl, kk_context_
     return kk_async_error_from_errno(status, _ctx);
   } else {
     kk_string_t str = kk_string_alloc_raw((const char*) fs_req.path, true, _ctx);
-    kk_std_os_file_dash_uv__uvFile file = kk_std_os_file_dash_uv__new_UvFile((intptr_t)status, _ctx);
-    kk_std_core_types__tuple2 tuple = kk_std_core_types__new_Tuple2(kk_std_os_file_dash_uv__uvFile_box(file, _ctx), kk_string_box(str), _ctx); /*(1004, 1005)*/
+    kk_std_os_file_dash_uv__uv_file file = kk_std_os_file_dash_uv__new_Uv_file((intptr_t)status, _ctx);
+    kk_std_core_types__tuple2 tuple = kk_std_core_types__new_Tuple2(kk_std_os_file_dash_uv__uv_file_box(file, _ctx), kk_string_box(str), _ctx); /*(1004, 1005)*/
     kk_box_t tupleboxed = kk_std_core_types__tuple2_box(tuple, _ctx);
     return kk_std_core_exn__new_Ok(tupleboxed, _ctx);
   }
@@ -342,8 +342,8 @@ void kk_std_os_fs_opendir_cb(uv_fs_t* req) {
   if (result < 0) {
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(result, _ctx), _ctx), _ctx);
   } else {
-    kk_std_os_file_dash_uv__uvDir d = kk_std_os_file_dash_uv__new_UvDir((intptr_t)dir, _ctx);
-    kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_std_core_exn__new_Ok(kk_std_os_file_dash_uv__uvDir_box(d, _ctx), _ctx), _ctx), _ctx);
+    kk_std_os_file_dash_uv__uv_dir d = kk_std_os_file_dash_uv__new_Uv_dir((intptr_t)dir, _ctx);
+    kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_std_core_exn__new_Ok(kk_std_os_file_dash_uv__uv_dir_box(d, _ctx), _ctx), _ctx), _ctx);
   }
 }
 
@@ -365,19 +365,19 @@ static kk_std_core_exn__error kk_uv_fs_opendir_sync(kk_string_t path, kk_context
     return kk_async_error_from_errno(status, _ctx);
   } else {
     uv_dir_t* dir = (uv_dir_t*)fs_req.ptr;
-    kk_std_os_file_dash_uv__uvDir d = kk_std_os_file_dash_uv__new_UvDir((intptr_t)dir, _ctx);
-    return kk_std_core_exn__new_Ok(kk_std_os_file_dash_uv__uvDir_box(d, _ctx), _ctx);
+    kk_std_os_file_dash_uv__uv_dir d = kk_std_os_file_dash_uv__new_Uv_dir((intptr_t)dir, _ctx);
+    return kk_std_core_exn__new_Ok(kk_std_os_file_dash_uv__uv_dir_box(d, _ctx), _ctx);
   }
 }
 
-static kk_unit_t kk_uv_fs_closedir(kk_std_os_file_dash_uv__uvDir dir, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_closedir(kk_std_os_file_dash_uv__uv_dir dir, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
   uv_fs_closedir(uvloop(), fs_req, (uv_dir_t*)dir.internal, kk_std_os_fs_unit_cb);
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_closedir_sync(kk_std_os_file_dash_uv__uvDir dir, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_closedir_sync(kk_std_os_file_dash_uv__uv_dir dir, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   int status = uv_fs_closedir(uvloop(), &fs_req, (uv_dir_t*)dir.internal, NULL);
   if (status < 0) {
@@ -450,7 +450,7 @@ void kk_std_os_fs_readdir_cb(uv_fs_t* req) {
   }
 }
 
-static kk_unit_t kk_uv_fs_readdir(kk_std_os_file_dash_uv__uvDir dir, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_readdir(kk_std_os_file_dash_uv__uv_dir dir, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   // Read up to 500 entries in the directory
   kk_uv_dir_callback_t* wrapper = kk_new_uv_dir_callback(cb, (uv_handle_t*)fs_req, (uv_dir_t*) dir.internal, 500, _ctx);
@@ -458,7 +458,7 @@ static kk_unit_t kk_uv_fs_readdir(kk_std_os_file_dash_uv__uvDir dir, kk_function
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_readdir_sync(kk_std_os_file_dash_uv__uvDir dir, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_readdir_sync(kk_std_os_file_dash_uv__uv_dir dir, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   uv_dir_t* uvdir = (uv_dir_t*) dir.internal;
   uvdir->dirents = kk_malloc(sizeof(uv_dirent_t)*500, _ctx);
@@ -484,7 +484,7 @@ void kk_std_os_fs_scandir_cb(uv_fs_t* req) {
     uv_fs_req_cleanup(req);
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_async_error_from_errno(result, _ctx), _ctx), _ctx);
   } else {
-    kk_box_t box = kk_std_os_file_dash_uv__uvFsReq_box(kk_std_os_file_dash_uv__new_UvFsReq((intptr_t)req, _ctx), _ctx);
+    kk_box_t box = kk_std_os_file_dash_uv__uv_fs_req_box(kk_std_os_file_dash_uv__new_Uv_fs_req((intptr_t)req, _ctx), _ctx);
     kk_function_call(void, (kk_function_t, kk_std_core_exn__error, kk_context_t*), callback, (callback, kk_std_core_exn__new_Ok(box, _ctx), _ctx), _ctx);
   }
 }
@@ -506,12 +506,12 @@ static kk_std_core_exn__error kk_uv_fs_scandir_sync(kk_string_t path, kk_context
   if (status < 0) {
     return kk_async_error_from_errno(status, _ctx);
   } else {
-    kk_box_t box = kk_std_os_file_dash_uv__uvFsReq_box(kk_std_os_file_dash_uv__new_UvFsReq((intptr_t)fs_req, _ctx), _ctx);
+    kk_box_t box = kk_std_os_file_dash_uv__uv_fs_req_box(kk_std_os_file_dash_uv__new_Uv_fs_req((intptr_t)fs_req, _ctx), _ctx);
     return kk_std_core_exn__new_Ok(box, _ctx);
   }
 }
 
-static kk_std_core_exn__error kk_uv_fs_scandir_next(kk_std_os_file_dash_uv__uvFsReq req, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_scandir_next(kk_std_os_file_dash_uv__uv_fs_req req, kk_context_t* _ctx) {
   uv_dirent_t ent = {0};
   int status = uv_fs_scandir_next((uv_fs_t*)req.internal, &ent);
   if (status < 0) {
@@ -584,18 +584,18 @@ static kk_std_core_exn__error kk_uv_fs_stat_sync(kk_string_t path, kk_context_t*
   }
 }
 
-static kk_unit_t kk_uv_fs_fstat(kk_std_os_file_dash_uv__uvFile file, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_fstat(kk_std_os_file_dash_uv__uv_file file, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
   uv_fs_fstat(uvloop(), fs_req, (uv_file)file.internal, kk_std_os_fs_stat_cb);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_fstat_sync(kk_std_os_file_dash_uv__uvFile file, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_fstat_sync(kk_std_os_file_dash_uv__uv_file file, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   int status = uv_fs_fstat(uvloop(), &fs_req, (uv_file)file.internal, NULL);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   if (status < 0) {
     return kk_async_error_from_errno(status, _ctx);
   } else {
@@ -651,18 +651,18 @@ static kk_std_core_exn__error kk_uv_fs_rename_sync(kk_string_t path, kk_string_t
   }
 }
 
-static kk_unit_t kk_uv_fs_fsync(kk_std_os_file_dash_uv__uvFile file, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_fsync(kk_std_os_file_dash_uv__uv_file file, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
   uv_fs_fsync(uvloop(), fs_req, (uv_file)file.internal, kk_std_os_fs_unit_cb);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_fsync_sync(kk_std_os_file_dash_uv__uvFile file, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_fsync_sync(kk_std_os_file_dash_uv__uv_file file, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   int status = uv_fs_fsync(uvloop(), &fs_req, (uv_file)file.internal, NULL);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   if (status < 0) {
     return kk_async_error_from_errno(status, _ctx);
   } else {
@@ -670,18 +670,18 @@ static kk_std_core_exn__error kk_uv_fs_fsync_sync(kk_std_os_file_dash_uv__uvFile
   }
 }
 
-static kk_unit_t kk_uv_fs_fdatasync(kk_std_os_file_dash_uv__uvFile file, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_fdatasync(kk_std_os_file_dash_uv__uv_file file, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
   uv_fs_fdatasync(uvloop(), fs_req, (uv_file)file.internal, kk_std_os_fs_unit_cb);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_fdatasync_sync(kk_std_os_file_dash_uv__uvFile file, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_fdatasync_sync(kk_std_os_file_dash_uv__uv_file file, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   int status = uv_fs_fdatasync(uvloop(), &fs_req, (uv_file)file.internal, NULL);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   if (status < 0) {
     return kk_async_error_from_errno(status, _ctx);
   } else {
@@ -689,18 +689,18 @@ static kk_std_core_exn__error kk_uv_fs_fdatasync_sync(kk_std_os_file_dash_uv__uv
   }
 }
 
-static kk_unit_t kk_uv_fs_ftruncate(kk_std_os_file_dash_uv__uvFile file, int64_t offset, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_ftruncate(kk_std_os_file_dash_uv__uv_file file, int64_t offset, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
   uv_fs_ftruncate(uvloop(), fs_req, (uv_file)file.internal, offset, kk_std_os_fs_unit_cb);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_ftruncate_sync(kk_std_os_file_dash_uv__uvFile file, int64_t offset, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_ftruncate_sync(kk_std_os_file_dash_uv__uv_file file, int64_t offset, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   int status = uv_fs_ftruncate(uvloop(), &fs_req, (uv_file)file.internal, offset, NULL);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   if (status < 0) {
     return kk_async_error_from_errno(status, _ctx);
   } else {
@@ -747,22 +747,22 @@ static void kk_std_os_fs_int_cb(uv_fs_t* req) {
   }
 }
 
-static kk_unit_t kk_uv_fs_sendfile(kk_std_os_file_dash_uv__uvFile out_fd, kk_std_os_file_dash_uv__uvFile in_fd, int64_t in_offset, kk_ssize_t length, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_sendfile(kk_std_os_file_dash_uv__uv_file out_fd, kk_std_os_file_dash_uv__uv_file in_fd, int64_t in_offset, kk_ssize_t length, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   uv_buf_t buf = uv_buf_init(NULL, 0);
   kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
   uv_fs_sendfile(uvloop(), fs_req, (uv_file)out_fd.internal, (uv_file)in_fd.internal, in_offset, (size_t)length, kk_std_os_fs_int_cb);
-  kk_std_os_file_dash_uv__uvFile_drop(out_fd, _ctx);
-  kk_std_os_file_dash_uv__uvFile_drop(in_fd, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(out_fd, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(in_fd, _ctx);
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_sendfile_sync(kk_std_os_file_dash_uv__uvFile out_fd, kk_std_os_file_dash_uv__uvFile in_fd, int64_t in_offset, kk_ssize_t length, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_sendfile_sync(kk_std_os_file_dash_uv__uv_file out_fd, kk_std_os_file_dash_uv__uv_file in_fd, int64_t in_offset, kk_ssize_t length, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   uv_buf_t buf = uv_buf_init(NULL, 0);
   int status = uv_fs_sendfile(uvloop(), &fs_req, (uv_file)out_fd.internal, (uv_file)in_fd.internal, in_offset, (size_t)length, NULL);
-  kk_std_os_file_dash_uv__uvFile_drop(out_fd, _ctx);
-  kk_std_os_file_dash_uv__uvFile_drop(in_fd, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(out_fd, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(in_fd, _ctx);
   if (status < 0) {
     return kk_async_error_from_errno(status, _ctx);
   } else {
@@ -808,18 +808,18 @@ static kk_std_core_exn__error kk_uv_fs_chmod_sync(kk_string_t path, int32_t mode
   }
 }
 
-static kk_unit_t kk_uv_fs_fchmod(kk_std_os_file_dash_uv__uvFile file, int32_t mode, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_fchmod(kk_std_os_file_dash_uv__uv_file file, int32_t mode, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
   uv_fs_fchmod(uvloop(), fs_req, (uv_file)file.internal, mode, kk_std_os_fs_unit_cb);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_fchmod_sync(kk_std_os_file_dash_uv__uvFile file, int32_t mode, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_fchmod_sync(kk_std_os_file_dash_uv__uv_file file, int32_t mode, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   int status = uv_fs_fchmod(uvloop(), &fs_req, (uv_file)file.internal, mode, NULL);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   if (status < 0) {
     return kk_async_error_from_errno(status, _ctx);
   } else {
@@ -848,7 +848,7 @@ static kk_std_core_exn__error kk_uv_fs_utime_sync(kk_string_t path, double atime
   }
 }
 
-static kk_unit_t kk_uv_fs_futime(kk_std_os_file_dash_uv__uvFile file, double atime, double mtime, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_futime(kk_std_os_file_dash_uv__uv_file file, double atime, double mtime, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*) fs_req, _ctx);
   kk_ssize_t len;
@@ -856,7 +856,7 @@ static kk_unit_t kk_uv_fs_futime(kk_std_os_file_dash_uv__uvFile file, double ati
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_futime_sync(kk_std_os_file_dash_uv__uvFile file, double atime, double mtime, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_futime_sync(kk_std_os_file_dash_uv__uv_file file, double atime, double mtime, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   kk_ssize_t len;
   int status = uv_fs_futime(uvloop(), &fs_req, (uv_file)file.internal, atime, mtime, NULL);
@@ -1017,18 +1017,18 @@ static kk_std_core_exn__error kk_uv_fs_chown_sync(kk_string_t path, int32_t uid,
   return kk_std_core_exn__new_Ok(kk_unit_box(kk_Unit), _ctx);
 }
 
-static kk_unit_t kk_uv_fs_fchown(kk_std_os_file_dash_uv__uvFile file, int32_t uid, int32_t gid, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_fchown(kk_std_os_file_dash_uv__uv_file file, int32_t uid, int32_t gid, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
   kk_uv_callback_t* wrapper = kk_new_uv_callback(cb, (uv_handle_t*)fs_req, _ctx);
   uv_fs_fchown(uvloop(), fs_req, (uv_file)file.internal, uid, gid, kk_std_os_fs_unit_cb);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_fchown_sync(kk_std_os_file_dash_uv__uvFile file, int32_t uid, int32_t gid, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_fchown_sync(kk_std_os_file_dash_uv__uv_file file, int32_t uid, int32_t gid, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   int status = uv_fs_fchown(uvloop(), &fs_req, (uv_file)file.internal, uid, gid, NULL);
-  kk_std_os_file_dash_uv__uvFile_drop(file, _ctx);
+  kk_std_os_file_dash_uv__uv_file_drop(file, _ctx);
   if (status < 0) {
     return kk_async_error_from_errno(status, _ctx);
   }

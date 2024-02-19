@@ -440,7 +440,7 @@ completeMain addShow exprName tp buildc
                  (mainBody,extraImports) <- addDefaultHandlers rangeNull eff ls [] callExpr
                  if any (\x -> labelName x == nameTpEventLoop) (fst (extractEffectExtend eff)) then 
                     -- trace "eventloop" $
-                    return (resTp,print,mainBody,"import std/os/uv":extraImports,True)
+                    return (resTp,print,mainBody,"import std/os/event-loop":extraImports,True)
                  else -- trace ("noeventloop " ++ (show (extractEffectExtend eff))) $ 
                     return (resTp,print,mainBody,extraImports,False)
       _ -> return (tp, id, callExpr, [],False) -- todo: given an error?

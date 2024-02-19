@@ -564,6 +564,12 @@ externalTarget
   = do specialId "c"
        return (C CDefault)
   <|>
+    do specialId "wasm"
+       return (C Wasm)
+  <|>
+    do specialId "wasmweb"
+       return (C WasmWeb)
+  <|>
     do specialId "cs"
        return CS
   <|>

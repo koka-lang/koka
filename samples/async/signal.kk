@@ -1,8 +1,16 @@
 import std/os/signal
 
 fun main()
-  // with handle-uv
-  // TODO: This needs some work still (processes don't exit)
+  val n = ref(0)
   println("Running main")
-  signal-start-oneshot(sSIGINT, fn() println("Escape!"))
+  signal-start-oneshot(sSIGINT) fn() 
+    println("Got SIGINT!")
+    signal-start(sSIGINT) fn(s)
+      if !n == 5 then
+        s.signal-stop()
+        ()
+      else
+        println("Got SIGINT! x " ++ (!n).show)
+        n := !n + 1
+    ()
   ()

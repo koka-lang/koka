@@ -1,4 +1,4 @@
-pub import std/os/uv
+
 import std/os/net
 import std/time
 import std/os/stream
@@ -10,7 +10,7 @@ fun main()
   val str = "GET / HTTP/1.1\r\n\r\n"
   val client = tcp-init().untry
   val server = tcp-init().untry
-  val sa = SockAddr(AF_INET, "0.0.0.0", Just(8000.int32))
+  val sa = Sock-addr(AF_INET, "0.0.0.0", Just(8001.int32))
   server.bind(sa, 0.int32)
   server.stream.listen(0.int32) fn(err)
     match tcp-init()
@@ -28,7 +28,7 @@ fun main()
             ()
         ()
       _ -> ()
-  val a = SockAddr(AF_INET, "127.0.0.1", Just(8010.int32))
+  val a = Sock-addr(AF_INET, "127.0.0.1", Just(8001.int32))
   val er = client.connect(a) fn (err)
     ("Connect: " ++ err.message).println
     client.stream.read-start fn (buf)

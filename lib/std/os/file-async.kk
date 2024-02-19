@@ -44,7 +44,7 @@ pub fun read-file(path: path)
         throw-exn(e)
   !str
 
-pub fun open(path: path, flags: int32, mode: int32): asyncx uvFile
+pub fun open(path: path, flags: int32, mode: int32): asyncx uv-file
   await fn(cb)
     open(path.string, flags, mode) fn(fd)
       cb(fd)
@@ -62,7 +62,7 @@ pub fun stream-file(path: path, chunkSize: int32 = 0x1024.int32)
     fn(e) e
   )
 
-fun read-file_(fd: uvFile, chunkSize: int32, offset: int32, cb: (error<bytes>, bool) -> io-event ())
+fun read-file_(fd: uv-file, chunkSize: int32, offset: int32, cb: (error<bytes>, bool) -> io-event ())
   read(fd, chunkSize, offset) fn(bytes1)
     match bytes1
       Ok((bytes, bytesRead)) ->
@@ -74,7 +74,7 @@ fun read-file_(fd: uvFile, chunkSize: int32, offset: int32, cb: (error<bytes>, b
       Error(e) -> 
         cb(Error(e), True)
 
-fun cb/write-to-file(fd: uvFile, bts: bytes, offset: int64, cb: (error<()>) -> io-event ()): io-event ()
+fun cb/write-to-file(fd: uv-file, bts: bytes, offset: int64, cb: (error<()>) -> io-event ()): io-event ()
   write(fd, bts, offset) fn(bytesWritten)
     match bytesWritten 
       Ok(bytes) -> 
@@ -82,7 +82,7 @@ fun cb/write-to-file(fd: uvFile, bts: bytes, offset: int64, cb: (error<()>) -> i
         else write-to-file(fd, bts.advance(bytes.ssize_t), offset + bytes.int64, cb)
       Error(e) -> cb(Error(e))
 
-fun bytes/write-to-file(fd: uvFile, bts: bytes, offset: int64): io-event error<()>
+fun bytes/write-to-file(fd: uv-file, bts: bytes, offset: int64): io-event error<()>
   val bytesWritten = write-sync(fd, bts, offset) 
   match bytesWritten 
     Ok(bytes) -> 
@@ -90,15 +90,15 @@ fun bytes/write-to-file(fd: uvFile, bts: bytes, offset: int64): io-event error<(
       else write-to-file(fd, bts.advance(bytes.ssize_t), offset + bytes.int64)
     Error(e) -> Error(e)
 
-pub fun write-to-file(fd: uvFile, s: string): asyncx ()
+pub fun write-to-file(fd: uv-file, s: string): asyncx ()
   await fn(cb)
     write-to-file(fd, s.bytes, 0.int64, cb)
     Just({fd.close(fn(_) ())})
 
-pub fun write-to-file-sync(fd: uvFile, s: string): io-event error<()>
+pub fun write-to-file-sync(fd: uv-file, s: string): io-event error<()>
   write-to-file(fd, s.bytes, 0.int64)
 
-pub fun close(fd: uvFile): asyncx ()
+pub fun close(fd: uv-file): asyncx ()
   await fn(cb)
     fd.close(fn(_) cb(Ok(())))
     Nothing
@@ -138,7 +138,7 @@ pub fun make-temp-file(p: path)
         Error(e) -> cb(Error(e))
     Nothing
 
-pub inline fun create-temp-file(path: path): asyncx (path, uvFile)
+pub inline fun create-temp-file(path: path): asyncx (path, uv-file)
   make-temp-file(path)
 
 // TODO: Add recursive delete && force delete with children
@@ -153,7 +153,7 @@ pub inline fun remove-dir(path: path): asyncx ()
 pub inline fun delete-directory(path: path): asyncx ()
   rmdir(path)
 
-fun dir-list(req: uvFsReq): io-event list<dirent>
+fun dir-list(req: uv-fs-req): io-event list<dirent>
   match scandir-next(req)
     Ok(dirent) -> Cons(dirent, dir-list(req))
     Error(_) -> Nil
@@ -178,7 +178,7 @@ pub fun lstat(path: path): asyncx fstat
       cb(e)
     Nothing
 
-pub fun file/stat(fd: uvFile): asyncx fstat
+pub fun file/stat(fd: uv-file): asyncx fstat
   await fn(cb)
     fstat(fd) fn(e)
       cb(e)
@@ -190,22 +190,22 @@ pub fun rename(path: path, newPath: path): asyncx ()
       cb(e)
     Nothing
 
-pub fun fsync(fd: uvFile): asyncx ()
+pub fun fsync(fd: uv-file): asyncx ()
   await fn(cb)
     fsync(fd) fn(e)
       cb(e)
     Nothing
 
-pub fun fdatasync(fd: uvFile): asyncx ()
+pub fun fdatasync(fd: uv-file): asyncx ()
   await fn(cb)
     fdatasync(fd) fn(e)
       cb(e)
     Nothing
 
-pub inline fun flush(fd: uvFile): asyncx ()
+pub inline fun flush(fd: uv-file): asyncx ()
   fsync(fd)
 
-pub fun truncate(fd: uvFile, offset: int64): asyncx ()
+pub fun truncate(fd: uv-file, offset: int64): asyncx ()
   await fn(cb)
     ftruncate(fd, offset) fn(e)
       cb(e)
@@ -217,7 +217,7 @@ pub fun copyfile(path: path, newPath: path, flags: int32 = 0.int32): asyncx ()
       cb(e)
     Nothing
 
-pub fun redirect(outFd: uvFile, inFd: uvFile, inOffset: int64, length: int64): asyncx int
+pub fun redirect(outFd: uv-file, inFd: uv-file, inOffset: int64, length: int64): asyncx int
   await fn(cb)
     sendfile(outFd, inFd, inOffset, length.int.ssize_t) fn(e)
       cb(e)
@@ -240,7 +240,7 @@ pub fun path/chmod(path: path, mode: int32): asyncx ()
       cb(e)
     Nothing
 
-pub fun file/chmod(fd: uvFile, mode: int32): asyncx ()
+pub fun file/chmod(fd: uv-file, mode: int32): asyncx ()
   await fn(cb)
     fchmod(fd, mode) fn(e)
       cb(e)
@@ -252,7 +252,7 @@ pub fun path/update-time(path: path, access-time: float64, modified-time: float6
       cb(e)
     Nothing
 
-pub fun file/update-time(fd: uvFile, access-time: float64, modified-time: float64): asyncx ()
+pub fun file/update-time(fd: uv-file, access-time: float64, modified-time: float64): asyncx ()
   await fn(cb)
     futime(fd, access-time, modified-time) fn(e)
       cb(e)
@@ -301,7 +301,7 @@ pub fun path/chown(path: path, uid: int32, gid: int32): asyncx ()
     Nothing
 
 // Only works on unix systems
-pub fun file/chown(fd: uvFile, uid: int32, gid: int32): asyncx ()
+pub fun file/chown(fd: uv-file, uid: int32, gid: int32): asyncx ()
   await fn(cb)
     fchown(fd, uid, gid) fn(e)
       cb(e)

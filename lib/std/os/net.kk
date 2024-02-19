@@ -11,68 +11,68 @@ module std/os/net
 pub import std/os/stream
 pub import std/num/int32
 pub import std/data/bytes
-pub import std/os/uv
+pub import std/os/event-loop
 
 extern import
   c file "net-inline.c"
 
-pub type sockType
+pub type sock-type
   SOCK_ANY
   SOCK_STREAM
   SOCK_DGRAM
 
-pub type netFamily
+pub type net-family
   AF_INET
   AF_INET6
   AF_ANY
 
-pub fun net-family/show(family: netFamily): string
+pub fun net-family/show(family: net-family): string
   match family
     AF_INET -> "AF_INET"
     AF_INET6 -> "AF_INET6"
     AF_ANY -> "AF_ANY"
 
-pub struct addrInfo
+pub struct addr-info
   flags: int32
-  pub family: netFamily
-  pub socktype: sockType
+  pub family: net-family
+  pub socktype: sock-type
   protocol: int32
-  pub addr: sockAddr
+  pub addr: sock-addr
   pub canonName: string;
 
-pub value struct sockAddr
-  pub family: netFamily
+pub value struct sock-addr
+  pub family: net-family
   pub data: string
   pub port: maybe<int32> = Nothing;
 
-pub value struct uvTcp { internal: intptr_t }
-pub value struct uvOsSock { internal: intptr_t }
+pub value struct uv-tcp { internal: intptr_t }
+pub value struct uv-os-sock { internal: intptr_t }
 
-pub inline fun getaddrinfo(host : string, callback: (list<addrInfo>) -> io-event (), hints : maybe<addrInfo> = Nothing): io-event ()
-  xgetaddrinfo(host, "", hints, callback)
+pub inline fun get-addr-info(host : string, callback: (list<addr-info>) -> io-event (), hints : maybe<addr-info> = Nothing): io-event ()
+  uv-get-addr-info(host, "", hints, callback)
 
-extern xgetaddrinfo(node : string, service : string, hints : maybe<addrInfo>, callback: (list<addrInfo>) -> io-event ()): io-event ()
+extern uv-get-addr-info(node : string, service : string, hints : maybe<addr-info>, callback: (list<addr-info>) -> io-event ()): io-event ()
   c "kk_get_addrinfo"
 
-pub extern tcp-init(): io-noexn error<uvTcp>
+pub extern tcp-init(): io-noexn error<uv-tcp>
   c "kk_uv_tcp_init"
 
-pub extern tcp/bind(tcp: uvTcp, addr: sockAddr, flags: int32): io-noexn uvStatusCode
+pub extern tcp/bind(tcp: uv-tcp, addr: sock-addr, flags: int32): io-noexn uv-status-code
   c "kk_uv_tcp_bind"
 
 // Not all tcp handles are streams (e.g. servers)
 // Ensure there are safe wrappers
-pub inline extern tcp/stream(tcp: uvTcp): io-noexn uvStream
-  c inline "kk_std_os_stream__new_UvStream(#1.internal, kk_context())"
+pub inline extern tcp/stream(tcp: uv-tcp): io-noexn uv-stream
+  c inline "kk_std_os_stream__new_Uv_stream(#1.internal, kk_context())"
 
 // Any uv can be a handle, so it's always safe to cast
-pub inline extern tcp/uv-handle(tcp: uvTcp): io-noexn uvHandle
-  c inline "kk_std_os_uv__new_UvHandle(#1.internal, kk_context())"
+pub inline extern tcp/uv-handle(tcp: uv-tcp): io-noexn uv-handle
+  c inline "kk_std_os_event_dash_loop__new_Uv_handle(#1.internal, kk_context())"
 
 // Streams are not necessarily always tcp -- they could be files, pipes, udp, etc.
 // Ensure there are safe wrappers
-pub inline extern stream/tcp(tcp: uvStream): io-noexn uvTcp
-  c inline "kk_std_os_net__new_UvTcp(#1.internal, kk_context())"
+pub inline extern stream/tcp(tcp: uv-stream): io-noexn uv-tcp
+  c inline "kk_std_os_net__new_Uv_tcp(#1.internal, kk_context())"
 
-pub extern tcp/connect(tcp: uvTcp, addr: sockAddr, callback: (uvStatusCode) -> io-event ()): io-event uvStatusCode
+pub extern tcp/connect(tcp: uv-tcp, addr: sock-addr, callback: (uv-status-code) -> io-event ()): io-event uv-status-code
   c "kk_uv_tcp_connect"

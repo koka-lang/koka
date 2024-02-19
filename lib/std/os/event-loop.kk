@@ -6,72 +6,88 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-module std/os/uv
+module std/os/event-loop
 
 import std/num/int32
 
 extern import
   c { conan="libuv[>=1.47.0]"; vcpkg="libuv"; library="uv" }
+// TODO: wasm {}
 
 extern import
-  c file "uv-inline"
+  c file "event-loop-inline"
 
 
-pub value struct uvHandle { internal: intptr_t }
-pub value struct uvShutdown { internal : intptr_t };
+pub value struct uv-handle { internal: intptr_t }
 
 // Handles a uv loop
 pub fun default-event-loop(action)
   if host() == "libc" then
-    run-loop(action)
+    handle-loop(action)
   else // TODO: Support event loop on other platforms
     action()
 
 val @initialize = init-uv-alloc()
 
 // Runs a UV loop
-fun run-loop(action)
-  init-uv()
+fun handle-loop(action)
+  init-loop()
   val res = action() 
-  run-uv-loop()
-  close-uv()
+  run-loop()
+  close-loop()
   res
 
 abstract extend type exception-info
-  pub con AsyncExn( status-code : uvStatusCode )
+  pub con AsyncExn( status-code : uv-status-code )
 
-extern run-uv-loop(): io-event ()
+extern run-loop(): io-event ()
   c "kk_uv_loop_run"
+  wasm "kk_emscripten_loop_run"
+  js inline ""
+  cs inline ""
 
-extern init-uv(): io-event ()
+extern init-loop(): io-event ()
   c "kk_uv_loop_init"
+  wasm inline "kk_Unit"
+  js inline ""
+  cs inline ""
 
 // initializes only the allocators (not an event loop)
 // needed for some file operations which alloc - kk_uv_fs_mkdtemp, kk_uv_fs_mkstemp
 pub extern init-uv-alloc(): ()
   c "kk_uv_alloc_init"
-  cs ""
-  js ""
+  wasm inline "kk_Unit"
+  cs inline ""
+  js inline ""
 
-extern close-uv(): io-event ()
+extern close-loop(): io-event ()
   c "kk_uv_loop_close"
+  wasm inline "kk_Unit"
+  cs inline ""
+  js inline ""
 
-pub extern int/status-code(code: int32): uvStatusCode
+pub extern int/status-code(code: int32): uv-status-code
   c "kk_uv_status_to_status_code"
+  wasm inline "kk_std_os_event_dash_loop_UV__OK"
+  cs inline ""
+  js inline ""
 
-pub extern close(hnd: uvHandle, callback: () -> io-event ()): io-event ()
+pub extern close(hnd: uv-handle, callback: () -> io-event ()): io-event ()
   c "kk_uv_close"
+  wasm inline "kk_Unit"
+  cs inline ""
+  js inline ""
 
-pub inline fun result/untry(code: uvStatusCode, a: a): exn a
+pub inline fun result/untry(code: uv-status-code, a: a): exn a
   if code.is-uv_OK then a 
   else throw-exn(Exception(code.message, AsyncExn(code))) // TODO: Errno refactoring
 
-pub inline fun unit/untry(code: uvStatusCode): exn ()
+pub inline fun unit/untry(code: uv-status-code): exn ()
   if code.is-uv_OK then ()
   else throw-exn(Exception(code.message, AsyncExn(code)))
 
 
-pub type uvStatusCode
+pub type uv-status-code
   UV_OK
   UV_E2BIG
   UV_EACCES
@@ -155,7 +171,7 @@ pub type uvStatusCode
   UV_ESOCKTNOSUPPORT
   UV_EUNATCH
 
-pub fun message(code: uvStatusCode): string
+pub fun message(code: uv-status-code): string
   match code
     UV_OK -> "no error"
     UV_E2BIG -> "argument list too long"

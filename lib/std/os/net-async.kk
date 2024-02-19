@@ -12,13 +12,13 @@ module std/os/net-async
 pub import std/async
 import std/os/net
 
-pub fun tcp(): io-eventx uvTcp
+pub fun tcp(): io-eventx uv-tcp
   tcp-init().untry
 
-pub fun bind(tcp: uvTcp, addr: string, port: int): asyncx ()
-  net/bind(tcp, SockAddr(AF_INET, addr, Just(port.int32)), 0.int32).untry
+pub fun bind(tcp: uv-tcp, addr: string, port: int): asyncx ()
+  net/bind(tcp, Sock-addr(AF_INET, addr, Just(port.int32)), 0.int32).untry
 
-pub fun listen(tcp: uvTcp): <async,io-noexn> channel<error<uvStream>>
+pub fun listen(tcp: uv-tcp): <async,io-noexn> channel<error<uv-stream>>
   val ch = channel()
   await-to-channel(
     fn(cb)
@@ -40,7 +40,7 @@ pub fun listen(tcp: uvTcp): <async,io-noexn> channel<error<uvStream>>
     fn(e) e
   )
 
-pub fun write(stream: uvStream, bts: bytes): asyncx ()
+pub fun write(stream: uv-stream, bts: bytes): asyncx ()
   await fn(cb)
     stream.write([bts], fn(err)
       match err
@@ -49,7 +49,7 @@ pub fun write(stream: uvStream, bts: bytes): asyncx ()
     )
     Nothing
 
-pub fun read(stream: uvStream): asyncx bytes
+pub fun read(stream: uv-stream): asyncx bytes
   await fn(cb)
     stream.read-start(fn(bts)
       cb(Ok(bts))
@@ -59,7 +59,7 @@ pub fun read(stream: uvStream): asyncx bytes
       ()
     })
 
-pub fun addr/connect(tcp: uvTcp, address: sockAddr): asyncx uvStream
+pub fun addr/connect(tcp: uv-tcp, address: sock-addr): asyncx uv-stream
   await fn(cb)
     tcp.connect(address) fn(err)
       match err
@@ -67,15 +67,15 @@ pub fun addr/connect(tcp: uvTcp, address: sockAddr): asyncx uvStream
         _ -> cb(Error(Exception(err.message, AsyncExn(err))))
     Nothing
 
-pub fun connect(tcp: uvTcp, address: string, port: int=80): asyncx uvStream
+pub fun connect(tcp: uv-tcp, address: string, port: int=80): asyncx uv-stream
   await fn(cb)
-    tcp.connect(SockAddr(AF_INET, address, Just(port.int32))) fn(err)
+    tcp.connect(Sock-addr(AF_INET, address, Just(port.int32))) fn(err)
       match err
         UV_OK -> cb(Ok(tcp.stream))
         _ -> cb(Error(Exception(err.message, AsyncExn(err))))
     Nothing
 
-pub fun stream/shutdown(stream: uvStream): asyncx ()
+pub fun stream/shutdown(stream: uv-stream): asyncx ()
   await fn(cb)
     stream.shutdown(fn(err)
       match err
@@ -86,7 +86,7 @@ pub fun stream/shutdown(stream: uvStream): asyncx ()
   stream.tcp.shutdown()
 
 // Closes the tcp handle
-pub fun tcp/shutdown(tcp: uvTcp): asyncx ()  
+pub fun tcp/shutdown(tcp: uv-tcp): asyncx ()  
   await fn(cb)
     tcp.uv-handle.close fn()
       cb(Ok(()))

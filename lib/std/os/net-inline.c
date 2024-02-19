@@ -1,7 +1,7 @@
 // #include "std_os_net.h"
-#include "std_os_uv.h"
+#include "std_os_event_dash_loop.h"
 
-static struct sockaddr* to_sockaddr(kk_std_os_net__sockAddr addr, kk_context_t* _ctx){
+static struct sockaddr* to_sockaddr(kk_std_os_net__sock_addr addr, kk_context_t* _ctx){
   int p;
   if (kk_std_core_types__is_Just(addr.port, _ctx)){
     p = (int)kk_int32_unbox(addr.port._cons.Just.value, KK_BORROWED, _ctx);
@@ -32,8 +32,8 @@ static struct sockaddr* to_sockaddr(kk_std_os_net__sockAddr addr, kk_context_t* 
   }
 }
 
-static kk_std_os_net__sockAddr to_kk_sockaddr(struct sockaddr* addr, kk_context_t* _ctx){
-  enum kk_std_os_net__netFamily_e family = kk_std_os_net_AF__ANY;
+static kk_std_os_net__sock_addr to_kk_sockaddr(struct sockaddr* addr, kk_context_t* _ctx){
+  enum kk_std_os_net__net_family_e family = kk_std_os_net_AF__ANY;
   
   kk_std_core_types__maybe portMaybe;
   if (addr->sa_family == AF_INET){
@@ -49,7 +49,7 @@ static kk_std_os_net__sockAddr to_kk_sockaddr(struct sockaddr* addr, kk_context_
   inet_ntop(addr->sa_family, &addr->sa_data[2], ip, sizeof(ip));
 
   kk_string_t ipStr = kk_string_alloc_from_qutf8(ip, _ctx);
-  return kk_std_os_net__new_SockAddr(family, ipStr, portMaybe, _ctx);
+  return kk_std_os_net__new_Sock_addr(family, ipStr, portMaybe, _ctx);
 }
 
 static void kk_addrinfo_cb(uv_getaddrinfo_t* req, int status, struct addrinfo* res){
@@ -66,13 +66,13 @@ static void kk_addrinfo_cb(uv_getaddrinfo_t* req, int status, struct addrinfo* r
 
   kk_std_core_types__list list = kk_std_core_types__new_Nil(_ctx);
   for (struct addrinfo* p = res; p != NULL; p = p->ai_next) {
-    enum kk_std_os_net__netFamily_e family = kk_std_os_net_AF__ANY;
+    enum kk_std_os_net__net_family_e family = kk_std_os_net_AF__ANY;
     if (p->ai_family == AF_INET){
       family = kk_std_os_net_AF__INET;
     } else if (p->ai_family == AF_INET6){
       family = kk_std_os_net_AF__INET6;
     }
-    enum kk_std_os_net__sockType_e sockType = kk_std_os_net_SOCK__ANY;
+    enum kk_std_os_net__sock_type_e sockType = kk_std_os_net_SOCK__ANY;
     if (p->ai_socktype == SOCK_DGRAM){
       sockType = kk_std_os_net_SOCK__DGRAM;
     } else if (p->ai_socktype == SOCK_STREAM){
@@ -84,9 +84,9 @@ static void kk_addrinfo_cb(uv_getaddrinfo_t* req, int status, struct addrinfo* r
       canonName = kk_string_alloc_from_qutf8(p->ai_canonname, _ctx);
     }
 
-    kk_std_os_net__sockAddr addr = to_kk_sockaddr(p->ai_addr, _ctx);
-    kk_std_os_net__addrInfo addrInfo = kk_std_os_net__new_AddrInfo(kk_reuse_null, 0, p->ai_flags, family, sockType, p->ai_protocol, addr, canonName, _ctx);
-    kk_std_core_types__list head = kk_std_core_types__new_Cons(kk_reuse_null, 0, kk_std_os_net__addrInfo_box(addrInfo, _ctx), list, _ctx);
+    kk_std_os_net__sock_addr addr = to_kk_sockaddr(p->ai_addr, _ctx);
+    kk_std_os_net__addr_info addrInfo = kk_std_os_net__new_Addr_info(kk_reuse_null, 0, p->ai_flags, family, sockType, p->ai_protocol, addr, canonName, _ctx);
+    kk_std_core_types__list head = kk_std_core_types__new_Cons(kk_reuse_null, 0, kk_std_os_net__addr_info_box(addrInfo, _ctx), list, _ctx);
     list = head;
   }
   uv_freeaddrinfo(res);
@@ -112,8 +112,8 @@ static kk_std_core_exn__error kk_uv_tcp_init(kk_context_t* _ctx) {
   int status = uv_tcp_init(uvloop(), tcp);
 
   if (status == 0){
-    kk_std_os_net__uvTcp handle = kk_std_os_net__new_UvTcp((kk_std_core_types__intptr__t)tcp, _ctx);
-    return kk_std_core_exn__new_Ok(kk_std_os_net__uvTcp_box(handle, _ctx), _ctx);
+    kk_std_os_net__uv_tcp handle = kk_std_os_net__new_Uv_tcp((kk_std_core_types__intptr__t)tcp, _ctx);
+    return kk_std_core_exn__new_Ok(kk_std_os_net__uv_tcp_box(handle, _ctx), _ctx);
   } else {
     kk_string_t msg = kk_string_alloc_from_qutf8(uv_strerror(status), _ctx);
     return kk_std_core_exn__new_Error( kk_std_core_exn__new_Exception(msg, kk_std_core_exn__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(status, _ctx), _ctx), _ctx), _ctx );
@@ -124,55 +124,55 @@ static kk_std_core_exn__error kk_uv_tcp_init_ex(int32_t flags, kk_context_t* _ct
   uv_tcp_t* tcp = kk_malloc(sizeof(uv_tcp_t), _ctx);
   int status = uv_tcp_init_ex(uvloop(), tcp, (unsigned int)flags);
   if (status == 0){
-    kk_std_os_net__uvTcp handle = kk_std_os_net__new_UvTcp((kk_std_core_types__intptr__t)tcp, _ctx);
-    return kk_std_core_exn__new_Ok(kk_std_os_net__uvTcp_box(handle, _ctx), _ctx);
+    kk_std_os_net__uv_tcp handle = kk_std_os_net__new_Uv_tcp((kk_std_core_types__intptr__t)tcp, _ctx);
+    return kk_std_core_exn__new_Ok(kk_std_os_net__uv_tcp_box(handle, _ctx), _ctx);
   } else {
     kk_string_t msg = kk_string_alloc_from_qutf8(uv_strerror(status), _ctx);
     return kk_std_core_exn__new_Error( kk_std_core_exn__new_Exception(msg, kk_std_core_exn__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(status, _ctx), _ctx), _ctx), _ctx );
   }
 }
 
-static kk_std_os_uv__uvStatusCode kk_uv_tcp_open(kk_std_os_net__uvTcp handle, kk_std_os_net__uvOsSock sock, kk_context_t* _ctx) {
-  return kk_std_os_uv_int_fs_status_code(uv_tcp_open((uv_tcp_t*)handle.internal, *((uv_os_sock_t*)sock.internal)), _ctx);
+static kk_std_os_event_dash_loop__uv_status_code kk_uv_tcp_open(kk_std_os_net__uv_tcp handle, kk_std_os_net__uv_os_sock sock, kk_context_t* _ctx) {
+  return kk_std_os_event_dash_loop_int_fs_status_code(uv_tcp_open((uv_tcp_t*)handle.internal, *((uv_os_sock_t*)sock.internal)), _ctx);
 }
 
-static kk_std_os_uv__uvStatusCode kk_uv_tcp_nodelay(kk_std_os_net__uvTcp handle, bool enable, kk_context_t* _ctx) {
-  return kk_std_os_uv_int_fs_status_code(uv_tcp_nodelay((uv_tcp_t*)handle.internal, enable), _ctx);
+static kk_std_os_event_dash_loop__uv_status_code kk_uv_tcp_nodelay(kk_std_os_net__uv_tcp handle, bool enable, kk_context_t* _ctx) {
+  return kk_std_os_event_dash_loop_int_fs_status_code(uv_tcp_nodelay((uv_tcp_t*)handle.internal, enable), _ctx);
 }
 
-static kk_std_os_uv__uvStatusCode kk_uv_tcp_keepalive(kk_std_os_net__uvTcp handle, bool enable, uint32_t delay, kk_context_t* _ctx) {
-  return kk_std_os_uv_int_fs_status_code(uv_tcp_keepalive((uv_tcp_t*)handle.internal, enable, delay), _ctx);
+static kk_std_os_event_dash_loop__uv_status_code kk_uv_tcp_keepalive(kk_std_os_net__uv_tcp handle, bool enable, uint32_t delay, kk_context_t* _ctx) {
+  return kk_std_os_event_dash_loop_int_fs_status_code(uv_tcp_keepalive((uv_tcp_t*)handle.internal, enable, delay), _ctx);
 }
 
-static kk_std_os_uv__uvStatusCode kk_uv_tcp_simultaneous_accepts(kk_std_os_net__uvTcp handle, bool enable, kk_context_t* _ctx) {
-  return kk_std_os_uv_int_fs_status_code(uv_tcp_simultaneous_accepts((uv_tcp_t*)handle.internal, enable), _ctx);
+static kk_std_os_event_dash_loop__uv_status_code kk_uv_tcp_simultaneous_accepts(kk_std_os_net__uv_tcp handle, bool enable, kk_context_t* _ctx) {
+  return kk_std_os_event_dash_loop_int_fs_status_code(uv_tcp_simultaneous_accepts((uv_tcp_t*)handle.internal, enable), _ctx);
 }
 
-static kk_std_os_uv__uvStatusCode kk_uv_tcp_bind(kk_std_os_net__uvTcp handle, kk_std_os_net__sockAddr addr, uint32_t flags, kk_context_t* _ctx) {
+static kk_std_os_event_dash_loop__uv_status_code kk_uv_tcp_bind(kk_std_os_net__uv_tcp handle, kk_std_os_net__sock_addr addr, uint32_t flags, kk_context_t* _ctx) {
   struct sockaddr* sockAddr = to_sockaddr(addr, _ctx);
-  return kk_std_os_uv_int_fs_status_code(uv_tcp_bind((uv_tcp_t*)handle.internal, sockAddr, flags), _ctx);
+  return kk_std_os_event_dash_loop_int_fs_status_code(uv_tcp_bind((uv_tcp_t*)handle.internal, sockAddr, flags), _ctx);
 }
 
-static kk_std_core_exn__error kk_uv_tcp_getsockname(kk_std_os_net__uvTcp handle, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_tcp_getsockname(kk_std_os_net__uv_tcp handle, kk_context_t* _ctx) {
   struct sockaddr_storage sockAddr;
   int len;
   int status = uv_tcp_getsockname((uv_tcp_t*)handle.internal, (struct sockaddr*)&sockAddr, &len);
   if (status == 0) {
-    kk_std_os_net__sockAddr addr = to_kk_sockaddr((struct sockaddr*)&sockAddr, _ctx);
-    return kk_std_core_exn__new_Ok(kk_std_os_net__sockAddr_box(addr, _ctx), _ctx);
+    kk_std_os_net__sock_addr addr = to_kk_sockaddr((struct sockaddr*)&sockAddr, _ctx);
+    return kk_std_core_exn__new_Ok(kk_std_os_net__sock_addr_box(addr, _ctx), _ctx);
   } else {
     kk_string_t msg = kk_string_alloc_from_qutf8(uv_strerror(status), _ctx);
     return kk_std_core_exn__new_Error( kk_std_core_exn__new_Exception(msg, kk_std_core_exn__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(status, _ctx), _ctx), _ctx), _ctx );
   }
 }
 
-static kk_std_core_exn__error kk_uv_tcp_getpeername(kk_std_os_net__uvTcp handle, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_tcp_getpeername(kk_std_os_net__uv_tcp handle, kk_context_t* _ctx) {
   struct sockaddr_storage sockAddr;
   int len;
   int status = uv_tcp_getpeername((uv_tcp_t*)handle.internal, (struct sockaddr*)&sockAddr, &len);
   if (status == 0) {
-    kk_std_os_net__sockAddr addr = to_kk_sockaddr((struct sockaddr*)&sockAddr, _ctx);
-    return kk_std_core_exn__new_Ok(kk_std_os_net__sockAddr_box(addr, _ctx), _ctx);
+    kk_std_os_net__sock_addr addr = to_kk_sockaddr((struct sockaddr*)&sockAddr, _ctx);
+    return kk_std_core_exn__new_Ok(kk_std_os_net__sock_addr_box(addr, _ctx), _ctx);
   } else {
     kk_string_t msg = kk_string_alloc_from_qutf8(uv_strerror(status), _ctx);
     return kk_std_core_exn__new_Error( kk_std_core_exn__new_Exception(msg, kk_std_core_exn__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(status, _ctx), _ctx), _ctx), _ctx );
@@ -183,16 +183,16 @@ static void kk_uv_tcp_connect_callback(uv_connect_t* req, int status) {
   kk_context_t* _ctx = kk_get_context();
   kk_uv_callback_t* wrapper = (kk_uv_callback_t*)req->data;
   kk_function_t callback = wrapper->callback;
-  kk_function_call(void, (kk_function_t, kk_std_os_uv__uvStatusCode, kk_context_t*), callback, (callback, kk_std_os_uv_int_fs_status_code(status, _ctx), _ctx), _ctx);  
+  kk_function_call(void, (kk_function_t, kk_std_os_event_dash_loop__uv_status_code, kk_context_t*), callback, (callback, kk_std_os_event_dash_loop_int_fs_status_code(status, _ctx), _ctx), _ctx);  
   kk_free(req, _ctx);
   kk_free(wrapper, _ctx);
 }
 
-static kk_std_os_uv__uvStatusCode kk_uv_tcp_connect(kk_std_os_net__uvTcp handle, kk_std_os_net__sockAddr addr, kk_function_t callback, kk_context_t* _ctx) {
+static kk_std_os_event_dash_loop__uv_status_code kk_uv_tcp_connect(kk_std_os_net__uv_tcp handle, kk_std_os_net__sock_addr addr, kk_function_t callback, kk_context_t* _ctx) {
   struct sockaddr* sockAddr = to_sockaddr(addr, _ctx);
   uv_connect_t* req = kk_malloc(sizeof(uv_connect_t), _ctx);
   kk_uv_callback_t* wrapper = kk_malloc(sizeof(kk_uv_callback_t), _ctx);
   req->data = wrapper;
   wrapper->callback = callback;
-  return kk_std_os_uv_int_fs_status_code(uv_tcp_connect(req, (uv_tcp_t*)handle.internal, sockAddr, kk_uv_tcp_connect_callback), _ctx);
+  return kk_std_os_event_dash_loop_int_fs_status_code(uv_tcp_connect(req, (uv_tcp_t*)handle.internal, sockAddr, kk_uv_tcp_connect_callback), _ctx);
 }
