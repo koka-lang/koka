@@ -25,11 +25,13 @@ static double kk_timer_dresolution(kk_context_t* _ctx) {
 #if __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE void wasm_timer_callback(kk_wasm_timer_t* timer_info){
   kk_context_t* _ctx = kk_get_context();
-  kk_function_t callback = kk_function_from_ptr(timer_info->callback, _ctx);
-  kk_function_dup(callback, _ctx);
-  kk_function_call(kk_unit_t, (kk_function_t, kk_context_t*), callback, (callback, _ctx), _ctx);
+  kk_function_t callback = timer_info->callback;
   if (timer_info->repeat_ms == 0) {
+    kk_function_call(kk_unit_t, (kk_function_t, kk_context_t*), callback, (callback, _ctx), _ctx);
     kk_free(timer_info, _ctx);
+  } else {
+    kk_function_dup(callback, _ctx);
+    kk_function_call(kk_unit_t, (kk_function_t, kk_context_t*), callback, (callback, _ctx), _ctx);
   }
 }
 
