@@ -48,6 +48,8 @@ extern import
 // outstanding asynchronous requests.
 pub alias asyncx = <async,io,event-loop>
 
+pub alias async-exn = <async,exn,event-loop>
+
 pub alias io-eventx = <io,event-loop>
 // ----------------------------------------------------------------------------
 // Promises
@@ -206,7 +208,7 @@ pub fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> may
 
 // Execute `a` and `b` interleaved. As soon as one of them finishes,
 // `cancel` the other one and return the result of the first.
-pub fun firstof( a : () -> <async,exn|e> a, b : () -> <async,exn|e> a  ) : <async,exn|e> a  
+pub fun firstof( a : () -> <async-exn|e> a, b : () -> <async-exn|e> a  ) : <async-exn|e> a  
   cancelable 
     val (ra,rb) = interleavedx { val x = mask behind<exn>{ a() }; cancel(); x }                              
                                { val x = mask behind<exn>{ b() }; cancel(); x }   
@@ -263,13 +265,13 @@ extern clear-timeoutx( tid : any) : io-event ()
 // ----------------------------------------------------------------------------
 
 // Interleave two actions around their asynchronous operations.
-pub fun interleaved( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async,exn|e> (a,b)
+pub fun two/interleaved( action1 : () -> <async-exn|e> a, action2 : () -> <async-exn|e> b ) : <async-exn|e> (a,b)
   val (ra,rb) = interleavedx( {mask behind<exn>(action1)}, {mask behind<exn>(action2)} )
   [ra.maybe-exn,rb.maybe-exn].ordered_throw
   (ra.untry,rb.untry)
 
 // Interleave a list of actions around their asynchronous operations.
-pub fun list/interleaved( xs : list<() -> <async,exn|e> a> ) : <async,exn|e> list<a>
+pub fun list/interleaved( xs : list<() -> <async-exn|e> a> ) : <async-exn|e> list<a>
   val ress = xs.map( fn(f) { return { mask behind<exn>(f) } } ).interleavedx
   //ress.map(maybe).ordered_throw
   ress.map(untry)
@@ -295,7 +297,7 @@ fun ordered_throw( xs : list<maybe<exception>> ) : exn ()
 
 // Interleave two actions around their asynchronous operations and explicitly returning either
 // their result or their exception.
-pub fun interleavedx( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async|e> (error<a>,error<b>)
+pub fun interleavedx( action1 : () -> <async-exn|e> a, action2 : () -> <async-exn|e> b ) : <async,event-loop|e> (error<a>,error<b>)
   fun act1() Left(action1())  
   fun act2() Right(action2())  
   match interleavedx([act1,act2])  
@@ -343,13 +345,13 @@ fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list<(int
 
 // Interleave a list actions around their asynchronous operations and explicitly returning either
 // either their result or their exception.
-pub fun list/interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<error<a>>
+pub fun list/interleavedx( xs : list<() -> <async-exn|e> a> ) : <async,event-loop|e> list<error<a>>
   val n = xs.length
   if n==0 then []
   elif n==1 then xs.map(unsafe-try-all)
   else interleavedn(n,xs)
 
-fun interleavedn( n : int, xs : list<() -> <async,exn|e> a> ) : <async|e> list<error<a>> 
+fun interleavedn( n : int, xs : list<() -> <async-exn|e> a> ) : <async,event-loop|e> list<error<a>> 
   unsafe-no-ndet-div  
     var cr : some<a> (int,list<(int,error<a>)>) := (n,[])
     with handler 
@@ -381,7 +383,7 @@ fun error/is-cancel( t : error<a> ) : bool
     Error(exn) -> exn.is-cancel
     _ -> False
 
-fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strands<a>|e> ()
+fun interleaved-div( xs : list<() -> <async-exn|e> a> ) : <async,event-loop,ndet,div,strands<a>|e> ()
   val strands =  xs.map-indexed fn(i,action)
       return fn()
         val res = unsafe-try-all(inject-effects(action))

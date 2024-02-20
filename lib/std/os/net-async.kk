@@ -59,6 +59,20 @@ pub fun read(stream: uv-stream): asyncx bytes
       ()
     })
 
+pub fun stream(stream: uv-stream): asyncx channel<bytes>
+  val ch = channel()
+  await-to-channel(fn(cb) {
+      stream.read-start(fn(bts)
+        cb(Ok(bts), False)
+      )
+      Just({
+        stream.read-stop()
+        ()
+      })
+    },
+    ch,
+    fn(e) e.default("".bytes))
+
 pub fun addr/connect(tcp: uv-tcp, address: sock-addr): asyncx uv-stream
   await fn(cb)
     tcp.connect(address) fn(err)
