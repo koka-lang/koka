@@ -108,8 +108,6 @@ void kk_uv_timer_unit_callback(uv_timer_t* uv_timer) {
   kk_context_t* _ctx = kk_get_context();
   kk_function_t callback = kk_function_from_ptr(uv_timer->data, _ctx);
   if (uv_timer_get_repeat(uv_timer) == 0) {
-    // Don't dup?, this is the last call to the function
-    // kk_function_dup(callback, _ctx);
     kk_function_call(void, (kk_function_t, kk_context_t*), callback, (callback, _ctx), _ctx);
   } else {
     kk_function_dup(callback, _ctx);
