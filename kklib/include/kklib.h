@@ -445,9 +445,6 @@ typedef struct kk_context_s {
 kk_decl_export kk_context_t* kk_get_context(void);
 kk_decl_export void          kk_free_context(void);
 
-
-kk_decl_export void          kk_debugger_break(kk_context_t* ctx);
-
 // The current context is passed as a _ctx parameter in the generated code
 #define kk_context()  _ctx
 
