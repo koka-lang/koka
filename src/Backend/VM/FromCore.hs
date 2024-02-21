@@ -173,12 +173,14 @@ genTypeDef (Data info isExtend)
       = def (var name tp) (debugWrap "genConstr" $
              obj [ "op" .= str "Abs", "params" .= list args
                  , "body" .= obj [ "op" .= str "Construct"
-                                 , "type_tag" .= (str $ show $ conInfoType c)
+                                 , "type_tag" .= (getConTypeTag c)
                                  , "tag" .= name
                                  , "args" .= list args
                                  ]
                  ])
 
+getConTypeTag info = case conInfoType info of
+  TFun _ _ r -> str $ show $ r
 getConTag modName coninfo repr
   = case repr of
       ConOpen{} -> -- ppLit (LitString (show (openConTag (conInfoName coninfo))))
@@ -418,7 +420,7 @@ genMatch scrutinees branches
 --                        -> [ifNull scrutinee] -- <+> ppName (getName tn)]
                      _ -> do fieldNames  <- (mapM (\(n,t) -> do x <- genVarName (asString $ ppName n)
                                                                 return $ var x (transformType t)) (conInfoParams info))
-                             let conTest = ifCon scrutinee (str $ show $ conInfoType info) (str $ show $ conInfoName info) fieldNames
+                             let conTest = ifCon scrutinee (getConTypeTag info) (str $ show $ conInfoName info) fieldNames
                              (fieldTests, subfieldSubsts)  <- (bimap concat concat) . unzip <$> mapM
                                              (\(field,fieldName) -> genTest modName (debugWrap ("genTest: normal: " ++ show field ++ " -> " ++ show fieldName) fieldName, field) )
                                              ( zip fields fieldNames )
