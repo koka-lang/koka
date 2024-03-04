@@ -130,6 +130,7 @@ Unix. The following programs are required to build Koka:
 * Optional: [nodejs](http://nodejs.org) if using the Javascript backend.
 * Optional: [emscripten] and [wasmtime] if using the Wasm backend.
 * Optional: On Windows it is recommended to install the [clang][winclang] C compiler (use `LLVM-<version>-win64.exe`), or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
+* On Windows, first set the console codepage to UTF8 to avoid build errors with stack: `$ chcp 65001`.
 
 Now clone the repository and build the compiler as:
 
