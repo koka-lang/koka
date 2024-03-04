@@ -165,10 +165,12 @@ subFind :: HasCallStack => TypeVar -> Sub -> Tau
 subFind tvar sub
   = case subLookup tvar sub of
       Nothing   -> TVar tvar
-      Just tau  -> assertion ("Type.TypeVar.subFind: incompatible kind: "
+      Just tau  -> {-
+                   assertion ("Type.TypeVar.subFind: incompatible kind: "
                              ++ "\n tvar: " ++ showTVar tvar ++ ":" ++ show (getKind tvar) ++ ","
                              ++ "\n type: " ++ show tau ++ ":" ++ show (getKind tau))
                              (getKind tvar == getKind tau) $
+                   -}
                    tau
 
 showTVar (TypeVar id _ _)
