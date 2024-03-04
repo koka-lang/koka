@@ -1,6 +1,13 @@
 ~ begin news
 News:
 
+* 2024-03-14: Xavier Leroy is teaching a fantastic
+  [lecture series](https://www.college-de-france.fr/fr/agenda/cours/structures-de-controle-de-goto-aux-effets-algebriques) on
+  control structures and algebraic effects at the Coll&egrave;ge de France with many invited talks available online.
+  March 14 will be a talk on the design and compilation of efficient effect handlers in Koka.
+
+* 2024-03-04: Koka v3.1.1 released with a language server crash fix.
+
 * 2024-02-14: Koka v3.1.0 released with a concurrent build system
   and improved language service over the stdio protocol. Redesign of named effect
   typing to match the formal system more closely. See `samples/handlers/named` for examples.

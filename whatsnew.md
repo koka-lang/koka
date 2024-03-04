@@ -10,9 +10,14 @@ generating direct C code without needing a runtime system. To learn more:
   and running the `Koka: Open samples` command.  
   (when you start typing the command will surface to the top).
 
-### v3.1.1, 2024-03-03
+### v3.1.1, 2024-03-04
 
 - Fix crash in language server; fix build on older gcc versions.
+
+- Xavier Leroy is currently teaching a fantastic
+  [lecture series](https://www.college-de-france.fr/fr/agenda/cours/structures-de-controle-de-goto-aux-effets-algebriques) on
+  control structures and algebraic effects at the Coll&egrave;ge de France with many invited talks available online.
+  March 14 there will be a talk on the design and compilation of efficient effect handlers in Koka.
 
 ### v3.1.0, 2024-02-14
 
