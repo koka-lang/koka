@@ -58,6 +58,7 @@ import LanguageServer.Handler.Folding (foldingHandler)
 import LanguageServer.Handler.TextDocument (didChangeHandler, didCloseHandler, didOpenHandler, didSaveHandler)
 import LanguageServer.Handler.SignatureHelp (signatureHelpHandler)
 import LanguageServer.Monad
+import GHC.IO (catchAny)
 
 newtype ReactorInput = ReactorAction (IO ())
 
@@ -132,9 +133,13 @@ lspHandlers rin = mapHandlers goReq goNot handlers where
         cancelOrRes <- race (waitForCancel newId) $ do
             cancelled <- readTVarIO (cancelledRequests stVal)
             -- If the request is cancelled before we start we return a cancelled error
-            if newId `S.member` cancelled then runLSM (k $ Left $ ResponseError (J.InL J.LSPErrorCodes_RequestCancelled) (T.pack "") Nothing) state env
+            if newId `S.member` cancelled then do
+              
+              runLSM (k $ Left $ ResponseError (J.InL J.LSPErrorCodes_RequestCancelled) (T.pack "") Nothing) state env
             -- Otherwise we run the request
-            else runLSM (f msg k) state env
+            else 
+              catchAny (runLSM (f msg k) state env) $
+                (\err -> runLSM (k $ Left $ ResponseError (J.InL J.LSPErrorCodes_RequestFailed) (T.pack (show err)) Nothing) state env)
         liftIO $ atomically $ do -- After it finishes we remove it from the pending requests set and canceled set
           modifyTVar (pendingRequests stVal) $ \t -> S.delete newId t
           modifyTVar (cancelledRequests stVal) $ \t -> S.delete newId t
@@ -149,6 +154,9 @@ lspHandlers rin = mapHandlers goReq goNot handlers where
     state <- lift ask
     stVal <- liftIO $ readMVar state
     let mtd = msg ^. method
+    let runCatchErrors = 
+          catchAny (runLSM (f msg) state env)
+            (\err -> runLSM (emitNotification (\env -> text (show err))) state env)
     case mtd of
       SMethod_TextDocumentDidChange -> do
       -- If text document change command, and a new change comes in with a newer version for the same file, cancel the old one
@@ -160,7 +168,7 @@ lspHandlers rin = mapHandlers goReq goNot handlers where
           ReactorAction $ do
             -- When running the request we check if the version is the same as the latest version, if not we don't run the change handler
             versions <- readTVarIO (documentVersions stVal)
-            when (M.lookup normUri versions == Just _version) $ runLSM (f msg) state env
+            when (M.lookup normUri versions == Just _version) runCatchErrors
       _ ->
         liftIO $ atomically $ writeTChan rin $
-          ReactorAction (runLSM (f msg) state env)
+          ReactorAction runCatchErrors
