@@ -42,7 +42,7 @@ RUN stack update
 
 # Koka
 WORKDIR /artifact
-RUN git clone --recursive https://github.com/koka-lang/koka -b artifact-pldi24
+RUN git clone --recursive https://github.com/koka-lang/koka  -b artifact-pldi24
 WORKDIR /artifact/koka
 RUN stack build
 
