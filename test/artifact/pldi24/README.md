@@ -2,13 +2,16 @@
 
 # Getting Started
 
-Go to the artifact directory:
+We provide a docker image (based on Ubuntu 22.04, x64) to run the benchmarks:
 
-```
-# cd koka/test/artifact/pldi24
-```
+> docker pull daanx/pldi24-tree:1.0
+> docker run -it daanx/pldi24-tree:1.0
 
-We will shorten this directory to `test#` in the guide.
+We now see the docker prompt as:
+
+> root@xxx:/artifact/koka/test/artifact/pldi24#
+
+We will shorten this to `test#` in the guide.
 This directory also contains this `README.md`.
 
 From this prompt, we can run our benchmarks as:
@@ -22,8 +25,7 @@ test# ./bench.sh zip run
 
 using koka: /home/daan/dev/koka/.stack-work/install/x86_64-linux-tinfo6/88c40a7dc919e28f6f4ab737212a15c4528a6ca9dfecb6d1de4f487b4bed2f20/9.6.4/bin/koka
 
-clean compiler not found: clm
-expanded benches:  zip/zip-td.kk zip/zip-td.c zip/zip-td-p.c zip/zip-td-mi.c zip/zip-bu.kk zip/zip-bu.c zip/zip-bu-p.c zip/zip-bu-mi.c zip/zip_bu.icl zip/zip-bu.ml zip/zip-bu.hs
+expanded benches:  zip/zip-td.kk zip/zip-td.c zip/zip-td-p.c zip/zip-bu.kk zip/zip-bu.c zip/zip-bu-p.c zip/zip-bu.ml zip/zip-bu.hs
 
 run kk__zip-td__100000, iter 1, cmd: .koka/v3.1.2-bench/clang-release/zip-td
 sum: 4999950000, height: 42/7, top: 13652, final access: 2015542571
@@ -37,29 +39,25 @@ elapsed: 1.11s, user: 1.10s, sys: 0.00s, rss: 6260kb
 
 #    benchmark  variant  param   elapsed  relative  stddev     rss
 ...
-kk   zip-td     -        100000  1.19     1.000     0          8940
-c    zip-td     -        100000  1.11     .932      0          6260
-ml   zip-td     -        100000  NA       0         0          0
-hs   zip-td     -        100000  NA       0         0          0
-cmi  zip-td     -        100000  0.97     .815      0          5948
 ##
-kk   zip-bu     -        100000  1.14     1.000     0          8872
-c    zip-bu     -        100000  1.12     .982      0          6308
-ml   zip-bu     -        100000  4.52     3.964     0          13600
-hs   zip-bu     -        100000  4.15     3.640     0          30428
-cmi  zip-bu     -        100000  1.07     .938      0          8112
+kk  zip-td     -        100000  0.99     1.000     .00774597  9032
+c   zip-td     -        100000  1.16     1.171     .0181410   6348
+cp  zip-td     -        100000  1.00     1.010     .0162857   8116
+ml  zip-td     -        100000  NA       0         0          0
+hs  zip-td     -        100000  NA       0         0          0
+##
+kk  zip-bu     -        100000  1.00     1.000     .0483735   8924
+c   zip-bu     -        100000  1.12     1.120     .011       6360
+cp  zip-bu     -        100000  1.06     1.060     .0361023   7984
+ml  zip-bu     -        100000  4.50     4.500     .2148718   13456
+hs  zip-bu     -        100000  4.74     4.740     .3020237   26700
 ...
 ```
 
 This runs the `zip` benchmark on the top-down (`td`) and bottom-up (`bu`)
-variants. There is also a recursive `rec` variant for other benchmarks.
-Eventually the bench provides a summary in absolute runtimes (and rss), 
-and normalized runtimes relative to the Koka fip variant.
-
-Note that the precise results depend quite a bit on the host system, but the 
-relative performance should be similar (except when running in emulation).
-The above results are on Ubuntu 22.0.4 with 16-core AMD 7950X @ 4.5Ghz.
-
+variants. Eventually the bench provides a summary in absolute runtimes (and rss), 
+and normalized runtimes relative to the Koka variant (`kk`).
+The above results are on Ubuntu 22.0.4 with 16-core AMD 7950X @4.5Ghz.
 
 # Step-by-step Guide
 
@@ -76,74 +74,67 @@ test# ./bench.sh allb run -n=10
 to run all benchmarks 10 times for each available language, and use the median
 of those runs (and calculate the standard error interval). 
 
-The full expected results on an AMD7950X are at the bottom of this readme.
-These should correspond closely to the results in Section 7 of the paper (Figure 3)
-and support the conclusions drawn there. Note that the results can differ quite
-bit among different systems, but if not running in emulation, the relative times 
-should be quite similar. 
+The benchmark results should correspond closely to the results in Section 7 of the 
+paper, in particular Figure 3, and support the conclusions drawn there. Note that 
+the results can differ quite bit among different systems, but if not running in 
+emulation, the relative times should be quite similar. 
+
+To support the conclusions of the paper, "performance on-par with the best C algorithms",
+the Koka variant should generally be within 25% of the C variant (`c`) and
+the "equalized C" (`cp`) variant (see Section 7 of the paper for an explanation).
+
+For reference, we included our benchmark results on Ubuntu22 on an AMD7950X @4.5Ghz
+in `bench-res-ubuntu-x64.txt` (outside of Docker). 
+We also included benchmark results on an Apple M1 in `bench-res-macos-M1.txt` (outside Docker).
+A difference we found with respect to the benchmarks on x64, is that on macOS M1 
+for `zip-td` we are ~15% slower than `c` and `cp`. On macOS the allocator is better
+too and `c` and `cp` are generally very close in performance.
 
 
 ## Benchmark Descriptions
 
-The benchmarks are described in detail in the paper.
-TODO: describe each benchmark and system
+The benchmarks are described in detail in the paper (Section 7).
+We use the following systems:
 
-- `mtr-(rec|td|bu)`
-- `splay-(rec|td|bu)`
-- `zip-(td|bu)`
-- `rbtree-(rec|td|bu)`
+- `c`: The C programming language, compiled using clang 14.0.0-1ubuntu1.1
+    with the default allocator.
+- `cp`: "equalized C", compiled using clang 14.0.0-1ubuntu1.1
+    with the mimalloc allocator and an extra header field on the `td` variant.
+- `hs`: The Haskell programming language, compiled using GHC 8.8.4
+- `ml`: The OCaml programming language, version 4.13.1
+- `kk`: The Koka programming language, version 3.1.2
 
-- `c`
-- `cmi`
-- `hs`
-- `ml`
-- `kk`
+We benchmark the following variants:
+
+- `bu`: The bottom-up algorithm. We use parent pointers for `c` and `cmi`
+    and zippers for the functional algorithms.
+- `td`: The imperative top-down algorithm (not implemented in Haskell and OCaml)
+    using constructor contexts in Koka.
+
+We benchmark the following algorithms:
+
+- `mtr-(td|bu)`: Move-to-root trees (sources are in the `mtr` directory)
+- `splay-(td|bu)`: Splay trees (sources are in the `splay` directory)
+- `zip-(td|bu)`: Zip trees (sources are in the `zip` directory)
+- `rbtree-(td|bu)`: Red-black trees (sources are in the `rbtree` directory)
+
+Each benchmark performs 10 million insertions starting with an empty tree,
+using a pseudo random sequence of keys between 0 and 100 000.
+We use the same pseudo random number generator (`sfc32`) for all benchmarks
+and the same seed (42,43) to ensure fairness.
+
+You can select to run particular benchmarks instead of all:
+```
+test# ./bench.sh mtr zip  run -n=5
+```
+would run the `mtr` and `zip` variants 5 times.
+
 
 # Notes
 
 ## Installing from Scratch
 
-Prerequisites:
-
-```
-$ sudo apt install build-essential bc
-$ sudo apt install clang g++
-$ sudo apt install cmake
-$ sudo apt install ocaml
-```
-
-We need Ghc 9.4.8+: use `ghcup` to install it:
-
-```
-$ curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
-```
-
-Install mimalloc:
-
-```
-$ git clone https://github.com/microsoft/mimalloc -b v2.1.1
-$ cd mimalloc
-$ mkdir -p out/release
-$ cd out/release
-$ cmake ../..
-$ make
-$ sudo make install
-```
-
-Build koka:
-(paper benchmarks were with Koka v2.4.2 (or 2.4.3), use the tag `-b v2.4.2` on clone or checkout)
-
-```
-$ git clone --recursive https://github.com/koka-lang/koka -b artifact-pldi24
-$ cd koka
-$ stack build --fast
-```
-Benchmarking:
-
-```
-$ cd koka/test/artifact/pldi24
-$ ./bench.sh build allb           # build all benchmarks
-$ ./bench.sh run allb             # run all
-$ ./bench.sh run zip              # just the zip benchmarks
-$ ./bench.sh run allb -n=5        # all benchmarks avg over 5 runs
-```
+It is not too difficult to install directly on Linux or MacOS.
+See the `Dockerfile` for precise build instructions on Linux.
+Essentially one only needs to install `mimalloc`, `OCaml`, `GHC`, 
+and checkout and build the `artifact-pldi24` branch of Koka.

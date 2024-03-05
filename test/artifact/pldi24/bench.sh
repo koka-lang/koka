@@ -2,22 +2,22 @@
 #
 runparams="100000" # "1 10 100 1000 10000 100000 1000000"
 runparams_small="1 10 100 1000"
-benchmarks="mtr-rec mtr-td mtr-bu splay-rec splay-td splay-bu zip-td zip-bu rb-rec rb-td rb-bu"
+benchmarks="mtr-td mtr-bu splay-td splay-bu zip-td zip-bu rb-td rb-bu" # mtr-rec splay-rec rb-rec
 graphvariants="-"  # "td bu"
 languages="kk c cp ml hs" # cmi icl
 
 # note: order matters as it is made relative to the first
-benches_mtr_rec="mtr/mtr-rec.kk mtr/mtr_rec.icl mtr/mtr-rec.ml mtr/mtr-rec.hs"
+benches_mtr_rec="" # "mtr/mtr-rec.kk mtr/mtr_rec.icl mtr/mtr-rec.ml mtr/mtr-rec.hs"
 benches_mtr_td="mtr/mtr-td.kk mtr/mtr-td.c"
-benches_mtr_bu="mtr/mtr-bu.kk  mtr/mtr-bu.c mtr/mtr-bu-rev.c mtr/mtr_bu.icl mtr/mtr-bu.ml mtr/mtr-bu.hs"
-benches_splay_rec="splay/splay-rec.kk splay/splay_rec.icl splay/splay-rec.ml splay/splay-rec.hs"
+benches_mtr_bu="mtr/mtr-bu.kk  mtr/mtr-bu.c mtr/mtr-bu-rev.c mtr/mtr-bu.ml mtr/mtr-bu.hs" # mtr/mtr_bu.icl
+benches_splay_rec="" # "splay/splay-rec.kk splay/splay_rec.icl splay/splay-rec.ml splay/splay-rec.hs"
 benches_splay_td="splay/splay-td.kk splay/splay-td.c"
-benches_splay_bu="splay/splay-bu.kk splay/splay-bu.c splay/splay_bu.icl splay/splay-bu.ml splay/splay-bu.hs"
+benches_splay_bu="splay/splay-bu.kk splay/splay-bu.c splay/splay-bu.ml splay/splay-bu.hs" # splay/splay_bu.icl
 benches_zip_td="zip/zip-td.kk zip/zip-td.c"
-benches_zip_bu="zip/zip-bu.kk zip/zip-bu.c zip/zip_bu.icl zip/zip-bu.ml zip/zip-bu.hs"
-benches_rb_rec="rbtree/rb-rec.kk rbtree/rb-rec.ml rbtree/rb-rec.hs"
+benches_zip_bu="zip/zip-bu.kk zip/zip-bu.c zip/zip-bu.ml zip/zip-bu.hs" # zip/zip_bu.icl
+benches_rb_rec="" # "rbtree/rb-rec.kk rbtree/rb-rec.ml rbtree/rb-rec.hs"
 benches_rb_td="rbtree/rb-td.kk rbtree/rb-td.c"
-benches_rb_bu="rbtree/rb-bu.kk rbtree/rb-bu.c rbtree/rb_bu.icl rbtree/rb-bu.ml rbtree/rb-bu.hs"
+benches_rb_bu="rbtree/rb-bu.kk rbtree/rb-bu.c rbtree/rb-bu.ml rbtree/rb-bu.hs" # rbtree/rb_bu.icl
 
 benches_mtr="$benches_mtr_rec $benches_mtr_td $benches_mtr_bu"
 benches_splay="$benches_splay_rec $benches_splay_td $benches_splay_bu"
