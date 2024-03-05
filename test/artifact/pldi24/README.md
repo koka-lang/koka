@@ -20,44 +20,47 @@ From this prompt, we can run our benchmarks as:
 test# ./bench.sh zip run
 ```
 ```
-~/dev/koka ~/dev/koka/test/artifact/pldi24
-~/dev/koka/test/artifact/pldi24
+/artifact/koka /artifact/koka/test/artifact/pldi24
+/artifact/koka/test/artifact/pldi24
 
-using koka: /home/daan/dev/koka/.stack-work/install/x86_64-linux-tinfo6/88c40a7dc919e28f6f4ab737212a15c4528a6ca9dfecb6d1de4f487b4bed2f20/9.6.4/bin/koka
+using koka: /artifact/koka/.stack-work/install/x86_64-linux-tinfo6/88c40a7dc919e28f6f4ab737212a15c4528a6ca9dfecb6d1de4f487b4bed2f20/9.6.4/bin/koka
 
 expanded benches:  zip/zip-td.kk zip/zip-td.c zip/zip-td-p.c zip/zip-bu.kk zip/zip-bu.c zip/zip-bu-p.c zip/zip-bu.ml zip/zip-bu.hs
 
 run kk__zip-td__100000, iter 1, cmd: .koka/v3.1.2-bench/clang-release/zip-td
 sum: 4999950000, height: 42/7, top: 13652, final access: 2015542571
-elapsed: 1.19s, user: 1.19s, sys: 0.00s, rss: 8940kb
+elapsed: 0.98s, user: 0.98s, sys: 0.00s, rss: 8956kb
 
 run c__zip-td__100000, iter 1, cmd: .koka/ccomp/zip-td
 sum: 4999950000, height: 42/7, top: 13652, final access: 2015542571
-elapsed: 1.11s, user: 1.10s, sys: 0.00s, rss: 6260kb
+elapsed: 1.15s, user: 1.15s, sys: 0.00s, rss: 6348kb
 
+run cp__zip-td__100000, iter 1, cmd: .koka/ccomp/zip-td-p
+sum: 4999950000, height: 42/7, top: 13652, final access: 2015542571
+elapsed: 0.97s, user: 0.97s, sys: 0.00s, rss: 7992kb
 ...
 
 #    benchmark  variant  param   elapsed  relative  stddev     rss
 ...
 ##
-kk  zip-td     -        100000  0.99     1.000     .00774597  9032
-c   zip-td     -        100000  1.16     1.171     .0181410   6348
-cp  zip-td     -        100000  1.00     1.010     .0162857   8116
+kk  zip-td     -        100000  0.98     1.000     0          8956
+c   zip-td     -        100000  1.15     1.173     0          6348
+cp  zip-td     -        100000  0.97     .989      0          7992
 ml  zip-td     -        100000  NA       0         0          0
 hs  zip-td     -        100000  NA       0         0          0
 ##
-kk  zip-bu     -        100000  1.00     1.000     .0483735   8924
-c   zip-bu     -        100000  1.12     1.120     .011       6360
-cp  zip-bu     -        100000  1.06     1.060     .0361023   7984
-ml  zip-bu     -        100000  4.50     4.500     .2148718   13456
-hs  zip-bu     -        100000  4.74     4.740     .3020237   26700
+kk  zip-bu     -        100000  0.98     1.000     0          9000
+c   zip-bu     -        100000  1.13     1.153     0          6396
+cp  zip-bu     -        100000  0.93     .948      0          7864
+ml  zip-bu     -        100000  4.52     4.612     0          13500
+hs  zip-bu     -        100000  4.78     4.877     0          26740
 ...
 ```
 
 This runs the `zip` benchmark on the top-down (`td`) and bottom-up (`bu`)
 variants. Eventually the bench provides a summary in absolute runtimes (and rss), 
 and normalized runtimes relative to the Koka variant (`kk`).
-The above results are on Ubuntu 22.0.4 with 16-core AMD 7950X @4.5Ghz.
+The above results are on Ubuntu 22.0.4 with 16-core AMD 7950X @4.5Ghz (outside Docker).
 
 # Step-by-step Guide
 
