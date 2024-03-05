@@ -4,7 +4,7 @@ runparams="100000" # "1 10 100 1000 10000 100000 1000000"
 runparams_small="1 10 100 1000"
 benchmarks="mtr-rec mtr-td mtr-bu splay-rec splay-td splay-bu zip-td zip-bu rb-rec rb-td rb-bu"
 graphvariants="-"  # "td bu"
-languages="kk c ml hs cmi" # cp icl
+languages="kk c cp ml hs" # cmi icl
 
 # note: order matters as it is made relative to the first
 benches_mtr_rec="mtr/mtr-rec.kk mtr/mtr_rec.icl mtr/mtr-rec.ml mtr/mtr-rec.hs"
@@ -240,8 +240,8 @@ done
 
 if command -v "$clcomp" > /dev/null; then
   hascl="yes"
-else
-  info "clean compiler not found: $clcomp"
+# else
+#   info "clean compiler not found: $clcomp"
 fi
 
 
@@ -253,7 +253,7 @@ function expand_benches {
     if [[ $bench == *-std\.kk ]]; then
       newb="$newb $base-reuse.kk $bench"
     elif [[ $bench == *\.c ]]; then
-      newb="$newb $bench $base-p.c $base-mi.c"  # parent pointer and mimalloc
+      newb="$newb $bench $base-p.c" # and equalized C (as `cp`)  (and not $base-mi.c anymore)
     elif [[ $bench == *\.cpp ]]; then
       newb="$newb $bench $base-mi.cpp"
     else
@@ -301,6 +301,8 @@ function build_c { # <bench>
   local options="-O3 -DNDEBUG=1 -o $coutdir/$stem $copts"
   if [[ $(uname -m) == 'arm64' ]]; then
     options="$options -mcpu=apple-m1"
+  elif [[ $(uname -m) == 'aarch64' ]]; then
+    echo ""
   else
     options="$options -march=native"
   fi
