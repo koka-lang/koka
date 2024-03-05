@@ -290,9 +290,11 @@ function build_kk { # <bench>
   local stem=${base##*/}     # dashed dir
   local options="-v0 -O2 --no-debug --cc=$ccomp $koka_extra_opts --buildtag=bench --buildname=$stem $kkopts"
   if [[ $(uname -m) == 'arm64' ]]; then
-    options="$options --ccopts=-mcpu=apple-m1"
+    echo ""  # options="$options -mcpu=apple-m1"
+  elif [[ $(uname -m) == 'aarch64' ]]; then
+    echo ""
   else
-    options="$options --ccopts=-march=native --ccopts=-mtune=native -O3"
+    options="$options --ccopts=-mtune=native -O3"
   fi
   if [[ $1 == *-std-reuse\.kk ]]; then
     srcname="${1%-std-reuse.kk}-std.kk"
@@ -317,7 +319,7 @@ function build_c { # <bench>
   local stem=${base##*/}
   local options="-O3 -DNDEBUG=1 -o $coutdir/$stem $copts"
   if [[ $(uname -m) == 'arm64' ]]; then
-    options="$options -mcpu=apple-m1"
+    echo ""  # options="$options -mcpu=apple-m1"
   elif [[ $(uname -m) == 'aarch64' ]]; then
     echo ""
   else
@@ -347,7 +349,9 @@ function build_cpp { # <bench>
   local stem=${base##*/}
   local options="--std=c++17 -O3 -o $cppoutdir/$stem $cppopts"
   if [[ $(uname -m) == 'arm64' ]]; then
-    options="$options -mcpu=apple-m1"
+    echo ""  # options="$options -mcpu=apple-m1"
+  elif [[ $(uname -m) == 'aarch64' ]]; then
+    echo ""
   else
     options="$options -march=native"
   fi
