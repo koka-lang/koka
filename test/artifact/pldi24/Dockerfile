@@ -18,17 +18,6 @@ RUN apt-get install -y --no-install-recommends curl xz-utils build-essential bc 
 RUN apt-get install -y --no-install-recommends pcre2-utils
 RUN apt-get update
 
-# Stack
-WORKDIR /artifact
-RUN curl -sSL https://get.haskellstack.org/ | /bin/bash
-RUN stack update
-
-# Koka
-WORKDIR /artifact
-RUN git clone --recursive https://github.com/koka-lang/koka -b artifact-pldi24
-WORKDIR /artifact/koka
-RUN stack build
-
 # Mimalloc 2.1.2
 WORKDIR /artifact
 RUN git clone https://github.com/microsoft/mimalloc -b v2.1.2
@@ -45,6 +34,17 @@ RUN apt-get install -y --no-install-recommends ocaml
 # GHC
 WORKDIR /artifact
 RUN apt-get install -y --no-install-recommends ghc
+
+# Stack
+WORKDIR /artifact
+RUN curl -sSL https://get.haskellstack.org/ | /bin/bash
+RUN stack update
+
+# Koka
+WORKDIR /artifact
+RUN git clone --recursive https://github.com/koka-lang/koka -b artifact-pldi24
+WORKDIR /artifact/koka
+RUN stack build
 
 # Build benchmarks
 RUN apt-get install -y --no-install-recommends bsdextrautils time
