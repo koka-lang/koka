@@ -3,13 +3,16 @@
 # Getting Started
 
 We provide a docker image (based on Ubuntu 22.04, x64) to run the benchmarks:
-
+```
 > docker pull daanx/pldi24-tree:1.0
 > docker run -it daanx/pldi24-tree:1.0
+```
 
 We now see the docker prompt as:
 
+```
 > root@xxx:/artifact/koka/test/artifact/pldi24#
+```
 
 We will shorten this to `test#` in the guide.
 This directory also contains this `README.md`.
