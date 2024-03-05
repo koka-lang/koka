@@ -162,16 +162,19 @@ while : ; do
     mtrrec)  benches="$benches $benches_mtr_rec";;
     splayrec)  benches="$benches $benches_splay_rec";;
     rbrec)  benches="$benches $benches_rb_rec";;
+    allrec) benches="$benches $benches_mtr_rec $benches_splay_rec $benches_rb_rec";;
 
     mtrtd)  benches="$benches $benches_mtr_td";;
     splaytd)  benches="$benches $benches_splay_td";;
     ziptd) benches="$benches $benches_zip_td";;
     rbtd) benches="$benches $benches_rb_td";;
+    alltd) benches="$benches $benches_mtr_td $benches_splay_td $benches_zip_td $benches_rb_td";;
 
     mtrbu)  benches="$benches $benches_mtr_bu";;
     splaybu)  benches="$benches $benches_splay_bu";;
     zipbu) benches="$benches $benches_zip_bu";;
     rbbu) benches="$benches $benches_rb_bu";;
+    allbu) benches="$benches $benches_mtr_bu $benches_splay_bu $benches_zip_bu $benches_rb_bu";;
 
     mtr)  benches="$benches $benches_mtr";;
     splay)  benches="$benches $benches_splay";;
