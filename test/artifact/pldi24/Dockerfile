@@ -52,5 +52,19 @@ SHELL ["/bin/bash", "-c"]
 WORKDIR /artifact/koka/test/artifact/pldi24
 RUN ./bench.sh build allb
 
+# Download proofs and their dependencies
 
-
+WORKDIR /artifact/koka/test/artifact/pldi24
+RUN git clone https://github.com/koka-lang/AddressC
+RUN apt-get install -y --no-install-recommends opam
+RUN opam init -y
+RUN opam repo add coq-released https://coq.inria.fr/opam/released
+RUN opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
+RUN opam install -y coq.8.17.1
+RUN opam install -y coq-equations.1.3+8.17
+RUN opam install -y coq-stdpp.dev.2023-09-21.2.7f6df4fa
+RUN opam install -y coq-iris.dev.2023-09-21.2.d063b13b
+RUN opam install -y coq-iris-heap-lang.dev.2023-09-21.2.d063b13b
+RUN opam install -y coq-diaframe.dev.2023-10-17.0.a7d34219
+RUN opam install -y coq-diaframe-heap-lang.dev.2023-10-17.0.a7d34219
+RUN eval $(opam env)

@@ -136,6 +136,19 @@ test# ./bench.sh mtr zip  run -n=5
 would run the `mtr` and `zip` variants 5 times. Use `./bench.sh -h` to see all options.
 
 
+## Checking the proofs
+
+The proofs (Section 4) are included in the AddressC directory.
+You can check the proofs using (where `8` is the number of threads):
+```
+test# cd AddressC/
+test# eval $(opam env)
+test# make -j 4
+```
+
+The proofs make heavy use of Diaframe proof-search and may take
+up to 20 minutes to check.
+
 # Notes
 
 ## Installing from Scratch
