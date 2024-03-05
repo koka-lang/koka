@@ -24,7 +24,7 @@ import Common.NamePrim( nameEffectOpen, nameToAny, nameReturn, nameOptionalNone
                        , nameBind, nameEvvIndex, nameClauseTailNoOp, isClauseTailName
                        , nameBox, nameUnbox, nameAssert
                        , nameAnd, nameOr, isNameTuple
-                       , nameCCtxCompose, nameCCtxComposeExtend, nameCCtxEmpty )
+                       , nameCCtxCompose, nameCCtxComposeExtend, nameCCtxEmpty, nameCCtxCreate )
 
 import Common.Unique
 import Type.Type
@@ -35,6 +35,7 @@ import Core.Core
 import Core.Pretty
 import Core.CoreVar
 import Core.Uniquefy( uniquefyExpr )
+import Core.AnalysisCCtx( makeCCtxComposeExtendVar )
 import qualified Common.NameMap as M
 import qualified Data.Set as S
 
@@ -365,6 +366,13 @@ bottomUp (App (TypeApp (Var ctxcomp _) _) [ctx1, App (TypeApp (Var cempty _) _) 
 
 bottomUp (App (TypeApp (Var ctxcomp _) _) [App (TypeApp (Var cempty _) _) [],ctx2]) | getName ctxcomp == nameCCtxCompose && getName cempty == nameCCtxEmpty
   = ctx2
+
+-- context composition with non-empty context: c ++ ctx K  ==> context_extend(c , ctx K)
+bottomUp (App (TypeApp (Var ctxcomp tinfo) targs) [ctx1,ctx2@(App (TypeApp (Var ccreate _) _) _)])
+  | getName ctxcomp == nameCCtxCompose && getName ccreate == nameCCtxCreate
+  = -- trace ("cctx compose to extend: " ++ show (ctxcomp,ccreate)) $
+    App (TypeApp (makeCCtxComposeExtendVar False {-alwaysAffine-}) targs) [ctx1,ctx2]
+
 
 
 -- continuation validation

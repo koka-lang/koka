@@ -766,7 +766,7 @@ inferExpr propagated expect (App fun@(Var hname _ nameRng) [] rng)  | hname == n
 inferExpr propagated expect (App (Var ctxname _ nameRng) [(_,expr)] rng)  | ctxname == nameCCtxCreate
   = do tpv <- Op.freshTVar kindStar Meta
        holetp <- Op.freshTVar kindStar Meta
-       let ctxTp = TApp typeCCtxx [tpv,holetp]
+       let ctxTp = typeCCtxx tpv holetp
        prop <- case propagated of
                  Nothing -> return Nothing
                  Just (ctp,crng) -> do inferUnify (checkMatch crng) nameRng ctp ctxTp

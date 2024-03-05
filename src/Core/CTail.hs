@@ -474,19 +474,20 @@ makeFieldAddrOf objName conName fieldName tp
 makeCCtxExtend :: TName -> TName -> TName -> TName -> Name -> Type -> Bool -> Expr
 makeCCtxExtend slot resName objName conName fieldName tp alwaysAffine
   = let fieldOf = makeFieldAddrOf objName conName fieldName tp
-    in  App (TypeApp (Var (TName nameCCtxExtend funType)
-                -- (InfoArity 1 3)
-                (InfoExternal [(C CDefault,"kk_cctx_extend" ++ (if alwaysAffine then "_linear" else "")
-                                            ++ "(#1,#2,#3,kk_context())"),
-                               (JS JsDefault,"$std_core_types._cctx_extend(#1,#2,#3)")])
-            ) [tp])
+    in  App (TypeApp (makeCCtxExtendVar alwaysAffine) [tp])
             [Var slot InfoNone, Var resName InfoNone, fieldOf]
+
+makeCCtxExtendVar :: Bool -> Expr
+makeCCtxExtendVar alwaysAffine
+  = Var (TName nameCCtxExtend funType)
+        (InfoExternal [(C CDefault,"kk_cctx_extend" ++ (if alwaysAffine then "_linear" else "")
+                                    ++ "(#1,#2,#3,kk_context())"),
+                        (JS JsDefault,"$std_core_types._cctx_extend(#1,#2,#3)")])
   where
     funType = TForall [a] [] (TFun [(nameNil,typeCCtx (TVar a)),
                                     (nameNil,TVar a),
                                     (nameNil,TApp typeFieldAddr [TVar a])] typeTotal (typeCCtx (TVar a)))
     a = TypeVar 0 kindStar Bound
-
 
 
 -- Apply a context to its final value.

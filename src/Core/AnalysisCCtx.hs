@@ -15,7 +15,8 @@ module Core.AnalysisCCtx( analyzeCCtx,
                           makeCCtxEmpty,
                           makeCCtxCreate,
                           makeCCtxSetContextPath,
-                          makeFieldAddrOf
+                          makeFieldAddrOf,
+                          makeCCtxComposeExtendVar
                           -- getFieldName
                         ) where
 
@@ -28,7 +29,7 @@ import Common.Id
 import Common.Name
 import Common.NamePrim(nameCCtxHoleCreate,nameCCtxCreate,nameCCtxEmpty,nameCCtxSetCtxPath,
                        nameFieldAddrOf,nameTpFieldAddr,
-                       nameEffectOpen)
+                       nameEffectOpen, nameCCtxComposeExtend)
 import Common.Range
 import Common.Unique(HasUnique(..))
 import Common.Failure
@@ -180,7 +181,7 @@ makeCCtxCreate tp holetp top holeaddr
   where
     funType = TForall [a,b] [] (TFun [(nameNil,TVar a),
                                       (nameNil,TApp typeFieldAddr [TVar a])]
-                                      typeTotal (TApp typeCCtxx [TVar a,TVar b]))
+                                      typeTotal (typeCCtxx (TVar a) (TVar b)))
     a = TypeVar 0 kindStar Bound
     b = TypeVar 1 kindStar Bound
 
@@ -203,6 +204,21 @@ makeCCtxSetContextPath obj conName fieldName
   where
     tp = typeOf obj
     funType = (TFun [(nameNil,tp),(nameNil,typeString),(nameNil,typeString)] typeTotal tp)
+
+
+makeCCtxComposeExtendVar :: Bool -> Expr
+makeCCtxComposeExtendVar alwaysAffine
+  = Var (TName nameCCtxComposeExtend funType)
+        (InfoExternal [(C CDefault,"kk_cctx_extend" ++ (if alwaysAffine then "_linear" else "")
+                                    ++ "(#1,#2.res,#2.holeptr,kk_context())"),
+                        (JS JsDefault,"$std_core_types._cctx_compose(#1,#2)")])
+  where
+    funType = TForall [a,b,c] [] (TFun [(nameNil,typeCCtxx (TVar a) (TVar b)),
+                                        (nameNil,typeCCtxx (TVar b) (TVar c))]
+                                       typeTotal (typeCCtxx (TVar a) (TVar c)))
+    a = TypeVar 0 kindStar Bound
+    b = TypeVar 1 kindStar Bound
+    c = TypeVar 2 kindStar Bound
 
 
 {--------------------------------------------------------------------------

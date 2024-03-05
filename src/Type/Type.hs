@@ -814,15 +814,15 @@ isTypeUnit _         = False
 -- | Type of ctail
 typeCCtx :: Tau -> Tau
 typeCCtx tp
-  = TSyn tsynCCtx [tp] (TApp typeCCtxx [tp,tp])
+  = TSyn tsynCCtx [tp] (typeCCtxx tp tp)
 
 tsynCCtx :: TypeSyn
 tsynCCtx
   = TypeSyn nameTpCCtx (kindFun kindStar kindStar) 0 Nothing
 
-typeCCtxx :: Tau
-typeCCtxx
-  = TCon tconCCtxx
+typeCCtxx :: Tau -> Tau -> Tau
+typeCCtxx tp1 tp2
+  = TApp (TCon tconCCtxx) [tp1,tp2]
 
 tconCCtxx :: TypeCon
 tconCCtxx
