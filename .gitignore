@@ -28,8 +28,11 @@ test.kk
 *.bc
 *.i
 *.s
+*.o
+*.hi
 /*.cmake
 bench
 test/bench
+test/artifact/pldi24/log
 .koka
 scratch
