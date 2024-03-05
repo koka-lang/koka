@@ -130,7 +130,7 @@ You can select to run particular benchmarks instead of all:
 ```
 test# ./bench.sh mtr zip  run -n=5
 ```
-would run the `mtr` and `zip` variants 5 times.
+would run the `mtr` and `zip` variants 5 times. Use `./bench.sh -h` to see all options.
 
 
 # Notes
