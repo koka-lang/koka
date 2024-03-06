@@ -1,5 +1,5 @@
-# AMD 7950X,4.5Ghz, 32GiB/6000Mhz memory,
-# ubuntu 22, ld2.38, clang:14, koka v3.1.2, branch artifact-pldi24, -n=5
+# Results on a bare metal AMD 7950X,4.5Ghz, 32GiB/6000Mhz memory,
+# Ubuntu 22, ld2.38, clang:14, koka v3.1.2, branch artifact-pldi24, -n=5
 # 2024-03-05
 
 #   benchmark  variant  param   elapsed  relative  stddev     rss

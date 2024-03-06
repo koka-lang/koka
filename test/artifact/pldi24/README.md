@@ -7,17 +7,14 @@ Please use either `x64` or `arm64` since under emulation the benchmarks vary too
 
 ```
 > docker pull daanx/pldi24-tree:1.0-x64
+> docker run -it daanx/pldi24-tree:1.0-x64
 ```
 or
 ```
 > docker pull daanx/pldi24-tree:1.0-arm64
+> docker run -it daanx/pldi24-tree:1.0-arm64
 ```
 (use this on macOS M1)
-
-Then run the container as:
-```
-> docker run -it daanx/pldi24-tree:1.0
-```
 
 We now see the docker prompt:
 ```
@@ -92,19 +89,24 @@ of those runs (and calculate the standard error interval).
 The benchmark results should correspond closely to the results in Section 7 of the 
 paper, in particular Figure 3, and support the conclusions drawn there. Note that 
 the results can differ quite bit among different systems, but if not running in 
-emulation, the relative times should be quite similar. (Nevertheless, even running in 
-Docker without CPU emulation we still see generally relative worse performance for
-Koka than running directly.)
+emulation, the relative times should be quite similar. 
 
 To support the conclusions of the paper, "performance on-par with the best C algorithms",
 the Koka variant should generally be within 25% of the C variant (`c`) and
 the "equalized C" (`cp`) variant (see Section 7 of the paper for an explanation).
 
-For reference, we included our benchmark results on Ubuntu22 on an AMD7950X @4.5Ghz in
-`bench-res-ubuntu-x64.txt` (outside of Docker). 
-We also included bare metal benchmark results on an Apple M1 in `bench-res-macos-M1.txt` 
-(outside Docker). A difference we found with respect to the benchmarks on x64, is that 
-on macOS M1 for `zip-td` we are ~15% slower than `c` and `cp`. On macOS the allocator 
+For reference, we included our benchmark results on bare metal (outside Docker)
+
+- `bench-res-ubuntu-x64.txt`: on Ubuntu22 on an AMD7950X.
+- `bench-res-macos-M1.txt`: on an Apple M1.
+
+and results running in Docker
+
+- `bench-res-docker-x64.txt`: Docker on an AMD7950X (running Windows 11)
+- `bench-res-docker-arm64.txt`: Docker on an Apple M1 (running macOSX Sonoma 14.2.1)
+
+A difference we found with respect to the benchmarks on x64, is that on bare metal 
+macOS M1 for `zip-td` we are ~15% slower than `c` and `cp`. On macOS the allocator 
 is better too and `c` and `cp` are generally very close in performance.
 
 
@@ -153,8 +155,8 @@ The proofs (Section 4) are all included in the AddressC directory.
 You can check the proofs using (where `4` is the number of threads):
 ```
 test# cd AddressC/
-test# eval $(opam env)
-test# make -j 4
+test/AddressC# eval $(opam env)
+test/AddressC# make -j 4
 ```
 
 The proofs make heavy use of Diaframe proof-search and may take

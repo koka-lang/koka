@@ -290,9 +290,9 @@ function build_kk { # <bench>
   local stem=${base##*/}     # dashed dir
   local options="-v0 -O2 --no-debug --cc=$ccomp $koka_extra_opts --buildtag=bench --buildname=$stem $kkopts"
   if [[ $(uname -m) == 'arm64' ]]; then
-    options="$options -mcpu=apple-m1"
+    options="$options --ccopts=-mcpu=apple-m1"
   elif [[ $(uname -m) == 'aarch64' ]]; then
-    options="$options -mcpu=apple-m1"
+    options="$options --ccopts=-mcpu=apple-m1"
   fi
   if [[ $1 == *-std-reuse\.kk ]]; then
     srcname="${1%-std-reuse.kk}-std.kk"
