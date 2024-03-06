@@ -53,7 +53,6 @@ WORKDIR /artifact/koka/test/artifact/pldi24
 RUN ./bench.sh build allb
 
 # Download proofs and their dependencies
-
 WORKDIR /artifact/koka/test/artifact/pldi24
 RUN git clone https://github.com/koka-lang/AddressC
 RUN apt-get install -y --no-install-recommends opam

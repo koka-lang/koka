@@ -2,26 +2,35 @@
 
 # Getting Started
 
-We provide a docker image (based on Ubuntu 22.04, x64) to run the benchmarks:
+We provide a docker image (based on Ubuntu 22.04, x64/aarch64) to run the benchmarks:
+Please use either `x64` or `arm64` since under emulation the benchmarks vary too much.
+
 ```
-> docker pull daanx/pldi24-tree:1.0
+> docker pull daanx/pldi24-tree:1.0-x64
+```
+or
+```
+> docker pull daanx/pldi24-tree:1.0-arm64
+```
+(use this on macOS M1)
+
+Then run the container as:
+```
 > docker run -it daanx/pldi24-tree:1.0
 ```
 
-We now see the docker prompt as:
-
+We now see the docker prompt:
 ```
 > root@xxx:/artifact/koka/test/artifact/pldi24#
 ```
 
 We will shorten this to `test#` in the guide.
 This directory also contains this `README.md`.
-
 From this prompt, we can run our benchmarks as:
-
 ```
 test# ./bench.sh zip run
 ```
+
 ```
 /artifact/koka /artifact/koka/test/artifact/pldi24
 /artifact/koka/test/artifact/pldi24
@@ -83,18 +92,20 @@ of those runs (and calculate the standard error interval).
 The benchmark results should correspond closely to the results in Section 7 of the 
 paper, in particular Figure 3, and support the conclusions drawn there. Note that 
 the results can differ quite bit among different systems, but if not running in 
-emulation, the relative times should be quite similar. 
+emulation, the relative times should be quite similar. (Nevertheless, even running in 
+Docker without CPU emulation we still see generally relative worse performance for
+Koka than running directly.)
 
 To support the conclusions of the paper, "performance on-par with the best C algorithms",
 the Koka variant should generally be within 25% of the C variant (`c`) and
 the "equalized C" (`cp`) variant (see Section 7 of the paper for an explanation).
 
-For reference, we included our benchmark results on Ubuntu22 on an AMD7950X @4.5Ghz
-in `bench-res-ubuntu-x64.txt` (outside of Docker). 
-We also included benchmark results on an Apple M1 in `bench-res-macos-M1.txt` (outside Docker).
-A difference we found with respect to the benchmarks on x64, is that on macOS M1 
-for `zip-td` we are ~15% slower than `c` and `cp`. On macOS the allocator is better
-too and `c` and `cp` are generally very close in performance.
+For reference, we included our benchmark results on Ubuntu22 on an AMD7950X @4.5Ghz in
+`bench-res-ubuntu-x64.txt` (outside of Docker). 
+We also included bare metal benchmark results on an Apple M1 in `bench-res-macos-M1.txt` 
+(outside Docker). A difference we found with respect to the benchmarks on x64, is that 
+on macOS M1 for `zip-td` we are ~15% slower than `c` and `cp`. On macOS the allocator 
+is better too and `c` and `cp` are generally very close in performance.
 
 
 ## Benchmark Descriptions
@@ -138,8 +149,8 @@ would run the `mtr` and `zip` variants 5 times. Use `./bench.sh -h` to see all o
 
 ## Checking the proofs
 
-The proofs (Section 4) are included in the AddressC directory.
-You can check the proofs using (where `8` is the number of threads):
+The proofs (Section 4) are all included in the AddressC directory.
+You can check the proofs using (where `4` is the number of threads):
 ```
 test# cd AddressC/
 test# eval $(opam env)

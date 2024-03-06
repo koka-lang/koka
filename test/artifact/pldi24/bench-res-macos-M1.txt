@@ -1,5 +1,5 @@
 # Apple M1 (Sonoma 14.3.1), clang:15, koka v3.1.2, branch artifact-pldi24, -n=5
-# 2024-03-04
+# 2024-03-05
 
 #   benchmark  variant  param   elapsed  relative  stddev    rss
 kk  mtr-td     -        100000  1.52     1.000     .116447   5056
