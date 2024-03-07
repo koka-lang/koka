@@ -35,9 +35,7 @@ import Core.Core
 import Core.Pretty
 import Core.CoreVar
 
-type CommentDoc   = Doc
-type ConditionDoc = Doc -> Doc -> Doc -- cd thn els
-
+type ConditionDoc = Doc -> Doc -> Doc -- `cd thn els` gets you the doc
 
 debug :: Bool
 debug  = True
@@ -55,7 +53,7 @@ externalNames
 
 vmFromCore :: BuildType -> Maybe (Name,Bool) -> [Import] -> Core -> Doc
 vmFromCore buildType mbMain imports core
-  = runAsm (Env moduleName penv externalNames False) (genModule buildType mbMain imports core)
+  = runAsm (Env moduleName penv externalNames) (genModule buildType mbMain imports core)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
@@ -88,10 +86,11 @@ genModule buildType mbMain imports core
 ---------------------------------------------------------------------------------
 -- Generate import definitions
 ---------------------------------------------------------------------------------
+libName imp = (var (str ("import$" ++ imp)) (tpe "Ptr"))
 genLoadLibs :: [Import] -> Asm [Doc]
-genLoadLibs imports = return $ map genLoadLib $ imports
+genLoadLibs imports = return $ map genLoadLib imports
   where genLoadLib imp = let name = (if null (importPackage imp) then "." else importPackage imp) ++ "/" ++ (moduleNameToPath  (importName imp)) in
-          def (var (str ("import$" ++ show (importName imp))) (tpe "Ptr")) 
+          def (libName (show $ importName imp))
             (obj [ "op" .= str "LoadLib"
                  , "path" .= obj [ "op" .= str "Literal", "type" .= tpe "String", "format" .= str "path", "value" .=  str ("$0/" ++ name ++ ".rpyeffect")]
                  ])
@@ -227,94 +226,9 @@ getResultX result (puredoc,retdoc)
                                   Nothing -> empty
                                   Just l  -> text "break" <+> ppName l <.> semi
 
-tryTailCall :: Result -> Expr -> Asm (Maybe Doc)
-tryTailCall result expr
-  = case expr of
-     -- Tailcall case 1
-     App (Var n info) args  | ( case result of
-                                  ResultReturn (Just m) _ -> m == getName n && infoArity info == (length args)
-                                  _                       -> False
-                              )
-       -> do let (ResultReturn _ params) = result
-             stmts <- genOverride params args
-             return $ Just $ notImplemented $ block $ stmts <-> tailcall
-
-     -- Tailcall case 2
-     App (TypeApp (Var n info) _) args | ( case result of
-                                            ResultReturn (Just m) _ -> m == getName n && infoArity info == (length args)
-                                            _                       -> False
-                                          )
-       -> do let (ResultReturn _ params) = result
-             stmts <- genOverride params args
-             return $ Just $ notImplemented $ block $ stmts <-> tailcall
-
-     _ -> return Nothing
-  where
-    -- overriding function arguments carefully
-    genOverride :: [TName] -> [Expr] -> Asm Doc
-    genOverride params args
-      = fmap (debugWrap "genOverride") $
-        do (stmts, varNames) <- do args' <- mapM tailCallArg args
-                                   bs    <- mapM genVarBinding args'
-                                   return (unzip bs)
-           docs1             <- mapM genTName params
-           docs2             <- mapM genTName varNames
-           let assigns    = map (\(p,a)-> if p == a
-                                            then debugComment ("genOverride: skipped overriding `" ++ (show p) ++ "` with itself")
-                                            else debugComment ("genOverride: preparing tailcall") <.> p <+> text "=" <+> a <.> semi
-                                ) (zip docs1 docs2)
-           return $ notImplemented $
-             linecomment (text "tail call") <-> list (concat stmts) <-> vcat assigns
-
-    -- if local variables are captured inside a tailcalling function argument,
-    -- we need to capture it by value (instead of reference since we will overwrite the local variables on a tailcall)
-    -- we do this by wrapping the argument inside another function application.
-    tailCallArg :: Expr -> Asm Expr
-    tailCallArg expr
-      = let captured = filter (not . isQualified . getName) $ tnamesList $ capturedVar expr
-        in if (null captured)
-            then return expr
-            else -- trace ("Backend.JavaScript.FromCore.tailCall: capture: " ++ show captured ++ ":\n" ++ show expr) $
-                 do ns <- mapM (newVarName . show) captured
-                    let cnames = [TName cn tp | (cn,TName _ tp) <- zip ns captured]
-                        sub    = [(n,Var cn InfoNone) | (n,cn) <- zip captured cnames]
-                    return $ App (Lam cnames typeTotal (sub |~> expr)) [Var arg InfoNone | arg <- captured]
-
-    capturedVar :: Expr -> TNames
-    capturedVar expr
-      = case expr of
-          Lam _ _  _  -> fv expr  -- we only care about captures inside a lambda
-          Let bgs body -> S.unions (capturedVar body : map capturedDefGroup bgs)
-          Case es bs   -> S.unions (map capturedVar es ++ map capturedBranch bs)
-          App f args   -> S.unions (capturedVar f : map capturedVar args)
-          TypeLam _ e  -> capturedVar e
-          TypeApp e _  -> capturedVar e
-          _            -> S.empty
-
-    capturedDefGroup bg
-      = case bg of
-          DefRec defs  -> S.difference (S.unions (map capturedDef defs)) (bv defs)
-          DefNonRec def-> capturedDef def
-
-    capturedDef def
-      = capturedVar (defExpr def)
-
-    capturedBranch (Branch pat grds)
-      = S.difference (S.unions (map capturedGuard grds)) (bv pat)
-
-    capturedGuard (Guard test expr)
-      = S.union (capturedVar test) (capturedVar expr)
-
 -- | Generates a statement from an expression by applying a return context (deeply) inside
 genStat :: Result -> Expr -> Asm Doc
-genStat result expr
-  = fmap (debugWrap "genStat") $
-           do mdoc <- tryTailCall result expr
-              case mdoc of
-                Just doc
-                  -> return doc
-                Nothing
-                  -> genExprStat result expr
+genStat result expr = genExprStat result expr
 
 
 genExprStat result expr
@@ -362,16 +276,16 @@ genMatch scrutinees branches
         bs
            | all (\b-> length (branchGuards   b) == 1) bs
           && all (\b->isExprTrue $ guardTest $ head $ branchGuards b) bs
-          -> do xs <- mapM (withStatement . genBranch scrutinees) bs
+          -> do xs <- mapM (genBranch scrutinees) bs
                 let bs = foldr (.) id $ (map (\(conds,d) -> (conjunction conds d)) xs)
                 return $ debugWrap "genMatch: guard-free case"
                        $ bs $ (appPrim "non-exhaustive match" [] (tpe "Bottom"))
 
-        _ -> do bs <- mapM (withStatement . genBranch scrutinees) branches
+        _ -> do bs <- mapM (genBranch scrutinees) branches
                 let ds = map (\(cds,stmts)-> if null cds
                                                   then stmts
                                                   else notImplemented $ text "if" <+> parens (conjunction cds (text "?thn") (text "?els"))
-                                                                <+> block stmts
+                                                                -- <+> block stmts
                              ) bs
                 return $ notImplemented $ debugWrap "genMatch: regular case (with guards)"
                         (vcat ds)
@@ -393,7 +307,7 @@ genMatch scrutinees branches
            exprSt          <- genExpr expr
            return $ if isExprTrue t
                       then exprSt
-                      else notImplemented $ text "if" <+> parens testE <.> block exprSt
+                      else notImplemented $ text "if" -- <+> parens testE <.> block exprSt
 
     -- | Generates a list of boolish expression for matching the pattern
     genTest :: Name -> (Doc, Pattern) -> Asm ([ConditionDoc], [(TName, Doc)])
@@ -564,21 +478,6 @@ genList elems tl
        (tdoc) <- genExpr tl
        return (text "$std_core_vector.vlist" <.> tupled [list docs, tdoc])
 
-{-
-genExternalExpr :: TName -> String -> [Expr] -> Asm (Doc,Doc)
-genExternalExpr tname format args
-  | getName tname == nameReturn
-  = do (statDoc,exprDoc) <- genExpr (head args)
-       return (statDoc <-> text "return" <+> exprDoc <.> semi <.> debugComment "premature return statement (2)"
-              , text "") -- emptyness of doc is important! no other way to tell to not generate assignment/return/whatever!
-  | otherwise
-  = do (statDocs,argDocs) <- genExprs args
-       doc <- genExternal tname format argDocs
-       return ( debugComment "<genExternalExpr.stmt>" <.> vcat statDocs <.> debugComment "</genExternalExpr.stmt>"
-              , debugComment "<genExternalExpr.expr>" <.> doc           <.> debugComment "</genExternalExpr.expr>"
-              )
--}
-
 genExprs :: [Expr] -> Asm [Doc]
 genExprs exprs = mapM genExpr exprs
 
@@ -681,7 +580,7 @@ genWrapExternal tname formats
   = do let n = snd (getTypeArities (typeOf tname))
        vs  <- genVarNames n
        (doc) <- genExprExternal tname formats vs
-       return $ notImplemented $ parens (text "function" <.> tupled vs <+> block (vcat ([text "return" <+> doc <.> semi])))
+       return $ notImplemented $ parens (text "function" ) -- <.> tupled vs <+> block (vcat ([text "return" <+> doc <.> semi])))
 
 -- inlined external sometimes  needs wrapping in a applied function block
 genInlineExternal :: TName -> [(Target,String)] -> [Doc] -> Asm Doc
@@ -699,10 +598,10 @@ genExprExternal tname formats argDocs0
                    [] -> return (doc)
                    _  -> -- has an exception type, wrap it in a try handler
                          let try = parens $
-                                   parens (text "function()" <+> block (vcat (
-                                     [text "try" <+> block (vcat ([text "return" <+> doc <.> semi]))
-                                     ,text "catch(_err){ return $std_core._throw_exception(_err); }"]
-                                     )))
+                                   parens (text "function()") --  <+> block (vcat (
+                                    -- [text "try" <+> block (vcat ([text "return" <+> doc <.> semi]))
+                                    -- ,text "catch(_err){ return $std_core._throw_exception(_err); }"]
+                                    -- )))
                                    <.> text "()"
                          in return $ notImplemented (try)
 
@@ -741,16 +640,16 @@ genTName :: TName -> Asm Doc
 genTName tname
   = do env <- getEnv
        case lookup tname (substEnv env) of
-          Nothing -> genName (getName tname)
+          Nothing -> genName (getName tname) (tnameType tname)
           Just d  -> return d
 
-genName :: Name -> Asm Doc
-genName name
+genName :: Name -> Type -> Asm Doc
+genName name tpe
   = if (isQualified name)
       then do modname <- getModule
               if (qualifier name == modname)
                then return (ppName (unqualify name))
-               else return (ppName name)
+               else return $ obj [ "op" .= str "Qualified", "lib" .= libName (nameModule name), "name" .= (ppName name), "type" .= transformType tpe ]
       else return (ppName name)
 
 genVarName :: String -> Asm Doc
@@ -766,7 +665,7 @@ genVarNames i = do ns <- newVarNames i
 genCommentTName :: TName -> Asm Doc
 genCommentTName (TName n t)
   = do env <- getPrettyEnv
-       return $ ppName n <+> comment (Pretty.ppType env t )
+       return $ ppName n -- <+> comment (Pretty.ppType env t )
 
 trimOptionalArgs args
   = reverse (dropWhile isOptionalNone (reverse args))
@@ -887,7 +786,6 @@ data St  = St  { uniq     :: Int
 data Env = Env { moduleName        :: Name                    -- | current module
                , prettyEnv         :: Pretty.Env              -- | for printing nice types
                , substEnv          :: [(TName, Doc)]          -- | substituting names
-               , inStatement       :: Bool                    -- | for generating correct function declarations in strict mode
                }
 
 data Result = ResultReturn (Maybe Name) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
@@ -942,28 +840,13 @@ getPrettyEnv
   = do env <- getEnv
        return (prettyEnv env)
 
-withTypeVars :: [TypeVar] -> Asm a -> Asm a
-withTypeVars vars asm
-  = withEnv (\env -> env{ prettyEnv = Pretty.niceEnv (prettyEnv env) vars }) asm
-
 withNameSubstitutions :: [(TName, Doc)] -> Asm a -> Asm a
 withNameSubstitutions subs asm
   = withEnv (\env -> env{ substEnv = subs ++ substEnv env }) asm
 
-withStatement :: Asm a -> Asm a
-withStatement asm
-  = withEnv (\env -> env{ inStatement = True }) asm
-
-getInStatement :: Asm Bool
-getInStatement
-  = do env <- getEnv
-       return (inStatement env)
-
 ---------------------------------------------------------------------------------
 -- Pretty printing
 ---------------------------------------------------------------------------------
-
-
 ppLit :: Lit -> Doc
 ppLit lit
     = case lit of
@@ -992,11 +875,6 @@ ppLit lit
                     lo = (code `mod` 0x0400) + 0xDC00
                 in text ("\\u" ++ showHex 4 hi ++ "\\u" ++ showHex 4 lo)
 
-isSmallLitInt expr
-  = case expr of
-      Lit (LitInt i)  -> isSmallInt i
-      _ -> False
-
 isSmallInt i = (i > minSmallInt && i < maxSmallInt)
 
 maxSmallInt, minSmallInt :: Integer
@@ -1009,12 +887,6 @@ ppName name
      then ppModName (qualifier name) <.> dot <.> encode False (unqualify name)
      else encode False name
 
-ppQName :: Name -> Name -> Doc
-ppQName modName name
-  = if (modName == qualifier name)   -- We need to qualify always since otherwise we may clash with local variables. i.e. fun f( x : int ) { Main.x( x ) }
-     then ppName (unqualify name)
-     else ppName name
-
 ppModName :: Name -> Doc
 ppModName name
   = text "$" <.> encode True (name)
@@ -1023,45 +895,6 @@ encode :: Bool -> Name -> Doc
 encode isModule name
   = text $ asciiEncode isModule $ show name
 
-block :: Doc -> Doc
-block doc
-  = text "{" <--> tab doc <--> text "}"
-
-
-tcoBlock :: Doc -> Doc
-tcoBlock doc
-  = text "{ tailcall: while(1)" <->
-    text "{" <--> tab ( doc ) <--> text "}}"
-
-tailcall :: Doc
-tailcall  = text "continue tailcall;"
-
-object :: [(Doc, Doc)] -> Doc
-object xs
-  = text "{" <+> hcat ( punctuate (comma <.> space) (map f xs) ) <+> text "}"
-  where
-    f (d1, d2) = d1 <.> colon <+> d2
-
-tab :: Doc -> Doc
-tab doc
-  = indent 2 doc
-
-typeComment = comment
-
-comment :: Doc -> Doc
-comment d
-  = text "/*" <+> d <+> text "*/ "
-
-linecomment :: Doc -> Doc
-linecomment d
-  = text "//" <+> d
-
-debugComment :: String -> Doc
-debugComment s
-  = if debug
-      then comment (text s)
-      else empty
-
 debugWrap     :: String -> Doc -> Doc
 debugWrap s d
   = if debug then obj [
@@ -1069,12 +902,6 @@ debugWrap s d
     "inner" .= d,
     "annotation" .= str s
   ] else d
-
-tagField :: Doc
-tagField  = text "_tag"
-
-constdecl :: Doc
-constdecl = text "const"
 
 quoted :: Doc -> Doc
 quoted d = text $ show $ asString d
