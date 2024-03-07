@@ -1061,7 +1061,7 @@ targetExeExtension target
       C _      -> exeExtension
       JS JsWeb -> ".html"
       JS _     -> ".mjs"
-      VM       -> ".rpyeffect"
+      VM       -> ".mcore.json"
       _        -> exeExtension
 
 targetObjExtension target
@@ -1071,7 +1071,7 @@ targetObjExtension target
       C WasmWeb-> ".o"
       C _      -> objExtension
       JS _     -> ".mjs"
-      VM       -> ".rpyeffect"
+      VM       -> ".mcore.json"
       _        -> objExtension
 
 targetLibFile target fname

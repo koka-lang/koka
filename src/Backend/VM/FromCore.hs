@@ -15,7 +15,7 @@ import Lib.Trace
 import Control.Applicative hiding (empty)
 import Control.Monad
 import qualified Control.Monad.Fail as F
-import Data.List ( intersperse, partition )
+import Data.List ( intersperse, partition, nub )
 import Data.Char
 import Data.Bifunctor (bimap)
 
@@ -62,7 +62,8 @@ vmFromCore buildType mbMain imports core
 
 genModule :: BuildType -> Maybe (Name,Bool) -> [Import] -> Core -> Asm Doc
 genModule buildType mbMain imports core
-  =  do decls0 <- genGroups True (coreProgDefs core)
+  =  do impdecls <- genLoadLibs imports
+        decls0 <- genGroups True (coreProgDefs core)
         decls1 <- genTypeDefs (coreProgTypeDefs core)
         let -- `imports = coreProgImports core` is not enough due to inlined definitions
             (mainEntry) = case mbMain of
@@ -77,12 +78,23 @@ genModule buildType mbMain imports core
                           , "program name" .= str (show (coreProgName core))
                           ]
                     , "definitions" .=
-                      list (decls0 
+                      list (impdecls 
+                           ++ decls0 
                            ++ decls1
                            )
                     , "main" .= mainEntry
                     ]
 
+---------------------------------------------------------------------------------
+-- Generate import definitions
+---------------------------------------------------------------------------------
+genLoadLibs :: [Import] -> Asm [Doc]
+genLoadLibs imports = return $ map genLoadLib $ imports
+  where genLoadLib imp = let name = (if null (importPackage imp) then "." else importPackage imp) ++ "/" ++ (moduleNameToPath  (importName imp)) in
+          def (var (str ("import$" ++ show (importName imp))) (tpe "Ptr")) 
+            (obj [ "op" .= str "LoadLib"
+                 , "path" .= obj [ "op" .= str "Literal", "type" .= tpe "String", "format" .= str "path", "value" .=  str ("$0/" ++ name ++ ".rpyeffect")]
+                 ])
 ---------------------------------------------------------------------------------
 -- Translate types
 ---------------------------------------------------------------------------------
@@ -179,8 +191,11 @@ genTypeDef (Data info isExtend)
                                  ]
                  ])
 
-getConTypeTag info = case conInfoType info of
-  TFun _ _ r -> str $ show $ r
+getConTypeTag info = getReturn $ conInfoType info
+  where 
+    getReturn (TFun _ _ r) = str $ show $ r
+    getReturn (TForall _ _ t) = getReturn t
+    getReturn t = error $ "Constructor does not have a function type: " ++ show t
 getConTag modName coninfo repr
   = case repr of
       ConOpen{} -> -- ppLit (LitString (show (openConTag (conInfoName coninfo))))
@@ -523,7 +538,8 @@ genExpr expr
                           ]
 
      Case _ _
-       -> do (doc, tname) <- genVarBinding expr
+       -> -- trace "Case" $ 
+          do (doc, tname) <- genVarBinding expr
              nameDoc <- genTName tname
              return $ notImplemented $ text "Case" -- (doc, nameDoc)
 
@@ -574,7 +590,7 @@ genVarBinding expr
       Var tn _ -> return $ ([], tn)
       _        -> do name <- newVarName "x"
                      let tp = typeOf expr
-                     val <- genExpr expr
+                     val <- genExprStat (ResultReturn Nothing []) expr
                      let defs  = [def (var (str $ show name) (transformType tp)) val]
                      return ( defs, TName name (typeOf expr) )
 
@@ -622,7 +638,8 @@ isPat b q
 --   NOTE: Throws an error if expression is not guaranteed to be effectfree
 genInline :: Expr -> Asm Doc
 genInline expr
-  = case expr of
+  = -- trace "genInline" $ 
+    case expr of
       _  | isPureExpr expr -> genPure expr
       TypeLam _ e -> genInline e
       TypeApp e _ -> genInline e
