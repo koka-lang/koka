@@ -579,7 +579,7 @@ genName name tpe
   = if (isQualified name)
       then do modname <- getModule
               if (qualifier name == modname)
-               then return $ var (ppName (unqualify name)) (transformType tpe)
+               then return $ var (ppName name) (transformType tpe)
                else return $ obj [ "op" .= str "Qualified", "lib" .= libName (nameModule name), "name" .= (ppName name), "type" .= transformType tpe ]
       else return $ var (ppName name) (transformType tpe)
 
