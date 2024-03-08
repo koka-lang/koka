@@ -209,34 +209,14 @@ openConTag name
 -- Statements
 ---------------------------------------------------------------------------------
 
--- | Applies a return context
-getResult :: Result -> Doc -> Doc
-getResult result doc
-  = if isEmptyDoc doc
-      then text ""
-      else getResultX result (doc,doc)
-
-getResultX result (puredoc,retdoc)
-  = case result of
-     ResultReturn _ _  -> retdoc
-     ResultAssign n ml -> notImplemented $ ( if isWildcard n
-                              then (if (isEmptyDoc puredoc) then puredoc else puredoc <.> semi)
-                              else text "var" <+> ppName (unqualify n) <+> text "=" <+> retdoc <.> semi
-                          ) <-> case ml of
-                                  Nothing -> empty
-                                  Just l  -> text "break" <+> ppName l <.> semi
-
 -- | Generates a statement from an expression by applying a return context (deeply) inside
-genStat :: Result -> Expr -> Asm Doc
-genStat result expr = genExprStat result expr
 
-
-genExprStat result expr
+genExprStat expr
   = case expr of
       -- If expression is inlineable, inline it
       _  | isInlineableExpr expr
         -> do exprDoc <- genInline expr
-              return (getResult result exprDoc)
+              return exprDoc
 
       Case exprs branches
          -> do (defss, scrutinees) <-  unzip <$> mapM (\e-> if isInlineableExpr e && isTypeBool (typeOf e)
@@ -254,7 +234,7 @@ genExprStat result expr
 
       Let groups body
         -> do defs <- genGroups False groups
-              body <- genStat result body
+              body <- genExprStat body
               return $ obj [ "op" .= str "LetRec"
                            , "definitions" .= list defs
                            , "body" .= body
@@ -262,7 +242,7 @@ genExprStat result expr
 
       -- Handling all other cases
       _ -> do (exprDoc) <- genExpr expr
-              return (getResult result exprDoc)
+              return exprDoc
 
 -- | Generates a statement for a match expression regarding a given return context
 genMatch :: [Doc] -> [Branch] -> Asm Doc
@@ -489,7 +469,7 @@ genVarBinding expr
       Var tn _ -> return $ ([], tn)
       _        -> do name <- newVarName "x"
                      let tp = typeOf expr
-                     val <- genExprStat (ResultReturn Nothing []) expr
+                     val <- genExprStat expr
                      let defs  = [def (var (str $ show name) (transformType tp)) val]
                      return ( defs, TName name (typeOf expr) )
 
@@ -518,7 +498,7 @@ genPure expr
        -> return $ ppLit l
      Lam params eff body
        -> do args <- mapM asVar params
-             bodyDoc <- genStat (ResultReturn Nothing params) body
+             bodyDoc <- genExprStat body
              return $ obj [ "op" .= str "Abs"
                           , "params" .= list args
                           , "body" .= bodyDoc
@@ -787,9 +767,6 @@ data Env = Env { moduleName        :: Name                    -- | current modul
                , prettyEnv         :: Pretty.Env              -- | for printing nice types
                , substEnv          :: [(TName, Doc)]          -- | substituting names
                }
-
-data Result = ResultReturn (Maybe Name) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
-            | ResultAssign Name (Maybe Name)    -- variable name and optional label to break
 
 initSt = St 0
 
