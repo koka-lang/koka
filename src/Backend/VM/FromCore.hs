@@ -534,13 +534,16 @@ extractExtern expr
 -- not fully applied external gets wrapped in a function
 genWrapExternal :: TName -> [(Target,String)] -> Asm Doc
 genWrapExternal tname formats
-  = do let n = snd (getTypeArities (typeOf tname))
-       vs  <- genVarNames n
-       doc <- genExprExternal tname formats vs
-       return $ obj [ "op" .= str "Abs"
-                    , "params" .= list vs
-                    , "body" .= doc
-                    ]
+  = case (splitFunScheme (typeOf tname)) of
+      Just (_,_,pars,_,_) -> do 
+          let ts = map snd pars
+          vs  <- genVarNames ts
+          doc <- genExprExternal tname formats vs
+          return $ obj [ "op" .= str "Abs"
+                       , "params" .= list vs
+                       , "body" .= doc
+                       ]
+      Nothing -> return $ notImplemented $ text "Non-function external"
 
 -- special case: .cctx-hole-create
 genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm (Doc)
@@ -560,10 +563,6 @@ getFormat tname formats
                  trace( "warning: backend does not support external in " ++ show tname ) $
                     ("undefined external: " ++ (show tname))
       Just s -> s
-
-genDefName :: TName -> Asm Doc
-genDefName tname
-  = return (ppName (unqualify (getName tname)))
 
 genTName :: TName -> Asm Doc
 genTName tname
@@ -586,9 +585,10 @@ genVarName s = do n <- newVarName s
                   return $ ppName n
 
 -- | Generates `i` fresh variables and delivers them as `Doc` right away
-genVarNames :: Int -> Asm [Doc]
-genVarNames i = do ns <- newVarNames i
-                   return $ map ppName ns
+genVarNames :: [Type] -> Asm [Doc]
+genVarNames ts = do ns <- newVarNames (length ts)
+                    let tns = zipWith TName ns ts
+                    mapM genTName tns
 
 trimOptionalArgs args
   = reverse (dropWhile isOptionalNone (reverse args))
