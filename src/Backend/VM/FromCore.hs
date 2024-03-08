@@ -35,7 +35,7 @@ import Core.Core
 import Core.Pretty
 import Core.CoreVar
 
-type ConditionDoc = Doc -> Doc -> Doc -- `cd thn els` gets you the doc
+type ConditionDoc = Doc -> Doc -- `cd thn` gets you the doc; expects to be in an alternative-choice
 
 debug :: Bool
 debug  = True
@@ -251,24 +251,25 @@ genMatch scrutinees branches
     case branches of
         []  -> fail ("Backend.VM.FromCore.genMatch: no branch in match statement: " ++ show(scrutinees))
         [b] -> do (conds, d) <- genBranch scrutinees b
-                  return $ debugWrap "genMatch: one case" $ (conjunction conds) d (appPrim "non-exhaustive match" [] (tpe "Bottom"))
+                  return $ debugWrap "genMatch: one case" $ obj [ "op" .= str "AlternativeChoice"
+                      , "choices" .= list [(conjunction conds) d, (appPrim "non-exhaustive match" [] (tpe "Bottom"))]
+                      ]
 
         bs
            | all (\b-> length (branchGuards   b) == 1) bs
           && all (\b->isExprTrue $ guardTest $ head $ branchGuards b) bs
           -> do xs <- mapM (genBranch scrutinees) bs
-                let bs = foldr (.) id $ (map (\(conds,d) -> (conjunction conds d)) xs)
+                let bs = map (\(conds,d) -> (conjunction conds d)) xs
                 return $ debugWrap "genMatch: guard-free case"
-                       $ bs $ (appPrim "non-exhaustive match" [] (tpe "Bottom"))
+                       $ obj [ "op" .= str "AlternativeChoice"
+                             , "choices" .= list (bs ++ [appPrim "non-exhaustive match" [] (tpe "Bottom")])
+                             ]
 
         _ -> do bs <- mapM (genBranch scrutinees) branches
-                let ds = map (\(cds,stmts)-> if null cds
-                                                  then stmts
-                                                  else notImplemented $ text "if" <+> parens (conjunction cds (text "?thn") (text "?els"))
-                                                                -- <+> block stmts
-                             ) bs
-                return $ notImplemented $ debugWrap "genMatch: regular case (with guards)"
-                        (vcat ds)
+                let ds = map (\(cds,stmts)-> conjunction cds stmts) bs
+                return $ obj [ "op" .= str "AlternativeChoice"
+                             , "choices" .= list ds
+                             ]
   where
     -- | Generates a statement for a branch with given return context
     genBranch :: [Doc] -> Branch -> Asm ([ConditionDoc], Doc)
@@ -283,12 +284,12 @@ genMatch scrutinees branches
 
     genGuard  :: Guard -> Asm Doc
     genGuard (Guard t expr)
-      = do (testE) <- genExpr t
-           exprSt          <- genExpr expr
+      = do testE <- genExpr t
+           exprSt <- genExpr expr
            return $ if isExprTrue t
                       then exprSt
-                      else notImplemented $ text "if" -- <+> parens testE <.> block exprSt
-
+                      else ifEqInt testE (text "1") exprSt
+                      
     -- | Generates a list of boolish expression for matching the pattern
     genTest :: Name -> (Doc, Pattern) -> Asm ([ConditionDoc], [(TName, Doc)])
     genTest modName (scrutinee,pattern)
@@ -301,11 +302,11 @@ genMatch scrutinees branches
                 -> return ([ifEqInt scrutinee (text (show i))], [])
               PatLit lit@(LitString _)
                 -> let tmp = var (str "tmp") (tpe "Int") in
-                   return ([(\thn els -> obj [ "op" .= str "Primitive"
+                   return ([(\thn -> obj [ "op" .= str "Primitive"
                                     , "name" .= str "infixEq(String, String): Boolean"
                                     , "args" .= list [scrutinee, ppLit lit]
                                     , "returns" .= list [tmp]
-                                    , "rest" .= ifEqInt tmp (text "1") thn els
+                                    , "rest" .= ifEqInt tmp (text "1") thn
                                     ])
                    ], [])
               PatCon tn fields repr _ _ _ info skip  --TODO: skip test ?
@@ -338,36 +339,34 @@ genMatch scrutinees branches
                              return ((conTest:fieldTests), subfieldSubsts) -- ++ fieldSubsts)
 
     ifEqInt :: Doc -> Doc -> ConditionDoc
-    ifEqInt scrutinee lit thn els = obj [ "op" .= str "Switch"
+    ifEqInt scrutinee lit thn = obj [ "op" .= str "Switch"
                                         , "scrutinee" .= scrutinee
                                         , "cases" .= list [obj ["value" .= lit, "then" .= thn ]]
-                                        , "default" .= els
+                                        , "default" .= obj ["op" .= str "AlternativeFail"]
                                         ]
 
     ifNull :: Doc -> ConditionDoc
-    ifNull scrutinee thn els = let tmp = var (str "tmp") (tpe "Int") in 
+    ifNull scrutinee thn = let tmp = var (str "tmp") (tpe "Int") in 
                                obj [ "op" .= str "Primitive" 
                                    , "name" .= str "ptr_eq"
                                    , "args" .= list [scrutinee, var (text "-1") (tpe "Ptr")]
                                    , "returns" .= list [tmp]
-                                   , "rest" .= ifEqInt tmp (text "1") thn els
+                                   , "rest" .= ifEqInt tmp (text "1") thn
                                    ]
 
     ifCon :: Doc -> Doc -> Doc -> [Doc] -> ConditionDoc
-    ifCon scrutinee tpt t fields thn els = debugWrap ("ifCon@" ++ asString scrutinee ++ ": " ++ asString tpt ++ "." ++ asString t ++ "(" ++ asString (tupled fields) ++ ")")
+    ifCon scrutinee tpt t fields thn = debugWrap ("ifCon@" ++ asString scrutinee ++ ": " ++ asString tpt ++ "." ++ asString t ++ "(" ++ asString (tupled fields) ++ ")")
                                          $ obj [ "op" .= str "Match"
                                                , "scrutinee" .= scrutinee
                                                , "type_tag" .= tpt
                                                , "clauses" .= list [obj ["tag" .= t, "params" .= list fields, "body" .= thn]]
-                                               , "default_clause" .= obj ["params" .= list [], "body" .= els]
+                                               , "default_clause" .= obj ["params" .= list [], "body" .= obj ["op" .= str "AlternativeFail"]]
                                                ]
 
     -- | Takes a list of docs and concatenates them with logical and
     conjunction :: [ConditionDoc] -> ConditionDoc
-    conjunction []
-      = \thn els -> thn
-    conjunction (doc:docs)
-      = \thn els -> doc ((conjunction docs) thn els) els
+    conjunction [] = id
+    conjunction (doc:docs) = doc . (conjunction docs)
 
 ---------------------------------------------------------------------------------
 -- Expressions that produce statements on their way
