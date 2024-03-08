@@ -202,9 +202,6 @@ getConTag modName coninfo repr
                    in ppName (if (qualifier name == modName) then unqualify name else name)
       _ -> int (conTag repr)
 
-openConTag name
-  = name
-
 ---------------------------------------------------------------------------------
 -- Statements
 ---------------------------------------------------------------------------------
@@ -344,15 +341,6 @@ genMatch scrutinees branches
                                         , "cases" .= list [obj ["value" .= lit, "then" .= thn ]]
                                         , "default" .= obj ["op" .= str "AlternativeFail"]
                                         ]
-
-    ifNull :: Doc -> ConditionDoc
-    ifNull scrutinee thn = let tmp = var (str "tmp") (tpe "Int") in 
-                               obj [ "op" .= str "Primitive" 
-                                   , "name" .= str "ptr_eq"
-                                   , "args" .= list [scrutinee, var (text "-1") (tpe "Ptr")]
-                                   , "returns" .= list [tmp]
-                                   , "rest" .= ifEqInt tmp (text "1") thn
-                                   ]
 
     ifCon :: Doc -> Doc -> Doc -> [Doc] -> ConditionDoc
     ifCon scrutinee tpt t fields thn = debugWrap ("ifCon@" ++ asString scrutinee ++ ": " ++ asString tpt ++ "." ++ asString t ++ "(" ++ asString (tupled fields) ++ ")")
@@ -504,14 +492,6 @@ genPure expr
                           ]
      _ -> failure ("JavaScript.FromCore.genPure: invalid expression:\n" ++ show expr)
 
-isPat :: Bool -> Pattern -> Bool
-isPat b q
-  = case q of
-      PatWild     -> False
-      PatLit _    -> False
-      PatVar _ q' -> isPat b q'
-      PatCon {}   -> getName (patConName q) == if b then nameTrue else nameFalse
-
 -- | Generates an effect-free javasript expression
 --   NOTE: Throws an error if expression is not guaranteed to be effectfree
 genInline :: Expr -> Asm Doc
@@ -532,7 +512,7 @@ genInline expr
                   -> case args of
                        [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT, nameInt64,nameIntPtrT] && isSmallInt i
                          -> return (pretty i)
-                       _ -> genInlineExternal tname formats argDocs
+                       _ -> genExprExternal tname formats argDocs
                 Nothing
                   -> case (f,args) of
                        ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT,nameInt64,nameIntPtrT] && isSmallInt i
@@ -562,20 +542,11 @@ genWrapExternal tname formats
                     , "body" .= doc
                     ]
 
--- inlined external sometimes  needs wrapping in a applied function block
-genInlineExternal :: TName -> [(Target,String)] -> [Doc] -> Asm Doc
-genInlineExternal = genExprExternal 
-
--- generate external: needs to add try blocks for primitives that can throw exceptions
-genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm (Doc)
-genExprExternal = genExprExternalPrim
-
-
 -- special case: .cctx-hole-create
-genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm (Doc)
-genExprExternalPrim tname formats [] | getName tname == nameCCtxHoleCreate
+genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm (Doc)
+genExprExternal tname formats [] | getName tname == nameCCtxHoleCreate
   = return $ notImplemented $ text $ show $ getName tname
-genExprExternalPrim tname formats argDocs0
+genExprExternal tname formats argDocs0
   = let name = getName tname
         format = getFormat tname formats
     in return $ (case (tnameType tname) of 
@@ -619,12 +590,6 @@ genVarNames :: Int -> Asm [Doc]
 genVarNames i = do ns <- newVarNames i
                    return $ map ppName ns
 
--- | Generate a name with its type in comments
-genCommentTName :: TName -> Asm Doc
-genCommentTName (TName n t)
-  = do env <- getPrettyEnv
-       return $ ppName n -- <+> comment (Pretty.ppType env t )
-
 trimOptionalArgs args
   = reverse (dropWhile isOptionalNone (reverse args))
   where
@@ -650,14 +615,6 @@ extractExternal expr
       = case lookupTarget (JS JsDefault) fs of  -- TODO: pass real target from flags
           Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
           Just s -> s
-
-isFunExpr :: Expr -> Bool
-isFunExpr expr
-  = case expr of
-      TypeApp e _   -> isFunExpr e
-      TypeLam _ e   -> isFunExpr e
-      Lam args eff body -> True
-      _                 -> False
 
 isInlineableExpr :: Expr -> Bool
 isInlineableExpr expr
@@ -687,29 +644,6 @@ isPureExpr expr
       Lit _   -> True
       Lam _ _ _ -> True
       _       -> False
-
-
-isTailCalling :: Expr -> Name -> Bool
-isTailCalling expr n
-  = case expr of
-      TypeApp expr _    -> expr `isTailCalling` n     -- trivial
-      TypeLam _ expr    -> expr `isTailCalling` n     -- trivial
-      Lam _ _ _           -> False                      -- lambda body is a new context, can't tailcall
-      Var _ _           -> False                      -- a variable is not a call
-      Con _ _           -> False                      -- a constructor is not a call
-      Lit _             -> False                      -- a literal is not a call
-      App (Var tn info) args   | getName tn == n            -- direct application can be a tail call
-                        -> infoArity info == length args
-      App (TypeApp (Var tn info) _) args | getName tn == n  -- tailcalled function might be polymorphic and is applied to types before
-                        -> infoArity info == length args
-      App (Var tn _) [e] | getName tn == nameReturn   -- a return statement is transparent in terms of tail calling
-                        -> e `isTailCalling` n
-      App _ _           -> False                      -- other applications don't apply
-      Let _ e           -> e `isTailCalling` n        -- tail calls can only happen in the actual body
-      Case _ bs         -> any f1 bs                  -- match statement get analyzed in depth
-  where
-    f1 (Branch _ gs) = any f2 gs                      -- does any of the guards tailcall?
-    f2 (Guard _ e)   = e `isTailCalling` n            -- does the guarded expression tailcall?
 
 ---------------------------------------------------------------------------------
 -- The assembly monad
@@ -751,15 +685,6 @@ initSt = St 0
 instance HasUnique Asm where
   updateUnique f
     = Asm (\env st -> (uniq st, st{ uniq = f (uniq st)}))
-
-updateSt f
-  = Asm (\env st -> (st,f st))
-
-getSt
-  = updateSt id
-
-setSt st
-  = updateSt (const st)
 
 getEnv
   = Asm (\env st -> (env, st))
