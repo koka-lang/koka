@@ -538,8 +538,10 @@ genInline expr
                        ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT,nameInt64,nameIntPtrT] && isSmallInt i
                          -> return (pretty i)
                        _ -> do fdoc <- genInline f
-                               return $ notImplemented $ (fdoc <.> tupled argDocs)
-
+                               return $ obj [ "op" .= str "App"
+                                            , "fn" .= fdoc
+                                            , "args" .= list argDocs
+                                            ]
       _ -> failure ("VM.FromCore.genInline: invalid expression:\n" ++ show expr)
 
 extractExtern :: Expr -> Maybe (TName,[(Target,String)])
@@ -559,43 +561,20 @@ genWrapExternal tname formats
                     , "params" .= list vs
                     , "body" .= doc
                     ]
-       -- $ notImplemented $ parens (text "function" ) -- <.> tupled vs <+> block (vcat ([text "return" <+> doc <.> semi])))
 
 -- inlined external sometimes  needs wrapping in a applied function block
 genInlineExternal :: TName -> [(Target,String)] -> [Doc] -> Asm Doc
-genInlineExternal tname formats argDocs = genExprExternal tname formats argDocs
+genInlineExternal = genExprExternal 
 
 -- generate external: needs to add try blocks for primitives that can throw exceptions
 genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm (Doc)
-genExprExternal tname formats argDocs0
-  = do (doc) <- genExprExternalPrim tname formats argDocs0
-       case splitFunType (typeOf tname) of
-         Nothing -> return (doc)
-         Just (pars,eff,res)
-           -> let (ls,tl) = extractOrderedEffect eff
-              in case filter (\l -> labelName l == nameTpPartial) ls of
-                   [] -> return (doc)
-                   _  -> -- has an exception type, wrap it in a try handler
-                         let try = parens $
-                                   parens (text "function()") --  <+> block (vcat (
-                                    -- [text "try" <+> block (vcat ([text "return" <+> doc <.> semi]))
-                                    -- ,text "catch(_err){ return $std_core._throw_exception(_err); }"]
-                                    -- )))
-                                   <.> text "()"
-                         in return $ notImplemented (try)
+genExprExternal = genExprExternalPrim
+
 
 -- special case: .cctx-hole-create
 genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm (Doc)
 genExprExternalPrim tname formats [] | getName tname == nameCCtxHoleCreate
-  = return (text "undefined")
-
-{-
--- special case: cfield-set (field is implemented as {value:<obj>, field:<string>})
-genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCFieldSet
-  = return ([], tupled [accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc, text "$std_core_types._Unit_"])
--}
-
--- normal external
+  = return $ notImplemented $ text $ show $ getName tname
 genExprExternalPrim tname formats argDocs0
   = let name = getName tname
         format = getFormat tname formats
@@ -827,8 +806,8 @@ ppLit :: Lit -> Doc
 ppLit lit
     = case lit of
       LitInt i    -> obj [ "op" .= str "Literal", "type" .= tpe "Int", "value" .= pretty i ]
-      LitChar c   -> notImplemented $ text ("0x" ++ showHex 4 (fromEnum c))
-      LitFloat d  -> notImplemented $ text (showsPrec 20 d "")
+      LitChar c   -> obj [ "op" .= str "Literal", "type" .= tpe "String", "value" .= dquotes (escape c)] 
+      LitFloat d  -> obj [ "op" .= str "Literal", "type" .= tpe "Double", "value" .= text (showsPrec 20 d "") ]
       LitString s -> obj [ "op" .= str "Literal", "type" .= tpe "String", "value" .= dquotes (hcat (map escape s)) ]
     where
       escape c
