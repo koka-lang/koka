@@ -541,7 +541,7 @@ genInline expr
                        _ -> do fdoc <- genInline f
                                return $ notImplemented $ (fdoc <.> tupled argDocs)
 
-      _ -> failure ("JavaScript.FromCore.genInline: invalid expression:\n" ++ show expr)
+      _ -> failure ("VM.FromCore.genInline: invalid expression:\n" ++ show expr)
 
 extractExtern :: Expr -> Maybe (TName,[(Target,String)])
 extractExtern expr
@@ -555,8 +555,12 @@ genWrapExternal :: TName -> [(Target,String)] -> Asm Doc
 genWrapExternal tname formats
   = do let n = snd (getTypeArities (typeOf tname))
        vs  <- genVarNames n
-       (doc) <- genExprExternal tname formats vs
-       return $ notImplemented $ parens (text "function" ) -- <.> tupled vs <+> block (vcat ([text "return" <+> doc <.> semi])))
+       doc <- genExprExternal tname formats vs
+       return $ obj [ "op" .= str "Abs"
+                    , "params" .= list vs
+                    , "body" .= doc
+                    ]
+       -- $ notImplemented $ parens (text "function" ) -- <.> tupled vs <+> block (vcat ([text "return" <+> doc <.> semi])))
 
 -- inlined external sometimes  needs wrapping in a applied function block
 genInlineExternal :: TName -> [(Target,String)] -> [Doc] -> Asm Doc
