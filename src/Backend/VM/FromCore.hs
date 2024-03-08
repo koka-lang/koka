@@ -67,7 +67,7 @@ genModule buildType mbMain imports core
             (mainEntry) = case mbMain of
                           Nothing -> appPrim "is a library" [] (tpe "Unit")
                           Just (name,isAsync)
-                            -> app (var (str $ show name) (tFn "Effectful" [] (tpe "Unit"))) []
+                            -> app (var (ppName name) (tFn "Effectful" [] (tpe "Unit"))) []
         return $
                     obj
                     [ "metadata" .= 
@@ -131,7 +131,7 @@ genGroup topLevel group
 
 genDef :: Bool -> Def -> Asm Doc
 genDef topLevel (Def name tp expr vis sort inl rng comm)
-  = do let n = var (str $ show name) (transformType tp)
+  = do let n = var (ppName name) (transformType tp)
        v <- genExpr expr
        return $ def n v 
 
@@ -154,7 +154,7 @@ genTypeDef (Data info isExtend)
   = do modName <- getModule
        let (dataRepr, conReprs) = getDataRepr info
        mapM ( \(c,repr)  ->
-          do let args = map (\(n,t) -> var (ppName n) (transformType t)) (conInfoParams c)
+          do args <- mapM (\(n,t) -> genTName $ TName n t) (conInfoParams c)
              let name = str $ show (conInfoName c)
              let tp = transformType $ conInfoType c
              penv <- getPrettyEnv
@@ -192,9 +192,10 @@ genTypeDef (Data info isExtend)
 
 getConTypeTag info = getReturn $ conInfoType info
   where 
-    getReturn (TFun _ _ r) = str $ show $ r
+    getReturn (TFun _ _ r) = str $ show r
     getReturn (TForall _ _ t) = getReturn t
-    getReturn t = error $ "Constructor does not have a function type: " ++ show t
+    getReturn (TApp t _) = getReturn t
+    getReturn t = str $ show t
 getConTag modName coninfo repr
   = case repr of
       ConOpen{} -> -- ppLit (LitString (show (openConTag (conInfoName coninfo))))
@@ -220,7 +221,7 @@ genExprStat expr
                                                                then do d       <- genInline e
                                                                        return ([], d)
                                                                else do (sd,vn) <- genVarBinding e
-                                                                       vd <- asVar vn
+                                                                       vd <- genTName vn
                                                                        return (sd, vd)
                                                        ) exprs
                doc                <- genMatch scrutinees branches
@@ -277,7 +278,7 @@ genMatch scrutinees branches
            let se         = withNameSubstitutions substs
 
            gs <- mapM (se . genGuard) guards
-           return (conditions, debugWrap ("genBranch: " ++ show substs) $ vcat gs)
+           return (conditions, debugWrap ("genBranch: " ++ show substs) $ vcat gs) -- FIXME
 
     genGuard  :: Guard -> Asm Doc
     genGuard (Guard t expr)
@@ -413,7 +414,7 @@ genExpr expr
      Let groups body
        -> do decls1       <- genGroups False groups
              (doc) <- genExpr body
-             return $ obj [ "op" .= str "Let"
+             return $ obj [ "op" .= str "LetRec"
                           , "definitions" .= list decls1
                           , "body".= doc
                           ]
@@ -457,7 +458,7 @@ genVarBinding expr
       _        -> do name <- newVarName "x"
                      let tp = typeOf expr
                      val <- genExprStat expr
-                     let defs  = [def (var (str $ show name) (transformType tp)) val]
+                     let defs  = [def (var (ppName name) (transformType tp)) val]
                      return ( defs, TName name (typeOf expr) )
 
 ---------------------------------------------------------------------------------
@@ -472,7 +473,7 @@ genPure expr
      Var name (InfoExternal formats)
        -> genWrapExternal name formats  -- unapplied inlined external: wrap as function
      Var name info
-       -> asVar name -- genTName name
+       -> genTName name
      Con name repr | getName name == nameUnit
        -> return $ obj [ "op" .= str "Literal", "type" .= transformType (tnameType name) ]
      Con name repr | getName name == nameTrue
@@ -480,13 +481,14 @@ genPure expr
      Con name repr | getName name == nameFalse
        -> return $ obj [ "op" .= str "Literal", "value" .= text "0", "type" .= transformType (tnameType name) ]
      Con name repr
-       -> asVar name
+       -> genTName name
      Lit l
        -> return $ ppLit l
      Lam params eff body
-       -> do args <- mapM asVar params
+       -> do args <- mapM genTName params
              bodyDoc <- genExprStat body
-             return $ obj [ "op" .= str "Abs"
+             return $ debugWrap "genPure: pure lambda in core code"
+                    $ obj [ "op" .= str "Abs"
                           , "params" .= list args
                           , "body" .= bodyDoc
                           ]
@@ -539,7 +541,8 @@ genWrapExternal tname formats
           let ts = map snd pars
           vs  <- genVarNames ts
           doc <- genExprExternal tname formats vs
-          return $ obj [ "op" .= str "Abs"
+          return $ debugWrap "genWrapExternal"
+                 $ obj [ "op" .= str "Abs"
                        , "params" .= list vs
                        , "body" .= doc
                        ]
@@ -576,9 +579,9 @@ genName name tpe
   = if (isQualified name)
       then do modname <- getModule
               if (qualifier name == modname)
-               then return (ppName (unqualify name))
+               then return $ var (ppName (unqualify name)) (transformType tpe)
                else return $ obj [ "op" .= str "Qualified", "lib" .= libName (nameModule name), "name" .= (ppName name), "type" .= transformType tpe ]
-      else return (ppName name)
+      else return $ var (ppName name) (transformType tpe)
 
 genVarName :: String -> Asm Doc
 genVarName s = do n <- newVarName s
@@ -764,12 +767,11 @@ minSmallInt = -maxSmallInt
 ppName :: Name -> Doc
 ppName name
   = quoted $ if isQualified name
-     then ppModName (qualifier name) <.> dot <.> encode False (unqualify name)
+     then ppModName (qualifier name) <.> text "/" <.> encode False (unqualify name)
      else encode False name
 
 ppModName :: Name -> Doc
-ppModName name
-  = text "$" <.> encode True (name)
+ppModName name = encode True (name)
 
 encode :: Bool -> Name -> Doc
 encode isModule name
@@ -828,11 +830,6 @@ notImplemented doc = appPrim ("Not implemented: " ++ show (asString doc)) [] (tp
 
 var :: Doc -> Doc -> Doc
 var x t = obj [ "op" .= str "Var", "id" .= x, "type" .= t ]
-asVar :: TName -> Asm Doc
-asVar n = do env <- getEnv
-             case lookup n (substEnv env) of
-                Nothing -> return $ var (str $ show $ getName n) (transformType $ tnameType n)
-                Just s -> return s
 
 ---- Types
 tFn :: String -> [Doc] -> Doc -> Doc
