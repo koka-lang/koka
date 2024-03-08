@@ -1,9 +1,16 @@
 # PLDI 2024 Paper Artifact: The Functional Essence of Imperative Binary Search Trees
 
+[dockerhub]:  https://hub.docker.com/repository/docker/daanx/pldi24-tree/general
+[Zenodo]:     https://zenodo.org/records/10790231
+
 # Getting Started
 
-We provide a docker image (based on Ubuntu 22.04, x64/aarch64) to run the benchmarks:
-Please use either `x64` or `arm64` since under emulation the benchmarks vary too much.
+We provide two docker images based on Ubuntu 22.04, one for `x64` and one for `arm64` 
+(for use on an Apple M1 for example)
+The [Zenodo] tar contains both images and this readme. For convenience and to reduce 
+download times, we also uploaded the exact same images to [dockerhub] so they can be 
+used directly with `docker pull`. Please use either `x64` or `arm64` since under 
+emulation the benchmarks vary too much.
 
 ```
 > docker pull daanx/pldi24-tree:1.0-x64
@@ -14,7 +21,15 @@ or
 > docker pull daanx/pldi24-tree:1.0-arm64
 > docker run -it daanx/pldi24-tree:1.0-arm64
 ```
-(use this on macOS M1)
+(use this on macOS M1). 
+
+When using the Zenodo tar use the `docker load -i <image>` command instead of `docker pull`, for example:
+```
+> tar -xvf artifact_the_functional_essence_of_imperative_binary_search_trees.tar
+> cd pldi24
+> docker load -i daanx/pldi24-tree:1.0-x64
+> docker run -it daanx/pldi24-tree:1.0-x64
+```
 
 We now see the docker prompt:
 ```
@@ -70,6 +85,7 @@ This runs the `zip` benchmark on the top-down (`td`) and bottom-up (`bu`)
 variants. Eventually the bench provides a summary in absolute runtimes (and rss), 
 and normalized runtimes relative to the Koka variant (`kk`).
 The above results are on Ubuntu 22.0.4 with 16-core AMD 7950X @4.5Ghz (outside Docker).
+
 
 # Step-by-step Guide
 
