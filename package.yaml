@@ -8,6 +8,8 @@
 # - support/vscode/koka.language-koka/package.json
 # - whatsnew.md, readme.md
 
+# Also update unicode asian-width list in `std/text/unicode`
+#  using the output of `stack exec koka -- util/update-unicode.kk -- -a`
 
 name:       koka
 version:    3.1.2
