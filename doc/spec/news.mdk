@@ -3,8 +3,8 @@ News:
 
 * 2024-03-14: Xavier Leroy is teaching a fantastic
   [lecture series](https://www.college-de-france.fr/fr/agenda/cours/structures-de-controle-de-goto-aux-effets-algebriques) on
-  control structures and algebraic effects at the Coll&egrave;ge de France with many invited talks available online.
-  March 14 will be a talk on the design and compilation of efficient effect handlers in Koka.
+  control structures and algebraic effects at the Coll&egrave;ge de France with many invited talks available online.\
+  March 14 at 11:15am Paris time there is a talk on the "design and compilation of efficient effect handlers in Koka" that you can [follow live on Zoom](https://zoom.us/j/97263064104?pwd=dVVTVWRBR2p2QzJKeUpGOUpLRE45dz09).
 
 * 2024-03-04: Koka v3.1.1 released with a language server crash fix.
 

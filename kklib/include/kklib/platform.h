@@ -193,7 +193,7 @@
 #pragma GCC diagnostic ignored "-Warray-bounds"         // gives wrong warnings in std/os/path for string literals
 #define kk_decl_const         __attribute__((const))    // reads no global state at all
 #define kk_decl_pure          __attribute__((pure))     // may read global state but has no observable side effects
-#define kk_decl_noinline       __attribute__((noinline))
+#define kk_decl_noinline      __attribute__((noinline))
 #define kk_decl_align(a)      __attribute__((aligned(a)))
 #define kk_decl_thread        __thread
 #elif defined(_MSC_VER)

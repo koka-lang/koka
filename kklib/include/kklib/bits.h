@@ -10,21 +10,25 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-// Define __builtin suffixes for gcc/clang
-// Note: gcc has `__has_builtin` since version 10 so in some cases we also test for __GNUC__>=7 (Ubuntu 18)
+// Define kk_builtin suffixes for gcc/clang
+// Note: gcc has `kk_has_builtin` since version 10 so in some cases we also test for __GNUC__>=7 (as on Ubuntu 18)
+
+#define kk_builtin(name)        __builtin_##name
+#define kk_has_builtin(name)    __has_builtin(__builtin_##name)
+
 #if (LONG_MAX == INT32_MAX)
-#define __builtin32(name)       __builtin_##name##l
-#define __has_builtin32(name)   __has_builtin(__builtin_##name##l)
+#define kk_builtin32(name)       kk_builtin(name##l)
+#define kk_has_builtin32(name)   kk_has_builtin(name##l)
 #else
-#define __builtin32(name)       __builtin_##name
-#define __has_builtin32(name)   __has_builtin(__builtin_##name)
+#define kk_builtin32(name)       kk_builtin(name)
+#define kk_has_builtin32(name)   kk_has_builtin(name)
 #endif
 #if (LONG_MAX == INT64_MAX)
-#define __builtin64(name)       __builtin_##name##l
-#define __has_builtin64(name)   __has_builtin(__builtin_##name##l)
+#define kk_builtin64(name)       kk_builtin(name##l)
+#define kk_has_builtin64(name)   kk_has_builtin(name##l)
 #else
-#define __builtin64(name)       __builtin_##name##ll
-#define __has_builtin64(name)   __has_builtin(__builtin_##name##ll)
+#define kk_builtin64(name)       kk_builtin(name##ll)
+#define kk_has_builtin64(name)   kk_has_builtin(name##ll)
 #endif
 
 #if (KK_INTX_SIZE==4)
@@ -37,24 +41,24 @@
 /* -----------------------------------------------------------
   Rotations
 ----------------------------------------------------------- */
-#if __has_builtin(__builtin_rotateleft64)
+#if kk_has_builtin(rotateleft64)
 static inline uint16_t kk_bits_rotl16(uint16_t x, int shift) {
-  return __builtin_rotateleft16(x, (unsigned)shift & 15);
+  return kk_builtin(rotateleft16)(x, (unsigned)shift & 15);
 }
 static inline uint16_t kk_bits_rotr16(uint16_t x, int shift) {
-  return __builtin_rotateright16(x, (unsigned)shift & 15);
+  return kk_builtin(rotateright16)(x, (unsigned)shift & 15);
 }
 static inline uint32_t kk_bits_rotl32(uint32_t x, int shift) {
-  return __builtin_rotateleft32(x, (unsigned)shift & 31);
+  return kk_builtin(rotateleft32)(x, (unsigned)shift & 31);
 }
 static inline uint32_t kk_bits_rotr32(uint32_t x, int shift) {
-  return __builtin_rotateright32(x, (unsigned)shift & 31);
+  return kk_builtin(rotateright32)(x, (unsigned)shift & 31);
 }
 static inline uint64_t kk_bits_rotl64(uint64_t x, int shift) {
-  return __builtin_rotateleft64(x, (unsigned)shift & 63);
+  return kk_builtin(rotateleft64)(x, (unsigned)shift & 63);
 }
 static inline uint64_t kk_bits_rotr64(uint64_t x, int shift) {
-  return __builtin_rotateright64(x, (unsigned)shift & 63);
+  return kk_builtin(rotateright64)(x, (unsigned)shift & 63);
 }
 #elif defined(_MSC_VER)
 #include <intrin.h>
@@ -122,20 +126,20 @@ static inline kk_uintx_t kk_bits_rotr(kk_uintx_t x, int shift) {
   `ctz` count trailing zero bits  (32/64 for zero)
 ----------------------------------------------------------- */
 
-#if __has_builtin32(clz) || __GNUC__ >= 7
+#if kk_has_builtin32(clz) || (__GNUC__ >= 7)
 static inline int kk_bits_clz32(uint32_t x) {
-  return (x==0 ? 32 : __builtin32(clz)(x));
+  return (x==0 ? 32 : kk_builtin32(clz)(x));
 }
 static inline int kk_bits_ctz32(uint32_t x) {
-  return (x==0 ? 32 : __builtin32(ctz)(x));
+  return (x==0 ? 32 : kk_builtin32(ctz)(x));
 }
-#if __has_builtin64(clz) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
+#if kk_has_builtin64(clz) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
 #define KK_BITS_HAS_CLZ64
 static inline int kk_bits_clz64(uint64_t x) {
-  return (x == 0 ? 64 : __builtin64(clz)(x));
+  return (x == 0 ? 64 : kk_builtin64(clz)(x));
 }
 static inline int kk_bits_ctz64(uint64_t x) {
-  return (x==0 ? 64 : __builtin64(ctz)(x));
+  return (x==0 ? 64 : kk_builtin64(ctz)(x));
 }
 #endif
 
@@ -162,7 +166,7 @@ static inline int kk_bits_ctz64(uint64_t x) {
 #endif
 
 #else
-#error "generiz ctz"
+#warning "using generiz ctz"
 #define KK_BITS_USE_GENERIC_CTZ_CLZ  1
 kk_decl_export int kk_bits_ctz32(uint32_t x);
 kk_decl_export int kk_bits_clz32(uint32_t x);
@@ -204,9 +208,9 @@ static inline int kk_bits_ctz(kk_uintx_t x) {
  clrsb32(INT32_MIN) = 0
 ----------------------------------------------------------- */
 
-#if __has_builtin32(clrsb)
+#if kk_has_builtin32(clrsb)
 static inline int kk_bits_clrsb32(int32_t x) {
-  return __builtin32(clrsb)(x);
+  return kk_builtin32(clrsb)(x);
 }
 #else
 static inline int kk_bits_clrsb32(int32_t x) {
@@ -214,9 +218,9 @@ static inline int kk_bits_clrsb32(int32_t x) {
 }
 #endif
 
-#if __has_builtin64(clrsb)
+#if kk_has_builtin64(clrsb)
 static inline int kk_bits_clrsb64(int64_t x) {
-  return __builtin64(clrsb)(x);
+  return kk_builtin64(clrsb)(x);
 }
 #else
 static inline int kk_bits_clrsb64(int64_t x) {
@@ -354,13 +358,13 @@ static inline uint8_t kk_bits_byte_sum(kk_uintx_t x) {
   see <https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel>
 ------------------------------------------------------------------ */
 
-#if __has_builtin32(popcount) || __GNUC__ >= 7
+#if kk_has_builtin32(popcount) || (__GNUC__ >= 7)
 static inline int kk_bits_popcount32(uint32_t x) {
-  return __builtin32(popcount)(x);
+  return kk_builtin32(popcount)(x);
 }
-#if __has_builtin64(popcount) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
+#if kk_has_builtin64(popcount) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
 static inline int kk_bits_popcount64(uint64_t x) {
-  return __builtin64(popcount)(x);
+  return kk_builtin64(popcount)(x);
 }
 #else
 static inline int kk_bits_popcount64(uint64_t x) {
@@ -378,13 +382,13 @@ kk_decl_export int kk_bits_generic_popcount64(uint64_t x);
 extern bool kk_has_popcnt;  // initialized in runtime.c
 
 static inline int kk_bits_popcount32(uint32_t x) {
-  if (kk_has_popcnt) return (int)__popcnt(x);
-  return kk_bits_generic_popcount32(x);
+  if kk_likely(kk_has_popcnt) return (int)__popcnt(x);
+                         else return kk_bits_generic_popcount32(x);
 }
 
 static inline int kk_bits_popcount64(uint64_t x) {
   #if (KK_INTX_SIZE >= 8)
-  if (kk_has_popcnt) return (int)__popcnt64(x);
+  if kk_likely(kk_has_popcnt) return (int)__popcnt64(x); 
   #endif
   return kk_bits_generic_popcount64(x);
 }
@@ -412,14 +416,14 @@ static inline int kk_bits_popcount(kk_uintx_t x) {
   see <https://graphics.stanford.edu/~seander/bithacks.html#ParityParallel>
 ------------------------------------------------------------------ */
 
-#if __has_builtin32(parity)
+#if kk_has_builtin32(parity) || (__GNUC__ >= 7)
 static inline bool kk_bits_parity32(uint32_t x) {
-  return (__builtin32(parity)(x) == 0);
+  return (kk_builtin32(parity)(x) == 0);
 }
-#if __has_builtin64(parity)
+#if kk_has_builtin64(parity) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
 #define KK_BITS_HAS_PARITY64
 static inline bool kk_bits_parity64(uint64_t x) {
-  return (__builtin64(parity)(x) == 0);
+  return (kk_builtin64(parity)(x) == 0);
 }
 #endif
 
@@ -461,18 +465,18 @@ static inline bool kk_bits_parity(kk_uintx_t x) {
   swap bytes
 ------------------------------------------------------------------ */
 
-#if __has_builtin(__builtin_bswap32) || __GNUC__ >= 7
+#if kk_has_builtin(kk_builtin_bswap32) || (__GNUC__ >= 7)
 static inline uint16_t kk_bits_bswap16(uint16_t x) {
-  return __builtin_bswap16(x);
+  return kk_builtin_bswap16(x);
 }
 static inline uint32_t kk_bits_bswap32(uint32_t x) {
-  return __builtin_bswap32(x);
+  return kk_builtin_bswap32(x);
 }
 
-#if __has_builtin(__builtin_bswap64) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
+#if kk_has_builtin(kk_builtin_bswap64) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
 #define KK_BITS_HAS_BSWAP64
 static inline uint64_t kk_bits_bswap64(uint64_t x) {
-  return __builtin_bswap64(x);
+  return kk_builtin_bswap64(x);
 }
 #endif
 
@@ -581,13 +585,13 @@ static inline kk_uintx_t kk_bits_bswap_from_be(kk_uintx_t u) {
   Bit reverse
 ------------------------------------------------------------------ */
 
-#if __has_builtin(__builtin_bitreverse32)
+#if kk_has_builtin(kk_builtin_bitreverse32)
 static inline uint32_t kk_bits_reverse32(uint32_t x) {
-  return __builtin_bitreverse32(x);
+  return kk_builtin_bitreverse32(x);
 }
-#if __has_builtin(__builtin_bitrevers64)
+#if kk_has_builtin(kk_builtin_bitrevers64)
 static inline uint64_t kk_bits_reverse64(uint64_t x) {
-  return __builtin_bitreverse64(x);
+  return kk_builtin_bitreverse64(x);
 }
 #else
 static inline uint64_t kk_bits_reverse64(uint64_t x) {
