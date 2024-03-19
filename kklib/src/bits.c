@@ -208,7 +208,7 @@ static inline bool kk_bits_parity32(uint32_t x) {
   wide multiplies
 -------------------------------------------------------------*/
 
-#if defined(KK_USE_GENERIC_WIDE_MUL64)
+#if defined(KK_USE_GENERIC_MUL64_WIDE)
 
 /* multiply to 64-bit integers `x` and `y` using 32x32 to 64-bit multiplications:
 
@@ -226,7 +226,7 @@ static inline bool kk_bits_parity32(uint32_t x) {
 
 #define kk_split32(x)   const uint64_t x##lo = (uint32_t)(x); const uint64_t x##hi = (x)>>32;
 
-uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
+uint64_t kk_umul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
   kk_split32(x); kk_split32(y);
   uint64_t a = xlo * ylo;
   uint64_t b = xhi * ylo;
@@ -240,9 +240,9 @@ uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
   return lo;
 }
 
-uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
+uint64_t kk_imul64_wide(int64_t x, int64_t y, int64_t* hi) {
   int64_t  z;
-  uint64_t lo = kk_wide_umul64((uint64_t)x, (uint64_t)y, (uint64_t*)&z);
+  uint64_t lo = kk_umul64_wide((uint64_t)x, (uint64_t)y, (uint64_t*)&z);
   if (x < 0) { z -= y; }
   if (y < 0) { z -= x; }
   *hi = z;
@@ -291,13 +291,13 @@ static uint32_t kk_bits_scatter32_loop(uint32_t x, uint32_t mask) {
 
 uint32_t kk_bits_scatter32(uint32_t x, uint32_t mask) {
   switch (kk_bits_popcount32(mask)) {
-  case 0: return 0;
-  case 1: return ((x & 1) != 0 ? mask : 0);
-  case 2: {
-    uint32_t lsb = ((x & 1) != 0 ? kk_bits_only_keep_lsb32(mask) : 0);
-    uint32_t msb = ((x & 2) != 0 ? kk_bits_clear_lsb32(mask) : 0);
-    return (msb | lsb);
-  }
+    case 0: return 0;
+    case 1: return ((x & 1) != 0 ? mask : 0);
+    case 2: {
+      uint32_t lsb = ((x & 1) != 0 ? kk_bits_only_keep_lsb32(mask) : 0);
+      uint32_t msb = ((x & 2) != 0 ? kk_bits_clear_lsb32(mask) : 0);
+      return (msb | lsb);
+    }
   }
   return kk_bits_scatter32_loop(x, mask);
 }
@@ -314,13 +314,13 @@ static uint32_t kk_bits_gather32_loop(uint32_t x, uint32_t mask) {
 
 uint32_t kk_bits_gather32(uint32_t x, uint32_t mask) {
   switch (kk_bits_popcount32(mask)) {
-  case 0: return 0;
-  case 1: return ((x & mask) != 0 ? 1 : 0);
-  case 2: {
-    uint32_t lsb = ((x & kk_bits_only_keep_lsb32(mask)) != 0 ? 1 : 0);
-    uint32_t msb = ((x & kk_bits_clear_lsb32(mask)) != 0 ? 2 : 0);
-    return (msb | lsb);
-  }
+    case 0: return 0;
+    case 1: return ((x & mask) != 0 ? 1 : 0);
+    case 2: {
+      uint32_t lsb = ((x & kk_bits_only_keep_lsb32(mask)) != 0 ? 1 : 0);
+      uint32_t msb = ((x & kk_bits_clear_lsb32(mask)) != 0 ? 2 : 0);
+      return (msb | lsb);
+    }
   }
   return kk_bits_gather32_loop(x, mask);
 }
@@ -339,13 +339,13 @@ static uint64_t kk_bits_scatter64_loop(uint64_t x, uint64_t mask) {
 
 uint64_t kk_bits_scatter64(uint64_t x, uint64_t mask) {
   switch (kk_bits_popcount64(mask)) {
-  case 0: return 0;
-  case 1: return ((x & 1) != 0 ? mask : 0);
-  case 2: {
-    uint64_t lsb = ((x & 1) != 0 ? kk_bits_only_keep_lsb64(mask) : 0);
-    uint64_t msb = ((x & 2) != 0 ? kk_bits_clear_lsb64(mask) : 0);
-    return (msb | lsb);
-  }
+    case 0: return 0;
+    case 1: return ((x & 1) != 0 ? mask : 0);
+    case 2: {
+      uint64_t lsb = ((x & 1) != 0 ? kk_bits_only_keep_lsb64(mask) : 0);
+      uint64_t msb = ((x & 2) != 0 ? kk_bits_clear_lsb64(mask) : 0);
+      return (msb | lsb);
+    }
   }
   return kk_bits_scatter64_loop(x, mask);
 }
@@ -362,13 +362,13 @@ static uint64_t kk_bits_gather64_loop(uint64_t x, uint64_t mask) {
 
 uint64_t kk_bits_gather64(uint64_t x, uint64_t mask) {
   switch (kk_bits_popcount64(mask)) {
-  case 0: return 0;
-  case 1: return ((x & mask) != 0 ? 1 : 0);
-  case 2: {
-    uint64_t lsb = ((x & kk_bits_only_keep_lsb64(mask)) != 0 ? 1 : 0);
-    uint64_t msb = ((x & kk_bits_clear_lsb64(mask)) != 0 ? 2 : 0);
-    return (msb | lsb);
-  }
+    case 0: return 0;
+    case 1: return ((x & mask) != 0 ? 1 : 0);
+    case 2: {
+      uint64_t lsb = ((x & kk_bits_only_keep_lsb64(mask)) != 0 ? 1 : 0);
+      uint64_t msb = ((x & kk_bits_clear_lsb64(mask)) != 0 ? 2 : 0);
+      return (msb | lsb);
+    }
   }
   return kk_bits_gather64_loop(x, mask);
 }
@@ -477,3 +477,69 @@ uint64_t kk_bits_xpermn64(uint64_t x, uint64_t indices) {
   return r;
 }
 
+/* ----------------------------------------------------------
+  carry-less multiplication
+
+                  1 0 1 0 0 0 1 0 = x
+                  1 0 0 1 0 1 1 0 = y
+   -------------------------------
+                1 0 1 0 0 0 1 0|0   shift by 1
+              1 0 1 0 0 0 1 0|0 0   shift by 2
+          1 0 1 0 0 0 1 0|0 0 0 0   shift by 4
+    1 0 1 0 0 0 1 0|0 0 0 0 0 0 0   shift by 7
+   ------------------------------- ^
+    1 0 1 1 0 0 0 1 1 1 0 1 1 0 0
+-------------------------------------------------------------*/
+
+#ifdef KK_BITS_USE_GENERIC_CLMUL
+
+// multiply with the least-significant bit; as this is a power of 2,
+// the result won't produce a carry so we can xor safely.
+#define kk_clmul_bit32()  z ^= x << kk_bits_ctz32(y); y = kk_bits_clear_lsb32(y)
+#define kk_clmul_bit64()  z ^= x << kk_bits_ctz64(y); y = kk_bits_clear_lsb64(y)
+
+uint32_t kk_clmul32(uint32_t x, uint32_t y) {
+  uint32_t z = 0;
+	while (y!=0) {
+    // unroll 4 times
+    kk_clmul_bit32();
+    kk_clmul_bit32();
+    kk_clmul_bit32();
+    kk_clmul_bit32();
+  }
+	return z;
+}
+
+uint64_t kk_clmul64(uint64_t x, uint64_t y) {
+  uint64_t z = 0;
+	while (y!=0) {
+    // unroll 4 times
+    kk_clmul_bit64();
+    kk_clmul_bit64();
+    kk_clmul_bit64();
+    kk_clmul_bit64();    
+  };
+	return z;
+}
+
+uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
+  uint64_t z = kk_clmul64(x,y);
+  *hi = (uint32_t)(z >> 32);
+  return (uint32_t)z;
+}
+
+uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
+  uint64_t zlo = 0;
+  uint64_t zhi = 0;
+  uint8_t shift;
+  while (y != 0) {
+    shift = kk_bits_ctz64(y);
+    zlo ^= x << shift; 
+    zhi ^= x >> (64 - shift);
+    y = kk_bits_clear_lsb64(y);
+  }
+  *hi = zhi;
+  return zlo;
+}
+
+#endif

@@ -533,8 +533,8 @@ static void test_mul64(kk_context_t* ctx) {
     uint64_t x = kk_random_shuffle(state);
     uint64_t y = kk_random_shuffle(state);
     state = kk_random_shuffle(state);
-    uint64_t lo1, hi1; lo1 = kk_wide_umul64(x, y, &hi1);
-    uint64_t lo2, hi2; lo2 = kk_wide_umul64_msc(x, y, &hi2);
+    uint64_t lo1, hi1; lo1 = kk_umul64_wide(x, y, &hi1);
+    uint64_t lo2, hi2; lo2 = kk_umul64_msc_wide(x, y, &hi2);
     if (lo1 != lo2 || hi1 != hi2) {
       printf("********\n error: %zi * %zi = (%zi,%zi) != (%zi,%zi)\n**********\n", x, y, lo1, hi1, lo2, hi2);
     }

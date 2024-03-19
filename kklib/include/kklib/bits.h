@@ -693,13 +693,13 @@ static inline kk_uintx_t kk_bits_umidpoint( kk_uintx_t x, kk_uintx_t y ) {
   Wide multiplies
 ------------------------------------------------------------------ */
 
-static inline uint32_t kk_wide_umul32(uint32_t x, uint32_t y, uint32_t* hi) {
+static inline uint32_t kk_umul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
   const uint64_t r = (uint64_t)x * y;
   *hi = (uint32_t)(r >> 32);
   return (uint32_t)(r);
 }
 
-static inline uint32_t kk_wide_imul32(int32_t x, int32_t y, int32_t* hi) {
+static inline uint32_t kk_imul32_wide(int32_t x, int32_t y, int32_t* hi) {
   const int64_t r = (int64_t)x * y;
   *hi = (int32_t)(r >> 32);
   return (uint32_t)(r);
@@ -711,13 +711,13 @@ static inline uint32_t kk_wide_imul32(int32_t x, int32_t y, int32_t* hi) {
 __extension__ typedef unsigned __int128 kk_uint128_t;
 __extension__ typedef __int128 kk_int128_t;
 
-static inline uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
+static inline uint64_t kk_umul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
   kk_uint128_t r = (kk_uint128_t)x * y;
   *hi = (uint64_t)(r >> 64);
   return (uint64_t)(r);
 }
 
-static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
+static inline uint64_t kk_imul64_wide(int64_t x, int64_t y, int64_t* hi) {
   kk_int128_t r = (kk_int128_t)x * y;
   *hi = (int64_t)(r >> 64);
   return (uint64_t)(r);
@@ -726,24 +726,24 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
 #elif defined(_MSC_VER) && (_MSC_VER >= 1920) && defined(_M_X64)
 
 #include <intrin.h>
-static inline uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
+static inline uint64_t kk_umul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
   return _umul128(x, y, hi);
 }
 
-static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
+static inline uint64_t kk_imul64_wide(int64_t x, int64_t y, int64_t* hi) {
   return (uint64_t)_mul128(x, y, hi);
 }
 
 #elif defined(_MSC_VER) && defined(KK_ARCH_ARM64)
 
 #include <intrin.h>
-static inline uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi) {
+static inline uint64_t kk_umul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
   uint64_t lo = x * y;
   *hi = __umulh(x, y);
   return lo;
 }
 
-static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
+static inline uint64_t kk_imul64_wide(int64_t x, int64_t y, int64_t* hi) {
   uint64_t lo = (uint64_t)(x * y);
   *hi = __mulh(x, y);
   return lo;
@@ -751,9 +751,9 @@ static inline uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi) {
 
 #else
 
-#define KK_USE_GENERIC_WIDE_MUL64
-kk_decl_export uint64_t kk_wide_umul64(uint64_t x, uint64_t y, uint64_t* hi);
-kk_decl_export uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi);
+#define KK_USE_GENERIC_MUL64_WIDE
+kk_decl_export uint64_t kk_umul64_wide(uint64_t x, uint64_t y, uint64_t* hi);
+kk_decl_export uint64_t kk_imul64_wide(int64_t x, int64_t y, int64_t* hi);
 
 #endif
 
@@ -762,8 +762,7 @@ kk_decl_export uint64_t kk_wide_imul64(int64_t x, int64_t y, int64_t* hi);
   Parallel bit extract and deposit
 ------------------------------------------------------------------ */
 
-// todo: provide arm64 optimized version as well?
-#if defined(KK_ARCH_X64) && ((defined(_MSC_VER) &&  !defined(__clang_msvc__)) || (defined(__GNUC__) && defined(__BMI2__)))
+#if defined(KK_ARCH_X64) && defined(__BMI2__) && ((defined(_MSC_VER) && !defined(__clang_msvc__)) || defined(__GNUC__))
 #define KK_BITS_HAS_FAST_SCATTER_GATHER  1
 #include <immintrin.h>
 #if defined(__clang_msvc__)
@@ -786,6 +785,26 @@ static inline uint64_t kk_bits_scatter64(uint64_t x, uint64_t mask) {
   return _pdep_u64(x, mask);
 }
 
+#elif defined(KK_ARCH_ARM64) && defined(__ARM_FEATURE_SVE2)
+#define KK_BITS_HAS_FAST_SCATTER_GATHER  1
+#include <arm_sve.h>
+
+static inline uint32_t kk_bits_gather32(uint32_t x, uint32_t mask) {
+  return (uint32_t)svorv_u32(svptrue_b32(), svbext_u32(svdup_u32(x), svdup_u32(mask)));
+}
+
+static inline uint64_t kk_bits_gather64(uint64_t x, uint64_t mask) {
+  return (uint64_t)svorv_u64(svptrue_b64(), svbext_u64(svdup_u64(x), svdup_u64(mask)));
+}
+
+static inline uint32_t kk_bits_scatter32(uint32_t x, uint32_t mask) {
+  return (uint32_t)svorv_u32(svptrue_b32(), svbdep_u32(svdup_u32(x), svdup_u32(mask)));
+}
+
+static inline uint64_t kk_bits_scatter64(uint64_t x, uint64_t mask) {
+  return (uint64_t)svorv_u64(svptrue_b64(), svbdep_u64(svdup_u64(x), svdup_u64(mask)));
+}
+
 #else
 
 #define KK_BITS_USE_GENERIC_SCATTER_GATHER
@@ -805,7 +824,95 @@ static inline kk_uintx_t kk_bits_scatter(kk_uintx_t x, kk_uintx_t mask) {
 }
 
 /* ---------------------------------------------------------------
+  carry-less multiply
+------------------------------------------------------------------ */
+
+#if KK_ARCH_X64 && defined(__BMI2__)
+#define KK_BITS_HAS_FAST_CLMUL  1
+#include <immintrin.h>
+
+static inline uint64_t kk_clmul64(uint64_t x, uint64_t y) {
+  const __m128i res = _mm_clmulepi64_si128(_mm_set_epi64x(0, (int64_t)x), _mm_set_epi64x(0, (int64_t)y), 0);
+  return _mm_extract_epi64(res, 0); 
+}
+
+static inline uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
+  const __m128i res = _mm_clmulepi64_si128(_mm_set_epi64x(0, (int64_t)x), _mm_set_epi64x(0, (int64_t)y), 0);
+  *hi = _mm_extract_epi64(res, 1);
+  return _mm_extract_epi64(res, 0); 
+}
+
+static inline uint32_t kk_clmul32(uint32_t x, uint32_t y) {
+  return (uint32_t)kk_clmul64(x,y);
+}
+
+static inline uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
+  uint64_t z = kk_clmul64(x,y);
+  *hi = (uint32_t)(z>>32);
+  return (uint32_t)z;
+}
+
+#elif KK_ARCH_ARM64 && defined(__ARM_NEON) // (defined(__ARM_FEATURE_SME) || defined(__ARM_FEATURE_SVE))
+#define KK_BITS_HAS_FAST_CLMUL  1
+#include <arm_neon.h>
+#include <arm_acle.h>
+
+static inline uint64_t kk_clmul64(uint64_t x, uint64_t y) {
+  const uint64x2_t res = vreinterpretq_u64_p128(vmull_p64((poly64_t)x,(poly64_t)y));
+  return (uint64_t)vget_low_u64(res);
+}
+
+static inline uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
+  const uint64x2_t res = vreinterpretq_u64_p128(vmull_p64((poly64_t)x,(poly64_t)y));
+  *hi = (uint64_t)vget_high_u64(res);
+  return (uint64_t)vget_low_u64(res);
+}
+
+static inline uint32_t kk_clmul32(uint32_t x, uint32_t y) {
+  return (uint32_t)kk_clmul64(x,y);
+}
+
+static inline uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
+  uint64_t z = kk_clmul64(x,y);
+  *hi = (uint32_t)(z>>32);
+  return (uint32_t)z;
+}
+
+#else
+
+#define KK_BITS_USE_GENERIC_CLMUL  1
+
+uint32_t kk_clmul32(uint32_t x, uint32_t y);
+uint64_t kk_clmul64(uint64_t x, uint64_t y);
+uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi);
+uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi);
+
+#endif
+
+
+/* ---------------------------------------------------------------
+  Byte and nibble permutation
+  todo: use fast riscV intrinsics
+------------------------------------------------------------------ */
+
+// todo: use riscV xperm intrinsics
+kk_decl_export uint32_t kk_bits_xperm32(uint32_t x, uint32_t indices);
+kk_decl_export uint32_t kk_bits_xpermn32(uint32_t x, uint32_t indices);
+kk_decl_export uint64_t kk_bits_xperm64(uint64_t x, uint64_t indices);
+kk_decl_export uint64_t kk_bits_xpermn64(uint64_t x, uint64_t indices);
+
+static inline kk_uintx_t kk_bits_xperm(kk_uintx_t x, kk_uintx_t indices) {
+  return kk_bitsx(xperm)(x,indices);
+}
+
+static inline kk_uintx_t kk_bits_xpermn(kk_uintx_t x, kk_uintx_t indices) {
+  return kk_bitsx(xpermn)(x,indices);
+}
+
+
+/* ---------------------------------------------------------------
   Bit interleaving: zip and unzip
+  // todo: use riscV zip/unzip intrinsics
 ------------------------------------------------------------------ */
 #define kk_mask_odd_bits32  (KK_U32(0x55555555))
 #define kk_mask_odd_bits64  (KK_U64(0x5555555555555555))
@@ -835,7 +942,6 @@ static inline uint64_t kk_bits_deinterleave64(uint64_t x) {
 
 #else
 
-// todo: use riscV zip/unzip intrinsics
 #define KK_BITS_USE_GENERIC_INTERLEAVE
 kk_decl_export uint32_t kk_bits_interleave32(uint32_t x);
 kk_decl_export uint32_t kk_bits_deinterleave32(uint32_t x);
@@ -851,42 +957,6 @@ static inline kk_uintx_t kk_bits_interleave(kk_uintx_t x) {
 static inline kk_uintx_t kk_bits_deinterleave(kk_uintx_t x) {
   return kk_bitsx(deinterleave)(x);
 }
-
-
-/* ---------------------------------------------------------------
-  Byte and nibble permutation
------------------------------------------------------------------- */
-
-kk_decl_export uint32_t kk_bits_xperm32(uint32_t x, uint32_t indices);
-kk_decl_export uint32_t kk_bits_xpermn32(uint32_t x, uint32_t indices);
-kk_decl_export uint64_t kk_bits_xperm64(uint64_t x, uint64_t indices);
-kk_decl_export uint64_t kk_bits_xpermn64(uint64_t x, uint64_t indices);
-
-static inline kk_uintx_t kk_bits_xperm(kk_uintx_t x, kk_uintx_t indices) {
-  return kk_bitsx(xperm)(x,indices);
-}
-
-static inline kk_uintx_t kk_bits_xpermn(kk_uintx_t x, kk_uintx_t indices) {
-  return kk_bitsx(xpermn)(x,indices);
-}
-
-
-/* ---------------------------------------------------------------
-  carry-less multiply
-
-static inline uint64_t kk_clmul64(uint64_t x, uint64_t y, uint64_t* hi) {
-  const __m128i res = _mm_clmulepi64_si128(_mm_set_epi64x(0, (int64_t)x), _mm_set_epi64x(0, (int64_t)y), 0);
-  *hi = _mm_extract_epi64(res, 1);
-  return (uint64_t)_mm_cvtsi128_si64(res);
-}
-
-static inline uint64_t kk_clmul64(uint64_t x, uint64_t y, uint64_t* hi) {
-  const poly128_t pres = vreinterpretq_u64_p128(vmull_p64((poly64_t)x, (poly64_t)y));
-  *hi = (uint64_t)vget_high_u64(res);
-  return (uint64_t)vget_low_u64(res);
-}
-
------------------------------------------------------------------- */
 
 
 #endif // include guard

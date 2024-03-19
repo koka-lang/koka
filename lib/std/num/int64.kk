@@ -389,6 +389,15 @@ pub inline fip extern deinterleave( i : int64 ) : int64
 pub inline fip extern orc( i : int64 ) : int64
   c inline "kk_bits_orc64(#1)"
 
+// Carry-less multiplication (or _xor_ multiplication).
+// See also <https://en.wikipedia.org/wiki/Carry-less_product>
+pub inline fip extern clmul( x : int64, y : int64 ) : int64
+  c inline "(int64_t)kk_clmul64((uint64_t)#1,(uint64_t)#2)"
+
+// Wide carry-less multiplication (or _xor_ multiplication) to `(hi,lo)`.
+// where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
+pub fip extern clmul_wide( x : int64, y : int64 ) : (int64,int64)
+  c "kk_clmul64x_wide"
 
 // Return the minimum of two integers
 pub fip fun min( i : int64, j : int64 ) : int64
@@ -402,13 +411,13 @@ pub fip fun max( i : int64, j : int64 ) : int64
 // Full 64x64 bit unsigned multiply to `(hi,lo)`.
 // where `(hi,lo).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
 pub fip extern umul( i : int64, j : int64 ) : (int64,int64)
-  c "kk_wide_umul64x"
+  c "kk_umul64x_wide"
   js "$std_core_types._int64_umul"
 
 // Full 64x64 bit signed multiply to `(hi,lo)`.
 // where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
 pub fip extern imul( i : int64, j : int64 ) : (int64,int64)
-  c "kk_wide_imul64x"
+  c "kk_imul64x_wide"
   js "$std_core_types._int64_imul"
 
 // Convert a pair `(hi,lo)` to an signed integer,

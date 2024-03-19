@@ -381,13 +381,13 @@ pub fip fun max( i : int32, j : int32 ) : int32
 // Full 32x32 bit unsigned multiply to `(hi,lo)`.
 // where `(hi,lo).uint == hi.uint * 0x1_0000_0000 + lo.uint`
 pub fip extern umul( i : int32, j : int32 ) : (int32,int32)
-  c "kk_wide_umul32x"
+  c "kk_umul32x_wide"
   js "$std_core_types._int32_umul"
 
 // Full 32x32 bit signed multiply to `(hi,lo)`.
 // where `(hi,lo).int == hi.int * 0x1_0000_0000 + lo.uint`
 pub fip extern imul( i : int32, j : int32 ) : (int32,int32)
-  c "kk_wide_imul32x"
+  c "kk_imul32x_wide"
   js "$std_core_types._int32_imul"
 
 // Convert a pair `(lo,hi)` to a signed integer,
