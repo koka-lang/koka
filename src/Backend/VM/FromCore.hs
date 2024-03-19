@@ -98,7 +98,7 @@ genLoadLibs imports = return $ map genLoadLib imports
 -- Translate types
 ---------------------------------------------------------------------------------
 transformType :: Type -> Doc
-transformType (TVar _) = tpe "Ptr" -- erased
+transformType (TVar _) = tpe "Top" -- erased
 transformType (TForall _ _ t) = transformType t -- TODO do we need to thunk
 transformType (TFun ps e t) = obj [ "op" .= str "Function"
                                   , "params" .= list [ transformType pt | (_,pt) <- ps]
@@ -132,8 +132,9 @@ genGroup topLevel group
 genDef :: Bool -> Def -> Asm Doc
 genDef topLevel (Def name tp expr vis sort inl rng comm)
   = do let n = var (ppName name) (transformType tp)
+       let e = ppName name
        v <- genExpr expr
-       return $ def n v 
+       return $ edef n v [e]
 
 ---------------------------------------------------------------------------------
 -- Generate value constructors for each defined type
@@ -155,7 +156,7 @@ genTypeDef (Data info isExtend)
        let (dataRepr, conReprs) = getDataRepr info
        mapM ( \(c,repr)  ->
           do args <- mapM (\(n,t) -> genTName $ TName n t) (conInfoParams c)
-             let name = str $ show (conInfoName c)
+             let name = ppName (conInfoName c)
              let tp = transformType $ conInfoType c
              penv <- getPrettyEnv
              let singletonValue val = def (var name (transformType (conInfoType c))) val
@@ -190,12 +191,11 @@ genTypeDef (Data info isExtend)
                                  ]
                  ])
 
-getConTypeTag info = getReturn $ conInfoType info
-  where 
-    getReturn (TFun _ _ r) = str $ show r
-    getReturn (TForall _ _ t) = getReturn t
-    getReturn (TApp t _) = getReturn t
-    getReturn t = str $ show t
+getConTypeTag info = str $ show $ getReturn $ conInfoType info
+getReturn (TFun _ _ r) = r
+getReturn (TForall _ _ t) = getReturn t
+getReturn (TApp t _) = getReturn t
+getReturn t = t
 getConTag modName coninfo repr
   = case repr of
       ConOpen{} -> -- ppLit (LitString (show (openConTag (conInfoName coninfo))))
@@ -555,9 +555,8 @@ genExprExternal tname formats [] | getName tname == nameCCtxHoleCreate
 genExprExternal tname formats argDocs0
   = let name = getName tname
         format = getFormat tname formats
-    in return $ (case (tnameType tname) of 
-      TFun _ _ t -> appPrim format argDocs0 (transformType t)
-      _ -> notImplemented $ text "Primitive non-function")
+        t = getReturn (tnameType tname)
+    in return $ appPrim format argDocs0 (transformType t)
 
 getFormat :: TName -> [(Target,String)] -> String
 getFormat tname formats
@@ -580,7 +579,7 @@ genName name tpe
       then do modname <- getModule
               if (qualifier name == modname)
                then return $ var (ppName name) (transformType tpe)
-               else return $ obj [ "op" .= str "Qualified", "lib" .= libName (nameModule name), "name" .= (ppName name), "type" .= transformType tpe ]
+               else return $ obj [ "op" .= str "Qualified", "lib" .= libName (nameModule name), "name" .= ppName name, "type" .= transformType tpe ]
       else return $ var (ppName name) (transformType tpe)
 
 genVarName :: String -> Asm Doc
@@ -824,7 +823,7 @@ appPrim name args tp = primitive [var (str "primitive_result") tp] name args (va
 
 -- | Pseudo-instruction for not-yet supported parts
 notImplemented :: Doc -> Doc
-notImplemented doc = appPrim ("Not implemented: " ++ show (asString doc)) [] (tpe "Unit")
+notImplemented doc = appPrim ("Not implemented: " ++ show (asString doc)) [] (tpe "Bottom")
 
 -- TODO other instructions
 
@@ -848,3 +847,5 @@ tpe name = obj [ "op" .= text (show name) ]
 -- | Definitions
 def :: Doc -> Doc -> Doc
 def n v = obj [ "name" .= n, "value" .= v ]
+edef :: Doc -> Doc -> [Doc] -> Doc
+edef n v es = obj [ "name" .= n, "value" .= v, "export_as" .= list es ]
