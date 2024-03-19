@@ -364,6 +364,9 @@ externalTarget
     do specialId "js"
        return (JS JsDefault)
   <|>
+    do specialId "vm"
+       return VM
+  <|>
     return Default
 
 
