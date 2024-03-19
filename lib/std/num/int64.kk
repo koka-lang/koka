@@ -217,7 +217,7 @@ pub fip fun dec( i : int64 ) : int64
 
 // Multiply two 64-bit integers.
 pub inline fip extern (*) : (int64,int64) -> int64
-  c inline "(int64_t)((uint64_t)#1 * (uint64_t)#2)";
+  c inline "(int64_t)((uint64_t)#1 * (uint64_t)#2)"; // avoid UB
   js inline "BigInt.asIntN(64,#1 * #2)"
 
 
