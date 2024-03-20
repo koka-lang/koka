@@ -288,7 +288,7 @@ dnf_groupinstall() {
 }
 
 pacman_install() {
-  if ! sudocmd pacman -S --noconfirm ${QUIET:+-q} "$@"; then
+  if ! sudocmd pacman -S --noconfirm --needed ${QUIET:+-q} "$@"; then
     stop "installing pacman packages failed ($@).  Please run 'pacman -Sy' and try again."
   fi
 }
