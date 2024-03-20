@@ -42,6 +42,7 @@ import Core.Borrowed( Borrowed )
 import Backend.CSharp.FromCore    ( csharpFromCore )
 import Backend.JavaScript.FromCore( javascriptFromCore )
 import Backend.C.FromCore         ( cFromCore )
+import Backend.VM.FromCore        ( vmFromCore )
 
 import Compile.Options
 import Compile.Module( Definitions(..), Module(..), modCoreImports )
@@ -142,6 +143,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
     backend  = case target flags of
                  CS   -> codeGenCS
                  JS _ -> codeGenJS
+                 VM   -> codeGenVM
                  _    -> {-
                          let -- for Perceus (Parc) we analyze types inside abstract types and thus need
                              -- access to all defined types; here we freshly extract all type definitions from all
@@ -261,6 +263,28 @@ codeGenJS term flags sequential entry outBase core
                   return (\_ -> return (LinkExe outjs (runCommand term flags [node flags,"--stack-size=" ++ show stksize,outjs])))
 
 
+{---------------------------------------------------------------
+  VM backend
+---------------------------------------------------------------}
+ 
+codeGenVM :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> FilePath -> Core.Core -> IO Link
+codeGenVM term flags sequential entry outBase core
+  = do let outmcore = outBase ++ ".mcore.json"
+       let outrpy = outBase ++ ".rpyeffect"    
+           vm = vmFromCore (buildType flags) mbEntry (Core.coreProgImports core) core
+           mbEntry = case entry of
+                       Just (name,tp) -> Just (name,isAsyncFunction tp)
+                       _              -> Nothing
+       termTrace term ( "generate vm: " ++ outmcore )
+       writeDocW 80 outmcore vm
+       when (showAsmVM flags) (termInfo term vm)
+
+       runCommand term flags [rpyeffectAsm flags, "--from", "mcore-json", outmcore, outrpy]
+
+       case mbEntry of
+        Nothing -> return noLink
+        Just  _ ->
+         return (\_ -> return (LinkExe outmcore (runCommand term flags [rpyeffectJit flags,outrpy])))
 
 {---------------------------------------------------------------
   C backend

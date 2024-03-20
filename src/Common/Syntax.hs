@@ -42,13 +42,16 @@ import Data.List(intersperse)
 data JsTarget = JsDefault | JsNode | JsWeb                 deriving (Eq,Ord)
 data CTarget  = CDefault | LibC | Wasm | WasmJs | WasmWeb deriving (Eq,Ord)
 
-data Target = CS | JS !JsTarget| C !CTarget | Default deriving (Eq,Ord)
+data Target = CS | JS !JsTarget| C !CTarget | VM | Default deriving (Eq,Ord)
 
 isTargetC (C _) = True
 isTargetC _     = False
 
 isTargetJS (JS _) = True
 isTargetJS _      = False
+
+isTargetVM VM = True
+isTargetVM _  = False
 
 isTargetWasm :: Target -> Bool
 isTargetWasm target
@@ -70,6 +73,7 @@ instance Show Target where
                C  WasmWeb-> "wasmweb"
                C  LibC   -> "libc"
                C  _      -> "c"
+               VM        -> "vm"
                Default   -> ""
 
 data Platform = Platform{ sizePtr   :: !Int -- sizeof(intptr_t)
@@ -423,6 +427,3 @@ instance Show Fip where
 
               showTail True  = "tail "
               showTail _     = " "
-
-
-
