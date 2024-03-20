@@ -39,6 +39,7 @@ extern xprintsln(s : string) : console ()
   c  "kk_println"
   cs "Console.WriteLine"
   js "_println"
+  vm "println(String): Unit"
 
 // Print a string to the console
 extern xprints( s : string) : console ()
