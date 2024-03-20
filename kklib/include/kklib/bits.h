@@ -465,7 +465,7 @@ static inline bool kk_bits_parity(kk_uintx_t x) {
   swap bytes
 ------------------------------------------------------------------ */
 
-#if kk_has_builtin(kk_builtin_bswap32) || (__GNUC__ >= 7)
+#if kk_has_builtin(bswap32) || (__GNUC__ >= 7)
 static inline uint16_t kk_bits_bswap16(uint16_t x) {
   return kk_builtin_bswap16(x);
 }
@@ -473,7 +473,7 @@ static inline uint32_t kk_bits_bswap32(uint32_t x) {
   return kk_builtin_bswap32(x);
 }
 
-#if kk_has_builtin(kk_builtin_bswap64) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
+#if kk_has_builtin(bswap64) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
 #define KK_BITS_HAS_BSWAP64
 static inline uint64_t kk_bits_bswap64(uint64_t x) {
   return kk_builtin_bswap64(x);
@@ -585,11 +585,11 @@ static inline kk_uintx_t kk_bits_bswap_from_be(kk_uintx_t u) {
   Bit reverse
 ------------------------------------------------------------------ */
 
-#if kk_has_builtin(kk_builtin_bitreverse32)
+#if kk_has_builtin(bitreverse32)
 static inline uint32_t kk_bits_reverse32(uint32_t x) {
   return kk_builtin_bitreverse32(x);
 }
-#if kk_has_builtin(kk_builtin_bitrevers64)
+#if kk_has_builtin(bitreverse64)
 static inline uint64_t kk_bits_reverse64(uint64_t x) {
   return kk_builtin_bitreverse64(x);
 }
@@ -642,6 +642,31 @@ static inline double kk_bits_to_double(uint64_t x) {
 static inline int64_t kk_int64_hi_lo( int32_t hi, int32_t lo ) {
   return (((int64_t)hi << 32) | (uint32_t)lo);
 }
+
+
+/* ---------------------------------------------------------------
+  LOG2
+------------------------------------------------------------------ */
+#define kk_bits_log2_floorN(N) (x<1 ? 0 : N - kk_bits_clz##N(x) - 1)
+
+static inline uint32_t kk_bits_log2_floor32( uint32_t x ) {
+  return kk_bits_log2_floorN(32);
+}
+
+static inline uint64_t kk_bits_log2_floor64( uint64_t x ) {
+  return kk_bits_log2_floorN(64);
+}
+
+#define kk_bits_log2_ceilN(N) (log2_floor(x) + (kk_bits_is_power_of2_##N(x) ? 0 : 1))
+
+static inline uint32_t kk_bits_log2_ceil32( uint32_t x ) {
+  return kk_bits_log2_ceilN(32);
+}
+
+static inline uint64_t kk_bits_log2_ceil64( uint64_t x ) {
+  return kk_bits_log2_ceilN(64);
+}
+
 
 /* ---------------------------------------------------------------
   Digits in a decimal representation
