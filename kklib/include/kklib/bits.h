@@ -867,16 +867,6 @@ static inline uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
   return _mm_extract_epi64(res, 0); 
 }
 
-static inline uint32_t kk_clmul32(uint32_t x, uint32_t y) {
-  return (uint32_t)kk_clmul64(x,y);
-}
-
-static inline uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
-  uint64_t z = kk_clmul64(x,y);
-  *hi = (uint32_t)(z>>32);
-  return (uint32_t)z;
-}
-
 #elif KK_ARCH_ARM64 && defined(__ARM_NEON) // (defined(__ARM_FEATURE_SME) || defined(__ARM_FEATURE_SVE))
 #define KK_BITS_HAS_FAST_CLMUL  1
 #include <arm_neon.h>
@@ -893,6 +883,61 @@ static inline uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
   return (uint64_t)vget_low_u64(res);
 }
 
+#elif KK_ARCH_RISCV64 && kk_has_builtin(riscv_clmul_64)
+#define KK_BITS_HAS_FAST_CLMUL  1
+#define KK_BITS_HAS_CLMUL32  1
+
+static inline uint32_t kk_clmul32(uint32_t x, uint32_t y) {
+  return kk_builtin(riscv_clmul_32)(x,y);
+}
+
+static inline uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
+  *hi = kk_builtin(riscv_clmulh_32(x,y);
+  return kk_clmul32(x,y);
+}
+
+static inline uint64_t kk_clmul64(uint64_t x, uint64_t y) {
+  return kk_builtin(riscv_clmul_64)(x,y);
+}
+
+static inline uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
+  *hi = kk_builtin(riscv_clmulh_64(x,y);
+  return kk_clmul64(x,y);
+}
+
+#elif KK_ARCH_RISCV32 && kk_has_builtin(riscv_clmul_32)
+
+#define KK_BITS_USE_GENERIC_CLMUL64  1
+#define KK_BITS_HAS_FAST_CLMUL  1
+#define KK_BITS_HAS_CLMUL32     1
+
+static inline uint32_t kk_clmul32(uint32_t x, uint32_t y) {
+  return kk_builtin(riscv_clmul_32)(x,y);
+}
+
+static inline uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
+  *hi = kk_builtin(riscv_clmulh_32(x,y);
+  return kk_clmul32(x,y);
+}
+
+uint64_t kk_clmul64(uint64_t x, uint64_t y);
+uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi);
+
+#else
+
+#define KK_BITS_USE_GENERIC_CLMUL32  1
+#define KK_BITS_USE_GENERIC_CLMUL64  1
+#define KK_BITS_HAS_CLMUL32 1
+
+uint32_t kk_clmul32(uint32_t x, uint32_t y);
+uint64_t kk_clmul64(uint64_t x, uint64_t y);
+uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi);
+uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi);
+
+#endif
+
+#if !defined(KK_BITS_HAS_CLMUL32)
+
 static inline uint32_t kk_clmul32(uint32_t x, uint32_t y) {
   return (uint32_t)kk_clmul64(x,y);
 }
@@ -903,17 +948,7 @@ static inline uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
   return (uint32_t)z;
 }
 
-#else
-
-#define KK_BITS_USE_GENERIC_CLMUL  1
-
-uint32_t kk_clmul32(uint32_t x, uint32_t y);
-uint64_t kk_clmul64(uint64_t x, uint64_t y);
-uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi);
-uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi);
-
 #endif
-
 
 /* ---------------------------------------------------------------
   Byte and nibble permutation

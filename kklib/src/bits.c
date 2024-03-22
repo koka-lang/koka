@@ -441,12 +441,11 @@ uint64_t kk_bits_xpermn64(uint64_t x, uint64_t indices) {
     1 0 1 1 0 0 0 1 1 1 0 1 1 0 0
 -------------------------------------------------------------*/
 
-#ifdef KK_BITS_USE_GENERIC_CLMUL
+#ifdef KK_BITS_USE_GENERIC_CLMUL32
 
 // multiply with the least-significant bit; as this is a power of 2,
 // the result won't produce a carry so we can xor safely.
 #define kk_clmul_bit32()  z ^= x << kk_bits_ctz32(y); y = kk_bits_clear_lsb32(y)
-#define kk_clmul_bit64()  z ^= x << kk_bits_ctz64(y); y = kk_bits_clear_lsb64(y)
 
 uint32_t kk_clmul32(uint32_t x, uint32_t y) {
   uint32_t z = 0;
@@ -459,6 +458,17 @@ uint32_t kk_clmul32(uint32_t x, uint32_t y) {
   }
 	return z;
 }
+uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
+  uint64_t z = kk_clmul64(x,y);
+  *hi = (uint32_t)(z >> 32);
+  return (uint32_t)z;
+}
+
+#endif
+
+#ifdef KK_BITS_USE_GENERIC_CLMUL64
+
+#define kk_clmul_bit64()  z ^= x << kk_bits_ctz64(y); y = kk_bits_clear_lsb64(y)
 
 uint64_t kk_clmul64(uint64_t x, uint64_t y) {
   uint64_t z = 0;
@@ -470,12 +480,6 @@ uint64_t kk_clmul64(uint64_t x, uint64_t y) {
     kk_clmul_bit64();    
   };
 	return z;
-}
-
-uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
-  uint64_t z = kk_clmul64(x,y);
-  *hi = (uint32_t)(z >> 32);
-  return (uint32_t)z;
 }
 
 uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
@@ -491,5 +495,7 @@ uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
   *hi = zhi;
   return zlo;
 }
+
+#endif
 
 #endif
