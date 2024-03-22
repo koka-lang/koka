@@ -467,16 +467,16 @@ static inline bool kk_bits_parity(kk_uintx_t x) {
 
 #if kk_has_builtin(bswap32) || (__GNUC__ >= 7)
 static inline uint16_t kk_bits_bswap16(uint16_t x) {
-  return kk_builtin_bswap16(x);
+  return kk_builtin(bswap16)(x);
 }
 static inline uint32_t kk_bits_bswap32(uint32_t x) {
-  return kk_builtin_bswap32(x);
+  return kk_builtin(bswap32)(x);
 }
 
 #if kk_has_builtin(bswap64) || (__GNUC__ >= 7 && LONG_MAX >= INT64_MAX)
 #define KK_BITS_HAS_BSWAP64
 static inline uint64_t kk_bits_bswap64(uint64_t x) {
-  return kk_builtin_bswap64(x);
+  return kk_builtin(bswap64)(x);
 }
 #endif
 
@@ -587,11 +587,11 @@ static inline kk_uintx_t kk_bits_bswap_from_be(kk_uintx_t u) {
 
 #if kk_has_builtin(bitreverse32)
 static inline uint32_t kk_bits_reverse32(uint32_t x) {
-  return kk_builtin_bitreverse32(x);
+  return kk_builtin(bitreverse32)(x);
 }
 #if kk_has_builtin(bitreverse64)
 static inline uint64_t kk_bits_reverse64(uint64_t x) {
-  return kk_builtin_bitreverse64(x);
+  return kk_builtin(bitreverse64)(x);
 }
 #else
 static inline uint64_t kk_bits_reverse64(uint64_t x) {
@@ -657,7 +657,7 @@ static inline uint64_t kk_bits_log2_floor64( uint64_t x ) {
   return kk_bits_log2_floorN(64);
 }
 
-#define kk_bits_log2_ceilN(N) (log2_floor(x) + (kk_bits_is_power_of2_##N(x) ? 0 : 1))
+#define kk_bits_log2_ceilN(N) (kk_bits_log2_floor##N(x) + (kk_bits_is_power_of2_##N(x) ? 0 : 1))
 
 static inline uint32_t kk_bits_log2_ceil32( uint32_t x ) {
   return kk_bits_log2_ceilN(32);
