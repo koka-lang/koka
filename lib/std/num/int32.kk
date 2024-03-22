@@ -368,6 +368,15 @@ pub inline fip extern deinterleave( i : int32 ) : int32
 pub inline fip extern orc( i : int32 ) : int32
   c inline "kk_bits_orc32(#1)"
 
+// Carry-less multiplication (or _xor_ multiplication).
+// See also <https://en.wikipedia.org/wiki/Carry-less_product>
+pub inline fip extern clmul( x : int32, y : int32 ) : int32
+  c inline "(int32_t)kk_clmul32((uint32_t)#1,(uint32_t)#2)"
+
+// Wide carry-less multiplication (or _xor_ multiplication) to `(hi,lo)`.
+// where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
+pub fip extern clmul_wide( x : int32, y : int32 ) : (int32,int32)
+  c "kk_clmul32x_wide"
 
 // Return the minimum of two integers
 pub fip fun min( i : int32, j : int32 ) : int32
