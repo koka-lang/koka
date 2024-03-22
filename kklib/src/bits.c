@@ -391,6 +391,8 @@ uint64_t kk_bits_deinterleave64(uint64_t x) {
   xperm
 -------------------------------------------------------------*/
 
+#ifdef KK_BITS_USE_GENERIC_XPERM 
+
 uint32_t kk_bits_xperm32(uint32_t x, uint32_t indices) {
   uint32_t r = 0;
   for (int i = 0; i < 32; i += 8) {
@@ -426,6 +428,8 @@ uint64_t kk_bits_xpermn64(uint64_t x, uint64_t indices) {
   }
   return r;
 }
+
+#endif
 
 /* ----------------------------------------------------------
   carry-less multiplication
@@ -495,7 +499,5 @@ uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
   *hi = zhi;
   return zlo;
 }
-
-#endif
 
 #endif
