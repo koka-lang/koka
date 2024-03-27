@@ -55,29 +55,29 @@
   Integer sizes and portability
 
   Here are some architectures with the bit size of various integers, where
-  - `intptr_t` for addresses (where `sizeof(intptr_t) == sizeof(void*)`), 
-  - `size_t` for object sizes, 
+  - `intptr_t` for addresses (where `sizeof(intptr_t) == sizeof(void*)`),
+  - `size_t` for object sizes,
   - `kk_intx_t` for the natural largest register size (for general arithmetic),
   - `kk_addr_t` for raw virtual adresses; usually equal to `intptr_t` but
      on capability systems like CHERI, this can be smaller.
-  
-  We always have: 
-  - `|intptr_t| >= |kk_addr_t| >= |size_t| >= |int|`. 
+
+  We always have:
+  - `|intptr_t| >= |kk_addr_t| >= |size_t| >= |int|`.
   - `|kk_intx_t| >= |int|`.
-  
+
         system         intptr_t kk_addr_t   size_t   int   long   intx    notes
  ------------------ ----------- ---------  -------- ----- ------ ------  -----------
-  x86, arm32                32        32        32    32     32     32 
-  x64, arm64, etc.          64        64        64    32     64     64 
+  x86, arm32                32        32        32    32     32     32
+  x64, arm64, etc.          64        64        64    32     64     64
   x64 windows               64        64        64    32     32     64   size_t   > long
   x32 linux                 32        32        32    32     32     64   intx_t   > size_t,intptr_t
   arm CHERI                128        64        64    32     64     64   intptr_t > size_t
-  riscV 128-bit            128       128       128    32     64    128   
+  riscV 128-bit            128       128       128    32     64    128
   x86 16-bit small          16        16        16    16     32     16   long > size_t
   x86 16-bit large          32        32        16    16     32     16   intptr_t/long > size_t
   x86 16-bit huge           32        32        32    16     32     16   size_t > intx_t
 
-  We use a signed `size_t` as `kk_ssize_t` (see earlier comments) 
+  We use a signed `size_t` as `kk_ssize_t` (see earlier comments)
 
   We also have:
   - `kk_intb_t` (boxed integer) as the integer size that can hold a boxed value
@@ -90,13 +90,13 @@
  ----------------------------- --------- -------- ------ ------ ------  -----------
   x64, arm64,                        64       64     64     64     64
   x64, arm64 compressed 32-bit       64       64     64     32     32   limit heap to 16 GiB == 4*2^32 (*)
-  
+
   arm CHERI                         128       64     64    128     64   |intb| > |intf|
   arm CHERI compressed 64-bit       128       64     64     64     64   store addresses only in a box
   arm CHERI compressed 32-bit       128       64     64     32     32   compress address as well
 
   riscV 128-bit                     128      128    128    128    128
-  riscV 128-bit compressed 64-bit   128      128    128     64     64   limit heap to 2^64 
+  riscV 128-bit compressed 64-bit   128      128    128     64     64   limit heap to 2^64
   riscV 128-bit compressed 32-bit   128      128    128     32     32   limit heap to 16 GiB == 4*2^32 (*)
   x32 linux                          32       32     64     32     32   |intx| > |intb|
 
@@ -123,7 +123,7 @@
 #if (__STDC_VERSION__ >= 201112L)
 #define KK_C11  1
 #endif
-#if (__STDC_VERSION__ >= 199901L) 
+#if (__STDC_VERSION__ >= 199901L)
 #define KK_C99  1
 #endif
 #endif
@@ -138,7 +138,7 @@
 #if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
 #define KK_CPP14  1
 #endif
-#if (__cplusplus >= 201103L) || (_MSC_VER > 1900) 
+#if (__cplusplus >= 201103L) || (_MSC_VER > 1900)
 #define KK_CPP11  1
 #endif
 #endif
@@ -182,7 +182,7 @@
 #define kk_decl_export     __declspec(dllimport)
 #endif
 #elif defined(__GNUC__) // includes clang and icc
-#define kk_decl_export     kk_decl_externc __attribute__((visibility("default"))) 
+#define kk_decl_export     kk_decl_externc __attribute__((visibility("default")))
 #else
 #define kk_decl_export     kk_decl_externc
 #endif
@@ -214,8 +214,8 @@
 #else
 #define kk_decl_const
 #define kk_decl_pure
-#define kk_decl_noinline   
-#define kk_decl_align(a)   
+#define kk_decl_noinline
+#define kk_decl_align(a)
 #define kk_decl_thread        __thread
 #endif
 
@@ -239,7 +239,7 @@
 #ifdef KK_DEBUG_FULL
 #define kk_assert_internal(x) kk_assert(x)
 #else
-#define kk_assert_internal(x) 
+#define kk_assert_internal(x)
 #endif
 
 
@@ -248,12 +248,12 @@
 #ifdef NDEBUG
 #define kk_unused_release(x)  kk_unused(x)
 #else
-#define kk_unused_release(x)  
+#define kk_unused_release(x)
 #endif
 #ifndef KK_DEBUG_FULL
 #define kk_unused_internal(x)  kk_unused(x)
 #else
-#define kk_unused_internal(x)  
+#define kk_unused_internal(x)
 #endif
 #endif
 
@@ -293,7 +293,7 @@
 # define KK_INTPTR_SHIFT  4
 # define KK_IP(i)         KK_I128(i)
 # define KK_UP(i)         KK_U128(i)
-#elif INTPTR_MAX == INT64_MAX         
+#elif INTPTR_MAX == INT64_MAX
 # define KK_INTPTR_SIZE   8
 # define KK_INTPTR_SHIFT  3
 # define KK_IP(i)         KK_I64(i)
@@ -314,7 +314,7 @@
 #define KK_INTPTR_BITS        (8*KK_INTPTR_SIZE)
 #define KK_INTPTR_ALIGNUP(x)  ((((x)+KK_INTPTR_SIZE-1)/KK_INTPTR_SIZE)*KK_INTPTR_SIZE)
 
-// Define size of size_t and kk_ssize_t 
+// Define size of size_t and kk_ssize_t
 #if SIZE_MAX == UINT128_MAX
 # define KK_SIZE_SIZE   16
 # define KK_IZ(i)       KK_I128(i)
@@ -329,14 +329,14 @@ typedef int64_t         kk_ssize_t;
 # define KK_SSIZE_MAX   INT64_MAX
 # define KK_SSIZE_MIN   INT64_MIN
 typedef int64_t         kk_ssize_t;
-#elif SIZE_MAX == UINT32_MAX         
+#elif SIZE_MAX == UINT32_MAX
 # define KK_SIZE_SIZE   4
 # define KK_IZ(i)       KK_I32(i)
 # define KK_UZ(i)       KK_U32(i)
 # define KK_SSIZE_MAX   INT32_MAX
 # define KK_SSIZE_MIN   INT32_MIN
 typedef int32_t         kk_ssize_t;
-#elif SIZE_MAX == UINT16_MAX         
+#elif SIZE_MAX == UINT16_MAX
 # define KK_SIZE_SIZE   2
 # define KK_IZ(i)       i
 # define KK_UZ(i)       i
@@ -362,7 +362,7 @@ typedef int32_t     kk_off_t;
 #endif
 
 // kk_addr_t: a signed integer that can hold a plain address (usually intptr_t but may be smaller on capability architectures)
-#if defined(KK_CHERI) 
+#if defined(KK_CHERI)
 typedef kk_ssize_t    kk_addr_t;
 typedef kk_size_t     kk_uaddr_t;
 #define KK_ADDR_MAX   KK_SSIZE_MAX
@@ -394,7 +394,7 @@ static inline size_t kk_to_size_t(kk_ssize_t sz) {
 #endif
 
 
-// We define `kk_intx_t` as an integer with the natural (fast) machine register size. 
+// We define `kk_intx_t` as an integer with the natural (fast) machine register size.
 // We define it such that `sizeof(kk_intx_t)` is, with `m = max(sizeof(long),sizeof(size_t))`
 //   (m==8 || x32) ? 8 : ((m == 4 && sizeof(int) > 2)  ? 4 : sizeof(int))
 // (We cannot use just `long` as it is sometimes too short (as on Windows 64-bit or x32 where a `long` is 32 bits).
@@ -460,7 +460,7 @@ typedef uintptr_t      kk_uintb_t;
 #define KK_IB(i)       KK_IP(i)
 #define KK_UB(i)       KK_UP(i)
 #define PRIdIB         "zd"
-#elif (KK_INTB_SIZE == 8 && KK_INTB_SIZE < KK_INTPTR_SIZE)  
+#elif (KK_INTB_SIZE == 8 && KK_INTB_SIZE < KK_INTPTR_SIZE)
 // 128-bit systems with 64-bit compressed pointers
 #define KK_COMPRESS 1
 typedef int64_t        kk_intb_t;
@@ -471,7 +471,7 @@ typedef uint64_t       kk_uintb_t;
 #define KK_IB(i)       KK_I64(i)
 #define KK_UB(i)       KK_U64(i)
 #define PRIdIB         PRIdI64
-#elif (KK_INTB_SIZE == 4 && KK_INTB_SIZE < KK_INTPTR_SIZE)  
+#elif (KK_INTB_SIZE == 4 && KK_INTB_SIZE < KK_INTPTR_SIZE)
 // 64- or 128-bit systems with 32-bit compressed pointers (and a 4*4GiB heap)
 #define KK_COMPRESS 1
 typedef int32_t        kk_intb_t;
@@ -542,7 +542,7 @@ static inline int64_t     kk_shl64(int64_t i, int64_t shift)  { return (int64_t)
 //#define KK_ARCH_BIG_ENDIAN       1
 
 // the size of function pointer: `void (*f)(void)`
-#define KK_FUNPTR_SIZE    KK_INTPTR_SIZE    
+#define KK_FUNPTR_SIZE    KK_INTPTR_SIZE
 
 
 #endif // include guard

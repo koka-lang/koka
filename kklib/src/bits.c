@@ -49,8 +49,7 @@ int kk_bits_digits64(uint64_t u) {
   generic ctz, clz
 -------------------------------------------------------------*/
 
-#if defined(KK_BITS_USE_GENERIC_CTZ_CLZ)
-
+#if !KK_BITS_HAS_FAST_CTZ_CLZ32
 int kk_bits_ctz32(uint32_t x) {
   // de Bruijn multiplication, see <http://supertech.csail.mit.edu/papers/debruijn.pdf>
   static const int8_t debruijn[32] = {
@@ -76,24 +75,23 @@ int kk_bits_clz32(uint32_t x) {
   x |= x >> 16;
   return debruijn[(uint32_t)(x * KK_U32(0x07C4ACDD)) >> 27];
 }
-
 #endif
 
 
 /* ----------------------------------------------------------
   or-combine
 -------------------------------------------------------------*/
-#define kk_mask_odd_pairs32     KK_U32(0x33333333)
-#define kk_mask_odd_nibbles32   KK_U32(0x0F0F0F0F)
-#define kk_mask_odd_pairs64     KK_U64(0x3333333333333333)
-#define kk_mask_odd_nibbles64   KK_U64(0x0F0F0F0F0F0F0F0F)
+#define kk_mask_even_pairs32     KK_U32(0x33333333)
+#define kk_mask_even_nibbles32   KK_U32(0x0F0F0F0F)
+#define kk_mask_even_pairs64     KK_U64(0x3333333333333333)
+#define kk_mask_even_nibbles64   KK_U64(0x0F0F0F0F0F0F0F0F)
 
-#if defined(KK_BITS_USE_GENERIC_ORC)
+#if !KK_BITS_HAS_FAST_ORC32
 uint32_t kk_bits_orc32(uint32_t x) {
   // set high bit in each byte to `or` of the bits in the byte
-  x |= ((x & kk_mask_odd_nibbles32) << 4);
-  x |= ((x & kk_mask_odd_pairs32)   << 2);
-  x |= ((x & kk_mask_odd_bits32)    << 1);
+  x |= ((x & kk_mask_even_nibbles32) << 4);
+  x |= ((x & kk_mask_even_pairs32)   << 2);
+  x |= ((x & kk_mask_even_bits32)    << 1);
   // distribute the high bit back
   x &= kk_mask_bytes_hi_bit32;
   x |= (x >> 1);
@@ -101,12 +99,14 @@ uint32_t kk_bits_orc32(uint32_t x) {
   x |= (x >> 4);
   return x;
 }
+#endif
 
+#if !KK_BITS_HAS_FAST_ORC64
 uint64_t kk_bits_orc64(uint64_t x) {
   // set high bit in each byte to `or` of the bits in the byte
-  x |= ((x & kk_mask_odd_nibbles64) << 4);
-  x |= ((x & kk_mask_odd_pairs64)   << 2);
-  x |= ((x & kk_mask_odd_bits64)    << 1);
+  x |= ((x & kk_mask_even_nibbles64) << 4);
+  x |= ((x & kk_mask_even_pairs64)   << 2);
+  x |= ((x & kk_mask_even_bits64)    << 1);
   // distribute the high bit back
   x &= kk_mask_bytes_hi_bit64;
   x |= (x >> 1);
@@ -162,28 +162,28 @@ uint8_t kk_bits_byte_sum64(uint64_t x) {
   generic popcount
 -------------------------------------------------------------*/
 
-#if defined(KK_BITS_USE_GENERIC_POPCOUNT)
-
-int kk_bits_generic_popcount32(uint32_t x) {
+#if !KK_BITS_HAS_FAST_POPCOUNT32
+int kk_bits_popcount32(uint32_t x) {
   // first count each 2-bit group `a`, where: a==0b00 -> 00, a==0b01 -> 01, a==0b10 -> 01, a==0b11 -> 10
   // in other words, `a - (a>>1)`; to do this in parallel, we need to mask to prevent spilling a bit pair
   // into the lower bit-pair:
-  x = x - ((x >> 1) & kk_mask_odd_bits32);
+  x = x - ((x >> 1) & kk_mask_even_bits32);
   // add the 2-bit pair results
-  x = (x & kk_mask_odd_pairs32) + ((x >> 2) & kk_mask_odd_pairs32);
+  x = (x & kk_mask_even_pairs32) + ((x >> 2) & kk_mask_even_pairs32);
   // add the 4-bit nibble results
-  x = (x + (x >> 4)) & kk_mask_odd_nibbles32;
+  x = (x + (x >> 4)) & kk_mask_even_nibbles32;
   // each byte now has a count of its bits, we can sum them now:
   return kk_bits_byte_sum32(x);
 }
+#endif
 
-int kk_bits_generic_popcount64(uint64_t x) {
-  x = x - ((x >> 1) & kk_mask_odd_bits64);
-  x = (x & kk_mask_odd_pairs64) + ((x >> 2) & kk_mask_odd_pairs64);
-  x = (x + (x >> 4)) & kk_mask_odd_nibbles64;
+#if !KK_BITS_HAS_FAST_POPCOUNT64
+int kk_bits_popcount64(uint64_t x) {
+  x = x - ((x >> 1) & kk_mask_even_bits64);
+  x = (x & kk_mask_even_pairs64) + ((x >> 2) & kk_mask_even_pairs64);
+  x = (x + (x >> 4)) & kk_mask_even_nibbles64;
   return kk_bits_byte_sum64(x);
 }
-
 #endif
 
 
@@ -191,16 +191,38 @@ int kk_bits_generic_popcount64(uint64_t x) {
   parity
 -------------------------------------------------------------*/
 
-#ifdef KK_BITS_USE_GENERIC_PARITY
-
-static inline bool kk_bits_parity32(uint32_t x) {
+#if !KK_BITS_HAS_FAST_PARITY32
+bool kk_bits_parity32(uint32_t x) {
   x ^= x >> 16;
   x ^= x >> 8;
   x ^= x >> 4;
   x &= 0x0F;
   return (((0x6996 >> x) & 1) == 0);  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
 }
+#endif
 
+
+/* ----------------------------------------------------------
+  Bit reverse
+-------------------------------------------------------------*/
+
+#if !KK_BITS_HAS_FAST_BITREVERSE32
+uint32_t kk_bits_reverse32(uint32_t x) {
+  // from: http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
+  x = ((x >> 1) & kk_mask_even_bits32) | ((x & kk_mask_even_bits32) << 1); // swap odd and even bits
+  x = ((x >> 2) & kk_mask_even_pairs32) | ((x & kk_mask_even_pairs32) << 2); // swap 2-bit pairs
+  x = ((x >> 4) & kk_mask_even_nibbles32) | ((x & kk_mask_even_nibbles32) << 4); // swap 4-bit nibbles
+  return kk_bits_bswap32(x);
+}
+#endif
+
+#if !KK_BITS_HAS_FAST_BITREVERSE64
+uint64_t kk_bits_reverse64(uint64_t x) {
+  x = ((x >> 1) & kk_mask_even_bits64) | ((x & kk_mask_even_bits64) << 1); // swap odd and even bits
+  x = ((x >> 2) & kk_mask_even_pairs64) | ((x & kk_mask_even_pairs64) << 2); // swap 2-bit pairs
+  x = ((x >> 4) & kk_mask_even_nibbles64) | ((x & kk_mask_even_nibbles64) << 4); // swap 4-bit nibbles
+  return kk_bits_bswap64(x);
+}
 #endif
 
 
@@ -208,7 +230,7 @@ static inline bool kk_bits_parity32(uint32_t x) {
   wide multiplies
 -------------------------------------------------------------*/
 
-#if defined(KK_USE_GENERIC_MUL64_WIDE)
+#if !KK_BITS_HAS_FAST_MUL64_WIDE
 
 /* multiply to 64-bit integers `x` and `y` using 32x32 to 64-bit multiplications:
 
@@ -248,35 +270,14 @@ uint64_t kk_imul64_wide(int64_t x, int64_t y, int64_t* hi) {
   *hi = z;
   return lo;
 }
-
-
 #endif
 
-#ifdef KK_BITS_USE_GENERIC_REVERSE
-
-uint32_t kk_bits_reverse32(uint32_t x) {
-  // from: http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
-  x = ((x >> 1) & kk_mask_odd_bits32) | ((x & kk_mask_odd_bits32) << 1); // swap odd and even bits
-  x = ((x >> 2) & kk_mask_odd_pairs32) | ((x & kk_mask_odd_pairs32) << 2); // swap 2-bit pairs
-  x = ((x >> 4) & kk_mask_odd_nibbles32) | ((x & kk_mask_odd_nibbles32) << 4); // swap 4-bit nibbles
-  return kk_bits_bswap32(x);
-}
-
-uint64_t kk_bits_reverse64(uint64_t x) {
-  x = ((x >> 1) & kk_mask_odd_bits64) | ((x & kk_mask_odd_bits64) << 1); // swap odd and even bits
-  x = ((x >> 2) & kk_mask_odd_pairs64) | ((x & kk_mask_odd_pairs64) << 2); // swap 2-bit pairs
-  x = ((x >> 4) & kk_mask_odd_nibbles64) | ((x & kk_mask_odd_nibbles64) << 4); // swap 4-bit nibbles
-  return kk_bits_bswap64(x);
-}
-
-#endif
 
 /* ----------------------------------------------------------
   generic parallel bit extract / deposit
 -------------------------------------------------------------*/
 
-#ifdef KK_BITS_USE_GENERIC_SCATTER_GATHER
-
+#if !KK_BITS_HAS_FAST_SCATTER_GATHER32
 uint32_t kk_bits_scatter32(uint32_t x, uint32_t mask) {
   uint32_t y = 0;
   while (mask != 0) {
@@ -299,7 +300,9 @@ uint32_t kk_bits_gather32(uint32_t x, uint32_t mask) {
   }
   return y;
 }
+#endif
 
+#if !KK_BITS_HAS_FAST_SCATTER_GATHER64
 uint64_t kk_bits_scatter64(uint64_t x, uint64_t mask) {
   uint64_t y = 0;
   while (mask != 0) {
@@ -322,77 +325,92 @@ uint64_t kk_bits_gather64(uint64_t x, uint64_t mask) {
   }
   return y;
 }
-
 #endif
+
 
 /* ----------------------------------------------------------
-  zip/unzip
+  carry-less multiplication
+
+                  1 0 1 0 0 0 1 0 = x
+                  1 0 0 1 0 1 1 0 = y
+   -------------------------------
+                1 0 1 0 0 0 1 0|0   shift by 1
+              1 0 1 0 0 0 1 0|0 0   shift by 2
+          1 0 1 0 0 0 1 0|0 0 0 0   shift by 4
+    1 0 1 0 0 0 1 0|0 0 0 0 0 0 0   shift by 7
+   ------------------------------- ^
+    1 0 1 1 0 0 0 1 1 1 0 1 1 0 0
 -------------------------------------------------------------*/
 
-#ifdef KK_BITS_USE_GENERIC_INTERLEAVE
+#if !KK_BITS_HAS_FAST_CLMUL32
 
-// scatter bits to odd positions
-static inline uint32_t kk_bits_scatter_odd32( uint32_t x ) {
-  x = (x ^ (x << 8 )) & KK_U32(0x00FF00FF);
-  x = (x ^ (x << 4 )) & kk_mask_odd_nibbles32;
-  x = (x ^ (x << 2 )) & kk_mask_odd_pairs32;
-  x = (x ^ (x << 1 )) & kk_mask_odd_bits32;
-  return x;
+// multiply with the least-significant bit; as this is a power of 2,
+// the result won't produce a carry so we can xor safely.
+#define kk_clmul_bit32()  z ^= x << kk_bits_ctz32(y); y = kk_bits_clear_lsb32(y)
+
+uint32_t kk_clmul32(uint32_t x, uint32_t y) {
+  uint32_t z = 0;
+	while (y!=0) { kk_clmul_bit32(); }
+	return z;
 }
-
-static inline uint64_t kk_bits_scatter_odd64( uint64_t x ) {
-  x = (x ^ (x << 16)) & KK_U64(0x0000FFFF0000FFFF);
-  x = (x ^ (x << 8 )) & KK_U64(0x00FF00FF00FF00FF);
-  x = (x ^ (x << 4 )) & kk_mask_odd_nibbles64;
-  x = (x ^ (x << 2 )) & kk_mask_odd_pairs64;
-  x = (x ^ (x << 1 )) & kk_mask_odd_bits64;
-  return x;
-}
-
-// gather odd bits
-static inline uint32_t kk_bits_gather_odd32(uint32_t x) {
-  x = x & kk_mask_odd_bits32;
-  x = (x ^ (x >> 1 )) & kk_mask_odd_pairs32;
-  x = (x ^ (x >> 2 )) & kk_mask_odd_nibbles32;
-  x = (x ^ (x >> 4 )) & KK_U32(0x00FF00FF);
-  x = (x ^ (x >> 8 )) & KK_U32(0x0000FFFF);
-  return x;
-}
-
-static inline uint64_t kk_bits_gather_odd64(uint64_t x) {
-  x = x & kk_mask_odd_bits64;
-  x = (x ^ (x >> 1 )) & kk_mask_odd_pairs64;
-  x = (x ^ (x >> 2 )) & kk_mask_odd_nibbles64;
-  x = (x ^ (x >> 4 )) & KK_U64(0x00FF00FF00FF00FF);
-  x = (x ^ (x >> 8 )) & KK_U64(0x0000FFFF0000FFFF);
-  x = (x ^ (x >> 16)) & KK_U64(0x00000000FFFFFFFF);
-  return x;
-}
-
-uint32_t kk_bits_interleave32(uint32_t x) {
-  return ((kk_bits_scatter_odd32(x & 0xFFFF) << 1) | kk_bits_scatter_odd32(x >> 16));
-}
-
-uint32_t kk_bits_deinterleave32(uint32_t x) {
-  return ((kk_bits_gather_odd32(x) << 16) | kk_bits_gather_odd32(x >> 1));
-}
-
-uint64_t kk_bits_interleave64(uint64_t x) {
-  return ((kk_bits_scatter_odd64(x & KK_U64(0xFFFFFFFF)) << 1) | kk_bits_scatter_odd64(x>>32));
-}
-
-uint64_t kk_bits_deinterleave64(uint64_t x) {
-  return ((kk_bits_gather_odd64(x) << 32) | kk_bits_gather_odd64(x >> 1));
+uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
+  uint64_t z = kk_clmul64(x,y);
+  *hi = (uint32_t)(z >> 32);
+  return (uint32_t)z;
 }
 
 #endif
+
+#if !KK_BITS_HAS_FAST_CLMUL64
+#define kk_clmul_bit64()  z ^= x << kk_bits_ctz64(y); y = kk_bits_clear_lsb64(y);
+
+uint64_t kk_clmul64(uint64_t x, uint64_t y) {
+  uint64_t z = 0;
+	while (y!=0) { kk_clmul_bit64(); };
+	return z;
+}
+
+uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
+  uint64_t zlo = 0;
+  uint64_t zhi = 0;
+  int shift;
+  while (y != 0) {
+    shift = kk_bits_ctz64(y);
+    zlo ^= x << shift;
+    zhi ^= x >> (64 - shift);
+    y = kk_bits_clear_lsb64(y);
+  }
+  *hi = zhi;
+  return zlo;
+}
+#endif
+
+#if !KK_BITS_HAS_FAST_CLMULR32
+#define kk_clmulr_bit32()  z ^= x >> (32 - kk_bits_ctz32(y) - 1); y = kk_bits_clear_lsb32(y);
+
+uint32_t kk_clmulr32(uint32_t x, uint32_t y) {
+  uint32_t z = 0;
+	while (y!=0) { kk_clmulr_bit32(); };
+	return z;
+}
+#endif
+
+#if !KK_BITS_HAS_FAST_CLMULR64
+#define kk_clmulr_bit64()  z ^= x >> (64 - kk_bits_ctz64(y) - 1); y = kk_bits_clear_lsb64(y);
+
+uint64_t kk_clmulr64(uint64_t x, uint64_t y) {
+  uint64_t z = 0;
+	while (y!=0) { kk_clmulr_bit64(); };
+	return z;
+}
+#endif
+
 
 /* ----------------------------------------------------------
   xperm
 -------------------------------------------------------------*/
 
-#ifdef KK_BITS_USE_GENERIC_XPERM
-
+#if !KK_BITS_HAS_FAST_XPERM32
 uint32_t kk_bits_xperm32(uint32_t x, uint32_t indices) {
   uint32_t r = 0;
   for (int i = 0; i < 32; i += 8) {
@@ -410,7 +428,9 @@ uint32_t kk_bits_xpermn32(uint32_t x, uint32_t indices) {
   }
   return r;
 }
+#endif
 
+#if !KK_BITS_HAS_FAST_XPERM64
 uint64_t kk_bits_xperm64(uint64_t x, uint64_t indices) {
   uint64_t r = 0;
   for (int i = 0; i < 64; i += 8) {
@@ -431,61 +451,68 @@ uint64_t kk_bits_xpermn64(uint64_t x, uint64_t indices) {
 
 #endif
 
-/* ----------------------------------------------------------
-  carry-less multiplication
 
-                  1 0 1 0 0 0 1 0 = x
-                  1 0 0 1 0 1 1 0 = y
-   -------------------------------
-                1 0 1 0 0 0 1 0|0   shift by 1
-              1 0 1 0 0 0 1 0|0 0   shift by 2
-          1 0 1 0 0 0 1 0|0 0 0 0   shift by 4
-    1 0 1 0 0 0 1 0|0 0 0 0 0 0 0   shift by 7
-   ------------------------------- ^
-    1 0 1 1 0 0 0 1 1 1 0 1 1 0 0
+/* ----------------------------------------------------------
+  zip/unzip
 -------------------------------------------------------------*/
 
-#ifdef KK_BITS_USE_GENERIC_CLMUL32
-
-// multiply with the least-significant bit; as this is a power of 2,
-// the result won't produce a carry so we can xor safely.
-#define kk_clmul_bit32()  z ^= x << kk_bits_ctz32(y); y = kk_bits_clear_lsb32(y)
-
-uint32_t kk_clmul32(uint32_t x, uint32_t y) {
-  uint32_t z = 0;
-	while (y!=0) { kk_clmul_bit32(); }
-	return z;
-}
-uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
-  uint64_t z = kk_clmul64(x,y);
-  *hi = (uint32_t)(z >> 32);
-  return (uint32_t)z;
+#if !KK_BITS_HAS_FAST_ZIP32
+// scatter bits to even positions
+static inline uint32_t kk_bits_scatter_even32( uint32_t x ) {
+  x = (x ^ (x << 8 )) & KK_U32(0x00FF00FF);
+  x = (x ^ (x << 4 )) & kk_mask_even_nibbles32;
+  x = (x ^ (x << 2 )) & kk_mask_even_pairs32;
+  x = (x ^ (x << 1 )) & kk_mask_even_bits32;
+  return x;
 }
 
+uint32_t kk_bits_zip32(uint32_t x) {
+  return ((kk_bits_scatter_even32(x >> 16) << 1) | kk_bits_scatter_even32(x & 0xFFFF));
+}
 #endif
 
-#ifdef KK_BITS_USE_GENERIC_CLMUL64
-
-#define kk_clmul_bit64()  z ^= x << kk_bits_ctz64(y); y = kk_bits_clear_lsb64(y);
-
-uint64_t kk_clmul64(uint64_t x, uint64_t y) {
-  uint64_t z = 0;
-	while (y!=0) { kk_clmul_bit64(); };
-	return z;
+#if !KK_BITS_HAS_FAST_UNZIP32
+// gather even bits
+static inline uint32_t kk_bits_gather_even32(uint32_t x) {
+  x = x & kk_mask_even_bits32;
+  x = (x ^ (x >> 1 )) & kk_mask_even_pairs32;
+  x = (x ^ (x >> 2 )) & kk_mask_even_nibbles32;
+  x = (x ^ (x >> 4 )) & KK_U32(0x00FF00FF);
+  x = (x ^ (x >> 8 )) & KK_U32(0x0000FFFF);
+  return x;
 }
 
-uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
-  uint64_t zlo = 0;
-  uint64_t zhi = 0;
-  uint8_t shift;
-  while (y != 0) {
-    shift = kk_bits_ctz64(y);
-    zlo ^= x << shift;
-    zhi ^= x >> (64 - shift);
-    y = kk_bits_clear_lsb64(y);
-  }
-  *hi = zhi;
-  return zlo;
+uint32_t kk_bits_unzip32(uint32_t x) {
+  return ((kk_bits_gather_even32(x >> 1) << 16) | kk_bits_gather_even32(x));
 }
-
 #endif
+
+#if !KK_BITS_HAS_FAST_ZIP64
+static inline uint64_t kk_bits_scatter_even64( uint64_t x ) {
+  x = (x ^ (x << 16)) & KK_U64(0x0000FFFF0000FFFF);
+  x = (x ^ (x << 8 )) & KK_U64(0x00FF00FF00FF00FF);
+  x = (x ^ (x << 4 )) & kk_mask_even_nibbles64;
+  x = (x ^ (x << 2 )) & kk_mask_even_pairs64;
+  x = (x ^ (x << 1 )) & kk_mask_even_bits64;
+  return x;
+}
+uint64_t kk_bits_zip64(uint64_t x) {
+  return ((kk_bits_scatter_even64(x>>32) << 1) | kk_bits_scatter_even64(x & KK_U64(0xFFFFFFFF)));
+}
+#endif
+
+#if !KK_BITS_HAS_FAST_UNZIP64
+static inline uint64_t kk_bits_gather_even64(uint64_t x) {
+  x = x & kk_mask_even_bits64;
+  x = (x ^ (x >> 1 )) & kk_mask_even_pairs64;
+  x = (x ^ (x >> 2 )) & kk_mask_even_nibbles64;
+  x = (x ^ (x >> 4 )) & KK_U64(0x00FF00FF00FF00FF);
+  x = (x ^ (x >> 8 )) & KK_U64(0x0000FFFF0000FFFF);
+  x = (x ^ (x >> 16)) & KK_U64(0x00000000FFFFFFFF);
+  return x;
+}
+uint64_t kk_bits_unzip64(uint64_t x) {
+  return ((kk_bits_gather_even64(x>>1) << 32) | kk_bits_gather_even64(x));
+}
+#endif
+

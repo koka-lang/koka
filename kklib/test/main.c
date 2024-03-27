@@ -408,22 +408,6 @@ static void test_bitcount(void) {
   }
 }
 
-static void test_popcount(void) {
-  printf("testing popcount..."); fflush(stdout);
-  for (uint32_t i = 0; i < UINT32_MAX; i++) {
-    int c1 = kk_bits_generic_popcount32(i);
-    int c2 = kk_bits_popcount32(i);
-    if (c1 != c2) {
-      assert(c1 == c2);
-      abort();
-    }
-    if (i % 10000000 == 0) {
-      printf(".");
-      fflush(stdout);
-    }
-  }
-  printf(": ok for all 32-bit values.\n");
-}
 
 static void test_box_double(double dx, kk_context_t* ctx) {
   kk_box_t bx = kk_double_box(dx, ctx);

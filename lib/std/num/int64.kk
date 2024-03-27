@@ -375,14 +375,18 @@ pub inline fip extern bit-scatter( i : int64, m : int64 ) : int64
   c inline "kk_bits_scatter64(#1,#2)"
 
 // Interleave the hi 32-bits with the lo 32-bits of the argument `i` such
-// that the hi bits are spread over the even bits and the lo bits over the odd bits of the result.
+// that the hi bits are spread over the odd bits and the lo bits over the even bits
+// of the result (starting at bit 0).
+// `bit-zip(x.and(0xFFFF_FFFF.int64)) == bit-scatter(x,0x5555_5555_5555_5555.int64)`
 pub inline fip extern bit-zip( i : int64 ) : int64
-  c inline "kk_bits_interleave64(#1)"
+  c inline "kk_bits_zip64(#1)"
 
-// De-interleave the bits in `i` such that the even bits are gathered in the
-// hi 64-bits of the result, and the odd bits in the lo 64-bits of the result.
+// De-interleave the bits in `i` such that the odd bits are gathered in the
+// hi 32-bits of the result, and the even bits (starting at bit 0)
+// end up in the lo 32-bits of the result.
+// `bit-unzip(x).and(0xFFFF_FFFF.int64) == bit-gather(x,0x5555_5555_5555_5555.int64)`
 pub inline fip extern bit-unzip( i : int64 ) : int64
-  c inline "kk_bits_deinterleave64(#1)"
+  c inline "kk_bits_unzip64(#1)"
 
 // Or-combine: for every byte `b` in the argument `i`, the corresponding
 // byte in the result becomes 0 if `b==0`, and `0xFF` otherwise.
@@ -391,14 +395,29 @@ pub inline fip extern orc( i : int64 ) : int64
 
 // Carry-less multiplication (or _xor_ multiplication).
 // See also <https://en.wikipedia.org/wiki/Carry-less_product>
-// and <https://wunkolo.github.io/post/2020/05/pclmulqdq-tricks>
+// Interesting cases:
+// - `clmul(x,x)` : _bit spread_, where a zero bit is put in between each input bit.
+//   `clmul(x,x) == bit-scatter(x,0x5555_5555_5555_5555.int64) == bit-zip(and(x,0xFFFF_FFFF.int64))`
+// - `clmul(x,-1.int32)`: _prefix xor_, where each bit is the parity of the corresponding input bit
+//    and all input bits before it (the _xor sum_).
+//    `clmul(x,-1.int64).shr(63).bool == x.parity`
 pub inline fip extern clmul( x : int64, y : int64 ) : int64
   c inline "(int64_t)kk_clmul64((uint64_t)#1,(uint64_t)#2)"
 
-// Wide carry-less multiplication (or _xor_ multiplication) to `(hi,lo)`.
-// where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
+// Wide carry-less multiplication (or _xor_ multiplication) to `(hi,lo)`,
+// where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`.
+// See also <https://en.wikipedia.org/wiki/Carry-less_product>.
 pub fip extern clmul_wide( x : int64, y : int64 ) : (int64,int64)
   c "kk_clmul64x_wide"
+
+// Reverse carry-less multiplication.
+// Defined as `clmulr(x,y) == clmul(x.bit-reverse,y.bitreverse).bitreverse`
+// Interesting cases:
+// - `clmulr(x,x) == zip(x.and(0xFFFF_FFFF_0000_0000.int64)`, and
+// - `zip(x) == clmul(x,x) | clmulr(x,x)`.
+pub inline fip extern clmulr( x : int64, y : int64 ) : int64
+  c inline "(int64_t)kk_clmulr64((uint64_t)#1,(uint64_t)#2)"
+
 
 // Return the minimum of two integers
 pub fip fun min( i : int64, j : int64 ) : int64
@@ -571,3 +590,22 @@ fun test-bit-spread1()
 fun test-bit-spread2()
   val x = 0x05FB.int64  // = 0b0000010111111011
   clmul(x,x).show-hex   // = 0x115545 = 0b00000000000100010101010101000101
+
+fun zip-clmul(x : int64) : int64
+  or(clmul(x,x),clmulr(x,x))
+
+fun test-clmulr1()
+  val x = 0x33.int64
+  bit-zip(x).show-hex ++ " == " ++ zip-clmul(x).show-hex  // 0x505
+
+fun test-clmulr2()
+  val x = 0x12346789ABCDEF0.int64
+  bit-zip(x).show-hex ++ " == " ++ zip-clmul(x).show-hex  // 0x41464D5A717C7F80
+
+fun clmulrev(x : int64, y : int64) : int64
+  clmul(x.bit-reverse, y.bit-reverse).bit-reverse
+
+fun test-clmulrev1()
+  val x = 0x12345678.int64
+  val y = 0x89ABCDEF.int64.byte-reverse
+  clmulr(x,y).show-hex ++ " == " ++ clmulrev(x,y).show-hex  // 0x1E6799EC
