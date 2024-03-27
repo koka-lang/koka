@@ -408,7 +408,7 @@ static inline int kk_bits_popcount32(uint32_t x) {
 
 static inline int kk_bits_popcount64(uint64_t x) {
   #if (KK_INTX_SIZE >= 8)
-  if kk_likely(kk_has_popcnt) return (int)__popcnt64(x); 
+  if kk_likely(kk_has_popcnt) return (int)__popcnt64(x);
   #endif
   return kk_bits_generic_popcount64(x);
 }
@@ -807,12 +807,9 @@ kk_decl_export uint64_t kk_imul64_wide(int64_t x, int64_t y, int64_t* hi);
   Parallel bit extract and deposit
 ------------------------------------------------------------------ */
 
-#if KK_ARCH_X64 && defined(__BMI2__) && ((defined(_MSC_VER) && !defined(__clang_msvc__)) || defined(__GNUC__))
+#if KK_ARCH_X64 && (defined(__BMI2__) || defined(__AVX2__))
 #define KK_BITS_HAS_FAST_SCATTER_GATHER  1
 #include <immintrin.h>
-#if defined(__clang_msvc__)
-#include <bmi2intrin.h>
-#endif
 
 static inline uint32_t kk_bits_gather32(uint32_t x, uint32_t mask) {
   return _pext_u32(x, mask);
@@ -891,19 +888,19 @@ static inline kk_uintx_t kk_bits_scatter(kk_uintx_t x, kk_uintx_t mask) {
   carry-less multiply
 ------------------------------------------------------------------ */
 
-#if KK_ARCH_X64 && defined(__BMI2__)
+#if KK_ARCH_X64 && (defined(__BMI2__) || defined(__AVX2__))
 #define KK_BITS_HAS_FAST_CLMUL  1
 #include <immintrin.h>
 
 static inline uint64_t kk_clmul64(uint64_t x, uint64_t y) {
   const __m128i res = _mm_clmulepi64_si128(_mm_set_epi64x(0, (int64_t)x), _mm_set_epi64x(0, (int64_t)y), 0);
-  return _mm_extract_epi64(res, 0); 
+  return _mm_extract_epi64(res, 0);
 }
 
 static inline uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
   const __m128i res = _mm_clmulepi64_si128(_mm_set_epi64x(0, (int64_t)x), _mm_set_epi64x(0, (int64_t)y), 0);
   *hi = _mm_extract_epi64(res, 1);
-  return _mm_extract_epi64(res, 0); 
+  return _mm_extract_epi64(res, 0);
 }
 
 #elif KK_ARCH_ARM64 && defined(__ARM_NEON) // (defined(__ARM_FEATURE_SME) || defined(__ARM_FEATURE_SVE))

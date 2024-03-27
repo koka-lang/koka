@@ -1156,10 +1156,10 @@ ccGcc name opt platform path
 
 ccMsvc name opt platform path
   = CC name path ["-DWIN32","-nologo"]
-         [(DebugFull,words "-MDd -Zi -Od -RTC1"),
-          (Debug,words "-MDd -Zi -O1"),
-          (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
-          (RelWithDebInfo,words "-MD -Zi -O2 -Ob2 -DNDEBUG")]
+         [(DebugFull,words "-MDd -Zi -Od -RTC1" ++ arch),
+          (Debug,words "-MDd -Zi -O1" ++ arch),
+          (Release,words "-MD -O2 -Ob2 -DNDEBUG" ++ arch),
+          (RelWithDebInfo,words "-MD -Zi -O2 -Ob2 -DNDEBUG" ++ arch)]
          ["-W3"]
          ["-EHs","-TP","-c"]   -- always compile as C++ on msvc (for atomics etc.)
          ["-link"]             -- , "/NODEFAULTLIB:msvcrt"]
@@ -1174,7 +1174,11 @@ ccMsvc name opt platform path
          (\(def,val) -> ["-D" ++ def ++ (if null val then "" else "=" ++ val)])
          (\lib -> libPrefix ++ lib ++ libExtension)
          (\obj -> obj ++ objExtension)
-
+  where
+    archBits= 8 * sizePtr platform
+    arch    = if (opt < 2) then []
+              else if (cpuArch=="x64" && archBits==64) then ["-arch:AVX2"] -- popcnt, lzcnt, tzcnt, pdep, pext, clmul
+              else []
 
 ccFromPath :: Flags -> FilePath -> IO (CC,Bool {-asan-})
 ccFromPath flags path

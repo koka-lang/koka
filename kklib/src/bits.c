@@ -11,7 +11,7 @@
   kk_bits_digits
 -------------------------------------------------------------*/
 
-static const kk_uintx_t powers_of_10[] = { 
+static const kk_uintx_t powers_of_10[] = {
     1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000
 #if (KK_INTX_SIZE > 4)
   , KK_UX(10000000000), KK_UX(100000000000), KK_UX(1000000000000), KK_UX(10000000000000), KK_UX(100000000000000)
@@ -27,7 +27,7 @@ int kk_bits_digits32(uint32_t u) {
     6, 6, 6, 6, 7, 7, 7, 8, 8, 8,
     9, 9, 9
   };
-  const int count = guess[32 - kk_bits_clz32(u)]; // = 1 + (KU32(9)*(31 - kk_bits_clz32(u)) >> 5); 
+  const int count = guess[32 - kk_bits_clz32(u)]; // = 1 + (KU32(9)*(31 - kk_bits_clz32(u)) >> 5);
   return (count + (u >= powers_of_10[count] ? 1 : 0));
 }
 
@@ -40,7 +40,7 @@ int kk_bits_digits64(uint64_t u) {
    12,12,12,12,13,13,13,14,14,14,
    15,15,15,15,16,16,16,17,17,17,
    18,18,18,18,19
-  };  
+  };
   const int count = guess[64 - kk_bits_clz64(u)];  // = 1 + (KU64(1233)*(63 - kk_bits_clz64(u)) >> 12);
   return (count + (u >= powers_of_10[count] ? 1 : 0));
 }
@@ -62,7 +62,7 @@ int kk_bits_ctz32(uint32_t x) {
   return debruijn[(uint32_t)(x * KK_U32(0x077CB531)) >> 27];
 }
 
-int kk_bits_clz32(uint32_t x) {  
+int kk_bits_clz32(uint32_t x) {
   // de Bruijn multiplication, see <http://supertech.csail.mit.edu/papers/debruijn.pdf>
   static const int8_t debruijn[32] = {
     31, 22, 30, 21, 18, 10, 29, 2, 20, 17, 15, 13, 9, 6, 28, 1,
@@ -93,11 +93,11 @@ uint32_t kk_bits_orc32(uint32_t x) {
   // set high bit in each byte to `or` of the bits in the byte
   x |= ((x & kk_mask_odd_nibbles32) << 4);
   x |= ((x & kk_mask_odd_pairs32)   << 2);
-  x |= ((x & kk_mask_odd_bits32)    << 1);  
+  x |= ((x & kk_mask_odd_bits32)    << 1);
   // distribute the high bit back
   x &= kk_mask_bytes_hi_bit32;
   x |= (x >> 1);
-  x |= (x >> 2); 
+  x |= (x >> 2);
   x |= (x >> 4);
   return x;
 }
@@ -258,14 +258,14 @@ uint32_t kk_bits_reverse32(uint32_t x) {
   // from: http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
   x = ((x >> 1) & kk_mask_odd_bits32) | ((x & kk_mask_odd_bits32) << 1); // swap odd and even bits
   x = ((x >> 2) & kk_mask_odd_pairs32) | ((x & kk_mask_odd_pairs32) << 2); // swap 2-bit pairs
-  x = ((x >> 4) & kk_mask_odd_nibbles32) | ((x & kk_mask_odd_nibbles32) << 4); // swap 4-bit nibbles 
+  x = ((x >> 4) & kk_mask_odd_nibbles32) | ((x & kk_mask_odd_nibbles32) << 4); // swap 4-bit nibbles
   return kk_bits_bswap32(x);
 }
 
 uint64_t kk_bits_reverse64(uint64_t x) {
   x = ((x >> 1) & kk_mask_odd_bits64) | ((x & kk_mask_odd_bits64) << 1); // swap odd and even bits
   x = ((x >> 2) & kk_mask_odd_pairs64) | ((x & kk_mask_odd_pairs64) << 2); // swap 2-bit pairs
-  x = ((x >> 4) & kk_mask_odd_nibbles64) | ((x & kk_mask_odd_nibbles64) << 4); // swap 4-bit nibbles 
+  x = ((x >> 4) & kk_mask_odd_nibbles64) | ((x & kk_mask_odd_nibbles64) << 4); // swap 4-bit nibbles
   return kk_bits_bswap64(x);
 }
 
@@ -370,7 +370,7 @@ static inline uint64_t kk_bits_gather_odd64(uint64_t x) {
 }
 
 uint32_t kk_bits_interleave32(uint32_t x) {
-  return ((kk_bits_scatter_odd32(x & 0xFFFF) << 1) | kk_bits_scatter_odd32(x >> 16));  
+  return ((kk_bits_scatter_odd32(x & 0xFFFF) << 1) | kk_bits_scatter_odd32(x >> 16));
 }
 
 uint32_t kk_bits_deinterleave32(uint32_t x) {
@@ -378,7 +378,7 @@ uint32_t kk_bits_deinterleave32(uint32_t x) {
 }
 
 uint64_t kk_bits_interleave64(uint64_t x) {
-  return ((kk_bits_scatter_odd64(x & KK_U64(0xFFFFFFFF)) << 1) | kk_bits_scatter_odd64(x>>32));  
+  return ((kk_bits_scatter_odd64(x & KK_U64(0xFFFFFFFF)) << 1) | kk_bits_scatter_odd64(x>>32));
 }
 
 uint64_t kk_bits_deinterleave64(uint64_t x) {
@@ -391,7 +391,7 @@ uint64_t kk_bits_deinterleave64(uint64_t x) {
   xperm
 -------------------------------------------------------------*/
 
-#ifdef KK_BITS_USE_GENERIC_XPERM 
+#ifdef KK_BITS_USE_GENERIC_XPERM
 
 uint32_t kk_bits_xperm32(uint32_t x, uint32_t indices) {
   uint32_t r = 0;
@@ -453,13 +453,7 @@ uint64_t kk_bits_xpermn64(uint64_t x, uint64_t indices) {
 
 uint32_t kk_clmul32(uint32_t x, uint32_t y) {
   uint32_t z = 0;
-	while (y!=0) {
-    // unroll 4 times
-    kk_clmul_bit32();
-    kk_clmul_bit32();
-    kk_clmul_bit32();
-    kk_clmul_bit32();
-  }
+	while (y!=0) { kk_clmul_bit32(); }
 	return z;
 }
 uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
@@ -472,17 +466,11 @@ uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
 
 #ifdef KK_BITS_USE_GENERIC_CLMUL64
 
-#define kk_clmul_bit64()  z ^= x << kk_bits_ctz64(y); y = kk_bits_clear_lsb64(y)
+#define kk_clmul_bit64()  z ^= x << kk_bits_ctz64(y); y = kk_bits_clear_lsb64(y);
 
 uint64_t kk_clmul64(uint64_t x, uint64_t y) {
   uint64_t z = 0;
-	while (y!=0) {
-    // unroll 4 times
-    kk_clmul_bit64();
-    kk_clmul_bit64();
-    kk_clmul_bit64();
-    kk_clmul_bit64();    
-  };
+	while (y!=0) { kk_clmul_bit64(); };
 	return z;
 }
 
@@ -492,7 +480,7 @@ uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
   uint8_t shift;
   while (y != 0) {
     shift = kk_bits_ctz64(y);
-    zlo ^= x << shift; 
+    zlo ^= x << shift;
     zhi ^= x >> (64 - shift);
     y = kk_bits_clear_lsb64(y);
   }

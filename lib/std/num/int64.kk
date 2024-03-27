@@ -343,18 +343,18 @@ inline fip extern popcount64( i : int64 ) : int64
 pub fip fun popcount( i : int64 ) : int
   popcount64(i).int
 
-// Is the number of 1-bits even?
+// Is the `popcount` even?
 pub inline fip extern parity( i : int64 ) : bool
   c inline "kk_bits_parity64(#1)"
   js "$std_core_types._int64_parity"
 
 // Reverse the bytes in an `:int64`.
-pub inline fip extern byteswap( i : int64 ) : int64
+pub inline fip extern byte-reverse( i : int64 ) : int64
   c inline "kk_bits_bswap64(#1)"
   js "$std_core_types._int64_bswap"
 
 // Reverse the bits in an `:int64`.
-pub inline fip extern breverse( i : int64 ) : int64
+pub inline fip extern bit-reverse( i : int64 ) : int64
   c inline "kk_bits_reverse64(#1)"
   js "$std_core_types._int64_breverse"
 
@@ -362,26 +362,26 @@ pub inline fip extern breverse( i : int64 ) : int64
 // For each 1-bit in mask `m`, extract the corresponding bit from `i` and write it
 // into contiguous lower bits in the result. The remaining bits in the result are zero.
 //
-// `bgather(0x1234.int64, 0x0F0F.int64).show-hex == "0x24"`
-pub inline fip extern bgather( i : int64, m : int64 ) : int64
+// `bit-gather(0x1234.int64, 0x0F0F.int64).show-hex == "0x24"`
+pub inline fip extern bit-gather( i : int64, m : int64 ) : int64
   c inline "kk_bits_gather64(#1,#2)"
 
 // Bit scatter (also known as _pdep_ or parallel bit deposit).
 // For each 1-bit in mask `m`, set the corresponding bit in the result from the
 // contiguous lower bits of `i`. Any bits not set according to the mask are set to zero.
 //
-// `bscatter(0x1234.int64, 0x0F0F.int64).show-hex == "0x304"`
-pub inline fip extern bscatter( i : int64, m : int64 ) : int64
+// `bit-scatter(0x1234.int64, 0x0F0F.int64).show-hex == "0x304"`
+pub inline fip extern bit-scatter( i : int64, m : int64 ) : int64
   c inline "kk_bits_scatter64(#1,#2)"
 
 // Interleave the hi 32-bits with the lo 32-bits of the argument `i` such
 // that the hi bits are spread over the even bits and the lo bits over the odd bits of the result.
-pub inline fip extern interleave( i : int64 ) : int64
+pub inline fip extern bit-zip( i : int64 ) : int64
   c inline "kk_bits_interleave64(#1)"
 
 // De-interleave the bits in `i` such that the even bits are gathered in the
 // hi 64-bits of the result, and the odd bits in the lo 64-bits of the result.
-pub inline fip extern deinterleave( i : int64 ) : int64
+pub inline fip extern bit-unzip( i : int64 ) : int64
   c inline "kk_bits_deinterleave64(#1)"
 
 // Or-combine: for every byte `b` in the argument `i`, the corresponding
@@ -391,6 +391,7 @@ pub inline fip extern orc( i : int64 ) : int64
 
 // Carry-less multiplication (or _xor_ multiplication).
 // See also <https://en.wikipedia.org/wiki/Carry-less_product>
+// and <https://wunkolo.github.io/post/2020/05/pclmulqdq-tricks>
 pub inline fip extern clmul( x : int64, y : int64 ) : int64
   c inline "(int64_t)kk_clmul64((uint64_t)#1,(uint64_t)#2)"
 
@@ -555,3 +556,18 @@ fun sumacc64( xs : list<int64>, acc : int64 ) : int64
     Cons(x,xx) -> sumacc64(xx,acc+x)
     Nil -> acc
 
+
+// carry-less multiply by -1 gives the _prefix sum_
+fun test-prefix-sum()
+  val x = 0x050F.int64  // = 0b0000010100001111
+  clmul(x, -1.int64).show-hex // = 0x305
+
+
+// carry-less multiply of x by x spreads the bits
+fun test-bit-spread1()
+  val x = 0x05FF.int64  // = 0b0000010111111111
+  clmul(x,x).show-hex   // = 0x115555 = 0b00000000000100010101010101010101
+
+fun test-bit-spread2()
+  val x = 0x05FB.int64  // = 0b0000010111111011
+  clmul(x,x).show-hex   // = 0x115545 = 0b00000000000100010101010101000101

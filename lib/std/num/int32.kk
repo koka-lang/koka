@@ -318,18 +318,18 @@ pub inline fip extern popcount( i : int32 ) : int
   c inline "kk_integer_from_small(kk_bits_popcount32(#1))"
   js "$std_core_types._int32_bits_popcount"
 
-// Is the number of 1-bits even?
+// Is the `popcount` even?
 pub inline fip extern parity( i : int32 ) : bool
   c inline "kk_bits_parity32(#1)"
   js "$std_core_types._int32_parity"
 
 // Reverse the bytes in an `:int32`.
-pub inline fip extern byteswap( i : int32 ) : int32
+pub inline fip extern byte-reverse( i : int32 ) : int32
   c inline "kk_bits_bswap32(#1)"
   js "$std_core_types._int32_bswap"
 
 // Reverse the bits in an `:int32`.
-pub inline fip extern breverse( i : int32 ) : int32
+pub inline fip extern bit-reverse( i : int32 ) : int32
   c inline "kk_bits_reverse32(#1)"
   js "$std_core_types._int32_breverse"
 
@@ -342,7 +342,7 @@ pub inline fip extern breverse( i : int32 ) : int32
 // Here is how to decode a 4-byte utf-8 encoded character `i`:
 //
 // `bgather(i,0x3F3F3F3F.int32)`
-pub inline fip extern bgather( i : int32, m : int32 ) : int32
+pub inline fip extern bit-gather( i : int32, m : int32 ) : int32
   c inline "kk_bits_gather32(#1,#2)"
 
 // Bit scatter (also known as _pdep_ or parallel bit deposit).
@@ -350,17 +350,17 @@ pub inline fip extern bgather( i : int32, m : int32 ) : int32
 // contiguous lower bits of `i`. Any bits not set according to the mask are set to zero.
 //
 // `bscatter(0x1234.int32, 0x0F0F.int32).show-hex == "0x304"`
-pub inline fip extern bscatter( i : int32, m : int32 ) : int32
+pub inline fip extern bit-scatter( i : int32, m : int32 ) : int32
   c inline "kk_bits_scatter32(#1,#2)"
 
 // Interleave the hi 16-bits with the lo 16-bits of the argument `i` such
 // that the hi bits are spread over the even bits and the lo bits over the odd bits of the result.
-pub inline fip extern interleave( i : int32 ) : int32
+pub inline fip extern bit-zip( i : int32 ) : int32
   c inline "kk_bits_interleave32(#1)"
 
 // De-interleave the bits in `i` such that the even bits are gathered in the
 // hi 16-bits of the result, and the odd bits in the lo 16-bits of the result.
-pub inline fip extern deinterleave( i : int32 ) : int32
+pub inline fip extern bit-unzip( i : int32 ) : int32
   c inline "kk_bits_deinterleave32(#1)"
 
 // Or-combine: for every byte `b` in the argument `i`, the corresponding
@@ -370,6 +370,7 @@ pub inline fip extern orc( i : int32 ) : int32
 
 // Carry-less multiplication (or _xor_ multiplication).
 // See also <https://en.wikipedia.org/wiki/Carry-less_product>
+// and <https://wunkolo.github.io/post/2020/05/pclmulqdq-tricks>
 pub inline fip extern clmul( x : int32, y : int32 ) : int32
   c inline "(int32_t)kk_clmul32((uint32_t)#1,(uint32_t)#2)"
 
