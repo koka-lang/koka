@@ -26,7 +26,7 @@ class KokaLexer(RegexLexer):
     keywords = [
         'infix', 'infixr', 'infixl',
         'module', 'import', 'as',
-        'pub', 'abstract',
+        'pub', 'abstract', 'ctx'
         'type', 'struct', 'alias', 'effect', 'con',
         'forall', 'exists', 'some',
         'fun', 'fn', 'val', 'var', 'extern',
@@ -34,10 +34,10 @@ class KokaLexer(RegexLexer):
         'match', 'return', 'with', 'in',
         'handle', 'handler', 'mask',
         'ctl', 'final', 'raw',
-        'override', 'named',
+        'override', 'named', 'scoped',
         'interface', 'break', 'continue', 'unsafe',
         'co', 'rec', 'open', 'extend', 'behind',
-        'linear', 'value', 'reference', 
+        'linear', 'value', 'reference',
         'inline', 'noinline'
     ]
 

@@ -62,7 +62,7 @@ void printDecl( const char* sort, const char* name );
 %token ALIAS CON
 %token FORALL EXISTS SOME
 
-%token IMPORT AS MODULE
+%token IMPORT AS MODULE MOD
 %token PUB ABSTRACT
 %token EXTERN
 %token INFIX INFIXL INFIXR
@@ -76,12 +76,13 @@ void printDecl( const char* sort, const char* name );
 %token CTL FINAL RAW
 %token IFACE UNSAFE BREAK CONTINUE
 
+%token ID_FBIP ID_FIP ID_TAIL
 %token ID_CO ID_REC
 %token ID_INLINE ID_NOINLINE
 %token ID_C ID_CS ID_JS ID_FILE
 %token ID_LINEAR ID_OPEN ID_EXTEND
 %token ID_BEHIND
-%token ID_VALUE ID_REFERENCE ID_SCOPED
+%token ID_VALUE ID_REFERENCE ID_REF ID_SCOPED
 %token ID_INITIALLY ID_FINALLY
 
 %type <Id>  varid conid qvarid qconid op
@@ -271,6 +272,7 @@ typemod     : structmod
 
 structmod   : ID_VALUE
             | ID_REFERENCE
+            | ID_REF
             | /* empty */
             ;
 
@@ -349,7 +351,18 @@ operation   : pub VAL identifier typeparams ':' tatomic
 -- Pure (top-level) Declarations
 ----------------------------------------------------------*/
 puredecl    : inlinemod VAL binder '=' blockexpr      { $$ = $3; }
-            | inlinemod FUN funid funbody             { $$ = $3; }
+            | inlinemod fipmod FUN funid funbody             { $$ = $4; }
+            ;
+
+fipalloc    : '(' INT ')'
+            | '(' 'n' ')'
+            | /* empty */
+            ;
+
+fipmod      : ID_FBIP fipalloc
+            | ID_FIP fipalloc
+            | ID_TAIL
+            | /* empty */
             ;
 
 inlinemod   : ID_INLINE
@@ -625,11 +638,15 @@ varid       : ID
             | ID_BEHIND       { $$ = "behind"; }
             | ID_VALUE        { $$ = "value"; }
             | ID_REFERENCE    { $$ = "reference"; }
+            | ID_REF          { $$ = "ref"; }
             | ID_SCOPED       { $$ = "scoped"; }
             | ID_INITIALLY    { $$ = "initially"; }
             | ID_FINALLY      { $$ = "finally"; }
             | ID_REC          { $$ = "rec"; }
             | ID_CO           { $$ = "co"; }
+            | ID_FBIP         { $$ = "fbip"; }
+            | ID_FIP          { $$ = "fip"; }
+            | ID_TAIL         { $$ = "tail"; }
             /* | ID_NAMED        { $$ = "named"; } */
             ;
 
