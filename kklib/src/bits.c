@@ -343,14 +343,14 @@ uint64_t kk_bits_gather64(uint64_t x, uint64_t mask) {
 -------------------------------------------------------------*/
 
 #if !KK_BITS_HAS_FAST_CLMUL32
-
 // multiply with the least-significant bit; as this is a power of 2,
 // the result won't produce a carry so we can xor safely.
-#define kk_clmul_bit32()  z ^= x << kk_bits_ctz32(y); y = kk_bits_clear_lsb32(y)
-
 uint32_t kk_clmul32(uint32_t x, uint32_t y) {
   uint32_t z = 0;
-	while (y!=0) { kk_clmul_bit32(); }
+	while (y!=0) {
+    z ^= x << kk_bits_ctz32(y);
+    y = kk_bits_clear_lsb32(y);
+  }
 	return z;
 }
 uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
@@ -362,11 +362,12 @@ uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
 #endif
 
 #if !KK_BITS_HAS_FAST_CLMUL64
-#define kk_clmul_bit64()  z ^= x << kk_bits_ctz64(y); y = kk_bits_clear_lsb64(y);
-
 uint64_t kk_clmul64(uint64_t x, uint64_t y) {
   uint64_t z = 0;
-	while (y!=0) { kk_clmul_bit64(); };
+	while (y!=0) {
+    z ^= x << kk_bits_ctz64(y);
+    y = kk_bits_clear_lsb64(y);
+  };
 	return z;
 }
 
@@ -386,21 +387,23 @@ uint64_t kk_clmul64_wide(uint64_t x, uint64_t y, uint64_t* hi) {
 #endif
 
 #if !KK_BITS_HAS_FAST_CLMULR32
-#define kk_clmulr_bit32()  z ^= x >> (32 - kk_bits_ctz32(y) - 1); y = kk_bits_clear_lsb32(y);
-
 uint32_t kk_clmulr32(uint32_t x, uint32_t y) {
   uint32_t z = 0;
-	while (y!=0) { kk_clmulr_bit32(); };
+	while (y!=0) {
+    z ^= x >> (32 - kk_bits_ctz32(y) - 1);
+    y = kk_bits_clear_lsb32(y);
+  };
 	return z;
 }
 #endif
 
 #if !KK_BITS_HAS_FAST_CLMULR64
-#define kk_clmulr_bit64()  z ^= x >> (64 - kk_bits_ctz64(y) - 1); y = kk_bits_clear_lsb64(y);
-
 uint64_t kk_clmulr64(uint64_t x, uint64_t y) {
   uint64_t z = 0;
-	while (y!=0) { kk_clmulr_bit64(); };
+	while (y!=0) {
+    z ^= x >> (64 - kk_bits_ctz64(y) - 1);
+    y = kk_bits_clear_lsb64(y);
+  };
 	return z;
 }
 #endif
