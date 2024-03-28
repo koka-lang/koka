@@ -422,6 +422,7 @@ typedef struct kk_context_s {
   kk_yield_t        yield;            // inlined yield structure (for efficiency)
   int32_t           marker_unique;    // unique marker generation
   kk_block_t*       delayed_free;     // list of blocks that still need to be freed
+  void*     loop;                     // a reference to an event loop (e.g. uv_loop_t* or NULL)
   kk_integer_t      unique;           // thread local unique number generation
   size_t            thread_id;        // unique thread id
   kk_box_any_t      kk_box_any;       // used when yielding as a value of any type

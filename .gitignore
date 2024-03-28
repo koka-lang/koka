@@ -33,3 +33,4 @@ bench
 test/bench
 .koka
 scratch
+.cache
