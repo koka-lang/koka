@@ -358,7 +358,6 @@ uint32_t kk_clmul32_wide(uint32_t x, uint32_t y, uint32_t* hi) {
   *hi = (uint32_t)(z >> 32);
   return (uint32_t)z;
 }
-
 #endif
 
 #if !KK_BITS_HAS_FAST_CLMUL64
