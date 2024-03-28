@@ -497,8 +497,8 @@ Useful laws that hold for Euclidean-0 division:
 
 * `D/(-d) == -(D/d)`
 * `D%(-d) == D%d`
-* `D/(2^n) == sar(D,n)         `  (with `0 <= n <= 31`)
-* `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`)
+* `D/(2^n) == sar(D,n)         `  (with `0 <= n <= 63`)
+* `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 63`)
 
 Note that an interesting edge case is `min-int64 / -1` which equals `min-int64` since in modulo 64-bit
 arithmetic `min-int64 == -1 * min-int64 == -1 * (min-int64 / -1) + (min-int64 % -1)` satisfying property (1).
