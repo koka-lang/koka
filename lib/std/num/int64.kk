@@ -407,7 +407,7 @@ pub inline fip extern clmul( x : int64, y : int64 ) : int64
 // Wide carry-less multiplication (or _xor_ multiplication) to `(hi,lo)`,
 // where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`.
 // See also <https://en.wikipedia.org/wiki/Carry-less_product>.
-pub fip extern clmul_wide( x : int64, y : int64 ) : (int64,int64)
+pub fip extern clmul-wide( x : int64, y : int64 ) : (int64,int64)
   c "kk_clmul64x_wide"
 
 // Reverse carry-less multiplication.
@@ -428,14 +428,14 @@ pub fip fun max( i : int64, j : int64 ) : int64
   if i >= j then i else j
 
 
-// Full 64x64 bit unsigned multiply to `(hi,lo)`.
-// where `(hi,lo).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
+// Full 64x64 to 128-bit unsigned multiply to `(hi,lo)`.
+// where `umul(x,y).uint == x.uint * y.uint`
 pub fip extern umul( i : int64, j : int64 ) : (int64,int64)
   c "kk_umul64x_wide"
   js "$std_core_types._int64_umul"
 
-// Full 64x64 bit signed multiply to `(hi,lo)`.
-// where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
+// Full 64x64 to 128-bit signed multiply to `(hi,lo)`.
+// where `imul(x,y).int == x.int * y.int`
 pub fip extern imul( i : int64, j : int64 ) : (int64,int64)
   c "kk_imul64x_wide"
   js "$std_core_types._int64_imul"

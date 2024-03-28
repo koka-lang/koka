@@ -404,24 +404,24 @@ pub fip fun max( i : int32, j : int32 ) : int32
 
 
 // Full 32x32 bit unsigned multiply to `(hi,lo)`.
-// where `(hi,lo).uint == hi.uint * 0x1_0000_0000 + lo.uint`
+// where `umul(x,y).uint == x.uint * y.uint`
 pub fip extern umul( i : int32, j : int32 ) : (int32,int32)
   c "kk_umul32x_wide"
   js "$std_core_types._int32_umul"
 
 // Full 32x32 bit signed multiply to `(hi,lo)`.
-// where `(hi,lo).int == hi.int * 0x1_0000_0000 + lo.uint`
+// where `imul(x,y).int == x.int * y.int`
 pub fip extern imul( i : int32, j : int32 ) : (int32,int32)
   c "kk_imul32x_wide"
   js "$std_core_types._int32_imul"
 
-// Convert a pair `(lo,hi)` to a signed integer,
-// where `(lo,hi).int == hi.int * 0x1_0000_0000 + lo.uint`
+// Convert a pair `(hi,lo)` to a signed integer,
+// where `(hi,lo).int == hi.int * 0x1_0000_0000 + lo.uint`
 pub fun hilo/int( (hi,lo) : (int32,int32) ) : int
   hi.int * 0x1_0000_0000 + lo.uint
 
-// Convert a pair `(lo,hi)` to an unsigned integer,
-// where `(lo,hi).uint == hi.uint * 0x1_0000_0000 + lo.uint`
+// Convert a pair `(hi,lo)` to an unsigned integer,
+// where `(hi,lo).uint == hi.uint * 0x1_0000_0000 + lo.uint`
 pub fun hilo/uint( (hi,lo) : (int32,int32) ) : int
   hi.uint * 0x1_0000_0000 + lo.uint
 

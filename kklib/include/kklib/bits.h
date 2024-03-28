@@ -65,7 +65,7 @@ static inline uint64_t kk_bits_rotl64(uint64_t x, int shift) {
 static inline uint64_t kk_bits_rotr64(uint64_t x, int shift) {
   return kk_builtin(rotateright64)(x, (unsigned)shift & 63);
 }
-#elif defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM) || defined(_M_X64) || defined(_M_IX86))
+#elif defined(_MSC_VER) && (KK_ARCH_X64 || KK_ARCH_X86 || KK_ARCH_ARM64 || KK_ARCH_ARM32)
 #include <intrin.h>
 static inline uint16_t kk_bits_rotl16(uint16_t x, int shift) {
   return _rotl16(x, (uint8_t)shift & 15);  // in <intrin.h>
