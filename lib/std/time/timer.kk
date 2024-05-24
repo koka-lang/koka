@@ -10,10 +10,12 @@
 */
 module std/time/timer
 
+import std/num/int64
 import std/num/float64
 import std/num/ddouble
 import std/time/duration
 import std/time/instant
+pub import std/time/timestamp
 
 extern import
   c  file "timer-inline.c"
@@ -59,4 +61,3 @@ pub fun print-elapsed( action : () -> <ndet,console|e> a, msg : string = "elapse
   val (t,x) = elapsed(action)
   println( msg ++ " " ++ t.show(3) )
   x
-

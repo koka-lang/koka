@@ -29,8 +29,13 @@ import std/data/array
 import std/num/int32
 import std/num/ddouble    // for C# backend
 import std/time/duration
-import std/debug
+import std/os/null
+import std/core/unsafe
+pub import std/num/ddouble
+pub import std/num/float64
+import std/time/timestamp
 
+  // js is just using primitives
 
 // A type alias for asynchronous operations that can raise exceptions non-deterministically.
 // This is common for almost all `:async` operations since `cancel` and `timeout` can
@@ -38,6 +43,7 @@ import std/debug
 // outstanding asynchronous requests.
 pub alias asyncx = <async,exn,ndet>
 
+pub alias async-exn = <async,exn>
 
 // ----------------------------------------------------------------------------
 // Promises
@@ -51,7 +57,7 @@ abstract struct promise<a>
   state : ref<global,promise-state<a>>
 
 
-abstract type promise-state<a>
+abstract value type promise-state<a>
   Resolved( value : a )
   Awaiting( listeners : list<a -> io ()> )
 
@@ -61,7 +67,7 @@ pub fun promise() : async promise<a>
 
 // Await a promise; returns immediately if the promise was already resolved and otherwise
 // waits asynchronously.
-pub fun await( p : promise<a> ) : asyncx a
+pub fun promise/await( p : promise<a> ) : asyncx a
   fun setup(cb : _ -> io-noexn ())
     val r = p.state
     match (!r)
@@ -96,7 +102,7 @@ pub fun resolve( p : promise<a>, value : a ) : asyncx ()
 
 // A _channel_ of values of type `:a`. Values can be asynchronously `emit`ed into
 // a channel, and asynchronously `receive`d.
-abstract struct channel<a>(
+abstract value struct channel<a>(
   chid : int,
   state : ref<global,channel-state<a>>
 )
@@ -191,12 +197,12 @@ fun trace-anyx( s : string, x : a ) : async ()
 // abstraction can reliably time out over any composition of asynchronous operations
 // and is therefore quite expressive.
 
-pub fun timeout( secs : duration, action : () -> <async,exn|e> a ) : <async,exn|e> maybe<a>
+pub fun timeout( secs : duration, action : () -> <asyncx|e> a, ?set-timeout: (unit-cb, int32) -> io-noexn any, ?clear-timeout: (any) -> io-noexn () ) : <asyncx|e> maybe<a>
   firstof { wait(secs); Nothing} { Just(action()) }
 
 // Execute `a` and `b` interleaved. As soon as one of them finishes,
 // `cancel` the other one and return the result of the first.
-pub fun firstof( a : () -> <async,exn|e> a, b : () -> <async,exn|e> a  ) : <async,exn|e> a  
+pub fun firstof( a : () -> <async-exn|e> a, b : () -> <async-exn|e> a  ) : <async-exn|e> a  
   cancelable 
     val (ra,rb) = interleavedx { val x = mask behind<exn>{ a() }; cancel(); x }                              
                                { val x = mask behind<exn>{ b() }; cancel(); x }   
@@ -208,22 +214,22 @@ pub fun firstof( a : () -> <async,exn|e> a, b : () -> <async,exn|e> a  ) : <asyn
 
 // Wait (asynchronously) for `secs` seconds as a `:double`.
 // Use `yield()` to yield to other asynchronous operations.
-pub fun wait( secs : double ) : <async,exn> ()
+pub fun float/wait( secs : float64, ?set-timeout: (unit-cb, int32) -> io-noexn any, ?clear-timeout: (any) -> io-noexn () ) : asyncx ()
   wait(secs.duration)
 
 // Wait (asynchronously) for optional `secs` seconds `:duration` (`= 0.seconds`).
 // Use `yield()` to yield generally to other asynchronous operations.
-pub fun wait( secs : duration = zero ) : <async,exn> ()
+pub fun wait( secs : duration = zero, ?set-timeout: (unit-cb, int32) -> io-noexn any, ?clear-timeout: (any) -> io-noexn () ) : asyncx ()
   if secs <= zero then return yield()
   val msecs = max(zero:int32,secs.milli-seconds.int32)
   await fn(cb)
-    val tid = set-timeout( fn(){ cb(Ok(())) }, msecs )
-    Just( { clear-timeout(tid) } )
+    val tid = async/set-timeout( fn(){ cb(Ok(())) }, msecs )
+    Just( { async/clear-timeout(tid) } )
 
 // Yield to other asynchronous operations. Same as `wait(0)`.
-pub fun yield() : <async,exn> ()
+pub fun yield(?set-timeout: (unit-cb, int32) -> io-noexn any) : asyncx ()
   await0 fn(cb)
-    set-timeout( cb, zero )
+    async/set-timeout( cb, int32/zero )
     ()
 
 // abstract wid for timeout handlers
@@ -231,33 +237,27 @@ abstract struct timeout-id(
   timer : any
 )
 
-fun set-timeout( cb : () -> io-noexn (), ms : int32 ) : io-noexn timeout-id
-  Timeout-id(set-timeoutx(cb,max(ms,zero)))
+alias unit-cb = () -> io-noexn ()
 
-extern set-timeoutx( cb : () -> io-noexn (), ms : int32 ) : io-noexn any
-  cs "_Async.SetTimeout"
-  js "setTimeout"
+fun async/set-timeout( cb : unit-cb, ms : int32, ?set-timeout: (unit-cb, int32) -> io-noexn any) : io-noexn timeout-id
+  Timeout-id(?set-timeout(cb,max(ms,zero)))
 
-fun clear-timeout( tid : timeout-id ) : io-noexn ()
-  clear-timeoutx(tid.timer)
 
-extern clear-timeoutx( tid : any) : io-noexn ()
-  cs "_Async.ClearTimeout"
-  js "clearTimeout"
-
+fun async/clear-timeout( tid : timeout-id , ?clear-timeout: (any) -> io-noexn ()) : io-noexn ()
+  ?clear-timeout(tid.timer)
 
 // ----------------------------------------------------------------------------
 // Interleaved strands of execution
 // ----------------------------------------------------------------------------
 
 // Interleave two actions around their asynchronous operations.
-pub fun interleaved( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async,exn|e> (a,b)
+pub fun two/interleaved( action1 : () -> <async-exn|e> a, action2 : () -> <async-exn|e> b ) : <async-exn|e> (a,b)
   val (ra,rb) = interleavedx( {mask behind<exn>(action1)}, {mask behind<exn>(action2)} )
   [ra.maybe-exn,rb.maybe-exn].ordered_throw
   (ra.untry,rb.untry)
 
 // Interleave a list of actions around their asynchronous operations.
-pub fun interleaved( xs : list<() -> <async,exn|e> a> ) : <async,exn|e> list<a>
+pub fun list/interleaved( xs : list<() -> <async-exn|e> a> ) : <async-exn|e> list<a>
   val ress = xs.map( fn(f) { return { mask behind<exn>(f) } } ).interleavedx
   //ress.map(maybe).ordered_throw
   ress.map(untry)
@@ -283,7 +283,7 @@ fun ordered_throw( xs : list<maybe<exception>> ) : exn ()
 
 // Interleave two actions around their asynchronous operations and explicitly returning either
 // their result or their exception.
-pub fun interleavedx( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async|e> (error<a>,error<b>)
+pub fun interleavedx( action1 : () -> <async-exn|e> a, action2 : () -> <async-exn|e> b ) : <async|e> (error<a>,error<b>)
   fun act1() Left(action1())  
   fun act2() Right(action2())  
   match interleavedx([act1,act2])  
@@ -331,13 +331,13 @@ fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list<(int
 
 // Interleave a list actions around their asynchronous operations and explicitly returning either
 // either their result or their exception.
-pub fun interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<error<a>>
+pub fun list/interleavedx( xs : list<() -> <async-exn|e> a> ) : <async|e> list<error<a>>
   val n = xs.length
   if n==0 then []
   elif n==1 then xs.map(unsafe-try-all)
   else interleavedn(n,xs)
 
-fun interleavedn( n : int, xs : list<() -> <async,exn|e> a> ) : <async|e> list<error<a>> 
+fun interleavedn( n : int, xs : list<() -> <async-exn|e> a> ) : <async|e> list<error<a>> 
   unsafe-no-ndet-div  
     var cr : some<a> (int,list<(int,error<a>)>) := (n,[])
     with handler 
@@ -359,17 +359,17 @@ fun unsafe-no-ndet-div( action : () -> <ndet,div|e> a ) : e a
 inline extern inject-effects : forall<a,h,e> (() -> e a) -> total (() -> <strands<a>,ndet,div|e> a)   
   inline "#1"
 
-fun is-finalize( t : error<a> ) : bool
+fun error/is-finalize( t : error<a> ) : bool
   match t
     Error(exn) -> exn.is-finalize
     _ -> False
 
-fun is-cancel( t : error<a> ) : bool
+fun error/is-cancel( t : error<a> ) : bool
   match t
     Error(exn) -> exn.is-cancel
     _ -> False
 
-fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strands<a>|e> ()
+fun interleaved-div( xs : list<() -> <async-exn|e> a> ) : <async,ndet,div,strands<a>|e> ()
   val strands =  xs.map-indexed fn(i,action)
       return fn()
         val res = unsafe-try-all(inject-effects(action))
@@ -408,13 +408,13 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 // ----------------------------------------------------------------------------
 
 // Convenience function for awaiting a NodeJS style callback where the first argument is a possible exception.
-pub fun await-exn0( setup : (cb : (null<exception>) -> io-noexn () ) -> io maybe<() -> io-noexn ()> ) : <async,exn> ()
+pub fun await-exn0( setup : (cb : (null<exception>) -> io-noexn () ) -> io maybe<() -> io-noexn ()> ) : asyncx ()
   await fn(cb)
     setup( fn(nexn) cb(nexn.unnull(())) )
 
 // Convenience function for awaiting a NodeJS style callback where the first argument is a possible exception
 // and the second argument the possible result value.
-pub fun await-exn1( setup : (cb : (null<exception>,a) -> io-noexn () ) -> io maybe<() -> io-noexn ()> ) : <async,exn> a
+pub fun await-exn1( setup : (cb : (null<exception>,a) -> io-noexn () ) -> io maybe<() -> io-noexn ()> ) : asyncx a
   await fn(cb)
     setup( fn(nexn,x) cb(nexn.unnull(x)) )  
 
@@ -424,13 +424,13 @@ fun unnull( nexn : null<exception>, x : a  ) : error<a>
     Just(exn) -> Error(exn)
 
 // Convenience function for awaiting a zero argument callback.
-pub fun await0( setup : (cb : () -> io-noexn () ) -> io () ) : <async,exn> ()
+pub fun await0( setup : (cb : () -> io-noexn () ) -> io () ) : asyncx ()
   await fn(cb) 
     setup( fn() cb(Ok(())) )
     Nothing 
 
 // Convenience function for awaiting a single argument callback.
-pub fun await1( setup : (cb : (a) -> io-noexn () ) -> io () ) : <async,exn> a
+pub fun await1( setup : (cb : (a) -> io-noexn () ) -> io () ) : asyncx a
   await fn(cb) 
     setup( fn(x) cb(Ok(x)) ) 
     Nothing 
@@ -440,7 +440,7 @@ pub fun await1( setup : (cb : (a) -> io-noexn () ) -> io () ) : <async,exn> a
 // value where the `cleanup` functions is invoked on cancellation to dispose of any resources (see the implementation of `wait`).
 // The callback should be invoked exactly once -- when that happens `await` is resumed with the result using `untry`
 // either raise an exception or return the plain result.
-pub fun await( setup : (cb : error<a> -> io-noexn () ) -> io maybe<() -> io-noexn ()> ) : <async,exn> a
+pub fun setup/await( setup : (cb : error<a> -> io-noexn () ) -> io maybe<() -> io-noexn ()> ) : asyncx a
   await-exn(setup).untry
 
 
@@ -463,7 +463,7 @@ pub effect async
 // The `cancel` operations cancels any outstanding asynchronous operation under the innermost
 // `cancelable` handler by returning the `Cancel` exception. The `cancel` operation itself returns normally
 // without raising a `Cancel` exception.
-pub fun cancel() : async ()
+pub fun noscope/cancel() : async ()
   cancel(empty-scope)
 
 // Primitive: Execute `setup` to set up an asynchronous callback with the host platform. Invoke `cb` as the callback:
@@ -525,25 +525,25 @@ pub fun cancelable( action : () -> <async|e> a ) : <async|e> a
       // this might be needed for `no-await` operations.
       cancel(empty-scope.extend)
       x
-    ctl do-await(setup,scope,c)  -> resume(do-await(setup,scope.extend,c))
-    ctl no-await(setup,scope,c,f)  -> resume(no-await(setup,scope.extend,c,f))
-    ctl cancel(scope)  -> resume(cancel(scope.extend))
-    ctl async-iox(f)  -> resume(async-iox(f))
+    fun do-await(setup,scope,c)  -> do-await(setup,scope.extend,c)
+    fun no-await(setup,scope,c,f)  -> no-await(setup,scope.extend,c,f)
+    fun cancel(scope)  -> cancel(scope.extend)
+    fun async-iox(f)  -> async-iox(f)
 
 // ----------------------------------------------------------------------------
 // Async handle
 // ----------------------------------------------------------------------------
 
-pub fun ".default-async"(action)
-  async-handle(action);
+pub fun @default-async(action)
+  async/handle(action)
 
 fun nodispose() : io-noexn () 
    ()
 
 // The outer `:async` effect handler. This is automatically applied by the compiler
 // around the `main` function if it has an `:async` effect.
-pub fun async-handle(action : () -> <async,io-noexn> () ) : io-noexn ()
-  val callbacks : ref<global,list<(scope,() -> io-noexn ())>> = ref([])
+pub fun async/handle(action : () -> <async,io-noexn> () ) : io-noexn ()
+  val callbacks : ref<global,list<(scope,() -> io-noexn ())>> = unsafe-total{ref([])}
   fun handle-await( setup : await-setup<a>, scope : scope, f : error<a> -> io-noexn (), cancelable : bool) : io-noexn ()
     val cscope = child-scope(unique(),scope)
     val dispose = ref(nodispose)
@@ -551,7 +551,7 @@ pub fun async-handle(action : () -> <async,io-noexn> () ) : io-noexn ()
       if ((!callbacks).contains(cscope)) then
         if is-done then
           callbacks := (!callbacks).remove(cscope)
-          if res.is-error then try-default((),!dispose)
+          if res.is-error then try(!dispose).default(())
         f(res)
 
     // trace("register: " + cscope.show)
@@ -573,12 +573,12 @@ pub fun async-handle(action : () -> <async,io-noexn> () ) : io-noexn ()
   handle(action)
     raw ctl do-await( setup, scope, c ) 
       handle-await(setup,scope, fn(x) rcontext.resume(x), c)   // returns to outer event loop
-    ctl no-await( setup, scope, c, f ) 
-      resume(handle-await(setup,scope,f,c))    
-    ctl cancel( scope ) 
-      resume(handle-cancel(scope))    
-    ctl async-iox( f ) 
-      resume(f())
+    fun no-await( setup, scope, c, f ) 
+      handle-await(setup,scope,f,c) 
+    fun cancel( scope ) 
+      handle-cancel(scope)
+    fun async-iox( f ) 
+      f()
 
 fun io-noexn( f : () -> io-noexn a ) : io a
   f()
@@ -602,7 +602,7 @@ fun child-scope( id : int, scope : scope ) : scope
   match scope
     Scope(cids) -> Scope(cids ++ [id])
 
-fun in-scope-of( child : list<int>, parent : list<int> ) : bool
+fun ids/in-scope-of( child : list<int>, parent : list<int> ) : bool
   match parent
     Nil -> True
     Cons(p,ps) -> match child
@@ -614,21 +614,10 @@ fun in-scope-of( child : scope, parent : scope ) : bool
     Scope(pids) -> match child
       Scope(cids) -> in-scope-of(cids,pids)
 
-fun (==)( ids1 : list<int>, ids2 : list<int> ) : bool
-  match ids1
-    Nil -> ids2.is-nil
-    Cons(i1,is1) -> match ids2
-      Cons(i2,is2) -> (i1 == i2 && is1 == is2)
-      Nil -> False
-
-fun (==)(scope1 : scope, scope2 : scope ) : bool
+fun scope/(==)(scope1 : scope, scope2 : scope ) : bool
   match scope1
     Scope(ids1) -> match scope2
       Scope(ids2) -> ids1==ids2
-
-fun (!=)(scope1 : scope, scope2 : scope ) : bool
-  !(scope1 == scope2)
-
 
 // Convenience functions for scope maps
 fun remove( xs : list<(scope,a)>, scope : scope ) : list<(scope,a)>
@@ -639,7 +628,6 @@ fun lookup( xs : list<(scope,a)>, scope : scope ) : maybe<a>
 
 fun contains( xs : list<(scope,a)>, scope : scope ) : bool
   xs.lookup(scope).bool
-
 
 fun show( s : scope ) : string
   match s
@@ -652,13 +640,13 @@ abstract extend type exception-info
   con Finalize(yld:yield-info)
 
 // Was this a cancelation exception?
-fun is-cancel( exn : exception ) : bool
+fun exn/is-cancel( exn : exception ) : bool
   match exn.info
     Cancel -> True
     _      -> False
 
 // Was this a finalization exception?
-fun is-finalize(exn : exception) : bool
+fun exn/is-finalize(exn : exception) : bool
   match exn.info
     Finalize -> True
     _ -> False
