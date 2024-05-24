@@ -73,7 +73,7 @@ externalNames
 
 cFromCore :: Bool -> CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> String -> Core -> (Doc,Doc,Maybe Doc,Core)
 cFromCore separateMain ctarget buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference eagerPatBind stackSize mbMain mainName core
-  = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform eagerPatBind)
+  = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform ctarget eagerPatBind)
            (genModule separateMain ctarget buildType sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain mainName core) of
       ((bcore,mainDoc),cdoc,hdoc) -> (cdoc,hdoc,mainDoc,bcore)
   where
@@ -2228,12 +2228,14 @@ genExprExternal tname formats [fieldDoc,argDoc] | getName tname == nameCFieldSet
 
 -- normal external
 genExprExternal tname formats argDocs0
-  = let name = getName tname
-        format = getFormat tname formats
-        argDocs = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) argDocs0
-    in return $ case map (\fmt -> ppExternalF name fmt argDocs) $ lines format of
-         [] -> ([],empty)
-         ds -> (init ds, last ds)
+  = do
+      ctarget <- getCTarget
+      let name = getName tname
+          format = getFormat ctarget tname formats
+          argDocs = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) argDocs0
+      return $ case map (\fmt -> ppExternalF name fmt argDocs) $ lines format of
+          [] -> ([],empty)
+          ds -> (init ds, last ds)
   where
     ppExternalF :: Name -> String -> [Doc] -> Doc
     ppExternalF name []  args
@@ -2252,9 +2254,9 @@ genExprExternal tname formats argDocs0
     ppExternalF name (x:xs)  args
      = char x <.> ppExternalF name xs args
 
-getFormat :: TName -> [(Target,String)] -> String
-getFormat tname formats
-  = case lookupTarget (C CDefault) formats of  -- TODO: pass real ctarget from flags
+getFormat :: CTarget -> TName -> [(Target,String)] -> String
+getFormat ctarget tname formats
+  = case lookupTarget (C ctarget) formats of  -- TODO: pass real ctarget from flags
       Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
                  trace( "warning: C backend does not support external in " ++ show tname ++ " looking in " ++ show formats ) $
                       ("kk_unsupported_external(\"" ++ (show tname) ++ "\")")
@@ -2417,6 +2419,7 @@ data Env = Env { moduleName        :: Name                    -- | current modul
                , substEnv          :: [(TName, Doc)]          -- | substituting names
                , newtypes          :: Newtypes
                , platform          :: Platform
+               , ctarget           :: CTarget
                , eagerPatBind      :: Bool
                }
 
@@ -2503,6 +2506,11 @@ getModule :: Asm Name
 getModule
   = do env <- getEnv
        return (moduleName env)
+
+getCTarget :: Asm CTarget
+getCTarget
+  = do env <- getEnv
+       return (ctarget env)
 
 newDefVarName :: String -> Asm Name
 newDefVarName s
