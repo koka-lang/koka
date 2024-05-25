@@ -74,12 +74,6 @@ pub alias io-total = <ndet,console,net,fsys,ui,st<global>>
 // The `:io-noexn` effect is used for functions that perform arbitrary I/O operations, but raise no exceptions
 pub alias io-noexn = <div,io-total>
 
-// The `:event-loop` effect signifies that a function requires an initialized event loop
-pub type event-loop :: X
-
-// The `:io-event` effect is used for functions that perform arbitrary I/O operations and raise no exceptions, but do require an initialized event loop
-pub alias io-event = <div,io-total,event-loop>
-
 // The `:io` effect is used for functions that perform arbitrary I/O operations.
 pub alias io = <exn,io-noexn>
 

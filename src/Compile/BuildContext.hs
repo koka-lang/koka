@@ -406,7 +406,7 @@ buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName t
                         "  " ++ showIt expr,
                         ""] ++ 
                         if needsEventLoop then 
-                          ["pub fun @main() : io-event ()",
+                          ["pub fun @main() : io-noexn ()",
                             "  default-event-loop(fn() " ++ mainBody ++ ")", 
                             ""] 
                         else 
@@ -438,7 +438,7 @@ completeMain addShow exprName tp buildc
         -> let (ls,_) = extractHandledEffect eff  -- only effect that are in the evidence vector
            in do print    <- printExpr resTp
                  (mainBody,extraImports) <- addDefaultHandlers rangeNull eff ls [] callExpr
-                 if any (\x -> labelName x == nameTpEventLoop) (fst (extractEffectExtend eff)) then 
+                 if any (\x -> labelName x == nameTpAsync) (fst (extractEffectExtend eff)) then 
                     -- trace "eventloop" $
                     return (resTp,print,mainBody,"import uv/event-loop":extraImports,True)
                  else -- trace ("noeventloop " ++ (show (extractEffectExtend eff))) $ 
