@@ -29,7 +29,7 @@ inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a
   cs inline "(#1)[#2]"
   js inline "(#1)[#2]"
 
-inline extern unsafe-assign : forall<a> ( v : vector<a>, i : ssize_t, x : a ) -> total ()
+inline fip extern unsafe-assign( ^v : vector<a>, i : ssize_t, x : a ): total ()
   c "kk_vector_unsafe_assign"
   cs inline "(#1)[#2] = #3"
   js inline "(#1)[#2] = #3"
@@ -45,13 +45,13 @@ pub extern @unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a>
   js inline "Array(#1)"
 
 // Assign to an entry in a local `:vector` variable.
-pub inline extern assign/@index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> ()
+pub inline extern assign/@index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn> ()
   c  "kk_ref_vector_assign_borrow"
   cs inline "(#1)[(int)#2] = #3"  // check bounds?
   js inline "(#1).value[#2] = #3"       // todo: check bounds!
 
 // Length of a vector.
-inline extern lengthz( ^v : vector<a> ) : ssize_t
+inline fip extern lengthz( ^v : vector<a> ) : ssize_t
   c  "kk_vector_len_borrow"
   cs inline "((#1).Length)"
   js inline "((#1).length)"
@@ -73,7 +73,6 @@ pub inline extern unit/vector : forall<a> () -> vector<a>
   c inline "kk_vector_empty()"
   cs inline "new ##1[0]"
   js inline "[]"
-
 
 // Return the element at position `index`  in vector `v`.
 // Raise an out of bounds exception if `index < 0`  or `index >= v.length`.
@@ -126,11 +125,64 @@ pub fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
     f(v.unsafe-idx(i))
 
 // Apply a function `f` to each element in a vector `v`
-pub fun map( v : vector<a>, f : a -> e b ) : e vector<b>
-  val w = unsafe-vector(v.length.ssize_t)
-  v.foreach-indexedz fn(i,x)
-    unsafe-assign(w,i,f(x))
-  w
+pub fip fun map( v : vector<a>, ^f : a -> e b ) : e vector<b>
+  // Copy will only happen on the first iteration in the map, to satisfy the unique precondition
+  map-rec(v.copy, f, 0.ssize_t).unsafe-vector-cast
+
+// Inner loop for `map` which does in place updates when unique, otherwise copies the vector
+// `f` is safe to have effects that do not resume (since the vector will be unique and freed)
+//      or to resume more than once (since the vector will be copied)
+//      the element type cast is safe for the same reasons
+// Precondition `v` is unique
+fip fun map-rec(v: vector<a>, ^f: a -> e b, i: ssize_t): e vector<b>
+  if i >= v.lengthz then
+    v.unsafe-vector-cast
+  else
+    // v is unique, so we can own the value at index i
+    val a = unsafe-idx-own(v, i)
+    // If the function `f` does not resume, the vector will be dropped
+    //  since it is guaranteed to be unique at this point,
+    //  it will be freed and the uninitialized value will not be observable 
+    val res = unsafe-cast(f(a))
+    // If the function `f` captures a resumption such that v is no longer unique, we need to copy the vector
+    val v' = v.copy
+    // We copy before assigning to avoid the result value being dupped during a non-unique copy
+    unsafe-assign(v', i, res)
+    map-rec(v'.pretend-decreasing, f, i.incr)
+
+// This is technically not fip, but we pretend it to be, since it will only copy when non-unique
+fip fun copy(v: vector<a>): vector<a>
+  if v.unsafe-is-unique then v else v.unsafe-copy
+
+// This is technically not fip, but we pretend it to be, since it will only copy when non-unique
+fip extern unsafe-copy(v: vector<a>): vector<a>
+  c "kk_vector_copy"
+  js inline "[...(#1)]"
+  cs inline "(#1).Clone()"
+
+// Only use in a context where the vector is unique, obtains the value transferring ownership and replaces the value with uninitialized
+inline fip extern unsafe-idx-own( ^v : vector<a>, index : ssize_t ) : a
+  c "kk_vector_at_own"
+  cs inline "(#1)[#2]" // js / cs will always copy to be unique
+  js inline "(#1)[#2]"
+
+// Only use in map-rec
+inline fip extern unsafe-cast( x : a ) : b
+  c inline "#1"
+  js inline "#1"
+  cs inline "#1"
+
+// This is unsafe, since the behavior that depends on this check needs to be observationally equivalent
+inline fip extern unsafe-is-unique( ^v : vector<a> ) : bool
+  c inline "kk_datatype_is_unique(#1, kk_context())"
+  js inline "false"
+  cs inline "false"
+
+// Casts a vector type, this is unsafe and should only be used internally in `vector/map` 
+inline fip extern unsafe-vector-cast(v: vector<a>): vector<b>
+  c inline "#1"
+  js inline "#1"
+  cs inline "#1"
 
 // Convert a vector to a list.
 pub fun list( v : vector<a> ) : list<a>
@@ -172,8 +224,6 @@ fun for-whilez( n : ssize_t, action : (ssize_t) -> e maybe<a> ) : e maybe<a>
         Just(x) -> Just(x)
     else Nothing
   rep(0.ssize_t)
-
-
 
 
 // Minimal set of operations that we need in `std/core`.

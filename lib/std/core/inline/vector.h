@@ -21,7 +21,6 @@ static inline kk_unit_t kk_vector_unsafe_assign( kk_vector_t v, kk_ssize_t i, kk
   kk_box_t* p = kk_vector_buf_borrow(v,&len,ctx);
   kk_assert(i < len);
   p[i] = x;
-  kk_vector_drop(v,ctx); // TODO: use borrowing
   return kk_Unit;
 }
 
@@ -29,4 +28,12 @@ static inline kk_box_t kk_vector_at_int_borrow( kk_vector_t v, kk_integer_t n, k
   // TODO: check bounds
   kk_box_t b = kk_vector_at_borrow(v,kk_integer_clamp_ssize_t_borrow(n,ctx),ctx);
   return b;
+}
+
+static inline kk_box_t kk_vector_at_own(const kk_vector_t v, kk_ssize_t i, kk_context_t* ctx) {
+  kk_assert(i < kk_vector_len_borrow(v,ctx));
+  kk_box_t* p = kk_vector_buf_borrow(v, NULL, ctx);
+  kk_box_t res = p[i];
+  p[i] = kk_box_null();
+  return res;
 }
