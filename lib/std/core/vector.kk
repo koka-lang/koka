@@ -55,12 +55,12 @@ inline fip extern unsafe-is-unique( ^v : vector<a> ) : bool
   cs inline "false"
 
 // This is technically not fip, but we pretend it to be, since it will only copy when non-unique
-fip fun copy(v: vector<a>): vector<a>
+inline fip fun copy(v: vector<a>): vector<a>
   if v.unsafe-is-unique then v else v.unsafe-copy
 
 // This is technically not fip, but we pretend it to be, since it will only copy when non-unique 
 // (only used for copy which satisfies the non-unique precondition)
-fip extern unsafe-copy(v: vector<a>): vector<a>
+inline fip extern unsafe-copy(v: vector<a>): vector<a>
   c "kk_vector_copy"
   js inline "[...(#1)]"
   cs inline "(#1).Clone()"
