@@ -650,6 +650,56 @@ that are not possible for general mutable reference cells.
 [Read more about state and multiple resumptions &adown;][#sec-multi-resume]
 {.learn}
 
+### Local Mutable Vectors {#sec-vectors;}
+
+Koka provides a built-in `vector` type that is backed by a constant sized C array of boxed values.
+
+Vectors still provide an immutable interface, but are faster that lists for random access.
+
+When using vectors locally you can 'mutate' them similarly to local variables:
+
+```
+fun vectors()
+  var myvec := vector-init(10, fn(i) i)
+  myvec[5] := 42
+  myvec.map(show).join(", ").println
+```
+
+When keeping a reference to a vector, the vector will be copied on assignment, but the items in the array will be shared. In the following example, the `copy` will be a vector that shares the same values as `myvec` except at location `5`.
+
+```
+fun vectors()
+  var myvec := vector-init(10, fn(i) i)
+  val copy = myvec
+  myvec[5] := 42
+```
+
+When updating a single item in the vector, the old vector will still contain a reference to the value, this will prevent reusing the memory of the old item.
+
+```
+fun reuse()
+  var myvec := vector-init(10, fn(i) [i - 1, i, i + 1])
+  myvec[0] := myvec[0].map(fn(x) x + 1)
+```
+
+Instead you can use the update function:
+```
+fun reuse()
+  var myvec := vector-init(10, fn(i) [i - 1, i, i + 1])
+  myvec.update(0, fn(l) l.map(fn(x) x + 1))
+```
+
+If the old vector is unique and the value at that position is also unique, the memory of both the old vector and the old value can be used in place thanks to Perceus reference counting.
+
+Vectors can also be used outside of local variables, but setting / updating the vector will return a new vector (reusing the old memory in place if the vector was unique).
+```
+fun reuse()
+  val myvec = vector-init(10, fn(i) [i - 1, i, i + 1])
+  val newvec = myvec.update(0, fn(l) l.map(fn(x) x + 1))
+  val newvec1 = newvec.set(1, [-1])
+  newvec1[0].println
+  newvec1[1].println
+```
 
 ### Reference Cells and Isolated state {#sec-runst}
 
