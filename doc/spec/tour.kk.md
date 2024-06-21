@@ -654,7 +654,7 @@ that are not possible for general mutable reference cells.
 
 Koka provides a built-in `vector` type that is backed by a constant sized C array of boxed values.
 
-Vectors still provide an immutable interface, but are faster that lists for random access.
+Vectors still provide an immutable interface, but are faster than lists for random access.
 
 When using vectors locally you can 'mutate' them similarly to local variables:
 
@@ -665,31 +665,22 @@ fun vectors()
   myvec.map(show).join(", ").println
 ```
 
-When keeping a reference to a vector, the vector will be copied on assignment, but the items in the array will be shared. In the following example, the `copy` will be a vector that shares the same values as `myvec` except at location `5`.
+If there is another reference to the vector, the vector will be copied on assignment to form the new vector. The elements that were not updated are shared between the old and the new vector. In the following example, the `vec-copy` will be a vector that shares the same values as `myvec` except at location `5`.
 
 ```
 fun vectors()
   var myvec := vector-init(10, fn(i) i)
-  val copy = myvec
+  val vec-copy = myvec
   myvec[5] := 42
 ```
-
-When updating a single item in the vector, the old vector will still contain a reference to the value, this will prevent reusing the memory of the old item.
-
-```
-fun reuse()
-  var myvec := vector-init(10, fn(i) [i - 1, i, i + 1])
-  myvec[0] := myvec[0].map(fn(x) x + 1)
-```
-
-Instead you can use the update function:
+Koka can even [reuse][#sec-fbip] the memory of the elements of the vector if there is only one reference to the element. However, when using the assignment syntax above, Koka does not release the element from the vector in time for the in-place reuse to occur. If you want to update an element with the opportunity for in-place reuse, you can use the update function:
 ```
 fun reuse()
   var myvec := vector-init(10, fn(i) [i - 1, i, i + 1])
   myvec.update(0, fn(l) l.map(fn(x) x + 1))
 ```
 
-If the old vector is unique and the value at that position is also unique, the memory of both the old vector and the old value can be used in place thanks to Perceus reference counting.
+Because the `myvec` is unique and the value at that position is also unique, the memory of both the old vector and the old value can be used in place thanks to Perceus reference counting.
 
 Vectors can also be used outside of local variables, but setting / updating the vector will return a new vector (reusing the old memory in place if the vector was unique).
 ```

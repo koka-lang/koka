@@ -26,6 +26,7 @@ fun antons-example()
   ()
   
 fun main()
+  println("Non-fip copy of vector and items")
   val v = [[1], [2], [3], [4]].vector
   val xs = v
   // Copies the vector and the items are no longer unique
@@ -33,18 +34,29 @@ fun main()
   xs.map(fn(x) x.show).join("").println
   
   // Items are unique, since the vector is unique
+  println("Fip updates to items in vector")
   val v1 = [[1], [2], [3], [4]].vector
   v1.map(update).map(fn(x) x.show).join("").println
 
+  println("Fip updates to vector, but only one items")
   val v2 = [[1], [2], [3], [4]].vector
   val v3 = v2.set(0, [-10])
   val v4 = v3.update(1, fn(l) l.update())
   v4.map(fn(x) x.show).join(",").println
 
+  println("Non-fip copies of vector in multiple resumptions")
   antons-example()
 
   // Fip update to item in local vector variable
+  println("Fip update to item in local vector variable")
   var a1 := vector-init-total(3, fn(i) [i])
   a1[1] := [5]
   update(std/core/types/@byref(a1), 2, update)
   a1.map(fn(x) x.show).join("").println
+
+  println("Non-fip update to item in local vector variable")
+  var a2 := vector-init-total(3, fn(i) [i])
+  val a3 = a2
+  update(std/core/types/@byref(a2), 2, update)
+  a2.map(fn(x) x.show).join("").println
+  a3.map(fn(x) x.show).join("").println

@@ -31,14 +31,14 @@ inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a
 
 // Obtains the value transferring ownership and replaces the value with uninitialized value
 // Precondition: `v` is unique
-inline fip extern unsafe-idx-own( ^v : vector<a>, index : ssize_t ) : a
-  c "kk_vector_at_own"
+inline fip extern unsafe-extract( ^v : vector<a>, index : ssize_t ) : a
+  c "kk_vector_unsafe_extract_borrow"
   cs inline "(#1)[#2]" // js / cs need to copy prior to calling this to satisfy the preconditions
   js inline "(#1)[#2]"
 
 // Assign to an entry in a vector.
 inline fip extern unsafe-assign( ^v : vector<a>, i : ssize_t, x : a ): total ()
-  c "kk_vector_unsafe_assign"
+  c "kk_vector_unsafe_assign_borrow"
   cs inline "(#1)[#2] = #3"
   js inline "(#1)[#2] = #3"
 
@@ -54,13 +54,22 @@ inline fip extern unsafe-is-unique( ^v : vector<a> ) : bool
   js inline "false"
   cs inline "false"
 
-// This is technically not fip, but we pretend it to be, since it will only copy when non-unique
-inline fip fun copy(v: vector<a>): vector<a>
+// Ensures the vector is unique, copying if necessary
+// This is technically not fip, but we pretend it to be since it will only copy when non-unique
+pub inline fip fun vec/ensure-unique(v: vector<a>): vector<a>
   if v.unsafe-is-unique then v else v.unsafe-copy
 
+// Copies the vector
 // This is technically not fip, but we pretend it to be, since it will only copy when non-unique 
 // (only used for copy which satisfies the non-unique precondition)
 inline fip extern unsafe-copy(v: vector<a>): vector<a>
+  c "kk_vector_copy"
+  js inline "[...(#1)]"
+  cs inline "(#1).Clone()"
+
+// Copies the vector
+// If you only want to ensure uniqueness use `ensure-unique` instead, which will only copy if non-unique
+pub inline extern copy(v: vector<a>): vector<a>
   c "kk_vector_copy"
   js inline "[...(#1)]"
   cs inline "(#1).Clone()"
@@ -79,9 +88,14 @@ pub inline extern assign/@index( ^self : local-var<s,vector<a>>, ^index : int, a
 // Assign to an entry in a local `:vector` variable.
 pub inline fun assign/update( ^self : local-var<s,vector<a>>, ^index : int, f : a -> <local<s>,exn,div|e> a ) : <local<s>,exn,div|e> ()
   val i = index.ssize_t
-  val x = self.unsafe-idx-own(i)
+  ensure-unique(std/core/types/@byref(self))
+  val x = self.unsafe-extract(i)
   val res = f(x)
   self[index] := res
+
+// Ensures that a vector in a local variable is unique
+pub inline fun local/ensure-unique(^v: local-var<s,vector<a>>): <local<s>,exn,div|e> ()
+  if v.unsafe-is-unique then () else v := unsafe-copy(v)
 
 // Length of a vector.
 inline fip extern lengthz( ^v : vector<a> ) : ssize_t
@@ -121,7 +135,7 @@ pub fun set(v: vector<a>, ^index: int, x: a): exn vector<a>
   if idx >= v.lengthz then 
     throw("index out of bounds", ExnRange)
   else
-    val v' = v.copy // Ensure unique prior to assigning
+    val v' = v.ensure-unique // Ensure unique prior to assigning
     unsafe-assign(v', idx, x)
     v'
 
@@ -133,9 +147,9 @@ pub fun update(v: vector<a>, ^index: int, ^f: a -> <exn|e> a): <exn|e> vector<a>
   if idx >= v.lengthz then 
     throw("index out of bounds", ExnRange)
   else
-    val v' = v.copy // Ensure unique before owning the value
-    val res = f(unsafe-idx-own(v',idx))
-    val v'' = v'.copy // Ensure unique after effects
+    val v' = v.ensure-unique // Ensure unique before owning the value
+    val res = f(unsafe-extract(v',idx))
+    val v'' = v'.ensure-unique // Ensure unique after effects
     unsafe-assign(v'', idx, res)
     v''
 
@@ -185,8 +199,7 @@ pub fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
 
 // Apply a function `f` to each element in a vector `v`
 pub fip fun map( v : vector<a>, ^f : a -> e b ) : e vector<b>
-  // Copy will only happen on the first iteration in the map, to satisfy the unique precondition
-  map-rec(v.copy, f, 0.ssize_t).unsafe-vector-cast
+  map-rec(v.ensure-unique, f, 0.ssize_t).unsafe-vector-cast
 
 // Inner loop for `map` which does in place updates when unique, otherwise copies the vector
 // `f` is safe to have effects that do not resume (since the vector will be unique and freed)
@@ -198,13 +211,13 @@ fip fun map-rec(v: vector<a>, ^f: a -> e b, i: ssize_t): e vector<b>
     v.unsafe-vector-cast
   else
     // v is unique, so we can own the value at index i
-    val a = unsafe-idx-own(v, i)
+    val a = unsafe-extract(v, i)
     // If the function `f` does not resume, the vector will be dropped
     //  since it is guaranteed to be unique at this point,
     //  it will be freed and the uninitialized value will not be observable 
     val res = unsafe-cast(f(a))
     // If the function `f` captures a resumption such that v is no longer unique, we need to copy the vector
-    val v' = v.copy
+    val v' = v.ensure-unique
     // We copy before assigning to avoid the result value being dupped during a non-unique copy
     unsafe-assign(v', i, res)
     map-rec(v'.pretend-decreasing, f, i.incr)
