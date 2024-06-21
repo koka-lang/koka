@@ -61,7 +61,7 @@ pub inline fip fun vec/ensure-unique(v: vector<a>): vector<a>
 
 // Copies the vector
 // This is technically not fip, but we pretend it to be, since it will only copy when non-unique 
-// (only used for copy which satisfies the non-unique precondition)
+// (only used for `ensure-unique` which satisfies the non-unique precondition)
 inline fip extern unsafe-copy(v: vector<a>): vector<a>
   c "kk_vector_copy"
   js inline "[...(#1)]"
