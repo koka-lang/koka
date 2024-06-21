@@ -1,0 +1,25 @@
+Non-fip copy of vector and items
+not unique a
+not unique a
+not unique a
+not unique a
+[2][3][4][5]
+[1][2][3][4]
+Fip updates to items in vector
+unique a
+unique a
+unique a
+unique a
+[2][3][4][5]
+Fip updates to vector, but only one items
+unique a
+[-10],[3],[3],[4]
+Non-fip copies of vector in multiple resumptions
+["0,1,0","0,1,1","0,0,0","0,0,1","1,1,0","1,1,1","1,0,0","1,0,1"]
+Fip update to item in local vector variable
+unique a
+[0][5][3]
+Non-fip update to item in local vector variable
+not unique a
+[0][1][3]
+[0][1][2]
