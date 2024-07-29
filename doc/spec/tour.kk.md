@@ -1893,9 +1893,59 @@ can make code that uses only linear effects more compact and efficient.
 
 ### Named and Scoped Handlers { #sec-namedh; }
 
-~ Todo
-See `samples/named-handlers`.
-~
+Named handlers allow us to define multiple handlers for the same effect that are lexically distinct from one another. For example, to define a handler for managing a file, we can write:
+```unchecked
+named effect file
+  fun read-line() : string   // `:(file)   -> <exn> a`
+
+// a (named) handler instance for files
+fun file(fname, action) 
+  var content := read-text-file(fname.path).lines
+  with f <- named handler 
+    fun read-line() 
+      match content  
+        Nil -> "" 
+        Cons(x,xx) -> { content := xx; x }
+  action(f)
+
+pub fun main() 
+  with f1 <- file("package.yaml")
+  with f2 <- file("stack.yaml")
+  println( f1.read-line() ++ "\n" ++ f2.read-line() )
+```
+This allows us to have two separate handlers for the same effect, and to use them in the same scope. The `named` keyword is used to define a handler instance, and the `with` statement is used to bind a handler instance to a variable. The handler instance can then be used as a regular handler, and it can be passed to other functions. 
+
+When used with handlers that involve multiple resumptions, you must be careful to ensure that the handler instance does not escape the scope of the resumption. For example, the following code is incorrect, and will fail at runtime:
+
+```unchecked
+fun wrong-escape1() 
+  with f <- file("stack.yaml")
+  f
+
+pub fun test() 
+  val f = wrong-escape1()
+  f.read-line.println
+```
+
+To ensure that the handler instance does not escape, you can mark the effect as a scoped effect. 
+
+```unchecked
+named scoped effect file<s::S> 
+  fun read-line() : string  // `: (f : file<s>) -> scope<s> string`
+
+// a handler instance for files
+fun file(fname : string, action : forall<s> file<s> -> <scope<s>|e> a ) : e a 
+  var i := 0
+  with f <- named handler 
+    fun read-line()
+      i := i + 1
+      (fname ++ ": line " ++ i.show)
+  action(f)
+``` 
+
+When creating the file the function `file` quantifies the `action` function by a polymorphic scope `s`, and connects that to the scope of the `file` instance passed to the `action`. Each action is guaranteed to not escape the scope of the action method due to the scope polymorphism. Scope types which are recognized by the `::S` kind annotation are not limited to just effect handlers, and can be used with other variables. See the [``samples/named-handlers``][named-handlers] directory on github or in your Koka installation for more complex examples of both named handlers and scoped effects and types.
+
+[named-handlers]: https://github.com/koka-lang/koka/tree/master/samples/named-handlers {target='_top'}
 
 ## FBIP: Functional but In-Place { #sec-fbip; }
 
@@ -1911,15 +1961,27 @@ describe loops in terms of regular function calls, reuse analysis lets us
 describe in-place mutating imperative algorithms in a purely functional
 way (and get persistence as well).
 
-~ Note
-FBIP is still active research. In particular we'd like to add ways to add
-annotations to ensure reuse is taking place.
-~
+Koka has a few keywords for guaranteeing that a function is optimized by the compiler.
+
+The `fip` keyword is the most restrictive and guarantees that a function is fully optimized by the compiler to use in-place mutation when possible.
+Higher order functions, or other variables used multiple times in a `fip` function must be marked as borrowed using the `^` prefix on their name (eg. `^f`). 
+Borrowed parameters cannot be passed as owned parameters to functions or constructors, cannot be matched destructively, and cannot be returned. 
+
+The `tail` keyword guarantees that a function is tail-recursive. These functions will not use stack space.
+
+The `fbip` keyword guarantees that a function is optimized by the compiler to use in-place mutation when possible.
+However, unlike `fip`, `fbip` allows for deallocation, and also allows for non tail calls, which means these functions can use non-constant stack space.
+
+Both `fip` and `fbip` can allow for a constant amount of allocation using `fip(n)` or `fbip(n)` where `n` is the number of constructor allocations allowed.
+This allows them to be used in insertion functions for datastructures, where at least one constructor for the inserted element is necessary.
+
+Following are a few examples of the techniques of FBIP in action. 
+For more information about the restrictions for `fip` and the new keywords, see
+the recent papers: [@Lorenzen:fip;@Lorenzen:fip-t]
 
 ### Tree Rebalancing
 
-As an example, we consider
-insertion into a red-black tree [@guibas1978dichromatic].
+As an example, consider insertion into a red-black tree [@guibas1978dichromatic]. 
 A polymorphic version of this example is part of the [``samples``][samples] directory when you have
 installed &koka; and can be loaded as ``:l`` [``samples/basic/rbtree``][rbtree].
 We define red-black trees as:
@@ -1939,13 +2001,13 @@ balanced. When inserting nodes, the invariants need to be maintained by
 rebalancing the nodes when needed. Okasaki's algorithm [@Okasaki:rbtree]
 implements this elegantly and functionally:
 ```unchecked
-fun balance-left( l : tree, k : int, v : bool, r : tree ): tree
+fbip(1) fun balance-left( l : tree, k : int, v : bool, r : tree ): tree
   match l
     Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
       -> Node(Red, Node(Black, lx, kx, vx, rx), ky, vy, Node(Black, ry, k, v, r))
     ...
 
-fun ins( t : tree, k : int, v : bool ): tree
+fbip(1) fun ins( t : tree, k : int, v : bool ): tree  
   match t
     Leaf -> Node(Red, Leaf, k, v, Leaf)
     Node(Red, l, kx, vx, r)
@@ -1984,7 +2046,7 @@ type tree
   Tip
   Bin( left: tree, value : int, right: tree )
 
-fun tmap-inorder( t : tree, f : int -> int ) : tree
+fbip fun tmap-inorder( t : tree, f : int -> int ) : tree
   match t
     Bin(l,x,r) -> Bin( l.tmap-inorder(f), f(x), r.tmap-inorder(f) )
     Tip        -> Tip
@@ -2074,7 +2136,7 @@ We start our traversal by going downward into the tree with an empty
 visitor, expressed as `tmap(f, t, Done, Down)`:
 
 ```
-fun tmap( f : int -> int, t : tree, visit : visitor, d : direction )
+fip fun tmap( f : int -> int, t : tree, visit : visitor, d : direction )
   match d
     Down -> match t     // going down a left spine
       Bin(l,x,r) -> tmap(f,l,BinR(r,x,visit),Down) // A

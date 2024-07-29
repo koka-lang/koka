@@ -108,11 +108,13 @@ grammar will draw it's lexemes from the _lex_ production.
 |              | &bar; | `match` &bar; `return` &bar; `with` &bar; `in`                                       |                         |
 |              | &bar; | `handle` &bar; `handler` &bar; `mask`                                                   |                         |
 |              | &bar; | `ctl` &bar; `final` &bar; `raw`                                     |                         |
-|              | &bar; | `override` &bar; `named`                                               |                         |
+|              | &bar; | `override` &bar; `named`                                        |                         |
 |              | &bar; | `interface` &bar; `break` &bar; `continue` &bar; `unsafe`        | (future reserved words) |
 | &nbsp;       |       |                                                                           |                         |
 | _specialid_  | ::=   | `co` &bar; `rec` &bar; `open` &bar; `extend` &bar; `behind`   |                         |
-|              | &bar; | `linear` &bar; `value` &bar; `reference`                            |                         |
+|              | &bar; | `linear` &bar; `scoped` &bar;                                 |                     |
+|              | &bar  | `value` &bar; `reference` &bar; `ref`           |                         |
+|              | &bar; | `fip` &bar; `fbip` &bar; `tail`                                                   |                         |
 |              | &bar; | `inline` &bar; `noinline` &bar; `initially` &bar; `finally`      |                         |
 |              | &bar; | `js` &bar; `c` &bar; `cs` &bar; `file`                           |                         |
 {.grammar .lex}
@@ -540,8 +542,10 @@ ignored.
 
 | ~~~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~~~~~~~~|
 | _puredecl_     | ::=   | [_inlinemod_]{.opt} `val` _valdecl_                                                   |                      |
-|                | &bar; | [_inlinemod_]{.opt} `fun` _fundecl_                                                   |                      |
+|                | &bar; | [_inlinemod_]{.opt} [_fipmod_]{.opt} `fun` _fundecl_                                                   |                      |
 | _inlinemod_    | ::=   | `inline` &bar; `noinline`                                                  |                      |
+| _fipalloc_     | ::=   | `(` _integer_ `)` &bar;  `(` `n` `)`                                          | (n means finitely)     |
+| _fipmod_       | ::=   | `fip` [_fipalloc_]{.opt} &bar; `fbip` [_fipalloc_]{.opt} &bar; `tail`         |                      |
 | &nbsp;         |       |                                                                               |                      |
 | _valdecl_      | ::=   | _binder_ `=` _blockexpr_                                                           |                      |
 | _binder_       | ::=   | _identifier_ [``:`` _type_]{.opt}                                             |                      |

@@ -182,6 +182,9 @@ mask                      { return MASK; }
 override                  { return OVERRIDE; }
 named                     { return NAMED; }
 
+fip                       { return ID_FIP; }
+fbip                      { return ID_FBIP; }
+tail                      { return ID_TAIL; }
 rec                       { return ID_REC; }
 co                        { return ID_CO; }
 open                      { return ID_OPEN; }
@@ -189,6 +192,7 @@ extend                    { return ID_EXTEND; }
 linear                    { return ID_LINEAR;  }
 value                     { return ID_VALUE;  }
 reference                 { return ID_REFERENCE;  }
+ref                       { return ID_REF; }
 
 inline                    { return ID_INLINE;  }
 noinline                  { return ID_NOINLINE;}
