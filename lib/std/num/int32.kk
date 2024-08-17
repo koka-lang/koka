@@ -41,12 +41,14 @@ pub inline fip extern int32( i : int) : int32
   c  "kk_integer_clamp32"
   cs "Primitive.IntToInt32"
   js "$std_core_types._int_clamp32"
+  vm "!sexp:$arg0:num"
 
 // Convert an `:int32` to an `:int`.
 pub inline fip extern int( i : int32 ) : int
   c  "kk_integer_from_int"
   cs inline "(new BigInteger(#1))"
   js "$std_core_types._int_from_int32"
+  vm "!sexp:$arg0:num"
 
 /*
 // Convert a `:float64` to an `:int32`. The float64 is clamped to the
@@ -101,37 +103,45 @@ pub fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre 
 pub inline fip extern (==)(x : int32, y : int32) : bool
   inline "(#1 == #2)"
   js inline "(#1 === #2)"
+  vm "infixEq(Int, Int): Boolean"
 
 // Are two 32-bit integers not equal?
 pub inline fip extern (!=)(x : int32, y : int32) : bool
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
+  vm "infixNeq(Int, Int): Boolean"
 
 // Is the first 32-bit integer smaller or equal to the second?
 pub inline fip extern (<=)(x : int32, y : int32) : bool
   inline "(#1 <= #2)"
+  vm "infixLte(Int, Int): Boolean"
 
 // Is the first 32-bit integer larger or equal to the second?
 pub inline fip extern (>=)(x : int32, y : int32) : bool
   inline "(#1 >= #2)"
+  vm "infixGte(Int, Int): Boolean"
 
 // Is the first 32-bit integer smaller than the second?
 pub inline fip extern (<)(x : int32, y : int32) : bool
   inline "(#1 < #2)"
+  vm "infixLt(Int, Int): Boolean"
 
 // Is the first 32-bit integer larger than the second?
 pub inline fip extern (>)(x : int32, y : int32) : bool
   inline "(#1 > #2)"
+  vm "infixGt(Int, Int): Boolean"
 
 // Add two 32-bit integers.
 pub inline fip extern (+)(x : int32, y : int32) : int32
   c inline  "(int32_t)((uint32_t)#1 + (uint32_t)#2)" // avoid UB
   js inline "((#1 + #2)|0)"
+  vm "infixAdd(Int, Int): Int"
 
 // Subtract two 32-bit integers.
 pub inline fip extern (-)(x : int32, y : int32) : int32
   c inline "(int32_t)((uint32_t)#1 - (uint32_t)#2)" // avoid UB
   js inline "((#1 - #2)|0)"
+  vm "infixSub(Int, Int): Int"
 
 // Is the 32-bit integer negative?
 pub inline fip extern is-neg( i : int32 ) : bool

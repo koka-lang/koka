@@ -44,6 +44,7 @@ pub inline extern (==) : (string,string) -> bool
   c  "kk_string_is_eq"
   cs inline "(#1 == #2)"
   js inline "(#1 === #2)"
+  vm "infixEq(String, String): Boolean"
 
 // Are two strings not equal?
 pub inline extern (!=) : (string,string) -> bool

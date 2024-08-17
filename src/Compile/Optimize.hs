@@ -19,7 +19,7 @@ import Common.Error
 import Common.Range
 import Common.Unique
 import Common.Name
-import Common.NamePrim( isPrimitiveModule, isPrimitiveName, nameCoreHnd )
+import Common.NamePrim( isPrimitiveModule, isPrimitiveName, nameCoreHnd, nameLocalVar )
 import Common.Syntax
 import qualified Common.NameSet as S
 import Core.Pretty( prettyDef )
@@ -58,6 +58,7 @@ coreOptimize flags newtypes gamma inlines coreProgram
         let progName = Core.coreProgName coreProgram
             penv     = prettyEnvFromFlags flags
             checkCoreDefs title = when (coreCheck flags) $ Core.Check.checkCore False False penv gamma
+            vmInlineFilter = if (target flags == VM) then (\n -> n `notElem` [nameLocalVar]) else const True
 
         -- when (show progName == "std/text/parse") $
         --  trace ("compile " ++ show progName ++ ", gamma: " ++ showHidden gamma) $ return ()
@@ -77,7 +78,7 @@ coreOptimize flags newtypes gamma inlines coreProgram
         when (optInlineMax flags > 0) $
           do let inlinesX = if isPrimitiveModule progName then inlines
                             else inlinesFilter (\name -> nameModule nameCoreHnd /= nameModule name) inlines
-             inlineDefs penv (2*(optInlineMax flags)) inlinesX
+             inlineDefs penv (2*(optInlineMax flags)) (inlinesFilter vmInlineFilter inlinesX)
               -- checkCoreDefs "inlined"
 
         simplifyDupN
@@ -112,6 +113,9 @@ coreOptimize flags newtypes gamma inlines coreProgram
           -- trace (show progName ++ ": monadic transform") $
           do Core.Monadic.monTransform penv
              openResolve penv gamma           -- must be after monTransform
+
+        when (target flags == VM) $ openResolve penv gamma
+
         checkCoreDefs "monadic transform"
 
         -- simplify open applications (needed before inlining open defs)
@@ -126,7 +130,7 @@ coreOptimize flags newtypes gamma inlines coreProgram
         -- now inline primitive definitions (like yield-bind)
         let inlinesX = inlinesFilter isPrimitiveName inlines
         -- trace ("inlines2: " ++ show (map Core.inlineName (inlinesToList inlinesX))) $
-        inlineDefs penv (2*optInlineMax flags) inlinesX -- (loadedInlines loaded)
+        inlineDefs penv (2*optInlineMax flags) (inlinesFilter vmInlineFilter inlinesX) -- (loadedInlines loaded)
 
         -- remove remaining open calls; this may change effect types
         simplifyDefs penv True {-unsafe-} ndebug (simplify flags) 0 -- remove remaining .open

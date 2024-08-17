@@ -30,6 +30,7 @@ library
       Backend.C.ParcReuseSpec
       Backend.CSharp.FromCore
       Backend.JavaScript.FromCore
+      Backend.VM.FromCore
       Common.ColorScheme
       Common.Error
       Common.Failure

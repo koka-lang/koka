@@ -200,6 +200,7 @@ ppTarget env target
       CS      -> text "cs "
       C _     -> text "c "
       JS _    -> text "js "
+      VM      -> text "vm "
       -- _       -> keyword env (show target) <.> space
 
 

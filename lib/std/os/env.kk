@@ -44,6 +44,7 @@ extern os-get-argv() : ndet vector<string>
   c  "kk_os_get_argv"
   cs "System.Environment.GetCommandLineArgs"
   js inline "(typeof process !== 'undefined' ? process.argv : [])"
+  vm "getArgs(): Array[String]"
 
 
 // The unprocessed command line that was used to start this program.
@@ -61,8 +62,10 @@ pub fun get-argv() : ndet list<string>
 // The `arguments` list will be `["--flag","bla"]`
 pub fun get-args() : ndet list<string>
   val is-node = (host() == "node")
+  val is-vm = (host() == "vm")
   match get-argv()
     Cons(x,xx) | is-node && x.path.stemname == "node" -> xx.drop(1)
+    xs | is-vm -> xs
     xs -> xs.drop(1)
 
 // Return the main OS name: windows, linux, macos, unix, posix, ios, tvos, watchos, unknown.

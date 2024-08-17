@@ -221,12 +221,12 @@ pub extern main-console : forall<a,e> ( main : () -> e a ) -> e a
   js inline "(#1)()"
 
 
-// Return the host environment: `dotnet`, `browser`, `webworker`, `node`, or `libc`.
+// Return the host environment: `dotnet`, `browser`, `webworker`, `node`, or `libc`, or `vm`.
 pub extern host() : ndet string
   c "kk_get_host"
   cs inline "\"dotnet\""
   js inline "$std_core_console._host"
-
+  vm "!sexp:\"vm\""
 
 // The default exception handler
 pub fun @default-exn(action : () -> <exn,console|e> () ) : <console|e> ()

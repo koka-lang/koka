@@ -49,10 +49,13 @@ module Common.NamePrim
 
           -- Effects
           , nameTpHTag, nameHTag
-          , nameTpClause, namePerform
+          , nameTpClause, namePerform, isNameTpClause
           , nameTpEvv, nameEvvAt, nameEvvIndex
           , nameOpenAt, nameOpen, nameOpenNone
           , nameTpEv, nameHandle, nameNamedHandle
+          , nameHandleVM, nameNamedHandleVM
+          , nameYieldTo, nameYieldToVM
+          , nameProtect, nameProtectVM
           , nameTpResumeContext
           , nameClause
           , nameIdentity
@@ -151,6 +154,7 @@ module Common.NamePrim
           , nameTpRef, nameRef
           , nameTpLocalVar, nameTpLocal
           , nameLocalVar, nameRunLocal, nameLocalSet, nameLocalGet, nameLocalNew
+          , nameLocalVarVM
 
 
           , nameTpOptional
@@ -333,6 +337,12 @@ nameEvvIsAffine = coreHndName ("@evv-is-affine")
 
 nameHandle      = coreHndName "@hhandle"
 nameNamedHandle = coreHndName "@named-handle"
+nameHandleVM      = coreHndName "@hhandle-vm"
+nameNamedHandleVM = coreHndName "@named-handle-vm"
+nameYieldTo = coreHndName "yield-to"
+nameYieldToVM = coreHndName "@yield-to-vm"
+nameProtect = coreHndName "protect"
+nameProtectVM = coreHndName "@protect-vm"
 
 nameYielding    = coreHndName "yielding"
 nameYieldExtend = coreHndName "yield-extend"
@@ -351,6 +361,14 @@ isClauseTailName name
   = let s = nameLocal name
     in if (s `startsWith` "clause-tail" && all isDigit (drop 11 s))
         then Just (read (drop 11 s))
+        else Nothing
+
+isNameTpClause :: Name -> Maybe Int
+isNameTpClause name  | nameModule name /= nameModule nameCoreHnd  = Nothing
+isNameTpClause name
+  = let s = nameLocal name
+    in if (s `startsWith` "clause" && all isDigit (drop 6 s))
+        then Just (read (drop 6 s))
         else Nothing
 
 {--------------------------------------------------------------------------
@@ -382,6 +400,7 @@ nameTpLocal     = coreTypesName "local"
 nameRef         = coreTypesName "ref"
 nameLocalNew    = coreTypesName "local-new"
 nameLocalVar    = coreHndName   "local-var"
+nameLocalVarVM  = coreHndName   "local-var-vm"
 nameRunLocal    = coreTypesName "local-scope"
 
 nameTpTotal     = nameEffectEmpty -- coreTypesName "total"
