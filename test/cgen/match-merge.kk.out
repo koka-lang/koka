@@ -1,0 +1,14 @@
+Nothing
+2
+4
+100
+cgen/match-merge(2, 3): implicit-error-fallthrough: pattern match failure
+Nothing
+2
+4
+1
+[1]
+[2]
+[]
+[]
+[0]

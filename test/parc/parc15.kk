@@ -1,6 +1,6 @@
 fun test(xs:list<int>, y:int) {
   match(xs) {
-    Cons(x,_) ->
+    Cons(x) ->
       /* dup x; drop y */
       match(xs) {
         Cons -> /* drop xs */ x

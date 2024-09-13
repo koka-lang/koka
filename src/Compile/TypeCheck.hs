@@ -26,11 +26,12 @@ import Syntax.RangeMap
 import Syntax.Syntax
 import Static.FixityResolve( fixitiesCompose, fixitiesNew, fixityResolve )
 import Static.BindingGroups( bindingGroups )
-import Core.Pretty( prettyDef )
+import Core.Pretty( prettyDef, prettyCore )
 import Core.CoreVar( extractDepsFromSignatures )
 
 import Core.Check( checkCore )
 import Core.CheckFBIP( checkFBIP )
+import Core.MatchMerge( matchMergeDefs )
 import Core.Simplify( simplifyDefs )
 import Core.FunLift( liftFunctions )
 import Core.UnReturn( unreturn )
@@ -115,6 +116,13 @@ typeCheck flags defs coreImports program0
         -- checkCoreDefs "unreturn"
         let borrowed = borrowedExtendICore (coreProgram{ Core.coreProgDefs = coreDefs }) (defsBorrowed defs)
         checkFBIP penv (platform flags) newtypes borrowed gamma
+        
+        matchMergeDefs
+        -- trace "Finished match merging" $ return ()
+        -- coreDefs <- Core.getCoreDefs
+        -- let coreDoc2 = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] 
+        --                  (coreProgram{ Core.coreProgDefs = coreDefs })
+        -- trace (show coreDoc2) $ return ()
 
         -- initial simplify
         let ndebug  = optimize flags > 0

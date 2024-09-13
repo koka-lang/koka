@@ -24,6 +24,6 @@ pub fun test : forall<a> (x : list<a>) -> list<a>
  (std/core/types/Nil() : (list<a>) )
  -> x;
  _
- -> std/core/list/@unroll-xxx((std/core/types/@dup(x)), x);
+ -> std/core/@unroll-xxx((std/core/types/@dup(x)), x);
  };
  };

@@ -431,9 +431,9 @@ prettyGuard env (Guard test expr)
 
 prettyPatterns :: Env -> [Pattern] -> (Env,[Doc])
 prettyPatterns env pats
-  = foldl f (env,[]) pats
+  = foldr f (env,[]) pats
   where
-    f (env,docs) pat = let (env',doc) = prettyPattern env pat
+    f pat (env,docs) = let (env',doc) = prettyPattern env pat
                        in (env',doc:docs)
 
 prettyPatternType (pat,tp) (env,docs)
