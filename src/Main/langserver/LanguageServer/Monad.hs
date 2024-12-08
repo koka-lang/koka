@@ -15,7 +15,7 @@ module LanguageServer.Monad
   ( LSState (..),
     InlayHintOptions(..),
     SignatureContext(..), clearSignatureContext, updateSignatureContext, getSignatureContext,
-    Colors(..), updateColorScheme, getColorScheme,
+    Colors(..), updateColorScheme, getColorScheme, toJSON, fromJSON,
     defaultLSState,
     newLSStateVar,
     LSM,

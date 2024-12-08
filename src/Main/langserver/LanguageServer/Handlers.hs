@@ -59,6 +59,7 @@ import LanguageServer.Handler.TextDocument (didChangeHandler, didCloseHandler, d
 import LanguageServer.Handler.SignatureHelp (signatureHelpHandler)
 import LanguageServer.Monad
 import GHC.IO (catchAny)
+import LanguageServer.Handler.CodeAction (codeActionHandler)
 
 newtype ReactorInput = ReactorAction (IO ())
 
@@ -78,6 +79,7 @@ handlers =
       cancelHandler,
       commandHandler,
       inlayHintsHandler,
+      codeActionHandler,
       foldingHandler,
       configurationChangeHandler,
       signatureHelpHandler

@@ -109,6 +109,7 @@ library
       Syntax.Lexeme
       Syntax.Lexer
       Syntax.Parse
+      Syntax.Pretty
       Syntax.Promote
       Syntax.RangeMap
       Syntax.Syntax
@@ -171,6 +172,7 @@ executable koka
   main-is: Main.hs
   other-modules:
       LanguageServer.Conversions
+      LanguageServer.Handler.CodeAction
       LanguageServer.Handler.Commands
       LanguageServer.Handler.Completion
       LanguageServer.Handler.Definition

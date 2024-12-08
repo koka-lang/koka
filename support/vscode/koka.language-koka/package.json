@@ -310,12 +310,12 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "@vscode/debugadapter": "^1.61.0",
-    "@vscode/debugprotocol": "^1.61.0",
+    "@vscode/debugadapter": "^1.68.0",
+    "@vscode/debugprotocol": "^1.68.0",
+    "semver": "^7.6.3",
     "await-notify": "1.0.1",
-    "semver": "^7.5.4",
+    "vscode-languageclient": "^9.0.1",
     "ts-loader": "^9.5.2",
-    "vscode-languageclient": "^8.1.0",
     "webpack": "^5.97.1",
     "webpack-cli": "^6.0.1"
   }
