@@ -135,6 +135,8 @@ ppSyntaxExpr env e =
       vcat (map (ppSyntaxDef env) (allDefs defs) ++ [ppSyntaxExpr env expr])
     Bind def expr range ->
       vcat [ppSyntaxDef env def, ppSyntaxExpr env expr]
+    App (Var na _ _) [] _ | isConstructorName na -> -- Singleton constructor
+      ppName env na
     App (Var na True _) [(Nothing, x0), (Nothing, x1)] _ | not (isQualified na || isLocallyQualified na) -> -- Unqualified infix operations
       ppSyntaxExpr env x0 <+> text (nameStem na) <+> ppSyntaxExpr env x1 
     App (Var na True _) [(Nothing, x0)] _ -> -- Postfix operations?

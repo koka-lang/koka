@@ -415,7 +415,7 @@ synOrder2 modName info = do
       tpOrder2    = TpApp (TpCon nameOrd2 drng) [dataTp] drng
       tvArgs      = map (\x -> (tVarName x, TpFun
                           [(prepend "this" (tpVarName x), x),
-                           (prepend "other" (tpVarName x), x)] ediv tpOrder2 rangeNull))
+                           (prepend "other" (tpVarName x), x)] ediv (TpApp (TpCon nameOrd2 drng) [x] rangeNull) rangeNull))
                       starTVs
       tvBinds     = map (\(x, t) -> mkBindt x t drng) tvArgs
       fullTp      = tpForall (tpParams ++ [ediv]) $ TpFun ((selfArg,dataTp):(otherArg,dataTp):tvArgs) ediv tpOrder2 rangeNull
@@ -457,8 +457,9 @@ synOrder2 modName info = do
                 if ty == dataTp then App (Var defName False crng) [(Nothing, expL), (Nothing, expR)] crng
                 else App (tpOrder2Name ty) [(Nothing, expL), (Nothing, expR)] crng
               fields = map (\(nm, tp) -> (not (isFun tp), (nm, userTp nice tp))) (conInfoParams con)
+              varN fld postfix     = postpend postfix (fst (snd fld))
               pVar :: (Bool, (Name, UserType)) -> String -> Pattern UserType
-              pVar fld postfix     = if fst fld then PatVar (ValueBinder (postpend postfix (fst (snd fld))) Nothing (PatWild crng) crng crng)
+              pVar fld postfix     = if fst fld then PatVar (ValueBinder (varN fld postfix) Nothing (PatWild crng) crng crng)
                                     else PatWild crng
               patternsL           = [(Nothing,pVar fld "") | fld <- fields]
               patternsR           = [(Nothing,pVar fld "'") | fld <- fields]
@@ -469,21 +470,26 @@ synOrder2 modName info = do
               patLtRName nm       = (prepend (nameStem nm) $ newName "_gt")
               patGtLName nm       = (prepend (nameStem nm) $ newName "_lt")
               patGtRName nm       = (prepend (nameStem nm) $ newName "_gt")
+              constr args         = App (Var (conInfoName con) False crng) (map (\nm -> (Nothing, Var nm False crng)) args) crng
               patEq nm            = PatCon nameOrd2Eq [(Just (patEqName nm, crng), PatWild crng)] crng crng
               patLt nm            = PatCon nameOrd2Lt [(Just (patLtLName nm, crng), PatWild crng), (Just (patLtRName nm, crng), PatWild crng)] crng crng
               patGt nm            = PatCon nameOrd2Gt [(Just (patGtLName nm, crng), PatWild crng), (Just (patGtRName nm, crng), PatWild crng)] crng crng
-              branchExpr' []                = App litEq [(Nothing, Var selfArg False crng)] crng
-              branchExpr' (field@(nm,tp):fields) = Case (order2Field field) [
-                                                      Branch (patEq nm) [Guard guardTrue (branchExpr' fields)],
-                                                      Branch (patLt nm) [Guard guardTrue (App litLt [(Nothing, Var selfArg False crng), (Nothing, Var otherArg False crng)] crng)],
-                                                      Branch (patGt nm) [Guard guardTrue (App litGt [(Nothing, Var otherArg False crng), (Nothing, Var selfArg False crng)] crng)]
+              patOther' = PatVar (ValueBinder (newName "other'") Nothing (PatWild crng) crng crng)
+              patThis' = PatVar (ValueBinder (newName "this'") Nothing (PatWild crng) crng crng)
+              varNThis fld         = fst fld
+              varNOther fld         = postpend "'" (fst fld)
+              branchExpr' [] eqFields                = App litEq [(Nothing, constr (reverse eqFields))] crng
+              branchExpr' (field@(nm,tp):fields) eqFields = Case (order2Field field) [
+                                                      Branch (patEq nm) [Guard guardTrue (branchExpr' fields (patEqName nm:eqFields))],
+                                                      Branch (patLt nm) [Guard guardTrue (App litLt [(Nothing, constr (reverse eqFields ++ [patLtLName nm] ++ map varNThis fields)), (Nothing, constr (reverse eqFields ++ [patLtRName nm] ++ map varNOther fields))] crng)],
+                                                      Branch (patGt nm) [Guard guardTrue (App litGt [(Nothing, constr (reverse eqFields ++ [patGtLName nm] ++ map varNOther fields)), (Nothing, constr (reverse eqFields ++ [patGtRName nm] ++map varNThis fields))] crng)]
                                                     ] False crng
-              branchExpr = branchExpr' nonFunctionFields
+              branchExpr = branchExpr' nonFunctionFields []
               branch              = tupleBranch (PatCon (conInfoName con) patternsL crng crng) (PatCon (conInfoName con) patternsR crng crng)
-              ltbranch            = tupleBranch (PatCon (conInfoName con) [] crng crng) (PatWild crng)
-                                                    (App litLt [(Nothing, Var selfArg False crng), (Nothing, Var otherArg False crng)] crng) crng
-              gtbranch            = tupleBranch (PatWild crng) (PatCon (conInfoName con) [] crng crng)
-                                                    (App litGt [(Nothing, Var otherArg False crng), (Nothing, Var selfArg False crng)] crng) crng
+              ltbranch            = tupleBranch (PatCon (conInfoName con) patternsL crng crng) patOther'
+                                                    (App litLt [(Nothing, constr (map (varNThis . snd) fields)), (Nothing, Var (newName "other'") False crng)] crng) crng
+              gtbranch            = tupleBranch patThis' (PatCon (conInfoName con) patternsR crng crng)
+                                                    (App litGt [(Nothing, constr (map (varNOther . snd) fields)), (Nothing, Var (newName "this'") False crng)] crng) crng
             in [branch branchExpr crng, ltbranch, gtbranch]
   return def
 
