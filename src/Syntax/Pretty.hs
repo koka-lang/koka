@@ -150,6 +150,7 @@ ppSyntaxExpr env e =
       tupled [ppSyntaxExpr env hnd] <.> tupled [ppSyntaxExpr env a]
     S.App fun args range ->
       ppSyntaxExpr env fun <.> tupled (map (ppArg env) args)
+    S.Var nm isop range | nm == nameUnit -> text "()"
     S.Var name isop range -> ppName env name
     S.Lit lit -> text $ ppLit lit
     Ann expr tp range -> ppSyntaxExpr env expr
