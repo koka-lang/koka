@@ -42,6 +42,7 @@ instance PrettyEnv (KUserType k) where
       TpQuan QForall tb tp rng -> text "forall<" <.> ppName env (tbinderName tb) <.> text ">" <+> prettyEnv env tp
       TpQuan QExists tb tp rng -> text "exists<" <.> ppName env (tbinderName tb) <.> text ">" <+> prettyEnv env tp
       TpQuan QSome tb tp rng -> text "some<" <.> ppName env (tbinderName tb) <.> text ">" <+> prettyEnv env tp
+      TpApp tp [] _ -> prettyEnv env tp
       TpApp tp args _ -> prettyEnv env tp <.> angled (map (prettyEnv env) args)
       TpFun args e res _ -> tupled (map (\(n, tp) -> prettyEnv env tp) args) <+> text "->" <+> prettyEnv env e <+> prettyEnv env res
       TpParens tp _ -> tupled [prettyEnv env tp]
