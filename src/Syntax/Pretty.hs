@@ -90,9 +90,9 @@ returnType (TpQual _ tp) = returnType tp
 returnType _ = Nothing
 
 ppFunDef :: Env -> ValueBinder () (S.Expr UserType) -> Doc
-ppFunDef env (ValueBinder name _ (Lam vbs body _) _ _)
+ppFunDef env (ValueBinder name _ (Lam vbs body _ _) _ _)
   = ppName env name <.> tupled (map (ppMValBinder env) vbs) <--> indent 2 (ppSyntaxExpr env body)
-ppFunDef env (ValueBinder name _ (Ann (Lam vbs body _) tp _) _ _)
+ppFunDef env (ValueBinder name _ (Ann (Lam vbs body _ _) tp _) _ _)
   = case returnType tp of
       Just (eff, ret) ->
           ppName env name <.> tupled (map (ppMValBinder env) vbs) <+> colon <+> prettyEnv env eff <+> prettyEnv env ret <-->
@@ -130,7 +130,7 @@ ppArg env (Just (name,_),expr) = ppName env name <+> text "=" <+> ppSyntaxExpr e
 ppSyntaxExpr ::  PrettyEnv t => Env -> S.Expr t -> Doc
 ppSyntaxExpr env e =
   case e of
-    S.Lam pars expr range ->
+    S.Lam pars expr _ range ->
       text "fn" <.> tupled (map (ppMValBinder env) pars) <--> indent 2 (ppSyntaxExpr env expr)
     S.Let defs expr range ->
       vcat (map (ppSyntaxDef env) (allDefs defs) ++ [ppSyntaxExpr env expr])

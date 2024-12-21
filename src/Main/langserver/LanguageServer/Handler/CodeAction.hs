@@ -65,7 +65,8 @@ codeActionHandler
             Just info -> do
               let actions = [("show", synShowString modname info), ("==", synEquality modname info),
                              ("cmp", synOrd modname info), ("order2", synOrder2 modname info),
-                             ("recursive method", synPlaceholder modname "method" info), ("general method", synPlaceholder2 modname "method" info)]
+                             ("function", synOverloaded modname "overloaded" info), 
+                             ("map", synMap modname "map" info)]
               let results = map (\(nm, action) -> (nm, Core.runCorePhase 0 action)) actions
               env <- getPrettyEnvFor modname
               responder $ Right $ J.InL (mapMaybe (\(nm, res) -> J.InR <$> toCodeAction env origuri (dataInfoRange info) nm res) results)
@@ -87,8 +88,8 @@ toCodeAction env uri rng kind err =
           "==" -> "Generate (==) function"
           "cmp" -> "Generate cmp (comparison) function"
           "order2" -> "Generate order2 (fip comparison) function"
-          "general method" -> "Generate a method that is recursive only on the fields of the data type"
-          "recursive method" -> "Generate a recursive method that calls the method for each field"
+          "map" -> "Generate a map function"
+          "function" -> "Generate an overloaded function"
         )
         (Just J.CodeActionKind_QuickFix) Nothing Nothing Nothing
         (Just (J.WorkspaceEdit (Just (M.singleton uri [
@@ -154,7 +155,7 @@ instance Eq UserQuantifier where
 instance Eq (TypeBinder k) where
   TypeBinder x _ _ _ == TypeBinder y _ _ _ = x == y
 
-instance Eq UserType where
+instance Eq (KUserType k) where
   TpVar x _ == TpVar y _ = x == y
   TpCon x _ == TpCon y _ = x == y
   TpApp x xs _ == TpApp y ys _ = x == y && xs == ys
@@ -172,13 +173,11 @@ appendStr (Lit (LitString s1 _)) (App (Var op _ _) [(_, Lit (LitString s2 _)), (
                 appendStr (Lit (LitString (s1 ++ s2) rangeNull)) s3
 appendStr expr1 expr2 = App appendOp [(Nothing, expr1), (Nothing, expr2)] rangeNull
 
-type SynUnaryBranch = UserType -> ConInfo -> (Expr UserType -> UserType -> Expr UserType) -> [(Bool, (Name, UserType))] -> [Branch UserType]
+type SynUnaryBranch = UserType -> ConInfo -> (Expr UserType -> UserType -> Expr UserType) -> (UserType -> Bool) -> [(Bool, (Name, UserType))] -> [Branch UserType]
 
-synGeneralUnary :: Name -> Name -> String -> DataInfo -> (TypeVar, UserType) -> UserType -> SynUnaryBranch -> (Def UserType)
+synGeneralUnary :: Name -> Name -> String -> DataInfo -> (TypeVar, UserType) -> ((Bool, UserType, Int) -> UserType) -> SynUnaryBranch -> (Def UserType)
 synGeneralUnary modName generalName doc info (evar, effectTp) resultTp mkBranches =
-  let DataInfo{dataInfoRange = drng }   = info
-      dataName    = dataInfoName info
-      tyParams    = dataInfoParams info
+  let DataInfo{dataInfoRange = drng, dataInfoParams = tyParams, dataInfoConstrs = constrs, dataInfoVis = vis, dataInfoName = dataName }   = info
       nice        = niceTypeExtendVars (evar:tyParams) niceEmpty
       showTV tv   = newName $ show $ ppTypeVar defaultEnv{nice=nice} tv
       tpParams    = map (\tv -> TpVar (showTV tv) drng) tyParams
@@ -186,14 +185,14 @@ synGeneralUnary modName generalName doc info (evar, effectTp) resultTp mkBranche
       selfArg     = if all isAlphaNum (show dataName) then dataName else newName "this"
       tVarName tv = toImplicitParamName (newLocallyQualified "" (nameStem $ tpVarName tv) (nameStem generalName))
       starTVs     = map (\tv -> TpVar (showTV tv) drng) $ filter isStarTypeVar tyParams
-      tvArgs      = map (\x -> (tVarName x, TpFun [(prepend "tv" (tpVarName x), x)] effectTp resultTp rangeNull)) starTVs
+      tvArgs      = zipWith (\i x -> (tVarName x, TpFun [(prepend "tv" (tpVarName x), x)] effectTp (resultTp (False, x, i)) rangeNull)) [0..] starTVs
       tvBinds     = map (\(x, tp) -> mkBindt x tp drng) tvArgs
-      fullTp      = tpForall (tpParams ++ [effectTp]) $ TpFun ((selfArg,dataTp):tvArgs) effectTp resultTp rangeNull
-      showExpr    = Ann (Lam (mkBindt selfArg dataTp drng:tvBinds) caseExpr drng) fullTp drng
-      branches    = concatMap makeBranch (dataInfoConstrs info)
+      fullTp      = tpForall (tpParams ++ [effectTp]) $ TpFun ((selfArg,dataTp):tvArgs) effectTp (resultTp (True, dataTp, 0)) rangeNull
+      showExpr    = Ann (Lam (mkBindt selfArg dataTp drng:tvBinds) caseExpr True drng) fullTp drng
+      branches    = concatMap makeBranch constrs
       caseExpr    = Case (Var selfArg False drng) branches False drng
       defName     = newLocallyQualified "" (nameStem dataName) (nameStem generalName)
-      def         = Def (ValueBinder defName () showExpr drng drng) drng (dataInfoVis info) (DefFun [Borrow] (NoFip False)) InlineAlways doc
+      def         = Def (ValueBinder defName () showExpr drng drng) drng vis (DefFun [Borrow] (NoFip False)) InlineAlways doc
       makeBranch :: ConInfo -> [Branch UserType]
       makeBranch con
         = let
@@ -215,15 +214,19 @@ synGeneralUnary modName generalName doc info (evar, effectTp) resultTp mkBranche
                 -- Use fully qualified defName if the type is the same as the data type
                 if ty == dataTp then App (Var defName False crng) [(Nothing, exp)] crng
                 else App (tyAppName ty) [(Nothing, exp)] crng
+              isTV :: UserType -> Bool
+              isTV (TpVar _ _) = True
+              isTV _ = False
               fields                = map (\(nm, tp) -> (not (isFun tp), (nm, userTp nice tp))) (conInfoParams con)
-            in mkBranches dataTp con recur fields
+            in mkBranches dataTp con recur isTV fields
   in def
 
-synPlaceholder :: Name -> String -> DataInfo -> Core.CorePhase b (Def UserType)
-synPlaceholder modName generalName info = do
+synOverloaded :: Name -> String -> DataInfo -> Core.CorePhase b (Def UserType)
+synOverloaded modName generalName info = do
   evar <- TV.freshTypeVar kindEffect Bound
-  let doc  = "// " ++ generalName ++ " method for `" ++ (nameStem dataName) ++ "` type.\n"
-  return $ synGeneralUnary modName (newName generalName) doc info (evar, TpVar (newName "e") rangeNull) (TpVar (newName "a") rangeNull) $ \_ con recur fields ->
+  let doc  = "// " ++ generalName ++ " function for `" ++ (nameStem dataName) ++ "` type.\n"
+      dataName = dataInfoName info
+  return $ synGeneralUnary modName (newName generalName) doc info (evar, TpVar (newName "e") rangeNull) (const (TpVar (newName "a") rangeNull)) $ \_ con recur _ fields ->
     let crng = conInfoRange con
         patterns              = [(Nothing,pVar fld crng) | fld <- fields]
         defs                  = map (\f@(isFunc,(fldNm,fldTp)) ->
@@ -233,34 +236,40 @@ synPlaceholder modName generalName info = do
         conMatch              = PatCon (conInfoName con) patterns crng crng
         branchExpr            = [Branch conMatch [Guard guardTrue (Let (DefRec defs) (Var nameUnit False crng) crng)]]
       in branchExpr
-  where dataName = dataInfoName info
 
-synPlaceholder2 :: Name -> String -> DataInfo -> Core.CorePhase b (Def UserType)
-synPlaceholder2 modName generalName info = do
+synMap :: Name -> String -> DataInfo -> Core.CorePhase b (Def UserType)
+synMap modName generalName info = do
   evar <- TV.freshTypeVar kindEffect Bound
-  let doc  = "// " ++ generalName ++ " method for `" ++ (nameStem dataName) ++ "` type.\n"
-  return $ synGeneralUnary modName (newName generalName) doc info (evar, TpVar (newName "e") rangeNull) (TpVar (newName "a") rangeNull) $ \dataTp con recur fields ->
+  let dataName = dataInfoName info 
+      doc  = "// " ++ generalName ++ " function for `" ++ (nameStem dataName) ++ "` type.\n"
+      DataInfo{dataInfoRange = drng, dataInfoParams = tyParams, dataInfoConstrs = constrs, dataInfoVis = vis }   = info
+  tvarsnew <- mapM (\x -> if isStarTypeVar x then Left <$> (TV.freshTypeVar kindStar Bound) else return $ Right x) tyParams
+  let newstarvars = concatMap (\x -> case x of {Right _ -> []; Left x -> [x]}) tvarsnew
+      nice        = niceTypeExtendVars (evar:tyParams ++ newstarvars) niceEmpty
+      showTV tv   = newName $ show $ ppTypeVar defaultEnv{nice=nice} tv
+      tpParamsNew    = map (\tv -> case tv of {Right tv -> TpVar (showTV tv) drng; Left tv -> TpVar (showTV tv) drng}) tvarsnew
+      returnTp (isDataTp, tp, i) = if isDataTp then TpApp (TpCon dataName drng) tpParamsNew drng -- final return type 
+                                   else TpVar (showTV (newstarvars !! i)) rangeNull -- return type for polymorphic starTVs
+  return $ synGeneralUnary modName (newName generalName) doc info (evar, TpVar (newName "e") rangeNull) returnTp $ \dataTp con recur isTV fields ->
     let crng = conInfoRange con
-        patterns              = [(Nothing,pVar fld crng) | fld <- fields]
-        defs                  = mapMaybe (\f@(isFunc,(fldNm,fldTp)) ->
-                                    if fldTp == dataTp then
-                                      Just $ Def (ValueBinder (prepend "rec" fldNm) () (recur (Var fldNm False crng) fldTp) crng crng) crng Private DefVal InlineAlways ""
-                                    else
-                                      Nothing
-                                  ) fields
         pVar fld rng          = PatVar (ValueBinder (fst (snd fld)) Nothing (PatWild rng) rng rng)
+        patterns              = [(Nothing,pVar fld crng) | fld <- fields]
+        newfields             = map (\f@(isFunc,(fldNm,fldTp)) ->
+                                    if fldTp == dataTp || isTV fldTp then
+                                      recur (Var fldNm False crng) fldTp
+                                    else
+                                      Var fldNm False crng
+                                  ) fields
         conMatch              = PatCon (conInfoName con) patterns crng crng
-        branchExpr            = [Branch conMatch [Guard guardTrue (Let (DefRec defs) (Var nameUnit False crng) crng)]]
+        branchExpr            = [Branch conMatch [Guard guardTrue (App (Var (conInfoName con) False crng) (map (\e -> (Nothing, e)) newfields) crng)]]
       in branchExpr
-  where dataName = dataInfoName info
-
 
 synShowString :: Name -> DataInfo -> Core.CorePhase b (Def UserType)
 synShowString modName info = do
   evar <- TV.freshTypeVar kindEffect Bound
   let anyFunctionFields = any (any (isFun . snd) . conInfoParams) (dataInfoConstrs info)
       doc         = "// Automatically generated.\n// Shows a string representation of the `" ++ nameStem (dataInfoName info) ++ "` type" ++ (if anyFunctionFields then " (ignores function fields).\n" else ".\n")
-  return $ synGeneralUnary modName nameShow doc info (evar, TpVar (newName "e") rangeNull) tpString $ \_ con recur fields ->
+  return $ synGeneralUnary modName nameShow doc info (evar, TpVar (newName "e") rangeNull) (const tpString) $ \_ con recur _ fields ->
     let crng = conInfoRange con
         lString s             = Lit (LitString s crng)
         patterns              = [(Nothing,pVar fld crng) | fld <- fields]
@@ -284,7 +293,7 @@ type SynBinaryBranch = Int -> UserType -> ConInfo -> (Expr UserType -> Expr User
 tupleBranch :: Pattern UserType -> Pattern UserType -> Expr UserType -> Range -> Branch UserType
 tupleBranch p1 p2 res r = Branch (PatCon (nameTuple 2) [(Nothing, p1), (Nothing, p2)] r r) [Guard guardTrue res]
 
-synBinaryOp :: Name -> Name -> Bool -> String -> DataInfo -> (TypeVar, UserType) -> UserType -> [Branch UserType] -> SynBinaryBranch -> Def UserType
+synBinaryOp :: Name -> Name -> Bool -> String -> DataInfo -> (TypeVar, UserType) -> (UserType -> UserType) -> [Branch UserType] -> SynBinaryBranch -> Def UserType
 synBinaryOp modName generalName isOp doc info (evar, effectTp) resultTp defaultBranch mkBranch =
   let drng        = dataInfoRange info
       dataName    = dataInfoName info
@@ -299,15 +308,15 @@ synBinaryOp modName generalName isOp doc info (evar, effectTp) resultTp defaultB
       tVarName tv = toImplicitParamName (newLocallyQualified "" (nameStem (tpVarName tv)) (nameStem generalName))
       tvArgs      = map (\x -> (tVarName x, TpFun
                           [(prepend "this" (tpVarName x), x),
-                           (prepend "other" (tpVarName x), x)] effectTp resultTp rangeNull))
+                           (prepend "other" (tpVarName x), x)] effectTp (resultTp x) rangeNull))
                       starTVs
       tvBinds     = map (\(x, t) -> mkBindt x t drng) tvArgs
-      fullTp      = tpForall (tpParams ++ [effectTp]) $ TpFun ((selfArg,dataTp):(otherArg,dataTp):tvArgs) effectTp resultTp rangeNull
+      fullTp      = tpForall (tpParams ++ [effectTp]) $ TpFun ((selfArg,dataTp):(otherArg,dataTp):tvArgs) effectTp (resultTp dataTp) rangeNull
       branches    = concat $ zipWith makeBranch (dataInfoConstrs info) [0..] 
       litBool b rng = if b then Var nameTrue False rng else Var nameFalse False rng
       caseArg     = [(Nothing, Var selfArg False drng), (Nothing, Var otherArg False drng)]
       caseExpr    = Case (App (Var (nameTuple 2) False drng) caseArg drng) (branches ++ defaultBranch) False drng
-      defExpr     = Ann (Lam (mkBindt selfArg dataTp drng:mkBindt otherArg dataTp drng:tvBinds) caseExpr drng) fullTp drng
+      defExpr     = Ann (Lam (mkBindt selfArg dataTp drng:mkBindt otherArg dataTp drng:tvBinds) caseExpr True drng) fullTp drng
       defName     = newLocallyQualified "" (nameStem dataName) (nameStem generalName)
       def         = Def (ValueBinder defName () defExpr drng drng) drng (dataInfoVis info) (DefFun [Borrow] (NoFip False)) InlineAlways doc
       makeBranch :: ConInfo -> Int -> [Branch UserType]
@@ -343,7 +352,7 @@ synEquality modName info = do
       doc         = "// Automatically generated.\n// Equality comparison of the `" ++ nameStem (dataInfoName info) ++ "` type" ++ (if anyFunctionFields then " (ignores function fields).\n" else ".\n")
       defaultBranch :: [Branch UserType]
       defaultBranch = ([tupleBranch (PatWild drng) (PatWild drng) (litBool False drng) drng | not (hasSingleCon info)])
-  return $ synBinaryOp modName nameEq True doc info (evar, TpVar (newName "e") rangeNull) tpBool defaultBranch $ \_ _ con recur fields ->
+  return $ synBinaryOp modName nameEq True doc info (evar, TpVar (newName "e") rangeNull) (const tpBool) defaultBranch $ \_ _ con recur fields ->
       let crng = conInfoRange con
           pVar :: (Bool, (Name, UserType)) -> String -> Pattern UserType
           pVar fld postfix     = if fst fld then PatVar (ValueBinder (postpend postfix (fst (snd fld))) Nothing (PatWild crng) crng crng)
@@ -374,7 +383,7 @@ synOrd modName info = do
       litLt       = Var (newName "Lt") False drng
       litGt       = Var (newName "Gt") False drng
       litEq       = Var nameCmpEq False drng
-  return $ synBinaryOp modName nameCmp False doc info (evar, TpVar (newName "e") rangeNull) tpOrder [] $ \idx _ con recur fields ->
+  return $ synBinaryOp modName nameCmp False doc info (evar, TpVar (newName "e") rangeNull) (const tpOrder) [] $ \idx _ con recur fields ->
       let crng = conInfoRange con
           pVar :: (Bool, (Name, UserType)) -> String -> Pattern UserType
           pVar fld postfix     = if fst fld then PatVar (ValueBinder (postpend postfix (fst (snd fld))) Nothing (PatWild crng) crng crng)
@@ -418,7 +427,7 @@ synOrder2 modName info = do
       showTV tv   = newName $ show $ ppTypeVar defaultEnv{nice=nice} tv
       tpParams    = map (\tv -> TpVar (showTV tv) rangeNull) tyParams
       dataTp      = TpApp (TpCon dataName drng) tpParams drng
-      tpOrder2    = TpApp (TpCon nameOrd2 drng) [dataTp] drng
+      tpOrder2 tp = TpApp (TpCon nameOrd2 drng) [tp] drng
   return $ synBinaryOp modName nameOrder2 False doc info (evar, TpVar (newName "e") rangeNull) tpOrder2 [] $ \idx dataTp con recur fields ->
       let crng = conInfoRange con
           varN fld postfix     = postpend postfix (fst (snd fld))
