@@ -38,9 +38,9 @@ static inline void kk_uv_alloc_init(kk_context_t* _ctx){
 
 static void kk_uv_loop_init(kk_context_t* _ctx) {
   uv_loop_t* loop = kk_malloc(sizeof(uv_loop_t), kk_context());
+  kk_set_uv_loop(loop);
   uv_loop_init(loop);
-  kk_context_t* ctx = loop->data = kk_context();
-  ctx->loop = loop;
+  loop->data = kk_context();
 }
 
 void kk_uv_loop_run(kk_context_t* _ctx){

@@ -20,7 +20,11 @@
 #define kk_unit_callback(callback) \
   kk_function_call(void, (kk_function_t, kk_context_t*), callback, (callback, kk_context()), kk_context());
 
-#define uvloop() ((uv_loop_t*)(kk_context()->loop))
+static kk_decl_thread uv_loop_t* kk_uv_loop_default;
+
+void kk_set_uv_loop(uv_loop_t* loop);
+uv_loop_t* uvloop();
+
 #define UV_OK 0
 kk_std_core_exn__error kk_async_error_from_errno( int err, kk_context_t* ctx );
 

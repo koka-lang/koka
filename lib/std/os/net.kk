@@ -16,7 +16,7 @@ pub fun tcp(): io uv-tcp
   tcp-init().untry
 
 pub fun tcp/bind(tcp: uv-tcp, addr: string, port: int): <async,io> ()
-  net/bind(tcp, Sock-addr(AF_INET, addr, Just(port.int32)), 0.int32).untry
+  bind(tcp, Sock-addr(AF_INET, addr, Just(port.int32)), 0.int32).untry
 
 pub fun listen(tcp: uv-tcp): <async,io-noexn> channel<error<uv-stream>>
   val ch = channel()

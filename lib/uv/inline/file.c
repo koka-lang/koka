@@ -465,7 +465,6 @@ static void kk_std_os_fs_stat_cb(uv_fs_t* req) {
   kk_callback_result(req, callback, result)
   uv_fs_req_cleanup(req);
   if (result < 0) {
-    kk_free(stat, _ctx);
     kk_uv_error_callback(callback, result)
   } else {
     kk_box_t s = kk_uv_file__fstat_box(kk_uv_stat_from_uv_stat(&req->statbuf, _ctx), _ctx);

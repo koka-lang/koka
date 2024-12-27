@@ -10,6 +10,9 @@ module uv/utils
 import std/num/int32
 
 extern import
+  c { conan="libuv[>=1.47.0]"; vcpkg="libuv"; library="uv" }
+
+extern import
   c file "inline/utils"
 
 // The base uv handle type

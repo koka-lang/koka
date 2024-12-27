@@ -10,6 +10,14 @@ void kk_handle_free(void *p, kk_block_t *block, kk_context_t *_ctx) {
     // p will be freed by uv.
 }
 
+void kk_set_uv_loop(uv_loop_t* loop) {
+  kk_uv_loop_default = loop;
+}
+
+uv_loop_t* uvloop() {  
+  return kk_uv_loop_default;
+}
+
 static kk_uv_utils__uv_status_code kk_uv_status_to_status_code(int32_t status,
                                                        kk_context_t *_ctx) {
   switch (status) {

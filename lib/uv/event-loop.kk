@@ -10,9 +10,9 @@ module uv/event-loop
 
 pub import std/time/duration
 pub import std/time/timestamp
+pub import uv/utils
 pub import uv/timer
 import std/num/int32
-import uv/utils
 
 extern import
   c { conan="libuv[>=1.47.0]"; vcpkg="libuv"; library="uv" }
