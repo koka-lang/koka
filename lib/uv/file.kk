@@ -174,7 +174,7 @@ extern oNOFOLLOW(): int32
 pub val o_NOATIME = oNOATIME()
 extern oNOATIME(): int32
   c inline "UV_FS_O_NOATIME"
-// Create an unnamed temporary file. pathname specifie a directory
+// Create an unnamed temporary file. pathname specifies a directory
 pub val o_TMPFILE = oTMPFILE()
 extern oTMPFILE(): int32
   c inline "UV_FS_O_TEMPORARY"
