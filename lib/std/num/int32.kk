@@ -588,3 +588,5 @@ fip fun sumacc32( ^xs : list<int32>, acc : int32 ) : int32
     Cons(x,xx) -> sumacc32(xx,acc+x)
     Nil -> acc
 
+pub extern ssize_t(i: int32): ssize_t
+  c inline "(kk_ssize_t)(#1)"

@@ -220,19 +220,36 @@ pub fun open(path: string, flags: int32, cb: (error<uv-file>) -> io-noexn (), mo
     cb(Error(Exception("Cannot open with no permission flags when creating " ++ path, ExnAssert)))
   open(path, flags, mode, cb)
 
+
+
 // Equivalent to preadv(2). If the offset argument is -1, then the current file offset is used and updated.
 // WARNING: On Windows, under non-MSVC environments (e.g. when GCC or Clang is used to build libuv), files opened using UV_FS_O_FILEMAP may cause a fatal crash if the memory mapped read operation fails.
-pub extern uv/read(file: uv-file, length: int32, offset: int32, cb: (error<(bytes, int)>) -> io-noexn ()): io-noexn ()
+pub fun uv/read(file: uv-file, length: int32, offset: int32, cb: (error<(bytes, int)>) -> io-noexn ()): io-noexn ()
+  uv/read-buf(file, alloc(length.ssize_t), offset, cb)
+
+pub extern uv/read-buf(file: uv-file, bytes: bytes, offset: int32, cb: (error<(bytes, int)>) -> io-noexn ()): io-noexn ()
   c "kk_uv_fs_read"
 
-pub fun read(file: uv-file, length: int32, cb: (error<(bytes, int)>) -> io-noexn ()): io-noexn ()
-  read(file, 0.int32, length, cb)
-// TODO: Version of read that takes in bytes to reuse?
+// Convenience function for reading with offset of 0
+pub fun basic/read(file: uv-file, length: int32, cb: (error<(bytes, int)>) -> io-noexn ()): io-noexn ()
+  read(file, length, 0.int32, cb)
 
-pub extern uv/read-sync(file: uv-file, length: int32, offset: int32): io-noexn error<(bytes, int)>
+// Like read but providing a bytes buffer to allocate into.
+// If the buffer is unique reuse the buffer, otherwise allocate
+// pub fun uv/readbuf(file: uv-file, length: ssize_t, offset: int32, bytes: bytes, cb: (error<(bytes, int)>) -> io-noexn ()): io-noexn ()
+//   if bytes.is-unique && bytes.length >= length then // TODO: Determine based off of length & bytes or just bytes? Or have another API?
+//      // Should we prevent data leakage, by zeroing the bytes?
+//      uv/read-buf(file, length, offset, bytes, cb)
+//   else
+//      uv/read-buf(file, length, offset, alloc(length), cb)
+
+pub fun uv/read-sync(file: uv-file, length: int32, offset: int32): io-noexn error<(bytes, int)>
+  uv/readbuf-sync(file, alloc(length.ssize_t), offset)
+
+pub extern uv/readbuf-sync(file: uv-file, bytes: bytes, offset: int32): io-noexn error<(bytes, int)>
   c "kk_uv_fs_read_sync"
 
-pub fun read-sync(file: uv-file, length: int32, offset: int32 = 0.int32): io-noexn error<(bytes, int)>
+pub fun basic/read-sync(file: uv-file, length: int32, offset: int32 = 0.int32): io-noexn error<(bytes, int)>
   uv/read-sync(file, length, offset)
 
 pub extern unlink(path: string, cb: (error<()>) -> io-noexn ()): io-noexn ()

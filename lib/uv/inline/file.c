@@ -92,19 +92,13 @@ static kk_std_core_exn__error kk_uv_fs_open_sync(kk_string_t path, int32_t flags
 
 typedef struct kk_uv_buff_callback_s {
   kk_function_t callback;
-  kk_bytes_raw_t bytes;
+  kk_bytes_t bytes;
 } kk_uv_buff_callback_t;
 
-static void kk_free_bytes(void* p, kk_block_t* bytes, kk_context_t* _ctx) {
-  kk_free(((kk_bytes_raw_t)bytes)->cbuf, _ctx);
-}
-
-static inline kk_uv_buff_callback_t* kk_new_uv_buff_callback(kk_function_t cb, uv_handle_t* handle, int32_t num_bytes, kk_context_t* _ctx) {
+static inline kk_uv_buff_callback_t* kk_new_uv_buff_callback(kk_function_t cb, kk_bytes_t bytes, uv_handle_t* handle, kk_context_t* _ctx) {
   kk_uv_buff_callback_t* c = kk_malloc(sizeof(kk_uv_buff_callback_t), _ctx);
   c->callback = cb;
-  uint8_t* buff = kk_malloc(num_bytes, _ctx);
-  c->bytes = kk_datatype_as(kk_bytes_raw_t, kk_bytes_alloc_raw_len((kk_ssize_t)num_bytes, buff, false, _ctx), _ctx);
-  c->bytes->free = &kk_free_bytes;
+  c->bytes = bytes;
   handle->data = c;
   return c;
 }
@@ -113,17 +107,16 @@ static void kk_std_os_file_buff_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
   kk_uv_buff_callback_t* wrapper = (kk_uv_buff_callback_t*)req->data;
   kk_function_t callback = wrapper->callback;
-  kk_bytes_raw_t bytes = wrapper->bytes;
-  kk_bytes_t bts = kk_datatype_from_base(&bytes->_base, _ctx);
+  kk_bytes_t bytes = wrapper->bytes;
   // kk_info_message("Clength %d", req->result);
   ssize_t result = req->result;
   kk_free(wrapper, _ctx);
   uv_fs_req_cleanup(req);
   if (result < 0) {
-    kk_bytes_drop(bts, _ctx);
+    kk_bytes_drop(bytes, _ctx);
     kk_uv_error_callback(callback, result)
   } else {
-    kk_bytes_t btsadj = kk_bytes_adjust_length(bts, (kk_ssize_t)result + 1, _ctx);
+    kk_bytes_t btsadj = kk_bytes_adjust_length(bytes, (kk_ssize_t)result + 1, _ctx);
     kk_bytes_set(btsadj, (uint64_t)result, (int8_t)'\0', _ctx);
     // TODO?: Maybe would be better to not add a terminating null byte, and fix it when converting to a string instead?
     kk_std_core_types__tuple2 tuple = kk_std_core_types__new_Tuple2(kk_bytes_box(btsadj), kk_integer_box(kk_integer_from_ssize_t(result, _ctx), _ctx), _ctx); /*(1004, 1005)*/
@@ -132,30 +125,25 @@ static void kk_std_os_file_buff_cb(uv_fs_t* req) {
   }
 }
 
-static kk_unit_t kk_uv_fs_read(kk_uv_file__uv_file file, int32_t num_bytes, int32_t offset, kk_function_t cb, kk_context_t* _ctx) {
+static kk_unit_t kk_uv_fs_read(kk_uv_file__uv_file file, kk_bytes_t bytes, ssize_t offset, kk_function_t cb, kk_context_t* _ctx) {
   uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  kk_uv_buff_callback_t* wrapper = kk_new_uv_buff_callback(cb, (uv_handle_t*)fs_req, num_bytes, _ctx);
+  kk_uv_buff_callback_t* wrapper = kk_new_uv_buff_callback(cb, bytes, (uv_handle_t*)fs_req, _ctx);
   uv_buf_t* uv_buffs = kk_malloc(sizeof(uv_buf_t)*1, _ctx);
-  uv_buffs[0].base = (char*)wrapper->bytes->cbuf;
-  uv_buffs[0].len = wrapper->bytes->clength;
+  uv_buffs[0].base = (char*)kk_bytes_cbuf_borrow(bytes, &uv_buffs[0].len, _ctx);
   uv_fs_read(uvloop(), fs_req, (uv_file)file.internal, uv_buffs, 1, offset, kk_std_os_file_buff_cb);
   return kk_Unit;
 }
 
-static kk_std_core_exn__error kk_uv_fs_read_sync(kk_uv_file__uv_file file, int32_t num_bytes, int32_t offset, kk_context_t* _ctx) {
+static kk_std_core_exn__error kk_uv_fs_read_sync(kk_uv_file__uv_file file, kk_bytes_t bytes, int32_t offset, kk_context_t* _ctx) {
   uv_fs_t fs_req = {0};
   uv_buf_t uv_buffs[1] = {0};
-  uint8_t* buff = kk_malloc(num_bytes, _ctx);
-  kk_bytes_raw_t bytes = kk_datatype_as(kk_bytes_raw_t, kk_bytes_alloc_raw_len((kk_ssize_t)num_bytes, buff, false, _ctx), _ctx);
-  bytes->free = &kk_free_bytes;
-  uv_buffs[0].base = (char*)bytes->cbuf;
-  uv_buffs[0].len = bytes->clength;
+  uv_buffs[0].base = (char*)kk_bytes_cbuf_borrow(bytes, &uv_buffs[0].len, _ctx);
   ssize_t result = uv_fs_read(uvloop(), &fs_req, (uv_file)file.internal, uv_buffs, 1, offset, NULL);
   if (result < 0) {
-    kk_bytes_drop(kk_datatype_from_base(&bytes->_base, _ctx), _ctx);
+    kk_bytes_drop(bytes, _ctx);
     return kk_async_error_from_errno(result, _ctx);
   } else {
-    kk_bytes_t btsadj = kk_bytes_adjust_length(kk_datatype_from_base(&bytes->_base, _ctx), (kk_ssize_t)result, _ctx);
+    kk_bytes_t btsadj = kk_bytes_adjust_length(bytes, (kk_ssize_t)result, _ctx);
     kk_std_core_types__tuple2 tuple = kk_std_core_types__new_Tuple2(kk_bytes_box(btsadj), kk_integer_box(kk_integer_from_ssize_t(result, _ctx), _ctx), _ctx); /*(1004, 1005)*/
     kk_box_t tupleboxed = kk_std_core_types__tuple2_box(tuple, _ctx);
     return kk_std_core_exn__new_Ok(tupleboxed, _ctx);
