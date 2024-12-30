@@ -92,7 +92,6 @@ static inline kk_bytes_t kk_bytes_dup(kk_bytes_t b, kk_context_t* ctx) {
 // Adds a terminating zero at the end. Return the raw buffer pointer in `buf` if non-NULL
 kk_decl_export kk_bytes_t kk_bytes_alloc_len(kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx);
 kk_decl_export kk_bytes_t kk_bytes_adjust_length(kk_bytes_t p, kk_ssize_t newlen, kk_context_t* ctx);
-kk_decl_export kk_bytes_t kk_bytes_advance(kk_bytes_t p, kk_ssize_t count, kk_context_t* ctx);
 
 // allocate uninitialized bytes
 static inline kk_bytes_t kk_bytes_alloc_buf(kk_ssize_t len, uint8_t** buf, kk_context_t* ctx) {

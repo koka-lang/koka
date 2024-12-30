@@ -175,7 +175,8 @@ pub fun before(slice : sslice) : sslice
 // to the end of the string.
 pub fun after(slice : sslice) : sslice
   val Sslice(s,start,len) = slice
-  Sslice(s,start+len,s.length - (start+len))
+  val new-start = start+len
+  Sslice(s,new-start,s.length - new-start)
 
 // O(n). Copy the `slice` argument into a fresh string.
 // Takes O(1) time if the slice covers the entire string.

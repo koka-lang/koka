@@ -24,25 +24,33 @@ pub fun read-as-string(path: path)
           cb(Ok(bytes))
           if bytesRead.int64 != length then
             // TODO: Actually read it all?
-            cb(Error(Exception("Not Full Read", ExnInternal("Not Full Read"))))
+            cb(Error(Exception("Incomplete Read", ExnInternal("File Not Fully Read"))))
           else ()
         Error(e) -> 
           cb(Error(e))
     Just({ fd.close(fn(_) ())})
   res.string
 
-pub fun read-file(path: path)
-  val stream = stream-file(path)
-  val done = ref(False)
-  val str = ref("")
-  while { ! !done }
-    match stream.receive
-      Ok(bytes) -> str := !str ++ bytes.string
-      Error(Exception("EOF",_ )) -> done := True
-      Error(e) -> 
-        done := True
-        throw-exn(e)
-  !str
+pub fun path/read-string(path: path)
+  path.stream.read-string("")
+
+pub fun stream/read-string(stream: channel<error<bytes>>, acc : string): <div,asyncx> string
+  match stream.receive
+    Ok(bytes) -> stream.read-string(acc ++ bytes.string)
+    Error(Exception("EOF")) -> acc
+    Error(e) -> throw-exn(e)
+
+pub fun stream/read-bytes(stream: channel<error<bytes>>, acc : list<bytes>): <div,asyncx> list<bytes>
+  match stream.receive
+    Ok(bytes) -> stream.read-bytes(Cons(bytes, acc))
+    Error(Exception("EOF")) -> acc.reverse
+    Error(e) -> throw-exn(e)
+
+// pub fun stream/read-string-concat(stream: channel<error<bytes>>, acc : list<bytes>, acc-len: int): <div,asyncx> string
+//   match stream.receive
+//     Ok(bytes) -> stream.read-string-concat(Cons(bytes, acc), acc-len + bytes.length.int)
+//     Error(Exception("EOF")) -> // Low level concat after allocating right buffer size
+//     Error(e) -> throw-exn(e)
 
 pub fun open(path: path, flags: int32, mode: int32): asyncx uv-file
   await fn(cb)
@@ -50,7 +58,7 @@ pub fun open(path: path, flags: int32, mode: int32): asyncx uv-file
       cb(fd)
     Nothing
 
-pub fun stream-file(path: path, chunkSize: int32 = 0x1024.int32)
+pub fun stream(path: path, chunkSize: int32 = 0x1024.int32)
   val ch = channel()
   val file = open(path, o_RDONLY, 0.int32)
   await-to-channel(
@@ -74,29 +82,29 @@ fun read-file_(fd: uv-file, chunkSize: int32, offset: int32, cb: (error<bytes>, 
       Error(e) -> 
         cb(Error(e), True)
 
-fun cb/write-to-file(fd: uv-file, bts: bytes, offset: int64, cb: (error<()>) -> io-noexn ()): io-noexn ()
-  write(fd, bts, offset) fn(bytesWritten)
+fun cb/write-to-file(fd: uv-file, bts: bslice, offset: int64, cb: (error<()>) -> io-noexn ()): io-noexn ()
+  write(fd, bts.bytes, offset) fn(bytesWritten)
     match bytesWritten 
-      Ok(bytes) -> 
-        if bytes == bts.length.int then cb(Ok(()))
-        else write-to-file(fd, bts.advance(bytes.ssize_t), offset + bytes.int64, cb)
+      Ok(n-bytes) -> 
+        if n-bytes == bts.len then cb(Ok(()))
+        else write-to-file(fd, bts.advance(n-bytes), offset + n-bytes.int64, cb)
       Error(e) -> cb(Error(e))
 
-fun bytes/write-to-file(fd: uv-file, bts: bytes, offset: int64): io-noexn error<()>
-  val bytesWritten = write-sync(fd, bts, offset) 
+fun bytes/write-to-file(fd: uv-file, bts: bslice, offset: int64): io-noexn error<()>
+  val bytesWritten = write-sync(fd, bts.bytes, offset) 
   match bytesWritten 
-    Ok(bytes) -> 
-      if bytes == bts.length.int then Ok(())
-      else write-to-file(fd, bts.advance(bytes.ssize_t), offset + bytes.int64)
+    Ok(n-bytes) -> 
+      if n-bytes == bts.len then Ok(())
+      else write-to-file(fd, bts.advance(n-bytes), offset + n-bytes.int64)
     Error(e) -> Error(e)
 
 pub fun write-to-file(fd: uv-file, s: string): asyncx ()
   await fn(cb)
-    write-to-file(fd, s.bytes, 0.int64, cb)
+    write-to-file(fd, s.bytes.slice, 0.int64, cb)
     Just({fd.close(fn(_) ())})
 
 pub fun write-to-file-sync(fd: uv-file, s: string): io-noexn error<()>
-  write-to-file(fd, s.bytes, 0.int64)
+  write-to-file(fd, s.bytes.slice, 0.int64)
 
 pub fun close(fd: uv-file): asyncx ()
   await fn(cb)
