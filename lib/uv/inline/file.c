@@ -90,19 +90,6 @@ static kk_std_core_exn__error kk_uv_fs_open_sync(kk_string_t path, int32_t flags
   kk_uv_fs_check_return(&fs_req, fd, kk_uv_file__uv_file_box(kk_uv_file__new_Uv_file((intptr_t)fd, _ctx), _ctx))
 }
 
-typedef struct kk_uv_buff_callback_s {
-  kk_function_t callback;
-  kk_bytes_t bytes;
-} kk_uv_buff_callback_t;
-
-static inline kk_uv_buff_callback_t* kk_new_uv_buff_callback(kk_function_t cb, kk_bytes_t bytes, uv_handle_t* handle, kk_context_t* _ctx) {
-  kk_uv_buff_callback_t* c = kk_malloc(sizeof(kk_uv_buff_callback_t), _ctx);
-  c->callback = cb;
-  c->bytes = bytes;
-  handle->data = c;
-  return c;
-}
-
 static void kk_std_os_file_buff_cb(uv_fs_t* req) {
   kk_context_t* _ctx = kk_get_context();
   kk_uv_buff_callback_t* wrapper = (kk_uv_buff_callback_t*)req->data;

@@ -7,6 +7,7 @@ import std/num/int32
 // Async Library, but using low level uv functions from std/os/net instead of the high level interface in std/os/net-async
 
 fun main()
+  with default-event-loop
   val str = "GET / HTTP/1.1\r\n\r\n"
   val client = tcp-init().untry
   val server = tcp-init().untry

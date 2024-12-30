@@ -3,7 +3,7 @@
 void kk_handle_free(void *p, kk_block_t *block, kk_context_t *_ctx) {
     uv_handle_t *hnd = (uv_handle_t *)p;
     kk_hnd_callback_t* hndcb = (kk_hnd_callback_t*)hnd->data;
-    kk_function_drop(hndcb->cb, kk_context()); // Drop the callback
+    kk_function_drop(hndcb->callback, kk_context()); // Drop the callback
     kk_free(hndcb, kk_context()); // Free the memory used for the callback and box
     hnd->data = NULL; // Clear the reference to this
     uv_close(hnd, NULL);

@@ -2,7 +2,8 @@
 #include "uv_event_dash_loop.h"
 
 void kk_uv_alloc_callback(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
-  buf->base = kk_malloc(suggested_size, kk_get_context());
+  kk_uv_buff_callback_t* uvcb = (kk_uv_buff_callback_t*)handle->data;
+  uvcb->bytes = kk_bytes_alloc_cbuf(suggested_size, &buf->base, kk_get_context());
   buf->len = suggested_size;
 }
 
@@ -34,14 +35,20 @@ static int kk_uv_accept(kk_uv_stream__uv_stream server, kk_uv_stream__uv_stream 
 }
 
 static void kk_uv_read_callback(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf){
-  kk_uv_hnd_get_callback(stream, hnd, callback)
-  kk_bytes_t bytes = kk_bytes_alloc_len((kk_ssize_t)nread,nread, buf->base, NULL, _ctx);
+  kk_context_t* _ctx = kk_get_context(); \
+  kk_uv_buff_callback_t* hndcb = (kk_uv_buff_callback_t*)stream->data; \
+  kk_function_t callback = hndcb->callback;
+  kk_bytes_t bytes = kk_bytes_adjust_length(hndcb->bytes, (kk_ssize_t)nread + 1, _ctx);
+  kk_bytes_set(bytes, (uint64_t)nread, (int8_t)'\0', _ctx);
   kk_function_dup(callback, kk_context());
   kk_function_call(void, (kk_function_t, kk_bytes_t, kk_context_t*), callback, (callback, bytes, _ctx), _ctx);
 }
 
 static int kk_uv_read_start(kk_uv_stream__uv_stream stream, kk_function_t read_cb, kk_context_t* _ctx){
-  kk_set_hnd_cb(uv_stream_t, stream, uvstream, read_cb)
+  uv_stream_t* uvstream = kk_owned_handle_to_uv_handle(uv_stream_t, stream);
+  kk_uv_buff_callback_t* uvhnd_cb = kk_malloc(sizeof(kk_uv_buff_callback_t), _ctx);
+  uvhnd_cb->callback = read_cb;
+  uvstream->data = uvhnd_cb;
   return uv_read_start(uvstream, kk_uv_alloc_callback, kk_uv_read_callback);
 }
 

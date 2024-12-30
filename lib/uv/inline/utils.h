@@ -46,16 +46,29 @@ void kk_handle_free(void* p, kk_block_t* block, kk_context_t* _ctx);
   kk_uv_exn_callback(callback, kk_std_core_exn__new_Ok(result, kk_context()))
 
 typedef struct  {
-  kk_function_t cb;
+  kk_function_t callback;
   kk_box_t hnd;
 } kk_hnd_callback_t;
+
+typedef struct kk_uv_buff_callback_s {
+  kk_function_t callback;
+  kk_bytes_t bytes;
+} kk_uv_buff_callback_t;
+
+static inline kk_uv_buff_callback_t* kk_new_uv_buff_callback(kk_function_t cb, kk_bytes_t bytes, uv_handle_t* handle, kk_context_t* _ctx) {
+  kk_uv_buff_callback_t* c = kk_malloc(sizeof(kk_uv_buff_callback_t), _ctx);
+  c->callback = cb;
+  c->bytes = bytes;
+  handle->data = c;
+  return c;
+}
 
 // Sets the data of the handle to point to the callback
 // TODO: Check if data is already assigned?
 #define kk_set_hnd_cb(hnd_t, handle, uvhnd, callback) \
   hnd_t* uvhnd = kk_owned_handle_to_uv_handle(hnd_t, handle); \
   kk_hnd_callback_t* uvhnd_cb = kk_malloc(sizeof(kk_hnd_callback_t), kk_context()); \
-  uvhnd_cb->cb = callback; \
+  uvhnd_cb->callback = callback; \
   uvhnd_cb->hnd = handle.internal; \
   uvhnd->data = uvhnd_cb;
 
@@ -64,7 +77,7 @@ typedef struct  {
   kk_context_t* _ctx = kk_get_context(); \
   kk_hnd_callback_t* hndcb = (kk_hnd_callback_t*)handle->data; \
   kk_box_t kk_hnd = hndcb->hnd; \
-  kk_function_t callback = hndcb->cb;
+  kk_function_t callback = hndcb->callback;
 
 #define kk_new_req_cb(req_t, req, cb) \
   req_t* req = kk_malloc(sizeof(req_t), kk_context()); \
