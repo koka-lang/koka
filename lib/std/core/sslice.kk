@@ -139,9 +139,9 @@ pub extern common-prefix(s : string, t : string, ^upto : int = -1 ) : sslice
 
 // O(`count`). Advance the start position of a string slice by `count` characters
 // up to the end of the string.
-// A negative `count` advances the start position backwards upto the first position
+// A negative `count` advances the start position backwards up to the first position
 // in a string.
-// Maintains the character count of the original slice upto the end of the string.
+// Maintains the character count of the original slice up to the end of the string.
 // For example:
 //
 // * `"abc".first.advance(1).string == "b"`,
@@ -166,16 +166,17 @@ pub extern extend( slice : sslice, ^count : int ) : sslice
   js "_sslice_extend"
 
 // O(1). Return the string slice from the start of a string up to the
-// start of `slice` argument.
+// start of the `slice` argument.
 pub fun before(slice : sslice) : sslice
   val Sslice(s,start,_len) = slice
   Sslice(s,0,start)
 
-// O(1). Return the string slice from the end of `slice` argument
+// O(1). Return the string slice from the end of the `slice` argument
 // to the end of the string.
 pub fun after(slice : sslice) : sslice
   val Sslice(s,start,len) = slice
-  Sslice(s,start+len,s.length - (start+len))
+  val new-start = start+len
+  Sslice(s,new-start,s.length - new-start)
 
 // O(n). Copy the `slice` argument into a fresh string.
 // Takes O(1) time if the slice covers the entire string.
