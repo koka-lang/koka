@@ -60,8 +60,8 @@ pub inline fip fun vec/ensure-unique(v: vector<a>): vector<a>
   if v.unsafe-is-unique then v else v.unsafe-copy
 
 // Copies the vector
-// This is technically not fip, but we pretend it to be, since it will only copy when non-unique 
-// (only used for `ensure-unique` which satisfies the non-unique precondition)
+// This is technically not fip, which is why we call it `unsafe-copy`.
+// However, we pretend it to be fip, since it is only called from `vec/ensure-unique` which will only copy if non-unique
 inline fip extern unsafe-copy(v: vector<a>): vector<a>
   c "kk_vector_copy"
   js inline "[...(#1)]"
@@ -88,14 +88,14 @@ pub inline extern assign/@index( ^self : local-var<h,vector<a>>, ^index : int, a
 // Assign to an entry in a local `:vector` variable.
 pub inline fun assign/update( ^self : local-var<h,vector<a>>, ^index : int, f : a -> <local<h>,div> a ) : <local<h>,div> ()
   val i = index.ssize_t
-  // TODO: Somehow get rid of div & allow linear effects
+  // Future TODO: Somehow get rid of div & allow linear effects
   ensure-unique(std/core/types/@byref(self))
   val x = self.unsafe-extract(i)
   val res = f(x)
   self[index] := res
 
 // Ensures that a vector in a local variable is unique
-// TODO: Remove div (need hdiv constraint)
+// Future TODO: Remove div (need hdiv constraint propagation)
 pub inline fun local/ensure-unique(^v: local-var<h,vector<a>>): <local<h>,div> ()
   if v.unsafe-is-unique then () else v := unsafe-copy(v)
 
