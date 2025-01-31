@@ -677,7 +677,7 @@ Koka can even [reuse][#sec-fbip] the memory of the elements of the vector if the
 ```
 fun reuse()
   var myvec := vector-init(10, fn(i) [i - 1, i, i + 1])
-  myvec.update(0, fn(l) l.map(fn(x) x + 1))
+  std/core/types/@byref(myvec).update(0, fn(l) l.map(fn(x) x + 1))
 ```
 
 Because the `myvec` is unique and the value at that position is also unique, the memory of both the old vector and the old value can be used in place thanks to Perceus reference counting.

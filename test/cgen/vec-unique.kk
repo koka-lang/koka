@@ -3,6 +3,11 @@ fun update(xs: list<int>): console list<int>
   println(if xs.unsafe-is-unique then "unique a" else "not unique a")
   xs.map fn(x)
     x + 1
+
+fun update-trace(xs: list<int>): list<int>
+  trace(if xs.unsafe-is-unique then "unique a" else "not unique a")
+  xs.map fn(x)
+    x + 1
   
 // This is unsafe, since the behavior that depends on this check needs to be observationally equivalent
 inline fip extern unsafe-is-unique( ^v : list<a> ) : bool
@@ -51,13 +56,13 @@ fun main()
   println("Fip update to item in local vector variable")
   var a1 := vector-init-total(3, fn(i) [i])
   a1[1] := [5]
-  update(std/core/types/@byref(a1), 2, update)
+  std/core/types/@byref(a1).update(2, update-trace)
   a1.map(fn(x) x.show).join("").println
 
   println("Non-fip update to item in local vector variable")
   var a2 := vector-init-total(3, fn(i) [i])
   val a3 = a2
-  update(std/core/types/@byref(a2), 2, update)
+  std/core/types/@byref(a2).update(2, update-trace)
   a2.map(fn(x) x.show).join("").println
   a3.map(fn(x) x.show).join("").println
 
@@ -77,48 +82,48 @@ fun update-throw2(x: list<int>)
 // The nice thing about multiple references is that it will always be copied - so there is no issue
 // The problem with exceptions, is the reference count is too low
 // 
-fun test-error1()
-  println("Non-fip update to item in local vector variable")
-  var a2 := vector-init-total(3, fn(i) [i])
-  val a3 = a2
-  try {
-    update(std/core/types/@byref(a2), 2, update-throw)
-    a2.map(fn(x) x.show).join("").println
-  } fn(err) {
-      match err.info 
-        ExnL(l) -> println(if l.unsafe-is-unique then "unique a" else "not unique a")
-      a2.foreach(fn(x) x.show.trace)
-  }
+// fun test-error1()
+//   println("Non-fip update to item in local vector variable")
+//   var a2 := vector-init-total(3, fn(i) [i])
+//   val a3 = a2
+//   try {
+//     update(std/core/types/@byref(a2), 2, update-throw)
+//     a2.map(fn(x) x.show).join("").println
+//   } fn(err) {
+//       match err.info 
+//         ExnL(l) -> println(if l.unsafe-is-unique then "unique a" else "not unique a")
+//       a2.foreach(fn(x) x.show.trace)
+//   }
 
-fun test-error2()
-  println("Non-fip update to item in local vector variable")
-  val a4 = vector-init-total(3, fn(i) [i])
-  var a5 := a4
-  try {
-    update(std/core/types/@byref(a5), 2, update-throw)
-    a5.map(fn(x) x.show).join("").println
-  } fn(err) {
-      match err.info
-        ExnL(l) -> println(if l.unsafe-is-unique then "unique a" else "not unique a")
-      a5.foreach(fn(x) x.show.trace)
-  }
+// fun test-error2()
+//   println("Non-fip update to item in local vector variable")
+//   val a4 = vector-init-total(3, fn(i) [i])
+//   var a5 := a4
+//   try {
+//     update(std/core/types/@byref(a5), 2, update-throw)
+//     a5.map(fn(x) x.show).join("").println
+//   } fn(err) {
+//       match err.info
+//         ExnL(l) -> println(if l.unsafe-is-unique then "unique a" else "not unique a")
+//       a5.foreach(fn(x) x.show.trace)
+//   }
 
-fun test-error3()
-  println("Non-fip update to item in local vector variable")
-  val a6 = vector-init-total(3, fn(i) [i])
-  var a7 := a6
-  try {
-    update(std/core/types/@byref(a7), 2, update-throw)
-    a7.map(fn(x) x.show).join("").println
-  } fn(err) {
-      match err.info
-        ExnL(l) -> println(if l.unsafe-is-unique then "unique a" else "not unique a")
-      a7.foreach(fn(x) x.show.trace)
-  }
+// fun test-error3()
+//   println("Non-fip update to item in local vector variable")
+//   val a6 = vector-init-total(3, fn(i) [i])
+//   var a7 := a6
+//   try {
+//     update(std/core/types/@byref(a7), 2, update-throw)
+//     a7.map(fn(x) x.show).join("").println
+//   } fn(err) {
+//       match err.info
+//         ExnL(l) -> println(if l.unsafe-is-unique then "unique a" else "not unique a")
+//       a7.foreach(fn(x) x.show.trace)
+//   }
 
 // This works for some reason?
-fun test-error4()
-  println("Non-fip update to item in local vector variable")
-  val a6 = vector-init-total(3, fn(i) [i])
-  var a7 := a6
-  update(std/core/types/@byref(a7), 2, update-throw)
+// fun test-error4()
+//   println("Non-fip update to item in local vector variable")
+//   val a6 = vector-init-total(3, fn(i) [i])
+//   var a7 := a6
+//   update(std/core/types/@byref(a7), 2, update-throw)

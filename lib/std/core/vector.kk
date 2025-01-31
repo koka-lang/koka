@@ -80,21 +80,23 @@ pub inline extern copy(v: vector<a>): vector<a>
 // var v[0] := 1 // updates v in place
 // ```
 // TODO: Is this safe in cs / js? I think we might need to conservatively copy?
-pub inline extern assign/@index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn> ()
+pub inline extern assign/@index( ^self : local-var<h,vector<a>>, ^index : int, assigned : a ) : <local<h>> ()
   c  "kk_ref_vector_assign_borrow"
   cs inline "(#1)[(int)#2] = #3"  // check bounds?
   js inline "(#1).value[#2] = #3"       // todo: check bounds!
 
 // Assign to an entry in a local `:vector` variable.
-pub inline fun assign/update( ^self : local-var<s,vector<a>>, ^index : int, f : a -> <local<s>,exn,div|e> a ) : <local<s>,exn,div|e> ()
+pub inline fun assign/update( ^self : local-var<h,vector<a>>, ^index : int, f : a -> <local<h>,div> a ) : <local<h>,div> ()
   val i = index.ssize_t
+  // TODO: Somehow get rid of div & allow linear effects
   ensure-unique(std/core/types/@byref(self))
   val x = self.unsafe-extract(i)
   val res = f(x)
   self[index] := res
 
 // Ensures that a vector in a local variable is unique
-pub inline fun local/ensure-unique(^v: local-var<s,vector<a>>): <local<s>,exn,div|e> ()
+// TODO: Remove div (need hdiv constraint)
+pub inline fun local/ensure-unique(^v: local-var<h,vector<a>>): <local<h>,div> ()
   if v.unsafe-is-unique then () else v := unsafe-copy(v)
 
 // Length of a vector.
