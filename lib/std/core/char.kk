@@ -77,27 +77,27 @@ pub fip fun (-)(c : char, d : char) : total char
   (c.int - d.int).char
 
 // Is the character a lower-case ASCII character?
-pub fip fun is-lower( c : char ) : bool
+pub fip fun ascii/is-lower( c : char ) : bool
   c >= 'a' && c <= 'z'
 
 // Is the character an upper-case ASCII character?
-pub fip fun is-upper( c : char ) : bool
+pub fip fun ascii/is-upper( c : char ) : bool
   c >= 'A' && c <= 'Z'
 
 // Is the character an ASCII digit ?
-pub fip fun is-digit( c : char ) : bool
+pub fip fun ascii/is-digit( c : char ) : bool
   c >= '0' && c <= '9'
 
 // Is the character an ASCII hexa-decimal digit?
-pub fip fun is-hex-digit( c : char ) : bool
+pub fip fun ascii/is-hex-digit( c : char ) : bool
   c.is-digit || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F')
 
 // Is the character an ASCII letter?
-pub fip fun is-alpha( c : char ) : bool
+pub fip fun ascii/is-alpha( c : char ) : bool
   c.is-lower || c.is-upper
 
 // Is the character ASCII letter or digit?
-pub fip fun is-alpha-num( c : char ) : bool
+pub fip fun ascii/is-alpha-num( c : char ) : bool
   c.is-alpha || c.is-digit
 
 // Is the character an ASCII character, e.g. `c <= '\x7F'`?
@@ -105,9 +105,9 @@ pub fip fun is-ascii( c : char )     : bool
   c <= '\x7F'
 
 // Is the character an ASCII control character, e.g. `c < ' '`?
-pub fip fun is-control( c : char )   : bool
+pub fip fun ascii/is-control( c : char )   : bool
   c < ' '
 
 // Tests if a character is an element of `" \t\n\r"`
-pub fip fun is-white( c : char )     : bool
+pub fip fun ascii/is-white( c : char )     : bool
   c == ' ' || c == '\t' || c == '\n' || c == '\r'

@@ -5,6 +5,8 @@
 .vs/
 .vscode/
 support/vscode/koka.language-koka/whatsnew.md
+EastAsianWidth.txt
+DerivedCoreProperties.txt
 src/Syntax/Lexer.hs.gen
 node_modules/
 out/
