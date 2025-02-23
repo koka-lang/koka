@@ -222,7 +222,7 @@ expression name
   = interactive $
     do e <- aexpr
        let r = getRange e
-       return (Def (ValueBinder (unqualify name) () (Lam [] e r) r r)  r Public (DefFun [] noFip) InlineNever ""
+       return (Def (ValueBinder (unqualify name) () (Lam [] e False r) r r)  r Public (DefFun [] noFip) InlineNever ""
               -- ,Def (ValueBinder (prepend ".eval" name) () (Lam [] (App (Var nameGPrint False r) [Var name False r] r)))
               )
 
@@ -439,7 +439,7 @@ externDecl dvis
                   else do let  externName = newHiddenExternalName name
                                fullRng    = combineRanges [krng,rng]
                                extern     = External externName tp pinfos (before nameRng) (before fullRng) exprs Private fip doc
-                               body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) fullRng)
+                               body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) True fullRng)
                                binder     = ValueBinder name () body nameRng fullRng
                                extfun     = Def binder fullRng vis (defFunEx pinfos fip) InlineNever doc
                           return [DefExtern extern, DefValue extfun]
@@ -751,7 +751,7 @@ makeUserCon con foralls resTp exists pars mbLazyExpr nameRng rng vis doc
       = let name = newCreatorName con
             def  = Def binder rng vis (defFun []) InlineAlways doc
             binder    = ValueBinder name () body nameRng nameRng
-            body      = Ann (Lam lparams (App (Var con False nameRng) arguments rng) rng) tpFull rng
+            body      = Ann (Lam lparams (App (Var con False nameRng) arguments rng) True rng) tpFull rng
             params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars]
             lparams   = [par{ binderType = Nothing} | par <- params]
             arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params]
@@ -1053,7 +1053,7 @@ makeEffectDecl decl =
                     then let hnameTp = TpApp (TpCon nameTpEv krng) [effTpH] krng
                          in [(newName "hname",hnameTp)] -- makeTpApp effTp (map tpVar tpars) rng)]
                     else []
-      handleBody = Ann (Lam params handleInner grng) handleTp grng
+      handleBody = Ann (Lam params handleInner False grng) handleTp grng
       handleInner= App (Var (if isInstance then nameNamedHandle else nameHandle) False grng) arguments grng
       params     = [-- ValueBinder (newName "cfc") Nothing Nothing krng grng,
                     ValueBinder (newName "hnd") Nothing Nothing krng grng,
@@ -1236,7 +1236,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect docEffectDecl
            opSelect = let def       = Def binder krng vis (defFun [Borrow]) InlineAlways ("// select `" ++ show id ++ "` operation out of " ++ docEffect)
                           nameRng   = krng
                           binder    = ValueBinder selectId () body nameRng nameRng
-                          body      = Ann (Lam [hndParam] innerBody grng) fullTp grng
+                          body      = Ann (Lam [hndParam] innerBody False grng) fullTp grng
                           fullTp    = quantify QForall (foralls ++ exists ++ hndTpVars) $
                                       makeTpFun [(hndArg,makeTpApp hndTp (map tpVar (foralls{-NonScoped-} ++ hndTpVars)) grng)]
                                                  (makeTpTotal grng) clauseRhoTp grng
@@ -1263,7 +1263,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect docEffectDecl
            opDef  = let def       = Def binder idrng vis (defFun []) InlineAlways docDef
                         nameRng   = rangeHide idrng
                         binder    = ValueBinder id () body nameRng nameRng
-                        body      = Ann (Lam lparams innerBody krng) tpFull krng
+                        body      = Ann (Lam lparams innerBody False krng) tpFull krng
 
                         hasExists = (length exists==0)
                         innerBody
@@ -1398,7 +1398,7 @@ funDecl toplevel rng doc vis inline fip
        (tpars,pars,pinfos,parsRng,mbtres,preds,ann) <- funDef True {-allowBorrow-} True {- allow implicits -}
        body   <- bodyexpr
        let fun = promote spars tpars preds mbtres
-                  (Lam pars body (combineRanged rng body))
+                  (Lam pars body toplevel (combineRanged rng body))
        return (Def (ValueBinder name () (ann fun) nameRng (combineRange nameRng parsRng)) (combineRanged rng fun) vis
                        (defFunEx pinfos fip) inline doc)
 
@@ -1467,8 +1467,8 @@ parNormal allowDefaults
           pat
             -> do -- transform (fun (pattern) { body }) --> fun(.pat_X_Y) { match(.pat_X_Y) { pattern -> body }}
                   let name = uniqueRngHiddenName rng "pat"
-                      transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng)
-                                                                              [Branch pat [Guard guardTrue body]] False rng) lambdaRng
+                      transform (Lam binders body tl lambdaRng) = Lam binders (Case (Var name False rng)
+                                                                              [Branch pat [Guard guardTrue body]] False rng) tl lambdaRng
                       transform (Ann body tp rng) = Ann (transform body) tp rng
                       transform (Parens body name pre rng) = Parens (transform body) name pre rng
                       transform _ = failure "Syntax.Parse.parameter: unexpected function expression in parameter match transform"
@@ -1533,7 +1533,7 @@ block
                               drng = getRange vdef
                               nrng = binderNameRange (defBinder vdef)
                           in App (Var nameRunLocal False (rangeHide nrng))
-                                  [(Nothing,Lam [] exp erng)]
+                                  [(Nothing,Lam [] exp False erng)]
                                   drng
 
     combine :: Statement -> UserExpr -> UserExpr
@@ -1545,7 +1545,7 @@ block
                                         -- put parens over the lambda so it comes later during type inference (so the type of expr can be propagated in)
                                         -- see test/ambient/ambient3 -- todo: is this still the case?
                                         [(Nothing, expr),
-                                         (Nothing, Parens (Lam [ValueBinder name Nothing Nothing nameRng nameRng] exp (combineRanged def exp)) name "var" nameRng)]
+                                         (Nothing, Parens (Lam [ValueBinder name Nothing Nothing nameRng nameRng] exp False  (combineRanged def exp)) name "var" nameRng)]
                                          (combineRanged rng exp)
 
 makeReturn r0 e
@@ -1650,7 +1650,7 @@ withstat
            _ -> binder
 
 applyToContinuation wrng params expr body
-  = let lam = Lam params body (combineRanged wrng body)
+  = let lam = Lam params body False (combineRanged wrng body)
         fun = Parens lam (newName "with") "expr" wrng -- Parens makes it last in type inference so types can better propagate (ambients/heap1) (todo: no longer the case right?)
         funarg = [(Nothing,fun)]
         fullrange = combineRanged wrng fun
@@ -1720,7 +1720,7 @@ fnexpr
 
 funblock
   = do exp <- block
-       return (Lam [] exp (getRange exp))
+       return (Lam [] exp False (getRange exp))
 
 lambda alts
   = do rng <- keyword "fn" -- keywordOr "fn" alts
@@ -1728,7 +1728,7 @@ lambda alts
        (tpars,pars,_,parsRng,mbtres,preds,ann) <- funDef False {-allowBorrow-} True {-allow implicits-}
        body <- bodyexpr
        let fun = promote spars tpars preds mbtres
-                  (Lam pars body (combineRanged rng body))
+                  (Lam pars body False (combineRanged rng body))
        return (ann (Parens fun (newName "fn") "" rng))
 
 ifexpr
@@ -1833,7 +1833,7 @@ handlerClauses rng mbEff scoped override hsort
                    (Nothing,[]) -- no ops, and no annotation: this is not a handler; just apply return
                      -> do -- TODO: error on override/scoped/instance?
                            let handlerExpr f = Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng]
-                                                   (f (Var (newHiddenName "action") False rng)) fullrange
+                                                   (f (Var (newHiddenName "action") False rng)) False fullrange
                                retExpr = case ret of
                                            Nothing -> id
                                            Just f  -> \actionExpr -> App f [(Nothing,App actionExpr [] fullrange)] fullrange
@@ -1845,15 +1845,15 @@ handlerClauses rng mbEff scoped override hsort
 applyMaybe :: Range -> Maybe UserExpr -> Maybe UserExpr -> UserExpr -> UserExpr
 applyMaybe rng Nothing Nothing f  = f
 applyMaybe rng reinit final f
-  = Lam [ValueBinder (newHiddenName "act") Nothing Nothing rng rng] bodyI rng
+  = Lam [ValueBinder (newHiddenName "act") Nothing Nothing rng rng] bodyI False rng
   where
     bodyI = case reinit of
               Nothing  -> bodyF
-              Just ini -> App (Var nameInitially False rng) [(Nothing,ini),(Nothing,Lam [] bodyF rng)] rng
+              Just ini -> App (Var nameInitially False rng) [(Nothing,ini),(Nothing,Lam [] bodyF False rng)] rng
 
     bodyF = case final of
               Nothing  -> applyH
-              Just fin -> App (Var nameFinally False rng) [(Nothing,fin),(Nothing,Lam [] applyH rng)] rng
+              Just fin -> App (Var nameFinally False rng) [(Nothing,fin),(Nothing,Lam [] applyH False rng)] rng
 
     applyH = App f [(Nothing,Var (newHiddenName "act") False rng)] rng
 
@@ -1917,7 +1917,7 @@ handlerOpX
   = do rng <- specialId "finally"
        optional( parens (return ()) )
        expr <- bodyexpr
-       return (ClauseFinally (Lam [] expr (combineRanged rng expr)), Nothing)
+       return (ClauseFinally (Lam [] expr False (combineRanged rng expr)), Nothing)
   <|>
     do rng <- specialId "initially"
        (name,prng,tp) <- (parens $
@@ -1926,7 +1926,7 @@ handlerOpX
                              return (name,prng,tp))
                          <|> return (newName "_",rng,Nothing)
        expr <- bodyexpr
-       return (ClauseInitially (Lam [ValueBinder name tp Nothing prng (combineRanged rng tp)] expr (combineRanged rng expr)), Nothing)
+       return (ClauseInitially (Lam [ValueBinder name tp Nothing prng (combineRanged rng tp)] expr False (combineRanged rng expr)), Nothing)
   <|>
     handlerOp
 
@@ -1945,7 +1945,7 @@ handlerOp
                             tp         <- optionMaybe typeAnnotPar
                             return (name,prng,tp))
        expr <- bodyexpr
-       return (ClauseRet (Parens (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)) (newName "return") "" rng), Nothing)
+       return (ClauseRet (Parens (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr False (combineRanged rng expr)) (newName "return") "" rng), Nothing)
   -- TODO is "raw" needed for value definitions?
   <|>
     do keyword "val"
@@ -2011,7 +2011,7 @@ handlerReturnDefault rng
   = let xname = newHiddenName "x"
         xbind = ValueBinder xname Nothing Nothing rng rng
         xvar  = Var xname False rng
-    in Lam [xbind] xvar rng
+    in Lam [xbind] xvar False rng
 
 
 {--------------------------------------------------------------------------
@@ -2257,7 +2257,7 @@ injectExpr
            return (mkInj exp)
         <|>
         do let name = newHiddenName "mask-action"
-           return $ Lam [ValueBinder name Nothing Nothing rng rng] (mkInj (Var name False rng)) rng)
+           return $ Lam [ValueBinder name Nothing Nothing rng rng] (mkInj (Var name False rng)) False rng)
 
 injectType :: LexParser (Range, UserExpr -> UserExpr)
 injectType

@@ -105,9 +105,9 @@ resolveBinderMaybe binder
 resolveExpr :: UserExpr -> FixM UserExpr
 resolveExpr expr
   = case expr of
-      Lam    binds expr rng  -> do binds' <- mapM resolveBinderMaybe binds
+      Lam    binds expr tl rng->do binds' <- mapM resolveBinderMaybe binds
                                    expr' <- resolveExpr expr
-                                   return (Lam binds' expr' rng)
+                                   return (Lam binds' expr' tl rng)
       Let    defs expr range -> do defs' <- resolveDefGroup defs
                                    expr' <- resolveExpr expr
                                    return (Let defs' expr' range)

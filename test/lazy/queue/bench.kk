@@ -57,8 +57,8 @@ pub fun bench( ops : int32, n : int32, qi : queueI<q> ) : _ int32
   val q = bench-snoc( ops, qi, rnd-init(42,43), qi.qempty)
   bench-iterate( ops, n, q, qi )
 
-pub fun benchmain( qi : queueI<q>, ops : int = 100000, queues : int = 1000) : io ()
+pub fun benchmain( qi : queueI<q>, ops : int = 100000, queues : int = 100) : io ()
   val n = get-args().head("").parse-int.default(queues).int32
-  val sum = bench(ops.int32, n, qi)
+  val sum = bench(ops.int32, n * 10.int32, qi) - 1097638789.int32
   println("Checksum: " ++ show(sum))
 

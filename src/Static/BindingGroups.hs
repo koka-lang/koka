@@ -174,11 +174,11 @@ dependencyDefGroupFv modName defGroup
 dependencyExpr :: Name -> Expr t -> (Expr t, FreeVar)
 dependencyExpr modName expr
   = case expr of
-      Lam binders body rng -> let (depBody,fv1) = dependencyExpr modName body
-                                  (binders',fv2) = dependencyLamBinders modName fv1 binders
+      Lam binders body tl rng -> let (depBody,fv1) = dependencyExpr modName body
+                                     (binders',fv2) = dependencyLamBinders modName fv1 binders
                                                    -- unzip (map dependencyLamBinder binders)
-                              in -- trace ("binders: " ++ show (map binderName binders') ++ ": " ++ show (S.toList fv2)) $
-                                  (Lam binders' depBody rng, fv2) -- S.difference fv2 (S.fromList (map binderName binders')))
+                                 in -- trace ("binders: " ++ show (map binderName binders') ++ ": " ++ show (S.toList fv2)) $
+                                    (Lam binders' depBody tl rng, fv2) -- S.difference fv2 (S.fromList (map binderName binders')))
       Bind def body rng    -> let (depDef,fv1) = dependencyDefFv modName def
                                   (depBody,fv2) = dependencyExpr modName body
                               in (Bind depDef depBody rng, S.union fv1 (S.delete (defName def) fv2))
@@ -287,7 +287,7 @@ instance HasFreeVar (Pattern t) where
 
 instance HasFreeVar (Expr t) where
   freeVar expr = case expr of
-      Lam binders body rng -> foldr (\b fv -> S.delete (binderName b) fv) (freeVar body) binders
+      Lam binders body tl rng -> foldr (\b fv -> S.delete (binderName b) fv) (freeVar body) binders
       Bind def body rng    -> S.union (freeVar (defBody def)) (S.delete (defName def) (freeVar body))
       Let group body rng   -> let (fv,bound) = freeBoundVar group
                               in S.union fv (S.difference (freeVar body) bound)

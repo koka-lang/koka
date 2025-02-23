@@ -223,7 +223,7 @@ guardTrue
 
 -- | Expressions
 data Expr t
-  = Lam    ![ValueBinder (Maybe t) (Maybe (Expr t))] !(Expr t) !Range
+  = Lam    ![ValueBinder (Maybe t) (Maybe (Expr t))] !(Expr t) !Bool {-toplevel?-} !Range
   | Let    !(DefGroup t) !(Expr t)    !Range
   | Bind   !(Def t) !(Expr t)         !Range
   | App    !(Expr t) ![(Maybe (Name,Range),Expr t)] !Range
@@ -390,7 +390,7 @@ instance Ranged UserKind where
 instance Ranged (Expr t) where
   getRange expr
     = case expr of
-        Lam    pat expr range  -> range
+        Lam    pat expr _ range -> range
         Let    defs expr range -> range
         Bind   def expr range  -> range
         App    fun exprs range -> range

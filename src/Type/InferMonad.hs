@@ -38,7 +38,7 @@ module Type.InferMonad( Inf, InfGamma
                       , getModuleName
                       , findDataInfo
                       , withDefName
-                      , currentDefName
+                      , currentDefName, currentDefNames
                       , isNamedLam
                       , getLocalVars
 
@@ -1396,7 +1396,7 @@ toImplicitArgExpr xrange (ImplicitArg iname info itp iargs)
                             argsImplicit = [(Just (pname,range), toImplicitArgExpr (endOfRange range) iarg) | (pname,Done iarg) <- iargs]
                             etaTp        = TFun fixed ieff iresTp
                             eta          = (if null fixed then id
-                                            else \body -> Lam [ValueBinder name Nothing Nothing range range | name <- nameFixed] body range)
+                                            else \body -> Lam [ValueBinder name Nothing Nothing range range | name <- nameFixed] body False range)
                                               (App (Var iname False range)
                                                       (argsFixed ++ argsImplicit)
                                                       range)
@@ -1706,7 +1706,7 @@ data Res a  = Ok !a !St ![(Range,Doc)]
 
 data Env    = Env{ prettyEnv :: !Pretty.Env
                  , context  :: !Name  -- | current module name
-                 , currentDef :: !Name
+                 , currentDefs :: ![Name]
                  , namedLam :: !Bool
                  , types :: !Newtypes
                  , synonyms :: !Synonyms
@@ -1723,7 +1723,7 @@ data St     = St{ uniq :: !Int, sub :: !Sub, preds :: ![Evidence], holeAllowed :
 
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
-  = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False Nothing 0)
+  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0)
            (St unique subNull [] False mbrm) of
       Err (rng,doc) warnings
         -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))
@@ -2061,12 +2061,19 @@ withGammaType range tp inf
 
 currentDefName :: Inf Name
 currentDefName
+  = do dnames <- currentDefNames
+       case dnames of
+         (dname:_) -> return dname
+         _         -> return (newName "")
+
+currentDefNames :: Inf [Name]
+currentDefNames
   = do env <- getEnv
-       return (currentDef env)
+       return (currentDefs env)
 
 withDefName :: Name -> Inf a -> Inf a
 withDefName name inf
-  = withEnv (\env -> env{ currentDef = name, namedLam = not (nameIsNil name || isWildcard name) }) inf
+  = withEnv (\env -> env{ currentDefs = name : currentDefs env, namedLam = not (nameIsNil name || isWildcard name) }) inf
 
 isNamedLam :: (Bool -> Inf a) -> Inf a
 isNamedLam action
@@ -2150,8 +2157,8 @@ traceIndent inf
 
 traceDefDoc :: (Pretty.Env -> Doc) -> Inf ()
 traceDefDoc f
-  = do def <- currentDefName
-       traceDoc (\penv -> Pretty.ppName penv def <+> text ":" <+> f penv)
+  = do dnames <- currentDefNames
+       traceDoc (\penv -> hcat (intersperse (text ".") (map (Pretty.ppName penv) dnames)) <+> text ":" <+> f penv)
 
 traceDoc :: (Pretty.Env -> Doc) -> Inf ()
 traceDoc f

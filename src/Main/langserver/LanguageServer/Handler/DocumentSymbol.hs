@@ -152,7 +152,7 @@ instance HasSymbols e => HasSymbols (ValueBinder t e) where
 
 instance HasSymbols UserExpr where
   symbols ex = case ex of
-    Lam bs e _                            -> symbols bs ++ symbols e
+    Lam bs e _ _                          -> symbols bs ++ symbols e
     Let dg e _                            -> symbols dg ++ symbols e
     Bind d e _                            -> symbols d ++ symbols e
     App e nes _                           -> symbols e ++ symbols (map snd nes)

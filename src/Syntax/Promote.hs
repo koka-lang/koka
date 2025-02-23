@@ -71,8 +71,8 @@ promote somePars forallPars preds mbResTp expr
     argresTypes :: UserExpr -> ([(Name,Either UserType Range)],UserExpr)
     argresTypes (Parens expr name pre r)= let (es,expr') = argresTypes expr in (es,Parens expr' name pre r)
     argresTypes (Ann expr tp r)     = let (es,expr') = argresTypes expr in (es,Ann expr' tp r)
-    argresTypes (Lam args expr rng) = let (es,expr') = resType expr
-                                          (fs,args') = unzip (map (\binder
+    argresTypes (Lam args expr tl rng) = let (es,expr') = resType expr
+                                             (fs,args') = unzip (map (\binder
                                                                       -> let pname = binderName binder
                                                                          in case binderType binder of
                                                                               Nothing -> ((pname, Right rng), binder)
@@ -83,7 +83,7 @@ promote somePars forallPars preds mbResTp expr
                                                                                                   _ -> tp
                                                                                     in ((pname, Left optTp), binder{binderType = Nothing}))
                                                                    args)
-                                      in (fs ++ es, Lam args' expr' rng)
+                                      in (fs ++ es, Lam args' expr' tl rng)
 
     argresTypes expr                = ([],expr)
 

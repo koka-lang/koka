@@ -112,7 +112,7 @@ instance HasFoldingRanges e => HasFoldingRanges (ValueBinder t e) where
 
 instance HasFoldingRanges UserExpr where
   foldings ex = case ex of
-    Lam bs e r                            -> foldings bs ++ foldings e ++ makeFoldingNoName r
+    Lam bs e _ r                          -> foldings bs ++ foldings e ++ makeFoldingNoName r
     Let (DefRec dfs) e r                  -> concatMap foldings dfs ++ foldings e
     Let (DefNonRec df) e r                -> foldings df ++ foldings e
     Bind d e r                            -> foldings d ++ foldings e ++ makeFolding r (getName d)

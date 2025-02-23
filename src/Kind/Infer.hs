@@ -217,7 +217,7 @@ synCopyCon modName info con
                      then Nothing
                      else (Just (app (var (typeQualifiedNameOf (dataInfoName info) fldName)) [var argName]))) rc rc
                  | (fldName,t) <- conInfoParams con]
-        expr = Lam ([ValueBinder argName Nothing Nothing rc rc] ++ params) body rc
+        expr = Lam ([ValueBinder argName Nothing Nothing rc rc] ++ params) body True rc
         body = app (var (conInfoName con)) [var name | (name,tp) <- conInfoParams con]
         def  = DefNonRec (Def (ValueBinder defName () (Ann expr fullTp rc) rc rc) rc (dataInfoVis info) (defFun []) InlineAuto "")
     in def
@@ -261,7 +261,7 @@ synAccessors modName info
                          in tForall (dataInfoParams info ++ foralls) preds $
                             typeFun [(arg,dataTp)] (if isPartial then typePartial else typeTotal) rho
 
-                expr       = Ann (Lam [ValueBinder arg Nothing Nothing rng rng] caseExpr rng) fullTp xrng
+                expr       = Ann (Lam [ValueBinder arg Nothing Nothing rng rng] caseExpr True rng) fullTp xrng
                 caseExpr   = Case (Var arg False rng) (map snd branches ++ defaultBranch) False rng
                 -- visibility = if (all (==Public) (map fst branches)) then Public else Private
 
@@ -297,7 +297,7 @@ synTester info con
         arg = unqualify $ dataInfoName info -- newHiddenName "self"
         rc  = rangeHide (conInfoRange con)
 
-        expr      = Lam [ValueBinder arg Nothing Nothing rc rc] caseExpr rc
+        expr      = Lam [ValueBinder arg Nothing Nothing rc rc] caseExpr True rc
         caseExpr  = Case (Var arg False rc) [branch1,branch2] (conInfoIsLazy con) rc
         branch1   = Branch (PatCon (conInfoName con) patterns rc rc) [Guard guardTrue (Var nameTrue False rc)]
         branch2   = Branch (PatWild rc) [Guard guardTrue (Var nameFalse False rc)]
@@ -357,7 +357,7 @@ synLazyForce info
 
         argName   = newHiddenName "lazy"
         arg       = Var argName False rng
-        expr      = Lam [ValueBinder argName Nothing Nothing rng rng] body xrng
+        expr      = Lam [ValueBinder argName Nothing Nothing rng rng] body True xrng
         body      = Case tst [Branch (PatCon nameTrue [] rng rng) [Guard guardTrue arg]
                              ,Branch (PatCon nameFalse [] rng rng) [Guard guardTrue whnf]] False rng
         tst       = App (Var nameIsWhnf False rng) [(Nothing,arg),(Nothing,Var (lazyName info "tag") False rng)] rng
@@ -390,7 +390,7 @@ synLazyWhnf info
         stepExpr  = App (Var nameStep False rng) [(Nothing,arg)] rng
         valDef    = Def (ValueBinder valName () stepExpr rng rng) rng Private DefVal InlineNever ""
 
-        expr      = Lam [ValueBinder argName Nothing Nothing rng rng] body xrng
+        expr      = Lam [ValueBinder argName Nothing Nothing rng rng] body True xrng
         body      = Let (DefNonRec valDef)
                     (Case tst [Branch (PatCon nameTrue [] rng rng) [Guard guardTrue val]
                               ,Branch (PatCon nameFalse [] rng rng) [Guard guardTrue whnf]] False rng) rng
@@ -420,7 +420,7 @@ synLazyStep info
 
         argName   = newHiddenName "lazy"
         arg       = Var argName False rng
-        expr      = Lam [ValueBinder argName Nothing Nothing rng rng] body xrng
+        expr      = Lam [ValueBinder argName Nothing Nothing rng rng] body True xrng
         body      = Case tst [Branch (PatCon nameTrue [] rng rng) [Guard guardTrue eval]
                              ,Branch (PatCon nameFalse [] rng rng) [Guard guardTrue atomic]] False rng
         tst       = App (Var nameOr False rng)
@@ -488,7 +488,7 @@ synLazyEval lazyExprs info
        (defss,branches) <- unzip <$> mapM branch lazyConstrs
 
        let  body      = Case arg (branches ++ [Branch (PatWild rng) [Guard guardTrue arg]]) True rng
-            lam       = Lam [ValueBinder argName Nothing Nothing rng rng] body xrng
+            lam       = Lam [ValueBinder argName Nothing Nothing rng rng] body True xrng
             def       = Def (ValueBinder defName () lam rng rng) rng (dataInfoVis info) (DefFun [] (lazyFip info)) InlineNever ""
        return $ (map DefNonRec (concat defss)) ++ [DefNonRec def]
 
@@ -529,7 +529,7 @@ lazyConDefCall stepOnly info conInfo parNames evalName memoTarget topExpr
            --   <memoize topExpr>
            def     = Def (ValueBinder nameLazyCon () lam rng rng) rng Private (DefFun [] (conInfoLazyFip conInfo)) InlineAuto ""
            lam     = Lam ([ValueBinder nameLazyMemo Nothing Nothing rng rng] ++ [ValueBinder par Nothing Nothing rng rng | par <- parNames])
-                         (Bind target branchExpr rng) rng
+                         (Bind target branchExpr rng) True rng
            (targetSize,targetScan) = Core.conReprAllocSizeScan platform (Core.getConRepr info conInfo)
            target  = Def (ValueBinder nameNil ()
                          (App (Var nameLazyMemoizeTarget False rng)
@@ -556,7 +556,7 @@ lazyConDefCall stepOnly info conInfo parNames evalName memoTarget topExpr
     -- memoizeExpr :: Expr t -> KInfer (Expr t)
     memoizeExpr expr
       = case expr of
-          Lam    binds expr rng  -> (\expr' -> Lam binds expr' rng) <$> memoizeExpr expr
+          Lam    binds expr tl rng  -> (\expr' -> Lam binds expr' tl rng) <$> memoizeExpr expr
           Let    defs expr range -> (\expr' -> Let defs expr' range) <$> memoizeExpr expr
           Bind   def expr range  -> (\expr' -> Bind def expr' range) <$> memoizeExpr expr
           Ann    expr tp range   -> (\expr' -> Ann expr' tp range) <$> memoizeExpr expr
@@ -672,7 +672,7 @@ lazyAddUpdate info conInfo evalName arg topExpr
     -- add :: Expr t -> KInfer (Expr t)
     add expr
       = case expr of
-          Lam    binds expr rng  -> (\expr' -> Lam binds expr' rng) <$> add expr
+          Lam    binds expr tl rng  -> (\expr' -> Lam binds expr' tl rng) <$> add expr
           Let    defs expr range -> (\expr' -> Let defs expr' range) <$> add expr
           Bind   def expr range  -> (\expr' -> Bind def expr' range) <$> add expr
           Ann    expr tp range   -> (\expr' -> Ann expr' tp range) <$> add expr
@@ -1055,9 +1055,9 @@ infHandlerValueBinder (ValueBinder name mbTp () nameRng rng)
 infExpr :: Expr UserType -> KInfer (Expr Type)
 infExpr expr
   = case expr of
-      Lam    binds expr rng  -> do binds' <- mapM infLamValueBinder binds
-                                   expr' <- infExpr expr
-                                   return (Lam binds' expr' rng)
+      Lam    binds expr tl rng  -> do binds' <- mapM infLamValueBinder binds
+                                      expr' <- infExpr expr
+                                      return (Lam binds' expr' tl rng)
       Let    defs expr range -> do defs' <- infDefGroup defs
                                    expr' <- infExpr expr
                                    return (Let defs' expr' range)
