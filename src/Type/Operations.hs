@@ -12,7 +12,7 @@
 module Type.Operations( instantiate
                       , instantiateEx, instantiateNoEx, extend
                       , skolemize, skolemizeEx
-                      , freshTVar, freshEffect, freshStar
+                      , freshTVar, freshTVars, freshEffect, freshStar
                       , Evidence(..)
                       , freshSub
                       , isOptionalOrImplicit, splitOptionalImplicit, requiresImplicits

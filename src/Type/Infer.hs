@@ -355,6 +355,13 @@ addDivergentEffect coreDefs0
   Definition
 --------------------------------------------------------------------------}
 
+unskolemize :: Type -> Inf Type
+unskolemize tp
+  = do let svs = tvsList (fsv tp)
+       uvs <- mapM (\tv -> Op.freshTVar (typevarKind tv) Meta) svs
+       let tpu = subNew (zip svs uvs) |-> tp
+       return tpu
+
 -- TODO: for multiple recursive definitions, the "typeapp" substitution fails; we should
 -- collect all substitions and apply them all definitions afterwards; similarly for the
 -- VarInfo's that are now done separately
@@ -376,10 +383,10 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                     sassumedTp    <- subst assumedTp  -- needed for `type/wrong/scheduler2`
                                     sresTp <- subst resTp
                                     return (sresTp,sassumedTp,coref)
-
-        (resTp1,resCore1) <- generalize rng nameRng True typeTotal resTp0 (coref0 (Core.defExpr coreDef)) -- typeTotal is ok since only functions are recursive (?)
+        resTpX <- if topLevel then unskolemize resTp0 else return resTp0
+        (resTp1,resCore1) <- generalize rng nameRng True typeTotal resTpX (coref0 (Core.defExpr coreDef)) -- typeTotal is ok since only functions are recursive (?)
         sassumedTp <- subst assumedTp
-        traceDefDoc $ \penv -> text "recursive group: inferred:" <+> ppParam penv (Core.defName coreDef,resTp1) <+> text ", assumed:" <+> ppType penv sassumedTp
+        -- traceDefDoc $ \penv -> text "recursive group: inferred:" <+> ppParam penv (Core.defName coreDef,resTp1) <+> text ", assumed:" <+> ppType penv sassumedTp
 
         let name = Core.defName coreDef
             csort = if (topLevel || CoreVar.isTopLevel coreDef) then Core.defSort coreDef else DefVal
@@ -389,7 +396,6 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
               <- case (resCore1) of
                   Core.TypeLam tvars expr | isRho sassumedTp  -- we assumed a monomorphic type, but generalized eventually
                     -> -- fix it up by adding the polymorphic type application
-                       -- trace " rec rho/poly" $
                        do assumedTpX <- normalize True sassumedTp -- resTp0
                           -- resTpX <- subst resTp0 >>= normalize
                           simexpr <- return expr -- liftUnique $ uniqueSimplify penv False False 1 {-runs-} 0 expr
