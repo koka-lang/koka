@@ -228,7 +228,8 @@ data Expr t
   | Var    Name Bool Range -- True if the var is an op
   | Lit    Lit
   | Ann    (Expr t) t Range
-  | Case   (Expr t) [Branch t]   Range
+  | Case   (Expr t) [Branch t]   Range -- for regular cases
+  | CaseCtx(Expr t) [Branch t]   Range -- for cases on constructor contexts
   | Parens (Expr t)              Name String Range  --  name and string are used for the range map
   | Inject t (Expr t) Bool {-behind?-} Range
   | Handler{ hndlrSort         :: !HandlerSort,

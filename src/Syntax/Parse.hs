@@ -1660,7 +1660,7 @@ expr
 
 basicexpr :: LexParser UserExpr
 basicexpr
-  = ifexpr <|> fnexpr <|> matchexpr <|> handlerExpr <|> opexpr
+  = ifexpr <|> fnexpr <|> matchexpr <|> matchctxexpr <|> handlerExpr <|> opexpr
   <?> "(basic) expression"
 
 withexpr :: LexParser UserExpr
@@ -1752,6 +1752,13 @@ matchexpr
        tst <- ntlexpr  -- allows tuples for multi pattern match
        (branches,rng2) <- semiBracesRanged1 branch
        return (Case tst branches (combineRange rng rng2))
+  <|> handlerExpr
+
+matchctxexpr
+  = do rng <- keyword "matchctx"
+       tst <- ntlexpr  -- allows tuples for multi pattern match
+       (branches,rng2) <- semiBracesRanged1 branchCtx
+       return (CaseCtx tst branches (combineRange rng rng2))
   <|> handlerExpr
 
 -- TODO: fix parsing of handlers to match the grammar precisely
@@ -1989,6 +1996,13 @@ branch
        grds <- guards
        return (Branch pat grds)
   <?> "pattern match"
+
+branchCtx
+  = do keyword "ctx"
+       pat  <- pattern
+       grds <- guards
+       return (Branch pat grds)
+  <?> "pattern match on a constructor context"
 
 guards :: LexParser [UserGuard]
 guards

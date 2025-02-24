@@ -191,6 +191,7 @@ dependencyExpr extraDeps modName expr
       Case expr branches rng -> let (depExpr,fv1) = dependencyExpr extraDeps modName expr
                                     (depBranches,fv2) = dependencyBranches dependencyBranch extraDeps modName branches
                                 in (Case depExpr depBranches rng, S.union fv1 fv2)
+      CaseCtx expr branches rng -> dependencyExpr extraDeps modName $ Case expr branches rng -- default to regular case
       Parens expr name pre rng -> let (depExpr, fv) = dependencyExpr extraDeps modName expr
                                   in (Parens depExpr name pre rng, fv)
 --      Con    name isop range -> (expr, S.empty)
@@ -287,6 +288,7 @@ instance HasFreeVar (Expr t) where
       App fun nargs rng    -> freeVar (fun:map snd nargs)
       Ann expr t rng       -> freeVar expr
       Case expr bs rng     -> S.union (freeVar expr) (freeVar bs)
+      CaseCtx expr bs rng -> freeVar $ Case expr bs rng -- default to regular case
       Parens expr name pre rng -> freeVar expr
       Lit    lit           -> S.empty
       Inject tp body b rng -> freeVar body

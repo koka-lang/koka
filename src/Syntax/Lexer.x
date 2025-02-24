@@ -308,7 +308,7 @@ reservedNames
     , "val", "fun", "fn", "extern", "var"
     , "ctl", "final", "raw"
     , "if", "then", "else", "elif"
-    , "return", "match", "with", "in"
+    , "return", "match", "matchctx", "with", "in"
     , "ctx", "hole"
     , "forall", "exists", "some"
     , "pub", "abstract"
