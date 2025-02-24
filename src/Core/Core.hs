@@ -1236,8 +1236,8 @@ instance HasType Expr where
 
   typeOf tapp@(TypeApp expr tps)
     = let (tvs,tp1) = splitTForall (typeOf expr)
-      in -- assertion "Core.Core.typeOf.TypeApp" (getKind a == getKind tp) $
-         -- trace ("typeOf:TypeApp: , tvs: " ++ show (map pretty tvs) ++ ", tp1: " ++ show (pretty tp1)) $
+      in -- assertion ("Core.Core.typeOf.TypeApp:" ++ show (tvs,tps)) (all (\(tv,tp) -> getKind tv == getKind tp) (zip tvs tps)) $
+         -- trace ("typeOf:TypeApp: , tvs: " ++ show (map pretty tvs) ++ ", tps: " ++ show (pretty tps)) $
          subNew (zip tvs tps) |-> tp1
 
   -- Literals

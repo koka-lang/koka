@@ -24,7 +24,7 @@ import Common.Failure
 -- | A map from names to values
 type NameMap a = Map Name a
 
-find :: Name -> NameMap a -> a
+find :: HasCallStack => Name -> NameMap a -> a
 find name nameMap
   = case Data.Map.Strict.lookup name nameMap of
       Just x -> x

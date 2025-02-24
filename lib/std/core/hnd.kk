@@ -458,7 +458,7 @@ pub fun @mask-builtin<a,e1,e2>( action : () -> e1 a ) : e2 a
 // Local variables
 // -------------------------------------------
 
-fun prompt-local-var(loc:local-var<s,a>, res : b  ) : <div,local<s>|e> b
+fun prompt-local-var<a,b,s,e>(loc:local-var<s,a>, res : b  ) : <div,local<s>|e> b
   if !yielding() return res;
   val v = loc
   yield-cont(fn(cont,x){ loc := v; prompt-local-var(std/core/types/@byref(loc),cont(x)) } )  // restore state early before the resume

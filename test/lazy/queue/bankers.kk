@@ -5,6 +5,7 @@ module queue/bankers
 
 import bench
 
+
 lazy type stream<a>
   SNil
   SCons( head : a, tail : stream<a> )
@@ -112,3 +113,4 @@ fbip(2) fun uncons( Bqueue(front,front-len,rear,rear-len) : bqueue<a> ) : div ma
 
 pub fun main()
   benchmain(QueueI(bankers/empty, snoc, uncons))
+

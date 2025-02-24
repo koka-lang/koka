@@ -665,7 +665,7 @@ makeFreshHiddenName s name range
 
 hiddenNameStartsWith :: Name -> String -> Bool
 hiddenNameStartsWith name pre
-  = (nameStem name == ("@" ++ pre)) || (nameStartsWith name ("@" ++ pre ++ "-"))
+  = (nameStem name `startsWith` ("@" ++ pre)) || (nameStartsWith name ("@" ++ pre ++ "-"))
 
 newPaddingName i
   = newHiddenNameEx "padding"  (show i)

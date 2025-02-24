@@ -1,9 +1,10 @@
-test/type/wrong/scheduler2@kk(32, 7): type error: types do not match (due to an infinite type)
+test/type/wrong/scheduler2@kk(32,14): type error: types do not match (due to an infinite type)
  context : fun driver() // : <st<global>, pure> ()
  @@@
  driver()
- term : driver
- inferred type: () -> <st<global>,div|_e> ()
- expected type: () -> <st<global>,pure|_e> ()
- because : recursive invocations do not match the assumed type; add a type annotation?
+ term : // : <st<global>, pure> ()
+ @@@
+ driver()
+ inferred effect: <alloc<global>,div,read<global>,write<global>|_e>
+ expected effect: <alloc<global>,div,exn,read<global>,write<global>|_e>
  hint : give a type to the function definition?

@@ -43,23 +43,23 @@ import Core.Simplify
 -- Box/unbox transformation
 --------------------------------------------------------------------------
 
-boxCore :: Core -> Unique Core
+boxCore :: HasCallStack => Core -> Unique Core
 boxCore core
   = do defs <- boxDefGroups (coreProgDefs core)
        return (core{ coreProgDefs = defs })
 
 
-boxDefGroups :: DefGroups -> Unique DefGroups
+boxDefGroups :: HasCallStack => DefGroups -> Unique DefGroups
 boxDefGroups dgs
   = mapM boxDefGroup dgs
 
-boxDefGroup :: DefGroup -> Unique DefGroup
+boxDefGroup :: HasCallStack => DefGroup -> Unique DefGroup
 boxDefGroup dg
   = case dg of
       DefRec defs   -> fmap DefRec (mapM boxDef defs)
       DefNonRec def -> fmap DefNonRec (boxDef def)
 
-boxDef :: Def -> Unique Def
+boxDef :: HasCallStack => Def -> Unique Def
 boxDef def
     = -- trace ("box def: " ++ show (defName def) ++ ": " ++ show (pretty (defType def)) ++ "\n" ++ show (prettyExpr Pretty.defaultEnv{Pretty.coreShowTypes=True} (defExpr def))) $
       do bexpr <- boxExpr (boxType (defType def)) (defExpr def)
@@ -69,7 +69,7 @@ boxDef def
 
 
 -- add box/unbox such that the type of `expr` matches `BoxType`
-boxExpr :: BoxType -> Expr -> Unique Expr
+boxExpr :: HasCallStack => BoxType -> Expr -> Unique Expr
 boxExpr expectTp expr
   = case expr of
       -- remove type abstraction and applications
@@ -91,7 +91,9 @@ boxExpr expectTp expr
                                  bexpr <- boxExpr eTp e
                                  return (App bexpr bargs)
       Lam tparams eff body -> do let funTp = boxTypeOf expr
-                                 bbody <- boxExpr (boxTypeOf body) body
+                                 bbody <- -- trace ("box lambda: " ++ show expr) $
+                                          do let tp = (boxTypeOf body)
+                                             seq tp $ boxExpr tp body
                                  bcoerce funTp (expectTp) (Lam tparams eff bbody)
       Let defGroups body   -> do bdgs <- boxDefGroups defGroups
                                  bbody <- boxExpr expectTp body
@@ -103,14 +105,14 @@ boxExpr expectTp expr
       _                    -> bcoerce (boxTypeOf expr) expectTp expr
 
 
-boxBranch :: [BoxType] -> BoxType -> Branch -> Unique Branch
+boxBranch :: HasCallStack => [BoxType] -> BoxType -> Branch -> Unique Branch
 boxBranch patTps expectTp (Branch patterns guards)
   = do (bpatterns,defss) <- unzipM $ mapM (\(patTp,pat) -> boxPattern patTp pat) (zip patTps patterns)
        let binds expr  = makeLet [DefNonRec def | def <- concat defss] expr
        bguards <- mapM (boxGuard expectTp binds) guards
        return (Branch bpatterns bguards)
 
-boxGuard :: BoxType -> (Expr -> Expr) -> Guard -> Unique Guard
+boxGuard :: HasCallStack => BoxType -> (Expr -> Expr) -> Guard -> Unique Guard
 boxGuard expectTp binds (Guard test expr)
   =do btest <- boxExpr typeBool test
       bexpr <- boxExpr expectTp expr
@@ -316,7 +318,7 @@ tvarE = TypeVar 2 kindEffect Bound
 type BoxType = Type
 
 -- type without quantification
-boxTypeOf :: Expr -> BoxType
+boxTypeOf :: HasCallStack => Expr -> BoxType
 boxTypeOf expr
   = -- trace ("boxTypeOf: typeApp: " ++ show expr) $
     case splitPredType (typeOf expr) of

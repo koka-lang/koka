@@ -31,7 +31,7 @@ pub val file/kk-line : string = ""
 // Compilation constant that is replaced with the current file name
 pub val file/kk-file : string = ""
 
-pub fun file/kk-file-line( ?kk-file, ?kk-line )
+pub fip fun file/kk-file-line( ?kk-file, ?kk-line )
   ?kk-file ++ "(" ++ ?kk-line ++ ")"
 
 // ----------------------------------------------------------------------------
