@@ -338,8 +338,8 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs
             syslibs= concat [csyslibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
                       ++ ccompLinkSysLibs flags
                       ++ (if onWindows && not (isTargetWasm (target flags))
-                            then ["bcrypt","psapi","advapi32"]
-                            else ["m","pthread"])
+                            then ["bcrypt","psapi","advapi32", "icuuc", "icui18n"]
+                            else ["m","pthread", "icuuc", "icui18n"])
             libs   = -- ["kklib"] -- [normalizeWith '/' (outName (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
                       -- ++
                       clibs
