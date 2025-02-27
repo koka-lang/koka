@@ -120,8 +120,8 @@ matchPattern newtypes defName range top (match@(Match cinfos cmatches), tp, pat)
                               -> -- one constructor unmatched: replace wild with the constructor to improve reuse
                                  -- trace ("try replace wild: " ++ show defName ++ ": " ++ show (conInfoName con) ++ ": " ++ show (pretty (conInfoType con))) $
                                  case lookupDataInfo newtypes (conInfoTypeName con) of
-                                   Nothing -> PatWild
-                                   Just di -> -- trace (" found data: " ++ show (dataInfoName di)) $
+                                   Just di | not (dataInfoIsLazy di)
+                                           -> -- trace (" found data: " ++ show (dataInfoName di)) $
                                               case instantiatePatCon tp (conInfoParams con) (conInfoType con) of
                                                 Nothing -> PatWild
                                                 Just (targs,tres)    -- only for constructors with arguments
@@ -130,6 +130,7 @@ matchPattern newtypes defName range top (match@(Match cinfos cmatches), tp, pat)
                                                             [PatWild | _ <- conInfoParams con]
                                                             (getConRepr di con)
                                                             targs [] tres con True {- skip -}
+                                   _ -> PatWild
                         _ -> PatWild
            in (MatchComplete cinfos, pat', [])
       PatVar tname arg
