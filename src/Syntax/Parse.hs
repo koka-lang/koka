@@ -1998,7 +1998,12 @@ branch
   <?> "pattern match"
 
 branchCtx
-  = do keyword "ctx"
+  = do pat <- do (_,range) <- wildcard
+                 return (PatWild range)
+       grds <- guards
+       return (Branch pat grds)
+  <|>
+    do keyword "ctx"
        pat  <- pattern
        grds <- guards
        return (Branch pat grds)
