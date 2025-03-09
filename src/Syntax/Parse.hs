@@ -1998,13 +1998,7 @@ branch
   <?> "pattern match"
 
 branchCtx
-  = do pat <- do (_,range) <- wildcard
-                 return (PatWild range)
-       grds <- guards
-       return (Branch pat grds)
-  <|>
-    do keyword "ctx"
-       pat  <- pattern
+  = do pat <- patternCtx
        grds <- guards
        return (Branch pat grds)
   <?> "pattern match on a constructor context"
@@ -2290,6 +2284,10 @@ pattern :: LexParser UserPattern
 pattern
   = patAnn
 
+patternCtx :: LexParser UserPattern
+patternCtx
+  = patAnnCtx
+
 patAnn
   = do p <- patAtom
        maybeTypeAnnot p (\tp0 -> let tp = promoteType tp0
@@ -2298,6 +2296,13 @@ patAnn
                                         -> PatVar (ValueBinder name (Just tp) npat rng1 rng2)
                                       _ -> PatAnn p tp (combineRanged p tp))
 
+patAnnCtx
+  = do p <- patAtomCtx
+       maybeTypeAnnot p (\tp0 -> let tp = promoteType tp0
+                                 in case p of
+                                      PatVar (ValueBinder name Nothing npat rng1 rng2)
+                                        -> PatVar (ValueBinder name (Just tp) npat rng1 rng2)
+                                      _ -> PatAnn p tp (combineRanged p tp))
 
 patAtom :: LexParser UserPattern
 patAtom
@@ -2326,6 +2331,39 @@ patAtom
          [p] -> return (PatParens (snd p) rng)
          _   -> return (PatCon (nameTuple (length ps)) ps rng rng)
 
+patAtomCtx :: LexParser UserPattern
+patAtomCtx
+  = do (name,rng) <- qconstructor
+       (ps,r) <- parensCommasRng namedPatternCtx <|> return ([],rangeNull)
+       return (PatCon name ps rng (combineRanged rng r))
+  <|>
+    do (name,rng) <- identifier
+       (do keyword "as"
+           p <- patternCtx
+           return (PatVar (ValueBinder name Nothing p rng (combineRanged rng p)))
+        <|>
+        return (PatVar (ValueBinder name Nothing (PatWild rng) rng rng))
+        )
+  <|>
+    do (_,range) <- wildcard
+       return (PatWild range)
+  <|>
+    do rng <- keyword "hole"
+       return (PatWild rng)
+  <|>
+    do keyword "ctx"
+       patAtomCtx
+  <|>
+    do lit <- literal
+       return (PatLit lit)
+  <|>
+    do listPattern
+  <|>
+    do (ps,rng) <- parensCommasRng namedPatternCtx
+       case ps of
+         [p] -> return (PatParens (snd p) rng)
+         _   -> return (PatCon (nameTuple (length ps)) ps rng rng)
+
 namedPattern :: LexParser (Maybe (Name,Range),UserPattern)
 namedPattern
   = do (name,rng) <- try (do{ x <- identifier; keyword "="; return x})
@@ -2333,6 +2371,15 @@ namedPattern
        return (Just (name,rng),pat)
   <|>
     do pat <- pattern
+       return (Nothing,pat)
+
+namedPatternCtx :: LexParser (Maybe (Name,Range),UserPattern)
+namedPatternCtx
+  = do (name,rng) <- try (do{ x <- identifier; keyword "="; return x})
+       pat <- patternCtx
+       return (Just (name,rng),pat)
+  <|>
+    do pat <- patternCtx
        return (Nothing,pat)
 
 maybeTypeAnnot :: a -> (UserType -> a) -> LexParser a

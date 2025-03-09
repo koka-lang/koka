@@ -1,6 +1,6 @@
 fun main(): int {
   val a = ctx _
 
-  match []
+  matchctx a
     _ -> 0
 }

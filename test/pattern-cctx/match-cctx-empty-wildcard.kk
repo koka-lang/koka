@@ -2,5 +2,5 @@ fun main(): int {
   val a = ctx _
 
   matchctx a
-    _ -> 0
+    ctx _ -> 0
 }
