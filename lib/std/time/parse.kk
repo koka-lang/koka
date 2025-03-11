@@ -121,7 +121,7 @@ fun optchar(c : char ) : parse char
   optional(c,{char(c)})
 
 fun num( n : int ) : parse int
-  count(n,digit).foldl(0, fn(d,x){ x*10 + d })
+  count(n,digit).foldl(0, fn(x,d){ x*10 + d })
 
 /*
 pub fun parse-iso( s : string, calendar : calendar = cal-iso ) : <utc> maybe<time>
