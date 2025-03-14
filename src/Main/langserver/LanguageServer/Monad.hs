@@ -208,7 +208,7 @@ putErrorMessage p cwd endToo cscheme err
 
 data KokaConfig = KokaConfig {
   kokaCfg :: Config
-}
+} deriving Show
 
 instance FromJSON KokaConfig where
   parseJSON (A.Object v) = KokaConfig <$> v .: "koka"
@@ -216,7 +216,7 @@ instance FromJSON KokaConfig where
 
 data Config = Config {
   langServerOpts :: LanguageServerOptions
-}
+} deriving Show
 
 instance FromJSON Config where
   parseJSON (A.Object v) = Config <$> v .: "languageServer"
@@ -224,7 +224,7 @@ instance FromJSON Config where
 
 data LanguageServerOptions = LanguageServerOptions {
   inlayHintOpts :: InlayHintOptions
-}
+} deriving Show
 
 instance FromJSON LanguageServerOptions where
   parseJSON (A.Object v) = LanguageServerOptions <$> v .: "inlayHints"
@@ -234,7 +234,7 @@ data InlayHintOptions  = InlayHintOptions {
   showImplicitArguments :: Bool,
   showInferredTypes :: Bool,
   showFullQualifiers :: Bool
-}
+} deriving Show
 
 instance FromJSON InlayHintOptions where
   parseJSON (A.Object v) = InlayHintOptions <$> v .: "showImplicitArguments" <*> v .: "showInferredTypes" <*> v .: "showFullQualifiers"
@@ -242,7 +242,7 @@ instance FromJSON InlayHintOptions where
 
 data Colors = Colors {
   mode :: String
-}
+} deriving Show
 
 instance FromJSON Colors where
   parseJSON (A.Object v) = Colors <$> v .: "mode"
@@ -260,8 +260,11 @@ updateConfig :: A.Value -> LSM ()
 updateConfig cfg =
   case fromJSON cfg of
     A.Success cfg -> do
+      -- trace ("Updating config to " ++ show cfg) $ return ()
       modifyLSState $ \s -> s{config=kokaCfg cfg}
-    _ -> return ()
+    c -> 
+      trace ("Failed to parse config " ++ show cfg ++ " error: " ++ show c) $
+      return ()
 
 updateColorScheme :: Colors -> LSM ()
 updateColorScheme colors =
