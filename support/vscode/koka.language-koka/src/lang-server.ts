@@ -11,7 +11,7 @@ import * as child_process from "child_process"
 import * as semver from "semver"
 
 import {
-  DidChangeConfigurationNotification,
+  ExecuteCommandRequest,
   LanguageClient,
   LanguageClientOptions,
   RevealOutputChannelOn,
@@ -176,26 +176,15 @@ export class KokaLanguageServer {
     context.subscriptions.push(this)
 
     await this.languageClient.start()
-    this.onConfigChanged(config)
+    context.subscriptions.push(vscode.window.onDidChangeActiveColorTheme((change) => this.onThemeChanged(change)))
+    this.onThemeChanged(vscode.window.activeColorTheme)
     return this.languageClient
   }
 
-  onConfigChanged(config: KokaConfig) {
-    let isDark = vscode.window.activeColorTheme.kind == vscode.ColorThemeKind.Dark
-    this.languageClient.sendNotification(DidChangeConfigurationNotification.type, {
-      settings:
-      {
-        colors: { mode: isDark ? "dark" : "light" },
-        inlayHints: {
-          showImplicitArguments: config.showImplicitArguments,
-          showInferredTypes: config.showInferredTypes,
-          showFullQualifiers: config.showFullQualifiers,
-        }
-
-      }
-    })
+  async onThemeChanged(change : vscode.ColorTheme)  {
+    let isDark = change.kind == vscode.ColorThemeKind.Dark
+    await this.languageClient.sendRequest(ExecuteCommandRequest.type, {command: "koka/set-colors", arguments: [{mode: isDark ? "dark": "light"}]})
   }
-
 
   async dispose() {
     try {

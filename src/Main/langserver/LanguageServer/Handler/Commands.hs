@@ -93,6 +93,15 @@ commandHandler = requestHandler J.SMethod_WorkspaceExecuteCommand $ \req resp ->
           Json.Success context -> updateSignatureContext context
           _ -> parameterError
       Nothing -> parameterError
+  else if command == "koka/set-colors" then
+    case commandParams of
+      Just [theme] ->
+        case fromJSON theme of
+          Json.Success theme -> do
+            updateColorScheme theme
+            resp $ Right $ J.InR J.Null
+          _ -> parameterError
+      _ -> parameterError
   else
     do
       sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams J.MessageType_Error $ T.pack ("Unknown command: " ++ show req)

@@ -14,16 +14,17 @@
 module LanguageServer.Monad
   ( LSState (..),
     InlayHintOptions(..),
-    SignatureContext(..),clearSignatureContext,updateSignatureContext,getSignatureContext,
+    SignatureContext(..), clearSignatureContext, updateSignatureContext, getSignatureContext,
+    Colors(..), updateColorScheme, getColorScheme,
     defaultLSState,
     newLSStateVar,
     LSM,
-    getTerminal,getFlags,getColorScheme,getHtmlPrinter,
+    getTerminal, getFlags, getHtmlPrinter,
     getLSState,modifyLSState,
     updateConfig,
     getInlayHintOptions,
     runLSM,
-    getProgress,setProgress, maybeContents,
+    getProgress, setProgress, maybeContents,
 
     liftBuild, liftBuildWith,
     lookupModuleName, lookupRangeMap, lookupProgram, lookupLexemes,
@@ -179,12 +180,13 @@ defaultLSState flags = do
     documentInfos = M.empty, documentVersions = fileVersions,
     signatureContext = Nothing, progressReport = Nothing,
     config = Config{
-        colors=Colors{mode="dark"},
+      langServerOpts = LanguageServerOptions{
         inlayHintOpts=InlayHintOptions{
                          showImplicitArguments=True,
                          showInferredTypes=True,
                          showFullQualifiers=True
         }
+      }
     }
   }
 
@@ -204,13 +206,29 @@ putScheme p env tp
 putErrorMessage p cwd endToo cscheme err
   = writePrettyLn p (ppErrorMessage cwd endToo cscheme err)
 
+data KokaConfig = KokaConfig {
+  kokaCfg :: Config
+}
+
+instance FromJSON KokaConfig where
+  parseJSON (A.Object v) = KokaConfig <$> v .: "koka"
+  parseJSON _ = empty
+
 data Config = Config {
-  colors :: Colors,
+  langServerOpts :: LanguageServerOptions
+}
+
+instance FromJSON Config where
+  parseJSON (A.Object v) = Config <$> v .: "languageServer"
+  parseJSON _ = empty
+
+data LanguageServerOptions = LanguageServerOptions {
   inlayHintOpts :: InlayHintOptions
 }
-data Colors = Colors {
-  mode :: String
-}
+
+instance FromJSON LanguageServerOptions where
+  parseJSON (A.Object v) = LanguageServerOptions <$> v .: "inlayHints"
+  parseJSON _ = empty
 
 data InlayHintOptions  = InlayHintOptions {
   showImplicitArguments :: Bool,
@@ -218,17 +236,18 @@ data InlayHintOptions  = InlayHintOptions {
   showFullQualifiers :: Bool
 }
 
+instance FromJSON InlayHintOptions where
+  parseJSON (A.Object v) = InlayHintOptions <$> v .: "showImplicitArguments" <*> v .: "showInferredTypes" <*> v .: "showFullQualifiers"
+  parseJSON _ = empty
+
+data Colors = Colors {
+  mode :: String
+}
+
 instance FromJSON Colors where
   parseJSON (A.Object v) = Colors <$> v .: "mode"
   parseJSON _ = empty
 
-instance FromJSON Config where
-  parseJSON (A.Object v) = Config <$> v .: "colors" <*> v .: "inlayHints"
-  parseJSON _ = empty
-
-instance FromJSON InlayHintOptions where
-  parseJSON (A.Object v) = InlayHintOptions <$> v .: "showImplicitArguments" <*> v .: "showInferredTypes" <*> v .: "showFullQualifiers"
-  parseJSON _ = empty
 
 setProgress :: Maybe (J.ProgressAmount -> LSM ()) -> LSM ()
 setProgress report = do
@@ -241,13 +260,16 @@ updateConfig :: A.Value -> LSM ()
 updateConfig cfg =
   case fromJSON cfg of
     A.Success cfg -> do
-      modifyLSState $ \s ->
-        let s' = s{config=cfg} in
-        if mode (colors cfg) == "dark" then
-          s'{flags=(flags s'){colorScheme=darkColorScheme}}
-        else
-          s'{flags=(flags s'){colorScheme=lightColorScheme}}
+      modifyLSState $ \s -> s{config=kokaCfg cfg}
     _ -> return ()
+
+updateColorScheme :: Colors -> LSM ()
+updateColorScheme colors =
+  modifyLSState $ \s ->
+    trace ("Updating color scheme to " ++ mode colors) $
+    case mode colors of
+      "dark" -> s{flags=(flags s){colorScheme=darkColorScheme}}
+      _ -> s{flags=(flags s){colorScheme=lightColorScheme}}
 
 updateSignatureContext :: SignatureContext -> LSM ()
 updateSignatureContext context =
@@ -261,7 +283,7 @@ getSignatureContext :: LSM (Maybe SignatureContext)
 getSignatureContext = signatureContext <$> getLSState
 
 getInlayHintOptions :: LSM InlayHintOptions
-getInlayHintOptions = inlayHintOpts . config <$> getLSState
+getInlayHintOptions = inlayHintOpts . langServerOpts . config <$> getLSState
 
 getVirtualFileVersion :: J.NormalizedUri -> LSM (Maybe J.Int32)
 getVirtualFileVersion uri
