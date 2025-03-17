@@ -2349,7 +2349,7 @@ patAtomCtx
        return (PatWild range)
   <|>
     do rng <- keyword "hole"
-       return (PatWild rng)
+       return (PatHole rng)
   <|>
     do keyword "ctx"
        patAtomCtx

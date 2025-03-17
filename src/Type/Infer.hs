@@ -1682,7 +1682,17 @@ inferPatternX matchType branchRange pattern
 inferPattern :: HasTypeVar a => Type -> Range -> Pattern Type -> (Core.Pattern -> a -> Inf b)
                   -> ([(Name,NameInfo)] -> Inf ([(Type,Effect)],a))
                   -> Inf ([(Type,Effect)],b)
-inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withPattern inferGuards
+inferPattern matchType branchRange (PatHole range) withPattern inferGuards = inferPattern matchType branchRange (PatWild range) withPattern inferGuards
+inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withPattern inferGuards | isContext patterns0
+  = do return undefined
+  where isContext :: [(Maybe (Name,Range), Pattern Type)] -> Bool
+        isContext patterns = any (\(_, p) -> checkPattern p) patterns
+        checkPattern :: Pattern Type -> Bool
+        checkPattern (PatHole _) = True
+        checkPattern (PatParens ptrns _) = checkPattern ptrns
+        checkPattern (PatCon _ ptrns _ _) = isContext ptrns
+        checkPattern _ = False
+inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withPattern inferGuards | otherwise
   = do (qname,gconTp,repr,coninfo) <- resolveConName name Nothing range
        addRangeInfo nameRange (RM.Id qname (RM.NICon gconTp (conInfoDoc coninfo)) [] False)
        -- traceDoc $ \env -> text "inferPattern.constructor:" <+> pretty qname <.> text ":" <+> ppType env gconTp
