@@ -233,7 +233,7 @@ pub fip fun reverse(xs : list<a>) : list<a>
   reverse-append( xs, Nil )
 
 // Efficiently reverse a list `xs` and append it to `tl`:
-// `reverse-append(xs,tl) == reserve(xs) ++ tl
+// `reverse-append(xs,tl) == reverse(xs) ++ tl
 pub fip fun reverse-append( xs : list<a>, tl : list<a> ) : list<a>
   reverse-acc(tl,xs)
 
