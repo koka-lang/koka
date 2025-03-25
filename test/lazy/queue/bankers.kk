@@ -37,41 +37,49 @@ pub fun test1()
 
 /*
 // The following should be generated.
-// Note that `lazy/whnf-update(s,...)`` is always inserted at tail-position.
+// Note that `lazy/memoize(s,...)`` is always inserted at tail-position.
 //
 // If the argument is a singleton (`SNil`), larger, or unknown (`sreverse(post)`),
 // an indirection is automatically inserted (`stream/Indirect`). Larger or unknown issue a warning.
 //
-// `lazy/whnf-update(s)` is compiled specially to only updates `s` if `s` is not unique.
-fun stream/lazy-sapprev( memo : stream<a>, pre : stream<a>, post : list<a> ) : _ stream<a>
+// `lazy/memoize(s)` is compiled specially to only updates `s` if `s` is not unique.
+
+// for each lazy constructor we generate an evaluation function so we can
+// directly tail-recurse if needed.
+fun stream/lazy-SAppRev( memo : stream<a>, recurse : bool, pre : stream<a>, post : list<a> ) : _ stream<a>
   lazy/memoize-target(memo)   // just for the compiler to reference count and reuse correctly
   match stream/force(pre)
     SNil        -> lazy/memoize(memo,sreverse(post))
     SCons(x,xx) -> lazy/memoize(memo,SCons(x,SAppRev(xx,post)))
 
-noinline fun stream/lazy-eval( s : stream<a> ) : _ stream<a>
+// evaluate once we entered atomically
+noinline fun stream/lazy-eval-locked( s : stream<a>, recurse : bool ) : _ stream<a>
   lazy match s             // lazy match so we can match on the lazy constructors (and no `stream/force` is inserted)
-    SAppRev(pre, post)   -> stream/sapprev(s, pre, post)
-    stream/Indirect(ind) -> stream/lazy-eval(ind)
+    SAppRev(pre, post)   -> stream/sapprev(s, recurse, pre, post)
+    stream/Indirect(ind) -> ind
     _                    -> s
 
-// evaluate one step and update
-noinline fun stream/lazy-step( s : stream<a> ) : div stream<a>
+// evaluate a lazy constructor by entering atomically
+noinline fun stream/lazy-eval( s : stream<a>, recurse : bool ) : _ stream<a>
   if lazy/datatype-ptr-is-unique(s) ||      // we never need to blackhole a unique lazy value (?)
      !lazy/enter(s,stream/lazy-tag)         // otherwise try to enter (maybe atomically and block waiting)
   then
-    stream/lazy-eval(s)                     // we always eval (even if waiting) in order to resolve indirections
+    stream/lazy-eval-locked(s,recurse)      // we always eval (even if waiting) in order to resolve indirections
   else
-    val v = stream/lazy-eval(s)             // if entered first, we need to call `lazy/leave` later
-    lazy/leave(s)                           // unblock any others waiting for the value
+    val v = stream/lazy-eval-locked(s,recurse)  // if entered first, we need to call `lazy/leave` later
+    lazy/leave(s)                               // unblock any others waiting for the value
     v
 
 val stream/lazy-tag = 3   // always the indirection tag; anything >= 3 is considered a lazy constructor
 
 // evaluate tail-recursively to whnf
-noinline fun stream/lazy-whnf(s : stream<a> ) : div stream<a>
-  val x = stream/lazy-step(s)
+fun stream/lazy-whnf(s : stream<a> ) : div stream<a>
+  val x = stream/lazy-eval(s,True)
   if lazy/datatype-is-whnf(x,steam/lazy-tag) then x else stream/lazy-whnf(x)
+
+// evaluate one step towards whnf
+fun stream/lazy-step(s : stream<a> ) : div stream<a>
+  if lazy/datatype-is-whnf(x,steam/lazy-tag) then x else stream/lazy-eval(x,False)
 
 // `stream/lazy-force` is inserted at any `match` on a `:stream<a>` type. (but not for a `lazy match`).
 // it is a one-step unfolding of `lazy-whnf` for efficiency

@@ -43,6 +43,7 @@ import Common.Syntax
 import Common.File( startsWith )
 import qualified Common.NameMap as M
 import Syntax.Syntax
+import Syntax.Promote( promoteType )
 import Syntax.RangeMap
 import qualified Core.Core as Core
 
@@ -562,10 +563,23 @@ lazyConDefCall info conInfo parNames recurseArg memoTarget topExpr
 
        branchExpr <- memoizeExpr topExpr
 
-       let -- fun lazy-SAppRev(@memo,pre,post)
+       let userTpCon  = TpCon (dataInfoName info) rng
+           userTpVarNames = [newName ("_" ++ show tv) | tv <- dataInfoParams info]
+           userDataTp = if null userTpVarNames then userTpCon
+                          else TpApp userTpCon [TpVar tv rng | tv <- userTpVarNames] rng
+           userConTps = [(par, TpVar (newName ("_" ++ show i)) rng) | (i,(par,_)) <- zip [1..] (conInfoParams conInfo)]
+           userFullTp = TpFun ([(nameNil, userDataTp),(nameNil, TpCon nameTpBool rng)]
+                               ++ userConTps)
+                               (TpVar (newName "_eff") rng)
+                               userDataTp
+                               rng
+
+       fullTp <- infResolveType (promoteType userFullTp) (Infer rng)
+
+       let -- fun lazy-SAppRev(@memo,recurse,pre,post)
            --   lazy/memoize-target(@memo)
            --   <memoize topExpr>
-           def     = Def (ValueBinder nameLazyCon () lam rng rng) rng Private (DefFun [] (conInfoLazyFip conInfo)) InlineAuto ""
+           def     = Def (ValueBinder nameLazyCon () (Ann lam fullTp rng) rng rng) rng Private (DefFun [] (conInfoLazyFip conInfo)) InlineAuto ""
            lam     = Lam ([ValueBinder nameLazyMemo Nothing Nothing rng rng,ValueBinder nameRecurse (Just typeBool) Nothing rng rng]
                            ++ [ValueBinder par Nothing Nothing rng rng | par <- parNames])
                          (Bind target branchExpr rng) True rng
