@@ -504,8 +504,10 @@ synLazyEvalLocked lazyExprs info
             branch :: ConInfo -> KInfer ([Def Type],Branch Type)
             branch conInfo | isLazyIndirectConName (conInfoName conInfo)
               = let [(par,tp)] = conInfoParams conInfo
+                    compress   = App (Var nameLazyIndirectCompress False rng)
+                                     [(Nothing, Var par False rng),(Nothing, Var (lazyName info "tag") False rng)] rng
                 in return $ ([],Branch (PatCon (conInfoName conInfo) [(Nothing,PatVar (ValueBinder par Nothing (PatWild rng) rng rng))] rng rng)
-                                 [Guard guardTrue (Var par False rng)])
+                                 [Guard guardTrue compress])
             branch conInfo
               = do let parNames = [(unWildcard (show i) par) | (i,(par,tp)) <- zip [1..] (conInfoParams conInfo)]
                    -- return $ ([], Branch (PatCon (conInfoName conInfo) [(Nothing,makePat par rng) | par <- parNames] rng rng)
@@ -567,14 +569,13 @@ lazyConDefCall info conInfo parNames recurseArg memoTarget topExpr
            userTpVarNames = [newName ("_" ++ show tv) | tv <- dataInfoParams info]
            userDataTp = if null userTpVarNames then userTpCon
                           else TpApp userTpCon [TpVar tv rng | tv <- userTpVarNames] rng
-           userConTps = [(par, TpVar (newName ("_" ++ show i)) rng) | (i,(par,_)) <- zip [1..] (conInfoParams conInfo)]
+           userConTps = [(par, TpVar (newName ("_" ++ show i)) rng) | (i,(par,_)) <- zip [1..] (conInfoParams conInfo)] -- todo: improve types?
            userFullTp = TpFun ([(nameNil, userDataTp),(nameNil, TpCon nameTpBool rng)]
                                ++ userConTps)
                                (TpVar (newName "_eff") rng)
                                userDataTp
                                rng
-
-       fullTp <- infResolveType (promoteType userFullTp) (Infer rng)
+       fullTp <- infResolveType (promoteType userFullTp) (Infer rng) -- todo: use Check?
 
        let -- fun lazy-SAppRev(@memo,recurse,pre,post)
            --   lazy/memoize-target(@memo)

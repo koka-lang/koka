@@ -82,6 +82,36 @@ kk_decl_export void kk_lazy_atomic_thread_leave(kk_block_t* b /* own */, kk_cont
   kk_block_drop(b,ctx);
 }
 
+
+kk_decl_export kk_datatype_t kk_indirect_compress_all( kk_datatype_t root, int32_t indirect_tag, kk_context_t* ctx ) {
+  kk_assert(kk_datatype_is_indirection(root,indirect_tag,ctx));
+  // walk the indirections to find the final value `val`
+  kk_block_t* b = kk_datatype_as_ptr(root,ctx);
+  kk_block_t* last;
+  kk_box_t val;
+  do {
+    val = kk_block_field(b,0);
+    b = (kk_box_is_ptr(val) ? kk_box_to_ptr(val,ctx) : NULL);
+  } while( b!=NULL && kk_block_tag(b) == indirect_tag);
+
+  // walk again and update all indirections with `val`
+  b = kk_datatype_as_ptr(root,ctx);
+  do {
+    kk_box_t next = kk_block_field(b,0);
+    // free or update-in-place as we traverse
+    if (kk_block_is_unique(b)) {
+      kk_block_free(b,ctx);
+    }
+    else {
+      kk_block_decref(b,ctx);
+      kk_block_field_set(b,0,kk_box_dup(val,ctx));
+    }
+    b = (kk_box_is_ptr(next) ? kk_box_to_ptr(next,ctx) : NULL);
+  } while( b!=NULL && kk_block_tag(b) == indirect_tag);
+  return kk_datatype_unbox(val);
+}
+
+
 /*
 kk_decl_export kk_datatype_t kk_lazy_atomic_eval(kk_box_t lazy, kk_context_t* ctx) {
   kk_block_t* b = kk_datatype_as_ptr(kk_datatype_unbox(lazy), ctx);

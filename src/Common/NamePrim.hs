@@ -115,6 +115,7 @@ module Common.NamePrim
           , nameLazyMemoizeTarget, nameLazyMemoize
           , nameLazyEnter, nameLazyLeave
           , nameLazyIsWhnf, nameLazyPtrIsWhnf
+          , nameLazyIndirectCompress
           , nameDataTypePtrIsUnique, nameDataTypePtrIsThreadShared
 
           -- * Type constructors
@@ -271,6 +272,7 @@ nameLazyIsWhnf    = coreLazyName "datatype-is-whnf"
 nameLazyPtrIsWhnf = coreLazyName "datatype-ptr-is-whnf"
 nameDataTypePtrIsUnique = coreLazyName "datatype-ptr-is-unique"
 nameDataTypePtrIsThreadShared = coreLazyName "datatype-ptr-is-thread-shared"
+nameLazyIndirectCompress = coreLazyName "indirect-compress"
 
 {--------------------------------------------------------------------------
   std/core/vector

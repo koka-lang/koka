@@ -49,4 +49,9 @@ pub inline fip extern datatype-ptr-is-unique(^x:a) : bool
 pub inline fip extern datatype-ptr-is-thread-shared(^x : a) : bool
   c "kk_datatype_ptr_is_thread_shared"
 
+
+// internal: compress indirection chains
+pub inline fip extern indirect-compress(value : a, lazy-tag:int32) : a
+  c "kk_indirect_compress"
+
 val internal = 42

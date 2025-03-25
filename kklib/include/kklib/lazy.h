@@ -49,4 +49,16 @@ static inline bool kk_datatype_ptr_is_whnf( kk_datatype_t lazy, int32_t indirect
 
 
 
+kk_decl_export kk_datatype_t kk_indirect_compress_all( kk_datatype_t val, int32_t indirect_tag, kk_context_t* ctx );
+
+static inline bool kk_datatype_is_indirection( kk_datatype_t lazy, int32_t indirect_tag, kk_context_t* ctx) {
+  return (kk_datatype_is_ptr(lazy) && kk_datatype_ptr_tag(lazy,ctx) == (kk_tag_t)indirect_tag);
+}
+static inline kk_datatype_t kk_indirect_compress( kk_datatype_t val, int32_t indirect_tag, kk_context_t* ctx ) {
+  if kk_unlikely(kk_datatype_is_indirection(val,indirect_tag,ctx)) {
+    return kk_indirect_compress_all(val,indirect_tag,ctx);
+  }
+  return val;
+}
+
 #endif // KK_LAZY_H
