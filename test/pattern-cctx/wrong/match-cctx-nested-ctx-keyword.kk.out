@@ -1,0 +1,3 @@
+test/pattern-cctx/wrong/match-cctx-nested-ctx-keyword@kk(5, 9): parse error: invalid syntax
+ unexpected "ctx"
+ expecting identifier, "hole" or wildcard
