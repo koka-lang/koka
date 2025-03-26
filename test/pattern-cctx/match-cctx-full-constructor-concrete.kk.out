@@ -1,0 +1,4 @@
+test/pattern-cctx/match-cctx-full-constructor-concrete@kk(9, 5): type error: constructor has too many arguments
+  context      :     ConsInt(x, ctx xs)
+  term         :     ConsInt
+  inferred type: cctx<listInt,listInt>

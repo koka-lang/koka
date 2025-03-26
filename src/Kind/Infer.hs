@@ -629,11 +629,16 @@ infPat pat
       PatLit lit              -> return (PatLit lit)
       PatVar  binder          -> do binder' <- infPatValueBinder binder
                                     return (PatVar binder')
+      PatVarCtx  binder       -> do binder' <- infPatValueBinder binder
+                                    return (PatVarCtx binder')
       PatAnn  pat tp range    -> do pat' <- infPat pat
                                     tp'  <- infResolveType tp (Check "Patterns must be values" range)
                                     return (PatAnn pat' tp' range)
       PatCon  name args r1 r2 -> do args' <- mapM (\(mbName,pat) -> do pat' <- infPat pat; return (mbName,pat')) args
                                     return (PatCon name args' r1 r2)
+
+      PatConCtx  name args ix r1 r2 -> do args' <- mapM (\(mbName,pat) -> do pat' <- infPat pat; return (mbName,pat')) args
+                                          return (PatConCtx name args' ix r1 r2)
       PatParens pat range     -> do pat' <- infPat pat
                                     return (PatParens pat' range)
 

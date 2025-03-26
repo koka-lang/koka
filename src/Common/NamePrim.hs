@@ -80,6 +80,7 @@ module Common.NamePrim
 
           -- * TRMC optimization, constructor contexts
           , nameTpCCtxx, nameTpCCtx
+          , nameCCtx
           , nameCCtxCreate
           , nameCCtxHoleCreate
           , nameCCtxEmpty

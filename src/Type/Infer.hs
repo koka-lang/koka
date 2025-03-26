@@ -1683,16 +1683,65 @@ inferPattern :: HasTypeVar a => Type -> Range -> Pattern Type -> (Core.Pattern -
                   -> ([(Name,NameInfo)] -> Inf ([(Type,Effect)],a))
                   -> Inf ([(Type,Effect)],b)
 inferPattern matchType branchRange (PatHole range) withPattern inferGuards = inferPattern matchType branchRange (PatWild range) withPattern inferGuards
-inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withPattern inferGuards | isContext patterns0
-  = do return undefined
-  where isContext :: [(Maybe (Name,Range), Pattern Type)] -> Bool
-        isContext patterns = any (\(_, p) -> checkPattern p) patterns
-        checkPattern :: Pattern Type -> Bool
-        checkPattern (PatHole _) = True
-        checkPattern (PatParens ptrns _) = checkPattern ptrns
-        checkPattern (PatCon _ ptrns _ _) = isContext ptrns
-        checkPattern _ = False
-inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withPattern inferGuards | otherwise
+inferPattern matchType branchRange (PatConCtx name patterns0 ix nameRange range) withPattern inferGuards
+  = do (qname,gconTpRaw,repr,coninfo) <- resolveConName name Nothing range
+       let (_, holetp) = conInfoParams coninfo !! ix
+       let gconTpInst = holetp -- works for ctx types, cctx types would require basing it on gconTpRaw type information
+       let gconTp = TApp typeCCtxx [gconTpInst,holetp]
+       addRangeInfo nameRange (RM.Id qname (RM.NICon gconTp (conInfoDoc coninfo)) [] False)
+       -- traceDoc $ \env -> text "inferPattern.constructor:" <+> pretty qname <.> text ":" <+> ppType env gconTp
+
+       useSkolemizedCon coninfo gconTp branchRange range $ \conRho xvars ->
+        do -- (conRho,tvars,_) <- instantiate range gconTp
+           let (conParTps,conEffTp,conResTp) = splitConTp conRho
+           inferUnify (checkConTotal range) nameRange conEffTp typeTotal
+           inferUnify (checkConMatch range) nameRange conResTp matchType
+           patterns <- matchPatterns range nameRange conRho conParTps patterns0
+                       {-
+                       if (length conParTps < length patterns0)
+                        then do typeError range nameRange (text "constructor has too many arguments") (conTp) []
+                                return (take (length conParTps) patterns0)
+                        else return (patterns0 ++ (replicate (length conParTps - length patterns0) (Nothing,PatWild range)))
+                       -}
+           (cpatterns,infGammas) <- fmap unzip $ mapM (\(parTp,pat) ->
+                                                   do sparTp <- subst parTp
+                                                      inferPatternX sparTp branchRange pat)
+                                            (zip (map snd conParTps) (patterns))
+           let infGamma  = concat infGammas
+           (btpeffs,coreGuards0) <- inferGuards infGamma
+           {-
+           (btp,beff,bcore0) <- inferBranchCont pcore infGamma
+           )
+           return ((btp,beff,bcore), ftv btp `tvsUnion` ftv beff)
+           -}
+           let (pcore,coreGuards)
+                = if (null xvars) then (Core.PatCon (Core.TName qname conRho) cpatterns repr (map snd conParTps) [] conResTp coninfo False, coreGuards0)
+                  else let bindExists = [(TypeVar id kind Bound) | (TypeVar id kind _) <- xvars]
+                           subExists  = subNew [(TypeVar id kind Skolem, TVar (TypeVar id kind Bound)) | TypeVar id kind _ <- bindExists]
+                           pcore     = Core.PatCon (Core.TName qname conRho) (subExists |-> cpatterns) repr (subExists |-> (map snd conParTps)) bindExists conResTp coninfo False
+                           coreGuards = subExists |-> coreGuards0
+                       in (pcore,coreGuards)
+
+           bcores <- withPattern pcore coreGuards
+           return ((btpeffs,bcores),ftv btpeffs)
+  where
+    useSkolemizedCon :: ConInfo -> Type -> Range -> Range -> (Rho -> [TypeVar] -> Inf (a,Tvs)) -> Inf a
+    useSkolemizedCon coninfo gconTp range nameRange cont  | null (conInfoExists coninfo)
+      = do (conRho,_,_) <- instantiate nameRange gconTp
+           (res,_) <- cont conRho []
+           return res
+
+    useSkolemizedCon coninfo gconTp range nameRange cont
+      = do conResTp <- Op.freshTVar kindStar Meta
+           let conExistsTp = TForall (conInfoExists coninfo) [] (if (null (conInfoParams coninfo)) then conResTp else TFun (conInfoParams coninfo) typeTotal conResTp)
+           withSkolemized range conExistsTp Nothing $ \conXRho0 xvars ->
+            do conXRho <- Op.instantiate nameRange (TForall (conInfoForalls coninfo) [] conXRho0)
+               (iconRho,_,_)  <- instantiate nameRange gconTp
+               -- traceDoc $ \env -> text " conXRho:" <+> ppType env conXRho <+> text ", versus iconRho:" <+> ppType env iconRho
+               inferUnify (checkOp range) nameRange conXRho iconRho
+               conRho <- subst iconRho
+               cont conRho xvars
+inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withPattern inferGuards
   = do (qname,gconTp,repr,coninfo) <- resolveConName name Nothing range
        addRangeInfo nameRange (RM.Id qname (RM.NICon gconTp (conInfoDoc coninfo)) [] False)
        -- traceDoc $ \env -> text "inferPattern.constructor:" <+> pretty qname <.> text ":" <+> ppType env gconTp
@@ -1748,7 +1797,8 @@ inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withP
                conRho <- subst iconRho
                cont conRho xvars
 
-
+inferPattern matchType branchRange (PatVarCtx binder) withPattern inferPart
+    = inferPattern matchType branchRange (PatVar binder) withPattern inferPart
 inferPattern matchType branchRange (PatVar binder) withPattern inferPart
   =  do addRangeInfo (binderNameRange binder) (RM.Id (binderName binder) (RM.NIValue "val" matchType "" (isAnnotatedBinder binder)) [] True)
         case (binderType binder) of

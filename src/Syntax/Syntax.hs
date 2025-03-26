@@ -278,8 +278,10 @@ data Pattern t
   = PatWild   !Range
   | PatHole   !Range -- for contructor contexts
   | PatVar    !(ValueBinder (Maybe t) (Pattern t)) -- the binderExpr is a potential other pattern (used for "as x" bindings)
+  | PatVarCtx !(ValueBinder (Maybe t) (Pattern t)) -- for contructor contexts
   | PatAnn    !(Pattern t) !t !Range
   | PatCon    !Name    ![(Maybe (Name,Range), Pattern t)] !Range !Range  -- name range and full range
+  | PatConCtx !Name    ![(Maybe (Name,Range), Pattern t)] !Int !Range !Range  -- name ctx-index range and full range
   | PatParens !(Pattern t) !Range
   | PatLit    !Lit
   deriving (Show)
@@ -417,6 +419,7 @@ instance Ranged (Pattern t) where
         PatHole range           -> range
         PatWild range           -> range
         PatVar  binder          -> getRange binder
+        PatVarCtx binder        -> getRange binder
         PatAnn  pat tp range    -> range
         PatCon  name args nameRng range -> range
         PatParens pat range     -> range
