@@ -22,6 +22,7 @@ import Common.NamePrim
 import qualified Syntax.Syntax as S
 import Common.Range
 import Data.List
+import Data.Maybe (fromMaybe, isJust)
 
 class PrettyEnv t where
   prettyEnv :: Env -> t -> Doc
@@ -127,6 +128,10 @@ ppArg ::  PrettyEnv t => Env -> (Maybe (Name,Range),S.Expr t) -> Doc
 ppArg env (Nothing,expr) = ppSyntaxExpr env expr
 ppArg env (Just (name,_),expr) = ppName env name <+> text "=" <+> ppSyntaxExpr env expr
 
+isConstructorApp :: S.Expr t -> Bool
+isConstructorApp (S.Var n _ _) = isConstructorName n
+isConstructorApp _ = False
+
 ppSyntaxExpr ::  PrettyEnv t => Env -> S.Expr t -> Doc
 ppSyntaxExpr env e =
   case e of
@@ -139,7 +144,7 @@ ppSyntaxExpr env e =
     App (Var na _ _) [] _ | isConstructorName na -> -- Singleton constructor
       ppName env na
     App (Var na True _) [(Nothing, x0), (Nothing, x1)] _ | not (isQualified na || isLocallyQualified na) -> -- Unqualified infix operations
-      ppSyntaxExpr env x0 <+> text (nameStem na) <+> ppSyntaxExpr env x1 
+      ppSyntaxExpr env x0 <+> text (nameStem na) <+> ppSyntaxExpr env x1
     App (Var na True _) [(Nothing, x0)] _ -> -- Postfix operations?
       ppSyntaxExpr env x0 <.> ppName env na
     App (Var na _ _) args _ | isNameTuple na -> -- Tuple
@@ -148,7 +153,11 @@ ppSyntaxExpr env e =
       hcat (intersperse (text " ") (map (ppArg env) args))
     S.App hnd@Handler{} [(_, a)] range ->
       tupled [ppSyntaxExpr env hnd] <.> tupled [ppSyntaxExpr env a]
-    S.App fun args range ->
+    S.App fun [(Nothing, a)] range | not (isConstructorApp fun) -> -- prefer: arg.function 
+      ppSyntaxExpr env a <.> text "." <.> ppSyntaxExpr env fun
+    S.App fun ((Nothing, a):args) range | not (isConstructorApp fun) -> -- prefer: arg.function(args,...)
+      ppSyntaxExpr env a <.> text "." <.> ppSyntaxExpr env fun <.> tupled (map (ppArg env) args)
+    S.App fun args range -> -- named or no arguments prefer: function(named: arg, ...) or function()
       ppSyntaxExpr env fun <.> tupled (map (ppArg env) args)
     S.Var nm isop range | nm == nameUnit -> text "()"
     S.Var name isop range -> ppName env name
@@ -170,9 +179,16 @@ ppMaybeExpr ::  PrettyEnv t => Env -> Maybe (Expr t) -> Doc
 ppMaybeExpr env (Just expr) = ppSyntaxExpr env expr
 ppMaybeExpr env Nothing = empty
 
+contains :: Eq a => [a] -> [a] -> Bool
+contains search str = any (isPrefixOf search) (tails str)
+
 ppSyntaxBranch :: PrettyEnv t => Env -> S.Branch t -> Doc
 ppSyntaxBranch env (S.Branch pat [S.Guard (S.Var n _ _) body]) | nameTrue == n
-  = ppSyntaxPattern env pat <+> text "->" <--> indent 2 (ppSyntaxExpr env body)
+  = let bod = ppSyntaxExpr env body
+    in if contains "\n" (show bod) then
+        ppSyntaxPattern env pat <+> text "->" <--> indent 2 bod
+       else
+        ppSyntaxPattern env pat <+> text "->" <+> bod
 ppSyntaxBranch env (S.Branch pat [guard])
   = ppSyntaxPattern env pat <+> text "|" <+> ppSyntaxGuard env guard
 ppSyntaxBranch env b = text "Unhandled branch"
