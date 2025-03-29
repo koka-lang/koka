@@ -1587,6 +1587,9 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                           return (tp,eff,fcore mod rng)
                   Nothing
                     -> do let coreVar = coreExprFromNameInfo qname info
+                              fixedEffect = case splitFunScheme tp of
+                                              Just (_, _, _, eff, _) -> isEffectFixed eff
+                                              _ -> False
                           -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> ppType env{showIds=True} tp <+> text ", prop:" <+> pretty propagated
                           (itp,coref) <- maybeInstantiate rng expect tp
                           sitp <- subst itp
@@ -1600,11 +1603,11 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                                                   (tp,eff,core) <- withNoLocalScope $ inferExpr Nothing {- do not progate as the effect is different -} Instantiated maskExpr
                                                   -- traceDoc $ \penv -> text "inferVar:" <+> ppName penv name <+> text ", injected type: " <+> ppType penv tp
                                                   return (tp,eff,core)
-                          -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp)
+                          -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp <+> text "local depth" <+> pretty localDepth)
                           case (expandSyn itp,propagated) of
-                            (TFun pars _ _,_) | infoAllowImplictMask info && not (isHiddenName qname) && localDepth > 0
+                            (TFun pars _ _,_) | not fixedEffect && infoAllowImplictMask info && not (isHiddenName qname) && localDepth > 0
                               -> injectLocal (length pars)
-                            (_,Just (openTp@(TFun pars openEff tres),_)) | infoAllowImplictMask info && not (isHiddenName qname) && localDepth > 0
+                            (_,Just (openTp@(TFun pars openEff tres),_)) | not fixedEffect && infoAllowImplictMask info && not (isHiddenName qname) && localDepth > 0
                               -> injectLocal (length pars)
                             _ -> return (sitp,eff,coref coreVar)
 

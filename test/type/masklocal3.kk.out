@@ -1,0 +1,6 @@
+type/masklocal3/xx/a: forall<a,b> (xx : xx<a,b>) -> a
+type/masklocal3/xx/b: forall<a,b> (xx : xx<a,b>) -> b
+type/masklocal3/Val: forall<a,b> (a : a, b : b) -> xx<a,b>
+type/masklocal3/emit: (s : xx<int,string>) -> emit ()
+type/masklocal3/pretty-emit3: forall<a,e> (action : () -> <emit,pure|e> a, ?show : (int) -> pure string) -> <pure|e> string
+type/masklocal3/show: forall<a,b> (x : xx<a,b>, ?a/show : (a) -> pure string, ?b/show : (b) -> pure string) -> pure string
