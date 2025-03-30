@@ -559,7 +559,7 @@ map : (xs : list<a>, f : (a) -> e b) -> e list<b>
 ```
 
 We use single letters (possibly followed by digits) for polymorphic types.
-Here, the `map` functions takes a list with elements of some type `:a`, and a
+Here, the `map` function takes a list with elements of some type `:a`, and a
 function ``f`` that takes an element of type `:a` and returns a new element of
 type `:b`. The final result is a list with elements of type `:b`. Moreover,
 the effect of the applied function `:e` is also the effect of the `map`
@@ -1644,7 +1644,7 @@ from the stack.)
 ### Overriding Handlers
 
 A common use for masking is to override handlers. For example, consider
-overriding the behavour of `emit`:
+overriding the behaviour of `emit`:
 
 ```
 fun emit-quoted1( action : () -> <emit,emit|e> a ) : <emit|e> a
