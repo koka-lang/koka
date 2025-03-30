@@ -403,7 +403,7 @@ pub fun days-until( t1 : time, t2 : time ) : int
 // `time(2016,12,31,12,0,0).mjd.show(9) == "57753.499994213"` &quad; (this day has a leap second, so it is just before the real middle of the day)\
 // `time(2016,12,31,12,0,0,0.5).mjd.show == "57753.5"` &quad; (real middle of the day)\
 pub fun mjd( t : time ) : ddouble
-  //trace("offset: " + t.tzdelta.show)
+  //trace("offset: " ++ t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
   val i = t.instant
   i.mjd( i.timescale, t.tzdelta.timespan )
@@ -421,7 +421,7 @@ Takes leap seconds into account when calculating the fraction of the day,
 see `mjd` for examples.
 */
 pub fun jd( t : time ) : ddouble
-  //trace("offset: " + t.tzdelta.show)
+  //trace("offset: " ++ t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
   t.mjd() + jd-epoch-delta
 

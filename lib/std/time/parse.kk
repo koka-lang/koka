@@ -145,7 +145,7 @@ pub fun parse-iso( s : string, calendar : calendar = cal-iso ) : <utc> maybe<tim
         Just(capt) ->
           val hours = capt.num(1)
           val mins  = capt.num(2)
-          val secs  = parse-ddouble(capt.groups[3] + "." + capt.groups[4]).default(zero)
+          val secs  = parse-ddouble(capt.groups[3] ++ "." ++ capt.groups[4]).default(zero)
           val tzsign= if capt.groups[5]=="+" then 1 else ~1
           val tzhours= capt.num(6)
           val tzmins = capt.num(7)
