@@ -189,10 +189,23 @@ fun many-acc( p : parser<e,a>, acc : list<a> ) : <parse|e> list<a>
 pub fun many( p : parser<e,a> ) : <parse|e> list<a>
   many-acc(p,[])
 
-// The `many1` combinator parses `p` at least once an then until it fails, returning a list of the results of `p`.
+// The `many1` combinator parses `p` at least once and then until it fails, returning a list of the results of `p`.
 // The `many1` combinator is non-divergent only when `p` always consumes input or `fail`s.
 pub fun many1( p : parser<e,a> ) : <parse|e> list<a>
   Cons(p(), many(p))
+
+// The `sep-by` parses zero or more occurrences of `p`, separated by `sep`. Returns a list of the results of `p`.
+// The `sep-by` combinator is non-divergent only when `p` always consumes input or `fail`s.
+pub fun sep-by( p : parser<e,a>, sep : parser<e,b> ) : <parse|e> list<a>
+  val firstMay = optional(Nothing){ p().Just }
+  match firstMay
+    Just (first) -> many-acc({ sep(); p(); }, [first])
+    Nothing -> []
+
+// The `sep-by1` parses one or more occurrences of `p`, separated by `sep`. Returns a list of the results of `p`.
+// The `sep-by1` combinator is non-divergent only when `p` always consumes input or `fail`s.
+pub fun sep-by1( p : parser<e,a>, sep : parser<e,b> ) : <parse|e> list<a>
+  Cons(p(), many{ sep(); p(); })
 
 fun count-acc( n : int, acc : list<a>, p : parser<e,a> ) : <parse|e> list<a>
   if n <= 0 then acc.reverse else
