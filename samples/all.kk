@@ -19,6 +19,7 @@ import learn/qualifiers
 import learn/implicits
 import learn/contexts
 import learn/fip
+import learn/lazycons
 
 import handlers/ambient
 import handlers/basic
@@ -52,6 +53,7 @@ pub fun main()
   run("contexts",contexts/main)
   run("handler",learn/handler/main)
   run("fip",fip/main)
+  run("lazycons",lazycons/main)
   run("implicits",implicits/main)
   run("qualifiers",qualifiers/main)
   run("with",learn/with/main)
