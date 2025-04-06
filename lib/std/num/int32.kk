@@ -527,7 +527,7 @@ pub fip fun range/fold-int32( start : int32, end : int32, init : a, ^f : (int32,
     val x = f(start,init)
     range/fold-int32(pretend-decreasing(start.inc), end, x, f)
 
-// Fold over the 32-bit integers `0` to `n-1`.
+// Fold over the 32-bit integers `0` to `n - 1`.
 pub fip fun fold-int32( n : int32, init : a, ^f : (int32,a) -> e a ) : e a
   range/fold-int32(zero, n.dec, init, f)
 
@@ -539,7 +539,7 @@ pub fun range/fold-while-int32( start : int32, end : int32, init : a, f : (int32
       Just(x) -> range/fold-while-int32(pretend-decreasing(start.inc), end, x, f)
       Nothing -> init
 
-// Iterate over the 32-bit integers `0` to `n-1`.
+// Iterate over the 32-bit integers `0` to `n - 1`.
 pub fun fold-while-int32( n : int32, init : a, f : (int32,a) -> e maybe<a> ) : e a
   range/fold-while-int32(zero, n.dec, init, f)
 
