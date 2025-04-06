@@ -133,7 +133,7 @@ pub fun range/for( ^start: int, end : int, action : (int) -> e () ) : e ()
       rep(pretend-decreasing(i.inc))
   rep(start)
 
-// Executes `action` `n` times for each integer from `0` to `n-1`.
+// Executes `action` `n` times for each integer from `0` to `n - 1`.
 // If `n <= 0`  the function returns without any call to `action` .
 pub fun for( ^n : int, action : (int) -> e () ) : e ()
   range/for(0, n - 1, action)
