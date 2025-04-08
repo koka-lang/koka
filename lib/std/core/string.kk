@@ -61,8 +61,11 @@ fip extern string-cmp( ^x : string, ^y : string ) : int
 pub fip fun cmp( ^x : string, ^y : string) : order
   string-cmp(x,y).order
 
-pub fip fun order2( x : string, y : string ) : (string,string)
-  if (x<=y) then (x,y) else (y,x)
+pub fip fun order2( x : string, y : string ) : order2<string>
+  match cmp(x, y)
+    Lt -> Lt2(x,y)
+    Gt -> Gt2(y,x)
+    Eq -> Eq2(x)
 
 pub fip fun (>=)( ^x : string, ^y : string ) : bool { cmp(x,y) > Lt }
 pub fip fun (<=)( ^x : string, ^y : string ) : bool { cmp(x,y) < Gt }
