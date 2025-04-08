@@ -254,7 +254,7 @@ pub fun head-char( s : string ) : maybe<char>
 pub fun pred/count( s : string, pred : (char) -> e bool ) : e int
   var cnt := 0
   s.foreach fn(c)
-    if (mask<local>{pred(c)}) then cnt := cnt+1
+    if pred(c) then cnt := cnt+1
   cnt
 
 

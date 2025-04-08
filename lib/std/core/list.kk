@@ -396,7 +396,7 @@ pub fun foreach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
   var i := 0
   xs.foreach fn(x)
     val j = i // don't dereference `i` inside the inject
-    mask<local>{ action(j,x) }
+    action(j,x)
     i := i+1
 
 // Insert a separator `sep`  between all elements of a list `xs` .

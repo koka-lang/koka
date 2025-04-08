@@ -24,7 +24,7 @@ fun count() {
 
 fun test-normal(i0,action) {
   var i := i0
-  handle({mask<local>(action)}) {
+  handle(action) {
     fun get()  { i }
     fun put(j) { i := j; () }
   }

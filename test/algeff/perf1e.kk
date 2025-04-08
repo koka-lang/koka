@@ -24,9 +24,9 @@ linear effect count {
 
 fun countH( action ) {
   var cnt := 0
-  with return(x) cnt
   with fun increment() { cnt := cnt+1 }
-  mask<local>{action()}
+  action()
+  cnt
 }
 
 noinline fun fold-counterC( xs : list<int>, m : int) : count int {
