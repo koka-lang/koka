@@ -187,17 +187,11 @@ instance Ord Name where
 
 -- Effects compare by name first, then by module name for efficiency at runtime
 labelNameCompare (Name m1 hm1 l1 hl1 n1 hn1) (Name m2 hm2 l2 hl2 n2 hn2)
-  = case compare hn1 hn2 of
-      EQ -> case lowerCompareS n1 n2 of
-              EQ -> case compare hl1 hl2 of
-                      EQ -> case compare l1 l2 of
-                              EQ -> case compare hm1 hm2 of
-                                      EQ -> compare m1 m2
-                                      lg -> lg
-                              lg -> lg
+  = case lowerCompareS (n1 ++ "@") (n2 ++ "@") of -- Labels are name@module, so if a name looks like name-x@module and name@module, we need to compare @ and - (which is what the runtime does)
+          EQ -> case compare l1 l2 of
+                      EQ -> compare m1 m2
                       lg -> lg
-              lg -> lg
-      lg -> lg
+          lg -> lg
 
 
 stemIsEqual :: Name -> Name -> Bool
