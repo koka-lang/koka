@@ -162,7 +162,7 @@ export class KokaLanguageServer {
             console.log("Asking VSCode to trigger parameter hints")
             vscode.commands.executeCommand("editor.action.triggerParameterHints")
           } else {
-            next(command, args)
+            return next(command, args)
           }
         }
       }
