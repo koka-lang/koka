@@ -92,7 +92,7 @@ kk_decl_export kk_datatype_t kk_indirect_compress_all( kk_datatype_t root, int32
   do {
     val = kk_block_field(b,0);
     b = (kk_box_is_ptr(val) ? kk_box_to_ptr(val,ctx) : NULL);
-  } while( b!=NULL && kk_block_tag(b) == indirect_tag);
+  } while( b!=NULL && kk_block_tag(b) == (kk_tag_t)indirect_tag);
 
   // walk again and update all indirections with `val`
   b = kk_datatype_as_ptr(root,ctx);
@@ -107,7 +107,7 @@ kk_decl_export kk_datatype_t kk_indirect_compress_all( kk_datatype_t root, int32
       kk_block_field_set(b,0,kk_box_dup(val,ctx));
     }
     b = (kk_box_is_ptr(next) ? kk_box_to_ptr(next,ctx) : NULL);
-  } while( b!=NULL && kk_block_tag(b) == indirect_tag);
+  } while( b!=NULL && kk_block_tag(b) == (kk_tag_t)indirect_tag);
   return kk_datatype_unbox(val);
 }
 
