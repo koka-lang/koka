@@ -1329,6 +1329,7 @@ tripletOsName osName
       "linux-android" -> "android"
       "mingw32"       -> "mingw-static"
       "darwin"        -> "osx"
+      "macos"         -> "osx"
       os              -> os
 
 hostOsName
