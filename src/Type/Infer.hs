@@ -1685,6 +1685,7 @@ inferPattern :: HasTypeVar a => Type -> Range -> Pattern Type -> (Core.Pattern -
 inferPattern matchType branchRange (PatHole range) withPattern inferGuards = inferPattern matchType branchRange (PatWild range) withPattern inferGuards
 inferPattern matchType branchRange (PatConCtx name patterns0 ix nameRange range) withPattern inferGuards
   = do (qname,gconTpRaw,repr,coninfo) <- resolveConName name Nothing range
+       when (length (conInfoParams coninfo) == 0) (typeError range nameRange (text "cannot match cctx on zero-arg constructor") (matchType) [])
        let (_, holetp) = conInfoParams coninfo !! ix
        let gconTpInst = holetp -- works for ctx types, cctx types would require basing it on gconTpRaw type information
        let gconTp = TApp typeCCtxx [gconTpInst,holetp]

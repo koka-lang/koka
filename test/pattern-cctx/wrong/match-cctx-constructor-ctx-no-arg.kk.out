@@ -1,0 +1,4 @@
+test/pattern-cctx/wrong/match-cctx-constructor-ctx-no-arg@kk(10, 5): type error: cannot match cctx on zero-arg constructor
+  context : NilInt
+  term : NilInt
+  inferred type: cctx<listInt,listInt>
