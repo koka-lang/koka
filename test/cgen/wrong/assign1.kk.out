@@ -4,6 +4,6 @@ test/cgen/wrong/assign1@kk(6, 3): type error: identifier count cannot be resolve
  candidates : counter/count : forall<h> (counter : counter<h>) -> ref<h,int>
  count : (slice : sslice) -> int
  stringpat/count: (s : string, pattern : string) -> int
- count : (s : string) -> int
+ chars/count : (s : string) -> int
  pred/count : forall<e> (s : string, pred : (char) -> e bool) -> e int
  hint : give a type annotation or qualify the name?

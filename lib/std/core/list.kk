@@ -196,7 +196,7 @@ pub fun drop( xs : list<a>, n : int ) : list<a>
     _ -> xs
 
 // Apply a function `f` to each element of the input list in sequence.
-pub fip fun f/map(xs : list<a>, ^f : a -> e b) : e list<b>
+pub fip fun map(xs : list<a>, ^f : a -> e b) : e list<b>
   match xs
     Cons(x,xx) -> Cons(f(x), xx.map(f))
     Nil -> Nil
