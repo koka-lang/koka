@@ -20,7 +20,7 @@ import std/core/vector
 
 
 // Return the head of list if the list is not empty.
-pub fbip fun head( xs : list<a> ) : maybe<a>
+pub fbip fun maybe/head( xs : list<a> ) : maybe<a>
   match xs
     Cons(x) -> Just(x)
     _       -> Nothing
@@ -63,7 +63,7 @@ pub fun length(xs)
 // Returns an integer list of increasing elements from `lo`  to `hi`
 // (including both `lo`  and `hi` ).
 // If `lo > hi`  the function returns the empty list.
-pub fun list( lo: int, hi: int ) : total list<int>
+pub fun range/list( lo: int, hi: int ) : total list<int>
   if lo <= hi
     then Cons( lo, list( pretend-decreasing(lo.inc), hi ) )
     else Nil
@@ -196,7 +196,7 @@ pub fun drop( xs : list<a>, n : int ) : list<a>
     _ -> xs
 
 // Apply a function `f` to each element of the input list in sequence.
-pub fip fun map(xs : list<a>, ^f : a -> e b) : e list<b>
+pub fip fun f/map(xs : list<a>, ^f : a -> e b) : e list<b>
   match xs
     Cons(x,xx) -> Cons(f(x), xx.map(f))
     Nil -> Nil
@@ -418,7 +418,7 @@ fun joinsep( xs : list<string>, sep : string ) : string
     _                   -> xs.vector.join(sep)
 
 // Concatenate all strings in a list
-pub fun join( xs : list<string> ) : string
+pub fun concat/join( xs : list<string> ) : string
   match xs
     Nil                 -> ""
     Cons(x,Nil)         -> x

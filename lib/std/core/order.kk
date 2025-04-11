@@ -12,7 +12,7 @@ module std/core/order
 import std/core/types
 import std/core/int
 
-pub fip fun int( x : order ) : int
+pub fip fun order/int( x : order ) : int
   match x
     Lt -> -1
     Eq -> 0

@@ -77,7 +77,7 @@ pub fun (||)( x : string, y : string ) : string
   if x.is-empty then y else x
 
 // O(n). Return the number of characters in a string.
-pub extern count( s : string ) : int
+pub extern chars/count( s : string ) : int
   c  "kk_string_count_int"
   cs "Primitive.StringCount"
   js "_string_count"
@@ -203,7 +203,7 @@ inline extern splitvn( s : string,  sep : string, n : ssize_t ) : vector<string>
 
 // Split a string into parts that were delimited by `sep`. The delimeters are not included in the results.
 // For example: `split("1,,2",",") == ["1","","2"]`
-pub fun split( s : string, sep : string ) : list<string>
+pub fun sep/split( s : string, sep : string ) : list<string>
   splitv(s,sep).list
 
 // Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).

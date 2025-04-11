@@ -91,7 +91,7 @@ pub fun length( ^v : vector<a> ) : int
   v.lengthz.int
 
 // Create a new vector of length `n`  with initial elements `default` .
-pub fun vector( ^n : int, default : a) : vector<a>
+pub fun default/vector( ^n : int, default : a) : vector<a>
   vector-alloc(n.ssize_t, default)
 
 // Create a new vector of length `n`  with initial elements given by _total_ function `f`.

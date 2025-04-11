@@ -192,7 +192,7 @@ pub extern next( slice : sslice ) : maybe<(char,sslice)>
   js "_sslice_next"
 
 // Truncates a slice to length 0
-pub fun truncate( slice: sslice ): sslice
+pub fun slice/truncate( slice: sslice ): sslice
   Sslice(slice.str, slice.start, 0)
 
 // Gets up to (`end`-`start`) characters from the slice beginning from `start`.
@@ -215,7 +215,7 @@ pub fun drop( slice: sslice, n : int): sslice
 
 // Apply a function for each character in a string slice.
 // If `action` returns `Just`, the function returns immediately with that result.
-pub fun foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe<a>
+pub fun slice/foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe<a>
   match slice.next
     Nothing -> Nothing
     Just((c,rest)) ->
@@ -225,7 +225,7 @@ pub fun foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e m
 
 
 // Apply a function for each character in a string slice.
-pub fun foreach( slice : sslice, action : (c:char) -> e ()) : e ()
+pub fun slice/foreach( slice : sslice, action : (c:char) -> e ()) : e ()
   match slice.next
     Nothing -> ()
     Just((c,rest)) ->
