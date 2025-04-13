@@ -1,0 +1,4 @@
+test/pattern-cctx/wrong/match-cctx-constructor-ctx-keyword-many@kk(9, 5): type error: cannot match cctx on with multiple constructor arguments marked as ctx
+ context : ConsInt(ctx head, ctx tail)
+ term : ConsInt
+ inferred type: cctx<listInt,listInt>

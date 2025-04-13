@@ -1683,10 +1683,19 @@ inferPattern :: HasTypeVar a => Type -> Range -> Pattern Type -> (Core.Pattern -
                   -> ([(Name,NameInfo)] -> Inf ([(Type,Effect)],a))
                   -> Inf ([(Type,Effect)],b)
 inferPattern matchType branchRange (PatHole range) withPattern inferGuards = inferPattern matchType branchRange (PatWild range) withPattern inferGuards
-inferPattern matchType branchRange (PatConCtx name patterns0 ix nameRange range) withPattern inferGuards
+inferPattern matchType branchRange (PatConCtx name patterns0 nameRange range) withPattern inferGuards
   = do (qname,gconTpRaw,repr,coninfo) <- resolveConName name Nothing range
        when (length (conInfoParams coninfo) == 0) (typeError range nameRange (text "cannot match cctx on zero-arg constructor") (matchType) [])
-       let (_, holetp) = conInfoParams coninfo !! ix
+
+       let ctxArgs = [(i, p) | (i, (_, p@PatVarCtx{})) <- (zip [0..] patterns0)] :: [(Int, Pattern Type)]
+       when ((length ctxArgs) /= 1) (
+         case ctxArgs of
+           []       -> typeError range nameRange (text "cannot match cctx on with zero constructor arguments marked as ctx") (matchType) []
+           (_:_)    -> typeError range nameRange (text "cannot match cctx on with multiple constructor arguments marked as ctx") (matchType) []
+         )
+       let ctxIndex = case ctxArgs of [(index, _)] -> index :: Int
+
+       let (_, holetp) = conInfoParams coninfo !! ctxIndex
        let gconTpInst = holetp -- works for ctx types, cctx types would require basing it on gconTpRaw type information
        let gconTp = TApp typeCCtxx [gconTpInst,holetp]
        addRangeInfo nameRange (RM.Id qname (RM.NICon gconTp (conInfoDoc coninfo)) [] False)

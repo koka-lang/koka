@@ -1,0 +1,4 @@
+test/pattern-cctx/wrong/match-cctx-constructor-ctx-keyword-none@kk(9, 5): type error: cannot match cctx on with zero constructor arguments marked as ctx
+ context : ConsInt(head, tail)
+ term : ConsInt
+ inferred type: cctx<listInt,listInt>

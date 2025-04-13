@@ -637,8 +637,8 @@ infPat pat
       PatCon  name args r1 r2 -> do args' <- mapM (\(mbName,pat) -> do pat' <- infPat pat; return (mbName,pat')) args
                                     return (PatCon name args' r1 r2)
 
-      PatConCtx  name args ix r1 r2 -> do args' <- mapM (\(mbName,pat) -> do pat' <- infPat pat; return (mbName,pat')) args
-                                          return (PatConCtx name args' ix r1 r2)
+      PatConCtx  name args r1 r2 -> do args' <- mapM (\(mbName,pat) -> do pat' <- infPat pat; return (mbName,pat')) args
+                                       return (PatConCtx name args' r1 r2)
       PatParens pat range     -> do pat' <- infPat pat
                                     return (PatParens pat' range)
 

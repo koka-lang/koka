@@ -281,7 +281,7 @@ data Pattern t
   | PatVarCtx !(ValueBinder (Maybe t) (Pattern t)) -- for contructor contexts
   | PatAnn    !(Pattern t) !t !Range
   | PatCon    !Name    ![(Maybe (Name,Range), Pattern t)] !Range !Range  -- name range and full range
-  | PatConCtx !Name    ![(Maybe (Name,Range), Pattern t)] !Int !Range !Range  -- name ctx-index range and full range
+  | PatConCtx !Name    ![(Maybe (Name,Range), Pattern t)] !Range !Range  -- name range and full range
   | PatParens !(Pattern t) !Range
   | PatLit    !Lit
   deriving (Show)
@@ -422,6 +422,7 @@ instance Ranged (Pattern t) where
         PatVarCtx binder        -> getRange binder
         PatAnn  pat tp range    -> range
         PatCon  name args nameRng range -> range
+        PatConCtx  name args nameRng range -> range
         PatParens pat range     -> range
         PatLit lit              -> getRange lit
 

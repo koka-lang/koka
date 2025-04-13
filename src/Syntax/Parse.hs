@@ -2335,8 +2335,7 @@ patAtomCtx :: LexParser UserPattern
 patAtomCtx
   = do (name,rng) <- qconstructor
        (ps,r) <- parensCommasRng namedPatternCtx <|> return ([],rangeNull)
-       let ctxIndex = 1 -- the argument position of the further context
-       return (PatConCtx name ps ctxIndex rng (combineRanged rng r))
+       return (PatConCtx name ps rng (combineRanged rng r)) -- index to be determined later with additional checks
   <|>
     do (name,rng) <- identifier
        (do keyword "as"
