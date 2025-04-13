@@ -2325,8 +2325,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                 = let coreVar = coreExprFromNameInfo qname info
                                   in (Core.App (coreInst coreVar) (seqqList coreArgs))
                           return (iargs,pars,eff,res,coreAddCopy)
-                  _ -> do typeError context range (text "only functions or types with a copy constructor can be applied") tp []
-                          return (zip [1..] (map (\x -> ArgExpr x True) (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
+                  _ -> reportNonCallable
   where
     range = getRange fun
 
@@ -2438,6 +2437,20 @@ matchFunTypeArgs context fun tp fresolved fixed named
       = case tp of
           TSyn syn [_,_] _ -> (typesynName syn == nameTpDelay)
           _ -> False
+
+    reportNonCallable
+      = do
+         typeError context range (text "only functions or types with a copy constructor can be applied") tp hints
+         return (zip [1..] (map (\x -> ArgExpr x True) (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
+      where
+        hints
+          = case fun of
+              Var name _ nameRange | not (isQualified name) ->
+                [(
+                  text "hint",
+                  text ("`" ++ showPlain name ++ "` is a local variable which may be shadowing a function")
+                )]
+              _ -> []
 
 
 
