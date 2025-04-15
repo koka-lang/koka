@@ -1,0 +1,6 @@
+test/pattern-cctx/optional/match-cctx-full-constructor-generic@kk(8, 5): type error: types do not match
+  context : Cons(x, ctx xs)
+  term : Cons
+  inferred type: cctx<list<int>,list<int>>
+  expected type: cctx<list<int>,list<a>>
+  because : constructor must have the same the type as the matched term
