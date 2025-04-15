@@ -1701,9 +1701,14 @@ inferPattern matchType branchRange (PatConCtx name patterns0 nameRange range) wi
        addRangeInfo nameRange (RM.Id qname (RM.NICon gconTp (conInfoDoc coninfo)) [] False)
        -- traceDoc $ \env -> text "inferPattern.constructor:" <+> pretty qname <.> text ":" <+> ppType env gconTp
 
-       useSkolemizedCon coninfo gconTp branchRange range $ \conRho xvars ->
+       useSkolemizedCon coninfo gconTpRaw branchRange range $ \conRho xvars ->
         do -- (conRho,tvars,_) <- instantiate range gconTp
-           let (conParTps,conEffTp,conResTp) = splitConTp conRho
+           let (conParTps',conEffTp,conResTp') = splitConTp conRho
+           let wrapCtx (i, (n, t)) | (i == ctxIndex) = (n, TApp typeCCtxx [t,holetp])
+               wrapCtx (_, p) | otherwise = p
+           let conParTps = map wrapCtx $ zip [0..] conParTps'
+           let conResTp = TApp typeCCtxx [conResTp',holetp]
+
            inferUnify (checkConTotal range) nameRange conEffTp typeTotal
            inferUnify (checkConMatch range) nameRange conResTp matchType
            patterns <- matchPatterns range nameRange conRho conParTps patterns0

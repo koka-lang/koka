@@ -1,0 +1,10 @@
+test/pattern-cctx/wrong/match-cctx-constructor-ctx-arg-concrete@kk(5,21): type error: types do not match
+ context : fun main(): listInt {
+ @@@
+ }
+ term : {
+ @@@
+ }
+ inferred type: cctx<listInt,listInt>
+ expected type: listInt
+ because : function returns values of different types
