@@ -2448,7 +2448,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
               Var name _ nameRange | not (isQualified name) ->
                 [(
                   text "hint",
-                  text ("`" ++ showPlain name ++ "` is a local variable which may be shadowing a function")
+                  text ("`" ++ showPlain name ++ "` at " ++ showRange "." False nameRange ++ " might be shadowing another function")
                 )]
               _ -> []
 
