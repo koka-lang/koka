@@ -2,4 +2,4 @@ test/type/wrong/local-shadow@kk(7,44): type error: only functions or types with 
  context : address@port
  term : port
  inferred type: int
- hint : `port` at @@@/test/type/wrong/local-shadow@kk(7,44) might be shadowing another function
+ hint : port at position (6, 7) might be shadowing another function

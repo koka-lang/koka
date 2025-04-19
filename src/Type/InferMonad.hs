@@ -30,6 +30,7 @@ module Type.InferMonad( Inf, InfGamma
 
                       , lookupAppName
                       , lookupFunName
+                      , lookupLocalName
                       , lookupNameCtx
                       , lookupInfName
                       , NameContext(..), maybeToContext

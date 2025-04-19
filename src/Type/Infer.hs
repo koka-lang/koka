@@ -2440,17 +2440,25 @@ matchFunTypeArgs context fun tp fresolved fixed named
 
     reportNonCallable
       = do
+         hints <- shadowHints
          typeError context range (text "only functions or types with a copy constructor can be applied") tp hints
          return (zip [1..] (map (\x -> ArgExpr x True) (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
       where
-        hints
+        shadowHints
           = case fun of
-              Var name _ nameRange | not (isQualified name) ->
-                [(
-                  text "hint",
-                  text ("`" ++ showPlain name ++ "` at " ++ showRange "." False nameRange ++ " might be shadowing another function")
-                )]
-              _ -> []
+              Var name _ nameRange -> do
+                vals <- lookupLocalName isInfoVal name
+                ppEnv <- getPrettyEnv
+                case vals of 
+                  Right (nm, nameInfo) -> 
+                    return $ shadowHint ppEnv (nm, nameInfo)
+                  Left results -> return (concatMap (shadowHint ppEnv) results) -- Multiple locals with the same name?
+              _ -> return []
+        shadowHint ppEnv (nm, nameInfo) = 
+          [(
+            text "hint",
+            ppName ppEnv nm <+> text "at position" <+> text (show (infoRange nameInfo)) <+> text "might be shadowing another function"
+          )]
 
 
 
