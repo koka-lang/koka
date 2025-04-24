@@ -1687,7 +1687,11 @@ inferPattern matchType branchRange (PatConCtx name patterns0 nameRange range) wi
   = do (qname,gconTpRaw,repr,coninfo) <- resolveConName name Nothing range
        when (length (conInfoParams coninfo) == 0) (typeError range nameRange (text "cannot match cctx on zero-arg constructor") (matchType) [])
 
-       let ctxArgs = [(i, p) | (i, (_, p@PatVarCtx{})) <- (zip [0..] patterns0)] :: [(Int, Pattern Type)]
+       let isCtx p = case p of
+                       PatVarCtx{} -> True
+                       PatWildCtx{} -> True
+                       _ -> False
+       let ctxArgs = [(i, p) | (i, (_, p)) <- (zip [0..] patterns0), isCtx p] :: [(Int, Pattern Type)]
        when ((length ctxArgs) /= 1) (
          case ctxArgs of
            []       -> typeError range nameRange (text "cannot match cctx on with zero constructor arguments marked as ctx") (matchType) []
@@ -1825,6 +1829,7 @@ inferPattern matchType branchRange (PatVar binder) withPattern inferPart
         res <- withPattern (Core.PatVar (Core.TName (binderName binder) matchType) cpat) x
         return (btpeffs,res)
 
+inferPattern matchType branchRange (PatWildCtx range) withPattern inferPart = inferPattern matchType branchRange (PatWild range) withPattern inferPart
 inferPattern matchType branchRange (PatWild range) withPattern inferPart
   =  do (btpeffs,x) <- inferPart []
         res <- withPattern Core.PatWild  x

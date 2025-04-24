@@ -276,6 +276,7 @@ data Guard t
 -- | Patterns
 data Pattern t
   = PatWild   !Range
+  | PatWildCtx !Range  -- for contructor contexts
   | PatHole   !Range -- for contructor contexts
   | PatVar    !(ValueBinder (Maybe t) (Pattern t)) -- the binderExpr is a potential other pattern (used for "as x" bindings)
   | PatVarCtx !(ValueBinder (Maybe t) (Pattern t)) -- for contructor contexts
@@ -418,6 +419,7 @@ instance Ranged (Pattern t) where
     = case pat of
         PatHole range           -> range
         PatWild range           -> range
+        PatWildCtx range        -> range
         PatVar  binder          -> getRange binder
         PatVarCtx binder        -> getRange binder
         PatAnn  pat tp range    -> range

@@ -2352,7 +2352,7 @@ patAtomCtx
        let ctxHole = do rng <- keyword "hole"
                         return (PatHole rng)
        let ctxWildcard = do (_,range) <- wildcard
-                            return (PatWild range)
+                            return (PatWildCtx range)
        let ctxVar = do (name,rng) <- identifier
                        (do keyword "as"
                            p <- patternCtx
@@ -2360,7 +2360,15 @@ patAtomCtx
                         <|>
                         return (PatVarCtx (ValueBinder name Nothing (PatWild rng) rng rng))
                         )
-       ctxVar <|> ctxHole <|> ctxWildcard
+       let ctxVarUnused = do _ <- parseLex (LexChar '_')
+                             (name,rng) <- identifier
+                             (do keyword "as"
+                                 p <- patternCtx
+                                 return (PatVarCtx (ValueBinder name Nothing p rng (combineRanged rng p)))
+                              <|>
+                              return (PatVarCtx (ValueBinder name Nothing (PatWild rng) rng rng))
+                              )
+       ctxVar <|> ctxVarUnused <|> ctxHole <|> ctxWildcard
   <|>
     do lit <- literal
        return (PatLit lit)

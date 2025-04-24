@@ -625,6 +625,7 @@ infExprMaybe mbExpr
 infPat pat
   = case pat of
       PatWild range           -> return (PatWild range)
+      PatWildCtx range        -> return (PatWildCtx range)
       PatHole range           -> return (PatHole range)
       PatLit lit              -> return (PatLit lit)
       PatVar  binder          -> do binder' <- infPatValueBinder binder

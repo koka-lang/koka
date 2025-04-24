@@ -270,6 +270,7 @@ instance HasFreeVar (Pattern t) where
   freeVar pat
     = case pat of
         PatWild range            -> S.empty
+        PatWildCtx range         -> S.empty
         PatHole range            -> S.empty
         PatCon  name args _ _    -> S.unions (map (freeVar . snd) args)
         PatConCtx  name args _ _  -> S.unions (map (freeVar . snd) args)
