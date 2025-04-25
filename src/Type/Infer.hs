@@ -2325,8 +2325,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                 = let coreVar = coreExprFromNameInfo qname info
                                   in (Core.App (coreInst coreVar) (seqqList coreArgs))
                           return (iargs,pars,eff,res,coreAddCopy)
-                  _ -> do typeError context range (text "only functions or types with a copy constructor can be applied") tp []
-                          return (zip [1..] (map (\x -> ArgExpr x True) (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
+                  _ -> reportNonCallable
   where
     range = getRange fun
 
@@ -2438,6 +2437,28 @@ matchFunTypeArgs context fun tp fresolved fixed named
       = case tp of
           TSyn syn [_,_] _ -> (typesynName syn == nameTpDelay)
           _ -> False
+
+    reportNonCallable
+      = do
+         hints <- shadowHints
+         typeError context range (text "only functions or types with a copy constructor can be applied") tp hints
+         return (zip [1..] (map (\x -> ArgExpr x True) (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
+      where
+        shadowHints
+          = case fun of
+              Var name _ nameRange -> do
+                vals <- lookupLocalName isInfoVal name
+                ppEnv <- getPrettyEnv
+                case vals of 
+                  Right (nm, nameInfo) -> 
+                    return $ shadowHint ppEnv (nm, nameInfo)
+                  Left results -> return (concatMap (shadowHint ppEnv) results) -- Multiple locals with the same name?
+              _ -> return []
+        shadowHint ppEnv (nm, nameInfo) = 
+          [(
+            text "hint",
+            ppName ppEnv nm <+> text "at position" <+> text (show (infoRange nameInfo)) <+> text "might be shadowing another function"
+          )]
 
 
 

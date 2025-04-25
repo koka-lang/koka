@@ -1,0 +1,5 @@
+test/type/wrong/local-shadow@kk(7,44): type error: only functions or types with a copy constructor can be applied
+ context : address@port
+ term : port
+ inferred type: int
+ hint : port at position (6, 7) might be shadowing another function
