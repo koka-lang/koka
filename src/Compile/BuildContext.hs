@@ -462,7 +462,7 @@ completeMain addShow exprName tp buildc
       = case getOperationEffectX exclude l of
           Just (_,ename)  -> case lookupDefaultHandler ename of
             Just res  -> addDefaultHandler range eff ls imports body res
-            Nothing   -> do throwError (\penv -> errorMessageKind ErrBuild range
+            Nothing   -> do throwError (\penv -> errorMessageKind ErrBuild range BuildErrorUnhandledEffects
                                                 (text "there are unhandled effects for the main expression" <-->
                                                 text " inferred effect :" <+> TP.ppType penv eff <-->
                                                 text " unhandled effect:" <+> TP.ppType penv l <-->

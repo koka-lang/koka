@@ -348,7 +348,7 @@ externDecl env
        mbformat <- externalBody
        format <- case mbformat of
                    Just format -> return format
-                   Nothing     -> do pwarningMessage ("unsupported external " ++ show name) range
+                   Nothing     -> do pwarningMessage ParseWarningUnknownTarget ("unsupported external " ++ show name) range
                                      return (unsupportedExternal (show name))
        return (External (qualify (modName env) name) tp pinfos format vis fip range doc)
 

@@ -33,10 +33,10 @@ unify context range kind1 kind2
        case mgu skind1 skind2 of
          Ok sub' -> extendKSub sub'
          err     -> do cscheme <- getColorScheme
-                       kindError cscheme context range err skind1 skind2
+                       kindError KindErrorKindMismatch cscheme context range err skind1 skind2
 
-kindError colors context range err kind1 kind2
-  = addError range $
+kindError code colors context range err kind1 kind2
+  = addError code range $
     text message <->
     table ([(text "type context", docFromRange colors rangeContext)
            ,(text "type", docFromRange colors range)
