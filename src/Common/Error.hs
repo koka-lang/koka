@@ -15,7 +15,7 @@ module Common.Error( -- error messages
                    , errorMessage, warningMessage, errorMessageKind, warningMessageKind, toWarning
                    , mergeErrors, errorsNil, errorsSingle, errorsAdd
                    -- monad: todo redesign
-                   , Error, ok
+                   , Error, ok, ErrorCode(..), InternalErrorCode(..), BuildErrorCode(..), GeneralErrorCode(..)
                    , warningMsg, errorMsg, warningMsgs, errorMsgs
                    , errorMsgPartial, errorMsgsPartial, addErrorMsg
                    , handleError, checkError, checkPartial, setPartial
@@ -44,7 +44,9 @@ data Errors       = Errors{ errors :: ![ErrorMessage] }
 type Warnings     = Errors
 
 data ErrorMessage = ErrorMsg{ errRange   :: !Range
-                            , errMessage :: !Doc
+                            , errCode :: !Int -- Error code, more specific than the Kind (i.e. for type errors which type error)
+                            , errShortMessage :: !Doc -- Short message for diagnostic panel, this should be short and explain the general error class, with no reference to the code that caused it
+                            , errMessage :: !Doc -- Full message for error report in console or hover information
                             , errSeverity:: !ErrorSeverity
                             , errKind    :: !ErrorKind
                             }
@@ -53,8 +55,71 @@ data ErrorMessage = ErrorMsg{ errRange   :: !Range
 data ErrorSeverity= SevInfo | SevWarning | SevError
                   deriving (Eq,Ord,Typeable)
 
-data ErrorKind    = ErrGeneral | ErrParse | ErrStatic | ErrKind | ErrType | ErrBuild | ErrInternal
+data ErrorKind    = ErrGeneral | ErrParse | ErrStatic | ErrKind | ErrType | ErrFip | ErrBuild | ErrInternal
                   deriving (Eq, Typeable)
+
+errorKindCodeBase :: ErrorKind -> Int
+errorKindCodeBase ekind
+  = case ekind of
+      ErrGeneral -> 0
+      ErrParse   -> 1000
+      ErrStatic  -> 2000
+      ErrKind    -> 3000
+      ErrType    -> 4000
+      ErrFip     -> 5000
+      ErrBuild   -> 6000
+      ErrInternal-> 7000
+
+class ErrorCode a where
+  codeNum :: a -> Int
+  codeDoc :: a -> Doc
+
+data GeneralErrorCode = 
+  GeneralMonadFail
+  | GeneralException
+
+instance ErrorCode GeneralErrorCode where
+  codeNum GeneralMonadFail = 0
+  codeNum GeneralException = 1
+  codeDoc GeneralMonadFail = text "internal compiler error in a monadic operation"
+  codeDoc GeneralException = text "general exception"
+
+data InternalErrorCode = 
+  InternalMonadFail
+  | InternalException
+  | InvalidCoreProduced
+
+instance ErrorCode InternalErrorCode where
+  codeNum InternalMonadFail = 0
+  codeNum InternalException = 1
+  codeNum InvalidCoreProduced = 2
+
+  codeDoc InternalMonadFail = text "internal compiler error in a monadic operation"
+  codeDoc InternalException = text "internal exception"
+  codeDoc InvalidCoreProduced = text "core code produced is invalid"
+
+data BuildErrorCode
+  = BuildException
+  | BuildErrorModuleNotFound
+  | BuildErrorFileNotFound
+  | BuildErrorInterfaceMissingSource
+  | BuildErrorModuleNameNotSuffixOfPath
+  | BuildErrorUnhandledEffects
+
+instance ErrorCode BuildErrorCode where
+  codeNum BuildException = 0
+  codeNum BuildErrorModuleNotFound = 100
+  codeNum BuildErrorFileNotFound = 101
+  codeNum BuildErrorInterfaceMissingSource = 102
+  codeNum BuildErrorModuleNameNotSuffixOfPath = 103
+  codeNum BuildErrorUnhandledEffects = 200
+  codeDoc BuildException = text "build exception"
+  codeDoc BuildErrorModuleNotFound = text "module not found"
+  codeDoc BuildErrorFileNotFound = text "file not found"
+  codeDoc BuildErrorInterfaceMissingSource = text "interface file found, but source file not found"
+  codeDoc BuildErrorModuleNameNotSuffixOfPath = text "module name not suffix of path"
+  codeDoc BuildErrorUnhandledEffects = text "unhandled top level effects"
+
 
 instance Exception ErrorMessage
 instance Exception Errors
@@ -75,21 +140,20 @@ isWarning emsg
   = errSeverity emsg <= SevWarning
 
 
-infoMessageKind ekind range doc
-  = ErrorMsg range doc SevInfo ekind
+infoMessageKind ekind range code longDoc
+  = ErrorMsg range (errorKindCodeBase ekind + codeNum code) (codeDoc code)  longDoc SevInfo ekind
 
-warningMessageKind ekind range doc
-  = ErrorMsg range doc SevWarning ekind
+warningMessageKind ekind range code longDoc
+  = ErrorMsg range (errorKindCodeBase ekind + codeNum code) (codeDoc code)  longDoc SevWarning ekind
 
-errorMessageKind ekind range doc
-  = ErrorMsg range doc SevError ekind
+errorMessageKind ekind range code longDoc
+  = ErrorMsg range (errorKindCodeBase ekind + codeNum code) (codeDoc code) longDoc SevError ekind
 
 warningMessage range doc
   = warningMessageKind ErrGeneral range doc
 
 errorMessage range doc
   = errorMessageKind ErrGeneral range doc
-
 
 errorsNil :: Errors
 errorsNil = Errors []
@@ -132,7 +196,7 @@ ppErrorSeverity cscheme ekind sev
 
 
 ppErrorMessage :: FilePath -> Bool -> ColorScheme -> ErrorMessage -> Doc
-ppErrorMessage cwd endToo {-show end of range as well?-} cscheme (ErrorMsg range doc esev ekind)
+ppErrorMessage cwd endToo {-show end of range as well?-} cscheme (ErrorMsg range _ _ doc esev ekind)
   = hang 2 $ ppRange cwd endToo cscheme range <.> colon <+> ppErrorSeverity cscheme ekind esev <+> doc
 
 ppErrors :: FilePath -> Bool -> ColorScheme -> Errors -> Doc
@@ -140,9 +204,9 @@ ppErrors cwd endToo cscheme (Errors errs)
   = vcat (map (ppErrorMessage cwd endToo cscheme) errs)
 
 
-toWarning :: ErrorKind -> (Range,Doc) -> ErrorMessage
-toWarning ekind (range,doc)
-  = warningMessageKind ekind range doc
+toWarning :: ErrorCode a => ErrorKind -> a -> Range -> Doc -> ErrorMessage
+toWarning ekind code range doc
+  = warningMessageKind ekind range code doc
 
 
 
@@ -253,7 +317,8 @@ instance Monad (Error b) where
                     Error msg m -> Error msg m
 
 instance MonadFail (Error b) where
-  fail s        = Error (errorsSingle (errorMessage rangeNull (text s))) Nothing
+  fail s        = Error (errorsSingle (errorMessage rangeNull InternalMonadFail (text s))) Nothing
+
 
 instance MonadPlus (Error b) where
   mzero         = Error errorsNil Nothing

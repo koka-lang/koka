@@ -521,7 +521,7 @@ moduleParse tparsedMap
           Right (prog,warns)
             -> do penv <- getPrettyEnv
                   let err = if not (reverse (show (programName prog)) `isPrefixOf` reverse (show (modName mod)))
-                             then errorsSingle $ errorMessageKind ErrStatic (programNameRange prog) $
+                             then errorsSingle $ errorMessageKind ErrBuild (programNameRange prog) BuildErrorModuleNameNotSuffixOfPath $
                                                  text "the module name" <+> TP.ppName penv (programName prog) <+>
                                                  text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod)
                              else errorsNil
@@ -781,7 +781,7 @@ moduleFromModuleName relativeDir modName
             -> do ifaceExist <- buildDoesFileExistAndNotEmpty ifacePath
                   if ifaceExist
                     then do cs <- getColorScheme
-                            addWarningMessage (warningMessageKind ErrBuild rangeNull (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
+                            addWarningMessage (warningMessageKind ErrBuild rangeNull BuildErrorInterfaceMissingSource (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
                             moduleValidate $ moduleCreateInitial modName "" ifacePath libIfacePath
                     else throwModuleNotFound rangeNull modName
 
@@ -885,12 +885,12 @@ coreReset core
 throwModuleNotFound :: Range -> Name -> Build a
 throwModuleNotFound range name
   = do flags <- getFlags
-       throwError (\penv -> errorMessageKind ErrBuild range (errorNotFound flags colorModule "module" (pretty name)))
+       throwError (\penv -> errorMessageKind ErrBuild range BuildErrorModuleNotFound (errorNotFound flags colorModule "module" (pretty name)))
 
 throwFileNotFound :: FilePath -> Build a
 throwFileNotFound name
   = do flags <- getFlags
-       throwError (\penv -> errorMessageKind ErrBuild rangeNull (errorNotFound flags colorSource "" (text name)))
+       throwError (\penv -> errorMessageKind ErrBuild rangeNull BuildErrorFileNotFound (errorNotFound flags colorSource "" (text name)))
 
 errorNotFound flags clr kind namedoc
   = text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc <->
@@ -1036,7 +1036,7 @@ forkTerminal term termProxyDone
       = do mbf <- readChan ch
            case mbf of
              Nothing -> do return ()
-             Just io -> do io `catchAny` \err -> termError term (errorMessageKind ErrGeneral rangeNull (text (show err)))
+             Just io -> do io `catchAny` \err -> termError term (errorMessageKind ErrGeneral rangeNull GeneralException (text (show err)))
                            handleOutput ch
 
 
@@ -1054,8 +1054,8 @@ checked (Build cmp)
                         let env = env0{ envErrors = errsRef }
                         res <- do{ x <- cmp env; return (Right x) }
                                `catch` (\errs -> return (Left errs)) -- ErrorMessage's
-                               `catchError` (\err -> makeErr env ErrInternal (show err))  -- error(...)
-                               `catchIO` (\exn -> makeErr env ErrBuild (show exn))  -- IO errors
+                               `catchError` (\err -> makeErr env ErrInternal InternalException (show err))  -- error(...)
+                               `catchIO` (\exn -> makeErr env ErrBuild BuildException (show exn))  -- IO errors
                         errsw <- readIORef errsRef
                         writeIORef errsRef errorsNil
                         case res of
@@ -1063,9 +1063,9 @@ checked (Build cmp)
                           Left errs  -> return (Left (mergeErrors errsw errs))
             )
   where
-    makeErr env errKind msg
+    makeErr env errKind code msg
       = do let rng = makeSourceRange (show (envModName env)) 1 1 1 1
-           return (Left (errorsSingle (errorMessageKind errKind rng (text msg))))
+           return (Left (errorsSingle (errorMessageKind errKind rng code (text msg))))
 
 checkedDefault :: a -> Build a -> Build (a,Errors)
 checkedDefault def action
@@ -1157,7 +1157,7 @@ instance Monad Build where
                           Build ie' -> ie' env)
 
 instance F.MonadFail Build where
-  fail msg = throwError (\penv -> errorMessageKind ErrGeneral rangeNull (text msg))
+  fail msg = throwError (\penv -> errorMessageKind ErrGeneral rangeNull GeneralMonadFail (text msg))
 
 onBuildException :: Build b -> Build a -> Build a
 onBuildException (Build onExn) (Build b)
@@ -1175,7 +1175,7 @@ throwError msg
 throwErrorKind :: ErrorKind -> (TP.Env -> Doc) -> Build a
 throwErrorKind ekind doc
   = do rng <- getCurrentRange
-       throwError (\penv -> errorMessageKind ekind rng (doc penv))
+       throwError (\penv -> errorMessageKind ekind rng BuildException (doc penv))
 
 getEnv :: Build Env
 getEnv
@@ -1257,7 +1257,7 @@ addErrorMessageKind :: ErrorKind -> (TP.Env -> Doc) -> Build ()
 addErrorMessageKind ekind doc
   = do rng <- getCurrentRange
        penv <- getPrettyEnv
-       addErrorMessage (errorMessageKind ekind rng (doc penv))
+       addErrorMessage (errorMessageKind ekind rng BuildException (doc penv))
 
 phaseTimed :: Int -> String -> (TP.Env -> Doc) -> Build a -> Build a
 phaseTimed level p doc action

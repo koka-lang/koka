@@ -73,7 +73,25 @@ import qualified Control.Monad.State as Mon
 -- Parser on token stream
 -----------------------------------------------------------
 
-type LexParser a  = Parsec [Lexeme] [(String, Range)] a -- GenParser Lexeme () a
+type LexParser a  = Parsec [Lexeme] [(ParseErrorCode, String, Range)] a -- GenParser Lexeme () a
+
+data ParseErrorCode
+  = ParseErrorParsec
+  | ParseWarningDeprecatedKeyword
+  | ParseWarningDeprecatedSyntax
+  | ParseWarningRedundantSyntax
+
+instance ErrorCode ParseErrorCode where
+  codeNum ParseErrorParsec = 0
+  codeNum ParseWarningDeprecatedKeyword = 100
+  codeNum ParseWarningDeprecatedSyntax = 101
+  codeNum ParseWarningRedundantSyntax = 102
+  codeDoc ParseErrorParsec = text "parse error"
+  codeDoc ParseWarningDeprecatedKeyword = text "deprecated keyword"
+  codeDoc ParseWarningDeprecatedSyntax = text "deprecated syntax"
+  codeDoc ParseWarningRedundantSyntax = text "redundant syntax"
+
+
 
 parseLex :: Lex -> LexParser Lexeme
 parseLex lex
@@ -108,7 +126,7 @@ logSyntaxWarnings warnings
 parseProgramFromString :: Bool -> Bool -> BString -> FilePath -> Error a UserProgram
 parseProgramFromString allowAt semiInsert input fname
   = do ((prog,lexemes), syntaxWarnings) <- lexParse allowAt semiInsert id program fname 1 input
-       addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) syntaxWarnings) $
+       addWarnings (map (\(c, s, r) -> warningMessageKind ErrParse r c (text s)) syntaxWarnings) $
         return prog
 
 parseValueDef :: Bool -> FilePath -> Int -> String -> Error () UserDef
@@ -127,7 +145,7 @@ parseExpression :: Bool -> FilePath -> Int -> Name -> String -> Error () UserDef
 parseExpression semiInsert sourceName line name input
   = lexParseS semiInsert (const (expression name))  sourceName line input
 
-ignoreSyntaxWarnings :: Error b (a, [(String, Range)]) -> Error b a
+ignoreSyntaxWarnings :: Error b (a, [(ParseErrorCode, String, Range)]) -> Error b a
 ignoreSyntaxWarnings result =
   do (x, syntaxWarnings) <- result
      return x
@@ -136,9 +154,9 @@ lexParseS :: Bool -> (Source -> LexParser b) -> FilePath -> Int -> String -> Err
 lexParseS semiInsert p sourceName line str
   = do
       ((result,lexemes), syntaxWarnings) <- (lexParse False semiInsert id p sourceName line (stringToBString str))
-      return $ trace (concat (intersperse "\n" (map fst syntaxWarnings))) $ result
+      return $ trace (concat (intersperse "\n" (map (\(_,w,_) -> w) syntaxWarnings))) $ result
 
-runStateParser :: LexParser a -> SourceName -> [Lexeme] -> Either ParseError (a, [(String, Range)])
+runStateParser :: LexParser a -> SourceName -> [Lexeme] -> Either ParseError (a, [(ParseErrorCode, String, Range)])
 runStateParser p sourceName lex =
   runParser (pp p) [] sourceName lex
   where
@@ -147,7 +165,7 @@ runStateParser p sourceName lex =
          s <- getState
          return (r, s)
 
-lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error b ((a,[Lexeme]), [(String, Range)])
+lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error b ((a,[Lexeme]), [(ParseErrorCode, String, Range)])
 lexParse allowAt semiInsert preprocess p sourceName line rawinput
   = let source = Source sourceName rawinput
         lexemes = lexSource allowAt semiInsert preprocess line source
@@ -160,7 +178,7 @@ lexParse allowAt semiInsert preprocess p sourceName line rawinput
 parseProgramFromLexemes :: Source -> [Lexeme] -> Error () UserProgram
 parseProgramFromLexemes source lexemes
   = do (prog, syntaxWarnings) <- parseLexemes (program source) source lexemes
-       addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) syntaxWarnings) $
+       addWarnings (map (\(c, s, r) -> warningMessageKind ErrParse r c (text s)) syntaxWarnings) $
          return prog
 
 
@@ -173,7 +191,7 @@ parseDependencies source lexemes
                           -- trace ("dependencies: " ++ show x) $
                           return x
 
-parseLexemes :: LexParser a -> Source -> [Lexeme] -> Error () (a, [(String, Range)])
+parseLexemes :: LexParser a -> Source -> [Lexeme] -> Error () (a, [(ParseErrorCode, String, Range)])
 parseLexemes p source@(Source sourceName _) lexemes
   = case (runStateParser p sourceName lexemes) of
       Left err -> makeParseError (errorRangeLexeme lexemes source) err
@@ -182,7 +200,7 @@ parseLexemes p source@(Source sourceName _) lexemes
 
 makeParseError :: (ParseError -> Range) -> ParseError -> Error b a
 makeParseError toRange perr
-  = errorMsg (errorMessageKind ErrParse (toRange perr) errorDoc)
+  = errorMsg (errorMessageKind ErrParse (toRange perr) ParseErrorParsec errorDoc)
   where
     errorDoc
       = PP.string ("invalid syntax" ++ (drop 1 $ dropWhile (/=':') $ show perr))
@@ -386,7 +404,7 @@ visibility vis
   =   do rng <- keywordOr "pub" ["public"]
          return (Public,rng)
   <|> do rng <- keyword "private"
-         pwarningMessage "using 'private' is deprecated, only use 'pub' to make declarations public" rng
+         pwarningMessage ParseWarningDeprecatedKeyword "using 'private' is deprecated, only use 'pub' to make declarations public" rng
          return (Private,rng)
   <|> return (vis,rangeNull)
 
@@ -1363,7 +1381,7 @@ parseFipEx :: Range -> Bool -> LexParser (Fip,Range)
 parseFipEx rng0 isTail
   = do rng1 <- specialId "fip"
        (alloc,rng2) <- parseFipAlloc
-       when isTail $ pwarningMessage "a 'fip' function implies already 'tail'" rng1
+       when isTail $ pwarningMessage ParseWarningRedundantSyntax "a 'fip' function implies already 'tail'" rng1
        return (Fip alloc, combineRanges [rng0,rng1,rng2])
   <|>
     do rng1 <- specialId "fbip"
@@ -1771,7 +1789,7 @@ ifexpr
         <|>
         do pos <- getPosition
            expr <- blockexpr
-           pwarning ("warning " ++ show pos ++ ": using an 'if' without 'then' is deprecated.\n  hint: add the 'then' keyword.") rng
+           pwarning ParseWarningDeprecatedSyntax ("warning " ++ show pos ++ ": using an 'if' without 'then' is deprecated.\n  hint: add the 'then' keyword.") rng
            return expr
 
 returnexpr
@@ -1938,7 +1956,7 @@ handlerOp :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
 handlerOp
   = do rng <- keyword "return"
        (name,prng,tp) <- do (name,prng) <- paramid
-                            pwarningMessage "'return x' is deprecated; use 'return(x)' instead." prng
+                            pwarningMessage ParseWarningDeprecatedSyntax "'return x' is deprecated; use 'return(x)' instead." prng
                             tp         <- optionMaybe typeAnnotPar
                             return (name,prng,tp)
                         <|>
@@ -1983,7 +2001,7 @@ handlerOp
                     return OpControlErr
        (name, nameRng) <- qidentifier
        if opSort == OpControlErr then
-        pwarningMessage "using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'brk', or 'ctl' instead." nameRng
+        pwarningMessage ParseWarningDeprecatedSyntax "using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'brk', or 'ctl' instead." nameRng
        else return ()
        (oppars,prng) <- opParams
        expr <- bodyexpr
@@ -2034,7 +2052,7 @@ guards
        return [Guard guardTrue exp]
   <|>
     do exp <- block
-       pwarningMessage "use '->' for pattern matches" (getRange exp)
+       pwarningMessage ParseWarningDeprecatedSyntax "use '->' for pattern matches" (getRange exp)
        return [Guard guardTrue exp]
 
 guardBar
@@ -3172,15 +3190,15 @@ docconid
 
 warnDeprecated dep new rng
   = do pos <- getPosition
-       pwarning ("warning " ++ show pos ++ ": keyword \"" ++ dep ++ "\" is deprecated. Consider using \"" ++ new ++ "\" instead.") rng
+       pwarning ParseWarningDeprecatedKeyword ("warning " ++ show pos ++ ": keyword \"" ++ dep ++ "\" is deprecated. Consider using \"" ++ new ++ "\" instead.") rng
 
 
-pwarningMessage msg rng
+pwarningMessage code msg rng
   = do pos <- getPosition
-       pwarning ("warning " ++ show pos ++ ": " ++ msg) rng
+       pwarning code ("warning " ++ show pos ++ ": " ++ msg) rng
 
-pwarning :: String -> Range -> LexParser ()
-pwarning msg rng = modifyState (\prev -> prev ++ [(msg, rng)])
+pwarning :: ParseErrorCode -> String -> Range -> LexParser ()
+pwarning code msg rng = modifyState (\prev -> prev ++ [(code, msg, rng)])
 
 
 uniqueRngHiddenName :: Range -> String -> Name

@@ -467,7 +467,7 @@ completeMain addShow exprName tp buildc
                                       return (handle body', imports' ++ imp)
                               else addDefaultHandlers range eff ls (imports ++ imp) (handle body)
                     infos
-                      -> do throwError (\penv -> errorMessageKind ErrBuild range
+                      -> do throwError (\penv -> errorMessageKind ErrBuild range BuildErrorUnhandledEffects
                                            (text "there are unhandled effects for the main expression" <-->
                                             text " inferred effect :" <+> TP.ppType penv eff <-->
                                             text " unhandled effect:" <+> TP.ppType penv l <-->

@@ -59,7 +59,7 @@ checkFBIP penv platform newtypes borrowed gamma
   = do uniq      <- unique
        defGroups <- getCoreDefs
        let (_,warns) = runChk penv uniq platform newtypes borrowed gamma (chkDefGroups defGroups)
-       liftError (warningMsgs [warningMessageKind ErrStatic range doc | (range,doc) <- warns])
+       liftError (warningMsgs [warningMessageKind ErrFip range code doc | (code,range,doc) <- warns])
 
 
 {--------------------------------------------------------------------------
@@ -111,7 +111,7 @@ chkExpr expr
       TypeApp body _ -> chkExpr body
       Lam pars eff body
         -> do chkEffect eff
-              requireCapability mayAlloc $ \ppenv -> Just $
+              requireCapability FipWarningLambdaAllocation mayAlloc $ \ppenv -> Just $
                 text "allocating a lambda expression"
               out <- extractOutput $ chkExpr body
               writeOutput =<< foldM (\out nm -> bindName nm NotReusable out) out pars
@@ -132,7 +132,7 @@ chkExpr expr
               withBorrowed (S.map getName $ M.keysSet $ gammaNm gamma2) $
                 withTailMod [Let dgs body] $ chkExpr $ defExpr def
       Let _ _
-        -> emitWarning $ \penv -> text "internal: currently the fip analysis cannot handle nested function bindings"
+        -> emitWarning FipWarningUnsupportedNestedBinding $ \penv -> text "internal: currently the fip analysis cannot handle nested function bindings"
 
       Case scrutinees branches
         -> chkBranches scrutinees branches
@@ -203,7 +203,7 @@ bindPattern (PatLit _, _) out = pure out
 bindPattern (PatWild, tp) out
   = do ndd <- needsDupDropTp tp
        when ndd $
-         requireCapability mayDealloc $ \ppenv -> Just $
+         requireCapability FipWarningDroppedPatternBinder mayDealloc $ \ppenv -> Just $
            vcat [text "binding a wildcard pattern of type" <+> pretty tp <+> text "causes deallocation"]
        pure out
 
@@ -222,7 +222,7 @@ chkApp (Var tname info) args | not (infoIsRefCounted info) -- toplevel function
        chkFunCallable (getName tname)
        input <- getInput
        unless (isTailContext input || getName tname `notElem` defGroupNames input) $
-         requireCapability mayRecurse $ \ppenv -> Just $
+         requireCapability FipWarningNonTailRecursive mayRecurse $ \ppenv -> Just $
            cat [text "non-tail call to a (mutually) recursive function: ", ppName ppenv (getName tname)]
 chkApp fn args -- local function
   = do withNonTail $ mapM_ chkExpr args
@@ -230,7 +230,7 @@ chkApp fn args -- local function
          Var tname _ -> isBorrowed tname
          _ -> pure False
        unless isBapp $ do
-         requireCapability mayDealloc $ \ppenv -> Just $
+         requireCapability FipWarningOwnedCall mayDealloc $ \ppenv -> Just $
            vcat [text "owned calls to functions require deallocation: ", source ppenv (prettyExpr ppenv fn) ]
          chkExpr fn
 
@@ -247,7 +247,7 @@ chkArg (Borrow, expr)
       _ -> do chkExpr expr
               ndd <- needsDupDropTp (typeOf expr)
               when ndd $
-                requireCapability mayDealloc $ \ppenv -> Just $
+                requireCapability FipWarningOwnedAsBorrowed mayDealloc $ \ppenv -> Just $
                   vcat [text "passing owned expressions as borrowed causes deallocation:", source ppenv (prettyExpr ppenv expr)]
 
 
@@ -265,14 +265,14 @@ chkWrap :: TName -> VarInfo -> Chk ()
 chkWrap tname info
   = do bs <- getParamInfos (getName tname)
        unless (Borrow `notElem` bs) $
-         emitWarning $ \penv -> text "a function with borrowed parameters is passed as an argument and implicitly wrapped (causing allocation)"
+         emitWarning FipWarningFunctionWrapped $ \penv -> text "a function with borrowed parameters is passed as an argument and implicitly wrapped (causing allocation)"
        fip1 <- getFip
        fip2 <- lookupFip (getName tname)
        unless (fip1 `fipSubsumes` fip2) $
-         emitWarning $ \penv -> vcat [text $ "the function " ++ nameLocal (getName tname) ++ " is passed as an argument, but has an incompatible FIP/FBIP annotation:",
+         emitWarning FipWarningFunctionWrapped $ \penv -> vcat [text $ "the function " ++ nameLocal (getName tname) ++ " is passed as an argument, but has an incompatible FIP/FBIP annotation:",
                                       text " expected at least" <+> text (show fip1) <+> text "but found" <+> text (show fip2)]
        when (fipAlloc fip2 /= AllocAtMost 0 && fipAlloc fip1 /= AllocUnlimited) $
-           emitWarning $ \penv -> text $
+           emitWarning FipWarningFunctionWrapped $ \penv -> text $
                 "the " ++ show fip2 ++ " function "
              ++ nameLocal (getName tname)
              ++ " is passed as an argument and may be called an unlimited number of times, causing unlimited allocation."
@@ -280,7 +280,7 @@ chkWrap tname info
 chkAllocation :: TName -> ConRepr -> Chk ()
 chkAllocation cname repr | isConAsJust repr = pure ()
 chkAllocation cname repr | "_noreuse" `isSuffixOf` nameLocal (conTypeName repr)
-  = requireCapability mayAlloc $ \ppenv -> Just $
+  = requireCapability FipWarningExplicitNoReuse mayAlloc $ \ppenv -> Just $
       cat [text "types suffixed with _noreuse are not reused: ", ppName ppenv $ conTypeName repr]
 chkAllocation cname crepr
   = do size <- getConstructorAllocSize crepr
@@ -291,7 +291,7 @@ chkAllocation cname crepr
 chkEffect :: Tau -> Chk ()
 chkEffect tp
   = if isFBIPExtend tp then pure () else
-      emitWarning $ \penv -> text "algebraic effects other than" <+> ppType penv typePure <+> text "may cause allocation."
+      emitWarning FipWarningEffectsAllocate $ \penv -> text "algebraic effects other than" <+> ppType penv typePure <+> text "may cause allocation."
   where
     isFBIPExtend tp = case extractEffectExtend tp of
       (taus, tau) -> all isFBIP taus
@@ -303,7 +303,7 @@ chkEffect tp
 {--------------------------------------------------------------------------
   Chk monad
 --------------------------------------------------------------------------}
-type Chk a = ReaderT (Env, Input) (WriterT (Output, [(Range,Doc)]) Unique) a
+type Chk a = ReaderT (Env, Input) (WriterT (Output, [(FipErrorCode,Range,Doc)]) Unique) a
 
 data Env = Env{ currentDef :: [Def],
                 prettyEnv :: Pretty.Env,
@@ -340,6 +340,65 @@ instance Semigroup Output where
 instance Monoid Output where
   mempty = Output M.empty M.empty Leaf
 
+data FipErrorCode 
+  = FipWarningLambdaAllocation
+  | FipWarningFunctionWrapped
+  | FipWarningDroppedPatternBinder
+  | FipWarningNameUnbound
+  | FipWarningOwnedCall
+  | FipWarningOwnedAsBorrowed
+  | FipWarningNonFipCall
+  | FipWarningEffectsAllocate
+  | FipWarningNonTailRecursive
+  | FipWarningNonLazy
+  | FipWarningMatchConstructorDropped
+  | FipWarningBranchUsageDiffers
+  | FipWarningLastUseBorrowed
+  | FipWarningVariableShared
+  | FipWarningVariableDropped
+  | FipWarningFipDeclarationMismatch
+  | FipWarningExplicitNoReuse
+  | FipWarningFipInformationNotFound
+  | FipWarningUnsupportedNestedBinding
+instance ErrorCode FipErrorCode where
+  codeNum FipWarningLambdaAllocation = 0
+  codeNum FipWarningFunctionWrapped = 1
+  codeNum FipWarningDroppedPatternBinder = 2
+  codeNum FipWarningNameUnbound = 3
+  codeNum FipWarningOwnedCall = 4
+  codeNum FipWarningOwnedAsBorrowed = 5
+  codeNum FipWarningNonFipCall = 6
+  codeNum FipWarningEffectsAllocate = 7
+  codeNum FipWarningNonTailRecursive = 8
+  codeNum FipWarningNonLazy = 9
+  codeNum FipWarningMatchConstructorDropped = 10
+  codeNum FipWarningBranchUsageDiffers = 11
+  codeNum FipWarningLastUseBorrowed = 12
+  codeNum FipWarningVariableShared = 13
+  codeNum FipWarningVariableDropped = 14
+  codeNum FipWarningFipDeclarationMismatch = 15
+  codeNum FipWarningExplicitNoReuse = 100
+  codeNum FipWarningFipInformationNotFound = 101
+  codeNum FipWarningUnsupportedNestedBinding = 200
+  codeDoc FipWarningLambdaAllocation = text "lambda allocation is not fip"
+  codeDoc FipWarningFunctionWrapped = text "function is wrapped and causes allocation"
+  codeDoc FipWarningDroppedPatternBinder = text "wildcard pattern binder causes deallocation"
+  codeDoc FipWarningNameUnbound = text "borrowed name may have been used"
+  codeDoc FipWarningOwnedCall = text "owned call requires deallocation"
+  codeDoc FipWarningOwnedAsBorrowed = text "passing owned expression as borrowed causes deallocation"
+  codeDoc FipWarningNonFipCall = text "non-fip function call"
+  codeDoc FipWarningEffectsAllocate = text "effects other than pure may cause allocation"
+  codeDoc FipWarningNonTailRecursive = text "non-tail (mutually) recursive function causes allocation"
+  codeDoc FipWarningNonLazy = text "non-lazy constructor causes allocation"
+  codeDoc FipWarningMatchConstructorDropped = text "match constructor is not reused"
+  codeDoc FipWarningBranchUsageDiffers = text "branch usage differs from the function definition"
+  codeDoc FipWarningLastUseBorrowed = text "last use of variable is borrowed (causing deallocation)"
+  codeDoc FipWarningVariableShared = text "variable is shared (causing deallocation)"
+  codeDoc FipWarningVariableDropped = text "variable is dropped (causing deallocation)"
+  codeDoc FipWarningExplicitNoReuse = text "explicit _no_reuse causes allocation"
+  codeDoc FipWarningFipDeclarationMismatch = text "fip declaration mismatch"
+  codeDoc FipWarningUnsupportedNestedBinding = text "nested function bindings not supported currently"
+
 prettyGammaNm :: Pretty.Env -> Output -> Doc
 prettyGammaNm ppenv (Output nm dia _)
   = tupled $ map
@@ -356,7 +415,7 @@ prettyGammaDia ppenv (Output nm dia _)
       (\(sz, cs) -> map (\(_, (c,_):_) -> prettyCon ppenv c sz) cs)
       (M.toList dia)
 
-runChk :: Pretty.Env -> Int -> Platform -> Newtypes -> Borrowed -> Gamma -> Chk a -> (a,[(Range,Doc)])
+runChk :: Pretty.Env -> Int -> Platform -> Newtypes -> Borrowed -> Gamma -> Chk a -> (a,[(FipErrorCode,Range,Doc)])
 runChk penv u platform newtypes borrowed gamma c
   = fst $ runUnique 0 $
     fmap (fmap snd) $ runWriterT $
@@ -410,10 +469,10 @@ chkFunCallable fn
          Nothing | fn `elem` [nameCCtxSetCtxPath,nameFieldAddrOf]
            -> writeCallAllocation fn (Fip (AllocAtMost 0))
          Nothing
-           -> emitWarning $  \penv -> text "internal: fip analysis could not find fip information for function:" <+> ppName penv fn
+           -> emitWarning FipWarningFipInformationNotFound $  \penv -> text "internal: fip analysis could not find fip information for function:" <+> ppName penv fn
          Just fip'
            -> if fip' `isCallableFrom` fip then writeCallAllocation fn fip'
-              else emitWarning $ \penv -> text "calling a non-fip function:" <+> ppName penv fn
+              else emitWarning FipWarningNonFipCall $ \penv -> text "calling a non-fip function:" <+> ppName penv fn
   where
     isCallableFrom (Fip _)    _          = True
     isCallableFrom (Fbip _ _) (Fbip _ _) = True
@@ -444,11 +503,11 @@ chkLazyCon (TName cname _) repr
                              let fip' = conInfoLazyFip conInfo
                              if not (conInfoIsLazy conInfo) || fip' `isCallableFrom` fip
                              then writeCallAllocation cname fip'
-                             else emitWarning $ \penv -> text "allocating a non-fip lazy constructor:" <+> ppName penv cname
+                             else emitWarning FipWarningNonLazy $ \penv -> text "allocating a non-fip lazy constructor:" <+> ppName penv cname
                           _     -> warn
              Nothing -> warn
   where
-    warn = emitWarning $  \penv -> text "internal: fip analysis could not find fip information for constructor:" <+> ppName penv cname
+    warn = emitWarning FipWarningFipInformationNotFound $  \penv -> text "internal: fip analysis could not find fip information for constructor:" <+> ppName penv cname
 
     -- you can use an fbip lazy constructor in a fip function
     isCallableFrom (NoFip _)  (Fip _)    = False
@@ -473,13 +532,13 @@ extractOutput f
 
 -- | Perform a test if the capability is not present
 -- and emit a warning if the test is unsuccessful.
-requireCapability :: Chk Bool -> (Pretty.Env -> Maybe Doc) -> Chk ()
-requireCapability mayUseCap test
+requireCapability :: FipErrorCode -> Chk Bool -> (Pretty.Env -> Maybe Doc) -> Chk ()
+requireCapability code mayUseCap test
   = do hasCap <- mayUseCap
        unless hasCap $ do
          env <- getEnv
          case test (prettyEnv env) of
-           Just warning -> emitWarning (\_ -> warning)
+           Just warning -> emitWarning code (\_ -> warning)
            Nothing -> pure ()
 
 withNonTail :: Chk a -> Chk a
@@ -545,7 +604,7 @@ markBorrowed nm info
          markSeen nm info
          isHeapValue <- needsDupDrop nm
          when (isHeapValue && infoIsRefCounted info) $
-           requireCapability mayDealloc $ \ppenv -> Just $
+           requireCapability FipWarningLastUseBorrowed mayDealloc $ \ppenv -> Just $
              text "the last use of" <+> ppName ppenv (getName nm) <+> text "is borrowed (causing deallocation)"
 
 getAllocation :: TName -> Reusable -> Chk ()
@@ -557,7 +616,7 @@ getAllocation nm (ReusableWithSize size)
 provideToken :: TName -> Reusable -> Output -> Chk Output
 provideToken _ NotReusable out = pure out
 provideToken debugName (ReusableWithSize size) out
-  = do requireCapability mayDealloc $ \ppenv ->
+  = do requireCapability FipWarningMatchConstructorDropped mayDealloc $ \ppenv ->
          let fittingAllocs = M.findWithDefault [] size (gammaDia out) in
          case fittingAllocs of
            [] -> Just $ text "the matched constructor" <+> prettyCon ppenv debugName size <+> text "is not reused"
@@ -575,7 +634,7 @@ joinContexts pats cs
          (allReusable, c') <- foldM tryReuse (True, c) (map fst $ M.toList unused)
          pure (allReusable, c')
        unless (and noDealloc) $ do
-         requireCapability mayDealloc $ \ppenv -> Just $
+         requireCapability FipWarningBranchUsageDiffers mayDealloc $ \ppenv -> Just $
            vcat $ text "not all branches use the same variables:"
              : zipWith (\ps out -> cat [tupled (map (prettyPat ppenv) ps), text " -> ", prettyGammaNm ppenv out]) pats cs
        let unionDia = foldl1' (M.unionWith zipTokens) $ map (M.map (adjustProb (length cs')) . gammaDia) cs'
@@ -628,7 +687,7 @@ bindName nm msize out
       Just n -- variable is used 'n' times
         -> do isHeapVal <- needsDupDrop nm
               when (n > 1 && isHeapVal) $
-                requireCapability mayAlloc $ \ppenv -> Just $
+                requireCapability FipWarningVariableShared mayAlloc $ \ppenv -> Just $
                   text "the variable" <+> ppName ppenv (getName nm) <+> text "is used multiple times (causing sharing and preventing reuse)"
               pure $ out { gammaNm = M.delete nm (gammaNm out) }
 
@@ -638,7 +697,7 @@ chkDrop isTopLevelReused nm
        isFlat <- isFlatType nm
        unless ((isTopLevelReused && isFlat) || not isHeapValue) $
           -- non-reused heap values are dropped
-         requireCapability mayDealloc $ \ppenv -> Just $
+         requireCapability FipWarningVariableDropped mayDealloc $ \ppenv -> Just $
            text "the variable" <+> ppName ppenv (getName nm) <+> text "is unused (causing deallocation)"
 
 -- | We record if the program has both an allocation
@@ -687,7 +746,7 @@ checkOutputEmpty out
   = do case M.maxViewWithKey $ gammaNm out of
          Nothing -> pure ()
          Just ((nm, _), _)
-           -> emitWarning $ \penv -> text "unbound name (which may have been used despite being borrowed):" <+> ppName penv (getName nm)
+           -> emitWarning FipWarningNameUnbound $ \penv -> text "unbound name (which may have been used despite being borrowed):" <+> ppName penv (getName nm)
        let notReused = S.fromList $ map snd $ concatMap snd $ concatMap snd $ M.toList $ gammaDia out
            (allocations, allocInLoop) = getAllocCredits notReused (allocTree out)
            allocations' = if hasBothInSequence allocInLoop then AllocUnlimited else allocations
@@ -695,7 +754,7 @@ checkOutputEmpty out
        -- chkTrace $ show $ simplifyAllocTree (allocTree out)
        permission <- fipAlloc <$> getFip
        unless (allocations' <= permission) $
-         emitWarning $ \penv -> text "function allocates"
+         emitWarning FipWarningFipDeclarationMismatch $ \penv -> text "function allocates"
            <+> text (prettyFipAlloc allocations')
            <+> text "but was declared as allocating"
            <+> text (prettyFipAlloc permission)
@@ -793,11 +852,11 @@ chkTrace msg
   = do env <- getEnv
        trace ("chk: " ++ show (map defName (currentDef env)) ++ ": " ++ msg) $ return ()
 
-emitDoc :: Range -> Doc -> Chk ()
-emitDoc rng doc = tell (mempty, [(rng,doc)])
+emitDoc :: FipErrorCode -> Range -> Doc -> Chk ()
+emitDoc code rng doc = tell (mempty, [(code,rng,doc)])
 
-emitWarning :: (Pretty.Env -> Doc) -> Chk ()
-emitWarning makedoc
+emitWarning :: FipErrorCode -> (Pretty.Env -> Doc) -> Chk ()
+emitWarning code makedoc
   = do env <- getEnv
        let (rng,name) = case currentDef env of
                           (def:_) -> (defNameRange def, defName def)
@@ -805,7 +864,7 @@ emitWarning makedoc
            penv = prettyEnv env
            fdoc = text (show (fip env)) <+> text "fun" <+> ppName penv name <.> colon <+> makedoc penv
        when (qualifier name /= nameCoreDebug) $
-          emitDoc rng fdoc
+          emitDoc code rng fdoc
 
 getConstructorAllocSize :: ConRepr -> Chk Reusable
 getConstructorAllocSize conRepr

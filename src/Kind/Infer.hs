@@ -109,8 +109,8 @@ inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
           cons1     = constructorsFromList conInfos
           gamma1    = constructorGamma isValue dataInfos
           errs5     = constructorCheckDuplicates colors conInfos
-          warns     = [warningMessageKind ErrKind rng doc | (rng,doc) <- warns1 ++ warns2 ++ warns3 ++ warns4]
-          errs      = [errorMessageKind ErrKind rng doc  | (rng,doc) <- errs1 ++ errs2 ++ errs3 ++ errs4 ++ errs5]
+          warns     = [warningMessageKind ErrKind rng code doc | (code,rng,doc) <- warns1 ++ warns2 ++ warns3 ++ warns4]
+          errs      = [errorMessageKind ErrKind rng code doc  | (code,rng,doc) <- errs1 ++ errs2 ++ errs3 ++ errs4 ++ errs5]
 
           -- now order and group definitions including newly synthesized definitions for type definitions
           dgroups   = groupBindings modName (synDefs ++ defs1)
@@ -653,7 +653,7 @@ lazyConDefCall info conInfo parNames recurseArg memoTarget topExpr
     memoizeWarning rng fdoc
       = do cs <- getColorScheme
            let showConName name = color (colorCons cs) (pretty (unqualify name))
-           addWarning rng $ text "Cannot update the lazy constructor" <+> showConName (conInfoName conInfo) <+> fdoc showConName
+           addWarning KindErrorLazyConstructorUpdate rng $ text "Cannot update the lazy constructor" <+> showConName (conInfoName conInfo) <+> fdoc showConName
 
 
     memoizeCon cname con nargs range
@@ -772,7 +772,7 @@ lazyAddUpdate info conInfo evalName arg topExpr
     updateWarning rng fdoc
       = do cs <- getColorScheme
            let showConName name = color (colorCons cs) (pretty (unqualify name))
-           addWarning rng $ text "Cannot update the lazy constructor" <+> showConName (conInfoName conInfo) <+> fdoc showConName
+           addWarning KindErrorLazyConstructorUpdate rng $ text "Cannot update the lazy constructor" <+> showConName (conInfoName conInfo) <+> fdoc showConName
 
 
     lazyUpdateCon cname expr
@@ -826,7 +826,7 @@ constructorGamma isValue dataInfos
     conInfoGamma conInfos
       = gammaNew [(conInfoName conInfo,InfoCon (conInfoVis conInfo) (conInfoType conInfo) conRepr conInfo (conInfoRange conInfo) (conInfoDoc conInfo)) | (conInfo,conRepr) <- conInfos]
 
-constructorCheckDuplicates :: ColorScheme -> [ConInfo] -> [(Range,Doc)]
+constructorCheckDuplicates :: ColorScheme -> [ConInfo] -> [(KindInferErrorCode,Range,Doc)]
 constructorCheckDuplicates cscheme conInfos
   = concatMap duplicate $ groupBy sameName conInfos
   where
@@ -834,7 +834,7 @@ constructorCheckDuplicates cscheme conInfos
       = conInfoName ci1 == conInfoName ci2
 
     duplicate (ci1:ci2:_)
-      = [(conInfoRange ci2
+      = [(KindErrorDuplicateConstructorName, conInfoRange ci2
          ,text "Constructor" <+> color (colorSource cscheme) (pretty (conInfoName ci2)) <+>
           text "is already defined at" <+> text (show (conInfoRange ci1)))]
     duplicate _
@@ -903,7 +903,7 @@ checkRecursion :: [TypeDef UserType UserType UserKind] -> KInfer ()
 checkRecursion tdefs
   = if (length tdefs <= 1 || any isDataType tdefs)
      then return ()
-     else do addError (getRange tdefs) (text "Type synonyms cannot be recursive")
+     else do addError KindErrorTypeSynonymRecursive (getRange tdefs) (text "Type synonyms cannot be recursive")
              return ()
   where
     isDataType (DataType{}) = True
@@ -1377,7 +1377,7 @@ addLazyIndirect (DataType newtp targs constructors range vis sort ddef dataEff d
                                    _             -> False
 
        when (not validDdef) $
-         addError rng $ text "Cannot add lazy constructors to a" <+> text (show ddef) <+> text "type"
+         addError KindErrorLazyConstructorOnInvalidType rng $ text "Cannot add lazy constructors to a" <+> text (show ddef) <+> text "type"
 
        -- get fip annotation of the data defintion
        let userConFip con = case userConLazy con of
@@ -1389,7 +1389,7 @@ addLazyIndirect (DataType newtp targs constructors range vis sort ddef dataEff d
                 DataDefLazy fip
                   -> -- trace ("fip check: " ++ show (fip,defaultFip) ++ ", gt? " ++ show (fip > defaultFip)) $
                      if (not (fip `fipSubsumes` defaultFip))  -- annotated
-                       then do addError rng $ text "The datatype" <+> text (show fip) <+> text "annotation cannot be more restrictive than the fip annotations of the lazy constructors"
+                       then do addError KindErrorTypeMoreRestrictiveFipThanConstructor rng $ text "The datatype" <+> text (show fip) <+> text "annotation cannot be more restrictive than the fip annotations of the lazy constructors"
                                return defaultFip
                        else return fip
                 _ -> return defaultFip
@@ -1481,13 +1481,13 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
         else let effNames = concatMap fromOpsName recNames
                  fromOpsName nm = if (isOperationsName nm) then [fromOperationsName nm] else []
              in if (any (occursNegativeCon (recNames ++ effNames)) (conInfos0))
-              then do addError range (text "Type" <+> nameDoc <+> text "is declared as being" <-> text " (co)inductive but it occurs recursively in a negative position." <->
+              then do addError KindErrorInductiveTypeRecursive range (text "Type" <+> nameDoc <+> text "is declared as being" <-> text " (co)inductive but it occurs recursively in a negative position." <->
                                      text " hint: declare it as a divergent (or retractive) type using 'div type' (or 'div effect') to allow negative occurrences")
               else return ()
 
        -- create datadef and conInfos with correct ValueRepr and ordered fields
-       let emitError d    = addError range (text "Type" <+> nameDoc <+> d)
-           emitWarning d  = addWarning range (text "Type" <+> nameDoc <+> d)
+       let emitError code d    = addError code range (text "Type" <+> nameDoc <+> d)
+           emitWarning code d  = addWarning code range (text "Type" <+> nameDoc <+> d)
            resultHasKindStar = hasKindStarResult (getKind typeResult)
            maxMembers     = maximum ([0] ++ map (length . conInfoParams) conInfos0)
            conCount       = length conInfos0
@@ -1703,7 +1703,7 @@ resolveApp idmap partialSyn (TpVar name r,args) rng
   = do (tp',kind) <- case M.lookup name idmap of
                       Nothing   -> do cs <- getColorScheme
                                       -- failure ("Kind.Infer.ResolveApp: cannot find: " ++ show name ++ " at " ++ show rng)
-                                      addError rng (text "Type variable" <+> color (colorType cs) (pretty name) <+> text "is undefined" <->
+                                      addError KindErrorTypeVariableNotDefined rng (text "Type variable" <+> color (colorType cs) (pretty name) <+> text "is undefined" <->
                                                     text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <.> pretty name <.> text ">"))
                                       id <- uniqueId (show name)
                                       return (TVar (TypeVar id kindStar Bound), kindStar)
@@ -1721,7 +1721,7 @@ resolveApp idmap partialSyn (TpCon name r,[fixed,ext]) rng  | name == nameEffect
        let (ls,tl) = extractOrderedEffect fixed'
        if isEffectEmpty tl
         then return ()
-        else addError rng (text "Effects can only have one extension point (use a `|` instead of a comma in the effect type ?)")
+        else addError KindErrorEffectMultipleVariables rng (text "Effects can only have one extension point (use a `|` instead of a comma in the effect type ?)")
        return (shallowEffectExtend fixed' ext')
 
 resolveApp idmap partialSyn (TpCon name r,args) rng
@@ -1735,10 +1735,10 @@ resolveApp idmap partialSyn (TpCon name r,args) rng
             -> do -- check over/under application
                   if (not partialSyn && length args < length params)
                    then do cs <- getColorScheme
-                           addError rng (text "Type alias" <+> color (colorType cs) (pretty name) <+> text "has too few arguments")
+                           addError KindErrorTypeSynonymTooFewArguments rng (text "Type alias" <+> color (colorType cs) (pretty name) <+> text "has too few arguments")
                    else if (length args > length params)
                     then do cs <- getColorScheme
-                            addError rng (text "Type alias" <+> color (colorType cs) (pretty name) <+> text "has too many arguments")
+                            addError KindErrorTypeSynonymTooManyArguments rng (text "Type alias" <+> color (colorType cs) (pretty name) <+> text "has too many arguments")
                     else return ()
                   args' <- mapM (resolveType idmap True) args    -- partially applied synonyms are allowed in synonym applications
                   let tsyn = (TSyn (TypeSyn name kind rank (Just syn)) args' (subNew (zip params args') |-> tp))

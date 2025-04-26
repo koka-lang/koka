@@ -23,6 +23,7 @@ module Kind.InferMonad( KInfer
                       , infQualifiedName
                       , checkExternal
                       , withDataEffects, lookupDataEffect
+                      , KindInferErrorCode(..),
                       )  where
 
 
@@ -55,6 +56,7 @@ import Type.Type
 import Syntax.RangeMap
 
 import qualified Core.Core as Core
+import Common.Error (ErrorCode(..))
 
 {---------------------------------------------------------------
   Inference monad
@@ -68,9 +70,9 @@ data KEnv       = KEnv{ cscheme :: !ColorScheme, platform :: !Platform, currentM
                       , newtypesImported :: !Newtypes, newtypesExtended :: !Newtypes
                       , dataEffects :: M.NameMap DataEffect
                       }
-data KResult a  = KResult{ result:: !a, errors:: ![(Range,Doc)], warnings :: ![(Range,Doc)], st :: !KSt }
+data KResult a  = KResult{ result:: !a, errors:: ![(KindInferErrorCode,Range,Doc)], warnings :: ![(KindInferErrorCode,Range,Doc)], st :: !KSt }
 
-runKindInfer :: ColorScheme -> Platform -> Maybe RangeMap -> Name -> ImportMap -> KGamma -> Synonyms -> Newtypes -> Int -> KInfer a -> ([(Range,Doc)],[(Range,Doc)],Maybe RangeMap,Int,a)
+runKindInfer :: ColorScheme -> Platform -> Maybe RangeMap -> Name -> ImportMap -> KGamma -> Synonyms -> Newtypes -> Int -> KInfer a -> ([(KindInferErrorCode,Range,Doc)],[(KindInferErrorCode,Range,Doc)],Maybe RangeMap,Int,a)
 runKindInfer cscheme platform mbRangeMap moduleName imports kgamma syns datas unique (KInfer ki)
   = let imports' = case importsExtend ({-toShortModuleName-} moduleName) moduleName imports of
                      Just imp -> imp
@@ -107,15 +109,15 @@ getKindEnv :: KInfer KEnv
 getKindEnv
   = KInfer (\env -> \st -> KResult env [] [] st)
 
-addError :: Range -> Doc -> KInfer ()
-addError range doc
+addError :: KindInferErrorCode -> Range -> Doc -> KInfer ()
+addError code range doc
   = do addRangeInfo range (Error doc)
-       KInfer (\env -> \st -> KResult () [(range,doc)] [] st)
+       KInfer (\env -> \st -> KResult () [(code,range,doc)] [] st)
 
-addWarning :: Range -> Doc -> KInfer ()
-addWarning range doc
+addWarning :: KindInferErrorCode -> Range -> Doc -> KInfer ()
+addWarning code range doc
   = do addRangeInfo range (Warning doc)
-       KInfer (\env -> \st -> KResult () [] [(range,doc)] st)
+       KInfer (\env -> \st -> KResult () [] [(code,range,doc)] st)
 
 getKSub :: KInfer KSub
 getKSub
@@ -207,7 +209,7 @@ extendInfGamma tbinders ki
           Nothing -> return (M.insert name infkind infgamma)
           Just _  -> do env <- getKindEnv
                         let cs = cscheme env
-                        addError nameRange $ text "Type" <+> ppType cs name <+> text "is already defined"
+                        addError KindErrorTypeNameAlreadyDefined nameRange $ text "Type" <+> ppType cs name <+> text "is already defined"
                         return (M.insert name infkind infgamma) -- replace
 
 
@@ -239,7 +241,7 @@ extendKGamma ranges (Core.TypeDefGroup (tdefs)) ki
                  case kgammaLookupQ name kgamma of
                    Nothing -> return (kgammaExtend name kind doc kgamma,tdef:tdefs)
                    Just _  -> do env <- getKindEnv
-                                 addError range $ text "Type" <+> ppType (cscheme env) name <+>
+                                 addError KindErrorTypeNameAlreadyDefined range $ text "Type" <+> ppType (cscheme env) name <+>
                                                   text "is already defined"
                                  return (kgamma,tdefs)
       where
@@ -286,7 +288,7 @@ checkExternal name range
        case mbRes of
          Just range0 -> do env <- getKindEnv
                            let cs = cscheme env
-                           addError range (text "external" <+> prettyName cs name <+> text "is already defined at" <+> text (show (rangeStart range0))
+                           addError KindErrorExternNameAlreadyDefined range (text "external" <+> prettyName cs name <+> text "is already defined at" <+> text (show (rangeStart range0))
                                            <-> text "hint: use a local qualifier?")
                            return ()
          Nothing     -> addExternal name range
@@ -302,18 +304,18 @@ infQualifiedName name range
          Right (name',alias)
           -> if (not (nameCaseEqualPrefixOf alias (qualifier name)))
               then do let cs = cscheme env
-                      addError range (text "module" <+> ppModule cs name <+> text "should be cased as" <+> color (colorModule cs) (pretty alias)
+                      addError KindErrorModuleNameInvalidCase range (text "module" <+> ppModule cs name <+> text "should be cased as" <+> color (colorModule cs) (pretty alias)
                                        -- <+> text (showPlain name ++ ", " ++ showPlain alias)
                                     )
                       return name'
               else return name'
          Left []
           -> do let cs = cscheme env
-                addError range (text "module" <+> ppModule cs name <+> text "is undefined")
+                addError KindErrorModuleNameNotDefined range (text "module" <+> ppModule cs name <+> text "is undefined")
                 return name
          Left aliases
           -> do let cs = cscheme env
-                addError range (text "module" <+> ppModule cs name <+> ambiguous cs aliases)
+                addError KindErrorModuleNameAmbiguous range (text "module" <+> ppModule cs name <+> ambiguous cs aliases)
                 return name
 
 ppModule cs name
@@ -342,12 +344,12 @@ findInfKind name0 range
                                              if (-- trace ("compare: " ++ show (qname,name,name0)) $
                                                  not (nameCaseEqual name' name))
                                               then do let cs = cscheme env
-                                                      addError range (text "type" <+> (ppType cs (unqualify name0)) <+> text "should be cased as" <+> ppType cs (unqualify name'))
+                                                      addError KindErrorTypeNameInvalidCase range (text "type" <+> (ppType cs (unqualify name0)) <+> text "should be cased as" <+> ppType cs (unqualify name'))
                                               else return ()
                                              case mbAlias of
                                               Just alias | nameModule name0 /= nameModule alias
                                                 -> do let cs = cscheme env
-                                                      addError range (text "module" <+> color (colorModule cs) (text (nameModule name0)) <+> text "should be cased as" <+> color (colorModule cs) (pretty alias)
+                                                      addError KindErrorModuleNameInvalidCase range (text "module" <+> color (colorModule cs) (text (nameModule name0)) <+> text "should be cased as" <+> color (colorModule cs) (pretty alias)
                                                          -- <+> text (show (name,qname,mbAlias,name0))
                                                          -- <+> text ( nameModule name0 ++ ", " ++ showPlain alias)
                                                          )
@@ -355,12 +357,12 @@ findInfKind name0 range
                                              return (qname,KICon kind, doc)
                       NotFound         -> do let cs = cscheme env
                                              -- trace ("cannot find type: " ++ show name ++ ", " ++ show (currentModule env) ++ ", " ++ show (kgamma env)) $
-                                             addError range (text "Type" <+> (ppType cs name) <+> text "is not defined" <->
+                                             addError KindErrorTypeNameNotDefined range (text "Type" <+> (ppType cs name) <+> text "is not defined" <->
                                                              text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <.> ppType cs name <.> text ">") <+> text "?")
                                              k <- freshKind
                                              return (name,k,"")
                       Ambiguous names  -> do let cs = cscheme env
-                                             addError range (text "Type" <+> ppType cs name <+> ambiguous cs names)
+                                             addError KindErrorTypeNameAmbiguous range (text "Type" <+> ppType cs name <+> ambiguous cs names)
                                              k <- freshKind
                                              return (name,k,"")
 
@@ -419,3 +421,103 @@ lookupDataEffect name
                          case mbDataInfo of
                            Just di -> return (dataInfoEffect di)
                            Nothing -> return DataNoEffect
+
+data KindInferErrorCode =
+  -- Module Names
+  KindErrorModuleNameNotDefined
+  | KindErrorModuleNameAmbiguous
+  | KindErrorModuleNameInvalidCase
+  -- Types Names
+  | KindErrorTypeNameNotDefined
+  | KindErrorTypeNameAmbiguous
+  | KindErrorTypeNameInvalidCase
+  | KindErrorTypeNameAlreadyDefined
+  -- External Names
+  | KindErrorExternNameAlreadyDefined
+  -- Type Declarations
+  | KindErrorTypeMoreRestrictiveFipThanConstructor
+  | KindErrorInductiveTypeRecursive
+  | KindErrorDuplicateConstructorName 
+  | KindErrorValueTypeRecursive
+  | KindErrorValueTypeNotInductive
+  | KindErrorValueTypeMismatch
+  | KindWarningValueTypeUnknownSize
+  | KindWarningValueTypeLarge
+  | KindErrorValueTypeMixedFields
+  | KindWarningValueTypeAnnotationRedundant
+  -- Type Aliases
+  | KindErrorTypeSynonymRecursive
+  | KindErrorTypeSynonymTooFewArguments
+  | KindErrorTypeSynonymTooManyArguments
+  -- Lazy Constructors
+  | KindErrorLazyConstructorUpdate
+  | KindErrorLazyConstructorOnInvalidType
+  -- Annotations
+  | KindErrorEffectMultipleVariables
+  | KindErrorTypeVariableNotDefined
+  -- Unification Errors 
+  | KindErrorKindMismatch
+  
+
+instance ErrorCode KindInferErrorCode where
+  -- Module Names
+  codeNum KindErrorModuleNameNotDefined   = 0
+  codeNum KindErrorModuleNameAmbiguous    = 1
+  codeNum KindErrorModuleNameInvalidCase  = 2
+  -- Types Names
+  codeNum KindErrorTypeNameNotDefined     = 100
+  codeNum KindErrorTypeNameAmbiguous      = 101
+  codeNum KindErrorTypeNameInvalidCase    = 102
+  codeNum KindErrorTypeNameAlreadyDefined = 103
+  -- External Names
+  codeNum KindErrorExternNameAlreadyDefined = 200
+  -- Type Declarations
+  codeNum KindErrorTypeMoreRestrictiveFipThanConstructor = 300
+  codeNum KindErrorInductiveTypeRecursive = 301
+  codeNum KindErrorDuplicateConstructorName = 302
+  codeNum KindErrorValueTypeRecursive = 303
+  codeNum KindErrorValueTypeNotInductive = 304
+  codeNum KindErrorValueTypeMismatch = 305
+  codeNum KindWarningValueTypeUnknownSize = 306
+  codeNum KindWarningValueTypeLarge = 307
+  codeNum KindErrorValueTypeMixedFields = 308
+  codeNum KindWarningValueTypeAnnotationRedundant = 309
+  -- Type Aliases
+  codeNum KindErrorTypeSynonymRecursive = 400
+  codeNum KindErrorTypeSynonymTooFewArguments = 401
+  codeNum KindErrorTypeSynonymTooManyArguments = 402
+  -- Lazy Constructors
+  codeNum KindErrorLazyConstructorUpdate  = 500
+  codeNum KindErrorLazyConstructorOnInvalidType = 501
+  -- Annotations
+  codeNum KindErrorEffectMultipleVariables = 600
+  codeNum KindErrorTypeVariableNotDefined = 601
+  -- Unification Errors
+  codeNum KindErrorKindMismatch = 700
+
+  codeDoc KindErrorModuleNameNotDefined   = text "module name not defined"
+  codeDoc KindErrorModuleNameAmbiguous    = text "module name ambiguous"
+  codeDoc KindErrorModuleNameInvalidCase  = text "module name invalid case"
+  codeDoc KindErrorTypeNameNotDefined     = text "type name not defined"
+  codeDoc KindErrorTypeNameAmbiguous      = text "type name ambiguous"
+  codeDoc KindErrorTypeNameInvalidCase    = text "type name invalid case"
+  codeDoc KindErrorTypeNameAlreadyDefined = text "type name already defined"
+  codeDoc KindErrorExternNameAlreadyDefined = text "extern name already defined"
+  codeDoc KindErrorTypeMoreRestrictiveFipThanConstructor = text "type's fip annotation is more restrictive than a constructor's"
+  codeDoc KindErrorInductiveTypeRecursive = text "inductive type cannot be recursive"
+  codeDoc KindErrorValueTypeRecursive = text "value type cannot be recursive"
+  codeDoc KindErrorValueTypeNotInductive = text "value type cannot be inductive"
+  codeDoc KindErrorValueTypeMismatch = text "value type mismatch"
+  codeDoc KindWarningValueTypeUnknownSize = text "value type has unknown size"
+  codeDoc KindWarningValueTypeLarge = text "value type is large"
+  codeDoc KindErrorValueTypeMixedFields = text "value type has mixed fields"
+  codeDoc KindWarningValueTypeAnnotationRedundant = text "value type annotation is redundant for an enumerated type"
+  codeDoc KindErrorDuplicateConstructorName = text "duplicate constructor name"
+  codeDoc KindErrorTypeSynonymRecursive = text "type synonym cannot be recursive"
+  codeDoc KindErrorTypeSynonymTooFewArguments = text "type synonym has too few arguments"
+  codeDoc KindErrorTypeSynonymTooManyArguments = text "type synonym has too many arguments"
+  codeDoc KindErrorLazyConstructorUpdate = text "lazy constructor cannot be updated in place"
+  codeDoc KindErrorLazyConstructorOnInvalidType = text "lazy constructor on invalid type"
+  codeDoc KindErrorEffectMultipleVariables = text "effect annotation has multiple variables"
+  codeDoc KindErrorTypeVariableNotDefined = text "type variable not defined"
+  codeDoc KindErrorKindMismatch = text "kind mismatch"

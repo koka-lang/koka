@@ -18,6 +18,7 @@ import Common.NamePrim
 import Common.Syntax
 import Common.Failure
 import Type.Type
+import Kind.InferMonad
 
 ---------------------------------------------------------
 -- Create a datadef and elaborate conInfo's with a ValueRepr
@@ -26,7 +27,7 @@ import Type.Type
 ---------------------------------------------------------
 
 -- value types
-createDataDef :: Monad m => (Doc-> m ()) -> (Doc-> m ()) -> (Name -> m (Maybe DataInfo))
+createDataDef :: Monad m => (KindInferErrorCode -> Doc-> m ()) -> (KindInferErrorCode -> Doc-> m ()) -> (Name -> m (Maybe DataInfo))
                                -> Platform -> Name -> Bool -> Bool -> DataKind
                                  -> Int -> DataDef -> [ConInfo] -> m (DataDef,[ConInfo])
 createDataDef emitError emitWarning lookupDataInfo
@@ -74,13 +75,13 @@ createDataDef emitError emitWarning lookupDataInfo
                             _ -> return DataDefNormal
 
                   DataDefValue{} | isRec
-                    -> do emitError $ text "cannot be declared as a value type since it is recursive."
+                    -> do emitError KindErrorValueTypeRecursive $ text "cannot be declared as a value type since it is recursive."
                           return DataDefNormal
                   DataDefValue{} | not resultHasKindStar
-                    -> do emitError $ text "is declared as a value type but does not have a value kind ('V')."  -- should never happen?
+                    -> do emitError KindErrorValueTypeMismatch $ text "is declared as a value type but does not have a value kind ('V')."  -- should never happen?
                           return DataDefNormal
                   DataDefValue{} | sort /= Inductive
-                    -> do emitError $ text "is declared as a value type but is not inductive."
+                    -> do emitError KindErrorValueTypeNotInductive $ text "is declared as a value type but is not inductive."
                           return DataDefNormal
                   DataDefValue{}
                     -> do dd <- createMaxDataDef conInfos
@@ -88,13 +89,13 @@ createDataDef emitError emitWarning lookupDataInfo
                             DataDefValue vr
                               -> do let size = valueReprSize platform vr
                                     when (size > 4*sizePtr platform) $
-                                      emitWarning (text "requires" <+> pretty size <+> text "bytes which is rather large for a value type")
+                                      emitWarning KindWarningValueTypeLarge (text "requires" <+> pretty size <+> text "bytes which is rather large for a value type")
                                     when isEnum $
-                                      emitWarning (text "is an enumeration -- there is no need to declare it as a value type")
+                                      emitWarning KindWarningValueTypeAnnotationRedundant (text "is an enumeration -- there is no need to declare it as a value type")
                                     -- when isIso $
                                     --   emitWarning (text "is a isomorphic type -- there is no need to declare it as a value type")
                                     return dd
-                            _ -> do emitError $ text "cannot be used as a value type."  -- should never happen?
+                            _ -> do emitError KindErrorValueTypeMismatch $ text "cannot be used as a value type."  -- should never happen?
                                     return DataDefNormal
        return (ddef,conInfos)
   where
@@ -139,7 +140,7 @@ createDataDef emitError emitWarning lookupDataInfo
                                then (sizeSize platform)
                               else 0
                   m <- if (size <= 0)
-                        then do emitWarning $ text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform)
+                        then do emitWarning KindWarningValueTypeUnknownSize $ text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform)
                                 return (sizePtr platform)
                         else return size
                   return (DataDefValue (valueReprNew m 0 m))
@@ -160,7 +161,7 @@ createDataDef emitError emitWarning lookupDataInfo
                 -- non-equal scan fields
                 | otherwise ->
                   do when isVal $
-                       emitError (text "is declared as a value type but has" <+> text "multiple constructors with a different number of regular types overlapping with value types." <->
+                       emitError KindErrorValueTypeMixedFields (text "is declared as a value type but has" <+> text "multiple constructors with a different number of regular types overlapping with value types." <->
                                   text "hint: value types with multiple constructors must all use the same number of regular types (use 'box' to use a value type as a regular type).")
                       -- else emitWarning (text "cannot be defaulted to a value type as it has" <+> text "multiple constructors with a different number of regular types overlapping with value types.")
                      -- trace ("warning: cannot default to a value type due to mixed raw/regular fields: " ++ show nameDoc) $
@@ -175,7 +176,7 @@ createDataDef emitError emitWarning lookupDataInfo
 -- order constructor fields of constructors with raw field so the regular fields come first to be scanned.
 -- return the ordered fields, and a ValueRepr (raw size part, the scan count (including tags), align, and full size)
 -- The size is used for reuse and should include all needed fields including the tag field for "open" datatypes
-orderConFields :: Monad m => (Doc -> m ()) -> Doc -> (Name -> m (Maybe DataInfo)) -> Platform
+orderConFields :: Monad m => (KindInferErrorCode -> Doc -> m ()) -> Doc -> (Name -> m (Maybe DataInfo)) -> Platform
                                -> Int -> [(Name,Type)] -> m ([(Name,Type)],ValueRepr)
 orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
   = do visit ([], [], [], extraPreScan, 0) fields
@@ -183,7 +184,7 @@ orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
     -- visit :: ([((Name,Type),ValueRepr)],[((Name,Type),ValueRepr)],[(Name,Type)],Int,Int) -> [(Name,Type)] -> m ([(Name,Type)],ValueRepr)
     visit (rraw, rmixed, rscan, scanCount0, alignment0) []
       = do when (length rmixed > 1) $
-             do emitError (nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
+             do emitError KindErrorValueTypeMixedFields (nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
                              text ("hint: use 'box' on either field to make it a non-value type."))
            let  -- scancount and size before any mixed and raw fields
                 preSize    = (sizeHeader platform) + (scanCount0 * sizeField platform)

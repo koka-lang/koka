@@ -73,6 +73,7 @@ prettyEnvFromFlags flags
                  , TP.verbose         = verbose flags
                  , TP.coreShowTypes   = showCoreTypes flags
                  , TP.showIds         = showTypeIds flags
+                 , TP.showFileLinks   = showFileLinks flags
                  }
 
 
@@ -140,6 +141,7 @@ showTypeSigs flags = showHiddenTypeSigs flags || _showTypeSigs flags
 
 data Flags
   = Flags{ warnShadow       :: !Bool
+         , showFileLinks    :: !Bool
          , showKinds        :: !Bool
          , showKindSigs     :: !Bool
          , showSynonyms     :: !Bool
@@ -297,6 +299,7 @@ flagsNull :: Flags
 flagsNull
   = Flags -- warnings
           True
+          False -- show file links
           -- show
           False False  -- kinds kindsigs
           False False False False -- synonyms core icore fcore
@@ -484,6 +487,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
  , flag   []    ["showtime"]       (\b f -> f{ showElapsed = b})    "show elapsed time and rss after evaluation"
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
+ , flag   []    ["showfilelinks"]  (\b f -> f{showFileLinks=b})     "show file links in error messages"
+
  , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
  , flag   []    ["showtypesigs"]   (\b f -> f{_showTypeSigs=b})      "show type signatures of definitions"
  , flag   []    ["showhiddentypesigs"]   (\b f -> f{showHiddenTypeSigs=b})"(implies --showtypesigs) show hidden type signatures of definitions"
@@ -845,7 +850,7 @@ processInitialOptions flags0 opts
         -> do arch <- if (null (targetArch flags1)) then getTargetArch else return hostArch
               let flags = case mode of
                             ModeInteractive _    -> flags1{evaluate = True, targetArch = arch }
-                            ModeLanguageServer _ -> flags1{genRangeMap = True, targetArch = arch }
+                            ModeLanguageServer _ -> flags1{genRangeMap = True, targetArch = arch, showFileLinks = True }
                             _                    -> flags1{targetArch = arch}
               buildDir <- getKokaBuildDir (buildDir flags) (evaluate flags)
               buildTag <- if (null (buildTag flags)) then getDefaultBuildTag else return (buildTag flags)
