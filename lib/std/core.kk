@@ -41,6 +41,7 @@ pub import std/core/console
 extern import
   c  file "core/inline/core"
   cs file "core/inline/core.cs"
+  js file "core/inline/core.js"
 
 // ----------------------------------------------------------------------------
 // Builtin effects
@@ -229,14 +230,22 @@ pub extern host() : ndet string
   cs inline "\"dotnet\""
   js inline "$std_core_console._host"
 
+// Exits the program with the specified exit code
+// 
+// *Warning:* 
+// * In Javascript this uses `globalThis.process.exit` if available otherwise it throws non-handleable (by Koka) exceptions.
+// * In C this just terminates the program. Note that you are typically limited to an exit code in an 8-bit range.
+pub extern exit(i: int): io-noexn ()
+  c inline "exit(kk_integer_clamp32(#1, kk_context()))"
+  js "kk_exit"
 
 // The default exception handler
-pub fun @default-exn(action : () -> <exn,console|e> () ) : <console|e> ()
+pub fun @default-exn(action : () -> <io|e> () ) : <io-noexn|e> ()
   handle( action )
     final ctl throw-exn( exn : exception )
       "uncaught exception: ".print
       exn.println
-
+      exit(-1)
 
 // ----------------------------------------------------------------------------
 // Non determinism
