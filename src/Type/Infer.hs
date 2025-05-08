@@ -1733,11 +1733,12 @@ inferPattern matchType branchRange (PatConCtx name patterns0 nameRange range) wi
            )
            return ((btp,beff,bcore), ftv btp `tvsUnion` ftv beff)
            -}
+           let conRho' = TApp typeCCtxx [conRho,holetp]
            let (pcore,coreGuards)
-                = if (null xvars) then (Core.PatCon (Core.TName qname conRho) cpatterns repr (map snd conParTps) [] conResTp coninfo False, coreGuards0)
+                 = if (null xvars) then (Core.PatCon (Core.TName qname conRho') cpatterns repr (map snd conParTps) [] conResTp coninfo False, coreGuards0)
                   else let bindExists = [(TypeVar id kind Bound) | (TypeVar id kind _) <- xvars]
                            subExists  = subNew [(TypeVar id kind Skolem, TVar (TypeVar id kind Bound)) | TypeVar id kind _ <- bindExists]
-                           pcore     = Core.PatCon (Core.TName qname conRho) (subExists |-> cpatterns) repr (subExists |-> (map snd conParTps)) bindExists conResTp coninfo False
+                           pcore     = Core.PatCon (Core.TName qname conRho') (subExists |-> cpatterns) repr (subExists |-> (map snd conParTps)) bindExists conResTp coninfo False
                            coreGuards = subExists |-> coreGuards0
                        in (pcore,coreGuards)
 

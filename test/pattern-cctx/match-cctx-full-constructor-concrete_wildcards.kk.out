@@ -1,2 +1,1 @@
-pattern-cctx/match-cctx-full-constructor-concrete_wildcards(1, 1): build error: user error (error : command failed (exit code 1)
-command: /usr/bin/gcc -Wall -Wextra -Wpointer-arith -Wshadow -Wstrict-aliasing -Wno-unknown-pragmas -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-variable -Wno-unused-value -Wno-unused-but-set-variable -O2 -g -DNDEBUG -c -I @@@/kklib/include -DKK_MIMALLOC=8 -o @koka/v3@1@2-test/gcc-drelease/pattern_dash_cctx_match_dash_cctx_dash_full_dash_constructor_dash_concrete__wildcards@o @koka/v3@1@2-test/gcc-drelease/pattern_dash_cctx_match_dash_cctx_dash_full_dash_constructor_dash_concrete__wildcards@c)
+10
