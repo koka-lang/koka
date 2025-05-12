@@ -1455,8 +1455,16 @@ lookupLocalName infoFilter name
 lookupGlobalName :: (NameInfo -> Bool) -> Name -> Inf [(Name,NameInfo)]
 lookupGlobalName infoFilter name
   = do env <- getEnv
-       return (filter (infoFilter . snd) (gammaLookup name (gamma env)))
-
+       let findName = filterGammaNames (gamma env)
+       -- traceDefDoc $ \penv -> text "lookupGlobalName:" <+> Pretty.ppName penv name
+       case importsExpand name (imports env) of
+        Right (name',_) -> 
+          case findName name' of -- First look by aliased import name
+            [] -> return $ findName name -- If not found, look by original import name
+            ni -> return ni
+        Left [] -> return $ findName name -- If no import alias, look by original name
+        Left names -> return $ concatMap findName names -- If multiple aliases match, look through all of them
+  where filterGammaNames gamma name = filter (infoFilter . snd) (gammaLookup name gamma)
 
 filterMatchNameContext :: HasCallStack => Range -> NameContext -> [(Name,NameInfo)] -> Inf [(Name,NameInfo)]
 filterMatchNameContext range ctx candidates
