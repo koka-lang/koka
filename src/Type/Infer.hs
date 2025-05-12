@@ -1682,7 +1682,8 @@ inferPatternX matchType branchRange pattern
 inferPattern :: HasTypeVar a => Type -> Range -> Pattern Type -> (Core.Pattern -> a -> Inf b)
                   -> ([(Name,NameInfo)] -> Inf ([(Type,Effect)],a))
                   -> Inf ([(Type,Effect)],b)
-inferPattern matchType branchRange (PatHole range) withPattern inferGuards = inferPattern matchType branchRange (PatWild range) withPattern inferGuards
+inferPattern matchType branchRange (PatHole range) withPattern inferGuards
+  = inferPattern matchType branchRange (PatWild range) withPattern inferGuards
 inferPattern matchType branchRange (PatConCtx name patterns0 nameRange range) withPattern inferGuards
   = do (qname,gconTpRaw,repr,coninfo) <- resolveConName name Nothing range
        when (length (conInfoParams coninfo) == 0) (typeError range nameRange (text "cannot match cctx on zero-arg constructor") (matchType) [])

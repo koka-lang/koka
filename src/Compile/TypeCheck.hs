@@ -107,7 +107,7 @@ typeCheck flags defs coreImports program0
 
         -- check generated core
         let checkCoreDefs title = when (coreCheck flags) $ Core.Check.checkCore False False penv gamma
-        -- traceDefGroups "initial"
+        -- traceDefGroups flags "initial"
 
         -- remove return statements
         unreturn penv

@@ -116,3 +116,15 @@ static inline kk_std_core_types__cctx kk_cctx_compose_linear( kk_std_core_types_
   kk_assert_internal(kk_block_is_unique(kk_ptr_unbox(acc2.res,ctx)));
   return kk_cctx_extend_linear(acc1,acc2.res,acc2.holeptr,ctx);
 }
+
+
+static inline bool kk_cctx_field_is_hole( kk_box_t x, int32_t field_index, kk_field_addr_t holeptr, kk_context_t* ctx ) {
+  kk_block_t* b = kk_ptr_unbox(x,ctx);
+  kk_box_t* p = kk_block_field_address(b,field_index);
+  return (p == kk_field_addr_ptr(holeptr,ctx) && b->header._field_idx - 1 == (uint8_t)field_index);
+}
+
+static inline bool kk_cctx_field_is_ctx( kk_box_t x, int32_t field_index, kk_context_t* ctx ) {
+  kk_block_t* b = kk_ptr_unbox(x,ctx);
+  return (b->header._field_idx - 1 == (uint8_t)field_index);
+}

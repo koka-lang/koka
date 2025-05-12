@@ -476,7 +476,7 @@ pub fip extern @field-addr-of( x : a, conname : string, fieldname : string ) : @
 
 // First-class constructor context (for _tail recursion modulo cons_ (TRMC) optimization).
 // See also ``samples/syntax/contexts`` for further examples.
-abstract value type cctx<a,b>
+pub value type cctx<a,b>
   con @Cctx( res : a, holeptr : @field-addr<b> )
 
 // A first-class constructor context where the hole is of the same type as the root of the structure.
@@ -524,4 +524,17 @@ pub inline fip extern cctx/empty() : cctx<a,a>
   c  "kk_cctx_empty"
   js "$std_core_types._cctx_empty"
 
+
+pub inline fip extern cctx/field-is-hole( ^parent : a, field : int32, ^xhole : @field-addr<b> ) : bool
+  c "kk_cctx_field_is_hole"
+
+pub inline fip extern cctx/field-is-ctx( ^parent : a, field : int32 ) : bool
+  c "kk_cctx_field_is_ctx"
+
+pub inline fip extern cctx/is-empty( c : cctx<a,b> ) : bool
+  c inline "kk_cctx_is_empty(#1)"
+
+pub inline fip fun cctx/unsafe-cast-ctx( c : cctx<a,b>, child : c ) : cctx<c,b>
+  match c
+    @Cctx( _, holeptr ) -> @Cctx( child, holeptr )
 

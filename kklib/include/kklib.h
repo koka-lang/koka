@@ -1328,7 +1328,8 @@ static inline kk_cpath_t kk_field_index_at( size_t field_offset ) {
 static inline void kk_set_cpath_at( kk_block_t* b, kk_cpath_t cpath ) {
   kk_assert_internal(cpath >= 0 && cpath <= KK_CPATH_MAX);
   b->header._field_idx = (uint8_t)cpath;
-  }
+}
+
 
 #if !defined(KK_HAS_MALLOC_COPY)
 #define KK_CCTX_NO_CONTEXT_PATH
