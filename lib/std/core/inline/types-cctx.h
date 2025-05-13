@@ -134,6 +134,7 @@ static inline bool kk_cctx_field_is_ctx( kk_box_t x, int32_t field_index, kk_con
   return (b->header._field_idx - 1 == (uint8_t)field_index);
 }
 
+/*
 static inline kk_std_core_types__cctx kk_cctx_cast( kk_std_core_types__cctx c, kk_box_t child, kk_context_t* ctx  ) {
   if kk_unlikely(kk_cctx_is_hole(child)) {
     kk_std_core_types__cctx_drop(c,ctx);
@@ -143,5 +144,15 @@ static inline kk_std_core_types__cctx kk_cctx_cast( kk_std_core_types__cctx c, k
     kk_std_core_types__cctx cnew = kk_cctx_create(child,c.holeptr,ctx);
     kk_std_core_types__cctx_drop(c,ctx);
     return cnew;
+  }
+}
+*/
+
+static inline kk_std_core_types__cctx kk_cctx_create_ex( kk_box_t x, kk_field_addr_t holeptr, kk_context_t* ctx  ) {
+  if kk_unlikely(kk_cctx_is_hole(x)) {
+    return kk_cctx_empty(ctx);
+  }
+  else {
+    return kk_cctx_create(x,holeptr,ctx);
   }
 }
