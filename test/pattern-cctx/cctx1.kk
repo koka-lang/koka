@@ -23,12 +23,10 @@ fun test-wrong2() // : exn ctx<list-int>
 
 
 fun test2a() // : exn ctx<list-int>
-  val xs = ctx ConsInt(42, ConsInt(43, _) )
+  val xs = ctx ConsInt(42, _) // ConsInt(43, _) )
   match xs
     @Cctx( parent as ConsInt(_x, rest), holeptr ) | cctx/field-is-ctx(parent,1.int32) ->
-      if cctx/field-is-hole(parent,1.int32,holeptr)
-        then ctx _
-        else cctx/unsafe-cast-ctx(xs,rest)       // is rest list-int or ctx<list-int>  ?
+      cctx/unsafe-cast-ctx(xs,rest)       // is rest list-int or ctx<list-int>  ?
 
 fun test2b()
   val xs = ctx ConsInt(42, _)

@@ -27,6 +27,10 @@ static inline kk_decl_const kk_box_t kk_cctx_hole(void) {
   return kk_box_null();  // for now, this must be a value; see `kklib/src/refcount.c:kk_cctx_copy_apply`
 }
 
+static inline kk_decl_const bool kk_cctx_is_hole(kk_box_t b) {
+  return kk_box_is_null(b);
+}
+
 static inline kk_decl_const kk_std_core_types__cctx kk_cctx_empty(kk_context_t* ctx) {
   return kk_std_core_types__new_Cctx( kk_cctx_hole(), kk_field_addr_null(), ctx);
 }
@@ -128,4 +132,16 @@ static inline bool kk_cctx_field_is_hole( kk_box_t x, int32_t field_index, kk_fi
 static inline bool kk_cctx_field_is_ctx( kk_box_t x, int32_t field_index, kk_context_t* ctx ) {
   kk_block_t* b = kk_ptr_unbox(x,ctx);
   return (b->header._field_idx - 1 == (uint8_t)field_index);
+}
+
+static inline kk_std_core_types__cctx kk_cctx_cast( kk_std_core_types__cctx c, kk_box_t child, kk_context_t* ctx  ) {
+  if kk_unlikely(kk_cctx_is_hole(child)) {
+    kk_std_core_types__cctx_drop(c,ctx);
+    return kk_cctx_empty(ctx);
+  }
+  else {
+    kk_std_core_types__cctx cnew = kk_cctx_create(child,c.holeptr,ctx);
+    kk_std_core_types__cctx_drop(c,ctx);
+    return cnew;
+  }
 }

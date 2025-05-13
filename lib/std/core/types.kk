@@ -534,7 +534,5 @@ pub inline fip extern cctx/field-is-ctx( ^parent : a, field : int32 ) : bool
 pub inline fip extern cctx/is-empty( c : cctx<a,b> ) : bool
   c inline "kk_cctx_is_empty(#1)"
 
-pub inline fip fun cctx/unsafe-cast-ctx( c : cctx<a,b>, child : c ) : cctx<c,b>
-  match c
-    @Cctx( _, holeptr ) -> @Cctx( child, holeptr )
-
+pub inline fip extern cctx/unsafe-cast-ctx( c : cctx<a,b>, child : c ) : cctx<c,b>
+  c "kk_cctx_cast"
