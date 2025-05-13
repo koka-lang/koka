@@ -35,6 +35,7 @@ static inline kk_std_core_types__cctx kk_cctx_create( kk_box_t res, kk_field_add
   return kk_std_core_types__new_Cctx( res, field, ctx);
 }
 
+// note: this must match src/Backend/C/FromCore.hs:genConstructorTestX
 static inline kk_decl_const bool kk_cctx_is_empty( kk_std_core_types__cctx cctx ) {
   return kk_box_eq(cctx.holeptr,kk_field_addr_null()); // kk_box_is_value(cctx.res);
 }

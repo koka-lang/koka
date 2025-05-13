@@ -13,3 +13,7 @@ kk_decl_noinline kk_std_core_types__cctx kk_cctx_compose_shared( kk_std_core_typ
   kk_box_t res = kk_cctx_copy(acc2.res,kk_field_addr_ptr(acc2.holeptr,ctx),&holeptr,ctx);
   return kk_cctx_extend(acc1,res,kk_field_addr_create(holeptr,ctx),ctx);
 }
+
+static inline kk_decl_const bool kk_cctx_is_not_empty( kk_std_core_types__cctx cctx ) {
+  return kk_box_eq(cctx.holeptr,kk_box_null() /* kk_field_addr_null */);
+}

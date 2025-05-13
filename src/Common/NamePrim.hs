@@ -301,7 +301,7 @@ nameCCtxExtend    = cfieldName "@cctx-extend"
 nameCCtxComposeExtend = cfieldName "@cctx-compose-extend"
 nameCCtxSetCtxPath= cfieldName "@cctx-setcp"
 
-nameCCtx          = newLocallyQualified "std/core/types" "cctx" "@Cctx"
+nameCCtx          = newQualified "std/core/types" "@Cctx"
 nameCCtxEmpty     = newLocallyQualified "std/core/types" "cctx" "empty"
 nameCCtxApply     = newLocallyQualified "std/core/types" "cctx" "(++.)"
 nameCCtxCompose   = newLocallyQualified "std/core/types" "cctx" "(++)"

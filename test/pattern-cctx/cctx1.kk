@@ -6,7 +6,6 @@ type list-int
 
 fun test-head( xs : ctx<list-int>) : int
   match xs
-    _ | cctx/is-empty(xs) -> 0              // we must test for the empty context first
     @Cctx( ConsInt(x, _), _holeptr ) -> x
     _ -> 0
 
@@ -36,3 +35,8 @@ fun test2b()
   match xs
     @Cctx( parent as ConsInt(x, _hole), holeptr ) | cctx/field-is-hole(parent,1.int32,holeptr) -> x       // is rest list-int or ctx<list-int>  ?
 
+
+pub fun main()
+  test1().println
+  test2a().test-head.println
+  test2b().println

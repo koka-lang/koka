@@ -595,7 +595,9 @@ genConstructorTestX info dataRepr con conRepr
                     ConSingleton{} -- todo: maybe faster on arm64 with bt? -- | dataRepr == DataAsList -> text "kk_datatype_is_singleton(x)" -- text "x ==" <+> conSingletonName con
                                    | dataReprIsValue dataRepr -> valueTagEq
                                    | otherwise -> text "kk_datatype_has_singleton_tag" <.> tupled [text "x", ppConTag con conRepr dataRepr]
-                    ConSingle{}    -> text "true"
+                    ConSingle{}    -> if (conInfoName con == nameCCtx)
+                                        then text "!kk_box_eq(x.holeptr,kk_box_null())"  -- not an empty context?
+                                        else text "true"
                     ConStruct{}    -> valueTagEq
                     ConAsJust{conAsNothing=nothing}
                                    -> text "!" <.> conTestNameX nothing <.> arguments [text "x"]
