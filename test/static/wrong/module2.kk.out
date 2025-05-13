@@ -1,4 +1,2 @@
 (1, 0): build error: could not find module: static/doesNotExist
- search path: @@@,
- @@@/lib,
- @@@/test
+ search path: @@@,@@@/lib,@@@/test
