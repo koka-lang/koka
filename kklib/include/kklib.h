@@ -1178,15 +1178,99 @@ static inline void kk_datatype_ptr_decref(kk_datatype_t d, kk_context_t* ctx) {
 #define kk_datatype_as(tp,v,ctx)                   (kk_block_as(tp,kk_datatype_as_ptr(v,ctx)))
 #define kk_datatype_as_assert(tp,v,tag,ctx)        (kk_block_assert(tp,kk_datatype_as_ptr(v,ctx),tag))
 
+#define kk_define_closure0(fname, tname, new_name, storage_new, unused_fsize) \
+  struct tname { \
+    struct kk_function_s _base; \
+  }; \
+  storage_new kk_function_t new_name(kk_context_t* _ctx) { \
+    kk_define_static_function(_fself, fname, _ctx) \
+    return kk_function_static_dup(_fself, _ctx); \
+  }
 
+#define kk_define_closure1(fname, tname, new_name, storage_new, fsize, arg1tp, arg1nm) \
+  struct tname { \
+    struct kk_function_s _base; \
+    arg1tp arg1nm; \
+  }; \
+  storage_new kk_function_t new_name(arg1tp arg1nm, kk_context_t* _ctx) { \
+    struct tname* _self = kk_function_alloc_as(struct tname, fsize, _ctx); \
+    _self->_base.fun = kk_kkfun_ptr_box(&fname, _ctx); \
+    _self->arg1nm = arg1nm; \
+    return kk_datatype_from_base(&_self->_base, _ctx); \
+  }
 
-static inline kk_datatype_t kk_datatype_null(void) {
-  kk_datatype_t d = { kk_datatype_null_init };
-  return d;
-}
+#define kk_define_closure2(fname, tname, new_name, storage_new, fsize, arg1tp, arg1nm, arg2tp, arg2nm) \
+  struct tname { \
+    struct kk_function_s _base; \
+    arg1tp arg1nm; \
+    arg2tp arg2nm; \
+  }; \
+  storage_new kk_function_t new_name(arg1tp arg1nm, arg2tp arg2nm, kk_context_t* _ctx) { \
+    struct tname* _self = kk_function_alloc_as(struct tname, fsize, _ctx); \
+    _self->_base.fun = kk_kkfun_ptr_box(&fname, _ctx); \
+    _self->arg1nm = arg1nm; \
+    _self->arg2nm = arg2nm; \
+    return kk_datatype_from_base(&_self->_base, _ctx); \
+  }
+
+#define kk_define_closure3(fname, tname, new_name, storage_new, fsize, arg1tp, arg1nm, arg2tp, arg2nm, arg3tp, arg3nm) \
+  struct tname { \
+    struct kk_function_s _base; \
+    arg1tp arg1nm; \
+    arg2tp arg2nm; \
+    arg3tp arg3nm; \
+  }; \
+  storage_new kk_function_t new_name(arg1tp arg1nm, arg2tp arg2nm, arg3tp arg3nm, kk_context_t* _ctx) { \
+    struct tname* _self = kk_function_alloc_as(struct tname, fsize, _ctx); \
+    _self->_base.fun = kk_kkfun_ptr_box(&fname, _ctx); \
+    _self->arg1nm = arg1nm; \
+    _self->arg2nm = arg2nm; \
+    _self->arg3nm = arg3nm; \
+    return kk_datatype_from_base(&_self->_base, _ctx); \
+  }
+
+#define kk_define_closure4(fname, tname, new_name, storage_new, fsize, arg1tp, arg1nm, arg2tp, arg2nm, arg3tp, arg3nm, arg4tp, arg4nm) \
+  struct tname { \
+    struct kk_function_s _base; \
+    arg1tp arg1nm; \
+    arg2tp arg2nm; \
+    arg3tp arg3nm; \
+    arg4tp arg4nm; \
+  }; \
+  storage_new kk_function_t new_name(arg1tp arg1nm, arg2tp arg2nm, arg3tp arg3nm, arg4tp arg4nm, kk_context_t* _ctx) { \
+    struct tname* _self = kk_function_alloc_as(struct tname, fsize, _ctx); \
+    _self->_base.fun = kk_kkfun_ptr_box(&fname, _ctx); \
+    _self->arg1nm = arg1nm; \
+    _self->arg2nm = arg2nm; \
+    _self->arg3nm = arg3nm; \
+    _self->arg4nm = arg4nm; \
+    return kk_datatype_from_base(&_self->_base, _ctx); \
+  }
+
+#define kk_define_closure5(fname, tname, new_name, storage_new, fsize, arg1tp, arg1nm, arg2tp, arg2nm, arg3tp, arg3nm, arg4tp, arg4nm, arg5tp, arg5nm) \
+  struct tname { \
+    struct kk_function_s _base; \
+    arg1tp arg1nm; \
+    arg2tp arg2nm; \
+    arg3tp arg3nm; \
+    arg4tp arg4nm; \
+    arg5tp arg5nm; \
+  }; \
+  storage_new kk_function_t new_name(arg1tp arg1nm, arg2tp arg2nm, arg3tp arg3nm, arg4tp arg4nm, arg5tp arg5nm, kk_context_t* _ctx) { \
+    struct tname* _self = kk_function_alloc_as(struct tname, fsize, _ctx); \
+    _self->_base.fun = kk_kkfun_ptr_box(&fname, _ctx); \
+    _self->arg1nm = arg1nm; \
+    _self->arg2nm = arg2nm; \
+    _self->arg3nm = arg3nm; \
+    _self->arg4nm = arg4nm; \
+    _self->arg5nm = arg5nm; \
+    return kk_datatype_from_base(&_self->_base, _ctx); \
+  } 
+
+static const kk_datatype_t kk_datatype_null = { kk_datatype_null_init };
 
 static inline bool kk_datatype_is_null(kk_datatype_t d) {
-  return kk_datatype_eq(d, kk_datatype_null());
+  return kk_datatype_eq(d, kk_datatype_null);
 }
 
 static inline kk_datatype_t kk_datatype_unbox(kk_box_t b) {

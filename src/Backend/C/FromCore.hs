@@ -1140,7 +1140,7 @@ genHoleCall tp        = --  ppType tp <.> text "_hole()")
                           CPrim "kk_integer_t" -> text "kk_integer_zero"
                           CPrim "kk_string_t"  -> text "kk_string_empty()"
                           CPrim "kk_vector_t"  -> text "kk_vector_empty()"
-                          _      -> text "kk_datatype_null()"
+                          _      -> text "kk_datatype_null"
 
 
 conBaseCastNameInfo :: ConInfo -> Doc
@@ -1235,34 +1235,44 @@ genLambda params eff body
            getDataInfo name  = do newtypes <- getNewtypes
                                   return (newtypesLookupAny name newtypes)
        (allFields,vrepr) <- orderConFields emitError nameDoc getDataInfo platform 1 {- base.fun -} freeVars
-
+       
        let (paddingFields,fields) = partition (isPaddingName . fst) allFields
+           canUseMacro = length allFields <= 5 && null paddingFields -- only one function in the standard library is greater than 5, none have padding fields.
            scanCount = valueReprScanCount vrepr
            -- fieldDocs = [ppType tp <+> ppName name | (name,tp) <- allFields]
-           tpDecl  =  text "struct" <+> ppName funTpName <+> block (
-                       vcat ([text "struct kk_function_s _base;"] ++
-                             [ppType tp <+> ppName name <.> semi | (name,tp) <- allFields])
-                     ) <.> semi -- <-> text "kk_struct_packed_end"
+           tpDecl  = if canUseMacro then empty else 
+                        text "struct" <+> ppName funTpName <+> block (
+                          vcat ([text "struct kk_function_s _base;"] ++
+                                [ppType tp <+> ppName name <.> semi | (name,tp) <- allFields])
+                        ) <.> semi -- <-> text "kk_struct_packed_end"
 
            funSig  = text (if toH then "extern" else "static") <+> ppType (typeOf body)
-                     <+> ppName funName <.> parameters ([text "kk_function_t _fself"] ++
+                         <+> ppName funName <.> parameters ([text "kk_function_t _fself"] ++
                                                         [ppType tp <+> ppName name | (TName name tp) <- params])
 
-           newDef  = funSig <.> semi
-                     <-> text (if toH then "static inline" else "static")
-                     <+> text "kk_function_t" <+> ppName newName <.> ntparameters fields <+> block ( vcat (
-                       if (null fields)
-                         then [text "kk_define_static_function" <.> arguments [text "_fself", ppName funName] -- <.> semi
-                               --text "static" <+> structDoc <+> text "_self ="
-                              --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
-                              , text "return kk_function_static_dup(_fself,kk_context());"]
-                         else [structDoc <.> text "* _self = kk_function_alloc_as" <.> arguments [structDoc, pretty scanCount
-                                                                                              ] <.> semi
-                              ,text "_self->_base.fun = kk_kkfun_ptr_box(&" <.> ppName funName <.> text ", kk_context());"]
-                              ++ [text "_self->" <.> ppName name <+> text "=" <+> ppName name <.> semi | (name,_) <- fields]
-                              ++ [text "_self->" <.> ppName paddingName <+> text "= kk_box_null();" | (paddingName,_) <- paddingFields]
-                              ++ [text "return kk_datatype_from_base(&_self->_base, kk_context());"])
-                     )
+           newDef  = if canUseMacro then 
+                        funSig <.> semi <-> 
+                          text "kk_define_closure" <.> pretty (length allFields) <.>  
+                            tupled ([ppName funName, ppName funTpName, ppName newName, 
+                                        text (if toH then "static inline" else "static"), -- New Closure
+                                        pretty scanCount] ++ 
+                                       [ppType tp <.> comma <+> ppName name | (name,tp) <- allFields]) <.> semi
+                     else 
+                        funSig <.> semi
+                        <-> text (if toH then "static inline" else "static")
+                        <+> text "kk_function_t" <+> ppName newName <.> ntparameters fields <+> block ( vcat (
+                          if (null fields)
+                            then [text "kk_define_static_function" <.> arguments [text "_fself", ppName funName] -- <.> semi
+                                  --text "static" <+> structDoc <+> text "_self ="
+                                  --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
+                                  , text "return kk_function_static_dup(_fself,kk_context());"]
+                            else [structDoc <.> text "* _self = kk_function_alloc_as" <.> arguments [structDoc, pretty scanCount
+                                                                                                  ] <.> semi
+                                  ,text "_self->_base.fun = kk_kkfun_ptr_box(&" <.> ppName funName <.> text ", kk_context());"]
+                                  ++ [text "_self->" <.> ppName name <+> text "=" <+> ppName name <.> semi | (name,_) <- fields]
+                                  ++ [text "_self->" <.> ppName paddingName <+> text "= kk_box_null();" | (paddingName,_) <- paddingFields]
+                                  ++ [text "return kk_datatype_from_base(&_self->_base, kk_context());"])
+                          )
 
 
        emitToCurrentDef (vcat [linebreak,text "// lift anonymous function", tpDecl, newDef] <.> linebreak)
