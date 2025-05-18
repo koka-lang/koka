@@ -11,22 +11,55 @@ generating direct C code without needing a runtime system. To learn more:
 
 * Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
 
+* See the new [VSCode walkthrough](command:workbench.action.openWalkthrough?%7B%22category%22%3A%22koka.language-koka%23getting-started%22%7D) for recommended learning paths.
+
+* Execute the [`Koka: Open Samples`][samples] command in VSCode to open the samples.
+
 ### v3.1.3, 2025-01-22
 
-- Fix optimized compilation from VS Code (which defaulted to lower optimization before)
+**New features:**
 
-- Add applier syntax `.()` where `x.f.(42)` is sugar for `(x.f)(42)` which
+- Allow passing named arguments anywhere in the argument list (i.e. `f(name = "Tim") fn() ...` now works!) [#491](https://github.com/koka-lang/koka/pull/491)
+- New applier syntax `.()` where `x.f.(42)` is sugar for `(x.f)(42)` which
   can be convenient when calling functions selected from a `struct`.
+- Added lazy constructors! See the new `learn/lazycons.kk` sample, thanks @anfelor.
+- Functions that take optional parameters are eta-expanded when resolving implicits
+- Operators are now allowed as field names.
+- Named handlers now have the type `ev<named-eff>` rather than just plain `named-eff`. 
+- Local variables are now automatically masked in more cases.
 
-- Improve Windows installation, check clang version and Windows build tools.
+**Syntax Updates:**
 
 - Declare reference types as `reference type` (instead of `ref type`).  
   All types are by default reference types except for enumerations (all singleton) or 
   isomorphic types (single constructor with one field, i.e. a `newtype`).
-
 - Declare divergent types as `div type/effect` (instead of `rec type/effect`).
 
-- Various bug fixes.
+**Std Library:**
+
+- New type `core/types/pad` for usage in fbip algorithms
+- New parser combinators `sep-by` and `sep-by1` thanks @toh995 [#681](https://github.com/koka-lang/koka/pull/681)
+- Added module information to the `core/maybe/unjust` function and an `core/maybe/expect` function that takes an error. Similarly for `maybe2` [$658](https://github.com/koka-lang/koka/pull/658).
+- `core/debug/impossible` lets you throw an uncatchable exception (abort) when in an unreachable match case.
+
+**Fixes:**
+
+- Fixed `take` and `extend` on empty slices
+- Fixed issues with duplicate effects in rows [#511](https://github.com/koka-lang/koka/issue/511)
+- Fixed issues with masking effects [#509](https://github.com/koka-lang/koka/issue/509)
+- Fixed issues with finally [#360](https://github.com/koka-lang/koka/issue/360)
+- Fixed name lookup with import renaming
+- Fix optimized compilation from VS Code (which defaulted to lower optimization before)
+- Improve Windows installation, check clang version and Windows build tools.
+- Various other bug and documentation fixes, including many fixes to the JS backend, improvements to the installation process, and better type errors. Thanks @gsuuon [#562](https://github.com/koka-lang/koka/pull/562), @oconnor0 [#569](https://github.com/koka-lang/koka/pull/569), @kyepskee [#575](https://github.com/koka-lang/koka/pull/575)[#671](https://github.com/koka-lang/koka/pull/671), @arvidjonasson [#580](https://github.com/koka-lang/koka/pull/580), @Guest0x0 [#595](https://github.com/koka-lang/koka/pull/595), @osa1 [#604](https://github.com/koka-lang/koka/pull/604), @syaiful6 [#672](https://github.com/koka-lang/koka/pull/672), @timbertson [#677](https://github.com/koka-lang/koka/pull/677)[#692](https://github.com/koka-lang/koka/pull/692)[#712](https://github.com/koka-lang/koka/pull/712), @toh995 [#681](https://github.com/koka-lang/koka/pull/681), @ov7a [#740](https://github.com/koka-lang/koka/pull/740), @TimWhiting [#640](https://github.com/koka-lang/koka/pull/640)[#647](https://github.com/koka-lang/koka/pull/647)[#661](https://github.com/koka-lang/koka/pull/661)[#637](https://github.com/koka-lang/koka/pull/637)[#689](https://github.com/koka-lang/koka/pull/689)[#682](https://github.com/koka-lang/koka/pull/682)[#690](https://github.com/koka-lang/koka/pull/690)[#735](https://github.com/koka-lang/koka/pull/735)[#737](https://github.com/koka-lang/koka/pull/737)...
+- Many other issues fixed.
+
+**Extension Updates:**
+
+- The extension now allows you to generate various functions based on the datatype [#622](https://github.com/koka-lang/koka/pull/622).
+- You can more easily compile for different backends using the command `Koka: Set compilation target`.
+- Added automatic release update notifications and compiler version management. Use the command `Koka: Download and install a specific version of the compiler` to download a specific version of the compiler.
+- The VSCode extension now only activates in folders with `.kk`, or when a command is run.
 
 ### v3.1.2, 2024-05-30
 
@@ -120,7 +153,7 @@ Enjoy!
 
 [fip]: https://www.microsoft.com/en-us/research/uploads/prod/2023/05/fbip.pdf
 [fccontext]: https://www.microsoft.com/en-us/research/uploads/prod/2023/07/fiptree-tr-v4.pdf
-
+[samples]: command:koka.openSamples
 
 ## Previous Releases
 

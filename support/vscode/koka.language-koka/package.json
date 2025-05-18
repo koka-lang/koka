@@ -18,7 +18,8 @@
     "images/",
     "dist/extension.js",
     "koka-configuration.json",
-    "README.md"
+    "README.md",
+    "walkthroughs/samples.md"
   ],
   "keywords": [
     "koka",
@@ -41,10 +42,25 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
-    "workspaceContains:**/*.kk",
-    "onStartupFinished"
+    "workspaceContains:**/*.kk"
   ],
   "contributes": {
+    "walkthroughs": [
+      {
+        "id": "getting-started",
+        "title": "Getting Started with Koka",
+        "description": "A walkthrough of the samples",
+        "steps": [
+          {
+            "id": "open-samples",
+            "title": "Open samples",
+            "description": "[Open samples](command:koka.openSamples)",
+            "media": { "markdown": "walkthroughs/samples.md" },
+            "completionEvents": ["onCommand:koka.openSamples"]
+          }
+        ]
+      }
+    ],
     "languages": [
       {
         "id": "koka",
