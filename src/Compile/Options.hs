@@ -214,6 +214,7 @@ data Flags
          , maxErrors        :: !Int
          , useBuildDirHash  :: !Bool
          , mainEntryName    :: !String
+         , mainTargetName   :: !String
          , baseFlags        :: Maybe Flags
          } deriving (Eq,Show)
 
@@ -369,6 +370,7 @@ flagsNull
           25    -- max errors
           True  -- use variant hash
           ""      -- main entry name (null for default for each target)
+          ""      -- main target name (null for default)
           Nothing -- no base flags
 
 isHelp Help = True
@@ -441,6 +443,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["stack"]           (ReqArg stackFlag "size")       "set stack size (0 for platform default)"
  , option []    ["heap"]            (ReqArg heapFlag "size")        "set reserved heap size (0 for platform default)"
  , option []    ["mainentry"]       (ReqArg mainEntry "name")       "set the name of the main entry function ('main')"
+ , option []    ["maintarget"]      (ReqArg mainTarget "name")     "set the name of the target expressions ('test')"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
  , configstr [] ["console"]  ["ansi","html","raw"] "fmt" (\s f -> f{ console = s }) "console output format: <ansi|html|raw>"
@@ -599,6 +602,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   mainEntry s
     = Flag (\f -> f{ mainEntryName = s })
+  
+  mainTarget s
+    = Flag (\f -> f{ mainTargetName = s })
 
   extendArgs prev mbs
     = case mbs of Just s | not (null s) -> prev ++ unquote s

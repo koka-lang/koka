@@ -111,7 +111,7 @@ compileAll p flags fpaths
                           buildc          <- buildcBuildEx (rebuild flags) roots {-force roots always-} [] buildc0
                           buildcThrowOnError buildc
                           -- compile & run entry points
-                          let mainEntryNameStr = if null (mainEntryName flags) then "main" else mainEntryName flags
+                          let mainEntryNameStr = if null (mainTargetName flags) then "main" else mainTargetName flags
                           let mainEntries = if library flags then [] else map (\rootName -> qualify rootName (newName mainEntryNameStr)) roots
                           runs <- mapM (compileEntry buildc) mainEntries
                           -- when (evaluate flags) $ mapM_ buildLiftIO runs
