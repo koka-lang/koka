@@ -287,7 +287,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry outBa
                                           ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
                                           newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                           (parcBorrowInference flags) (optEagerPatBind flags) (stackSize flags) mbEntry
-                                          (if null (mainEntryName flags) then "main" else mainEntryName flags)
+                                          (if null (generatedEntrypointName flags) then "main" else generatedEntrypointName flags)
                                           core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] bcore
 
@@ -378,7 +378,7 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs
         let termShow pre post
               = termInfo term (color (colorInterpreter (colorScheme flags)) (fill 14 (text pre) <.> colon) <+>
                                 color (colorSource (colorScheme flags)) (text (unwords post)))
-        if (not (null (mainEntryName flags)))
+        if (not (null (generatedEntrypointName flags)))
           then do -- todo: properly create an archive
                   termShow "link command"     ([ccPath cc] ++ ccFlags cc)
                   termShow "link objects"     objs
