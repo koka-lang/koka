@@ -531,8 +531,15 @@ static kk_string_t os_direntry_name(dir_entry* entry, kk_context_t* ctx) {
 #define dir_cursor DIR*
 #define dir_entry  struct dirent*
 static bool os_findnext(dir_cursor d, dir_entry* entry, int* err) {
+  // From the man page for readdir():
+  // "If the end of the directory stream is reached, NULL is returned
+  // and errno is not changed.  If an error occurs, NULL is returned
+  // and errno is set to indicate the error.  To distinguish end of
+  // stream from an error, set errno to zero before calling readdir()
+  // and then check the value of errno if NULL is returned."
+  errno = 0;
   *entry = readdir(d);
-  *err = (*entry != NULL || errno == ENOENT ? 0 : errno);
+  *err = errno;
   return (*entry != NULL);
 }
 static bool os_findfirst(kk_string_t path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
@@ -564,7 +571,7 @@ static kk_string_t os_direntry_name(dir_entry* entry, kk_context_t* ctx) {
 kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, kk_context_t* ctx) {
   dir_cursor d = 0;
   dir_entry entry;
-  int err;
+  int err = 0;
   bool ok = os_findfirst(dir, &d, &entry, &err, ctx);
   if (!ok) {
     *contents = kk_vector_empty();
