@@ -68,7 +68,8 @@ importResolvePath :: Name -> [String] -> ImportMap -> Either [Name] (Name,Name)
 importResolvePath basename [] imports
   = Right (basename, nameNil)  -- unqualified
 importResolvePath basename rpath imports
-  = case filter (\(ralias,_) -> rpath `isPrefixOf` ralias) imports of
+  = -- trace ("imports expand: " ++ show basename ++ ": " ++ show rpath) $
+    case filter (\(ralias,_) -> rpath `isPrefixOf` ralias) imports of
       -- found a unique match
       [(ralias,modName)]
           -> let qname = qualify modName basename
