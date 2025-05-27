@@ -227,7 +227,7 @@ pub fun download-latest(  url   : string,
       Just(cur) -> { if verbose then trace(full-msg); cur }
       Nothing   -> { error(full-msg) }
 
-  try
+  try {
     if verbose then trace("start download: " ++ url.show)
     val text = url.download-text(download-timeout)
     // trace("downloaded: " ++ url ++ ": " ++ text.first(10).string ++ "...")
