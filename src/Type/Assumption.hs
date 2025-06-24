@@ -179,7 +179,7 @@ gammaIsEmpty (Gamma g)
   Gamma
 --------------------------------------------------------------------------}
 -- | Environment mapping names to type schemes. Due to overloading
--- there may be multiple entries for the same qualified name
+-- there may be multiple entries for the same unqualified name
 newtype Gamma   = Gamma (M.NameMap [(Name,NameInfo)])
 
 gammaSchemes :: Gamma -> [Scheme]

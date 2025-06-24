@@ -25,7 +25,7 @@ import qualified Common.NameSet as S
 import Core.Pretty( prettyDef )
 import Core.Check( checkCore )
 
-import Core.CoreVar( extractDepsFromInlineDefs )
+import Core.CoreVar( extractDepsFromInlineDefs, extractDepsFromDefs )
 import Core.Simplify( simplifyDefs )
 import Core.Uniquefy( uniquefy )
 import Core.FunLift( liftFunctions )
@@ -147,15 +147,15 @@ coreOptimize flags newtypes gamma inlines coreProgram
 
             -- add extra required imports for inlined definitions
             inlineDeps       = extractDepsFromInlineDefs allInlineDefs
+            regularDeps      = extractDepsFromDefs coreDefsFinal
+            allDeps          = nub (inlineDeps ++ regularDeps)
             currentImports   = map Core.importName (Core.coreProgImports coreProgram)
-            inlineImports    = [Core.Import name "" Core.ImportCompiler Private "" | name <- inlineDeps, not (name `elem` currentImports) && not (name == progName)]
-
+            inlineImports    = [Core.Import name "" Core.ImportCompiler Private "" | name <- allDeps, not (name `elem` currentImports) && not (name == progName)]
             coreFinal        = (if (null inlineImports || verbose flags <= 2) then id else trace (show progName ++ ": extra inline imports: " ++ show (map Core.importName inlineImports))) $
                                uniquefy $ coreProgram {
                                  Core.coreProgDefs = coreDefsFinal,
                                  Core.coreProgImports = Core.coreProgImports coreProgram ++ inlineImports
                                }
-
         return (coreFinal, allInlineDefs)
 
 
