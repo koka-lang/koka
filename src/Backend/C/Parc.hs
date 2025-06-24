@@ -1011,7 +1011,7 @@ parcTrace msg
 
 getDataInfo' :: Newtypes -> Type -> Maybe DataInfo
 getDataInfo' newtypes tp
-  = case extractDataDefType tp of
+  = case extractDataDefType (expandSyn tp) of
       Nothing   -> Nothing
       Just name | name == nameTpBox -> Nothing
       Just name -> case newtypesLookupAny name newtypes of
