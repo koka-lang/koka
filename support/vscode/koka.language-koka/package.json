@@ -170,11 +170,18 @@
           "order": 10,
           "scope": "machine-overridable"
         },
+        "koka.dev.usePrereleaseCompilers": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use pre-release versions of the Koka compiler for the language server.",
+          "order": 11,
+          "scope": "machine-overridable"
+        },
         "koka.dev.debugExtension": {
           "type": "boolean",
           "default": false,
           "description": "Log trace information from the language server subprocess.",
-          "order": 11
+          "order": 12
         }
       }
     },
@@ -304,6 +311,7 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/semver": "^7.5.8",
+    "@types/node-fetch": "^2.6.12",
     "@types/vscode": "1.85.0",
     "@vscode/vsce": "3.2.1",
     "copyfiles": "^2.4.1",
@@ -314,6 +322,7 @@
     "@vscode/debugprotocol": "^1.68.0",
     "semver": "^7.6.3",
     "await-notify": "1.0.1",
+    "node-fetch": "^3.3.2",
     "vscode-languageclient": "^9.0.1",
     "ts-loader": "^9.5.2",
     "webpack": "^5.97.1",

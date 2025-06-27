@@ -11,6 +11,7 @@ import * as os from "os"
 import * as vscode from "vscode"
 import * as child_process from "child_process"
 import * as semver from "semver"
+import fetch from 'node-fetch' // Use node-fetch to fetch the latest Koka compiler release
 
 
 // Constants
@@ -161,6 +162,8 @@ async function findInstallCompilerPaths(context: vscode.ExtensionContext,
   latestCompilerVersion: string,
   developmentPath: string): Promise<string[]> {
   const paths = findCompilerPaths(vsConfig, developmentPath)
+
+
   if (paths.length === 0) {
     console.log('Koka: unable to find an installed Koka compiler')
     const reason = "The Koka compiler cannot be not found in the PATH"
@@ -170,11 +173,26 @@ async function findInstallCompilerPaths(context: vscode.ExtensionContext,
 
   const defaultPath = paths[0]
   const compilerVersion = getCompilerVersion(defaultPath) ?? "1.0.0"
+
+  // whether we should be installing a prerelease compiler
+  const usePrerelease = vsConfig.get('dev.usePrereleaseCompilers') as boolean ?? false;
+  if (usePrerelease) { // Check for a new prerelease
+    const [url, version] = await getKokaLatestPrereleaseUrlAndVersion();
+    const installedVersion = await context.globalState.get("koka-latest-installed-compiler") as string ?? "1.0.0"
+    if (semver.lt(installedVersion, version)) {
+      console.log(`Koka: new prerelease available: ${version} (${url})`)
+      await installKoka(context, vsConfig, "", version, developmentPath, true /* force */, url)
+      await context.globalState.update('koka-compiler-version', version)
+      return findCompilerPaths(vsConfig, developmentPath)
+    }
+  } 
+
   if (semver.lt(compilerVersion, latestCompilerVersion)) {
     const reason = `The currently installed Koka compiler is version ${compilerVersion} while the latest is ${latestCompilerVersion}`
     await installKoka(context, vsConfig, reason, latestCompilerVersion, developmentPath, false)
     return findCompilerPaths(vsConfig, developmentPath)
   }
+
 
   console.log("Koka: using Koka compiler at: " + defaultPath);
   return paths
@@ -260,11 +278,13 @@ function getCompilerVersion(compilerPath: string): string {
 /*-------------------------------------------------
   install
 -------------------------------------------------*/
+export const targetPlatform = `${osGetPlatform()}-${osGetArch()}`
 
 async function installKoka(context: vscode.ExtensionContext, config: vscode.WorkspaceConfiguration,
   reason: string, latestCompilerVersion: string,
   developmentPath: string,
-  force: boolean) {
+  force: boolean,
+  directUrl: string | undefined = undefined): Promise<string[]> {
   // only prompt once for a download for each new extension version
   if (!force) {
     const latestInstalled = await context.globalState.get('koka-latest-installed-compiler') as string ?? "1.0.0"
@@ -276,9 +296,8 @@ async function installKoka(context: vscode.ExtensionContext, config: vscode.Work
 
   // check platform
   let warning = ""
-  const platform = `${osGetPlatform()}-${osGetArch()}`
-  if (!binaryPlatforms.includes(platform)) {
-    warning = `Unfortunately, it looks like your platform ${platform} does not have a binary installer -- see <https://github.com/koka-lang/koka> for build instructions.  `
+  if (!binaryPlatforms.includes(targetPlatform)) {
+    warning = `Unfortunately, it looks like your platform ${targetPlatform} does not have a binary installer -- see <https://github.com/koka-lang/koka> for build instructions.  `
   }
 
   // ask the user to install
@@ -299,7 +318,7 @@ async function installKoka(context: vscode.ExtensionContext, config: vscode.Work
 
   // download and install in a terminal
   let shellCmd = ""
-  const flags = "--vscode"  // TODO: add `--force` to force all default actions? (like installing clang on windows if needed)
+  const flags = "--vscode" + (directUrl ? ` --url ${directUrl}` : "") // TODO: add `--force` to force all default actions? (like installing clang on windows if needed)
   if (osGetPlatform() === "windows") {
     if (kokaDevDir) {
       const kokaBundle = getKokaBundleDir(kokaDevDir, latestCompilerVersion)
@@ -350,6 +369,31 @@ async function installKoka(context: vscode.ExtensionContext, config: vscode.Work
   return result;
 }
 
+
+export async function getKokaLatestPrereleaseUrlAndVersion() : Promise<string[]> {
+  try {
+    const response = await fetch('https://api.github.com/repos/koka-lang/koka/releases'); // Fetch all releases
+    
+    if (!response.ok) { // Check for HTTP errors
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const releases : any = await response.json(); // Parse the JSON response
+
+    const latestPrerelease = releases.find(release => release.prerelease); // Find the latest prerelease
+
+    if (latestPrerelease) {
+      const asset = latestPrerelease.assets.find(a => a.name.includes(targetPlatform));
+      if (asset) {
+        return [asset.browser_download_url, latestPrerelease.tag_name]; // Return the download URL
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching latest Koka prerelease:', err);
+  }
+}
+
+
 function osGetPlatform() : string {
   var platform = os.platform()
   if (platform=="win32") return "windows"
@@ -363,7 +407,7 @@ function osGetArch() : string {
 
 function getKokaBundleDir(kokaDir: string, version: string): string {
   const kokaBundleBase = `${kokaDir}/bundle/v${version}/koka-v${version}`
-  const kokaBundle = `${kokaBundleBase}-${osGetPlatform()}-${osGetArch()}.tar.gz`
+  const kokaBundle = `${kokaBundleBase}-${targetPlatform}.tar.gz`
   return kokaBundle
 }
 
