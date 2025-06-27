@@ -609,8 +609,12 @@ genMatch result scrutinees branches
                                                    scrutinee <.> dot <.> fieldName, field) )
                             (zip fields (map (ppName . fst) (conInfoParams info)) )
 
-                     ConIso{} -- always success
-                       -> []
+                     ConIso{} -- always success, but need to test the fields
+                       -> concatMap
+                            (\(field,fieldName) -> genTest modName (
+                                                    debugWrap ("genTest: iso: " ++ show field ++ " -> " ++ show fieldName) $
+                                                   scrutinee, field) )
+                            (zip fields (map (ppName . fst) (conInfoParams info)) )
                      ConStruct{conDataRepr=DataStructAsMaybe}
                        | getName tn == nameOptional
                        -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest modName (scrutinee,field) ) fields
