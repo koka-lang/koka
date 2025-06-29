@@ -126,7 +126,7 @@ export class VersionManager {
     let flags = "--vscode"
     if (this.selectedCompilerRelease?.downloadUrl) {
       // Prerelease / non-latest release versions need to use an explicit URL to download the compiler
-      flags += ` --url ${this.selectedCompilerRelease.downloadUrl}` 
+      flags += ` ${this.selectedCompilerRelease.downloadUrl}` 
     } // TODO: add `--force` to force all default actions? (like installing clang on windows if needed)
     if (platform === "windows") {
       if (kokaDevDir) {
