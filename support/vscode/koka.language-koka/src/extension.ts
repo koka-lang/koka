@@ -247,7 +247,16 @@ function createCommands(
     }),
 
     vscode.commands.registerCommand('koka.downloadCompiler', async () => {
-      await kokaConfig.versionManager.getLatestKokaReleases();
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Getting Koka release versions from GitHub...",
+          cancellable: false
+          
+        }, async (progress) => {
+          await kokaConfig.versionManager.getLatestKokaReleases();
+          progress.report({ message: "Release versions retrieved" });
+        });
       const result = await vscode.window.showQuickPick(kokaConfig.versionManager.releases.map(r => r.version), {
         placeHolder: "Select a Koka version to download"
       });

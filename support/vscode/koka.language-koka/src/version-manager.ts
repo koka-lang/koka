@@ -84,10 +84,11 @@ export class VersionManager {
     await this.context.globalState.update('koka-latest-installed-compiler', version);
   }
 
+  // force indicates that the user has explicitly requested to install
   async installKoka(
     reason: string,
     developmentPath: string,
-    force: boolean): Promise<string[]> {
+    force: boolean): Promise<string[]> { 
     // only prompt once for a download for each new extension version
     if (!force) {
       const latestInstalled = await this.installedVersion();
@@ -103,19 +104,21 @@ export class VersionManager {
       warning = `Unfortunately, it looks like your platform ${targetPlatform} does not have a binary installer -- see <https://github.com/koka-lang/koka> for build instructions.  `
     }
 
-    // ask the user to install
-    const decision = await vscode.window.showInformationMessage(
-      `${(reason ? reason + ".  \n" : "")}${warning}Would you like to download and install the latest Koka compiler?`,
-      {}, // modal: true },
-      'Yes',
-      'No'
-    )
-    if (decision == 'No') {
-      // pretend it is installed and don't auto prompt again in the future (until a more recent version is released)
-      await this.setInstalledVersion(this.latestCompilerVersion);
-      return
-    } else if (decision != 'Yes') { // cancel
-      return
+    if (!force) {
+      // ask the user to install
+      const decision = await vscode.window.showInformationMessage(
+        `${(reason ? reason + ".  \n" : "")}${warning}Would you like to download and install the latest Koka compiler?`,
+        {}, // modal: true },
+        'Yes',
+        'No'
+      )
+      if (decision == 'No') {
+        // pretend it is installed and don't auto prompt again in the future (until a more recent version is released)
+        await this.setInstalledVersion(this.latestCompilerVersion);
+        return
+      } else if (decision != 'Yes') { // cancel
+        return
+      }
     }
 
     // download and install in a terminal
