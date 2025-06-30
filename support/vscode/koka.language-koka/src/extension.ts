@@ -252,12 +252,12 @@ function createCommands(
           location: vscode.ProgressLocation.Notification,
           title: "Getting Koka release versions from GitHub...",
           cancellable: false
-          
         }, async (progress) => {
           await kokaConfig.versionManager.getLatestKokaReleases();
           progress.report({ message: "Release versions retrieved" });
         });
-      const result = await vscode.window.showQuickPick(kokaConfig.versionManager.releases.map(r => r.version), {
+      const versions = kokaConfig.versionManager.releases.filter(r => !r.isPrerelease || kokaConfig.versionManager.usePrereleases).map(r => r.version);
+      const result = await vscode.window.showQuickPick(versions, {
         placeHolder: "Select a Koka version to download"
       });
       if (result) {
