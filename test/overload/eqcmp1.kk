@@ -55,7 +55,12 @@ fun cmpx/eq( x : a, y : a, ?cmpx : (a,a) -> order ) : bool
 
 
 fun test3a( ?eq : (int,int) -> bool )
-  equal(1,2)  // use `?eq` instead of `int/eq`  to prefer locals
+  // equal(1,2)  // use `?eq` instead of `int/eq`  to prefer locals
+  equal([1],[2],?eq=list/eq
+  )
+
+fun test3e( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool )
+  equal(xs,ys)
 
 fun test3b()
   equal(1,2)  // use `int/eq` instead of `cmpx/eq(int/cmpx)` as it is shorter
@@ -63,6 +68,7 @@ fun test3b()
 fun test3c(?cmpx : (int,int) -> order)
   equal(1,2)  // (A) use `int/eq` as it is shortest.
               // (B) use `cmpx/eq(_,_,?cmpx)` (instead of `int/eq`) as it originates with the most locals
+
 
 fun test3d(?cmpx : (int,int) -> order)
   fun eq(x,y) cmpx/eq(x,y)   // use `?cmpx`
