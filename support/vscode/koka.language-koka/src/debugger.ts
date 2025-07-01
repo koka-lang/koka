@@ -16,7 +16,7 @@ import {
 } from '@vscode/debugadapter'
 import { DebugProtocol } from '@vscode/debugprotocol'
 import { EventEmitter } from 'events'
-import { KokaConfig } from './workspace'
+import { KokaConfig } from './workspace-config'
 import { Subject } from 'await-notify'
 import * as path from 'path'
 import {
