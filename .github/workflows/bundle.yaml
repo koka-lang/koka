@@ -70,7 +70,7 @@ jobs:
         run: |
           npm install
           npm run build
-
+      
       # Create a release: https://github.com/softprops/action-gh-release (MIT license)
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -80,7 +80,16 @@ jobs:
             bundle/**/*.tar.gz
             support/vscode/koka.language-koka/*.vsix
             util/install.bat
+          draft: true
+          body_path: util/release.md
+      
+      - name: Upload install scripts
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Linux' && runner.arch == 'X64'  # only release if tagged with a version
+        with:
+          files: | # Only add install file on Linux to avoid line ending issues: https://github.com/koka-lang/koka/issues/742
             util/install.sh
           draft: true
           body_path: util/release.md
+      
 

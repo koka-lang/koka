@@ -9,31 +9,38 @@ It is recommended to install the binary compiler via the VS Code Koka extension.
 
 Tested on macOS, Ubuntu, Debian, and should run on most Linux distributions. From a command prompt, run:
 ```
-curl -sSL https://github.com/koka-lang/koka/releases/download/v3.1.3/install.sh | sh
+curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh
 ```
 After install, run `koka` to verify if koka installed correctly.n
 
 * For most installations this will ask for root access in order to install to `/usr/local/bin`. For more control, you can pass a different prefix. For example, installing to `~/.local` instead:  
-  `curl -sSL https://github.com/koka-lang/koka/releases/download/v3.1.3/install.sh | sh -s -- --prefix=~/.local`
+  `curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh -s -- --prefix=~/.local`
 
 * To uninstall a version, use the `--uninstall` option:  
-  `curl -sSL https://github.com/koka-lang/koka/releases/download/v3.1.3/install.sh | sh -s -- --uninstall`
+  `curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh -s -- --uninstall`
+
+* For pre-release versions specify the version tag for the release:
+  `curl -sSL https://github.com/koka-lang/koka/releases/download/<version-tag>/install.sh | sh`
+
 
 ### Windows (x64, arm64)
 
 Open a `cmd` prompt and download and run the installer:
 ```
-curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/download/v3.1.3/install.bat && %tmp%\install-koka.bat
+curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat
 ```
 This will also prompt to install the [`clang`][llvm] compiler and [Windows SDK][winSDK] if needed, and install syntax highlighting for the [VS Code][vscode] editor. After install, run `koka` to verify if koka installed correctly. 
 
 * On Windows arm64, we use the x64 Koka compiler (which runs emulated), but the generated code is native arm64.
 
 * On Windows, the default install is to the user profile at `%APPDATA%\local`. You can change the installation directory using `--prefix`. For example:  
-  `curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/download/v3.1.3/install.bat && %tmp%\install-koka.bat --prefix=c:\programs\local`
+  `curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat --prefix=c:\programs\local`
 
 * To uninstall a version, use the `--uninstall` option:  
-  `curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/download/v3.1.3/install.bat && %tmp%\install-koka.bat --uninstall`
+  `curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat --uninstall`
+
+* For pre-release versions specify the version tag for the release: 
+  `curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/download/<version-tag>/install.bat && %tmp%\install-koka.bat`
 
 ### Other platforms
 

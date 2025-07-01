@@ -1,12 +1,10 @@
 #
-# ** when increasing the version, increase the version below at the cpp-options as well! ***
+# ** when increasing the version run `stack exec koka -- -e util/reversion -- -v <version>`! ***
 #
-# Other files that contain a version are:
-# - util/install.sh
-# - util/install.bat
-# - util/minbuild
-# - support/vscode/koka.language-koka/package.json
+# Then make sure to update the following files:
 # - whatsnew.md, readme.md
+#
+# Finally push to github with the new version tag
 
 
 name:       koka
