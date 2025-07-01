@@ -8,6 +8,7 @@ found in the LICENSE file at the root of this distribution.
 import * as vscode from 'vscode'
 import * as path from 'path'
 import * as semver from "semver"
+import * as fs from "fs"
 
 import { KokaConfig } from './workspace-config'
 import { CancellationToken, DebugConfiguration, DebugConfigurationProvider, ProviderResult, WorkspaceFolder } from 'vscode'
@@ -168,7 +169,14 @@ function createBasicCommands(context: vscode.ExtensionContext, vsConfig: vscode.
   context.subscriptions.push(
     // Show what is new
     vscode.commands.registerCommand('koka.whatsnew', async () => {
-      const whatsnew = path.join(context.extensionPath, "whatsnew.md")
+      let whatsnew : string = "";
+      let root = kokaConfig.versionManager.getCompilerShareDir();
+      if (root) {
+        whatsnew = path.join(root,"whatsnew.md");
+      }
+      if (!whatsnew || !fs.existsSync(whatsnew)) {
+        whatsnew = path.join(context.extensionPath, "whatsnew.md");
+      }
       await vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(whatsnew))
     }),
 

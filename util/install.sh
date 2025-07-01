@@ -474,14 +474,14 @@ install_dist() {  # <prefix> <version>
   info "- install pre-compiled libraries: $koka_lib_dir/$version"
   if [ -d "$KOKA_TEMP_DIR/lib" ] ; then
     if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/lib" "$prefix/" ; then
-      stop "Cannot copy pre-compiled libraries to $KOKA_TEMP_DIR/lib"
+      stop "Cannot copy pre-compiled libraries from $KOKA_TEMP_DIR/lib to $prefix/lib"
     fi
   else
     info "  (generic distribution does not contain precompiled libraries)"
   fi
   info "- install source libraries      : $koka_share_dir/$version"
   if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/share" "$prefix/" ; then
-    stop "Cannot copy libraries to $KOKA_TEMP_DIR/share"
+    stop "Cannot copy libraries from $KOKA_TEMP_DIR/share to $prefix/share"
   fi
 
   # if not minimal, install editor integration

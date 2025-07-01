@@ -18,8 +18,7 @@
     "images/",
     "dist/extension.js",
     "koka-configuration.json",
-    "README.md",
-    "whatsnew.md"
+    "README.md"
   ],
   "keywords": [
     "koka",
@@ -174,7 +173,7 @@
         "koka.dev.usePrereleaseCompilers": {
           "type": "boolean",
           "default": false,
-          "description": "Use pre-release versions of the Koka compiler for the language server.",
+          "description": "Allow installing pre-release versions of the Koka compiler for the language server.",
           "order": 11,
           "scope": "machine-overridable"
         },
@@ -215,7 +214,7 @@
       },
       {
         "command": "koka.downloadCompiler",
-        "title": "Koka: Download compiler"
+        "title": "Koka: Download and install a specific version of the compiler"
       },
       {
         "command": "koka.selectTarget",
@@ -306,13 +305,12 @@
     }
   },
   "scripts": {
-    "build": "webpack --mode production && npx copyfiles -V ../../../whatsnew.md support/vscode/koka.language-koka/ && vsce package --allow-unused-files-pattern --skip-license",
+    "build": "webpack --mode production && vsce package --allow-unused-files-pattern --skip-license",
     "compile": "webpack --mode none",
     "watch": "webpack --mode none --watch",
-    "tscbuild": "tsc && npx copyfiles -V ../../../whatsnew.md support/vscode/koka.language-koka/ && vsce package --allow-unused-files-pattern --skip-license",
+    "tscbuild": "tsc && vsce package --allow-unused-files-pattern --skip-license",
     "tsccompile": "tsc",
     "tscwatch": "tsc -w",
-    "readme": "npx copyfiles -V ../../../whatsnew.md support/vscode/koka.language-koka/",
     "package": "vsce package --allow-unused-files-pattern",
     "publish": "vsce publish"
   },

@@ -373,6 +373,20 @@ export class VersionManager {
     }
   }
 
+  getCompilerShareDir(): string {
+    if (!this.hasValidCompiler()) return null;
+    if (this.compilerPath.includes(".stack-work")) {
+      const root = this.compilerPath.substring(0, this.compilerPath.indexOf(".stack-work"))  // <root>/.stack-work/.../bin/koka
+      return root
+    }
+    else {
+      const root = path.dirname(path.dirname(this.compilerPath))  // <root>/bin/koka
+      const ver = this.getCompilerVersion(this.compilerPath) || this.compilerVersion;
+      const share = path.join(root, "share", "koka", `v${ver}`)
+      return share;
+    }
+  }
+
 
   // Does the compiler path point to a valid compiler?
   hasValidCompiler(): Boolean {
