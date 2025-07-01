@@ -26,16 +26,7 @@ stack exec koka -- -e util/reversion -- -v <version>
 ```
 
 where `<version>` is without a preceding `v`, like `-v 3.1.3`.
-This will update the version in all required places, namely:
-
-- package.yaml (2 places)
-- util/install.sh
-- util/install.bat
-- util/minbuild
-- util/release.md
-- support/vscode/koka.language-koka/package.json
-- whatsnew.md 
-- readme.md
+This will update the version in all required places.
 
 Check if the `whatsnew.md` is up-to-date as it is shown once the VS Code extension updates.
 Similarly for `readme.md` for the recent releases description.

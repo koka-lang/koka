@@ -1,3 +1,5 @@
+# The VS Code Extension
+
 This contains the sources for building the VS code extension (VSIX).
 
 To build the extension first install nodejs/npm, then:
@@ -15,20 +17,15 @@ and select `install extension`, or run:
 $ code --install-extension language-koka-<version>.vsix
 ```
 
-In the extension you may need to go to the settings and set the path
-to the Koka executable. If you like to use the build version use:
+## Publishing
 
-```
-$ stack path --local-install-root
-```
-
-to get the local install root directory where `<local-install-root>/bin/koka` is
-the path to local executable.
+When publishing a new version of the extension to the markedplace, increase the version
+number in `package.json` and run `npm run publish`.
 
 
-## Debugging the Extension
+## Debugging
 
-When developing on the extension, you can add the following `.vscode/launch.json` file:
+When developing the extension, you can add the following `.vscode/launch.json` file:
 ```json
 {
   "version": "0.2.0",
@@ -43,8 +40,10 @@ When developing on the extension, you can add the following `.vscode/launch.json
   ]
 }
 ```
-(note that when using `nmp run tscbuild` you need to use the `out` directory instead of the `dist` directory).
+(note that when using `npm run tscbuild` you need to use the `out` directory instead of the `dist` directory).
 
-You can now press F5 to lauch a vs code editor with the extension enabled and you should be able
-to set breakpoints etc. to debug the extension.
+You can now press `F5` to lauch a vs code editor with the extension enabled and you should be able
+to set breakpoints etc. to debug the extension. 
+
+Run `npm run watch` in a terminal to continuously update the extension when making changes.
 

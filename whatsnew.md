@@ -11,7 +11,7 @@ generating direct C code without needing a runtime system. To learn more:
 
 * Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
 
-### v3.1.3, 2025-01-22
+### v3.1.3, 2025-07-01
 
 - Fix optimized compilation from VS Code (which defaulted to lower optimization before)
 
@@ -25,6 +25,10 @@ generating direct C code without needing a runtime system. To learn more:
   isomorphic types (single constructor with one field, i.e. a `newtype`).
 
 - Declare divergent types as `div type/effect` (instead of `rec type/effect`).
+
+- Support for lazy constructors. See `samples/learn/lazycons.kk` in the Samples, 
+  and read the [paper][https://antonlorenzen.de/papers/lazycons.pdf] 
+  on "_First-order Laziness_" by Anton Lorenzen, Daan Leijen, Wouter Swierstra, Sam Lindley (ICFP'25).
 
 - Various bug fixes.
 

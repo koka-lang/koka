@@ -17,6 +17,7 @@ export class KokaRelease {
   constructor(public downloadUrl: string, public version: string, public isPrerelease: boolean, public date : Date) {}
 }
 
+// Used if there is no connection
 const kokaDefaultRelease = new KokaRelease("","3.1.2",false,new Date("2024-05-30"));
 
 // Manages discovering, installing, and managing Koka compiler versions
@@ -24,6 +25,7 @@ export class VersionManager {
   constructor(private context: vscode.ExtensionContext, private vsConfig: vscode.WorkspaceConfiguration) {
     this.usePrereleases = vsConfig.get('dev.usePrereleaseCompilers') as boolean ?? false;
     this.developmentPath = expandHome(this.vsConfig.get('dev.developmentPath') as string ?? "")
+    this.releases = []
   }
 
   usePrereleases: boolean = false; // whether to use prerelease compilers
@@ -34,7 +36,7 @@ export class VersionManager {
   compilerVersion: string = "1.0.0"     // version of that compiler
   compilerPaths: string[] = []          // all found paths to koka compilers in the system
 
-  releases: KokaRelease[] = [kokaDefaultRelease];
+  releases: KokaRelease[] = []          // online releases from GitHub
 
   getLatestCompilerRelease() : KokaRelease {
     return this.releases.find(r => !r.isPrerelease || this.usePrereleases) ?? kokaDefaultRelease;
@@ -272,7 +274,7 @@ export class VersionManager {
     const defaultPath = paths[0]
     const compilerVersion = this.getCompilerVersion(defaultPath) ?? "1.0.0"
     const latestCompilerVersion = this.getLatestCompilerReleaseVersion();
-    if (semver.lt(compilerVersion, latestCompilerVersion)) {
+    if (semver.lt(compilerVersion, latestCompilerVersion)) {  // note: 3.1.3 > 3.1.3-alpha
       const reason = `The currently installed Koka compiler is version ${compilerVersion} while the latest is ${latestCompilerVersion}`
       await this.installKoka(reason, developmentPath, "latest")
       return this.findCompilerPaths(developmentPath)
