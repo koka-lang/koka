@@ -1,7 +1,8 @@
+# Normally, increase the version using the script `stack exec koka -- -e util/reversion -- -v <version>`
+# (where the <version> is without a preceding 'v'). This will update the version in all required places.
 #
-# ** when increasing the version, increase the version below at the cpp-options as well! ***
-#
-# Other files that contain a version are:
+# When increasing the version manually, increase the version below at the cpp-options as well,
+# and also update other files that contain a version:
 # - util/install.sh
 # - util/install.bat
 # - util/minbuild

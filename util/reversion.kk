@@ -23,7 +23,7 @@ val flag-descs : list<flag<iflags>> =
   fun set-version( f : iflags, s : string ) : iflags
     f(version = s)
 
-  [ Flag( "v", ["version"], Req(set-version,"<version>"), "the new koka version" ),
+  [ Flag( "v", ["version"], Req(set-version,"<version>"), "the new koka version (without preceding 'v')" ),
   ]
 
 
