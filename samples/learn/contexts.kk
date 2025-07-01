@@ -68,8 +68,8 @@ pub fun test-acc()
 // we need first-class constructor contexts.
 
 // We can create a context using the `ctx` keyword. A context must
-// consist of constructors and have a single _hole_ (written as `_`).
-// For example, `ctx Cons(1,Cons(2,_))` or `ctx Bin(Bin(Leaf 1, _),Leaf 3)`
+// consist of constructors and have a single _hole_ (written as `hole`).
+// For example, `ctx Cons(1,Cons(2,hole))` or `ctx Bin(Bin(Leaf 1,hole),Leaf 3)`
 // There are two operations on context, append and apply:
 //
 // `(++)  : (cctx<a,b>, cctx<b,c>) -> cctx<a,c>`  // append
@@ -85,11 +85,11 @@ pub fun test-acc()
 // Now we can write a top-down `map` ourselves: (note: we don't need `tail` here as `fip` implies `tail` already)
 fip fun map-td( xs : list<a>, ^f : a -> e b, acc : ctx<list<b>> ) : e list<b>
   match xs
-    Cons(x,xx) -> xx.map-td( f, acc ++ ctx Cons(f(x), _) )  // plug `Cons(f(x),_)` into the hole in `acc`
-    Nil        -> acc ++. Nil                               // plug the hole with `Nil`, and return the full accumulated list
+    Cons(x,xx) -> xx.map-td( f, acc ++ ctx Cons(f(x), hole) )  // plug `Cons(f(x),hole)` into the hole in `acc`
+    Nil        -> acc ++. Nil                                  // plug the hole with `Nil`, and return the full accumulated list
 
 fip fun map-td-entry(xs,^f)
-  map-td(xs,f,ctx _)     // start with an empty context
+  map-td(xs,f,ctx hole)     // start with an empty context
 
 pub fun test-td()
   [1,2,3].map-td-entry(inc).println
@@ -120,7 +120,7 @@ fbip fun flatten( xss : list<list<a>> ) : list<a>
 // with a hole in the tail element:
 fip fun concat-td( xs : list<a>, acc : ctx<list<a>> ) : ctx<list<a>>
   match xs
-    Cons(x,xx) -> concat-td( xx, acc ++ ctx Cons(x,_) )
+    Cons(x,xx) -> concat-td( xx, acc ++ ctx Cons(x,hole) )
     Nil        -> acc
 
 fbip fun flatten-td( xss : list<list<a>>, acc : ctx<list<a>> ) : ctx<list<a>>
@@ -129,7 +129,7 @@ fbip fun flatten-td( xss : list<list<a>>, acc : ctx<list<a>> ) : ctx<list<a>>
     Nil          -> acc
 
 fbip fun flatten-entry( xss : list<list<a>> ) : list<a>
-  flatten-td( xss, ctx _) ++. Nil
+  flatten-td( xss, ctx hole) ++. Nil
 
 pub fun example-flatten()
   [[1,2],[3,4],[]].flatten-entry.println
@@ -141,11 +141,11 @@ tail fun partition-td(xs : list<a>, ^pred : a -> e bool, acc1 : ctx<list<a>>, ac
   match xs
     Nil -> (acc1 ++. Nil, acc2 ++. Nil)
     Cons(x,xx) -> if pred(x)
-      then partition-td(xx, pred, acc1 ++ ctx Cons(x,_), acc2)
-      else partition-td(xx, pred, acc1,                  acc2 ++ ctx Cons(x,_))
+      then partition-td(xx, pred, acc1 ++ ctx Cons(x,hole), acc2)
+      else partition-td(xx, pred, acc1,                     acc2 ++ ctx Cons(x,hole))
 
 fun partition-entry( xs : list<a>, ^pred : a -> e bool ) : e (list<a>,list<a>)
-  partition-td(xs, pred, ctx _, ctx _)
+  partition-td(xs, pred, ctx hole, ctx hole)
 
 pub fun example-partition()
   [1,2,3,4,5].partition-entry(is-odd)
