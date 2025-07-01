@@ -14,8 +14,10 @@ const kokaDevDir = ""
 
 // Represents a release of the Koka compiler as found on GitHub
 export class KokaRelease {
-  constructor(public downloadUrl: string, public version: string, public isPrerelease: boolean) {}
+  constructor(public downloadUrl: string, public version: string, public isPrerelease: boolean, public date : Date) {}
 }
+
+const kokaDefaultRelease = new KokaRelease("","3.1.2",false,new Date("2024-05-30"));
 
 // Manages discovering, installing, and managing Koka compiler versions
 export class VersionManager {
@@ -23,7 +25,7 @@ export class VersionManager {
     this.usePrereleases = vsConfig.get('dev.usePrereleaseCompilers') as boolean ?? false;
     this.developmentPath = expandHome(this.vsConfig.get('dev.developmentPath') as string ?? "")
   }
-  
+
   usePrereleases: boolean = false; // whether to use prerelease compilers
 
   developmentPath: string               // root path to a development repository of the compiler
@@ -32,40 +34,36 @@ export class VersionManager {
   compilerVersion: string = "1.0.0"     // version of that compiler
   compilerPaths: string[] = []          // all found paths to koka compilers in the system
 
-  releases: KokaRelease[] = [];
-  latestRelease: KokaRelease | undefined = undefined;
-  latestPrerelease: KokaRelease | undefined = undefined;
-  latestCompilerVersion: string = "3.1.2"; // default to 3.1.2 if no release is found
-  latestCompilerRelease: KokaRelease | undefined = undefined;
-  selectedCompilerRelease: KokaRelease | undefined = undefined;
-  selectedCompilerVersion: string = "3.1.2"; // default to 3.1.2 if no release is found
+  releases: KokaRelease[] = [kokaDefaultRelease];
 
-  setSelectedVersion(result: string) {
-    this.selectedCompilerVersion = result;
-    this.selectedCompilerRelease = this.releases.find(r => r.version === result);
+  getLatestCompilerRelease() : KokaRelease {
+    return this.releases.find(r => !r.isPrerelease || this.usePrereleases) ?? kokaDefaultRelease;
   }
-  
-  async getLatestKokaReleases() : Promise<void> {
+
+  getLatestCompilerReleaseVersion() : string {
+    return this.getLatestCompilerRelease().version;
+  }
+
+  async updateLatestKokaReleases() : Promise<void> {
     try {
       const response = await fetch('https://api.github.com/repos/koka-lang/koka/releases'); // Fetch all releases
       if (!response.ok) { // Check for HTTP errors
         console.error('Error fetching Koka releases: ', response.statusText);
         return;
       }
-      const releases : any = await response.json(); // Parse the JSON response
-      this.releases = releases.map(release => {
+      const releasesJson : any = await response.json(); // Parse the JSON response
+      if (!releasesJson) return;
+      this.releases = releasesJson.map(release => {
         const asset = release.assets.find(a => a.name.includes(targetPlatform));
         if (asset) {
-          return new KokaRelease(asset.browser_download_url, semver.coerce(release.tag_name, {includePrerelease: true}).format(), release.prerelease);
+          // this gets the version from the tagname (without a preceding 'v')
+          const version : string = semver.coerce(release.tag_name, {includePrerelease: true}).format();
+          if (version && semver.gte(version,"2.4.0")) {
+            return new KokaRelease(asset.browser_download_url, version, release.prerelease, new Date(release.created_at));
+          }
         }
         return null;
       }).filter(release => release !== null) as KokaRelease[]; // Find the latest releases for the current platform
-      this.latestRelease = this.releases.find(release => !release.isPrerelease);
-      this.latestPrerelease = this.releases.find(release => release.isPrerelease);
-      this.latestCompilerRelease = this.usePrereleases ? this.latestPrerelease : this.latestRelease;
-      this.latestCompilerVersion = this.latestCompilerRelease?.version || "3.1.2"; // default to 3.1.2 if no release is found
-      this.selectedCompilerRelease = this.latestCompilerRelease;
-      this.selectedCompilerVersion = this.latestCompilerVersion;
     } catch (err) {
       console.error('Error fetching Koka releases: ', err);
     }
@@ -88,12 +86,26 @@ export class VersionManager {
   async installKoka(
     reason: string,
     developmentPath: string,
-    force: boolean): Promise<string[]> { 
+    targetVersion : string
+  ): Promise<string[]>
+  {
+    var force = true;
+    var targetRelease : KokaRelease;
+    if (!targetVersion || targetVersion == "latest") {
+      force = false;
+      targetRelease = this.getLatestCompilerRelease();
+    }
+    else {
+      force = true;
+      targetRelease = this.releases.find(r => r.version === targetVersion);
+      if (!targetRelease) { targetRelease = this.getLatestCompilerRelease(); }
+    }
+
     // only prompt once for a download for each new extension version
     if (!force) {
       const latestInstalled = await this.installedVersion();
-      console.log(`Koka: latest installed compiler: ${latestInstalled}, latest known compiler is ${this.latestCompilerVersion}`)
-      if (semver.gte(latestInstalled, this.latestCompilerVersion)) {
+      console.log(`Koka: latest installed compiler: ${latestInstalled}, latest released compiler is ${targetRelease.version}`)
+      if (semver.gte(latestInstalled, targetRelease.version)) {
         return
       }
     }
@@ -114,7 +126,7 @@ export class VersionManager {
       )
       if (decision == 'No') {
         // pretend it is installed and don't auto prompt again in the future (until a more recent version is released)
-        await this.setInstalledVersion(this.latestCompilerVersion);
+        await this.setInstalledVersion(targetRelease.version);
         return
       } else if (decision != 'Yes') { // cancel
         return
@@ -124,13 +136,22 @@ export class VersionManager {
     // download and install in a terminal
     let shellCmd = ""
     let flags = "--vscode"
-    if (this.selectedCompilerRelease?.downloadUrl) {
-      // Prerelease / non-latest release versions need to use an explicit URL to download the compiler
-      flags += ` ${this.selectedCompilerRelease.downloadUrl}` 
-    } // TODO: add `--force` to force all default actions? (like installing clang on windows if needed)
+    let version = targetRelease.version;
+    let idx = version.indexOf('-');
+    if (idx >= 0) {
+      // this is a tagged version, like v3.1.3-alpha1; in that case extract the actual version and pass to the installer
+      version = targetRelease.version.substring(0,idx);
+      flags += ` --version=${version} ${targetRelease.downloadUrl}`
+    }
+    else {
+      // regular version: the installer can figure out the download url
+      flags += ` --version=${targetRelease.version}`
+    }
+
+    // note: we always use the latest installer to install any earlier versions as well
     if (platform === "windows") {
       if (kokaDevDir) {
-        const kokaBundle = this.getKokaBundleDir(kokaDevDir, this.selectedCompilerVersion)
+        const kokaBundle = this.getKokaBundleDir(kokaDevDir, targetRelease.version)
         shellCmd = `${kokaDevDir}/util/install.bat ${flags} ${kokaBundle} && exit`
       }
       else {
@@ -140,7 +161,7 @@ export class VersionManager {
     }
     else {
       if (kokaDevDir) {
-        const kokaBundle = this.getKokaBundleDir(kokaDevDir, this.selectedCompilerVersion)
+        const kokaBundle = this.getKokaBundleDir(kokaDevDir, targetRelease.version)
         shellCmd = `${kokaDevDir}/util/install.sh ${flags} ${kokaBundle} && exit`
       }
       else {
@@ -162,11 +183,18 @@ export class VersionManager {
           let message = ""
           if (paths.length > 0) {
             // TODO: we cannot be sure the first path entry is the newly installed compiler.
-            message = "Koka installed successfully"
-            await this.context.globalState.update('koka-latest-installed-compiler', this.selectedCompilerVersion)
+            const defaultPath = paths[0]
+            const compilerVersion = this.getCompilerVersion(defaultPath) ?? "1.0.0"
+            if (semver.eq(compilerVersion,version)) {
+              message = "Koka installed successfully"
+              await this.setInstalledVersion(targetRelease.version);
+            }
+            else {
+              message = `Koka may not have installed successfully: current version ${compilerVersion}, while the install version was ${targetRelease.version}`
+            }
           }
           else {
-            message = "Koka installation finished but unable to find the installed compiler"
+            message = "Koka installation finished, but unable to find the installed compiler"
           }
           console.log(message)
           resolve(paths)
@@ -232,21 +260,21 @@ export class VersionManager {
   async findInstallCompilerPaths(developmentPath: string): Promise<string[]> {
     const paths = this.findCompilerPaths(developmentPath)
 
-    await this.getLatestKokaReleases();
+    await this.updateLatestKokaReleases();
 
     if (paths.length === 0) {
       console.log('Koka: unable to find an installed Koka compiler')
       const reason = "The Koka compiler cannot be not found in the PATH"
-      await this.installKoka(reason, developmentPath, false)
+      await this.installKoka(reason, developmentPath, "latest")
       return this.findCompilerPaths(developmentPath)
     }
 
     const defaultPath = paths[0]
     const compilerVersion = this.getCompilerVersion(defaultPath) ?? "1.0.0"
-
-    if (semver.lt(compilerVersion, this.latestCompilerRelease.version)) {
-      const reason = `The currently installed Koka compiler is version ${compilerVersion} while the latest is ${this.latestCompilerRelease.version}`
-      await this.installKoka(reason, developmentPath, false)
+    const latestCompilerVersion = this.getLatestCompilerReleaseVersion();
+    if (semver.lt(compilerVersion, latestCompilerVersion)) {
+      const reason = `The currently installed Koka compiler is version ${compilerVersion} while the latest is ${latestCompilerVersion}`
+      await this.installKoka(reason, developmentPath, "latest")
       return this.findCompilerPaths(developmentPath)
     }
 
@@ -293,7 +321,7 @@ export class VersionManager {
       else {
         // vscode.window.showInformationMessage(`Koka: cannot find developer build at: ${exePath}`)
         console.log("Koka: developer environment found, but no binary was built")
-      }    
+      }
     }
 
     // check PATH and local binary installation directories
@@ -301,7 +329,7 @@ export class VersionManager {
     if (process.env.XDG_BIN_DIR) paths.push(process.env.XDG_BIN_DIR)
     paths.push(path.join(home, '.local', 'bin'))
     if (platform==="windows" && process.env.LOCALAPPDATA) {
-      paths.push(path.join(process.env.LOCALAPPDATA,"koka","bin"))    
+      paths.push(path.join(process.env.LOCALAPPDATA,"koka","bin"))
     }
 
     for (const p of paths) {
@@ -387,8 +415,8 @@ export class VersionManager {
   }
 
   // install the latest Koka compiler
-  async installCompiler(): Promise<Boolean> {
-    await this.installKoka("", this.developmentPath, true /* force */)
+  async installCompiler(targetVersion : string): Promise<Boolean> {
+    await this.installKoka("", this.developmentPath, targetVersion)
     // todo: use instead `this.updateCompilerPath(pathToTheJustInstalledCompiler)`
     return this.updateCompilerPaths(false)
   }

@@ -24,3 +24,27 @@ $ stack path --local-install-root
 
 to get the local install root directory where `<local-install-root>/bin/koka` is
 the path to local executable.
+
+
+## Debugging the Extension
+
+When developing on the extension, you can add the following `.vscode/launch.json` file:
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    { "args": [ "--extensionDevelopmentPath=${workspaceFolder}/support/vscode/koka.language-koka" ],
+      "name": "Launch Extension",
+      "outFiles": [ "${workspaceFolder}/support/vscode/koka.language-koka/dist/**/*.js" ],
+      "request": "launch",
+      "type": "extensionHost",
+      "sourceMaps": true
+    }
+  ]
+}
+```
+(note that when using `nmp run tscbuild` you need to use the `out` directory instead of the `dist` directory).
+
+You can now press F5 to lauch a vs code editor with the extension enabled and you should be able
+to set breakpoints etc. to debug the extension.
+

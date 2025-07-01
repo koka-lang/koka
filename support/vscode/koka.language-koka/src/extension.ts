@@ -104,6 +104,7 @@ async function checkCompilerUpdate(context: vscode.ExtensionContext, vsConfig: v
 // Called after initial install and later updates of the compiler
 async function onCompilerUpdate() {
   console.log("Koka: compiler is updated")
+  await vscode.commands.executeCommand('koka.whatsnew')
   await vscode.commands.executeCommand('koka.openSamples')
 }
 
@@ -111,7 +112,6 @@ async function onCompilerUpdate() {
 async function onUpdate() {
   console.log("Koka: extension is updated")
   await vscode.commands.executeCommand('koka.whatsnew')
-  console.log("Koka: end of onUpdate")
 }
 
 // Clear all global state (for development)
@@ -176,7 +176,7 @@ function createBasicCommands(context: vscode.ExtensionContext, vsConfig: vscode.
     vscode.commands.registerCommand('koka.installCompiler', async () => {
       const noLanguageServer = (languageServer === null);
       await stopLanguageServer(context)
-      await kokaConfig.versionManager.installCompiler()
+      await kokaConfig.versionManager.installCompiler("latest")
       if (noLanguageServer) {
         // if this is the first time the compiler is installed, we need to reload
         return vscode.window.showErrorMessage('Reload VS Code to start the Koka language service with the new compiler')
@@ -253,16 +253,31 @@ function createCommands(
           title: "Getting Koka release versions from GitHub...",
           cancellable: false
         }, async (progress) => {
-          await kokaConfig.versionManager.getLatestKokaReleases();
+          await kokaConfig.versionManager.updateLatestKokaReleases();
           progress.report({ message: "Release versions retrieved" });
         });
-      const versions = kokaConfig.versionManager.releases.filter(r => !r.isPrerelease || kokaConfig.versionManager.usePrereleases).map(r => r.version);
-      const result = await vscode.window.showQuickPick(versions, {
+      const latestInstalled = await kokaConfig.versionManager.installedVersion();
+      const versions = kokaConfig.versionManager.releases.map<vscode.QuickPickItem>(r => <vscode.QuickPickItem>{
+        label: r.version,
+        description: r.date.toISOString().split('T')[0] + (r.isPrerelease ? " (pre-release)" : "") +
+                     (semver.eq( latestInstalled, r.version ) ? " (currently installed)" : ""),
+        version: r.version
+      });
+      const result : vscode.QuickPickItem = await vscode.window.showQuickPick(versions, {
         placeHolder: "Select a Koka version to download"
       });
       if (result) {
-        kokaConfig.versionManager.setSelectedVersion(result);
-        await kokaConfig.versionManager.installCompiler();
+        const noLanguageServer = (languageServer === null);
+        await stopLanguageServer(context)
+        await kokaConfig.versionManager.installCompiler(result["version"]);
+        if (noLanguageServer) {
+          // if this is the first time the compiler is installed, we need to reload
+          return vscode.window.showErrorMessage('Reload VS Code to start the Koka language service with the new compiler')
+        }
+        else {
+          await vscode.commands.executeCommand("koka.restartLanguageServer")  // shows progress
+          await checkCompilerUpdate(context, vsConfig, kokaConfig)
+        }
       }
     }),
 

@@ -46,7 +46,7 @@ fun re-version( version : string ) : _ ()
               , ("util/install.bat", ["^set KOKA_VERSION=v"] )
               , ("util/install.sh",  ["^VERSION=\"v"] )
               , ("util/minbuild.sh", ["^KOKA_VERSION="] )
-              , ("support/vscode/koka.language-koka/package.json", ["\"version\"\\s*:\\s*\"","\"compilerVersion\"\\s*:\\s*\""] )
+              , ("support/vscode/koka.language-koka/package.json", ["\"compilerVersion\"\\s*:\\s*\""] )
               , ("util/release.md",  ["/download/v"])
               ]
 
