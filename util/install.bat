@@ -10,13 +10,17 @@ set KOKA_UNINSTALL=N
 set KOKA_HELP=N
 set KOKA_FORCE=N
 set KOKA_DIST_SOURCE=
-set KOKA_DIST_SOURCE_URL=
+set KOKA_DIST_URL=
 set KOKA_DIST_BASE_URL=https://github.com/koka-lang/koka/releases/download
 set KOKA_IEXPRESS=N
 set KOKA_PREV_VERSION=
 set KOKA_PREV_PREFIX=
 set KOKA_ARCH=x64
 set KOKA_VSCODE=N
+set KOKA_DRYRUN=N
+
+rem Use full path as under git bash the wrong "find" utility is found otherwise
+set KOKA_FIND=%WINDIR%\System32\find.exe
 
 rem On Windows for arm64, koka runs (for now) emulated as an x64 process (as ghc does not yet have a windows arm64 port)
 rem Koka still generates native arm64 code though.
@@ -91,6 +95,10 @@ goto args_next
     set KOKA_VSCODE=Y
     goto args_next
   )
+  if "%kk_flag%" == "--dryrun" (
+    set KOKA_DRYRUN=Y
+    goto args_next
+  )
 
   if "%kk_flag%" == "--version" (
     set KOKA_VERSION=%~2
@@ -113,7 +121,7 @@ goto args_next
     goto args_next2
   )
   if "%kk_flag%" == "--url" (
-    set KOKA_DIST_SOURCE_URL=%~2
+    set KOKA_DIST_URL=%~2
     goto args_next2
   )
 
@@ -136,8 +144,18 @@ if "%KOKA_VERSION:~0,1%" neq "v" set KOKA_VERSION=v%KOKA_VERSION%
 
 if "%KOKA_VERSION%" leq "v2.1.6" set KOKA_ARCH=amd64
 
-if "%KOKA_DIST_SOURCE_URL%" == "" (
-  set KOKA_DIST_SOURCE_URL=%KOKA_DIST_BASE_URL%/%KOKA_VERSION%/koka-%KOKA_VERSION%-windows-%KOKA_ARCH%.tar.gz
+if "%KOKA_DIST_URL%" == "" (
+  set KOKA_DIST_URL=%KOKA_DIST_BASE_URL%/%KOKA_VERSION%
+)
+
+if "%KOKA_DIST_SOURCE%" == "" (
+  set KOKA_DIST_SOURCE=%KOKA_DIST_URL%/koka-%KOKA_VERSION%-windows-%KOKA_ARCH%.tar.gz
+)
+
+set KOKA_DIST_SOURCE_URL=
+if ("%KOKA_DIST_SOURCE:~0,6%" == "ftp://") OR ("%KOKA_DIST_SOURCE:~0,7%" == "http://") OR ("%KOKA_DIST_SOURCE:~0,8%" == "https://") (
+  set KOKA_DIST_SOURCE_URL=%KOKA_DIST_SOURCE%
+  set KOKA_DIST_SOURCE=%TEMP%\koka-%KOKA_VERSION%-windows.tar.gz
 )
 
 
@@ -148,26 +166,28 @@ rem ---------------------------------------------------------
 if "%KOKA_HELP%" == "Y"       goto help
 if "%KOKA_UNINSTALL%" == "Y"  goto uninstall
 
+
 rem ---------------------------------------------------------
 rem Detect previous version
 rem ---------------------------------------------------------
 
 where /q koka
 if errorlevel 1 goto prev_none
-for /F "tokens=*" %%x in ('where koka 2^> nul ^| find "\bin\koka.exe"') do (set KOKA_PREV_PREFIX=%%x)
+for /F "tokens=*" %%x in ('where koka 2^> nul ^| %KOKA_FIND% "\bin\koka.exe"') do (set KOKA_PREV_PREFIX=%%x)
 if "%KOKA_PREV_PREFIX%" == "" goto prev_none
 set KOKA_PREV_PREFIX=%KOKA_PREV_PREFIX:\bin\koka.exe=%
-for /F "tokens=*" %%x in ('koka --version 2^> nul ^| find "version: "') do (set KOKA_PREV_VERSION=%%x)
+for /F "tokens=*" %%x in ('koka --version 2^> nul ^| %KOKA_FIND% "version: "') do (set KOKA_PREV_VERSION=%%x)
 if "%KOKA_PREV_VERSION%" neq "" (set KOKA_PREV_VERSION=v%KOKA_PREV_VERSION:version: =%)
 echo Found previous version: %KOKA_PREV_VERSION% at %KOKA_PREV_PREFIX%
 :prev_none
+
 
 rem ---------------------------------------------------------
 rem Start install
 rem ---------------------------------------------------------
 
-if "%KOKA_DIST_SOURCE%" == "" goto install_download
-goto install_unpack
+if "%KOKA_DIST_SOURCE_URL%" == "" goto install_unpack
+goto install_download
 
 
 rem ---------------------------------------------------------
@@ -176,15 +196,15 @@ rem ---------------------------------------------------------
 :help
 
 echo command:
-echo   install-koka.bat [options] [bundle file]
+echo   install-koka.bat [options] [bundle file/url]
 echo.
 echo options:
 echo   -f, --force              continue without prompting
 echo   -u, --uninstall          uninstall koka (%KOKA_VERSION%)
 echo   -p, --prefix=^<dir^>       prefix directory (%KOKA_PREFIX%)
-echo   --url=^<url^>              download url (%KOKA_DIST_SOURCE_URL%)
+echo   --dryrun                 do not actually (un)install files
+echo   --url=^<url^>              download base url (%KOKA_DIST_URL%)
 echo   --version=^<ver^>          version tag (%KOKA_VERSION%)
-rem echo   -b, --bundle=^<file^|url^>  full bundle location (%KOKA_DIST_SOURCE%)
 echo.
 goto end
 
@@ -231,8 +251,6 @@ rem ---------------------------------------------------------
 
 :install_download
 
-set KOKA_DIST_SOURCE=%TEMP%\koka-%KOKA_VERSION%-windows.tar.gz
-
 echo Downloading: %KOKA_DIST_SOURCE_URL%
 curl --proto =https --tlsv1.2 -f -L -o "%KOKA_DIST_SOURCE%"  "%KOKA_DIST_SOURCE_URL%"
 if errorlevel 1 (
@@ -240,13 +258,20 @@ if errorlevel 1 (
   goto end
 )
 
+
 rem ---------------------------------------------------------
 rem Install: unpack
 rem ---------------------------------------------------------
 
 :install_unpack
 echo.
-echo Installing to prefix: %KOKA_PREFIX%
+echo Installing koka %KOKA_VERSION% to prefix: %KOKA_PREFIX%
+
+if "%KOKA_DRYRUN%" == "Y" (
+  echo Skip install due to dryrun.
+  goto done_preinstall
+)
+
 if not exist %KOKA_PREFIX% (
   mkdir "%KOKA_PREFIX%"
 )
@@ -275,7 +300,7 @@ rem Note: we need powershell to set the path globally as
 rem the `setx` command cuts of environment values at 1024 characters!
 rem -----------------------------------------------------------------
 
-echo "%PATH%" | find "%KOKA_PREFIX%\bin" >nul
+echo "%PATH%" | %KOKA_FIND% "%KOKA_PREFIX%\bin" >nul
 if not errorlevel 1 goto done_env
 
 rem Prevent duplicate semicolon
@@ -322,7 +347,7 @@ where /Q code
 if errorlevel 1 goto done_vscode
 
 echo - install vscode editor support
-code --list-extensions | find "koka-lang.language-koka" > nul
+code --list-extensions | %KOKA_FIND% "koka-lang.language-koka" > nul
 if not errorlevel 1 (
   echo uninstall vscode ext
   code --uninstall-extension koka-lang.language-koka > nul
@@ -343,7 +368,7 @@ if errorlevel 1 goto done_emacs
 echo - emacs syntax mode installed at: %KOKA_PREFIX%\share\koka\%KOKA_VERSION%\contrib\emacs
 
 :done_emacs
-
+:done_preinstall
 
 rem ---------------------------------------------------------
 rem Uninstall previous version
@@ -354,7 +379,7 @@ if "%KOKA_PREV_PREFIX%" == "" goto done_install
 rem always delete a previous koka.exe _if installed at a different prefix_ on the PATH
 rem (so the newly installed koka gets found instead of an older one)
 if "%KOKA_PREV_PREFIX%" neq "%KOKA_PREFIX%" (
-  echo "%PATH%" | find "%KOKA_PREV_PREFIX%\bin" >nul
+  echo "%PATH%" | %KOKA_FIND% "%KOKA_PREV_PREFIX%\bin" >nul
   if not errorlevel 1 (
     if exist "%KOKA_PREV_PREFIX%\bin\koka.exe" (
       del /Q "%KOKA_PREV_PREFIX%\bin\koka.exe"
@@ -370,6 +395,11 @@ if "%KOKA_PREV_PREFIX%,%KOKA_PREV_VERSION%" == "%KOKA_PREFIX%,%KOKA_VERSION%" (
 
 
 if not exist "%KOKA_PREV_PREFIX%\lib\koka\%KOKA_PREV_VERSION%" goto done_install
+
+if "%KOKA_DRYRUN%" == "Y" (
+  echo Skip uninstall previous due to dryrun.
+  goto done_install
+)
 
 echo.
 set KOKA_ANSWER=N
@@ -413,7 +443,7 @@ if exist %CLANG_EXE% goto clang_found
 goto clang_notfound
 
 :clang_found
-for /F "tokens=3" %%x in ('%CLANG_EXE% --version ^| find "clang version "') do (
+for /F "tokens=3" %%x in ('%CLANG_EXE% --version ^| %KOKA_FIND% "clang version "') do (
    set CLANG_INSTALLED_VERSION=%%x
 )
 for /F "tokens=1 delims=." %%x in ("%CLANG_INSTALLED_VERSION%") do (
@@ -438,6 +468,11 @@ echo -----------------------------------------------------------------------
 echo Cannot find the clang-cl compiler.
 echo A C compiler is required for Koka to function.
 
+if "%KOKA_DRYRUN%" == "Y" (
+  echo Skip clang install due to dryrun.
+  goto clang_done
+)
+
 :clang_install
 
 set KOKA_ANSWER=Y
@@ -459,7 +494,7 @@ if errorlevel 1 goto clang_showurl
 if "%CLANG_INSTALL_SHA256%" neq "" (
   echo Verifying sha256 hash ...
   timeout /T 1 > nul
-  CertUtil -hashfile "%CLANG_INSTALL%" sha256 | find "%CLANG_INSTALL_SHA256%" > nul
+  CertUtil -hashfile "%CLANG_INSTALL%" sha256 | %KOKA_FIND% "%CLANG_INSTALL_SHA256%" > nul
   if errorlevel 1 (
     echo Installation of %CLANG_INSTALL% is canceled as it does not match the
     echo expected sha256 signature: %CLANG_INSTALL_SHA256%
@@ -502,6 +537,11 @@ echo.
 echo -----------------------------------------------------------------------
 echo Cannot find the Windows Visual Studio build tools.
 echo The build tools are required for Koka to compile to native code on Windows.
+
+if "%KOKA_DRYRUN%" == "Y" (
+  echo Skip vs build tools install due to dryrun.
+  goto vs_done
+)
 
 where /q winget
 if errorlevel 1 goto vs_showurl
