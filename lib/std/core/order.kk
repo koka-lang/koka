@@ -49,3 +49,4 @@ pub fun order2( x : a, y : a, ^?cmp : (a,a) -> order ) : order2<a>
     Eq -> Eq2(x)
     Lt -> Lt2(x,y)
     Gt -> Gt2(y,x)
+

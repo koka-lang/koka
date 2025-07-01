@@ -22,6 +22,8 @@ $ code --install-extension language-koka-<version>.vsix
 When publishing a new version of the extension to the markedplace, increase the version
 number in `package.json` and run `npm run publish`.
 
+(The extension version is nowadays independent of the compiler version)
+
 
 ## Debugging
 
