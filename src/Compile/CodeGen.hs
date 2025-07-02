@@ -401,7 +401,7 @@ codeGenLinkExe term flags stksize clink mainExe
         when (not (null (outFinalPath flags)) && verbose flags > 1) $
           termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created :") <+>
                                 color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
-        let mainflags = if (showElapsed flags) then ["--kktime"] else [] ++ execOpts flags
+        let mainflags = (if (showElapsed flags) then ["--kktime"] else []) ++ execOpts flags
 
         -- termInfo term $ text "flags:" <+> text (show flags) <+> text "\n"
         case target flags of
