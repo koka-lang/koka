@@ -259,7 +259,7 @@ codeGenJS term flags sequential entry outBase core
                do return (\_ -> return (LinkExe outHtml (runSystemEcho term flags (dquote outHtml ++ " &"))))
               _ ->
                do let stksize = if (stackSize flags == 0) then 100000 else (stackSize flags `div` 1024)
-                  return (\_ -> return (LinkExe outjs (runCommand term flags [node flags,"--stack-size=" ++ show stksize,outjs])))
+                  return (\_ -> return (LinkExe outjs (runCommand term flags ([node flags,"--stack-size=" ++ show stksize,outjs] ++ words (execOpts flags)))))
 
 
 
