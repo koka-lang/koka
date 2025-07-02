@@ -67,8 +67,8 @@ defaultColorScheme
   = darkColorScheme
 
 darkColorScheme
-  = let c = emptyColorScheme{ colorInterpreter = DarkRed
-                            , colorCommand     = Red
+  = let c = emptyColorScheme{ colorInterpreter = DarkCyan
+                            , colorCommand     = Magenta
                             , colorError       = Red
                             , colorComment     = DarkGreen
                             , colorReserved    = DarkYellow
@@ -80,9 +80,9 @@ darkColorScheme
                             , colorNumber      = ColorDefault
                             , colorSource      = ColorDefault
                             , colorParameter   = DarkGray
-                            , colorRange       = colorInterpreter c
-                            , colorMarker      = colorInterpreter c
-                            , colorWarning     = colorError c
+                            , colorRange       = Cyan
+                            , colorMarker      = colorError c
+                            , colorWarning     = Yellow
                             , colorType        = DarkCyan -- colorSource c
                             , colorEffect      = colorType c
                             , colorTypeVar     = colorType c
@@ -102,13 +102,13 @@ lightColorScheme
                 colorNumber      = DarkGray
               , colorSource      = DarkGray
               , colorCommand     = Black
-              , colorInterpreter = DarkRed
-              , colorError       = DarkRed
-              , colorWarning     = colorError c
+              , colorInterpreter = Black
+              , colorError       = Red
+              , colorWarning     = DarkYellow
               , colorNameQual    = DarkGray
               , colorRange       = colorInterpreter c
               , colorMarker      = colorInterpreter c
-              , colorString      = Red
+              , colorString      = DarkRed
             }
     in defaultTo c Black
 
