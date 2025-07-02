@@ -860,7 +860,7 @@ parseOptions flags0 opts
   = let (preOpts,postOpts) = span (/="--") opts
         flags1 = case postOpts of
                    [] -> flags0
-                   (_:rest) -> flags0{ execOpts = concat (map (++" ") rest) }
+                   (_:rest) -> flags0{ execOpts = unwords $ intersperse " " (map (show) rest) }
         (options,files,errs0) = getOpt Permute optionsAll preOpts
         errs = errs0 ++ extractErrors options
     in if null errs
