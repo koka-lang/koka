@@ -111,7 +111,8 @@ compileAll p flags fpaths
                           buildc          <- buildcBuildEx (rebuild flags) roots {-force roots always-} [] buildc0
                           buildcThrowOnError buildc
                           -- compile & run entry points
-                          let mainEntries = if library flags then [] else map (\rootName -> qualify rootName (newName "main")) roots
+                          let mainEntryNameStr = if null (mainEntrypointName flags) then "main" else mainEntrypointName flags
+                          let mainEntries = if library flags then [] else map (\rootName -> qualify rootName (newName mainEntryNameStr)) roots
                           runs <- mapM (compileEntry buildc) mainEntries
                           -- when (evaluate flags) $ mapM_ buildLiftIO runs
                           -- show info
@@ -148,7 +149,7 @@ compileEntry buildc entry
        case mbTpEntry of
          Just(_,Just(_,run)) -> return run
          _                   -> do flags <- buildcFlags
-                                   when (null (mainEntryName flags)) $
+                                   when (null (generatedEntrypointName flags)) $
                                      addErrorMessageKind ErrBuild (\penv -> text "unable to find main entry point" <+> ppName penv entry)
                                    return (return ())
 
