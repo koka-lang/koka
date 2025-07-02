@@ -446,7 +446,7 @@ instance Pretty Gamma where
 ppGammaInternal :: Bool -> Env -> Gamma -> Doc
 ppGammaInternal showHidden env gamma
     = vcat [fill maxwidth (prettyName (colors env) name) {-(ppName env name)-} <.>
-             color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
+             (typeColon (colors env)) <+> align (nice scheme)
         | (name,scheme) <- nameSchemes,
           showHidden || not (isHiddenName name)
         ]

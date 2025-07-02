@@ -67,29 +67,31 @@ defaultColorScheme
   = darkColorScheme
 
 darkColorScheme
-  = let c = emptyColorScheme{ colorInterpreter = DarkCyan
-                            , colorCommand     = Magenta
+  = let c = emptyColorScheme{ colorInterpreter = DarkYellow
+                            , colorCommand     = Yellow
                             , colorError       = Red
                             , colorComment     = DarkGreen
                             , colorReserved    = DarkYellow
                             -- , colorReservedOp  = DarkYellow
+                            , colorSep         = colorSource c
+                            , colorSpecial     = colorSource c
                             , colorCons        = DarkGreen
                             , colorModule      = DarkCyan
                             , colorNameQual    = DarkGray
-                            , colorString      = DarkRed
+                            , colorString      = Cyan
                             , colorNumber      = ColorDefault
                             , colorSource      = ColorDefault
                             , colorParameter   = DarkGray
-                            , colorRange       = Cyan
+                            , colorRange       = colorInterpreter c
                             , colorMarker      = colorError c
-                            , colorWarning     = Yellow
+                            , colorWarning     = DarkYellow
                             , colorType        = DarkCyan -- colorSource c
                             , colorEffect      = colorType c
                             , colorTypeVar     = colorType c
                             , colorTypeCon     = colorType c
                             , colorKeyword     = colorReserved c
                             , colorTypeSpecial = colorType c
-                            , colorTypeKeyword = Cyan -- colorReserved c
+                            , colorTypeKeyword = Blue -- colorReserved c
                             , colorTypeKeywordOp = colorType c -- colorReservedOp c
                             , colorTypeParam   = colorParameter c
                             , colorImplicitParameter = Gray
@@ -100,9 +102,11 @@ darkColorScheme
 lightColorScheme
   = let c = darkColorScheme {
                 colorNumber      = DarkGray
-              , colorSource      = DarkGray
+              , colorSource      = ColorDefault
+              , colorSep         = colorSource c
+              , colorSpecial     = colorSource c
               , colorCommand     = Black
-              , colorInterpreter = Black
+              -- , colorInterpreter = Black
               , colorError       = Red
               , colorWarning     = DarkYellow
               , colorNameQual    = DarkGray
@@ -168,6 +172,8 @@ makeColorScheme clr
 --------------------------------------------------------------------------}
 -- | Read a comma seperated list of name=color pairs.
 readColorFlags :: String -> ColorScheme -> ColorScheme
+readColorFlags "light" _  = lightColorScheme
+readColorFlags "dark" _   = darkColorScheme
 readColorFlags s scheme
   = foldl (flip readColorFlag) scheme (split s)
   where
