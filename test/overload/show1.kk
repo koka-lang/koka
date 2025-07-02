@@ -12,11 +12,18 @@ fun float64/showx( f : float64 ) : string
 fun list/showx( xs : list<a>, ?showx : a -> string ) : string
   "[" ++ xs.map(showx).join(",") ++ "]"
 
-fun foo1()
+fun test1()
   [1,2].showx
 
-fun foo2()
+fun test2()
   [[1],[2]].showx // this resolves recursively
 
-fun foo3()
+fun test3()
   [['a','b']].showx
+
+fun charlist/showx( cs : list<char> ) : string
+  cs.string.show
+
+fun test4()
+  [['a','b']].showx(?showx=charlist/showx)
+

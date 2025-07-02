@@ -441,7 +441,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["stack"]           (ReqArg stackFlag "size")       "set stack size (0 for platform default)"
  , option []    ["heap"]            (ReqArg heapFlag "size")        "set reserved heap size (0 for platform default)"
  , option []    ["mainentry"]       (ReqArg mainEntry "name")       "set the name of the main entry function ('main')"
- , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
+ , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors (or a theme as --color=light|dark)"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
  , configstr [] ["console"]  ["ansi","html","raw"] "fmt" (\s f -> f{ console = s }) "console output format: <ansi|html|raw>"
  , numOption (-1) "port" []  ["lsport"] (\i f -> f{languageServerPort=i})  "language server localhost port"
