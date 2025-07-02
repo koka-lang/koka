@@ -259,7 +259,9 @@ codeGenJS term flags sequential entry outBase core
                do return (\_ -> return (LinkExe outHtml (runSystemEcho term flags (dquote outHtml ++ " &"))))
               _ ->
                do let stksize = if (stackSize flags == 0) then 100000 else (stackSize flags `div` 1024)
-                  return (\_ -> return (LinkExe outjs (runCommand term flags ([node flags,"--stack-size=" ++ show stksize,outjs] ++ words (execOpts flags)))))
+                  return (\_ -> return (LinkExe outjs (runCommand term flags
+                                           ([node flags,"--stack-size=" ++ show stksize,outjs] ++ execOpts flags)
+                                        )))
 
 
 
@@ -399,23 +401,22 @@ codeGenLinkExe term flags stksize clink mainExe
         when (not (null (outFinalPath flags)) && verbose flags > 1) $
           termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created :") <+>
                                 color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
-        let cmdflags = if (showElapsed flags) then " --kktime" else ""
+        let mainflags = if (showElapsed flags) then ["--kktime"] else [] ++ execOpts flags
 
         -- termInfo term $ text "flags:" <+> text (show flags) <+> text "\n"
-
         case target flags of
           C Wasm
-            -> do let cmd = wasmrun flags ++ " " ++ dquote mainTarget ++ " -- " ++ cmdflags ++ " " ++ execOpts flags
-                  seqString cmd $ return (LinkExe mainTarget (runSystemEcho term flags cmd))
+            -> do return (LinkExe mainTarget
+                            (runCommand term flags ([wasmrun flags,mainTarget] ++ mainflags)))
           C WasmWeb
             -> do return (LinkExe mainTarget
-                          (runSystemEcho term flags (dquote mainTarget ++ " &")))
+                            (runSystemEcho term flags (dquote mainTarget ++ " &")))
           C WasmJs
             -> do let nodeStack = if (stksize == 0) then 100000 else (stksize `div` 1024)
                   return (LinkExe mainTarget
-                          (runCommand term flags [node flags,"--stack-size=" ++ show nodeStack,mainTarget]))
-          _ -> do let cmd = dquote mainExe ++ cmdflags ++ " " ++ execOpts flags
-                  seqString cmd $ return (LinkExe mainTarget (runSystemEcho term flags cmd)) -- use shell for proper rss accounting
+                            (runCommand term flags ([node flags,"--stack-size=" ++ show nodeStack,mainTarget] ++ mainflags)))
+          _ -> do return (LinkExe mainTarget
+                            (runCommand term flags ([mainExe] ++ mainflags)))
 
 
 
@@ -713,7 +714,7 @@ runSystemEcho term flags cmd
 
 runCommand :: Terminal -> Flags -> [String] -> IO ()
 runCommand term flags cargs@(cmd:args)
-  = do let command = unwords (shellQuote cmd : map shellQuote args)
+  = do let command = shellQuoted cargs
        if (onWindows && cmd `endsWith` "emcc") -- hack to run emcc correctly on windows (due to Python?)
          then runSystemEcho term flags command
          else  do when (verbose flags >= 3) $
@@ -742,20 +743,23 @@ runCommandEnv term flags env cargs@(cmd:args)
        runCmdEnv env  cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
+shellQuoted :: [String] -> String
+shellQuoted args
+  = unwords (map shellQuote args)
 
 shellQuote s
   = if (all (\c -> isAlphaNum c || c `elem` ":/-_.=") s) then s
-     else "\"" ++ concatMap quote s ++ "\""
-  where
-    quote '"'  = "\\\""
-    quote '\'' = "\\'"
-    quote c    = [c]
+     else dquote s
 
 joinWith sep xs
   = concat (intersperse sep xs)
 
 dquote s
-  = "\"" ++ s ++ "\""
+  = "\"" ++ concatMap quote s ++ "\""
+  where
+    quote '"'  = "\\\""
+    quote '\'' = "\\'"
+    quote c    = [c]
 
 compilerCatch comp term defValue io
   = io `catchSystem` \msg ->

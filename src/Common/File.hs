@@ -280,19 +280,18 @@ runSystemRaw command
          ExitSuccess   -> return ()
 
 runSystem :: String -> IO ()
-runSystem command
+runSystem command0
   = do -- putStrLn ("system: " ++ command)
-       exitCode <- runSystemEx command
+       let command = normalizeWith pathSep command0
+       exitCode <- system command
        case exitCode of
          ExitFailure i -> raiseIO ("command failed:\n " ++ command )
          ExitSuccess   -> return ()
 
-runSystemEx command
-  = system (normalizeWith pathSep command)
-
 runCmd :: String -> [String] -> IO ()
 runCmd cmd args
-  = do exitCode <- rawSystem cmd args
+  = do -- putStrLn ("run command: " ++ cmd ++ ", args: " ++ show args)
+       exitCode <- rawSystem cmd args
        case exitCode of
           ExitFailure i -> raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
           ExitSuccess   -> return ()

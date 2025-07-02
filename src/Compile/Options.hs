@@ -132,7 +132,7 @@ data Flags
          , showHiddenTypeSigs     :: !Bool
          , showElapsed      :: !Bool
          , evaluate         :: !Bool
-         , execOpts         :: !String
+         , execOpts         :: ![String]
          , library          :: !Bool
          , target           :: !Target
          , targetOS         :: !String        -- windows, macos, linux, ...
@@ -283,7 +283,7 @@ flagsNull
           False -- hiddentypesigs
           False -- show elapsed time
           False -- do not execute by default
-          ""    -- execution options
+          []    -- execution options (following --)
           False -- library
           (C LibC)  -- target
           hostOsName  -- target OS
@@ -313,7 +313,7 @@ flagsNull
           []       -- clink args
           []       -- clink sys libs
           []       -- clink full lib paths
-          (ccGcc "gcc" "gcc")
+          (ccGcc "gcc" "gcc" True)
           (if onWindows then []        -- ccomp library dirs
                         else (["/usr/local/lib","/usr/lib","/lib"]
                                ++ if onMacOS then ["/opt/homebrew/lib"] else []))
@@ -859,8 +859,8 @@ parseOptions :: Flags -> [String] -> Either String (Flags,Mode)
 parseOptions flags0 opts
   = let (preOpts,postOpts) = span (/="--") opts
         flags1 = case postOpts of
-                   [] -> flags0
-                   (_:rest) -> flags0{ execOpts = concat (map (++" ") rest) }
+                   []       -> flags0
+                   (_:rest) -> flags0{ execOpts = rest }
         (options,files,errs0) = getOpt Permute optionsAll preOpts
         errs = errs0 ++ extractErrors options
     in if null errs
@@ -1164,11 +1164,11 @@ gnuWarn = words "-Wall -Wextra -Wpointer-arith -Wshadow -Wstrict-aliasing" ++
           words "-Wno-unused-parameter -Wno-unused-variable -Wno-unused-value" ++
           words "-Wno-unused-but-set-variable"
 
-ccGcc,ccMsvc :: String -> FilePath -> CC
-ccGcc name path
+ccGcc :: String -> FilePath -> Bool -> CC
+ccGcc name path hasOptG
   = CC name path []
         ([(DebugFull,     ["-g","-O0","-fno-omit-frame-pointer"]),
-          (Debug,         ["-g","-Og"]),
+          (Debug,         ["-g",if hasOptG then "-Og" else "-O1"]),
           (RelWithDebInfo,["-O2", "-g", "-DNDEBUG"]),
           (Release,       ["-O2", "-DNDEBUG"]) ]
         )
@@ -1197,6 +1197,7 @@ ccGcc name path
         else if (cpuArch=="arm64") then ["-march=armv8.1-a+crypto+aes","-mtune=native"]  -- popcnt, simd, lse, pmull (+aes)
         else []
 
+ccMsvc :: String -> FilePath -> CC
 ccMsvc name path
   = CC name path ["-DWIN32","-nologo"]
          [(DebugFull,words "-MDd -Zi -FS -Od -RTC1"),
@@ -1229,12 +1230,13 @@ ccFromPath :: Flags -> FilePath -> IO (CC,Bool {-asan-})
 ccFromPath flags path
   = let name    = -- reverse $ dropWhile (not . isAlpha) $ reverse $
                   basename path
-        gcc     = ccGcc name path
+        gcc     = ccGcc name path True
         mingw   = gcc{ ccName = "mingw",
                        ccLibFile = \lib -> "lib" ++ lib ++ ".a",
                        ccFlagStack = (\stksize -> if stksize > 0 then ["-Wl,--stack," ++ show stksize] else [])
                      }
-        emcc    = gcc{ ccFlagsCompile = ccFlagsCompile gcc ++ ["-D__wasi__"],
+        emcc    = (ccGcc name path False)
+                     { ccFlagsCompile = ccFlagsCompile gcc ++ ["-D__wasi__"],
                        ccFlagStack = (\stksize -> if stksize == 0 then [] else ["-s","TOTAL_STACK=" ++ show stksize]),
                        ccFlagHeap  = (\hpsize -> if hpsize == 0 then [] else ["-s","TOTAL_MEMORY=" ++ show hpsize]),
                        ccTargetExe = (\out -> ["-o", out ++ targetExeExtension (target flags)]),
