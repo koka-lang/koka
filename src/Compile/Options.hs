@@ -213,8 +213,8 @@ data Flags
          , maxConcurrency   :: !Int
          , maxErrors        :: !Int
          , useBuildDirHash  :: !Bool
-         , generatedEntrypointName :: !String
-         , mainEntrypointName :: !String
+         , outputEntryName :: !String
+         , mainEntryName :: !String
          , baseFlags        :: Maybe Flags
          } deriving (Eq,Show)
 
@@ -407,13 +407,11 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , numOption 16 "n" ['j'] ["jobs"]  (\i f -> f{maxConcurrency=max i 1})  "maximum concurrency (16)"
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to module search path (empty resets)"
  , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write executable to <file> (without extension)"
- , option []    ["output-entrypoint"] (ReqArg generatedEntrypoint "name")  "set the name of the generated main entrypoint (e.g. 'main')"
  , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default,1=space,2=full,3=aggressive)"
  , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , option []    ["main-entrypoint"] (ReqArg mainEntrypoint "name")     "set the name of the main entrypoint function (e.g. 'test' or 'main')"
  , configstr [] ["target"]          (map fst targets) "target" targetFlag  ("target: " ++ showL (map fst targets))
  , configstr [] ["target-arch"]     targetArchs "arch" targetArchFlag ("target architecture: " ++ showL targetArchs)
  -- , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
@@ -444,6 +442,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["stack"]           (ReqArg stackFlag "size")       "set stack size (0 for platform default)"
  , option []    ["heap"]            (ReqArg heapFlag "size")        "set reserved heap size (0 for platform default)"
+ , option []    ["output-entry"]    (ReqArg outputEntryFlag "name") "set the name of the generated main entrypoint (e.g. 'main')"
+ , option []    ["main-entry"]      (ReqArg mainEntryFlag "name")   "set the name of the main entrypoint function (e.g. 'test1' or 'main')"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors (or a theme as --color=light|dark)"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
  , configstr [] ["console"]  ["ansi","html","raw"] "fmt" (\s f -> f{ console = s }) "console output format: <ansi|html|raw>"
@@ -600,11 +600,11 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   ccFlag s
     = Flag (\f -> f{ ccompPath = s })
 
-  generatedEntrypoint s
-    = Flag (\f -> f{ generatedEntrypointName = s })
+  outputEntryFlag s
+    = Flag (\f -> f{ outputEntryName = s })
 
-  mainEntrypoint s
-    = Flag (\f -> f{ mainEntrypointName = s })
+  mainEntryFlag s
+    = Flag (\f -> f{ mainEntryName = s })
 
   extendArgs prev mbs
     = case mbs of Just s | not (null s) -> prev ++ unquote s
