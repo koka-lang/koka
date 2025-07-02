@@ -179,7 +179,7 @@ gammaIsEmpty (Gamma g)
   Gamma
 --------------------------------------------------------------------------}
 -- | Environment mapping names to type schemes. Due to overloading
--- there may be multiple entries for the same qualified name
+-- there may be multiple entries for the same unqualified name
 newtype Gamma   = Gamma (M.NameMap [(Name,NameInfo)])
 
 gammaSchemes :: Gamma -> [Scheme]
@@ -446,7 +446,7 @@ instance Pretty Gamma where
 ppGammaInternal :: Bool -> Env -> Gamma -> Doc
 ppGammaInternal showHidden env gamma
     = vcat [fill maxwidth (prettyName (colors env) name) {-(ppName env name)-} <.>
-             color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
+             (typeColon (colors env)) <+> align (nice scheme)
         | (name,scheme) <- nameSchemes,
           showHidden || not (isHiddenName name)
         ]

@@ -7,6 +7,8 @@
 - `grammar.kk`: build and test the yacc & flex grammar.
 - `packaging`: build packages for various Linux distributions.
 - `docs.kk`: generate documentation
+- `reversion.kk`: Update version information 
+
 
 # Releasing
 
@@ -17,18 +19,71 @@ $ stack upgrade
 $ stack update
 ```
 
-Bump the Koka version in files:
+Bump the Koka version using `utils/reversion.kk`:
 
-- `package.yaml`  (2 places!)
-- `whatsnew.md`
-- `util/install.sh`
-- `util/install.bat`
-- `util/minbuild.sh`
-- `util/Dockerfile`
-- `support/vscode/koka.language-koka/package.json`
+```
+stack exec koka -- -e util/reversion -- -v <version>
+```
 
-Check if the `whatsnew.md` is up-to-date as it is shown
-once the VS Code extension updates.
+where `<version>` is without a preceding `v`, like `-v 3.1.3`.
+This will update the version in all required places.
+
+Check if the `whatsnew.md` is up-to-date as it is shown once the VS Code extension updates.
+Similarly for `readme.md` for the recent releases description.
+
+Check if everything works:
+
+```
+$ stack build --fast
+$ stack exec koka
+...
+> :l samples/all
+> all/main()
+...
+
+> :q
+
+$ stack test
+```
+
+## Make the Release
+
+Ensure all changes are committed and the `readme.md` and `whatsnew.md` are updated
+Run the following inserting the correct version.
+
+```
+git tag v<version>
+git push origin v<version>
+```
+
+This will automatically start a Github action to create a draft release.
+Make sure everything looks good on the `releases` tab and then publish as latest or prerelease.
+
+
+# Releasing the VS Code extension
+
+If the extension has not changed since the last release, you do not need to re-publish it.
+
+
+## Compile the VS Code extension
+
+```
+$ cd support/vscode/koka.language-koka
+$ npm install
+$ npm run build
+$ npm run package
+$ cd ../../..
+```
+
+## Publishing the extension
+
+Finally publish the new VS code extension:
+```
+$ cd support/vscode/koka.language-koka
+$ npm run publish
+```
+
+# Manual Release Process (Old):
 
 ## Compile Koka
 
@@ -46,16 +101,6 @@ and run the test suite:
 
 ```
 $ stack test
-```
-
-## Compile the VS Code extension:
-
-```
-$ cd support/vscode/koka.language-koka
-$ npm install
-$ npm run build
-$ npm run package
-$ cd ../../..
 ```
 
 ## Create a bundle:
@@ -81,17 +126,4 @@ or on Windows:
 
 ```
 $ util/install.bat ./bundle/v<version>/koka-v<version>-<os>-<arch>.tar.gz
-```
-
-## Publish
-
-Copy the bundles from `bundle/v<version>/koka-v<version>-<os>-<arch>.tar.gz` and upload them.
-Also upload `util/install.bat` and `util/install.sh`.
-
-Test installing those, and uninstall again.
-
-Finally publish the new VS code extension:
-```
-$ cd support/vscode/koka.language-koka
-$ npm run publish
 ```

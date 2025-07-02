@@ -1,4 +1,4 @@
-// Qualified names and disambiguation (overloading)
+// Qualified names and disambiguation (static overloading)
 // Prerequisites:
 //  - learn/basic
 module learn/qualifiers

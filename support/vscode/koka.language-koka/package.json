@@ -3,7 +3,6 @@
   "displayName": "Koka Language",
   "description": "The official Koka programming language extension.",
   "version": "3.1.3",
-  "compilerVersion": "3.1.3",
   "publisher": "koka",
   "engines": {
     "vscode": ">=1.85.0"
@@ -18,8 +17,7 @@
     "images/",
     "dist/extension.js",
     "koka-configuration.json",
-    "README.md",
-    "whatsnew.md"
+    "README.md"
   ],
   "keywords": [
     "koka",
@@ -76,7 +74,8 @@
       "[koka]": {
         "editor.tabSize": 2,
         "editor.insertSpaces": true,
-        "editor.inlayHints.enabled": "offUnlessPressed"
+        "editor.inlayHints.enabled": "offUnlessPressed",
+        "editor.bracketPairColorization.enabled": false
       },
       "editor.tokenColorCustomizations": {
         "textMateRules": [
@@ -170,11 +169,18 @@
           "order": 10,
           "scope": "machine-overridable"
         },
+        "koka.dev.usePrereleaseCompilers": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow installing pre-release versions of the Koka compiler for the language server.",
+          "order": 11,
+          "scope": "machine-overridable"
+        },
         "koka.dev.debugExtension": {
           "type": "boolean",
           "default": false,
           "description": "Log trace information from the language server subprocess.",
-          "order": 11
+          "order": 12
         }
       }
     },
@@ -204,6 +210,10 @@
         "command": "koka.selectCompiler",
         "title": "Koka: Select compiler path",
         "enablement": "koka.advancedCommands"
+      },
+      {
+        "command": "koka.downloadCompiler",
+        "title": "Koka: Download and install a specific version of the compiler"
       },
       {
         "command": "koka.selectTarget",
@@ -294,16 +304,19 @@
     }
   },
   "scripts": {
-    "build": "webpack --mode production && npx copyfiles -V ../../../whatsnew.md support/vscode/koka.language-koka/ && vsce package --allow-unused-files-pattern --skip-license",
+    "build": "webpack --mode production && vsce package --allow-unused-files-pattern --skip-license",
     "compile": "webpack --mode none",
     "watch": "webpack --mode none --watch",
-    "readme": "npx copyfiles -V ../../../whatsnew.md support/vscode/koka.language-koka/",
+    "tscbuild": "tsc && vsce package --allow-unused-files-pattern --skip-license",
+    "tsccompile": "tsc",
+    "tscwatch": "tsc -w",
     "package": "vsce package --allow-unused-files-pattern",
     "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/semver": "^7.5.8",
+    "@types/node-fetch": "^2.6.12",
     "@types/vscode": "1.85.0",
     "@vscode/vsce": "3.2.1",
     "copyfiles": "^2.4.1",
@@ -314,6 +327,7 @@
     "@vscode/debugprotocol": "^1.68.0",
     "semver": "^7.6.3",
     "await-notify": "1.0.1",
+    "node-fetch": "^3.3.2",
     "vscode-languageclient": "^9.0.1",
     "ts-loader": "^9.5.2",
     "webpack": "^5.97.1",

@@ -107,10 +107,11 @@ prettyCore env0 target inlineDefs core@(Core modName imports fixDefs typeDefGrou
 
     signatures   = extractSignatures core
     importedSyns = extractImportedSynonyms (coreProgName core) signatures
-    -- extraImports = extractImportsFromSynonyms imports importedSyns
-    extraImports = extractImportFromSignatures signatures
+    extraImports1 = map extractImportsFromSynInfo importedSyns
+    extraImports2 = extractImportFromSignatures signatures
+    usedImports = extendImportMap (extraImports1 ++ extraImports2) (importsMap env0)
 
-    env1         = env0{ importsMap =  extendImportMap extraImports (importsMap env0),
+    env1         = env0{ importsMap = usedImports,
                          coreShowTypes = (coreShowTypes env0 || coreIface env0),
                          showKinds = (showKinds env0 || coreIface env0),
                          coreShowDef = not (coreIface env0) }
@@ -433,7 +434,7 @@ prettyPatterns :: Env -> [Pattern] -> (Env,[Doc])
 prettyPatterns env pats
   = foldl f (env,[]) pats
   where
-    f (env,docs) pat = let (env',doc) = prettyPattern env pat
+    f (env,docs) pat = let (env',doc) = prettyPattern env{expandSynonyms=True} pat
                        in (env',doc:docs)
 
 prettyPatternType (pat,tp) (env,docs)
@@ -552,6 +553,15 @@ extractDepsFromSignatures :: Signatures -> [ModuleName]
 extractDepsFromSignatures sigs
   = let sigmods = S.map (qualifier . typeconName) (ftc sigs)
     in S.toList sigmods
+
+extractImportsFromSynInfo :: SynInfo -> Import
+extractImportsFromSynInfo syn
+  = Import (qualifier $ synInfoName syn) "" ImportTypes Private ""
+
+extractDepsFromSynonyms :: Synonyms -> [ModuleName]
+extractDepsFromSynonyms syns
+  = let synmods = map (qualifier . synInfoName) (synonymsToList syns)
+    in synmods
 
 {-
 -- extract all qualifiers in synonyms: it can be the case that a type synonym

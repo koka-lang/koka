@@ -1456,14 +1456,19 @@ lookupGlobalName :: (NameInfo -> Bool) -> Name -> Inf [(Name,NameInfo)]
 lookupGlobalName infoFilter name
   = do env <- getEnv
        let findName = filterGammaNames (gamma env)
-       -- traceDefDoc $ \penv -> text "lookupGlobalName:" <+> Pretty.ppName penv name
+      --  traceDefDoc $ \penv -> text "lookupGlobalName:" <+> Pretty.ppName penv name
        case importsExpand name (imports env) of
-        Right (name',_) -> 
+        Right (name',_) -> do
+          -- traceDefDoc $ \penv -> text "lookupGlobalName (imported):" <+> Pretty.ppName penv name'
           case findName name' of -- First look by aliased import name
             [] -> return $ findName name -- If not found, look by original import name
             ni -> return ni
         Left [] -> return $ findName name -- If no import alias, look by original name
-        Left names -> return $ concatMap findName names -- If multiple aliases match, look through all of them
+        Left names -> do
+          -- If multiple aliases match, ideally we look through all of them
+          -- However, that runs into issue #719 where the original module name is not included in `names`
+          -- traceDefDoc $ \penv -> text "lookupGlobalName (imported aliases):" <+> list (map (Pretty.ppName penv) names)
+          return $ findName name 
   where filterGammaNames gamma name = filter (infoFilter . snd) (gammaLookup name gamma)
 
 filterMatchNameContext :: HasCallStack => Range -> NameContext -> [(Name,NameInfo)] -> Inf [(Name,NameInfo)]

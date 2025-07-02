@@ -23,7 +23,7 @@ val flag-descs : list<flag<iflags>> =
   fun set-version( f : iflags, s : string ) : iflags
     f(version = s)
 
-  [ Flag( "v", ["version"], Req(set-version,"<version>"), "the new koka version" ),
+  [ Flag( "v", ["version"], Req(set-version,"<version>"), "the new koka version (without preceding 'v')" ),
   ]
 
 
@@ -46,8 +46,9 @@ fun re-version( version : string ) : _ ()
               , ("util/install.bat", ["^set KOKA_VERSION=v"] )
               , ("util/install.sh",  ["^VERSION=\"v"] )
               , ("util/minbuild.sh", ["^KOKA_VERSION="] )
-              , ("support/vscode/koka.language-koka/package.json", ["\"version\"\\s*:\\s*\"","\"compilerVersion\"\\s*:\\s*\""] )
               , ("util/release.md",  ["/download/v"])
+              // no longer needed as the extension automatically downloads new releases:
+              // , ("support/vscode/koka.language-koka/package.json", ["\"compilerVersion\"\\s*:\\s*\""] )
               ]
 
   val date = ts-ti.local-time-now().date.show

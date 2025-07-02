@@ -16,7 +16,7 @@ extern import
   c file "dir-inline.c"
 
 // Recursively list all the entries under a directory.
-pub fun list-directory-recursive( dir : path, max-depth : int = 1000 ) : <fsys,div> list<path>
+pub fun list-directory-recursive( dir : path, max-depth : int = 1000 ) : <fsys,pure> list<path>
   if max-depth < 0 return []
   val all  = list-directory(dir)
   val dirs = all.filter(is-directory)
@@ -38,9 +38,9 @@ pub fun ensure-dir( dir : path ) : <fsys,exn> ()
 
 // List directory contents (excluding `.` and `..`).
 // Returns a list of full paths (not just the names in the directory).
-pub fun list-directory( dir : path ) : fsys list<path>
+pub fun list-directory( dir : path ) : <fsys,exn> list<path>
   match prim-list-dir(dir.string)
-    Error()      -> []
+    Error(exn)   -> throw-exn(exn)
     Ok(contents) -> contents.list.map(fn(name){ dir / name.path })
 
 

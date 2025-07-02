@@ -19,7 +19,7 @@ import {
   StreamInfo
 } from 'vscode-languageclient/node'
 import { AddressInfo, Server, createServer } from 'net'
-import { KokaConfig } from "./workspace"
+import { KokaConfig } from "./workspace-config"
 
 let stderrOutputChannel: vscode.OutputChannel
 let stdoutOutputChannel: vscode.OutputChannel
@@ -60,10 +60,11 @@ export class KokaLanguageServer {
   }
 
   async start(config: KokaConfig, context: vscode.ExtensionContext) {
-    console.log(`Koka: Language Server: ${config.compilerPath} ${config.languageServerArgs.join(" ")}, Workspace: ${config.cwd}`)
+    const args = config.getLanguageServerArgs()
+    console.log(`Koka: Language Server: ${config.versionManager.compilerPath} ${args}, Workspace: ${config.cwd}`)
     let serverOptions: ServerOptions;
     if (config.enableDebugExtension // it seems trace output only works when using the socket interface?
-        || semver.lt(config.compilerVersion, "3.0.5")) {
+        || semver.lt(config.versionManager.compilerVersion, "3.0.5")) {
       // TODO: Remove the old socket connection when we get to 3.1.0 or something (unless `trace` stops working?)
       let self = this;
       serverOptions = function (): Promise<StreamInfo> {
@@ -78,7 +79,7 @@ export class KokaLanguageServer {
           }).listen(0, "127.0.0.1", () => {
             const port = (self.socketServer!.address() as AddressInfo).port
             console.log(`Starting language server in ${config.cwd} on port ${port}`)
-            self.languageServerProcess = child_process.spawn(config.compilerPath, [...config.languageServerArgs, `--lsport=${port}`], {
+            self.languageServerProcess = child_process.spawn(config.versionManager.compilerPath, [...args, `--lsport=${port}`], {
               cwd: config.cwd,
               env: process.env,
             })
@@ -97,8 +98,8 @@ export class KokaLanguageServer {
       }
     } else {
       serverOptions = {
-        command: config.compilerPath,
-        args: [...config.languageServerArgs, '--lsstdio'],
+        command: config.versionManager.compilerPath,
+        args: [...args, '--lsstdio'],
         options: { cwd: config.cwd, env: process.env }
       }
     }

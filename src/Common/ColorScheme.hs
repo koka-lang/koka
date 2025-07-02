@@ -20,6 +20,7 @@ module Common.ColorScheme( ColorScheme(..)
                          ) where
 
 import Data.Char( toLower, isSpace )
+import Data.List( find )
 import Lib.PPrint
 import Lib.Printer
 
@@ -61,35 +62,41 @@ data ColorScheme  = ColorScheme
                       , colorImplicitExpr       :: Color
                       } deriving (Show, Eq)
 
+
+colorThemes :: [(String,ColorScheme)]
+colorThemes = [("dark",darkColorScheme),("light",lightColorScheme)]
+
 -- | The default color scheme
 defaultColorScheme, darkColorScheme, lightColorScheme :: ColorScheme
 defaultColorScheme
   = darkColorScheme
 
 darkColorScheme
-  = let c = emptyColorScheme{ colorInterpreter = DarkRed
-                            , colorCommand     = Red
+  = let c = emptyColorScheme{ colorInterpreter = DarkGreen
+                            , colorCommand     = Green
                             , colorError       = Red
                             , colorComment     = DarkGreen
                             , colorReserved    = DarkYellow
                             -- , colorReservedOp  = DarkYellow
-                            , colorCons        = DarkGreen
+                            , colorSep         = colorSource c
+                            , colorSpecial     = colorSource c
+                            , colorCons        = Yellow
                             , colorModule      = DarkCyan
                             , colorNameQual    = DarkGray
-                            , colorString      = DarkRed
+                            , colorString      = Cyan
                             , colorNumber      = ColorDefault
                             , colorSource      = ColorDefault
                             , colorParameter   = DarkGray
-                            , colorRange       = colorInterpreter c
-                            , colorMarker      = colorInterpreter c
-                            , colorWarning     = colorError c
+                            , colorRange       = colorModule c -- colorInterpreter c
+                            , colorMarker      = colorError c
+                            , colorWarning     = DarkYellow
                             , colorType        = DarkCyan -- colorSource c
                             , colorEffect      = colorType c
                             , colorTypeVar     = colorType c
                             , colorTypeCon     = colorType c
                             , colorKeyword     = colorReserved c
                             , colorTypeSpecial = colorType c
-                            , colorTypeKeyword = Cyan -- colorReserved c
+                            , colorTypeKeyword = Blue -- colorReserved c
                             , colorTypeKeywordOp = colorType c -- colorReservedOp c
                             , colorTypeParam   = colorParameter c
                             , colorImplicitParameter = Gray
@@ -100,15 +107,17 @@ darkColorScheme
 lightColorScheme
   = let c = darkColorScheme {
                 colorNumber      = DarkGray
-              , colorSource      = DarkGray
+              , colorSource      = ColorDefault
+              , colorSep         = colorSource c
+              , colorSpecial     = colorSource c
               , colorCommand     = Black
-              , colorInterpreter = DarkRed
-              , colorError       = DarkRed
-              , colorWarning     = colorError c
+              -- , colorInterpreter = Black
+              , colorError       = Red
+              , colorWarning     = DarkYellow
               , colorNameQual    = DarkGray
               , colorRange       = colorInterpreter c
               , colorMarker      = colorInterpreter c
-              , colorString      = Red
+              , colorString      = DarkRed
             }
     in defaultTo c Black
 
@@ -186,12 +195,14 @@ readColorFlag s scheme
   = let (name,xs) = span (\c -> c /= '=' && c /= ':') s
     in case xs of
          (c:clr) | c=='=' || c==':'
-                   -> case (readUpdate name, readColor clr) of
+                   -> case (readUpdate name, readColor clr) of  -- name=clr
                         (Just update,Just color) -> update color scheme
                         _                        -> scheme
-         _         -> case readUpdate name of
-                        Just update -> update ColorDefault scheme
-                        _  -> scheme
+         _         -> case find (\(n,_) -> n == name) colorThemes of -- is it a color theme?
+                        Just (_,theme) -> theme
+                        _ -> case readUpdate name of  -- otherwise use default color
+                               Just update -> update ColorDefault scheme
+                               _  -> scheme
 
 readUpdate :: String -> Maybe (Color -> ColorScheme -> ColorScheme)
 readUpdate s

@@ -14,6 +14,7 @@ OSARCH=""
 OSNAME=""
 OSDISTRO=""
 VSCODE=""               # set if installing from the vscode extension
+DRYRUN="no"
 
 KOKA_DIST_BASE_URL="https://github.com/koka-lang/koka/releases/download"
 KOKA_DIST_URL=""        # $KOKA_DIST_BASE_URL/$VERSION
@@ -128,8 +129,6 @@ detect_osarch() {
 
   # For tier-2 platforms, adjust the default version
   adjust_version $OSARCH
-
-  info "Installing koka $VERSION for $OSDISTRO $OSARCH"
 }
 
 
@@ -176,13 +175,13 @@ process_options() {
       -p) shift
           PREFIX="$1";;
       -p=*|--prefix=*)
-          PREFIX=`eval echo $flag_arg`;; # no quotes so ~ gets expanded (issue #412)
-      -u=*|--url=*)
-          KOKA_DIST_URL="$flag_arg";;
+          PREFIX=`eval echo $flag_arg`;;  # no quotes so ~ gets expanded (issue #412)
       -b) shift
           KOKA_DIST_SOURCE="$1";;
       -b=*|--bundle=*)
           KOKA_DIST_SOURCE="$flag_arg";;
+      --url=*)
+          KOKA_DIST_URL="$flag_arg";;
       -v) shift
           VERSION="v${1#v}";;         # always prefix with a v
       -v=*|--version=*)
@@ -194,6 +193,8 @@ process_options() {
       -u|--uninstall)
           # FORCE="yes"
           MODE="uninstall";;
+      --dryrun)
+          DRYRUN="yes";;
       -h|--help|-\?|help|\?)
           MODE="help";;
       *) case "$flag" in
@@ -228,6 +229,8 @@ process_options() {
   if [ -z "$KOKA_DIST_SOURCE" ] ; then
     KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
   fi
+
+  info "Installing koka $VERSION for $OSDISTRO $OSARCH"
 }
 
 # ---------------------------------------------------------
@@ -379,7 +382,7 @@ download_available() {  # <url|file>
   case "$1" in
     ftp://*|http://*|https://*)
       if has_cmd curl ; then
-        if ! curl -sS --proto =https -L -I "$1" | grep -E "^HTTP/2 200" ; then  # -I is headers only
+        if ! curl -sS --proto =https --tlsv1.2 -L -I "$1" | grep -E "^HTTP/2 200" ; then  # -I is headers only
           return 1
         fi
       fi;;
@@ -419,14 +422,25 @@ install_dist() {  # <prefix> <version>
   koka_exe="$koka_bin_dir/koka-$version"
   koka_symlink="$koka_bin_dir/koka"
 
+  # create temporary directory to unpack the bundle
+  make_temp_dir
+  trap cleanup_temp_dir EXIT
+
   # download/copy
-  download_dist "$KOKA_DIST_SOURCE" "$KOKA_TEMP_DIR/koka-dist.tar.gz"
+  koka_dist_temp="$KOKA_TEMP_DIR/koka-dist.tar.gz"
+  download_dist "$KOKA_DIST_SOURCE" "$koka_dist_temp"
   info "Unpacking.."
-  if ! tar -xzf "$KOKA_TEMP_DIR/koka-dist.tar.gz" -C "$KOKA_TEMP_DIR"; then
+  if ! tar -xzf "$koka_dist_temp" -C "$KOKA_TEMP_DIR"; then
     stop "Extraction failed."
   fi
 
   info "Installing to prefix: $prefix"
+
+  # don't install for a dryrun
+  if [ "$DRYRUN" = "yes" ]; then
+    info "<skipping install due to dryrun>"
+    return 0
+  fi
 
   # install the exe and figure out whether to use sudo for the rest
   if [ ! -d "$koka_bin_dir" ] ; then
@@ -460,14 +474,14 @@ install_dist() {  # <prefix> <version>
   info "- install pre-compiled libraries: $koka_lib_dir/$version"
   if [ -d "$KOKA_TEMP_DIR/lib" ] ; then
     if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/lib" "$prefix/" ; then
-      stop "Cannot copy pre-compiled libraries to $KOKA_TEMP_DIR/lib"
+      stop "Cannot copy pre-compiled libraries from $KOKA_TEMP_DIR/lib to $prefix/lib"
     fi
   else
     info "  (generic distribution does not contain precompiled libraries)"
   fi
   info "- install source libraries      : $koka_share_dir/$version"
   if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/share" "$prefix/" ; then
-    stop "Cannot copy libraries to $KOKA_TEMP_DIR/share"
+    stop "Cannot copy libraries from $KOKA_TEMP_DIR/share to $prefix/share"
   fi
 
   # if not minimal, install editor integration
@@ -534,6 +548,13 @@ uninstall_dist() {  # <prefix> <version>
   koka_bin_dir="$prefix/bin"
   koka_exe="$koka_bin_dir/koka-$version"
   koka_symlink="$koka_bin_dir/koka"
+
+  # don't uninstall for a dryrun
+  if [ "$DRYRUN" = "yes" ]; then
+    info "<skipping uninstall due to dryrun>"
+    return 0
+  fi
+
 
   # uninstall share
   info "- uninstall source libraries: $koka_share_dir/$version"
@@ -621,8 +642,6 @@ main_uninstall() {
 main_install() {
   # install
   install_dependencies
-  make_temp_dir
-  trap cleanup_temp_dir EXIT
   install_dist $PREFIX $VERSION
   info "Install successful."
 
@@ -661,7 +680,7 @@ main_install() {
 
 main_help() {
   info "command:"
-  info "  ./install.sh [options] [bundle file]"
+  info "  ./install.sh [options] [bundle file/url]"
   info ""
   info "options:"
   info "  -q, --quiet              suppress output"
@@ -671,8 +690,9 @@ main_help() {
   # info "  -b, --bundle=<file|url>  full bundle location (.../koka-$VERSION-$OSARCH.tar.gz)"
   info "      --vscode             set when installing from within vscode"
   info "  -m, --minimal            minimal install without editor support etc."
+  info "      --dryrun             do not actually (un)install any files"
   info "      --version=<ver>      version tag ($VERSION)"
-  info "      --url=<url>          download url"
+  info "      --url=<url>          base download url"
   info "                           ($KOKA_DIST_URL)"
   info ""
   info "notes:"

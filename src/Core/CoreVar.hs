@@ -11,6 +11,7 @@ module Core.CoreVar ( HasExprVar, (|~>)
                     , isTopLevel
                     , freeLocals
                     , extractDepsFromInlineDefs
+                    , extractDepsFromDefs
                     , extractDepsFromSignatures
                     , addTypeApps
                     ) where
@@ -40,6 +41,9 @@ extractDepsFromInlineDefs :: [InlineDef] -> [ModuleName]
 extractDepsFromInlineDefs inlineDefs
   = S.toList (S.unions (map (extractDepsFromExpr . inlineExpr) inlineDefs))
 
+extractDepsFromDefs :: DefGroups -> [ModuleName]
+extractDepsFromDefs defs
+  = S.toList (S.unions (map (extractDepsFromExpr . defExpr) (flattenDefGroups defs)))
 
 extractDepsFromExpr :: Expr -> S.Set ModuleName
 extractDepsFromExpr expr

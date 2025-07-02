@@ -61,7 +61,7 @@ fip extern string-cmp( ^x : string, ^y : string ) : int
 pub fip fun cmp( ^x : string, ^y : string) : order
   string-cmp(x,y).order
 
-pub fip fun order2( x : string, y : string ) : order2<string>
+pub fbip fun order2( x : string, y : string ) : order2<string>
   match cmp(x, y)
     Lt -> Lt2(x,y)
     Gt -> Gt2(y,x)
