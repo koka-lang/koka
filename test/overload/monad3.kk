@@ -1,15 +1,15 @@
 // monads as implicit parameters
-// use ?? to unpack pure and bind
+// use .? to unpack pure and bind
 
 reference struct monad<m>
   pure : forall<a> a -> m<a>
   bind : forall<a,b> (m<a>, a -> m<b>) -> m<b>
 
 reference struct monadplus<m>
-  base  : monad<m>                          // field names starting with "base" get unpacked recursively in ??
+  base  : monad<m>                          // field names starting with "base" get unpacked recursively in .?
   plus  : forall<a> (m<a>,m<a>) -> m<a>
 
-//fun sequence( ms : list<m<a>>, ??monad : monad<m> ) : m<list<a>>
+//fun sequence( ms : list<m<a>>, .?monad : monad<m> ) : m<list<a>>
 fun sequence( ms, .?monad )
   match ms
     Nil -> pure([])
