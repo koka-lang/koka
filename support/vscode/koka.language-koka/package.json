@@ -311,7 +311,7 @@
     "tsccompile": "tsc",
     "tscwatch": "tsc -w",
     "package": "vsce package --allow-unused-files-pattern",
-    "publish": "vsce publish"
+    "publish": "vsce publish --allow-unused-files-pattern --skip-license"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

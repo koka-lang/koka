@@ -24,6 +24,11 @@ number in `package.json` and run `npm run publish`.
 
 (The extension version is nowadays independent of the compiler version)
 
+You need to login as a publisher using `vsce login koka` and having a personal access token
+from the `koka-lang` organization at <https://dev.azure.com/koka-lang>.
+See <https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token>
+for detailed instructions.
+
 
 ## Debugging
 
@@ -48,4 +53,5 @@ You can now press `F5` to lauch a vs code editor with the extension enabled and 
 to set breakpoints etc. to debug the extension. 
 
 Run `npm run watch` in a terminal to continuously update the extension when making changes.
+
 
