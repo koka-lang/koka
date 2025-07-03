@@ -51,12 +51,12 @@ run fip
 65
 run lazycons
 --------------------------
-Bqueue(SAppend(SAppend(SNil, SReverse(SCons(1, SNil), SNil)), SReverse(SCons(3, SCons(2, SNil)), SNil)), 3, SCons(5, SCons(4, SNil)), 2)
-Bqueue(SAppend(SNil, SReverse(SCons(2, SNil), SCons(3, SNil))), 2, SCons(5, SCons(4, SNil)), 2)
-Bqueue(SAppend(SCons(3, SNil), SReverse(SCons(5, SCons(4, SNil)), SNil)), 3, SNil, 0)
-Bqueue(SAppend(SNil, SReverse(SCons(4, SNil), SCons(5, SNil))), 2, SNil, 0)
-Bqueue(SCons(5, SNil), 1, SNil, 0)
-Bqueue(SNil, 0, SNil, 0)
+Bqueue(SAppend(SAppend(SNil, SReverse(SCons(1, SNil), SNil)), SReverse(SCons(3, SCons(2, SNil)), SNil)), flen=3, SCons(5, SCons(4, SNil)), rlen=2)
+Bqueue(SAppend(SNil, SReverse(SCons(2, SNil), SCons(3, SNil))), flen=2, SCons(5, SCons(4, SNil)), rlen=2)
+Bqueue(SAppend(SCons(3, SNil), SReverse(SCons(5, SCons(4, SNil)), SNil)), flen=3, SNil, rlen=0)
+Bqueue(SAppend(SNil, SReverse(SCons(4, SNil), SCons(5, SNil))), flen=2, SNil, rlen=0)
+Bqueue(SCons(5, SNil), flen=1, SNil, rlen=0)
+Bqueue(SNil, flen=0, SNil, rlen=0)
 run implicits
 --------------------------
 True
