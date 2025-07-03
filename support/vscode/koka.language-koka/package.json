@@ -187,7 +187,7 @@
     "commands": [
       {
         "command": "koka.installCompiler",
-        "title": "Koka: Download and install the latest compiler"
+        "title": "Koka: Install the latest compiler"
       },
       {
         "command": "koka.whatsnew",
@@ -212,8 +212,8 @@
         "enablement": "koka.advancedCommands"
       },
       {
-        "command": "koka.downloadCompiler",
-        "title": "Koka: Download and install a specific version of the compiler"
+        "command": "koka.installSpecificCompiler",
+        "title": "Koka: Install a specific version of the compiler"
       },
       {
         "command": "koka.selectTarget",
