@@ -20,10 +20,10 @@ import std/num/int32
 abstract struct promise<a>
   promise : any
 
-noinline extern unsafe_task( work : () -> pure a ) : pure any
+noinline extern unsafe_task( work : () -> div a ) : <> any
   c "kk_task_schedule"
 
-noinline extern unsafe_await( p : any ) : pure a
+noinline extern unsafe_await( p : any ) : <> a
   c "kk_promise_get"
 
 extern prim-task-set-default-concurrency( thread-count : ssize_t  ) : io ()
@@ -34,19 +34,19 @@ pub fun task-set-default-concurrency( thread-count : int ) : io ()
 
 
 // Spark a pure computation in a separate thread of control.
-pub noinline fun task( work : () -> pure a ) : pure promise<a>
+pub noinline fun task( work : () -> <> a ) : <> promise<a>
   Promise( unsafe_task( work ) )
 
 // Await the result of a promise.
-pub fun await( p : promise<a> ) : pure a
+pub fun await( p : promise<a> ) : <> a
   unsafe_await( p.promise )
 
 // Await the result of a list of promises.
-pub fun list/await( ps : list<promise<a>> ) : pure list<a>
+pub fun list/await( ps : list<promise<a>> ) : <> list<a>
   ps.map(await)
 
 // Run a list of pure computations in parallel.
-pub fun parallel( xs : list<() -> pure a> ) : pure list<a>
+pub fun parallel( xs : list<() -> <> a> ) : <> list<a>
   xs.map( task ).await
 
 
@@ -66,21 +66,21 @@ pub noinline fun taskn( count : int, stride : int, work : () -> pure a, combine 
 abstract struct lvar<a>
   lv : any
 
-noinline extern unsafe-lvar( init : a ) : pure any
+noinline extern unsafe-lvar( init : a ) : <> any
   c "kk_lvar_alloc"
 
-noinline extern unsafe-put( lvar : any, x : a, monotonic-combine : (a,a) -> a ) : pure ()
+noinline extern unsafe-put( lvar : any, x : a, monotonic-combine : (a,a) -> a ) : <> ()
   c "kk_lvar_put"
 
-noinline extern unsafe-get( lvar : any, bot : a, is-gte : (a,a) -> int32 ) : pure a
+noinline extern unsafe-get( lvar : any, bot : a, is-gte : (a,a) -> int32 ) : <> a
   c "kk_lvar_get"
 
-pub noinline fun lvar( init : a ) : pure lvar<a>
+pub noinline fun lvar( init : a ) : <> lvar<a>
   Lvar( unsafe-lvar(init) )
 
-pub fun put( lvar : lvar<a>, x : a, monotonic-combine : (a,a) -> a ) : pure ()
+pub fun put( lvar : lvar<a>, x : a, monotonic-combine : (a,a) -> a ) : <> ()
   unsafe-put( lvar.lv, x, monotonic-combine )
 
-pub fun get( lvar : lvar<a>, bot : a, is-gte: (a,a) -> bool ) : pure a
+pub fun get( lvar : lvar<a>, bot : a, is-gte: (a,a) -> bool ) : <> a
   unsafe-get( lvar.lv, bot, fn(x,y){ if (is-gte(x,y)) then one else zero } )
 
