@@ -337,6 +337,7 @@ function createCommands(
         programArgs
       }
       console.log(`Launch config`, launchConfig)
+      vscode.commands.executeCommand('workbench.panel.repl.view.focus')
       vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(resource), launchConfig as vscode.DebugConfiguration)
     }),
 
@@ -353,6 +354,7 @@ function createCommands(
         programArgs
       }
       console.log(`Launch config`, launchConfig)
+      vscode.commands.executeCommand('workbench.panel.repl.view.focus')
       vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(resource), launchConfig as vscode.DebugConfiguration)
     }),
 
