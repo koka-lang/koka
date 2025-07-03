@@ -10,6 +10,7 @@
 module std/core/unsafe
 
 import std/core/types
+import std/core/hnd
 
 // _Unsafe_. This function calls a function and pretends it did not have any effect at all.
 // Use with utmost care as it should not be used to dismiss user-defined effects that need
