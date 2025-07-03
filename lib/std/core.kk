@@ -186,29 +186,29 @@ pub fun fold-while( n : int, init : a, f : (int,a) -> e maybe<a> ) : e a
 // ----------------------------------------------------------------------------
 
 // Generic inequality
-pub fun (!=)(x : a, y : a, ?(==) : (a,a) -> bool ) : bool
+pub fun default/(!=)(x : a, y : a, ?(==) : (a,a) -> bool ) : bool
   not(x==y)
 
 // Generic equality if `cmp` exists
-pub fun cmp/(==)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+pub fun default/cmp/(==)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
   match cmp(x,y)
     Eq -> True
     _  -> False
 
 // Generic greater than
-pub fun (>)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+pub fun default/cmp/(>)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
   cmp(x,y) == Gt
 
 // Generic lower than
-pub fun (<)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+pub fun default/cmp/(<)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
   cmp(x,y) == Lt
 
 // Generic greater than or equal
-pub fun (>=)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+pub fun default/cmp/(>=)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
   y < x
 
 // Generic lower than or equal
-pub fun (<=)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
+pub fun default/cmp/(<=)(x : a, y : a, ?cmp : (a,a) -> order ) : bool
   y > x
 
 

@@ -11,7 +11,7 @@ fun float/showx( f : float64 ) : string
   f.show
 
 // a default showx for most lists
-fun list/showx( xs : list<a>, ?showx : a -> string ) : string
+fun default/list/showx( xs : list<a>, ?showx : a -> string ) : string
   "[" ++ xs.map(showx).join(",") ++ "]"
 
 fun chars/showx( cs : list<char> ) : string

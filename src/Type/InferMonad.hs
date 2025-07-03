@@ -1065,29 +1065,33 @@ ppAmbDocs docs
 -- Implicit arguments
 -----------------------------------------------------------------------
 
--- If true, we just prefer a shortest (unique) chain.
--- If false, we prefer the shortest chain ending with the most locals (which may be harder on the search space)
-preferShortestChain :: Bool
-preferShortestChain = True
+data ImplicitStrategy
+  = PreferMostLocals         -- prefer shortest chain ending with the most locals (which may be harder on the search space)
+  | PreferShortestChain      -- prefer shortest unique chain
+  | RequireUniqueDefault     -- require unique chain -- except for allowing longer chains of `default` namespace functions
+  | RequireUnique            -- require unique chain
+
+-- Set implicit resolve strategy
+implicitStrategy = RequireUniqueDefault
 
 -- A resolved implicit argument is always a name together with a list of further
 -- implicit arguments (in case it is a function itself)
-data ImplicitArg   = ImplicitArg{ iaName :: Name
-                                , iaInfo :: NameInfo
-                                , iaType :: Rho          -- instantiated type
-                                , iaImplicitArgs :: [(Name, Partial)]
+data ImplicitArg   = ImplicitArg{ iaName :: !Name
+                                , iaInfo :: !NameInfo
+                                , iaType :: !Rho          -- instantiated type
+                                , iaImplicitArgs :: ![(Name, Partial)]
                                 }
 
 -- Further implicit arguments are delayed (in an `Inf` computation) so we can breadth-first search
-data Partial   = Step  (Inf [ImplicitArg])  -- compute on demand
-               | Done  ImplicitArg          -- this step is done
-               | Infty NameContext          -- an infinite chain on the given context
+data Partial   = Step  !(Inf [ImplicitArg])  -- compute on demand
+               | Done  !ImplicitArg          -- this step is done
+               | Infty !NameContext          -- an infinite chain on the given context
 
 
 -- An implicit argument has a cost where we prefer the least solution when disambiguating
--- (that is, depending on `preferShortestChain`, either minimal call depth, or, most locals with minimal call depth)
-data Cost  = Least Int    -- if an implicit argument is not yet fully computed, we can only give a least score
-           | Exact Int    -- and otherwise it is exact
+-- (that is, depending on `PreferShortestChain`, either minimal call depth, or, most locals with minimal call depth)
+data Cost  = Least !Int    -- if an implicit argument is not yet fully computed, we can only give a least score
+           | Exact !Int    -- and otherwise it is exact
 
 instance Ord Cost where
   compare x y
@@ -1107,9 +1111,18 @@ cadd x y
         (Least i, Exact j) -> Least (i + j)
         (Least i, Least j) -> Least (i + j)
 
-csum xs
-  = foldl' cadd (Exact 0) xs
+csum (x:xs) = foldl' cadd x xs
+csum []     = Exact 0
 
+cmax x y
+   = case (x,y) of
+        (Exact i, Exact j) -> Exact (max i j)
+        (Exact i, Least j) -> Least (max i j)
+        (Least i, Exact j) -> Least (max i j)
+        (Least i, Least j) -> Least (max i j)
+
+cmaximum (x:xs) = foldl' cmax x xs
+cmaximum []     = Exact 0
 
 -- Is an implicit arg fully evaluated?
 isDone :: ImplicitArg -> Bool
@@ -1122,20 +1135,46 @@ isDone (ImplicitArg _ _ _ iargs)
 
 
 -- cost:
--- if preferShortestChain
---   then: chain depth + #qualified-names  (while locals cost zero)
---   else: chain depth + #qualified-non-leaf-names + 100*#qualified-leaf-names (while locals cost zero)
+-- RequireUnique:
+--   everything is cost 0
+-- RequireUniqueDefault:
+--   100*#defaults - #locals
+--   Todo: should we refine this?  At a choice point we prune without using the cost function?
+--   if there is a choice between default/non-default prefer non-default,
+--   and if there is as choice between local/non-local, prefer local.
+-- PreferShortestChain:
+--   chain depth + #qualified-names  (while locals cost zero)
+-- PreferMostLocals:
+--   chain depth + #qualified-non-leaf-names + 100*#qualified-leaf-names (while locals cost zero)
 implicitArgCost :: ImplicitArg -> Cost
 implicitArgCost iarg
-  = let base = if isQualified (iaName iarg)
-                 then (if not (null (iaImplicitArgs iarg) || preferShortestChain) then 1 else 100)
-                 else 0
-    in cadd (Exact base) (csum (map (partialCost . snd) (iaImplicitArgs iarg)))
+  = let base = case implicitStrategy of
+                 RequireUnique        -> 0
+                 RequireUniqueDefault -> if isDefault (iaName iarg) then 100 else (if isQualified (iaName iarg) then 0 else -1)
+                 PreferShortestChain  -> if isQualified (iaName iarg) then 1 else 0
+                 PreferMostLocals     -> if isQualified (iaName iarg)
+                                            then (if not (null (iaImplicitArgs iarg)) then 1 else 100)
+                                            else 0
+    in csum (Exact base : map (partialCost . snd) (iaImplicitArgs iarg))
+
+isDefault :: Name -> Bool
+isDefault name
+  = case splitLocalQualName name of
+      ("default":_) -> True
+      _             -> False
 
 partialCost :: Partial -> Cost
-partialCost (Step inf)    = Least 1
-partialCost (Done iarg)   = cadd (Exact 1) (implicitArgCost iarg)
-partialCost (Infty tp)    = Least 10000
+partialCost partial
+  = case implicitStrategy of
+      RequireUnique         -> Exact 0
+      RequireUniqueDefault  -> case partial of
+                                  Step inf  -> Least 0
+                                  Done iarg -> implicitArgCost iarg   -- chain depth is ignored
+                                  Infty tp  -> Least 0
+      _                     -> case partial of
+                                  Step inf  -> Least 1
+                                  Done iarg -> cadd (Exact 1) (implicitArgCost iarg)  -- add 1 for each chain step
+                                  Infty tp  -> Least 10000
 
 prettyImplicitArg :: Pretty.Env -> ImplicitArg -> Doc
 prettyImplicitArg penv (ImplicitArg name info rho iargs)
@@ -1208,7 +1247,7 @@ resolveBest allowDisambiguate depth candidates
                             assertion "Type.InferMonad.resolveBest: unresolved implicit!" (isDone iarg) $
                             return (Right iarg)
         Continue sorted  -> do -- keep looking
-                              when (depth>=3) $
+                              when (depth>=5) $
                                 traceDefDoc $ \penv -> text "resolveBest" <+> pretty depth <+> text "continue with:" <->
                                                         indent 2 (vcat (map (prettyImplicitArg penv) sorted))
                               candidates' <- resolveStep [] sorted
@@ -1242,11 +1281,12 @@ resolveStep previousTypes0 iargs
         partialStep (Step inf)
           = do -- traceDefDoc $ \penv -> text "partial step, previous types:" <+> hcat (map (Pretty.ppType penv . snd) previousTypes)
                xs <- inf -- compute one more step
-               -- but filter out solutions that have been tried before (to stop infinite chains)
+               -- and filter out solutions that have been tried before (to stop infinite chains)
                -- this happens when the shape of a type matches a previous one
                -- (the shape is the same if types match exactly up to unique renaming of free variables)
-               return $ map Done $
-                  filter (\iarg -> not (any (\(name,tp) -> pureMatchShape tp (iaType iarg)) previousTypes)) xs
+               let ys = filter (\iarg -> not (any (\(name,tp) -> pureMatchShape tp (iaType iarg)) previousTypes)) xs
+               return $ map Done ys
+
 
         partialStep (Done arg)
           = do xs <- resolveStep previousTypes [arg]           -- recurse to the leaves
@@ -1254,8 +1294,6 @@ resolveStep previousTypes0 iargs
 
         partialStep (Infty nctx)
           = return [Infty nctx]
-
-
 
 
 -- We can find a unique solution, none, surely ambiguous, or we need to continue further
@@ -1468,7 +1506,7 @@ lookupGlobalName infoFilter name
           -- If multiple aliases match, ideally we look through all of them
           -- However, that runs into issue #719 where the original module name is not included in `names`
           -- traceDefDoc $ \penv -> text "lookupGlobalName (imported aliases):" <+> list (map (Pretty.ppName penv) names)
-          return $ findName name 
+          return $ findName name
   where filterGammaNames gamma name = filter (infoFilter . snd) (gammaLookup name gamma)
 
 filterMatchNameContext :: HasCallStack => Range -> NameContext -> [(Name,NameInfo)] -> Inf [(Name,NameInfo)]

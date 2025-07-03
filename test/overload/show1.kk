@@ -9,7 +9,7 @@ fun char/showx( c : char ) : string
 fun float64/showx( f : float64 ) : string
   f.show
 
-fun list/showx( xs : list<a>, ?showx : a -> string ) : string
+fun default/list/showx( xs : list<a>, ?showx : a -> string ) : string
   "[" ++ xs.map(showx).join(",") ++ "]"
 
 fun test1()
@@ -19,7 +19,7 @@ fun test2()
   [[1],[2]].showx // this resolves recursively
 
 fun test3()
-  [['a','b']].showx
+  [['a','b']].showx  // this prefers `charlist/showx` as `default/list/showx` is in the default namespace
 
 fun charlist/showx( cs : list<char> ) : string
   cs.string.show

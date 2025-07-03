@@ -50,15 +50,15 @@ pub fbip fun tuple3/cmp( (x1,y1,z1) : (a,b,c), (x2,y2,z2) : (a,b,c), ^?fst/cmp :
 
 
 // Convert a unit value `()` to a string
-pub fun unit/show( u : () ) : string
+pub fun default/unit/show( u : () ) : string
   "()"
 
 // Show a tuple
-pub fun tuple2/show( x : (a,b), ?fst/show : a -> e string, ?snd/show : b -> e string) : e string
+pub fun default/tuple2/show( x : (a,b), ?fst/show : a -> e string, ?snd/show : b -> e string) : e string
   "(" ++ x.fst.show ++ "," ++ x.snd.show ++ ")"
 
 // Show a triple
-pub fun tuple3/show( x : (a,b,c), ?fst/show : a -> e string, ?snd/show : b -> e string, ?thd/show : c -> e string) : e string
+pub fun default/tuple3/show( x : (a,b,c), ?fst/show : a -> e string, ?snd/show : b -> e string, ?thd/show : c -> e string) : e string
   "(" ++ x.fst.show ++ "," ++ x.snd.show ++ "," ++ x.thd.show ++ ")"
 
 // _deprecated_, use `tuple2/show` instead
