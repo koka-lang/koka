@@ -1,0 +1,67 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="initial-scale=1.0" />
+
+<style type="text/css">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>
+<link rel="stylesheet" type="text/css" href="styles/koka.css" />
+
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Nunito:400,400italic,700,700italic" />
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic" />
+
+<title>std/core/lazy documentation</title>
+</head>
+
+<body class="koka doc body madoko">
+<h1><a class="link" href="https://koka-lang.github.io/koka/doc/std_core_lazy-source.html"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>lazy</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
+<div class="toc code"><ul class="toc"><li><a class="link" href="#atomic_enter"><span class="kw">fun</span>&nbsp;atomic<span class="dash">-</span>enter</a></li><li><a class="link" href="#atomic_leave"><span class="kw">fun</span>&nbsp;atomic<span class="dash">-</span>leave</a></li><li><a class="link" href="#datatype_is_whnf"><span class="kw">fun</span>&nbsp;datatype<span class="dash">-</span>is<span class="dash">-</span>whnf</a></li><li><a class="link" href="#datatype_ptr_is_thread_shared"><span class="kw">fun</span>&nbsp;datatype<span class="dash">-</span>ptr<span class="dash">-</span>is<span class="dash">-</span>thread<span class="dash">-</span>shared</a></li><li><a class="link" href="#datatype_ptr_is_unique"><span class="kw">fun</span>&nbsp;datatype<span class="dash">-</span>ptr<span class="dash">-</span>is<span class="dash">-</span>unique</a></li><li><a class="link" href="#datatype_ptr_is_whnf"><span class="kw">fun</span>&nbsp;datatype<span class="dash">-</span>ptr<span class="dash">-</span>is<span class="dash">-</span>whnf</a></li><li><a class="link" href="#indirect_compress"><span class="kw">fun</span>&nbsp;indirect<span class="dash">-</span>compress</a></li><li><a class="link" href="#memoize"><span class="kw">fun</span>&nbsp;memoize</a></li><li><a class="link" href="#memoize_target"><span class="kw">fun</span>&nbsp;memoize<span class="dash">-</span>target</a></li></ul></div>
+<div class="doc koka comment">
+<h1 class="synopsis">Internal functions to support lazy constructors</h1>
+
+
+
+<p class="p noindent">.
+</p></div>
+<div class="decl" id="atomic_enter"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_lazy-source.html#atomic_enter">atomic<span class="dash">-</span>enter</a></span>( <span class="tp op">^</span><span class="tp tpp">target</span> <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span>, <span class="tp tpp">lazy<span class="dash">-</span>tag</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int32"><span class="tp">int32</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int32: <span class="co">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_bool"><span class="tp">bool</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>bool: <span class="co">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">Internal: atomically set a lazy value to locked (or return <code class="koka">false</code> if already memoized).
+</p></div></div>
+<div class="decl" id="atomic_leave"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_lazy-source.html#atomic_leave">atomic<span class="dash">-</span>leave</a></span>( <span class="tp tpp">target</span> <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span> ) <span class="tp sp">:</span>&nbsp;<span class="tp sp">(</span><span class="tp sp">)</span></div><div class="doc koka comment">
+
+<p class="p noindent">Internal: release an atomically memoized lazy value.
+</p></div></div>
+<div class="decl" id="datatype_is_whnf"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_lazy-source.html#datatype_is_whnf">datatype<span class="dash">-</span>is<span class="dash">-</span>whnf</a></span>( <span class="tp op">^</span><span class="tp tpp">x</span> <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span>, <span class="tp tpp">lazy<span class="dash">-</span>tag</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int32"><span class="tp">int32</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int32: <span class="co">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_bool"><span class="tp">bool</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>bool: <span class="co">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">Internal: test if a lazy value is in whnf.
+</p></div></div>
+<div class="decl" id="datatype_ptr_is_thread_shared"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_lazy-source.html#datatype_ptr_is_thread_shared">datatype<span class="dash">-</span>ptr<span class="dash">-</span>is<span class="dash">-</span>thread<span class="dash">-</span>shared</a></span>( <span class="tp op">^</span><span class="tp tpp">x</span> <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_bool"><span class="tp">bool</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>bool: <span class="co">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">Internal: test if a heap allocated data type is thread-shared.
+</p></div></div>
+<div class="decl" id="datatype_ptr_is_unique"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_lazy-source.html#datatype_ptr_is_unique">datatype<span class="dash">-</span>ptr<span class="dash">-</span>is<span class="dash">-</span>unique</a></span>( <span class="tp op">^</span><span class="tp tpp">x</span> <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_bool"><span class="tp">bool</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>bool: <span class="co">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">Internal: test if a heap allocated data type is unique.
+</p></div></div>
+<div class="decl" id="datatype_ptr_is_whnf"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_lazy-source.html#datatype_ptr_is_whnf">datatype<span class="dash">-</span>ptr<span class="dash">-</span>is<span class="dash">-</span>whnf</a></span>( <span class="tp op">^</span><span class="tp tpp">x</span> <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span>, <span class="tp tpp">lazy<span class="dash">-</span>tag</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int32"><span class="tp">int32</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int32: <span class="co">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_bool"><span class="tp">bool</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>bool: <span class="co">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">Internal: test if a heap allocated lazy value is in whnf.
+</p></div></div>
+<div class="decl" id="indirect_compress"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_lazy-source.html#indirect_compress">indirect<span class="dash">-</span>compress</a></span>( <span class="tp tpp">value</span> <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span>, <span class="tp tpp">lazy<span class="dash">-</span>tag</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int32"><span class="tp">int32</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int32: <span class="co">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span></div><div class="doc koka comment">
+
+<p class="p noindent">Internal: compress indirection chains.
+</p></div></div>
+<div class="decl" id="memoize"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_lazy-source.html#memoize">memoize</a></span>( <span class="tp tpp">target</span> <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span>, <span class="tp tpp">x</span> <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span> ) <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span></div><div class="doc koka comment">
+
+<p class="p noindent">Internal: explicitly force update-in-place for lazy values.
+</p></div></div>
+<div class="decl" id="memoize_target"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_lazy-source.html#memoize_target">memoize<span class="dash">-</span>target</a></span>( <span class="tp op">^</span><span class="tp tpp">target</span> <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span>, <span class="tp tpp">size</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="co">V</span></span></a>, <span class="tp tpp">scan<span class="dash">-</span>size</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="co">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<span class="tp sp">(</span><span class="tp sp">)</span></div><div class="doc koka comment">
+
+<p class="p noindent">Internal: marker for lazy values that will be memoized (used to for correct reuse and reference counting).
+</p></div></div>
+<div class="decl" id="-private-imports"><div class="header code"><span class="def"><span class="kw">private import</span>&nbsp;<span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#_null_"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types</span></span></a></span></span></div></div>
+</body>
+</html>
+
+<span data-line=""></span>
