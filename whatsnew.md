@@ -27,7 +27,7 @@ generating direct C code without needing a runtime system. To learn more:
 - Declare divergent types as `div type/effect` (instead of `rec type/effect`).
 
 - Support for lazy constructors. See `samples/learn/lazycons.kk` in the Samples, 
-  and read the [paper][https://antonlorenzen.de/papers/lazycons.pdf] 
+  and read the [paper](https://antonlorenzen.de/papers/lazycons.pdf) 
   on "_First-order Laziness_" by Anton Lorenzen, Daan Leijen, Wouter Swierstra, Sam Lindley (ICFP'25).
 
 - Various bug fixes.

@@ -105,14 +105,14 @@ async function checkCompilerUpdate(context: vscode.ExtensionContext, vsConfig: v
 // Called after initial install and later updates of the compiler
 async function onCompilerUpdate() {
   console.log("Koka: compiler is updated")
-  await vscode.commands.executeCommand('koka.whatsnew')
   await vscode.commands.executeCommand('koka.openSamples')
+  await vscode.commands.executeCommand('koka.whatsnew')
 }
 
 // Called after initial install and later updates of the extension
 async function onUpdate() {
   console.log("Koka: extension is updated")
-  await vscode.commands.executeCommand('koka.whatsnew')
+  // await vscode.commands.executeCommand('koka.whatsnew')
 }
 
 // Clear all global state (for development)
