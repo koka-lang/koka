@@ -110,6 +110,12 @@ export class VersionManager {
       if (semver.gte(latestInstalled, targetRelease.version)) {
         return
       }
+
+      const latestAsked = await this.context.globalState.get('koka-latest-asked-compiler') as string ?? "1.0.0"
+      console.log(`Koka: latest compiler version asked to install: ${latestAsked}`);
+      if (semver.eq(latestAsked, targetRelease.version)) {
+        return
+      }
     }
 
     // check platform
@@ -127,8 +133,8 @@ export class VersionManager {
         'No'
       )
       if (decision == 'No') {
-        // pretend it is installed and don't auto prompt again in the future (until a more recent version is released)
-        await this.setInstalledVersion(targetRelease.version);
+        // remember the version and don't auto prompt again in the future (until a more recent version is released)
+        await this.context.globalState.update('koka-latest-asked-compiler', targetRelease.version);
         return
       } else if (decision != 'Yes') { // cancel
         return
@@ -137,7 +143,7 @@ export class VersionManager {
 
     // download and install in a terminal
     let shellCmd = ""
-    let flags = "--vscode"
+    let flags = "--force --vscode"
     let version = targetRelease.version;
     let idx = version.indexOf('-');
     if (idx >= 0) {

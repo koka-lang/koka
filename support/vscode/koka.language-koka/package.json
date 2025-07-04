@@ -2,7 +2,7 @@
   "name": "language-koka",
   "displayName": "Koka Language",
   "description": "The official Koka programming language extension.",
-  "version": "3.1.3",
+  "version": "3.1.4",
   "publisher": "koka",
   "engines": {
     "vscode": ">=1.85.0"
@@ -187,7 +187,7 @@
     "commands": [
       {
         "command": "koka.installCompiler",
-        "title": "Koka: Download and install the latest compiler"
+        "title": "Koka: Install the latest compiler"
       },
       {
         "command": "koka.whatsnew",
@@ -212,8 +212,8 @@
         "enablement": "koka.advancedCommands"
       },
       {
-        "command": "koka.downloadCompiler",
-        "title": "Koka: Download and install a specific version of the compiler"
+        "command": "koka.installSpecificCompiler",
+        "title": "Koka: Install a specific version of the compiler"
       },
       {
         "command": "koka.selectTarget",
@@ -311,7 +311,7 @@
     "tsccompile": "tsc",
     "tscwatch": "tsc -w",
     "package": "vsce package --allow-unused-files-pattern",
-    "publish": "vsce publish"
+    "publish": "vsce publish --allow-unused-files-pattern --skip-license"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
