@@ -51,7 +51,7 @@ fun maybe/cmpx( mb1 : maybe<a>, mb2 : maybe<a>, ?cmpx : (a,a) -> order ) : order
 
 
 // Generic equality if `cmp` exists
-fun cmpx/eq(x : a, y : a, ?cmpx : (a,a) -> order ) : bool
+fun default/cmpx/eq(x : a, y : a, ?cmpx : (a,a) -> order ) : bool
   match cmpx(x,y)
     Eq -> True
     _  -> False

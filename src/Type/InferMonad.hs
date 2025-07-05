@@ -1068,11 +1068,10 @@ ppAmbDocs docs
 data ImplicitStrategy
   = PreferMostLocals         -- prefer shortest chain ending with the most locals (which may be harder on the search space)
   | PreferShortestChain      -- prefer shortest unique chain
-  | RequireUniqueDefault     -- require unique chain -- except for allowing longer chains of `default` namespace functions
   | RequireUnique            -- require unique chain
 
 -- Set implicit resolve strategy
-implicitStrategy = RequireUniqueDefault
+implicitStrategy = RequireUnique
 
 -- A resolved implicit argument is always a name together with a list of further
 -- implicit arguments (in case it is a function itself)
@@ -1136,12 +1135,9 @@ isDone (ImplicitArg _ _ _ iargs)
 
 -- cost:
 -- RequireUnique:
---   everything is cost 0
--- RequireUniqueDefault:
---   100*#defaults - #locals
---   Todo: should we refine this?  At a choice point we prune without using the cost function?
---   if there is a choice between default/non-default prefer non-default,
---   and if there is as choice between local/non-local, prefer local.
+--   everything is cost 0 (todo: avoid any of the sorting/pruning if the cost is always zero anyways)
+--   note we still use `filterInnerScopes` to prefer solutions that resolve an identifier in an inner scope
+--   _at the same choice point_. This is not captured in a cost though.
 -- PreferShortestChain:
 --   chain depth + #qualified-names  (while locals cost zero)
 -- PreferMostLocals:
@@ -1150,7 +1146,6 @@ implicitArgCost :: ImplicitArg -> Cost
 implicitArgCost iarg
   = let base = case implicitStrategy of
                  RequireUnique        -> 0
-                 RequireUniqueDefault -> if isDefault (iaName iarg) then 100 else (if isQualified (iaName iarg) then 0 else -1)
                  PreferShortestChain  -> if isQualified (iaName iarg) then 1 else 0
                  PreferMostLocals     -> if isQualified (iaName iarg)
                                             then (if not (null (iaImplicitArgs iarg)) then 1 else 100)
@@ -1167,10 +1162,6 @@ partialCost :: Partial -> Cost
 partialCost partial
   = case implicitStrategy of
       RequireUnique         -> Exact 0
-      RequireUniqueDefault  -> case partial of
-                                  Step inf  -> Least 0
-                                  Done iarg -> implicitArgCost iarg   -- chain depth is ignored
-                                  Infty tp  -> Least 0
       _                     -> case partial of
                                   Step inf  -> Least 1
                                   Done iarg -> cadd (Exact 1) (implicitArgCost iarg)  -- add 1 for each chain step
@@ -1205,6 +1196,60 @@ prettyImplicitAssign penv prefix pname iarg
          then (\shorten -> (if shorten then Lib.PPrint.empty else pardoc) <.> prettyImplicitArg penv iarg)
          else (\shorten -> pardoc <.> prettyImplicitArg penv iarg)
 
+
+-- partial comparison of scope nesting depth
+data PartialCmp
+  = Lt | Gt | Eq | NotEq | Unknown
+
+-- compare two implicitarg's to see if one of them should be preferred (as it uses inner scope names at the same choice point)
+compareScope :: ImplicitArg -> ImplicitArg -> PartialCmp
+compareScope iarg1 iarg2
+  = if (nameStem (iaName iarg1) /= nameStem (iaName iarg2)) then NotEq
+    else if (scopeDepth iarg1 > scopeDepth iarg2) then Gt -- iarg1 is defined in an inner scope
+    else if (scopeDepth iarg1 < scopeDepth iarg2) then Lt -- iarg2 is defined in an inner scope
+    -- equal scopes, compare the arguments
+    else if (iaName iarg1 /= iaName iarg2) then NotEq
+    else if (length (iaImplicitArgs iarg1) /= length (iaImplicitArgs iarg2)) then NotEq
+    else foldl' top Eq (zipWith compareScopePartial (map snd (iaImplicitArgs iarg1)) (map snd (iaImplicitArgs iarg2)))
+
+compareScopePartial :: Partial -> Partial -> PartialCmp
+compareScopePartial p1 p2
+  = case (p1,p2) of
+      (Done iarg1, Done iarg2) -> compareScope iarg1 iarg2
+      _ -> Unknown
+
+top :: PartialCmp -> PartialCmp -> PartialCmp
+top pc1 pc2
+  = case (pc1,pc2) of
+      (Unknown,_) -> Unknown
+      (_,Unknown) -> Unknown
+      (NotEq,_)   -> NotEq
+      (_,NotEq)   -> NotEq
+      (Eq,lte)    -> lte
+      (lte,Eq)    -> lte
+      (Lt,Lt)     -> Lt
+      (Gt,Gt)     -> Gt
+      (Lt,Gt)     -> Unknown
+      (Gt,Lt)     -> Unknown
+
+scopeDepth :: ImplicitArg -> Int
+scopeDepth iarg
+  = if isDefault (iaName iarg) then 0
+    else if isQualified (iaName iarg) then 1
+    else if isImplicitParamName (iaName iarg) then 2
+    else 3  -- TODO: keep track of local nesting level
+
+filterInnerScopes :: [ImplicitArg] -> [ImplicitArg]
+filterInnerScopes []  = []
+filterInnerScopes (x:xs)
+  = filter x [] xs
+  where
+    filter x acc []     = x : filterInnerScopes (reverse acc)
+    filter x acc (y:ys)
+      = case compareScope x y of
+          Lt -> filter y acc ys       -- drop x
+          Gt -> filter x acc ys       -- drop y
+          _  -> filter x (y:acc) ys
 
 
 -----------------------------------------------------------------------
@@ -1247,9 +1292,11 @@ resolveBest allowDisambiguate depth candidates
                             assertion "Type.InferMonad.resolveBest: unresolved implicit!" (isDone iarg) $
                             return (Right iarg)
         Continue sorted  -> do -- keep looking
-                              when (depth>=5) $
+                              when (depth>=4) $
                                 traceDefDoc $ \penv -> text "resolveBest" <+> pretty depth <+> text "continue with:" <->
                                                         indent 2 (vcat (map (prettyImplicitArg penv) sorted))
+                                                        -- <-> indent 2 (text "scoped:") <->
+                                                        -- indent 2 (vcat (map (prettyImplicitArg penv) (filterInnerScopes sorted)))
                               candidates' <- resolveStep [] sorted
                               resolveBest allowDisambiguate (depth + 1) candidates'
         _                -> do -- no solutions, or ambiguous
@@ -1315,25 +1362,28 @@ findBest allowDisambiguate candidates
                   -- cannot disambiguate
                   then if length (filter isDone candidates) > 1
                          then -- definitely ambiguous since we cannot disambiguate
-                              case filterAlwaysWorse sorted of  -- unless some solutions are always worse than others.. (this helps with type propagation to the arguments)
+                              case (filterAlwaysWorse sorted) of  -- unless some solutions are always worse than others.. (this helps with type propagation to the arguments)
                                 [iarg]  | isDone iarg -> Found iarg
                                 _       -> Amb
                          else -- we need to keep evaluating to be sure (as future implicits may not be resolved)
                               Continue sorted
                   -- can disambiguate: sort according to current cost: exact always comes before least
-                  else case sorted of
+                  else let ssorted = filterInnerScopes sorted  -- todo: don't filter for non-RequireUnique strategy?
+                       in case ssorted of
                          (x:ys) -> case implicitArgCost x of
-                            (Least _) -> Continue sorted  -- none is exact yet
+                            (Least _) -> Continue ssorted  -- none is exact yet
                             (Exact i) -> let -- only keep those with the same exact score, or with a lesser/equal least score
                                              keep = filter (\y -> case implicitArgCost y of
                                                                         Exact j -> i == j
-                                                                        Least j -> i >= j) sorted
+                                                                        Least j -> i >= j) ssorted
                                          in case keep of
-                                              [_]   -> -- unique best solution
+                                              [_]   | isDone x -> -- resolved unique best solution
                                                        Found x
-                                              _     -> if all (\y -> implicitArgCost y == Exact i) keep
-                                                         then Amb            -- multiple exact with the same score (and no more least)
-                                                         else Continue keep  -- keep evaluating
+                                              _     -> case implicitStrategy of
+                                                         RequireUnique -> Continue keep -- we cannot cut short for unique as they always have score 0
+                                                         _ -> if all (\y -> implicitArgCost y == Exact i) keep
+                                                                then Amb            -- multiple exact with the same score (and no more least)
+                                                                else Continue keep  -- keep evaluating
 
 -- filter out solutions that are always worse than an earlier one even if the types may later improve
 -- expects the implicit args to be sorted on cost

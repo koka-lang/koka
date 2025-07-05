@@ -27,7 +27,7 @@ val maybe/monadplus = Monadplus( maybe/monad, fn(m1,m2) match m1
                                                           Just    -> m1
                                )
 
-fun monadplus/monad( .?monadplus )
+fun default/monadplus/monad( .?monadplus )
   base
 
 fun testtwice( m, .?monadplus )
