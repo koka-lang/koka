@@ -163,25 +163,25 @@ fbip fun zipwith-iter( i, xs, ys, ^f )
 pub fun unzip( xs : list<(a,b)> ) : (list<a>,list<b>)
   fun iter( ys, acc1, acc2 )
     match ys
-      Cons((x,y),xx) -> iter(xx,acc1 ++ ctx Cons(x,_),acc2 ++ ctx Cons(y,_))
+      Cons((x,y),xx) -> iter(xx,acc1 ++ ctx Cons(x,hole),acc2 ++ ctx Cons(y,hole))
       Nil            -> (acc1 ++. Nil,acc2 ++. Nil)
-  iter(xs,ctx _,ctx _)
+  iter(xs,ctx hole,ctx hole)
 
 // Unzip a list of triples into three lists
 pub fun unzip3( xs : list<(a,b,c)>) : (list<a>,list<b>,list<c>)
   fun iter( ys, acc1, acc2, acc3 )
     match ys
-      Cons((x,y,z),xx) -> iter(xx,acc1 ++ ctx Cons(x,_),acc2 ++ ctx Cons(y,_),acc3 ++ ctx Cons(z,_))
+      Cons((x,y,z),xx) -> iter(xx,acc1 ++ ctx Cons(x,hole),acc2 ++ ctx Cons(y,hole),acc3 ++ ctx Cons(z,hole))
       Nil            -> (acc1 ++. Nil,acc2 ++. Nil,acc3 ++. Nil)
-  iter(xs,ctx _,ctx _,ctx _)
+  iter(xs,ctx hole,ctx hole,ctx hole)
 
 // Unzip a list of quadruples into four lists
 pub fun unzip4( xs : list<(a,b,c,d)>) : (list<a>,list<b>,list<c>,list<d>)
   fun iter( ys, acc1, acc2, acc3, acc4 )
     match ys
-      Cons((x,y,z,w),xx) -> iter(xx,acc1 ++ ctx Cons(x,_),acc2 ++ ctx Cons(y,_),acc3 ++ ctx Cons(z,_),acc4 ++ ctx Cons(w,_))
+      Cons((x,y,z,w),xx) -> iter(xx,acc1 ++ ctx Cons(x,hole),acc2 ++ ctx Cons(y,hole),acc3 ++ ctx Cons(z,hole),acc4 ++ ctx Cons(w,hole))
       Nil            -> (acc1 ++. Nil,acc2 ++. Nil,acc3 ++. Nil,acc4 ++. Nil)
-  iter(xs,ctx _,ctx _,ctx _,ctx _)
+  iter(xs,ctx hole,ctx hole,ctx hole,ctx hole)
 
 // Take the first `n` elements of a list (or fewer if the list is shorter than `n`)
 pub fun take( xs : list<a>, n : int ) : list<a>
@@ -285,9 +285,9 @@ pub fun split( xs : list<a>, n : int ) : (list<a>, list<a>)
 pub fun span( xs : list<a>, predicate : a -> e bool ) : e (list<a>,list<a>)
   fun span-acc( ys, acc )
     match ys
-      Cons(y,yy) -> if y.predicate then yy.span-acc(acc ++ ctx Cons(y, _)) else (acc ++. [],ys)
+      Cons(y,yy) -> if y.predicate then yy.span-acc(acc ++ ctx Cons(y, hole)) else (acc ++. [],ys)
       _ -> (acc ++. [], ys)
-  xs.span-acc( ctx _ )
+  xs.span-acc( ctx hole )
 
 // Keep only those initial elements that satisfy `predicate`
 pub fun take-while( xs : list<a>, predicate : a -> e bool ) : e list<a>
@@ -317,14 +317,14 @@ pub fun remove( xs : list<a>, pred : a -> e bool ) : e list<a>
 // those elements that satisfy the given predicate `pred`.
 // For example: `partition([1,2,3],odd?) == ([1,3],[2])`
 pub fun partition( xs : list<a>, ^pred : a -> e bool ) : e (list<a>,list<a>)
-  partition-acc(xs, pred, ctx _, ctx _)
+  partition-acc(xs, pred, ctx hole, ctx hole)
 
 fun partition-acc(xs : list<a>, ^pred : a -> e bool, acc1 : ctx<list<a>>, acc2 : ctx<list<a>>): e (list<a>, list<a>)
   match xs
     Nil -> (acc1 ++. Nil, acc2 ++. Nil)
     Cons(x,xx) -> if pred(x)
-      then partition-acc(xx,pred,acc1 ++ ctx Cons(x,_),acc2)
-      else partition-acc(xx,pred,acc1,acc2 ++ ctx Cons(x,_))
+      then partition-acc(xx,pred,acc1 ++ ctx Cons(x,hole),acc2)
+      else partition-acc(xx,pred,acc1,acc2 ++ ctx Cons(x,hole))
 
 // Retain only those elements of a list that satisfy the given predicate `pred`.
 // For example: `filterMap([1,2,3],fn(i) { if i.odd? then Nothing else Just(i*i) }) == [4]`

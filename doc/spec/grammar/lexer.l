@@ -172,6 +172,7 @@ in                        { return IN; }
 match                     { return MATCH;}
 return                    { return RETURN;}
 ctx                       { return CTX; }
+hole                      { return CTX_HOLE; }
 
 module                    { return MODULE;}
 import                    { return IMPORT;}
