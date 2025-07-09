@@ -536,7 +536,7 @@ data Expect = Generalized Bool
 inferIsolated :: Range -> Range -> Expr a -> Inf (Type,Effect,Core.Expr) -> Inf (Type,Effect,Core.Expr)
 inferIsolated contextRange range body inf
   = do (tp,eff,core) <- inf
-       res@(itp,ieff,icore) <- improve contextRange range True eff tp  core
+       res@(itp,ieff,icore) <- improveX contextRange range True eff tp  core
        traceDefDoc $ \penv -> text "infer isolated:" <+> ppType penv tp <+> text "|" <+> ppType penv ieff <+> text "from" <+> ppType penv eff
        case hasVarDecl body of
          Nothing   -> return res
