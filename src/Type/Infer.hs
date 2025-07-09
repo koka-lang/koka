@@ -537,16 +537,16 @@ inferIsolated :: Range -> Range -> Expr a -> Inf (Type,Effect,Core.Expr) -> Inf 
 inferIsolated contextRange range body inf
   = do (tp,eff,core) <- inf
        res@(itp,ieff,icore) <- improve contextRange range True eff tp  core
-       -- traceDoc $ \penv -> text "infer isolated:" <+> ppType penv tp <+> text "|" <+> ppType penv ieff <+> text "from" <+> ppType penv eff
+       traceDefDoc $ \penv -> text "infer isolated:" <+> ppType penv tp <+> text "|" <+> ppType penv ieff <+> text "from" <+> ppType penv eff
        case hasVarDecl body of
          Nothing   -> return res
-         Just vrng -> do seff <- subst ieff
-                         let (ls,tl) = extractOrderedEffect seff
+         Just vrng -> do sieff <- subst ieff
+                         let (ls,tl) = extractOrderedEffect sieff
                          case filter (\l -> labelName l == nameTpLocal) ls of
                            (_:_) -> typeError contextRange vrng
-                                      (text "reference to a local variable escapes its lexical scope") seff []
+                                      (text "reference to a local variable escapes its lexical scope") sieff []
                            _ -> return ()
-                         return (itp,seff,icore)
+                         return (itp,sieff,icore)
    where
      hasVarDecl expr
        = case expr of
@@ -1463,7 +1463,7 @@ inferLam topLevel propagated expect bindersL body0 rng
                                          inferUnify (checkEffectSubsume rng) r eff topEff
                                          subst topEff
                                          -- subst eff
-       -- traceDoc $ \env -> text " inferExpr.Lam: topeff: " <+> ppType env topEff
+       traceDefDoc $ \env -> text " inferExpr.Lam: topeff: " <+> ppType env topEff
        parTypes2 <- subst (map binderType binders1)
        let optPars   = zip (map binderName binders1) parTypes2 -- (map binderName binders1) parTypes2
            bodyCore1 = Core.addLambdas optPars topEff (Core.Lam [] topEff (coref core))
@@ -1490,9 +1490,9 @@ inferLam topLevel propagated expect bindersL body0 rng
        let -- subSkolems = subNew -- (zip skolems ftvars)
            --                    [(tv,TVar tv{typevarFlavour=Meta}) | tv <- skolems]
            sftp1 = subSkolems |-> sftp0
-       -- traceDoc $ \env -> text " inferExpr.Lam: fun type:" <+> ppType env sftp1
+       -- traceDefDoc $ \env -> text " inferExpr.Lam: fun type:" <+> ppType env sftp1
        (ftp,fcore) <- maybeGeneralize rng (getRange body) typeTotal expect sftp1 (subSkolems |-> bodyCore2)
-       -- traceDoc $ \env -> text " inferExpr.Lam: generalized fun type:" <+> ppType env ftp -- <+> text (show fcore)
+       -- traceDefDoc $ \env -> text " inferExpr.Lam: generalized fun type:" <+> ppType env ftp -- <+> text (show fcore)
 
        -- check for polymorphic parameters (this has to be done after generalize since some substitution may only exist as a constraint up to that point)
        unannotBinders <- mapM (\b -> do tp <- subst (binderType b); return b{ binderType = tp })
@@ -1512,7 +1512,7 @@ inferLam topLevel propagated expect bindersL body0 rng
                                                         )) [] True))
              (zip binders0 parTypes2)
 
-       -- traceDoc $ \penv -> text "inferExpr.Lam: type: " <+> ppType penv ftp
+       -- traceDefDoc $ \penv -> text "inferExpr.Lam: type: " <+> ppType penv ftp
        eff <- Op.freshEffect
        return (ftp, eff, fcore )
 

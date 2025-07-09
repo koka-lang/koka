@@ -98,7 +98,7 @@ import Common.Syntax( Visibility(..), DefSort(..))
 import Common.File(endsWith,normalizeWith, seqqList)
 import Common.Name
 import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
-                       nameTpRead,nameTpWrite,nameTypeHeapDiv,nameHeapDiv,nameEvHeapDiv,
+                       nameTpRead,nameTpWrite,nameTypeHeapDiv,nameHeapDiv,nameEvHeapDiv,nameEvHeapNoDiv,
                        nameReturn,nameTpLocal, nameCopy)
 
 
@@ -129,6 +129,7 @@ import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert )
 import Syntax.Syntax(Expr(..),ValueBinder(..))
 
 import qualified Debug.Trace as DT
+import Type.Pretty (ppTypeVar)
 
 trace s x =
   DT.trace (" " ++ s)
@@ -159,6 +160,7 @@ generalize contextRange range close eff0 rho0 bodycore
   = do seff0 <- subst eff0
        free0 <- freeInGamma
        let free = tvsUnion free0 (fuv seff0)
+       -- isolatex free 
        ps0  <- splitPredicates free
        ics  <- splitImplicitConstraints free
        iccore <- resolveImplicitConstraints free ics -- leads to further substitutions
@@ -168,8 +170,9 @@ generalize contextRange range close eff0 rho0 bodycore
        -- score0 <- subst core0
 
        sub <- getSub
-       -- trace ("generalize: " ++ show (pretty seff,pretty srho) ++ " with " ++ show ps0)
-                  {- ++ " and free " ++ show (tvsList free) -}
+       traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv srho <+> text "|" <+> Pretty.ppType penv seff 
+                                <-> text "  with" <+> list (map (ppConstraint penv) ics)
+                                <-> text "  and free:" <+> list (map (Pretty.ppTypeVar penv) (tvsList free) )
                   {- ++ "\n subst=" ++ show (take 10 $ subList sub) -}
                   {- ++ "\ncore: " ++ show score0 -}
        --        $ return ()
@@ -1906,13 +1909,13 @@ checkHeapDivConstraint name tp
                                 inferUnify (Infer (icContext ic)) (icRange ic) tpEff divEff
                                 return True
                         else return False
-            (cname,ctype,cinfo) <- resolveNameEx isInfoCon Nothing nameEvHeapDiv CtxNone (icContext ic) (icRange ic)
+            (cname,ctype,cinfo) <- resolveNameEx isInfoCon Nothing (if maydiv then nameEvHeapDiv else nameEvHeapNoDiv) CtxNone (icContext ic) (icRange ic)
                                    -- resolveName nameEvHeapDiv Nothing (icRange ic)
             seff  <- subst tpEff
             sevtp <- subst (icType ic)
             traceDefDoc $ \penv -> text "resolve @hdiv:" <+> Pretty.ppName penv (icEvidence ic) <.> colon <+> Pretty.ppType penv sevtp <+> text "as" <+> text (if maydiv then "divergent" else "non-divergent")
                                   <-> text "  , stp:" <+> Pretty.ppType penv stp <.> text ", shp:" <+> Pretty.ppType penv shp
-                                  <-> text "  , free: " <+> list (map (Pretty.ppTypeVar penv) (tvsList free))
+                                  <-> text "  , free: " <+> list (map (Pretty.ppTypeVar penv) (tvsList freeInGamma))
             let ev = Core.TypeApp (coreExprFromNameInfo cname cinfo) [shp,stp,seff]
             return ev
 
