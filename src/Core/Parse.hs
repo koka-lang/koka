@@ -138,7 +138,7 @@ vispub
 {--------------------------------------------------------------------------
   Top Declarations
 --------------------------------------------------------------------------}
-importDecl :: LexParser (Import,(Name,Name))
+importDecl :: HasCallStack => LexParser (Import,(Name,Name))
 importDecl
   = do (vis,doc) <- try $ do vis <- vispub
                              (_,doc) <- dockeyword "import"
@@ -146,7 +146,7 @@ importDecl
        (asname,name,_,_) <- importAlias
        prov <- pimportProvenance
        pkg <- (do{ keyword "="; (s,_) <- stringLit; return s } <|> return "")
-       return (Import name pkg prov vis doc, (asname, name))
+       return (makeImport name pkg prov vis doc, (asname, name))
 
 pimportProvenance :: LexParser ImportProvenance
 pimportProvenance

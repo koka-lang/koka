@@ -227,7 +227,7 @@ codeGenJS :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> FileP
 codeGenJS term flags sequential entry outBase core
   = do let outjs         = outBase ++ ".mjs"
            outName fname = joinPath (dirname outBase) fname
-           -- extractImport m = Core.Import (modName m) "" {- (modPackageQName m) -} Core.ImportUser Public ""
+           -- extractImport m = Core.makeImport (modName m) "" {- (modPackageQName m) -} Core.ImportUser Public ""
            js = javascriptFromCore (buildType flags) mbEntry (Core.coreProgImports core) core
            mbEntry = case entry of
                        Just (name,tp) -> Just (name,isAsyncFunction tp)

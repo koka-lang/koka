@@ -327,7 +327,7 @@ pub noinline extern @open<e1::E,e2::E,a,b>( x : a ) : e2 b
 // when reading from the heap (see `(!)`) and is necessary to catch cases where code can diverge
 // by storing self referential functions in the heap.
 pub type @hdiv<h::H,a::V,e::E>
-  @Hdiv
+  con @Hdiv
 
 // A reference `:ref<h,a>` points to a value of type `:a` in heap `:h`.
 pub type ref :: (H,V) -> V
@@ -401,7 +401,7 @@ pub inline extern local-set<a,s,e>( ^v: local-var<s,a>, assigned: a) : <local<s>
 
 // Read the value of a local variable.
 pub inline extern local-get : forall<a,s,e> (v: local-var<s,a>, ?@hdiv : @hdiv<s,a,e>) -> <local<s>|e> a
-  c  inline "kk_ref_get(#1,kk_context)"
+  c  inline "kk_ref_get(#1,kk_context())"
   cs inline "#1.Value";
   js inline "((#1).value)";
 

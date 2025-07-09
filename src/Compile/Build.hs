@@ -211,9 +211,11 @@ modmapTryPut modmap mod
 
 -- blocks until a `modmapTryPut` happens (at which point it returns the module definition at that phase).
 -- (all further reads are non-blocking)
-modmapRead :: ModuleMap -> ModuleName -> Build Module
+modmapRead :: HasCallStack => ModuleMap -> ModuleName -> Build Module
 modmapRead modmap modname
-  = liftIO $ readMVar ((M.!) modmap modname)
+  = liftIO $ readMVar $! (case M.lookup modname modmap of
+                            Just mv -> mv
+                            Nothing -> error ("cannot find " ++ showTupled modname ++ " in " ++ show (M.keys modmap)))
 
 -- create an initial module map
 modmapCreate :: [Module] -> Build ModuleMap
@@ -296,11 +298,12 @@ orderByBuildOrder buildOrder mods
   Code generation (.c,.js)
 ---------------------------------------------------------------}
 
-moduleCodeGen :: [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build (Bool, Link, Module)
+moduleCodeGen :: HasCallStack => [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build (Bool, Link, Module)
 moduleCodeGen mainEntries parsedMap tcheckedMap optimizedMap codegenMap
   = moduleGuard PhaseOptimized PhaseCodeGen codegenMap (\mod -> mod) (\mod -> (False,noLink,mod))
                 (moduleOptimize parsedMap tcheckedMap optimizedMap) $ \done mod ->
     do -- wait for all required imports to be optimized (no need to wait for codegen!)
+       -- trace ("mod import names: " ++ show (modImportNames mod)) (return ())
        imports <- moduleWaitForImports False optimizedMap [] (modImportNames mod)
        if any (\m -> modPhase m < PhaseOptimized) imports
          then done mod
@@ -337,10 +340,11 @@ getMainEntry gamma mainEntries mod
 
 
 -- Import also modules required for checking inlined definitions from direct imports.
-moduleWaitForImports :: Bool -> ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
+moduleWaitForImports :: HasCallStack => Bool -> ModuleMap -> [ModuleName] -> [ModuleName] -> Build [Module]
 moduleWaitForImports recurse modmap alreadyDone0 [] = return []
 moduleWaitForImports recurse modmap alreadyDone0 importNames
   = do -- wait for imported modules to be compiled
+       -- trace ("import names: " ++ show (importNames)) (return ())
        imports <- mapM (modmapRead modmap) importNames
        if not recurse
          then return imports
@@ -402,9 +406,10 @@ moduleOptimize parsedMap tcheckedMap optimizedMap
 
 
 -- Import also modules required for checking inlined definitions from direct imports.
-moduleWaitForInlineImports :: ModuleMap -> [ModuleName] -> Build [Module]
+moduleWaitForInlineImports :: HasCallStack => ModuleMap -> [ModuleName] -> Build [Module]
 moduleWaitForInlineImports modmap importNames
   = do -- wait for imported modules to be compiled
+       -- trace ("import inline names: " ++ show importNames) (return ())
        imports <- mapM (modmapRead modmap) importNames
        let extras = nub $ [Core.importName imp | mod <- imports, hasInlines (modInlines mod),
                                                   -- consider all of its imports too to ensure we can check its inline definitions
@@ -477,7 +482,7 @@ moduleWaitForPubImports tcheckedMap alreadyDone0 importDeps
 -- (needs the original lexical user imports as well to determine provenance and visibility)
 coreImportsFromModules :: [LexImport] -> [Module] -> [Core.Import]
 coreImportsFromModules lexImports modules
-  = [Core.Import (modName mod) ""
+  = [Core.makeImport (modName mod) ""
       (getProvenance (modName mod))
       (getVisibility (modName mod))
       (case modCore mod of                   -- careful: need to be strict enough or we hang on to the entire "modCore mod" !

@@ -166,7 +166,7 @@ defaultEnv
         True -- showFlavours
         False
         defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty)
-        False -- fullNames
+        True -- False -- fullNames
         False
         0
         False

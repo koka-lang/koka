@@ -11,7 +11,7 @@
 
 module Core.Core ( -- Data structures
                      Core(..)
-                   , Imports, Import(..), ImportProvenance(..), isCompilerImport, isUserImport
+                   , Imports, Import(..), makeImport, ImportProvenance(..), isCompilerImport, isUserImport
                    , Externals, External(..), externalVis
                    , FixDefs, FixDef(..)
                    , TypeDefGroups, TypeDefGroup(..), TypeDefs, TypeDef(..)
@@ -106,6 +106,7 @@ module Core.Core ( -- Data structures
                    , runCorePhase
                    , liftCorePhase, liftCorePhaseUniq
                    , liftError
+                   , depName, depTName
                    ) where
 
 import Control.Applicative (liftA2)
@@ -299,6 +300,11 @@ isCompilerImport imp = (importProvenance imp >= ImportCompiler)
 
 isUserImport :: Import -> Bool
 isUserImport imp  = (importProvenance imp == ImportUser)
+
+makeImport :: HasCallStack => Name -> String -> ImportProvenance -> Visibility -> String -> Import
+makeImport name pkg provenance vis doc
+  = assertion "invalid import" (show name /= "") $
+    Import name pkg provenance vis doc
 
 {--------------------------------------------------------------------------
   Externals

@@ -2947,7 +2947,7 @@ typeid ::  LexParser (Name,Range)
 typeid
   = do (name,rng) <- qtypeid
        if (isQualified name)
-        then fail "qualified type variable"
+        then fail ("qualified type variable: " ++ show (name,rng))
         else return (name,rng)
   {-
   -- secretly allow definition of any name

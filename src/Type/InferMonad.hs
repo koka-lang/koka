@@ -98,7 +98,7 @@ import Common.Syntax( Visibility(..), DefSort(..))
 import Common.File(endsWith,normalizeWith, seqqList)
 import Common.Name
 import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
-                       nameTpRead,nameTpWrite,nameTypeHeapDiv,nameHeapDiv,nameConHeapDiv,
+                       nameTpRead,nameTpWrite,nameTypeHeapDiv,nameHeapDiv,nameEvHeapDiv,
                        nameReturn,nameTpLocal, nameCopy)
 
 
@@ -1861,12 +1861,17 @@ checkImplicitConstraint name tp rangeContext range
 
 resolveImplicitConstraints :: [ImplicitConstraint] -> Inf (Core.Expr -> Core.Expr)
 resolveImplicitConstraints []  = return id
-resolveImplicitConstraints (ic:ics)
-  = do fcores <- resolveImplicitConstraints ics
-       evidence <- (icSolve ic) ic
-       let def = Core.makeTDef (Core.TName (icEvidence ic) (icType ic)) evidence
-           fcore body = Core.makeDefsLet [def] (fcores body)
+resolveImplicitConstraints ics
+  = do defs <- mapM resolve ics
+       let fcore core = case core of
+                          Core.Lam pars eff body -> Core.Lam pars eff (Core.makeDefsLet defs body)
+                          Core.TypeLam tpars (Core.Lam pars eff body) -> Core.TypeLam tpars (Core.Lam pars eff (Core.makeDefsLet defs body))
+
        return fcore
+  where
+    resolve ic
+      = do evidence <- (icSolve ic) ic
+           return $ Core.makeTDef (Core.TName (icEvidence ic) (icType ic)) evidence
 
 
 checkHeapDivConstraint :: Name -> Type -> Maybe (ImplicitConstraint -> Inf Core.Expr)
@@ -1891,7 +1896,8 @@ checkHeapDivConstraint name tp
                   let divEff = effectExtend typeDivergent tv
                   inferUnify (Infer (icContext ic)) (icRange ic) tpEff divEff
                   -- resolveName (newName "hdiv-diverge") Nothing (icRange ic)
-            (cname,ctype,cinfo) <- resolveNameEx isInfoCon Nothing nameConHeapDiv CtxNone (icContext ic) (icRange ic)
+            (cname,ctype,cinfo) <- resolveNameEx isInfoCon Nothing nameEvHeapDiv CtxNone (icContext ic) (icRange ic)
+                                   -- resolveName nameEvHeapDiv Nothing (icRange ic)
             seff <- subst tpEff
             traceDefDoc $ \penv -> text "resolve @hdiv:" <+> Pretty.ppName penv (icEvidence ic) <.> colon <+> Pretty.ppType penv (icType ic)
             let ev = Core.TypeApp (coreExprFromNameInfo cname cinfo) [shp,stp,seff]
@@ -2123,7 +2129,7 @@ splitImplicitConstraints free
        let (ics0,ics1) = -- partition (\p -> not (tvsIsEmpty (tvsDiff (fuv p) free))) ps
                          partition (\ic -> let tvs = (fuv ic) in (tvsIsEmpty tvs || not (tvsIsEmpty (tvsDiff tvs free)))) ics
        setSt (st{ iconstraints = ics1 })
-       traceDefDoc $ \penv -> text "split implicit constraint:" <+> list (map (ppConstraint penv) ics0)
+       -- traceDefDoc $ \penv -> text "split implicit constraint:" <+> list (map (ppConstraint penv) ics0)
        return ics0
 
 getSub :: Inf Sub
