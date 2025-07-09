@@ -1,4 +1,4 @@
-fun test1( ?@hdiv )
+fun test1( ?hdiv )
   val r = ref(1)
   !r
 
@@ -13,8 +13,14 @@ fun test2()
   val r = ref(1)
   !r
 
-fun test3()
-  test1()
+//fun test3()
+//  test1()
 
+fun test-pure1()
+  val r = ref(1)
+  !r
 
+fun test-pure2(x)
+  val r = ref(x)
+  !r
 

@@ -403,9 +403,9 @@ nameLocalGet    = coreTypesName "local-get"
 nameDeref       = qualifyLocally (newModuleName "ref") (coreTypesName "!")
 nameByref       = coreTypesName "@byref"
 
-nameTypeHeapDiv = coreTypesName "@hdiv"
+nameTypeHeapDiv = coreTypesName "hdiv"
 nameEvHeapDiv   = coreTypesName "@Hdiv"
-nameHeapDiv     = newName "@hdiv"
+nameHeapDiv     = newName "hdiv"
 
 nameTpRef       = coreTypesName "ref"
 nameTpLocalVar  = coreTypesName "local-var"
