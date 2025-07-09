@@ -28,7 +28,7 @@ import Common.Range
 import Common.Unique
 import Common.Failure
 import Common.Name
-import Common.NamePrim( namePredHeapDiv )
+import Common.NamePrim( nameTypeHeapDiv )
 import Kind.Kind
 import qualified Kind.Unify( match )
 import Type.Type
@@ -205,17 +205,17 @@ subsume range free tp1 tp2
        (vars,ssub) <- freshSub Bound sks
        let subx = ssub @@ sub
            tp = quantifyType vars (qualifyType [(subx |-> evPred ev) | ev <- evs1] (subx |-> rho1)) -- TODO: do rho1 and we get skolem errors: see 'Prelude.choose'
-           coref0 expr 
+           coref0 expr
              = subx |-> (coreEnt $                      -- apply evidence evs2 & abstract evidence evs1
                           addTypeApps tvs expr)
-           coref1 expr 
+           coref1 expr
              = Core.addTypeLambdas vars (coref0 expr)   -- generalize
            {-
            coref2 expr
              = case expr of
-                 Core.TypeApp (Core.TypeLam tpars e) tvars 
+                 Core.TypeApp (Core.TypeLam tpars e) tvars
                    | length tpars == length tvars &&
-                     and [typeVarId tpar == typeVarId tvar | (tpar,TVar tvar) <- zip tpars tvars] 
+                     and [typeVarId tpar == typeVarId tvar | (tpar,TVar tvar) <- zip tpars tvars]
                    -> e
                  _ -> expr -}
        -- return
@@ -233,10 +233,10 @@ entails skolems known []
 entails skolems known evs | map evPred known == map evPred evs
   = return (evs,id)   -- todo: should construct evidence from known to preds (simple one-to-one name mapping)
 entails skolems known (ev:evs)
-  = case evPred ev of
+  = {- case evPred ev of
       PredIFace name [_,_,_]  | name == namePredHeapDiv  -- can always be solved
         -> entails skolems known evs
-      _ -> -- trace ("Type.Unify.subsume.entails: cannot show entailment: " ++ show (tvsList skolems,known,ev:evs)) $
+      _ -> -- trace ("Type.Unify.subsume.entails: cannot show entailment: " ++ show (tvsList skolems,known,ev:evs)) $ -}
            unifyError NoEntail
 
 

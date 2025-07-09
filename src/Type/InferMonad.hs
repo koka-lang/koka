@@ -98,8 +98,8 @@ import Common.Syntax( Visibility(..), DefSort(..))
 import Common.File(endsWith,normalizeWith, seqqList)
 import Common.Name
 import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
-                       nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn,
-                       nameTpLocal, nameCopy)
+                       nameTpRead,nameTpWrite,nameTypeHeapDiv,nameHeapDiv,nameConHeapDiv,
+                       nameReturn,nameTpLocal, nameCopy)
 
 
 -- import Common.Syntax( DefSort(..) )
@@ -374,7 +374,7 @@ isolate rng free ps eff
       = do (evs1,evs2) <- splitHDiv heapTv evs
            let defaultRes = (evs1,ev:evs2)
            case evPred ev of
-            PredIFace name [hp,tp,eff]  | name == namePredHeapDiv
+            PredIFace name [hp,tp,eff]  | name == nameTypeHeapDiv
              -> do shp <- subst hp
                    case expandSyn shp of
                      h@(TVar tv)  | tv == heapTv
@@ -556,7 +556,7 @@ resolveHeapDiv free []
   = return []
 resolveHeapDiv free (ev:evs)
   = case evPred ev of
-      PredIFace name [hp,tp,eff]  | name == namePredHeapDiv
+      PredIFace name [hp,tp,eff]  | name == nameTypeHeapDiv
         -> -- trace (" resolveHeapDiv: " ++ show (hp,tp,eff)) $
            do stp <- subst tp
               shp <- subst hp
@@ -1050,23 +1050,16 @@ resolveImplicitName name tp contextRange range
                                   [(isInfoValFunExt, name, implicitTypeContext tp, range)]
        penv <- getPrettyEnv
        case res of
-         Right iarg  -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv "?" name iarg
-                           return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
-         Left docs   -> do mbiarg <- checkImplicitConstraint name tp contextRange range
-                           case mbiarg of
-                            Just iarg
-                              -- the implicit parameter is an implicit constraint to be solved by the compiler
-                              -> do return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
-                            Nothing
-                              -- otherwise it cannot be resolved
-                              -> do (term,termInfo) <- getTermDoc "context" contextRange
-                                    infError range
-                                        (text "cannot resolve implicit parameter" <->
-                                        table [(term, termInfo),
-                                                (text "parameter",  text "?" <.> ppNameType penv (name,tp)),
-                                                (text "candidates", ppAmbDocs docs),
-                                                (text "hint", text "add a (implicit) parameter to the function signature?")])
-                                    return (Var name False range, Lib.PPrint.empty)
+         Right iarg   -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv "?" name iarg
+                            return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
+         Left docs    -> do (term,termInfo) <- getTermDoc "context" contextRange
+                            infError range
+                                (text "cannot resolve implicit parameter" <->
+                                table [(term, termInfo),
+                                        (text "parameter",  text "?" <.> ppNameType penv (name,tp)),
+                                        (text "candidates", ppAmbDocs docs),
+                                        (text "hint", text "add a (implicit) parameter to the function signature?")])
+                            return (Var name False range, Lib.PPrint.empty)
 
 
 ppAmbDocs :: [Doc] -> Doc
@@ -1441,7 +1434,14 @@ lookupImplicitArg allowUnitFunVal infoFilter previousCtxs name ctx range
                                  return (nubBy (\(_,info1,_) (_,info2,_) -> infoCName info1 == infoCName info2)
                                                (candidates0 ++ candidates1))
                         _  -> return candidates0
-       return (map toImplicitArg candidates)
+       -- add implicit constraints
+       iargs <- case ctx of
+                  CtxType expect -> do mbiarg <- checkImplicitConstraint name expect range range
+                                       case mbiarg of
+                                         Just iarg -> return [iarg]
+                                         _         -> return []
+                  _ -> return []
+       return (map toImplicitArg candidates ++ iargs)
   where
     toImplicitArg :: (Name,NameInfo,Rho) -> ImplicitArg
     toImplicitArg (iname,info,itp {- instantiated type -})
@@ -1847,7 +1847,7 @@ ppConstraint penv ic
 
 implicitConstraints :: [(Name,Name -> Type -> Maybe (ImplicitConstraint -> Inf Core.Expr))]
 implicitConstraints
-  = [(newHiddenName "hdiv", checkHeapDivConstraint)]
+  = [(nameHeapDiv, checkHeapDivConstraint)]
 
 checkImplicitConstraint :: Name -> Type -> Range -> Range -> Inf (Maybe ImplicitArg)
 checkImplicitConstraint name tp rangeContext range
@@ -1872,7 +1872,7 @@ resolveImplicitConstraints (ic:ics)
 checkHeapDivConstraint :: Name -> Type -> Maybe (ImplicitConstraint -> Inf Core.Expr)
 checkHeapDivConstraint name tp
   = case expandSyn tp of
-      TApp (TCon tcon) [tpHeap,tpVal,tpEff]  | nameStem (typeConName tcon) == "@hdiv"
+      TApp (TCon tcon) [tpHeap,tpVal,tpEff]  | typeConName tcon == nameTypeHeapDiv
         -> Just (resolveHeapDivConstraint tpHeap tpVal tpEff)
       _ -> Nothing
   where
@@ -1891,7 +1891,7 @@ checkHeapDivConstraint name tp
                   let divEff = effectExtend typeDivergent tv
                   inferUnify (Infer (icContext ic)) (icRange ic) tpEff divEff
                   -- resolveName (newName "hdiv-diverge") Nothing (icRange ic)
-            (cname,ctype,cinfo) <- resolveNameEx isInfoCon Nothing (newHiddenName "Hdiv") CtxNone (icContext ic) (icRange ic)
+            (cname,ctype,cinfo) <- resolveNameEx isInfoCon Nothing nameConHeapDiv CtxNone (icContext ic) (icRange ic)
             seff <- subst tpEff
             traceDefDoc $ \penv -> text "resolve @hdiv:" <+> Pretty.ppName penv (icEvidence ic) <.> colon <+> Pretty.ppType penv (icType ic)
             let ev = Core.TypeApp (coreExprFromNameInfo cname cinfo) [shp,stp,seff]

@@ -176,7 +176,7 @@ module Common.NamePrim
           , nameTpTuple, isNameTpTuple
           , nameAnd, nameOr
 
-          , namePredHeapDiv, namePredEffDiv
+          , nameTypeHeapDiv, nameConHeapDiv, nameHeapDiv
 
           -- * Kind constructors
           , nameKindStar, nameKindFun
@@ -403,8 +403,9 @@ nameLocalGet    = coreTypesName "local-get"
 nameDeref       = qualifyLocally (newModuleName "ref") (coreTypesName "!")
 nameByref       = coreTypesName "@byref"
 
-namePredHeapDiv = coreTypesName "hdiv"
-namePredEffDiv  = coreTypesName "ediv"
+nameTypeHeapDiv = coreTypesName "@hdiv"
+nameConHeapDiv  = coreTypesName "@Hdiv"
+nameHeapDiv     = newName "@hdiv"
 
 nameTpRef       = coreTypesName "ref"
 nameTpLocalVar  = coreTypesName "local-var"

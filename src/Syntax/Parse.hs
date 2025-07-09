@@ -1408,9 +1408,9 @@ funDef allowBorrow allowImplicits
   = do tpars  <- typeparams
        (pars, pinfos, transform, rng) <- parameters allowBorrow True {-allowDefault-} allowImplicits
        resultTp <- annotRes
-       preds <- do keyword "with"
+       preds <- {- do keyword "with"
                    parens (many1 predicate)
-                <|> return []
+                <|> -} return []
        return (tpars,pars,pinfos,rng,resultTp,preds,transform)
 
 annotRes :: LexParser (Maybe (Maybe UserType,UserType))
@@ -1484,7 +1484,7 @@ parImplicit
                                     <?> "implicit parameter name")
        tp <- optionMaybe typeAnnotPar
        let unpackExpr = if unpack
-                          then Just (Parens (Var (unqualifyFull qname) False rng) nameNil "" rng) -- encode ?? as a default value assuming it is a type name
+                          then Just (Parens (Var (unqualifyFull qname) False rng) nameNil "" rng) -- encode .? as a default value assuming it is a type name
                           else Nothing
        return (ValueBinder qname tp unpackExpr (combineRange rng (getRange tp)) rng, id)
 
@@ -2453,10 +2453,11 @@ tqual
        pqualifier tp
 
 pqualifier tp
-  = do keyword "with"
+  = {-
+    do keyword "with"
        ps <- parens (many1 predicate)
        return (TpQual ps tp)
-  <|>
+  <|> -}
     return tp
 
 predicate
