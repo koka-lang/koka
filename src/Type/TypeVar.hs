@@ -394,7 +394,7 @@ tvsDisjoint tvs1 tvs2 =
 
 tvsIsSubsetOf :: Tvs -> Tvs -> Bool
 tvsIsSubsetOf tvs1 tvs2 =
-  tvsIsEmpty (tvsFilter (\tvar -> tvsMember tvar tvs2) tvs1)
+  tvsIsEmpty (tvsFilter (\tvar -> not (tvsMember tvar tvs2)) tvs1)
 
 assocMax :: [(TypeVar, Tau)] -> Int
 assocMax assoc =

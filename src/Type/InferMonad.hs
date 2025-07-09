@@ -160,7 +160,7 @@ generalize contextRange range close eff0 rho0 bodycore
   = do seff0 <- subst eff0
        free0 <- freeInGamma
        let free = tvsUnion free0 (fuv seff0)
-       -- isolatex free 
+       -- isolatex free
        ps0  <- splitPredicates free
        ics  <- splitImplicitConstraints free
        iccore <- resolveImplicitConstraints free ics -- leads to further substitutions
@@ -170,7 +170,7 @@ generalize contextRange range close eff0 rho0 bodycore
        -- score0 <- subst core0
 
        sub <- getSub
-       traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv srho <+> text "|" <+> Pretty.ppType penv seff 
+       traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv srho <+> text "|" <+> Pretty.ppType penv seff
                                 <-> text "  with" <+> list (map (ppConstraint penv) ics)
                                 <-> text "  and free:" <+> list (map (Pretty.ppTypeVar penv) (tvsList free) )
                   {- ++ "\n subst=" ++ show (take 10 $ subList sub) -}
@@ -269,7 +269,7 @@ improveX :: Range -> Range -> Bool -> Effect -> Rho -> Core.Expr -> Inf (Rho,Eff
 improveX contextRange range close eff0 rho0 core0
   = do seff  <- subst eff0
        srho  <- subst rho0
-       free  <- freeInGamma       
+       free  <- freeInGamma
        ics   <- splitImplicitConstraints free
        (ics1,eff1,coref) <- isolateX contextRange (tvsUnions [free,ftv srho]) ics seff
        addImplicitConstraints ics1 -- add back unresolved constraints
@@ -334,7 +334,7 @@ instantiateNoEx range tp
 -- | Automatically remove heap effects when safe to do so.
 isolateX :: Range -> Tvs -> [ImplicitConstraint] -> Effect -> Inf ([ImplicitConstraint], Effect, Core.Expr -> Core.Expr)
 isolateX rng free ics eff
-  = do traceDefDoc $ \penv -> text "isolateX:" <+> Pretty.ppType penv eff <.> text ", free" <+> list (map (ppTypeVar penv) (tvsList free)) 
+  = do traceDefDoc $ \penv -> text "isolateX:" <+> Pretty.ppType penv eff <.> text ", free" <+> list (map (ppTypeVar penv) (tvsList free))
                                   <-> text "  ics:" <+> list (map (ppConstraint penv) ics)
        let (ls,tl) = extractOrderedEffect eff
        case filter (\l -> labelName l `elem` [nameTpLocal,nameTpRead,nameTpWrite]) ls of
@@ -354,9 +354,9 @@ isolateX rng free ics eff
                                          [bvar] = synInfoParams syn
                                          st     = subNew [(bvar,TVar h)] |-> synInfoType syn
                                      -- traceDoc $ \penv -> text "isolate st: " <+> Pretty.ppType  penv{Pretty.showKinds=True,Pretty.showIds=True} st
-                                     nofailUnify $ unify (effectExtend st tv) eff                            
+                                     nofailUnify $ unify (effectExtend st tv) eff
                             coref  <- resolveImplicitConstraints free polyIcs
-                                       
+
                             neweff <- subst tv
                             sics   <- subst ics1
                             -- trace ("isolate to:"  ++ show (pretty neweff)) $ return ()
@@ -1971,18 +1971,25 @@ checkHeapDivConstraint name tp
       TApp (TCon tcon) [tpHeap,tpVal,tpEff]  | typeConName tcon == nameTypeHeapDiv
         -> Just (resolveHeapDivConstraint False tpHeap tpVal tpEff)
       _ -> Nothing
-  
+
+ppTvs :: Pretty.Env -> Tvs -> Doc
+ppTvs penv tvs
+  = list (map (Pretty.ppTypeVar penv) (tvsList tvs))
+
 resolveHeapDivConstraint :: Bool -> Type -> Type -> Type -> Tvs -> ImplicitConstraint -> Inf Core.Expr
 resolveHeapDivConstraint alwaysNoDiv tpHeap tpVal tpEff free ic
-  = do  -- traceDefDoc $ \penv -> text "resolveHeapDivConstraint:" <+> ppConstraint penv ic -- <+> text (show (icType ic))
-        stp <- subst tpVal
+  = do  stp <- subst tpVal
         shp <- subst tpHeap
         let tvsTp = ftv stp
             tvsHp = ftv shp
+        sic <- subst ic
+        traceDefDoc $ \penv -> text "resolveHeapDivConstraint:" <+> ppConstraint penv sic
+                               <-> text "  free:" <+> ppTvs penv free
+                               <-> text "  tvsHp:" <+> ppTvs penv tvsHp <.> text ", tvsTp:" <+> ppTvs penv tvsTp
         maydiv <- if (alwaysNoDiv ||
                        (not (expandSyn shp `elemType` heapTypes stp) &&
-                        tvsDisjoint tvsHp free && 
-                        tvsIsSubsetOf tvsTp free
+                        tvsDisjoint tvsHp free &&  -- h is being generalized (or isolated)
+                        tvsIsSubsetOf tvsTp free   -- but none of the free type variables in the type
                        ))
                        -- not (tvsIsEmpty (ftv stp)))) -- conservative guess...
                     then return False
