@@ -1212,10 +1212,15 @@ data PartialCmp
 -- compare two implicitarg's to see if one of them should be preferred (as it uses inner scope names at the same choice point)
 compareScope :: ImplicitArg -> ImplicitArg -> PartialCmp
 compareScope iarg1 iarg2
-  = if (nameStem (iaName iarg1) /= nameStem (iaName iarg2)) then NotEq
+  = -- don't prefer compiler generated constraints
+    if isImplicitConstraintEvidenceName (iaName iarg1) then Lt
+    else if isImplicitConstraintEvidenceName (iaName iarg2) then Gt
+    -- if the stem names are different, these are not equal
+    else if (nameStem (iaName iarg1) /= nameStem (iaName iarg2)) then NotEq
+    -- otherwise we prefer inner scopes
     else if (scopeDepth iarg1 > scopeDepth iarg2) then Gt -- iarg1 is defined in an inner scope
     else if (scopeDepth iarg1 < scopeDepth iarg2) then Lt -- iarg2 is defined in an inner scope
-    -- equal scopes, compare the arguments
+    -- if both are in the same scope, compare the arguments
     else if (iaName iarg1 /= iaName iarg2) then NotEq
     else if (length (iaImplicitArgs iarg1) /= length (iaImplicitArgs iarg2)) then NotEq
     else foldl' top Eq (zipWith compareScopePartial (map snd (iaImplicitArgs iarg1)) (map snd (iaImplicitArgs iarg2)))
@@ -1243,6 +1248,7 @@ top pc1 pc2
 scopeDepth :: ImplicitArg -> Int
 scopeDepth iarg
   = if isDefault (iaName iarg) then 0
+    -- else if isImplicitConstraintEvidenceName (iaName iarg) then 0
     else if isQualified (iaName iarg) then 1
     else if isImplicitParamName (iaName iarg) then 2
     else 3  -- TODO: keep track of local nesting level
