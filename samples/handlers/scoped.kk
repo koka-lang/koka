@@ -222,7 +222,7 @@ pub fun example5()
 pub fun main()
   example1().show.println
   example2().show.println
-  example3().show.println
+  example3().intlist/show.println
   example4().show.println
   example5().show.println
 

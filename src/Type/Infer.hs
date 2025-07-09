@@ -2127,7 +2127,7 @@ rootExpr expr
 --------------------------------------------------------------------------}
 
 -- infer the types of argument expressions, some of which may have already been inferred (`:FixedArg`).
-inferArgsN :: Context -> Range -> [(Type,ArgExpr)] -> Inf ([Effect],[Core.Expr])
+inferArgsN :: HasCallStack => Context -> Range -> [(Type,ArgExpr)] -> Inf ([Effect],[Core.Expr])
 inferArgsN ctx range parArgs
   = do res <- inferArg [] parArgs
        let (!eff, !expr) = unzip res
@@ -2449,12 +2449,12 @@ matchFunTypeArgs context fun tp fresolved fixed named
               Var name _ nameRange -> do
                 vals <- lookupLocalName isInfoVal name
                 ppEnv <- getPrettyEnv
-                case vals of 
-                  Right (nm, nameInfo) -> 
+                case vals of
+                  Right (nm, nameInfo) ->
                     return $ shadowHint ppEnv (nm, nameInfo)
                   Left results -> return (concatMap (shadowHint ppEnv) results) -- Multiple locals with the same name?
               _ -> return []
-        shadowHint ppEnv (nm, nameInfo) = 
+        shadowHint ppEnv (nm, nameInfo) =
           [(
             text "hint",
             ppName ppEnv nm <+> text "at position" <+> text (show (infoRange nameInfo)) <+> text "might be shadowing another function"

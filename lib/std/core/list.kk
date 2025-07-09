@@ -118,7 +118,7 @@ pub fun cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> order ) : order
 
 
 // Show a list
-pub fun default/show( xs : list<a>, ?show : a -> e string ) : e string
+pub fun show( xs : list<a>, ?show : a -> e string ) : e string
   "[" ++ xs.map(show).join(",") ++ "]"
 
 

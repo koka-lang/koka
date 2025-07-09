@@ -94,7 +94,7 @@ import Common.Range hiding (Pos)
 import Common.Unique
 import Common.Failure
 import Common.Error
-import Common.Syntax( Visibility(..))
+import Common.Syntax( Visibility(..), DefSort(..))
 import Common.File(endsWith,normalizeWith, seqqList)
 import Common.Name
 import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
@@ -155,12 +155,17 @@ generalize contextRange range close eff  tp@(TForall _ _ _)  core0
              do (rho,tvars,icore) <- instantiateNoEx range stp
                 generalize contextRange range close seff rho (icore core0)
 
-generalize contextRange range close eff0 rho0 core0
-  = do seff <- subst eff0
-       srho  <- subst rho0
+generalize contextRange range close eff0 rho0 bodycore
+  = do seff0 <- subst eff0
+       srho0 <- subst rho0
        free0 <- freeInGamma
-       let free = tvsUnion free0 (fuv seff)
+       let free = tvsUnion free0 (fuv seff0)
        ps0  <- splitPredicates free
+       ics  <- splitImplicitConstraints free
+       iccore <- resolveImplicitConstraints ics
+       let core0 = iccore bodycore
+       seff <- subst seff0
+       srho <- subst srho0
        -- score0 <- subst core0
 
        sub <- getSub
@@ -254,6 +259,8 @@ generalize contextRange range close eff0 rho0 core0
             else let sub = subNew [(tv,tcon (getKind tv)) | tv <- tvsList fvars]
                  in sub |-> core
        -}
+
+
 
 
 improve :: Range -> Range -> Bool -> Effect -> Rho -> Core.Expr -> Inf (Rho,Effect,Core.Expr )
@@ -916,7 +923,7 @@ resolveConPatternName name matchType patternCount range
             else CtxType matchType -}
 
 
-resolveNameEx :: (NameInfo -> Bool) -> Maybe (NameInfo -> Bool) -> Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
+resolveNameEx :: HasCallStack => (NameInfo -> Bool) -> Maybe (NameInfo -> Bool) -> Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
 resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
   = do matches <- lookupNameCtx infoFilter name ctx range
        case matches of
@@ -973,7 +980,8 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                               (_:_)
                                 -> infError range ((text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found") <->
                                                    (text "perhaps you meant: " <.> ppOr penv (map fst amb2)))
-                              _ -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found")
+                              _ -> do infError range (text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found")
+                                      error "done"
 
         [(qname,info)]
            -> do -- when (not asPrefix) $  -- todo: check casing for asPrefix as well
@@ -1036,7 +1044,7 @@ lookupAppName allowDisambiguate name ctx contextRange range
                 else return (Left docs)
 
 
--- resolve an implicit argument (name) to an expression
+-- resolve an implicit argument name to an expression
 resolveImplicitName :: Name -> Type -> Range -> Range -> Inf (Expr Type, Doc)
 resolveImplicitName name tp contextRange range
   = do res <- resolveImplicitArg True {-disambiguate-} True {-allow unit fun val for conversions -}
@@ -1044,6 +1052,9 @@ resolveImplicitName name tp contextRange range
        penv <- getPrettyEnv
        case res of
          Right iarg  -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv "?" name iarg
+                           return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
+         Left _      | isImplicitConstraint name tp
+                     -> do iarg <- addImplicitConstraint name tp contextRange range
                            return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
          Left docs   -> do (term,termInfo) <- getTermDoc "context" contextRange
                            infError range
@@ -1053,6 +1064,7 @@ resolveImplicitName name tp contextRange range
                                       (text "candidates", ppAmbDocs docs),
                                       (text "hint", text "add a (implicit) parameter to the function signature?")])
                            return (Var name False range, Lib.PPrint.empty)
+
 
 ppAmbDocs :: [Doc] -> Doc
 ppAmbDocs docs
@@ -1536,6 +1548,11 @@ lookupNames infoFilter name ctx range
 
 
 lookupLocalName :: (NameInfo -> Bool) -> Name -> Inf (Either [(Name,NameInfo)] (Name,NameInfo))
+lookupLocalName infoFilter name  | isImplicitConstraintEvidenceName name
+  = do st <- getSt
+       case find (\ic -> icEvidence ic == name) (iconstraints st) of
+         Just ic -> return (Right (name,InfoVal Public name (icType ic) (icRange ic) False False ""))
+         Nothing -> return (Left [])
 lookupLocalName infoFilter name
   = do env <- getEnv
        subst $ infgammaLookupEx infoFilter name (infgamma env)
@@ -1795,6 +1812,82 @@ ppImplicitsHint env nameInfos =
 ppNameInfo env (name,info)
   = (Pretty.ppName (prettyEnv env) (importsAlias name (imports env)), Pretty.ppType (prettyEnv env) (infoType info))
 
+{--------------------------------------------------------------------------
+  Phantom Implicits
+--------------------------------------------------------------------------}
+
+data ImplicitConstraint = ImplicitConstraint{ icName :: Name,     -- implicit constraint name (e.g. @hdiv)
+                                              icType :: Type,
+                                              icEvidence :: Name, -- fresh name for the implicit constraint evidence
+                                              icContext :: Range,
+                                              icRange :: Range
+                                            }
+
+
+instance HasTypeVar ImplicitConstraint where
+  sub `substitute` ic
+    = ic{ icType = sub `substitute` (icType ic) }
+  ftv ic
+    = ftv (icType ic)
+  btv ic
+    = btv (icType ic)
+  ftc ic
+    = ftc (icType ic)
+
+instance Show ImplicitConstraint where
+  show ic = show (icName ic)
+
+ppConstraint :: Pretty.Env -> ImplicitConstraint -> Doc
+ppConstraint penv ic
+  = Pretty.ppName penv (icEvidence ic) <.> text "=" <+> Pretty.ppParam penv (icName ic, icType ic)
+
+implicitConstraints :: [(Name,ImplicitConstraint -> Inf Core.Expr)]
+implicitConstraints
+  = [(newHiddenName "hdiv", resolveHeapDivConstraint)]
+
+isImplicitConstraint :: Name -> Type -> Bool
+isImplicitConstraint name tp
+  = case lookup name implicitConstraints of
+      Just _  -> True
+      Nothing -> False
+
+isImplicitConstraintEvidenceName :: Name -> Bool
+isImplicitConstraintEvidenceName name
+  = nameStartsWith name "ev@"
+
+resolveImplicitConstraints :: [ImplicitConstraint] -> Inf (Core.Expr -> Core.Expr)
+resolveImplicitConstraints []  = return id
+resolveImplicitConstraints (ic:ics)
+  = do fcores <- resolveImplicitConstraints ics
+       case lookup (icName ic) implicitConstraints of
+         Just solve -> do evidence <- solve ic
+                          let def = Core.makeTDef (Core.TName (icEvidence ic) (icType ic)) evidence
+                              fcore body = Core.makeDefsLet [def] (fcores body)
+                          return fcore
+
+resolveHeapDivConstraint :: ImplicitConstraint -> Inf Core.Expr
+resolveHeapDivConstraint ic
+  = do  traceDefDoc $ \penv -> text "resolveHeapDivConstraint:" <+> ppConstraint penv ic -- <+> text (show (icType ic))
+        case expandSyn (icType ic) of
+          TApp (TCon tcon) [tpVal,tpHeap,tpEff]  | nameStem (typeConName tcon) == "@hdiv"
+            -> do stp <- subst tpVal
+                  shp <- subst tpHeap
+                  let tvsTp = ftv stp
+                      tvsHp = ftv shp
+                  (evName,evType,evInfo)
+                    <- if (expandSyn shp `elemType` heapTypes stp ||
+                              not (tvsIsEmpty (ftv stp)) -- conservative guess...
+                            )
+                          then do -- add div effect to tpEff
+                                  tv <- Op.freshEffect
+                                  let divEff = effectExtend typeDivergent tv
+                                  inferUnify (Infer (icContext ic)) (icRange ic) tpEff divEff
+                                  resolveName (newName "hdiv-diverge") Nothing (icRange ic)
+                          else resolveName (newHiddenName "hdiv-nodiverge") Nothing (icRange ic)
+                  seff <- subst tpEff
+                  traceDefDoc $ \penv -> text "resolve @hdiv:" <+> Pretty.ppName penv (icEvidence ic) <.> colon <+> Pretty.ppType penv (icType ic)
+                  let ev = Core.TypeApp (coreExprFromNameInfo evName evInfo) [stp,shp,seff]
+                  return ev
 
 
 {--------------------------------------------------------------------------
@@ -1820,13 +1913,13 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , hiddenTermDoc :: Maybe (Range,Doc)
                  , localDepth :: Int   -- number of local-scope's
                  }
-data St     = St{ uniq :: !Int, sub :: !Sub, preds :: ![Evidence], holeAllowed :: !Bool, mbRangeMap :: Maybe RangeMap }
+data St     = St{ uniq :: !Int, sub :: !Sub, iconstraints :: ![ImplicitConstraint], preds :: ![Evidence], holeAllowed :: !Bool, mbRangeMap :: Maybe RangeMap }
 
 
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
   = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0)
-           (St unique subNull [] False mbrm) of
+           (St unique subNull [] [] False mbrm) of
       Err (rng,doc) warnings
         -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))
       Ok x st warnings
@@ -1998,7 +2091,27 @@ allowHole action
        st1 <- updateSt (\st -> st{ holeAllowed = prev })
        return (x,not (holeAllowed st1))
 
+-- add a new implicit constraint with a fresh name (to be solved at generalization time)
+addImplicitConstraint :: Name -> Type -> Range -> Range -> Inf ImplicitArg
+addImplicitConstraint name tp context rng
+  = do evName <- Core.freshName "ev"
+       let ic = ImplicitConstraint name tp evName context rng
+       updateSt (\st -> st{ iconstraints = ic : iconstraints st })
+       let iarg = ImplicitArg evName (createNameInfoX Public evName DefVal rng tp "") tp []
+       traceDefDoc $ \penv -> text "add implicit constraint:" <+> ppConstraint penv ic
+       return iarg
 
+
+-- return constraints that can be generalized
+splitImplicitConstraints :: Tvs -> Inf [ImplicitConstraint]
+splitImplicitConstraints free
+  = do st <- getSt
+       ics <- subst (iconstraints st)
+       let (ics0,ics1) = -- partition (\p -> not (tvsIsEmpty (tvsDiff (fuv p) free))) ps
+                         partition (\ic -> let tvs = (fuv ic) in (tvsIsEmpty tvs || not (tvsIsEmpty (tvsDiff tvs free)))) ics
+       setSt (st{ iconstraints = ics1 })
+       traceDefDoc $ \penv -> text "split implicit constraint:" <+> list (map (ppConstraint penv) ics0)
+       return ics0
 
 getSub :: Inf Sub
 getSub
