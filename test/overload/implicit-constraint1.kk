@@ -1,10 +1,7 @@
-abstract type @hdiv<a,h::H,e::E>
+abstract type @hdiv<h::H,a::V,e::E>
   @Hdiv
 
-val hdiv-diverge : forall<a,h,e> @hdiv<a,h,<div|e>> = @Hdiv
-val @hdiv-nodiverge : forall<a,h,e> @hdiv<a,h,e> = @Hdiv
-
-noinline fun hread( r : ref<h,a>, ?@hdiv : @hdiv<a,h,e> ) : <read<h>|e> a
+noinline fun hread( r : ref<h,a>, ?@hdiv : @hdiv<h,a,e> ) : <read<h>|e> a
   impossible("hread")
 
 noinline fun hwrite( r : ref<h,a>, x : a ) : write<h> a

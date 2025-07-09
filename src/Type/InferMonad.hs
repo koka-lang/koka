@@ -157,15 +157,14 @@ generalize contextRange range close eff  tp@(TForall _ _ _)  core0
 
 generalize contextRange range close eff0 rho0 bodycore
   = do seff0 <- subst eff0
-       srho0 <- subst rho0
        free0 <- freeInGamma
        let free = tvsUnion free0 (fuv seff0)
        ps0  <- splitPredicates free
        ics  <- splitImplicitConstraints free
-       iccore <- resolveImplicitConstraints ics
+       iccore <- resolveImplicitConstraints ics -- leads to further substitutions
        let core0 = iccore bodycore
        seff <- subst seff0
-       srho <- subst srho0
+       srho <- subst rho0
        -- score0 <- subst core0
 
        sub <- getSub
@@ -1053,17 +1052,21 @@ resolveImplicitName name tp contextRange range
        case res of
          Right iarg  -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv "?" name iarg
                            return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
-         Left _      | isImplicitConstraint name tp
-                     -> do iarg <- addImplicitConstraint name tp contextRange range
-                           return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
-         Left docs   -> do (term,termInfo) <- getTermDoc "context" contextRange
-                           infError range
-                              (text "cannot resolve implicit parameter" <->
-                               table [(term, termInfo),
-                                      (text "parameter",  text "?" <.> ppNameType penv (name,tp)),
-                                      (text "candidates", ppAmbDocs docs),
-                                      (text "hint", text "add a (implicit) parameter to the function signature?")])
-                           return (Var name False range, Lib.PPrint.empty)
+         Left docs   -> do mbiarg <- checkImplicitConstraint name tp contextRange range
+                           case mbiarg of
+                            Just iarg
+                              -- the implicit parameter is an implicit constraint to be solved by the compiler
+                              -> do return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
+                            Nothing
+                              -- otherwise it cannot be resolved
+                              -> do (term,termInfo) <- getTermDoc "context" contextRange
+                                    infError range
+                                        (text "cannot resolve implicit parameter" <->
+                                        table [(term, termInfo),
+                                                (text "parameter",  text "?" <.> ppNameType penv (name,tp)),
+                                                (text "candidates", ppAmbDocs docs),
+                                                (text "hint", text "add a (implicit) parameter to the function signature?")])
+                                    return (Var name False range, Lib.PPrint.empty)
 
 
 ppAmbDocs :: [Doc] -> Doc
@@ -1820,7 +1823,8 @@ data ImplicitConstraint = ImplicitConstraint{ icName :: Name,     -- implicit co
                                               icType :: Type,
                                               icEvidence :: Name, -- fresh name for the implicit constraint evidence
                                               icContext :: Range,
-                                              icRange :: Range
+                                              icRange :: Range,
+                                              icSolve :: ImplicitConstraint -> Inf Core.Expr
                                             }
 
 
@@ -1841,53 +1845,57 @@ ppConstraint :: Pretty.Env -> ImplicitConstraint -> Doc
 ppConstraint penv ic
   = Pretty.ppName penv (icEvidence ic) <.> text "=" <+> Pretty.ppParam penv (icName ic, icType ic)
 
-implicitConstraints :: [(Name,ImplicitConstraint -> Inf Core.Expr)]
+implicitConstraints :: [(Name,Name -> Type -> Maybe (ImplicitConstraint -> Inf Core.Expr))]
 implicitConstraints
-  = [(newHiddenName "hdiv", resolveHeapDivConstraint)]
+  = [(newHiddenName "hdiv", checkHeapDivConstraint)]
 
-isImplicitConstraint :: Name -> Type -> Bool
-isImplicitConstraint name tp
+checkImplicitConstraint :: Name -> Type -> Range -> Range -> Inf (Maybe ImplicitArg)
+checkImplicitConstraint name tp rangeContext range
   = case lookup name implicitConstraints of
-      Just _  -> True
-      Nothing -> False
-
-isImplicitConstraintEvidenceName :: Name -> Bool
-isImplicitConstraintEvidenceName name
-  = nameStartsWith name "ev@"
+      Just check
+        -> case check name tp of
+             Just resolve -> do iarg <- addImplicitConstraint name tp resolve rangeContext range
+                                return (Just iarg)
+             Nothing -> return Nothing
+      Nothing -> return Nothing
 
 resolveImplicitConstraints :: [ImplicitConstraint] -> Inf (Core.Expr -> Core.Expr)
 resolveImplicitConstraints []  = return id
 resolveImplicitConstraints (ic:ics)
   = do fcores <- resolveImplicitConstraints ics
-       case lookup (icName ic) implicitConstraints of
-         Just solve -> do evidence <- solve ic
-                          let def = Core.makeTDef (Core.TName (icEvidence ic) (icType ic)) evidence
-                              fcore body = Core.makeDefsLet [def] (fcores body)
-                          return fcore
+       evidence <- (icSolve ic) ic
+       let def = Core.makeTDef (Core.TName (icEvidence ic) (icType ic)) evidence
+           fcore body = Core.makeDefsLet [def] (fcores body)
+       return fcore
 
-resolveHeapDivConstraint :: ImplicitConstraint -> Inf Core.Expr
-resolveHeapDivConstraint ic
-  = do  traceDefDoc $ \penv -> text "resolveHeapDivConstraint:" <+> ppConstraint penv ic -- <+> text (show (icType ic))
-        case expandSyn (icType ic) of
-          TApp (TCon tcon) [tpVal,tpHeap,tpEff]  | nameStem (typeConName tcon) == "@hdiv"
-            -> do stp <- subst tpVal
-                  shp <- subst tpHeap
-                  let tvsTp = ftv stp
-                      tvsHp = ftv shp
-                  (evName,evType,evInfo)
-                    <- if (expandSyn shp `elemType` heapTypes stp ||
-                              not (tvsIsEmpty (ftv stp)) -- conservative guess...
-                            )
-                          then do -- add div effect to tpEff
-                                  tv <- Op.freshEffect
-                                  let divEff = effectExtend typeDivergent tv
-                                  inferUnify (Infer (icContext ic)) (icRange ic) tpEff divEff
-                                  resolveName (newName "hdiv-diverge") Nothing (icRange ic)
-                          else resolveName (newHiddenName "hdiv-nodiverge") Nothing (icRange ic)
-                  seff <- subst tpEff
-                  traceDefDoc $ \penv -> text "resolve @hdiv:" <+> Pretty.ppName penv (icEvidence ic) <.> colon <+> Pretty.ppType penv (icType ic)
-                  let ev = Core.TypeApp (coreExprFromNameInfo evName evInfo) [stp,shp,seff]
-                  return ev
+
+checkHeapDivConstraint :: Name -> Type -> Maybe (ImplicitConstraint -> Inf Core.Expr)
+checkHeapDivConstraint name tp
+  = case expandSyn tp of
+      TApp (TCon tcon) [tpHeap,tpVal,tpEff]  | nameStem (typeConName tcon) == "@hdiv"
+        -> Just (resolveHeapDivConstraint tpHeap tpVal tpEff)
+      _ -> Nothing
+  where
+    resolveHeapDivConstraint :: Type -> Type -> Type -> ImplicitConstraint -> Inf Core.Expr
+    resolveHeapDivConstraint tpHeap tpVal tpEff ic
+      = do  traceDefDoc $ \penv -> text "resolveHeapDivConstraint:" <+> ppConstraint penv ic -- <+> text (show (icType ic))
+            stp <- subst tpVal
+            shp <- subst tpHeap
+            let tvsTp = ftv stp
+                tvsHp = ftv shp
+            when (expandSyn shp `elemType` heapTypes stp ||
+                  not (tvsIsEmpty (ftv stp)) -- conservative guess...
+                  ) $
+                do -- add div effect to tpEff
+                  tv <- Op.freshEffect
+                  let divEff = effectExtend typeDivergent tv
+                  inferUnify (Infer (icContext ic)) (icRange ic) tpEff divEff
+                  -- resolveName (newName "hdiv-diverge") Nothing (icRange ic)
+            (cname,ctype,cinfo) <- resolveNameEx isInfoCon Nothing (newHiddenName "Hdiv") CtxNone (icContext ic) (icRange ic)
+            seff <- subst tpEff
+            traceDefDoc $ \penv -> text "resolve @hdiv:" <+> Pretty.ppName penv (icEvidence ic) <.> colon <+> Pretty.ppType penv (icType ic)
+            let ev = Core.TypeApp (coreExprFromNameInfo cname cinfo) [shp,stp,seff]
+            return ev
 
 
 {--------------------------------------------------------------------------
@@ -2091,11 +2099,16 @@ allowHole action
        st1 <- updateSt (\st -> st{ holeAllowed = prev })
        return (x,not (holeAllowed st1))
 
+-- implicit constraint evidence name?
+isImplicitConstraintEvidenceName :: Name -> Bool
+isImplicitConstraintEvidenceName name
+  = nameStartsWith name "iev@"
+
 -- add a new implicit constraint with a fresh name (to be solved at generalization time)
-addImplicitConstraint :: Name -> Type -> Range -> Range -> Inf ImplicitArg
-addImplicitConstraint name tp context rng
-  = do evName <- Core.freshName "ev"
-       let ic = ImplicitConstraint name tp evName context rng
+addImplicitConstraint :: Name -> Type -> (ImplicitConstraint -> Inf Core.Expr) -> Range -> Range -> Inf ImplicitArg
+addImplicitConstraint name tp solve context rng
+  = do evName <- Core.freshName "iev"
+       let ic = ImplicitConstraint name tp evName context rng solve
        updateSt (\st -> st{ iconstraints = ic : iconstraints st })
        let iarg = ImplicitArg evName (createNameInfoX Public evName DefVal rng tp "") tp []
        traceDefDoc $ \penv -> text "add implicit constraint:" <+> ppConstraint penv ic
