@@ -166,7 +166,7 @@ defaultEnv
         True -- showFlavours
         False
         defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty)
-        True -- False -- fullNames
+        False -- fullNames. todo: if True it can lead to .kki parse errors
         False
         0
         False

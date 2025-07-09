@@ -1866,6 +1866,7 @@ resolveImplicitConstraints ics
        let fcore core = case core of
                           Core.Lam pars eff body -> Core.Lam pars eff (Core.makeDefsLet defs body)
                           Core.TypeLam tpars (Core.Lam pars eff body) -> Core.TypeLam tpars (Core.Lam pars eff (Core.makeDefsLet defs body))
+                          _ -> Core.makeDefsLet defs core
 
        return fcore
   where
