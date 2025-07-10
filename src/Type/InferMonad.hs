@@ -233,7 +233,7 @@ improveX contextRange range close eff0 rho0
   = do seff  <- subst eff0
        srho  <- subst rho0
        free  <- freeInGamma
-       ics   <- splitImplicitConstraints free
+       ics   <- clearImplicitConstraints
        (ics1,eff1,coref) <- isolateX contextRange (tvsUnions [free,ftv srho]) ics seff
        addImplicitConstraints ics1 -- add back unresolved constraints
        (nrho) <- normalizeX close free srho
@@ -282,7 +282,7 @@ isolateX rng free ics eff
                   let isLocal = (labelName lab == nameTpLocal)
                   if not (tvsMember h free || tvsMember h (ftv ics1))
                     then do -- we can isolate, and discharge the polyIcs hdiv predicates
-                            traceDefDoc $ \penv -> text "isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs)
+                            traceDefDoc $ \penv -> text "can isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs)
                             tv <- freshEffect
                             if isLocal
                              then do -- trace ("isolate local") $ return ()
@@ -497,20 +497,26 @@ heapTypes tp
           PredIFace _ ts -> concatMap heapTypes ts
 
 
-heapNeverContainedIn :: Type -> Type -> Bool
-heapNeverContainedIn hp0 tp
-  = let hp = expandSyn hp0
-        hps = heapTypes tp
-    in all (neverEqHeap hp) hps
-
-neverEqHeap :: HasCallStack => Type -> Type -> Bool
-neverEqHeap tp1 tp2
-  = case (expandSyn tp1,expandSyn tp2) of
-      (TCon c1, TCon c2)                        -> c1 /= c2
-      (TApp t1 ts1, TApp t2 ts2)                -> neverEqHeap t1 t2 || or (zipWith neverEqHeap ts1 ts2)
-      (TVar v1, _)                              -> False -- might become equal
-      (_, TVar v2)                              -> False
-      _                                         -> True  -- one of the types is not a heap
+heapNeverContainedIn :: Tvs -> Type -> Type -> Bool
+heapNeverContainedIn free hp0 tp
+  = neverContainedIn tp
+  where 
+    hp = expandSyn hp0
+    neverContainedIn tp
+      = case tp of
+          TForall _ _ t         -> neverContainedIn t
+          TFun tpars teff tres  -> all neverContainedIn (map snd tpars ++ [teff,tres])
+          TApp t targs          -> all neverContainedIn (t:targs)
+          TSyn _ targs t        -> all neverContainedIn (t:targs)
+          TCon tcon             -> case hp of 
+                                     TCon hcon -> tcon /= hcon
+                                     _ -> getKind tcon /= kindHeap
+          TVar tvar             -> case hp of
+                                     TVar htv -> -- if we are generalizing htv but not tvar, tvar can never contain htv
+                                                 typevarFlavour tvar /= Meta || 
+                                                 (not (tvsMember htv free) && tvsMember tvar free)
+                                     _        -> -- but in all other case tvar might get a type containing htv
+                                                  typevarFlavour tvar /= Meta   
 
 
 {--------------------------------------------------------------------------
@@ -1796,11 +1802,7 @@ resolveHeapDivConstraint alwaysNoDiv tpHeap tpVal tpEff free ic
         traceDefDoc $ \penv -> text "resolveHeapDivConstraint:" <+> ppConstraint penv sic
                                <-> text "  free:" <+> ppTvs penv free
                                <-> text "  tvsHp:" <+> ppTvs penv tvsHp <.> text ", tvsTp:" <+> ppTvs penv tvsTp
-        maydiv <- if (alwaysNoDiv ||
-                       (heapNeverContainedIn shp stp || -- not (expandSyn shp `elemType` heapTypes stp) &&
-                        (tvsDisjoint tvsHp free &&   -- h is being generalized (or isolated)
-                         tvsIsSubsetOf tvsTp free)   -- but none of the free type variables in the type
-                       ))
+        maydiv <- if (alwaysNoDiv || heapNeverContainedIn free shp stp)
                        -- not (tvsIsEmpty (ftv stp)))) -- conservative guess...
                     then return False
                     else do -- add div effect to tpEff
@@ -2040,6 +2042,11 @@ addImplicitConstraints :: [ImplicitConstraint] -> Inf ()
 addImplicitConstraints ics
   = do updateSt (\st -> st{ iconstraints = ics ++ iconstraints st })
        return ()
+
+clearImplicitConstraints :: Inf [ImplicitConstraint]
+clearImplicitConstraints
+  = do st0 <- updateSt (\st -> st{ iconstraints = [] })
+       return $! (iconstraints st0)       
 
 -- return constraints that can be generalized
 splitImplicitConstraints :: Tvs -> Inf [ImplicitConstraint]
