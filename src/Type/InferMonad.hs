@@ -160,8 +160,12 @@ generalize contextRange range close eff0 rho0 bodycore0
        let free = tvsUnion free0 (fuv seff0)
        ics    <- splitImplicitConstraints free
        iccore <- resolveImplicitConstraints free ics -- leads to further substitutions
-       (srho,seff,bodycore)  <- improveX contextRange range close seff0 rho0 (iccore bodycore0)
+       srho <- subst rho0
+       seff <- subst seff0
+       let coref = id
+       -- (srho,seff,coref) <- improveX contextRange range close seff0 rho0
        sub <- getSub
+       let bodycore = coref (iccore bodycore0)
       --  traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv srho <+> text "|" <+> Pretty.ppType penv seff
       --                           <-> text "  with" <+> list (map (ppConstraint penv) ics)
       --                           <-> text "  and free:" <+> list (map (Pretty.ppTypeVar penv) (tvsList free) )
@@ -224,8 +228,8 @@ generalize contextRange range close eff0 rho0 bodycore0
 
 
 
-improveX :: Range -> Range -> Bool -> Effect -> Rho -> Core.Expr -> Inf (Rho,Effect,Core.Expr )
-improveX contextRange range close eff0 rho0 core0
+improveX :: Range -> Range -> Bool -> Effect -> Rho -> Inf (Rho,Effect,Core.Expr -> Core.Expr )
+improveX contextRange range close eff0 rho0
   = do seff  <- subst eff0
        srho  <- subst rho0
        free  <- freeInGamma
@@ -233,7 +237,7 @@ improveX contextRange range close eff0 rho0 core0
        (ics1,eff1,coref) <- isolateX contextRange (tvsUnions [free,ftv srho]) ics seff
        addImplicitConstraints ics1 -- add back unresolved constraints
        (nrho) <- normalizeX close free srho
-       return (nrho,eff1,coref core0)
+       return (nrho,eff1,coref)
 
 
 getResolver :: Inf (Name -> Core.Expr)
@@ -492,6 +496,21 @@ heapTypes tp
           PredSub t1 t2  -> heapTypes t1 ++ heapTypes t2
           PredIFace _ ts -> concatMap heapTypes ts
 
+
+heapNeverContainedIn :: Type -> Type -> Bool
+heapNeverContainedIn hp0 tp
+  = let hp = expandSyn hp0
+        hps = heapTypes tp
+    in all (neverEqHeap hp) hps
+
+neverEqHeap :: HasCallStack => Type -> Type -> Bool
+neverEqHeap tp1 tp2
+  = case (expandSyn tp1,expandSyn tp2) of
+      (TCon c1, TCon c2)                        -> c1 /= c2
+      (TApp t1 ts1, TApp t2 ts2)                -> neverEqHeap t1 t2 || or (zipWith neverEqHeap ts1 ts2)
+      (TVar v1, _)                              -> False -- might become equal
+      (_, TVar v2)                              -> False
+      _                                         -> True  -- one of the types is not a heap
 
 
 {--------------------------------------------------------------------------
@@ -1778,9 +1797,9 @@ resolveHeapDivConstraint alwaysNoDiv tpHeap tpVal tpEff free ic
                                <-> text "  free:" <+> ppTvs penv free
                                <-> text "  tvsHp:" <+> ppTvs penv tvsHp <.> text ", tvsTp:" <+> ppTvs penv tvsTp
         maydiv <- if (alwaysNoDiv ||
-                       (not (expandSyn shp `elemType` heapTypes stp) &&
-                        tvsDisjoint tvsHp free &&  -- h is being generalized (or isolated)
-                        tvsIsSubsetOf tvsTp free   -- but none of the free type variables in the type
+                       (heapNeverContainedIn shp stp || -- not (expandSyn shp `elemType` heapTypes stp) &&
+                        (tvsDisjoint tvsHp free &&   -- h is being generalized (or isolated)
+                         tvsIsSubsetOf tvsTp free)   -- but none of the free type variables in the type
                        ))
                        -- not (tvsIsEmpty (ftv stp)))) -- conservative guess...
                     then return False
@@ -2027,8 +2046,7 @@ splitImplicitConstraints :: Tvs -> Inf [ImplicitConstraint]
 splitImplicitConstraints free
   = do st <- getSt
        ics <- subst (iconstraints st)
-       let (ics0,ics1) = -- partition (\p -> not (tvsIsEmpty (tvsDiff (fuv p) free))) ps
-                         partition (\ic -> let tvs = (fuv ic) in (tvsIsEmpty tvs || not (tvsIsEmpty (tvsDiff tvs free)))) ics
+       let (ics0,ics1) = partition (\ic -> tvsDisjoint (fuv ic) free) ics
        setSt (st{ iconstraints = ics1 })
        -- traceDefDoc $ \penv -> text "split implicit constraint:" <+> list (map (ppConstraint penv) ics0)
        return ics0

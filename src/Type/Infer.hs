@@ -536,17 +536,17 @@ data Expect = Generalized Bool
 inferIsolated :: Range -> Range -> Expr a -> Inf (Type,Effect,Core.Expr) -> Inf (Type,Effect,Core.Expr)
 inferIsolated contextRange range body inf
   = do (tp,eff,core) <- inf
-       res@(itp,ieff,icore) <- improveX contextRange range True eff tp  core
+       res@(itp,ieff,coref) <- improveX contextRange range True eff tp
        traceDefDoc $ \penv -> text "infer isolated:" <+> ppType penv tp <+> text "|" <+> ppType penv ieff <+> text "from" <+> ppType penv eff
        case hasVarDecl body of
-         Nothing   -> return res
+         Nothing   -> return (itp,ieff,coref core)
          Just vrng -> do sieff <- subst ieff
                          let (ls,tl) = extractOrderedEffect sieff
                          case filter (\l -> labelName l == nameTpLocal) ls of
                            (_:_) -> typeError contextRange vrng
                                       (text "reference to a local variable escapes its lexical scope") sieff []
                            _ -> return ()
-                         return (itp,sieff,icore)
+                         return (itp,sieff,coref core)
    where
      hasVarDecl expr
        = case expr of
