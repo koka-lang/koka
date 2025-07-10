@@ -346,7 +346,7 @@ pub inline extern set( ^ref : ref<h,a>, assigned : a) : write<h> ()
   js inline "((#1).value = #2)"
 
 // Read the value of a reference.
-pub inline extern ref/(!) : forall<h,a,e> ( ref : ref<h,a>, ?hdiv : hdiv<h,a,e>) -> <read<h>|e> a
+pub inline extern ref/(!)<h,a,e>( ref : ref<h,a>, ?hdiv : hdiv<h,a,e>) : <read<h>|e> a
   c  inline "kk_ref_get(#1,kk_context())"
   cs inline "#1.Value"
   js inline "#1.value"
@@ -356,20 +356,20 @@ pub inline extern ref/(!) : forall<h,a,e> ( ref : ref<h,a>, ?hdiv : hdiv<h,a,e>)
 // getting the vector into a local variable and then setting it back into the reference later
 // would mean that we hold on to a copy (and we can't update the vector in place then!).
 // In contrast, this function passes the ownership to the given function.
-pub inline extern modify : forall<h,a,b,e> ( ref : ref<h,a>, f : forall<s> local-var<s,a> -> <local<s>|e> b, ?hdiv : hdiv<h,a,e>) -> <read<h>,write<h>|e> b
+pub inline extern modify<h,a,b,e>( ref : ref<h,a>, f : forall<s> local-var<s,a> -> <local<s>|e> b, ?hdiv : hdiv<h,a,e>) : <read<h>,write<h>|e> b
   c  inline "kk_ref_modify(#1,#2,kk_context())"
   js inline "((#2)(#1))"
 
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-pub extern run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) -> e a
+pub extern run<e,a>( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) : e a
   c  inline "(kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),#1,(#1,kk_context()),kk_context()))"
   cs inline "Primitive.Run<##2>(#1)"
   js inline "((#1)())"
 
 
 // Mask the state effect. This is more convenient than masking each `:read`, `:write`, and `:alloc` effect separately.
-pub inline extern mask-st : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)
+pub inline extern mask-st<a,h,e>( action : () -> e a) : total (() -> <st<h>|e> a)
   inline "#1"
 
 /*

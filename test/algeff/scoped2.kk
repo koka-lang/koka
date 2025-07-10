@@ -124,6 +124,6 @@ fun test4() {
 fun main() {
   test1().show.println
   test2().show.println
-  test3().show.println
+  test3().listint/show.println
   test4().maybelist/show.println
 }

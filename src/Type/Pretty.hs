@@ -17,6 +17,7 @@ module Type.Pretty (-- * Pretty
                    , canonical, minCanonical
                    , prettyComment, prettyRange, ppNamePlain
                    , keyword
+                   , ppSub
                    ) where
 
 
@@ -311,6 +312,10 @@ ppVis env vis
   = case vis of
       Private -> empty -- keyword env "private "
       Public  -> keyword env "pub "
+
+ppSub :: Env -> Sub -> Doc
+ppSub penv sub
+  = list [ppTypeVar penv tv <+> text "|->" <+> ppType penv tp | (tv,tp) <- subList sub]
 
 {--------------------------------------------------------------------------
   Synonym Info

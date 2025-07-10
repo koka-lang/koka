@@ -96,6 +96,7 @@ import Kind.Kind
 import Kind.Pretty ()
 import Type.Kind
 import Type.Type
+import qualified Data.Maybe as M
 
 {--------------------------------------------------------------------------
 

@@ -815,7 +815,7 @@ inferExpr propagated expect (Parens expr name pre rng)
        return (tp,eff,core)
 
 inferExpr propagated expect (Inject label expr behind rng)
-  = do eff0 <- Op.freshEffect
+  = do eff0 <- Op.freshEffect  
        let eff = if (not behind) then eff0 else (effectExtend label eff0)
 
        let tfun r = typeFun [] eff r
@@ -824,7 +824,10 @@ inferExpr propagated expect (Inject label expr behind rng)
                     Just (ptp,prng) -> case splitPredType ptp of
                                         (foralls,preds,rho)
                                           -> Just (quantifyType foralls $ qualifyType preds $ tfun rho, prng)
-       (exprTp,exprEff,exprCore) <- inferExpr prop Instantiated expr
+       
+       (mbHandled,effName) <- effectNameCore label rng
+       (exprTp,exprEff,exprCore) <- (if effName == nameTpLocal then withNoLocalScope else id) $ 
+                                    inferExpr prop Instantiated expr
 
        res <- Op.freshStar
        let fullRng = combineRanges [rng,getRange expr]
@@ -833,7 +836,6 @@ inferExpr propagated expect (Inject label expr behind rng)
        resTp <- subst res
 
        -- traceDoc $ \penv -> text "infer inject :" <+> ppType penv label
-       (mbHandled,effName) <- effectNameCore label rng
        effTo <- subst $ effectExtend label eff
 
        sexprTp <- subst exprTp
@@ -1463,7 +1465,7 @@ inferLam topLevel propagated expect bindersL body0 rng
                                          inferUnify (checkEffectSubsume rng) r eff topEff
                                          subst topEff
                                          -- subst eff
-       traceDefDoc $ \env -> text " inferExpr.Lam: topeff: " <+> ppType env topEff
+       -- traceDefDoc $ \env -> text " inferExpr.Lam: topeff: " <+> ppType env topEff
        parTypes2 <- subst (map binderType binders1)
        let optPars   = zip (map binderName binders1) parTypes2 -- (map binderName binders1) parTypes2
            bodyCore1 = Core.addLambdas optPars topEff (Core.Lam [] topEff (coref core))
@@ -1490,7 +1492,9 @@ inferLam topLevel propagated expect bindersL body0 rng
        let -- subSkolems = subNew -- (zip skolems ftvars)
            --                    [(tv,TVar tv{typevarFlavour=Meta}) | tv <- skolems]
            sftp1 = subSkolems |-> sftp0
-       -- traceDefDoc $ \env -> text " inferExpr.Lam: fun type:" <+> ppType env sftp1
+       substImplicitConstraints subSkolems
+       
+       -- traceDefDoc $ \env -> text " inferExpr.Lam: fun type:" <+> ppType env sftp1 <.> text "," <+> ppSub env subSkolems
        (ftp,fcore) <- maybeGeneralize rng (getRange body) typeTotal expect sftp1 (subSkolems |-> bodyCore2)
        -- traceDefDoc $ \env -> text " inferExpr.Lam: generalized fun type:" <+> ppType env ftp -- <+> text (show fcore)
 
@@ -1601,7 +1605,7 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                                                       maskExpr = etaExpand n rng
                                                                   (\apply -> Inject localTp (Lam [] (apply (Var qname False rng)) False rng) False rng)
                                                   (tp,eff,core) <- withNoLocalScope $ inferExpr Nothing {- do not progate as the effect is different -} Instantiated maskExpr
-                                                  -- traceDoc $ \penv -> text "inferVar:" <+> ppName penv name <+> text ", injected type: " <+> ppType penv tp
+                                                  -- traceDefDoc $ \penv -> text "inferVar:" <+> ppName penv name <+> text ", injected type: " <+> ppType penv tp
                                                   return (tp,eff,core)
                           -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp <+> text "local depth" <+> pretty localDepth)
                           case (expandSyn itp,propagated) of
