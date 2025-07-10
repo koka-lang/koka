@@ -458,7 +458,7 @@ runEditorAt st fpath line col
   = let command  = replace line col (editor (flags st)) fpath
     in if null (editor (flags st))
         then raiseIO ("no editor specified. (use the \"koka_editor\" environment variable?)")
-        else do -- messageInfoLn st ("command: " ++ command)
+        else do messageInfoLn st ("command: " ++ (editor (flags st)))
                 runSystem command
 
 replace :: Int -> Int -> FilePath -> String -> String
