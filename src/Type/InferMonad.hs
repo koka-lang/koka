@@ -56,9 +56,8 @@ module Type.InferMonad( Inf, InfGamma
 
                       -- * Operations
                       , generalize
-                      , improve, improveX
+                      , improveX
                       , instantiate, instantiateNoEx, instantiateEx
-                      , checkEmptyPredicates
                       , checkCasing
                       , normalize
                       , getResolver
@@ -148,7 +147,6 @@ generalize contextRange range close eff  tp@(TForall _ _ _)  core0
        stp  <- subst tp
        free0 <- freeInGamma
        let free = tvsUnion free0 (fuv seff)
-       ps0  <- splitPredicates free
        if (tvsIsEmpty (fuv ({- seff, -} stp)))
         then -- Lib.Trace.trace ("generalize forall: " ++ show (pretty stp)) $
               return (tp,core0)
@@ -156,93 +154,54 @@ generalize contextRange range close eff  tp@(TForall _ _ _)  core0
              do (rho,tvars,icore) <- instantiateNoEx range stp
                 generalize contextRange range close seff rho (icore core0)
 
-generalize contextRange range close eff0 rho0 bodycore
+generalize contextRange range close eff0 rho0 bodycore0
   = do seff0 <- subst eff0
        free0 <- freeInGamma
        let free = tvsUnion free0 (fuv seff0)
-       -- isolatex free
-       ps0  <- splitPredicates free
-       ics  <- splitImplicitConstraints free
+       ics    <- splitImplicitConstraints free
        iccore <- resolveImplicitConstraints free ics -- leads to further substitutions
-       let core0 = iccore bodycore
-       seff <- subst seff0
-       srho <- subst rho0
-       -- score0 <- subst core0
-
+       (srho,seff,bodycore)  <- improveX contextRange range close seff0 rho0 (iccore bodycore0)
        sub <- getSub
-       traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv srho <+> text "|" <+> Pretty.ppType penv seff
-                                <-> text "  with" <+> list (map (ppConstraint penv) ics)
-                                <-> text "  and free:" <+> list (map (Pretty.ppTypeVar penv) (tvsList free) )
+      --  traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv srho <+> text "|" <+> Pretty.ppType penv seff
+      --                           <-> text "  with" <+> list (map (ppConstraint penv) ics)
+      --                           <-> text "  and free:" <+> list (map (Pretty.ppTypeVar penv) (tvsList free) )
                   {- ++ "\n subst=" ++ show (take 10 $ subList sub) -}
                   {- ++ "\ncore: " ++ show score0 -}
        --        $ return ()
-       -- simplify and improve predicates
-       (ps1,(eff1,rho1),core1) <- simplifyAndResolve contextRange free ps0 (seff,srho)
+
        -- trace (" improved to: " ++ show (pretty eff1, pretty rho1) ++ " with " ++ show ps1 ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
        let -- generalized variables
-           tvars0 = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] (map evPred ps1) rho1))
+           tvars0 = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] srho))
 
        if (null tvars0)
-        then do addPredicates ps1 -- add them back to solve later (?)
-                score <- subst (core1 core0)
-
-                -- substitute more free variables in the core with ()
-                let score1 = substFree free score
-                nrho <- normalizeX close free rho1
+        then do -- substitute more free variables in the core with ()
+                let score1 = substFree free bodycore
+                nrho <- normalizeX close free srho
                 -- trace ("generalized to (as rho type): " ++ show (pretty nrho) ++ show (score1)) $ return ()
                 return (nrho,score1)
 
         else do -- check that the computation is total
                 if (close)
-                 then inferUnify (Check "Generalized values cannot have an effect" contextRange) range typeTotal eff1
-                 else return ()
-                -- simplify and improve again since we can have substituted more
-                (ps2,(eff2,rho2),core2) <- simplifyAndImprove contextRange free ps1 (eff1,rho1)
-                -- due to improvement, our constraints may need to be split again
-                addPredicates ps2
-                ps3 <- splitPredicates free
-                -- simplify and improve again since we can have substituted more
-                (ps4,(eff4,rho4),core4) <- simplifyAndImprove contextRange free ps3 (eff2,rho2)
+                  then inferUnify (Check "Generalized values cannot have an effect" contextRange) range typeTotal seff
+                  else return ()
 
-                -- check for satisifiable constraints
-                checkSatisfiable contextRange ps4
-                score <- subst (core4 (core2 (core1 core0)))
-                -- traceDoc $ \penv -> text "score:" <+> prettyExpr penv{Pretty.coreShowTypes=True} score
-
-                -- trace (" before normalize: " ++ show (eff4,rho4) ++ " with " ++ show ps4) $ return ()
-
-                -- update the free variables since substitution may have changed it
-                free1 <- freeInGamma
-                let free = tvsUnion free1 (fuv eff4)
-
-                -- (rho5,coref) <- isolate free rho4
-                let rho5 = rho4
-                    coref = id
-
-                nrho <- normalizeX close free rho5
-                -- trace (" normalized: " ++ show (nrho) ++ " from " ++ show rho4) $ return ()
+                nrho <- normalizeX close free srho
                 let -- substitute to Bound ones
-                    tvars = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] (map evPred ps4) nrho))
+                    tvars = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] nrho))
 
                 -- create fresh type variables for the bounds
                 -- important to avoid duplicate names (`test/algeff/exn3`)
                 (bvars,bsub) <- freshSub Bound tvars
-                -- bvars <- mapM (\(TypeVar id kind _) -> freshTypeVar kind Bound) tvars
-                let -- bvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]
-                    -- bsub  = subNew (zip tvars (map TVar bvars))
-                    (TForall [] ps5 rho5) = bsub |-> (TForall [] (map evPred ps4) nrho)
+                let (TForall [] [] rho5) = bsub |-> (TForall [] [] nrho)
                     -- core
-                    corePre = bsub |-> score
-                    core5 = Core.addTypeLambdas bvars corePre
-                            -- no lambdas for now...
-                            -- (Core.addLambda (map evName ps4) score)
+                    corePre = bsub |-> bodycore
+                    core1 = Core.addTypeLambdas bvars corePre
+                    resTp = quantifyType bvars (qualifyType [] rho5)
 
-                    resTp = quantifyType bvars (qualifyType ps5 rho5)
-                -- extendSub bsub
                 -- substitute more free variables in the core with ()
-                let core6 = substFree free core5
+                let core2 = substFree free core1
                 -- traceDoc $ \penv -> text "corePre:" <+> prettyExpr penv{Pretty.coreShowTypes=True} corePre
-                return (resTp, core6)
+                return (resTp, core2)
 
   where
     substFree free core
@@ -276,31 +235,6 @@ improveX contextRange range close eff0 rho0 core0
        (nrho) <- normalizeX close free srho
        return (nrho,eff1,coref core0)
 
-
-improve :: Range -> Range -> Bool -> Effect -> Rho -> Core.Expr -> Inf (Rho,Effect,Core.Expr )
-improve contextRange range close eff0 rho0 core0
-  = do seff  <- subst eff0
-       srho  <- subst rho0
-       free  <- freeInGamma
-       -- let free = tvsUnion free0 (fuv seff)
-       sps    <- splitPredicates free
-       score0 <- subst core0
-       -- trace (" improve: " ++ show (Pretty.niceTypes Pretty.defaultEnv [seff,srho]) ++ " with " ++ show sps ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
-
-       -- isolate: do first to discharge certain hdiv predicates.
-       -- todo: in general, we must to this after some improvement since that can lead to substitutions that may enable isolation..
-       (ps0,eff0,coref0) <- isolate contextRange (tvsUnions [free,ftv srho]) sps seff
-
-       -- simplify and improve predicates
-       (ps1,(eff1,rho1),coref1) <- simplifyAndResolve contextRange free ps0 (eff0,srho)
-       addPredicates ps1  -- add unsolved ones back
-       -- isolate
-       -- (eff2,coref2) <- isolate (tvsUnions [free,ftv rho1,ftv ps1]) eff1
-
-       (nrho) <- normalizeX close free rho1
-       -- trace (" improve normalized: " ++ show (nrho) ++ " from " ++ show rho1) $ return ()
-       -- trace (" improved to: " ++ show (pretty eff1, pretty nrho) ++ " with " ++ show ps1) $ return ()
-       return (nrho,eff1,coref1 (coref0 core0))
 
 getResolver :: Inf (Name -> Core.Expr)
 getResolver
@@ -397,77 +331,6 @@ isolateX rng free ics eff
                                        return (ic:ics1,ics2)
                         _ -> return defaultRes
               _ -> return defaultRes
-
-
--- | Automatically remove heap effects when safe to do so.
-isolate :: Range -> Tvs -> [Evidence] -> Effect -> Inf ([Evidence],Effect, Core.Expr -> Core.Expr)
-{-
-isolate rng free ps eff  | src `endsWith` "std/core/hnd.kk"
-  = return (ps,eff,id)
-  where
-    src = normalizeWith '/' (sourceName (rangeSource rng))
--}
-isolate rng free ps eff
-  = -- trace ("isolate: " ++ show eff ++ " with free " ++ show (tvsList free)) $
-    let (ls,tl) = extractOrderedEffect eff
-    in case filter (\l -> labelName l `elem` [nameTpLocal,nameTpRead,nameTpWrite]) ls of
-          (lab@(TApp labcon [TVar h]) : _)
-            -> -- has heap variable 'h' in its effect
-               do (polyPs,ps1) <- splitHDiv h ps
-                  let isLocal = (labelName lab == nameTpLocal)
-                  if not (-- null polyPs ||  -- TODO: we might want to isolate too if it is not null?
-                                             -- but if we allow null polyPS, injecting state does not work (see `test/resource/inject2`)
-                          tvsMember h free || tvsMember h (ftv ps1))
-                    then do -- yeah, we can isolate, and discharge the polyPs hdiv predicates
-                            traceDoc $ \penv -> text "isolate:" <+> Pretty.ppType penv eff
-                            tv <- freshEffect
-                            if isLocal
-                             then do -- trace ("isolate local") $ return ()
-                                     nofailUnify $ unify (effectExtend lab tv) eff
-                             else do mbSyn <- lookupSynonym nameTpST
-                                     let (Just syn) = mbSyn
-                                         [bvar] = synInfoParams syn
-                                         st     = subNew [(bvar,TVar h)] |-> synInfoType syn
-                                     -- traceDoc $ \penv -> text "isolate st: " <+> Pretty.ppType  penv{Pretty.showKinds=True,Pretty.showIds=True} st
-                                     nofailUnify $ unify (effectExtend st tv) eff
-                            neweff <- subst tv
-                            sps    <- subst ps1
-                            -- trace ("isolate to:"  ++ show (pretty neweff)) $ return ()
-                            -- return (sps, neweff, id) -- TODO: supply evidence (i.e. apply the run function)
-                            -- and try again
-                            (sps',eff',coref) <- isolate rng free sps neweff
-                            let coreRun cexpr = if (isLocal)
-                                                 then cexpr
-                                                 else cexpr  -- TODO: apply runST?
-                            return (sps',eff',coreRun . coref)
-                     else do traceDoc $ \penv -> text "cannot isolate:" <+> Pretty.ppType penv eff
-                             return (ps,eff,id)
-          _ -> return (ps,eff,id)
-
-  where
-    -- | 'splitHDiv h ps' splits predicates 'ps'. Predicates of the form hdiv<h,tp,e> where tp does
-    -- not contain h are returned as the first element, all others as the second. This includes
-    -- constraints where hdiv<h,a,e> for example where a is polymorphic. Normally, we need to assume
-    -- divergence conservatively in such case; however, when we isolate, we know it cannot be instatiated
-    -- to contain a reference to h and it is safe to discharge them during isolation without implying
-    -- divergence. See test\type\talpin-jouvelot1 for an example: fun rid(x) { r = ref(x); return !r }
-    splitHDiv :: TypeVar -> [Evidence] -> Inf ([Evidence],[Evidence])
-    splitHDiv heapTv []
-      = return ([],[])
-    splitHDiv heapTv (ev:evs)
-      = do (evs1,evs2) <- splitHDiv heapTv evs
-           let defaultRes = (evs1,ev:evs2)
-           case evPred ev of
-            PredIFace name [hp,tp,eff]  | name == nameTypeHeapDiv
-             -> do shp <- subst hp
-                   case expandSyn shp of
-                     h@(TVar tv)  | tv == heapTv
-                       -> do stp <- subst tp
-                             if (isNothing (find (\ht -> eqType h ht) (heapTypes stp)))
-                              then return (ev:evs1,evs2) -- even if polymorphic, we are ok if we isolate
-                              else return defaultRes
-                     _ -> return defaultRes
-            _ -> return defaultRes
 
 
 
@@ -615,50 +478,6 @@ splitEffect eff
   = nofailUnify (extractNormalizeEffect eff)
 
 
--- | Simplify and improve contraints.
-simplifyAndImprove :: Range -> Tvs -> [Evidence] -> (Effect,Type) -> Inf ([Evidence],(Effect,Type),Core.Expr -> Core.Expr)
-simplifyAndImprove range free [] efftp
-  = return ([],efftp,id)
-simplifyAndImprove range free evs efftp
-  = do (evs1,core1) <- improveEffects range free evs efftp
-       efftp1 <- subst efftp
-       return (evs1,efftp1,core1)
-
--- | Simplify and resolve contraints.
-simplifyAndResolve :: Range -> Tvs -> [Evidence] -> (Effect,Type) -> Inf ([Evidence],(Effect,Type),Core.Expr -> Core.Expr)
-simplifyAndResolve range free [] efftp
-  = return ([],efftp,id)
-simplifyAndResolve range free evs efftp
-  = do evs0   <- resolveHeapDiv free evs  -- must be done *before* improveEffects since it can add "div <= e" constraints
-       (evs1,core1) <- improveEffects range free evs0 efftp
-       efftp1 <- subst efftp
-       return (evs1,efftp1,core1)
-
-
-resolveHeapDiv :: Tvs -> [Evidence] -> Inf [Evidence]
-resolveHeapDiv free []
-  = return []
-resolveHeapDiv free (ev:evs)
-  = case evPred ev of
-      PredIFace name [hp,tp,eff]  | name == nameTypeHeapDiv
-        -> -- trace (" resolveHeapDiv: " ++ show (hp,tp,eff)) $
-           do stp <- subst tp
-              shp <- subst hp
-              let tvsTp = ftv stp
-                  tvsHp = ftv hp
-              if (expandSyn shp `elemType` heapTypes stp ||
-                  not (tvsIsEmpty (ftv stp)) -- conservative guess...
-                 )
-               then do -- return (ev{ evPred = PredSub typeDivergent eff } : evs')
-                       tv   <- Op.freshEffect
-                       let divEff = effectExtend typeDivergent tv
-                       inferUnify (Infer (evRange ev)) (evRange ev) eff divEff
-                       resolveHeapDiv free evs
-               else resolveHeapDiv free evs -- definitely ok
-      _ -> do evs' <- resolveHeapDiv free evs
-              return (ev:evs')
-
-
 heapTypes :: Type -> [Type]
 heapTypes tp
   = case expandSyn tp of
@@ -667,39 +486,11 @@ heapTypes tp
       TApp    t ts   | getKind tp /= kindHeap
                      -> concatMap heapTypes (t:ts)
       t              -> if (getKind t == kindHeap) then [t] else []
-
-heapTypesPred p
-  = case p of
-      PredSub t1 t2  -> heapTypes t1 ++ heapTypes t2
-      PredIFace _ ts -> concatMap heapTypes ts
-
-improveEffects :: Range -> Tvs -> [Evidence] -> (Effect,Type) -> Inf ([Evidence],Core.Expr -> Core.Expr)
-improveEffects contextRange free evs etp
-  = return (evs,id)
-
-{--------------------------------------------------------------------------
-  Satisfiable constraints
---------------------------------------------------------------------------}
-
-checkEmptyPredicates :: Range -> Inf (Core.Expr -> Core.Expr)
-checkEmptyPredicates contextRange
-  = do free <- freeInGamma
-       ps <- getPredicates
-       (ps1,_,core1) <- simplifyAndImprove contextRange free ps (typeTotal,typeUnit)
-       setPredicates ps1
-       checkSatisfiable contextRange ps1
-       return core1
-
--- | Check if all constraints are potentially satisfiable. Assumes that
--- the constraints have already been simplified and improved.
-checkSatisfiable :: Range -> [Evidence] -> Inf ()
-checkSatisfiable contextRange ps
-  = do mapM_ check ps
   where
-    check ev
-      = case evPred ev of
-          PredSub _  _ -> predicateError contextRange (evRange ev) "Constraint cannot be satisfied" (evPred ev)
-          _            -> return ()
+    heapTypesPred p
+      = case p of
+          PredSub t1 t2  -> heapTypes t1 ++ heapTypes t2
+          PredIFace _ ts -> concatMap heapTypes ts
 
 
 
