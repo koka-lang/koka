@@ -158,20 +158,20 @@ generalize contextRange range close eff0 rho0 bodycore0
   = do seff0 <- subst eff0
        free0 <- freeInGamma
        let free = tvsUnion free0 (fuv seff0)
+       let bodycore1 = bodycore0
 
-       srho <- subst rho0
+       -- check that the computation is total
+       if (close)
+         then inferUnify (Check "Generalized values cannot have an effect" contextRange) range typeTotal seff0
+         else return ()
        seff <- subst seff0
-       let coref = id
-       -- (srho,seff,coref) <- improveX contextRange range close seff0 rho0
-       sub <- getSub
-       let bodycore1 = coref bodycore0
+       srho <- subst rho0
 
-       -- trace (" improved to: " ++ show (pretty eff1, pretty rho1) ++ " with " ++ show ps1 ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
        let tvars0 = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] srho))
-       nrho <- normalizeX close (tvsNew tvars0) srho
+       nrho <- normalizeX close free srho
 
        let -- substitute to Bound ones
-           tvars   = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] nrho))
+           tvars = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] nrho))
 
        iccore <- tryResolveImplicitConstraints free
        let bodycore1 = iccore bodycore0
@@ -183,12 +183,7 @@ generalize contextRange range close eff0 rho0 bodycore0
 
        if (null tvars)
         then do return (nrho,bodycore1)
-        else do -- check that the computation is total
-                if (close)
-                  then inferUnify (Check "Generalized values cannot have an effect" contextRange) range typeTotal seff
-                  else return ()
-
-                -- create fresh type variables for the bounds
+        else do -- create fresh type variables for the bounds
                 -- important to avoid duplicate names (`test/algeff/exn3`)
                 (bvars,bsub) <- freshSub Bound tvars
                 let (TForall [] [] rho5) = bsub |-> (TForall [] [] nrho)
@@ -247,8 +242,8 @@ isolateX rng free ics eff
             -> -- has heap variable 'h' in its effect
                do (polyIcs,ics1) <- splitHDiv h ics
                   let isLocal = (labelName lab == nameTpLocal)
-                  determineds <- mapM (\ic -> (icCanSolve ic) free ic) polyIcs
-                  if not (tvsMember h free) || and determineds
+                  -- determineds <- mapM (\ic -> (icCanSolve ic) free ic) polyIcs
+                  if not (tvsMember h free) -- || and determineds
                     then do -- we can isolate, and discharge the polyIcs hdiv predicates
                             traceDefDoc $ \penv -> text "can isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs)
                             tv <- freshEffect

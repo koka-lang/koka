@@ -1311,8 +1311,8 @@ inferApp propagated expect fun nargs rng
 
            -- infer the argument expressions and subsume the types
            (effArgs,coreArgs) <- -- withGammaType rng (TFun pars funEff funTp) $ -- ensure the free 'some' types are free in gamma
-                                 -- (let unused = newHiddenName "unused"
-                                 -- in extendInfGamma [(unused,InfoVal Public unused funTp rng False False "")]) $ -- don't generalize over free propagated types
+                                 (let unused = newHiddenName "unused"
+                                  in extendInfGamma [(unused,InfoVal Public unused funTp rng False False "")]) $ -- don't generalize over free propagated types
                                  do let parArgs = zip (map snd pars) (map snd iargs)
                                     case (fun) of
                                       (Var name _ _) | name == nameRunLocal
