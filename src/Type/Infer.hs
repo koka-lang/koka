@@ -1311,8 +1311,8 @@ inferApp propagated expect fun nargs rng
 
            -- infer the argument expressions and subsume the types
            (effArgs,coreArgs) <- -- withGammaType rng (TFun pars funEff funTp) $ -- ensure the free 'some' types are free in gamma
-                                 (let unused = newHiddenName "unused"
-                                  in extendInfGamma [(unused,InfoVal Public unused funTp rng False False "")]) $ -- don't generalize over free propagated types
+                                 -- (let unused = newHiddenName "unused"
+                                 -- in extendInfGamma [(unused,InfoVal Public unused funTp rng False False "")]) $ -- don't generalize over free propagated types
                                  do let parArgs = zip (map snd pars) (map snd iargs)
                                     case (fun) of
                                       (Var name _ _) | name == nameRunLocal
@@ -1425,7 +1425,7 @@ inferLam topLevel propagated expect bindersL body0 rng
        let body = foldr (\f x -> f x) body0 unpackImplicitss
 
        (propArgs,propEff,propBody,skolems,expectBody) <- matchFun (length bindersX) propagated
-       traceDoc $ \env -> text "  prop eff:" <+> ppProp env propEff
+       -- traceDoc $ \env -> text "  prop eff:" <+> ppProp env propEff
 
        let binders0 = [case binderType binder of
                          Nothing -> binder{ binderType = fmap snd mbProp }
@@ -2003,7 +2003,7 @@ inferImplicitUnpack rng nrng pname qname
               in do unpackBases <- mapM (\(fname,fqname) -> inferImplicitUnpack rng nrng fname fqname) bases  -- todo: stop recursion!
                     return (compose (unpack:unpackBases))
 
-        _  -> do traceDefDoc $ \penv -> text "inferImplicitUnpack: cannot resolve" <+> text (show qname)
+        _  -> do -- traceDefDoc $ \penv -> text "inferImplicitUnpack: cannot resolve" <+> text (show qname)
                  return id
 
 
