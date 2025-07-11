@@ -158,73 +158,54 @@ generalize contextRange range close eff0 rho0 bodycore0
   = do seff0 <- subst eff0
        free0 <- freeInGamma
        let free = tvsUnion free0 (fuv seff0)
-       ics    <- splitImplicitConstraints free
-       iccore <- resolveImplicitConstraints free ics -- leads to further substitutions
+
        srho <- subst rho0
        seff <- subst seff0
        let coref = id
        -- (srho,seff,coref) <- improveX contextRange range close seff0 rho0
        sub <- getSub
-       let bodycore = coref (iccore bodycore0)
-       traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv srho <+> text "|" <+> Pretty.ppType penv seff
-                                <-> text "  with" <+> list (map (ppConstraint penv) ics)
-                                <-> text "  and free:" <+> list (map (Pretty.ppTypeVar penv) (tvsList free) )
+       let bodycore1 = coref bodycore0
+       -- traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv srho <+> text "|" <+> Pretty.ppType penv seff
+      --                           -- <-> text "  with" <+> list (map (ppConstraint penv) ics)
+       --                          <-> text "  and free:" <+> list (map (Pretty.ppTypeVar penv) (tvsList free) )
                   {- ++ "\n subst=" ++ show (take 10 $ subList sub) -}
                   {- ++ "\ncore: " ++ show score0 -}
        --        $ return ()
 
        -- trace (" improved to: " ++ show (pretty eff1, pretty rho1) ++ " with " ++ show ps1 ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
-       let -- generalized variables
-           tvars0 = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] srho))
+       let tvars0 = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] srho))
+       nrho <- normalizeX close (tvsNew tvars0) srho
 
-       if (null tvars0)
-        then do -- substitute more free variables in the core with ()
-                let score1 = substFree free bodycore
-                nrho <- normalizeX close free srho
-                -- trace ("generalized to (as rho type): " ++ show (pretty nrho) ++ show (score1)) $ return ()
-                return (nrho,score1)
+       let -- substitute to Bound ones
+           tvars   = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] nrho))
 
+       iccore <- tryResolveImplicitConstraints free
+       let bodycore1 = iccore bodycore0
+       ics <- getImplicitConstraints
+
+       traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv nrho <+> text "|" <+> Pretty.ppType penv seff
+                              <-> text "  genvars:" <+> ppTvs penv (tvsNew tvars)
+                              <-> text "  free:" <+> ppTvs penv free
+                              <-> text "  remaining ics:" <+> ppConstraints penv ics
+
+       if (null tvars)
+        then do return (nrho,bodycore1)
         else do -- check that the computation is total
                 if (close)
                   then inferUnify (Check "Generalized values cannot have an effect" contextRange) range typeTotal seff
                   else return ()
-
-                nrho <- normalizeX close free srho
-                let -- substitute to Bound ones
-                    tvars = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] nrho))
 
                 -- create fresh type variables for the bounds
                 -- important to avoid duplicate names (`test/algeff/exn3`)
                 (bvars,bsub) <- freshSub Bound tvars
                 let (TForall [] [] rho5) = bsub |-> (TForall [] [] nrho)
                     -- core
-                    corePre = bsub |-> bodycore
+                    corePre = bsub |-> bodycore1
                     core1 = Core.addTypeLambdas bvars corePre
                     resTp = quantifyType bvars (qualifyType [] rho5)
 
-                -- substitute more free variables in the core with ()
-                let core2 = substFree free core1
                 -- traceDoc $ \penv -> text "corePre:" <+> prettyExpr penv{Pretty.coreShowTypes=True} corePre
-                return (resTp, core2)
-
-  where
-    substFree free core
-      = core
-      -- TODO: check why we need to do the below?
-      {-
-        let fvars = tvsDiff (ftv core) free
-            tcon kind
-              = if (kind == kindEffect)
-                 then typeTotal
-                 else if (kind == kindStar)
-                  then typeVoid
-                  else TCon (TypeCon nameTpVoid kind) -- TODO: make something up for now
-        in if (tvsIsEmpty fvars)
-            then core
-            else let sub = subNew [(tv,tcon (getKind tv)) | tv <- tvsList fvars]
-                 in sub |-> core
-       -}
-
+                return (resTp, core1)
 
 
 
@@ -232,9 +213,10 @@ improveX :: Range -> Range -> Bool -> Effect -> Rho -> Inf (Rho,Effect,Core.Expr
 improveX contextRange range close eff0 rho0
   = do seff  <- subst eff0
        srho  <- subst rho0
-       free  <- freeInGamma
+       free0 <- freeInGamma
        ics   <- clearImplicitConstraints
-       (ics1,eff1,coref) <- isolateX contextRange (tvsUnions [free,ftv srho]) ics seff
+       let free = tvsUnion free0 (ftv srho)
+       (ics1,eff1,coref) <- isolateX contextRange free ics seff
        addImplicitConstraints ics1 -- add back unresolved constraints
        (nrho) <- normalizeX close free srho
        return (nrho,eff1,coref)
@@ -263,15 +245,15 @@ instantiateNoEx range tp
 -- | Automatically remove heap effects when safe to do so.
 isolateX :: Range -> Tvs -> [ImplicitConstraint] -> Effect -> Inf ([ImplicitConstraint], Effect, Core.Expr -> Core.Expr)
 isolateX rng free ics eff
-  = do -- traceDefDoc $ \penv -> text "isolateX:" <+> Pretty.ppType penv eff <.> text ", free" <+> list (map (ppTypeVar penv) (tvsList free))
-       --                        <-> text "  ics:" <+> list (map (ppConstraint penv) ics)
+  = do traceDefDoc $ \penv -> text "isolateX:" <+> Pretty.ppType penv eff <.> text ", free" <+> ppTvs penv free
+                               <-> text "  ics:" <+> list (map (ppConstraint penv) ics)
        let (ls,tl) = extractOrderedEffect eff
        case filter (\l -> labelName l `elem` [nameTpLocal,nameTpRead,nameTpWrite]) ls of
           (lab@(TApp labcon [TVar h]) : _)
             -> -- has heap variable 'h' in its effect
                do (polyIcs,ics1) <- splitHDiv h ics
                   let isLocal = (labelName lab == nameTpLocal)
-                  if not (tvsMember h free || tvsMember h (ftv ics1))
+                  if not (tvsMember h free)
                     then do -- we can isolate, and discharge the polyIcs hdiv predicates
                             -- traceDefDoc $ \penv -> text "can isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs)
                             tv <- freshEffect
@@ -491,7 +473,7 @@ heapTypes tp
 heapNeverContainedIn :: Tvs -> Type -> Type -> Bool
 heapNeverContainedIn free hp0 tp
   = neverContainedIn tp
-  where 
+  where
     hp = expandSyn hp0
     neverContainedIn tp
       = case tp of
@@ -499,15 +481,15 @@ heapNeverContainedIn free hp0 tp
           TFun tpars teff tres  -> all neverContainedIn (map snd tpars ++ [teff,tres])
           TApp t targs          -> all neverContainedIn (t:targs)
           TSyn _ targs t        -> all neverContainedIn (t:targs)
-          TCon tcon             -> case hp of 
+          TCon tcon             -> case hp of
                                      TCon hcon -> tcon /= hcon
                                      _ -> getKind tcon /= kindHeap
           TVar tvar             -> case hp of
                                      TVar htv -> -- if we are generalizing htv but not tvar, tvar can never contain htv
-                                                 typevarFlavour tvar /= Meta || 
-                                                 (not (tvsMember htv free) && tvsMember tvar free)
+                                                 typevarFlavour tvar /= Meta ||
+                                                 not (tvsMember htv free) && (tvsMember tvar free)
                                      _        -> -- but in all other case tvar might get a type containing htv
-                                                  typevarFlavour tvar /= Meta   
+                                                  typevarFlavour tvar /= Meta
 
 
 {--------------------------------------------------------------------------
@@ -1722,6 +1704,7 @@ data ImplicitConstraint = ImplicitConstraint{ icName :: Name,     -- implicit co
                                               icEvidence :: Name, -- fresh name for the implicit constraint evidence
                                               icContext :: Range,
                                               icRange :: Range,
+                                              icCanSolve :: Tvs -> ImplicitConstraint -> Inf Bool,
                                               icSolve :: Tvs -> ImplicitConstraint -> Inf Core.Expr
                                             }
 
@@ -1747,7 +1730,7 @@ ppConstraint :: Pretty.Env -> ImplicitConstraint -> Doc
 ppConstraint penv ic
   = Pretty.ppName penv (icEvidence ic) <.> text "=" <+> Pretty.ppParam penv (icName ic, icType ic)
 
-implicitConstraints :: [(Name,Name -> Type -> Maybe (Tvs -> ImplicitConstraint -> Inf Core.Expr))]
+implicitConstraints :: [(Name,Name -> Type -> Maybe (Tvs -> ImplicitConstraint -> Inf Bool, Tvs -> ImplicitConstraint -> Inf Core.Expr))]
 implicitConstraints
   = [(nameHeapDiv, checkHeapDivConstraint)]
 
@@ -1756,8 +1739,9 @@ checkImplicitConstraint name tp rangeContext range
   = case lookup name implicitConstraints of
       Just check
         -> case check name tp of
-             Just resolve -> do iarg <- addImplicitConstraint name tp resolve rangeContext range
-                                return (Just iarg)
+             Just (canResolve,resolve)
+                -> do iarg <- addImplicitConstraint name tp canResolve resolve rangeContext range
+                      return (Just iarg)
              Nothing -> return Nothing
       Nothing -> return Nothing
 
@@ -1766,8 +1750,8 @@ resolveImplicitConstraints free []  = return id
 resolveImplicitConstraints free ics
   = do defs <- mapM resolve ics
        let fcore core = case core of
-                          Core.Lam pars eff body -> Core.Lam pars eff (Core.makeDefsLet defs body)
-                          Core.TypeLam tpars (Core.Lam pars eff body) -> Core.TypeLam tpars (Core.Lam pars eff (Core.makeDefsLet defs body))
+                          -- Core.Lam pars eff body -> Core.Lam pars eff (Core.makeDefsLet defs body)
+                          -- Core.TypeLam tpars (Core.Lam pars eff body) -> Core.TypeLam tpars (Core.Lam pars eff (Core.makeDefsLet defs body))
                           _ -> Core.makeDefsLet defs core
 
        return fcore
@@ -1777,46 +1761,73 @@ resolveImplicitConstraints free ics
            return $ Core.makeTDef (Core.TName (icEvidence ic) (icType ic)) evidence
 
 
-checkHeapDivConstraint :: Name -> Type -> Maybe (Tvs -> ImplicitConstraint -> Inf Core.Expr)
+tryResolveImplicitConstraints :: Tvs -> Inf (Core.Expr -> Core.Expr)
+tryResolveImplicitConstraints free
+  = do ics <- clearImplicitConstraints
+       (coref,ics') <- tryResolve ([],[]) ics
+       addImplicitConstraints ics'
+       return coref
+  where
+    tryResolve :: ([Core.Def],[ImplicitConstraint]) -> [ImplicitConstraint] -> Inf (Core.Expr -> Core.Expr,[ImplicitConstraint])
+    tryResolve (defs,acc) []
+      = do let fcore core = case core of
+                              Core.Lam pars eff body -> Core.Lam pars eff (Core.makeDefsLet defs body)
+                              Core.TypeLam tpars (Core.Lam pars eff body) -> Core.TypeLam tpars (Core.Lam pars eff (Core.makeDefsLet defs body))
+                              _ -> Core.makeDefsLet defs core
+           return (fcore, reverse acc)
+    tryResolve (defs,acc) (ic:ics)
+      = do -- determined <- (icCanSolve ic) free ic
+           let determined = not $ tvsIsEmpty $ tvsFilter (\tv -> not (tvsMember tv free)) (ftv ic)
+           if determined
+             then do ev <- (icSolve ic) free ic
+                     let def = Core.makeTDef (Core.TName (icEvidence ic) (icType ic)) ev
+                     tryResolve (def:defs, acc) ics
+             else tryResolve (defs, ic:acc) ics
+
+checkHeapDivConstraint :: Name -> Type -> Maybe (Tvs -> ImplicitConstraint -> Inf Bool, Tvs -> ImplicitConstraint -> Inf Core.Expr)
 checkHeapDivConstraint name tp
   = case expandSyn tp of
       TApp (TCon tcon) [tpHeap,tpVal,tpEff]  | typeConName tcon == nameTypeHeapDiv
-        -> Just (resolveHeapDivConstraint False tpHeap tpVal tpEff)
+        -> Just (canResolveHeapDivConstraint,resolveHeapDivConstraint)
       _ -> Nothing
 
 ppTvs :: Pretty.Env -> Tvs -> Doc
 ppTvs penv tvs
   = list (map (Pretty.ppTypeVar penv) (tvsList tvs))
 
-resolveHeapDivConstraint :: Bool -> Type -> Type -> Type -> Tvs -> ImplicitConstraint -> Inf Core.Expr
-resolveHeapDivConstraint alwaysNoDiv tpHeap0 tpVal0 tpEff0 free ic
-  = case expandSyn (icType ic) of -- expand here again (should never fail!) so we get skolem substitutions
-      TApp (TCon tcon) [tpHeap,tpVal,tpEff] ->
-        do  stp <- subst tpVal
-            shp <- subst tpHeap
-            let tvsTp = ftv stp
-                tvsHp = ftv shp
-            sic <- subst ic
-            -- traceDefDoc $ \penv -> text "resolveHeapDivConstraint:" <+> ppConstraint penv sic
-            --                        <-> text "  free:" <+> ppTvs penv free
-            --                        <-> text "  tvsHp:" <+> ppTvs penv tvsHp <.> text ", tvsTp:" <+> ppTvs penv tvsTp
-            maydiv <- if (alwaysNoDiv || heapNeverContainedIn free shp stp)
-                          -- not (tvsIsEmpty (ftv stp)))) -- conservative guess...
-                        then return False
-                        else do -- add div effect to tpEff
-                                tv <- Op.freshEffect
-                                let divEff = effectExtend typeDivergent tv
-                                inferUnify (Infer (icContext ic)) (icRange ic) tpEff divEff
-                                return True
-            (cname,ctype,cinfo) <- resolveNameEx isInfoCon Nothing (if maydiv then nameEvHeapDiv else nameEvHeapNoDiv) CtxNone (icContext ic) (icRange ic)
-                                    -- resolveName nameEvHeapDiv Nothing (icRange ic)
-            seff  <- subst tpEff
-            sevtp <- subst (icType ic)
-            -- traceDefDoc $ \penv -> text "resolve @hdiv:" <+> Pretty.ppName penv (icEvidence ic) <.> colon <+> Pretty.ppType penv sevtp <+> text "as" <+> text (if maydiv then "divergent" else "non-divergent")
-            --                       <-> text "  , stp:" <+> Pretty.ppType penv stp <.> text ", shp:" <+> Pretty.ppType penv shp
-            --                       <-> text "  , free: " <+> list (map (Pretty.ppTypeVar penv) (tvsList free))
-            let ev = Core.TypeApp (coreExprFromNameInfo cname cinfo) [shp,stp,seff]
-            return ev
+
+canResolveHeapDivConstraint :: Tvs -> ImplicitConstraint -> Inf Bool
+canResolveHeapDivConstraint free ic
+  = do icTp <- subst (icType ic)
+       case expandSyn icTp of -- expand here again (should never fail!) so we get skolem substitutions
+         TApp (TCon tcon) [tpHeap,tpVal,tpEff]
+            -> return (heapNeverContainedIn free tpHeap tpVal)
+
+
+resolveHeapDivConstraint :: Tvs -> ImplicitConstraint -> Inf Core.Expr
+resolveHeapDivConstraint free ic
+  = do sic <- subst ic
+       case expandSyn (icType sic) of -- expand here again (should never fail!) so we get skolem substitutions
+         TApp (TCon tcon) [tpHeap,tpVal,tpEff]
+           -> do  -- traceDefDoc $ \penv -> text "resolveHeapDivConstraint:" <+> ppConstraint penv sic
+                  --                        <-> text "  free:" <+> ppTvs penv free
+                  --                        <-> text "  tvsHp:" <+> ppTvs penv tvsHp <.> text ", tvsTp:" <+> ppTvs penv tvsTp
+                  maydiv <- if (heapNeverContainedIn free tpHeap tpVal)
+                                -- not (tvsIsEmpty (ftv stp)))) -- conservative guess...
+                              then return False
+                              else do -- add div effect to tpEff
+                                      tv <- Op.freshEffect
+                                      let divEff = effectExtend typeDivergent tv
+                                      inferUnify (Infer (icContext ic)) (icRange ic) tpEff divEff
+                                      return True
+                  (cname,ctype,cinfo) <- resolveNameEx isInfoCon Nothing (if maydiv then nameEvHeapDiv else nameEvHeapNoDiv) CtxNone (icContext ic) (icRange ic)
+                                          -- resolveName nameEvHeapDiv Nothing (icRange ic)
+                  seff <- subst tpEff
+                  stp  <- subst (icType sic)
+                  traceDefDoc $ \penv -> text "resolve @hdiv:" <+> Pretty.ppName penv (icEvidence ic) <.> colon <+> Pretty.ppType penv stp <+> text "as" <+> text (if maydiv then "divergent" else "non-divergent")
+                                          <-> text "  , free: " <+> ppTvs penv free
+                  let ev = Core.TypeApp (coreExprFromNameInfo cname cinfo) [tpHeap,tpVal,seff]
+                  return ev
 
 
 {--------------------------------------------------------------------------
@@ -2026,13 +2037,13 @@ isImplicitConstraintEvidenceName name
   = nameStartsWith name "iev@"
 
 -- add a new implicit constraint with a fresh name (to be solved at generalization time)
-addImplicitConstraint :: Name -> Type -> (Tvs -> ImplicitConstraint -> Inf Core.Expr) -> Range -> Range -> Inf ImplicitArg
-addImplicitConstraint name tp solve context rng
+addImplicitConstraint :: Name -> Type -> (Tvs -> ImplicitConstraint -> Inf Bool) -> (Tvs -> ImplicitConstraint -> Inf Core.Expr) -> Range -> Range -> Inf ImplicitArg
+addImplicitConstraint name tp canSolve solve context rng
   = do evName <- Core.freshName "iev"
-       let ic = ImplicitConstraint name tp evName context rng solve
+       let ic = ImplicitConstraint name tp evName context rng canSolve solve
        addImplicitConstraints [ic]
        let iarg = ImplicitArg evName (createNameInfoX Public evName DefVal rng tp "") tp []
-       -- traceDefDoc $ \penv -> text "add implicit constraint:" <+> ppConstraint penv ic
+       traceDefDoc $ \penv -> text "add implicit constraint:" <+> ppConstraint penv ic
        return iarg
 
 -- add back implicit constraints
@@ -2041,26 +2052,33 @@ addImplicitConstraints ics
   = do updateSt (\st -> st{ iconstraints = ics ++ iconstraints st })
        return ()
 
+getImplicitConstraints :: Inf [ImplicitConstraint]
+getImplicitConstraints
+  = do st <- getSt
+       subst (iconstraints st)
+
 clearImplicitConstraints :: Inf [ImplicitConstraint]
 clearImplicitConstraints
   = do st0 <- updateSt (\st -> st{ iconstraints = [] })
-       subst (iconstraints st0)       
+       subst (iconstraints st0)
 
 substImplicitConstraints :: Sub -> Inf ()
 substImplicitConstraints sub
-  = do ics <- clearImplicitConstraints 
+  = do ics <- clearImplicitConstraints
        addImplicitConstraints (sub |-> ics)
        return ()
 
+{-
 -- return constraints that can be generalized
 splitImplicitConstraints :: Tvs -> Inf [ImplicitConstraint]
 splitImplicitConstraints free
   = do st <- getSt
        ics <- subst (iconstraints st)
-       let (ics0,ics1) = partition (\ic -> tvsDisjoint (fuv ic) free) ics
+       let (ics0,ics1) = partition (\ic -> tvsCommon (fuv ic) free) ics
        setSt (st{ iconstraints = ics1 })
-       -- traceDefDoc $ \penv -> text "split implicit constraint:" <+> list (map (ppConstraint penv) ics0)
+       traceDefDoc $ \penv -> text "split implicit constraints: genvars:" <+> ppTvs penv genvars <.> text ", ics:" <+> list (map (ppConstraint penv) ics0)
        return ics0
+-}
 
 getSub :: Inf Sub
 getSub

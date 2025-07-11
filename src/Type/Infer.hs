@@ -537,7 +537,7 @@ inferIsolated :: Range -> Range -> Expr a -> Inf (Type,Effect,Core.Expr) -> Inf 
 inferIsolated contextRange range body inf
   = do (tp,eff,core) <- inf
        res@(itp,ieff,coref) <- improveX contextRange range True eff tp
-       traceDefDoc $ \penv -> text "infer isolated:" <+> ppType penv tp <+> text "|" <+> ppType penv ieff <+> text "from" <+> ppType penv eff
+       -- traceDefDoc $ \penv -> text "infer isolated:" <+> ppType penv tp <+> text "|" <+> ppType penv ieff <+> text "from" <+> ppType penv eff
        case hasVarDecl body of
          Nothing   -> return (itp,ieff,coref core)
          Just vrng -> do sieff <- subst ieff
@@ -815,7 +815,7 @@ inferExpr propagated expect (Parens expr name pre rng)
        return (tp,eff,core)
 
 inferExpr propagated expect (Inject label expr behind rng)
-  = do eff0 <- Op.freshEffect  
+  = do eff0 <- Op.freshEffect
        let eff = if (not behind) then eff0 else (effectExtend label eff0)
 
        let tfun r = typeFun [] eff r
@@ -824,9 +824,9 @@ inferExpr propagated expect (Inject label expr behind rng)
                     Just (ptp,prng) -> case splitPredType ptp of
                                         (foralls,preds,rho)
                                           -> Just (quantifyType foralls $ qualifyType preds $ tfun rho, prng)
-       
+
        (mbHandled,effName) <- effectNameCore label rng
-       (exprTp,exprEff,exprCore) <- (if effName == nameTpLocal then withNoLocalScope else id) $ 
+       (exprTp,exprEff,exprCore) <- (if effName == nameTpLocal then withNoLocalScope else id) $
                                     inferExpr prop Instantiated expr
 
        res <- Op.freshStar
@@ -1311,6 +1311,8 @@ inferApp propagated expect fun nargs rng
 
            -- infer the argument expressions and subsume the types
            (effArgs,coreArgs) <- -- withGammaType rng (TFun pars funEff funTp) $ -- ensure the free 'some' types are free in gamma
+                                 (let unused = newHiddenName "unused"
+                                  in extendInfGamma [(unused,InfoVal Public unused funTp rng False False "")]) $ -- don't generalize over free propagated types
                                  do let parArgs = zip (map snd pars) (map snd iargs)
                                     case (fun) of
                                       (Var name _ _) | name == nameRunLocal
@@ -1346,11 +1348,12 @@ inferApp propagated expect fun nargs rng
 
            -- instantiate or generalize result type
            funTp1 <- subst funTp
-           -- traceDefDoc $ \env -> text " inferAppFunFirst: inst or gen:" <+> pretty (show expect) <+> colon <+> ppType env funTp1 <.> text ", top eff: " <+> ppType env topEff
-           (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect funTp1 core
+           stopEff <- subst topEff
+           -- traceDefDoc $ \env -> text " inferAppFunFirst: inst or gen:" <+> pretty (show expect) <+> colon <+> ppType env funTp1 <.> text ", top eff: " <+> ppType env stopEff
+           (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) stopEff expect funTp1 core
 
-           --traceDoc $ \env -> text " inferAppFunFirst: resTp:" <+> ppType env resTp <.> text ", top eff: " <+> ppType env topEff -- <+> text (show (resCore))
-           return (resTp,topEff,resCore)
+           -- traceDefDoc $ \env -> text " inferAppFunFirst: resTp:" <+> ppType env resTp <.> text ", top eff: " <+> ppType env topEff -- <+> text (show (resCore))
+           return (resTp,stopEff,resCore)
 
     -- we cannot resolve an overloaded function name: infer types of arguments without propagation first.
     -- The code handles inferring arguments in any order by keeping track of the index, but at the moment
@@ -1422,7 +1425,7 @@ inferLam topLevel propagated expect bindersL body0 rng
        let body = foldr (\f x -> f x) body0 unpackImplicitss
 
        (propArgs,propEff,propBody,skolems,expectBody) <- matchFun (length bindersX) propagated
-       -- traceDoc $ \env -> text "  prop eff:" <+> ppProp env propEff
+       traceDoc $ \env -> text "  prop eff:" <+> ppProp env propEff
 
        let binders0 = [case binderType binder of
                          Nothing -> binder{ binderType = fmap snd mbProp }
@@ -1493,7 +1496,7 @@ inferLam topLevel propagated expect bindersL body0 rng
            --                    [(tv,TVar tv{typevarFlavour=Meta}) | tv <- skolems]
            sftp1 = subSkolems |-> sftp0
        substImplicitConstraints subSkolems
-       
+
        -- traceDefDoc $ \env -> text " inferExpr.Lam: fun type:" <+> ppType env sftp1 <.> text "," <+> ppSub env subSkolems
        (ftp,fcore) <- maybeGeneralize rng (getRange body) typeTotal expect sftp1 (subSkolems |-> bodyCore2)
        -- traceDefDoc $ \env -> text " inferExpr.Lam: generalized fun type:" <+> ppType env ftp -- <+> text (show fcore)
