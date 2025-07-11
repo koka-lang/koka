@@ -155,19 +155,17 @@ generalize contextRange range close eff  tp@(TForall _ _ _)  core0
                 generalize contextRange range close seff rho (icore core0)
 
 generalize contextRange range close eff0 rho0 bodycore0
-  = do seff0 <- subst eff0
-       free0 <- freeInGamma
-       let free = tvsUnion free0 (fuv seff0)
-       let bodycore1 = bodycore0
-
-       -- check that the computation is total
+  = do -- check that the computation is total
        if (close)
-         then inferUnify (Check "Generalized values cannot have an effect" contextRange) range typeTotal seff0
+         then inferUnify (Check "Generalized values cannot have an effect" contextRange) range typeTotal eff0
          else return ()
-       seff <- subst seff0
-       srho <- subst rho0
 
-       let tvars0 = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] srho))
+       seff  <- subst eff0
+       srho  <- subst rho0
+       free0 <- freeInGamma
+       let free = tvsUnion free0 (fuv seff)
+       let bodycore1 = bodycore0
+       -- let tvars0 = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] srho))
        nrho <- normalizeX close free srho
 
        let -- substitute to Bound ones
@@ -233,9 +231,9 @@ instantiateNoEx range tp
 -- | Automatically remove heap effects when safe to do so.
 isolateX :: Range -> Tvs -> [ImplicitConstraint] -> Effect -> Inf ([ImplicitConstraint], Effect, Core.Expr -> Core.Expr)
 isolateX rng free ics eff
-  = do traceDefDoc $ \penv -> text "isolateX:" <+> Pretty.ppType penv eff
-                                <-> text "  free" <+> ppTvs penv free
-                                <-> text "  ics:" <+> list (map (ppConstraint penv) ics)
+  = do -- traceDefDoc $ \penv -> text "isolateX:" <+> Pretty.ppType penv eff
+                                -- <-> text "  free" <+> ppTvs penv free
+                                -- <-> text "  ics:" <+> list (map (ppConstraint penv) ics)
        let (ls,tl) = extractOrderedEffect eff
        case filter (\l -> labelName l `elem` [nameTpLocal,nameTpRead,nameTpWrite]) ls of
           (lab@(TApp labcon [TVar h]) : _)
@@ -245,7 +243,7 @@ isolateX rng free ics eff
                   -- determineds <- mapM (\ic -> (icCanSolve ic) free ic) polyIcs
                   if not (tvsMember h free) -- || and determineds
                     then do -- we can isolate, and discharge the polyIcs hdiv predicates
-                            traceDefDoc $ \penv -> text "can isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs)
+                            -- traceDefDoc $ \penv -> text "can isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs)
                             tv <- freshEffect
                             if isLocal
                              then do -- trace ("isolate local") $ return ()
@@ -268,7 +266,7 @@ isolateX rng free ics eff
                                                  then cexpr
                                                  else cexpr  -- TODO: apply runST?
                             return (ics',eff',coreRun . coref' . coref)
-                     else do traceDefDoc $ \penv -> text "cannot isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs) <+> text ", free ics:" <+> list (map (ppConstraint penv) ics1)
+                     else do -- traceDefDoc $ \penv -> text "cannot isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs) <+> text ", free ics:" <+> list (map (ppConstraint penv) ics1)
                              tryResolveImplicitConstraints free
                              return (ics,eff,id)
           _ -> return (ics,eff,id)
@@ -328,10 +326,11 @@ normalizeX close free tp
               eff'    <- case expandSyn tl of
                           -- remove tail variables in the result type
                           (TVar tv) | close && isMeta tv && not (tvsMember tv free) && not (tvsMember tv (ftv (res:map snd args)))
-                            -> -- trace ("close effect: " ++ show (pretty tp)) $
-                               do nofailUnify $ unify typeTotal tl
+                            -> do traceDefDoc $ \penv -> text "close effect:" <+> Pretty.ppType penv tp <-> text "  free:" <+> ppTvs penv free
+                                  nofailUnify $ unify typeTotal tl
                                   (subst eff) -- (effectFixed ls)
-                          _ -> do ls' <- mapM (normalizex Pos) ls
+                          _ -> do traceDefDoc $ \penv -> text "cannot close effect:" <+> Pretty.ppType penv tp <-> text "  free:" <+> ppTvs penv free
+                                  ls' <- mapM (normalizex Pos) ls
                                   tl' <- normalizex Pos tl
                                   return (effectExtends ls' tl')
               args' <- mapM (\(name,arg) -> do {arg' <- normalizex Neg arg; return (name,arg')}) args
@@ -2053,7 +2052,7 @@ addImplicitConstraint name tp canSolve solve context rng
        let ic = ImplicitConstraint name tp evName context rng canSolve solve
        addImplicitConstraints [ic]
        let iarg = ImplicitArg evName (createNameInfoX Public evName DefVal rng tp "") tp []
-       traceDefDoc $ \penv -> text "add implicit constraint:" <+> ppConstraint penv ic
+       -- traceDefDoc $ \penv -> text "add implicit constraint:" <+> ppConstraint penv ic
        return iarg
 
 -- add back implicit constraints
