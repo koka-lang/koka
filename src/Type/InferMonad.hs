@@ -139,8 +139,14 @@ trace s x =
 {--------------------------------------------------------------------------
   Generalization
 --------------------------------------------------------------------------}
-generalize :: HasCallStack => Range -> Range -> Bool -> Effect -> Rho -> Core.Expr -> Inf (Scheme,Core.Expr )
-generalize contextRange range close eff  tp@(TForall _ _ _)  core0
+generalize :: HasCallStack => Range -> Range -> Bool -> Inf (Rho,Effect,Core.Expr) -> Inf (Scheme,Effect,Core.Expr)
+generalize contextRange range close inf
+  = (if close then id else scopeImplicitConstraints) $
+    do res <- inf
+       generalizeX contextRange range close res
+
+generalizeX :: HasCallStack => Range -> Range -> Bool -> (Rho,Effect,Core.Expr) -> Inf (Scheme,Effect,Core.Expr )
+generalizeX contextRange range close (tp@(TForall _ _ _),eff,core0)
   = {-
     trace ("generalize forall: " ++ show tp) $
     return (tp,core0)
@@ -151,12 +157,12 @@ generalize contextRange range close eff  tp@(TForall _ _ _)  core0
        let free = tvsUnion free0 (fuv seff)
        if (tvsIsEmpty (fuv ({- seff, -} stp)))
         then -- Lib.Trace.trace ("generalize forall: " ++ show (pretty stp)) $
-              return (tp,core0)
+              return (tp,seff,core0)
         else -- Lib.Trace.trace ("generalize forall-inst: " ++ show (pretty seff, pretty stp) ++ " with " ++ show ps0) $
              do (rho,tvars,icore) <- instantiateNoEx range stp
-                generalize contextRange range close seff rho (icore core0)
+                generalizeX contextRange range close (rho,seff,icore core0)
 
-generalize contextRange range close eff0 rho0 bodycore0
+generalizeX contextRange range close (rho0,eff0,bodycore0)
   = do -- traceDefDoc $ \penv -> text "generalizing:" <+> Pretty.ppType penv rho0 <+> text "|" <+> Pretty.ppType penv eff0
        -- check that the computation is total
        if (close)
@@ -167,7 +173,7 @@ generalize contextRange range close eff0 rho0 bodycore0
        free0 <- freeInGamma
        let free1 = tvsUnion free0 (fuv seff0)
 
-       iccore <- tryResolveImplicitConstraints free1
+       iccore <- tryResolveImplicitConstraints close free1
        let bodycore1 = iccore bodycore0
 
        seff  <- subst eff0
@@ -185,7 +191,7 @@ generalize contextRange range close eff0 rho0 bodycore0
       --                         <-> text "  remaining ics:" <+> ppConstraints penv ics
 
        if (null tvars)
-        then do return (nrho,bodycore1)
+        then do return (nrho,seff,bodycore1)
         else do -- create fresh type variables for the bounds
                 -- important to avoid duplicate names (`test/algeff/exn3`)
                 (bvars,bsub) <- freshSub Bound tvars
@@ -196,7 +202,7 @@ generalize contextRange range close eff0 rho0 bodycore0
                     resTp = quantifyType bvars (qualifyType [] rho5)
 
                 -- traceDoc $ \penv -> text "corePre:" <+> prettyExpr penv{Pretty.coreShowTypes=True} corePre
-                return (resTp, core1)
+                return (resTp,seff,core1)
 
 
 
@@ -207,7 +213,7 @@ improveX contextRange range close eff0 rho0
        free0 <- freeInGamma
        ics   <- clearImplicitConstraints
        let free = tvsUnion free0 (ftv srho)
-       (ics1,eff1,coref) <- isolateX contextRange free ics seff
+       (ics1,eff1,coref) <- isolateX contextRange close free ics seff
        addImplicitConstraints ics1 -- add back unresolved constraints
        (nrho) <- normalizeX close free0 srho  -- use free0 or otherwise function results are not closed, see `test/type/talpin-jouvelot1/#t1`
        return (nrho,eff1,coref)
@@ -234,8 +240,8 @@ instantiateNoEx range tp
        return (rho, tvars, coref)
 
 -- | Automatically remove heap effects when safe to do so.
-isolateX :: Range -> Tvs -> [ImplicitConstraint] -> Effect -> Inf ([ImplicitConstraint], Effect, Core.Expr -> Core.Expr)
-isolateX rng free ics eff
+isolateX :: Range -> Bool -> Tvs -> [ImplicitConstraint] -> Effect -> Inf ([ImplicitConstraint], Effect, Core.Expr -> Core.Expr)
+isolateX rng close free ics eff
   = do -- traceDefDoc $ \penv -> text "isolateX:" <+> Pretty.ppType penv eff
                                 -- <-> text "  free" <+> ppTvs penv free
                                 -- <-> text "  ics:" <+> list (map (ppConstraint penv) ics)
@@ -266,13 +272,13 @@ isolateX rng free ics eff
                             -- trace ("isolate to:"  ++ show (pretty neweff)) $ return ()
                             -- return (sps, neweff, id) -- TODO: supply evidence (i.e. apply the run function)
                             -- and try again
-                            (ics',eff',coref') <- isolateX rng free sics neweff
+                            (ics',eff',coref') <- isolateX rng close free sics neweff
                             let coreRun cexpr = if (isLocal)
                                                  then cexpr
                                                  else cexpr  -- TODO: apply runST?
                             return (ics',eff',coreRun . coref' . coref)
                      else do -- traceDefDoc $ \penv -> text "cannot isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs) <+> text ", free ics:" <+> list (map (ppConstraint penv) ics1)
-                             tryResolveImplicitConstraints free
+                             tryResolveImplicitConstraints close free
                              return (ics,eff,id)
           _ -> return (ics,eff,id)
 
@@ -1778,8 +1784,8 @@ resolveImplicitConstraints free ics
            return $ Core.makeTDef (Core.TName (icEvidence ic) tp) evidence
 
 
-tryResolveImplicitConstraints :: Tvs -> Inf (Core.Expr -> Core.Expr)
-tryResolveImplicitConstraints free
+tryResolveImplicitConstraints :: Bool -> Tvs -> Inf (Core.Expr -> Core.Expr)
+tryResolveImplicitConstraints close free
   = do ics <- clearImplicitConstraints
        (coref,ics') <- tryResolve ([],[]) ics
        addImplicitConstraints ics'
@@ -1800,7 +1806,7 @@ tryResolveImplicitConstraints free
                             --   tvsIsEmpty ftvs             -- or are no free variables left?
                             let freeTv = tvsList (fuv ic)
                             in null freeTv || not (all (\tv -> tvsMember tv free) freeTv)
-           if determined || force
+           if determined || force || close
              then do (ev,tp) <- (icSolve ic) free ic
                      solvedImplicitConstraint (icEvidence ic) tp
                      let def = Core.makeTDef (Core.TName (icEvidence ic) tp) ev
@@ -1889,7 +1895,7 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
 data St     = St{ uniq :: !Int
                 , sub :: !Sub                            -- current substitution
                 , iconstraints :: ![ImplicitConstraint]  -- output
-                , iconstraintsGamma :: !InfGamma          -- adding a constraint adds an implicit local evidence variable
+                , iconstraintsGamma :: !InfGamma         -- adding a constraint adds an implicit local evidence variable
                 , preds :: ![Evidence]
                 , holeAllowed :: !Bool                   -- is a hole allowed for a constructor context?
                 , mbRangeMap :: Maybe RangeMap           -- used for errors and IDE integration
@@ -1912,7 +1918,7 @@ zapSubst
        assertion "not an empty infgamma" (infgammaIsEmpty (infgamma env)) $
         do st <- getSt
            when (not (infgammaIsEmpty (iconstraintsGamma st))) $
-             traceDefDoc $ \penv -> text "iconstraintsGamma:" <-> indent 2 (ppInfGamma penv (iconstraintsGamma st))
+            traceDefDoc $ \penv -> text "iconstraintsGamma:" <-> indent 2 (ppInfGamma penv (iconstraintsGamma st))
            updateSt (\st -> assertion "no empty preds" (null (preds st)) $
                             assertion "no empty iconstraints" (null (iconstraints st)) $
                             assertion "no empty iconstraints gamma" (infgammaIsEmpty (iconstraintsGamma st)) $
@@ -2119,7 +2125,7 @@ scopeImplicitConstraints inf
        -- traceDefDoc $ \penv -> text "scope ics:" <+> ppConstraints penv ics0
        x    <- traceIndent $ inf
        ics1 <- getImplicitConstraints
-       -- traceDefDoc $ \penv -> text "end scope: new ics:" <+> ppConstraints penv ics1 <+> text "++" <+> ppConstraints penv ics0
+       --traceDefDoc $ \penv -> text "end scope: new ics:" <+> ppConstraints penv ics1 <+> text "++" <+> ppConstraints penv ics0
        updateSt (\st -> st{ iconstraints = ics1 ++ ics0 })
        return x
 
