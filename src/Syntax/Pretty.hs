@@ -47,7 +47,6 @@ instance PrettyEnv (KUserType k) where
       TpApp tp args _ -> prettyEnv env tp <.> angled (map (prettyEnv env) args)
       TpFun args e res _ -> tupled (map (\(n, tp) -> prettyEnv env tp) args) <+> text "->" <+> prettyEnv env e <+> prettyEnv env res
       TpParens tp _ -> tupled [prettyEnv env tp]
-      TpQual _ _ -> text "unhandled tp"
 
 allDefs :: S.DefGroup t -> [S.Def t]
 allDefs defs =
@@ -87,7 +86,6 @@ ppSyntaxExtern env e = text "extern" <+> ppName env (extName e)
 returnType :: UserType -> Maybe (UserType, UserType)
 returnType (TpFun _ eff tp _) = Just (eff, tp)
 returnType (TpQuan _ _ tp _) = returnType tp
-returnType (TpQual _ tp) = returnType tp
 returnType _ = Nothing
 
 ppFunDef :: Env -> ValueBinder () (S.Expr UserType) -> Doc
@@ -153,7 +151,7 @@ ppSyntaxExpr env e =
       hcat (intersperse (text " ") (map (ppArg env) args))
     S.App hnd@Handler{} [(_, a)] range ->
       tupled [ppSyntaxExpr env hnd] <.> tupled [ppSyntaxExpr env a]
-    S.App fun [(Nothing, a)] range | not (isConstructorApp fun) -> -- prefer: arg.function 
+    S.App fun [(Nothing, a)] range | not (isConstructorApp fun) -> -- prefer: arg.function
       ppSyntaxExpr env a <.> text "." <.> ppSyntaxExpr env fun
     S.App fun ((Nothing, a):args) range | not (isConstructorApp fun) -> -- prefer: arg.function(args,...)
       ppSyntaxExpr env a <.> text "." <.> ppSyntaxExpr env fun <.> tupled (map (ppArg env) args)

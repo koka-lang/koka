@@ -181,7 +181,7 @@ module Common.NamePrim
           -- * Kind constructors
           , nameKindStar, nameKindFun
           , nameKindLabel
-          , nameKindPred, nameKindEffect
+          , nameKindEffect
           , nameKindHeap, nameKindScope
           , nameKindHandled1, nameKindHandled
 
@@ -576,7 +576,6 @@ isPrimitiveModule name
 nameKindStar    = newName "V"
 nameKindLabel   = newName "X"
 nameKindFun     = newName "->"
-nameKindPred    = newName "P"
 nameKindEffect  = newName "E"
 nameKindHeap    = newName "H"
 nameKindScope   = newName "S"

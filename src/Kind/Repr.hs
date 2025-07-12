@@ -253,7 +253,7 @@ getDataDef lookupDI tp
       extractDataDefType tp
         = case expandSyn tp of
             TApp t _      -> extractDataDefType t
-            TForall _ _ t -> extractDataDefType t
+            TForall _ t   -> extractDataDefType t
             TCon tc       -> Just (typeConName tc)
             _             -> Nothing
 

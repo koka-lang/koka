@@ -165,7 +165,7 @@ makeCCtxEmpty tp
                         (InfoExternal [(C CDefault,"kk_cctx_empty(kk_context())"),(JS JsDefault,"$std_core_types._cctx_empty()")])
                       ) [tp]) []
   where
-    funType = TForall [a] [] (TFun [] typeTotal (typeCCtx (TVar a)))
+    funType = TForall [a] (TFun [] typeTotal (typeCCtx (TVar a)))
     a = TypeVar 0 kindStar Bound
 
 
@@ -178,7 +178,7 @@ makeCCtxCreate tp holetp top holeaddr
                                (JS JsDefault,"$std_core_types._cctx_create(#1,#2)")])
          ) [tp,holetp]) [top,holeaddr]
   where
-    funType = TForall [a,b] [] (TFun [(nameNil,TVar a),
+    funType = TForall [a,b] (TFun [(nameNil,TVar a),
                                       (nameNil,TApp typeFieldAddr [TVar a])]
                                       typeTotal (TApp typeCCtxx [TVar a,TVar b]))
     a = TypeVar 0 kindStar Bound
@@ -191,7 +191,7 @@ makeFieldAddrOf obj conName fieldName fieldTp
   = App (TypeApp (Var (TName nameFieldAddrOf funType) (InfoExternal [])) [fieldTp])
         [obj, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
   where
-    funType = TForall [a] [] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
+    funType = TForall [a] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
                                    typeTotal (TApp typeFieldAddr [TVar a]))
     a = TypeVar 0 kindStar Bound
 
@@ -323,7 +323,7 @@ lookupFieldName cname field
          _ -> failure $ "Core.CTail.getFieldName: no such constructor: " ++ show cname ++ ", field " ++ show  field
   where
     getDataTypeName cname  = case splitFunScheme (typeOf cname) of
-                               Just (_,_,_,_,tres) -> getDataTypeNameRes tres
+                               Just (_,_,_,tres) -> getDataTypeNameRes tres
                                Nothing             -> failure $ "Core.CTail.getFieldName: illegal constructor type: " ++ show cname ++ ", field " ++ show  field ++ ": " ++ show (pretty (typeOf cname))
     getDataTypeNameRes tp  = case dataTypeNameOf tp of
                                Right name -> name

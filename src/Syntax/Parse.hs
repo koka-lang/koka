@@ -456,7 +456,6 @@ externDecl dvis
           TpQuan QSome _ _ _ -> fail "external types cannot contain unspecified ('_') types"
           TpQuan QExists _ _ _ -> fail "external types cannot contain existential types"
           TpQuan _ _ t _ -> genParArgs t
-          TpQual _ t     -> genParArgs t
           TpParens t _   -> genParArgs t
           TpAnn t _      -> genParArgs t
           TpFun pars _ _ _ -> return $ genFunParArgs pars
@@ -2758,16 +2757,13 @@ katom
     do rng <- specialConId "S"
        return (KindCon nameKindScope rng)
   <|>
-    do rng <- specialConId "P"
-       return (KindCon nameKindPred rng)
-  <|>
     do rng <- specialConId "HX"
        return (makeKindHandled rng) -- (KindCon nameKindHandled rng)
   {- <|>
     do rng <- specialConId "HX1"
        return (makeKindHandled rng) -- (KindCon nameKindHandled1 rng)
   -}
-  <?> "kind constant (V,E,H,S,X,HX, or P)"
+  <?> "kind constant (V,E,H,S,X,or HX)"
 
 makeKindHandled rng
   = KindArrow (KindCon nameKindEffect rng) (KindArrow (KindCon nameKindStar rng) (KindCon nameKindStar rng))

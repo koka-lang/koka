@@ -89,12 +89,12 @@ ctailDef topLevel def
        resRefType <- hasResultRefType (defType def)
        case resRefType of
          Nothing -> return [DefRec [def]]
-         Just (tforall,tpreds,targs,teff,tres)
+         Just (tforall,targs,teff,tres)
            -> do -- ctailTrace "- has reference type result"
                  let ctailSlotType = typeCCtx tres
                      ctailName = makeHiddenName "trmc" (defName def)
                      ctailSlot = newHiddenName "acc"
-                     ctailType = tForall tforall tpreds (TFun (targs ++ [(ctailSlot,ctailSlotType)]) teff tres)
+                     ctailType = tForall tforall (TFun (targs ++ [(ctailSlot,ctailSlotType)]) teff tres)
                      ctailTName= TName ctailName ctailType
                      ctailTSlot= TName ctailSlot ctailSlotType
 
@@ -108,7 +108,7 @@ ctailDef topLevel def
                      ctailMultiSlotType = TFun [(nameNil,tres)] typeTotal tres
                      ctailMultiName  = makeHiddenName "trmcm" (defName def)
                      ctailMultiSlot  = newHiddenName "accm"
-                     ctailMultiType  = tForall tforall tpreds (TFun (targs ++ [(ctailMultiSlot,ctailMultiSlotType)]) teff tres)
+                     ctailMultiType  = tForall tforall (TFun (targs ++ [(ctailMultiSlot,ctailMultiSlotType)]) teff tres)
                      ctailMultiTName = TName ctailMultiName ctailMultiType
                      ctailMultiTSlot = TName ctailMultiSlot ctailMultiSlotType
                      ctailMultiVar   = Var ctailMultiTName (InfoArity (length tforall) (length targs + 1))
@@ -135,10 +135,10 @@ makeCDefExpr slot (Lam args eff body)   = Lam (args ++ [slot]) eff body
 makeCDefExpr slot body                  = failure $ "Core.CTail: illegal ctail function shape: " ++ show body
 
 
-hasResultRefType :: Type -> CTail (Maybe ([TypeVar],[Pred],[(Name,Type)],Effect,Type))
+hasResultRefType :: Type -> CTail (Maybe ([TypeVar],[(Name,Type)],Effect,Type))
 hasResultRefType tp
   = case splitFunScheme tp of
-      Just t@(foralls,preds,targs,teff,tres)
+      Just t@(foralls,targs,teff,tres)
         -> do isRType <- hasRefType tres
               return (if (isRType) then (Just t) else Nothing)
       _ -> return Nothing
@@ -443,7 +443,7 @@ makeHole :: Type -> Expr
 makeHole tp
   = App (TypeApp (Var (TName nameCCtxHoleCreate funType) (InfoExternal [])) [tp]) []
   where
-    funType = TForall [a] [] (TFun [] typeTotal (TVar a))
+    funType = TForall [a] (TFun [] typeTotal (TVar a))
     a = TypeVar 0 kindStar Bound
 
 
@@ -455,7 +455,7 @@ makeCCtxEmpty tp
                         (InfoExternal [(C CDefault,"kk_cctx_empty(kk_context())"),(JS JsDefault,"$std_core_types._cctx_empty()")])
                       ) [tp]) []
   where
-    funType = TForall [a] [] (TFun [] typeTotal (typeCCtx (TVar a)))
+    funType = TForall [a] (TFun [] typeTotal (typeCCtx (TVar a)))
     a = TypeVar 0 kindStar Bound
 
 
@@ -465,7 +465,7 @@ makeFieldAddrOf objName conName fieldName tp
   = App (TypeApp (Var (TName nameFieldAddrOf funType) (InfoExternal [])) [tp])
         [Var objName InfoNone, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
   where
-    funType = TForall [a] [] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
+    funType = TForall [a] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
                                    typeTotal (TApp typeFieldAddr [TVar a]))
     a = TypeVar 0 kindStar Bound
 
@@ -482,7 +482,7 @@ makeCCtxExtend slot resName objName conName fieldName tp alwaysAffine
             ) [tp])
             [Var slot InfoNone, Var resName InfoNone, fieldOf]
   where
-    funType = TForall [a] [] (TFun [(nameNil,typeCCtx (TVar a)),
+    funType = TForall [a] (TFun [(nameNil,typeCCtx (TVar a)),
                                     (nameNil,TVar a),
                                     (nameNil,TApp typeFieldAddr [TVar a])] typeTotal (typeCCtx (TVar a)))
     a = TypeVar 0 kindStar Bound
@@ -505,7 +505,7 @@ makeCCtxApply False alwaysAffine slot expr  -- slot is a `ctail<a>`
     tp = case typeOf slot of
            TApp _ [t] -> t
            TSyn _ [t] _ -> t
-    funType = TForall [a] [] (TFun [(nameNil,typeCCtx (TVar a)),(nameNil,TVar a)] typeTotal (TVar a))
+    funType = TForall [a] (TFun [(nameNil,typeCCtx (TVar a)),(nameNil,TVar a)] typeTotal (TVar a))
     a = TypeVar (-1) kindStar Bound
 
 
@@ -587,7 +587,7 @@ getCTailFun :: CTail Expr
 getCTailFun
   = do ctail <- ctailName <$> getEnv
        let info = case splitFunScheme (typeOf ctail) of
-                    Just (foralls,_,targs,_,_) -> InfoArity (length foralls) (length targs)
+                    Just (foralls,targs,_,_) -> InfoArity (length foralls) (length targs)
                     _ -> InfoNone
        return (Var ctail info)
 
@@ -623,7 +623,7 @@ getFieldName cname field
          _ -> failure $ "Core.CTail.getFieldName: no such constructor: " ++ show cname ++ ", field " ++ show  field
   where
     getDataTypeName cname  = case splitFunScheme (typeOf cname) of
-                               Just (_,_,_,_,tres) -> getDataTypeNameRes tres
+                               Just (_,_,_,tres) -> getDataTypeNameRes tres
                                Nothing             -> failure $ "Core.CTail.getFieldName: illegal constructor type: " ++ show cname ++ ", field " ++ show  field ++ ": " ++ show (pretty (typeOf cname))
     getDataTypeNameRes tp  = case expandSyn tp of
                                TApp t ts -> getDataTypeNameRes t

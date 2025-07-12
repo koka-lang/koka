@@ -609,7 +609,7 @@ extractImportedSynonyms progName sigs
                                    Nothing   -> syns
           TApp con args       -> extractSynonyms (con:args)
           TFun args eff res   -> extractSynonyms (res:eff:map snd args)
-          TForall _ _ body    -> extractSynonym body
+          TForall _ body      -> extractSynonym body
           _                   -> synonymsEmpty
 
     extractSynonyms :: [Type] -> Synonyms

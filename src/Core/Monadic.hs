@@ -124,7 +124,7 @@ monExpr' topLevel expr
               args' <- mapM monExpr args
               let -- ff  = f' id
                   ftp = typeOf f -- ff
-              feff <- let (tvs,preds,rho) = splitPredType ftp -- can happen with: ambient control abort() : a
+              feff <- let (tvs,rho) = splitPredType ftp -- can happen with: ambient control abort() : a
                       in case splitFunType rho of
                            Just(_,feff,_) -> return feff
                            _ -> do monTraceDoc $ \env -> text "Core.Monadic.App: illegal application:" <+> ppType env ftp
@@ -269,7 +269,7 @@ monMakeBind tpArg tpEff tpRes arg next
 
 typeBind :: Type
 typeBind
-  = TForall [tvarA,tvarB,tvarE] []
+  = TForall [tvarA,tvarB,tvarE]
       (TFun [(nameNil,typeYld (TVar tvarA)),
              (nameNil,TFun [(nameNil,TVar tvarA)] (TVar tvarE) (typeYld (TVar tvarB)))]
             (TVar tvarE) (typeYld (TVar tvarB)))

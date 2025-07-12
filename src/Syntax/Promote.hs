@@ -119,7 +119,6 @@ promoteEx somePars forallPars preds argresTypes body
         (impSome,impForall) = partition isSomeVar implicit
         fullTp = quantify QSome (somePars ++ (map toTypeBinder (names ++ impSome))) $
                  quantify QForall (forallPars ++ (map toTypeBinder impForall)) $
-                 qualify preds $
                  funTp
      in
         Ann body fullTp (combineRanged body fullTp)
@@ -161,9 +160,6 @@ extract tp
            in (lab:labs,tl)
       _ -> ([],tp)
 
-qualify [] tp = tp
-qualify preds tp = TpQual preds tp
-
 quantify :: UserQuantifier -> [UserTypeBinder] -> UserType -> UserType
 quantify quan tbinders tp
   = foldr (\tb t -> TpQuan quan tb t (combineRanged tb t)) tp tbinders
@@ -182,7 +178,6 @@ promoteTpVars :: S.NameSet -> UserType -> UserType
 promoteTpVars vars tp
   = case tp of
      TpQuan quant tb tp rng         -> TpQuan quant tb (promoteTpVars (S.delete (getName tb) vars) tp) rng
-     TpQual     preds tp            -> TpQual (map (promoteTpVars vars) preds) (promoteTpVars vars tp)
      TpFun      args effect tp rng  -> TpFun [(name,promoteTpVars vars tp) | (name,tp) <- args] (promoteTpVars vars effect) (promoteTpVars vars tp) rng
      TpApp      tp args range       -> TpApp (promoteTpVars vars tp) (map (promoteTpVars vars) args) range
      TpVar      name range          -> TpVar name range

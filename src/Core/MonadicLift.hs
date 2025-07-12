@@ -100,7 +100,7 @@ liftExprInl topLevel expr =
             let bind = App tpApp [bexpr',f]
                 ibind = App (TypeApp (Var (TName nameBind2 typeBind2) (InfoArity 3 3)) [tpArg,tpRes,tpEff])
                             [bexpr',f,(Lam [arg] eff ibody')]
-                typeBind2 = TForall [a,b,e] [] (typeFun [(nameNil,TVar a),
+                typeBind2 = TForall [a,b,e] (typeFun [(nameNil,TVar a),
                                                          (nameNil,typeFun [(nameNil,TVar a)] (TVar e) (TVar b)),
                                                          (nameNil,typeFun [(nameNil,TVar a)] (TVar e) (TVar b))] (TVar e) (TVar b))
                           where

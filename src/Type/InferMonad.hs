@@ -146,7 +146,7 @@ generalize contextRange range close inf
        generalizeX contextRange range close res
 
 generalizeX :: HasCallStack => Range -> Range -> Bool -> (Rho,Effect,Core.Expr) -> Inf (Scheme,Effect,Core.Expr )
-generalizeX contextRange range close (tp@(TForall _ _ _),eff,core0)
+generalizeX contextRange range close (tp@(TForall _ _),eff,core0)
   = do stp  <- subst tp
        seff <- subst eff
        if (tvsIsEmpty (fuv stp))
@@ -176,7 +176,7 @@ generalizeX contextRange range close (rho0,eff0,bodycore0)
        nrho <- normalizeX close free srho
 
        -- generalized type variables
-       let tvars = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] nrho))
+       let tvars = filter (\tv -> not (tvsMember tv free)) (ofuv nrho)
 
       --  ics <- getImplicitConstraints
       --  traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv nrho <+> text "|" <+> Pretty.ppType penv seff
@@ -189,11 +189,11 @@ generalizeX contextRange range close (rho0,eff0,bodycore0)
         else do -- create fresh type variables for the bounds
                 -- important to avoid duplicate names (`test/algeff/exn3`)
                 (bvars,bsub) <- freshSub Bound tvars
-                let (TForall [] [] rho5) = bsub |-> (TForall [] [] nrho)
+                let (TForall [] rho5) = bsub |-> (TForall [] nrho)
                     -- core
                     corePre = bsub |-> bodycore1
                     core1 = Core.addTypeLambdas bvars corePre
-                    resTp = quantifyType bvars (qualifyType [] rho5)
+                    resTp = quantifyType bvars rho5
 
                 -- traceDoc $ \penv -> text "corePre:" <+> prettyExpr penv{Pretty.coreShowTypes=True} corePre
                 return (resTp,seff,core1)
@@ -220,7 +220,7 @@ instantiateEx range tp | isRho tp
   = do (rho,coref) <- Op.extend tp
        return (rho,[],coref)
 instantiateEx range tp
-  = do (tvars,ps,rho,coref) <- Op.instantiateEx range tp
+  = do (tvars,rho,coref) <- Op.instantiateEx range tp
        -- addPredicates ps
        return (rho, tvars, coref)
 
@@ -229,7 +229,7 @@ instantiateNoEx :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
 instantiateNoEx range tp | isRho tp
   = return (tp,[],id)
 instantiateNoEx range tp
-  = do (tvars,ps,rho,coref) <- Op.instantiateNoEx range tp
+  = do (tvars,rho,coref) <- Op.instantiateNoEx range tp
        -- addPredicates ps
        return (rho, tvars, coref)
 
@@ -321,7 +321,7 @@ normalize close tp
 normalizeX :: Bool -> Tvs -> Rho -> Inf Rho
 normalizeX close free tp
   = case tp of
-      TForall [] [] t
+      TForall [] t
         -> normalizeX close free t
       TSyn syn targs t
         -> do t' <- normalizeX close free t
@@ -366,9 +366,9 @@ normalizeX close free tp
                   res'  <- normalizex var res
                   niceEff <- nicefyEffect eff'
                   return (TFun args' niceEff res')
-          TForall vars preds t
+          TForall vars t
             -> do t' <- normalizex var t
-                  return (TForall vars preds t')
+                  return (TForall vars t')
           TApp t args
             -> do t' <- normalizex var t
                   return (TApp t' args)
@@ -489,7 +489,7 @@ inferSubsume context range expected tp
        -- trace ("inferSubsume: " ++ show (tupled [pretty sexp,pretty stp]) ++ " with free " ++ show (tvsList free)) $ return ()
        res <- doUnify (subsume range free sexp stp)
        case res of
-         Right (t,_,ps,coref) -> do -- addPredicates ps
+         Right (t,_,coref)   -> do
                                     return (t,coref)
          Left err             -> do unifyError context range err sexp stp
                                     return (expected,id)
@@ -507,7 +507,7 @@ nofailUnify u
 
 withSkolemized :: Range -> Type -> Maybe Doc -> (Type -> [TypeVar] -> Inf (a,Tvs)) -> Inf a
 withSkolemized rng tp mhint action
-  = do (xvars,_,xrho,_) <- Op.skolemizeEx rng tp
+  = do (xvars,xrho,_) <- Op.skolemizeEx rng tp
        (x,extraFree)    <- -- trace ("withSkolemized: " ++ show xvars ) $
                            action xrho xvars
        checkSkolemEscape rng xrho mhint xvars extraFree
@@ -633,23 +633,6 @@ unifyError' env context range err tp1 tp2
                              then ("only functions can be applied",[])
                              else ("application has too " ++ (if (n > m) then "few" else "many") ++ " arguments"
                                   ,[(text "hint",text ("expecting " ++ show n ++ " argument" ++ (if n == 1 then "" else "s") ++ " but has been given " ++ show m))])
-
-predicateError :: Range -> Range -> String -> Pred -> Inf ()
-predicateError contextRange range message pred
-  = do env <- getEnv
-       spred <- subst pred
-       predicateError' (prettyEnv env) contextRange range message spred
-
-predicateError' env contextRange range message pred
-  = do termInfo <- getTermDoc "origin" range
-       infError range $
-        text message <->
-        table  [(text "context", docFromRange (Pretty.colors env) contextRange)
-               , termInfo
-               ,(text "constraint", nicePred)
-               ]
-  where
-    nicePred  = Pretty.ppPred env pred
 
 
 typeError :: Range -> Range -> Doc -> Type -> [(Doc,Doc)] -> Inf ()
@@ -1445,7 +1428,7 @@ filterMatchNameContextEx range ctx candidates
            res <- do -- traceDefDoc $ \penv0 -> let penv = penv0{Pretty.showIds=True} in text "matchType:" <+> Pretty.ppName penv name <.> text "," <+> Pretty.ppType penv expect <+> text "~" <+> Pretty.ppType penv (infoType info)
                      runUnify (subsume range free expect (infoType info))
            case res of
-             (Right (_,rho,_,_),_)  -> return [(name,info,rho)]
+             (Right (rho,_,_),_)  -> return [(name,info,rho)]
              (Left _,_)             -> return []
 
     matchNamedArgs :: Bool -> Int -> [Name] -> Maybe Type -> (Name,NameInfo) -> Inf [(Name,NameInfo,Rho)]
@@ -1761,7 +1744,7 @@ heapNeverContainedIn free hp0 tp
     hp = expandSyn hp0
     neverContainedIn tp
       = case tp of
-          TForall _ _ t         -> neverContainedIn t
+          TForall _ t           -> neverContainedIn t
           TFun tpars teff tres  -> all neverContainedIn (map snd tpars ++ [teff,tres])
           TApp t targs          -> all neverContainedIn (t:targs)
           TSyn _ targs t        -> all neverContainedIn (t:targs)
@@ -1783,7 +1766,7 @@ heapAlwaysContainedIn free hp0 tp
     hp = expandSyn hp0
     heapAlwaysContainedIn tp
       = case tp of
-          TForall _ _ t         -> heapAlwaysContainedIn t
+          TForall _ t           -> heapAlwaysContainedIn t
           TFun tpars teff tres  -> any heapAlwaysContainedIn (map snd tpars ++ [teff,tres])
           TApp t targs          -> any heapAlwaysContainedIn (t:targs)
           TSyn _ targs t        -> any heapAlwaysContainedIn (t:targs)
@@ -2193,8 +2176,8 @@ extendGamma isAlreadyCanonical defs inf
             Right _ ->
               do env <- getEnv
                  let [nice1,nice2] = Pretty.niceTypes (prettyEnv env) [infoType info,infoType info2]
-                     (_,_,rho1)    = splitPredType (infoType info)
-                     (_,_,rho2)    = splitPredType (infoType info2)
+                     (_,rho1)      = splitPredType (infoType info)
+                     (_,rho2)      = splitPredType (infoType info2)
                      valueType     = not (isFun rho1 && isFun rho2)
                  if (isFun rho1 && isFun rho2)
                   then infError (infoRange info) (text "definition" <+> Pretty.ppName (prettyEnv env) name <+> text "overlaps with an earlier definition of the same name" <->

@@ -141,7 +141,7 @@ instance HasKind TypeSyn where
 instance HasKind Type where
   getKind tau
     = case tau of
-        TForall _ _ tp -> getKind tp
+        TForall _ tp   -> getKind tp
         TFun _ _ _     -> kindStar
         TVar v         -> getKind v
         TCon c         -> getKind c

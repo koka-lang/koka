@@ -103,7 +103,7 @@ ppMain name tp
     asyncMain   = text "__std_async.async_handle( new Primitive.FunFunc0<Unit>( () => " <+> consoleMain <+> text "))"
     consoleMain = ppName name <.> typeArgs <.> text "()"
     typeArgs = case expandSyn tp of
-                 TForall pars _ _ | not (null pars)
+                 TForall pars _ | not (null pars)
                    -> angled (map (\_ -> text "object") pars)
                  _ -> empty
 
@@ -350,18 +350,15 @@ ppSingletonName
 ---------------------------------------------------------------------------------
 -- Helpers
 ---------------------------------------------------------------------------------
-ppFunctionHeaderGen :: ModuleName -> Name -> [TypeVar] -> [Pred] -> Type -> Doc
-ppFunctionHeaderGen ctx name vars preds tp
+ppFunctionHeaderGen :: ModuleName -> Name -> [TypeVar] -> Type -> Doc
+ppFunctionHeaderGen ctx name vars tp
   = case expandSyn tp of
-      TForall vars' preds' t -> ppFunctionHeaderGen ctx name (vars' ++ vars) (preds' ++ preds) t
+      TForall vars' t -> ppFunctionHeaderGen ctx name (vars' ++ vars) t
       TFun pars eff res
         -> ppType ctx res <+> ppDefName name <.>
            ppTypeParams vars <.>
-           ppParams ctx (map predToParam (zip preds [1..]) ++ pars)
+           ppParams ctx pars
       _ -> matchFailure "Backend.CSharp.FromCore.ppFunctionHeaderGen"
-  where
-    predToParam (p,n)
-      = (newHiddenNameEx "pred" (show n), predType p)
 
 
 type ModuleName = Name
@@ -474,7 +471,7 @@ tetaExpand fun [] 0 = return fun
 tetaExpand fun targs m
   = assertion "Backend.CSharp.FromCore.tetaExpand" (m > length targs || (m==0 && null targs)) $
     do ids <- uniqueIds ".t" (m - length targs)
-       let (vars,_,_) = splitPredType (typeOf fun)
+       let (vars,_) = splitPredType (typeOf fun)
            kinds      = map getKind (drop (length targs) vars)
            vars'      = map (\(id,kind) -> TypeVar id kind Bound) (zip ids kinds)
        return (TypeLam vars' (TypeApp fun (targs ++ map TVar vars')))
@@ -627,7 +624,7 @@ genExternal  tname formats targs args
                            else result extDoc
 
 resultType targs tp
-  = let (vars,preds,rho) = splitPredType tp
+  = let (vars,rho) = splitPredType tp
     in subNew (zip vars targs) |->
        (case splitFunType rho of
          Just (pars,eff,res) -> res
@@ -730,10 +727,10 @@ assignArguments parNames0 argDocs0 args0
 
 extractResultType :: Type -> Type
 extractResultType tp
-  = let (vars,preds,rho) = splitPredType tp
+  = let (vars,rho) = splitPredType tp
     in case splitFunType rho of
-         Just (pars,eff,res)  -> TForall vars [] res
-         Nothing              -> TForall vars [] rho
+         Just (pars,eff,res)  -> TForall vars res
+         Nothing              -> TForall vars rho
 
 genCon :: TName -> ConRepr -> [Type] -> [Expr] -> Asm ()
 genCon tname repr targs args
@@ -1231,7 +1228,7 @@ genNextPatterns :: Doc -> Type -> [Pattern] -> [(Maybe Doc,Doc,Pattern)]
 genNextPatterns exprDoc tp []
   = []
 genNextPatterns exprDoc tp patterns
-  = let (vars,preds,rho) = splitPredType tp
+  = let (vars,rho) = splitPredType tp
     in case expandSyn rho of
          TFun args eff res
           -> case patterns of
@@ -1323,7 +1320,7 @@ ppField ctx (name,tp)
   where
     isFunOrForall tp
       = case expandSyn tp of
-          TForall _ _ _ -> True
+          TForall _ _ -> True
           TFun _ _ _    -> True
           _             -> False
 
@@ -1365,14 +1362,14 @@ ppTypeParams tvs
 ppType :: ModuleName -> Type -> Doc
 ppType ctx tp
   = case expandSyn tp of
-      TForall vars preds t
+      TForall vars t
         -> if (not (null vars))
             then primitive ("TypeFun" ++ show (length vars))
             else case expandSyn t of
-                   TFun pars eff res -> ppTypeFun ctx preds pars eff res
+                   TFun pars eff res -> ppTypeFun ctx pars eff res
                    _                 -> ppType ctx t
       TFun pars eff res
-        -> ppTypeFun ctx [] pars eff res
+        -> ppTypeFun ctx pars eff res
 
       TApp t ts
         -> -- case expandSyn t of
@@ -1458,8 +1455,8 @@ ppTAAppDocs t ts
 ppTypeVar v
   = text ("T" ++ show (typeVarId v))
 
-ppTypeFun ctx preds pars eff res
-  = ppTFun (map predType preds ++ map snd pars ++ [res])
+ppTypeFun ctx pars eff res
+  = ppTFun (map snd pars ++ [res])
   where
     ppTFun (arg:rest)
       = primitive ("Fun" ++ show (length rest)) <.> angled (ppType ctx arg :   map (ppType ctx) rest)
@@ -1476,26 +1473,26 @@ primitive s
 
 ppTypeEx :: ModuleName -> Type -> [Type] -> Doc
 ppTypeEx ctx tp targs
-  = let (tvars,preds,rho) = splitPredType tp in
+  = let (tvars,rho) = splitPredType tp in
     assertion "Backend.CSharp.FromCore.ppTypeApp" (length tvars == length targs) $
     if (all (\targ -> kindStar == getKind targ) targs)
      then ppType ctx (subNew (zip tvars targs) |-> rho)
      else let argDocs = map (ppType ctx) targs
               sub = zip tvars argDocs
           in -- trace ("ppTypeEx: " ++ show (tp,targs) ++ ": " ++ show sub) $
-             ppTypeSub ctx sub (TForall [] preds rho)
+             ppTypeSub ctx sub (TForall [] rho)
 
 ppTypeSub :: ModuleName -> [(TypeVar,Doc)] -> Type -> Doc
 ppTypeSub ctx sub tp
   = case expandSyn tp of
-      TForall vars preds t
+      TForall vars t
         -> if (not (null vars))
             then primitive ("TypeFun" ++ show (length vars))
             else case expandSyn t of
-                   TFun pars eff res -> ppTypeFunSub ctx sub preds pars eff res
+                   TFun pars eff res -> ppTypeFunSub ctx sub pars eff res
                    _                 -> ppTypeSub ctx sub t
       TFun pars eff res
-        -> ppTypeFunSub ctx sub [] pars eff res
+        -> ppTypeFunSub ctx sub pars eff res
       TApp t ts
         -> -- case expandSyn t of
            --   TCon c | getKind tp == kindStar -> ppQName ctx (typeClassName (typeConName c)) <.> angled (map (ppTypeSub ctx sub) ts)
@@ -1511,8 +1508,8 @@ ppTypeSub ctx sub tp
 ppTypeAppSub ctx sub t ts
   = foldl (\d targ -> primitive "TA" <.> angled [d,ppTypeSub ctx sub targ]) (ppTypeSub ctx sub t) ts
 
-ppTypeFunSub ctx sub preds pars eff res
-  = ppTFun (map predType preds ++ map snd pars ++ [res])
+ppTypeFunSub ctx sub pars eff res
+  = ppTFun (map snd pars ++ [res])
   where
     ppTFun (arg:rest)
       = primitive ("Fun" ++ show (length rest)) <.> angled (ppTypeSub ctx sub arg : map (ppTypeSub ctx sub) rest)

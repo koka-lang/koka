@@ -420,7 +420,7 @@ createNameInfo name isVal rng tp doc
 getArity :: Type -> (Int,Int)
 getArity tp
   = case expandSyn tp of
-      TForall tvars preds t
+      TForall tvars t
         -> case expandSyn t of
              TFun pars eff res -> (length tvars, length pars)
              _                 -> (length tvars, -1 )

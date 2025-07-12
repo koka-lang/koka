@@ -13,7 +13,6 @@ module Type.Operations( instantiate
                       , instantiateEx, instantiateNoEx, extend
                       , skolemize, skolemizeEx
                       , freshTVar, freshTVars, freshEffect, freshStar
-                      , Evidence(..)
                       , freshSub
                       , isOptionalOrImplicit, splitOptionalImplicit, requiresImplicits
                       , hasOptionalOrImplicits
@@ -34,7 +33,7 @@ import Type.Assumption
 requiresImplicits :: Type -> [(Name, Type)]
 requiresImplicits tp
   = case splitFunScheme tp of
-      Just (_ ,_, pars,_,_) -> filter (isImplicitParamName . fst) pars
+      Just (_ ,pars,_,_) -> filter (isImplicitParamName . fst) pars
       _               -> []
 
 isOptionalOrImplicit :: (Name,Type) -> Bool
@@ -54,44 +53,27 @@ hasOptionalOrImplicits pars
 --------------------------------------------------------------------------
 -- Instantiation
 --------------------------------------------------------------------------
-data Evidence = Ev{ evName :: Core.TName
-                  , evPred :: Pred
-                  , evRange :: Range
-                  }
-
-instance HasTypeVar Evidence where
-  sub `substitute` ev
-    = ev{ evPred = sub `substitute` (evPred ev) }
-  ftv ev
-    = ftv (evPred ev)
-  btv ev
-    = btv (evPred ev)
-  ftc ev
-    = ftc (evPred ev)
-
-instance Show Evidence where
-  show ev = show (evPred ev)
 
 -- | Instantiate a type
 instantiate :: (HasCallStack,HasUnique m) => Range -> Type -> m Rho
 instantiate range tp
-  = do (ids,preds,rho,coref) <- instantiateNoEx range tp
+  = do (ids,rho,coref) <- instantiateNoEx range tp
        return rho
 
 -- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence,
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
-instantiateEx :: (HasCallStack,HasUnique m) => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
+instantiateEx :: (HasCallStack,HasUnique m) => Range -> Type -> m ([TypeVar],Rho,Core.Expr -> Core.Expr)
 instantiateEx rng tp
-  = do (ids,preds,rho,coref) <- instantiateExFl Meta rng tp
+  = do (ids,rho,coref) <- instantiateExFl Meta rng tp
        (erho,coreg) <- extend rho
-       return (ids,preds,erho, coreg . coref)
+       return (ids,erho, coreg . coref)
 
 -- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence,
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
-instantiateNoEx :: (HasCallStack,HasUnique m) => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
+instantiateNoEx :: (HasCallStack,HasUnique m) => Range -> Type -> m ([TypeVar],Rho,Core.Expr -> Core.Expr)
 instantiateNoEx rng tp
-  = do (ids,preds,rho,coref) <- instantiateExFl Meta rng tp
-       return (ids,preds,rho,coref)
+  = do (ids,rho,coref) <- instantiateExFl Meta rng tp
+       return (ids,rho,coref)
 
 -- | Ensure the result of function always gets an extensible effect type
 -- This is necessary to do on instantiation since we simplify such effect variables
@@ -115,39 +97,26 @@ extend tp
 -- | Skolemize a type
 skolemize :: (HasCallStack,HasUnique m) => Range -> Type -> m Rho
 skolemize range tp
-  = do (ids,preds,rho,coref) <- skolemizeEx range tp
+  = do (ids,rho,coref) <- skolemizeEx range tp
        return rho
 
 -- | Skolemize a type and return the instantiated quantifiers, name/predicate pairs for evidence,
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
-skolemizeEx :: (HasCallStack,HasUnique m) => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
+skolemizeEx :: (HasCallStack,HasUnique m) => Range -> Type -> m ([TypeVar],Rho,Core.Expr -> Core.Expr)
 skolemizeEx rng tp
   = -- trace ("skolemizeEx: " ++ show tp) $
     instantiateExFl Skolem rng tp
 
 
 -- | General instantiation for skolemize and instantiate
-instantiateExFl :: (HasCallStack,HasUnique m) => Flavour -> Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
+instantiateExFl :: (HasCallStack,HasUnique m) => Flavour -> Range -> Type -> m ([TypeVar],Rho,Core.Expr -> Core.Expr)
 instantiateExFl flavour range tp
   = case splitPredType tp of
-      ([],[],rho) -> return ([],[],rho,id)
-      (vars,preds,rho)
+      ([],rho) -> return ([],rho,id)
+      (vars,rho)
         ->  do (tvars,sub) <- freshSubX TVar flavour vars (alltv rho)
                let srho   = sub |-> rho
-                   spreds = sub |-> preds
-               pnames <- mapM predName spreds
-               let corevars = map (\name -> Core.Var name InfoNone) pnames
-                   evidence = [Ev name pred range | (name,pred) <- zip pnames spreds]
-               return $!(tvars, evidence, srho
-                         , (if null corevars then id else id {- Core.addApps corevars -}) . addTypeApps tvars)
-
-
-predName :: HasUnique m => Pred -> m Core.TName
-predName pred
-  = do name <- case pred of
-                 PredSub _ _ -> Core.freshName "sub"
-                 PredIFace iname _ -> Core.freshName (show iname)
-       return (Core.TName name (predType pred))
+               return $! (tvars, srho, addTypeApps tvars)
 
 
 freshSub :: HasUnique m => Flavour -> [TypeVar] -> m ([TypeVar],Sub)
