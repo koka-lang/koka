@@ -111,7 +111,7 @@ skolemizeEx rng tp
 -- | General instantiation for skolemize and instantiate
 instantiateExFl :: (HasCallStack,HasUnique m) => Flavour -> Range -> Type -> m ([TypeVar],Rho,Core.Expr -> Core.Expr)
 instantiateExFl flavour range tp
-  = case splitPredType tp of
+  = case splitTypeScheme tp of
       ([],rho) -> return ([],rho,id)
       (vars,rho)
         ->  do (tvars,sub) <- freshSubX TVar flavour vars (alltv rho)

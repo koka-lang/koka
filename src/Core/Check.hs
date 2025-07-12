@@ -208,7 +208,7 @@ check expr
               return (quantifyType tvars tp)
       TypeApp e tps
         -> do tpTForall <- check e
-              let (tvars,tp) = splitPredType tpTForall
+              let (tvars,tp) = splitTypeScheme tpTForall
               -- We can use actual equality for kinds, because any kind variables will have been
               -- substituted when doing kind application (above)
               -- when (length tps /= length tvars || or [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $

@@ -1697,7 +1697,7 @@ genNextPatterns :: (Doc -> Doc -> Doc) -> Doc -> Type -> [Pattern] -> [(Doc,Patt
 genNextPatterns select exprDoc tp []
   = []
 genNextPatterns select exprDoc tp patterns
-  = let (vars,rho) = splitPredType tp
+  = let (vars,rho) = splitTypeScheme tp
     in case expandSyn rho of
          TFun args eff res
           -> case patterns of

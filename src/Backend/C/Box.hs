@@ -322,7 +322,7 @@ type BoxType = Type
 boxTypeOf :: HasCallStack => Expr -> BoxType
 boxTypeOf expr
   = -- trace ("boxTypeOf: typeApp: " ++ show expr) $
-    case splitPredType (typeOf expr) of
+    case splitTypeScheme (typeOf expr) of
         (_,tp) -> tp
 
 boxType :: Type -> BoxType

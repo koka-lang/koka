@@ -476,7 +476,7 @@ makeHandlerCompletionItem curModName conInfo d r line =
 
 handlerArgs :: T.Text -> Type -> [Type]
 handlerArgs name tp =
-  case splitPredType tp of
+  case splitTypeScheme tp of
     (_,TApp _ args) ->
       if T.isPrefixOf "val" name then take (length args - 3) args else take (length args - 4) args
     _ -> []

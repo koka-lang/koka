@@ -838,7 +838,7 @@ inferExpr propagated expect (Inject label expr behind rng)
        let tfun r = typeFun [] eff r
            prop = case propagated of
                     Nothing  -> Nothing
-                    Just (ptp,prng) -> case splitPredType ptp of
+                    Just (ptp,prng) -> case splitTypeScheme ptp of
                                         (foralls,rho)
                                           -> Just (quantifyType foralls $ tfun rho, prng)
 

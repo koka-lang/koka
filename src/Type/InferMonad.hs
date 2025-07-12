@@ -2176,8 +2176,8 @@ extendGamma isAlreadyCanonical defs inf
             Right _ ->
               do env <- getEnv
                  let [nice1,nice2] = Pretty.niceTypes (prettyEnv env) [infoType info,infoType info2]
-                     (_,rho1)      = splitPredType (infoType info)
-                     (_,rho2)      = splitPredType (infoType info2)
+                     (_,rho1)      = splitTypeScheme (infoType info)
+                     (_,rho2)      = splitTypeScheme (infoType info2)
                      valueType     = not (isFun rho1 && isFun rho2)
                  if (isFun rho1 && isFun rho2)
                   then infError (infoRange info) (text "definition" <+> Pretty.ppName (prettyEnv env) name <+> text "overlaps with an earlier definition of the same name" <->

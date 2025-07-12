@@ -200,7 +200,7 @@ synCopyCon modName info con
   = let rc = rangeHide (conInfoRange con)
         defName = unqualify $ copyNameOf (dataInfoName info)
 
-        fullTp = let (vars,rho) = splitPredType (conInfoType con)
+        fullTp = let (vars,rho) = splitTypeScheme (conInfoType con)
                  in case splitFunType rho of
                       Just (args,eff,res)
                         -> TForall vars (TFun ([(argName,res)] ++ [(name,if not (hasAccessor name t con)
@@ -259,7 +259,7 @@ synAccessors modName info
                 fld = newHiddenName "x"
 
                 dataTp = typeApp (TCon (TypeCon (dataInfoName info) (dataInfoKind info))) (map TVar (dataInfoParams info))
-                fullTp = let (foralls,rho) = splitPredType tp
+                fullTp = let (foralls,rho) = splitTypeScheme tp
                          in tForall (dataInfoParams info ++ foralls) $
                             typeFun [(arg,dataTp)] (if isPartial then typePartial else typeTotal) rho
 
@@ -983,7 +983,7 @@ formatCall tp (target,ExternalCall fname)
       C _     -> (target,formatC)
       Default -> (target,formatJS)
   where
-    (foralls,rho) = splitPredType tp
+    (foralls,rho) = splitTypeScheme tp
 
     argumentCount
       = case splitFunType rho of
@@ -1540,7 +1540,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
 
 occursNegativeCon :: [Name] -> ConInfo -> Bool
 occursNegativeCon names conInfo
-  = let (_,rho) = splitPredType (conInfoType conInfo)
+  = let (_,rho) = splitTypeScheme (conInfoType conInfo)
     in case splitFunType rho of
          Just (pars,eff,res) -> any (occursNegative names) (map snd pars) || occursNegative names res
          Nothing -> False

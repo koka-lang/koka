@@ -18,7 +18,7 @@ module Type.Type (-- * Types
                   , conInfoIsLazy, dataInfoIsLazy, conInfoLazyFip, lazyName
                   , eqType, eqTypes, elemType
                   -- Predicates
-                  , splitPredType, shallowSplitVars
+                  , splitTypeScheme, shallowSplitVars
                   -- ** Type atoms
                   , TypeVar(..), TypeCon(..), TypeSyn(..), SynonymRank
                   -- ** Accessors
@@ -331,11 +331,11 @@ instance Ord TypeSyn where
 
 -- | Split type into a list of universally quantified
 -- type variables, a list of predicates, and a rho-type
-splitPredType :: Type -> ([TypeVar], Rho)
-splitPredType tp
+splitTypeScheme :: Type -> ([TypeVar], Rho)
+splitTypeScheme tp
   = case tp of
       TForall vars rho      -> (vars, rho)
-      TSyn _ _  tp | mustSplit tp -> splitPredType tp
+      TSyn _ _  tp | mustSplit tp -> splitTypeScheme tp
       otherwise                   -> ([], tp)
   where
     -- We must split a synonym if its expansion includes further quantifiers or predicates
@@ -384,12 +384,12 @@ minimalForm tp
 -- | Create a type scheme from a list quantifiers.
 makeScheme :: [TypeVar] -> Rho -> Scheme
 makeScheme vars rho
-  = case splitPredType rho of
+  = case splitTypeScheme rho of
       (vars0,t) -> tForall (vars ++ vars0) t
 
 quantifyType :: [TypeVar] -> Scheme -> Scheme
 quantifyType vars tp
-  = case splitPredType tp of
+  = case splitTypeScheme tp of
       (vars0,rho) -> tForall (vars ++ vars0) rho
 
 tForall :: [TypeVar] -> Rho -> Scheme
@@ -420,7 +420,7 @@ getTypeArities tp
 
 splitFunScheme :: Scheme -> Maybe ([TypeVar],[(Name,Tau)],Effect,Tau)
 splitFunScheme tp
-  = let (tvars, rho) = splitPredType tp
+  = let (tvars, rho) = splitTypeScheme tp
     in case splitFunType rho of
          Just (pars,eff,res) -> Just (tvars,pars,eff,res)
          Nothing             -> Nothing
@@ -556,7 +556,7 @@ isTypeLocalVar tp =
 
 
 isValueOperation tp
-  = case splitPredType tp of
+  = case splitTypeScheme tp of
       (_,TApp (TCon (TypeCon name _)) [_,_]) -> name == nameTpValueOp
       _ -> False
 
@@ -648,7 +648,7 @@ wrapHandledFromDataEffect (DataNoEffect) teff
 
 
 isAsyncFunction tp
-  = let (_,rho) = splitPredType tp
+  = let (_,rho) = splitTypeScheme tp
     in case splitFunType rho of
          Just (_,eff,_) -> let (ls,_) = extractEffectExtend eff
                            in any isEffectAsync ls

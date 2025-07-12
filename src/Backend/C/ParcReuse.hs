@@ -487,7 +487,7 @@ ruLazyMemoize lazyTName arg
       = do mbInfo <- getLazyIndirectCon lazyTName
            case mbInfo of
              Just (cinfo,crepr)
-               -> let (_,rho) = splitPredType (conInfoType cinfo)
+               -> let (_,rho) = splitTypeScheme (conInfoType cinfo)
                       cname = TName (conInfoName cinfo) rho
                       con   = Con cname crepr
                   in lazyReuse reuseName lazyInfo (Just cinfo) cname crepr con [arg']

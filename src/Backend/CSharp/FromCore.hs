@@ -471,7 +471,7 @@ tetaExpand fun [] 0 = return fun
 tetaExpand fun targs m
   = assertion "Backend.CSharp.FromCore.tetaExpand" (m > length targs || (m==0 && null targs)) $
     do ids <- uniqueIds ".t" (m - length targs)
-       let (vars,_) = splitPredType (typeOf fun)
+       let (vars,_) = splitTypeScheme (typeOf fun)
            kinds      = map getKind (drop (length targs) vars)
            vars'      = map (\(id,kind) -> TypeVar id kind Bound) (zip ids kinds)
        return (TypeLam vars' (TypeApp fun (targs ++ map TVar vars')))
@@ -624,7 +624,7 @@ genExternal  tname formats targs args
                            else result extDoc
 
 resultType targs tp
-  = let (vars,rho) = splitPredType tp
+  = let (vars,rho) = splitTypeScheme tp
     in subNew (zip vars targs) |->
        (case splitFunType rho of
          Just (pars,eff,res) -> res
@@ -727,7 +727,7 @@ assignArguments parNames0 argDocs0 args0
 
 extractResultType :: Type -> Type
 extractResultType tp
-  = let (vars,rho) = splitPredType tp
+  = let (vars,rho) = splitTypeScheme tp
     in case splitFunType rho of
          Just (pars,eff,res)  -> TForall vars res
          Nothing              -> TForall vars rho
@@ -1228,7 +1228,7 @@ genNextPatterns :: Doc -> Type -> [Pattern] -> [(Maybe Doc,Doc,Pattern)]
 genNextPatterns exprDoc tp []
   = []
 genNextPatterns exprDoc tp patterns
-  = let (vars,rho) = splitPredType tp
+  = let (vars,rho) = splitTypeScheme tp
     in case expandSyn rho of
          TFun args eff res
           -> case patterns of
@@ -1473,7 +1473,7 @@ primitive s
 
 ppTypeEx :: ModuleName -> Type -> [Type] -> Doc
 ppTypeEx ctx tp targs
-  = let (tvars,rho) = splitPredType tp in
+  = let (tvars,rho) = splitTypeScheme tp in
     assertion "Backend.CSharp.FromCore.ppTypeApp" (length tvars == length targs) $
     if (all (\targ -> kindStar == getKind targ) targs)
      then ppType ctx (subNew (zip tvars targs) |-> rho)
