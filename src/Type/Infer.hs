@@ -549,7 +549,7 @@ inferIsolated :: Range -> Range -> Expr a -> Inf (Type,Effect,Core.Expr) -> Inf 
 inferIsolated contextRange range body inf
   = -- scopeImplicitConstraints $
     do (tp,eff,core) <- inf
-       res@(itp,ieff,coref) <- improveX contextRange range True eff tp
+       res@(itp,ieff,coref) <- improve contextRange range True eff tp
        -- traceDefDoc $ \penv -> text "infer isolated:" <+> ppType penv tp <+> text "|" <+> ppType penv ieff <+> text "from" <+> ppType penv eff
        case hasVarDecl body of
          Nothing   -> return (itp,ieff,coref core)
