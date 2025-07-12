@@ -96,7 +96,7 @@ For example, here are some durations between different times:
 ```
 
 Similarly, adding logical _days_ (or weeks, months, or years) works over leap seconds and
-other time irregularties:
+other time irregularities:
 
 ```
 > time(2016,12,31,12).add-days(1).show
