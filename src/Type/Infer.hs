@@ -119,11 +119,11 @@ inferDefGroups topLevel []
        return (gamma,[])
 
 
-inferDefGroupX :: Bool -> DefGroup Type -> Inf (Gamma,Core.DefGroups) -> Inf (Gamma,Core.DefGroups)
+inferDefGroupX :: HasCallStack => Bool -> DefGroup Type -> Inf (Gamma,Core.DefGroups) -> Inf (Gamma,Core.DefGroups)
 inferDefGroupX topLevel defGroup cont
   = do (cgroups0,(g,cgroups1)) <- inferDefGroup topLevel defGroup cont
        -- resetUnique
-       -- zapSubst
+       zapSubst
        return (g,seqqList cgroups0 ++ cgroups1)
 
 traceCoreDefs :: [Core.Def] -> Inf ()
@@ -138,7 +138,7 @@ traceCoreDefGroups cdefgs
 
 inferDefGroup :: Bool -> DefGroup Type -> Inf a -> Inf ([Core.DefGroup], a)
 inferDefGroup topLevel (DefNonRec def) cont
-  = --- trace ("\ninfer single " ++ show (defName def)) $
+  = -- trace ("\ninfer single " ++ show (defName def)) $
     do core <- inferDef topLevel (Generalized True) def
        -- traceDoc $ \penv -> text "inferred def:" <+> ppType penv (Core.typeOf core)
        mod  <- getModuleName
@@ -359,7 +359,9 @@ unskolemize :: Type -> Inf Type
 unskolemize tp
   = do let svs = tvsList (fsv tp)
        uvs <- mapM (\tv -> Op.freshTVar (typevarKind tv) Meta) svs
-       let tpu = subNew (zip svs uvs) |-> tp
+       let sub = subNew (zip svs uvs)
+           tpu = sub |-> tp
+       -- substImplicitConstraints sub
        return tpu
 
 -- TODO: for multiple recursive definitions, the "typeapp" substitution fails; we should
@@ -1229,12 +1231,12 @@ inferApp propagated expect fun nargs rng
                             Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop funExpr fresolved fixed named0 implicits
       = do
-           traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
-                                    text ("fixed count: " ++ show (length fixed)) <.>
-                                    text (", named: " ++ show named0) <->
-                                    text (", fres count: " ++ show (length fresolved)) <+>
-                                    text ", prop: " <+> ppProp penv prop <+>
-                                    text ", propagated: " <+> ppProp penv propagated
+          --  traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
+          --                           text ("fixed count: " ++ show (length fixed)) <.>
+          --                           text (", named: " ++ show named0) <->
+          --                           text (", fres count: " ++ show (length fresolved)) <+>
+          --                           text ", prop: " <+> ppProp penv prop <+>
+          --                           text ", propagated: " <+> ppProp penv propagated
 
            -- only add resolved implicits that were not already named
            let alreadyGiven = [name | ((name,_),_) <- named0]
@@ -1321,7 +1323,7 @@ inferApp propagated expect fun nargs rng
            (effArgs,coreArgs) <- -- withGammaType rng (TFun pars funEff funTp) $ -- ensure the free 'some' types are free in gamma
                                  (extendInfGamma [(unused,InfoVal Public unused sftp rng False False "")]) $ -- don't generalize over free propagated types
                                  do free <- freeInGamma
-                                    traceDefDoc $ \penv -> text "propagate:" <+> ppType penv sftp <.> comma <+> ppTvs penv free
+                                    -- traceDefDoc $ \penv -> text "propagate:" <+> ppType penv sftp <.> comma <+> ppTvs penv free
                                     let parArgs = zip (map snd pars) (map snd iargs)
                                     res <- case (fun) of
                                             (Var name _ _) | name == nameRunLocal
@@ -1330,7 +1332,7 @@ inferApp propagated expect fun nargs rng
                                             _ -> inferArgsN (Infer rng) rng parArgs
                                     free1 <- freeInGamma
                                     sftp1 <- subst sftp
-                                    traceDefDoc $ \penv -> text "done propagate:" <+> ppType penv sftp1 <.> comma <+> ppTvs penv free1
+                                    -- traceDefDoc $ \penv -> text "done propagate:" <+> ppType penv sftp1 <.> comma <+> ppTvs penv free1
                                     return res
 
            -- ensure arguments are evaluated in the declaration order

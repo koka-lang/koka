@@ -18,11 +18,11 @@ algeff/scoped/factor: () -> <div,nondet,symbol> int
 algeff/scoped/fail: forall<a> () -> nondet a
 algeff/scoped/flip: () -> nondet bool
 algeff/scoped/get: forall<a> () -> (state<a>) a
-algeff/scoped/global: forall<a,b,e> (s : a, action : () -> <div,nondet,state<a>|e> b) -> <div|e> (a, list<b>)
+algeff/scoped/global: forall<a,b,e> (s : a, action : () -> <nondet,state<a>|e> b) -> e (a, list<b>)
 algeff/scoped/hcutfail: forall<a,e> (() -> <cutfail,nondet|e> a) -> <nondet|e> a
 algeff/scoped/incr: (i : ? int) -> (state<int>) ()
 algeff/scoped/knapsack: (w : int, vs : list<int>) -> <div,nondet> list<int>
-algeff/scoped/local: forall<a,b,e> (s : a, action : () -> <div,nondet,state<a>|e> b) -> <div|e> list<(a, b)>
+algeff/scoped/local: forall<a,b,e> (s : a, action : () -> <nondet,state<a>|e> b) -> e list<(a, b)>
 algeff/scoped/main: () -> <console,div> ()
 algeff/scoped/many: forall<a,e> (p : () -> <div,nondet|e> a) -> <div,nondet|e> list<a>
 algeff/scoped/many1: forall<a,e> (p : () -> <div,nondet|e> a) -> <div,nondet|e> list<a>
@@ -33,7 +33,7 @@ algeff/scoped/parse: forall<a,e> (input : string, action : () -> <nondet,symbol|
 algeff/scoped/put: forall<a> (i : a) -> (state<a>) ()
 algeff/scoped/select: forall<a> (xs : list<a>) -> nondet a
 algeff/scoped/solutions: forall<a,e> (() -> <nondet|e> a) -> e list<a>
-algeff/scoped/state: forall<a,b,e> (init : a, action : () -> <div,state<a>|e> b) -> <div|e> (a, b)
+algeff/scoped/state: forall<a,b,e> (init : a, action : () -> <state<a>|e> b) -> e (a, b)
 algeff/scoped/symbol: (s : string) -> symbol string
 algeff/scoped/term: () -> <div,nondet,symbol> int
 algeff/scoped/test1: () -> div list<list<int>>

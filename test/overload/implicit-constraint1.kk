@@ -1,4 +1,14 @@
 
+pub fun list/sum( xs : list<int> ) : int
+  var total : int := 0
+  var comp  : int := 0
+  xs.foreach fn(x)
+    val t = total + x
+    val c = if total.abs >= x.abs then (total - t) + x else (x - t) + total
+    comp  := comp + c
+    total := t
+  total + comp;
+
 fun test-landin()
   val r = ref(fn() ())
   fun f()

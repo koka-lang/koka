@@ -2,6 +2,6 @@
  
 algeff/linear1/foo: () -> (state<int>) int
 algeff/linear1/get: forall<a> () -> (state<a>) a
-algeff/linear1/main: () -> <console,div> ()
+algeff/linear1/main: () -> console ()
 algeff/linear1/put: forall<a> (x : a) -> (state<a>) ()
-algeff/linear1/state: forall<a,e> (init : a, action : () -> <div,state<a>|e> int) -> <div|e> int
+algeff/linear1/state: forall<a,e> (init : a, action : () -> <state<a>|e> int) -> e int
