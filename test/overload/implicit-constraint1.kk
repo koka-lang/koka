@@ -6,9 +6,9 @@ fun test-landin()
   r := f
   f()
 
-fun test1( ?hdiv )
-  val r = ref(1)
-  !r
+fun test1( init , ?hdiv )
+  val r = ref(init)
+  fn(x) { !r; x }
 
 fun test2()
   val r = ref(1)

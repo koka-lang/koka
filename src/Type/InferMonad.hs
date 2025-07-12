@@ -67,7 +67,7 @@ module Type.InferMonad( Inf, InfGamma
                       , inferUnify, inferUnifies
                       , inferSubsume
                       , withSkolemized, checkSkolemEscape
-                      , substImplicitConstraints
+                      , substImplicitConstraints, scopeImplicitConstraints
 
                       , typeError
                       , contextError
@@ -78,6 +78,8 @@ module Type.InferMonad( Inf, InfGamma
 
                       -- * Documentation, Intellisense
                       , addRangeInfo, withNoRangeInfo
+
+                      , freeInGamma, ppTvs
 
                       ) where
 
@@ -155,24 +157,27 @@ generalize contextRange range close eff  tp@(TForall _ _ _)  core0
                 generalize contextRange range close seff rho (icore core0)
 
 generalize contextRange range close eff0 rho0 bodycore0
-  = do -- check that the computation is total
+  = do traceDefDoc $ \penv -> text "generalizing:" <+> Pretty.ppType penv rho0 <+> text "|" <+> Pretty.ppType penv eff0
+       -- check that the computation is total
        if (close)
          then inferUnify (Check "Generalized values cannot have an effect" contextRange) range typeTotal eff0
          else return ()
 
+       seff0 <- subst eff0
+       free0 <- freeInGamma
+       let free1 = tvsUnion free0 (fuv seff0)
+
+       iccore <- tryResolveImplicitConstraints free1
+       let bodycore1 = iccore bodycore0
+
        seff  <- subst eff0
        srho  <- subst rho0
-       free0 <- freeInGamma
        let free = tvsUnion free0 (fuv seff)
-       let bodycore1 = bodycore0
-       -- let tvars0 = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] srho))
        nrho <- normalizeX close free srho
 
        let -- substitute to Bound ones
            tvars = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] [] nrho))
 
-       iccore <- tryResolveImplicitConstraints free
-       let bodycore1 = iccore bodycore0
        ics <- getImplicitConstraints
        traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv nrho <+> text "|" <+> Pretty.ppType penv seff
                               <-> text "  genvars:" <+> ppTvs penv (tvsNew tvars)
@@ -204,7 +209,7 @@ improveX contextRange range close eff0 rho0
        let free = tvsUnion free0 (ftv srho)
        (ics1,eff1,coref) <- isolateX contextRange free ics seff
        addImplicitConstraints ics1 -- add back unresolved constraints
-       (nrho) <- normalizeX close free srho
+       (nrho) <- normalizeX close free0 srho  -- use free0 or otherwise function results are not closed, see `test/type/talpin-jouvelot1/#t1`
        return (nrho,eff1,coref)
 
 instantiate :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
@@ -241,7 +246,7 @@ isolateX rng free ics eff
                do (polyIcs,ics1) <- splitHDiv h ics
                   let isLocal = (labelName lab == nameTpLocal)
                   -- determineds <- mapM (\ic -> (icCanSolve ic) free ic) polyIcs
-                  if not (tvsMember h free) -- || and determineds
+                  if not (tvsMember h free) -- || and determineds --  not (.. || tvsMember h (ftv ics1))
                     then do -- we can isolate, and discharge the polyIcs hdiv predicates
                             -- traceDefDoc $ \penv -> text "can isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs)
                             tv <- freshEffect
@@ -326,10 +331,10 @@ normalizeX close free tp
               eff'    <- case expandSyn tl of
                           -- remove tail variables in the result type
                           (TVar tv) | close && isMeta tv && not (tvsMember tv free) && not (tvsMember tv (ftv (res:map snd args)))
-                            -> do traceDefDoc $ \penv -> text "close effect:" <+> Pretty.ppType penv tp <-> text "  free:" <+> ppTvs penv free
+                            -> do -- traceDefDoc $ \penv -> text "close effect:" <+> Pretty.ppType penv tp <-> text "  free:" <+> ppTvs penv free
                                   nofailUnify $ unify typeTotal tl
                                   (subst eff) -- (effectFixed ls)
-                          _ -> do traceDefDoc $ \penv -> text "cannot close effect:" <+> Pretty.ppType penv tp <-> text "  free:" <+> ppTvs penv free
+                          _ -> do -- traceDefDoc $ \penv -> text "cannot close effect:" <+> Pretty.ppType penv tp <-> text "  free:" <+> ppTvs penv free
                                   ls' <- mapM (normalizex Pos) ls
                                   tl' <- normalizex Pos tl
                                   return (effectExtends ls' tl')
@@ -861,7 +866,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                               (_:_)
                                 -> infError range ((text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found") <->
                                                    (text "perhaps you meant: " <.> ppOr penv (map fst amb2)))
-                              _ -> do -- when (isImplicitConstraintEvidenceName name) $ error "evidence " ++ show name ++ " cannot be found")
+                              _ -> do when (isImplicitConstraintEvidenceName name) $ error ("evidence " ++ show name ++ " cannot be found")
                                       infError range (text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found")
                                       error "done"
 
@@ -1442,9 +1447,9 @@ lookupNames infoFilter name ctx range
 lookupLocalName :: (NameInfo -> Bool) -> Name -> Inf (Either [(Name,NameInfo)] (Name,NameInfo))
 lookupLocalName infoFilter name  | isImplicitConstraintEvidenceName name
   = do st <- getSt
-       case find (\ic -> icEvidence ic == name) (iconstraints st) of
-         Just ic -> return (Right (name,InfoVal Public name (icType ic) (icRange ic) False False ""))
-         Nothing -> return (Left [])
+       case infgammaLookup name (iconstraintsGamma st) of
+         Right res -> return (Right res)
+         left      -> return left
 lookupLocalName infoFilter name
   = do env <- getEnv
        subst $ infgammaLookupEx infoFilter name (infgamma env)
@@ -1786,9 +1791,11 @@ tryResolveImplicitConstraints free
            return (fcore, reverse acc)
     tryResolve (defs,acc) (ic:ics)
       = do -- determined <- (icCanSolve ic) free ic
-           let determined = not $ tvsIsEmpty $ tvsFilter (\tv -> not (tvsMember tv free)) (ftv ic)
+           let determined = -- not $ tvsIsEmpty $ tvsFilter (\tv -> not (tvsMember tv free)) (ftv ic)
+                            not (any (\tv -> tvsMember tv free) (tvsList (ftv ic)))
            if determined
              then do ev <- (icSolve ic) free ic
+                     solvedImplicitConstraint (icEvidence ic)
                      let def = Core.makeTDef (Core.TName (icEvidence ic) (icType ic)) ev
                      tryResolve (def:defs, acc) ics
              else tryResolve (defs, ic:acc) ics
@@ -1833,8 +1840,8 @@ resolveHeapDivConstraint free ic
                                           -- resolveName nameEvHeapDiv Nothing (icRange ic)
                   seff <- subst tpEff
                   stp  <- subst (icType sic)
-                  -- traceDefDoc $ \penv -> text "resolve @hdiv:" <+> Pretty.ppName penv (icEvidence ic) <.> colon <+> Pretty.ppType penv stp <+> text "as" <+> text (if maydiv then "divergent" else "non-divergent")
-                  --                         <-> text "  , free: " <+> ppTvs penv free
+                  traceDefDoc $ \penv -> text "resolve @hdiv:" <+> Pretty.ppName penv (icEvidence ic) <.> colon <+> Pretty.ppType penv stp <+> text "as" <+> text (if maydiv then "divergent" else "non-divergent")
+                                          <-> text "  , free: " <+> ppTvs penv free
                   let ev = Core.TypeApp (coreExprFromNameInfo cname cinfo) [tpHeap,tpVal,seff]
                   return ev
 
@@ -1862,13 +1869,20 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , hiddenTermDoc :: Maybe (Range,Doc)
                  , localDepth :: Int   -- number of local-scope's
                  }
-data St     = St{ uniq :: !Int, sub :: !Sub, iconstraints :: ![ImplicitConstraint], preds :: ![Evidence], holeAllowed :: !Bool, mbRangeMap :: Maybe RangeMap }
+data St     = St{ uniq :: !Int
+                , sub :: !Sub                            -- current substitution
+                , iconstraints :: ![ImplicitConstraint]  -- output
+                , iconstraintsGamma :: !InfGamma          -- adding a constraint adds an implicit local evidence variable
+                , preds :: ![Evidence]
+                , holeAllowed :: !Bool                   -- is a hole allowed for a constructor context?
+                , mbRangeMap :: Maybe RangeMap           -- used for errors and IDE integration
+                }
 
 
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
   = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0)
-           (St unique subNull [] [] False mbrm) of
+           (St unique subNull [] infgammaEmpty [] False mbrm) of
       Err (rng,doc) warnings
         -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))
       Ok x st warnings
@@ -1880,7 +1894,9 @@ zapSubst
   = do env <- getEnv
        assertion "not an empty infgamma" (infgammaIsEmpty (infgamma env)) $
         do updateSt (\st -> assertion "no empty preds" (null (preds st)) $
-                            st{ sub = subNull, preds = [], mbRangeMap = (sub st) |-> mbRangeMap st } ) -- this can be optimized further by splitting the rangemap into a 'substited part' and a part that needs to be done..
+                            assertion "no empty iconstraints" (null (iconstraints st)) $
+                            assertion "no empty iconstraints gamma" (infgammaIsEmpty (iconstraintsGamma st)) $
+                            st{ sub = subNull, iconstraints = [], preds = [], mbRangeMap = (sub st) |-> mbRangeMap st } ) -- this can be optimized further by splitting the rangemap into a 'substited part' and a part that needs to be done..
            return ()
 
 instance Functor Inf where
@@ -2049,11 +2065,18 @@ isImplicitConstraintEvidenceName name
 addImplicitConstraint :: Name -> Type -> (Tvs -> ImplicitConstraint -> Inf Bool) -> (Tvs -> ImplicitConstraint -> Inf Core.Expr) -> Range -> Range -> Inf ImplicitArg
 addImplicitConstraint name tp canSolve solve context rng
   = do evName <- Core.freshName "iev"
-       let ic = ImplicitConstraint name tp evName context rng canSolve solve
-       addImplicitConstraints [ic]
-       let iarg = ImplicitArg evName (createNameInfoX Public evName DefVal rng tp "") tp []
-       -- traceDefDoc $ \penv -> text "add implicit constraint:" <+> ppConstraint penv ic
+       let ic       = ImplicitConstraint name tp evName context rng canSolve solve
+           nameInfo = createNameInfoX Public evName DefVal rng tp ""
+           iarg     = ImplicitArg evName nameInfo tp []
+       updateSt (\st -> st{ iconstraints = ic : iconstraints st,
+                            iconstraintsGamma = infgammaExtend evName nameInfo (iconstraintsGamma st) })
+       traceDefDoc $ \penv -> text "add implicit constraint:" <+> ppConstraint penv ic
        return iarg
+
+solvedImplicitConstraint :: Name -> Inf ()
+solvedImplicitConstraint evName
+  = do updateSt (\st -> st{ iconstraintsGamma = infgammaDelete evName (iconstraintsGamma st) })
+       return ()
 
 -- add back implicit constraints
 addImplicitConstraints :: [ImplicitConstraint] -> Inf ()
@@ -2071,10 +2094,19 @@ clearImplicitConstraints
   = do st0 <- updateSt (\st -> st{ iconstraints = [] })
        subst (iconstraints st0)
 
+scopeImplicitConstraints :: Inf a -> Inf a
+scopeImplicitConstraints inf
+  = do ics0 <- iconstraints <$> updateSt (\st -> st{ iconstraints = [] })
+       traceDefDoc $ \penv -> text "scope ics:" <+> ppConstraints penv ics0
+       x    <- traceIndent $ inf
+       ics1 <- getImplicitConstraints
+       traceDefDoc $ \penv -> text "end scope: new ics:" <+> ppConstraints penv ics1 <+> text "++" <+> ppConstraints penv ics0
+       updateSt (\st -> st{ iconstraints = ics1 ++ ics0 })
+       return x
+
 substImplicitConstraints :: Sub -> Inf ()
 substImplicitConstraints sub
-  = do ics <- clearImplicitConstraints
-       addImplicitConstraints (sub |-> ics)
+  = do updateSt (\st -> st{ iconstraints = (sub |-> iconstraints st) })
        return ()
 
 {-

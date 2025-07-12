@@ -19,6 +19,7 @@ module Type.InfGamma (
                     , infgammaLookup
                     , infgammaMap
                     , infgammaList
+                    , infgammaDelete
                     , ppInfGamma
                     , infgammaUnion
                     , infgammaExtendX
@@ -137,6 +138,9 @@ infgammaUnions :: [InfGamma] -> InfGamma
 infgammaUnions gs
   = foldr infgammaUnion infgammaEmpty gs
 
+infgammaDelete :: Name -> InfGamma -> InfGamma
+infgammaDelete name (InfGamma g)
+  = InfGamma (M.delete name g)
 
 instance Show InfGamma where
   show = show . pretty

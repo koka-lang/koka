@@ -454,7 +454,7 @@ inferDef topLevel expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis 
      if (verbose penv >= 4)
       then Lib.Trace.trace ("infer: " ++ show sort ++ " " ++ show name) $ return ()
       else return ()
-     withDefName name $ disallowHole $
+     withDefName name $ disallowHole $ scopeImplicitConstraints $
       (if (not (isDefFun sort) || nameIsNil name) then id else allowReturn True) $
         do (tp,eff,coreExpr) <- traceIndent $ inferExpr Nothing expect expr
                                 -- Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
@@ -485,7 +485,7 @@ isAnnotatedBinder _                                 = False
 
 inferBindDef :: Def Type -> Inf (Type,Effect,Core.Def)
 inferBindDef def@(Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
-  = withDefName name $ disallowHole $
+  = withDefName name $ disallowHole $ scopeImplicitConstraints $
     do  -- traceDoc $ \penv -> text ("infer bind: " ++ show sort) <+> ppName penv name
         (tp,eff,coreExpr) <- traceIndent $ inferExpr Nothing Instantiated expr
         stp <- subst tp
@@ -535,7 +535,8 @@ data Expect = Generalized Bool
 
 inferIsolated :: Range -> Range -> Expr a -> Inf (Type,Effect,Core.Expr) -> Inf (Type,Effect,Core.Expr)
 inferIsolated contextRange range body inf
-  = do (tp,eff,core) <- inf
+  = scopeImplicitConstraints $
+    do (tp,eff,core) <- inf
        res@(itp,ieff,coref) <- improveX contextRange range True eff tp
        -- traceDefDoc $ \penv -> text "infer isolated:" <+> ppType penv tp <+> text "|" <+> ppType penv ieff <+> text "from" <+> ppType penv eff
        case hasVarDecl body of
@@ -563,7 +564,11 @@ inferIsolated contextRange range body inf
 -- the propagated type: the propagated type is just a hint (used for example to resolve overloaded names).
 inferExpr :: HasCallStack => Maybe (Type,Range) -> Expect -> Expr Type -> Inf (Type,Effect,Core.Expr)
 inferExpr propagated expect (Lam binders body toplevel rng)
-  = inferLam toplevel propagated expect binders body rng
+  = -- (case propagated of
+    --    Nothing      -> id
+    --    Just (tp,r)  -> let unused = newHiddenName "unused"
+    --                    in extendInfGamma [(unused,InfoVal Public unused tp r False False "")]) $ -- don't generalize over free propagated types
+    inferLam toplevel propagated expect binders body rng
 
 inferExpr propagated expect (Let defgroup body rng)
   = do (cgroups,(tp,eff,core)) <- inferDefGroup False defgroup (inferExpr propagated expect body)
@@ -1223,12 +1228,13 @@ inferApp propagated expect fun nargs rng
                           [Expr Type] -> [((Name,Range),Expr Type)] -> [((Name,Range), Expr Type, (Bool -> Doc))] ->
                             Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop funExpr fresolved fixed named0 implicits
-      = do -- traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
-                                    -- text ("fixed count: " ++ show (length fixed)) <.>
-                                    -- text (", named: " ++ show named0) <->
-                                    -- text (", fres count: " ++ show (length fresolved)) <+>
-                                    -- text ", prop: " <+> ppProp penv prop <+>
-                                    -- text ", propagated: " <+> ppProp penv propagated
+      = do
+           traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
+                                    text ("fixed count: " ++ show (length fixed)) <.>
+                                    text (", named: " ++ show named0) <->
+                                    text (", fres count: " ++ show (length fresolved)) <+>
+                                    text ", prop: " <+> ppProp penv prop <+>
+                                    text ", propagated: " <+> ppProp penv propagated
 
            -- only add resolved implicits that were not already named
            let alreadyGiven = [name | ((name,_),_) <- named0]
@@ -1309,17 +1315,23 @@ inferApp propagated expect fun nargs rng
                                            return (pars1,funEff1,funTp1)
               _ -> return (pars0,funEff0,funTp0)
 
-           -- infer the argument expressions and subsume the types
+           -- infer the argument expressions and subsume the type
+           sftp <- subst ftp
+           unused <- Core.freshName "unused"
            (effArgs,coreArgs) <- -- withGammaType rng (TFun pars funEff funTp) $ -- ensure the free 'some' types are free in gamma
-                                 -- (let unused = newHiddenName "unused"
-                                 -- in extendInfGamma [(unused,InfoVal Public unused funTp rng False False "")]) $ -- don't generalize over free propagated types
-                                 do let parArgs = zip (map snd pars) (map snd iargs)
-                                    case (fun) of
-                                      (Var name _ _) | name == nameRunLocal
-                                        -> withLocalScope $
-                                           inferArgsN (checkLocalScope rng) rng parArgs
-                                      _ -> inferArgsN (Infer rng) rng parArgs
-
+                                 (extendInfGamma [(unused,InfoVal Public unused sftp rng False False "")]) $ -- don't generalize over free propagated types
+                                 do free <- freeInGamma
+                                    traceDefDoc $ \penv -> text "propagate:" <+> ppType penv sftp <.> comma <+> ppTvs penv free
+                                    let parArgs = zip (map snd pars) (map snd iargs)
+                                    res <- case (fun) of
+                                            (Var name _ _) | name == nameRunLocal
+                                              -> withLocalScope $
+                                                 inferArgsN (checkLocalScope rng) rng parArgs
+                                            _ -> inferArgsN (Infer rng) rng parArgs
+                                    free1 <- freeInGamma
+                                    sftp1 <- subst sftp
+                                    traceDefDoc $ \penv -> text "done propagate:" <+> ppType penv sftp1 <.> comma <+> ppTvs penv free1
+                                    return res
 
            -- ensure arguments are evaluated in the declaration order
            core <- case shortCircuit fcore coreArgs of
@@ -2136,7 +2148,8 @@ rootExpr expr
 -- infer the types of argument expressions, some of which may have already been inferred (`:FixedArg`).
 inferArgsN :: HasCallStack => Context -> Range -> [(Type,ArgExpr)] -> Inf ([Effect],[Core.Expr])
 inferArgsN ctx range parArgs
-  = do res <- inferArg [] parArgs
+  = traceIndent $
+    do res <- inferArg [] parArgs
        let (!eff, !expr) = unzip res
        return (seqqList eff, seqqList expr)
   where
@@ -2168,7 +2181,8 @@ inferArgsN ctx range parArgs
                       teff1  <- subst teff
                       return (teff1,coref core)
 
-           (eff,core)  <- case arg of
+           (eff,core)  <- scopeImplicitConstraints $
+                          case arg of
                             ArgExpr argexpr hidden
                               -> do res <- inferArgExpr tpar0 argexpr hidden
                                     subsumeArg res
