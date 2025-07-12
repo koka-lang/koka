@@ -477,7 +477,7 @@ fun exp2m1( x : float64 ) : float64
   expm1(flt-ln2 * x)
 
 // Returns `ln(exp(x) + exp(y))`.
-// Avoids overlow/underflow errors.
+// Avoids overflow/underflow errors.
 pub fun lnaddexp( x : float64, y : float64 ) : float64
   if x==y then x + flt-ln2 else
     val z = x - y
@@ -486,7 +486,7 @@ pub fun lnaddexp( x : float64, y : float64 ) : float64
 
 
 // Returns `log2( exp2(x) + exp2(y) )`.
-// Avoids overlow/underflow errors.
+// Avoids overflow/underflow errors.
 pub fun logaddexp2( x : float64, y : float64 ) : float64
   if x==y then x + 1.0 else
     val z = x - y

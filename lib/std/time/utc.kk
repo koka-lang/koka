@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------
    Copyright 2012-2021, Microsoft Research, Daan Leijen.
 
-   Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
+   Licensed under the Apache License, Version 2.0 ("The License"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
@@ -345,7 +345,7 @@ pub fun leaps-table/show( t : leaps-table ) : string
 fraction of seconds `frac` (for increased precision for nanosecond timestamps), return an `:instant`.
 that is `secs + frac` seconds after the Unix epoch (``1970-01-01Z``).
 
-Unfortunately, Unix time stamps are [ambigious](https://en.wikipedia.org/wiki/Unix_time).
+Unfortunately, Unix time stamps are [ambiguous](https://en.wikipedia.org/wiki/Unix_time).
 The seconds `secs` are interpreted as: `val days = secs / 86400` and `val dsecs = secs % 86400`,
 where `days` is the number of days since ``1970-01-01Z`` and `dsecs` is the SI seconds into
 the day. This means that one cannot represent a possible extra leap second since it
@@ -396,7 +396,7 @@ pub fun timespan/unix-instant( t : timespan, leap : int = 0, ts : timescale = ts
 
 
 // Get a standard Unix timestamp in fractional seconds since the Unix epoch (1970-01-01Z).
-// Since Unix time stamps are ambigioous,
+// Since Unix time stamps are ambiguous,
 // instants inside a leap seconds show as occurring in the second after that.
 pub fun unix-timestamp( i :instant ) : ddouble
   (unix2000 + i.timestamp-in(ts-ti).unsafe-timespan-withleap)
@@ -409,7 +409,7 @@ pub fun ntp-instant( ntp : ddouble, leap : int = 0 ) : instant
   ts-ntp.instant( timestamp(ntp,leap) - ntp2000 )
 
 // Return the NTP time of an instant since the NTP epoch (1900-01-01)
-// Since NTP time stamps are ambigious, times inside a leap second show
+// Since NTP time stamps are ambiguous, times inside a leap second show
 // as occurring in the second after the leap second.
 pub fun ntp-timestamp( i : instant ) : ddouble
   ntp2000 + i.timestamp-in(ts-ntp).unsafe-timespan-withleap
@@ -474,7 +474,7 @@ pub val ts-unix : timescale = ts-ti // utc-timescale( "UNIX-TI", leaps-table-ti 
 pub val ts-ntp : timescale = ts-ti // utc-timescale( "NTP-TI", leaps-table-ti )
 
 
-// Create a new smooted leap second time scale with an optional period during
+// Create a new smoothed leap second time scale with an optional period during
 // which smoothing takes place. This is 1000s for `ts-utc-sls`.
 fun utc-sls-timescale( name : string, leaps : leaps-table, smooth : timespan = 1000.timespan ) : timescale
   fun from-tai(tai:duration) { utc-sls-from-tai(leaps,smooth,tai) }
@@ -521,7 +521,7 @@ fun utc-to-tai( leaps : leaps-table, utc : timestamp ) : duration
   (utc + dtai).unsafe-duration  // ok, because TAI seconds now
 
 
-/* Converting TAI time back to UTC is not straigtforward as
+/* Converting TAI time back to UTC is not straightforward as
 we need to estimate UTC at first as the leap table goes from UTC-to-TAI.
 Moreover, we need to detect if we crossed over a leap second, or are
 inside a leap step. Take for example the leap second of 2006-01-01

@@ -24,7 +24,7 @@ Core concepts are:
 
 * A `:duration` is a span of time in SI seconds (as measured on the earth's geoid).
 
-* An `:instant` represents an instant in time. Instants can be substracted to
+* An `:instant` represents an instant in time. Instants can be subtracted to
 get the `:duration` between them. Instants are usually represented as the number
 of fractional SI seconds since the `epoch` (2000-01-01Z), but can be represented
 in different time scales for efficiency. For example, there is the TAI time scale (`ts-tai`),

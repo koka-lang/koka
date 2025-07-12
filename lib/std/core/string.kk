@@ -201,12 +201,12 @@ inline extern splitvn( s : string,  sep : string, n : ssize_t ) : vector<string>
   cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)"
   js inline "(#1).split(#2, #3)"
 
-// Split a string into parts that were delimited by `sep`. The delimeters are not included in the results.
+// Split a string into parts that were delimited by `sep`. The delimiters are not included in the results.
 // For example: `split("1,,2",",") == ["1","","2"]`
 pub fun sep/split( s : string, sep : string ) : list<string>
   splitv(s,sep).list
 
-// Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).
+// Split a string into at most `n` parts that were delimited by a string `sep`. The delimiters are not included in the results (except for possibly the final part).
 // For example: `split("1,2,3",",",2) == ["1","2,3"]`
 pub fun splitn/split( s : string, sep: string, ^n : int) : list<string>
   splitvn(s,sep,n.ssize_t).list

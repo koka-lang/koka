@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------
    Copyright 2012-2021, Microsoft Research, Daan Leijen
 
-   Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
+   Licensed under the Apache License, Version 2.0 ("The License"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
@@ -177,7 +177,7 @@ display as 2 digits. Allowed patterns:
 * ``Y``: the year as a number (without zero padding) (``1970``, ``203``)
 * ``YY``, ```YYYY``: the year in upto 4 digits (``70``, ``1970``, ``0203``).
   If the year is smaller than zero or larger than 9999, the year is displayed
-  with 5 or more digits and preprended with an explicit sign (``-00030``, ``+10345``).
+  with 5 or more digits and prepended with an explicit sign (``-00030``, ``+10345``).
 * ``M``, ``MM``: the month. (``1``, ``03``). In case of an ISO week (`cal-iso-week`)
   or ISO month (`cal-iso-month`) calendar, the month is prefixed with ``W`` or ``M``.
 * ``MMM``, ``MMMM``: name of the month in the specified `locale`. (``Jan``, ``January``)

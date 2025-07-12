@@ -36,7 +36,7 @@ extern int-show-hex(i:int,use-capitals:bool) : string
 
 // Show an `:int` as a hexadecimal value.\
 // The `width`  parameter specifies how wide the hex value is where `"0"`  is used to align.\
-// The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
+// The `use-capitals` parameter (= `True`) determines if capital letters should be used to display the hexadecimal digits.\
 // The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
 pub fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string = "0x" )
   (if i < 0 then "-" else "") ++ pre ++ int-show-hex(i.abs,use-capitals).pad-left(width,'0')

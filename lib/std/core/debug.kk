@@ -51,7 +51,7 @@ fip extern xtrace-any : forall<a> ( message: string, x : a ) -> ()
 val trace-enabled : ref<global,bool> = unsafe-total{ ref(True) }
 
 // Trace a message used for debug purposes.
-// The behaviour is system dependent. On a browser and node it uses
+// The behavior is system dependent. On a browser and node it uses
 // `console.log`  by default.
 // Disabled if `notrace` is called.
 pub fip fun trace( message : string ) : ()

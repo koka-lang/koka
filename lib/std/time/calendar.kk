@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------
    Copyright 2012-2021, Microsoft Research, Daan Leijen
 
-   Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
+   Licensed under the Apache License, Version 2.0 ("The License"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
@@ -157,7 +157,7 @@ pub fun instant-dc( i : instant, tz :timezone = tz-utc, cal : calendar = cal-iso
   interpreted as leap seconds.
 
   Due to timezone transitions, or leap seconds, it is possible to specify dates that never
-  happened (as it was skipped by a timezone change), or ambigious times (as a timezone springs back).
+  happened (as it was skipped by a timezone change), or ambiguous times (as a timezone springs back).
   In such cases, the time is always interpreted in the earlier timezone.
 */
 pub fun timescale/instant( tscale : timescale,

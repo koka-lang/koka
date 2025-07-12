@@ -90,7 +90,7 @@ inline fip extern int-sub : (int,int) -> int
   cs inline "(#1 - #2)"
   js "$std_core_types._int_sub"
 
-// Substract two integers.
+// Subtract two integers.
 pub fip fun (-)(x : int, y : int ) : int
   int-sub(x,y)
 

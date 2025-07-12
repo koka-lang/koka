@@ -140,7 +140,7 @@ pub type flag-parser<a>
   Bool( default : (a,bool) -> a)
   // A required argument.
   Req( parse : (a,string) -> a, help : string )
-  // An flagal argument.
+  // An optional argument.
   Opt( parse : (a,maybe<string>) -> a, help : string )
 
 
@@ -190,8 +190,8 @@ value type flag-kind<a>
   Error( msg : string )
 
 // Parse the command line arguments `args` (see `std/env/get-args`)
-// according to the flag descriptions `flags`. Takes an flagal argument
-// `ordering` (=`Permute`) that specifies how optare handled that follow non-flag arguments.
+// according to the flag descriptions `flags`. Takes an optional argument
+// `ordering` (=`Permute`) that specifies how flags are handled that follow non-flag arguments.
 // Returns three lists: the list of parsed flags,
 // a list of non-flag arguments, and a list of potential error messages.
 pub fun parse( initial : a, flags : list<flag<a>>, args : list<string>, ordering : flag-order<a> = Permute )

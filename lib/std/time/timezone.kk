@@ -1,9 +1,9 @@
 /*----------------------------------------------------------------------------
    Copyright 2012-2021, Microsoft Research, Daan Leijen
 
-   Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
+   Licensed under the Apache License, Version 2.0 ("The License"). You may not
    use this file except in compliance with the License. A copy of the License
-   copyan be found in the LICENSE file at the root of this distribution.
+   can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
 /* Timezone support.
@@ -177,7 +177,7 @@ val rxlinks = regex(r#""links"\s*:\s*\[([\s\S]*?)^[ \t]*\]"#, multiLine=True)
 val rxlink  = regex(r#"^\s*"([^"\|]+)\|([^"\|]+)",?\s*$"#)
 
 fun parse-packed-zone( s : string ) : exn timezone-info
-  //trace("parseing: " ++ s)
+  //trace("parsing: " ++ s)
   val parts     = s.split("|")
   val name      = parts[0].default("")
   val abbrs     = parts[1].default("")

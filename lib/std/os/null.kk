@@ -25,14 +25,14 @@ pub extern null/maybe( n : null<a> ) : maybe<a>
 
 // Cast a integer that is zero to a null
 pub fun int/null( i : int ) : null<int>
-    i.maybe.null
+  i.maybe.null
 
 // Cast an empty string a null
 pub fun string/null( s : string ) : null<string>
-    s.maybe.null
+  s.maybe.null
 
 // Cast a boolean `False` to null
 pub fun bool/null( b : bool ) : null<()>
-    if b then Just(()).null else Nothing.null
+  if b then Just(()).null else Nothing.null
 
 // val null-const : forall<a> null<a> = null(Nothing)

@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------
    Copyright 2012-2021, Microsoft Research, Daan Leijen
 
-   Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
+   Licensed under the Apache License, Version 2.0 ("The License"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
@@ -266,7 +266,7 @@ pub fun (-)( i : instant, j : instant ) : duration
   i.duration - j.duration
 
 // Show an instant as a number of (TAI) SI seconds since the `epoch` in a given precision.
-// This can be used as an unambigious time stamp.
+// This can be used as an unambiguous time stamp.
 pub fun instant/show( i : instant, max-prec : int = 9, secs-width : int = 1 ) : string
   i.use-timescale(ts-tai).show-raw(max-prec,secs-width,"s")
 

@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------
    Copyright 2012-2021, Microsoft Research, Daan Leijen
 
-   Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
+   Licensed under the Apache License, Version 2.0 ("The License"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
@@ -63,11 +63,11 @@ UTC based timescales. [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time
 - To avoid conversions, it is better to represent as days plus the seconds
   into that day. However, that means that adding or subtracting seconds
   always needs normalization.
-- To make it easier to add/substract time spans, we can represent it as single
+- To make it easier to add/subtract time spans, we can represent it as single
   timespan `since` where `days == floor(since / 86400)` and `seconds == since - days`.
-  This is essentially the representation that Unix/Posic timestamps use too.
+  This is essentially the representation that Unix/Posix timestamps use too.
 - Finally, we add a separate `leap` seconds field
-  to represent time in a leap step unambigiously (and also at any time during the day).
+  to represent time in a leap step unambiguously (and also at any time during the day).
   The `leap` field is positive if this time is in a leap step.
 
 Here is the representation of a time in the leap second just before 2006-01-01:

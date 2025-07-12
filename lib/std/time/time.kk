@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------
    Copyright 2012-2021, Microsoft Research, Daan Leijen
 
-   Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
+   Licensed under the Apache License, Version 2.0 ("The License"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
@@ -174,7 +174,7 @@ When the `seconds` or fraction of seconds `frac` add up over 60 though, those ex
 interpreted as leap seconds.
 
 Due to timezone transitions, or leap seconds, it is possible to specify dates that never
-happened (as it was skipped by a timezone change), or ambigious times (as a timezone springs back).
+happened (as it was skipped by a timezone change), or ambiguous times (as a timezone springs back).
 In such cases, the time is always interpreted in the earlier timezone.
 */
 pub fun time( year : int, month : int = 1, day : int = 1,
@@ -322,7 +322,7 @@ pub fun months-in-year( t : time ) : int
 
 // Return the `n`th week day following (and including) time `t`.
 // Use `n = 1` for the first week day `wd` following `t`;
-// Use `0` for the last occurence of week day `wd` before `t`.\
+// Use `0` for the last occurrence of week day `wd` before `t`.\
 // `time(2016,10,10).nth-weekday(1,Sun)` &quad; (2016-10-13, first Sunday following October 10, 2016)
 // `time(2016,11,16).start-of-month.nth-weekday(0,Wed)` &quad; (2016-10-26, the last Wednesday before 2016-11-01)
 pub fun nth-weekday( t : time, n : int, wd : weekday ) : time
@@ -453,7 +453,7 @@ pub fun instant/local-time( i : instant, cal : calendar = cal-iso ) : ndet time
   time(i,tz-local(),cal)
 
 // Return the `:time` value for a given date and clock in the local timezone
-// interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
+// interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behavior.
 pub fun timescale/local-time( ts : timescale,
                        year : int, month : int = 1, day : int = 1,
                        hours : int = 0, minutes : int = 0, secs : int = 0,
@@ -462,7 +462,7 @@ pub fun timescale/local-time( ts : timescale,
   ts.time(year,month,day,hours,minutes,secs,frac,tz-local(),cal)
 
 // Return the `:time` value for a given date and clock in the local timezone
-// interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
+// interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behavior.
 pub fun year/local-time( year : int, month : int = 1, day : int = 1,
                        hours : int = 0, minutes : int = 0, secs : int = 0,
                        frac : float64 = 0.0, cal : calendar = cal-iso, ts : timescale = utc() ) : <ndet,utc> time

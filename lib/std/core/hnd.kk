@@ -58,7 +58,7 @@
 
   - Actually, we use a quadruple for the evidence (corresponding to the evidence as formalized in the generalized evidence paper).
     We also add the handler effect tag (`:htag<h>`) (for dynamic lookup), and the evidence vector
-    of the answer context where the handler was defind (`:evv<e,r>`)
+    of the answer context where the handler was defined (`:evv<e,r>`)
     (so we can execute operations in-place using the evidence vector at the point where they were defined).
 
   - Each operation definition in a handler is called a _clause_. For a one argument operation, we have:
@@ -93,7 +93,7 @@
     ```
     and various variants in-between. The last definition is unsafe for example if the (user defined) `op` invokes
     operations itself as the evidence vector should be the one as defined at the handler site.
-    So, we norally use instead:
+    So, we normally use instead:
     ```
     Clause1( fn(m,ev,x) under1(ev,op,x) )
     ```
@@ -748,7 +748,7 @@ pub fun clause-never2( op : (a1,a2) -> e r ) : clause2<a1,a2,b,h,e,r>
 // Or should the compiler do tupling/untupling?
 //----------------------------------------------------------------
 
-// For interal use
+// For internal use
 fun xperform1( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b
   match ev
     Ev(_tag,m,h,_w) -> match h.op
