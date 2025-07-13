@@ -181,7 +181,7 @@ undelimPaths xs
     normalize ps "" (c:cs)  | isSpace c
       = normalize ps "" cs
     -- directory on windows
-    normalize ps "" (c:':':cs)
+    normalize ps "" (c:':':cs)    
       = normalize ps (':':c:[]) cs
     -- normal
     normalize ps p xs
@@ -247,6 +247,8 @@ normalizeWith newSep path
   = norm "" path
   where
     norm acc "" = reverse acc
+    norm acc ('\\':c:cs) | isSpace c -- escaped space on unix/macos
+      = norm (c:'\\':acc) cs
     norm acc (c:cs)
       = if (isPathSep c)
          then norm (newSep:acc) cs
@@ -276,7 +278,7 @@ runSystemRaw command
   = do -- putStrLn ("system: " ++ command)
        exitCode <- system command
        case exitCode of
-         ExitFailure i -> raiseIO ("command failed:\n " ++ command )
+         ExitFailure i -> raiseIO ("raw command failed:\n " ++ command )
          ExitSuccess   -> return ()
 
 runSystem :: String -> IO ()

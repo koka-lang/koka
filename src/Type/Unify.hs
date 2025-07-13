@@ -28,7 +28,7 @@ import Common.Range
 import Common.Unique
 import Common.Failure
 import Common.Name
-import Common.NamePrim( namePredHeapDiv )
+import Common.NamePrim( nameTypeHeapDiv )
 import Kind.Kind
 import qualified Kind.Unify( match )
 import Type.Type
@@ -145,7 +145,7 @@ matchArguments matchSome range free tp fixed named mbExpResTp
                         then do subst rho1
                         else unifyError NoMatch
 
-subsumeSubst :: Range -> Tvs -> Type -> Type -> Unify (Type,Rho,[Evidence], Core.Expr -> Core.Expr)
+subsumeSubst :: Range -> Tvs -> Type -> Type -> Unify (Type,Rho, Core.Expr -> Core.Expr)
 subsumeSubst range free tp1 tp2
   = do stp1 <- subst tp1
        stp2 <- subst tp2
@@ -180,12 +180,12 @@ pureMatchShape tp1 tp2
 -- applied to the expression of type @t2@. Also returns a new type for the
 -- expected type @tp1@ where 'some' types have been properly substituted (and
 -- may be quantified).
-subsume :: HasCallStack => Range -> Tvs -> Type -> Type -> Unify (Type,Rho,[Evidence], Core.Expr -> Core.Expr)
+subsume :: HasCallStack => Range -> Tvs -> Type -> Type -> Unify (Type,Rho,Core.Expr -> Core.Expr)
 subsume range free tp1 tp2
   = -- trace (" subsume: " ++ show (pretty tp1, pretty tp2) ++ ", free: " ++ show (map pretty (tvsList free))) $
     do -- skolemize,instantiate and unify
-       (sks,evs1,rho1,core1) <- skolemizeEx range tp1
-       (tvs,evs2,rho2,core2) <- instantiateEx range tp2
+       (sks,rho1,core1) <- skolemizeEx range tp1
+       (tvs,rho2,core2) <- instantiateEx range tp2
        -- trace ("  subsume: " ++ show (pretty rho1, pretty rho2) ++ ", free: " ++ show (map pretty (tvsList free))) $
        unify rho2 rho1
 
@@ -200,44 +200,19 @@ subsume range free tp1 tp2
        if (tvsDisjoint (tvsNew sks) escaped)
          then return ()
          else unifyError NoSubsume
-       (evsEnt,coreEnt) <- entails (tvsNew sks) (sub |-> evs1) (sub |-> evs2)
+
        -- final type
        (vars,ssub) <- freshSub Bound sks
        let subx = ssub @@ sub
-           tp = quantifyType vars (qualifyType [(subx |-> evPred ev) | ev <- evs1] (subx |-> rho1)) -- TODO: do rho1 and we get skolem errors: see 'Prelude.choose'
-           coref0 expr 
-             = subx |-> (coreEnt $                      -- apply evidence evs2 & abstract evidence evs1
-                          addTypeApps tvs expr)
-           coref1 expr 
+           tp = quantifyType vars (subx |-> rho1) -- TODO: do rho1 and we get skolem errors: see 'Prelude.choose'
+           coref0 expr
+             = subx |-> addTypeApps tvs expr
+           coref1 expr
              = Core.addTypeLambdas vars (coref0 expr)   -- generalize
-           {-
-           coref2 expr
-             = case expr of
-                 Core.TypeApp (Core.TypeLam tpars e) tvars 
-                   | length tpars == length tvars &&
-                     and [typeVarId tpar == typeVarId tvar | (tpar,TVar tvar) <- zip tpars tvars] 
-                   -> e
-                 _ -> expr -}
-       -- return
-       return (tp, sub |-> rho2, subx |-> evsEnt, coref1)
+
+       return (tp, sub |-> rho2, coref1)
 
 
--- | @entails skolems known preds@ returns both predicates that need to be proved
--- and a core transformer that applies the evidence for @preds@ and abstracts for
--- thos in @known@. The @preds@ are entailed by
--- @known@ and predicates containing a type variable in @skolems@ must be entailed
--- completely by other predicates (not containing such skolems).
-entails :: Tvs -> [Evidence] -> [Evidence] -> Unify ([Evidence], Core.Expr -> Core.Expr)
-entails skolems known []
-  = return ([],id)
-entails skolems known evs | map evPred known == map evPred evs
-  = return (evs,id)   -- todo: should construct evidence from known to preds (simple one-to-one name mapping)
-entails skolems known (ev:evs)
-  = case evPred ev of
-      PredIFace name [_,_,_]  | name == namePredHeapDiv  -- can always be solved
-        -> entails skolems known evs
-      _ -> -- trace ("Type.Unify.subsume.entails: cannot show entailment: " ++ show (tvsList skolems,known,ev:evs)) $
-           unifyError NoEntail
 
 
 {--------------------------------------------------------------------------
@@ -302,7 +277,7 @@ unify f1@(TFun args1 eff1 res1) f2@(TFun args2 eff2 res2) | length args1 == leng
     effErr err                  = err
 
 -- quantified types
-unify (TForall vars1 preds1 tp1) (TForall vars2 preds2 tp2) | length vars1 == length vars2 && length preds1 == length preds2
+unify (TForall vars1 tp1) (TForall vars2 tp2) | length vars1 == length vars2
   = do -- match kinds of quantifiers
        let kinds1 = map getKind vars1
            kinds2 = map getKind vars2
@@ -315,11 +290,8 @@ unify (TForall vars1 preds1 tp1) (TForall vars2 preds2 tp2) | length vars1 == le
            sub2 = subNew (zip vars2 vars)
            stp1 = sub1 |-> tp1
            stp2 = sub2 |-> tp2
-           spreds1 = sub1 |-> preds1
-           spreds2 = sub2 |-> preds2
        -- and unify the results
        unify stp1 stp2
-       unifyPreds preds1 preds2
        -- no need to check for escaping skolems as we don't unify to bound variables
 
 -- special unsafe(!) handling of continuations; just for cps translation :-(
@@ -394,31 +366,6 @@ unifies (t:ts) (u:us)
        unifies ts us
 unifies _ _
   = failure "Type.Unify.unifies"
-
-
--- | Unify predicates (applies a substitution before each unification)
-unifyPreds :: HasCallStack => [Pred] -> [Pred] -> Unify ()
-unifyPreds [] []
-  = return ()
-unifyPreds (p1:ps1) (p2:ps2)
-  = do sp1 <- subst p1
-       sp2 <- subst p2
-       unifyPred p1 p2
-       unifyPreds ps1 ps2
-unifyPreds _ _
-  = failure "Type.Unify.unifyPreds"
-
-
-unifyPred :: HasCallStack => Pred -> Pred -> Unify ()
-unifyPred (PredSub t1 t2) (PredSub u1 u2)
-  = do unify t1 u1
-       st2 <- subst t2
-       su2 <- subst u2
-       unify st2 su2
-unifyPred (PredIFace name1 ts1) (PredIFace name2 ts2)  | name1 == name2
-  = unifies ts1 ts2
-unifyPred _ _
-  = unifyError NoMatchPred
 
 
 -- | Unify effects

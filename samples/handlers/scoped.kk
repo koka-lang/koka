@@ -71,13 +71,8 @@ val choices = handler
     flip()
 
 
-fun intlistlist/show(x : (int,list<list<int>>)) : string
+fun state-show(x : (int,a), ?show : a -> string ) : string
   "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
-
-
-fun intlist/show(xs : list<(int,list<int>)>) : string
-  xs.show-list fn(x)
-    "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
 
 
 pub fun example2()
@@ -221,8 +216,8 @@ pub fun example5()
 
 pub fun main()
   example1().show.println
-  example2().show.println
-  example3().show.println
+  example2().state-show.println
+  example3().list/show(?show=state-show).println
   example4().show.println
   example5().show.println
 

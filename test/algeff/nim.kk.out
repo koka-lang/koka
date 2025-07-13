@@ -56,7 +56,7 @@ algeff/nim/replay: forall<a,e> (n : int, action : () -> <div|e> a) -> <div|e> a
 algeff/nim/s0: list<(player, int)>
 algeff/nim/scoreUpdater: forall<e> (() -> <state<gstate>|e> player) -> <state<gstate>|e> player
 algeff/nim/showGt: (gt : gtree, indent : int) -> div string
-algeff/nim/state: forall<a,b,e> (init : a, action : () -> <div,state<a>|e> b) -> <div|e> b
+algeff/nim/state: forall<a,b,e> (init : a, action : () -> <state<a>|e> b) -> e b
 algeff/nim/testCheck: () -> pure player
 algeff/nim/testChoose: () -> div list<player>
 algeff/nim/testGt: () -> div gtree

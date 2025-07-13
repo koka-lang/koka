@@ -456,7 +456,6 @@ externDecl dvis
           TpQuan QSome _ _ _ -> fail "external types cannot contain unspecified ('_') types"
           TpQuan QExists _ _ _ -> fail "external types cannot contain existential types"
           TpQuan _ _ t _ -> genParArgs t
-          TpQual _ t     -> genParArgs t
           TpParens t _   -> genParArgs t
           TpAnn t _      -> genParArgs t
           TpFun pars _ _ _ -> return $ genFunParArgs pars
@@ -1408,9 +1407,9 @@ funDef allowBorrow allowImplicits
   = do tpars  <- typeparams
        (pars, pinfos, transform, rng) <- parameters allowBorrow True {-allowDefault-} allowImplicits
        resultTp <- annotRes
-       preds <- do keyword "with"
+       preds <- {- do keyword "with"
                    parens (many1 predicate)
-                <|> return []
+                <|> -} return []
        return (tpars,pars,pinfos,rng,resultTp,preds,transform)
 
 annotRes :: LexParser (Maybe (Maybe UserType,UserType))
@@ -1484,7 +1483,7 @@ parImplicit
                                     <?> "implicit parameter name")
        tp <- optionMaybe typeAnnotPar
        let unpackExpr = if unpack
-                          then Just (Parens (Var (unqualifyFull qname) False rng) nameNil "" rng) -- encode ?? as a default value assuming it is a type name
+                          then Just (Parens (Var (unqualifyFull qname) False rng) nameNil "" rng) -- encode .? as a default value assuming it is a type name
                           else Nothing
        return (ValueBinder qname tp unpackExpr (combineRange rng (getRange tp)) rng, id)
 
@@ -2453,10 +2452,11 @@ tqual
        pqualifier tp
 
 pqualifier tp
-  = do keyword "with"
+  = {-
+    do keyword "with"
        ps <- parens (many1 predicate)
        return (TpQual ps tp)
-  <|>
+  <|> -}
     return tp
 
 predicate
@@ -2757,16 +2757,13 @@ katom
     do rng <- specialConId "S"
        return (KindCon nameKindScope rng)
   <|>
-    do rng <- specialConId "P"
-       return (KindCon nameKindPred rng)
-  <|>
     do rng <- specialConId "HX"
        return (makeKindHandled rng) -- (KindCon nameKindHandled rng)
   {- <|>
     do rng <- specialConId "HX1"
        return (makeKindHandled rng) -- (KindCon nameKindHandled1 rng)
   -}
-  <?> "kind constant (V,E,H,S,X,HX, or P)"
+  <?> "kind constant (V,E,H,S,X,or HX)"
 
 makeKindHandled rng
   = KindArrow (KindCon nameKindEffect rng) (KindArrow (KindCon nameKindStar rng) (KindCon nameKindStar rng))
@@ -2946,7 +2943,7 @@ typeid ::  LexParser (Name,Range)
 typeid
   = do (name,rng) <- qtypeid
        if (isQualified name)
-        then fail "qualified type variable"
+        then fail ("qualified type variable: " ++ show (name,rng))
         else return (name,rng)
   {-
   -- secretly allow definition of any name

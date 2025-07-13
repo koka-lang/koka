@@ -49,7 +49,7 @@ extractDepsFromExpr :: Expr -> S.Set ModuleName
 extractDepsFromExpr expr
   = let varmods  = S.map (qualifier . getName) (fv expr)
         tconmods = S.map (qualifier . typeconName) (ftc expr)
-    in S.union varmods tconmods
+    in S.filter (\name -> not (nameIsNil name)) (S.union varmods tconmods)
 
 
 extractDepsFromSignatures :: Core -> [ModuleName]
@@ -77,7 +77,7 @@ freeLocals expr
 addTypeApps :: [TypeVar] -> (Expr -> Expr)
 addTypeApps [] e                = e
 addTypeApps ts (TypeApp e args) = TypeApp e (args ++ [TVar t | t <- ts])
-addTypeApps (t:ts) (TypeLam (tpar:tpars) body) 
+addTypeApps (t:ts) (TypeLam (tpar:tpars) body)
   = addTypeApps ts (addTypeLambdas tpars (subSingle tpar (TVar t) |-> body))
 addTypeApps ts e                = TypeApp e [TVar t | t <- ts]
 

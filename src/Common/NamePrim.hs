@@ -176,12 +176,12 @@ module Common.NamePrim
           , nameTpTuple, isNameTpTuple
           , nameAnd, nameOr
 
-          , namePredHeapDiv, namePredEffDiv
+          , nameTypeHeapDiv, nameEvHeapDiv, nameEvHeapNoDiv, nameHeapDiv
 
           -- * Kind constructors
           , nameKindStar, nameKindFun
           , nameKindLabel
-          , nameKindPred, nameKindEffect
+          , nameKindEffect
           , nameKindHeap, nameKindScope
           , nameKindHandled1, nameKindHandled
 
@@ -403,8 +403,10 @@ nameLocalGet    = coreTypesName "local-get"
 nameDeref       = qualifyLocally (newModuleName "ref") (coreTypesName "!")
 nameByref       = coreTypesName "@byref"
 
-namePredHeapDiv = coreTypesName "hdiv"
-namePredEffDiv  = coreTypesName "ediv"
+nameTypeHeapDiv = coreTypesName "hdiv"
+nameEvHeapDiv   = coreTypesName "@Hdiv"
+nameEvHeapNoDiv   = coreTypesName "@Hnodiv"
+nameHeapDiv     = newName "hdiv"
 
 nameTpRef       = coreTypesName "ref"
 nameTpLocalVar  = coreTypesName "local-var"
@@ -574,7 +576,6 @@ isPrimitiveModule name
 nameKindStar    = newName "V"
 nameKindLabel   = newName "X"
 nameKindFun     = newName "->"
-nameKindPred    = newName "P"
 nameKindEffect  = newName "E"
 nameKindHeap    = newName "H"
 nameKindScope   = newName "S"

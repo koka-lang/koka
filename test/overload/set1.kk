@@ -48,7 +48,7 @@ fun test1()
   inttest()
 
 fun test2()
-  unittest().println  // picks ?set=unit/set as that is shortest..
+  unittest(?set = unit/set()).println
 
 fun test2a()
   unittest(?set = list/set())

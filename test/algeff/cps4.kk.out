@@ -1,7 +1,7 @@
 1 (state=2)
  
-algeff/cps4/either/show: (r : either<string,(int, int)>) -> string
 algeff/cps4/expr/show: (e : expr) -> string
+algeff/cps4/state/show: (r : either<string,(int, int)>) -> string
 algeff/cps4/(>>=): forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
 algeff/cps4/Div: (e1 : expr, e2 : expr) -> expr
 algeff/cps4/Int: (i : int) -> expr

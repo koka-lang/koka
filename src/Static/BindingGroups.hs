@@ -80,7 +80,6 @@ instance HasFreeTypes (KUserType k) where
   freeTypes tp
     = case tp of
        TpQuan     quant tname tp rng  -> freeTypes tp
-       TpQual     preds tp            -> freeTypes (tp:preds)
        TpFun      args eff tp rng     -> freeTypes (tp:eff:map snd args)
        TpApp      tp args range       -> S.union (freeTypes tp) (freeTypes args)
        TpVar      name range          -> S.empty

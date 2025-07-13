@@ -181,7 +181,7 @@ getCompletionInfo pos vf rmap uri lexemes = do
     completeList line partial rng =
       let tyvar = TypeVar (-1) kindStar Skolem
           tvar  = TVar tyvar in
-      return (CompletionInfo line pos partial rng (Just (TForall [tyvar] [] (TApp typeList [tvar]))) CompletionKindFunction)
+      return (CompletionInfo line pos partial rng (Just (TForall [tyvar] (TApp typeList [tvar]))) CompletionKindFunction)
     completeFunction line partial rnginsert rng resultOfFunction =
       let rm = rangeMapFind rng rmap
       in completeRangeInfo line partial rm rnginsert resultOfFunction
@@ -198,7 +198,7 @@ getCompletionInfo pos vf rmap uri lexemes = do
               if not resultOfFunction then return (CompletionInfo line pos partial rnginsert (Just t) CompletionKindFunction)
               else
                 case splitFunScheme t of
-                  Just (_, _, _, _,res) ->
+                  Just (_, _, _,res) ->
                     -- trace (" res: " ++ show res) $
                     return (CompletionInfo line pos partial rnginsert (Just res) CompletionKindFunction)
                   Nothing             -> return (CompletionInfo line pos partial rnginsert (Just t) CompletionKindFunction)
@@ -259,7 +259,7 @@ valueCompletions curModName gamma cinfo@CompletionInfo{argumentType=tp, searchTe
         InfoCon {infoCon} | isHiddenName n -> (n, makeHandlerCompletionItem curModName infoCon typeDoc lspRng (fullLine cinfo))
         InfoFun {infoType} -> (n, makeFunctionCompletionItem curModName n typeDoc infoType (completionKind == CompletionKindFunction) lspRng (fullLine cinfo))
         InfoVal {infoType} -> case splitFunScheme infoType of
-          Just (tvars, tpreds, pars, eff, res) -> (n, makeFunctionCompletionItem curModName n typeDoc infoType (completionKind == CompletionKindFunction) lspRng (fullLine cinfo))
+          Just (tvars, pars, eff, res) -> (n, makeFunctionCompletionItem curModName n typeDoc infoType (completionKind == CompletionKindFunction) lspRng (fullLine cinfo))
           Nothing -> (n, makeCompletionItem curModName n kind typeDoc)
         _ -> (n, makeCompletionItem curModName n kind typeDoc)
       where
@@ -387,7 +387,7 @@ makeFunctionCompletionItem curModName funName typeDoc funType hasDotPrefix rng l
       insertTextFormat = Just InsertTextFormat_Snippet
       insertTextMode = Nothing
       arguments = case splitFunScheme funType
-        of Just (tvars, tpreds, pars, eff, res) -> pars
+        of Just (tvars, pars, eff, res) -> pars
            Nothing -> []
       numArgs = length arguments - (if hasDotPrefix then 1 else 0)
       -- trailingFunArgTp = case arguments
@@ -476,8 +476,8 @@ makeHandlerCompletionItem curModName conInfo d r line =
 
 handlerArgs :: T.Text -> Type -> [Type]
 handlerArgs name tp =
-  case splitPredType tp of
-    (_,_,TApp _ args) ->
+  case splitTypeScheme tp of
+    (_,TApp _ args) ->
       if T.isPrefixOf "val" name then take (length args - 3) args else take (length args - 4) args
     _ -> []
 

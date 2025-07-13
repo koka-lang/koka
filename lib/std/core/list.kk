@@ -26,7 +26,7 @@ pub fbip fun maybe/head( xs : list<a> ) : maybe<a>
     _       -> Nothing
 
 // Return the head of list with a default value in case the list is empty.
-pub fbip fun default/head( xs : list<a>, default : a ) : a
+pub fbip fun head( xs : list<a>, default : a ) : a
   match xs
     Cons(x) -> x
     _       -> default

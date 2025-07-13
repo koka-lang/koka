@@ -10,7 +10,7 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE InstanceSigs #-}
 module Type.Type (-- * Types
-                    Type(..), Scheme, Sigma, Rho, Tau, Effect, InferType, Pred(..)
+                    Type(..), Scheme, Sigma, Rho, Tau, Effect, InferType
                   , Flavour(..)
                   , DataInfo(..), DataKind(..), ConInfo(..), SynInfo(..)
                   , dataInfoIsOpen, dataInfoIsExtend, dataInfoIsLiteral
@@ -18,8 +18,7 @@ module Type.Type (-- * Types
                   , conInfoIsLazy, dataInfoIsLazy, conInfoLazyFip, lazyName
                   , eqType, eqTypes, elemType
                   -- Predicates
-                  , splitPredType, shallowSplitPreds, shallowSplitVars
-                  , predType
+                  , splitTypeScheme, shallowSplitVars
                   -- ** Type atoms
                   , TypeVar(..), TypeCon(..), TypeSyn(..), SynonymRank
                   -- ** Accessors
@@ -28,7 +27,7 @@ module Type.Type (-- * Types
                   , isBound, isSkolem, isMeta, isMonoType
                   -- ** Operations
                   , makeScheme
-                  , quantifyType, qualifyType, applyType, tForall
+                  , quantifyType, applyType, tForall
                   , expandSyn
                   , canonicalForm, minimalForm
                   -- ** Standard types
@@ -88,11 +87,10 @@ import Kind.Kind
   Types
 --------------------------------------------------------------------------}
 -- | Types
-data Type   = TForall  ![TypeVar] ![Pred] !Rho  -- ^ forall a b c. phi, psi => rho
+data Type   = TForall  ![TypeVar] !Rho  -- ^ forall a b c. phi, psi => rho
                                              -- there is at least one variable
                                              -- every variable occurs at least once in rho
-                                             -- variables and predicates are canonically ordered
-                                             -- each predicate refers to at least one of the variables
+                                             -- variables are canonically ordered
                                              -- rho has kind *
             | TFun     ![(Name,Type)] !Effect !Type    -- ^ (x:a, y:b, z:c) -> m d
             | TCon     !TypeCon               -- ^ type constant (primitive, label, or newtype; not -> or =>)
@@ -102,11 +100,6 @@ data Type   = TForall  ![TypeVar] ![Pred] !Rho  -- ^ forall a b c. phi, psi => r
                                              -- first [Type] list is the actual arguments
                                              -- final Type is the "real" type (expanded) (always has kind *)
             deriving (Show)
-
-data Pred
-  = PredSub !Type !Type
-  | PredIFace !Name ![Type]
-  deriving (Show)
 
 -- | Various synonyms of types
 type Scheme = Type
@@ -153,7 +146,7 @@ type SynonymRank = Int
 maxSynonymRank :: Type -> SynonymRank
 maxSynonymRank tp
   = case tp of
-      TForall vars preds rho  -> maxSynonymRank rho
+      TForall vars rho        -> maxSynonymRank rho
       TFun args eff tp        -> maxSynonymRanks (tp:eff:map snd args)
       TCon _                  -> 0
       TVar _                  -> 0
@@ -292,10 +285,6 @@ isMeta tv = typevarFlavour tv == Meta
 isSkolem :: TypeVar -> Bool
 isSkolem tv = typevarFlavour tv == Skolem
 
-predType :: Pred -> Type
-predType (PredSub t1 t2)      = typeFun [(newName "sub",t1)] typeTotal t2
-predType (PredIFace name tps) = typeUnit --todo "Type.Operations.predType.PredIFace"
-
 isMonoType :: Type -> Bool
 isMonoType tp
   = case expandSyn tp of
@@ -342,33 +331,26 @@ instance Ord TypeSyn where
 
 -- | Split type into a list of universally quantified
 -- type variables, a list of predicates, and a rho-type
-splitPredType :: Type -> ([TypeVar], [Pred], Rho)
-splitPredType tp
+splitTypeScheme :: Type -> ([TypeVar], Rho)
+splitTypeScheme tp
   = case tp of
-      TForall vars preds rho      -> (vars, preds, rho)
-      TSyn _ _  tp | mustSplit tp -> splitPredType tp
-      otherwise                   -> ([], [], tp)
+      TForall vars rho      -> (vars, rho)
+      TSyn _ _  tp | mustSplit tp -> splitTypeScheme tp
+      otherwise                   -> ([], tp)
   where
     -- We must split a synonym if its expansion includes further quantifiers or predicates
     mustSplit :: Type -> Bool
     mustSplit tp
       = case tp of
-          TForall _ _ _ -> True
+          TForall _ _   -> True
           TSyn _ _ tp   -> mustSplit tp
           _             -> False
 
 -- Find all quantified type variables, but do not expand synonyms
 shallowSplitVars tp
   = case tp of
-      TForall vars preds rho -> (vars, preds, rho)
-      otherwise              -> ([], [], tp)
-
--- Find all predicates
-shallowSplitPreds tp
-  = case tp of
-      TForall _ preds _ -> preds
-      otherwise         -> []
-
+      TForall vars rho       -> (vars, rho)
+      otherwise              -> ([], tp)
 
 expandSyn :: Type -> Type
 expandSyn (TSyn syn args tp)
@@ -382,7 +364,7 @@ canonicalForm :: Type -> Type
 canonicalForm tp
   = case tp of
       TSyn syn args t       -> canonicalForm t
-      TForall vars preds t  -> TForall vars preds (canonicalForm t)
+      TForall vars t        -> TForall vars (canonicalForm t)
       TApp t ts             -> TApp (canonicalForm t) (map canonicalForm ts)
       TFun args eff res     -> TFun [(name,canonicalForm t) | (name,t) <- args] (orderEffect (canonicalForm eff)) (canonicalForm res)
       _ -> tp
@@ -393,7 +375,7 @@ minimalForm :: Type -> Type
 minimalForm tp
   = case tp of
       TSyn syn args t       -> canonicalForm t
-      TForall vars preds t  -> TForall vars preds (canonicalForm t)
+      TForall vars t        -> TForall vars (canonicalForm t)
       TApp t ts             -> TApp (canonicalForm t) (map canonicalForm ts)
       TFun args eff res     -> TFun [(nameListNil,canonicalForm t) | (_,t) <- args] (orderEffect (canonicalForm eff)) (canonicalForm res)
       _ -> tp
@@ -402,22 +384,17 @@ minimalForm tp
 -- | Create a type scheme from a list quantifiers.
 makeScheme :: [TypeVar] -> Rho -> Scheme
 makeScheme vars rho
-  = case splitPredType rho of
-      (vars0,preds,t) -> tForall (vars ++ vars0) preds t
+  = case splitTypeScheme rho of
+      (vars0,t) -> tForall (vars ++ vars0) t
 
 quantifyType :: [TypeVar] -> Scheme -> Scheme
 quantifyType vars tp
-  = case splitPredType tp of
-      (vars0,preds,rho) -> tForall (vars ++ vars0) preds rho
+  = case splitTypeScheme tp of
+      (vars0,rho) -> tForall (vars ++ vars0) rho
 
-qualifyType :: [Pred] -> Scheme -> Scheme
-qualifyType preds tp
-  = case splitPredType tp of
-      (vars,preds0,rho) -> tForall vars (preds ++ preds0) rho
-
-tForall :: [TypeVar] -> [Pred] -> Rho -> Scheme
-tForall [] [] rho  = rho
-tForall vars preds rho = TForall vars preds rho
+tForall :: [TypeVar] -> Rho -> Scheme
+tForall [] rho   = rho
+tForall vars rho = TForall vars rho
 
 
 applyType tp1 tp2
@@ -438,14 +415,14 @@ applyType tp1 tp2
 getTypeArities :: Type -> (Int,Int)
 getTypeArities tp
   = case splitFunScheme tp of
-      Just (tvars,_,pars,eff,res) -> (length tvars, length pars)
+      Just (tvars,pars,eff,res) -> (length tvars, length pars)
       Nothing -> (0,0)
 
-splitFunScheme :: Scheme -> Maybe ([TypeVar],[Pred],[(Name,Tau)],Effect,Tau)
+splitFunScheme :: Scheme -> Maybe ([TypeVar],[(Name,Tau)],Effect,Tau)
 splitFunScheme tp
-  = let (tvars, preds, rho) = splitPredType tp
+  = let (tvars, rho) = splitTypeScheme tp
     in case splitFunType rho of
-         Just (pars,eff,res) -> Just (tvars,preds,pars,eff,res)
+         Just (pars,eff,res) -> Just (tvars,pars,eff,res)
          Nothing             -> Nothing
 
 
@@ -473,7 +450,7 @@ isTCon tp
 isRho :: Type -> Bool
 isRho tp
   = case tp of
-      TForall _ _ _ -> False
+      TForall _ _   -> False
       TSyn    _ _ t -> isRho t
       _             -> True
 
@@ -482,7 +459,7 @@ isRho tp
 isTau :: Type -> Bool
 isTau tp
   = case tp of
-      TForall _ _ _  -> False
+      TForall _ _    -> False
       TFun xs e r    -> all (isTau . snd) xs && isTau e && isTau r -- TODO e should always be tau
       TCon    _      -> True
       TVar    _      -> True
@@ -579,9 +556,8 @@ isTypeLocalVar tp =
 
 
 isValueOperation tp
-  = case splitPredType tp of
-      -- (_,_,TSyn syn [_,_] _) -> typeSynName syn == nameTpValueOp
-      (_,_,TApp (TCon (TypeCon name _)) [_,_]) -> name == nameTpValueOp
+  = case splitTypeScheme tp of
+      (_,TApp (TCon (TypeCon name _)) [_,_]) -> name == nameTpValueOp
       _ -> False
 
 makeValueOperation eff tp
@@ -672,7 +648,7 @@ wrapHandledFromDataEffect (DataNoEffect) teff
 
 
 isAsyncFunction tp
-  = let (_,_,rho) = splitPredType tp
+  = let (_,rho) = splitTypeScheme tp
     in case splitFunType rho of
          Just (_,eff,_) -> let (ls,_) = extractEffectExtend eff
                            in any isEffectAsync ls
@@ -680,7 +656,7 @@ isAsyncFunction tp
 
 isEffectAsync tp
   = case expandSyn tp of
-      TForall _ _ rho -> isEffectAsync rho
+      TForall _ rho    -> isEffectAsync rho
       TFun _ eff _    -> isEffectAsync eff
       TApp (TCon (TypeCon name _)) [t]
         | name == nameTpHandled -> isEffectAsync t
@@ -799,7 +775,7 @@ appEffectExtend label eff
 kindOf :: HasCallStack => Tau -> Kind
 kindOf tau
   = case tau of
-      TForall _ _ tp -> kindOf tp
+      TForall _ tp   -> kindOf tp
       TFun _ _ _     -> kindStar
       TVar v         -> typevarKind v
       TCon c         -> typeconKind c
@@ -1017,9 +993,6 @@ instance IsType TypeCon where
 -- instance Eq Type where
 --  (==) = eqType
 
-instance Eq Pred where
-  (==) = matchPred
-
 elemType :: Type -> [Type] -> Bool
 elemType t ts
   = isJust (find (eqType t) ts)
@@ -1027,7 +1000,7 @@ elemType t ts
 eqType :: HasCallStack => Type -> Type -> Bool
 eqType tp1 tp2
   = case (expandSyn tp1,expandSyn tp2) of
-      (TForall vs1 ps1 t1, TForall vs2 ps2 t2)  -> (vs1==vs2 && matchPreds ps1 ps2 && eqType t1 t2)
+      (TForall vs1 t1, TForall vs2 t2)          -> (vs1==vs2 && eqType t1 t2)
       (TFun pars1 eff1 t1, TFun pars2 eff2 t2)  -> (eqTypes (map snd pars1) (map snd pars2) && matchEffect eff1 eff2 && eqType t1 t2)
       (TCon c1, TCon c2)                        -> c1 == c2
       (TVar v1, TVar v2)                        -> v1 == v2
@@ -1042,13 +1015,3 @@ matchEffect eff1 eff2
 eqTypes :: HasCallStack => [Type] -> [Type] -> Bool
 eqTypes ts1 ts2
   = and (zipWith eqType ts1 ts2)
-
-matchPreds ps1 ps2
-  = and (zipWith matchPred ps1 ps2)
-
-matchPred :: Pred -> Pred -> Bool
-matchPred p1 p2
-  = case (p1,p2) of
-      (PredSub sub1 sup1, PredSub sub2 sup2)  -> (eqType sub1 sub2 && eqType sup1 sup2)
-      (PredIFace n1 ts1, PredIFace n2 ts2)    -> (n1 == n2 && eqTypes ts1 ts2)
-      _ -> False

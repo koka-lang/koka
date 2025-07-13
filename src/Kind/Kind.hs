@@ -13,7 +13,7 @@ module Kind.Kind( -- * Kinds
                     Kind(..)
                   , KindCon
                  -- * Standard kinds
-                  , kindStar, kindPred, kindEffect, kindArrow, kindScope, kindHeap
+                  , kindStar, kindEffect, kindArrow, kindScope, kindHeap
                   , kindHandled, kindHandled1, kindLocal
                   , kindFun, kindLabel, extractKindFun, kindFunN
                   , builtinKinds
@@ -82,10 +82,6 @@ kindAddArg kfun karg
       KApp (KApp k0 k1) k2  | k0 == kindArrow && not (isKindEffect k1 && isKindStar k2)
         -> KApp (KApp k0 k1) (kindAddArg k1 karg)
       _ -> kindFun karg kfun
-
-kindPred :: Kind
-kindPred
-  = KCon nameKindPred
 
 -- Effect row E
 kindEffect :: Kind
@@ -189,7 +185,6 @@ builtinKinds :: [(Name,Kind)]
 builtinKinds
   = [(nameKindStar, kindStar)
     ,(nameKindFun, kindArrow)
-    ,(nameKindPred, kindPred)
     ,(nameKindEffect, kindEffect)
     ,(nameKindLabel, kindLabel)
     ,(nameKindHeap, kindHeap)

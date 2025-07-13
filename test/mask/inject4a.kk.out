@@ -1,7 +1,7 @@
 42
  
 mask/inject4a/get: forall<a> () -> (heap<a>) a
-mask/inject4a/main: () -> <console,div> ()
-mask/inject4a/new-ref: forall<a,b,e> (init : a, action : () -> <div,heap<a>|e> b) -> <div|e> b
+mask/inject4a/main: () -> console ()
+mask/inject4a/new-ref: forall<a,b,e> (init : a, action : () -> <heap<a>|e> b) -> e b
 mask/inject4a/set: forall<a> (value : a) -> (heap<a>) ()
-mask/inject4a/test: () -> div int
+mask/inject4a/test: () -> int

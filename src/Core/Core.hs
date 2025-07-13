@@ -11,7 +11,7 @@
 
 module Core.Core ( -- Data structures
                      Core(..)
-                   , Imports, Import(..), ImportProvenance(..), isCompilerImport, isUserImport
+                   , Imports, Import(..), makeImport, ImportProvenance(..), isCompilerImport, isUserImport
                    , Externals, External(..), externalVis
                    , FixDefs, FixDef(..)
                    , TypeDefGroups, TypeDefGroup(..), TypeDefs, TypeDef(..)
@@ -106,6 +106,7 @@ module Core.Core ( -- Data structures
                    , runCorePhase
                    , liftCorePhase, liftCorePhaseUniq
                    , liftError
+                   , depName, depTName
                    ) where
 
 import Control.Applicative (liftA2)
@@ -171,7 +172,7 @@ makeVector tp exprs
   = App (TypeApp vectorFromList [tp]) [makeList tp exprs]
   where
     vectorFromList
-      = Var (TName nameVector (TForall [a] [] (typeFun [(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeVector [TVar a]))))
+      = Var (TName nameVector (TForall [a] (typeFun [(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeVector [TVar a]))))
             (InfoArity 1 1)
     a = TypeVar (0) kindStar Bound
 
@@ -180,7 +181,7 @@ wrapOptional tp expr
   = App (TypeApp (Con (TName nameOptional tpOptional) conInfo) [tp]) [expr]
   where
     conInfo    = ConAsJust nameTpOptional DataAsMaybe (valueReprScan 1) nameOptionalNone {-the Nothing-} 0
-    tpOptional = TForall [a] [] (typeFun [(nameNil,TVar a)] typeTotal (makeOptionalType (TVar a)))
+    tpOptional = TForall [a] (typeFun [(nameNil,TVar a)] typeTotal (makeOptionalType (TVar a)))
     a = TypeVar (0) kindStar Bound
 
 makeOptionalNone :: Type -> Expr
@@ -188,17 +189,17 @@ makeOptionalNone tp
   = TypeApp (Con (TName nameOptionalNone tpOptionalNone) conInfo) [tp]
   where
     conInfo    = ConSingleton nameTpOptional DataAsMaybe valueReprZero 1
-    tpOptionalNone = TForall [a] [] (typeFun [(nameNil,TVar a)] typeTotal (makeOptionalType (TVar a)))
+    tpOptionalNone = TForall [a] (typeFun [(nameNil,TVar a)] typeTotal (makeOptionalType (TVar a)))
     a = TypeVar (0) kindStar Bound
 
 makeList :: Type -> [Expr] -> Expr
 makeList tp exprs
   = foldr cons nil exprs
   where
-    nilTp    = TForall [a] [] (TApp typeList [TVar a])
+    nilTp    = TForall [a] (TApp typeList [TVar a])
     nilCon   = Con (TName nameListNil nilTp) (ConSingleton nameTpList DataAsList valueReprZero 0)
     nil      = TypeApp nilCon [tp]
-    consTp   = TForall [a] [] (typeFun [(nameNil,TVar a),(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeList [TVar a]))
+    consTp   = TForall [a] (typeFun [(nameNil,TVar a),(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeList [TVar a]))
     consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList (valueReprScan 2) nameListNil CtxNone 2)  -- NOTE: depends on Cons being second in the definition in std/core :-(
     cons expr xs = App (TypeApp consCon [tp]) [expr,xs]
     a = TypeVar (0) kindStar Bound
@@ -299,6 +300,11 @@ isCompilerImport imp = (importProvenance imp >= ImportCompiler)
 
 isUserImport :: Import -> Bool
 isUserImport imp  = (importProvenance imp == ImportUser)
+
+makeImport :: HasCallStack => Name -> String -> ImportProvenance -> Visibility -> String -> Import
+makeImport name pkg provenance vis doc
+  = assertion "invalid import" (show name /= "") $
+    Import name pkg provenance vis doc
 
 {--------------------------------------------------------------------------
   Externals
@@ -851,14 +857,14 @@ hasTotalEffect :: Type -> Bool
 hasTotalEffect tp
   = case splitFunScheme tp of
       Nothing -> False
-      Just (_,_,argTps,eff,resTp) -> isTypeTotal eff
+      Just (_,argTps,eff,resTp) -> isTypeTotal eff
 
 isMonType :: Type -> Bool
 isMonType tp
   | isKindEffect (getKind tp) = isMonEffect tp
   | otherwise =
     case expandSyn tp of
-      TForall vars preds t -> isMonType t
+      TForall vars t       -> isMonType t
       TFun pars eff res    -> isMonEffect eff
       _ -> -- trace ("isMonType is false: " ++ show (pretty tp))
            False
@@ -1160,7 +1166,7 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
           App (TypeApp varOpen [effFrom,effTo,tpFrom,tpTo]) [expr]
   where
     varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal [(Default,"#1")])    -- NOTE: quite fragile as it relies on the exact definition in core.kk
-    tpOpen  = TForall [e1,e2,a,b] [] (TFun [(newName "x", tpFrom)] typeTotal tpTo)
+    tpOpen  = TForall [e1,e2,a,b] (TFun [(newName "x", tpFrom)] typeTotal tpTo)
     a       = TypeVar (-1) kindStar Bound
     b       = TypeVar (-2) kindStar Bound
     e1      = TypeVar (-3) kindEffect Bound
@@ -1220,7 +1226,7 @@ instance HasType Expr where
   typeOf expr@(App fun args)
     = -- snd (splitFun (typeOf fun))
       case splitFunScheme (typeOf fun) of
-        Just (_,_,targs,eff,tres)          -- ignore forall as we can call this after box/unbox
+        Just (_,targs,eff,tres)          -- ignore forall as we can call this after box/unbox
            | length args == length targs || length targs == 0 -> tres
            | length args > length targs  -> typeOf (App (Var (TName (newName "tmp") tres) InfoNone) (drop (length targs) args))
            | otherwise -> TFun (drop (length args) targs) eff tres
@@ -1228,7 +1234,7 @@ instance HasType Expr where
 
   -- Type lambdas
   typeOf (TypeLam xs expr)
-    = TForall xs [] (typeOf expr)
+    = TForall xs (typeOf expr)
 
   -- Type application
   typeOf (TypeApp expr [])
@@ -1311,7 +1317,7 @@ splitFun tp
 splitTForall :: Type -> ([TypeVar], Type)
 splitTForall tp
   = case expandSyn tp of
-      (TForall tvs _ tp) -> (tvs, tp) -- TODO what about the rest of the variables and preds?
+      (TForall tvs tp) -> (tvs, tp) -- TODO what about the rest of the variables and preds?
       _ ->  failure ("Core.Core.splitTForall: Expected forall: " ++ show (pretty tp))
 
 
@@ -1350,7 +1356,7 @@ depTDef (Data info)    = depsUnions (map (depType . conInfoType) (dataInfoConstr
 depType :: Type -> Deps
 depType tp
   = case tp of
-      TForall vars preds rho  -> depType rho
+      TForall vars rho       -> depType rho
       TFun args eff tp        -> depsUnions (map depType (tp:eff:map snd args))
       TCon tc                 -> depName (typeConName tc)
       TVar _                  -> S.empty

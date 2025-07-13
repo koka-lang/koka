@@ -319,7 +319,6 @@ data UserQuantifier  = QSome | QForall | QExists
 -- (Higher ranked) types
 data KUserType k
   = TpQuan     !UserQuantifier !(TypeBinder k) !(KUserType k) !Range
-  | TpQual     ![KUserType k] !(KUserType k)
   | TpFun      ![(Name,KUserType k)] !(KUserType k) !(KUserType k) !Range
   | TpApp      !(KUserType k)  ![KUserType k] !Range
   | TpVar      !Name                  !Range
@@ -360,7 +359,6 @@ instance Ranged k => Ranged (KUserType k) where
   getRange tp
     = case tp of
        TpQuan     quant tname userType range -> range
-       TpQual     preds tp        -> combineRange (getRange preds) (getRange tp)
        TpFun      args effect tp r-> r
        TpApp      tp tps rng      -> rng
        TpVar      name range      -> range
@@ -490,7 +488,6 @@ instance HasFreeTypeVar (KUserType k) where
     = case tp of
        TpQuan quant (TypeBinder name k _ _) tp _
                                       -> S.delete name (freeTypeVars tp)
-       TpQual     preds tp            -> freeTypeVars (tp:preds)
        TpFun      args effect tp rng  -> freeTypeVars (tp:effect:map snd args)
        TpApp      tp args range       -> S.union (freeTypeVars tp) (freeTypeVars args)
        TpVar      name range          -> S.singleton name

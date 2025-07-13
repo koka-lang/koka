@@ -428,7 +428,7 @@ bunlines xs = stringToBString $ unlines xs
 completeMain :: Bool -> Name -> Type -> BuildContext -> Build (Type,String -> String,String,[String])
 completeMain addShow exprName tp buildc
   = case splitFunScheme tp of
-      Just (_,_,_,eff,resTp)
+      Just (_,_,eff,resTp)
         -> let (ls,_) = extractHandledEffect eff  -- only effect that are in the evidence vector
            in do print    <- printExpr resTp
                  (mainBody,extraImports) <- addDefaultHandlers rangeNull eff ls [] callExpr

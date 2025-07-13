@@ -50,24 +50,24 @@ fun list/cmpx<a>( xs : list<a>, ys : list<a>, ?cmpx : (a,a) -> order ) : order
 // can be resolved as `eq = list/eq(_,_,int/eq)` but also as `eq = cmpx/eq(_,_,list/cmpx(int/cmpx))`.
 // For implicits we instead prefer the _shortest chain_ (with the most locals). (A)
 // (before we preferred most locals first, and then the shortest chain (B))
-fun cmpx/eq( x : a, y : a, ?cmpx : (a,a) -> order ) : bool
+fun default/cmpx/eq( x : a, y : a, ?cmpx : (a,a) -> order ) : bool
   cmpx(x,y) == Eq
 
 
 fun test3a( ?eq : (int,int) -> bool )
   // equal(1,2)  // use `?eq` instead of `int/eq`  to prefer locals
-  equal([1],[2],?eq=list/eq
-  )
+  // equal([1],[2],?eq=list/eq)
+  equal([1],[2])  // or should we reject and not prefer locals?
 
 fun test3e( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool )
   equal(xs,ys)
 
 fun test3b()
-  equal(1,2)  // use `int/eq` instead of `cmpx/eq(int/cmpx)` as it is shorter
+  equal(1,2)  // use `int/eq` instead of `default/cmpx/eq(int/cmpx)` (as default is weaker)
 
 fun test3c(?cmpx : (int,int) -> order)
-  equal(1,2)  // (A) use `int/eq` as it is shortest.
-              // (B) use `cmpx/eq(_,_,?cmpx)` (instead of `int/eq`) as it originates with the most locals
+  equal(1,2)  // (A) use `int/eq` since `default/cmpx/eq(int/cmpx)` is a default
+              // or (B) use `cmpx/eq(_,_,?cmpx)` (instead of `int/eq`) as it originates with the most locals?
 
 
 fun test3d(?cmpx : (int,int) -> order)

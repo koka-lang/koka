@@ -86,7 +86,7 @@ getConInfo dataType conName
 extractDataName :: Type -> Maybe Name
 extractDataName tp
   = case expandSyn tp of
-      TForall _ _ t -> extractDataName t
+      TForall _ t -> extractDataName t
       TFun _ _ t -> extractDataName t
       TCon tc    -> Just (typeConName tc)
       TApp t _   -> extractDataName t
@@ -111,7 +111,7 @@ ruSpecCon' :: HasCallStack => TName -> TName -> ConRepr -> ConInfo -> Maybe (Int
 ruSpecCon' reuseName conName conRepr conInfo mbTagScan matches
   = do (defss, assigns) <- unzip <$> mapM ruToAssign matches
        let resultType = case splitFunScheme (conInfoType conInfo) of
-                          Just (_,_,_,_,res) -> res
+                          Just (_,_,_,res) -> res
            fields = map fst (conInfoParams conInfo)
            nonMatching = [(name,expr) | (name,(expr,isMatch)) <- zip fields assigns, not isMatch]
            reuseExpr = case mbTagScan of
@@ -487,7 +487,7 @@ ruLazyMemoize lazyTName arg
       = do mbInfo <- getLazyIndirectCon lazyTName
            case mbInfo of
              Just (cinfo,crepr)
-               -> let (_,_,rho) = splitPredType (conInfoType cinfo)
+               -> let (_,rho) = splitTypeScheme (conInfoType cinfo)
                       cname = TName (conInfoName cinfo) rho
                       con   = Con cname crepr
                   in lazyReuse reuseName lazyInfo (Just cinfo) cname crepr con [arg']
@@ -919,7 +919,7 @@ getDataInfo newtypes dataType
     extractDataName :: Type -> Maybe Name
     extractDataName tp
       = case expandSyn tp of
-          TForall _ _ t -> extractDataName t
+          TForall _ t -> extractDataName t
           TFun _ _ t -> extractDataName t
           TApp t _   -> extractDataName t
           TCon tc    -> Just (typeConName tc)

@@ -728,7 +728,7 @@ environment
     ]
   where
     flagsEnv s      = [s]
-    opt name dir    = ["--" ++ name ++ "=" ++ quote dir]
+    opt name dir    = ["--" ++ name ++ "=" ++ dir]
 
 
 optionCompletions :: [(String,String)]

@@ -219,9 +219,9 @@ bcoerceX fromTp toTp expr
       (CFun fromPars fromRes, CFun toPars toRes)
           | not (all (\(t1,t2) -> t1 == t2) (zip fromPars toPars) && fromRes == toRes)
           -> case splitFunScheme toTp of
-               Just (_,_,toParTps,toEffTp,toResTp)
+               Just (_,toParTps,toEffTp,toResTp)
                  -> case splitFunScheme fromTp of
-                      Just (_,_,fromParTps,fromEffTp,fromResTp)
+                      Just (_,fromParTps,fromEffTp,fromResTp)
                         -> Just <$> (boxBindExprAsValue fromTp toTp expr $ \vexpr ->
                                       boxCoerceFun toParTps toEffTp toResTp fromParTps fromEffTp fromResTp vexpr)
                       _ -> failure $ "Backend.C.Box: bcoerceX: expecting function (from): " ++ show (pretty fromTp)
@@ -322,13 +322,13 @@ type BoxType = Type
 boxTypeOf :: HasCallStack => Expr -> BoxType
 boxTypeOf expr
   = -- trace ("boxTypeOf: typeApp: " ++ show expr) $
-    case splitPredType (typeOf expr) of
-        (_,_,tp) -> tp
+    case splitTypeScheme (typeOf expr) of
+        (_,tp) -> tp
 
 boxType :: Type -> BoxType
 boxType tp
    = case tp of
-       TForall vars preds t
+       TForall vars t
          -> boxType t -- (subNew [(tv,typeBox (getKind tv)) | tv <- vars] |-> t)
        TFun pars eff res
          -> TFun [(name, boxType par) | (name,par) <- pars] (boxType eff) (boxType res)
@@ -342,7 +342,7 @@ boxType tp
 boxedFunType :: Type -> Unique Type
 boxedFunType tp
   = case tp of
-      TForall vars preds t
+      TForall vars t
         -> boxedFunType t -- (subNew [(tv,typeBox (getKind tv)) | tv <- vars] |-> t)
       TSyn syn args t
         -> boxedFunType t
@@ -372,7 +372,7 @@ data CType
 cType :: Type -> CType
 cType tp
   = case tp of
-      TForall vars preds t
+      TForall vars t
         -> cType t
       TFun pars eff res
         -> CFun (map (cType . snd) pars) (cType res)
@@ -407,7 +407,7 @@ boxConInfo
             (valueReprScan 1) {- size is wrong with knowing the platform ? -}
             Nothing 1 Public ""
   where
-    tp = TForall [a] [] (TFun [(nameNil,TVar a)] typeTotal typeBoxStar)
+    tp = TForall [a] (TFun [(nameNil,TVar a)] typeTotal typeBoxStar)
     a  = TypeVar (0) kindStar Bound
 
 

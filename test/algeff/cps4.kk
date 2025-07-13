@@ -42,7 +42,7 @@ fun run(s : int, m : stexn<a> ) : total either<string,(a,int)> {
   m(s)
 }
 
-fun either/show( r : either<string,(int,int)> ) : string {
+fun state/show( r : either<string,(int,int)> ) : string {
   match(r) {
     Right((x,s)) -> x.show ++ " (state=" ++ s.show ++ ")"
     Left(str)    -> "error: " ++ str
@@ -84,5 +84,5 @@ fun eval( e : expr ) : stexn<int> {
 }
 
 pub fun main() {
-  run(0,eval(expr2)).show.println
+  run(0,eval(expr2)).state/show.println
 }

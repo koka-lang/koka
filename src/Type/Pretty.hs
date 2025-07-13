@@ -8,7 +8,7 @@
 module Type.Pretty (-- * Pretty
                     ppType, ppScheme, ppTypeVar, ppDataInfo, ppSynInfo
                    ,prettyDataInfo, prettyConInfo, prettyDefFunType
-                   ,ppSchemeEffect, ppDeclType, ppPred
+                   ,ppSchemeEffect, ppDeclType
                    ,niceTypeInitial, niceTypeExtend, niceTypeExtendVars
                    ,precTop, precArrow, precApp, precAtom, pparens
                    ,Env(..), defaultEnv
@@ -17,6 +17,7 @@ module Type.Pretty (-- * Pretty
                    , canonical, minCanonical
                    , prettyComment, prettyRange, ppNamePlain
                    , keyword
+                   , ppSub
                    ) where
 
 
@@ -166,7 +167,7 @@ defaultEnv
         True -- showFlavours
         False
         defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty)
-        False -- fullNames
+        False -- fullNames. todo: if True it can lead to .kki parse errors
         False
         0
         False
@@ -188,13 +189,12 @@ ppScheme env scheme
 
 ppSchemeEffect :: Env -> Scheme -> Doc
 ppSchemeEffect env tp@(TFun [] effect result)
-  = ppSchemeEffect env (TForall [] [] tp)
-ppSchemeEffect env (TForall vars preds (TFun [] effect result))
+  = ppSchemeEffect env (TForall [] tp)
+ppSchemeEffect env (TForall vars (TFun [] effect result))
   = color (colorType (colors env)) $
     let env' = env{ nice = niceTypeExtend vars (nice env), prec = precTop } in
     pparens (prec env) precQuant $ tab $
     (if null vars then empty else (keyword env' "forall" <.> angled (map (ppTypeVar env') vars) <.> dot <.> space))
-    <.> (if null preds then empty else ((commaSep (map (ppPred env') preds)) <+> text "=> " ))
     <.> (if isTypeTotal effect then empty else (ppType env'{prec = precArrow-1} effect) <.> space)
     <.> ppType env' result
 ppSchemeEffect env tp
@@ -215,12 +215,12 @@ prettyDefFunType env pinfos tp
 ppDeclType :: Env -> [ParamInfo] -> Scheme -> (Maybe [(Name,ParamInfo,Doc)],Doc,Doc)
 ppDeclType env pinfos tp
   = case tp of
-      TForall vars preds rho
+      TForall vars rho
         -> let env' = niceEnv env vars
                (args,_,res) = ppDeclType env' pinfos rho
                pre  = if (null vars {- prec env == precTopTop-}) then empty
                         else (keyword env' "forall" <.> angled (map (ppTypeVar env') vars) <.> space)
-           in (args, pre, res <.> ppPredicates env' preds)
+           in (args, pre, res)
       TFun params effect rho
         -> -- ppFun env (text ":") params eff rho
            let pparams = [(name, pinfo, ppType env tp) | ((name,tp),pinfo) <- zip params (pinfos ++ repeat Own)]
@@ -312,6 +312,10 @@ ppVis env vis
       Private -> empty -- keyword env "private "
       Public  -> keyword env "pub "
 
+ppSub :: Env -> Sub -> Doc
+ppSub penv sub
+  = list [ppTypeVar penv tv <+> text "|->" <+> ppType penv tp | (tv,tp) <- subList sub]
+
 {--------------------------------------------------------------------------
   Synonym Info
 --------------------------------------------------------------------------}
@@ -364,13 +368,12 @@ ppType :: Env -> Type -> Doc
 ppType env tp
   = color (colorType (colors env)) $
     case tp of
-      TForall vars preds t
+      TForall vars t
         -> let env' = env{ nice = niceTypeExtend vars (nice env), prec = precTop } in
            pparens (prec env) precQuant $ tab $
                (if (null vars {- prec env == precTopTop-}) then empty
                   else (keyword env' "forall" <.> angled (map (ppTypeVar env') vars) <.> space))
             <.> ppType env' t
-            <.> ppPredicates env' preds
 
       TFun args effect result
         -> ppFun env (text "->") args effect result
@@ -422,8 +425,6 @@ ppType env tp
       TSyn syn args tp
                     -> ppSynonym env syn args (ppType env{ prec = precTop } tp)
 
-ppPredicates env preds
-  = (if null preds then empty else (keyword env " with") <+> (align (hcat (map (ppPred env) preds))))
 
 ppFun env arrow args effect result
   = pparens (prec env) precArrow $
@@ -461,19 +462,6 @@ ppNamePlain env name
             else if (isSystemCoreName name && not (coreIface env))
                    then shortenSystemCoreName name
                    else importsAlias name (importsMap env)
-
----------------------------------------------------------------------------
--- Predicates
----------------------------------------------------------------------------
-
-ppPred :: Env -> Pred -> Doc
-ppPred env pred
-  = pparens (prec env) precPred $
-    case pred of
-      PredSub tp1 tp2
-        -> ppType (env{prec = precPred}) tp1 <+> text "<=" <+> ppType (env{prec=precPred}) tp2
-      PredIFace name args
-        -> ppTypeName env name <.> angled (map (ppType env{prec=precTop}) args)
 
 
 

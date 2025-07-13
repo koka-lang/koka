@@ -65,7 +65,7 @@ codeActionHandler
             Just info -> do
               let actions = [("show", synShowString modname info), ("==", synEquality modname info),
                              ("cmp", synOrd modname info), ("order2", synOrder2 modname info),
-                             ("function", synOverloaded modname "overloaded" info), 
+                             ("function", synOverloaded modname "overloaded" info),
                              ("map", synMap modname "map" info)]
               let results = map (\(nm, action) -> (nm, Core.runCorePhase 0 action)) actions
               env <- getPrettyEnvFor modname
@@ -143,7 +143,7 @@ userTp nice tp =
     TCon (TypeCon x _) -> TpCon x rangeNull
     TApp f xs -> TpApp (userTp nice f) (map (userTp nice) xs) rangeNull
     TSyn syn xs _ -> TpApp (TpCon (typesynName syn) rangeNull) (map (userTp nice) xs) rangeNull
-    TForall tvs _ x -> tpForall (map (\tv -> TpVar (showTV tv) rangeNull) tvs) (userTp nice x)
+    TForall tvs x -> tpForall (map (\tv -> TpVar (showTV tv) rangeNull) tvs) (userTp nice x)
   where showTV tv   = newName $ show $ ppTypeVar defaultEnv{nice=nice} tv
 
 instance Eq UserQuantifier where
@@ -161,7 +161,6 @@ instance Eq (KUserType k) where
   TpApp x xs _ == TpApp y ys _ = x == y && xs == ys
   TpFun xs eff y _ == TpFun xs' eff' y' _ = xs == xs' && eff == eff' && y == y'
   TpQuan q x y _ == TpQuan q' x' y' _ = q == q' && x == x' && y == y'
-  TpQual x y == TpQual x' y' = x == x' && y == y'
   _ == _ = False
 
 appendOp :: Expr UserType
@@ -169,7 +168,7 @@ appendOp = Var (newName "++") True rangeNull
 
 appendStr :: Expr UserType -> Expr UserType -> Expr UserType
 appendStr (Lit (LitString s1 _)) (App (Var op _ _) [(_, Lit (LitString s2 _)), (_, s3)] _) =
-                 -- combine basic adjacent string literals 
+                 -- combine basic adjacent string literals
                 appendStr (Lit (LitString (s1 ++ s2) rangeNull)) s3
 appendStr expr1 expr2 = App appendOp [(Nothing, expr1), (Nothing, expr2)] rangeNull
 
@@ -240,7 +239,7 @@ synOverloaded modName generalName info = do
 synMap :: Name -> String -> DataInfo -> Core.CorePhase b (Def UserType)
 synMap modName generalName info = do
   evar <- TV.freshTypeVar kindEffect Bound
-  let dataName = dataInfoName info 
+  let dataName = dataInfoName info
       doc  = "// " ++ generalName ++ " function for `" ++ (nameStem dataName) ++ "` type.\n"
       DataInfo{dataInfoRange = drng, dataInfoParams = tyParams, dataInfoConstrs = constrs, dataInfoVis = vis }   = info
   tvarsnew <- mapM (\x -> if isStarTypeVar x then Left <$> (TV.freshTypeVar kindStar Bound) else return $ Right x) tyParams
@@ -248,7 +247,7 @@ synMap modName generalName info = do
       nice        = niceTypeExtendVars (evar:tyParams ++ newstarvars) niceEmpty
       showTV tv   = newName $ show $ ppTypeVar defaultEnv{nice=nice} tv
       tpParamsNew    = map (\tv -> case tv of {Right tv -> TpVar (showTV tv) drng; Left tv -> TpVar (showTV tv) drng}) tvarsnew
-      returnTp (isDataTp, tp, i) = if isDataTp then TpApp (TpCon dataName drng) tpParamsNew drng -- final return type 
+      returnTp (isDataTp, tp, i) = if isDataTp then TpApp (TpCon dataName drng) tpParamsNew drng -- final return type
                                    else TpVar (showTV (newstarvars !! i)) rangeNull -- return type for polymorphic starTVs
   return $ synGeneralUnary modName (newName generalName) doc info (evar, TpVar (newName "e") rangeNull) returnTp $ \dataTp con recur isTV fields ->
     let crng = conInfoRange con
@@ -312,7 +311,7 @@ synBinaryOp modName generalName isOp doc info (evar, effectTp) resultTp defaultB
                       starTVs
       tvBinds     = map (\(x, t) -> mkBindt x t drng) tvArgs
       fullTp      = tpForall (tpParams ++ [effectTp]) $ TpFun ((selfArg,dataTp):(otherArg,dataTp):tvArgs) effectTp (resultTp dataTp) rangeNull
-      branches    = concat $ zipWith makeBranch (dataInfoConstrs info) [0..] 
+      branches    = concat $ zipWith makeBranch (dataInfoConstrs info) [0..]
       litBool b rng = if b then Var nameTrue False rng else Var nameFalse False rng
       caseArg     = [(Nothing, Var selfArg False drng), (Nothing, Var otherArg False drng)]
       caseExpr    = Case (App (Var (nameTuple 2) False drng) caseArg drng) (branches ++ defaultBranch) False drng
@@ -418,7 +417,7 @@ synOrder2 modName info = do
   let dataName = dataInfoName info
       drng = dataInfoRange info
       anyFunctionFields = any (any (isFun . snd) . conInfoParams) (dataInfoConstrs info)
-      doc         = "// Automatically generated.\n// Fip comparison of the `" ++ nameStem (dataInfoName info) ++ "` type" ++ (if anyFunctionFields then " (ignores function fields).\n" else ".\n")      
+      doc         = "// Automatically generated.\n// Fip comparison of the `" ++ nameStem (dataInfoName info) ++ "` type" ++ (if anyFunctionFields then " (ignores function fields).\n" else ".\n")
       litLt       = Var nameOrd2Lt False drng
       litGt       = Var nameOrd2Gt False drng
       litEq       = Var nameOrd2Eq False drng

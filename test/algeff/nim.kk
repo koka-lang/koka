@@ -272,7 +272,7 @@ fun main() {
   ,testGt().show
   ,testCheck().show
   ,testPc2().show
-  ,testChoose().show
+  ,testChoose().playerlist/show
   //,testCoin().show
   //,testPrint1().show
   //,testPrint2().show

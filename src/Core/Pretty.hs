@@ -547,7 +547,7 @@ type Signatures = [Type]
 extractImportFromSignatures :: Signatures -> [Import]
 extractImportFromSignatures sigs
   = let importNames = extractDepsFromSignatures sigs
-    in [Import name "" ImportTypes Private "" | name <- importNames]
+    in [makeImport name "" ImportTypes Private "" | name <- importNames]
 
 extractDepsFromSignatures :: Signatures -> [ModuleName]
 extractDepsFromSignatures sigs
@@ -556,7 +556,7 @@ extractDepsFromSignatures sigs
 
 extractImportsFromSynInfo :: SynInfo -> Import
 extractImportsFromSynInfo syn
-  = Import (qualifier $ synInfoName syn) "" ImportTypes Private ""
+  = makeImport (qualifier $ synInfoName syn) "" ImportTypes Private ""
 
 extractDepsFromSynonyms :: Synonyms -> [ModuleName]
 extractDepsFromSynonyms syns
@@ -573,7 +573,7 @@ extractImportsFromSynonyms :: [Import] -> [SynInfo] -> [Import]
 extractImportsFromSynonyms imps syns
   = let quals = filter (\nm -> not (S.member nm impNames)) $
                 concatMap extractSyn syns
-        extraImports = map (\nm -> Import nm "" ImportTypes Private "") quals -- TODO: import path ?
+        extraImports = map (\nm -> makeImport nm "" ImportTypes Private "") quals -- TODO: import path ?
     in extraImports
   where
     impNames        = S.fromList (map importName imps)
@@ -609,7 +609,7 @@ extractImportedSynonyms progName sigs
                                    Nothing   -> syns
           TApp con args       -> extractSynonyms (con:args)
           TFun args eff res   -> extractSynonyms (res:eff:map snd args)
-          TForall _ _ body    -> extractSynonym body
+          TForall _ body      -> extractSynonym body
           _                   -> synonymsEmpty
 
     extractSynonyms :: [Type] -> Synonyms
