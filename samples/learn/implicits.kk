@@ -109,6 +109,13 @@ fun example5()
 
 // # Experimental territory
 
+// Normally the compiler does not allow ambigious overloads.
+// However, if one of the overloads is in an inner scope it will be preferred.
+// In the next example, the `eq` is resolved to `?eq` (==`@implicit/eq`) and not to `int/eq` since it is in an inner scope.
+fun example5a( ?eq : (int,int) -> bool )
+  eq(1,2)
+
+
 // When resolving an implicit parameter, the compiler also considers
 // matching functions that take further implicit parameters themselves.
 // These are called _conversions_. For example, given a `compare` function,
@@ -125,14 +132,14 @@ fun example6()
   eq( ["hi"], ["there"] )
 
 
-// These conversions can lead to ambiguities. Consider adding an `:int` comparison.
+// These conversions can lead to further ambiguities. Consider adding an `:int` comparison.
 fun int/compare( x : int, y : int ) : order
   cmp(x,y)
 
 // We can now choose to resolve `?eq` either as `int/eq`, or `default/compare/eq(_,_,?compare=?int/compare)`
 // Any ambiguous choice like this is normally rejected by the compiler (and we need to pass the implicit explicitly).
-// However, if the conversion function is declared in the `default` namespace
-// the compiler allows disambiguation to the non-default definition.
+// However, by convention, and locally qualified `default` namespace is assumed to be in an outer
+// scope of the global scope -- and due to the "inner scope" rule, the compiler disambiguates to the non-default definition.
 // In our case `int/eq` will be preferred over `default/cmp/eq`.
 fun example7()
   eq([1,2],[1,2])       // `list/eq(_,_,int/eq)`
