@@ -71,11 +71,11 @@ val choices = handler {
   ctl flip() -> { incr(); resume(flip()) }
 }
 
-fun intlist/show(x : (int,list<list<int>>)) : string {
+fun state-show(x : (int,list<list<int>>)) : string {
   "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
 }
 
-fun listint/show(xs : list<(int,list<int>)>) : string {
+fun list-state-show(xs : list<(int,list<int>)>) : string {
   xs.show-list fn(x) {
     "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
   }
@@ -281,8 +281,8 @@ fun test6() {
 
 fun main() {
   test1().show.println
-  test2().show.println
-  test3().listint/show.println
+  test2().state-show.println
+  test3().list-state-show.println
   test4().show.println
   //test5().show.println
 }

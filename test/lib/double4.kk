@@ -18,7 +18,7 @@ fun main() {
   val nums  = pnums // ++ pnums.map((~))
   nums.foreach fn(d){
     val (man,exp) = d.decode
-    println( d.show ++ "= " ++ d.show-hex ++ " == " ++ d.decode.show ++ " ->" ++ encode(man,exp).show)
+    println( d.show ++ "= " ++ d.show-hex ++ " == " ++ d.decode.intint/show ++ " ->" ++ encode(man,exp).show)
   }
 // nums.foreach fn(d) { println( d.show ++ ", digits: " ++ d.decimal.show ++ "\n")	}
 }
