@@ -207,7 +207,7 @@ interactive p
 
 valueDefinition :: LexParser UserDef
 valueDefinition
-  = interactive (pureDecl False Private)
+  = interactive (pureDecl Private)
 
 
 typeDefinition :: LexParser (UserTypeDef,[UserDef])
@@ -344,7 +344,7 @@ splitTopDefs ds
 
 topdef :: Visibility -> LexParser [TopDef]
 topdef vis
-  = do def <- pureDecl True vis
+  = do def <- pureDecl vis
        return [DefValue def]
   <|>
     do tdef <- aliasDecl vis
@@ -418,7 +418,7 @@ externDecl dvis
          Left p -> do extern <- p
                       return [DefExtern extern]
          Right (krng,vis,doc,inline,fip)
-           -> do (name,nameRng) <- funid True {-toplevel-}
+           -> do (name,nameRng) <- funid {-toplevel-}
                  (pars,pinfos,args,tp,annotate)
                    <- do keyword ":"
                          tp <- ptype  -- no "some" allowed
@@ -1320,17 +1320,17 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect docEffectDecl
 -- Value definitions
 -----------------------------------------------------------
 
-pureDecl :: Bool -> Visibility -> LexParser UserDef
-pureDecl toplevel dvis
+pureDecl :: Visibility -> LexParser UserDef
+pureDecl dvis
   = do pdecl
           <- try $ do (vis,vrng) <- visibility dvis
                       inline <- parseInline
                       (do (rng,doc) <- dockeyword "val" -- return (vis,vrng,rng,doc,inline,True)
-                          return (valDecl toplevel (combineRange vrng rng) doc vis inline)
+                          return (valDecl (combineRange vrng rng) doc vis inline)
                        <|>
                        do (fip,frng) <- parseTailFip
                           (rng,doc)  <- dockeywordFun  -- return (vis,vrng,rng,doc,inline,False)
-                          return (funDecl toplevel (combineRanges [vrng,frng,rng]) doc vis inline fip)
+                          return (funDecl True (combineRanges [vrng,frng,rng]) doc vis inline fip)
                        <|>
                        do keyword "fn"
                           fail "hint: use 'fun' to start a named function definition (and 'fn' for anonymous functions)")
@@ -1378,14 +1378,14 @@ functionDecl toplevel vrng vis
 
 varDecl
   = do (vrng,doc) <- dockeyword "var"
-       bind <- pbinder False vrng
+       bind <- pbinder vrng
        keyword ":="
        body <- blockexpr
        return (Def (bind body) (combineRanged vrng body) Private DefVar InlineNever doc)
 
 
-valDecl toplevel rng doc vis inline
-  = do bind <- pbinder toplevel rng
+valDecl rng doc vis inline
+  = do bind <- pbinder rng
        keyword "="
        body <- blockexpr
        return (Def (bind body) (combineRanged rng body) vis DefVal inline doc)
@@ -1393,7 +1393,7 @@ valDecl toplevel rng doc vis inline
 funDecl toplevel rng doc vis inline fip
   = do spars <- squantifier
        -- tpars <- aquantifier  -- todo: store somewhere
-       (name,nameRng) <- funid toplevel
+       (name,nameRng) <- funid
        (tpars,pars,pinfos,parsRng,mbtres,preds,ann) <- funDef True {-allowBorrow-} True {- allow implicits -}
        body   <- bodyexpr
        let fun = promote spars tpars preds mbtres
@@ -1590,7 +1590,13 @@ statement
 
 localValueDecl
   = do krng <- keyword "val"
-       pat  <- pattern
+       pat  <- do (qname,rng) <- qidentifier
+                  let name = requalifyLocally qname
+                  annot <- optionMaybe typeAnnot
+                  return (PatVar (ValueBinder name annot (PatWild rng) rng (combineRanged rng annot)))
+               <|>
+               pattern 
+               
        keyword "="
        e    <- blockexpr
        let bindVar binder mbTp rng
@@ -2278,14 +2284,14 @@ injectType
 -----------------------------------------------------------
 -- Patterns (and binders)
 -----------------------------------------------------------
-pbinder :: Bool -> Range -> LexParser (UserExpr -> ValueBinder () UserExpr)
-pbinder toplevel preRange
-  = do (name,range) <- lqidentifier toplevel
+pbinder :: Range -> LexParser (UserExpr -> ValueBinder () UserExpr)
+pbinder preRange
+  = do (name,range) <- lqidentifier
        ann <- typeAnnotation
        return (\expr -> ValueBinder name () (ann expr) range (combineRange preRange range))
 
-funid toplevel
-  = lqidentifier toplevel
+funid 
+  = lqidentifier 
   -- [] doesn't work with local qualification
   {-
   <|>
@@ -2300,8 +2306,8 @@ funid toplevel
        return (newName s, rng)
   -}
 
-lqidentifier toplevel
-  = if toplevel
+lqidentifier 
+  = if True -- toplevel
       then do (name,rng) <- qidentifier
               return (requalifyLocally name, rng)
       else identifier

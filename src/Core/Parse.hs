@@ -293,7 +293,7 @@ defDecl env
   = do (vis,sort0,inl,doc) <- try $ do vis <- vispub
                                        (sort,inl,isRec,doc) <- pdefSort
                                        return (vis,sort,inl,doc)
-       (name,_) <- funid True <|> idop
+       (name,_) <- funid <|> idop
        range    <- prange env
        -- inl      <- parseInline
        -- trace ("core def: " ++ show name) $ return ()
@@ -333,7 +333,7 @@ externDecl env
                                   (fip,_) <- parseTailFip
                                   (_,doc) <- dockeyword "extern"
                                   return (vis,fip,doc)
-       (name,_) <- funid True
+       (name,_) <- funid
        range    <- prange env
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
@@ -547,7 +547,7 @@ parseDefGroups0 env
 parseDefGroup :: Env -> LexParser (Env,DefGroup)
 parseDefGroup env
   = do (sort,inl,isRec,doc) <- pdefSort
-       (name,_)   <- funid True <|> do{ wildcard; return (nameNil,rangeNull) } -- Allow locally qualified identifiers in Core
+       (name,_)   <- funid <|> do{ wildcard; return (nameNil,rangeNull) } -- Allow locally qualified identifiers in Core
        range      <- prange env
        -- inl        <- parseInline
        tp         <- typeAnnot env
@@ -683,7 +683,7 @@ qualifiedConId
 
 qfunid :: LexParser (Name,Range)
 qfunid
-  = do (name,range) <- funid True  -- allow qualified identifier (for a definition)
+  = do (name,range) <- funid  -- allow qualified identifier (for a definition)
        return (requalifyLocally name, range)
 
 {--------------------------------------------------------------------------

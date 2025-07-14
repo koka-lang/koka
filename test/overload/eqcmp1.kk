@@ -55,9 +55,13 @@ fun default/cmpx/eq( x : a, y : a, ?cmpx : (a,a) -> order ) : bool
 
 
 fun test3a( ?eq : (int,int) -> bool )
-  // equal(1,2)  // use `?eq` instead of `int/eq`  to prefer locals
-  // equal([1],[2],?eq=list/eq)
-  equal([1],[2])  // or should we reject and not prefer locals?
+  equal([1],[2])  // equal([1],[2],?eq=?eq) (instead of `int/eq`  to prefer locals)
+
+fun test3f()
+  val myint/eq = int/eq
+  equal([1],[2])  // resolve to list/eq(_,_,myint/eq) (instead of `int/eq`  to prefer locals)
+
+
 
 fun test3e( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool )
   equal(xs,ys)
