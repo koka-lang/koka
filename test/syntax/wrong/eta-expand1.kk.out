@@ -1,0 +1,2 @@
+test/syntax/wrong/eta-expand1@kk(3,22): type error: eta-expansion of "_" is not allowed for top-level expressions
+ hint: perhaps you meant to use the "hole" keyword to denote the hole in a constructor context?

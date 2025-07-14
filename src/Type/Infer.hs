@@ -1631,7 +1631,10 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                           -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> ppType env{showIds=True} tp <+> text ", prop:" <+> pretty propagated
                           (itp,coref) <- maybeInstantiate rng expect tp
                           sitp <- subst itp
-                          addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue (infoSort info) sitp (infoDocString info) False) [] False)
+                          let (rmName,rmDoc) = if hiddenNameStartsWith qname "eta" 
+                                                then (newName "_", "eta-expanded parameter")
+                                                else (infoCanonicalName qname info, infoDocString info)
+                          addRangeInfo rng (RM.Id rmName (RM.NIValue (infoSort info) sitp rmDoc False) [] False)
                           localDepth <- localScopeDepth
                           let injectLocal n =  do -- traceDoc $ \env -> text "infer var: implicit inject: " <+> pretty name <+> text ":" <+> ppType env{showIds=True} tp <+> text ", prop:" <+> pretty propagated
                                                   hp <- Op.freshTVar kindHeap Meta

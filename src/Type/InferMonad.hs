@@ -794,7 +794,15 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                               (_:_)
                                 -> infError range ((text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found") <->
                                                    (text "perhaps you meant: " <.> ppOr penv (map fst amb2)))
-                              _ -> do when (isImplicitConstraintEvidenceName name) $ error ("evidence " ++ show name ++ " cannot be found")
+                              _ | nameIsEtaHole name
+                                -> do inCtx <- holeAllowed <$> getSt
+                                      let header = text "eta-expansion of \"_\" is not allowed for top-level expressions"
+                                          message = if inCtx 
+                                                      then header <-> text "hint: perhaps you meant to use the \"hole\" keyword to denote the hole in a constructor context?"
+                                                      else header
+                                      infError range message
+                                      error "done"                                   
+                              _ -> do -- when (isImplicitConstraintEvidenceName name) $ error ("evidence " ++ show name ++ " cannot be found")
                                       infError range (text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found")
                                       error "done"
 

@@ -1,0 +1,1 @@
+test/syntax/wrong/eta-expand2@kk(2, 6): type error: eta-expansion of "_" is not allowed for top-level expressions

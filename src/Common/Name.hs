@@ -26,7 +26,7 @@ module Common.Name
           , nameModule, nameStem, nameLocal, nameLocalQual, isModuleName
 
           , newPaddingName, isPaddingName, isCCtxName
-          , newFieldName, isFieldName, isWildcard, unWildcard
+          , newFieldName, isFieldName, isWildcard, unWildcard, nameIsEtaHole
           , typeQualifiedName, typeQualifiedNameOf, typeQualifiedGetTypeName
           , newHiddenExternalName, isHiddenExternalName
           , newHiddenName, isHiddenName, hiddenNameStartsWith
@@ -402,6 +402,11 @@ unWildcard post name
       ('_':_)     -> nameMapStem name (\s -> tail s ++ post)
       ('@':'_':_) -> nameMapStem name (\s -> "@" ++ drop 2 s ++ post)
       _           -> name
+
+
+nameIsEtaHole :: Name -> Bool
+nameIsEtaHole name
+  = isWildcard name
 
 isHiddenName :: Name -> Bool
 isHiddenName name
