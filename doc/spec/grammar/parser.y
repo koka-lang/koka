@@ -73,7 +73,7 @@ void printDeclEx( const char* sort, const char* name, bool verbose );
 %token LEX_WHITE LEX_COMMENT
 %token INSERTED_SEMI EXPR_SEMI
 %token LE ASSIGN DCOLON EXTEND
-%token RETURN CTX
+%token RETURN CTX CTX_HOLE
 
 %token HANDLER HANDLE NAMED MASK OVERRIDE
 %token CTL FINAL RAW
@@ -522,6 +522,7 @@ atom        : name
             | '[' cexprs ']'             /* list expression (elements may be terminated with comma instead of separated) */
             | ctxexpr                    /* ctx is an atom and not an expr so we can write `acc ++ ctx Cons(1,_)` */
             | ctxhole
+            | etahole               /* hole for missing (eta-expanded) parameters */
             ;
 
 name        : qidentifier
@@ -539,10 +540,13 @@ behind      : ID_BEHIND
             | /* empty */
             ;
 
+etahole     : '_'                       /* hole for missing (eta-expanded) parameters */
+            ;
+
 ctxexpr     : CTX atom                    /* should contain a hole */
             ;
 
-ctxhole     : '_'
+ctxhole     : CTX_HOLE
             ;
 
 /* arguments: separated by comma */

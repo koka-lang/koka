@@ -89,6 +89,7 @@ module Common.NamePrim
           , nameCCtxCompose
           , nameCCtxComposeExtend
           , nameCCtxSetCtxPath
+          , nameEtaHole
           , nameTpFieldAddr, nameFieldAddrOf
 
           {-
@@ -322,6 +323,8 @@ cfieldName name   = coreTypesName name
 
 nameTpCCtxx       = cfieldName "cctx"
 nameTpCCtx        = cfieldName "ctx"
+
+nameEtaHole = coreTypesName "@eta-hole"
 
 nameCCtxCreate    = cfieldName "@cctx-create"
 nameCCtxHoleCreate= cfieldName "@cctx-hole-create"

@@ -1,13 +1,13 @@
 
 pub fun partition-ctx( xs : list<a>, ^pred : a -> e bool ) : e (list<a>,list<a>)
-  partition-acc-ctx(xs, pred, ctx _, ctx _)
+  partition-acc-ctx(xs, pred, ctx hole, ctx hole)
 
 fun partition-acc-ctx(xs : list<a>, ^pred : a -> e bool, acc1 : ctx<list<a>>, acc2 : ctx<list<a>>): e (list<a>, list<a>)
   match xs
     Nil -> (acc1 ++. Nil, acc2 ++. Nil)
     Cons(x,xx) -> if pred(x)
-      then partition-acc-ctx(xx,pred,acc1 ++ ctx Cons(x,_),acc2)
-      else partition-acc-ctx(xx,pred,acc1,acc2 ++ ctx Cons(x,_))
+      then partition-acc-ctx(xx,pred,acc1 ++ ctx Cons(x,hole),acc2)
+      else partition-acc-ctx(xx,pred,acc1,acc2 ++ ctx Cons(x,hole))
 
 effect fun select( i : int ) : bool
 

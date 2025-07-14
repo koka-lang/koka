@@ -65,6 +65,9 @@ import Syntax.Lexer   ( lexing )
 import Syntax.Layout  ( layout, lexSource )
 import Syntax.Promote ( promote, promoteType, quantify, promoteFree )
 import Common.ColorScheme (defaultColorScheme)
+import Syntax.Pretty (ppSyntaxDef, ppSyntaxExpr)
+import Type.Pretty (defaultEnv)
+import qualified Control.Monad.State as Mon
 
 -----------------------------------------------------------
 -- Parser on token stream
@@ -220,7 +223,7 @@ typeDefinition
 expression :: Name -> LexParser (UserDef) -- ,UserDef)
 expression name
   = interactive $
-    do e <- aexpr
+    do e <- (aexpr False)
        let r = getRange e
        return (Def (ValueBinder (unqualify name) () (Lam [] e False r) r r)  r Public (DefFun [] noFip) InlineNever ""
               -- ,Def (ValueBinder (prepend ".eval" name) () (Lam [] (App (Var nameGPrint False r) [Var name False r] r)))
@@ -243,7 +246,6 @@ program source
        p <- pmodule source
        eof
        return p
-
 
 pmodule :: Source -> LexParser UserProgram
 pmodule source
@@ -276,7 +278,7 @@ pimportDecls :: LexParser [Import]
 pimportDecls
   = -- no braced as we only scan the start
     do many semiColon
-       optional (do{ lcurly; return () } <|> do{ parseLex LexInsLCurly; return () })
+       optional (do { lcurly; return () } <|> do { parseLex LexInsLCurly; return () })
        many semiColon
        semis0 importDecl
 
@@ -363,7 +365,7 @@ topdef vis
 importDecl :: LexParser Import
 importDecl
   = do (vis,vrng,rng0,open) <- try $ do (vis,vrng) <- visibility Private
-                                        isOpen <- do{ specialId "@open"; return True } <|> return False
+                                        isOpen <- do { specialId "@open"; return True } <|> return False
                                         rng0  <- keyword "import"
                                         return (vis,vrng,rng0,isOpen)
        (asname,name,asrng,namerng) <- importAlias
@@ -391,8 +393,8 @@ visibility vis
 
 parseInline :: LexParser DefInline
 parseInline
-  =   do{ specialId "inline"; return InlineAlways }
-  <|> do{ specialId "noinline"; return InlineNever }
+  =   do { specialId "inline"; return InlineAlways }
+  <|> do { specialId "noinline"; return InlineNever }
   <|> return InlineAuto
 
 {--------------------------------------------------------------------------
@@ -650,8 +652,8 @@ dataTypeDecl dvis =
 structDecl dvis =
    do (vis,defvis,ddef,vrng,trng,doc) <-
         (try $
-          do (vis,dvis,rng1) <-    do{ rng <- keyword "abstract"; return (Public,Private,rng) }
-                               <|> do{ (vis,rng) <- visibility dvis; return (vis,vis,rng) }
+          do (vis,dvis,rng1) <-    do { rng <- keyword "abstract"; return (Public,Private,rng) }
+                               <|> do { (vis,rng) <- visibility dvis; return (vis,vis,rng) }
              (rng2,ddef)     <-    do { rng <- specialId "value"; return (rng, DataDefValue valueReprZero) }
                                <|> do { rng <- specialIdOr "reference" ["ref"];
                                         -- pwarningMessage "using 'reference' is deprecated and is always the default now";
@@ -688,14 +690,14 @@ enum
 
 typeDeclKind :: LexParser (DataKind,Range,String,DataDef)
 typeDeclKind
-  = try(
-    do (rng1,kind) <-     do{ rng <- specialIdOr "div" ["rec"]; return (rng,Retractive) }
-                      <|> do{ rng <- specialId "co"; return (rng,CoInductive) }
+  = try (
+    do (rng1,kind) <-     do { rng <- specialIdOr "div" ["rec"]; return (rng,Retractive) }
+                      <|> do { rng <- specialId "co"; return (rng,CoInductive) }
        (rng2,doc)  <- dockeyword "type"
        return (kind,combineRanges [rng1,rng2],doc,DataDefNormal)
     )
   <|>
-    try(
+    try (
     do (rng1, ddef)          <- do { rng <- specialId "open"; return (rng, DataDefOpen False) }
                             <|> do { rng <- specialId "extend"; return (rng, DataDefOpen True) }
                             <|> do { rng <- specialId "value"; return (rng, DataDefValue valueReprZero) }
@@ -866,12 +868,12 @@ parseEffectDecl :: Visibility -> LexParser EffectDecl
 parseEffectDecl dvis =
   do (vis,defvis,vrng,erng,doc,singleShot,sort,isInstance,isScoped) <-
         (try $
-          do (vis,defVis,vrng) <-     do{ (v,vr) <- visibility dvis; return (v,v,vr) }
-                                  <|> do{ vr <- keyword "abstract"; return (Public,Private,vr) }
-             isInstance <- do{ keyword "named"; return True } <|> return False
-             isScoped   <- do{ specialId "scoped"; return True } <|> return False
-             (rng1,singleShot) <- do{ rng <- specialId "linear"; return (rng,True) } <|> return (rangeNull,False)
-             sort              <- do{ specialIdOr "div" ["rec"]; return Retractive } <|> return Inductive
+          do (vis,defVis,vrng) <-     do { (v,vr) <- visibility dvis; return (v,v,vr) }
+                                  <|> do { vr <- keyword "abstract"; return (Public,Private,vr) }
+             isInstance <- do { keyword "named"; return True } <|> return False
+             isScoped   <- do { specialId "scoped"; return True } <|> return False
+             (rng1,singleShot) <- do { rng <- specialId "linear"; return (rng,True) } <|> return (rangeNull,False)
+             sort              <- do { specialIdOr "div" ["rec"]; return Retractive } <|> return Inductive
              (rng2,doc)        <- dockeyword "effect"
              let erng = combineRange rng1 rng2
              return (vis,vis,vrng,erng,doc,singleShot,sort,isInstance,isScoped))
@@ -1475,7 +1477,7 @@ parNormal allowDefaults
 
 parImplicit :: LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
 parImplicit
-  = do (unpack,qname,rng) <- try $ (do unpack      <- do{ keyword "."; return True } <|> return False
+  = do (unpack,qname,rng) <- try $ (do unpack      <- do { keyword "."; return True } <|> return False
                                        (qname,rng) <- qidentifier
                                        if not (isImplicitParamName qname)
                                          then fail "unexpected implicit parameter name"
@@ -1491,7 +1493,7 @@ paramid = identifier <|> wildcard
 
 defaultExpr
   = do krng <- keyword "="
-       e <- expr
+       e <- expr False
        return (Just e, combineRanged krng e)
   <|>
     return (Nothing,rangeNull)
@@ -1507,7 +1509,7 @@ block
        many semiColon
        stmts1 <- semis statement
        stmts2 <- do rng2 <- keyword "return"
-                    e <- expr
+                    e <- expr False
                     many semiColon
                     return [StatExpr (makeReturn rng2 e)]
                  <|>
@@ -1574,7 +1576,7 @@ statement
         <|>
            return (StatFun f))
   <|>
-    do exp <- basicexpr <|> returnexpr
+    do exp <- (basicexpr False) <|> returnexpr
        return (StatExpr exp)
        {-
        case exp of
@@ -1605,7 +1607,7 @@ localValueDecl
                               Nothing -> e
                   vbinder = ValueBinder (binderName binder) () annexpr (binderNameRange binder) (binderRange binder)
               in \body -> Bind (Def vbinder rng Private DefVal InlineAuto "") body (combineRanged krng body)
-       case unParens(pat) of
+       case unParens (pat) of
          PatVar (binder@ValueBinder{ binderExpr = PatWild _ })
            -> return $ bindVar binder (binderType binder) (binderRange binder)
          PatAnn (PatVar (binder@ValueBinder{ binderExpr = PatWild _})) tp rng
@@ -1613,7 +1615,7 @@ localValueDecl
          _ -> return $ \body -> Case e [Branch pat [Guard guardTrue body]]  False (combineRanged krng body)
 
   where
-    unParens (PatParens p _) = unParens(p)
+    unParens (PatParens p _) = unParens (p)
     unParens p               = p
 
 {-
@@ -1642,10 +1644,10 @@ withstat
        (do (par, _, transform) <- try $ do x <- parameter False{-allowBorrow-} False{-allowDefault-} False{-allowImplicit-}
                                            (keyword "=" <|> keyword "<-")
                                            return x
-           e <- basicexpr <|> handlerExprStat krng HandlerInstance
+           e <- (basicexpr False) <|> handlerExprStat krng HandlerInstance
            pure $ applyToContinuation krng [promoteValueBinder par] $ transform e
         <|>
-        do e <- basicexpr <|> handlerExprStat krng HandlerNormal
+        do e <- (basicexpr False) <|> handlerExprStat krng HandlerNormal
            return (applyToContinuation krng [] e)
         )
   where
@@ -1663,7 +1665,7 @@ applyToContinuation wrng params expr body
         App f args range -> App f (args ++ funarg) fullrange
         atom             -> App atom funarg fullrange
   where
-    unParens (Parens p _ _ _) = unParens(p)
+    unParens (Parens p _ _ _) = unParens (p)
     unParens p                = p
 
 typeAnnotation :: LexParser (UserExpr -> UserExpr)
@@ -1686,17 +1688,17 @@ bodyexpr
 
 blockexpr :: LexParser UserExpr   -- like expr but a block `{..}` is interpreted as statements
 blockexpr
-  = withexpr <|> bfunexpr <|> returnexpr <|> valexpr <|> basicexpr
+  = withexpr <|> bfunexpr <|> returnexpr <|> valexpr <|> basicexpr False
   <?> "expression"
 
-expr :: LexParser UserExpr
-expr
-  = withexpr <|> funexpr <|> returnexpr <|> valexpr <|> basicexpr
+expr :: Bool -> LexParser UserExpr
+expr allowHole 
+  = withexpr <|> funexpr <|> returnexpr <|> valexpr <|> basicexpr allowHole
   <?> "expression"
 
-basicexpr :: LexParser UserExpr
-basicexpr
-  = ifexpr <|> fnexpr <|> matchexpr <|> handlerExpr <|> opexpr
+basicexpr :: Bool -> LexParser UserExpr
+basicexpr allowHole 
+  = ifexpr <|> fnexpr <|> matchexpr <|> handlerExpr <|> opexpr allowHole
   <?> "(basic) expression"
 
 withexpr :: LexParser UserExpr
@@ -1710,7 +1712,7 @@ valexpr :: LexParser UserExpr
 valexpr
   = do f <- localValueDecl
        keyword "in"
-       e <- expr
+       e <- expr False
        return (f e)
 
 
@@ -1779,13 +1781,13 @@ ifexpr
 
 returnexpr
   = do rng <- keyword "return"
-       exp <- expr
+       exp <- expr False
        return (makeReturn rng exp)
 
 
 matchexpr :: LexParser UserExpr
 matchexpr
-  = do lazy <- option False (do{ specialId "lazy"; return True })
+  = do lazy <- option False (do { specialId "lazy"; return True })
        rng <- keyword "match"
        tst <- ntlexpr  -- allows tuples for multi pattern match
        (branches,rng2) <- semiBracesRanged1 branch
@@ -1798,7 +1800,7 @@ handlerExpr
                        <|> return (rangeNull,HandlerNormal)
        (do rng1 <- keyword "handle"
            let rng = combineRange rng0 rng1
-           scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
+           scoped  <- do { specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
            (override,mbEff) <- handlerOverride hsort
            arg  <- ntlexpr -- parens argument
            expr <- handlerClauses rng mbEff scoped override hsort
@@ -1817,15 +1819,15 @@ handlerExprStat rng HandlerNormal
   = do handlerExprX rng HandlerNormal
 
 handlerExprX rng hsort
-  = do scoped <- do{ keyword "scoped"; return HandlerScoped } <|> return HandlerNoScope
+  = do scoped <- do { keyword "scoped"; return HandlerScoped } <|> return HandlerNoScope
        (override,mbEff) <- handlerOverride hsort
        handlerClauses rng mbEff scoped override hsort
 
 handlerOverride hsort
   = do override <- if (hsort == HandlerNormal)
-                     then do{ keyword "override"; return HandlerOverride } <|> return HandlerNoOverride
+                     then do { keyword "override"; return HandlerOverride } <|> return HandlerNoOverride
                      else return HandlerNoOverride
-       mbEff    <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
+       mbEff    <- do { eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        return (override,mbEff)
 
 handlerClauses :: Range -> Maybe UserType -> HandlerScope -> HandlerOverride -> HandlerSort -> LexParser UserExpr
@@ -1920,7 +1922,7 @@ opClauses
 handlerOpX :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
 handlerOpX
   = do rng <- specialId "finally"
-       optional( parens (return ()) )
+       optional ( parens (return ()) )
        expr <- bodyexpr
        return (ClauseFinally (Lam [] expr False (combineRanged rng expr)), Nothing)
   <|>
@@ -2051,7 +2053,7 @@ pguardTest
   = do specialId "otherwise"  -- Haskell help
        fail "hint: use \"_\" instead of \"otherwise\" for the guard condition"
   <|>
-    do expr
+    do expr False
   <|>
     do wildcard
        return guardTrue
@@ -2063,20 +2065,98 @@ pguardTest
 --------------------------------------------------------------------------}
 ntlexpr :: LexParser UserExpr -- non-trailing-lambda expression
 ntlexpr
-  = opexprx False
+  = opexprx False False
 
-opexpr :: LexParser UserExpr
-opexpr = opexprx True
+opexpr :: Bool -> LexParser UserExpr
+opexpr allowHole = opexprx allowHole True
 
-
-opexprx :: Bool -> LexParser UserExpr
-opexprx allowTrailingLam
+-- This is the common point all expressions go through, we should not allow holes in a statement context, only in arguments
+opexprx :: Bool -> Bool -> LexParser UserExpr
+opexprx allowHole allowTrailingLam
   = do e1 <- prefixexpr allowTrailingLam
-       (do ess <- many1(do{ op <- operatorVar; e2 <- prefixexpr allowTrailingLam; return [op,e2]; })
-           return (App (Var nameOpExpr True rangeNull)
+       (do ess <- many1 (do { op <- operatorVar; e2 <- prefixexpr allowTrailingLam; return [op,e2]; })
+           checkNoEta allowHole (App (Var nameOpExpr True rangeNull)
                     [(Nothing,e) | e <- e1 : concat ess] (combineRanged e1 (concat ess)))
         <|>
-           return e1)
+          checkNoEta allowHole e1)
+
+checkNoEta :: Bool -> UserExpr -> LexParser UserExpr
+checkNoEta allowHole expr =
+  if allowHole then return expr
+  else do
+    reportEtaExpr expr
+    return expr
+  where 
+    defGroupDefs (DefRec defs) = defs
+    defGroupDefs (DefNonRec d) = [d]
+    reportEtaMaybeExpr :: Maybe UserExpr -> LexParser ()
+    reportEtaMaybeExpr Nothing = return ()
+    reportEtaMaybeExpr (Just e) = reportEtaExpr e
+    reportEtaExpr expr = 
+      case expr of 
+        Var name _ _ | name == nameEtaHole -> do
+          pwarning "using an argument hole (_) where none is expected" (getRange expr) 
+          return ()
+        Lam _ body _ rng -> reportEtaExpr body
+        Let dg body _ -> do 
+          mapM_ (\def -> reportEtaExpr (binderExpr (defBinder def))) (defGroupDefs dg)
+          reportEtaExpr body
+        Bind def body _ -> do
+          reportEtaExpr ((binderExpr . defBinder) def)
+          reportEtaExpr body
+        App f args _ -> do
+          reportEtaExpr f
+          mapM_ (\(_, e) -> reportEtaExpr e) args
+        Var{} -> return ()
+        Lit{} -> return ()
+        Ann e _ _ -> reportEtaExpr e
+        Case e branches _ _ -> do
+          reportEtaExpr e
+          mapM_ (\(Branch pat guards) -> do
+                    mapM_ (\(Guard grd body) -> do
+                              reportEtaExpr grd
+                              reportEtaExpr body) guards) branches
+        Parens e _ _ _ -> reportEtaExpr e
+        Inject _ e _ _ -> do
+          reportEtaExpr e
+        Handler _ _ _ _ _ _ _ init fin branches _ _ -> do
+          mapM_ (\(HandlerBranch _ oppars body _ _ _) -> do
+                    mapM_ (\(ValueBinder name tp _ rng _) -> do
+                              case tp of
+                                Just t -> reportEtaExpr (Ann (Var name False rng) t rng)
+                                Nothing -> return ()) oppars
+                    reportEtaExpr body) branches
+          reportEtaMaybeExpr init
+          reportEtaMaybeExpr fin
+
+
+etaExpand :: UserExpr -> UserExpr
+etaExpand expr =
+  let (expr', binders) = Mon.runState (etaTransform expr) []
+  in if null binders then expr
+    else
+      let newDef = Lam binders expr' False (getRange expr)
+      in trace ("eta expanded: " ++ show (ppSyntaxExpr defaultEnv newDef)) newDef
+
+etaTransform :: UserExpr -> Mon.State [ValueBinder (Maybe UserType) (Maybe UserExpr)] UserExpr
+etaTransform expr =
+  case expr of
+    Var name _ rng | name == nameEtaHole -> do
+      let newName = uniqueRngHiddenName rng "eta"
+      Mon.modify (\binders -> ValueBinder newName Nothing Nothing (getRange expr) (getRange expr) : binders)
+      return (Var newName False rng)
+    Ann e tp rng -> do
+      e' <- etaTransform e
+      return (Ann e' tp rng)
+    Parens e name pre rng -> do
+      e' <- etaTransform e
+      return (Parens e' name pre rng)
+    App f args rng -> do
+      f' <- etaTransform f
+      args' <- mapM (\(n, e) -> do e' <- etaTransform e
+                                   return (n, e')) args
+      return (App f' args' rng)
+    _ -> return expr
 
 operatorVar
   = do (name,rng) <- qoperator
@@ -2096,7 +2176,7 @@ appexpr :: Bool -> LexParser UserExpr
 appexpr allowTrailingLam
   = do e0 <- atom
        fs <- many (dotexpr <|> applier <|> indexer <|> funapps)
-       return (foldl (\e f -> f e) e0 fs)
+       return $ foldl (\e f -> f e) e0 fs
   where
 
     dotexpr, indexer, applier, funapps :: LexParser (UserExpr -> UserExpr)
@@ -2121,7 +2201,7 @@ appexpr allowTrailingLam
                return (\exp -> let rng = combineRanged exp rng1
                                in App (Var nameCCtxComposeExtend False rng) [(Nothing,exp),(Nothing,ctx)] rng)
             <|>
-            do idxs <- sepBy1 expr comma
+            do idxs <- sepBy1 (expr False) comma
                rng1 <- special "]"
                return (\exp -> App (Var nameIndex False (combineRange rng0 rng1)) (map (\a -> (Nothing,a)) (exp:idxs)) (combineRange rng0 rng1))
                )
@@ -2156,14 +2236,16 @@ appexpr allowTrailingLam
 
 argument :: LexParser (Maybe (Name,Range),UserExpr)
 argument
-  = do exp <- aexpr
+  = do exp <- aexpr True
        case exp of
          Var name _ rng -> do keyword "="
-                              exp2 <- expr
-                              return (Just (name,rng),exp2)
+                              exp2 <- expr True
+                              case exp2 of
+                                Var{} -> return (Just (name,rng),exp2) -- Don't eta expand if the argument is a variable
+                                _ -> return (Just (name,rng),etaExpand exp2)
                            <|>
                               return (Nothing,exp)
-         _              -> return (Nothing,exp)
+         _              -> return (Nothing, etaExpand exp)
 
 {--------------------------------------------------------------------------
   Atomic expression
@@ -2180,6 +2262,8 @@ atom
        return (Lit lit)
   <|>
     do cctxHole
+  <|>
+    do etaHole
   <|>
     do cctxExpr
   <|>
@@ -2206,8 +2290,8 @@ literal
   <?> "constant"
 
 
-aexpr
-  = do e <- expr
+aexpr allowHole
+  = do e <- expr allowHole
        (do keyword ":"
            tp <- ptypescheme
            return (Ann e tp (combineRanged e tp))
@@ -2219,7 +2303,7 @@ aexpr
 tupleExpr :: LexParser UserExpr
 tupleExpr
   = do rng1 <- lparen <?> ""
-       es <- sepEndBy aexpr comma
+       es <- sepEndBy (aexpr True) comma
        rng2 <- rparen
        case es of
          []  -> return (Var nameUnit False (combineRange rng1 rng2))
@@ -2230,7 +2314,7 @@ tupleExpr
 listExpr :: LexParser UserExpr
 listExpr
   = do rng1 <- special "[" <?> ""
-       es <- sepEndBy aexpr comma
+       es <- sepEndBy (aexpr True) comma
        rng2 <- special "]"
        if null es
         then return (makeNil (combineRange rng1 rng2))
@@ -2251,14 +2335,17 @@ ccontext rng
 
 cctxHole :: LexParser UserExpr
 cctxHole
-  = do rng <- keyword "hole" <|> do { (_,r) <- wildcard; return r }
+  = do rng <- keyword "hole"
        return (makeApp (Var nameCCtxHoleCreate False rng) [])
 
+etaHole :: LexParser UserExpr
+etaHole
+  = do { (_,r) <- wildcard; return (Var nameEtaHole False r) }
 
 injectExpr :: LexParser UserExpr
 injectExpr
   = do (rng, mkInj) <- injectType
-       (do exp <- parens expr <|> funblock      -- need apply or the escape check may fail if it becomes a separate lambda
+       (do exp <- parens (expr False) <|> funblock      -- need apply or the escape check may fail if it becomes a separate lambda
            return (mkInj exp)
         <|>
         do let name = newHiddenName "mask-action"
@@ -2354,7 +2441,7 @@ patAtom
 
 namedPattern :: LexParser (Maybe (Name,Range),UserPattern)
 namedPattern
-  = do (name,rng) <- try (do{ x <- identifier; keyword "="; return x})
+  = do (name,rng) <- try (do { x <- identifier; keyword "="; return x})
        pat <- pattern
        return (Just (name,rng),pat)
   <|>
@@ -2521,7 +2608,7 @@ tresult
        (teff,tres) <- do (tps,rng) <- tatom
                          return (Just (tuple (tps1,rng)), tuple (tps,rng))
                       <|>
-                         return (Nothing {-makeTpTotal (getRange (map snd tps2))-}, tuple(tps1,rng1)) -- TODO: range
+                         return (Nothing {-makeTpTotal (getRange (map snd tps2))-}, tuple (tps1,rng1)) -- TODO: range
        return (teff,tres)
   where
     merge :: [([(Name,UserType)],Range)] -> [(Name,UserType)]
