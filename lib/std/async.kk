@@ -220,7 +220,7 @@ pub fun float/wait( secs : float64, ?set-timeout: (unit-cb, int32) -> io-noexn a
 // Wait (asynchronously) for optional `secs` seconds `:duration` (`= 0.seconds`).
 // Use `yield()` to yield generally to other asynchronous operations.
 pub fun wait( secs : duration = zero, ?set-timeout: (unit-cb, int32) -> io-noexn any, ?clear-timeout: (any) -> io-noexn () ) : asyncx ()
-  if secs <= zero then return yield()
+  if secs <= duration/zero then return yield()
   val msecs = max(zero:int32,secs.milli-seconds.int32)
   await fn(cb)
     val tid = async/set-timeout( fn(){ cb(Ok(())) }, msecs )
@@ -347,7 +347,7 @@ fun interleavedn( n : int, xs : list<() -> <async-exn|e> a> ) : <async|e> list<e
         cr.fst > 0    
       fun strand-done(idx,res) 
         cr := (cr.fst - 1, cr.snd.insert(idx,res)) 
-    interleaved-div(xs)  
+    mask<local>{interleaved-div(xs)}
 
 
 inline extern unsafe-no-ndet-div-cast : forall<a,e> (() -> <ndet,div|e> a) -> (() -> e a) 
