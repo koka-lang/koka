@@ -26,22 +26,22 @@ pub fun tuple4/map( t : (a,a,a,a), f : a -> e b ) : e (b,b,b,b)
 
 
 // Element-wise tuple equality
-pub fun tuple2/(==)( (x1,y1) : (a,b), (x2,y2) : (a,b), ?fst/(==) : (a,a) -> bool, ?snd/(==) : (b,b) -> bool ) : bool
+pub fun tuple2/(==)( (x1,y1) : (a,b), (x2,y2) : (a,b), ?fst/(==) : (a,a) -> e bool, ?snd/(==) : (b,b) -> e bool ) : e bool
   (x1==x2) && (y1==y2)
 
 // Element-wise triple equality
-pub fun tuple3/(==)( (x1,y1,z1) : (a,b,c), (x2,y2,z2) : (a,b,c), ?fst/(==) : (a,a) -> bool, ?snd/(==) : (b,b) -> bool, ?thd/(==) : (c,c) -> bool ) : bool
+pub fun tuple3/(==)( (x1,y1,z1) : (a,b,c), (x2,y2,z2) : (a,b,c), ?fst/(==) : (a,a) -> e bool, ?snd/(==) : (b,b) -> e bool, ?thd/(==) : (c,c) -> e bool ) : e bool
   (x1==x2) && (y1==y2) && (z1==z2)
 
 
 // Order on tuples
-pub fun tuple2/cmp( (x1,y1) : (a,b), (x2,y2) : (a,b), ?fst/cmp : (a,a) -> order, ?snd/cmp : (b,b) -> order ) : order
+pub fun tuple2/cmp( (x1,y1) : (a,b), (x2,y2) : (a,b), ?fst/cmp : (a,a) -> e order, ?snd/cmp : (b,b) -> e order ) : e order
   match fst/cmp(x1,x2)
     Eq -> snd/cmp(y1,y2)
     lg -> lg
 
 // Order on triples
-pub fbip fun tuple3/cmp( (x1,y1,z1) : (a,b,c), (x2,y2,z2) : (a,b,c), ^?fst/cmp : (a,a) -> order, ^?snd/cmp : (b,b) -> order, ^?thd/cmp : (c,c) -> order ) : order
+pub fbip fun tuple3/cmp( (x1,y1,z1) : (a,b,c), (x2,y2,z2) : (a,b,c), ^?fst/cmp : (a,a) -> e order, ^?snd/cmp : (b,b) -> e order, ^?thd/cmp : (c,c) -> e order ) : e order
   match fst/cmp(x1,x2)
     Eq -> match snd/cmp(y1,y2)
             Eq -> thd/cmp(z1,z2)

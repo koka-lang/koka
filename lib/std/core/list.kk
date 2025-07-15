@@ -95,7 +95,7 @@ pub fun char/list( lo : char, hi : char ) : total list<char>
   list(lo.int, hi.int).map( char )
 
 // Element-wise list equality
-pub fun (==)( xs : list<a>, ys : list<a>, ?(==) : (a,a) -> bool ) : bool
+pub fun (==)( xs : list<a>, ys : list<a>, ?(==) : (a,a) -> e bool ) : e bool
   match xs
     Cons(x,xx) -> match ys
                     Nil        -> False
@@ -105,7 +105,7 @@ pub fun (==)( xs : list<a>, ys : list<a>, ?(==) : (a,a) -> bool ) : bool
              Cons -> False
 
 // Order on lists
-pub fun cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> order ) : order
+pub fun cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> e order ) : e order
   match xs
     Cons(x,xx) -> match ys
                     Nil        -> Gt

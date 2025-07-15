@@ -25,6 +25,16 @@ pub fun map( e : either<a,b>, f : b -> e c  ) : e either<a,c>
     Right(x) -> Right(f(x))
     Left(x)  -> Left(x)
 
+// Equality on `:either` values
+pub fun (==)(e1: either<a,b>, e2: either<a,b>, ?left/(==): (a, a) -> e bool, ?right/(==): (b, b) -> e bool) : e bool
+  match e1
+    Left(l1) -> match e2 
+      Left(l2) -> l1 == l2
+      _ -> False
+    Right(r1) -> match e2 
+      Right(r2) -> r1 == r2
+      _ -> False
+
 // Show an `:either` type
 pub fun show( e : either<a,b>, ?left/show : a -> e string, ?right/show : b -> e string ) : e string
   match e

@@ -67,11 +67,11 @@ noinline fun printsln( s : string ) : console ()
 
 
 // Print a string to the console.
-pub fun string/print(s : string)
+pub fun string/print(s : string): console ()
   prints(s)
 
 // Print a value that has a `show` function
-pub fun default/show/print( x : a, ?show : a -> string ) : console ()
+pub fun default/show/print( x : a, ?show : a -> <console|e> string ) : <console|e> ()
   prints(x.show)
 
 // Print a string to the console, including a final newline character.
@@ -79,5 +79,5 @@ pub fun string/println(s : string) : console ()
   printsln(s)
 
 // Print a value that has a `show` function, including a final newline character.
-pub fun default/show/println( x : a, ?show : a -> string ) : console ()
+pub fun default/show/println( x : a, ?show : a -> <console|e> string ) : <console|e> ()
   printsln(x.show)

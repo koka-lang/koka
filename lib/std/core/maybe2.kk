@@ -49,7 +49,7 @@ pub fun (||)( m1 : maybe2<a,b>, m2: maybe2<a,b> ) : maybe2<a,b>
     _        -> m1
 
 // Equality on `:maybe`
-pub fun (==)( mb1 : maybe2<a,b>, mb2 : maybe2<a,b>, ?fst/(==) : (a,a) -> bool, ?snd/(==) : (b,b) -> bool ) : bool
+pub fun (==)( mb1 : maybe2<a,b>, mb2 : maybe2<a,b>, ?fst/(==) : (a,a) -> e bool, ?snd/(==) : (b,b) -> e bool ) : e bool
   match mb1
     Just2(x,y) -> match mb2
                     Just2(a,b) -> (x==a) && (y==b)
@@ -60,7 +60,7 @@ pub fun (==)( mb1 : maybe2<a,b>, mb2 : maybe2<a,b>, ?fst/(==) : (a,a) -> bool, ?
 
 
 // Order on `:maybe` values
-pub fun cmp( mb1 : maybe2<a,b>, mb2 : maybe2<a,b>, ?fst/cmp : (a,a) -> order, ?snd/cmp : (b,b) -> order) : order
+pub fun cmp( mb1 : maybe2<a,b>, mb2 : maybe2<a,b>, ?fst/cmp : (a,a) -> e order, ?snd/cmp : (b,b) -> e order) : e order
     match mb1
       Just2(x,y) -> match mb2
                       Just2(a,b) -> match ?fst/cmp(x,a)

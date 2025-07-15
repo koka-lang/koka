@@ -48,7 +48,7 @@ pub fun (||)( m1 : maybe<a>, m2: maybe<a> ) : maybe<a>
     _       -> m1
 
 // Equality on `:maybe`
-pub fun (==)( mb1 : maybe<a>, mb2 : maybe<a>, ?(==) : (a,a) -> bool ) : bool
+pub fun (==)( mb1 : maybe<a>, mb2 : maybe<a>, ?(==) : (a,a) -> e bool ) : e bool
   match mb1
     Just(x)  -> match mb2
                   Just(y) -> x==y
@@ -59,7 +59,7 @@ pub fun (==)( mb1 : maybe<a>, mb2 : maybe<a>, ?(==) : (a,a) -> bool ) : bool
 
 
 // Order on `:maybe` values
-pub fun cmp( mb1 : maybe<a>, mb2 : maybe<a>, ?cmp : (a,a) -> order ) : order
+pub fun cmp( mb1 : maybe<a>, mb2 : maybe<a>, ?cmp : (a,a) -> e order ) : e order
   match mb1
     Just(x)  -> match mb2
                   Just(y) -> cmp(x,y)
@@ -70,7 +70,7 @@ pub fun cmp( mb1 : maybe<a>, mb2 : maybe<a>, ?cmp : (a,a) -> order ) : order
 
 
 // Order two `:maybe` values in ascending order
-pub fip fun order2( mb1 : maybe<a>, mb2 : maybe<a>, ^?order2 : (a,a) -> order2<a> ) : order2<maybe<a>>
+pub fip fun order2( mb1 : maybe<a>, mb2 : maybe<a>, ^?order2 : (a,a) -> e order2<a> ) : e order2<maybe<a>>
   match mb1
     Just(x)  -> match mb2
                   Just(y) -> match order2(x,y)
