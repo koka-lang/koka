@@ -1,0 +1,15 @@
+[1,2]
+[[1],[2]]
+["ab"]
+["ab"]
+ 
+overload/show1/char/showx: (c : char) -> string
+overload/show1/charshowx: (cs : list<char>) -> string
+overload/show1/default/showx: forall<a> (xs : list<a>, ?showx : (a) -> string) -> string
+overload/show1/float64/showx: (f : float64) -> string
+overload/show1/int/showx: (i : int) -> string
+overload/show1/main: () -> console ()
+overload/show1/test1: () -> string
+overload/show1/test2: () -> string
+overload/show1/test3: () -> string
+overload/show1/test4: () -> string

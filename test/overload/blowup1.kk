@@ -30,3 +30,7 @@ fun test1( x : _a, ?eq : (_a,_a) -> bool )
 fun test2( xs, ?eq )
   eq([],[])
 
+fun main()
+  test0([[]]).println
+  test1(1,?eq=(==)).println
+  

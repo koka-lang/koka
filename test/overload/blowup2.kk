@@ -70,3 +70,7 @@ fun test1( x : _a, ?eq : (_a,_a) -> bool )
 
 fun test2( xs, ?eq )
   eq([],[])
+
+fun main()
+  test1(1).println
+  

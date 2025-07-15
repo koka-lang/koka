@@ -1,0 +1,16 @@
+False
+ 
+overload/blowup2/char/cmpx: (x : char, y : char) -> order
+overload/blowup2/char/eq: (x : char, y : char) -> bool
+overload/blowup2/default/cmpx/eq: forall<a> (x : a, y : a, ?cmpx : (a, a) -> order) -> bool
+overload/blowup2/int/cmpx: (x : int, y : int) -> order
+overload/blowup2/int/eq: (x : int, y : int) -> bool
+overload/blowup2/cmpx: forall<a> (xs : list<a>, ys : list<a>, ?cmpx : (a, a) -> order) -> order
+overload/blowup2/eq: forall<a> (xs : list<a>, ys : list<a>, ?eq : (a, a) -> bool) -> bool
+overload/blowup2/maybe/cmpx: forall<a> (mb1 : maybe<a>, mb2 : maybe<a>, ?cmpx : (a, a) -> order) -> order
+overload/blowup2/maybe/eq: forall<a> (mb1 : maybe<a>, mb2 : maybe<a>, ?eq : (a, a) -> bool) -> bool
+overload/blowup2/tuple2/eq: forall<a,b> ((a, b), (a, b), ?fst/eq : (a, a) -> bool, ?snd/eq : (b, b) -> bool) -> bool
+overload/blowup2/tuple3/eq: forall<a,b,c> ((a, b, c), (a, b, c), ?fst/eq : (a, a) -> bool, ?snd/eq : (b, b) -> bool, ?thd/eq : (c, c) -> bool) -> bool
+overload/blowup2/main: () -> console ()
+overload/blowup2/test1: forall<a> (x : a, ?eq : (a, a) -> bool) -> bool
+overload/blowup2/test2: forall<a,b,c,d,e> (xs : a, ?eq : (list<b>, list<c>) -> e d) -> e d

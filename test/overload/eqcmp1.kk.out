@@ -1,0 +1,31 @@
+False
+False
+False
+False
+"12"
+ 
+overload/eqcmp1/char/cmpx: (x : char, y : char) -> order
+overload/eqcmp1/char/eq: (x : char, y : char) -> bool
+overload/eqcmp1/default/cmpx/eq: forall<a> (x : a, y : a, ?cmpx : (a, a) -> order) -> bool
+overload/eqcmp1/int/cmpx: (x : int, y : int) -> order
+overload/eqcmp1/int/eq: (x : int, y : int) -> bool
+overload/eqcmp1/cmpx: forall<a> (xs : list<a>, ys : list<a>, ?cmpx : (a, a) -> order) -> order
+overload/eqcmp1/eq: forall<a> (xs : list<a>, ys : list<a>, ?eq : (a, a) -> bool) -> bool
+overload/eqcmp1/cmpx-and-eq: forall<a> (xs : list<a>, y : a, ?cmpx : (a, a) -> order) -> bool
+overload/eqcmp1/contains: forall<a> (xs : list<a>, y : a, ?eq : (a, a) -> bool) -> bool
+overload/eqcmp1/equal: forall<a> (x : a, y : a, ?eq : (a, a) -> bool) -> bool
+overload/eqcmp1/main: () -> console string
+overload/eqcmp1/show: (ord : order) -> string
+overload/eqcmp1/test1: () -> console ()
+overload/eqcmp1/test2: () -> console ()
+overload/eqcmp1/test3a: (?eq : (int, int) -> bool) -> bool
+overload/eqcmp1/test3b: () -> bool
+overload/eqcmp1/test3c: (?cmpx : (int, int) -> order) -> bool
+overload/eqcmp1/test3d: (?cmpx : (int, int) -> order) -> bool
+overload/eqcmp1/test3e: forall<a> (xs : list<a>, ys : list<a>, ?eq : (a, a) -> bool) -> bool
+overload/eqcmp1/test3f: () -> bool
+overload/eqcmp1/test4a: (x : int, y : int, ?cmpx : (int, int) -> order) -> (bool, bool, order)
+overload/eqcmp1/test4b: (x : int, y : int) -> (bool, order)
+overload/eqcmp1/test5: () -> console ()
+overload/eqcmp1/test6: () -> string
+overload/eqcmp1/xcompare: forall<a> (x : a, y : a, ?cmpx : (a, a) -> order) -> order

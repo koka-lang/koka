@@ -35,3 +35,8 @@ fun test-pure2(x)
   val r = ref(x)
   !r
 
+fun main()
+  test1(0)(0).println
+  test2().println
+  test-pure1().println
+  test-pure2(1).println

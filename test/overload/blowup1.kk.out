@@ -1,0 +1,12 @@
+False
+False
+ 
+overload/blowup1/char/eq: (x : char, y : char) -> bool
+overload/blowup1/int/eq: (x : int, y : int) -> bool
+overload/blowup1/eq: forall<a> (xs : list<a>, ys : list<a>, ?eq : (a, a) -> bool) -> bool
+overload/blowup1/tuple2/eq: forall<a,b> ((a, b), (a, b), ?fst/eq : (a, a) -> bool, ?snd/eq : (b, b) -> bool) -> bool
+overload/blowup1/tuple3/eq: forall<a,b,c> ((a, b, c), (a, b, c), ?fst/eq : (a, a) -> bool, ?snd/eq : (b, b) -> bool, ?thd/eq : (c, c) -> bool) -> bool
+overload/blowup1/main: () -> console ()
+overload/blowup1/test0: (xs : list<list<list<int>>>) -> bool
+overload/blowup1/test1: forall<a> (x : a, ?eq : (a, a) -> bool) -> bool
+overload/blowup1/test2: forall<a,b,c,d,e> (xs : a, ?eq : (list<b>, list<c>) -> e d) -> e d

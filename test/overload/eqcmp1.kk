@@ -126,3 +126,10 @@ fun cmpx-and-eq(xs : list<a>, y : a, ?cmpx : (a,a) -> order) : bool
 fun test6()
   // ['a','b'].cmpx-and-eq('a')
   [1,2].map(show).join.show
+
+fun main()
+  test1()
+  test2()
+  test3f().println
+  cmpx-and-eq([1,2],1).println
+  test6()  

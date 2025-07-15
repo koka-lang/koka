@@ -27,3 +27,9 @@ fun charlist/showx( cs : list<char> ) : string
 fun test4()
   [['a','b']].showx(?showx=charlist/showx)
 
+fun main()
+  test1().println
+  test2().println
+  test3().println
+  test4().println
+  
