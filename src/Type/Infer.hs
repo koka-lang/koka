@@ -77,6 +77,7 @@ import Core.BindingGroups( regroup )
 import qualified Syntax.RangeMap as RM
 import Common.File (seqqList)
 import Type.Operations (hasOptionalOrImplicits)
+import Syntax.Pretty (ppSyntaxExpr)
 
 
 {--------------------------------------------------------------------------
@@ -1215,8 +1216,10 @@ effectNameFromLabel effect
 
 inferApp :: Maybe (Type,Range) -> Expect -> Expr Type -> [(Maybe (Name,Range),Expr Type)] -> Range -> Inf (Type,Effect,Core.Expr)
 inferApp propagated expect fun nargs rng
-  = -- trace "infer: App" $
-    do (fixed,named) <- splitNamedArgs nargs
+  = do (fixed,named) <- splitNamedArgs nargs
+      --  traceDefDoc $ \penv -> text "infer application:" <+> ppProp penv propagated <-> text "  fun:" <+> ppSyntaxExpr penv fun
+      --                          <-> text "  fixed:" <+> list (map (ppSyntaxExpr penv) fixed)
+      --                          <-> text "  named:" <+> list [ppName penv name <.> text "=" <.> ppSyntaxExpr penv tp | ((name,rng),tp) <- named]
        amb <- case rootExpr fun of
                 (Var name _ nameRange)
                   -> do let sctx = fixedCountContext propagated (length fixed) (map (fst . fst) named)
@@ -1241,25 +1244,17 @@ inferApp propagated expect fun nargs rng
     inferAppFunFirst :: Maybe (Type,Range) -> Expr Type -> [(Int,FixedArg)] ->
                           [Expr Type] -> [((Name,Range),Expr Type)] -> [((Name,Range), Expr Type, (Bool -> Doc))] ->
                             Inf (Type,Effect,Core.Expr)
-    inferAppFunFirst prop funExpr fresolved fixed named0 implicits
+    inferAppFunFirst prop funExpr fresolved fixed0 named0 implicits0
       = maybeInstantiateOrGeneralize rng (getRange fun) expect $
         do
           --  traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
-          --                           text ("fixed count: " ++ show (length fixed)) <.>
-          --                           text (", named: " ++ show named0) <->
-          --                           text (", fres count: " ++ show (length fresolved)) <+>
-          --                           text ", prop: " <+> ppProp penv prop <+>
-          --                           text ", propagated: " <+> ppProp penv propagated
-
-           -- only add resolved implicits that were not already named
-           let alreadyGiven = [name | ((name,_),_) <- named0]
-               rimplicits   = [imp | imp@((name,_),_,_) <- implicits, not (name `elem` alreadyGiven)]
-               named        = named0 ++ [((name,rangeNull) {-so no range info is emmitted when checking -}
-                                          , expr) | ((name,_),expr,_) <- rimplicits]
-
-           penv <- getPrettyEnv
-           mapM_ (\((name,_),_,fdoc) -> addRangeInfo (getRange funExpr) (RM.Implicits fdoc)) rimplicits
-
+          --                           text ("fixed count: " ++ show (length fixed0)) <->
+          --                           text (", named: " ++ show named0) 
+                                    -- <->
+                                    -- text (", fres count: " ++ show (length fresolved)) <->
+                                    -- text ", prop: " <+> ppProp penv prop <+>
+                                    -- text ", propagated: " <+> ppProp penv propagated
+           
            -- infer type of function
            fprop <- case (prop,funExpr) of
                       (Nothing,Var name _ _) | not (isConstructorName name)
@@ -1267,18 +1262,38 @@ inferApp propagated expect fun nargs rng
                               case (ptp,infoAllowImplictMask info) of
                                 (TVar{},True) -> do teff <- Op.freshEffect  -- we propagate a function type (for example to mask<local> for function parameters)
                                                     tres <- Op.freshStar
-                                                    tpars <- mapM (\_ -> Op.freshStar) [1..(length fixed + length named0 + length implicits)]
+                                                    tpars <- mapM (\_ -> Op.freshStar) [1..(length fixed0 + length named0 + length implicits0)]
                                                     let ftp = TFun [(nameNil,tpar) | tpar <- tpars] teff tres
                                                     return (Just (ftp, rng))
                                 _ -> return prop
                       _ -> return prop
            (ftp,eff1,fcore) <- allowReturn False $ inferExpr fprop Instantiated funExpr
 
+           -- we allow passing implicit parameters as a fixed argument: here we name those explicitly based on the type
+           -- todo: for now disallow implicit parameters as fixed ones as it can lead to long inference times?           
+           let allowImplicitsAsFixed = True
+           (fixed,named1) <- case splitFunType ftp of
+                              Just (pars,_,_) | allowImplicitsAsFixed
+                                  -> let (tfixed,toptionals,timplicits) = Op.splitOptionalImplicit pars
+                                         (fixed1,fixedImplicitArgs) = splitAt (length tfixed + length toptionals) fixed0
+                                     in if null fixedImplicitArgs || length fixedImplicitArgs > length timplicits -- too many arguments?; see `test/static/wrong/rec1`
+                                          then return (fixed0,named0)
+                                          else do let fixedImplicits = zipWith (\(name,tp) expr -> ((name,getRange expr),expr)) 
+                                                                        timplicits fixedImplicitArgs
+                                                  return (fixed1, fixedImplicits ++ named0)
+                              _  -> return (fixed0,named0)
+           -- only add resolved implicits that were not already named
+           let alreadyGiven = [name | ((name,_),_) <- named1]
+               rimplicits   = [imp | imp@((name,_),_,_) <- implicits0, not (name `elem` alreadyGiven)]               
+               named        = named1 ++ [((name,rangeNull) {-so no range info is emmitted when checking -}
+                                          , expr) | ((name,_),expr,_) <- rimplicits]
+
+           mapM_ (\((name,_),_,fdoc) -> addRangeInfo (getRange funExpr) (RM.Implicits fdoc)) rimplicits
+                                          
            -- match the type with a function type, wrap optional arguments, and order named arguments.
-           -- traceDoc $ \env -> text "infer fun first, tp:" <+> ppType env ftp
+           -- traceDefDoc $ \env -> text "infer-fun-first, tp:" <+> ppType env ftp
            (iargs,pars0,funEff0,funTp0,coreApp) <- matchFunTypeArgs rng funExpr ftp fresolved fixed named
-
-
+           
            -- match propagated type with the function result type
            -- note: we may disable this in the future?
            (pars,funEff,funTp) <- case propagated of
@@ -1336,12 +1351,9 @@ inferApp propagated expect fun nargs rng
            -- instantiate or generalize result type
            funTp1 <- subst funTp
            stopEff <- subst topEff
-           -- traceDefDoc $ \env -> text " inferAppFunFirst: inst or gen:" <+> pretty (show expect) <+> colon <+> ppType env funTp1 <.> text ", top eff: " <+> ppType env stopEff
+           -- traceDefDoc $ \env -> text "inferAppFunFirst res: " <+> pretty (show expect) <+> colon <+> ppType env funTp1 <.> text ", top eff: " <+> ppType env stopEff
            return (funTp1,stopEff,core)
-          --  (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) stopEff expect funTp1 core
-
-          --  -- traceDefDoc $ \env -> text " inferAppFunFirst: resTp:" <+> ppType env resTp <.> text ", top eff: " <+> ppType env topEff -- <+> text (show (resCore))
-          --  return (resTp,stopEff,resCore)
+          
 
     -- we cannot resolve an overloaded function name: infer types of arguments without propagation first.
     -- The code handles inferring arguments in any order by keeping track of the index, but at the moment
@@ -2139,7 +2151,8 @@ rootExpr expr
 inferArgsN :: HasCallStack => Context -> Range -> [(Type,ArgExpr)] -> Inf ([Effect],[Core.Expr])
 inferArgsN ctx range parArgs
   = traceIndent $
-    do res <- inferArg [] parArgs
+    do -- traceDefDoc $ \penv -> text "inferArgsN:" <+> list [ppType penv tp <+> text "~"  <+> ppArgExpr penv e | (tp,e) <- parArgs]
+       res <- inferArg [] parArgs
        let (!eff, !expr) = unzip res
        return (seqqList eff, seqqList expr)
   where
@@ -2309,6 +2322,13 @@ data ArgExpr
   | ArgCore FixedArg
   | ArgImplicit Name Range {- application range -} Range {- name range -}
 
+ppArgExpr :: Env -> ArgExpr -> Doc
+ppArgExpr penv arg 
+  = case arg of
+      ArgExpr expr _ -> text "ArgExpr" <+> ppSyntaxExpr penv expr
+      ArgCore (_,tp,_,cexpr) -> text "ArgCore" <+> ppType penv tp
+      ArgImplicit name _ _ -> text "ArgImplicit" <+> ppName penv name
+
 matchFunTypeArgs :: Range -> Expr Type -> Type -> [(Int,FixedArg)] -> [Expr Type] -> [((Name,Range),Expr Type)]
                      -> Inf ([(Int,ArgExpr)], [(Name,Type)], Effect, Type, Core.Expr -> [Core.Expr] -> Core.Expr)
 matchFunTypeArgs context fun tp fresolved fixed named
@@ -2342,8 +2362,9 @@ matchFunTypeArgs context fun tp fresolved fixed named
 
     matchParameters :: [(Name,Type)] -> [(Int,FixedArg)] -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf [(Int,ArgExpr)]
     matchParameters pars fresolved fixed named
-      = -- trace ("match parameters: " ++ show (pars,length fixed,map (fst.fst) named)) $
-        do (pars1,args1) <- matchFixed pars (zip [0..] fixed) fresolved
+      = do -- traceDefDoc $ \penv -> text "match parameters:" <+> list (map (\p -> ppParam penv p) pars) <+>
+           --                       text ", fixed#:" <+> pretty (length fixed) <.> text ", named:" <+> list (map (ppName penv . fst . fst) named)
+           (pars1,args1) <- matchFixed pars (zip [0..] fixed) fresolved
            iargs2        <- matchNamed (zip [length fixed..] pars1) (zip [length fixed..] named)
            return (args1 ++ map snd (sortBy (\(i,_) (j,_) -> compare i j) iargs2))
 

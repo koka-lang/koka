@@ -854,6 +854,7 @@ lookupAppName allowDisambiguate name ctx contextRange range
        case res of
           Right iarg@(ImplicitArg qname _ rho iargs)
             -> do -- when (not (null iargs)) $ traceDefDoc $ \penv -> text "resolved app name with implicits:" <+> prettyImplicitArg penv iarg
+                  -- traceDefDoc $ \penv -> text "lookupAppName:" <+> Pretty.ppName penv name <.> text " to:" <+> prettyImplicitArg penv iarg
                   penv <- getPrettyEnv
                   let implicits = [((pname,range),
                                      toImplicitArgExpr (endOfRange range) iarg,
@@ -1133,7 +1134,7 @@ resolveBest allowDisambiguate depth candidates | depth > resolveMaxChainDepth
 
 resolveBest allowDisambiguate depth candidates
   = do -- traceDefDoc $ \penv -> text "resolveBest" <+> pretty (depth,allowDisambiguate) <+> text "candidates:" <->
-       --                                               indent 2 (vcat (map (prettyImplicitArg penv) candidates))
+       --                                                indent 2 (vcat (map (prettyImplicitArg penv) candidates))
        case findBest allowDisambiguate candidates of
         Found iarg       -> -- found a unique one, it should always be fully resolved by now
                             assertion "Type.InferMonad.resolveBest: unresolved implicit!" (isDone iarg) $
@@ -1294,12 +1295,14 @@ lookupImplicitArg allowUnitFunVal infoFilter previousCtxs name ctx range
     implicitsToResolve :: [(Name,Type)] -> [(Name,Type)]
     implicitsToResolve ipars
       = -- only return implicits that were not already given explicitly by the user (in `named`)
-        let (_,_,implicits)  = splitOptionalImplicit ipars
+        let (fixed,optional,implicits)  = splitOptionalImplicit ipars
             alreadyGiven     = case ctx of
-                                  CtxFunTypes partial fixed named mbResTp
-                                    -> map fst named
+                                  CtxFunTypes partial fixedArgs named mbResTp
+                                    -> let namedAsFixed = map fst (take (length fixedArgs - length fixed - length optional) implicits)                                       
+                                       in namedAsFixed ++ map fst named
                                   CtxFunArgs partial n named mbResTp
-                                    -> named
+                                    -> let namedAsFixed = map fst (take (n - length fixed - length optional) implicits)                                       
+                                       in namedAsFixed ++ named
                                   _ -> []
             toResolve        = filter (\(name,_) -> let (pname,_) = splitImplicitParamName name
                                                     in not (pname `elem` alreadyGiven)) implicits
@@ -1465,7 +1468,7 @@ filterMatchNameContextEx range ctx candidates
     matchArgs :: Bool -> [Type] -> [(Name,Type)] -> Maybe Type -> (Name,NameInfo) -> Inf [(Name,NameInfo,Rho)]
     matchArgs matchSome fixed named mbResTp (name,info)
       = do free <- freeInGamma
-          --  traceDefDoc $ \penv -> text "  match fixed:" <+> list [Pretty.ppType penv fix | fix <- fixed]
+          --  traceDefDoc $ \penv -> text "  match args fixed:" <+> list [Pretty.ppType penv fix | fix <- fixed]
           --                                 <+> text ", named" <+> list [Pretty.ppParam penv nametp | nametp <- named]
           --                                 <+> text "on" <+> Pretty.ppParam penv (name,infoType info)
            res <- runUnify (matchArguments matchSome range free (infoType info) fixed named mbResTp)
@@ -1495,7 +1498,7 @@ ppNameContext penv ctx
         -> Pretty.ppType penv tp
       CtxFunArgs matchSome n names mbResTp
         -> -- text "CtxFunArgs" <+> pretty n <+> list [Pretty.ppName penv name | name <- names] <+> ppMbType penv mbResTp
-           tupled ([text "_" | _ <- [1..n]] ++ [Pretty.ppName penv name <+> text ": _" | name <- names]
+           tupled ([text "?" | _ <- [1..n]] ++ [Pretty.ppName penv name <+> text ": ?" | name <- names]
                    ++ (if matchSome then [text "..."] else []))
            <+> text "->" <+> ppMaybeType mbResTp
       CtxFunTypes some fixed named mbResTp

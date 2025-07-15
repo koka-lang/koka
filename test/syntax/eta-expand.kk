@@ -10,7 +10,7 @@ fun error/plus(x: (int) -> int, y: b): console ()
 fun regular/plus(x: int, y: int): int
   x + y
 
-fun special/show(s: string): string 
+fun special/show( s: string ) : string 
   "s'" ++ s.list.map(show-char).join("") ++ "'"
 
 fun dupmap(l : list<a>, f: (a, a) -> b): list<b>
@@ -22,7 +22,8 @@ fun test-ok()
   [1, 2, 3].map(_ + 1).println
   [1, 2, 3].dupmap(_ * _).println
   ["1", "2", "3"].println(?show=show(_, ?show=special/show(_)))
- 
+  ["1", "2", "3"].println(show(_, special/show(_)))
+
   [1,2].map( 3 + _ ).println  //  => [1,2].map( fn(x) 3 + x ) or
                        //   fn(x) [1,2].map( 3 + x )
   [1,2].map( (+)(3,_) ).println // => [1,2].map( fn(x) (+)(3,x) ) or
