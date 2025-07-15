@@ -61,7 +61,7 @@ pub fip fun trace( message : string ) : ()
 pub fip fun trace-info( message : string, ?kk-file-line : string ) : ()
   trace(?kk-file-line ++ ": " ++ message)
 
-pub fip fun trace-show( x : a, ?show : a -> string, ?kk-file-line : string ) : ()
+pub fip fun trace-show( x : a, ?show : a -> e string, ?kk-file-line : string ) : e ()
   trace-info(x.show,?kk-file-line=?kk-file-line)
 
 pub fip fun trace-any( message : string, x : a ) : ()

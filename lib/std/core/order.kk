@@ -44,7 +44,7 @@ pub fip fun order2/int( ^x : order2<a> ) : int
     Gt2 -> 1
 
 // Given a comparison function, we can order 2 elements.
-pub fun default/order2( x : a, y : a, ^?cmp : (a,a) -> order ) : order2<a>
+pub fun default/order2( x : a, y : a, ^?cmp : (a,a) -> e order ) : e order2<a>
   match cmp(x,y)
     Eq -> Eq2(x)
     Lt -> Lt2(x,y)
