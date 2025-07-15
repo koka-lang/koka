@@ -1274,47 +1274,6 @@ inferApp propagated expect fun nargs rng
                       _ -> return prop
            (ftp,eff1,fcore) <- allowReturn False $ inferExpr fprop Instantiated funExpr
 
-          --  localDepth <- localScopeDepth
-          --  (mbftp,fprop) <- case (prop,funExpr) of
-          --                     (Nothing,Var qname _ _) | localDepth > 0 && null implicits && not (isHiddenName qname)
-          --                       -> do (_,_,info) <- resolveName qname prop rng
-          --                             if (infoIsPar info)
-          --                               then do teff <- Op.freshEffect  -- we propagate a function type to mask<local> for function parameters
-          --                                       tres <- Op.freshStar
-          --                                       tpars <- mapM (\_ -> Op.freshStar) nargs
-          --                                       let ftp = TFun [(nameNil,tpar) | tpar <- tpars] teff tres
-          --                                       return (Just ftp, Just (ftp, rng))
-          --                               else return (Nothing,prop)
-          --                     _ -> return (Nothing,prop)
-          --  (ftp0,eff1,fcore) <- allowReturn False $ inferExpr fprop Instantiated funExpr
-          --  -- traceDefDoc $ \penv -> text "inferred type of fun: " <+> ppType penv ftp
-          --  ftp <- case mbftp of
-          --            Just ftp1 -> do inferUnify (Infer rng) rng ftp0 ftp1
-          --                            subst ftp0
-          --            Nothing   -> return ftp0
-          --  localDepth <- localScopeDepth
-          --  (ftp,eff1,fcore) <- case (prop,funExpr) of
-          --                         (Nothing,Var qname _ _) | localDepth > 0 && null implicits && not (isHiddenName qname)
-          --                          -> do (_,tp,info) <- resolveName qname prop rng
-          --                                case tp of
-          --                                   TVar _  -> do eff0 <- Op.freshEffect
-          --                                                 tres <- Op.freshStar
-          --                                                 tpars <- mapM (\_ -> Op.freshStar) nargs
-          --                                                 hp <- Op.freshTVar kindHeap Meta
-          --                                                 let localTp  = TApp typeLocal [hp]
-          --                                                     openEff1 = effectExtend localTp eff0
-          --                                                     pars     = [(nameNil,tpar) | tpar <- tpars]
-          --                                                     openTp0  = TFun pars eff0 tres
-          --                                                     openTp1  = TFun pars openEff1 tres
-          --                                                 let coreVar = coreExprFromNameInfo qname info
-          --                                                 inferUnify (Infer rng) rng tp openTp0
-          --                                                 sopenTp1 <- subst openTp1
-          --                                                 sopenEff1 <- subst openEff1
-          --                                                 return (sopenTp1,sopenEff1,Core.openEffectExpr eff0 sopenEff1 openTp0 sopenTp1 coreVar)
-          --                                   _ -> allowReturn False $ inferExpr prop Instantiated funExpr
-          --                         _ -> allowReturn False $ inferExpr prop Instantiated funExpr
-
-
            -- match the type with a function type, wrap optional arguments, and order named arguments.
            -- traceDoc $ \env -> text "infer fun first, tp:" <+> ppType env ftp
            (iargs,pars0,funEff0,funTp0,coreApp) <- matchFunTypeArgs rng funExpr ftp fresolved fixed named
