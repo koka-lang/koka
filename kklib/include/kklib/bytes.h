@@ -162,11 +162,6 @@ static inline int8_t kk_bytes_at(kk_bytes_t p, uint64_t i, kk_context_t* ctx){
   return (int8_t)buf[i];
 }
 
-static inline void kk_bytes_set(kk_bytes_t p, uint64_t i, int8_t b, kk_context_t* ctx){
-  uint8_t* buf = (uint8_t*)kk_bytes_buf_borrow(p, NULL, ctx);
-  buf[i] = (uint8_t)b;
-}
-
 /*--------------------------------------------------------------------------------------------------
   Length, compare
 --------------------------------------------------------------------------------------------------*/
@@ -197,6 +192,19 @@ static inline kk_bytes_t kk_bytes_copy(kk_bytes_t b, kk_context_t* ctx) {
     kk_bytes_t bc = kk_bytes_alloc_dupn(len, buf, ctx);
     kk_bytes_drop(b, ctx);
     return bc;
+  }
+}
+
+static inline kk_bytes_t kk_bytes_set(kk_bytes_t bytes, uint64_t i, int8_t b, kk_context_t* ctx){
+  if (kk_datatype_ptr_is_unique(bytes, ctx)) {
+    uint8_t* buf = (uint8_t*)kk_bytes_buf_borrow(bytes, NULL, ctx);
+    buf[i] = (uint8_t)b;
+    return bytes;
+  } else {
+    kk_bytes_t bytes_new = kk_bytes_copy(bytes, ctx);
+    uint8_t* buf = (uint8_t*)kk_bytes_buf_borrow(bytes_new, NULL, ctx);
+    buf[i] = (uint8_t)b;
+    return bytes_new;
   }
 }
 
