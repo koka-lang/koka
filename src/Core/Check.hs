@@ -151,7 +151,7 @@ checkDefGroup defGroup body
   = let defs = case defGroup of
                 DefRec defs   -> defs
                 DefNonRec def -> [def]
-        env  = map coreDefInfo defs
+        env  = map (\def -> coreDefInfo def 0) defs
     in extendGamma env $
        do mapM_ checkDef defs
           body
@@ -168,7 +168,7 @@ coreNameInfo :: TName -> (Name,NameInfo)
 coreNameInfo tname = coreNameInfoX
   where
     coreNameInfoX
-      = (getName tname, createNameInfoX Public (getName tname) DefVal rangeNull (typeOf tname) "")
+      = (getName tname, createNameInfoX Public (getName tname) 0 DefVal rangeNull (typeOf tname) "")
 
 {--------------------------------------------------------------------------
   Expressions

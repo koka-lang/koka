@@ -411,7 +411,7 @@ chkFunCallable fn
     isCallableFrom _          _          = False
 
     getFipInfo :: [NameInfo] -> Maybe Fip
-    getFipInfo [InfoFun _ _ _ _ fip _ _] = Just fip
+    getFipInfo [InfoFun _ _ _ _ _ fip _ _] = Just fip
     getFipInfo [Type.Assumption.InfoExternal _ _ _ _ fip _ _] = Just fip
     getFipInfo _ = Nothing
 

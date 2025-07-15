@@ -157,7 +157,8 @@ inferDefGroup topLevel (DefNonRec def) cont
        return ([cgroup1],x)
 inferDefGroup topLevel (DefRec defs0) cont
   = -- trace ("\ninfer group: " ++ show (map defName defs0)) $
-    do (gamma,infgamma,defs) <- createGammas [] [] defs0 []
+    do sd <- getScopeDepth
+       (gamma,infgamma,defs) <- createGammas sd [] [] defs0 []
        --coreDefs0 <- extendGamma gamma (mapM (inferRecDef topLevel infgamma) defs)
        (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGammaEx topLevel [] infgamma $
                                  do assumed <- mapM (\def -> lookupInfName (getName def)) defs
@@ -190,7 +191,7 @@ inferDefGroup topLevel (DefRec defs0) cont
        -- TODO: fix local info in the core; test/algeff/nim.kk with no types for bobTurn and aliceTurn triggers this
        let sub = map (\cdef -> let tname    = Core.defTName cdef
                                    nameInfo = -- trace ("fix local info: " ++ show (Core.defName cdef)) $
-                                              createNameInfoX Public (Core.defName cdef) (Core.defSort cdef) (Core.defNameRange cdef) (Core.defType cdef) (Core.defDoc cdef)
+                                              createNameInfoX Public (Core.defName cdef) sd (Core.defSort cdef) (Core.defNameRange cdef) (Core.defType cdef) (Core.defDoc cdef)
                                    varInfo  = coreVarInfoFromNameInfo nameInfo
                                    var      = Core.Var tname varInfo
                                in (tname, var)) (Core.flattenDefGroups coreGroups2)
@@ -220,10 +221,10 @@ inferDefGroup topLevel (DefRec defs0) cont
     --   group, some defs end up in infgamma and others in gamma: but at the toplevel that
     --   is ok while infering the types of the recursive group. Eventually, all inferred
     --   types will end up in gamma.
-    createGammas :: [(Name,NameInfo)] -> [(Name,NameInfo)] -> [Def Type] -> [Def Type] -> Inf ([(Name,NameInfo)],[(Name,NameInfo)],[Def Type])
-    createGammas gamma infgamma [] acc
+    createGammas :: Int -> [(Name,NameInfo)] -> [(Name,NameInfo)] -> [Def Type] -> [Def Type] -> Inf ([(Name,NameInfo)],[(Name,NameInfo)],[Def Type])
+    createGammas scopeDepth gamma infgamma [] acc
       = return (seqqList (reverse gamma), seqqList (reverse infgamma), reverse acc)
-    createGammas gamma infgamma (def@(Def binder@(ValueBinder name () expr nameRng vrng) rng vis sort inl doc) : defs) acc
+    createGammas scopeDepth gamma infgamma (def@(Def binder@(ValueBinder name () expr nameRng vrng) rng vis sort inl doc) : defs) acc
       = case (lookup name infgamma) of
           (Just _)
             -> do env <- getPrettyEnv
@@ -237,9 +238,9 @@ inferDefGroup topLevel (DefRec defs0) cont
             -> case expr of
                   Ann _ tp _  | topLevel && tvsIsEmpty (ftv tp)
                     -> do qname <- qualifyName name
-                          let nameInfo = createNameInfoX Public qname sort nameRng tp doc -- (not topLevel || isValue) nameRng tp  -- NOTE: Val is fixed later in "FixLocalInfo"
+                          let nameInfo = createNameInfoX Public qname scopeDepth sort nameRng tp doc -- (not topLevel || isValue) nameRng tp  -- NOTE: Val is fixed later in "FixLocalInfo"
                           -- traceDoc $ \penv -> text "recursive group: assume:" <+> ppParam penv (name,tp)
-                          createGammas ((qname,nameInfo):gamma) (seqqList infgamma) defs (def:acc)
+                          createGammas scopeDepth ((qname,nameInfo):gamma) (seqqList infgamma) defs (def:acc)
                   _ -> case lookup name gamma of
                          Just _
                           -> do env <- getPrettyEnv
@@ -248,8 +249,8 @@ inferDefGroup topLevel (DefRec defs0) cont
                           -> do qname <- if (topLevel) then qualifyName name else return name
                                 case expr of
                                   Ann _ tp _
-                                    -> do let info = createNameInfoX Public qname sort nameRng tp doc  -- may be off due to incomplete type: get fixed later in inferRecDef2
-                                          createGammas gamma (seqqList ((qname,info):infgamma)) defs (def:acc)
+                                    -> do let info = createNameInfoX Public qname scopeDepth sort nameRng tp doc  -- may be off due to incomplete type: get fixed later in inferRecDef2
+                                          createGammas scopeDepth gamma (seqqList ((qname,info):infgamma)) defs (def:acc)
                                   _ -> do info <- case expr of
                                                     Lam pars _ _ _
                                                       -> do tpars <- mapM (\b -> do t <- case binderType b of
@@ -261,13 +262,13 @@ inferDefGroup topLevel (DefRec defs0) cont
                                                             tres  <- Op.freshStar
                                                             let tp = TFun tpars teff tres
                                                             -- traceDoc $ \penv -> text "recursive group: assume mono:" <+> ppParam penv (qname,tp)
-                                                            return (createNameInfoX Public qname DefVal nameRng tp doc)
+                                                            return (createNameInfoX Public qname scopeDepth DefVal nameRng tp doc)
                                                     _ -> do tp <- Op.freshStar
                                                             -- traceDoc $ \penv -> text "recursive group: assume mono:" <+> ppParam penv (qname,tp)
-                                                            return (createNameInfoX Public qname DefVal nameRng tp doc)  -- must assume Val for now: get fixed later in inferRecDef2
+                                                            return (createNameInfoX Public qname scopeDepth DefVal nameRng tp doc)  -- must assume Val for now: get fixed later in inferRecDef2
                                           -- traceDefDoc $ \penv -> text "resursive group: assume:" <+> ppParam penv (qname, infoType info)
                                           let def' = def{ defBinder = (defBinder def){ binderExpr = Ann expr (infoType info) (getRange expr) } }
-                                          createGammas gamma (seqqList ((qname,info):infgamma)) defs (def':acc)
+                                          createGammas scopeDepth gamma (seqqList ((qname,info):infgamma)) defs (def':acc)
 
 checkRecVal :: Core.DefGroup -> Inf ()
 checkRecVal (Core.DefNonRec def) = return ()
@@ -391,10 +392,10 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                 return (resTpX, typeTotal, (coref0 (Core.defExpr coreDef))) -- typeTotal is ok since only functions are recursive (?)
         sassumedTp <- subst assumedTp
         -- traceDefDoc $ \penv -> text "recursive group: inferred:" <+> ppParam penv (Core.defName coreDef,resTp1) <+> text ", assumed:" <+> ppType penv sassumedTp
-
+        sd <- getScopeDepth
         let name = Core.defName coreDef
             csort = if (topLevel || CoreVar.isTopLevel coreDef) then Core.defSort coreDef else DefVal
-            info = coreVarInfoFromNameInfo (createNameInfoX Public name csort (defRange def) resTp1 (defDoc def))
+            info = coreVarInfoFromNameInfo (createNameInfoX Public name sd csort (defRange def) resTp1 (defDoc def))
         penv <- getPrettyEnv
         (resTp2,coreExpr)
               <- case (resCore1) of
@@ -458,7 +459,7 @@ inferDef topLevel expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis 
      if (verbose penv >= 4)
       then Lib.Trace.trace ("infer: " ++ show sort ++ " " ++ show name) $ return ()
       else return ()
-     withDefName name $ disallowHole $ -- scopeImplicitConstraints $
+     withDefName name $ withScope $ disallowHole $ -- scopeImplicitConstraints $
       (if (not (isDefFun sort) || nameIsNil name) then id else allowReturn True) $
         do -- (tp,eff,coreExpr) <- traceIndent $ inferExpr Nothing expect expr
                                 -- Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
@@ -497,7 +498,7 @@ isAnnotatedBinder _                                 = False
 
 inferBindDef :: Def Type -> Inf (Type,Effect,Core.Def)
 inferBindDef def@(Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
-  = withDefName name $ disallowHole $ -- scopeImplicitConstraints $
+  = withDefName name $ withScope $ disallowHole $ -- scopeImplicitConstraints $
     do  -- traceDoc $ \penv -> text ("infer bind: " ++ show sort) <+> ppName penv name
         (tp,eff,coreExpr) <- traceIndent $ inferExpr Nothing Instantiated expr
         stp <- subst tp
@@ -935,7 +936,8 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
        let -- create expressions for each clause
            opName b1 b2 = compare (show (unqualify (hbranchName b1))) (show (unqualify (hbranchName b2)))
            clause (HandlerBranch opName pars body opSort nameRng patRng, resumeArg)
-            = do (clauseName, cparams, prefix) <- case opSort of
+            = withScope $
+              do (clauseName, cparams, prefix) <- case opSort of
                           OpVal        -> return (nameClause "tail" (length pars), pars, "val")
                           OpFun        -> return (nameClause "tail" (length pars), pars, "fun")
                           OpExcept     -> return (nameClause "never" (length pars), pars, "final ctl")
@@ -1331,8 +1333,9 @@ inferApp propagated expect fun nargs rng
            -- infer the argument expressions and subsume the type
            sftp <- subst ftp
            unused <- Core.freshName "unused"
+           sd <- getScopeDepth
            (effArgs,coreArgs) <- -- withGammaType rng (TFun pars funEff funTp) $ -- ensure the free 'some' types are free in gamma
-                                 (extendInfGamma [(unused,InfoVal Public unused sftp rng False False "")]) $ -- don't generalize over free propagated types
+                                 (extendInfGamma [(unused,InfoVal Public unused sftp sd rng False False "")]) $ -- don't generalize over free propagated types
                                  do free <- freeInGamma
                                     -- traceDefDoc $ \penv -> text "propagate:" <+> ppType penv sftp <.> comma <+> ppTvs penv free
                                     let parArgs = zip (map snd pars) (map snd iargs)
@@ -1445,6 +1448,7 @@ getRangeArg (ArgImplicit _ rng _) = rng
 inferLam ::  HasCallStack => Bool -> Maybe (Type,Range) -> Expect -> [ValueBinder (Maybe Type) (Maybe (Expr Type))] -> Expr Type -> Range -> Inf (Type,Effect,Core.Expr)
 inferLam topLevel propagated expect bindersL body0 rng
   = isNamedLam $ \isNamed ->
+    withScope $ 
     disallowHole $
     do (ftp,_,fcore) <- maybeGeneralize rng (getRange body0) expect $ infBody isNamed
        --  -- traceDefDoc $ \env -> text " inferExpr.Lam: generalized fun type:" <+> ppType env ftp -- <+> text (show fcore)
@@ -1471,16 +1475,17 @@ inferLam topLevel propagated expect bindersL body0 rng
                   Nothing  -> Op.freshEffect  -- TODO: use propEff?
                   Just (eff,_) -> return eff
         localDepth <- localScopeDepth
-        (infgamma,sub,defs) <- inferOptionals (localDepth == 0) eff [] binders1
+        scopeDepth <- getScopeDepth
+        (infgamma,sub,defs) <- inferOptionals scopeDepth (localDepth == 0) eff [] binders1
         let coref c = Core.makeLet (map Core.DefNonRec defs) ((CoreVar.|~>) sub c)
 
         returnTp <- case propBody of
                       Nothing     -> Op.freshStar
                       Just (tp,_) -> return tp
 
-        (tp,eff1,core) <- traceIndent $
+        (tp,eff1,core) <- traceIndent $ withScope $
                           extendInfGamma infgamma  $
-                          extendInfGamma [(nameReturn,createNameInfoX Public nameReturn DefVal (getRange body) returnTp "")] $
+                          extendInfGamma [(nameReturn,createNameInfoX Public nameReturn localDepth DefVal (getRange body) returnTp "")] $
                           (if (isNamed) then inferIsolated rng (getRange body) body else id) $
                             -- inferIsolated rng (getRange body) body $
                             inferExpr propBody expectBody body
@@ -1688,7 +1693,7 @@ inferCase propagated expect expr branches isLazyMatch rng
        -- infer branches
        let matchedNames = extractMatchedNames expr
            patkind = PatternOutermost isLazyMatch
-       bress <- disallowHole $
+       bress <- disallowHole $ withScope $
                 case (propagated,branches) of
                   (Nothing,(b:bs)) -> -- propagate the type of the first branch
                     do bres@(tpeffs,_) <- inferBranch patkind propagated ctp (getRange expr) matchedNames b
@@ -1943,7 +1948,8 @@ inferPattern patkind matchType branchRange (PatVar binder) withPattern inferPart
           Just tp -> inferUnify (checkAnn (getRange binder)) (binderNameRange binder) matchType tp
           Nothing -> return ()
         (cpat,infGamma0) <- inferPatternNested patkind matchType branchRange (binderExpr binder)
-        let infGamma = ([(binderName binder,(createNameInfoX Public (binderName binder) DefVal (binderNameRange binder) matchType ""))] ++ infGamma0)
+        sd <- getScopeDepth
+        let infGamma = ([(binderName binder,(createNameInfoX Public (binderName binder) sd DefVal (binderNameRange binder) matchType ""))] ++ infGamma0)
         (btpeffs,x) <- inferPart infGamma
         res <- withPattern (Core.PatVar (Core.TName (binderName binder) matchType) cpat) x
         return (btpeffs,res)
@@ -1983,13 +1989,13 @@ splitConTp tp
       res               -> ([],typeTotal,res)
 
 
-inferBinders :: [(Name,NameInfo)] -> [ValueBinder Type ()] -> [(Name,NameInfo)]
-inferBinders infgamma binders
+inferBinders :: Int -> [(Name,NameInfo)] -> [ValueBinder Type ()] -> [(Name,NameInfo)]
+inferBinders scopeDepth infgamma binders
   = case binders of
       [] -> infgamma
       (par:pars) ->
-        let info = (binderName par,createNameInfoX Public (binderName par) DefVal (getRange par) (binderType par) "")
-        in inferBinders (infgamma ++ [info]) pars
+        let info = (binderName par,createNameInfoX Public (binderName par) scopeDepth DefVal (getRange par) (binderType par) "")
+        in inferBinders scopeDepth (infgamma ++ [info]) pars
 
 
 
@@ -2047,14 +2053,14 @@ inferImplicitUnpack rng nrng pname qname
 -- Takes an accumulated InfGamma (initially empty), a list of parameters (as value binders) and returns
 -- the new InfGamma and a substitution from optional paramter names to the local unique names (of type a)
 -- and a list of core (non-recursive) bindings (where the substitution has already been applied)
-inferOptionals :: Bool -> Effect -> [(Name,NameInfo)] -> [ValueBinder Type (Maybe (Expr Type))] -> Inf ([(Name,NameInfo)],[(Core.TName,Core.Expr)],[Core.Def])
-inferOptionals allowImplictMask eff infgamma []
+inferOptionals :: Int -> Bool -> Effect -> [(Name,NameInfo)] -> [ValueBinder Type (Maybe (Expr Type))] -> Inf ([(Name,NameInfo)],[(Core.TName,Core.Expr)],[Core.Def])
+inferOptionals scopeDepth allowImplictMask eff infgamma []
   = return (infgamma,[],[])
 
-inferOptionals allowImplictMask eff infgamma (par:pars)
+inferOptionals scopeDepth allowImplictMask eff infgamma (par:pars)
   = case binderExpr par of
      Nothing
-      -> inferOptionals allowImplictMask eff (infgamma ++ [(binderName par,createNameInfoEx Public (binderName par) DefVal allowImplictMask (getRange par) (binderType par) "")]) pars
+      -> inferOptionals scopeDepth allowImplictMask eff (infgamma ++ [(binderName par,createNameInfoEx Public (binderName par) scopeDepth DefVal allowImplictMask (getRange par) (binderType par) "")]) pars
 
      Just expr  -- default value
       -> do let fullRange = combineRanged par expr
@@ -2081,7 +2087,7 @@ inferOptionals allowImplictMask eff infgamma (par:pars)
                          inferUnify (Infer fullRange) (getRange expr) eff exprEff
 
             tp <- subst partp
-            let infgamma' = infgamma ++ [(binderName par,createNameInfoEx Public (binderName par) DefVal allowImplictMask (getRange par) tp "")]
+            let infgamma' = infgamma ++ [(binderName par,createNameInfoEx Public (binderName par) scopeDepth DefVal allowImplictMask (getRange par) tp "")]
 
             -- build up core to get the optional value
             local <- uniqueNameFrom (binderName par)
@@ -2122,7 +2128,8 @@ inferOptionals allowImplictMask eff infgamma (par:pars)
                 --   = Core.Let [Core.DefNonRec def] ((CoreVar.|~>) sub core)
 
             -- infer the rest
-            (infgamma2,sub2,defs2) <- inferOptionals allowImplictMask eff infgamma' pars
+            scopeDepth <- getScopeDepth
+            (infgamma2,sub2,defs2) <- inferOptionals scopeDepth allowImplictMask eff infgamma' pars
             return (infgamma2,sub ++ sub2,def : ((CoreVar.|~>) sub defs2))
 
 

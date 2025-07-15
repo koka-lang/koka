@@ -1592,12 +1592,7 @@ statement
 
 localValueDecl
   = do krng <- keyword "val"
-       pat  <- do (qname,rng) <- qidentifier
-                  let name = requalifyLocally qname
-                  annot <- optionMaybe typeAnnot
-                  return (PatVar (ValueBinder name annot (PatWild rng) rng (combineRanged rng annot)))
-               <|>
-               pattern 
+       pat  <- pattern 
                
        keyword "="
        e    <- blockexpr
@@ -2335,10 +2330,8 @@ funid
   -}
 
 lqidentifier 
-  = if True -- toplevel
-      then do (name,rng) <- qidentifier
-              return (requalifyLocally name, rng)
-      else identifier
+  = do (name,rng) <- qidentifier
+       return (requalifyLocally name, rng)
 
 pattern :: LexParser UserPattern
 pattern
@@ -2359,7 +2352,7 @@ patAtom
        (ps,r) <- parensCommasRng namedPattern <|> return ([],rangeNull)
        return (PatCon name ps rng (combineRanged rng r))
   <|>
-    do (name,rng) <- identifier
+    do (name,rng) <- lqidentifier
        (do keyword "as"
            p <- pattern
            return (PatVar (ValueBinder name Nothing p rng (combineRanged rng p)))
@@ -2929,7 +2922,6 @@ rcurly
 identifier
   = ensureUnqualified "identifier" qidentifier
 
-
 qidentifier :: LexParser (Name,Range)
 qidentifier
   = qvarid <|> qidop
@@ -2992,6 +2984,7 @@ ensureUnqualified entity p
        if (isQualified name)
         then fail ("qualified " ++ entity)
         else return (name,x)
+
 
 -----------------------------------------------------------
 -- Lexical tokens

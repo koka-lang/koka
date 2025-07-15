@@ -42,6 +42,7 @@ module Type.Assumption (
                     , coreVarInfoFromNameInfo, coreExprFromNameInfo
                     , matchQualifiers
                     , showHidden
+                    , infoScopeDepth
                     ) where
 import Lib.Trace
 import Data.List(isPrefixOf)
@@ -64,8 +65,8 @@ import Lib.Trace
 import Syntax.Syntax (TypeDef(typeDefDoc))
 
 data NameInfo
-  = InfoVal{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoRange :: !Range, infoIsVar :: !Bool, infoAllowImplictMaskX :: !Bool, infoDoc :: !String }
-  | InfoFun{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoArity :: !(Int,Int), infoFip :: !Fip, infoRange :: !Range, infoDoc :: !String }
+  = InfoVal{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoScopeDepthX :: !Int, infoRange :: !Range, infoIsVar :: !Bool, infoAllowImplictMaskX :: !Bool, infoDoc :: !String }
+  | InfoFun{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoScopeDepthX :: !Int, infoArity :: !(Int,Int), infoFip :: !Fip, infoRange :: !Range, infoDoc :: !String }
   | InfoCon{ infoVis :: !Visibility, infoType :: !Scheme, infoRepr  :: !Core.ConRepr, infoCon :: !ConInfo, infoRange :: !Range, infoDoc :: !String }
   | InfoExternal{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoFormat :: ![(Target,String)], infoFip :: !Fip, infoRange :: !Range, infoDoc :: !String}
   | InfoImport{ infoVis :: !Visibility, infoType :: !Scheme, infoAlias :: !Name, infoFullName :: !Name, infoRange :: !Range}
@@ -80,6 +81,13 @@ infoSort info
       InfoCon{}      -> "con"
       InfoImport{}   -> "module"
 
+
+infoScopeDepth :: NameInfo -> Int
+infoScopeDepth info
+   = case info of
+       InfoVal{ infoScopeDepthX = d }  -> d
+       InfoFun{ infoScopeDepthX = d }  -> d
+       _                               -> 0
 
 infoCanonicalName :: Name -> NameInfo -> Name
 infoCanonicalName name info
@@ -149,15 +157,15 @@ coreVarInfoFromNameInfo :: NameInfo -> Core.VarInfo
 coreVarInfoFromNameInfo info
   = case info of
       InfoVal{}                       -> Core.InfoNone
-      InfoFun _ _ _ (m,n) _ _ _       -> Core.InfoArity m n
+      InfoFun _ _ _ _ (m,n) _ _ _     -> Core.InfoArity m n
       InfoExternal _ _ _ format _ _ _ -> Core.InfoExternal format
       _                               -> matchFailure "Type.Infer.coreVarInfoFromNameInfo"
 
 coreExprFromNameInfo qname info
   = -- trace ("create name: " ++ show qname) $
     case info of
-      InfoVal vis cname tp _ _ _ _           -> Core.Var (Core.TName cname tp) (Core.InfoNone)
-      InfoFun vis cname tp ((m,n)) _ _ _     -> Core.Var (Core.TName cname tp) (Core.InfoArity m n)
+      InfoVal vis cname tp _ _ _ _ _         -> Core.Var (Core.TName cname tp) (Core.InfoNone)
+      InfoFun vis cname tp _ ((m,n)) _ _ _   -> Core.Var (Core.TName cname tp) (Core.InfoArity m n)
       InfoCon vis  tp repr _ _ _             -> Core.Con (Core.TName qname tp) repr
       InfoExternal vis cname tp format _ _ _ -> Core.Var (Core.TName cname tp) (Core.InfoExternal format)
       InfoImport _ _ _ _ _                   -> matchFailure "Type.Infer.coreExprFromNameInfo"
@@ -385,36 +393,41 @@ extractDefGroup updateVis (Core.DefRec defs)
 extractDefGroup updateVis (Core.DefNonRec def)
   = extractDef updateVis def
 
-
-
-
 extractDef updateVis def@(Core.Def name tp expr vis sort inl nameRng doc)
-  = let info = createNameInfoX (updateVis vis) name sort nameRng tp doc -- specials since we cannot call isTopLevel as in coreDefInfo
+  = let info = createNameInfoX (updateVis vis) name 0 sort nameRng tp doc -- specials since we cannot call isTopLevel as in coreDefInfo
     in gammaSingle name {- (nonCanonicalName name) -} info
 
 
-coreDefInfo :: Core.Def -> (Name,NameInfo)
-coreDefInfo def@(Core.Def name tp expr vis sort inl nameRng doc)
+coreDefInfo :: Core.Def -> Int -> (Name,NameInfo)
+coreDefInfo def@(Core.Def name tp expr vis sort inl nameRng doc) scopeDepth
   = (name {- nonCanonicalName name -},
-      createNameInfoX vis name (if (isDefFun sort && not (CoreVar.isTopLevel def)) then DefVal else sort) nameRng tp doc)
+      createNameInfoX vis name scopeDepth (if (isDefFun sort && not (CoreVar.isTopLevel def)) then DefVal else sort) nameRng tp doc)
     -- since we use coreDefInfo also for local definitions, we need to be careful to to use DefFun for
     -- things that do not get lifted to toplevel due to free type/variables. test: codegen/rec5
+    -- todo: can we use the scopeDepth for this?
 
-createNameInfoX :: Visibility -> Name -> DefSort -> Range -> Type -> String -> NameInfo
-createNameInfoX vis name sort rng tp doc
-  = createNameInfoEx vis name sort False rng tp doc
+createNameInfoX :: Visibility -> Name -> Int -> DefSort -> Range -> Type -> String -> NameInfo
+createNameInfoX vis name scopeDepth sort rng tp doc
+  = createNameInfoEx vis name scopeDepth sort False rng tp doc
 
-createNameInfoEx :: Visibility -> Name -> DefSort -> Bool -> Range -> Type -> String -> NameInfo
-createNameInfoEx vis name sort allowImplicitMask rng tp doc
+createNameInfoEx :: Visibility -> Name -> Int -> DefSort -> Bool -> Range -> Type -> String -> NameInfo
+createNameInfoEx vis name scopeDepth sort allowImplicitMask rng tp doc
   = -- trace ("createNameInfoEx: " ++ show name ++ ", " ++ show sort ++ ": " ++ show (pretty tp)) $
     case sort of
-      DefFun _ fip -> InfoFun vis name tp (getArity tp) fip rng doc
-      DefVar       -> InfoVal vis name tp rng True False doc
-      DefVal       -> InfoVal vis name tp rng False allowImplicitMask doc
+      DefFun _ fip -> InfoFun vis name tp d (getArity tp) fip rng doc
+      DefVar       -> InfoVal vis name tp d rng True False doc
+      DefVal       -> InfoVal vis name tp d rng False allowImplicitMask doc
+  where
+    d = if scopeDepth == 0 && isDefault name then -1 else scopeDepth
 
+    isDefault :: Name -> Bool
+    isDefault name
+      = case splitLocalQualName name of
+          ("default":_) -> True
+          _             -> False
 
-createNameInfo name isVal rng tp doc
-  = createNameInfoX Public name (if isVal then DefVal else defFun []) rng tp doc
+createNameInfo name scopeDepth isVal rng tp doc
+  = createNameInfoX Public name scopeDepth (if isVal then DefVal else defFun []) rng tp doc
     -- if (isVal) then InfoVal name tp rng False else InfoFun name tp (getArity tp) rng
 
 getArity :: Type -> (Int,Int)

@@ -53,11 +53,11 @@ infgammaIsEmpty :: InfGamma -> Bool
 infgammaIsEmpty (InfGamma infGamma)
   = M.null infGamma
 
-infgammaSingle :: Name -> Scheme -> String -> InfGamma
-infgammaSingle name tp doc
-  = infgammaNew [(name,tp,doc)]
+infgammaSingle :: Name -> Scheme -> Int -> String -> InfGamma
+infgammaSingle name tp scopeDepth doc
+  = infgammaNew [(name,tp,scopeDepth,doc)]
 
-infgammaNew :: [(Name,Scheme,String)] -> InfGamma
+infgammaNew :: [(Name,Scheme,Int,String)] -> InfGamma
 infgammaNew xs
   = infgammaExtends xs infgammaEmpty
 
@@ -73,17 +73,17 @@ combine [] ys = ys
 combine (x:xx) ys
   = combine xx (x : filter (\y -> infoCName y /= infoCName x) ys)
 
-infgammaExtends :: [(Name,Scheme,String)] -> InfGamma -> InfGamma
+infgammaExtends :: [(Name,Scheme,Int,String)] -> InfGamma -> InfGamma
 infgammaExtends tnames ig
-  = foldl (\m (name,tp,doc) -> infgammaExtendTp name name tp doc m) ig tnames
+  = foldl (\m (name,tp,scopeDepth,doc) -> infgammaExtendTp name name tp scopeDepth doc m) ig tnames
 
-infgammaExtendTp :: Name -> Name -> Scheme -> String -> InfGamma -> InfGamma
-infgammaExtendTp name cname tp doc infgamma
-  = infgammaExtendX name cname tp rangeNull False doc infgamma
+infgammaExtendTp :: Name -> Name -> Scheme -> Int -> String -> InfGamma -> InfGamma
+infgammaExtendTp name cname tp scopeDepth doc infgamma
+  = infgammaExtendX name cname tp scopeDepth rangeNull False doc infgamma
 
-infgammaExtendX :: Name -> Name -> Scheme -> Range -> Bool -> String -> InfGamma -> InfGamma
-infgammaExtendX name cname tp rng isVar doc infgamma
-  = infgammaExtend name (InfoVal Public cname tp rng isVar False doc) infgamma
+infgammaExtendX :: Name -> Name -> Scheme -> Int -> Range -> Bool -> String -> InfGamma -> InfGamma
+infgammaExtendX name cname tp scopeDepth rng isVar doc infgamma
+  = infgammaExtend name (InfoVal Public cname tp scopeDepth rng isVar False doc) infgamma
 
 
 -- lookup any exact match in the local scope

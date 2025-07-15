@@ -74,7 +74,12 @@ module Type.InferMonad( Inf, InfGamma
                       , termError
                       , infError, infWarning
                       , withHiddenTermDoc, inHiddenTermDoc
+
+                      -- run-local
                       , withLocalScope, withNoLocalScope, localScopeDepth
+
+                      -- scope depth
+                      , withScope, getScopeDepth
 
                       -- * Documentation, Intellisense
                       , addRangeInfo, withNoRangeInfo
@@ -984,11 +989,6 @@ implicitArgCost iarg
                                             else 0
     in csum (Exact base : map (partialCost . snd) (iaImplicitArgs iarg))
 
-isDefault :: Name -> Bool
-isDefault name
-  = case splitLocalQualName name of
-      ("default":_) -> True
-      _             -> False
 
 partialCost :: Partial -> Cost
 partialCost partial
@@ -1042,8 +1042,8 @@ compareScope iarg1 iarg2
     -- if the stem names are different, these are not equal
     else if (nameStem (iaName iarg1) /= nameStem (iaName iarg2)) then NotEq
     -- otherwise we prefer inner scopes
-    else if (scopeDepth iarg1 > scopeDepth iarg2) then Gt -- iarg1 is defined in an inner scope
-    else if (scopeDepth iarg1 < scopeDepth iarg2) then Lt -- iarg2 is defined in an inner scope
+    else if (iaScopeDepth iarg1 > iaScopeDepth iarg2) then Gt -- iarg1 is defined in an inner scope
+    else if (iaScopeDepth iarg1 < iaScopeDepth iarg2) then Lt -- iarg2 is defined in an inner scope
     -- if both are in the same scope, compare the arguments
     else if (iaName iarg1 /= iaName iarg2) then NotEq
     else if (length (iaImplicitArgs iarg1) /= length (iaImplicitArgs iarg2)) then NotEq
@@ -1069,26 +1069,35 @@ top pc1 pc2
       (Lt,Gt)     -> Unknown
       (Gt,Lt)     -> Unknown
 
-scopeDepth :: ImplicitArg -> Int
-scopeDepth iarg
-  = if isDefault (iaName iarg) then 0
-    -- else if isImplicitConstraintEvidenceName (iaName iarg) then 0
-    else if isQualified (iaName iarg) then 1
-    else if isImplicitParamName (iaName iarg) then 2
-    else 3  -- TODO: keep track of local nesting level
+iaScopeDepth :: ImplicitArg -> Int
+iaScopeDepth iarg
+  = infoScopeDepth (iaInfo iarg)
+    
+-- filterInnerScopes :: [ImplicitArg] -> [ImplicitArg]
+iaFilterInnerScopes :: [ImplicitArg] -> [ImplicitArg]
+iaFilterInnerScopes = filterInnerScopesEx compareScope
 
-filterInnerScopes :: [ImplicitArg] -> [ImplicitArg]
-filterInnerScopes []  = []
-filterInnerScopes (x:xs)
+filterInnerScopes :: [(Name,NameInfo)] -> [(Name,NameInfo)]
+filterInnerScopes = filterInnerScopesEx compareScopeDepth 
+
+filterInnerScopesEx cmpScope []  = []
+filterInnerScopesEx cmpScope (x:xs)
   = filter x [] xs
   where
-    filter x acc []     = x : filterInnerScopes (reverse acc)
+    filter x acc []     = x : filterInnerScopesEx cmpScope (reverse acc)
     filter x acc (y:ys)
-      = case compareScope x y of
+      = case cmpScope x y of
           Lt -> filter y acc ys       -- drop x
           Gt -> filter x acc ys       -- drop y
           _  -> filter x (y:acc) ys
 
+
+compareScopeDepth (name1,info1) (name2,info2)
+  = let sd1 = infoScopeDepth info1
+        sd2 = infoScopeDepth info2
+    in if sd1 > sd2 then Gt
+       else if sd1 < sd2 then Lt
+       else Eq
 
 -----------------------------------------------------------------------
 -- Resolving application names and implicit names
@@ -1206,7 +1215,7 @@ findBest allowDisambiguate candidates
                          else -- we need to keep evaluating to be sure (as future implicits may not be resolved)
                               Continue sorted
                   -- can disambiguate: sort according to current cost: exact always comes before least
-                  else let ssorted = filterInnerScopes sorted  -- todo: don't filter for non-RequireUnique strategy?
+                  else let ssorted = iaFilterInnerScopes sorted  -- todo: don't filter for non-RequireUnique strategy?
                        in case ssorted of
                          (x:ys) -> case implicitArgCost x of
                             (Least _) -> Continue ssorted  -- none is exact yet
@@ -1357,10 +1366,16 @@ lookupFunName name mbType range
 
 lookupNameCtx :: HasCallStack => (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
 lookupNameCtx infoFilter name ctx range
-  = do candidates <- lookupNames infoFilter name ctx range
+  = do candidates0 <- lookupNames infoFilter name ctx range       
+       let candidates = [(name,info) | (name,info,_) <- candidates0]
        -- traceDefDoc $ \penv -> text " lookupNameCtx:" <+> ppNameCtx penv (name,ctx) <+> colon
        --                       <+> list [Pretty.ppParam penv (name,rho) | (name,info,rho) <- candidates]
-       return [(name,info) | (name,info,_) <- candidates]
+       case candidates of
+         []  -> return candidates
+         [_] -> return candidates
+         _   -> case (filterInnerScopes candidates) of -- todo: disambiguate based on the scopeDepth
+                  [candidate] -> return [candidate]
+                  _           -> return candidates
 
 
 -- lookup names in the local and global scope that match the given name context
@@ -1864,7 +1879,8 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , returnAllowed :: !Bool
                  , inLhs :: !Bool
                  , hiddenTermDoc :: Maybe (Range,Doc)
-                 , localDepth :: Int   -- number of local-scope's
+                 , localDepth :: Int   -- number of run-local scope's
+                 , scopeNestingDepth :: Int   -- nested scope level
                  }
 data St     = St{ uniq :: !Int
                 , sub :: !Sub                            -- current substitution
@@ -1877,7 +1893,7 @@ data St     = St{ uniq :: !Int
 
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
-  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0)
+  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0)
            (St unique subNull [] infgammaEmpty False mbrm) of
       Err (rng,doc) warnings
         -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))
@@ -1984,6 +2000,15 @@ localScopeDepth
   = do env <- getEnv
        return (localDepth env)
 
+withScope :: Inf a -> Inf a
+withScope inf
+  = withEnv (\env -> env{ scopeNestingDepth = scopeNestingDepth env + 1 }) inf
+
+getScopeDepth :: Inf Int
+getScopeDepth
+  = do env <- getEnv
+       return (scopeNestingDepth env)       
+
 {--------------------------------------------------------------------------
   Helpers
 --------------------------------------------------------------------------}
@@ -2063,7 +2088,7 @@ addImplicitConstraint :: Name -> Type -> (Tvs -> ImplicitConstraint -> Inf Bool)
 addImplicitConstraint name tp canSolve solve context rng
   = do evName <- Core.freshName "iev"
        let ic       = ImplicitConstraint name tp evName context rng canSolve solve
-           nameInfo = createNameInfoX Public evName DefVal rng tp ""
+           nameInfo = createNameInfoX Public evName 2 DefVal rng tp ""
            iarg     = ImplicitArg evName nameInfo tp []
        updateSt (\st -> st{ iconstraints = ic : iconstraints st,
                             iconstraintsGamma = infgammaExtend evName nameInfo (iconstraintsGamma st) })
@@ -2142,15 +2167,16 @@ extendGammaCore :: Bool -> [Core.DefGroup] -> Inf a -> Inf (a)
 extendGammaCore isAlreadyCanonical [] inf
   = inf
 extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
-  = extendGamma isAlreadyCanonical (nameInfos coreGroup) (extendGammaCore isAlreadyCanonical coreDefss inf)
+  = do d <- getScopeDepth
+       extendGamma isAlreadyCanonical (nameInfos d coreGroup) (extendGammaCore isAlreadyCanonical coreDefss inf)
   where
-    nameInfos (Core.DefRec defs)    = map coreDefInfoX defs
-    nameInfos (Core.DefNonRec def)
-      = [coreDefInfoX def]  -- used to be coreDefInfo
+    nameInfos d (Core.DefRec defs)    = map (\def -> coreDefInfoX def d) defs
+    nameInfos d (Core.DefNonRec def)
+      = [coreDefInfoX def d]  -- used to be coreDefInfo
 
 -- Specialized for recursive defs where we sometimes get InfoVal even though we want InfoFun? is this correct for the csharp backend?
-coreDefInfoX def@(Core.Def name tp expr vis sort inl nameRng doc)
-  = (name {- nonCanonicalName name -}, createNameInfoX Public name sort nameRng tp doc)
+coreDefInfoX def@(Core.Def name tp expr vis sort inl nameRng doc) scopeDepth
+  = (name {- nonCanonicalName name -}, createNameInfoX Public name scopeDepth sort nameRng tp doc)
 
 -- extend gamma with qualified names
 extendGamma :: Bool -> [(Name,NameInfo)] -> Inf a -> Inf (a)
@@ -2202,12 +2228,13 @@ extendInfGammaCore :: Bool -> [Core.DefGroup] -> Inf a -> Inf a
 extendInfGammaCore topLevel [] inf
   = inf
 extendInfGammaCore topLevel (coreDefs:coreDefss) inf
-  = extendInfGammaEx topLevel [] (extracts coreDefs) (extendInfGammaCore topLevel coreDefss inf)
+  = do d <- getScopeDepth
+       extendInfGammaEx topLevel [] (extracts d coreDefs) (extendInfGammaCore topLevel coreDefss inf)
   where
-    extracts (Core.DefRec defs) = map extract defs
-    extracts (Core.DefNonRec def) = [extract def]
-    extract def
-      = coreDefInfo def -- (Core.defName def,(Core.defNameRange def, Core.defType def, Core.defSort def))
+    extracts d (Core.DefRec defs) = map (extract d) defs
+    extracts d (Core.DefNonRec def) = [extract d def]
+    extract d def
+      = coreDefInfo def d -- (Core.defName def,(Core.defNameRange def, Core.defType def, Core.defSort def))
 
 extendInfGamma :: [(Name,NameInfo)] -> Inf a -> Inf a
 extendInfGamma tnames inf
@@ -2253,7 +2280,8 @@ withGammaType :: Range -> Type -> Inf a -> Inf a
 withGammaType range tp inf
   = do defName <- currentDefName
        name <- uniqueNameFrom defName
-       extendInfGamma [(name,(InfoVal Public name tp range False False ""))] inf
+       d <- getScopeDepth
+       extendInfGamma [(name,(InfoVal Public name tp d range False False ""))] inf
 
 currentDefName :: Inf Name
 currentDefName
