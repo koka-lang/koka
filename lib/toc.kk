@@ -18,7 +18,7 @@ pub import std/core/unsafe
 pub import std/core/undiv
 pub import std/core
 
-pub import std/data/bytes
+pub import std/core/bytes
 
 pub import std/os/env
 pub import std/os/flags

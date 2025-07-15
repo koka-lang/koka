@@ -7,7 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 module uv/tty
-pub import std/data/bytes
+pub import std/core/bytes
 pub import uv/event-loop
 pub import uv/stream
 pub import uv/utils

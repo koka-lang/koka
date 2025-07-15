@@ -10,7 +10,7 @@
 module uv/file
 
 pub import uv/event-loop
-pub import std/data/bytes
+pub import std/core/bytes
 pub import std/num/int32
 pub import std/num/int64
 pub import uv/utils

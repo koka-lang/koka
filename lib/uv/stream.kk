@@ -8,7 +8,7 @@
 
 module uv/stream
 pub import uv/event-loop
-pub import std/data/bytes
+pub import std/core/bytes
 pub import uv/utils
 
 extern import
