@@ -72,6 +72,7 @@ To learn more:
 [musl]: https://musl.libc.org/
 [wasmtime]: https://wasmtime.dev/
 [fiptree-tr]: https://www.microsoft.com/en-us/research/uploads/prod/2023/07/fiptree-tr-v4.pdf
+[whatsnew]: support/vscode/koka.language-koka/whatsnew.md
 
 Enjoy,
   Daan Leijen
@@ -85,7 +86,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
-See the [whatsnew][support/vscode/koka.language-koka/whatsnew.md] notes.
+See the [whatsnew][whatsnew] notes.
 
 # Install
 
