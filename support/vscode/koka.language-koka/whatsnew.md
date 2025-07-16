@@ -15,7 +15,7 @@ generating direct C code without needing a runtime system. To learn more:
 
 - Support for locally qualified names for parameters and local values and functions.
 
-- Implicit parameter resolving must be unambigious now
+- Implicit parameter resolving _must be unambigious_ now
   (and we no longer use the _shortest chain_ rule). 
   However, we still prefer names declared in an inner scope.
 
@@ -24,7 +24,7 @@ generating direct C code without needing a runtime system. To learn more:
 
 - Breaking change: the hole in a constructor context must now be denoted with the `hole` keyword (and no longer with an underscore).
 
-- Support _underscore_ syntax as a shorthand for eta-expansion. For example, `[1].map(inc(_))`
+- Support __underscore syntax__ as a shorthand for eta-expansion. For example, `[1].map(inc(_))`
   expands to `[1].map(fn(x) inc(x))`,  
   or `[1].map(1 + _)` expands to `[1].map(fn(x) 1 + x)`.
 
@@ -35,7 +35,7 @@ generating direct C code without needing a runtime system. To learn more:
 
 - Update the mimalloc allocator to v2.2.4
 
-- Initial support for _phantom implicits_. Such implicit
+- Initial support for __phantom implicits__. Such implicit
   parameters can be solved automatically by the compiler.
   At this point we only support the `:hdiv<h,a,e>`
   constraint that signifies that if `:h` occurs in `:a`,
