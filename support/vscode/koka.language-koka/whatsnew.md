@@ -13,6 +13,35 @@ generating direct C code without needing a runtime system. To learn more:
 
 ### v3.2.0, 2025-07-12
 
+- Support for locally qualified names for parameters and local values and functions.
+
+- Implicit parameter resolving must be unambigious now
+  (and we no longer use the _shortest chain_ rule). 
+  However, we still prefer names declared in an inner scope.
+
+- Implicit parameters can be passed as a regular argument (and are no longer required to be named),
+  e.g. `[1].println(list/show)`.
+
+- Breaking change: the hole in a constructor context must now be denoted with the `hole` keyword (and no longer with an underscore).
+
+- Support _underscore_ syntax as a shorthand for eta-expansion. For example, `[1].map(inc(_))`
+  expands to `[1].map(fn(x) inc(x))`,  
+  or `[1].map(1 + _)` expands to `[1].map(fn(x) 1 + x)`.
+
+  The rule is to eta-expand any underscores sequentially up to the innermost argument
+  position (unless the argument is a single underscore by itself) -- e.g., 
+  `[1].mapdup( _.inc.plus(_) )` expands to `[1].mapdup( fn(x,y) x.inc.plus(y) )`,
+  and `[1].println(list/show(_,int/show(_)))` expands to `[1].println(fn(xs) list/show(xs,fn(x) int/show(x)))`.
+
+- Update the mimalloc allocator to v2.2.4
+
+- Initial support for _phantom implicits_. Such implicit
+  parameters can be solved automatically by the compiler.
+  At this point we only support the `:hdiv<h,a,e>`
+  constraint that signifies that if `:h` occurs in `:a`,
+  then `:e` must include the `:div` effect. 
+  There is no more support for predicates and qualified 
+  types -- it is all just implicit parameters now.
 
 ### v3.1.3, 2025-07-03
 
