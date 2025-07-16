@@ -173,7 +173,10 @@ function createBasicCommands(context: vscode.ExtensionContext, vsConfig: vscode.
       let whatsnew : string = "";
       let root = kokaConfig.versionManager.getCompilerShareDir();
       if (root) {
-        whatsnew = path.join(root,"whatsnew.md");
+        whatsnew = path.join(root,"contrib","vscode","koka.language-koka","whatsnew.md");
+      }
+      if (!whatsnew || !fs.existsSync(whatsnew)) {
+        whatsnew = path.join(root, "whatsnew.md");
       }
       if (!whatsnew || !fs.existsSync(whatsnew)) {
         whatsnew = path.join(context.extensionPath, "whatsnew.md");

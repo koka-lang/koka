@@ -53,7 +53,7 @@ fun re-version( version : string ) : _ ()
 
   val date = ts-ti.local-time-now().date.show
   val rversionDate = rversion ++ "\\s*,\\s*[\\w\\d\\-]+\\s*$"
-  val filesDate    = [ ("whatsnew.md", ["^##+\\s*v"]), // first match only
+  val filesDate    = [ ("support/vscode/koka.language-koka/whatsnew.md", ["^##+\\s*v"]), // first match only
                        ("readme.md", ["^_Latest release_: v"] )]
 
   println("updating with new version: " ++ version ++ ", " ++ date )

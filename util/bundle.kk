@@ -167,9 +167,6 @@ fun bundle( prefixdir : path, extrametadir : string, solibsdir : string, cc : st
   copy-directory("support/vscode".path, contribdir / "vscode")
   copy-directory("support/emacs".path, contribdir / "emacs")
 
-  // Copy whatsnew to top of the share
-  copy-file-to-dir("whatsnew.md".path, sharedir)
-
   // Copy kklib binaries
   [Debug,DRelease,Release].foreach fn(v)
     println("copying standard library: " ++ v.show)
