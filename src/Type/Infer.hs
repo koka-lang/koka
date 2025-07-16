@@ -707,7 +707,8 @@ inferExpr propagated expect (App (Var ctxname _ nameRng) [(_,expr)] rng)  | ctxn
        ((tp,eff,core),hole) <- allowHole $ inferExpr prop Instantiated expr
        inferUnify (Infer rng) nameRng tp tpv
        when (not hole) $
-          contextError rng rng (text "ill-formed constructor context") [(text "because",text "the context has no 'hole'")]
+          do penv <- getPrettyEnv
+             contextError rng rng (text "ill-formed constructor context") [(text "because",text "the context has no hole"),(text "hint",text "perhaps you used an underscore instead of the" <+> dquotes (keyword penv "hole") <+> text "keyword?")]
        newtypes <- getNewtypes
        score <- subst core
        (ccore,errs) <- withUnique (analyzeCCtx rng newtypes score)
@@ -1249,12 +1250,12 @@ inferApp propagated expect fun nargs rng
         do
           --  traceDefDoc $ \penv -> text " inferAppFunFirst: fun:" <+> text (show funExpr) <+>
           --                           text ("fixed count: " ++ show (length fixed0)) <->
-          --                           text (", named: " ++ show named0) 
+          --                           text (", named: " ++ show named0)
                                     -- <->
                                     -- text (", fres count: " ++ show (length fresolved)) <->
                                     -- text ", prop: " <+> ppProp penv prop <+>
                                     -- text ", propagated: " <+> ppProp penv propagated
-           
+
            -- infer type of function
            fprop <- case (prop,funExpr) of
                       (Nothing,Var name _ _) | not (isConstructorName name)
@@ -1270,7 +1271,7 @@ inferApp propagated expect fun nargs rng
            (ftp,eff1,fcore) <- allowReturn False $ inferExpr fprop Instantiated funExpr
 
            -- we allow passing implicit parameters as a fixed argument: here we name those explicitly based on the type
-           -- todo: for now disallow implicit parameters as fixed ones as it can lead to long inference times?           
+           -- todo: for now disallow implicit parameters as fixed ones as it can lead to long inference times?
            let allowImplicitsAsFixed = True
            (fixed,named1) <- case splitFunType ftp of
                               Just (pars,_,_) | allowImplicitsAsFixed
@@ -1278,22 +1279,22 @@ inferApp propagated expect fun nargs rng
                                          (fixed1,fixedImplicitArgs) = splitAt (length tfixed + length toptionals) fixed0
                                      in if null fixedImplicitArgs || length fixedImplicitArgs > length timplicits -- too many arguments?; see `test/static/wrong/rec1`
                                           then return (fixed0,named0)
-                                          else do let fixedImplicits = zipWith (\(name,tp) expr -> ((name,getRange expr),expr)) 
+                                          else do let fixedImplicits = zipWith (\(name,tp) expr -> ((name,getRange expr),expr))
                                                                         timplicits fixedImplicitArgs
                                                   return (fixed1, fixedImplicits ++ named0)
                               _  -> return (fixed0,named0)
            -- only add resolved implicits that were not already named
            let alreadyGiven = [name | ((name,_),_) <- named1]
-               rimplicits   = [imp | imp@((name,_),_,_) <- implicits0, not (name `elem` alreadyGiven)]               
+               rimplicits   = [imp | imp@((name,_),_,_) <- implicits0, not (name `elem` alreadyGiven)]
                named        = named1 ++ [((name,rangeNull) {-so no range info is emmitted when checking -}
                                           , expr) | ((name,_),expr,_) <- rimplicits]
 
            mapM_ (\((name,_),_,fdoc) -> addRangeInfo (getRange funExpr) (RM.Implicits fdoc)) rimplicits
-                                          
+
            -- match the type with a function type, wrap optional arguments, and order named arguments.
            -- traceDefDoc $ \env -> text "infer-fun-first, tp:" <+> ppType env ftp
            (iargs,pars0,funEff0,funTp0,coreApp) <- matchFunTypeArgs rng funExpr ftp fresolved fixed named
-           
+
            -- match propagated type with the function result type
            -- note: we may disable this in the future?
            (pars,funEff,funTp) <- case propagated of
@@ -1353,7 +1354,7 @@ inferApp propagated expect fun nargs rng
            stopEff <- subst topEff
            -- traceDefDoc $ \env -> text "inferAppFunFirst res: " <+> pretty (show expect) <+> colon <+> ppType env funTp1 <.> text ", top eff: " <+> ppType env stopEff
            return (funTp1,stopEff,core)
-          
+
 
     -- we cannot resolve an overloaded function name: infer types of arguments without propagation first.
     -- The code handles inferring arguments in any order by keeping track of the index, but at the moment
@@ -1419,7 +1420,7 @@ getRangeArg (ArgImplicit _ rng _) = rng
 inferLam ::  HasCallStack => Bool -> Maybe (Type,Range) -> Expect -> [ValueBinder (Maybe Type) (Maybe (Expr Type))] -> Expr Type -> Range -> Inf (Type,Effect,Core.Expr)
 inferLam topLevel propagated expect bindersL body0 rng
   = isNamedLam $ \isNamed ->
-    withScope $ 
+    withScope $
     disallowHole $
     do (ftp,_,fcore) <- maybeGeneralize rng (getRange body0) expect $ infBody isNamed
        --  -- traceDefDoc $ \env -> text " inferExpr.Lam: generalized fun type:" <+> ppType env ftp -- <+> text (show fcore)
@@ -1607,7 +1608,7 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                           -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> ppType env{showIds=True} tp <+> text ", prop:" <+> pretty propagated
                           (itp,coref) <- maybeInstantiate rng expect tp
                           sitp <- subst itp
-                          let (rmName,rmDoc) = if hiddenNameStartsWith qname "eta" 
+                          let (rmName,rmDoc) = if hiddenNameStartsWith qname "eta"
                                                 then (newName "_", "eta-expanded parameter")
                                                 else (infoCanonicalName qname info, infoDocString info)
                           addRangeInfo rng (RM.Id rmName (RM.NIValue (infoSort info) sitp rmDoc False) [] False)
@@ -2323,7 +2324,7 @@ data ArgExpr
   | ArgImplicit Name Range {- application range -} Range {- name range -}
 
 ppArgExpr :: Env -> ArgExpr -> Doc
-ppArgExpr penv arg 
+ppArgExpr penv arg
   = case arg of
       ArgExpr expr _ -> text "ArgExpr" <+> ppSyntaxExpr penv expr
       ArgCore (_,tp,_,cexpr) -> text "ArgCore" <+> ppType penv tp
