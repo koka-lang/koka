@@ -1,0 +1,22 @@
+Checksum: 0
+ 
+lazy/queue/realtime/queue/front: forall<a> (queue : queue<a>) -> stream<a>
+lazy/queue/realtime/queue/rear: forall<a> (queue : queue<a>) -> list<a>
+lazy/queue/realtime/queue/sched: forall<a> (queue : queue<a>) -> stream<a>
+lazy/queue/realtime/realtime/empty: forall<a> queue<a>
+lazy/queue/realtime/stream/Indirect: forall<a> (stream<a>) -> stream<a>
+lazy/queue/realtime/stream/lazy-SRotate: forall<a> (stream<a>, bool, pre : stream<a>, post : list<a>, acc : stream<a>) -> div stream<a>
+lazy/queue/realtime/stream/lazy-eval: forall<a> (stream<a>, bool) -> div stream<a>
+lazy/queue/realtime/stream/lazy-eval-locked: forall<a> (stream<a>, bool) -> div stream<a>
+lazy/queue/realtime/stream/lazy-force: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/realtime/stream/lazy-step: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/realtime/stream/lazy-tag: int32
+lazy/queue/realtime/stream/lazy-whnf: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/realtime/Queue: forall<a> (front : stream<a>, rear : list<a>, sched : stream<a>) -> queue<a>
+lazy/queue/realtime/SCons: forall<a> (head : a, tail : stream<a>) -> stream<a>
+lazy/queue/realtime/SNil: forall<a> stream<a>
+lazy/queue/realtime/SRotate: forall<a> (pre : stream<a>, post : list<a>, acc : stream<a>) -> stream<a>
+lazy/queue/realtime/main: () -> io ()
+lazy/queue/realtime/queue: forall<a> (front : stream<a>, rear : list<a>, sched : stream<a>) -> div queue<a>
+lazy/queue/realtime/snoc: forall<a> (queue<a>, x : a) -> div queue<a>
+lazy/queue/realtime/uncons: forall<a> (queue<a>) -> div maybe2<a,queue<a>>

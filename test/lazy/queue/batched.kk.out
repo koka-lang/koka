@@ -1,0 +1,11 @@
+Checksum: 0
+ 
+lazy/queue/batched/batched/empty: forall<a> queue<a>
+lazy/queue/batched/queue/front: forall<a> (queue : queue<a>) -> list<a>
+lazy/queue/batched/queue/rear: forall<a> (queue : queue<a>) -> list<a>
+lazy/queue/batched/Queue: forall<a> (front : list<a>, rear : list<a>) -> queue<a>
+lazy/queue/batched/balance: forall<a> (q : queue<a>) -> queue<a>
+lazy/queue/batched/is-empty: forall<a> (q : queue<a>) -> bool
+lazy/queue/batched/main: () -> io ()
+lazy/queue/batched/snoc: forall<a> (queue<a>, x : a) -> queue<a>
+lazy/queue/batched/uncons: forall<a> (q : queue<a>) -> div maybe2<a,queue<a>>

@@ -1,0 +1,16 @@
+10001 
+lazy/indirect-compress/chain/Indirect: (chain) -> chain
+lazy/indirect-compress/chain/lazy-Next: (chain, bool, c : chain) -> chain
+lazy/indirect-compress/chain/lazy-eval: (chain, bool) -> chain
+lazy/indirect-compress/chain/lazy-eval-locked: (chain, bool) -> chain
+lazy/indirect-compress/chain/lazy-force: (chain) -> div chain
+lazy/indirect-compress/chain/lazy-step: (chain) -> chain
+lazy/indirect-compress/chain/lazy-tag: int32
+lazy/indirect-compress/chain/lazy-whnf: (chain) -> div chain
+lazy/indirect-compress/Done: (value : int) -> chain
+lazy/indirect-compress/Next: (c : chain) -> chain
+lazy/indirect-compress/build: (count : int) -> pure list<chain>
+lazy/indirect-compress/eval: (c : chain) -> div int
+lazy/indirect-compress/main: () -> <pure,console> ()
+lazy/indirect-compress/traverse: (n : int) -> pure int
+test/lazy/indirect-compress@kk(5,29): kind warning: Cannot update the lazy constructor Next in-place as the result constructor is not statically known -- using an indirection instead

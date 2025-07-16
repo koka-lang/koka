@@ -1,0 +1,8 @@
+test/algeff/wrong/linear4@kk(19, 6): type error: types do not match (due to an infinite type)
+ context : val g = get()
+ g()
+ term : val g = get()
+ g()
+ inferred effect: _e1
+ expected effect: <state<() -> _e1 _a>|_e>
+ hint : give a type to the function definition?

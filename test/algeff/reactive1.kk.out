@@ -1,0 +1,11 @@
+1
+ 
+algeff/reactive1/provider/current: forall<a> (provider : provider<a>) -> (() -> io a)
+algeff/reactive1/provider/listeners: forall<a> (provider : provider<a>) -> ref<global,list<(a) -> io ()>>
+algeff/reactive1/Provider: forall<a> (listeners : ref<global,list<(a) -> io ()>>, current : () -> io a) -> provider<a>
+algeff/reactive1/emit: forall<a> (ev<rref<a>>, a : a) -> <div,exn> ()
+algeff/reactive1/main: () -> <st<global>,console,div,fsys,ndet,net,ui> string
+algeff/reactive1/mk-provider: forall<a> (reactor-fn : (ev<rref<a>>) -> io a, show : (a) -> io string, name : ? string) -> io provider<a>
+algeff/reactive1/watch: forall<a,b> (r : ev<rref<a>>, p : provider<b>, immediate : ? bool) -> io b
+algeff/reactive1/watch_: forall<a,b> (ev<rref<a>>, p : provider<b>, immediate : bool) -> <div,exn> b
+algeff/reactive1/yield: forall<a> (ev<rref<a>>) -> <div,exn> ()

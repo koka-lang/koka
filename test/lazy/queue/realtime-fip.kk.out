@@ -1,0 +1,29 @@
+Checksum: 0
+ 
+lazy/queue/realtime-fip/pair/fst: forall<a,b> (pair : pair<a,b>) -> a
+lazy/queue/realtime-fip/pair/snd: forall<a,b> (pair : pair<a,b>) -> b
+lazy/queue/realtime-fip/queue/front: forall<a> (queue : queue<a>) -> stream<a>
+lazy/queue/realtime-fip/queue/rear: forall<a> (queue : queue<a>) -> list<a>
+lazy/queue/realtime-fip/queue/sched: forall<a> (queue : queue<a>) -> stream<a>
+lazy/queue/realtime-fip/realtime/empty: forall<a> queue<a>
+lazy/queue/realtime-fip/stream/Indirect: forall<a> (stream<a>) -> stream<a>
+lazy/queue/realtime-fip/stream/lazy-SRotate: forall<a> (stream<a>, bool, xs : stream<a>, ysacc : pair<list<a>,stream<a>>) -> div stream<a>
+lazy/queue/realtime-fip/stream/lazy-eval: forall<a> (stream<a>, bool) -> div stream<a>
+lazy/queue/realtime-fip/stream/lazy-eval-locked: forall<a> (stream<a>, bool) -> div stream<a>
+lazy/queue/realtime-fip/stream/lazy-force: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/realtime-fip/stream/lazy-step: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/realtime-fip/stream/lazy-tag: int32
+lazy/queue/realtime-fip/stream/lazy-whnf: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/realtime-fip/Pair: forall<a,b> (fst : a, snd : b) -> pair<a,b>
+lazy/queue/realtime-fip/Queue: forall<a> (front : stream<a>, rear : list<a>, sched : stream<a>) -> queue<a>
+lazy/queue/realtime-fip/SCons: forall<a> (x : a, xs : stream<a>) -> stream<a>
+lazy/queue/realtime-fip/SNil: forall<a> stream<a>
+lazy/queue/realtime-fip/SRotate: forall<a> (xs : stream<a>, ysacc : pair<list<a>,stream<a>>) -> stream<a>
+lazy/queue/realtime-fip/canthappen: forall<a> (x : a) -> a
+lazy/queue/realtime-fip/exec: forall<a> (queue<a>) -> div queue<a>
+lazy/queue/realtime-fip/is-empty: forall<a> (queue<a>) -> div bool
+lazy/queue/realtime-fip/main: () -> io ()
+lazy/queue/realtime-fip/snoc: forall<a> (queue<a>, x : a) -> div queue<a>
+lazy/queue/realtime-fip/uncons: forall<a> (queue<a>) -> div maybe2<a,queue<a>>
+test/lazy/queue/realtime-fip@kk(31,10): warning: fip fun is-empty: calling a non-fip function: stream/lazy-force
+test/lazy/queue/realtime-fip@kk(24,12): kind warning: Cannot update the lazy constructor SRotate in-place as the result constructor is not statically known -- using an indirection instead

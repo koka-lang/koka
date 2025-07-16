@@ -1,0 +1,30 @@
+Checksum: 0
+ 
+lazy/queue/physicists-stack/physicists/empty: forall<a> queue<a>
+lazy/queue/physicists-stack/queue/front: forall<a> (queue : queue<a>) -> thunk<a>
+lazy/queue/physicists-stack/queue/lenf: forall<a> (queue : queue<a>) -> int
+lazy/queue/physicists-stack/queue/lenr: forall<a> (queue : queue<a>) -> int
+lazy/queue/physicists-stack/queue/rear: forall<a> (queue : queue<a>) -> list<a>
+lazy/queue/physicists-stack/queue/working: forall<a> (queue : queue<a>) -> list<a>
+lazy/queue/physicists-stack/thunk/Indirect: forall<a> (thunk<a>) -> thunk<a>
+lazy/queue/physicists-stack/thunk/lazy-AppRev: forall<a> (thunk<a>, bool, pre : list<a>, post : list<a>) -> thunk<a>
+lazy/queue/physicists-stack/thunk/lazy-Tail: forall<a> (thunk<a>, bool, thunk : thunk<a>, pad) -> div thunk<a>
+lazy/queue/physicists-stack/thunk/lazy-eval: forall<a> (thunk<a>, bool) -> div thunk<a>
+lazy/queue/physicists-stack/thunk/lazy-eval-locked: forall<a> (thunk<a>, bool) -> div thunk<a>
+lazy/queue/physicists-stack/thunk/lazy-force: forall<a> (thunk<a>) -> div thunk<a>
+lazy/queue/physicists-stack/thunk/lazy-step: forall<a> (thunk<a>) -> div thunk<a>
+lazy/queue/physicists-stack/thunk/lazy-tag: int32
+lazy/queue/physicists-stack/thunk/lazy-whnf: forall<a> (thunk<a>) -> div thunk<a>
+lazy/queue/physicists-stack/AppRev: forall<a> (pre : list<a>, post : list<a>) -> thunk<a>
+lazy/queue/physicists-stack/Done: forall<a> (xs : list<a>, p : pad) -> thunk<a>
+lazy/queue/physicists-stack/Queue: forall<a> (working : list<a>, lenf : int, front : thunk<a>, lenr : int, rear : list<a>) -> queue<a>
+lazy/queue/physicists-stack/Tail: forall<a> (thunk : thunk<a>, pad) -> thunk<a>
+lazy/queue/physicists-stack/check: forall<a> (q : queue<a>) -> div queue<a>
+lazy/queue/physicists-stack/checkw: forall<a> (q : queue<a>) -> div queue<a>
+lazy/queue/physicists-stack/isEmpty: forall<a> (q : queue<a>) -> bool
+lazy/queue/physicists-stack/main: () -> io ()
+lazy/queue/physicists-stack/size: forall<a> (q : queue<a>) -> int
+lazy/queue/physicists-stack/snoc: forall<a> (q : queue<a>, x : a) -> div queue<a>
+lazy/queue/physicists-stack/uncons: forall<a> (q : queue<a>) -> div maybe2<a,queue<a>>
+lazy/queue/physicists-stack/whnf: forall<a> (xs : thunk<a>) -> div list<a>
+test/lazy/queue/physicists-stack@kk(13,10): warning: fip fun whnf: calling a non-fip function: thunk/lazy-force

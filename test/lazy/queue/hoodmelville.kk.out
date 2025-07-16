@@ -1,0 +1,41 @@
+Checksum: 0
+ 
+lazy/queue/hoodmelville/hm/empty: forall<a> queue<a>
+lazy/queue/hoodmelville/queue/front: forall<a> (queue : queue<a>) -> list<a>
+lazy/queue/hoodmelville/queue/lenf: forall<a> (queue : queue<a>) -> int
+lazy/queue/hoodmelville/queue/lenr: forall<a> (queue : queue<a>) -> int
+lazy/queue/hoodmelville/queue/rear: forall<a> (queue : queue<a>) -> list<a>
+lazy/queue/hoodmelville/queue/state: forall<a> (queue : queue<a>) -> state<a>
+lazy/queue/hoodmelville/thunk/Indirect: forall<a> (thunk<a>) -> thunk<a>
+lazy/queue/hoodmelville/thunk/lazy-Reverse: forall<a> (thunk<a>, bool, front : list<a>, front-ctx : cctx<list<a>,list<a>>, rear : list<a>, rear-rev : list<a>) -> thunk<a>
+lazy/queue/hoodmelville/thunk/lazy-eval: forall<a> (thunk<a>, bool) -> thunk<a>
+lazy/queue/hoodmelville/thunk/lazy-eval-locked: forall<a> (thunk<a>, bool) -> thunk<a>
+lazy/queue/hoodmelville/thunk/lazy-force: forall<a> (thunk<a>) -> div thunk<a>
+lazy/queue/hoodmelville/thunk/lazy-step: forall<a> (thunk<a>) -> thunk<a>
+lazy/queue/hoodmelville/thunk/lazy-tag: int32
+lazy/queue/hoodmelville/thunk/lazy-whnf: forall<a> (thunk<a>) -> div thunk<a>
+lazy/queue/hoodmelville/Done: forall<a> (done : list<a>) -> thunk<a>
+lazy/queue/hoodmelville/Dropping: forall<a> (p : pad, tails : int, t : list<a>) -> state<a>
+lazy/queue/hoodmelville/Idle: forall<a> state<a>
+lazy/queue/hoodmelville/Queue: forall<a> (lenf : int, front : list<a>, state : state<a>, lenr : int, rear : list<a>) -> queue<a>
+lazy/queue/hoodmelville/Reverse: forall<a> (front : list<a>, front-ctx : ctx<list<a>>, rear : list<a>, rear-rev : list<a>) -> thunk<a>
+lazy/queue/hoodmelville/Reversing: forall<a> (steps : int, tails : int, t : thunk<a>) -> state<a>
+lazy/queue/hoodmelville/SDone: forall<a> (p1 : pad, p2 : pad, t : list<a>) -> state<a>
+lazy/queue/hoodmelville/check: forall<a> (q : queue<a>) -> div queue<a>
+lazy/queue/hoodmelville/exec: forall<a> (s : state<a>) -> div state<a>
+lazy/queue/hoodmelville/exec2: forall<a> (q : queue<a>) -> div queue<a>
+lazy/queue/hoodmelville/invalidate: forall<a> (s : state<a>) -> state<a>
+lazy/queue/hoodmelville/is-dropping: forall<a> (state : state<a>) -> bool
+lazy/queue/hoodmelville/is-idle: forall<a> (state : state<a>) -> bool
+lazy/queue/hoodmelville/is-reversing: forall<a> (state : state<a>) -> bool
+lazy/queue/hoodmelville/is-sdone: forall<a> (state : state<a>) -> bool
+lazy/queue/hoodmelville/isEmpty: forall<a> (q : queue<a>) -> bool
+lazy/queue/hoodmelville/main: () -> io ()
+lazy/queue/hoodmelville/snoc: forall<a> (q : queue<a>, x : a) -> div queue<a>
+lazy/queue/hoodmelville/tick: forall<a> (t : thunk<a>) -> thunk<a>
+lazy/queue/hoodmelville/uncons: forall<a> (q : queue<a>) -> div maybe2<a,queue<a>>
+lazy/queue/hoodmelville/whnf: forall<a> (t : thunk<a>) -> div list<a>
+test/lazy/queue/hoodmelville@kk(19,10): warning: fip fun tick: calling a non-fip function: thunk/lazy-step
+test/lazy/queue/hoodmelville@kk(22,10): warning: fip fun whnf: calling a non-fip function: thunk/lazy-force
+test/lazy/queue/hoodmelville@kk(22,10): warning: fip fun whnf: calling a non-fip function: thunk/lazy-force
+test/lazy/queue/hoodmelville@kk(17,12): kind warning: Cannot update the lazy constructor Reverse in-place as the result constructor is not statically known -- using an indirection instead

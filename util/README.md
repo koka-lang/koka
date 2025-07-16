@@ -48,7 +48,7 @@ $ stack test
 ## Make the Release
 
 Ensure all changes are committed and `support/vscode/koka.language-koka/whatsnew.md` is updated
-Run the following inserting the correct version.
+Run the following commands with the new version:
 
 ```
 git tag v<version>

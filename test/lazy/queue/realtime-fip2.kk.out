@@ -1,0 +1,26 @@
+Checksum: 0
+ 
+lazy/queue/realtime-fip2/queue/front: forall<a> (queue : queue<a>) -> stream<a>
+lazy/queue/realtime-fip2/queue/rear: forall<a> (queue : queue<a>) -> stream<a>
+lazy/queue/realtime-fip2/queue/sched: forall<a> (queue : queue<a>) -> stream<a>
+lazy/queue/realtime-fip2/realtime/empty: forall<a> queue<a>
+lazy/queue/realtime-fip2/stream/Indirect: forall<a> (stream<a>) -> stream<a>
+lazy/queue/realtime-fip2/stream/lazy-SAppend: forall<a> (stream<a>, bool, xs : stream<a>, ys : stream<a>) -> div stream<a>
+lazy/queue/realtime-fip2/stream/lazy-SReverse: forall<a> (stream<a>, bool, xs : stream<a>, acc : stream<a>) -> div stream<a>
+lazy/queue/realtime-fip2/stream/lazy-eval: forall<a> (stream<a>, bool) -> div stream<a>
+lazy/queue/realtime-fip2/stream/lazy-eval-locked: forall<a> (stream<a>, bool) -> div stream<a>
+lazy/queue/realtime-fip2/stream/lazy-force: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/realtime-fip2/stream/lazy-step: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/realtime-fip2/stream/lazy-tag: int32
+lazy/queue/realtime-fip2/stream/lazy-whnf: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/realtime-fip2/Queue: forall<a> (front : stream<a>, rear : stream<a>, sched : stream<a>) -> queue<a>
+lazy/queue/realtime-fip2/SAppend: forall<a> (xs : stream<a>, ys : stream<a>) -> stream<a>
+lazy/queue/realtime-fip2/SCons: forall<a> (head : a, tail : stream<a>) -> stream<a>
+lazy/queue/realtime-fip2/SNil: forall<a> stream<a>
+lazy/queue/realtime-fip2/SReverse: forall<a> (xs : stream<a>, acc : stream<a>) -> stream<a>
+lazy/queue/realtime-fip2/main: () -> io ()
+lazy/queue/realtime-fip2/schedule: forall<a> (queue<a>) -> div queue<a>
+lazy/queue/realtime-fip2/snoc: forall<a> (queue<a>, x : a) -> div queue<a>
+lazy/queue/realtime-fip2/uncons: forall<a> (queue<a>) -> div maybe2<a,queue<a>>
+test/lazy/queue/realtime-fip2@kk(14,15): kind warning: Cannot update the lazy constructor SReverse in-place as the result constructor is not statically known -- using an indirection instead
+test/lazy/queue/realtime-fip2@kk(20,23): kind warning: Cannot update the lazy constructor SAppend in-place as the result constructor is not statically known -- using an indirection instead

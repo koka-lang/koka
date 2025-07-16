@@ -1,0 +1,17 @@
+Checksum: 0
+ 
+lazy/queue/realtime-strict/queue/front: forall<a> (queue : queue<a>) -> stream<a>
+lazy/queue/realtime-strict/queue/rear: forall<a> (queue : queue<a>) -> list<a>
+lazy/queue/realtime-strict/queue/sched: forall<a> (queue : queue<a>) -> stream<a>
+lazy/queue/realtime-strict/realtime/empty: forall<a> queue<a>
+lazy/queue/realtime-strict/Queue: forall<a> (front : stream<a>, rear : list<a>, sched : stream<a>) -> queue<a>
+lazy/queue/realtime-strict/SCons: forall<a> (x : a, xs : stream<a>) -> stream<a>
+lazy/queue/realtime-strict/SNil: forall<a> stream<a>
+lazy/queue/realtime-strict/exec: forall<a> (q : queue<a>) -> div queue<a>
+lazy/queue/realtime-strict/is-scons: forall<a> (stream : stream<a>) -> bool
+lazy/queue/realtime-strict/is-snil: forall<a> (stream : stream<a>) -> bool
+lazy/queue/realtime-strict/isEmpty: forall<a> (q : queue<a>) -> div bool
+lazy/queue/realtime-strict/main: () -> io ()
+lazy/queue/realtime-strict/rotate: forall<a> (front : stream<a>, rear : list<a>, sched : stream<a>) -> div stream<a>
+lazy/queue/realtime-strict/snoc: forall<a> (q : queue<a>, x : a) -> div queue<a>
+lazy/queue/realtime-strict/uncons: forall<a> (q : queue<a>) -> div maybe2<a,queue<a>>

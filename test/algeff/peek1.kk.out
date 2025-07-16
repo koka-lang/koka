@@ -1,0 +1,6 @@
+42
+ 
+algeff/peek1/main: () -> console ()
+algeff/peek1/peek: forall<a> -> (peek<a>) a
+algeff/peek1/poke: forall<a> (x : a) -> (poke<a>) ()
+algeff/peek1/ppstate: forall<a,b,e> (init : a, action : () -> <peek<a>,poke<a>|e> b) -> e b

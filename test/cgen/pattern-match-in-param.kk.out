@@ -1,0 +1,9 @@
+f(2, [1], Just([2, 3])) -> 6
+f(1, [1], Just([1])) -> cgen/pattern-match-in-param(1,34): f: pattern match failure
+g(1, 2) -> 1
+h([2,3]) -> 2
+h() -> 1
+i(0) -> 1
+j(0) -> 1
+k([]) -> cgen/pattern-match-in-param(23,12): k: pattern match failure
+l((1, 2, 3)) -> 1

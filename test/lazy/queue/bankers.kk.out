@@ -1,0 +1,34 @@
+Checksum: 0
+ 
+lazy/queue/bankers/bankers/empty: forall<a> bqueue<a>
+lazy/queue/bankers/bqueue/front: forall<a> (bqueue : bqueue<a>) -> stream<a>
+lazy/queue/bankers/bqueue/front-len: forall<a> (bqueue : bqueue<a>) -> int
+lazy/queue/bankers/bqueue/rear: forall<a> (bqueue : bqueue<a>) -> list<a>
+lazy/queue/bankers/bqueue/rear-len: forall<a> (bqueue : bqueue<a>) -> int
+lazy/queue/bankers/stream/Indirect: forall<a> (stream<a>) -> stream<a>
+lazy/queue/bankers/stream/lazy-SAppRev: forall<a> (stream<a>, bool, pre : stream<a>, post : list<a>) -> div stream<a>
+lazy/queue/bankers/stream/lazy-eval: forall<a> (stream<a>, bool) -> div stream<a>
+lazy/queue/bankers/stream/lazy-eval-locked: forall<a> (stream<a>, bool) -> div stream<a>
+lazy/queue/bankers/stream/lazy-force: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/bankers/stream/lazy-step: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/bankers/stream/lazy-tag: int32
+lazy/queue/bankers/stream/lazy-whnf: forall<a> (stream<a>) -> div stream<a>
+lazy/queue/bankers/Bqueue: forall<a> (front : stream<a>, front-len : int, rear : list<a>, rear-len : int) -> bqueue<a>
+lazy/queue/bankers/SAppRev: forall<a> (pre : stream<a>, post : list<a>) -> stream<a>
+lazy/queue/bankers/SCons: forall<a> (head : a, tail : stream<a>) -> stream<a>
+lazy/queue/bankers/SNil: forall<a> stream<a>
+lazy/queue/bankers/balance: forall<a> (bqueue<a>) -> bqueue<a>
+lazy/queue/bankers/is-empty: forall<a> (q : bqueue<a>) -> bool
+lazy/queue/bankers/list: forall<a> (s : stream<a>) -> div list<a>
+lazy/queue/bankers/main: () -> io ()
+lazy/queue/bankers/size: forall<a> (q : bqueue<a>) -> int
+lazy/queue/bankers/snoc: forall<a> (bqueue<a>, x : a) -> bqueue<a>
+lazy/queue/bankers/sreverse: forall<a> (xs : list<a>) -> stream<a>
+lazy/queue/bankers/sreverse-acc: forall<a> (xs : list<a>, acc : stream<a>) -> stream<a>
+lazy/queue/bankers/stream: (start : int, end : int) -> div stream<int>
+lazy/queue/bankers/test1: () -> <console,div> ()
+lazy/queue/bankers/uncons: forall<a> (bqueue<a>) -> div maybe2<a,bqueue<a>>
+test/lazy/queue/bankers@kk(27,14): warning: fip fun list: calling a non-fip function: stream/lazy-force
+test/lazy/queue/bankers@kk(109,12): warning: fip fun balance: allocating a non-fip lazy constructor: SAppRev
+test/lazy/queue/bankers@kk(117,13): warning: fip fun uncons: calling a non-fip function: stream/lazy-force
+test/lazy/queue/bankers@kk(14,22): kind warning: Cannot update the lazy constructor SAppRev in-place as the result constructor is not statically known -- using an indirection instead
