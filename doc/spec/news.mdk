@@ -1,8 +1,8 @@
 ~ begin news
 News:
 
-- 2025-07-17: Koka v3.2.0 released. Now use the keyword `hole` do denote holes in a constructor context,
-  while underscore is used to automatically eta-expand arguments (e.g. `[1].map(inc(_)))`). 
+- 2025-07-17: Koka v3.2.0 released. Now uses the keyword `hole` to denote holes in a constructor context,
+  while underscore is now used to automatically eta-expand arguments (e.g. `[1].map(inc(_)))`). 
   Implicit resolving requires unique solutions now, but takes scoping into account. No more qualified types
   but we use instead implicit _phantom_ parameters that are resolved by the compiler. 
   See the [whatsnew] for more information.
