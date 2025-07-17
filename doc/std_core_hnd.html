@@ -87,7 +87,7 @@ the handler was dynamically bound; we just have evidence that this handler <code
 <li class="li ul-li list-dash-li loose-li">
 <p>Actually, we use a quadruple for the evidence (corresponding to the evidence as formalized in the generalized evidence paper).
 We also add the handler effect tag (<code class="koka"><a class="pp" href="#type_space_htag"><span class="tp">htag</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd<span class="fslash last">/</span></span>htag: <span class="tp sp">(</span><span class="tp sp">(</span><span class="co">E</span>, <span class="co">V</span>) <span class="kw op">-&gt;</span> <span class="co">V</span>) <span class="kw op">-&gt;</span> <span class="co">V</span></span></a><span class="tp sp">&#60;</span><span class="tp tv">h</span><span class="tp sp">&#62;</span></code>) (for dynamic lookup), and the evidence vector
-of the answer context where the handler was defind (<code class="koka"><span class="tp">evv</span><span class="tp sp">&#60;</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">r</span><span class="tp sp">&#62;</span></code>)
+of the answer context where the handler was defined (<code class="koka"><span class="tp">evv</span><span class="tp sp">&#60;</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">r</span><span class="tp sp">&#62;</span></code>)
 (so we can execute operations in-place using the evidence vector at the point where they were defined).
 </p></li>
 <li class="li ul-li list-dash-li loose-li">
@@ -136,7 +136,7 @@ For example, we could be most general (<code class="koka"><span class="kw">ctl</
 
 <p>and various variants in-between. The last definition is unsafe for example if the (user defined) <code class="koka">op</code> invokes
 operations itself as the evidence vector should be the one as defined at the handler site.
-So, we norally use instead:
+So, we normally use instead:
 </p><pre class="koka source"><span class="plaincode">Clause1( fn(m,ev,x) under1(ev,op,x) )
 </span><span class="nicecode"><span class="co">Clause1</span>( <span class="kw">fn</span>(m,ev,x) under1(ev,op,x) )
 </span></pre>

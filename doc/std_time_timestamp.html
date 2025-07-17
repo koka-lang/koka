@@ -49,12 +49,12 @@ for example for unix timestamps that need adjustments for leap seconds.
 into that day. However, that means that adding or subtracting seconds
 always needs normalization.
 </li>
-<li class="li ul-li list-dash-li compact-li">To make it easier to add/substract time spans, we can represent it as single
+<li class="li ul-li list-dash-li compact-li">To make it easier to add/subtract time spans, we can represent it as single
 timespan <code class="koka">since</code> where <code class="koka"><a class="pp" href="#days">days<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>timestamp<span class="fslash last">/</span></span>days: <span class="tp sp">(</span><span class="tp tpp">ts</span> <span class="tp kw op">:</span> <span class="tp">timestamp</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">int</span></span></a> <span class="op">==</span> floor(since <span class="op"><span class="divide">/</span></span> <span class="number">86400</span>)</code> and <code class="koka">seconds <span class="op">==</span> since <span class="op"><span class="minus">-</span></span> <a class="pp" href="#days">days<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>timestamp<span class="fslash last">/</span></span>days: <span class="tp sp">(</span><span class="tp tpp">ts</span> <span class="tp kw op">:</span> <span class="tp">timestamp</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">int</span></span></a></code>.
-This is essentially the representation that Unix/Posic timestamps use too.
+This is essentially the representation that Unix/Posix timestamps use too.
 </li>
 <li class="li ul-li list-dash-li compact-li">Finally, we add a separate <code class="koka"><a class="pp" href="#leap">leap<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>timestamp<span class="fslash last">/</span></span>leap: <span class="tp sp">(</span><span class="tp tpp">t</span> <span class="tp kw op">:</span> <span class="tp">timestamp</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">int</span></span></a></code> seconds field
-to represent time in a leap step unambigiously (and also at any time during the day).
+to represent time in a leap step unambiguously (and also at any time during the day).
 The <code class="koka"><a class="pp" href="#leap">leap<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>timestamp<span class="fslash last">/</span></span>leap: <span class="tp sp">(</span><span class="tp tpp">t</span> <span class="tp kw op">:</span> <span class="tp">timestamp</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">int</span></span></a></code> field is positive if this time is in a leap step.
 </li></ul>
 

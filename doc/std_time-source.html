@@ -40,7 +40,7 @@ Core concepts are:
 
 &#42; A &#96;:duration&#96; is a span of time in SI seconds (as measured on the earth's geoid).
 
-&#42; An &#96;:instant&#96; represents an instant in time. Instants can be substracted to
+&#42; An &#96;:instant&#96; represents an instant in time. Instants can be subtracted to
 get the &#96;:duration&#96; between them. Instants are usually represented as the number
 of fractional SI seconds since the &#96;epoch&#96; (2000-01-01Z), but can be represented
 in different time scales for efficiency. For example, there is the TAI time scale (&#96;ts-tai&#96;),
@@ -112,7 +112,7 @@ For example, here are some durations between different times:
 &#96;&#96;&#96;
 
 Similarly, adding logical &#95;days&#95; (or weeks, months, or years) works over leap seconds and
-other time irregularties:
+other time irregularities:
 
 &#96;&#96;&#96;
 &gt; time(2016,12,31,12).add-days(1).show

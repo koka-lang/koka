@@ -89,7 +89,7 @@ libraries around.
 <p>A <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_duration.html#type_space_duration"><span class="tp">duration</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>duration<span class="fslash last">/</span></span>duration: <span class="co">V</span></span></a></code> is a span of time in SI seconds (as measured on the earth&#39;s geoid).
 </p></li>
 <li class="li ul-li list-star-li loose-li">
-<p>An <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_instant.html#type_space_instant"><span class="tp">instant</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>instant<span class="fslash last">/</span></span>instant: <span class="co">V</span></span></a></code> represents an instant in time. Instants can be substracted to
+<p>An <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_instant.html#type_space_instant"><span class="tp">instant</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>instant<span class="fslash last">/</span></span>instant: <span class="co">V</span></span></a></code> represents an instant in time. Instants can be subtracted to
 get the <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_duration.html#type_space_duration"><span class="tp">duration</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>duration<span class="fslash last">/</span></span>duration: <span class="co">V</span></span></a></code> between them. Instants are usually represented as the number
 of fractional SI seconds since the <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_instant.html#epoch">epoch<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>instant<span class="fslash last">/</span></span>epoch: <span class="tp">instant</span></span></a></code> (2000-01-01Z), but can be represented
 in different time scales for efficiency. For example, there is the TAI time scale (<code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_instant.html#ts_tai">ts<span class="dash">-</span>tai<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>instant<span class="fslash last">/</span></span>ts<span class="dash">-</span>tai: <span class="tp">timescale</span></span></a></code>),
@@ -179,7 +179,7 @@ For example, here are some durations between different times:
 
 
 <p class="p noindent">Similarly, adding logical <em class="em-low1">days</em> (or weeks, months, or years) works over leap seconds and
-other time irregularties:
+other time irregularities:
 </p><pre class="koka source"><span class="plaincode">&gt; time(2016,12,31,12).add-days(1).show
 "2017-01-01T12:00:00Z"   // over a leap second
 
