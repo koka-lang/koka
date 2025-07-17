@@ -30,7 +30,7 @@ generating direct C code without needing a runtime system. To learn more:
 
   The rule is to eta-expand any underscores sequentially up to the innermost argument
   position (unless the argument is a single underscore by itself) -- e.g., 
-  `zipwith([1],[3], _.inc.max(_) )` expands to `[1].zipwith([3], fn(x,y) x.inc.max(y) )`,
+  `zipwith([1],[3], _.inc.max(_) )` expands to `zipwith([1],[3], fn(x,y) x.inc.max(y) )`,
   and `[1].println(list/show(_,int/show(_)))` expands to `[1].println(fn(xs) list/show(xs,fn(x) int/show(x)))`.
 
 - Update the mimalloc allocator to v2.2.4
