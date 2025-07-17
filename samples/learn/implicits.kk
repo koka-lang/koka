@@ -138,15 +138,16 @@ fun int/compare( x : int, y : int ) : order
 
 // We can now choose to resolve `?eq` either as `int/eq`, or `default/compare/eq(_,_,?compare=?int/compare)`
 // Any ambiguous choice like this is normally rejected by the compiler (and we need to pass the implicit explicitly).
-// However, by convention, and locally qualified `default` namespace is assumed to be in an outer
+// However, by convention, the locally qualified `default` namespace is assumed to be in an outer
 // scope of the global scope -- and due to the "inner scope" rule, the compiler disambiguates to the non-default definition.
 // In our case `int/eq` will be preferred over `default/cmp/eq`.
+// (note: the `default` scope is still considered experimental)
 fun example7()
   eq([1,2],[1,2])       // `list/eq(_,_,int/eq)`
 
-// as usual, a name in a local scope takes precedence over ones in the global scope
+// When taking the scope into consideration, the first choice point determines which one is used.
 fun example7a(?compare)
-  eq([1,2],[1,2])       // `compare/eq(_,_,?compare=?compare)` (and not `list/eq(_,_,int/eq)`)
+  eq([1,2],[1,2])       // `list/eq(_,_,int/eq)` (and not `default/compare/eq(_,_,?compare=?compare)` as `default/compare/eq` is in an outer scope of `list/eq`)
 
 
 // Sometimes we need multiple implicit parameters resolving to the same name.
