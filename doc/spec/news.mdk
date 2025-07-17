@@ -1,10 +1,21 @@
 ~ begin news
 News:
 
+- 2025-07-17: Koka v3.2.0 released. Now use the keyword `hole` do denote holes in a constructor context,
+  while underscore is used to automatically eta-expand arguments (e.g. `[1].map(inc(_)))`). 
+  Implicit resolving requires unique solutions now, but takes scoping into account. No more qualified types
+  but we use instead implicit _phantom_ parameters that are resolved by the compiler. 
+  See the [whatsnew] for more information.
+  
+- 2025-07-17: Two of the distinguished paper awards at [PLDI'25](https://pldi25.sigplan.org/) went to papers that use Koka:
+  "_Practical Type Inference with Levels_", Andong Fan, Han Xu, and Ningning Xie ([pdf](https://xnning.github.io/papers/pldi25level.pdf)),
+  and "_Principal Type Inference under a Prefix_", Daan Leijen and Wenjia Ye ([pdf](https://dl.acm.org/doi/pdf/10.1145/3729308)). The latter formalizes the static overloading
+  resolution used in the Koka language.
+  
 - 2025-07-03: Koka v3.1.3 released. Add applier syntax `.()` where `x.f.(42)` is sugar for `(x.f)(42)` which 
   can be convenient when calling functions selected from a struct. 
   Also adds support for lazy constructors -- see "_First-order Laziness_" by Anton Lorenzen, Daan Leijen, 
-  Wouter Swierstra, Sam Lindley (ICFP'25) [pdf](https://antonlorenzen.de/papers/lazycons.pdf).
+  Wouter Swierstra, and Sam Lindley (ICFP'25) [pdf](https://antonlorenzen.de/papers/lazycons.pdf).
 
 - 2024-05-30: Koka v3.1.2 released which fixes Koka installs outside a VS Code workspace.
 
@@ -117,3 +128,4 @@ News:
 [musl]:       https://musl.libc.org/
 [wasmtime]:   https://wasmtime.dev/
 [fiptree-tr]: https://www.microsoft.com/en-us/research/uploads/prod/2023/07/fiptree-tr-v4.pdf
+[whatsnew]:   https://github.com/koka-lang/koka/blob/dev/support/vscode/koka.language-koka/whatsnew.md

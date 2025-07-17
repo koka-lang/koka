@@ -10,7 +10,7 @@
 
 _Koka v3 is a research language that is currently under development and not quite ready for production use_. 
 
-_Latest release_: v3.1.3, 2025-07-03
+_Latest release_: v3.2.0, 2025-07-17
 
  ([Install]).
 

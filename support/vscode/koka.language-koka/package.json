@@ -2,7 +2,7 @@
   "name": "language-koka",
   "displayName": "Koka Language",
   "description": "The official Koka programming language extension.",
-  "version": "3.1.5",
+  "version": "3.2.0",
   "publisher": "koka",
   "engines": {
     "vscode": ">=1.85.0"
@@ -74,8 +74,7 @@
       "[koka]": {
         "editor.tabSize": 2,
         "editor.insertSpaces": true,
-        "editor.inlayHints.enabled": "offUnlessPressed",
-        "editor.bracketPairColorization.enabled": false
+        "editor.inlayHints.enabled": "offUnlessPressed"
       },
       "editor.tokenColorCustomizations": {
         "textMateRules": [
