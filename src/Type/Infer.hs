@@ -2227,7 +2227,7 @@ etaExpandVarArg tp argexpr
                             -> -- the variable has a type with optional parameters, eta-expand it to match the expected type without optional parameters
                                do let range        = getRange argexpr
                                       nameFixed    = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] parTps]
-                                      argsFixed    = [(Nothing,Var name False range) | name <- nameFixed]
+                                      argsFixed    = [(if nameIsNil origName then Nothing else Just (origName, range),Var name False range) | (origName, name) <- zip (map fst parTps) nameFixed]
                                       body         = App argexpr argsFixed range
                                       eta          = Lam [ValueBinder name Nothing Nothing range range | name <- nameFixed] body False range
                                   -- addRangeInfo vrng (RM.Implicits (\shorten -> text "fn(_,_) var")) -- todo: show the eta-expansion as inlay in vscode?
