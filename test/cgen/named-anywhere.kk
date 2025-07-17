@@ -17,6 +17,12 @@ fun f2(required: int, fx: (int, ?c:int) -> int): int
 
 val basic/an-implicit = 3
 
+fun param(a : int = 0, b : int = 0) : console int
+  println(a.show ++ ", " ++ b.show)
+  0
+fun higher-order(f : (b: int) -> console int)
+  f(b = 1)
+
 fun main()
   // Normal ordering, using default values for optional parameters
   f(1, {0})
@@ -29,4 +35,5 @@ fun main()
   // Use name for required argument to intentionally change order
   f(optional=0, ?an-implicit=30, trailingrequired={2}, 1)
   f(trailingrequired=fn() 1, -1)
+  higher-order(param)
   
