@@ -55,17 +55,17 @@ export class VersionManager {
       }
       const releasesJson : any = await response.json(); // Parse the JSON response
       if (!releasesJson) return;
-      this.releases = releasesJson.map(release => {
-        const asset = release.assets.find(a => a.name.includes(targetPlatform));
+      this.releases = releasesJson.map((release: any) => {
+        const asset = release.assets.find((a: any) => a.name.includes(targetPlatform));
         if (asset) {
           // this gets the version from the tagname (without a preceding 'v')
-          const version : string = semver.coerce(release.tag_name, {includePrerelease: true}).format();
+          const version = semver.coerce(release.tag_name, {includePrerelease: true})?.format();
           if (version && semver.gte(version,"2.4.0")) {
             return new KokaRelease(asset.browser_download_url, version, release.prerelease, new Date(release.created_at));
           }
         }
         return null;
-      }).filter(release => release !== null) as KokaRelease[]; // Find the latest releases for the current platform
+      }).filter((release : any) => release !== null) as KokaRelease[]; // Find the latest releases for the current platform
     } catch (err) {
       console.error('Error fetching Koka releases: ', err);
     }
@@ -92,7 +92,7 @@ export class VersionManager {
   ): Promise<string[]>
   {
     var force = true;
-    var targetRelease : KokaRelease;
+    var targetRelease : KokaRelease | undefined;
     if (!targetVersion || targetVersion == "latest") {
       force = false;
       targetRelease = this.getLatestCompilerRelease();
@@ -108,13 +108,13 @@ export class VersionManager {
       const latestInstalled = await this.installedVersion();
       console.log(`Koka: latest installed compiler: ${latestInstalled}, latest released compiler is ${targetRelease.version}`)
       if (semver.gte(latestInstalled, targetRelease.version)) {
-        return
+        return this.findCompilerPaths(developmentPath);
       }
 
       const latestAsked = await this.context.globalState.get('koka-latest-asked-compiler') as string ?? "1.0.0"
       console.log(`Koka: latest compiler version asked to install: ${latestAsked}`);
       if (semver.eq(latestAsked, targetRelease.version)) {
-        return
+        return this.findCompilerPaths(developmentPath);
       }
     }
 
@@ -135,9 +135,9 @@ export class VersionManager {
       if (decision == 'No') {
         // remember the version and don't auto prompt again in the future (until a more recent version is released)
         await this.context.globalState.update('koka-latest-asked-compiler', targetRelease.version);
-        return
+        return this.findCompilerPaths(developmentPath);
       } else if (decision != 'Yes') { // cancel
-        return
+        return this.findCompilerPaths(developmentPath);
       }
     }
 
@@ -180,9 +180,8 @@ export class VersionManager {
     const term = vscode.window.createTerminal({ name: "Install Koka", cwd: home, shellPath: defaultShell, isTransient: true, message: "Installing Koka" })
     term.sendText(shellCmd)
     term.show()
-    let dispose: vscode.Disposable | undefined = undefined
     const result = await new Promise<string[]>((resolve, reject) => {
-      dispose = vscode.window.onDidCloseTerminal(async (t) => {
+      let dispose = vscode.window.onDidCloseTerminal(async (t) => {
         // installation is done
         // todo: should we get the installation path directly from the install script instead of rescanning?
         console.log("Koka: terminal install is done")
@@ -195,22 +194,22 @@ export class VersionManager {
             const compilerVersion = this.getCompilerVersion(defaultPath) ?? "1.0.0"
             if (semver.eq(compilerVersion,version)) {
               message = "Koka installed successfully"
-              await this.setInstalledVersion(targetRelease.version);
+              await this.setInstalledVersion(targetRelease!.version);
             }
             else {
-              message = `Koka may not have installed successfully: current version ${compilerVersion}, while the install version was ${targetRelease.version}`
+              message = `Koka may not have installed successfully: current version ${compilerVersion}, while the install version was ${targetRelease!.version}`
             }
           }
           else {
             message = "Koka installation finished, but unable to find the installed compiler"
           }
           console.log(message)
+          dispose?.dispose()
           resolve(paths)
           await vscode.window.showInformationMessage(message)
         }
       })
     })
-    dispose?.dispose()
     return result;
   }
 
@@ -359,8 +358,10 @@ export class VersionManager {
       if (buf) {
         const versionRegex = /version: ([0-9]+\.[0-9]+.[0-9]+)/g;
         const match = versionRegex.exec(buf.toString())
-        version = match[1].toString()
-        console.log("Koka: found installed version " + version)
+        if (match) {
+          version = match[1].toString()
+          console.log("Koka: found installed version " + version)
+        }
       }
     }
     catch (err) { }
@@ -381,8 +382,8 @@ export class VersionManager {
     }
   }
 
-  getCompilerShareDir(): string {
-    if (!this.hasValidCompiler()) return null;
+  getCompilerShareDir(): string | undefined {
+    if (!this.hasValidCompiler()) return undefined;
     if (this.compilerPath.includes(".stack-work")) {
       const root = this.compilerPath.substring(0, this.compilerPath.indexOf(".stack-work"))  // <root>/.stack-work/.../bin/koka
       return root

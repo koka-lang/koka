@@ -19,25 +19,25 @@ export class KokaConfig {
     this.target = "c"
     this.refreshConfig()
     const extVersion = this.context.extension.packageJSON.version as string ?? "1.0.0"
-    this.extensionVersion = semver.coerce(extVersion).format()
+    this.extensionVersion = semver.coerce(extVersion)?.format() ?? "1.0.0"
     this.versionManager = new VersionManager(this.context, this.vsConfig);
   }
   versionManager: VersionManager
-  enableDebugExtension: boolean
-  autoFocusTerminal: boolean        // focus on the terminal automatically on errors?
-  target: string                    // backend target (c,c32,c64c,wasm,jsnode)
-  cwd: string                       // current working directory for compiler / running the output
-  includeDirs: string[]             // compiler include directories
-  extensionVersion: string          // Version of the extension
-  latestCompilerVersion: string     // Latest known version of the compiler (used at build time of the extension)
+  enableDebugExtension!: boolean
+  autoFocusTerminal!: boolean        // focus on the terminal automatically on errors?
+  target!: string                    // backend target (c,c32,c64c,wasm,jsnode)
+  cwd!: string                       // current working directory for compiler / running the output
+  includeDirs!: string[]             // compiler include directories
+  extensionVersion!: string          // Version of the extension
+  latestCompilerVersion!: string     // Latest known version of the compiler (used at build time of the extension)
 
-  compilerArgs: string[]            // extra arguments to pass
+  compilerArgs!: string[]            // extra arguments to pass
 
   // Configuration options for the language server
   // Inlay Hints Options
-  showInferredTypes: boolean
-  showImplicitArguments: boolean
-  showFullQualifiers: boolean
+  showInferredTypes!: boolean
+  showImplicitArguments!: boolean
+  showFullQualifiers!: boolean
 
   getLanguageServerArgs(): string[] {
     return ["--language-server", "--buildtag=vscode", ...this.includeDirs.map((d) => `-i${d}`), ...this.compilerArgs]
@@ -45,7 +45,7 @@ export class KokaConfig {
 
   refreshConfig(): void {
     this.enableDebugExtension = this.vsConfig.get('dev.debugExtension') as boolean
-    this.cwd = expandHome(this.vsConfig.get('languageServer.workingDirectory')) as string
+    this.cwd = expandHome(this.vsConfig.get('languageServer.workingDirectory')!) as string
     if (!this.cwd) {
       if (vscode.workspace.workspaceFolders)
         this.cwd = vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -103,10 +103,9 @@ export class KokaConfig {
     fs.cp(examples, samplesDir, { recursive: true }, async (err) => {
       if (err) {
         vscode.window.showErrorMessage(`Unable to copy Koka samples. (to ${samplesDir} from ${examples})`)
-        return "";
       }
       console.log(`Koka: getSamplesDir: copied examples to ${samplesDir} (from ${examples})`)
-      return samplesDir
     })
+    return samplesDir
   }
 }
