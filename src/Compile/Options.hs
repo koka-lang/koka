@@ -40,8 +40,8 @@ import Data.Hashable
 import Control.Monad          ( when )
 import Control.Concurrent     ( myThreadId )
 import qualified System.Info  ( os, arch )
-import System.Environment     ( getArgs )
-import System.Directory       ( doesFileExist, doesDirectoryExist, getHomeDirectory, getTemporaryDirectory, getXdgDirectory, XdgDirectory(XdgCache) )
+import System.Environment     ( getArgs, lookupEnv )
+import System.Directory       ( doesFileExist, doesDirectoryExist, getHomeDirectory, getTemporaryDirectory, getXdgDirectory, XdgDirectory(XdgData) )
 import Platform.GetOptions
 import Platform.Config
 import Lib.PPrint
@@ -905,8 +905,15 @@ getKokaBuildDir "" eval
                 then return kkbuild
                 else do -- avoid the tmp directory as it does not always have execute permissions
                         -- tmp <- getTemporaryDirectory
-                        -- instead use `$XDG_DATA_HOME/koka` if in the interpreter
-                        getXdgDirectory XdgData "koka"
+                        -- if in the interpreter, use the user-defined $KOKA_ROOT, if it doesn't exist
+                        -- fall back to `$XDG_DATA_HOME/kkbuild`
+                        root <- lookupEnv "KOKA_ROOT"
+                        case root of
+                            Nothing ->
+                                getXdgDirectory XdgData "kkbuild" 
+                            Just path ->
+                                return path
+
       else return kkbuild
 getKokaBuildDir buildDir _ = return buildDir
 
