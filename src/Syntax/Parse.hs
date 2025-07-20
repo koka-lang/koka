@@ -1592,8 +1592,8 @@ statement
 
 localValueDecl
   = do krng <- keyword "val"
-       pat  <- pattern 
-               
+       pat  <- pattern
+
        keyword "="
        e    <- blockexpr
        let bindVar binder mbTp rng
@@ -1687,12 +1687,12 @@ blockexpr
   <?> "expression"
 
 expr :: LexParser UserExpr
-expr 
+expr
   = withexpr <|> funexpr <|> returnexpr <|> valexpr <|> basicexpr
   <?> "expression"
 
 basicexpr :: LexParser UserExpr
-basicexpr 
+basicexpr
   = ifexpr <|> fnexpr <|> matchexpr <|> handlerExpr <|> opexpr
   <?> "(basic) expression"
 
@@ -2078,20 +2078,24 @@ etaExpand :: UserExpr -> UserExpr
 etaExpand expr =
   let (expr', binders) = etaTransform expr
   in if null binders then expr
-     else let newDef = Lam binders expr' False (getRange expr)
-          in -- trace ("eta expanded: " ++ show (ppSyntaxExpr defaultEnv newDef)) $ 
+     else let -- we sort the binders by position since an expression like `_x.inc._f()` gets
+              -- already rewritten to `_f(inc(_x))` by the application parser.
+              -- (todo: perhaps we can fix this also by appending the `bs` at the end in the app case below?)
+              seqbinders = sortBy (\b1 b2 -> compare (binderNameRange b1) (binderNameRange b2)) binders
+              newDef = Lam seqbinders expr' False (getRange expr)
+          in -- trace ("eta expanded: " ++ show (ppSyntaxExpr defaultEnv newDef)) $
               newDef
 
 etaTransform :: UserExpr -> (UserExpr, [ValueBinder (Maybe UserType) (Maybe UserExpr)])
-etaTransform expr 
+etaTransform expr
   = case expr of
       Var name isOp rng | nameIsEtaHole name -> let newName = uniqueRngHiddenName rng "eta"
-                                                in (Var newName isOp rng, [ValueBinder newName Nothing Nothing rangeNull rangeNull])      
+                                                in (Var newName isOp rng, [ValueBinder newName Nothing Nothing rng rng])
       Ann e tp rng          -> let (e',binders) = etaTransform e in (Ann e' tp rng, binders)
-      Parens e name pre rng -> let (e',binders) = etaTransform e in (Parens e' name pre rng, binders)        
+      Parens e name pre rng -> let (e',binders) = etaTransform e in (Parens e' name pre rng, binders)
       App f args rng        -> let (f',bs)     = etaTransform f
                                    (args',bss) = unzip $ map (\(n,e) -> let (e',bs) = etaTransform e in ((n,e'),bs)) args
-                               in (App f' args' rng, bs ++ concat bss)      
+                               in (App f' args' rng, bs ++ concat bss)
       _ -> (expr,[])
 
 operatorVar
@@ -2118,7 +2122,7 @@ appexpr allowTrailingLam
     dotexpr, indexer, applier, funapps :: LexParser (UserExpr -> UserExpr)
     dotexpr
       = do keyword "."
-           (do e <- idcon
+           (do e <- idcon <|> etaHole
                (do rng0 <- lapp
                    args <- sepBy argument (comma)
                    rng1 <- rparen
@@ -2226,8 +2230,8 @@ literal
   <?> "constant"
 
 
-aexpr 
-  = do e <- expr 
+aexpr
+  = do e <- expr
        (do keyword ":"
            tp <- ptypescheme
            return (Ann e tp (combineRanged e tp))
@@ -2313,8 +2317,8 @@ pbinder preRange
        ann <- typeAnnotation
        return (\expr -> ValueBinder name () (ann expr) range (combineRange preRange range))
 
-funid 
-  = lqidentifier 
+funid
+  = lqidentifier
   -- [] doesn't work with local qualification
   {-
   <|>
@@ -2329,7 +2333,7 @@ funid
        return (newName s, rng)
   -}
 
-lqidentifier 
+lqidentifier
   = do (name,rng) <- qidentifier
        return (requalifyLocally name, rng)
 
