@@ -905,8 +905,8 @@ getKokaBuildDir "" eval
                 then return kkbuild
                 else do -- avoid the tmp directory as it does not always have execute permissions
                         -- tmp <- getTemporaryDirectory
-                        -- instead use `$XDG_CACHE_HOME/koka` if in the interpreter
-                        getXdgDirectory XdgCache "koka"
+                        -- instead use `$XDG_DATA_HOME/koka` if in the interpreter
+                        getXdgDirectory XdgData "koka"
       else return kkbuild
 getKokaBuildDir buildDir _ = return buildDir
 
