@@ -17,7 +17,6 @@ import {
 import { DebugProtocol } from '@vscode/debugprotocol'
 import { EventEmitter } from 'events'
 import { KokaConfig } from './workspace-config'
-import { Subject } from 'await-notify'
 import * as path from 'path'
 import {
 	LanguageClient,
@@ -49,7 +48,7 @@ export class KokaDebugSession extends LoggingDebugSession {
 	// we don't support multiple threads, so we can use a hardcoded ID for the default thread
 	private static THREAD_ID = 1
 
-	private _configurationDone = new Subject()
+	private _configurationDone = new EventEmitter()
 
 	private _runtime: KokaRuntime
 	/**
@@ -126,7 +125,7 @@ export class KokaDebugSession extends LoggingDebugSession {
 		super.configurationDoneRequest(response, args)
 
 		// notify the launchRequest that configuration has finished
-		this._configurationDone.notify()
+		this._configurationDone.emit("done")
 	}
 
 	protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments) {
@@ -136,7 +135,10 @@ export class KokaDebugSession extends LoggingDebugSession {
 
 		// wait until configuration has finished (and configurationDoneRequest has been called)
 		// No configuration of breakpoints etc is currently supported so set a low timeout
-		await this._configurationDone.wait(1)
+		await new Promise((resolve, reject) => {
+			setTimeout(() => this._configurationDone.emit("done"), 1000)
+			this._configurationDone.once("done", resolve)
+	  })
 
 		// start the program in the runtime
 		this._runtime.start(args)
