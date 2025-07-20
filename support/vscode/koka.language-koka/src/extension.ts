@@ -18,7 +18,7 @@ import { MainCodeLensProvider } from './code-lens'
 
 
 // global as we may stop the language server and restart with a fresh object
-let languageServer: KokaLanguageServer = null;
+let languageServer: KokaLanguageServer | null = null;
 
 export async function deactivate() { }
 
@@ -174,9 +174,9 @@ function createBasicCommands(context: vscode.ExtensionContext, vsConfig: vscode.
       let root = kokaConfig.versionManager.getCompilerShareDir();
       if (root) {
         whatsnew = path.join(root,"contrib","vscode","koka.language-koka","whatsnew.md");
-      }
-      if (!whatsnew || !fs.existsSync(whatsnew)) {
-        whatsnew = path.join(root, "whatsnew.md");
+        if (!whatsnew || !fs.existsSync(whatsnew)) {
+          whatsnew = path.join(root, "whatsnew.md");
+        }
       }
       if (!whatsnew || !fs.existsSync(whatsnew)) {
         whatsnew = path.join(context.extensionPath, "whatsnew.md");
@@ -229,8 +229,8 @@ function createCommands(
   context: vscode.ExtensionContext,
   vsConfig: vscode.WorkspaceConfiguration,
   kokaConfig: KokaConfig,
-  selectSDKMenuItem: vscode.StatusBarItem,   // can be null
-  selectCompileTarget: vscode.StatusBarItem, // can be null
+  selectSDKMenuItem: vscode.StatusBarItem | null,   // can be null
+  selectCompileTarget: vscode.StatusBarItem | null, // can be null
 ) {
   vscode.commands.executeCommand('setContext', 'koka.advancedCommands', true)
   // select SDK
@@ -277,13 +277,13 @@ function createCommands(
                         : (semver.eq( latestInstalled, r.version ) ? " (last installed)" : "")),
         version: r.version
       });
-      const result : vscode.QuickPickItem = await vscode.window.showQuickPick(versions, {
+      const result : vscode.QuickPickItem | undefined = await vscode.window.showQuickPick(versions, {
         placeHolder: "Select a Koka version to install"
       });
       if (result) {
         const noLanguageServer = (languageServer === null);
         await stopLanguageServer(context)
-        await kokaConfig.versionManager.installCompiler(result["version"]);
+        await kokaConfig.versionManager.installCompiler(result.label);
         if (noLanguageServer) {
           // if this is the first time the compiler is installed, we need to reload
           return vscode.window.showErrorMessage('Reload VS Code to start the Koka language service with the new compiler')
@@ -366,7 +366,7 @@ function createCommands(
 
     // Show LSP output
     vscode.commands.registerCommand('koka.showLSPOutput', async () => {
-      languageServer.showOutputChannel()
+      languageServer!.showOutputChannel()
     }),
   )
   vscode.window.registerTerminalProfileProvider('koka.interpreter', {
@@ -436,7 +436,7 @@ class InlineDebugAdapterFactory implements vscode.DebugAdapterDescriptorFactory 
   constructor(private readonly config: KokaConfig) { }
 
   createDebugAdapterDescriptor(_session: vscode.DebugSession): ProviderResult<vscode.DebugAdapterDescriptor> {
-    if (languageServer.languageClient)
-      return new vscode.DebugAdapterInlineImplementation(new KokaDebugSession(this.config, languageServer.languageClient))
+    if (languageServer!.languageClient)
+      return new vscode.DebugAdapterInlineImplementation(new KokaDebugSession(this.config, languageServer!.languageClient))
   }
 }

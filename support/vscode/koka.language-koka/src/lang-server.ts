@@ -184,7 +184,7 @@ export class KokaLanguageServer {
 
   async onThemeChanged(change : vscode.ColorTheme)  {
     let isDark = change.kind == vscode.ColorThemeKind.Dark
-    await this.languageClient.sendRequest(ExecuteCommandRequest.type, {command: "koka/set-colors", arguments: [{mode: isDark ? "dark": "light"}]})
+    await this.languageClient!.sendRequest(ExecuteCommandRequest.type, {command: "koka/set-colors", arguments: [{mode: isDark ? "dark": "light"}]})
   }
 
   async dispose() {

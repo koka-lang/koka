@@ -1276,6 +1276,12 @@ phase p mkdoc
          else phaseVerbose 1 p mkdoc
 
 phaseVerbose :: Int -> String -> (TP.Env -> Doc) -> Build ()
+phaseVerbose verboseLevel phase mkDoc 
+  = do term <- getTerminal
+       flags <- getFlags
+       liftIO $ phaseVerboseIO term flags verboseLevel phase mkDoc
+
+{-
 phaseVerbose vlevel p doc
   = do flags <- getFlags
        when (verbose flags >= vlevel) $
@@ -1294,6 +1300,7 @@ phaseShow v p mkdoc
   where
     showThreadId tid = takeWhile isDigit $ dropWhile (not . isDigit) $ show tid
     sfill n s = s ++ replicate (n - length s) ' '
+-}
 
 buildDoesFileExist :: FilePath -> Build Bool
 buildDoesFileExist fpath

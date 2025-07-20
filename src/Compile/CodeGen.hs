@@ -708,8 +708,7 @@ termWarning term flags doc
 
 runSystemEcho :: Terminal -> Flags -> String -> IO ()
 runSystemEcho term flags cmd
-  = do when (verbose flags >= 3) $
-         termTrace term ("shell> " ++ cmd)
+  = do phaseVerboseIO term flags 3 "shell" $ \penv -> text cmd
        runSystem cmd
 
 runCommand :: Terminal -> Flags -> [String] -> IO ()
@@ -717,8 +716,7 @@ runCommand term flags cargs@(cmd:args)
   = do let command = shellQuoted cargs
        if (onWindows && cmd `endsWith` "emcc") -- hack to run emcc correctly on windows (due to Python?)
          then runSystemEcho term flags command
-         else  do when (verbose flags >= 3) $
-                    termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+         else  do phaseVerboseIO term flags 3 "command" $ \penv -> text command -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
                   runCmd cmd (filter (not . null) args)
                     `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
@@ -730,16 +728,14 @@ runCommandRead term flags env cargs
 runCommandReadAll :: Terminal -> Flags -> [(String,String)] -> [String] -> IO (String,String)
 runCommandReadAll term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
-       when (verbose flags >= 3) $
-         termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+       phaseVerboseIO term flags 3 "command" $ \penv -> text command -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
        runCmdRead env cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
 runCommandEnv :: Terminal -> Flags -> [(String,String)] -> [String] -> IO ()
 runCommandEnv term flags env cargs@(cmd:args)
   = do let command = unwords (shellQuote cmd : map shellQuote args)
-       when (verbose flags >= 3) $
-         termTrace term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+       phaseVerboseIO term flags 3 "command" $ \penv -> text command -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
        runCmdEnv env  cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 

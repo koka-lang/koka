@@ -29,14 +29,16 @@ module Compile.Options( -- * Command line options
                        , vcpkgFindRoot
                        , onWindows, onMacOS
                        , flagsHash
+                       , phaseVerboseIO
                        , Terminal(..)
                        ) where
 
 import Debug.Trace
-import Data.Char              ( toLower, toUpper, isAlpha, isSpace )
+import Data.Char              ( toLower, toUpper, isAlpha, isSpace, isDigit )
 import Data.List              ( intersperse, isInfixOf, nub )
 import Data.Hashable
 import Control.Monad          ( when )
+import Control.Concurrent     ( myThreadId )
 import qualified System.Info  ( os, arch )
 import System.Environment     ( getArgs )
 import System.Directory       ( doesFileExist, doesDirectoryExist, getHomeDirectory, getTemporaryDirectory )
@@ -58,6 +60,7 @@ import Core.Core( dataInfoIsValue )
 --------------------------------------------------------------------------}
 import qualified Type.Pretty as TP
 import System.IO (hPutStrLn, stderr)
+import Syntax.Pretty (PrettyEnv)
 
 prettyEnvFromFlags :: Flags -> TP.Env
 prettyEnvFromFlags flags
@@ -93,6 +96,26 @@ data Terminal = Terminal{ termError    :: !(ErrorMessage -> IO ())
                         , termInfo     :: !(Doc -> IO ())
                         }
 
+
+phaseVerboseIO :: Terminal -> Flags -> Int -> String -> (TP.Env -> Doc) -> IO ()
+phaseVerboseIO term flags verboseLevel phase mkDoc
+  = if (verbose flags >= verboseLevel) 
+      then phaseShowIO term flags verboseLevel phase mkDoc
+      else return ()
+
+phaseShowIO :: Terminal -> Flags -> Int -> String -> (TP.Env -> Doc) -> IO ()
+phaseShowIO term flags verboseLevel phase mkdoc
+  = do tid <- myThreadId
+       let penv = prettyEnvFromFlags flags
+           cscheme = TP.colors penv
+           doc = mkdoc penv
+           pre = (if isEmptyDoc doc then phase else (sfill 8 phase ++ ":"))
+                   ++ (if verboseLevel >= 4 then " (thread " ++ showThreadId tid ++ ") " else "")
+       termPhase term (color (colorInterpreter cscheme) (text pre) <+> (color (colorSource cscheme) doc))
+  where
+    showThreadId tid = takeWhile isDigit $ dropWhile (not . isDigit) $ show tid
+    sfill n s = s ++ replicate (n - length s) ' '
+      
 
 {--------------------------------------------------------------------------
   Options

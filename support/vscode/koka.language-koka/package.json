@@ -325,7 +325,6 @@
     "@vscode/debugadapter": "^1.68.0",
     "@vscode/debugprotocol": "^1.68.0",
     "semver": "^7.6.3",
-    "await-notify": "1.0.1",
     "node-fetch": "^3.3.2",
     "vscode-languageclient": "^9.0.1",
     "ts-loader": "^9.5.2",
