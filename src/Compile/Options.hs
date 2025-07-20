@@ -907,12 +907,11 @@ getKokaBuildDir "" eval
                         -- tmp <- getTemporaryDirectory
                         -- if in the interpreter, use the user-defined $KOKA_ROOT, if it doesn't exist
                         -- fall back to `$XDG_DATA_HOME/kkbuild`
-                        root <- lookupEnv "KOKA_ROOT"
-                        case root of
-                            Nothing ->
-                                getXdgDirectory XdgData "kkbuild" 
-                            Just path ->
-                                return path
+                        root <- getEnvVar "KOKA_ROOT"
+                        if root == "" then
+                            getXdgDirectory XdgData "kkbuild" 
+                        else
+                            return root
 
       else return kkbuild
 getKokaBuildDir buildDir _ = return buildDir
