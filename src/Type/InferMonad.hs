@@ -1228,7 +1228,10 @@ findBest allowDisambiguate candidates
                                               [_]   | isDone x -> -- resolved unique best solution
                                                        Found x
                                               _     -> case implicitStrategy of
-                                                         RequireUnique -> Continue keep -- we cannot cut short for unique as they always have score 0
+                                                         RequireUnique 
+                                                           -> if length (filter isDone keep) > 1 
+                                                                then Amb -- definitely ambigious
+                                                                else Continue keep -- we cannot cut short for unique as they always have score 0
                                                          _ -> if all (\y -> implicitArgCost y == Exact i) keep
                                                                 then Amb            -- multiple exact with the same score (and no more least)
                                                                 else Continue keep  -- keep evaluating
