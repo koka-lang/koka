@@ -1,0 +1,9 @@
+0, 1
+0
+ 
+overload/implicit2/basic/an-implicit: int
+overload/implicit2/impl-higher-order: (?param : (b : int) -> console int) -> console int
+overload/implicit2/intparam: (b : int) -> console int
+overload/implicit2/main: () -> console int
+overload/implicit2/param: (a : ? int, b : ? int, ?an-implicit : int) -> console int
+overload/implicit2/test1: () -> console int

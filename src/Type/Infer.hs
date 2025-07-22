@@ -19,7 +19,7 @@ import Lib.Trace hiding (traceDoc)
 import Data.List(partition,sortBy,sortOn)
 import qualified Data.List(find)
 import Data.Ord(comparing)
-import Data.Maybe(catMaybes)
+import Data.Maybe(catMaybes,isJust)
 import Control.Monad(when)
 import Lib.PPrint
 import Core.Pretty
@@ -2216,25 +2216,37 @@ etaExpandVarArg tp argexpr
   = case (argexpr,splitFunType tp) of -- not for polymorphic types (e.g. `type/hr1.kk`)
       (Var name _ vrng, Just (parTps,_,resTp)) | not (hasOptionalOrImplicits parTps)
         -> do -- variable argument with an expected function type without optional parameters
-              matches <- lookupNameCtx isInfoValFunExt name (CtxFunArgs True {-not partial-} (length parTps) [] (Just resTp)) vrng
-              case matches of
-                [(qname,info)]
-                  -> do let vtp = infoType info
-                        -- traceDoc $ \penv -> text "inferArgExpr: try eta-expanded:" <+> ppParam penv (qname,vtp)
-                        case splitFunScheme vtp of
-                          Just (_,vparTps,_,_)  | hasOptionalOrImplicits vparTps
-                                                     && all isMonoType (map snd parTps) -- cannot abstract over polymorphic parameters
-                            -> -- the variable has a type with optional parameters, eta-expand it to match the expected type without optional parameters
-                               do let range        = getRange argexpr
-                                      nameFixed    = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] parTps]
-                                      argsFixed    = [(if nameIsNil origName then Nothing else Just (origName, range),Var name False range) | (origName, name) <- zip (map fst parTps) nameFixed]
-                                      body         = App argexpr argsFixed range
-                                      eta          = Lam [ValueBinder name Nothing Nothing range range | name <- nameFixed] body False range
-                                  -- addRangeInfo vrng (RM.Implicits (\shorten -> text "fn(_,_) var")) -- todo: show the eta-expansion as inlay in vscode?
-                                  return eta
-                          _ -> return argexpr
-                _ -> return argexpr
+              etaExpandExpr name vrng parTps resTp (\extraArgs rng -> App argexpr extraArgs rng) argexpr              
+      (App v@(Var name _ vrng) args arng, Just (parTps,_,resTp)) 
+        | not (hasOptionalOrImplicits parTps) && all isImplicitNamedArg args 
+        -> do -- traceDefDoc $ \penv -> text "etaExpand app:" <+> ppType penv tp <+> text "~" <+> ppSyntaxExpr penv argexpr 
+              etaExpandExpr name vrng parTps resTp (\extraArgs rng -> App v (extraArgs ++ args) rng) argexpr 
       _ -> return argexpr
+
+  where
+    isImplicitNamedArg (Just (name,_),_)  = isImplicitParamName name
+    isImplicitNamedArg _                  = False
+
+etaExpandExpr :: Name -> Range -> [(Name,Type)] -> Type -> ([(Maybe (Name,Range),Expr Type)] -> Range -> Expr Type) -> Expr Type -> Inf (Expr Type)
+etaExpandExpr name nameRange parTps resTp makeApp argexpr
+ = do matches <- lookupNameCtx isInfoValFunExt name (CtxFunArgs True {-not partial-} (length parTps) [] (Just resTp)) nameRange
+      case matches of
+        [(qname,info)]
+          -> do let vtp = infoType info
+                -- traceDoc $ \penv -> text "inferArgExpr: try eta-expanded:" <+> ppParam penv (qname,vtp)
+                case splitFunScheme vtp of
+                  Just (_,vparTps,_,_)  | hasOptionalOrImplicits vparTps
+                                              && all isMonoType (map snd parTps) -- cannot abstract over polymorphic parameters
+                    -> -- the variable has a type with optional parameters, eta-expand it to match the expected type without optional parameters
+                       do let range        = getRange argexpr
+                              nameFixed    = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] parTps]
+                              argsFixed    = [(if nameIsNil origName then Nothing else Just (origName, range),Var name False range) | (origName, name) <- zip (map fst parTps) nameFixed]
+                              body         = makeApp argsFixed range -- App argexpr argsFixed range
+                              eta          = Lam [ValueBinder name Nothing Nothing range range | name <- nameFixed] body False range
+                          -- addRangeInfo vrng (RM.Implicits (\shorten -> text "fn(_,_) var")) -- todo: show the eta-expansion as inlay in vscode?
+                          return eta
+                  _ -> return argexpr
+        _ -> return argexpr
 
 -- | Is an expression annotated?
 isAnnot (Parens expr _ _ rng) = isAnnot expr

@@ -877,7 +877,7 @@ resolveImplicitName name tp contextRange range
                                   [(isInfoValFunExt, name, implicitTypeContext tp, range)]
        penv <- getPrettyEnv
        case res of
-         Right iarg   -> do -- traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv "?" name iarg
+         Right iarg   -> do traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv "?" name iarg False
                             return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
          Left docs    -> do (term,termInfo) <- getTermDoc "context" contextRange
                             infError range
