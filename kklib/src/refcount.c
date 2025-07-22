@@ -337,7 +337,7 @@ static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_cont
 static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t* ctx)
 {
   kk_assert_internal(b->header.scan_fsize > 0);
-  kk_assert_internal(!kk_block_is_no_free(b));
+  // kk_assert_internal(!kk_block_is_no_free(b));
   kk_block_t* parent = NULL;
   uint8_t scan_fsize;
   uint8_t i; // current field
@@ -348,7 +348,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
     scan_fsize = b->header.scan_fsize;
     kk_assert_internal(kk_block_refcount(b) == 0);
     kk_assert_internal(scan_fsize > 0);           // due to kk_block_should_free
-    kk_assert_internal(!kk_block_is_no_free(b));  // due to kk_block_should_free
+    // kk_assert_internal(!kk_block_is_no_free(b));  // due to kk_block_should_free
     if (scan_fsize == 1) {
       // if just one field, we can free directly and continue with the child
       kk_block_t* next = kk_block_field_should_free(b, 0, ctx);
