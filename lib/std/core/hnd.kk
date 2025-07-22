@@ -463,7 +463,7 @@ fun prompt-local-var<a,b,s,e>(loc:local-var<s,a>, res : b  ) : <div,local<s>|e> 
   val v = loc
   yield-cont(fn(cont,x){ loc := v; prompt-local-var(std/core/types/@byref(loc),cont(x)) } )  // restore state early before the resume
 
-pub inline fun local-var(init:a, action: (@local-var:local-var<s,a>) -> <local<s>|e> b ) : <local<s>|e> b
+pub inline fun local-var(init:a, action: (local-var<s,a>) -> <local<s>|e> b ) : <local<s>|e> b
   pretend-no-div
     val loc : local-var<_,_> = local-new(init)
     val res = cast-ev1(action)(std/core/types/@byref(loc))
@@ -593,7 +593,7 @@ noinline fun under1x( ev : ev<h>, op : a -> e b, x : a ) : e b
   evv-set(w0)
   y
 
-pub fun clause-control-raw1( op : (x:a, r: resume-context<b,e,e0,r>) -> e r ) : clause1<a,b,h,e,r>
+pub fun clause-control-raw1( op : (a, resume-context<b,e,e0,r>) -> e r ) : clause1<a,b,h,e,r>
   Clause1(fn(m,_ev,x){ yield-to(m, fn(k){ op(x,Resume-context(k)) } ) } )
 
 fun get( ref: ref<h,a>) : <read<h>,div> a
@@ -620,7 +620,7 @@ fun protect-prompt( resumed : ref<global,bool>,  k : resume-result<b,r> -> e r, 
     if yielding() return yield-extend( fn(_x) unsafe-reyield(yld) ) // yikes, a finally clause is itself yielding...
     unsafe-reyield(yld)
 
-fun protect( x : a, clause : (x:a, k: b -> e r) -> e r, k : resume-result<b,r> -> e r ) : e r
+fun protect( x : a, clause : (a, b -> e r) -> e r, k : resume-result<b,r> -> e r ) : e r
   val resumed = (unsafe-st{ref(False)})()
   fun kprotect(ret)
     (unsafe-st{resumed := True})()
@@ -634,7 +634,7 @@ pub fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,e,r>
 */
 
 // generic control clause
-pub fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,h,e,r>
+pub fun clause-control1( clause : (a, b -> e r) -> e r ) : clause1<a,b,h,e,r>
   Clause1(fn(m,_ev,x){ yield-to(m, fn(k) protect(x,clause,k) ) })
 
 // tail-resumptive clause: resumes exactly once at the end
@@ -713,7 +713,7 @@ fun under2( ev : ev<h>, op : (a1,a2) -> e b, x1 : a1, x2 : a2 ) : e b
   if yielding() return yield-cont( fn(cont,res) under1(ev,cont,res) )
   z
 
-fun protect2( x1 : a1, x2:a2, clause : (x:a1,x:a2, k: b -> e r) -> e r, k : resume-result<b,r> -> e r ) : e r
+fun protect2( x1 : a1, x2:a2, clause : (a1, a2, b -> e r) -> e r, k : resume-result<b,r> -> e r ) : e r
   val resumed = (unsafe-st{ref(False)})()
   fun kprotect(ret)
     (unsafe-st{ resumed := True })()
@@ -721,11 +721,11 @@ fun protect2( x1 : a1, x2:a2, clause : (x:a1,x:a2, k: b -> e r) -> e r, k : resu
   val res = clause(x1,x2,kprotect)
   protect-prompt(resumed,k,res)
 
-pub fun clause-control2( clause : (x1:a1, x2:a2, k: b -> e r) -> e r ) : clause2<a1,a2,b,h,e,r>
+pub fun clause-control2( clause : (a1, a2, b -> e r) -> e r ) : clause2<a1,a2,b,h,e,r>
   Clause2(fn(m,_ev,x1,x2){ yield-to(m, fn(k){ protect2(x1,x2,clause,k) }) })
 
 
-pub fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,e0,r>) -> e r ) : clause2<a1,a2,b,h,e,r>
+pub fun clause-control-raw2( op : (a1, a2, resume-context<b,e,e0,r>) -> e r ) : clause2<a1,a2,b,h,e,r>
   Clause2(fn(m,_ev,x1,x2){ yield-to(m, fn(k){ op(x1,x2,Resume-context(k)) } ) })
 
 pub fun clause-tail2<e,r,h,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r>
@@ -754,10 +754,10 @@ fun xperform1( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x
     Ev(_tag,m,h,_w) -> match h.op
       Clause1(f) -> cast-clause1(f)(m,ev,x)
 
-pub fun clause-control-raw3( op : (x1:a1, x2:a2, x3:a3, r: resume-context<b,e,e0,r>) -> e r ) : clause1<(a1,a2,a3),b,h,e,r>
+pub fun clause-control-raw3( op : (a1, a2, a3, resume-context<b,e,e0,r>) -> e r ) : clause1<(a1,a2,a3),b,h,e,r>
   clause-control-raw1( fn((x1,x2,x3),r){ op(x1,x2,x3,r) } )
 
-pub fun clause-control3( op : (x1:a1, x2:a2, x3:a3, k: b -> e r) -> e r ) : clause1<(a1,a2,a3),b,h,e,r>
+pub fun clause-control3( op : (a1, a2, a3, b -> e r) -> e r ) : clause1<(a1,a2,a3),b,h,e,r>
   clause-control1( fn((x1,x2,x3),k){ op(x1,x2,x3,k) } )
 
 pub fun clause-tail3<e,r,h,a1,a2,a3,b>(op : (a1,a2,a3) -> e b) : clause1<(a1,a2,a3),b,h,e,r>
@@ -781,7 +781,7 @@ fun under3( ev : ev<h>, op : (a1,a2,a3) -> e b, x1 : a1, x2 : a2, x3 : a3 ) : e 
 
 
 
-pub fun clause-control4( op : (x1:a1, x2:a2, x3:a3, x4:a4, k: b -> e r) -> e r ) : clause1<(a1,a2,a3,a4),b,h,e,r>
+pub fun clause-control4( op : (a1, a2, a3, a4, b -> e r) -> e r ) : clause1<(a1,a2,a3,a4),b,h,e,r>
   clause-control1( fn((x1,x2,x3,x4),k){ op(x1,x2,x3,x4,k) } )
 
 pub fun clause-tail4<e,r,h,a1,a2,a3,a4,b>(op : (a1,a2,a3,a4) -> e b) : clause1<(a1,a2,a3,a4),b,h,e,r>

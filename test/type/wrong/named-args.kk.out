@@ -1,0 +1,5 @@
+test/type/wrong/named-args@kk(24,19): type error: types do not match
+ context : a@location/update(a@dx, a@dy)
+ term : 
+ inferred type: ($a, dx : int, dy : int) -> _e $a
+ expected type: ($a, x : int, y : int) -> $a

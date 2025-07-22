@@ -1044,7 +1044,7 @@ makeEffectDecl decl =
                    makeTpFun [
                     -- (newName "cfc", TpCon nameTpInt32 krng),
                     (newName "hnd", TpApp (TpCon hndName grng) (map tpVar (scopedTpVars ++ [hndEffTp,hndResTp])) grng),
-                    (newName "ret", makeTpFun [(newName "res",tpVar handleRetTp)] (tpVar hndEffTp) (tpVar hndResTp) grng),
+                    (newName "ret", makeTpFun [(nameNil,tpVar handleRetTp)] (tpVar hndEffTp) (tpVar hndResTp) grng),
                     (newName "action",
                         if (isScoped)
                           then quantify QForall tparsScoped actionTp

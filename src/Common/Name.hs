@@ -31,6 +31,7 @@ module Common.Name
           , newHiddenExternalName, isHiddenExternalName
           , newHiddenName, isHiddenName, hiddenNameStartsWith
           , makeHiddenName, makeFreshHiddenName, newHiddenNameEx
+          , nameIsFixedArg
           , toUniqueName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName, isCreatorName
@@ -467,6 +468,9 @@ nameNil
 nameIsNil :: Name -> Bool
 nameIsNil name
   = null (nameStem name) && null (nameModule name)
+
+nameIsFixedArg :: Name -> Bool
+nameIsFixedArg nm = nameIsNil nm || hiddenNameStartsWith nm "arg"
 
 qualify :: HasCallStack => Name -> Name -> Name
 qualify (Name m hm _ 0 _ 0) (Name _ 0 l hl n hn)     = Name m hm l hl n hn

@@ -268,7 +268,8 @@ unify (TApp t1 ts1) (TApp u1 us2)   -- | length ts1 != length us2
 
 -- functions
 unify f1@(TFun args1 eff1 res1) f2@(TFun args2 eff2 res2) | length args1 == length args2
-  = do unifies (res1:map snd args1) (res2:map snd args2)
+  = do subunify res1 res2
+       unifiesArgs args1 args2
        withError (effErr) (unify eff1 eff2)
   where
     -- specialize to sub-part of the type for effect unification errors
@@ -325,6 +326,48 @@ unify tp1 tp2
   = -- trace ("no match: " ++  show (pretty tp1, pretty tp2)) $
     unifyError NoMatch
 
+subunify :: HasCallStack => Type -> Type -> Unify ()
+subunify tp1 tp2
+  = do stp1 <- subst tp1
+       stp2 <- subst tp2
+       unify stp1 stp2
+
+unifiesArgs :: HasCallStack => [(Name,Type)] -> [(Name,Type)] -> Unify ()
+unifiesArgs [] [] = return ()
+-- Names both nil, unify types
+unifiesArgs ((nm1, tp1):rst1) ((nm2, tp2):rst2) | nameIsFixedArg nm1 && nameIsFixedArg nm2 = do
+  subunify tp1 tp2
+  unifiesArgs rst1 rst2
+-- Names match in order
+unifiesArgs ((nm1, tp1):rst1) ((nm2, tp2):rst2) | nm1 == nm2 
+  = do subunify tp1 tp2
+       unifiesArgs rst1 rst2 
+-- Named, matches named argument elsewhere in list, or match first unnamed argument
+unifiesArgs ((nm1, tp1):rst1) ls2@((nm2, tp2):rst2) | not (nameIsFixedArg nm1)
+  = case lookup nm1 ls2 of
+      Just tp2' -> do subunify tp1 tp2'
+                      unifiesArgs rst1 (filter (\(nm,_) -> nm /= nm1) ls2)
+      Nothing  -> 
+        -- trace ("unifiesArgs: " ++ show (nm1, tp1) ++ " not found in " ++ show ls2) $
+        if nameIsFixedArg nm2 then do
+          subunify tp1 tp2 
+          unifiesArgs rst1 rst2
+        else unifyError NoMatch
+-- Named, matches named argument elsewhere in list, or match first unnamed argument
+unifiesArgs ls1@((nm1, tp1):rst1) ((nm2, tp2):rst2) | not (nameIsFixedArg nm2)
+  = case lookup nm2 ls1 of
+      Just tp1' -> do subunify tp1' tp2
+                      unifiesArgs (filter (\(nm,_) -> nm /= nm2) ls1) rst2
+      Nothing  ->
+        if nameIsFixedArg nm1 then do
+          subunify tp1 tp2 
+          unifiesArgs rst1 rst2
+        else unifyError NoMatch
+unifiesArgs [] (_:ls2) = unifyError NoMatch 
+unifiesArgs (_:ls1) [] = unifyError NoMatch
+unifiesArgs _ _ = 
+  error "Type.Unify.unifiesArgs: should not happen"
+  
 
 -- | Unify a type variable with a type
 unifyTVar :: HasCallStack => TypeVar -> Type -> Unify ()
