@@ -480,11 +480,9 @@ data St       = St{ uniq :: !Int, sub :: !Sub }
 data UnifyError
   = NoMatch
   | NoMatchKind
-  | NoMatchPred
   | NoMatchSkolem Kind
   | NoMatchEffect Type Type
   | NoSubsume
-  | NoEntail
   | Infinite
   | NoArgMatch Int Int
   deriving Show

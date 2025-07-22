@@ -609,7 +609,6 @@ unifyError' env context range err tp1 tp2
     nomatch
       = case err of
           NoSubsume       -> [(text "is less general than",nice1)]
-          NoEntail        -> [(text "is not entailed by",nice1)]
           NoArgMatch _ _  -> []
           _               -> [(text ("expected " ++ nameType),nice1)]
 
@@ -623,7 +622,6 @@ unifyError' env context range err tp1 tp2
       = case err of
           NoMatch     -> (nameType ++ "s do not match",[])
           NoMatchKind -> ("kinds do not match",[])
-          NoMatchPred -> ("predicates do not match",[])
           NoMatchSkolem kind
                       -> ("abstract types do not match",if (not (null extra))
                                                          then []
@@ -631,7 +629,6 @@ unifyError' env context range err tp1 tp2
                                                                          then text "a local variable or reference escapes its scope?"
                                                                          else text "an higher-rank type escapes its scope?")])
           NoSubsume   -> ("type is not polymorphic enough",[(text "hint",text "give a higher-rank type annotation to a function parameter?")])
-          NoEntail    -> ("predicates cannot be resolved",[])
           Infinite    -> ("types do not match (due to an infinite type)",[(text "hint",text "give a type to the function definition?")])
           NoMatchEffect{}-> ("effects do not match",[])
           NoArgMatch n m -> if (m<0)
