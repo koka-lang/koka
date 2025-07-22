@@ -1150,8 +1150,11 @@ implements the full specification. The main things lacking at the moment are
 </p>
 <ul class="ul list-dash news-items loose">
 <li class="li ul-li list-dash-li news-items-li loose-li" style="margin-bottom:1ex">
-<p>2025-07-17: Koka v3.2.0 released. Now use the keyword <code class="code code1 language-koka lang-koka koka colorized">hole</code> do denote holes in a constructor context,
-while underscore is used to automatically eta-expand arguments (e.g. <code class="code code1 language-koka lang-koka koka colorized">[<span class="constant" style="color:purple">1</span>]<span style="color:blue">.</span>map(inc(_)))</code>). 
+<p>2025-07-22: Koka v3.2.2 released. Bug fix release.
+</p></li>
+<li class="li ul-li list-dash-li news-items-li loose-li" style="margin-bottom:1ex">
+<p>2025-07-17: Koka v3.2.0 released. Now uses the keyword <code class="code code1 language-koka lang-koka koka colorized">hole</code> to denote holes in a constructor context,
+while underscore is now used to automatically eta-expand arguments (e.g. <code class="code code1 language-koka lang-koka koka colorized">[<span class="constant" style="color:purple">1</span>]<span style="color:blue">.</span>map(inc(_)))</code>). 
 Implicit resolving requires unique solutions now, but takes scoping into account. No more qualified types
 but we use instead implicit <em class="em-low1">phantom</em> parameters that are resolved by the compiler. 
 See the&nbsp;<a href="https://github.com/koka-lang/koka/blob/dev/support/vscode/koka.language-koka/whatsnew.md" data-linkid="whatsnew" class="externalref">whatsnew</a> for more information.
