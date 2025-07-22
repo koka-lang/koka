@@ -1,0 +1,15 @@
+test/overload/wrong/overload1@kk(2, 3): type error: identifier show cannot be resolved
+ context : show(x)
+ inferred type: (_10) -> _
+ candidates : show/show
+ show/show
+ show/char/show
+ tuple/tuple5/show(_,?fst/show=@@@,?snd/show=@@@,?thd/show=@@@,?field4/show=@@@,?field5/show=@@@)
+ tuple/tuple4/show(_,?fst/show=@@@,?snd/show=@@@,?thd/show=@@@,?field4/show=@@@)
+ tuple/tuple3/show(_,?fst/show=@@@,?snd/show=@@@,?thd/show=@@@)
+ tuple/tuple2/show(_,?fst/show=@@@,?snd/show=@@@)
+ tuple/unit/show
+ either/show(_,?left/show=@@@,?right/show=@@@)
+ maybe2/show(_,?fst/show=@@@,?snd/show=@@@)
+ @@@
+ hint : qualify the name?
