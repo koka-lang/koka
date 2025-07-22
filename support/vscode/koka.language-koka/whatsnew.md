@@ -11,7 +11,7 @@ generating direct C code without needing a runtime system. To learn more:
 
 * Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
 
-### v3.2.1, 2025-07-17
+### v3.2.2, 2025-07-22
 
 - Fix common cause for exponential search in overload resolution
 

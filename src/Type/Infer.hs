@@ -2216,27 +2216,28 @@ etaExpandVarArg tp argexpr
   = case (argexpr,splitFunType tp) of -- not for polymorphic types (e.g. `type/hr1.kk`)
       (Var name _ vrng, Just (parTps,_,resTp)) | not (hasOptionalOrImplicits parTps)
         -> do -- variable argument with an expected function type without optional parameters
-              etaExpandExpr name vrng parTps resTp (\extraArgs rng -> App argexpr extraArgs rng) argexpr              
+              etaExpandExpr name vrng 0 parTps resTp (\extraArgs rng -> App argexpr extraArgs rng) argexpr              
       (App v@(Var name _ vrng) args arng, Just (parTps,_,resTp)) 
-        | not (hasOptionalOrImplicits parTps) && all isImplicitNamedArg args 
+        | not (hasOptionalOrImplicits parTps) && all isNamedArg args 
         -> do -- traceDefDoc $ \penv -> text "etaExpand app:" <+> ppType penv tp <+> text "~" <+> ppSyntaxExpr penv argexpr 
-              etaExpandExpr name vrng parTps resTp (\extraArgs rng -> App v (extraArgs ++ args) rng) argexpr 
+              etaExpandExpr name vrng (length args) parTps resTp (\extraArgs rng -> App v (extraArgs ++ args) rng) argexpr 
       _ -> return argexpr
 
   where
-    isImplicitNamedArg (Just (name,_),_)  = isImplicitParamName name
-    isImplicitNamedArg _                  = False
+    isNamedArg (Just (_name,_),_)  = True -- isImplicitParamName name
+    isNamedArg _                   = False
 
-etaExpandExpr :: Name -> Range -> [(Name,Type)] -> Type -> ([(Maybe (Name,Range),Expr Type)] -> Range -> Expr Type) -> Expr Type -> Inf (Expr Type)
-etaExpandExpr name nameRange parTps resTp makeApp argexpr
+etaExpandExpr :: Name -> Range -> Int -> [(Name,Type)] -> Type -> ([(Maybe (Name,Range),Expr Type)] -> Range -> Expr Type) -> Expr Type -> Inf (Expr Type)
+etaExpandExpr name nameRange argCount parTps resTp makeApp argexpr
  = do matches <- lookupNameCtx isInfoValFunExt name (CtxFunArgs True {-not partial-} (length parTps) [] (Just resTp)) nameRange
       case matches of
         [(qname,info)]
           -> do let vtp = infoType info
                 -- traceDoc $ \penv -> text "inferArgExpr: try eta-expanded:" <+> ppParam penv (qname,vtp)
                 case splitFunScheme vtp of
-                  Just (_,vparTps,_,_)  | hasOptionalOrImplicits vparTps
-                                              && all isMonoType (map snd parTps) -- cannot abstract over polymorphic parameters
+                  Just (_,vparTps,_,_)  | argCount < length vparTps
+                                            && hasOptionalOrImplicits vparTps
+                                            && all isMonoType (map snd parTps) -- cannot abstract over polymorphic parameters
                     -> -- the variable has a type with optional parameters, eta-expand it to match the expected type without optional parameters
                        do let range        = getRange argexpr
                               nameFixed    = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] parTps]
