@@ -2243,7 +2243,7 @@ etaExpandExpr name nameRange parTps resTp makeApp argexpr
                               argsFixed    = [(if nameIsNil origName then Nothing else Just (origName, range),Var name False range) | (origName, name) <- zip (map fst parTps) nameFixed]
                               body         = makeApp argsFixed range -- App argexpr argsFixed range
                               eta          = Lam [ValueBinder name Nothing Nothing range range | name <- nameFixed] body False range
-                          -- addRangeInfo vrng (RM.Implicits (\shorten -> text "fn(_,_) var")) -- todo: show the eta-expansion as inlay in vscode?
+                          -- addRangeInfo nameRange (RM.Implicits (\shorten -> text "fn(_,_) var")) -- todo: show the eta-expansion as inlay in vscode?
                           return eta
                   _ -> return argexpr
         _ -> return argexpr

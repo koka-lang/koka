@@ -1,4 +1,4 @@
-test/overload/wrong/overload1@kk(2, 3): type error: identifier show cannot be resolved
+test/overload/wrong/overload1@kk(3, 3): type error: identifier show cannot be resolved
  context : show(x)
  inferred type: (_10) -> _
  candidates : show/show

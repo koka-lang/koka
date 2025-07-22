@@ -13,7 +13,9 @@ generating direct C code without needing a runtime system. To learn more:
 
 ### v3.2.1, 2025-07-17
 
-- Todo
+- Fix common cause for exponential search in overload resolution
+
+- Improve auto eta-expansion of implicits
 
 ### v3.2.0, 2025-07-17
 
