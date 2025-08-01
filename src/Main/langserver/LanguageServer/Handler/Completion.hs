@@ -37,7 +37,7 @@ import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.VFS (VirtualFile (VirtualFile), virtualFileText)
 import Common.Name
     ( Name(..), ModuleName,
-      isHiddenName,
+      isHiddenName, isHandlerConName,
       nameIsNil,
       showPlain,
       nameNil,
@@ -48,7 +48,7 @@ import Debug.Trace(trace)
 import qualified Data.Text.Encoding as T
 import Data.Aeson (fromJSON, ToJSON (toJSON))
 import Lib.PPrint (Pretty (..), Doc)
-import Common.File (isLiteralDoc)
+import Common.File (isLiteralDoc, startsWith)
 import Common.NamePrim (nameSystemCore)
 import Common.Range
 import Kind.Newtypes (Newtypes, DataInfo (..), newtypesTypeDefs)
@@ -92,9 +92,10 @@ completionHandler
           liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
             liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
               liftMaybe (liftIO $ getCompletionInfo pos vfile rmap uri lexemes) $ \completionInfo ->
+                -- trace ("Completion info: " ++ show completionInfo) $
                 do defs <- lookupVisibleDefinitions [modname]
                    let completions = findCompletions defs modname completionInfo
-                       completionList = J.CompletionList False Nothing completions
+                       completionList = J.CompletionList True Nothing completions
                    responder $ Right $ J.InR $ J.InL $ completionList
 
 -- | Describes the information gained from lexing needed to suggest completions
@@ -120,10 +121,12 @@ isTypeCompletion _ = False
 
 getCompletionInfo :: MonadIO m => J.Position -> VirtualFile -> RangeMap -> J.NormalizedUri -> [Lexeme] -> m (Maybe CompletionInfo)
 getCompletionInfo pos vf rmap uri lexemes = do
+  -- trace ("Getting completion info for " ++ show pos ++ " in " ++ show uri) $ return ()
   let text = T.encodeUtf8 $ virtualFileText vf
   filePath <- fromMaybe "" <$> liftIO (fromLspUri uri)
   pos' <- liftIO $ fromLspPos uri pos
-  let !prior = previousLexemesReversed lexemes pos'
+  let posx = pos'{posColumn = posColumn pos' - 1} -- Don't start at where the completion should be inserted, start at the insertion point.
+  let !prior = previousLexemesReversed lexemes posx
       fncontext = getFunctionNameReverse prior
       tpcontext = dropAutoGenClosing prior -- TODO: Test this out, should it be opening?
       lines = T.lines (virtualFileText vf)
@@ -209,8 +212,14 @@ getCompletionInfo pos vf rmap uri lexemes = do
 -- TODO: Complete local variables
 -- TODO: Show documentation comments in completion docs
 
-filterInfix :: (Name,CompletionInfo) -> Bool
-filterInfix (n, cinfo) = (showPlain (searchTerm cinfo) `isInfixOf` showPlain n) && (nameIsNil n || not (isHiddenName n) || "@Hnd-" `isInfixOf` showPlain n)
+filterInfix :: (Name,CompletionInfo) -> Bool -- hide hidden names unless they are handlers
+filterInfix (n, cinfo) = searchAllHandlers n cinfo || (searchNameMatch n cinfo && (nameIsNil n || not (isHiddenName n) || isHandlerConName n))
+
+searchAllHandlers :: Name -> CompletionInfo -> Bool
+searchAllHandlers n cinfo = showPlain (searchTerm cinfo) `isInfixOf` "handler" && isHandlerConName n
+
+searchNameMatch :: Name -> CompletionInfo -> Bool
+searchNameMatch n cinfo = showPlain (searchTerm cinfo) `isInfixOf` showPlain n
 
 findCompletions ::  Definitions -> ModuleName -> CompletionInfo -> [J.CompletionItem]
 findCompletions defs curModName cinfo@CompletionInfo{completionKind = kind} = result
@@ -413,6 +422,7 @@ makeFunctionCompletionItem curModName funName typeDoc funType hasDotPrefix rng l
 
 makeHandlerCompletionItem :: Name -> ConInfo -> String -> J.Range -> T.Text -> J.CompletionItem
 makeHandlerCompletionItem curModName conInfo d r line =
+  -- trace ("Handler " ++ show snippet) $
   J.CompletionItem
     label
     labelDetails
@@ -448,7 +458,7 @@ makeHandlerCompletionItem curModName conInfo d r line =
     deprecated = Just False
     preselect = Nothing
     sortText = Just $ if nameModule curModName == nameModule typeName then "0" <> typeNameId else "1" <> typeNameId
-    filterText = Just typeNameId
+    filterText = Just ("handler " <> typeNameId)
     insertText = Nothing
     insertTextFormat = Just InsertTextFormat_Snippet
     insertTextMode = Nothing
@@ -457,17 +467,21 @@ makeHandlerCompletionItem curModName conInfo d r line =
       -- trace ("Handler clause: " ++ show name ++ " " ++ show tp ++ " args: " ++ show (handlerArgs newName tp)) $
       -- TODO: Consider adding snippet locations for the body of the handlers as well
       if T.isPrefixOf "val" newName then
-        (i + 1, acc ++ [clauseIndentation <> newName <> " = $" <> T.pack (show (i + 1))])
+        (i + 1, acc ++ [clauseIndentation <> newName <> " = $" <> T.pack (show i)])
       else
-        (if not (null funArgs) then fst (last funArgs) + 1 else 1,
-          acc ++ [clauseIndentation <> newName <> "(" <> T.intercalate "," (map snd funArgs) <> ")\n" <> clauseBodyIndentation <> "()"])
+        (if not (null (snd funArgs)) then fst funArgs else i,
+          acc ++ [clauseIndentation <> newName <> "(" <> T.intercalate "," (reverse (snd funArgs)) <> ")\n" <> clauseBodyIndentation <> "()"])
       where
-        funArgs = zipWith (\i s -> (i, T.pack $ "$" ++ show (i + 1))) [i..] (handlerArgs newName tp)
-        newNameList = T.splitOn "-" $ T.replace "brk" "final ctl" $ T.pack (show name)
+        funArgs = foldl (\(i, acc) s -> (i + 1, T.pack ("$" ++ show i):acc)) (i, []) (handlerArgs newName tp)
+        unhidden = nameMapStem name $ \stem ->
+                     if stem `startsWith` "@" then drop 1 stem
+                     else stem
+        newNameList = T.splitOn "-" $ T.replace "brk" "final ctl" $ T.pack (show unhidden)
         newName = case newNameList of
           [] -> T.pack ""
           x:tl -> x <> T.pack " " <> T.intercalate (T.pack "-") tl
-    textEdit = Just $ J.InL $ J.TextEdit r $ "handler\n" <> T.intercalate "\n" (snd (foldl handlerClause (1, []) (conInfoParams conInfo)))
+    snippet = "handler\n" <> T.intercalate "\n" (snd (foldl handlerClause (1, []) (tail $ conInfoParams conInfo)))
+    textEdit = Just $ J.InL $ J.TextEdit r snippet
     textEditText = Nothing
     additionalTextEdits = Nothing
     commitChars = Just [T.pack "\t"]

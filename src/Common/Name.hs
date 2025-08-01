@@ -34,7 +34,7 @@ module Common.Name
           , toUniqueName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName, isCreatorName
-          , toHandlerName, fromHandlerName, isHandlerName
+          , toHandlerName, fromHandlerName, isHandlerName, isHandlerConName
           , toOpSelectorName, fromOpSelectorName, isOpSelectorName
           , toOperationsName, fromOperationsName, isOperationsName
           , toEffectTagName
@@ -574,6 +574,10 @@ toVarName name
 toHandlerConName :: Name -> Name
 toHandlerConName name
   = makeHiddenName "Hnd" name
+
+isHandlerConName :: Name -> Bool
+isHandlerConName name
+  = hiddenNameStartsWith name "Hnd"
 
 nameStartsWith :: Name -> String -> Bool
 nameStartsWith name pre

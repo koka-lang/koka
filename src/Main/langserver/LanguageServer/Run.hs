@@ -93,7 +93,7 @@ runLanguageServer flags files = do
                 defaultOptions
                   { optTextDocumentSync = Just syncOptions,
                     optExecuteCommandCommands = Just [T.pack "koka/compile", T.pack "koka/compileFunction", T.pack "koka/signature-help/set-context", T.pack "koka/set-colors"],
-                    optCompletionTriggerCharacters = Just ['.', ':', '/', ' '],
+                    optCompletionTriggerCharacters = Just ['.', ':', '/', ' ', ']', '}'],
                     optSignatureHelpTriggerCharacters = Just ['(', ',', ' '],
                   -- TODO: ? https://www.stackage.org/haddock/lts-18.21/lsp-1.2.0.0/src/Language.LSP.Server.Core.html#Options
                     optProgressStartDelay = 100000, -- Microseconds (100ms) don't send progress if the task finishes quickly

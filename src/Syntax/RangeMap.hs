@@ -297,6 +297,8 @@ getFunctionNameReverse xs =
               res -> res
           -- x.partial, x().partial etc
           fn@(Lexeme _ (LexId _)):(Lexeme _ (LexKeyword "." _)):xs -> chain fn $ go xs
+          -- with x...
+          fn@(Lexeme _ (LexId _)):xs -> FnValue fn -- whitespace is removed, if there is any id, just give our best guess that we are just starting with that id
           _ -> FnNotFound xs
   in go xs'
 
