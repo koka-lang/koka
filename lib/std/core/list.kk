@@ -116,6 +116,24 @@ pub fun cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> e order ) : e order
              Nil  -> Eq
              Cons -> Lt
 
+// Order2 on lists
+pub fun order2(xs : list<a>, ys: list<a>, ^?order2: (a, a) -> e order2<a>): e order2<list<a>>
+  match xs 
+    Nil -> match ys 
+      Nil -> Eq2(Nil)
+      ys' -> Lt2(Nil, ys')
+    Cons(x,xx) ->
+      match ys
+        Nil -> Gt2(Nil, Cons(x,xx))
+        Cons(y,yy) -> 
+          match order2(x,y)
+            Eq2(z) -> 
+              match order2(xx,yy)
+                Eq2(zz) -> Eq2(Cons(z,zz))
+                Lt2(xx', yy') -> Lt2(Cons(z,xx'), Cons(z,yy'))
+                Gt2(yy', xx') -> Gt2(Cons(z,yy'), Cons(z,xx'))
+            Lt2(x',y') -> Lt2(Cons(x',xx), Cons(y',yy))
+            Gt2(y',x') -> Gt2(Cons(y',yy), Cons(x',xx))
 
 // Show a list
 pub fun show( xs : list<a>, ?show : a -> e string ) : e string

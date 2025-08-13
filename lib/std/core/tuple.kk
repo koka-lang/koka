@@ -100,6 +100,71 @@ pub fbip fun tuple5/cmp( (x1,y1,z1,w1,v1) : (a,b,c,d,f), (x2,y2,z2,w2,v2) : (a,b
 pub inline fip fun unit/order2( a: (), b: () ) : order2<()>
   Eq2(a)
 
+// order2 of tuple2 values
+pub fun tuple2/order2( (x1, x2): (a, b), (y1, y2): (a, b), 
+                      ^?a/order2: (a, a) -> e order2<a>, ^?b/order2: (b, b) -> e order2<b> ): e order2<(a,b)>
+  match order2(x1, y1)
+    Eq2(z1) -> match order2(x2, y2)
+      Eq2(z2) -> Eq2((z1, z2)) 
+      Lt2(x2', y2') -> Lt2((z1, x2'), (z1, y2'))
+      Gt2(y2', x2') -> Gt2((z1, y2'), (z1, x2'))
+    Lt2(x1', y1') -> Lt2((x1', x2), (y1', y2))
+    Gt2(y1', x1') -> Gt2((y1', y2), (x1', x2))
+
+// order2 of tuple3 values
+pub fun tuple3/order2( (x1, x2, x3): (a, b, c), (y1, y2, y3): (a, b, c), 
+                      ^?a/order2: (a, a) -> e order2<a>, ^?b/order2: (b, b) -> e order2<b>, 
+                      ^?c/order2: (c, c) -> e order2<c> ): e order2<(a,b,c)>
+  match order2(x1, y1)
+    Eq2(z1) -> match order2(x2, y2)
+      Eq2(z2) -> match order2(x3, y3)
+        Eq2(z3) -> Eq2((z1, z2, z3))
+        Lt2(x3', y3') -> Lt2((z1, z2, x3'), (z1, z2, y3'))
+        Gt2(y3', x3') -> Gt2((z1, z2, y3'), (z1, z2, x3'))
+      Lt2(x2', y2') -> Lt2((z1, x2', x3), (z1, y2', y3))
+      Gt2(y2', x2') -> Gt2((z1, y2', y3), (z1, x2', x3))
+    Lt2(x1', y1') -> Lt2((x1', x2, x3), (y1', y2, y3))
+    Gt2(y1', x1') -> Gt2((y1', y2, y3), (x1', x2, x3))
+
+// order2 of tuple4 values
+pub fun tuple4/order2( (x1, x2, x3, x4): (a, b, c, d), (y1, y2, y3, y4): (a, b, c, d), 
+                      ^?a/order2: (a, a) -> e order2<a>, ^?b/order2: (b, b) -> e order2<b>, 
+                      ^?c/order2: (c, c) -> e order2<c>, ^?field4/order2: (d, d) -> e order2<d> ): e order2<(a,b,c,d)>
+  match order2(x1, y1)
+    Eq2(z1) -> match order2(x2, y2)
+      Eq2(z2) -> match order2(x3, y3)
+        Eq2(z3) -> match order2(x4, y4)
+          Eq2(z4) -> Eq2((z1, z2, z3, z4))
+          Lt2(x4', y4') -> Lt2((z1, z2, z3, x4'), (z1, z2, z3, y4'))
+          Gt2(y4', x4') -> Gt2((z1, z2, z3, y4'), (z1, z2, z3, x4'))
+        Lt2(x3', y3') -> Lt2((z1, z2, x3', x4), (z1, z2, y3', y4))
+        Gt2(y3', x3') -> Gt2((z1, z2, y3', y4), (z1, z2, x3', x4))
+      Lt2(x2', y2') -> Lt2((z1, x2', x3, x4), (z1, y2', y3, y4))
+      Gt2(y2', x2') -> Gt2((z1, y2', y3, y4), (z1, x2', x3, x4))
+    Lt2(x1', y1') -> Lt2((x1', x2, x3, x4), (y1', y2, y3, y4))
+    Gt2(y1', x1') -> Gt2((y1', y2, y3, y4), (x1', x2, x3, x4))
+
+// order2 of tuple5 values
+pub fun tuple5/order2( (x1, x2, x3, x4, x5): (a, b, c, d, f), (y1, y2, y3, y4, y5): (a, b, c, d, f), 
+                      ^?a/order2: (a, a) -> e order2<a>, ^?b/order2: (b, b) -> e order2<b>, ^?c/order2: (c, c) -> e order2<c>, 
+                      ^?field4/order2: (d, d) -> e order2<d>, ^?field5/order2: (f, f) -> e order2<f> ): e order2<(a,b,c,d,f)>
+  match order2(x1, y1)
+    Eq2(z1) -> match order2(x2, y2)
+      Eq2(z2) -> match order2(x3, y3)
+        Eq2(z3) -> match order2(x4, y4)
+          Eq2(z4) -> match order2(x5, y5)
+            Eq2(z5) -> Eq2((z1, z2, z3, z4, z5))
+            Lt2(x5', y5') -> Lt2((z1, z2, z3, z4, x5'), (z1, z2, z3, z4, y5'))
+            Gt2(y5', x5') -> Gt2((z1, z2, z3, z4, y5'), (z1, z2, z3, z4, x5'))
+          Lt2(x4', y4') -> Lt2((z1, z2, z3, x4', x5), (z1, z2, z3, y4', y5))
+          Gt2(y4', x4') -> Gt2((z1, z2, z3, y4', y5), (z1, z2, z3, x4', x5))
+        Lt2(x3', y3') -> Lt2((z1, z2, x3', x4, x5), (z1, z2, y3', y4, y5))
+        Gt2(y3', x3') -> Gt2((z1, z2, y3', y4, y5), (z1, z2, x3', x4, x5))
+      Lt2(x2', y2') -> Lt2((z1, x2', x3, x4, x5), (z1, y2', y3, y4, y5))
+      Gt2(y2', x2') -> Gt2((z1, y2', y3, y4, y5), (z1, x2', x3, x4, x5))
+    Lt2(x1', y1') -> Lt2((x1', x2, x3, x4, x5), (y1', y2, y3, y4, y5))
+    Gt2(y1', x1') -> Gt2((y1', y2, y3, y4, y5), (x1', x2, x3, x4, x5))
+
 // Convert a unit value `()` to a string
 pub inline fun unit/show( u : () ) : string
   "()"
