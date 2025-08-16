@@ -581,8 +581,8 @@ occursInContext tv extraFree
   Unification errors
 --------------------------------------------------------------------------}
 unifyError :: Context -> Range -> UnifyError -> Type -> Type -> Inf a
-unifyError context range (NoMatchEffect eff1 eff2) _ _
-  = unifyError context range NoMatch eff2 eff1
+unifyError context range (NoMatchEffect eff1 eff2 effectMismatch) _ _
+  = unifyError context range (NoMatch (Just effectMismatch)) eff2 eff1
 unifyError context range err xtp1 xtp2
   = do free <- freeInGamma
        tp1 <- subst xtp1 >>= normalizeX False free
@@ -599,6 +599,7 @@ unifyError' env context range err tp1 tp2
                ,(text ("inferred " ++ nameType), nice2)
                ]
                ++ nomatch
+               ++ effectDiffs
                ++ extra
                ++ hint
               )
@@ -627,10 +628,36 @@ unifyError' env context range err tp1 tp2
          then "effect"
          else "type"
 
+    effectDiffs
+      = case err of
+          NoMatch (Just diff) -> effectDiffs' diff
+          NoMatchEffect _ _ diff -> effectDiffs' diff
+          _ -> []
+
+    effectDiffs' diff = unexpectedMessages ++ missingMessages
+      where
+        niceUnexpected = map (Pretty.niceType env) (unexpectedEffectLabels diff)
+        niceMissing = map (Pretty.niceType env) (missingEffectLabels diff)
+        unexpectedMessages = if null niceUnexpected
+          then []
+          else [(text "unexpected", hsep (punctuate comma niceUnexpected))]
+
+        missingMessages = if null niceMissing
+          then []
+          else [(text "missing",
+            vsep [
+              hsep (punctuate comma niceMissing),
+              hsep [
+                text "Consider using",
+                Pretty.keyword env "mask",
+                text "or adding it to the function's effect type"
+              ]
+            ]
+          )]
 
     (message,hint)
       = case err of
-          NoMatch     -> (nameType ++ "s do not match",[])
+          NoMatch _ -> (nameType ++ "s do not match",[])
           NoMatchKind -> ("kinds do not match",[])
           NoMatchSkolem kind
                       -> ("abstract types do not match",if (not (null extra))
@@ -640,7 +667,7 @@ unifyError' env context range err tp1 tp2
                                                                          else text "an higher-rank type escapes its scope?")])
           NoSubsume   -> ("type is not polymorphic enough",[(text "hint",text "give a higher-rank type annotation to a function parameter?")])
           Infinite    -> ("types do not match (due to an infinite type)",[(text "hint",text "give a type to the function definition?")])
-          NoMatchEffect{}-> ("effects do not match",[])
+          NoMatchEffect _ _ _ -> ("effects do not match",[])
           NoArgMatch n m -> if (m<0)
                              then ("only functions can be applied",[])
                              else ("application has too " ++ (if (n > m) then "few" else "many") ++ " arguments"

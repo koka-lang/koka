@@ -3,4 +3,5 @@ test/type/wrong/scheduler1@kk(18, 7): type error: effects do not match
  term : q
  inferred effect: <alloc<global>|_e>
  expected effect: total
+ unexpected : alloc<global>
  because : Polymorphic values cannot have an effect

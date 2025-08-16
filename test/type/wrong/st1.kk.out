@@ -3,4 +3,5 @@ test/type/wrong/st1@kk(1, 9): type error: effects do not match
  term : ref
  inferred effect: <alloc<_h>|_e>
  expected effect: total
+ unexpected : alloc<_h>
  because : Generalized values cannot have an effect

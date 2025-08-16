@@ -18,6 +18,8 @@ module Type.Unify ( Unify, UnifyError(..), runUnify, runUnifyEx
                   , matchArguments
                   , matchShape, pureMatchShape
                   , extractNormalizeEffect
+                  , unexpectedEffectLabels
+                  , missingEffectLabels
                   ) where
 
 import Control.Applicative
@@ -75,7 +77,7 @@ overlaps range free tp1 tp2
                  fo1 = take hi (map snd fixed1 ++ map (unOptional . snd) optional1 ++ map snd implicit1)
                  fo2 = take hi (map snd fixed2 ++ map (unOptional . snd) optional2 ++ map snd implicit2)
              in if (length fo1 /= length fo2)
-                 then unifyError NoMatch  -- one has more fixed arguments than the other can ever get
+                 then unifyError noMatchTypes  -- one has more fixed arguments than the other can ever get
                  else do unifies fo1 fo2
                          return ()
 
@@ -87,10 +89,10 @@ matchNamed matchSome range free tp n {- given args -} named mbExpResTp
   = do rho1 <- instantiate range tp
        case splitFunType rho1 of
          Nothing
-          -> unifyError NoMatch
+          -> unifyError noMatchTypes
          Just (pars,_,resTp)
           -> if (n + length named > length pars)
-              then unifyError NoMatch
+              then unifyError noMatchTypes
               else let npars = drop n pars
                        names = map fst npars
                    in if (all (\name -> name `elem` names) named)
@@ -102,8 +104,8 @@ matchNamed matchSome range free tp n {- given args -} named mbExpResTp
                                let rest = [(nm,tp) | (nm,tp) <- npars, not (nm `elem` named)]
                                if (matchSome || all isOptionalOrImplicit rest)
                                 then subst rho1
-                                else unifyError NoMatch
-                       else unifyError NoMatch
+                                else unifyError noMatchTypes
+                       else unifyError noMatchTypes
 
 
 -- | Does a function type match the given arguments? if the first argument 'matchSome' is true,
@@ -124,7 +126,7 @@ matchArguments matchSome range free tp fixed named mbExpResTp
 
          Just (pars,_,resTp)
           -> if (length fixed + length named > length pars)
-              then unifyError NoMatch
+              then unifyError noMatchTypes
               else do -- trace (" matchArguments: " ++ show (map pretty pars, map pretty fixed, map pretty named)) $ return ()
                       -- subsume fixed parameters
                       let parsNotNamedArg = filter (\(nm,tp) -> nm `notElem` map fst named) pars
@@ -132,7 +134,7 @@ matchArguments matchSome range free tp fixed named mbExpResTp
                       mapM_  (\(tpar,targ) -> subsumeSubst range free (unOptional tpar) targ) (zip (map snd fpars) fixed)
                       -- subsume named parameters
                       mapM_ (\(name,targ) -> case lookup name pars of
-                                               Nothing   -> unifyError NoMatch
+                                               Nothing   -> unifyError noMatchTypes
                                                Just tpar -> subsumeSubst range free (unOptional tpar) targ
                             ) named
                       -- check if the result type matches
@@ -143,7 +145,7 @@ matchArguments matchSome range free tp fixed named mbExpResTp
                       -- check the rest is optional or implicit
                       if (matchSome || all isOptionalOrImplicit rest)
                         then do subst rho1
-                        else unifyError NoMatch
+                        else unifyError noMatchTypes
 
 subsumeSubst :: Range -> Tvs -> Type -> Type -> Unify (Type,Rho, Core.Expr -> Core.Expr)
 subsumeSubst range free tp1 tp2
@@ -160,9 +162,9 @@ matchShape tp1 tp2
        codom <- nub <$>
                 mapM (\(_,t) -> case t of
                                   TVar tv -> return tv
-                                  _       -> unifyError NoMatch) (subList sub)
+                                  _       -> unifyError noMatchTypes) (subList sub)
        let oneToOne = (length dom == length codom)
-       if oneToOne then return () else unifyError NoMatch
+       if oneToOne then return () else unifyError noMatchTypes
 
 pureMatchShape :: Type -> Type -> Bool
 pureMatchShape tp1 tp2
@@ -274,8 +276,9 @@ unify f1@(TFun args1 eff1 res1) f2@(TFun args2 eff2 res2) | length args1 == leng
        withError (effErr seff1 seff2) (unify seff1 seff2)
   where
     -- specialize to sub-part of the type for effect unification errors
-    effErr eff1 eff2 NoMatch              = NoMatchEffect eff1 eff2
-    effErr eff1 eff2 (NoMatchEffect _ _)  = NoMatchEffect eff1 eff2
+    effErr eff1 eff2 (NoMatch diff) = NoMatchEffect eff1 eff2 (maybeEffectMismatch diff)
+
+    effErr eff1 eff2 (NoMatchEffect _ _ diff)  = NoMatchEffect eff1 eff2 diff
     effErr eff1 eff2 err                  = err
 
 -- quantified types
@@ -323,9 +326,19 @@ unify tp1 (TSyn _ _ tp2)
 unify (TVar (TypeVar _ kind Skolem)) (TVar (TypeVar _ _ Skolem))
   = unifyError (NoMatchSkolem kind)
 
+-- expected a skolem, got some other effect type
+unify (TVar (TypeVar _ kind Skolem)) tp2 | isKindEffect kind
+  = -- trace ("no match (left is skolem): " ++ show (pretty tp2)) $
+    unifyError $ NoMatch (Just $ effectMismatchMissing tp2)
+
+-- expected `total`, got tp2
+unify tp1 tp2 | isEffectEmpty tp1
+  = -- trace ("no match (left is total): " ++  show (pretty tp2)) $
+    unifyError $ NoMatch (Just $ effectMismatchUnexpected tp2)
+
 unify tp1 tp2
   = -- trace ("no match: " ++  show (pretty tp1, pretty tp2)) $
-    unifyError NoMatch
+    unifyError noMatchTypes
 
 
 -- | Unify a type variable with a type
@@ -339,7 +352,7 @@ unifyTVar tv@(TypeVar id kind Meta) tp
              _        -> unifyError Infinite
      else case etp of
             TVar (TypeVar _ _ Bound)
-              -> unifyError NoMatch -- can't unify with bound variables
+              -> unifyError noMatchTypes -- can't unify with bound variables
             TVar tv2@(TypeVar id2 _ Meta) | id <= id2
               -> if (id < id2)
                   then unifyTVar tv2 (TVar tv)
@@ -479,11 +492,34 @@ data Res a    = Ok !a !St
               | Err UnifyError !St
 data St       = St{ uniq :: !Int, sub :: !Sub }
 
+data EffectMismatch = EffectMismatch
+  { unexpectedEffectLabels :: [Type]
+  , missingEffectLabels :: [Type]
+  } deriving Show
+
+maybeEffectMismatch (Just diff) = diff
+maybeEffectMismatch Nothing = EffectMismatch [] []
+
+concreteEffectLabels typ = head ++ tailList
+  where
+    (head, tail) = extractOrderedEffect typ
+    tailList =
+      if isEffectEmpty tail || isMeta tail then [] else [tail]
+
+    isMeta (TVar (TypeVar _ kind Meta)) = True
+    isMeta _ = False
+
+effectMismatchUnexpected unexpected = EffectMismatch (concreteEffectLabels unexpected) []
+
+effectMismatchMissing missing = EffectMismatch [] (concreteEffectLabels missing)
+
+noMatchTypes = NoMatch Nothing
+
 data UnifyError
-  = NoMatch
+  = NoMatch (Maybe EffectMismatch)
   | NoMatchKind
   | NoMatchSkolem Kind
-  | NoMatchEffect Type Type
+  | NoMatchEffect Type Type EffectMismatch
   | NoSubsume
   | Infinite
   | NoArgMatch Int Int

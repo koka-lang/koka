@@ -3,3 +3,5 @@ test/type/wrong/scheduler5@kk(40, 9): type error: effects do not match
  term : f
  inferred effect: <pure,process,st<global>|$e>
  expected effect: <pure,alloc<global>,process,read<global>,write<global>,exn>
+ missing : exn
+          Consider using mask or adding it to the function's effect type
