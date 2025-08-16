@@ -188,13 +188,6 @@ pub value struct uv-file { internal : intptr_t };
 // A uv directory type
 pub value struct uv-dir { internal : intptr_t };
 
-pub extern uv-fs-req(): io-noexn uv-fs-req
-  c inline "kk_uv_fs_init(kk_context())"
-
-// Cleanup request. Must be called after a request is finished to deallocate any memory libuv might have allocated.
-pub extern req_cleanup(req: uv-fs-req): io-noexn ()
-  c "kk_uv_fs_req_cleanup" // ?? Is there a better way?
-
 // Equivalent to close(2)
 pub extern uv/close(file: uv-file, cb: (error<()>) -> io-noexn ()): io-noexn ()
   c "kk_uv_fs_close"

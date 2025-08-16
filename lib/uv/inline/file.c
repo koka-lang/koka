@@ -33,16 +33,6 @@ void kk_free_fs(void* p, kk_block_t* block, kk_context_t* _ctx) {
   kk_function_t cb = kk_function_from_ptr(req->data, _ctx); \
   ssize_t res = req->result;
 
-static kk_uv_file__uv_fs_req kk_uv_fs_init(kk_context_t* _ctx) {
-  uv_fs_t* fs_req = kk_malloc(sizeof(uv_fs_t), _ctx);
-  return kk_uv_to_fs(fs_req);
-}
-
-static kk_unit_t kk_uv_fs_req_cleanup(kk_uv_file__uv_fs_req req, kk_context_t* _ctx) {
-  uv_fs_req_cleanup(kk_fs_to_uv(req));
-  return kk_Unit;
-}
-
 static void kk_std_os_fs_unit_cb(uv_fs_t* req) {
   kk_callback_result(req, callback, result)
   uv_fs_req_cleanup(req);
