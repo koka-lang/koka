@@ -16,7 +16,7 @@ import std/os/path
 
 pub fun read-as-string(path: path)
   val length = stat(path).size
-  val fd = open(path, o_RDONLY, 0.int32)
+  with fd <- open(path, o_RDONLY, 0.int32)
   val res = await fn(cb)
     read(fd, length.int.int32, 0.int32) fn(bytes1)
       match bytes1
@@ -52,15 +52,21 @@ pub fun stream/read-bytes(stream: channel<error<bytes>>, acc : list<bytes>): <di
 //     Error(Exception("EOF")) -> // Low level concat after allocating right buffer size
 //     Error(e) -> throw-exn(e)
 
-pub fun open(path: path, flags: int32, mode: int32): asyncx uv-file
+fun open-raw(path: path, flags: int32, mode: int32)
   await fn(cb)
     open(path.string, flags, mode) fn(fd)
       cb(fd)
     Nothing
 
+pub fun open(path: path, flags: int32, mode: int32, f: uv-file -> <async,io|e> a): <async,io|e> a
+  val file = open-raw(path, flags, mode)
+  val res = f(file)
+  file.close(fn(_) ())
+  res
+
 pub fun stream(path: path, chunkSize: int32 = 0x1024.int32)
   val ch = channel()
-  val file = open(path, o_RDONLY, 0.int32)
+  val file = open-raw(path, o_RDONLY, 0.int32)
   await-to-channel(
     (fn(cb)
       read-file_(file, chunkSize, 0.int32, cb)        
@@ -106,7 +112,7 @@ pub fun write-to-file(fd: uv-file, s: string): asyncx ()
 pub fun write-to-file-sync(fd: uv-file, s: string): io-noexn error<()>
   write-to-file(fd, s.bytes.slice, 0.int64)
 
-pub fun close(fd: uv-file): asyncx ()
+fun close(fd: uv-file): asyncx ()
   await fn(cb)
     fd.close(fn(_) cb(Ok(())))
     Nothing

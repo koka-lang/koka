@@ -20,7 +20,8 @@ fun main()
   "Done!".println
   "Write file".println
   "---------".println
-  val file = open("scratch/test.txt".path, o_RDWR.or(o_CREAT), s_IRWXU)
+  create-dir("scratch".path, s_IRWXU)
+  with file = open("scratch/test.txt".path, o_RDWR.or(o_CREAT), s_IRWXU)
   write-to-file(file, "Hello, world!")
   "---------".println
   "Done!".println
