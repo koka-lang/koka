@@ -78,7 +78,7 @@ fun strbuf4/append( sb : strbuf4, s : string ) : strbuf4
       val b = cur.ensure-unique
       val new-size = byte-size + s.bsize
       b.unsafe-assign(fill.ssize_t, s)
-      Strbuf4(cur, rst, new-size, fill + 1.int32)
+      Strbuf4(b, rst, new-size, fill + 1.int32)
     Strbuf4(cur, rst, byte-size, _) -> // Fill == max-vec-size 
       val b = vector(max-vec-size, "")
       val new-size = byte-size + s.bsize
