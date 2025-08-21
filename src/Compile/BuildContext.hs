@@ -410,7 +410,7 @@ buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName t
                         ""
                         ]
         withVirtualFile sourcePath mainDef $ \_ ->
-           do buildc2 <- buildcBuildEx False [mainModName] [mainName] buildc1
+           do buildc2 <- buildcBuildEx False [] [mainName] buildc1
               hasErr  <- buildcHasError buildc2
               if hasErr
                 then return (buildc2,Nothing)
