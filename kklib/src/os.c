@@ -648,7 +648,15 @@ kk_decl_export int kk_os_run_system(kk_string_t cmd, kk_context_t* ctx) {
   }
   #else
   kk_with_string_as_qutf8_borrow(cmd, ccmd, ctx) {
-    exitcode = system(ccmd);
+    int status = system(ccmd);
+    if (WIFEXITED(status)) {
+      exitcode = WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) { 
+      exitcode = -WTERMSIG(status); // Like Haskell, return negative code for signal termination
+    } else {
+      // Technically WIFSTOPPED(status) can happen, but only if the process is being traced, or the call was done with WUNTRACED.
+      kk_fatal_error(EINVAL, "kk_os_run_system: unexpected termination");
+    }
   }
   #endif
   kk_string_drop(cmd, ctx);
