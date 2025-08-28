@@ -42,6 +42,7 @@ import System.IO
 import System.Directory( doesFileExist, doesDirectoryExist, createDirectoryIfMissing
                        , getCurrentDirectory, canonicalizePath, removeFile
                        , getFileSize )
+import System.Exit( ExitCode(..) )
 import Data.Char( toLower )
 
 import Common.Failure( raiseIO, catchIO )
@@ -126,6 +127,9 @@ runCmd :: String -> [String] -> IO ()
 runCmd _ _ = raiseIO "command execution not available in WASM/WASI"
 
 runCmdRead :: [(String,String)] -> String -> [String] -> IO (String,String)
+runCmdRead _ _ _ = raiseIO "command execution not available in WASM/WASI"
+
+runCmdReadExit :: [(String,String)] -> String -> [String] -> IO (ExitCode,String,String)
 runCmdRead _ _ _ = raiseIO "command execution not available in WASM/WASI"
 
 runCmdEnv :: [(String,String)] -> String -> [String] -> IO ()

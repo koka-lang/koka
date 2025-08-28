@@ -34,6 +34,7 @@ import Type.Pretty( Env(colorizing,coreIface,coreShowDef,context,importsMap) )
 import Syntax.Syntax
 import Syntax.Colorize( colorize )
 import Syntax.GenDoc( genDoc )
+import System.Exit( ExitCode(..) )
 
 import qualified Core.Core as Core
 import qualified Core.Pretty
@@ -454,7 +455,9 @@ copyCLibrary term flags sequential cc outDir eimport
   = case Core.eimportLookup (buildType flags) "library" eimport of
       Nothing -> return []
       Just clib
-        -> do mb  <- do mbSearch <- search [] [ searchCLibrary flags cc clib (ccompLibDirs flags)
+        -> do mb  <- do mbSearch <- search [] [ searchCLibrary term flags cc clib (ccompLibDirs flags)
+                                              , pkgConfigCLibrary term flags cc clib $
+                                                  fromMaybe ("lib" ++ clib) (lookup "pkg-config" eimport)
                                               , case lookup "vcpkg" eimport of
                                                   Just pkg
                                                     -> vcpkgCLibrary term flags sequential cc eimport clib pkg
@@ -479,7 +482,7 @@ copyCLibrary term flags sequential cc outDir eimport
                   -> -- TODO: suggest conan and/or vcpkg install?
                      do termWarning term flags $
                           text "unable to find C library:" <+> color (colorSource (colorScheme flags)) (text clib) <->
-                          text "   hint: provide \"--cclibdir\" as an option, or use \"syslib\" in an extern import?"
+                          text "   hint: provide \"--cclibdir\" as an option, ensure \"pkg-config\" can find the library, or use \"syslib\" in an extern import?"
                         raiseIO ("unable to find C library " ++ clib ++
                                  "\nlibrary search paths: " ++ show (ccompLibDirs flags))
   where
@@ -491,14 +494,22 @@ copyCLibrary term flags sequential cc outDir eimport
              Right res   -> return (Right res)
              Left warns' -> search (warns ++ warns') ios
 
-searchCLibrary :: Flags -> CC -> FilePath -> [FilePath] -> IO (Either [Doc] (FilePath {-libPath-},[FilePath] {-include paths-}))
-searchCLibrary flags cc clib searchPaths
-  = do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
-                 -- and the actual name of the library is not easy to extract from vcpkg (we could read
-                 -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
-                 do let suffixes = (if (buildType flags <= Debug) then ["d","_d","-d","-debug","_debug","-dbg","_dbg"] else [])
-                    -- trace ("search in: " ++ show searchPaths) $
-                    searchPathsSuffixes searchPaths [] suffixes (ccLibFile cc clib)
+searchCLibPath :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> IO (Maybe FilePath)
+searchCLibPath term flags cc clib searchPaths
+  = -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
+    -- and the actual name of the library is not easy to extract from vcpkg (we could read
+    -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
+    do let suffixes = (if (buildType flags <= Debug) then ["d","_d","-d","-debug","_debug","-dbg","_dbg"] else [])
+       let libFilename = ccLibFile cc clib
+       -- trace ("search in: " ++ show searchPaths) $
+       result <- searchPathsSuffixes searchPaths [] suffixes libFilename
+       phaseVerboseIO term flags 3 "libPath" $
+         \penv -> text (fromMaybe (libFilename ++ " not found in " ++ show searchPaths) result)
+       return result
+
+searchCLibrary :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> IO (Either [Doc] (FilePath {-libPath-},[FilePath] {-include paths-}))
+searchCLibrary term flags cc clib searchPaths
+  = do mbPath <- searchCLibPath term flags cc clib searchPaths
        case mbPath of
         Just fname
           -> case reverse (splitPath fname) of
@@ -510,8 +521,33 @@ searchCLibrary flags cc clib searchPaths
 
 
 {---------------------------------------------------------------
-  Package managers: Conan and VCPkg
+  Dependency management: pkg-config, Conan and VCPkg
 ---------------------------------------------------------------}
+
+-- This currently only inspects the given package,
+-- it could be improved to handle transitive dependencies.
+pkgConfigCLibrary :: Terminal -> Flags -> CC -> FilePath -> FilePath -> IO (Either [Doc] (FilePath {-libPath-},[FilePath] {-include paths-}))
+pkgConfigCLibrary term flags cc clib pkgname
+  = do pkgConfigExe <- searchProgram "pkg-config"
+       case pkgConfigExe of
+         Nothing -> return $ Left []
+         Just pkgConfigExe
+           -> do libDir <- getPath "libdir"
+                 libPath <- searchCLibPath term flags cc clib (maybeToList libDir)
+                 includePath <- maybe (return Nothing) (\_ -> getPath "includedir") libPath
+                 return $ case (libPath, includePath) of
+                   (Just libPath, Just includePath) -> Right (libPath, [includePath])
+                   _ -> Left [text $ "No pkg-config definition found for " ++ clib]
+              where
+                getPath variable
+                  = do (status, outFull, err) <- runCommandReadAllExit term flags [] [pkgConfigExe, "--variable=" ++ variable, pkgname]
+                       let out = trim outFull
+                       case status of
+                         ExitFailure _ -> do phaseVerboseIO term flags 3 "shell" $ \penv -> text ("failed: " ++ (trim err))
+                                             return Nothing
+                         ExitSuccess   -> do phaseVerboseIO term flags 3 "out" $ \penv -> text out
+                                             return (Just out)
+
 
 conanCLibrary :: Terminal -> Flags -> (IO () -> IO ()) -> CC -> [(String,String)] -> FilePath -> String -> IO (Either [Doc] (FilePath,[FilePath]))
 conanCLibrary term flags sequential cc eimport clib pkg
@@ -537,7 +573,7 @@ conanCLibrary term flags sequential cc eimport clib pkg
                     -> do termPhase term $ color (colorInterpreter (colorScheme flags)) $
                             text "package : conan" <+> clrSource (text pkgName) -- <.> colon <+> clrSource (text pkgDir)
                           let libDir = pkgDir ++ "/lib"
-                          searchCLibrary flags cc clib [libDir]
+                          searchCLibrary term flags cc clib [libDir]
 
   where
     pkgBase
@@ -617,7 +653,7 @@ vcpkgCLibrary term flags sequential cc eimport clib pkg
                                 ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
                  termPhase term $ color (colorInterpreter (colorScheme flags)) $
                     text "package : vcpkg" <+> clrSource (text pkg)
-                 mbInstalled <- searchCLibrary flags cc clib [libDir]
+                 mbInstalled <- searchCLibrary term flags cc clib [libDir]
                  case mbInstalled of
                    Right _ -> return mbInstalled
                    Left _  -> install root libDir vcpkg
@@ -644,7 +680,7 @@ vcpkgCLibrary term flags sequential cc eimport clib pkg
                       return (Left [])
               else do termPhase term (color (colorInterpreter (colorScheme flags)) (text "install: vcpkg package:") <+> clrSource (text pkg))
                       sequential $ runCommand term flags installCmd
-                      searchCLibrary flags cc clib [libDir] -- try to find again after install
+                      searchCLibrary term flags cc clib [libDir] -- try to find again after install
 
 clibsFromCore flags core    = externalImportKeyFromCore (target flags) (buildType flags) core "library"
 csyslibsFromCore flags core = externalImportKeyFromCore (target flags) (buildType flags) core "syslib"
@@ -731,6 +767,12 @@ runCommandReadAll term flags env cargs@(cmd:args)
        phaseVerboseIO term flags 3 "command" $ \penv -> text command -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
        runCmdRead env cmd (filter (not . null) args)
          `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
+
+runCommandReadAllExit :: Terminal -> Flags -> [(String,String)] -> [String] -> IO (ExitCode,String,String)
+runCommandReadAllExit term flags env cargs@(cmd:args)
+  = do let command = unwords (shellQuote cmd : map shellQuote args)
+       phaseVerboseIO term flags 3 "command" $ \penv -> text command -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+       runCmdReadExit env cmd (filter (not . null) args)
 
 runCommandEnv :: Terminal -> Flags -> [(String,String)] -> [String] -> IO ()
 runCommandEnv term flags env cargs@(cmd:args)
