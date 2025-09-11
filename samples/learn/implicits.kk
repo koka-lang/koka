@@ -127,7 +127,7 @@ fun string/compare( x : string, y : string ) : order
   cmp(x,y)
 
 // In the following example, the implicit `?eq` parameter is first
-// resolved to `compare/eq`, and then recursively `?compare` to `string/compare`.
+// resolved to `default/compare/eq`, and then recursively `?compare` to `string/compare`.
 fun example6()
   eq( ["hi"], ["there"] )
 
@@ -163,7 +163,7 @@ fun tuple/eq2( (x1,y1), (x2,y2), ?a/eq, ?b/eq ) : bool
 
 // As we can see, implicit parameters can really help reduce boilerplate!
 fun example8()
-  eq(([1],"a"),([1],"a"))   // `tuple/eq(_,_,?a/eq=list/eq(_,_,int/eq),?b/eq=compare/eq(_,_,string/compare))`
+  eq(([1],"a"),([1],"a"))   // `tuple/eq(_,_,?a/eq=list/eq(_,_,int/eq),?b/eq=default/compare/eq(_,_,string/compare))`
 
 pub fun main()
   example8().println

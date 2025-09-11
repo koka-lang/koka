@@ -10,3 +10,4 @@ overload/blowup1/main: () -> console ()
 overload/blowup1/test0: (xs : list<list<list<int>>>) -> bool
 overload/blowup1/test1: forall<a> (x : a, ?eq : (a, a) -> bool) -> bool
 overload/blowup1/test2: forall<a,b,c,d,e> (xs : a, ?eq : (list<b>, list<c>) -> e d) -> e d
+overload/blowup1/test3: () -> bool
