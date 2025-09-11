@@ -933,10 +933,6 @@ prettyImplicitAssign penv prefix pname iarg
          then (\shorten -> (if shorten then Lib.PPrint.empty else pardoc) <.> prettyImplicitArg penv iarg)
          else (\shorten -> pardoc <.> prettyImplicitArg penv iarg)
 
-prettyTypedArg :: Pretty.Env -> TypedArg -> Doc
-prettyTypedArg penv (name,info,tp)
-  = Pretty.ppParam penv (name,tp)
-
 iargScopeDepth :: Name -> NameInfo -> Int
 iargScopeDepth name info
   = if isImplicitConstraintEvidenceName name then -2   -- never prefer compiler generated constraints
@@ -971,6 +967,17 @@ toImplicitArgExpr xrange (ImplicitArg iname info itp iargs)
                   _ -> failure ("Type.InferMonad.toImplicitAppExpr: illegal type for implicit? " ++ show range ++ ", " ++ show iname)
 
 
+-- We use typed arguments during implicit argument resolving
+type TypedArg = (Name,NameInfo,Rho)
+
+prettyTypedArg :: Pretty.Env -> TypedArg -> Doc
+prettyTypedArg penv (name,info,tp)
+  = Pretty.ppParam penv (name,tp)
+
+
+toImplicitArg :: [(Name, ImplicitArg)] -> TypedArg -> ImplicitArg
+toImplicitArg iargs (name,info,rho) = ImplicitArg name info rho iargs
+
 -----------------------------------------------------------------------
 -- Resolving application names and implicit names
 -- This is done in a breadth-first search to reduce exponential search times
@@ -978,6 +985,14 @@ toImplicitArgExpr xrange (ImplicitArg iname info itp iargs)
 resolveMaxChainDepth :: Int
 resolveMaxChainDepth = 8   -- prevent infinite expansion
 
+-- We can find a unique solution, none, surely ambiguous, or we need to continue further
+data Select a  = Found a
+               | Amb [a]
+
+prettySelect penv (Found iarg) = text "Found" <+> prettyImplicitArg penv iarg
+prettySelect penv (Amb iargs)  = text "Amb" <+> list (map (prettyImplicitArg penv) iargs)
+
+-- Resolve an implicit argument fully
 resolveImplicitArg :: Bool -> Bool -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf (Either [Doc] (ImplicitArg))
 resolveImplicitArg allowDisambiguate allowUnitFunVal ctx range roots
   = do sel <- resolveImplicitArgEx allowDisambiguate allowUnitFunVal [] ctx range roots
@@ -987,10 +1002,14 @@ resolveImplicitArg allowDisambiguate allowUnitFunVal ctx range roots
          Amb ambs   -> do penv <- getPrettyEnv
                           return $ Left (map (prettyImplicitArg penv) ambs ++ [text "..."])
 
+-- Resolve an implicit argument fully. This is recursively used with the `nctxs` of previously resolved implicit names
 resolveImplicitArgEx :: Bool -> Bool -> [(Name,NameContext)] -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf (Select ImplicitArg)
 resolveImplicitArgEx allowDisambiguate allowUnitFunVal nctxs ctx range roots
   = do candidates1 <- concatMapM (\(infoFilter,name) -> lookupImplicitArg allowUnitFunVal infoFilter name ctx range) roots
        let candidates2 = filter (not . existConCreator candidates1) candidates1
+       when (length nctxs >= 4) $
+          traceDefDoc $ \penv -> text "resolveImplicitArg: chain:" <+> list (map (Pretty.ppName penv) (map fst nctxs)) <.> text ", continue with:" <->
+                                  indent 2 (vcat (map (prettyTypedArg penv) candidates2))
        resolveBest allowDisambiguate nctxs ctx range candidates2
   where
     -- always prefer a creator definition over a plain constructor if it exists
@@ -1000,16 +1019,7 @@ resolveImplicitArgEx allowDisambiguate allowUnitFunVal nctxs ctx range roots
       where
         cname = newCreatorName name
 
-toImplicitArg :: [(Name, ImplicitArg)] -> TypedArg -> ImplicitArg
-toImplicitArg iargs (name,info,rho) = ImplicitArg name info rho iargs
-
--- We can find a unique solution, none, surely ambiguous, or we need to continue further
-data Select a  = Found a
-               | Amb [a]
-
-prettySelect penv (Found iarg) = text "Found" <+> prettyImplicitArg penv iarg
-prettySelect penv (Amb iargs)  = text "Amb" <+> list (map (prettyImplicitArg penv) iargs)
-
+-- Resolve the best (=unambigious) candidate for an implicit parameter
 resolveBest :: Bool -> [(Name,NameContext)] -> NameContext -> Range -> [TypedArg] -> Inf (Select ImplicitArg)
 resolveBest allowDisambiguate nctxs ctx range []
   = return (Amb [])
@@ -1020,6 +1030,7 @@ resolveBest allowDisambiguate nctxs ctx range candidates | length nctxs + 1 > re
 resolveBest allowDisambiguate nctxs ctx range candidates
   = do -- find for each candidate which further implicits need to be resolved
        let icandidates  = map (implicitsToResolve ctx) candidates
+       -- now we can sort them
        let cost ((name,info,_),iargs)
                         = ( -(iargScopeDepth name info) -- inner scopes first
                           , length iargs                -- least further implicits arguments first
@@ -1029,7 +1040,7 @@ resolveBest allowDisambiguate nctxs ctx range candidates
        --                           indent 2 (vcat (map (prettyTypedArg penv . fst) sorted))
        resolveBestOf allowDisambiguate nctxs ctx range (Amb []) sorted
 
-
+-- Resolve the best candidate for an implicit parameter
 resolveBestOf :: Bool -> [(Name,NameContext)] -> NameContext -> Range -> Select ImplicitArg -> [(TypedArg,[(Name,Type)])] -> Inf (Select ImplicitArg)
 resolveBestOf allowDisambiguate nctxs ctx range current []
   = -- nothing further to explore
@@ -1066,6 +1077,8 @@ resolveBestOf allowDisambiguate nctxs ctx range current (next@((name,info,rho),i
     merge (Found x)  (Amb amb2)   = Amb ([x] ++ amb2)
     merge (Found x)  (Found y)    = Amb [x,y]
 
+
+-- Resolve recursively any further required implicit parameters
 resolveImplicitParameters :: Bool -> [(Name,NameContext)] -> Range -> (TypedArg,[(Name,Type)]) -> Inf (Select ImplicitArg)
 resolveImplicitParameters allowDisambiguate nctxs range ((name,info,rho),ipars)
   = resolve [] ipars
@@ -1095,6 +1108,8 @@ resolveImplicitParameter allowDisambiguate nctxs range (pname,ptp)
                             [(isInfoValFunExt,pnameExpr)]
 
 
+-- Have a previously tried to derive this parameter?
+isInfiniteChain :: [(Name, NameContext)] -> NameContext -> Name -> Type -> Bool
 isInfiniteChain nctxs ctx qname rho
   = any isInfinite nctxs
   where
@@ -1518,7 +1533,6 @@ instance HasTypeVar ImplicitConstraint where
 instance Show ImplicitConstraint where
   show ic = show (icName ic)
 
-type TypedArg = (Name,NameInfo,Rho)
 
 ppConstraints :: Pretty.Env -> [ImplicitConstraint] -> Doc
 ppConstraints penv ics
