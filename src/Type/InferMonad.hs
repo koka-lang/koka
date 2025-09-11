@@ -991,7 +991,9 @@ resolveMaxChainDepth = 8   -- prevent infinite expansion
 
 -- We can find a unique solution, none, surely ambiguous, or we need to continue further
 data Select a  = Found a
-               | Amb [a]
+               | Amb [a]          -- Amb []   = no solution
+                                  -- Amb [x]  = no solution, but due to an infinite expansion x
+                                  -- Amb xs   = ambigious solutions xs (with length xs > 1)
 
 prettySelect penv (Found iarg) = text "Found" <+> prettyImplicitArg penv iarg
 prettySelect penv (Amb iargs)  = text "Amb" <+> list (map (prettyImplicitArg penv) iargs)
