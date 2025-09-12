@@ -1130,26 +1130,39 @@ isInfiniteChain chain ctx qname tp
     isInfinite :: TypedArg -> Bool
     isInfinite (pname,pinfo,ptp)
       = (pname == qname) &&                 -- visited this exact definition before?
-        weight ptp <= weight tp             -- we want the instantiated type to have less constructors than any previous one
-                                            -- TODO: should we also consider the initial polymorphic implicit type versus the instantiated one?
+        weight ptp <= weight tp             -- we want the instantiated type to "smaller" than any previous one
 
-    -- note: pname and qname are fully qualified resolved names with their instantiated types
-    --  pname=qname : forall as. t           e.g. list/show : (xs : list<a>, ?show : a -> string ) : string
+    -- Note: pname and qname are fully qualified resolved names with their instantiated types
+    --   pname=qname : forall as. t           e.g. list/show : (xs : list<a>, ?show : a -> string ) : string
     --
-    -- this means ptp and tp are instantiations:
-    --  ptp = t[as:=ts1]  tp = t[as:=ts2]
+    -- This means ptp and tp are instantiations of the same type scheme (and only differ in substitution):
+    --   ptp = t[as:=ts1]  tp = t[as:=ts2]
     --
-    -- we can now put a decreasing measure on those types to see if the instantiation is getting smaller.
-    -- we count the number of constructors in the type:
+    -- We can now put a decreasing measure on those types to see if the instantiation is getting smaller
+    -- which ensures termination (but also prevents some programs to be accepted even though finite derivations exist (see `test/overload/wrong/blowup6.kk`))
+    -- Our current measure is the number of constructors in the types of the implicit parameters.
+    -- (and an even more precise one would be the size of each instantiated type variable used in implicits in a particular lexical order)
     weight :: Type -> Int
     weight tp
+      = case splitFunScheme tp of
+          Just (_,pars,eff,res) -> let (_,_,implicits) = splitOptionalImplicit pars
+                                   in weightParams implicits
+          _                     -> 0
+
+    weightParams :: [(Name,Type)] -> Int
+    weightParams pars
+      = sum (map (weightType . snd) pars)
+
+    weightType :: Type -> Int
+    weightType tp
       = case tp of
-          TForall tvars t      -> weight t
-          TFun tpars teff tres -> sum (map (weight . snd) tpars) + weight teff + weight tres
+          TForall tvars t      -> weightType t
+          TFun tpars teff tres -> weightParams tpars + weightType teff + weightType tres
+          TApp t targs         -> weightType t + sum (map weightType targs)
+          TSyn _ _ t           -> weightType t
           TCon _               -> 1
           TVar _               -> 0
-          TApp t targs         -> weight t + sum (map weight targs)
-          TSyn _ _ t           -> weight t
+
 
 
 -- Find for an typed argument if it needs further implicits to be solved
