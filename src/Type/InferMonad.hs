@@ -1055,7 +1055,7 @@ resolveBestOf allowDisambiguate chain ctx range current []
     do -- traceDefDoc $ \penv -> text "resolveBestOf: explored all solutions:" <+> prettySelect penv current
        return current
 
-resolveBestOf allowDisambiguate chain ctx range current@(Amb ambs) candidates  | not (null ambs)
+resolveBestOf allowDisambiguate chain ctx range current@(Amb ambs) candidates  | length ambs > 1
   = -- once we are ambiguous we don't need to explore further options
     -- todo: for error messages keep going until we have X number of ambigious solutions?
     do -- traceDefDoc $ \penv -> text "resolveBestOf: ambigious:" <+> prettySelect penv current
@@ -1133,7 +1133,14 @@ isInfiniteChain chain ctx qname tp
         weight ptp <= weight tp             -- we want the instantiated type to have less constructors than any previous one
                                             -- TODO: should we also consider the initial polymorphic implicit type versus the instantiated one?
 
-    -- number of constructors in the type
+    -- note: pname and qname are fully qualified resolved names with their instantiated types
+    --  pname=qname : forall as. t           e.g. list/show : (xs : list<a>, ?show : a -> string ) : string
+    --
+    -- this means ptp and tp are instantiations:
+    --  ptp = t[as:=ts1]  tp = t[as:=ts2]
+    --
+    -- we can now put a decreasing measure on those types to see if the instantiation is getting smaller.
+    -- we count the number of constructors in the type:
     weight :: Type -> Int
     weight tp
       = case tp of
