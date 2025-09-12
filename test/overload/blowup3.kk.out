@@ -1,0 +1,4 @@
+overload/blowup3/eq/something: forall<a,e,b,c> (?(==) : (b, b) -> e bool) -> container<b,c,a>
+overload/blowup3/do-something: forall<a,e,b,c> (l : list<(b, c, a)>, ?something : container<b,c,a>, ?k/show : (b) -> e string, ?v/show : (c) -> e string, ?c/show : (a) -> e string, ?k/(==) : (b, b) -> e bool) -> e string
+overload/blowup3/main: () -> console ()
+overload/blowup3/thing: list<(int, int, char)>

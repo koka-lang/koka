@@ -1,0 +1,6 @@
+[[1]]
+ 
+overload/blowup6/end/even: (xs : list<list<int>>) -> string
+overload/blowup6/grow1/even: forall<a> (x : a, ?even : (list<a>) -> string) -> string
+overload/blowup6/grow2/even: forall<a> (x : list<a>, ?even : (list<list<a>>) -> string) -> string
+overload/blowup6/main: () -> string
