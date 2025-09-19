@@ -50,10 +50,17 @@ pub fun force/go( delayed : delayed<e,a> ) : <div,read<global>,write<global>,all
       r := XDone(x)
       x
 
+fun unsafe-no-state-div(f : () -> <st<global>,div|e> a): e a
+  unsafe-no-state-div-cast(f)()
+
+extern unsafe-no-state-div-cast(f : () -> <st<global>,div|e> a): (() -> e a)
+  inline "#1"
+
 // Force a delayed value; the value is computed only on the first
 // call to `force` and cached afterwards.
 pub fun force( delayed : delayed<e,a> ) : e a
-  unsafe-total(fn() -> force/go(delayed))
+  unsafe-no-state-div
+    force/go(delayed)
 
 // Given a total function to calculate a value `:a`, return
 // a total function that only calculates the value once and then
