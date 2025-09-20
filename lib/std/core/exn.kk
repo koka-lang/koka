@@ -55,9 +55,10 @@ pub fun handle/try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a
   with final ctl throw-exn(exn) hndl(exn)
   action()
 
-// _Deprecated_; use `try` instead. Catch an exception raised by `throw` and handle it.
-// Use `on-exit` when appropriate.
-pub fun catch( action : () -> <exn|e> a, hndl: exception -> e a) : e a
+// Catch an exception raised by `throw` and handle it.
+// This is `try` but with the arguments reversed, and is
+// often convenient to use as `with catch fn(e) ...`
+pub inline fun catch(hndl: exception -> e a, action : () -> <exn|e> a) : e a
   try(action,hndl)
 
 // An `:error` type represents a first-class exception result.
