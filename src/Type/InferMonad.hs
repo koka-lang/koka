@@ -1092,8 +1092,8 @@ resolveUniquely allowDisambiguate chain ctx range (Found current infs) (((qname,
        return (Found current infs)
 
 resolveUniquely allowDisambiguate chain ctx range current (next@((qname,info,rho),ipars) : candidates)
-  | isInfiniteChain chain ctx qname rho
-  = -- if this leads to an infinite derivation skip it
+  | not (isDecreasingChain chain ctx qname rho)
+  = -- if this might lead to an infinite derivation skip it
     do -- traceDefDoc $ \penv -> text "resolveUniquely: infinite derivation:" <->
        --                      indent 2 (vcat (map (prettyTypedArg penv) (reverse (fst next:chain))))
        let iarg = toImplicitArg [(pname, emptyImplicitArg) | (pname,_) <- ipars] (fst next)
@@ -1146,10 +1146,10 @@ resolveImplicitParameter allowDisambiguate chain range (pname,ptp)
 
 
 -- Have a previously tried to derive this parameter?
-isInfiniteChain :: [TypedArg] -> NameContext -> Name -> Type -> Bool
-isInfiniteChain chain ctx qname tp
+isDecreasingChain :: [TypedArg] -> NameContext -> Name -> Type -> Bool
+isDecreasingChain chain ctx qname tp
   = case dropWhile (\(pname,_,_) -> pname /= qname) chain of  -- drop until we find this exact definition in the chain
-      []                  -> False                     -- never visited before
+      []                  -> True                      -- never visited before
       ((_,_,prevtp) : _)  -> weight tp < weight prevtp -- we want the instantiated type to "smaller" than any previous one
   where
     -- Note: pname and qname are fully qualified resolved names with their instantiated types
