@@ -993,40 +993,33 @@ resolveMaxChainDepth = 32   -- just in case: prevent infinite expansion (not req
 
 -- We can find a unique solution, or none, or surely ambiguous.
 -- The `selInfinite` tracks infinite chains, while `selCandidates` ambigious ones. Both are for error messages only.
-data ImplicitSelect   = None
-                      | Amb  { selCandidates :: ![ImplicitArg] }  -- for an infinite chain we use a single candidate
+data ImplicitSelect   = Amb  { selCandidates :: ![ImplicitArg] }  -- for an infinite chain we use a single candidate, we use empty candidates for no solution
                       | Found{ selFound :: !ImplicitArg  }
 
 allCandidates :: ImplicitSelect -> [ImplicitArg]
 allCandidates sel
   = case sel of
       Amb xs  -> xs
-      _       -> []
+      Found x -> [x]
 
 mapCandidates :: (ImplicitArg -> ImplicitArg) -> ImplicitSelect -> ImplicitSelect
 mapCandidates f sel
   = case sel of
-      None    -> None
       Amb xs  -> Amb (map f xs)
       Found x -> Found (f x)
 
 merge :: ImplicitSelect -> ImplicitSelect -> ImplicitSelect
 merge sel1 sel2
   = case (sel1,sel2) of
-      (None,       _)     -> sel2
-      (_,       None)     -> sel1
-      (Found x, Found y)  -> Amb [x,y]
-      (Found x, Amb ys)   -> Amb (x:ys)  -- we treat an infinite chain as a potential solution (thus rejecting more)
-      (Amb xs,  Found y)  -> Amb (xs ++ [y])
-      (Amb xs,  Amb ys)   -> Amb (xs ++ ys)
-
+      (Amb [], _)       -> sel2
+      (_,      Amb [])  -> sel1
+      _                 -> Amb (allCandidates sel1 ++ allCandidates sel2)
 
 
 prettySelect :: Pretty.Env -> ImplicitSelect -> Doc
 prettySelect penv (Found iarg) = text "Found" <+> prettyImplicitArg penv iarg
+prettySelect penv (Amb [])     = text "None"
 prettySelect penv (Amb xs)     = text "Amb" <+> list (map (prettyImplicitArg penv) xs)
-prettySelect penv None         = text "None"
-
 
 
 -- Resolve an implicit argument fully
@@ -1035,8 +1028,8 @@ resolveImplicitArg allowDisambiguate allowUnitFunVal ctx range roots
   = do sel <- resolveImplicitArgEx allowDisambiguate allowUnitFunVal [] ctx range roots
        case sel of
          Found iarg -> return (Right iarg)
-         _          -> do penv <- getPrettyEnv
-                          return $ Left (map (prettyImplicitArg penv) (allCandidates sel))
+         Amb xs     -> do penv <- getPrettyEnv
+                          return $ Left (map (prettyImplicitArg penv) xs)
 
 -- Resolve an implicit argument fully. This is recursively used with the `chain` of previously resolved implicit names
 resolveImplicitArgEx :: Bool -> Bool -> [TypedArg] -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf ImplicitSelect
@@ -1047,7 +1040,7 @@ resolveImplicitArgEx allowDisambiguate allowUnitFunVal chain ctx range roots
       --  when (length chain >= 4) $
       --     traceDefDoc $ \penv -> text "resolveImplicitArg: chain:" <+> list (map (prettyTypedArg penv) chain) <.> text ", continue with:" <->
       --                             indent 2 (vcat (map (prettyTypedArg penv) (map fst sorted)))
-       resolveUniquely allowDisambiguate chain ctx range None sorted
+       resolveUniquely allowDisambiguate chain ctx range (Amb []) sorted
   where
     -- always prefer a creator definition over a plain constructor if it exists
     existConCreator :: [TypedArg] -> TypedArg -> Bool
@@ -1075,7 +1068,7 @@ resolveUniquely allowDisambiguate chain ctx range current []
        return current
 
 resolveUniquely allowDisambiguate chain ctx range current@(Amb ambs@(_:_:_)) candidates
-  = -- once we are ambiguous we don't need to explore further options
+  = -- once we are ambiguous with 2 or more (possible) solutions, we don't need to explore further options
     do -- traceDefDoc $ \penv -> text "resolveUniquely: ambigious:" <+> prettySelect penv current
        let extra = map (toImplicitArg [] . fst) candidates  -- include all remaining potential candidates in the error message?
        return (Amb (ambs ++ extra))
