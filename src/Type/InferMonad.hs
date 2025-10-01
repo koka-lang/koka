@@ -989,48 +989,43 @@ toImplicitArg iargs (name,info,rho) = ImplicitArg name info rho iargs
 -- Resolving implicit names
 -----------------------------------------------------------------------
 resolveMaxChainDepth :: Int
-resolveMaxChainDepth = 16   -- just in case: prevent infinite expansion (not required anymore?)
+resolveMaxChainDepth = 32   -- just in case: prevent infinite expansion (not required anymore?)
 
 -- We can find a unique solution, or none, or surely ambiguous.
 -- The `selInfinite` tracks infinite chains, while `selCandidates` ambigious ones. Both are for error messages only.
-data ImplicitSelect   = None { selInfinite :: ![ImplicitArg] }
-                      | Amb  { selCandidates :: ![ImplicitArg], selInfinite :: ![ImplicitArg] }
-                      | Found{ selFound :: !ImplicitArg, selInfinite :: ![ImplicitArg]  }
+data ImplicitSelect   = None
+                      | Amb  { selCandidates :: ![ImplicitArg] }  -- only 1 candidate is used for an infinite chain
+                      | Found{ selFound :: !ImplicitArg  }
 
 allCandidates :: ImplicitSelect -> [ImplicitArg]
 allCandidates sel
   = case sel of
-      None is     -> is
-      Amb xs is   -> xs ++ is
-      Found _ is  -> is
+      Amb xs  -> xs
+      _       -> []
 
 mapCandidates :: (ImplicitArg -> ImplicitArg) -> ImplicitSelect -> ImplicitSelect
 mapCandidates f sel
   = case sel of
-      None is     -> None (map f is)
-      Amb xs is   -> Amb (map f xs) (map f is)
-      Found x is  -> Found (f x) (map f is)
+      None    -> None
+      Amb xs  -> Amb (map f xs)
+      Found x -> Found (f x)
 
 merge :: ImplicitSelect -> ImplicitSelect -> ImplicitSelect
 merge sel1 sel2
   = case (sel1,sel2) of
-      (None is,     Found y js)  -> Found y (is ++ js)
-      (Found x is,  None js)     -> Found x (is ++ js)
+      (None,       _)     -> sel2
+      (_,       None)     -> sel1
+      (Found x, Found y)  -> Amb [x,y]
+      (Found x, Amb ys)   -> Amb (x:ys)  -- we treat an infinite chain as a potential solution (thus rejecting more)
+      (Amb xs,  Found y)  -> Amb (xs ++ [y])
+      (Amb xs,  Amb ys)   -> Amb (xs ++ ys)
 
-      (Found x is,  Found y js)  -> Amb [x,y] (is ++ js)
-      (Found x is,  Amb ys js)   -> Amb (x:ys) (is ++ js)
-      (Amb xs is,   Found y js)  -> Amb (xs ++ [y]) (is ++ js)
-
-      (None is,     None js)     -> None (is ++ js)
-      (None is,     Amb ys js)   -> Amb ys (is ++ js)
-      (Amb xs is,   None js)     -> Amb xs (is ++ js)
-      (Amb xs is,   Amb ys js)   -> Amb (xs ++ ys) (is ++ js)
 
 
 prettySelect :: Pretty.Env -> ImplicitSelect -> Doc
-prettySelect penv (Found iarg _) = text "Found" <+> prettyImplicitArg penv iarg
-prettySelect penv (Amb xs is)    = text "Amb" <+> list (map (prettyImplicitArg penv) (xs ++ is))
-prettySelect penv (None is)      = text "None" <+> list (map (prettyImplicitArg penv) is)
+prettySelect penv (Found iarg) = text "Found" <+> prettyImplicitArg penv iarg
+prettySelect penv (Amb xs)     = text "Amb" <+> list (map (prettyImplicitArg penv) xs)
+prettySelect penv None         = text "None"
 
 
 
@@ -1039,9 +1034,9 @@ resolveImplicitArg :: Bool -> Bool -> NameContext -> Range -> [(NameInfo -> Bool
 resolveImplicitArg allowDisambiguate allowUnitFunVal ctx range roots
   = do sel <- resolveImplicitArgEx allowDisambiguate allowUnitFunVal [] ctx range roots
        case sel of
-         Found iarg _ -> return (Right iarg)
-         _            -> do penv <- getPrettyEnv
-                            return $ Left (map (prettyImplicitArg penv) (allCandidates sel))
+         Found iarg -> return (Right iarg)
+         _          -> do penv <- getPrettyEnv
+                          return $ Left (map (prettyImplicitArg penv) (allCandidates sel))
 
 -- Resolve an implicit argument fully. This is recursively used with the `chain` of previously resolved implicit names
 resolveImplicitArgEx :: Bool -> Bool -> [TypedArg] -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf ImplicitSelect
@@ -1052,7 +1047,7 @@ resolveImplicitArgEx allowDisambiguate allowUnitFunVal chain ctx range roots
       --  when (length chain >= 4) $
       --     traceDefDoc $ \penv -> text "resolveImplicitArg: chain:" <+> list (map (prettyTypedArg penv) chain) <.> text ", continue with:" <->
       --                             indent 2 (vcat (map (prettyTypedArg penv) (map fst sorted)))
-       resolveUniquely allowDisambiguate chain ctx range (None []) sorted
+       resolveUniquely allowDisambiguate chain ctx range None sorted
   where
     -- always prefer a creator definition over a plain constructor if it exists
     existConCreator :: [TypedArg] -> TypedArg -> Bool
@@ -1079,17 +1074,17 @@ resolveUniquely allowDisambiguate chain ctx range current []
     do -- traceDefDoc $ \penv -> text "resolveUniquely: explored all solutions:" <+> prettySelect penv current
        return current
 
-resolveUniquely allowDisambiguate chain ctx range current@(Amb ambs infs) candidates
+resolveUniquely allowDisambiguate chain ctx range current@(Amb ambs@(_:_:_)) candidates
   = -- once we are ambiguous we don't need to explore further options
     do -- traceDefDoc $ \penv -> text "resolveUniquely: ambigious:" <+> prettySelect penv current
        let extra = map (toImplicitArg [] . fst) candidates  -- include all remaining potential candidates in the error message?
-       return (Amb (ambs ++ extra) infs)
+       return (Amb (ambs ++ extra))
 
-resolveUniquely allowDisambiguate chain ctx range (Found current infs) (((qname,info,_),_):_)
+resolveUniquely allowDisambiguate chain ctx range (Found current) (((qname,info,_),_):_)
   | allowDisambiguate && iaScopeDepth current > iargScopeDepth qname info
   = -- if we can disambiguate, the inner scope is always preferred (assuming sorted candidates)
     do -- traceDefDoc $ \penv -> text "resolveUniquely: found innermost solution:" <+> prettyImplicitArg penv current
-       return (Found current infs)
+       return (Found current)
 
 resolveUniquely allowDisambiguate chain ctx range current (next@((qname,info,rho),ipars) : candidates)
   | not (isDecreasingChain chain ctx qname rho)
@@ -1097,13 +1092,13 @@ resolveUniquely allowDisambiguate chain ctx range current (next@((qname,info,rho
     do -- traceDefDoc $ \penv -> text "resolveUniquely: infinite derivation:" <->
        --                      indent 2 (vcat (map (prettyTypedArg penv) (reverse (fst next:chain))))
        let iarg = toImplicitArg [(pname, emptyImplicitArg) | (pname,_) <- ipars] (fst next)
-       resolveUniquely allowDisambiguate chain ctx range (merge current (None [iarg])) candidates
+       resolveUniquely allowDisambiguate chain ctx range (merge current (Amb [iarg])) candidates
 
 resolveUniquely allowDisambiguate chain ctx range current candidates
   | length chain > resolveMaxChainDepth
   = do traceDefDoc $ \penv -> text "resolve implicit, cut off long chain:" <->
                                indent 2 (vcat (map (prettyTypedArg penv) (reverse chain)))
-       return $ None (map (toImplicitArg [] . fst) candidates)
+       return $ Amb (map (toImplicitArg [] . fst) candidates)
 
 resolveUniquely allowDisambiguate chain ctx range current (next@((name,info,rho),ipars) : candidates)
   = do -- recursively resolve the required implicit parameters
@@ -1123,16 +1118,16 @@ resolveImplicitParameters allowDisambiguate chain range (current@(name,info,rho)
 
     resolve :: [(Name,ImplicitArg)] -> [(Name,Type)] -> Inf ImplicitSelect
     resolve acc []
-      = return (Found (ImplicitArg name info rho (reverse acc)) [])
+      = return (Found (ImplicitArg name info rho (reverse acc)))
     resolve acc (par:pars)
       = do sel <- resolveImplicitParameter allowDisambiguate chainNew range par
            case sel of
-             Found iarg _  -> do -- keep resolving
-                                 resolve ((fst par,iarg):acc) pars
-             _             -> do -- give up early if we cannot resolve a parameter
-                                 let makePars iarg   = reverse acc ++ [(fst par, iarg)] ++ [(pname, emptyImplicitArg) | (pname,_) <- pars]
-                                     extendIarg iarg = ImplicitArg name info rho (makePars iarg)
-                                 return $ mapCandidates extendIarg sel
+             Found iarg -> do -- keep resolving
+                              resolve ((fst par,iarg):acc) pars
+             _          -> do -- give up early if we cannot resolve a parameter
+                              let makePars iarg   = reverse acc ++ [(fst par, iarg)] ++ [(pname, emptyImplicitArg) | (pname,_) <- pars]
+                                  extendIarg iarg = ImplicitArg name info rho (makePars iarg)
+                              return $ mapCandidates extendIarg sel
 
 -- recursively resolve an implicit parameter
 resolveImplicitParameter :: Bool -> [TypedArg] -> Range -> (Name, Type) -> Inf ImplicitSelect
