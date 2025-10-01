@@ -1025,22 +1025,23 @@ prettySelect penv (Amb xs)     = text "Amb" <+> list (map (prettyImplicitArg pen
 -- Resolve an implicit argument fully
 resolveImplicitArg :: Bool -> Bool -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf (Either [Doc] (ImplicitArg))
 resolveImplicitArg allowDisambiguate allowUnitFunVal ctx range roots
-  = do sel <- resolveImplicitArgEx allowDisambiguate allowUnitFunVal [] ctx range roots
+  = do env <- getEnv
+       sel <- resolveImplicitArgEx allowDisambiguate allowUnitFunVal (allowInfiniteChains env) [] ctx range roots
        case sel of
          Found iarg -> return (Right iarg)
          Amb xs     -> do penv <- getPrettyEnv
                           return $ Left (map (prettyImplicitArg penv) xs)
 
 -- Resolve an implicit argument fully. This is recursively used with the `chain` of previously resolved implicit names
-resolveImplicitArgEx :: Bool -> Bool -> [TypedArg] -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf ImplicitSelect
-resolveImplicitArgEx allowDisambiguate allowUnitFunVal chain ctx range roots
+resolveImplicitArgEx :: Bool -> Bool -> Bool -> [TypedArg] -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf ImplicitSelect
+resolveImplicitArgEx allowDisambiguate allowUnitFunVal allowInfiniteChains chain ctx range roots
   = do candidates1 <- concatMapM (\(infoFilter,name) -> lookupImplicitArg allowUnitFunVal infoFilter name ctx range) roots
        let candidates2 = filter (not . existConCreator candidates1) candidates1
            sorted = sortCandidates candidates2
       --  when (length chain >= 4) $
       --     traceDefDoc $ \penv -> text "resolveImplicitArg: chain:" <+> list (map (prettyTypedArg penv) chain) <.> text ", continue with:" <->
       --                             indent 2 (vcat (map (prettyTypedArg penv) (map fst sorted)))
-       resolveUniquely allowDisambiguate chain ctx range (Amb []) sorted
+       resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (Amb []) sorted
   where
     -- always prefer a creator definition over a plain constructor if it exists
     existConCreator :: [TypedArg] -> TypedArg -> Bool
@@ -1061,49 +1062,49 @@ resolveImplicitArgEx allowDisambiguate allowUnitFunVal chain ctx range roots
 
 
 -- Resolve the best candidate for an implicit parameter
-resolveUniquely :: Bool -> [TypedArg] -> NameContext -> Range -> ImplicitSelect -> [(TypedArg,[(Name,Type)])] -> Inf ImplicitSelect
-resolveUniquely allowDisambiguate chain ctx range current []
+resolveUniquely :: Bool -> Bool -> [TypedArg] -> NameContext -> Range -> ImplicitSelect -> [(TypedArg,[(Name,Type)])] -> Inf ImplicitSelect
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current []
   = -- nothing further to explore
     do -- traceDefDoc $ \penv -> text "resolveUniquely: explored all solutions:" <+> prettySelect penv current
        return current
 
-resolveUniquely allowDisambiguate chain ctx range current@(Amb ambs@(_:_:_)) candidates
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current@(Amb ambs@(_:_:_)) candidates
   = -- once we are ambiguous with 2 or more (possible) solutions, we don't need to explore further options
     do -- traceDefDoc $ \penv -> text "resolveUniquely: ambigious:" <+> prettySelect penv current
        let extra = map (toImplicitArg [] . fst) candidates  -- include all remaining potential candidates in the error message?
        return (Amb (ambs ++ extra))
 
-resolveUniquely allowDisambiguate chain ctx range (Found current) (((qname,info,_),_):_)
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (Found current) (((qname,info,_),_):_)
   | allowDisambiguate && iaScopeDepth current > iargScopeDepth qname info
   = -- if we can disambiguate, the inner scope is always preferred (assuming sorted candidates)
     do -- traceDefDoc $ \penv -> text "resolveUniquely: found innermost solution:" <+> prettyImplicitArg penv current
        return (Found current)
 
-resolveUniquely allowDisambiguate chain ctx range current (next@((qname,info,rho),ipars) : candidates)
-  | not (isDecreasingChain chain ctx qname rho)
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next@((qname,info,rho),ipars) : candidates)
+  | not allowInfiniteChains && not (isDecreasingChain chain ctx qname rho)
   = -- if this might lead to an infinite derivation skip it
     do -- traceDefDoc $ \penv -> text "resolveUniquely: infinite derivation:" <->
        --                      indent 2 (vcat (map (prettyTypedArg penv) (reverse (fst next:chain))))
        let iarg = toImplicitArg [(pname, emptyImplicitArg) | (pname,_) <- ipars] (fst next)
-       resolveUniquely allowDisambiguate chain ctx range (merge current (Amb [iarg])) candidates
+       resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (merge current (Amb [iarg])) candidates
 
-resolveUniquely allowDisambiguate chain ctx range current candidates
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current candidates
   | length chain > resolveMaxChainDepth
   = do traceDefDoc $ \penv -> text "resolve implicit, cut off long chain:" <->
                                indent 2 (vcat (map (prettyTypedArg penv) (reverse chain)))
        return $ Amb (map (toImplicitArg [] . fst) candidates)
 
-resolveUniquely allowDisambiguate chain ctx range current (next@((name,info,rho),ipars) : candidates)
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next@((name,info,rho),ipars) : candidates)
   = do -- recursively resolve the required implicit parameters
        -- traceDefDoc $ \penv -> text "resolveUniquely: resolve next candidate:" <+> prettyTypedArg penv (fst next)
        --                          <-> indent 2 (text "current:" <+> prettySelect penv current)
-       sel <- resolveImplicitParameters allowDisambiguate chain range next
-       resolveUniquely allowDisambiguate chain ctx range (merge current sel) candidates
+       sel <- resolveImplicitParameters allowDisambiguate allowInfiniteChains chain range next
+       resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (merge current sel) candidates
 
 
 -- Resolve recursively any further required implicit parameters
-resolveImplicitParameters :: Bool -> [TypedArg] -> Range -> (TypedArg,[(Name,Type)]) -> Inf ImplicitSelect
-resolveImplicitParameters allowDisambiguate chain range (current@(name,info,rho),ipars)
+resolveImplicitParameters :: Bool -> Bool -> [TypedArg] -> Range -> (TypedArg,[(Name,Type)]) -> Inf ImplicitSelect
+resolveImplicitParameters allowDisambiguate allowInfiniteChains chain range (current@(name,info,rho),ipars)
   = resolve [] ipars
   where
     chainNew
@@ -1113,7 +1114,7 @@ resolveImplicitParameters allowDisambiguate chain range (current@(name,info,rho)
     resolve acc []
       = return (Found (ImplicitArg name info rho (reverse acc)))
     resolve acc (par:pars)
-      = do sel <- resolveImplicitParameter allowDisambiguate chainNew range par
+      = do sel <- resolveImplicitParameter allowDisambiguate allowInfiniteChains chainNew range par
            case sel of
              Found iarg -> do -- keep resolving
                               resolve ((fst par,iarg):acc) pars
@@ -1123,12 +1124,12 @@ resolveImplicitParameters allowDisambiguate chain range (current@(name,info,rho)
                               return $ mapCandidates extendIarg sel
 
 -- recursively resolve an implicit parameter
-resolveImplicitParameter :: Bool -> [TypedArg] -> Range -> (Name, Type) -> Inf ImplicitSelect
-resolveImplicitParameter allowDisambiguate chain range (pname,ptp)
+resolveImplicitParameter :: Bool -> Bool -> [TypedArg] -> Range -> (Name, Type) -> Inf ImplicitSelect
+resolveImplicitParameter allowDisambiguate allowInfiniteChains chain range (pname,ptp)
   = -- recursively resolve an implicit parameter
     let (pnameName,pnameExpr) = splitImplicitParamName pname
         newctx = implicitTypeContext ptp
-    in resolveImplicitArgEx allowDisambiguate True {- allow unit val -} chain newctx
+    in resolveImplicitArgEx allowDisambiguate True {- allow unit val -} allowInfiniteChains chain newctx
                             (endOfRange range) -- use end of range to deprioritize with hover info
                             [(isInfoValFunExt,pnameExpr)]
 
@@ -1778,22 +1779,23 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , imports :: !ImportMap
                  , returnAllowed :: !Bool
                  , inLhs :: !Bool
-                 , hiddenTermDoc :: Maybe (Range,Doc)
-                 , localDepth :: Int   -- number of run-local scope's
-                 , scopeNestingDepth :: Int   -- nested scope level
+                 , hiddenTermDoc :: !(Maybe (Range,Doc))
+                 , localDepth :: !Int   -- number of run-local scope's
+                 , scopeNestingDepth :: !Int   -- nested scope level
+                 , allowInfiniteChains :: !Bool
                  }
 data St     = St{ uniq :: !Int
                 , sub :: !Sub                            -- current substitution
                 , iconstraints :: ![ImplicitConstraint]  -- output
                 , iconstraintsGamma :: !InfGamma         -- adding a constraint adds an implicit local evidence variable
                 , holeAllowed :: !Bool                   -- is a hole allowed for a constructor context?
-                , mbRangeMap :: Maybe RangeMap           -- used for errors and IDE integration
+                , mbRangeMap :: !(Maybe RangeMap)         -- used for errors and IDE integration
                 }
 
 
-runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
-runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
-  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0)
+runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Bool -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
+runInfer env mbrm syns newTypes imports assumption context allowInfiniteChains unique (Inf f)
+  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0 allowInfiniteChains)
            (St unique subNull [] infgammaEmpty False mbrm) of
       Err (rng,doc) warnings
         -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))

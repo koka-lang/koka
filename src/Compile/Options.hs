@@ -99,7 +99,7 @@ data Terminal = Terminal{ termError    :: !(ErrorMessage -> IO ())
 
 phaseVerboseIO :: Terminal -> Flags -> Int -> String -> (TP.Env -> Doc) -> IO ()
 phaseVerboseIO term flags verboseLevel phase mkDoc
-  = if (verbose flags >= verboseLevel) 
+  = if (verbose flags >= verboseLevel)
       then phaseShowIO term flags verboseLevel phase mkDoc
       else return ()
 
@@ -115,7 +115,7 @@ phaseShowIO term flags verboseLevel phase mkdoc
   where
     showThreadId tid = takeWhile isDigit $ dropWhile (not . isDigit) $ show tid
     sfill n s = s ++ replicate (n - length s) ' '
-      
+
 
 {--------------------------------------------------------------------------
   Options
@@ -233,6 +233,7 @@ data Flags
          , useStdAlloc      :: !Bool -- don't use mimalloc for better asan and valgrind support
          , optSpecialize    :: !Bool
          , mimallocStats    :: !Bool
+         , allowInfiniteChains :: !Bool
          , maxConcurrency   :: !Int
          , maxErrors        :: !Int
          , useBuildDirHash  :: !Bool
@@ -283,7 +284,8 @@ instance Hashable Flags where
           show $ parcBorrowInference flags,
           show $ asan flags,
           show $ useStdAlloc flags,
-          show $ optSpecialize flags
+          show $ optSpecialize flags,
+          show $ allowInfiniteChains flags
         ]
 
 flagsHash :: Flags -> String
@@ -389,6 +391,7 @@ flagsNull
           False -- use stdalloc
           True  -- use specialization (only used if optimization level >= 1)
           False -- use mimalloc stats
+          False -- allow infinite chains
           16    -- max concurrency
           25    -- max errors
           True  -- use variant hash
@@ -515,6 +518,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})    "enable inline specialization"
  , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
  , hide $ fflag       ["eagerpatbind"] (\b f -> f{optEagerPatBind=b}) "load pattern fields as early as possible"
+ , hide $ fflag       ["infchain"]     (\b f -> f{allowInfiniteChains=b}) "allow infinite implicit chains"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"

@@ -83,14 +83,15 @@ import Syntax.Pretty (ppSyntaxExpr)
 {--------------------------------------------------------------------------
   Infer Types
 --------------------------------------------------------------------------}
-inferTypes :: Env -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -> ImportMap -> Gamma -> Name -> DefGroups Type
+inferTypes :: Env -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -> ImportMap -> Gamma -> Name -> Bool -> DefGroups Type
                 -> Core.CorePhase b (Gamma, Core.DefGroups, Maybe RM.RangeMap )
-inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context defs
+inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context allowInfiniteChains defs
   = -- error "Type.Infer.inferTypes: not yet implemented"
     -- return (gamma0,[],uniq0)
     do uniq0 <- unique
        ((gamma1, coreDefs),uniq1,mbRm) <- Core.liftError $
-                                          runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context (uniq0 + 10 {- to not clash with at least 10 bound type variables -})
+                                          runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context allowInfiniteChains
+                                            (uniq0 + 10 {- to not clash with at least 10 bound type variables -})
                                             (inferDefGroups True (arrange defs))
        setUnique uniq1
        return (gamma1,coreDefs,mbRm)
@@ -2216,11 +2217,11 @@ etaExpandVarArg tp argexpr
   = case (argexpr,splitFunType tp) of -- not for polymorphic types (e.g. `type/hr1.kk`)
       (Var name _ vrng, Just (parTps,_,resTp)) | not (hasOptionalOrImplicits parTps)
         -> do -- variable argument with an expected function type without optional parameters
-              etaExpandExpr name vrng 0 parTps resTp (\extraArgs rng -> App argexpr extraArgs rng) argexpr              
-      (App v@(Var name _ vrng) args arng, Just (parTps,_,resTp)) 
-        | not (hasOptionalOrImplicits parTps) && all isNamedArg args 
-        -> do -- traceDefDoc $ \penv -> text "etaExpand app:" <+> ppType penv tp <+> text "~" <+> ppSyntaxExpr penv argexpr 
-              etaExpandExpr name vrng (length args) parTps resTp (\extraArgs rng -> App v (extraArgs ++ args) rng) argexpr 
+              etaExpandExpr name vrng 0 parTps resTp (\extraArgs rng -> App argexpr extraArgs rng) argexpr
+      (App v@(Var name _ vrng) args arng, Just (parTps,_,resTp))
+        | not (hasOptionalOrImplicits parTps) && all isNamedArg args
+        -> do -- traceDefDoc $ \penv -> text "etaExpand app:" <+> ppType penv tp <+> text "~" <+> ppSyntaxExpr penv argexpr
+              etaExpandExpr name vrng (length args) parTps resTp (\extraArgs rng -> App v (extraArgs ++ args) rng) argexpr
       _ -> return argexpr
 
   where
