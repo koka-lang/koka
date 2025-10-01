@@ -1100,7 +1100,7 @@ resolveUniquely allowDisambiguate chain ctx range current (next@((qname,info,rho
        resolveUniquely allowDisambiguate chain ctx range (merge current (None [iarg])) candidates
 
 resolveUniquely allowDisambiguate chain ctx range current candidates
-  | length chain + 1 > resolveMaxChainDepth
+  | length chain > resolveMaxChainDepth
   = do traceDefDoc $ \penv -> text "resolve implicit, cut off long chain:" <->
                                indent 2 (vcat (map (prettyTypedArg penv) (reverse chain)))
        return $ None (map (toImplicitArg [] . fst) candidates)
@@ -1148,13 +1148,10 @@ resolveImplicitParameter allowDisambiguate chain range (pname,ptp)
 -- Have a previously tried to derive this parameter?
 isInfiniteChain :: [TypedArg] -> NameContext -> Name -> Type -> Bool
 isInfiniteChain chain ctx qname tp
-  = any isInfinite chain
+  = case dropWhile (\(pname,_,_) -> pname /= qname) chain of  -- drop until we find this exact definition in the chain
+      []                  -> False                     -- never visited before
+      ((_,_,prevtp) : _)  -> weight tp < weight prevtp -- we want the instantiated type to "smaller" than any previous one
   where
-    isInfinite :: TypedArg -> Bool
-    isInfinite (pname,pinfo,ptp)
-      = (pname == qname) &&                 -- visited this exact definition before?
-        weight ptp <= weight tp             -- we want the instantiated type to "smaller" than any previous one
-
     -- Note: pname and qname are fully qualified resolved names with their instantiated types
     --   pname=qname : forall as. t           e.g. list/show : (xs : list<a>, ?show : a -> string ) : string
     --
@@ -1165,6 +1162,7 @@ isInfiniteChain chain ctx qname tp
     -- which ensures termination (but also prevents some programs to be accepted even though finite derivations exist (see `test/overload/wrong/blowup6.kk`))
     -- Our current measure is the number of constructors in the types of the implicit parameters.
     -- (and an even more precise one would be the size of each instantiated type variable used in implicits in a particular lexical order)
+
     weight :: Type -> Int
     weight tp
       = case splitFunScheme tp of
