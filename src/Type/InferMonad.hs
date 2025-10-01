@@ -994,7 +994,7 @@ resolveMaxChainDepth = 32   -- just in case: prevent infinite expansion (not req
 -- We can find a unique solution, or none, or surely ambiguous.
 -- The `selInfinite` tracks infinite chains, while `selCandidates` ambigious ones. Both are for error messages only.
 data ImplicitSelect   = None
-                      | Amb  { selCandidates :: ![ImplicitArg] }  -- only 1 candidate is used for an infinite chain
+                      | Amb  { selCandidates :: ![ImplicitArg] }  -- for an infinite chain we use a single candidate
                       | Found{ selFound :: !ImplicitArg  }
 
 allCandidates :: ImplicitSelect -> [ImplicitArg]
