@@ -91,7 +91,10 @@ fun build( publish : bool, version : string, speconly : bool ) : io ()
              filter(fn(p){ p.string.ends-with(".xmp.html").bool }).
              map(fn(p){ p.nodir.string })
   println("run madoko...")
-  run-echo( "cd " ++ outspec.string ++ " && node ../../../madoko/lib/cli.js --odir=. -v -mline-no:false -mlogo:false -mkokaversion:" ++ version
+  run-echo( "cd " ++ outspec.string 
+             // ++ " && node ../../../madoko/lib/cli.js"
+             ++ " && madoko"
+             ++ " --odir=. -v -mline-no:false -mlogo:false -mkokaversion:" ++ version
              ++ " " ++ xmps.join(" ") ++ " book.md index.md" )
 
   copy-file-to-dir(outspec / "madoko.css", outstyles)
