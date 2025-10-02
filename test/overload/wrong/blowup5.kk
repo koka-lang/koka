@@ -1,5 +1,5 @@
 fun paren/myshow( x : a, ?myshow : list<a> -> string ) : string
   "(" ++ myshow([x]) ++ ")"
 
-fun test()
+fun wrong()
   1.myshow

@@ -1,0 +1,5 @@
+test/overload/wrong/blowup6@kk(9, 3): type error: identifier even cannot be resolved
+ context : even(1)
+ inferred type: (int) -> _
+ candidates : grow/even(_,grow/even(_,@@@))
+ hint : qualify the name?

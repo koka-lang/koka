@@ -97,6 +97,7 @@ typeCheck flags defs coreImports program0
               importMap
               gamma0
               progName
+              (allowInfiniteChains flags)
               progDefs
 
         Core.setCoreDefs coreDefs

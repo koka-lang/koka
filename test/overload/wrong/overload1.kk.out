@@ -3,5 +3,13 @@ test/overload/wrong/overload1@kk(3, 3): type error: identifier show cannot be re
  inferred type: (_10) -> _
  candidates : show/show
  show/show
+ show/char/show
+ tuple/unit/show
+ int/show
+ bool/show
+ show
+ htag/show
+ maybe/show
+ show
  @@@
  hint : qualify the name?
