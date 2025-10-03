@@ -993,32 +993,42 @@ resolveMaxChainDepth = 32   -- just in case: prevent infinite expansion (not req
 
 -- We can find a unique solution, or none, or surely ambiguous.
 -- The `selInfinite` tracks infinite chains, while `selCandidates` ambigious ones. Both are for error messages only.
-data ImplicitSelect   = Amb  { selCandidates :: ![ImplicitArg] }  -- for an infinite chain we use a single candidate, we use empty candidates for no solution
-                      | Found{ selFound :: !ImplicitArg  }
+data ImplicitSelect   
+  = None                  -- no solution
+  | Found !ImplicitArg    -- a single solution
+  | Amb   ![ImplicitArg]  -- multiple solutions (failure)
+  | Infty !ImplicitArg    -- infinite chain (failure)
 
 allCandidates :: ImplicitSelect -> [ImplicitArg]
 allCandidates sel
   = case sel of
-      Amb xs  -> xs
+      None    -> []
       Found x -> [x]
+      Amb xs  -> xs
+      Infty x -> [x]
 
 mapCandidates :: (ImplicitArg -> ImplicitArg) -> ImplicitSelect -> ImplicitSelect
 mapCandidates f sel
   = case sel of
-      Amb xs  -> Amb (map f xs)
+      None    -> None
       Found x -> Found (f x)
+      Amb xs  -> Amb (map f xs)
+      Infty x -> Infty (f x)
 
 merge :: ImplicitSelect -> ImplicitSelect -> ImplicitSelect
 merge sel1 sel2
   = case (sel1,sel2) of
-      (Amb [], _)       -> sel2
-      (_,      Amb [])  -> sel1
-      _                 -> Amb (allCandidates sel1 ++ allCandidates sel2)
+      (None, _)    -> sel2
+      (_,    None) -> sel1
+      -- any other combination becomes ambigious.
+      -- in particular, Infty + Found must be treated as ambigious to be sound
+      _            -> Amb (allCandidates sel1 ++ allCandidates sel2)
 
 
 prettySelect :: Pretty.Env -> ImplicitSelect -> Doc
+prettySelect penv None         = text "None"
 prettySelect penv (Found iarg) = text "Found" <+> prettyImplicitArg penv iarg
-prettySelect penv (Amb [])     = text "None"
+prettySelect penv (Infty iarg) = text "Infty" <+> prettyImplicitArg penv iarg
 prettySelect penv (Amb xs)     = text "Amb" <+> list (map (prettyImplicitArg penv) xs)
 
 
@@ -1029,8 +1039,8 @@ resolveImplicitArg allowDisambiguate allowUnitFunVal ctx range roots
        sel <- resolveImplicitArgEx allowDisambiguate allowUnitFunVal (allowInfiniteChains env) [] ctx range roots
        case sel of
          Found iarg -> return (Right iarg)
-         Amb xs     -> do penv <- getPrettyEnv
-                          return $ Left (map (prettyImplicitArg penv) xs)
+         _          -> do penv <- getPrettyEnv
+                          return $ Left (map (prettyImplicitArg penv) (allCandidates sel))
 
 -- Resolve an implicit argument fully. This is recursively used with the `chain` of previously resolved implicit names
 resolveImplicitArgEx :: Bool -> Bool -> Bool -> [TypedArg] -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf ImplicitSelect
@@ -1041,7 +1051,7 @@ resolveImplicitArgEx allowDisambiguate allowUnitFunVal allowInfiniteChains chain
       --  when (length chain >= 4) $
       --     traceDefDoc $ \penv -> text "resolveImplicitArg: chain:" <+> list (map (prettyTypedArg penv) chain) <.> text ", continue with:" <->
       --                             indent 2 (vcat (map (prettyTypedArg penv) (map fst sorted)))
-       resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (Amb []) sorted
+       resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range None sorted
   where
     -- always prefer a creator definition over a plain constructor if it exists
     existConCreator :: [TypedArg] -> TypedArg -> Bool
@@ -1082,17 +1092,19 @@ resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (Found cur
 
 resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next@((qname,info,rho),ipars) : candidates)
   | not allowInfiniteChains && not (isDecreasingChain chain ctx qname rho)
-  = -- if this might lead to an infinite derivation skip it
+  = -- if this might lead to an infinite derivation
     do -- traceDefDoc $ \penv -> text "resolveUniquely: infinite derivation:" <->
        --                      indent 2 (vcat (map (prettyTypedArg penv) (reverse (fst next:chain))))
        let iarg = toImplicitArg [(pname, emptyImplicitArg) | (pname,_) <- ipars] (fst next)
-       resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (merge current (Amb [iarg])) candidates
+           sel  = Infty iarg
+       resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (merge current sel) candidates
 
 resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current candidates
   | length chain > resolveMaxChainDepth
   = do traceDefDoc $ \penv -> text "resolve implicit, cut off long chain:" <->
                                indent 2 (vcat (map (prettyTypedArg penv) (reverse chain)))
-       return $ Amb (map (toImplicitArg [] . fst) candidates)
+       let sels = map (Infty . toImplicitArg [] . fst) candidates
+       return $! foldr merge None sels
 
 resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next@((name,info,rho),ipars) : candidates)
   = do -- recursively resolve the required implicit parameters
