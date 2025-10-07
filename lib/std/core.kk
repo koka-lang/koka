@@ -205,11 +205,11 @@ pub fun default/cmp/(<)(x : a, y : a, ?cmp : (a,a) -> e order ) : e bool
 
 // Generic greater than or equal
 pub fun default/cmp/(>=)(x : a, y : a, ?cmp : (a,a) -> e order ) : e bool
-  not(y < x)
+  not(x < y)
 
 // Generic lower than or equal
 pub fun default/cmp/(<=)(x : a, y : a, ?cmp : (a,a) -> e order ) : e bool
-  not(y > x)
+  not(x > y)
 
 
 // ----------------------------------------------------------------------------
