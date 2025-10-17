@@ -461,7 +461,7 @@ inferDef topLevel expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis 
      if (verbose penv >= 4)
       then Lib.Trace.trace ("infer: " ++ show sort ++ " " ++ show name) $ return ()
       else return ()
-     withDefName name $ withScope $ disallowHole $ -- scopeImplicitConstraints $
+     withDefName name $ withScope $ disallowHole $ scopeImplicitConstraints $
       (if (not (isDefFun sort) || nameIsNil name) then id else allowReturn True) $
         do -- (tp,eff,coreExpr) <- traceIndent $ inferExpr Nothing expect expr
                                 -- Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
@@ -1423,6 +1423,7 @@ inferLam topLevel propagated expect bindersL body0 rng
   = isNamedLam $ \isNamed ->
     withScope $
     disallowHole $
+    -- scopeImplicitConstraints $ 
     do (ftp,_,fcore) <- maybeGeneralize rng (getRange body0) expect $ infBody isNamed
        --  -- traceDefDoc $ \env -> text " inferExpr.Lam: generalized fun type:" <+> ppType env ftp -- <+> text (show fcore)
        eff <- Op.freshEffect

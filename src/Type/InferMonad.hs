@@ -68,6 +68,7 @@ module Type.InferMonad( Inf, InfGamma
                       , inferSubsume
                       , withSkolemized, checkSkolemEscape
                       , substImplicitConstraints
+                      , scopeImplicitConstraints
 
                       , typeError
                       , contextError
@@ -277,8 +278,11 @@ isolate rng close free ics eff
                                                  else cexpr  -- TODO: apply runST?
                             return (ics',eff',coreRun . coref' . coref)
                      else do -- traceDefDoc $ \penv -> text "cannot isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs) <+> text ", free ics:" <+> list (map (ppConstraint penv) ics1)
-                             tryResolveImplicitConstraints close free
-                             return (ics,eff,id)
+                             coref <- tryResolveImplicitConstraints close free
+                             return (ics,eff,coref)
+          (lab@(TApp labcon [TCon global]) : _) -> do
+            coref <- tryResolveImplicitConstraints close free
+            return (ics,eff,coref)
           _ -> return (ics,eff,id)
 
   where
@@ -1731,7 +1735,11 @@ canResolveHeapDivConstraint free ic
   = do icTp <- implicitConstraintType ic
        case expandSyn icTp of -- expand here again (should never fail!) so we get skolem substitutions
          TApp (TCon tcon) [tpHeap,tpVal,tpEff]
-            -> return (heapNeverContainedIn free tpHeap tpVal || heapAlwaysContainedIn free tpHeap tpVal)
+            -> do
+              let never = heapNeverContainedIn free tpHeap tpVal  
+              let always = heapAlwaysContainedIn free tpHeap tpVal
+              -- trace ("Check resolve\n" ++ show tpHeap ++ "\n" ++ show tpVal ++ "\n" ++ show never ++ " " ++ show always) $ return () 
+              return (never || always)
 
 implicitConstraintType :: HasCallStack => ImplicitConstraint -> Inf Type
 implicitConstraintType ic
