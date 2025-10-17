@@ -1,0 +1,8 @@
+Error
+Pre final
+Final
+Post final
+2
+ 
+algeff/finalize2/main: () -> console int
+algeff/finalize2/yield: (s : string) -> yield ()

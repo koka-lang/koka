@@ -480,7 +480,8 @@ pub fun finally( fin : () -> e (), action : () -> e a ) : e a
 fun finally-prompt(fin : () -> e (), res : a ) : e a
   if !yielding() then
     fin()
-    res
+    if yielding() then yield-extend(fn(_) res)
+    else res
   elif yielding-non-final() then
     yield-cont(fn(cont,x){ finally-prompt(pretend-decreasing(fin),cont(x)) })
   else
