@@ -12,23 +12,33 @@ module std/text/parse
 
 import std/core/undiv
 
+// A function that parses some input into a result `a`.
 pub alias parser<e,a> = () -> <parse|e> a
 
+// Management of the branching alternatives for parsing an input string.
 pub effect parse
+  // Advance the input if and only if it currently satisfies `pred`.
+  // Further parsers continue with the slice it returns.
+  // 
+  // See also `satisfy-fail` which invokes `fail` when `pred` returns `Nothing`.
   fun satisfy( pred : sslice -> total maybe<(a,sslice)> ) : maybe<a>
-  ctl fail(msg : string) : a
+  // Fails the current branch of parsing.
+  final ctl fail(msg : string) : a
+  // Pick allows the user to try different parses.
+  // Handlers usually resume up to twice with `True` and `False`.
   ctl pick() : bool
+  // The current position of parse on the input.
   fun current-input() : sslice
+
+// Result of a parse
+pub type parse-error<a>
+  ParseOk( result: a, rest : sslice )
+  ParseError( msg : string, rest : sslice )
 
 pub fun starts-with( s : string, p : () -> parse a )  : maybe<(a,sslice)>
   match s.slice.parse(p)
     ParseOk(x,rest) -> Just((x,rest))
     _               -> Nothing
-
-
-pub type parse-error<a>
-  ParseOk( result: a, rest : sslice )
-  ParseError( msg : string, rest : sslice )
 
 pub fun maybe( perr : parse-error<a> ) : maybe<a>
   perr.either.maybe
@@ -44,6 +54,12 @@ pub fun parse-eof( input : sslice, p : () -> <parse|e> a) : e parse-error<a>
     eof()
     x
 
+// Parses `input0` with `p`.
+//
+// This implements the `pick` ctl using a depth-first search,
+//   short-circuiting if the `True` branch succeeds.
+// If both alternatives of a `pick` invoke `fail`, 
+//   the first error will be returned.
 pub fun parse( input0 : sslice, p : () -> <parse|e> a ) : e parse-error<a>
   var input := input0
   handle p
@@ -53,7 +69,7 @@ pub fun parse( input0 : sslice, p : () -> <parse|e> a ) : e parse-error<a>
     fun current-input()
       input
 
-    brk fail(msg)
+    final ctl fail(msg)
       ParseError(msg,input)
 
     fun satisfy(pred)
