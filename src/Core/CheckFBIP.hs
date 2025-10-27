@@ -80,7 +80,7 @@ chkTopLevelDef defGroupNames def
   = withCurrentDef def $ do
       case defSort def of
         -- only check fip and fbip annotated functions
-        DefFun borrows fip | not (isNoFip fip) ->
+        DefFun borrows fip | not (isFipTop fip) ->
           withFip fip $
             do out <- extractOutput $
                       withInput (\_ -> Input S.empty defGroupNames True) $
