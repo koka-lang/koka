@@ -16,7 +16,7 @@ module Common.Syntax( Visibility(..)
                     , DefSort(..), isDefFun, defFun, defFunEx, defSortShowFull
                     , ParamInfo(..)
                     , DefInline(..)
-                    , Fip(..), FipAlloc(..), fipIsTail, fipAlloc, noFip, isNoFip, isFipTop, fipMax, fipTop, fipBot, fipNoAlloc
+                    , Fip(..), FipAlloc(..), fipSubsumes, fipIsTail, fipAlloc, noFip, isNoFip, isFipTop, fipMax, fipTop, fipBot, fipNoAlloc
                     , Target(..), CTarget(..), JsTarget(..), isTargetC, isTargetJS, isTargetWasm
                     , isPublic, isPrivate
                     , DataDef(..)
@@ -367,12 +367,20 @@ data Assoc  = AssocNone
 {--------------------------------------------------------------------------
   Fip
 --------------------------------------------------------------------------}
+
 data Fip = Fip   { fipAlloc_ :: !FipAlloc }
          | Fbip  { fipAlloc_ :: !FipAlloc, fipTail :: !Bool }
          | NoFip { fipTail :: !Bool }
-         deriving (Eq,Ord)
-         -- TODO: ordening seems wrong as `NoFip False` should be the top
-         --       but now NoFip True is the top.
+         deriving (Eq)
+
+-- | Note that "fbip" and "fip(1)" are incomparable, so this can not be an Ord instance
+fipSubsumes :: Fip -> Fip -> Bool
+fipSubsumes (NoFip _) (Fip _) = True
+fipSubsumes (NoFip t1) f2 = not t1 || fipTail f2
+fipSubsumes (Fbip a1 t1) (Fbip a2 t2) = a1 >= a2 && (not t1 || t2)
+fipSubsumes (Fbip a1 _) (Fip a2) = a1 >= a2
+fipSubsumes (Fip a1) (Fip a2) = a1 >= a2
+fipSubsumes _ _ = False
 
 data FipAlloc = AllocAtMost !Int | AllocFinitely | AllocUnlimited
          deriving (Eq)

@@ -37,7 +37,7 @@ import Core.Core
 import qualified Core.Core as Core
 import Core.Pretty
 import Core.CoreVar
-import Core.Borrowed
+import Core.Borrowed ( Borrowed, borrowedLookup, borrowedLookupFip )
 import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial, nameTrue,
                         nameCCtxSetCtxPath, nameFieldAddrOf, nameTpInt,
                         nameLazyMemoizeTarget,nameLazyLeave,nameLazyEnter,nameLazyMemoize, nameCoreDebug)
@@ -266,6 +266,16 @@ chkWrap tname info
   = do bs <- getParamInfos (getName tname)
        unless (Borrow `notElem` bs) $
          emitWarning $ \penv -> text "a function with borrowed parameters is passed as an argument and implicitly wrapped (causing allocation)"
+       fip1 <- getFip
+       fip2 <- lookupFip (getName tname)
+       unless (fip1 `fipSubsumes` fip2) $
+         emitWarning $ \penv -> vcat [text $ "the function " ++ nameLocal (getName tname) ++ " is passed as an argument, but has an incompatible FIP/FBIP annotation:",
+                                      text " expected at least" <+> text (show fip1) <+> text "but found" <+> text (show fip2)]
+       when (fipAlloc fip2 /= AllocAtMost 0 && fipAlloc fip1 /= AllocUnlimited) $
+           emitWarning $ \penv -> text $
+                "the " ++ show fip2 ++ " function "
+             ++ nameLocal (getName tname)
+             ++ " is passed as an argument and may be called an unlimited number of times, causing unlimited allocation."
 
 chkAllocation :: TName -> ConRepr -> Chk ()
 chkAllocation cname repr | isConAsJust repr = pure ()
@@ -766,6 +776,13 @@ getParamInfos name
          Nothing -> return []
          Just pinfos -> return pinfos
 
+lookupFip :: Name -> Chk Fip
+lookupFip name
+  = do b <- borrowed <$> getEnv
+       case borrowedLookupFip name b of
+         Nothing -> return noFip
+         Just fip -> return fip
+
 traceDoc :: (Pretty.Env -> Doc) -> Chk ()
 traceDoc f
   = do env <- getEnv
@@ -786,7 +803,7 @@ emitWarning makedoc
                           (def:_) -> (defNameRange def, defName def)
                           _ -> (rangeNull, nameNil)
            penv = prettyEnv env
-           fdoc = text "fip fun" <+> ppName penv name <.> colon <+> makedoc penv
+           fdoc = text (show (fip env)) <+> text "fun" <+> ppName penv name <.> colon <+> makedoc penv
        when (qualifier name /= nameCoreDebug) $
           emitDoc rng fdoc
 

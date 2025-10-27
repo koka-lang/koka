@@ -46,7 +46,7 @@ import Common.Syntax hiding (scanFields)
 import Core.Core
 import Core.CoreVar
 import Core.Pretty
-import Core.Borrowed
+import Core.Borrowed ( Borrowed, borrowedLookup )
 
 --------------------------------------------------------------------------
 -- Reference count transformation

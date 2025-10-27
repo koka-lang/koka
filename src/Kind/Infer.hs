@@ -1388,7 +1388,7 @@ addLazyIndirect (DataType newtp targs constructors range vis sort ddef dataEff d
                 DataDefLazy (NoFip False) -> return defaultFip
                 DataDefLazy fip
                   -> -- trace ("fip check: " ++ show (fip,defaultFip) ++ ", gt? " ++ show (fip > defaultFip)) $
-                     if (fip < defaultFip)  -- annotated
+                     if (not (fip `fipSubsumes` defaultFip))  -- annotated
                        then do addError rng $ text "The datatype" <+> text (show fip) <+> text "annotation cannot be more restrictive than the fip annotations of the lazy constructors"
                                return defaultFip
                        else return fip

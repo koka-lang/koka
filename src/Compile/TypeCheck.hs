@@ -33,7 +33,7 @@ import Core.CheckFBIP( checkFBIP )
 import Core.Simplify( simplifyDefs )
 import Core.FunLift( liftFunctions )
 import Core.UnReturn( unreturn )
-import Core.Borrowed
+import Core.Borrowed ( borrowedExtendICore )
 import Core.Uniquefy( uniquefy )
 
 import Kind.Assumption( extractKGamma )

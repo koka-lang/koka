@@ -13,6 +13,7 @@ module Core.Borrowed( -- Borrowed parameter information
                     , borrowedExtend
                     , borrowedExtends
                     , borrowedLookup
+                    , borrowedLookupFip
                     , borrowedExtendICore
                     , ppBorrowed
 
@@ -28,13 +29,12 @@ import Common.Range
 import Common.Failure
 import qualified Data.List as L
 import Lib.PPrint
-import Common.Syntax( DefSort(..), ParamInfo(..) )
+import Common.Syntax( DefSort(..), ParamInfo(..), Fip, isNoFip )
 import qualified Common.NameMap as M
 import Common.Name
 import Common.ColorScheme
 import Core.Core
 import Type.Pretty
--- import qualified Core.CoreVar as CoreVar
 
 import Lib.Trace
 
@@ -46,9 +46,9 @@ import Lib.Trace
 
 -- | Map names to their borrowing info. If a name does not use borrowing
 -- it may not be in here.
-newtype Borrowed   = Borrowed (M.NameMap [ParamInfo])
+newtype Borrowed   = Borrowed (M.NameMap ([ParamInfo], Fip))
 
-type BorrowDef = (Name,[ParamInfo])
+type BorrowDef = (Name, ([ParamInfo], Fip))
 
 -- | The intial Borrowed
 borrowedEmpty :: Borrowed
@@ -64,12 +64,16 @@ borrowedExtends xs borrowed
   = foldr borrowedExtend borrowed xs
 
 borrowedExtend :: BorrowDef -> Borrowed -> Borrowed
-borrowedExtend (name,pinfos) (Borrowed borrowed)
-  = Borrowed (M.insert name pinfos borrowed)
+borrowedExtend (name,(pinfos, fip)) (Borrowed borrowed)
+  = Borrowed (M.insert name (pinfos, fip) borrowed)
 
 borrowedLookup :: Name -> Borrowed -> Maybe [ParamInfo]
 borrowedLookup name (Borrowed borrowed)
-  = M.lookup name borrowed
+  = fmap fst (M.lookup name borrowed)
+
+borrowedLookupFip :: Name -> Borrowed -> Maybe Fip
+borrowedLookupFip name (Borrowed borrowed)
+  = fmap snd (M.lookup name borrowed)
 
 borrowedCompose :: Borrowed -> Borrowed -> Borrowed
 borrowedCompose (Borrowed b1) (Borrowed b2)
@@ -98,8 +102,7 @@ extractBorrowExternals exs
 extractExternal :: External -> Maybe BorrowDef
 extractExternal ex
   = case ex of
-    External name _ params _ _ _ _ _ ->
-      if Borrow `elem` params then Just (name, params) else Nothing
+    External name _ params _ _ fip _ _ -> Just (name, (params, fip))
     _ -> Nothing
 
 extractDefGroup (DefRec defs)
@@ -110,7 +113,7 @@ extractDefGroup (DefNonRec def)
 extractBorrowDef :: Bool -> Def -> Maybe BorrowDef
 extractBorrowDef isRec def
   = case defSort def of
-      DefFun pinfos _ | not (null pinfos) -> Just (defName def,pinfos)
+      DefFun pinfos fip | not (null pinfos && isNoFip fip) -> Just (defName def,(pinfos, fip))
       _ -> Nothing
 
 instance Show Borrowed where
@@ -123,7 +126,7 @@ instance Pretty Borrowed where
 
 ppBorrowed :: Env -> Borrowed -> Doc
 ppBorrowed env (Borrowed borrowed)
-   = vcat [fill maxwidth (ppName env name) <+> tupled (map (text . show) pinfos)
-       | (name,pinfos) <- M.toList borrowed]
+   = vcat [text (show fip) <+> text "fun" <+> fill maxwidth (ppName env name) <+> tupled (map (text . show) pinfos)
+       | (name,(pinfos, fip)) <- M.toList borrowed]
    where
      maxwidth      = 12
