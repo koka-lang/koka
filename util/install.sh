@@ -105,6 +105,8 @@ detect_osarch() {
       OSNAME="macos";;
     [Ff]ree[Bb][Ss][Dd])
       OSNAME="unix-freebsd";;
+    [Oo]pen[Bb][Ss][Dd])
+      OSNAME="unix-openbsd";;
     *)
       info "Warning: unable to detect OS, assuming generic Linux"
   esac
