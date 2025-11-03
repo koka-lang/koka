@@ -1031,7 +1031,7 @@ makeEffectDecl decl =
       -- declare the handle function
 
       handleRetTp= TypeBinder (newHiddenName "b") kindStar krng krng
-      handleName = toHandleName id
+      handleRetName = toHandleReturnName id
       handleEff  = if (isInstance && not isScoped)
                     then {- if (isScoped)
                            then makeEffectExtend krng scopeEff (tpVar hndEffTp)
@@ -1055,7 +1055,7 @@ makeEffectDecl decl =
                          in [(newName "hname",hnameTp)] -- makeTpApp effTp (map tpVar tpars) rng)]
                     else []
       handleBody = Ann (Lam params handleInner False grng) handleTp grng
-      handleInner= App (Var (if isInstance then nameNamedHandle else nameHandle) False grng) arguments grng
+      handleInner= App (Var (if isInstance then nameNamedHandle else nameHandleReturn) False grng) arguments grng
       params     = [-- ValueBinder (newName "cfc") Nothing Nothing krng grng,
                     ValueBinder (newName "hnd") Nothing Nothing krng grng,
                     ValueBinder (newName "ret") Nothing Nothing krng grng,
@@ -1065,10 +1065,34 @@ makeEffectDecl decl =
                     (Nothing, Var (newName "hnd") False krng),
                     (Nothing, Var (newName "ret") False krng),
                     (Nothing, {-wrapAction-} (Var (newName "action") False krng))]
-      handleDef  =  Def (ValueBinder handleName () handleBody (rangeHide irng) grng)
+      handleDef  =  Def (ValueBinder handleRetName () handleBody (rangeHide irng) grng)
                         grng vis (defFun []) InlineNever ("// handler for the " ++ docEffect)
 
-   in [{-DefType effTpDecl,-} DefValue tagDef, DefType hndTpDecl, DefValue handleDef]
+      
+      actionTpNoRet   = makeTpFun actionArgTp handleEff (tpVar hndResTp) grng
+      paramsNoRet     = [-- ValueBinder (newName "cfc") Nothing Nothing krng grng,
+                    ValueBinder (newName "hnd") Nothing Nothing krng grng,
+                    ValueBinder (newName "action") Nothing Nothing krng grng]
+      argumentsNoRet  = [(Nothing, Var tagName False krng),
+                    -- (Nothing, Var (newName "cfc") False krng),
+                    (Nothing, Var (newName "hnd") False krng),
+                    (Nothing, {-wrapAction-} (Var (newName "action") False krng))]
+      handleNoRetName = toHandleNoReturnName id
+      handleNoRetTp   = quantify QForall (scopedTpVars ++ [hndEffTp,hndResTp]) $
+                   makeTpFun [
+                    -- (newName "cfc", TpCon nameTpInt32 krng),
+                    (newName "hnd", TpApp (TpCon hndName grng) (map tpVar (scopedTpVars ++ [hndEffTp,hndResTp])) grng),
+                    (newName "action",
+                        if (isScoped)
+                          then quantify QForall tparsScoped actionTpNoRet
+                          else actionTpNoRet)
+                    ] (tpVar hndEffTp) (tpVar hndResTp) grng
+      handleNoRetBody = Ann (Lam paramsNoRet handleInnerNoRet False grng) handleNoRetTp grng
+      handleInnerNoRet= App (Var (if isInstance then nameNamedHandle else nameHandleNoReturn) False grng) argumentsNoRet grng
+      handleNoRetDef = Def (ValueBinder handleNoRetName () handleNoRetBody (rangeHide irng) grng)
+                        grng vis (defFun []) InlineNever ("// handler without return for the " ++ docEffect)
+
+   in [{-DefType effTpDecl,-} DefValue tagDef, DefType hndTpDecl, DefValue handleDef] ++ (if isInstance then [] else [DefValue handleNoRetDef])
          ++ map DefValue opSelects
          ++ map DefValue opDefs
          ++ map DefValue (catMaybes opValDefs)

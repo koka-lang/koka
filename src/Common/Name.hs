@@ -38,7 +38,8 @@ module Common.Name
           , toOpSelectorName, fromOpSelectorName, isOpSelectorName
           , toOperationsName, fromOperationsName, isOperationsName
           , toEffectTagName
-          , toHandleName, isHandleName
+          , toHandleReturnName, isHandleName
+          , toHandleNoReturnName
           , toOpsConName, toOpConName, toOpTypeName
           , toConstructorName, isConstructorName, toVarName, toHandlerConName
           , toOpenTagName, isOpenTagName
@@ -720,7 +721,8 @@ isCreatorName name
   = hiddenNameStartsWith name "create"
 
 hndName = newHiddenName "hnd"
-handleName = newHiddenName "handle"
+handleNoReturnName = newHiddenName "handle-no-return"
+handleReturnName = newHiddenName "handle-return"
 effectTagName = newHiddenName "tag"
 effectOpsName = newHiddenName "ops"
 opsSelectName = newHiddenName "select"
@@ -740,13 +742,17 @@ fromHandlerName name
   = typeQualifiedGetTypeName name
 
 -- | Create a handle function name from an effect type name.
-toHandleName :: Name -> Name
-toHandleName typeName
-  = typeQualifiedNameOf typeName $ handleName -- makeHiddenName "handle" name
+toHandleReturnName :: Name -> Name
+toHandleReturnName typeName
+  = typeQualifiedNameOf typeName $ handleReturnName -- makeHiddenName "handle-return" name
+
+toHandleNoReturnName :: Name -> Name
+toHandleNoReturnName typeName
+  = typeQualifiedNameOf typeName $ handleNoReturnName -- makeHiddenName "handle-no-return" name
 
 isHandleName :: Name -> Bool
 isHandleName name
-  = stemIsEqual handleName name -- hiddenNameStartsWith name "handle"
+  = stemIsEqual handleReturnName name  || stemIsEqual handleNoReturnName name-- hiddenNameStartsWith name "handle"
 
 
 -- | Create an operations type name from an effect type name.

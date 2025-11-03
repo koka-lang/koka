@@ -52,7 +52,7 @@ module Common.NamePrim
           , nameTpClause, namePerform
           , nameTpEvv, nameEvvAt, nameEvvIndex, nameEvvIndexMask
           , nameOpenAt, nameOpen, nameOpenNone
-          , nameTpEv, nameHandle, nameNamedHandle
+          , nameTpEv, nameHandleNoReturn, nameHandleReturn, nameNamedHandle
           , nameTpResumeContext
           , nameClause
           , nameIdentity
@@ -363,7 +363,8 @@ nameOpenNone i  = coreHndName ("@open-none" ++ show i)
 nameOpen i      = coreHndName ("@open" ++ show i)
 nameEvvIsAffine = coreHndName ("@evv-is-affine")
 
-nameHandle      = coreHndName "@hhandle"
+nameHandleReturn      = newLocallyQualified "std/core/hnd" "return" "@hhandle"
+nameHandleNoReturn    = newLocallyQualified "std/core/hnd" "no-return" "@hhandle"
 nameNamedHandle = coreHndName "@named-handle"
 
 nameYielding    = coreHndName "yielding"

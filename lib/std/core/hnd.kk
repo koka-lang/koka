@@ -373,7 +373,7 @@ extern resume-final() : a
   c  inline "kk_fatal_resume_final(kk_context())"
   js "_throw_resume_final"
 
-fun prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, ret: a -> e0 r, result : a ) : e0 r
+fun return/prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, ret: a -> e0 r, result : a ) : e0 r
   guard(w1)
   evv-set(w0)  // restore the previous evidence vector
   match yield-prompt(m)
@@ -409,7 +409,43 @@ fun prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, ret: a ->
             prompt(w0',w1',ev,pretend-decreasing(m),ret,cont({ yield-to-final(m, fn(_k) x) }))
       clause(resume) // TODO: we should exit prompt first, and then execute clause to use constant stack space when resuming
 
-pub noinline fun @hhandle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r
+fun no-return/prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,a>, result : a ) : e0 a
+  guard(w1)
+  evv-set(w0)  // restore the previous evidence vector
+  match yield-prompt(m)
+    Pure ->
+      // returning
+      result
+    YieldingFinal ->
+      // yielding final (exception), keep yielding
+      keep-yielding-final()
+    Yielding ->
+      // regular yield, install a continuation
+      yield-cont fn(cont,res)
+        // we resume, continue under a fresh a prompt again
+        val w0' = evv-get()  // if not using scoped resumptions, w0' may be different from w0
+        val w1' = if (evv-eq(w0,w0')) then w1 else evv-insert(w0',ev)
+        evv-set(w1')
+        no-return/prompt(w0',w1',ev,pretend-decreasing(m),cont(res));
+    Yield(clause,cont) ->
+      // yielded to the operation `clause` in our handler
+      fun resume(r)
+        match(r)
+          Deep(x) ->
+            val w0' = evv-get()  // if not using scoped resumptions, w0' may be different from w0
+            val w1' = if evv-eq(w0,w0') then w1 else evv-insert(w0',ev)
+            evv-set(w1')
+            no-return/prompt(w0',w1',ev,pretend-decreasing(m),cont({x}))
+          Shallow(x) ->
+            cont({x})
+          Finalize(x) ->
+            val w0' = evv-get()  // if not using scoped resumptions, w0' may be different from w0
+            val w1' = if evv-eq(w0,w0') then w1 else evv-insert(w0',ev)
+            evv-set(w1')
+            no-return/prompt(w0',w1',ev,pretend-decreasing(m),cont({ yield-to-final(m, fn(_k) x) }))
+      clause(resume) // TODO: we should exit prompt first, and then execute clause to use constant stack space when resuming
+
+pub noinline fun return/@hhandle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r
   // insert new evidence for our handler
   val w0 = evv-get()
   val m  = fresh-marker()
@@ -418,6 +454,16 @@ pub noinline fun @hhandle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -
   evv-set(w1)
   // call action first (this may be yielding), then check the result
   prompt(w0,w1,ev,m,ret,cast-ev0(action)())
+
+pub noinline fun no-return/@hhandle( tag:htag<h>, h : h<e,a>, action : () -> e1 a ) : e a
+  // insert new evidence for our handler
+  val w0 = evv-get()
+  val m  = fresh-marker()
+  val ev = Ev(tag,m,h,w0)
+  val w1 = evv-insert(w0,ev)
+  evv-set(w1)
+  // call action first (this may be yielding), then check the result
+  no-return/prompt(w0,w1,ev,m,cast-ev0(action)())
 
 // -------------------------------------------
 // named handler
