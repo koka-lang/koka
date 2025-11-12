@@ -534,6 +534,49 @@ static inline void kk_free_local(const void* p, kk_context_t* ctx) {
 
 #define kk_malloc_usable_size(p)  mi_usable_size(p)
 
+#elif defined(__OpenBSD__)
+
+// On OpenBSD, libc's malloc implementation doesn't allow checking the
+// size of an allocation. Here we prefix each allocation with a `size_t`
+// that contains its size (excluding the prefix itself, so that
+// `kk_malloc_usable_size` works the same as on other platforms).
+
+static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
+  kk_unused(ctx);
+  size_t* p = malloc(sizeof(size_t) + (size_t)sz);
+  *p = (size_t)sz;
+  return (void*)(p + 1);
+}
+
+static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
+  return kk_malloc(sz,ctx);
+}
+
+static inline void* kk_zalloc(kk_ssize_t sz, kk_context_t* ctx) {
+  kk_unused(ctx);
+  size_t* p = calloc(1, sizeof(size_t) + (size_t)sz);
+  *p = (size_t)sz;
+  return (void*)(p + 1);
+}
+
+static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
+  kk_unused(ctx);
+  size_t* q = realloc((size_t*)p - 1, sizeof(size_t) + (size_t)sz);
+  *q = (size_t)sz;
+  return (void*)(q + 1);
+}
+
+static inline void kk_free(const void* p, kk_context_t* ctx) {
+  kk_unused(ctx);
+  free((size_t*)p - 1);
+}
+
+static inline void kk_free_local(const void* p, kk_context_t* ctx) {
+  kk_free(p,ctx);
+}
+
+#define kk_malloc_usable_size(p) *((size_t*)p - 1)
+
 #else
 static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
   kk_unused(ctx);
