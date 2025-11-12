@@ -1151,7 +1151,7 @@ resolveImplicitParameter allowDisambiguate allowInfiniteChains chain range (pnam
 
 
 decreasingWithin :: Int
-decreasingWithin = 8
+decreasingWithin = 4
 
 -- Have a previously tried to derive this parameter?
 isDecreasingChain :: [TypedArg] -> NameContext -> Name -> Type -> Bool
