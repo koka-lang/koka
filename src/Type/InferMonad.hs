@@ -1150,12 +1150,19 @@ resolveImplicitParameter allowDisambiguate allowInfiniteChains chain range (pnam
                             [(isInfoValFunExt,pnameExpr)]
 
 
+decreasingWithin :: Int
+decreasingWithin = 8
+
 -- Have a previously tried to derive this parameter?
 isDecreasingChain :: [TypedArg] -> NameContext -> Name -> Type -> Bool
 isDecreasingChain chain ctx qname tp
-  = case dropWhile (\(pname,_,_) -> pname /= qname) chain of  -- drop until we find this exact definition in the chain
+  = case filter (\(pname,_,_) -> pname == qname) chain of  -- find only matching definition in the chain
       []                  -> True                      -- never visited before
-      ((_,_,prevtp) : _)  -> weight tp < weight prevtp -- we want the instantiated type to "smaller" than any previous one
+      prevtps  -> 
+        if length prevtps < decreasingWithin then True -- Not enough to decide yet (we want to be able to grow a bit at the beginning)
+        else
+          let limited = take decreasingWithin prevtps -- the last *k* elements in the same partition.
+          in weight tp < (maximum $ map (\(_, _, tp) -> weight tp) limited) -- we want the instantiated type to "smaller" than any previous one (i.e. at least smaller than the maximum) 
   where
     -- Note: pname and qname are fully qualified resolved names with their instantiated types
     --   pname=qname : forall as. t           e.g. list/show : (xs : list<a>, ?show : a -> string ) : string
