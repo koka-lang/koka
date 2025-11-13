@@ -1989,6 +1989,9 @@ inferImplicitParam par
                            binderExpr = Nothing }, unpack)
      else return (par, id)
 
+qualifyUnpacked :: Name -> Name -> Name
+qualifyUnpacked pname fname = (qualifyLocally (nameAsModuleName $ fromImplicitParamName pname) fname)
+
 inferImplicitUnpack :: Range -> Range -> Name -> Name -> Inf (Expr Type -> Expr Type)
 inferImplicitUnpack rng nrng pname qname
   = do nt <- getNewtypes
@@ -1997,7 +2000,7 @@ inferImplicitUnpack rng nrng pname qname
                         dataInfoConstrs=[conInfo],
                         dataInfoDef=ddef})  | not (dataDefIsOpen ddef)
         -- struct: unpack the fields
-           -> let pats = [PatVar (ValueBinder fname Nothing (PatWild nrng) nrng rng)
+           -> let pats = [PatVar (ValueBinder (qualifyUnpacked pname fname) Nothing (PatWild nrng) nrng rng)
                             | (fname,ftp) <- conInfoParams conInfo, not (nameIsNil fname)]
                   pat  = PatCon (conInfoName conInfo) [(Nothing,p) | p <- pats] nrng rangeNull {- no warnings for unused pattern variables by using a null range -}
                   unpack body
@@ -2016,7 +2019,7 @@ inferImplicitUnpack rng nrng pname qname
                         TCon tcon              -> [typeConName tcon]
                         _                      -> []
 
-              in do unpackBases <- mapM (\(fname,fqname) -> inferImplicitUnpack rng nrng fname fqname) bases  -- todo: stop recursion!
+              in do unpackBases <- mapM (\(fname,fqname) -> inferImplicitUnpack rng nrng (qualifyUnpacked pname fname) fqname) bases  -- todo: stop recursion!
                     return (compose (unpack:unpackBases))
 
         _  -> do -- traceDefDoc $ \penv -> text "inferImplicitUnpack: cannot resolve" <+> text (show qname)
