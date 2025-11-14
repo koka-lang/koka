@@ -234,11 +234,11 @@ pub fun slice/foreach( slice : sslice, action : (c:char) -> e ()) : e ()
 
 // Invoke a function for each character in a string.
 // If `action` returns `Just`, the function returns immediately with that result.
-pub fun string/foreach-while( s : string, action : (c:char) -> e maybe<a> ) : e maybe<a>
+pub fun string/foreach-while( s : string, action : (char) -> e maybe<a> ) : e maybe<a>
   s.slice.foreach-while(action)
 
 // Invoke a function for each character in a string
-pub fun string/foreach( s : string, action : (c:char) -> e () ) : e ()
+pub fun string/foreach( s : string, action : (char) -> e () ) : e ()
   s.slice.foreach(action)
 
 // Return the first character of a string (or `Nothing` for the empty string).

@@ -101,7 +101,7 @@ pub fun ignore( x : a ) : ()
   ()
 
 // Return a 'constant' function that ignores its argument and always returns the same result
-pub fun const( default : a ) : total (( x : b ) -> a)
+pub fun const( default : a ) : total (( b ) -> a)
   fn(_) default
 
 // Concise way to ensure two expressions have the same type.
