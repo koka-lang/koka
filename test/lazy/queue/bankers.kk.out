@@ -28,7 +28,7 @@ lazy/queue/bankers/sreverse-acc: forall<a> (xs : list<a>, acc : stream<a>) -> st
 lazy/queue/bankers/stream: (start : int, end : int) -> div stream<int>
 lazy/queue/bankers/test1: () -> <console,div> ()
 lazy/queue/bankers/uncons: forall<a> (bqueue<a>) -> div maybe2<a,bqueue<a>>
-test/lazy/queue/bankers@kk(27,14): warning: fip fun list: calling a non-fip function: stream/lazy-force
-test/lazy/queue/bankers@kk(109,12): warning: fip fun balance: allocating a non-fip lazy constructor: SAppRev
-test/lazy/queue/bankers@kk(117,13): warning: fip fun uncons: calling a non-fip function: stream/lazy-force
+test/lazy/queue/bankers@kk(27,14): warning: fbip fun list: calling a non-fip function: stream/lazy-force
+test/lazy/queue/bankers@kk(109,12): warning: fip(1) fun balance: allocating a non-fip lazy constructor: SAppRev
+test/lazy/queue/bankers@kk(117,13): warning: fbip(2) fun uncons: calling a non-fip function: stream/lazy-force
 test/lazy/queue/bankers@kk(14,22): kind warning: Cannot update the lazy constructor SAppRev in-place as the result constructor is not statically known -- using an indirection instead

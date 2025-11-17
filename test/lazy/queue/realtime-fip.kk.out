@@ -25,5 +25,5 @@ lazy/queue/realtime-fip/is-empty: forall<a> (queue<a>) -> div bool
 lazy/queue/realtime-fip/main: () -> io ()
 lazy/queue/realtime-fip/snoc: forall<a> (queue<a>, x : a) -> div queue<a>
 lazy/queue/realtime-fip/uncons: forall<a> (queue<a>) -> div maybe2<a,queue<a>>
-test/lazy/queue/realtime-fip@kk(31,10): warning: fip fun is-empty: calling a non-fip function: stream/lazy-force
+test/lazy/queue/realtime-fip@kk(31,10): warning: fbip fun is-empty: calling a non-fip function: stream/lazy-force
 test/lazy/queue/realtime-fip@kk(24,12): kind warning: Cannot update the lazy constructor SRotate in-place as the result constructor is not statically known -- using an indirection instead

@@ -1,5 +1,5 @@
 test/overload/wrong/blowup4@kk(5, 5): type error: identifier myshow cannot be resolved
  context : 1@myshow
  inferred type: (int) -> _
- candidates : paren/myshow(_,paren/myshow(_,@@@))
+ candidates : paren/myshow(_,paren/myshow(_,paren/myshow(_,paren/myshow(_,paren/myshow(_,@@@)))))
  hint : qualify the name?

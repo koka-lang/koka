@@ -27,4 +27,4 @@ lazy/queue/physicists-stack/size: forall<a> (q : queue<a>) -> int
 lazy/queue/physicists-stack/snoc: forall<a> (q : queue<a>, x : a) -> div queue<a>
 lazy/queue/physicists-stack/uncons: forall<a> (q : queue<a>) -> div maybe2<a,queue<a>>
 lazy/queue/physicists-stack/whnf: forall<a> (xs : thunk<a>) -> div list<a>
-test/lazy/queue/physicists-stack@kk(13,10): warning: fip fun whnf: calling a non-fip function: thunk/lazy-force
+test/lazy/queue/physicists-stack@kk(13,10): warning: fbip fun whnf: calling a non-fip function: thunk/lazy-force

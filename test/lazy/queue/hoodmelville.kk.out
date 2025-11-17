@@ -35,7 +35,7 @@ lazy/queue/hoodmelville/snoc: forall<a> (q : queue<a>, x : a) -> div queue<a>
 lazy/queue/hoodmelville/tick: forall<a> (t : thunk<a>) -> thunk<a>
 lazy/queue/hoodmelville/uncons: forall<a> (q : queue<a>) -> div maybe2<a,queue<a>>
 lazy/queue/hoodmelville/whnf: forall<a> (t : thunk<a>) -> div list<a>
-test/lazy/queue/hoodmelville@kk(19,10): warning: fip fun tick: calling a non-fip function: thunk/lazy-step
-test/lazy/queue/hoodmelville@kk(22,10): warning: fip fun whnf: calling a non-fip function: thunk/lazy-force
-test/lazy/queue/hoodmelville@kk(22,10): warning: fip fun whnf: calling a non-fip function: thunk/lazy-force
+test/lazy/queue/hoodmelville@kk(19,10): warning: fbip fun tick: calling a non-fip function: thunk/lazy-step
+test/lazy/queue/hoodmelville@kk(22,10): warning: fbip fun whnf: calling a non-fip function: thunk/lazy-force
+test/lazy/queue/hoodmelville@kk(22,10): warning: fbip fun whnf: calling a non-fip function: thunk/lazy-force
 test/lazy/queue/hoodmelville@kk(17,12): kind warning: Cannot update the lazy constructor Reverse in-place as the result constructor is not statically known -- using an indirection instead
