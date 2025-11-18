@@ -2237,15 +2237,16 @@ etaExpandExpr name nameRange argCount parTps resTp makeApp argexpr
       case matches of
         [(qname,info)]
           -> do let vtp = infoType info
-                -- traceDoc $ \penv -> text "inferArgExpr: try eta-expanded:" <+> ppParam penv (qname,vtp)
+                -- traceDoc $ \penv -> text "inferArgExpr: try eta-expanded:" <+> ppParam penv (qname,vtp) <+> hcat (map (\p -> text "param " <+> ppParam penv p) parTps)
                 case splitFunScheme vtp of
                   Just (_,vparTps,_,_)  | argCount < length vparTps
                                             && hasOptionalOrImplicits vparTps
                                             && all isMonoType (map snd parTps) -- cannot abstract over polymorphic parameters
                     -> -- the variable has a type with optional parameters, eta-expand it to match the expected type without optional parameters
-                       do let range        = getRange argexpr
+                       do -- traceDoc $ \penv -> text "inferArgExpr: try eta-expanded:" <+> ppParam penv (qname,vtp) <+> hcat (map (\p -> text "param " <+> ppParam penv p) vparTps)
+                          let range        = getRange argexpr
                               nameFixed    = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] parTps]
-                              argsFixed    = [(if nameIsNil origName then Nothing else Just (origName, range),Var name False range) | (origName, name) <- zip (map fst parTps) nameFixed]
+                              argsFixed    = [(if not (nameIsNil origName) && any (\(nm, tp) -> nm == origName) vparTps then Just (origName, range) else Nothing, Var name False range) | (origName, name) <- zip (map fst parTps) nameFixed]
                               body         = makeApp argsFixed range -- App argexpr argsFixed range
                               eta          = Lam [ValueBinder name Nothing Nothing range range | name <- nameFixed] body False range
                           -- addRangeInfo nameRange (RM.Implicits (\shorten -> text "fn(_,_) var")) -- todo: show the eta-expansion as inlay in vscode?
