@@ -466,7 +466,7 @@ inferDef topLevel expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis 
         do -- (tp,eff,coreExpr) <- traceIndent $ inferExpr Nothing expect expr
                                 -- Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
 
-           -- traceDoc $ \env -> text " infer def before gen:" <+> pretty name <+> colon <+> ppType env tp <+> text "|" <+> ppType env eff
+           -- traceDoc $ \env -> text " infer def before gen:" <+> pretty name <+> colon <+> text "|"
            (resTp,eff,resCore)   <- maybeGeneralize rng nameRng expect $
                                     traceIndent $
                                     do (resTp,eff,resCore) <- inferExpr Nothing expect expr
@@ -478,7 +478,6 @@ inferDef topLevel expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis 
 
                                        -- may not have been generalized due to annotation
            -- traceDoc $ \env -> text " infer def:" <+> Pretty.ppParam (name,resTp)
-
 
           --  resTp   <- subst resTp0
           --  resCore <- subst resCore0

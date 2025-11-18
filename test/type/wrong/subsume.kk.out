@@ -1,0 +1,6 @@
+test/type/wrong/subsume@kk(4,42): type error: effects do not match
+ context : forall<e> (() -> e ()) -> () = foo
+ term : foo
+ inferred effect: $e
+ expected effect: total
+ because : type cannot be instantiated to match the annotation

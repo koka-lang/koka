@@ -186,7 +186,7 @@ subsume range free tp1 tp2
     do -- skolemize,instantiate and unify
        (sks,rho1,core1) <- skolemizeEx range tp1
        (tvs,rho2,core2) <- instantiateEx range tp2
-       -- trace ("  subsume: " ++ show (pretty rho1, pretty rho2) ++ ", free: " ++ show (map pretty (tvsList free))) $
+       -- trace ("  subsume: " ++ show (pretty rho1, pretty rho2) ++ ", free: " ++ show (map pretty (tvsList free))) $ return ()
        unify rho2 rho1
 
        -- escape check: no skolems should escape into the environment
@@ -269,12 +269,14 @@ unify (TApp t1 ts1) (TApp u1 us2)   -- | length ts1 != length us2
 -- functions
 unify f1@(TFun args1 eff1 res1) f2@(TFun args2 eff2 res2) | length args1 == length args2
   = do unifies (res1:map snd args1) (res2:map snd args2)
-       withError (effErr) (unify eff1 eff2)
+       seff1 <- subst eff1
+       seff2 <- subst eff2
+       withError (effErr seff1 seff2) (unify seff1 seff2)
   where
     -- specialize to sub-part of the type for effect unification errors
-    effErr NoMatch              = NoMatchEffect eff1 eff2
-    effErr (NoMatchEffect _ _)  = NoMatchEffect eff1 eff2
-    effErr err                  = err
+    effErr eff1 eff2 NoMatch              = NoMatchEffect eff1 eff2
+    effErr eff1 eff2 (NoMatchEffect _ _)  = NoMatchEffect eff1 eff2
+    effErr eff1 eff2 err                  = err
 
 -- quantified types
 unify (TForall vars1 tp1) (TForall vars2 tp2) | length vars1 == length vars2
