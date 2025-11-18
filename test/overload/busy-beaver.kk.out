@@ -1,0 +1,17 @@
+done@
+ 
+overload/busy-beaver/a/b/trans: forall<a,b,c> (st : config<state-a,cons<c,a>,cons<sym0,b>>, ?trans : (config<state-b,a,cons<c,cons<sym1,b>>>) -> ()) -> ()
+overload/busy-beaver/a/c/trans: forall<a,b,c> (st : config<state-a,a,cons<sym1,cons<c,b>>>, ?trans : (config<state-c,cons<sym1,a>,cons<c,b>>) -> ()) -> ()
+overload/busy-beaver/b/a/trans: forall<a,b,c> (st : config<state-b,a,cons<sym0,cons<c,b>>>, ?trans : (config<state-a,cons<sym1,a>,cons<c,b>>) -> ()) -> ()
+overload/busy-beaver/b/b/trans: forall<a,b,c> (st : config<state-b,cons<c,a>,cons<sym1,b>>, ?trans : (config<state-b,a,cons<c,cons<sym1,b>>>) -> ()) -> ()
+overload/busy-beaver/c/b/trans: forall<a,b,c> (st : config<state-c,a,cons<sym0,cons<c,b>>>, ?trans : (config<state-b,cons<sym1,a>,cons<c,b>>) -> ()) -> ()
+overload/busy-beaver/c/end/trans: forall<a,b> (st : config<state-c,a,cons<sym1,b>>, ?trans : () -> ()) -> ()
+overload/busy-beaver/halt/trans: () -> ()
+overload/busy-beaver/inf/a/b/trans: forall<a> (st : config<state-a,inf,cons<sym0,a>>, ?trans : (config<state-a,cons<sym0,inf>,cons<sym0,a>>) -> ()) -> ()
+overload/busy-beaver/inf/a/c/trans: forall<a> (st : config<state-a,a,cons<sym1,inf>>, ?trans : (config<state-a,a,cons<sym1,cons<sym0,inf>>>) -> ()) -> ()
+overload/busy-beaver/inf/b/a/trans: forall<a> (st : config<state-b,a,cons<sym0,inf>>, ?trans : (config<state-b,a,cons<sym0,cons<sym0,inf>>>) -> ()) -> ()
+overload/busy-beaver/inf/b/b/trans: forall<a> (st : config<state-b,inf,cons<sym1,a>>, ?trans : (config<state-b,cons<sym0,inf>,cons<sym1,a>>) -> ()) -> ()
+overload/busy-beaver/inf/c/b/trans: forall<a> (st : config<state-c,a,cons<sym0,inf>>, ?trans : (config<state-c,a,cons<sym0,cons<sym0,inf>>>) -> ()) -> ()
+overload/busy-beaver/Start: forall<a,b,c> config<a,b,c>
+overload/busy-beaver/main: () -> console ()
+overload/busy-beaver/start: config<state-a,inf,cons<sym0,inf>>
