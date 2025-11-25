@@ -88,7 +88,7 @@ topDown (Let dgs body)
   = topDownLet [] [] dgs body
   where
     subst sub expr
-      = if null sub then expr else (sub |~> expr)
+      = if null sub then expr else sub |~> expr
     extend :: (TName,Expr) -> [(TName,Expr)] -> [(TName,Expr)]
     extend (name,e) sub
       = (name,e):sub
@@ -106,8 +106,12 @@ topDown (Let dgs body)
 
     topDownLet sub acc (DefNonRec def@(Def{defName=x,defType=tp,defExpr=letexpr@(Let dgs' body')}) : dgs) body
       = -- lift nested let bindings
-        assertion "Core.Simplify.topDownLet.liftLets" (bv dgs' `tnamesDisjoint` fv body) $ -- due to uniquefy at start of simplify
-        topDownLet sub acc (dgs' ++ [DefNonRec def{defExpr = body'}] ++ dgs) body
+        -- assertion "Core.Simplify.topDownLet.liftLets" (bv dgs' `tnamesDisjoint` fv body) $ -- due to uniquefy at start of simplify (not true due to inlining multiple times https://github.com/koka-lang/koka/issues/782)
+        if bv dgs' `tnamesDisjoint` fv body
+          then topDownLet sub acc (dgs' ++ [DefNonRec def{defExpr = body'}] ++ dgs) body
+          else
+            -- trace ("Defs" ++ show (prettyDef defaultEnv def) ++ " Body: " ++ show (prettyExpr defaultEnv body)) $
+            topDownLet sub acc (DefNonRec def{defExpr=uniquefyExpr letexpr} : dgs) body
 
     topDownLet sub acc (dg:dgs) body
       = let sdg = subst sub dg
