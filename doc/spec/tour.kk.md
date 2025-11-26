@@ -267,7 +267,7 @@ uncaught exception: oops
 ````
 
 This is another example of the _min-gen_ principle: many languages have
-have special built-in support for this kind of pattern, like a ``defer`` statement, but in &koka;
+special built-in support for this kind of pattern, like a ``defer`` statement, but in &koka;
 it is all just function applications with minimal syntactic sugar.
 
 [Read more about initially and finally handlers &adown;](#sec-resource){.learn}
@@ -2000,7 +2000,7 @@ tail-recursive and thus uses as much stack space as the depth of the
 tree.
 
 ````cpp {.aside}
-void inorder( tree* root, void (*f)(tree* t) ) {
+void inorder( tree* root, void (*f)(int) ) {
   tree* cursor = root;
   while (cursor != NULL /* Tip */) {
     if (cursor->left == NULL) {
