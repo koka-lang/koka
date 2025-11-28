@@ -13,6 +13,13 @@ generating direct C code without needing a runtime system. To learn more:
 
 ### v3.2.3
 
+- Top-level definitions that start with `wrong` can have static (type) errors and 
+  will be ignored (but the errors are still showed as warnings).
+  This expands on definitions that start with `test` or `example` which can be run
+  directly from the IDE.
+
+- Expand inlay hints to show the eta-expanded underscore syntax (since v3.2.0).
+
 - New implicit resolving algorithm (which is better at avoiding exponential search time).
 
 ### v3.2.2, 2025-07-22
