@@ -87,7 +87,7 @@ module Type.InferMonad( Inf, InfGamma
                       , withNiceNames, lookupNiceName
 
 
-                      , freeInGamma, ppTvs
+                      , freeInGamma, ppTvs, ignoreErrors
 
                       ) where
 
@@ -1871,6 +1871,14 @@ tryRun (Inf i) = Inf (\env st -> case i env st of
 
 instance HasUnique Inf where
   updateUnique f  = Inf (\env st -> Ok (uniq st) st{uniq = f (uniq st)} [])
+
+ignoreErrors :: Inf a -> Inf a -> Inf a
+ignoreErrors (Inf defaultRes) (Inf f)
+  = Inf (\env st0 -> case f env st0 of
+                       Err err ws -> case defaultRes env st0 of
+                                       Ok x st1 ws1 -> Ok x st1 ([err] ++ ws ++ ws1)
+                                       Err err1 ws1 -> Err err1 ([err] ++ ws ++ ws1)
+                       ok         -> ok)
 
 getEnv :: Inf Env
 getEnv

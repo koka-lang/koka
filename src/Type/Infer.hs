@@ -140,7 +140,10 @@ traceCoreDefGroups cdefgs
 
 inferDefGroup :: Bool -> DefGroup Type -> Inf a -> Inf ([Core.DefGroup], a)
 inferDefGroup topLevel (DefNonRec def) cont
-  = -- trace ("\ninfer single " ++ show (defName def)) $
+  = (if topLevel && nameStartsWith (unqualify (defName def)) "wrong"
+       then ignoreErrors (do{ x <- cont; return ([],x) })
+       else id) $
+    -- trace ("\ninfer single " ++ show (defName def)) $
     do core <- inferDef topLevel (Generalized True) def
        -- traceDoc $ \penv -> text "inferred def:" <+> ppType penv (Core.typeOf core)
        mod  <- getModuleName

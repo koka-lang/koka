@@ -1,12 +1,3 @@
-fun error/(*)(i: int, f: (int) -> int): console ()
-  println("error/(*)")
-
-fun error/map(l: list<a>, b: ()): console ()
-  println("error/map")
-
-fun error/plus(x: (int) -> int, y: b): console ()
-  println("error/plus")
-
 fun regular/plus(x: int, y: int): int
   x + y
 
@@ -45,12 +36,14 @@ fun test-ok()
                          //     fn(x) [1,2].map( 2 + x.inc)
   [1, 2].dupmap(_.inc.plus(_)).println  // ~> fn(x,y) x.inc.plus(y)
 
-fun test-wrong()
+fun wrong1()
   [1, 2].map(plus(inc(_),_)) //  => [1,2].map( fn(y) plus(fn(x) inc(x),y) )
+
+fun wrong2()
   [1,2].map((*)(2,_.inc))   //   => [1,2].map( (*)(2,fn(x) x.inc) )
                             //      [1,2].map( fn(x) (*)(2,x.inc) )
 
 
 fun main()
   test-ok()
-  test-wrong()
+
