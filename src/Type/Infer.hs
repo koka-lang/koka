@@ -140,7 +140,7 @@ traceCoreDefGroups cdefgs
 
 inferDefGroup :: Bool -> DefGroup Type -> Inf a -> Inf ([Core.DefGroup], a)
 inferDefGroup topLevel (DefNonRec def) cont
-  = (if topLevel && nameStartsWith (unqualify (defName def)) "wrong"
+  = (if topLevel && nameStartsWith (unqualify (defName def)) "wrong" && nameStem (defName def) /= "wrong"
        then ignoreErrors (do{ x <- cont; return ([],x) })
        else id) $
     -- trace ("\ninfer single " ++ show (defName def)) $

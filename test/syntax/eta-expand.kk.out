@@ -1,0 +1,11 @@
+test/syntax/eta-expand@kk(40,19): type warning: types do not match
+ context : plus(inc(_),_)
+ term : inc(_)
+ inferred type: (int) -> _e int
+ expected type: int
+test/syntax/eta-expand@kk(43,13): type warning: types do not match
+ context : (*)(2,_@inc)
+ term : (*)(2,_@inc)
+ inferred type: (int) -> _e _a
+ expected type: int
+ because : type cannot be instantiated to match the annotation
