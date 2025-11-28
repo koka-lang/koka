@@ -22,7 +22,7 @@ module Common.Range
           , sourceNull
           , bigLine
           , after, rangeContains, rangeIsBefore, rangeStartsAt
-          , endOfRange, rangeJustBefore, rangeJustAfter
+          , startOfRange, endOfRange, rangeJustBefore, rangeJustAfter
           , showRange, showCompactRange
           , BString, bstringToString, bstringToText, stringToBString
           , bstringEmpty, bstringIsEmpty
@@ -341,6 +341,11 @@ extendRange (Range start end h) ofs
 endOfRange :: Range -> Range
 endOfRange range@(Range p1@(Pos _ ofs1 l1 c1) p2@(Pos src ofs2 l2 c2) h)
   = if (ofs2 - ofs1) <= 1 then range else Range p2 p2 h
+
+-- | Create a range for the first character in the range
+startOfRange :: Range -> Range
+startOfRange (Range p1 p2 h)
+  = Range p1 p1 h
 
 
 rangeContains, rangeIsBefore, rangeStartsAt :: Range -> Pos -> Bool

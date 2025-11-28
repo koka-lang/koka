@@ -84,6 +84,8 @@ module Type.InferMonad( Inf, InfGamma
 
                       -- * Documentation, Intellisense
                       , addRangeInfo, withNoRangeInfo
+                      , withNiceNames, lookupNiceName
+
 
                       , freeInGamma, ppTvs
 
@@ -108,6 +110,7 @@ import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
                        nameTpRead,nameTpWrite,nameTypeHeapDiv,nameHeapDiv,nameEvHeapDiv,nameEvHeapNoDiv,
                        nameReturn,nameTpLocal, nameCopy)
 
+import qualified Common.NameMap as NM
 
 -- import Common.Syntax( DefSort(..) )
 import Common.ColorScheme
@@ -997,7 +1000,7 @@ resolveMaxChainDepth = 32   -- just in case: prevent infinite expansion (not req
 
 -- We can find a unique solution, or none, or surely ambiguous.
 -- The `selInfinite` tracks infinite chains, while `selCandidates` ambigious ones. Both are for error messages only.
-data ImplicitSelect   
+data ImplicitSelect
   = None                  -- no solution
   | Found !ImplicitArg    -- a single solution
   | Amb   ![ImplicitArg]  -- multiple solutions (failure)
@@ -1158,11 +1161,11 @@ isDecreasingChain :: [TypedArg] -> NameContext -> Name -> Type -> Bool
 isDecreasingChain chain ctx qname tp
   = case filter (\(pname,_,_) -> pname == qname) chain of  -- find only matching definition in the chain
       []                  -> True                      -- never visited before
-      prevtps  -> 
+      prevtps  ->
         if length prevtps < decreasingWithin then True -- Not enough to decide yet (we want to be able to grow a bit at the beginning)
         else
           let limited = take decreasingWithin prevtps -- the last *k* elements in the same partition.
-          in weight tp < (maximum $ map (\(_, _, tp) -> weight tp) limited) -- we want the instantiated type to "smaller" than any previous one (i.e. at least smaller than the maximum) 
+          in weight tp < (maximum $ map (\(_, _, tp) -> weight tp) limited) -- we want the instantiated type to "smaller" than any previous one (i.e. at least smaller than the maximum)
   where
     -- Note: pname and qname are fully qualified resolved names with their instantiated types
     --   pname=qname : forall as. t           e.g. list/show : (xs : list<a>, ?show : a -> string ) : string
@@ -1743,9 +1746,9 @@ canResolveHeapDivConstraint free ic
        case expandSyn icTp of -- expand here again (should never fail!) so we get skolem substitutions
          TApp (TCon tcon) [tpHeap,tpVal,tpEff]
             -> do
-              let never = heapNeverContainedIn free tpHeap tpVal  
+              let never = heapNeverContainedIn free tpHeap tpVal
               let always = heapAlwaysContainedIn free tpHeap tpVal
-              -- trace ("Check resolve\n" ++ show tpHeap ++ "\n" ++ show tpVal ++ "\n" ++ show never ++ " " ++ show always) $ return () 
+              -- trace ("Check resolve\n" ++ show tpHeap ++ "\n" ++ show tpVal ++ "\n" ++ show never ++ " " ++ show always) $ return ()
               return (never || always)
 
 implicitConstraintType :: HasCallStack => ImplicitConstraint -> Inf Type
@@ -1810,6 +1813,7 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , localDepth :: !Int   -- number of run-local scope's
                  , scopeNestingDepth :: !Int   -- nested scope level
                  , allowInfiniteChains :: !Bool
+                 , niceNames :: !(NM.NameMap Doc)
                  }
 data St     = St{ uniq :: !Int
                 , sub :: !Sub                            -- current substitution
@@ -1822,7 +1826,7 @@ data St     = St{ uniq :: !Int
 
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Bool -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context allowInfiniteChains unique (Inf f)
-  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0 allowInfiniteChains)
+  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0 allowInfiniteChains NM.empty)
            (St unique subNull [] infgammaEmpty False mbrm) of
       Err (rng,doc) warnings
         -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))
@@ -1937,6 +1941,20 @@ getScopeDepth :: Inf Int
 getScopeDepth
   = do env <- getEnv
        return (scopeNestingDepth env)
+
+withNiceNames :: (Name -> Int -> Doc) -> [Name] -> ([Doc] -> Inf a) -> Inf a
+withNiceNames create names finf
+  = do env <- getEnv
+       let n   = NM.size (niceNames env)
+           nms = [(name, create name i) | (i,name) <- zip [n..] names]
+           env'= env{ niceNames = NM.union (niceNames env) (NM.fromList nms) }
+       withEnv (\_ -> env') $ finf (map snd nms)
+
+lookupNiceName :: Name -> Inf (Maybe Doc)
+lookupNiceName name
+  = do env <- getEnv
+       return (NM.lookup name (niceNames env))
+
 
 {--------------------------------------------------------------------------
   Helpers

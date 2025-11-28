@@ -6,11 +6,11 @@ fun error/map(l: list<a>, b: ()): console ()
 
 fun error/plus(x: (int) -> int, y: b): console ()
   println("error/plus")
-  
+
 fun regular/plus(x: int, y: int): int
   x + y
 
-fun special/show( s: string ) : string 
+fun special/show( s: string ) : string
   "s'" ++ s.list.map(show-char).join("") ++ "'"
 
 fun dupmap(l : list<a>, f: (a, a) -> b): list<b>
@@ -28,29 +28,29 @@ fun test-ok()
                        //   fn(x) [1,2].map( 3 + x )
   [1,2].map( (+)(3,_) ).println // => [1,2].map( fn(x) (+)(3,x) ) or
                         //    fn(x) [1,2].map( 3 + x )
-  [1,2].map( inc(_) ).println  //   [1,2].map( inc(fn(x) x) )  or  
+  [1,2].map( inc(_) ).println  //   [1,2].map( inc(fn(x) x) )  or
                      // => [1,2].map( fn(x) inc(x) )  or
-  [1,2].map( _.inc ).println   //   [1,2].map( inc(fn(x) x) )  or  
-                     // => [1,2].map( fn(x) x.inc )  or  
+  [1,2].map( _.inc ).println   //   [1,2].map( inc(fn(x) x) )  or
+                     // => [1,2].map( fn(x) x.inc )  or
                      //     [1,2].(fn(x) map( inc(x) ))  or
                      //     fn(x) [1,2].map( inc(x) )  or
 
-  [1,2].map( 2 + _.inc).println //            [1,2].map( 2 + (fn(x) x).inc) or 
-                       //           [1,2].map( 2 + fn(x) x.inc ) or 
-                      //          => [1,2].map( fn(x) 2 + x.inc)  or 
+  [1,2].map( 2 + _.inc).println //            [1,2].map( 2 + (fn(x) x).inc) or
+                       //           [1,2].map( 2 + fn(x) x.inc ) or
+                      //          => [1,2].map( fn(x) 2 + x.inc)  or
                       //            fn(x) [1,2].map( 2 + x.inc)
-  [1,2].map( 2 + inc(_)).println  //    [1,2].map( 2 + (fn(x) x).inc) or 
-                          //    [1,2].map( 2 + fn(x) x.inc ) or 
-                         // => [1,2].map( fn(x) 2 + x.inc)  or 
-                         //     fn(x) [1,2].map( 2 + x.inc)         
+  [1,2].map( 2 + inc(_)).println  //    [1,2].map( 2 + (fn(x) x).inc) or
+                          //    [1,2].map( 2 + fn(x) x.inc ) or
+                         // => [1,2].map( fn(x) 2 + x.inc)  or
+                         //     fn(x) [1,2].map( 2 + x.inc)
   [1, 2].dupmap(_.inc.plus(_)).println  // ~> fn(x,y) x.inc.plus(y)
 
-fun test-wrong()  
+fun test-wrong()
   [1, 2].map(plus(inc(_),_)) //  => [1,2].map( fn(y) plus(fn(x) inc(x),y) )
   [1,2].map((*)(2,_.inc))   //   => [1,2].map( (*)(2,fn(x) x.inc) )
-                            //      [1,2].map( fn(x) (*)(2,x.inc) ) 
-  
+                            //      [1,2].map( fn(x) (*)(2,x.inc) )
+
 
 fun main()
   test-ok()
-  test-wrong()  
+  test-wrong()

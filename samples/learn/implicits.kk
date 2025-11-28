@@ -9,7 +9,7 @@
 //
 // Prerequisites:
 //  - learn/basic
-//  - learn/qualifiers
+//  - learn/qualifiers   // read this first!
 module learn/implicits
 
 import std/num/float64
@@ -74,9 +74,13 @@ fun eq-refl(xx : list<a>, ?eq : (a,a) -> bool ) : bool
 fun example3()
   list-eq( [], [], ?eq = int/eq )
 
-// or sneakily
+// or unnamed
 fun example3a()
-  list-eq( [1,2], [1,2], ?eq = fn(x,y) !int/eq(x,y) )
+  list-eq( [], [], int/eq )
+
+// or pass any expression
+fun example3b()
+  list-eq( [1,2], [1,2], !int/eq(_,_) )
 
 
 // The `?eq` notation is actually a shorthand for a locally qualified name `@implicit/eq`.

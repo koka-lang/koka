@@ -30,7 +30,7 @@ import Common.Name
 import Common.Range
 import Type.Pretty         (ppType, Env (..), defaultEnv, ppScheme)
 import Compile.Options     (prettyEnvFromFlags, Flags)
-import Syntax.RangeMap     (NameInfo (..), RangeInfo (..), rangeMapFindIn, lexemesFromPos)
+import Syntax.RangeMap as RM    (NameInfo (..), RangeInfo (..), rangeMapFindIn, lexemesFromPos, previousLexemesReversed)
 import Syntax.Lexeme       (Lexeme (..), Lex (..))
 import Language.LSP.Server (Handlers, sendNotification, requestHandler)
 
@@ -58,12 +58,13 @@ inlayHintsHandler
 
         liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
           liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
-            do 
+            trace ("inlayHintsHandler: " ++ showCompactRange rng) $
+            do
                penv <- getPrettyEnvFor modname
                let hints = concatMap (createInlayHints options penv{showFlavours=False} modname lexemes) $
                            rangeMapFindIn True {-for inlay hints-} rng rmap
                    hintsDistinct = nubBy (\h1 h2 -> h1 ^. J.position == h2 ^. J.position) hints
-               responder $ Right $ J.InL hintsDistinct
+               responder $ Right $ J.InL hints --Distinct
 
 -- | Create inlay hints at some token
 createInlayHints :: InlayHintOptions -> Env -> ModuleName -> [Lexeme] -> (Range, RangeInfo) -> [J.InlayHint]
@@ -71,7 +72,8 @@ createInlayHints opts env modname modlexemes (rng, rinfo)
   = if null lexemes then [] else concat [
       guard showFullQualifiers    $ qualifierHint env modname lexemes rng rinfo,
       guard showInferredTypes     $ typeHint env lexemes rng rinfo,
-      guard showImplicitArguments $ implicitsHint env lexemes rng rinfo
+      guard showImplicitArguments $ implicitsHint env lexemes rng rinfo,
+      guard showImplicitArguments $ generalHint env lexemes rng rinfo
     ]
   where
     guard flag action
@@ -102,7 +104,7 @@ qualifierHint :: Env -> Name -> [Lexeme] -> Range -> RangeInfo -> [J.InlayHint]
 qualifierHint env modName lexemes rng rinfo
   = case rinfo of
       Id qname _ _ _  | qname /= unqualifyFull qname
-        -> -- trace ("qualifierHint: " ++ show rinfo ++ ": " ++ show (take 1 lexemes)) $
+        -> -- trace ("qualifier hint: " ++ showCompactRange rng ++ ", " ++ show rinfo ++ ": " ++ show (take 2 lexemes)) $
            let qual = getQualifier qname
            in if null qual then [] else [newInlayHint (rangeJustBefore rng) qual J.InlayHintKind_Type False]
       _ -> []
@@ -118,6 +120,17 @@ qualifierHint env modName lexemes rng rinfo
             -> let qual = missingQualifier modName name qname
                in if null qual then "" else " " ++ qual
           _ -> ""
+
+
+-- | Show general inlay hints
+generalHint :: Env -> [Lexeme] -> Range -> RangeInfo -> [J.InlayHint]
+generalHint env lexemes rng rinfo
+  = case rinfo of
+      RM.InlayHint after doc
+        -> -- trace ("general hint: " ++ showCompactRange rng ++ ", " ++ show rinfo ++ ": " ++ show (take 2 lexemes)) $
+           [newInlayHint (if after then endOfRange rng else (rangeJustBefore rng)) (show doc) J.InlayHintKind_Type False]
+      _ -> []
+
 
 -- | Show implicit arguments
 implicitsHint :: Env -> [Lexeme] -> Range -> RangeInfo -> [J.InlayHint]

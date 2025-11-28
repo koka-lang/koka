@@ -67,11 +67,20 @@ mangle name tp
 
 data RangeInfo
   = Decl !String !Name !Name !(Maybe Type)   -- alias, type, cotype, rectype, fun, val
-  | Block !String                -- type, kind, pattern
+  | Block !String                            -- type, kind, pattern
   | Error !Doc
   | Warning !Doc
-  | Id !Name !NameInfo ![Doc] !Bool           -- qualified name, info, extra doc (from implicits), is this the definition?
+  | Id !Name !NameInfo ![Doc] !Bool       -- qualified name, info, extra doc (from implicits), is this the definition?
   | Implicits (Bool {-shorten?-} -> Doc)  -- inferred implicit arguments and (implicit) resume arguments
+  | InlayHint !Bool !Doc                  -- inlay hint in the editor, append after the range? (or before it)
+
+-- virtual info is not shown on hover or messages
+rinfoIsVirtual :: RangeInfo -> Bool
+rinfoIsVirtual rinfo
+  = case rinfo of
+      Implicits{} -> True
+      InlayHint{} -> True
+      _           -> False
 
 data NameInfo
   = NIValue   { niSort :: !String, niType:: !Type, niComment :: !String, niIsAnnotated :: !Bool }  -- sort is fun, val, etc.
@@ -104,6 +113,7 @@ instance Show RangeInfo where
         Warning doc         -> "Warning"
         Id name info docs isDef -> "Id " ++ show name ++ (if isDef then " (def)" else "") ++ " " ++ show docs ++ ", info: " ++ show info
         Implicits fdoc      -> "Implicits " ++ show (fdoc False)
+        InlayHint after doc -> "InlayHint " ++ (if after then "" else "(before) ") ++ show doc
 
 instance Enum RangeInfo where
   fromEnum r
@@ -111,9 +121,10 @@ instance Enum RangeInfo where
         Decl _ name _ _  -> 0
         Block _          -> 10
         Id name info _ _ -> 20
-        Implicits _      -> 25
-        Warning _        -> 40
-        Error _          -> 50
+        Implicits _      -> 30      -- implicits follow the id
+        InlayHint _ _    -> 40
+        Warning _        -> 50
+        Error _          -> 60
 
   toEnum i
     = failure "Syntax.RangeMap.RangeInfo.toEnum"
@@ -175,7 +186,7 @@ rangeMapSort :: RangeMap -> RangeMap
 rangeMapSort (RM rm)
   = RM $! seqqList (sortBy (\(r1,_) (r2,_) -> compare r1 r2) rm)
 
--- | select the best matching range infos from a selection
+-- | select the best matching range infos from a selection (for hover info etc.)
 prioritize :: [(Range,RangeInfo)] -> [(Range,RangeInfo)]
 prioritize rinfos
   = let idocs = reverse $
@@ -187,11 +198,8 @@ prioritize rinfos
         map last $
         groupBy eq $
         sortBy cmp $
-        filter (not . isImplicits . snd) rinfos
+        filter (not . rinfoIsVirtual . snd) rinfos
   where
-    isImplicits (Implicits _) = True
-    isImplicits _             = False
-
     eq (_,ri1) (_,ri2)  = (EQ == compare ((fromEnum ri1) `div` 10) ((fromEnum ri2) `div` 10))
     cmp (_,ri1) (_,ri2) = compare (fromEnum ri1) (fromEnum ri2)
 
@@ -200,6 +208,7 @@ prioritize rinfos
     mergeDocs ds x = x
 
 
+-- remove Implicit info and put it in Id info for convenience
 mergeImplicits :: Bool -> [(Range,RangeInfo)] -> [(Range,RangeInfo)]
 mergeImplicits forInlay rinfos
   = seqqList $ merge rinfos
@@ -238,7 +247,7 @@ rangeMapLookup r (RM rm)
 rangeMapFindIn :: Bool -> Range -> RangeMap -> [(Range, RangeInfo)]
 rangeMapFindIn forInlay rng (RM rm)
   = mergeImplicits forInlay {-for inlay -} $
-    filter (\(rng, info) -> rangeStart rng >= start || rangeEnd rng <= end) rm
+    filter (\(rngx, info) -> rangeStart rngx >= start || rangeEnd rngx <= end) rm
     where start = rangeStart rng
           end = rangeEnd rng
 

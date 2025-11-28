@@ -16,7 +16,7 @@
 module Type.Infer (inferTypes, coreVarInfoFromNameInfo ) where
 
 import Lib.Trace hiding (traceDoc)
-import Data.List(partition,sortBy,sortOn)
+import Data.List(partition,sortBy,sortOn,intersperse)
 import qualified Data.List(find)
 import Data.Ord(comparing)
 import Data.Maybe(catMaybes,isJust)
@@ -1422,7 +1422,7 @@ inferLam topLevel propagated expect bindersL body0 rng
   = isNamedLam $ \isNamed ->
     withScope $
     disallowHole $
-    -- scopeImplicitConstraints $ 
+    -- scopeImplicitConstraints $
     do (ftp,_,fcore) <- maybeGeneralize rng (getRange body0) expect $ infBody isNamed
        --  -- traceDefDoc $ \env -> text " inferExpr.Lam: generalized fun type:" <+> ppType env ftp -- <+> text (show fcore)
        eff <- Op.freshEffect
@@ -1456,9 +1456,22 @@ inferLam topLevel propagated expect bindersL body0 rng
                       Nothing     -> Op.freshStar
                       Just (tp,_) -> return tp
 
+        -- nice names for eta-expanded expressions for in the IDE
+        let etaExpanded      = (not (null binders0) && all (\b -> hiddenNameStartsWith (binderName b) "eta") binders0)
+            createEta name n = case drop n "xyz" of
+                                 c:_ -> char c
+                                 _   -> pretty (n+1)
+            niceEta inf      = if etaExpanded
+                                 then withNiceNames createEta (map binderName binders0) $ \docs ->
+                                        do addRangeInfo (startOfRange rng) $ RM.InlayHint False {-=append before-} $
+                                             (text "fn" <.> parens (hcat (intersperse comma [text "_" <.> doc | doc <- docs])) <.> text " ")
+                                           inf
+                                else inf
+
         (tp,eff1,core) <- traceIndent $ withScope $
                           extendInfGamma infgamma  $
                           extendInfGamma [(nameReturn,createNameInfoX Public nameReturn localDepth DefVal (getRange body) returnTp "")] $
+                          niceEta $
                           (if (isNamed) then inferIsolated rng (getRange body) body else id) $
                             -- inferIsolated rng (getRange body) body $
                             inferExpr propBody expectBody body
@@ -1517,14 +1530,17 @@ inferLam topLevel propagated expect bindersL body0 rng
         if (null polyBinders)
         then return ()
         else let b = head polyBinders
-              in typeError (rng) (binderNameRange b) (text "unannotated parameters cannot be polymorphic") (binderType b) [(text "hint",text "annotate the parameter with a polymorphic type")]
+              in typeError rng (binderNameRange b) (text "unannotated parameters cannot be polymorphic") (binderType b) [(text "hint",text "annotate the parameter with a polymorphic type")]
 
-        mapM_ (\(binder,tp) -> addRangeInfo (binderNameRange binder) (RM.Id (binderName binder)
-                                (RM.NIValue "val" tp "" (case (propagated,binderType binder) of
-                                                            (Just (_,rng), Just _) | rangeIsHidden rng -> True -- there was an actual annotation
-                                                            _   -> False
-                                                        )) [] True))
-              (zip binders0 parTypes2)
+        -- add range info for each parameter
+        when (not etaExpanded) $
+          mapM_ (\(binder,tp) -> addRangeInfo (binderNameRange binder) (RM.Id (binderName binder)
+                                  (RM.NIValue "val" tp "" (case (propagated,binderType binder) of
+                                                              (Just (_,rng), Just _) | rangeIsHidden rng -> True -- there was an actual annotation
+                                                              _   -> False
+                                                          )) [] True))
+                (zip binders0 parTypes2)
+
 
         return (sftp1, typeTotal, bodyCore3)
 
@@ -1609,9 +1625,13 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                           -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> ppType env{showIds=True} tp <+> text ", prop:" <+> pretty propagated
                           (itp,coref) <- maybeInstantiate rng expect tp
                           sitp <- subst itp
-                          let (rmName,rmDoc) = if hiddenNameStartsWith qname "eta"
-                                                then (newName "_", "eta-expanded parameter")
-                                                else (infoCanonicalName qname info, infoDocString info)
+                          (rmName,rmDoc) <- if hiddenNameStartsWith qname "eta"
+                                              then do mbNice <- lookupNiceName qname
+                                                      case mbNice of
+                                                        Nothing   -> return ()
+                                                        Just nice -> addRangeInfo (endOfRange rng) (RM.InlayHint True nice)
+                                                      return (newName "_", "eta-expanded parameter")
+                                              else return (infoCanonicalName qname info, infoDocString info)
                           addRangeInfo rng (RM.Id rmName (RM.NIValue (infoSort info) sitp rmDoc False) [] False)
                           localDepth <- localScopeDepth
                           let injectLocal n =  do -- traceDoc $ \env -> text "infer var: implicit inject: " <+> pretty name <+> text ":" <+> ppType env{showIds=True} tp <+> text ", prop:" <+> pretty propagated
