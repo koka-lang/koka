@@ -46,7 +46,7 @@ module Type.Type (-- * Types
                   , typeList, typeVector, typeApp, typeRef --, typeNull
                   , typeOptional, typeMakeTuple
                   , typeCCtx, typeCCtxx, typeFieldAddr
-                  , isOptional, makeOptionalType, unOptional
+                  , isOptional, makeOptionalType, unOptional, unImplicit
                   , typeReuse, typeLocal, isTypeLocal
 
                   , tconHandled, tconHandled1, wrapHandledFromDataEffect
@@ -956,6 +956,12 @@ unOptional :: Type -> Type
 unOptional tp
   = case expandSyn tp of
       TApp (TCon tc) [t] | tc == tconOptional -> t
+      _ -> tp
+  
+unImplicit :: Type -> Type
+unImplicit tp
+  = case expandSyn tp of
+      TFun args eff res -> TFun (filter (not . isImplicitParamName . fst) args) eff res
       _ -> tp
 
 -- | Remove type synonym indirections.
