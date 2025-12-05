@@ -34,7 +34,7 @@ import Type.Pretty as Pretty
 import Core.Core
 import Core.Pretty
 import Core.CoreVar
-import Core.Uniquefy( uniquefyExpr )
+import Core.Uniquefy( uniquefyExpr, uniquefyExprWith )
 import qualified Common.NameMap as M
 import qualified Data.Set as S
 
@@ -107,11 +107,12 @@ topDown (Let dgs body)
     topDownLet sub acc (DefNonRec def@(Def{defName=x,defType=tp,defExpr=letexpr@(Let dgs' body')}) : dgs) body
       = -- lift nested let bindings
         -- assertion "Core.Simplify.topDownLet.liftLets" (bv dgs' `tnamesDisjoint` fv body) $ -- due to uniquefy at start of simplify (not true due to inlining multiple times https://github.com/koka-lang/koka/issues/782)
-        if bv dgs' `tnamesDisjoint` fv body
-          then topDownLet sub acc (dgs' ++ [DefNonRec def{defExpr = body'}] ++ dgs) body
-          else
-            -- trace ("Defs" ++ show (prettyDef defaultEnv def) ++ " Body: " ++ show (prettyExpr defaultEnv body)) $
-            topDownLet sub acc (DefNonRec def{defExpr=uniquefyExpr letexpr} : dgs) body
+        let free = fv body
+        in if bv dgs' `tnamesDisjoint` free
+            then topDownLet sub acc (dgs' ++ [DefNonRec def{defExpr = body'}] ++ dgs) body
+            else let (Let uniqDgs uniqBody) = uniquefyExprWith free letexpr
+                 -- trace ("Defs" ++ show (prettyDef defaultEnv def) ++ " Body: " ++ show (prettyExpr defaultEnv body)) $
+                 in topDownLet sub acc (uniqDgs ++ [DefNonRec def{defExpr = uniqBody}] ++ dgs) body
 
     topDownLet sub acc (dg:dgs) body
       = let sdg = subst sub dg
