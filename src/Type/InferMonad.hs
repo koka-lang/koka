@@ -261,7 +261,10 @@ isolate rng close free ics eff
                             tv <- freshEffect
                             if isLocal
                              then do -- trace ("isolate local") $ return ()
+                                varScope <- getScopeDepth
+                                if varScope == 0 then
                                      nofailUnify $ unify (effectExtend lab tv) eff
+                                else return ()
                              else do mbSyn <- lookupSynonym nameTpST
                                      let (Just syn) = mbSyn
                                          [bvar] = synInfoParams syn
