@@ -1,17 +1,16 @@
 ## VS Code installation
 
-It is recommended to install the binary compiler via the VS Code Koka extension. See the <a href="https://koka-lang.github.io/koka/doc/book.html">getting started guide</a> for more information.
+It is recommended to install the binary compiler via the VS Code Koka extension. See the [getting started guide](https://koka-lang.github.io/koka/doc/book.html) for more information.
 
+## Command-line installation
 
-## Command Line Installation
-
-### Linux (x64,arm64) and macOS (x64, arm64)
+### Linux (x64, arm64) and macOS (x64, arm64)
 
 Tested on macOS, Ubuntu, Debian, and should run on most Linux distributions. From a command prompt, run:
 ```
 curl -sSL https://github.com/koka-lang/koka/releases/download/v3.2.2/install.sh | sh
 ```
-After install, run `koka` to verify if koka installed correctly.n
+After install, run `koka` to verify that Koka installed correctly.
 
 * For most installations this will ask for root access in order to install to `/usr/local/bin`. For more control, you can pass a different prefix. For example, installing to `~/.local` instead:  
   `curl -sSL https://github.com/koka-lang/koka/releases/download/v3.2.2/install.sh | sh -s -- --prefix=~/.local`
@@ -25,7 +24,7 @@ Open a `cmd` prompt and download and run the installer:
 ```
 curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/download/v3.2.2/install.bat && %tmp%\install-koka.bat
 ```
-This will also prompt to install the [`clang`][llvm] compiler and [Windows SDK][winSDK] if needed, and install syntax highlighting for the [VS Code][vscode] editor. After install, run `koka` to verify if koka installed correctly. 
+This will also prompt to install the [Clang][llvm] compiler, the [Windows SDK][winSDK] if needed, and syntax highlighting for the [VS Code][vscode] editor. After install, run `koka` to verify that Koka installed correctly. 
 
 * On Windows arm64, we use the x64 Koka compiler (which runs emulated), but the generated code is native arm64.
 
