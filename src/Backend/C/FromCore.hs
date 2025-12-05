@@ -1759,7 +1759,7 @@ genExprPrim expr
              if (s=="")
               then return ([],text "kk_string_empty()")
               else do let (cstr,clen) = cstring s
-                      return ([text "kk_define_string_literal" <.> arguments [empty,ppName name,pretty clen,cstr]]
+                      return ([text "kk_define_string_literal" <.> arguments [text "static",ppName name,pretty clen,cstr]]
                              ,text "kk_string_dup" <.> arguments [ppName name]);
 
      Var vname (InfoExternal formats)
