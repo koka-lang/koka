@@ -16,6 +16,7 @@ import std/core/char
 import std/core/string
 import std/core/sslice
 import std/core/list
+import std/core/vector
 
 
 // ----------------------------------------------------------------------------
@@ -69,4 +70,6 @@ pub noinline fun string/show( s : string ) : string
 pub fun sslice/show( s : sslice ) : string
   s.string.show
 
-
+// Show a vector as a string
+pub fun vector/show( v : vector<a>, ?show: a -> e string ) : e string
+  "[" ++ v.map(show).join(",") ++ "]"

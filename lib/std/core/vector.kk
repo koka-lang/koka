@@ -22,6 +22,8 @@ extern import
 // ----------------------------------------------------------------------------
 //  Vectors
 // ----------------------------------------------------------------------------
+// TODO: Consider in-place updates when reference count is 1 throughout!
+// Also, start benchmarking  
 
 // Return the element at position `index`  in vector `v`  without bounds check!
 inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a
@@ -132,6 +134,160 @@ pub fun map( v : vector<a>, f : a -> e b ) : e vector<b>
     unsafe-assign(w,i,f(x))
   w
 
+// Apply a function `f` to each element in a vector `v`
+pub fun map-indexed(v : vector<a>, f: (int, a) -> e b): e vector<b>
+  val w = unsafe-vector(v.length.ssize_t)
+  v.foreach-indexedz fn(i,x)
+    unsafe-assign(w,i,f(i.int, x))
+  w
+
+// Fold over a vector from the start, accumulating a result
+pub fun foldl( v : vector<a>, initial : b, f : (b,a) -> e b ) : e b
+  val length = v.lengthz
+  fun loop(i, acc)
+    if i < length then
+      val acc2 = f(acc, v.unsafe-idx(i))
+      loop(i.incr.pretend-decreasing, acc2)
+    else acc
+  loop(0.ssize_t, initial)
+
+// Fold over a vector from the end, accumulating a result
+pub fun foldr( v : vector<a>, initial : b, f : (a,b) -> e b ) : e b
+  val length = v.lengthz
+  fun loop(i, acc)
+    if i >= 0.ssize_t then
+      val acc2 = f(v.unsafe-idx(i), acc)
+      loop(i.decr.pretend-decreasing, acc2)
+    else acc
+  loop(length.decr, initial)
+
+// Zip two vectors into a vector of pairs.
+pub fun zip( v1 : vector<a>, v2 : vector<b> ) : vector<(a,b)>
+  val l1 = v1.lengthz
+  val l2 = v2.lengthz
+  val l = if l1 <= l2 then l1 else l2
+  val w = unsafe-vector(l)
+  forz( l ) fn(i)
+    unsafe-assign(w,i,(v1.unsafe-idx(i), v2.unsafe-idx(i)))
+  w
+
+// Zip two vectors using a function `f` to combine elements.
+pub fun zip-with( v1 : vector<a>, v2 : vector<b>, f : (a,b) -> c ) : vector<c>
+  val l1 = v1.lengthz
+  val l2 = v2.lengthz
+  val l = if l1 <= l2 then l1 else l2
+  val w = unsafe-vector(l)
+  forz( l ) fn(i)
+    unsafe-assign(w,i,f(v1.unsafe-idx(i), v2.unsafe-idx(i)))
+  w
+
+// Zip two vectors using a function `f` to combine elements.
+// The current index is passed as the first argument to `f`.
+pub fun zip-with-indexed( v1 : vector<a>, v2 : vector<b>, f : (int,a,b) -> c ) : vector<c>
+  val l1 = v1.lengthz
+  val l2 = v2.lengthz
+  val l = if l1 <= l2 then l1 else l2
+  val w = unsafe-vector(l)
+  forz( l ) fn(i)
+    unsafe-assign(w,i,f(i.int, v1.unsafe-idx(i), v2.unsafe-idx(i)))
+  w
+
+// Equality of vectors
+pub fun vector/(==)(v1 : vector<a>, v2: vector<a>, ?(==): (a, a) -> e bool): e bool
+  val l = v1.lengthz
+  if l != v2.lengthz then 
+    False
+  else
+    val eq = for-whilez(l) fn(i)
+      // Found a difference can end iteration and return False immediately
+      if !(v1.unsafe-idx(i) == v2.unsafe-idx(i)) then Just(())
+      else Nothing
+    match eq
+      Just() -> False
+      Nothing -> True
+
+// In-equality of vectors (specialized for performance)
+pub fun vector/(!=)(v1 : vector<a>, v2: vector<a>, ?(==): (a, a) -> e bool): e bool
+  val l = v1.lengthz
+  if l != v2.lengthz then 
+    True
+  else
+    val eq = for-whilez(l) fn(i)
+      // Found a difference can end iteration and return True immediately
+      if !(v1.unsafe-idx(i) == v2.unsafe-idx(i)) then Just(())
+      else Nothing
+    match eq
+      Just() -> True
+      Nothing -> False
+
+// Take the first `n` elements from a vector.
+pub fun take( v : vector<a>, ^n : int ) : vector<a>
+  val len = v.lengthz
+  val tn = if n.ssize_t < len then n.ssize_t else len
+  val w = unsafe-vector(tn)
+  forz( tn ) fn(i)
+    unsafe-assign(w,i,v.unsafe-idx(i))
+  w
+
+// Take the first `n` elements from a vector as a list.
+pub fun take-list( v : vector<a>, ^n : int ) : list<a>
+  val len = v.lengthz
+  val tn = if n.ssize_t < len then n.ssize_t else len
+  fun loop(i : ssize_t, acc : ctx<list<_>>) : list<_>
+    if i < tn then
+      loop(i.incr.pretend-decreasing, acc ++ ctx Cons(v.unsafe-idx(i), hole))
+    else
+      acc ++. Nil
+  loop(0.ssize_t, ctx hole)
+
+// Drop the first `n` elements from a vector.
+pub fun drop( v : vector<a>, ^n : int ) : vector<a>
+  val len = v.lengthz
+  val ns = n.ssize_t
+  val dn = if ns < 0.ssize_t then 0.ssize_t elif ns < len then ns else len
+  val newlen = len - dn
+  val w = unsafe-vector(newlen)
+  forz( newlen ) fn(i)
+    unsafe-assign(w,i,v.unsafe-idx(i + dn))
+  w
+
+// Take a slice from the vector from `start` (inclusive) to `end` (exclusive).
+pub fun slice( v : vector<a>, ^start : int, ^end : int ) : vector<a>
+  val len = v.lengthz
+  val starts = start.ssize_t
+  val ends = end.ssize_t
+  val s = if starts < 0.ssize_t then 0.ssize_t elif starts > len then len else starts
+  val e = if ends < s then s elif ends > len then len else ends
+  val slen = e - s
+  val w = unsafe-vector(slen)
+  forz( slen ) fn(i)
+    unsafe-assign(w,i,v.unsafe-idx(i + s))
+  w
+
+// Reverses a vector
+pub fun reverse( v : vector<a> ) : vector<a>
+  val len = v.lengthz
+  val w = unsafe-vector(len)
+  forz( len ) fn(i)
+    unsafe-assign(w,i,v.unsafe-idx(len - i - 1.ssize_t))
+  w
+
+// Append two vectors
+pub fun append( v1 : vector<a>, v2 : vector<a> ) : vector<a>
+  val l1 = v1.lengthz
+  val l2 = v2.lengthz
+  val l = l1 + l2
+  val w = unsafe-vector(l)
+  forz( l1 ) fn(i)
+    unsafe-assign(w,i,v1.unsafe-idx(i))
+  forz( l2 ) fn(i)
+    unsafe-assign(w,i + l1,v2.unsafe-idx(i))
+  w
+
+// Append two vectors
+pub fun vector/(++)( v1 : vector<a>, v2 : vector<a> ): vector<a>
+  append(v1,v2)
+
 // Convert a vector to a list.
 pub fun list( v : vector<a> ) : list<a>
   v.vlist
@@ -177,6 +333,12 @@ fun for-whilez( n : ssize_t, action : (ssize_t) -> e maybe<a> ) : e maybe<a>
 
 
 // Minimal set of operations that we need in `std/core`.
+inline fip extern ssize_t/(==) : (ssize_t,ssize_t) -> bool
+  inline "(#1 == #2)"
+
+inline fip extern ssize_t/(!=) : (ssize_t,ssize_t) -> bool
+  inline "(#1 != #2)"
+
 inline fip extern ssize_t/(<=) : (ssize_t,ssize_t) -> bool
   inline "(#1 <= #2)"
 
@@ -185,6 +347,9 @@ inline fip extern ssize_t/(>=) : (ssize_t,ssize_t) -> bool
 
 inline fip extern ssize_t/(<)  : (ssize_t,ssize_t) -> bool
   inline "(#1 < #2)"
+
+inline fip extern ssize_t/(>)  : (ssize_t,ssize_t) -> bool
+  inline "(#1 > #2)"
 
 inline fip extern ssize_t/(+)  : (ssize_t,ssize_t) -> ssize_t
   inline "(#1 + #2)"
