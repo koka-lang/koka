@@ -32,10 +32,6 @@ pub fun write-text-file( path : path, content : string, create-dir : bool = True
     _ -> ()
 
 
-fun prepend( exn : exception, pre : string ) : exception
-  Exception(pre ++ ": " ++ exn.message, exn.info)
-
-
 extern read-text-file-err( path : string ) : fsys error<string>
   c "kk_os_read_text_file_error"
   js "_read_text_file_error"

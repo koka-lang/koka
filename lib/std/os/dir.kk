@@ -63,9 +63,6 @@ pub fun copy-file( from : path, to : path, preserve-mtime : bool = True ) : <fsy
     _ -> ()
 
 
-fun prepend( exn : exception, pre : string ) : exception
-  Exception(pre ++ ": " ++ exn.message, exn.info)
-
 extern ensure-dir-err( path : string, mode : int ) : fsys error<()>
   c "kk_os_ensure_dir_error"
 
