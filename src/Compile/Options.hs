@@ -1269,6 +1269,7 @@ ccFromPath flags path
                      }
         emcc    = (ccGcc name path False)
                      { ccFlagsCompile = ccFlagsCompile gcc ++ ["-D__wasi__"],
+                       ccFlagsLink = ccFlagsLink gcc ++ ["-sWASM_BIGINT=1"],
                        ccFlagStack = (\stksize -> if stksize == 0 then [] else ["-s","TOTAL_STACK=" ++ show stksize]),
                        ccFlagHeap  = (\hpsize -> if hpsize == 0 then [] else ["-s","TOTAL_MEMORY=" ++ show hpsize]),
                        ccTargetExe = (\out -> ["-o", out ++ targetExeExtension (target flags)]),

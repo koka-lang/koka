@@ -149,7 +149,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
                              -- imported modules.
                              newtypesAll = foldr1 newtypesCompose (map (extractNewtypes . modCore) (loadedModule loaded : loadedModules loaded))
                          in -}
-                         codeGenC (modSourcePath mod) newtypes borrowed 0 {-unique-}
+                         codeGenC (modSourcePath mod) newtypes borrowed imported 0 {-unique-}
 
 
 {---------------------------------------------------------------
@@ -269,10 +269,10 @@ codeGenJS term flags sequential entry outBase core
   C backend
 ---------------------------------------------------------------}
 
-codeGenC :: FilePath -> Newtypes -> Borrowed -> Int
+codeGenC :: FilePath -> Newtypes -> Borrowed -> [Module] -> Int
              -> Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type)
               ->FilePath -> Core.Core -> IO Link
-codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry outBase core0
+codeGenC sourceFile newtypes borrowed0 imported unique0 term flags sequential entry outBase core0
  = do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
           sourceDir     = dirname sourceFile
@@ -304,9 +304,11 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry outBa
       when (showAsmC flags) (termInfo term (hdoc <//> cdoc))
 
       -- copy libraries
-      let cc       = ccomp flags
-          eimports = externalImportsFromCore (target flags) bcore
-          clibs    = clibsFromCore flags bcore
+      let importcores = map (fromJust . modCore) imported
+          cores = bcore:importcores
+          cc       = ccomp flags
+          eimports = concatMap (externalImportsFromCore (target flags)) cores
+          clibs    = concatMap (clibsFromCore flags) cores
       extraIncDirs <- concat <$> mapM (copyCLibrary term flags sequential cc (dirname outBase)) eimports
 
       -- return the C compilation and final link as a separate IO action to increase concurrency
@@ -628,7 +630,7 @@ vcpkgCLibrary term flags sequential cc eimport clib pkg
     install rootDir libDir vcpkgCmd
       = do  let packageDir = joinPaths [rootDir,"packages",pkg ++ "_" ++ vcpkgTriplet flags]
             pkgExist <- doesDirectoryExist packageDir
-            when (pkgExist) $
+            when pkgExist $
               termWarning term flags $
                 text "vcpkg" <+> clrSource (text pkg) <+>
                 text "is installed but the library" <+> clrSource (text clib) <+>
