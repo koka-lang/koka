@@ -2724,6 +2724,7 @@ reserved
     , "throw"
     , "try"
     , "typeof"
+    , "typedef"
     , "union"
     , "var"
     , "void"
