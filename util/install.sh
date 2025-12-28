@@ -287,7 +287,7 @@ dnf_install() {
 }
 
 dnf_groupinstall() {
-  if ! sudocmd dnf groupinstall -y ${QUIET:+-q} "$@"; then
+  if ! sudocmd dnf group install -y ${QUIET:+-q} "$@"; then
     stop "installing dnf package group failed ($@).  Please run 'dnf check-update' and try again."
   fi
 }
@@ -322,7 +322,7 @@ install_dependencies() {
   if has_cmd apt-get ; then
     apt_get_install build-essential $deps
   elif has_cmd dnf ; then
-    dnf_groupinstall "Development Tools" # this is for Fedora 32+， CentOS 8 and CentOS Stream
+    dnf_groupinstall "c-development" # for newer versions of Fedora
     dnf_install $deps
   elif has_cmd yum ; then
     yum_install build-essential $deps
