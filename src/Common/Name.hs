@@ -553,11 +553,10 @@ splitLocalQualName name
 
 toConstructorName :: Name -> Name
 toConstructorName name
-  = nameMapStem name $ \stem ->
-    case stem of
-      ('@':c:cs) -> '@':toUpper c : cs  -- keep hidden names hidden
-      (c:cs)     -> toUpper c : cs
-      ""         -> ""
+  = nameMapStem name (concat . map upper . splitOn (=='-'))
+  where upper ('@':c:cs) = '@':toUpper c:cs -- keep hidden names hidden
+        upper (c:cs) = toUpper c:cs
+        upper "" = ""
 
 toVarName :: Name -> Name
 toVarName name

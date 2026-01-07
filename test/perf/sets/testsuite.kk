@@ -42,7 +42,7 @@ fun rand(s : rand-state) {
     val s2 = (172 * s.s2) % 30307
     val s3 = (170 * s.s3) % 30323
     val r = (float64(s1)/30269.0 + float64(s2)/30307.0 + float64(s3)/30323.0) % 1.0
-    (r, Rand-state(s1, s2, s3))
+    (r, RandState(s1, s2, s3))
 }
 
 fun rand-list(tc : test-config) {
@@ -54,7 +54,7 @@ fun rand-list(tc : test-config) {
         }
     }
 
-    val init = Rand-state(19379, 17844, 5912)
+    val init = RandState(19379, 17844, 5912)
     go(init, tc.testsize, [])
 }
 
@@ -62,7 +62,7 @@ fun main() {
     // Test implementations:
 
     print("Testing consistency: ")
-    val test = rand-list(Test-config(100, 1000.int32))
+    val test = rand-list(TestConfig(100, 1000.int32))
     val r1  = count-b-trees(1, 1000, test)
     val r2  = count-b-trees-pad-full(1, 1000, test)
     val r3  = count-b-trees-pad-separate(1, 1000, test)
@@ -99,9 +99,9 @@ fun main() {
 
     // Benchmark:
 
-    val tcs = [ Test-config( 1000000, 10000000.int32)
-              , Test-config( 5000000, 50000000.int32)
-              , Test-config(10000000, 100000000.int32)]
+    val tcs = [ TestConfig( 1000000, 10000000.int32)
+              , TestConfig( 5000000, 50000000.int32)
+              , TestConfig(10000000, 100000000.int32)]
 
     tcs.map(fn(tc) {
         print-test-config(tc)

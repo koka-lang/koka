@@ -334,7 +334,7 @@ fun under1( w : evv<e>, op : a -> e b, x : a ) : e b {
 
 
 fun clause-control-raw( op : (x:a, r: resume-context<b,e,r>) -> e r ) : clause<a,b,e,r> {
-  Clause(fn(m,w,x){ yield-to(m, fn(k){ op(x,Resume-context(k)) } ) } )
+  Clause(fn(m,w,x){ yield-to(m, fn(k){ op(x,ResumeContext(k)) } ) } )
 }
 
 fun get( ref: ref<h,a>) : <read<h>,div|e> a {
@@ -402,7 +402,7 @@ fun under0( w : evv<e>, op : () -> e b) : e b {
 }
 
 fun clause-control0( op : resume-context<b,e,r> -> e r ) : clause<(),b,e,r> {
-  Clause(fn(m,w,_x){ yield-to(m, fn(k){ op(Resume-context(k)) } ) })
+  Clause(fn(m,w,_x){ yield-to(m, fn(k){ op(ResumeContext(k)) } ) })
 }
 
 fun clause-tail0(op : () -> e b) : clause<(),b,e,r> {
@@ -431,7 +431,7 @@ fun under2( w : evv<e>, op : (a1,a2) -> e b, x1 : a1, x2 : a2 ) : e b {
 }
 
 fun clause-control2( op : (x1:a1, x2:a2, r: resume-context<b,e,r>) -> e r ) : op2<a1,a2,b,e,r> {
-  Clause2(fn(m,w,x1,x2){ yield-to(m, fn(k){ op(x1,x2,Resume-context(k)) } ) })
+  Clause2(fn(m,w,x1,x2){ yield-to(m, fn(k){ op(x1,x2,ResumeContext(k)) } ) })
 }
 
 fun clause-tail2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
@@ -561,7 +561,7 @@ fun read(i:int) {
 }
 
 fun reader(init,action) {
-  read-handle( Reader-hnd( clause-control( fn(x,k){ k(init) } )), id, action)
+  read-handle( ReaderHnd( clause-control( fn(x,k){ k(init) } )), id, action)
 }
 
 // State
