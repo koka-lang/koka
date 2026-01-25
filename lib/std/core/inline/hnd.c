@@ -268,22 +268,40 @@ static kk_box_t kcompose( kk_function_t fself, kk_box_t x, kk_context_t* ctx) {
   kk_intx_t count = kk_intf_unbox(self->count);
   kk_function_t* conts = &self->conts[0];
   // call each continuation in order
-  for(kk_intx_t i = 0; i < count; i++) {
-    // todo: take uniqueness of fself into account to avoid dup_function
-    kk_function_t f = kk_function_dup(conts[i],ctx);
-    x = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t*), f, (f, x, ctx), ctx);
-    if (kk_yielding(ctx)) {
-      // if yielding, `yield_next` all continuations that still need to be done
-      while(++i < count) {
-        // todo: if fself is unique, we could copy without dup?
-        kk_yield_extend(kk_function_dup(conts[i],ctx),ctx);
+  if kk_likely(kk_datatype_ptr_is_unique(fself, ctx)) {
+    // Special handling for unique continuation function to avoid dup/drop overhead for the continuation and captured variables.
+    for(kk_intx_t i = 0; i < count; i++) {
+      kk_function_t f = conts[i];
+      x = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t*), f, (f, x, ctx), ctx);
+      if (kk_yielding(ctx)) {
+        // if yielding, `yield_next` all continuations that still need to be done
+        while(++i < count) {
+          kk_yield_extend(conts[i],ctx); // just move the continuation (no dup needed since it's parent is unique and being dropped)
+        }
+        kk_free((void*)self, ctx);
+        kk_box_drop(x,ctx);     // still drop even though we yield as it may release a boxed value type?
+        return kk_box_any(ctx); // return yielding
       }
-      kk_function_drop(fself,ctx);
-      kk_box_drop(x,ctx);     // still drop even though we yield as it may release a boxed value type?
-      return kk_box_any(ctx); // return yielding
     }
+    kk_free((void*)self, ctx);
+    // kk_function_drop(self,ctx); Can't do this, since all of it's child functions are dropped!
+  } else {
+    for(kk_intx_t i = 0; i < count; i++) {
+      // todo: take uniqueness of fself into account to avoid dup_function
+      kk_function_t f = kk_function_dup(conts[i],ctx);
+      x = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t*), f, (f, x, ctx), ctx);
+      if (kk_yielding(ctx)) {
+        // if yielding, `yield_next` all continuations that still need to be done
+        while(++i < count) {
+          kk_yield_extend(kk_function_dup(conts[i],ctx),ctx);
+        }
+        kk_function_drop(fself,ctx);
+        kk_box_drop(x,ctx);     // still drop even though we yield as it may release a boxed value type?
+        return kk_box_any(ctx); // return yielding
+      }
+    }
+    kk_function_drop(fself,ctx);
   }
-  kk_function_drop(fself,ctx);
   return x;
 }
 
