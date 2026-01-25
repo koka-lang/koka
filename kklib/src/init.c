@@ -47,16 +47,19 @@ bool kk_function_is_null(kk_function_t f, kk_context_t* ctx) {
 
 // null functions
 void kk_free_fun_null(void* p, kk_block_t* b, kk_context_t* ctx) {
+  // TODO: 
+  //   Should we require a custom free function, instead of using this?
+  //   This function at least leaks the Koka block
+  //   and possibly also the pointer if not retained/released by C code.
   kk_unused(p);
   kk_unused(b);
   kk_unused(ctx);
 }
 
-// free memory
+// free C memory (allocated by kk_malloc, kk_calloc, kk_realloc)
 void kk_free_fun(void* p, kk_block_t* b, kk_context_t* ctx) {
-  kk_unused(b);
-  kk_unused(ctx);
-  kk_free(p,ctx);
+  kk_free(p,ctx); // free the payload
+  kk_free(b,ctx); // free the koka block
 }
 
 
