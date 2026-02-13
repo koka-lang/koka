@@ -17,9 +17,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # macOS 13 is x64, later versions are arm64
+        # macOS 15 is latest for x64, default now is arm64
         # we build on the oldest ubuntu version for better binary compatibility.
-        os: [windows-latest, macOS-latest, macOS-13, ubuntu-22.04, ubuntu-22.04-arm]
+        os: [windows-latest, macOS-latest, macos-14-intel, ubuntu-22.04, ubuntu-22.04-arm]
 
     steps:
       # Checkout
