@@ -308,6 +308,7 @@ export class VersionManager {
     // check developer path
     if (developmentPath && fs.existsSync(developmentPath)) {
       let cmdGetInstallRoot = 'stack path --local-install-root'
+      // let cmdGetInstallRoot = 'stack path --profile --local-install-root'
 
       // Linux ghcup installation does not show up in vscode's process.PATH,
       // ensure stack uses the correct ghc by sourcing the ghcup env script
@@ -315,6 +316,7 @@ export class VersionManager {
         const ghcEnv = `${home}/.ghcup/env`
         if (fs.existsSync(ghcEnv)) {
           cmdGetInstallRoot = `${process.env.SHELL} -c "source ${ghcEnv} && stack path --local-install-root"`
+          // cmdGetInstallRoot = `${process.env.SHELL} -c "source ${ghcEnv} && stack path --profile --local-install-root"`
         }
       }
 

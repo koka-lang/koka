@@ -81,7 +81,7 @@ export class KokaLanguageServer {
             console.log(`Starting language server in ${config.cwd} on port ${port}`)
             self.languageServerProcess = child_process.spawn(config.versionManager.compilerPath, [...args, `--lsport=${port}`], {
               cwd: config.cwd,
-              env: process.env,
+              env: process.env
             })
             if (config.enableDebugExtension) {
               self.languageServerProcess?.stderr?.on('data', (data) => {

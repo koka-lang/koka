@@ -200,10 +200,10 @@ subSingle tvar tau =
   assertion
     ("Type.TypeVar.subSingle: recursive type: " ++ showTVar tvar)
     (not (tvsMember tvar (ftv tau)))
-    $
+    $!
     -- assertion ("Type.TypeVar.subSingle: not a tau") (isTau tau) $
     assertion "Type.TypeVar.subSingle.KindMismatch" (getKind tvar == getKind tau)
-    $ Sub (M.singleton tvar tau) (tvsInsert tvar (ftv tau))
+    $! Sub (M.singleton tvar tau) (tvsInsert tvar (ftv tau))
 
 subLookup :: HasCallStack => TypeVar -> Sub -> Maybe Tau
 subLookup tvar (Sub sub _) =
@@ -261,8 +261,8 @@ subInsert tvar tau (Sub s tvs) =
   assertion
     ("Type.TypeVar.subSingle: recursive type: " ++ showTVar tvar)
     (not (tvsMember tvar (ftv tau)))
-    $ assertion ("Type.TypeVar.subSingle: not a tau") (isTau tau)
-    $ Sub (M.insert tvar tau s) (tvsUnion tvs (tvsInsert tvar (ftv tau)))
+    $! assertion ("Type.TypeVar.subSingle: not a tau") (isTau tau)
+    $! Sub (M.insert tvar tau s) (tvsUnion tvs (tvsInsert tvar (ftv tau)))
 
 subInserts :: [(TypeVar, Tau)] -> Sub -> Sub
 subInserts assoc (Sub sub tvs) =
@@ -486,7 +486,8 @@ instance (HasOrderedTypeVar a, HasOrderedTypeVar b) => HasOrderedTypeVar (a, b) 
 
 instance (HasTypeVar a) => HasTypeVar [a] where
   sub `substitute` xs =
-    map (sub `substitute`) xs
+    let xs' = map (sub `substitute`) xs
+    in seqList xs' xs'
   ftv xs =
     tvsUnions (map ftv xs)
   btv xs =

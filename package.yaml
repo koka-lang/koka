@@ -87,6 +87,10 @@ executables:
       - -j8
       - -O2
       - -threaded
+      # - -fprof-auto
+      # - -finfo-table-map
+      # - -fdistinct-constructor-tables
+      # - '"-with-rtsopts=-N8 -l"'
       - '"-with-rtsopts=-N8"'
 
   koka-plain:
@@ -98,6 +102,10 @@ executables:
       - -j8
       - -O2
       - -threaded
+      # - -fprof-auto
+      # - -finfo-table-map
+      # - -fdistinct-constructor-tables
+      # - '"-with-rtsopts=-N8 -l"'
       - '"-with-rtsopts=-N8"'
 
 tests:
