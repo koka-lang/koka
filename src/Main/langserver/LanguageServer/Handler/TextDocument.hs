@@ -41,7 +41,7 @@ import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.Diagnostics (partitionBySource)
 import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler, withProgress, ProgressCancellable (..))
-import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, file_version, virtualFileVersion)
+import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, VirtualFileEntry(..), file_version, virtualFileVersion)
 import Lib.PPrint (text, (<->), (<+>), color, Color (..))
 
 
@@ -91,29 +91,32 @@ didCloseHandler = notificationHandler J.SMethod_TextDocumentDidClose $ \msg -> d
 
 
 -- Creates a diff of the virtual file system including keeping track of version numbers and last modified times
--- Modified times are not present in the LSP libraris's virtual file system, so we do it ourselves
-diffVFS :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> Map J.NormalizedUri VirtualFile -> LSM (Map J.NormalizedUri (ByteString, FileTime, J.Int32))
+-- Modified times are not present in the LSP library's virtual file system, so we do it ourselves
+diffVFS :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> Map J.NormalizedUri VirtualFileEntry -> LSM (Map J.NormalizedUri (ByteString, FileTime, J.Int32))
 diffVFS oldvfs vfs =
   -- Fold over the new map, creating a new map that has the same keys as the new map
   foldM (\acc (k, v) -> do
-    -- New file contents & verson
-    let text = T.encodeUtf8 $ virtualFileText v
-        vers = virtualFileVersion v
-    case M.lookup k oldvfs of
-      Just old@(_, _, vOld) ->
-        -- If the key is in the old map, and the version number is the same, keep the old value
-        if vOld == vers then
-          return $ M.insert k old acc
-        else do
-          -- Otherwise update the value with a new timestamp
-          time <- liftIO getCurrentTime
-          return $ M.insert k (text, time, vers) acc
-      Nothing -> do
-        -- If the key wasn't already present in the map, get it's file time from disk (since it was just opened / created)
-        path <- liftIO $ fromLspUri k
-        time <- liftIO $ getFileTimeOrCurrent (fromMaybe "" path)
-        -- trace ("New file " ++ show newK ++ " " ++ show time) $ return ()
-        return $ M.insert k (text, time, vers) acc)
+    case v of 
+      Closed v -> return acc -- For now we just keep it in the map
+      Open v -> do
+        -- New file contents & version
+        let text = T.encodeUtf8 $ virtualFileText v
+            vers = virtualFileVersion v
+        case M.lookup k oldvfs of
+          Just old@(_, _, vOld) ->
+            -- If the key is in the old map, and the version number is the same, keep the old value
+            if vOld == vers then
+              return $ M.insert k old acc
+            else do
+              -- Otherwise update the value with a new timestamp
+              time <- liftIO getCurrentTime
+              return $ M.insert k (text, time, vers) acc
+          Nothing -> do
+            -- If the key wasn't already present in the map, get it's file time from disk (since it was just opened / created)
+            path <- liftIO $ fromLspUri k
+            time <- liftIO $ getFileTimeOrCurrent (fromMaybe "" path)
+            -- trace ("New file " ++ show newK ++ " " ++ show time) $ return ()
+            return $ M.insert k (text, time, vers) acc)
     M.empty (M.toList vfs)
 
 -- Updates the virtual file system in the LSM state
