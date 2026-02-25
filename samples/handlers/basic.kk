@@ -103,7 +103,7 @@ pub fun example3()
 // --------------------------------------------------------
 
 // Now we use general ctl `ctl` as we want to enable breaking
-// the interation (and thus not resume). Equivalent to:
+// the interaction (and thus not resume). Equivalent to:
 // ````
 // effect yield<a>
 //   ctl yield( item : a ) : ()
