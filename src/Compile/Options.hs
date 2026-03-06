@@ -230,7 +230,8 @@ data Flags
          , parcReuseSpec    :: !Bool
          , parcBorrowInference    :: !Bool
          , asan             :: !Bool
-         , useStdAlloc      :: !Bool -- don't use mimalloc for better asan and valgrind support
+         , profile          :: !Bool      -- compile with profiling support (-pg, frame pointers, debug info)
+         , useStdAlloc      :: !Bool      -- don't use mimalloc for better asan and valgrind support
          , optSpecialize    :: !Bool
          , mimallocStats    :: !Bool
          , allowInfiniteChains :: !Bool
@@ -283,6 +284,7 @@ instance Hashable Flags where
           show $ parcReuseSpec flags,
           show $ parcBorrowInference flags,
           show $ asan flags,
+          show $ profile flags,
           show $ useStdAlloc flags,
           show $ optSpecialize flags,
           show $ allowInfiniteChains flags
@@ -388,6 +390,7 @@ flagsNull
           True -- parc reuse specialize
           False -- parc borrow inference
           False -- use asan
+          False -- use profile
           False -- use stdalloc
           True  -- use specialization (only used if optimization level >= 1)
           False -- use mimalloc stats
@@ -502,6 +505,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
  -- hidden
  , hide $ fflag       ["asan"]      (\b f -> f{asan=b})             "compile with address, undefined, and leak sanitizer"
+ , hide $ fflag       ["profile"]   (\b f -> f{profile=b})          "compile with profiling support (-pg, frame pointers, debug info)"
  , hide $ fflag       ["stdalloc"]  (\b f -> f{useStdAlloc=b})      "use the standard libc allocator"
  , hide $ fflag       ["allocstats"]  (\b f -> f{mimallocStats=b})   "enable mimalloc statitistics"
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
@@ -1312,6 +1316,11 @@ ccFromPath flags path
                                       , ccFlagsCompile = ccFlagsCompile cc ++ [sanitize,"-fno-omit-frame-pointer","-O0"]
                                       , ccFlagsLink    = ccFlagsLink cc ++ [sanitize] }
                                   ,True)
+          else if (profile flags)
+            then return (cc{ ccName         = ccName cc ++ "-profile"
+                           , ccFlagsCompile = ccFlagsCompile cc ++ ["-pg","-g3","-fno-omit-frame-pointer"]
+                           , ccFlagsLink    = ccFlagsLink cc ++ ["-pg"] }
+                        ,True)
           else if (useStdAlloc flags)
             then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)
           else if (mimallocStats flags)

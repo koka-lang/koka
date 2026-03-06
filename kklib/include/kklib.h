@@ -679,10 +679,10 @@ static inline void kk_block_free(kk_block_t* b, kk_context_t* ctx) {
   inlined and we get nice inlined assembly for the fast path with the single check.
 --------------------------------------------------------------------------------------*/
 
-kk_decl_export void        kk_block_check_drop(kk_block_t* b, kk_refcount_t rc, kk_context_t* ctx);
-kk_decl_export void        kk_block_check_decref(kk_block_t* b, kk_refcount_t rc, kk_context_t* ctx);
-kk_decl_export kk_block_t* kk_block_check_dup(kk_block_t* b, kk_refcount_t rc);
-kk_decl_export kk_reuse_t  kk_block_check_drop_reuse(kk_block_t* b, kk_refcount_t rc0, kk_context_t* ctx);
+kk_decl_export kk_decl_cold void        kk_block_check_drop(kk_block_t* b, kk_refcount_t rc, kk_context_t* ctx);
+kk_decl_export kk_decl_cold void        kk_block_check_decref(kk_block_t* b, kk_refcount_t rc, kk_context_t* ctx);
+kk_decl_export kk_decl_cold kk_block_t* kk_block_check_dup(kk_block_t* b, kk_refcount_t rc);
+kk_decl_export kk_decl_cold kk_reuse_t  kk_block_check_drop_reuse(kk_block_t* b, kk_refcount_t rc0, kk_context_t* ctx);
 
 // Dup a reference.
 static inline kk_block_t* kk_block_dup(kk_block_t* b) {
