@@ -655,7 +655,8 @@ parsePatternArg env
 
 parsePatVar  :: Env -> Pattern -> LexParser (Env,Pattern)
 parsePatVar env pat
-  = do (name,_) <- varid
+  = do (qname,_) <- qvarid <|> qidop
+       let name = requalifyLocally qname
        tp <- typeAnnot env
        let env1 = envExtendLocal env (name,tp)
        return (env1,PatVar (TName name tp) pat)
