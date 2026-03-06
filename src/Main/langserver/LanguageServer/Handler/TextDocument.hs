@@ -52,10 +52,18 @@ import Compile.Options( Flags (maxErrors, includePath) )
 import Compile.BuildContext
 import LanguageServer.Conversions
 import LanguageServer.Monad
+    ( getFlags,
+      getLSState,
+      getVirtualFileVersion,
+      liftBuildWith,
+      modifyLSState,
+      setProgress,
+      LSM,
+      LSState(documentInfos) )
 import qualified Language.LSP.Server as J
 import Compile.Build (searchSourceFile)
 import Platform.Config (sourceExtension)
-
+import Type.Type
 
 -- Compile the file on opening
 didOpenHandler :: Handlers LSM
@@ -171,7 +179,6 @@ rebuildFile mbFlags mbRun uri fpath
                               -- just type check
                               Nothing    -> -- trace ("koka: rebuild: type check " ++ show focus) $
                                             do bc <- buildcTypeCheck [focus] buildcF  -- only force on "open" to build range maps etc.
-                                                    -- buildcBuildEx False [focus] [] buildcF
                                                return (bc,Nothing)
                               -- full build and return the executable
                               Just entry -> do let qentry = if isQualified entry then entry else qualify focus entry
@@ -183,7 +190,6 @@ rebuildFile mbFlags mbRun uri fpath
             case mbRes of
               Just mbPath -> return mbPath
               Nothing     -> return Nothing
-
 
 
 -- Run a build monad and emit diagnostics if needed.
@@ -201,7 +207,7 @@ liftBuildDiag mbflags defaultUri build
 -- A build retains all errors over all loaded modules, so we can always publish all
 diagnoseErrors :: J.NormalizedUri -> [ErrorMessage] -> LSM ()
 diagnoseErrors defaultUri errs
-  = -- trace ("koka: diagnose errors: " ++ show errs) $
+  = (if null errs then id else trace ("koka errors: " ++ unlines (map show errs))) $
     do flags <- getFlags
        let diagSource = diagSourceKoka
            maxDiags   = maxErrors flags

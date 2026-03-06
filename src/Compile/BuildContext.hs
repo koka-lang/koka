@@ -373,7 +373,8 @@ buildcCompileExpr addShow typeCheckOnly importNames0 expr buildc
 buildcGetErrorRangeOf :: BuildContext -> Maybe Range
 buildcGetErrorRangeOf buildc
   = let errs = foldr (\m es -> mergeErrors (modErrors m) es) errorsNil (buildcModules buildc)
-    in case find (\err -> errSeverity err >= SevError) (errors errs) of
+    in -- trace ("buildcGetErrorRangeOf errors: " ++ show (errors errs)) $
+       case find (\err -> errSeverity err >= SevError) (errors errs) of
          Just err -> Just (errRange err)
          Nothing  -> Nothing
 
@@ -416,7 +417,7 @@ buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName t
                 then return (buildc2,Nothing)
                 else do -- and return the entry point
                         let mainMod = buildcFindModule mainModName buildc2
-                            entry   = modEntry mainMod
+                            entry   = modEntry mainMod                        
                         return $! seq entry $ seq buildc2 $ (buildc2,Just(tp,entry))
 
 

@@ -616,9 +616,10 @@ modulesFlushErrors modules
 
 moduleFlushErrors :: Module -> Build Module
 moduleFlushErrors mod
-  = -- trace ("flush errors: " ++ show (modPhase mod, modName mod) ++ ", " ++ show (modErrors mod)) $
-    do addErrors (modErrors mod)
-       return mod -- keep errors for the IDE diagnostict  -- mod{ modErrors = errorsNil }
+  = let errs = modErrors mod
+    in -- (if null (errors errs) then id else trace ("flush errors: " ++ show (modPhase mod, modName mod) ++ ", " ++ show errs)) $
+       do addErrors errs
+          return mod -- keep errors for the IDE diagnostict  -- mod{ modErrors = errorsNil }
 
 
 {---------------------------------------------------------------
@@ -1222,6 +1223,7 @@ hasBuildError :: Build (Maybe Range)
 hasBuildError
   = do env  <- getEnv
        errs <- liftIO $ readIORef (envErrors env)
+       -- trace ("errors: " ++ show (errors errs)) $ return ()
        case find (\err -> errSeverity err >= SevError) (errors errs) of
          Just err -> return (Just (errRange err))
          _        -> return Nothing

@@ -58,7 +58,7 @@ inlayHintsHandler
 
         liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
           liftMaybe (lookupRangeMap modname) $ \(rmap,lexemes) ->
-            trace ("inlayHintsHandler: " ++ showCompactRange rng) $
+            -- trace ("inlayHintsHandler: " ++ showCompactRange rng) $
             do
                penv <- getPrettyEnvFor modname
                let hints = concatMap (createInlayHints options penv{showFlavours=False} modname lexemes) $
