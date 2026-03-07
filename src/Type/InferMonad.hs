@@ -1880,12 +1880,12 @@ ignoreErrors :: Inf a -> Inf a -> Inf a
 ignoreErrors (Inf onErrorRes) (Inf f)
   = Inf (\env st0 -> case f env st0 of
                        Err err ws -> case onErrorRes env st0 of
-                                       Ok x st1 ws1 -> Ok x (st1{ mbRangeMap = mbMerge (mbRangeMap st0) (mbRangeMap st1)}) ([err] ++ ws ++ ws1)
+                                       Ok x st1 ws1 -> Ok x st1 ([err] ++ ws ++ ws1)  -- (st1{ mbRangeMap = mbMerge (mbRangeMap st0) (mbRangeMap st1)})
                                        Err err1 ws1 -> Err err1 ([err] ++ ws ++ ws1)
                        ok         -> ok)
-  where
-    mbMerge (Just rm1) (Just rm2) = Just $! (rangeMapAppend rm1 rm2)
-    mbMerge _ mbRm2               = mbRm2
+  -- where
+  --   mbMerge (Just rm1) (Just rm2) = Just $! (rangeMapAppend rm1 rm2)
+  --   mbMerge _ mbRm2               = mbRm2
 
 getEnv :: Inf Env
 getEnv

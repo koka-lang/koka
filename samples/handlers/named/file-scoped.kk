@@ -33,15 +33,15 @@ pub fun main()
   with f2 <- file("stack.yaml")
   read-both(f1,f2)
   // println( f1.read-line() ++ "\n" ++ f2.read-line() )
-  //wrong-escape2()()
+  // escape2()()
 
 
-// fun wrong-escape2()
-//   with f <- file("stack.yaml")
-//   fn() f.read-line()
+fun wrong/escape2()
+  with f <- file("stack.yaml")
+  fn() f.read-line()
 
 
-// fun wrong-escape1()
-//   with f = file("stack.yaml")
-//   f
+fun wrong/escape1()
+  with f = file("stack.yaml")
+  f
 
