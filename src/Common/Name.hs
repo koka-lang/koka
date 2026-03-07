@@ -59,6 +59,7 @@ module Common.Name
           , unqualifyAsModuleName, unqualifyLocally
 
           , nameMapStem
+          , isInDefaultNameSpace, isInWrongNameSpace
 
           , showHex, showBinary, showHexFloat
           ) where
@@ -516,7 +517,15 @@ unqualifyAsModuleName :: Name -> Name
 unqualifyAsModuleName (Name m _ l _ n _)
   = newModuleName (join m l)
 
+isInDefaultNameSpace, isInWrongNameSpace :: Name -> Bool
+isInDefaultNameSpace name = isInSpecialNameSpace name "default"
+isInWrongNameSpace name   = isInSpecialNameSpace name "wrong"
 
+isInSpecialNameSpace :: Name -> String -> Bool
+isInSpecialNameSpace name ns
+  = case splitLocalQualName name of
+      (first:_) -> first == ns
+      _         -> False
 
 ----------------------------------------------------------------
 -- Modules paths

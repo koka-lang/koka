@@ -135,7 +135,7 @@ import Common.Message( docFromRange, table, tablex)
 
 import Core.Pretty()
 
-import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert )
+import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert, rangeMapAppend )
 import Syntax.Syntax(Expr(..),ValueBinder(..))
 
 import qualified Debug.Trace as DT
@@ -1875,13 +1875,17 @@ tryRun (Inf i) = Inf (\env st -> case i env st of
 instance HasUnique Inf where
   updateUnique f  = Inf (\env st -> Ok (uniq st) st{uniq = f (uniq st)} [])
 
+
 ignoreErrors :: Inf a -> Inf a -> Inf a
-ignoreErrors (Inf defaultRes) (Inf f)
+ignoreErrors (Inf onErrorRes) (Inf f)
   = Inf (\env st0 -> case f env st0 of
-                       Err err ws -> case defaultRes env st0 of
-                                       Ok x st1 ws1 -> Ok x st1 ([err] ++ ws ++ ws1)
+                       Err err ws -> case onErrorRes env st0 of
+                                       Ok x st1 ws1 -> Ok x (st1{ mbRangeMap = mbMerge (mbRangeMap st0) (mbRangeMap st1)}) ([err] ++ ws ++ ws1)
                                        Err err1 ws1 -> Err err1 ([err] ++ ws ++ ws1)
                        ok         -> ok)
+  where
+    mbMerge (Just rm1) (Just rm2) = Just $! (rangeMapAppend rm1 rm2)
+    mbMerge _ mbRm2               = mbRm2
 
 getEnv :: Inf Env
 getEnv
