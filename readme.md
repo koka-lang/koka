@@ -425,6 +425,35 @@ $ out\v2.0.5\cl-release\test_bench_koka_rbtree --kktime
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
 
+## Profiling
+
+Koka includes experimental support for profiling programs using
+[gprof](https://sourceware.org/binutils/docs/gprof/).
+Compile with the `--fprofile` flag to enable profiling instrumentation:
+
+```sh
+$ koka --fprofile -e myprogram.kk
+```
+
+This adds `-pg -g3 -fno-omit-frame-pointer` to the C compilation and
+`-pg` to linking, producing a `gmon.out` file when the program runs.
+You can then inspect the results with:
+
+```sh
+$ gprof .koka/v*/gcc-profile-*/myprogram__main gmon.out
+```
+
+A convenience utility automates the compile-run-report workflow:
+
+```sh
+$ koka util/profile.kk -- --source myprogram.kk --runs=3 --opt=-O2
+```
+
+Run `koka util/profile.kk -- --help` for all options.
+
+> **Note:** The `--fprofile` flag currently requires `gcc` and `gprof`
+> to be installed.
+
 ## Language Server
 
 See the [`support/vscode/README.md`](support/vscode/README.md) for how to
