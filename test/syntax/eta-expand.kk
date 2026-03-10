@@ -36,10 +36,10 @@ fun test-ok()
                          //     fn(x) [1,2].map( 2 + x.inc)
   [1, 2].dupmap(_.inc.plus(_)).println  // ~> fn(x,y) x.inc.plus(y)
 
-fun wrong1()
+fun wrong/expand1()
   [1, 2].map(plus(inc(_),_)) //  => [1,2].map( fn(y) plus(fn(x) inc(x),y) )
 
-fun wrong2()
+fun wrong/expand2()
   [1,2].map((*)(2,_.inc))   //   => [1,2].map( (*)(2,fn(x) x.inc) )
                             //      [1,2].map( fn(x) (*)(2,x.inc) )
 

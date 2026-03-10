@@ -418,13 +418,7 @@ createNameInfoEx vis name scopeDepth sort allowImplicitMask rng tp doc
       DefVar       -> InfoVal vis name tp d rng True False doc
       DefVal       -> InfoVal vis name tp d rng False allowImplicitMask doc
   where
-    d = if scopeDepth == 0 && isDefault name then -1 else scopeDepth
-
-    isDefault :: Name -> Bool
-    isDefault name
-      = case splitLocalQualName name of
-          ("default":_) -> True
-          _             -> False
+    d = if scopeDepth == 0 && isInDefaultNameSpace name then -1 else scopeDepth
 
 createNameInfo name scopeDepth isVal rng tp doc
   = createNameInfoX Public name scopeDepth (if isVal then DefVal else defFun []) rng tp doc
