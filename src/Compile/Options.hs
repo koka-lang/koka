@@ -1320,10 +1320,16 @@ ccFromPath flags path
                                       , ccFlagsLink    = ccFlagsLink cc ++ [sanitize] }
                                   ,True)
           else if (profile flags)
-            then return (cc{ ccName         = ccName cc ++ "-profile"
-                           , ccFlagsCompile = ccFlagsCompile cc ++ ["-pg","-g3","-fno-omit-frame-pointer"]
-                           , ccFlagsLink    = ccFlagsLink cc ++ ["-pg"] }
-                        ,True)
+            then let isClang = ccName cc `startsWith` "clang"
+                 in if isClang
+                   then return (cc{ ccName         = ccName cc ++ "-profile"
+                                  , ccFlagsCompile = ccFlagsCompile cc ++ ["-fprofile-instr-generate","-fcoverage-mapping","-g","-fno-omit-frame-pointer"]
+                                  , ccFlagsLink    = ccFlagsLink cc ++ ["-fprofile-instr-generate"] }
+                               ,True)
+                   else return (cc{ ccName         = ccName cc ++ "-profile"
+                                  , ccFlagsCompile = ccFlagsCompile cc ++ ["-pg","-g3","-fno-omit-frame-pointer"]
+                                  , ccFlagsLink    = ccFlagsLink cc ++ ["-pg"] }
+                               ,True)
           else if (useStdAlloc flags)
             then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)
           else if (mimallocStats flags)
