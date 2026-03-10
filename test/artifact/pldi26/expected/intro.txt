@@ -1,0 +1,20 @@
+show-int examples:
+  decimal: 42
+  binary:  101010
+  hex:     ff
+
+Static overloading:
+  int:   42
+  float: 3.1400000000000001
+  bool:  True
+  char:  'x'
+
+List show:
+  [1, 2, 3]
+  [[1, 2], [3, 4]]
+  [True, False]
+
+Tuple show:
+  (1, True)
+  [(1, True), (2, False)]
+  [([1, 2], True)]

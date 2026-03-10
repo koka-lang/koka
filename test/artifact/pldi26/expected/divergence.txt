@@ -1,0 +1,3 @@
+Divergence phantom implicit examples:
+  `landin` would diverge if called — skipped
+  read2 result: (42, 42)

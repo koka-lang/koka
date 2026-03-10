@@ -1,0 +1,10 @@
+Inner-scope override:
+[*, *, *]
+[1, 2, 3]
+
+Implicit captures inner scope:
+[(1), (2), (3)]
+
+Default namespace (depth -1):
+False
+False
