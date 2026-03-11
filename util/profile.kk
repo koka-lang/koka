@@ -18,12 +18,13 @@ import std/os/flags
 
 // Configuration
 struct pflags
-  source  : string = ""
-  runs    : int = 1
-  cc      : string = "gcc"
-  opt     : string = "-O2"
-  args    : string = ""
-  verbose : bool = False
+  source   : string = ""
+  runs     : int = 1
+  cc       : string = "gcc"
+  opt      : string = "-O2"
+  args     : string = ""
+  verbose  : bool = False
+  showhelp : bool = False
 
 val flag-descs : list<flag<pflags>> =
   fun set-source( f : pflags, s : string ) : pflags  { f(source = s) }
@@ -32,12 +33,14 @@ val flag-descs : list<flag<pflags>> =
   fun set-opt( f : pflags, s : string ) : pflags     { f(opt = s) }
   fun set-args( f : pflags, s : string ) : pflags    { f(args = s) }
   fun set-verbose( f : pflags, b : bool ) : pflags   { f(verbose = b) }
+  fun set-help( f : pflags, b : bool ) : pflags      { f(showhelp = b) }
   [ Flag("s", ["source"],  Req(set-source,"FILE"),   "Koka source file to profile"),
     Flag("r", ["runs"],    Req(set-runs,"N"),        "Number of profiling runs (default: 1)"),
     Flag("c", ["cc"],      Req(set-cc,"CC"),         "C compiler to use (default: gcc)"),
     Flag("o", ["opt"],     Req(set-opt,"LEVEL"),     "Optimization level (default: -O2)"),
     Flag("a", ["args"],    Req(set-args,"ARGS"),     "Extra arguments for the compiled program"),
-    Flag("v", ["verbose"], Bool(set-verbose),        "Show verbose output")
+    Flag("v", ["verbose"], Bool(set-verbose),        "Show verbose output"),
+    Flag("h", ["help"],    Bool(set-help),           "Show this help")
   ]
 
 fun process-flags() : <console,ndet> maybe<pflags>
@@ -47,13 +50,13 @@ fun process-flags() : <console,ndet> maybe<pflags>
     val pf = match rest
       Cons(src, _) | pflags.source.is-empty -> pflags(source = src)
       _ -> pflags
-    if pf.source.is-empty then
-      println(header)
+    if pf.showhelp || pf.source.is-empty then
       flag-descs.usage(header).println
       Nothing
     else Just(pf)
   else
     errs.map(println)
+    flag-descs.usage(header).println
     Nothing
 
 pub fun main()
