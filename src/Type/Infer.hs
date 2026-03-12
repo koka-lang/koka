@@ -162,6 +162,9 @@ inferDefGroup topLevel (DefNonRec def) cont
        return ([cgroup1],x)
 inferDefGroup topLevel (DefRec defs0) cont
   = -- trace ("\ninfer group: " ++ show (map defName defs0)) $
+    (if topLevel && all (isInWrongNameSpace . defName) defs0
+       then ignoreErrors (do{ x <- cont; return ([],x) })
+       else id) $
     do sd <- getScopeDepth
        (gamma,infgamma,defs) <- createGammas sd [] [] defs0 []
        --coreDefs0 <- extendGamma gamma (mapM (inferRecDef topLevel infgamma) defs)
