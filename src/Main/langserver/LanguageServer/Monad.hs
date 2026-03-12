@@ -21,6 +21,7 @@ module LanguageServer.Monad
     LSM,
     getTerminal, getFlags, getHtmlPrinter,
     getLSState,modifyLSState,
+    getErrors, setErrors,
     updateConfig,
     getInlayHintOptions,
     runLSM,
@@ -92,6 +93,7 @@ data LSState = LSState {
   terminal          :: !Terminal,
   progressReport    :: !(Maybe (J.ProgressAmount -> LSM ())),
   htmlPrinter       :: !(Doc -> IO T.Text),
+  errs              :: !Errors,
 
   pendingRequests   :: !(TVar (Set.Set J.SomeLspId)),
   cancelledRequests :: !(TVar (Set.Set J.SomeLspId)),
@@ -179,6 +181,7 @@ defaultLSState flags = do
     terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags,
     documentInfos = M.empty, documentVersions = fileVersions,
     signatureContext = Nothing, progressReport = Nothing,
+    errs = Errors [],
     config = Config{
       langServerOpts = LanguageServerOptions{
         inlayHintOpts=InlayHintOptions{
@@ -189,6 +192,15 @@ defaultLSState flags = do
       }
     }
   }
+
+setErrors :: Errors -> LSM ()
+setErrors errs
+  = do modifyLSState (\s -> s{errs=errs})
+
+getErrors :: LSM Errors
+getErrors
+  = do s <- getLSState
+       return (errs s)
 
 -- Prints a message to html spans
 htmlTextColorPrinter :: Doc -> IO T.Text
@@ -383,13 +395,23 @@ lookupProgram mname
 getPrettyEnv :: LSM TP.Env
 getPrettyEnv
   = do flags <- getFlags
-       return (prettyEnvFromFlags flags)
+       caps <- J.getClientCapabilities
+       return (prettyEnvFromFlagsAndCaps flags caps)
+
+-- Gate some features behind client capabilities
+-- (e.g. markdown in diagnostics are only supported by some clients)
+-- TODO: The getPrettyEnv functions are not used in building files, which is where diagnostics come from.
+prettyEnvFromFlagsAndCaps :: Flags -> J.ClientCapabilities -> TP.Env
+prettyEnvFromFlagsAndCaps flags caps =
+  let env = prettyEnvFromFlags flags
+  in env{TP.showFileLinks = True} -- J.markupMessageSupport $ J.DiagnosticClientCapabilities caps}
 
 -- Pretty environment
 getPrettyEnvFor :: ModuleName -> LSM TP.Env
 getPrettyEnvFor modname
   = do flags <- getFlags
-       return (prettyEnvFromFlags flags){ TP.context = modname }
+       caps <- J.getClientCapabilities
+       return (prettyEnvFromFlagsAndCaps flags caps){ TP.context = modname }
 
 
 -- Format as markdown

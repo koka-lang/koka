@@ -73,7 +73,7 @@ module Type.InferMonad( Inf, InfGamma
                       , typeError
                       , contextError
                       , termError
-                      , infError, infWarning
+                      , infError, infWarning, TypeInferErrorCode(..)
                       , withHiddenTermDoc, inHiddenTermDoc
 
                       -- run-local
@@ -140,6 +140,7 @@ import Syntax.Syntax(Expr(..),ValueBinder(..))
 
 import qualified Debug.Trace as DT
 import Type.Pretty (ppTypeVar)
+import Compile.Options (Flags(showFileLinks))
 
 trace s x =
   DT.trace (" " ++ s)
@@ -553,7 +554,7 @@ checkSkolemEscape rng tp mhint skolems extraFree
          then return ()
          else do stp <- subst tp
                  let escaped = [v | v <- skolems, tvsMember v allfree]
-                 termError rng (text "abstract type(s) escape(s) into the context") (stp)
+                 termError TypeErrorSkolemEscape rng (text "abstract type(s) escape(s) into the context") (stp) Nothing
                                (maybe [(text "hint",text "give a higher-rank type annotation to a function parameter?")]
                                       (\hint -> [(text "hint",hint)]) mhint)
 
@@ -592,7 +593,7 @@ unifyError context range err xtp1 xtp2
 
 unifyError' env context range err tp1 tp2
   = do termInfo <- getTermDoc "term" range
-       infError range $
+       infError (TypeErrorMismatch context) range $
         text message <->
         table ([(text "context", docFromRange (Pretty.colors env) rangeContext)
                , termInfo
@@ -647,47 +648,51 @@ unifyError' env context range err tp1 tp2
                                   ,[(text "hint",text ("expecting " ++ show n ++ " argument" ++ (if n == 1 then "" else "s") ++ " but has been given " ++ show m))])
 
 
-typeError :: Range -> Range -> Doc -> Type -> [(Doc,Doc)] -> Inf ()
-typeError contextRange range message xtp extra
+typeError :: TypeInferErrorCode -> Range -> Range -> Doc -> Type -> [(Doc,Doc)] -> Inf ()
+typeError code contextRange range message xtp extra
   = do env  <- getEnv
        free <- freeInGamma
        tp   <- subst xtp >>= normalizeX False free
-       typeError' (prettyEnv env) contextRange range message tp extra
+       typeError' (prettyEnv env) code contextRange range message tp extra
 
-typeError' env contextRange range message tp extra
+typeError' env code contextRange range message tp extra
   = do termInfo <- getTermDoc "term" range
-       infError range $
+       infError code range $
         message <->
         table ([(text "context", docFromRange (Pretty.colors env) contextRange)
               , termInfo
               ,(text "inferred type", Pretty.niceType env tp)
               ] ++ extra)
 
-contextError :: Range -> Range -> Doc -> [(Doc,Doc)] -> Inf ()
-contextError contextRange range message extra
+contextError :: TypeInferErrorCode -> Range -> Range -> Doc -> [(Doc,Doc)] -> Inf ()
+contextError code contextRange range message extra
   = do env <- getEnv
-       contextError' (prettyEnv env) contextRange range message extra
+       contextError' (prettyEnv env) code contextRange range message extra
 
-contextError' env contextRange range message extra
+contextError' env code contextRange range message extra
   = do termInfo <- getTermDoc "term" range
-       infError range $
+       infError code range $
         message <->
         table  ([(text "context", docFromRange (Pretty.colors env) contextRange)
                 , termInfo
                 ]
                 ++ extra)
 
-termError :: Range -> Doc -> Type -> [(Doc,Doc)] -> Inf ()
-termError range message tp extra
+termError :: TypeInferErrorCode -> Range -> Doc -> Type -> Maybe Range -> [(Doc,Doc)] -> Inf ()
+termError code range message tp tpRng extra 
   = do env <- getEnv
-       termError' (prettyEnv env) range message tp extra
+       termError' (prettyEnv env) code range message tp tpRng extra
 
-termError' env range message tp extra
+termError' env code range message tp tpRng extra
   = do termInfo <- getTermDoc "term" range
-       infError range $
+       let tpDoc = Pretty.niceType env tp
+       let tpRngDoc = case tpRng of
+                        Just r | (Pretty.showFileLinks env) -> Pretty.ppLink tpDoc r
+                        _ -> tpDoc
+       infError code range $
         message <->
         table  ([ termInfo
-                ,(text "inferred type", Pretty.niceType env tp)
+                ,(text "inferred type", tpRngDoc)
                 ]
                 ++ extra)
 
@@ -733,10 +738,10 @@ resolveFunName name ctx rangeContext range
     infoFilter = isInfoValFunExt
     infoFilterAmb = not . isInfoImport
 
-resolveConName :: Name -> Maybe (Type) -> Range -> Inf (Name,Type,Core.ConRepr,ConInfo)
+resolveConName :: Name -> Maybe (Type) -> Range -> Inf (Name,Type,Core.ConRepr,ConInfo,Range)
 resolveConName name mbType range
   = do (qname,tp,info) <- resolveNameEx isInfoCon Nothing name (maybeToContext mbType) range  range
-       return (qname,tp,infoRepr info,infoCon info)
+       return (qname,tp,infoRepr info,infoCon info,infoRange info)
 
 resolveConPatternName :: Name -> Type -> Int -> Range -> Inf (Name,Type,Core.ConRepr,ConInfo)
 resolveConPatternName name matchType patternCount range
@@ -763,23 +768,23 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                    case (ctx,amb) of
                     (CtxType tp, [(qname,info)])
                       -> do let [nice1,nice2] = Pretty.niceTypes penv [tp,infoType info]
-                            infError range (Pretty.ppName penv name <+> text "does not match the argument types" <->
+                            infError TypeErrorArgumentTypesMismatch range (Pretty.ppName penv name <+> text "does not match the argument types" <->
                                                table (ctxTerm rangeContext ++
                                                       [(text "inferred type",nice2)
                                                       ,(text "expected type",nice1)]))
                     (CtxType tp, (_:rest))
-                      -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "has no matching definition" <->
+                      -> infError TypeErrorNameNotFound range (text "identifier" <+> Pretty.ppName penv name <+> text "has no matching definition" <->
                                          table (ctxTerm rangeContext ++
                                                 [(text "inferred type", Pretty.niceType penv tp)
                                                 ,(text "candidates", ppCandidates env amb)] ++ ppImplicitsHint env amb))
                     (CtxFunArgs matchSome fixed named (Just resTp), (_:rest))
                       -> do let message = "with " ++ show (fixed + length named) ++ " argument(s) matches the result type"
-                            infError range (text "no function" <+> Pretty.ppName penv name <+> text message <+>
+                            infError TypeErrorFunctionNotFoundForResultType range (text "no function" <+> Pretty.ppName penv name <+> text message <+>
                                             Pretty.niceType penv resTp <.> ppAmbiguous env "" amb)
                     (CtxFunArgs matchSome fixed named Nothing, (_:rest))
                       -> do let message = "takes " ++ show (fixed + length named) ++ " argument(s)" ++
                                           (if null named then "" else " with such parameter names")
-                            infError range (text "no function" <+> Pretty.ppName penv name <+> text message <.> ppAmbiguous env "" amb)
+                            infError TypeErrorFunctionNotFoundForArgumentNames range (text "no function" <+> Pretty.ppName penv name <+> text message <.> ppAmbiguous env "" amb)
                     (CtxFunTypes partial fixed named mbResTp, (_:rest))
                       -> do let docs = Pretty.niceTypes penv (fixed ++ map snd named)
                                 fdocs = take (length fixed) docs
@@ -789,7 +794,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                 argsDoc = color (colorType (Pretty.colors penv)) $
                                            parens (hsep (punctuate comma (fdocs ++ ndocs ++ pdocs))) <+>
                                            text "-> ..." -- todo: show nice mbResTp if present
-                            infError range (text "no function" <+> Pretty.ppName penv name <+> text "is defined that matches the argument types" <->
+                            infError TypeErrorFunctionNotFoundForArgumentTypes range (text "no function" <+> Pretty.ppName penv name <+> text "is defined that matches the argument types" <->
                                          table (ctxTerm rangeContext ++
                                                 [(text "inferred type", argsDoc)
                                                 ,(text "candidates", ppCandidates env amb)] ++ ppImplicitsHint env amb
@@ -804,7 +809,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                       Nothing            -> return []
                             case amb2 of
                               (_:_)
-                                -> infError range ((text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found") <->
+                                -> infError TypeErrorNameAmbiguous range ((text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found") <->
                                                    (text "perhaps you meant: " <.> ppOr penv (map fst amb2)))
                               _ | nameIsEtaHole name
                                 -> do inCtx <- holeAllowed <$> getSt
@@ -812,10 +817,10 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                           message = if inCtx
                                                       then header <-> text "hint: perhaps you meant to use the \"hole\" keyword to denote the hole in a constructor context?"
                                                       else header
-                                      infError range message
+                                      infError TypeErrorEtaExpansionNotAllowed range message
                                       error "done"
                               _ -> do -- when (isImplicitConstraintEvidenceName name) $ error ("evidence " ++ show name ++ " cannot be found")
-                                      infError range (text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found")
+                                      infError TypeErrorNameNotFound range (text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found")
                                       error "done"
 
         [(qname,info)]
@@ -824,7 +829,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                  return (qname,infoType info,info)
         _  -> do env <- getEnv
                  (term,termInfo) <- getTermDoc "context" rangeContext
-                 infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be resolved." <->
+                 infError TypeErrorNameAmbiguous range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be resolved." <->
                                  table ([(term, termInfo),
                                          (text "inferred type", ppNameContext (prettyEnv env) ctx),
                                          (text "candidates", ppCandidates env matches),
@@ -871,7 +876,7 @@ lookupAppName allowDisambiguate name ctx contextRange range
             -> if (allowDisambiguate && not (null docs))
                 then do env <- getEnv
                         (term,termInfo) <- getTermDoc "context" contextRange
-                        infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be resolved" <->
+                        infError TypeErrorNameAmbiguous range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be resolved" <->
                                         table [(term, termInfo),
                                                (text "inferred type", ppNameContext (prettyEnv env) ctx),
                                                (text "candidates", ppAmbDocs docs),
@@ -890,7 +895,7 @@ resolveImplicitName name tp contextRange range
          Right iarg   -> do traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv "?" name iarg False
                             return (toImplicitArgExpr range iarg, prettyImplicitArg penv iarg)
          Left docs    -> do (term,termInfo) <- getTermDoc "context" contextRange
-                            infError range
+                            infError TypeErrorImplicitNotResolved range
                                 (text "cannot resolve implicit parameter" <->
                                 table [(term, termInfo),
                                         (text "parameter",  text "?" <.> ppNameType penv (name,tp)),
@@ -1269,7 +1274,7 @@ lookupFunName name mbType range
         []   -> return Nothing
         [(name,info)]  -> return (Just (name,infoType info,info))
         _    -> do env <- getEnv
-                   infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be resolved"
+                   infError TypeErrorNameAmbiguous range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be resolved"
                                      <.> ppAmbiguous env hintQualify matches)
   where
     hintQualify = "qualify the name to disambiguate it?"
@@ -1520,7 +1525,7 @@ checkCasingOverlap range name qname info
   = do case caseOverlaps name qname info of
          Just qname1
            -> do env <- getEnv
-                 infError range (text (infoElement info) <+> Pretty.ppName (prettyEnv env) (unqualify name) <+> text "is already in scope with a different casing as" <+> Pretty.ppName (prettyEnv env) (importsAlias qname1 (imports env)))
+                 infError TypeErrorNameCaseOverlap range (text (infoElement info) <+> Pretty.ppName (prettyEnv env) (unqualify name) <+> text "is already in scope with a different casing as" <+> Pretty.ppName (prettyEnv env) (importsAlias qname1 (imports env)))
          _ -> return ()
 
 checkCasing :: Range -> Name -> Name -> NameInfo -> Inf ()
@@ -1529,7 +1534,7 @@ checkCasing range name qname info
          Nothing -> return ()
          Just qname1
           -> do env <- getEnv
-                infError range (text (infoElement info) <+> Pretty.ppName (prettyEnv env) (unqualify name) <+> text "should be cased as" <+> Pretty.ppName (prettyEnv env) (importsAlias qname1 (imports env)))
+                infError TypeErrorNameWrongCase range (text (infoElement info) <+> Pretty.ppName (prettyEnv env) (unqualify name) <+> text "should be cased as" <+> Pretty.ppName (prettyEnv env) (importsAlias qname1 (imports env)))
 
 
 caseOverlaps :: Name -> Name -> NameInfo -> (Maybe Name)
@@ -1798,8 +1803,8 @@ resolveHeapDivConstraint free ic
 
 data Inf a  = Inf (Env -> St -> Res a)
 
-data Res a  = Ok !a !St ![(Range,Doc)]
-            | Err !(Range,Doc) ![(Range,Doc)]
+data Res a  = Ok !a !St ![(TypeInferErrorCode,Range,Doc)]
+            | Err !(TypeInferErrorCode,Range,Doc) ![(TypeInferErrorCode,Range,Doc)]
 
 data Env    = Env{ prettyEnv :: !Pretty.Env
                  , context  :: !Name  -- | current module name
@@ -1826,15 +1831,204 @@ data St     = St{ uniq :: !Int
                 , mbRangeMap :: !(Maybe RangeMap)         -- used for errors and IDE integration
                 }
 
+data TypeInferErrorCode 
+  = 
+  -- Unification errors
+  TypeErrorMismatch Context
+  | TypeErrorPredicateMismatch
+  | TypeErrorSkolemEscape
+  | TypeErrorLocalEscape
+  -- Lookup errors
+  | TypeErrorArgumentTypesMismatch
+  | TypeErrorFunctionNotFoundForResultType
+  | TypeErrorFunctionNotFoundForArgumentNames
+  | TypeErrorFunctionNotFoundForArgumentTypes
+  | TypeErrorImplicitNotResolved
+
+  -- Other name errors 
+  | TypeErrorNameAmbiguous
+  | TypeErrorNameCaseOverlap
+  | TypeErrorNameWrongCase
+  | TypeErrorNameNotFound
+  | TypeErrorNameFunctionOverlapsArguments
+  | TypeErrorNameValueOverlaps
+  | TypeErrorNameAlreadyDefined
+  | TypeWarningNameShadowsDefinition
+  | TypeErrorOverloadedNameRecursionRequireTypes
+  | TypeErrorOverloadedNameRecursionNotTopLevel
+  | TypeErrorRecursiveValueDefinitions
+  | TypeWarningUnusedExpression
+  | TypeWarningUnusedPatternBinder
+  | TypeErrorIllegalReturnContext
+  | TypeErrorDuplicateNamedArgument
+  | TypeErrorInferredFunctionNamedArgument
+  | TypeErrorNotEffectOperation
+  | TypeErrorEffectOperationNotFound
+  | TypeErrorEffectNotFound
+  | TypeErrorEffectOperationNotHandled
+  | TypeErrorEffectOperationMultiple
+  | TypeErrorInvalidValOperation
+  | TypeErrorEffectOperationWrongSort
+  | TypeErrorLazyConstructorInMatch
+  | TypeErrorLazyConstructorInInnerPattern
+  -- Constructor contexts
+  | TypeErrorCCtxIllFormed
+  | TypeErrorCCtxHolePolymorphicType
+  | TypeErrorCCtxHoleInvalidType
+  | TypeErrorCCtxHoleValueType
+  -- Match Analysis
+  | TypeInferGuardUnreachable
+  | TypeInferGuardAlwaysFalse
+  | TypeInferBranchUnreachable
+  -- Other Syntax Errors
+  | TypeErrorNotAssignable
+  | TypeErrorCCtxMultipleHoles
+  | TypeErrorCCtxHoleNotFound
+  | TypeErrorHandlerParametersUnsupported
+  | TypeErrorLinearHandlerOperationNonLinear
+  | TypeErrorLinearHandlerUsesNonLinearEffect
+  | TypeErrorEffectOperationNotPartOfEffect
+  | TypeErrorParameterPolymorphicNoAnnotation
+  | TypeErrorInvalidScrutinee
+  | TypeErrorImplicitParamNoDefault
+  | TypeErrorConstructorFieldNotFound
+  | TypeErrorConstructorTooManyArguments
+  | TypeErrorFunctionTooFewArguments
+  | TypeErrorFunctionTooManyArguments
+  | TypeErrorArgumentWithNameNotFound
+  | TypeErrorNonCallableTarget
+  | TypeErrorEtaExpansionNotAllowed
+
+
+instance ErrorCode TypeInferErrorCode where
+  codeNum (TypeErrorMismatch _) = 0
+  codeNum TypeErrorPredicateMismatch = 1
+  codeNum TypeErrorSkolemEscape = 2
+  codeNum TypeErrorLocalEscape = 3
+  codeNum TypeErrorArgumentTypesMismatch = 100
+  codeNum TypeErrorFunctionNotFoundForResultType = 101
+  codeNum TypeErrorFunctionNotFoundForArgumentNames = 102
+  codeNum TypeErrorFunctionNotFoundForArgumentTypes = 103
+  codeNum TypeErrorImplicitNotResolved = 104
+  codeNum TypeErrorNameAmbiguous = 200
+  codeNum TypeErrorNameCaseOverlap = 201
+  codeNum TypeErrorNameWrongCase = 202
+  codeNum TypeErrorNameNotFound = 203
+  codeNum TypeErrorNameFunctionOverlapsArguments = 204
+  codeNum TypeErrorNameValueOverlaps = 205
+  codeNum TypeErrorNameAlreadyDefined = 206
+  codeNum TypeWarningNameShadowsDefinition = 207
+  codeNum TypeErrorOverloadedNameRecursionRequireTypes = 300
+  codeNum TypeErrorOverloadedNameRecursionNotTopLevel = 301
+  codeNum TypeErrorRecursiveValueDefinitions = 302
+  codeNum TypeWarningUnusedExpression = 303
+  codeNum TypeWarningUnusedPatternBinder = 304
+  codeNum TypeErrorIllegalReturnContext = 305
+  codeNum TypeErrorDuplicateNamedArgument = 306
+  codeNum TypeErrorInferredFunctionNamedArgument = 307
+  codeNum TypeErrorNotEffectOperation = 400
+  codeNum TypeErrorEffectOperationNotFound = 401
+  codeNum TypeErrorEffectNotFound = 402
+  codeNum TypeErrorEffectOperationNotHandled = 403
+  codeNum TypeErrorEffectOperationMultiple = 404
+  codeNum TypeErrorInvalidValOperation = 500
+  codeNum TypeErrorEffectOperationWrongSort = 501
+  codeNum TypeErrorLazyConstructorInMatch = 600
+  codeNum TypeErrorLazyConstructorInInnerPattern = 601
+  codeNum TypeErrorCCtxIllFormed = 700
+  codeNum TypeErrorCCtxHolePolymorphicType = 701
+  codeNum TypeErrorCCtxHoleInvalidType = 702
+  codeNum TypeErrorCCtxHoleValueType = 703
+  codeNum TypeInferGuardUnreachable = 800
+  codeNum TypeInferGuardAlwaysFalse = 801
+  codeNum TypeInferBranchUnreachable = 802
+  codeNum TypeErrorNotAssignable = 900
+  codeNum TypeErrorCCtxMultipleHoles = 901
+  codeNum TypeErrorCCtxHoleNotFound = 902
+  codeNum TypeErrorHandlerParametersUnsupported = 903
+  codeNum TypeErrorLinearHandlerOperationNonLinear = 904
+  codeNum TypeErrorLinearHandlerUsesNonLinearEffect = 905
+  codeNum TypeErrorEffectOperationNotPartOfEffect = 906
+  codeNum TypeErrorParameterPolymorphicNoAnnotation = 907
+  codeNum TypeErrorInvalidScrutinee = 908
+  codeNum TypeErrorImplicitParamNoDefault = 909
+  codeNum TypeErrorConstructorFieldNotFound = 910
+  codeNum TypeErrorConstructorTooManyArguments = 911
+  codeNum TypeErrorFunctionTooFewArguments = 912
+  codeNum TypeErrorFunctionTooManyArguments = 913
+  codeNum TypeErrorArgumentWithNameNotFound = 914
+  codeNum TypeErrorNonCallableTarget = 915
+  codeNum TypeErrorEtaExpansionNotAllowed = 916
+
+  codeDoc (TypeErrorMismatch (Check msg _) ) = text $ "Type mismatch: " ++ msg
+  codeDoc (TypeErrorMismatch (Infer _) ) = text $ "Type mismatch"
+  codeDoc TypeErrorPredicateMismatch = text "predicate mismatch"
+  codeDoc TypeErrorSkolemEscape = text "polymorphic type variable escapes polymorphic scope"
+  codeDoc TypeErrorLocalEscape = text "local variable escapes"
+  codeDoc TypeErrorArgumentTypesMismatch = text "argument types mismatch"
+  codeDoc TypeErrorFunctionNotFoundForResultType = text "function not found for result type"
+  codeDoc TypeErrorFunctionNotFoundForArgumentNames = text "function not found for argument names"
+  codeDoc TypeErrorFunctionNotFoundForArgumentTypes = text "function not found for argument types"
+  codeDoc TypeErrorImplicitNotResolved = text "implicit argument not resolved"
+  codeDoc TypeErrorNameAmbiguous = text "ambiguous name"
+  codeDoc TypeErrorNameCaseOverlap = text "name overlaps previous definition with different case"
+  codeDoc TypeErrorNameWrongCase = text "name cased wrong"
+  codeDoc TypeErrorNameNotFound = text "name not found"
+  codeDoc TypeErrorNameFunctionOverlapsArguments = text "function overlaps argument names"
+  codeDoc TypeErrorNameValueOverlaps = text "value overlaps function"
+  codeDoc TypeErrorNameAlreadyDefined = text "name already defined"
+  codeDoc TypeWarningNameShadowsDefinition = text "name shadows previous definition"
+  codeDoc TypeErrorOverloadedNameRecursionRequireTypes = text "recursive functions with overloaded name requires type annotations"
+  codeDoc TypeErrorOverloadedNameRecursionNotTopLevel = text "recursive functions with overloaded name must be defined at the top level"
+  codeDoc TypeErrorRecursiveValueDefinitions = text "recursive value definitions"
+  codeDoc TypeWarningUnusedExpression = text "unused expression"
+  codeDoc TypeWarningUnusedPatternBinder = text "unused pattern binder"
+  codeDoc TypeErrorIllegalReturnContext = text "illegal return context"
+  codeDoc TypeErrorDuplicateNamedArgument = text "duplicate named argument"
+  codeDoc TypeErrorInferredFunctionNamedArgument = text "inferred function with named argument"
+  codeDoc TypeErrorNotEffectOperation = text "not an effect operation"
+  codeDoc TypeErrorEffectOperationNotFound = text "effect operation not found"
+  codeDoc TypeErrorEffectNotFound = text "unable to determine effect"
+  codeDoc TypeErrorInvalidValOperation = text "invalid value operation"
+  codeDoc TypeErrorEffectOperationMultiple = text "multiple handlers for the same operation found"
+  codeDoc TypeErrorEffectOperationNotHandled = text "effect operation not handled"
+  codeDoc TypeErrorEffectOperationWrongSort = text "effect operation wrong sort"
+  codeDoc TypeErrorLazyConstructorInMatch = text "lazy constructor in non-lazy match"
+  codeDoc TypeErrorLazyConstructorInInnerPattern = text "lazy constructor in inner pattern"
+  codeDoc TypeErrorCCtxIllFormed = text "constructor context ill-formed"
+  codeDoc TypeErrorCCtxHolePolymorphicType = text "constructor context has a hole with polymorphic type"
+  codeDoc TypeErrorCCtxHoleInvalidType = text "constructor context has a hole with invalid data type"
+  codeDoc TypeErrorCCtxHoleValueType = text "constructor context has a hole with value type"
+  codeDoc TypeInferGuardUnreachable = text "guard is unreachable"
+  codeDoc TypeInferGuardAlwaysFalse = text "guard is always false"
+  codeDoc TypeInferBranchUnreachable = text "branch is unreachable"
+  codeDoc TypeErrorNotAssignable = text "expression target not an assignable expression"
+  codeDoc TypeErrorCCtxMultipleHoles = text "multiple holes in constructor context"
+  codeDoc TypeErrorCCtxHoleNotFound = text "hole not found in constructor context"
+  codeDoc TypeErrorHandlerParametersUnsupported = text "parameters in handlers unsupported"
+  codeDoc TypeErrorLinearHandlerOperationNonLinear = text "linear handler operation is not used linearly"
+  codeDoc TypeErrorLinearHandlerUsesNonLinearEffect = text "linear handler uses non-linear effect"
+  codeDoc TypeErrorEffectOperationNotPartOfEffect = text "effect operation not part of effect"
+  codeDoc TypeErrorParameterPolymorphicNoAnnotation = text "parameter is polymorphic but has no polymorphic annotation"
+  codeDoc TypeErrorInvalidScrutinee = text "invalid scrutinee expression"
+  codeDoc TypeErrorImplicitParamNoDefault = text "implicit parameter should not have default value"
+  codeDoc TypeErrorConstructorFieldNotFound = text "constructor field not found"
+  codeDoc TypeErrorConstructorTooManyArguments = text "constructor has too many arguments"
+  codeDoc TypeErrorFunctionTooFewArguments = text "function has too few arguments"
+  codeDoc TypeErrorFunctionTooManyArguments = text "function has too many arguments"
+  codeDoc TypeErrorArgumentWithNameNotFound = text "argument with name not found"
+  codeDoc TypeErrorNonCallableTarget = text "target is not a callable expression"
+  codeDoc TypeErrorEtaExpansionNotAllowed = text "eta expansion not allowed in top-level context"
+
 
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Bool -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context allowInfiniteChains unique (Inf f)
   = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0 allowInfiniteChains NM.empty)
            (St unique subNull [] infgammaEmpty False mbrm) of
-      Err (rng,doc) warnings
-        -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))
+      Err (code,rng,doc) warnings
+        -> addWarnings (map (\(code, rng, doc) -> toWarning ErrType code rng doc) warnings) (errorMsg (errorMessageKind ErrType rng code doc))
       Ok x st warnings
-        -> addWarnings (map (toWarning ErrType) warnings) (ok (x, uniq st, (sub st) |-> mbRangeMap st))
+        -> addWarnings (map (\(code, rng, doc) -> toWarning ErrType code rng doc) warnings) (ok (x, uniq st, (sub st) |-> mbRangeMap st))
 
 
 zapSubst :: HasCallStack => Inf ()
@@ -1899,15 +2093,15 @@ updateSt :: (St -> St) -> Inf St
 updateSt f
   = Inf (\env st -> Ok st (f st) [])
 
-infError :: Range -> Doc -> Inf a
-infError range doc
+infError :: TypeInferErrorCode -> Range -> Doc -> Inf a
+infError code range doc
   = do addRangeInfo range (Error doc)
-       Inf (\env st -> Err (range,doc) [])
+       Inf (\env st -> Err (code,range,doc) [])
 
-infWarning :: Range -> Doc -> Inf ()
-infWarning range doc
+infWarning :: TypeInferErrorCode -> Range -> Doc -> Inf ()
+infWarning code range doc
   = do addRangeInfo range (Warning doc)
-       Inf (\env st -> Ok () st [(range,doc)])
+       Inf (\env st -> Ok () st [(code,range,doc)])
 
 getPrettyEnv :: Inf Pretty.Env
 getPrettyEnv
@@ -2156,7 +2350,7 @@ extendGamma isAlreadyCanonical defs inf
                                               unqualify name == unqualify qname,
                                               isSameNamespace qname name ]
            case localMatches of
-             ((qname,qinfo):_) -> infError (infoRange info) (text "definition" <+> Pretty.ppName penv name <+>
+             ((qname,qinfo):_) -> infError TypeErrorNameAlreadyDefined (infoRange info) (text "definition" <+> Pretty.ppName penv name <+>
                                                              text "is already defined in this module, at" <+> text (show (rangeStart (infoRange qinfo))) <->
                                                              text "hint: use a local qualifier?")
              [] -> return ()
@@ -2176,12 +2370,12 @@ extendGamma isAlreadyCanonical defs inf
                      (_,rho2)      = splitTypeScheme (infoType info2)
                      valueType     = not (isFun rho1 && isFun rho2)
                  if (isFun rho1 && isFun rho2)
-                  then infError (infoRange info) (text "definition" <+> Pretty.ppName (prettyEnv env) name <+> text "overlaps with an earlier definition of the same name" <->
+                  then infError TypeErrorNameFunctionOverlapsArguments (infoRange info) (text "definition" <+> Pretty.ppName (prettyEnv env) name <+> text "overlaps with an earlier definition of the same name" <->
                                                   table ([(text "type",nice1)
                                                          ,(text "overlaps",nice2)
                                                          ,(text "because", text "definitions with the same name must differ on the argument types")])
                                                  )
-                  else infError (infoRange info) (text "definition" <+> Pretty.ppName (prettyEnv env) name <+> text "is already defined in this module" <->
+                  else infError TypeErrorNameValueOverlaps (infoRange info) (text "definition" <+> Pretty.ppName (prettyEnv env) name <+> text "is already defined in this module" <->
                                                   text "because: only functions can have overloaded names")
             Left _ -> return ()
 
@@ -2219,7 +2413,7 @@ extendInfGammaEx topLevel ignores tnames inf
             Just (info2)
               -> do checkCasingOverlap range name (infoCanonicalName name info2) info2
                     env <- getEnv
-                    infError range (Pretty.ppName (prettyEnv env) name <+> text "is already defined at" <+> pretty (show (infoRange info2))
+                    infError TypeErrorNameAlreadyDefined range (Pretty.ppName (prettyEnv env) name <+> text "is already defined at" <+> pretty (show (infoRange info2))
                                      <-> text " hint: if these are potentially recursive definitions, give a full type signature to disambiguate them.")
             Nothing
               -> do case (infgammaLookup name infgamma) of
@@ -2227,7 +2421,7 @@ extendInfGammaEx topLevel ignores tnames inf
                         -> do checkCasingOverlap range name cname info2
                               env <- getEnv
                               if (not (isHiddenName name) && show name /= "resume" && show name /= "resume-shallow" && not (name `elem` ignores))
-                               then infWarning range (Pretty.ppName (prettyEnv env) name <+> text "shadows an earlier local definition or parameter")
+                               then infWarning TypeWarningNameShadowsDefinition range (Pretty.ppName (prettyEnv env) name <+> text "shadows an earlier local definition or parameter")
                                else return ()
                       _ -> return ()
            extend ctx gamma (x:seen) rest (infgammaExtend qname (info{ infoCName =  if topLevel then createCanonicalName ctx gamma qname else qname}) infgamma)

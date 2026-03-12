@@ -759,7 +759,7 @@ dquote s
 
 compilerCatch comp term defValue io
   = io `catchSystem` \msg ->
-    do (termError term) (errorMessageKind ErrBuild rangeNull
+    do (termError term) (errorMessageKind ErrBuild rangeNull BuildException
                            (hang 2 $ text ("failure during " ++ comp ++ ":")
                                            <-> string msg)) -- (fillSep $ map string $ words msg)))
        return defValue

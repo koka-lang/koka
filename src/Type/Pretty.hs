@@ -15,7 +15,7 @@ module Type.Pretty (-- * Pretty
                    ,niceList, niceTypes, niceType, niceEnv
                    ,typeColon, niceTypeVars, ppName, ppParam
                    , canonical, minCanonical
-                   , prettyComment, prettyRange, ppNamePlain
+                   , prettyComment, prettyRange, ppNamePlain, ppLink, ppNameLink
                    , keyword
                    , ppSub
                    ) where
@@ -40,6 +40,7 @@ import Kind.ImportMap
 import Type.Type
 import Type.TypeVar
 import Type.Kind
+import Common.Range (Range, showFileUriRange)
 
 typeColon colors
   = color (colorSep colors) (text ":")
@@ -140,6 +141,7 @@ data Env     = Env{ showKinds      :: !Bool
                   , importsMap :: !ImportMap -- ^ import aliases
                   , fullNames :: !Bool
                   , alwaysUnqualify :: !Bool
+                  , showFileLinks :: !Bool
                   , indentation :: Int
 
                   -- should not really belong here. Contains link bases for documentation generation (see Syntax.Colorize)
@@ -169,6 +171,7 @@ defaultEnv
         defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty)
         False -- fullNames. todo: if True it can lead to .kki parse errors
         False
+        False -- diagnostic links
         0
         False
         []
@@ -439,6 +442,20 @@ ppParam env (name,tp)
       else color (colorParameter (colors env)) (ppNamePlain env (unqualify name)) <.> text " : ")
     <.> ppType env tp
 
+ppLink :: Doc -> Range -> Doc
+ppLink doc rng =
+  text "[" <.> doc <.> text "](" <.> text (showFileUriRange rng) <.> text ")"
+
+ppTypeLink :: Env -> Name -> Range -> Doc
+ppTypeLink env name rng
+  = if showFileLinks env then ppLink (ppName env name) rng
+    else ppName env name
+
+ppNameLink :: Env -> Name -> Range -> Doc
+ppNameLink env name rng
+  = if showFileLinks env 
+    then ppLink (ppNamePlain env name) rng
+    else ppName env name
 
 ppName :: Env -> Name -> Doc
 ppName env name

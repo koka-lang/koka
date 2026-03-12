@@ -82,7 +82,7 @@ toLspDiagnostics uri src err =
 errorMessageToDiagnostic :: Maybe T.Text -> J.NormalizedUri -> E.ErrorMessage -> (J.NormalizedUri, [J.Diagnostic])
 errorMessageToDiagnostic errSource defaultUri e
   = (uriFromRange (E.errRange e) defaultUri,
-     [makeDiagnostic (toSeverity (E.errSeverity e)) errSource (E.errRange e) (E.errMessage e)] )
+     [makeDiagnostic (toSeverity (E.errSeverity e)) errSource (E.errCode e) (E.errRange e) (E.errShortMessage e)] )
   where
     toSeverity sev
           = case sev of
@@ -93,7 +93,7 @@ errorMessageToDiagnostic errSource defaultUri e
 toLspErrorDiagnostics :: J.NormalizedUri -> Maybe T.Text -> E.ErrorMessage -> M.Map J.NormalizedUri [J.Diagnostic]
 toLspErrorDiagnostics uri src e =
   M.singleton (uriFromRange (E.errRange e) uri)
-    [makeDiagnostic (toSeverity (E.errSeverity e)) src (E.errRange e) (E.errMessage e)]
+    [makeDiagnostic (toSeverity (E.errSeverity e)) src (E.errCode e) (E.errRange e) (E.errShortMessage e)]
   where
     toSeverity sev
       = case sev of
@@ -105,18 +105,17 @@ uriFromRange :: R.Range -> J.NormalizedUri -> J.NormalizedUri
 uriFromRange r uri =
   if R.rangeSource r == sourceNull then uri else J.toNormalizedUri $ J.filePathToUri $ sourceName (R.rangeSource r)
 
-toLspWarningDiagnostic :: Maybe T.Text -> R.Range -> Doc -> J.Diagnostic
-toLspWarningDiagnostic diagsrc range doc
-  = makeDiagnostic J.DiagnosticSeverity_Warning diagsrc range doc
+toLspWarningDiagnostic :: Maybe T.Text -> Int -> R.Range -> Doc -> J.Diagnostic
+toLspWarningDiagnostic diagsrc code range doc
+  = makeDiagnostic J.DiagnosticSeverity_Warning diagsrc code range doc
 
-makeDiagnostic :: J.DiagnosticSeverity -> Maybe T.Text -> R.Range -> Doc -> J.Diagnostic
-makeDiagnostic s diagsrc r doc =
-  J.Diagnostic range severity code codeDescription diagsrc message tags related dataX
+makeDiagnostic :: J.DiagnosticSeverity -> Maybe T.Text -> Int -> R.Range -> Doc -> J.Diagnostic
+makeDiagnostic s diagsrc code r doc =
+  J.Diagnostic range severity (Just (J.InL $ fromIntegral code)) codeDescription diagsrc message tags related dataX
   where
     range = toLspRange r
     severity = Just s
-    code = Nothing
-    codeDescription = Nothing
+    codeDescription = Nothing -- Just (show doc)
     message = T.pack $ show doc
     tags
       | "is unused" `T.isInfixOf` message = Just [J.DiagnosticTag_Unnecessary]

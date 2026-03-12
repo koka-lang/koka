@@ -302,7 +302,7 @@ buildTypeExpr st buildc expr
 
 errorFileNotFound :: Flags -> FilePath -> ErrorMessage
 errorFileNotFound flags name
-  = errorMessageKind ErrBuild rangeNull (docNotFound (colorSchemeFromFlags flags) (includePath flags) name)
+  = errorMessageKind ErrBuild rangeNull BuildErrorFileNotFound (docNotFound (colorSchemeFromFlags flags) (includePath flags) name)
 
 docNotFound cscheme path name
   = text "could not find:" <+> ppPath name <->

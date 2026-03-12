@@ -199,9 +199,11 @@ liftBuildDiag mbflags defaultUri build
        flushDiagnosticsBySource (maxErrors flags) diagSourceKoka
        res <- liftBuildWith mbflags build
        case res of
-         Right (x,errs) -> do diagnoseErrors defaultUri (errors errs)
+         Right (x,errs) -> do setErrors errs
+                              diagnoseErrors defaultUri (errors errs)
                               return (Just x)
-         Left errs      -> do diagnoseErrors defaultUri (errors errs)
+         Left errs      -> do setErrors errs
+                              diagnoseErrors defaultUri (errors errs)
                               return Nothing
 
 -- A build retains all errors over all loaded modules, so we can always publish all
