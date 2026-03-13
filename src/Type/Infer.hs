@@ -1665,7 +1665,7 @@ compilationConstants
   = [(nameCoreFileFile,   (typeString, \mod rng ->
         -- Core.Lit (Core.LitString (sourceName (rangeSource rng))))),
         Core.Lit (Core.LitString (showPlain mod ++ ".kk")))),  -- for now, use the module name to not leak info of a dev system
-     (nameCoreFileLine,   (typeString, \mod rng -> Core.Lit (Core.LitString (show (posLine $ rangeStart rng))))),
+     (nameCoreFileLine,   (typeInt, \mod rng -> Core.Lit (Core.LitInt (toInteger (posLine $ rangeStart rng))))),
      (nameCoreFileModule, (typeString, \mod rng -> Core.Lit (Core.LitString (showPlain mod))))
    ]
 

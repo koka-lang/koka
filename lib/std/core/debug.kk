@@ -10,6 +10,7 @@
 module std/core/debug
 
 import std/core/types
+import std/core/int
 import std/core/unsafe
 import std/core/hnd
 import std/core/string
@@ -26,13 +27,13 @@ extern import
 pub val file/kk-module : string = ""
 
 // Compilation constant that is replaced with the current line number
-pub val file/kk-line : string = ""
+pub val file/kk-line : int = 0
 
 // Compilation constant that is replaced with the current file name
 pub val file/kk-file : string = ""
 
-pub fip fun file/kk-file-line( ?kk-file, ?kk-line )
-  ?kk-file ++ "(" ++ ?kk-line ++ ")"
+pub fip fun file/kk-file-line( ?kk-file : string, ?kk-line : int ) : string
+  ?kk-file ++ "(" ++ show(?kk-line) ++ ")"
 
 // ----------------------------------------------------------------------------
 // Trace, assert, todo
