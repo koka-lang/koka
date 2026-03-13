@@ -204,121 +204,8 @@ list/showx(_, ?showx=list/showx(_, ?showx=int/showx))
 -- meaning: fn(xs) list/showx(xs, ?showx=fn(ys) list/showx(ys, ?showx=int/showx))
 ```
 
-## Section 1 – Introduction: Basic Implicits and Overloading
 
-Run the introductory examples:
-```
-stack run koka -- -e test/artifact/pldi26/examples/intro.kk
-```
-
-This file demonstrates:
-
-- `show-int` with an implicit `?base` parameter (base-conversion with dynamic base)
-- `int/showx`, `float64/showx` — statically overloaded `showx` functions
-- `list/showx` — combining static overloading with implicit parameters
-- `showx([1])` elaborating to `list/showx([1], ?showx=int/showx)` automatically
-- `showx([[1],[2]])` elaborating recursively to `list/showx([[1],[2]], ?showx=list/showx(_, ?showx=int/showx))`
-- `tuple/showx` — multiple implicit parameters via qualified names `?fst/showx` and `?snd/showx`
-
-## Section 2 – Static Overloading (§2 of the paper)
-
-Run the overloading examples:
-```
-stack run koka -- -e test/artifact/pldi26/examples/overloading.kk
-```
-
-This demonstrates the `[var-qualify]` rule: a plain name `showx` is elaborated
-to a fully qualified name `int/showx` or `list/showx` based on the local type context.
-The file also shows that `wrong/ambiguous` (using the `wrong/` namespace so the error
-becomes a warning) is correctly _rejected_ as ambiguous when the element type is unknown.
-
-## Section 3 – Scope-Based Disambiguation (§2.9 of the paper)
-
-Run the scope disambiguation examples:
-```
-stack run koka -- -e test/artifact/pldi26/examples/scope.kk
-```
-
-This demonstrates that inner-scope definitions are preferred over outer-scope
-ones (the `[var-scope]` rule):
-
-- A local `myint/showx` is preferred over the global `int/showx`
-- The `default/` namespace is treated as outside the global scope (scope depth −1), so specific definitions like `int/(===)` always win over defaults for matching types
-
-## Section 4 – Undecidability and History-Based Termination (§3.1 / Appendix A of the paper)
-
-The paper shows that the full system (without restriction) can encode a Turing machine
-at the type level. Run the 3-state busy-beaver example from the supplementary material:
-
-```
-stack run koka -- -e test/artifact/pldi26/examples/busy-beaver.kk
-```
-
-This program elaborates `trans(start)` into a chain of 18 state transitions entirely
-at type-checking time. Hovering over `trans(start)` in VS Code shows the full
-inferred implicit chain.
-
-A generalized `inf/l/trans` rule showing how higher-order
-implicit parameters can subsume individual inf-expansion rules is shown in the `busy-beaver-higher-order.kk` file:
-
-```
-stack run koka -- -e test/artifact/pldi26/examples/busy-beaver-higher-order.kk
-```
-
-## Section 5 – Equality, Comparison, and Default Implementations (§4.1 of the paper)
-
-Run the comparison examples:
-```
-stack run koka -- -e test/artifact/pldi26/examples/comparison.kk
-```
-
-This file shows:
-
-- `int/cmpx`, `char/cmpx`, `list/cmpx` — comparison functions
-- `default/(===)` — deriving equality from comparison for free
-- `int/(===)` — a more specific, efficient equality for `int` that is preferred over default via scope disambiguation
-- `(!==)` — derived inequality using `?(===)` implicit
-
-## Section 6 – Grouping Operations (§4.2 of the paper)
-
-Run the grouping examples:
-```
-stack run koka -- -e test/artifact/pldi26/examples/grouping.kk
-```
-
-This shows how to group multiple operations into a single implicit parameter
-using a struct, and how Koka's dot-unpacking syntax (`.?num`) automatically
-exposes the struct fields:
-
-- `num<a>` struct grouping `(+)` and `(*)`
-- `int/num`, `float/num` "instances"
-- `fadd` using `.?num` dot-unpacking
-- `monoid<a>` struct grouping a zero and a combining operation
-- `intplus/monoid`, `intmul/monoid`, `string/monoid` "instances"
-- `monad<m>` struct grouping `pure` and `bind`, using `.?monad` dot-unpacking
-- `monadplus<m>` extending monad with a `base : monad<m>` field and a choice operation
-- `default/monadplus/monad` — automatically deriving `monad` from `monadplus`
-- `list/monad`, `maybe/monad`, `list/monadplus` "instances"
-
-## Section 7 – Phantom Implicits (§4.3 of the paper)
-
-Run the phantom implicit examples:
-```
-stack run koka -- -e test/artifact/pldi26/examples/phantom.kk
-```
-
-This demonstrates phantom implicits — implicit parameters whose values are supplied by the compiler rather than by name lookup:
-
-- `?kk-line : string` — the current source line number (the paper uses `:int` for illustration)
-- `?kk-file : string` — the current source file name
-- `assert-line` and `assert-fline` — can abstract over phantom implicits, allowing them to delay resolution to the original call site
-
-Checking divergence with `?hdiv` is illustrated in `examples/divergence.kk`:
-```
-stack run koka -- -e test/artifact/pldi26/examples/divergence.kk
-```
-
-## Section 8 – Implementation in the Koka Standard Library
+## Implementation in the Koka Standard Library
 
 The features described in the paper are heavily used in the Koka standard library.
 Relevant files:
@@ -332,7 +219,6 @@ To run the learning sample:
 ```
 stack run koka -- -e samples/learn/implicits.kk
 ```
-
 
 # Structure of the Artifact
 
