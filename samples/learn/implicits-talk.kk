@@ -8,8 +8,8 @@ module learn/implicits-talk
 //
 // Suppose we have some top-level show definitions
 // where we use _local qualification_ to disambiguate them
-// 
-// Note: this already occurs naturally in many languages if you 
+//
+// Note: this already occurs naturally in many languages if you
 // import `myshow` definitions from different modules.
 
 fun int/myshow( x : int ) : string
@@ -33,7 +33,7 @@ fun test1()
 
 // Idea 2:
 //
-// _static overloading_ is strictly an elaboration from plain names 
+// _static overloading_ is strictly an elaboration from plain names
 // to qualified names based on the type context.
 
 fun test2a()
@@ -53,18 +53,18 @@ fun wrong/poly(x)
 
 // Idea 3:
 //
-// _Syntactic_ implicit parameters are parameter names that are  
+// _Syntactic_ implicit parameters are parameter names that are
 // supplied literally as arguments _at the call site_,
 //
 // (i.e. they are resolved by name at the call site, essentially a form of dynamic binding)
 
 // Write a function that needs a _base_ parameter:
 fun natshow( x : int, ?base : int ) : div string
-  if x > base 
+  if x > base
     then natshow( x / base ) ++ natshow( x % base )
     else show-digit(x)
 
-fun test3()     
+fun test3()
   val base = 16
   natshow(42)    // is elaborated to `natshow(42,base)` where `base` becomes the last parameter
 
@@ -75,17 +75,17 @@ fun test3()
 
 
 
-// Each of these three ideas is simple and straightforward to implement, 
+// Each of these three ideas is simple and straightforward to implement,
 // but their combination is surprisingly expressive!
 // (as they invoke each other recursively)
 
 fun list/myshow( xs : list<a>, ?myshow : a -> string ) : string
   match xs
-    Cons(x,xx) -> myshow(x) ++ "::" ++ myshow(xx) 
+    Cons(x,xx) -> myshow(x) ++ "::" ++ myshow(xx)
     Nil        -> "[]"
 
 fun test4()
-  list/myshow( [1,2], int/myshow) 
+  list/myshow( [1,2], int/myshow)
 
 
 
@@ -104,7 +104,7 @@ fun test4a()
   //    elaborates to: `list/myshow([1,2])`
   //
   // 2. Add the implicit parameter for `list/myshow : (list<a>, ?show:a->string) -> string`
-  //    elaborates to: `list/myshow([1,2], myshow)`      
+  //    elaborates to: `list/myshow([1,2], myshow)`
   //
   // 3. Qualify the (now explicit) argument `myshow` with type context `int`
   //    elaborates to: `list/myshow([1,2],int/myshow)`
@@ -112,10 +112,10 @@ fun test4a()
 
 
 
-fun test4b() 
-  myshow(['a','b']) 
+fun test4b()
+  myshow(['a','b'])
 
-fun test4c() 
+fun test4c()
   list/myshow([[1],[2,3]])
 
 
@@ -132,8 +132,8 @@ fun test5a()
   tuple/myshow( (1,'a'), myshow, myshow )
 
 
-fun test5() 
-  myshow([(1,['a']),(2,['b'])])    
+fun test5()
+  myshow([(1,['a']),(2,['b'])])
   // this elaborates to:
   // `list/myshow([(1,['a']),(2,['b'])], ?myshow=tuple/myshow(_,?fst/myshow=int/myshow,?snd/myshow=list/myshow(_,char/myshow)))`
 
@@ -176,7 +176,7 @@ fun test-first()
 
 // Similarly, functional dependencies and associated types
 // arise naturally through regular type signatures
-// For example the types of `a` and `b` below 
+// For example the types of `a` and `b` below
 // determine `c` based on the instantiated types and available definitions for `(+)`.
 fun zipsum(xs: list<a>, ys: list<b>, ?(+): (a, b) -> c) : list<c>
   zipwith(xs,ys,(+))
@@ -196,7 +196,7 @@ struct num<a>
   (*) : (a,a) -> a
 
 // and provide some "instances"
-val int/num : num<int> = Num((+),(*))  
+val int/num : num<int> = Num((+),(*))
 
 // and use "dot" notation to unpack the members concisely
 fun fma( x : a, y : a, z : a, .?num : num<a> ) : a
@@ -205,7 +205,7 @@ fun fma( x : a, y : a, z : a, .?num : num<a> ) : a
 
 // the above is just syntactic sugar for:
 fun fma-explicit( x : a, y : a, z : a, ?num : num<a> ) : a
-  match num 
+  match num
     Num((+),(*)) -> (x*y) + z
 
 
@@ -213,11 +213,11 @@ fun fma-explicit( x : a, y : a, z : a, ?num : num<a> ) : a
 
 // Phantom implicits
 // For some builtins the compiler can supply a special value (namely, kk-line and kk-file)
-fun assert-line( condition : bool, msg : string, ?kk-line : string ) : exn ()
-  if condition then () else throw("at " ++ kk-line ++ ": " ++ msg)
+fun assert-line( condition : bool, msg : string, ?kk-line : int ) : exn ()
+  if condition then () else throw("at " ++ kk-line.show ++ ": " ++ msg)
 
 fun test-assert1()
-  assert-line(False,"test1")   // kk-line is supplied as the current line 
+  assert-line(False,"test1")   // kk-line is supplied as the current line
 
 
 
@@ -225,11 +225,11 @@ fun test-assert1()
 // It captures the constraint that `e` must contain the `div` effect
 // if the type `a` possibly contains the heap type `h`
 //
-// The following function is not recursive ... but Koka still 
-// infers the `div` effect! How? Because the dereferencing requires 
+// The following function is not recursive ... but Koka still
+// infers the `div` effect! How? Because the dereferencing requires
 // such implicit `hdiv` "evidence": `fun ref/(!)( r : ref<h,a>, ?hdiv : hdiv<h,a,e>) : <read<h>|e> a`
 //
-fun landin()                // div is inferred 
+fun landin()                // div is inferred
   val r = ref( fn() () )    // initialize with a parameter-less function that returns unit
   fun self()
     (!r)()                  // self calls the function in the reference
@@ -238,7 +238,7 @@ fun landin()                // div is inferred
 
 
 // and we can _abstract_ over these builtin values
-fun assert-fline(condition : bool, msg : string, ?kk-line : string, ?kk-file : string ) : exn ()
+fun assert-fline(condition : bool, msg : string, ?kk-line : int, ?kk-file : string ) : exn ()
   assert-line(condition, kk-file ++ ": " ++ msg )
 
 fun test-assert2()

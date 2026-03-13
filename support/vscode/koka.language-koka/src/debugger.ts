@@ -196,17 +196,17 @@ class KokaRuntime extends EventEmitter {
 			}
 			console.log(`Generated code at ${resp}`)
 			if (!resp) {
-				this.emit('output', `Error generating code, see language server output for specifics`, 'stderr')
+				this.emit('output', `Compilation error: see the problems tab or language server output for specifics`, 'stderr')
 				this.emit('end', -1)
 				return;
 			}
 			if (!fs.existsSync(path.join(this.config.cwd, resp))) {
-				console.log(`Error finding code at ${resp}`)
+				console.log(`Cannot find executable at ${resp}`)
 				this.emit('end', -1)
 				return;
 			}
 			if (target == 'c' || target == 'c32' || target == 'c64c') {
-				console.log(`Executing ${resp} ${args.programArgs ?? []}`)
+				console.log(`executing ${resp} ${args.programArgs ?? []}`)
 				this.ps = child_process.spawn(resp, args.programArgs ?? [], { cwd: this.config.cwd, env: process.env })
 				this.ps.stdout?.on('data', (data) => {
 					this.emit('output', data.toString(), 'stdout')
@@ -231,12 +231,12 @@ class KokaRuntime extends EventEmitter {
 					this.ps = null
 				})
 			} else {
-				this.emit('output', `Running code for target ${target} is not yet supported. Output is at ${resp}`)
+				this.emit('output', `Running code for target ${target} is not yet supported. Output can be found at ${resp}`)
 				this.emit('end', -1)
 			}
 
 		} catch (e) {
-			this.emit('output', `Error generating code: ${e}`, 'stderr')
+			this.emit('output', `Exception during compilation: ${e}`, 'stderr')
 			this.emit('end', -1)
 		}
 	}
