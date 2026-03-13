@@ -18,20 +18,35 @@ RUN apt-get update
 RUN apt-get install -y --no-install-recommends ca-certificates
 RUN apt-get install -y --no-install-recommends git cmake make
 RUN apt-get install -y --no-install-recommends clang gcc libc-dev
-RUN apt-get install -y --no-install-recommends curl xz-utils build-essential
-RUN apt-get install -y --no-install-recommends libffi-dev libgmp-dev zlib1g-dev
+RUN apt-get install -y --no-install-recommends build-essential pkg-config curl
+RUN apt-get install -y --no-install-recommends tar zip unzip xz-utils 
+RUN apt-get install -y --no-install-recommends libffi-dev libgmp-dev zlib1g-dev pcre2-utils
+RUN apt-get install -y --no-install-recommends vim
+RUN apt-get update
 
 # Install Stack (Haskell build tool)
+WORKDIR /root
 RUN curl -sSL https://get.haskellstack.org/ | /bin/bash
 RUN stack update
 
+# Install vcpkg
+RUN git clone https://github.com/microsoft/vcpkg.git
+WORKDIR /root/vcpkg
+RUN ./bootstrap-vcpkg.sh
+
 # Copy and build the Koka compiler (artifact branch)
-WORKDIR /artifact
-COPY . /artifact/koka
+WORKDIR /root
+COPY . /root/koka
+# Or checkout the Koka compiler from github
+# WORKDIR /root
+# RUN git clone --recursive https://github.com/koka-lang/koka  -b artifact-pldi24
 
-WORKDIR /artifact/koka
-RUN stack build :koka-plain
+WORKDIR /root/koka
+RUN stack build --fast
 
-RUN echo "alias koka='stack run koka-plain --'" >> ~/.bashrc
+# Compile the standard libraries
+RUN stack exec koka -- util/link-std.kk
 
+# Environment
+SHELL ["/bin/bash", "-c"]
 CMD ["/bin/bash"]
