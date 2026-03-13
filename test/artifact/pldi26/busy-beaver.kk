@@ -138,7 +138,7 @@ fun inf/c/b/trans( st : config<state-c, l, cons<sym0,inf>>,
 //
 // The type checker implicitly resolves the full execution chain:
 //
-//   inf/a/b/trans(?trans=a/b/trans(_,
+//   inf/a/b/trans(start,?trans=a/b/trans(_,
 //     b/a/trans(_,
 //     inf/a/c/trans(_, a/c/trans(_,
 //     inf/c/b/trans(_, c/b/trans(_,
