@@ -3,32 +3,25 @@
 // "Syntactic Implicit Parameters with Static Overloading"
 // Appendix A: Turing Encoding of a 3-state Busy Beaver
 //
-// This file demonstrates that type checking with syntactic implicit parameters
-// and static overloading is UNDECIDABLE in general. We can encode a Turing
-// machine at the type level, where type checking reduces to deciding whether
-// the machine halts.
-//
-// The 3-state busy beaver (by Ivars Peterson) has this transition table:
-//
-//   State | Sym0        | Sym1
-//   ------+-------------+-------------
-//     A   | write 1, R, B | write 1, L, C
-//     B   | write 1, L, A | write 1, R, B
-//     C   | write 1, L, B | write 1, N, HALT
-//
-// Encoding:
-//   - Tape symbols are phantom types: `sym0`, `sym1`
-//   - Tape is a cons list in the type language: `cons<head,tail>`
-//   - `inf` represents an infinite tape of `sym0` values
-//   - Machine state is encoded as types: `state-a`, `state-b`, `state-c`
-//   - Configuration is `config<state, left-tape, right-tape>`
-//   - Each transition is a FUNCTION definition, used by [var-qualify] to
-//     elaborate `trans(start)` into a chain of implicit function calls
+// This example encodes a 3-state busy beaver (by Ivar Peterson): 
+// <https://en.wikipedia.org/wiki/Turing_machine_examples#3-state_Busy_Beaver>
+// using a Turing machine encoded in the type system.
+// 
+// -------------------------------------------------------------
+// | current |    state A    |    state B    |    state C      |
+// | symbol  |write move next|write move next|write move next  |
+// -------------------------------------------------------------
+// | 0	     | 1	   R	  B	 | 1	   L	  A	 | 1	   L	  B    |
+// | 1	     | 1	   L	  C	 | 1	   R	  B	 | 1	   N	  HALT |
+// -------------------------------------------------------------
 //
 // If the type checker can find a valid elaboration of `trans(start)`, the
 // Turing machine halts. Type checking == Turing machine simulation.
 //
-// Run with: stack run koka -- -e test/artifact/pldi26/examples/busy-beaver.kk
+// Run as:
+// ```
+// stack exec koka -- -e test/artifact/pldi26/busy-beaver.kk
+// ```
 
 module busy-beaver
 
@@ -143,7 +136,7 @@ fun inf/c/b/trans( st : config<state-c, l, cons<sym0,inf>>,
 // ─────────────────────────────────────────────────────────────────────────────
 // Run the machine!
 //
-// The type checker implicitly resolves the full 18-step execution chain:
+// The type checker implicitly resolves the full execution chain:
 //
 //   inf/a/b/trans(?trans=a/b/trans(_,
 //     b/a/trans(_,
@@ -160,7 +153,8 @@ fun inf/c/b/trans( st : config<state-c, l, cons<sym0,inf>>,
 //     c/end/trans(_,
 //     halt/trans))))))))))))))))))
 //
-// This matches the well-known 13-step execution of the 3-state busy beaver (with 5 additional steps for infinite expansion).
+// This matches the well-known 13-step execution of the 3-state busy beaver 
+// (with 5 additional steps for infinite expansion).
 // Hover over `trans(start)` in VS Code to see the inferred implicit chain.
 // ─────────────────────────────────────────────────────────────────────────────
 

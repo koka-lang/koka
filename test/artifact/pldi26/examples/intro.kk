@@ -83,7 +83,7 @@ fun char/showx( c : char ) : string
 // `map`+`join` to keep the implementation total.
 // ─────────────────────────────────────────────────────────────────────────────
 
-fun list/showx( xs : list<a>, ?showx : a -> e string ) : e string
+fun list/showx( xs : list<a>, ?showx : a -> string ) : string
   "[" ++ xs.map(showx).join(", ") ++ "]"
 
 // showx([1])
@@ -110,7 +110,7 @@ fun example-list-bool() : string
 // are resolved as the plain name `showx` from the local context.
 // ─────────────────────────────────────────────────────────────────────────────
 
-fun tuple/showx( p : (a, b), ?fst/showx : a -> e string, ?snd/showx : b -> e string ) : e string
+fun tuple/showx( p : (a, b), ?fst/showx : a -> string, ?snd/showx : b -> string ) : string
   "(" ++ fst/showx(p.fst) ++ ", " ++ snd/showx(p.snd) ++ ")"
 
 // showx((1, True))

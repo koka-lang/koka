@@ -19,37 +19,130 @@ or on macOS Apple silicon:
 > docker run -it daanx/pldi26-implicits:1.0-arm64
 ```
 
+When using the Zenodo tar use the `docker load -i <image>` command instead of `docker pull`, for example:
+```
+> tar -xvf artifact_pldi26_implicits.tar
+> cd pldi26
+> docker load -i daanx/pldi26-tree:1.0-x64
+> docker run -it daanx/pldi26-tree:1.0-x64
+```
+
 Once inside the container, the working directory is `/artifact/koka` (the koka repository root).
+
 
 ## Local Installation
 
-It is also straightforward to run the artifact directly on Linux or macOS.
+It is also straightforward to build the artifact directly on Linux or macOS.
 Install [Stack](https://docs.haskellstack.org/en/stable/) and then:
 
 ```
 > git clone --recursive https://github.com/koka-lang/koka -b artifact/syntactic-implicits
 > cd koka
-> stack build
-> stack run koka -- --version
+> stack build --fast
+> stack exec koka -- --version
 ```
 
-You can then run any of the example files as:
+## Running the Examples
+
+You can then run all examples from the paper as:
+
 ```
-> stack run koka -- -e test/artifact/pldi26/examples/intro.kk
+> stack exec koka -- -e test/artifact/pldi26/implicits.kk
 ```
 
-Or open the examples in VS Code with the [Koka extension](https://marketplace.visualstudio.com/items?itemName=koka.language-koka)
-to see inlay hints displaying inferred implicits inline (press `Ctrl+Alt` to toggle / `Ctrl+Option` on MacOS).
+and the 3-state busy beaver example from the appendix as:
+
+```
+> stack exec koka -- -e test/artifact/pldi26/busy-beaver.kk
+```
+
+If installed locally, one can also load the examples in VS Code while using the 
+[Koka extension][koka-vscode]. This is nice as it uses inlay hints to directly 
+show the full elaboration inside the editor (press `Ctrl+Alt` (or `Ctrl+Option` 
+on MacOS) to toggle inlay hints).
+
+[koka-vscode]: https://marketplace.visualstudio.com/items?itemName=koka.language-koka
 
 
 > **Tip (Docker / CI):** To avoid building the language server (which is not
 > needed to run examples), build only the `koka-plain` target:
 > ```
 > > stack build :koka-plain
-> > stack run koka-plain -- -e test/artifact/pldi26/examples/intro.kk
+> > stack run koka-plain -- -e test/artifact/pldi26/examples/implicits.kk
 > ```
 
-# Claims
+
+# Validation
+
+The `test/artifact/pldi26/examples/implicits.kk` file contains all code examples
+from the paper in order of appearance and organized per section. It type checks
+the examples, elaborates them, compiles, and executes:
+
+```
+> stack exec koka -- -e test/artifact/pldi26/implicits.kk
+```
+
+The expected output is:
+
+```
+...
+test/artifact/pldi26/implicits.kk(56,19): type warning: identifier myshow cannot be resolved.
+  context      :                   myshow(x)
+  inferred type: _
+  candidates   : bool/myshow     : (x : bool) -> string
+                 character/myshow: (x : char) -> string
+                 int/myshow      : (x : int) -> string
+                 tuple/myshow    : forall<a,b> ((a, b), ?fst/myshow : (a) -> string, ?snd/myshow : (b) -> string) -> string
+                 list/myshow     : forall<a> (xs : list<a>, ?myshow : (a) -> string) -> string
+  hint         : give a type annotation or qualify the name?
+
+test/artifact/pldi26/implicits.kk(76, 3): type warning: identifier myshow cannot be resolved
+  context      :   myshow([])
+  inferred type: (list<_1594>) -> _
+  candidates   : list/myshow(_,bool/myshow)
+                 list/myshow(_,character/myshow)
+                 list/myshow(_,int/myshow)
+                 list/myshow(_,list/myshow)
+                 list/myshow(_,tuple/myshow)
+  hint         : qualify the name?
+
+test/artifact/pldi26/implicits.kk(115, 3): type warning: identifier foo cannot be resolved
+  context      :   foo(1)
+  inferred type: (int) -> _
+  candidates   : foo(_,foo(_,foo(_,foo(_,foo(_,...)))))
+  hint         : qualify the name?
+
+42
+2A
+'a'
+'a'
+1
+1::2::[]
+1::2::[]
+1::[]::2::[]::[]
+3
+(1,'a')
+(1,'a'::[])::(2,'b'::[])::[]
+(1,*)
+3
+False
+custom assertion failed at 188: test1
+()
+custom assertion failed at 195: test/artifact/pldi26/implicits.kk: test2
+()
+(1,1)
+done.
+```
+
+The three type warnings show examples from the paper that should be rejected.
+Such examples are qualified with the name `wrong/` in Koka such that the errors
+become warnings and their definitions are omitted from the executable.
+
+**todo**
+
+- show the claims etc. much shorter
+- nicefy the section on the code
+
 
 ## Claims Validated by This Artifact
 
@@ -247,17 +340,10 @@ stack run koka -- -e samples/learn/implicits.kk
 test/artifact/pldi26/
   README.md               -- this file
   Dockerfile              -- build instructions for the Docker image
-  examples/
-    intro.kk              -- §1: introduction examples (show-int, list/showx, tuple/showx)
-    overloading.kk        -- §2: static overloading and implicit parameters
-    scope.kk              -- §2.9: scope-based disambiguation
-    busy-beaver.kk              -- §3.1 / Appendix A: Turing machine encoding (specific rules)
-    busy-beaver-higher-order.kk -- §3.1 / Appendix A: generalized higher-order Turing encoding
-    comparison.kk         -- §4.1: comparison, equality, default namespace
-    grouping.kk           -- §4.2: grouping with structs and dot-unpacking
-    phantom.kk            -- §4.3: phantom implicits (?kk-line, ?kk-file)
-    divergence.kk         -- §4.3: divergence phantom implicit (?hdiv)
+  implicits.kk            -- all code examples in the paper
+  busy-beaver.kk          -- encoding a 3-state busy beaver in the type system (Section 3)
 ```
+
 
 ## Where the Features Are Implemented
 
