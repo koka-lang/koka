@@ -425,6 +425,60 @@ $ out\v2.0.5\cl-release\test_bench_koka_rbtree --kktime
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
 
+## Profiling
+
+Koka supports profiling with both GCC and Clang via the `--fprofile` flag.
+
+### GCC (gprof — time-based sampling)
+
+```sh
+$ koka --fprofile -e myprogram.kk
+$ gprof .koka/v*/gcc-profile-*/myprogram__main gmon.out
+```
+
+Shows where the program spends time (percentage of total, call counts per function).
+
+### Clang (LLVM instrumentation — execution frequency)
+
+```sh
+$ koka --fprofile --cc=clang -e myprogram.kk
+$ llvm-profdata merge -sparse default.profraw -o default.profdata
+$ llvm-profdata show --all-functions --topn=15 default.profdata
+```
+
+Shows how often each function and code path executes.
+
+### Linux perf (hardware sampling)
+
+On Linux, `perf` provides hardware-accurate sampling on any compiled binary
+— no special compiler flags are needed:
+
+```sh
+$ koka -O2 myprogram.kk
+$ perf record -g .koka/v*/gcc-drelease-*/myprogram__main
+$ perf report
+```
+
+Or generate a flame graph:
+
+```sh
+$ perf script | stackcollapse-perf.pl | flamegraph.pl > flame.svg
+```
+
+### Profiling utility
+
+A convenience script automates the GCC compile-run-report workflow:
+
+```sh
+$ koka util/profile.kk -- myprogram.kk --runs=3 --opt=-O2
+```
+
+Run `koka util/profile.kk -- --help` for all options.
+
+> **Note:** GCC profiling requires `gcc` and `gprof`.
+> Clang profiling requires `clang` and `llvm-profdata`.
+> Linux perf requires the `linux-tools` package.
+
 ## Language Server
 
 See the [`support/vscode/README.md`](support/vscode/README.md) for how to
