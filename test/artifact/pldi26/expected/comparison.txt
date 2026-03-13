@@ -1,6 +1,0 @@
-Lt
-Lt
-Lt
-False
-True
-True

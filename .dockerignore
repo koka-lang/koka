@@ -1,0 +1,6 @@
+.koka/
+.vscode/
+.stack-work/
+bundle/
+out/
+scratch/

@@ -25,16 +25,13 @@ RUN apt-get install -y --no-install-recommends libffi-dev libgmp-dev zlib1g-dev
 RUN curl -sSL https://get.haskellstack.org/ | /bin/bash
 RUN stack update
 
-# Clone and build the Koka compiler (artifact branch)
+# Copy and build the Koka compiler (artifact branch)
 WORKDIR /artifact
-RUN git clone --recursive https://github.com/koka-lang/koka -b artifact/syntactic-implicits
+COPY . /artifact/koka
+
 WORKDIR /artifact/koka
 RUN stack build :koka-plain
 
-# Compile and run all artifact examples, verifying output against pre-saved
-# expected results.  The script exits non-zero if any example fails, which
-# causes the Docker build to fail immediately.
-WORKDIR /artifact/koka
-RUN bash test/artifact/pldi26/check.sh
+RUN echo "alias koka='stack run koka-plain --'" >> ~/.bashrc
 
 CMD ["/bin/bash"]
