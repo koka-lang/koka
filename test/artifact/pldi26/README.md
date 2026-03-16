@@ -83,7 +83,7 @@ We have two example files that validate the claims in the paper:
 
 - `busy-beaver.kk`: an implementation of a 3-state busy beaver program
   that executes as part of type checking. The history-based termination check 
-  as desrcibed in Section 3.3 is essential here to allow it to compile.
+  as described in Section 3.3 is essential here to allow it to compile.
 
 
 ## Implicits.kk
