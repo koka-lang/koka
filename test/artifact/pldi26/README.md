@@ -1,7 +1,7 @@
 # PLDI 2026 Paper Artifact: Syntactic Implicit Parameters with Static Overloading
 
 [dockerhub]:  https://hub.docker.com/repository/docker/daanx/pldi26-implicits/general
-[Zenodo]:     https://zenodo.org/records/TODO
+[Zenodo]:     https://zenodo.org/records/19057777
 
 # Getting Started
 
@@ -19,7 +19,8 @@ or on macOS Apple silicon:
 > docker run -it daanx/pldi26-implicits:1.0-arm64
 ```
 
-When using the Zenodo tar use the `docker load -i <image>` command instead of `docker pull`, for example:
+When using the [Zenodo] (doi:`10.5281/zenodo.19057777`) tar 
+use the `docker load -i <image>` command instead of `docker pull`, for example:
 ```
 > tar -xvf artifact_pldi26_implicits.tar
 > cd pldi26
