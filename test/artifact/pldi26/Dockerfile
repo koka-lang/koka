@@ -1,8 +1,9 @@
 # Dockerfile for the artifact:
 #   "Syntactic Implicit Parameters with Static Overloading"
 #
-# Build this image:
-#   docker build -t pldi26-implicits .
+# Build this image, go to the root of the koka installation (`~/dev/koka` for example)
+# as it copies that koka directory into the docker image.
+#   docker build -t pldi26-implicits -f test/artifact/pldi26/Dockerfile .
 #
 # Run interactively:
 #   docker run -it pldi26-implicits
@@ -19,7 +20,7 @@ RUN apt-get install -y --no-install-recommends ca-certificates
 RUN apt-get install -y --no-install-recommends git cmake make
 RUN apt-get install -y --no-install-recommends clang gcc libc-dev
 RUN apt-get install -y --no-install-recommends build-essential pkg-config curl
-RUN apt-get install -y --no-install-recommends tar zip unzip xz-utils 
+RUN apt-get install -y --no-install-recommends tar zip unzip xz-utils
 RUN apt-get install -y --no-install-recommends libffi-dev libgmp-dev zlib1g-dev pcre2-utils
 RUN apt-get install -y --no-install-recommends vim
 RUN apt-get update
@@ -39,7 +40,7 @@ WORKDIR /root
 COPY . /root/koka
 # Or checkout the Koka compiler from github
 # WORKDIR /root
-# RUN git clone --recursive https://github.com/koka-lang/koka  -b artifact-pldi24
+# RUN git clone --recursive https://github.com/koka-lang/koka  -b artifact/syntactic-implicits koka
 
 WORKDIR /root/koka
 RUN stack build --fast

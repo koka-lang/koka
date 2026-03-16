@@ -3,3 +3,6 @@ fun paren/myshow( x : a, ?myshow : list<a> -> string ) : string
 
 fun wrong()
   1.myshow
+
+fun main()
+  print("hi")

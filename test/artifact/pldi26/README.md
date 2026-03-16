@@ -23,8 +23,8 @@ When using the Zenodo tar use the `docker load -i <image>` command instead of `d
 ```
 > tar -xvf artifact_pldi26_implicits.tar
 > cd pldi26
-> docker load -i daanx/pldi26-tree:1.0-x64
-> docker run -it daanx/pldi26-tree:1.0-x64
+> docker load -i daanx/pldi26-implicits:1.0-x64
+> docker run -it daanx/pldi26-implicits:1.0-x64
 ```
 
 Once inside the container, the working directory is `/artifact/koka` (the koka repository root).
@@ -36,7 +36,7 @@ It is also straightforward to build the artifact directly on Linux or macOS.
 Install [Stack](https://docs.haskellstack.org/en/stable/) and then:
 
 ```
-> git clone --recursive https://github.com/koka-lang/koka -b artifact/syntactic-implicits
+> git clone --recursive https://github.com/koka-lang/koka -b artifact/syntactic-implicits koka
 > cd koka
 > stack build --fast
 > stack exec koka -- --version
@@ -64,13 +64,6 @@ and the 3-state busy beaver example from the appendix as:
 > stack exec koka -- -e test/artifact/pldi26/busy-beaver.kk
 ```
 
-> **Tip (Docker / CI):** To avoid building the language server (which is not
-> needed to run examples), build only the `koka-plain` target:
-> ```
-> > stack build :koka-plain
-> > stack run koka-plain -- -e test/artifact/pldi26/examples/implicits.kk
-> ```
-
 
 # Validation
 
@@ -81,21 +74,21 @@ We have two example files that validate the claims in the paper:
   2. We have also examples of programs that should be rejected in our system.
   3. We have implemented all extensions suggested in Section 4 of the paper
      (including the `default/` namespace).
-  4. We also have implemented kk-line/kk-file that use special constants
+  4. We also have implemented `kk-line`/`kk-file` that use special constants
      that can be supplied by the compiler (Section 4.3)
-  5. We also have implemented the hdiv implicit that requires type information
+  5. We also have implemented the `hdiv` implicit that requires type information
      to be resolved and is essential to detect potential divergence when
      using mutable state (Section 4.3.1)
 
 - `busy-beaver.kk`: an implementation of a 3-state busy beaver program
-  that executes as part of type checking. This shows that we implemented
-  the history-based termination check (Section 3.3).
+  that executes as part of type checking. The history-based termination check 
+  as desrcibed in Section 3.3 is essential here to allow it to compile.
 
 
 ## Implicits.kk
 
 The `test/artifact/pldi26/examples/implicits.kk` file contains all code examples
-from the paper in order of appearance and organized per section. It type checks
+from the paper in order of appearance and organized per section.  It type checks
 the examples, elaborates them, compiles, and executes:
 
 ```
@@ -132,6 +125,7 @@ test/artifact/pldi26/implicits.kk(115, 3): type warning: identifier foo cannot b
   candidates   : foo(_,foo(_,foo(_,foo(_,foo(_,...)))))
   hint         : qualify the name?
 
+section 1:
 42
 2A
 'a'
@@ -140,9 +134,13 @@ test/artifact/pldi26/implicits.kk(115, 3): type warning: identifier foo cannot b
 1::2::[]
 1::2::[]
 1::[]::2::[]::[]
+
+section 2:
 3
 (1,'a')
 (1,'a'::[])::(2,'b'::[])::[]
+
+section 4:
 (1,*)
 3
 False
@@ -151,6 +149,7 @@ custom assertion failed at 188: test1
 custom assertion failed at 195: test/artifact/pldi26/implicits.kk: test2
 ()
 (1,1)
+
 done.
 ```
 
@@ -163,7 +162,7 @@ become warnings and their definitions are omitted from the executable.
 
 Section 3.1 of the paper discusses termination of the type checker and
 shows how we can encode a 3-state busy beaver program on the type level.
-Type checking essentially executes the Turing machine. 
+Type checking essentially executes the Turing machine at compilation time. 
 The `busy-beaver.kk` file contains the full implementation and can be
 run as:
 
@@ -209,8 +208,8 @@ inf/a/b/trans(start,?trans=a/b/trans(_,
   halt/trans))))))))))))))))))
 ```
 
-Unfortunately, this information is not readily available from the 
-command line. One way to see the elaboration is to display the initial core 
+This information is not readily available from the command line though. 
+One way to see the elaboration is to display the initial core 
 generated from the type checker using the `--showicore` option:
 ```
 > stack exec koka -- --showicore -e test/artifact/pldi26/busy-beaver.kk
@@ -222,19 +221,17 @@ generated from the type checker using the `--showicore` option:
 The features described in the paper are heavily used in the Koka standard library.
 Some relevant files:
 
-- `lib/std/core.kk` — `show`, `(==)`, `(<)`, `(<=)`, etc. using overloading and implicits
-- `lib/std/core/types.kk` — `order` type and `cmp` functions
-- `samples/learn/implicits.kk` — a guided tutorial on implicits in Koka
-- `samples/learn/qualifiers.kk` — a tutorial on qualified names and static overloading
-
+- `lib/std/core/*.kk`: `show`, `cmp`, `(==)` etc. using overloading and implicits
+- `samples/learn/implicits.kk`: a tutorial on implicits in Koka
+- `samples/learn/qualifiers.kk`: a tutorial on qualified names and static overloading
 
 
 ## Implementation Notes
 
 The implementation of syntactic implicit parameters and static 
-overloading lives primarily in the Koka type inference code. The 
-following pointers can be useful when trying to understand how
-it is implemented.
+overloading lives primarily in the Koka type inference code. The following
+descriptions are a bit beyond the scope of the artifact but we hope it can 
+be useful when trying to understand how it is implemented.
 
 - Syntactic Implicit Parameters 
 
@@ -265,10 +262,6 @@ it is implemented.
   - Termination check: `isDecreasingChain` (line ~1175) Before recursing into a candidate in `resolveUniquely` (line ~1103–1110), the guard `not (isDecreasingChain chain ctx qname rho)` is evaluated.`isDecreasingChain` filters the chain to prior occurrences of the same qualified name, and requires that the instantiated type's *weight* is strictly decreasing relative to the maximum weight seen in the last `decreasingWithin = 4` occurrences. If the type is not decreasing, the candidate is marked `Infty` (an infinite-chain failure) and pruned rather than explored.
 
   - Weight measure: `weight` / `weightType` / `weightParams` (line ~1185) The weight of an instantiated type is the total number of type constructors (`TCon` nodes) appearing in the implicit-parameter positions of that type. This is a structural size measure on types that is guaranteed to be a well-founded order, ensuring that any strictly decreasing sequence is finite.
-
-  - Safety depth cutoff:  `resolveMaxChainDepth = 32` (line ~1001) As an additional safeguard, if the chain exceeds 32 entries all remaining candidates are immediately marked `Infty` and exploration stops. The comment notes this is no longer strictly required once the decreasing-chain check is in place, but it prevents pathological compile times during development.
-
-  - Flag to disable the check:  `--infchain` (`src/Compile/Options.hs` line ~521) The compiler flag `--infchain` sets `allowInfiniteChains = True` in the `Env`, read at line ~1049 and threaded through all recursive calls. When set, the `isDecreasingChain` guard is skipped entirely. The `busy-beaver.kk` example compiles successfully *without* this flag because the chain of instantiated types is genuinely decreasing in weight. The flag exists to allow programs whose derivations are finite but happen not to satisfy the decreasing-weight criterion (at the cost of potentially non-terminating type-checking). It is off by default.
 
 
 - Static Overloading 

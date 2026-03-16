@@ -1,12 +1,12 @@
 // All code examples from the paper
 // "Syntactic Implicit Parameters with Static Overloading"
 //
-// Run as: 
+// Run as:
 // ```
 // stack exec koka -- -e test/artifact/pldi26/implicits.kk
 // ```
 //
-// In VS Code, press Ctrl+Alt (Ctrl+Option on macOS) to see inferred 
+// In VS Code, press Ctrl+Alt (Ctrl+Option on macOS) to see inferred
 // implicits and qualified names displayed as inlay hints.
 module implicits
 
@@ -15,18 +15,18 @@ module implicits
 // --------------------------------------------------------
 
 // Write a function that needs a _base_ parameter.
-fun show-int( x : int, ?base : int ) : div string     
-  if x > base 
+fun show-int( x : int, ?base : int ) : div string
+  if x > base
     then show-int( x / base ) ++ show-int( x % base )
     else show-digit(x)
 
-fun test1a()     
+fun test1a()
   val base = 10
   show-int(42)    // is elaborated to `show-int(42,base)` where `base` becomes the last parameter
 
-fun test1b()     
+fun test1b()
   val base = 16
-  show-int(42)    // also elaborated to `show-int(42,base)` 
+  show-int(42)    // also elaborated to `show-int(42,base)`
 
 // Illustrate locally qualified names
 // (note: we use `myshow` instead of `show` to avoid nameclashes with the std/core library)
@@ -60,7 +60,7 @@ fun wrong/list-myshow(xs : list<a> ) : string
 // we can use an implicit parameter though
 fun list/myshow( xs : list<a>, ?myshow : a -> string ) : string
   match xs
-    Cons(x,xx) -> myshow(x) ++ "::" ++ myshow(xx) 
+    Cons(x,xx) -> myshow(x) ++ "::" ++ myshow(xx)
     Nil        -> "[]"
 
 fun test1f()
@@ -82,7 +82,7 @@ fun wrong/unresolved()
 // --------------------------------------------------------
 
 fun test2a()
-  fun mod/plus( x, y, ?mod ) 
+  fun mod/plus( x, y, ?mod )
     (x+y) % mod
   val mod = 8
   mod/plus(5,6)         // elaborates to `mod/plus(5,6,mod)`
@@ -92,11 +92,11 @@ fun test2a()
 fun tuple/myshow( (x,y) : (a,b), ?fst/myshow : a -> string, ?snd/myshow : b -> string ) : string
   "(" ++ fst/myshow(x) ++ "," ++ snd/myshow(y) ++ ")"  // we can actually write `myshow(x)`,`myshow(y)` as well
 
-fun test2b() 
+fun test2b()
   myshow((1,'a'))     // elaborates to `tuple/myshow((1,'a'),int/myshow,character/myshow)`
 
-fun test2c() 
-  myshow([(1,['a']),(2,['b'])])    
+fun test2c()
+  myshow([(1,['a']),(2,['b'])])
   // this elaborates to:
   // `list/myshow([(1,['a']),(2,['b'])], ?myshow=tuple/myshow(_,?fst/myshow=int/myshow,?snd/myshow=list/myshow(_,character/myshow)))`
 
@@ -121,7 +121,7 @@ fun wrong/recurse()
 // --------------------------------------------------------
 
 
-fun test4a() 
+fun test4a()
   myshow( (1,True), ?snd/myshow=fn(x) "*")   // pass an implicit parameter explicitly
 
 // Unlike Haskell Type classes, we don't declare types upfront
@@ -147,7 +147,7 @@ fun character/cmpx( x : char, y : char ) : order
 
 // define a generic equality operation in the default namespace
 fun default/is-equal( x : a, y : a, ?cmpx : (a,a) -> order ) : bool
-  match cmpx(x,y) 
+  match cmpx(x,y)
     Eq -> True
     _  -> False
 
@@ -155,7 +155,7 @@ fun default/is-equal( x : a, y : a, ?cmpx : (a,a) -> order ) : bool
 fun int/is-equal( x : int, y : int ) : bool
   x==y
 
-// resolved without ambiguity as `default/` is in an outer namespace 
+// resolved without ambiguity as `default/` is in an outer namespace
 fun test4c()
   (is-equal(1,2) && is-equal('a','b'))  // elaborates to `int/is-equal(1,2) && default/is-equal('a','b',character/cmpx)`
 
@@ -167,7 +167,7 @@ struct num<a>
   (*) : (a,a) -> a
 
 // and provide some "instances"
-val int/num : num<int> = Num((+),(*))  
+val int/num : num<int> = Num((+),(*))
 
 // and use "dot" notation to unpack the members concisely
 fun fma( x : a, y : a, z : a, .?num : num<a> ) : a
@@ -175,7 +175,7 @@ fun fma( x : a, y : a, z : a, .?num : num<a> ) : a
 
 // the above is just syntactic sugar for:
 fun fma-explicit( x : a, y : a, z : a, ?num : num<a> ) : a
-  match num 
+  match num
     Num((+),(*)) -> (x*y) + z
 
 
@@ -185,7 +185,7 @@ fun assert-line( condition : bool, msg : string, ?kk-line : int ) : console ()
   if condition then () else println("custom assertion failed at " ++ kk-line.myshow ++ ": " ++ msg)
 
 fun test4d()
-  assert-line(False,"test1")   // kk-line is supplied as the current line 
+  assert-line(False,"test1")   // kk-line is supplied as the current line
 
 // and we can _abstract_ over these builtin values
 fun assert-fline(condition : bool, msg : string, ?kk-line : int, ?kk-file : string ) : console ()
@@ -201,11 +201,11 @@ fun test4e()
 // It captures the constraint that `e` must contain the `div` effect
 // if the type `a` possibly contains the heap type `h`
 //
-// The following function is not recursive ... but Koka still 
-// infers the `div` effect! How? Because the dereferencing requires 
+// The following function is not recursive ... but Koka still
+// infers the `div` effect! How? Because the dereferencing requires
 // such implicit `hdiv` "evidence": `fun ref/(!)( r : ref<h,a>, ?hdiv : hdiv<h,a,e>) : <read<h>|e> a`
 //
-fun landin()                // `div`` effect is inferred 
+fun landin()                // `div`` effect is inferred
   val r = ref( fn() () )    // initialize with a parameter-less function that returns unit
   fun self()
     (!r)()                  // self calls the function in the reference
@@ -214,7 +214,7 @@ fun landin()                // `div`` effect is inferred
 
 
 fun read2( r : ref<h,a>, ?hdiv : hdiv<h,a,e> ) : <read<h>|e> (a,a)
-  val x = !r 
+  val x = !r
   (x,x)
 
 fun test4f()
@@ -228,6 +228,7 @@ fun show-digit(x : int) : string
   string(if x < 10 then '0' + x.char else 'A' + (x - 10).char)
 
 fun main()
+  println("\nsection 1:")
   test1a().println
   test1b().println
   test1c().println
@@ -236,14 +237,15 @@ fun main()
   test1f().println
   test1g().println
   test1h().println
+  println("\nsection 2:")
   test2a().println
   test2b().println
   test2c().println
+  println("\nsection 4:")
   test4a().println
   test4b().println
   test4c().println
   test4d().println
   test4e().println
   test4f().println
-  println("done.")
-  
+  println("\ndone.")
