@@ -19,12 +19,11 @@ or on macOS Apple silicon:
 > docker run -it daanx/pldi26-implicits:1.0-arm64
 ```
 
-When using the [Zenodo] (doi:`10.5281/zenodo.19057777`) tar 
+When using [Zenodo] (doi:`10.5281/zenodo.19057777`) provided `tar.gz` files, 
 use the `docker load -i <image>` command instead of `docker pull`, for example:
 ```
-> tar -xvf artifact_pldi26_implicits.tar
-> cd pldi26
-> docker load -i daanx/pldi26-implicits:1.0-x64
+> gunzip pldi26-implicits-1.0-x64.tar.gz
+> docker load -i pldi26-implicits-1.0-x64.tar
 > docker run -it daanx/pldi26-implicits:1.0-x64
 ```
 
@@ -83,7 +82,7 @@ We have two example files that validate the claims in the paper:
 
 - `busy-beaver.kk`: an implementation of a 3-state busy beaver program
   that executes as part of type checking. The history-based termination check 
-  as described in Section 3.3 is essential here to allow it to compile.
+  as desrcibed in Section 3.3 is essential here to allow it to compile.
 
 
 ## Implicits.kk
