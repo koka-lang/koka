@@ -13,7 +13,7 @@ import std/os/env
 import std/text/regex
 import std/time
 
-val header = "usage:\n stack exec koka -- util/reversion -v <version>\n\noptions:"
+val header = "usage:\n stack exec koka -- -e util/reversion -v<version>\n\noptions:"
 
 struct iflags
   version  : string = ""
