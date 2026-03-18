@@ -220,6 +220,14 @@ fun test-assert1()
   assert-line(False,"test1")   // kk-line is supplied as the current line
 
 
+// and we can _abstract_ over these builtin values
+fun assert-fline(condition : bool, msg : string, ?kk-line : int, ?kk-file : string ) : exn ()
+  assert-line(condition, kk-file ++ ": " ++ msg )
+
+fun test-assert2()
+  assert-fline(False,"test2")
+
+
 
 // A fancy phantom implicit is `hdiv` of type `hdiv<h,a,e>`
 // It captures the constraint that `e` must contain the `div` effect
@@ -237,16 +245,9 @@ fun landin()                // div is inferred
   self()                    // and call it (recursively even though that is not apparent in the syntax)
 
 
-// and we can _abstract_ over these builtin values
-fun assert-fline(condition : bool, msg : string, ?kk-line : int, ?kk-file : string ) : exn ()
-  assert-line(condition, kk-file ++ ": " ++ msg )
 
-fun test-assert2()
-  assert-fline(False,"test2")
-
-
-
-
+// helpers
+// show a digit as a string
 fun show-digit(x : int) : string
   string(if x < 10 then '0' + x.char else 'A' + (x - 10).char)
 

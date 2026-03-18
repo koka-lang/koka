@@ -395,9 +395,10 @@ kk_decl_export void kk_valuetype_unbox_from_any(kk_box_t* p, size_t size, kk_box
 ----------------------------------------------------------------*/
 
 // A function to free a raw C pointer, raw bytes, or raw string.
+// This function can inspect the `block` but should not free it.
 typedef void (kk_free_fun_t)(void* p, kk_block_t* block, kk_context_t* ctx);
-kk_decl_export void kk_free_fun_null(void* p, kk_block_t* block, kk_context_t* ctx);
-kk_decl_export void kk_free_fun(void* p, kk_block_t* block, kk_context_t* ctx);
+kk_decl_export void kk_free_fun_null(void* p, kk_block_t* block, kk_context_t* ctx);  // doesn't free `p`
+kk_decl_export void kk_free_fun(void* p, kk_block_t* block, kk_context_t* ctx);       // calls `kk_free` on `p`
 
 // "raw" types: first field is pointer to a free function, the next field a pointer to raw C data
 typedef struct kk_cptr_raw_s {

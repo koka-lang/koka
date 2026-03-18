@@ -21,6 +21,7 @@ static void kk_block_free_raw(kk_block_t* b, kk_context_t* ctx) {
   if (raw->free != NULL) {
     (*raw->free)(raw->cptr, b, ctx);
   }
+  kk_block_free(b,ctx); // PR #864
 }
 
 // Check if a field `i` in a block `b` should be freed, i.e. it is heap allocated with a refcount of 0 (after rc decref).
