@@ -91,9 +91,7 @@ fun profile( pf : pflags ) : io ()
   // Step 2: Run with profiling (generates gmon.out)
   println("[2/3] Running " ++ pf.runs.show ++ " time(s) to collect profile data ...")
   val run-cmd = "koka --fprofile --cc=" ++ pf.cc ++ " " ++ pf.opt ++ " -e " ++ src ++ " -- " ++ pf.args
-  var i := 0
-  while { i < pf.runs }
-    i := i + 1
+  for( pf.runs ) fn(i)
     if pf.verbose then println("  run " ++ i.show ++ ": " ++ run-cmd)
     val rret = run-system(run-cmd)
     if rret != 0 then

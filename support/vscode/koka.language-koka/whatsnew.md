@@ -13,7 +13,7 @@ generating direct C code without needing a runtime system. To learn more:
 
 ### v3.2.3
 
-- Top-level definitions that start with `wrong` can have static (type) errors and 
+- Top-level definitions that start with `wrong/` can have static (type) errors and 
   will be ignored (but the errors are still showed as warnings).
   This expands on definitions that start with `test` or `example` which can be run
   directly from the IDE.
