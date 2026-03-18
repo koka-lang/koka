@@ -11,6 +11,10 @@ generating direct C code without needing a runtime system. To learn more:
 
 * Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
 
+### v3.2.4, 2026-03-17
+
+- Todo
+
 ### v3.2.3, 2026-03-17
 
 - Top-level definitions that start with `wrong/` can have static (type) errors and 

@@ -22,15 +22,16 @@ jobs:
         os: [windows-latest, macOS-latest, macos-15-intel, ubuntu-22.04, ubuntu-22.04-arm]
 
     steps:
-      # Checkout
+      # Checkout: https://github.com/actions/checkout
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: true
 
       # Cache setup for vcpkg (https://learn.microsoft.com/en-us/vcpkg/consume/binary-caching-github-actions-cache)
+      # https://github.com/actions/github-script
       - name: Setup vcpkg cache
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
