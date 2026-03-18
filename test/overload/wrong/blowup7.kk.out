@@ -1,0 +1,14 @@
+test/overload/wrong/blowup7@kk(13, 3): type error: identifier even cannot be resolved
+ context : even(1)
+ inferred type: (int) -> _
+ candidates : grow1/even(_,grow2/even(_,end/even))
+ grow1/even(_,grow2/even(_,grow2/even(_,grow2/even(_,grow2/even(_,grow2/even(_,@@@))))))
+ grow1/even(_,grow2/even(_,grow2/even(_,grow2/even(_,grow2/even(_,grow1/even(_,grow2/even(_,@@@)))))))
+ grow1/even(_,grow2/even(_,grow2/even(_,grow2/even(_,grow2/even(_,grow1/even(_,grow1/even(_,grow2/even(_,@@@))))))))
+ grow1/even(_,grow2/even(_,grow2/even(_,grow2/even(_,grow2/even(_,grow1/even(_,grow1/even(_,grow1/even(_,grow2/even(_,@@@)))))))))
+ grow1/even(_,grow2/even(_,grow2/even(_,grow2/even(_,grow2/even(_,grow1/even(_,grow1/even(_,grow1/even(_,grow1/even(_,@@@)))))))))
+ grow1/even(_,grow2/even(_,grow2/even(_,grow2/even(_,grow1/even))))
+ grow1/even(_,grow2/even(_,grow2/even(_,grow1/even)))
+ grow1/even(_,grow2/even(_,grow1/even))
+ grow1/even(_,grow1/even)
+ hint : qualify the name?
