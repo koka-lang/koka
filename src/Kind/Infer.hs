@@ -312,7 +312,8 @@ synConstrTag (con)
   = let name = toOpenTagName (unqualify (conInfoName con))
         rc   = rangeHide (conInfoRange con)
         expr = Lit (LitString (show (conInfoName con)) rc)
-    in DefNonRec (Def (ValueBinder name () expr rc rc) rc (conInfoVis con) DefVal InlineNever "")
+        -- Tags must be public, since they may extend a type outside of the current module
+    in DefNonRec (Def (ValueBinder name () expr rc rc) rc Public DefVal InlineNever "") 
 
 {- ------------------------------------------------------------------------------------------------------------
    Lazy types and constructors
