@@ -55,6 +55,7 @@ library:
   ghc-options:
     - -j8
     - -O2
+    - -Wno-x-partial   # todo: compile with this enabled..
 
   cpp-options:
     - -DKOKA_MAIN="koka"

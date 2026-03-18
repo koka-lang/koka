@@ -14,8 +14,8 @@
 # See also <https://github.com/koka-lang/koka#build-notes>.
 
 
-# resolver: lts-23.28             # ghc 9.8.4
-resolver: lts-22.43             # ghc 9.6.6  -- on windows set the codepage to utf-8: `chcp 65001` on the first run
+resolver: lts-24.34             # ghc 9.10.3
+# resolver: lts-22.43           # ghc 9.6.6  -- on windows set the codepage to utf-8: `chcp 65001` on the first run
 # resolver: lts-22.20           # ghc 9.6.4  -- on windows set the codepage to utf-8: `chcp 65001` on the first run
 # resolver: lts-21.24           # ghc 9.4.8  -- works on older macOS/x64
 # resolver: lts-21.0            # ghc 9.4.5
@@ -30,15 +30,15 @@ packages:
 - '.'
 
 extra-deps:
-- regex-compat-0.95.2.1          # only needed for koka-test (use 0.95.1.4 for pre lts-21.0)
-- json-0.11                      # only needed for koka-test
+- regex-compat-0.95.2.1         # only needed for koka-test (use 0.95.1.4 for pre lts-21.0)
+- json-0.11                     # only needed for koka-test
 - isocline-1.0.9
 - lsp-2.8.0.0                   # only needed for language server
 - lsp-types-2.4.0.0             # only needed for language server
 - text-rope-0.2                 # needed for lsp
 - co-log-core-0.3.2.1           # needed for lsp
 - FloatingHex-0.5               # not really needed, but nice in the language server
-- hashable-1.4.3.0
+- hashable-1.5.1.0
 - async-2.2.5
 
 rebuild-ghc-options: true

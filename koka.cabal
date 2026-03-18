@@ -138,7 +138,7 @@ library
   other-extensions:
       CPP
       OverloadedStrings
-  ghc-options: -j8 -O2
+  ghc-options: -j8 -O2 -Wno-x-partial
   cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="3.2.4" -DREADLINE=0
   include-dirs:
       src/Platform/cpp/Platform

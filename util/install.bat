@@ -34,13 +34,13 @@ for /F "tokens=1" %%x in ("%PROCESSOR_IDENTIFIER%") do (
 set CLANG_PLATFORM=win64
 if "%KOKA_TARGET_ARCH%" == "arm64" (set CLANG_PLATFORM=woa64)
 
-set CLANG_REQUIRED_MAJOR=20
-set CLANG_VERSION=20.1.6
+set CLANG_REQUIRED_MAJOR=22
+set CLANG_VERSION=22.1.1
 set CLANG_INSTALL_BASE=LLVM-%CLANG_VERSION%-%CLANG_PLATFORM%.exe
 set CLANG_INSTALL=%TEMP%\%CLANG_INSTALL_BASE%
 set CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%CLANG_VERSION%/%CLANG_INSTALL_BASE%
-set CLANG_INSTALL_SHA256=57024002751f27981485aecf9215088887641e116f8a3971bd63090e38b42e9e
-if "%CLANG_PLATFORM%" == "woa64" (set CLANG_INSTALL_SHA256=92f69a1134e32e54b07d51c6e24d9594852f6476f32c3d70471ae00fffc2d462)
+set CLANG_INSTALL_SHA256=e7fec06b4696be82bf8d4b846ebf6b810ed6f27d9eefdce46baf5330ea6e9ed4
+if "%CLANG_PLATFORM%" == "woa64" (set CLANG_INSTALL_SHA256=a935deacb02611d5465b0d7aa2d30af06fb6862d614c50dc9cbf4f53983a90a6)
 
 set VS_VERSION=2022
 set VS_SDK_VERSION=Windows11SDK.26100
@@ -282,6 +282,7 @@ if errorlevel 1 (
   echo Unpacking error: %ERRORLEVEL%
   echo.
   echo Perhaps Koka is in use by VS Code or another process?
+  echo Or perhaps you are running the install.bat from a non-standard cmd shell (like git bash)?
   rem echo Or perhaps uninstall a previous version manually first? Use:
   rem echo   curl -sSL -o %%tmp%%\install-koka.bat https://github.com/koka-lang/koka/releases/download/%KOKA_VERSION%/install.bat ^&^& %%tmp%%\install-koka.bat --uninstall
   goto end

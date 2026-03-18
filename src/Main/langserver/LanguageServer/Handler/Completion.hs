@@ -480,7 +480,7 @@ makeHandlerCompletionItem curModName conInfo d r line =
         newName = case newNameList of
           [] -> T.pack ""
           x:tl -> x <> T.pack " " <> T.intercalate (T.pack "-") tl
-    snippet = "handler\n" <> T.intercalate "\n" (snd (foldl handlerClause (1, []) (tail $ conInfoParams conInfo)))
+    snippet = "handler\n" <> T.intercalate "\n" (snd (foldl handlerClause (1, []) (drop 1 $ conInfoParams conInfo)))
     textEdit = Just $ J.InL $ J.TextEdit r snippet
     textEditText = Nothing
     additionalTextEdits = Nothing
