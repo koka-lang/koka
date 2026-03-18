@@ -17,8 +17,8 @@ export class MainCodeLensProvider implements vscode.CodeLensProvider {
     const doc = document.getText()
     const hasModuleDecl = doc.match(/^module\b/);
     const re_canRun = (hasModuleDecl ?
-      /(?:(?<=\n)|^)(?:pub\s+)fun\s+(main|test[\w-]*|example[\w-]*)\(\s*\)/g :  // all must be pub
-      /(?:(?<=\n)|^)(?:pub\s+)?fun\s+(main|test[\w-]*|example[\w-]*)\(\s*\)/g); // pub is default
+      /(?:(?<=\n)|^)(?:pub\s+)fun\s+(main|test\/?[\w-]*|example\/?[\w-]*)\(\s*\)/g :  // all must be pub
+      /(?:(?<=\n)|^)(?:pub\s+)?fun\s+(main|test\/?[\w-]*|example\/?[\w-]*)\(\s*\)/g); // pub is default
     let lenses = [];
     let match = null;
     console.log("Koka: Scanning document for main and test function");

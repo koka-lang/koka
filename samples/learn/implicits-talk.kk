@@ -251,5 +251,3 @@ fun landin()                // div is inferred
 fun show-digit(x : int) : string
   string(if x < 10 then '0' + x.char else 'A' + (x - 10).char)
 
-
-
