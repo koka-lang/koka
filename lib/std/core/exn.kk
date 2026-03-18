@@ -119,3 +119,7 @@ pub fun exn-error-range() : exn a
 // pub fun unsafe-no-exn( action : () -> <exn|e> a ) : e a
 //   unsafe-total( action )
 
+// Prepend `exn`'s message with `pre`.
+pub fun prepend( exn : exception, pre : string ) : exception
+  Exception(pre ++ ": " ++ exn.message, exn.info)
+

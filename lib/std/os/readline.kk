@@ -25,10 +25,6 @@ pub fun readline() : <console,exn> string
     Ok(line)    -> line
 
 
-fun prepend( exn : exception, pre : string ) : exception
-  Exception(pre ++ ": " ++ exn.message, exn.info)
-
-
 extern readline-err() : console error<string>
   c "kk_os_read_line_error"  
   js "sync_readline_err"
