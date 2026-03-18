@@ -52,6 +52,12 @@ jobs:
           stack-build-arguments: ""
           cache-save-always: true
 
+      # Run test suite on Linux and Windows x64
+      - name: Run test suite
+        if: (runner.os == 'Linux' || runner.os == 'Windows') && runner.arch == 'X64'
+        run: |
+          stack test --test-arguments="--seq"
+
       # Bundle
       - name: Build libraries
         if: runner.os == 'Windows'
