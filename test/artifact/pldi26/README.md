@@ -19,7 +19,7 @@ or on macOS Apple silicon:
 > docker run -it daanx/pldi26-implicits:1.0-arm64
 ```
 
-When using [Zenodo] (doi:`10.5281/zenodo.19057777`) provided `tar.gz` files, 
+When using the [Zenodo] provided `tar.gz` files (doi:`10.5281/zenodo.19057777`), 
 use the `docker load -i <image>` command instead of `docker pull`, for example:
 ```
 > gunzip pldi26-implicits-1.0-x64.tar.gz
@@ -295,22 +295,6 @@ be useful when trying to understand how it is implemented.
 
 
 # Notes
-
-## Installing from Scratch
-
-See the `Dockerfile` for precise build instructions on Ubuntu 22.04.
-The essential steps on macOS or Linux are:
-
-1. Install [Stack](https://docs.haskellstack.org/en/stable/)
-2. Clone the artifact branch:
-   ```
-   git clone --recursive https://github.com/koka-lang/koka -b artifact/syntactic-implicits
-   cd koka && stack build
-   ```
-3. Run any example:
-   ```
-   stack run koka -- -e test/artifact/pldi26/examples/intro.kk
-   ```
 
 ## VS Code Inlay Hints
 
