@@ -52,9 +52,9 @@ jobs:
           stack-build-arguments: ""
           cache-save-always: true
 
-      # Run test suite on Linux and Windows x64
+      # Run test suite on Linux and Windows
       - name: Run test suite
-        if: (runner.os == 'Linux' || runner.os == 'Windows') && runner.arch == 'X64'
+        if: runner.os == 'Linux' || runner.os == 'Windows'
         run: |
           stack test --test-arguments="--seq"
 
