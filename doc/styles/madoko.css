@@ -274,17 +274,6 @@
   width: 100em;
 }
 
-
-.madoko span.math-rendering {
-  display:inline-block;
-  width:8em;
-  overflow-x:auto;
-  font-size:70%;
-}
-.madoko span.math-rendering::-webkit-scrollbar {
-  width:4px;
-}
-
 /* ---------------------------------------------------
    Styling for full documents
 ----------------------------------------------------*/
