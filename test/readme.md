@@ -42,3 +42,21 @@ Options:
 --seq                        # Test sequentially (instead of in parallel) 
 --rebuild                    # Rebuild standard library for tests
 ```
+
+Per-directory test configuration uses `config.json` and supports:
+
+```json
+{
+	"flags": "-e --showtypesigs",
+	"exclude": ["always-skip.kk"],
+	"exclude-platform": {
+		"linux-arm64": ["arm-linux-only-failure.kk"],
+		"linux-aarch64": ["another-test.kk"],
+		"linux": ["linux-only-skip.kk"]
+	}
+}
+```
+
+`exclude-platform` expects a JSON object from platform key to an array of test patterns.
+
+Platform keys are case-insensitive and may use `-` or `_`. Matching supports OS keys (`linux`, `darwin`, `mingw32`), arch keys (`arm64`, `amd64`), and combined keys (`linux-arm64`, `arm64-linux`).

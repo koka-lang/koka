@@ -8,6 +8,7 @@ import System.Directory
 import System.Environment
 import System.FilePath
 import System.IO
+import qualified System.Info as Sys
 import System.Process (readProcessWithExitCode)
 import Text.Regex
 import Text.JSON
@@ -49,6 +50,12 @@ makeCfg flags options exclude
     matchers   = map matcher exclude
     fexclude s = any (\m -> m s) matchers
 
+normalizePlatformKey :: String -> String
+normalizePlatformKey = map norm
+  where
+    norm c | c == '_' = '-'
+           | otherwise = toLower c
+
 instance JSON Cfg where
   showJSON cfg = JSObject (toJSObject [])
   readJSON val
@@ -60,7 +67,32 @@ instance JSON Cfg where
                  exclude = case valFromObj "exclude" obj of
                              Ok xs -> xs
                              _     -> []
-             in Ok (makeCfg flags optionsDefault exclude)
+                 pexclude = case valFromObj "exclude-platform" obj of
+                              Ok v -> platformExcludes v
+                              _    -> []
+                 platformExcludes v
+                   = case v of
+                       JSObject pobj -> concatMap matchPlatform (fromJSObject pobj)
+                       _             -> []
+                 matchPlatform (platform, excludes)
+                   | normalizePlatformKey platform `elem` platformKeys
+                   = case excludes of
+                       JSArray xs -> mapMaybe toString xs
+                       _          -> []
+                   | otherwise
+                   = []
+                 toString (JSString s) = Just (fromJSString s)
+                 toString _            = Nothing
+                 platformKeys = [os, arch, os ++ "-" ++ arch, arch ++ "-" ++ os]
+                 os   = normalizePlatformKey Sys.os
+                 arch = case normalizePlatformKey Sys.arch of
+                          "aarch64" -> "arm64"
+                          "arm64"   -> "arm64"
+                          "x86-64"  -> "amd64"
+                          "x86_64"  -> "amd64"
+                          "amd64"   -> "amd64"
+                          a          -> a
+               in Ok (makeCfg flags optionsDefault (exclude ++ pexclude))
         JSNull     -> Ok (makeCfg [] optionsDefault [])
         JSString s -> Ok (makeCfg (words (fromJSString s)) optionsDefault [])
         _          -> Error ("invalid JSON object")
@@ -240,7 +272,7 @@ main = do
   putStrLn "pre-compiling standard libraries..."
   -- compile all standard libraries before testing so we can run in parallel
   let cfg = initialCfg options
-      stdcfg = if rebuild options then cfg{ flags = flags cfg ++ ["-r"]} else cfg
+      stdcfg = if rebuild options then cfg{ flags = flags cfg ++ ["-r", "-l"]} else cfg
   runKoka stdcfg "" "util/link-test.kk"
   runKoka stdcfg{flags = "--target=js":(flags stdcfg)} "" "util/link-test.kk" -- precompiled js libraries as well
   putStrLn "ok."

@@ -56,7 +56,7 @@ jobs:
       - name: Run test suite
         if: runner.os == 'Linux' || runner.os == 'Windows'
         run: |
-          stack test --test-arguments="--seq"
+          stack test
 
       # Bundle
       - name: Build libraries

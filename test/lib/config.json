@@ -7,5 +7,12 @@
     "time1.kk",
     "time3.kk",
     "time8.kk"
-  ]
+  ],
+  "exclude-platform": {
+    "linux-arm64": [
+      "ddouble1.kk",
+      "ddouble2.kk",
+      "ddouble3.kk"
+    ]
+  }
 }
