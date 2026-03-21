@@ -1406,9 +1406,13 @@ getTargetArch
 
 hostArch :: String
 hostArch
-  = case System.Info.arch of
+  = case map toLower System.Info.arch of
       "aarch64"     -> "arm64"
+      "armv8"       -> "arm64"
+      "armv9"       -> "arm64"
       "x86_64"      -> "x64"
+      "x86-64"      -> "x64"
+      "amd64"       -> "x64"
       "i386"        -> "x86"
       "powerpc"     -> "ppc"
       "powerpc64"   -> "ppc64"

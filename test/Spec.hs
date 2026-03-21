@@ -83,14 +83,13 @@ instance JSON Cfg where
                    = []
                  toString (JSString s) = Just (fromJSString s)
                  toString _            = Nothing
-                 platformKeys = [os, arch, os ++ "-" ++ arch, arch ++ "-" ++ os]
+                 platformKeys = [os, arch, os ++ "-" ++ arch]
                  os   = normalizePlatformKey Sys.os
                  arch = case normalizePlatformKey Sys.arch of
                           "aarch64" -> "arm64"
-                          "arm64"   -> "arm64"
-                          "x86-64"  -> "amd64"
-                          "x86_64"  -> "amd64"
-                          "amd64"   -> "amd64"
+                          "x86-64"  -> "x64"
+                          "x86_64"  -> "x64"
+                          "amd64"   -> "x64"
                           a          -> a
                in Ok (makeCfg flags optionsDefault (exclude ++ pexclude))
         JSNull     -> Ok (makeCfg [] optionsDefault [])
