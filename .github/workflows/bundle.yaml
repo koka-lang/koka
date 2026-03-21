@@ -61,8 +61,10 @@ jobs:
       # Run test suite on MacOS
       - name: Run test suite
         if: runner.os == 'macOS'
+        env:
+          LC_ALL: C
         run: |
-          export LANG=C && stack test --test-arguments="--seq"
+          stack test --test-arguments="--seq"
 
       # Bundle
       - name: Build libraries
