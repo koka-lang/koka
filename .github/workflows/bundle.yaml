@@ -5,6 +5,9 @@ on:
       - dev
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - dev
 
 permissions:
   contents: write
