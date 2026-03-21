@@ -60,23 +60,24 @@ jobs:
       - name: Run test suite
         if: runner.os != 'macOS'
         run: |
-          stack test --test-arguments="--seq"
+          stack test
 
       - name: Run test suite
         if: runner.os == 'macOS'
         env:
           LC_ALL: C
         run: |
-          stack test --test-arguments="--seq"
+          stack test
 
       # Bundle
       - name: Build libraries
+        if: startsWith(github.ref, 'refs/tags/') # only bundle if tagged with a version
         run: |
           stack exec koka -- -e -O2 util/bundle
 
-      # VS code extension
+      # VS code extension 
       - name: Package VS code extension
-        if: runner.os == 'Windows' && runner.arch == 'X64'
+        if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Windows' && runner.arch == 'X64' # only build extension if tagged with a version
         working-directory: support/vscode/koka.language-koka
         run: |
           npm install
