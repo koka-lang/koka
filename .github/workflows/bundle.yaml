@@ -59,6 +59,11 @@ jobs:
           stack-build-arguments: ""
           cache-save-always: true
 
+      # Set VCPKG_ROOT on Windows (otherwise it points to the wrong one in the VS install)
+      - name: Set VCPKG_ROOT
+        if: runner.os == 'Windows'
+        run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+
       # Run tests
       - name: Run test suite
         if: runner.os != 'macOS'
