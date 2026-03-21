@@ -274,6 +274,7 @@ main = do
   let cfg = initialCfg options
       stdcfg = if rebuild options then cfg{ flags = flags cfg ++ ["-r", "-l"]} else cfg
   runKoka stdcfg "" "util/link-test.kk"
+  runKoka stdcfg "" "lazy/queue/bench.kk" -- need to precompile since it is used by several others
   runKoka stdcfg{flags = "--target=js":(flags stdcfg)} "" "util/link-test.kk" -- precompiled js libraries as well
   putStrLn "ok."
   let spec = (if (target options == "js" || not (par options)) then id else parallel) $
