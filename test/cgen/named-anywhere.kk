@@ -23,6 +23,9 @@ fun param(a : int = 0, b : int = 0) : console int
 fun higher-order(f : (b: int) -> console int)
   f(b = 1)
 
+fun fails( a : int, b : int, action: int -> _ () )
+  action(a + b)
+
 fun main()
   // Normal ordering, using default values for optional parameters
   f(1, {0})
@@ -35,5 +38,11 @@ fun main()
   // Use name for required argument to intentionally change order
   f(optional=0, ?an-implicit=30, trailingrequired={2}, 1)
   f(trailingrequired=fn() 1, -1)
-  higher-order(param)
+  higher-order(param).println
+
+  fun first() -> 1
+  fun second() -> 1
+  // Positional trailing lambdas don't take spots of named parameters (named arguments match first)
+  fails(a = first(), b = second()) fn(a: int)
+    println(a)
   

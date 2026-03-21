@@ -2409,21 +2409,44 @@ matchFunTypeArgs context fun tp fresolved fixed named
     matchParameters pars fresolved fixed named
       = do -- traceDefDoc $ \penv -> text "match parameters:" <+> list (map (\p -> ppParam penv p) pars) <+>
            --                       text ", fixed#:" <+> pretty (length fixed) <.> text ", named:" <+> list (map (ppName penv . fst . fst) named)
-           (pars1,args1) <- matchFixed pars (zip [0..] fixed) fresolved
-           iargs2        <- matchNamed (zip [length fixed..] pars1) (zip [length fixed..] named)
-           return (args1 ++ map snd (sortBy (\(i,_) (j,_) -> compare i j) iargs2))
+           -- Numbering model:
+           -- j = declaration slot of the formal parameter (used to bind expected types to arguments)
+           -- i = source argument order (used later to preserve evaluation order for side effects)
+           -- Match named arguments first so positional arguments cannot consume their parameter slots.
+           (pars1,iargsNamed) <- matchNamed (zip [0..] pars) (zip [length fixed..] named)
+           (pars2,iargsFixed) <- matchFixed pars1 (zip [0..] fixed) fresolved
+           -- Remaining parameters are handled in matchRest, where missing required arguments are reported.
+           iargsRest <- matchRest pars2
+           return (map snd (sortBy (\(i,_) (j,_) -> compare i j) (iargsFixed ++ iargsNamed ++ iargsRest)))
 
-    matchFixed :: [(Name,Type)] -> [(Int,Expr Type)] -> [(Int,FixedArg)] -> Inf ([(Name,Type)],[(Int,ArgExpr)])
+    matchRest :: [(Int,(Name,Type))] -> Inf [(Int,(Int,ArgExpr))]
+    matchRest pars
+      = if (all (Op.isOptionalOrImplicit . snd) pars)
+         then do let (optionals,implicits) = span (isOptional . snd . snd) pars
+             -- Synthetic i values continue after user-provided args.
+                     opts = [(j,(i,ArgExpr makeOptionalNone True))
+                             | (i,(j,(_name,_tpar))) <- zip [(length fixed + length named)..] optionals]
+                     imps = [(j,(i,ArgImplicit (snd (splitImplicitParamName name)) context range))
+                             | (i,(j,(name,_tpar))) <- zip [(length fixed + length named + length optionals)..] implicits]
+                 return (opts ++ imps)
+         else do let hints = case rootExpr fun of
+                               (Var name isOp nameRange) | name == newName "resume"
+                                 -> [(text "hint", text "cannot use \"resume\" inside a val/fun/except clause")]
+                               _ -> []
+                 typeError context range (text "function has not enough arguments") tp hints
+                 return []
+
+    matchFixed :: [(Int,(Name,Type))] -> [(Int,Expr Type)] -> [(Int,FixedArg)] -> Inf ([(Int,(Name,Type))],[(Int,(Int,ArgExpr))])
     matchFixed pars [] fresolved
       = return (pars,[])
-    matchFixed ((name,tp):pars) ((i,arg):fixed) fresolved
+    matchFixed ((j,(name,tp)):pars) ((i,arg):fixed) fresolved
       = case lookup i fresolved of
           Just (crng,ctp,ceff,carg) ->
             do (newtp,newarg) <- if (isOptional tp)
                                    then return (makeOptionalType ctp, Core.wrapOptional ctp carg)
                                    else return (ctp,carg)
                (prest,rest) <- matchFixed pars fixed fresolved
-               return (prest, (i,ArgCore (crng,newtp,ceff,newarg)):rest)
+               return (prest, (j,(i,ArgCore (crng,newtp,ceff,newarg))):rest)
           Nothing ->
             do newarg <- if (isOptional tp)
                           then return (wrapOptional arg)
@@ -2431,7 +2454,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                           then wrapDelay arg
                           else return arg
                (prest,rest) <- matchFixed pars fixed fresolved
-               return (prest, (i,ArgExpr newarg False):rest)
+               return (prest, (j,(i,ArgExpr newarg False)):rest)
 
     matchFixed [] ((i,arg):_) fresolved
       = do typeError context (getRange fun) (text "function is applied to too many arguments") tp []
@@ -2439,12 +2462,12 @@ matchFunTypeArgs context fun tp fresolved fixed named
 
     -- in the result, the first int is position of the parameter `j`, the second int `i` is the original position of
     -- the argument (so we can evaluate in argument order)
-    matchNamed :: [(Int,(Name,Type))] -> [(Int,((Name,Range),Expr Type))] -> Inf [(Int,(Int,ArgExpr))]
+    matchNamed :: [(Int,(Name,Type))] -> [(Int,((Name,Range),Expr Type))] -> Inf ([(Int,(Name,Type))],[(Int,(Int,ArgExpr))])
     matchNamed [] []
-      = return []
+      = return ([],[])
     matchNamed [] ((i,((name,rng),arg)):named)
       = do typeError context (getRange fun) {- (combineRanged rng arg) -} (text "function is applied to too many arguments") tp []
-           return []
+           return ([],[])
     matchNamed pars ((i,((name,rng),arg)):named)
       = case extract name [] pars of
           Nothing -> do -- trace ("matchNamed: no parameter with name " ++ show name ++ " in " ++ show pars) $ return ()
@@ -2456,22 +2479,9 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                else if (isDelay tp)
                                 then wrapDelay arg
                                 else return arg
-                    rest <- matchNamed pars1 named
-                    return ((j,(i,ArgExpr newarg (rangeIsNull rng))):rest)
-    matchNamed pars []
-      = do if (all (Op.isOptionalOrImplicit . snd) pars)
-            then do let (optionals,implicits) = span (isOptional . snd . snd) pars
-                        opts = [(j,(i,ArgExpr makeOptionalNone True))
-                                | (i,(j,(name,tpar))) <- zip [(length fixed + length named)..] optionals]
-                        imps = [(j,(i,ArgImplicit (snd (splitImplicitParamName name)) context range))
-                                | (i,(j,(name,tpar))) <- zip [(length fixed + length named + length optionals)..] implicits]
-                    return (opts ++ imps)
-            else do let hints = case rootExpr fun of
-                                  (Var name isOp nameRange) | name == newName "resume"
-                                    -> [(text "hint", text "cannot use \"resume\" inside a val/fun/except clause")]
-                                  _ -> []
-                    typeError context range (text "function has not enough arguments") tp hints
-                    return []
+                    (prest,rest) <- matchNamed pars1 named
+                    return (prest, (j,(i,ArgExpr newarg (rangeIsNull rng))):rest)
+    matchNamed pars [] = return (pars,[])
 
     extract name acc []
       = Nothing
