@@ -1378,6 +1378,7 @@ systemLibDirs
                        else let triplet = System.Info.arch ++ "-" ++ System.Info.os ++ "-gnu"
                             in ["/usr/lib/" ++ triplet]
 
+-- translate standard platform name to platforms used by vcpkg
 tripletOsName :: String -> String
 tripletOsName osName
   = case osName of

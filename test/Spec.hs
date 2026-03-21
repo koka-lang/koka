@@ -84,9 +84,15 @@ instance JSON Cfg where
                  toString (JSString s) = Just (fromJSString s)
                  toString _            = Nothing
                  platformKeys = [os, arch, os ++ "-" ++ arch]
-                 os   = normalizePlatformKey Sys.os
+                 -- see also src/Compile/Option.hs
+                 os   = case normalizePlatformKey Sys.os of
+                          "darwin"  -> "macos"
+                          "mingw32" -> "windows"
+                          o         -> o
                  arch = case normalizePlatformKey Sys.arch of
                           "aarch64" -> "arm64"
+                          "armv8"   -> "arm64"
+                          "armv9"   -> "arm64"
                           "x86-64"  -> "x64"
                           "x86_64"  -> "x64"
                           "amd64"   -> "x64"
