@@ -24,6 +24,7 @@ module Kind.Kind( -- * Kinds
                   , isKindLabel, isKindAnyLabel
                   , hasKindStarResult, hasKindLabelResult
                   , kindAddArg
+                  , compareKindCanonical
                   ) where
 
 import Common.Name
@@ -179,6 +180,28 @@ isKindHandled k
 isKindAnyLabel :: Kind -> Bool
 isKindAnyLabel k
   = isKindHandled k || isKindHandled1 k || isKindLabel k
+
+-- | Canonical kind comparison for generalization ordering.
+-- Fully deterministic ordering with value kinds before effect kinds,
+-- ensuring forall variable order is stable across re-generalizations.
+compareKindCanonical :: Kind -> Kind -> Ordering
+compareKindCanonical (KCon n1)     (KCon n2)     = compare (kindConOrder n1) (kindConOrder n2)
+compareKindCanonical (KCon _)      (KApp _ _)    = LT
+compareKindCanonical (KApp _ _)    (KCon _)      = GT
+compareKindCanonical (KApp a1 b1)  (KApp a2 b2)  = case compareKindCanonical a1 a2 of
+                                                      EQ -> compareKindCanonical b1 b2
+                                                      c  -> c
+
+-- | Canonical ordering for kind constants: value kinds before effect kinds.
+kindConOrder :: Name -> Int
+kindConOrder n
+  | n == nameKindFun    = 0  -- ->
+  | n == nameKindStar   = 1  -- V
+  | n == nameKindScope  = 2  -- S
+  | n == nameKindEffect = 3  -- E
+  | n == nameKindHeap   = 4  -- H
+  | n == nameKindLabel  = 5  -- X
+  | otherwise           = 6
 
 -- | Standard kind constants with their kind.
 builtinKinds :: [(Name,Kind)]

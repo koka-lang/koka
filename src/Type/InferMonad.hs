@@ -185,7 +185,12 @@ generalizeX contextRange range close (rho0,eff0,bodycore0)
        nrho <- normalizeX close free srho
 
        -- generalized type variables
-       let tvars = filter (\tv -> not (tvsMember tv free)) (ofuv nrho)
+       -- Sort by kind for a canonical order that is stable across re-generalizations,
+       -- ensuring TypeApp arguments remain consistent with forall variable order.
+       -- Non-special kinds (value types) come before special kinds (effects, heaps, labels),
+       -- matching the convention in oftv. Within the same kind, ofuv order is preserved (stable sort).
+       let tvars = sortBy (\v1 v2 -> compareKindCanonical (typevarKind v1) (typevarKind v2))
+                          (filter (\tv -> not (tvsMember tv free)) (ofuv nrho))
 
       --  ics <- getImplicitConstraints
       --  traceDefDoc $ \penv -> text "generalize:" <+> Pretty.ppType penv nrho <+> text "|" <+> Pretty.ppType penv seff

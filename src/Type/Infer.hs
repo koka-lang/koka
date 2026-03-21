@@ -246,7 +246,8 @@ inferDefGroup topLevel (DefRec defs0) cont
             -> case expr of
                   Ann _ tp _  | topLevel && tvsIsEmpty (ftv tp)
                     -> do qname <- qualifyName name
-                          let nameInfo = createNameInfoX Public qname scopeDepth sort nameRng tp doc -- (not topLevel || isValue) nameRng tp  -- NOTE: Val is fixed later in "FixLocalInfo"
+                          let ctp = canonicalizeScheme tp
+                              nameInfo = createNameInfoX Public qname scopeDepth sort nameRng ctp doc -- (not topLevel || isValue) nameRng tp  -- NOTE: Val is fixed later in "FixLocalInfo"
                           -- traceDoc $ \penv -> text "recursive group: assume:" <+> ppParam penv (name,tp)
                           createGammas scopeDepth ((qname,nameInfo):gamma) (seqqList infgamma) defs (def:acc)
                   _ -> case lookup name gamma of
@@ -257,7 +258,8 @@ inferDefGroup topLevel (DefRec defs0) cont
                           -> do qname <- if (topLevel) then qualifyName name else return name
                                 case expr of
                                   Ann _ tp _
-                                    -> do let info = createNameInfoX Public qname scopeDepth sort nameRng tp doc  -- may be off due to incomplete type: get fixed later in inferRecDef2
+                                    -> do let ctp = canonicalizeScheme tp
+                                              info = createNameInfoX Public qname scopeDepth sort nameRng ctp doc  -- may be off due to incomplete type: get fixed later in inferRecDef2
                                           createGammas scopeDepth gamma (seqqList ((qname,info):infgamma)) defs (def:acc)
                                   _ -> do info <- case expr of
                                                     Lam pars _ _ _

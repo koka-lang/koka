@@ -28,6 +28,7 @@ module Type.Type (-- * Types
                   -- ** Operations
                   , makeScheme
                   , quantifyType, applyType, tForall
+                  , canonicalizeScheme
                   , expandSyn
                   , canonicalForm, minimalForm
                   -- ** Standard types
@@ -396,6 +397,17 @@ tForall :: [TypeVar] -> Rho -> Scheme
 tForall [] rho   = rho
 tForall vars rho = TForall vars rho
 
+-- | Canonicalize the forall variable order in a type scheme.
+-- Uses 'compareKindCanonical' to sort variables by kind, matching
+-- the canonical order used during generalization in 'generalizeX'.
+canonicalizeScheme :: Scheme -> Scheme
+canonicalizeScheme tp
+  = case splitTypeScheme tp of
+      ([], _)   -> tp
+      (vars, rho) -> let sorted = sortBy (\v1 v2 -> compareKindCanonical (typevarKind v1) (typevarKind v2)) vars
+                     in if map typevarId sorted == map typevarId vars
+                        then tp  -- already canonical
+                        else tForall sorted rho
 
 applyType tp1 tp2
   = case tp1 of

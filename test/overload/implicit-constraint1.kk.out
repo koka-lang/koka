@@ -8,5 +8,5 @@ overload/implicit-constraint1/main: () -> console ()
 overload/implicit-constraint1/test-landin: () -> div ()
 overload/implicit-constraint1/test-pure1: () -> int
 overload/implicit-constraint1/test-pure2: forall<a> (x : a) -> a
-overload/implicit-constraint1/test1: forall<a,b,h,e> (init : a, ?hdiv : hdiv<h,a,e>) -> (alloc<h>) ((x : b) -> <read<h>|e> b)
+overload/implicit-constraint1/test1: forall<a,b,e,h> (init : a, ?hdiv : hdiv<h,a,e>) -> (alloc<h>) ((x : b) -> <read<h>|e> b)
 overload/implicit-constraint1/test2: () -> int
