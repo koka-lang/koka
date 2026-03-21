@@ -118,6 +118,7 @@ readFlagsFile fp
 testSanitize :: FilePath -> String -> String
 testSanitize kokaDir
   = trim
+  . sub "^compile *:.*kklib.*\n" ""
   . sub "^Up to date\n" ""
   . sub "\n[[:space:]]+at .*" ""
   . sub "(std_core\\.js:)[[:digit:]]+" "\\1"

@@ -52,13 +52,16 @@ jobs:
           stack-build-arguments: ""
           cache-save-always: true
 
-      # Run test suite on Linux and Windows
+      # Set VCPKG_ROOT on Windows (needed for pcre2 in regex tests and bundling)
+      - name: Set VCPKG_ROOT
+        if: runner.os == 'Windows'
+        run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+
       - name: Run test suite
-        if: runner.os == 'Linux' || runner.os == 'Windows'
+        if: runner.os != 'macOS'
         run: |
           stack test --test-arguments="--seq"
-      
-      # Run test suite on MacOS
+
       - name: Run test suite
         if: runner.os == 'macOS'
         env:
@@ -68,13 +71,6 @@ jobs:
 
       # Bundle
       - name: Build libraries
-        if: runner.os == 'Windows'
-        run: |
-          $env:VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT
-          stack exec koka -- -e -O2 util/bundle
-
-      - name: Build libraries
-        if: runner.os != 'Windows'
         run: |
           stack exec koka -- -e -O2 util/bundle
 
