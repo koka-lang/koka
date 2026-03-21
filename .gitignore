@@ -34,3 +34,4 @@ bench
 test/bench
 .koka
 scratch
+.worktrees/
