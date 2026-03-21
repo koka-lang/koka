@@ -52,16 +52,14 @@ jobs:
       # Set up stack and cache dependencies: https://github.com/freckle/stack-action (MIT license)
       - name: Build compiler
         uses: freckle/stack-action@v5
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           test: false
           stack-build-arguments: ""
           cache-save-always: true
 
-      # Set VCPKG_ROOT on Windows (needed for pcre2 in regex tests and bundling)
-      - name: Set VCPKG_ROOT
-        if: runner.os == 'Windows'
-        run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
-
+      # Run tests
       - name: Run test suite
         if: runner.os != 'macOS'
         run: |
@@ -80,7 +78,7 @@ jobs:
         run: |
           stack exec koka -- -e -O2 util/bundle
 
-      # VS code extension 
+      # VS code extension
       - name: Package VS code extension
         if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Windows' && runner.arch == 'X64' # only build extension if tagged with a version
         working-directory: support/vscode/koka.language-koka

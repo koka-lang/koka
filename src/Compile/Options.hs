@@ -1019,7 +1019,7 @@ getEnvOptions
 vcpkgFindRoot :: FilePath -> IO (FilePath,FilePath)
 vcpkgFindRoot root
   = if (null root)
-      then do eroot <- getEnvVar "VCPKG_ROOT"
+      then do eroot <- getFirstDefinedEnvVar ["VCPKG_ROOT","VCPKG_INSTALLATION_ROOT"] -- installation root is used on Github actions
               -- trace ("found eroot,root: " ++ show (eroot,root)) $
               if (not (null eroot))
                 then return (eroot, joinPath eroot vcpkgExe)

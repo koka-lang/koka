@@ -11,7 +11,7 @@
 -----------------------------------------------------------------------------
 module Common.File(
                   -- * System
-                    getEnvPaths, getEnvVar
+                    getEnvPaths, getEnvVar, getFirstDefinedEnvVar
                   , searchPaths, searchPathsSuffixes, searchPathsEx, searchPathsCanonical
                   , getMaximalPrefixPath
                   , searchProgram
@@ -50,6 +50,7 @@ module Common.File(
                   , seqqList, seqqMaybe, seqqEither, seqqTuple2, seqqString
                   ) where
 
+import Data.Maybe       ( isNothing )
 import Data.List        ( intersperse, isPrefixOf, maximumBy )
 import Data.Char        ( toLower, isSpace )
 import Platform.Config  ( pathSep, pathDelimiter, sourceExtension, exeExtension )
@@ -181,7 +182,7 @@ undelimPaths xs
     normalize ps "" (c:cs)  | isSpace c
       = normalize ps "" cs
     -- directory on windows
-    normalize ps "" (c:':':cs)    
+    normalize ps "" (c:':':cs)
       = normalize ps (':':c:[]) cs
     -- normal
     normalize ps p xs
@@ -587,12 +588,24 @@ getEnvPaths name
       }
   `catchIO` \err -> return []
 
+getEnvironmentToLower :: IO [(String,String)]
+getEnvironmentToLower
+  = do env <- getEnvironment
+       return (map (\(k,v) -> (map toLower k,v)) env)
+
 getEnvVar :: String -> IO String
 getEnvVar name
-  = do env <- getEnvironment
-       case lookup (map toLower name) (map (\(k,v) -> (map toLower k,v)) env) of
+  = do env <- getEnvironmentToLower
+       case lookup (map toLower name) env of
          Just val -> return val
          Nothing  -> return ""
+
+getFirstDefinedEnvVar :: [String] -> IO String
+getFirstDefinedEnvVar keys
+  = do env <- getEnvironmentToLower
+       case dropWhile isNothing (map (\key -> lookup (map toLower key) env) keys) of
+         (Just val : _) -> return val
+         _              -> return ""
 
 realPath :: FilePath -> IO FilePath
 realPath fpath
