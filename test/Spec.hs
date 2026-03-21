@@ -273,7 +273,7 @@ main = do
   -- compile all standard libraries before testing so we can run in parallel
   let cfg = initialCfg options
       stdcfg = if rebuild options then cfg{ flags = flags cfg ++ ["-r", "-l"]} else cfg
-  runKoka stdcfg "" "util/link-test.kk"
+  runKoka stdcfg{flags = "-e" : flags stdcfg} "" "util/link-test.kk"
   runKoka stdcfg "" "lazy/queue/bench.kk" -- need to precompile since it is used by several others
   runKoka stdcfg{flags = "--target=js":(flags stdcfg)} "" "util/link-test.kk" -- precompiled js libraries as well
   putStrLn "ok."
