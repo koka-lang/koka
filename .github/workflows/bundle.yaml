@@ -1,6 +1,8 @@
 on:
   workflow_dispatch:   # so we can run the workflow manually as well
   push:
+    branches:
+      - dev
     tags:
       - 'v*'
 

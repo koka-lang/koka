@@ -1,3 +1,5 @@
+[![Tests / Latest Release](https://github.com/koka-lang/koka/actions/workflows/bundle.yaml/badge.svg)](https://github.com/koka-lang/koka/actions/workflows/bundle.yaml)
+
 <img align="left" width="100" height="100" src="doc/logo/koka-logo-filled.png"/>
 
 <!--
