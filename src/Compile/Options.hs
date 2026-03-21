@@ -341,13 +341,7 @@ flagsNull
           []       -- clink sys libs
           []       -- clink full lib paths
           (ccGcc "gcc" "gcc" True)
-          (if onWindows then []        -- ccomp library dirs
-                        else (["/usr/local/lib","/usr/lib","/lib"]
-                               ++ (if onMacOS then ["/opt/homebrew/lib"]
-                                   else case multiarchLibDir of
-                                          Just dir -> [dir]
-                                          Nothing  -> [])))
-
+          systemLibDirs
           True     -- auto install libraries
           ""       -- vcpkg root
           ""       -- vcpkg triplet
@@ -1376,14 +1370,13 @@ onWindows :: Bool
 onWindows
   = (exeExtension == ".exe")
 
--- | On Debian/Ubuntu multiarch systems, libraries are installed under
--- /usr/lib/<arch-triplet>/ (e.g., /usr/lib/x86_64-linux-gnu/).
--- Returns the multiarch library directory if it exists on this platform.
-multiarchLibDir :: Maybe String
-multiarchLibDir
-  | onWindows || onMacOS = Nothing
-  | otherwise = let triplet = System.Info.arch ++ "-" ++ System.Info.os ++ "-gnu"
-                in  Just ("/usr/lib/" ++ triplet)
+systemLibDirs :: [String]
+systemLibDirs
+  = if onWindows then []
+    else ["/usr/local/lib","/usr/lib","/lib"]
+         ++ if onMacOS then ["/opt/homebrew/lib"]
+                       else let triplet = System.Info.arch ++ "-" ++ System.Info.os ++ "-gnu"
+                            in ["/usr/lib/" ++ triplet]
 
 tripletOsName :: String -> String
 tripletOsName osName
