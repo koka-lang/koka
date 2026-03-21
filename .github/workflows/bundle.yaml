@@ -56,13 +56,13 @@ jobs:
       - name: Run test suite
         if: runner.os == 'Linux' || runner.os == 'Windows'
         run: |
-          stack test
+          stack test --test-arguments="--seq"
       
       # Run test suite on MacOS
       - name: Run test suite
         if: runner.os == 'macOS'
         run: |
-          export LANG=C && stack test
+          export LANG=C && stack test --test-arguments="--seq"
 
       # Bundle
       - name: Build libraries
