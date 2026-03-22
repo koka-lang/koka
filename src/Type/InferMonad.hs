@@ -159,7 +159,10 @@ generalizeX contextRange range close (tp@(TForall _ _),eff,core0)
   = do stp  <- subst tp
        seff <- subst eff
        if (tvsIsEmpty (fuv stp))
-        then return (tp,seff,core0)
+        then -- canonicalize forall variable order before returning
+             let cstp = canonicalizeScheme stp
+                 ccore = canonicalizeTypeLam stp cstp core0
+             in return (cstp,seff,ccore)
         else do (rho,tvars,icore) <- instantiateNoEx range stp  -- instantiate first
                 generalizeX contextRange range close (rho,seff,icore core0)
 
@@ -211,6 +214,23 @@ generalizeX contextRange range close (rho0,eff0,bodycore0)
 
                 -- traceDoc $ \penv -> text "corePre:" <+> prettyExpr penv{Pretty.coreShowTypes=True} corePre
                 return (resTp,seff,core1)
+
+-- | Reorder the outermost TypeLam to match a canonicalized type scheme.
+canonicalizeTypeLam :: Scheme -> Scheme -> Core.Expr -> Core.Expr
+canonicalizeTypeLam origTp newTp expr
+  = let (oldVars,_) = splitTypeScheme origTp
+        (newVars,_) = splitTypeScheme newTp
+    in if map typevarId oldVars == map typevarId newVars
+       then expr  -- already canonical
+       else case expr of
+              Core.TypeLam tvars inner
+                | length tvars == length oldVars
+                -> let idxMap = zip (map typevarId oldVars) [0..]
+                       permuted = map (\nv -> case lookup (typevarId nv) idxMap of
+                                                Just i  -> tvars !! i
+                                                Nothing -> nv) newVars
+                   in Core.TypeLam permuted inner
+              _ -> expr
 
 
 
