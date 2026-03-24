@@ -1938,19 +1938,19 @@ genAppNormal v@(Var allocAt _) [at, Let dgs expr]  | getName allocAt == nameAllo
   = genExpr (Let dgs (App v [at,expr]))
 
 -- special: conAssignFields
-genAppNormal (Var (TName conTagScanFieldsAssign typeAssign) _) (Var reuseName (InfoConField conName conRepr nameNil):(Var tag _):(Var scan _):fieldValues) | conTagScanFieldsAssign == nameConTagScanFieldsAssign
+genAppNormal (Var (TName conTagScanFieldsAssign typeAssign) _) (Var reuseName (InfoConField conName conRepr nameNil):(Lit (LitInt tag)):(Lit (LitInt scan)):fieldValues) | conTagScanFieldsAssign == nameConTagScanFieldsAssign
   = do tmp <- genVarName "con"
-       let setTag  = tmp <.> text "->_base._block.header.tag = (kk_tag_t)" <.> parens (text (show tag)) <.> semi
-           setScan = tmp <.> text "->_base._block.header.scan_fsize = (uint8_t)" <.> parens (text (show scan)) <.> semi
+       let setTag  = tmp <.> text "->_base._block.header.tag = (kk_tag_t)" <.> parens (pretty tag) <.> semi
+           setScan = tmp <.> text "->_base._block.header.scan_fsize = (uint8_t)" <.> parens (pretty scan) <.> semi
            fieldNames = case splitFunScheme typeAssign of
                           Just (_,args,_,_) -> tail (tail (tail (map fst args)))
                           _ -> failure ("Backend.C.FromCore: illegal conAssignFields type: " ++ show (pretty typeAssign))
        (decls, tmpDecl, assigns, result) <- genAssignFields tmp conName conRepr reuseName fieldNames fieldValues
        return (decls ++ [tmpDecl, setScan, setTag] ++ assigns, result)
 
-genAppNormal (Var (TName conTagFieldsAssign typeAssign) _) (Var reuseName (InfoConField conName conRepr nameNil):(Var tag _):fieldValues) | conTagFieldsAssign == nameConTagFieldsAssign
+genAppNormal (Var (TName conTagFieldsAssign typeAssign) _) (Var reuseName (InfoConField conName conRepr nameNil):(Lit (LitInt tag)):fieldValues) | conTagFieldsAssign == nameConTagFieldsAssign
   = do tmp <- genVarName "con"
-       let setTag = tmp <.> text "->_base._block.header.tag = (kk_tag_t)" <.> parens (text (show tag)) <.> semi
+       let setTag = tmp <.> text "->_base._block.header.tag = (kk_tag_t)" <.> parens (pretty tag) <.> semi
            fieldNames = case splitFunScheme typeAssign of
                           Just (_,args,_,_) -> tail (tail (map fst args))
                           _ -> failure ("Backend.C.FromCore: illegal conAssignFields type: " ++ show (pretty typeAssign))

@@ -204,21 +204,21 @@ genConTagScanFieldsAssign :: Type -> TName -> ConRepr -> TName -> Int -> Int -> 
 genConTagScanFieldsAssign resultType conName conRepr reuseName tag scan fieldExprs
   = App (Var (TName nameConTagScanFieldsAssign typeConFieldsAssign) (InfoArity 0 (length fieldExprs + 2)))
         ([Var reuseName (InfoConField conName conRepr nameNil),
-          Var (TName (newName (show tag)) typeUnit) InfoNone,
-          Var (TName (newName (show scan)) typeUnit) InfoNone] ++ map snd fieldExprs)
+          Lit (LitInt (toInteger tag)),
+          Lit (LitInt (toInteger scan))] ++ map snd fieldExprs)
   where
     fieldTypes = [(name,typeOf expr) | (name,expr) <- fieldExprs]
-    typeConFieldsAssign = TFun ([(nameNil,typeOf reuseName), (nameNil, typeUnit), (nameNil, typeUnit)] ++ fieldTypes) typeTotal resultType
+    typeConFieldsAssign = TFun ([(nameNil,typeOf reuseName), (nameNil, typeInt), (nameNil, typeInt)] ++ fieldTypes) typeTotal resultType
 
 -- genConFieldsAssign tp conName reuseName [(field1,expr1)...(fieldN,exprN)]
 -- generates:  c = (conName*)reuseName; c->tag = tag; c->field1 := expr1; ... ; c->fieldN := exprN; (tp*)(c)
 genConTagFieldsAssign :: Type -> TName -> ConRepr -> TName -> Int -> [(Name,Expr)] -> Expr
 genConTagFieldsAssign resultType conName conRepr reuseName tag fieldExprs
   = App (Var (TName nameConTagFieldsAssign typeConFieldsAssign) (InfoArity 0 (length fieldExprs + 1)))
-        ([Var reuseName (InfoConField conName conRepr nameNil), Var (TName (newName (show tag)) typeUnit) InfoNone] ++ map snd fieldExprs)
+        ([Var reuseName (InfoConField conName conRepr nameNil), Lit (LitInt (toInteger tag))] ++ map snd fieldExprs)
   where
     fieldTypes = [(name,typeOf expr) | (name,expr) <- fieldExprs]
-    typeConFieldsAssign = TFun ([(nameNil,typeOf reuseName), (nameNil, typeUnit)] ++ fieldTypes) typeTotal resultType
+    typeConFieldsAssign = TFun ([(nameNil,typeOf reuseName), (nameNil, typeInt)] ++ fieldTypes) typeTotal resultType
 
 -- genConTagFieldsAssign tp conName reuseName [(field1,expr1)...(fieldN,exprN)]
 -- generates:  c = (conName*)reuseName; c->field1 := expr1; ... ; c->fieldN := exprN; (tp*)(c)
