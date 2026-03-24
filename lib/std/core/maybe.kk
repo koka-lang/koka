@@ -47,6 +47,11 @@ pub fun (||)( m1 : maybe<a>, m2: maybe<a> ) : maybe<a>
     Nothing -> m2
     _       -> m1
 
+pub fun flatten( mm : maybe<maybe<a>> ) : maybe<a>
+  match mm
+    Just(Just(x)) -> Just(x)
+    _             -> Nothing
+
 // Equality on `:maybe`
 pub fun (==)( mb1 : maybe<a>, mb2 : maybe<a>, ?(==) : (a,a) -> e bool ) : e bool
   match mb1

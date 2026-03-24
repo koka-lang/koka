@@ -28,10 +28,10 @@ pub fun map( e : either<a,b>, f : b -> e c  ) : e either<a,c>
 // Equality on `:either` values
 pub fun (==)(e1: either<a,b>, e2: either<a,b>, ?left/(==): (a, a) -> e bool, ?right/(==): (b, b) -> e bool) : e bool
   match e1
-    Left(l1) -> match e2 
+    Left(l1) -> match e2
       Left(l2) -> l1 == l2
       _ -> False
-    Right(r1) -> match e2 
+    Right(r1) -> match e2
       Right(r2) -> r1 == r2
       _ -> False
 

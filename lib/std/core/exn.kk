@@ -61,51 +61,18 @@ pub fun handle/try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a
 pub inline fun catch(hndl: exception -> e a, action : () -> <exn|e> a) : e a
   try(action,hndl)
 
-// An `:error` type represents a first-class exception result.
-pub value type error<a>
-  Error( exception : exception )
-  Ok( result : a )
+// An `:error<a>` type represents a first-class exception result as a `:result<a,exception>`.
+pub alias error<a> = result<a,exception>
 
 // Transform an exception effect to an  `:error` type.
-pub fun error/try( action : () -> <exn|e> a ) : e error<a>
+pub fun try( action : () -> <exn|e> a ) : e error<a>
   try({ Ok(action()) }, fn(exn){ Error(exn) })
 
-// Transform an `:error` type back to an `exn` effect.
+// Transform an exception result type back to an `exn` effect (by throwing on an `Error`)
 pub fun untry( err : error<a> ) : exn a
   match err
     Error(exn) -> throw-exn(exn)
     Ok(x)      -> x
-
-// Transform an `:error` type back to an `exn` effect.
-pub fun exn( err : error<a> ) : exn a
-  untry(err)
-
-// Use default value `def` in case of an error.
-pub fun default( t : error<a>, def : a ) : a
-  match t
-    Error  -> def
-    Ok(x)  -> x
-
-// Transform an `:error` type to a `:maybe` value.
-pub fun maybe( t : error<a> ) : maybe<a>
-  match t
-    Error  -> Nothing
-    Ok(x)  -> Just(x)
-
-// Transform an `:error` type to an `:either` value.
-pub fun either( t : error<a> ) : either<exception,a>
-  match t
-    Error(exn) -> Left(exn)
-    Ok(x)      -> Right(x)
-
-/*
-// Set a `hndler` that is called only when an exception is raised in the `action` block.
-pub fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
-  // prim-try-some( action, fn(exn){ hndler(exn); throw(exn) })
-  match mask<exn>{ try(action) }
-    TryOk(x)    { x
-    TryExn(exn) { hndler(exn); throw(exn)
-*/
 
 // Set a `hndler` that is always called when the `action` finishes (either normally or with an exception).
 pub fun on-exit( hndler : () -> e (), action : () -> e a ) : e a
@@ -113,11 +80,6 @@ pub fun on-exit( hndler : () -> e (), action : () -> e a ) : e a
 
 pub fun exn-error-range() : exn a
   throw("index out-of-range", ExnRange)
-
-
-// // _Unsafe_. This function removes the exception effect (`:exn`) from the effect of an action
-// pub fun unsafe-no-exn( action : () -> <exn|e> a ) : e a
-//   unsafe-total( action )
 
 // Prepend `exn`'s message with `pre`.
 pub fun prepend( exn : exception, pre : string ) : exception

@@ -8,7 +8,7 @@
 ---------------------------------------------------------------------------*/
 
 kk_std_core_exn__error kk_error_ok( kk_box_t result, kk_context_t* ctx ) {
-  return kk_std_core_exn__new_Ok( result, ctx );
+  return kk_std_core_types__new_Ok( result, ctx );
 }
 
 kk_std_core_exn__error kk_error_from_errno( int err, kk_context_t* ctx ) {
@@ -32,6 +32,6 @@ kk_std_core_exn__error kk_error_from_errno( int err, kk_context_t* ctx ) {
     // Old style
     msg = kk_string_alloc_from_qutf8( strerror(err), ctx );
   #endif
-  return kk_std_core_exn__new_Error( kk_std_core_exn__new_Exception( msg, kk_std_core_exn__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(err,ctx), ctx), ctx), ctx );
+  return kk_std_core_types__new_Error( kk_std_core_exn__exception_box( kk_std_core_exn__new_Exception( msg, kk_std_core_exn__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(err,ctx), ctx), ctx), ctx), ctx );
 }
 

@@ -451,8 +451,8 @@ nameJust        = coreTypesName "Just"
 nameNothing     = coreTypesName "Nothing"
 nameTpMaybe     = coreTypesName "maybe"
 
-nameOptional    = coreTypesName "@Optional"
-nameOptionalNone= coreTypesName "@None"
+nameOptional    = coreTypesName "@OptArg"
+nameOptionalNone= coreTypesName "@NoOptArg"
 nameTpOptional  = coreTypesName "@optional"
 
 nameTpVoid      = coreTypesName "void"

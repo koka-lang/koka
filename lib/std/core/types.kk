@@ -207,9 +207,16 @@ pub value type maybe2<a,b>
   // A single result with two values
   con Just2( fst : a, snd : b )
 
+// The result type represents either a succes value `:a`, or a failure of type `:b`.
+// See also `:either` and `module std/core/result`.
+pub value type result<a,e>
+  // Failure result.
+  con Error( error : e )
+ // Successful result.
+  con Ok( value : a )
 
 // The choice type represents one of two possible types `:a` or `:b`.
-// See also `module std/core/either`.
+// See also `:result` and `module std/core/either`.
 pub value type either<a,b>
   // Left result, usually used for errors.
   con Left( left : a )
@@ -448,9 +455,9 @@ pub type @valueop<e::E,a::V>
 // It is usually displayed as `: ? tp` for some type `:tp`.
 pub value type @optional<a>
   // The `Optional` constructor is used when an optional argument is given.
-  con @Optional( value : a )
+  con @OptArg( value : a )
   // `None` is used when an optional argument is not provided.
-  con @None   // note: must come second; see Core/Core.hs
+  con @NoOptArg   // note: must come second; see Core/Core.hs
 
 
 // Force lazy constructors
