@@ -13,6 +13,7 @@ import std/core/list = std/core/list pub = "";
 import std/core/maybe = std/core/maybe pub = "";
 import std/core/maybe2 = std/core/maybe2 pub = "";
 import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
 import std/core/tuple = std/core/tuple pub = "";
 import std/core/lazy = std/core/lazy pub = "";
 import std/core/show = std/core/show pub = "";
@@ -34,7 +35,7 @@ pub fun hello/i : (^ hello : parc/parc22/hello) -> int
 pub fun hello/@copy : (@this : parc/parc22/hello, i : ? int) -> parc/parc22/hello
  = fn(@this: parc/parc22/hello, i: ? int){
  parc/parc22/World((match (i) {
- (std/core/types/@Optional(((@skip std/core/types/@Box((@uniq-i@xxx: int)) : @box ) as @box-xxx: @box)) : ? int )
+ (std/core/types/@OptArg(((@skip std/core/types/@Box((@uniq-i@xxx: int)) : @box ) as @box-xxx: @box)) : ? int )
  -> val _ : int
  = std/core/types/@dup(@uniq-i@xxx);
  val _ : ()
@@ -42,10 +43,8 @@ pub fun hello/@copy : (@this : parc/parc22/hello, i : ? int) -> parc/parc22/hell
  val _ : ()
  = std/core/types/@drop(@this, (std/core/types/@make-int32(1)));
  @uniq-i@xxx;
- (@skip std/core/types/@None() : ? int )
- -> val _ : ()
- = std/core/types/@drop(i);
- (match (@this) {
+ (@skip std/core/types/@NoOptArg() : ? int )
+ -> (match (@this) {
  (@skip parc/parc22/World((@x: int)) : parc/parc22/hello )
  -> val _ : ()
  = (match ((std/core/types/@is-unique(@this))) {

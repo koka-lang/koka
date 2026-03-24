@@ -13,6 +13,7 @@ import std/core/list = std/core/list pub = "";
 import std/core/maybe = std/core/maybe pub = "";
 import std/core/maybe2 = std/core/maybe2 pub = "";
 import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
 import std/core/tuple = std/core/tuple pub = "";
 import std/core/lazy = std/core/lazy pub = "";
 import std/core/show = std/core/show pub = "";

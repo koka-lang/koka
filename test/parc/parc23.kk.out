@@ -13,6 +13,7 @@ import std/core/list = std/core/list pub = "";
 import std/core/maybe = std/core/maybe pub = "";
 import std/core/maybe2 = std/core/maybe2 pub = "";
 import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
 import std/core/tuple = std/core/tuple pub = "";
 import std/core/lazy = std/core/lazy pub = "";
 import std/core/show = std/core/show pub = "";
@@ -44,34 +45,22 @@ pub fun pair2/b : forall<a,b> (^ pair2 : parc/parc23/pair2<a,b>) -> b
 pub fun pair2/@copy : forall<a,b> (@this : parc/parc23/pair2<a,b>, a : ? a, b : ? b) -> parc/parc23/pair2<a,b>
  = fn(@this: parc/parc23/pair2<128,129>, a: ? 128, b: ? 129){
  parc/parc23/Pair2((match (a) {
- (std/core/types/@Optional((@uniq-a@xxx: 128)) : ? a )
- -> val _ : a
- = std/core/types/@dup(@uniq-a@xxx);
- val _ : ()
- = std/core/types/@drop(a);
- @uniq-a@xxx;
- (@skip std/core/types/@None() : ? a )
- -> val _ : ()
- = std/core/types/@drop(a);
- (match (@this) {
+ (std/core/types/@OptArg((@uniq-a@xxx: 128)) : ? a )
+ -> @uniq-a@xxx;
+ (@skip std/core/types/@NoOptArg() : ? a )
+ -> (match (@this) {
  (@skip parc/parc23/Pair2((@x: 128), (@pat@xxx: 129)) : parc/parc23/pair2<a,b> )
  -> val _ : a
  = std/core/types/@dup(@x);
  @x;
  });
  }), (match (b) {
- (std/core/types/@Optional((@uniq-b@xxx: 129)) : ? a )
- -> val _ : a
- = std/core/types/@dup(@uniq-b@xxx);
- val _ : ()
- = std/core/types/@drop(b);
- val _ : ()
+ (std/core/types/@OptArg((@uniq-b@xxx: 129)) : ? a )
+ -> val _ : ()
  = std/core/types/@drop(@this, (std/core/types/@make-int32(2)));
  @uniq-b@xxx;
- (@skip std/core/types/@None() : ? a )
- -> val _ : ()
- = std/core/types/@drop(b);
- (match (@this) {
+ (@skip std/core/types/@NoOptArg() : ? a )
+ -> (match (@this) {
  (@skip parc/parc23/Pair2((@pat@xxx: 128), (@x@xxx: 129)) : parc/parc23/pair2<a,b> )
  -> val _ : ()
  = (match ((std/core/types/@is-unique(@this))) {
