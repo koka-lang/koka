@@ -454,9 +454,9 @@ pub type @valueop<e::E,a::V>
 // _Internal_: Optional is used by the compiler to pass optional arguments.
 // It is usually displayed as `: ? tp` for some type `:tp`.
 pub value type @optional<a>
-  // The `Optional` constructor is used when an optional argument is given.
+  // The `OptArg` constructor is used when an optional argument is given.
   con @OptArg( value : a )
-  // `None` is used when an optional argument is not provided.
+  // `NoOptArg` is used when an optional argument is not provided.
   con @NoOptArg   // note: must come second; see Core/Core.hs
 
 

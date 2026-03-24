@@ -436,7 +436,7 @@
       },
 
     "decl_external":
-      { "match": "((?:(?:inline|noinline)\\s+)?(?:(?:fip|fbip)\\s+)?extern)\\s+((?:[@a-z][\\w\\-@]*/#?)*)([@a-z][\\w\\-@]*[\\']*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\]|\\\"[^\\s\\\"]+\\\")?"
+      { "match": "((?:(?:inline|noinline)\\s+)?(?:(?:fip|fbip)(?:\\(\\d+\\))?\\s+)?extern)\\s+((?:[@a-z][\\w\\-@]*/#?)*)([@a-z][\\w\\-@]*[\\']*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\]|\\\"[^\\s\\\"]+\\\")?"
       , "captures": {
           "1": { "name": "keyword.declaration.function koka.keyword.extern" },
           "2": { "name": "entity.name.variable koka.moduleid" },
