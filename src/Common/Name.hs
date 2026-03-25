@@ -50,7 +50,7 @@ module Common.Name
           , toImplicitParamName, isImplicitParamName, splitImplicitParamName
           , fromImplicitParamName
 
-          , prepend, postpend
+          , prepend, postpend, isSymbolName
           , asciiEncode, moduleNameToPath, pathToModuleName
           -- , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
 
@@ -67,7 +67,7 @@ module Common.Name
 -- import Lib.Trace( trace )
 import Debug.Trace
 import Lib.PPrint
-import Data.Char(isUpper,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
+import Data.Char(isUpper,isLower,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
 import Common.Failure(failure,assertion, HasCallStack)
 import Common.File( joinPaths, splitOn, endsWith, startsWith, isPathSep )
 import Common.Range( rangeStart, posLine, posColumn )
@@ -203,6 +203,10 @@ isIdChar :: Char -> Bool
 isIdChar c
   = (isAlphaNum c || c == '_' || c == '@' || c == '-')
 
+isSymbolChar :: Char -> Bool
+isSymbolChar c
+  = c `elem` "$%&*+~!\\^#=.:-|<>/"
+
 isIdStartChar :: Char -> Bool
 isIdStartChar c
   = (isAlpha c || c == '_' || c == '@')
@@ -212,11 +216,11 @@ isIdEndChar c
   = isIdChar c || c == '\''
 
 isSymbolId :: String -> Bool
-isSymbolId "" = False
-isSymbolId s  = not (isIdStartChar (head s)) || not (isIdEndChar (last s))
-  -- where
-  --
-  --   isIdEndChar c    = (c == '\'' || c == '?')
+isSymbolId s
+  = case s of
+      [c] -> not (isIdStartChar c && isIdEndChar c)
+      (c:cs) -> not (isIdStartChar c && isIdEndChar (last cs) && all isIdEndChar (init cs))
+      "" -> False
 
 wrapId :: String -> String
 wrapId s
@@ -592,26 +596,83 @@ nameStartsWith :: Name -> String -> Bool
 nameStartsWith name pre
   = nameStem name `startsWith` pre
 
+-- | Check if a string is a valid lower-case identifier (starts with optional @ followed by lowercase)
+isLowerId :: String -> Bool
+isLowerId s = case dropWhile (=='@') s of
+                (c:_) -> isLower c
+                _     -> False
+
+-- | Check if a string is a valid constructor identifier (starts with optional @ followed by uppercase)
+isConstructorId :: String -> Bool
+isConstructorId s = case dropWhile (=='@') s of
+                      (c:_) -> isUpper c
+                      _     -> False
+
+-- | Check if a string is a valid identifier (lower or constructor)
+isValidId :: String -> Bool
+isValidId s = isLowerId s || isConstructorId s
+
+-- | Append two strings, inserting 'x' if the suffix starts with a non-alpha character after a hyphen
+-- to maintain well-formed identifiers.
+appendWithXAfterHyphen :: String -> String -> String
+appendWithXAfterHyphen pre suf = case (reverse pre, suf) of
+  ('-':_, c:_) | not (isAlpha c) -> pre ++ "x" ++ suf
+  _ -> pre ++ suf
+
+-- | Ensure a prefix string is a valid lower-case identifier.
+-- If not, prepend "@x".
+-- Also drops a trailing '@' if adding '@x' (to avoid double @ or empty @).
+ensureLowerId :: String -> String
+ensureLowerId s
+  | isLowerId s = s
+  | otherwise   = "@x" ++ dropTrailingAt s
+  where
+    dropTrailingAt str = case reverse str of
+                           ('@':rest) -> reverse rest
+                           _          -> str
+
 prepend :: String -> Name -> Name
-prepend pre name
+prepend pre name | isSymbolName name
   = nameMapStem name $ \stem ->
-    let append p s = case (reverse p, s) of
-                      ('-':_, c:cs)  | not (isAlpha c) -> p ++ "x" ++ s -- keep well-formed identifiers
-                      _ -> p ++ s
-    in case stem of
-        ('@':t) -> case pre of -- keep hidden names hidden
-                    '@':_ -> append pre t
-                    _     -> '@' : append pre t
-        _       -> append pre stem
+    let (rsyms,rid) = span isSymbolChar (reverse stem)
+        prefix = reverse rid
+        syms = reverse rsyms
+        newprefix = prependRaw pre prefix
+    in ensureLowerId newprefix ++ syms
+
+prepend pre name
+  = nameMapStem name $ \stem -> prependStr pre stem
+
+prependRaw :: String -> String -> String
+prependRaw pre stem
+  = case stem of
+      ('@':t) -> case pre of -- keep hidden names hidden
+                    '@':_ -> appendWithXAfterHyphen pre t
+                    _     -> '@' : appendWithXAfterHyphen pre t
+      _       -> appendWithXAfterHyphen pre stem
+
+prependStr :: String -> String -> String
+prependStr pre stem
+  = let result = prependRaw pre stem
+    in if result `startsWith` "@" && not (isValidId result)
+         then "@x" ++ result
+         else result
 
 
 postpend :: String -> Name -> Name
 postpend post name | isSymbolName name
   = -- we must always end in symbols for operators so postpend inserts before the symbols
     nameMapStem name $ \stem ->
-    let (rsyms,rid) = span (not . isIdChar) (reverse stem)
-    in (if null rid || rid == "@" then "@x" else reverse rid) -- ensure it becomes a valid lowerid
-        ++ post ++ reverse rsyms
+    let (rsyms,rid) = span isSymbolChar (reverse stem)
+        prefix = reverse rid
+        -- ensure prefix is valid only when we actually end in operator symbols;
+        -- note: we don't use ensureLowerId here as we don't want to drop trailing @
+        validPrefix
+          | null rsyms = prefix
+          | null prefix || not (isLowerId prefix) = "@x" ++ prefix
+          | otherwise = prefix
+    in validPrefix ++ post ++ reverse rsyms
+
 postpend post name
   = nameMapStem name $ \stem ->
     let (xs,ys) = span (\c -> c=='?' || c=='\'') (reverse stem)

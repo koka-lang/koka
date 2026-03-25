@@ -118,7 +118,7 @@ tests:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
-      # - koka
+      - koka
       - extra
       - filepath
       - hspec

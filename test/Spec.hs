@@ -15,6 +15,7 @@ import Text.JSON
 import Test.Hspec
 import Test.Hspec.Core.Runner
 import Test.Hspec.Core.Formatters hiding (Error)
+import qualified NameSpec
 
 commonFlags :: [String]
 commonFlags = ["-c", "-v0", "--console=raw",
@@ -284,7 +285,9 @@ main = do
   runKoka stdcfg "" "test/lazy/queue/bankers.kk"
   runKoka stdcfg{flags = "--target=js":(flags stdcfg)} "" "util/link-test.kk" -- precompiled js libraries as well
   putStrLn "ok."
-  let spec = (if (target options == "js" || not (par options)) then id else parallel) $
+  let spec = do
+        describe "Unit tests" NameSpec.spec
+        (if (target options == "js" || not (par options)) then id else parallel) $
              discoverTests cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary

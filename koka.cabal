@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.39.1.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -245,6 +245,7 @@ test-suite koka-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      NameSpec
       Paths_koka
   hs-source-dirs:
       test
@@ -264,6 +265,7 @@ test-suite koka-test
     , hspec-core
     , isocline >=1.0.6
     , json
+    , koka
     , mtl
     , parsec
     , process
