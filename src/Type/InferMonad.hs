@@ -1249,11 +1249,10 @@ lookupImplicitArg allowUnitFunVal infoFilter name ctx range
                         -- if `expect` is a type variable we may need to remove duplicate candidates here.
                         CtxType expect | allowUnitFunVal && not (isFun expect)
                            -> do candidates1 <- lookupNames infoFilter name (CtxFunTypes False [] [] (Just expect)) range
-                                --  return $ candidates0 ++ candidates1
                                  return $
-                                  --  (nubBy (\(_,info1,_) (_,info2,_) -> infoCName info1 == infoCName info2)
+                                   (nubBy (\(_,info1,_, _) (_,info2,_, _) -> infoCName info1 == infoCName info2)
                                     (map (\(a, b, c) -> (a, b, c, False)) candidates0 ++ 
-                                    map (\(a, b, c) -> (a, b, c, True)) candidates1)
+                                    map (\(a, b, c) -> (a, b, c, True)) candidates1))
                         _  -> return (map (\(a, b, c) -> (a, b, c, False)) candidates0)
        -- add implicit constraints
        iargs <- case ctx of
