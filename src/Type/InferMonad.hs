@@ -855,11 +855,15 @@ lookupAppName allowDisambiguate name ctx contextRange range
                             else return [(isInfoFun,cname),(isInfoCon,name)]
 
        -- try to find a unique solution
+       let expectedPars = case ctx of
+                            CtxFunTypes _ fixed _ _ -> Just [(nameNil,tp) | tp <- fixed]
+                            CtxFunArgs _ n _ _      -> Just [(nameNil,typeUnit) | _ <- [1..n]] -- approximate
+                            _                       -> Nothing
        res <- resolveImplicitArg allowDisambiguate
                                  (not allowDisambiguate) {- allow unitFunVal: at first, when allowDisambiguate is False, we like to see all possible instantations -}
-                                 ctx range roots
+                                 expectedPars ctx range roots
        case res of
-          Right iarg@(ImplicitArg qname _ rho iargs)
+          Right iarg@(ImplicitArg qname _ rho _ iargs)
             -> do -- when (not (null iargs)) $ traceDefDoc $ \penv -> text "resolved app name with implicits:" <+> prettyImplicitArg penv iarg
                   -- traceDefDoc $ \penv -> text "lookupAppName:" <+> Pretty.ppName penv name <.> text " to:" <+> prettyImplicitArg penv iarg
                   penv <- getPrettyEnv
@@ -883,8 +887,12 @@ lookupAppName allowDisambiguate name ctx contextRange range
 -- resolve an implicit argument name to an expression
 resolveImplicitName :: Name -> Type -> Range -> Range -> Inf (Expr Type, Doc)
 resolveImplicitName name tp contextRange range
-  = do res <- resolveImplicitArg True {-disambiguate-} True {-allow unit fun val for conversions -}
-                                 (implicitTypeContext tp) range [(isInfoValFunExt, name)]
+  = do let expectedPars = case splitFunType tp of
+                             Just (ppars,_,_) -> let (fixed,opt,_) = splitOptionalImplicit ppars
+                                                 in Just (fixed ++ opt)
+                             Nothing          -> Nothing
+       res <- resolveImplicitArg True {-disambiguate-} True {-allow unit fun val for conversions -}
+                                 expectedPars (implicitTypeContext tp) range [(isInfoValFunExt, name)]
        penv <- getPrettyEnv
        case res of
          Right iarg   -> do traceDefDoc $ \penv -> text "resolved implicit" <+> prettyImplicitAssign penv "?" name iarg False
@@ -916,19 +924,23 @@ ppAmbDocs docs
 data ImplicitArg   = ImplicitArg{ iaName :: !Name
                                 , iaInfo :: !NameInfo
                                 , iaType :: !Rho          -- instantiated type
+                                , iaExpectedArgs :: !(Maybe [(Name,Type)])
+                                    -- ^ The non-implicit expected parameters (fixed + optional) from the context.
+                                    --   `Nothing` for unit-fun-val (no eta-expansion needed).
+                                    --   `Just pars` for the parameters that the eta-expansion lambda should expose.
                                 , iaImplicitArgs :: ![(Name, ImplicitArg)]
                                 }
 
 -- special empty implicit arg for display purposes (as "...")
 emptyImplicitArg :: ImplicitArg
-emptyImplicitArg = ImplicitArg nameNil emptyInfo typeUnit []
+emptyImplicitArg = ImplicitArg nameNil emptyInfo typeUnit Nothing []
   where
     emptyInfo = InfoVal Private nameNil typeUnit 0 rangeNull True False ""
 
 prettyImplicitArg :: Pretty.Env -> ImplicitArg -> Doc
-prettyImplicitArg penv (ImplicitArg name info rho iargs)  | nameIsNil name
+prettyImplicitArg penv (ImplicitArg name info rho _expectedArgs iargs)  | nameIsNil name
   = text "..."
-prettyImplicitArg penv (ImplicitArg name info rho iargs)
+prettyImplicitArg penv (ImplicitArg name info rho _expectedArgs iargs)
   = let withColor clr doc = color (clr (Pretty.colors penv)) doc in
     withColor colorImplicitExpr (Pretty.ppNamePlain penv name) <.>
     -- Pretty.ppType penv rho <+>
@@ -961,7 +973,7 @@ iaScopeDepth iarg
 
 -- Convert an implicit argument to an expression (that is supplied as the argument)
 toImplicitArgExpr :: Range -> ImplicitArg -> Expr Type
-toImplicitArgExpr xrange (ImplicitArg iname info itp iargs)
+toImplicitArgExpr xrange (ImplicitArg iname info itp mbExpectedArgs iargs)
       = let range = rangeHide xrange in  -- don't add things in the expression to the rangemap
         case iargs of
           [] -> Var iname False range
@@ -969,31 +981,41 @@ toImplicitArgExpr xrange (ImplicitArg iname info itp iargs)
                   Just (ipars,ieff,iresTp) | any Op.isOptionalOrImplicit ipars -- eta-expansion needed?
                     -- eta-expand and resolve further implicit parameters
                     -- todo: eta-expansion may become part of subsumption?
-                    ->  let (fixed,opt,implicits) = splitOptionalImplicit ipars in
+                    ->  let (fixed,opt,implicits) = splitOptionalImplicit ipars
+                        in
                         assertion "Type.InferMonad.toImplicitAppExpr" (length implicits == length iargs) $
-                        let nameFixed    = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] fixed]
-                            argsFixed    = [(Nothing,Var name False range) | name <- nameFixed]
-                            argsImplicit = [(Just (pname,range), toImplicitArgExpr (endOfRange range) iarg) | (pname,iarg) <- iargs]
-                            etaTp        = TFun fixed ieff iresTp
-                            eta          = (if null fixed then id
-                                            else \body -> Lam [ValueBinder name Nothing Nothing range range | name <- nameFixed] body False range)
-                                              (App (Var iname False range)
-                                                      (argsFixed ++ argsImplicit)
-                                                      range)
-                        in eta
+                        case mbExpectedArgs of
+                          Nothing  -- unit-fun-val: expression type already matches expected (non-function) type
+                            -> let argsImplicit = [(Just (pname,range), toImplicitArgExpr (endOfRange range) iarg) | (pname,iarg) <- iargs]
+                               in App (Var iname False range) argsImplicit range
+                          Just expectedArgs
+                            -> let -- lambda params: one for each expected argument
+                                   nameLam      = [makeHiddenName "arg" (newName ("x" ++ show i)) | (i,_) <- zip [1..] expectedArgs]
+                                   -- split lambda params: first go to candidate's fixed params (positional), rest to optional (named by expected arg name)
+                                   (namePos,nameNamed) = splitAt (length fixed) nameLam
+                                   -- build application arguments
+                                   argsPos      = [(Nothing, Var name False range) | name <- namePos]
+                                   -- use expected arg names for named args (matches candidate's optional params by name)
+                                   argsNamed    = [(Just (ename, range), Var name False range)
+                                                  | (name, (ename, _)) <- zip nameNamed (drop (length fixed) expectedArgs)]
+                                   argsImplicit = [(Just (pname,range), toImplicitArgExpr (endOfRange range) iarg) | (pname,iarg) <- iargs]
+                                   body         = App (Var iname False range) (argsPos ++ argsNamed ++ argsImplicit) range
+                                   eta          = Lam [ValueBinder name Nothing Nothing range range | name <- nameLam] body False range
+                               in eta
+
                   _ -> failure ("Type.InferMonad.toImplicitAppExpr: illegal type for implicit? " ++ show range ++ ", " ++ show iname)
 
 
 -- We use typed arguments during implicit argument resolving
-type TypedArg = (Name,NameInfo,Rho)
+type TypedArg = (Name,NameInfo,Rho,Maybe [(Name,Type)])
 
 prettyTypedArg :: Pretty.Env -> TypedArg -> Doc
-prettyTypedArg penv (name,info,tp)
+prettyTypedArg penv (name,info,tp,_expectedArgs)
   = Pretty.ppParam penv (name,tp)
 
 
 toImplicitArg :: [(Name, ImplicitArg)] -> TypedArg -> ImplicitArg
-toImplicitArg iargs (name,info,rho) = ImplicitArg name info rho iargs
+toImplicitArg iargs (name,info,rho,expectedArgs) = ImplicitArg name info rho expectedArgs iargs
 
 -----------------------------------------------------------------------
 -- Resolving implicit names
@@ -1043,19 +1065,20 @@ prettySelect penv (Amb xs)     = text "Amb" <+> list (map (prettyImplicitArg pen
 
 
 -- Resolve an implicit argument fully
-resolveImplicitArg :: Bool -> Bool -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf (Either [Doc] (ImplicitArg))
-resolveImplicitArg allowDisambiguate allowUnitFunVal ctx range roots
+resolveImplicitArg :: Bool -> Bool -> Maybe [(Name,Type)] -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf (Either [Doc] (ImplicitArg))
+resolveImplicitArg allowDisambiguate allowUnitFunVal expectedArgs ctx range roots
   = do env <- getEnv
-       sel <- resolveImplicitArgEx allowDisambiguate allowUnitFunVal (allowInfiniteChains env) [] ctx range roots
+       sel <- resolveImplicitArgEx allowDisambiguate allowUnitFunVal expectedArgs (allowInfiniteChains env) [] ctx range roots
        case sel of
          Found iarg -> return (Right iarg)
          _          -> do penv <- getPrettyEnv
                           return $ Left (map (prettyImplicitArg penv) (allCandidates sel))
 
 -- Resolve an implicit argument fully. This is recursively used with the `chain` of previously resolved implicit names
-resolveImplicitArgEx :: Bool -> Bool -> Bool -> [TypedArg] -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf ImplicitSelect
-resolveImplicitArgEx allowDisambiguate allowUnitFunVal allowInfiniteChains chain ctx range roots
-  = do candidates1 <- concatMapM (\(infoFilter,name) -> lookupImplicitArg allowUnitFunVal infoFilter name ctx range) roots
+resolveImplicitArgEx :: Bool -> Bool -> Maybe [(Name,Type)] -> Bool -> [TypedArg] -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf ImplicitSelect
+resolveImplicitArgEx allowDisambiguate allowUnitFunVal expectedArgs allowInfiniteChains chain ctx range roots
+  = do candidates1 <- concatMapM (\(infoFilter,name) -> lookupImplicitArg allowUnitFunVal expectedArgs infoFilter name ctx range) roots
+       -- traceDefDoc $ \penv -> text "resolveImplicitArgEx candidates:" <+> list (map (prettyTypedArg penv) candidates1) <+> text "ctx:" <+> ppNameContext penv ctx
        let candidates2 = filter (not . existConCreator candidates1) candidates1
            sorted = sortCandidates candidates2
       --  when (length chain >= 4) $
@@ -1065,8 +1088,8 @@ resolveImplicitArgEx allowDisambiguate allowUnitFunVal allowInfiniteChains chain
   where
     -- always prefer a creator definition over a plain constructor if it exists
     existConCreator :: [TypedArg] -> TypedArg -> Bool
-    existConCreator candidates (name,info,_)
-      = isInfoCon info && any (\(iargName,_,_) -> iargName == cname) candidates
+    existConCreator candidates (name,info,_,_)
+      = isInfoCon info && any (\(iargName,_,_,_) -> iargName == cname) candidates
       where
         cname = newCreatorName name
 
@@ -1075,7 +1098,7 @@ resolveImplicitArgEx allowDisambiguate allowUnitFunVal allowInfiniteChains chain
       = let -- find for each candidate which further implicits need to be resolved
             icandidates  = map (implicitsToResolve ctx) candidates
             -- now we can sort them according to their cost
-            cost ((name,info,_),iargs)  = ( -(iargScopeDepth name info) -- inner scopes first
+            cost ((name,info,_,_),iargs)  = ( -(iargScopeDepth name info) -- inner scopes first
                                           , length iargs                -- least further implicits arguments first
                                           )
         in sortBy (\x y -> compare (cost x) (cost y)) icandidates
@@ -1094,13 +1117,13 @@ resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current@(A
        let extra = map (toImplicitArg [] . fst) candidates  -- include all remaining potential candidates in the error message?
        return (Amb (ambs ++ extra))
 
-resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (Found current) (((qname,info,_),_):_)
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (Found current) (((qname,info,_,_),_):_)
   | allowDisambiguate && iaScopeDepth current > iargScopeDepth qname info
   = -- if we can disambiguate, the inner scope is always preferred (assuming sorted candidates)
     do -- traceDefDoc $ \penv -> text "resolveUniquely: found innermost solution:" <+> prettyImplicitArg penv current
        return (Found current)
 
-resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next@((qname,info,rho),ipars) : candidates)
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next@((qname,info,rho,_),ipars) : candidates)
   | not allowInfiniteChains && not (isDecreasingChain chain ctx qname rho)
   = -- if this might lead to an infinite derivation
     do -- traceDefDoc $ \penv -> text "resolveUniquely: infinite derivation:" <->
@@ -1116,7 +1139,7 @@ resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current ca
        let sels = map (Infty . toImplicitArg [] . fst) candidates
        return $! foldr merge None sels
 
-resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next@((name,info,rho),ipars) : candidates)
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next@((name,info,rho,_),ipars) : candidates)
   = do -- recursively resolve the required implicit parameters
        -- traceDefDoc $ \penv -> text "resolveUniquely: resolve next candidate:" <+> prettyTypedArg penv (fst next)
        --                          <-> indent 2 (text "current:" <+> prettySelect penv current)
@@ -1126,7 +1149,7 @@ resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (n
 
 -- Resolve recursively any further required implicit parameters
 resolveImplicitParameters :: Bool -> Bool -> [TypedArg] -> Range -> (TypedArg,[(Name,Type)]) -> Inf ImplicitSelect
-resolveImplicitParameters allowDisambiguate allowInfiniteChains chain range (current@(name,info,rho),ipars)
+resolveImplicitParameters allowDisambiguate allowInfiniteChains chain range (current@(name,info,rho,expectedArgs),ipars)
   = resolve [] ipars
   where
     chainNew
@@ -1134,7 +1157,7 @@ resolveImplicitParameters allowDisambiguate allowInfiniteChains chain range (cur
 
     resolve :: [(Name,ImplicitArg)] -> [(Name,Type)] -> Inf ImplicitSelect
     resolve acc []
-      = return (Found (ImplicitArg name info rho (reverse acc)))
+      = return (Found (ImplicitArg name info rho expectedArgs (reverse acc)))
     resolve acc (par:pars)
       = do sel <- resolveImplicitParameter allowDisambiguate allowInfiniteChains chainNew range par
            case sel of
@@ -1142,7 +1165,7 @@ resolveImplicitParameters allowDisambiguate allowInfiniteChains chain range (cur
                               resolve ((fst par,iarg):acc) pars
              _          -> do -- give up early if we cannot resolve a parameter
                               let makePars iarg   = reverse acc ++ [(fst par, iarg)] ++ [(pname, emptyImplicitArg) | (pname,_) <- pars]
-                                  extendIarg iarg = ImplicitArg name info rho (makePars iarg)
+                                  extendIarg iarg = ImplicitArg name info rho expectedArgs (makePars iarg)
                               return $ mapCandidates extendIarg sel
 
 -- recursively resolve an implicit parameter
@@ -1151,7 +1174,12 @@ resolveImplicitParameter allowDisambiguate allowInfiniteChains chain range (pnam
   = -- recursively resolve an implicit parameter
     let (pnameName,pnameExpr) = splitImplicitParamName pname
         newctx = implicitTypeContext ptp
-    in resolveImplicitArgEx allowDisambiguate True {- allow unit val -} allowInfiniteChains chain newctx
+        -- compute expected non-implicit params from the parameter type
+        expectedPars = case splitFunType ptp of
+                         Just (ppars,_,_) -> let (fixed,opt,_) = splitOptionalImplicit ppars
+                                             in Just (fixed ++ opt)
+                         Nothing          -> Nothing
+    in resolveImplicitArgEx allowDisambiguate True {- allow unit val -} expectedPars allowInfiniteChains chain newctx
                             (endOfRange range) -- use end of range to deprioritize with hover info
                             [(isInfoValFunExt,pnameExpr)]
 
@@ -1162,13 +1190,13 @@ decreasingWithin = 4
 -- Have a previously tried to derive this parameter?
 isDecreasingChain :: [TypedArg] -> NameContext -> Name -> Type -> Bool
 isDecreasingChain chain ctx qname tp
-  = case filter (\(pname,_,_) -> pname == qname) chain of  -- find only matching definition in the chain
+  = case filter (\(pname,_,_,_) -> pname == qname) chain of  -- find only matching definition in the chain
       []                  -> True                      -- never visited before
       prevtps  ->
         if length prevtps < decreasingWithin then True -- Not enough to decide yet (we want to be able to grow a bit at the beginning)
         else
           let limited = take decreasingWithin prevtps -- the last *k* elements in the same partition.
-          in weight tp < (maximum $ map (\(_, _, tp) -> weight tp) limited) -- we want the instantiated type to "smaller" than any previous one (i.e. at least smaller than the maximum)
+          in weight tp < (maximum $ map (\(_, _, tp,_) -> weight tp) limited) -- we want the instantiated type to "smaller" than any previous one (i.e. at least smaller than the maximum)
   where
     -- Note: pname and qname are fully qualified resolved names with their instantiated types
     --   pname=qname : forall as. t           e.g. list/show : (xs : list<a>, ?show : a -> string ) : string
@@ -1206,7 +1234,7 @@ isDecreasingChain chain ctx qname tp
 
 -- Find for an typed argument if it needs further implicits to be solved
 implicitsToResolve :: NameContext -> TypedArg -> (TypedArg,[(Name,Type)])
-implicitsToResolve ctx targ@(name,info,rho)
+implicitsToResolve ctx targ@(name,info,rho,_)
   = let iargs = case splitFunType rho of
                   Just (ipars,ieff,iresTp)  | any Op.isOptionalOrImplicit ipars
                     -- recursively resolve further required implicit parameters
@@ -1236,8 +1264,8 @@ implicitsToResolve ctx targ@(name,info,rho)
 -- Looking up application names and implicit names
 -----------------------------------------------------------------------
 
-lookupImplicitArg :: Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [TypedArg]
-lookupImplicitArg allowUnitFunVal infoFilter name ctx range
+lookupImplicitArg :: Bool -> Maybe [(Name,Type)] -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [TypedArg]
+lookupImplicitArg allowUnitFunVal expectedArgs infoFilter name ctx range
   = do -- traceDefDoc $ \penv -> text "lookupImplicitArg:" <+> ppNameCtx penv (name,ctx) <+> text ", previous:" <+> list (map (ppNameCtx penv) previousCtxs)
        candidates0 <- lookupNames infoFilter name ctx range
        candidates  <- case ctx of
@@ -1245,9 +1273,11 @@ lookupImplicitArg allowUnitFunVal infoFilter name ctx range
                         -- if `expect` is a type variable we may need to remove duplicate candidates here.
                         CtxType expect | allowUnitFunVal && not (isFun expect)
                            -> do candidates1 <- lookupNames infoFilter name (CtxFunTypes False [] [] (Just expect)) range
-                                 return (nubBy (\(_,info1,_) (_,info2,_) -> infoCName info1 == infoCName info2)
-                                               (candidates0 ++ candidates1))
-                        _  -> return candidates0
+                                 return $
+                                   (nubBy (\(_,info1,_, _) (_,info2,_, _) -> infoCName info1 == infoCName info2)
+                                    (map (\(a, b, c) -> (a, b, c, expectedArgs)) candidates0 ++
+                                    map (\(a, b, c) -> (a, b, c, Nothing {- unit-fun-val: no eta -})) candidates1))
+                        _  -> return (map (\(a, b, c) -> (a, b, c, expectedArgs)) candidates0)
        -- add implicit constraints
        iargs <- case ctx of
                   CtxType expect -> do mbiarg <- checkImplicitConstraint name expect range range
@@ -2051,7 +2081,7 @@ addImplicitConstraint name tp canSolve solve context rng
   = do evName <- Core.freshName "iev"
        let ic       = ImplicitConstraint name tp evName context rng canSolve solve
            nameInfo = createNameInfoX Public evName 2 DefVal rng tp ""
-           iarg     = (evName,nameInfo,tp)
+           iarg     = (evName,nameInfo,tp,Just [] {- constraint evidence, no eta -})
        updateSt (\st -> st{ iconstraints = ic : iconstraints st,
                             iconstraintsGamma = infgammaExtend evName nameInfo (iconstraintsGamma st) })
        -- traceDefDoc $ \penv -> text "add implicit constraint:" <+> ppConstraint penv ic
