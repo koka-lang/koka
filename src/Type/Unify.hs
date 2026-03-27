@@ -440,7 +440,7 @@ unifyLabels ls1 ls2 closed1 closed2
                       -> if (id1 < id2)
                            then do (ds1,ds2) <- unifyLabels ll1 ls2 closed1 closed2
                                    return (ds1,l1:ds2)
-                           else do (ds1,ds2) <- unifyLabels ls2 ll2 closed1 closed2
+                           else do (ds1,ds2) <- unifyLabels ls1 ll2 closed1 closed2
                                    return (l2:ds1,ds2)
                     _ ->
                          do -- trace ("unify labels: " ++ show (pretty l1, pretty l2)) $
