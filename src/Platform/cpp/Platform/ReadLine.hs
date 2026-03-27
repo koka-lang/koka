@@ -35,7 +35,11 @@ import Data.IORef
 #else 
 -- 0: repline
 import System.Console.Isocline as Isocline
-import Syntax.Highlight( highlightInput )
+import Syntax.Highlight( highlight, Token(..), Context(..), isKeywordOp )
+import Syntax.Lexeme( Lexeme(..) )
+import Common.Range( bigLine, stringToBString, rawSourceFromRange, getRange )
+import Common.ColorScheme
+import Lib.Printer( Color(..) )
 #endif
 
 withReadLine :: FilePath -> IO a -> IO a
@@ -236,30 +240,48 @@ completeNames ::  [String] -> String -> [Completion]
 completeNames names input
   = completionsFor input names
 
+styleColor :: Color -> Style
+styleColor color
+  = case color of
+      ColorDefault -> ""
+      _            -> "ansi-color=" ++ show (fromEnum color)
+
 highlighter :: ColorScheme -> String -> Fmt
 highlighter cscheme input
   = case (span isSpace input) of
-      (prews,':':rest)  
-        -> -- command
-           case (span (\c -> isAlphaNum c || c `elem` "!?") rest) of  -- todo: add highlighting on command options
+      (prews,':':rest)
+        -> case (span (\c -> isAlphaNum c || c `elem` "!?") rest) of
              (cmd,args) -> style (styleColor (colorCommand cscheme)) (prews ++ ":" ++ cmd) ++
                            style (styleColor (colorSource cscheme)) args
-      _ -> -- expression
-           highlightInput cscheme input  
+      _ -> highlightInput cscheme input
+
+highlightInput :: ColorScheme -> String -> Isocline.Fmt
+highlightInput cscheme input
+  = concat $ highlight (fmtAttr cscheme) id CtxNormal "" bigLine (stringToBString (input ++ "\n"))
+
+fmtAttr :: ColorScheme -> Token Lexeme -> Lexeme -> String -> Isocline.Fmt
+fmtAttr cscheme tok lexeme display
+  = Isocline.pre (tokenStyle tok) rawInput
   where
-    styleColor :: Color -> Style
-    styleColor color
-      = case color of
-          ColorDefault -> ""
-          _            -> "ansi-color=" ++ show (fromEnum color)
-
-{-
-startsWith, endsWith :: String -> String -> Bool
-startsWith s pre
-  = take (length pre) s == pre
-
-endsWith s post
-  = startsWith (reverse s) (reverse post)
--}
+    rawInput = rawSourceFromRange (getRange lexeme)
+    tokenStyle token = case token of
+      TokId _ _        -> ""
+      TokOp _ _        -> ""
+      TokTypeVar       -> styleColor (colorTypeVar cscheme)
+      TokTypeId _      -> styleColor (colorTypeCon cscheme)
+      TokTypeOp _      -> styleColor (colorTypeCon cscheme)
+      TokTypeSpecial   -> styleColor (colorTypeSpecial cscheme)
+      TokTypeParam     -> styleColor (colorTypeParam cscheme)
+      TokModule _      -> styleColor (colorModule cscheme)
+      TokCons _        -> styleColor (colorCons cscheme)
+      TokNumber        -> styleColor (colorNumber cscheme)
+      TokString        -> styleColor (colorString cscheme)
+      TokSpecial       -> styleColor (colorSpecial cscheme)
+      TokTypeKeyword   -> styleColor (if not (isKeywordOp display) then colorTypeKeyword cscheme else colorTypeKeywordOp cscheme)
+      TokKeyword       -> styleColor (colorKeyword cscheme)
+      TokComment       -> styleColor (colorComment cscheme)
+      TokRichComment _ -> styleColor (colorComment cscheme)
+      TokWhite         -> ""
+      TokError         -> "ansi-red"
 
 #endif

@@ -31,6 +31,8 @@ module Compile.Options( -- * Command line options
                        , flagsHash
                        , phaseVerboseIO
                        , Terminal(..)
+                       , parseOptions
+                       , flagsNull
                        ) where
 
 import Debug.Trace
@@ -41,7 +43,7 @@ import Control.Monad          ( when )
 import Control.Concurrent     ( myThreadId )
 import qualified System.Info  ( os, arch )
 import System.Environment     ( getArgs )
-import System.Directory       ( doesFileExist, doesDirectoryExist, getHomeDirectory, getTemporaryDirectory )
+import Platform.FileIO        ( doesFileExist, doesDirectoryExist, getHomeDirectory, getTemporaryDirectory )
 import Platform.GetOptions
 import Platform.Config
 import Lib.PPrint
@@ -398,6 +400,8 @@ flagsNull
           ""      -- main entry name (null for default for each target)
           ""      -- main target name (null for default)
           Nothing -- no base flags
+
+
 
 isHelp Help = True
 isHelp _    = False

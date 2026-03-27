@@ -35,3 +35,8 @@ test/bench
 .koka
 scratch
 .worktrees/
+.vite
+precompiled/
+ghc-rts.wasm
+SETUP.md
+cabal.project.local

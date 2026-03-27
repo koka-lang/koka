@@ -11,7 +11,7 @@
 -----------------------------------------------------------------------------
 module Common.File(
                   -- * System
-                    getEnvPaths, getEnvVar, getFirstDefinedEnvVar
+                    getEnvPaths, getEnvVar
                   , searchPaths, searchPathsSuffixes, searchPathsEx, searchPathsCanonical
                   , getMaximalPrefixPath
                   , searchProgram
@@ -54,19 +54,17 @@ import Data.Maybe       ( isNothing )
 import Data.List        ( intersperse, isPrefixOf, maximumBy )
 import Data.Char        ( toLower, isSpace )
 import Platform.Config  ( pathSep, pathDelimiter, sourceExtension, exeExtension )
-import qualified Platform.Runtime as B ( {- copyBinaryFile, -} exCatch )
 import Common.Failure   ( raiseIO, catchIO )
 
-import System.IO
-import System.Process   ( system, rawSystem, createProcess, CreateProcess(..), proc, StdStream(..), waitForProcess )
-import System.Exit      ( ExitCode(..) )
-import System.Environment ( getEnvironment, getExecutablePath )
-import System.Directory ( doesFileExist, doesDirectoryExist
-                        {- , copyFile, copyFileWithMetadata -}
-                        , getCurrentDirectory, getDirectoryContents
-                        , createDirectoryIfMissing, canonicalizePath, removeFile, getFileSize )
-
-import Debug.Trace
+-- Platform-specific IO primitives (no CPP needed!)
+import Platform.FileIO  ( doesFileExist, doesDirectoryExist, createDirectoryIfMissing
+                        , readTextFile, writeTextFile
+                        , readBinaryContents, writeBinaryContents, copyBinaryContents
+                        , removeFileIfExists
+                        , getCwd, realPath
+                        , getEnvVar, getEnvPaths, getProgramPath
+                        , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
+                        , getFileSize )
 import Platform.Filetime
 
 seqList :: [a] -> b -> b
@@ -266,69 +264,9 @@ isPathDelimiter :: Char -> Bool
 isPathDelimiter c
   = (c == ';' || c == pathDelimiter)
 
-getCwd :: IO FilePath
-getCwd
-   = realPath "."
-
 {--------------------------------------------------------------------------
   system
 --------------------------------------------------------------------------}
-
-runSystemRaw :: String -> IO ()
-runSystemRaw command
-  = do -- putStrLn ("system: " ++ command)
-       exitCode <- system command
-       case exitCode of
-         ExitFailure i -> raiseIO ("raw command failed:\n " ++ command )
-         ExitSuccess   -> return ()
-
-runSystem :: String -> IO ()
-runSystem command0
-  = do -- putStrLn ("system: " ++ command)
-       let command = normalizeWith pathSep command0
-       exitCode <- system command
-       case exitCode of
-         ExitFailure i -> raiseIO ("command failed:\n " ++ command )
-         ExitSuccess   -> return ()
-
-runCmd :: String -> [String] -> IO ()
-runCmd cmd args
-  = do -- putStrLn ("run command: " ++ cmd ++ ", args: " ++ show args)
-       exitCode <- rawSystem cmd args
-       case exitCode of
-          ExitFailure i -> raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
-          ExitSuccess   -> return ()
-
-runCmdRead :: [(String,String)] -> String -> [String] -> IO (String,String)
-runCmdRead extraEnv cmd args
-  = do mbEnv <- buildEnv extraEnv
-       (_, Just hout, Just herr, process) <- createProcess (proc cmd args){ env = mbEnv, std_out = CreatePipe, std_err = CreatePipe }
-       exitCode <- waitForProcess process
-       case exitCode of
-          ExitFailure i -> do -- hClose hout
-                              raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
-          ExitSuccess   -> do out <- hGetContents hout
-                              err <- hGetContents herr
-                              -- hClose hout
-                              return (out,err)
-
-
-runCmdEnv :: [(String,String)] -> String -> [String] -> IO ()
-runCmdEnv extraEnv cmd args
-  = do mbEnv <- buildEnv extraEnv
-       (_, _, _, process) <- createProcess (proc cmd args){ env = mbEnv }
-       exitCode <- waitForProcess process
-       case exitCode of
-          ExitFailure i -> do -- hClose hout
-                              raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
-          ExitSuccess   -> return ()
-
-buildEnv :: [(String,String)] -> IO (Maybe [(String,String)])
-buildEnv extraEnv
-  = if null extraEnv then return Nothing
-      else do oldEnv <- getEnvironment
-              let newKeys = map fst extraEnv
-              return (Just (extraEnv ++ filter (\(k,_) -> not (k `elem` newKeys)) oldEnv))
 
 -- | Compare two file modification times (uses 0 for non-existing files)
 fileTimeCompare :: FilePath -> FilePath -> IO Ordering
@@ -353,33 +291,10 @@ doesFileExistAndNotEmpty fpath
          then do fsize <- getFileSize fpath
                  return (fsize > 0)
          else return False
-{-
-  = do mbContent <- readTextFile fpath
-       case mbContent of
-         Nothing      -> return False
-         Just content -> return (not (null content))
--}
-
-readTextFile :: FilePath -> IO (Maybe String)
-readTextFile fpath
-  = B.exCatch (do content <- readFile fpath
-                  return (if null content then Just content else (seq (last content) $ Just content)))
-              (\exn -> -- trace ("reading file " ++ fpath ++ " exception: " ++ exn)
-                   return Nothing)
-
-writeTextFile :: FilePath -> String -> IO ()
-writeTextFile fpath content
-  = writeFile fpath content
 
 copyTextFile :: FilePath -> FilePath -> IO ()
 copyTextFile src dest
   = copyTextFileWith src dest id
-  {-
-  = if (src == dest)
-     then return ()
-     else catchIO (do createDirectoryIfMissing True (dirname dest)
-                      copyFileWithMetadata src dest)  -- do not use as the source may come from a (readonly) admin permission and should got to user permission
-            (error ("could not copy file " ++ show src ++ " to " ++ show dest)) -}
 
 copyTextFileWith :: FilePath -> FilePath -> (String -> String) -> IO ()
 copyTextFileWith src dest transform
@@ -387,9 +302,11 @@ copyTextFileWith src dest transform
      then return ()
      else catchIO (do createDirectoryIfMissing True (dirname dest)
                       ftime   <- getFileTime src
-                      content <- readFile src
-                      writeFile dest (transform content)
-                      setFileTime dest ftime)
+                      mbContent <- readTextFile src
+                      case mbContent of
+                        Just content -> do writeTextFile dest (transform content)
+                                           setFileTime dest ftime
+                        Nothing -> error ("could not read file " ++ show src))
             (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyBinaryFile :: FilePath -> FilePath -> IO ()
@@ -401,10 +318,7 @@ copyBinaryFile src dest
             -- B.copyBinaryFile src dest) (\_ -> error ("could not copy file " ++ show src ++ " to " ++ show dest))
              do createDirectoryIfMissing True (dirname dest)
                 ftime <- getFileTime src
-                withBinaryFile src ReadMode $ \hsrc ->
-                  withBinaryFile dest WriteMode $ \hdest ->
-                    do content <- hGetContents hsrc
-                       hPutStr hdest content
+                copyBinaryContents src dest
                 setFileTime dest ftime)
             (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
@@ -436,14 +350,6 @@ copyTextIfNewerWith always srcName outName transform
         then do copyTextFileWith srcName outName transform
         else do return ()
 
-removeFileIfExists :: FilePath -> IO ()
-removeFileIfExists fname
-  = B.exCatch (removeFile fname)
-              (\exn -> return ())
-
-getProgramPath :: IO FilePath
-getProgramPath = getExecutablePath
-
 commonPathPrefix :: FilePath -> FilePath -> FilePath
 commonPathPrefix s1 s2
   = joinPaths $ map fst $ takeWhile (\(c,d) -> c == d) $ zip (splitPath s1) (splitPath s2)
@@ -461,8 +367,6 @@ mbRelativeToPath prefix path
   = let prefixes = splitPath prefix
         paths    = splitPath path
     in if isPrefixOf prefixes paths then Just (joinPaths (drop (length prefixes) paths)) else Nothing
-
-
 
 
 -- | Is a path absolute?
@@ -490,26 +394,6 @@ getMaximalPrefixPath roots p
   = case findMaximalPrefixPath roots p of
       Nothing   -> ("",p)
       Just just -> just
-
-{-
-
--- | Find a maximal prefix given a string and list of prefixes. Returns the prefix and its length.
-findMaximalPrefix :: [String] -> String -> Maybe (Int,String)
-findMaximalPrefix xs s
-  = findMaximal (\x -> if startsWith s x then Just (length x) else Nothing) xs
-
-findMaximal :: (a -> Maybe Int) -> [a] -> Maybe (Int,a)
-findMaximal f xs
-  = normalize Nothing xs
-  where
-    normalize res []     = res
-    normalize res (x:xs) = case (f x) of
-                        Just n  -> case res of
-                                     Just (m,y)  | m >= n -> normalize res xs
-                                     _           -> normalize (Just (n,x)) xs
-                        Nothing -> normalize res xs
-
--}
 
 ---------------------------------------------------------------
 -- file searching
@@ -581,40 +465,6 @@ makeRelativeToPaths paths fname
 
 
 
-getEnvPaths :: String -> IO [FilePath]
-getEnvPaths name
-  = do{ xs <- getEnvVar name
-      ; return (undelimPaths xs)
-      }
-  `catchIO` \err -> return []
-
-getEnvironmentToLower :: IO [(String,String)]
-getEnvironmentToLower
-  = do env <- getEnvironment
-       return (map (\(k,v) -> (map toLower k,v)) env)
-
-getEnvVar :: String -> IO String
-getEnvVar name
-  = do env <- getEnvironmentToLower
-       case lookup (map toLower name) env of
-         Just val -> return val
-         Nothing  -> return ""
-
-getFirstDefinedEnvVar :: [String] -> IO String
-getFirstDefinedEnvVar keys
-  = do env <- getEnvironmentToLower
-       case dropWhile isNothing (map (\key -> lookup (map toLower key) env) keys) of
-         (Just val : _) -> return val
-         _              -> return ""
-
-realPath :: FilePath -> IO FilePath
-realPath fpath
-  = do fullpath <- if onWindows && fpath `startsWith` "//"
-                     then return fpath              -- on windows leave network paths alone as Haskell's `normalise` removes double `//` :-(
-                     else canonicalizePath fpath
-       return (normalize fullpath)
-
-
 searchProgram :: FilePath -> IO (Maybe FilePath)
 searchProgram ""
   = return Nothing
@@ -626,22 +476,3 @@ searchProgram fname | isAbsolute fname || fname `startsWith` "."
 searchProgram fname
   = do paths  <- getEnvPaths "PATH"
        searchPaths paths [exeExtension] fname
-
-
-{-
-splitPath :: String -> [String]
-splitPath xs
-  = normalize [] "" xs
-  where
-    normalize ps "" (c:':':cs)
-      = normalize ps (':':c:[]) cs
-
-    normalize ps p xs
-      = case xs of
-          []             -> if (null p)
-                             then reverse ps
-                             else reverse (reverse p:ps)
-          (';':cs)       -> normalize (reverse p:ps) "" cs
-          (':':cs)       -> normalize (reverse p:ps) "" cs
-          (c:cs)         -> normalize ps (c:p) cs
--}

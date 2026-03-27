@@ -27,16 +27,15 @@ dependencies:
   - array
   - bytestring
   - containers
-  - directory
   - mtl
   - parsec
-  - process
   - text
   - time
   - async
-  - isocline >= 1.0.6
   - FloatingHex >= 0.5
   - hashable >= 1.4
+  - directory
+  - process
 
 library:
   other-extensions:
@@ -44,12 +43,6 @@ library:
     - OverloadedStrings
   source-dirs:
     - src
-    - src/Platform/cpp
-  c-sources:
-    - src/Platform/cpp/Platform/cconsole.c
-    - src/Platform/cpp/Platform/cconsole.h
-  include-dirs:
-    - src/Platform/cpp/Platform
   build-tools:
     - alex
   ghc-options:
@@ -67,6 +60,38 @@ library:
       cpp-options: -DWINDOWS
     - condition: os(darwin)
       cpp-options: -DDARWIN
+    # ── Platform: GHC WASM backend ──
+    - condition: arch(wasm32)
+      source-dirs: src/Platform/wasm
+      cpp-options: -DKOKA_WASM
+      exposed-modules:
+        - Platform.Config
+        - Platform.Console
+        - Platform.FileIO
+        - Platform.Filetime
+        - Platform.GetOptions
+        - Platform.ReadLine
+        - Platform.Runtime
+        - Platform.Var
+    # ── Platform: Native (default) ──
+    - condition: "!arch(wasm32)"
+      source-dirs: src/Platform/cpp
+      c-sources:
+        - src/Platform/cpp/Platform/cconsole.c
+        - src/Platform/cpp/Platform/cconsole.h
+      include-dirs:
+        - src/Platform/cpp/Platform
+      dependencies:
+        - isocline >= 1.0.6
+      exposed-modules:
+        - Platform.Config
+        - Platform.Console
+        - Platform.FileIO
+        - Platform.Filetime
+        - Platform.GetOptions
+        - Platform.ReadLine
+        - Platform.Runtime
+        - Platform.Var
 
 executables:
   koka:
@@ -93,6 +118,9 @@ executables:
       # - -fdistinct-constructor-tables
       # - '"-with-rtsopts=-N8 -l"'
       - '"-with-rtsopts=-N8"'
+    when:
+      - condition: "arch(wasm32)"
+        buildable: false
 
   koka-plain:
     main: Main.hs
@@ -108,6 +136,42 @@ executables:
       # - -fdistinct-constructor-tables
       # - '"-with-rtsopts=-N8 -l"'
       - '"-with-rtsopts=-N8"'
+    when:
+      - condition: "arch(wasm32)"
+        buildable: false
+
+  koka-playground:
+    main: Main.hs
+    source-dirs: src/Main/playground
+    dependencies:
+      - koka
+    ghc-options:
+      - -O2
+    when:
+      - condition: "!arch(wasm32)"
+        buildable: false
+      - condition: arch(wasm32)
+        cpp-options: -DKOKA_WASM
+
+  koka-lsp-wasm:
+    main: Main.hs
+    source-dirs:
+      - src/Main/langserver
+    dependencies:
+      - aeson
+      - async
+      - co-log-core
+      - koka
+      - lens
+      - lsp
+      - text-rope
+      - stm
+    cpp-options: -DKOKA_WASM
+    ghc-options:
+      - -O2
+    when:
+      - condition: "!arch(wasm32)"
+        buildable: false
 
 tests:
   koka-test:
@@ -126,4 +190,7 @@ tests:
       - process
       - regex-compat >= 0.95.2.1
       - json
+    when:
+      - condition: "arch(wasm32)"
+        buildable: false
 

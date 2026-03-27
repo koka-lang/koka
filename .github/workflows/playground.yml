@@ -1,0 +1,118 @@
+name: Build Koka Playground
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: playground-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GHC_WASM_META_FLAVOUR: '9.12'
+
+jobs:
+  build:
+    name: Build Playground
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ── Setup toolchains ──────────────────────────────────────────────
+
+      - name: Setup GHC + Cabal + Stack
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.12'
+          cabal-version: '3.16'
+          enable-stack: true
+          stack-version: 'latest'
+
+      # GHC WASM backend
+      - name: Cache GHC WASM toolchain
+        id: cache-ghc-wasm
+        uses: actions/cache@v4
+        with:
+          path: ~/.ghc-wasm
+          key: ghc-wasm-${{ env.GHC_WASM_META_FLAVOUR }}-v1
+
+      - name: Install GHC WASM backend
+        if: steps.cache-ghc-wasm.outputs.cache-hit != 'true'
+        run: |
+          curl -sL "https://gitlab.haskell.org/ghc/ghc-wasm-meta/-/raw/master/bootstrap.sh" | \
+            FLAVOUR=${{ env.GHC_WASM_META_FLAVOUR }} sh
+
+      - name: Verify GHC WASM
+        run: |
+          source ~/.ghc-wasm/env
+          wasm32-wasi-ghc --version
+
+      # Tools
+      - name: Cache hpack + alex
+        id: cache-tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.cabal/bin
+          key: cabal-tools-${{ runner.os }}-ghc9.12-v3
+
+      - name: Install hpack + alex
+        run: |
+          mkdir -p "$HOME/.cabal/bin"
+          echo "$HOME/.cabal/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.cabal/bin:$PATH"
+          if ! which hpack &>/dev/null || ! which alex &>/dev/null; then
+            cabal update
+            cabal install hpack alex --overwrite-policy=always --installdir="$HOME/.cabal/bin"
+          fi
+          hpack --version && alex --version
+
+      # ── Caches ─────────────────────────────────────────────────────────
+
+      - name: Cache cabal packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: cabal-wasm-${{ env.GHC_WASM_META_FLAVOUR }}-${{ hashFiles('package.yaml', 'cabal.project') }}
+          restore-keys: cabal-wasm-${{ env.GHC_WASM_META_FLAVOUR }}-
+
+      - name: Cache stack
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: stack-${{ hashFiles('package.yaml', 'stack.yaml', 'stack.yaml.lock') }}
+          restore-keys: stack-
+
+      # ── Build everything via playground.kk ────────────────────────────
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install web dependencies
+        run: cd web/playground && npm install
+
+      - name: Build all (WASM, LSP, precompile, deploy)
+        run: |
+          unset GHC_PACKAGE_PATH
+          stack run koka -- -e util/playground.kk -- --backend=all
+
+      - name: Build web frontend
+        run: cd web/playground && npm run build
+
+      - name: Run tests
+        run: node web/playground/test/test-wasm.mjs

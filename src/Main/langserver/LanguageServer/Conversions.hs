@@ -165,7 +165,15 @@ fromLspUri uri =
       Just fpath  -> do p <- realPath fpath
                         -- trace ("LanguageServer.Conversions.fromLspUri: uri: '" ++ uriText ++ "', realpath: '" ++ p ++ "'") $ return ()
                         return $ Just p
-      Nothing     -> return Nothing
+      Nothing     ->
+        -- Handle inmemory:// URIs (used by browser playground)
+        -- Extract the path portion: inmemory://playground/main.kk -> /main.kk
+        if uriText `startsWith` "inmemory://"
+          then let path = case break (=='/') (Prelude.drop (length ("inmemory://" :: String)) uriText) of
+                            (_, '/':rest) -> '/' : rest
+                            (_, rest)     -> '/' : rest
+               in return (Just path)
+          else return Nothing
 
 filePathToUri :: FilePath -> J.Uri
 filePathToUri fpath

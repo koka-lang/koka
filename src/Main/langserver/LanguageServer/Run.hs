@@ -9,6 +9,7 @@
 -----------------------------------------------------------------------------
 -- The language server's main module
 -----------------------------------------------------------------------------
+{-# OPTIONS -cpp #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
@@ -17,10 +18,20 @@ module LanguageServer.Run (runLanguageServer) where
 import System.Exit            ( exitFailure, die )
 import GHC.IO.IOMode (IOMode(ReadWriteMode))
 import GHC.Conc (atomically)
-import GHC.IO.Handle (BufferMode(NoBuffering), hSetBuffering)
+import GHC.IO.Handle (Handle, BufferMode(NoBuffering), hSetBuffering)
 import GHC.IO.StdHandles (stdin, stdout, stderr)
 import System.IO (hPutStrLn)
 import Control.Monad (void, forever, when, guard)
+#if defined(KOKA_WASM)
+import Control.Concurrent (threadDelay)
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
+import Data.ByteString.Builder.Extra (defaultChunkSize)
+import System.IO (hFlush, utf8, hSetEncoding)
+#else
+import Network.Simple.TCP ( connect )
+import Network.Socket ( socketToHandle )
+#endif
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.STM ( atomically )
 import Control.Concurrent.STM.TChan ( newTChan, readTChan, TChan )
@@ -29,118 +40,147 @@ import Language.LSP.Server
 import Colog.Core (LogAction, WithSeverity)
 import qualified Colog.Core as L
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Server as J
 import Language.LSP.Logging (defaultClientLogger)
-import Network.Simple.TCP ( connect )
-import Network.Socket ( socketToHandle )
 import LanguageServer.Handlers ( lspHandlers, ReactorInput(..) )
 import LanguageServer.Monad (newLSStateVar, runLSM, LSM, getLSState, LSState (messages, progress), getProgress, updateSignatureContext, SignatureContext(..))
 import Compile.Options (Flags (languageServerPort, languageServerStdio))
-import Debug.Trace (trace)
-import Control.Exception.Base (throw)
 import Control.Exception (catchJust)
 import System.IO.Error (isDoesNotExistError)
 
+-- ── Entry point ─────────────────────────────────────────────────────────
+
 runLanguageServer :: Flags -> [FilePath] -> IO ()
 runLanguageServer flags files = do
+  hSetBuffering stdout NoBuffering
+  hSetBuffering stderr NoBuffering
+  hSetBuffering stdin NoBuffering
+#if defined(KOKA_WASM)
+  -- WASM/WASI: use stdio with a retrying stdin reader.
+  -- On WASI, fd_read may return 0 bytes (no data yet) rather than blocking.
+  -- The LSP parser (attoparsec) treats 0 bytes as end-of-input and fails.
+  -- We retry with a short delay until real data is available.
+  let wasiStdinRead = do
+        bs <- BS.hGetSome stdin defaultChunkSize
+        if BS.null bs
+          then do threadDelay 10000  -- 10ms, yields to GHC scheduler
+                  wasiStdinRead
+          else return bs
+  state <- newLSStateVar flags
+  messageChan <- liftIO $ messages <$> readMVar state
+  progressChan <- liftIO $ progress <$> readMVar state
+  rin <- atomically newTChan :: IO (TChan ReactorInput)
+  hSetEncoding stdout utf8
+  let clientOut out = BSL.hPut stdout out >> hFlush stdout
+  void $
+    runServerWith
+      (kokaIoLogger True)
+      kokaLspLogger
+      wasiStdinRead
+      clientOut
+      (serverDef flags rin state messageChan progressChan)
+#else
+  let useStdio = languageServerStdio flags
   when (not useStdio && languageServerPort flags == -1) $ do
     hPutStrLn stderr "No port specified for language server.\nUse --lsport=<port> to specify a port or --lsstdio to use stdio."
     exitFailure
-  -- Have to set line buffering, otherwise the client doesn't receive data until buffers fill up
-  hSetBuffering stdout NoBuffering
-  hSetBuffering stderr NoBuffering
-  if useStdio then do
-    hSetBuffering stdin NoBuffering
-    runLanguageServerWithHandles stdin stdout
-    -- Connect to localhost on the port given by the client
-  else catchJust (guard . isDoesNotExistError)
-         (connect "127.0.0.1" (show $ languageServerPort flags) (\(socket, _) -> do
-            -- Create a handle to the client from the socket
-            handle <- socketToHandle socket ReadWriteMode
-            runLanguageServerWithHandles handle handle))
-         (\_ -> die $ "nothing was listening on port " ++ show (languageServerPort flags))
-  where
-    useStdio = languageServerStdio flags
-    runLanguageServerWithHandles inHandle outHandle = do
-      -- Create a new language server state
-      state <- newLSStateVar flags
-      -- Get the message channel
-      messageChan <- liftIO $ messages <$> readMVar state
-      progressChan <- liftIO $ progress <$> readMVar state
-      -- Create a new channel for the reactor to receive messages on
-      rin <- atomically newTChan :: IO (TChan ReactorInput)
-      void $
-        runServerWithHandles
-          ioLogger
-          lspLogger
-          inHandle
-          outHandle
-          $
-          ServerDefinition
-            { parseConfig = const $ const $ Right (),
-              onConfigChange = const $ pure (),
-              defaultConfig = (),
-              
-              configSection = T.pack "koka",
-              -- Two threads, the request thread and the message thread (so we can send messages to the client, while the compilation is happening)
-              doInitialize = \env _ -> forkIO (reactor rin) >> forkIO (messageHandler messageChan env state) >> forkIO (progressHandler progressChan env state) >> pure (Right env),
-              staticHandlers = \_caps -> lspHandlers rin,
-              interpretHandler = \env -> Iso (\lsm -> runLSM lsm state env) liftIO,
-              options =
-                defaultOptions
-                  { optTextDocumentSync = Just syncOptions,
-                    optExecuteCommandCommands = Just [T.pack "koka/compile", T.pack "koka/compileFunction", T.pack "koka/signature-help/set-context", T.pack "koka/set-colors"],
-                    optCompletionTriggerCharacters = Just ['.', ':', '/', ' ', ']', '}'],
-                    optSignatureHelpTriggerCharacters = Just ['(', ',', ' '],
-                  -- TODO: ? https://www.stackage.org/haddock/lts-18.21/lsp-1.2.0.0/src/Language.LSP.Server.Core.html#Options
-                    optProgressStartDelay = 100000, -- Microseconds (100ms) don't send progress if the task finishes quickly
-                    optProgressUpdateDelay = 20000 -- Microseconds (20ms) send progress updates at most every 20ms for long running tasks
-                  }
-            }
-    -- io logger, prints all log level messages to stdout or stderr
-    ioLogger :: LogAction IO (WithSeverity LspServerLog)
-    ioLogger = L.cmap show (if useStdio then L.logStringStderr else L.logStringStdout)
-    -- lsp logger, prints all messages to stdout or stderr and to the client
-    lspLogger :: LogAction (LspM config) (WithSeverity LspServerLog)
-    lspLogger =
-      let clientLogger = L.cmap (fmap (T.pack . show)) defaultClientLogger
-      in clientLogger <> L.hoistLogAction liftIO ioLogger
-    syncOptions =
-      J.TextDocumentSyncOptions
-        (Just True) -- open/close notifications
-        (Just J.TextDocumentSyncKind_Incremental) -- changes
-        (Just False) -- will save
-        (Just False) -- will save (wait until requests are sent to server)
-        (Just $ J.InR $ J.SaveOptions $ Just False) -- trigger on save, but dont send document
+  if useStdio
+    then runWithHandles flags stdin stdout True
+    else catchJust (guard . isDoesNotExistError)
+           (connect "127.0.0.1" (show $ languageServerPort flags) (\(socket, _) -> do
+              handle <- socketToHandle socket ReadWriteMode
+              runWithHandles flags handle handle False))
+           (\_ -> die $ "nothing was listening on port " ++ show (languageServerPort flags))
 
--- Handles messages to send to the client, just spins and sends
+runWithHandles :: Flags -> Handle -> Handle -> Bool -> IO ()
+runWithHandles flags inHandle outHandle useStdio = do
+  state <- newLSStateVar flags
+  messageChan <- liftIO $ messages <$> readMVar state
+  progressChan <- liftIO $ progress <$> readMVar state
+  rin <- atomically newTChan :: IO (TChan ReactorInput)
+  void $
+    runServerWithHandles
+      (kokaIoLogger useStdio)
+      kokaLspLogger
+      inHandle
+      outHandle
+      (serverDef flags rin state messageChan progressChan)
+#endif
+
+-- ── Shared server definition ────────────────────────────────────────────
+
+serverDef :: Flags -> TChan ReactorInput -> MVar LSState
+          -> TChan (String, J.MessageType) -> TChan (Double, String)
+          -> ServerDefinition ()
+serverDef flags rin state messageChan progressChan =
+  ServerDefinition
+    { parseConfig = const $ const $ Right (),
+      onConfigChange = const $ pure (),
+      defaultConfig = (),
+      configSection = T.pack "koka",
+      doInitialize = \env _ ->
+        forkIO (reactor rin) >>
+        forkIO (messageHandler messageChan env state) >>
+        forkIO (progressHandler progressChan env state) >>
+        pure (Right env),
+      staticHandlers = \_caps -> lspHandlers rin,
+      interpretHandler = \env -> Iso (\lsm -> runLSM lsm state env) liftIO,
+      options = defaultOptions
+        { optTextDocumentSync = Just syncOptions,
+          optExecuteCommandCommands = Just
+            [ T.pack "koka/compile"
+            , T.pack "koka/compileFunction"
+            , T.pack "koka/signature-help/set-context"
+            , T.pack "koka/set-colors"
+            ],
+          optCompletionTriggerCharacters = Just ['.', ':', '/', ' ', ']', '}'],
+          optSignatureHelpTriggerCharacters = Just ['(', ',', ' '],
+          optSignatureHelpRetriggerCharacters = Just [')'],
+          optProgressStartDelay = 100000,  -- 100ms
+          optProgressUpdateDelay = 20000   -- 20ms
+        }
+    }
+
+-- ── Shared helpers ──────────────────────────────────────────────────────
+
+syncOptions :: J.TextDocumentSyncOptions
+syncOptions =
+  J.TextDocumentSyncOptions
+    (Just True)                                     -- open/close notifications
+    (Just J.TextDocumentSyncKind_Incremental)       -- changes
+    (Just False)                                    -- will save
+    (Just False)                                    -- will save wait until
+    (Just $ J.InR $ J.SaveOptions $ Just False)     -- trigger on save
+
+kokaIoLogger :: Bool -> LogAction IO (WithSeverity LspServerLog)
+kokaIoLogger useStdio = L.cmap show (if useStdio then L.logStringStderr else L.logStringStdout)
+
+kokaLspLogger :: LogAction (LspM config) (WithSeverity LspServerLog)
+kokaLspLogger =
+  let clientLogger = L.cmap (fmap (T.pack . show)) defaultClientLogger
+  in clientLogger <> L.hoistLogAction liftIO (kokaIoLogger True)
+
 messageHandler :: TChan (String, J.MessageType) -> LanguageContextEnv () -> MVar LSState -> IO ()
-messageHandler msgs env state = do
+messageHandler msgs env state =
   forever $ do
     (msg, msgType) <- atomically $ readTChan msgs
     runLSM (sendNotification J.SMethod_WindowLogMessage $ J.LogMessageParams msgType $ T.pack msg) state env
 
--- Handles messages to send to the client, just spins and sends
-progressHandler :: TChan (Double,String) -> LanguageContextEnv () -> MVar LSState -> IO ()
-progressHandler msgs env state = do
+progressHandler :: TChan (Double, String) -> LanguageContextEnv () -> MVar LSState -> IO ()
+progressHandler msgs env state =
   forever $ do
     (pct, msg) <- atomically $ readTChan msgs
     runLSM (do
-        -- trace ("Progress: " <> show pct <> "%") $ return ()
         report <- getProgress
         case report of
-          Just report -> do
-            -- trace ("Progress Reporting: " <> show pct <> "% " <> show (round amt)) $ return ()
-            report (J.ProgressAmount (Just (round pct)) (Just $ T.pack msg))
-          Nothing -> return ()
+          Just report -> report (J.ProgressAmount (Just (round pct)) (Just $ T.pack msg))
+          Nothing     -> return ()
       ) state env
 
--- Runs in a loop, getting the next queued request and executing it
 reactor :: TChan ReactorInput -> IO ()
-reactor inp = do
+reactor inp =
   forever $ do
     ReactorAction act <- atomically $ readTChan inp
     act

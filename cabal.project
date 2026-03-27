@@ -1,0 +1,18 @@
+packages: .
+
+-- Forked lsp package with optional websockets support
+-- (websockets depends on network which can't build on WASI)
+-- See: https://github.com/TimWhiting/lsp/tree/wasm-websockets-flag
+source-repository-package
+  type: git
+  location: https://github.com/TimWhiting/lsp.git
+  tag: e744cb200cc054a06d9fd698bf4263a9cb1b51b1
+  subdir: lsp
+
+source-repository-package
+  type: git
+  location: https://github.com/TimWhiting/lsp.git
+  tag: e744cb200cc054a06d9fd698bf4263a9cb1b51b1
+  subdir: lsp-types
+
+constraints: lsp -websockets

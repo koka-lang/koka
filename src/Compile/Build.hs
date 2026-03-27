@@ -44,7 +44,7 @@ import Control.Concurrent.QSem
 import Control.Concurrent.Async (mapConcurrently)
 import Control.Concurrent.Chan
 import Control.Concurrent
-import System.Directory ( doesFileExist )
+import Platform.FileIO ( doesFileExist )
 
 import Lib.Scc( scc )
 import Lib.PPrint
@@ -684,8 +684,12 @@ moduleLoadLibIface mod
        (core,parseInlines) <- liftIOError $ parseCore (modLibIfacePath mod) (modSourcePath mod)
        flags   <- getFlags
        pooledIO $ copyLibIfaceToOutput flags (modLibIfacePath mod) (modIfacePath mod) core
-       ftIface <- getFileTime (modIfacePath mod) -- update interface time or we load from that next time around
-       return (modFromIface core parseInlines mod){ modLibIfaceTime = ftIface }
+       -- Use both timestamps: ifacePath for the copy, libIfacePath for the original.
+       -- On WASI, setFileTime is a no-op so the copy's mtime won't match the source.
+       -- We need to record the lib iface time so moduleValidate doesn't see it as stale.
+       ftIface    <- getFileTime (modIfacePath mod)
+       ftLibIface <- getFileTime (modLibIfacePath mod)
+       return (modFromIface core parseInlines mod){ modIfaceTime = ftIface, modLibIfaceTime = ftLibIface }
 
 modFromIface :: Core.Core -> Maybe (Gamma -> Error () [Core.InlineDef]) -> Module -> Module
 modFromIface core parseInlines mod

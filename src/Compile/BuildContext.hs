@@ -45,6 +45,7 @@ module Compile.BuildContext ( BuildContext
 
                             , Definitions(..), Build
                             , VFS(..), withVFS, noVFS
+                            , withVirtualModule
                             ) where
 
 
