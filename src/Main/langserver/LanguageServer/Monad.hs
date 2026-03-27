@@ -73,7 +73,7 @@ import Syntax.RangeMap( RangeMap )
 import Syntax.Lexeme( Lexeme )
 import Kind.ImportMap (importsEmpty)
 import qualified Type.Pretty as TP
-import Compile.Options (Flags (..), prettyEnvFromFlags, verbose, Terminal(..))
+import Compile.Options (Flags (..), flagsHash, prettyEnvFromFlags, verbose, Terminal(..))
 import Compile.BuildContext
 import LanguageServer.Conversions ({-toLspUri,-} fromLspUri)
 
@@ -335,8 +335,9 @@ liftBuildWith mbFlags action
        res <- seq flgs $ seq VFS $ liftIO $ runBuild (terminal ls) flgs $ withVFS vfs $ action (buildContext ls)
        case res of
          Left errs               -> return (Left errs)
-         Right ((buildc,x),errs) -> do when (isNothing mbFlags) $
-                                          modifyLSState (\ls -> ls{ buildContext = buildc })
+         Right ((buildc,x),errs) -> do modifyLSState (\ls -> 
+                                          if (flagsHash (flags ls) == flagsHash flgs) then ls{ buildContext = buildc }
+                                          else ls)
                                        return (Right (x,errs))
 
 
