@@ -165,6 +165,13 @@ fun deploy() : io ()
   else
     warn("WASM LSP binary not found")
 
+  // Koka icons
+  val icons-dir = "support/vscode/koka.language-koka/images".path
+  copy-file(icons-dir / "koka-logo-filled.svg", pdir / "koka-icon.svg")
+  copy-file(icons-dir / "koka-logo-filled-dark.svg", pdir / "koka-icon-dark.svg")
+  copy-file(icons-dir / "koka-logo-filled-light.svg", pdir / "koka-icon-light.svg")
+  info("Copied Koka icons")
+
   // Stdlib sources
   copy-directory("lib/std".path, pdir / "lib" / "std")
   info("Copied stdlib sources")
